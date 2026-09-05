@@ -1,0 +1,414 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		13EBF2E4FF1A342F7E9276F5 /* DiscoveryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 837C3D56BCBE32E05C655435 /* DiscoveryView.swift */; };
+		42E4F959B2DAAF7D23E5D139 /* PoruchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C05B8CFA1F0761EB0BE290A3 /* PoruchApp.swift */; };
+		44443F85325E514A47C37497 /* Reminders.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FBAB471E869F5B86A32568F /* Reminders.swift */; };
+		951EF06AAA1EFB1276F0D568 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C5DDFEE404DD4F598DA33D0 /* AppModel.swift */; };
+		9DF075062CCF1FD1F72C4A0A /* MapLibre in Frameworks */ = {isa = PBXBuildFile; productRef = 9231879E3F0B11FEA295A882 /* MapLibre */; };
+		A37CC2DD4E0611B9D7AD7992 /* AccountAndDetails.swift in Sources */ = {isa = PBXBuildFile; fileRef = C69D1E6A8930A18A19551C34 /* AccountAndDetails.swift */; };
+		BB46274833515DEABB878F98 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 2028C0857000504373B0CF5C /* Localizable.xcstrings */; };
+		D988E6A6FCE8ED9F99866C3D /* EventMap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 712B587489CD231C645652C8 /* EventMap.swift */; };
+		FD4C22CA5E51D45B968201C0 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C2C28ECC9E6CE535C692120F /* Foundation.framework */; };
+		FF144AF2DFBE6666C0A72B61 /* EventEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EC9C6FCC324F82F9104A852 /* EventEditor.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		2028C0857000504373B0CF5C /* Localizable.xcstrings */ = {isa = PBXFileReference; includeInIndex = 1; path = Localizable.xcstrings; sourceTree = "<group>"; };
+		618789C05028D745C7564123 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		6D705A65FCCD2B71ACD7CE44 /* Poruch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Poruch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		712B587489CD231C645652C8 /* EventMap.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = EventMap.swift; sourceTree = "<group>"; };
+		7FBAB471E869F5B86A32568F /* Reminders.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Reminders.swift; sourceTree = "<group>"; };
+		837C3D56BCBE32E05C655435 /* DiscoveryView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DiscoveryView.swift; sourceTree = "<group>"; };
+		8AB3FF21AA8E71BFEFAE8885 /* Config.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
+		8C5DDFEE404DD4F598DA33D0 /* AppModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		8EC9C6FCC324F82F9104A852 /* EventEditor.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = EventEditor.swift; sourceTree = "<group>"; };
+		C05B8CFA1F0761EB0BE290A3 /* PoruchApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PoruchApp.swift; sourceTree = "<group>"; };
+		C2C28ECC9E6CE535C692120F /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
+		C69D1E6A8930A18A19551C34 /* AccountAndDetails.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AccountAndDetails.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		031EF4652178F4DE5DCE003F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FD4C22CA5E51D45B968201C0 /* Foundation.framework in Frameworks */,
+				9DF075062CCF1FD1F72C4A0A /* MapLibre in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		3F0D5AA0F1A0EE0655FDC90F /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				6D705A65FCCD2B71ACD7CE44 /* Poruch.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		80E6A3A99B37879F3465DB7C /* Poruch */ = {
+			isa = PBXGroup;
+			children = (
+				C69D1E6A8930A18A19551C34 /* AccountAndDetails.swift */,
+				8C5DDFEE404DD4F598DA33D0 /* AppModel.swift */,
+				837C3D56BCBE32E05C655435 /* DiscoveryView.swift */,
+				8EC9C6FCC324F82F9104A852 /* EventEditor.swift */,
+				712B587489CD231C645652C8 /* EventMap.swift */,
+				C05B8CFA1F0761EB0BE290A3 /* PoruchApp.swift */,
+				7FBAB471E869F5B86A32568F /* Reminders.swift */,
+				618789C05028D745C7564123 /* Info.plist */,
+				2028C0857000504373B0CF5C /* Localizable.xcstrings */,
+			);
+			name = Poruch;
+			path = Poruch;
+			sourceTree = "<group>";
+		};
+		B16C52DA2B2F20D79929F015 /* iOS */ = {
+			isa = PBXGroup;
+			children = (
+				C2C28ECC9E6CE535C692120F /* Foundation.framework */,
+			);
+			name = iOS;
+			sourceTree = "<group>";
+		};
+		B7948B3A7555B2B8EB9535DE /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				B16C52DA2B2F20D79929F015 /* iOS */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		DAA39DC22065C741307771F6 = {
+			isa = PBXGroup;
+			children = (
+				3F0D5AA0F1A0EE0655FDC90F /* Products */,
+				B7948B3A7555B2B8EB9535DE /* Frameworks */,
+				80E6A3A99B37879F3465DB7C /* Poruch */,
+				8AB3FF21AA8E71BFEFAE8885 /* Config.xcconfig */,
+			);
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		D6C123BAD5BA0BB790567BB5 /* Poruch */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = FC7DFD88563093210D5B28E7 /* Build configuration list for PBXNativeTarget "Poruch" */;
+			buildPhases = (
+				742F0007031402B0A74DD0DF /* Sources */,
+				031EF4652178F4DE5DCE003F /* Frameworks */,
+				9F8704C9B0DDDA7ED885C1CA /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Poruch;
+			packageProductDependencies = (
+				9231879E3F0B11FEA295A882 /* MapLibre */,
+			);
+			productName = Poruch;
+			productReference = 6D705A65FCCD2B71ACD7CE44 /* Poruch.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		F341038CEA7A9D6AF12C7C71 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastSwiftUpdateCheck = 1600;
+				LastUpgradeCheck = 1600;
+			};
+			buildConfigurationList = 7ACF81559BEF66928F095B65 /* Build configuration list for PBXProject "Poruch" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = uk;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				uk,
+				Base,
+			);
+			mainGroup = DAA39DC22065C741307771F6;
+			minimizedProjectReferenceProxies = 0;
+			packageReferences = (
+				00418E938B5CF332FA864AAA /* XCRemoteSwiftPackageReference "maplibre-gl-native-distribution" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 3F0D5AA0F1A0EE0655FDC90F /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				D6C123BAD5BA0BB790567BB5 /* Poruch */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		9F8704C9B0DDDA7ED885C1CA /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BB46274833515DEABB878F98 /* Localizable.xcstrings in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		742F0007031402B0A74DD0DF /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A37CC2DD4E0611B9D7AD7992 /* AccountAndDetails.swift in Sources */,
+				951EF06AAA1EFB1276F0D568 /* AppModel.swift in Sources */,
+				13EBF2E4FF1A342F7E9276F5 /* DiscoveryView.swift in Sources */,
+				FF144AF2DFBE6666C0A72B61 /* EventEditor.swift in Sources */,
+				D988E6A6FCE8ED9F99866C3D /* EventMap.swift in Sources */,
+				42E4F959B2DAAF7D23E5D139 /* PoruchApp.swift in Sources */,
+				44443F85325E514A47C37497 /* Reminders.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		337351477FC2EC4D5FF7229C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		7512E1FB783B110BAFF88E18 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 8AB3FF21AA8E71BFEFAE8885 /* Config.xcconfig */;
+			buildSettings = {
+				ARCHS = arm64;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				"FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]" = (
+					"$(inherited)",
+					"$(SRCROOT)/../shared/build/bin/iosArm64/debugFramework",
+				);
+				"FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]" = (
+					"$(inherited)",
+					"$(SRCROOT)/../shared/build/bin/iosSimulatorArm64/debugFramework",
+				);
+				INFOPLIST_FILE = Poruch/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-framework",
+					Shared,
+					"-lsqlite3",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = app.poruch.ios;
+				SDKROOT = iphoneos;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		7C0C6F7374DEFFFD41E154D0 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 8AB3FF21AA8E71BFEFAE8885 /* Config.xcconfig */;
+			buildSettings = {
+				ARCHS = arm64;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				"FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]" = (
+					"$(inherited)",
+					"$(SRCROOT)/../shared/build/bin/iosArm64/debugFramework",
+				);
+				"FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]" = (
+					"$(inherited)",
+					"$(SRCROOT)/../shared/build/bin/iosSimulatorArm64/debugFramework",
+				);
+				INFOPLIST_FILE = Poruch/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-framework",
+					Shared,
+					"-lsqlite3",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = app.poruch.ios;
+				SDKROOT = iphoneos;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		85FE770AFC6B2E58E9FD7102 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		7ACF81559BEF66928F095B65 /* Build configuration list for PBXProject "Poruch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				85FE770AFC6B2E58E9FD7102 /* Debug */,
+				337351477FC2EC4D5FF7229C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		FC7DFD88563093210D5B28E7 /* Build configuration list for PBXNativeTarget "Poruch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7C0C6F7374DEFFFD41E154D0 /* Release */,
+				7512E1FB783B110BAFF88E18 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		00418E938B5CF332FA864AAA /* XCRemoteSwiftPackageReference "maplibre-gl-native-distribution" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/maplibre/maplibre-gl-native-distribution";
+			requirement = {
+				kind = exactVersion;
+				version = 6.28.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		9231879E3F0B11FEA295A882 /* MapLibre */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 00418E938B5CF332FA864AAA /* XCRemoteSwiftPackageReference "maplibre-gl-native-distribution" */;
+			productName = MapLibre;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = F341038CEA7A9D6AF12C7C71 /* Project object */;
+}

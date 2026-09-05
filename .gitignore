@@ -1,0 +1,11 @@
+**/build/
+.gradle/
+.kotlin/
+local.properties
+**/xcuserdata/
+**/DerivedData/
+**/Config.local.xcconfig
+.DS_Store
+
+**/.build/
+supabase/.temp/

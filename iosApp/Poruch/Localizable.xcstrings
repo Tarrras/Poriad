@@ -1,0 +1,936 @@
+{
+  "sourceLanguage": "uk",
+  "strings": {
+    "Геолокація недоступна. Ви можете знайти місто вручну.": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Геолокація недоступна. Ви можете знайти місто вручну."
+          }
+        }
+      }
+    },
+    "Не вдалося визначити місце. Скористайтеся пошуком міста.": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не вдалося визначити місце. Скористайтеся пошуком міста."
+          }
+        }
+      }
+    },
+    "Усі": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Усі"
+          }
+        }
+      }
+    },
+    "Музика": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Музика"
+          }
+        }
+      }
+    },
+    "Спорт": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Спорт"
+          }
+        }
+      }
+    },
+    "Мистецтво": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Мистецтво"
+          }
+        }
+      }
+    },
+    "Їжа": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Їжа"
+          }
+        }
+      }
+    },
+    "Ігри": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ігри"
+          }
+        }
+      }
+    },
+    "Природа": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Природа"
+          }
+        }
+      }
+    },
+    "Зустрічі": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Зустрічі"
+          }
+        }
+      }
+    },
+    "Поки немає подій": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Поки немає подій"
+          }
+        }
+      }
+    },
+    "Змініть область або фільтри. Або створіть першу подію.": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Змініть область або фільтри. Або створіть першу подію."
+          }
+        }
+      }
+    },
+    "Шукати тут": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Шукати тут"
+          }
+        }
+      }
+    },
+    "Поруч зі мною": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Поруч зі мною"
+          }
+        }
+      }
+    },
+    "Створити": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Створити"
+          }
+        }
+      }
+    },
+    "Закрити картку": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Закрити картку"
+          }
+        }
+      }
+    },
+    "Київ": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Київ"
+          }
+        }
+      }
+    },
+    "Показати мапу": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Показати мапу"
+          }
+        }
+      }
+    },
+    "Показати список": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Показати список"
+          }
+        }
+      }
+    },
+    "Будь-коли": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Будь-коли"
+          }
+        }
+      }
+    },
+    "Сьогодні": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сьогодні"
+          }
+        }
+      }
+    },
+    "Вихідні": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вихідні"
+          }
+        }
+      }
+    },
+    "Є місця": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Є місця"
+          }
+        }
+      }
+    },
+    "Офлайн · останні результати": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Офлайн · останні результати"
+          }
+        }
+      }
+    },
+    "Геолокація": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Геолокація"
+          }
+        }
+      }
+    },
+    "Добре": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Добре"
+          }
+        }
+      }
+    },
+    "Місто у світі": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Місто у світі"
+          }
+        }
+      }
+    },
+    "Знайти місто": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Знайти місто"
+          }
+        }
+      }
+    },
+    "Готово": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Готово"
+          }
+        }
+      }
+    },
+    "Що плануємо?": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Що плануємо?"
+          }
+        }
+      }
+    },
+    "Назва події": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Назва події"
+          }
+        }
+      }
+    },
+    "Розкажіть про подію": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Розкажіть про подію"
+          }
+        }
+      }
+    },
+    "Категорія": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Категорія"
+          }
+        }
+      }
+    },
+    "Посилання на фото (необов’язково)": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Посилання на фото (необов’язково)"
+          }
+        }
+      }
+    },
+    "Місце зустрічі": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Місце зустрічі"
+          }
+        }
+      }
+    },
+    "Місто": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Місто"
+          }
+        }
+      }
+    },
+    "Адреса": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Адреса"
+          }
+        }
+      }
+    },
+    "Широта": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Широта"
+          }
+        }
+      }
+    },
+    "Довгота": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Довгота"
+          }
+        }
+      }
+    },
+    "Перемістіть мапу: центр визначає точку зустрічі.": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Перемістіть мапу: центр визначає точку зустрічі."
+          }
+        }
+      }
+    },
+    "Коли й скільки людей": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Коли й скільки людей"
+          }
+        }
+      }
+    },
+    "Початок": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Початок"
+          }
+        }
+      }
+    },
+    "Закінчення": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Закінчення"
+          }
+        }
+      }
+    },
+    "Часовий пояс IANA": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Часовий пояс IANA"
+          }
+        }
+      }
+    },
+    "Перевірка": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Перевірка"
+          }
+        }
+      }
+    },
+    "Опублікувати подію": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Опублікувати подію"
+          }
+        }
+      }
+    },
+    "Зберегти зміни": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Зберегти зміни"
+          }
+        }
+      }
+    },
+    "Зберігаємо…": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Зберігаємо…"
+          }
+        }
+      }
+    },
+    "Далі": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Далі"
+          }
+        }
+      }
+    },
+    "Назад": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Назад"
+          }
+        }
+      }
+    },
+    "Нова подія": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нова подія"
+          }
+        }
+      }
+    },
+    "Редагування": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Редагування"
+          }
+        }
+      }
+    },
+    "Закрити": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Закрити"
+          }
+        }
+      }
+    },
+    "Подію скасовано": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Подію скасовано"
+          }
+        }
+      }
+    },
+    "Ви берете участь · Вийти": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ви берете участь · Вийти"
+          }
+        }
+      }
+    },
+    "Місць немає": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Місць немає"
+          }
+        }
+      }
+    },
+    "Приєднатися": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Приєднатися"
+          }
+        }
+      }
+    },
+    "Збережено": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Збережено"
+          }
+        }
+      }
+    },
+    "Зберегти": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Зберегти"
+          }
+        }
+      }
+    },
+    "Редагувати подію": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Редагувати подію"
+          }
+        }
+      }
+    },
+    "Скасувати подію": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Скасувати подію"
+          }
+        }
+      }
+    },
+    "Скасувати цю подію? Учасники бачитимуть її скасованою.": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Скасувати цю подію? Учасники бачитимуть її скасованою."
+          }
+        }
+      }
+    },
+    "Про подію": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Про подію"
+          }
+        }
+      }
+    },
+    "Події": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Події"
+          }
+        }
+      }
+    },
+    "Відвідую": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Відвідую"
+          }
+        }
+      }
+    },
+    "Організовую": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Організовую"
+          }
+        }
+      }
+    },
+    "Збережені": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Збережені"
+          }
+        }
+      }
+    },
+    "Увійдіть у профіль": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Увійдіть у профіль"
+          }
+        }
+      }
+    },
+    "Тут будуть ваші події": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Тут будуть ваші події"
+          }
+        }
+      }
+    },
+    "Знаходьте цікаве, приєднуйтеся та зберігайте на потім.": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Знаходьте цікаве, приєднуйтеся та зберігайте на потім."
+          }
+        }
+      }
+    },
+    "Мої події": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Мої події"
+          }
+        }
+      }
+    },
+    "Більше спільного — поруч": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Більше спільного — поруч"
+          }
+        }
+      }
+    },
+    "Ви увійшли": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ви увійшли"
+          }
+        }
+      }
+    },
+    "Зберігайте плани, зустрічайте людей і створюйте власні події.": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Зберігайте плани, зустрічайте людей і створюйте власні події."
+          }
+        }
+      }
+    },
+    "Створити профіль": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Створити профіль"
+          }
+        }
+      }
+    },
+    "Вхід": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вхід"
+          }
+        }
+      }
+    },
+    "Ваше ім’я": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ваше ім’я"
+          }
+        }
+      }
+    },
+    "Електронна пошта": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Електронна пошта"
+          }
+        }
+      }
+    },
+    "Пароль": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пароль"
+          }
+        }
+      }
+    },
+    "Зареєструватися": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Зареєструватися"
+          }
+        }
+      }
+    },
+    "Увійти": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Увійти"
+          }
+        }
+      }
+    },
+    "Уже є профіль? Увійти": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Уже є профіль? Увійти"
+          }
+        }
+      }
+    },
+    "Нагадування": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нагадування"
+          }
+        }
+      }
+    },
+    "За годину до події": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "За годину до події"
+          }
+        }
+      }
+    },
+    "Дозвольте сповіщення в налаштуваннях iOS.": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Дозвольте сповіщення в налаштуваннях iOS."
+          }
+        }
+      }
+    },
+    "Вийти": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вийти"
+          }
+        }
+      }
+    },
+    "Про застосунок": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Про застосунок"
+          }
+        }
+      }
+    },
+    "Поруч — події та люди у вашому місті.": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Поруч — події та люди у вашому місті."
+          }
+        }
+      }
+    },
+    "Мапа: MapLibre, демонстраційний стиль. Джерела й атрибуція доступні на мапі.": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Мапа: MapLibre, демонстраційний стиль. Джерела й атрибуція доступні на мапі."
+          }
+        }
+      }
+    },
+    "Профіль": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Профіль"
+          }
+        }
+      }
+    },
+    "Мапа": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Мапа"
+          }
+        }
+      }
+    },
+    "Поруч": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Поруч"
+          }
+        }
+      }
+    },
+    "Зрозуміло": {
+      "localizations": {
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Зрозуміло"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

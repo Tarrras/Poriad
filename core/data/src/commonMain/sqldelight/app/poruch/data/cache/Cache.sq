@@ -1,0 +1,10 @@
+CREATE TABLE cached_response (
+    cache_key TEXT NOT NULL PRIMARY KEY,
+    payload TEXT NOT NULL
+);
+read:
+SELECT payload FROM cached_response WHERE cache_key = ?;
+write:
+INSERT OR REPLACE INTO cached_response(cache_key, payload) VALUES (?, ?);
+clearAll:
+DELETE FROM cached_response;
