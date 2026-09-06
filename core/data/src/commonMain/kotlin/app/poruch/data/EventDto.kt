@@ -9,7 +9,8 @@ internal data class EventDto(
     val id: String, val title: String, val description: String, val category: String,
     val city: String, val address: String,
     @SerialName("organizer_id") val organizerId: String,
-    @SerialName("organizer_name") val organizerName: String = "Організатор",
+    // Blank when the organizer has no public profile yet; naming the fallback is the UI's job.
+    @SerialName("organizer_name") val organizerName: String = "",
     @SerialName("starts_at") val startsAt: String,
     @SerialName("ends_at") val endsAt: String,
     @SerialName("time_zone") val timeZone: String,
@@ -19,4 +20,13 @@ internal data class EventDto(
     @SerialName("image_url") val imageUrl: String? = null
 ) {
     fun domain() = Event(id,title,description,category,city,address,organizerId,organizerName,startsAt,endsAt,timeZone,status,latitude,longitude,capacity,attendeeCount,joined,imageUrl)
+}
+
+@Serializable
+internal data class AttendeeDto(
+    @SerialName("user_id") val userId: String,
+    @SerialName("display_name") val displayName: String,
+    @SerialName("avatar_url") val avatarUrl: String? = null
+) {
+    fun domain() = app.poruch.domain.Attendee(userId, displayName, avatarUrl)
 }

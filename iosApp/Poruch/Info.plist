@@ -14,5 +14,7 @@
 <key>NSLocationWhenInUseUsageDescription</key><string>Щоб знайти події поруч із вами. Також можна обрати місто вручну.</string>
 <key>SUPABASE_URL</key><string>$(SUPABASE_URL)</string>
 <key>SUPABASE_PUBLISHABLE_KEY</key><string>$(SUPABASE_PUBLISHABLE_KEY)</string>
+<key>NSCalendarsWriteOnlyAccessUsageDescription</key><string>Щоб додати подію у ваш календар.</string>
 <key>MAP_STYLE_URL</key><string>$(MAP_STYLE_URL)</string>
+<key>MAP_STYLE_DARK_URL</key><string>$(MAP_STYLE_DARK_URL)</string>
 </dict></plist>

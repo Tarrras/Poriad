@@ -6,3 +6,11 @@ plugins {
     id("com.android.kotlin.multiplatform.library") version "9.0.1" apply false
     id("app.cash.sqldelight") version "2.1.0" apply false
 }
+
+// androidApp compiles at JVM 17 while the KMP android targets default to 21. An inline function
+// crossing that boundary cannot be inlined, so every module is pinned to the app's level.
+subprojects {
+    tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile>().configureEach {
+        compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
+}

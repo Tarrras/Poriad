@@ -56,8 +56,11 @@ class SupabaseAuthRepository(private val api: ApiClient, private val store: Secu
             val result = api.request("/auth/v1/token", HttpMethod.Post, buildJsonObject { put("refresh_token", session.refreshToken) }, query=mapOf("grant_type" to "refresh_token"))
             persist(result.jsonObject)
             mutable.value?.accessToken
-        } catch (e: AppException) {
-            if (e.kind == Failure.AUTH || e.kind == Failure.VALIDATION) { store.clear(); mutable.value = null }
+        } catch (e: AppFailure) {
+            // A refused refresh means the stored session is spent; anything else may be transient.
+            if (e.error is AppError.SessionRequired || e.error is AppError.InvalidCredentials || e.error is AppError.Rejected) {
+                store.clear(); mutable.value = null
+            }
             throw e
         }
     }
@@ -71,8 +74,8 @@ class SupabaseAuthRepository(private val api: ApiClient, private val store: Secu
         val parsed = Url(url)
         require(parsed.protocol.name == "poruch" && parsed.host == "auth" && parsed.encodedPath == "/callback")
         val values = parseQueryString(parsed.fragment)
-        val token = values["access_token"] ?: throw AppException(Failure.AUTH,"Посилання не містить сесії. Увійдіть після підтвердження email")
-        val refresh = values["refresh_token"] ?: throw AppException(Failure.AUTH,"Відкрийте нове посилання з листа")
+        val token = values["access_token"] ?: fail(AppError.SessionRequired)
+        val refresh = values["refresh_token"] ?: fail(AppError.SessionRequired)
         // Validate the bearer with Auth before trusting any incoming deep-link identity.
         val user = api.request("/auth/v1/user", token=token).jsonObject
         persist(buildJsonObject {

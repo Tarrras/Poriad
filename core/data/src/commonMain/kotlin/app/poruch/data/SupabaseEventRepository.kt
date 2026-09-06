@@ -12,9 +12,10 @@ class SupabaseEventRepository(private val api: ApiClient, private val auth: Auth
     override suspend fun discover(query: EventQuery): List<Event> {
         val owner = auth.session.value?.userId
         val key = cacheKey(query,owner)
-        val response = rpc("events_in_view", buildJsonObject {
+        val response = rpc("search_events_in_view", buildJsonObject {
             put("p_south",query.south); put("p_west",query.west); put("p_north",query.north); put("p_east",query.east)
             put("p_category",query.category?.let(::JsonPrimitive) ?: JsonNull)
+            put("p_text",query.text?.let(::JsonPrimitive) ?: JsonNull); put("p_available",query.available)
             put("p_from",query.from?.let(::JsonPrimitive) ?: JsonNull); put("p_to",query.to?.let(::JsonPrimitive) ?: JsonNull)
         })
         val rows = api.json.decodeFromJsonElement<List<EventDto>>(response)
@@ -26,7 +27,12 @@ class SupabaseEventRepository(private val api: ApiClient, private val auth: Auth
     } ?: emptyList()
     override suspend fun details(id: String): Event? = api.json.decodeFromJsonElement<List<EventDto>>(rpc("event_details", idParams(id))).firstOrNull()?.domain()
     override suspend fun myEvents(): List<Event> = api.json.decodeFromJsonElement<List<EventDto>>(rpc("my_events",buildJsonObject {})).map { it.domain() }
-    private fun userId() = auth.session.value?.userId ?: throw AppException(Failure.AUTH,"Увійдіть, щоб продовжити")
+    override suspend fun attendees(id: String): List<Attendee> {
+        if (auth.session.value == null) return emptyList()
+        val params = buildJsonObject { put("p_event_id",id); put("p_limit",24) }
+        return api.json.decodeFromJsonElement<List<AttendeeDto>>(rpc("event_attendees",params)).map { it.domain() }
+    }
+    private fun userId() = auth.session.value?.userId ?: fail(AppError.SessionRequired)
     override suspend fun savedIds(): List<String> {
         val uid = userId()
         return api.request("/rest/v1/saved_events", token=auth.accessToken(), query=mapOf("select" to "event_id", "user_id" to "eq.$uid")).jsonArray.map { it.jsonObject.string("event_id") }
@@ -42,11 +48,14 @@ class SupabaseEventRepository(private val api: ApiClient, private val auth: Auth
     override suspend fun join(id: String) { rpc("join_event",idParams(id)) }
     override suspend fun leave(id: String) { rpc("leave_event",idParams(id)) }
     override suspend fun cancel(id: String) { rpc("cancel_event",idParams(id)) }
+    override suspend fun waitlistIds(): List<String> = rpc("my_waitlist",buildJsonObject {}).jsonArray.map { it.jsonPrimitive.content }
+    override suspend fun joinWaitlist(id: String) { rpc("join_waitlist",idParams(id)) }
+    override suspend fun leaveWaitlist(id: String) { rpc("leave_waitlist",idParams(id)) }
     @OptIn(kotlin.uuid.ExperimentalUuidApi::class)
     override suspend fun uploadImage(eventId: String, bytes: ByteArray, contentType: String): String {
-        val extension=when(contentType) { "image/jpeg" -> "jpg"; "image/png" -> "png"; "image/webp" -> "webp"; else -> throw AppException(Failure.VALIDATION,"Оберіть JPEG, PNG або WebP") }
-        if(bytes.isEmpty() || bytes.size>5*1024*1024) throw AppException(Failure.VALIDATION,"Зображення має бути до 5 МБ")
-        val uid=userId(); val token=auth.accessToken() ?: throw AppException(Failure.AUTH,"Увійдіть, щоб додати фото")
+        val extension=ImageRules.extensions[contentType] ?: fail(AppError.InvalidDraft(listOf(DraftField.IMAGE_URL)))
+        if(bytes.isEmpty() || bytes.size>ImageRules.MAX_BYTES) fail(AppError.InvalidDraft(listOf(DraftField.IMAGE_URL)))
+        val uid=userId(); val token=auth.accessToken() ?: fail(AppError.SessionRequired)
         return api.upload("$uid/$eventId/${kotlin.uuid.Uuid.random()}.$extension",bytes,contentType,token)
     }
     override fun clearPrivateCache() { database.cacheQueries.clearAll() }

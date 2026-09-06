@@ -1,0 +1,6 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="events">
+    <output-path>$PROJECT_DIR$/feature/events/build/libs</output-path>
+    <root id="archive" name="events.jar" />
+  </artifact>
+</component>

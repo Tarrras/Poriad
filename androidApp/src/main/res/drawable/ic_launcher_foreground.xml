@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The mark is the app's own map pin, so the thing on the home screen is the thing on the map.
+  Everything sits inside the 66dp safe zone, because a launcher may crop this to a circle,
+  a squircle or a rounded square and each shape eats a different amount of the corners.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Teardrop in paper: circular head, sides drawn down to a single point. -->
+    <path
+        android:fillColor="#F5F3EE"
+        android:pathData="M54,84 C54,84 32.5,57 32.5,44 A21.5,21.5 0 1,1 75.5,44 C75.5,57 54,84 54,84 Z" />
+    <!-- The one warm note in the whole mark: you, at the place. -->
+    <path
+        android:fillColor="#D9603A"
+        android:pathData="M54,41.5 m-8.5,0 a8.5,8.5 0 1,0 17,0 a8.5,8.5 0 1,0 -17,0 Z" />
+</vector>

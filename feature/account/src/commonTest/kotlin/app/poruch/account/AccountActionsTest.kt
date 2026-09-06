@@ -22,10 +22,10 @@ class AccountActionsTest {
     }
     @Test fun whitespaceEmailIsRejectedBeforeNetwork() = runTest {
         val auth=Auth()
-        assertFailsWith<AppException> { AccountActions(auth).signIn("per son@example.com","password123") }
+        assertFailsWith<AppFailure> { AccountActions(auth).signIn("per son@example.com","password123") }
         assertFalse(auth.signedIn)
     }
     @Test fun shortPasswordIsRejected() = runTest {
-        assertFailsWith<AppException> { AccountActions(Auth()).signIn("a@b.com","123") }
+        assertFailsWith<AppFailure> { AccountActions(Auth()).signIn("a@b.com","123") }
     }
 }

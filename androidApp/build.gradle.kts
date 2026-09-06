@@ -18,6 +18,7 @@ android {
         buildConfigField("String", "SUPABASE_URL", "\"${config("SUPABASE_URL", "https://tzdogzdvctlumsqlqskr.supabase.co")}\"")
         buildConfigField("String", "SUPABASE_KEY", "\"${config("SUPABASE_KEY", "sb_publishable_RoY0wFzTOcXlmOIYC0UE-w_fOt5rXPq")}\"")
         buildConfigField("String", "MAP_STYLE_URL", "\"${config("MAP_STYLE_URL", "https://tiles.openfreemap.org/styles/positron")}\"")
+        buildConfigField("String", "MAP_STYLE_DARK_URL", "\"${config("MAP_STYLE_DARK_URL", "https://tiles.openfreemap.org/styles/dark")}\"")
     }
     buildFeatures { compose = true; buildConfig = true }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }

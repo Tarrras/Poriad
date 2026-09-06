@@ -1,0 +1,699 @@
+#!/usr/bin/env python3
+"""Single source of truth for the Poruch icon set.
+
+The icons are drawn once here, on a 24-unit grid, and emitted as native code for both platforms:
+Compose `ImageVector`s and SwiftUI `Shape`s. Hand-maintaining two copies of the same geometry is
+how icon sets drift apart, and rounded arcs are easy to get subtly wrong by hand — the circle
+helper below computes them.
+
+    python3 tools/generate_icons.py
+
+Style: 24-unit box, content within 3..21, drawn as **solid marks with punched negative space**
+rather than thin outlines — the Corner reference reads as stickers, not as line diagrams, and a
+2-unit outline set is exactly what looks like the platform default. Where a line is unavoidable
+(the steam over a bowl, the hands of a clock) it is a fat 2.6-unit stroke with round caps, so it
+still carries the weight of the solid shapes beside it.
+
+Holes are punched with the even-odd rule: one path, an outer shape, and the counters inside it.
+That is what makes a solid palette read as a palette and not as a blob.
+
+Colour is never baked in: strokes and fills are black and the platform tints them.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path as FilePath
+
+ROOT = FilePath(__file__).resolve().parent.parent
+
+# Cubic approximation of a quarter circle. Four of these draw a circle indistinguishable from one.
+K = 0.5522847498
+
+
+def move(x, y):
+    return ("M", (x, y))
+
+
+def line(x, y):
+    return ("L", (x, y))
+
+
+def curve(x1, y1, x2, y2, x, y):
+    return ("C", (x1, y1, x2, y2, x, y))
+
+
+def close():
+    return ("Z", ())
+
+
+def circle(cx, cy, r):
+    """A full circle as four cubic segments, starting at the left and going clockwise."""
+    o = r * K
+    return [
+        move(cx - r, cy),
+        curve(cx - r, cy - o, cx - o, cy - r, cx, cy - r),
+        curve(cx + o, cy - r, cx + r, cy - o, cx + r, cy),
+        curve(cx + r, cy + o, cx + o, cy + r, cx, cy + r),
+        curve(cx - o, cy + r, cx - r, cy + o, cx - r, cy),
+        close(),
+    ]
+
+
+def polyline(*points):
+    """A stroke through the given x,y pairs."""
+    pairs = list(zip(points[0::2], points[1::2]))
+    return [move(*pairs[0])] + [line(*p) for p in pairs[1:]]
+
+
+def rounded_rect(x, y, w, h, r):
+    """A rounded rectangle. Used for the fat bars and slabs the solid style is built from."""
+    o = r * K
+    return [
+        move(x + r, y),
+        line(x + w - r, y),
+        curve(x + w - r + o, y, x + w, y + r - o, x + w, y + r),
+        line(x + w, y + h - r),
+        curve(x + w, y + h - r + o, x + w - r + o, y + h, x + w - r, y + h),
+        line(x + r, y + h),
+        curve(x + r - o, y + h, x, y + h - r + o, x, y + h - r),
+        line(x, y + r),
+        curve(x, y + r - o, x + r - o, y, x + r, y),
+        close(),
+    ]
+
+
+def flat(groups):
+    """Merges several subpath lists into one path, for a single even-odd fill."""
+    return [command for group in groups for command in group]
+
+
+# --------------------------------------------------------------------------- the set
+# Each icon is (stroked subpaths, filled subpaths, even-odd filled subpaths). The third is where
+# the solid style lives: one path whose inner shapes punch holes through the outer one.
+
+ICONS: dict[str, tuple] = {}
+
+
+def icon(name, stroke=None, fill=None, punch=None, doc=""):
+    ICONS[name] = (stroke or [], fill or [], punch or [], doc)
+
+
+# ---- categories: the glyphs on tiles, map pins and the placeholder of every event without a photo
+
+icon(
+    "music",
+    fill=[
+        circle(8.9, 16.9, 3.5),
+        rounded_rect(11.5, 5.0, 2.0, 12.2, 1.0),
+        [
+            move(13.5, 5.0),
+            curve(16.9, 6.0, 19.0, 8.0, 19.0, 10.9),
+            curve(19.0, 11.8, 18.8, 12.6, 18.3, 13.3),
+            curve(18.5, 10.4, 16.7, 8.6, 13.5, 7.7),
+            close(),
+        ],
+    ],
+    doc="A solid eighth note. The flag is a crescent rather than a hooked line, so it keeps the "
+        "weight of the head beside it.",
+)
+
+icon(
+    "sport",
+    fill=[
+        rounded_rect(5.9, 3.2, 2.0, 17.6, 1.0),
+        [move(7.9, 4.4), line(19.4, 8.1), line(7.9, 12.6), close()],
+    ],
+    doc="A solid pennant. A ball would be a third circle in a set that already has two, and thin "
+        "seams across one read as a face at tile size.",
+)
+
+icon(
+    "art",
+    punch=[
+        flat([
+            circle(12, 12, 8.4),
+            circle(8.6, 9.0, 1.75),
+            circle(13.7, 7.9, 1.75),
+            circle(16.2, 12.5, 1.75),
+            circle(10.6, 15.9, 2.5),
+        ])
+    ],
+    doc="A palette: a solid disc with four wells punched through it, the largest the thumb hole. "
+        "Outlined wells on an outlined disc read as a bowling ball.",
+)
+
+icon(
+    "food",
+    stroke=[
+        [move(9.5, 8.5), curve(9.5, 7.0, 10.9, 6.5, 10.9, 4.9)],
+        [move(14.1, 8.5), curve(14.1, 7.0, 15.5, 6.5, 15.5, 4.9)],
+    ],
+    fill=[
+        [
+            move(4.2, 11.0),
+            line(19.8, 11.0),
+            curve(19.8, 15.8, 16.3, 19.7, 12.0, 19.7),
+            curve(7.7, 19.7, 4.2, 15.8, 4.2, 11.0),
+            close(),
+        ]
+    ],
+    doc="A solid bowl under two curls of steam. Cutlery at this size turns into two "
+        "indistinguishable sticks.",
+)
+
+icon(
+    "games",
+    punch=[
+        flat([
+            rounded_rect(4.4, 4.4, 15.2, 15.2, 4.4),
+            circle(9.1, 9.1, 1.7),
+            circle(12.0, 12.0, 1.7),
+            circle(14.9, 14.9, 1.7),
+        ])
+    ],
+    doc="A die on its diagonal, pips punched out of the slab. A controller has too many small "
+        "parts to survive shrinking to a map pin.",
+)
+
+icon(
+    "outdoors",
+    fill=[
+        [
+            move(12.0, 3.4),
+            line(16.6, 11.2),
+            line(14.5, 11.2),
+            line(19.0, 18.2),
+            line(5.0, 18.2),
+            line(9.5, 11.2),
+            line(7.4, 11.2),
+            close(),
+        ],
+        rounded_rect(11.0, 17.6, 2.0, 3.2, 1.0),
+    ],
+    doc="A pine as one solid silhouette with two tiers. A single triangle with a crossbar reads "
+        "as the letter A.",
+)
+
+icon(
+    "social",
+    fill=[
+        circle(16.6, 9.4, 2.6),
+        [
+            move(21.0, 19.8),
+            curve(21.0, 15.9, 19.1, 13.7, 16.6, 13.7),
+            curve(15.5, 13.7, 14.6, 14.1, 13.8, 14.7),
+            line(13.8, 19.8),
+            close(),
+        ],
+        circle(9.3, 8.5, 3.4),
+        [
+            move(2.6, 19.8),
+            curve(2.6, 15.5, 5.4, 13.1, 9.3, 13.1),
+            curve(13.2, 13.1, 16.0, 15.5, 16.0, 19.8),
+            close(),
+        ],
+    ],
+    doc="Two solid figures, one behind the other: a gathering rather than a single profile.",
+)
+
+# ---- navigation
+
+icon(
+    "home",
+    punch=[
+        flat([
+            [
+                move(12.0, 3.0),
+                line(21.4, 11.6),
+                line(18.7, 11.6),
+                line(18.7, 20.8),
+                line(5.3, 20.8),
+                line(5.3, 11.6),
+                line(2.6, 11.6),
+                close(),
+            ],
+            rounded_rect(10.1, 14.4, 3.8, 6.4, 1.5),
+        ])
+    ],
+    doc="A solid house with the door punched through it — the negative space is what keeps the "
+        "silhouette from reading as a plain pentagon.",
+)
+
+icon(
+    "map",
+    fill=[
+        [move(3.2, 6.4), line(8.3, 4.2), line(8.3, 17.6), line(3.2, 19.8), close()],
+        [move(9.5, 4.4), line(14.5, 6.8), line(14.5, 20.2), line(9.5, 17.8), close()],
+        [move(15.7, 6.8), line(20.8, 4.4), line(20.8, 17.8), line(15.7, 20.2), close()],
+    ],
+    doc="Three solid panels with real gaps between them. Fold lines drawn as hairlines inside one "
+        "shape disappear at tab-bar size.",
+)
+
+icon(
+    "calendar",
+    punch=[
+        flat(
+            [rounded_rect(3.4, 5.2, 17.2, 15.6, 3.6)]
+            # Two rows of days punched out of the lower half; the solid strip left above them is
+            # the header. Three dots alone made the slab read as a face with two antennae.
+            + [
+                rounded_rect(x, y, 2.2, 2.2, 0.7)
+                for y in (12.2, 15.9)
+                for x in (6.3, 10.9, 15.5)
+            ]
+        )
+    ],
+    fill=[rounded_rect(7.2, 2.2, 2.1, 4.6, 1.05), rounded_rect(14.7, 2.2, 2.1, 4.6, 1.05)],
+    doc="A solid page with a month grid punched out under a header strip, and two hangers over "
+        "the top.",
+)
+
+icon(
+    "person",
+    fill=[
+        circle(12, 8.2, 3.7),
+        [
+            move(4.4, 20.6),
+            curve(4.4, 16.2, 7.8, 13.7, 12.0, 13.7),
+            curve(16.2, 13.7, 19.6, 16.2, 19.6, 20.6),
+            close(),
+        ],
+    ],
+    doc="Head and shoulders as two solid masses, open at the bottom so it sits on the baseline.",
+)
+
+# ---- actions
+
+icon(
+    "search",
+    stroke=[polyline(15.3, 15.3, 19.9, 19.9)],
+    punch=[flat([circle(10.4, 10.4, 7.0), circle(10.4, 10.4, 4.0)])],
+    doc="A fat ring and a fat handle. The ring is punched rather than stroked so its weight "
+        "matches the solid glyphs beside it.",
+)
+
+icon(
+    "filters",
+    fill=[
+        rounded_rect(3.4, 5.9, 17.2, 2.5, 1.25),
+        rounded_rect(6.1, 10.75, 11.8, 2.5, 1.25),
+        rounded_rect(8.9, 15.6, 6.2, 2.5, 1.25),
+    ],
+    doc="Three narrowing slabs: filtering as a funnel, without the sliders Material draws.",
+)
+
+icon(
+    "bookmark",
+    punch=[
+        flat([
+            [move(5.2, 3.2), line(18.8, 3.2), line(18.8, 21.0), line(12.0, 15.9), line(5.2, 21.0), close()],
+            [move(7.9, 5.9), line(16.1, 5.9), line(16.1, 15.6), line(12.0, 12.5), line(7.9, 15.6), close()],
+        ])
+    ],
+    doc="A ribbon with its middle punched out, so the unsaved state is heavy without being solid.",
+)
+
+icon(
+    "bookmarkFilled",
+    fill=[[move(5.2, 3.2), line(18.8, 3.2), line(18.8, 21.0), line(12.0, 15.9), line(5.2, 21.0), close()]],
+    doc="Saved: the same ribbon, filled in.",
+)
+
+icon(
+    "plus",
+    fill=[rounded_rect(10.65, 4.6, 2.7, 14.8, 1.35), rounded_rect(4.6, 10.65, 14.8, 2.7, 1.35)],
+    doc="",
+)
+
+icon(
+    "pin",
+    punch=[
+        flat([
+            [
+                move(12.0, 21.0),
+                curve(12.0, 21.0, 4.6, 13.6, 4.6, 9.4),
+                curve(4.6, 5.4, 7.9, 2.6, 12.0, 2.6),
+                curve(16.1, 2.6, 19.4, 5.4, 19.4, 9.4),
+                curve(19.4, 13.6, 12.0, 21.0, 12.0, 21.0),
+                close(),
+            ],
+            circle(12.0, 9.4, 3.0),
+        ])
+    ],
+    doc="The app's own mark at icon size: the launcher pin, the map pin and this glyph are one "
+        "shape, down to the punched hole.",
+)
+
+icon(
+    "myLocation",
+    fill=[
+        circle(12, 12, 1.9),
+        rounded_rect(11.0, 2.4, 2.0, 3.6, 1.0),
+        rounded_rect(11.0, 18.0, 2.0, 3.6, 1.0),
+        rounded_rect(2.4, 11.0, 3.6, 2.0, 1.0),
+        rounded_rect(18.0, 11.0, 3.6, 2.0, 1.0),
+    ],
+    punch=[flat([circle(12, 12, 5.4), circle(12, 12, 3.4)])],
+    doc="A fat ring around a solid centre, with four ticks. The dot is what says «you».",
+)
+
+icon(
+    "recenter",
+    fill=[
+        circle(12, 12, 2.6),
+        flat([
+            [
+                move(3.2, 9.6),
+                line(3.2, 5.6),
+                curve(3.2, 4.3, 4.3, 3.2, 5.6, 3.2),
+                line(9.6, 3.2),
+                line(9.6, 5.8),
+                line(5.8, 5.8),
+                line(5.8, 9.6),
+                close(),
+            ],
+            [
+                move(20.8, 9.6),
+                line(20.8, 5.6),
+                curve(20.8, 4.3, 19.7, 3.2, 18.4, 3.2),
+                line(14.4, 3.2),
+                line(14.4, 5.8),
+                line(18.2, 5.8),
+                line(18.2, 9.6),
+                close(),
+            ],
+            [
+                move(3.2, 14.4),
+                line(3.2, 18.4),
+                curve(3.2, 19.7, 4.3, 20.8, 5.6, 20.8),
+                line(9.6, 20.8),
+                line(9.6, 18.2),
+                line(5.8, 18.2),
+                line(5.8, 14.4),
+                close(),
+            ],
+            [
+                move(20.8, 14.4),
+                line(20.8, 18.4),
+                curve(20.8, 19.7, 19.7, 20.8, 18.4, 20.8),
+                line(14.4, 20.8),
+                line(14.4, 18.2),
+                line(18.2, 18.2),
+                line(18.2, 14.4),
+                close(),
+            ],
+        ]),
+    ],
+    doc="Four solid brackets closing on a dot: framing the city again after panning away.",
+)
+
+icon(
+    "sparkle",
+    fill=[
+        [
+            move(12.0, 2.8),
+            curve(12.9, 8.7, 15.3, 11.1, 21.2, 12.0),
+            curve(15.3, 12.9, 12.9, 15.3, 12.0, 21.2),
+            curve(11.1, 15.3, 8.7, 12.9, 2.8, 12.0),
+            curve(8.7, 11.1, 11.1, 8.7, 12.0, 2.8),
+            close(),
+        ]
+    ],
+    doc="A four-point star with concave sides — an invitation, not a rating.",
+)
+
+icon(
+    "lock",
+    stroke=[
+        [
+            move(8.3, 10.2),
+            line(8.3, 7.8),
+            curve(8.3, 5.7, 9.9, 4.1, 12.0, 4.1),
+            curve(14.1, 4.1, 15.7, 5.7, 15.7, 7.8),
+            line(15.7, 10.2),
+        ]
+    ],
+    punch=[flat([rounded_rect(4.6, 10.1, 14.8, 10.6, 3.2), circle(12.0, 15.4, 1.7)])],
+    doc="A solid body with the keyhole punched through, under a fat shackle.",
+)
+
+icon(
+    "checkCircle",
+    stroke=[polyline(8.2, 12.2, 10.9, 14.9, 15.9, 9.4)],
+    punch=[flat([circle(12, 12, 8.6), circle(12, 12, 6.2)])],
+    doc="",
+)
+
+icon(
+    "alert",
+    fill=[rounded_rect(10.7, 7.0, 2.6, 6.6, 1.3), circle(12, 16.4, 1.55)],
+    punch=[flat([circle(12, 12, 8.6), circle(12, 12, 6.2)])],
+    doc="",
+)
+
+icon(
+    "clock",
+    stroke=[polyline(12.0, 7.4, 12.0, 12.0, 15.4, 14.1)],
+    punch=[flat([circle(12, 12, 8.6), circle(12, 12, 6.2)])],
+    doc="",
+)
+
+icon(
+    "queue",
+    fill=[
+        rounded_rect(6.4, 3.0, 11.2, 2.3, 1.15),
+        rounded_rect(6.4, 18.7, 11.2, 2.3, 1.15),
+        [
+            move(8.2, 5.3),
+            line(15.8, 5.3),
+            line(12.7, 12.0),
+            line(15.8, 18.7),
+            line(8.2, 18.7),
+            line(11.3, 12.0),
+            close(),
+        ],
+    ],
+    doc="A solid hourglass for the waiting list: time passing, not an error.",
+)
+
+
+# --------------------------------------------------------------------------- emitters
+
+
+def n(value):
+    """Trims the float noise that the circle helper leaves behind."""
+    return f"{round(value, 3):g}"
+
+
+def kotlin_commands(subpaths, indent):
+    out = []
+    pad = " " * indent
+    for sub in subpaths:
+        for op, args in sub:
+            if op == "M":
+                out.append(f"{pad}moveTo({n(args[0])}f, {n(args[1])}f)")
+            elif op == "L":
+                out.append(f"{pad}lineTo({n(args[0])}f, {n(args[1])}f)")
+            elif op == "C":
+                nums = ", ".join(f"{n(a)}f" for a in args)
+                out.append(f"{pad}curveTo({nums})")
+            else:
+                out.append(f"{pad}close()")
+    return "\n".join(out)
+
+
+def write_kotlin():
+    parts = [
+        "package app.poruch.android.ui",
+        "",
+        "import androidx.compose.ui.graphics.Color",
+        "import androidx.compose.ui.graphics.PathFillType",
+        "import androidx.compose.ui.graphics.SolidColor",
+        "import androidx.compose.ui.graphics.StrokeCap",
+        "import androidx.compose.ui.graphics.StrokeJoin",
+        "import androidx.compose.ui.graphics.vector.ImageVector",
+        "import androidx.compose.ui.graphics.vector.path",
+        "import androidx.compose.ui.unit.dp",
+        "",
+        "/**",
+        " * The app's own glyphs: solid marks on a 24-unit grid, with their counters punched out by",
+        " * the even-odd rule. A few carry a fat round-capped stroke where a line is unavoidable.",
+        " *",
+        " * GENERATED by tools/generate_icons.py — edit the geometry there, not here, or the Swift",
+        " * twin in DesignSystem/PoruchIcons.swift will drift away from this one.",
+        " *",
+        " * Everything is black: `Icon(tint = …)` recolours the whole vector, so baking a colour in",
+        " * here would only fight the caller.",
+        " */",
+        "object PoruchIcons {",
+    ]
+    for name, (stroke, fill, punch, doc) in ICONS.items():
+        if doc:
+            parts.append(f"    /** {doc} */")
+        parts.append(f"    val {name}: ImageVector by lazy {{")
+        parts.append(f'        builder("{name}")')
+        if punch:
+            parts.append("            .punch {")
+            parts.append(kotlin_commands(punch, 16))
+            parts.append("            }")
+        if fill:
+            parts.append("            .fill {")
+            parts.append(kotlin_commands(fill, 16))
+            parts.append("            }")
+        if stroke:
+            parts.append("            .stroke {")
+            parts.append(kotlin_commands(stroke, 16))
+            parts.append("            }")
+        parts.append("            .build()")
+        parts.append("    }")
+        parts.append("")
+    parts += [
+        "    private fun builder(name: String) =",
+        '        ImageVector.Builder("Poruch.$name", SIZE.dp, SIZE.dp, SIZE, SIZE)',
+        "",
+        "    private inline fun ImageVector.Builder.stroke(block: androidx.compose.ui.graphics.vector.PathBuilder.() -> Unit) =",
+        "        path(",
+        "            stroke = SolidColor(Color.Black), strokeLineWidth = STROKE,",
+        "            strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round,",
+        "            pathBuilder = block",
+        "        )",
+        "",
+        "    private inline fun ImageVector.Builder.fill(block: androidx.compose.ui.graphics.vector.PathBuilder.() -> Unit) =",
+        "        path(fill = SolidColor(Color.Black), pathBuilder = block)",
+        "",
+        "    /** One path whose inner subpaths punch holes through the outer one. */",
+        "    private inline fun ImageVector.Builder.punch(block: androidx.compose.ui.graphics.vector.PathBuilder.() -> Unit) =",
+        "        path(fill = SolidColor(Color.Black), pathFillType = PathFillType.EvenOdd, pathBuilder = block)",
+        "}",
+        "",
+        "private const val SIZE = 24f",
+        "private const val STROKE = 2.6f",
+        "",
+    ]
+    (ROOT / "androidApp/src/main/java/app/poruch/android/ui/PoruchIcons.kt").write_text(
+        "\n".join(parts), encoding="utf-8"
+    )
+
+
+def swift_commands(subpaths, indent):
+    out = []
+    pad = " " * indent
+    for sub in subpaths:
+        for op, args in sub:
+            if op == "M":
+                out.append(f"{pad}path.move(to: point({n(args[0])}, {n(args[1])}, s))")
+            elif op == "L":
+                out.append(f"{pad}path.addLine(to: point({n(args[0])}, {n(args[1])}, s))")
+            elif op == "C":
+                out.append(
+                    f"{pad}path.addCurve(to: point({n(args[4])}, {n(args[5])}, s), "
+                    f"control1: point({n(args[0])}, {n(args[1])}, s), control2: point({n(args[2])}, {n(args[3])}, s))"
+                )
+            else:
+                out.append(f"{pad}path.closeSubpath()")
+    return "\n".join(out)
+
+
+def write_swift():
+    parts = [
+        "import SwiftUI",
+        "",
+        "/// The app's own glyphs: solid marks on a 24-unit grid, with their counters punched out by",
+        "/// the even-odd rule. A few carry a fat round-capped stroke where a line is unavoidable.",
+        "///",
+        "/// GENERATED by tools/generate_icons.py — edit the geometry there, not here, or the Kotlin",
+        "/// twin in ui/PoruchIcons.kt will drift away from this one.",
+        "///",
+        "/// A glyph carries no colour: `PoruchIcon` strokes and fills with the ambient foreground",
+        "/// style, so `.foregroundStyle(…)` at the call site works as it does for an SF Symbol.",
+        "struct PoruchGlyph {",
+        "    let stroke: ((inout Path, CGFloat) -> Void)?",
+        "    let fill: ((inout Path, CGFloat) -> Void)?",
+        "    /// One path whose inner subpaths punch holes through the outer one.",
+        "    let punch: ((inout Path, CGFloat) -> Void)?",
+        "",
+        "    init(",
+        "        stroke: ((inout Path, CGFloat) -> Void)? = nil,",
+        "        fill: ((inout Path, CGFloat) -> Void)? = nil,",
+        "        punch: ((inout Path, CGFloat) -> Void)? = nil",
+        "    ) {",
+        "        self.stroke = stroke",
+        "        self.fill = fill",
+        "        self.punch = punch",
+        "    }",
+        "}",
+        "",
+        "enum PoruchIcons {",
+    ]
+    for name, (stroke, fill, punch, doc) in ICONS.items():
+        if doc:
+            parts.append(f"    /// {doc}")
+        parts.append(f"    static let {name} = PoruchGlyph(")
+        pieces = []
+        if stroke:
+            pieces.append("        stroke: { path, s in\n" + swift_commands(stroke, 12) + "\n        }")
+        if fill:
+            pieces.append("        fill: { path, s in\n" + swift_commands(fill, 12) + "\n        }")
+        if punch:
+            pieces.append("        punch: { path, s in\n" + swift_commands(punch, 12) + "\n        }")
+        parts.append(",\n".join(pieces))
+        parts.append("    )")
+        parts.append("")
+    parts += [
+        "}",
+        "",
+        "private func point(_ x: CGFloat, _ y: CGFloat, _ s: CGFloat) -> CGPoint {",
+        "    CGPoint(x: x * s, y: y * s)",
+        "}",
+        "",
+        "/// Draws a [PoruchGlyph] at the given size, scaling the 24-unit grid and the stroke together.",
+        "struct PoruchIcon: View {",
+        "    let glyph: PoruchGlyph",
+        "    var size: CGFloat = 20",
+        "",
+        "    var body: some View {",
+        "        ZStack {",
+        "            if glyph.punch != nil {",
+        "                GlyphShape(draw: glyph.punch).fill(style: FillStyle(eoFill: true))",
+        "            }",
+        "            if glyph.fill != nil {",
+        "                GlyphShape(draw: glyph.fill).fill()",
+        "            }",
+        "            if glyph.stroke != nil {",
+        "                GlyphShape(draw: glyph.stroke).stroke(style: StrokeStyle(",
+        "                    lineWidth: PoruchIconMetrics.stroke * scale,",
+        "                    lineCap: .round, lineJoin: .round",
+        "                ))",
+        "            }",
+        "        }",
+        "        .frame(width: size, height: size)",
+        "    }",
+        "",
+        "    private var scale: CGFloat { size / PoruchIconMetrics.grid }",
+        "}",
+        "",
+        "private struct GlyphShape: Shape {",
+        "    let draw: ((inout Path, CGFloat) -> Void)?",
+        "",
+        "    func path(in rect: CGRect) -> Path {",
+        "        var path = Path()",
+        "        guard let draw else { return path }",
+        "        draw(&path, min(rect.width, rect.height) / PoruchIconMetrics.grid)",
+        "        return path",
+        "    }",
+        "}",
+        "",
+        "enum PoruchIconMetrics {",
+        "    static let grid: CGFloat = 24",
+        "    static let stroke: CGFloat = 2.6",
+        "}",
+        "",
+    ]
+    (ROOT / "iosApp/Poruch/DesignSystem/PoruchIcons.swift").write_text("\n".join(parts), encoding="utf-8")
+
+
+if __name__ == "__main__":
+    write_kotlin()
+    write_swift()
+    print(f"{len(ICONS)} icons → Kotlin + Swift")

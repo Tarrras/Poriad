@@ -18,7 +18,7 @@ interface AuthRepository {
     suspend fun updatePassword(password: String)
     suspend fun handleCallback(url: String): Boolean
 }
-data class EventQuery(val south: Double, val west: Double, val north: Double, val east: Double, val category: String? = null, val from: String? = null, val to: String? = null)
+data class EventQuery(val south: Double, val west: Double, val north: Double, val east: Double, val category: String? = null, val from: String? = null, val to: String? = null, val text: String? = null, val available: Boolean = false)
 interface EventRepository {
     suspend fun discover(query: EventQuery): List<Event>
     fun cached(query: EventQuery): List<Event>
@@ -33,12 +33,15 @@ interface EventRepository {
     suspend fun leave(id: String)
     suspend fun cancel(id: String)
     suspend fun uploadImage(eventId: String, bytes: ByteArray, contentType: String): String
+    /** Roster of an event. Identities are visible to its organizer and members only; others get none. */
+    suspend fun attendees(id: String): List<Attendee> = emptyList()
+    /** Events this account is queued for. Positions are private to their holder. */
+    suspend fun waitlistIds(): List<String> = emptyList()
+    suspend fun joinWaitlist(id: String)
+    suspend fun leaveWaitlist(id: String)
     fun clearPrivateCache()
 }
 interface GeoSearchRepository { suspend fun search(query: String): List<CityResult> }
-class AppException(val kind: Failure, message: String): Exception(message)
-enum class Failure { NETWORK, AUTH, FULL, CANCELLED, VALIDATION, FORBIDDEN, UNKNOWN }
-
 interface PreferencesRepository {
     suspend fun interests(): List<String>
     suspend fun setInterests(categories: List<String>)

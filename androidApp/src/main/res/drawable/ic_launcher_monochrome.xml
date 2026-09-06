@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Themed icons are tinted by the launcher, so this variant carries shape only: the hole that the
+  accent dot fills in the colour version becomes real negative space here.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M54,84 C54,84 32.5,57 32.5,44 A21.5,21.5 0 1,1 75.5,44 C75.5,57 54,84 54,84 Z M54,41.5 m-8.5,0 a8.5,8.5 0 1,0 17,0 a8.5,8.5 0 1,0 -17,0 Z" />
+</vector>

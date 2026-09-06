@@ -36,9 +36,34 @@ xcodebuild -project iosApp/Poruch.xcodeproj -scheme Poruch \
 
 Для фізичного iPhone виконайте `./gradlew :shared:linkDebugFrameworkIosArm64` та оберіть власну signing team в Xcode. Для публікації потрібно налаштувати release framework, підпис і app icons; поточний Xcode-проєкт посилається на debug framework. Деталі — [iosApp/README.md](iosApp/README.md).
 
+## Логи
+
+Трасування живе в [PoruchLog.kt](core/domain/src/commonMain/kotlin/app/poruch/domain/PoruchLog.kt) — спільне для обох платформ, з `expect/actual` сінками: `android.util.Log`, `NSLog` та `println` для JVM. Вмикається лише в debug-збірках (`BuildConfig.DEBUG` на Android, `#if DEBUG` на iOS); у релізі сінк мовчить, а повідомлення-лямбди навіть не форматуються.
+
+Що **ніколи** не потрапляє в лог: паролі, токени, email і тіла запитів. Ідентифікатори пишуться першими 8 символами — достатньо, щоб простежити одну подію крізь трейс, і замало, щоб зібрати список користувачів. Пошуковий запит і назва міста логуються довжиною й кількістю результатів, не текстом.
+
+Теги: `app`, `session`, `auth`, `discovery`, `geo`, `detail`, `mine`, `action`, `http`, `map`. Типовий трейс запуску:
+
+```
+Poruch/app        graph created
+Poruch/discovery  search 50.3,30.25..50.6,30.8 category=all from=now text=- available=false
+Poruch/http       POST /rest/v1/rpc/search_events_in_view → 200 in 513ms
+Poruch/discovery  0 events
+```
+
+Читати: `adb logcat | grep Poruch/` на Android і `xcrun simctl spawn booted log stream --predicate 'eventMessage CONTAINS "Poruch/"'` на iOS.
+
+## Дизайн-система
+
+Функціональний орієнтир — Meetup, візуальна мова — Corner; обидва референси й причини вибору описані в [docs/design-system.md](docs/design-system.md) і реалізовані двічі з однаковим API: [Tokens.kt](androidApp/src/main/java/app/poruch/android/ui/Tokens.kt) + [Components.kt](androidApp/src/main/java/app/poruch/android/ui/Components.kt) для Compose та [DesignSystem.swift](iosApp/Poruch/DesignSystem.swift) + [Components.swift](iosApp/Poruch/Components.swift) для SwiftUI. Екрани не задають кольори, радіуси чи відступи напряму — лише через токени.
+
 ## Що реалізовано
 
-- MapLibre Native з вуличною мапою OpenFreeMap Positron, власними маркерами категорій, групуванням та карткою вибраної події.
+- Черга очікування: повна подія пропонує стати в чергу замість глухого кута, а місце, що звільнилось (хтось вийшов або організатор підняв місткість), автоматично дістається першому в черзі. Позиція в черзі приватна.
+- Головна вкладка збирає план тижня з уже завантажених даних: ваші майбутні події, категорії, «сьогодні в місті» та решта подій поруч.
+- Поділитися подією через системний share sheet (Android Intent / iOS ShareLink), додати її в системний календар (Android `CalendarContract` / iOS EventKit) і прокласти маршрут у системних мапах.
+- Сторінка події показує превʼю мапи з місцем зустрічі та список учасників з аватарами. Імена учасників бачать лише організатор і самі учасники — це та сама межа, що вже діє в RLS; решта бачить тільки лічильник. Міграцію застосовано до погодженого проєкту, SQL-набір `supabase/tests/attendees.sql` проходить.
+- MapLibre Native з вуличною мапою OpenFreeMap (Positron у світлій темі, Dark у темній), власними пінами категорій, кластеризацією на рівні стилю та каруселлю подій, синхронізованою з мапою.
 - Пошук довільного міста через Photon, ручна навігація й геолокація за запитом. Відмова у доступі не блокує застосунок.
 - Фільтри дати, категорії й доступних місць, альтернативний список. «Сьогодні» та «Вихідні» рахуються в часовому поясі пристрою; час самої події — в її IANA timezone.
 - Створення в три кроки, локальна чернетка, точка на мапі, редагування та скасування власних подій.
@@ -84,6 +109,20 @@ androidApp (Compose / Navigation 3)    iosApp (SwiftUI / NavigationStack)
 ```
 
 `core/domain` не залежить від UI чи Supabase. Feature use cases перевіряють бізнес-правила через інтерфейси репозиторіїв; data реалізує ці інтерфейси. `shared` збирає ізольований Koin container і керує станом, скасуванням запитів та Swift bridge. Кожен нативний UI має власні системні адаптери й навігацію.
+
+**Помилки** — типізовані: `sealed interface AppError` у `core/domain`, який кидається єдиним `AppFailure`. Жодного тексту для користувача в бізнес-логіці: назву випадку перекладає презентація (`androidApp/ui/Wording.kt`, `iosApp/App/Wording.swift`). Межі й константи, які раніше були вписані в код, зібрані в `core/domain/Rules.kt`, а стартове місто — у `AppConfig.home`.
+
+**Android** — один екран, один MVI-цикл:
+
+```text
+Composable ──Intent──▶ ViewModel ──▶ PoruchApp (спільне сховище)
+    ▲                     │  │
+    └────── State ────────┘  └── Effect ──▶ Route (навігація, системні виклики)
+```
+
+Екрани лежать у `androidApp/.../feature/<screen>/`: `…Contract.kt` (State/Intent/Effect), `…ViewModel.kt`, `…Screen.kt`. Composable не знає ані сховища, ані навігації — їх з'єднує `feature/Routes.kt`.
+
+**iOS** — `iosApp/Poruch/{App,DesignSystem,Features/<screen>,Platform}`. Екран із власним станом має `ObservableObject` (`EventEditorModel`, `AuthFormModel`, `EventActionsModel`), екран без нього — `struct`-проєкцію спільного стану (`HomePresentation`, `EventDetailPresentation`).
 
 Версії: Kotlin 2.4.0, Gradle 9.1.0, AGP 9.0.1, Ktor 3.2.3, Koin 4.2.2, SQLDelight 2.1.0, Navigation 3 1.0.1. MapLibre Android 11.11.0, iOS 6.28.0 (SPM resolved file включено).
 

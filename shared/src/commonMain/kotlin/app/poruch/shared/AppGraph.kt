@@ -23,7 +23,7 @@ class AppGraph(config: AppConfig, sessionStore: SecureSessionStore) {
             single<GeoSearchRepository> { PhotonGeoSearchRepository(http) }
             single { EventActions(get(),get()) }
             single { AccountActions(get()) }
-            single { PoruchApp(get(),get(),get(),get(),get(),get(),get()) }
+            single { PoruchApp(get(),get(),get(),get(),get(),get(),get(),config) }
         })
     }
     val app: PoruchApp = container.koin.get()

@@ -14,7 +14,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import app.poruch.android.ui.Poruch
+import app.poruch.android.mvi.LocalPoruchApp
 import app.poruch.shared.AppState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.Instant
@@ -37,7 +40,7 @@ object Reminders {
         if (state.userId == null || !enabled(context)) return
         val alarms = context.getSystemService(AlarmManager::class.java)
         val scheduled = JSONArray()
-        state.myEvents.filter { it.joined && it.status == "published" }.forEach { event ->
+        state.myEvents.filter { it.joined && it.isPublished }.forEach { event ->
             val trigger = runCatching { Instant.parse(event.startsAt).toEpochMilli() - 60 * 60 * 1000 }.getOrNull() ?: return@forEach
             if (trigger > System.currentTimeMillis()) {
                 alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pending(context, event.id, event.title))
@@ -59,23 +62,32 @@ object Reminders {
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(NotificationChannel(CHANNEL, context.getString(R.string.reminders), NotificationManager.IMPORTANCE_DEFAULT))
         val open = PendingIntent.getActivity(context, id.hashCode(), Intent(context, MainActivity::class.java).putExtra("eventId", id), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        manager.notify(id.hashCode(), Notification.Builder(context, CHANNEL).setSmallIcon(android.R.drawable.ic_menu_my_calendar).setContentTitle(title).setContentText(context.getString(R.string.reminder_body)).setContentIntent(open).setAutoCancel(true).build())
+        manager.notify(id.hashCode(), Notification.Builder(context, CHANNEL).setSmallIcon(R.drawable.ic_notification).setContentTitle(title).setContentText(context.getString(R.string.reminder_body)).setContentIntent(open).setAutoCancel(true).build())
     }
 }
 class ReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) { if (intent.action == Intent.ACTION_BOOT_COMPLETED) Reminders.restore(context) else Reminders.notify(context, intent.getStringExtra("id").orEmpty(), intent.getStringExtra("title").orEmpty()) }
 }
-@Composable fun ReminderPreference(state: AppState) {
+/**
+ * The reminders switch. It reads the current plans from the store itself so the caller does not
+ * have to thread state through a settings list that has nothing else to do with events.
+ */
+@Composable fun ReminderPreference() {
     val context = LocalContext.current
+    val state = LocalPoruchApp.current.state.collectAsStateWithLifecycle().value
     var enabled by remember { mutableStateOf(Reminders.enabled(context)) }
     var denied by remember { mutableStateOf(false) }
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> enabled = granted; denied = !granted; Reminders.setEnabled(context, granted); Reminders.sync(context, state) }
+    val colors = Poruch.colors
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(stringResource(R.string.reminders), Modifier.weight(1f).padding(end = 12.dp))
+        Text(stringResource(R.string.reminders), Modifier.weight(1f).padding(end = 12.dp), style = MaterialTheme.typography.bodyLarge, color = colors.ink)
         Switch(enabled, { requested ->
             if (requested && Build.VERSION.SDK_INT >= 33 && context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) permission.launch(Manifest.permission.POST_NOTIFICATIONS)
             else { enabled = requested; Reminders.setEnabled(context, requested); Reminders.sync(context, state) }
-        })
+        }, colors = SwitchDefaults.colors(checkedTrackColor = colors.brand, checkedThumbColor = colors.onBrand))
     }
-    Text(stringResource(if (denied) R.string.reminder_permission else R.string.reminder_note), style = MaterialTheme.typography.bodySmall)
+    Text(
+        stringResource(if (denied) R.string.reminder_permission else R.string.reminder_note),
+        style = MaterialTheme.typography.bodySmall, color = if (denied) colors.danger else colors.inkTertiary
+    )
 }

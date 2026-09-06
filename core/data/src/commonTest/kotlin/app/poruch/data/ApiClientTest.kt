@@ -8,8 +8,8 @@ import kotlin.test.*
 class ApiClientTest {
     @Test fun unauthorizedResponseIsTypedAuthError() = runTest {
         val client = ApiClient(HttpClient(MockEngine { respond("{}", HttpStatusCode.Unauthorized) }), "https://test.invalid", "public")
-        val error = assertFailsWith<AppException> { client.request("/rest/v1/events") }
-        assertEquals(Failure.AUTH, error.kind)
+        val error = assertFailsWith<AppFailure> { client.request("/rest/v1/events") }
+        assertEquals(AppError.SessionRequired, error.error)
         client.close()
     }
     @Test fun noBearerIsSentForGuestPublishableKey() = runTest {

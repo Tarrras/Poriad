@@ -31,11 +31,13 @@ class PoruchAppTest {
         override suspend fun savedIds()=emptyList<String>()
         override suspend fun save(id:String) {}
         override suspend fun unsave(id:String) {}
-        override suspend fun create(id:String,draft:EventDraft):String { createIds+=id; if(failCreate) throw AppException(Failure.NETWORK,"offline"); return id }
+        override suspend fun create(id:String,draft:EventDraft):String { createIds+=id; if(failCreate) fail(AppError.Network); return id }
         override suspend fun update(id:String,draft:EventDraft)=id
         override suspend fun join(id:String) {}
         override suspend fun leave(id:String) {}
         override suspend fun cancel(id:String) {}
+        override suspend fun joinWaitlist(id:String) {}
+        override suspend fun leaveWaitlist(id:String) {}
         override suspend fun uploadImage(eventId:String,bytes:ByteArray,contentType:String)="https://test.invalid/image.jpg"
         override fun clearPrivateCache() {}
     }
@@ -65,13 +67,48 @@ class PoruchAppTest {
     @Test fun invalidCreationNeverReachesRepository()=runTest {
         val events=Events(); val app=app(events,backgroundScope)
         app.createEvent(EventDraft("","","social","Київ","Поділ",50.0,30.0,"2090-01-01T10:00:00Z","2090-01-01T12:00:00Z","Europe/Kyiv",0));runCurrent()
-        assertTrue(events.createIds.isEmpty());assertNotNull(app.state.value.message);app.close()
+        assertTrue(events.createIds.isEmpty())
+        // The draft is rejected by field, so the editor can point at the ones that failed.
+        val notice=app.state.value.notice
+        assertIs<AppNotice.Failed>(notice)
+        val error=notice.error
+        assertIs<AppError.InvalidDraft>(error)
+        assertTrue(DraftField.TITLE in error.fields && DraftField.CAPACITY in error.fields)
+        app.close()
     }
     @Test fun recoveryFlagSurvivesIdentityChange()=runTest {
         val app=app(Events(),backgroundScope)
         runCurrent();app.handleAuthCallback("poruch://auth/callback");runCurrent()
         assertTrue(app.state.value.passwordRecovery)
         app.close()
+    }
+
+    @Test fun textSearchDebouncesAndKeepsLatestQuery()=runTest {
+        val events=Events();val app=app(events,backgroundScope)
+        runCurrent();advanceTimeBy(101);runCurrent()
+        val before=events.queries.size
+        app.setSearchText("Муз");runCurrent();advanceTimeBy(100)
+        app.setSearchText("Музика");runCurrent();advanceTimeBy(250);runCurrent()
+        assertEquals(before,events.queries.size)
+        advanceTimeBy(101);runCurrent()
+        assertEquals("Музика",events.queries.last().text)
+        assertEquals(before+1,events.queries.size);app.close()
+    }
+    @Test fun availabilityIsPartOfServerQuery()=runTest {
+        val events=Events();val app=app(events,backgroundScope)
+        runCurrent();app.setOnlyAvailable(true);runCurrent()
+        assertTrue(events.queries.last().available)
+        assertTrue(app.state.value.onlyAvailable);app.close()
+    }
+
+    @Test fun wrappedMapBoundsPreserveAntimeridianAndWholeWorld()=runTest {
+        val events=Events();val app=app(events,backgroundScope)
+        runCurrent();app.searchArea(-10.0,170.0,10.0,190.0);runCurrent()
+        assertEquals(170.0,events.queries.last().west)
+        assertEquals(-170.0,events.queries.last().east)
+        app.searchArea(-90.0,-230.0,90.0,230.0);runCurrent()
+        assertEquals(-180.0,events.queries.last().west)
+        assertEquals(180.0,events.queries.last().east);app.close()
     }
 
 }
