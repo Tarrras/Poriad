@@ -186,28 +186,6 @@ def test_venue_matching() -> None:
           loose.match("Київський Палац спорту")["how"], "contains")
 
 
-def test_retire_is_scoped_to_city() -> None:
-    """«Цього запуску не було видно» мусить означати «в цьому місті».
-
-    Без обмеження за містом обхід самого Києва знімав з публікації всі інші міста: їхні рядки
-    живі, але несуть інший run_id, тож умова `ingest_run_id is distinct from ...` накривала їх.
-    Помилка тиха — жодного винятку, події просто зникають із застосунку.
-
-    Тест перевіряє саме межу, а не текст запиту: у ньому має бути і місто, і run_id.
-    """
-    print("\nЗняття з публікації обмежене містом")
-    from . import emit
-    sql = emit.retire_sql("karabas", "RUN-1", "Київ")
-    check("умова містить місто", "'Київ'" in sql, True)
-    check("умова містить run_id", "'RUN-1'" in sql, True)
-    check("зачіпає лише майбутні події", "starts_at > now()" in sql, True)
-    check("не видаляє, а позначає", "delete" not in sql.lower(), True)
-    # Найважливіше: два міста дають два РІЗНІ запити. Якби місто не входило в умову, вони
-    # збіглися б рядок у рядок — і саме так виглядала вада.
-    check("інше місто дає інший запит",
-          emit.retire_sql("karabas", "RUN-1", "Львів") != sql, True)
-
-
 def test_aliases_resolve() -> None:
     """Кожен псевдонім за назвою мусить знаходити щось хоча б в одному місті.
 
@@ -527,7 +505,7 @@ def test_category_gaps() -> None:
 def main() -> int:
     for test in (test_timezone_trap, test_city_trap, test_description_trap,
                  test_title_and_category, test_price, test_venue_matching,
-                 test_aliases_resolve, test_retire_is_scoped_to_city, test_geocoder_guards, test_dedupe, test_extract,
+                 test_aliases_resolve, test_geocoder_guards, test_dedupe, test_extract,
                  test_source_registry, test_build_internet_bilet, test_category_gaps,
                  test_internet_bilet_timezone):
         test()

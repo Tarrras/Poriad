@@ -192,30 +192,6 @@ def duplicates_sql(items: list[Item], run_id: str) -> list[str]:
     return parts
 
 
-def retire_sql(slug: str, run_id: str, city: str) -> str:
-    """Подія, якої цей запуск не побачив, більше не проводиться — але не видаляється.
-
-    Її могли зберегти, і порожній збережений запис гірший за позначку «більше не проводиться».
-
-    Чому обмеження за містом обовʼязкове. «Цей запуск не побачив» — твердження рівно про ту
-    ділянку, яку запуск обходив. Без `city` умова читається як «усе, чого немає в цьому run_id»,
-    і обхід самого Києва знімає з публікації Львів, Харків, Одесу й Дніпро: їхні рядки живі, але
-    несуть інший run_id. Помилка тиха — жодного винятку, просто події зникають із застосунку.
-
-    Вада була латентна, бо в базі поки лежить одне місто. Вона спрацювала б рівно тоді, коли
-    зʼявилось би друге, тобто на першому ж застосуванні SQL по пʼятьох містах.
-
-    Обмеження звужує ще й у корисний бік: файл одного міста стає самодостатнім. Його можна
-    застосувати окремо, і він не чіпає нічого поза своїм містом.
-    """
-    return (
-        "update public.events set import_status='withdrawn', updated_at=now()\n"
-        f"where source_id=(select id from public.event_sources where slug={_lit(slug)})\n"
-        f"  and city={_lit(city)}\n"
-        f"  and import_status='live' and ingest_run_id is distinct from {_lit(run_id)}\n"
-        "  and starts_at > now();\n")
-
-
 def to_json(items: list[Item]) -> str:
     return json.dumps([{
         "source": i.source_slug, "source_uid": i.source_uid, "event_id": str(i.event_id),
