@@ -7,17 +7,28 @@ struct ProfileView: View {
     @State private var newPassword = ""
     @State private var revealed = false
     @State private var showAuth = false
+    /// Висота смуги статусу. Читається ззовні стрічки — усередині неї її вже не спитати.
+    @State private var topInset: CGFloat = 0
+    @State private var birthDate = Calendar.current.date(byAdding: .year, value: -Int(SafetyRules.shared.MIN_SIGNUP_AGE), to: Date()) ?? Date()
+    private let latestBirthDate = Calendar.current.date(byAdding: .year, value: -Int(SafetyRules.shared.MIN_SIGNUP_AGE), to: Date()) ?? Date()
+    private let earliestBirthDate = Calendar.current.date(byAdding: .year, value: -100, to: Date()) ?? Date.distantPast
 
     private var signedIn: Bool { model.state?.signedIn == true }
     private var recovering: Bool { model.state?.passwordRecovery == true }
 
     var body: some View {
+        // Див. HomeView: стрічка виходить під смугу статусу, а хедер додає виміряний відступ.
+        GeometryReader { proxy in
         ScrollView {
             VStack(alignment: .leading, spacing: Space.xxl) {
                 header
                 VStack(alignment: .leading, spacing: Space.xxl) {
                     if recovering { recovery }
-                    if signedIn { account } else if !recovering { signInPrompt }
+                    if !signedIn && !recovering { signInPrompt }
+                    if model.state?.needsAgeDeclaration == true { ageDeclaration }
+                    taste
+                    if signedIn { account }
+                    if !(model.state?.blocked ?? []).isEmpty { blocked }
                     about
                 }.padding(.horizontal, Space.page)
             }.padding(.bottom, Space.section)
@@ -25,21 +36,26 @@ struct ProfileView: View {
         .background(Palette.canvas)
         .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $showAuth) { NavigationStack { AuthView() } }
+        .ignoresSafeArea(edges: .top)
+        .onAppear { topInset = proxy.safeAreaInsets.top }
+        .onChange(of: proxy.safeAreaInsets.top) { _, value in topInset = value }
+        }
     }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: Space.md) {
             PoruchIcon(glyph: PoruchIcons.person, size: 32).foregroundStyle(Palette.onBrandContainer)
                 .frame(width: 64, height: 64).background(Palette.brandContainer, in: Circle())
-            Text(signedIn ? "Ви з нами" : "Ваші люди — поруч").font(PoruchFont.title1).foregroundStyle(Palette.ink)
+            Text(signedIn ? "Ви з нами" : "Ваші люди — поруч").font(PoruchFont.title1).titleTracking().foregroundStyle(Palette.ink)
             Text(signedIn
                  ? "Ваші створені, збережені та заплановані події — у вкладці «Мої події»."
                  : "Увійдіть, щоб зберігати цікаве, приєднуватись і створювати власні зустрічі.")
                 .font(PoruchFont.bodyText).foregroundStyle(Palette.inkSecondary)
         }
         .padding(.horizontal, Space.page).padding(.vertical, Space.xxl)
+        .padding(.top, topInset)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(LinearGradient(colors: [Palette.canvasTint, Palette.canvas], startPoint: .top, endPoint: .bottom))
+        .background(heroGradient)
     }
 
     private var signInPrompt: some View {
@@ -61,15 +77,65 @@ struct ProfileView: View {
         }
     }
 
+    /**
+     An account made before the app asked for an age is asked here, once, and told why. Stating it
+     is the client's part; refusing anything under the floor is the database's.
+     */
+    private var ageDeclaration: some View {
+        VStack(alignment: .leading, spacing: Space.md) {
+            Text("Підтвердьте вік").font(PoruchFont.cardName).foregroundStyle(Palette.ink)
+            Text("Ваш обліковий запис створено до того, як ми почали питати вік. Вкажіть дату народження — без неї не вийде приєднатись до події.")
+                .font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
+            DatePicker("", selection: $birthDate, in: earliestBirthDate...latestBirthDate, displayedComponents: .date)
+                .datePickerStyle(.compact).labelsHidden().tint(Palette.brand)
+            PrimaryButton(title: "Вказати дату") { model.app.declareBirthDate(birthDate: isoDay(birthDate)) }
+        }
+        .padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()
+    }
+
+    /// A block a person cannot undo is a setting they will not use, so the list names names.
+    private var blocked: some View {
+        VStack(alignment: .leading, spacing: Space.md) {
+            SectionHeader(title: "Заблоковані")
+            ForEach(model.state?.blocked ?? [], id: \.userId) { person in
+                HStack(spacing: Space.md) {
+                    Text(person.name.isEmpty ? "Учасник" : person.name)
+                        .font(PoruchFont.cardName).foregroundStyle(Palette.ink)
+                    Spacer(minLength: 0)
+                    Button("Розблокувати") { model.app.unblockUser(userId: person.userId) }
+                        .font(PoruchFont.button).foregroundStyle(Palette.ink)
+                }.padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()
+            }
+        }
+    }
+
+    /// The answers to the opening questions: the account carries the categories to the next device,
+    /// but the answers themselves are the phone's, so this section is here for a guest as well.
+    private var taste: some View {
+        VStack(alignment: .leading, spacing: Space.md) {
+            SectionHeader(title: "Ваші інтереси")
+            FlexibleChips(
+                items: categories.map { ($0.0, $0.1, $0.0) },
+                isSelected: { model.state?.interests.contains($0) == true }
+            ) { model.app.toggleInterest(category: $0) }
+            Button { model.app.restartOnboarding() } label: {
+                HStack(spacing: Space.md) {
+                    PoruchIcon(glyph: PoruchIcons.sparkle, size: 20).foregroundStyle(Palette.brand)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Налаштувати рекомендації").font(PoruchFont.cardName).foregroundStyle(Palette.ink)
+                        Text("Пройти опитування ще раз").font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Palette.inkTertiary)
+                }
+                .padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()
+            }.buttonStyle(PressableStyle())
+        }
+    }
+
     private var account: some View {
         VStack(alignment: .leading, spacing: Space.xxl) {
-            VStack(alignment: .leading, spacing: Space.md) {
-                SectionHeader(title: "Ваші інтереси")
-                FlexibleChips(
-                    items: categories.map { ($0.0, $0.1, $0.0) },
-                    isSelected: { model.state?.interests.contains($0) == true }
-                ) { model.app.toggleInterest(category: $0) }
-            }
             VStack(alignment: .leading, spacing: Space.md) {
                 SectionHeader(title: "Налаштування")
                 ReminderPreference()

@@ -12,6 +12,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ViewList
 import androidx.compose.material.icons.outlined.CloudOff
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.Map
 import androidx.compose.material3.CircularProgressIndicator
@@ -49,12 +50,21 @@ internal fun MapBottomDeck(state: ExploreState, modifier: Modifier, onIntent: (E
     LaunchedEffect(centered, listState.isScrollInProgress) {
         if (listState.isScrollInProgress || !userDriven) return@LaunchedEffect
         userDriven = false
-        val event = centered?.let(state.events::getOrNull) ?: return@LaunchedEffect
+        val event = centered?.let(state.deckEvents::getOrNull) ?: return@LaunchedEffect
         if (event.id != state.selectedId) onIntent(ExploreIntent.SelectEvent(event.id))
     }
-    LaunchedEffect(state.selectedId, state.events) {
+    // Індекс повний з першої відповіді, картки — ні. Коли карусель підходить до краю
+    // завантаженого, просимо наступне вікно за вже відомими ідентифікаторами.
+    LaunchedEffect(centered, state.events.size, state.hasMoreCards) {
+        val position = centered ?: return@LaunchedEffect
+        if (state.stackFocused || !state.hasMoreCards) return@LaunchedEffect
+        if (position >= state.events.size - PREFETCH_AHEAD) {
+            onIntent(ExploreIntent.LoadMore(state.events.size + PAGE))
+        }
+    }
+    LaunchedEffect(state.selectedId, state.deckEvents) {
         val id = state.selectedId ?: return@LaunchedEffect
-        val index = state.events.indexOfFirst { it.id == id }
+        val index = state.deckEvents.indexOfFirst { it.id == id }
         if (index >= 0 && index != centered) {
             userDriven = false
             if (reducedMotion) listState.scrollToItem(index) else listState.animateScrollToItem(index)
@@ -76,16 +86,27 @@ internal fun MapBottomDeck(state: ExploreState, modifier: Modifier, onIntent: (E
                 if (state.loading) CircularProgressIndicator(Modifier.size(14.dp), color = colors.brand, strokeWidth = 2.dp)
                 else if (state.offline) Icon(Icons.Outlined.CloudOff, null, Modifier.size(14.dp), tint = colors.accent)
                 Text(
-                    if (state.loading) stringResource(R.string.searching) else stringResource(R.string.events_found, state.events.size),
+                    when {
+                        state.loading -> stringResource(R.string.searching)
+                        state.stackFocused -> stringResource(R.string.events_here, state.deckEvents.size)
+                        // Усе, що є в області, а не стільки, скільки встигло завантажитись: мапа
+                        // вже показує саме це число пінами.
+                        else -> stringResource(R.string.events_found, state.totalFound)
+                    },
                     style = MaterialTheme.typography.labelMedium, color = colors.ink
                 )
+            }
+            if (state.stackFocused) {
+                IconPill(Icons.Outlined.Close, stringResource(R.string.show_all_events)) {
+                    onIntent(ExploreIntent.ClearStack)
+                }
             }
             IconPill(
                 if (state.listMode) PoruchIcons.map else Icons.AutoMirrored.Outlined.ViewList,
                 stringResource(if (state.listMode) R.string.show_map else R.string.show_list)
             ) { onIntent(ExploreIntent.ListMode(!state.listMode)) }
         }
-        if (state.events.isEmpty()) {
+        if (state.deckEvents.isEmpty()) {
             if (!state.loading) Column(
                 Modifier.padding(horizontal = Spacing.page).fillMaxWidth().cardSurface().padding(Spacing.lg),
                 verticalArrangement = Arrangement.spacedBy(Spacing.sm)
@@ -101,7 +122,7 @@ internal fun MapBottomDeck(state: ExploreState, modifier: Modifier, onIntent: (E
                 state = listState, flingBehavior = rememberSnapFlingBehavior(listState),
                 contentPadding = PaddingValues(horizontal = Spacing.page), horizontalArrangement = Arrangement.spacedBy(Spacing.md)
             ) {
-                items(state.events, key = { it.id }) { event ->
+                items(state.deckEvents, key = { it.id }) { event ->
                     EventMapCard(
                         event, Modifier.width(cardWidth), focused = event.id == state.selectedId,
                         saved = event.id in state.savedIds, onSave = { onIntent(ExploreIntent.ToggleSaved(event.id)) }
@@ -119,7 +140,7 @@ internal fun ExploreList(state: ExploreState, onIntent: (ExploreIntent) -> Unit)
     Column(Modifier.fillMaxSize().background(colors.canvas).statusBarsPadding()) {
         Row(Modifier.fillMaxWidth().padding(Spacing.page), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text(stringResource(R.string.events_found, state.events.size), style = MaterialTheme.typography.titleLarge, color = colors.ink)
+                Text(stringResource(R.string.events_found, state.totalFound), style = MaterialTheme.typography.titleLarge, color = colors.ink)
                 Text(
                     stringResource(R.string.explore_subtitle, state.cityName),
                     style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary, maxLines = 1
@@ -140,16 +161,37 @@ internal fun ExploreList(state: ExploreState, onIntent: (ExploreIntent) -> Unit)
         Spacer(Modifier.height(Spacing.md))
         if (state.events.isEmpty()) EmptyState(
             PoruchIcons.search, stringResource(R.string.nothing_here), stringResource(R.string.nothing_here_hint)
-        ) else LazyColumn(
-            contentPadding = PaddingValues(start = Spacing.page, end = Spacing.page, bottom = 120.dp),
-            verticalArrangement = Arrangement.spacedBy(Spacing.lg)
-        ) {
-            items(state.events, key = { it.id }) { event ->
-                EventCard(
-                    event, saved = event.id in state.savedIds, waitlisted = event.id in state.waitlistedIds,
-                    onSave = { onIntent(ExploreIntent.ToggleSaved(event.id)) }
-                ) { onIntent(ExploreIntent.OpenEvent(event.id)) }
+        ) else {
+            val listState = rememberLazyListState()
+            val lastVisible by remember {
+                derivedStateOf { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0 }
+            }
+            LaunchedEffect(lastVisible, state.events.size, state.hasMoreCards) {
+                if (state.hasMoreCards && lastVisible >= state.events.size - PREFETCH_AHEAD) {
+                    onIntent(ExploreIntent.LoadMore(state.events.size + PAGE))
+                }
+            }
+            LazyColumn(
+                state = listState,
+                contentPadding = PaddingValues(start = Spacing.page, end = Spacing.page, bottom = 120.dp),
+                verticalArrangement = Arrangement.spacedBy(Spacing.lg)
+            ) {
+                items(state.events, key = { it.id }) { event ->
+                    EventCard(
+                        event, saved = event.id in state.savedIds, waitlisted = event.id in state.waitlistedIds,
+                        onSave = { onIntent(ExploreIntent.ToggleSaved(event.id)) }
+                    ) { onIntent(ExploreIntent.OpenEvent(event.id)) }
+                }
             }
         }
     }
 }
+
+/**
+ * За скільки карток до кінця завантаженого просити наступні. Вісім — приблизно екран списку й
+ * кілька свайпів каруселі: людина не встигає дійти до порожнечі.
+ */
+private const val PREFETCH_AHEAD = 8
+
+/** Скільки карток додає одне довантаження. */
+private const val PAGE = 24

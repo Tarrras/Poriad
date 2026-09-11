@@ -1,8 +1,14 @@
 package app.poruch.android.ui
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
@@ -30,8 +36,11 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -47,14 +56,46 @@ import app.poruch.domain.Attendee
 import app.poruch.domain.Event
 import coil3.compose.AsyncImage
 
-/** Card surface: white on paper, held by a hairline. Shadow is reserved for floating overlays. */
+/**
+ * Card surface: white, lifted off the paper by two shadows — a tight one that draws the contact
+ * edge and a wide one that reads as the distance to the ground. One shadow at this radius looks
+ * like a blur; two look like an object.
+ *
+ * Dark mode drops both (its shadow colours are transparent) and steps the surface up instead: on a
+ * near-black canvas a cast shadow is invisible, and a lighter fill is what actually reads as near.
+ */
 @Composable
 fun Modifier.cardSurface(shape: Shape = Radius.lg, elevation: Dp = Elevation.card): Modifier {
     val colors = Poruch.colors
-    val base = if (elevation > Elevation.card)
-        this.shadow(elevation, shape, clip = false, ambientColor = Color(0x14000000), spotColor = Color(0x1F000000))
+    val lifted = if (elevation > 0.dp && !colors.dark) this
+        .shadow(elevation, shape, clip = false, ambientColor = colors.shadowAmbient, spotColor = colors.shadowSpot)
+        .shadow(elevation / 4, shape, clip = false, ambientColor = colors.shadowAmbient, spotColor = colors.shadowSpot)
     else this
-    return base.background(colors.surface, shape).border(1.dp, colors.hairline, shape).clip(shape)
+    val fill = if (colors.dark && elevation >= Elevation.raised) colors.surfaceRaised else colors.surface
+    // A lit card needs less line to hold it; a flat one still needs the full hairline.
+    val edge = if (colors.dark || elevation == 0.dp) colors.hairline else colors.hairline.copy(alpha = 0.55f)
+    return lifted.background(fill, shape).border(1.dp, edge, shape).clip(shape)
+}
+
+/**
+ * Tap feedback with depth: the surface dips a fraction under the finger and springs back. Paired
+ * with the card shadow this is what makes a card feel like an object rather than a rectangle —
+ * so every tappable surface uses it instead of a bare `clickable`.
+ *
+ * Reduced motion keeps the ripple and drops the dip.
+ */
+@Composable
+fun Modifier.pressable(enabled: Boolean = true, pressedScale: Float = 0.98f, onClick: () -> Unit): Modifier {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed && !Poruch.reducedMotion) pressedScale else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
+        label = "press"
+    )
+    return this
+        .graphicsLayer { scaleX = scale; scaleY = scale }
+        .clickable(interactionSource = interaction, indication = LocalIndication.current, enabled = enabled, onClick = onClick)
 }
 
 @Composable
@@ -63,7 +104,7 @@ fun HairLine(modifier: Modifier = Modifier) = Box(modifier.fillMaxWidth().height
 /** Category dot: the smallest possible carrier of category colour, straight from Corner. */
 @Composable
 fun CategoryDot(category: String, size: Dp = 8.dp) =
-    Box(Modifier.size(size).background(categoryColor(category), CircleShape))
+    Box(Modifier.size(size).background(categoryInk(category), CircleShape))
 
 // ---------------------------------------------------------------- search & chips
 
@@ -75,8 +116,7 @@ fun PoruchSearchField(
     val colors = Poruch.colors
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
         Row(
-            Modifier.weight(1f).height(48.dp).background(colors.surface, Radius.pill)
-                .border(1.dp, colors.hairline, Radius.pill).padding(horizontal = Spacing.lg),
+            Modifier.weight(1f).height(48.dp).cardSurface(Radius.pill, Elevation.card).padding(horizontal = Spacing.lg),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
             Icon(PoruchIcons.search, null, Modifier.size(18.dp), tint = colors.inkSecondary)
@@ -89,10 +129,18 @@ fun PoruchSearchField(
                     inner()
                 }
             )
-            if (value.isNotEmpty()) Icon(
-                Icons.Outlined.Cancel, stringResource(R.string.clear_search),
-                Modifier.size(18.dp).clip(CircleShape).clickable { onValueChange("") }, tint = colors.inkTertiary
-            )
+            // Значок лишається дрібним, а торкатися можна всієї зони: 18 dp — це втричі менше за
+            // мінімальну ціль, і в нього справді не влучаєш.
+            if (value.isNotEmpty()) Box(
+                Modifier.minimumInteractiveComponentSize().clip(CircleShape)
+                    .clickable { onValueChange("") },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Outlined.Cancel, stringResource(R.string.clear_search),
+                    Modifier.size(18.dp), tint = colors.inkTertiary
+                )
+            }
         }
         if (onFilters != null) Box {
             IconPill(PoruchIcons.filters, stringResource(R.string.filters), onClick = onFilters)
@@ -109,26 +157,36 @@ fun PoruchSearchField(
 fun IconPill(icon: ImageVector, contentDescription: String, selected: Boolean = false, size: Dp = 48.dp, onClick: () -> Unit) {
     val colors = Poruch.colors
     Box(
-        Modifier.minimumInteractiveComponentSize().size(size).background(if (selected) colors.brand else colors.surface, CircleShape)
+        Modifier.minimumInteractiveComponentSize().size(size)
+            .shadow(if (colors.dark) 0.dp else Elevation.card, CircleShape, clip = false, ambientColor = colors.shadowAmbient, spotColor = colors.shadowSpot)
+            .background(if (selected) brandGradient() else SolidColor(colors.surface), CircleShape)
             .border(1.dp, if (selected) Color.Transparent else colors.hairline, CircleShape)
-            .clip(CircleShape).clickable(onClick = onClick).semantics { this.contentDescription = contentDescription },
+            .clip(CircleShape).pressable(onClick = onClick).semantics { this.contentDescription = contentDescription },
         contentAlignment = Alignment.Center
     ) { Icon(icon, null, Modifier.size(20.dp), tint = if (selected) colors.onBrand else colors.ink) }
 }
 
-/** Chip: lowercase label on a white pill; selection fills it with ink, the way Corner marks state. */
+/**
+ * Chip: lowercase label on a white pill that hovers a millimetre off the paper; selection fills it
+ * with ink, the way Corner marks state. A selected chip sits *higher* than an unselected one —
+ * the state is legible from the shadow alone, before the fill is read.
+ */
 @Composable
 fun PoruchChip(label: String, selected: Boolean, onClick: () -> Unit, icon: ImageVector? = null, dot: String? = null) {
     val colors = Poruch.colors
     Row(
         Modifier.minimumInteractiveComponentSize().height(38.dp)
-            .background(if (selected) colors.brand else colors.surface, Radius.pill)
+            .shadow(
+                if (colors.dark) 0.dp else if (selected) Elevation.raised else Elevation.card,
+                Radius.pill, clip = false, ambientColor = colors.shadowAmbient, spotColor = colors.shadowSpot
+            )
+            .background(if (selected) brandGradient() else SolidColor(colors.surface), Radius.pill)
             .border(1.dp, if (selected) Color.Transparent else colors.hairline, Radius.pill)
-            .clip(Radius.pill).clickable(onClick = onClick).padding(horizontal = Spacing.lg),
+            .clip(Radius.pill).pressable(onClick = onClick).padding(horizontal = Spacing.lg),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
     ) {
         when {
-            dot != null -> Box(Modifier.size(8.dp).background(if (selected) colors.onBrand else categoryColor(dot), CircleShape))
+            dot != null -> Box(Modifier.size(8.dp).background(if (selected) colors.onBrand else categoryInk(dot), CircleShape))
             icon != null -> Icon(icon, null, Modifier.size(15.dp), tint = if (selected) colors.onBrand else colors.inkSecondary)
         }
         Text(label, style = MaterialTheme.typography.labelMedium, color = if (selected) colors.onBrand else colors.ink, maxLines = 1)
@@ -140,14 +198,22 @@ fun PoruchChip(label: String, selected: Boolean, onClick: () -> Unit, icon: Imag
 fun CategoryTile(category: String, selected: Boolean, onClick: () -> Unit) {
     val colors = Poruch.colors
     Column(
-        Modifier.width(76.dp).clip(Radius.md).clickable(onClick = onClick).padding(vertical = Spacing.sm),
+        Modifier.width(76.dp).clip(Radius.md).pressable(onClick = onClick).padding(vertical = Spacing.sm),
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.sm)
     ) {
         Box(
-            Modifier.size(60.dp).background(categoryWash(category), Radius.sm)
-                .border(if (selected) 2.dp else 1.dp, if (selected) colors.ink else colors.hairline, Radius.sm),
+            Modifier.size(60.dp)
+                .shadow(
+                    if (colors.dark) 0.dp else Elevation.card, Radius.sm, clip = false,
+                    ambientColor = categoryColor(category).copy(alpha = 0.20f), spotColor = categoryColor(category).copy(alpha = 0.30f)
+                )
+                .background(categoryGradient(category), Radius.sm)
+                .border(
+                    if (selected) 2.dp else 1.dp,
+                    if (selected) colors.ink else categoryColor(category).copy(alpha = 0.18f), Radius.sm
+                ),
             contentAlignment = Alignment.Center
-        ) { Icon(categoryIcon(category), null, Modifier.size(24.dp), tint = categoryColor(category)) }
+        ) { Icon(categoryIcon(category), null, Modifier.size(24.dp), tint = categoryInk(category)) }
         Text(
             stringResource(categoryLabel(category)), style = MaterialTheme.typography.labelMedium,
             color = if (selected) colors.ink else colors.inkSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis
@@ -184,11 +250,23 @@ fun PrimaryButton(
     enabled: Boolean = true, loading: Boolean = false, icon: ImageVector? = null, tone: Color? = null
 ) {
     val colors = Poruch.colors
-    val background = (tone ?: colors.brand).let { if (enabled) it else colors.surfaceMuted }
+    val background: Brush = when {
+        !enabled -> SolidColor(colors.surfaceMuted)
+        tone != null -> Brush.verticalGradient(listOf(tone.copy(alpha = 0.92f), tone))
+        else -> brandGradient()
+    }
     val foreground = if (enabled) colors.onBrand else colors.inkTertiary
+    // The action's own shadow is tinted with the action's own colour, so a coloured button glows
+    // rather than casting the same grey smudge as everything else.
+    val glow = (tone ?: colors.shadowSpot).copy(alpha = if (tone != null) 0.38f else 0.30f)
     Row(
-        modifier.height(52.dp).background(background, Radius.pill).clip(Radius.pill)
-            .clickable(enabled = enabled && !loading, onClick = onClick).padding(horizontal = Spacing.xxl),
+        modifier.height(52.dp)
+            .shadow(
+                if (enabled && !colors.dark) Elevation.raised else 0.dp, Radius.pill, clip = false,
+                ambientColor = glow.copy(alpha = glow.alpha * 0.6f), spotColor = glow
+            )
+            .background(background, Radius.pill).clip(Radius.pill)
+            .pressable(enabled = enabled && !loading, onClick = onClick).padding(horizontal = Spacing.xxl),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm, Alignment.CenterHorizontally)
     ) {
         if (loading) CircularProgressIndicator(Modifier.size(18.dp), color = foreground, strokeWidth = 2.dp)
@@ -206,7 +284,7 @@ fun SecondaryButton(
     val foreground = if (enabled) tone ?: colors.ink else colors.inkTertiary
     Row(
         modifier.height(52.dp).background(colors.surfaceMuted, Radius.pill)
-            .clip(Radius.pill).clickable(enabled = enabled, onClick = onClick).padding(horizontal = Spacing.xxl),
+            .clip(Radius.pill).pressable(enabled = enabled, onClick = onClick).padding(horizontal = Spacing.xxl),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm, Alignment.CenterHorizontally)
     ) {
         icon?.let { Icon(it, null, Modifier.size(18.dp), tint = foreground) }
@@ -226,12 +304,17 @@ fun GhostButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier
 
 // ---------------------------------------------------------------- structure
 
-/** Section headers are small, uppercase and letterspaced — Corner's editorial signature. */
+/**
+ * A section is announced the way Corner announces one: lowercase, at reading size, in the ink of
+ * the content it introduces. The 11 pt caps we used before were legible but timid — they read as a
+ * caption for the card above rather than a title for the row below. Caps stay where they carry
+ * data: dates, badges, field labels.
+ */
 @Composable
 fun SectionHeader(title: String, modifier: Modifier = Modifier, actionLabel: String? = null, onAction: (() -> Unit)? = null) {
     val colors = Poruch.colors
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(title.uppercase(), style = MaterialTheme.typography.labelSmall, color = colors.inkSecondary, modifier = Modifier.weight(1f))
+        Text(title.lowercase(), style = PoruchType.sectionTitle, color = colors.ink, modifier = Modifier.weight(1f))
         if (actionLabel != null && onAction != null) Text(
             actionLabel, style = MaterialTheme.typography.labelMedium, color = colors.ink,
             modifier = Modifier.clip(Radius.pill).clickable(onClick = onAction).padding(horizontal = Spacing.sm, vertical = Spacing.xs)
@@ -247,8 +330,7 @@ fun PageHeader(title: String, modifier: Modifier = Modifier, back: (() -> Unit)?
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)
     ) {
         if (back != null) Box(
-            Modifier.size(40.dp).background(colors.surface, CircleShape).border(1.dp, colors.hairline, CircleShape)
-                .clip(CircleShape).clickable(onClick = back),
+            Modifier.size(40.dp).cardSurface(CircleShape, Elevation.card).pressable(onClick = back),
             contentAlignment = Alignment.Center
         ) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.back), Modifier.size(18.dp), tint = colors.ink) }
         Text(title, style = MaterialTheme.typography.headlineMedium, color = colors.ink, modifier = Modifier.weight(1f))
@@ -266,9 +348,13 @@ fun EmptyState(
         modifier.fillMaxWidth().padding(Spacing.xxl),
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.md)
     ) {
-        Box(Modifier.size(64.dp).background(colors.surfaceMuted, Radius.md), contentAlignment = Alignment.Center) {
-            Icon(icon, null, Modifier.size(26.dp), tint = colors.inkSecondary)
-        }
+        Box(
+            Modifier.size(64.dp)
+                .shadow(if (colors.dark) 0.dp else Elevation.card, Radius.md, clip = false, ambientColor = colors.shadowAmbient, spotColor = colors.shadowSpot)
+                .background(Brush.verticalGradient(listOf(colors.surface, colors.surfaceMuted)), Radius.md)
+                .border(1.dp, colors.hairline, Radius.md),
+            contentAlignment = Alignment.Center
+        ) { Icon(icon, null, Modifier.size(26.dp), tint = colors.inkSecondary) }
         Text(title, style = MaterialTheme.typography.titleLarge, color = colors.ink)
         Text(message, style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
         if (actionLabel != null && onAction != null) PrimaryButton(actionLabel, onAction, Modifier.padding(top = Spacing.sm))
@@ -279,12 +365,17 @@ fun EmptyState(
 fun BannerCard(title: String, subtitle: String, onClick: () -> Unit, modifier: Modifier = Modifier, icon: ImageVector = PoruchIcons.sparkle) {
     val colors = Poruch.colors
     Row(
-        modifier.fillMaxWidth().cardSurface().clickable(onClick = onClick).padding(Spacing.lg),
+        modifier.fillMaxWidth().pressable(onClick = onClick)
+            .shadow(if (colors.dark) 0.dp else Elevation.card, Radius.lg, clip = false, ambientColor = colors.shadowAmbient, spotColor = colors.shadowSpot)
+            .background(Brush.linearGradient(listOf(colors.heroTop, colors.surface)), Radius.lg)
+            .border(1.dp, colors.hairline, Radius.lg).clip(Radius.lg).padding(Spacing.lg),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)
     ) {
-        Box(Modifier.size(44.dp).background(colors.brandContainer, Radius.xs), contentAlignment = Alignment.Center) {
-            Icon(icon, null, Modifier.size(20.dp), tint = colors.ink)
-        }
+        Box(
+            Modifier.size(44.dp).background(Brush.verticalGradient(listOf(colors.surface, colors.brandContainer)), Radius.xs)
+                .border(1.dp, colors.hairline, Radius.xs),
+            contentAlignment = Alignment.Center
+        ) { Icon(icon, null, Modifier.size(20.dp), tint = colors.ink) }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(title, style = MaterialTheme.typography.titleSmall, color = colors.ink)
             Text(subtitle, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
@@ -367,24 +458,98 @@ fun LabelledField(
     }
 }
 
-// ---------------------------------------------------------------- event surfaces
-
+/**
+ * A field whose value is chosen rather than typed — a date, a place. It looks exactly like
+ * [LabelledField] on purpose: a form should read as one list of named things, not as a form with a
+ * button in the middle of it.
+ */
 @Composable
-private fun EventImage(event: Event, modifier: Modifier) {
-    Box(modifier.background(categoryWash(event.category)), contentAlignment = Alignment.Center) {
-        Icon(categoryIcon(event.category), null, Modifier.size(26.dp), tint = categoryColor(event.category))
-        event.imageUrl?.let { AsyncImage(model = it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize()) }
+fun PickerField(
+    label: String, value: String, onClick: () -> Unit, modifier: Modifier = Modifier,
+    placeholder: String = "", hint: String? = null, icon: ImageVector? = null
+) {
+    val colors = Poruch.colors
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        Text(label.uppercase(), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
+        Row(
+            Modifier.fillMaxWidth().defaultMinSize(minHeight = 56.dp)
+                .background(colors.surface, Radius.sm).border(1.dp, colors.hairline, Radius.sm)
+                .clip(Radius.sm).pressable(onClick = onClick).padding(horizontal = Spacing.lg),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
+        ) {
+            Text(
+                value.ifEmpty { placeholder }, style = MaterialTheme.typography.bodyLarge,
+                color = if (value.isEmpty()) colors.inkTertiary else colors.ink, modifier = Modifier.weight(1f)
+            )
+            icon?.let { Icon(it, null, Modifier.size(18.dp), tint = colors.inkTertiary) }
+        }
+        hint?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary) }
     }
 }
 
+// ---------------------------------------------------------------- event surfaces
+
+/**
+ * A cover with no photo is not an empty box: it is the category's own gradient with the category's
+ * glyph on it, so a feed of photoless events still reads as a row of coloured objects. A photo,
+ * when there is one, gets a bottom scrim — white badges and the save button sit on top of it, and
+ * a bright sky underneath would swallow both.
+ */
 @Composable
-private fun eventStatus(event: Event, joined: Boolean, waitlisted: Boolean = false): Pair<String, BadgeTone>? = when {
-    event.isCancelled -> stringResource(R.string.cancelled) to BadgeTone.Danger
-    joined -> stringResource(R.string.going) to BadgeTone.Success
-    waitlisted -> stringResource(R.string.in_queue) to BadgeTone.Accent
-    eventSeatsLeft(event) == 0 -> stringResource(R.string.full) to BadgeTone.Neutral
-    eventScarce(event) -> stringResource(R.string.seats_left, eventSeatsLeft(event)) to BadgeTone.Accent
-    else -> null
+private fun EventImage(event: Event, modifier: Modifier) {
+    Box(modifier.background(categoryGradient(event.category)), contentAlignment = Alignment.Center) {
+        Icon(categoryIcon(event.category), null, Modifier.size(26.dp), tint = categoryInk(event.category))
+        event.imageUrl?.let {
+            AsyncImage(model = it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            Box(
+                Modifier.matchParentSize().background(
+                    Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.28f), Color.Transparent, Color.Black.copy(alpha = 0.12f)))
+                )
+            )
+        }
+    }
+}
+
+/**
+ * Один рядок стану над карткою.
+ *
+ * Афіша завжди підписана джерелом, і це не стилістика: без видимої атрибуції ми не маємо права
+ * її показувати (docs/event-ingestion.md §8). Місця, черга й «ви йдете» стосуються тільки кімнати —
+ * тепер до них не дістатися, не спитавши спершу, чи вона взагалі є.
+ */
+@Composable
+private fun eventStatus(event: Event, waitlisted: Boolean = false): Pair<String, BadgeTone>? {
+    if (event.isCancelled) return stringResource(R.string.cancelled) to BadgeTone.Danger
+    event.listing?.let { listing ->
+        return if (listing.isWithdrawn) stringResource(R.string.listing_withdrawn) to BadgeTone.Neutral
+        else stringResource(R.string.listing_badge, listing.sourceName) to BadgeTone.Neutral
+    }
+    val room = event.gathering ?: return null
+    return when {
+        room.joined -> stringResource(R.string.going) to BadgeTone.Success
+        waitlisted -> stringResource(R.string.in_queue) to BadgeTone.Accent
+        room.isFull -> stringResource(R.string.full) to BadgeTone.Neutral
+        room.isScarce -> stringResource(R.string.seats_left, room.seatsLeft) to BadgeTone.Accent
+        else -> null
+    }
+}
+
+/**
+ * Рядок під назвою: скільки людей іде — або скільки коштує квиток. Що саме, вирішує наявність
+ * кімнати, а не збіг обставин: у афіші учасників немає, і «0 з 1» під чужим концертом було
+ * єдиною вадою, яку тут видно неозброєним оком.
+ */
+@Composable
+private fun EventMeta(event: Event, short: Boolean = false) {
+    val room = event.gathering
+    val listing = event.listing
+    when {
+        room != null -> MetaLine(
+            PoruchIcons.social,
+            stringResource(if (short) R.string.attendees_short else R.string.attendees, room.attendeeCount, room.capacity)
+        )
+        listing != null -> MetaLine(Icons.Outlined.ConfirmationNumber, listingPrice(listing))
+    }
 }
 
 /** Category dot plus a lowercase descriptor — the line Corner puts under every place name. */
@@ -394,9 +559,17 @@ fun EventDescriptor(event: Event, modifier: Modifier = Modifier) {
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
         CategoryDot(event.category)
         Text(
-            stringResource(categoryLabel(event.category)).lowercase() + " · " + event.address.ifBlank { event.city },
-            style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis
+            stringResource(categoryLabel(event.category)).lowercase(),
+            style = PoruchType.descriptor, color = categoryInk(event.category), maxLines = 1
         )
+        // Крапка розділяє, а не прикрашає: без тексту праворуч вона читається як самотня «•».
+        event.address.ifBlank { event.city }.takeIf { it.isNotBlank() }?.let { place ->
+            Text(
+                "· $place",
+                style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary,
+                maxLines = 1, overflow = TextOverflow.Ellipsis
+            )
+        }
     }
 }
 
@@ -405,8 +578,9 @@ private fun SaveButton(saved: Boolean, onSave: () -> Unit, modifier: Modifier = 
     val colors = Poruch.colors
     Box(
         modifier.minimumInteractiveComponentSize().size(34.dp)
+            .shadow(Elevation.raised, CircleShape, clip = false, ambientColor = Color(0x1F000000), spotColor = Color(0x33000000))
             .background(colors.surface, CircleShape).border(1.dp, colors.hairline, CircleShape)
-            .clip(CircleShape).clickable(onClick = onSave),
+            .clip(CircleShape).pressable(onClick = onSave),
         contentAlignment = Alignment.Center
     ) {
         Icon(
@@ -425,9 +599,9 @@ fun EventCard(
 ) {
     val colors = Poruch.colors
     val cancelled = event.isCancelled
-    val badge = eventStatus(event, event.joined, waitlisted)
+    val badge = eventStatus(event, waitlisted)
     Column(
-        modifier.fillMaxWidth().cardSurface().clickable(onClick = onClick).padding(Spacing.sm)
+        modifier.fillMaxWidth().pressable(onClick = onClick).cardSurface().padding(Spacing.sm)
             .alpha(if (cancelled) 0.6f else 1f)
     ) {
         // Without a photo the placeholder shrinks: an empty 16:9 band would dominate the card.
@@ -437,13 +611,13 @@ fun EventCard(
             if (onSave != null) SaveButton(saved, onSave, Modifier.align(Alignment.TopEnd).padding(Spacing.sm))
         }
         Column(Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-            Text(eventOverline(event), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
+            Text(eventOverline(event, dateWords()), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
             Text(
                 event.title.uppercase(), style = MaterialTheme.typography.titleSmall, color = colors.ink,
                 maxLines = 2, overflow = TextOverflow.Ellipsis
             )
             EventDescriptor(event)
-            MetaLine(PoruchIcons.social, stringResource(R.string.attendees, event.attendeeCount, event.capacity))
+            EventMeta(event)
         }
     }
 }
@@ -452,15 +626,15 @@ fun EventCard(
 @Composable
 fun EventRow(event: Event, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val colors = Poruch.colors
-    val badge = eventStatus(event, event.joined)
+    val badge = eventStatus(event)
     Row(
-        modifier.fillMaxWidth().clip(Radius.md).clickable(onClick = onClick).padding(vertical = Spacing.md)
+        modifier.fillMaxWidth().clip(Radius.md).pressable(onClick = onClick).padding(vertical = Spacing.md)
             .alpha(if (event.isCancelled) 0.6f else 1f),
         horizontalArrangement = Arrangement.spacedBy(Spacing.md), verticalAlignment = Alignment.CenterVertically
     ) {
         EventImage(event, Modifier.size(60.dp).clip(Radius.xs))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-            Text(eventOverline(event), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
+            Text(eventOverline(event, dateWords()), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
             Text(
                 event.title.uppercase(), style = MaterialTheme.typography.titleSmall, color = colors.ink,
                 maxLines = 2, overflow = TextOverflow.Ellipsis
@@ -478,22 +652,21 @@ fun EventMapCard(
     saved: Boolean = false, onSave: (() -> Unit)? = null, onClick: () -> Unit
 ) {
     val colors = Poruch.colors
-    val badge = eventStatus(event, event.joined)
+    val badge = eventStatus(event)
     Row(
-        modifier.height(112.dp).cardSurface(Radius.lg, Elevation.overlay)
+        modifier.height(112.dp).pressable(onClick = onClick).cardSurface(Radius.lg, Elevation.overlay)
             .border(if (focused) 2.dp else 1.dp, if (focused) colors.ink else colors.hairline, Radius.lg)
-            .clickable(onClick = onClick).padding(Spacing.md),
+            .padding(Spacing.md),
         horizontalArrangement = Arrangement.spacedBy(Spacing.md), verticalAlignment = Alignment.CenterVertically
     ) {
         EventImage(event, Modifier.size(84.dp).clip(Radius.xs))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-            Text(eventOverline(event), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
+            Text(eventOverline(event, dateWords()), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
             Text(
                 event.title.uppercase(), style = MaterialTheme.typography.titleSmall, color = colors.ink,
                 maxLines = 2, overflow = TextOverflow.Ellipsis
             )
-            if (badge != null) StatusBadge(badge.first, badge.second)
-            else MetaLine(PoruchIcons.social, stringResource(R.string.attendees_short, event.attendeeCount, event.capacity))
+            if (badge != null) StatusBadge(badge.first, badge.second) else EventMeta(event, short = true)
         }
         if (onSave != null) SaveButton(saved, onSave)
     }
@@ -504,7 +677,7 @@ fun EventMapCard(
 fun EventTile(event: Event, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val colors = Poruch.colors
     Column(
-        modifier.cardSurface().clickable(onClick = onClick).padding(Spacing.sm)
+        modifier.pressable(onClick = onClick).cardSurface().padding(Spacing.sm)
             .alpha(if (event.isCancelled) 0.6f else 1f),
         verticalArrangement = Arrangement.spacedBy(Spacing.sm)
     ) {
@@ -513,7 +686,7 @@ fun EventTile(event: Event, modifier: Modifier = Modifier, onClick: () -> Unit) 
             Modifier.padding(horizontal = Spacing.sm).padding(bottom = Spacing.sm),
             verticalArrangement = Arrangement.spacedBy(Spacing.xs)
         ) {
-            Text(eventOverline(event), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
+            Text(eventOverline(event, dateWords()), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
             Text(
                 event.title.uppercase(), style = MaterialTheme.typography.titleSmall, color = colors.ink,
                 minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis
@@ -577,7 +750,9 @@ fun PoruchTabBar(items: List<TabItem>, selected: String, modifier: Modifier = Mo
             items.forEach { item ->
                 val active = item.key == selected
                 Column(
-                    Modifier.weight(1f).height(42.dp).clip(Radius.pill).clickable { onSelect(item.key) }
+                    Modifier.weight(1f).height(42.dp).clip(Radius.pill)
+                        .background(if (active) colors.brandContainer else Color.Transparent, Radius.pill)
+                        .clickable { onSelect(item.key) }
                         .semantics { contentDescription = item.label },
                     horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center
                 ) {
@@ -598,8 +773,12 @@ fun PoruchTabBar(items: List<TabItem>, selected: String, modifier: Modifier = Mo
 fun CreateButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     val colors = Poruch.colors
     Box(
-        modifier.size(56.dp).shadow(Elevation.overlay, CircleShape, clip = false)
-            .background(colors.brand, CircleShape).clip(CircleShape).clickable(onClick = onClick),
+        modifier.size(56.dp)
+            .shadow(
+                Elevation.overlay, CircleShape, clip = false,
+                ambientColor = colors.accent.copy(alpha = 0.35f), spotColor = colors.accent.copy(alpha = 0.45f)
+            )
+            .background(brandGradient(), CircleShape).clip(CircleShape).pressable(pressedScale = 0.94f, onClick = onClick),
         contentAlignment = Alignment.Center
     ) { Icon(PoruchIcons.plus, stringResource(R.string.create), Modifier.size(24.dp), tint = colors.onBrand) }
 }
@@ -619,11 +798,14 @@ fun NoticeBanner(text: String, error: Boolean, onDismiss: () -> Unit, modifier: 
     val wash = if (error) colors.dangerContainer else colors.successContainer
     val mark = if (error) colors.danger else colors.success
     Row(
-        modifier.fillMaxWidth().cardSurface(Radius.md, Elevation.overlay)
-            .clickable(onClick = onDismiss).padding(Spacing.md),
+        modifier.fillMaxWidth().pressable(onClick = onDismiss).cardSurface(Radius.md, Elevation.overlay)
+            .padding(Spacing.md),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)
     ) {
-        Box(Modifier.size(36.dp).background(wash, Radius.xs), contentAlignment = Alignment.Center) {
+        Box(
+            Modifier.size(36.dp).background(Brush.verticalGradient(listOf(wash, lerp(wash, mark, 0.16f))), Radius.xs),
+            contentAlignment = Alignment.Center
+        ) {
             Icon(
                 if (error) PoruchIcons.alert else PoruchIcons.checkCircle, null,
                 Modifier.size(20.dp), tint = mark

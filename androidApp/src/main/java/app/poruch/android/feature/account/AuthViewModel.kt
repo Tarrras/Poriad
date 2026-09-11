@@ -17,11 +17,13 @@ class AuthViewModel(private val app: PoruchApp) : MviViewModel<AuthState, AuthIn
             is AuthIntent.SetEmail -> reduce { copy(email = intent.value) }
             is AuthIntent.SetName -> reduce { copy(name = intent.value) }
             is AuthIntent.SetPassword -> reduce { copy(password = intent.value) }
+            is AuthIntent.SetBirthDate -> reduce { copy(birthDate = intent.value.toString(), pickingBirthDate = false) }
+            is AuthIntent.ShowBirthDatePicker -> reduce { copy(pickingBirthDate = intent.show) }
             AuthIntent.TogglePasswordReveal -> reduce { copy(passwordRevealed = !passwordRevealed) }
             // The password never survives a mode switch: it belongs to the attempt, not the screen.
             AuthIntent.ToggleMode -> reduce { copy(signup = !signup, password = "") }
             AuthIntent.Submit -> state.value.let {
-                if (it.signup) app.signUp(it.email.trim(), it.password, it.name.trim())
+                if (it.signup) app.signUp(it.email.trim(), it.password, it.name.trim(), it.birthDate)
                 else app.signIn(it.email.trim(), it.password)
             }
             AuthIntent.ResetPassword -> app.requestPasswordReset(state.value.email.trim())

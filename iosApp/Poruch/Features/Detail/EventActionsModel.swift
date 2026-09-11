@@ -15,9 +15,15 @@ import Shared
     init(app: PoruchApp) { self.app = app }
 
     func perform(_ action: DetailAction, on event: Event, signedIn: Bool) -> Bool {
+        // Квиток на афішу купують у джерела, а не в нас, тож акаунт для цього не потрібен —
+        // саме тому дія стоїть перед перевіркою входу, а не після неї.
+        if action == .tickets {
+            if let url = sourceURL(event) { UIApplication.shared.open(url) }
+            return true
+        }
         guard signedIn else { return false }
         switch action {
-        case .join: app.joinEvent(id: event.id)
+        case .join, .request: app.joinEvent(id: event.id)
         case .leave: app.leaveEvent(id: event.id)
         case .joinWaitlist: app.joinWaitlist(id: event.id)
         case .leaveWaitlist: app.leaveWaitlist(id: event.id)

@@ -11,24 +11,38 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.Remove
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import app.poruch.android.EventMap
+import app.poruch.android.MapController
+import app.poruch.android.MapZoom
 import app.poruch.android.R
 import app.poruch.android.ui.*
+import app.poruch.domain.SafetyRules
 import java.time.LocalDateTime
 
 @Composable
@@ -62,6 +76,8 @@ fun EditorScreen(state: EditorState, onIntent: (EditorIntent) -> Unit, onClose: 
             )
         }
     }
+
+    if (state.pickingPoint) PointPicker(state, onIntent)
 
     state.picker?.let { request ->
         val startsAt = state.form.parse(state.form.starts)
@@ -127,27 +143,177 @@ private fun AboutStep(form: EditorForm, onIntent: (EditorIntent) -> Unit) {
 
 @Composable
 private fun PlaceStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
+    val colors = Poruch.colors
     val form = state.form
     LabelledField(stringResource(R.string.city), form.city, { value -> onIntent(EditorIntent.Edit { copy(city = value) }) })
     LabelledField(
         stringResource(R.string.address), form.address, { value -> onIntent(EditorIntent.Edit { copy(address = value) }) },
-        hint = stringResource(R.string.point_help)
+        placeholder = stringResource(R.string.address_placeholder),
+        hint = stringResource(R.string.address_hint)
     )
+    // Підказки стоять одразу під полем, доки їх не обрали: список нижче за мапу читався б як
+    // щось інше, а не як продовження того, що набирають.
+    if (state.addressSuggestions.isNotEmpty()) Column(
+        Modifier.fillMaxWidth().cardSurface(), verticalArrangement = Arrangement.spacedBy(0.dp)
+    ) {
+        state.addressSuggestions.forEachIndexed { index, place ->
+            if (index > 0) HairLine()
+            Row(
+                Modifier.fillMaxWidth().clickable { onIntent(EditorIntent.PickAddress(place)) }
+                    .padding(Spacing.lg),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Spacing.md)
+            ) {
+                Icon(PoruchIcons.pin, null, Modifier.size(18.dp), tint = colors.inkSecondary)
+                Column(Modifier.weight(1f)) {
+                    Text(place.label, style = MaterialTheme.typography.bodyLarge, color = colors.ink)
+                    if (place.detail.isNotBlank()) Text(
+                        place.detail, style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        }
+    }
+    Text(
+        stringResource(if (state.pointChosen) R.string.address_point_set else R.string.address_or_map),
+        style = MaterialTheme.typography.bodySmall,
+        color = if (state.pointChosen) colors.success else colors.inkTertiary
+    )
+    // Мапа тут нічого не обирає: вона показує, що вибрано. Жести на клаптику 260 dp коштували б
+    // точності, якої від крапки зустрічі й чекають.
     Box(Modifier.fillMaxWidth().height(260.dp).clip(Radius.md)) {
         EventMap(
             emptyList(), state.mapLatitude, state.mapLongitude,
-            choosePoint = { lat, lon -> onIntent(EditorIntent.PickPoint(lat, lon)) }
+            chosenPoint = state.point, interactive = false,
+            // Крапку принесла адреса — отже, показуємо будинок, а не місто.
+            centerZoom = if (state.pointChosen) MapZoom.street else MapZoom.city
         )
     }
-    Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
-        LabelledField(
-            stringResource(R.string.latitude), form.latitude, { value -> onIntent(EditorIntent.Edit { copy(latitude = value) }) },
-            Modifier.weight(1f), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
-        )
-        LabelledField(
-            stringResource(R.string.longitude), form.longitude, { value -> onIntent(EditorIntent.Edit { copy(longitude = value) }) },
-            Modifier.weight(1f), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
-        )
+    SecondaryButton(
+        stringResource(if (state.pointChosen) R.string.change_point else R.string.choose_point),
+        { onIntent(EditorIntent.ShowPointPicker(true)) },
+        Modifier.fillMaxWidth()
+    )
+}
+
+/** Кругла кнопка масштабу поверх мапи: та сама вага, що й у решти круглих кнопок застосунку. */
+@Composable
+private fun ZoomButton(icon: ImageVector, label: Int, onClick: () -> Unit) {
+    val colors = Poruch.colors
+    Box(
+        Modifier.size(44.dp).background(colors.surface, androidx.compose.foundation.shape.CircleShape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(icon, stringResource(label), Modifier.size(20.dp), tint = colors.ink)
+    }
+}
+
+/**
+ * Повноекранна мапа, де крапка — це центр.
+ *
+ * Ціль не рухається, рухається світ під нею: так крапку видно завжди, і її не затуляє палець.
+ * Підтвердження — окрема дія, тож дорогою можна роздивитись околиці, нічого не змінивши.
+ */
+@Composable
+private fun PointPicker(state: EditorState, onIntent: (EditorIntent) -> Unit) {
+    val colors = Poruch.colors
+    val start = state.point ?: (state.mapLatitude to state.mapLongitude)
+    var center by remember { mutableStateOf(start) }
+    val controller = remember { MapController() }
+    Dialog(
+        onDismissRequest = { onIntent(EditorIntent.ShowPointPicker(false)) },
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Box(Modifier.fillMaxSize().background(colors.canvas)) {
+            EventMap(
+                emptyList(), start.first, start.second,
+                modifier = Modifier.fillMaxSize(),
+                centerZoom = if (state.pointChosen) MapZoom.street else MapZoom.city,
+                controller = controller,
+                // Камера повідомляє про зупинку, а не про кожен кадр: питати адресу має сенс
+                // тоді, коли палець уже відпустив мапу.
+                onCenterChanged = { latitude, longitude ->
+                    center = latitude to longitude
+                    onIntent(EditorIntent.AimAt(latitude, longitude))
+                }
+            )
+            // Ціль малюється поверх мапи й не приймає дотиків: під нею мапа, і вона має тягтися.
+            Icon(
+                PoruchIcons.pin, null,
+                Modifier.align(Alignment.Center).size(36.dp).offset(y = (-18).dp),
+                tint = colors.brand
+            )
+            Column(Modifier.fillMaxWidth().statusBarsPadding()) {
+                PageHeader(
+                    stringResource(R.string.choose_point_title),
+                    back = { onIntent(EditorIntent.ShowPointPicker(false)) }
+                )
+            }
+            Column(
+                Modifier.align(Alignment.CenterEnd).padding(Spacing.lg),
+                verticalArrangement = Arrangement.spacedBy(Spacing.sm)
+            ) {
+                ZoomButton(Icons.Outlined.Add, R.string.zoom_in) { controller.zoomIn() }
+                ZoomButton(Icons.Outlined.Remove, R.string.zoom_out) { controller.zoomOut() }
+            }
+            Column(
+                Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(colors.surface)
+                    .navigationBarsPadding().padding(Spacing.page),
+                verticalArrangement = Arrangement.spacedBy(Spacing.md)
+            ) {
+                // Адреса — головне тут, тож вона й читається як головне: сам рядок, а не підпис.
+                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(PoruchIcons.pin, null, Modifier.size(18.dp), tint = colors.inkSecondary)
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            state.aimAddress.ifBlank { stringResource(R.string.point_searching) },
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = if (state.aimAddress.isBlank()) colors.inkTertiary else colors.ink,
+                            maxLines = 2, overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            stringResource(R.string.choose_point_hint),
+                            style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary
+                        )
+                    }
+                }
+                PrimaryButton(
+                    stringResource(R.string.apply),
+                    { onIntent(EditorIntent.PickPoint(center.first, center.second)) },
+                    Modifier.fillMaxWidth()
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Пояс не набирають — його визначає місце події.
+ *
+ * Показуємо його все одно: подія зберігає власний пояс, і мовчки підставлений неправильний гірший
+ * за видимий. Другий рядок каже, звідки він узявся, бо це різні ступені впевненості.
+ */
+@Composable
+private fun TimeZoneNote(zone: String, fromPlace: Boolean) {
+    val colors = Poruch.colors
+    Row(
+        Modifier.fillMaxWidth().cardSurface().padding(Spacing.lg),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.md), verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(PoruchIcons.clock, null, Modifier.size(20.dp), tint = colors.inkSecondary)
+        Column(Modifier.weight(1f)) {
+            Text(
+                stringResource(R.string.timezone).uppercase(),
+                style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary
+            )
+            Text(zone, style = MaterialTheme.typography.bodyLarge, color = colors.ink)
+            Text(
+                stringResource(if (fromPlace) R.string.timezone_from_place else R.string.timezone_from_device),
+                style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary
+            )
+        }
     }
 }
 
@@ -157,20 +323,50 @@ private fun ScheduleStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
     val form = state.form
     DateTimeField(stringResource(R.string.starts), form.starts) { onIntent(EditorIntent.ShowPicker(PickerRequest.STARTS)) }
     DateTimeField(stringResource(R.string.ends), form.ends) { onIntent(EditorIntent.ShowPicker(PickerRequest.ENDS)) }
-    Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
-        LabelledField(
-            stringResource(R.string.timezone), form.timeZone, { value -> onIntent(EditorIntent.Edit { copy(timeZone = value) }) },
-            Modifier.weight(1f)
+    LabelledField(
+        stringResource(R.string.capacity), form.capacity, { value -> onIntent(EditorIntent.Edit { copy(capacity = value.filter(Char::isDigit)) }) },
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+    )
+    TimeZoneNote(form.timeZone, state.timeZoneFromPlace)
+    // Who may come is part of publishing, not a setting hidden afterwards: an organizer decides it
+    // while they are still thinking about what the evening is.
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+        SectionHeader(stringResource(R.string.who_can_come))
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
+            LabelledField(
+                stringResource(R.string.age_from), form.minAge,
+                { value -> onIntent(EditorIntent.Edit { copy(minAge = value.filter(Char::isDigit).take(3)) }) },
+                Modifier.weight(1f), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+            )
+            LabelledField(
+                stringResource(R.string.age_to), form.maxAge,
+                { value -> onIntent(EditorIntent.Edit { copy(maxAge = value.filter(Char::isDigit).take(3)) }) },
+                Modifier.weight(1f), placeholder = stringResource(R.string.age_to_placeholder),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+            )
+        }
+        Text(
+            stringResource(R.string.age_limit_hint, SafetyRules.MIN_SIGNUP_AGE),
+            style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary
         )
-        LabelledField(
-            stringResource(R.string.capacity), form.capacity, { value -> onIntent(EditorIntent.Edit { copy(capacity = value.filter(Char::isDigit)) }) },
-            Modifier.weight(1f), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-        )
+        Row(
+            Modifier.fillMaxWidth().cardSurface().padding(Spacing.lg),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)
+        ) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(stringResource(R.string.approval_label), style = MaterialTheme.typography.titleSmall, color = colors.ink)
+                Text(stringResource(R.string.approval_hint), style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
+            }
+            Switch(
+                form.approvalRequired, { value -> onIntent(EditorIntent.Edit { copy(approvalRequired = value) }) },
+                colors = SwitchDefaults.colors(checkedTrackColor = colors.brand, checkedThumbColor = colors.onBrand)
+            )
+        }
     }
     Column(Modifier.fillMaxWidth().cardSurface().padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         Text(
             stringResource(categoryLabel(form.category)).uppercase(), style = MaterialTheme.typography.labelSmall,
-            color = categoryColor(form.category)
+            color = categoryInk(form.category)
         )
         Text(form.title.ifBlank { stringResource(R.string.title) }, style = MaterialTheme.typography.titleLarge, color = colors.ink)
         MetaLine(PoruchIcons.pin, "${form.city} · ${form.address}")

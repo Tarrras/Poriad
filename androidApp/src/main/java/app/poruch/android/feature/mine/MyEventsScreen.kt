@@ -23,7 +23,7 @@ import app.poruch.android.ui.*
 fun MyEventsScreen(state: MyEventsState, onIntent: (MyEventsIntent) -> Unit) {
     val colors = Poruch.colors
     Column(Modifier.fillMaxSize().background(colors.canvas)) {
-        Column(Modifier.background(colors.canvasTint).statusBarsPadding()) {
+        Column(Modifier.background(heroGradient()).statusBarsPadding()) {
             PageHeader(stringResource(R.string.my_events), trailing = {
                 IconPill(Icons.Outlined.Refresh, stringResource(R.string.refresh)) { onIntent(MyEventsIntent.Refresh) }
             })

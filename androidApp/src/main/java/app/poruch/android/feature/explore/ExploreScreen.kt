@@ -25,16 +25,16 @@ internal val TopControlsInset = 208.dp
 /** The deck occupies this band whether it holds the carousel or the empty card. */
 internal val CarouselInset = 268.dp
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExploreScreen(state: ExploreState, onIntent: (ExploreIntent) -> Unit) {
     val colors = Poruch.colors
     Box(Modifier.fillMaxSize().background(colors.canvas)) {
         EventMap(
-            events = state.events, latitude = state.cityLatitude, longitude = state.cityLongitude,
+            events = state.mapEvents, latitude = state.cityLatitude, longitude = state.cityLongitude,
             selectedId = state.selectedId, topInset = TopControlsInset, bottomInset = CarouselInset,
             centerToken = state.recenterToken,
             onSelect = { onIntent(ExploreIntent.SelectEvent(it)) },
+            onSelectStack = { onIntent(ExploreIntent.SelectStack(it)) },
             onAreaChanged = { onIntent(ExploreIntent.AreaMoved(it?.let { b -> Area(b.south, b.west, b.north, b.east) })) },
             onLoadFailed = { onIntent(ExploreIntent.MapFailed(it)) }
         )
@@ -43,17 +43,15 @@ fun ExploreScreen(state: ExploreState, onIntent: (ExploreIntent) -> Unit) {
                 .background(Brush.verticalGradient(listOf(colors.canvas.copy(alpha = 0.94f), colors.canvas.copy(alpha = 0f))))
         )
         TopControls(state, onIntent)
-        AreaPrompts(state, Modifier.align(Alignment.TopCenter), onIntent)
         MapBottomDeck(state, Modifier.align(Alignment.BottomCenter), onIntent)
         if (state.listMode) ExploreList(state, onIntent)
     }
 
     when (state.sheet) {
-        ExploreSheet.CITY -> CitySearchDialog(state, onIntent)
-        ExploreSheet.FILTERS -> ModalBottomSheet(
-            onDismissRequest = { onIntent(ExploreIntent.ShowSheet(ExploreSheet.NONE)) },
-            containerColor = colors.surface, shape = Radius.sheet
-        ) { FilterSheet(state, onIntent) }
+        ExploreSheet.CITY -> CitySearchSheet(state, onIntent)
+        ExploreSheet.FILTERS -> PoruchSheet({ onIntent(ExploreIntent.ShowSheet(ExploreSheet.NONE)) }) { sheet ->
+            FilterSheet(state, onIntent) { sheet.close() }
+        }
         ExploreSheet.NONE -> Unit
     }
 }
@@ -93,14 +91,23 @@ private fun TopControls(state: ExploreState, onIntent: (ExploreIntent) -> Unit) 
             stringResource(R.string.location_fallback), style = MaterialTheme.typography.bodySmall, color = colors.ink,
             modifier = Modifier.cardSurface(Radius.sm).padding(Spacing.md)
         )
+        AreaPrompts(state, Modifier.align(Alignment.CenterHorizontally), onIntent)
     }
 }
 
-/** «Search here» and the map-failure retry share one column so they never overlap. */
+/**
+ * «Шукати тут» і повтор після збою мапи.
+ *
+ * Живуть у тій самій колонці, що й верхні контроли, а не окремим шаром із розрахованим зсувом.
+ * Зсув був `TopControlsInset − 40.dp`, тобто 168 dp, а контроли займають близько 184 — підказка
+ * лягала рівно на рядок чипів дат і робила їх ненатискними. Саме тоді, коли мапу щойно посунули,
+ * тобто саме тоді, коли хочеться звузити дату. Константа ще й бреше у стані `locationDenied`,
+ * який додає згори цілий рядок. Тепер зсуву немає взагалі: розкладка сама тримає порядок.
+ */
 @Composable
 private fun AreaPrompts(state: ExploreState, modifier: Modifier, onIntent: (ExploreIntent) -> Unit) {
     Column(
-        modifier.statusBarsPadding().padding(top = TopControlsInset - 40.dp),
+        modifier,
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.sm)
     ) {
         AnimatedVisibility(

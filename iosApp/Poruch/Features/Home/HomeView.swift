@@ -12,14 +12,25 @@ struct HomeView: View {
     var createEvent: () -> Void
     @State private var details = false
 
-    private var view: HomePresentation { HomePresentation(state: model.state) }
+    private var view: HomePresentation { model.home }
+
+    /// Висота смуги статусу. Читається ззовні стрічки — усередині неї її вже не спитати.
+    @State private var topInset: CGFloat = 0
 
     var body: some View {
+        // Стрічка виходить під смугу статусу, щоб теплий градієнт хедера дійшов до краю екрана,
+        // а відступ під ту саму смугу хедер додає сам. Висоту беремо виміряну, а не вгадану:
+        // на різних пристроях вона різна, і константа означала б заголовок під годинником.
+        GeometryReader { proxy in
         let view = self.view
         ScrollView {
             VStack(alignment: .leading, spacing: Space.xxl) {
-                header
-                if !view.signedIn {
+                headerView(view)
+                // Поки шукають, дайджест мовчить: план на тиждень і добірка «для вас» — відповіді
+                // на інше питання, ніж те, що людина щойно набрала.
+                if view.searching {
+                    EmptyView()
+                } else if !view.signedIn {
                     BannerCard(
                         title: "Ваші люди — поруч",
                         subtitle: "Увійдіть, щоб зберігати події та отримувати нагадування.",
@@ -48,7 +59,7 @@ struct HomeView: View {
                     }.padding(.horizontal, Space.page)
                 }
 
-                VStack(alignment: .leading, spacing: Space.sm) {
+                if !view.searching { VStack(alignment: .leading, spacing: Space.sm) {
                     SectionHeader(title: "Категорії").padding(.horizontal, Space.page)
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: Space.xs) {
@@ -60,11 +71,18 @@ struct HomeView: View {
                             }
                         }.padding(.horizontal, Space.page)
                     }
-                }
+                } }
 
                 if view.isEmpty {
                     if view.loading {
                         ProgressView().frame(maxWidth: .infinity).padding(.vertical, Space.section)
+                    } else if view.searching {
+                        // Порожній пошук — не те саме, що порожня околиця: підказка веде до іншої дії.
+                        EmptyState(
+                            symbol: "magnifyingglass", title: "Нічого не знайшлося",
+                            message: "Спробуйте інше слово або пошукайте на мапі — там можна змінити область і фільтри.",
+                            actionLabel: "Знайти на мапі", action: openMap
+                        )
                     } else {
                         EmptyState(
                             symbol: "safari", title: "Тут поки тихо",
@@ -72,7 +90,12 @@ struct HomeView: View {
                             actionLabel: "Знайти на мапі", action: openMap
                         )
                     }
+                } else if view.searching {
+                    section("Знайдено подій: \(view.results.count)", Array(view.results.prefix(homeResultsLimit)), view)
                 } else {
+                    if !view.suggested.isEmpty {
+                        section("Для вас", view.suggested, view, subtitle: "Дібрано за вашими відповідями")
+                    }
                     if !view.today.isEmpty {
                         section("Сьогодні в місті", Array(view.today.prefix(homeTodayLimit)), view)
                     }
@@ -81,42 +104,62 @@ struct HomeView: View {
                     }
                 }
 
-                BannerCard(title: "Маєте ідею зустрічі?", subtitle: "Опублікуйте подію за три кроки", action: createEvent)
-                    .padding(.horizontal, Space.page)
+                if !view.searching {
+                    BannerCard(title: "Маєте ідею зустрічі?", subtitle: "Опублікуйте подію за три кроки", action: createEvent)
+                        .padding(.horizontal, Space.page)
+                }
             }.padding(.bottom, Space.section)
         }
         .background(Palette.canvas)
         .toolbar(.hidden, for: .navigationBar)
         .navigationDestination(isPresented: $details) { EventDetailView(app: model.app) }
+        .ignoresSafeArea(edges: .top)
+        .onAppear { topInset = proxy.safeAreaInsets.top }
+        .onChange(of: proxy.safeAreaInsets.top) { _, value in topInset = value }
+        }
     }
-
-    private var header: some View { headerView(HomePresentation(state: model.state)) }
 
     private func headerView(_ view: HomePresentation) -> some View {
         VStack(alignment: .leading, spacing: Space.md) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: Space.xs) {
-                    Text("Що поруч").font(PoruchFont.display).foregroundStyle(Palette.ink)
+                    Text("Що поруч").font(PoruchFont.display).displayTracking().foregroundStyle(Palette.ink)
                     Text("Плани на найближчі дні у місті \(view.cityName)")
                         .font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
                 }
                 Spacer(minLength: Space.sm)
                 IconPill(symbol: "person.crop.circle", label: "Профіль", action: openProfile)
             }
-            HStack(spacing: Space.sm) {
-                Chip(label: "Створити подію", symbol: "plus", selected: true, action: createEvent)
-                Chip(label: "Знайти на мапі", symbol: "map", selected: false, action: openMap)
-                Spacer(minLength: 0)
+            SearchBar(placeholder: "Подія, місце або тема", initial: view.searchText) {
+                model.app.setSearchText(query: $0)
+            }
+            // Поки шукають, ці дві дії — не про це. Хрестик у полі повертає їх на місце.
+            if !view.searching {
+                HStack(spacing: Space.sm) {
+                    Chip(label: "Створити подію", symbol: "plus", selected: true, action: createEvent)
+                    Chip(label: "Знайти на мапі", symbol: "map", selected: false, action: openMap)
+                    Spacer(minLength: 0)
+                }
             }
         }
         .padding(.horizontal, Space.page).padding(.vertical, Space.xl)
+        .padding(.top, topInset)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Palette.canvasTint)
+        .background(heroGradient)
     }
 
-    @ViewBuilder private func section(_ title: String, _ items: [Event], _ view: HomePresentation) -> some View {
+    @ViewBuilder private func section(
+        _ title: String, _ items: [Event], _ view: HomePresentation, subtitle: String? = nil
+    ) -> some View {
         VStack(alignment: .leading, spacing: Space.md) {
-            SectionHeader(title: title, actionLabel: "Усі", action: openMap)
+            VStack(alignment: .leading, spacing: Space.xs) {
+                SectionHeader(title: title, actionLabel: subtitle == nil ? "Усі" : nil, action: openMap)
+                // A recommendation says why it is one; a list titled «для вас» with no reason is a
+                // claim the reader has to take on trust.
+                if let subtitle {
+                    Text(subtitle).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
+                }
+            }
             ForEach(items, id: \.id) { event in
                 EventCard(
                     event: event, saved: view.isSaved(event), waitlisted: view.isWaitlisted(event),

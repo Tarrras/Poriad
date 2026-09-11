@@ -27,9 +27,11 @@ struct MyEventsView: View {
         guard let state = model.state else { return [] }
         return state.myEvents.filter { event in
             switch tab {
-            case .attending: event.joined
+            case .attending: event.gathering?.joined == true
             case .organizing: state.organizes(event: event)
-            case .saved: state.isSaved(id: event.id)
+            // Набір із моделі, а не `isSaved` через міст: там лінійний пошук по списку, і він
+            // повторювався б на кожен рядок.
+            case .saved: model.savedIDs.contains(event.id)
             }
         }
     }
@@ -63,7 +65,9 @@ struct MyEventsView: View {
             }
         }
         .padding(.bottom, Space.md)
-        .background(LinearGradient(colors: [Palette.canvasTint, Palette.canvas], startPoint: .top, endPoint: .bottom))
+        // Фон піднімається під смугу статусу, а вміст лишається під нею: інакше над теплим
+        // градієнтом видно холодну смугу кольору полотна.
+        .background(heroGradient.ignoresSafeArea(edges: .top))
     }
 
     @ViewBuilder private var content: some View {
@@ -86,8 +90,8 @@ struct MyEventsView: View {
                     ForEach(visible, id: \.id) { event in
                         EventCard(
                             event: event,
-                            saved: model.state?.isSaved(id: event.id) == true,
-                            waitlisted: model.state?.isWaitlisted(id: event.id) == true
+                            saved: model.savedIDs.contains(event.id),
+                            waitlisted: model.waitlistedIDs.contains(event.id)
                         ) {
                             model.app.selectEvent(id: event.id); detail = true
                         }

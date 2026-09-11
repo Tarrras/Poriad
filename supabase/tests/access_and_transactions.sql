@@ -1,10 +1,12 @@
 -- Run as database administrator. Everything, including synthetic auth users, rolls back.
 begin;
 select set_config('test.a',gen_random_uuid()::text,true),set_config('test.b',gen_random_uuid()::text,true),set_config('test.c',gen_random_uuid()::text,true),set_config('test.event',gen_random_uuid()::text,true);
+-- Accounts now declare an age at sign-up, and joining refuses one that has not: the fixtures
+-- carry a birth date so these suites test what they were written to test.
 insert into auth.users(id,email,raw_user_meta_data) values
-(current_setting('test.a')::uuid,'poruch-test-a-'||current_setting('test.a')||'@example.invalid','{"display_name":"Host"}'),
-(current_setting('test.b')::uuid,'poruch-test-b-'||current_setting('test.b')||'@example.invalid','{"display_name":"Guest"}'),
-(current_setting('test.c')::uuid,'poruch-test-c-'||current_setting('test.c')||'@example.invalid','{}');
+(current_setting('test.a')::uuid,'poruch-test-a-'||current_setting('test.a')||'@example.invalid',jsonb_build_object('display_name','Host','birth_date','1990-01-01')),
+(current_setting('test.b')::uuid,'poruch-test-b-'||current_setting('test.b')||'@example.invalid',jsonb_build_object('display_name','Guest','birth_date','1990-01-01')),
+(current_setting('test.c')::uuid,'poruch-test-c-'||current_setting('test.c')||'@example.invalid',jsonb_build_object('birth_date','1990-01-01'));
 do $$ begin
  assert (select display_name='Host' from public.profiles where id=current_setting('test.a')::uuid),'profile trigger';
  assert (select count(*)=3 from public.user_preferences where user_id in (current_setting('test.a')::uuid,current_setting('test.b')::uuid,current_setting('test.c')::uuid)),'preferences trigger';

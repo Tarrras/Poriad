@@ -9,3 +9,8 @@ local.properties
 
 **/.build/
 supabase/.temp/
+
+# Кеш дампу OSM і байткод: регенеруються, у git їм місця немає
+tools/ingest/cache/
+__pycache__/
+*.pyc

@@ -1,34 +1,55 @@
 import SwiftUI
 import Shared
 
-/// Notices land under the status bar, not over the tab bar: the eye is already at the top after a
-/// tap, and the bottom edge belongs to navigation. Tone carries the meaning — a red wash for a
-/// failure, green for a success — so the two never read the same at a glance.
+/**
+ Notices land under the status bar, not over the tab bar: the eye is already at the top after a
+ tap, and the bottom edge belongs to navigation. Tone carries the meaning — a red wash for a
+ failure, green for a success — so the two never read the same at a glance.
+
+ Дотиків банер не забирає — крім власного хрестика.
+
+ Під ним на цій же смузі стоїть пошук: на мапі — просто під смугою статусу. Доки весь банер був
+ кнопкою, він на кілька секунд накривав поле, і дотик у поле діставався банеру. Збоку це
+ виглядало як «поле перестало натискатися», хоч натискалось воно чудово — просто не воно.
+ */
 struct NoticeBanner: View {
     let text: String
     let error: Bool
     let dismiss: () -> Void
     var body: some View {
-        Button(action: dismiss) {
-            HStack(spacing: Space.md) {
-                Image(systemName: error ? "exclamationmark.circle" : "checkmark.circle")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(error ? Palette.danger : Palette.success)
-                    .frame(width: 36, height: 36)
-                    .background(error ? Palette.dangerContainer : Palette.successContainer,
-                                in: RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
-                Text(text).font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                Image(systemName: "xmark").font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Palette.inkTertiary)
+        content
+            .allowsHitTesting(false)
+            .overlay(alignment: .trailing) {
+                Button(action: dismiss) {
+                    Image(systemName: "xmark").font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Palette.inkTertiary)
+                        .frame(width: 44, height: 44)
+                }
+                .buttonStyle(PressableStyle())
+                .accessibilityLabel("Закрити сповіщення")
             }
-            .padding(Space.md)
-            .cardSurface(radius: Corner.md, elevation: 12)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(text)
+    }
+
+    private var content: some View {
+        HStack(spacing: Space.md) {
+            Image(systemName: error ? "exclamationmark.circle" : "checkmark.circle")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(error ? Palette.danger : Palette.success)
+                .frame(width: 36, height: 36)
+                .background(
+                    toneGradient(error ? Palette.dangerContainer : Palette.successContainer,
+                                 error ? Palette.danger : Palette.success),
+                    in: RoundedRectangle(cornerRadius: Corner.xs, style: .continuous)
+                )
+            Text(text).font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            // Місце під хрестик, що лежить накладкою: інакше текст заходив би йому під низ.
+            Color.clear.frame(width: 24, height: 1)
         }
-        .buttonStyle(.plain)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(text)
-        .accessibilityHint("Торкніться, щоб закрити")
+        .padding(Space.md)
+        .cardSurface(radius: Corner.md, elevation: Elevation.overlay)
     }
 }
 

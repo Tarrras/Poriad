@@ -27,14 +27,17 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import app.poruch.android.R
 import app.poruch.android.ui.*
+import app.poruch.android.feature.editor.BirthDateSheet
+import java.time.format.DateTimeFormatter
 
 @Composable
 fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
     val colors = Poruch.colors
-    Column(Modifier.fillMaxSize().background(colors.canvas).verticalScroll(rememberScrollState()).statusBarsPadding()) {
+    Column(Modifier.fillMaxSize().background(colors.canvas).verticalScroll(rememberScrollState())) {
         // The same paper band every other screen opens with, so sign-in belongs to the app.
         Column(
-            Modifier.fillMaxWidth().background(colors.canvasTint).padding(horizontal = Spacing.page).padding(bottom = Spacing.xl),
+            Modifier.fillMaxWidth().background(heroGradient()).statusBarsPadding()
+                .padding(horizontal = Spacing.page).padding(bottom = Spacing.xl),
             verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
             Box(
@@ -56,6 +59,16 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
             if (state.signup) LabelledField(
                 stringResource(R.string.name), state.name, { onIntent(AuthIntent.SetName(it)) },
                 placeholder = stringResource(R.string.name_placeholder)
+            )
+            // Asked once, at sign-up, and never shown to anybody else: it is what an age limit on
+            // an event has to rest on, and what a moderation decision later refers back to.
+            if (state.signup) PickerField(
+                stringResource(R.string.birth_date),
+                state.birthDateValue?.format(BIRTH_DATE_FORMAT).orEmpty(),
+                { onIntent(AuthIntent.ShowBirthDatePicker(true)) },
+                placeholder = stringResource(R.string.birth_date_placeholder),
+                hint = stringResource(R.string.birth_date_hint),
+                icon = PoruchIcons.calendar
             )
             LabelledField(
                 stringResource(R.string.email), state.email, { onIntent(AuthIntent.SetEmail(it)) },
@@ -105,4 +118,10 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
             )
         }
     }
+    if (state.pickingBirthDate) BirthDateSheet(
+        state.birthDateValue, { onIntent(AuthIntent.ShowBirthDatePicker(false)) }
+    ) { onIntent(AuthIntent.SetBirthDate(it)) }
 }
+
+/** A birth date is read, not calculated with, so it is shown the way people write one. */
+private val BIRTH_DATE_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")

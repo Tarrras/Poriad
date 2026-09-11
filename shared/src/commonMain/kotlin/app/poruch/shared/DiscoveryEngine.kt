@@ -5,6 +5,8 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.datetime.*
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.math.abs
 import kotlin.time.Clock
 
@@ -15,14 +17,24 @@ import kotlin.time.Clock
  * checkable in one place.
  */
 internal class DiscoveryEngine(
-    private val events: EventRepository,
+    private val events: EventDiscovery,
     private val geo: GeoSearchRepository,
     private val state: MutableStateFlow<AppState>,
     private val scope: CoroutineScope,
-    home: HomeLocation
+    home: HomeLocation,
+    /**
+     * Де рахувати те, що не має рахуватись на UI-потоці: ранжування всієї видачі й розбір кеша.
+     *
+     * Порожній контекст за замовчуванням — це не «нікуди»: `withContext(EmptyCoroutineContext)`
+     * лишає виклик там, де він був, і йде швидким шляхом без перемикання. Завдяки цьому тест під
+     * `runTest` лишається на своєму планувальнику й нічого про цей параметр не знає, а збірка
+     * підставляє [kotlinx.coroutines.Dispatchers.Default] у [AppGraph].
+     */
+    private val compute: CoroutineContext = EmptyCoroutineContext
 ) {
     private var query = EventQuery(home.south, home.west, home.north, home.east)
     private var searchJob: Job? = null
+    private var cardsJob: Job? = null
     private var debounceJob: Job? = null
     private var cityJob: Job? = null
 
@@ -31,6 +43,7 @@ internal class DiscoveryEngine(
 
     fun refresh() {
         searchJob?.cancel()
+        cardsJob?.cancel()
         val snapshot = query
         searchJob = scope.launch {
             state.update { it.copy(loading = true) }
@@ -40,23 +53,98 @@ internal class DiscoveryEngine(
                     "text=${if (snapshot.text.isNullOrBlank()) "-" else "yes"} available=${snapshot.available}"
             }
             try {
-                val result = events.discover(snapshot)
-                PoruchLog.i("discovery") { "${result.size} events" }
-                state.update {
-                    it.copy(
-                        events = result, loading = false, offline = false,
-                        notice = if (result.size >= DiscoveryRules.RESULT_CAP) AppNotice.Told(AppMessage.ZOOM_IN_FOR_MORE) else it.notice
-                    )
-                }
+                val page = events.discover(snapshot)
+                PoruchLog.i("discovery") { "${page.total} events, ${page.cards.size} cards inline" }
+                publish(page, offline = false, failure = null)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 // Offline is not empty: the last answer for this area is still the best one we have.
-                val cached = events.cached(snapshot)
-                PoruchLog.w("discovery") { "offline, showing ${cached.size} cached events" }
-                state.update { it.copy(events = cached, loading = false, offline = true, notice = AppNotice.Failed(e.asAppError())) }
+                val cached = withContext(compute) { events.cached(snapshot) }
+                PoruchLog.e("discovery", e) { "search failed, showing ${cached.index.size} cached events" }
+                publish(cached, offline = true, failure = e.asAppError())
             }
         }
+    }
+
+    /**
+     * Домалювати картки до [count] перших у порядку показу.
+     *
+     * Стрічка кличе це, коли прокрутила до краю того, що вже є. Індекс повний з першої відповіді,
+     * тож «далі» — це не наступна сторінка з сервера, а просто ще кілька карток за вже відомими
+     * ідентифікаторами: серверу не треба знати ні порядку, ні того, скільки ми вже показали.
+     */
+    fun materialize(count: Int) {
+        if (cardsJob?.isActive == true) return
+        val snapshot = state.value
+        val wanted = snapshot.index.take(count).map { it.id }.filterNot { it in snapshot.cards }
+        if (wanted.isEmpty()) return
+        cardsJob = scope.launch {
+            try {
+                val loaded = events.cards(wanted)
+                state.update { current ->
+                    current.copy(cards = current.cards + loaded.associateBy { card -> card.id }).materialized()
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // Вікно, яке не приїхало, — це коротша стрічка, а не зламаний екран. Мапа вже
+                // показує все, що є, тож банер тут був би про чужу проблему.
+                PoruchLog.w("discovery") { "cards for ${wanted.size} ids failed: ${e.asAppError()}" }
+            }
+        }
+    }
+
+    /**
+     * Кладе видачу в стан: знімок входів на місці, рахунок поза потоком, одне атомарне оновлення.
+     *
+     * Форма тут важливіша за вміст. Спокусливо було б прочитати `state.value` всередині
+     * [withContext] і записати результат після — але це перетворює атомарний `update` на
+     * «прочитав, подумав, записав», і паралельна закладка чи щойно збережені відповіді
+     * онбордингу загубились би між першим і третім. Тому назовні їде лише те, що порахували, а
+     * все інше береться зі стану всередині `update`, у тій самій точці, де його й пишуть.
+     *
+     * Після [withContext] виконання повертається на диспетчер scope — тобто на головний потік.
+     * Публікація лишається там за побудовою, а не тому, що хтось про це памʼятав.
+     */
+    private suspend fun publish(page: DiscoveryPage, offline: Boolean, failure: AppError?) {
+        val taste = state.value.taste
+        // Склеювання перед ранжуванням, а не після: інакше той самий концерт двічі отримав би бали
+        // й двічі змагався б за місце нагорі. І поза `update`, щоб обидві гілки нижче бачили вже
+        // склеєний список — інакше рідкісна гілка «смак змінився поки рахували» показала б дублі.
+        val folded = withContext(compute) { DuplicateEvents.fold(page.index) }
+        if (folded.size != page.index.size) {
+            PoruchLog.i("discovery") { "${page.index.size - folded.size} duplicates folded away" }
+        }
+        val ranking = withContext(compute) {
+            val ordered = TasteRanking.rank(folded, taste, Clock.System.now())
+            ordered to TasteRanking.matching(ordered, taste)
+        }
+        state.update {
+            // Картки старої області викидаємо разом з нею: тримати їх означало б платити памʼяттю
+            // за подію, яку вже не показують, і ризикувати застарілим числом місць у кімнаті.
+            val base = it.copy(
+                index = folded,
+                cards = page.cards.associateBy { card -> card.id },
+                // Склеєні дублікати не рахуємо двічі: людина бачить стільки карток, скільки тут
+                // написано. Різницю додаємо лише тоді, коли спрацював запобіжник — тоді частину
+                // подій ми справді не забрали й порахувати їх самі не можемо.
+                totalFound = folded.size + (page.total - page.index.size),
+                loading = false, offline = offline,
+                notice = when {
+                    failure != null -> AppNotice.Failed(failure)
+                    page.truncated -> AppNotice.Told(AppMessage.ZOOM_IN_FOR_MORE)
+                    else -> it.notice
+                }
+            )
+            // Відповіді могли змінитися, поки ми рахували. Тоді порахований порядок уже не про
+            // цю людину, і дешевше перерахувати, ніж показати чужий.
+            if (it.taste == taste) base.copy(index = ranking.first, suggestedIndex = ranking.second).materialized()
+            else base.ranked()
+        }
+        // Смак міг переставити порядок так, що перші картки з відповіді вже не перші. Одна
+        // подорож наздоганяє — і то лише для того, хто проходив онбординг.
+        materialize(DiscoveryRules.FIRST_CARDS)
     }
 
     fun searchArea(south: Double, west: Double, north: Double, east: Double) {

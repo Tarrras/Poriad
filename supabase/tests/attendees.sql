@@ -3,11 +3,13 @@ begin;
 select set_config('test.host',gen_random_uuid()::text,true),set_config('test.member',gen_random_uuid()::text,true),
  set_config('test.other',gen_random_uuid()::text,true),set_config('test.stranger',gen_random_uuid()::text,true),
  set_config('test.event',gen_random_uuid()::text,true);
+-- Accounts now declare an age at sign-up, and joining refuses one that has not: the fixtures
+-- carry a birth date so these suites test what they were written to test.
 insert into auth.users(id,email,raw_user_meta_data) values
- (current_setting('test.host')::uuid,'poruch-host-'||current_setting('test.host')||'@example.invalid','{"display_name":"Host"}'::jsonb),
- (current_setting('test.member')::uuid,'poruch-member-'||current_setting('test.member')||'@example.invalid','{"display_name":"Member"}'::jsonb),
- (current_setting('test.other')::uuid,'poruch-other-'||current_setting('test.other')||'@example.invalid','{"display_name":"Other"}'::jsonb),
- (current_setting('test.stranger')::uuid,'poruch-stranger-'||current_setting('test.stranger')||'@example.invalid','{"display_name":"Stranger"}'::jsonb);
+ (current_setting('test.host')::uuid,'poruch-host-'||current_setting('test.host')||'@example.invalid',jsonb_build_object('display_name','Host','birth_date','1990-01-01')),
+ (current_setting('test.member')::uuid,'poruch-member-'||current_setting('test.member')||'@example.invalid',jsonb_build_object('display_name','Member','birth_date','1990-01-01')),
+ (current_setting('test.other')::uuid,'poruch-other-'||current_setting('test.other')||'@example.invalid',jsonb_build_object('display_name','Other','birth_date','1990-01-01')),
+ (current_setting('test.stranger')::uuid,'poruch-stranger-'||current_setting('test.stranger')||'@example.invalid',jsonb_build_object('display_name','Stranger','birth_date','1990-01-01'));
 insert into public.events(id,organizer_id,title,description,category,city,address,latitude,longitude,starts_at,ends_at,time_zone,capacity)
 values(current_setting('test.event')::uuid,current_setting('test.host')::uuid,'Roster test','Attendee roster','social','Kyiv','Podil',50.46,30.52,
  now()+interval '2 days',now()+interval '2 days 3 hours','Europe/Kyiv',10);

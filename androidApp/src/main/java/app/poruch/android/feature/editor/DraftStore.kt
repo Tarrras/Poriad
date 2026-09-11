@@ -10,18 +10,29 @@ import androidx.core.content.edit
 class DraftStore(context: Context) {
     private val store = context.getSharedPreferences(NAME, Context.MODE_PRIVATE)
 
-    fun load(city: String, latitude: Double, longitude: Double) = EditorForm(
+    /**
+     * Місто підставляємо, координати — ні.
+     *
+     * Раніше порожні координати заповнювались центром міста, і нова подія з першого кадру
+     * вважалась такою, де крапку вже поставили: підпис казав «позначено», пін стояв посеред
+     * Києва, а опублікувати її можна було, жодного разу не торкнувшись мапи. Порожньо — чесніше:
+     * мапа однаково відкривається на місті, але як вигляд, а не як відповідь.
+     */
+    fun load(city: String) = EditorForm(
         title = store.read(TITLE),
         description = store.read(DESCRIPTION),
         category = store.read(CATEGORY).ifEmpty { EditorForm.DEFAULT_CATEGORY },
         city = store.read(CITY).ifEmpty { city },
         address = store.read(ADDRESS),
-        latitude = store.read(LATITUDE).ifEmpty { latitude.toString() },
-        longitude = store.read(LONGITUDE).ifEmpty { longitude.toString() },
+        latitude = store.read(LATITUDE),
+        longitude = store.read(LONGITUDE),
         timeZone = store.read(ZONE).ifEmpty { java.time.ZoneId.systemDefault().id },
         starts = store.read(STARTS),
         ends = store.read(ENDS),
-        capacity = store.read(CAPACITY).ifEmpty { EditorForm.DEFAULT_CAPACITY }
+        capacity = store.read(CAPACITY).ifEmpty { EditorForm.DEFAULT_CAPACITY },
+        minAge = store.read(MIN_AGE).ifEmpty { EditorForm.DEFAULT_MIN_AGE },
+        maxAge = store.read(MAX_AGE),
+        approvalRequired = store.getBoolean(APPROVAL, false)
     )
 
     fun save(form: EditorForm) = store.edit {
@@ -30,6 +41,7 @@ class DraftStore(context: Context) {
         putString(LATITUDE, form.latitude); putString(LONGITUDE, form.longitude)
         putString(ZONE, form.timeZone); putString(STARTS, form.starts); putString(ENDS, form.ends)
         putString(CAPACITY, form.capacity)
+        putString(MIN_AGE, form.minAge); putString(MAX_AGE, form.maxAge); putBoolean(APPROVAL, form.approvalRequired)
     }
 
     fun clear() = store.edit { clear() }
@@ -49,5 +61,8 @@ class DraftStore(context: Context) {
         const val STARTS = "starts"
         const val ENDS = "ends"
         const val CAPACITY = "capacity"
+        const val MIN_AGE = "min_age"
+        const val MAX_AGE = "max_age"
+        const val APPROVAL = "approval"
     }
 }

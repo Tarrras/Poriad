@@ -11,37 +11,101 @@ data class UserSession(val userId: String, val accessToken: String, val refreshT
 interface AuthRepository {
     val session: StateFlow<UserSession?>
     suspend fun signIn(email: String, password: String)
-    suspend fun signUp(email: String, password: String, name: String): Boolean
+    /** [birthDate] is ISO-8601 and travels in sign-up metadata; the server enforces the floor. */
+    suspend fun signUp(email: String, password: String, name: String, birthDate: String): Boolean
     suspend fun signOut()
     suspend fun accessToken(): String?
     suspend fun requestPasswordReset(email: String)
     suspend fun updatePassword(password: String)
     suspend fun handleCallback(url: String): Boolean
 }
-data class EventQuery(val south: Double, val west: Double, val north: Double, val east: Double, val category: String? = null, val from: String? = null, val to: String? = null, val text: String? = null, val available: Boolean = false)
-interface EventRepository {
-    suspend fun discover(query: EventQuery): List<Event>
-    fun cached(query: EventQuery): List<Event>
-    suspend fun details(id: String): Event?
-    suspend fun myEvents(): List<Event>
-    suspend fun savedIds(): List<String>
-    suspend fun save(id: String)
-    suspend fun unsave(id: String)
-    suspend fun create(id: String, draft: EventDraft): String
-    suspend fun update(id: String, draft: EventDraft): String
-    suspend fun join(id: String)
-    suspend fun leave(id: String)
-    suspend fun cancel(id: String)
-    suspend fun uploadImage(eventId: String, bytes: ByteArray, contentType: String): String
-    /** Roster of an event. Identities are visible to its organizer and members only; others get none. */
-    suspend fun attendees(id: String): List<Attendee> = emptyList()
-    /** Events this account is queued for. Positions are private to their holder. */
-    suspend fun waitlistIds(): List<String> = emptyList()
-    suspend fun joinWaitlist(id: String)
-    suspend fun leaveWaitlist(id: String)
-    fun clearPrivateCache()
+// Доступ до подій живе в EventAccess.kt: він поділений на грані, а не на один інтерфейс.
+
+/** What this account declared and where moderation currently stands with it. */
+data class AccountFacts(val birthDate: String? = null, val status: String = AccountStatus.ACTIVE) {
+    val ageDeclared get() = birthDate != null
+    val restricted get() = status != AccountStatus.ACTIVE
+}
+
+object AccountStatus {
+    const val ACTIVE = "active"
+    const val LIMITED = "limited"
+    const val BANNED = "banned"
+}
+
+/**
+ * Reporting and blocking. Separate from events because it is about people: an app that can only
+ * report the thing in front of you cannot answer «this person keeps showing up».
+ */
+interface SafetyRepository {
+    suspend fun account(): AccountFacts
+    /** Allowed once, for accounts that predate the question. */
+    suspend fun declareBirthDate(date: String)
+    suspend fun reportEvent(eventId: String, reason: String, details: String?)
+    suspend fun reportUser(userId: String, reason: String, details: String?)
+    suspend fun block(userId: String)
+    suspend fun unblock(userId: String)
+    /** Who this account has blocked, named — a list of opaque ids cannot be undone by a person. */
+    suspend fun blocked(): List<Attendee>
 }
 interface GeoSearchRepository { suspend fun search(query: String): List<CityResult> }
+
+/**
+ * Адреса, знайдена за текстом.
+ *
+ * [label] — те, що людина шукала: «Фролівська, 9». [detail] — те, що відрізняє одну Фролівську від
+ * іншої: район і місто. Розділені, бо в списку вони мають різну вагу, а не тому, що так зручніше
+ * складати рядок.
+ *
+ * [city] повторює частину [detail] окремим полем: у редактора місто — власне поле, і воно має
+ * їхати за адресою, а не лишатись від попередньої.
+ */
+data class PlaceResult(
+    val label: String,
+    val detail: String,
+    val city: String,
+    val latitude: Double,
+    val longitude: Double
+)
+
+/**
+ * Пошук адреси для події.
+ *
+ * Окремо від [GeoSearchRepository] не через реалізацію — вона та сама, — а через питання. Місто
+ * шукають, щоб змістити мапу; адресу — щоб поставити крапку, і тоді важать інші речі: близькість
+ * до міста події та підпис, у якому видно вулицю з будинком.
+ */
+interface AddressSearch {
+    /**
+     * [latitude] і [longitude] — не фільтр, а зсув: та сама вулиця є в десятку міст, і першою має
+     * бути та, що поруч із подією.
+     */
+    suspend fun places(query: String, latitude: Double, longitude: Double): List<PlaceResult>
+
+    /**
+     * Що за адреса в цій точці.
+     *
+     * Зворотний бік [places]: там адресу набирають і отримують крапку, тут крапку ставлять і
+     * отримують адресу. Обидва напрямки потрібні, бо поле й мапа показують одне й те саме, і
+     * змінити його можна з будь-якого боку.
+     *
+     * `null` — не помилка: у полі просто лишається те, що там було.
+     */
+    suspend fun placeAt(latitude: Double, longitude: Double): PlaceResult?
+}
+
+/**
+ * Часовий пояс місця події.
+ *
+ * Подія зберігає власний пояс, а не пояс того, хто її створив: киянин, що планує зустріч у
+ * Варшаві, вказує варшавський час, і читач у Львові має побачити саме його.
+ *
+ * Відповідь необов'язкова. `null` означає «не вдалося визначити» — і тоді лишається пояс
+ * пристрою, тобто рівно те, що було типовим значенням і доти.
+ */
+interface TimeZoneLocator {
+    suspend fun zoneAt(latitude: Double, longitude: Double): String?
+}
 interface PreferencesRepository {
     suspend fun interests(): List<String>
     suspend fun setInterests(categories: List<String>)

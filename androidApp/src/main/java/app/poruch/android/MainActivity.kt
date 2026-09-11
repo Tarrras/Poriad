@@ -116,17 +116,22 @@ fun PoruchRoot() {
     }
 
     fun navigate(screen: Screen, id: String) {
-        if (screen in TAB_SCREENS) { stack.clear(); stack.add(Route(screen)) } else stack.add(Route(screen, id))
+        // Вкладка лишається коренем стека, але може відкритися заради конкретної події — так мапа
+        // з деталей наводиться на її пін, а не на центр міста.
+        if (screen in TAB_SCREENS) { stack.clear(); stack.add(Route(screen, id)) } else stack.add(Route(screen, id))
     }
     fun back() { if (stack.size > 1) stack.removeLastOrNull() }
     fun requireAccount(action: () -> Unit) { if (state.signedIn) action() else navigate(Screen.AUTH, "") }
 
     Box(Modifier.fillMaxSize().background(Poruch.colors.canvas)) {
+        // The opening questions replace the app rather than covering it: at first launch there is
+        // nothing behind them yet, and a dismissible sheet over an empty home is a worse welcome.
+        if (state.needsOnboarding) OnboardingRoute() else {
         NavDisplay(backStack = stack, onBack = { back() }, entryProvider = entryProvider {
             entry<Route> { current ->
                 when (current.screen) {
                     Screen.HOME -> HomeRoute(::navigate, ::requireAccount)
-                    Screen.MAP -> ExploreRoute(::navigate, ::requireAccount)
+                    Screen.MAP -> ExploreRoute(current.id, ::navigate, ::requireAccount)
                     Screen.MINE -> MyEventsRoute(::navigate, ::requireAccount)
                     Screen.PROFILE -> ProfileRoute(::navigate)
                     Screen.AUTH -> AuthRoute(::back)
@@ -136,6 +141,7 @@ fun PoruchRoot() {
             }
         })
         TabBar(route.screen, ::navigate, ::requireAccount, Modifier.align(Alignment.BottomCenter))
+        }
         NoticeHost(state.notice, app::clearNotice, Modifier.align(Alignment.TopCenter))
         if (state.mutating) LinearProgressIndicator(
             Modifier.fillMaxWidth().align(Alignment.TopCenter),

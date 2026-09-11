@@ -35,6 +35,20 @@ sealed interface AppError {
     data object EventHasSpace : AppError
     data object ImageUploadFailed : AppError
 
+    // ---- safety
+    /** The account never declared an age, and every event has a floor. */
+    data object AgeRequired : AppError
+    data object TooYoung : AppError
+    data object TooOld : AppError
+    /** One of the two people blocked the other; which way round is deliberately not said. */
+    data object Blocked : AppError
+    /** The account is limited or suspended by moderation. */
+    data object AccountRestricted : AppError
+    data object AgeAlreadySet : AppError
+    data object Underage : AppError
+    data object TooManyReports : AppError
+    data object TooManyEvents : AppError
+
     // ---- input
     data class InvalidDraft(val fields: List<DraftField>) : AppError
     data object InvalidEmail : AppError
@@ -43,13 +57,25 @@ sealed interface AppError {
 }
 
 /** The fields [EventDraft.validate] can reject, so a screen can highlight the right one. */
-enum class DraftField { TITLE, DESCRIPTION, CATEGORY, ADDRESS, LOCATION, CAPACITY, STARTS_AT, ENDS_AT, TIME_ZONE, IMAGE_URL }
+enum class DraftField { TITLE, DESCRIPTION, CATEGORY, ADDRESS, LOCATION, CAPACITY, STARTS_AT, ENDS_AT, TIME_ZONE, IMAGE_URL, AGE_LIMITS }
 
 /**
  * The only throwable this app raises. It exists because suspend functions still need a way to
  * unwind; the payload that matters is [error], and every handler matches on that.
  */
-class AppFailure(val error: AppError) : Exception(error.toString())
+class AppFailure(
+    val error: AppError,
+    /**
+     * Код, яким назвався сервер, — і нічого більше.
+     *
+     * Не для показу: людині його не показують ніколи, для цього є [error]. Потрібен там, де
+     * клієнт вирішує **сумісність**, а не повідомлення: `PGRST202` означає «такої функції на цьому
+     * сервері немає», і це єдиний спосіб відрізнити стару базу від відмови. Без нього довелося б
+     * заводити доменну помилку, яку кожна платформа мусила б перекласти, — заради випадку, у
+     * якому нічого не сталося.
+     */
+    val serverCode: String? = null
+) : Exception(error.toString())
 
 /** Reads the typed error out of any throwable; anything foreign is a service problem to the user. */
 fun Throwable.asAppError(): AppError = (this as? AppFailure)?.error ?: AppError.ServiceUnavailable

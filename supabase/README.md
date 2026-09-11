@@ -26,6 +26,20 @@ A full event is no longer a dead end. `join_waitlist` accepts a position only wh
 
 Places free up in two ways and both advance the queue inside the transaction that already holds the event row lock: `leave_event` and a capacity increase in `update_event` both call `private.promote_waitlist`, which fills places from the head of the queue by `created_at`. Joining outright drops any position the same person held. `promote_waitlist` carries no execute grant: it is reached only from inside definer functions, which run as the owner.
 
+## Безпека, вік і скарги
+
+`migrations/20260906195750_safety_age_and_reports.sql` (застосовано до того самого проєкту 2026-09-06 через Supabase MCP `apply_migration`; локальне імʼя файлу несе версію, яку повернув сервер) додає: `public.account_facts` (задекларована дата народження і статус модерації — окремо від world-readable `profiles`), `public.user_blocks`, `public.reports`, вікові межі та підтвердження участі на `public.events`, стан рядка в `public.event_members`, і переписує проєкцію `public.event_result` разом із функціями, що її повертають.
+
+Платформний мінімум віку — `private.min_signup_age()` (18). Він перевіряється тригером `private.handle_new_user` у транзакції, що створює акаунт (метадані `birth_date`), і `public.set_birth_date` для акаунтів, створених раніше — один раз, далі це дія модерації. `private.assert_can_join` — єдине місце, де зібрані всі причини відмови: обмежений акаунт, блокування, невказаний вік, замолодий, застарий. Його викликають і `join_event`, і `join_waitlist`, і `promote_waitlist` (просування черги — це приєднання, на якому людини немає поруч), і `decide_member` (правила перевіряються ще раз у момент прийняття).
+
+Підтвердження участі: `event_members.status` — `requested` або `approved`. Усе, що рахувало учасників, рахує лише підтверджених, тож запит не займає місця; ростер і `attendee_count` теж показують тільки підтверджених. Організатор читає запити через `public.event_requests` і відповідає через `public.approve_member` / `public.decline_member`.
+
+Блокування симетричне й діє в проєкції: `private.event_rows` ховає події заблокованих і заблокувавших, а також обмежених акаунтів — окрім власних для самого власника. Скарги приватні для автора (`reports_reporter`), дедуплікуються на рівні RPC і обмежені 10 на годину; створення подій — 6 на добу.
+
+`migrations/20260906200401_event_requests_invoker.sql` знімає `security definer` з `public.event_requests`: організатор і так проходить `can_view_members` для власної події, а `where e.organizer_id=auth.uid()` лишається на місці. Це прибрало єдине попередження лінтера після міграції.
+
+Клієнти терплять сервер без цієї міграції: нові поля мають значення за замовчуванням, а виклики безпекових RPC — best-effort.
+
 ## Verification
 
 Executed successfully on the selected project:
@@ -34,6 +48,9 @@ Executed successfully on the selected project:
 - `tests/discovery.sql`: both sides of antimeridian, ordinary bounds, category/date filters, 300-result bound, guest aggregate projection and invalid bounds.
 - `tests/attendees.sql`: roster readable by a member and by the organizer, ordered by join time; a signed-in stranger reads no identities but still reads `attendee_count`; guests are refused by the missing execute grant; `p_limit` clamped up from `0`, down from `10000`, and defaulted from `null`. Executed on the selected project on 2026-09-05: **PASS**, with 0 events, 0 profiles, 0 members and 0 synthetic test users remaining. Because `now()` is the transaction timestamp, both joins in a single transaction share one `joined_at`; the suite spreads them apart so the ordering guarantee is genuinely exercised rather than decided by the uuid tiebreak.
 - `tests/waitlist.sql`: a full event refuses `join_event` with `EVENT_FULL` but accepts a queue position; queueing twice is idempotent; members get `ALREADY_MEMBER` and the organizer `ORGANIZER_CANNOT_JOIN`; positions stay private between two queued accounts; leaving promotes the head of the queue and clears its position while capacity holds; raising capacity promotes the next one; an event with room refuses queueing with `EVENT_HAS_SPACE`; leaving a queue you are not in is a no-op; guests are refused by the missing execute grant. Executed on the selected project on 2026-09-05: **PASS**, 0 rows left behind. As in the roster suite, queue rows created in one transaction share `created_at`, so the suite spreads them apart before asserting promotion order.
+- `tests/safety.sql`: вікова межа при реєстрації; одноразове `set_birth_date`; `TOO_YOUNG` / `AGE_REQUIRED`; межі `INVALID_AGE_LIMIT`; запит не займає місця й невидимий у ростері; чужий не бачить і не приймає запити; блокування ховає подію та зачиняє двері в обидва боки; заблокований акаунт бачить лише власні події й не може створювати чи приєднуватись; скарга приватна, дедуплікується й обмежена 10 на годину. Виконано на проєкті 2026-09-06: **PASS**, 0 синтетичних користувачів лишилось.
+- Регресія після міграції: `tests/access_and_transactions.sql`, `tests/waitlist.sql`, `tests/attendees.sql`, `tests/discovery.sql`, `tests/map_search.sql` — усі **PASS**. Фікстури цих наборів тепер створюють користувачів із `birth_date` у метаданих: без задекларованого віку приєднання відмовляє, і без цієї правки набори перевіряли б не те, для чого написані. `tests/discovery.sql` додатково рахує лише власні фікстури (`title like 'Geo %'`), бо в проєкті вже є справжні події в тому самому Києві.
+- Радник безпеки після міграції: єдине попередження — `auth_leaked_password_protection` (налаштування Auth рівня проєкту, не змінювалося цією роботою). Рекомендую увімкнути перевірку паролів за HaveIBeenPwned.
 - `tests/access_and_transactions.sql` re-run after the waiting list replaced `join_event`, `leave_event` and `update_event`: **PASS**, no regression.
 - The `my_waitlist` response shape was confirmed over PostgREST — a scalar `setof uuid` returns a flat JSON array of strings, which is what the client parses.
 - Advisors after this migration: security **zero findings**; performance one informational unused-index notice on the empty database (`events_category_starts_idx`), retained for the same reason as before.
@@ -48,3 +65,108 @@ To repeat SQL tests, execute each whole file as a database administrator through
 ## Errors
 
 Stable message strings: `AUTH_REQUIRED`, `EVENT_NOT_FOUND`, `NOT_ORGANIZER`, `ORGANIZER_CANNOT_JOIN`, `EVENT_FULL`, `EVENT_HAS_SPACE`, `ALREADY_MEMBER`, `EVENT_CANCELLED`, `EVENT_STARTED`, `START_MUST_BE_FUTURE`, `INVALID_TIME_ZONE`, `INVALID_BOUNDS`, `CAPACITY_BELOW_ATTENDANCE`. Constraint violations use standard Postgres SQLSTATEs. UI should translate messages, not expose raw SQL diagnostics.
+
+## Імпорт подій із зовнішніх джерел
+
+`migrations/20260907120000_event_ingestion.sql` і `migrations/20260907130000_import_without_organizer.sql` застосовано до того самого проєкту 2026-09-07 через Supabase MCP `apply_migration`. Обґрунтування джерел і виміряні числа — [../docs/event-discovery.md](../docs/event-discovery.md).
+
+Міграція додає `public.event_sources` (реєстр джерел із правилами обходу), `public.venues` (кеш майданчиків), поля імпорту на `public.events` і приватні `private.ingest_runs` / `private.ingest_items`. Композитний тип `public.event_result` перестворюється разом із пʼятьма залежними функціями — тим самим порядком, що й у міграції безпеки, бо це єдиний чесний спосіб змінити тип.
+
+**Межа тримається в базі, а не в клієнті.** `private.assert_can_join` тепер відмовляє з `IMPORTED_EVENT` раніше за всі інші перевірки: місткості чужого концерту ми не знаємо й не керуємо нею, тож «приєднатися» було б обіцянкою, яку нема кому виконати. Це та сама функція, яку викликають `join_event`, `join_waitlist`, `promote_waitlist` і `decide_member`, тож жоден шлях приєднання її не оминає. `private.assert_event_editable` так само закриває редагування.
+
+`private.is_discoverable` — один вимикач видимості для мапи й пошуку: `community` видно завжди, імпорт — лише при `import_status='live'` і `quality >= 0.55`. Відкликана подія при цьому лишається доступною тому, хто її зберіг: порожній збережений запис гірший за позначку «більше не проводиться».
+
+
+### Друга міграція: чому імпорт не має організатора
+
+Перша версія вимагала для кожного джерела «синтетичний профіль». Це виявилось хибним ходом: `public.profiles.id` посилається на `auth.users.id`, тож ішлося про фантомні облікові записи в таблиці автентифікації — які довелося б виключати з пошуку людей, блокувань, скарг і відновлення пароля. `20260907130000_import_without_organizer.sql` знімає `not null` з `events.organizer_id` і переносить обов'язковість туди, де вона справді потрібна: `events_community_has_organizer_ck` вимагає організатора лише для подій, до яких можна приєднатися. Ім'я на картці імпортованої події бере `coalesce(profiles.display_name, event_sources.name)` — модель тепер збігається з тим, що показує UI.
+
+### Перевірено після застосування
+
+| Перевірка | Результат |
+|---|---|
+| Наявні спільнотні події в `events_in_view` | повертаються, регресії немає |
+| `assert_can_join` на імпортованій події | `IMPORTED_EVENT` |
+| `assert_event_editable` на імпортованій | `IMPORTED_EVENT` |
+| `events_origin_source_ck` на імпорті без джерела | вставка відхилена |
+| `is_discoverable('import','live',0.4)` | `false` — нижче порога якості |
+| `is_discoverable('import','withdrawn',0.9)` | `false` — відкликана зникає з видачі |
+
+`public.venues` навмисно має RLS без політик: це внутрішній кеш геокодування, клієнтам він не потрібен, бо координати приходять уже в проєкції події. Лінтер повідомляє про це на рівні INFO (`rls_enabled_no_policy`) — очікувано, не дефект.
+
+### Стан даних і відкат
+
+Засіяно три джерела (`karabas` і `concert_ua` увімкнені, `moemisto` вимкнене до перевірки його зсуву часу), 34 майданчики, перша партія імпортованих подій Києва. Повний набір генерується `python3 -m tools.ingest --city Київ --sql out.sql`.
+
+```sql
+update public.events set import_status='withdrawn' where ingest_run_id = '<run_id>';
+delete from public.events where origin = 'import';   -- прибрати весь імпорт
+```
+
+### Третя міграція: часовий пояс karabas
+
+`20260907140000_karabas_timezone_policy.sql` розширює `tz_policy` значенням `utc_is_local` і виправляє вже завантажені події. karabas віддає коректний зсув, але зсуває сам момент рівно на нього: сторінка показує «17 жовтня 2026, 18:00», JSON-LD каже `2026-10-17T21:00:00+03:00`. Виправлено 142 події; після цього всі сім пар, наявних одночасно в karabas і concert.ua, збігаються хвилина в хвилину.
+
+Виявила ваду **дедуплікація**, а не перевірка розмітки: розбіжність між джерелами дорівнювала UTC-зсуву. Це аргумент за те, щоб дублікати між джерелами не приховувати автозлиттям, доки на них не подивилась людина.
+
+## Четверта міграція: видача двома рівнями
+
+`20260911070031_discovery_index_and_cards.sql` розділяє одну відповідь на дві: **індекс** і
+**картки**. Причина — не швидкість сама по собі, а стеля: `search_events_in_view` брав
+`order by starts_at limit 300`, і 163 київські події просто не існували для застосунку.
+
+Стеля стояла там, бо одна відповідь несла і те, чим мапа ставить пін, і те, чим картка малює
+обкладинку. Розділені, вони обидві дешевшають настільки, що обмеження стає непотрібним:
+
+| Запит | Рядків | Розмір | Прогріте виконання |
+|---|---|---|---|
+| `search_events_in_view`, Київ | 300 із 432 | 306 КБ | 95 мс |
+| `discover_events`, Київ | **432** + 24 картки | 103 КБ | **14 мс** |
+
+`private.discover_index` — `security definer`, і це не зручність. Набір обмежений
+`status='published'`, а `private.has_event_access` для опублікованої події повертає `true`
+беззастережно, тож RLS на цьому шляху нічого не вирішує — лише виконується, по разу на кожен із
+432 рядків. Прибрано виконання, не правило: блокування й неактивні акаунти перевіряються всередині,
+інакше лічильник рахував би події, яких цей читач не побачить.
+
+Індекс — масив масивів, а не масив обʼєктів: основною вагою старої відповіді були не значення, а
+двадцять вісім разів повторені назви полів. Картки йдуть через `jsonb_strip_nulls`, тож із 1254
+афіш зникає по вісім ключів (місткості й членства в них немає), а з подій спільноти — джерело й
+ціна квитка. Клієнт це переживає без правок: у `EventDto` кожне таке поле має значення за
+замовчуванням, а розбір іде з `ignoreUnknownKeys`.
+
+Композит `public.event_result` **не** перестворювався: нові функції повертають `jsonb`, тож
+пʼять залежних функцій лишились на місці разом зі своїми грантами. Усе, що змінює наявне, —
+`create or replace` з тією самою сигнатурою.
+
+### Дві пастки, на які пішло по заміру
+
+**`matched` сканувався тричі.** Перша редакція рахувала `count(*) from matched` окремо від
+`limit`, а CTE з трьома посиланнями Postgres матеріалізує й перечитує. 45 мс. `count(*) over ()`
+дає повне число тим самим проходом вікна, яким нумеруються рядки: 15 мс.
+
+**`plan_cache_mode='force_custom_plan'` робить гірше.** Здавалося, що узагальнений план не візьме
+gist-індекс, бо межі приходять параметрами. Виміряно — бере. А планування цього запиту коштує
+~50 мс (оператори PostGIS і схема `gis`), тож примусове перепланування перетворювало 14 мс на 45.
+Перший виклик у зʼєднанні платить за план, решта — ні; у пулі PostgREST це одна відповідь на
+процес, а не на запит.
+
+### Фільтр «Є місця»
+
+`private.event_has_space` тепер перевіряє `capacity is not null` до всього іншого. Семантика та
+сама — порівняння з null і так давало «ні», — але тепер це видно планувальнику. Місткість
+заповнена у 2 подій із 1295: підзапит виконується двічі замість 463 разів, 470 мс → 46 мс. Той
+самий запобіжник додано і в `search_events_in_view`, щоб збірки, які ще не знають про
+`discover_events`, теж перестали за це платити.
+
+### Перевірка
+
+| Перевірка | Результат |
+|---|---|
+| `discover_events` під `anon`, Київ | 432 події, `truncated=false`, 24 картки |
+| `search_events_in_view` під `anon` | 300 рядків, 2 з місцями, 4 за текстом — без змін |
+| `event_cards_by_ids` на неопублікованих | порожньо |
+| Радник безпеки | нових попереджень немає (`venues` RLS-без-політик і `auth_leaked_password_protection` — обидва були раніше) |
+
+Клієнти терплять сервер без цієї міграції: `search_events_in_view` лишається на місці, а виклик
+`discover_events` на старому сервері відповідає `PGRST202`.

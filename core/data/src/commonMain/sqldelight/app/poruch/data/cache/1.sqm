@@ -1,0 +1,29 @@
+-- v1 → v2: кеш відповідей отримує час запису, а сховище пристрою — власну таблицю.
+--
+-- Цей файл мусить існувати, навіть якщо здається зайвим. Без жодного `.sqm` версія схеми лишається
+-- одиницею, а `Schema.migrate` — порожнім: зміна `CREATE TABLE` у `Cache.sq` тоді нічого не робить
+-- на встановленому застосунку, стара таблиця лишається на місці, і перший же запис падає з
+-- `no such column: written_at`. У людей на руках, тихо, назавжди.
+--
+-- Відповіді онбордингу переносимо, а кеш зносимо. Кожен ключ кеша, написаний попередньою збіркою,
+-- містив координати з сімнадцятьма значущими цифрами — прочитати такий рядок вдруге було
+-- неможливо, бо мапа не спиняється двічі на тій самій позиції до останнього біта. Тобто зберігати
+-- там нема чого: весь його вміст уже мертвий. А от `device:taste` — це те, що людина сказала про
+-- себе, і воно має пережити оновлення.
+CREATE TABLE device_store (
+    store_key TEXT NOT NULL PRIMARY KEY,
+    payload TEXT NOT NULL
+);
+
+INSERT INTO device_store(store_key, payload)
+SELECT cache_key, payload FROM cached_response WHERE cache_key LIKE 'device:%';
+
+DROP TABLE IF EXISTS cached_response;
+
+CREATE TABLE cached_response (
+    cache_key TEXT NOT NULL PRIMARY KEY,
+    payload TEXT NOT NULL,
+    written_at INTEGER NOT NULL
+);
+
+CREATE INDEX cached_response_written_idx ON cached_response(written_at);

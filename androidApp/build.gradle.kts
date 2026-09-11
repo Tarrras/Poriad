@@ -17,8 +17,10 @@ android {
         versionName = "0.1.0"
         buildConfigField("String", "SUPABASE_URL", "\"${config("SUPABASE_URL", "https://tzdogzdvctlumsqlqskr.supabase.co")}\"")
         buildConfigField("String", "SUPABASE_KEY", "\"${config("SUPABASE_KEY", "sb_publishable_RoY0wFzTOcXlmOIYC0UE-w_fOt5rXPq")}\"")
-        buildConfigField("String", "MAP_STYLE_URL", "\"${config("MAP_STYLE_URL", "https://tiles.openfreemap.org/styles/positron")}\"")
-        buildConfigField("String", "MAP_STYLE_DARK_URL", "\"${config("MAP_STYLE_DARK_URL", "https://tiles.openfreemap.org/styles/dark")}\"")
+        // The style is the app's own; only where its geometry and letterforms come from is
+        // configurable, and blank means the defaults in shared MapEndpoints.
+        buildConfigField("String", "MAP_TILES_URL", "\"${config("MAP_TILES_URL")}\"")
+        buildConfigField("String", "MAP_GLYPHS_URL", "\"${config("MAP_GLYPHS_URL")}\"")
     }
     buildFeatures { compose = true; buildConfig = true }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }

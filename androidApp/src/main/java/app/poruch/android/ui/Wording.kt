@@ -5,6 +5,8 @@ import androidx.compose.ui.res.stringResource
 import app.poruch.android.R
 import app.poruch.domain.AppError
 import app.poruch.domain.DraftField
+import app.poruch.domain.ReportReason
+import app.poruch.domain.SafetyRules
 import app.poruch.shared.AppMessage
 import app.poruch.shared.AppNotice
 
@@ -25,6 +27,8 @@ fun AppError.text(): String = when (this) {
         R.string.err_invalid_draft,
         fields.map { stringResource(it.resource) }.joinToString()
     )
+    // The floor is a number the reader should see, not a rule they have to infer.
+    AppError.Underage -> stringResource(R.string.err_underage, SafetyRules.MIN_SIGNUP_AGE)
     else -> stringResource(resource)
 }
 
@@ -49,6 +53,15 @@ private val AppError.resource: Int
         AppError.InvalidEmail -> R.string.err_invalid_email
         AppError.InvalidName -> R.string.err_invalid_name
         AppError.WeakPassword -> R.string.err_weak_password
+        AppError.AgeRequired -> R.string.err_age_required
+        AppError.TooYoung -> R.string.err_too_young
+        AppError.TooOld -> R.string.err_too_old
+        AppError.Blocked -> R.string.err_blocked
+        AppError.AccountRestricted -> R.string.err_account_restricted
+        AppError.AgeAlreadySet -> R.string.err_age_already_set
+        AppError.Underage -> R.string.err_underage
+        AppError.TooManyReports -> R.string.err_too_many_reports
+        AppError.TooManyEvents -> R.string.err_too_many_events
         is AppError.InvalidDraft -> R.string.err_rejected
     }
 
@@ -64,6 +77,7 @@ private val DraftField.resource: Int
         DraftField.ENDS_AT -> R.string.field_ends_at
         DraftField.TIME_ZONE -> R.string.field_time_zone
         DraftField.IMAGE_URL -> R.string.field_image_url
+        DraftField.AGE_LIMITS -> R.string.field_age_limits
     }
 
 private val AppMessage.resource: Int
@@ -81,4 +95,18 @@ private val AppMessage.resource: Int
         AppMessage.SET_NEW_PASSWORD -> R.string.msg_set_new_password
         AppMessage.EMAIL_CONFIRMED -> R.string.msg_email_confirmed
         AppMessage.ZOOM_IN_FOR_MORE -> R.string.msg_zoom_in
+        AppMessage.REQUEST_SENT -> R.string.msg_request_sent
+        AppMessage.REPORT_SENT -> R.string.msg_report_sent
+        AppMessage.USER_BLOCKED -> R.string.msg_user_blocked
+        AppMessage.AGE_CONFIRMED -> R.string.msg_age_confirmed
     }
+
+/** Why somebody is reporting, in the order the sheet offers the reasons. */
+val reportReasons = listOf(
+    ReportReason.MINORS to R.string.reason_minors,
+    ReportReason.SAFETY to R.string.reason_safety,
+    ReportReason.HARASSMENT to R.string.reason_harassment,
+    ReportReason.SCAM to R.string.reason_scam,
+    ReportReason.SPAM to R.string.reason_spam,
+    ReportReason.OTHER to R.string.reason_other
+)

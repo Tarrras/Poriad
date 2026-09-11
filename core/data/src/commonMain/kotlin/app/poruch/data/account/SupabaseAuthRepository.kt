@@ -1,4 +1,6 @@
-package app.poruch.data
+package app.poruch.data.account
+import app.poruch.data.api.string
+import app.poruch.data.api.ApiClient
 
 import app.poruch.domain.*
 import io.ktor.http.HttpMethod
@@ -37,10 +39,12 @@ class SupabaseAuthRepository(private val api: ApiClient, private val store: Secu
         }, query=mapOf("grant_type" to "password"))
         persist(result.jsonObject)
     }
-    override suspend fun signUp(email: String, password: String, name: String): Boolean = mutex.withLock {
+    override suspend fun signUp(email: String, password: String, name: String, birthDate: String): Boolean = mutex.withLock {
         val result = api.request("/auth/v1/signup", HttpMethod.Post, buildJsonObject {
             put("email", email.trim()); put("password", password)
-            put("data", buildJsonObject { put("display_name", name.trim()) })
+            // The declared date rides in sign-up metadata, where the account trigger reads it once:
+            // an underage sign-up is refused inside the transaction that would have created it.
+            put("data", buildJsonObject { put("display_name", name.trim()); put("birth_date", birthDate) })
         }, query=mapOf("redirect_to" to "poruch://auth/callback")).jsonObject
         if (result.string("access_token").isNotEmpty()) { persist(result); true } else false
     }

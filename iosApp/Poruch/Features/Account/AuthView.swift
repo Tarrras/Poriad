@@ -26,7 +26,7 @@ struct AuthView: View {
         VStack(alignment: .leading, spacing: Space.md) {
             ScrimButton(symbol: "chevron.left", label: "Назад") { dismiss() }
             Text(form.register ? "Створити профіль" : "З поверненням")
-                .font(PoruchFont.title1).foregroundStyle(Palette.ink)
+                .font(PoruchFont.title1).titleTracking().foregroundStyle(Palette.ink)
             Text(form.register
                  ? "Кілька секунд — і ви зможете приєднуватись до подій та створювати власні."
                  : "Події можна переглядати без входу. Для участі потрібен профіль.")
@@ -34,7 +34,7 @@ struct AuthView: View {
         }
         .padding(.horizontal, Space.page).padding(.vertical, Space.xxl)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Palette.canvasTint)
+        .background(heroGradient)
     }
 
     private var fields: some View {
@@ -42,6 +42,18 @@ struct AuthView: View {
             if form.register {
                 LabelledField(label: "Ваше ім’я", text: $form.name, placeholder: "Як до вас звертатися")
                     .textContentType(.name)
+                // Asked once, at sign-up, and shown to nobody else: it is what an age limit on an
+                // event rests on, and what a moderation decision later refers back to.
+                VStack(alignment: .leading, spacing: Space.sm) {
+                    Text("ДАТА НАРОДЖЕННЯ").font(PoruchFont.overline).kerning(1.2).foregroundStyle(Palette.inkTertiary)
+                    DatePicker(
+                        "", selection: $form.birthDate, in: form.earliestBirthDate...form.latestBirthDate,
+                        displayedComponents: .date
+                    )
+                    .datePickerStyle(.compact).labelsHidden().tint(Palette.brand)
+                    Text("«Поруч» — застосунок для повнолітніх. Дату видно лише вам.")
+                        .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
+                }
             }
             LabelledField(label: "Електронна пошта", text: $form.email, placeholder: "you@example.com")
                 .textContentType(.emailAddress).keyboardType(.emailAddress)
@@ -78,18 +90,28 @@ struct AuthView: View {
     @Published var password = ""
     @Published var revealed = false
     @Published var register = false
+    /// Opens on the day somebody who just turned eighteen was born: the nearest plausible answer.
+    @Published var birthDate = AuthFormModel.defaultBirthDate
+
+    /// The floor is stated by the control itself; the database checks it again on sign-up.
+    let latestBirthDate = AuthFormModel.defaultBirthDate
+    let earliestBirthDate = Calendar.current.date(byAdding: .year, value: -100, to: Date()) ?? Date.distantPast
+
+    private static var defaultBirthDate: Date {
+        Calendar.current.date(byAdding: .year, value: -Int(SafetyRules.shared.MIN_SIGNUP_AGE), to: Date()) ?? Date()
+    }
 
     var emailValid: Bool { AccountRules.shared.isEmail(value: email) }
     var canSubmit: Bool {
         emailValid && AccountRules.shared.isPassword(value: password) &&
-            (!register || AccountRules.shared.isName(value: name))
+            (!register || (AccountRules.shared.isName(value: name) && birthDate <= latestBirthDate))
     }
 
     /// The password never survives a mode switch: it belongs to the attempt, not the screen.
     func toggleMode() { register.toggle(); password = "" }
 
     func submit(with app: PoruchApp) {
-        if register { app.signUp(email: email, password: password, name: name) }
+        if register { app.signUp(email: email, password: password, name: name, birthDate: isoDay(birthDate)) }
         else { app.signIn(email: email, password: password) }
     }
 }
@@ -105,4 +127,14 @@ struct PasswordRevealToggle: View {
         .buttonStyle(.plain)
         .accessibilityLabel(revealed ? "Приховати пароль" : "Показати пароль")
     }
+}
+
+/// A birth date travels as a plain calendar day, without a clock or a zone attached to it.
+func isoDay(_ date: Date) -> String {
+    let formatter = DateFormatter()
+    formatter.calendar = Calendar(identifier: .gregorian)
+    formatter.locale = Locale(identifier: "en_US_POSIX")
+    formatter.timeZone = TimeZone(secondsFromGMT: 0)
+    formatter.dateFormat = "yyyy-MM-dd"
+    return formatter.string(from: date)
 }

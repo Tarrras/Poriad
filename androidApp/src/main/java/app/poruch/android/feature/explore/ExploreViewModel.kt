@@ -11,11 +11,16 @@ class ExploreViewModel(private val app: PoruchApp) :
 
     init {
         observe(app) { shared ->
+            // Мапа малює індекс — усе, що є в області. Карусель і список показують картки, яких
+            // може бути менше: вони приїжджають вікном. Порядок у обох один і той самий.
             copy(
                 // A fresh answer means the map is showing this area now, so the prompt goes away.
-                pendingArea = if (shared.events !== events) null else pendingArea,
+                pendingArea = if (shared.index !== index) null else pendingArea,
+                index = shared.index,
+                totalFound = shared.totalFound,
                 events = shared.events,
                 selectedId = shared.selectedEvent?.id,
+                focused = shared.selectedEvent,
                 savedIds = shared.savedIds,
                 waitlistedIds = shared.waitlistedIds,
                 cityName = shared.cityName,
@@ -33,6 +38,15 @@ class ExploreViewModel(private val app: PoruchApp) :
     }
 
     override fun onIntent(intent: ExploreIntent) {
+        // Будь-яка зміна самого результату робить фокус на точці безглуздим: у ньому лишились би
+        // ідентифікатори подій, яких у видачі вже немає.
+        when (intent) {
+            is ExploreIntent.Search, is ExploreIntent.PickDate, is ExploreIntent.PickCategory,
+            is ExploreIntent.OnlyAvailable, ExploreIntent.ResetFilters, ExploreIntent.SearchHere,
+            ExploreIntent.Recenter, is ExploreIntent.SelectCity ->
+                reduce { copy(stackIds = emptyList()) }
+            else -> Unit
+        }
         when (intent) {
             is ExploreIntent.Search -> app.setSearchText(intent.text)
             is ExploreIntent.PickDate -> app.setDateFilter(intent.filter)
@@ -54,10 +68,29 @@ class ExploreViewModel(private val app: PoruchApp) :
             is ExploreIntent.MapFailed -> reduce { copy(mapFailed = intent.failed) }
 
             is ExploreIntent.SelectEvent -> app.selectEvent(intent.id)
+            // Мапа щойно відкрилася заради цієї події: стос від попереднього тапу тут ні до чого,
+            // а вибір події — те, за чим мапа наведеться на неї (EventMap слухає selectedId).
+            is ExploreIntent.FocusEvent -> {
+                reduce { copy(stackIds = emptyList()) }
+                app.selectEvent(intent.id)
+            }
+            is ExploreIntent.SelectStack -> {
+                // Одна подія — звичайний вибір; кілька — фокус на точці, інакше решта стосу
+                // лишається недосяжною з мапи.
+                if (intent.ids.size <= 1) {
+                    reduce { copy(stackIds = emptyList()) }
+                    intent.ids.firstOrNull()?.let { app.selectEvent(it) }
+                } else {
+                    reduce { copy(stackIds = intent.ids) }
+                    app.selectEvent(intent.ids.first())
+                }
+            }
+            ExploreIntent.ClearStack -> reduce { copy(stackIds = emptyList()) }
             is ExploreIntent.OpenEvent -> {
                 app.selectEvent(intent.id)
                 send(ExploreEffect.OpenDetail(intent.id))
             }
+            is ExploreIntent.LoadMore -> app.loadMore(intent.upTo)
             is ExploreIntent.ToggleSaved -> app.toggleSaved(intent.id)
             ExploreIntent.CreateEvent -> send(ExploreEffect.CreateEvent)
 

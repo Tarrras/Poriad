@@ -87,7 +87,7 @@ poruch://auth/callback
 
 Перевірте email confirmation, поштовий провайдер і redirect allowlist. Ці глобальні Auth settings не були змінені або перевірені доступним MCP конектором. Логін/реєстрація та recovery реалізовані в коді; доставку листів і повний перехід із листа на фізичному пристрої ще потрібно перевірити.
 
-Android: `SUPABASE_URL`, `SUPABASE_KEY`, `MAP_STYLE_URL` можна перевизначити через `local.properties` або environment. iOS: `iosApp/Config.xcconfig`. Стандартні значення вже вказують на погоджений проєкт.
+Android: `SUPABASE_URL`, `SUPABASE_KEY`, `MAP_TILES_URL`, `MAP_GLYPHS_URL` можна перевизначити через `local.properties` або environment. iOS: `iosApp/Config.xcconfig`. Стандартні значення вже вказують на погоджений проєкт.
 
 Не застосовуйте початкову міграцію повторно до цього проєкту. Для нового середовища використовуйте міграції з `supabase/migrations`. Політики RLS, RPC, тести й результати описані в [supabase/README.md](supabase/README.md).
 

@@ -45,8 +45,10 @@ def main():
     try:
         with psycopg.connect(url, connect_timeout=10) as conn:
             for user in fixtures:
-                conn.execute('insert into auth.users(id,email) values(%s,%s)',
-                             (user, f'poruch-race-{user}@example.invalid'))
+                # Joining refuses an account that never declared an age, so the fixtures state one.
+                conn.execute(
+                    'insert into auth.users(id,email,raw_user_meta_data) values(%s,%s,%s)',
+                    (user, f'poruch-race-{user}@example.invalid', '{"birth_date": "1990-01-01"}'))
             conn.execute("""insert into public.events
                 (id,organizer_id,title,description,category,city,address,latitude,longitude,starts_at,ends_at,time_zone,capacity)
                 values(%s,%s,'Capacity test','','social','Kyiv','Park',50,30,

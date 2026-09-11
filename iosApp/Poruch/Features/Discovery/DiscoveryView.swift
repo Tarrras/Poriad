@@ -27,12 +27,32 @@ struct DiscoveryView: View {
     @State private var mapFailed = false
     @State private var retryToken = 0
     @State private var centerToken = 0
-    @State private var query = ""
     @State private var region: MapRegion?
-    @State private var carouselID: String?
+    /// Події, що стоять на одній точці. Кеш майданчиків дає всім подіям закладу ті самі
+    /// координати, тож без фокуса решта стосу недосяжна з мапи.
+    @State private var stackIDs: [String] = []
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    var events: [Event] { model.state?.events ?? [] }
+    /// Pins are a set and have no order; the carousel and the list do, and it is the same order
+    /// home shows — what the answers put first is what the thumb reaches first.
+    /// Зібрано в [AppModel] один раз на емісію стану, а не на кожне перемальовування екрана.
+    /// Що малює мапа: увесь індекс області. Повний з першої відповіді — картки приїжджають слідом.
+    var mapEntries: [EventIndexEntry] { model.mapEntries }
+    /// Що показують карусель і список: картки, які вже завантажились, у тому самому порядку.
+    var events: [Event] { model.cards }
     private var selectedID: String? { model.state?.selectedEvent?.id }
+    /// Скільки подій в області насправді, а не скільки карток встигло завантажитись. Мапа вже
+    /// показує саме це число пінами, тож лічильник має казати те саме.
+    private var totalFound: Int { Int(model.state?.totalFound ?? 0) }
+    private var savedIDs: Set<String> { model.savedIDs }
+    /// Що показує карусель: увесь результат або лише місце, у яке щойно тицьнули.
+    private var deckEvents: [Event] {
+        guard !stackIDs.isEmpty else { return events }
+        let focused = events.filter { stackIDs.contains($0.id) }
+        // Після нової видачі від стосу могло лишитись нуль або одна подія — тоді фокус нічого не
+        // додає, і карусель має повернутись до повного списку.
+        return focused.count > 1 ? focused : events
+    }
+    private var stackFocused: Bool { !stackIDs.isEmpty && mapEntries.filter { stackIDs.contains($0.id) }.count > 1 }
     private var activeFilters: Int {
         [model.state?.dateFilter != DateFilter.shared.ANY, model.state?.category != AppStateKt.ALL_CATEGORIES, model.state?.onlyAvailable == true]
             .filter { $0 }.count
@@ -40,11 +60,18 @@ struct DiscoveryView: View {
     var body: some View {
         ZStack(alignment: .top) {
             EventMap(
-                events: events, latitude: model.state?.cityLatitude ?? 50.45, longitude: model.state?.cityLongitude ?? 30.52,
-                selectedID: selectedID, retryToken: retryToken, centerToken: centerToken,
+                events: mapEntries, latitude: model.state?.cityLatitude ?? 50.45, longitude: model.state?.cityLongitude ?? 30.52,
+                selectedID: selectedID, eventsRevision: model.eventsRevision,
+                retryToken: retryToken, centerToken: centerToken,
                 topInset: topControlsInset, bottomInset: carouselInset,
                 loadFailed: { mapFailed = $0 },
                 selected: { model.app.selectEvent(id: $0.id) },
+                selectedStack: { ids in
+                    // Одна подія — звичайний вибір; кілька — фокус на місці, інакше решта стосу
+                    // лишається недосяжною з мапи.
+                    stackIDs = ids.count > 1 ? ids : []
+                    if let first = ids.first { model.app.selectEvent(id: first) }
+                },
                 moved: { region = $0 }
             )
             .ignoresSafeArea()
@@ -78,16 +105,15 @@ struct DiscoveryView: View {
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.22), value: region == nil)
         .background(Palette.canvas)
         .toolbar(.hidden, for: .navigationBar)
-        .onAppear { query = model.state?.searchText ?? "" }
-        .onChange(of: query) { _, value in model.app.setSearchText(query: value) }
-        .onChange(of: events.map(\.id)) { _, _ in region = nil }
-        .onChange(of: carouselID) { _, value in
-            guard let value, value != selectedID else { return }
-            model.app.selectEvent(id: value)
-        }
-        .onChange(of: selectedID) { _, value in
-            guard let value, value != carouselID else { return }
-            if reduceMotion { carouselID = value } else { withAnimation { carouselID = value } }
+        .onChange(of: model.eventsRevision) { _, _ in region = nil }
+        // Індекс повний з першої відповіді, картки — ні. Коли карусель підходить до краю
+        // завантаженого, просимо наступне вікно за вже відомими ідентифікаторами.
+        .onChange(of: selectedID) { _, id in
+            guard let id, !stackFocused, events.count < mapEntries.count else { return }
+            guard let position = events.firstIndex(where: { $0.id == id }) else { return }
+            if position >= events.count - cardPrefetchAhead {
+                model.app.loadMore(upTo: Int32(events.count + cardPage))
+            }
         }
         .sheet(isPresented: $citySearch) { CitySearchView().presentationDetents([.medium, .large]) }
         .sheet(isPresented: $filters) { FiltersView().presentationDetents([.medium, .large]) }
@@ -107,7 +133,12 @@ struct DiscoveryView: View {
 
     private var topControls: some View {
         VStack(spacing: Space.md) {
-            SearchField(text: $query, placeholder: "Подія, місце або тема", activeFilters: activeFilters) { filters = true }
+            SearchBar(
+                placeholder: "Подія, місце або тема",
+                initial: model.state?.searchText ?? "",
+                activeFilters: activeFilters,
+                onFilters: { filters = true }
+            ) { model.app.setSearchText(query: $0) }
             HStack(spacing: Space.sm) {
                 Button { citySearch = true } label: {
                     HStack(spacing: Space.sm) {
@@ -118,7 +149,7 @@ struct DiscoveryView: View {
                 }.buttonStyle(.plain).accessibilityLabel("Змінити місто")
                 Spacer(minLength: 0)
                 IconPill(symbol: "viewfinder", label: "Повернутися до міста") {
-                    model.app.dismissEvent(); carouselID = nil; centerToken += 1
+                    model.app.dismissEvent(); centerToken += 1
                 }
                 IconPill(symbol: "location", label: "Поруч зі мною") { location.request() }
             }
@@ -148,16 +179,23 @@ struct DiscoveryView: View {
                     else if model.state?.offline == true {
                         Image(systemName: "wifi.slash").font(.system(size: 12)).foregroundStyle(Palette.accent)
                     }
-                    Text(model.state?.loading == true ? "Шукаємо події…" : "Знайдено подій: \(events.count)")
-                        .font(PoruchFont.label).foregroundStyle(Palette.ink)
+                    Text(
+                        model.state?.loading == true ? "Шукаємо події…"
+                            : stackFocused ? "Тут подій: \(deckEvents.count)"
+                            : "Знайдено подій: \(totalFound)"
+                    )
+                    .font(PoruchFont.label).foregroundStyle(Palette.ink)
                 }
                 .padding(.horizontal, Space.lg).padding(.vertical, Space.sm)
                 .cardSurface(radius: 20, elevation: 6)
+                if stackFocused {
+                    IconPill(symbol: "xmark", label: "Показати всі події") { stackIDs = [] }
+                }
                 IconPill(symbol: listMode ? "map" : "list.bullet", label: listMode ? "Показати на мапі" : "Показати списком") {
                     listMode.toggle()
                 }
             }
-            if events.isEmpty {
+            if deckEvents.isEmpty {
                 if model.state?.loading != true {
                     VStack(alignment: .leading, spacing: Space.sm) {
                         Text("Тут поки тихо").font(PoruchFont.title3).foregroundStyle(Palette.ink)
@@ -167,22 +205,13 @@ struct DiscoveryView: View {
                     .padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()
                 }
             } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(spacing: Space.md) {
-                        ForEach(events, id: \.id) { event in
-                            EventMapCard(
-                                event: event, focused: event.id == selectedID,
-                                saved: model.state?.savedIds.contains(event.id) == true,
-                                onSave: { model.app.toggleSaved(id: event.id) }
-                            ) { model.app.selectEvent(id: event.id); details = true }
-                            .containerRelativeFrame(.horizontal, count: 10, span: 9, spacing: Space.md)
-                            .id(event.id)
-                        }
-                    }.scrollTargetLayout()
-                }
-                .scrollTargetBehavior(.viewAligned)
-                .scrollPosition(id: $carouselID)
-                .frame(height: 124)
+                EventDeck(
+                    events: deckEvents, selectedID: selectedID, savedIDs: savedIDs,
+                    resetToken: centerToken,
+                    select: { model.app.selectEvent(id: $0) },
+                    open: { model.app.selectEvent(id: $0); details = true },
+                    toggleSaved: { model.app.toggleSaved(id: $0) }
+                )
             }
         }
     }
@@ -191,7 +220,7 @@ struct DiscoveryView: View {
         VStack(spacing: 0) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Знайдено подій: \(events.count)").font(PoruchFont.title2).foregroundStyle(Palette.ink)
+                    Text("Знайдено подій: \(totalFound)").font(PoruchFont.title2).foregroundStyle(Palette.ink)
                     Text("Знайдіть, куди піти у місті \(model.state?.cityName ?? "Київ")")
                         .font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(1)
                 }
@@ -218,8 +247,8 @@ struct DiscoveryView: View {
                     LazyVStack(spacing: Space.lg) {
                         ForEach(events, id: \.id) { event in
                             EventCard(
-                                event: event, saved: model.state?.savedIds.contains(event.id) == true,
-                                waitlisted: model.state?.waitlistedIds.contains(event.id) == true,
+                                event: event, saved: model.savedIDs.contains(event.id),
+                                waitlisted: model.waitlistedIDs.contains(event.id),
                                 onSave: { model.app.toggleSaved(id: event.id) }
                             ) { model.app.selectEvent(id: event.id); details = true }
                         }
@@ -233,32 +262,76 @@ struct DiscoveryView: View {
 struct FiltersView: View {
     @EnvironmentObject var model: AppModel
     @Environment(\.dismiss) var dismiss
+
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: Space.xl) {
-                SectionHeader(title: "Фільтри", actionLabel: "Скинути") {
-                    model.app.setDateFilter(filter: DateFilter.shared.ANY); model.app.setCategory(category: AppStateKt.ALL_CATEGORIES); model.app.setOnlyAvailable(available: false)
-                }
-                Text("Коли").font(.system(size: 15, weight: .semibold)).foregroundStyle(Palette.inkSecondary)
-                HStack(spacing: Space.sm) {
-                    ForEach(dateFilterKeys, id: \.self) { key in
-                        Chip(label: dateLabel(key), selected: model.state?.dateFilter == key) { model.app.setDateFilter(filter: key) }
+        VStack(spacing: 0) {
+            header
+            ScrollView {
+                VStack(alignment: .leading, spacing: Space.xl) {
+                    section("Коли") {
+                        HStack(spacing: Space.sm) {
+                            ForEach(dateFilterKeys, id: \.self) { key in
+                                Chip(label: dateLabel(key), selected: model.state?.dateFilter == key) {
+                                    model.app.setDateFilter(filter: key)
+                                }
+                            }
+                        }
                     }
+                    section("Категорії") {
+                        FlexibleChips(
+                            items: [(AppStateKt.ALL_CATEGORIES, "Усі", nil)] + categories.map { ($0.0, $0.1, $0.0) },
+                            isSelected: { model.state?.category == $0 }
+                        ) { model.app.setCategory(category: $0) }
+                    }
+                    Toggle(isOn: Binding(
+                        get: { model.state?.onlyAvailable ?? false },
+                        set: { model.app.setOnlyAvailable(available: $0) }
+                    )) {
+                        Text("Лише події з вільними місцями").font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
+                    }.tint(Palette.brand)
                 }
-                Text("Категорії").font(.system(size: 15, weight: .semibold)).foregroundStyle(Palette.inkSecondary)
-                FlexibleChips(
-                    items: [(AppStateKt.ALL_CATEGORIES, "Усі", nil)] + categories.map { ($0.0, $0.1, $0.0) },
-                    isSelected: { model.state?.category == $0 }
-                ) { model.app.setCategory(category: $0) }
-                Toggle(isOn: Binding(
-                    get: { model.state?.onlyAvailable ?? false },
-                    set: { model.app.setOnlyAvailable(available: $0) }
-                )) {
-                    Text("Лише події з вільними місцями").font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
-                }.tint(Palette.brand)
-                PrimaryButton(title: "Готово") { dismiss() }
-            }.padding(Space.page)
-        }.background(Palette.canvas)
+                .padding(.horizontal, Space.page)
+                .padding(.vertical, Space.lg)
+            }
+            actions
+        }
+        .background(Palette.canvas)
+    }
+
+    /// The sheet's own title is a title, not an overline: at 11 pt it was smaller than the section
+    /// labels underneath it, which inverted the hierarchy of the whole sheet.
+    private var header: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text("Фільтри").font(PoruchFont.title2).foregroundStyle(Palette.ink)
+            Spacer(minLength: Space.sm)
+            Button("Скинути") {
+                model.app.setDateFilter(filter: DateFilter.shared.ANY)
+                model.app.setCategory(category: AppStateKt.ALL_CATEGORIES)
+                model.app.setOnlyAvailable(available: false)
+            }
+            .font(PoruchFont.label).foregroundStyle(Palette.inkSecondary)
+        }
+        .padding(.horizontal, Space.page)
+        .padding(.top, Space.lg)
+    }
+
+    /// Pinned, not scrolled: at the medium detent the button sat below the fold and the sheet
+    /// looked as though it had no way out.
+    private var actions: some View {
+        PrimaryButton(title: "Готово") { dismiss() }
+            .frame(maxWidth: .infinity)
+            .padding(Space.page)
+            .background(Palette.surface.ignoresSafeArea(edges: .bottom))
+            .overlay(alignment: .top) { Rectangle().fill(Palette.hairline).frame(height: 1) }
+    }
+
+    @ViewBuilder private func section<Content: View>(
+        _ title: String, @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: Space.md) {
+            SectionHeader(title: title)
+            content()
+        }
     }
 }
 
@@ -290,14 +363,22 @@ struct CitySearchView: View {
         NavigationStack {
             List(model.state?.cities ?? [], id: \.name) { city in
                 Button { model.app.selectCity(city: city); model.app.dismissEvent(); dismiss() } label: {
-                    Label(city.name, systemImage: "mappin.and.ellipse").font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
+                    HStack(spacing: Space.md) {
+                        PoruchIcon(glyph: PoruchIcons.pin, size: 18).foregroundStyle(Palette.brand)
+                        Text(city.name).font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
+                    }
                 }
             }
             .listStyle(.plain)
             .searchable(text: $query, prompt: "Місто у світі")
-            .onChange(of: query) { _, value in model.app.searchCity(query: value) }
+            .onSettled(query, after: .milliseconds(220)) { model.app.searchCity(query: $0) }
             .navigationTitle("Знайти місто")
             .toolbar { Button("Готово") { dismiss() } }
         }
     }
 }
+
+/// За скільки карток до кінця завантаженого просити наступні.
+private let cardPrefetchAhead = 8
+/// Скільки карток додає одне довантаження.
+private let cardPage = 24

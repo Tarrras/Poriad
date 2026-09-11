@@ -28,7 +28,19 @@ struct RootView: View {
     @State private var tab = 0
     @State private var creating = false
     @State private var authenticating = false
+    /// Виставляє екран, що заявив `hidesTabBar()` — зараз це деталі події.
+    @State private var tabBarHidden = false
     var body: some View {
+        // The opening questions replace the app rather than covering it: at first launch there is
+        // nothing behind them yet, and a dismissible sheet over an empty home is a worse welcome.
+        if model.state?.needsOnboarding == true {
+            OnboardingView()
+        } else {
+            app
+        }
+    }
+
+    private var app: some View {
         ZStack(alignment: .bottom) {
             Palette.canvas.ignoresSafeArea()
             TabView(selection: $tab) {
@@ -43,11 +55,19 @@ struct RootView: View {
                 NavigationStack { DiscoveryView().toolbar(.hidden, for: .tabBar) }.tag(1)
                 NavigationStack { MyEventsView().safeAreaPadding(.bottom, 92).toolbar(.hidden, for: .tabBar) }.tag(2)
                 NavigationStack { ProfileView().safeAreaPadding(.bottom, 92).toolbar(.hidden, for: .tabBar) }.tag(3)
-            }.toolbar(.hidden, for: .tabBar)
-            PoruchTabBar(items: tabItems, selection: $tab) {
-                CreateButton { if model.state?.userId == nil { authenticating = true } else { creating = true } }
-            }.padding(.bottom, Space.sm)
+            }
+            .toolbar(.hidden, for: .tabBar)
+            .onPreferenceChange(HidesTabBarKey.self) { hidden in tabBarHidden = hidden }
+            if !tabBarHidden {
+                PoruchTabBar(items: tabItems, selection: $tab) {
+                    CreateButton { if model.state?.userId == nil { authenticating = true } else { creating = true } }
+                }
+                .padding(.bottom, Space.sm)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
+        .animation(.easeInOut(duration: 0.2), value: tabBarHidden)
+        .environment(\.openMap) { tab = 1 }
         .sheet(isPresented: $creating) { EventEditor(event: nil, app: model.app, home: model.state) }
         .sheet(isPresented: $authenticating) {
             NavigationStack {

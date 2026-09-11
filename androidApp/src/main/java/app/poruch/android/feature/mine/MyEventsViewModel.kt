@@ -39,7 +39,7 @@ class MyEventsViewModel(private val app: PoruchApp) :
     /** «Saved» draws on the same list: an event can be saved without being joined or organised. */
     private fun AppState.forTab(tab: MyEventsTab) = myEvents.filter { event ->
         when (tab) {
-            MyEventsTab.ATTENDING -> event.joined
+            MyEventsTab.ATTENDING -> event.gathering?.joined == true
             MyEventsTab.ORGANIZING -> organizes(event)
             MyEventsTab.SAVED -> isSaved(event.id)
         }

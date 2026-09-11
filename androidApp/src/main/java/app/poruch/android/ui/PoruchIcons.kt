@@ -219,6 +219,71 @@ object PoruchIcons {
             .build()
     }
 
+    /** A hand microphone: capsule, cradle, stand. Standup is named by its instrument the way music is by a note — a laughing mask would read as theatre, which is the very category comedy was split out of. */
+    val comedy: ImageVector by lazy {
+        builder("comedy")
+            .fill {
+                moveTo(12f, 2.8f)
+                lineTo(12f, 2.8f)
+                curveTo(13.436f, 2.8f, 14.6f, 3.964f, 14.6f, 5.4f)
+                lineTo(14.6f, 10.6f)
+                curveTo(14.6f, 12.036f, 13.436f, 13.2f, 12f, 13.2f)
+                lineTo(12f, 13.2f)
+                curveTo(10.564f, 13.2f, 9.4f, 12.036f, 9.4f, 10.6f)
+                lineTo(9.4f, 5.4f)
+                curveTo(9.4f, 3.964f, 10.564f, 2.8f, 12f, 2.8f)
+                close()
+                moveTo(12f, 15f)
+                lineTo(12f, 15f)
+                curveTo(12.442f, 15f, 12.8f, 15.358f, 12.8f, 15.8f)
+                lineTo(12.8f, 17.8f)
+                curveTo(12.8f, 18.242f, 12.442f, 18.6f, 12f, 18.6f)
+                lineTo(12f, 18.6f)
+                curveTo(11.558f, 18.6f, 11.2f, 18.242f, 11.2f, 17.8f)
+                lineTo(11.2f, 15.8f)
+                curveTo(11.2f, 15.358f, 11.558f, 15f, 12f, 15f)
+                close()
+                moveTo(9.4f, 18f)
+                lineTo(14.6f, 18f)
+                curveTo(15.152f, 18f, 15.6f, 18.448f, 15.6f, 19f)
+                lineTo(15.6f, 19f)
+                curveTo(15.6f, 19.552f, 15.152f, 20f, 14.6f, 20f)
+                lineTo(9.4f, 20f)
+                curveTo(8.848f, 20f, 8.4f, 19.552f, 8.4f, 19f)
+                lineTo(8.4f, 19f)
+                curveTo(8.4f, 18.448f, 8.848f, 18f, 9.4f, 18f)
+                close()
+            }
+            .stroke {
+                moveTo(6.9f, 10.3f)
+                curveTo(6.9f, 13.1f, 9.2f, 15.4f, 12f, 15.4f)
+                curveTo(14.8f, 15.4f, 17.1f, 13.1f, 17.1f, 10.3f)
+            }
+            .build()
+    }
+
+    /** A balloon on a string. Reads as «for children» at pin size, where a teddy or a kite collapses into a blob. */
+    val kids: ImageVector by lazy {
+        builder("kids")
+            .fill {
+                moveTo(6f, 9.2f)
+                curveTo(6f, 5.886f, 8.686f, 3.2f, 12f, 3.2f)
+                curveTo(15.314f, 3.2f, 18f, 5.886f, 18f, 9.2f)
+                curveTo(18f, 12.514f, 15.314f, 15.2f, 12f, 15.2f)
+                curveTo(8.686f, 15.2f, 6f, 12.514f, 6f, 9.2f)
+                close()
+                moveTo(10.6f, 14.6f)
+                lineTo(13.4f, 14.6f)
+                lineTo(12f, 16.4f)
+                close()
+            }
+            .stroke {
+                moveTo(12f, 15.6f)
+                curveTo(12f, 17.4f, 13.6f, 18.2f, 13.6f, 20f)
+            }
+            .build()
+    }
+
     /** A solid house with the door punched through it — the negative space is what keeps the silhouette from reading as a plain pentagon. */
     val home: ImageVector by lazy {
         builder("home")

@@ -11,6 +11,8 @@
   <string name="food">Їжа</string>
   <string name="games">Ігри</string>
   <string name="outdoors">На природі</string>
+  <string name="comedy">Стендап</string>
+  <string name="kids">Дітям</string>
   <string name="social">Зустрічі</string>
   <string name="all">Усі</string>
   <string name="back">Назад</string>
@@ -37,8 +39,21 @@
   <string name="list">Список</string>
   <string name="any_date">Будь-коли</string>
   <string name="today">Сьогодні</string>
+  <string name="tomorrow">Завтра</string>
+  <string name="underway_now">Триває зараз</string>
+  <!-- «У суботу о 18:00»: знахідний відмінок, бо називний тут читається як список, а не як речення. -->
+  <string-array name="weekday_on">
+    <item>У понеділок</item>
+    <item>У вівторок</item>
+    <item>У середу</item>
+    <item>У четвер</item>
+    <item>У п\'ятницю</item>
+    <item>У суботу</item>
+    <item>У неділю</item>
+  </string-array>
   <string name="weekend">Вихідні</string>
   <string name="available">Є місця</string>
+  <string name="only_available">Лише події з вільними місцями</string>
   <string name="location_fallback">Місцеположення недоступне. Оберіть місто вручну через пошук.</string>
   <string name="create">Створити подію</string>
   <string name="city_search">Пошук міста</string>
@@ -70,7 +85,10 @@
   <string name="longitude">Довгота</string>
   <string name="starts">Початок</string>
   <string name="ends">Закінчення</string>
-  <string name="timezone">Часовий пояс IANA</string>
+  <string name="timezone">Часовий пояс</string>
+  <!-- Звідки взявся пояс. Мовчазно підставлений неправильний гірший за видимий. -->
+  <string name="timezone_from_place">Визначено за місцем події</string>
+  <string name="timezone_from_device">За вашим пристроєм — місце не вдалося визначити</string>
   <string name="capacity">Кількість місць</string>
   <string name="date_help">Оберіть дату й час</string>
   <string name="invalid_draft">Перевірте дату, часовий пояс, координати та кількість місць.</string>
@@ -101,6 +119,8 @@
   <string name="show_map">Показати на мапі</string>
   <string name="categories">Категорії</string>
   <string name="date">Коли</string>
+  <string name="pick_date">Оберіть дату</string>
+  <string name="pick_time">Оберіть час</string>
   <string name="reset_filters">Скинути</string>
   <string name="apply">Готово</string>
   <string name="attending">Відвідую</string>
@@ -126,6 +146,8 @@
   <string name="step_one">Про подію</string>
   <string name="step_two">Місце</string>
   <string name="step_three">Час і місця</string>
+  <string name="events_here">Тут подій: %1$d</string>
+  <string name="show_all_events">Показати всі події</string>
   <string name="events_found">Знайдено подій: %1$d</string>
   <string name="nothing_here">Тут поки тихо</string>
   <string name="nothing_here_hint">Змініть область мапи, дату або категорію — і події знайдуться.</string>
@@ -141,6 +163,97 @@
   <string name="this_weekend">На вихідних</string>
   <string name="all_events_section">Усі події поруч</string>
   <string name="browse_categories">Категорії</string>
+  <string name="picked_for_you">Для вас</string>
+  <string name="picked_for_you_hint">Дібрано за вашими відповідями</string>
+
+  <string name="onboarding_welcome_title">Знайомимось</string>
+  <string name="onboarding_welcome_body">Три питання — і «Поруч» показуватиме спершу те, що вам підходить. Відповіді лишаються на цьому пристрої, змінити їх можна будь-коли у профілі.</string>
+  <string name="onboarding_start">Почати</string>
+  <string name="onboarding_skip">Пропустити</string>
+  <string name="onboarding_step">Крок %1$d з %2$d</string>
+  <string name="onboarding_interests_title">Що вам цікаво?</string>
+  <string name="onboarding_interests_hint">Оберіть будь-скільки категорій — події з них будуть вище у списках.</string>
+  <string name="onboarding_times_title">Коли вам зручно?</string>
+  <string name="onboarding_times_hint">Підіймемо вище те, на що ви встигаєте.</string>
+  <string name="onboarding_crowd_title">Яка компанія?</string>
+  <string name="onboarding_crowd_hint">Це про розмір події, а не про людей на ній.</string>
+  <string name="onboarding_finish">Готово</string>
+  <string name="slot_weekday_day">Будні, вдень</string>
+  <string name="slot_weekday_day_hint">До 17:00</string>
+  <string name="slot_weekday_evening">Будні, ввечері</string>
+  <string name="slot_weekday_evening_hint">Після 17:00</string>
+  <string name="slot_weekend_day">Вихідні, вдень</string>
+  <string name="slot_weekend_day_hint">Субота й неділя до 17:00</string>
+  <string name="slot_weekend_evening">Вихідні, ввечері</string>
+  <string name="slot_weekend_evening_hint">Субота й неділя після 17:00</string>
+  <string name="crowd_intimate">Камерна</string>
+  <string name="crowd_intimate_hint">До 12 місць</string>
+  <string name="crowd_medium">Середня</string>
+  <string name="crowd_medium_hint">13–40 місць</string>
+  <string name="crowd_any">Будь-яка</string>
+  <string name="crowd_any_hint">Розмір не має значення</string>
+  <string name="tune_recommendations">Налаштувати рекомендації</string>
+  <string name="tune_recommendations_hint">Пройти опитування ще раз</string>
+
+  <string name="birth_date">Дата народження</string>
+  <string name="birth_date_hint">«Поруч» — застосунок для повнолітніх. Дату видно лише вам.</string>
+  <string name="birth_date_placeholder">Оберіть дату</string>
+  <string name="confirm_age_title">Підтвердьте вік</string>
+  <string name="confirm_age_body">Ваш обліковий запис створено до того, як ми почали питати вік. Вкажіть дату народження — без неї не вийде приєднатись до події.</string>
+  <string name="confirm_age_action">Вказати дату</string>
+
+  <string name="who_can_come">Хто може прийти</string>
+  <string name="age_from">Вік від</string>
+  <string name="age_to">Вік до</string>
+  <string name="age_to_placeholder">Без обмеження</string>
+  <string name="age_limit_hint">Мінімум %1$d — молодших у застосунку немає.</string>
+  <string name="approval_label">Підтверджувати учасників</string>
+  <string name="approval_hint">Ви вирішуєте, хто приєднається до події.</string>
+  <string name="age_badge_from">%1$d+</string>
+  <string name="age_badge_range">%1$d–%2$d років</string>
+  <string name="approval_badge">За підтвердженням</string>
+
+  <string name="requests_section">Запити на участь</string>
+  <string name="approve">Прийняти</string>
+  <string name="decline">Відхилити</string>
+  <string name="request_join">Надіслати запит</string>
+  <string name="request_pending">Запит надіслано</string>
+  <string name="request_pending_hint">Організатор ще не відповів</string>
+
+  <string name="report">Поскаржитись</string>
+  <string name="report_event_title">Поскаржитись на подію</string>
+  <string name="report_user_title">Поскаржитись на організатора</string>
+  <string name="report_body">Оберіть причину. Скаргу побачить лише модерація.</string>
+  <string name="report_details">Що сталося (необовʼязково)</string>
+  <string name="report_send">Надіслати скаргу</string>
+  <string name="reason_minors">Небезпечно для неповнолітніх</string>
+  <string name="reason_safety">Загроза безпеці</string>
+  <string name="reason_harassment">Домагання або образи</string>
+  <string name="reason_scam">Шахрайство</string>
+  <string name="reason_spam">Спам</string>
+  <string name="reason_other">Інше</string>
+  <string name="block_user">Заблокувати організатора</string>
+  <string name="block_user_title">Заблокувати цю людину?</string>
+  <string name="block_user_body">Ви більше не побачите її подій, а вона — ваших. Скасувати можна у профілі.</string>
+  <string name="block_confirm">Заблокувати</string>
+  <string name="blocked_section">Заблоковані</string>
+  <string name="unblock">Розблокувати</string>
+  <string name="blocked_count">Ви заблокували %1$d людей</string>
+
+  <string name="msg_request_sent">Запит надіслано організатору</string>
+  <string name="msg_report_sent">Дякуємо. Модерація перегляне скаргу</string>
+  <string name="msg_user_blocked">Заблоковано</string>
+  <string name="msg_age_confirmed">Вік підтверджено</string>
+  <string name="err_age_required">Спершу вкажіть дату народження у профілі</string>
+  <string name="err_too_young">Ця подія — для старших учасників</string>
+  <string name="err_too_old">Ця подія — для молодших учасників</string>
+  <string name="err_blocked">Дія недоступна: когось із вас заблоковано</string>
+  <string name="err_account_restricted">Обліковий запис обмежено. Напишіть у підтримку</string>
+  <string name="err_age_already_set">Дату народження вже вказано. Змінити її може лише підтримка</string>
+  <string name="err_underage">Реєстрація доступна з %1$d років</string>
+  <string name="err_too_many_reports">Забагато скарг поспіль. Спробуйте за годину</string>
+  <string name="err_too_many_events">Забагато подій за добу. Спробуйте завтра</string>
+  <string name="field_age_limits">вікові обмеження</string>
   <string name="find_on_map">Знайти на мапі</string>
   <string name="no_plans_title">Ще немає планів</string>
   <string name="no_plans_hint">Приєднайтесь до події — вона зʼявиться тут із нагадуванням.</string>
@@ -156,6 +269,8 @@
   <string name="open_in_maps">Маршрут</string>
   <string name="maps_unavailable">Не знайшли застосунок мап</string>
   <string name="venue">Місце зустрічі</string>
+  <!-- На концерт не «зустрічаються»: у афіші це просто адреса залу. -->
+  <string name="venue_listing">Місце</string>
   <string name="join_waitlist">Стати в чергу</string>
   <string name="leave_waitlist">Ви в черзі · вийти</string>
   <string name="in_queue">У черзі</string>
@@ -215,6 +330,36 @@
   <string name="msg_email_confirmed">Email підтверджено</string>
   <string name="msg_zoom_in">Збільшіть масштаб мапи, щоб побачити всі події в цій області</string>
   <string name="you_organize">Ви організатор</string>
+  <!-- Афіша з відкритого джерела. Атрибуція й посилання на джерело — вимога, а не оздоблення
+       (docs/event-ingestion.md §8), тому назва джерела стоїть у бейджі, у фактах і на кнопці. -->
+  <string name="listing_badge">Афіша · %1$s</string>
+  <string name="listing_source_label">Джерело</string>
+  <string name="listing_tickets">Купити квиток</string>
+  <string name="listing_read_more">Читати повністю на джерелі</string>
+  <string name="listing_price_label">Квитки</string>
+  <string name="listing_price_from">від %1$s ₴</string>
+  <string name="listing_free">Безкоштовно</string>
+  <string name="listing_price_unknown">Ціну вкаже джерело</string>
+  <string name="listing_hint_no_link">Подія з афіші. Ми лише показуємо її.</string>
+  <string name="listing_withdrawn">Більше не проводиться</string>
+  <string name="listing_withdrawn_hint">Джерело зняло цю подію. Запис лишається у вас як позначка.</string>
+  <string name="link_unavailable">Немає застосунку, щоб відкрити посилання</string>
+  <!-- Порожній пошук — не те саме, що порожня околиця: підказка має вести до іншої дії. -->
+  <string name="nothing_found">Нічого не знайшлося</string>
+  <string name="nothing_found_hint">Спробуйте інше слово або пошукайте на мапі — там можна змінити область і фільтри.</string>
+  <!-- Адресу набирають, крапку ставить застосунок. Мапа лишається для місць без адреси. -->
+  <string name="address_hint">Почніть набирати — знайдемо на мапі</string>
+  <string name="address_placeholder">Вулиця, будинок або назва закладу</string>
+  <string name="address_or_map">Знайдіть адресу або вкажіть точку на мапі</string>
+  <string name="address_point_set">Точку зустрічі позначено</string>
+  <!-- Крапку обирають на окремому екрані: міні-мапа в анкеті лише показує вибране. -->
+  <string name="choose_point">Обрати точку на мапі</string>
+  <string name="change_point">Змінити точку</string>
+  <string name="choose_point_title">Точка зустрічі</string>
+  <string name="choose_point_hint">Рухайте мапу — точка лишається в центрі</string>
+  <string name="point_searching">Шукаємо адресу…</string>
+  <string name="zoom_in">Наблизити</string>
+  <string name="zoom_out">Віддалити</string>
   <string name="title_placeholder">Наприклад: Вечір настільних ігор</string>
   <string name="description_placeholder">Кілька речень про подію</string>
 </resources>

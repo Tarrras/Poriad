@@ -11,7 +11,7 @@ final class EventReminders {
     }
     func reconcile(_ state: AppState) {
         let enabled = UserDefaults.standard.bool(forKey: "poruch.reminders")
-        let events = state.myEvents.filter { $0.joined && $0.isPublished }
+        let events = state.myEvents.filter { $0.gathering?.joined == true && $0.isPublished }
         let next = "\(enabled)-\(state.userId ?? "guest")-" + events.map { "\($0.id)-\($0.startsAt)" }.sorted().joined()
         guard next != signature else { return }; signature = next
         center.getPendingNotificationRequests { [center] requests in

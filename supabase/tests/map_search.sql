@@ -2,7 +2,7 @@
 begin;
 select set_config('test.host',gen_random_uuid()::text,true);
 select set_config('test.member',gen_random_uuid()::text,true);
-insert into auth.users(id,email) select current_setting('test.'||x)::uuid,'poruch-search-'||current_setting('test.'||x)||'@example.invalid' from unnest(array['host','member']) x;
+insert into auth.users(id,email,raw_user_meta_data) select current_setting('test.'||x)::uuid,'poruch-search-'||current_setting('test.'||x)||'@example.invalid',jsonb_build_object('birth_date','1990-01-01') from unnest(array['host','member']) x;
 insert into public.events(id,organizer_id,title,description,category,city,address,latitude,longitude,starts_at,ends_at,time_zone,capacity)
 select gen_random_uuid(),current_setting('test.host')::uuid,'SearchFixture Full '||i,'','social','Test','Park',50.45,30.52,now()+interval '1 day',now()+interval '2 days','Europe/Kyiv',1 from generate_series(1,301) i;
 insert into public.event_members(event_id,user_id) select id,current_setting('test.member')::uuid from public.events where organizer_id=current_setting('test.host')::uuid;

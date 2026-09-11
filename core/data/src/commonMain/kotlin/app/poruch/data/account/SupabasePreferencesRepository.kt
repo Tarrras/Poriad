@@ -1,4 +1,5 @@
-package app.poruch.data
+package app.poruch.data.account
+import app.poruch.data.api.ApiClient
 import app.poruch.domain.*
 import io.ktor.http.HttpMethod
 import kotlinx.serialization.json.*

@@ -40,7 +40,7 @@ object Reminders {
         if (state.userId == null || !enabled(context)) return
         val alarms = context.getSystemService(AlarmManager::class.java)
         val scheduled = JSONArray()
-        state.myEvents.filter { it.joined && it.isPublished }.forEach { event ->
+        state.myEvents.filter { it.gathering?.joined == true && it.isPublished }.forEach { event ->
             val trigger = runCatching { Instant.parse(event.startsAt).toEpochMilli() - 60 * 60 * 1000 }.getOrNull() ?: return@forEach
             if (trigger > System.currentTimeMillis()) {
                 alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pending(context, event.id, event.title))

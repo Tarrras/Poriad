@@ -21,6 +21,7 @@ import app.poruch.android.feature.editor.*
 import app.poruch.android.feature.explore.*
 import app.poruch.android.feature.home.*
 import app.poruch.android.feature.mine.*
+import app.poruch.android.feature.onboarding.*
 import app.poruch.android.mvi.screenViewModel
 import app.poruch.android.platform.*
 import kotlinx.coroutines.flow.Flow
@@ -35,6 +36,16 @@ import kotlinx.coroutines.flow.Flow
 @Composable
 private fun <E> Flow<E>.handle(onEffect: (E) -> Unit) {
     LaunchedEffect(this) { collect(onEffect) }
+}
+
+/**
+ * The opening questions. They have no navigation of their own: the store ends the flow by marking
+ * the answers given, and the root shows the app the moment it does.
+ */
+@Composable
+fun OnboardingRoute() {
+    val model = screenViewModel { OnboardingViewModel(it) }
+    OnboardingScreen(model.state.collectAsStateWithLifecycle().value, model::dispatch)
 }
 
 @Composable
@@ -55,10 +66,12 @@ fun HomeRoute(navigate: (Screen, String) -> Unit, requireAccount: (() -> Unit) -
 
 @SuppressLint("MissingPermission")
 @Composable
-fun ExploreRoute(navigate: (Screen, String) -> Unit, requireAccount: (() -> Unit) -> Unit) {
+fun ExploreRoute(focusId: String, navigate: (Screen, String) -> Unit, requireAccount: (() -> Unit) -> Unit) {
     val context = LocalContext.current
     val nearbyLabel = stringResource(R.string.nearby)
     val model = screenViewModel { ExploreViewModel(it) }
+    // Мапу відкрили з деталей події: наводимось на неї, а не на місто.
+    LaunchedEffect(focusId) { if (focusId.isNotEmpty()) model.dispatch(ExploreIntent.FocusEvent(focusId)) }
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { results ->
         if (results.values.none { it }) {
             model.dispatch(ExploreIntent.LocationDenied)
@@ -107,6 +120,8 @@ fun DetailRoute(eventId: String, back: () -> Unit, navigate: (Screen, String) ->
             is DetailEffect.ShareEvent -> context.shareEvent(effect.event)
             is DetailEffect.OpenCalendar -> if (!context.addToCalendar(effect.event)) context.toast(R.string.calendar_unavailable)
             is DetailEffect.OpenMaps -> if (!context.openInMaps(effect.event)) context.toast(R.string.maps_unavailable)
+            is DetailEffect.OpenLink -> if (!context.openLink(effect.url)) context.toast(R.string.link_unavailable)
+            is DetailEffect.OpenMap -> navigate(Screen.MAP, effect.id)
         }
     }
     DetailScreen(model.state.collectAsStateWithLifecycle().value, model::dispatch)

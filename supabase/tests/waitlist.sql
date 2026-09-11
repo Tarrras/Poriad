@@ -3,8 +3,10 @@ begin;
 select set_config('test.host',gen_random_uuid()::text,true),set_config('test.b',gen_random_uuid()::text,true),
  set_config('test.c',gen_random_uuid()::text,true),set_config('test.d',gen_random_uuid()::text,true),
  set_config('test.e',gen_random_uuid()::text,true),set_config('test.event',gen_random_uuid()::text,true);
+-- Accounts now declare an age at sign-up, and joining refuses one that has not: the fixtures
+-- carry a birth date so these suites test what they were written to test.
 insert into auth.users(id,email,raw_user_meta_data)
-select u.id::uuid,'poruch-wait-'||u.id||'@example.invalid',jsonb_build_object('display_name','User')
+select u.id::uuid,'poruch-wait-'||u.id||'@example.invalid',jsonb_build_object('display_name','User','birth_date','1990-01-01')
 from unnest(array[current_setting('test.host'),current_setting('test.b'),current_setting('test.c'),
  current_setting('test.d'),current_setting('test.e')]) u(id);
 insert into public.events(id,organizer_id,title,description,category,city,address,latitude,longitude,starts_at,ends_at,time_zone,capacity)

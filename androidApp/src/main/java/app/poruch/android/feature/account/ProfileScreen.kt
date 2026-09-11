@@ -6,6 +6,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.automirrored.outlined.Login
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.Person
@@ -21,6 +22,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import app.poruch.android.R
 import app.poruch.android.ui.*
+import app.poruch.android.feature.editor.BirthDateSheet
 
 /**
  * The account screen. [reminders] is passed in because notification scheduling is an Android
@@ -32,10 +34,10 @@ fun ProfileScreen(state: ProfileState, onIntent: (ProfileIntent) -> Unit, remind
     val colors = Poruch.colors
     Column(
         Modifier.fillMaxSize().background(colors.canvas).verticalScroll(rememberScrollState())
-            .statusBarsPadding().padding(bottom = 120.dp)
+            .padding(bottom = 120.dp)
     ) {
         Column(
-            Modifier.fillMaxWidth().background(Brush.verticalGradient(listOf(colors.canvasTint, colors.canvas)))
+            Modifier.fillMaxWidth().background(heroGradient()).statusBarsPadding()
                 .padding(horizontal = Spacing.page, vertical = Spacing.xxl),
             verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
@@ -69,21 +71,52 @@ fun ProfileScreen(state: ProfileState, onIntent: (ProfileIntent) -> Unit, remind
                     Modifier.fillMaxWidth(), enabled = state.canSavePassword
                 )
             }
-            if (state.signedIn) {
-                Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
-                    SectionHeader(stringResource(R.string.interests))
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
-                        verticalArrangement = Arrangement.spacedBy(Spacing.sm)
-                    ) {
-                        categories.forEach { category ->
-                            PoruchChip(
-                                stringResource(categoryLabel(category)), category in state.interests,
-                                { onIntent(ProfileIntent.ToggleInterest(category)) }, dot = category
-                            )
-                        }
+            // An account that predates the question is asked for it here, once, and told why.
+            if (state.needsAge) Column(
+                Modifier.fillMaxWidth().cardSurface().padding(Spacing.lg),
+                verticalArrangement = Arrangement.spacedBy(Spacing.sm)
+            ) {
+                Text(stringResource(R.string.confirm_age_title), style = MaterialTheme.typography.titleSmall, color = colors.ink)
+                Text(stringResource(R.string.confirm_age_body), style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
+                PrimaryButton(
+                    stringResource(R.string.confirm_age_action),
+                    { onIntent(ProfileIntent.ShowBirthDatePicker(true)) }, Modifier.fillMaxWidth()
+                )
+            }
+            // Interests are the device's answer, not the account's, so a guest edits them too.
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                SectionHeader(stringResource(R.string.interests))
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.sm)
+                ) {
+                    categories.forEach { category ->
+                        PoruchChip(
+                            stringResource(categoryLabel(category)), category in state.interests,
+                            { onIntent(ProfileIntent.ToggleInterest(category)) }, dot = category
+                        )
                     }
                 }
+                Row(
+                    Modifier.fillMaxWidth().cardSurface().pressable { onIntent(ProfileIntent.TuneRecommendations) }
+                        .padding(Spacing.lg),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)
+                ) {
+                    Icon(PoruchIcons.sparkle, null, Modifier.size(20.dp), tint = colors.brand)
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            stringResource(R.string.tune_recommendations),
+                            style = MaterialTheme.typography.titleSmall, color = colors.ink
+                        )
+                        Text(
+                            stringResource(R.string.tune_recommendations_hint),
+                            style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary
+                        )
+                    }
+                    Icon(Icons.AutoMirrored.Outlined.ArrowForward, null, Modifier.size(18.dp), tint = colors.inkTertiary)
+                }
+            }
+            if (state.signedIn) {
                 Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
                     SectionHeader(stringResource(R.string.settings))
                     Column(
@@ -96,10 +129,29 @@ fun ProfileScreen(state: ProfileState, onIntent: (ProfileIntent) -> Unit, remind
                     icon = Icons.AutoMirrored.Outlined.Logout, tone = colors.danger
                 )
             }
+            // A block a person cannot undo is a setting they will not use. The list names names.
+            if (state.blocked.isNotEmpty()) Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                SectionHeader(stringResource(R.string.blocked_section))
+                state.blocked.forEach { person ->
+                    Row(
+                        Modifier.fillMaxWidth().cardSurface().padding(Spacing.lg),
+                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)
+                    ) {
+                        Text(
+                            person.name.ifBlank { stringResource(R.string.organizer_short) },
+                            style = MaterialTheme.typography.titleSmall, color = colors.ink, modifier = Modifier.weight(1f)
+                        )
+                        GhostButton(stringResource(R.string.unblock), { onIntent(ProfileIntent.Unblock(person.userId)) })
+                    }
+                }
+            }
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                 SectionHeader(stringResource(R.string.about_app))
                 Text(stringResource(R.string.about_app_body), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
             }
         }
     }
+    if (state.pickingBirthDate) BirthDateSheet(
+        null, { onIntent(ProfileIntent.ShowBirthDatePicker(false)) }
+    ) { onIntent(ProfileIntent.SetBirthDate(it)) }
 }

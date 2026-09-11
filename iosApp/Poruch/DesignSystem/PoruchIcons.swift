@@ -211,6 +211,67 @@ enum PoruchIcons {
         }
     )
 
+    /// A hand microphone: capsule, cradle, stand. Standup is named by its instrument the way music is by a note — a laughing mask would read as theatre, which is the very category comedy was split out of.
+    static let comedy = PoruchGlyph(
+        stroke: { path, s in
+            path.move(to: point(6.9, 10.3, s))
+            path.addCurve(to: point(12, 15.4, s), control1: point(6.9, 13.1, s), control2: point(9.2, 15.4, s))
+            path.addCurve(to: point(17.1, 10.3, s), control1: point(14.8, 15.4, s), control2: point(17.1, 13.1, s))
+        },
+        fill: { path, s in
+            path.move(to: point(12, 2.8, s))
+            path.addLine(to: point(12, 2.8, s))
+            path.addCurve(to: point(14.6, 5.4, s), control1: point(13.436, 2.8, s), control2: point(14.6, 3.964, s))
+            path.addLine(to: point(14.6, 10.6, s))
+            path.addCurve(to: point(12, 13.2, s), control1: point(14.6, 12.036, s), control2: point(13.436, 13.2, s))
+            path.addLine(to: point(12, 13.2, s))
+            path.addCurve(to: point(9.4, 10.6, s), control1: point(10.564, 13.2, s), control2: point(9.4, 12.036, s))
+            path.addLine(to: point(9.4, 5.4, s))
+            path.addCurve(to: point(12, 2.8, s), control1: point(9.4, 3.964, s), control2: point(10.564, 2.8, s))
+            path.closeSubpath()
+            path.move(to: point(12, 15, s))
+            path.addLine(to: point(12, 15, s))
+            path.addCurve(to: point(12.8, 15.8, s), control1: point(12.442, 15, s), control2: point(12.8, 15.358, s))
+            path.addLine(to: point(12.8, 17.8, s))
+            path.addCurve(to: point(12, 18.6, s), control1: point(12.8, 18.242, s), control2: point(12.442, 18.6, s))
+            path.addLine(to: point(12, 18.6, s))
+            path.addCurve(to: point(11.2, 17.8, s), control1: point(11.558, 18.6, s), control2: point(11.2, 18.242, s))
+            path.addLine(to: point(11.2, 15.8, s))
+            path.addCurve(to: point(12, 15, s), control1: point(11.2, 15.358, s), control2: point(11.558, 15, s))
+            path.closeSubpath()
+            path.move(to: point(9.4, 18, s))
+            path.addLine(to: point(14.6, 18, s))
+            path.addCurve(to: point(15.6, 19, s), control1: point(15.152, 18, s), control2: point(15.6, 18.448, s))
+            path.addLine(to: point(15.6, 19, s))
+            path.addCurve(to: point(14.6, 20, s), control1: point(15.6, 19.552, s), control2: point(15.152, 20, s))
+            path.addLine(to: point(9.4, 20, s))
+            path.addCurve(to: point(8.4, 19, s), control1: point(8.848, 20, s), control2: point(8.4, 19.552, s))
+            path.addLine(to: point(8.4, 19, s))
+            path.addCurve(to: point(9.4, 18, s), control1: point(8.4, 18.448, s), control2: point(8.848, 18, s))
+            path.closeSubpath()
+        }
+    )
+
+    /// A balloon on a string. Reads as «for children» at pin size, where a teddy or a kite collapses into a blob.
+    static let kids = PoruchGlyph(
+        stroke: { path, s in
+            path.move(to: point(12, 15.6, s))
+            path.addCurve(to: point(13.6, 20, s), control1: point(12, 17.4, s), control2: point(13.6, 18.2, s))
+        },
+        fill: { path, s in
+            path.move(to: point(6, 9.2, s))
+            path.addCurve(to: point(12, 3.2, s), control1: point(6, 5.886, s), control2: point(8.686, 3.2, s))
+            path.addCurve(to: point(18, 9.2, s), control1: point(15.314, 3.2, s), control2: point(18, 5.886, s))
+            path.addCurve(to: point(12, 15.2, s), control1: point(18, 12.514, s), control2: point(15.314, 15.2, s))
+            path.addCurve(to: point(6, 9.2, s), control1: point(8.686, 15.2, s), control2: point(6, 12.514, s))
+            path.closeSubpath()
+            path.move(to: point(10.6, 14.6, s))
+            path.addLine(to: point(13.4, 14.6, s))
+            path.addLine(to: point(12, 16.4, s))
+            path.closeSubpath()
+        }
+    )
+
     /// A solid house with the door punched through it — the negative space is what keeps the silhouette from reading as a plain pentagon.
     static let home = PoruchGlyph(
         punch: { path, s in

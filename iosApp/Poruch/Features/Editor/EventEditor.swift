@@ -8,6 +8,7 @@ struct EventEditor: View {
     @EnvironmentObject var model: AppModel
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var editor: EventEditorModel
 
     init(event: Event?, app: PoruchApp, home: AppState?) {
@@ -23,15 +24,17 @@ struct EventEditor: View {
                 VStack(alignment: .leading, spacing: Space.lg) {
                     switch editor.step {
                     case .about: AboutStep(form: $editor.form)
-                    case .place: PlaceStep(form: $editor.form)
-                    case .schedule: ScheduleStep(form: $editor.form)
+                    case .place: PlaceStep(editor: editor)
+                    case .schedule: ScheduleStep(form: $editor.form, timeZoneFromPlace: editor.timeZoneFromPlace)
                     }
                 }.padding(Space.page)
             }
             actions
         }
         .background(Palette.canvas)
-        .onChange(of: editor.form) { _, _ in editor.persist() }
+        .onChange(of: editor.form) { _, _ in editor.scheduleSave() }
+        // Аркуш не «зникає», коли застосунок згортають, тож відкладений запис треба дожати самим.
+        .onChange(of: scenePhase) { _, phase in if phase != .active { editor.persist() } }
         .onDisappear { editor.persist() }
         .onChange(of: model.state?.completedEventId) { _, id in
             guard editor.submitted, id != nil else { return }
@@ -94,47 +97,136 @@ private struct AboutStep: View {
 }
 
 private struct PlaceStep: View {
-    @Binding var form: EditorForm
-    @State private var mapLatitude = 0.0
-    @State private var mapLongitude = 0.0
+    @ObservedObject var editor: EventEditorModel
+    @State private var mapLatitude: Double
+    @State private var mapLongitude: Double
+    @State private var picking = false
+
+    /// Мапа читає свій центр один раз — але вже тут, а не в `onAppear`: інакше перший кадр вона
+    /// малює в точці (0, 0), тобто посеред океану, і лише потім стрибає на місце.
+    init(editor: EventEditorModel) {
+        _editor = ObservedObject(wrappedValue: editor)
+        _mapLatitude = State(initialValue: editor.form.latitude)
+        _mapLongitude = State(initialValue: editor.form.longitude)
+    }
+    private var form: Binding<EditorForm> { $editor.form }
     var body: some View {
-        LabelledField(label: "Місто", text: $form.city, placeholder: "Київ")
+        LabelledField(label: "Місто", text: form.city, placeholder: "Київ")
         LabelledField(
-            label: "Адреса", text: $form.address, placeholder: "Вулиця, будинок, орієнтир",
-            hint: "Перемістіть мапу: центр визначає точку зустрічі."
+            label: "Адреса", text: form.address,
+            placeholder: "Вулиця, будинок або назва закладу",
+            hint: "Почніть набирати — знайдемо на мапі"
         )
-        ZStack {
-            EventMap(events: [], latitude: mapLatitude, longitude: mapLongitude, selected: { _ in }, moved: { region in
-                form.latitude = (region.south + region.north) / 2
-                form.longitude = (region.west + region.east) / 2
-            })
-            PoruchIcon(glyph: PoruchIcons.pin, size: 32)
-                .foregroundStyle(categoryColor(form.category)).allowsHitTesting(false)
+        // Підказки стоять одразу під полем: список нижче за мапу читався б як щось інше, а не як
+        // продовження того, що набирають.
+        if !editor.addressSuggestions.isEmpty {
+            VStack(spacing: 0) {
+                ForEach(Array(editor.addressSuggestions.enumerated()), id: \.offset) { index, place in
+                    if index > 0 { Divider().overlay(Palette.hairline).padding(.horizontal, Space.lg) }
+                    Button { editor.pick(place) } label: {
+                        HStack(spacing: Space.md) {
+                            PoruchIcon(glyph: PoruchIcons.pin, size: 18).foregroundStyle(Palette.inkSecondary)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(place.label).font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
+                                if !place.detail.isEmpty {
+                                    Text(place.detail).font(PoruchFont.caption)
+                                        .foregroundStyle(Palette.inkTertiary).lineLimit(1)
+                                }
+                            }
+                            Spacer(minLength: 0)
+                        }
+                        .padding(Space.lg).contentShape(Rectangle())
+                    }.buttonStyle(.plain)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .cardSurface()
         }
+        // Мапа тут нічого не обирає: вона показує, що вибрано. Жести на клаптику 240 pt коштували
+        // б точності, якої від крапки зустрічі й чекають.
+        EventMap(
+            events: [], latitude: mapLatitude, longitude: mapLongitude,
+            // Крапку принесла адреса — отже, показуємо будинок, а не місто.
+            centerZoom: editor.pointChosen ? MapZoom.street : MapZoom.city,
+            chosenPoint: editor.form.point,
+            interactive: false,
+            selected: { _ in },
+            moved: { _ in }
+        )
         .frame(height: 240)
         .clipShape(RoundedRectangle(cornerRadius: Corner.md, style: .continuous))
-        MetaLine(symbol: "location", text: String(format: "%.5f, %.5f", form.latitude, form.longitude))
-        // The map only reads its starting point once, so it is captured before the first draw.
-        .onAppear { mapLatitude = form.latitude; mapLongitude = form.longitude }
+        // Координат тут більше немає: людина знає адресу, а не широту. Лишається сказати, чи
+        // крапку вже поставлено.
+        MetaLine(
+            symbol: editor.pointChosen ? "checkmark.circle" : "mappin.and.ellipse",
+            text: editor.pointChosen ? "Точку зустрічі позначено" : "Знайдіть адресу або вкажіть точку на мапі"
+        )
+        SecondaryButton(title: editor.pointChosen ? "Змінити точку" : "Обрати точку на мапі") {
+            picking = true
+        }
+        .frame(maxWidth: .infinity)
+        // Обрана адреса рухає мапу під приціл. Слухаємо лічильник, а не координати: від панорами
+        // вони теж міняються, і мапа ганялася б за власним центром.
+        .onChange(of: editor.placedAt) { _, _ in
+            mapLatitude = editor.form.latitude
+            mapLongitude = editor.form.longitude
+        }
+        .onSettled(editor.form.address, after: .milliseconds(350)) { editor.suggestAddresses($0) }
+        .fullScreenCover(isPresented: $picking) {
+            PointPicker(
+                editor: editor,
+                start: editor.form.point ?? (mapLatitude, mapLongitude),
+                zoom: editor.pointChosen ? MapZoom.street : MapZoom.city
+            ) { latitude, longitude in
+                mapLatitude = latitude
+                mapLongitude = longitude
+            }
+        }
     }
 }
 
 private struct ScheduleStep: View {
     @Binding var form: EditorForm
+    let timeZoneFromPlace: Bool
     private var zone: TimeZone { TimeZone(identifier: form.timeZone) ?? .current }
     var body: some View {
-        VStack(spacing: Space.lg) {
-            DatePicker("Початок", selection: $form.starts, in: Date()...).environment(\.timeZone, zone)
-            DatePicker("Закінчення", selection: $form.ends, in: form.starts...).environment(\.timeZone, zone)
-            Stepper("Місткість: \(form.capacity)", value: $form.capacity, in: capacityRange)
+        ScheduleFields(starts: $form.starts, ends: $form.ends, zone: zone)
+        Stepper("Місткість: \(form.capacity)", value: $form.capacity, in: capacityRange)
+            .font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
+            .padding(Space.lg).cardSurface()
+        TimeZoneNote(zone: form.timeZone, fromPlace: timeZoneFromPlace)
+        // Who may come is part of publishing, not a setting hidden afterwards: an organizer decides
+        // it while they are still thinking about what the evening is.
+        VStack(alignment: .leading, spacing: Space.md) {
+            SectionHeader(title: "Хто може прийти")
+            VStack(spacing: Space.lg) {
+                Stepper("Вік від: \(form.minAge)", value: $form.minAge, in: ageRange)
+                Toggle("Верхня межа віку", isOn: Binding(
+                    get: { form.maxAge != nil },
+                    set: { form.maxAge = $0 ? max(form.minAge, form.minAge + 7) : nil }
+                )).tint(Palette.brand)
+                if let maximum = form.maxAge {
+                    Stepper("Вік до: \(maximum)", value: Binding(
+                        get: { maximum }, set: { form.maxAge = $0 }
+                    ), in: form.minAge...Int(SafetyRules.shared.MAX_AGE_LIMIT))
+                }
+                Divider().overlay(Palette.hairline)
+                Toggle(isOn: $form.approvalRequired) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Підтверджувати учасників").font(PoruchFont.title3).foregroundStyle(Palette.ink)
+                        Text("Ви вирішуєте, хто приєднається до події.")
+                            .font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
+                    }
+                }.tint(Palette.brand)
+            }
+            .font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
+            .padding(Space.lg).cardSurface()
+            Text("Мінімум \(Int(SafetyRules.shared.MIN_SIGNUP_AGE)) — молодших у застосунку немає.")
+                .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
         }
-        .font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
-        .padding(Space.lg).cardSurface()
-        LabelledField(label: "Часовий пояс IANA", text: $form.timeZone, placeholder: "Europe/Kyiv")
-            .textInputAutocapitalization(.never)
         VStack(alignment: .leading, spacing: Space.sm) {
             Text(categoryName(form.category).uppercased()).font(PoruchFont.overline)
-                .foregroundStyle(categoryColor(form.category))
+                .foregroundStyle(categoryInk(form.category))
             Text(form.title.isEmpty ? "Назва події" : form.title).font(PoruchFont.title2).foregroundStyle(Palette.ink)
             MetaLine(symbol: "mappin.and.ellipse", text: "\(form.city) · \(form.address)")
             MetaLine(symbol: "person.2", text: "\(form.capacity) місць")
@@ -144,7 +236,121 @@ private struct ScheduleStep: View {
     }
 }
 
+/// The platform floor is the lowest an organizer may set; the server refuses anything under it.
+private var ageRange: ClosedRange<Int> { Int(SafetyRules.shared.MIN_SIGNUP_AGE)...100 }
+
 /// The same range the server's CHECK constraint enforces.
 private var capacityRange: ClosedRange<Int> {
     Int(EventRules.shared.capacity.first)...Int(EventRules.shared.capacity.last)
+}
+
+/**
+ Повноекранна мапа, де крапка — це центр.
+
+ Ціль не рухається, рухається світ під нею: так крапку видно завжди, і її не затуляє палець.
+ Підтвердження — окрема дія, тож дорогою можна роздивитись околиці, нічого не змінивши.
+ */
+private struct PointPicker: View {
+    @ObservedObject var editor: EventEditorModel
+    let start: (latitude: Double, longitude: Double)
+    let zoom: Double
+    let onDone: (Double, Double) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @StateObject private var controller = MapController()
+    @State private var center: (latitude: Double, longitude: Double)
+
+    init(
+        editor: EventEditorModel,
+        start: (latitude: Double, longitude: Double),
+        zoom: Double,
+        onDone: @escaping (Double, Double) -> Void
+    ) {
+        _editor = ObservedObject(wrappedValue: editor)
+        self.start = start
+        self.zoom = zoom
+        self.onDone = onDone
+        _center = State(initialValue: start)
+    }
+
+    var body: some View {
+        ZStack {
+            EventMap(
+                events: [], latitude: start.latitude, longitude: start.longitude,
+                centerZoom: zoom,
+                selected: { _ in },
+                moved: { _ in },
+                // Мапа повідомляє про зупинку, а не про кожен кадр: питати адресу має сенс тоді,
+                // коли палець уже відпустив мапу.
+                centerChanged: { latitude, longitude in
+                    center = (latitude, longitude)
+                    editor.aim(at: latitude, longitude: longitude)
+                },
+                controller: controller
+            )
+            .ignoresSafeArea()
+            // Ціль малюється поверх мапи й не приймає дотиків: під нею мапа, і вона має тягтися.
+            PoruchIcon(glyph: PoruchIcons.pin, size: 36)
+                .foregroundStyle(Palette.brand)
+                .offset(y: -18)
+                .allowsHitTesting(false)
+            VStack(spacing: 0) {
+                PageHeader(title: "Точка зустрічі", back: { dismiss() })
+                    .background(Palette.canvas)
+                Spacer(minLength: 0)
+                HStack {
+                    Spacer(minLength: 0)
+                    VStack(spacing: Space.sm) {
+                        ZoomButton(symbol: "plus", label: "Наблизити") { controller.zoomIn() }
+                        ZoomButton(symbol: "minus", label: "Віддалити") { controller.zoomOut() }
+                    }
+                }
+                .padding(Space.lg)
+                Spacer(minLength: 0)
+                VStack(spacing: Space.md) {
+                    // Адреса — головне тут, тож вона й читається як головне: сам рядок, а не підпис.
+                    HStack(spacing: Space.md) {
+                        PoruchIcon(glyph: PoruchIcons.pin, size: 18).foregroundStyle(Palette.inkSecondary)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(editor.aimAddress.isEmpty ? "Шукаємо адресу…" : editor.aimAddress)
+                                .font(PoruchFont.bodyText)
+                                .foregroundStyle(editor.aimAddress.isEmpty ? Palette.inkTertiary : Palette.ink)
+                                .lineLimit(2)
+                            Text("Рухайте мапу — точка лишається в центрі")
+                                .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    PrimaryButton(title: "Готово") {
+                        editor.confirmAim(latitude: center.latitude, longitude: center.longitude)
+                        onDone(center.latitude, center.longitude)
+                        dismiss()
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .padding(Space.page)
+                .background(Palette.surface)
+            }
+        }
+        .onAppear { editor.aim(at: start.latitude, longitude: start.longitude) }
+    }
+}
+
+/// Кругла кнопка масштабу поверх мапи: та сама вага, що й у решти круглих кнопок застосунку.
+private struct ZoomButton: View {
+    let symbol: String
+    let label: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(Palette.ink)
+                .frame(width: 44, height: 44)
+                .background(Palette.surface, in: Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+    }
 }

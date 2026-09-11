@@ -1,10 +1,60 @@
+-- Дві таблиці, бо тут два різні зобовʼязання перед даними.
+--
+-- `cached_response` — остання відповідь на область. Її можна викинути будь-коли: найгірше, що
+-- станеться, — мапа секунду почекає на мережу.
+--
+-- `device_store` — відповіді онбордингу й ключ ідемпотентності створення. Викидати їх не можна
+-- **ніколи**: перше — це те, що людина сказала про себе, друге — єдиний запобіжник від двох
+-- однакових подій після повтору запиту.
+--
+-- Доти, доки обидва жили в одній таблиці, різниці не було видно, бо не було й витіснення. Щойно
+-- воно зʼявляється, спільна таблиця означає, що дванадцятий пошук стирає відповіді онбордингу.
 CREATE TABLE cached_response (
     cache_key TEXT NOT NULL PRIMARY KEY,
+    payload TEXT NOT NULL,
+    written_at INTEGER NOT NULL
+);
+
+CREATE INDEX cached_response_written_idx ON cached_response(written_at);
+
+CREATE TABLE device_store (
+    store_key TEXT NOT NULL PRIMARY KEY,
     payload TEXT NOT NULL
 );
+
+-- ---------------------------------------------------------------- кеш відповідей
+--
+-- Строк придатності приходить параметром, а не стоїть тут літералом: правило має бути однією
+-- константою в домені, яку видно й можна перевірити тестом.
 read:
-SELECT payload FROM cached_response WHERE cache_key = ?;
+SELECT payload FROM cached_response WHERE cache_key = ? AND written_at >= ?;
+
 write:
-INSERT OR REPLACE INTO cached_response(cache_key, payload) VALUES (?, ?);
-clearAll:
+INSERT OR REPLACE INTO cached_response(cache_key, payload, written_at) VALUES (?, ?, ?);
+
+-- Старша за строк придатності відповідь перелічує те, що вже відбулося.
+evictExpired:
+DELETE FROM cached_response WHERE written_at < ?;
+
+-- Лишаємо N найсвіжіших. `LIMIT -1 OFFSET ?` — це «все, крім перших N» мовою SQLite.
+evictOverflow:
+DELETE FROM cached_response WHERE cache_key IN (
+    SELECT cache_key FROM cached_response ORDER BY written_at DESC LIMIT -1 OFFSET ?
+);
+
+-- ---------------------------------------------------------------- сховище пристрою
+readDevice:
+SELECT payload FROM device_store WHERE store_key = ?;
+
+writeDevice:
+INSERT OR REPLACE INTO device_store(store_key, payload) VALUES (?, ?);
+
+-- ---------------------------------------------------------------- вихід з акаунта
+--
+-- Усе, що лишив по собі акаунт. Рядки під префіксом `device:` належать телефону, а не тому, хто
+-- на ньому ввійшов, тож вихід їх не забирає.
+clearPrivate:
 DELETE FROM cached_response;
+
+clearPrivateDevice:
+DELETE FROM device_store WHERE store_key NOT LIKE 'device:%';

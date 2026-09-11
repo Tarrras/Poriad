@@ -11,6 +11,8 @@ class ProfileViewModel(private val app: PoruchApp) :
             copy(
                 signedIn = shared.signedIn,
                 interests = shared.interests,
+                needsAge = shared.needsAgeDeclaration,
+                blocked = shared.blocked,
                 mutating = shared.mutating,
                 passwordRecovery = shared.passwordRecovery,
                 // Clearing the field once recovery is over keeps a typed password from lingering.
@@ -24,6 +26,13 @@ class ProfileViewModel(private val app: PoruchApp) :
             ProfileIntent.SignIn -> send(ProfileEffect.SignIn)
             ProfileIntent.SignOut -> app.signOut()
             is ProfileIntent.ToggleInterest -> app.toggleInterest(intent.category)
+            ProfileIntent.TuneRecommendations -> app.restartOnboarding()
+            is ProfileIntent.ShowBirthDatePicker -> reduce { copy(pickingBirthDate = intent.show) }
+            is ProfileIntent.SetBirthDate -> {
+                reduce { copy(pickingBirthDate = false) }
+                app.declareBirthDate(intent.value.toString())
+            }
+            is ProfileIntent.Unblock -> app.unblockUser(intent.userId)
             is ProfileIntent.SetNewPassword -> reduce { copy(newPassword = intent.value) }
             ProfileIntent.SavePassword -> app.updatePassword(state.value.newPassword)
         }

@@ -216,6 +216,52 @@ icon(
     doc="Two solid figures, one behind the other: a gathering rather than a single profile.",
 )
 
+icon(
+    "comedy",
+    stroke=[
+        # The cradle is the one line the shape cannot do without: as a solid it would swallow
+        # the capsule it is meant to hold.
+        [
+            move(6.9, 10.3),
+            curve(6.9, 13.1, 9.2, 15.4, 12.0, 15.4),
+            curve(14.8, 15.4, 17.1, 13.1, 17.1, 10.3),
+        ],
+    ],
+    fill=[
+        rounded_rect(9.4, 2.8, 5.2, 10.4, 2.6),      # the capsule head
+        rounded_rect(11.2, 15.0, 1.6, 3.6, 0.8),     # the stem
+        rounded_rect(8.4, 18.0, 7.2, 2.0, 1.0),      # the base bar
+    ],
+    doc="A hand microphone: capsule, cradle, stand. Standup is named by its instrument the way "
+        "music is by a note — a laughing mask would read as theatre, which is the very category "
+        "comedy was split out of.",
+)
+
+icon(
+    "kids",
+    stroke=[
+        # The string is the one line that cannot be solid: as a filled shape it would read as a
+        # stalk and turn the balloon into a cherry.
+        [
+            move(12.0, 15.6),
+            curve(12.0, 17.4, 13.6, 18.2, 13.6, 20.0),
+        ],
+    ],
+    fill=[
+        circle(12.0, 9.2, 6.0),
+        # The knot: a small triangle where the balloon meets the string.
+        [
+            move(10.6, 14.6),
+            line(13.4, 14.6),
+            line(12.0, 16.4),
+            close(),
+        ],
+    ],
+    doc="A balloon on a string. Reads as «for children» at pin size, where a teddy or a kite "
+        "collapses into a blob.",
+)
+
+
 # ---- navigation
 
 icon(

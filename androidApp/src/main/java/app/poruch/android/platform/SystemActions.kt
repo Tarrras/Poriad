@@ -7,6 +7,7 @@ import android.provider.CalendarContract
 import android.widget.Toast
 import androidx.annotation.StringRes
 import app.poruch.android.R
+import app.poruch.android.ui.dateWords
 import app.poruch.android.ui.eventTime
 import app.poruch.domain.Event
 import java.time.Instant
@@ -18,7 +19,7 @@ import java.time.Instant
 
 /** Sharing hands the event to any app the reader already uses; no in-app invitations to maintain. */
 fun Context.shareEvent(event: Event) {
-    val summary = getString(R.string.share_event_text, event.title, eventTime(event), "${event.city}, ${event.address}")
+    val summary = getString(R.string.share_event_text, event.title, eventTime(event, dateWords()), "${event.city}, ${event.address}")
     val intent = Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"
         putExtra(Intent.EXTRA_SUBJECT, event.title)
@@ -40,6 +41,16 @@ fun Context.addToCalendar(event: Event): Boolean {
         .putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, start)
         .putExtra(CalendarContract.EXTRA_EVENT_END_TIME, end)
     return runCatching { startActivity(intent) }.isSuccess
+}
+
+/**
+ * Афішу купують і дочитують на джерелі, а не в нас: своєї каси ми не маємо, а повний чужий опис
+ * не маємо права показувати (docs/event-ingestion.md §8). Тому єдина дія над нею — вихід назовні.
+ */
+fun Context.openLink(url: String): Boolean {
+    val uri = runCatching { Uri.parse(url) }.getOrNull() ?: return false
+    if (uri.scheme != "https") return false
+    return runCatching { startActivity(Intent(Intent.ACTION_VIEW, uri)) }.isSuccess
 }
 
 /** Routing belongs to the maps app the reader already trusts, not to a half-built one of ours. */

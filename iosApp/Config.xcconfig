@@ -1,4 +1,4 @@
 SUPABASE_URL = https:/$()/tzdogzdvctlumsqlqskr.supabase.co
 SUPABASE_PUBLISHABLE_KEY = sb_publishable_RoY0wFzTOcXlmOIYC0UE-w_fOt5rXPq
-MAP_STYLE_URL = https:/$()/tiles.openfreemap.org/styles/positron
-MAP_STYLE_DARK_URL = https:/$()/tiles.openfreemap.org/styles/dark
+MAP_TILES_URL = https:/$()/tiles.openfreemap.org/planet
+MAP_GLYPHS_URL = https:/$()/tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf
