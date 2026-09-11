@@ -76,8 +76,27 @@ internal class DiscoveryEngine(
      */
     fun materialize(count: Int) {
         if (cardsJob?.isActive == true) return
-        val snapshot = state.value
-        val wanted = snapshot.index.take(count).map { it.id }.filterNot { it in snapshot.cards }
+        load(state.value.index.take(count).map { it.id })
+    }
+
+    /**
+     * Картки для названих подій — стос майданчика, у який щойно тицьнули.
+     *
+     * Окремо від [materialize], бо стос не є початком списку: у Києві є майданчик із 32 подіями,
+     * і жодна з них, крім перших двох, у вікно не потрапляє. Без цього пін казав «32», а карусель
+     * під ним — «Тут подій: 2», і решта стосу була недосяжна — рівно та вада, заради якої пін
+     * узагалі віддає всі ідентифікатори під пальцем.
+     *
+     * Скасовує поточне довантаження вікна: людина дивиться сюди, а не на кінець стрічки.
+     */
+    fun loadCards(ids: List<String>) {
+        cardsJob?.cancel()
+        load(ids)
+    }
+
+    private fun load(ids: List<String>) {
+        val known = state.value.cards
+        val wanted = ids.filterNot { it in known }
         if (wanted.isEmpty()) return
         cardsJob = scope.launch {
             try {

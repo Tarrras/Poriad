@@ -19,6 +19,7 @@ class ExploreViewModel(private val app: PoruchApp) :
                 index = shared.index,
                 totalFound = shared.totalFound,
                 events = shared.events,
+                cards = shared.cards,
                 selectedId = shared.selectedEvent?.id,
                 focused = shared.selectedEvent,
                 savedIds = shared.savedIds,
@@ -82,6 +83,9 @@ class ExploreViewModel(private val app: PoruchApp) :
                     intent.ids.firstOrNull()?.let { app.selectEvent(it) }
                 } else {
                     reduce { copy(stackIds = intent.ids) }
+                    // Стос — це не початок стрічки, тож вікно його не покриває: у київському
+                    // майданчику на 32 події в нього потрапляли дві.
+                    app.loadCards(intent.ids)
                     app.selectEvent(intent.ids.first())
                 }
             }

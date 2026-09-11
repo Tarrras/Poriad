@@ -47,7 +47,9 @@ struct DiscoveryView: View {
     /// Що показує карусель: увесь результат або лише місце, у яке щойно тицьнули.
     private var deckEvents: [Event] {
         guard !stackIDs.isEmpty else { return events }
-        let focused = events.filter { stackIDs.contains($0.id) }
+        // Порядок стосу — з індексу, а не з набору ідентифікаторів: він має збігатися з тим, у
+        // якому події стоять на мапі й у стрічці.
+        let focused = mapEntries.filter { stackIDs.contains($0.id) }.compactMap { model.cardsByID[$0.id] }
         // Після нової видачі від стосу могло лишитись нуль або одна подія — тоді фокус нічого не
         // додає, і карусель має повернутись до повного списку.
         return focused.count > 1 ? focused : events
@@ -70,6 +72,10 @@ struct DiscoveryView: View {
                     // Одна подія — звичайний вибір; кілька — фокус на місці, інакше решта стосу
                     // лишається недосяжною з мапи.
                     stackIDs = ids.count > 1 ? ids : []
+                    // Стос — це не початок стрічки, тож вікно карток його не покриває: у київського
+                    // майданчика на 32 події в нього потрапляли дві, і пін казав «32», а карусель
+                    // під ним — «Тут подій: 2».
+                    if ids.count > 1 { model.app.loadCards(ids: ids) }
                     if let first = ids.first { model.app.selectEvent(id: first) }
                 },
                 moved: { region = $0 }
@@ -158,7 +164,7 @@ struct DiscoveryView: View {
                     ForEach(dateFilterKeys, id: \.self) { key in
                         Chip(label: dateLabel(key), selected: model.state?.dateFilter == key) { model.app.setDateFilter(filter: key) }
                     }
-                    Chip(label: "Є місця", symbol: "checkmark.circle", selected: model.state?.onlyAvailable == true) {
+                    Chip(label: "Можна приєднатись", symbol: "checkmark.circle", selected: model.state?.onlyAvailable == true) {
                         model.app.setOnlyAvailable(available: !(model.state?.onlyAvailable ?? false))
                     }
                 }.padding(.horizontal, 2)
@@ -262,6 +268,27 @@ struct DiscoveryView: View {
 struct FiltersView: View {
     @EnvironmentObject var model: AppModel
     @Environment(\.dismiss) var dismiss
+    /**
+     Вибір накопичується у шторці й летить на сервер один раз, по «Готово».
+
+     Досі кожен тап по чипу був повним пошуком. Обрати категорію й дату — це два запити по
+     чотириста рядків, і жодного проміжного результату ніхто не бачить: їх закриває сама шторка.
+     А поки вона відкрита, мапа під нею перемальовується двічі.
+     */
+    @State private var date: String?
+    @State private var category: String?
+    @State private var available: Bool?
+
+    private var pickedDate: String { date ?? model.state?.dateFilter ?? DateFilter.shared.ANY }
+    private var pickedCategory: String { category ?? model.state?.category ?? AppStateKt.ALL_CATEGORIES }
+    private var pickedAvailable: Bool { available ?? model.state?.onlyAvailable ?? false }
+
+    private func apply() {
+        if pickedDate != model.state?.dateFilter { model.app.setDateFilter(filter: pickedDate) }
+        if pickedCategory != model.state?.category { model.app.setCategory(category: pickedCategory) }
+        if pickedAvailable != model.state?.onlyAvailable { model.app.setOnlyAvailable(available: pickedAvailable) }
+        dismiss()
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -271,23 +298,18 @@ struct FiltersView: View {
                     section("Коли") {
                         HStack(spacing: Space.sm) {
                             ForEach(dateFilterKeys, id: \.self) { key in
-                                Chip(label: dateLabel(key), selected: model.state?.dateFilter == key) {
-                                    model.app.setDateFilter(filter: key)
-                                }
+                                Chip(label: dateLabel(key), selected: pickedDate == key) { date = key }
                             }
                         }
                     }
                     section("Категорії") {
                         FlexibleChips(
                             items: [(AppStateKt.ALL_CATEGORIES, "Усі", nil)] + categories.map { ($0.0, $0.1, $0.0) },
-                            isSelected: { model.state?.category == $0 }
-                        ) { model.app.setCategory(category: $0) }
+                            isSelected: { pickedCategory == $0 }
+                        ) { category = $0 }
                     }
-                    Toggle(isOn: Binding(
-                        get: { model.state?.onlyAvailable ?? false },
-                        set: { model.app.setOnlyAvailable(available: $0) }
-                    )) {
-                        Text("Лише події з вільними місцями").font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
+                    Toggle(isOn: Binding(get: { pickedAvailable }, set: { available = $0 })) {
+                        Text("Лише події, до яких можна приєднатись").font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
                     }.tint(Palette.brand)
                 }
                 .padding(.horizontal, Space.page)
@@ -305,9 +327,9 @@ struct FiltersView: View {
             Text("Фільтри").font(PoruchFont.title2).foregroundStyle(Palette.ink)
             Spacer(minLength: Space.sm)
             Button("Скинути") {
-                model.app.setDateFilter(filter: DateFilter.shared.ANY)
-                model.app.setCategory(category: AppStateKt.ALL_CATEGORIES)
-                model.app.setOnlyAvailable(available: false)
+                date = DateFilter.shared.ANY
+                category = AppStateKt.ALL_CATEGORIES
+                available = false
             }
             .font(PoruchFont.label).foregroundStyle(Palette.inkSecondary)
         }
@@ -318,7 +340,7 @@ struct FiltersView: View {
     /// Pinned, not scrolled: at the medium detent the button sat below the fold and the sheet
     /// looked as though it had no way out.
     private var actions: some View {
-        PrimaryButton(title: "Готово") { dismiss() }
+        PrimaryButton(title: "Готово") { apply() }
             .frame(maxWidth: .infinity)
             .padding(Space.page)
             .background(Palette.surface.ignoresSafeArea(edges: .bottom))
@@ -359,18 +381,53 @@ struct CitySearchView: View {
     @EnvironmentObject var model: AppModel
     @Environment(\.dismiss) var dismiss
     @State private var query = ""
+
+    /**
+     Доки нічого не набрано, пропонуємо те, де події справді є.
+
+     Геокодер на порожній запит мовчить, а на перші літери віддає область, район, вокзал і
+     аеропорт — тобто місця, де людина побачить порожню мапу й вирішить, що подій немає взагалі.
+     */
+    private var covered: [HomeLocation] { HomeLocation.companion.covered }
+
+    private func open(_ city: CityResult) {
+        model.app.selectCity(city: city)
+        model.app.dismissEvent()
+        dismiss()
+    }
+
     var body: some View {
         NavigationStack {
-            List(model.state?.cities ?? [], id: \.name) { city in
-                Button { model.app.selectCity(city: city); model.app.dismissEvent(); dismiss() } label: {
-                    HStack(spacing: Space.md) {
-                        PoruchIcon(glyph: PoruchIcons.pin, size: 18).foregroundStyle(Palette.brand)
-                        Text(city.name).font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
+            List {
+                if query.isEmpty {
+                    Section("Міста з подіями") {
+                        ForEach(covered, id: \.city) { place in
+                            Button {
+                                open(CityResult(name: place.city, latitude: place.latitude, longitude: place.longitude))
+                            } label: {
+                                HStack(spacing: Space.md) {
+                                    PoruchIcon(glyph: PoruchIcons.pin, size: 18).foregroundStyle(Palette.brand)
+                                    Text(place.city).font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    ForEach(model.state?.cities ?? [], id: \.name) { city in
+                        Button { open(city) } label: {
+                            HStack(spacing: Space.md) {
+                                PoruchIcon(glyph: PoruchIcons.pin, size: 18).foregroundStyle(Palette.brand)
+                                Text(city.name).font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
+                            }
+                        }
                     }
                 }
             }
             .listStyle(.plain)
             .searchable(text: $query, prompt: "Місто у світі")
+            // Автофокуса тут немає свідомо: `searchFocused` зʼявився в iOS 18, а мінімум проєкту —
+            // 17. Для пʼяти міст, де є події, він і не потрібен — вони в списку одразу, без
+            // жодного символу.
             .onSettled(query, after: .milliseconds(220)) { model.app.searchCity(query: $0) }
             .navigationTitle("Знайти місто")
             .toolbar { Button("Готово") { dismiss() } }

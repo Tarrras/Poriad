@@ -52,8 +52,10 @@
     <item>У неділю</item>
   </string-array>
   <string name="weekend">Вихідні</string>
-  <string name="available">Є місця</string>
-  <string name="only_available">Лише події з вільними місцями</string>
+  <!-- Фільтр лишає самі події спільноти: у афіші кімнати немає, тож і місць у ній
+       немає — «Є місця» обіцяло фільтр за наповненістю, а робить вибір за природою події. -->
+  <string name="available">Можна приєднатись</string>
+  <string name="only_available">Лише події, до яких можна приєднатись</string>
   <string name="location_fallback">Місцеположення недоступне. Оберіть місто вручну через пошук.</string>
   <string name="create">Створити подію</string>
   <string name="city_search">Пошук міста</string>

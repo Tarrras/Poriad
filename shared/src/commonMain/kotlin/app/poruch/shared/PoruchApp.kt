@@ -97,6 +97,9 @@ class PoruchApp internal constructor(
      * ще кілька карток за вже відомими ідентифікаторами.
      */
     fun loadMore(upTo: Int) = discovery.materialize(upTo)
+
+    /** Картки названих подій: стос майданчика під пальцем. */
+    fun loadCards(ids: List<String>) = discovery.loadCards(ids)
     fun searchArea(south: Double, west: Double, north: Double, east: Double) = discovery.searchArea(south, west, north, east)
     fun setSearchText(query: String) = discovery.setSearchText(query)
     fun setOnlyAvailable(available: Boolean) = discovery.setOnlyAvailable(available)

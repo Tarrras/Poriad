@@ -12,6 +12,14 @@ data class ExploreState(
     val index: List<EventIndexEntry> = emptyList(),
     /** Картки, які вже приїхали, у тому самому порядку. Їх може бути менше за [index]. */
     val events: List<Event> = emptyList(),
+    /**
+     * Усі завантажені картки за ідентифікатором.
+     *
+     * [events] — це суцільний початок стрічки, який обривається на першій незавантаженій події.
+     * Стос майданчика лежить не на початку: його події розкидані по всьому індексу, тож зібрати
+     * їх можна лише звідси. Без цього пін казав «32», а карусель під ним — «Тут подій: 3».
+     */
+    val cards: Map<String, Event> = emptyMap(),
     val totalFound: Int = 0,
     val selectedId: String? = null,
     val savedIds: List<String> = emptyList(),
@@ -68,7 +76,9 @@ data class ExploreState(
     val deckEvents get(): List<Event> {
         val all = if (focused != null && events.none { it.id == focused.id }) listOf(focused) + events else events
         if (stackIds.isEmpty()) return all
-        val stack = all.filter { it.id in stackIds }
+        // Порядок стосу — з індексу, а не з набору ідентифікаторів: він має збігатися з тим, у
+        // якому події стоять на мапі й у стрічці.
+        val stack = index.filter { it.id in stackIds }.mapNotNull { cards[it.id] }
         // Після нової видачі від стосу могло лишитись нуль або одна подія — тоді фокус нічого не
         // додає, і карусель має повернутись до повного списку.
         return if (stack.size > 1) stack else all

@@ -34,7 +34,9 @@ class PoruchAppTest {
         var failCreate=false
         var failSave=false
         var results=emptyList<Event>()
-        override suspend fun discover(query:EventQuery):DiscoveryPage { queries+=query; delay(100); return page(results) }
+        /** Скільки карток сервер кладе у відповідь одразу. Решта — окремим запитом, як у житті. */
+        var inlineCards=Int.MAX_VALUE
+        override suspend fun discover(query:EventQuery):DiscoveryPage { queries+=query; delay(100); return page(results,inlineCards) }
         override fun cached(query:EventQuery)=DiscoveryPage.Empty
         override suspend fun cards(ids:List<String>):List<Event> { cardRequests+=ids; return results.filter { it.id in ids } }
         override suspend fun details(id:String):Event?=null
@@ -103,6 +105,43 @@ class PoruchAppTest {
         advanceTimeBy(101);runCurrent()
         assertFalse(app.state.value.loading);app.close()
     }
+    /**
+     * Стос майданчика — не початок стрічки.
+     *
+     * Вікно карток малює перші кілька подій у порядку показу, а пін віддає всі ідентифікатори під
+     * пальцем. У київському майданчику на 32 події у вікно потрапляли дві: пін казав «32», а
+     * карусель під ним — «Тут подій: 2», і решта стосу була недосяжна з мапи. Тест просить картки
+     * для хвоста списку — тобто саме для того, чого у вікні бути не може.
+     */
+    @Test fun tappingAVenueStackAsksForItsOwnCardsNotTheStartOfTheList()=runTest {
+        val events=Events(); val app=app(events,backgroundScope)
+        val all=(1..40).map { event("e%02d".format(it),"music","2090-01-01T10:00:00Z") }
+        events.results=all; events.inlineCards=2
+        app.searchArea(1.0,2.0,3.0,4.0); advanceTimeBy(101); runCurrent()
+        events.cardRequests.clear()
+
+        val stack=all.takeLast(10).map { it.id }
+        app.loadCards(stack); runCurrent()
+
+        assertEquals(listOf(stack),events.cardRequests)
+        assertTrue(stack.all { it in app.state.value.cards })
+        app.close()
+    }
+
+    /** Те, що вже є, вдруге не питається: повторний тап по тому самому піну мовчить. */
+    @Test fun aStackAlreadyInHandCostsNoRequest()=runTest {
+        val events=Events(); val app=app(events,backgroundScope)
+        val all=(1..10).map { event("e%02d".format(it),"music","2090-01-01T10:00:00Z") }
+        events.results=all; events.inlineCards=10
+        app.searchArea(1.0,2.0,3.0,4.0); advanceTimeBy(101); runCurrent()
+        events.cardRequests.clear()
+
+        app.loadCards(all.map { it.id }); runCurrent()
+
+        assertEquals(emptyList(),events.cardRequests)
+        app.close()
+    }
+
     @Test fun retryCreationReusesIdAfterUncertainNetworkFailure()=runTest {
         val events=Events(); val app=app(events,backgroundScope)
         val draft=EventDraft("Прогулянка","Зустріч у центрі міста","outdoors","Київ","Поділ",50.45,30.5,"2090-01-01T10:00:00Z","2090-01-01T12:00:00Z","Europe/Kyiv",10)
@@ -279,7 +318,7 @@ class PoruchAppTest {
  * Сервер віддає індекс і перші картки однією відповіддю; підробка робить те саме зі свого списку
  * подій, щоб тест лишався про поведінку застосунку, а не про форму RPC.
  */
-private fun page(events: List<Event>) = DiscoveryPage(
+private fun page(events: List<Event>, inlineCards: Int = Int.MAX_VALUE) = DiscoveryPage(
     index = events.map {
         EventIndexEntry(
             id = it.id, latitude = it.latitude, longitude = it.longitude, category = it.category,
@@ -288,5 +327,5 @@ private fun page(events: List<Event>) = DiscoveryPage(
             capacity = it.gathering?.capacity, attendeeCount = it.gathering?.attendeeCount ?: 0
         )
     },
-    total = events.size, truncated = false, cards = events
+    total = events.size, truncated = false, cards = events.take(inlineCards)
 )

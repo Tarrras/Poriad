@@ -35,6 +35,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -389,14 +391,22 @@ fun BannerCard(title: String, subtitle: String, onClick: () -> Unit, modifier: M
 @Composable
 fun PoruchField(
     value: String, onValueChange: (String) -> Unit, label: String, modifier: Modifier = Modifier,
-    singleLine: Boolean = true, error: String? = null, supporting: String? = null
+    singleLine: Boolean = true, error: String? = null, supporting: String? = null,
+    /**
+     * Ручка фокуса для екрана, який відкривається заради цього поля.
+     *
+     * Модифікатор самого поля тут не підходить: [modifier] лягає на колонку разом із підписом
+     * помилки, а фокус має отримати саме введення.
+     */
+    focusRequester: FocusRequester? = null
 ) {
     val colors = Poruch.colors
     val field = rememberBufferedText(value, onValueChange)
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
         OutlinedTextField(
             value = field.text, onValueChange = field.onChange, label = { Text(label) }, singleLine = singleLine,
-            minLines = if (singleLine) 1 else 4, isError = error != null, shape = Radius.sm, modifier = Modifier.fillMaxWidth(),
+            minLines = if (singleLine) 1 else 4, isError = error != null, shape = Radius.sm,
+            modifier = Modifier.fillMaxWidth().let { if (focusRequester != null) it.focusRequester(focusRequester) else it },
             colors = OutlinedTextFieldDefaults.colors(
                 focusedContainerColor = colors.surface, unfocusedContainerColor = colors.surface,
                 focusedBorderColor = colors.ink, unfocusedBorderColor = colors.hairline,

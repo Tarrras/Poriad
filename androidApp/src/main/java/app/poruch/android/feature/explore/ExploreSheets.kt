@@ -13,10 +13,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import app.poruch.android.R
 import app.poruch.android.ui.*
+import app.poruch.domain.CityResult
+import app.poruch.domain.HomeLocation
 import app.poruch.shared.ALL_CATEGORIES
 import app.poruch.shared.DateFilter
 
@@ -24,6 +27,20 @@ import app.poruch.shared.DateFilter
 @Composable
 internal fun FilterSheet(state: ExploreState, onIntent: (ExploreIntent) -> Unit, onDone: () -> Unit) {
     val colors = Poruch.colors
+    // Вибір накопичується у шторці й летить на сервер один раз, по «Застосувати».
+    //
+    // Досі кожен тап по чипу був повним пошуком. Обрати категорію й дату — це два запити по
+    // чотириста рядків, і жодного проміжного результату ніхто не бачить: їх закриває сама шторка.
+    // А поки вона відкрита, мапа під нею перемальовується двічі.
+    var date by remember(state.dateFilter) { mutableStateOf(state.dateFilter) }
+    var category by remember(state.category) { mutableStateOf(state.category) }
+    var available by remember(state.onlyAvailable) { mutableStateOf(state.onlyAvailable) }
+    val apply = {
+        if (date != state.dateFilter) onIntent(ExploreIntent.PickDate(date))
+        if (category != state.category) onIntent(ExploreIntent.PickCategory(category))
+        if (available != state.onlyAvailable) onIntent(ExploreIntent.OnlyAvailable(available))
+        onDone()
+    }
     Column(
         Modifier.padding(horizontal = Spacing.page).padding(bottom = Spacing.section),
         verticalArrangement = Arrangement.spacedBy(Spacing.lg)
@@ -36,7 +53,8 @@ internal fun FilterSheet(state: ExploreState, onIntent: (ExploreIntent) -> Unit,
                 color = colors.ink, modifier = Modifier.weight(1f)
             )
             GhostButton(
-                stringResource(R.string.reset_filters), { onIntent(ExploreIntent.ResetFilters) },
+                stringResource(R.string.reset_filters),
+                { date = DateFilter.ANY; category = ALL_CATEGORIES; available = false },
                 tone = colors.inkSecondary
             )
         }
@@ -44,34 +62,34 @@ internal fun FilterSheet(state: ExploreState, onIntent: (ExploreIntent) -> Unit,
             SectionHeader(stringResource(R.string.date))
             Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                 dateFilters.forEach { (key, label) ->
-                    PoruchChip(stringResource(label), state.dateFilter == key, { onIntent(ExploreIntent.PickDate(key)) })
+                    PoruchChip(stringResource(label), date == key, { date = key })
                 }
             }
         }
         Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
             SectionHeader(stringResource(R.string.categories))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                PoruchChip(stringResource(R.string.all), state.category == ALL_CATEGORIES, { onIntent(ExploreIntent.PickCategory(ALL_CATEGORIES)) })
-                categories.forEach { category ->
+                PoruchChip(stringResource(R.string.all), category == ALL_CATEGORIES, { category = ALL_CATEGORIES })
+                categories.forEach { value ->
                     PoruchChip(
-                        stringResource(categoryLabel(category)), state.category == category,
-                        { onIntent(ExploreIntent.PickCategory(category)) }, dot = category
+                        stringResource(categoryLabel(value)), category == value,
+                        { category = value }, dot = value
                     )
                 }
             }
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                // The chip beside the map says «Є місця»; a switch needs the whole sentence.
+                // Біля мапи чип каже «Можна приєднатись»; перемикачу потрібне ціле речення.
                 stringResource(R.string.only_available), style = MaterialTheme.typography.bodyLarge,
                 color = colors.ink, modifier = Modifier.weight(1f)
             )
             Switch(
-                state.onlyAvailable, { onIntent(ExploreIntent.OnlyAvailable(it)) },
+                available, { available = it },
                 colors = SwitchDefaults.colors(checkedTrackColor = colors.brand, checkedThumbColor = colors.onBrand)
             )
         }
-        PrimaryButton(stringResource(R.string.apply), onDone, Modifier.fillMaxWidth())
+        PrimaryButton(stringResource(R.string.apply), apply, Modifier.fillMaxWidth())
     }
 }
 
@@ -80,6 +98,10 @@ internal fun CitySearchSheet(state: ExploreState, onIntent: (ExploreIntent) -> U
     val colors = Poruch.colors
     var query by rememberSaveable { mutableStateOf("") }
     val close = { onIntent(ExploreIntent.ShowSheet(ExploreSheet.NONE)) }
+    // Шторка існує заради одного поля, тож вона його й фокусує. Без цього кожен вибір міста
+    // коштував зайвого тапу по єдиному полю на екрані.
+    val field = remember { FocusRequester() }
+    LaunchedEffect(Unit) { field.requestFocus() }
     LaunchedEffect(query) { onIntent(ExploreIntent.SearchCity(query)) }
     PoruchSheet(close) { sheet ->
         Column(
@@ -94,7 +116,22 @@ internal fun CitySearchSheet(state: ExploreState, onIntent: (ExploreIntent) -> U
                 )
                 GhostButton(stringResource(R.string.close), { sheet.close() }, tone = colors.inkSecondary)
             }
-            PoruchField(query, { query = it }, stringResource(R.string.city))
+            PoruchField(query, { query = it }, stringResource(R.string.city), focusRequester = field)
+            // Доки нічого не набрано, пропонуємо те, де події справді є. Геокодер на порожній
+            // запит мовчить, а на перші літери віддає область, район і аеропорт — тобто місця,
+            // де людина побачить порожню мапу й вирішить, що подій немає взагалі.
+            if (query.isBlank()) FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                verticalArrangement = Arrangement.spacedBy(Spacing.sm)
+            ) {
+                HomeLocation.covered.forEach { place ->
+                    PoruchChip(place.city, place.city == state.cityName, {
+                        sheet.close {
+                            onIntent(ExploreIntent.SelectCity(CityResult(place.city, place.latitude, place.longitude)))
+                        }
+                    })
+                }
+            }
             // The title and the field stay put; only the answers scroll, so the last suggestion is
             // never stranded under the keyboard the field itself brought up.
             Column(Modifier.heightIn(max = SUGGESTION_BAND).verticalScroll(rememberScrollState())) {

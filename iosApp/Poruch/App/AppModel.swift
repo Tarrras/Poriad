@@ -36,6 +36,14 @@ final class KeychainSessionStore: SecureSessionStore {
     @Published private(set) var mapEntries: [EventIndexEntry] = []
     /// Картки в порядку показу: те, що вже завантажилось. Їх може бути менше за [mapEntries].
     @Published private(set) var cards: [Event] = []
+    /**
+     Усі завантажені картки за ідентифікатором.
+
+     [cards] — це суцільний початок стрічки, який обривається на першій незавантаженій події. Стос
+     майданчика лежить не на початку: його події розкидані по всьому індексу, тож зібрати їх можна
+     лише звідси. Без цього пін казав «32», а карусель під ним — «Тут подій: 3».
+     */
+    @Published private(set) var cardsByID: [String: Event] = [:]
 
     /// Змінюється лише тоді, коли справді змінився склад подій, а не будь-який стан застосунку.
     /// Дешевий ключ замість порівняння списків там, де інакше довелося б їх щоразу обходити.
@@ -100,6 +108,8 @@ final class KeychainSessionStore: SecureSessionStore {
             mapEntries = index
         }
         cards = state.events
+        cardsByID = Dictionary(uniqueKeysWithValues: state.events.map { ($0.id, $0) })
+            .merging(state.cards.map { ($0.key as String, $0.value) }) { current, _ in current }
         savedIDs = Set(state.savedIds)
         waitlistedIDs = Set(state.waitlistedIds)
         reminders.reconcile(state)
