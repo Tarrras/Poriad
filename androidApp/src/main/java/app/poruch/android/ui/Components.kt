@@ -433,6 +433,8 @@ fun LabelledField(
     minLines: Int = if (singleLine) 1 else 4,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     visualTransformation: VisualTransformation = VisualTransformation.None,
+    /** Ручка фокуса для екрана, який відкривається заради цього поля. */
+    focusRequester: FocusRequester? = null,
     trailing: @Composable (() -> Unit)? = null
 ) {
     val colors = Poruch.colors
@@ -450,7 +452,7 @@ fun LabelledField(
         ) {
             BasicTextField(
                 value = field.text, onValueChange = field.onChange, singleLine = singleLine, minLines = minLines,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).let { if (focusRequester != null) it.focusRequester(focusRequester) else it },
                 textStyle = MaterialTheme.typography.bodyLarge.copy(color = colors.ink),
                 cursorBrush = SolidColor(colors.ink),
                 keyboardOptions = keyboardOptions,

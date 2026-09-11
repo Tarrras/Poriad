@@ -17,8 +17,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -55,9 +58,17 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
                 style = MaterialTheme.typography.bodyLarge, color = colors.inkSecondary
             )
         }
+        // Екран існує заради цих полів, тож він їх і фокусує. При реєстрації першим стоїть імʼя,
+        // при вході — пошта: фокус має падати на те поле, яке людина заповнює першим.
+        val emailField = remember { FocusRequester() }
+        val nameField = remember { FocusRequester() }
+        LaunchedEffect(state.signup) {
+            runCatching { if (state.signup) nameField.requestFocus() else emailField.requestFocus() }
+        }
         Column(Modifier.padding(Spacing.page), verticalArrangement = Arrangement.spacedBy(Spacing.lg)) {
             if (state.signup) LabelledField(
                 stringResource(R.string.name), state.name, { onIntent(AuthIntent.SetName(it)) },
+                focusRequester = nameField,
                 placeholder = stringResource(R.string.name_placeholder)
             )
             // Asked once, at sign-up, and never shown to anybody else: it is what an age limit on
@@ -72,6 +83,7 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
             )
             LabelledField(
                 stringResource(R.string.email), state.email, { onIntent(AuthIntent.SetEmail(it)) },
+                focusRequester = emailField,
                 placeholder = stringResource(R.string.email_placeholder),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, autoCorrectEnabled = false)
             )
