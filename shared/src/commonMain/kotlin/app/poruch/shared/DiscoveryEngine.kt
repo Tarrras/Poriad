@@ -192,10 +192,21 @@ internal class DiscoveryEngine(
         query = query.copy(available = available); onQueryChanged(); refresh()
     }
 
+    /**
+     * Категорія мапи. **Без запиту до сервера** — і це не оптимізація, а те, що робить фільтри
+     * екранів незалежними.
+     *
+     * Доки категорія їхала в `EventQuery`, вона звужувала сам індекс. Тоді мапа, відфільтрована на
+     * «музику», звужувала й те, що бачить головна: два екрани ділили один фільтр, хоч кожен мав
+     * свій перемикач. Розділити їх, лишивши категорію на сервері, неможливо — індекс один.
+     *
+     * Тепер сервер віддає місто цілим, а категорію відбирає той екран, який про неї спитали.
+     * Це точно, а не приблизно: індекс повний, а `INDEX_CAP` на місті не спрацьовує. І це миттєво:
+     * тап по чипу більше не коштує подорожі.
+     */
     fun setCategory(category: String) {
         state.update { it.copy(category = category) }
-        query = query.copy(category = category.takeUnless { it == ALL_CATEGORIES })
-        onQueryChanged(); refresh()
+        onQueryChanged()
     }
 
     fun setDateFilter(filter: String) {

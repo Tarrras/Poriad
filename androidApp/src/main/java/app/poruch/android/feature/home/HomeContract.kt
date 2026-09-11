@@ -1,6 +1,7 @@
 package app.poruch.android.feature.home
 
 import app.poruch.domain.Event
+import app.poruch.shared.ALL_CATEGORIES
 
 /** What the home screen draws. Everything here is already filtered and sorted for rendering. */
 data class HomeState(
@@ -13,7 +14,14 @@ data class HomeState(
     val suggested: List<Event> = emptyList(),
     val today: List<Event> = emptyList(),
     val rest: List<Event> = emptyList(),
-    val selectedCategory: String = "",
+    /**
+     * Категорія, обрана **на цьому екрані**. Мапа має свою.
+     *
+     * Доки категорія була одна на застосунок, вибір на головній переставляв фільтр мапи й навпаки:
+     * два перемикачі, одне значення. Тепер кожен екран звужує те, що показує сам, а спільним
+     * лишається те, що прийшло з сервера.
+     */
+    val category: String = ALL_CATEGORIES,
     val savedIds: List<String> = emptyList(),
     val waitlistedIds: List<String> = emptyList(),
     /**

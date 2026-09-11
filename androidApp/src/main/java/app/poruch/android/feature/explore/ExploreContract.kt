@@ -58,11 +58,26 @@ data class ExploreState(
     val focused: Event? = null
 ) {
     /**
-     * Що малює мапа: увесь індекс плюс подія, задля якої мапу відкрили. У звичайному випадку вона
-     * вже в індексі, і тоді це той самий список — той самий об'єкт, а не копія.
+     * Індекс, звужений до обраної категорії.
+     *
+     * Фільтр тут, а не в запиті до сервера. Доки категорія їхала в `EventQuery`, вона звужувала
+     * сам індекс — і мапа, відфільтрована на «музику», звужувала й те, що бачить головна. Два
+     * екрани ділили один фільтр, хоч кожен мав свій перемикач.
      */
-    val mapEvents get(): List<EventIndexEntry> =
-        if (focused != null && index.none { it.id == focused.id }) index + focused.asIndexEntry() else index
+    val visibleIndex get(): List<EventIndexEntry> =
+        if (category == ALL_CATEGORIES) index else index.filter { it.category == category }
+
+    /**
+     * Що малює мапа: звужений індекс плюс подія, задля якої мапу відкрили. У звичайному випадку
+     * вона вже там, і тоді це той самий список — той самий об'єкт, а не копія.
+     */
+    val mapEvents get(): List<EventIndexEntry> {
+        val shown = visibleIndex
+        return if (focused != null && shown.none { it.id == focused.id }) shown + focused.asIndexEntry() else shown
+    }
+
+    /** Скільки подій показує мапа. Під фільтром — стільки, скільки в ньому, а не скільки в місті. */
+    val shownCount get() = if (category == ALL_CATEGORIES) totalFound else visibleIndex.size
 
     val activeFilters get() =
         listOf(dateFilter != DateFilter.ANY, category != ALL_CATEGORIES, onlyAvailable).count { it }
@@ -74,7 +89,10 @@ data class ExploreState(
      * вона стає першою, бо саме заради неї мапу й відкрили.
      */
     val deckEvents get(): List<Event> {
-        val all = if (focused != null && events.none { it.id == focused.id }) listOf(focused) + events else events
+        // З мапи карток, а не з `events`: той обривається на першій незавантаженій події, а під
+        // фільтром перші кілька подій категорії майже завжди лежать далі за край вікна.
+        val shown = visibleIndex.mapNotNull { cards[it.id] }
+        val all = if (focused != null && shown.none { it.id == focused.id }) listOf(focused) + shown else shown
         if (stackIds.isEmpty()) return all
         // Порядок стосу — з індексу, а не з набору ідентифікаторів: він має збігатися з тим, у
         // якому події стоять на мапі й у стрічці.
@@ -83,10 +101,10 @@ data class ExploreState(
         // додає, і карусель має повернутись до повного списку.
         return if (stack.size > 1) stack else all
     }
-    val stackFocused get() = stackIds.isNotEmpty() && index.count { it.id in stackIds } > 1
+    val stackFocused get() = stackIds.isNotEmpty() && visibleIndex.count { it.id in stackIds } > 1
 
     /** Чи є що довантажувати: індекс повний, картки — ні. */
-    val hasMoreCards get() = events.size < index.size
+    val hasMoreCards get() = deckEvents.size < visibleIndex.size
 }
 
 data class Area(val south: Double, val west: Double, val north: Double, val east: Double)

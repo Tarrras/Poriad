@@ -63,6 +63,24 @@ final class KeychainSessionStore: SecureSessionStore {
      */
     @Published private(set) var home = HomePresentation(state: nil)
 
+    /**
+     Категорія, обрана на головній. Мапа має свою — у спільному стані.
+
+     Живе тут, а не в тілі екрана, з тієї ж причини, що й [home]: перерахунок трьох списків
+     коштував ~12 мс, а SwiftUI обчислює тіло по кілька разів на одну зміну.
+     */
+    private(set) var homeCategory = AppStateKt.ALL_CATEGORIES
+
+    /// Фільтрує головну на місці й не чіпає мапу. Картки для голови звуженого списку просимо
+    /// одразу — інакше екран був би порожнім, поки вікно стоїть на початку повного індексу.
+    func setHomeCategory(_ category: String) {
+        homeCategory = homeCategory == category ? AppStateKt.ALL_CATEGORIES : category
+        if let state { home = HomePresentation(state: state, category: homeCategory) }
+        let all = homeCategory == AppStateKt.ALL_CATEGORIES
+        let head = (state?.index ?? []).filter { all || $0.category == homeCategory }.prefix(homeCards)
+        app.loadCards(ids: head.map(\.id))
+    }
+
     let reminders = EventReminders()
     private var subscription: Subscription?
     private var lastIndexIDs: [String] = []
@@ -90,7 +108,7 @@ final class KeychainSessionStore: SecureSessionStore {
 
     private func apply(_ state: AppState) {
         self.state = state
-        home = HomePresentation(state: state)
+        home = HomePresentation(state: state, category: homeCategory)
         // Мапа малює **індекс** — усе, що є в області. Картки приїжджають вікном і їх менше;
         // порядок у обох один. Доти, доки мапа малювала картки, вона показувала стільки подій,
         // скільки встигло завантажитись, і стеля в 300 рядків була видна просто пінами.

@@ -44,7 +44,7 @@ fun HomeScreen(state: HomeState, onIntent: (HomeIntent) -> Unit) {
                 { onIntent(HomeIntent.OpenProfile) }, Modifier.padding(horizontal = Spacing.page), PoruchIcons.lock
             ) else PlansSection(state.plans, onIntent)
 
-            CategoryRail(state.selectedCategory, onIntent)
+            CategoryRail(state.category, onIntent)
         }
 
         when {

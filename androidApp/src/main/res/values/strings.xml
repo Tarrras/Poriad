@@ -41,6 +41,10 @@
   <string name="today">Сьогодні</string>
   <string name="tomorrow">Завтра</string>
   <string name="underway_now">Триває зараз</string>
+  <!-- Прокат виставки чи ярмарку: «триває зараз» на ньому не каже, до коли ще можна, а дата
+       початку читається як минуле. %1$s — дата кінця, «30 вересня». -->
+  <string name="underway_until">до %1$s</string>
+  <string name="underway_until_long">Триває до %1$s</string>
   <!-- «У суботу о 18:00»: знахідний відмінок, бо називний тут читається як список, а не як речення. -->
   <string-array name="weekday_on">
     <item>У понеділок</item>

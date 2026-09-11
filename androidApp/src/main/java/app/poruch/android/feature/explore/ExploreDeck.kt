@@ -55,11 +55,11 @@ internal fun MapBottomDeck(state: ExploreState, modifier: Modifier, onIntent: (E
     }
     // Індекс повний з першої відповіді, картки — ні. Коли карусель підходить до краю
     // завантаженого, просимо наступне вікно за вже відомими ідентифікаторами.
-    LaunchedEffect(centered, state.events.size, state.hasMoreCards) {
+    LaunchedEffect(centered, state.deckEvents.size, state.hasMoreCards) {
         val position = centered ?: return@LaunchedEffect
         if (state.stackFocused || !state.hasMoreCards) return@LaunchedEffect
-        if (position >= state.events.size - PREFETCH_AHEAD) {
-            onIntent(ExploreIntent.LoadMore(state.events.size + PAGE))
+        if (position >= state.deckEvents.size - PREFETCH_AHEAD) {
+            onIntent(ExploreIntent.LoadMore(state.deckEvents.size + PAGE))
         }
     }
     LaunchedEffect(state.selectedId, state.deckEvents) {
@@ -91,7 +91,7 @@ internal fun MapBottomDeck(state: ExploreState, modifier: Modifier, onIntent: (E
                         state.stackFocused -> stringResource(R.string.events_here, state.deckEvents.size)
                         // Усе, що є в області, а не стільки, скільки встигло завантажитись: мапа
                         // вже показує саме це число пінами.
-                        else -> stringResource(R.string.events_found, state.totalFound)
+                        else -> stringResource(R.string.events_found, state.shownCount)
                     },
                     style = MaterialTheme.typography.labelMedium, color = colors.ink
                 )
@@ -140,7 +140,7 @@ internal fun ExploreList(state: ExploreState, onIntent: (ExploreIntent) -> Unit)
     Column(Modifier.fillMaxSize().background(colors.canvas).statusBarsPadding()) {
         Row(Modifier.fillMaxWidth().padding(Spacing.page), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text(stringResource(R.string.events_found, state.totalFound), style = MaterialTheme.typography.titleLarge, color = colors.ink)
+                Text(stringResource(R.string.events_found, state.shownCount), style = MaterialTheme.typography.titleLarge, color = colors.ink)
                 Text(
                     stringResource(R.string.explore_subtitle, state.cityName),
                     style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary, maxLines = 1
@@ -159,16 +159,18 @@ internal fun ExploreList(state: ExploreState, onIntent: (ExploreIntent) -> Unit)
             }
         }
         Spacer(Modifier.height(Spacing.md))
-        if (state.events.isEmpty()) EmptyState(
+        // Той самий список, що й у каруселі: звужений категорією і зібраний із завантажених карток.
+        val rows = state.deckEvents
+        if (rows.isEmpty()) EmptyState(
             PoruchIcons.search, stringResource(R.string.nothing_here), stringResource(R.string.nothing_here_hint)
         ) else {
             val listState = rememberLazyListState()
             val lastVisible by remember {
                 derivedStateOf { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0 }
             }
-            LaunchedEffect(lastVisible, state.events.size, state.hasMoreCards) {
-                if (state.hasMoreCards && lastVisible >= state.events.size - PREFETCH_AHEAD) {
-                    onIntent(ExploreIntent.LoadMore(state.events.size + PAGE))
+            LaunchedEffect(lastVisible, rows.size, state.hasMoreCards) {
+                if (state.hasMoreCards && lastVisible >= rows.size - PREFETCH_AHEAD) {
+                    onIntent(ExploreIntent.LoadMore(rows.size + PAGE))
                 }
             }
             LazyColumn(
@@ -176,7 +178,7 @@ internal fun ExploreList(state: ExploreState, onIntent: (ExploreIntent) -> Unit)
                 contentPadding = PaddingValues(start = Spacing.page, end = Spacing.page, bottom = 120.dp),
                 verticalArrangement = Arrangement.spacedBy(Spacing.lg)
             ) {
-                items(state.events, key = { it.id }) { event ->
+                items(rows, key = { it.id }) { event ->
                     EventCard(
                         event, saved = event.id in state.savedIds, waitlisted = event.id in state.waitlistedIds,
                         onSave = { onIntent(ExploreIntent.ToggleSaved(event.id)) }

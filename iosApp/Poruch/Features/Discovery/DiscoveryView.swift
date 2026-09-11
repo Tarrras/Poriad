@@ -35,14 +35,27 @@ struct DiscoveryView: View {
     /// Pins are a set and have no order; the carousel and the list do, and it is the same order
     /// home shows — what the answers put first is what the thumb reaches first.
     /// Зібрано в [AppModel] один раз на емісію стану, а не на кожне перемальовування екрана.
-    /// Що малює мапа: увесь індекс області. Повний з першої відповіді — картки приїжджають слідом.
-    var mapEntries: [EventIndexEntry] { model.mapEntries }
-    /// Що показують карусель і список: картки, які вже завантажились, у тому самому порядку.
-    var events: [Event] { model.cards }
+    /// Категорія мапи. Головна має свою — вибір на одному екрані не чіпає другий.
+    private var category: String { model.state?.category ?? AppStateKt.ALL_CATEGORIES }
+
+    /**
+     Що малює мапа: індекс області, звужений до обраної категорії.
+
+     Фільтр тут, а не в запиті до сервера. Доки категорія їхала в `EventQuery`, вона звужувала сам
+     індекс — і мапа, відфільтрована на «музику», звужувала й те, що бачить головна.
+     */
+    var mapEntries: [EventIndexEntry] {
+        let all = category == AppStateKt.ALL_CATEGORIES
+        return all ? model.mapEntries : model.mapEntries.filter { $0.category == category }
+    }
+    /// Що показують карусель і список: картки звуженого списку, які вже завантажились.
+    var events: [Event] { mapEntries.compactMap { model.cardsByID[$0.id] } }
     private var selectedID: String? { model.state?.selectedEvent?.id }
     /// Скільки подій в області насправді, а не скільки карток встигло завантажитись. Мапа вже
     /// показує саме це число пінами, тож лічильник має казати те саме.
-    private var totalFound: Int { Int(model.state?.totalFound ?? 0) }
+    private var totalFound: Int {
+        category == AppStateKt.ALL_CATEGORIES ? Int(model.state?.totalFound ?? 0) : mapEntries.count
+    }
     private var savedIDs: Set<String> { model.savedIDs }
     /// Що показує карусель: увесь результат або лише місце, у яке щойно тицьнули.
     private var deckEvents: [Event] {
@@ -63,7 +76,7 @@ struct DiscoveryView: View {
         ZStack(alignment: .top) {
             EventMap(
                 events: mapEntries, latitude: model.state?.cityLatitude ?? 50.45, longitude: model.state?.cityLongitude ?? 30.52,
-                selectedID: selectedID, eventsRevision: model.eventsRevision,
+                selectedID: selectedID, eventsRevision: model.eventsRevision, filterKey: category,
                 retryToken: retryToken, centerToken: centerToken,
                 topInset: topControlsInset, bottomInset: carouselInset,
                 loadFailed: { mapFailed = $0 },
@@ -118,7 +131,9 @@ struct DiscoveryView: View {
             guard let id, !stackFocused, events.count < mapEntries.count else { return }
             guard let position = events.firstIndex(where: { $0.id == id }) else { return }
             if position >= events.count - cardPrefetchAhead {
-                model.app.loadMore(upTo: Int32(events.count + cardPage))
+                // Голова **звуженого** списку: під фільтром перші події категорії майже завжди
+                // лежать далі за край вікна, і `loadMore` по індексу їх не дістає.
+                model.app.loadCards(ids: mapEntries.prefix(events.count + cardPage).map(\.id))
             }
         }
         .sheet(isPresented: $citySearch) { CitySearchView().presentationDetents([.medium, .large]) }

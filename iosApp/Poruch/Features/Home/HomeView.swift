@@ -64,9 +64,8 @@ struct HomeView: View {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: Space.xs) {
                             ForEach(categories, id: \.0) { category in
-                                CategoryTile(category: category.0, selected: view.selectedCategory == category.0) {
-                                    model.app.setCategory(category: category.0)
-                                    openMap()
+                                CategoryTile(category: category.0, selected: view.category == category.0) {
+                                    model.setHomeCategory(category.0)
                                 }
                             }
                         }.padding(.horizontal, Space.page)

@@ -433,9 +433,28 @@ private func dayLabel(_ event: Event, _ date: Date, short: Bool) -> String {
     return formatter(event, pattern).string(from: date)
 }
 
+/// Кінець прокату звичайною датою: «до 30 вересня».
+///
+/// Навмисно не через `dayLabel`: там «Завтра» й «У суботу», і «до у суботу» — це не речення.
+/// Рік дописуємо з тієї самої причини, з якої його дописує `dayLabel`.
+private func untilLabel(_ event: Event) -> String? {
+    guard let end = parseEventDate(event.endsAt) else { return nil }
+    let calendar = calendar(event)
+    let sameYear = calendar.component(.year, from: end) == calendar.component(.year, from: Date())
+    return "до " + formatter(event, sameYear ? "d MMMM" : "d MMMM yyyy").string(from: end)
+}
+
 /// Overline above a card title: «СЬОГОДНІ · 18:30», «СБ, 13 БЕР. 2027 · 18:00». Event's own zone.
+///
+/// Два стани для того, що вже почалось, а не один. Концерт, що почався годину тому, — «ТРИВАЄ
+/// ЗАРАЗ». Виставка з прокатом до 30 вересня цим підписом не сказала б головного, а її дата
+/// початку («16 ЛИПНЯ») читається як подія, що минула, — тому «ДО 30 ВЕРЕСНЯ». Слова тут ті самі,
+/// що в `androidApp/.../ui/Format.kt`: це один текст, а не два.
 func eventOverline(_ event: Event) -> String {
     guard let date = parseEventDate(event.startsAt) else { return event.startsAt }
+    if event.endsAfterToday(now: nowInstant()), let until = untilLabel(event) {
+        return until.uppercased(with: ukrainian)
+    }
     if event.isUnderway(now: nowInstant()) { return "ТРИВАЄ ЗАРАЗ" }
     let hour = formatter(event, "HH:mm").string(from: date)
     return "\(dayLabel(event, date, short: true)) · \(hour)".uppercased(with: ukrainian)
@@ -450,7 +469,16 @@ func eventDate(_ event: Event) -> String {
     let eventZone = TimeZone(identifier: event.timeZone) ?? .current
     let zoneSuffix = eventZone.secondsFromGMT(for: date) == TimeZone.current.secondsFromGMT(for: date)
         ? "" : " " + formatter(event, "z").string(from: date)
-    let prefix = event.isUnderway(now: nowInstant()) ? "Триває зараз · " : ""
+    // На екрані події дата початку лишається: вона відповідає на «з якого числа», якого підпис
+    // картки не вміщає.
+    let prefix: String
+    if event.endsAfterToday(now: nowInstant()), let until = untilLabel(event) {
+        prefix = "Триває \(until) · "
+    } else if event.isUnderway(now: nowInstant()) {
+        prefix = "Триває зараз · "
+    } else {
+        prefix = ""
+    }
     return "\(prefix)\(dayLabel(event, date, short: false)) · \(hour)\(zoneSuffix)"
 }
 

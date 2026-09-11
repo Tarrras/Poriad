@@ -94,7 +94,10 @@ class ExploreViewModel(private val app: PoruchApp) :
                 app.selectEvent(intent.id)
                 send(ExploreEffect.OpenDetail(intent.id))
             }
-            is ExploreIntent.LoadMore -> app.loadMore(intent.upTo)
+            // Довантажуємо голову **звуженого** списку: під фільтром перші події категорії
+            // майже завжди лежать далі за край вікна, і `loadMore` по індексу їх не дістає.
+            is ExploreIntent.LoadMore ->
+                app.loadCards(state.value.visibleIndex.take(intent.upTo).map { it.id })
             is ExploreIntent.ToggleSaved -> app.toggleSaved(intent.id)
             ExploreIntent.CreateEvent -> send(ExploreEffect.CreateEvent)
 

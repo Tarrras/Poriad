@@ -13,7 +13,13 @@ struct HomePresentation {
     let suggested: [Event]
     let today: [Event]
     let rest: [Event]
-    let selectedCategory: String
+    /**
+     Категорія, обрана **на цьому екрані**. Мапа має свою.
+
+     Доки категорія була одна на застосунок, вибір на головній переставляв фільтр мапи й навпаки:
+     два перемикачі, одне значення. Тепер кожен екран звужує те, що показує сам.
+     */
+    let category: String
     /**
      Пошук — той самий, що й на мапі.
 
@@ -30,11 +36,11 @@ struct HomePresentation {
     private let savedIds: Set<String>
     private let waitlistedIds: Set<String>
 
-    init(state: AppState?) {
+    init(state: AppState?, category: String = AppStateKt.ALL_CATEGORIES) {
         signedIn = state?.signedIn == true
         cityName = state?.cityName ?? HomeLocation.companion.Kyiv.city
         loading = state?.loading == true
-        selectedCategory = state?.category ?? AppStateKt.ALL_CATEGORIES
+        self.category = category
         searchText = state?.searchText ?? ""
         savedIds = Set(state?.savedIds ?? [])
         waitlistedIds = Set(state?.waitlistedIds ?? [])
@@ -44,8 +50,18 @@ struct HomePresentation {
         //
         // Кожне звертання до списку з Kotlin — це міст: сто сорок подій, зібраних заново. Тому
         // читаємо по одному разу в локальну змінну, а не двічі в одному виразі.
-        let ranked = state?.events ?? []
-        suggested = Array((state?.suggested ?? []).prefix(homeSuggestedLimit))
+        // Звужується індекс, а не завантажені картки: під фільтром перші події категорії майже
+        // завжди лежать далі за край вікна, і фільтрувати вікно означало б показати порожню
+        // головну там, де подій насправді десятки.
+        let all = category == AppStateKt.ALL_CATEGORIES
+        let cards = state?.cards ?? [:]
+        let ranked = (state?.index ?? [])
+            .filter { all || $0.category == category }
+            .compactMap { cards[$0.id] }
+        suggested = Array((state?.suggestedIndex ?? [])
+            .filter { all || $0.category == category }
+            .compactMap { cards[$0.id] }
+            .prefix(homeSuggestedLimit))
         // What is already under «Для вас» is not repeated further down the same screen.
         let shown = Set(suggested.map(\.id))
         let remaining = ranked.filter { !shown.contains($0.id) }
@@ -75,3 +91,6 @@ let homeRestLimit = 8
 /// Скільки результатів показує головна. Далі краще на мапу: там область і фільтри.
 let homeResultsLimit = 12
 let homePlansLimit = 8
+
+/// Скільки карток головна просить під власний фільтр: більше за це вона не показує в жодному стані.
+let homeCards = 24

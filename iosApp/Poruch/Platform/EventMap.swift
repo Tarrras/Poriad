@@ -136,6 +136,14 @@ struct EventMap: UIViewRepresentable {
     /// Змінюється лише тоді, коли змінився склад подій. Дешевша заміна порівнянню списків — див.
     /// `Coordinator.updateFeatures`.
     var eventsRevision: Int = 0
+    /**
+     Фільтр, яким екран звузив [events] у себе.
+
+     Ревізія рахується в [AppModel] на емісію стану й про локальний фільтр екрана не знає: коли
+     мапа перемикала категорію, лічильник змінювався, а піни лишались старими — джерело не
+     перебудовувалось, бо ключ був той самий.
+     */
+    var filterKey: String = ""
     var retryToken: Int = 0
     var centerToken: Int = 0
     /// Наскільки близько ставати, коли центр змінився ззовні. Місто за замовчуванням.
@@ -408,14 +416,14 @@ struct EventMap: UIViewRepresentable {
             // Ключ мусить бути дешевим: `updateUIView` викликається на кожне перемальовування
             // екрана, а раніше тут на кожен такий виклик будувався рядок з усіх подій — сотні
             // переходів через міст у Kotlin і кілька кілобайт тексту заради одного порівняння.
-            let key = "\(parent.eventsRevision)#" + (parent.selectedID ?? "")
+            let key = "\(parent.eventsRevision)#\(parent.filterKey)#" + (parent.selectedID ?? "")
             guard key != featureKey else { return }
             featureKey = key
             // Групування спільне з Android: інакше платформи показували б різні мапи на тих
             // самих даних. І, як на Android, воно залежить лише від складу подій — тримаємо його
             // за `eventsRevision`, щоб крок каруселі не перекладав наново всі триста подій заради
             // іншого кольору одного піна.
-            let pins = groupedPins(revision: parent.eventsRevision, events: parent.events)
+            let pins = groupedPins(key: key, events: parent.events)
             let features: [MLNPointFeature] = pins.map { pin in
                 let feature = MLNPointFeature()
                 feature.coordinate = CLLocationCoordinate2D(latitude: pin.latitude, longitude: pin.longitude)
@@ -434,12 +442,12 @@ struct EventMap: UIViewRepresentable {
         }
 
         /// Піни поточного складу подій. Перераховуються, лише коли склад справді змінився.
-        private var pinCache: (revision: Int, pins: [VenuePin])?
+        private var pinCache: (key: String, pins: [VenuePin])?
 
-        private func groupedPins(revision: Int, events: [EventIndexEntry]) -> [VenuePin] {
-            if let cached = pinCache, cached.revision == revision { return cached.pins }
+        private func groupedPins(key: String, events: [EventIndexEntry]) -> [VenuePin] {
+            if let cached = pinCache, cached.key == key { return cached.pins }
             let pins = MapPins.shared.group(events: events)
-            pinCache = (revision, pins)
+            pinCache = (key, pins)
             return pins
         }
 

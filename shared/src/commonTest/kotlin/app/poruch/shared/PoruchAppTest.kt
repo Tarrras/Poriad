@@ -142,6 +142,28 @@ class PoruchAppTest {
         app.close()
     }
 
+    /**
+     * Категорія не їде в запит — і саме тому фільтри екранів незалежні.
+     *
+     * Доки вона була частиною `EventQuery`, вона звужувала сам індекс: мапа, відфільтрована на
+     * «музику», звужувала й те, що бачить головна. Два екрани ділили один фільтр, хоч кожен мав
+     * свій перемикач. Тепер сервер віддає місто цілим, а категорію відбирає той екран, що спитав.
+     */
+    @Test fun pickingACategoryNarrowsTheScreenNotTheQuery()=runTest {
+        val events=Events()
+        events.results=listOf(event("m","music","2090-01-05T19:00:00Z"),event("a","art","2090-01-06T19:00:00Z"))
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
+        val searches=events.queries.size
+
+        app.setCategory("music"); runCurrent(); advanceTimeBy(101); runCurrent()
+
+        assertEquals(searches,events.queries.size,"категорія не має коштувати запиту")
+        assertEquals("music",app.state.value.category)
+        // Індекс лишається повним: звужує його екран, а не застосунок.
+        assertEquals(listOf("m","a"),app.state.value.index.map { it.id })
+        app.close()
+    }
+
     @Test fun retryCreationReusesIdAfterUncertainNetworkFailure()=runTest {
         val events=Events(); val app=app(events,backgroundScope)
         val draft=EventDraft("Прогулянка","Зустріч у центрі міста","outdoors","Київ","Поділ",50.45,30.5,"2090-01-01T10:00:00Z","2090-01-01T12:00:00Z","Europe/Kyiv",10)
