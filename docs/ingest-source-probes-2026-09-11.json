@@ -1,0 +1,159 @@
+{
+  "checked_on": "2026-09-11",
+  "purpose": "Source research; no adapters enabled by these checks",
+  "method": "tools.ingest.fetch.get(timeout=20,retries=0), with default robots checks; tools.ingest.extract.events_from_html on HTML. Calendar links discovered from HTML anchor hrefs.",
+  "limitations": [
+    "Counts describe sampled responses only, not city coverage or unique live events.",
+    "PermissionError text does not distinguish an explicit robots disallow from unavailable robots.txt in the current fetch implementation.",
+    "Date fields alone do not confirm attendance availability or actual event occurrence."
+  ],
+  "checks": [
+    {
+      "url": "https://kharkiv.ticketsbox.com/",
+      "http": 200,
+      "bytes": 167413,
+      "jsonld_events": 0,
+      "event_link_hosts": {},
+      "next_links": []
+    },
+    {
+      "url": "https://dnipro.ticketsbox.com/",
+      "http": 200,
+      "bytes": 184831,
+      "jsonld_events": 0,
+      "event_link_hosts": {},
+      "next_links": []
+    },
+    {
+      "url": "https://lviv.travel/",
+      "http": 200,
+      "bytes": 176341,
+      "jsonld_events": 0,
+      "event_link_hosts": {},
+      "next_links": []
+    },
+    {
+      "url": "https://www.it-kharkiv.com/",
+      "http": 200,
+      "bytes": 88297,
+      "jsonld_events": 0,
+      "event_link_hosts": {},
+      "next_links": []
+    },
+    {
+      "url": "https://love-odessa.od.ua/uk/tour-schedule/",
+      "error": "robots.txt \u0437\u0430\u0431\u043e\u0440\u043e\u043d\u044f\u0454 https://love-odessa.od.ua/uk/tour-schedule/"
+    },
+    {
+      "url": "https://recruitrun.runukraine.org/kalendar-podij/",
+      "http": 200,
+      "bytes": 65266,
+      "jsonld_events": 0,
+      "event_link_hosts": {},
+      "next_links": []
+    },
+    {
+      "url": "https://karabas.com/info/",
+      "http": 200,
+      "bytes": 643395,
+      "jsonld_events": 0,
+      "event_link_hosts": {},
+      "next_links": [
+        "/info/?page=1",
+        "/info/?page=2",
+        "/info/?page=3",
+        "/info/?page=4",
+        "/info/?page=5",
+        "/info/?page=1262",
+        "/info/?page=2"
+      ]
+    },
+    {
+      "url": "https://dou.ua/calendar/58275/",
+      "http": 200,
+      "bytes": 47696,
+      "jsonld_events": 1,
+      "calendar_links": [
+        "https://dou.ua/calendar/58275/calendar.ics"
+      ],
+      "event_dates": [
+        {
+          "startDate": "2026-09-12",
+          "endDate": null,
+          "eventStatus": null
+        }
+      ]
+    },
+    {
+      "url": "https://yoy.events/lviv-stratup-club/lviv-startup-breakfast",
+      "http": 200,
+      "bytes": 98444,
+      "jsonld_events": 1,
+      "calendar_links": [
+        "/api/events/7b5c119b-3831-4b3b-a377-b082de78ace1/calendar.google"
+      ],
+      "event_dates": [
+        {
+          "startDate": "2026-09-12T07:00:00+00:00",
+          "endDate": "2026-09-12T10:00:00+00:00",
+          "eventStatus": "https://schema.org/EventScheduled"
+        }
+      ]
+    },
+    {
+      "url": "https://museum-literature.odessa.ua/events/2026-09-11/",
+      "http": 200,
+      "bytes": 70990,
+      "jsonld_events": 0,
+      "calendar_links": [
+        "https://museum-literature.odessa.ua/events/2026-09-11/?ical=1/"
+      ],
+      "event_dates": []
+    },
+    {
+      "url": "https://artsvit.dp.ua/",
+      "http": 200,
+      "bytes": 35545,
+      "jsonld_events": 0,
+      "calendar_links": [],
+      "event_dates": []
+    },
+    {
+      "url": "https://eventmate.app/events/share/98b5a9a3-f42c-4c11-a8f1-c9f2174e48b8?locale=uk",
+      "http": 200,
+      "bytes": 35604,
+      "jsonld_events": 0,
+      "calendar_links": [],
+      "event_dates": []
+    },
+    {
+      "url": "https://dou.ua/calendar/58275/calendar.ics",
+      "http": 200,
+      "calendar": true,
+      "observed_timezone_ids": [
+        "Europe/Kiev"
+      ],
+      "event_date_fields": [
+        "DTSTART:20260912T100000"
+      ],
+      "scope": "First 45 selected calendar lines; not a complete calendar parse. Floating time and timezone association require a real iCal parser."
+    },
+    {
+      "url": "https://museum-literature.odessa.ua/events/2026-09-11/?ical=1/",
+      "http": 200,
+      "calendar": true,
+      "observed_timezone_ids": [
+        "Australia/Adelaide"
+      ],
+      "event_date_fields": [
+        "DTSTART;TZID=Australia/Adelaide:20230101T100000",
+        "DTEND;TZID=Australia/Adelaide:20261031T160000",
+        "DTSTART;TZID=Australia/Adelaide:20260820T150000",
+        "DTEND;TZID=Australia/Adelaide:20260920T160000",
+        "DTSTART;TZID=Australia/Adelaide:20260828T110000",
+        "DTEND;TZID=Australia/Adelaide:20270827T160000"
+      ],
+      "scope": "First 45 selected calendar lines; not a complete calendar parse. Floating time and timezone association require a real iCal parser."
+    }
+  ]
+}
