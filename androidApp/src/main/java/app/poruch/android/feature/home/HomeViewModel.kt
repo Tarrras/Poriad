@@ -36,6 +36,7 @@ class HomeViewModel(private val app: PoruchApp) : MviViewModel<HomeState, HomeIn
      * подій насправді десятки.
      */
     private fun HomeState.fold(shared: AppState, category: String): HomeState {
+        val now = Clock.System.now()
         val today = LocalDate.now(zone)
         val chosen = { entry: EventIndexEntry -> category == ALL_CATEGORIES || entry.category == category }
         // Everything below reads the ranked list, so the whole screen is in one order.
@@ -43,18 +44,28 @@ class HomeViewModel(private val app: PoruchApp) : MviViewModel<HomeState, HomeIn
         val suggested = shared.suggestedIndex.filter(chosen).mapNotNull { shared.cards[it.id] }.take(SUGGESTED_LIMIT)
         // What is already under «Для вас» is not repeated further down the same screen.
         val remaining = ranked - suggested.toSet()
-        val startingToday = remaining.filter { it.startsOn(today) }
+        // «Сьогодні в місті» — це те, куди сьогодні можна піти, а не лише те, що сьогодні
+        // починається. Виставка, відкрита до 30 вересня, сьогодні відкрита так само, як концерт,
+        // що починається ввечері.
+        //
+        // Порядок усередині секції — єдине місце на екрані, де ми відступаємо від спільного
+        // ранжування. Прокат стоїть у ньому першим (він змагається як «зараз»), і на п'яти місцях
+        // секції виставки витіснили б усе, що сьогодні починається. А пропустити можна саме те,
+        // що починається: прокат буде відкритий і завтра.
+        val (startingToday, later) = remaining.partition { it.startsOn(today) }
+        val runningToday = later.filter { it.isUnderway(now) }
+        val onToday = startingToday + runningToday
         return copy(
             signedIn = shared.signedIn,
             cityName = shared.cityName,
             loading = shared.loading,
             // План — це те, що попереду. Подія, яка вже завершилась, у планах читається як помилка.
             plans = shared.myEvents
-                .filter { it.gathering?.joined == true && it.isPublished && it.isCurrent(Clock.System.now()) }
+                .filter { it.gathering?.joined == true && it.isPublished && it.isCurrent(now) }
                 .sortedBy { it.startsAt },
             suggested = suggested,
-            today = startingToday,
-            rest = remaining - startingToday.toSet(),
+            today = onToday,
+            rest = later - runningToday.toSet(),
             category = category,
             savedIds = shared.savedIds,
             waitlistedIds = shared.waitlistedIds,

@@ -7,8 +7,6 @@ struct ProfileView: View {
     @State private var newPassword = ""
     @State private var revealed = false
     @State private var showAuth = false
-    /// Висота смуги статусу. Читається ззовні стрічки — усередині неї її вже не спитати.
-    @State private var topInset: CGFloat = 0
     @State private var birthDate = Calendar.current.date(byAdding: .year, value: -Int(SafetyRules.shared.MIN_SIGNUP_AGE), to: Date()) ?? Date()
     private let latestBirthDate = Calendar.current.date(byAdding: .year, value: -Int(SafetyRules.shared.MIN_SIGNUP_AGE), to: Date()) ?? Date()
     private let earliestBirthDate = Calendar.current.date(byAdding: .year, value: -100, to: Date()) ?? Date.distantPast
@@ -18,7 +16,6 @@ struct ProfileView: View {
 
     var body: some View {
         // Див. HomeView: стрічка виходить під смугу статусу, а хедер додає виміряний відступ.
-        GeometryReader { proxy in
         ScrollView {
             VStack(alignment: .leading, spacing: Space.xxl) {
                 header
@@ -37,9 +34,6 @@ struct ProfileView: View {
         .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $showAuth) { NavigationStack { AuthView() } }
         .ignoresSafeArea(edges: .top)
-        .onAppear { topInset = proxy.safeAreaInsets.top }
-        .onChange(of: proxy.safeAreaInsets.top) { _, value in topInset = value }
-        }
     }
 
     private var header: some View {
@@ -53,7 +47,7 @@ struct ProfileView: View {
                 .font(PoruchFont.bodyText).foregroundStyle(Palette.inkSecondary)
         }
         .padding(.horizontal, Space.page).padding(.vertical, Space.xxl)
-        .padding(.top, topInset)
+        .padding(.top, statusBarInset)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(heroGradient)
     }

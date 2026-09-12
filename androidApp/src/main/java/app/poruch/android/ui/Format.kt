@@ -22,7 +22,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 /** The domain's vocabulary, in the domain's order — the labels below line up with it index by index. */
 val categories = EventRules.categories
-private val categoryLabels = listOf(R.string.music, R.string.sport, R.string.art, R.string.food, R.string.games, R.string.outdoors, R.string.social, R.string.comedy, R.string.kids)
+private val categoryLabels = listOf(R.string.music, R.string.sport, R.string.art, R.string.food, R.string.games, R.string.outdoors, R.string.social, R.string.comedy, R.string.kids, R.string.tours, R.string.conference)
 
 fun categoryLabel(key: String) = categoryLabels.getOrElse(categories.indexOf(key)) { R.string.all }
 
@@ -35,6 +35,8 @@ fun categoryIcon(category: String): ImageVector = when (category) {
     "outdoors" -> PoruchIcons.outdoors
     "comedy" -> PoruchIcons.comedy
     "kids" -> PoruchIcons.kids
+    "tours" -> PoruchIcons.tours
+    "conference" -> PoruchIcons.conference
     else -> PoruchIcons.social
 }
 
@@ -64,8 +66,6 @@ data class DateWords(
     val today: String, val tomorrow: String, val underway: String,
     /** «до 30 вересня» — підпис картки прокату. */
     val until: String,
-    /** «Триває до 30 вересня» — те саме реченням, для екрана події. */
-    val underwayUntil: String,
     val weekdayOn: List<String>
 )
 
@@ -85,7 +85,6 @@ fun Context.dateWords(): DateWords = DateWords(
     tomorrow = getString(R.string.tomorrow),
     underway = getString(R.string.underway_now),
     until = getString(R.string.underway_until),
-    underwayUntil = getString(R.string.underway_until_long),
     weekdayOn = resources.getStringArray(R.array.weekday_on).toList()
 )
 
@@ -115,14 +114,24 @@ private fun dayLabel(at: ZonedDateTime, now: ZonedDateTime, words: DateWords, sh
 }
 
 /**
- * Кінець прокату звичайною датою: «до 30 вересня».
+ * Дата прокату звичайним числом: «30 вересня».
  *
- * Навмисно не через [dayLabel]: там «Завтра» й «У суботу», і «до у суботу» — це не речення. Рік
- * дописуємо з тієї самої причини, з якої його дописує [dayLabel].
+ * Навмисно не через [dayLabel]: там «Завтра» й «У суботу», а «до у суботу» та «з завтра по
+ * 30 вересня» — це не речення. Рік дописуємо з тієї самої причини, з якої його дописує [dayLabel].
  */
-private fun untilLabel(end: ZonedDateTime, now: ZonedDateTime, template: String): String {
-    val shape = if (end.year != now.toLocalDate().year) "d MMMM yyyy" else "d MMMM"
-    return template.format(ukrainian, end.format(pattern(shape)))
+private fun plainDate(at: ZonedDateTime, withYear: Boolean): String =
+    at.format(pattern(if (withYear) "d MMMM yyyy" else "d MMMM"))
+
+/**
+ * Проміжок прокату: «16 липня – 30 вересня».
+ *
+ * Рік вирішується на обидва кінці разом. «16 липня – 30 вересня 2027» читається так, ніби липень
+ * цьогорічний, а вересень ні.
+ */
+private fun rangeLabel(start: ZonedDateTime, end: ZonedDateTime, now: ZonedDateTime): String {
+    val year = now.toLocalDate().year
+    val withYear = start.year != year || end.year != year
+    return "${plainDate(start, withYear)} – ${plainDate(end, withYear)}"
 }
 
 /**
@@ -135,10 +144,18 @@ private fun untilLabel(end: ZonedDateTime, now: ZonedDateTime, template: String)
 fun eventOverline(event: Event, words: DateWords, now: Instant = Instant.now()): String {
     val at = zoned(event) ?: return event.startsAt
     val instant = now.toKotlin()
-    if (event.endsAfterToday(instant)) {
-        zonedEnd(event)?.let { return untilLabel(it, now.atZone(at.zone), words.until).uppercase(ukrainian) }
+    // Питання про прокат ставиться лише всередині гілки «вже йде». Виставка, що відкриється у
+    // жовтні, на картці показує свій початок, як і будь-яка інша подія: «до 30 листопада» на ще
+    // не відкритій виставці сказало б не те. Заразом це знімає зайвий розбір дат з кожного рядка
+    // під час скролу.
+    if (event.isUnderway(instant)) {
+        val end = if (event.isMultiDay) zonedEnd(event) else null
+        if (end != null) {
+            val withYear = end.year != now.atZone(at.zone).toLocalDate().year
+            return words.until.format(ukrainian, plainDate(end, withYear)).uppercase(ukrainian)
+        }
+        return words.underway.uppercase(ukrainian)
     }
-    if (event.isUnderway(instant)) return words.underway.uppercase(ukrainian)
     val day = dayLabel(at, now.atZone(at.zone), words, short = true)
     return "$day · ${at.format(pattern(HOUR))}".uppercase(ukrainian)
 }
@@ -147,24 +164,25 @@ fun eventOverline(event: Event, words: DateWords, now: Instant = Instant.now()):
  * Long form for the detail screen. The zone is named only when it differs from the reader's own:
  * for someone in Kyiv reading about Kyiv, «GMT+03:00» is noise, but for a traveller it is the
  * difference between arriving and missing it.
+ *
+ * Дві форми, бо це два різні питання. Сеанс: «Четвер, 16 липня · 18:00» — година тут головна,
+ * бо її можна пропустити. Прокат: «16 липня – 30 вересня» — година першого дня про виставку не
+ * каже нічого, а поставлена поруч із проміжком читалась би як щоденний час відкриття, якого ми
+ * не знаємо.
  */
 fun eventTime(event: Event, words: DateWords, now: Instant = Instant.now()): String {
     val at = zoned(event) ?: return event.startsAt
-    val day = dayLabel(at, now.atZone(at.zone), words, short = false)
+    val here = now.atZone(at.zone)
+    val instant = now.toKotlin()
+    val prefix = if (event.isUnderway(instant)) "${words.underway} · " else ""
+    if (event.isMultiDay) {
+        zonedEnd(event)?.let { return prefix + rangeLabel(at, it, here) }
+    }
+    val day = dayLabel(at, here, words, short = false)
     val hour = at.format(pattern(HOUR))
     val zoneSuffix =
         if (at.zone.rules.getOffset(at.toInstant()) == ZoneId.systemDefault().rules.getOffset(at.toInstant())) ""
         else " " + at.format(pattern("z"))
-    val instant = now.toKotlin()
-    // На екрані події дата початку лишається: вона відповідає на «з якого числа», якого підпис
-    // картки не вміщає.
-    val prefix = when {
-        event.endsAfterToday(instant) -> zonedEnd(event)
-            ?.let { untilLabel(it, now.atZone(at.zone), words.underwayUntil) + " · " }
-            ?: "${words.underway} · "
-        event.isUnderway(instant) -> "${words.underway} · "
-        else -> ""
-    }
     return "$prefix$day · $hour$zoneSuffix"
 }
 

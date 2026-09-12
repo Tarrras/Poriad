@@ -25,6 +25,21 @@ NAMESPACE = uuid.UUID("8b1f0a2e-6d3c-4a5b-9e7f-2c4d6a8b0e13")
 
 QUALITY_FLOOR = 0.55            # той самий поріг, що в private.is_discoverable
 
+# Скільки може тривати запис, щоб лишатись подією.
+#
+# Джерела продають квитком і те, що подією не є: «Київський океанаріум», «Музей медуз»,
+# VR-екскурсію. У таких `endDate` — це не кінець події, а дата, доки діє квиткова пропозиція;
+# у майстер-класі з Tafl вона стояла через 560 днів. Океанаріум працює щодня, і в стрічці
+# «триває зараз» він висів би місяцями, витісняючи те, заради чого в неї дивляться.
+#
+# Межа евристична: у вибірці на пʼять міст реальний прокат виставок і ярмарків укладався в
+# 86 днів, а найкоротша постійна пропозиція починалась зі 111. Це підібрано на одній вибірці,
+# а не виміряно — наступний, хто побачить тут 90, має знати саме це.
+#
+# Відсікаємо при імпорті, а не при показі: фільтр у базі ховає рядок, але рядок лишається,
+# займає місце в індексі й спливає в кожному новому запиті, який хтось напише пізніше.
+PERMANENT_RUN = dt.timedelta(days=90)
+
 
 @dataclasses.dataclass
 class Item:
@@ -186,6 +201,10 @@ def harvest(source: Source, city: str, index: VenueIndex,
         item = _build(raw, source, city, index, now, geocoder)
         if item is None:
             counters["rejected"] += 1
+            continue
+        if item.ends_at - item.starts_at > PERMANENT_RUN:
+            counters["rejected"] += 1
+            counters["reasons"]["PERMANENT_OFFER"] = counters["reasons"].get("PERMANENT_OFFER", 0) + 1
             continue
         items.append(item)
 

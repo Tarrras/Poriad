@@ -272,6 +272,82 @@ enum PoruchIcons {
         }
     )
 
+    /// Брама зі склепінням. Перший варіант був вимпелом гіда — і на рендері виявився тим самим прапорцем, що вже стоїть у «спорті»: на піні їх не розрізнити. Арка ж збігається зі змістом кошика: вілли, катедри, вежі, кам'яниці.
+    static let tours = PoruchGlyph(
+        punch: { path, s in
+            path.move(to: point(3.4, 20.9, s))
+            path.addLine(to: point(3.4, 11.5, s))
+            path.addCurve(to: point(12, 3, s), control1: point(3.4, 6.8, s), control2: point(7.3, 3, s))
+            path.addCurve(to: point(20.6, 11.5, s), control1: point(16.7, 3, s), control2: point(20.6, 6.8, s))
+            path.addLine(to: point(20.6, 20.9, s))
+            path.closeSubpath()
+            path.move(to: point(8, 20.9, s))
+            path.addLine(to: point(8, 11.8, s))
+            path.addCurve(to: point(12, 7.3, s), control1: point(8, 9.2, s), control2: point(9.8, 7.3, s))
+            path.addCurve(to: point(16, 11.8, s), control1: point(14.2, 7.3, s), control2: point(16, 9.2, s))
+            path.addLine(to: point(16, 20.9, s))
+            path.closeSubpath()
+        }
+    )
+
+    /// A slide on a stand. Distinct from the calendar glyph, which carries a month grid and two hangers; here the board is wide, the text lines are long, and it stands on a foot.
+    static let conference = PoruchGlyph(
+        fill: { path, s in
+            path.move(to: point(12, 15.8, s))
+            path.addLine(to: point(12, 15.8, s))
+            path.addCurve(to: point(12.9, 16.7, s), control1: point(12.497, 15.8, s), control2: point(12.9, 16.203, s))
+            path.addLine(to: point(12.9, 18.2, s))
+            path.addCurve(to: point(12, 19.1, s), control1: point(12.9, 18.697, s), control2: point(12.497, 19.1, s))
+            path.addLine(to: point(12, 19.1, s))
+            path.addCurve(to: point(11.1, 18.2, s), control1: point(11.503, 19.1, s), control2: point(11.1, 18.697, s))
+            path.addLine(to: point(11.1, 16.7, s))
+            path.addCurve(to: point(12, 15.8, s), control1: point(11.1, 16.203, s), control2: point(11.503, 15.8, s))
+            path.closeSubpath()
+            path.move(to: point(8.15, 18.9, s))
+            path.addLine(to: point(15.85, 18.9, s))
+            path.addCurve(to: point(16.7, 19.75, s), control1: point(16.319, 18.9, s), control2: point(16.7, 19.281, s))
+            path.addLine(to: point(16.7, 19.75, s))
+            path.addCurve(to: point(15.85, 20.6, s), control1: point(16.7, 20.219, s), control2: point(16.319, 20.6, s))
+            path.addLine(to: point(8.15, 20.6, s))
+            path.addCurve(to: point(7.3, 19.75, s), control1: point(7.681, 20.6, s), control2: point(7.3, 20.219, s))
+            path.addLine(to: point(7.3, 19.75, s))
+            path.addCurve(to: point(8.15, 18.9, s), control1: point(7.3, 19.281, s), control2: point(7.681, 18.9, s))
+            path.closeSubpath()
+        },
+        punch: { path, s in
+            path.move(to: point(5.6, 3.3, s))
+            path.addLine(to: point(18.4, 3.3, s))
+            path.addCurve(to: point(20.7, 5.6, s), control1: point(19.67, 3.3, s), control2: point(20.7, 4.33, s))
+            path.addLine(to: point(20.7, 13.5, s))
+            path.addCurve(to: point(18.4, 15.8, s), control1: point(20.7, 14.77, s), control2: point(19.67, 15.8, s))
+            path.addLine(to: point(5.6, 15.8, s))
+            path.addCurve(to: point(3.3, 13.5, s), control1: point(4.33, 15.8, s), control2: point(3.3, 14.77, s))
+            path.addLine(to: point(3.3, 5.6, s))
+            path.addCurve(to: point(5.6, 3.3, s), control1: point(3.3, 4.33, s), control2: point(4.33, 3.3, s))
+            path.closeSubpath()
+            path.move(to: point(7.4, 6.9, s))
+            path.addLine(to: point(16.5, 6.9, s))
+            path.addCurve(to: point(17.4, 7.8, s), control1: point(16.997, 6.9, s), control2: point(17.4, 7.303, s))
+            path.addLine(to: point(17.4, 7.8, s))
+            path.addCurve(to: point(16.5, 8.7, s), control1: point(17.4, 8.297, s), control2: point(16.997, 8.7, s))
+            path.addLine(to: point(7.4, 8.7, s))
+            path.addCurve(to: point(6.5, 7.8, s), control1: point(6.903, 8.7, s), control2: point(6.5, 8.297, s))
+            path.addLine(to: point(6.5, 7.8, s))
+            path.addCurve(to: point(7.4, 6.9, s), control1: point(6.5, 7.303, s), control2: point(6.903, 6.9, s))
+            path.closeSubpath()
+            path.move(to: point(7.4, 10.5, s))
+            path.addLine(to: point(12.7, 10.5, s))
+            path.addCurve(to: point(13.6, 11.4, s), control1: point(13.197, 10.5, s), control2: point(13.6, 10.903, s))
+            path.addLine(to: point(13.6, 11.4, s))
+            path.addCurve(to: point(12.7, 12.3, s), control1: point(13.6, 11.897, s), control2: point(13.197, 12.3, s))
+            path.addLine(to: point(7.4, 12.3, s))
+            path.addCurve(to: point(6.5, 11.4, s), control1: point(6.903, 12.3, s), control2: point(6.5, 11.897, s))
+            path.addLine(to: point(6.5, 11.4, s))
+            path.addCurve(to: point(7.4, 10.5, s), control1: point(6.5, 10.903, s), control2: point(6.903, 10.5, s))
+            path.closeSubpath()
+        }
+    )
+
     /// A solid house with the door punched through it — the negative space is what keeps the silhouette from reading as a plain pentagon.
     static let home = PoruchGlyph(
         punch: { path, s in

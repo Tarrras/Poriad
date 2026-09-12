@@ -65,16 +65,32 @@ struct HomePresentation {
         // What is already under «Для вас» is not repeated further down the same screen.
         let shown = Set(suggested.map(\.id))
         let remaining = ranked.filter { !shown.contains($0.id) }
+        // «Сьогодні в місті» — це те, куди сьогодні можна піти, а не лише те, що сьогодні
+        // починається. Виставка, відкрита до 30 вересня, сьогодні відкрита так само, як концерт,
+        // що починається ввечері.
+        //
+        // Порядок усередині секції — єдине місце на екрані, де ми відступаємо від спільного
+        // ранжування. Прокат стоїть у ньому першим, бо змагається як «зараз», і на пʼяти місцях
+        // секції виставки витіснили б усе, що сьогодні починається. А пропустити можна саме те,
+        // що починається: прокат буде відкритий і завтра.
+        //
         // `Calendar.current` — не константа, а новий календар на кожне звертання. У циклі на сто
         // сорок подій це сто сорок календарів заради одного порівняння днів.
         let calendar = Calendar.current
-        let startingToday = remaining.filter { event in
-            guard let date = parseEventDate(event.startsAt) else { return false }
-            return calendar.isDateInToday(date)
+        let now = nowInstant()
+        var startingToday: [Event] = []
+        var later: [Event] = []
+        for event in remaining {
+            if let date = parseEventDate(event.startsAt), calendar.isDateInToday(date) {
+                startingToday.append(event)
+            } else {
+                later.append(event)
+            }
         }
-        today = startingToday
-        let todayIds = Set(startingToday.map(\.id))
-        rest = remaining.filter { !todayIds.contains($0.id) }
+        let runningToday = later.filter { $0.isUnderway(now: now) }
+        today = startingToday + runningToday
+        let shownToday = Set(runningToday.map(\.id))
+        rest = later.filter { !shownToday.contains($0.id) }
         results = ranked
     }
 

@@ -1,5 +1,6 @@
 package app.poruch.domain
 
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 
@@ -68,14 +69,28 @@ data class Event(
     val startInstant: Instant? get() = runCatching { Instant.parse(startsAt) }.getOrNull()
     val endInstant: Instant? get() = runCatching { Instant.parse(endsAt) }.getOrNull()
 
-    /** Ще не почалася. Нерозбірний час вважаємо майбутнім: краще показати зайве, ніж сховати живе. */
-    fun isUpcoming(now: Instant): Boolean = startInstant?.let { it > now } ?: true
-
     /** Почалася, але ще триває. Така подія найактуальніша з усіх, і ховати її було б дивно. */
     fun isUnderway(now: Instant): Boolean {
         val start = startInstant ?: return false
         val end = endInstant ?: return false
         return start <= now && end > now
+    }
+
+    /**
+     * Прокат, а не сеанс: виставка, ярмарок, фестивальна програма.
+     *
+     * Розділяє два питання, які інакше злились би в одне. Про сеанс питають годину початку, і на
+     * картці йому досить «триває зараз». Про прокат питають, до коли ще можна, і дата початку на
+     * ньому читається як подія, що минула.
+     *
+     * Міряємо тривалістю, а не календарем. Концерт з 23:00 до 02:00 теж перетинає північ і теж
+     * закінчується «не сьогодні», але це один вечір, і проміжок дат замість години початку
+     * зіпсував би про нього головне.
+     */
+    val isMultiDay: Boolean get() {
+        val start = startInstant ?: return false
+        val end = endInstant ?: return false
+        return end - start > RUN_FROM
     }
 
     /** Завершилася. Єдиний стан, у якому подію не варто пропонувати. */
@@ -87,6 +102,9 @@ data class Event(
     companion object {
         /** Скільки чужого опису показуємо своїм шрифтом, перш ніж відіслати до джерела. */
         const val LISTING_DESCRIPTION_PREVIEW = 200
+
+        /** Довше за добу — це вже не сеанс, а прокат. */
+        private val RUN_FROM = 24.hours
     }
 }
 

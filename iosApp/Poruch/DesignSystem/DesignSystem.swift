@@ -87,11 +87,17 @@ private let categoryHues: [String: UInt32] = [
     // золото для стендапу й бірюза для дитячого — підібрані вручну за контрастом, а не
     // виведені з системи. Обидва варті погляду дизайнера при перегляді палітри.
     "comedy": 0xA07813,
-    "kids": 0x1F8A8A
+    "kids": 0x1F8A8A,
+    // Десята й одинадцята обрані розрахунком, а не на око: середини двох найбільших вільних
+    // проміжків у зайнятих відтінках. Олива на 80° стоїть за 37° від золота й за 36° від
+    // зелені, пурпур на 288° — за 31° від фіалкового.
+    "tours": 0x5F7F1F,
+    "conference": 0x933FA8
 ]
 private let categoryWashes: [String: UInt32] = [
     "music": 0xEBE4FB, "sport": 0xDDF0EC, "art": 0xFBE1EA, "food": 0xFBEBD9,
-    "games": 0xE1EAFB, "outdoors": 0xE4F1E2, "social": 0xFAE5DA, "comedy": 0xF7ECD2, "kids": 0xD9EFEF
+    "games": 0xE1EAFB, "outdoors": 0xE4F1E2, "social": 0xFAE5DA, "comedy": 0xF7ECD2, "kids": 0xD9EFEF,
+    "tours": 0xECF0E4, "conference": 0xF2E8F5
 ]
 
 func categoryColor(_ category: String) -> Color {
@@ -137,7 +143,8 @@ func categoryInk(_ category: String) -> Color {
 /// Second hue of the pair: the neighbour a category leans on when its cover needs two stops.
 private let categoryPartners: [String: UInt32] = [
     "music": 0xC43B6B, "sport": 0x2F63C4, "art": 0x6D4AC9, "food": 0xC43B6B,
-    "games": 0x0F7F73, "outdoors": 0x0F7F73, "social": 0xC96A1E, "comedy": 0xC43B6B, "kids": 0x2F63C4
+    "games": 0x0F7F73, "outdoors": 0x0F7F73, "social": 0xC96A1E, "comedy": 0xC43B6B, "kids": 0x2F63C4,
+    "tours": 0x3E7D3A, "conference": 0x6D4AC9
 ]
 
 /**
@@ -310,12 +317,25 @@ extension View {
     func decorative() -> some View { accessibilityHidden(true) }
 }
 
+/**
+ Висота смуги статусу.
+
+ З вікна, а не з `GeometryReader` навколо екрана. Обгортка коштувала дорого: рядок категорій на
+ головній, загорнутий у неї, не прокручувався горизонтально взагалі — той самий рядок у списку на
+ мапі, де обгортки немає, прокручувався. Вікно знає те саме число й нічого не загортає.
+ */
+var statusBarInset: CGFloat {
+    UIApplication.shared.connectedScenes
+        .compactMap { ($0 as? UIWindowScene)?.keyWindow?.safeAreaInsets.top }.first ?? Space.xxl
+}
+
 // ---------------------------------------------------------------- event formatting
 
 let categories: [(String, String, String)] = [
     ("music", "Музика", "music.note"), ("sport", "Спорт", "figure.run"), ("art", "Мистецтво", "paintpalette"),
     ("food", "Їжа", "fork.knife"), ("games", "Ігри", "dice"), ("outdoors", "Природа", "leaf"),
-    ("social", "Зустрічі", "person.2"), ("comedy", "Стендап", "mic"), ("kids", "Дітям", "balloon.2")
+    ("social", "Зустрічі", "person.2"), ("comedy", "Стендап", "mic"), ("kids", "Дітям", "balloon.2"),
+    ("tours", "Екскурсії", "building.columns"), ("conference", "Конференції", "display")
 ]
 
 func categoryName(_ key: String) -> String { categories.first { $0.0 == key }?.1 ?? key }
@@ -332,6 +352,8 @@ func categoryGlyph(_ key: String) -> PoruchGlyph {
     case "outdoors": PoruchIcons.outdoors
     case "comedy": PoruchIcons.comedy
     case "kids": PoruchIcons.kids
+    case "tours": PoruchIcons.tours
+    case "conference": PoruchIcons.conference
     default: PoruchIcons.social
     }
 }
@@ -394,7 +416,10 @@ private func calendar(_ event: Event) -> Calendar {
 
 /// «Зараз» у тому вигляді, якого чекає спільна логіка. Домен свідомо приймає час параметром,
 /// а не читає годинник сам, тож міст будуємо тут.
-private func nowInstant() -> KotlinInstant {
+///
+/// Не `private`: `HomePresentation` ділить секцію «Сьогодні» тим самим доменним питанням, і
+/// другий такий міст поруч означав би два способи сказати «зараз».
+func nowInstant() -> KotlinInstant {
     KotlinInstant.companion.fromEpochMilliseconds(
         epochMilliseconds: Int64(Date().timeIntervalSince1970 * 1000))
 }
@@ -433,15 +458,31 @@ private func dayLabel(_ event: Event, _ date: Date, short: Bool) -> String {
     return formatter(event, pattern).string(from: date)
 }
 
-/// Кінець прокату звичайною датою: «до 30 вересня».
+/// Дата прокату звичайним числом: «30 вересня».
 ///
-/// Навмисно не через `dayLabel`: там «Завтра» й «У суботу», і «до у суботу» — це не речення.
-/// Рік дописуємо з тієї самої причини, з якої його дописує `dayLabel`.
+/// Навмисно не через `dayLabel`: там «Завтра» й «У суботу», а «до у суботу» та «з завтра по
+/// 30 вересня» — це не речення. Рік дописуємо з тієї самої причини, з якої його дописує `dayLabel`.
+private func plainDate(_ event: Event, _ date: Date, withYear: Bool) -> String {
+    formatter(event, withYear ? "d MMMM yyyy" : "d MMMM").string(from: date)
+}
+
+/// «до 30 вересня» — підпис картки прокату. Слова ті самі, що в `androidApp/.../ui/Format.kt`.
 private func untilLabel(_ event: Event) -> String? {
     guard let end = parseEventDate(event.endsAt) else { return nil }
     let calendar = calendar(event)
     let sameYear = calendar.component(.year, from: end) == calendar.component(.year, from: Date())
-    return "до " + formatter(event, sameYear ? "d MMMM" : "d MMMM yyyy").string(from: end)
+    return "до " + plainDate(event, end, withYear: !sameYear)
+}
+
+/// Проміжок прокату: «16 липня – 30 вересня».
+///
+/// Рік вирішується на обидва кінці разом. «16 липня – 30 вересня 2027» читається так, ніби липень
+/// цьогорічний, а вересень ні.
+private func rangeLabel(_ event: Event, _ start: Date, _ end: Date) -> String {
+    let calendar = calendar(event)
+    let year = calendar.component(.year, from: Date())
+    let withYear = calendar.component(.year, from: start) != year || calendar.component(.year, from: end) != year
+    return plainDate(event, start, withYear: withYear) + " – " + plainDate(event, end, withYear: withYear)
 }
 
 /// Overline above a card title: «СЬОГОДНІ · 18:30», «СБ, 13 БЕР. 2027 · 18:00». Event's own zone.
@@ -452,10 +493,15 @@ private func untilLabel(_ event: Event) -> String? {
 /// що в `androidApp/.../ui/Format.kt`: це один текст, а не два.
 func eventOverline(_ event: Event) -> String {
     guard let date = parseEventDate(event.startsAt) else { return event.startsAt }
-    if event.endsAfterToday(now: nowInstant()), let until = untilLabel(event) {
-        return until.uppercased(with: ukrainian)
+    // Питання про прокат ставиться лише всередині гілки «вже йде». Виставка, що відкриється у
+    // жовтні, на картці показує свій початок, як і будь-яка інша подія. Заразом це знімає зайвий
+    // розбір дат з кожного рядка під час скролу.
+    if event.isUnderway(now: nowInstant()) {
+        if event.isMultiDay, let until = untilLabel(event) {
+            return until.uppercased(with: ukrainian)
+        }
+        return "ТРИВАЄ ЗАРАЗ"
     }
-    if event.isUnderway(now: nowInstant()) { return "ТРИВАЄ ЗАРАЗ" }
     let hour = formatter(event, "HH:mm").string(from: date)
     return "\(dayLabel(event, date, short: true)) · \(hour)".uppercased(with: ukrainian)
 }
@@ -463,22 +509,21 @@ func eventOverline(_ event: Event) -> String {
 /// Long form for the detail screen. The zone is named only when it differs from the reader's own:
 /// for someone in Kyiv reading about Kyiv, «GMT+03:00» is noise, but for a traveller it is the
 /// difference between arriving and missing it.
+///
+/// Дві форми, бо це два різні питання. Сеанс: «Четвер, 16 липня · 18:00» — година тут головна,
+/// бо її можна пропустити. Прокат: «16 липня – 30 вересня» — година першого дня про виставку не
+/// каже нічого, а поставлена поруч із проміжком читалась би як щоденний час відкриття, якого ми
+/// не знаємо.
 func eventDate(_ event: Event) -> String {
     guard let date = parseEventDate(event.startsAt) else { return event.startsAt }
+    let prefix = event.isUnderway(now: nowInstant()) ? "Триває зараз · " : ""
+    if event.isMultiDay, let end = parseEventDate(event.endsAt) {
+        return prefix + rangeLabel(event, date, end)
+    }
     let hour = formatter(event, "HH:mm").string(from: date)
     let eventZone = TimeZone(identifier: event.timeZone) ?? .current
     let zoneSuffix = eventZone.secondsFromGMT(for: date) == TimeZone.current.secondsFromGMT(for: date)
         ? "" : " " + formatter(event, "z").string(from: date)
-    // На екрані події дата початку лишається: вона відповідає на «з якого числа», якого підпис
-    // картки не вміщає.
-    let prefix: String
-    if event.endsAfterToday(now: nowInstant()), let until = untilLabel(event) {
-        prefix = "Триває \(until) · "
-    } else if event.isUnderway(now: nowInstant()) {
-        prefix = "Триває зараз · "
-    } else {
-        prefix = ""
-    }
     return "\(prefix)\(dayLabel(event, date, short: false)) · \(hour)\(zoneSuffix)"
 }
 

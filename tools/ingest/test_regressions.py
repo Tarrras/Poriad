@@ -143,6 +143,24 @@ class RegressionTests(unittest.TestCase):
                                self.source, "Київ", self.index, NOW)
         self.assertIsNotNone(item)
 
+    def test_seasonal_run_survives_the_permanent_offer_cutoff(self):
+        """Ярмарок на 86 днів — подія; океанаріум з квитком на 560 — ні."""
+        run = raw_event(startDate="2026-09-10T12:00:00+03:00", endDate="2026-11-20T12:00:00+03:00")
+        forever = raw_event(name="Київський океанаріум",
+                            url="https://example.org/oceanarium",
+                            startDate="2026-09-10T12:00:00+03:00",
+                            endDate="2028-03-20T12:00:00+03:00")
+        items, counters = self.harvest([run, forever])
+        self.assertEqual([i.title for i in items], ["Тестовий концерт"])
+        self.assertEqual(counters["reasons"].get("PERMANENT_OFFER"), 1)
+
+    def test_permanent_offer_is_cut_even_before_it_starts(self):
+        """Постійна пропозиція не стає подією від того, що її початок у майбутньому."""
+        items, counters = self.harvest([raw_event(startDate="2026-10-01T12:00:00+03:00",
+                                                  endDate="2027-10-01T12:00:00+03:00")])
+        self.assertEqual(items, [])
+        self.assertEqual(counters["reasons"].get("PERMANENT_OFFER"), 1)
+
     def test_same_url_sessions_are_preserved_and_have_distinct_ids(self):
         events = [raw_event(), raw_event(startDate="2026-10-18T18:00:00+03:00")]
         self.assertEqual(len(extract.events_from_html(html(events + events))), 2)

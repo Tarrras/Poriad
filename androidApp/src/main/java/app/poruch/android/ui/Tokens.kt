@@ -89,19 +89,27 @@ private val CategoryHues = mapOf(
     // золото для стендапу й бірюза для дитячого — підібрані вручну за контрастом, а не
     // виведені з системи. Обидва варті погляду дизайнера при перегляді палітри.
     "comedy" to Color(0xFFA07813),
-    "kids" to Color(0xFF1F8A8A)
+    "kids" to Color(0xFF1F8A8A),
+    // Десята й одинадцята обрані не на око: я порахував зайняті відтінки й узяв середини двох
+    // найбільших вільних проміжків. Олива на 80° стоїть за 37° від золота й за 36° від зелені,
+    // пурпур на 288° — за 31° від фіалкового. Контраст у тій самій смузі, що й у решти:
+    // 4.6 на світлому й 4.0 на темному для екскурсій, 6.0 і 3.1 для конференцій.
+    "tours" to Color(0xFF5F7F1F),
+    "conference" to Color(0xFF933FA8)
 )
 private val CategoryWashes = mapOf(
     "music" to Color(0xFFEBE4FB), "sport" to Color(0xFFDDF0EC), "art" to Color(0xFFFBE1EA),
     "food" to Color(0xFFFBEBD9), "games" to Color(0xFFE1EAFB), "outdoors" to Color(0xFFE4F1E2),
-    "social" to Color(0xFFFAE5DA), "comedy" to Color(0xFFF7ECD2), "kids" to Color(0xFFD9EFEF)
+    "social" to Color(0xFFFAE5DA), "comedy" to Color(0xFFF7ECD2), "kids" to Color(0xFFD9EFEF),
+    "tours" to Color(0xFFECF0E4), "conference" to Color(0xFFF2E8F5)
 )
 
 /** Second hue of the pair: the neighbour a category leans on when its cover needs two stops. */
 private val CategoryPartners = mapOf(
     "music" to Color(0xFFC43B6B), "sport" to Color(0xFF2F63C4), "art" to Color(0xFF6D4AC9),
     "food" to Color(0xFFC43B6B), "games" to Color(0xFF0F7F73), "outdoors" to Color(0xFF0F7F73),
-    "social" to Color(0xFFC96A1E), "comedy" to Color(0xFFC43B6B), "kids" to Color(0xFF2F63C4)
+    "social" to Color(0xFFC96A1E), "comedy" to Color(0xFFC43B6B), "kids" to Color(0xFF2F63C4),
+    "tours" to Color(0xFF3E7D3A), "conference" to Color(0xFF6D4AC9)
 )
 
 fun categoryColor(category: String): Color = CategoryHues[category] ?: Color(0xFF6B675E)

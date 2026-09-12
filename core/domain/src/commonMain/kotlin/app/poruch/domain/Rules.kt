@@ -7,8 +7,13 @@ import kotlinx.datetime.LocalDate
  * the same limits: when a migration moves one, exactly one constant moves with it.
  */
 object EventRules {
-    /** The category vocabulary. The server's CHECK constraint holds the same nine values. */
-    val categories = listOf("music", "sport", "art", "food", "games", "outdoors", "social", "comedy", "kids")
+    /** The category vocabulary. The server's CHECK constraint holds the same eleven values. */
+    val categories = listOf(
+        "music", "sport", "art", "food", "games", "outdoors", "social", "comedy", "kids",
+        // Знайдені звітом про прогалини, а не на око: «екскурсія» займала половину кошика
+        // «природа», а конференції лежали в «зустрічах» разом із побаченнями наосліп.
+        "tours", "conference",
+    )
 
     val titleLength = 3..120
     val descriptionLength = 10..5000

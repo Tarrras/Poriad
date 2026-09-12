@@ -62,7 +62,7 @@ internal fun FilterSheet(state: ExploreState, onIntent: (ExploreIntent) -> Unit,
             SectionHeader(stringResource(R.string.date))
             Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                 dateFilters.forEach { (key, label) ->
-                    PoruchChip(stringResource(label), date == key, { date = key })
+                    PoruchChip(stringResource(label), date == key, { date = if (date == key) DateFilter.ANY else key })
                 }
             }
         }
@@ -73,7 +73,7 @@ internal fun FilterSheet(state: ExploreState, onIntent: (ExploreIntent) -> Unit,
                 categories.forEach { value ->
                     PoruchChip(
                         stringResource(categoryLabel(value)), category == value,
-                        { category = value }, dot = value
+                        { category = if (category == value) ALL_CATEGORIES else value }, dot = value
                     )
                 }
             }

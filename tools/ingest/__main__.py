@@ -29,7 +29,7 @@ from .sources import by_slug, enabled_sources
 from .venues import build_index
 
 
-def run_city(city: str, sources: list, run_id: str, *,
+def run_city(city: str, sources: list, run_id: str, *, agent: Agent | None = None,
              refresh_osm: bool = False, use_photon: bool = True,
              reports: list | None = None, now=None, statement_bytes: int = 0,
              status_by_source: dict[str, list[dict]] | None = None) -> tuple[list, list[str]]:
@@ -66,6 +66,14 @@ def run_city(city: str, sources: list, run_id: str, *,
     if geocoder.calls:
         errs = f", помилок {len(geocoder.errors)}" if geocoder.errors else ""
         print(f"  Photon: {geocoder.calls} запитів{errs}")
+
+    # Агент розбирає лише те, що лишилось після типу й словника, і робить це ДО дедуплікації:
+    # категорія бере участь у виборі канонічної копії, тож виправляти її після злиття пізно.
+    if agent is not None:
+        changed = agent.classify(all_items)
+        if changed or agent.unknown or agent.errors:
+            print(f"  Агент: розібрав {changed}, «жодна категорія» {len(agent.unknown)}"
+                  f"{', помилок ' + str(len(agent.errors)) if agent.errors else ''}")
 
     # Дедуплікація ДО генерації SQL: emit фільтрує за stage у момент виклику, тож усе, що
     # згенеровано раніше, несло б дублі в собі, хоч би що казав підсумок.
@@ -146,6 +154,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--report", type=pathlib.Path, help="JSON-звіт джерел, помилок та скасувань")
     ap.add_argument("--refresh-osm", action="store_true", help="перезавантажити дамп OSM")
     ap.add_argument("--no-photon", action="store_true", help="не геокодувати те, чого немає в OSM")
+    ap.add_argument("--agent", action="store_true",
+                    help="дати моделі розібрати те, чого не взяли тип і словник"
+                         " (потрібен ANTHROPIC_API_KEY)")
     ap.add_argument("--limit", type=int, help="показати не більше N рядків у зведенні")
     ap.add_argument("--no-karabas-status", action="store_true",
                     help="не читати окрему таблицю скасувань/переносів Karabas")
@@ -177,6 +188,13 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Немає прямокутника в geocode.CITY_BBOX для: {missing_bbox}", file=sys.stderr)
         return 2
 
+    agent = None
+    if args.agent:
+        agent = Agent()
+        if not agent.ready:
+            print("--agent потребує ANTHROPIC_API_KEY у середовищі", file=sys.stderr)
+            return 2
+
     run_id = str(uuid.uuid4())
     print(f"Обхід: {', '.join(cities)}\nrun_id={run_id}")
 
@@ -195,7 +213,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Karabas status: {len(notices)} точних notices, "
               f"покриття {status_report.get('coverage')}")
     for city in cities:
-        items, parts = run_city(city, sources, run_id,
+        items, parts = run_city(city, sources, run_id, agent=agent,
                                 refresh_osm=args.refresh_osm, use_photon=not args.no_photon,
                                 reports=reports, statement_bytes=max(0, args.sql_max_bytes - 1024),
                                 status_by_source=status_by_source)

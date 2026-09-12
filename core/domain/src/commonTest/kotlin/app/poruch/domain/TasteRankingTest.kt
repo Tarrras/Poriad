@@ -124,6 +124,27 @@ class TasteRankingTest {
         )
     }
 
+    /**
+     * Подія, що вже йде, змагається як «зараз», а не як дата, з якої вона йде.
+     *
+     * Поки ключем був `startsAt`, найдовший прокат ставав першим у стрічці й лишався там до
+     * кінця: виставка, що почалась у липні, обганяла все, що почалось учора. Той самий ключ
+     * рахує сервер (`greatest(starts_at, now())`), і розійтись їм не можна — вікно карток
+     * приїжджає під серверний порядок.
+     */
+    @Test fun whatIsAlreadyUnderwayCountsAsNowNotAsTheDayItBegan() {
+        val underway = listOf(
+            listing("вчорашній", startsAt = "2030-09-03T19:00:00+03:00"),
+            listing("липневий", startsAt = "2030-07-16T10:00:00+03:00")
+        ).map { it.copy(endsAt = "2030-09-30T20:00:00+03:00") }
+        val future = listing("завтрашній", startsAt = "2030-09-06T19:00:00+03:00")
+
+        val ranked = TasteRanking.rank(underway + future, Taste(), now)
+        // Обидва, що вже йдуть, попереду майбутнього — і між собою лишаються в порядку сервера,
+        // а не в порядку того, хто почався давніше.
+        assertEquals(listOf("вчорашній", "липневий", "завтрашній"), ranked.map { it.id })
+    }
+
     /** A bad time zone in a row from the server must not take the whole list down with it. */
     @Test fun brokenTimestampsRankWithoutThrowing() {
         val broken = event("broken", startsAt = "not-a-date").copy(timeZone = "Mars/Olympus")

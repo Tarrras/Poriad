@@ -128,20 +128,39 @@ object TasteRanking {
     }
 
     /**
-     * The order every list in the app uses. Ties break on the start time, so two events a person
-     * has said nothing about still come in the order they will actually happen.
+     * Коли подія цікава зараз.
+     *
+     * Для майбутньої це її початок. Для тієї, що вже йде, — «зараз»: виставка з прокатом до
+     * 30 вересня почалась місяць тому, і сортування за датою початку пришпилило б її до верху
+     * списку на весь прокат. Те саме робить `greatest(starts_at, now())` на сервері — порядок
+     * має бути один, інакше вікно карток приїжджає не під ту стрічку, яку людина бачить.
+     *
+     * `null` означає нерозбірну дату; такі рядки їдуть у кінець, а не падають.
+     */
+    private fun interestingAt(event: Rankable, now: Instant): Instant? =
+        runCatching { Instant.parse(event.startsAt) }.getOrNull()?.let { if (it < now) now else it }
+
+    /**
+     * The order every list in the app uses. Ties break on [interestingAt], so two events a person
+     * has said nothing about still come in the order they will actually happen — and one that is
+     * already under way counts as «now» rather than as the date it began.
      */
     fun <T : Rankable> rank(events: List<T>, taste: Taste, now: Instant): List<T> {
-        if (taste.isBlank) return events.sortedWith(compareBy({ it.isCancelled }, { it.startsAt }))
-        // Оцінка рахується один раз на подію, а не всередині порівняння.
+        // Оцінка й ключ порядку рахуються один раз на подію, а не всередині порівняння.
         //
         // Компаратор кличуть n·log n разів, і кожен виклик піднімав часовий пояс та розбирав дату.
         // На півтори сотні подій це виходило понад тисячу таких розборів замість ста п'ятдесяти —
         // виміряно 34 мс на одне складання головної.
         val zones = Zones()
-        return events.map { it to score(it, taste, now, zones) }
-            .sortedWith(compareByDescending<Pair<T, Int>> { it.second }.thenBy { it.first.startsAt })
-            .map { it.first }
+        val keyed = events.map { Triple(it, if (taste.isBlank) 0 else score(it, taste, now, zones), interestingAt(it, now)) }
+        // Без відповідей бали однакові, тож скасоване опускає окремий ключ; з відповідями його
+        // вже опускає сам бал (`CANCELLED`).
+        val first = if (taste.isBlank) compareBy<Triple<T, Int, Instant?>> { it.first.isCancelled }
+                    else compareByDescending { it.second }
+        // Без `thenBy { startsAt }`: він повернув би саме той порядок, який ми щойно прибрали —
+        // серед того, що вже йде, першим став би найдавніше початий, тобто найдовший прокат.
+        // `sortedWith` стабільне, тож рівні лишаються в порядку сервера.
+        return keyed.sortedWith(first.then(compareBy(nullsLast()) { it.third })).map { it.first }
     }
 
     /** Ті самі кілька подій ділять один пояс; піднімати його щоразу — найдорожче тут. */

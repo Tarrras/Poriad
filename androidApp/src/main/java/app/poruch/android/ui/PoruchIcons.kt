@@ -284,6 +284,86 @@ object PoruchIcons {
             .build()
     }
 
+    /** Брама зі склепінням. Перший варіант був вимпелом гіда — і на рендері виявився тим самим прапорцем, що вже стоїть у «спорті»: на піні їх не розрізнити. Арка ж збігається зі змістом кошика: вілли, катедри, вежі, кам'яниці. */
+    val tours: ImageVector by lazy {
+        builder("tours")
+            .punch {
+                moveTo(3.4f, 20.9f)
+                lineTo(3.4f, 11.5f)
+                curveTo(3.4f, 6.8f, 7.3f, 3f, 12f, 3f)
+                curveTo(16.7f, 3f, 20.6f, 6.8f, 20.6f, 11.5f)
+                lineTo(20.6f, 20.9f)
+                close()
+                moveTo(8f, 20.9f)
+                lineTo(8f, 11.8f)
+                curveTo(8f, 9.2f, 9.8f, 7.3f, 12f, 7.3f)
+                curveTo(14.2f, 7.3f, 16f, 9.2f, 16f, 11.8f)
+                lineTo(16f, 20.9f)
+                close()
+            }
+            .build()
+    }
+
+    /** A slide on a stand. Distinct from the calendar glyph, which carries a month grid and two hangers; here the board is wide, the text lines are long, and it stands on a foot. */
+    val conference: ImageVector by lazy {
+        builder("conference")
+            .punch {
+                moveTo(5.6f, 3.3f)
+                lineTo(18.4f, 3.3f)
+                curveTo(19.67f, 3.3f, 20.7f, 4.33f, 20.7f, 5.6f)
+                lineTo(20.7f, 13.5f)
+                curveTo(20.7f, 14.77f, 19.67f, 15.8f, 18.4f, 15.8f)
+                lineTo(5.6f, 15.8f)
+                curveTo(4.33f, 15.8f, 3.3f, 14.77f, 3.3f, 13.5f)
+                lineTo(3.3f, 5.6f)
+                curveTo(3.3f, 4.33f, 4.33f, 3.3f, 5.6f, 3.3f)
+                close()
+                moveTo(7.4f, 6.9f)
+                lineTo(16.5f, 6.9f)
+                curveTo(16.997f, 6.9f, 17.4f, 7.303f, 17.4f, 7.8f)
+                lineTo(17.4f, 7.8f)
+                curveTo(17.4f, 8.297f, 16.997f, 8.7f, 16.5f, 8.7f)
+                lineTo(7.4f, 8.7f)
+                curveTo(6.903f, 8.7f, 6.5f, 8.297f, 6.5f, 7.8f)
+                lineTo(6.5f, 7.8f)
+                curveTo(6.5f, 7.303f, 6.903f, 6.9f, 7.4f, 6.9f)
+                close()
+                moveTo(7.4f, 10.5f)
+                lineTo(12.7f, 10.5f)
+                curveTo(13.197f, 10.5f, 13.6f, 10.903f, 13.6f, 11.4f)
+                lineTo(13.6f, 11.4f)
+                curveTo(13.6f, 11.897f, 13.197f, 12.3f, 12.7f, 12.3f)
+                lineTo(7.4f, 12.3f)
+                curveTo(6.903f, 12.3f, 6.5f, 11.897f, 6.5f, 11.4f)
+                lineTo(6.5f, 11.4f)
+                curveTo(6.5f, 10.903f, 6.903f, 10.5f, 7.4f, 10.5f)
+                close()
+            }
+            .fill {
+                moveTo(12f, 15.8f)
+                lineTo(12f, 15.8f)
+                curveTo(12.497f, 15.8f, 12.9f, 16.203f, 12.9f, 16.7f)
+                lineTo(12.9f, 18.2f)
+                curveTo(12.9f, 18.697f, 12.497f, 19.1f, 12f, 19.1f)
+                lineTo(12f, 19.1f)
+                curveTo(11.503f, 19.1f, 11.1f, 18.697f, 11.1f, 18.2f)
+                lineTo(11.1f, 16.7f)
+                curveTo(11.1f, 16.203f, 11.503f, 15.8f, 12f, 15.8f)
+                close()
+                moveTo(8.15f, 18.9f)
+                lineTo(15.85f, 18.9f)
+                curveTo(16.319f, 18.9f, 16.7f, 19.281f, 16.7f, 19.75f)
+                lineTo(16.7f, 19.75f)
+                curveTo(16.7f, 20.219f, 16.319f, 20.6f, 15.85f, 20.6f)
+                lineTo(8.15f, 20.6f)
+                curveTo(7.681f, 20.6f, 7.3f, 20.219f, 7.3f, 19.75f)
+                lineTo(7.3f, 19.75f)
+                curveTo(7.3f, 19.281f, 7.681f, 18.9f, 8.15f, 18.9f)
+                close()
+            }
+            .build()
+    }
+
     /** A solid house with the door punched through it — the negative space is what keeps the silhouette from reading as a plain pentagon. */
     val home: ImageVector by lazy {
         builder("home")

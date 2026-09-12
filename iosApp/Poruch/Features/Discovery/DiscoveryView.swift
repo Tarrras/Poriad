@@ -177,7 +177,12 @@ struct DiscoveryView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: Space.sm) {
                     ForEach(dateFilterKeys, id: \.self) { key in
-                        Chip(label: dateLabel(key), selected: model.state?.dateFilter == key) { model.app.setDateFilter(filter: key) }
+                        // Тап по вибраному чипу знімає вибір. Інакше звузити дату можна, а
+                        // повернутись — лише знайшовши «Будь-коли», який до того ж міг виїхати
+                        // за край рядка.
+                        Chip(label: dateLabel(key), selected: model.state?.dateFilter == key) {
+                            model.app.setDateFilter(filter: model.state?.dateFilter == key ? DateFilter.shared.ANY : key)
+                        }
                     }
                     Chip(label: "Можна приєднатись", symbol: "checkmark.circle", selected: model.state?.onlyAvailable == true) {
                         model.app.setOnlyAvailable(available: !(model.state?.onlyAvailable ?? false))
@@ -313,7 +318,9 @@ struct FiltersView: View {
                     section("Коли") {
                         HStack(spacing: Space.sm) {
                             ForEach(dateFilterKeys, id: \.self) { key in
-                                Chip(label: dateLabel(key), selected: pickedDate == key) { date = key }
+                                Chip(label: dateLabel(key), selected: pickedDate == key) {
+                                    date = pickedDate == key ? DateFilter.shared.ANY : key
+                                }
                             }
                         }
                     }
@@ -321,7 +328,7 @@ struct FiltersView: View {
                         FlexibleChips(
                             items: [(AppStateKt.ALL_CATEGORIES, "Усі", nil)] + categories.map { ($0.0, $0.1, $0.0) },
                             isSelected: { pickedCategory == $0 }
-                        ) { category = $0 }
+                        ) { category = pickedCategory == $0 ? AppStateKt.ALL_CATEGORIES : $0 }
                     }
                     Toggle(isOn: Binding(get: { pickedAvailable }, set: { available = $0 })) {
                         Text("Лише події, до яких можна приєднатись").font(PoruchFont.bodyText).foregroundStyle(Palette.ink)

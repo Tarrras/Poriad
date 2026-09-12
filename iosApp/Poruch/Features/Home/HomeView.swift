@@ -14,14 +14,9 @@ struct HomeView: View {
 
     private var view: HomePresentation { model.home }
 
-    /// Висота смуги статусу. Читається ззовні стрічки — усередині неї її вже не спитати.
-    @State private var topInset: CGFloat = 0
-
     var body: some View {
         // Стрічка виходить під смугу статусу, щоб теплий градієнт хедера дійшов до краю екрана,
-        // а відступ під ту саму смугу хедер додає сам. Висоту беремо виміряну, а не вгадану:
-        // на різних пристроях вона різна, і константа означала б заголовок під годинником.
-        GeometryReader { proxy in
+        // а відступ під ту саму смугу хедер додає сам.
         let view = self.view
         ScrollView {
             VStack(alignment: .leading, spacing: Space.xxl) {
@@ -54,13 +49,17 @@ struct HomeView: View {
                                             .frame(width: 220)
                                     }
                                 }.padding(.horizontal, 2)
-                            }
+                            }.containerRelativeFrame(.horizontal)
                         }
                     }.padding(.horizontal, Space.page)
                 }
 
                 if !view.searching { VStack(alignment: .leading, spacing: Space.sm) {
                     SectionHeader(title: "Категорії").padding(.horizontal, Space.page)
+                    // Ширина — від смуги прокрутки, а не від власного вмісту. Усередині
+                    // вертикальної стрічки горизонтальному рядку ніхто ширини не нав'язує: він
+                    // брав свою, тобто ширину всіх плиток разом, і тоді прокручувати було нічого,
+                    // а після першої зміни категорії рядок переставав і натискатись.
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: Space.xs) {
                             ForEach(categories, id: \.0) { category in
@@ -69,7 +68,7 @@ struct HomeView: View {
                                 }
                             }
                         }.padding(.horizontal, Space.page)
-                    }
+                    }.containerRelativeFrame(.horizontal)
                 } }
 
                 if view.isEmpty {
@@ -113,9 +112,6 @@ struct HomeView: View {
         .toolbar(.hidden, for: .navigationBar)
         .navigationDestination(isPresented: $details) { EventDetailView(app: model.app) }
         .ignoresSafeArea(edges: .top)
-        .onAppear { topInset = proxy.safeAreaInsets.top }
-        .onChange(of: proxy.safeAreaInsets.top) { _, value in topInset = value }
-        }
     }
 
     private func headerView(_ view: HomePresentation) -> some View {
@@ -142,7 +138,7 @@ struct HomeView: View {
             }
         }
         .padding(.horizontal, Space.page).padding(.vertical, Space.xl)
-        .padding(.top, topInset)
+        .padding(.top, statusBarInset)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(heroGradient)
     }

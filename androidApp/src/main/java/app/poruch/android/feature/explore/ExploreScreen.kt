@@ -80,7 +80,11 @@ private fun TopControls(state: ExploreState, onIntent: (ExploreIntent) -> Unit) 
         }
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
             dateFilters.forEach { (key, label) ->
-                PoruchChip(stringResource(label), state.dateFilter == key, { onIntent(ExploreIntent.PickDate(key)) })
+                // Тап по вибраному чипу знімає вибір. Інакше звузити дату можна, а повернутись —
+                // лише знайшовши «Будь-коли», який до того ж міг виїхати за край рядка.
+                PoruchChip(stringResource(label), state.dateFilter == key, {
+                    onIntent(ExploreIntent.PickDate(if (state.dateFilter == key) DateFilter.ANY else key))
+                })
             }
             PoruchChip(
                 stringResource(R.string.available), state.onlyAvailable,

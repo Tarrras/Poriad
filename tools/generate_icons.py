@@ -261,6 +261,53 @@ icon(
         "collapses into a blob.",
 )
 
+icon(
+    "tours",
+    punch=[
+        flat([
+            # Зовнішня арка.
+            [
+                move(3.4, 20.9),
+                line(3.4, 11.5),
+                curve(3.4, 6.8, 7.3, 3.0, 12.0, 3.0),
+                curve(16.7, 3.0, 20.6, 6.8, 20.6, 11.5),
+                line(20.6, 20.9),
+                close(),
+            ],
+            # Проріз брами.
+            [
+                move(8.0, 20.9),
+                line(8.0, 11.8),
+                curve(8.0, 9.2, 9.8, 7.3, 12.0, 7.3),
+                curve(14.2, 7.3, 16.0, 9.2, 16.0, 11.8),
+                line(16.0, 20.9),
+                close(),
+            ],
+        ])
+    ],
+    doc="Брама зі склепінням. Перший варіант був вимпелом гіда — і на рендері виявився тим самим "
+        "прапорцем, що вже стоїть у «спорті»: на піні їх не розрізнити. Арка ж збігається зі "
+        "змістом кошика: вілли, катедри, вежі, кам'яниці.",
+)
+
+icon(
+    "conference",
+    punch=[
+        flat(
+            [rounded_rect(3.3, 3.3, 17.4, 12.5, 2.3)]
+            # Two lines of text punched out of the board. Unequal lengths on purpose: two equal
+            # bars read as a pause symbol, and one long bar reads as a crossed-out screen.
+            + [rounded_rect(6.5, 6.9, 10.9, 1.8, 0.9), rounded_rect(6.5, 10.5, 7.1, 1.8, 0.9)]
+        )
+    ],
+    fill=[
+        rounded_rect(11.1, 15.8, 1.8, 3.3, 0.9),
+        rounded_rect(7.3, 18.9, 9.4, 1.7, 0.85),
+    ],
+    doc="A slide on a stand. Distinct from the calendar glyph, which carries a month grid and two "
+        "hangers; here the board is wide, the text lines are long, and it stands on a foot.",
+)
+
 
 # ---- navigation
 
