@@ -662,6 +662,9 @@ struct EventRow: View {
     }
 }
 
+/// Висота картки каруселі: її знає й сама карусель, коли рахує свою висоту.
+let mapCardHeight: CGFloat = 112
+
 /// Carousel card above the map: wide enough for the name, short enough to leave the map readable.
 struct EventMapCard: View {
     let event: Event
@@ -686,7 +689,7 @@ struct EventMapCard: View {
                 if let onSave { SaveButton(saved: saved, action: onSave) }
             }
             .padding(Space.md)
-            .frame(height: 112)
+            .frame(height: mapCardHeight)
             .cardSurface(radius: Corner.lg, elevation: Elevation.overlay)
             .overlay(
                 RoundedRectangle(cornerRadius: Corner.lg, style: .continuous)

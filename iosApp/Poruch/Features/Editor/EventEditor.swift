@@ -90,8 +90,11 @@ private struct AboutStep: View {
                             form.category = category.0
                         }
                     }
-                }.padding(.horizontal, 2)
+                }
             }
+            // Поля — всередині смуги; поля сторінки, які дає крок форми, тут знімаються.
+            .railContentPadding()
+            .padding(.horizontal, -Space.page)
         }
     }
 }

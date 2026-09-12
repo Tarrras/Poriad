@@ -175,6 +175,8 @@ internal class DiscoveryEngine(
             south = south.coerceIn(-90.0, 90.0), west = if (wholeWorld) -180.0 else longitude(west),
             north = north.coerceIn(-90.0, 90.0), east = if (wholeWorld) 180.0 else longitude(east)
         )
+        // Рамку поставили рукою. [selectCity] одразу після цього скаже протилежне про себе.
+        state.update { it.copy(customArea = true) }
         onQueryChanged(); refresh()
     }
 
@@ -257,5 +259,7 @@ internal class DiscoveryEngine(
         }
         val view = HomeLocation(city.name, city.latitude, city.longitude)
         searchArea(view.south, view.west, view.north, view.east)
+        // Область міста — це саме місто, хай навіть її поставив той самий виклик, що й рамку.
+        state.update { it.copy(customArea = false) }
     }
 }

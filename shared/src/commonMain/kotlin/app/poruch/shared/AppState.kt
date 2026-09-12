@@ -50,6 +50,14 @@ data class AppState(
     /** People asking to come to the open event. Non-empty only for its organizer. */
     val joinRequests: List<Attendee> = emptyList(),
     val searchText: String = "", val onlyAvailable: Boolean = false,
+    /**
+     * Чи область пошуку — уже не саме місто.
+     *
+     * Після «Шукати тут» слово «поруч» на головній означає не місто, а ту рамку, яку людина
+     * лишила на мапі. Екрани мають право сказати це вголос, а для цього мусять розрізняти
+     * два випадки: місто, обране у списку міст, і рамку, обрану рукою.
+     */
+    val customArea: Boolean = false,
     val attendees: List<Attendee> = emptyList(), val waitlistedIds: List<String> = emptyList()
 ) {
     val signedIn get() = userId != null

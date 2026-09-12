@@ -12,14 +12,12 @@ struct HomePresentation {
     /// What the opening answers picked out. Empty when nothing was answered — never a filler.
     let suggested: [Event]
     let today: [Event]
+    /// Те, що лишилось поза дайджестом. Головна його не друкує — лише каже, скільки його.
     let rest: [Event]
-    /**
-     Категорія, обрана **на цьому екрані**. Мапа має свою.
-
-     Доки категорія була одна на застосунок, вибір на головній переставляв фільтр мапи й навпаки:
-     два перемикачі, одне значення. Тепер кожен екран звужує те, що показує сам.
-     */
-    let category: String
+    /// Скільки подій в області насправді: стільки ж, скільки лічильник на мапі.
+    let totalFound: Int
+    /// Чи область — уже не саме місто. Підпис головної має казати правду після «Шукати тут».
+    let customArea: Bool
     /**
      Пошук — той самий, що й на мапі.
 
@@ -33,14 +31,22 @@ struct HomePresentation {
 
     var searching: Bool { !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
+    /// Що саме означає «поруч»: місто зі списку міст чи рамку, яку лишили на мапі.
+    var areaLabel: String {
+        customArea
+            ? "Плани в області, яку ви обрали на мапі"
+            : "Плани на найближчі дні у місті \(cityName)"
+    }
+
     private let savedIds: Set<String>
     private let waitlistedIds: Set<String>
 
-    init(state: AppState?, category: String = AppStateKt.ALL_CATEGORIES) {
+    init(state: AppState?) {
         signedIn = state?.signedIn == true
         cityName = state?.cityName ?? HomeLocation.companion.Kyiv.city
         loading = state?.loading == true
-        self.category = category
+        totalFound = Int(state?.totalFound ?? 0)
+        customArea = state?.customArea == true
         searchText = state?.searchText ?? ""
         savedIds = Set(state?.savedIds ?? [])
         waitlistedIds = Set(state?.waitlistedIds ?? [])
@@ -50,16 +56,9 @@ struct HomePresentation {
         //
         // Кожне звертання до списку з Kotlin — це міст: сто сорок подій, зібраних заново. Тому
         // читаємо по одному разу в локальну змінну, а не двічі в одному виразі.
-        // Звужується індекс, а не завантажені картки: під фільтром перші події категорії майже
-        // завжди лежать далі за край вікна, і фільтрувати вікно означало б показати порожню
-        // головну там, де подій насправді десятки.
-        let all = category == AppStateKt.ALL_CATEGORIES
         let cards = state?.cards ?? [:]
-        let ranked = (state?.index ?? [])
-            .filter { all || $0.category == category }
-            .compactMap { cards[$0.id] }
+        let ranked = (state?.index ?? []).compactMap { cards[$0.id] }
         suggested = Array((state?.suggestedIndex ?? [])
-            .filter { all || $0.category == category }
             .compactMap { cards[$0.id] }
             .prefix(homeSuggestedLimit))
         // What is already under «Для вас» is not repeated further down the same screen.
@@ -103,10 +102,6 @@ struct HomePresentation {
 let homeTodayLimit = 5
 /// Home is a digest: past this many, «для вас» stops being a shortlist and becomes the list.
 let homeSuggestedLimit = 4
-let homeRestLimit = 8
 /// Скільки результатів показує головна. Далі краще на мапу: там область і фільтри.
 let homeResultsLimit = 12
 let homePlansLimit = 8
-
-/// Скільки карток головна просить під власний фільтр: більше за це вона не показує в жодному стані.
-let homeCards = 24

@@ -60,8 +60,8 @@ struct MyEventsView: View {
                         ForEach(MyEventsTab.allCases) { entry in
                             Chip(label: entry.title, selected: tab == entry) { tab = entry }
                         }
-                    }.padding(.horizontal, Space.page)
-                }
+                    }
+                }.railContentPadding()
             }
         }
         .padding(.bottom, Space.md)

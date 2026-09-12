@@ -11,6 +11,8 @@ struct HomeView: View {
     var openProfile: () -> Void
     var createEvent: () -> Void
     @State private var details = false
+    /// Висота смуги статусу: хедер виходить під неї й додає цей відступ сам. Див. [tracksStatusBarInset].
+    @State private var statusBar: CGFloat = Space.xxl
 
     private var view: HomePresentation { model.home }
 
@@ -48,28 +50,18 @@ struct HomeView: View {
                                         EventTile(event: event) { model.app.selectEvent(id: event.id); details = true }
                                             .frame(width: 220)
                                     }
-                                }.padding(.horizontal, 2)
-                            }.containerRelativeFrame(.horizontal)
-                        }
-                    }.padding(.horizontal, Space.page)
-                }
-
-                if !view.searching { VStack(alignment: .leading, spacing: Space.sm) {
-                    SectionHeader(title: "Категорії").padding(.horizontal, Space.page)
-                    // Ширина — від смуги прокрутки, а не від власного вмісту. Усередині
-                    // вертикальної стрічки горизонтальному рядку ніхто ширини не нав'язує: він
-                    // брав свою, тобто ширину всіх плиток разом, і тоді прокручувати було нічого,
-                    // а після першої зміни категорії рядок переставав і натискатись.
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: Space.xs) {
-                            ForEach(categories, id: \.0) { category in
-                                CategoryTile(category: category.0, selected: view.category == category.0) {
-                                    model.setHomeCategory(category.0)
                                 }
                             }
-                        }.padding(.horizontal, Space.page)
-                    }.containerRelativeFrame(.horizontal)
-                } }
+                            // Поля — всередині смуги, тож сама смуга має дійти до краю екрана:
+                            // поля сторінки, які дає батьківський стос, тут знімаються.
+                            .railContentPadding()
+                            .padding(.horizontal, -Space.page)
+                        }
+                    }
+                    // Та сама пастка, що й у рядка категорій нижче: горизонтальна стрічка над
+                    // секціями, які змінюються, має перевірятись на дотик раніше за них.
+                    .padding(.horizontal, Space.page).zIndex(1)
+                }
 
                 if view.isEmpty {
                     if view.loading {
@@ -97,9 +89,10 @@ struct HomeView: View {
                     if !view.today.isEmpty {
                         section("Сьогодні в місті", Array(view.today.prefix(homeTodayLimit)), view)
                     }
-                    if !view.rest.isEmpty {
-                        section("Усі події поруч", Array(view.rest.prefix(homeRestLimit)), view)
-                    }
+                    // Каталог живе на мапі, і головна лише каже, який він завбільшки. Доки вона
+                    // друкувала ще вісім карток, це був початок того самого списку, який на мапі
+                    // є повністю — з областю, датою й категорією на додачу.
+                    if !view.rest.isEmpty { allEventsRow(view) }
                 }
 
                 if !view.searching {
@@ -112,6 +105,7 @@ struct HomeView: View {
         .toolbar(.hidden, for: .navigationBar)
         .navigationDestination(isPresented: $details) { EventDetailView(app: model.app) }
         .ignoresSafeArea(edges: .top)
+        .tracksStatusBarInset($statusBar)
     }
 
     private func headerView(_ view: HomePresentation) -> some View {
@@ -119,7 +113,7 @@ struct HomeView: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: Space.xs) {
                     Text("Що поруч").font(PoruchFont.display).displayTracking().foregroundStyle(Palette.ink)
-                    Text("Плани на найближчі дні у місті \(view.cityName)")
+                    Text(view.areaLabel)
                         .font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
                 }
                 Spacer(minLength: Space.sm)
@@ -138,9 +132,32 @@ struct HomeView: View {
             }
         }
         .padding(.horizontal, Space.page).padding(.vertical, Space.xl)
-        .padding(.top, statusBarInset)
+        .padding(.top, statusBar)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(heroGradient)
+    }
+
+    /// Скільки подій в області й один дотик до каталогу. Число — те саме, що й лічильник мапи.
+    private func allEventsRow(_ view: HomePresentation) -> some View {
+        Button(action: openMap) {
+            HStack(spacing: Space.md) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Усі події поруч").font(PoruchFont.cardName).foregroundStyle(Palette.ink)
+                    Text("На мапі можна змінити область, дату й категорію")
+                        .font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
+                        .multilineTextAlignment(.leading)
+                }
+                Spacer(minLength: Space.sm)
+                Text("\(view.totalFound)").font(PoruchFont.title2).foregroundStyle(Palette.ink)
+                    .monospacedDigit()
+                Image(systemName: "arrow.right").font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(Palette.inkSecondary)
+            }
+            .padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()
+        }
+        .buttonStyle(PressableStyle())
+        .accessibilityLabel("Усі події поруч: \(view.totalFound). Показати на мапі")
+        .padding(.horizontal, Space.page)
     }
 
     @ViewBuilder private func section(

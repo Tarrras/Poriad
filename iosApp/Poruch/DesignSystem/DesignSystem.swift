@@ -318,15 +318,59 @@ extension View {
 }
 
 /**
+ Поля горизонтальної стрічки.
+
+ Поля лежать **усередині** смуги прокрутки, а не навколо неї, — те саме, що `contentPadding` у
+ Compose `LazyRow`. У спокої перший елемент стоїть із відступом від краю екрана; у русі елементи
+ їдуть крізь це поле й зникають уже на краю екрана, а не за 16 pt до нього. Тому смуга має йти від
+ краю до краю: там, де стрічка стоїть у контейнері з полями сторінки, ці поля знімають від'ємним
+ відступом на місці виклику.
+
+ `spread` — запас на тінь. Смуга прокрутки обрізає вміст своїми межами, а картки в стрічці стоять
+ упритул до них, тож без запасу тінь зрізана зверху й знизу. Запас живе всередині смуги й тут-таки
+ компенсується назовні: у розкладці стрічка займає рівно стільки, скільки її вміст.
+ */
+extension View {
+    func railContentPadding(_ inset: CGFloat = Space.page, spread: CGFloat = Space.sm) -> some View {
+        contentMargins(.horizontal, inset, for: .scrollContent)
+            .contentMargins(.vertical, spread, for: .scrollContent)
+            .padding(.vertical, -spread)
+    }
+}
+
+/**
  Висота смуги статусу.
 
  З вікна, а не з `GeometryReader` навколо екрана. Обгортка коштувала дорого: рядок категорій на
  головній, загорнутий у неї, не прокручувався горизонтально взагалі — той самий рядок у списку на
  мапі, де обгортки немає, прокручувався. Вікно знає те саме число й нічого не загортає.
+
+ Але питати вікно **просто з `body`** теж не можна: висота смуги залежить від розкладки вікна, а
+ розкладка хедера — від висоти смуги, і на кожному запуску SwiftUI друкував «AttributeGraph:
+ cycle detected». Тож число беруть один раз поза проходом розкладки — [tracksStatusBarInset] — і
+ тримають у стані екрана.
  */
-var statusBarInset: CGFloat {
+func measuredStatusBarInset() -> CGFloat {
     UIApplication.shared.connectedScenes
         .compactMap { ($0 as? UIWindowScene)?.keyWindow?.safeAreaInsets.top }.first ?? Space.xxl
+}
+
+extension View {
+    /// Тримає `inset` рівним висоті смуги статусу: міряє, коли екран з'явився, і ще раз після
+    /// повороту — клас розміру по вертикалі на телефоні міняється саме тоді.
+    func tracksStatusBarInset(_ inset: Binding<CGFloat>) -> some View {
+        modifier(StatusBarInsetReader(inset: inset))
+    }
+}
+
+private struct StatusBarInsetReader: ViewModifier {
+    @Binding var inset: CGFloat
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
+    func body(content: Content) -> some View {
+        content
+            .onAppear { inset = measuredStatusBarInset() }
+            .onChange(of: verticalSizeClass) { _, _ in inset = measuredStatusBarInset() }
+    }
 }
 
 // ---------------------------------------------------------------- event formatting

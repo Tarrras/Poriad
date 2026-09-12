@@ -7,6 +7,8 @@ struct ProfileView: View {
     @State private var newPassword = ""
     @State private var revealed = false
     @State private var showAuth = false
+    /// Висота смуги статусу: як на головній, хедер додає її сам. Див. [tracksStatusBarInset].
+    @State private var statusBar: CGFloat = Space.xxl
     @State private var birthDate = Calendar.current.date(byAdding: .year, value: -Int(SafetyRules.shared.MIN_SIGNUP_AGE), to: Date()) ?? Date()
     private let latestBirthDate = Calendar.current.date(byAdding: .year, value: -Int(SafetyRules.shared.MIN_SIGNUP_AGE), to: Date()) ?? Date()
     private let earliestBirthDate = Calendar.current.date(byAdding: .year, value: -100, to: Date()) ?? Date.distantPast
@@ -34,6 +36,7 @@ struct ProfileView: View {
         .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $showAuth) { NavigationStack { AuthView() } }
         .ignoresSafeArea(edges: .top)
+        .tracksStatusBarInset($statusBar)
     }
 
     private var header: some View {
@@ -47,7 +50,7 @@ struct ProfileView: View {
                 .font(PoruchFont.bodyText).foregroundStyle(Palette.inkSecondary)
         }
         .padding(.horizontal, Space.page).padding(.vertical, Space.xxl)
-        .padding(.top, statusBarInset)
+        .padding(.top, statusBar)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(heroGradient)
     }
