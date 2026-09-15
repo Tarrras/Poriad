@@ -75,6 +75,7 @@ private val DraftField.resource: Int
         DraftField.TIME_ZONE -> R.string.field_time_zone
         DraftField.IMAGE_URL -> R.string.field_image_url
         DraftField.AGE_LIMITS -> R.string.field_age_limits
+        DraftField.CONTACT_URL -> R.string.field_contact_url
     }
 
 private val AppMessage.resource: Int

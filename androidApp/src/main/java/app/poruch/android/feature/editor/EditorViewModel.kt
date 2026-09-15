@@ -214,7 +214,7 @@ class EditorViewModel(
             latitude = latitude.format(), longitude = longitude.format(), timeZone = timeZone,
             starts = startsAt.toLocal(timeZone), ends = endsAt.toLocal(timeZone), capacity = room.capacity.toString(),
             minAge = room.minAge.toString(), maxAge = room.maxAge?.toString().orEmpty(),
-            approvalRequired = room.approvalRequired
+            approvalRequired = room.approvalRequired, contactUrl = room.contactUrl.orEmpty()
         )
     }
 

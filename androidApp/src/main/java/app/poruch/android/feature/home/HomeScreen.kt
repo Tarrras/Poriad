@@ -15,7 +15,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -42,7 +44,11 @@ fun HomeScreen(state: HomeState, onIntent: (HomeIntent) -> Unit) {
             if (!state.signedIn) BannerCard(
                 stringResource(R.string.guest_title), stringResource(R.string.guest_home_hint),
                 { onIntent(HomeIntent.OpenProfile) }, Modifier.padding(horizontal = Spacing.page), PoruchIcons.lock
-            ) else PlansSection(state.plans, onIntent)
+            ) else {
+                // Запити вище за плани: на них чекає інша людина.
+                if (state.requests.isNotEmpty()) RequestsSection(state.requests, onIntent)
+                PlansSection(state.plans, onIntent)
+            }
         }
 
         when {
@@ -140,6 +146,39 @@ private fun PlansSection(plans: List<Event>, onIntent: (HomeIntent) -> Unit) {
         ) {
             plans.take(PLANS_LIMIT).forEach { event ->
                 EventTile(event, Modifier.width(220.dp)) { onIntent(HomeIntent.OpenEvent(event.id)) }
+            }
+        }
+    }
+}
+
+/** Мої події, де хтось проситься. Тап веде на подію: відповідають там, дивлячись на неї. */
+@Composable
+private fun RequestsSection(requests: List<PendingRequests>, onIntent: (HomeIntent) -> Unit) {
+    val colors = Poruch.colors
+    Column(
+        Modifier.padding(horizontal = Spacing.page).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.md)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+            SectionHeader(stringResource(R.string.requests_home_section))
+            Text(stringResource(R.string.requests_home_hint), style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
+        }
+        requests.forEach { (event, count) ->
+            val label = pluralStringResource(R.plurals.requests_count, count, count)
+            Row(
+                Modifier.fillMaxWidth()
+                    .semantics(mergeDescendants = true) { contentDescription = "${event.title}, $label"; role = Role.Button }
+                    .pressable { onIntent(HomeIntent.OpenEvent(event.id)) }.cardSurface().padding(Spacing.lg),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)
+            ) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        event.title, style = MaterialTheme.typography.titleSmall, color = colors.ink,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis
+                    )
+                    Text(label, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
+                }
+                StatusBadge(count.toString(), BadgeTone.Accent)
+                Icon(Icons.AutoMirrored.Outlined.ArrowForward, null, Modifier.size(16.dp), tint = colors.inkSecondary)
             }
         }
     }

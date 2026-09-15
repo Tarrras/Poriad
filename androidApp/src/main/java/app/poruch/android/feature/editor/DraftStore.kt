@@ -22,7 +22,8 @@ class DraftStore(context: Context) {
         capacity = store.read(CAPACITY).ifEmpty { EditorForm.DEFAULT_CAPACITY },
         minAge = store.read(MIN_AGE).ifEmpty { EditorForm.DEFAULT_MIN_AGE },
         maxAge = store.read(MAX_AGE),
-        approvalRequired = store.getBoolean(APPROVAL, false)
+        approvalRequired = store.getBoolean(APPROVAL, false),
+        contactUrl = store.read(CONTACT)
     )
 
     fun save(form: EditorForm) = store.edit {
@@ -32,6 +33,7 @@ class DraftStore(context: Context) {
         putString(ZONE, form.timeZone); putString(STARTS, form.starts); putString(ENDS, form.ends)
         putString(CAPACITY, form.capacity)
         putString(MIN_AGE, form.minAge); putString(MAX_AGE, form.maxAge); putBoolean(APPROVAL, form.approvalRequired)
+        putString(CONTACT, form.contactUrl)
     }
 
     fun clear() = store.edit { clear() }
@@ -54,5 +56,6 @@ class DraftStore(context: Context) {
         const val MIN_AGE = "min_age"
         const val MAX_AGE = "max_age"
         const val APPROVAL = "approval"
+        const val CONTACT = "contact"
     }
 }

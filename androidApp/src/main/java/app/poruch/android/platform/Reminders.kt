@@ -15,6 +15,8 @@ import app.poruch.android.MainActivity
 import app.poruch.android.R
 import app.poruch.domain.EventReminder
 import app.poruch.domain.ReminderScheduler
+import app.poruch.domain.RequestAlert
+import app.poruch.domain.RequestNotifier
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -97,6 +99,39 @@ class AlarmReminderScheduler(private val context: Context) : ReminderScheduler {
         const val EXTRA_ID = "id"
         const val EXTRA_TITLE = "title"
         const val EXTRA_ADDRESS = "address"
+    }
+}
+
+/**
+ * Сповіщення про нові запити на участь. Негайне, без будильника: план тут не потрібен, бо
+ * «нове» вже вирішив спільний шар. Одне сповіщення на подію, тап веде на неї.
+ */
+class RequestNotificationCenter(private val context: Context) : RequestNotifier {
+    override fun notify(alerts: List<RequestAlert>) {
+        if (!NotificationPermission(context).granted()) return
+        val manager = context.getSystemService(NotificationManager::class.java)
+        manager.createNotificationChannel(
+            NotificationChannel(CHANNEL, context.getString(R.string.request_notification_channel), NotificationManager.IMPORTANCE_DEFAULT)
+        )
+        alerts.forEach { alert ->
+            val open = PendingIntent.getActivity(
+                context, alert.eventId.hashCode(),
+                Intent(context, MainActivity::class.java).putExtra(MainActivity.EXTRA_EVENT_ID, alert.eventId),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val notification = Notification.Builder(context, CHANNEL)
+                .setSmallIcon(R.drawable.ic_notification)
+                .setContentTitle(alert.eventTitle)
+                .setContentText(context.resources.getQuantityString(R.plurals.request_notification_body, alert.count, alert.count))
+                .setContentIntent(open).setAutoCancel(true).build()
+            // Інший простір id, ніж у нагадувань: запит і нагадування про ту саму подію — два сповіщення.
+            manager.notify(TAG, alert.eventId.hashCode(), notification)
+        }
+    }
+
+    private companion object {
+        const val CHANNEL = "join_requests"
+        const val TAG = "request"
     }
 }
 

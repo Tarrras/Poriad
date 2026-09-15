@@ -114,9 +114,6 @@ internal class SupabaseEventDiscovery(
         put("p_to", query.to?.let(::JsonPrimitive) ?: JsonNull)
     }
 
-    /** PostgREST: функції з такою сигнатурою на сервері немає. */
-    private fun Throwable.isMissingFunction() = (this as? AppFailure)?.serverCode == "PGRST202"
-
     private companion object {
         /** Скільки учасників показує картка. */
         const val ROSTER_LIMIT = 24

@@ -7,8 +7,10 @@ data class HomeState(
     val signedIn: Boolean = false,
     val cityName: String = "",
     val loading: Boolean = false,
-    /** Плани, до яких приєднались, найближчі першими. */
+    /** Плани: організую або йду, найближчі першими. */
     val plans: List<Event> = emptyList(),
+    /** Мої події, де чекають запити на участь, зі скількома. Лише в організатора. */
+    val requests: List<PendingRequests> = emptyList(),
     /** Добірка за відповідями онбордингу. Порожня, якщо не відповідали. */
     val suggested: List<Event> = emptyList(),
     val today: List<Event> = emptyList(),
@@ -27,6 +29,9 @@ data class HomeState(
     val searching get() = searchText.isNotBlank()
     val isEmpty get() = if (searching) results.isEmpty() else suggested.isEmpty() && today.isEmpty() && rest.isEmpty()
 }
+
+/** Подія й скільки людей просяться до неї. */
+data class PendingRequests(val event: Event, val count: Int)
 
 sealed interface HomeIntent {
     data class Search(val text: String) : HomeIntent

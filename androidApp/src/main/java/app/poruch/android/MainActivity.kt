@@ -53,6 +53,12 @@ class MainActivity : ComponentActivity(), AndroidScopeComponent {
         super.attachBaseContext(base.createConfigurationContext(configuration))
     }
 
+    /** Повернення в застосунок: запити на участь і членство могли змінитися, поки його не було. */
+    override fun onStart() {
+        super.onStart()
+        app.loadMyEvents()
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)

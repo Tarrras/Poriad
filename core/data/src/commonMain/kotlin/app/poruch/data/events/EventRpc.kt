@@ -31,3 +31,6 @@ internal class EventRpc(private val api: ApiClient, private val auth: AuthReposi
 
     fun eventParams(id: String) = buildJsonObject { put("p_event_id", id) }
 }
+
+/** PostgREST: функції з такою сигнатурою на сервері немає. Так відрізняємо стару базу від відмови. */
+internal fun Throwable.isMissingFunction() = (this as? AppFailure)?.serverCode == "PGRST202"

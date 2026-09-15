@@ -21,6 +21,7 @@ internal fun apiFailure(status: Int, body: String): AppFailure {
         "too_many_reports" in lower -> AppError.TooManyReports
         "too_many_events" in lower -> AppError.TooManyEvents
         "invalid_age_limit" in lower -> AppError.InvalidDraft(listOf(DraftField.AGE_LIMITS))
+        "invalid_contact_url" in lower -> AppError.InvalidDraft(listOf(DraftField.CONTACT_URL))
         "organizer_cannot_join" in lower -> AppError.OrganizerCannotJoin
         "already_member" in lower -> AppError.AlreadyMember
         "event_has_space" in lower -> AppError.EventHasSpace

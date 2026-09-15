@@ -1,5 +1,6 @@
 package app.poruch.android.feature.editor
 
+import app.poruch.domain.ContactRules
 import app.poruch.domain.EventDraft
 import app.poruch.domain.PlaceResult
 import app.poruch.domain.SafetyRules
@@ -23,7 +24,9 @@ data class EditorForm(
     val minAge: String = DEFAULT_MIN_AGE,
     /** Порожньо — без верхньої межі. */
     val maxAge: String = "",
-    val approvalRequired: Boolean = false
+    val approvalRequired: Boolean = false,
+    /** Чат учасників. Порожньо — без чату. */
+    val contactUrl: String = ""
 ) {
     /** Крапка зустрічі, якщо є. З самих координат, а не з прапорця: прапорець розходився з ними. */
     val point: Pair<Double, Double>?
@@ -40,8 +43,11 @@ data class EditorForm(
             endsAt = LocalDateTime.parse(ends, LOCAL_FORMAT).atZone(zone).toInstant().toString(),
             timeZone = timeZone, capacity = capacity.toInt(), imageUrl = imageUrl,
             minAge = minAge.toInt(), maxAge = maxAge.trim().takeIf { it.isNotEmpty() }?.toInt(),
-            approvalRequired = approvalRequired
-        ).also { if (!SafetyRules.isAgeLimit(it.minAge, it.maxAge)) error("age limits") }
+            approvalRequired = approvalRequired, contactUrl = ContactRules.normalize(contactUrl)
+        ).also {
+            if (!SafetyRules.isAgeLimit(it.minAge, it.maxAge)) error("age limits")
+            if (!ContactRules.isContactUrl(it.contactUrl)) error("contact url")
+        }
     }.getOrNull()
 
     companion object {

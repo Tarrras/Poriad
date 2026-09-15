@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import app.poruch.android.EventMap
 import app.poruch.android.R
 import app.poruch.android.ui.*
+import app.poruch.domain.ContactRules
 import app.poruch.domain.Event
 import app.poruch.domain.asIndexEntry
 import app.poruch.domain.Gathering
@@ -75,6 +76,8 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
                 ExternalActions(state, onIntent)
                 Venue(event, onIntent)
                 Description(event, onIntent)
+                // Сервер віддає посилання лише організатору й підтвердженим: є посилання — є кому показати.
+                if (event.gathering?.hasContact == true) ContactSection(onIntent)
                 if (state.organizer && state.requests.isNotEmpty()) JoinRequests(state, onIntent)
                 if (state.organizer && !state.cancelled) OrganizerActions(state, onIntent)
                 if (!state.organizer) SafetyActions(event, onIntent)
@@ -91,7 +94,34 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
         onDismiss = { onIntent(DetailIntent.ConfirmBlock(false)) },
         tone = colors.danger
     )
+    if (state.confirmingContact) event.gathering?.contactUrl?.let { url ->
+        PoruchConfirmSheet(
+            title = stringResource(R.string.contact_confirm_title),
+            message = stringResource(R.string.contact_confirm_body, ContactRules.host(url)),
+            confirmLabel = stringResource(R.string.contact_confirm_open),
+            dismissLabel = stringResource(R.string.close),
+            onConfirm = { onIntent(DetailIntent.OpenContact) },
+            onDismiss = { onIntent(DetailIntent.ConfirmContact(false)) }
+        )
+    }
     state.reporting?.let { target -> ReportSheet(target, onIntent) }
+}
+
+/**
+ * Чат учасників. Кнопка веде не в браузер, а на попередження: посилання чуже, ми його не
+ * перевіряли, і людина має це знати до того, як вийде із застосунку.
+ */
+@Composable
+private fun ContactSection(onIntent: (DetailIntent) -> Unit) {
+    val colors = Poruch.colors
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        SectionHeader(stringResource(R.string.contact_section))
+        SecondaryButton(
+            stringResource(R.string.contact_open), { onIntent(DetailIntent.ConfirmContact(true)) },
+            Modifier.fillMaxWidth(), icon = Icons.Outlined.ChatBubbleOutline
+        )
+        Text(stringResource(R.string.contact_members_hint), style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary)
+    }
 }
 
 /** Скарга: іменована причина для сортування черги модерації плюс необов'язковий текст. */
@@ -466,7 +496,8 @@ private fun stickyHint(state: DetailState): String {
     val room = state.room ?: return ""
     return when {
         room.awaitingApproval -> stringResource(R.string.request_pending_hint)
-        room.approvalRequired && !room.joined && !state.organizer -> stringResource(R.string.approval_hint)
+        // Гостю — що його чекає, не текст перемикача з редактора.
+        room.approvalRequired && !room.joined && !state.organizer -> stringResource(R.string.approval_guest_hint)
         room.isFull && !room.joined && !state.organizer -> stringResource(R.string.waitlist_hint)
         else -> stringResource(R.string.seats, room.seatsLeft)
     }

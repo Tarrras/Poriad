@@ -65,6 +65,9 @@ interface EventParticipation {
 interface EventRequests {
     /** Хто проситься на мою подію. Порожньо для всіх, крім організатора. */
     suspend fun joinRequests(id: String): List<Attendee>
+
+    /** Усі запити до всіх моїх подій, що ще тривають: для головної і сповіщень. Свіжіші першими. */
+    suspend fun pendingRequests(): List<JoinRequest>
     suspend fun approveMember(eventId: String, userId: String)
     suspend fun declineMember(eventId: String, userId: String)
 }

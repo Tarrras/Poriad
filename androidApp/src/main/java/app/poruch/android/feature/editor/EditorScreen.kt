@@ -42,6 +42,7 @@ import app.poruch.android.MapController
 import app.poruch.android.MapZoom
 import app.poruch.android.R
 import app.poruch.android.ui.*
+import app.poruch.domain.ContactRules
 import app.poruch.domain.SafetyRules
 import java.time.LocalDateTime
 
@@ -348,6 +349,17 @@ private fun ScheduleStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
                 colors = SwitchDefaults.colors(checkedTrackColor = colors.brand, checkedThumbColor = colors.onBrand)
             )
         }
+        // Чат — єдиний канал до учасників. Лише https: решту відкидає і чернетка, і сервер.
+        LabelledField(
+            stringResource(R.string.contact_label), form.contactUrl,
+            { value -> onIntent(EditorIntent.Edit { copy(contactUrl = value.take(ContactRules.MAX_URL_LENGTH)) }) },
+            placeholder = stringResource(R.string.contact_placeholder),
+            hint = stringResource(R.string.contact_editor_hint),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri)
+        )
+        if (form.contactUrl.isNotBlank() && !ContactRules.isContactUrl(form.contactUrl)) Text(
+            stringResource(R.string.field_contact_url), style = MaterialTheme.typography.bodySmall, color = colors.danger
+        )
     }
     Column(Modifier.fillMaxWidth().cardSurface().padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         Text(

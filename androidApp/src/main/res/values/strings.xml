@@ -128,9 +128,9 @@
   <string name="photo_error">Оберіть JPEG, PNG або WebP розміром до 5 МБ.</string>
   <string name="photo_load_error">Фото зараз недоступне.</string>
   <string name="add_photo">Додати або замінити фото</string>
-  <string name="reminders">Нагадувати про мою участь</string>
+  <string name="reminders">Сповіщення про мої події</string>
   <string name="reminder_body">Початок за годину · %1$s</string>
-  <string name="reminder_note">Локальне нагадування приблизно за годину. Час доставки залежить від Android; зміни перевіряються під час відкриття застосунку.</string>
+  <string name="reminder_note">Нагадування приблизно за годину до початку і нові запити на участь у ваших подіях. Запити перевіряються, коли застосунок відкрито.</string>
   <string name="reminder_permission">Сповіщення вимкнено. Їх можна дозволити в налаштуваннях Android.</string>
   <string name="interests">Ваші інтереси</string>
     <string name="empty_map">Тут поки немає подій. Змініть фільтри або створіть першу зустріч.</string>
@@ -241,6 +241,32 @@
   <string name="age_limit_hint">Мінімум %1$d — молодших у застосунку немає.</string>
   <string name="approval_label">Підтверджувати учасників</string>
   <string name="approval_hint">Ви вирішуєте, хто приєднається до події.</string>
+  <string name="approval_guest_hint">Організатор підтверджує кожного гостя.</string>
+  <string name="contact_label">Чат учасників</string>
+  <string name="contact_placeholder">https://t.me/…</string>
+  <string name="contact_editor_hint">Посилання на Telegram, Instagram, Viber тощо. Його побачать лише ви та підтверджені учасники. За вміст чату відповідаєте ви.</string>
+  <string name="contact_section">Звʼязок з учасниками</string>
+  <string name="contact_open">Відкрити чат</string>
+  <string name="contact_members_hint">Посилання від організатора. Бачать лише учасники події.</string>
+  <string name="contact_confirm_title">Відкрити посилання від організатора?</string>
+  <string name="contact_confirm_body">Ви переходите на %1$s. Це посилання додав організатор події. «Поруч» не перевіряє його і не відповідає за вміст сторінки чи чату за ним. Не переходьте, якщо не довіряєте організатору.</string>
+  <string name="contact_confirm_open">Перейти</string>
+  <string name="field_contact_url">посилання на чат (лише https)</string>
+  <string name="requests_home_section">Запити на участь</string>
+  <string name="requests_home_hint">Відкрийте подію, щоб прийняти або відхилити.</string>
+  <plurals name="requests_count">
+    <item quantity="one">%1$d запит</item>
+    <item quantity="few">%1$d запити</item>
+    <item quantity="many">%1$d запитів</item>
+    <item quantity="other">%1$d запитів</item>
+  </plurals>
+  <string name="request_notification_channel">Запити на участь</string>
+  <plurals name="request_notification_body">
+    <item quantity="one">%1$d новий запит на участь. Відкрийте подію, щоб відповісти.</item>
+    <item quantity="few">%1$d нові запити на участь. Відкрийте подію, щоб відповісти.</item>
+    <item quantity="many">%1$d нових запитів на участь. Відкрийте подію, щоб відповісти.</item>
+    <item quantity="other">%1$d нових запитів на участь. Відкрийте подію, щоб відповісти.</item>
+  </plurals>
   <string name="age_badge_from">%1$d+</string>
   <string name="age_badge_range">%1$d–%2$d років</string>
   <string name="approval_badge">За підтвердженням</string>
@@ -288,7 +314,7 @@
   <string name="field_age_limits">вікові обмеження</string>
   <string name="find_on_map">Знайти на мапі</string>
   <string name="no_plans_title">Ще немає планів</string>
-  <string name="no_plans_hint">Приєднайтесь до події — вона зʼявиться тут із нагадуванням.</string>
+  <string name="no_plans_hint">Створіть подію або приєднайтесь до чужої — вона зʼявиться тут із нагадуванням.</string>
   <string name="share">Поділитися</string>
   <string name="share_event_text">%1$s · %2$s · %3$s</string>
   <string name="share_chooser">Поділитися подією</string>

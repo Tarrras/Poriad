@@ -30,12 +30,14 @@ struct HomeView: View {
                         symbol: "lock", action: openProfile
                     ).padding(.horizontal, Space.page)
                 } else {
+                    // Запити вище за плани: на них чекає інша людина.
+                    if !view.requests.isEmpty { requestsSection(view) }
                     VStack(alignment: .leading, spacing: Space.md) {
                         SectionHeader(title: "Скоро у вас")
                         if view.plans.isEmpty {
                             VStack(alignment: .leading, spacing: Space.xs) {
                                 Text("Ще немає планів").font(PoruchFont.cardName).foregroundStyle(Palette.ink)
-                                Text("Приєднайтесь до події — вона зʼявиться тут із нагадуванням.")
+                                Text("Створіть подію або приєднайтесь до чужої — вона зʼявиться тут із нагадуванням.")
                                     .font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
                             }
                             .padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()
@@ -126,6 +128,43 @@ struct HomeView: View {
         .padding(.top, statusBar)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(heroGradient)
+    }
+
+    /// Мої події, де хтось проситься. Тап веде на подію: відповідають там, дивлячись на неї.
+    private func requestsSection(_ view: HomePresentation) -> some View {
+        VStack(alignment: .leading, spacing: Space.md) {
+            VStack(alignment: .leading, spacing: Space.xs) {
+                SectionHeader(title: "Запити на участь")
+                Text("Відкрийте подію, щоб прийняти або відхилити.")
+                    .font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
+            }
+            ForEach(view.requests) { pending in
+                let label = requestsLabel(pending.count)
+                Button { model.app.selectEvent(id: pending.event.id); openEvent(pending.event.id) } label: {
+                    HStack(spacing: Space.md) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(pending.event.title).font(PoruchFont.cardName).foregroundStyle(Palette.ink).lineLimit(1)
+                            Text(label).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
+                        }
+                        Spacer(minLength: Space.sm)
+                        StatusBadge(text: "\(pending.count)", tone: .accent)
+                        Image(systemName: "arrow.right").font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(Palette.inkSecondary)
+                    }
+                    .padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()
+                }
+                .buttonStyle(PressableStyle())
+                .accessibilityLabel("\(pending.event.title), \(label)")
+            }
+        }.padding(.horizontal, Space.page)
+    }
+
+    /// «1 запит», «3 запити», «5 запитів».
+    private func requestsLabel(_ count: Int) -> String {
+        let last = count % 10, tens = count % 100
+        if last == 1 && tens != 11 { return "\(count) запит" }
+        if (2...4).contains(last) && !(12...14).contains(tens) { return "\(count) запити" }
+        return "\(count) запитів"
     }
 
     /// Кількість подій в області і перехід до каталогу.

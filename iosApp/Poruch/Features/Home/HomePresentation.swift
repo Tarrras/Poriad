@@ -6,8 +6,10 @@ struct HomePresentation {
     let signedIn: Bool
     let cityName: String
     let loading: Bool
-    /// Плани, до яких приєднались, найближчі першими.
+    /// Плани: організую або йду, найближчі першими.
     let plans: [Event]
+    /// Мої події, де чекають запити на участь, зі скількома. Лише в організатора.
+    let requests: [PendingRequests]
     /// Добірка за відповідями онбордингу. Порожня, якщо не відповідали.
     let suggested: [Event]
     let today: [Event]
@@ -43,7 +45,10 @@ struct HomePresentation {
         searchText = state?.searchText ?? ""
         savedIds = Set(state?.savedIds ?? [])
         waitlistedIds = Set(state?.waitlistedIds ?? [])
-        plans = (state?.myEvents ?? []).filter { $0.gathering?.joined == true && $0.isPublished }.sorted { $0.startsAt < $1.startsAt }
+        // І свої, і ті, куди йду: `concerns` — те саме правило, що в нагадуваннях.
+        let mine = state?.myEvents ?? []
+        plans = mine.filter { state?.concerns(event: $0) == true && $0.isPublished }.sorted { $0.startsAt < $1.startsAt }
+        requests = HomePresentation.pendingRequests(state?.pendingRequests ?? [], among: mine)
 
         // Увесь екран в одному порядку. Кожне звертання до Kotlin-списку — міст, тому читаємо раз у змінну.
         let cards = state?.cards ?? [:]
@@ -76,8 +81,27 @@ struct HomePresentation {
     }
 
     var isEmpty: Bool { searching ? results.isEmpty : suggested.isEmpty && today.isEmpty && rest.isEmpty }
+
+    /// Запити за подіями, у порядку стрічки (свіжіші першими). Подія без картки в «моїх» пропускається.
+    private static func pendingRequests(_ requests: [JoinRequest], among events: [Event]) -> [PendingRequests] {
+        guard !requests.isEmpty else { return [] }
+        let counts = RequestRules.shared.pendingByEvent(requests: requests)
+        let cards = Dictionary(events.map { ($0.id, $0) }) { first, _ in first }
+        var seen = Set<String>()
+        return requests.compactMap { request in
+            guard seen.insert(request.eventId).inserted, let event = cards[request.eventId] else { return nil }
+            return PendingRequests(event: event, count: counts[request.eventId].map { Int(truncating: $0) } ?? 0)
+        }
+    }
     func isSaved(_ event: Event) -> Bool { savedIds.contains(event.id) }
     func isWaitlisted(_ event: Event) -> Bool { waitlistedIds.contains(event.id) }
+}
+
+/// Подія й скільки людей просяться до неї.
+struct PendingRequests: Identifiable {
+    let event: Event
+    let count: Int
+    var id: String { event.id }
 }
 
 /// Головна — дайджест, а не каталог: далі краще на мапу.

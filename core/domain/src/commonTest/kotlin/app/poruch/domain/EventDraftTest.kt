@@ -11,4 +11,16 @@ class EventDraftTest {
     @Test fun endBeforeStartIsRejected() { assertTrue(draft().copy(endsAt="2030-09-05T11:00:00Z").validate("2030-01-01T00:00:00Z").contains(DraftField.ENDS_AT)) }
     @Test fun badTimeZoneIsRejected() { assertTrue(draft().copy(timeZone="Mars/Olympus").validate("2030-01-01T00:00:00Z").contains(DraftField.TIME_ZONE)) }
     @Test fun whitespaceTitleIsRejected() { assertTrue(draft().copy(title="   ").validate("2030-01-01T00:00:00Z").contains(DraftField.TITLE)) }
+    @Test fun contactLinkMustBeHttpsOrAbsent() {
+        assertFalse(draft().copy(contactUrl="https://t.me/poruch").validate("2030-01-01T00:00:00Z").contains(DraftField.CONTACT_URL))
+        assertFalse(draft().copy(contactUrl="  ").validate("2030-01-01T00:00:00Z").contains(DraftField.CONTACT_URL))
+        assertTrue(draft().copy(contactUrl="http://t.me/poruch").validate("2030-01-01T00:00:00Z").contains(DraftField.CONTACT_URL))
+        assertTrue(draft().copy(contactUrl="https://t.me/po ruch").validate("2030-01-01T00:00:00Z").contains(DraftField.CONTACT_URL))
+        assertTrue(draft().copy(contactUrl="https://"+"a".repeat(600)).validate("2030-01-01T00:00:00Z").contains(DraftField.CONTACT_URL))
+    }
+    @Test fun contactHostIsWhatThePersonWillSee() {
+        assertEquals("t.me", ContactRules.host("https://t.me/poruch?start=1"))
+        assertEquals("instagram.com", ContactRules.host("https://instagram.com"))
+        assertEquals("evil.example", ContactRules.host("https://user:pass@evil.example/x"))
+    }
 }

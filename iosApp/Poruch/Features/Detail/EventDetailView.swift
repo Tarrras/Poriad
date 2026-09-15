@@ -17,6 +17,8 @@ struct EventDetailView: View {
     @State private var cancelling = false
     @State private var reporting: ReportTarget?
     @State private var blocking = false
+    /// Попередження перед виходом у чужий чат: спершу кажемо, куди й хто це додав.
+    @State private var openingContact = false
     @State private var photo: PhotosPickerItem?
     /// Картка, з якою відкрили екран. Карусель будується від неї: скасованого вечора в індексі нема.
     @State private var anchor: Event?
@@ -82,6 +84,7 @@ struct EventDetailView: View {
                             Link("Читати повністю на джерелі", destination: url)
                                 .font(PoruchFont.button).foregroundStyle(Palette.brand)
                         }
+                        if let url = view.contactURL { contact(url) }
                         if view.organizer && !view.requests.isEmpty { joinRequests(event, view) }
                         if view.organizer && !view.cancelled { organizerActions(view) }
                         if !view.organizer { safetyActions(view) }
@@ -101,6 +104,12 @@ struct EventDetailView: View {
         .alert("Календар", isPresented: $actions.calendarDenied) {
             Button("Добре") { actions.calendarDenied = false }
         } message: { Text("Дозвольте доступ до календаря в налаштуваннях iOS.") }
+        .confirmationDialog(
+            "Ви переходите на \(view.contactURL.map { ContactRules.shared.host(url: $0.absoluteString) } ?? "сторонній сайт"). Це посилання додав організатор події. «Поруч» не перевіряє його і не відповідає за вміст сторінки чи чату за ним. Не переходьте, якщо не довіряєте організатору.",
+            isPresented: $openingContact, titleVisibility: .visible
+        ) {
+            Button("Перейти") { if let url = view.contactURL { UIApplication.shared.open(url) } }
+        }
         .confirmationDialog("Скасувати цю подію? Учасники бачитимуть її скасованою.", isPresented: $cancelling, titleVisibility: .visible) {
             Button("Скасувати подію", role: .destructive) { actions.cancel(event) }
         }
@@ -302,6 +311,18 @@ struct EventDetailView: View {
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(.isButton)
             .accessibilityLabel("Показати на мапі")
+        }
+    }
+
+    /// Чат учасників. Кнопка веде не в браузер, а на попередження: посилання чуже, ми його не
+    /// перевіряли, і людина має це знати до того, як вийде із застосунку.
+    private func contact(_ url: URL) -> some View {
+        VStack(alignment: .leading, spacing: Space.sm) {
+            SectionHeader(title: "Звʼязок з учасниками")
+            SecondaryButton(title: "Відкрити чат", symbol: "bubble.left.and.bubble.right") { openingContact = true }
+                .frame(maxWidth: .infinity)
+            Text("Посилання від організатора. Бачать лише учасники події.")
+                .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
         }
     }
 

@@ -37,6 +37,9 @@ class PoruchApp internal constructor(
     private val reminderStore: ReminderPreferenceStore? = null,
     /** Системний планувальник нагадувань. Null у тестах і превʼю: план рахується, але нікуди не йде. */
     reminders: ReminderScheduler? = null,
+    /** Сповіщення про нові запити на участь: сховище «бачених» і платформний показ. Обидва або нічого. */
+    private val seenRequests: SeenRequestStore? = null,
+    requestNotifier: RequestNotifier? = null,
     config: AppConfig = AppConfig("", ""),
     /** Стан живе на головному потоці: звідси читають і Compose, і SwiftUI. */
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
@@ -67,6 +70,7 @@ class PoruchApp internal constructor(
         refresh()
         if (state.value.signedIn) loadMyEvents()
         if (reminders != null) ReminderSync(state, reminders, scope).start()
+        if (requestNotifier != null && seenRequests != null) RequestAlertSync(state, seenRequests, requestNotifier, scope).start()
     }
 
     // ---- Сесія
@@ -312,7 +316,7 @@ class PoruchApp internal constructor(
             EventDraft(
                 event.title, event.description, event.category, event.city, event.address,
                 event.latitude, event.longitude, event.startsAt, event.endsAt, event.timeZone,
-                room.capacity, url, room.minAge, room.maxAge, room.approvalRequired
+                room.capacity, url, room.minAge, room.maxAge, room.approvalRequired, room.contactUrl
             )
         )
         changed(eventId); tell(AppMessage.PHOTO_ADDED)

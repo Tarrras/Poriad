@@ -23,7 +23,9 @@ data class DetailState(
     /** Хто проситься. Непорожньо лише для організатора. */
     val requests: List<Attendee> = emptyList(),
     val reporting: ReportTarget? = null,
-    val confirmingBlock: Boolean = false
+    val confirmingBlock: Boolean = false,
+    /** Попередження перед виходом у чужий чат: спершу кажемо, куди й хто це додав. */
+    val confirmingContact: Boolean = false
 ) {
     val cancelled get() = event?.isCancelled == true
 
@@ -98,6 +100,9 @@ sealed interface DetailIntent {
     data class SendReport(val reason: String, val details: String) : DetailIntent
     data class ConfirmBlock(val open: Boolean) : DetailIntent
     data object BlockOrganizer : DetailIntent
+    /** Відкрити чат учасників: спершу попередження, потім браузер. */
+    data class ConfirmContact(val open: Boolean) : DetailIntent
+    data object OpenContact : DetailIntent
     data class ApproveRequest(val userId: String) : DetailIntent
     data class DeclineRequest(val userId: String) : DetailIntent
     data object CancelEvent : DetailIntent

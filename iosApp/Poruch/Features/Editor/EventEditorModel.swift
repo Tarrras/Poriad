@@ -27,11 +27,17 @@ struct EditorForm: Codable, Equatable {
     var maxAge: Int?
     /// Приєднання — запит організатору, а не відкриті двері.
     var approvalRequired = false
+    /// Чат учасників. Optional, щоб старі чернетки читались далі; порожньо — без чату.
+    var contactUrl: String?
+
+    /// Посилання, як його бачить чернетка: обрізане, порожнє стає nil.
+    var contactLink: String? { ContactRules.shared.normalize(value: contactUrl) }
 
     /// Nil, поки не заповнене кожне поле. Кнопка публікації дивиться сюди.
     func draft(imageUrl: String?) -> EventDraft? {
         guard !title.trimmed.isEmpty, !city.trimmed.isEmpty, !address.trimmed.isEmpty, ends > starts else { return nil }
         guard SafetyRules.shared.isAgeLimit(minAge: Int32(minAge), maxAge: maxAge.map { KotlinInt(int: Int32($0)) }) else { return nil }
+        guard ContactRules.shared.isContactUrl(value: contactLink) else { return nil }
         let formatter = ISO8601DateFormatter()
         return EventDraft(
             title: title.trimmed, description: description.trimmed, category: category,
@@ -39,7 +45,7 @@ struct EditorForm: Codable, Equatable {
             startsAt: formatter.string(from: starts), endsAt: formatter.string(from: ends),
             timeZone: timeZone, capacity: Int32(capacity), imageUrl: imageUrl,
             minAge: Int32(minAge), maxAge: maxAge.map { KotlinInt(int: Int32($0)) },
-            approvalRequired: approvalRequired
+            approvalRequired: approvalRequired, contactUrl: contactLink
         )
     }
 }
@@ -250,7 +256,7 @@ enum EditorStep: Int, CaseIterable, Identifiable {
                 starts: parseEventDate(event.startsAt) ?? Date(), ends: parseEventDate(event.endsAt) ?? Date(),
                 timeZone: event.timeZone, capacity: Int(room.capacity),
                 minAge: Int(room.minAge), maxAge: room.maxAge.map { Int(truncating: $0) },
-                approvalRequired: room.approvalRequired
+                approvalRequired: room.approvalRequired, contactUrl: room.contactUrl
             )
             form.placed = true
             pointChosen = true

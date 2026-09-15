@@ -42,6 +42,11 @@ struct EventDetailPresentation {
     let organizer: Bool
     /// Хто проситься. Непорожньо лише для організатора.
     let requests: [Attendee]
+    /// Чат учасників. Сервер віддає його лише організатору й підтвердженим, тож є посилання — є кому показати.
+    var contactURL: URL? {
+        guard let raw = event?.gathering?.contactUrl, let url = URL(string: raw), url.scheme == "https" else { return nil }
+        return url
+    }
     /// Сеанс прокату вже почався: показати можна, купити квиток — ні. Тижневої виставки не стосується.
     let sessionStarted: Bool
 
@@ -99,7 +104,8 @@ struct EventDetailPresentation {
         }
         guard let room else { return "" }
         if room.awaitingApproval { return "Організатор ще не відповів" }
-        if room.approvalRequired && !room.joined && !organizer { return "Ви вирішуєте, хто приєднається до події." }
+        // Гостю — що його чекає, не текст перемикача з редактора.
+        if room.approvalRequired && !room.joined && !organizer { return "Організатор підтверджує кожного гостя." }
         if room.isFull && !room.joined && !organizer { return "Місць немає. Додамо вас, щойно звільниться місце." }
         return "Вільних місць: \(room.seatsLeft)"
     }

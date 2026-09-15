@@ -2,6 +2,7 @@ package app.poruch.android.feature.home
 
 import app.poruch.android.mvi.MviViewModel
 import app.poruch.domain.Event
+import app.poruch.domain.RequestRules
 import app.poruch.shared.AppState
 import app.poruch.shared.PoruchApp
 import kotlin.time.Clock
@@ -35,10 +36,11 @@ class HomeViewModel(private val app: PoruchApp) : MviViewModel<HomeState, HomeIn
             signedIn = shared.signedIn,
             cityName = shared.cityName,
             loading = shared.loading,
-            // У планах лише те, що ще не завершилось.
+            // У планах лише те, що ще не завершилось: і свої, і ті, куди йду.
             plans = shared.myEvents
-                .filter { it.gathering?.joined == true && it.isPublished && it.isCurrent(now) }
+                .filter { shared.concerns(it) && it.isPublished && it.isCurrent(now) }
                 .sortedBy { it.startsAt },
+            requests = pendingRequests(shared),
             suggested = suggested,
             today = onToday,
             rest = later - runningToday.toSet(),
@@ -61,6 +63,15 @@ class HomeViewModel(private val app: PoruchApp) : MviViewModel<HomeState, HomeIn
         HomeIntent.CreateEvent -> send(HomeEffect.Navigate(HomeDestination.EDITOR))
         HomeIntent.OpenMap -> send(HomeEffect.Navigate(HomeDestination.MAP))
         HomeIntent.OpenProfile -> send(HomeEffect.Navigate(HomeDestination.PROFILE))
+    }
+
+    /** Запити за подіями, у порядку стрічки (свіжіші першими). Подія без картки в «моїх» пропускається. */
+    private fun pendingRequests(shared: AppState): List<PendingRequests> {
+        if (shared.pendingRequests.isEmpty()) return emptyList()
+        val counts = RequestRules.pendingByEvent(shared.pendingRequests)
+        val cards = shared.myEvents.associateBy { it.id }
+        return shared.pendingRequests.map { it.eventId }.distinct()
+            .mapNotNull { id -> cards[id]?.let { PendingRequests(it, counts.getValue(id)) } }
     }
 
     private fun Event.startsOn(date: LocalDate) =

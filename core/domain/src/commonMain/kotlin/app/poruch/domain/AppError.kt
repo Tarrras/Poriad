@@ -54,7 +54,7 @@ sealed interface AppError {
 }
 
 /** Поля, які може відхилити [EventDraft.validate], щоб екран підсвітив потрібне. */
-enum class DraftField { TITLE, DESCRIPTION, CATEGORY, ADDRESS, LOCATION, CAPACITY, STARTS_AT, ENDS_AT, TIME_ZONE, IMAGE_URL, AGE_LIMITS }
+enum class DraftField { TITLE, DESCRIPTION, CATEGORY, ADDRESS, LOCATION, CAPACITY, STARTS_AT, ENDS_AT, TIME_ZONE, IMAGE_URL, AGE_LIMITS, CONTACT_URL }
 
 /** Єдиний виняток застосунку. Обробники дивляться на [error]. */
 class AppFailure(

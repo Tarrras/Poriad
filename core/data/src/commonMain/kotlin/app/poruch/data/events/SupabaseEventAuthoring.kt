@@ -44,5 +44,7 @@ internal class SupabaseEventAuthoring(
         put("p_min_age", d.minAge); d.maxAge?.let { put("p_max_age", it) } ?: put("p_max_age", JsonNull)
         put("p_approval_required", d.approvalRequired)
         put("p_image_url", d.imageUrl?.let(::JsonPrimitive) ?: JsonNull)
+        // Лише коли є: сервер без міграції чату не знає цього параметра, а відсутній означає «без чату».
+        ContactRules.normalize(d.contactUrl)?.let { put("p_contact_url", it) }
     }
 }

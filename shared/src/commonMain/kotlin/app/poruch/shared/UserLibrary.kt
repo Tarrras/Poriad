@@ -103,10 +103,13 @@ internal class UserLibrary(
                 val blocked = try { safety?.blocked().orEmpty() } catch (e: CancellationException) { throw e } catch (e: Exception) { emptyList() }
                 // Черга вирішує, яку кнопку показати на деталях, тому не best-effort.
                 val queued = participation.waitlistIds()
-                PoruchLog.i("mine") { "${mine.size} of mine, ${savedEvents.size} saved, ${queued.size} queued, ${interests.size} interests" }
+                // Стрічка запитів — доповнення: без неї головна лише не покаже бейджів.
+                val pending = try { requests.pendingRequests() } catch (e: CancellationException) { throw e } catch (e: Exception) { emptyList() }
+                PoruchLog.i("mine") { "${mine.size} of mine, ${savedEvents.size} saved, ${queued.size} queued, ${pending.size} requests, ${interests.size} interests" }
                 state.update {
                     it.copy(
                         myEvents = mine, savedIds = savedEvents, waitlistedIds = queued,
+                        pendingRequests = pending,
                         account = facts, blocked = blocked,
                         taste = it.taste.copy(interests = interests)
                     ).ranked()
@@ -142,7 +145,7 @@ internal class UserLibrary(
             it.copy(
                 myEvents = emptyList(), savedIds = emptyList(), waitlistedIds = emptyList(),
                 attendees = emptyList(), selectedEvent = null, joinRequests = emptyList(),
-                account = AccountFacts(), blocked = emptyList()
+                pendingRequests = emptyList(), account = AccountFacts(), blocked = emptyList()
             )
         }
     }

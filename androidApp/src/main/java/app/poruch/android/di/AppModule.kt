@@ -15,6 +15,7 @@ import app.poruch.android.navigation.Detail
 import app.poruch.android.navigation.Editor
 import app.poruch.android.platform.AlarmReminderScheduler
 import app.poruch.android.platform.NotificationPermission
+import app.poruch.android.platform.RequestNotificationCenter
 import app.poruch.domain.PoruchLog
 import app.poruch.shared.AppConfig
 import app.poruch.shared.AppGraph
@@ -34,7 +35,7 @@ val appModule = module {
         PoruchLog.i("app") { "graph created" }
         AppGraph(
             AppConfig(BuildConfig.SUPABASE_URL, BuildConfig.SUPABASE_KEY), SessionStore(androidContext()),
-            AlarmReminderScheduler(androidContext())
+            AlarmReminderScheduler(androidContext()), RequestNotificationCenter(androidContext())
         )
     } onClose { it?.close() }
     single { get<AppGraph>().app }

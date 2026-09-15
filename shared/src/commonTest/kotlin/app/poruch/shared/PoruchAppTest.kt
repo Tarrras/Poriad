@@ -42,7 +42,8 @@ class PoruchAppTest {
         override fun cached(query:EventQuery)=DiscoveryPage.Empty
         override suspend fun cards(ids:List<String>):List<Event> { cardRequests+=ids; return results.filter { it.id in ids } }
         override suspend fun details(id:String):Event? { if(failDetails) fail(AppError.ServiceUnavailable); return null }
-        override suspend fun myEvents()=emptyList<Event>()
+        var mine=emptyList<Event>()
+        override suspend fun myEvents()=mine
         override suspend fun attendees(id:String)=emptyList<Attendee>()
         override fun clearPrivateCache() {}
         override suspend fun savedIds()=emptyList<String>()
@@ -58,6 +59,8 @@ class PoruchAppTest {
         override suspend fun joinWaitlist(id:String) {}
         override suspend fun leaveWaitlist(id:String) {}
         override suspend fun joinRequests(id:String)=emptyList<Attendee>()
+        var pending=emptyList<JoinRequest>()
+        override suspend fun pendingRequests()=pending
         override suspend fun approveMember(eventId:String,userId:String) {}
         override suspend fun declineMember(eventId:String,userId:String) {}
     }
@@ -425,6 +428,31 @@ class PoruchAppTest {
         app.searchArea(-90.0,-230.0,90.0,230.0);runCurrent()
         assertEquals(-180.0,events.queries.last().west)
         assertEquals(180.0,events.queries.last().east);app.close()
+    }
+
+    /** Новий запит дзвонить раз: після перечитування ті самі ключі вже «бачені». */
+    @Test fun aNewJoinRequestRingsOnceAndShowsOnTheFeed()=runTest {
+        val events=Events()
+        val mine=event("mine","games","2090-01-01T10:00:00Z").let { it.copy(gathering=it.gathering!!.copy(organizerId="user")) }
+        val seen=object:SeenRequestStore { val keys=mutableSetOf<String>(); override fun seen()=keys.toSet(); override fun markSeen(keys:Set<String>) { this.keys+=keys } }
+        val rung=mutableListOf<RequestAlert>()
+        val app=PoruchApp(
+            events=events, saved=events, authoring=events, participation=events, requests=events,
+            auth=Auth(), geo=object:GeoSearchRepository { override suspend fun search(query:String)=emptyList<CityResult>() },
+            eventActions=EventActions(events,events,Auth()), accountActions=AccountActions(Auth()),
+            safety=safety, tasteStore=taste, scope=backgroundScope,
+            reminderStore=object:ReminderPreferenceStore { override fun enabled()=true; override fun setEnabled(enabled:Boolean) {} },
+            seenRequests=seen, requestNotifier=object:RequestNotifier { override fun notify(alerts:List<RequestAlert>) { rung+=alerts } }
+        )
+        events.pending=listOf(JoinRequest("mine","guest","Гість",null,"2026-09-16T10:00:00Z"))
+        events.mine=listOf(mine)
+        app.loadMyEvents(); advanceTimeBy(200); runCurrent()
+        assertEquals(listOf(RequestAlert("mine","mine",1)),rung)
+        assertEquals(1,app.state.value.pendingRequests.size)
+
+        app.loadMyEvents(); advanceTimeBy(200); runCurrent()
+        assertEquals(1,rung.size,"той самий запит не дзвонить удруге")
+        app.close()
     }
 
 }

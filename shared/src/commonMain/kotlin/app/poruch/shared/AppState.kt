@@ -42,6 +42,8 @@ data class AppState(
     val account: AccountFacts = AccountFacts(), val blocked: List<Attendee> = emptyList(),
     /** Хто проситься на відкриту подію. Непорожньо лише для організатора. */
     val joinRequests: List<Attendee> = emptyList(),
+    /** Запити до всіх моїх подій, свіжіші першими. Головна показує, [RequestAlertSync] дзвонить про нові. */
+    val pendingRequests: List<JoinRequest> = emptyList(),
     val searchText: String = "", val onlyAvailable: Boolean = false,
     /** Область поставлена рукою («Шукати тут»), а не обрана зі списку міст. Головна каже це вголос. */
     val customArea: Boolean = false,
@@ -51,6 +53,9 @@ data class AppState(
     fun isSaved(id: String) = id in savedIds
     fun isWaitlisted(id: String) = id in waitlistedIds
     fun organizes(event: Event) = userId != null && event.organizerId == userId
+
+    /** Своя подія: організую або йду. Це і є «плани» на головній і в нагадуваннях. */
+    fun concerns(event: Event) = event.gathering?.joined == true || organizes(event)
 
     /** Обрані категорії. Живуть у [taste], щоб були і в гостя. */
     val interests: List<String> get() = taste.interests

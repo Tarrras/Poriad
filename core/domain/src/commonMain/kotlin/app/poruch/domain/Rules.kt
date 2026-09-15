@@ -45,6 +45,30 @@ object SafetyRules {
         ageOn(birthDate, today).let { it >= MIN_SIGNUP_AGE && it <= MAX_PLAUSIBLE_AGE }
 }
 
+/**
+ * Посилання на чат учасників. Ми перевіряємо лише форму (https, без пробілів, не задовге):
+ * CHECK на сервері тримає те саме. Куди воно веде і що там — відповідальність організатора,
+ * і обидва клієнти кажуть це людині перед відкриттям.
+ */
+object ContactRules {
+    const val MAX_URL_LENGTH = 500
+    private const val SCHEME = "https://"
+
+    /** Порожнє чи null — без чату, це не помилка. */
+    fun isContactUrl(value: String?): Boolean {
+        val url = normalize(value) ?: return true
+        return url.startsWith(SCHEME) && url.length > SCHEME.length && url.length <= MAX_URL_LENGTH &&
+            url.none { it.isWhitespace() }
+    }
+
+    /** Те, що зберігаємо: обрізане, порожнє стає null. */
+    fun normalize(value: String?): String? = value?.trim()?.takeIf { it.isNotEmpty() }
+
+    /** Хост для попередження: людина має бачити, куди її ведуть, до того як вийде із застосунку. */
+    fun host(url: String): String =
+        url.removePrefix(SCHEME).substringBefore('/').substringBefore('?').substringBefore('#').substringBefore('@').ifEmpty { url }
+}
+
 /** Причина скарги. Фіксований список, а не вільний текст, щоб чергу можна було сортувати. */
 object ReportReason {
     const val MINORS = "minors"

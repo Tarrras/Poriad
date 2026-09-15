@@ -52,6 +52,8 @@ extension DraftField {
         case "STARTS_AT": "майбутня дата початку"
         case "ENDS_AT": "час закінчення"
         case "TIME_ZONE": "часовий пояс"
+        case "AGE_LIMITS": "вікові обмеження"
+        case "CONTACT_URL": "посилання на чат (лише https)"
         default: "фото"
         }
     }

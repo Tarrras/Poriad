@@ -169,10 +169,10 @@ struct ReminderPreference: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Space.sm) {
             Toggle(isOn: enabled) {
-                Text("Нагадувати за годину до події").font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
+                Text("Сповіщення про мої події").font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
             }
             .tint(Palette.brand)
-            Text(denied ? "Дозвольте сповіщення в налаштуваннях iOS." : "Локальне нагадування приблизно за годину до початку.")
+            Text(denied ? "Дозвольте сповіщення в налаштуваннях iOS." : "Нагадування за годину до початку і нові запити на участь у ваших подіях. Запити перевіряються, коли застосунок відкрито.")
                 .font(PoruchFont.caption).foregroundStyle(denied ? Palette.danger : Palette.inkTertiary)
         }.padding(Space.lg).cardSurface()
     }

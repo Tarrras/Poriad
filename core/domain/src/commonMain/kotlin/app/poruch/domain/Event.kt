@@ -132,9 +132,17 @@ data class Gathering(
     val approvalRequired: Boolean = false,
     /** Вікові межі гостей. Сервер відмовляє тим, хто поза діапазоном. */
     val minAge: Int = SafetyRules.MIN_SIGNUP_AGE,
-    val maxAge: Int? = null
+    val maxAge: Int? = null,
+    /**
+     * Чат учасників (Telegram, Instagram тощо). Сервер віддає його лише організатору й
+     * підтвердженим учасникам, решті — null. Куди веде — не перевіряємо, див. [ContactRules].
+     */
+    val contactUrl: String? = null
 ) {
     val seatsLeft get() = (capacity - attendeeCount).coerceAtLeast(0)
+
+    /** Є куди написати: посилання показують лише тим, кому сервер його віддав. */
+    val hasContact get() = !contactUrl.isNullOrBlank()
     val isFull get() = seatsLeft == 0
     val awaitingApproval get() = membership == Membership.REQUESTED
 
@@ -206,7 +214,9 @@ data class EventDraft(
     val endsAt: String, val timeZone: String, val capacity: Int, val imageUrl: String? = null,
     val minAge: Int = SafetyRules.MIN_SIGNUP_AGE, val maxAge: Int? = null,
     /** Приєднання — запит організатору, а не відкриті двері. */
-    val approvalRequired: Boolean = false
+    val approvalRequired: Boolean = false,
+    /** Чат учасників. Null — без чату. Формат перевіряє [ContactRules], вміст — ніхто. */
+    val contactUrl: String? = null
 ) {
     fun validate(now: String): List<DraftField> = buildList {
         if (title.trim().length !in EventRules.titleLength) add(DraftField.TITLE)
@@ -223,5 +233,6 @@ data class EventDraft(
         if (runCatching { TimeZone.of(timeZone) }.isFailure) add(DraftField.TIME_ZONE)
         if (imageUrl != null && !imageUrl.startsWith("https://")) add(DraftField.IMAGE_URL)
         if (!SafetyRules.isAgeLimit(minAge, maxAge)) add(DraftField.AGE_LIMITS)
+        if (!ContactRules.isContactUrl(contactUrl)) add(DraftField.CONTACT_URL)
     }
 }

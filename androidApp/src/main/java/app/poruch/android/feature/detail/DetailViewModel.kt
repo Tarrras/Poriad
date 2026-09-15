@@ -125,6 +125,11 @@ class DetailViewModel(private val app: PoruchApp, private val openedId: String) 
                 // Блокування прибирає подію з мапи, тож і екран за нею.
                 event?.organizerId?.let { app.blockUser(it); send(DetailEffect.Back) }
             }
+            is DetailIntent.ConfirmContact -> reduce { copy(confirmingContact = intent.open) }
+            DetailIntent.OpenContact -> {
+                reduce { copy(confirmingContact = false) }
+                event?.gathering?.contactUrl?.let { send(DetailEffect.OpenLink(it)) }
+            }
             is DetailIntent.ApproveRequest -> app.approveMember(eventId, intent.userId)
             is DetailIntent.DeclineRequest -> app.declineMember(eventId, intent.userId)
         }

@@ -45,7 +45,9 @@ internal data class EventDto(
     @SerialName("canonical_url") val canonicalUrl: String? = null,
     @SerialName("import_status") val importStatus: String? = null,
     @SerialName("price_min") val priceMin: Double? = null,
-    @SerialName("is_free") val isFree: Boolean? = null
+    @SerialName("is_free") val isFree: Boolean? = null,
+    // Лише для організатора й підтверджених: решті сервер віддає null. Картки з `discover_events` його не несуть.
+    @SerialName("contact_url") val contactUrl: String? = null
 ) {
     fun domain() = Event(
         id = id, title = title, description = description, category = category,
@@ -70,7 +72,8 @@ internal data class EventDto(
             membership = membership,
             approvalRequired = approvalRequired,
             minAge = minAge,
-            maxAge = maxAge
+            maxAge = maxAge,
+            contactUrl = contactUrl
         )
     }
 
@@ -88,6 +91,18 @@ internal data class EventDto(
             status = importStatus ?: ImportStatus.LIVE
         )
     }
+}
+
+/** Рядок `public.join_request_result` з `my_join_requests`. */
+@Serializable
+internal data class JoinRequestDto(
+    @SerialName("event_id") val eventId: String,
+    @SerialName("user_id") val userId: String,
+    @SerialName("display_name") val displayName: String = "",
+    @SerialName("avatar_url") val avatarUrl: String? = null,
+    @SerialName("requested_at") val requestedAt: String = ""
+) {
+    fun domain() = app.poruch.domain.JoinRequest(eventId, userId, displayName, avatarUrl, requestedAt)
 }
 
 @Serializable

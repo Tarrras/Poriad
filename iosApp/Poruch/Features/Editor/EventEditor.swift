@@ -219,6 +219,18 @@ private struct ScheduleStep: View {
             .padding(Space.lg).cardSurface()
             Text("Мінімум \(Int(SafetyRules.shared.MIN_SIGNUP_AGE)) — молодших у застосунку немає.")
                 .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
+            // Чат — єдиний канал до учасників. Лише https: решту відкидає і чернетка, і сервер.
+            LabelledField(
+                label: "Чат учасників",
+                text: Binding(get: { form.contactUrl ?? "" }, set: { form.contactUrl = String($0.prefix(Int(ContactRules.shared.MAX_URL_LENGTH))) }),
+                placeholder: "https://t.me/…",
+                hint: "Посилання на Telegram, Instagram, Viber тощо. Його побачать лише ви та підтверджені учасники. За вміст чату відповідаєте ви."
+            )
+            .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
+            if let link = form.contactLink, !ContactRules.shared.isContactUrl(value: link) {
+                Text("Посилання має починатися з https:// і не містити пробілів.")
+                    .font(PoruchFont.caption).foregroundStyle(Palette.danger)
+            }
         }
         VStack(alignment: .leading, spacing: Space.sm) {
             Text(categoryName(form.category).uppercased()).font(PoruchFont.overline)

@@ -9,7 +9,8 @@ import Shared
             RootView().environmentObject(model).tint(Palette.brand)
                 .onOpenURL { model.app.handleAuthCallback(url: $0.absoluteString) }
                 .onChange(of: scenePhase) { _, phase in
-                    if phase == .active { model.start(); model.app.refresh() }
+                    // Повернення в застосунок: запити на участь і членство могли змінитися, поки його не було.
+                    if phase == .active { model.start(); model.app.refresh(); model.app.loadMyEvents() }
                     if phase == .background { model.stop() }
                 }
         }
