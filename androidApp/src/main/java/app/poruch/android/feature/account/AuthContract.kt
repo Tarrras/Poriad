@@ -14,13 +14,16 @@ data class AuthState(
     val signedIn: Boolean = false,
     /** ISO-8601, порожньо до вибору. Лише для реєстрації. */
     val birthDate: String = "",
-    val pickingBirthDate: Boolean = false
+    val pickingBirthDate: Boolean = false,
+    /** Пошта, на яку пішов лист після реєстрації. Поки є — замість форми показуємо наступний крок. */
+    val awaitingConfirmation: String? = null
 ) {
     val emailValid get() = AccountRules.isEmail(email)
     val birthDateValue: LocalDate? get() = runCatching { LocalDate.parse(birthDate) }.getOrNull()
     /** Мінімальний вік перевіряємо тут заради чесної кнопки; база перевірить ще раз. */
     val adult get() = birthDateValue?.let { it <= LocalDate.now().minusYears(SafetyRules.MIN_SIGNUP_AGE.toLong()) } == true
-    val canSubmit get() = !mutating && emailValid && AccountRules.isPassword(password) &&
+    /** Без `mutating`: під час запиту кнопка лишається кольоровою зі спінером, а не сірою. */
+    val canSubmit get() = emailValid && AccountRules.isPassword(password) &&
         (!signup || (AccountRules.isName(name) && adult))
 }
 
@@ -34,10 +37,15 @@ sealed interface AuthIntent {
     data object ToggleMode : AuthIntent
     data object Submit : AuthIntent
     data object ResetPassword : AuthIntent
+    /** З кроку «перевірте пошту» назад до форми входу з тією ж поштою. */
+    data object ConfirmedGoLogin : AuthIntent
+    data object OpenMail : AuthIntent
     data object Back : AuthIntent
 }
 
 sealed interface AuthEffect {
     /** Вхід вдався, екран закривається. */
     data object Close : AuthEffect
+    /** Відкрити поштовий застосунок, якщо він є. */
+    data object OpenMail : AuthEffect
 }

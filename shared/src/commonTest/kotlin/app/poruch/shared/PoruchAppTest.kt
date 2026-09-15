@@ -13,7 +13,12 @@ class PoruchAppTest {
     private class Auth: AuthRepository {
         override val session=MutableStateFlow<UserSession?>(UserSession("user","token","refresh",9999999999))
         override suspend fun signIn(email:String,password:String) {}
-        override suspend fun signUp(email:String,password:String,name:String,birthDate:String)=true
+        /** Чи повертає бекенд сесію одразу; без підтвердження пошти — ні. */
+        var signUpSignsIn=true
+        override suspend fun signUp(email:String,password:String,name:String,birthDate:String):Boolean {
+            if(signUpSignsIn) session.value=UserSession("fresh","token","refresh",9999999999)
+            return signUpSignsIn
+        }
         override suspend fun signOut() { session.value=null }
         override suspend fun accessToken()=session.value?.accessToken
         override suspend fun requestPasswordReset(email:String) {}
@@ -56,8 +61,7 @@ class PoruchAppTest {
         override suspend fun approveMember(eventId:String,userId:String) {}
         override suspend fun declineMember(eventId:String,userId:String) {}
     }
-    private fun app(events:Events,scope:CoroutineScope):PoruchApp {
-        val auth=Auth()
+    private fun app(events:Events,scope:CoroutineScope,auth:Auth=Auth()):PoruchApp {
         return PoruchApp(
             events=events, saved=events, authoring=events, participation=events, requests=events,
             auth=auth,
@@ -248,6 +252,36 @@ class PoruchAppTest {
         val error=notice.error
         assertIs<AppError.InvalidDraft>(error)
         assertTrue(DraftField.TITLE in error.fields && DraftField.CAPACITY in error.fields)
+        app.close()
+    }
+    /** Реєстрація без сесії — це крок «перевірте пошту», а не банер на три секунди. */
+    @Test fun signUpWithoutSessionOpensConfirmationStep()=runTest {
+        val auth=Auth(); auth.session.value=null; auth.signUpSignsIn=false
+        val app=app(Events(),backgroundScope,auth)
+        runCurrent();app.signUp(" new@poruch.app ","password1","Імʼя","1990-01-01");runCurrent()
+        assertEquals("new@poruch.app",app.state.value.awaitingConfirmation)
+        assertNull(app.state.value.notice)
+        app.dismissConfirmationStep()
+        assertNull(app.state.value.awaitingConfirmation)
+        app.close()
+    }
+    @Test fun signUpWithSessionSkipsConfirmationStep()=runTest {
+        val auth=Auth(); auth.session.value=null
+        val app=app(Events(),backgroundScope,auth)
+        runCurrent();app.signUp("new@poruch.app","password1","Імʼя","1990-01-01");runCurrent()
+        assertNull(app.state.value.awaitingConfirmation)
+        assertEquals(AppNotice.Told(AppMessage.ACCOUNT_CREATED),app.state.value.notice)
+        assertTrue(app.state.value.signedIn)
+        app.close()
+    }
+    /** Лист підтверджено або людина увійшла інакше: крок закривається сам. */
+    @Test fun signingInClearsConfirmationStep()=runTest {
+        val auth=Auth(); auth.session.value=null; auth.signUpSignsIn=false
+        val app=app(Events(),backgroundScope,auth)
+        runCurrent();app.signUp("new@poruch.app","password1","Імʼя","1990-01-01");runCurrent()
+        assertNotNull(app.state.value.awaitingConfirmation)
+        app.handleAuthCallback("poruch://auth/callback");runCurrent()
+        assertNull(app.state.value.awaitingConfirmation)
         app.close()
     }
     @Test fun recoveryFlagSurvivesIdentityChange()=runTest {

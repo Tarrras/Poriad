@@ -72,7 +72,13 @@ class PoruchApp internal constructor(
         PoruchLog.i("session") { "identity → ${uid.shortId()}, clearing private state" }
         pendingCreation = null
         library.clear()
-        mutable.update { it.copy(userId = uid, events = emptyList(), passwordRecovery = false, completedEventId = null) }
+        mutable.update {
+            it.copy(
+                userId = uid, events = emptyList(), passwordRecovery = false, completedEventId = null,
+                // Вхід або підтвердження з листа: наступний крок реєстрації вже не потрібен.
+                awaitingConfirmation = if (uid != null) null else it.awaitingConfirmation
+            )
+        }
         refresh()
         if (uid != null) loadMyEvents()
     }
@@ -417,8 +423,13 @@ class PoruchApp internal constructor(
         val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
         val signedIn = accountActions.signUp(email, password, name, birthDate, today)
         PoruchLog.i("auth") { "sign up ${if (signedIn) "signed in immediately" else "awaiting email confirmation"}" }
-        tell(if (signedIn) AppMessage.ACCOUNT_CREATED else AppMessage.CONFIRM_EMAIL_FIRST)
+        // Без сесії відповідь — не банер, а окремий крок: екран входу показує, куди пішов лист і що далі.
+        if (signedIn) tell(AppMessage.ACCOUNT_CREATED)
+        else mutable.update { it.copy(awaitingConfirmation = email.trim()) }
     }
+
+    /** Людина повернулась до форми або закрила екран: крок «перевірте пошту» більше не показуємо. */
+    fun dismissConfirmationStep() { mutable.update { it.copy(awaitingConfirmation = null) } }
 
     fun signOut() = mutate {
         PoruchLog.i("auth") { "sign out" }

@@ -3,6 +3,7 @@ package app.poruch.android.feature
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.Intent
 import android.location.LocationManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -137,7 +138,13 @@ fun EditorRoute(route: Editor, navigator: Navigator) {
 @Composable
 fun AuthRoute(navigator: Navigator) {
     val model = koinViewModel<AuthViewModel>()
-    model.effects.handle { effect -> when (effect) { AuthEffect.Close -> navigator.back() } }
+    val context = LocalContext.current
+    model.effects.handle { effect ->
+        when (effect) {
+            AuthEffect.Close -> navigator.back()
+            AuthEffect.OpenMail -> context.openMailApp()
+        }
+    }
     AuthScreen(model.state.collectAsStateWithLifecycle().value, model::dispatch)
 }
 
@@ -146,6 +153,13 @@ fun ProfileRoute(navigator: Navigator) {
     val model = koinViewModel<ProfileViewModel>(viewModelStoreOwner = activityStoreOwner())
     model.effects.handle { effect -> when (effect) { ProfileEffect.SignIn -> navigator.open(Auth) } }
     ProfileScreen(model.state.collectAsStateWithLifecycle().value, model::dispatch) { ReminderPreference() }
+}
+
+/** Поштовий застосунок за категорією, без переліку клієнтів. Якщо його нема, лишаємось тут. */
+private fun Context.openMailApp() {
+    val intent = Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_EMAIL)
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    runCatching { startActivity(intent) }
 }
 
 /** Грубе положення без підписки: останнього відомого досить, свіже просимо лише коли його нема. */

@@ -10,6 +10,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.MailOutline
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Icon
@@ -49,14 +50,31 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
                     .clickable { onIntent(AuthIntent.Back) },
                 contentAlignment = Alignment.Center
             ) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.back), Modifier.size(18.dp), tint = colors.ink) }
+            val confirming = state.awaitingConfirmation != null
             Text(
-                stringResource(if (state.signup) R.string.auth_create else R.string.auth_welcome),
+                stringResource(
+                    when {
+                        confirming -> R.string.auth_check_email_title
+                        state.signup -> R.string.auth_create
+                        else -> R.string.auth_welcome
+                    }
+                ),
                 style = MaterialTheme.typography.displaySmall, color = colors.ink
             )
             Text(
-                stringResource(if (state.signup) R.string.auth_subtitle_signup else R.string.auth_description),
+                stringResource(
+                    when {
+                        confirming -> R.string.auth_check_email_subtitle
+                        state.signup -> R.string.auth_subtitle_signup
+                        else -> R.string.auth_description
+                    }
+                ),
                 style = MaterialTheme.typography.bodyLarge, color = colors.inkSecondary
             )
+        }
+        if (state.awaitingConfirmation != null) {
+            ConfirmationStep(state.awaitingConfirmation, onIntent)
+            return@Column
         }
         // Фокус на перше поле: імʼя при реєстрації, пошта при вході.
         val emailField = remember { FocusRequester() }
@@ -130,6 +148,43 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
     if (state.pickingBirthDate) BirthDateSheet(
         state.birthDateValue, { onIntent(AuthIntent.ShowBirthDatePicker(false)) }
     ) { onIntent(AuthIntent.SetBirthDate(it)) }
+}
+
+/**
+ * Наступний крок після реєстрації без сесії: куди пішов лист і що з ним робити. Той самий екран,
+ * а не банер: людина має побачити адресу й зрозуміти, що профіль ще не працює.
+ */
+@Composable
+private fun ConfirmationStep(email: String, onIntent: (AuthIntent) -> Unit) {
+    val colors = Poruch.colors
+    Column(Modifier.padding(Spacing.page), verticalArrangement = Arrangement.spacedBy(Spacing.lg)) {
+        Column(
+            Modifier.fillMaxWidth().background(colors.surface, Radius.md).border(1.dp, colors.hairline, Radius.md)
+                .padding(Spacing.xl),
+            verticalArrangement = Arrangement.spacedBy(Spacing.md)
+        ) {
+            Box(
+                Modifier.size(48.dp).background(colors.brandContainer, CircleShape),
+                contentAlignment = Alignment.Center
+            ) { Icon(Icons.Outlined.MailOutline, null, Modifier.size(22.dp), tint = colors.onBrandContainer) }
+            Text(
+                stringResource(R.string.auth_check_email_body, email),
+                style = MaterialTheme.typography.bodyLarge, color = colors.ink
+            )
+            Text(
+                stringResource(R.string.auth_check_email_hint),
+                style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary
+            )
+        }
+        PrimaryButton(
+            stringResource(R.string.auth_open_mail), { onIntent(AuthIntent.OpenMail) },
+            Modifier.fillMaxWidth(), icon = Icons.Outlined.MailOutline
+        )
+        SecondaryButton(
+            stringResource(R.string.auth_confirmed_login), { onIntent(AuthIntent.ConfirmedGoLogin) },
+            Modifier.fillMaxWidth()
+        )
+    }
 }
 
 /** Дата народження показується так, як її пишуть люди. */

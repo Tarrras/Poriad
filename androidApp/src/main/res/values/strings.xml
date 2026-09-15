@@ -360,6 +360,13 @@
   <string name="msg_password_changed">Пароль змінено</string>
   <string name="msg_set_new_password">Вкажіть новий пароль у профілі</string>
   <string name="msg_email_confirmed">Email підтверджено</string>
+  <!-- Крок після реєстрації: лист пішов, профіль запрацює після посилання в ньому. -->
+  <string name="auth_check_email_title">Перевірте пошту</string>
+  <string name="auth_check_email_subtitle">Лишився один крок — підтвердити адресу.</string>
+  <string name="auth_check_email_body">Ми надіслали лист на %1$s. Відкрийте посилання в ньому — і профіль готовий, застосунок відкриється сам.</string>
+  <string name="auth_check_email_hint">Немає листа? Зачекайте хвилину й загляньте в «Спам».</string>
+  <string name="auth_open_mail">Відкрити пошту</string>
+  <string name="auth_confirmed_login">Уже підтвердили? Увійти</string>
   <string name="msg_zoom_in">Збільшіть масштаб мапи, щоб побачити всі події в цій області</string>
   <string name="you_organize">Ви організатор</string>
   <!-- Афіша з відкритого джерела. Атрибуція й посилання на джерело — вимога, а не оздоблення

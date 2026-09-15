@@ -8,7 +8,7 @@ class AuthViewModel(private val app: PoruchApp) : MviViewModel<AuthState, AuthIn
         observe(app) { shared ->
             // Лист відновлення веде на профіль: пароль треба задати, а не ввести.
             if (shared.signedIn && !signedIn && !shared.passwordRecovery) send(AuthEffect.Close)
-            copy(mutating = shared.mutating, signedIn = shared.signedIn)
+            copy(mutating = shared.mutating, signedIn = shared.signedIn, awaitingConfirmation = shared.awaitingConfirmation)
         }
     }
 
@@ -27,7 +27,10 @@ class AuthViewModel(private val app: PoruchApp) : MviViewModel<AuthState, AuthIn
                 else app.signIn(it.email.trim(), it.password)
             }
             AuthIntent.ResetPassword -> app.requestPasswordReset(state.value.email.trim())
-            AuthIntent.Back -> send(AuthEffect.Close)
+            // Лист підтверджено: пошта вже в полі, лишається пароль.
+            AuthIntent.ConfirmedGoLogin -> { app.dismissConfirmationStep(); reduce { copy(signup = false, password = "") } }
+            AuthIntent.OpenMail -> send(AuthEffect.OpenMail)
+            AuthIntent.Back -> { app.dismissConfirmationStep(); send(AuthEffect.Close) }
         }
     }
 }

@@ -11,22 +11,29 @@ struct AuthView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Space.xxl) {
                 header
-                fields
+                if let email = model.state?.awaitingConfirmation { confirmation(email) } else { fields }
             }.padding(.bottom, Space.section)
         }
         .background(Palette.canvas)
         .toolbar(.hidden, for: .navigationBar)
+        // Екран живе в шиті, а банер кореня лишається під ним: помилки й відповіді показуємо тут.
+        .notice(model.state?.notice?.presented) { model.app.clearNotice() }
         .onChange(of: model.state?.userId) { _, userId in
             if userId != nil && model.state?.passwordRecovery != true { dismiss() }
         }
+        .onDisappear { model.app.dismissConfirmationStep() }
     }
+
+    private var confirming: Bool { model.state?.awaitingConfirmation != nil }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: Space.md) {
             ScrimButton(symbol: "chevron.left", label: "Назад") { dismiss() }
-            Text(form.register ? "Створити профіль" : "З поверненням")
+            Text(confirming ? "Перевірте пошту" : form.register ? "Створити профіль" : "З поверненням")
                 .font(PoruchFont.title1).titleTracking().foregroundStyle(Palette.ink)
-            Text(form.register
+            Text(confirming
+                 ? "Лишився один крок — підтвердити адресу."
+                 : form.register
                  ? "Кілька секунд — і ви зможете приєднуватись до подій та створювати власні."
                  : "Події можна переглядати без входу. Для участі потрібен профіль.")
                 .font(PoruchFont.bodyText).foregroundStyle(Palette.inkSecondary)
@@ -34,6 +41,34 @@ struct AuthView: View {
         .padding(.horizontal, Space.page).padding(.vertical, Space.xxl)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(heroGradient)
+    }
+
+    /// Наступний крок після реєстрації без сесії: куди пішов лист і що з ним робити. Той самий
+    /// екран, а не банер: людина має побачити адресу й зрозуміти, що профіль ще не працює.
+    private func confirmation(_ email: String) -> some View {
+        VStack(alignment: .leading, spacing: Space.lg) {
+            VStack(alignment: .leading, spacing: Space.md) {
+                Image(systemName: "envelope")
+                    .font(.system(size: 20, weight: .semibold)).foregroundStyle(Palette.onBrandContainer)
+                    .frame(width: 48, height: 48).background(Palette.brandContainer, in: Circle())
+                Text("Ми надіслали лист на \(email). Відкрийте посилання в ньому — і профіль готовий, застосунок відкриється сам.")
+                    .font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
+                Text("Немає листа? Зачекайте хвилину й загляньте в «Спам».")
+                    .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
+            }
+            .padding(Space.xl).frame(maxWidth: .infinity, alignment: .leading)
+            .cardSurface(radius: Corner.md, elevation: Elevation.card)
+            PrimaryButton(title: "Відкрити пошту", symbol: "envelope") {
+                if let url = URL(string: "message://") { UIApplication.shared.open(url) }
+            }
+            SecondaryButton(title: "Уже підтвердили? Увійти") {
+                // Лист підтверджено: пошта вже в полі, лишається пароль.
+                model.app.dismissConfirmationStep()
+                form.register = false
+                form.password = ""
+            }
+            .frame(maxWidth: .infinity)
+        }.padding(.horizontal, Space.page)
     }
 
     private var fields: some View {
@@ -60,10 +95,11 @@ struct AuthView: View {
                 PasswordRevealToggle(revealed: $form.revealed)
             }
             .textContentType(form.register ? .newPassword : .password)
+            // Під час запиту кнопка лишається кольоровою зі спінером: сама блокує дотик, поки `loading`.
             PrimaryButton(
                 title: form.register ? "Зареєструватися" : "Увійти",
                 loading: model.state?.mutating == true,
-                enabled: form.canSubmit && model.state?.mutating != true
+                enabled: form.canSubmit
             ) { form.submit(with: model.app) }
             Button("Забули пароль?") { model.app.requestPasswordReset(email: form.email) }
                 .font(PoruchFont.label).foregroundStyle(Palette.inkSecondary)

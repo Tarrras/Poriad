@@ -24,6 +24,11 @@ data class AppState(
     val cityLongitude: Double = HomeLocation.Kyiv.longitude, val cities: List<CityResult> = emptyList(),
     val category: String = ALL_CATEGORIES, val dateFilter: String = DateFilter.ANY, val offline: Boolean = false,
     val passwordRecovery: Boolean = false, val completedEventId: String? = null,
+    /**
+     * Пошта, на яку після реєстрації пішов лист із підтвердженням. Поки непорожньо, екран входу
+     * показує наступний крок замість форми. Зникає з входом або коли людина повертається до форми.
+     */
+    val awaitingConfirmation: String? = null,
     val taste: Taste = Taste(),
     /**
      * Події, що відповідають відповідям людини: лише вони йдуть у «Для вас». Зберігається, а не

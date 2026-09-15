@@ -207,7 +207,7 @@ struct PrimaryButton: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: Space.sm) {
-                if loading { ProgressView().tint(Palette.onBrand) }
+                if loading { ProgressView().tint(enabled ? Palette.onBrand : Palette.inkTertiary) }
                 else if let symbol { Image(systemName: symbol).font(.system(size: 15, weight: .semibold)) }
                 Text(title).font(PoruchFont.button).lineLimit(1)
             }
