@@ -60,6 +60,26 @@ Executed successfully on the selected project:
 - Live concurrent capacity test: **PASS**. Two parallel database transactions called `join_event` for the last place, with a three-second lock hold. Exactly one succeeded and the other returned `EVENT_FULL`; stored membership count was 1. A single bounded orchestration used `try/finally` cleanup; final checks showed **0 remaining test users and 0 remaining test events**. The earlier isolated setup was rejected by automatic review; the complete cleanup-scoped run was accepted.
 - `tests/concurrent_capacity.py`: Python syntax checked; reusable two-connection runner with a `finally` cleanup that verifies deletion. Requires `psycopg[binary]==3.2.9` and `TEST_DATABASE_URL` pointed at an authorized test database. The live run above used the Supabase SQL tool concurrently, not this Python transport.
 
+## Застосування SQL із коду
+
+`tools/apply_sql.py` застосовує міграції й дампи конвеєра прямим зʼєднанням з Postgres, без SQL Editor і без MCP. Рядок зʼєднання — `SUPABASE_DB_URL` у середовищі чи в `.env` (Dashboard → Connect → Session pooler; transaction pooler не годиться для довгих транзакцій). Потрібен `psycopg[binary]`.
+
+```bash
+python3 tools/apply_sql.py migrations          # що не застосовано; --apply виконує й записує в реєстр CLI
+python3 tools/apply_sql.py dump out/ --apply     # SQL від tools.ingest; маніфест задає порядок частин і звіряє sha256
+python3 tools/apply_sql.py all ~/sql-2026-09-15 --apply   # день змін: нові міграції, потім poruch-events-1…N.sql по черзі
+```
+
+`all` сортує файли даних як числа (`-2` перед `-10`) і веде журнал `.applied_sql.json` поруч із ними: після збою на девʼятому файлі повторний запуск пропускає перші вісім, а змінений файл застосовує знову. `--force` ігнорує журнал.
+
+`run` робить повний цикл сам: створює теку `out/sql-<дата>`, кладе туди копії ще не застосованих міграцій, генерує дамп конвеєром `tools.ingest` (аргументи конвеєра після `--`), застосовує спершу міграції, потім дані, і за успіху видаляє теку. Після збою тека лишається з журналом і `report.json`; дозастосувати її можна через `all <тека> --apply`. Джерело, що не обійшлось, лише згадується в попередженні: конвеєр і так не знімає його події; `--strict` натомість зупиняє запис.
+
+```bash
+python3 tools/apply_sql.py run --apply -- --city Київ
+```
+
+Реєстр — `supabase_migrations.schema_migrations`, спільний із Supabase CLI. Частину міграцій цього проєкту застосовано з Dashboard під іншими штампами часу, тому міграція вважається застосованою, якщо в реєстрі є її версія або її назва; скрипт показує обидва випадки окремо. Міграцію, яка вже виконана вручну, але в реєстрі відсутня, записують без виконання: `migrations --mark-applied <назва>` (так зроблено з `listing_has_no_capacity` 2026-09-15).
+
 To repeat SQL tests, execute each whole file as a database administrator through the SQL editor or `psql -v ON_ERROR_STOP=1 "$TEST_DATABASE_URL" -f tests/access_and_transactions.sql`. Do not run partial fixture sections. This test uses database JWT claim emulation to test Postgres authorization; it does not replace device Auth, email callback, upload transport or end-to-end UI tests.
 
 ## Errors

@@ -15,8 +15,15 @@ tools/ingest/cache/
 __pycache__/
 *.pyc
 
-# Python поза tools лишається поза версіонуванням.
-# 2026-09-11: власник попросив повернути скрипти tools під контроль Git.
 *.py
 !tools/*.py
 !tools/**/*.py
+
+.env
+.env.*
+*.key
+
+# Журнал tools/apply_sql.py: локальний стан застосованих дампів
+.applied_sql.json
+# Робочі теки tools/apply_sql.py run: живуть до успішного застосування
+out/
