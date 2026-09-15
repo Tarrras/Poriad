@@ -1,8 +1,8 @@
 package app.poruch.android.feature.explore
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -32,30 +32,41 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import app.poruch.android.R
 import app.poruch.android.ui.*
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
 /** Висота картки каруселі, як у [EventMapCard]. */
 private val MapCardHeight = 112.dp
+
 /** Місце під плаваючий таббар у кожному положенні шторки. */
 private val TabBarInset = 84.dp
+
 /** Скільки мапи лишаємо над повністю піднятою шторкою. Фільтри повертаються в половинному положенні. */
 private val SheetTopInset = Spacing.sm
+
 /** Частка інерції пальця, що схиляє вибір положення. */
 private const val COAST_SHARE = 0.25f
+
 /** Час інерції від швидкості відпускання, с. */
 private const val COAST_SECONDS = 0.2f
 
 /**
  * Шторка над мапою: згорнута — карусель, піднята — список тієї ж видачі. Карусель і мапа
- * ділять один вибір. Жест протягування живе лише на шапці, список гортається сам.
+ * ділять один вибір. Шторку тягне і шапка, і прокрутка списку: пальцем угору список спершу
+ * піднімає шторку до повної, пальцем униз від верху списку — опускає її.
  */
 @Composable
 internal fun DiscoverySheet(
@@ -68,7 +79,8 @@ internal fun DiscoverySheet(
     val navBottom = WindowInsets.navigationBars.getBottom(density)
     val statusTop = WindowInsets.statusBars.getTop(density)
     // Згорнута шторка: рядок лічильника, карусель і місце під таббар.
-    val peekPx = with(density) { (44.dp + Spacing.sm + MapCardHeight + TabBarInset).toPx() } + navBottom
+    val peekPx =
+        with(density) { (44.dp + Spacing.sm + MapCardHeight + TabBarInset).toPx() } + navBottom
     val screenPx = with(density) { screenHeight.toPx() }
     val fullPx = maxOf(screenPx - statusTop - with(density) { SheetTopInset.toPx() }, peekPx)
     val halfPx = maxOf(screenPx * 0.55f, peekPx).coerceAtMost(fullPx)
@@ -79,41 +91,110 @@ internal fun DiscoverySheet(
     }
 
     // Висота йде за пальцем, а не за положенням, інакше під час жесту над вмістом порожнеча.
-    val height = remember { Animatable(peekPx) }
+    // Звичайний стан, а не Animatable: вкладена прокрутка питає, скільки спожито, тут і зараз,
+    // а snapTo у корутині відповідав би на наступному кадрі й губив кроки.
+    var height by remember { mutableFloatStateOf(peekPx) }
+    var settling by remember { mutableStateOf<Job?>(null) }
     fun settleAt(detent: SheetDetent) {
-        scope.launch {
-            if (reducedMotion) height.snapTo(anchor(detent))
-            else height.animateTo(anchor(detent), spring(dampingRatio = 0.86f, stiffness = Spring.StiffnessMediumLow))
+        settling?.cancel()
+        val target = anchor(detent)
+        settling = scope.launch {
+            if (reducedMotion) height = target
+            else animate(
+                height,
+                target,
+                animationSpec = spring(dampingRatio = 0.86f, stiffness = Spring.StiffnessMediumLow)
+            ) { value, _ ->
+                height = value
+            }
         }
         onIntent(ExploreIntent.SetDetent(detent))
     }
+
+    /** Зсув пальця (вниз додатний) у висоту; повертає спожиту частину в тому ж знаку. */
+    fun dragBy(delta: Float): Float {
+        settling?.cancel()
+        val before = height
+        height = (before - delta).coerceIn(peekPx, fullPx)
+        return before - height
+    }
+
+    /** До найближчого положення з урахуванням інерції. */
+    fun settleFrom(velocity: Float) {
+        val target = height - velocity * COAST_SECONDS * COAST_SHARE
+        settleAt(SheetDetent.entries.minBy { abs(anchor(it) - target) })
+    }
     LaunchedEffect(state.detent, peekPx, fullPx) {
-        if (!height.isRunning && height.value != anchor(state.detent)) settleAt(state.detent)
+        if (settling?.isActive != true && height != anchor(state.detent)) settleAt(state.detent)
     }
-    val drag = rememberDraggableState { delta ->
-        scope.launch { height.snapTo((height.value - delta).coerceIn(peekPx, fullPx)) }
-    }
-    val handleModifier = Modifier.draggable(
-        drag, Orientation.Vertical,
-        onDragStopped = { velocity ->
-            // До найближчого положення з урахуванням інерції.
-            val target = height.value - velocity * COAST_SECONDS * COAST_SHARE
-            settleAt(SheetDetent.entries.minBy { abs(anchor(it) - target) })
-        }
-    )
+    val drag = rememberDraggableState { delta -> dragBy(delta) }
+    val handleModifier =
+        Modifier.draggable(drag, Orientation.Vertical, onDragStopped = { settleFrom(it) })
+    val expandedThreshold = peekPx + with(density) { Spacing.section.toPx() }
     // Від живої висоти, а не від положення: вміст стає списком, щойно палець відкрив місце.
-    val expanded = height.value > peekPx + with(density) { Spacing.section.toPx() }
+    val expanded = height > expandedThreshold
     BackHandler(state.detent != SheetDetent.PEEK) { settleAt(SheetDetent.PEEK) }
 
-    val heightDp = with(density) { height.value.toDp() }
+    // Прокрутка списку тягне шторку: угору — доки не повна, униз — коли список уже на початку.
+    val listConnection = remember(peekPx, fullPx) {
+        object : NestedScrollConnection {
+            /** Чи зрушив список шторку в цьому жесті: тоді відпускання сідає на положення. */
+            var moved = false
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (source != NestedScrollSource.UserInput || available.y >= 0) return Offset.Zero
+                val consumed = dragBy(available.y)
+                if (consumed != 0f) moved = true
+                return Offset(0f, consumed)
+            }
+
+            override fun onPostScroll(
+                consumed: Offset,
+                available: Offset,
+                source: NestedScrollSource
+            ): Offset {
+                if (source != NestedScrollSource.UserInput || available.y <= 0) return Offset.Zero
+                val taken = dragBy(available.y)
+                if (taken != 0f) moved = true
+                // Нижче порога список зникає разом із жестом, тож сідаємо на згорнуту звідси.
+                if (height <= expandedThreshold) {
+                    moved = false; settleAt(SheetDetent.PEEK)
+                }
+                return Offset(0f, taken)
+            }
+
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                if (!moved) return Velocity.Zero
+                moved = false
+                val atAnchor = SheetDetent.entries.any { abs(anchor(it) - height) < 0.5f }
+                settleFrom(available.y)
+                // Шторка між положеннями — інерція її, а не списку.
+                return if (atAnchor) Velocity.Zero else available
+            }
+        }
+    }
+
+    val heightDp = with(density) { height.toDp() }
     // Згорнутій шторці підкладка не потрібна.
     val surface = if (expanded) {
-        Modifier.shadow(Elevation.overlay, Radius.sheet, clip = false, ambientColor = colors.shadowAmbient, spotColor = colors.shadowSpot)
-            .background(colors.canvas, Radius.sheet).clip(Radius.sheet)
+        Modifier
+            .shadow(
+                Elevation.overlay,
+                Radius.sheet,
+                clip = false,
+                ambientColor = colors.shadowAmbient,
+                spotColor = colors.shadowSpot
+            )
+            .background(colors.canvas, Radius.sheet)
+            .clip(Radius.sheet)
     } else Modifier
     Column(
-        modifier.fillMaxWidth().height(heightDp).then(surface)
-            .navigationBarsPadding().padding(bottom = TabBarInset),
+        modifier
+            .fillMaxWidth()
+            .height(heightDp)
+            .then(surface)
+            .nestedScroll(listConnection)
+            .navigationBarsPadding()
+            .padding(bottom = TabBarInset),
         verticalArrangement = Arrangement.spacedBy(Spacing.sm)
     ) {
         SheetHeader(state, expanded, handleModifier, onIntent) { settleAt(it) }
@@ -131,40 +212,82 @@ private fun SheetHeader(
     val label = countLabel(state)
     val showList = stringResource(R.string.show_list)
     Column(
-        Modifier.fillMaxWidth().then(handle).padding(horizontal = Spacing.page).padding(top = if (expanded) Spacing.md else 0.dp),
-        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.md)
+        Modifier
+            .fillMaxWidth()
+            .then(handle)
+            .padding(horizontal = Spacing.page)
+            .padding(top = if (expanded) Spacing.md else 0.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(Spacing.md)
     ) {
         // Ручка — складка на папері, а не пігулка Material.
-        if (expanded) Box(Modifier.width(32.dp).height(4.dp).background(colors.inkTertiary, CircleShape))
+        if (expanded) Box(
+            Modifier
+                .width(32.dp)
+                .height(4.dp)
+                .background(colors.inkTertiary, CircleShape)
+        )
         Row(
             Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
         ) {
             if (expanded) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(label, style = MaterialTheme.typography.titleLarge, color = colors.ink)
-                    Text(areaLabel(state), style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary, maxLines = 1)
+                    Text(
+                        areaLabel(state),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.inkSecondary,
+                        maxLines = 1
+                    )
                 }
             } else {
                 Spacer(Modifier.weight(1f))
                 // Тягнеться і натискається: тап по лічильнику пояснює жест.
                 Row(
-                    Modifier.height(40.dp).cardSurface(Radius.pill)
-                        .clickable(role = Role.Button, onClickLabel = showList) { open(SheetDetent.HALF) }
+                    Modifier
+                        .height(40.dp)
+                        .cardSurface(Radius.pill)
+                        .clickable(
+                            role = Role.Button,
+                            onClickLabel = showList
+                        ) { open(SheetDetent.HALF) }
                         .padding(horizontal = Spacing.lg),
-                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
                 ) {
-                    if (state.loading) CircularProgressIndicator(Modifier.size(14.dp), color = colors.brand, strokeWidth = 2.dp)
-                    else if (state.offline) Icon(Icons.Outlined.CloudOff, null, Modifier.size(14.dp), tint = colors.accent)
+                    if (state.loading) CircularProgressIndicator(
+                        Modifier.size(14.dp),
+                        color = colors.brand,
+                        strokeWidth = 2.dp
+                    )
+                    else if (state.offline) Icon(
+                        Icons.Outlined.CloudOff,
+                        null,
+                        Modifier.size(14.dp),
+                        tint = colors.accent
+                    )
                     Text(label, style = MaterialTheme.typography.labelMedium, color = colors.ink)
-                    Icon(Icons.Outlined.ExpandLess, null, Modifier.size(16.dp), tint = colors.inkSecondary)
+                    Icon(
+                        Icons.Outlined.ExpandLess,
+                        null,
+                        Modifier.size(16.dp),
+                        tint = colors.inkSecondary
+                    )
                 }
             }
             // Вихід із фокуса на піні знімає і підсвітку, інакше мапа й список розходились.
-            if (state.stackFocused) IconPill(Icons.Outlined.Close, stringResource(R.string.show_all_events)) {
+            if (state.stackFocused) IconPill(
+                Icons.Outlined.Close,
+                stringResource(R.string.show_all_events)
+            ) {
                 onIntent(ExploreIntent.ClearStack)
             }
-            if (expanded) IconPill(Icons.Outlined.ExpandMore, stringResource(R.string.show_map)) { open(SheetDetent.PEEK) }
+            if (expanded) IconPill(
+                Icons.Outlined.ExpandMore,
+                stringResource(R.string.show_map)
+            ) { open(SheetDetent.PEEK) }
         }
     }
 }
@@ -205,7 +328,9 @@ private fun EventCarousel(state: ExploreState, onIntent: (ExploreIntent) -> Unit
             info.visibleItemsInfo.minByOrNull { abs(it.offset + it.size / 2 - middle) }?.index
         }
     }
-    LaunchedEffect(listState.isScrollInProgress) { if (listState.isScrollInProgress) userDriven = true }
+    LaunchedEffect(listState.isScrollInProgress) {
+        if (listState.isScrollInProgress) userDriven = true
+    }
     LaunchedEffect(centered, listState.isScrollInProgress) {
         if (listState.isScrollInProgress || !userDriven) return@LaunchedEffect
         userDriven = false
@@ -216,27 +341,38 @@ private fun EventCarousel(state: ExploreState, onIntent: (ExploreIntent) -> Unit
     LaunchedEffect(centered, state.deckEvents.size, state.hasMoreCards) {
         val position = centered ?: return@LaunchedEffect
         if (!state.hasMoreCards) return@LaunchedEffect
-        if (position >= state.deckEvents.size - PREFETCH_AHEAD) onIntent(ExploreIntent.LoadMore(state.deckEvents.size + PAGE))
+        if (position >= state.deckEvents.size - PREFETCH_AHEAD) onIntent(
+            ExploreIntent.LoadMore(
+                state.deckEvents.size + PAGE
+            )
+        )
     }
     LaunchedEffect(state.selectedId, state.deckEvents) {
         val id = state.selectedId ?: return@LaunchedEffect
         val index = state.deckEvents.indexOfFirst { it.id == id }
         if (index >= 0 && index != centered) {
             userDriven = false
-            if (reducedMotion) listState.scrollToItem(index) else listState.animateScrollToItem(index)
+            if (reducedMotion) listState.scrollToItem(index) else listState.animateScrollToItem(
+                index
+            )
         }
     }
     BoxWithConstraints {
         // Картка вужча за екран, щоб наступна визирала.
         val cardWidth = maxWidth - 64.dp
         LazyRow(
-            state = listState, flingBehavior = rememberSnapFlingBehavior(listState),
-            contentPadding = PaddingValues(horizontal = Spacing.page), horizontalArrangement = Arrangement.spacedBy(Spacing.md)
+            state = listState,
+            flingBehavior = rememberSnapFlingBehavior(listState),
+            contentPadding = PaddingValues(horizontal = Spacing.page),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
             items(state.deckEvents, key = { it.id }) { event ->
                 EventMapCard(
-                    event, Modifier.width(cardWidth), focused = event.id == state.selectedId,
-                    saved = event.id in state.savedIds, onSave = { onIntent(ExploreIntent.ToggleSaved(event.id)) }
+                    event,
+                    Modifier.width(cardWidth),
+                    focused = event.id == state.selectedId,
+                    saved = event.id in state.savedIds,
+                    onSave = { onIntent(ExploreIntent.ToggleSaved(event.id)) }
                 ) { onIntent(ExploreIntent.OpenEvent(event.id)) }
             }
         }
@@ -248,40 +384,71 @@ private fun EventCarousel(state: ExploreState, onIntent: (ExploreIntent) -> Unit
 private fun SheetList(state: ExploreState, onIntent: (ExploreIntent) -> Unit) {
     val colors = Poruch.colors
     Row(
-        Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = Spacing.md),
+        Modifier
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = Spacing.md),
         horizontalArrangement = Arrangement.spacedBy(Spacing.xs)
     ) {
         categories.forEach { category ->
-            CategoryTile(category, state.listCategory == category) { onIntent(ExploreIntent.PickListCategory(category)) }
+            CategoryTile(
+                category,
+                state.listCategory == category
+            ) { onIntent(ExploreIntent.PickListCategory(category)) }
         }
     }
     val rows = state.deckEvents
     if (rows.isEmpty()) {
-        if (state.loading) Box(Modifier.fillMaxWidth().padding(vertical = Spacing.section), Alignment.Center) {
+        if (state.loading) Box(
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = Spacing.section),
+            Alignment.Center
+        ) {
             CircularProgressIndicator(color = colors.brand)
         } else QuietCard(Modifier.padding(Spacing.page), onIntent)
         return
     }
     val listState = rememberLazyListState()
-    val lastVisible by remember { derivedStateOf { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0 } }
+    val lastVisible by remember {
+        derivedStateOf {
+            listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+        }
+    }
     // Список довантажує картки сам, а не лише карусель.
     LaunchedEffect(lastVisible, rows.size, state.hasMoreCards) {
-        if (state.hasMoreCards && lastVisible >= rows.size - PREFETCH_AHEAD) onIntent(ExploreIntent.LoadMore(rows.size + PAGE))
+        if (state.hasMoreCards && lastVisible >= rows.size - PREFETCH_AHEAD) onIntent(
+            ExploreIntent.LoadMore(
+                rows.size + PAGE
+            )
+        )
     }
     LazyColumn(
         state = listState,
-        contentPadding = PaddingValues(start = Spacing.page, end = Spacing.page, top = Spacing.xs, bottom = Spacing.section),
+        contentPadding = PaddingValues(
+            start = Spacing.page,
+            end = Spacing.page,
+            top = Spacing.xs,
+            bottom = Spacing.section
+        ),
         verticalArrangement = Arrangement.spacedBy(Spacing.lg)
     ) {
         items(rows, key = { it.id }) { event ->
             EventCard(
-                event, saved = event.id in state.savedIds, waitlisted = event.id in state.waitlistedIds,
+                event,
+                saved = event.id in state.savedIds,
+                waitlisted = event.id in state.waitlistedIds,
                 onSave = { onIntent(ExploreIntent.ToggleSaved(event.id)) }
             ) { onIntent(ExploreIntent.OpenEvent(event.id)) }
         }
         if (state.hasMoreCards) item {
-            Box(Modifier.fillMaxWidth().padding(vertical = Spacing.lg), Alignment.Center) {
-                CircularProgressIndicator(Modifier.size(20.dp), color = colors.brand, strokeWidth = 2.dp)
+            Box(Modifier
+                .fillMaxWidth()
+                .padding(vertical = Spacing.lg), Alignment.Center) {
+                CircularProgressIndicator(
+                    Modifier.size(20.dp),
+                    color = colors.brand,
+                    strokeWidth = 2.dp
+                )
             }
         }
     }
@@ -290,10 +457,28 @@ private fun SheetList(state: ExploreState, onIntent: (ExploreIntent) -> Unit) {
 @Composable
 private fun QuietCard(modifier: Modifier, onIntent: (ExploreIntent) -> Unit) {
     val colors = Poruch.colors
-    Column(modifier.fillMaxWidth().cardSurface().padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-        Text(stringResource(R.string.nothing_here), style = MaterialTheme.typography.titleSmall, color = colors.ink)
-        Text(stringResource(R.string.nothing_here_hint), style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
-        GhostButton(stringResource(R.string.create), { onIntent(ExploreIntent.CreateEvent) }, Modifier.padding(top = Spacing.xs))
+    Column(
+        modifier
+            .fillMaxWidth()
+            .cardSurface()
+            .padding(Spacing.lg),
+        verticalArrangement = Arrangement.spacedBy(Spacing.sm)
+    ) {
+        Text(
+            stringResource(R.string.nothing_here),
+            style = MaterialTheme.typography.titleSmall,
+            color = colors.ink
+        )
+        Text(
+            stringResource(R.string.nothing_here_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = colors.inkSecondary
+        )
+        GhostButton(
+            stringResource(R.string.create),
+            { onIntent(ExploreIntent.CreateEvent) },
+            Modifier.padding(top = Spacing.xs)
+        )
     }
 }
 

@@ -23,6 +23,29 @@ private enum SheetDetent {
     case peek, half, full
 }
 
+/// Прокрутка списку в шторці від його початку.
+private struct ListOffsetKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+}
+
+private extension View {
+    /// Зсув ScrollView від початку, вниз додатний, у `offset`. На iOS 18+ від самої прокрутки: GeometryReader
+    /// у фоні вмісту на новіших системах не оновлюється, і зсув застрягав на нулі. На iOS 17 читає
+    /// preference `ListOffsetKey`, який вміст має виставити сам у просторі "sheetList".
+    @ViewBuilder
+    func listOffset(_ offset: Binding<CGFloat>) -> some View {
+        if #available(iOS 18, *) {
+            onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y + $0.contentInsets.top } action: { _, new in
+                offset.wrappedValue = new
+            }
+        } else {
+            coordinateSpace(name: "sheetList")
+                .onPreferenceChange(ListOffsetKey.self) { offset.wrappedValue = $0 }
+        }
+    }
+}
+
 struct DiscoveryView: View {
     @EnvironmentObject var model: AppModel
     @StateObject private var location = LocationFinder()
@@ -41,6 +64,10 @@ struct DiscoveryView: View {
     /// Зсув пальця по ручці шторки, вниз додатний. Не `@GestureState`: той скидається окремим
     /// оновленням, і шторка стрибала до старого положення перед новим.
     @State private var sheetDrag: CGFloat = 0
+    /// Зсув пальця по списку в момент, коли протягування перейшло від списку до шторки. `nil` — список сам по собі.
+    @State private var listDrag: CGFloat?
+    /// Прокрутка списку від його початку; від'ємна, коли список відтягнуто нижче верху.
+    @State private var listOffset: CGFloat = 0
     /// Розмір екрана під контролами: з нього рахуються висоти шторки.
     @State private var screen: CGSize = .zero
     /// Категорія, обрана плитками в шторці. Звужує список, а не мапу.
@@ -273,7 +300,7 @@ struct DiscoveryView: View {
         .gesture(sheetDragGesture)
     }
 
-    /// Протягування шторки лише на шапці, інакше жест відбирав у списку прокрутку.
+    /// Протягування шторки на шапці. Список має свій жест: `listDragGesture`.
     private var sheetDragGesture: some Gesture {
         // Екранні координати: у власних шапка їде разом зі шторкою, і відліки тремтять.
         DragGesture(minimumDistance: 2, coordinateSpace: .global)
@@ -366,9 +393,52 @@ struct DiscoveryView: View {
                         }
                     }
                     .padding(.horizontal, Space.page).padding(.top, Space.md).padding(.bottom, Space.section)
+                    .background {
+                        // Запасний вимір для iOS 17; на 18+ його не читають.
+                        GeometryReader { proxy in
+                            Color.clear.preference(key: ListOffsetKey.self, value: -proxy.frame(in: .named("sheetList")).minY)
+                        }
+                    }
                 }
+                .listOffset($listOffset)
+                // Список гортається лише в повній шторці; нижче протягування піднімає її. Вимкнення
+                // під час жесту скасовує прокрутку UIKit, і шторка їде замість гумового краю.
+                .scrollDisabled(detent != .full || listDrag != nil)
+                // Нижче повної список не гортається, і жест має перебити натискання картки, інакше
+                // протягування відкривало її. У повній він лише йде поруч із прокруткою UIKit.
+                .highPriorityGesture(listDragGesture, including: detent == .full ? .subviews : .all)
+                .simultaneousGesture(listDragGesture, including: detent == .full ? .all : .subviews)
             }
         }
+    }
+
+    /// Прокрутка списку тягне шторку: угору — доки не повна, униз від верху списку — опускає її.
+    private var listDragGesture: some Gesture {
+        DragGesture(minimumDistance: 8, coordinateSpace: .global)
+            .onChanged { value in
+                let dy = value.translation.height
+                if listDrag == nil {
+                    // Після сідання на згорнуту список зникає, а жест ще шле оновлення.
+                    guard detent != .peek else { return }
+                    // У повній шторці список гортається сам; беремо жест, лише коли він на початку і палець іде вниз.
+                    guard detent != .full || (listOffset <= 0.5 && dy > 0) else { return }
+                    listDrag = dy
+                }
+                guard let origin = listDrag else { return }
+                let drag = dy - origin
+                // Нижче порога список зникає разом із жестом, тож сідаємо на згорнуту звідси.
+                if height(of: detent) - drag <= height(of: .peek) + Space.section {
+                    listDrag = nil
+                    open(.peek)
+                    return
+                }
+                sheetDrag = drag
+            }
+            .onEnded { value in
+                guard let origin = listDrag else { return }
+                listDrag = nil
+                settle(translation: value.translation.height - origin, predicted: value.predictedEndTranslation.height - origin)
+            }
     }
 
     private var quietCard: some View {
