@@ -1,4 +1,4 @@
-"""Status notices must target a known session, never an entire event URL."""
+"""Повідомлення статусу мають вказувати на відомий сеанс, а не на весь URL події."""
 import unittest
 from .fetch import Response
 from . import karabas_status

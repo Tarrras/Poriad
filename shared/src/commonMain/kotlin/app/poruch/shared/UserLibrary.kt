@@ -6,9 +6,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 
 /**
- * The signed-in half of the state: the open event with its roster, and the lists that belong to
- * one account. Separated from discovery because every one of these must be dropped the moment the
- * identity changes — [clear] is the single place that guarantees it.
+ * Стан, прив'язаний до акаунта: відкрита подія з учасниками і списки «мої». Окремо від пошуку,
+ * бо все це має зникнути при зміні акаунта, і [clear] — єдине місце, яке це гарантує.
  */
 internal class UserLibrary(
     private val events: EventDiscovery,
@@ -24,31 +23,32 @@ internal class UserLibrary(
 ) {
     private var detailJob: Job? = null
     private var listJob: Job? = null
-    /** The id the detail screen is currently showing; a late answer for any other id is dropped. */
+    /** Id відкритої події. Запізніла відповідь для іншого id відкидається. */
     var openEventId: String? = null
         private set
 
     /**
-     * Наводить застосунок на подію. [full] відрізняє підсвітку від відкриття.
-     *
-     * Підсвітка трапляється на кожен крок каруселі, і досі кожен крок коштував запиту. А
-     * `event_details` — це `select * from private.event_rows(array[p_event_id])`, тобто **та сама**
-     * проєкція, якою прийшла видача: для рядка, що вже лежить у стані, відповідь збігається з
-     * питанням. Виміряно 135–384 мс на свайп, а з акаунтом на iOS удвічі більше, бо слідом летів
-     * ще й ростер — для афіші, у якої учасників не буває за означенням.
-     *
-     * Тож мережу чіпаємо лише тоді, коли є що дізнатися: рядка немає в памʼяті (глибоке посилання,
-     * сповіщення, подія поза поточною областю) або екран деталей справді відкрито — там показують
-     * лічильник місць і членство, а вони могли змінитися без нас.
+     * Наводить застосунок на подію. [full] — відкриття екрана деталей, інакше підсвітка.
+     * Підсвітка на кожен крок каруселі, тож мережу чіпаємо лише коли є що дізнатися: рядка нема
+     * в пам'яті або деталі справді відкрито (місця й членство могли змінитися).
      */
     fun select(id: String, full: Boolean = false) {
         openEventId = id
         detailJob?.cancel()
-        // Show what discovery already knows while the full record loads: no empty screen.
-        val known = state.value.let { (it.events + it.myEvents).firstOrNull { event -> event.id == id } }
+        // Показуємо те, що вже знаємо, поки їдуть деталі. `cards` теж: сеанс прокату, обраний
+        // у каруселі дат, у стрічці згорнуто.
+        val known = state.value.let {
+            (it.events + it.myEvents).firstOrNull { event -> event.id == id } ?: it.cards[id]
+        }
+        // Інша дата того ж прокату без картки: лишаємо поточну до відповіді. Порожній екран
+        // гірший за секунду старої дати, а при 504 людина лишається з банером, а не спінером.
+        val stay = known == null && state.value.let { current ->
+            val open = current.selectedEvent
+            open != null && open.id != id && EventSeries.sessionsOf(open, current.index).any { it.id == id }
+        }
         state.update {
             it.copy(
-                selectedEvent = known ?: it.selectedEvent?.takeIf { open -> open.id == id },
+                selectedEvent = known ?: it.selectedEvent?.takeIf { open -> open.id == id || stay },
                 attendees = emptyList(), joinRequests = emptyList()
             )
         }
@@ -68,18 +68,14 @@ internal class UserLibrary(
             } catch (e: Exception) {
                 state.update { it.copy(notice = AppNotice.Failed(e.asAppError())) }
             }
-            // The roster is an enhancement over the count the details already carry, so a failure
-            // (guest, non-member, or a server without the migration) leaves the count-only view.
-            //
-            // Афіша сюди не потрапляє: ростер бачать організатор і учасники (`can_view_members`),
-            // а в оголошення немає ні тих, ні тих. Порожня відповідь була гарантована — питати за
-            // неї було просто нічим.
+            // Учасники — доповнення до лічильника, тож збій лишає лише число. Афішу не питаємо:
+            // ростер бачать організатор і учасники (`can_view_members`), а в неї нема ні тих, ні тих.
             if (state.value.signedIn && state.value.selectedEvent?.isCommunity == true) {
                 val roster = try { events.attendees(id) } catch (e: CancellationException) { throw e } catch (e: Exception) { emptyList() }
                 PoruchLog.d("detail") { "roster for ${id.shortId()}: ${roster.size} visible" }
                 if (openEventId == id) state.update { it.copy(attendees = roster) }
             }
-            // Only an organizer has requests to answer, and only for their own event.
+            // Запити є лише в організатора і лише для своєї події.
             val mine = state.value.selectedEvent?.let { it.id == id && state.value.organizes(it) } == true
             val requests = if (mine) {
                 try { requests.joinRequests(id) } catch (e: CancellationException) { throw e } catch (e: Exception) { emptyList() }
@@ -102,11 +98,10 @@ internal class UserLibrary(
                 val mine = events.myEvents()
                 val savedEvents = saved.savedIds()
                 val interests = adoptInterests()
-                // Best-effort: a server without the safety migration must not empty «my events».
+                // Best-effort: сервер без міграції безпеки не має спустошити «мої події».
                 val facts = try { safety?.account() ?: AccountFacts() } catch (e: CancellationException) { throw e } catch (e: Exception) { AccountFacts() }
                 val blocked = try { safety?.blocked().orEmpty() } catch (e: CancellationException) { throw e } catch (e: Exception) { emptyList() }
-                // Queue positions decide which action the detail screen offers, so an empty list on
-                // failure would show the wrong button. They load with the rest, not best-effort.
+                // Черга вирішує, яку кнопку показати на деталях, тому не best-effort.
                 val queued = participation.waitlistIds()
                 PoruchLog.i("mine") { "${mine.size} of mine, ${savedEvents.size} saved, ${queued.size} queued, ${interests.size} interests" }
                 state.update {
@@ -125,12 +120,8 @@ internal class UserLibrary(
     }
 
     /**
-     * Reconciles the answers this device holds with the ones the account carries.
-     *
-     * The account wins when it has any, so a person who answered on their phone sees the same
-     * recommendations on a tablet. When the account has none — the usual case, since the questions
-     * are asked before signing up — the device's answers go up instead of being wiped by the empty
-     * server copy. Persisting the result locally keeps the next launch instant.
+     * Узгоджує інтереси пристрою з акаунтом. Акаунт перемагає, якщо має хоч щось; порожній
+     * акаунт (звичний випадок, питання ставлять до реєстрації) отримує відповіді пристрою.
      */
     private suspend fun adoptInterests(): List<String> {
         val local = state.value.taste.interests
@@ -143,11 +134,7 @@ internal class UserLibrary(
         return remote
     }
 
-    /**
-     * Drops every trace of the previous account, in memory and on disk. The opening answers are not
-     * a trace of it: they belong to the phone, were given before any account existed, and the app
-     * would be back to a blank list the moment somebody signs out.
-     */
+    /** Прибирає все від попереднього акаунта в пам'яті й на диску. Відповіді онбордингу належать телефону і лишаються. */
     fun clear() {
         listJob?.cancel(); detailJob?.cancel(); openEventId = null
         events.clearPrivateCache()

@@ -1,17 +1,8 @@
 import SwiftUI
 import Shared
 
-/**
- Notices land under the status bar, not over the tab bar: the eye is already at the top after a
- tap, and the bottom edge belongs to navigation. Tone carries the meaning — a red wash for a
- failure, green for a success — so the two never read the same at a glance.
-
- Дотиків банер не забирає — крім власного хрестика.
-
- Під ним на цій же смузі стоїть пошук: на мапі — просто під смугою статусу. Доки весь банер був
- кнопкою, він на кілька секунд накривав поле, і дотик у поле діставався банеру. Збоку це
- виглядало як «поле перестало натискатися», хоч натискалось воно чудово — просто не воно.
- */
+/// Банер під статус-баром, а не над таббаром. Тон несе зміст: червоний для помилки, зелений для
+/// успіху. Дотиків не забирає, крім власного хрестика: інакше він накривав поле пошуку під собою.
 struct NoticeBanner: View {
     let text: String
     let error: Bool
@@ -45,7 +36,7 @@ struct NoticeBanner: View {
                 )
             Text(text).font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            // Місце під хрестик, що лежить накладкою: інакше текст заходив би йому під низ.
+            // Місце під хрестик-накладку, щоб текст не заходив під нього.
             Color.clear.frame(width: 24, height: 1)
         }
         .padding(Space.md)
@@ -53,8 +44,7 @@ struct NoticeBanner: View {
     }
 }
 
-/// What the banner needs, in a value SwiftUI can compare. The shared `AppNotice` is a protocol
-/// existential, which cannot be `Equatable`, and both `animation(value:)` and `task(id:)` require it.
+/// Дані банера як `Equatable`-значення: спільний `AppNotice` — протокол, а `animation(value:)` і `task(id:)` потребують Equatable.
 struct Notice: Equatable {
     let text: String
     let isError: Bool
@@ -64,7 +54,7 @@ extension AppNotice {
     var presented: Notice { Notice(text: text, isError: isError) }
 }
 
-/// Hosts the notice above any screen: it owns the hold-and-fade so each screen does not repeat it.
+/// Показує банер над будь-яким екраном і сам тримає затримку й згасання.
 struct NoticeOverlay: ViewModifier {
     let notice: Notice?
     let dismiss: () -> Void
@@ -95,6 +85,6 @@ extension View {
     }
 }
 
-/// Long enough to read; errors linger because they usually ask for a decision.
+/// Досить, щоб прочитати; помилки висять довше, бо просять рішення.
 private let infoHold: TimeInterval = 3
 private let errorHold: TimeInterval = 5

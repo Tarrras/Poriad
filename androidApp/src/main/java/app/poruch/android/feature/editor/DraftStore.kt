@@ -3,21 +3,11 @@ package app.poruch.android.feature.editor
 import android.content.Context
 import androidx.core.content.edit
 
-/**
- * Keeps an unpublished draft across process death. Only new events are saved: an edit already has
- * its record on the server, and a stale local copy would silently overwrite it.
- */
+/** Тримає неопубліковану чернетку після смерті процесу. Лише нові події: редагування має запис на сервері. */
 class DraftStore(context: Context) {
     private val store = context.getSharedPreferences(NAME, Context.MODE_PRIVATE)
 
-    /**
-     * Місто підставляємо, координати — ні.
-     *
-     * Раніше порожні координати заповнювались центром міста, і нова подія з першого кадру
-     * вважалась такою, де крапку вже поставили: підпис казав «позначено», пін стояв посеред
-     * Києва, а опублікувати її можна було, жодного разу не торкнувшись мапи. Порожньо — чесніше:
-     * мапа однаково відкривається на місті, але як вигляд, а не як відповідь.
-     */
+    /** Місто підставляємо, координати — ні: центр міста як крапка дозволяв опублікувати подію, не торкнувшись мапи. */
     fun load(city: String) = EditorForm(
         title = store.read(TITLE),
         description = store.read(DESCRIPTION),

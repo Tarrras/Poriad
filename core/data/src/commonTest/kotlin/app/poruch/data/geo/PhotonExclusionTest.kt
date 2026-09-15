@@ -6,12 +6,7 @@ import io.ktor.http.*
 import kotlinx.coroutines.test.runTest
 import kotlin.test.*
 
-/**
- * Правило продукту, а не деталь парсера: росії в пошуку немає.
- *
- * Тест тримає обидва пошуки — міст і адрес, — бо це два різні шляхи крізь ту саму відповідь
- * Photon, і випасти правило може окремо в кожному.
- */
+/** Росії в пошуку немає. Перевіряємо обидва шляхи: міста й адреси. */
 class PhotonExclusionTest {
     private fun repo(body: String) = PhotonGeoSearchRepository(
         HttpClient(MockEngine { respond(body, HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json")) }),
@@ -23,10 +18,7 @@ class PhotonExclusionTest {
          "properties":{"type":"city","name":"$name","street":"$name","housenumber":"1","city":"$name","country":"$country","countrycode":"$code"}}
     """.trimIndent()
 
-    /**
-     * Photon на «Lviv» віддає вісім відповідей, з яких місто одне: далі вокзал, область, район,
-     * університет, аеропорт. Поїхати за будь-якою з них — опинитись там, де подій немає.
-     */
+    /** На «Lviv» Photon віддає ще вокзал, область, університет і аеропорт: лишаємо місто. */
     @Test fun citySearchKeepsOnlySettlements() = runTest {
         val body = """{"features":[
          {"geometry":{"coordinates":[24.03,49.84]},"properties":{"type":"city","name":"Львів","countrycode":"UA"}},
@@ -48,7 +40,7 @@ class PhotonExclusionTest {
         assertEquals(listOf("Фролівська, 1"), found.map { it.label })
     }
 
-    /** Відсутній `countrycode` — не привід ховати місце: фільтр звужений до однієї країни. */
+    /** Без `countrycode` місце не ховаємо. */
     @Test fun placeWithoutCountryCodeSurvives() = runTest {
         val body = """{"features":[{"geometry":{"coordinates":[30.5,50.4]},"properties":{"name":"Безіменна","street":"Безіменна","housenumber":"2"}}]}"""
         assertEquals(listOf("Безіменна, 2"), repo(body).places("без", 50.45, 30.52).map { it.label })

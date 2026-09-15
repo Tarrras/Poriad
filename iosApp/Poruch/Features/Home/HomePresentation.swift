@@ -1,37 +1,30 @@
 import Foundation
 import Shared
 
-/// The three lists home shows, derived once from the shared state rather than recomputed inside
-/// the view body on every redraw.
+/// Списки головної, зібрані раз зі спільного стану, а не в тілі view на кожне перемальовування.
 struct HomePresentation {
     let signedIn: Bool
     let cityName: String
     let loading: Bool
-    /// Plans this account joined, soonest first.
+    /// Плани, до яких приєднались, найближчі першими.
     let plans: [Event]
-    /// What the opening answers picked out. Empty when nothing was answered — never a filler.
+    /// Добірка за відповідями онбордингу. Порожня, якщо не відповідали.
     let suggested: [Event]
     let today: [Event]
-    /// Те, що лишилось поза дайджестом. Головна його не друкує — лише каже, скільки його.
+    /// Решта поза дайджестом. Головна лише каже, скільки її.
     let rest: [Event]
-    /// Скільки подій в області насправді: стільки ж, скільки лічильник на мапі.
+    /// Скільки подій в області, те саме число, що на мапі.
     let totalFound: Int
-    /// Чи область — уже не саме місто. Підпис головної має казати правду після «Шукати тут».
+    /// Область поставили рукою через «Шукати тут».
     let customArea: Bool
-    /**
-     Пошук — той самий, що й на мапі.
-
-     Другий пошук поруч із першим означав би два джерела правди: тут знайшлось, там ні. Тому
-     головна не шукає сама, а відкриває двері до того ж запиту — і бачить ту саму видачу, з якої
-     і так малює свої списки.
-     */
+    /// Той самий пошук, що на мапі: другого джерела правди нема.
     let searchText: String
-    /// Уся видача одним списком: дайджест із результатів пошуку не складають.
+    /// Результати пошуку одним списком, без дайджесту.
     let results: [Event]
 
     var searching: Bool { !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
-    /// Що саме означає «поруч»: місто зі списку міст чи рамку, яку лишили на мапі.
+    /// Що означає «поруч»: місто зі списку чи область на мапі.
     var areaLabel: String {
         customArea
             ? "Плани в області, яку ви обрали на мапі"
@@ -52,29 +45,18 @@ struct HomePresentation {
         waitlistedIds = Set(state?.waitlistedIds ?? [])
         plans = (state?.myEvents ?? []).filter { $0.gathering?.joined == true && $0.isPublished }.sorted { $0.startsAt < $1.startsAt }
 
-        // Everything below reads the ranked list, so the whole screen is in one order.
-        //
-        // Кожне звертання до списку з Kotlin — це міст: сто сорок подій, зібраних заново. Тому
-        // читаємо по одному разу в локальну змінну, а не двічі в одному виразі.
+        // Увесь екран в одному порядку. Кожне звертання до Kotlin-списку — міст, тому читаємо раз у змінну.
         let cards = state?.cards ?? [:]
         let ranked = (state?.index ?? []).compactMap { cards[$0.id] }
         suggested = Array((state?.suggestedIndex ?? [])
             .compactMap { cards[$0.id] }
             .prefix(homeSuggestedLimit))
-        // What is already under «Для вас» is not repeated further down the same screen.
+        // Те, що вже в «Для вас», нижче не повторюємо.
         let shown = Set(suggested.map(\.id))
         let remaining = ranked.filter { !shown.contains($0.id) }
-        // «Сьогодні в місті» — це те, куди сьогодні можна піти, а не лише те, що сьогодні
-        // починається. Виставка, відкрита до 30 вересня, сьогодні відкрита так само, як концерт,
-        // що починається ввечері.
-        //
-        // Порядок усередині секції — єдине місце на екрані, де ми відступаємо від спільного
-        // ранжування. Прокат стоїть у ньому першим, бо змагається як «зараз», і на пʼяти місцях
-        // секції виставки витіснили б усе, що сьогодні починається. А пропустити можна саме те,
-        // що починається: прокат буде відкритий і завтра.
-        //
-        // `Calendar.current` — не константа, а новий календар на кожне звертання. У циклі на сто
-        // сорок подій це сто сорок календарів заради одного порівняння днів.
+        // «Сьогодні» — куди можна піти сьогодні, включно з прокатами. Але те, що сьогодні
+        // починається, йде першим: прокат буде відкритий і завтра. `Calendar.current` — новий
+        // об'єкт на кожне звертання, тому один на цикл.
         let calendar = Calendar.current
         let now = nowInstant()
         var startingToday: [Event] = []
@@ -98,10 +80,10 @@ struct HomePresentation {
     func isWaitlisted(_ event: Event) -> Bool { waitlistedIds.contains(event.id) }
 }
 
-/// Home is a digest, not a catalogue: past these counts the map is the better place to look.
+/// Головна — дайджест, а не каталог: далі краще на мапу.
 let homeTodayLimit = 5
-/// Home is a digest: past this many, «для вас» stops being a shortlist and becomes the list.
+/// Більше за це «для вас» перестає бути добіркою.
 let homeSuggestedLimit = 4
-/// Скільки результатів показує головна. Далі краще на мапу: там область і фільтри.
+/// Скільки результатів пошуку показує головна.
 let homeResultsLimit = 12
 let homePlansLimit = 8

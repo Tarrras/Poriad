@@ -1,4 +1,4 @@
--- Counts all participants without exposing the roster under membership RLS.
+-- Рахує учасників, не розкриваючи список під RLS членства.
 create function private.event_has_space(p_event_id uuid) returns boolean
 language sql stable security definer set search_path='' as $$
  select exists(select 1 from public.events e where e.id=p_event_id
@@ -8,7 +8,7 @@ $$;
 revoke all on function private.event_has_space(uuid) from public,anon,authenticated;
 grant execute on function private.event_has_space(uuid) to anon,authenticated;
 
--- Keep events_in_view for existing clients. All filters run before the result cap.
+-- events_in_view лишається для старих клієнтів. Усі фільтри до стелі результату.
 create function public.search_events_in_view(p_south double precision,p_west double precision,p_north double precision,p_east double precision,p_category text default null,p_from timestamptz default null,p_to timestamptz default null,p_text text default null,p_available boolean default false)
  returns setof public.event_result language plpgsql stable security invoker set search_path = '' as $$
 begin

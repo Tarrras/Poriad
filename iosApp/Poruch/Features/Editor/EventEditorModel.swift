@@ -1,7 +1,7 @@
 import Foundation
 import Shared
 
-/// The form as the reader typed it, plus the local persistence that keeps a draft across launches.
+/// Форма, як її набрали, плюс локальне збереження чернетки між запусками.
 struct EditorForm: Codable, Equatable {
     var title = ""
     var description = ""
@@ -10,19 +10,11 @@ struct EditorForm: Codable, Equatable {
     var address = ""
     var latitude = 0.0
     var longitude = 0.0
-    /**
-     Чи крапка вже обрана, чи це ще центр міста.
-
-     На відміну від Android, координати тут є завжди: мапа керована центром, і в новій формі це
-     центр міста. Тому з самих чисел не видно, чи місце вирішили, — і цей факт треба зберігати
-     разом із ними, інакше повернення до чернетки показувало б обрану адресу з підписом
-     «поставте крапку».
-
-     Необов'язкове поле навмисно: чернетки, збережені до його появи, мають читатись далі.
-     */
+    /// Чи крапка вже обрана. На iOS координати є завжди (центр міста), тому окремий прапорець.
+    /// Optional, щоб старі чернетки читались далі.
     var placed: Bool?
 
-    /// Крапка зустрічі, якщо її вже обрали. Мапа малює саме її, а не свій центр.
+    /// Крапка зустрічі, якщо обрана. Мапа малює її, а не свій центр.
     var point: (latitude: Double, longitude: Double)? {
         placed == true ? (latitude, longitude) : nil
     }
@@ -30,13 +22,13 @@ struct EditorForm: Codable, Equatable {
     var ends = Date().addingTimeInterval(defaultLead + defaultDuration)
     var timeZone = TimeZone.current.identifier
     var capacity = defaultCapacity
-    /// Who the organizer is willing to host. `maxAge` of nil is the ordinary «no upper bound».
+    /// Вікові межі. `maxAge` nil — без верхньої межі.
     var minAge = Int(SafetyRules.shared.MIN_SIGNUP_AGE)
     var maxAge: Int?
-    /// When set, joining is a request the organizer answers rather than an open door.
+    /// Приєднання — запит організатору, а не відкриті двері.
     var approvalRequired = false
 
-    /// Null until every field is present; the publish button follows this, so it cannot lie.
+    /// Nil, поки не заповнене кожне поле. Кнопка публікації дивиться сюди.
     func draft(imageUrl: String?) -> EventDraft? {
         guard !title.trimmed.isEmpty, !city.trimmed.isEmpty, !address.trimmed.isEmpty, ends > starts else { return nil }
         guard SafetyRules.shared.isAgeLimit(minAge: Int32(minAge), maxAge: maxAge.map { KotlinInt(int: Int32($0)) }) else { return nil }
@@ -65,52 +57,34 @@ enum EditorStep: Int, CaseIterable, Identifiable {
     var isLast: Bool { self == .schedule }
 }
 
-/// Owns the editor's form, its step, and the draft it saves. The view renders and forwards edits;
-/// nothing here needs SwiftUI to be tested.
+/// Форма редактора, крок і чернетка. View лише малює й передає правки; тестується без SwiftUI.
 @MainActor final class EventEditorModel: ObservableObject {
     @Published var form = EditorForm()
     @Published var step = EditorStep.about
     @Published private(set) var submitted = false
-    /// Пояс визначено за місцем події, а не взято з пристрою. Різні ступені впевненості.
+    /// Пояс визначено за місцем події, а не взято з пристрою.
     @Published private(set) var timeZoneFromPlace = false
-    /**
-     Адреси, що збігаються з набраним.
-
-     Координати — не те, що людина знає про місце зустрічі. Вона знає вулицю й будинок, тож
-     набирає їх, а крапку ставить застосунок. Мапа лишається для випадків, яких немає в жодному
-     довіднику: «біля третього дерева» чи новобудова без адреси.
-     */
+    /// Підказки адрес: людина набирає вулицю й будинок, крапку ставить застосунок.
     @Published private(set) var addressSuggestions: [PlaceResult] = []
-    /// Крапку поставлено з підказки — тоді координати вже не здогад.
+    /// Крапку поставлено з підказки: координати вже не здогад.
     @Published private(set) var pointChosen = false
-    /**
-     Скільки разів крапку поставили ззовні мапи.
-
-     Мапа тут керована власним центром, і пересування пальцем — це вже її стан. Тому обраній
-     підказці потрібен окремий сигнал: не «координати змінились» (вони міняються й від панорами,
-     і тоді мапу совати не можна), а «крапку поставили не мапою — стань на неї».
-     */
+    /// Лічильник «крапку поставили не мапою»: сигнал мапі стати на неї. Координати міняються й від панорами.
     @Published private(set) var placedAt = 0
 
-    /**
-     Адреса під ціллю на екрані вибору. Порожня, доки відповідь у дорозі.
-
-     Крапка на мапі — це координати, а людина обирає місце. Без назви вулиці під ціллю вибір
-     лишався б здогадом: схоже на той двір чи вже сусідній.
-     */
+    /// Адреса під ціллю на екрані вибору. Порожня, поки відповідь у дорозі.
     @Published private(set) var aimAddress = ""
 
     private let app: PoruchApp
     private let event: Event?
     private var storageKey: String { "poruch.draft.\(event?.id ?? "new")" }
-    /// Один кодувальник на редактор: створення нового коштує більше, ніж саме кодування.
+    /// Один кодувальник на редактор: створення дорожче за кодування.
     private let encoder = JSONEncoder()
     private var pendingSave: Task<Void, Never>?
-    /// Запит адреси для щойно пересунутої крапки. Наступний рух скасовує попередній.
+    /// Запит адреси для пересунутої крапки. Наступний рух скасовує попередній.
     private var pendingAddress: Task<Void, Never>?
-    /// Те саме для цілі на екрані вибору. Окремо, бо це інше питання: там крапку ще приміряють.
+    /// Те саме для цілі на екрані вибору. Окремо, бо там крапку ще приміряють.
     private var pendingAim: Task<Void, Never>?
-    /// Останнє, що знайшлось під ціллю, разом із координатами: збігтись має саме пара.
+    /// Останнє знайдене під ціллю, разом із координатами.
     private var aimed: (point: (latitude: Double, longitude: Double), place: PlaceResult)?
 
     init(app: PoruchApp, event: Event?, home: AppState?) {
@@ -121,7 +95,7 @@ enum EditorStep: Int, CaseIterable, Identifiable {
 
     var editing: Bool { event != nil }
 
-    /// Each step guards only its own fields, so «Далі» never blocks on a later one.
+    /// Кожен крок перевіряє лише свої поля, тож «Далі» не блокується наступним.
     var canAdvance: Bool {
         switch step {
         case .about: !form.title.trimmed.isEmpty
@@ -130,18 +104,10 @@ enum EditorStep: Int, CaseIterable, Identifiable {
         }
     }
 
-    /**
-     Пояс події визначає її місце, а не пристрій організатора.
-
-     Досі його набирали руками рядком `Europe/Kyiv` — посеред екрана, де все інше обирається
-     дотиком. Тепер відповідає платформа; коли вона не змогла, лишається пояс пристрою, тобто те
-     саме типове значення, що було доти. Тому невдача тут мовчазна: гірше не стало.
-     */
-    /// Адреса, яку вже обрали. Без цього вибір підказки міняє поле, а зміна поля відкриває
-    /// список знову — з тією самою підказкою, яку щойно обрали.
+    /// Обрана адреса: інакше вибір підказки міняв поле, а зміна поля відкривала список знову.
     private var accepted: String?
 
-    /// Підказки адрес. Зсув беремо від того, що вже на мапі: та сама вулиця є в десятку міст.
+    /// Підказки адрес з пріоритетом біля того, що вже на мапі.
     func suggestAddresses(_ query: String) {
         guard query != accepted else { return }
         guard query.trimmingCharacters(in: .whitespacesAndNewlines).count >= minAddressQuery else {
@@ -155,11 +121,11 @@ enum EditorStep: Int, CaseIterable, Identifiable {
         }
     }
 
-    /// Обрана підказка приносить і адресу, і крапку, і пояс — усе, заради чого її й обирали.
+    /// Обрана підказка приносить адресу, крапку й пояс.
     func pick(_ place: PlaceResult) {
         accepted = place.label
         form.address = place.label
-        // Місто їде за адресою: крапка могла виявитись і в іншому місті.
+        // Місто їде за адресою.
         if !place.city.isEmpty { form.city = place.city }
         form.latitude = place.latitude
         form.longitude = place.longitude
@@ -170,13 +136,7 @@ enum EditorStep: Int, CaseIterable, Identifiable {
         resolveTimeZone(latitude: place.latitude, longitude: place.longitude)
     }
 
-    /**
-     Крапку поставили на мапі — лишається сказати, що це за адреса.
-
-     Поле й мапа показують одне й те саме, тож рухати його можна з обох боків: обрана підказка
-     веде крапку, поставлена крапка веде поле. Без цього номер будинку мовчки лишався від
-     попередньої адреси — тобто поле брехало про те, куди прийдуть люди.
-     */
+    /// Адреса поставленої крапки: крапка веде поле, як підказка веде крапку.
     func moveTo(latitude: Double, longitude: Double) {
         form.latitude = latitude
         form.longitude = longitude
@@ -184,12 +144,12 @@ enum EditorStep: Int, CaseIterable, Identifiable {
         pointChosen = true
         pendingAddress?.cancel()
         pendingAddress = Task { @MainActor in
-            // Мапу рідко зупиняють з першого разу; питаємо про адресу, коли рука вже відпустила.
+            // Питаємо адресу після паузи: мапу рідко зупиняють з першого разу.
             try? await Task.sleep(for: .milliseconds(600))
             guard !Task.isCancelled else { return }
             app.resolveAddress(latitude: latitude, longitude: longitude) { [weak self] place in
                 guard let self, let place, !Task.isCancelled else { return }
-                // Поле — те саме, тож підказки, що стосувались набраного до крапки, більше не про це.
+                // Старі підказки стосувались набору до крапки.
                 accepted = place.label
                 form.address = place.label
                 if !place.city.isEmpty { form.city = place.city }
@@ -199,7 +159,7 @@ enum EditorStep: Int, CaseIterable, Identifiable {
         }
     }
 
-    /// Ціль зупинилась — питаємо, що під нею. Мапа повідомляє про зупинку, а не про кожен кадр.
+    /// Ціль зупинилась: питаємо, що під нею.
     func aim(at latitude: Double, longitude: Double) {
         pendingAim?.cancel()
         aimAddress = ""
@@ -214,7 +174,7 @@ enum EditorStep: Int, CaseIterable, Identifiable {
         }
     }
 
-    /// Ціль підтвердили. Якщо адресу під нею вже знайшли — беремо її, а не питаємо вдруге.
+    /// Ціль підтвердили. Знайдену адресу беремо, а не питаємо вдруге.
     func confirmAim(latitude: Double, longitude: Double) {
         pendingAim?.cancel()
         let known = aimed.flatMap { $0.point == (latitude, longitude) ? $0.place : nil }
@@ -250,21 +210,15 @@ enum EditorStep: Int, CaseIterable, Identifiable {
         if let event { app.updateEvent(id: event.id, draft: draft) } else { app.createEvent(draft: draft) }
     }
 
-    /// Called when the store confirms the write; the saved draft has served its purpose.
+    /// Стор підтвердив запис: чернетка більше не потрібна.
     func finish() {
         UserDefaults.standard.removeObject(forKey: storageKey)
         submitted = false
         app.clearCompletedEvent()
     }
 
-    /**
-     Чернетка має пережити закриття застосунку — не кожну натиснуту літеру.
-
-     Досі кожне натискання кодувало всю форму в JSON і писало її в `UserDefaults`. На симуляторі
-     цього не видно, на пристрої це те, що відчувається як залипання поля вводу. Тепер запис
-     чекає паузи в наборі, а [persist] лишається для моментів, коли чекати не можна: вихід із
-     редактора, згортання застосунку, публікація.
-     */
+    /// Запис чернетки після паузи в наборі: кодування на кожну літеру відчувалось як залипання.
+    /// `persist` — для моментів, коли чекати не можна: вихід, згортання, публікація.
     func scheduleSave() {
         pendingSave?.cancel()
         pendingSave = Task { @MainActor in
@@ -288,8 +242,7 @@ enum EditorStep: Int, CaseIterable, Identifiable {
             accepted = saved.address.isEmpty ? nil : saved.address
             return
         }
-        // Редагувати можна лише те, що ми проводимо самі: сервер відмовляє в цьому тим самим
-        // `assert_event_editable`, і без кімнати редактору нічим наповнити половину полів.
+        // Редагувати можна лише кімнату: сервер перевіряє те саме в `assert_event_editable`.
         if let event, let room = event.gathering {
             form = EditorForm(
                 title: event.title, description: event.description_, category: event.category,
@@ -314,8 +267,7 @@ private extension String {
     var trimmed: String { trimmingCharacters(in: .whitespacesAndNewlines) }
 }
 
-/// A new event defaults to «tomorrow-ish», which is what most drafts turn out to be.
-/// Коротше за це запит нічого не звужує, а запит уже коштує мережі.
+/// Коротший запит нічого не звужує, а мережі коштує.
 private let minAddressQuery = 3
 
 private let defaultLead: TimeInterval = 3600

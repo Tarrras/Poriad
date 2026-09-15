@@ -1,14 +1,12 @@
 import Foundation
 import Shared
 
-/// The one action the sticky bar offers. Deriving it in a single place means the label, the tap
-/// and the enabled state can never disagree — and the organizer is never offered a guest seat the
-/// server would refuse.
+/// Єдина дія нижньої панелі. Рахується в одному місці, щоб підпис, тап і доступність не розходились.
 enum DetailAction {
     case join, request, requested, leave, joinWaitlist, leaveWaitlist, organizer, cancelled
-    /// Афіша: єдина дія — сторінка джерела, де її продають і де лежить повний опис.
+    /// Афіша: сторінка джерела.
     case tickets
-    /// Немає що запропонувати: афіша без посилання, знята подія або зіпсований рядок. Кнопки теж немає.
+    /// Кнопки нема: афіша без посилання, знята подія або зіпсований рядок.
     case none
 
     var title: String {
@@ -33,8 +31,7 @@ enum DetailAction {
     }
 }
 
-/// A read-only projection of the shared state for one event: computed once per render instead of
-/// six times inside the view body, and the only place that decides what the screen may offer.
+/// Проєкція спільного стану для однієї події: рахується раз на рендер і єдина вирішує, що екран пропонує.
 struct EventDetailPresentation {
     let event: Event?
     let attendees: [Attendee]
@@ -43,40 +40,46 @@ struct EventDetailPresentation {
     let saved: Bool
     let waitlisted: Bool
     let organizer: Bool
-    /// People asking to come. Only ever non-empty for the organizer of this event.
+    /// Хто проситься. Непорожньо лише для організатора.
     let requests: [Attendee]
+    /// Сеанс прокату вже почався: показати можна, купити квиток — ні. Тижневої виставки не стосується.
+    let sessionStarted: Bool
 
-    init(state: AppState?) {
-        let event = state?.selectedEvent
+    /// `sessions` — карусель дат: від неї залежить лише, чи ховати кнопку квитка на сеансі, що почався.
+    init(state: AppState?, eventID: String, sessions: [EventSession] = []) {
+        // Лише відкрита подія або інша дата її прокату: знімок стану в першу мить ще тримає попередню.
+        let event = state?.selectedEvent.flatMap { selected in
+            selected.id == eventID || sessions.contains(where: { $0.id == selected.id }) ? selected : nil
+        }
         self.event = event
         attendees = state?.attendees ?? []
         mutating = state?.mutating == true
         signedIn = state?.signedIn == true
+        // Від обраної картки: після перемикання дати зберігається той вечір, що на екрані.
         saved = event.map { state?.isSaved(id: $0.id) == true } ?? false
         waitlisted = event.map { state?.isWaitlisted(id: $0.id) == true } ?? false
         organizer = event.flatMap { state?.organizes(event: $0) } ?? false
         requests = state?.joinRequests ?? []
+        sessionStarted = event.map { sessions.count > 1 && !$0.isMultiDay && $0.hasStarted(now: nowInstant()) } ?? false
     }
 
     var cancelled: Bool { event?.isCancelled == true }
 
-    /// Кімната цієї події, якщо вона взагалі кімната. Місця й участь питають тільки в неї.
+    /// Кімната, якщо це кімната. Місця й участь лише в неї.
     var room: Gathering? { event?.gathering }
 
-    /// Оголошення, якщо це афіша. Тоді дій рівно одна — вийти на джерело.
+    /// Оголошення, якщо це афіша. Тоді дія одна: вийти на джерело.
     var listing: Listing? { event?.listing }
 
     var full: Bool { room?.isFull == true }
 
-    /// Афіша відгалужується першою й ніколи не доходить до участі. Це не дублювання серверного
-    /// `assert_can_join`, а його наслідок: кнопка «приєднатися», яка гарантовано отримає
-    /// `IMPORTED_EVENT`, гірша за відсутність кнопки.
+    /// Афіша відгалужується першою: кнопка «приєднатися», яка гарантовано отримає відмову, гірша за відсутність кнопки.
     var action: DetailAction {
         guard event != nil else { return .none }
         if cancelled { return .cancelled }
-        if let listing { return listing.isWithdrawn || !listing.hasSource ? .none : .tickets }
+        if let listing { return listing.isWithdrawn || !listing.hasSource || sessionStarted ? .none : .tickets }
         if organizer { return .organizer }
-        // Ні кімнати, ні оголошення — зіпсований рядок. Показуємо подію, не пропонуємо дій.
+        // Ні кімнати, ні оголошення — зіпсований рядок: без дій.
         guard let room else { return .none }
         if room.awaitingApproval { return .requested }
         if room.joined { return .leave }
@@ -85,13 +88,13 @@ struct EventDetailPresentation {
         return room.isFull ? .joinWaitlist : .join
     }
 
-    /// Рядок під датою в нижній панелі: одна фраза про те, що зараз можливо. Для кімнати це місця
-    /// й черга, для афіші — ціна або причина, чому кнопки немає.
+    /// Рядок під датою в нижній панелі: місця й черга для кімнати, ціна або причина відсутності кнопки для афіші.
     var seatsSummary: String {
         guard event != nil else { return "" }
         if cancelled { return "Подію скасовано" }
         if let listing {
             if listing.isWithdrawn { return "Джерело зняло цю подію. Запис лишається у вас як позначка." }
+            if sessionStarted { return "Сеанс уже почався, квитки на нього не продають. Оберіть іншу дату." }
             return listing.hasSource ? listingPrice(listing) : "Подія з афіші. Ми лише показуємо її."
         }
         guard let room else { return "" }
@@ -102,15 +105,14 @@ struct EventDetailPresentation {
     }
 }
 
-/// Who the evening is for, said on the card rather than discovered when the server refuses.
-/// Обмежень віку в афіші не буває: їх встановлює організатор, якого в неї немає.
+/// Для кого подія, на картці, а не через відмову сервера.
 func ageLimitLabel(_ room: Gathering) -> String? {
     guard room.hasAgeLimit else { return nil }
     if let maximum = room.maxAge { return "\(room.minAge)–\(maximum.intValue) років" }
     return "\(room.minAge)+"
 }
 
-/// Why somebody is reporting, in the order the sheet offers the reasons.
+/// Причини скарги в порядку шторки.
 let reportReasons: [(value: String, title: String)] = [
     (ReportReason.shared.MINORS, "Небезпечно для неповнолітніх"),
     (ReportReason.shared.SAFETY, "Загроза безпеці"),

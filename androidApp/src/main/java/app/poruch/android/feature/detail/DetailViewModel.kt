@@ -1,16 +1,57 @@
 package app.poruch.android.feature.detail
 
 import app.poruch.android.mvi.MviViewModel
+import app.poruch.domain.Event
+import app.poruch.domain.EventIndexEntry
+import app.poruch.domain.EventSession
 import app.poruch.shared.PoruchApp
+import kotlin.time.Clock
 
-class DetailViewModel(private val app: PoruchApp, private val eventId: String) :
-    MviViewModel<DetailState, DetailIntent, DetailEffect>(DetailState()) {
+class DetailViewModel(private val app: PoruchApp, private val openedId: String) :
+    MviViewModel<DetailState, DetailIntent, DetailEffect>(DetailState(sessionId = openedId)) {
+
+    /**
+     * Сеанс на екрані. Карусель дат перемикає його, і всі дії (збереження, участь, скарга, мапа)
+     * ідуть на нього. Ключ моделі лишається [openedId], щоб не губити прокрутку й карусель.
+     */
+    private var eventId = openedId
+
+    /** Дата, обрана в каруселі, чиєї картки ще нема. Стане обраною, коли картка приїде; до того дії йдуть на попередню. */
+    private var pendingId: String? = null
+
+    /** Картка, з якою відкрили екран. Карусель будується від неї: скасованого вечора в індексі нема. */
+    private var anchor: Event? = null
+    // Не `sessions`: у згортці нижче отримувач — DetailState, і те саме ім'я читало б старий стан.
+    private var carousel: List<EventSession> = emptyList()
+    private var carouselFrom: Pair<Event, List<EventIndexEntry>>? = null
 
     init {
+        // openEvent, а не selectEvent: лише цей екран показує місця й членство. Тут, а не з
+        // композиції: модель переживає поворот, запит іде один раз.
+        app.openEvent(openedId)
         observe(app) { shared ->
+            if (pendingId != null && shared.selectedEvent?.id == pendingId) {
+                eventId = pendingId!!
+                pendingId = null
+            }
             val event = shared.selectedEvent?.takeIf { it.id == eventId }
+            if (event != null && event.id == openedId) anchor = event
+            // Перебудова лише при зміні картки або індексу: пошук прокату проходить увесь індекс.
+            val source = anchor
+            val from = carouselFrom
+            if (source != null && (from == null || from.first !== source || from.second !== shared.index)) {
+                carousel = app.sessionsOf(source)
+                carouselFrom = source to shared.index
+            }
             copy(
                 event = event,
+                sessionId = eventId,
+                // Скасування відоме з картки, навіть якщо карусель знала дату опублікованою.
+                sessions = if (event?.isCancelled == true) {
+                    carousel.map { if (it.id == event.id) it.copy(cancelled = true) else it }
+                } else carousel,
+                sessionStarted = event != null && carousel.size > 1 && !event.isMultiDay &&
+                    event.hasStarted(Clock.System.now()),
                 attendees = shared.attendees,
                 loading = shared.loading,
                 mutating = shared.mutating,
@@ -26,13 +67,16 @@ class DetailViewModel(private val app: PoruchApp, private val eventId: String) :
     override fun onIntent(intent: DetailIntent) {
         val event = state.value.event
         when (intent) {
-            // Саме `openEvent`, а не `selectEvent`: цей екран — єдине місце, де показують число
-            // місць і членство, тож він єдиний і має право їх перепитати.
-            DetailIntent.Load -> app.openEvent(eventId)
             DetailIntent.Back -> send(DetailEffect.Back)
 
-            // Квиток на афішу купують у джерела, а не в нас, тож акаунт для цього не потрібен —
-            // саме тому дія стоїть перед перевіркою входу, а не всередині неї.
+            // Спершу pendingId, потім запит: згортка вище має впізнати картку нового вечора.
+            is DetailIntent.PickSession -> if (intent.id != eventId) {
+                pendingId = intent.id
+                reduce { copy(confirmingCancel = false, confirmingBlock = false, reporting = null) }
+                app.openEvent(intent.id)
+            }
+
+            // Квитки на афішу купують у джерела: акаунт не потрібен, тому до перевірки входу.
             DetailIntent.PrimaryAction -> if (state.value.action == DetailAction.TICKETS) {
                 event?.listing?.canonicalUrl?.let { send(DetailEffect.OpenLink(it)) }
             } else authenticated {
@@ -50,7 +94,8 @@ class DetailViewModel(private val app: PoruchApp, private val eventId: String) :
             DetailIntent.Share -> event?.let { send(DetailEffect.ShareEvent(it)) }
             DetailIntent.AddToCalendar -> event?.let { send(DetailEffect.OpenCalendar(it)) }
             DetailIntent.OpenInMaps -> event?.let { send(DetailEffect.OpenMaps(it)) }
-            DetailIntent.OpenMap -> send(DetailEffect.OpenMap(eventId))
+            // Для другої дати прокату — картка представника: окремого піна в сеансу нема.
+            DetailIntent.OpenMap -> send(DetailEffect.OpenMap(app.cardIdOf(eventId)))
             DetailIntent.Edit -> send(DetailEffect.Edit(eventId))
             is DetailIntent.ConfirmCancel -> reduce { copy(confirmingCancel = intent.open) }
             DetailIntent.CancelEvent -> {
@@ -67,8 +112,7 @@ class DetailViewModel(private val app: PoruchApp, private val eventId: String) :
                 reduce { copy(reporting = null) }
                 when (target) {
                     ReportTarget.EVENT -> app.reportEvent(eventId, intent.reason, intent.details)
-                    // У афіші організатора немає — скаржитись нема на кого. Сама подія лишається
-                    // доступною для скарги через ReportTarget.EVENT.
+                    // В афіші організатора нема; на саму подію скаржаться через ReportTarget.EVENT.
                     ReportTarget.ORGANIZER -> event?.organizerId?.let { app.reportUser(it, intent.reason, intent.details) }
                     null -> Unit
                 }
@@ -78,7 +122,7 @@ class DetailViewModel(private val app: PoruchApp, private val eventId: String) :
             } else reduce { copy(confirmingBlock = intent.open) }
             DetailIntent.BlockOrganizer -> {
                 reduce { copy(confirmingBlock = false) }
-                // Blocking removes the event from this account's map, so the screen behind it goes too.
+                // Блокування прибирає подію з мапи, тож і екран за нею.
                 event?.organizerId?.let { app.blockUser(it); send(DetailEffect.Back) }
             }
             is DetailIntent.ApproveRequest -> app.approveMember(eventId, intent.userId)
@@ -86,7 +130,7 @@ class DetailViewModel(private val app: PoruchApp, private val eventId: String) :
         }
     }
 
-    /** Guests are sent to sign-in rather than shown an action that would fail at the server. */
+    /** Гостя ведемо на вхід, а не на дію, яку сервер відхилить. */
     private inline fun authenticated(block: () -> Unit) {
         if (state.value.signedIn) block() else send(DetailEffect.RequireSignIn)
     }

@@ -1,8 +1,7 @@
-"""Bounded official culture feeds; ambiguous prose is review evidence, never midnight.
+"""Офіційні культурні стрічки з обмеженим обходом; неоднозначна проза йде на перевірку, а не в опівніч.
 
-lviv.travel programmes have heading + address + explicit session rows. Other sources
-currently expose incomplete prose schedules: consume only independently sufficient
-Event metadata and report the remaining cards for review. No venue-footer inference.
+lviv.travel має заголовок, адресу й явні рядки сеансів. Інші джерела віддають неповні прозові
+розклади: беремо лише самодостатні метадані Event, решту карток — на перевірку.
 """
 from __future__ import annotations
 
@@ -24,7 +23,7 @@ def _text(html):
 
 
 def lviv_program(html, url, city):
-    """Only explicit timed rows under an event heading; year must be in page title."""
+    """Лише явні рядки з часом під заголовком події; рік має бути в назві сторінки."""
     title = re.search(r'<h1\b[^>]*>(.*?)</h1>', html, re.S | re.I)
     years = set(re.findall(r'\b20\d{2}\b', _text(title.group(1)))) if title else set()
     if len(years) != 1:
@@ -112,10 +111,10 @@ def _structured(html, url, city):
 
 
 def collect(slug, url, city, *, get, delay=2.0, max_details=40):
-    """Use the caller's robots-aware GET. One listing, at most max_details cards.
+    """GET викликача з урахуванням robots. Один список, до max_details карток.
 
-    Coverage stays partial: these home/news pages cannot prove inventory completeness.
-    Review entries are diagnostic evidence, not publication candidates.
+    Покриття часткове: головні й новинні сторінки не доводять повноти. Записи на перевірку —
+    діагностика, не кандидати на публікацію.
     """
     slug={'lviv.travel':'lviv-travel','runukraine':'run-ukraine','yermilov':'yermilovcentre'}.get(slug,slug)
     if slug not in {'lviv-travel','artsvit','yermilovcentre','run-ukraine'}:

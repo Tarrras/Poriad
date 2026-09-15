@@ -4,18 +4,13 @@ import app.poruch.domain.*
 import kotlinx.serialization.json.*
 
 /**
- * Maps a PostgREST / GoTrue failure onto a domain case. The server signals with codes and
- * `raise exception 'NAME'`, so the match is on those, never on wording — and nothing user-facing
- * is decided here.
- *
- * Живе окремо від транспорту свідомо: це словник між двома системами, і росте він разом із
- * серверними правилами, а не з тим, як ми ходимо в мережу.
+ * Перекладає відмову PostgREST / GoTrue в доменну помилку. Збігаємо коди й імена з
+ * `raise exception 'NAME'`, а не текст. Окремо від транспорту, бо росте разом із серверними правилами.
  */
 internal fun apiFailure(status: Int, body: String): AppFailure {
     val lower = body.lowercase()
     val error = when {
-        // The safety cases come first: several of them arrive as a 403, which the generic rules
-        // below would flatten into «not the owner».
+        // Випадки безпеки першими: кілька з них приходять як 403, який нижче став би «не власник».
         "age_required" in lower -> AppError.AgeRequired
         "too_young" in lower -> AppError.TooYoung
         "too_old" in lower -> AppError.TooOld
@@ -40,12 +35,11 @@ internal fun apiFailure(status: Int, body: String): AppFailure {
         status in 400..499 -> AppError.Rejected
         else -> AppError.ServiceUnavailable
     }
-    // Код сервера їде поруч із доменною помилкою, але не замість неї: за ним клієнт вирішує
-    // питання сумісності (чи знає ця база потрібну функцію), а не що написати людині.
+    // Код сервера потрібен для сумісності (чи знає база функцію), а не для тексту людині.
     return AppFailure(error, serverCode(body))
 }
 
-/** `{"code":"PGRST202", ...}` — усе, що нас тут цікавить. */
+/** Витягає `code` з тіла відповіді, напр. `PGRST202`. */
 private fun serverCode(body: String): String? =
     runCatching { Json.parseToJsonElement(body).jsonObject["code"]?.jsonPrimitive?.contentOrNull }.getOrNull()
 

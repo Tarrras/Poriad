@@ -2,10 +2,7 @@ package app.poruch.domain
 
 import kotlin.test.*
 
-/**
- * Межа між кімнатою та оголошенням тримається тут, а не в рев'ю. Кожен тест нижче охороняє одне
- * речення, яке до цього поділу можна було написати неправильно й не помітити.
- */
+/** Межа між кімнатою та оголошенням. Кожен тест охороняє одну помилку, яку раніше не помічали. */
 class EventFacetsTest {
 
     private fun base(gathering: Gathering? = null, listing: Listing? = null, description: String = "") = Event(
@@ -22,7 +19,7 @@ class EventFacetsTest {
         val event = base(listing = afisha)
         assertNull(event.gathering)
         assertFalse(event.isCommunity)
-        // Саме цей рядок і був вадою: конвеєр писав capacity=1, і картка казала «Лишилось 1 місце».
+        // Була вада: конвеєр писав capacity=1, і картка казала «Лишилось 1 місце».
         assertEquals("Karabas", event.publisherName)
         assertNull(event.organizerId)
     }
@@ -36,20 +33,17 @@ class EventFacetsTest {
         assertEquals("Оля", event.publisherName)
     }
 
-    /** Поріг «мало місць» один на обидві платформи — до цього кожна рахувала його сама. */
+    /** Поріг «мало місць» спільний для обох платформ. */
     @Test fun scarcityIsAFifthOfTheRoomAndNeverFewerThanThree() {
         assertTrue(room.copy(capacity = 100, attendeeCount = 80).isScarce)   // 20 з 100
         assertFalse(room.copy(capacity = 100, attendeeCount = 79).isScarce)  // 21 з 100
         assertTrue(room.copy(capacity = 6, attendeeCount = 3).isScarce)      // 3 місця з малої кімнати
         assertFalse(room.copy(capacity = 6, attendeeCount = 2).isScarce)
-        // Порожньої терміновості не буває: коли місць немає, це «Місць немає», а не «лишилось 0».
+        // Нуль місць — «Місць немає», а не «лишилось 0».
         assertFalse(room.copy(capacity = 10, attendeeCount = 10).isScarce)
     }
 
-    /**
-     * docs/event-ingestion.md §8: факти не охороняються, чужий текст опису — охороняється. Тому
-     * повний опис афіші не показуємо, а свій — показуємо цілком.
-     */
+    /** docs/event-ingestion.md §8: чужий опис обрізаємо, свій показуємо цілком. */
     @Test fun onlyABorrowedDescriptionIsCut() {
         val long = "я".repeat(Event.LISTING_DESCRIPTION_PREVIEW + 50)
         val borrowed = base(listing = afisha, description = long)
@@ -61,7 +55,7 @@ class EventFacetsTest {
         assertFalse(ours.descriptionTruncated)
         assertEquals(long, ours.displayDescription)
 
-        // Короткий чужий опис лишається собою — трьох крапок нізвідки не з'являється.
+        // Короткий чужий опис не обрізається.
         val short = base(listing = afisha, description = "Концерт у МЦКМ")
         assertFalse(short.descriptionTruncated)
         assertEquals("Концерт у МЦКМ", short.displayDescription)

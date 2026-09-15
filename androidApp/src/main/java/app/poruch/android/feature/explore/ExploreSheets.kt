@@ -27,11 +27,7 @@ import app.poruch.shared.DateFilter
 @Composable
 internal fun FilterSheet(state: ExploreState, onIntent: (ExploreIntent) -> Unit, onDone: () -> Unit) {
     val colors = Poruch.colors
-    // Вибір накопичується у шторці й летить на сервер один раз, по «Застосувати».
-    //
-    // Досі кожен тап по чипу був повним пошуком. Обрати категорію й дату — це два запити по
-    // чотириста рядків, і жодного проміжного результату ніхто не бачить: їх закриває сама шторка.
-    // А поки вона відкрита, мапа під нею перемальовується двічі.
+    // Вибір накопичується і летить на сервер один раз по «Застосувати»: проміжних результатів за шторкою не видно.
     var date by remember(state.dateFilter) { mutableStateOf(state.dateFilter) }
     var category by remember(state.category) { mutableStateOf(state.category) }
     var available by remember(state.onlyAvailable) { mutableStateOf(state.onlyAvailable) }
@@ -45,8 +41,7 @@ internal fun FilterSheet(state: ExploreState, onIntent: (ExploreIntent) -> Unit,
         Modifier.padding(horizontal = Spacing.page).padding(bottom = Spacing.section),
         verticalArrangement = Arrangement.spacedBy(Spacing.lg)
     ) {
-        // The sheet's own title is a title, not an overline: at label size it was smaller than the
-        // section headings underneath it, which inverted the hierarchy of the whole sheet.
+        // Заголовок шторки — заголовок, а не надрядок: інакше він менший за секції під ним.
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 stringResource(R.string.filters), style = MaterialTheme.typography.titleLarge,
@@ -80,7 +75,7 @@ internal fun FilterSheet(state: ExploreState, onIntent: (ExploreIntent) -> Unit,
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                // Біля мапи чип каже «Можна приєднатись»; перемикачу потрібне ціле речення.
+                // Перемикачу потрібне ціле речення, а не текст чипа.
                 stringResource(R.string.only_available), style = MaterialTheme.typography.bodyLarge,
                 color = colors.ink, modifier = Modifier.weight(1f)
             )
@@ -98,14 +93,13 @@ internal fun CitySearchSheet(state: ExploreState, onIntent: (ExploreIntent) -> U
     val colors = Poruch.colors
     var query by rememberSaveable { mutableStateOf("") }
     val close = { onIntent(ExploreIntent.ShowSheet(ExploreSheet.NONE)) }
-    // Шторка існує заради одного поля, тож вона його й фокусує. Без цього кожен вибір міста
-    // коштував зайвого тапу по єдиному полю на екрані.
+    // Шторка існує заради одного поля, тож фокусує його одразу.
     val field = remember { FocusRequester() }
     LaunchedEffect(Unit) { field.requestFocus() }
     LaunchedEffect(query) { onIntent(ExploreIntent.SearchCity(query)) }
     PoruchSheet(close) { sheet ->
         Column(
-            // The field pulls the keyboard up over the sheet, so the sheet stands on it.
+            // Поле піднімає клавіатуру, шторка стає на неї.
             Modifier.padding(horizontal = Spacing.page).padding(bottom = Spacing.section).imePadding(),
             verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
@@ -117,9 +111,7 @@ internal fun CitySearchSheet(state: ExploreState, onIntent: (ExploreIntent) -> U
                 GhostButton(stringResource(R.string.close), { sheet.close() }, tone = colors.inkSecondary)
             }
             PoruchField(query, { query = it }, stringResource(R.string.city), focusRequester = field)
-            // Доки нічого не набрано, пропонуємо те, де події справді є. Геокодер на порожній
-            // запит мовчить, а на перші літери віддає область, район і аеропорт — тобто місця,
-            // де людина побачить порожню мапу й вирішить, що подій немає взагалі.
+            // Поки нічого не набрано, пропонуємо міста, де події справді є.
             if (query.isBlank()) FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
                 verticalArrangement = Arrangement.spacedBy(Spacing.sm)
@@ -132,8 +124,7 @@ internal fun CitySearchSheet(state: ExploreState, onIntent: (ExploreIntent) -> U
                     })
                 }
             }
-            // The title and the field stay put; only the answers scroll, so the last suggestion is
-            // never stranded under the keyboard the field itself brought up.
+            // Гортаються лише підказки, щоб остання не ховалась під клавіатурою.
             Column(Modifier.heightIn(max = SUGGESTION_BAND).verticalScroll(rememberScrollState())) {
                 state.cities.take(CITY_SUGGESTIONS).forEach { city ->
                     Row(
@@ -151,8 +142,8 @@ internal fun CitySearchSheet(state: ExploreState, onIntent: (ExploreIntent) -> U
     }
 }
 
-/** A geocoder answers with everything named after a city; six is as far as anyone reads. */
+/** Скільки підказок міст показуємо. */
 private const val CITY_SUGGESTIONS = 6
 
-/** The band the suggestions occupy above the keyboard; a longer answer scrolls inside it. */
+/** Смуга підказок над клавіатурою; довший список гортається всередині. */
 private val SUGGESTION_BAND = 300.dp

@@ -1,13 +1,12 @@
--- Run as database administrator. Everything, including synthetic auth users, rolls back.
--- Covers the safety rules: declared age, per-event age limits, approval to join, blocks, reports
--- and account status. Every assertion here is a rule a patched client must still not get past.
+-- Запускати адміністратором бази. Усе відкочується. Правила безпеки: вік, вікові межі,
+-- підтвердження, блокування, скарги, статус акаунта. Кожна перевірка — правило проти пропатченого клієнта.
 begin;
 select set_config('test.host',gen_random_uuid()::text,true),set_config('test.adult',gen_random_uuid()::text,true),
  set_config('test.young',gen_random_uuid()::text,true),set_config('test.unknown',gen_random_uuid()::text,true),
  set_config('test.banned',gen_random_uuid()::text,true),set_config('test.open',gen_random_uuid()::text,true),
  set_config('test.gated',gen_random_uuid()::text,true),set_config('test.aged',gen_random_uuid()::text,true);
 
--- An 18+ floor at the door: an underage sign-up never becomes a profile.
+-- Неповнолітня реєстрація не стає профілем.
 do $$ begin
  begin
   insert into auth.users(id,email,raw_user_meta_data) values
@@ -37,7 +36,7 @@ end $$;
 
 set local role authenticated;
 
--- An account without a declared age states it once, and only once.
+-- Акаунт без віку вказує його рівно раз.
 select set_config('request.jwt.claim.sub',current_setting('test.unknown'),true);
 do $$ begin
  begin perform public.set_birth_date((current_date - interval '15 years')::date); raise exception 'expected underage rejection';
@@ -49,7 +48,7 @@ do $$ begin
  exception when sqlstate 'P0001' then if sqlerrm <> 'AGE_ALREADY_SET' then raise; end if; end;
 end $$;
 
--- The host publishes an open event, an age-gated one and one that needs approval.
+-- Організатор публікує відкриту, вікову і з підтвердженням.
 select set_config('request.jwt.claim.sub',current_setting('test.host'),true);
 select public.create_event(current_setting('test.open')::uuid,'Open evening','Description here','social','Kyiv','Park',50.45,30.52,now()+interval '1 day',now()+interval '2 days','Europe/Kyiv',5,null);
 select public.create_event(current_setting('test.aged')::uuid,'Twenties only','Description here','social','Kyiv','Park',50.45,30.52,now()+interval '1 day',now()+interval '2 days','Europe/Kyiv',5,null,21,25,false);
@@ -64,7 +63,7 @@ do $$ begin
  exception when sqlstate '22023' then assert sqlerrm='INVALID_AGE_LIMIT'; end;
 end $$;
 
--- Age limits are the server's, not the form's.
+-- Вікові межі перевіряє сервер.
 select set_config('request.jwt.claim.sub',current_setting('test.young'),true);
 do $$ begin
  begin perform public.join_event(current_setting('test.aged')::uuid); raise exception 'expected too young';
@@ -72,7 +71,7 @@ do $$ begin
 end $$;
 select set_config('request.jwt.claim.sub',current_setting('test.host'),true);
 do $$ begin
- -- The host is 30: past the upper bound of a twenties-only event, and its organizer besides.
+ -- Організатору 30: поза межею події для двадцятирічних, і він організатор.
  assert (select max_age=25 from public.events where id=current_setting('test.aged')::uuid),'upper bound stored';
 end $$;
 select set_config('request.jwt.claim.sub',current_setting('test.adult'),true);
@@ -81,8 +80,7 @@ do $$ begin
  assert (select joined and attendee_count=1 from public.event_details(current_setting('test.aged')::uuid)),'in range joins';
 end $$;
 
--- An account that never stated an age cannot join anything, however the request is made. Only a
--- moderator (the service role here) can put the declared date back to null.
+-- Без віку не приєднатись ніяк. Скинути дату може лише модератор (service role).
 reset role;
 update public.account_facts set birth_date=null where user_id=current_setting('test.unknown')::uuid;
 set local role authenticated;
@@ -93,7 +91,7 @@ do $$ begin
 end $$;
 select public.set_birth_date((current_date - interval '20 years')::date);
 
--- Approval: a request is not a seat, and only the organizer decides.
+-- Підтвердження: запит — не місце, вирішує організатор.
 select public.join_event(current_setting('test.gated')::uuid);
 do $$ begin
  assert (select membership='requested' and not joined and attendee_count=0 from public.event_details(current_setting('test.gated')::uuid)),'request holds no seat';
@@ -115,7 +113,7 @@ do $$ begin
  assert (select joined and membership='approved' and attendee_count=1 from public.event_details(current_setting('test.gated')::uuid)),'approval seats the member';
 end $$;
 
--- Blocking works in both directions and closes the door as well as the listing.
+-- Блокування в обидва боки: закриває і вхід, і видачу.
 select set_config('request.jwt.claim.sub',current_setting('test.host'),true);
 insert into public.user_blocks(user_id,blocked_id) values (auth.uid(),current_setting('test.young')::uuid);
 select set_config('request.jwt.claim.sub',current_setting('test.young'),true);
@@ -127,7 +125,7 @@ end $$;
 select set_config('request.jwt.claim.sub',current_setting('test.host'),true);
 delete from public.user_blocks where user_id=auth.uid() and blocked_id=current_setting('test.young')::uuid;
 
--- A suspended account keeps its rows and loses its reach.
+-- Обмежений акаунт зберігає рядки, але зникає з видачі.
 select set_config('request.jwt.claim.sub',current_setting('test.banned'),true);
 select set_config('test.banned_event',gen_random_uuid()::text,true);
 select public.create_event(current_setting('test.banned_event')::uuid,'Before the ban','Description here','social','Kyiv','Park',50.45,30.52,now()+interval '1 day',now()+interval '2 days','Europe/Kyiv',5,null);
@@ -148,7 +146,7 @@ do $$ begin
  exception when sqlstate '42501' then assert sqlerrm='ACCOUNT_RESTRICTED'; end;
 end $$;
 
--- Reports: private to their author, deduplicated, and rate limited.
+-- Скарги: приватні, без дублів, з лімітом.
 select set_config('request.jwt.claim.sub',current_setting('test.adult'),true);
 select set_config('test.report',public.report_event(current_setting('test.open')::uuid,'minors','Молодші за вказаний вік')::text,true);
 do $$ begin
@@ -164,8 +162,7 @@ select set_config('request.jwt.claim.sub',current_setting('test.young'),true);
 do $$ begin
  assert (select count(*)=0 from public.reports),'a report is private to the person who filed it';
 end $$;
--- Ten in an hour is the cap. The rows go in directly, because filing them through the RPC would
--- be deduplicated into one — which is itself the previous assertion.
+-- Ліміт десять на годину. Рядки вставляємо напряму: через RPC вони злилися б в один.
 reset role;
 insert into public.reports(reporter_id,subject_type,subject_user_id,reason)
 select current_setting('test.adult')::uuid,'user',current_setting('test.host')::uuid,'other' from generate_series(1,9);

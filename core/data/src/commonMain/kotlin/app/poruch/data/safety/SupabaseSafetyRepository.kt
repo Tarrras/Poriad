@@ -6,12 +6,7 @@ import app.poruch.domain.*
 import io.ktor.http.HttpMethod
 import kotlinx.serialization.json.*
 
-/**
- * Reporting, blocking and the account's own declared facts.
- *
- * Everything here is a thin call: the rules — who may report whom, how often, what a block does to
- * a listing — live in the database, because they have to hold for a caller who is not this app.
- */
+/** Скарги, блокування й факти про акаунт. Тонкі виклики: правила живуть у базі. */
 class SupabaseSafetyRepository(private val api: ApiClient, private val auth: AuthRepository) : SafetyRepository {
     private fun uid() = auth.session.value?.userId ?: fail(AppError.SessionRequired)
 
@@ -56,10 +51,7 @@ class SupabaseSafetyRepository(private val api: ApiClient, private val auth: Aut
         )
     }
 
-    /**
-     * Two calls rather than an embedded join: the profile rows are world-readable anyway, and a
-     * `select=...` with an embedded relationship would tie this to the constraint's generated name.
-     */
+    /** Два запити замість вкладеного join: той прив'язав би нас до згенерованої назви обмеження. */
     override suspend fun blocked(): List<Attendee> {
         val ids = api.request(
             "/rest/v1/user_blocks", token = auth.accessToken(),

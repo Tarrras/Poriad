@@ -6,10 +6,7 @@ import kotlinx.serialization.json.*
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
-/**
- * Свої події: створити, змінити, скасувати, додати фото. Усе це сервер дозволяє лише організаторові
- * і лише для `origin = 'community'` — імпортовану афішу не редагує ніхто, включно з її джерелом.
- */
+/** Свої події: створити, змінити, скасувати, додати фото. Лише організатор і лише `origin = 'community'`. */
 internal class SupabaseEventAuthoring(
     private val rpc: EventRpc,
     private val auth: AuthRepository,
@@ -26,8 +23,7 @@ internal class SupabaseEventAuthoring(
 
     @OptIn(ExperimentalUuidApi::class)
     override suspend fun uploadImage(eventId: String, bytes: ByteArray, contentType: String): String {
-        // Тип і розмір перевіряються тут, а не після завантаження: інакше за відмову платить
-        // мережа користувача.
+        // Тип і розмір перевіряємо до завантаження, щоб не ганяти трафік дарма.
         val extension = ImageRules.extensions[contentType]
             ?: fail(AppError.InvalidDraft(listOf(DraftField.IMAGE_URL)))
         if (bytes.isEmpty() || bytes.size > ImageRules.MAX_BYTES) {
@@ -35,7 +31,7 @@ internal class SupabaseEventAuthoring(
         }
         val uid = auth.session.value?.userId ?: fail(AppError.SessionRequired)
         val token = auth.accessToken() ?: fail(AppError.SessionRequired)
-        // Шлях починається з власника: політика Storage читає його з першого сегмента.
+        // Перший сегмент шляху — власник: його читає політика Storage.
         return storage.upload("$uid/$eventId/${Uuid.random()}.$extension", bytes, contentType, token)
     }
 

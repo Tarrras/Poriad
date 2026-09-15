@@ -1,13 +1,13 @@
 import SwiftUI
 import Shared
 
-/// The account screen: who you are, what you follow, and how the app may reach you.
+/// Екран акаунта: хто ви, що вам цікаво, як з вами зв'язатися.
 struct ProfileView: View {
     @EnvironmentObject var model: AppModel
     @State private var newPassword = ""
     @State private var revealed = false
     @State private var showAuth = false
-    /// Висота смуги статусу: як на головній, хедер додає її сам. Див. [tracksStatusBarInset].
+    /// Висота смуги статусу: хедер додає її сам, як на головній.
     @State private var statusBar: CGFloat = Space.xxl
     @State private var birthDate = Calendar.current.date(byAdding: .year, value: -Int(SafetyRules.shared.MIN_SIGNUP_AGE), to: Date()) ?? Date()
     private let latestBirthDate = Calendar.current.date(byAdding: .year, value: -Int(SafetyRules.shared.MIN_SIGNUP_AGE), to: Date()) ?? Date()
@@ -17,7 +17,7 @@ struct ProfileView: View {
     private var recovering: Bool { model.state?.passwordRecovery == true }
 
     var body: some View {
-        // Див. HomeView: стрічка виходить під смугу статусу, а хедер додає виміряний відступ.
+        // Як у HomeView: стрічка під смугу статусу, хедер додає відступ.
         ScrollView {
             VStack(alignment: .leading, spacing: Space.xxl) {
                 header
@@ -74,10 +74,7 @@ struct ProfileView: View {
         }
     }
 
-    /**
-     An account made before the app asked for an age is asked here, once, and told why. Stating it
-     is the client's part; refusing anything under the floor is the database's.
-     */
+    /// Старий акаунт без віку питаємо тут, раз, і кажемо чому. Відмовляє база.
     private var ageDeclaration: some View {
         VStack(alignment: .leading, spacing: Space.md) {
             Text("Підтвердьте вік").font(PoruchFont.cardName).foregroundStyle(Palette.ink)
@@ -90,7 +87,7 @@ struct ProfileView: View {
         .padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()
     }
 
-    /// A block a person cannot undo is a setting they will not use, so the list names names.
+    /// Блок, який не можна скасувати, не використовуватимуть: список з іменами.
     private var blocked: some View {
         VStack(alignment: .leading, spacing: Space.md) {
             SectionHeader(title: "Заблоковані")
@@ -106,8 +103,7 @@ struct ProfileView: View {
         }
     }
 
-    /// The answers to the opening questions: the account carries the categories to the next device,
-    /// but the answers themselves are the phone's, so this section is here for a guest as well.
+    /// Відповіді онбордингу належать пристрою, тож секція є і в гостя.
     private var taste: some View {
         VStack(alignment: .leading, spacing: Space.md) {
             SectionHeader(title: "Ваші інтереси")
@@ -152,8 +148,7 @@ struct ProfileView: View {
     }
 }
 
-/// The reminders switch, with its own permission dance. It reads the plans from the store itself
-/// rather than having them threaded through a settings list that has nothing else to do with events.
+/// Перемикач нагадувань з власними дозволами. Сам читає плани зі стору.
 struct ReminderPreference: View {
     @EnvironmentObject var model: AppModel
     @AppStorage("poruch.reminders") private var enabled = false

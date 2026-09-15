@@ -9,7 +9,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -22,42 +21,44 @@ import app.poruch.android.feature.explore.*
 import app.poruch.android.feature.home.*
 import app.poruch.android.feature.mine.*
 import app.poruch.android.feature.onboarding.*
-import app.poruch.android.mvi.screenViewModel
+import app.poruch.android.mvi.activityStoreOwner
+import app.poruch.android.navigation.*
 import app.poruch.android.platform.*
 import kotlinx.coroutines.flow.Flow
+import org.koin.androidx.compose.koinViewModel
+import org.koin.core.parameter.parametersOf
 
-/**
- * Routes are the seam between a screen and the platform: they build the screen's ViewModel, turn
- * its effects into navigation or system calls, and keep both concerns out of the composables that
- * draw. Every screen below renders state and emits intents, nothing else.
+/*
+ * Маршрути — шов між екраном і платформою: беруть ViewModel з Koin, перетворюють ефекти на
+ * навігацію чи системні виклики. Composable лише малюють стан і шлють інтенти.
+ *
+ * Два терміни життя моделей: вкладка ([activityStoreOwner]) переживає перемикання, пушнутий екран
+ * бере модель зі сховища свого запису стека і чиститься при знятті.
  */
 
-/** Collects one-shot effects for as long as the route is on screen. */
+/** Збирає одноразові ефекти, поки маршрут на екрані. */
 @Composable
 private fun <E> Flow<E>.handle(onEffect: (E) -> Unit) {
     LaunchedEffect(this) { collect(onEffect) }
 }
 
-/**
- * The opening questions. They have no navigation of their own: the store ends the flow by marking
- * the answers given, and the root shows the app the moment it does.
- */
+/** Онбординг. Без власної навігації: стор позначає відповіді даними, і корінь показує застосунок. */
 @Composable
 fun OnboardingRoute() {
-    val model = screenViewModel { OnboardingViewModel(it) }
+    val model = koinViewModel<OnboardingViewModel>(viewModelStoreOwner = activityStoreOwner())
     OnboardingScreen(model.state.collectAsStateWithLifecycle().value, model::dispatch)
 }
 
 @Composable
-fun HomeRoute(navigate: (Screen, String) -> Unit, requireAccount: (() -> Unit) -> Unit) {
-    val model = screenViewModel { HomeViewModel(it) }
+fun HomeRoute(navigator: Navigator) {
+    val model = koinViewModel<HomeViewModel>(viewModelStoreOwner = activityStoreOwner())
     model.effects.handle { effect ->
         when (effect) {
             is HomeEffect.Navigate -> when (effect.destination) {
-                HomeDestination.DETAIL -> navigate(Screen.DETAIL, effect.id)
-                HomeDestination.MAP -> navigate(Screen.MAP, "")
-                HomeDestination.PROFILE -> navigate(Screen.PROFILE, "")
-                HomeDestination.EDITOR -> requireAccount { navigate(Screen.EDITOR, "") }
+                HomeDestination.DETAIL -> navigator.open(Detail(effect.id))
+                HomeDestination.MAP -> navigator.open(Explore())
+                HomeDestination.PROFILE -> navigator.open(Profile)
+                HomeDestination.EDITOR -> navigator.requireAccount { navigator.open(Editor()) }
             }
         }
     }
@@ -66,11 +67,11 @@ fun HomeRoute(navigate: (Screen, String) -> Unit, requireAccount: (() -> Unit) -
 
 @SuppressLint("MissingPermission")
 @Composable
-fun ExploreRoute(focusId: String, navigate: (Screen, String) -> Unit, requireAccount: (() -> Unit) -> Unit) {
+fun ExploreRoute(focusId: String, navigator: Navigator) {
     val context = LocalContext.current
     val nearbyLabel = stringResource(R.string.nearby)
-    val model = screenViewModel { ExploreViewModel(it) }
-    // Мапу відкрили з деталей події: наводимось на неї, а не на місто.
+    val model = koinViewModel<ExploreViewModel>(viewModelStoreOwner = activityStoreOwner())
+    // Мапу відкрили з деталей події: наводимось на неї.
     LaunchedEffect(focusId) { if (focusId.isNotEmpty()) model.dispatch(ExploreIntent.FocusEvent(focusId)) }
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { results ->
         if (results.values.none { it }) {
@@ -84,8 +85,8 @@ fun ExploreRoute(focusId: String, navigate: (Screen, String) -> Unit, requireAcc
     }
     model.effects.handle { effect ->
         when (effect) {
-            is ExploreEffect.OpenDetail -> navigate(Screen.DETAIL, effect.id)
-            ExploreEffect.CreateEvent -> requireAccount { navigate(Screen.EDITOR, "") }
+            is ExploreEffect.OpenDetail -> navigator.open(Detail(effect.id))
+            ExploreEffect.CreateEvent -> navigator.requireAccount { navigator.open(Editor()) }
             ExploreEffect.AskLocationPermission -> permission.launch(
                 arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION)
             )
@@ -95,65 +96,59 @@ fun ExploreRoute(focusId: String, navigate: (Screen, String) -> Unit, requireAcc
 }
 
 @Composable
-fun MyEventsRoute(navigate: (Screen, String) -> Unit, requireAccount: (() -> Unit) -> Unit) {
-    val model = screenViewModel { MyEventsViewModel(it) }
+fun MyEventsRoute(navigator: Navigator) {
+    val model = koinViewModel<MyEventsViewModel>(viewModelStoreOwner = activityStoreOwner())
     model.effects.handle { effect ->
         when (effect) {
-            is MyEventsEffect.OpenDetail -> navigate(Screen.DETAIL, effect.id)
-            MyEventsEffect.SignIn -> navigate(Screen.AUTH, "")
-            MyEventsEffect.CreateEvent -> requireAccount { navigate(Screen.EDITOR, "") }
+            is MyEventsEffect.OpenDetail -> navigator.open(Detail(effect.id))
+            MyEventsEffect.SignIn -> navigator.open(Auth)
+            MyEventsEffect.CreateEvent -> navigator.requireAccount { navigator.open(Editor()) }
         }
     }
     MyEventsScreen(model.state.collectAsStateWithLifecycle().value, model::dispatch)
 }
 
 @Composable
-fun DetailRoute(eventId: String, back: () -> Unit, navigate: (Screen, String) -> Unit) {
+fun DetailRoute(route: Detail, navigator: Navigator) {
     val context = LocalContext.current
-    val model = screenViewModel(key = eventId) { DetailViewModel(it, eventId) }
-    LaunchedEffect(eventId) { model.dispatch(DetailIntent.Load) }
+    val model = koinViewModel<DetailViewModel> { parametersOf(route) }
     model.effects.handle { effect ->
         when (effect) {
-            DetailEffect.Back -> back()
-            is DetailEffect.Edit -> navigate(Screen.EDITOR, effect.id)
-            DetailEffect.RequireSignIn -> navigate(Screen.AUTH, "")
+            DetailEffect.Back -> navigator.back()
+            is DetailEffect.Edit -> navigator.open(Editor(effect.id))
+            DetailEffect.RequireSignIn -> navigator.open(Auth)
             is DetailEffect.ShareEvent -> context.shareEvent(effect.event)
             is DetailEffect.OpenCalendar -> if (!context.addToCalendar(effect.event)) context.toast(R.string.calendar_unavailable)
             is DetailEffect.OpenMaps -> if (!context.openInMaps(effect.event)) context.toast(R.string.maps_unavailable)
             is DetailEffect.OpenLink -> if (!context.openLink(effect.url)) context.toast(R.string.link_unavailable)
-            is DetailEffect.OpenMap -> navigate(Screen.MAP, effect.id)
+            is DetailEffect.OpenMap -> navigator.open(Explore(effect.id))
         }
     }
     DetailScreen(model.state.collectAsStateWithLifecycle().value, model::dispatch)
 }
 
 @Composable
-fun EditorRoute(editingId: String?, back: () -> Unit) {
-    val context = LocalContext.current
-    val drafts = remember(context) { DraftStore(context.applicationContext) }
-    val model = screenViewModel(key = editingId ?: "new") { EditorViewModel(it, drafts, editingId) }
-    model.effects.handle { effect -> when (effect) { EditorEffect.Close -> back() } }
-    EditorScreen(model.state.collectAsStateWithLifecycle().value, model::dispatch, back)
+fun EditorRoute(route: Editor, navigator: Navigator) {
+    val model = koinViewModel<EditorViewModel> { parametersOf(route) }
+    model.effects.handle { effect -> when (effect) { EditorEffect.Close -> navigator.back() } }
+    EditorScreen(model.state.collectAsStateWithLifecycle().value, model::dispatch, navigator::back)
 }
 
 @Composable
-fun AuthRoute(back: () -> Unit) {
-    val model = screenViewModel { AuthViewModel(it) }
-    model.effects.handle { effect -> when (effect) { AuthEffect.Close -> back() } }
+fun AuthRoute(navigator: Navigator) {
+    val model = koinViewModel<AuthViewModel>()
+    model.effects.handle { effect -> when (effect) { AuthEffect.Close -> navigator.back() } }
     AuthScreen(model.state.collectAsStateWithLifecycle().value, model::dispatch)
 }
 
 @Composable
-fun ProfileRoute(navigate: (Screen, String) -> Unit) {
-    val model = screenViewModel { ProfileViewModel(it) }
-    model.effects.handle { effect -> when (effect) { ProfileEffect.SignIn -> navigate(Screen.AUTH, "") } }
+fun ProfileRoute(navigator: Navigator) {
+    val model = koinViewModel<ProfileViewModel>(viewModelStoreOwner = activityStoreOwner())
+    model.effects.handle { effect -> when (effect) { ProfileEffect.SignIn -> navigator.open(Auth) } }
     ProfileScreen(model.state.collectAsStateWithLifecycle().value, model::dispatch) { ReminderPreference() }
 }
 
-/**
- * Reads a coarse position without holding a location subscription: a last-known fix is enough to
- * move the map, and asking for a fresh one only when there is none keeps the radio quiet.
- */
+/** Грубе положення без підписки: останнього відомого досить, свіже просимо лише коли його нема. */
 @SuppressLint("MissingPermission")
 private fun Context.lastKnownPosition(onFound: (Double, Double) -> Unit, onUnavailable: () -> Unit) {
     val manager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
@@ -172,6 +167,3 @@ private fun Context.lastKnownPosition(onFound: (Double, Double) -> Unit, onUnava
         }
     } else onUnavailable()
 }
-
-/** Every destination the app can navigate to. The back stack stores these by name. */
-enum class Screen { HOME, MAP, MINE, PROFILE, DETAIL, EDITOR, AUTH }

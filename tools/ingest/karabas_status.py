@@ -1,7 +1,7 @@
-"""Read Karabas' explicit status table, with bounded, non-authoritative coverage.
+"""Читає явну таблицю статусів Karabas з обмеженим, неавторитетним покриттям.
 
-Dates here are visible Kyiv wall times, NOT Karabas JSON-LD's utc_is_local.
-Only exact URL/session notices are returned. Absence never means cancellation.
+Дати тут — видимий київський стінний час, не utc_is_local з JSON-LD. Повертаються лише точні
+повідомлення за URL/сеансом. Відсутність ніколи не означає скасування.
 """
 from __future__ import annotations
 
@@ -124,11 +124,10 @@ def _notice(fields, evidence_url):
 
 
 def collect(url='https://karabas.com/info/', *, get, delay=1.0, max_pages=3):
-    """Return (notices, diagnostics); get is the production robots-aware fetch.
+    """Повертає (notices, diagnostics); get — робочий fetch з урахуванням robots.
 
-    diagnostics.coverage is partial at pagination limits/errors, unknown for an
-    unrecognized page, complete only when the observed pagination is exhausted.
-    review contains malformed/conflicting records; those URLs are withheld.
+    diagnostics.coverage: partial при межах пагінації чи помилках, unknown для нерозпізнаної
+    сторінки, complete лише коли пагінація вичерпана. review — биті або суперечливі записи.
     """
     diag = dict(coverage='unknown', stop_reason='max_pages', pages_fetched=0,
                 visited_urls=[], errors=[], review=[], duplicates=0, rows_seen=0)
@@ -202,7 +201,7 @@ def collect(url='https://karabas.com/info/', *, get, delay=1.0, max_pages=3):
                         parts.path == original.path and page_number.isdigit() and int(page_number) > current_page):
                     page_links.append((int(page_number), candidate))
         if page_links:
-            # Follow the next numbered page, never jump directly to the last page.
+            # Йдемо на наступну сторінку, а не стрибаємо на останню.
             next_number, next_url = min(page_links)
             if next_number != current_page + 1:
                 diag['errors'].append(dict(url=page_url, error='pagination gap'))

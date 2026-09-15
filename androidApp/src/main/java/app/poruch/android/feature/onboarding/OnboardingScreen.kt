@@ -27,14 +27,7 @@ import app.poruch.android.ui.*
 import app.poruch.domain.Crowd
 import app.poruch.domain.TimeSlot
 
-/**
- * The way in.
- *
- * Three questions on the app's own paper, each one a single decision with an answer visible without
- * scrolling. It is a survey only in the sense that it asks — there is no progress bar to endure and
- * no question that must be answered: «Пропустити» is on every step, because a person who wants to
- * see what is on tonight should be allowed to, and the app ranks by time until they say otherwise.
- */
+/** Онбординг: три питання, кожне одним рішенням без скролу. «Пропустити» на кожному кроці. */
 @Composable
 fun OnboardingScreen(state: OnboardingState, onIntent: (OnboardingIntent) -> Unit) {
     val colors = Poruch.colors
@@ -81,7 +74,7 @@ fun OnboardingScreen(state: OnboardingState, onIntent: (OnboardingIntent) -> Uni
     }
 }
 
-/** Where you are and how to go back. The step count appears only once there is a step to count. */
+/** Де ви і як назад. Лічильник кроків з'являється, коли є що рахувати. */
 @Composable
 private fun TopRow(state: OnboardingState, onIntent: (OnboardingIntent) -> Unit) {
     val colors = Poruch.colors
@@ -103,7 +96,7 @@ private fun TopRow(state: OnboardingState, onIntent: (OnboardingIntent) -> Unit)
     }
 }
 
-/** Four dots rather than a bar: the flow is short enough to count, and a bar promises a form. */
+/** Чотири крапки замість смуги прогресу: смуга обіцяє анкету. */
 @Composable
 private fun StepDots(state: OnboardingState) {
     val colors = Poruch.colors
@@ -193,10 +186,7 @@ private fun CrowdStep(state: OnboardingState, onIntent: (OnboardingIntent) -> Un
     }
 }
 
-/**
- * One answer on a card. The mark says which kind of question it is before the answer is given: a
- * square for the ones that take several, a circle for the one that takes exactly one.
- */
+/** Одна відповідь на картці. Квадрат — можна кілька, коло — рівно одну. */
 @Composable
 private fun ChoiceRow(title: String, hint: String, selected: Boolean, multiple: Boolean, onClick: () -> Unit) {
     val colors = Poruch.colors
@@ -220,7 +210,7 @@ private fun ChoiceRow(title: String, hint: String, selected: Boolean, multiple: 
     }
 }
 
-/** The vocabulary of the shared module, given words. Order is the order a week is lived in. */
+/** Слоти зі спільного модуля з підписами, у порядку тижня. */
 private val timeSlots = listOf(
     TimeSlot.WEEKDAY_EVENING to (R.string.slot_weekday_evening to R.string.slot_weekday_evening_hint),
     TimeSlot.WEEKEND_DAY to (R.string.slot_weekend_day to R.string.slot_weekend_day_hint),

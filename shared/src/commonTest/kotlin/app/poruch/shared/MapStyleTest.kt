@@ -3,11 +3,7 @@ package app.poruch.shared
 import kotlinx.serialization.json.*
 import kotlin.test.*
 
-/**
- * The style is assembled as text, so the thing worth guarding is that it is still a style: valid
- * JSON, one source, unique layers, and every layer drawn from a source the style declares. A typo
- * inside a paint expression otherwise reaches the device as a blank map.
- */
+/** Стиль збирається як текст, тож перевіряємо, що це досі стиль: валідний JSON, унікальні шари, відомі джерела. */
 class MapStyleTest {
     private val tokens = MapTokens(
         canvas = "#F2F0EA", canvasTint = "#EAE6DA", surface = "#FFFFFF", surfaceMuted = "#EDEBE4",
@@ -41,7 +37,7 @@ class MapStyleTest {
         }
     }
 
-    /** Labels are Ukrainian first; a hosted style would hand us English or transliteration. */
+    /** Підписи спершу українською. */
     @Test fun labelsPreferUkrainian() {
         val labels = style(false).getValue("layers").jsonArray
             .map { it.jsonObject }.filter { it.getValue("type").jsonPrimitive.content == "symbol" }
@@ -52,7 +48,7 @@ class MapStyleTest {
         }
     }
 
-    /** The paper comes from the platform's tokens; water and greenery are the style's own call. */
+    /** Тло з токенів платформи, вода й зелень — власні кольори стилю. */
     @Test fun schemesDifferInTheirOwnHues() {
         fun water(dark: Boolean) = style(dark).getValue("layers").jsonArray
             .map { it.jsonObject }.first { it.getValue("id").jsonPrimitive.content == "water" }

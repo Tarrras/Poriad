@@ -23,12 +23,8 @@ import org.koin.dsl.koinApplication
 import org.koin.dsl.module
 
 /**
- * Isolated Koin container, so previews/tests do not share a global session.
- *
- * Доступ до подій зареєстрований п'ятьма гранями, а не одним інтерфейсом: тут це виглядає
- * багатослівніше, зате кожен, хто нижче просить `get()`, отримує рівно те, що йому дозволено
- * робити. Аргументи іменовані свідомо — позиційні `get()` мовчки переплутати легко, а компілятор
- * помітив би це лише там, де типи різні.
+ * Ізольований контейнер Koin, щоб превʼю й тести не ділили глобальну сесію. Доступ до подій
+ * зареєстровано п'ятьма інтерфейсами, аргументи іменовані: позиційні `get()` легко переплутати.
  */
 class AppGraph(config: AppConfig, sessionStore: SecureSessionStore) {
     private val http = platformHttpClient()
@@ -40,7 +36,7 @@ class AppGraph(config: AppConfig, sessionStore: SecureSessionStore) {
             single { PoruchDatabase(driver) }
             single<AuthRepository> { SupabaseAuthRepository(get(), sessionStore) }
 
-            // Реалізації подій сховані за EventData; граф бачить лише доменні грані.
+            // Реалізації сховані за EventData; граф бачить лише доменні інтерфейси.
             single { EventData(api = get(), auth = get(), database = get(), storage = get()) }
             single<EventDiscovery> { get<EventData>().discovery }
             single<SavedEvents> { get<EventData>().saved }
@@ -67,9 +63,7 @@ class AppGraph(config: AppConfig, sessionStore: SecureSessionStore) {
                     eventActions = get(), accountActions = get(),
                     preferences = get(), safety = get(), tasteStore = get(),
                     creationIdentity = get(), timeZones = get(), addresses = get(), config = config,
-                    // Обидва названі тут навмисно, замість того щоб покладатись на дефолти
-                    // конструктора: композиційний корінь — єдине місце, де видно обидва потоки
-                    // одразу, і де видно, що вони різні.
+                    // Обидва потоки названі явно: тут єдине місце, де видно, що вони різні.
                     scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
                     compute = Dispatchers.Default
                 )

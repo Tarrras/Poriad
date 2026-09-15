@@ -24,8 +24,7 @@ fun MyEventsScreen(state: MyEventsState, onIntent: (MyEventsIntent) -> Unit) {
     val colors = Poruch.colors
     Column(Modifier.fillMaxSize().background(colors.canvas)) {
         Column(Modifier.background(heroGradient()).statusBarsPadding()) {
-            // Гостю оновлювати нічого: списки належать акаунту, якого ще немає. Кнопка, що
-            // гарантовано нічого не робить, гірша за її відсутність.
+            // Гостю оновлювати нічого: списки належать акаунту.
             PageHeader(stringResource(R.string.my_events), trailing = if (!state.signedIn) null else ({
                 IconPill(Icons.Outlined.Refresh, stringResource(R.string.refresh)) { onIntent(MyEventsIntent.Refresh) }
             }))

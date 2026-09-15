@@ -1,17 +1,11 @@
--- Safety: declared age, per-event age limits, approval to join, reports, blocks and account status.
---
--- Everything here is enforced in the database rather than in the apps. A client can be patched, a
--- REST call can be replayed, and the whole point of these rules is that they hold for a caller who
--- is not using our app at all. The apps only ask the questions and render the answers.
+-- Безпека: вік, вікові межі подій, підтвердження участі, скарги, блокування, статус акаунта.
+-- Усе перевіряється в базі, а не в застосунках: правила мають триматись і для клієнта, який
+-- нашим застосунком не користується.
 
--- ---------------------------------------------------------------- account facts
-
--- Age and moderation status live apart from `profiles` because `profiles` is world-readable: a
--- birth date is not a public fact, and neither is «this account is under review».
+-- ---- Факти про акаунт. Окремо від `profiles`, бо ті читають усі, а дата народження — не публічна.
 create table public.account_facts (
  user_id uuid primary key references public.profiles(id) on delete cascade,
- -- Declared once, at sign-up. Self-declaration is a weak signal, but it establishes what the
- -- person claimed, which is what an age rule and a later moderation decision both rest on.
+ -- Заявляється раз при реєстрації. На це спираються вікові правила й модерація.
  birth_date date check (birth_date is null or birth_date > date '1900-01-01'),
  status text not null default 'active' check (status in ('active','limited','banned')),
  status_note text check (status_note is null or char_length(status_note) <= 500),
@@ -20,13 +14,11 @@ create table public.account_facts (
 alter table public.account_facts enable row level security;
 create policy account_facts_owner on public.account_facts for select to authenticated using (user_id=(select auth.uid()));
 revoke all on public.account_facts from anon,authenticated;
--- Read-only to its owner: every write goes through a definer function, so «I am 19 now» cannot be
--- an UPDATE from the client.
+-- Власник лише читає: записи йдуть через definer-функції, щоб клієнт не міг зробити UPDATE.
 grant select on public.account_facts to authenticated;
 insert into public.account_facts(user_id) select id from public.profiles on conflict do nothing;
 
--- The floor for the whole platform, in one place. Lowering it is a policy decision with a
--- moderation programme attached, not a number to edit in passing.
+-- Мінімальний вік платформи в одному місці. Знизити — рішення політики з модерацією на додачу.
 create function private.min_signup_age() returns integer language sql immutable set search_path='' as $$ select 18 $$;
 create function private.age_years(p_birth date) returns integer language sql stable set search_path='' as $$
  select case when p_birth is null then null else extract(year from age(current_date,p_birth))::integer end;
@@ -41,8 +33,7 @@ revoke all on function private.min_signup_age(),private.age_years(date),private.
 grant execute on function private.age_of(uuid),private.account_active(uuid) to authenticated;
 grant execute on function private.account_active(uuid) to anon;
 
--- Sign-up carries the declared birth date in auth metadata, so the floor is checked once, in the
--- transaction that creates the account: an underage sign-up never becomes a row anywhere.
+-- Дата народження їде в метаданих реєстрації: перевіряється в транзакції створення акаунта.
 create or replace function private.handle_new_user() returns trigger language plpgsql security definer set search_path = '' as $$
 declare v_raw text := btrim(coalesce(new.raw_user_meta_data->>'birth_date','')); v_birth date;
 begin
@@ -57,8 +48,7 @@ begin
  return new;
 end $$;
 
--- Accounts made before this migration have no declared age. They may state it once; changing a
--- stated age afterwards is a moderation action, not a self-service setting.
+-- Старі акаунти без віку вказують його раз; далі зміна — дія модерації.
 create function private.set_birth_date(p_birth date) returns void language plpgsql security definer set search_path='' as $$
 declare v_user uuid := auth.uid();
 begin
@@ -74,10 +64,7 @@ create function public.set_birth_date(p_birth date) returns void language sql se
 revoke all on function private.set_birth_date(date),public.set_birth_date(date) from public,anon,authenticated;
 grant execute on function private.set_birth_date(date),public.set_birth_date(date) to authenticated;
 
--- ---------------------------------------------------------------- blocks
-
--- Blocking is symmetric on purpose: «he can still watch my events» is not a block, and a person
--- who blocks somebody should not have to reason about which direction it works in.
+-- ---- Блокування. Симетричне навмисно: людина не має думати, в який бік воно діє.
 create table public.user_blocks (
  user_id uuid not null references public.profiles(id) on delete cascade,
  blocked_id uuid not null references public.profiles(id) on delete cascade,
@@ -99,7 +86,7 @@ $$;
 revoke all on function private.blocked_between(uuid,uuid) from public,anon,authenticated;
 grant execute on function private.blocked_between(uuid,uuid) to anon,authenticated;
 
--- ---------------------------------------------------------------- reports
+-- ---- Скарги
 
 create table public.reports (
  id uuid primary key default gen_random_uuid(),
@@ -107,7 +94,7 @@ create table public.reports (
  subject_type text not null check (subject_type in ('event','user')),
  event_id uuid references public.events(id) on delete set null,
  subject_user_id uuid references public.profiles(id) on delete set null,
- -- `minors` is its own reason rather than a free-text detail so the queue can be sorted by it.
+ -- `minors` — окрема причина, щоб чергу можна було нею сортувати.
  reason text not null check (reason in ('minors','safety','harassment','scam','spam','other')),
  details text check (details is null or char_length(details) <= 2000),
  status text not null default 'new' check (status in ('new','reviewing','actioned','dismissed')),
@@ -118,7 +105,7 @@ create table public.reports (
 create index reports_queue_idx on public.reports(status,reason,created_at);
 create index reports_reporter_idx on public.reports(reporter_id,created_at);
 alter table public.reports enable row level security;
--- A reporter sees what they filed and nothing else; moderation reads with the service role.
+-- Скаржник бачить лише свої скарги; модерація читає service role.
 create policy reports_reporter on public.reports for select to authenticated using (reporter_id=(select auth.uid()));
 revoke all on public.reports from anon,authenticated;
 grant select on public.reports to authenticated;
@@ -130,11 +117,10 @@ begin
  if p_reason is null or p_reason not in ('minors','safety','harassment','scam','spam','other') then
   raise exception 'INVALID_REASON' using errcode='22023'; end if;
  if p_type='user' and p_user=v_user then raise exception 'CANNOT_REPORT_SELF' using errcode='P0001'; end if;
- -- A report costs nothing to file, which is also how a queue gets flooded to hide one real case.
+ -- Ліміт: скарга безкоштовна, і так чергу заливають, щоб сховати справжню.
  if (select count(*) from public.reports where reporter_id=v_user and created_at > now()-interval '1 hour') >= 10 then
   raise exception 'TOO_MANY_REPORTS' using errcode='P0001'; end if;
- -- The same person reporting the same thing twice is one report, not two: it must not look like
- -- corroboration in the queue.
+ -- Та сама скарга від тієї ж людини — одна, а не дві: не має виглядати як підтвердження.
  select id into v_id from public.reports
  where reporter_id=v_user and subject_type=p_type
  and event_id is not distinct from p_event and subject_user_id is not distinct from p_user
@@ -154,7 +140,7 @@ $$;
 revoke all on function private.file_report(text,uuid,uuid,text,text),public.report_event(uuid,text,text),public.report_user(uuid,text,text) from public,anon,authenticated;
 grant execute on function private.file_report(text,uuid,uuid,text,text),public.report_event(uuid,text,text),public.report_user(uuid,text,text) to authenticated;
 
--- ---------------------------------------------------------------- events: age limits and approval
+-- ---- Події: вікові межі й підтвердження
 
 alter table public.events
  add column min_age integer not null default 18 check (min_age between 0 and 100),
@@ -162,18 +148,12 @@ alter table public.events
  add column approval_required boolean not null default false;
 alter table public.events add constraint events_age_range check (max_age is null or max_age >= min_age);
 
--- A membership row now has a state: an event may hold requests the organizer has not accepted.
--- Everything that counted members counts approved ones from here on — a request must never take a
--- seat, or a stranger could fill an event by requesting places they were never given.
+-- Членство отримує статус: запит не займає місце, рахуються лише approved.
 alter table public.event_members
  add column status text not null default 'approved' check (status in ('requested','approved'));
 create index event_members_requests_idx on public.event_members(event_id,joined_at) where status='requested';
 
--- ---------------------------------------------------------------- projections
-
--- The result type gains the safety fields, so every screen reads the same row. Dropping and
--- recreating is the honest way to change a composite type: the dependent functions are rebuilt
--- below, in one transaction with it.
+-- ---- Проєкції. Композитний тип отримує поля безпеки; залежні функції перебудовані нижче в тій же транзакції.
 drop function if exists public.event_details(uuid);
 drop function if exists public.my_events();
 drop function if exists public.events_in_view(double precision,double precision,double precision,double precision,text,timestamptz,timestamptz);
@@ -188,9 +168,8 @@ create type public.event_result as (
  min_age integer,max_age integer,approval_required boolean,membership text
 );
 
--- Only this identity-scoped projection can aggregate hidden member records. It is also where a
--- blocked organizer and a suspended account disappear from: filtering here covers the map, the
--- detail screen and «my events» at once, and no caller can opt out of it.
+-- Єдина проєкція, що агрегує приховані записи учасників. Тут же зникають заблокований
+-- організатор і обмежений акаунт: одразу для мапи, деталей і «моїх подій».
 create function private.event_rows(p_ids uuid[]) returns setof public.event_result language sql stable security definer set search_path = '' as $$
  select e.id,e.title,e.description,e.category,e.city,e.address,e.organizer_id,p.display_name,
  e.starts_at,e.ends_at,e.time_zone,e.status,e.latitude,e.longitude,e.capacity,
@@ -231,7 +210,7 @@ begin
  or exists(select 1 from public.saved_events s where s.user_id=auth.uid() and s.event_id=e.id))) r order by r.starts_at,r.id;
 end $$;
 
--- Counts approved participants only, so a queue of requests never reads as a full event.
+-- Рахує лише approved: черга запитів не виглядає як повна подія.
 create or replace function private.event_has_space(p_event_id uuid) returns boolean
 language sql stable security definer set search_path='' as $$
  select exists(select 1 from public.events e where e.id=p_event_id
@@ -266,7 +245,7 @@ grant execute on function public.event_details(uuid),
  public.search_events_in_view(double precision,double precision,double precision,double precision,text,timestamptz,timestamptz,text,boolean) to anon,authenticated;
 grant execute on function public.my_events() to authenticated;
 
--- The roster is the confirmed room: a request is not a participant and is not shown as one.
+-- У списку лише підтверджені: запит — не учасник.
 create or replace function private.can_view_members(p_event_id uuid) returns boolean language sql stable security definer set search_path = '' as $$
  select auth.uid() is not null and (exists(select 1 from public.events e where e.id=p_event_id and e.organizer_id=auth.uid())
  or exists(select 1 from public.event_members m where m.event_id=p_event_id and m.user_id=auth.uid() and m.status='approved'));
@@ -280,10 +259,8 @@ create or replace function public.event_attendees(p_event_id uuid, p_limit integ
  limit greatest(1, least(coalesce(p_limit, 24), 100));
 $$;
 
--- ---------------------------------------------------------------- joining under the new rules
-
--- Every reason a person may not join, in one place. The order is deliberate: the answer a caller
--- gets back should be the most specific true one, and «you are blocked» must not leak as «full».
+-- ---- Приєднання. Усі причини відмови в одному місці; порядок важливий: найконкретніша перша,
+-- і «заблоковано» не має витікати як «повно».
 create function private.assert_can_join(p_user uuid,p_event public.events) returns void language plpgsql stable security definer set search_path='' as $$
 declare v_age integer;
 begin
@@ -308,8 +285,7 @@ begin
  if v_event.organizer_id=v_user then raise exception 'ORGANIZER_CANNOT_JOIN' using errcode='P0001'; end if;
  if exists(select 1 from public.event_members where event_id=p_event_id and user_id=v_user) then return; end if;
  perform private.assert_can_join(v_user,v_event);
- -- A request holds no seat, so it is accepted even when the room is already full: the organizer
- -- decides, and capacity is checked again at the moment they accept.
+ -- Запит не займає місце, тому приймається й на повну подію: місткість перевіряється при схваленні.
  if v_event.approval_required then
   insert into public.event_members(event_id,user_id,status) values(p_event_id,v_user,'requested');
   delete from public.event_waitlist where event_id=p_event_id and user_id=v_user;
@@ -330,14 +306,13 @@ begin
  if v_event.starts_at <= now() then raise exception 'EVENT_STARTED' using errcode='P0001'; end if;
  if v_event.organizer_id=v_user then raise exception 'ORGANIZER_CANNOT_JOIN' using errcode='P0001'; end if;
  if exists(select 1 from public.event_members where event_id=p_event_id and user_id=v_user) then raise exception 'ALREADY_MEMBER' using errcode='P0001'; end if;
- -- The queue is a way into the room, so it answers to the same rules as the door.
+ -- Черга — теж вхід, ті самі правила.
  perform private.assert_can_join(v_user,v_event);
  if (select count(*) from public.event_members where event_id=p_event_id and status='approved') < v_event.capacity then raise exception 'EVENT_HAS_SPACE' using errcode='P0001'; end if;
  insert into public.event_waitlist(event_id,user_id) values(p_event_id,v_user) on conflict do nothing;
 end $$;
 
--- Promotion is a join the person is not present for, so it re-checks the same rules and skips
--- anyone who no longer passes them rather than letting the queue smuggle them in.
+-- Просування — приєднання без присутності людини: перевіряє ті ж правила й пропускає тих, хто вже не проходить.
 create or replace function private.promote_waitlist(p_event_id uuid) returns void language plpgsql security definer set search_path = '' as $$
 declare v_event public.events; v_next uuid; v_allowed boolean;
 begin
@@ -354,10 +329,7 @@ begin
  end loop;
 end $$;
 
--- ---------------------------------------------------------------- the organizer's door
-
--- Superseded by 20260906200401_event_requests_invoker.sql, which drops the elevated rights: the
--- organizer already reads their own event's members under RLS.
+-- ---- Запити організатору. Замінено в 20260906200401: організатор читає своїх учасників під RLS.
 create function public.event_requests(p_event_id uuid,p_limit integer default 50) returns setof public.attendee_result language sql stable security definer set search_path='' as $$
  select m.user_id,p.display_name,p.avatar_url,m.joined_at
  from public.event_members m join public.profiles p on p.id=m.user_id
@@ -374,8 +346,7 @@ begin
  if not p_approve then delete from public.event_members where event_id=p_event_id and user_id=p_user_id and status='requested'; return; end if;
  if not exists(select 1 from public.event_members where event_id=p_event_id and user_id=p_user_id and status='requested') then return; end if;
  if (select count(*) from public.event_members where event_id=p_event_id and status='approved') >= v_event.capacity then raise exception 'EVENT_FULL' using errcode='P0001'; end if;
- -- The rules are re-checked at acceptance: a request may have been sitting there since before the
- -- organizer raised the age limit, or before the account was restricted.
+ -- При схваленні правила перевіряються знову: запит міг лежати з часів до зміни вікової межі.
  perform private.assert_can_join(p_user_id,v_event);
  update public.event_members set status='approved',joined_at=now() where event_id=p_event_id and user_id=p_user_id;
 end $$;
@@ -384,16 +355,14 @@ create function public.decline_member(p_event_id uuid,p_user_id uuid) returns vo
 revoke all on function public.event_requests(uuid,integer),private.decide_member(uuid,uuid,boolean),public.approve_member(uuid,uuid),public.decline_member(uuid,uuid) from public,anon,authenticated;
 grant execute on function public.event_requests(uuid,integer),private.decide_member(uuid,uuid,boolean),public.approve_member(uuid,uuid),public.decline_member(uuid,uuid) to authenticated;
 
--- ---------------------------------------------------------------- creating and editing
+-- ---- Створення й редагування
 
 drop function public.create_event(uuid,text,text,text,text,text,double precision,double precision,timestamptz,timestamptz,text,integer,text);
 drop function private.create_event(uuid,text,text,text,text,text,double precision,double precision,timestamptz,timestamptz,text,integer,text);
 drop function public.update_event(uuid,text,text,text,text,text,double precision,double precision,timestamptz,timestamptz,text,integer,text);
 drop function private.update_event(uuid,text,text,text,text,text,double precision,double precision,timestamptz,timestamptz,text,integer,text);
 
--- The age limits an organizer may set. Below the platform floor the limit would be a promise the
--- product cannot keep — there are no accounts under it — and pretending otherwise is worse than
--- refusing.
+-- Вікові межі організатора: не нижче за мінімум платформи, бо таких акаунтів не існує.
 create function private.assert_age_limits(p_min integer,p_max integer) returns void language plpgsql immutable set search_path='' as $$
 begin
  if p_min is null or p_min < private.min_signup_age() or p_min > 100 then raise exception 'INVALID_AGE_LIMIT' using errcode='22023'; end if;
@@ -408,7 +377,7 @@ begin
  if v_user is null then raise exception 'AUTH_REQUIRED' using errcode='28000'; end if;
  if not private.account_active(v_user) then raise exception 'ACCOUNT_RESTRICTED' using errcode='42501'; end if;
  if private.age_of(v_user) is null then raise exception 'AGE_REQUIRED' using errcode='P0001'; end if;
- -- Serialize retries using the client UUID, including requests before the row exists.
+ -- Повтори серіалізуємо за UUID клієнта, включно з запитами до появи рядка.
  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(p_id::text,0));
  select * into v_existing from public.events where id=p_id for update;
  if found then
@@ -418,8 +387,7 @@ begin
  if p_starts_at <= now() then raise exception 'START_MUST_BE_FUTURE' using errcode='22023'; end if;
  if not exists(select 1 from pg_catalog.pg_timezone_names where name=p_time_zone) then raise exception 'INVALID_TIME_ZONE' using errcode='22023'; end if;
  perform private.assert_age_limits(p_min_age,p_max_age);
- -- Six events a day from one account is already more than a person organizes; past that it is a
- -- script, and a script is how a queue of fake events gets built.
+ -- Більше шести подій на день з одного акаунта — скрипт, а не людина.
  if (select count(*) from public.events where organizer_id=v_user and created_at > now()-interval '24 hours') >= 6 then
   raise exception 'TOO_MANY_EVENTS' using errcode='P0001'; end if;
  insert into public.events(id,organizer_id,title,description,category,city,address,latitude,longitude,starts_at,ends_at,time_zone,capacity,image_url,min_age,max_age,approval_required)
@@ -441,7 +409,7 @@ begin
  update public.events set title=p_title,description=p_description,category=p_category,city=p_city,address=p_address,
  latitude=p_latitude,longitude=p_longitude,starts_at=p_starts_at,ends_at=p_ends_at,time_zone=p_time_zone,capacity=p_capacity,image_url=p_image_url,
  min_age=p_min_age,max_age=p_max_age,approval_required=p_approval_required,updated_at=now() where id=p_id;
- -- Raising the age limit does not evict anyone already accepted; it governs who may still come in.
+ -- Підвищення вікової межі не виганяє вже прийнятих.
  perform private.promote_waitlist(p_id);
  return p_id;
 end $$;

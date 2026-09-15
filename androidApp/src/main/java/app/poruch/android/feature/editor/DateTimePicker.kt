@@ -15,20 +15,12 @@ import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneOffset
 
-/**
- * Date then time, in one sheet, painted from our own tokens.
- *
- * The platform `DatePickerDialog` renders in the system accent and system language, which put a
- * green English dialog in the middle of a Ukrainian paper-and-ink app. Material 3's composable
- * picker takes our colour scheme, and the app's locale gives it Ukrainian month names — and it
- * arrives the way every other question in the app does, from the bottom edge.
- */
+/** Дата, потім час, в одній шторці на наших токенах. Системний `DatePickerDialog` був би зеленим і англійським. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DateTimeSheet(initial: LocalDateTime, minimum: LocalDateTime?, onDismiss: () -> Unit, onPicked: (LocalDateTime) -> Unit) {
     val colors = Poruch.colors
-    // One sheet, two steps: the date is kept here, so picking it swaps the contents rather than
-    // dismissing one dialog and opening another over the same screen.
+    // Одна шторка, два кроки: вибір дати міняє вміст, а не відкриває другий діалог.
     var date by remember { mutableStateOf<LocalDate?>(null) }
     PoruchSheet(onDismiss) { sheet ->
         Column(
@@ -44,13 +36,13 @@ fun DateTimeSheet(initial: LocalDateTime, minimum: LocalDateTime?, onDismiss: ()
                 val dateState = rememberDatePickerState(
                     initialSelectedDateMillis = initial.toLocalDate().atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli(),
                     selectableDates = object : SelectableDates {
-                        // A past date is never valid for an event, and the server rejects it anyway.
+                        // Минула дата для події недійсна; сервер її теж відхилить.
                         override fun isSelectableDate(utcTimeMillis: Long) =
                             utcTimeMillis >= (minimum ?: LocalDateTime.now()).toLocalDate().atStartOfDay()
                                 .toInstant(ZoneOffset.UTC).toEpochMilli()
                     }
                 )
-                // The sheet already carries the title, so the picker's own is switched off.
+                // Заголовок уже в шторці.
                 DatePicker(dateState, title = null, showModeToggle = false, colors = poruchDatePickerColors())
                 SheetActions(
                     confirm = stringResource(R.string.next),
@@ -76,7 +68,7 @@ fun DateTimeSheet(initial: LocalDateTime, minimum: LocalDateTime?, onDismiss: ()
     }
 }
 
-/** The step's own footer: the way on is the button, the way out stays a quiet label beside it. */
+/** Підвал кроку: далі — кнопка, назад — тихий підпис поруч. */
 @Composable
 private fun SheetActions(confirm: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -115,13 +107,7 @@ private fun poruchTimePickerColors() = Poruch.colors.let { colors ->
     )
 }
 
-/**
- * The one date the app asks for that is not an event: a birth date.
- *
- * It opens on the year a person who just turned eighteen was born, because that is the nearest
- * plausible answer, and it refuses anything later — the floor is stated by the control itself
- * rather than by an error after the fact. The server checks it again regardless.
- */
+/** Дата народження. Відкривається на році, коли народився той, кому щойно 18, і пізніше не дає обрати. Сервер перевіряє ще раз. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BirthDateSheet(initial: LocalDate?, onDismiss: () -> Unit, onPicked: (LocalDate) -> Unit) {

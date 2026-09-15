@@ -7,10 +7,7 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import kotlinx.coroutines.CancellationException
 
-/**
- * Supabase Storage — інша служба, ніж база: свій шлях, свій публічний URL, своя відмова.
- * Тому й окремий клас: у [ApiClient] цей метод був єдиним, що не повертав JSON.
- */
+/** Завантаження в Supabase Storage. Окремо від [ApiClient]: інший шлях, публічний URL і помилки. */
 class ImageStorage(private val client: HttpClient, private val baseUrl: String, private val key: String) {
     suspend fun upload(path: String, bytes: ByteArray, mime: String, token: String): String {
         if (key.isBlank()) fail(AppError.NotConfigured)

@@ -1,4 +1,4 @@
-"""Public calendar boundary tests; only HTTP is substituted."""
+"""Тести меж публічних календарів; підміняється лише HTTP."""
 import datetime as dt
 import json
 import unittest

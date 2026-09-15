@@ -2,22 +2,12 @@ import SwiftUI
 import ImageIO
 import UIKit
 
-/**
- Зображення події з пам'яттю й зі зменшенням під розмір показу.
-
- Системний `AsyncImage` кешу **декодованих** зображень не має. Щойно картка виїхала за край списку
- й повернулась, він читає байти наново і наново розпаковує JPEG — у повний розмір, яким його віддає
- джерело. Афіші приходять розміром 707×1000, тобто ~2.8 МБ пікселів на кожну; у списку їх сотня, і
- кожен прохід туди-назад платить за всі. Coil на Android робить і те, і те сам, тому там цього не
- видно, а тут скрол спотикається.
-
- Тут два запобіжники. Перший — `NSCache` готових `UIImage`: повернення до вже баченої картки нічого
- не коштує. Другий — розпакування одразу в потрібний розмір через `CGImageSourceCreateThumbnailAtIndex`:
- у рядок 60×60 не потрапляє мільйон пікселів, який усе одно нікуди не помістився б.
- */
+/// Зображення з кешем декодованих `UIImage` і зменшенням під розмір показу. `AsyncImage` такого
+/// кешу не має і розпаковує повнорозмірний JPEG щоразу, коли картка повертається на екран;
+/// Coil на Android робить обидва сам.
 struct CachedImage: View {
     let url: URL
-    /// Найбільша сторона показу в **точках**. Пікселі рахуються з масштабу екрана під час читання.
+    /// Найбільша сторона показу в pt. Пікселі рахуються з масштабу екрана.
     let maxDimension: CGFloat
 
     @Environment(\.displayScale) private var displayScale
@@ -26,8 +16,7 @@ struct CachedImage: View {
     init(url: URL, maxDimension: CGFloat) {
         self.url = url
         self.maxDimension = maxDimension
-        // Готове зображення підхоплюємо ще до першого кадру: інакше кожне повернення до картки
-        // блимало б порожнім місцем, хоча малювати вже є що.
+        // Готове зображення беремо до першого кадру, щоб повернення до картки не блимало.
         _image = State(initialValue: ThumbnailCache.shared.image(for: ThumbnailCache.key(url, maxDimension)))
     }
 
@@ -51,7 +40,7 @@ struct CachedImage: View {
         }
         let pixels = maxDimension * displayScale
         guard let data = try? await URLSession.shared.data(from: url).0, !Task.isCancelled else { return }
-        // Розпакування — робота для іншого потоку: воно коштує кадри, а не мілісекунди.
+        // Розпакування поза головним потоком: воно коштує кадри.
         let rendered = await Task.detached(priority: .utility) { ThumbnailCache.downsample(data, to: pixels) }.value
         guard let rendered, !Task.isCancelled else { return }
         ThumbnailCache.shared.store(rendered, for: key)
@@ -59,8 +48,7 @@ struct CachedImage: View {
     }
 }
 
-/// Готові зображення, спільні для всіх екранів. Обмеження — за пікселями, а не за кількістю:
-/// сто мініатюр рядка й сто обкладинок карток коштують геть різного.
+/// Спільний кеш готових зображень. Ліміт за пікселями, а не за кількістю.
 final class ThumbnailCache {
     static let shared = ThumbnailCache()
 
@@ -81,8 +69,7 @@ final class ThumbnailCache {
         memory.setObject(image, forKey: key, cost: cost)
     }
 
-    /// Читає файл одразу в потрібний розмір. `kCGImageSourceShouldCache: false` на джерелі не дає
-    /// ImageIO тримати ще й повнорозмірну копію, яка тут нікому не потрібна.
+    /// Читає одразу в потрібний розмір. `kCGImageSourceShouldCache: false` не дає ImageIO тримати повнорозмірну копію.
     static func downsample(_ data: Data, to maxPixel: CGFloat) -> UIImage? {
         let sourceOptions = [kCGImageSourceShouldCache: false] as CFDictionary
         guard let source = CGImageSourceCreateWithData(data as CFData, sourceOptions) else { return nil }

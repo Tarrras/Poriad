@@ -1,10 +1,8 @@
--- Імпорт подій із зовнішніх джерел. Обґрунтування джерел і виміряні числа — docs/event-discovery.md.
---
--- Головна межа цієї міграції: подія має рід. `community` створює людина, до неї приєднуються.
--- `import` приходить із конвеєра, і приєднатися до неї неможливо — не тому, що клієнт ховає кнопку,
--- а тому, що це заборонено в тій самій функції, де зібрані всі інші причини відмови.
+-- Імпорт подій із зовнішніх джерел (обґрунтування: docs/event-discovery.md). Подія отримує рід:
+-- `community` створює людина, `import` приходить з конвеєра, і приєднатись до нього не можна
+-- на рівні бази.
 
--- ------------------------------------------------------------------ джерела
+-- ---- Джерела
 
 create table public.event_sources (
  id uuid primary key default gen_random_uuid(),
@@ -12,17 +10,14 @@ create table public.event_sources (
  name text not null check (char_length(btrim(name)) between 1 and 80),  -- показуємо як «Афіша · <name>»
  kind text not null check (kind in ('listing_jsonld','sitemap_jsonld','ics','rss','api','telegram','manual')),
  base_url text not null check (base_url like 'https://%'),
- -- Сторінки-списки за містами. Виміряно: один запит до concert.ua/uk/kyiv дає 118 подій,
- -- до kyiv.karabas.com — 149. Тому це головний режим обходу, а не sitemap.
+ -- Сторінки-списки за містами: головний режим обходу, а не sitemap.
  listing_urls text[] not null default '{}',
  city text,
- -- Синтетичний акаунт джерела. events.organizer_id -> profiles.id -> auth.users.id, тож це має бути
- -- справжній обліковий запис: створюється один раз адміністратором, міграція його не вигадує.
+ -- Синтетичний акаунт джерела (знято в 20260907130000).
  organizer_id uuid references public.profiles(id) on delete restrict,
  weight numeric not null default 0.5 check (weight between 0 and 1),
  crawl_delay_seconds integer not null default 5 check (crawl_delay_seconds between 0 and 3600),
- -- moemisto.ua віддає локальний київський час зі зсувом +0000 (12 із 12 сторінок вибірки).
- -- Це властивість джерела, а не поправка в парсері, інакше наступне таке джерело зламає все вдруге.
+ -- Політика часу — властивість джерела, а не парсера: moemisto.ua віддає локальний час зі зсувом +0000.
  tz_policy text not null default 'source' check (tz_policy in ('source','force_local')),
  default_time_zone text not null default 'Europe/Kyiv',
  sitemap_min_lastmod date,               -- у moemisto лише 4% з 12 862 URL стосуються цього року
@@ -32,11 +27,7 @@ create table public.event_sources (
  created_at timestamptz not null default now()
 );
 
--- ------------------------------------------------------------------ кеш майданчиків
---
--- Жодне з перевірених джерел не віддає координат: 0 із 293 записів на сторінках-списках і 0 із 24
--- сторінок подій. Геокодування тут не стадія конвеєра, а сам конвеєр. Рятує концентрація:
--- ~55 майданчиків покривають 267 київських подій.
+-- ---- Кеш майданчиків. Жодне джерело не віддає координат; рятує те, що ~55 майданчиків покривають більшість подій.
 
 create table public.venues (
  id uuid primary key default gen_random_uuid(),
@@ -46,7 +37,7 @@ create table public.venues (
  latitude double precision not null check (latitude between -90 and 90),
  longitude double precision not null check (longitude between -180 and 180),
  city text,
- -- 'osm' — дамп Overpass під ODbL; 'manual' — ручна вивірка, найточніше; 'photon' — геокодер.
+ -- 'osm' — дамп Overpass (ODbL); 'manual' — ручна вивірка; 'photon' — геокодер.
  source text not null default 'manual' check (source in ('osm','manual','photon')),
  osm_ref text,
  confidence numeric not null default 0.5 check (confidence between 0 and 1),
@@ -55,7 +46,7 @@ create table public.venues (
 );
 create index venues_city_idx on public.venues(city);
 
--- ------------------------------------------------------------------ поля імпорту на подіях
+-- ---- Поля імпорту на подіях
 
 alter table public.events
  add column origin text not null default 'community' check (origin in ('community','import','partner')),
@@ -70,8 +61,7 @@ alter table public.events
  add column is_free boolean,
  add column ingest_run_id uuid;
 
--- Рід і походження мають бути узгоджені: імпорт без джерела — це подія-сирота, яку нічим оновити
--- й нікуди відкликати, а спільнотна подія з source_id прикидається чужою.
+-- Рід і джерело узгоджені: імпорт без джерела нічим оновити, спільнотна подія з source_id прикидається чужою.
 alter table public.events add constraint events_origin_source_ck check (
  (origin = 'community' and source_id is null and source_uid is null and import_status is null)
  or (origin <> 'community' and source_id is not null and source_uid is not null and import_status is not null)
@@ -81,11 +71,8 @@ create unique index events_source_uid_uidx on public.events(source_id, source_ui
 create index events_dedupe_idx on public.events(dedupe_key) where dedupe_key is not null;
 create index events_origin_starts_idx on public.events(origin, starts_at) where status = 'published';
 
--- ------------------------------------------------------------------ що видно у видачі
---
--- Поріг якості й стан імпорту фільтруються тут, а не в клієнті. Відкликана подія лишається
--- доступною тому, хто її зберіг (порожній збережений запис гірший за позначку «більше не
--- проводиться»), але зникає з мапи й пошуку.
+-- ---- Що видно у видачі. Поріг якості й стан імпорту фільтруються тут. Відкликана подія
+-- зникає з мапи, але лишається тому, хто її зберіг.
 create function private.is_discoverable(p_origin text, p_import_status text, p_quality numeric)
 returns boolean language sql immutable set search_path='' as $$
  select p_origin = 'community'
@@ -94,10 +81,7 @@ $$;
 revoke all on function private.is_discoverable(text,text,numeric) from public,anon,authenticated;
 grant execute on function private.is_discoverable(text,text,numeric) to anon,authenticated;
 
--- ------------------------------------------------------------------ проєкція
---
--- Перестворення композитного типу тягне за собою залежні функції — вони перебудовані нижче в одній
--- транзакції з ним, тим самим порядком, що й у міграції безпеки.
+-- ---- Проєкція. Залежні функції перебудовані нижче в тій же транзакції, як у міграції безпеки.
 
 drop function if exists public.event_details(uuid);
 drop function if exists public.my_events();
@@ -189,11 +173,7 @@ grant execute on function public.event_details(uuid),
  public.search_events_in_view(double precision,double precision,double precision,double precision,text,timestamptz,timestamptz,text,boolean) to anon,authenticated;
 grant execute on function public.my_events() to authenticated;
 
--- ------------------------------------------------------------------ запобіжники
---
--- Приєднання до імпортованої події неможливе. Правило стоїть тут, а не в клієнті: інакше воно
--- тримається лише до першого пропатченого застосунку. Місткості чужого концерту ми не знаємо й не
--- керуємо нею, тож «приєднатися» було б обіцянкою, яку нема кому виконати.
+-- ---- Запобіжники. Приєднатись до імпорту не можна: місткості чужого концерту ми не знаємо.
 create or replace function private.assert_can_join(p_user uuid,p_event public.events) returns void language plpgsql stable security definer set search_path='' as $$
 declare v_age integer;
 begin
@@ -206,8 +186,7 @@ begin
  if p_event.max_age is not null and v_age > p_event.max_age then raise exception 'TOO_OLD' using errcode='P0001'; end if;
 end $$;
 
--- Редагувати чужу імпортовану подію не можна навіть її синтетичному акаунту: єдиний законний шлях
--- змінити її — наступний запуск конвеєра, який пише як власник бази.
+-- Імпортовану подію змінює лише наступний запуск конвеєра.
 create or replace function private.assert_event_editable(p_event public.events) returns void language plpgsql immutable set search_path='' as $$
 begin
  if p_event.origin <> 'community' then raise exception 'IMPORTED_EVENT' using errcode='P0001'; end if;
@@ -215,9 +194,7 @@ end $$;
 revoke all on function private.assert_event_editable(public.events) from public,anon,authenticated;
 grant execute on function private.assert_event_editable(public.events) to authenticated;
 
--- ------------------------------------------------------------------ сире й проміжне
---
--- Живе поза public: користувачам цього бачити нема чого, і Data API сюди не дістає.
+-- ---- Сире й проміжне. Поза public: Data API сюди не дістає.
 
 create table private.ingest_runs (
  id uuid primary key default gen_random_uuid(),
@@ -252,11 +229,8 @@ alter table public.event_sources enable row level security;
 alter table public.venues enable row level security;
 
 revoke all on public.event_sources, public.venues from anon, authenticated;
--- Джерела читаються всіма: назва джерела стоїть на картці як обов'язкова атрибуція, тож без
--- цього рядка картка імпортованої події не може виконати умову з розділу 8 event-ingestion.md.
+-- Джерела читають усі: назва джерела — обов'язкова атрибуція на картці (event-ingestion.md §8).
 grant select on public.event_sources to anon, authenticated;
 create policy event_sources_read on public.event_sources for select to anon,authenticated using (true);
 
--- venues лишається без політик свідомо: це внутрішній кеш геокодування, клієнтам він не потрібен —
--- координати вони отримують уже в проєкції події. RLS без політик = доступу немає ні в кого,
--- окрім власника бази, який і пише туди з конвеєра.
+-- venues без політик навмисно: внутрішній кеш, координати клієнт отримує в проєкції події.

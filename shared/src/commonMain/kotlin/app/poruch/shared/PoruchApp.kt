@@ -15,9 +15,8 @@ import kotlin.uuid.Uuid
 import kotlin.uuid.ExperimentalUuidApi
 
 /**
- * The single store both platforms observe. It owns the state and the jobs that change it; reading
- * and filtering live in [DiscoveryEngine] and [UserLibrary], and what remains here are the verbs a
- * screen can invoke and the session they all depend on.
+ * Єдиний стор, за яким стежать обидві платформи. Тримає стан і задачі, що його змінюють.
+ * Читання й фільтрація — у [DiscoveryEngine] та [UserLibrary]; тут лишаються дії екранів і сесія.
  */
 class PoruchApp internal constructor(
     private val events: EventDiscovery,
@@ -36,17 +35,12 @@ class PoruchApp internal constructor(
     private val timeZones: TimeZoneLocator? = null,
     private val addresses: AddressSearch? = null,
     config: AppConfig = AppConfig("", ""),
-    /** Де живе стан. Головний потік навмисно: звідси читають і Compose, і SwiftUI. */
+    /** Стан живе на головному потоці: звідси читають і Compose, і SwiftUI. */
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
-    /**
-     * Де рахувати те, що не має рахуватись у [scope]. Порожньо за замовчуванням — тоді все
-     * лишається на місці, і тест під `runTest` не мусить нічого про це знати. Збірка підставляє
-     * справжній диспетчер у [AppGraph].
-     */
+    /** Де рахувати важке. Порожньо за замовчуванням, щоб тести під `runTest` нічого не знали; [AppGraph] підставляє диспетчер. */
     compute: CoroutineContext = EmptyCoroutineContext
 ) {
-    // The answers are read straight off the device, not awaited: they decide whether the first
-    // frame is the onboarding or the app, and a suspending read there would flash the wrong one.
+    // Відповіді читаємо синхронно: від них залежить, чи перший кадр — онбординг чи застосунок.
     private val mutable = MutableStateFlow(
         AppState(userId = auth.session.value?.userId, taste = tasteStore?.read() ?: Taste())
     )
@@ -56,7 +50,7 @@ class PoruchApp internal constructor(
     private val library = UserLibrary(events, saved, participation, requests, auth, preferences, safety, tasteStore, mutable, scope)
 
     private var mutationJob: Job? = null
-    /** Retry of an uncertain create must reuse its id, or the retry publishes a second event. */
+    /** Повтор непевного створення має взяти той самий id, інакше опублікує другу подію. */
     private var pendingCreation: Pair<EventDraft, String>? = null
 
     init {
@@ -68,7 +62,7 @@ class PoruchApp internal constructor(
         if (state.value.signedIn) loadMyEvents()
     }
 
-    // ---------------------------------------------------------------- session
+    // ---- Сесія
 
     private fun synchronizeIdentity(uid: String?) {
         if (mutable.value.userId == uid) {
@@ -88,18 +82,36 @@ class PoruchApp internal constructor(
         return Subscription { job.cancel() }
     }
 
-    // ---------------------------------------------------------------- discovery
+    // ---- Пошук
 
     fun refresh() = discovery.refresh()
 
-    /**
-     * Стрічка дійшла до краю завантаженого. Індекс уже повний, тож це не «наступна сторінка» — це
-     * ще кілька карток за вже відомими ідентифікаторами.
-     */
+    /** Стрічка дійшла до краю: індекс повний, довантажуємо ще карток за відомими id. */
     fun loadMore(upTo: Int) = discovery.materialize(upTo)
 
-    /** Картки названих подій: стос майданчика під пальцем. */
+    /** Картки названих подій, напр. стос майданчика під пальцем. */
     fun loadCards(ids: List<String>) = discovery.loadCards(ids)
+
+    /**
+     * Сеанси прокату, до якого належить подія, за часом. Без запиту: дати вже в індексі, але
+     * лише в межах поточної видачі (під «Сьогодні» — сьогоднішні). Приймає id будь-якого сеансу.
+     */
+    fun sessionsOf(id: String): List<EventSession> =
+        state.value.index.firstOrNull { run -> run.sessions.any { it.id == id } }?.sessions
+            ?: emptyList()
+
+    /**
+     * Сеанси для каруселі на екрані деталей. На відміну від [sessionsOf] за id, бачить і
+     * скасований сеанс, якого в індексі нема. Див. [EventSeries.sessionsOf].
+     */
+    fun sessionsOf(event: Event): List<EventSession> = EventSeries.sessionsOf(event, state.value.index)
+
+    /**
+     * Id картки, під якою подія стоїть у видачі: для сеансу прокату — представник, для решти — вона
+     * сама. Потрібно мапі, відкритій з другої дати прокату: окремого піна для неї нема.
+     */
+    fun cardIdOf(id: String): String =
+        state.value.index.firstOrNull { run -> run.sessions.any { it.id == id } }?.id ?: id
     fun searchArea(south: Double, west: Double, north: Double, east: Double) = discovery.searchArea(south, west, north, east)
     fun setSearchText(query: String) = discovery.setSearchText(query)
     fun setOnlyAvailable(available: Boolean) = discovery.setOnlyAvailable(available)
@@ -108,11 +120,8 @@ class PoruchApp internal constructor(
     fun searchCity(query: String) = discovery.searchCity(query)
 
     /**
-     * Адреси, що збігаються з набраним, — щоб координати не набирали руками.
-     *
-     * Відповідь приходить у зворотний виклик, а не в стан: підказки належать чернетці, яку тримає
-     * екран редактора. Порожній список означає «нічого не знайшли» і нічого більше — крапку
-     * завжди можна поставити на мапі.
+     * Підказки адрес для редактора. Відповідь у колбек, а не в стан: підказки належать чернетці
+     * екрана. Порожній список — просто нічого не знайшли.
      */
     fun searchAddress(
         query: String,
@@ -133,13 +142,7 @@ class PoruchApp internal constructor(
         }
     }
 
-    /**
-     * Адреса поставленої крапки.
-     *
-     * Друга половина тієї самої синхронізації, що й [searchAddress]: поле й мапа показують одну
-     * адресу, тож рухати її можна з обох боків. `null` означає «не впізнали місце» — тоді в полі
-     * лишається те, що там уже стоїть.
-     */
+    /** Адреса поставленої крапки, зворотний бік [searchAddress]. Null — у полі лишається старе. */
     fun resolveAddress(latitude: Double, longitude: Double, onFound: (PlaceResult?) -> Unit) {
         val search = addresses ?: return onFound(null)
         scope.launch {
@@ -154,36 +157,33 @@ class PoruchApp internal constructor(
         }
     }
 
-    /**
-     * Пояс місця події — щоб його не набирали руками.
-     *
-     * Відповідь приходить у зворотний виклик, а не в стан: пояс належить чернетці, яку тримає
-     * екран редактора, а не застосунку. `null` означає «не визначили» — тоді екран лишає те, що
-     * вже стоїть, тобто пояс пристрою.
-     */
+    /** Пояс місця події для редактора. Null — не визначили, екран лишає пояс пристрою. */
     fun resolveTimeZone(latitude: Double, longitude: Double, onResolved: (String?) -> Unit) {
         val locator = timeZones ?: return onResolved(null)
         scope.launch { onResolved(locator.zoneAt(latitude, longitude)) }
     }
     fun selectCity(city: CityResult) = discovery.selectCity(city)
 
-    // ---------------------------------------------------------------- detail and lists
+    // ---- Деталі й списки
 
     /** Підсвітити подію: пін на мапі, картка в каруселі. Без мережі, якщо рядок уже є. */
     fun selectEvent(id: String) = library.select(id)
 
-    /** Відкрити екран деталей. Тут лічильник місць і членство вже варті запиту. */
-    fun openEvent(id: String) = library.select(id, full = true)
+    /**
+     * Відкрити екран деталей: тут місця й членство вже варті запиту. Для прокату одразу
+     * підтягує картки інших сеансів, щоб вибір дати в каруселі не показував порожній екран.
+     */
+    fun openEvent(id: String) {
+        library.select(id, full = true)
+        discovery.prefetch(sessionsOf(id).map { it.id }.filter { it != id })
+    }
 
     fun dismissEvent() = library.dismiss()
     fun loadMyEvents() = library.load()
 
-    // ---------------------------------------------------------------- mutations
+    // ---- Зміни
 
-    /**
-     * One mutation at a time. A second tap while the first is in flight is a double tap, not a
-     * second intent, and letting both through is how duplicate joins happen.
-     */
+    /** Одна зміна за раз: другий тап під час першої — це подвійний тап, а не другий намір. */
     private fun mutate(block: suspend () -> Unit) {
         if (mutationJob?.isActive == true) { PoruchLog.w("action") { "ignored: a mutation is already running" }; return }
         mutationJob = scope.launch {
@@ -204,17 +204,16 @@ class PoruchApp internal constructor(
 
     private fun tell(message: AppMessage) = mutable.update { it.copy(notice = AppNotice.Told(message)) }
 
-    /** Re-reads everything a change to [id] could have touched. */
+    /** Перечитує все, чого могла торкнутися зміна [id]. */
     private fun changed(id: String) {
         refresh(); loadMyEvents()
-        // Саме тут дешевий шлях був би шкідливий: після приєднання змінилося рівно те, що знає
-        // лише сервер — число учасників і наше членство.
+        // Повний запит, бо змінилося саме те, що знає лише сервер: учасники й членство.
         if (library.openEventId == id) library.select(id, full = true)
     }
 
     fun joinEvent(id: String) = mutate {
         PoruchLog.i("action") { "joinEvent ${id.shortId()}" }
-        // An event that vets its guests answers with a request, not a seat, so it is worded as one.
+        // Подія з підтвердженням відповідає запитом, а не місцем, тож і повідомлення інше.
         val byRequest = (state.value.selectedEvent?.takeIf { it.id == id }
             ?: state.value.events.firstOrNull { it.id == id })?.gathering?.approvalRequired == true
         eventActions.join(id); changed(id)
@@ -242,16 +241,8 @@ class PoruchApp internal constructor(
     }
 
     /**
-     * Закладка змінюється миттєво, а мережа лише підтверджує.
-     *
-     * Це найдешевша дія в застосунку, і поводитись вона мала б відповідно. Досі вона йшла через
-     * [mutate] — тобто вмикала загальний індикатор, блокувала будь-яку іншу зміну до свого
-     * завершення й робила **два** послідовні запити: записати, а потім перечитати весь список,
-     * щоб дізнатися те, що ми вже знали. Іконка перемикалася аж після обох.
-     *
-     * Тепер стан міняється одразу, запит іде сам по собі, а якщо не вдався — повертаємо як було
-     * й кажемо про це. Гірший випадок — закладка блимне назад; кращий, теперішній, — вона
-     * спрацьовує тоді, коли по ній тицьнули.
+     * Закладка змінюється оптимістично, поза [mutate]: стан одразу, запит окремо, при збої
+     * повертаємо як було й показуємо помилку.
      */
     fun toggleSaved(id: String) {
         if (!state.value.signedIn) {
@@ -299,7 +290,7 @@ class PoruchApp internal constructor(
 
     fun uploadEventImage(eventId: String, bytes: ByteArray, contentType: String) = mutate {
         val event = events.details(eventId) ?: fail(AppError.EventUnavailable)
-        // Фото має лише кімната: у афіші немає ні власника, який його додає, ні прав на нього.
+        // Фото має лише кімната: в афіші нема власника.
         val room = event.gathering ?: fail(AppError.NotOwner)
         if (room.organizerId != auth.session.value?.userId) fail(AppError.NotOwner)
         val url = authoring.uploadImage(eventId, bytes, contentType)
@@ -314,13 +305,9 @@ class PoruchApp internal constructor(
         changed(eventId); tell(AppMessage.PHOTO_ADDED)
     }
 
-    // ---------------------------------------------------------------- taste
+    // ---- Смак
 
-    /**
-     * The opening questions, answered. What comes back from a screen is unvalidated — a category
-     * the build no longer ships would rank against nothing — so the vocabulary is checked here
-     * rather than trusted, and the answers are kept on the device where a guest also has them.
-     */
+    /** Відповіді онбордингу. Словник перевіряємо тут, а не довіряємо екрану; зберігаємо на пристрої, щоб мав і гість. */
     fun saveTaste(interests: List<String>, times: List<String>, crowd: String) = mutate {
         val answered = Taste(
             interests = interests.filter(EventRules::isCategory).distinct(),
@@ -332,17 +319,17 @@ class PoruchApp internal constructor(
             "answered: ${answered.interests.size} interests, ${answered.times.size} slots, crowd=${answered.crowd}"
         }
         applyTaste(answered)
-        // An account carries its categories to the next device; the rest stays on this one.
+        // Акаунт переносить категорії на інший пристрій; решта лишається тут.
         if (state.value.signedIn) preferences?.setInterests(answered.interests)
     }
 
-    /** «Не зараз». The questions are done with, and the app goes back to ranking by time alone. */
+    /** «Не зараз»: питання закриті, ранжуємо лише за часом. */
     fun skipOnboarding() {
         PoruchLog.i("taste") { "onboarding skipped" }
         applyTaste(state.value.taste.copy(answered = true))
     }
 
-    /** Reopens the questions from the profile, with the current answers as their starting point. */
+    /** Знову відкриває питання з профілю, з поточними відповідями як початковими. */
     fun restartOnboarding() = applyTaste(state.value.taste.copy(answered = false))
 
     fun toggleInterest(category: String) = mutate {
@@ -358,12 +345,9 @@ class PoruchApp internal constructor(
         mutable.update { it.copy(taste = taste).ranked() }
     }
 
-    // ---------------------------------------------------------------- safety
+    // ---- Безпека
 
-    /**
-     * States an age for an account made before the app asked for one. Allowed once — after that a
-     * declared age is a moderation matter, which is also why the server, not this, decides.
-     */
+    /** Вік для акаунта, створеного до появи питання. Дозволено раз; далі це справа модерації. */
     fun declareBirthDate(birthDate: String) = mutate {
         val store = safety ?: fail(AppError.ServiceUnavailable)
         val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
@@ -390,17 +374,13 @@ class PoruchApp internal constructor(
         tell(AppMessage.REPORT_SENT)
     }
 
-    /**
-     * Blocking is mutual and immediate: their events leave this account's map on the next read, and
-     * the door closes in both directions. Refreshing is part of the action, not a nicety.
-     */
+    /** Блокування взаємне й миттєве: події людини зникають з мапи при наступному читанні. */
     fun blockUser(userId: String) = mutate {
         val store = safety ?: fail(AppError.ServiceUnavailable)
         if (!state.value.signedIn) fail(AppError.SessionRequired)
         PoruchLog.i("safety") { "block ${userId.shortId()}" }
         store.block(userId)
-        // The block takes effect on the server, so the app asks again rather than guessing: the
-        // map, «my events» and the blocked list all come back already filtered.
+        // Блок діє на сервері, тож перечитуємо: мапа й «мої події» повертаються відфільтрованими.
         mutable.update { it.copy(selectedEvent = null, joinRequests = emptyList()) }
         library.dismiss(); refresh(); loadMyEvents()
         tell(AppMessage.USER_BLOCKED)
@@ -423,7 +403,7 @@ class PoruchApp internal constructor(
         requests.declineMember(eventId, userId); changed(eventId)
     }
 
-    // ---------------------------------------------------------------- account
+    // ---- Акаунт
 
     fun signIn(email: String, password: String) = mutate {
         PoruchLog.i("auth") { "sign in requested" }
@@ -431,7 +411,7 @@ class PoruchApp internal constructor(
         tell(AppMessage.SIGNED_IN); refresh(); loadMyEvents()
     }
 
-    /** [birthDate] is ISO-8601. The platform is adults-only, and this is where that starts. */
+    /** [birthDate] — ISO-8601. Платформа лише для дорослих, і перевірка починається тут. */
     fun signUp(email: String, password: String, name: String, birthDate: String) = mutate {
         PoruchLog.i("auth") { "sign up requested" }
         val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
@@ -442,7 +422,7 @@ class PoruchApp internal constructor(
 
     fun signOut() = mutate {
         PoruchLog.i("auth") { "sign out" }
-        // Local state goes even if the server call fails: the user asked to be signed out.
+        // Локальний стан чистимо навіть якщо сервер відмовив: людина попросила вийти.
         try { auth.signOut() } finally {
             library.clear()
             mutable.update { it.copy(userId = null) }
@@ -475,7 +455,7 @@ class PoruchApp internal constructor(
         refresh(); loadMyEvents()
     }
 
-    // ---------------------------------------------------------------- one-shot state
+    // ---- Одноразовий стан
 
     fun clearNotice() { mutable.update { it.copy(notice = null) } }
     fun clearCompletedEvent() { mutable.update { it.copy(completedEventId = null) } }

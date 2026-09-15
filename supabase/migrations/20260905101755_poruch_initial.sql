@@ -1,4 +1,4 @@
--- Poruch MVP. Public functions are invokers; privileged implementations are unexposed.
+-- Poruch MVP. Публічні функції — invoker; привілейовані реалізації назовні не видно.
 create schema if not exists private;
 create schema if not exists gis;
 create extension if not exists postgis with schema gis;
@@ -103,7 +103,7 @@ create type public.event_result as (
  organizer_id uuid,organizer_name text,starts_at timestamptz,ends_at timestamptz,time_zone text,status text,
  latitude double precision,longitude double precision,capacity integer,attendee_count integer,joined boolean,image_url text
 );
--- Only this identity-scoped projection can aggregate hidden member records.
+-- Лише ця проєкція під особою може агрегувати приховані записи учасників.
 create function private.event_rows(p_ids uuid[]) returns setof public.event_result language sql stable security definer set search_path = '' as $$
  select e.id,e.title,e.description,e.category,e.city,e.address,e.organizer_id,p.display_name,
  e.starts_at,e.ends_at,e.time_zone,e.status,e.latitude,e.longitude,e.capacity,
@@ -192,7 +192,7 @@ create function private.create_event(p_id uuid,p_title text,p_description text,p
 declare v_user uuid := auth.uid(); v_existing public.events;
 begin
  if v_user is null then raise exception 'AUTH_REQUIRED' using errcode='28000'; end if;
- -- Serialize retries using the client UUID, including requests before the row exists.
+ -- Повтори серіалізуємо за UUID клієнта, включно з запитами до появи рядка.
  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(p_id::text,0));
  select * into v_existing from public.events where id=p_id for update;
  if found then

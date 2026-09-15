@@ -28,11 +28,14 @@ struct RootView: View {
     @State private var tab = 0
     @State private var creating = false
     @State private var authenticating = false
-    /// Виставляє екран, що заявив `hidesTabBar()` — зараз це деталі події.
+    /// Екран, що заявив `hidesTabBar()`, зараз це деталі події.
     @State private var tabBarHidden = false
+    /// Явні шляхи стосів замість `navigationDestination(isPresented:)`: після `dismiss()` SwiftUI
+    /// не завжди скидав біндінг, і наступний тап по картці відкривав попередню або нічого.
+    @State private var homePath: [EventRoute] = []
+    @State private var minePath: [EventRoute] = []
     var body: some View {
-        // The opening questions replace the app rather than covering it: at first launch there is
-        // nothing behind them yet, and a dismissible sheet over an empty home is a worse welcome.
+        // Онбординг замінює застосунок, а не накриває: за ним на першому запуску ще нічого нема.
         if model.state?.needsOnboarding == true {
             OnboardingView()
         } else {
@@ -44,16 +47,22 @@ struct RootView: View {
         ZStack(alignment: .bottom) {
             Palette.canvas.ignoresSafeArea()
             TabView(selection: $tab) {
-                NavigationStack {
+                NavigationStack(path: $homePath) {
                     HomeView(
                         openMap: { tab = 1 }, openProfile: { tab = 3 },
-                        createEvent: { if model.state?.userId == nil { authenticating = true } else { creating = true } }
+                        createEvent: { if model.state?.userId == nil { authenticating = true } else { creating = true } },
+                        openEvent: { homePath.append(EventRoute(id: $0)) }
                     )
                     .safeAreaPadding(.bottom, 92)
                     .toolbar(.hidden, for: .tabBar)
+                    .navigationDestination(for: EventRoute.self) { EventDetailView(app: model.app, eventID: $0.id) }
                 }.tag(0)
                 NavigationStack { DiscoveryView().toolbar(.hidden, for: .tabBar) }.tag(1)
-                NavigationStack { MyEventsView().safeAreaPadding(.bottom, 92).toolbar(.hidden, for: .tabBar) }.tag(2)
+                NavigationStack(path: $minePath) {
+                    MyEventsView(openEvent: { minePath.append(EventRoute(id: $0)) })
+                        .safeAreaPadding(.bottom, 92).toolbar(.hidden, for: .tabBar)
+                        .navigationDestination(for: EventRoute.self) { EventDetailView(app: model.app, eventID: $0.id) }
+                }.tag(2)
                 NavigationStack { ProfileView().safeAreaPadding(.bottom, 92).toolbar(.hidden, for: .tabBar) }.tag(3)
             }
             .toolbar(.hidden, for: .tabBar)

@@ -116,7 +116,7 @@ def _get_once(url: str, *, delay: float = 2.0, etag: str | None = None,
 def get(url: str, *, delay: float = 2.0, etag: str | None = None,
         last_modified: str | None = None, timeout: int = 60,
         check_robots: bool = True, retries: int = 2) -> Response:
-    """Bounded retry; a long Retry-After returns failure instead of retrying too early."""
+    """Обмежений повтор; довгий Retry-After повертає помилку замість передчасного повтору."""
     for attempt in range(retries + 1):
         response = _get_once(url, delay=delay, etag=etag, last_modified=last_modified,
                              timeout=timeout, check_robots=check_robots)

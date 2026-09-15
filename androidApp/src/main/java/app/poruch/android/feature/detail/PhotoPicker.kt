@@ -25,11 +25,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 
-/**
- * Reading the picked file is Android's job, not the store's: this hands the bytes over as an
- * intent. The size ceiling is checked while reading so an oversized pick never reaches memory
- * whole, let alone the network.
- */
+/** Читає обраний файл і віддає байти інтентом. Ліміт розміру перевіряється під час читання. */
 @Composable
 fun PhotoPickerButton(busy: Boolean, onPicked: (ByteArray, String) -> Unit) {
     val colors = Poruch.colors

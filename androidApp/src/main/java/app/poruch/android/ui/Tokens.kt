@@ -27,10 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-/**
- * Design tokens for «Поруч». The single source of truth is docs/design-system.md; every screen
- * reads colour, spacing and radius from here rather than declaring literals inline.
- */
+/** Токени дизайну. Джерело правди — docs/design-system.md; екрани беруть кольори, відступи й радіуси звідси. */
 @Immutable
 data class PoruchColors(
     val brand: Color, val brandPressed: Color, val brandContainer: Color, val onBrandContainer: Color,
@@ -40,14 +37,14 @@ data class PoruchColors(
     val ink: Color, val inkSecondary: Color, val inkTertiary: Color,
     val surface: Color, val surfaceRaised: Color, val surfaceMuted: Color,
     val canvas: Color, val canvasTint: Color,
-    /** Warm wash at the top of a screen header; fades into `canvas`. */
+    /** Тепла заливка вгорі шапки, згасає в `canvas`. */
     val heroTop: Color, val heroBottom: Color,
-    /** Shadows are brown-black, not neutral black: a grey shadow on warm paper reads as dirt. */
+    /** Тіні коричнево-чорні, не нейтральні: сіра тінь на теплому папері виглядає як бруд. */
     val shadowAmbient: Color, val shadowSpot: Color,
     val hairline: Color, val onBrand: Color, val dark: Boolean
 )
 
-/** Warm paper ground, white cards lifted off it, near-black actions — Corner with volume. */
+/** Теплий папір, білі картки над ним, майже чорні дії. */
 val LightPoruchColors = PoruchColors(
     brand = Color(0xFF14130F), brandPressed = Color(0xFF32302A), brandContainer = Color(0xFFEAE7DE), onBrandContainer = Color(0xFF14130F),
     accent = Color(0xFFD9603A), accentContainer = Color(0xFFFBE7DE), onAccentContainer = Color(0xFF7A2E14),
@@ -74,26 +71,16 @@ val DarkPoruchColors = PoruchColors(
     hairline = Color(0xFF33302B), onBrand = Color(0xFF14130F), dark = true
 )
 
-/**
- * Every category owns a deep hue for glyphs and text, plus a pastel wash for tiles and pins. The
- * wash is never painted flat: [categoryGradient] lights it from the top-left so a cover reads as a
- * surface with a light on it rather than a swatch.
- */
+/** Глибокий відтінок категорії для гліфів і тексту; пастель для плиток і пінів робить [categoryGradient]. */
 private val CategoryHues = mapOf(
     "music" to Color(0xFF6D4AC9), "sport" to Color(0xFF0F7F73), "art" to Color(0xFFC43B6B),
     "food" to Color(0xFFC96A1E), "games" to Color(0xFF2F63C4), "outdoors" to Color(0xFF3E7D3A),
     "social" to Color(0xFFB8562F),
-    // Золото: єдина вільна ділянка палітри між помаранчевим «їжею» і рожевим «мистецтвом».
-    // Комедію виділено з art, тож вона свідомо тепла — але жовтіша за їжу, щоб не зливатись.
-    // Палітру будували на сім категорій. Тепер їх девʼять, і два останні відтінки —
-    // золото для стендапу й бірюза для дитячого — підібрані вручну за контрастом, а не
-    // виведені з системи. Обидва варті погляду дизайнера при перегляді палітри.
+    // Палітру будували на сім категорій. Золото й бірюза підібрані вручну за контрастом,
+    // варті погляду дизайнера.
     "comedy" to Color(0xFFA07813),
     "kids" to Color(0xFF1F8A8A),
-    // Десята й одинадцята обрані не на око: я порахував зайняті відтінки й узяв середини двох
-    // найбільших вільних проміжків. Олива на 80° стоїть за 37° від золота й за 36° від зелені,
-    // пурпур на 288° — за 31° від фіалкового. Контраст у тій самій смузі, що й у решти:
-    // 4.6 на світлому й 4.0 на темному для екскурсій, 6.0 і 3.1 для конференцій.
+    // Олива й пурпур — середини найбільших вільних проміжків на колі відтінків, контраст у нормі.
     "tours" to Color(0xFF5F7F1F),
     "conference" to Color(0xFF933FA8)
 )
@@ -104,7 +91,7 @@ private val CategoryWashes = mapOf(
     "tours" to Color(0xFFECF0E4), "conference" to Color(0xFFF2E8F5)
 )
 
-/** Second hue of the pair: the neighbour a category leans on when its cover needs two stops. */
+/** Другий відтінок пари для градієнта обкладинки. */
 private val CategoryPartners = mapOf(
     "music" to Color(0xFFC43B6B), "sport" to Color(0xFF2F63C4), "art" to Color(0xFF6D4AC9),
     "food" to Color(0xFFC43B6B), "games" to Color(0xFF0F7F73), "outdoors" to Color(0xFF0F7F73),
@@ -115,10 +102,8 @@ private val CategoryPartners = mapOf(
 fun categoryColor(category: String): Color = CategoryHues[category] ?: Color(0xFF6B675E)
 
 /**
- * The category hue as *text and glyph* colour. The deep hue is mixed for warm paper; on a near
- * black surface the same value falls to about 2.5:1, so dark mode lifts it toward white until it
- * clears the 4.5:1 the design system promises. `categoryColor` stays the raw hue — it is what map
- * pins and washes are built from, where the hue sits on its own light ground.
+ * Відтінок категорії для тексту й гліфів. У темній темі освітлюється до контрасту 4.5:1.
+ * `categoryColor` лишається сирим відтінком для пінів і заливок.
  */
 @Composable fun categoryInk(category: String): Color =
     if (Poruch.colors.dark) lerp(categoryColor(category), Color.White, 0.45f) else categoryColor(category)
@@ -127,10 +112,7 @@ fun categoryColor(category: String): Color = CategoryHues[category] ?: Color(0xF
     if (Poruch.colors.dark) categoryColor(category).copy(alpha = 0.22f)
     else CategoryWashes[category] ?: Color(0xFFEDEBE4)
 
-/**
- * Cover fill for a category: a lit pastel in light mode, a low veil in dark. Two hues rather than
- * one — the pair keeps a wall of covers from reading as a single tinted block.
- */
+/** Заливка обкладинки: пастель у світлій темі, тонка вуаль у темній. Два відтінки, щоб стіна обкладинок не зливалась. */
 @Composable
 fun categoryGradient(category: String): Brush {
     val hue = categoryColor(category)
@@ -145,11 +127,11 @@ fun categoryGradient(category: String): Brush {
     }
 }
 
-/** Header wash: warm light at the top of the screen, paper at the bottom. */
+/** Заливка шапки: тепле світло вгорі, папір унизу. */
 @Composable
 fun heroGradient(): Brush = Poruch.colors.let { Brush.verticalGradient(listOf(it.heroTop, it.heroBottom)) }
 
-/** The primary action is a solid of ink, lifted by a hair of light along its top edge. */
+/** Головна дія: заливка чорнилом зі світлою ниткою по верхньому краю. */
 @Composable
 fun brandGradient(): Brush = Poruch.colors.let {
     Brush.verticalGradient(listOf(lerp(it.brand, if (it.dark) Color.White else Color(0xFF4A463D), 0.22f), it.brand))
@@ -170,11 +152,7 @@ object Radius {
     val pill: Shape = CircleShape
 }
 
-/**
- * Four steps, and each one means a distance from the paper: a card rests on it, a chip hovers, the
- * tab bar and the map carousel float over content. Dark mode zeroes the shadow colours instead of
- * the elevations — there is no paper left to cast onto, so the surface step carries the depth.
- */
+/** Чотири рівні відстані від паперу: картка лежить, чип висить, таббар і карусель плавають. У темній темі тіні прозорі, глибину несе поверхня. */
 object Elevation { val flat = 0.dp; val card = 4.dp; val raised = 10.dp; val overlay = 20.dp }
 
 private val PoruchTypography = Typography(
@@ -183,7 +161,7 @@ private val PoruchTypography = Typography(
     headlineSmall = TextStyle(fontSize = 21.sp, lineHeight = 27.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.4).sp),
     titleLarge = TextStyle(fontSize = 19.sp, lineHeight = 25.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.3).sp),
     titleMedium = TextStyle(fontSize = 16.sp, lineHeight = 21.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.1).sp),
-    // Card names read as small caps, the way Corner sets place names.
+    // Назви карток читаються як капітель.
     titleSmall = TextStyle(fontSize = 15.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.4.sp),
     bodyLarge = TextStyle(fontSize = 15.sp, lineHeight = 22.sp, fontWeight = FontWeight.Normal),
     bodyMedium = TextStyle(fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.Normal),
@@ -194,13 +172,8 @@ private val PoruchTypography = Typography(
 )
 
 /**
- * Two voices the Material scale has no slot for.
- *
- * `sectionTitle` is Corner's own: a section is announced in lowercase at reading size, not in
- * 11 pt caps. The caps stay where they carry data — dates, badges, field labels.
- *
- * `descriptor` is the serif italic Corner sets under a place name. One line of a different voice
- * separates «what this is» from «what it is called» without another weight of the same grotesque.
+ * Два стилі, яких нема в шкалі Material: `sectionTitle` — заголовок секції малими літерами,
+ * `descriptor` — курсивна антиква під назвою, що відділяє «що це» від «як зветься».
  */
 object PoruchType {
     val sectionTitle = TextStyle(fontSize = 17.sp, lineHeight = 22.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.3).sp)
@@ -208,7 +181,7 @@ object PoruchType {
         fontFamily = FontFamily.Serif, fontStyle = FontStyle.Italic,
         fontSize = 14.sp, lineHeight = 18.sp, fontWeight = FontWeight.Normal
     )
-    /** The same serif, upright: pull quotes and the lead paragraph of a detail screen. */
+    /** Та сама антиква прямо: лід на екрані деталей. */
     val lead = TextStyle(fontFamily = FontFamily.Serif, fontSize = 16.sp, lineHeight = 24.sp, fontWeight = FontWeight.Normal)
 }
 
@@ -219,7 +192,7 @@ object Poruch {
     val colors: PoruchColors
         @Composable @ReadOnlyComposable get() = LocalPoruchColors.current
 
-    /** True when the system asks for less movement; screens then fade instead of sliding. */
+    /** Система просить менше руху: екрани згасають замість ковзати. */
     val reducedMotion: Boolean
         @Composable @ReadOnlyComposable get() = LocalReducedMotion.current
 }
@@ -227,7 +200,7 @@ object Poruch {
 @Composable
 fun PoruchTheme(dark: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
     val palette = if (dark) DarkPoruchColors else LightPoruchColors
-    // «Remove animations» in Android accessibility settings zeroes the animator scale.
+    // «Вимкнути анімації» в налаштуваннях доступності обнуляє масштаб аніматора.
     val context = LocalContext.current
     val reducedMotion = remember(context) {
         Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f

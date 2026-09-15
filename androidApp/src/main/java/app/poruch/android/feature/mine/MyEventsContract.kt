@@ -2,7 +2,7 @@ package app.poruch.android.feature.mine
 
 import app.poruch.domain.Event
 
-/** «Мої події» is one list under three lenses; [MyEventsTab] picks which. */
+/** «Мої події» — один список у трьох розрізах. */
 enum class MyEventsTab { ATTENDING, ORGANIZING, SAVED }
 
 data class MyEventsState(

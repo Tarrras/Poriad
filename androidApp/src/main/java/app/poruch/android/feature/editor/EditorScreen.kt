@@ -86,7 +86,7 @@ fun EditorScreen(state: EditorState, onIntent: (EditorIntent) -> Unit, onClose: 
                 PickerRequest.STARTS -> startsAt ?: LocalDateTime.now().plusDays(1).withMinute(0)
                 PickerRequest.ENDS -> state.form.parse(state.form.ends) ?: startsAt?.plusHours(2) ?: LocalDateTime.now().plusDays(1).withMinute(0)
             },
-            // An event cannot end before it starts, so the end picker starts where the start left off.
+            // Кінець не раніше початку.
             minimum = if (request == PickerRequest.ENDS) startsAt else null,
             onDismiss = { onIntent(EditorIntent.ShowPicker(null)) },
             onPicked = { onIntent(EditorIntent.SetDateTime(request, it)) }
@@ -151,8 +151,7 @@ private fun PlaceStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
         placeholder = stringResource(R.string.address_placeholder),
         hint = stringResource(R.string.address_hint)
     )
-    // Підказки стоять одразу під полем, доки їх не обрали: список нижче за мапу читався б як
-    // щось інше, а не як продовження того, що набирають.
+    // Підказки одразу під полем, як продовження набору.
     if (state.addressSuggestions.isNotEmpty()) Column(
         Modifier.fillMaxWidth().cardSurface(), verticalArrangement = Arrangement.spacedBy(0.dp)
     ) {
@@ -180,13 +179,12 @@ private fun PlaceStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
         style = MaterialTheme.typography.bodySmall,
         color = if (state.pointChosen) colors.success else colors.inkTertiary
     )
-    // Мапа тут нічого не обирає: вона показує, що вибрано. Жести на клаптику 260 dp коштували б
-    // точності, якої від крапки зустрічі й чекають.
+    // Мапа лише показує вибране: жести на 260 dp коштували б точності.
     Box(Modifier.fillMaxWidth().height(260.dp).clip(Radius.md)) {
         EventMap(
             emptyList(), state.mapLatitude, state.mapLongitude,
             chosenPoint = state.point, interactive = false,
-            // Крапку принесла адреса — отже, показуємо будинок, а не місто.
+            // Є крапка — показуємо будинок, а не місто.
             centerZoom = if (state.pointChosen) MapZoom.street else MapZoom.city
         )
     }
@@ -197,7 +195,7 @@ private fun PlaceStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
     )
 }
 
-/** Кругла кнопка масштабу поверх мапи: та сама вага, що й у решти круглих кнопок застосунку. */
+/** Кругла кнопка масштабу поверх мапи. */
 @Composable
 private fun ZoomButton(icon: ImageVector, label: Int, onClick: () -> Unit) {
     val colors = Poruch.colors
@@ -210,12 +208,7 @@ private fun ZoomButton(icon: ImageVector, label: Int, onClick: () -> Unit) {
     }
 }
 
-/**
- * Повноекранна мапа, де крапка — це центр.
- *
- * Ціль не рухається, рухається світ під нею: так крапку видно завжди, і її не затуляє палець.
- * Підтвердження — окрема дія, тож дорогою можна роздивитись околиці, нічого не змінивши.
- */
+/** Повноекранна мапа з ціллю в центрі: рухається світ під нею, крапку не затуляє палець. */
 @Composable
 private fun PointPicker(state: EditorState, onIntent: (EditorIntent) -> Unit) {
     val colors = Poruch.colors
@@ -232,14 +225,13 @@ private fun PointPicker(state: EditorState, onIntent: (EditorIntent) -> Unit) {
                 modifier = Modifier.fillMaxSize(),
                 centerZoom = if (state.pointChosen) MapZoom.street else MapZoom.city,
                 controller = controller,
-                // Камера повідомляє про зупинку, а не про кожен кадр: питати адресу має сенс
-                // тоді, коли палець уже відпустив мапу.
+                // Камера повідомляє про зупинку, а не про кожен кадр.
                 onCenterChanged = { latitude, longitude ->
                     center = latitude to longitude
                     onIntent(EditorIntent.AimAt(latitude, longitude))
                 }
             )
-            // Ціль малюється поверх мапи й не приймає дотиків: під нею мапа, і вона має тягтися.
+            // Ціль не приймає дотиків: мапа під нею має тягтися.
             Icon(
                 PoruchIcons.pin, null,
                 Modifier.align(Alignment.Center).size(36.dp).offset(y = (-18).dp),
@@ -263,7 +255,7 @@ private fun PointPicker(state: EditorState, onIntent: (EditorIntent) -> Unit) {
                     .navigationBarsPadding().padding(Spacing.page),
                 verticalArrangement = Arrangement.spacedBy(Spacing.md)
             ) {
-                // Адреса — головне тут, тож вона й читається як головне: сам рядок, а не підпис.
+                // Адреса тут головна, тож і виглядає як головна.
                 Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md), verticalAlignment = Alignment.CenterVertically) {
                     Icon(PoruchIcons.pin, null, Modifier.size(18.dp), tint = colors.inkSecondary)
                     Column(Modifier.weight(1f)) {
@@ -289,12 +281,7 @@ private fun PointPicker(state: EditorState, onIntent: (EditorIntent) -> Unit) {
     }
 }
 
-/**
- * Пояс не набирають — його визначає місце події.
- *
- * Показуємо його все одно: подія зберігає власний пояс, і мовчки підставлений неправильний гірший
- * за видимий. Другий рядок каже, звідки він узявся, бо це різні ступені впевненості.
- */
+/** Пояс визначає місце події, але показуємо його: мовчки підставлений неправильний гірший за видимий. */
 @Composable
 private fun TimeZoneNote(zone: String, fromPlace: Boolean) {
     val colors = Poruch.colors
@@ -328,8 +315,7 @@ private fun ScheduleStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
     )
     TimeZoneNote(form.timeZone, state.timeZoneFromPlace)
-    // Who may come is part of publishing, not a setting hidden afterwards: an organizer decides it
-    // while they are still thinking about what the evening is.
+    // Хто може прийти — частина публікації, а не сховане налаштування.
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
         SectionHeader(stringResource(R.string.who_can_come))
         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
@@ -375,7 +361,7 @@ private fun ScheduleStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
     Text(stringResource(R.string.photo_after_publish), style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary)
 }
 
-/** A date field looks like every other field on the form, but opens a picker instead of a keyboard. */
+/** Поле дати виглядає як решта полів, але відкриває пікер замість клавіатури. */
 @Composable
 private fun DateTimeField(label: String, value: String, onOpen: () -> Unit) {
     val colors = Poruch.colors

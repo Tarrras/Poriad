@@ -7,19 +7,12 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/**
- * Ім'я поясу, яке потрапляє в базу.
- *
- * Пристрій може називати київський пояс `Europe/Kiev` — так його звала tzdb до 2022b, і саме так
- * ICU на Android 16 досі вважає канонічним. Але міграції, конвеєр імпорту й наявні дані знають
- * `Europe/Kyiv`, і двох написань одного поясу в одній таблиці бути не повинно.
- */
+/** У базу йде `Europe/Kyiv`, навіть якщо пристрій каже `Europe/Kiev`. */
 class TimeZoneNameTest {
 
     @Test
     fun theKyivZoneIsStoredUnderItsCurrentName() {
-        // Передумова, а не припущення: якби tzdb цієї збірки не знала нової назви, підстановка
-        // мусила б мовчки не спрацювати — і цей рядок сказав би про це першим.
+        // Передумова: без нової назви в tzdb підстановка мовчки не спрацює.
         assertTrue("Europe/Kyiv" in TimeZone.availableZoneIds, "tzdb цієї збірки не знає Europe/Kyiv")
 
         assertEquals("Europe/Kyiv", modernZoneName("Europe/Kiev"))
@@ -28,10 +21,7 @@ class TimeZoneNameTest {
         assertEquals("Europe/Kyiv", modernZoneName("Europe/Zaporozhye"))
     }
 
-    /**
-     * Той самий шлях, яким іде застосунок: платформа віддала стару назву — у чернетку потрапила
-     * сучасна. Саме цю ланку не видно в попередньому тесті, бо там перевіряється сама функція.
-     */
+    /** Наскрізь: платформа віддала стару назву, у чернетку потрапила сучасна. */
     @Test
     fun whatTheLocatorReturnsIsAlreadyRenamed() = runTest {
         val android = PlatformTimeZoneLocator { _, _ -> "Europe/Kiev" }
@@ -41,14 +31,14 @@ class TimeZoneNameTest {
         assertEquals("Europe/Kyiv", ios.zoneAt(50.45, 30.52))
     }
 
-    /** Не змогли визначити — не вигадуємо: екран лишає пояс пристрою. */
+    /** Не визначили — не вигадуємо. */
     @Test
     fun anUnknownPlaceStaysUnknown() = runTest {
         assertNull(PlatformTimeZoneLocator { _, _ -> null }.zoneAt(0.0, 0.0))
         assertNull(PlatformTimeZoneLocator { _, _ -> error("геокодер недоступний") }.zoneAt(0.0, 0.0))
     }
 
-    /** Список навмисно короткий: усе, чого ми не перевіряли, має проходити недоторканим. */
+    /** Неперевірені назви проходять недоторканими. */
     @Test
     fun everyOtherZoneKeepsItsName() {
         assertEquals("Europe/Warsaw", modernZoneName("Europe/Warsaw"))

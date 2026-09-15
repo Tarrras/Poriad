@@ -25,15 +25,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 /**
- * The app asks every question from the bottom edge.
- *
- * A Material dialog lands in the middle of the screen on a surface the design system never
- * declared, with its own radius, its own buttons and its own idea of where the important answer
- * goes. A sheet arrives on the app's own paper, within reach of the thumb that opened it, and it
- * is the same object the filters already are — so one downward drag puts any of them away.
- *
- * [content] receives a [PoruchSheetScope]: answer through `close { … }` rather than by dropping
- * the state yourself, and the sheet slides out instead of blinking away mid-animation.
+ * Усі питання ставимо шторкою знизу, а не діалогом Material: вона на нашому папері, під великим
+ * пальцем і прибирається тим самим жестом, що й фільтри. [content] отримує [PoruchSheetScope]:
+ * відповідайте через `close { … }`, щоб шторка виїхала, а не блимнула.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,8 +37,7 @@ fun PoruchSheet(
     content: @Composable ColumnScope.(PoruchSheetScope) -> Unit
 ) {
     val colors = Poruch.colors
-    // Every sheet here carries one decision, so none of them has a half-open state to rest in:
-    // a half-open sheet would hide its own confirming button below the fold.
+    // Кожна шторка несе одне рішення, тому без напіввідкритого стану: він сховав би кнопку.
     val state = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     val reducedMotion = Poruch.reducedMotion
@@ -55,9 +48,7 @@ fun PoruchSheet(
         shape = Radius.sheet,
         containerColor = colors.surface,
         contentColor = colors.ink,
-        // A warm black, never a grey veil: over warm paper a neutral scrim reads as dirt on the
-        // screen rather than as the room going dark. Both tokens named here are that same warm
-        // black — `ink` is it on paper, and in dark mode the ink has gone pale, so the ground is.
+        // Теплий чорний, не сіра вуаль: нейтральний scrim на теплому папері виглядає як бруд.
         scrimColor = (if (colors.dark) colors.canvas else colors.ink).copy(alpha = if (colors.dark) 0.62f else 0.32f),
         dragHandle = { SheetHandle() }
     ) {
@@ -65,7 +56,7 @@ fun PoruchSheet(
     }
 }
 
-/** A hairline bar rather than Material's filled pill: the sheet is paper, the handle is a crease. */
+/** Тонка риска замість пігулки Material: шторка — папір, ручка — згин. */
 @Composable
 private fun SheetHandle() {
     Box(
@@ -76,7 +67,7 @@ private fun SheetHandle() {
     }
 }
 
-/** Handed to a sheet's content so an answer can put the sheet away before it takes effect. */
+/** Дає вмісту шторки спосіб прибрати її перед дією. */
 @OptIn(ExperimentalMaterial3Api::class)
 class PoruchSheetScope internal constructor(
     private val state: SheetState,
@@ -84,11 +75,7 @@ class PoruchSheetScope internal constructor(
     private val reducedMotion: Boolean,
     private val onDismiss: () -> Unit
 ) {
-    /**
-     * Slides the sheet out, then reports the dismissal and runs [then]. Dropping the state at the
-     * moment of the tap removes the sheet from the screen mid-gesture, so the answer blinks out
-     * instead of being put down. With animations switched off there is nothing to wait for.
-     */
+    /** Виїжджає, потім повідомляє про закриття і виконує [then]. Без анімацій не чекає. */
     fun close(then: () -> Unit = {}) {
         if (reducedMotion) {
             onDismiss(); then(); return
@@ -99,11 +86,7 @@ class PoruchSheetScope internal constructor(
     }
 }
 
-/**
- * The one shape a question with two answers takes. The destructive answer is the button — hiding
- * it among equal-weight text labels is how a person cancels an event by accident — and the way
- * out is the quieter one underneath it, next to the drag that also works.
- */
+/** Питання з двома відповідями. Деструктивна — кнопка, вихід — тихіша під нею. */
 @Composable
 fun PoruchConfirmSheet(
     title: String,

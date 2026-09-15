@@ -3,8 +3,7 @@ import PhotosUI
 import SwiftUI
 import Shared
 
-/// The side effects of the detail screen — a photo upload, a calendar hand-off — and the progress
-/// they show. They outlive a single render, so they live here rather than in the view's body.
+/// Побічні дії екрана деталей (фото, календар) та їхній прогрес. Переживають рендер, тому не в тілі view.
 @MainActor final class EventActionsModel: ObservableObject {
     @Published var photoError: String?
     @Published var calendarStore: EKEventStore?
@@ -15,8 +14,7 @@ import Shared
     init(app: PoruchApp) { self.app = app }
 
     func perform(_ action: DetailAction, on event: Event, signedIn: Bool) -> Bool {
-        // Квиток на афішу купують у джерела, а не в нас, тож акаунт для цього не потрібен —
-        // саме тому дія стоїть перед перевіркою входу, а не після неї.
+        // Квитки на афішу купують у джерела: акаунт не потрібен, тому до перевірки входу.
         if action == .tickets {
             if let url = sourceURL(event) { UIApplication.shared.open(url) }
             return true
@@ -47,8 +45,7 @@ import Shared
         }
     }
 
-    /// Re-encodes whatever the picker returned as JPEG: the store accepts three types, and one is
-    /// simpler to guarantee than to detect.
+    /// Перекодовує будь-що з пікера в JPEG: один тип простіше гарантувати, ніж визначати.
     func upload(_ item: PhotosPickerItem?, to event: Event) async {
         guard let item else { return }
         do {
@@ -67,5 +64,5 @@ import Shared
     }
 }
 
-/// Enough for a cover photo without pushing the upload past the store's ceiling.
+/// Досить для обкладинки і не виходить за ліміт сховища.
 private let jpegQuality: CGFloat = 0.8

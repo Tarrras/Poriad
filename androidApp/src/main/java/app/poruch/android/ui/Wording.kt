@@ -10,10 +10,7 @@ import app.poruch.domain.SafetyRules
 import app.poruch.shared.AppMessage
 import app.poruch.shared.AppNotice
 
-/**
- * The one place that turns a named outcome into Ukrainian. Business logic reports cases; this maps
- * each case to a string resource, so a new language is a new `values-xx/strings.xml` and nothing else.
- */
+/** Єдине місце, де іменований випадок стає текстом: нова мова — новий `values-xx/strings.xml`. */
 @Composable
 fun AppNotice.text(): String = when (this) {
     is AppNotice.Failed -> error.text()
@@ -22,12 +19,12 @@ fun AppNotice.text(): String = when (this) {
 
 @Composable
 fun AppError.text(): String = when (this) {
-    // A rejected draft names its fields, so the message can point at them rather than at "the form".
+    // Відхилена чернетка називає поля, тож повідомлення вказує на них.
     is AppError.InvalidDraft -> stringResource(
         R.string.err_invalid_draft,
         fields.map { stringResource(it.resource) }.joinToString()
     )
-    // The floor is a number the reader should see, not a rule they have to infer.
+    // Мінімальний вік показуємо числом.
     AppError.Underage -> stringResource(R.string.err_underage, SafetyRules.MIN_SIGNUP_AGE)
     else -> stringResource(resource)
 }
@@ -101,7 +98,7 @@ private val AppMessage.resource: Int
         AppMessage.AGE_CONFIRMED -> R.string.msg_age_confirmed
     }
 
-/** Why somebody is reporting, in the order the sheet offers the reasons. */
+/** Причини скарги в порядку шторки. */
 val reportReasons = listOf(
     ReportReason.MINORS to R.string.reason_minors,
     ReportReason.SAFETY to R.string.reason_safety,

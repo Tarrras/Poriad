@@ -1,10 +1,7 @@
 import Foundation
 import Shared
 
-/// The one place that turns a named outcome into Ukrainian.
-///
-/// Business logic reports cases; this maps each case to wording, so the shared module stays free
-/// of user-facing language and a second locale is a change here alone.
+/// Єдине місце, де іменований випадок стає текстом. Друга мова — зміна лише тут.
 extension AppNotice {
     var text: String {
         if let failed = self as? AppNoticeFailed { return failed.error.text }
@@ -35,7 +32,7 @@ extension AppError {
         case is AppErrorInvalidEmail: "Вкажіть коректний email"
         case is AppErrorInvalidName: "Вкажіть імʼя від 2 до 60 символів"
         case is AppErrorWeakPassword: "Пароль має містити щонайменше 8 символів"
-        // A rejected draft names its fields, so the message points at them, not at "the form".
+        // Відхилена чернетка називає поля, тож повідомлення вказує на них.
         case let draft as AppErrorInvalidDraft:
             "Перевірте поля: " + draft.fields.map(\.text).joined(separator: ", ")
         default: "Не вдалося виконати дію. Спробуйте ще раз"

@@ -15,7 +15,7 @@ class ProfileViewModel(private val app: PoruchApp) :
                 blocked = shared.blocked,
                 mutating = shared.mutating,
                 passwordRecovery = shared.passwordRecovery,
-                // Clearing the field once recovery is over keeps a typed password from lingering.
+                // Після відновлення поле чистимо, щоб пароль не висів.
                 newPassword = if (shared.passwordRecovery) newPassword else ""
             )
         }

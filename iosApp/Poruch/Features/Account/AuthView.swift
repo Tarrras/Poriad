@@ -1,8 +1,7 @@
 import SwiftUI
 import Shared
 
-/// Sign-in and registration, one screen with two modes. Registration is the other half of it, not
-/// a footnote: everyone arriving without an account has to reach it.
+/// Вхід і реєстрація: один екран, два режими. Реєстрація — друга половина, а не примітка.
 struct AuthView: View {
     @EnvironmentObject var model: AppModel
     @Environment(\.dismiss) private var dismiss
@@ -42,8 +41,7 @@ struct AuthView: View {
             if form.register {
                 LabelledField(label: "Ваше ім’я", text: $form.name, placeholder: "Як до вас звертатися")
                     .textContentType(.name)
-                // Asked once, at sign-up, and shown to nobody else: it is what an age limit on an
-                // event rests on, and what a moderation decision later refers back to.
+                // Питаємо раз, при реєстрації, і нікому не показуємо: на це спираються вікові межі й модерація.
                 VStack(alignment: .leading, spacing: Space.sm) {
                     Text("ДАТА НАРОДЖЕННЯ").font(PoruchFont.overline).kerning(1.2).foregroundStyle(Palette.inkTertiary)
                     DatePicker(
@@ -83,17 +81,17 @@ struct AuthView: View {
     }
 }
 
-/// The form's own state, with the same validity rules the shared module enforces.
+/// Стан форми з тими самими правилами валідності, що в спільному модулі.
 @MainActor final class AuthFormModel: ObservableObject {
     @Published var email = ""
     @Published var name = ""
     @Published var password = ""
     @Published var revealed = false
     @Published var register = false
-    /// Opens on the day somebody who just turned eighteen was born: the nearest plausible answer.
+    /// Відкривається на дні народження того, кому щойно 18: найближча правдоподібна відповідь.
     @Published var birthDate = AuthFormModel.defaultBirthDate
 
-    /// The floor is stated by the control itself; the database checks it again on sign-up.
+    /// Мінімум задає сам контрол; база перевірить ще раз.
     let latestBirthDate = AuthFormModel.defaultBirthDate
     let earliestBirthDate = Calendar.current.date(byAdding: .year, value: -100, to: Date()) ?? Date.distantPast
 
@@ -107,7 +105,7 @@ struct AuthView: View {
             (!register || (AccountRules.shared.isName(value: name) && birthDate <= latestBirthDate))
     }
 
-    /// The password never survives a mode switch: it belongs to the attempt, not the screen.
+    /// Пароль не переживає зміну режиму.
     func toggleMode() { register.toggle(); password = "" }
 
     func submit(with app: PoruchApp) {
@@ -129,7 +127,7 @@ struct PasswordRevealToggle: View {
     }
 }
 
-/// A birth date travels as a plain calendar day, without a clock or a zone attached to it.
+/// Дата народження їде як календарний день, без часу й поясу.
 func isoDay(_ date: Date) -> String {
     let formatter = DateFormatter()
     formatter.calendar = Calendar(identifier: .gregorian)

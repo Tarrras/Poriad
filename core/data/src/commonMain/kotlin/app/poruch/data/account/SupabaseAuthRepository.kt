@@ -42,8 +42,7 @@ class SupabaseAuthRepository(private val api: ApiClient, private val store: Secu
     override suspend fun signUp(email: String, password: String, name: String, birthDate: String): Boolean = mutex.withLock {
         val result = api.request("/auth/v1/signup", HttpMethod.Post, buildJsonObject {
             put("email", email.trim()); put("password", password)
-            // The declared date rides in sign-up metadata, where the account trigger reads it once:
-            // an underage sign-up is refused inside the transaction that would have created it.
+            // Дата народження їде в метаданих: тригер акаунта відмовляє неповнолітнім у тій самій транзакції.
             put("data", buildJsonObject { put("display_name", name.trim()); put("birth_date", birthDate) })
         }, query=mapOf("redirect_to" to "poruch://auth/callback")).jsonObject
         if (result.string("access_token").isNotEmpty()) { persist(result); true } else false
@@ -61,7 +60,7 @@ class SupabaseAuthRepository(private val api: ApiClient, private val store: Secu
             persist(result.jsonObject)
             mutable.value?.accessToken
         } catch (e: AppFailure) {
-            // A refused refresh means the stored session is spent; anything else may be transient.
+            // Відмова в оновленні — сесія вичерпана; решта помилок може бути тимчасовою.
             if (e.error is AppError.SessionRequired || e.error is AppError.InvalidCredentials || e.error is AppError.Rejected) {
                 store.clear(); mutable.value = null
             }
@@ -80,7 +79,7 @@ class SupabaseAuthRepository(private val api: ApiClient, private val store: Secu
         val values = parseQueryString(parsed.fragment)
         val token = values["access_token"] ?: fail(AppError.SessionRequired)
         val refresh = values["refresh_token"] ?: fail(AppError.SessionRequired)
-        // Validate the bearer with Auth before trusting any incoming deep-link identity.
+        // Перевіряємо токен в Auth, перш ніж довіряти особі з deep link.
         val user = api.request("/auth/v1/user", token=token).jsonObject
         persist(buildJsonObject {
             put("user",user); put("access_token",token); put("refresh_token",refresh)

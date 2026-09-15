@@ -11,25 +11,14 @@ private let clusterHaloID = "poruch-cluster-halo"
 private let clusterLayerID = "poruch-cluster"
 private let clusterCountID = "poruch-cluster-count"
 private let pinCountID = "poruch-pin-count"
-/// Стос у одному закладі буває на кілька десятків подій; більше за це в каруселі не потрібно.
+/// Максимум подій зі стосу для каруселі.
 private let clusterLeafLimit: UInt = 60
-/**
- Радіус кластера в точках екрана. Той самий, що на Android, — інакше платформи показують різні мапи.
-
- Був 56, і на міському зумі половина Києва стояла в одній чорній бульбашці. Відколи мапа малює всі
- події області, а не перші 300, це стало помітнішим: кластер відповідає на питання «скільки», хоча
- мапу відкривають питати «що і де».
- */
+/// Радіус кластера в pt, той самий, що на Android. Більший перетворював місто на кілька чорних бульбашок.
 private let clusterRadius = 40
 private let pinLayerID = "poruch-pin"
 private let pointLayerID = "poruch-point-pin"
 private let chosenIconName = "poruch-chosen"
-/**
- Ручка, якою екран може наблизити мапу.
-
- Щипок пальцями лишається, але він не єдиний спосіб: на екрані вибору точки одна рука тримає
- телефон, а друга — та сама, що потім тисне «Готово». Тому масштаб має бути й кнопкою.
- */
+/// Керування зумом з екрана: на виборі точки масштаб має бути й кнопкою, не лише щипком.
 @MainActor final class MapController: ObservableObject {
     fileprivate weak var map: MLNMapView?
 
@@ -38,17 +27,17 @@ private let chosenIconName = "poruch-chosen"
 
     private func zoom(by delta: Double) {
         guard let map else { return }
-        // Межі ті самі, що в мапи: далі неї однаково не поїдеш, а кнопка має лишатись живою.
+        // Обмежуємо межами мапи, щоб кнопка лишалась живою.
         let target = min(map.maximumZoomLevel, max(map.minimumZoomLevel, map.zoomLevel + delta))
         map.setZoomLevel(target, animated: true)
     }
 }
 
-/// Масштаби, якими користується не лише мапа: редактор теж має сказати, наскільки близько стати.
+/// Масштаби, спільні для мапи й редактора.
 enum MapZoom {
-    /// Оглядовий: видно ціле місто.
+    /// Видно ціле місто.
     static let city: Double = 12
-    /// Вуличний: видно будинок, у якому і є та сама крапка.
+    /// Видно будинок.
     static let street: Double = 15
 }
 
@@ -59,10 +48,7 @@ private func iconName(_ category: String, selected: Bool) -> String {
     "poruch-pin-\(category)" + (selected ? "-on" : "")
 }
 
-/**
- Pin plate drawn once per category and cached by the style: a category ring on a surface disc while
- resting, and the inverse — a filled disc with a surface ring — once the pin is focused.
- */
+/// Значок піна, один на категорію, кешується стилем: кільце на диску в спокої, інверсія у фокусі.
 private func pinImage(glyph: PoruchGlyph, hue: UIColor, surface: UIColor, selected: Bool) -> UIImage {
     let disc: CGFloat = selected ? 46 : 38
     let pointer: CGFloat = 9
@@ -87,8 +73,7 @@ private func pinImage(glyph: PoruchGlyph, hue: UIColor, surface: UIColor, select
         canvas.setStrokeColor((selected ? surface : hue).cgColor)
         canvas.setLineWidth(2.5)
         canvas.strokeEllipse(in: CGRect(x: cx - radius + 1.25, y: cy - radius + 1.25, width: disc - 2.5, height: disc - 2.5))
-        // The glyph is drawn from the same geometry the rest of the app uses, at the same weight:
-        // an SF Symbol here would put a different icon set on the map than on the cards.
+        // Гліф з тієї ж геометрії, що й решта застосунку: SF Symbol дав би інший набір іконок на мапі.
         let box: CGFloat = selected ? 22 : 18
         let scale = box / PoruchIconMetrics.grid
         canvas.saveGState()
@@ -105,8 +90,7 @@ private func pinImage(glyph: PoruchGlyph, hue: UIColor, surface: UIColor, select
             canvas.strokePath()
         }
         canvas.setFillColor(ink)
-        // Solid glyphs carry their counters as inner subpaths; without the even-odd rule a
-        // palette's wells fill in and it becomes a disc.
+        // Без even-odd внутрішні контури заливаються і гліф стає диском.
         if let punch = glyph.punch {
             var path = Path()
             punch(&path, scale)
@@ -123,55 +107,34 @@ private func pinImage(glyph: PoruchGlyph, hue: UIColor, surface: UIColor, select
     }
 }
 
-/**
- Vector-tile clustering keeps dense neighbourhoods usable: MapLibre groups points inside the style,
- so panning stays smooth where per-annotation views forced a rebuild on every camera idle.
- */
+/// Мапа подій. Кластеризацію робить MapLibre всередині стилю, тож панорамування не перебудовує анотації.
 struct EventMap: UIViewRepresentable {
-    /// Індекс, а не картки: мапі потрібні координати й категорія, і вона не має чекати обкладинок.
+    /// Індекс, а не картки: мапі досить координат і категорії.
     let events: [EventIndexEntry]
     let latitude: Double
     let longitude: Double
     var selectedID: String? = nil
-    /// Змінюється лише тоді, коли змінився склад подій. Дешевша заміна порівнянню списків — див.
-    /// `Coordinator.updateFeatures`.
+    /// Змінюється лише зі складом подій: дешевша заміна порівнянню списків, див. `Coordinator.updateFeatures`.
     var eventsRevision: Int = 0
-    /**
-     Фільтр, яким екран звузив [events] у себе.
-
-     Ревізія рахується в [AppModel] на емісію стану й про локальний фільтр екрана не знає: коли
-     мапа перемикала категорію, лічильник змінювався, а піни лишались старими — джерело не
-     перебудовувалось, бо ключ був той самий.
-     */
+    /// Локальний фільтр екрана: ревізія з `AppModel` про нього не знає, і піни лишались старими.
     var filterKey: String = ""
     var retryToken: Int = 0
     var centerToken: Int = 0
-    /// Наскільки близько ставати, коли центр змінився ззовні. Місто за замовчуванням.
+    /// Зум, коли центр змінився ззовні.
     var centerZoom: Double = MapZoom.city
-    /**
-     Крапка, яку вже поставили. Мапа її лише малює, а не пам'ятає.
-
-     Раніше крапкою тут був центр мапи, і роздивитись околиці означало переставити місце
-     зустрічі: найменший зсув переписував щойно обрану адресу на сусідню вулицю. Тепер крапку
-     ставлять довгим натиском — як на Android, — і мапу можна крутити скільки завгодно.
-     */
+    /// Поставлена крапка. Мапа лише малює її; ставлять довгим натиском, як на Android.
     var chosenPoint: (latitude: Double, longitude: Double)?
     var topInset: CGFloat = 0
     var bottomInset: CGFloat = 0
     var interactive: Bool = true
     var loadFailed: (Bool) -> Void = { _ in }
     var selected: (Event) -> Void
-    /// Тап у місце, де подій кілька: віддаємо всі, бо пін представляє заклад, а не подію.
+    /// Тап у місце з кількома подіями: усі id, бо пін — це заклад.
     var selectedStack: ([String]) -> Void = { _ in }
     var moved: (MapRegion) -> Void
-    /**
-     Куди зараз дивиться мапа. Потрібно там, де крапка — це центр екрана, а не пін під пальцем.
-
-     Читаємо центр камери, а не середину видимих меж: у проєкції Меркатора це різні числа, і
-     друге тим більше бреше, чим далі від екватора.
-     */
+    /// Центр камери, а не середина видимих меж: у Меркаторі це різні числа.
     var centerChanged: (Double, Double) -> Void = { _, _ in }
-    /// Ручка масштабу для екрана, який хоче кнопки замість щипка.
+    /// Керування зумом кнопками.
     var controller: MapController?
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
@@ -186,8 +149,7 @@ struct EventMap: UIViewRepresentable {
         map.allowsTilting = false
         map.allowsScrolling = interactive
         map.allowsZooming = interactive
-        // The renderer's wordmark is not this app's brand, so it goes; the credit the data licence
-        // does ask for stays, as a mark in the palette's quietest ink rather than a blue ⓘ.
+        // Логотип рендерера прибираємо, атрибуцію даних лишаємо у тихому кольорі палітри.
         map.logoView.isHidden = true
         map.attributionButtonPosition = .bottomLeft
         map.attributionButton.tintColor = UIColor(Palette.inkTertiary)
@@ -197,17 +159,15 @@ struct EventMap: UIViewRepresentable {
             let tap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleTap(_:)))
             map.addGestureRecognizer(tap)
         }
-        // Стиль тут — локальний рядок, а не URL: MapLibre встигає його розібрати ще до того, як
-        // `map.delegate` призначено, і тоді `didFinishLoading` не лунає взагалі. Саме через це на
-        // iOS мапа малювалася без жодного піна, хоч подій знаходилося 167. Тому джерела й шари
-        // ставимо самі, щойно стиль є, а делегат лишається для випадку, коли він ще вантажиться.
+        // Локальний стиль MapLibre розбирає ще до призначення делегата, і didFinishLoading не
+        // лунає. Тому шари ставимо самі, щойно стиль є; делегат — для випадку, коли ще вантажиться.
         context.coordinator.installStyleIfReady(map)
         return map
     }
 
     func updateUIView(_ map: MLNMapView, context: Context) {
         context.coordinator.parent = self
-        // A flight across the city is exactly the movement «reduce motion» asks us to skip.
+        // Політ через місто — саме той рух, який «reduce motion» просить пропустити.
         let animated = !context.environment.accessibilityReduceMotion
         map.contentInset = UIEdgeInsets(top: topInset, left: 0, bottom: bottomInset, right: 0)
         map.attributionButtonMargins = CGPoint(x: 12, y: 12)
@@ -220,8 +180,7 @@ struct EventMap: UIViewRepresentable {
         }
         if context.coordinator.retryToken != retryToken {
             context.coordinator.retryToken = retryToken
-            // The style itself never failed to parse — it is local. Re-setting it makes the map
-            // ask the tile server for the geometry again, which is what the retry is for.
+            // Стиль локальний і не міг не розібратись; перевстановлення змушує перепитати тайли.
             context.coordinator.styleReplaced()
             map.styleJSON = styleJSON(context.environment.colorScheme)
         }
@@ -278,18 +237,17 @@ struct EventMap: UIViewRepresentable {
             install(style, on: mapView)
         }
 
-        /// Стиль уже розібрано, а делегат про це не почув. Ставимо шари самі — рівно один раз.
+        /// Стиль уже розібрано без делегата: ставимо шари самі, один раз.
         func installStyleIfReady(_ map: MLNMapView) {
             guard !styleReady, let style = map.style else { return }
             install(style, on: map)
         }
 
-        /// Новий стиль стирає джерела й шари разом зі старим, тож їх треба буде поставити знову.
+        /// Новий стиль стирає джерела й шари: ставимо знову.
         func styleReplaced() { styleReady = false }
 
         private func install(_ style: MLNStyle, on mapView: MLNMapView) {
-            // Повторний addSource з тим самим ідентифікатором — виняток, а не заміна. Джерело
-            // вже стоїть — лишається перечитати в нього події, бо вони могли змінитися.
+            // Повторний addSource з тим самим id — виняток; лише оновлюємо події.
             guard style.source(withIdentifier: eventSourceID) == nil else {
                 styleReady = true
                 featureKey = ""
@@ -297,8 +255,7 @@ struct EventMap: UIViewRepresentable {
                 return
             }
             registerImages(style)
-            // Пін тепер представляє місце, тож стандартний point_count рахував би місця.
-            // Читачеві потрібна кількість подій — її збирає власна властивість кластера.
+            // Пін — це місце, тож point_count рахував би місця; кількість подій збирає власна властивість.
             let sumEvents = [
                 NSExpression(format: "sum:({$featureAccumulated, events})"),
                 NSExpression(forKeyPath: "count")
@@ -351,8 +308,7 @@ struct EventMap: UIViewRepresentable {
             pins.predicate = NSPredicate(format: "cluster != YES")
             style.addLayer(pins)
 
-            // Скільки подій у цьому місці. Значок лишається тим самим — змінюється підпис біля
-            // нього, тож пін впізнаваний, а стос перестає прикидатися однією подією.
+            // Підпис з кількістю подій біля піна: значок лишається впізнаваним.
             let perPin = MLNSymbolStyleLayer(identifier: pinCountID, source: events)
             perPin.text = NSExpression(format: "CAST(count, 'NSString')")
             perPin.textFontNames = NSExpression(forConstantValue: ["Noto Sans Bold"])
@@ -399,7 +355,7 @@ struct EventMap: UIViewRepresentable {
             )
         }
 
-        /// Крапка зустрічі — окреме джерело, бо вона не подія і не рахується в кластерах.
+        /// Крапка зустрічі — окреме джерело: не подія, в кластери не рахується.
         func updateChosen(_ map: MLNMapView) {
             guard styleReady, let source = map.style?.source(withIdentifier: pointSourceID) as? MLNShapeSource else { return }
             let key = parent.chosenPoint.map { "\($0.latitude),\($0.longitude)" } ?? ""
@@ -413,23 +369,18 @@ struct EventMap: UIViewRepresentable {
 
         func updateFeatures(_ map: MLNMapView) {
             guard styleReady, let source = map.style?.source(withIdentifier: eventSourceID) as? MLNShapeSource else { return }
-            // Ключ мусить бути дешевим: `updateUIView` викликається на кожне перемальовування
-            // екрана, а раніше тут на кожен такий виклик будувався рядок з усіх подій — сотні
-            // переходів через міст у Kotlin і кілька кілобайт тексту заради одного порівняння.
+            // Ключ має бути дешевим: updateUIView кличуть на кожне перемальовування.
             let key = "\(parent.eventsRevision)#\(parent.filterKey)#" + (parent.selectedID ?? "")
             guard key != featureKey else { return }
             featureKey = key
-            // Групування спільне з Android: інакше платформи показували б різні мапи на тих
-            // самих даних. І, як на Android, воно залежить лише від складу подій — тримаємо його
-            // за `eventsRevision`, щоб крок каруселі не перекладав наново всі триста подій заради
-            // іншого кольору одного піна.
+            // Групування спільне з Android і залежить лише від складу подій (eventsRevision).
             let pins = groupedPins(key: key, events: parent.events)
             let features: [MLNPointFeature] = pins.map { pin in
                 let feature = MLNPointFeature()
                 feature.coordinate = CLLocationCoordinate2D(latitude: pin.latitude, longitude: pin.longitude)
                 let isSelected = pin.contains(eventId: parent.selectedID)
                 feature.attributes = [
-                    // `id` лишається подією — решта екрана оперує подіями, не місцями.
+                    // `id` — подія: решта екрана оперує подіями, не місцями.
                     "id": isSelected ? (parent.selectedID ?? pin.representative.id) : pin.representative.id,
                     "ids": pin.eventIds.joined(separator: ","),
                     "icon": iconName(pin.representative.category, selected: isSelected),
@@ -441,7 +392,7 @@ struct EventMap: UIViewRepresentable {
             source.shape = MLNShapeCollectionFeature(shapes: features)
         }
 
-        /// Піни поточного складу подій. Перераховуються, лише коли склад справді змінився.
+        /// Піни поточного складу подій, перераховуються лише при його зміні.
         private var pinCache: (key: String, pins: [VenuePin])?
 
         private func groupedPins(key: String, events: [EventIndexEntry]) -> [VenuePin] {
@@ -451,7 +402,7 @@ struct EventMap: UIViewRepresentable {
             return pins
         }
 
-        /// A tap hits a pin first, then a cluster; clusters expand to the zoom that splits them apart.
+        /// Тап шукає спершу пін, потім кластер; кластер розкривається до зуму, що його розділяє.
         @objc func handleTap(_ gesture: UITapGestureRecognizer) {
             guard let map = gesture.view as? MLNMapView, map.style != nil else { return }
             let location = gesture.location(in: map)
@@ -466,8 +417,7 @@ struct EventMap: UIViewRepresentable {
                   let source = map.style?.source(withIdentifier: eventSourceID) as? MLNShapeSource else { return }
             let zoom = source.zoomLevel(forExpanding: cluster)
 
-            // Розкриття допоможе лише тоді, коли воно справді змінює зум. Стос однакових точок не
-            // розділиться ніколи, тож там показуємо вміст замість безкінечного наближення.
+            // Наближаємо лише якщо це справді змінює зум, інакше показуємо вміст.
             if zoom <= map.zoomLevel + 0.1 || zoom > 19 {
                 let ids = source.leaves(of: cluster, offset: 0, limit: clusterLeafLimit)
                     .flatMap { eventIDs(of: $0) }

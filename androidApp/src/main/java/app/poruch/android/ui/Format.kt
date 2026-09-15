@@ -4,6 +4,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import app.poruch.android.R
 import app.poruch.domain.Event
 import app.poruch.domain.EventRules
+import app.poruch.domain.EventSession
 import app.poruch.domain.Listing
 import android.content.Context
 import androidx.compose.runtime.Composable
@@ -20,7 +21,7 @@ import java.time.temporal.ChronoUnit
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 
-/** The domain's vocabulary, in the domain's order — the labels below line up with it index by index. */
+/** Словник домену в його порядку: підписи нижче збігаються за індексом. */
 val categories = EventRules.categories
 private val categoryLabels = listOf(R.string.music, R.string.sport, R.string.art, R.string.food, R.string.games, R.string.outdoors, R.string.social, R.string.comedy, R.string.kids, R.string.tours, R.string.conference)
 
@@ -46,33 +47,27 @@ private fun zoned(event: Event) = runCatching { Instant.parse(event.startsAt).at
 
 private fun zonedEnd(event: Event) = runCatching { Instant.parse(event.endsAt).atZone(ZoneId.of(event.timeZone)) }.getOrNull()
 
-/**
- * Форматери — по одному на шаблон, а не на виклик.
- *
- * `DateTimeFormatter.ofPattern` щоразу розбирає шаблон і збирає дерево форматування, а
- * `eventOverline` викликається для кожного рядка списку під час скролу. Локаль тут стала, тож
- * ключем вистачає самого шаблону.
- */
+/** Кеш форматерів за шаблоном: `ofPattern` дорогий, а `eventOverline` кличуть на кожен рядок скролу. */
 private val patterns = ConcurrentHashMap<String, DateTimeFormatter>()
 
 private fun pattern(value: String): DateTimeFormatter =
     patterns.getOrPut(value) { DateTimeFormatter.ofPattern(value, ukrainian) }
 
-/**
- * The words a date needs, resolved once. Formatting itself stays free of Context, so the same
- * functions serve a composable and the share sheet.
- */
+/** Слова для дат, зібрані один раз. Форматування без Context, тож служить і composable, і шерингу. */
 data class DateWords(
     val today: String, val tomorrow: String, val underway: String,
     /** «до 30 вересня» — підпис картки прокату. */
     val until: String,
-    val weekdayOn: List<String>
+    val weekdayOn: List<String>,
+    /** «і о 19:30» — другий сеанс того самого вечора. */
+    val alsoAt: String = "+%1\$s",
+    /** «ще 2 дати» — решта днів прокату. */
+    val moreDates: (Int) -> String = { "+$it" },
+    /** «ще 3 сеанси» — решта сеансів того самого дня. */
+    val moreShowings: (Int) -> String = { "+$it" }
 )
 
-/**
- * Слова беруться з ресурсів один раз на композицію, а не на кожну картку: `getStringArray`
- * будує новий масив щоразу, а в списку карток сотня.
- */
+/** Слова з ресурсів раз на композицію, а не на картку: `getStringArray` будує новий масив щоразу. */
 @Composable
 fun dateWords(): DateWords {
     val context = LocalContext.current
@@ -85,16 +80,15 @@ fun Context.dateWords(): DateWords = DateWords(
     tomorrow = getString(R.string.tomorrow),
     underway = getString(R.string.underway_now),
     until = getString(R.string.underway_until),
-    weekdayOn = resources.getStringArray(R.array.weekday_on).toList()
+    weekdayOn = resources.getStringArray(R.array.weekday_on).toList(),
+    alsoAt = getString(R.string.series_also_at),
+    moreDates = { resources.getQuantityString(R.plurals.series_more_dates, it, it) },
+    moreShowings = { resources.getQuantityString(R.plurals.series_more_showings, it, it) }
 )
 
 private const val HOUR = "HH:mm"
 
-/**
- * How far away a date is, in the terms a person actually uses. «13 березня» alone is a trap:
- * six months out it reads as the March that already passed, so anything outside the current year
- * carries its year.
- */
+/** Дата словами людини. Поза поточним роком — з роком, інакше «13 березня» читається як минуле. */
 private fun dayLabel(at: ZonedDateTime, now: ZonedDateTime, words: DateWords, short: Boolean): String {
     val date = at.toLocalDate()
     val today = now.toLocalDate()
@@ -102,7 +96,7 @@ private fun dayLabel(at: ZonedDateTime, now: ZonedDateTime, words: DateWords, sh
     return when {
         days == 0L -> words.today
         days == 1L -> words.tomorrow
-        // За тиждень назва дня ще орієнтує («у суботу»), далі вже ні — там потрібна дата.
+        // До тижня досить назви дня, далі потрібна дата.
         days in 2L..6L -> words.weekdayOn.getOrElse(at.dayOfWeek.value - 1) {
             at.format(pattern(if (short) "EEE, d MMM" else "EEEE, d MMMM"))
         }
@@ -113,21 +107,11 @@ private fun dayLabel(at: ZonedDateTime, now: ZonedDateTime, words: DateWords, sh
     }
 }
 
-/**
- * Дата прокату звичайним числом: «30 вересня».
- *
- * Навмисно не через [dayLabel]: там «Завтра» й «У суботу», а «до у суботу» та «з завтра по
- * 30 вересня» — це не речення. Рік дописуємо з тієї самої причини, з якої його дописує [dayLabel].
- */
+/** Дата прокату числом: «30 вересня». Не через [dayLabel], бо «до у суботу» — не речення. */
 private fun plainDate(at: ZonedDateTime, withYear: Boolean): String =
     at.format(pattern(if (withYear) "d MMMM yyyy" else "d MMMM"))
 
-/**
- * Проміжок прокату: «16 липня – 30 вересня».
- *
- * Рік вирішується на обидва кінці разом. «16 липня – 30 вересня 2027» читається так, ніби липень
- * цьогорічний, а вересень ні.
- */
+/** Проміжок прокату: «16 липня – 30 вересня». Рік для обох кінців разом. */
 private fun rangeLabel(start: ZonedDateTime, end: ZonedDateTime, now: ZonedDateTime): String {
     val year = now.toLocalDate().year
     val withYear = start.year != year || end.year != year
@@ -135,19 +119,13 @@ private fun rangeLabel(start: ZonedDateTime, end: ZonedDateTime, now: ZonedDateT
 }
 
 /**
- * Overline above a card title: «СЬОГОДНІ · 18:30», «СБ, 13 БЕР. 2027 · 18:00». Event's own zone.
- *
- * Два стани для того, що вже почалось, а не один. Концерт, що почався годину тому, — «ТРИВАЄ
- * ЗАРАЗ». Виставка з прокатом до 30 вересня цим підписом не сказала б головного, а її дата
- * початку («16 ЛИПНЯ») читається як подія, що минула, — тому «ДО 30 ВЕРЕСНЯ».
+ * Надрядок картки: «СЬОГОДНІ · 18:30», «СБ, 13 БЕР. 2027 · 18:00», у поясі події. Для того,
+ * що вже йде: сеанс — «ТРИВАЄ ЗАРАЗ», прокат — «ДО 30 ВЕРЕСНЯ».
  */
 fun eventOverline(event: Event, words: DateWords, now: Instant = Instant.now()): String {
     val at = zoned(event) ?: return event.startsAt
     val instant = now.toKotlin()
-    // Питання про прокат ставиться лише всередині гілки «вже йде». Виставка, що відкриється у
-    // жовтні, на картці показує свій початок, як і будь-яка інша подія: «до 30 листопада» на ще
-    // не відкритій виставці сказало б не те. Заразом це знімає зайвий розбір дат з кожного рядка
-    // під час скролу.
+    // Про прокат питаємо лише коли подія вже йде: невідкрита виставка показує початок, як усі.
     if (event.isUnderway(instant)) {
         val end = if (event.isMultiDay) zonedEnd(event) else null
         if (end != null) {
@@ -161,14 +139,9 @@ fun eventOverline(event: Event, words: DateWords, now: Instant = Instant.now()):
 }
 
 /**
- * Long form for the detail screen. The zone is named only when it differs from the reader's own:
- * for someone in Kyiv reading about Kyiv, «GMT+03:00» is noise, but for a traveller it is the
- * difference between arriving and missing it.
- *
- * Дві форми, бо це два різні питання. Сеанс: «Четвер, 16 липня · 18:00» — година тут головна,
- * бо її можна пропустити. Прокат: «16 липня – 30 вересня» — година першого дня про виставку не
- * каже нічого, а поставлена поруч із проміжком читалась би як щоденний час відкриття, якого ми
- * не знаємо.
+ * Довга форма для екрана деталей. Пояс називаємо лише коли він відрізняється від поясу читача.
+ * Сеанс: «Четвер, 16 липня · 18:00». Прокат: «16 липня – 30 вересня», без години, бо вона
+ * читалась би як щоденний час відкриття.
  */
 fun eventTime(event: Event, words: DateWords, now: Instant = Instant.now()): String {
     val at = zoned(event) ?: return event.startsAt
@@ -186,16 +159,43 @@ fun eventTime(event: Event, words: DateWords, now: Instant = Instant.now()): Str
     return "$prefix$day · $hour$zoneSuffix"
 }
 
-/** java.time.Instant -> kotlin.time.Instant, so the domain's own predicates can be reused. */
-private fun Instant.toKotlin(): kotlin.time.Instant = kotlin.time.Instant.fromEpochSeconds(epochSecond, nano)
-
-// Порогу «мало місць» тут більше немає: він живе в Gathering.isScarce, спільний для обох платформ.
+/** Надрядок картки: дата найближчого сеансу і, для прокату, згадка про решту. На деталях решту показує карусель. */
+fun cardOverline(event: Event, words: DateWords, now: Instant = Instant.now()): String {
+    val base = eventOverline(event, words, now)
+    val note = seriesNote(event, words) ?: return base
+    return "$base · ${note.uppercase(ukrainian)}"
+}
 
 /**
- * Ціна квитка одним рядком. Три різні речі, які легко злити в одну: «безкоштовно», «від стількох»
- * і «джерело не сказало». Остання — не нуль і не порожньо, інакше платна подія читалася б як
- * дарова.
+ * Решта сеансів прокату: «ще 2 дати», «ще 3 сеанси», «і о 19:30». Число, а не проміжок, бо
+ * прокат буває з розривами. Дні, а не сеанси, коли днів кілька.
  */
+fun seriesNote(event: Event, words: DateWords): String? {
+    if (!event.isSeries) return null
+    val days = event.otherSessionDays
+    if (days > 0) return words.moreDates(days)
+    val others = event.otherSessionCount
+    if (others == 1) {
+        val next = event.sessions.firstOrNull { it.id != event.id } ?: return null
+        val at = zoned(next) ?: return null
+        return words.alsoAt.format(ukrainian, at.format(pattern(HOUR)))
+    }
+    return words.moreShowings(others)
+}
+
+/** Сеанс у каруселі дат: день і година окремо, бо два сеанси одного вечора інакше були б однаковими кнопками. */
+fun sessionLabel(session: EventSession, words: DateWords, now: Instant = Instant.now()): Pair<String, String> {
+    val at = zoned(session) ?: return session.startsAt to ""
+    return dayLabel(at, now.atZone(at.zone), words, short = true) to at.format(pattern(HOUR))
+}
+
+private fun zoned(session: EventSession) =
+    runCatching { Instant.parse(session.startsAt).atZone(ZoneId.of(session.timeZone)) }.getOrNull()
+
+/** java.time.Instant → kotlin.time.Instant, щоб користуватись предикатами домену. */
+private fun Instant.toKotlin(): kotlin.time.Instant = kotlin.time.Instant.fromEpochSeconds(epochSecond, nano)
+
+/** Ціна одним рядком: «безкоштовно», «від N» або «джерело не сказало». Останнє — не нуль. */
 @Composable
 fun listingPrice(listing: Listing): String = when {
     listing.isFree == true -> stringResource(R.string.listing_free)
@@ -203,7 +203,7 @@ fun listingPrice(listing: Listing): String = when {
     else -> stringResource(R.string.listing_price_unknown)
 }
 
-/** Копійки в афішах трапляються рідко й нічого не додають, тож ціле число лишається цілим. */
+/** Копійки в афішах нічого не додають. */
 private fun hryvnia(amount: Double): String =
     if (amount == amount.toLong().toDouble()) amount.toLong().toString()
     else "%.2f".format(ukrainian, amount)

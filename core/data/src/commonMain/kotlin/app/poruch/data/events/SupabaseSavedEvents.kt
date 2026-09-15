@@ -6,10 +6,7 @@ import app.poruch.domain.*
 import io.ktor.http.HttpMethod
 import kotlinx.serialization.json.*
 
-/**
- * Закладки — єдина частина подій, що ходить у таблицю напряму, а не через RPC: тут немає жодного
- * правила, крім «рядок належить тому, хто його створив», і це вже сказано в RLS.
- */
+/** Закладки ходять у таблицю напряму, а не через RPC: єдине правило «рядок належить власнику» вже в RLS. */
 internal class SupabaseSavedEvents(
     private val api: ApiClient,
     private val auth: AuthRepository
@@ -29,7 +26,7 @@ internal class SupabaseSavedEvents(
             buildJsonObject { put("user_id", userId()); put("event_id", id) },
             auth.accessToken(),
             query = mapOf("on_conflict" to "user_id,event_id"),
-            // Повторне збереження — не помилка: палець міг здригнутися, а результат той самий.
+            // Повторне збереження — не помилка.
             prefer = "resolution=ignore-duplicates,return=representation"
         )
     }

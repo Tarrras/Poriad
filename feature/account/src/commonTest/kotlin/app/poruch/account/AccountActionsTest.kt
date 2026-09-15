@@ -28,7 +28,7 @@ class AccountActionsTest {
     @Test fun shortPasswordIsRejected() = runTest {
         assertFailsWith<AppFailure> { AccountActions(Auth()).signIn("a@b.com","123") }
     }
-    /** The age floor is checked before the account is attempted, and again by the database. */
+    /** Мінімальний вік перевіряється до запиту і ще раз у базі. */
     @Test fun anUnderageSignUpNeverReachesTheNetwork() = runTest {
         val auth=Auth()
         val error=assertFailsWith<AppFailure> {

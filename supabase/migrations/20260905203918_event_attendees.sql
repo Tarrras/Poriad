@@ -1,11 +1,10 @@
--- Attendee roster for the event page. Visibility deliberately follows the existing member policy:
--- only the organizer and confirmed members read identities, everyone else keeps the aggregate count
--- already returned by event_result. This adds no new exposure of who attends what.
+-- Список учасників для екрана події. Видимість за політикою членства: імена бачать організатор
+-- і підтверджені учасники, решта отримує лише число з event_result.
 create type public.attendee_result as (
  user_id uuid, display_name text, avatar_url text, joined_at timestamptz
 );
 
--- Invoker, so members_read on event_members and profiles_read on profiles both apply unchanged.
+-- Invoker: політики members_read і profiles_read діють як є.
 create function public.event_attendees(p_event_id uuid, p_limit integer default 24)
  returns setof public.attendee_result language sql stable security invoker set search_path = '' as $$
  select m.user_id, p.display_name, p.avatar_url, m.joined_at

@@ -1,8 +1,7 @@
--- Run as database administrator. Everything, including synthetic auth users, rolls back.
+-- Запускати адміністратором бази. Усе, включно з тестовими auth-користувачами, відкочується.
 begin;
 select set_config('test.a',gen_random_uuid()::text,true),set_config('test.b',gen_random_uuid()::text,true),set_config('test.c',gen_random_uuid()::text,true),set_config('test.event',gen_random_uuid()::text,true);
--- Accounts now declare an age at sign-up, and joining refuses one that has not: the fixtures
--- carry a birth date so these suites test what they were written to test.
+-- Фікстури мають дату народження: без віку приєднання відмовляє.
 insert into auth.users(id,email,raw_user_meta_data) values
 (current_setting('test.a')::uuid,'poruch-test-a-'||current_setting('test.a')||'@example.invalid',jsonb_build_object('display_name','Host','birth_date','1990-01-01')),
 (current_setting('test.b')::uuid,'poruch-test-b-'||current_setting('test.b')||'@example.invalid',jsonb_build_object('display_name','Guest','birth_date','1990-01-01')),

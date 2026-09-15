@@ -3,11 +3,7 @@ package app.poruch.events
 import app.poruch.domain.*
 import kotlin.time.Clock
 
-/**
- * The rules an event mutation must satisfy before it reaches the network. The server enforces the
- * same ones; checking here means a bad draft costs no round trip and the offending fields come
- * back named, so the editor can point at them.
- */
+/** Перевірка чернетки до мережі: сервер перевіряє те саме, але тут редактор отримує назви полів. */
 class EventActions(
     private val authoring: EventAuthoring,
     private val participation: EventParticipation,

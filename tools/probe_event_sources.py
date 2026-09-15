@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Probe the production ingestion path, without writing to a database.
+"""Проба робочого шляху імпорту без запису в базу.
 
 python3 tools/probe_event_sources.py --city Київ --source ticketsbox --sample 5
 python3 -m tools.probe_event_sources --json /tmp/source-report.json
@@ -56,7 +56,7 @@ def main(argv=None):
         print(json.dumps(record, ensure_ascii=False), flush=True)
     if args.json:
         args.json.write_text(json.dumps(records, ensure_ascii=False, indent=2), 'utf-8')
-    # A deliberate sample limit is visible in detail_errors; it does not mean source failure.
+    # Навмисний ліміт вибірки видно в detail_errors; це не збій джерела.
     return int(any(r.get('error') and r.get('detail_errors') != ['DETAIL_LIMIT'] for r in records))
 
 

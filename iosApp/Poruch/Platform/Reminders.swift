@@ -2,7 +2,7 @@ import Foundation
 import UserNotifications
 import Shared
 
-/// Local reminders are opt-in and reconcile against the latest server-backed memberships.
+/// Локальні нагадування за згодою, звіряються з актуальним членством із сервера.
 final class EventReminders {
     private let center = UNUserNotificationCenter.current()
     private var signature = ""

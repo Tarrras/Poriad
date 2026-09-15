@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
-"""Rewrites the Xcode target's Swift file list from what is actually on disk.
+"""Перезаписує список Swift-файлів таргета Xcode з того, що є на диску.
 
-The project predates Xcode's synchronised folders, so every source has to be listed three times in
-project.pbxproj. Adding a file by hand means editing all three lists and inventing two stable ids;
-this does it from a directory walk instead.
+Проєкт старіший за синхронізовані теки Xcode, тож кожен файл згадується в project.pbxproj тричі.
+Скрипт робить це з обходу теки. Лише Swift-файли; ресурси й налаштування не чіпає. Ідентифікатори
+виводяться зі шляху, тому повторний запуск дає той самий файл.
 
     python3 tools/sync_xcode_sources.py
-
-Only Swift sources are touched — resources, frameworks and build settings are left exactly as they
-are. Ids are derived from the file's path, so re-running produces an identical file.
 """
 
 from __future__ import annotations
@@ -20,7 +17,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 SOURCES = ROOT / "iosApp/Poruch"
 PROJECT = ROOT / "iosApp/Poruch.xcodeproj/project.pbxproj"
-# The PBXGroup that mirrors iosApp/Poruch.
+# PBXGroup, що дзеркалить iosApp/Poruch.
 GROUP_ID = "80E6A3A99B37879F3465DB7C"
 
 

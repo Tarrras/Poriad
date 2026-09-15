@@ -7,7 +7,7 @@ import kotlinx.serialization.json.*
 import kotlin.uuid.Uuid
 import kotlin.uuid.ExperimentalUuidApi
 
-/** A persisted draft fingerprint retains its idempotency key after process death. */
+/** Відбиток чернетки з її ключем ідемпотентності, що переживає смерть процесу. */
 class PersistentCreationIdentity(private val database: PoruchDatabase, private val auth: AuthRepository): CreationIdentityStore {
     private fun key()="pending-creation:${auth.session.value?.userId ?: "guest"}"
     @OptIn(ExperimentalUuidApi::class)

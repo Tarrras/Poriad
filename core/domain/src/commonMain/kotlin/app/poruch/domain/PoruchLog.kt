@@ -3,12 +3,9 @@ package app.poruch.domain
 enum class LogLevel { DEBUG, INFO, WARN, ERROR }
 
 /**
- * Tracing for the whole app, off unless a debug build turns it on.
- *
- * The one hard rule: credentials, tokens and email addresses never reach a sink. A log that leaks
- * them is worse than no log at all, so request bodies are never passed here and identifiers are
- * carried as short prefixes — enough to follow one event through a trace, not enough to be a
- * user list. Messages are lambdas so nothing is formatted while logging is off.
+ * Логування, вимкнене поза debug-збіркою. Тверде правило: паролі, токени й email сюди не
+ * потрапляють, тіла запитів не логуються, ідентифікатори — лише короткі префікси.
+ * Повідомлення — лямбди, щоб нічого не форматувалось, поки лог вимкнено.
  */
 object PoruchLog {
     var enabled: Boolean = false
@@ -23,7 +20,7 @@ object PoruchLog {
 
 expect fun platformLog(level: LogLevel, tag: String, message: String)
 
-/** Enough of an identifier to follow one event through a trace, not enough to enumerate users. */
+/** Префікс id: досить, щоб простежити подію в трейсі, замало, щоб перелічити користувачів. */
 fun String?.shortId(): String = when {
     this == null -> "none"
     length <= 8 -> this

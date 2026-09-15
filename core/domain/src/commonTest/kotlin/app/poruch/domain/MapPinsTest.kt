@@ -6,7 +6,7 @@ import kotlin.test.assertTrue
 
 class MapPinsTest {
 
-    // Піни групують саме афішу: це її координати приходять з кеша майданчиків і збігаються.
+    // Піни групують афішу: її координати приходять з кеша майданчиків і збігаються.
     private fun event(id: String, lat: Double, lon: Double, startsAt: String) = EventIndexEntry(
         id = id, latitude = lat, longitude = lon, category = "music",
         startsAt = startsAt, timeZone = "Europe/Kyiv", title = id,
@@ -15,9 +15,7 @@ class MapPinsTest {
 
     @Test
     fun `venues three metres apart do not collapse`() {
-        // Стара згортка ключа `lat*31 + lon` давала цим двом точкам одне число. Для мапи це майже
-        // непомітно, але на тому самому ключі стоїть склеювання дублікатів — там воно прибирає
-        // подію зі списку.
+        // Стара згортка ключа `lat*31 + lon` давала цим точкам одне число.
         val pins = MapPins.group(
             listOf(
                 event("a", 50.450000, 30.520000, "2026-10-17T15:00:00Z"),
@@ -29,7 +27,7 @@ class MapPinsTest {
 
     @Test
     fun `events at one venue collapse into a single pin`() {
-        // Саме цей випадок ламав мапу: кеш майданчиків дає всім подіям закладу ту саму точку.
+        // Кеш майданчиків дає всім подіям закладу ту саму точку.
         val pins = MapPins.group(
             listOf(
                 event("a", 50.4498664, 30.5278357, "2026-10-17T15:00:00Z"),

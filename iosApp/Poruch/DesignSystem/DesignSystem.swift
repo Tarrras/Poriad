@@ -1,8 +1,7 @@
 import SwiftUI
 import Shared
 
-/// Design tokens for «Поруч». The single source of truth is docs/design-system.md; the Android
-/// counterpart lives in androidApp/.../ui/Tokens.kt and carries the same values.
+/// Токени дизайну. Джерело правди — docs/design-system.md; ті самі значення в androidApp/.../ui/Tokens.kt.
 
 extension UIColor {
     convenience init(rgb: UInt32) {
@@ -14,8 +13,7 @@ extension UIColor {
 }
 
 extension Color {
-    /// Resolves per trait collection so every token follows the viewer's appearance. The alphas
-    /// are per-appearance too: shadows exist on paper and are switched off on a black canvas.
+    /// Динамічний колір за темою. Альфа теж per-theme: тіні є на папері й вимкнені на чорному.
     init(light: UInt32, dark: UInt32, lightAlpha: CGFloat = 1, darkAlpha: CGFloat = 1) {
         self.init(UIColor {
             $0.userInterfaceStyle == .dark
@@ -25,7 +23,7 @@ extension Color {
     }
 }
 
-/// Mixes two packed colours; used to light a pastel from the top and to tint a shadow.
+/// Змішує два кольори: підсвітити пастель згори, тонувати тінь.
 private func blend(_ a: UInt32, _ b: UInt32, _ t: CGFloat) -> UIColor {
     func channel(_ value: UInt32, _ shift: UInt32) -> CGFloat { CGFloat((value >> shift) & 0xFF) / 255 }
     return UIColor(
@@ -36,7 +34,7 @@ private func blend(_ a: UInt32, _ b: UInt32, _ t: CGFloat) -> UIColor {
     )
 }
 
-/// Warm paper ground, white cards lifted off it, near-black actions — Corner with volume.
+/// Теплий папір, білі картки над ним, майже чорні дії.
 enum Palette {
     static let brand = Color(light: 0x14130F, dark: 0xF5F3EE)
     static let brandPressed = Color(light: 0x32302A, dark: 0xD9D6CE)
@@ -60,37 +58,32 @@ enum Palette {
     static let inkTertiary = Color(light: 0x9A958A, dark: 0x7C776C)
 
     static let surface = Color(light: 0xFFFFFF, dark: 0x1F1E1B)
-    /// A card that floats needs to *look* nearer; on a black canvas only a lighter fill does that.
+    /// Піднята картка на чорному: лише світліша заливка читається як «ближче».
     static let surfaceRaised = Color(light: 0xFFFFFF, dark: 0x272521)
     static let surfaceMuted = Color(light: 0xEDEBE4, dark: 0x2C2A25)
     static let canvas = Color(light: 0xF2F0EA, dark: 0x121110)
     static let canvasTint = Color(light: 0xEAE6DA, dark: 0x1B1A17)
 
-    /// Warm light at the top of a screen header, fading into paper.
+    /// Тепле світло вгорі шапки, згасає в папір.
     static let heroTop = Color(light: 0xF4E7D8, dark: 0x272119)
     static let heroBottom = Color(light: 0xF2F0EA, dark: 0x121110)
 
-    /// Shadows are brown-black, not neutral: a grey shadow on warm paper reads as dirt. Dark mode
-    /// zeroes their alpha rather than their radius — there is no paper left to cast onto.
+    /// Тіні коричнево-чорні: сіра на теплому папері виглядає як бруд. У темній темі альфа нуль.
     static let shadowSpot = Color(light: 0x2A2016, dark: 0x000000, lightAlpha: 0.20, darkAlpha: 0)
     static let shadowAmbient = Color(light: 0x2A2016, dark: 0x000000, lightAlpha: 0.10, darkAlpha: 0)
 
     static let hairline = Color(light: 0xE5E1D6, dark: 0x33302B)
 }
 
-/// Every category owns a deep hue for glyphs and text, plus a pastel wash for tiles and pins.
+/// Глибокий відтінок категорії для гліфів і тексту; пастель для плиток і пінів робиться з нього.
 private let categoryHues: [String: UInt32] = [
     "music": 0x6D4AC9, "sport": 0x0F7F73, "art": 0xC43B6B, "food": 0xC96A1E,
     "games": 0x2F63C4, "outdoors": 0x3E7D3A, "social": 0xB8562F,
-    // Золото: єдина вільна ділянка палітри між помаранчевим «їжею» і рожевим «мистецтвом».
-    // Палітру будували на сім категорій. Тепер їх девʼять, і два останні відтінки —
-    // золото для стендапу й бірюза для дитячого — підібрані вручну за контрастом, а не
-    // виведені з системи. Обидва варті погляду дизайнера при перегляді палітри.
+    // Палітру будували на сім категорій. Золото й бірюза підібрані вручну за контрастом,
+    // варті погляду дизайнера.
     "comedy": 0xA07813,
     "kids": 0x1F8A8A,
-    // Десята й одинадцята обрані розрахунком, а не на око: середини двох найбільших вільних
-    // проміжків у зайнятих відтінках. Олива на 80° стоїть за 37° від золота й за 36° від
-    // зелені, пурпур на 288° — за 31° від фіалкового.
+    // Олива й пурпур — середини найбільших вільних проміжків на колі відтінків.
     "tours": 0x5F7F1F,
     "conference": 0x933FA8
 ]
@@ -107,11 +100,7 @@ func categoryColor(_ category: String) -> Color {
 
 func categoryUIColor(_ category: String) -> UIColor { UIColor(rgb: categoryHues[category] ?? 0x6B675E) }
 
-/**
- The map is drawn from the palette rather than from a hosted style, so the ground under the pins is
- the paper the cards sit on and the roads are the surface they are printed with. A token is a
- dynamic colour and MapLibre wants hex, so each one is resolved for the appearance being drawn.
- */
+/// Токени палітри для стилю мапи. MapLibre хоче hex, тому кожен резолвиться під поточну тему.
 func mapTokens(_ scheme: ColorScheme) -> MapTokens {
     let traits = UITraitCollection(userInterfaceStyle: scheme == .dark ? .dark : .light)
     func hex(_ color: Color) -> String {
@@ -129,29 +118,21 @@ func mapTokens(_ scheme: ColorScheme) -> MapTokens {
     )
 }
 
-/**
- The category hue as *text and glyph* colour. The deep hue is mixed for warm paper; on a near black
- surface the same value falls to about 2.5:1, so dark mode lifts it toward white until it clears
- the 4.5:1 the design system promises. `categoryColor` stays the raw hue — it is what map pins and
- washes are built from, where the hue sits on its own light ground.
- */
+/// Відтінок категорії для тексту й гліфів. У темній темі освітлюється до контрасту 4.5:1.
+/// `categoryColor` лишається сирим відтінком для пінів і заливок.
 func categoryInk(_ category: String) -> Color {
     guard let hue = categoryHues[category] else { return Palette.inkSecondary }
     return Color(UIColor { $0.userInterfaceStyle == .dark ? blend(hue, 0xFFFFFF, 0.45) : UIColor(rgb: hue) })
 }
 
-/// Second hue of the pair: the neighbour a category leans on when its cover needs two stops.
+/// Другий відтінок пари для градієнта обкладинки.
 private let categoryPartners: [String: UInt32] = [
     "music": 0xC43B6B, "sport": 0x2F63C4, "art": 0x6D4AC9, "food": 0xC43B6B,
     "games": 0x0F7F73, "outdoors": 0x0F7F73, "social": 0xC96A1E, "comedy": 0xC43B6B, "kids": 0x2F63C4,
     "tours": 0x3E7D3A, "conference": 0x6D4AC9
 ]
 
-/**
- Cover fill for a category: a lit pastel in light mode, a low veil in dark. Two hues rather than
- one — the pair keeps a wall of covers from reading as a single tinted block, and the light corner
- makes a photoless card read as a surface rather than a swatch.
- */
+/// Заливка обкладинки: пастель у світлій темі, тонка вуаль у темній. Два відтінки, щоб стіна обкладинок не зливалась.
 func categoryGradient(_ category: String) -> LinearGradient {
     let hue = categoryHues[category] ?? 0x6B675E
     let partner = categoryPartners[category] ?? hue
@@ -167,10 +148,10 @@ func categoryGradient(_ category: String) -> LinearGradient {
     return LinearGradient(colors: stops, startPoint: .topLeading, endPoint: .bottomTrailing)
 }
 
-/// Header wash: warm light at the top of the screen, paper at the bottom.
+/// Заливка шапки: тепле світло вгорі, папір унизу.
 let heroGradient = LinearGradient(colors: [Palette.heroTop, Palette.heroBottom], startPoint: .top, endPoint: .bottom)
 
-/// The primary action is a solid of ink, lifted by a hair of light along its top edge.
+/// Головна дія: заливка чорнилом зі світлою ниткою по верхньому краю.
 let brandGradient = LinearGradient(
     colors: [
         Color(UIColor { $0.userInterfaceStyle == .dark ? blend(0xF5F3EE, 0xFFFFFF, 0.22) : blend(0x14130F, 0x4A463D, 0.22) }),
@@ -179,37 +160,27 @@ let brandGradient = LinearGradient(
     startPoint: .top, endPoint: .bottom
 )
 
-/// A tone laid over its own container: badges and glyph tiles read as filled objects, not patches.
+/// Тон поверх власного контейнера: бейджі й плитки гліфів читаються як об'єкти, а не плями.
 func toneGradient(_ container: Color, _ tone: Color) -> LinearGradient {
     LinearGradient(colors: [container, tone.opacity(0.16)], startPoint: .top, endPoint: .bottom)
 }
 
-/// Pastel in light mode; in dark the same hue is dropped to a low-alpha veil over the surface.
+/// Пастель у світлій темі; у темній той самий відтінок як вуаль з низькою альфою.
 func categoryWash(_ category: String) -> Color {
     guard let wash = categoryWashes[category], let hue = categoryHues[category] else { return Palette.surfaceMuted }
     return Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(rgb: hue).withAlphaComponent(0.22) : UIColor(rgb: wash) })
 }
 
-/**
- Two voices, not one weight scale.
-
- The grotesque carries names, actions and data; large sizes get negative tracking so a heading
- reads as one shape rather than a row of letters. The serif carries the one line that says *what a
- thing is* — `descriptor` under a place name, `lead` at the top of a detail screen. That is the
- Corner move: a change of voice separates description from label without a fourth weight of the
- same face.
-
- Both are system faces (SF Pro and New York), so both scale with Dynamic Type and both ship with
- the Cyrillic the app is written in.
- */
+/// Два голоси: гротеск для назв, дій і даних; антиква для рядка «що це» (`descriptor`, `lead`).
+/// Обидва системні (SF Pro, New York), тож масштабуються з Dynamic Type і мають кирилицю.
 enum PoruchFont {
     static let display = Font.system(size: 32, weight: .bold)
     static let title1 = Font.system(size: 26, weight: .bold)
     static let title2 = Font.system(size: 19, weight: .bold)
     static let title3 = Font.system(size: 16, weight: .semibold)
-    /// A section is announced lowercase at reading size — caps stay where they carry data.
+    /// Заголовок секції малими літерами; капітель лишається там, де несе дані.
     static let sectionTitle = Font.system(size: 17, weight: .bold)
-    /// Card names are set in caps, the way Corner sets place names.
+    /// Назви карток капітеллю.
     static let cardName = Font.system(size: 15, weight: .bold)
     static let bodyText = Font.system(size: 15)
     static let subhead = Font.system(size: 14)
@@ -217,13 +188,13 @@ enum PoruchFont {
     static let label = Font.system(size: 13, weight: .medium)
     static let button = Font.system(size: 15, weight: .semibold)
     static let overline = Font.system(size: 11, weight: .bold)
-    /// The serif italic Corner sets under a place name.
+    /// Курсивна антиква під назвою.
     static let descriptor = Font.system(size: 14, design: .serif).italic()
-    /// The same serif, upright: the lead paragraph of a detail screen.
+    /// Та сама антиква прямо: лід на екрані деталей.
     static let lead = Font.system(size: 16, design: .serif)
 }
 
-/// Tracking that belongs to a size, not to a call site: large type tightens, small caps open up.
+/// Трекінг за розміром, а не за місцем виклику: великий текст стискається, капітель розріджується.
 extension View {
     func displayTracking() -> some View { kerning(-0.8) }
     func titleTracking() -> some View { kerning(-0.6) }
@@ -248,11 +219,8 @@ enum Corner {
     static let xl: CGFloat = 26
 }
 
-/**
- Four steps, and each one means a distance from the paper: a card rests on it, a chip hovers, the
- tab bar and the map carousel float over content. Dark mode keeps the numbers and loses the
- shadows — `Palette.shadow*` are transparent there — and steps the surface up instead.
- */
+/// Чотири рівні відстані від паперу: картка лежить, чип висить, таббар і карусель плавають.
+/// У темній темі тіні прозорі, глибину несе поверхня.
 enum Elevation {
     static let flat: CGFloat = 0
     static let card: CGFloat = 4
@@ -261,21 +229,15 @@ enum Elevation {
 }
 
 extension View {
-    /**
-     Two shadows make an object: a tight one that draws the contact edge and a wide one that reads
-     as the distance to the ground. One shadow at this radius looks like a blur; two look like a
-     thing sitting on paper.
-
-     `tint` lets an action cast its own colour — an ink button glows warm, a category tile glows in
-     its own hue — instead of every element smudging the page with the same grey.
-     */
+    /// Дві тіні роблять об'єкт: вузька малює край дотику, широка — відстань до землі.
+    /// `tint` дає кнопці або плитці тінь власного кольору замість спільної сірої.
     func lifted(_ elevation: CGFloat, tint: Color? = nil) -> some View {
         shadow(color: tint ?? Palette.shadowSpot, radius: elevation / 3, y: elevation / 8)
             .shadow(color: tint?.opacity(0.5) ?? Palette.shadowAmbient, radius: elevation, y: elevation / 2.5)
     }
 }
 
-/// Card and panel elevation: two shadows on paper, a raised surface and a hairline in the dark.
+/// Підняття картки: дві тіні на папері, світліша поверхня і лінія в темряві.
 struct CardSurface: ViewModifier {
     var radius: CGFloat = Corner.lg
     var elevation: CGFloat = Elevation.card
@@ -287,18 +249,15 @@ struct CardSurface: ViewModifier {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    // A lit card needs less line to hold it; a flat one still needs the full hairline.
+                    // Піднятій картці досить тоншої лінії; плоскій потрібна повна.
                     .strokeBorder(Palette.hairline.opacity(elevation > 0 ? 0.55 : 1), lineWidth: 1)
             )
             .lifted(elevation)
     }
 }
 
-/**
- Tap feedback with depth: the surface dips a fraction under the finger and springs back. Paired
- with the card shadow this is what makes a card feel like an object rather than a rectangle, so
- every tappable surface uses it instead of `.plain`. Reduced motion drops the dip.
- */
+/// Відгук на тап: поверхня трохи просідає і повертається. Усі натискні поверхні беруть його замість `.plain`.
+/// Reduced motion прибирає просідання.
 struct PressableStyle: ButtonStyle {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var pressedScale: CGFloat = 0.98
@@ -313,23 +272,14 @@ extension View {
     func cardSurface(radius: CGFloat = Corner.lg, elevation: CGFloat = Elevation.card) -> some View {
         modifier(CardSurface(radius: radius, elevation: elevation))
     }
-    /// Photos carry no information the title does not, so they stay out of the accessibility tree.
+    /// Фото не додає нічого до назви, тому поза деревом доступності.
     func decorative() -> some View { accessibilityHidden(true) }
 }
 
-/**
- Поля горизонтальної стрічки.
-
- Поля лежать **усередині** смуги прокрутки, а не навколо неї, — те саме, що `contentPadding` у
- Compose `LazyRow`. У спокої перший елемент стоїть із відступом від краю екрана; у русі елементи
- їдуть крізь це поле й зникають уже на краю екрана, а не за 16 pt до нього. Тому смуга має йти від
- краю до краю: там, де стрічка стоїть у контейнері з полями сторінки, ці поля знімають від'ємним
- відступом на місці виклику.
-
- `spread` — запас на тінь. Смуга прокрутки обрізає вміст своїми межами, а картки в стрічці стоять
- упритул до них, тож без запасу тінь зрізана зверху й знизу. Запас живе всередині смуги й тут-таки
- компенсується назовні: у розкладці стрічка займає рівно стільки, скільки її вміст.
- */
+/// Поля горизонтальної стрічки всередині смуги прокрутки, як `contentPadding` у Compose `LazyRow`:
+/// елементи зникають на краю екрана, а не за 16 pt до нього. Смуга має йти від краю до краю,
+/// тож поля сторінки знімають від'ємним відступом на місці виклику. `spread` — запас на тінь,
+/// щоб смуга не обрізала її; ззовні він компенсується.
 extension View {
     func railContentPadding(_ inset: CGFloat = Space.page, spread: CGFloat = Space.sm) -> some View {
         contentMargins(.horizontal, inset, for: .scrollContent)
@@ -338,26 +288,16 @@ extension View {
     }
 }
 
-/**
- Висота смуги статусу.
-
- З вікна, а не з `GeometryReader` навколо екрана. Обгортка коштувала дорого: рядок категорій на
- головній, загорнутий у неї, не прокручувався горизонтально взагалі — той самий рядок у списку на
- мапі, де обгортки немає, прокручувався. Вікно знає те саме число й нічого не загортає.
-
- Але питати вікно **просто з `body`** теж не можна: висота смуги залежить від розкладки вікна, а
- розкладка хедера — від висоти смуги, і на кожному запуску SwiftUI друкував «AttributeGraph:
- cycle detected». Тож число беруть один раз поза проходом розкладки — [tracksStatusBarInset] — і
- тримають у стані екрана.
- */
+/// Висота смуги статусу з вікна, а не з `GeometryReader`: обгортка ламала горизонтальний скрол
+/// стрічок. Питати вікно з `body` теж не можна («AttributeGraph: cycle detected»), тому число
+/// беруть поза розкладкою через `tracksStatusBarInset` і тримають у стані екрана.
 func measuredStatusBarInset() -> CGFloat {
     UIApplication.shared.connectedScenes
         .compactMap { ($0 as? UIWindowScene)?.keyWindow?.safeAreaInsets.top }.first ?? Space.xxl
 }
 
 extension View {
-    /// Тримає `inset` рівним висоті смуги статусу: міряє, коли екран з'явився, і ще раз після
-    /// повороту — клас розміру по вертикалі на телефоні міняється саме тоді.
+    /// Тримає `inset` рівним висоті смуги статусу: міряє при появі екрана і після повороту.
     func tracksStatusBarInset(_ inset: Binding<CGFloat>) -> some View {
         modifier(StatusBarInsetReader(inset: inset))
     }
@@ -373,7 +313,7 @@ private struct StatusBarInsetReader: ViewModifier {
     }
 }
 
-// ---------------------------------------------------------------- event formatting
+// ---- Форматування подій
 
 let categories: [(String, String, String)] = [
     ("music", "Музика", "music.note"), ("sport", "Спорт", "figure.run"), ("art", "Мистецтво", "paintpalette"),
@@ -385,7 +325,7 @@ let categories: [(String, String, String)] = [
 func categoryName(_ key: String) -> String { categories.first { $0.0 == key }?.1 ?? key }
 func categorySymbol(_ key: String) -> String { categories.first { $0.0 == key }?.2 ?? "mappin" }
 
-/// The app's own glyph for a category, twin to `categoryIcon` on Android.
+/// Гліф категорії, двійник `categoryIcon` на Android.
 func categoryGlyph(_ key: String) -> PoruchGlyph {
     switch key {
     case "music": PoruchIcons.music
@@ -402,19 +342,9 @@ func categoryGlyph(_ key: String) -> PoruchGlyph {
     }
 }
 
-/**
- Розбір і форматування дат — по одному об'єкту на пару «пояс + шаблон», а не по одному на картку.
-
- `DateFormatter` та `ISO8601DateFormatter` дорогі саме у створенні: за ними стоїть ICU, локаль і
- календар. Поки вони робилися всередині `eventOverline`, кожен рядок списку платив за три-чотири
- такі створення — а список перебудовує рядки на кожному кроці скролу. Це і є та частина фрізу, яку
- не видно в жодному профілі як «моя функція»: час іде в Foundation.
-
- Обидва парсери налаштовані один раз і далі не змінюються, тож ділити їх між потоками безпечно —
- а `EventReminders` справді розбирає дати з фонового колбека. Словники ж захищені замком: його
- вартість — наносекунди проти сотень мікросекунд на створення форматера, а неспівпадіння тут
- коштувало б не глюка, а падіння.
- */
+/// Кеш форматерів за парою «пояс + шаблон»: створення `DateFormatter` дороге (ICU, локаль,
+/// календар), а рядки списку перебудовуються на кожен крок скролу. Парсери незмінні й безпечні
+/// між потоками (`EventReminders` розбирає дати з фонового колбека); словники під замком.
 private let isoParser: ISO8601DateFormatter = ISO8601DateFormatter()
 private let isoParserWithFraction: ISO8601DateFormatter = {
     let parser = ISO8601DateFormatter()
@@ -432,22 +362,27 @@ private var formatters: [String: DateFormatter] = [:]
 private var calendars: [String: Calendar] = [:]
 
 private func formatter(_ event: Event, _ pattern: String) -> DateFormatter {
-    let key = event.timeZone + "|" + pattern
+    formatter(zone: event.timeZone, pattern)
+}
+
+/// Той самий кеш за поясом: у сеансу прокату є пояс, але нема `Event`.
+private func formatter(zone: String, _ pattern: String) -> DateFormatter {
+    let key = zone + "|" + pattern
     formatterLock.lock()
     defer { formatterLock.unlock() }
     if let cached = formatters[key] { return cached }
     let formatter = DateFormatter()
     formatter.locale = ukrainian
-    formatter.timeZone = TimeZone(identifier: event.timeZone)
+    formatter.timeZone = TimeZone(identifier: zone)
     formatter.dateFormat = pattern
     formatters[key] = formatter
     return formatter
 }
 
-/// Календар теж не безкоштовний: за ним свій пояс і локаль, а `dayLabel` питає його по чотири
-/// рази на картку.
-private func calendar(_ event: Event) -> Calendar {
-    let zone = event.timeZone
+/// Календар теж кешується: `dayLabel` питає його по кілька разів на картку.
+private func calendar(_ event: Event) -> Calendar { calendar(zone: event.timeZone) }
+
+private func calendar(zone: String) -> Calendar {
     formatterLock.lock()
     defer { formatterLock.unlock() }
     if let cached = calendars[zone] { return cached }
@@ -458,11 +393,7 @@ private func calendar(_ event: Event) -> Calendar {
     return calendar
 }
 
-/// «Зараз» у тому вигляді, якого чекає спільна логіка. Домен свідомо приймає час параметром,
-/// а не читає годинник сам, тож міст будуємо тут.
-///
-/// Не `private`: `HomePresentation` ділить секцію «Сьогодні» тим самим доменним питанням, і
-/// другий такий міст поруч означав би два способи сказати «зараз».
+/// «Зараз» для спільної логіки: домен приймає час параметром. Не `private`, бо потрібне й `HomePresentation`.
 func nowInstant() -> KotlinInstant {
     KotlinInstant.companion.fromEpochMilliseconds(
         epochMilliseconds: Int64(Date().timeIntervalSince1970 * 1000))
@@ -470,16 +401,17 @@ func nowInstant() -> KotlinInstant {
 
 private let ukrainian = Locale(identifier: "uk_UA")
 
-/// «У суботу о 18:00»: знахідний відмінок, бо називний тут читається як список, а не як речення.
+/// «У суботу о 18:00»: знахідний відмінок, щоб читалось як речення.
 private let weekdayOn = ["У неділю", "У понеділок", "У вівторок", "У середу",
                          "У четвер", "У п\u{2019}ятницю", "У суботу"]
 
-/// Наскільки подія далеко, у словах, якими це формулює людина.
-///
-/// «13 березня» саме по собі — пастка: за пів року це читається як березень, що вже минув.
-/// Тому все, що поза поточним роком, несе рік.
+/// Дата словами людини. Поза поточним роком — з роком, інакше «13 березня» читається як минуле.
 private func dayLabel(_ event: Event, _ date: Date, short: Bool) -> String {
-    let calendar = calendar(event)
+    dayLabel(zone: event.timeZone, date, short: short)
+}
+
+private func dayLabel(zone: String, _ date: Date, short: Bool) -> String {
+    let calendar = calendar(zone: zone)
     let now = Date()
 
     if calendar.isDateInToday(date) { return "Сьогодні" }
@@ -488,7 +420,7 @@ private func dayLabel(_ event: Event, _ date: Date, short: Bool) -> String {
     let days = calendar.dateComponents([.day],
                                        from: calendar.startOfDay(for: now),
                                        to: calendar.startOfDay(for: date)).day ?? 0
-    // За тиждень назва дня ще орієнтує, далі вже ні — там потрібна дата.
+    // До тижня досить назви дня, далі потрібна дата.
     if days >= 2, days <= 6 {
         return weekdayOn[calendar.component(.weekday, from: date) - 1]
     }
@@ -499,18 +431,15 @@ private func dayLabel(_ event: Event, _ date: Date, short: Bool) -> String {
     } else {
         pattern = sameYear ? "EEEE, d MMMM" : "d MMMM yyyy"
     }
-    return formatter(event, pattern).string(from: date)
+    return formatter(zone: zone, pattern).string(from: date)
 }
 
-/// Дата прокату звичайним числом: «30 вересня».
-///
-/// Навмисно не через `dayLabel`: там «Завтра» й «У суботу», а «до у суботу» та «з завтра по
-/// 30 вересня» — це не речення. Рік дописуємо з тієї самої причини, з якої його дописує `dayLabel`.
+/// Дата прокату числом: «30 вересня». Не через `dayLabel`, бо «до у суботу» — не речення.
 private func plainDate(_ event: Event, _ date: Date, withYear: Bool) -> String {
     formatter(event, withYear ? "d MMMM yyyy" : "d MMMM").string(from: date)
 }
 
-/// «до 30 вересня» — підпис картки прокату. Слова ті самі, що в `androidApp/.../ui/Format.kt`.
+/// «до 30 вересня» — підпис картки прокату. Слова ті самі, що в Android `Format.kt`.
 private func untilLabel(_ event: Event) -> String? {
     guard let end = parseEventDate(event.endsAt) else { return nil }
     let calendar = calendar(event)
@@ -518,10 +447,7 @@ private func untilLabel(_ event: Event) -> String? {
     return "до " + plainDate(event, end, withYear: !sameYear)
 }
 
-/// Проміжок прокату: «16 липня – 30 вересня».
-///
-/// Рік вирішується на обидва кінці разом. «16 липня – 30 вересня 2027» читається так, ніби липень
-/// цьогорічний, а вересень ні.
+/// Проміжок прокату: «16 липня – 30 вересня». Рік для обох кінців разом.
 private func rangeLabel(_ event: Event, _ start: Date, _ end: Date) -> String {
     let calendar = calendar(event)
     let year = calendar.component(.year, from: Date())
@@ -529,17 +455,11 @@ private func rangeLabel(_ event: Event, _ start: Date, _ end: Date) -> String {
     return plainDate(event, start, withYear: withYear) + " – " + plainDate(event, end, withYear: withYear)
 }
 
-/// Overline above a card title: «СЬОГОДНІ · 18:30», «СБ, 13 БЕР. 2027 · 18:00». Event's own zone.
-///
-/// Два стани для того, що вже почалось, а не один. Концерт, що почався годину тому, — «ТРИВАЄ
-/// ЗАРАЗ». Виставка з прокатом до 30 вересня цим підписом не сказала б головного, а її дата
-/// початку («16 ЛИПНЯ») читається як подія, що минула, — тому «ДО 30 ВЕРЕСНЯ». Слова тут ті самі,
-/// що в `androidApp/.../ui/Format.kt`: це один текст, а не два.
+/// Надрядок картки: «СЬОГОДНІ · 18:30», «СБ, 13 БЕР. 2027 · 18:00», у поясі події. Для того,
+/// що вже йде: сеанс — «ТРИВАЄ ЗАРАЗ», прокат — «ДО 30 ВЕРЕСНЯ». Слова ті самі, що в Android `Format.kt`.
 func eventOverline(_ event: Event) -> String {
     guard let date = parseEventDate(event.startsAt) else { return event.startsAt }
-    // Питання про прокат ставиться лише всередині гілки «вже йде». Виставка, що відкриється у
-    // жовтні, на картці показує свій початок, як і будь-яка інша подія. Заразом це знімає зайвий
-    // розбір дат з кожного рядка під час скролу.
+    // Про прокат питаємо лише коли подія вже йде: невідкрита виставка показує початок, як усі.
     if event.isUnderway(now: nowInstant()) {
         if event.isMultiDay, let until = untilLabel(event) {
             return until.uppercased(with: ukrainian)
@@ -550,14 +470,8 @@ func eventOverline(_ event: Event) -> String {
     return "\(dayLabel(event, date, short: true)) · \(hour)".uppercased(with: ukrainian)
 }
 
-/// Long form for the detail screen. The zone is named only when it differs from the reader's own:
-/// for someone in Kyiv reading about Kyiv, «GMT+03:00» is noise, but for a traveller it is the
-/// difference between arriving and missing it.
-///
-/// Дві форми, бо це два різні питання. Сеанс: «Четвер, 16 липня · 18:00» — година тут головна,
-/// бо її можна пропустити. Прокат: «16 липня – 30 вересня» — година першого дня про виставку не
-/// каже нічого, а поставлена поруч із проміжком читалась би як щоденний час відкриття, якого ми
-/// не знаємо.
+/// Довга форма для екрана деталей. Пояс називаємо лише коли він відрізняється від поясу читача.
+/// Сеанс: «Четвер, 16 липня · 18:00». Прокат: «16 липня – 30 вересня», без години.
 func eventDate(_ event: Event) -> String {
     guard let date = parseEventDate(event.startsAt) else { return event.startsAt }
     let prefix = event.isUnderway(now: nowInstant()) ? "Триває зараз · " : ""
@@ -571,18 +485,51 @@ func eventDate(_ event: Event) -> String {
     return "\(prefix)\(dayLabel(event, date, short: false)) · \(hour)\(zoneSuffix)"
 }
 
+/// Надрядок картки: дата найближчого сеансу і, для прокату, згадка про решту. На деталях решту показує карусель.
+func cardOverline(_ event: Event) -> String {
+    let base = eventOverline(event)
+    guard let note = seriesNote(event) else { return base }
+    return base + " · " + note.uppercased(with: ukrainian)
+}
 
-/// True once the remaining capacity is small enough to be worth an urgency badge.
-///
-/// Поріг рахує домен (`Gathering.isScarce`) — раніше та сама формула жила двома копіями, тут і в
-/// Android. Афіша сюди не потрапляє взагалі: місткості в неї немає, а отже й терміновості.
+/// Решта сеансів прокату: «ще 2 дати», «ще 3 сеанси», «і о 19:30». Число, а не проміжок, бо
+/// прокат буває з розривами. Дні, а не сеанси, коли днів кілька. Слова ті самі, що в Android `Format.kt`.
+func seriesNote(_ event: Event) -> String? {
+    guard event.isSeries else { return nil }
+    let days = Int(event.otherSessionDays)
+    if days > 0 { return "ще \(days) \(ukrainianPlural(days, "дата", "дати", "дат"))" }
+    let others = Int(event.otherSessionCount)
+    if others == 1, let next = event.sessions.first(where: { $0.id != event.id }),
+       let date = parseEventDate(next.startsAt) {
+        return "і о " + formatter(zone: next.timeZone, "HH:mm").string(from: date)
+    }
+    return "ще \(others) \(ukrainianPlural(others, "сеанс", "сеанси", "сеансів"))"
+}
+
+private func ukrainianPlural(_ count: Int, _ one: String, _ few: String, _ many: String) -> String {
+    if (11...14).contains(count % 100) { return many }
+    switch count % 10 {
+    case 1: return one
+    case 2...4: return few
+    default: return many
+    }
+}
+
+/// Сеанс у каруселі дат: день і година окремо, бо два сеанси одного вечора інакше були б однаковими кнопками.
+func sessionLabel(_ session: EventSession) -> (day: String, hour: String) {
+    guard let date = parseEventDate(session.startsAt) else { return (session.startsAt, "") }
+    return (dayLabel(zone: session.timeZone, date, short: true),
+            formatter(zone: session.timeZone, "HH:mm").string(from: date))
+}
+
+
+/// Місць лишилось мало — варте бейджа. Поріг рахує домен (`Gathering.isScarce`); афіша сюди не потрапляє.
 func eventScarce(_ event: Event) -> Bool {
     guard let room = event.gathering, !event.isCancelled else { return false }
     return room.isScarce
 }
 
-/// Ціна квитка одним рядком. «Безкоштовно», «від стількох» і «джерело не сказало» — три різні
-/// відповіді, і зливати останню з першою означало б назвати платну подію дармовою.
+/// Ціна одним рядком: «безкоштовно», «від N» або «джерело не сказало». Останнє — не нуль.
 func listingPrice(_ listing: Listing) -> String {
     if listing.isFree?.boolValue == true { return "Безкоштовно" }
     guard let price = listing.priceMin?.doubleValue else { return "Ціну вкаже джерело" }

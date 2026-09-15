@@ -1,7 +1,7 @@
 import SwiftUI
 import Shared
 
-/// «Мої події» is one list under three lenses.
+/// «Мої події» — один список у трьох розрізах.
 enum MyEventsTab: Int, CaseIterable, Identifiable {
     case attending, organizing, saved
     var id: Int { rawValue }
@@ -16,21 +16,21 @@ enum MyEventsTab: Int, CaseIterable, Identifiable {
 
 struct MyEventsView: View {
     @EnvironmentObject var model: AppModel
+    /// Відкрити деталі. Шлях стосу тримає корінь (`RootView.minePath`).
+    var openEvent: (String) -> Void
     @State private var tab = MyEventsTab.attending
-    @State private var detail = false
     @State private var creating = false
 
     private var signedIn: Bool { model.state?.signedIn == true }
 
-    /// «Saved» draws on the same list: an event can be saved without being joined or organised.
+    /// «Збережені» з того ж списку: зберегти можна, не приєднуючись.
     private var visible: [Event] {
         guard let state = model.state else { return [] }
         return state.myEvents.filter { event in
             switch tab {
             case .attending: event.gathering?.joined == true
             case .organizing: state.organizes(event: event)
-            // Набір із моделі, а не `isSaved` через міст: там лінійний пошук по списку, і він
-            // повторювався б на кожен рядок.
+            // Набір із моделі, а не `isSaved` через міст: там лінійний пошук на кожен рядок.
             case .saved: model.savedIDs.contains(event.id)
             }
         }
@@ -45,7 +45,6 @@ struct MyEventsView: View {
         .toolbar(.hidden, for: .navigationBar)
         .task { model.app.loadMyEvents() }
         .refreshable { model.app.loadMyEvents() }
-        .navigationDestination(isPresented: $detail) { EventDetailView(app: model.app) }
         .sheet(isPresented: $creating) { EventEditor(event: nil, app: model.app, home: model.state) }
     }
 
@@ -65,8 +64,7 @@ struct MyEventsView: View {
             }
         }
         .padding(.bottom, Space.md)
-        // Фон піднімається під смугу статусу, а вміст лишається під нею: інакше над теплим
-        // градієнтом видно холодну смугу кольору полотна.
+        // Фон під смугу статусу, вміст під нею, інакше над градієнтом холодна смуга.
         .background(heroGradient.ignoresSafeArea(edges: .top))
     }
 
@@ -93,7 +91,7 @@ struct MyEventsView: View {
                             saved: model.savedIDs.contains(event.id),
                             waitlisted: model.waitlistedIDs.contains(event.id)
                         ) {
-                            model.app.selectEvent(id: event.id); detail = true
+                            model.app.selectEvent(id: event.id); openEvent(event.id)
                         }
                     }
                 }.padding(.horizontal, Space.page).padding(.vertical, Space.md)

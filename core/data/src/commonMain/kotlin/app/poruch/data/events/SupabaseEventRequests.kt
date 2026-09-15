@@ -5,11 +5,7 @@ import app.poruch.domain.EventRequests
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
-/**
- * Двері організатора. Окремо від [SupabaseEventParticipation], бо це протилежний бік тих самих
- * дверей: там просять увійти, тут вирішують. І права різні — сервер віддає ці функції лише
- * організаторові події.
- */
+/** Запити на участь з боку організатора. Окремо від [SupabaseEventParticipation], бо інші права. */
 internal class SupabaseEventRequests(private val rpc: EventRpc) : EventRequests {
 
     override suspend fun joinRequests(id: String): List<Attendee> =
@@ -27,7 +23,7 @@ internal class SupabaseEventRequests(private val rpc: EventRpc) : EventRequests 
         buildJsonObject { put("p_event_id", eventId); put("p_user_id", userId) }
 
     private companion object {
-        /** Скільки запитів показуємо за раз: більше за це — вже не черга, а окремий екран. */
+        /** Скільки запитів показуємо за раз. */
         const val QUEUE_LIMIT = 50
     }
 }

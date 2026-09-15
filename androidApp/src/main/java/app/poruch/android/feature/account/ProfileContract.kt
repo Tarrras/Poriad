@@ -7,7 +7,7 @@ import java.time.LocalDate
 data class ProfileState(
     val signedIn: Boolean = false,
     val interests: List<String> = emptyList(),
-    /** An account made before the app asked for an age has to state one before it can join. */
+    /** Акаунт без віку має його вказати, перш ніж приєднуватись. */
     val needsAge: Boolean = false,
     val pickingBirthDate: Boolean = false,
     val blocked: List<Attendee> = emptyList(),

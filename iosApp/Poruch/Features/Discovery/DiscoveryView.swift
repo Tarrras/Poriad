@@ -1,8 +1,7 @@
 import SwiftUI
 import Shared
 
-/// The date filters the map offers, in the order they are shown. Both the chip row and the filter
-/// sheet read this list, so the two can never drift apart.
+/// Фільтри дати в порядку показу. Читають і рядок чипів, і шторка фільтрів.
 var dateFilterKeys: [String] { [DateFilter.shared.ANY, DateFilter.shared.TODAY, DateFilter.shared.WEEKEND] }
 
 func dateLabel(_ key: String) -> String {
@@ -16,22 +15,10 @@ func dateLabel(_ key: String) -> String {
 private let topControlsInset: CGFloat = 196
 private let carouselInset: CGFloat = 268
 private let tabBarInset: CGFloat = 92
-/**
- Скільки лишаємо над шторкою, коли її підняли повністю.
-
- Смужка мапи, а не панель контролів: у верхньому положенні шторка має закривати екран, як шторка
- деталей події. Фільтри лишаються на відстані одного потягування вниз — у половинному положенні
- вони знову над нею.
- */
+/// Скільки мапи лишаємо над повністю піднятою шторкою. Фільтри повертаються в половинному положенні.
 private let sheetTopInset: CGFloat = Space.sm
 
-/**
- Три положення шторки зі списком.
-
- Списку немає окремого режиму: він живе в тій самій шторці, згорнутий стан якої — це карусель.
- Доки режим був окремий, вкладка «Мапа» показувала список без мапи й без п'яти фільтрів із шести,
- а повернутись можна було лише кнопкою, яка сама переїжджала з нижнього кута у верхній.
- */
+/// Положення шторки: згорнута (карусель), половина, повний екран. Окремого режиму списку нема.
 private enum SheetDetent {
     case peek, half, full
 }
@@ -40,43 +27,29 @@ struct DiscoveryView: View {
     @EnvironmentObject var model: AppModel
     @StateObject private var location = LocationFinder()
     @State private var citySearch = false
-    @State private var details = false
+    /// Подія з відкритими деталями. Значення, а не прапорець, щоб не читати id з асинхронного стану.
+    @State private var detail: EventRoute?
     @State private var filters = false
     @State private var mapFailed = false
     @State private var retryToken = 0
     @State private var centerToken = 0
     @State private var region: MapRegion?
-    /// Події, що стоять на одній точці. Кеш майданчиків дає всім подіям закладу ті самі
-    /// координати, тож без фокуса решта стосу недосяжна з мапи.
+    /// Події на одній точці (всі події закладу): без стосу решта недосяжна з мапи.
     @State private var stackIDs: [String] = []
     /// Наскільки піднята шторка зі списком.
     @State private var detent: SheetDetent = .peek
-    /**
-     Скільки пальця вже пройдено по ручці шторки. Вниз — додатне.
-
-     Звичайний стан, а не `@GestureState`: той скидається сам, окремим оновленням від того, у
-     якому шторка дізнається нове положення. Через це на відпусканні вона встигала стрибнути назад
-     до висоти старого положення й аж тоді їхала до нового. Тут скидання й нове положення
-     приїжджають разом.
-     */
+    /// Зсув пальця по ручці шторки, вниз додатний. Не `@GestureState`: той скидається окремим
+    /// оновленням, і шторка стрибала до старого положення перед новим.
     @State private var sheetDrag: CGFloat = 0
     /// Розмір екрана під контролами: з нього рахуються висоти шторки.
     @State private var screen: CGSize = .zero
     /// Категорія, обрана плитками в шторці. Звужує список, а не мапу.
     @State private var listCategory = AppStateKt.ALL_CATEGORIES
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    /// Pins are a set and have no order; the carousel and the list do, and it is the same order
-    /// home shows — what the answers put first is what the thumb reaches first.
-    /// Зібрано в [AppModel] один раз на емісію стану, а не на кожне перемальовування екрана.
-    /// Категорія мапи. Головна має свою — вибір на одному екрані не чіпає другий.
+    /// Категорія мапи. Головна має свою.
     private var category: String { model.state?.category ?? AppStateKt.ALL_CATEGORIES }
 
-    /**
-     Що малює мапа: індекс області, звужений до обраної категорії.
-
-     Фільтр тут, а не в запиті до сервера. Доки категорія їхала в `EventQuery`, вона звужувала сам
-     індекс — і мапа, відфільтрована на «музику», звужувала й те, що бачить головна.
-     */
+    /// Що малює мапа: індекс, звужений до категорії. Фільтр тут, а не в запиті, щоб не звужувати й головну.
     var mapEntries: [EventIndexEntry] {
         let all = category == AppStateKt.ALL_CATEGORIES
         return all ? model.mapEntries : model.mapEntries.filter { $0.category == category }
@@ -84,27 +57,19 @@ struct DiscoveryView: View {
     private var selectedID: String? { model.state?.selectedEvent?.id }
     private var savedIDs: Set<String> { model.savedIDs }
 
-    /// Події обраного піна, у порядку індексу. Порожньо, якщо від стосу після нової видачі
-    /// нічого не лишилось — тоді фокусувати нема на чому.
+    /// Події обраного піна в порядку індексу. Порожньо, якщо після нової видачі стосу не лишилось.
     private var stackEntries: [EventIndexEntry] {
         stackIDs.isEmpty ? [] : mapEntries.filter { stackIDs.contains($0.id) }
     }
     private var stackFocused: Bool { !stackEntries.isEmpty }
 
-    /**
-     Що показує шторка: те, що стоїть на обраному піні, або вся видача — і те й те звужене
-     категорією, обраною плитками **в самій шторці**.
-
-     Плитки звужують список, а не мапу. Мапа має власну категорію — ту, що у фільтрах, — і піни
-     під шторкою не мають перестроюватись від того, що людина гортає список за темою.
-     */
+    /// Вміст шторки: стос обраного піна або вся видача, звужені категорією плиток. Плитки звужують список, а не мапу.
     private var listEntries: [EventIndexEntry] {
         let base = stackFocused ? stackEntries : mapEntries
         guard listCategory != AppStateKt.ALL_CATEGORIES else { return base }
         return base.filter { $0.category == listCategory }
     }
-    /// Картки списку, які вже завантажились. Їх може бути менше, ніж [listEntries]: решту
-    /// список просить сам, доки його гортають.
+    /// Завантажені картки списку. Може бути менше за `listEntries`: решту список просить сам.
     private var shownEvents: [Event] { listEntries.compactMap { model.cardsByID[$0.id] } }
     private var activeFilters: Int {
         [model.state?.dateFilter != DateFilter.shared.ANY, model.state?.category != AppStateKt.ALL_CATEGORIES, model.state?.onlyAvailable == true]
@@ -118,16 +83,12 @@ struct DiscoveryView: View {
                 retryToken: retryToken, centerToken: centerToken,
                 topInset: topControlsInset, bottomInset: carouselInset,
                 loadFailed: { mapFailed = $0 },
-                // Пін тапнули — значить, дивляться на мапу: шторка сходить із дороги й показує
-                // картку саме тієї події.
+                // Тап по піну: шторка згортається і показує картку цієї події.
                 selected: { model.app.selectEvent(id: $0.id); open(.peek) },
                 selectedStack: { ids in
-                    // Пін представляє місце, а не подію: у фокус іде все, що на ньому стоїть, —
-                    // і одна подія так само, як десять.
+                    // Пін — це місце: у фокус іде все, що на ньому стоїть.
                     stackIDs = ids
-                    // Стос — це не початок стрічки, тож вікно карток його не покриває: у київського
-                    // майданчика на 32 події в нього потрапляли дві, і пін казав «32», а карусель
-                    // під ним — «Тут подій: 2».
+                    // Стос — не початок стрічки, вікно карток його не покриває.
                     model.app.loadCards(ids: ids)
                     if let first = ids.first { model.app.selectEvent(id: first); open(.peek) }
                 },
@@ -160,8 +121,7 @@ struct DiscoveryView: View {
             sheet.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
         }
         .background {
-            // Вимір, а не обгортка: висоти шторки рахуються від екрана, але сам екран у
-            // `GeometryReader` не загортається — див. [statusBarInset] про ціну такої обгортки.
+            // Вимір, а не обгортка: екран у GeometryReader не загортаємо, див. statusBarInset.
             GeometryReader { proxy in
                 Color.clear
                     .onAppear { screen = proxy.size }
@@ -172,23 +132,21 @@ struct DiscoveryView: View {
         .background(Palette.canvas)
         .toolbar(.hidden, for: .navigationBar)
         .onChange(of: model.eventsRevision) { _, _ in region = nil }
-        // Індекс повний з першої відповіді, картки — ні. Коли карусель підходить до краю
-        // завантаженого, просимо наступне вікно за вже відомими ідентифікаторами.
+        // Біля краю завантаженого просимо наступне вікно карток.
         .onChange(of: selectedID) { _, id in
             guard let id, !stackFocused, shownEvents.count < listEntries.count else { return }
             guard let position = shownEvents.firstIndex(where: { $0.id == id }) else { return }
             if position >= shownEvents.count - cardPrefetchAhead { loadHead(shownEvents.count + cardPage) }
         }
-        // Картки просять під ту категорію, яку показують. Без цього під фільтром список лишався
-        // порожнім при лічильнику «1»: вікно карток стояло на початку **повного** індексу, а
-        // єдина подія категорії лежала далеко за його краєм.
+        // Картки просимо під категорію, яку показуємо: під фільтром вони лежать за краєм вікна.
         .onChange(of: listCategory) { _, _ in loadHead(cardPage) }
         .onChange(of: category) { _, _ in loadHead(cardPage) }
         .onChange(of: model.eventsRevision) { _, _ in loadHead(cardPage) }
         .sheet(isPresented: $citySearch) { CitySearchView().presentationDetents([.medium, .large]) }
         .sheet(isPresented: $filters) { FiltersView().presentationDetents([.medium, .large]) }
-        .sheet(isPresented: $details) {
-            NavigationStack { EventDetailView(app: model.app) }.presentationDetents([.large]).presentationDragIndicator(.visible)
+        .sheet(item: $detail) { route in
+            NavigationStack { EventDetailView(app: model.app, eventID: route.id) }
+                .presentationDetents([.large]).presentationDragIndicator(.visible)
         }
         .onReceive(location.$coordinate) { coordinate in
             if let coordinate {
@@ -226,9 +184,7 @@ struct DiscoveryView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: Space.sm) {
                     ForEach(dateFilterKeys, id: \.self) { key in
-                        // Тап по вибраному чипу знімає вибір. Інакше звузити дату можна, а
-                        // повернутись — лише знайшовши «Будь-коли», який до того ж міг виїхати
-                        // за край рядка.
+                        // Повторний тап знімає вибір, щоб не шукати «Будь-коли» за краєм рядка.
                         Chip(label: dateLabel(key), selected: model.state?.dateFilter == key) {
                             model.app.setDateFilter(filter: model.state?.dateFilter == key ? DateFilter.shared.ANY : key)
                         }
@@ -238,21 +194,15 @@ struct DiscoveryView: View {
                     }
                 }
             }
-            // Поля живуть усередині смуги, тож смуга йде від краю до краю: поля сторінки, які дає
-            // стос над нею, тут знімаються.
+            // Поля всередині смуги, тож смуга йде від краю до краю.
             .railContentPadding()
             .padding(.horizontal, -Space.page)
         }
     }
 
-    // ---------------------------------------------------------------- шторка зі списком
+    // ---- Шторка зі списком
 
-    /**
-     Шторка над мапою: згорнута — це карусель, піднята — список тієї самої видачі.
-
-     Карусель і мапа ділять один вибір: картка стала на місце — пін підсвітився; тапнули пін —
-     карусель прокрутилась назад.
-     */
+    /// Шторка над мапою: згорнута — карусель, піднята — список тієї ж видачі. Карусель і мапа ділять один вибір.
     private var sheet: some View {
         VStack(spacing: 0) {
             sheetHandle
@@ -264,7 +214,7 @@ struct DiscoveryView: View {
                         events: shownEvents, selectedID: selectedID, savedIDs: savedIDs,
                         resetToken: centerToken,
                         select: { model.app.selectEvent(id: $0) },
-                        open: { model.app.selectEvent(id: $0); details = true },
+                        open: { model.app.selectEvent(id: $0); detail = EventRoute(id: $0) },
                         toggleSaved: { model.app.toggleSaved(id: $0) }
                     )
                 }
@@ -274,13 +224,10 @@ struct DiscoveryView: View {
             Spacer(minLength: 0)
         }
         .padding(.bottom, tabBarInset)
-        // Висота йде за пальцем, а не за положенням: інакше під час протягування вміст лишається
-        // завбільшки з попереднє положення, і над ним відкривається порожнє полотно.
+        // Висота йде за пальцем, а не за положенням, інакше під час жесту над вмістом порожнеча.
         .frame(height: sheetHeight, alignment: .top)
         .background {
-            // Згорнутою шторці підкладка не потрібна: карусель і лічильник висять просто над
-            // мапою, як і висіли. Прозорий фон тут був би гірший за жодний — у SwiftUI він ловить
-            // дотики й мапу під собою не віддає.
+            // Згорнутій шторці підкладка не потрібна. Прозорий фон ловив би дотики замість мапи.
             if expanded {
                 RoundedRectangle(cornerRadius: Corner.xl, style: .continuous)
                     .fill(Palette.canvas)
@@ -291,17 +238,12 @@ struct DiscoveryView: View {
         .animation(reduceMotion ? nil : .spring(response: 0.34, dampingFraction: 0.86), value: detent)
     }
 
-    /// Скільки зараз займає шторка: висота положення плюс те, що вже пройшов палець.
+    /// Поточна висота шторки: положення плюс зсув пальця.
     private var sheetHeight: CGFloat {
         min(max(height(of: detent) - sheetDrag, height(of: .peek)), height(of: .full))
     }
 
-    /**
-     Чи шторка вже більша за згорнуту.
-
-     Рахується від живої висоти, а не від положення: вміст має мінятись на списком тоді, коли
-     палець відкрив для нього місце, а не аж коли шторку відпустили.
-     */
+    /// Шторка вже більша за згорнуту. Від живої висоти, а не від положення: вміст стає списком, щойно є місце.
     private var expanded: Bool { sheetHeight > height(of: .peek) + Space.section }
 
     private func height(of detent: SheetDetent) -> CGFloat {
@@ -312,23 +254,13 @@ struct DiscoveryView: View {
         }
     }
 
-    /// Згорнута шторка — це рядок лічильника й карусель під ним, разом із місцем під панель вкладок.
+    /// Згорнута шторка: рядок лічильника, карусель і місце під таббар.
     private var peekHeight: CGFloat { 44 + Space.sm + mapCardHeight + tabBarInset }
 
-    /**
-     Ручка шторки.
-
-     Тягнеться пальцем і натискається: жест сам себе не пояснює, а тап по лічильнику — пояснює.
-     Обидва шляхи ведуть в одне місце, тож список лишається доступним і для VoiceOver, де жести
-     протягування не працюють.
-     */
+    /// Ручка шторки: тягнеться і натискається, тож список доступний і для VoiceOver.
     private var sheetHandle: some View {
-        // Один стос на всі положення, і жест висить саме на ньому.
-        //
-        // Доки згорнута й піднята шапки були двома гілками `if`, перехід між ними знищував те
-        // подання, на якому тримався жест, — і протягування вмирало на півдорозі. Швидкий кидок
-        // устигав спрацювати до перебудови, повільний — ні. Тепер міняється вміст стоса, а сам
-        // стос лишається тим самим тілом від початку руху до кінця.
+        // Один контейнер на всі положення, жест на ньому. Дві гілки `if` перебудовували
+        // подання під час жесту, і протягування вмирало на півдорозі.
         VStack(spacing: Space.sm) {
             Capsule().fill(Palette.inkTertiary)
                 .frame(width: 36, height: expanded ? 4 : 0)
@@ -341,21 +273,9 @@ struct DiscoveryView: View {
         .gesture(sheetDragGesture)
     }
 
-    /**
-     Протягування шторки.
-
-     Живе тільки на шапці. Доки той самий жест стояв ще й на всьому вмісті, він відбирав у списку
-     прокрутку: список і шторка тягнулись одночасно, а іноді шторка забирала рух собі цілком.
-     */
+    /// Протягування шторки лише на шапці, інакше жест відбирав у списку прокрутку.
     private var sheetDragGesture: some Gesture {
-        // Координати — екранні, а не власні.
-        //
-        // `DragGesture` за замовчуванням міряє протягування в системі координат того подання, на
-        // якому висить. Тут це подання — шапка шторки, і воно їде вгору рівно від того, що жест
-        // повідомив. Палець зсувся на піксель — шторка виросла на піксель — шапка під пальцем
-        // поїхала — наступний відлік прийшов меншим на той самий піксель. Звідси й дрібне
-        // тремтіння на повільному русі, і великі стрибки на різкому. Екранна система координат
-        // від руху шторки не залежить, тож коло розмикається.
+        // Екранні координати: у власних шапка їде разом зі шторкою, і відліки тремтять.
         DragGesture(minimumDistance: 2, coordinateSpace: .global)
             .onChanged { value in sheetDrag = value.translation.height }
             .onEnded { value in
@@ -366,8 +286,7 @@ struct DiscoveryView: View {
     private var peekHeader: some View {
         HStack(spacing: Space.sm) {
             Spacer(minLength: 0)
-            // Не `Button`: кнопка забирає дотик собі, і протягнути шторку за неї вже не виходить.
-            // Тап і протягування тут стоять поруч на звичайному поданні.
+            // Не `Button`: кнопка забирає дотик, і протягнути шторку за неї не виходить.
             HStack(spacing: Space.sm) {
                 if model.state?.loading == true { ProgressView().controlSize(.mini) }
                 else if model.state?.offline == true {
@@ -404,8 +323,7 @@ struct DiscoveryView: View {
         .gesture(sheetDragGesture)
     }
 
-    /// Вихід із фокуса на піні. Знімає й підсвітку піна: доки вибір лишався, мапа показувала
-    /// обрану подію, а список під нею — уже всі, і це читалось як збій.
+    /// Вихід із фокуса на піні знімає і підсвітку, інакше мапа й список розходились.
     private var clearStackButton: some View {
         IconPill(symbol: "xmark", label: "Показати всі події") {
             stackIDs = []
@@ -439,10 +357,8 @@ struct DiscoveryView: View {
                                 event: event, saved: savedIDs.contains(event.id),
                                 waitlisted: model.waitlistedIDs.contains(event.id),
                                 onSave: { model.app.toggleSaved(id: event.id) }
-                            ) { model.app.selectEvent(id: event.id); details = true }
-                            // Список просить наступні картки сам. Доки цим займалась лише
-                            // карусель, список закінчувався на завантаженому: лічильник казав
-                            // «442», а рядків було двадцять чотири, і більше не ставало.
+                            ) { model.app.selectEvent(id: event.id); detail = EventRoute(id: event.id) }
+                            // Список довантажує картки сам, а не лише карусель.
                             .onAppear { loadMore(reaching: position) }
                         }
                         if shownEvents.count < listEntries.count {
@@ -464,13 +380,7 @@ struct DiscoveryView: View {
         .padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()
     }
 
-    /**
-     Лічильник рахує те, що в списку, а не те, що прийшло з сервера.
-
-     Число з індексу, а не з завантажених карток: решту список дотягує сам. Доки тут стояло
-     `totalFound`, під фільтром у шторці з'являлась пара «Знайдено подій: 1» і порожній список,
-     а з обраним піном — кількість усього міста над подіями одного майданчика.
-     */
+    /// Лічильник шторки: з індексу, а не з `totalFound` чи завантажених карток.
     private var countLabel: String {
         if model.state?.loading == true { return "Шукаємо події…" }
         if stackFocused { return "Тут подій: \(listEntries.count)" }
@@ -478,7 +388,7 @@ struct DiscoveryView: View {
         return "Знайдено подій: \(whole ? Int(model.state?.totalFound ?? 0) : listEntries.count)"
     }
 
-    /// Що саме показує екран: пін, рамку, поставлену рукою, чи ціле місто.
+    /// Що показує екран: пін, область рукою чи ціле місто.
     private var areaLabel: String {
         if stackFocused { return "Усе, що стоїть на обраному піні" }
         return model.state?.customArea == true
@@ -486,7 +396,7 @@ struct DiscoveryView: View {
             : "Знайдіть, куди піти у місті \(model.state?.cityName ?? "Київ")"
     }
 
-    /// Перевести шторку в положення: кнопкою, тапом чи слідом за вибором піна.
+    /// Перевести шторку в положення.
     private func open(_ target: SheetDetent) {
         if reduceMotion {
             sheetDrag = 0
@@ -499,31 +409,24 @@ struct DiscoveryView: View {
         }
     }
 
-    /**
-     Куди відпустити шторку: до положення, найближчого до того місця, де її відпустили.
-
-     Інерція лише схиляє вибір, а не вирішує його — звідси четвертина передбаченого вибігу. Доки
-     різкий рух означав крок на ціле положення, шторка з половини завжди йшла в крайнє: система
-     передбачає кидок щедро, а на звичайному відпусканні пальця швидкість ніколи не нульова.
-     */
+    /// Куди відпустити шторку: до найближчого положення. Інерція лише схиляє вибір (`coastShare`).
     private func settle(translation: CGFloat, predicted: CGFloat) {
         let released = height(of: detent) - translation
         let target = released - (predicted - translation) * coastShare
         let nearest = [SheetDetent.peek, .half, .full]
             .min { abs(height(of: $0) - target) < abs(height(of: $1) - target) } ?? .peek
-        // Нове положення і скидання пройденого — в одному русі: нарізно вони дають стрибок, бо
-        // спершу шторка миттю повертається до висоти старого положення й уже звідти їде до нового.
+        // Нове положення і скидання зсуву в одному оновленні, інакше стрибок.
         open(nearest)
     }
 
-    /// Наступне вікно карток, коли список підходить до краю завантаженого.
+    /// Наступне вікно карток біля краю завантаженого.
     private func loadMore(reaching position: Int) {
         guard shownEvents.count < listEntries.count else { return }
         guard position >= shownEvents.count - cardPrefetchAhead else { return }
         loadHead(shownEvents.count + cardPage)
     }
 
-    /// Картки початку того списку, який зараз показують.
+    /// Картки початку показаного списку.
     private func loadHead(_ count: Int) {
         let ids = listEntries.prefix(count).map(\.id)
         guard !ids.isEmpty else { return }
@@ -534,13 +437,7 @@ struct DiscoveryView: View {
 struct FiltersView: View {
     @EnvironmentObject var model: AppModel
     @Environment(\.dismiss) var dismiss
-    /**
-     Вибір накопичується у шторці й летить на сервер один раз, по «Готово».
-
-     Досі кожен тап по чипу був повним пошуком. Обрати категорію й дату — це два запити по
-     чотириста рядків, і жодного проміжного результату ніхто не бачить: їх закриває сама шторка.
-     А поки вона відкрита, мапа під нею перемальовується двічі.
-     */
+    /// Вибір накопичується і летить на сервер один раз по «Готово»: проміжних результатів за шторкою не видно.
     @State private var date: String?
     @State private var category: String?
     @State private var available: Bool?
@@ -588,8 +485,7 @@ struct FiltersView: View {
         .background(Palette.canvas)
     }
 
-    /// The sheet's own title is a title, not an overline: at 11 pt it was smaller than the section
-    /// labels underneath it, which inverted the hierarchy of the whole sheet.
+    /// Заголовок шторки — заголовок, а не надрядок, інакше він менший за секції під ним.
     private var header: some View {
         HStack(alignment: .firstTextBaseline) {
             Text("Фільтри").font(PoruchFont.title2).foregroundStyle(Palette.ink)
@@ -605,8 +501,7 @@ struct FiltersView: View {
         .padding(.top, Space.lg)
     }
 
-    /// Pinned, not scrolled: at the medium detent the button sat below the fold and the sheet
-    /// looked as though it had no way out.
+    /// Прикріплена, не в скролі: у середньому положенні кнопка ховалась за згином.
     private var actions: some View {
         PrimaryButton(title: "Готово") { apply() }
             .frame(maxWidth: .infinity)
@@ -625,9 +520,9 @@ struct FiltersView: View {
     }
 }
 
-/// Wrapping chip group; SwiftUI has no flow layout on the deployment target, so rows are measured manually.
+/// Чипи з переносом: у SwiftUI на цільовій версії нема flow layout, рядки міряються вручну.
 struct FlexibleChips: View {
-    /// Each item is (key, label, category key for the leading dot — nil for a plain chip).
+    /// (ключ, підпис, категорія для крапки або nil).
     let items: [(String, String, String?)]
     let isSelected: (String) -> Bool
     let action: (String) -> Void
@@ -650,12 +545,7 @@ struct CitySearchView: View {
     @Environment(\.dismiss) var dismiss
     @State private var query = ""
 
-    /**
-     Доки нічого не набрано, пропонуємо те, де події справді є.
-
-     Геокодер на порожній запит мовчить, а на перші літери віддає область, район, вокзал і
-     аеропорт — тобто місця, де людина побачить порожню мапу й вирішить, що подій немає взагалі.
-     */
+    /// Поки нічого не набрано, пропонуємо міста, де події справді є.
     private var covered: [HomeLocation] { HomeLocation.companion.covered }
 
     private func open(_ city: CityResult) {
@@ -693,9 +583,7 @@ struct CitySearchView: View {
             }
             .listStyle(.plain)
             .searchable(text: $query, prompt: "Місто у світі")
-            // Автофокуса тут немає свідомо: `searchFocused` зʼявився в iOS 18, а мінімум проєкту —
-            // 17. Для пʼяти міст, де є події, він і не потрібен — вони в списку одразу, без
-            // жодного символу.
+            // Без автофокуса: `searchFocused` з iOS 18, мінімум проєкту — 17.
             .onSettled(query, after: .milliseconds(220)) { model.app.searchCity(query: $0) }
             .navigationTitle("Знайти місто")
             .toolbar { Button("Готово") { dismiss() } }
@@ -703,7 +591,7 @@ struct CitySearchView: View {
     }
 }
 
-/// Яку частку передбаченого вибігу враховувати, обираючи положення шторки.
+/// Частка інерції пальця, що схиляє вибір положення шторки.
 private let coastShare: CGFloat = 0.25
 /// За скільки карток до кінця завантаженого просити наступні.
 private let cardPrefetchAhead = 8

@@ -11,7 +11,7 @@ import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
-/** Only ciphertext is persisted; the non-exportable AES key remains in Android Keystore. */
+/** На диску лише шифротекст; AES-ключ живе в Android Keystore і не експортується. */
 class SessionStore(context: Context) : SecureSessionStore {
     private val preferences = context.getSharedPreferences("secure_session", Context.MODE_PRIVATE)
     private fun key(): SecretKey {

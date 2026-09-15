@@ -11,10 +11,9 @@ import kotlin.math.abs
 import kotlin.time.Clock
 
 /**
- * Owns the map query: where we are looking, what we are filtering by, and the one in-flight search.
- * Split out of [PoruchApp] because these are the only pieces of state that change on every pan of
- * the map, and keeping them together is what makes "a stale answer must not replace a fresh one"
- * checkable in one place.
+ * Тримає запит мапи: область, фільтри й один активний пошук. Винесено з [PoruchApp], бо це
+ * єдиний стан, що змінюється на кожен рух мапи, і правило «стара відповідь не перекриває
+ * свіжу» перевіряється в одному місці.
  */
 internal class DiscoveryEngine(
     private val events: EventDiscovery,
@@ -23,22 +22,20 @@ internal class DiscoveryEngine(
     private val scope: CoroutineScope,
     home: HomeLocation,
     /**
-     * Де рахувати те, що не має рахуватись на UI-потоці: ранжування всієї видачі й розбір кеша.
-     *
-     * Порожній контекст за замовчуванням — це не «нікуди»: `withContext(EmptyCoroutineContext)`
-     * лишає виклик там, де він був, і йде швидким шляхом без перемикання. Завдяки цьому тест під
-     * `runTest` лишається на своєму планувальнику й нічого про цей параметр не знає, а збірка
-     * підставляє [kotlinx.coroutines.Dispatchers.Default] у [AppGraph].
+     * Де рахувати ранжування й розбір кеша. Порожній контекст лишає виклик на місці, тож тести
+     * під `runTest` нічого не знають; [AppGraph] підставляє `Dispatchers.Default`.
      */
     private val compute: CoroutineContext = EmptyCoroutineContext
 ) {
     private var query = EventQuery(home.south, home.west, home.north, home.east)
     private var searchJob: Job? = null
     private var cardsJob: Job? = null
+    private var sessionsJob: Job? = null
+    private var sessionsWanted: Set<String> = emptySet()
     private var debounceJob: Job? = null
     private var cityJob: Job? = null
 
-    /** Called whenever a query change should also drop the open event card. */
+    /** Викликається, коли зміна запиту має закрити відкриту картку. */
     var onQueryChanged: () -> Unit = {}
 
     fun refresh() {
@@ -59,7 +56,7 @@ internal class DiscoveryEngine(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                // Offline is not empty: the last answer for this area is still the best one we have.
+                // Офлайн — не порожньо: остання відповідь для області все ще найкраща.
                 val cached = withContext(compute) { events.cached(snapshot) }
                 PoruchLog.e("discovery", e) { "search failed, showing ${cached.index.size} cached events" }
                 publish(cached, offline = true, failure = e.asAppError())
@@ -67,38 +64,40 @@ internal class DiscoveryEngine(
         }
     }
 
-    /**
-     * Домалювати картки до [count] перших у порядку показу.
-     *
-     * Стрічка кличе це, коли прокрутила до краю того, що вже є. Індекс повний з першої відповіді,
-     * тож «далі» — це не наступна сторінка з сервера, а просто ще кілька карток за вже відомими
-     * ідентифікаторами: серверу не треба знати ні порядку, ні того, скільки ми вже показали.
-     */
+    /** Довантажити картки до [count] перших у порядку показу. Не пагінація: індекс повний, id відомі. */
     fun materialize(count: Int) {
         if (cardsJob?.isActive == true) return
-        load(state.value.index.take(count).map { it.id })
+        load(state.value.index.take(count).map { it.id })?.let { cardsJob = it }
     }
 
     /**
-     * Картки для названих подій — стос майданчика, у який щойно тицьнули.
-     *
-     * Окремо від [materialize], бо стос не є початком списку: у Києві є майданчик із 32 подіями,
-     * і жодна з них, крім перших двох, у вікно не потрапляє. Без цього пін казав «32», а карусель
-     * під ним — «Тут подій: 2», і решта стосу була недосяжна — рівно та вада, заради якої пін
-     * узагалі віддає всі ідентифікатори під пальцем.
-     *
-     * Скасовує поточне довантаження вікна: людина дивиться сюди, а не на кінець стрічки.
+     * Картки для стосу майданчика, в який тицьнули. Окремо від [materialize], бо стос — не
+     * початок списку. Скасовує поточне довантаження вікна: людина дивиться сюди.
      */
     fun loadCards(ids: List<String>) {
         cardsJob?.cancel()
-        load(ids)
+        load(ids)?.let { cardsJob = it }
     }
 
-    private fun load(ids: List<String>) {
+    /**
+     * Картки решти сеансів прокату, відкритого на деталях, щоб перемикання дати не показувало
+     * порожній екран. Окреме завдання, щоб не збивати довантаження стрічки. Запит за тими самими
+     * id не скасовується: безумовний `cancel()` губив повільну відповідь саме при перемиканні дати.
+     */
+    fun prefetch(ids: List<String>) {
+        if (sessionsJob?.isActive == true && sessionsWanted.containsAll(ids)) return
+        load(ids)?.let {
+            sessionsJob = it
+            sessionsWanted = ids.toSet()
+        }
+    }
+
+    /** Довантажує картки, яких ще немає. Null, якщо питати нема чого. */
+    private fun load(ids: List<String>): Job? {
         val known = state.value.cards
         val wanted = ids.filterNot { it in known }
-        if (wanted.isEmpty()) return
-        cardsJob = scope.launch {
+        if (wanted.isEmpty()) return null
+        return scope.launch {
             try {
                 val loaded = events.cards(wanted)
                 state.update { current ->
@@ -107,47 +106,38 @@ internal class DiscoveryEngine(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                // Вікно, яке не приїхало, — це коротша стрічка, а не зламаний екран. Мапа вже
-                // показує все, що є, тож банер тут був би про чужу проблему.
+                // Вікно не приїхало — коротша стрічка, а не банер: мапа вже показує все.
                 PoruchLog.w("discovery") { "cards for ${wanted.size} ids failed: ${e.asAppError()}" }
             }
         }
     }
 
     /**
-     * Кладе видачу в стан: знімок входів на місці, рахунок поза потоком, одне атомарне оновлення.
-     *
-     * Форма тут важливіша за вміст. Спокусливо було б прочитати `state.value` всередині
-     * [withContext] і записати результат після — але це перетворює атомарний `update` на
-     * «прочитав, подумав, записав», і паралельна закладка чи щойно збережені відповіді
-     * онбордингу загубились би між першим і третім. Тому назовні їде лише те, що порахували, а
-     * все інше береться зі стану всередині `update`, у тій самій точці, де його й пишуть.
-     *
-     * Після [withContext] виконання повертається на диспетчер scope — тобто на головний потік.
-     * Публікація лишається там за побудовою, а не тому, що хтось про це памʼятав.
+     * Кладе видачу в стан: рахунок поза потоком, потім одне атомарне `update`. Всередині
+     * `update` читаємо лише стан, а не `state.value` до `withContext`, інакше паралельна закладка
+     * чи відповіді онбордингу загубилися б. Після `withContext` ми знову на головному потоці.
      */
     private suspend fun publish(page: DiscoveryPage, offline: Boolean, failure: AppError?) {
         val taste = state.value.taste
-        // Склеювання перед ранжуванням, а не після: інакше той самий концерт двічі отримав би бали
-        // й двічі змагався б за місце нагорі. І поза `update`, щоб обидві гілки нижче бачили вже
-        // склеєний список — інакше рідкісна гілка «смак змінився поки рахували» показала б дублі.
-        val folded = withContext(compute) { DuplicateEvents.fold(page.index) }
+        // Склеюємо до ранжування, щоб дубль не отримав бали двічі. Порядок обов'язковий:
+        // спершу дублі між продавцями, потім прокат, інакше один вечір став би двома сеансами.
+        val folded = withContext(compute) { EventSeries.fold(DuplicateEvents.fold(page.index)) }
         if (folded.size != page.index.size) {
-            PoruchLog.i("discovery") { "${page.index.size - folded.size} duplicates folded away" }
+            val series = folded.count { it.isSeries }
+            PoruchLog.i("discovery") {
+                "${page.index.size - folded.size} rows folded away, $series runs"
+            }
         }
         val ranking = withContext(compute) {
             val ordered = TasteRanking.rank(folded, taste, Clock.System.now())
             ordered to TasteRanking.matching(ordered, taste)
         }
         state.update {
-            // Картки старої області викидаємо разом з нею: тримати їх означало б платити памʼяттю
-            // за подію, яку вже не показують, і ризикувати застарілим числом місць у кімнаті.
+            // Картки старої області викидаємо: пам'ять і застарілі числа місць того не варті.
             val base = it.copy(
                 index = folded,
                 cards = page.cards.associateBy { card -> card.id },
-                // Склеєні дублікати не рахуємо двічі: людина бачить стільки карток, скільки тут
-                // написано. Різницю додаємо лише тоді, коли спрацював запобіжник — тоді частину
-                // подій ми справді не забрали й порахувати їх самі не можемо.
+                // Склеєні дублікати не рахуємо двічі. Різниця з page.total — лише коли спрацював запобіжник.
                 totalFound = folded.size + (page.total - page.index.size),
                 loading = false, offline = offline,
                 notice = when {
@@ -156,26 +146,24 @@ internal class DiscoveryEngine(
                     else -> it.notice
                 }
             )
-            // Відповіді могли змінитися, поки ми рахували. Тоді порахований порядок уже не про
-            // цю людину, і дешевше перерахувати, ніж показати чужий.
+            // Смак міг змінитися, поки рахували: тоді перераховуємо.
             if (it.taste == taste) base.copy(index = ranking.first, suggestedIndex = ranking.second).materialized()
             else base.ranked()
         }
-        // Смак міг переставити порядок так, що перші картки з відповіді вже не перші. Одна
-        // подорож наздоганяє — і то лише для того, хто проходив онбординг.
+        // Смак міг переставити порядок так, що перші картки з відповіді вже не перші.
         materialize(DiscoveryRules.FIRST_CARDS)
     }
 
     fun searchArea(south: Double, west: Double, north: Double, east: Double) {
         if (listOf(south, west, north, east).any { !it.isFinite() } || south > north) return
-        // Map SDKs can return unwrapped longitudes after panning across the dateline.
+        // SDK мап віддають незагорнуті довготи після переходу через лінію зміни дат.
         fun longitude(value: Double) = ((value + 180.0) % 360.0 + 360.0) % 360.0 - 180.0
         val wholeWorld = abs(east - west) >= 360.0
         query = query.copy(
             south = south.coerceIn(-90.0, 90.0), west = if (wholeWorld) -180.0 else longitude(west),
             north = north.coerceIn(-90.0, 90.0), east = if (wholeWorld) 180.0 else longitude(east)
         )
-        // Рамку поставили рукою. [selectCity] одразу після цього скаже протилежне про себе.
+        // Область поставили рукою. [selectCity] одразу після цього скине прапорець.
         state.update { it.copy(customArea = true) }
         onQueryChanged(); refresh()
     }
@@ -195,16 +183,8 @@ internal class DiscoveryEngine(
     }
 
     /**
-     * Категорія мапи. **Без запиту до сервера** — і це не оптимізація, а те, що робить фільтри
-     * екранів незалежними.
-     *
-     * Доки категорія їхала в `EventQuery`, вона звужувала сам індекс. Тоді мапа, відфільтрована на
-     * «музику», звужувала й те, що бачить головна: два екрани ділили один фільтр, хоч кожен мав
-     * свій перемикач. Розділити їх, лишивши категорію на сервері, неможливо — індекс один.
-     *
-     * Тепер сервер віддає місто цілим, а категорію відбирає той екран, який про неї спитали.
-     * Це точно, а не приблизно: індекс повний, а `INDEX_CAP` на місті не спрацьовує. І це миттєво:
-     * тап по чипу більше не коштує подорожі.
+     * Категорія мапи, без запиту до сервера: індекс один на всі екрани, тож фільтр на сервері
+     * звужував би й головну. Сервер віддає місто цілим, категорію відбирає екран.
      */
     fun setCategory(category: String) {
         state.update { it.copy(category = category) }
@@ -215,7 +195,7 @@ internal class DiscoveryEngine(
         val zone = TimeZone.currentSystemDefault()
         val now = Clock.System.now()
         val today = now.toLocalDateTime(zone).date
-        // The weekend runs from Saturday 00:00 to Monday 00:00, however far away it currently is.
+        // Вихідні — з суботи 00:00 до понеділка 00:00, найближчі.
         val daysToSaturday = (6 - today.dayOfWeek.isoDayNumber).coerceAtLeast(0)
         val start = when (filter) {
             DateFilter.TODAY -> today.atStartOfDayIn(zone)
@@ -259,7 +239,7 @@ internal class DiscoveryEngine(
         }
         val view = HomeLocation(city.name, city.latitude, city.longitude)
         searchArea(view.south, view.west, view.north, view.east)
-        // Область міста — це саме місто, хай навіть її поставив той самий виклик, що й рамку.
+        // Область міста — не «рукою», хоч її й поставив searchArea.
         state.update { it.copy(customArea = false) }
     }
 }

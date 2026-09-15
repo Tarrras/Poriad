@@ -38,6 +38,12 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0")
     implementation("androidx.navigation3:navigation3-runtime:1.0.1")
     implementation("androidx.navigation3:navigation3-ui:1.0.1")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-navigation3:2.10.0")
+    // Koin: граф, моделі й записи стека навігації. Версія збігається з koin-core у :shared.
+    implementation(platform("io.insert-koin:koin-bom:4.2.2"))
+    implementation("io.insert-koin:koin-android")
+    implementation("io.insert-koin:koin-androidx-compose")
+    implementation("io.insert-koin:koin-compose-navigation3")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.10.0")
     implementation("org.maplibre.gl:android-sdk:11.11.0")
 }

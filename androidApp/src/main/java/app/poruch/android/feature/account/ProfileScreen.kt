@@ -24,10 +24,7 @@ import app.poruch.android.R
 import app.poruch.android.ui.*
 import app.poruch.android.feature.editor.BirthDateSheet
 
-/**
- * The account screen. [reminders] is passed in because notification scheduling is an Android
- * concern with its own permission dance — the profile shows it, the route owns it.
- */
+/** Екран акаунта. [reminders] передається ззовні: планування сповіщень з його дозволами належить маршруту. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ProfileScreen(state: ProfileState, onIntent: (ProfileIntent) -> Unit, reminders: @Composable () -> Unit) {
@@ -71,7 +68,7 @@ fun ProfileScreen(state: ProfileState, onIntent: (ProfileIntent) -> Unit, remind
                     Modifier.fillMaxWidth(), enabled = state.canSavePassword
                 )
             }
-            // An account that predates the question is asked for it here, once, and told why.
+            // Старий акаунт без віку питаємо тут, раз, і кажемо чому.
             if (state.needsAge) Column(
                 Modifier.fillMaxWidth().cardSurface().padding(Spacing.lg),
                 verticalArrangement = Arrangement.spacedBy(Spacing.sm)
@@ -83,7 +80,7 @@ fun ProfileScreen(state: ProfileState, onIntent: (ProfileIntent) -> Unit, remind
                     { onIntent(ProfileIntent.ShowBirthDatePicker(true)) }, Modifier.fillMaxWidth()
                 )
             }
-            // Interests are the device's answer, not the account's, so a guest edits them too.
+            // Інтереси належать пристрою, тож гість теж їх редагує.
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
                 SectionHeader(stringResource(R.string.interests))
                 FlowRow(
@@ -129,7 +126,7 @@ fun ProfileScreen(state: ProfileState, onIntent: (ProfileIntent) -> Unit, remind
                     icon = Icons.AutoMirrored.Outlined.Logout, tone = colors.danger
                 )
             }
-            // A block a person cannot undo is a setting they will not use. The list names names.
+            // Блок, який не можна скасувати, не використовуватимуть: список з іменами.
             if (state.blocked.isNotEmpty()) Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
                 SectionHeader(stringResource(R.string.blocked_section))
                 state.blocked.forEach { person ->

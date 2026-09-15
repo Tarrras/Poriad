@@ -7,7 +7,7 @@ import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-/** The form as the reader typed it: strings, because a half-typed number is not a number yet. */
+/** Форма, як її набрали: рядки, бо недонабране число — ще не число. */
 data class EditorForm(
     val title: String = "",
     val description: String = "",
@@ -21,20 +21,15 @@ data class EditorForm(
     val ends: String = "",
     val capacity: String = DEFAULT_CAPACITY,
     val minAge: String = DEFAULT_MIN_AGE,
-    /** Empty means «no upper bound», which is the ordinary case. */
+    /** Порожньо — без верхньої межі. */
     val maxAge: String = "",
     val approvalRequired: Boolean = false
 ) {
-    /**
-     * Крапка зустрічі, якщо вона вже є.
-     *
-     * Питаємо самі координати, а не окремий прапорець: прапорець умів розійтися з ними — подія,
-     * відкрита на редагування, приходила з координатами й без нього.
-     */
+    /** Крапка зустрічі, якщо є. З самих координат, а не з прапорця: прапорець розходився з ними. */
     val point: Pair<Double, Double>?
         get() = latitude.toDoubleOrNull()?.let { lat -> longitude.toDoubleOrNull()?.let { lon -> lat to lon } }
 
-    /** Null until every field parses; the publish button follows this, so it can never lie. */
+    /** Null, поки не розбирається кожне поле. Кнопка публікації дивиться сюди. */
     fun toDraft(imageUrl: String?): EventDraft? = runCatching {
         val zone = ZoneId.of(timeZone)
         EventDraft(
@@ -53,7 +48,7 @@ data class EditorForm(
         const val DEFAULT_CATEGORY = "social"
         const val DEFAULT_CAPACITY = "20"
         val DEFAULT_MIN_AGE = SafetyRules.MIN_SIGNUP_AGE.toString()
-        /** How dates are shown and stored in the draft. Local wall time, never UTC. */
+        /** Формат дат у чернетці: локальний час, не UTC. */
         val LOCAL_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
     }
 }
@@ -69,39 +64,23 @@ data class EditorState(
     val step: EditorStep = EditorStep.ABOUT,
     val form: EditorForm = EditorForm(),
     val mutating: Boolean = false,
-    /** Where the map opens before the reader drops a pin. */
+    /** Де відкривається мапа до вибору крапки. */
     val mapLatitude: Double = 0.0,
     val mapLongitude: Double = 0.0,
     val picker: PickerRequest? = null,
-    /** Пояс визначено за місцем події, а не взято з пристрою. Різні ступені впевненості. */
+    /** Пояс визначено за місцем події, а не взято з пристрою. */
     val timeZoneFromPlace: Boolean = false,
-    /**
-     * Адреси, що збігаються з набраним.
-     *
-     * Координати — не те, що людина знає про місце зустрічі. Вона знає вулицю й будинок, тож
-     * набирає їх, а крапку ставить застосунок. Мапа лишається для випадків, яких немає в жодному
-     * довіднику: «біля третього дерева» чи новобудова без адреси.
-     */
+    /** Підказки адрес: людина набирає вулицю й будинок, крапку ставить застосунок. */
     val addressSuggestions: List<PlaceResult> = emptyList(),
-    /**
-     * Відкрито екран вибору точки.
-     *
-     * Міні-мапа в анкеті нічого не обирає — вона показує вибране. Обирати на ній означало б
-     * ставити крапку в клаптику 260 dp, де половину екрана затуляє палець.
-     */
+    /** Відкрито повноекранний вибір точки: на міні-мапі 260 dp обирати незручно. */
     val pickingPoint: Boolean = false,
-    /**
-     * Адреса під ціллю на екрані вибору. Порожня, доки відповідь у дорозі.
-     *
-     * Крапка на мапі — це координати, а людина обирає місце. Без назви вулиці під ціллю вибір
-     * лишався б здогадом: схоже на той двір чи вже сусідній.
-     */
+    /** Адреса під ціллю на екрані вибору. Порожня, поки відповідь у дорозі. */
     val aimAddress: String = ""
 ) {
     val point get() = form.point
     val pointChosen get() = point != null
 
-    /** Each step guards only its own fields, so «Далі» never blocks on a later one. */
+    /** Кожен крок перевіряє лише свої поля, тож «Далі» не блокується наступним. */
     val canAdvance: Boolean
         get() = when (step) {
             EditorStep.ABOUT -> form.title.isNotBlank()
@@ -110,7 +89,7 @@ data class EditorState(
         }
 }
 
-/** Which date field the picker is currently editing. */
+/** Яке поле дати зараз редагує пікер. */
 enum class PickerRequest { STARTS, ENDS }
 
 sealed interface EditorIntent {
@@ -118,7 +97,7 @@ sealed interface EditorIntent {
     data class PickPoint(val latitude: Double, val longitude: Double) : EditorIntent
     /** Відкрити й закрити повноекранну мапу вибору. */
     data class ShowPointPicker(val open: Boolean) : EditorIntent
-    /** Ціль зупинилась ось тут — спитати, що це за адреса. */
+    /** Ціль зупинилась: спитати адресу. */
     data class AimAt(val latitude: Double, val longitude: Double) : EditorIntent
     /** Обрана підказка адреси: разом із нею приходить і крапка. */
     data class PickAddress(val place: PlaceResult) : EditorIntent

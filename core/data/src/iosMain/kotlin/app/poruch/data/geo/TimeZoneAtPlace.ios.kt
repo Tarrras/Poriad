@@ -6,10 +6,7 @@ import platform.CoreLocation.CLLocation
 import platform.CoreLocation.CLPlacemark
 import kotlin.coroutines.resume
 
-/**
- * `CLGeocoder` віддає пояс місця напряму й точно — не за країною, а за самою точкою, тож працює
- * й там, де в країні поясів кілька.
- */
+/** `CLGeocoder` віддає пояс за самою точкою, тож працює і в країнах з кількома поясами. */
 actual suspend fun timeZoneAt(latitude: Double, longitude: Double): String? =
     suspendCancellableCoroutine { continuation ->
         val geocoder = CLGeocoder()

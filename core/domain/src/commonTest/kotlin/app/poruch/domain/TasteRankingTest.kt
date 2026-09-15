@@ -3,11 +3,7 @@ package app.poruch.domain
 import kotlin.test.*
 import kotlin.time.Instant
 
-/**
- * The ranking is the one place where the answers to the opening questions turn into what a person
- * sees, so what is guarded here is the promise made to them: their subject wins, nothing is hidden,
- * and the order does not change when the taste is empty.
- */
+/** Обіцянка ранжування: інтерес перемагає, нічого не ховається, порожній смак не змінює порядок. */
 class TasteRankingTest {
     private val now = Instant.parse("2030-09-04T09:00:00Z")
 
@@ -24,14 +20,14 @@ class TasteRankingTest {
         )
     )
 
-    /** Афіша: та сама подія на мапі, але без кімнати — саме тому вона рахується інакше. */
+    /** Афіша: та сама подія без кімнати. */
     private fun listing(id: String, category: String = "music", startsAt: String = "2030-09-06T19:00:00+03:00") = Event(
         id = id, title = id, description = "", category = category, city = "Київ", address = "Поділ",
         startsAt = startsAt, endsAt = startsAt, timeZone = "Europe/Kyiv", status = EventStatus.PUBLISHED,
         latitude = 50.45, longitude = 30.52, listing = Listing(sourceName = "Karabas")
     )
 
-    // 2030-09-06 is a Friday, 2030-09-07 a Saturday.
+    // 2030-09-06 — п'ятниця, 2030-09-07 — субота.
     private val fridayEvening = "2030-09-06T19:00:00+03:00"
     private val fridayMorning = "2030-09-06T10:00:00+03:00"
     private val saturdayEvening = "2030-09-07T20:00:00+03:00"
@@ -102,11 +98,7 @@ class TasteRankingTest {
         assertFalse(TasteRanking.matches(event("d", category = "art", status = EventStatus.CANCELLED), taste))
     }
 
-    /**
-     * docs/event-discovery.md §4.2: імпорт заповнює тло, а не змагається за увагу. Це виходить
-     * само собою — бали за вільні місця отримує лише кімната, — і саме тому тут немає окремого
-     * штрафу «бо це імпорт», який довелося б підкручувати.
-     */
+    /** docs/event-discovery.md §4.2: імпорт — тло. Виходить само собою, бо бали за місця отримує лише кімната. */
     @Test fun aListingNeverOutranksACommunityEventItTies() {
         val taste = Taste(interests = listOf("music"), answered = true)
         val ranked = TasteRanking.rank(listOf(listing("afisha"), event("community")), taste, now)
@@ -114,24 +106,17 @@ class TasteRankingTest {
         assertTrue(TasteRanking.score(event("community"), taste, now) > TasteRanking.score(listing("afisha"), taste, now))
     }
 
-    /** «Яка компанія» — питання про кімнату. Афіші його не ставлять, тож вона його й не проходить. */
+    /** «Яка компанія» — питання про кімнату, афіша його не проходить. */
     @Test fun crowdSizeIsNotAskedOfAListing() {
         val taste = Taste(crowd = Crowd.INTIMATE, answered = true)
-        // Кімната на 8 місць відповідає «камерно» і має вільні місця; афіша не заробляє ні того, ні того.
+        // Кімната на 8 місць — «камерно» плюс вільні місця; афіша не заробляє нічого.
         assertEquals(
             TasteRanking.score(listing("afisha"), taste, now) + TasteRanking.CROWD + TasteRanking.SEATS,
             TasteRanking.score(event("table", capacity = 8), taste, now)
         )
     }
 
-    /**
-     * Подія, що вже йде, змагається як «зараз», а не як дата, з якої вона йде.
-     *
-     * Поки ключем був `startsAt`, найдовший прокат ставав першим у стрічці й лишався там до
-     * кінця: виставка, що почалась у липні, обганяла все, що почалось учора. Той самий ключ
-     * рахує сервер (`greatest(starts_at, now())`), і розійтись їм не можна — вікно карток
-     * приїжджає під серверний порядок.
-     */
+    /** Подія, що вже йде, змагається як «зараз». Той самий ключ рахує сервер: `greatest(starts_at, now())`. */
     @Test fun whatIsAlreadyUnderwayCountsAsNowNotAsTheDayItBegan() {
         val underway = listOf(
             listing("вчорашній", startsAt = "2030-09-03T19:00:00+03:00"),
@@ -140,12 +125,11 @@ class TasteRankingTest {
         val future = listing("завтрашній", startsAt = "2030-09-06T19:00:00+03:00")
 
         val ranked = TasteRanking.rank(underway + future, Taste(), now)
-        // Обидва, що вже йдуть, попереду майбутнього — і між собою лишаються в порядку сервера,
-        // а не в порядку того, хто почався давніше.
+        // Обидва, що вже йдуть, попереду майбутнього і в порядку сервера між собою.
         assertEquals(listOf("вчорашній", "липневий", "завтрашній"), ranked.map { it.id })
     }
 
-    /** A bad time zone in a row from the server must not take the whole list down with it. */
+    /** Битий часовий пояс не має валити весь список. */
     @Test fun brokenTimestampsRankWithoutThrowing() {
         val broken = event("broken", startsAt = "not-a-date").copy(timeZone = "Mars/Olympus")
         val ranked = TasteRanking.rank(listOf(broken, event("fine")), Taste(interests = listOf("music"), answered = true), now)

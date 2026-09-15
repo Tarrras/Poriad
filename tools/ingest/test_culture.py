@@ -1,4 +1,4 @@
-"""Safety boundaries for programme extraction and bounded official-source fetches."""
+"""Межі безпеки для витягу програм і обмеженого обходу офіційних джерел."""
 import json
 import unittest
 from tools.ingest import culture

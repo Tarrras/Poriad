@@ -52,6 +52,41 @@ await db.exec(`insert into events(id,title,starts_at,ends_at,source_id,source_ui
  (select id from event_sources where slug='internet_bilet'),'https://example.org/event','https://example.org/event','import','live');`);
 await db.exec(fixture.duplicate);
 assert.equal((await db.query("select import_status from events where id='22222222-2222-2222-2222-222222222222'")).rows[0].import_status, 'withdrawn');
+// ── Зміна посилання не відриває збережене: той самий сеанс під новою адресою — той самий рядок.
+const statusOf = async (uid) => (await db.query('select import_status from events where source_uid=$1', [uid])).rows[0]?.import_status;
+await db.exec(fixture.move_before);
+const movedRowId = (await db.query('select id from events where source_uid=$1', [fixture.move_uids[0]])).rows[0].id;
+await db.exec(fixture.move_after);
+await db.exec(fixture.move_after);
+const movedRows = (await db.query('select id, source_uid, canonical_url from events where id=$1', [movedRowId])).rows;
+assert.equal(movedRows.length, 1);
+assert.equal(movedRows[0].source_uid, fixture.move_uids[1]);
+assert.equal(movedRows[0].canonical_url, 'https://example.org/teatr-3');
+assert.equal((await db.query('select count(*)::int as n from events where source_uid=$1', [fixture.move_uids[0]])).rows[0].n, 0);
+// Інша назва в ту саму хвилину на тій самій точці — окрема подія, а не переїзд.
+await db.exec(fixture.move_other);
+assert.equal((await db.query('select count(*)::int as n from events where source_uid=$1', [fixture.move_uids[2]])).rows[0].n, 1);
+// Зняття після вставок не чіпає переїхалий рядок: під новим ключем він «бачений».
+await db.exec(fixture.retire_after_move);
+assert.equal(await statusOf(fixture.move_uids[1]), 'live');
+assert.equal(await statusOf(fixture.move_uids[2]), 'live');
+
+// ── Зникнення з афіші — скасування, але лише в межах джерела, міста й майбутнього.
+const insertKarabas = async (uid, city, starts, ends) => db.exec(`insert into events(id,title,city,starts_at,ends_at,source_id,source_uid,canonical_url,origin,import_status)
+ values(gen_random_uuid(),'Подія для зняття','${city}','${starts}','${ends}',(select id from event_sources where slug='karabas'),'${uid}','${uid}','import','live');`);
+for (const uid of fixture.karabas_uids) await insertKarabas(uid, 'Київ', '2026-11-01T19:00:00+02:00', '2026-11-01T21:00:00+02:00');
+await insertKarabas('https://example.org/k-past', 'Київ', '2026-09-01T19:00:00+03:00', '2026-09-01T21:00:00+03:00');
+await insertKarabas('https://example.org/k-lviv', 'Львів', '2026-11-01T19:00:00+02:00', '2026-11-01T21:00:00+02:00');
+await db.exec(fixture.retire_one);
+assert.equal(await statusOf(fixture.karabas_uids[9]), 'withdrawn');
+for (const uid of fixture.karabas_uids.slice(0, 9)) assert.equal(await statusOf(uid), 'live');
+assert.equal(await statusOf('https://example.org/k-past'), 'live');
+assert.equal(await statusOf('https://example.org/k-lviv'), 'live');
+// Зламаний обхід, що «бачив» одну подію з девʼяти, не знімає нічого: частка понад запобіжник.
+await db.exec(fixture.retire_mass);
+for (const uid of fixture.karabas_uids.slice(0, 9)) assert.equal(await statusOf(uid), 'live');
+console.log('PostgreSQL: moved URL keeps row id, retire scoped to source/city/future, mass retire blocked OK');
+
 for (const path of process.argv.slice(3)) {
  const sql = readFileSync(path, 'utf8');
  await db.exec(sql);

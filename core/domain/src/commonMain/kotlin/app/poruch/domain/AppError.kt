@@ -1,84 +1,73 @@
 package app.poruch.domain
 
 /**
- * Every failure the app can report, named rather than worded.
- *
- * Business logic decides *which* case happened; presentation decides how to say it, from the
- * platform's own string resources. That keeps user-facing language — and its translations — out
- * of `core` and `feature`, and lets a screen react to a case (offer registration, open the queue)
- * instead of matching on a message.
+ * Усі помилки застосунку як іменовані випадки, без тексту. Логіка вирішує, що сталося;
+ * екран бере формулювання з ресурсів платформи і може реагувати на випадок (запропонувати
+ * реєстрацію, відкрити чергу), а не збігати рядок повідомлення.
  */
 sealed interface AppError {
-    /** The request never reached an answer: no network, DNS, TLS or a dropped connection. */
+    /** Відповіді не було: нема мережі, DNS, TLS або обірваний зв'язок. */
     data object Network : AppError
-    /** The build has no Supabase key: a packaging mistake, not a user error. */
+    /** У збірці нема ключа Supabase: помилка пакування, не користувача. */
     data object NotConfigured : AppError
-    /** The service answered, but not with anything we can act on. */
+    /** Сервіс відповів, але не тим, з чим можна працювати. */
     data object ServiceUnavailable : AppError
-    /** A 4xx we cannot name more precisely. */
+    /** 4xx, який не можна назвати точніше. */
     data object Rejected : AppError
     data object TooManyAttempts : AppError
 
-    // ---- session
+    // ---- Сесія
     data object SessionRequired : AppError
     data object InvalidCredentials : AppError
     data object EmailNotConfirmed : AppError
     data object NotOwner : AppError
 
-    // ---- events
+    // ---- Події
     data object EventUnavailable : AppError
     data object EventCancelled : AppError
     data object EventFull : AppError
     data object AlreadyMember : AppError
     data object OrganizerCannotJoin : AppError
-    /** Asked for the queue on an event that has free places — join instead. */
+    /** Просилися в чергу, а місця є: треба приєднуватись. */
     data object EventHasSpace : AppError
     data object ImageUploadFailed : AppError
 
-    // ---- safety
-    /** The account never declared an age, and every event has a floor. */
+    // ---- Безпека
+    /** Акаунт не вказав вік, а в кожної події є мінімум. */
     data object AgeRequired : AppError
     data object TooYoung : AppError
     data object TooOld : AppError
-    /** One of the two people blocked the other; which way round is deliberately not said. */
+    /** Хтось із двох заблокував іншого. Хто саме — навмисно не кажемо. */
     data object Blocked : AppError
-    /** The account is limited or suspended by moderation. */
+    /** Акаунт обмежений або заблокований модерацією. */
     data object AccountRestricted : AppError
     data object AgeAlreadySet : AppError
     data object Underage : AppError
     data object TooManyReports : AppError
     data object TooManyEvents : AppError
 
-    // ---- input
+    // ---- Введення
     data class InvalidDraft(val fields: List<DraftField>) : AppError
     data object InvalidEmail : AppError
     data object InvalidName : AppError
     data object WeakPassword : AppError
 }
 
-/** The fields [EventDraft.validate] can reject, so a screen can highlight the right one. */
+/** Поля, які може відхилити [EventDraft.validate], щоб екран підсвітив потрібне. */
 enum class DraftField { TITLE, DESCRIPTION, CATEGORY, ADDRESS, LOCATION, CAPACITY, STARTS_AT, ENDS_AT, TIME_ZONE, IMAGE_URL, AGE_LIMITS }
 
-/**
- * The only throwable this app raises. It exists because suspend functions still need a way to
- * unwind; the payload that matters is [error], and every handler matches on that.
- */
+/** Єдиний виняток застосунку. Обробники дивляться на [error]. */
 class AppFailure(
     val error: AppError,
     /**
-     * Код, яким назвався сервер, — і нічого більше.
-     *
-     * Не для показу: людині його не показують ніколи, для цього є [error]. Потрібен там, де
-     * клієнт вирішує **сумісність**, а не повідомлення: `PGRST202` означає «такої функції на цьому
-     * сервері немає», і це єдиний спосіб відрізнити стару базу від відмови. Без нього довелося б
-     * заводити доменну помилку, яку кожна платформа мусила б перекласти, — заради випадку, у
-     * якому нічого не сталося.
+     * Код помилки від сервера. Людині не показується. Потрібен для сумісності: `PGRST202` означає
+     * «на цьому сервері нема такої функції», і так відрізняємо стару базу від відмови.
      */
     val serverCode: String? = null
 ) : Exception(error.toString())
 
-/** Reads the typed error out of any throwable; anything foreign is a service problem to the user. */
+/** Типізована помилка з будь-якого винятку. Чужі винятки — проблема сервісу. */
 fun Throwable.asAppError(): AppError = (this as? AppFailure)?.error ?: AppError.ServiceUnavailable
 
-/** Shorthand for the throw sites, which read better as `fail(AppError.EventFull)`. */
+/** Скорочення для `throw AppFailure(...)`. */
 fun fail(error: AppError): Nothing = throw AppFailure(error)

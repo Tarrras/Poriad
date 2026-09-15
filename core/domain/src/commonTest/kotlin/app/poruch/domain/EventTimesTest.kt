@@ -3,13 +3,7 @@ package app.poruch.domain
 import kotlin.test.*
 import kotlin.time.Instant
 
-/**
- * Подія, що вже почалась, але ще не скінчилась, і подія, що триває тижнями.
- *
- * До цієї роботи ні того, ні того не існувало: сервер відсікав за часом початку, а підпис знав
- * лише «коли почнеться». Тут перевіряються два питання, які клієнт тепер ставить замість того:
- * чи вона йде просто зараз, і чи це взагалі сеанс, а не прокат.
- */
+/** Два питання про час: чи подія йде зараз і чи це сеанс, а не прокат. */
 class EventTimesTest {
     private fun event(startsAt: String, endsAt: String, zone: String = "Europe/Kyiv") = Event(
         id = "e", title = "Виставка", description = "", category = "art", city = "Київ",
@@ -32,23 +26,20 @@ class EventTimesTest {
         assertTrue(exhibition.isMultiDay)
     }
 
-    /**
-     * Календар сказав би «так»: подія кінчається наступного числа. Але це один вечір, і проміжок
-     * дат замість «22:00» зіпсував би про нього головне.
-     */
+    /** Вечір через північ — один вечір, а не прокат. */
     @Test fun aConcertPastMidnightIsStillOneEvening() {
         val concert = event("2026-09-11T22:00:00+03:00", "2026-09-12T02:00:00+03:00")
         assertFalse(concert.isMultiDay)
     }
 
-    /** Прокат лишається прокатом і до відкриття: питання «до коли» не залежить від «зараз». */
+    /** Прокат — прокат і до відкриття: «до коли» не залежить від «зараз». */
     @Test fun aRunIsARunBeforeItOpens() {
         val future = event("2026-10-01T10:00:00+03:00", "2026-11-01T20:00:00+03:00")
         assertFalse(future.isUnderway(now))
         assertTrue(future.isMultiDay)
     }
 
-    /** Зіпсований рядок із сервера не має валити екран. */
+    /** Зіпсований рядок не має валити екран. */
     @Test fun brokenTimestampsAnswerNoWithoutThrowing() {
         assertFalse(event("not-a-date", "also-not-a-date").isMultiDay)
         assertFalse(event("2026-07-16T10:00:00+03:00", "not-a-date").isUnderway(now))

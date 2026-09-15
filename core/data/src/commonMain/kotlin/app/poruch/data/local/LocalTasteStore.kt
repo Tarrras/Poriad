@@ -8,19 +8,15 @@ import app.poruch.data.cache.PoruchDatabase
 import kotlinx.serialization.json.*
 
 /**
- * The opening answers, kept on the device.
- *
- * They are asked before there is an account and they keep working after a sign-out, so they live
- * under the `device:` prefix the private-cache sweep leaves alone. When an account does appear its
- * categories go up to the server as well — that half is `SupabasePreferencesRepository`'s — and
- * this stays the copy that answers instantly at launch, before any request has been made.
+ * Відповіді онбордингу на пристрої. Живуть під префіксом `device:`, який не чистить вихід
+ * з акаунта. З акаунтом категорії їдуть і на сервер (`SupabasePreferencesRepository`), а ця
+ * копія відповідає миттєво на старті.
  */
 class LocalTasteStore(private val database: PoruchDatabase) : TasteStore {
     override fun read(): Taste {
         val stored = database.cacheQueries.readDevice(KEY).executeAsOneOrNull() ?: return Taste()
         val json = runCatching { Json.parseToJsonElement(stored).jsonObject }.getOrNull() ?: return Taste()
-        // A value we no longer recognise is dropped rather than carried: the vocabulary of
-        // categories and slots is the app's, and a stale one would rank against nothing.
+        // Невідомі значення відкидаємо: застаріле ранжувало б проти нічого.
         return Taste(
             interests = json.strings("interests"),
             times = json.strings("times").filter(TimeSlot::isSlot),

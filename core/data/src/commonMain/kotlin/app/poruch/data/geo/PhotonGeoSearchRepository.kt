@@ -10,14 +10,14 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.*
 import kotlin.time.TimeSource
 
-/** Public Photon endpoint is for development; inject a contracted endpoint for production. */
+/** Публічний Photon — для розробки. У продакшн підставляти власний endpoint. */
 class PhotonGeoSearchRepository(
     private val client: HttpClient,
     private val endpoint: String = "https://photon.komoot.io/api/"
 ) : GeoSearchRepository, AddressSearch {
     override suspend fun search(query: String): List<CityResult> {
         if (query.trim().length < 2) return emptyList()
-        // The query itself is a place someone is looking for; only its length is traced.
+        // У лог іде лише довжина запиту, не сам текст.
         val started = TimeSource.Monotonic.markNow()
         try {
             val response = client.get(endpoint) { parameter("q",query.trim()); parameter("limit",CITY_LIMIT * OVERFETCH); header("User-Agent","Poruch-development/1.0") }
@@ -28,8 +28,7 @@ class PhotonGeoSearchRepository(
                 if (props.isExcluded()) return@mapNotNull null
                 if (!props.isSettlement()) return@mapNotNull null
                 val coords = obj["geometry"]!!.jsonObject["coordinates"]!!.jsonArray
-                // Саме назва, без країни. Це поле йде в стан і звідти — у заголовки: «Плани на
-                // найближчі дні у місті Львів, Україна» читалось як помилка, бо нею й було.
+                // Лише назва, без країни: поле йде в заголовки виду «Плани у місті Львів».
                 val name = props.string("name")
                 if (name.isBlank()) null else CityResult(name,coords[1].jsonPrimitive.double,coords[0].jsonPrimitive.double)
             }.distinctBy { it.name }.take(CITY_LIMIT).also {
@@ -43,12 +42,8 @@ class PhotonGeoSearchRepository(
     }
 
     /**
-     * Той самий Photon, але інший запит: зі зсувом до міста події та з підписом, у якому видно
-     * вулицю з будинком.
-     *
-     * Порожній список — не помилка: адресу могли ще не дописати, і мовчазна відсутність підказок
-     * тут краща за повідомлення про збій. Тому мережеві невдачі теж тихі — крапку завжди можна
-     * поставити на мапі рукою.
+     * Пошук адреси з пріоритетом біля міста події. Порожній список — не помилка, і мережеві
+     * збої теж тихі: крапку завжди можна поставити на мапі рукою.
      */
     override suspend fun places(query: String, latitude: Double, longitude: Double): List<PlaceResult> {
         val text = query.trim()
@@ -58,7 +53,7 @@ class PhotonGeoSearchRepository(
             val response = client.get(endpoint) {
                 parameter("q", text)
                 parameter("limit", LIMIT * OVERFETCH)
-                // Зсув, а не фільтр: та сама вулиця є в десятку міст, і першою має бути найближча.
+                // Пріоритет, а не фільтр: однакова вулиця є в десятку міст.
                 parameter("lat", latitude); parameter("lon", longitude)
                 header("User-Agent", "Poruch-development/1.0")
             }
@@ -80,11 +75,8 @@ class PhotonGeoSearchRepository(
     }
 
     /**
-     * Адреса в точці.
-     *
-     * Просимо кілька відповідей, а не одну: найближчою до крапки часто виявляється парк або
-     * урочище, а в полі має стояти адреса — з номером будинку, якщо він є. Тому серед відповідей
-     * шукаємо спершу будинок, потім вулицю, і лише тоді беремо будь-яку назву.
+     * Адреса в точці. Просимо кілька відповідей, бо найближчим часто є парк: шукаємо спершу
+     * будинок, потім вулицю, потім будь-яку назву.
      */
     override suspend fun placeAt(latitude: Double, longitude: Double): PlaceResult? {
         val started = TimeSource.Monotonic.markNow()
@@ -120,7 +112,7 @@ class PhotonGeoSearchRepository(
         val coords = this["geometry"]?.jsonObject?.get("coordinates")?.jsonArray ?: return null
         val street = props.string("street")
         val house = props.string("housenumber")
-        // Вулиця з будинком, якщо вони є; інакше власна назва — заклад теж адреса.
+        // Вулиця з будинком, інакше власна назва: заклад теж адреса.
         val label = when {
             street.isNotBlank() && house.isNotBlank() -> "$street, $house"
             street.isNotBlank() -> street
@@ -135,55 +127,33 @@ class PhotonGeoSearchRepository(
         return PlaceResult(label, detail, city, coords[1].jsonPrimitive.double, coords[0].jsonPrimitive.double)
     }
 
-    /**
-     * Країни, яких у пошуку немає.
-     *
-     * Це рішення продукту, а не технічне обмеження: Photon віддає росію так само, як усе інше, і
-     * саме тому її треба прибирати свідомо. Фільтр стоїть тут, а не в кожному екрані, бо пошуків
-     * два — міст і адрес, — а правило одне.
-     *
-     * Порівнюємо за кодом країни, а не за назвою: назва приходить мовою запиту й залежить від
-     * `lang`, код — ні.
-     */
+    /** Виключені країни — рішення продукту. Порівнюємо за кодом: назва залежить від мови запиту. */
     private fun JsonObject.isExcluded() = string("countrycode").uppercase() in EXCLUDED_COUNTRIES
 
-    /**
-     * Лише населений пункт. Photon на «Lviv» віддає вісім відповідей, з яких місто одне: далі йдуть
-     * вокзал, область, район, університет і аеропорт. Поїхати за будь-якою з них означає опинитись
-     * там, де подій немає, — і виглядає це так, ніби їх немає взагалі.
-     */
+    /** Лише населений пункт: на «Lviv» Photon віддає ще вокзал, область, університет і аеропорт. */
     private fun JsonObject.isSettlement() = string("type") in SETTLEMENT_TYPES
 
-    /**
-     * Прямий і зворотний пошук у Photon — різні шляхи одного сервера: `/api` і `/reverse`.
-     * Виводимо другий із першого, щоб у налаштуваннях лишалась одна адреса.
-     */
+    /** `/reverse` виводимо з `/api`, щоб у налаштуваннях була одна адреса. */
     private val reverseEndpoint =
         endpoint.trimEnd('/').removeSuffix("/api") + "/reverse"
 
     private companion object {
         val EXCLUDED_COUNTRIES = setOf("RU")
 
-        /** Як Photon називає населені пункти в полі `type`. */
+        /** Значення `type` у Photon для населених пунктів. */
         val SETTLEMENT_TYPES = setOf("city", "town", "village")
 
-        /** Скільки відповідей переглядаємо, шукаючи серед них будинок. */
+        /** Скільки відповідей переглядаємо, шукаючи будинок. */
         const val REVERSE_LIMIT = 5
 
-        /**
-         * Наскільки більше просимо в Photon, ніж покажемо.
-         *
-         * Photon рахує свій `limit` до нашого фільтра, тож без запасу відкинуті рядки просто
-         * з'їдали б місця у видачі: на «Frolivska» дві з шести відповідей — росія, і людина
-         * бачила б менше підказок саме там, де їх і так небагато.
-         */
+        /** Просимо із запасом: Photon рахує `limit` до нашого фільтра, і відкинуті рядки з'їдали б місця. */
         const val OVERFETCH = 2
 
-        /** Коротше за це запит нічого не звужує, а запит уже коштує мережі. */
+        /** Коротший запит нічого не звужує, а мережі коштує. */
         const val MIN_QUERY = 3
-        /** Скільки підказок читається одним поглядом. */
+        /** Скільки підказок показуємо. */
         const val LIMIT = 6
-        /** Стільки міст уміщалось у списку й до фільтра. */
+        /** Скільки міст показуємо. */
         const val CITY_LIMIT = 8
     }
 }

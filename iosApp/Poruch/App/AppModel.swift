@@ -26,48 +26,28 @@ final class KeychainSessionStore: SecureSessionStore {
     var app: PoruchApp { graph.app }
     @Published var state: AppState?
 
-    /**
-     Події для мапи й каруселі, зібрані **один раз на емісію стану**.
-
-     Кожен доступ до `state.recommended` — це перехід через міст у Kotlin, а `$0.id` усередині —
-     ще один на кожен елемент. Поки це була обчислювана властивість екрана, вона рахувалася по
-     кілька разів за кожне перемальовування, а перемальовування трапляється на кожен крок каруселі.
-     */
+    /// Індекс для мапи, зібраний раз на емісію стану: кожен доступ до Kotlin-списку — міст.
     @Published private(set) var mapEntries: [EventIndexEntry] = []
-    /// Картки в порядку показу: те, що вже завантажилось. Їх може бути менше за [mapEntries].
+    /// Завантажені картки в порядку показу. Може бути менше за `mapEntries`.
     @Published private(set) var cards: [Event] = []
-    /**
-     Усі завантажені картки за ідентифікатором.
-
-     [cards] — це суцільний початок стрічки, який обривається на першій незавантаженій події. Стос
-     майданчика лежить не на початку: його події розкидані по всьому індексу, тож зібрати їх можна
-     лише звідси. Без цього пін казав «32», а карусель під ним — «Тут подій: 3».
-     */
+    /// Усі завантажені картки за id. `cards` — лише суцільний початок стрічки, а стос майданчика розкиданий по індексу.
     @Published private(set) var cardsByID: [String: Event] = [:]
 
-    /// Змінюється лише тоді, коли справді змінився склад подій, а не будь-який стан застосунку.
-    /// Дешевий ключ замість порівняння списків там, де інакше довелося б їх щоразу обходити.
+    /// Змінюється лише зі складом подій: дешевий ключ замість порівняння списків.
     @Published private(set) var eventsRevision = 0
 
-    /// Набори, а не масиви з Kotlin: у списку кожна картка питає «а я збережена?», і з масивом це
-    /// був би лінійний пошук через міст — на кожен рядок, на кожне перемальовування.
+    /// Набори, а не Kotlin-масиви: кожна картка питає «я збережена?», і масив був би лінійним пошуком через міст.
     @Published private(set) var savedIDs: Set<String> = []
     @Published private(set) var waitlistedIDs: Set<String> = []
 
-    /**
-     Три списки, які показує головна, зібрані **один раз на емісію стану**.
-
-     Поки це рахувалося в тілі екрана, воно рахувалося на кожне його обчислення — а SwiftUI
-     обчислює тіло по кілька разів на одну зміну. Виміряно: одна побудова коштувала ~12 мс, тобто
-     більше за кадр, і повторювалась вона й тоді, коли головна лишалась за іншою вкладкою.
-     */
+    /// Списки головної, зібрані раз на емісію стану: в тілі view це коштувало більше за кадр.
     @Published private(set) var home = HomePresentation(state: nil)
 
     let reminders = EventReminders()
     private var subscription: Subscription?
     private var lastIndexIDs: [String] = []
     init() {
-        // Tracing is a debug-build tool; release keeps the sinks silent.
+        // Лог лише в debug-збірці.
         #if DEBUG
         PoruchLog.shared.enabled = true
         #endif
@@ -91,18 +71,17 @@ final class KeychainSessionStore: SecureSessionStore {
     private func apply(_ state: AppState) {
         self.state = state
         home = HomePresentation(state: state)
-        // Мапа малює **індекс** — усе, що є в області. Картки приїжджають вікном і їх менше;
-        // порядок у обох один. Доти, доки мапа малювала картки, вона показувала стільки подій,
-        // скільки встигло завантажитись, і стеля в 300 рядків була видна просто пінами.
+        // Мапа малює індекс, картки приїжджають вікном; порядок один.
         let index = state.index
         let ids = index.map(\.id)
         if ids != lastIndexIDs {
             lastIndexIDs = ids
             eventsRevision &+= 1
         }
-        // Подія, заради якої мапу відкрили з деталей, могла не потрапити у поточну видачу (інший
-        // фільтр, інша область) — тоді на мапі не було б ні піна, ні на що наводитись.
-        if let selected = state.selectedEvent, !ids.contains(selected.id) {
+        // Подія, на яку навели з деталей, може не бути у видачі: додаємо, щоб був пін. Сеанс
+        // прокату «вже там» через представника, інакше пін майданчика рахував би прокат двічі.
+        if let selected = state.selectedEvent, !ids.contains(selected.id),
+           !index.contains(where: { run in run.sessions.contains { $0.id == selected.id } }) {
             mapEntries = index + [selected.asIndexEntry()]
         } else {
             mapEntries = index

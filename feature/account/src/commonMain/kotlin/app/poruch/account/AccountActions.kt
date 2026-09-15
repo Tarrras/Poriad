@@ -3,10 +3,7 @@ import app.poruch.domain.*
 import kotlinx.datetime.LocalDate
 class AccountActions(private val repository: AuthRepository) {
     suspend fun signIn(email: String, password: String) { validate(email,password); repository.signIn(email,password) }
-    /**
-     * [birthDate] is ISO-8601 and checked here so the person is told before the account is
-     * attempted; the database checks it again inside the transaction that would create the account.
-     */
+    /** [birthDate] — ISO-8601. Вік перевіряємо тут, щоб сказати людині до запиту; база перевірить ще раз. */
     suspend fun signUp(email: String, password: String, name: String, birthDate: String, today: LocalDate): Boolean {
         validate(email,password)
         if (!AccountRules.isName(name)) fail(AppError.InvalidName)

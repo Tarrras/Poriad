@@ -12,12 +12,9 @@ import app.poruch.android.ui.eventTime
 import app.poruch.domain.Event
 import java.time.Instant
 
-/**
- * Hand-offs to apps the reader already trusts. Each returns whether a handler existed, so the
- * caller can say so rather than leaving a tap that did nothing.
- */
+// Передача в системні застосунки. Кожна функція повертає, чи був обробник, щоб тап не мовчав.
 
-/** Sharing hands the event to any app the reader already uses; no in-app invitations to maintain. */
+/** Поділитись через будь-який застосунок; своїх запрошень не тримаємо. */
 fun Context.shareEvent(event: Event) {
     val summary = getString(R.string.share_event_text, event.title, eventTime(event, dateWords()), "${event.city}, ${event.address}")
     val intent = Intent(Intent.ACTION_SEND).apply {
@@ -28,7 +25,7 @@ fun Context.shareEvent(event: Event) {
     startActivity(Intent.createChooser(intent, getString(R.string.share_chooser)))
 }
 
-/** The system calendar owns reminders we cannot: a copy there outlives our local notifications. */
+/** Копія в системному календарі переживає наші локальні сповіщення. */
 fun Context.addToCalendar(event: Event): Boolean {
     val start = runCatching { Instant.parse(event.startsAt).toEpochMilli() }.getOrNull() ?: return false
     val end = runCatching { Instant.parse(event.endsAt).toEpochMilli() }.getOrNull() ?: (start + DEFAULT_DURATION_MS)
@@ -43,17 +40,14 @@ fun Context.addToCalendar(event: Event): Boolean {
     return runCatching { startActivity(intent) }.isSuccess
 }
 
-/**
- * Афішу купують і дочитують на джерелі, а не в нас: своєї каси ми не маємо, а повний чужий опис
- * не маємо права показувати (docs/event-ingestion.md §8). Тому єдина дія над нею — вихід назовні.
- */
+/** Афішу купують і дочитують на джерелі (docs/event-ingestion.md §8). */
 fun Context.openLink(url: String): Boolean {
     val uri = runCatching { Uri.parse(url) }.getOrNull() ?: return false
     if (uri.scheme != "https") return false
     return runCatching { startActivity(Intent(Intent.ACTION_VIEW, uri)) }.isSuccess
 }
 
-/** Routing belongs to the maps app the reader already trusts, not to a half-built one of ours. */
+/** Маршрут будує системна мапа. */
 fun Context.openInMaps(event: Event): Boolean {
     val label = Uri.encode(event.title)
     val uri = Uri.parse("geo:${event.latitude},${event.longitude}?q=${event.latitude},${event.longitude}($label)")
@@ -62,5 +56,5 @@ fun Context.openInMaps(event: Event): Boolean {
 
 fun Context.toast(@StringRes message: Int) = Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
 
-/** An event with an unparseable end still needs one in the calendar; an hour is the safe guess. */
+/** Тривалість для календаря, якщо кінець не розібрався. */
 private const val DEFAULT_DURATION_MS = 3_600_000L

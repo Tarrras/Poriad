@@ -1,18 +1,8 @@
 import SwiftUI
 import Shared
 
-/**
- The way in.
-
- Three questions on the app's own paper, each one a single decision with its answers visible without
- scrolling. It is a survey only in the sense that it asks: «Пропустити» is on every step, because
- somebody who opened the app to see what is on tonight should be allowed to, and until they answer
- the app simply ranks by time.
-
- Nothing is written on the way through — a person who backs out has told the app nothing, and half
- a taste would rank on a third of a question. The store learns the whole set at once, and it is the
- store that ends the flow: the root shows the app again the moment the answers are in.
- */
+/// Онбординг: три питання, кожне одним рішенням без скролу, «Пропустити» на кожному кроці.
+/// Відповіді пишуться в стор усі разом наприкінці; потік завершує стор.
 struct OnboardingView: View {
     @EnvironmentObject var model: AppModel
     @State private var step = OnboardingStep.welcome
@@ -48,7 +38,7 @@ struct OnboardingView: View {
         .background(heroGradient.ignoresSafeArea())
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: step)
         .onAppear {
-            // Reopened from the profile, the questions start from what was answered last time.
+            // Відкрито з профілю: починаємо з минулих відповідей.
             guard let taste = model.state?.taste else { return }
             interests = taste.interests
             times = taste.times
@@ -56,7 +46,7 @@ struct OnboardingView: View {
         }
     }
 
-    /// Where you are and how to go back. The step count appears only once there is a step to count.
+    /// Де ви і як назад. Лічильник кроків з'являється, коли є що рахувати.
     private var topRow: some View {
         HStack(spacing: Space.md) {
             if step != .welcome {
@@ -69,7 +59,7 @@ struct OnboardingView: View {
         }.frame(height: 56)
     }
 
-    /// Four dots rather than a bar: the flow is short enough to count, and a bar promises a form.
+    /// Чотири крапки замість смуги прогресу: смуга обіцяє анкету.
     private var stepDots: some View {
         HStack(spacing: Space.xs) {
             ForEach(OnboardingStep.allCases, id: \.self) { dot in
@@ -146,8 +136,7 @@ struct OnboardingView: View {
     }
 }
 
-/// The opening questions. Four steps and not one more: every screen between a person and the events
-/// is a screen they can leave the app on, so this asks only what the ranking actually reads.
+/// Кроки онбордингу. Лише те, що читає ранжування: кожен зайвий екран — привід піти.
 private enum OnboardingStep: Int, CaseIterable {
     case welcome, interests, times, crowd
 
@@ -162,10 +151,7 @@ private enum OnboardingStep: Int, CaseIterable {
     }
 }
 
-/**
- One answer on a card. The mark says which kind of question it is before the answer is given: a
- rounded square for the ones that take several, a circle for the one that takes exactly one.
- */
+/// Одна відповідь на картці. Квадрат — можна кілька, коло — рівно одну.
 private struct ChoiceRow: View {
     let title: String
     let hint: String
@@ -205,7 +191,7 @@ private struct ChoiceRow: View {
     }
 }
 
-/// Wraps the category tiles onto as many rows as the width needs, four to a row on a phone.
+/// Переносить плитки категорій на стільки рядків, скільки треба; на телефоні по чотири.
 private struct FlexibleRow<Content: View>: View {
     let items: [String]
     @ViewBuilder let content: (String) -> Content
@@ -223,7 +209,7 @@ private struct FlexibleRow<Content: View>: View {
     }
 }
 
-/// The vocabulary of the shared module, given words. Order is the order a week is lived in.
+/// Слоти зі спільного модуля з підписами, у порядку тижня.
 private let timeSlots: [(slot: String, title: String, hint: String)] = [
     (TimeSlot.shared.WEEKDAY_EVENING, "Будні, ввечері", "Після 17:00"),
     (TimeSlot.shared.WEEKEND_DAY, "Вихідні, вдень", "Субота й неділя до 17:00"),

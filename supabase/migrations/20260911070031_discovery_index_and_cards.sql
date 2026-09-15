@@ -1,31 +1,11 @@
--- Видача мапи двома рівнями: повний тонкий індекс і картки вікном.
---
--- Що це лікує. `search_events_in_view` бере `order by starts_at limit 300` і віддає всі двадцять
--- вісім полів композиту на кожен рядок. У Києві це означає дві речі одночасно: 163 події просто
--- не існує для застосунку, а ті 300, що існують, важать 306 КБ і будуються 95 мс. Обидва числа —
--- наслідок одного рішення: одна відповідь несе і те, чим мапа ставить пін, і те, чим картка малює
--- обкладинку.
---
--- Розділяємо ці два питання, і стеля стає непотрібною:
---
---   індекс  — усі 433 київські події, 66 КБ, 6.5 мс. Досить, щоб поставити кожен пін,
---             відранжувати за смаком **увесь** набір, склеїти дублікати й назвати чесне число.
---   картки  — те, чим подія виглядає як подія: адреса, обкладинка, ціна, джерело. Пачкою за
---             списком ідентифікаторів, бо порядок показу вирішує клієнт, а не сервер.
---
--- Композит `public.event_result` не чіпаємо: нові функції повертають `jsonb`, тож нічого не
--- скидається й не відтворюється, і жоден із п'яти залежних грантів не губиться дорогою
--- (supabase/README.md, «це єдиний чесний спосіб змінити тип»). Усе, що тут змінює наявне, —
--- `create or replace` з тією самою сигнатурою.
+-- Видача мапи двома рівнями. `search_events_in_view` з `limit 300` і повним композитом ховала
+-- частину міста й важила 306 КБ. Тепер:
+--   індекс — усі події області тонкими кортежами: для пінів, ранжування, дублікатів і чесного числа;
+--   картки — повні поля пачкою за id, порядок показу вирішує клієнт.
+-- Композит `event_result` не чіпаємо: нові функції повертають `jsonb`, гранти не губляться.
 
--- ------------------------------------------------------------------ 1. дешева перевірка місць
---
--- `p_available` коштував 470 мс, щоб віддати дві події: `event_has_space` викликався на кожного з
--- 463 кандидатів, а всередині ще `has_event_access` і `count(*)` по учасниках. Місткість при цьому
--- заповнена рівно у 2 подій з 1256 — у афіші кімнати немає.
---
--- Семантика не змінюється: при `capacity is null` порівняння й так давало null, тобто «ні».
--- Змінюється те, що тепер це видно до виклику, а не після.
+-- ---- 1. Дешева перевірка місць. `p_available` коштував 470 мс: event_has_space викликався на
+-- кожного кандидата, хоча місткість є лише в кімнат. Семантика та сама, перевірка колонки до виклику.
 create or replace function private.event_has_space(p_event_id uuid) returns boolean
 language sql stable security definer set search_path='' as $$
  select exists(select 1 from public.events e
@@ -34,28 +14,15 @@ language sql stable security definer set search_path='' as $$
    and (select count(*) from public.event_members m where m.event_id=e.id and m.status='approved') < e.capacity);
 $$;
 
--- ------------------------------------------------------------------ 2. індекс
---
--- Definer тут не зручність, а суть. Набір обмежений `status='published'`, а
--- `private.has_event_access` для опублікованої події повертає true беззастережно
--- (20260905101755). Тобто на цьому шляху RLS нічого не вирішує — лише виконується, 433 рази на
--- запит. Прибираємо виконання, не прибираючи правило.
---
--- Блокування й неактивні акаунти перевіряємо **тут теж**, і не заради безпеки (її тримає проєкція
--- карток), а заради чесності лічильника: інакше «знайдено 433» рахувало б події, яких цей читач
--- не побачить, і вікно карток поверталося б коротшим за обіцяне.
---
--- Масив масивів, а не масив об'єктів: у відповіді на сотні рядків основною вагою були не
--- значення, а двадцять вісім разів повторені назви полів.
+-- ---- 2. Індекс. Definer, бо для `status='published'` has_event_access завжди true: RLS тут
+-- лише виконується, не вирішує. Блокування й неактивні акаунти перевіряємо і тут заради чесного
+-- лічильника. Масив масивів, а не об'єктів: назви полів важили більше за значення.
 create or replace function private.discover_index(
  p_south double precision, p_west double precision, p_north double precision, p_east double precision,
  p_category text, p_from timestamptz, p_to timestamptz, p_text text, p_available boolean,
  p_limit integer, p_cards integer)
 returns table(index jsonb, total integer, truncated boolean, card_ids uuid[])
--- Без `plan_cache_mode='force_custom_plan'`, хоч спокуса була: межі приходять параметрами, і
--- здавалося, що узагальнений план не зможе взяти gist-індекс. Виміряно — може. А ось планування
--- цього запиту коштує ~65 мс (PostGIS-оператори й схема `gis`), тож примусове перепланування на
--- кожен виклик перетворювало 11 мс на 45. Перший виклик у з'єднанні платить, решта — ні.
+-- Без `plan_cache_mode='force_custom_plan'`: узагальнений план бере gist-індекс, а планування коштує ~65 мс.
 language sql stable security definer set search_path='' as $$
  with matched as (
   select e.id, e.starts_at, e.latitude, e.longitude, e.category, e.time_zone, e.title,
@@ -65,8 +32,7 @@ language sql stable security definer set search_path='' as $$
     and private.is_discoverable(e.origin, e.import_status, e.quality)
     and (nullif(btrim(p_text),'') is null
          or strpos(lower(concat_ws(' ', e.title, e.description, e.city, e.address)), lower(btrim(p_text))) > 0)
-    -- `case` замість `and`: порядок обчислення в кон'юнкції не гарантований, а нам потрібно, щоб
-    -- перевірка колонки стояла перед викликом функції.
+    -- `case` замість `and`: порядок обчислення кон'юнкції не гарантований.
     and (not coalesce(p_available,false)
          or case when e.capacity is null then false else private.event_has_space(e.id) end)
     and (p_category is null or e.category = p_category)
@@ -77,9 +43,7 @@ language sql stable security definer set search_path='' as $$
       or (p_west > p_east and (e.location::gis.geometry operator(gis.&&) gis.st_makeenvelope(p_west,p_south,180,p_north,4326)
        or e.location::gis.geometry operator(gis.&&) gis.st_makeenvelope(-180,p_south,p_east,p_north,4326)))))
  , ranked as (
-  -- `count(*) over ()` дає повне число тим самим проходом вікна, яким нумеруються рядки. Спершу
-  -- тут стояли окремі `count(*) from matched` і `limit` — і `matched` доводилось матеріалізувати
-  -- й перечитувати тричі: 45 мс замість 15.
+  -- `count(*) over ()` дає повне число тим самим проходом: окремий count перечитував matched тричі.
   select m.*, row_number() over (order by m.starts_at, m.id) as rank, count(*) over () as total
   from matched m
  )
@@ -100,15 +64,8 @@ $$;
 revoke all on function private.discover_index(double precision,double precision,double precision,double precision,text,timestamptz,timestamptz,text,boolean,integer,integer) from public,anon,authenticated;
 grant execute on function private.discover_index(double precision,double precision,double precision,double precision,text,timestamptz,timestamptz,text,boolean,integer,integer) to anon,authenticated;
 
--- ------------------------------------------------------------------ 3. картки
---
--- Ті самі перевірки доступу, що й у `private.event_rows`, слово в слово: це не швидший шлях повз
--- права, це той самий шлях без полів, яких мапа не малює.
---
--- `jsonb_strip_nulls` прибирає те, чого в події цього роду не існує взагалі: у афіші немає
--- місткості й членства, у кімнати немає джерела й ціни квитка. На 1254 афішах з 1256 подій це
--- знімає по вісім ключів з рядка. Клієнт це переживає без жодної правки: у `EventDto` кожне таке
--- поле має значення за замовчуванням, а розбір іде з `ignoreUnknownKeys`.
+-- ---- 3. Картки. Ті самі перевірки доступу, що в `private.event_rows`. `jsonb_strip_nulls`
+-- прибирає поля, яких у цього роду події нема; у `EventDto` кожне таке поле має default.
 create or replace function private.event_cards(p_ids uuid[]) returns jsonb
 language sql stable security definer set search_path='' as $$
  select coalesce(jsonb_agg(card order by starts_at, id), '[]'::jsonb) from (
@@ -140,11 +97,7 @@ $$;
 revoke all on function private.event_cards(uuid[]) from public,anon,authenticated;
 grant execute on function private.event_cards(uuid[]) to anon,authenticated;
 
--- ------------------------------------------------------------------ 4. публічні входи
---
--- Один round-trip на перший екран: індекс і перші картки їдуть разом. Гість із порожніми
--- відповідями (найчастіший випадок) більше нічого не питає взагалі; той, хто пройшов онбординг,
--- дозапитує рівно одне вікно — і то поки мапа вже малюється.
+-- ---- 4. Публічні входи. Індекс і перші картки одним round-trip.
 create or replace function public.discover_events(
  p_south double precision, p_west double precision, p_north double precision, p_east double precision,
  p_category text default null, p_from timestamptz default null, p_to timestamptz default null,
@@ -158,8 +111,7 @@ begin
          and p_west between -180 and 180 and p_east between -180 and 180) then
   raise exception 'INVALID_BOUNDS' using errcode='22023'; end if;
  if length(p_text) > 120 then raise exception 'INVALID_SEARCH_TEXT' using errcode='22023'; end if;
- -- Запобіжник, а не стеля: на місті він не спрацьовує ніколи, але не дає одному запиту вивезти
- -- країну, якщо мапу віддалити до глобуса.
+ -- Запобіжник, а не стеля: на місті не спрацьовує, але не дає одним запитом вивезти країну.
  v_limit := least(greatest(coalesce(p_limit,5000), 1), 5000);
  v_cards := least(greatest(coalesce(p_cards,24), 0), 100);
  select * into v from private.discover_index(
@@ -171,8 +123,7 @@ begin
    'cards', private.event_cards(coalesce(v.card_ids, '{}'::uuid[])));
 end $$;
 
--- Вікно карток: наступна сторінка стрічки, стос майданчика, добірка головної. Сотня за раз — це
--- більше, ніж поміщається на будь-якому екрані, і менше, ніж варто тягнути одним запитом.
+-- Вікно карток за id: сторінка стрічки, стос майданчика, добірка головної. До сотні за раз.
 create or replace function public.event_cards_by_ids(p_ids uuid[])
 returns jsonb language plpgsql stable security invoker set search_path='' as $$
 begin
@@ -190,11 +141,7 @@ grant execute on function
  public.event_cards_by_ids(uuid[])
  to anon,authenticated;
 
--- ------------------------------------------------------------------ 5. старий вхід теж дешевшає
---
--- Той самий запобіжник у чинній RPC, щоб збірки, які ще не знають про `discover_events`, теж
--- перестали платити 470 мс за фільтр «Є місця». Сигнатура й тип повернення ті самі, тож це
--- заміна тіла, а не перестворення: композит не чіпається, п'ять залежних функцій лишаються.
+-- ---- 5. Старий вхід теж дешевшає: той самий запобіжник у search_events_in_view. Сигнатура та сама, композит не чіпається.
 create or replace function public.search_events_in_view(p_south double precision,p_west double precision,p_north double precision,p_east double precision,p_category text default null,p_from timestamptz default null,p_to timestamptz default null,p_text text default null,p_available boolean default false)
  returns setof public.event_result language plpgsql stable security invoker set search_path = '' as $$
 begin

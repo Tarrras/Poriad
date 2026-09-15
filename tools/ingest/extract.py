@@ -92,7 +92,7 @@ def offers_of(event: dict) -> list[dict]:
 
 
 def detail_links(html: str, listing_url: str, path_prefix: str) -> list[str]:
-    """Only discover event cards on the configured city host."""
+    """Шукає картки подій лише на хості налаштованого міста."""
     links: dict[str, None] = {}
     host = urlsplit(listing_url).netloc
 

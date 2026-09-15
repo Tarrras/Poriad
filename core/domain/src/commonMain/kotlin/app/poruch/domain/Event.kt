@@ -5,22 +5,15 @@ import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 
 /**
- * Immutable UI-independent event model. Timestamps are ISO-8601 UTC instants.
+ * Модель події, незалежна від UI. Час — ISO-8601 в UTC.
  *
- * Подія має дві природи, і плутати їх коштувало дорого.
+ * Подія буває двох видів, і рівно одна грань заповнена (вирішує `events.origin` на сервері):
+ * - [Gathering] — кімната, яку створила людина: місткість, черга, підтвердження, організатор;
+ * - [Listing] — афіша з відкритого джерела: назва джерела, ціна, посилання на квиток.
  *
- * **Кімната** ([Gathering]) — це те, що створила людина: місткість, черга, підтвердження,
- * організатор, який за неї відповідає. **Оголошення** ([Listing]) — це афіша з відкритого джерела:
- * назва джерела, ціна, посилання на квиток. Спільного в них рівно стільки, скільки потрібно, щоб
- * стояти на одній мапі: що, коли й де.
- *
- * Тому поля участі живуть не тут, а в [gathering]. Це не косметика: поки `capacity` було полем
- * події, кожна картка мала право показати «Лишилось 1 місце» під чужим концертом, і показувала.
- * Тепер до місць не дістатися, не спитавши спершу, чи є взагалі кімната, — і компілятор питає це
- * замість рев'ю.
- *
- * Рівно одна з двох граней заповнена; яка саме — вирішує `events.origin` на сервері, а не клієнт.
- * Обидві порожні — це зіпсований рядок, і екрани мають пережити його як подію без дій, а не впасти.
+ * Поля участі живуть у [gathering], а не тут, щоб картка не могла показати «Лишилось 1 місце»
+ * під чужим концертом. Обидві грані порожні — зіпсований рядок; екрани показують його як подію
+ * без дій, а не падають.
  */
 data class Event(
     val id: String, val title: String, val description: String, override val category: String,
@@ -30,12 +23,30 @@ data class Event(
     /** Кімната: заповнена лише для події, яку створила людина. */
     val gathering: Gathering? = null,
     /** Оголошення: заповнене лише для імпорту та партнерських подій. */
-    val listing: Listing? = null
+    val listing: Listing? = null,
+    /**
+     * Усі сеанси прокату, якщо картка стоїть за кількома. Сервер цього поля не знає: його
+     * заповнює спільний шар з [EventSeries], щоб екрани не шукали рядок в індексі на кожну промальовку.
+     */
+    val sessions: List<EventSession> = emptyList()
 ) : Rankable {
     override val isCancelled get() = status == EventStatus.CANCELLED
 
-    // ---- те, за чим ранжують --------------------------------------------------------------
-    // Обидва питання адресовані кімнаті, тож обидва відповідають «ні» там, де її немає.
+    // ---- Прокат
+
+    /** Чи ця картка стоїть за кількома сеансами. */
+    val isSeries get() = sessions.size > 1
+
+    /** Скільки сеансів прокату ще не показано в цій картці. */
+    val otherSessionCount get() = maxOf(sessions.size - 1, 0)
+
+    /**
+     * Скільки інших днів у прокаті, крім дня цієї картки. Окремо від [otherSessionCount]:
+     * два сеанси одного вечора — це «ще 1 сеанс», а не «ще 1 дата».
+     */
+    val otherSessionDays: Int by lazy { EventSeries.otherDays(sessions) }
+
+    // ---- Для ранжування. Обидва поля стосуються кімнати, тож без неї відповідають «ні».
     override val roomCapacity get() = gathering?.capacity
     override val roomHasSeats get() = gathering?.isFull == false
     val isPublished get() = status == EventStatus.PUBLISHED
@@ -43,33 +54,30 @@ data class Event(
     /** Подія, до якої можна прийти, а не лише подивитись. */
     val isCommunity get() = gathering != null
 
-    /** Хто це опублікував — жива людина чи джерело. Null означає зіпсований рядок. */
+    /** Організатор або джерело. Null — зіпсований рядок. */
     val publisherName get() = gathering?.organizerName?.takeIf { it.isNotBlank() } ?: listing?.sourceName
 
-    /** Є кого блокувати й на кого скаржитись лише там, де є людина. */
+    /** Є лише в кімнати: блокувати й скаржитись можна тільки на людину. */
     val organizerId get() = gathering?.organizerId
 
     /**
-     * Опис, який дозволено показати. Для афіші — тільки початок: факти про подію не охороняються
-     * авторським правом, а текст чужої анотації охороняється (docs/event-ingestion.md §8), тож
-     * решту читають за посиланням на джерелі. Обмеження правове, а не верстальне, і саме тому
-     * стоїть у домені — інакше наступний екран покаже повний текст і матиме рацію.
+     * Опис, який дозволено показати. Для афіші — лише початок: чужа анотація захищена авторським
+     * правом (docs/event-ingestion.md §8), решту читають на сайті джерела. Обмеження правове,
+     * тому живе в домені, а не в екранах.
      */
     val displayDescription: String
         get() = if (listing == null || description.length <= LISTING_DESCRIPTION_PREVIEW) description
         else description.take(LISTING_DESCRIPTION_PREVIEW).trimEnd().trimEnd(',', ';', '—', '-', '.') + "…"
 
-    /** True коли опис обрізано і посилання «читати повністю» справді щось додає. */
+    /** Опис обрізано, тож посилання «читати повністю» має сенс. */
     val descriptionTruncated get() = displayDescription.length < description.length
 
-    // ---- коли подія відбувається -------------------------------------------------------------
-    // Розбір тут, а не в кожному клієнті: «актуальність» — це доменне питання, і відповідь на нього
-    // має бути одна на Android та iOS.
+    // ---- Час. Рахуємо тут, щоб Android та iOS відповідали однаково.
 
     val startInstant: Instant? get() = runCatching { Instant.parse(startsAt) }.getOrNull()
     val endInstant: Instant? get() = runCatching { Instant.parse(endsAt) }.getOrNull()
 
-    /** Почалася, але ще триває. Така подія найактуальніша з усіх, і ховати її було б дивно. */
+    /** Почалася і ще триває. */
     fun isUnderway(now: Instant): Boolean {
         val start = startInstant ?: return false
         val end = endInstant ?: return false
@@ -77,15 +85,8 @@ data class Event(
     }
 
     /**
-     * Прокат, а не сеанс: виставка, ярмарок, фестивальна програма.
-     *
-     * Розділяє два питання, які інакше злились би в одне. Про сеанс питають годину початку, і на
-     * картці йому досить «триває зараз». Про прокат питають, до коли ще можна, і дата початку на
-     * ньому читається як подія, що минула.
-     *
-     * Міряємо тривалістю, а не календарем. Концерт з 23:00 до 02:00 теж перетинає північ і теж
-     * закінчується «не сьогодні», але це один вечір, і проміжок дат замість години початку
-     * зіпсував би про нього головне.
+     * Прокат, а не сеанс: виставка, ярмарок, фестиваль. Сеансу на картці досить години початку,
+     * прокату — «до коли». Міряємо тривалістю, а не календарем: концерт з 23:00 до 02:00 — один вечір.
      */
     val isMultiDay: Boolean get() {
         val start = startInstant ?: return false
@@ -93,14 +94,20 @@ data class Event(
         return end - start > RUN_FROM
     }
 
-    /** Завершилася. Єдиний стан, у якому подію не варто пропонувати. */
+    /**
+     * Уже почалася. Для сеансу прокату це межа продажу: показати можна, купити квиток — ні.
+     * Для тижневої виставки не має значення, туди купують і посеред прокату.
+     */
+    fun hasStarted(now: Instant): Boolean = startInstant?.let { it <= now } ?: false
+
+    /** Завершилася. Таку подію не пропонуємо. */
     fun hasEnded(now: Instant): Boolean = endInstant?.let { it <= now } ?: false
 
-    /** Показуємо у стрічках і планах: усе, що ще не завершилось. */
+    /** Ще не завершилась — показуємо у стрічках і планах. */
     fun isCurrent(now: Instant): Boolean = !hasEnded(now)
 
     companion object {
-        /** Скільки чужого опису показуємо своїм шрифтом, перш ніж відіслати до джерела. */
+        /** Скільки символів чужого опису показуємо, перш ніж відіслати до джерела. */
         const val LISTING_DESCRIPTION_PREVIEW = 200
 
         /** Довше за добу — це вже не сеанс, а прокат. */
@@ -109,23 +116,21 @@ data class Event(
 }
 
 /**
- * Кімната: усе, що робить подію такою, до якої приходять.
- *
- * Місткість тут не для краси структури — вона тут тому, що поза кімнатою її не існує. Сервер каже
- * те саме: `events.capacity` обов'язковий лише при `origin = 'community'`.
+ * Кімната: усе, що робить подію такою, до якої приходять. Місткість живе тут, бо поза кімнатою
+ * її нема: `events.capacity` обов'язковий лише при `origin = 'community'`.
  */
 data class Gathering(
     val organizerId: String,
-    /** Blank when the organizer has no public profile yet; naming the fallback is the UI's job. */
+    /** Порожній, поки в організатора нема публічного профілю. Заміну підбирає UI. */
     val organizerName: String,
     val capacity: Int,
     val attendeeCount: Int,
     val joined: Boolean,
-    /** This account's standing at this event: none, asked to come, or in. */
+    /** Статус цього акаунта в події, див. [Membership]. */
     val membership: String = Membership.NONE,
-    /** When set, joining is a request the organizer answers rather than an open door. */
+    /** Приєднання — запит організатору, а не відкриті двері. */
     val approvalRequired: Boolean = false,
-    /** Who the organizer is willing to host. The server refuses anyone outside the range. */
+    /** Вікові межі гостей. Сервер відмовляє тим, хто поза діапазоном. */
     val minAge: Int = SafetyRules.MIN_SIGNUP_AGE,
     val maxAge: Int? = null
 ) {
@@ -133,55 +138,47 @@ data class Gathering(
     val isFull get() = seatsLeft == 0
     val awaitingApproval get() = membership == Membership.REQUESTED
 
-    /** True when the organizer set anything narrower than «anyone on the platform». */
+    /** Організатор звузив вік порівняно з «будь-хто на платформі». */
     val hasAgeLimit get() = minAge > SafetyRules.MIN_SIGNUP_AGE || maxAge != null
 
-    /**
-     * Місць лишилось так мало, що це варте окремого рядка. Поріг живе тут, а не в кожному
-     * клієнті: до цієї правки Android і iOS рахували «мало» двома копіями однієї формули.
-     */
+    /** Місць лишилось мало — варте окремого рядка. Поріг спільний для обох платформ. */
     val isScarce get() = seatsLeft in 1..(capacity / SCARCITY_FRACTION).coerceAtLeast(MIN_SCARCE_SEATS)
 
     companion object {
-        /** A fifth of the room left reads as "hurry"; below three seats it always does. */
+        /** П'ята частина кімнати або менше — «поспішайте»; менше трьох місць — завжди. */
         private const val SCARCITY_FRACTION = 5
         private const val MIN_SCARCE_SEATS = 3
     }
 }
 
 /**
- * Оголошення: подія, яку ми не проводимо, а лише показуємо.
- *
- * [sourceName] обов'язкове, бо атрибуція обов'язкова (docs/event-ingestion.md §8) — це умова, на
- * якій ми взагалі маємо право показувати ці рядки, а не оздоблення картки.
+ * Оголошення: подія, яку ми лише показуємо, а не проводимо. [sourceName] обов'язкове —
+ * атрибуція є умовою права показувати ці рядки (docs/event-ingestion.md §8).
  */
 data class Listing(
     val sourceName: String,
-    /** Сторінка джерела: єдине місце, де подію можна купити й дочитати. */
+    /** Сторінка джерела: там купують квиток і читають повний опис. */
     val canonicalUrl: String? = null,
-    /** Найдешевший квиток у гривнях; null означає «джерело не сказало», а не «безкоштовно». */
+    /** Найдешевший квиток у гривнях. Null — джерело не сказало, а не «безкоштовно». */
     val priceMin: Double? = null,
     val isFree: Boolean? = null,
     val status: String = ImportStatus.LIVE
 ) {
-    /** Джерело більше не показує цю подію. Збережений запис лишається — але як позначка, не як план. */
+    /** Джерело зняло подію. Збережений запис лишається як позначка, не як план. */
     val isWithdrawn get() = status == ImportStatus.WITHDRAWN
 
-    /** Є куди вести. Кнопка без адреси гірша за відсутність кнопки. */
+    /** Є посилання на джерело — можна показувати кнопку. */
     val hasSource get() = !canonicalUrl.isNullOrBlank()
 }
 
-/**
- * A membership row has a state, because an event may be joined by request. A request holds no
- * seat: it is a question put to the organizer, and until they answer it counts as nothing.
- */
+/** Статус участі. Запит не тримає місце: поки організатор не відповів, це «нічого». */
 object Membership {
     const val NONE = "none"
     const val REQUESTED = "requested"
     const val APPROVED = "approved"
 }
 
-/** Event lifecycle, as the `events.status` column spells it. */
+/** Стан події, як його називає `events.status`. */
 object EventStatus {
     const val PUBLISHED = "published"
     const val CANCELLED = "cancelled"
@@ -208,7 +205,7 @@ data class EventDraft(
     val address: String, val latitude: Double, val longitude: Double, val startsAt: String,
     val endsAt: String, val timeZone: String, val capacity: Int, val imageUrl: String? = null,
     val minAge: Int = SafetyRules.MIN_SIGNUP_AGE, val maxAge: Int? = null,
-    /** When set, joining is a request the organizer answers rather than an open door. */
+    /** Приєднання — запит організатору, а не відкриті двері. */
     val approvalRequired: Boolean = false
 ) {
     fun validate(now: String): List<DraftField> = buildList {

@@ -1,4 +1,4 @@
-"""Regression tests for data loss and unsafe SQL. No network required."""
+"""Регресійні тести на втрату даних і небезпечний SQL. Без мережі."""
 import contextlib
 import dataclasses
 import datetime as dt
@@ -37,12 +37,45 @@ def html(events):
 
 class RegressionTests(unittest.TestCase):
     def setUp(self):
-        self.source = by_slug("concert_ua")
+        # Каталоги вимкнено: ці перевірки про список і сторінки, у каталогів свої.
+        self.source = dataclasses.replace(by_slug("concert_ua"), catalogs=None)
         self.index = VenueIndex([], "Київ", {"Зал": {"lat": 50.45, "lon": 30.53}})
 
     def harvest(self, events):
         with patch("tools.ingest.pipeline.get", return_value=Response("https://example.org", 200, html(events))):
             return pipeline.harvest(self.source, "Київ", self.index, now=NOW)
+
+    def test_same_source_copies_of_one_session_publish_once(self):
+        # Одна подія трьома сторінками одного продавця: не ловить ні злиття за ключем, ні між джерелами.
+        from tools.ingest import emit
+        events = [raw_event(name="Вечір Імпровізації На Двох", url=f"https://example.org/improv{n}")
+                  for n in (3, 4, 5)]
+        items, counters = self.harvest(events)
+        published = [i for i in items if i.stage == "published"]
+        copies = [i for i in items if i.stage == "duplicate"]
+        self.assertEqual(len(published), 1)
+        self.assertEqual(len(copies), 2)
+        winner = (published[0].source_slug, published[0].source_uid)
+        self.assertTrue(all(c.duplicate_of == winner for c in copies))
+        self.assertEqual(counters["published"], 1)
+        # Зайва копія знімається і в базі.
+        sql = "".join(emit.duplicates_sql(items, "RUN"))
+        for copy in copies:
+            self.assertIn(copy.canonical_url, sql)
+
+    def test_same_source_winner_does_not_depend_on_page_order(self):
+        names = [f"https://example.org/improv{n}" for n in (5, 3, 4)]
+        first, _ = self.harvest([raw_event(name="Вечір Імпровізації На Двох", url=u) for u in names])
+        second, _ = self.harvest([raw_event(name="Вечір Імпровізації На Двох", url=u) for u in reversed(names)])
+        pick = lambda items: next(i.source_uid for i in items if i.stage == "published")
+        self.assertEqual(pick(first), pick(second))
+
+    def test_different_titles_at_one_minute_stay_separate(self):
+        # Сусідні зали одного закладу в той самий час — дві події навіть від одного продавця.
+        events = [raw_event(name="Кіно-галерея", url="https://example.org/a"),
+                  raw_event(name="Клуб настільних ігор", url="https://example.org/b")]
+        items, _ = self.harvest(events)
+        self.assertEqual(sum(i.stage == "published" for i in items), 2)
 
     def test_title_never_exceeds_database_limit(self):
         self.assertLessEqual(len(normalize.normalize_title("А" * 130)), 120)
@@ -180,7 +213,10 @@ class RegressionTests(unittest.TestCase):
              patch("tools.ingest.pipeline.get", return_value=Response("https://example.org", 200, html([raw_event()]))), \
              contextlib.redirect_stdout(io.StringIO()):
             _, parts = run_city("Київ", [self.source], "00000000-0000-0000-0000-000000000001", use_photon=False, now=NOW)
-        self.assertNotIn("ingest_run_id is distinct from", "".join(parts))
+        sql = "".join(parts)
+        self.assertNotIn("ingest_run_id is distinct from", sql)
+        # Список з однією подією не доводить, що решту скасовано.
+        self.assertNotIn("<> all (array[", sql)
 
     def test_robots_failure_is_a_source_error(self):
         with patch("tools.ingest.pipeline.get", side_effect=PermissionError("robots unavailable")):
@@ -198,6 +234,65 @@ class RegressionTests(unittest.TestCase):
         self.assertIn("update public.events", sql)
         self.assertIn("not exists", sql)
         self.assertNotIn("set id=", sql)
+
+    def test_moved_url_adopts_the_old_row_so_saves_stay_attached(self):
+        # Подія переїхала на нове посилання: без переходу за назвою, хвилиною й точкою збережена виглядала б скасованою.
+        items, _ = self.harvest([raw_event(url="https://example.org/teatr-3")])
+        sql = "".join(emit.events_sql(items, "00000000-0000-0000-0000-000000000001"))
+        self.assertIn("'https://example.org/teatr-3'", sql)
+        self.assertIn("x.canonical_url <> i.url", sql)
+        self.assertIn("lower(x.title) = lower(i.title)", sql)
+        # Обидва `distinct on` обов'язкові: інакше дві старі копії отримали б той самий ключ.
+        self.assertIn("select distinct on (i.uid)", sql)
+        self.assertIn("select distinct on (id)", sql)
+        self.assertNotIn("set id=", sql)
+
+    def test_moved_url_adoption_is_one_statement_per_batch(self):
+        # Окремий UPDATE на подію займав половину SQL.
+        events = [raw_event(name=f"Подія номер {k}", url=f"https://example.org/e{k}") for k in range(12)]
+        items, _ = self.harvest(events)
+        sql = "".join(emit.events_sql(items, "00000000-0000-0000-0000-000000000001"))
+        self.assertEqual(sql.count("with incoming(uid, url, city, title, starts, lat, lon)"), 1)
+        # Регекс із класами символів залежить від локалі бази: у локалі C кирилиця зникає.
+        self.assertNotIn("[:alnum:]", sql)
+
+    def _complete_crawl(self, n=12):
+        return self.harvest([raw_event(name=f"Подія номер {k}", url=f"https://example.org/e{k}")
+                             for k in range(n)])
+
+    def test_retire_needs_a_complete_crawl(self):
+        from tools.ingest.__main__ import _may_retire
+        items, counters = self._complete_crawl()
+        self.assertEqual(_may_retire(self.source, items, counters), (True, ""))
+        for broken in ({"error": "HTTP 503"}, {"catalog_errors": ["humor с.2: HTTP 503"]},
+                       {"catalog_capped": 1}):
+            with self.subTest(broken=broken):
+                self.assertFalse(_may_retire(self.source, items, {**counters, **broken})[0])
+        self.assertFalse(_may_retire(dataclasses.replace(self.source, detail_path="/event/"),
+                                     items, counters)[0])
+        few, few_counters = self._complete_crawl(3)
+        self.assertFalse(_may_retire(self.source, few, few_counters)[0])
+
+    def test_retire_sql_is_scoped_and_guarded(self):
+        sql = emit.retire_absent_sql("karabas", "Київ", ["u2", "u1", "u1"])
+        self.assertIn("e.city='Київ'", sql)
+        self.assertIn("slug='karabas'", sql)
+        self.assertIn("<> all (array['u1','u2']::text[])", sql)
+        self.assertIn("e.ends_at > now()", sql)
+        self.assertIn(f"greatest({emit.RETIRE_ALLOWANCE}, {emit.RETIRE_MAX_SHARE}", sql)
+        self.assertNotIn("delete", sql.lower())
+        self.assertEqual(emit.retire_absent_sql("karabas", "Київ", []), "")
+
+    def test_run_city_retires_last_and_only_after_a_full_crawl(self):
+        events = [raw_event(name=f"Подія номер {k}", url=f"https://example.org/e{k}") for k in range(12)]
+        with patch("tools.ingest.__main__.build_index", return_value=self.index), \
+             patch("tools.ingest.pipeline.get", return_value=Response("https://example.org", 200, html(events))), \
+             contextlib.redirect_stdout(io.StringIO()):
+            _, parts = run_city("Київ", [self.source], "00000000-0000-0000-0000-000000000001",
+                                use_photon=False, now=NOW)
+        sql = "".join(parts)
+        self.assertIn("<> all (array[", sql)
+        self.assertGreater(sql.index("<> all (array["), sql.index("insert into public.events"))
 
     def test_explicit_withdrawal_is_scoped_to_source_and_session(self):
         with patch("tools.ingest.__main__.build_index", return_value=self.index), \

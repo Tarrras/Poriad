@@ -1,7 +1,7 @@
 import SwiftUI
 import Shared
 
-// ---------------------------------------------------------------- search & chips
+// ---- Пошук і чипи
 
 struct SearchField: View {
     @Binding var text: String
@@ -37,19 +37,11 @@ struct SearchField: View {
     }
 }
 
-/**
- Поле пошуку, яке саме тримає набране.
-
- Доки текст жив у стані екрана, кожна літера перемальовувала екран цілком: списки, картки,
- підрахунки, а на мапі — ще й саму мапу. Тому набір і відставав: між натиском і буквою стояла
- вся сторінка.
-
- Тепер літера міняє лише саме поле. Нагору йде вже те, що набрали, — і лише коли набір
- зупинився, бо саме там починається спільний стан, тобто справжня робота.
- */
+/// Поле пошуку з власним текстом: літера міняє лише поле, нагору йде результат після паузи.
+/// Інакше кожна літера перемальовувала весь екран разом із мапою.
 struct SearchBar: View {
     let placeholder: String
-    /// Що вже шукали. Читається один раз: далі поле веде себе саме.
+    /// Початковий текст. Читається один раз.
     let initial: String
     var activeFilters: Int = 0
     var onFilters: (() -> Void)?
@@ -78,7 +70,7 @@ struct SearchBar: View {
     }
 }
 
-/// Скільки чекаємо тиші в полі. Далі йде спільний стан і мережа, тож поспіх тут нікому не потрібен.
+/// Пауза після набору перед оновленням спільного стану.
 private let searchSettle = 250
 
 struct IconPill: View {
@@ -103,18 +95,14 @@ struct IconPill: View {
     }
 }
 
-/// The smallest possible carrier of category colour, straight from Corner.
+/// Крапка категорії: найменший носій її кольору.
 struct CategoryDot: View {
     let category: String
     var size: CGFloat = 8
     var body: some View { Circle().fill(categoryInk(category)).frame(width: size, height: size) }
 }
 
-/**
- Chip: lowercase label on a white pill that hovers a millimetre off the paper; selection fills it
- with ink, the way Corner marks state. A selected chip sits *higher* than an unselected one — the
- state is legible from the shadow alone, before the fill is read.
- */
+/// Чип: біла пігулка над папером; обраний заливається чорнилом і сидить вище, тож стан видно з тіні.
 struct Chip: View {
     let label: String
     var symbol: String?
@@ -147,7 +135,7 @@ struct Chip: View {
     }
 }
 
-/// A rounded square washed in the category pastel, as Corner sets its rating tiles.
+/// Плитка категорії: скруглений квадрат у пастелі категорії.
 struct CategoryTile: View {
     let category: String
     let selected: Bool
@@ -169,7 +157,7 @@ struct CategoryTile: View {
                                 lineWidth: selected ? 2 : 1
                             )
                     )
-                    // The tile glows in its own hue rather than smudging the page with grey.
+                    // Плитка світиться власним відтінком, а не сірою тінню.
                     .lifted(Elevation.card, tint: categoryColor(category).opacity(0.28))
                 Text(categoryName(category)).font(PoruchFont.label).lineLimit(1)
                     .foregroundStyle(selected ? Palette.ink : Palette.inkSecondary)
@@ -181,7 +169,7 @@ struct CategoryTile: View {
     }
 }
 
-// ---------------------------------------------------------------- badges & buttons
+// ---- Бейджі й кнопки
 
 enum BadgeTone { case brand, success, accent, danger, neutral }
 
@@ -232,8 +220,7 @@ struct PrimaryButton: View {
                 case (true, .none): Capsule().fill(brandGradient)
                 }
             }
-            // The action's own shadow is tinted with the action's own colour, so a coloured button
-            // glows rather than casting the same grey smudge as everything else.
+            // Тінь кнопки тонована її кольором.
             .lifted(enabled ? Elevation.raised : 0, tint: enabled ? (tone ?? Palette.ink).opacity(0.28) : nil)
         }
         .buttonStyle(PressableStyle())
@@ -262,14 +249,9 @@ struct SecondaryButton: View {
     }
 }
 
-// ---------------------------------------------------------------- structure
+// ---- Структура
 
-/**
- A section is announced the way Corner announces one: lowercase, at reading size, in the ink of the
- content it introduces. The 11 pt caps we used before were legible but timid — they read as a
- caption for the card above rather than a title for the row below. Caps stay where they carry data:
- dates, badges, field labels.
- */
+/// Заголовок секції малими літерами читабельного розміру. Капітель лишається там, де несе дані.
 struct SectionHeader: View {
     let title: String
     var actionLabel: String?
@@ -360,7 +342,7 @@ struct BannerCard: View {
                     .frame(width: 32, height: 32).background(Palette.brand, in: Circle())
             }
             .padding(Space.lg)
-            // The one warm-lit surface on the home screen: it invites rather than informs.
+            // Єдина тепло підсвічена поверхня на головній: запрошує, а не інформує.
             .background(
                 LinearGradient(colors: [Palette.heroTop, Palette.surface], startPoint: .topLeading, endPoint: .bottomTrailing),
                 in: RoundedRectangle(cornerRadius: Corner.lg, style: .continuous)
@@ -371,7 +353,7 @@ struct BannerCard: View {
     }
 }
 
-/// Overlapping avatars, the social proof Meetup puts under every event.
+/// Аватари внапуск.
 struct AvatarStack: View {
     let attendees: [Attendee]
     var total: Int
@@ -385,8 +367,7 @@ struct AvatarStack: View {
                     Text(attendee.name.trimmingCharacters(in: .whitespaces).prefix(1).uppercased())
                         .font(PoruchFont.label).foregroundStyle(Palette.inkSecondary)
                     if let source = attendee.avatarUrl, let url = URL(string: source), url.scheme == "https" {
-                        // Той самий кеш, що й у картках: `AsyncImage` не пам'ятає нічого й читає
-                        // аватар наново щоразу, коли рядок повертається на екран.
+                        // Той самий кеш, що в картках: `AsyncImage` нічого не пам'ятає.
                         CachedImage(url: url, maxDimension: size).clipShape(Circle())
                     }
                 }
@@ -437,17 +418,14 @@ struct InfoRow: View {
     }
 }
 
-/**
- Field in the Corner idiom: a small uppercase label above the box rather than a floating
- placeholder, so a form reads as a list of named things and every field looks the same.
- */
+/// Поле з малим підписом над рамкою замість плаваючого плейсхолдера: форма читається як список названих речей.
 struct LabelledField<Trailing: View>: View {
     let label: String
     @Binding var text: String
     var placeholder: String = ""
     var hint: String?
     var secure: Bool = false
-    /// A description grows with what is typed; every other field stays one line tall.
+    /// Опис росте з текстом; решта полів однорядкові.
     var multiline: Bool = false
     @ViewBuilder var trailing: Trailing
     var body: some View {
@@ -467,8 +445,7 @@ struct LabelledField<Trailing: View>: View {
                 .font(PoruchFont.bodyText).foregroundStyle(Palette.ink).tint(Palette.ink).textFieldStyle(.plain)
                 trailing
             }
-            // A trailing control reserves a 44 pt target, so the box is tall enough to hold one
-            // without growing past a plain field beside it.
+            // Висота вміщує 44 pt ціль кінцевого контролу, не переростаючи сусіднє поле.
             .padding(.horizontal, Space.lg)
             .padding(.vertical, multiline ? Space.md : 0)
             .frame(minHeight: 56, alignment: multiline ? .top : .center)
@@ -492,20 +469,14 @@ extension LabelledField where Trailing == EmptyView {
     }
 }
 
-// ---------------------------------------------------------------- event surfaces
+// ---- Поверхні подій
 
-/**
- A cover with no photo is not an empty box: it is the category's own gradient with the category's
- glyph on it, so a feed of photoless events still reads as a row of coloured objects. A photo, when
- there is one, gets a scrim at top and bottom — the badge and the save button sit on it, and a
- bright sky underneath would swallow both.
- */
+/// Обкладинка без фото — градієнт категорії з її гліфом. Фото отримує затемнення під бейдж і кнопку збереження.
 struct EventThumbnail: View {
     let event: Event
-    /// The hero on a detail screen is 300 pt tall; a 24 pt glyph on it reads as a speck.
+    /// На 300 pt хіро деталей гліф 24 pt виглядає як цятка.
     var glyphSize: CGFloat = 24
-    /// Найбільша сторона показу в точках. За нею [CachedImage] зменшує зображення ще під час
-    /// розпакування — у рядок 60×60 немає сенсу класти мільйон пікселів.
+    /// Найбільша сторона показу в pt: `CachedImage` зменшує зображення ще при розпакуванні.
     var maxDimension: CGFloat = 200
     var body: some View {
         ZStack {
@@ -525,11 +496,7 @@ struct EventThumbnail: View {
     }
 }
 
-/// Один рядок стану над карткою.
-///
-/// Афіша завжди підписана джерелом, і це не стилістика: без видимої атрибуції ми не маємо права
-/// її показувати (docs/event-ingestion.md §8). Місця й «ви йдете» стосуються тільки кімнати —
-/// тепер до них не дістатися, не спитавши спершу, чи вона взагалі є.
+/// Рядок стану над карткою. Афіша завжди підписана джерелом (docs/event-ingestion.md §8); місця лише в кімнати.
 func eventBadge(_ event: Event, waitlisted: Bool = false) -> (String, BadgeTone, String?)? {
     if event.isCancelled { return ("Скасовано", .danger, nil) }
     if let listing = event.listing {
@@ -544,8 +511,7 @@ func eventBadge(_ event: Event, waitlisted: Bool = false) -> (String, BadgeTone,
     return nil
 }
 
-/// Рядок під назвою: скільки людей іде — або скільки коштує квиток. Що саме, вирішує наявність
-/// кімнати, а не збіг обставин: «0 з 1 учасників» під чужим концертом було саме цим збігом.
+/// Рядок під назвою: учасники для кімнати, ціна для афіші.
 struct EventMeta: View {
     let event: Event
     var short = false
@@ -561,14 +527,13 @@ struct EventMeta: View {
     }
 }
 
-/// Category dot plus a lowercase descriptor — the line Corner puts under every place name.
+/// Крапка категорії плюс опис малими літерами.
 struct EventDescriptor: View {
     let event: Event
     var body: some View {
         HStack(spacing: Space.sm) {
             CategoryDot(category: event.category)
-            // The serif italic is the category; the grotesque caption is the place. One line, two
-            // voices, so «what this is» never reads as part of the address.
+            // Антиква — категорія, гротеск — місце: «що це» не читається як частина адреси.
             Text(categoryName(event.category).lowercased())
                 .font(PoruchFont.descriptor).foregroundStyle(categoryInk(event.category)).lineLimit(1)
             Text((event.address.isEmpty ? event.city : event.address).isEmpty ? "" : "· " + (event.address.isEmpty ? event.city : event.address))
@@ -588,7 +553,7 @@ struct SaveButton: View {
                 .frame(width: 34, height: 34)
                 .background(Palette.surface, in: Circle())
                 .overlay(Circle().strokeBorder(Palette.hairline, lineWidth: 1))
-                // It sits on a photo, so it carries its own shadow in both appearances.
+                // На фото, тому з власною тінню в обох темах.
                 .shadow(color: .black.opacity(0.22), radius: 6, y: 2)
                 .frame(width: 44, height: 44)
                 .contentShape(Rectangle())
@@ -598,7 +563,7 @@ struct SaveButton: View {
     }
 }
 
-/// Feed card: photo, then the date overline, the name and one descriptor line.
+/// Картка стрічки: фото, надрядок дати, назва, рядок опису.
 struct EventCard: View {
     let event: Event
     var saved: Bool = false
@@ -608,7 +573,7 @@ struct EventCard: View {
     var body: some View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 0) {
-                // Without a photo the placeholder shrinks: an empty 16:9 band would dominate the card.
+                // Без фото плейсхолдер нижчий: порожній 16:9 домінував би на картці.
                 EventThumbnail(event: event, maxDimension: 420)
                     .frame(height: event.imageUrl == nil ? 96 : 168).frame(maxWidth: .infinity).clipped()
                     .clipShape(RoundedRectangle(cornerRadius: Corner.sm, style: .continuous))
@@ -621,7 +586,7 @@ struct EventCard: View {
                         if let onSave { SaveButton(saved: saved, action: onSave).padding(Space.sm) }
                     }
                 VStack(alignment: .leading, spacing: Space.sm) {
-                    Text(eventOverline(event)).font(PoruchFont.overline).kerning(1.2).foregroundStyle(Palette.inkTertiary)
+                    Text(cardOverline(event)).font(PoruchFont.overline).kerning(1.2).foregroundStyle(Palette.inkTertiary)
                     Text(event.title.uppercased()).font(PoruchFont.cardName).kerning(0.3).foregroundStyle(Palette.ink)
                         .multilineTextAlignment(.leading).lineLimit(2)
                     EventDescriptor(event: event)
@@ -637,7 +602,7 @@ struct EventCard: View {
     }
 }
 
-/// Compact row for lists: square thumbnail, name, descriptor.
+/// Компактний рядок списку: квадратне превʼю, назва, опис.
 struct EventRow: View {
     let event: Event
     var body: some View {
@@ -646,7 +611,7 @@ struct EventRow: View {
                 .frame(width: 60, height: 60)
                 .clipShape(RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
             VStack(alignment: .leading, spacing: Space.xs) {
-                Text(eventOverline(event)).font(PoruchFont.overline).kerning(1.2).foregroundStyle(Palette.inkTertiary)
+                Text(cardOverline(event)).font(PoruchFont.overline).kerning(1.2).foregroundStyle(Palette.inkTertiary)
                 Text(event.title.uppercased()).font(PoruchFont.cardName).kerning(0.3).foregroundStyle(Palette.ink)
                     .multilineTextAlignment(.leading).lineLimit(2)
                 if let badge = eventBadge(event) { StatusBadge(text: badge.0, tone: badge.1, symbol: badge.2) }
@@ -662,10 +627,10 @@ struct EventRow: View {
     }
 }
 
-/// Висота картки каруселі: її знає й сама карусель, коли рахує свою висоту.
+/// Висота картки каруселі, потрібна і самій каруселі.
 let mapCardHeight: CGFloat = 112
 
-/// Carousel card above the map: wide enough for the name, short enough to leave the map readable.
+/// Картка каруселі над мапою: досить широка для назви, досить низька, щоб мапу було видно.
 struct EventMapCard: View {
     let event: Event
     var focused: Bool = false
@@ -679,7 +644,7 @@ struct EventMapCard: View {
                     .frame(width: 84, height: 84)
                     .clipShape(RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
                 VStack(alignment: .leading, spacing: Space.xs) {
-                    Text(eventOverline(event)).font(PoruchFont.overline).kerning(1.2).foregroundStyle(Palette.inkTertiary)
+                    Text(cardOverline(event)).font(PoruchFont.overline).kerning(1.2).foregroundStyle(Palette.inkTertiary)
                     Text(event.title.uppercased()).font(PoruchFont.cardName).kerning(0.3).foregroundStyle(Palette.ink)
                         .multilineTextAlignment(.leading).lineLimit(2)
                     if let badge = eventBadge(event) { StatusBadge(text: badge.0, tone: badge.1, symbol: badge.2) }
@@ -703,7 +668,7 @@ struct EventMapCard: View {
     }
 }
 
-/// Narrow tile for horizontal rails on the home screen.
+/// Вузька плитка для горизонтальних стрічок головної.
 struct EventTile: View {
     let event: Event
     let action: () -> Void
@@ -714,7 +679,7 @@ struct EventTile: View {
                     .frame(height: 104).frame(maxWidth: .infinity).clipped()
                     .clipShape(RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
                 VStack(alignment: .leading, spacing: Space.xs) {
-                    Text(eventOverline(event)).font(PoruchFont.overline).kerning(1.2).foregroundStyle(Palette.inkTertiary)
+                    Text(cardOverline(event)).font(PoruchFont.overline).kerning(1.2).foregroundStyle(Palette.inkTertiary)
                     Text(event.title.uppercased()).font(PoruchFont.cardName).kerning(0.3).foregroundStyle(Palette.ink)
                         .multilineTextAlignment(.leading).lineLimit(2, reservesSpace: true)
                     EventDescriptor(event: event)
@@ -731,7 +696,7 @@ struct EventTile: View {
     }
 }
 
-// ---------------------------------------------------------------- navigation
+// ---- Навігація
 
 struct TabItem: Identifiable {
     let id: Int
@@ -739,18 +704,10 @@ struct TabItem: Identifiable {
     let glyph: PoruchGlyph
 }
 
-/**
- Плаваюча панель вкладок живе поверх усього застосунку, а не всередині навігаційного стека, тож
- екран, який займає весь простір, мусить сказати про себе сам. Деталі події — саме такий екран: у
- них власна нижня панель із дією, і дві панелі одна на одній перекривали одна одну.
+/// Таббар плаває поверх застосунку, тож екран із власною нижньою панеллю (деталі) має сам
+/// попросити його сховати. Preference, бо треба перетнути `NavigationStack`.
 
- Прапорець їде вгору як preference, бо йому треба перетнути `NavigationStack`, у який кореневий
- екран не має доступу.
- */
-/**
- Перемкнути застосунок на вкладку «Мапа». Живе в оточенні, бо вкладками керує корінь, а просить
- про це екран, який лежить у навігаційному стеку й до кореня не дотягується.
- */
+/// Перемкнути на вкладку «Мапа». В оточенні, бо вкладками керує корінь, а просить екран зі стека.
 private struct OpenMapKey: EnvironmentKey {
     static let defaultValue: () -> Void = {}
 }
@@ -768,11 +725,11 @@ struct HidesTabBarKey: PreferenceKey {
 }
 
 extension View {
-    /// Позначає екран, поверх якого плаваюча панель вкладок стояти не має.
+    /// Екран, над яким таббар не показуємо.
     func hidesTabBar() -> some View { preference(key: HidesTabBarKey.self, value: true) }
 }
 
-/// Floating capsule bar; the active item is inked while the rest stay quiet, as Corner marks tabs.
+/// Плаваючий таббар-капсула; активний пункт залитий чорнилом.
 struct PoruchTabBar<Trailing: View>: View {
     let items: [TabItem]
     @Binding var selection: Int
@@ -783,16 +740,14 @@ struct PoruchTabBar<Trailing: View>: View {
                 ForEach(items) { item in
                     Button { selection = item.id } label: {
                         VStack(spacing: 3) {
-                            // The active tab is inked rather than thickened: the glyphs are one
-                            // weight, so swapping stroke widths would make the row jitter.
+                            // Активна вкладка заливається, а не товщає: інакше рядок смикається.
                             PoruchIcon(glyph: item.glyph, size: 22)
                             Text(item.label).font(PoruchFont.overline).lineLimit(1)
                         }
                         .foregroundStyle(selection == item.id ? Palette.ink : Palette.inkTertiary)
                         .frame(maxWidth: .infinity).frame(height: 42)
                         .background {
-                            // A tonal pill under the active glyph: the state survives a glance at
-                            // arm's length, where a colour difference alone does not.
+                            // Тонова пігулка під активним гліфом: стан видно й на відстані руки.
                             if selection == item.id { Capsule().fill(Palette.brandContainer) }
                         }
                     }
@@ -814,8 +769,7 @@ struct CreateButton: View {
         Button(action: action) {
             PoruchIcon(glyph: PoruchIcons.plus, size: 24).foregroundStyle(Palette.onBrand)
                 .frame(width: 56, height: 56).background(brandGradient, in: Circle())
-                // Warm glow rather than a grey drop: the one always-visible action gets colour
-                // without becoming a coloured button.
+                // Тепле сяйво замість сірої тіні для єдиної завжди видимої дії.
                 .shadow(color: Palette.accent.opacity(0.45), radius: 14, y: 6)
                 .shadow(color: .black.opacity(0.16), radius: 5, y: 2)
         }

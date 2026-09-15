@@ -12,16 +12,13 @@ data class AuthState(
     val passwordRevealed: Boolean = false,
     val mutating: Boolean = false,
     val signedIn: Boolean = false,
-    /** ISO-8601, empty until the person picks one. Sign-up only. */
+    /** ISO-8601, порожньо до вибору. Лише для реєстрації. */
     val birthDate: String = "",
     val pickingBirthDate: Boolean = false
 ) {
     val emailValid get() = AccountRules.isEmail(email)
     val birthDateValue: LocalDate? get() = runCatching { LocalDate.parse(birthDate) }.getOrNull()
-    /**
-     * The floor is checked here so the button is honest about it; the database checks it again
-     * inside the transaction that would create the account.
-     */
+    /** Мінімальний вік перевіряємо тут заради чесної кнопки; база перевірить ще раз. */
     val adult get() = birthDateValue?.let { it <= LocalDate.now().minusYears(SafetyRules.MIN_SIGNUP_AGE.toLong()) } == true
     val canSubmit get() = !mutating && emailValid && AccountRules.isPassword(password) &&
         (!signup || (AccountRules.isName(name) && adult))
@@ -41,6 +38,6 @@ sealed interface AuthIntent {
 }
 
 sealed interface AuthEffect {
-    /** Sign-in succeeded and the screen has done its job. */
+    /** Вхід вдався, екран закривається. */
     data object Close : AuthEffect
 }

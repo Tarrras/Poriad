@@ -8,14 +8,10 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
 
 /**
- * Читання подій. Єдина грань, яку має сенс питати без акаунта, — і єдина, що тримає кеш.
+ * Читання подій: єдина частина, доступна без акаунта, і єдина з кешем.
  *
- * [compute] — де відбувається все, що після відповіді: розбір індексу, кодування в кеш і запис у
- * SQLite. Досі це виконувалось там, звідки прийшов виклик, а приходив він із головного потоку —
- * 618 мс на нього, `Skipped 40 frames` і кадр на 1065 мс. Ktor чекає сокет поза потоком сам; сюди
- * ми виносимо процесор і один запис на диск.
- *
- * Саме `Default`, а не `IO`: у kotlinx-coroutines 1.10.2 `Dispatchers.IO` не існує в `commonMain`.
+ * [compute] — де розбираємо індекс і пишемо кеш у SQLite. Раніше це йшло на головному потоці
+ * і пропускало кадри. `Default`, а не `IO`, бо `Dispatchers.IO` немає в `commonMain`.
  */
 internal class SupabaseEventDiscovery(
     private val rpc: EventRpc,
@@ -27,18 +23,15 @@ internal class SupabaseEventDiscovery(
     private val cache = EventCache(database, rpc.json)
 
     /**
-     * Чи вміє цей сервер віддавати індекс. `null` — ще не питали.
-     *
-     * Збірка може дивитись на сервер без міграції `20260911070031`, і тоді `discover_events`
-     * відповість `PGRST202`. Питати про це щоразу було б дивно, тож відповідь запамʼятовується
-     * один раз, а далі йде старий шлях — вужчий, але робочий.
+     * Чи вміє сервер віддавати індекс. Null — ще не питали. Без міграції `20260911070031`
+     * `discover_events` відповідає `PGRST202`, і далі йде старий шлях.
      */
     private var hasIndexRpc: Boolean? = null
 
     override suspend fun discover(query: EventQuery): DiscoveryPage {
         val owner = auth.session.value?.userId
         if (hasIndexRpc != false) {
-            val response = runCatching { rpc.call("discover_events", query.indexParams()) }
+            val response = runCatching { rpc.read("discover_events", query.indexParams()) }
                 .onSuccess { hasIndexRpc = true }
                 .getOrElse { failure ->
                     if (!failure.isMissingFunction()) throw failure
@@ -49,8 +42,7 @@ internal class SupabaseEventDiscovery(
             if (response != null) return withContext(compute) {
                 val text = response.toString()
                 val page = rpc.json.decodeFromJsonElement<DiscoveryEnvelope>(response)
-                // Особа могла змінитися, поки запит був у дорозі: тоді ця відповідь належить уже
-                // нікому, і записувати її під новим власником не можна.
+                // Акаунт міг змінитися, поки запит був у дорозі: тоді відповідь не пишемо.
                 if (owner == auth.session.value?.userId) cache.write(cache.key(query, owner), text)
                 page.domain()
             }
@@ -58,19 +50,12 @@ internal class SupabaseEventDiscovery(
         return legacyDiscover(query)
     }
 
-    /**
-     * Старий шлях: одна відповідь на все, зі стелею в 300 рядків і без лічильника.
-     *
-     * Індекс тут будується з тих самих карток — це єдине, що сервер уміє сказати. Мапа від цього
-     * не ламається, просто показує стільки, скільки старий сервер дав.
-     */
+    /** Старий шлях: одна відповідь на все, стеля 300 рядків, індекс будується з карток. */
     private suspend fun legacyDiscover(query: EventQuery): DiscoveryPage {
-        val response = rpc.call("search_events_in_view", query.legacyParams())
+        val response = rpc.read("search_events_in_view", query.legacyParams())
         return withContext(compute) {
             val cards = rpc.json.decodeFromJsonElement<List<EventDto>>(response).map { it.domain() }
-            // Кеш тут навмисно не пишемо. Він зберігає ту саму форму, що приходить із сервера, а
-            // цей шлях існує лише для бази без міграції — випадку, якого в жодному живому проєкті
-            // немає. Писати заради нього другий формат означало б тримати два вічно.
+            // Кеш не пишемо: тримати другий формат заради бази без міграції не варто.
             DiscoveryPage(cards.map { it.asIndexEntry() }, cards.size, false, cards)
         }
     }
@@ -83,7 +68,7 @@ internal class SupabaseEventDiscovery(
         val batches = ids.distinct().chunked(DiscoveryRules.CARD_BATCH)
         val collected = mutableListOf<Event>()
         for (batch in batches) {
-            val response = rpc.call("event_cards_by_ids", buildJsonObject {
+            val response = rpc.read("event_cards_by_ids", buildJsonObject {
                 put("p_ids", JsonArray(batch.map(::JsonPrimitive)))
             })
             collected += withContext(compute) {
@@ -129,11 +114,11 @@ internal class SupabaseEventDiscovery(
         put("p_to", query.to?.let(::JsonPrimitive) ?: JsonNull)
     }
 
-    /** PostgREST відповідає цим кодом, коли функції з такою сигнатурою на сервері немає. */
+    /** PostgREST: функції з такою сигнатурою на сервері немає. */
     private fun Throwable.isMissingFunction() = (this as? AppFailure)?.serverCode == "PGRST202"
 
     private companion object {
-        /** Скільки облич показує картка: більше за це в неї не поміщається. */
+        /** Скільки учасників показує картка. */
         const val ROSTER_LIMIT = 24
     }
 }

@@ -11,10 +11,9 @@ class ExploreViewModel(private val app: PoruchApp) :
 
     init {
         observe(app) { shared ->
-            // Мапа малює індекс — усе, що є в області. Карусель і список показують картки, яких
-            // може бути менше: вони приїжджають вікном. Порядок у обох один і той самий.
+            // Мапа малює індекс, карусель і список — картки, яких може бути менше.
             copy(
-                // A fresh answer means the map is showing this area now, so the prompt goes away.
+                // Свіжа відповідь означає, що мапа вже показує цю область: підказка зникає.
                 pendingArea = if (shared.index !== index) null else pendingArea,
                 index = shared.index,
                 totalFound = shared.totalFound,
@@ -33,14 +32,14 @@ class ExploreViewModel(private val app: PoruchApp) :
                 dateFilter = shared.dateFilter,
                 onlyAvailable = shared.onlyAvailable,
                 loading = shared.loading,
-                offline = shared.offline
+                offline = shared.offline,
+                customArea = shared.customArea
             )
         }
     }
 
     override fun onIntent(intent: ExploreIntent) {
-        // Будь-яка зміна самого результату робить фокус на точці безглуздим: у ньому лишились би
-        // ідентифікатори подій, яких у видачі вже немає.
+        // Зміна результату скидає фокус на точці: у ньому лишились би id подій, яких уже нема.
         when (intent) {
             is ExploreIntent.Search, is ExploreIntent.PickDate, is ExploreIntent.PickCategory,
             is ExploreIntent.OnlyAvailable, ExploreIntent.ResetFilters, ExploreIntent.SearchHere,
@@ -69,40 +68,44 @@ class ExploreViewModel(private val app: PoruchApp) :
             is ExploreIntent.MapFailed -> reduce { copy(mapFailed = intent.failed) }
 
             is ExploreIntent.SelectEvent -> app.selectEvent(intent.id)
-            // Мапа щойно відкрилася заради цієї події: стос від попереднього тапу тут ні до чого,
-            // а вибір події — те, за чим мапа наведеться на неї (EventMap слухає selectedId).
+            // Мапу відкрили заради цієї події: скидаємо стос, вибір наводить мапу (EventMap слухає selectedId).
             is ExploreIntent.FocusEvent -> {
                 reduce { copy(stackIds = emptyList()) }
                 app.selectEvent(intent.id)
             }
             is ExploreIntent.SelectStack -> {
-                // Одна подія — звичайний вибір; кілька — фокус на точці, інакше решта стосу
-                // лишається недосяжною з мапи.
+                // Одна подія — звичайний вибір; кілька — стос.
                 if (intent.ids.size <= 1) {
                     reduce { copy(stackIds = emptyList()) }
                     intent.ids.firstOrNull()?.let { app.selectEvent(it) }
                 } else {
                     reduce { copy(stackIds = intent.ids) }
-                    // Стос — це не початок стрічки, тож вікно його не покриває: у київському
-                    // майданчику на 32 події в нього потрапляли дві.
+                    // Стос — не початок стрічки, вікно його не покриває.
                     app.loadCards(intent.ids)
                     app.selectEvent(intent.ids.first())
                 }
             }
-            ExploreIntent.ClearStack -> reduce { copy(stackIds = emptyList()) }
+            // Знімає і підсвітку піна, інакше мапа й список розходились.
+            ExploreIntent.ClearStack -> {
+                reduce { copy(stackIds = emptyList()) }
+                app.dismissEvent()
+            }
             is ExploreIntent.OpenEvent -> {
                 app.selectEvent(intent.id)
                 send(ExploreEffect.OpenDetail(intent.id))
             }
-            // Довантажуємо голову **звуженого** списку: під фільтром перші події категорії
-            // майже завжди лежать далі за край вікна, і `loadMore` по індексу їх не дістає.
-            is ExploreIntent.LoadMore ->
-                app.loadCards(state.value.visibleIndex.take(intent.upTo).map { it.id })
+            // Довантажуємо голову звуженого списку: `loadMore` по індексу під фільтром її не дістає.
+            is ExploreIntent.LoadMore -> loadHead(intent.upTo)
             is ExploreIntent.ToggleSaved -> app.toggleSaved(intent.id)
             ExploreIntent.CreateEvent -> send(ExploreEffect.CreateEvent)
 
             is ExploreIntent.ShowSheet -> reduce { copy(sheet = intent.sheet) }
-            is ExploreIntent.ListMode -> reduce { copy(listMode = intent.value) }
+            is ExploreIntent.SetDetent -> reduce { copy(detent = intent.detent) }
+            is ExploreIntent.PickListCategory -> {
+                reduce { copy(listCategory = if (listCategory == intent.category) ALL_CATEGORIES else intent.category) }
+                // Голова нового списку майже напевно ще не завантажена.
+                loadHead(PAGE)
+            }
 
             is ExploreIntent.SearchCity -> app.searchCity(intent.query)
             is ExploreIntent.SelectCity -> {
@@ -116,5 +119,11 @@ class ExploreViewModel(private val app: PoruchApp) :
             is ExploreIntent.LocatedAt -> app.selectCity(CityResult(intent.name, intent.latitude, intent.longitude))
             ExploreIntent.LocationDenied -> reduce { copy(locationDenied = true) }
         }
+    }
+
+    /** Картки початку того списку, який шторка зараз показує. */
+    private fun loadHead(count: Int) {
+        val ids = state.value.listEntries.take(count).map { it.id }
+        if (ids.isNotEmpty()) app.loadCards(ids)
     }
 }

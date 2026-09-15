@@ -15,14 +15,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import app.poruch.android.ui.Poruch
-import app.poruch.android.mvi.LocalPoruchApp
 import app.poruch.shared.AppState
+import app.poruch.shared.PoruchApp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.koin.compose.koinInject
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.Instant
 
-/** Inexact local alarms intentionally avoid requesting exact-alarm privileges. */
+/** Неточні локальні будильники: навмисно без дозволу на точні. */
 object Reminders {
     private const val CHANNEL = "event_reminders"
     private fun prefs(context: Context) = context.getSharedPreferences("reminders", Context.MODE_PRIVATE)
@@ -68,13 +69,10 @@ object Reminders {
 class ReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) { if (intent.action == Intent.ACTION_BOOT_COMPLETED) Reminders.restore(context) else Reminders.notify(context, intent.getStringExtra("id").orEmpty(), intent.getStringExtra("title").orEmpty()) }
 }
-/**
- * The reminders switch. It reads the current plans from the store itself so the caller does not
- * have to thread state through a settings list that has nothing else to do with events.
- */
+/** Перемикач нагадувань. Сам читає плани зі стору, щоб налаштування не тягли стан подій. */
 @Composable fun ReminderPreference() {
     val context = LocalContext.current
-    val state = LocalPoruchApp.current.state.collectAsStateWithLifecycle().value
+    val state = koinInject<PoruchApp>().state.collectAsStateWithLifecycle().value
     var enabled by remember { mutableStateOf(Reminders.enabled(context)) }
     var denied by remember { mutableStateOf(false) }
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> enabled = granted; denied = !granted; Reminders.setEnabled(context, granted); Reminders.sync(context, state) }

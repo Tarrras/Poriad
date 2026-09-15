@@ -5,11 +5,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-/**
- * Усі пари тут — справжні рядки з бази станом на 11.09.2026, включно з тими трьома, які **не**
- * можна зливати. Вигадані приклади тут були б гірші за марні: поріг схожості підбирався саме під
- * те, як два квиткові сервіси описують одну виставу.
- */
+/** Усі пари — справжні рядки з бази (11.09.2026), включно з тими, які зливати не можна. */
 class DuplicateEventsTest {
 
     private val venue = 50.4498664 to 30.5278357
@@ -35,8 +31,7 @@ class DuplicateEventsTest {
             )
         )
         assertEquals(1, folded.size)
-        // Представник — найменший ідентифікатор, а не «найбагатший»: багатство міняється між
-        // відповідями, і плаваючий ключ смикав би карусель під пальцем.
+        // Представник — найменший id: стабільний ключ не смикає карусель між відповідями.
         assertEquals("a", folded.single().id)
         assertEquals(listOf("b"), folded.single().mergedWith)
         assertEquals(listOf("a", "b"), folded.single().representedIds)
@@ -62,8 +57,7 @@ class DuplicateEventsTest {
 
     @Test
     fun `two halls of one venue at one time are not a duplicate`() {
-        // Дев'ять із сімдесяти п'яти груп у базі саме такі, і всі одноджерельні: заклад показує
-        // дві різні події о тій самій годині.
+        // Одне джерело, дві події в один час — це два зали, а не дубль.
         val folded = DuplicateEvents.fold(
             listOf(
                 entry("a", "Театр Квітки. Вистава \"Кодекс згоди\"", source = "ibilet"),
@@ -75,7 +69,7 @@ class DuplicateEventsTest {
 
     @Test
     fun `one source never merges with itself`() {
-        // Навіть за однакових назв: якщо це сказало одне джерело, воно знає, що подій дві.
+        // Навіть за однакових назв: одне джерело знає, що подій дві.
         val folded = DuplicateEvents.fold(
             listOf(entry("a", "ДахаБраха", source = "karabas"), entry("b", "ДахаБраха", source = "karabas"))
         )
@@ -95,7 +89,7 @@ class DuplicateEventsTest {
 
     @Test
     fun `a community room is never merged away`() {
-        // Кімнату склеїти означало б сховати подію, до якої можна прийти, під чужим концертом.
+        // Кімнату спільноти не зливаємо ніколи.
         val folded = DuplicateEvents.fold(
             listOf(
                 entry("a", "Баядерка", source = "ibilet"),
@@ -151,8 +145,7 @@ class DuplicateEventsTest {
 
     @Test
     fun `a list without duplicates comes back untouched`() {
-        // Не «рівний», а **той самий**: платформи порівнюють списки за посиланням, щоб не
-        // перемальовувати мапу дарма.
+        // Той самий об'єкт, а не рівний: платформи порівнюють списки за посиланням.
         val events = listOf(
             entry("a", "Баядерка", startsAt = "2026-10-17T15:00:00Z"),
             entry("b", "Дон Кіхот", startsAt = "2026-10-18T15:00:00Z")

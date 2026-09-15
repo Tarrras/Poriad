@@ -19,26 +19,18 @@ from .geocode import Geocoder
 from .geocode import CITY_BBOX
 from .venues import VenueIndex
 
-# Простір імен для детермінованих ідентифікаторів: повторний запуск має давати ті самі UUID,
-# інакше кожен обхід створює дублікати замість оновлення.
+# Простір імен детермінованих UUID: повторний обхід оновлює, а не дублює.
 NAMESPACE = uuid.UUID("8b1f0a2e-6d3c-4a5b-9e7f-2c4d6a8b0e13")
 
 QUALITY_FLOOR = 0.55            # той самий поріг, що в private.is_discoverable
 
-# Скільки може тривати запис, щоб лишатись подією.
-#
-# Джерела продають квитком і те, що подією не є: «Київський океанаріум», «Музей медуз»,
-# VR-екскурсію. У таких `endDate` — це не кінець події, а дата, доки діє квиткова пропозиція;
-# у майстер-класі з Tafl вона стояла через 560 днів. Океанаріум працює щодня, і в стрічці
-# «триває зараз» він висів би місяцями, витісняючи те, заради чого в неї дивляться.
-#
-# Межа евристична: у вибірці на пʼять міст реальний прокат виставок і ярмарків укладався в
-# 86 днів, а найкоротша постійна пропозиція починалась зі 111. Це підібрано на одній вибірці,
-# а не виміряно — наступний, хто побачить тут 90, має знати саме це.
-#
-# Відсікаємо при імпорті, а не при показі: фільтр у базі ховає рядок, але рядок лишається,
-# займає місце в індексі й спливає в кожному новому запиті, який хтось напише пізніше.
+# Найдовший прокат, який ще вважаємо подією. Довше — постійна пропозиція (океанаріум, музей),
+# де `endDate` — термін дії квитка. Межа евристична: реальні прокати у вибірці до 86 днів,
+# постійні від 111. Відсікаємо при імпорті, а не при показі, щоб рядок не спливав у нових запитах.
 PERMANENT_RUN = dt.timedelta(days=90)
+
+# Скільки сторінок каталогу гортати: найбільший каталог закінчується на шостій, вісім дає запас.
+CATALOG_PAGES = 8
 
 
 @dataclasses.dataclass
@@ -161,6 +153,39 @@ def harvest(source: Source, city: str, index: VenueIndex,
                 counters["detail_errors"].append(f"{link}: {exc}")
         if counters["detail_errors"]:
             counters["error"] = "PARTIAL_DETAILS"
+    # Каталоги після головного списку: каталожна копія несе відповідь продавця про жанр.
+    if source.catalogs and source.catalog_url and (source.city_slugs or {}).get(city):
+        counters["catalogs"] = 0
+        counters["catalog_errors"] = []
+        city_slug = source.city_slugs[city]
+        for slug, category in source.catalogs.items():
+            base = source.catalog_url.format(city=city_slug, slug=slug)
+            seen: set = set()
+            for page_number in range(1, CATALOG_PAGES + 1):
+                link = base if page_number == 1 else f"{base}?page={page_number}"
+                try:
+                    page = get(link, delay=source.crawl_delay)
+                    if page.status != 200 or not page.body:
+                        raise ValueError(f"HTTP {page.status}")
+                    counters["fetched"] += 1
+                    found = extract.events_from_html(page.body)
+                except (PermissionError, OSError, ValueError) as exc:
+                    counters["catalog_errors"].append(f"{slug} с.{page_number}: {exc}")
+                    break
+                # Зупинка за відсутністю нового: після останньої сторінки джерело віддає першу заново.
+                fresh = [r for r in found
+                         if isinstance(r, dict) and str(r.get("url") or "") not in seen]
+                if not fresh:
+                    break
+                seen.update(str(r.get("url") or "") for r in fresh)
+                for raw in fresh:
+                    raw["_poruch_category"] = category
+                counters["catalogs"] += len(fresh)
+                raw_events.extend(fresh)
+            else:
+                # Межа сторінок, а нове ще йшло: список обрізаний, зняття за відсутністю вимикаємо.
+                counters["catalog_capped"] = counters.get("catalog_capped", 0) + 1
+
     if source.slug == "karabas" and status_notices:
         counters["status_detail_errors"] = []
         candidates = [notice for notice in status_notices
@@ -208,19 +233,25 @@ def harvest(source: Source, city: str, index: VenueIndex,
             continue
         items.append(item)
 
+    _rescue_addresses(items, source, city, geocoder, counters)
+
     if status_notices:
         items, withdrawals = apply_status_notices(items, status_notices, city=city)
         counters["withdrawals"].extend(withdrawals)
 
-    # A session may occur in a listing and in multiple detail pages. Merge before INSERT:
-    # PostgreSQL cannot update the same conflict key twice in one command.
+    # Сеанс може бути і в списку, і в кількох сторінках: зливаємо до INSERT, бо PostgreSQL
+    # не оновить той самий ключ конфлікту двічі в одній команді.
     unique: dict[str, Item] = {}
     previous_dates: dict[str, set] = {}
     for item in items:
         if item.previous_start:
             previous_dates.setdefault(item.source_uid, set()).add(item.previous_start)
         previous = unique.get(item.source_uid)
-        if previous is None or _quality(item, source.weight, 1) >= _quality(previous, source.weight, 1):
+        # Каталожна копія перемагає явно, а не порядком обходу.
+        if previous is not None and previous.category_how == "catalog" != item.category_how:
+            continue
+        if (previous is None or item.category_how == "catalog"
+                or _quality(item, source.weight, 1) >= _quality(previous, source.weight, 1)):
             unique[item.source_uid] = item
     counters["repeated_occurrences"] = len(items) - len(unique)
     items = list(unique.values())
@@ -232,8 +263,7 @@ def harvest(source: Source, city: str, index: VenueIndex,
             item.previous_start = None
             item.reject_reason = "CONFLICTING_PREVIOUS_START"
 
-    # Серія — та сама назва на тому самому майданчику багато разів. Довгі серії сеансів
-    # заповнюють мапу однаковими пінами, тому знижують якість, а не підвищують.
+    # Серія — та сама назва на тому ж майданчику багато разів: знижує якість, бо заповнює мапу однаковим.
     series: dict[tuple[str, str], int] = {}
     for it in items:
         key = (normalize.normalize_name(it.title), normalize.normalize_name(it.venue_name))
@@ -252,12 +282,43 @@ def harvest(source: Source, city: str, index: VenueIndex,
             it.stage = "published"
             counters["published"] += 1
             counters["geocoded"] += 1
+    _fold_same_source_copies(items, counters)
     return items, counters
+
+
+def _fold_same_source_copies(items: list[Item], counters: dict) -> None:
+    """Зводить копії одного сеансу, які одне джерело віддало під різними посиланнями: злиття за
+    `source_uid` їх не бачить (ключ включає посилання), злиття між джерелами теж (один продавець).
+
+    Назва має збігатися точно після зведення: один продавець у ту саму хвилину на тій самій точці
+    справді показує різне в сусідніх залах. Зайва копія стає `duplicate` з посиланням на
+    переможця, і `emit.duplicates_sql` зніме її рядок у базі.
+    """
+    groups: dict[tuple, list[Item]] = {}
+    for item in items:
+        if item.stage != "published":
+            continue
+        key = (normalize.normalize_name(item.title), item.starts_at,
+               round(item.latitude, 4), round(item.longitude, 4))
+        groups.setdefault(key, []).append(item)
+    for copies in groups.values():
+        if len(copies) < 2:
+            continue
+        # Той самий порядок, що при злитті за ключем: каталог, якість, посилання для стабільності.
+        copies.sort(key=lambda i: (i.category_how != "catalog", -i.quality, i.source_uid))
+        winner = copies[0]
+        for loser in copies[1:]:
+            loser.stage = "duplicate"
+            loser.duplicate_of = (winner.source_slug, winner.source_uid)
+            loser.reject_reason = f"DUPLICATE_OF {winner.source_slug} (same source)"
+            counters["published"] -= 1
+            counters["geocoded"] -= 1
+            counters["same_source_copies"] = counters.get("same_source_copies", 0) + 1
 
 
 def apply_status_notices(items: list[Item], notices: list[dict],
                          city: str | None = None) -> tuple[list[Item], list[dict]]:
-    """Apply explicit evidence to one exact URL/session, preserving rescheduled IDs."""
+    """Застосовує явне свідчення до одного URL/сеансу, зберігаючи id перенесених."""
     kept: list[Item] = []
     withdrawals: list[dict] = []
     used: set[tuple[str, str, str]] = set()
@@ -321,10 +382,16 @@ def _build(raw: dict, source: Source, city: str, index: VenueIndex,
     place = extract.place_of(raw)
     venue_name = normalize.clean_text(place.get("name"))
     address, addr_city, street = normalize.address_of(raw)
-    # Пастка B: місто беремо з розмітки, а не зі сторінки, на якій знайшли подію.
+    # Місто з розмітки, а не зі сторінки, де знайшли подію.
     event_city = addr_city or city
 
-    category, category_how = normalize.classify_with_reason(raw, title, venue_name)
+    # Верхній щабель — жанр з каталогу продавця: сильніший за тип schema.org і словник.
+    stamped = raw.get("_poruch_category")
+    if stamped in normalize.CATEGORIES:
+        category, category_how = stamped, "catalog"
+    else:
+        category, category_how = normalize.classify_with_reason(
+            raw, title, venue_name, getattr(source, "type_policy", "trust"))
     end, end_declared = normalize.resolve_end(
         start, raw.get("endDate"), category, source.tz_policy, source.time_zone)
     if end <= now or (start <= now and not end_declared):
@@ -333,13 +400,17 @@ def _build(raw: dict, source: Source, city: str, index: VenueIndex,
     full_description = normalize.clean_text(raw.get("description"))
     price_min, is_free = normalize.parse_price(raw)
 
-    # Порядок навмисний: звірене людиною -> дамп OSM -> Photon. Кожен наступний щабель менш
-    # надійний, і confidence це відображає, тож слабка точка сама опускає quality до порога.
+    # Порядок за надійністю: звірене людиною -> дамп OSM -> Photon; confidence це відображає.
     city_matches = normalize.normalize_name(event_city) == normalize.normalize_name(city)
     online = (status == "EventMovedOnline" or
               str(raw.get("eventAttendanceMode") or "").endswith("OnlineEventAttendanceMode") or
               place.get("@type") == "VirtualLocation")
-    hit = (index.match(venue_name) or index.match(address.split(",")[0])) if city_matches and not online else None
+    # Перший сегмент адреси — запасний ключ, але не назва міста: «Київ» зіставився б з будь-чим.
+    first_segment = address.split(",")[0].strip()
+    if normalize.normalize_name(first_segment) == normalize.normalize_name(event_city):
+        first_segment = ""
+    hit = (index.match(venue_name) or (index.match(first_segment) if first_segment else None)) \
+        if city_matches and not online else None
     if hit is None and city_matches and not online:
         geo = place.get("geo")
         if isinstance(geo, dict):
@@ -369,7 +440,7 @@ def _build(raw: dict, source: Source, city: str, index: VenueIndex,
         source_uid=source_uid,
         event_id=uuid.uuid5(NAMESPACE, f"{source.slug}|{source_uid}"),
         title=title,
-        # Пастка C: зберігаємо факти й короткий уривок, повний текст лишається за canonical_url.
+        # Зберігаємо факти й короткий уривок; повний текст лишається за canonical_url.
         description=normalize.clip(full_description, normalize.DESCRIPTION_LIMIT),
         category=category,
         category_how=category_how,
@@ -397,13 +468,74 @@ def _build(raw: dict, source: Source, city: str, index: VenueIndex,
     )
 
 
+# Скільки майданчиків геокодити за місто. Один запит на майданчик, не на подію.
+RESCUE_VENUES = 25
+
+
+def _rescue_addresses(items, source, city, geocoder, counters) -> None:
+    """Добирає адресу зі сторінки самої події для майданчиків, яких немає в індексі. Адресу
+    вже опублікувало те саме джерело, просто в картці, а не в списку. Координату однаково рахує
+    Photon з перевіркою за прямокутником міста: координати не вигадуються. Один запит на майданчик.
+    """
+    if geocoder is None:
+        return
+    blind = [i for i in items if i.latitude is None and i.canonical_url.startswith("https://")]
+    if not blind:
+        return
+    by_venue: dict[str, list] = {}
+    for item in blind:
+        by_venue.setdefault(normalize.normalize_name(item.venue_name) or item.canonical_url,
+                            []).append(item)
+    counters["rescued_venues"] = 0
+    counters["rescued_events"] = 0
+    for venue_items in sorted(by_venue.values(), key=lambda v: -len(v))[:RESCUE_VENUES]:
+        street = _street_from_detail(venue_items[0].canonical_url, source, counters)
+        if not street:
+            continue
+        hit = geocoder.lookup_street(street)
+        if not hit:
+            continue
+        south, west, north, east = CITY_BBOX[city]
+        if not (south <= hit["lat"] <= north and west <= hit["lon"] <= east):
+            continue
+        counters["rescued_venues"] += 1
+        for item in venue_items:
+            item.latitude, item.longitude = hit["lat"], hit["lon"]
+            item.venue_ref = hit.get("ref")
+            # Щабель чесний: адреса зі сторінки події, а не збіг з OSM.
+            item.venue_how = "detail"
+            item.geo_confidence = 0.8
+            item.address = item.address or street
+            item.quality = _quality(item, source.weight, 1)
+            if item.quality >= QUALITY_FLOOR:
+                item.stage, item.reject_reason = "published", None
+            counters["rescued_events"] += 1
+
+
+def _street_from_detail(url: str, source, counters) -> str | None:
+    try:
+        page = get(url, delay=source.crawl_delay)
+        if page.status != 200 or not page.body:
+            return None
+        counters["fetched"] = counters.get("fetched", 0) + 1
+        for raw in extract.events_from_html(page.body):
+            if not isinstance(raw, dict):
+                continue
+            _, _, street = normalize.address_of(raw)
+            if street and any(ch.isdigit() for ch in street):
+                return street
+    except (PermissionError, OSError, ValueError):
+        return None
+    return None
+
+
 def occurrence_uid(canonical: str, start: dt.datetime) -> str:
-    """Separate sessions even when a source reuses the same booking URL."""
+    """Розділяє сеанси, навіть коли джерело повторює той самий URL продажу."""
     return canonical + "#poruch-start=" + start.astimezone(dt.timezone.utc).isoformat()
 
-# ------------------------------------------------------------------ дедуплікація між джерелами
+# ---- Дедуплікація між джерелами
 
-# Слова, які нічого не розрізняють: вони є в половині афіші.
+# Слова, що нічого не розрізняють.
 _NOISE = {"концерт", "вистава", "шоу", "квитки", "київ", "гурт", "театр", "премʼєра",
           "прем'єра", "нового", "альбому", "тур", "презентація", "the", "band",
           "мюзикл", "музична", "комедія", "комедійне", "гумористичне",
@@ -415,24 +547,11 @@ def _tokens(title: str) -> set[str]:
     return {w for w in words if len(w) >= 3 and w not in _NOISE}
 
 
-# Наскільки можуть розійтись координати того самого майданчика, щоб це все ще була та сама подія.
-#
-# Раніше тут була побітова рівність, і вона коштувала 45 подій на прогоні пʼяти міст: заклад
-# приходив із двох джерел у двох написаннях, одне мало псевдонім і брало точку з OSM, друге йшло
-# в Photon — і точки розходились на 2–7 м. Дублікат не зливався, `MapPins` теж не зводив його в
-# один пін, і на мапі стояли два піни за три метри.
-#
-# Чому саме 25 м, а не більше. Виміряні розбіжності діляться на дві купи: 2–7 м — те саме місце
-# двома щаблями драбини, і 43–211 м — дві різні відповіді Photon на одну адресу. Допуск накриває
-# першу купу з великим запасом і навмисно не чіпає другу: там точка сама по собі ненадійна, і
-# зливати за нею небезпечно. Друга купа лишається в `near_miss_pairs` як робота для псевдонімів.
-#
-# Чому це не послаблює захист від хибного злиття. Від MODI (дві різні події на одній точці о тій
-# самій годині) боронять НЕ координати — вони там і так рівні — а перевірка слів у назві нижче.
-# Допуск не чіпає її взагалі. Ризик, який він додає, інший: два РІЗНІ майданчики за 25 м з тією
-# самою назвою й хвилиною початку. Двадцять пʼять метрів — це одна будівля, тож два різні заклади
-# в такому радіусі з однаковою афішею на ту саму хвилину неправдоподібні. Ширший допуск ламався б
-# уже на реальному випадку: два кінотеатри за сто метрів справді крутять той самий фільм о 19:00.
+# Допуск координат того самого майданчика. Один заклад з двох джерел бере точку з OSM і з
+# Photon, і вони розходяться на 2–7 м; різні відповіді Photon на одну адресу — на 43–211 м.
+# 25 м накриває перше і не чіпає друге (те лишається в `near_miss_pairs`). Від хибного злиття
+# боронить перевірка слів у назві, а два різні заклади в межах однієї будівлі з однаковою
+# афішею на ту саму хвилину неправдоподібні.
 SAME_PLACE_METRES = 25.0
 
 
@@ -458,10 +577,8 @@ def same_event(a: Item, b: Item) -> bool:
 
 
 def _titles_agree(ta: set[str], tb: set[str]) -> bool:
-    """Require containment or two shared meaningful words.
-
-    One shared word in two short titles is insufficient (evening of jazz vs poetry).
-    Genre decorations are removed by _tokens; genuine one-word titles still match.
+    """Вкладеність або два спільні значущі слова. Одного спільного слова у двох коротких назвах
+    замало («вечір джазу» проти «вечір поезії»). Жанрові слова знімає _tokens.
     """
     if not ta or not tb:
         return False
@@ -505,11 +622,38 @@ def near_miss_pairs(items: list[Item], limit_metres: float = 400.0) -> list[tupl
     return sorted(out, key=lambda p: p[2])
 
 
-def drop_cross_source_duplicates(items: list[Item], weights: dict[str, float]) -> list[Item]:
+def undecided_pairs(items: list[Item]) -> list[tuple[Item, Item]]:
+    """Пари, які збіглися хвилиною й місцем, але не назвою — тобто де правило за словами пасує.
+
+    Саме тут живуть переклади: «Львів Стартап Сніданок» від DOU і «Lviv Startup Breakfast» від
+    йой! — нуль метрів, та сама хвилина, жодного спільного слова. Те саме з «ATTACK ON TITAN»
+    проти «Атака титанів». Жодне правило на словах їх не зведе, бо слова різні за визначенням.
+
+    Функція нічого не вирішує: вона лише називає питання, на яке відповідає агент.
+    """
+    live = [i for i in items if i.stage == "published" and i.latitude is not None]
+    out: list[tuple[Item, Item]] = []
+    for index, a in enumerate(live):
+        for b in live[index + 1:]:
+            if a.source_slug == b.source_slug or a.starts_at != b.starts_at:
+                continue
+            if _metres(a, b) > SAME_PLACE_METRES:
+                continue
+            if not _titles_agree(_tokens(a.title), _tokens(b.title)):
+                out.append((a, b))
+    return out
+
+
+def drop_cross_source_duplicates(items: list[Item], weights: dict[str, float],
+                                 agent=None) -> list[Item]:
     """Лишає канонічну копію — з джерела з вищою вагою — і прибирає решту.
 
     Канонічність за вагою джерела, а не за порядком обходу: інакше результат залежав би від того,
     яке джерело сьогодні відповіло першим.
+
+    `agent` необовʼязковий. Якщо він є, після звичайного проходу в нього питають про пари, яких
+    правило за словами не бере, — і тільки про них. Питати про решту немає сенсу: там відповідь
+    уже відома й дешева.
     """
     published = sorted((i for i in items if i.stage == "published"),
                        key=lambda i: (-weights.get(i.source_slug, 0), -i.quality,
@@ -523,4 +667,16 @@ def drop_cross_source_duplicates(items: list[Item], weights: dict[str, float]) -
         candidate.stage = "duplicate"
         candidate.duplicate_of = (winner.source_slug, winner.source_uid)
         candidate.reject_reason = f"DUPLICATE_OF {winner.source_slug}"
+
+    if agent is not None:
+        pairs = undecided_pairs(items)
+        for (a, b), same in zip(pairs, agent.judge_pairs(pairs)):
+            if not same or a.stage != "published" or b.stage != "published":
+                continue
+            # Переможець за правилом (вага джерела, якість), а не за моделлю: та лише каже, чи це одна подія.
+            keep, drop = ((a, b) if (weights.get(a.source_slug, 0), a.quality)
+                          >= (weights.get(b.source_slug, 0), b.quality) else (b, a))
+            drop.stage = "duplicate"
+            drop.duplicate_of = (keep.source_slug, keep.source_uid)
+            drop.reject_reason = f"DUPLICATE_OF {keep.source_slug} (agent)"
     return items

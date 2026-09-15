@@ -1,10 +1,6 @@
 package app.poruch.shared
 
-/**
- * The colours a map style borrows from the platform design system. Both apps hold the same palette
- * in their own token file, so the map takes the ground, the paper and the ink from there and only
- * the hues a city needs — water, greenery, rails — are decided here, where the style lives.
- */
+/** Кольори, які стиль мапи бере з дизайн-системи платформи. Свої лише в води, зелені й рейок. */
 data class MapTokens(
     val canvas: String,
     val canvasTint: String,
@@ -17,24 +13,15 @@ data class MapTokens(
     val dark: Boolean
 )
 
-/**
- * Where the geometry and the letterforms come from. A build config may point them elsewhere; these
- * are the defaults, and they are plain `val`s so the iOS side can read them off the object too.
- * Credit for the data rides along in the tile server's TileJSON, which is what the attribution
- * control on both platforms displays.
- */
+/** Звідки беруться тайли і шрифти. Прості `val`, щоб iOS теж їх читав. Атрибуція їде в TileJSON сервера. */
 object MapEndpoints {
     val TILES = "https://tiles.openfreemap.org/planet"
     val GLYPHS = "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf"
 }
 
 /**
- * «Поруч» draws its own map rather than loading a ready-made one: a hosted style brings its own
- * greys, its own POI icons and its own label sizes, and none of them belong to this app. Here the
- * ground is the same warm paper the screens are printed on, roads are the card surface, and the
- * only things allowed to shout are the pins the app puts down itself.
- *
- * The schema is OpenMapTiles, so the layer and field names match any tile server that serves it.
+ * Власний стиль мапи замість готового: тло — той самий папір, що й екрани, дороги — поверхня
+ * карток, і лише піни мають право кричати. Схема OpenMapTiles, тож підійде будь-який її сервер.
  */
 fun poruchMapStyle(
     tokens: MapTokens,
@@ -72,10 +59,7 @@ fun poruchMapStyle(
     """.trimIndent()
 }
 
-/**
- * Map-only hues. Water and greenery have no counterpart in the app's palette — nothing else in
- * «Поруч» is a river — so they are chosen here against the paper rather than invented per platform.
- */
+/** Кольори лише для мапи: у палітрі застосунку немає води й зелені. */
 private class MapColors(
     val land: String, val landTint: String, val green: String, val water: String, val waterLine: String,
     val building: String, val buildingLine: String, val roadFill: String, val roadCasing: String,
@@ -95,7 +79,7 @@ private fun mapColors(t: MapTokens) = if (t.dark) MapColors(
     label = t.ink, labelMuted = t.inkSecondary, labelFaint = t.inkTertiary, labelHalo = t.canvas, waterLabel = "#6E858F"
 )
 
-/** Ukrainian first, then whatever the tile carries — a Kyiv street should not be labelled in English. */
+/** Спершу українська назва, потім будь-яка з тайла. */
 private const val NAME = """["coalesce", ["get", "name:uk"], ["get", "name"]]"""
 private const val REGULAR = """["Noto Sans Regular"]"""
 private const val BOLD = """["Noto Sans Bold"]"""
@@ -131,7 +115,7 @@ private fun waterway(c: MapColors) = """
       "filter": $LINES,
       "paint": { "line-color": "${c.waterLine}", "line-width": ${zoom(9 to 0.6, 16 to 3.5)} } }"""
 
-/** Blocks appear only once the camera is close enough for a building to mean something. */
+/** Будинки з'являються лише на зумі, де вони щось означають. */
 private fun buildings(c: MapColors) = """
     { "id": "building", "type": "fill", "source": "openmaptiles", "source-layer": "building", "minzoom": 13,
       "paint": { "fill-color": "${c.building}", "fill-outline-color": "${c.buildingLine}",
@@ -181,10 +165,7 @@ private fun boundary(c: MapColors) = """
       "paint": { "line-color": "${c.boundary}", "line-opacity": 0.45, "line-dasharray": [4, 3],
                  "line-width": ${zoom(3 to 0.8, 10 to 1.6)} } }"""
 
-/**
- * Street names arrive late, and side streets later still: below a walking zoom a full set of names
- * is a second layer of text competing with the pins the app came to show.
- */
+/** Назви вулиць з'являються пізно, провулки ще пізніше: нижче пішохідного зуму текст змагається з пінами. */
 private fun roadLabels(c: MapColors) = """
     { "id": "label-road-major", "type": "symbol", "source": "openmaptiles", "source-layer": "transportation_name", "minzoom": 14,
       "filter": ["match", ["get", "class"], ["motorway", "trunk", "primary", "secondary", "tertiary"], true, false],
@@ -197,10 +178,7 @@ private fun roadLabels(c: MapColors) = """
                   "text-size": ${zoom(16 to 10.0, 19 to 11.5)}, "text-letter-spacing": 0.02, "text-rotation-alignment": "map" },
       "paint": { "text-color": "${c.labelFaint}", "text-halo-color": "${c.labelHalo}", "text-halo-width": 1.1 } }"""
 
-/**
- * Rivers and lakes are named only while the whole city is in frame. Higher up the tiles start
- * handing out every fountain in a park, each one class `lake` and none of them a landmark.
- */
+/** Ріки й озера підписані, лише поки в кадрі все місто: ближче тайли віддають кожен фонтан як `lake`. */
 private fun waterLabels(c: MapColors) = """
     { "id": "label-water", "type": "symbol", "source": "openmaptiles", "source-layer": "water_name", "minzoom": 8, "maxzoom": 12.5,
       "layout": { "text-field": $NAME, "text-font": $ITALIC, "text-max-width": 6, "text-letter-spacing": 0.1,
@@ -208,11 +186,8 @@ private fun waterLabels(c: MapColors) = """
       "paint": { "text-color": "${c.waterLabel}", "text-halo-color": "${c.labelHalo}", "text-halo-width": 1.2 } }"""
 
 /**
- * Districts are set the way the app sets a section label — small caps, wide tracking — so the map
- * reads as part of «Поруч» and not as a map with the app drawn on top of it.
- *
- * Only the districts a person would name when arranging to meet: the tiles rank a `suburb` around
- * 15 and a back-yard `neighbourhood` past 40, and printing all of them buries the pins.
+ * Райони набрані як заголовок секції в застосунку: капітель, широкий трекінг. Лише ті, які
+ * назвуть, домовляючись про зустріч: `rank` до 25, інакше підписи ховають піни.
  */
 private fun districtLabels(c: MapColors) = """
     { "id": "label-district", "type": "symbol", "source": "openmaptiles", "source-layer": "place", "minzoom": 12.5,
@@ -228,10 +203,7 @@ private fun settlementLabels(c: MapColors) = """
                   "text-size": ${zoom(8 to 11.0, 13 to 13.0)} },
       "paint": { "text-color": "${c.labelMuted}", "text-halo-color": "${c.labelHalo}", "text-halo-width": 1.3 } }"""
 
-/**
- * The city name fades out before the map opens on it: the screen names the city in its own control
- * at the top, and a second headline across the middle only competes with the pins.
- */
+/** Назва міста згасає до того, як мапа на ньому відкриється: місто вже назване в контролі зверху. */
 private fun cityLabels(c: MapColors) = """
     { "id": "label-city", "type": "symbol", "source": "openmaptiles", "source-layer": "place", "minzoom": 4,
       "filter": ["match", ["get", "class"], ["city", "state", "country"], true, false],

@@ -6,10 +6,8 @@
     python3 -m tools.ingest --sql-dir out/               # усі міста, SQL по файлу на місто
     python3 -m tools.ingest --source karabas --json out.json
 
-За замовчуванням це суха проба: друкує зведення й нічого не змінює. SQL треба застосовувати
-свідомо — конвеєр не має доступу до бази й не має його отримувати. Це навмисно: обхід чужих
-сайтів і запис у власну базу — різні за наслідками дії, і змішувати їх в одну команду означає
-зробити необоротне таким же дешевим, як оборотне.
+За замовчуванням суха проба: друкує зведення й нічого не змінює. Конвеєр не має доступу до
+бази навмисно: обхід чужих сайтів і запис у власну базу — різні за наслідками дії.
 """
 from __future__ import annotations
 
@@ -22,11 +20,38 @@ import sys
 import uuid
 
 from . import emit, karabas_status, normalize, report
+from .agent import Agent, DEFAULT_PROVIDER, PROVIDERS
 from .fetch import get
 from .geocode import CITY_BBOX, Geocoder
 from .pipeline import drop_cross_source_duplicates, harvest, near_miss_pairs
 from .sources import by_slug, enabled_sources
 from .venues import build_index
+
+
+# Мінімум розібраних подій, щоб відсутність щось доводила: менше — порожнє місто або зламана сторінка.
+RETIRE_MIN_SEEN = 10
+
+
+def _may_retire(source, items, counters) -> tuple[bool, str]:
+    """Чи доводить цей обхід, що зниклі з афіші події скасовано.
+
+    Зняття за відсутністю небезпечне рівно одним: невдалий обхід виглядає як масове скасування.
+    Тому воно дозволене лише тоді, коли обхід бачив увесь список джерела й без помилок. Решту
+    підстраховує запобіжник на частку в самому SQL (`emit.RETIRE_MAX_SHARE`).
+    """
+    if source.adapter != "jsonld":
+        return False, "адаптер читає вибірку, а не весь список"
+    if source.detail_path:
+        return False, "картки читаються вибірково"
+    if counters.get("error"):
+        return False, f"помилка обходу: {counters['error']}"
+    if counters.get("catalog_errors"):
+        return False, "частина каталогів не відкрилась"
+    if counters.get("catalog_capped"):
+        return False, "каталог обрізано межею сторінок"
+    if len(items) < RETIRE_MIN_SEEN:
+        return False, f"розібрано лише {len(items)} подій"
+    return True, ""
 
 
 def run_city(city: str, sources: list, run_id: str, *, agent: Agent | None = None,
@@ -67,17 +92,19 @@ def run_city(city: str, sources: list, run_id: str, *, agent: Agent | None = Non
         errs = f", помилок {len(geocoder.errors)}" if geocoder.errors else ""
         print(f"  Photon: {geocoder.calls} запитів{errs}")
 
-    # Агент розбирає лише те, що лишилось після типу й словника, і робить це ДО дедуплікації:
-    # категорія бере участь у виборі канонічної копії, тож виправляти її після злиття пізно.
+    # Агент до дедуплікації: категорія бере участь у виборі канонічної копії.
     if agent is not None:
         changed = agent.classify(all_items)
         if changed or agent.unknown or agent.errors:
             print(f"  Агент: розібрав {changed}, «жодна категорія» {len(agent.unknown)}"
                   f"{', помилок ' + str(len(agent.errors)) if agent.errors else ''}")
 
-    # Дедуплікація ДО генерації SQL: emit фільтрує за stage у момент виклику, тож усе, що
-    # згенеровано раніше, несло б дублі в собі, хоч би що казав підсумок.
-    all_items = drop_cross_source_duplicates(all_items, {s.slug: s.weight for s in usable})
+    # Дедуплікація до генерації SQL: emit фільтрує за stage у момент виклику.
+    all_items = drop_cross_source_duplicates(all_items, {s.slug: s.weight for s in usable}, agent)
+    # Після дедуплікації: там агент відповідає про спірні пари.
+    if agent is not None and agent.merges:
+        merged = sum(1 for *_, same, _ in agent.merges if same)
+        print(f"  Агент про пари: злито {merged} із {len(agent.merges)} спірних")
     published = [i for i in all_items if i.stage == "published"]
     duplicates = [i for i in all_items if i.stage == "duplicate"]
     review = [i for i in all_items if i.stage == "review"]
@@ -100,17 +127,32 @@ def run_city(city: str, sources: list, run_id: str, *, agent: Agent | None = Non
                           + emit.events_sql(items, run_id, max_bytes=statement_bytes))
         sql_parts += emit.withdrawals_sql(source.slug, counters.get("withdrawals", []), run_id)
     sql_parts += emit.duplicates_sql(all_items, run_id)
+
+    # Зняття за відсутністю останнім: вставки вище вже перейменували рядки з новим ключем.
+    retired, skipped = [], []
+    for source, items, counters in harvested:
+        allowed, why = _may_retire(source, items, counters)
+        counters["retire"] = "так" if allowed else why
+        if allowed:
+            sql_parts.append(emit.retire_absent_sql(source.slug, city, [i.source_uid for i in items]))
+            retired.append(source.slug)
+        else:
+            skipped.append(f"{source.slug}: {why}")
+    if retired or skipped:
+        print(f"  Зняття зниклих з афіші: {', '.join(retired) or 'жодне джерело'}")
+        for line in skipped:
+            print(f"    не знімаємо, {line}")
     return all_items, sql_parts
 
 
 def _write_sql(path: pathlib.Path, run_id: str, parts: list[str], count: int,
                max_bytes: int = 0) -> None:
-    """Validate complete statements and byte budgets before writing any output."""
+    """Перевіряє цілісність команд і бюджет байтів до запису будь-якого виводу."""
     used = [p for p in parts if p]
     head = (f"-- згенеровано tools.ingest, run_id={run_id}\n"
             "-- Лише підтверджені скасування; відсутність у списку не знімає подію.\n")
     chunks: list[list[str]] = [[]]
-    # Reserve space for transaction wrappers and numbered-part comments.
+    # Запас на обгортки транзакцій і коментарі з номером частини.
     budget = max_bytes - len(head.encode("utf-8")) - 128 if max_bytes else 0
     if max_bytes and (budget <= 0 or any(len(p.encode("utf-8")) > budget for p in used)):
         raise ValueError("SQL-команда з заголовком перевищує --sql-max-bytes")
@@ -155,8 +197,10 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--refresh-osm", action="store_true", help="перезавантажити дамп OSM")
     ap.add_argument("--no-photon", action="store_true", help="не геокодувати те, чого немає в OSM")
     ap.add_argument("--agent", action="store_true",
-                    help="дати моделі розібрати те, чого не взяли тип і словник"
-                         " (потрібен ANTHROPIC_API_KEY)")
+                    help="дати моделі розібрати те, чого не взяли тип і словник")
+    ap.add_argument("--agent-provider", choices=sorted(PROVIDERS), default=DEFAULT_PROVIDER,
+                    help="постачальник моделі; ключ і модель — зі змінних середовища"
+                         " (OPENAI_API_KEY / OPENAI_MODEL)")
     ap.add_argument("--limit", type=int, help="показати не більше N рядків у зведенні")
     ap.add_argument("--no-karabas-status", action="store_true",
                     help="не читати окрему таблицю скасувань/переносів Karabas")
@@ -173,16 +217,14 @@ def main(argv: list[str] | None = None) -> int:
         print("Немає ввімкнених джерел", file=sys.stderr)
         return 2
 
-    # Міста беремо з самих джерел, а не зі списку в коді: додав місто в sources.py — воно
-    # обходиться. Порядок сталий, щоб вивід двох прогонів можна було порівняти очима.
+    # Міста з самих джерел: додав у sources.py — обходиться. Порядок сталий для порівняння прогонів.
     known = [c for c in dict.fromkeys(c for s in sources for c in s.listing_urls)]
     cities = list(dict.fromkeys(args.city or known))
     unknown = [c for c in cities if c not in known]
     if unknown:
         print(f"Невідомі міста: {unknown}. Доступні: {known}", file=sys.stderr)
         return 2
-    # Місто без прямокутника не має ані дампу майданчиків, ані геокодування — краще сказати це
-    # зараз, ніж після півгодинного обходу.
+    # Місто без прямокутника — краще сказати зараз, ніж після обходу.
     missing_bbox = [c for c in cities if c not in CITY_BBOX]
     if missing_bbox:
         print(f"Немає прямокутника в geocode.CITY_BBOX для: {missing_bbox}", file=sys.stderr)
@@ -190,10 +232,11 @@ def main(argv: list[str] | None = None) -> int:
 
     agent = None
     if args.agent:
-        agent = Agent()
+        agent = Agent(provider=args.agent_provider)
         if not agent.ready:
-            print("--agent потребує ANTHROPIC_API_KEY у середовищі", file=sys.stderr)
+            print(f"--agent потребує {agent.provider.env_key} у середовищі", file=sys.stderr)
             return 2
+        print(f"Агент: {agent.provider.name}, модель {agent.model}")
 
     run_id = str(uuid.uuid4())
     print(f"Обхід: {', '.join(cities)}\nrun_id={run_id}")
@@ -236,16 +279,16 @@ def main(argv: list[str] | None = None) -> int:
         for name, count in top.most_common(args.limit or 6):
             print(f"  {count:3}×  {name[:66]}")
 
-    # Головне питання цього прогону: чи вистачає категорій під те, що приносять джерела.
+    # Чи вистачає категорій під те, що приносять джерела.
     report.print_category_gaps(report.category_gaps(everything), normalize.CATEGORIES)
+    # Чи не бреше джерело про тип: лічильник, не модель.
+    report.print_source_health(report.source_health(everything, sources))
 
     if args.json:
         args.json.write_text(emit.to_json(everything), "utf-8")
         print(f"\nJSON: {args.json}")
     if args.sql:
-        # Один файл на весь обхід — це те, як SQL застосовують насправді: одна транзакція, одне
-        # свідоме рішення. Розбиття по містах лишається для випадку, коли міста оновлюють
-        # окремо; кожен `retire` обмежений своїм містом, тож обидві форми самодостатні.
+        # Один файл на обхід — одна транзакція. Розбиття по містах лишається для окремих оновлень.
         parts = [p for city in cities for p in per_city[city][1]]
         _write_sql(args.sql, run_id, parts, len(published), args.sql_max_bytes)
     elif args.sql_dir:

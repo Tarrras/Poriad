@@ -11,10 +11,7 @@ import app.poruch.shared.PoruchApp
 import java.time.Instant
 import java.time.ZoneId
 
-/**
- * The three-step editor. It keeps the form, restores a draft through [DraftStore] so a closed app
- * does not lose typing, and only reaches the store once every field parses.
- */
+/** Редактор на три кроки. Тримає форму, відновлює чернетку з [DraftStore], у стор іде лише коли все розбирається. */
 class EditorViewModel(
     private val app: PoruchApp,
     private val drafts: DraftStore,
@@ -24,16 +21,10 @@ class EditorViewModel(
     private var original: Event? = null
     private var submitted = false
 
-    /**
-     * Хто зараз має право писати в поле адреси.
-     *
-     * Скасувати корутину замало: запит до мережі вже пішов, і його відповідь прийде в будь-якому
-     * разі. Токен вирішує, чи вона ще комусь потрібна — інакше пізня відповідь затирала б те, що
-     * людина набрала після неї.
-     */
+    /** Токен запиту адреси: пізня відповідь не має затирати те, що набрали після неї. */
     private var addressToken = 0
 
-    /** Останнє, що знайшлось під ціллю. Тримаємо разом із координатами, бо саме пара має збігтись. */
+    /** Останнє знайдене під ціллю, разом із координатами. */
     private var aimed: Pair<Pair<Double, Double>, PlaceResult>? = null
     private var aimJob: Job? = null
 
@@ -43,13 +34,12 @@ class EditorViewModel(
         original = event
         reduce {
             val restored = event?.toForm() ?: drafts.load(shared.cityName)
-            // Мапа відкривається на крапці, якщо вона вже є: чернетка з обраною адресою, показана
-            // над центром міста, читається як втрачена адреса.
+            // Мапа відкривається на крапці, якщо вона вже є.
             val (latitude, longitude) = restored.point ?: (shared.cityLatitude to shared.cityLongitude)
             copy(form = restored, mapLatitude = latitude, mapLongitude = longitude)
         }
         observe(app) { latest ->
-            // Editing an event opened from a deep link: its record may arrive after this screen did.
+            // Редагування з deep link: запис може приїхати після екрана.
             val loaded = editingId?.let { id -> latest.selectedEvent?.takeIf { it.id == id } }
             if (loaded != null && original == null) {
                 original = loaded
@@ -69,7 +59,7 @@ class EditorViewModel(
                 val before = state.value.form.address
                 reduce { copy(form = intent.change(form)) }
                 persist()
-                // Адресу набирають — шукаємо. Решту полів це не стосується.
+                // Пошук лише при зміні адреси.
                 if (state.value.form.address != before) suggestAddresses(state.value.form.address)
             }
             is EditorIntent.PickAddress -> {
@@ -77,7 +67,7 @@ class EditorViewModel(
                     copy(
                         form = form.copy(
                             address = intent.place.label,
-                            // Місто їде за адресою: крапка могла виявитись і в іншому місті.
+                            // Місто їде за адресою.
                             city = intent.place.city.ifBlank { form.city },
                             latitude = intent.place.latitude.format(),
                             longitude = intent.place.longitude.format()
@@ -97,7 +87,7 @@ class EditorViewModel(
             }
             is EditorIntent.AimAt -> describeAim(intent.latitude, intent.longitude)
             is EditorIntent.PickPoint -> {
-                // Six decimals is about a tenth of a metre — more digits are noise on screen.
+                // Шість знаків — близько 10 см, більше на екрані шум.
                 val known = aimed?.takeIf { it.first == (intent.latitude to intent.longitude) }?.second
                 reduce {
                     copy(
@@ -112,7 +102,7 @@ class EditorViewModel(
                 }
                 persist()
                 resolveZone(intent.latitude, intent.longitude)
-                // Екран вибору вже спитав про цю крапку — питати вдруге означало б чекати двічі.
+                // Екран вибору вже спитав про цю крапку.
                 if (known == null) describePoint(intent.latitude, intent.longitude)
             }
             EditorIntent.Next -> reduce { if (canAdvance) copy(step = step.next()) else this }
@@ -147,21 +137,11 @@ class EditorViewModel(
         if (editingId == null) drafts.save(state.value.form)
     }
 
-    /**
-     * Пояс іде за місцем.
-     *
-     * Мапу тягають пальцем, тож запитів було б стільки ж, скільки кадрів — а геокодер ходить у
-     * мережу. Тому питаємо, коли рух зупинився, і скасовуємо попереднє питання, якщо не встиг.
-     */
+    /** Пояс за місцем. Питаємо після зупинки руху: геокодер ходить у мережу. */
     private var zoneJob: Job? = null
     private var addressJob: Job? = null
 
-    /**
-     * Підказки адрес.
-     *
-     * Чекаємо паузи в наборі: кожен запит іде в мережу, а половина слова однаково нічого не
-     * знайде. Зсув беремо від того, що вже на мапі — та сама вулиця є в десятку міст.
-     */
+    /** Підказки адрес після паузи в наборі, з пріоритетом біля того, що вже на мапі. */
     private fun suggestAddresses(query: String) {
         addressJob?.cancel()
         if (query.trim().length < MIN_ADDRESS_QUERY) {
@@ -180,15 +160,7 @@ class EditorViewModel(
         }
     }
 
-    /**
-     * Крапку поставили пальцем — лишається сказати, що це за адреса.
-     *
-     * Поле й мапа показують одне й те саме, тож рухати його можна з обох боків: обрана підказка
-     * веде крапку, поставлена крапка веде поле. Без цього номер будинку мовчки лишався від
-     * попередньої адреси — тобто поле брехало про те, куди прийдуть люди.
-     *
-     * Затримка та сама, що й у підказок: крапку рідко ставлять з першого разу.
-     */
+    /** Адреса поставленої крапки: поле й мапа показують одне, тож крапка веде поле, як підказка веде крапку. */
     private fun describePoint(latitude: Double, longitude: Double) {
         addressJob?.cancel()
         val token = ++addressToken
@@ -199,7 +171,7 @@ class EditorViewModel(
                 reduce {
                     copy(
                         form = form.copy(address = place.label, city = place.city.ifBlank { form.city }),
-                        // Підказки під полем стосувались того, що набирали до крапки.
+                        // Старі підказки стосувались набору до крапки.
                         addressSuggestions = emptyList()
                     )
                 }
@@ -208,12 +180,7 @@ class EditorViewModel(
         }
     }
 
-    /**
-     * Що зараз під ціллю.
-     *
-     * Окремо від [describePoint], бо це інше питання: там крапку вже обрали й пишуть у форму,
-     * тут її ще приміряють. Тому й токен окремий — відповіді не мають затирати одна одну.
-     */
+    /** Що під ціллю. Окремо від [describePoint]: там крапку вже обрали, тут ще приміряють. */
     private fun describeAim(latitude: Double, longitude: Double) {
         aimJob?.cancel()
         reduce { copy(aimAddress = "") }
@@ -239,10 +206,7 @@ class EditorViewModel(
         }
     }
 
-    /**
-     * Редагувати можна лише те, що ми проводимо самі: сервер відмовляє в цьому тим самим
-     * `assert_event_editable`, і без кімнати редактору просто нічим наповнити половину полів.
-     */
+    /** Редагувати можна лише кімнату: сервер перевіряє те саме в `assert_event_editable`. */
     private fun Event.toForm(): EditorForm? {
         val room = gathering ?: return null
         return EditorForm(
@@ -261,16 +225,13 @@ class EditorViewModel(
     private fun Double.format() = "%.6f".format(java.util.Locale.ROOT, this).trimEnd('0').trimEnd('.')
 
     private companion object {
-        /** Стільки чекаємо, доки мапу перестануть тягати. Геокодер ходить у мережу. */
+        /** Пауза після руху мапи перед запитом поясу. */
         const val ZONE_SETTLE_MS = 500L
-        /** Те саме для набору адреси. */
+        /** Пауза в наборі адреси. */
         const val ADDRESS_SETTLE_MS = 350L
-        /** Коротше за це запит нічого не звужує. */
+        /** Коротший запит нічого не звужує. */
         const val MIN_ADDRESS_QUERY = 3
-        /**
-         * Ціль на екрані вибору. Коротше за решту: тут людина дивиться саме на цей рядок і чекає
-         * на нього, а мапа вже стоїть — камера повідомляє про зупинку, а не про кожен кадр.
-         */
+        /** Пауза для цілі на екрані вибору: коротша, бо людина чекає саме на цей рядок. */
         const val AIM_SETTLE_MS = 200L
     }
 }

@@ -16,19 +16,20 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import app.poruch.android.EventMap
+import app.poruch.android.LocalSharedMapView
 import app.poruch.android.R
 import app.poruch.android.ui.*
 import app.poruch.shared.DateFilter
 
-/** Height of the gradient the top controls sit on, and the inset the map keeps clear beneath them. */
+/** Висота градієнта під верхніми контролами і відступ мапи під ними. */
 internal val TopControlsInset = 208.dp
-/** The deck occupies this band whether it holds the carousel or the empty card. */
+/** Смуга шторки, з каруселлю чи порожньою карткою. */
 internal val CarouselInset = 268.dp
 
 @Composable
 fun ExploreScreen(state: ExploreState, onIntent: (ExploreIntent) -> Unit) {
     val colors = Poruch.colors
-    Box(Modifier.fillMaxSize().background(colors.canvas)) {
+    BoxWithConstraints(Modifier.fillMaxSize().background(colors.canvas)) {
         EventMap(
             events = state.mapEvents, latitude = state.cityLatitude, longitude = state.cityLongitude,
             selectedId = state.selectedId, topInset = TopControlsInset, bottomInset = CarouselInset,
@@ -36,15 +37,15 @@ fun ExploreScreen(state: ExploreState, onIntent: (ExploreIntent) -> Unit) {
             onSelect = { onIntent(ExploreIntent.SelectEvent(it)) },
             onSelectStack = { onIntent(ExploreIntent.SelectStack(it)) },
             onAreaChanged = { onIntent(ExploreIntent.AreaMoved(it?.let { b -> Area(b.south, b.west, b.north, b.east) })) },
-            onLoadFailed = { onIntent(ExploreIntent.MapFailed(it)) }
+            onLoadFailed = { onIntent(ExploreIntent.MapFailed(it)) },
+            shared = LocalSharedMapView.current
         )
         Box(
             Modifier.fillMaxWidth().height(TopControlsInset)
                 .background(Brush.verticalGradient(listOf(colors.canvas.copy(alpha = 0.94f), colors.canvas.copy(alpha = 0f))))
         )
         TopControls(state, onIntent)
-        MapBottomDeck(state, Modifier.align(Alignment.BottomCenter), onIntent)
-        if (state.listMode) ExploreList(state, onIntent)
+        DiscoverySheet(state, maxHeight, Modifier.align(Alignment.BottomCenter), onIntent)
     }
 
     when (state.sheet) {
@@ -80,8 +81,7 @@ private fun TopControls(state: ExploreState, onIntent: (ExploreIntent) -> Unit) 
         }
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
             dateFilters.forEach { (key, label) ->
-                // Тап по вибраному чипу знімає вибір. Інакше звузити дату можна, а повернутись —
-                // лише знайшовши «Будь-коли», який до того ж міг виїхати за край рядка.
+                // Повторний тап знімає вибір, щоб не шукати «Будь-коли» за краєм рядка.
                 PoruchChip(stringResource(label), state.dateFilter == key, {
                     onIntent(ExploreIntent.PickDate(if (state.dateFilter == key) DateFilter.ANY else key))
                 })
@@ -99,15 +99,7 @@ private fun TopControls(state: ExploreState, onIntent: (ExploreIntent) -> Unit) 
     }
 }
 
-/**
- * «Шукати тут» і повтор після збою мапи.
- *
- * Живуть у тій самій колонці, що й верхні контроли, а не окремим шаром із розрахованим зсувом.
- * Зсув був `TopControlsInset − 40.dp`, тобто 168 dp, а контроли займають близько 184 — підказка
- * лягала рівно на рядок чипів дат і робила їх ненатискними. Саме тоді, коли мапу щойно посунули,
- * тобто саме тоді, коли хочеться звузити дату. Константа ще й бреше у стані `locationDenied`,
- * який додає згори цілий рядок. Тепер зсуву немає взагалі: розкладка сама тримає порядок.
- */
+/** «Шукати тут» і повтор після збою мапи. У тій самій колонці, що й контроли: окремий шар зі зсувом перекривав чипи дат. */
 @Composable
 private fun AreaPrompts(state: ExploreState, modifier: Modifier, onIntent: (ExploreIntent) -> Unit) {
     Column(

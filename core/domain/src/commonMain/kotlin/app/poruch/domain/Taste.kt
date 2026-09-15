@@ -6,12 +6,9 @@ import kotlinx.datetime.isoDayNumber
 import kotlinx.datetime.toLocalDateTime
 
 /**
- * The three things the app asks on the way in, and the only things it claims to know about a
- * person's taste. Everything is a string, the way categories and filters already are, because both
- * platforms store and pass these around and neither should carry a Kotlin enum to do it.
- *
- * [answered] is what separates «has no preferences» from «has not been asked», and it is the only
- * reason the questions are not shown twice.
+ * Три відповіді з онбордингу — все, що застосунок знає про смак людини. Рядки, а не enum,
+ * бо обидві платформи їх зберігають і передають. [answered] відрізняє «без уподобань» від
+ * «ще не питали», щоб не показувати питання двічі.
  */
 data class Taste(
     val interests: List<String> = emptyList(),
@@ -19,14 +16,11 @@ data class Taste(
     val crowd: String = Crowd.ANY,
     val answered: Boolean = false
 ) {
-    /** Answered, but with nothing to rank on — a deliberate «show me everything». */
+    /** Відповіли, але нема за чим ранжувати: свідоме «покажи все». */
     val isBlank get() = interests.isEmpty() && times.isEmpty() && crowd == Crowd.ANY
 }
 
-/**
- * When a person is free, in the event's own local time. Four slots and not a schedule: the answer
- * has to be truthful after one tap, and nobody fills in a week grid to see what is on tonight.
- */
+/** Коли людина вільна, у локальному часі події. Чотири слоти, а не розклад: відповідь одним тапом. */
 object TimeSlot {
     const val WEEKDAY_DAY = "weekday_day"
     const val WEEKDAY_EVENING = "weekday_evening"
@@ -35,13 +29,13 @@ object TimeSlot {
 
     val all = listOf(WEEKDAY_DAY, WEEKDAY_EVENING, WEEKEND_DAY, WEEKEND_EVENING)
 
-    /** After work, in the ordinary sense of it. */
+    /** Після роботи. */
     const val EVENING_FROM_HOUR = 17
 
     fun isSlot(value: String) = value in all
 }
 
-/** How many people someone wants around them. The thresholds are event capacity, not attendance. */
+/** Бажаний розмір компанії. Пороги — місткість події, а не кількість учасників. */
 object Crowd {
     const val INTIMATE = "intimate"
     const val MEDIUM = "medium"
@@ -49,67 +43,52 @@ object Crowd {
 
     val all = listOf(INTIMATE, MEDIUM, ANY)
 
-    /** A dinner table, then a room, then whatever. */
+    /** Стіл, кімната, будь-що. */
     const val INTIMATE_UP_TO = 12
     const val MEDIUM_UP_TO = 40
 
     fun isCrowd(value: String) = value in all
 }
 
-/** Answers kept on the device: they are useful before there is an account, and they outlive one. */
+/** Відповіді на пристрої: потрібні ще до акаунта і переживають його. */
 interface TasteStore {
     fun read(): Taste
     fun write(taste: Taste)
 }
 
 /**
- * Те мінімальне, за чим взагалі можна дати події бал.
- *
- * Існує, щоб ранжування працювало і над [Event], і над [EventIndexEntry], не знаючи різниці. Це не
- * узагальнення заради узагальнення: порядок має рахуватися над **повним** індексом міста, а не над
- * тим вікном карток, що встигло завантажитись, — інакше найкраща відповідь на смак людини не
- * підніметься нагору тільки тому, що вона 340-та за датою.
- *
- * Кімната описана двома питаннями, а не полем `capacity`, бо саме так її й питають: «якого розміру
- * компанія» і «чи лишилось місце». У афіші кімнати немає, і обидва відповідають «ні».
+ * Мінімум, за яким можна дати події бал. Спільний для [Event] і [EventIndexEntry], щоб
+ * ранжувати повний індекс міста, а не лише завантажене вікно карток. Кімната описана двома
+ * питаннями — розмір і чи є місце; в афіші кімнати нема, і обидва відповідають «ні».
  */
 interface Rankable {
     val category: String
     val startsAt: String
     val timeZone: String
     val isCancelled: Boolean
-    /** Розмір кімнати; `null` там, де кімнати немає. */
+    /** Розмір кімнати. Null — кімнати немає. */
     val roomCapacity: Int?
     /** Кімната є і в ній лишилось місце. */
     val roomHasSeats: Boolean
 }
 
 /**
- * Turns the answers into an order.
- *
- * A score, never a filter. The map found these events inside the area the reader is looking at, and
- * quietly dropping the ones that missed a checkbox would make the app lie about what is nearby —
- * so everything stays and only the order changes. A cancelled event is the single exception; it
- * sinks below everything else because it is not a plan any more.
- *
- * The weights are ordinary integers rather than a learned model: the reasons are the three answers
- * we asked for, and a person should be able to look at the list and see why it is in that order.
+ * Перетворює відповіді на порядок. Це бал, а не фільтр: усе, що мапа знайшла в області,
+ * лишається, змінюється лише порядок. Виняток — скасована подія, вона йде в кінець.
+ * Ваги — прості числа, щоб з порядку списку було видно, чому він такий.
  */
 object TasteRanking {
-    /** What the person came for. Nothing else outranks the subject. */
+    /** Інтерес важить найбільше. */
     const val INTEREST = 40
-    /** Being free when it happens is the difference between a plan and a nice idea. */
+    /** Вільний час — різниця між планом і гарною ідеєю. */
     const val TIME = 25
     const val CROWD = 15
     /**
-     * A full event is still worth showing — the waitlist is real — but not ahead of an open one.
-     *
-     * Афіша не отримує цих балів ніколи: у неї немає кімнати, тож і вільних місць немає. Так
-     * виконується правило з docs/event-discovery.md §4.2 — імпорт заповнює тло, а не змагається
-     * за увагу з подіями спільноти — без окремого штрафу «бо це імпорт».
+     * Повна подія варта показу (черга справжня), але не попереду відкритої. Афіша цих балів
+     * не отримує: кімнати нема. Так імпорт лишається тлом (docs/event-discovery.md §4.2).
      */
     const val SEATS = 10
-    /** Fades to nothing across three days: «this week» is a plan, «next month» is a maybe. */
+    /** Згасає за три дні: «цього тижня» — план, «наступного місяця» — може бути. */
     const val SOON = 10
     const val SOON_HOURS = 72
     private const val CANCELLED = -1000
@@ -128,42 +107,28 @@ object TasteRanking {
     }
 
     /**
-     * Коли подія цікава зараз.
-     *
-     * Для майбутньої це її початок. Для тієї, що вже йде, — «зараз»: виставка з прокатом до
-     * 30 вересня почалась місяць тому, і сортування за датою початку пришпилило б її до верху
-     * списку на весь прокат. Те саме робить `greatest(starts_at, now())` на сервері — порядок
-     * має бути один, інакше вікно карток приїжджає не під ту стрічку, яку людина бачить.
-     *
-     * `null` означає нерозбірну дату; такі рядки їдуть у кінець, а не падають.
+     * Ключ часу: початок для майбутньої події, «зараз» для тієї, що вже йде, інакше довга
+     * виставка висіла б угорі весь прокат. Збігається з `greatest(starts_at, now())` на сервері.
+     * Null — нерозбірна дата, такі їдуть у кінець.
      */
     private fun interestingAt(event: Rankable, now: Instant): Instant? =
         runCatching { Instant.parse(event.startsAt) }.getOrNull()?.let { if (it < now) now else it }
 
-    /**
-     * The order every list in the app uses. Ties break on [interestingAt], so two events a person
-     * has said nothing about still come in the order they will actually happen — and one that is
-     * already under way counts as «now» rather than as the date it began.
-     */
+    /** Порядок для всіх списків застосунку. Нічиї розбиває [interestingAt]. */
     fun <T : Rankable> rank(events: List<T>, taste: Taste, now: Instant): List<T> {
-        // Оцінка й ключ порядку рахуються один раз на подію, а не всередині порівняння.
-        //
-        // Компаратор кличуть n·log n разів, і кожен виклик піднімав часовий пояс та розбирав дату.
-        // На півтори сотні подій це виходило понад тисячу таких розборів замість ста п'ятдесяти —
-        // виміряно 34 мс на одне складання головної.
+        // Бал і ключ рахуємо раз на подію, а не в компараторі: той викликається n·log n разів,
+        // і розбір дати в ньому коштував ~34 мс на складання головної.
         val zones = Zones()
         val keyed = events.map { Triple(it, if (taste.isBlank) 0 else score(it, taste, now, zones), interestingAt(it, now)) }
-        // Без відповідей бали однакові, тож скасоване опускає окремий ключ; з відповідями його
-        // вже опускає сам бал (`CANCELLED`).
+        // Без відповідей бали однакові, тож скасоване опускає окремий ключ; з відповідями це робить CANCELLED.
         val first = if (taste.isBlank) compareBy<Triple<T, Int, Instant?>> { it.first.isCancelled }
                     else compareByDescending { it.second }
-        // Без `thenBy { startsAt }`: він повернув би саме той порядок, який ми щойно прибрали —
-        // серед того, що вже йде, першим став би найдавніше початий, тобто найдовший прокат.
-        // `sortedWith` стабільне, тож рівні лишаються в порядку сервера.
+        // Не додавати thenBy { startsAt }: серед того, що вже йде, найдовший прокат знову стане першим.
+        // sortedWith стабільне, рівні лишаються в порядку сервера.
         return keyed.sortedWith(first.then(compareBy(nullsLast()) { it.third })).map { it.first }
     }
 
-    /** Ті самі кілька подій ділять один пояс; піднімати його щоразу — найдорожче тут. */
+    /** Кеш поясів: TimeZone.of — найдорожча операція тут. */
     private class Zones {
         private val known = mutableMapOf<String, TimeZone>()
         fun of(id: String): TimeZone = known.getOrPut(id) {
@@ -171,23 +136,17 @@ object TasteRanking {
         }
     }
 
-    /**
-     * Ті з [events], що відповідають чомусь сказаному. Приймає список, а не подію: пояси й тут
-     * варто піднімати один раз на всіх.
-     */
+    /** Події, що відповідають хоч чомусь із відповідей. Приймає список, щоб кешувати пояси. */
     fun <T : Rankable> matching(events: List<T>, taste: Taste): List<T> {
         val zones = Zones()
         return events.filter { !it.isCancelled && (it.category in taste.interests || slotOf(it, zones) in taste.times) }
     }
 
-    /**
-     * True when an event answers something the person actually said. «Для вас» may only show these:
-     * a suggestion that matched nothing is not a suggestion, it is the same list with a new title.
-     */
+    /** Подія відповідає хоч чомусь із відповідей. Лише такі потрапляють у «Для вас». */
     fun matches(event: Rankable, taste: Taste): Boolean =
         !event.isCancelled && (event.category in taste.interests || slotOf(event) in taste.times)
 
-    /** The slot an event falls into, in the time zone where it happens. */
+    /** Слот події в її часовому поясі. */
     fun slotOf(event: Rankable): String? = slotOf(event, Zones())
 
     private fun slotOf(event: Rankable, zones: Zones): String? {
@@ -203,11 +162,7 @@ object TasteRanking {
         }
     }
 
-    /**
-     * `ANY` earns nothing: it is the absence of an answer, not an answer every event satisfies.
-     * Афіша теж не заробляє нічого — питання «яка компанія» їй не ставиться, бо розміру кімнати
-     * в неї немає.
-     */
+    /** `ANY` балів не дає: це відсутність відповіді. Афіша теж не дає — кімнати нема. */
     private fun fitsCrowd(event: Rankable, crowd: String): Boolean {
         val capacity = event.roomCapacity ?: return false
         return when (crowd) {

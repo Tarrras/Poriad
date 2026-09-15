@@ -7,6 +7,7 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
 import android.os.Bundle
+import android.view.ViewGroup
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
@@ -71,84 +72,75 @@ private const val PinLayer = "poruch-pin"
 private const val PinCountLayer = "poruch-pin-count"
 private const val PointLayer = "poruch-point-pin"
 private const val ChosenPointIcon = "poruch-chosen"
-/**
- * Радіус кластера в точках екрана.
- *
- * Був 56 — і на міському зумі Київ перетворювався на вісім чорних бульбашок, а половина Львова
- * стояла в одній. Відколи мапа малює всі події області, а не перші 300, це стало помітнішим:
- * кластер відповідає на питання «скільки», хоча людина відкрила мапу питати «що і де».
- */
+/** Радіус кластера в dp. Більший перетворював місто на кілька чорних бульбашок. */
 private const val ClusterRadius = 40
-/**
- * Ручка, якою екран може наблизити мапу.
- *
- * Щипок пальцями лишається, але він не єдиний спосіб: на екрані вибору точки одна рука тримає
- * телефон, а друга — та сама, що потім тисне «Готово». Тому масштаб має бути й кнопкою.
- */
+/** Керування зумом з екрана: на виборі точки масштаб має бути й кнопкою, не лише щипком. */
 class MapController {
     internal var apply: ((Double) -> Unit)? = null
     fun zoomIn() = apply?.invoke(1.0)
     fun zoomOut() = apply?.invoke(-1.0)
 }
 
-/** Масштаби, якими користується не лише мапа: редактор теж каже, наскільки близько стати. */
+/** Масштаби, спільні для мапи й редактора. */
 object MapZoom {
-    /** Оглядовий: видно ціле місто. */
+    /** Видно ціле місто. */
     const val city = 12.0
-    /** Вуличний: видно будинок, у якому і є та сама крапка. */
+    /** Видно будинок. */
     const val street = 15.0
 }
 
 
 /**
- * Vector-tile clustering keeps dense neighbourhoods usable: MapLibre groups points inside the style,
- * so panning stays smooth where the previous screen-space grouping rebuilt every marker on each idle.
+ * MapView, що живе стільки, скільки Activity: створення MapView і розбір стилю — найдорожче на
+ * головному потоці, і робити це на кожен вхід у вкладку не можна. [styledDark] пам'ятає, для
+ * якої теми зібрано стиль. Лише для вкладки: міні-мапа деталей і редактор створюють власні.
  */
+class SharedMapView(private val context: Context) {
+    // Ліниво: платить лише запуск, у якому мапу справді відкрили.
+    private var created: MapView? = null
+    val view: MapView
+        get() = created ?: run { MapLibre.getInstance(context); MapView(context).apply { onCreate(Bundle()) } }.also { created = it }
+    var styledDark: Boolean? = null
+    fun destroy() { created?.apply { onPause(); onStop(); onDestroy() }; created = null }
+}
+
+/** Спільна мапа вкладки. Корінь створює її і руйнує разом із собою. */
+val LocalSharedMapView = staticCompositionLocalOf<SharedMapView?> { null }
+
+/** Мапа подій. Кластеризацію робить MapLibre всередині стилю, тож панорамування не перебудовує маркери. */
 @Composable fun EventMap(
-    /**
-     * Індекс, а не картки. Мапі потрібні координати й категорія, і більше нічого — а індекс
-     * повний з першої відповіді, тож на ній видно всі події області, поки картки ще їдуть.
-     */
+    /** Індекс, а не картки: мапі досить координат і категорії, а індекс повний з першої відповіді. */
     events: List<EventIndexEntry>,
     latitude: Double,
     longitude: Double,
     modifier: Modifier = Modifier,
     selectedId: String? = null,
-    /**
-     * Крапка, яку вже поставили. Мапа її лише малює, а не пам'ятає.
-     *
-     * Раніше вона жила у власному стані мапи й з'являлась тільки після довгого натиску. Але крапку
-     * ставить не лише палець: її приносить і обрана підказка адреси — і тоді мапа про це не знала,
-     * тож пін лишався на старому місці. Тепер джерело одне: екран.
-     */
+    /** Поставлена крапка. Мапа лише малює її; джерело одне — екран, бо крапку ставить і підказка адреси. */
     chosenPoint: Pair<Double, Double>? = null,
-    /** Наскільки близько ставати, коли центр змінився ззовні. Місто за замовчуванням. */
+    /** Зум, коли центр змінився ззовні. */
     centerZoom: Double = MapZoom.city,
-    /** Ручка масштабу для екрана, який хоче кнопки замість щипка. */
+    /** Керування зумом кнопками. */
     controller: MapController? = null,
     topInset: Dp = 0.dp,
     bottomInset: Dp = 0.dp,
     centerToken: Int = 0,
     interactive: Boolean = true,
     onSelect: (String) -> Unit = {},
-    /** Тап у точку, де подій кілька. Список — усі, що стоять під пальцем. */
+    /** Тап у місце з кількома подіями: усі id під пальцем. */
     onSelectStack: (List<String>) -> Unit = { ids -> ids.firstOrNull()?.let(onSelect) },
     onAreaChanged: (MapBounds) -> Unit = {},
-    /**
-     * Куди зараз дивиться мапа. Потрібно там, де крапка — це центр екрана, а не пін під пальцем.
-     *
-     * Читаємо ціль камери, а не середину видимих меж: у проєкції Меркатора це різні числа, і
-     * друге тим більше бреше, чим далі від екватора.
-     */
+    /** Центр камери, а не середина видимих меж: у Меркаторі це різні числа. */
     onCenterChanged: (Double, Double) -> Unit = { _, _ -> },
-    onLoadFailed: (Boolean) -> Unit = {}
+    onLoadFailed: (Boolean) -> Unit = {},
+    /** Спільна мапа вкладки або null для власної. Див. [SharedMapView]. */
+    shared: SharedMapView? = null
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current.density
     val colors = Poruch.colors
     val reducedMotion = Poruch.reducedMotion
     val lifecycle = LocalLifecycleOwner.current.lifecycle
-    val view = remember { MapLibre.getInstance(context); MapView(context).apply { onCreate(Bundle()) } }
+    val view = shared?.view ?: remember { MapLibre.getInstance(context); MapView(context).apply { onCreate(Bundle()) } }
     var map by remember { mutableStateOf<MapLibreMap?>(null) }
     var styleRevision by remember { mutableIntStateOf(0) }
     var gestured by remember { mutableStateOf(false) }
@@ -171,42 +163,66 @@ object MapZoom {
         lifecycle.addObserver(observer)
         if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) view.onStart()
         if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) view.onResume()
-        view.addOnDidFailLoadingMapListener { PoruchLog.w("map") { "style failed to load" }; latestFailure(true) }
-        view.getMapAsync { ready ->
-            map = ready
-            ready.uiSettings.isRotateGesturesEnabled = false
-            ready.uiSettings.isTiltGesturesEnabled = false
-            if (!interactive) ready.uiSettings.setAllGesturesEnabled(false)
-            ready.cameraPosition = CameraPosition.Builder().target(LatLng(latitude, longitude)).zoom(centerZoom).build()
-            ready.addOnCameraMoveStartedListener { reason ->
-                if (reason == MapLibreMap.OnCameraMoveStartedListener.REASON_API_GESTURE) gestured = true
+        val failListener = MapView.OnDidFailLoadingMapListener { PoruchLog.w("map") { "style failed to load" }; latestFailure(true) }
+        view.addOnDidFailLoadingMapListener(failListener)
+        // Слухачі іменовані, щоб зняти їх при виході: спільна мапа інакше накопичувала б їх.
+        val moveStarted = MapLibreMap.OnCameraMoveStartedListener { reason ->
+            if (reason == MapLibreMap.OnCameraMoveStartedListener.REASON_API_GESTURE) gestured = true
+        }
+        var ready: MapLibreMap? = null
+        val idle = MapLibreMap.OnCameraIdleListener {
+            val m = ready ?: return@OnCameraIdleListener
+            m.cameraPosition.target?.let { latestCenter(it.latitude, it.longitude) }
+            if (!gestured) return@OnCameraIdleListener
+            gestured = false
+            m.projection.visibleRegion.latLngBounds.let {
+                latestArea(MapBounds(it.latitudeSouth, it.longitudeWest, it.latitudeNorth, it.longitudeEast))
             }
-            ready.addOnCameraIdleListener {
-                ready.cameraPosition.target?.let { latestCenter(it.latitude, it.longitude) }
-                if (!gestured) return@addOnCameraIdleListener
-                gestured = false
-                ready.projection.visibleRegion.latLngBounds.let {
-                    latestArea(MapBounds(it.latitudeSouth, it.longitudeWest, it.latitudeNorth, it.longitudeEast))
-                }
-            }
-            if (interactive) ready.addOnMapClickListener { point -> tap(ready, point, latestStack) }
+        }
+        val click = MapLibreMap.OnMapClickListener { point -> ready?.let { tap(it, point, latestStack) } ?: false }
+        view.getMapAsync { m ->
+            ready = m
+            map = m
+            m.uiSettings.isRotateGesturesEnabled = false
+            m.uiSettings.isTiltGesturesEnabled = false
+            m.uiSettings.setAllGesturesEnabled(interactive)
+            m.cameraPosition = CameraPosition.Builder().target(LatLng(latitude, longitude)).zoom(centerZoom).build()
+            m.addOnCameraMoveStartedListener(moveStarted)
+            m.addOnCameraIdleListener(idle)
+            if (interactive) m.addOnMapClickListener(click)
             controller?.apply = { delta ->
-                // Межі ті самі, що в мапи: далі неї однаково не поїдеш, а кнопка має лишатись живою.
-                val target = (ready.cameraPosition.zoom + delta).coerceIn(ready.minZoomLevel, ready.maxZoomLevel)
-                ready.animateCamera(CameraUpdateFactory.zoomTo(target), 200)
+                // Обмежуємо межами мапи, щоб кнопка лишалась живою.
+                val target = (m.cameraPosition.zoom + delta).coerceIn(m.minZoomLevel, m.maxZoomLevel)
+                m.animateCamera(CameraUpdateFactory.zoomTo(target), 200)
             }
         }
         onDispose {
             controller?.apply = null
-            lifecycle.removeObserver(observer); view.onPause(); view.onStop(); view.onDestroy()
+            lifecycle.removeObserver(observer)
+            view.removeOnDidFailLoadingMapListener(failListener)
+            ready?.apply {
+                removeOnCameraMoveStartedListener(moveStarted); removeOnCameraIdleListener(idle); removeOnMapClickListener(click)
+            }
+            view.onPause(); view.onStop()
+            // Спільну мапу руйнує корінь.
+            if (shared == null) view.onDestroy()
         }
     }
 
-    // Reloading the style on a theme flip re-registers images and layers, so it bumps the revision.
+    // Зміна теми перезавантажує стиль з іконками й шарами, тому підіймає ревізію.
     LaunchedEffect(map, colors.dark) {
         val ready = map ?: return@LaunchedEffect
-        // The renderer's wordmark is not this app's brand, so it goes; the credit the data licence
-        // does ask for stays, in the palette's quietest ink instead of the SDK's blue.
+        // Спільна мапа вже має стиль для цієї теми: лише повідомляємо ефекти нижче.
+        if (shared != null) {
+            val style = ready.style
+            if (shared.styledDark == colors.dark && style?.getSource(EventSource) != null) {
+                styleRevision++
+                PoruchLog.d("map") { "style reused (${if (colors.dark) "dark" else "light"})" }
+                return@LaunchedEffect
+            }
+            PoruchLog.d("map") { "shared map restyled: styledDark=${shared.styledDark} style=${style != null} source=${style?.getSource(EventSource) != null}" }
+        }
+        // Логотип рендерера прибираємо, атрибуцію даних лишаємо у тихому кольорі палітри.
         ready.uiSettings.isLogoEnabled = false
         ready.uiSettings.setAttributionTintColor(colors.inkTertiary.toArgb())
         ready.setStyle(Style.Builder().fromJson(poruchMapStyle(colors.mapTokens(), tilesUrl(), glyphsUrl()))) { style ->
@@ -214,8 +230,7 @@ object MapZoom {
             style.addSource(
                 GeoJsonSource(
                     EventSource, FeatureCollection.fromFeatures(emptyList()),
-                    // Пін тепер представляє місце, тож стандартний point_count рахував би місця.
-                    // Читачеві ж потрібна кількість подій — її збирає власна властивість кластера.
+                    // Пін — це місце, тож point_count рахував би місця; кількість подій збирає власна властивість.
                     GeoJsonOptions().withCluster(true).withClusterRadius(ClusterRadius).withClusterMaxZoom(15)
                         .withClusterProperty("events", Expression.sum(Expression.accumulated(), Expression.get("events")), Expression.get("count"))
                 )
@@ -228,22 +243,25 @@ object MapZoom {
             style.addLayer(pinCountLayer(colors))
             style.addLayer(chosenPointLayer())
             latestFailure(false)
+            shared?.styledDark = colors.dark
             styleRevision++
             PoruchLog.i("map") { "poruch style ready (${if (colors.dark) "dark" else "light"}), layers and pin images registered" }
         }
     }
 
-    // Групування — за складом подій, і тільки за ним. Досі воно стояло всередині ефекту, який
-    // слухав ще й `selectedId`, тож кожен крок каруселі наново сортував і розкладав по місцях усі
-    // триста подій, щоб намалювати ті самі шістдесят пінів іншим кольором одного з них.
+    // Групування залежить лише від подій, не від selectedId: інакше кожен крок каруселі перегруповував усе.
     val pins = remember(events) { MapPins.group(events) }
 
+    // Той самий набір удруге не пишемо: перебудова GeoJSON коштує кадру.
+    val written = remember { arrayOf<Any?>(null, null, null) }
     LaunchedEffect(map, styleRevision, pins, selectedId) {
         val style = map?.style ?: return@LaunchedEffect
         val source = style.getSourceAs<GeoJsonSource>(EventSource) ?: return@LaunchedEffect
+        if (written[0] == styleRevision && written[1] === pins && written[2] == selectedId) return@LaunchedEffect
+        written[0] = styleRevision; written[1] = pins; written[2] = selectedId
         source.setGeoJson(FeatureCollection.fromFeatures(pins.map { it.toFeature(selectedId) }))
         PoruchLog.d("map") {
-            "${pins.size} pins for ${events.size} events, selected=${selectedId.shortId()}"
+            "${pins.size} pins for ${events.size} events, selected=${selectedId.shortId()}, style rev $styleRevision"
         }
     }
 
@@ -258,13 +276,13 @@ object MapZoom {
         )
     }
 
-    // Padding keeps the focused pin above the carousel and below the search controls.
+    // Відступи тримають обраний пін над каруселлю і під пошуком.
     LaunchedEffect(map, topInset, bottomInset) {
         val ready = map ?: return@LaunchedEffect
         val top = (topInset.value * density).toInt()
         val bottom = (bottomInset.value * density).toInt()
         ready.setPadding(0, top, 0, bottom)
-        // The attribution mark sits in the bottom-left corner, which no overlay is allowed to cover.
+        // Атрибуція в лівому нижньому куті, який ніщо не перекриває.
         ready.uiSettings.apply {
             attributionGravity = android.view.Gravity.BOTTOM or android.view.Gravity.START
             setAttributionMargins((8 * density).toInt(), 0, 0, bottom + (8 * density).toInt())
@@ -288,18 +306,16 @@ object MapZoom {
         gestured = false
     }
 
-    Box(modifier.fillMaxSize()) { AndroidView(factory = { view }, modifier = Modifier.fillMaxSize()) }
+    Box(modifier.fillMaxSize()) {
+        // Спільна мапа могла лишитись у попередньому контейнері.
+        AndroidView(factory = { (view.parent as? ViewGroup)?.removeView(view); view }, modifier = Modifier.fillMaxSize())
+    }
 }
 
 /**
- * A tap hits pins first, then a cluster.
- *
- * Події одного закладу мають однакові координати — кеш майданчиків дає їм одну точку. Такі піни
- * ніколи не розходяться, скільки не наближай, тож «взяти перший знайдений» лишало решту стосу
- * недосяжною. Тому тап віддає **всі** події під пальцем, а екран вирішує, що з ними робити.
- *
- * З кластером те саме: якщо наближення його не розділить (а стос однакових точок не розділиться
- * ніколи), розкриваємо його вміст списком замість безкінечного зуму.
+ * Тап шукає спершу пін, потім кластер, і віддає всі події під пальцем: події одного закладу
+ * стоять на одній точці й не розходяться за жодного зуму. Кластер, який зум не розділить,
+ * розкриваємо списком.
  */
 private fun tap(map: MapLibreMap, point: LatLng, selectStack: (List<String>) -> Unit): Boolean {
     val screen = map.projection.toScreenLocation(point)
@@ -318,8 +334,7 @@ private fun tap(map: MapLibreMap, point: LatLng, selectStack: (List<String>) -> 
     val zoom = runCatching { source.getClusterExpansionZoom(cluster).toDouble() }.getOrNull()
     val current = map.cameraPosition.zoom
 
-    // Розкриття допоможе лише тоді, коли воно справді змінює зум. Інакше кластер тримається на
-    // однакових точках, і єдина корисна відповідь — показати, що всередині.
+    // Наближаємо лише якщо це справді змінює зум, інакше показуємо вміст.
     if (zoom == null || zoom <= current + 0.1 || zoom > 19.0) {
         val leaves = runCatching { source.getClusterLeaves(cluster, CLUSTER_LEAF_LIMIT, 0) }.getOrNull()
         val ids = leaves?.features().orEmpty().flatMap { it.idsProperty() }.distinct()
@@ -338,7 +353,7 @@ private fun tap(map: MapLibreMap, point: LatLng, selectStack: (List<String>) -> 
     return true
 }
 
-/** Стос у одному закладі буває на кілька десятків подій; більше за це в каруселі не потрібно. */
+/** Максимум подій зі стосу для каруселі. */
 private const val CLUSTER_LEAF_LIMIT = 60L
 
 /** Події місця, як їх записав `VenuePin.toFeature`. */
@@ -346,15 +361,11 @@ private fun Feature.idsProperty(): List<String> =
     getStringProperty("ids")?.split(",")?.filter { it.isNotBlank() }
         ?: listOfNotNull(getStringProperty("id"))
 
-/**
- * Одна фіча — одне місце. Усі події місця їдуть у властивості `ids`, тож тап не мусить
- * вигрібати їх із рендерера: він читає готовий список із самої фічі.
- */
+/** Одна фіча — одне місце. Усі події місця їдуть у властивості `ids`, щоб тап читав готовий список. */
 private fun VenuePin.toFeature(selectedId: String?): Feature {
     val selected = contains(selectedId)
     return Feature.fromGeometry(Point.fromLngLat(longitude, latitude)).apply {
-        // `id` лишається ідентифікатором конкретної події — тієї, що підписує пін, — бо решта
-        // мапи (вибір, політ камери, карусель) оперує подіями.
+        // `id` — конкретна подія, що підписує пін: решта мапи оперує подіями.
         addStringProperty("id", if (selected) selectedId else representative.id)
         addStringProperty("ids", eventIds.joinToString(","))
         addStringProperty("icon", iconName(representative.category, selected))
@@ -365,14 +376,11 @@ private fun VenuePin.toFeature(selectedId: String?): Feature {
 
 private fun iconName(category: String, selected: Boolean) = "poruch-pin-$category" + if (selected) "-on" else ""
 
-/** A build config may point the map at another tile server; empty means «the usual one». */
+/** Збірка може вказати інший сервер тайлів; порожньо — звичний. */
 private fun tilesUrl() = BuildConfig.MAP_TILES_URL.ifBlank { MapEndpoints.TILES }
 private fun glyphsUrl() = BuildConfig.MAP_GLYPHS_URL.ifBlank { MapEndpoints.GLYPHS }
 
-/**
- * The map is drawn from the palette rather than from a hosted style, so the ground under the pins
- * is the paper the cards sit on. MapLibre reads colours as hex, so the tokens are printed as hex.
- */
+/** Токени палітри для стилю мапи. MapLibre читає кольори як hex. */
 private fun PoruchColors.mapTokens() = MapTokens(
     canvas = canvas.hex(), canvasTint = canvasTint.hex(), surface = surface.hex(),
     surfaceMuted = surfaceMuted.hex(), hairline = hairline.hex(), ink = ink.hex(),
@@ -415,10 +423,7 @@ private fun pinLayer() = SymbolLayer(PinLayer, EventSource).withProperties(
     PropertyFactory.symbolSortKey(Expression.get("sort"))
 ).withFilter(Expression.not(Expression.has("point_count")))
 
-/**
- * Скільки подій у цьому місці. Значок не змінюється — змінюється підпис біля нього, тож пін
- * лишається впізнаваним, а стос перестає прикидатися однією подією.
- */
+/** Підпис з кількістю подій біля піна: значок лишається впізнаваним, стос не прикидається однією подією. */
 private fun pinCountLayer(colors: PoruchColors) = SymbolLayer(PinCountLayer, EventSource).withProperties(
     PropertyFactory.textField(Expression.toString(Expression.get("count"))),
     PropertyFactory.textFont(arrayOf("Noto Sans Bold")),
@@ -453,10 +458,7 @@ private fun registerImages(context: Context, style: Style, colors: PoruchColors,
     style.addImage(ChosenPointIcon, pinBitmap(context, categoryIcon("social"), colors.brand.toArgb(), surface, true, density))
 }
 
-/**
- * Pin plate drawn once per category and cached by the style: a category ring on a surface disc while
- * resting, and the inverse — a filled disc with a surface ring — once the pin is focused.
- */
+/** Значок піна, один на категорію, кешується стилем: кільце на диску в спокої, інверсія у фокусі. */
 private fun pinBitmap(context: Context, glyph: ImageVector, hue: Int, surface: Int, selected: Boolean, density: Float): Bitmap {
     val disc = (if (selected) 46f else 38f) * density
     val pointer = 9f * density
@@ -494,18 +496,14 @@ private fun pinBitmap(context: Context, glyph: ImageVector, hue: Int, surface: I
     return bitmap
 }
 
-/**
- * Rasterises a vector for the pin plate. Each sub-path is drawn the way it was authored: the app's
- * own glyphs are outlines, and filling them would turn a die into a solid square.
- */
+/** Растеризує вектор для піна. Кожен підшлях малюємо як задумано: контурні гліфи заливати не можна. */
 private fun VectorGroup.drawInto(canvas: Canvas, paint: Paint) {
     forEach { node: VectorNode ->
         when (node) {
             is VectorPath -> {
                 if (node.stroke != null) {
                     paint.style = Paint.Style.STROKE
-                    // The canvas is already scaled to the glyph's own grid, so the authored width
-                    // scales with it and the pin keeps the weight the rest of the app draws.
+                    // Canvas уже масштабований під сітку гліфа, тож товщина лінії масштабується разом.
                     paint.strokeWidth = node.strokeLineWidth
                     paint.strokeCap = node.strokeLineCap.toAndroidCap()
                     paint.strokeJoin = node.strokeLineJoin.toAndroidJoin()
@@ -513,8 +511,7 @@ private fun VectorGroup.drawInto(canvas: Canvas, paint: Paint) {
                     paint.style = Paint.Style.FILL
                 }
                 val path = PathParser().addPathNodes(node.pathData).toPath().asAndroidPath()
-                // Solid glyphs carry their counters as inner subpaths; without the even-odd rule
-                // a palette's wells fill in and it becomes a disc.
+                // Без even-odd внутрішні контури заливаються і гліф стає диском.
                 if (node.pathFillType == PathFillType.EvenOdd) path.fillType = Path.FillType.EVEN_ODD
                 canvas.drawPath(path, paint)
             }

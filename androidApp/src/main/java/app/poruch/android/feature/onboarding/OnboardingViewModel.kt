@@ -3,17 +3,12 @@ package app.poruch.android.feature.onboarding
 import app.poruch.android.mvi.MviViewModel
 import app.poruch.shared.PoruchApp
 
-/**
- * Holds the answers until the last step. Nothing is written on the way through: a person who backs
- * out halfway has not told the app anything, and a half-answered taste would rank on one third of
- * a question. The store learns the whole set at once, and it is the store that ends the flow — the
- * root shows the app again when the answers are in, so this screen needs no effect of its own.
- */
+/** Тримає відповіді до останнього кроку і пише в стор усе разом. Потік завершує стор, тому ефектів тут нема. */
 class OnboardingViewModel(private val app: PoruchApp) :
     MviViewModel<OnboardingState, OnboardingIntent, Nothing>(OnboardingState()) {
 
     init {
-        // Reopened from the profile, the questions start from what was answered last time.
+        // Відкрито з профілю: починаємо з минулих відповідей.
         val taste = app.state.value.taste
         reduce { copy(interests = taste.interests, times = taste.times, crowd = taste.crowd) }
     }

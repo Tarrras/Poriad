@@ -4,6 +4,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.rememberScrollState
@@ -14,19 +17,23 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.poruch.android.EventMap
@@ -56,6 +63,13 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
             Hero(event, state.saved, onIntent)
             Column(Modifier.padding(horizontal = Spacing.page), verticalArrangement = Arrangement.spacedBy(Spacing.lg)) {
                 Headline(event, state)
+            }
+            // Поза колонкою з полями: смуга дат іде від краю до краю.
+            if (state.sessions.size > 1) Sessions(state, onIntent, Modifier.padding(top = Spacing.lg))
+            Column(
+                Modifier.padding(horizontal = Spacing.page).padding(top = Spacing.lg),
+                verticalArrangement = Arrangement.spacedBy(Spacing.lg)
+            ) {
                 Facts(event)
                 if (state.attendees.isNotEmpty()) Roster(state, event)
                 ExternalActions(state, onIntent)
@@ -80,11 +94,7 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
     state.reporting?.let { target -> ReportSheet(target, onIntent) }
 }
 
-/**
- * A report is a named reason plus, optionally, a sentence. The reason is what a moderation queue
- * can sort by — «this is about a minor» has to be answerable before «this is spam» — and the
- * sentence is what a person needs to say when the list does not fit their case.
- */
+/** Скарга: іменована причина для сортування черги модерації плюс необов'язковий текст. */
 @Composable
 private fun ReportSheet(target: ReportTarget, onIntent: (DetailIntent) -> Unit) {
     val colors = Poruch.colors
@@ -138,9 +148,7 @@ private fun Hero(event: Event, saved: Boolean, onIntent: (DetailIntent) -> Unit)
                 AsyncImage(model = it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
             }
         }
-        // Обкладинка афіші — чужа й довільна: під годинником і батареєю трапляється і білий вечір
-        // на терасі, і яскравий постер. Тонка тінь зверху коштує нічого й тримає системну смугу
-        // читабельною, чого власний скрим кожної кнопки зробити не може.
+        // Обкладинка довільна, тож тонка тінь зверху тримає смугу статусу читабельною.
         Box(
             Modifier.fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars.add(WindowInsets(top = Spacing.lg)))
                 .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.32f), Color.Transparent)))
@@ -168,7 +176,7 @@ private fun Headline(event: Event, state: DetailState) {
         EventDescriptor(event, Modifier.weight(1f, fill = false))
         when {
             state.cancelled -> StatusBadge(stringResource(R.string.cancelled), BadgeTone.Danger)
-            // Афіша підписана джерелом завжди: атрибуція обов'язкова, а стану участі в неї немає.
+            // Афіша завжди підписана джерелом: атрибуція обов'язкова.
             state.listing?.isWithdrawn == true -> StatusBadge(stringResource(R.string.listing_withdrawn), BadgeTone.Neutral)
             state.listing != null -> StatusBadge(stringResource(R.string.listing_badge, state.listing!!.sourceName), BadgeTone.Neutral)
             state.organizer -> StatusBadge(stringResource(R.string.you_organize), BadgeTone.Neutral, PoruchIcons.sparkle)
@@ -179,8 +187,7 @@ private fun Headline(event: Event, state: DetailState) {
                 StatusBadge(stringResource(R.string.seats_left, room.seatsLeft), BadgeTone.Accent)
         }
     }
-    // Who the evening is for, said on the card rather than discovered when the server refuses.
-    // Обмежень віку в афіші не буває: їх встановлює організатор, якого в неї немає.
+    // Для кого подія, на картці, а не через відмову сервера. В афіші обмежень віку нема.
     if (room != null && (room.hasAgeLimit || room.approvalRequired)) Row(
         horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically
     ) {
@@ -189,16 +196,72 @@ private fun Headline(event: Event, state: DetailState) {
     }
 }
 
+/** Дати прокату. Лише коли сеансів більше одного. Скасований лишається на місці, позначеним. */
+@Composable
+private fun Sessions(state: DetailState, onIntent: (DetailIntent) -> Unit, modifier: Modifier = Modifier) {
+    val colors = Poruch.colors
+    val words = dateWords()
+    val rail = rememberLazyListState()
+    // Обраний сеанс має бути видно одразу, навіть якщо він шостий.
+    LaunchedEffect(Unit) {
+        val at = state.sessions.indexOfFirst { it.id == state.sessionId }
+        if (at > 0) rail.scrollToItem(at)
+    }
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        SectionHeader(stringResource(R.string.sessions_title), Modifier.padding(horizontal = Spacing.page))
+        LazyRow(
+            state = rail, modifier = Modifier.selectableGroup(),
+            contentPadding = PaddingValues(horizontal = Spacing.page),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
+        ) {
+            items(state.sessions, key = { it.id }) { session ->
+                val selected = session.id == state.sessionId
+                val (day, hour) = sessionLabel(session, words)
+                val started = session.startInstant?.let { it <= kotlin.time.Clock.System.now() } == true
+                val status = when {
+                    session.cancelled -> stringResource(R.string.cancelled)
+                    started -> stringResource(R.string.session_started)
+                    else -> null
+                }
+                val onInk = colors.canvas
+                Column(
+                    Modifier.widthIn(min = 96.dp).clip(Radius.sm)
+                        .background(if (selected) colors.ink else colors.canvas)
+                        .border(1.dp, if (selected) colors.ink else colors.hairline, Radius.sm)
+                        .selectable(selected, role = Role.RadioButton) { onIntent(DetailIntent.PickSession(session.id)) }
+                        .alpha(if (session.cancelled && !selected) 0.6f else 1f)
+                        .padding(horizontal = Spacing.md, vertical = Spacing.sm),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Text(
+                        day, style = MaterialTheme.typography.labelMedium, maxLines = 1,
+                        color = if (selected) onInk.copy(alpha = 0.8f) else colors.inkSecondary
+                    )
+                    Text(
+                        hour, style = MaterialTheme.typography.titleSmall,
+                        color = if (selected) onInk else colors.ink,
+                        textDecoration = if (session.cancelled) TextDecoration.LineThrough else null
+                    )
+                    if (status != null) Text(
+                        status, style = MaterialTheme.typography.labelSmall, maxLines = 1,
+                        color = when {
+                            session.cancelled -> colors.danger
+                            selected -> onInk.copy(alpha = 0.8f)
+                            else -> colors.inkTertiary
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun ageLimitLabel(room: Gathering): String = room.maxAge?.let {
     stringResource(R.string.age_badge_range, room.minAge, it)
 } ?: stringResource(R.string.age_badge_from, room.minAge)
 
-/**
- * The door of an event that vets its guests. It sits inside the detail screen rather than on a
- * screen of its own because an organizer answers a request while looking at what they published —
- * the age limit they set is right above it.
- */
+/** Запити на участь. На екрані деталей, бо організатор відповідає, дивлячись на свою подію. */
 @Composable
 private fun JoinRequests(state: DetailState, onIntent: (DetailIntent) -> Unit) {
     val colors = Poruch.colors
@@ -218,27 +281,21 @@ private fun JoinRequests(state: DetailState, onIntent: (DetailIntent) -> Unit) {
     }
 }
 
-/**
- * Reporting and blocking, at the bottom of the page and not hidden in a menu: somebody who needs
- * them is not in the mood to go looking, and a report that is hard to file is a report not filed.
- */
+/** Скарга й блокування внизу сторінки, не в меню: важка скарга — неподана скарга. */
 @Composable
 private fun SafetyActions(event: Event, onIntent: (DetailIntent) -> Unit) {
     val colors = Poruch.colors
     HairLine()
     Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
         GhostButton(stringResource(R.string.report), { onIntent(DetailIntent.ShowReport(ReportTarget.EVENT)) }, tone = colors.inkSecondary)
-        // Блокувати нема кого там, де немає людини: скарга на саму афішу лишається доступною.
+        // Блокувати нема кого без людини; скарга на афішу лишається.
         if (event.organizerId != null) GhostButton(
             stringResource(R.string.block_user), { onIntent(DetailIntent.ConfirmBlock(true)) }, tone = colors.inkSecondary
         )
     }
 }
 
-/**
- * Що це за подія, у чотирьох рядках. Останні два різні для кімнати й для афіші, і саме тут
- * найдовше жила вада: «ОРГАНІЗАТОР Karabas» і «0 з 1 учасників» під чужим концертом.
- */
+/** Факти про подію в чотирьох рядках. Останні два різні для кімнати й афіші. */
 @Composable
 private fun Facts(event: Event) {
     Column(Modifier.fillMaxWidth().cardSurface().padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.lg)) {
@@ -295,19 +352,19 @@ private fun ExternalActions(state: DetailState, onIntent: (DetailIntent) -> Unit
 }
 
 /**
- * Місце події та вихід на велику мапу.
- *
- * Сама мініатюра жестів не приймає — сто вісімдесят точок замало, щоб у ній щось шукати. Але
- * питання «а що там поруч?» виникає саме тут, і відповідь у застосунку вже є, тож тап веде на
- * мапу, наведену на цей самий пін. Прозорий шар поверх мапи ловить дотик, бо MapView з
- * вимкненими жестами все одно поглинає його сам.
+ * Місце події. Мініатюра без жестів, тап веде на велику мапу. Прозорий шар ловить дотик, бо
+ * MapView з вимкненими жестами все одно поглинає його.
  */
 @Composable
 private fun Venue(event: Event, onIntent: (DetailIntent) -> Unit) {
+    // Мапу вбудовуємо після другого кадру: MapView і стиль — найдорожче на екрані, і перехід чекав на них.
+    var mapReady by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { withFrameNanos {}; withFrameNanos {}; mapReady = true }
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         SectionHeader(stringResource(if (event.isCommunity) R.string.venue else R.string.venue_listing))
         Box(Modifier.fillMaxWidth().height(180.dp).cardSurface(Radius.md).padding(Spacing.xs).clip(Radius.sm)) {
-            EventMap(listOf(event.asIndexEntry()), event.latitude, event.longitude, selectedId = event.id, interactive = false)
+            if (mapReady) EventMap(listOf(event.asIndexEntry()), event.latitude, event.longitude, selectedId = event.id, interactive = false)
+            else Box(Modifier.fillMaxSize().background(Poruch.colors.surfaceMuted))
             Box(
                 Modifier.matchParentSize().pressable { onIntent(DetailIntent.OpenMap) },
                 contentAlignment = Alignment.BottomEnd
@@ -320,15 +377,10 @@ private fun Venue(event: Event, onIntent: (DetailIntent) -> Unit) {
     }
 }
 
-/**
- * Свій опис показуємо повністю, чужий — уривком і з посиланням. Межу проводить домен
- * ([Event.displayDescription]); тут лишається тільки не забути про сам вихід до джерела, без
- * якого уривок був би просто обрізаним текстом.
- */
+/** Свій опис повністю, чужий — уривком ([Event.displayDescription]) і з посиланням на джерело. */
 @Composable
 private fun Description(event: Event, onIntent: (DetailIntent) -> Unit) {
-    // 867 подій із 1256 приходять узагалі без опису — джерело його не дає. Заголовок «опис» над
-    // порожнечею гірший за відсутність секції: він обіцяє текст, якого немає й не буде.
+    // Більшість афіш приходить без опису: заголовок над порожнечею гірший за відсутність секції.
     val text = event.displayDescription.trim()
     if (text.isEmpty() && event.listing?.hasSource != true) return
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
@@ -385,8 +437,7 @@ private fun StickyAction(state: DetailState, event: Event, modifier: Modifier, o
                 maxLines = 2, overflow = TextOverflow.Ellipsis
             )
         }
-        // Кнопки може не бути зовсім: у знятої афіші й у афіші без посилання нема куди вести, і
-        // вимкнена кнопка тут була б лише запрошенням у нікуди.
+        // Кнопки може не бути: у знятої афіші й афіші без посилання нема куди вести.
         if (state.action != DetailAction.NONE) PrimaryButton(
             stringResource(state.action.label),
             { onIntent(DetailIntent.PrimaryAction) },
@@ -400,16 +451,14 @@ private fun StickyAction(state: DetailState, event: Event, modifier: Modifier, o
     }
 }
 
-/**
- * Рядок під датою в нижній панелі: одна фраза про те, що зараз можливо. Для кімнати це місця й
- * черга, для афіші — ціна або причина, чому кнопки немає.
- */
+/** Рядок під датою в нижній панелі: місця й черга для кімнати, ціна або причина відсутності кнопки для афіші. */
 @Composable
 private fun stickyHint(state: DetailState): String {
     if (state.cancelled) return stringResource(R.string.cancelled)
     state.listing?.let { listing ->
         return when {
             listing.isWithdrawn -> stringResource(R.string.listing_withdrawn_hint)
+            state.sessionStarted -> stringResource(R.string.session_started_hint)
             listing.hasSource -> listingPrice(listing)
             else -> stringResource(R.string.listing_hint_no_link)
         }
@@ -438,7 +487,7 @@ private val DetailAction.label: Int
 
 @Composable
 private fun ScrimButton(icon: ImageVector, description: String, onClick: () -> Unit) {
-    // The hero photo is arbitrary, so these sit on their own light scrim rather than on a token.
+    // Фото довільне, тож кнопки на власному світлому скримі.
     Box(
         Modifier.size(40.dp).background(Color.White.copy(alpha = 0.92f), CircleShape)
             .border(1.dp, Color.Black.copy(alpha = 0.06f), CircleShape).clip(CircleShape).clickable(onClick = onClick),

@@ -6,10 +6,7 @@ import app.poruch.domain.Membership
 import kotlinx.serialization.json.Json
 import kotlin.test.*
 
-/**
- * Один рядок `event_result` — плоский, і рівно тут він розпадається на кімнату або оголошення.
- * Це остання точка, де можна помилитись: далі жоден екран уже не бачить `origin`.
- */
+/** Плоский рядок `event_result` розпадається на кімнату або оголошення тут, і далі `origin` ніхто не бачить. */
 class EventDtoTest {
     private val json = Json { ignoreUnknownKeys = true; isLenient = false }
 
@@ -33,7 +30,7 @@ class EventDtoTest {
             "origin" to "\"import\"", "organizer_id" to "null", "organizer_name" to "\"Karabas\"",
             "source_name" to "\"Karabas\"", "canonical_url" to "\"https://kyiv.karabas.com/e/1\"",
             "import_status" to "\"live\"", "price_min" to "350", "is_free" to "false",
-            // Старий сервер ще віддає вигадану одиницю — вона не має долетіти до жодного екрана.
+            // Старий сервер віддає одиницю: до екранів вона долетіти не має.
             "capacity" to "1", "attendee_count" to "0"
         )
         assertNull(event.gathering)
@@ -60,18 +57,14 @@ class EventDtoTest {
         assertEquals(EventStatus.PUBLISHED, event.status)
     }
 
-    /** Афіша без місткості — саме те, що віддає сервер після 20260907150000. */
+    /** Афіша без місткості, як віддає сервер після 20260907150000. */
     @Test fun aListingWithoutCapacityParsesCleanly() {
         val event = parse("origin" to "\"import\"", "capacity" to "null", "source_name" to "\"concert.ua\"")
         assertNull(event.gathering)
         assertEquals("concert.ua", event.listing?.sourceName)
     }
 
-    /**
-     * Спільнотний рядок без місткості неможливий за `events_community_has_capacity_ck`. Якщо він
-     * усе-таки прийшов — подія без дій чесніша за домальовану кімнату, і головне: список не падає
-     * через один зіпсований рядок.
-     */
+    /** Зіпсований спільнотний рядок стає подією без дій, а список не падає. */
     @Test fun abrokenCommunityRowYieldsAnEventWithNeitherFace() {
         val event = parse("organizer_id" to "\"u1\"", "capacity" to "null")
         assertNull(event.gathering)
@@ -79,7 +72,7 @@ class EventDtoTest {
         assertNull(event.publisherName)
     }
 
-    /** Збірка проти бази без міграції імпорту не бачить `origin` — і все там справді спільнотне. */
+    /** База без міграції імпорту не віддає `origin`: усе там спільнотне. */
     @Test fun anOlderServerWithoutOriginStillReadsAsCommunity() {
         val event = parse("organizer_id" to "\"u1\"", "organizer_name" to "\"Оля\"", "capacity" to "10")
         assertNotNull(event.gathering)

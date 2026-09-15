@@ -59,12 +59,9 @@ import app.poruch.domain.Event
 import coil3.compose.AsyncImage
 
 /**
- * Card surface: white, lifted off the paper by two shadows — a tight one that draws the contact
- * edge and a wide one that reads as the distance to the ground. One shadow at this radius looks
- * like a blur; two look like an object.
- *
- * Dark mode drops both (its shadow colours are transparent) and steps the surface up instead: on a
- * near-black canvas a cast shadow is invisible, and a lighter fill is what actually reads as near.
+ * Поверхня картки з двома тінями: вузька малює край дотику, широка — відстань до землі. Одна тінь
+ * виглядає як розмиття, дві — як об'єкт. У темній темі тіней нема (кольори прозорі), натомість
+ * поверхня світлішає.
  */
 @Composable
 fun Modifier.cardSurface(shape: Shape = Radius.lg, elevation: Dp = Elevation.card): Modifier {
@@ -74,17 +71,15 @@ fun Modifier.cardSurface(shape: Shape = Radius.lg, elevation: Dp = Elevation.car
         .shadow(elevation / 4, shape, clip = false, ambientColor = colors.shadowAmbient, spotColor = colors.shadowSpot)
     else this
     val fill = if (colors.dark && elevation >= Elevation.raised) colors.surfaceRaised else colors.surface
-    // A lit card needs less line to hold it; a flat one still needs the full hairline.
+    // Піднятій картці досить тоншої лінії; плоскій потрібна повна.
     val edge = if (colors.dark || elevation == 0.dp) colors.hairline else colors.hairline.copy(alpha = 0.55f)
     return lifted.background(fill, shape).border(1.dp, edge, shape).clip(shape)
 }
 
 /**
- * Tap feedback with depth: the surface dips a fraction under the finger and springs back. Paired
- * with the card shadow this is what makes a card feel like an object rather than a rectangle —
- * so every tappable surface uses it instead of a bare `clickable`.
- *
- * Reduced motion keeps the ripple and drops the dip.
+ * Відгук на тап: поверхня трохи просідає під пальцем і повертається. Разом із тінню це робить
+ * картку об'єктом, тому всі натискні поверхні беруть його замість голого `clickable`.
+ * Reduced motion лишає ripple і прибирає просідання.
  */
 @Composable
 fun Modifier.pressable(enabled: Boolean = true, pressedScale: Float = 0.98f, onClick: () -> Unit): Modifier {
@@ -103,12 +98,12 @@ fun Modifier.pressable(enabled: Boolean = true, pressedScale: Float = 0.98f, onC
 @Composable
 fun HairLine(modifier: Modifier = Modifier) = Box(modifier.fillMaxWidth().height(1.dp).background(Poruch.colors.hairline))
 
-/** Category dot: the smallest possible carrier of category colour, straight from Corner. */
+/** Крапка категорії: найменший носій її кольору. */
 @Composable
 fun CategoryDot(category: String, size: Dp = 8.dp) =
     Box(Modifier.size(size).background(categoryInk(category), CircleShape))
 
-// ---------------------------------------------------------------- search & chips
+// ---- Пошук і чипи
 
 @Composable
 fun PoruchSearchField(
@@ -131,8 +126,7 @@ fun PoruchSearchField(
                     inner()
                 }
             )
-            // Значок лишається дрібним, а торкатися можна всієї зони: 18 dp — це втричі менше за
-            // мінімальну ціль, і в нього справді не влучаєш.
+            // Значок дрібний, зона дотику повна: у 18 dp не влучиш.
             if (value.isNotEmpty()) Box(
                 Modifier.minimumInteractiveComponentSize().clip(CircleShape)
                     .clickable { onValueChange("") },
@@ -168,11 +162,7 @@ fun IconPill(icon: ImageVector, contentDescription: String, selected: Boolean = 
     ) { Icon(icon, null, Modifier.size(20.dp), tint = if (selected) colors.onBrand else colors.ink) }
 }
 
-/**
- * Chip: lowercase label on a white pill that hovers a millimetre off the paper; selection fills it
- * with ink, the way Corner marks state. A selected chip sits *higher* than an unselected one —
- * the state is legible from the shadow alone, before the fill is read.
- */
+/** Чип: біла пігулка над папером; обраний заливається чорнилом і сидить вище, тож стан видно з тіні. */
 @Composable
 fun PoruchChip(label: String, selected: Boolean, onClick: () -> Unit, icon: ImageVector? = null, dot: String? = null) {
     val colors = Poruch.colors
@@ -195,7 +185,7 @@ fun PoruchChip(label: String, selected: Boolean, onClick: () -> Unit, icon: Imag
     }
 }
 
-/** Category tile: a rounded square washed in the category pastel, as Corner sets its rating tiles. */
+/** Плитка категорії: скруглений квадрат у пастелі категорії. */
 @Composable
 fun CategoryTile(category: String, selected: Boolean, onClick: () -> Unit) {
     val colors = Poruch.colors
@@ -223,7 +213,7 @@ fun CategoryTile(category: String, selected: Boolean, onClick: () -> Unit) {
     }
 }
 
-// ---------------------------------------------------------------- badges & buttons
+// ---- Бейджі й кнопки
 
 enum class BadgeTone { Brand, Success, Accent, Danger, Neutral }
 
@@ -258,8 +248,7 @@ fun PrimaryButton(
         else -> brandGradient()
     }
     val foreground = if (enabled) colors.onBrand else colors.inkTertiary
-    // The action's own shadow is tinted with the action's own colour, so a coloured button glows
-    // rather than casting the same grey smudge as everything else.
+    // Тінь кнопки тонована її кольором: кольорова кнопка світиться, а не кидає сіру пляму.
     val glow = (tone ?: colors.shadowSpot).copy(alpha = if (tone != null) 0.38f else 0.30f)
     Row(
         modifier.height(52.dp)
@@ -304,14 +293,9 @@ fun GhostButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier
     )
 }
 
-// ---------------------------------------------------------------- structure
+// ---- Структура
 
-/**
- * A section is announced the way Corner announces one: lowercase, at reading size, in the ink of
- * the content it introduces. The 11 pt caps we used before were legible but timid — they read as a
- * caption for the card above rather than a title for the row below. Caps stay where they carry
- * data: dates, badges, field labels.
- */
+/** Заголовок секції: малими літерами, читабельного розміру. Капітель лишається там, де несе дані: дати, бейджі, підписи полів. */
 @Composable
 fun SectionHeader(title: String, modifier: Modifier = Modifier, actionLabel: String? = null, onAction: (() -> Unit)? = null) {
     val colors = Poruch.colors
@@ -392,12 +376,7 @@ fun BannerCard(title: String, subtitle: String, onClick: () -> Unit, modifier: M
 fun PoruchField(
     value: String, onValueChange: (String) -> Unit, label: String, modifier: Modifier = Modifier,
     singleLine: Boolean = true, error: String? = null, supporting: String? = null,
-    /**
-     * Ручка фокуса для екрана, який відкривається заради цього поля.
-     *
-     * Модифікатор самого поля тут не підходить: [modifier] лягає на колонку разом із підписом
-     * помилки, а фокус має отримати саме введення.
-     */
+    /** Фокус для екрана, що відкривається заради цього поля. [modifier] лягає на колонку, а фокус потрібен введенню. */
     focusRequester: FocusRequester? = null
 ) {
     val colors = Poruch.colors
@@ -421,19 +400,16 @@ fun PoruchField(
     }
 }
 
-/**
- * Field in the Corner idiom: a small uppercase label above the box rather than Material's floating
- * placeholder, so a form reads as a list of named things and every field looks the same.
- */
+/** Поле з малим підписом над рамкою замість плаваючого плейсхолдера Material: форма читається як список названих речей. */
 @Composable
 fun LabelledField(
     label: String, value: String, onValueChange: (String) -> Unit, modifier: Modifier = Modifier,
     placeholder: String = "", singleLine: Boolean = true, hint: String? = null,
-    /** A multi-line field opens at this height so it reads as a place for a paragraph. */
+    /** Багаторядкове поле відкривається цієї висоти, щоб читалось як місце для абзацу. */
     minLines: Int = if (singleLine) 1 else 4,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     visualTransformation: VisualTransformation = VisualTransformation.None,
-    /** Ручка фокуса для екрана, який відкривається заради цього поля. */
+    /** Фокус для екрана, що відкривається заради цього поля. */
     focusRequester: FocusRequester? = null,
     trailing: @Composable (() -> Unit)? = null
 ) {
@@ -442,8 +418,7 @@ fun LabelledField(
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         Text(label.uppercase(), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
         Row(
-            // A trailing control reserves a 48 dp target, so the box is tall enough to hold one
-            // without growing past a plain field beside it.
+            // Висота вміщує 48 dp ціль кінцевого контролу, не переростаючи сусіднє поле.
             Modifier.fillMaxWidth().defaultMinSize(minHeight = 56.dp)
                 .background(colors.surface, Radius.sm).border(1.dp, colors.hairline, Radius.sm)
                 .padding(horizontal = Spacing.lg, vertical = if (singleLine) 0.dp else Spacing.md),
@@ -470,11 +445,7 @@ fun LabelledField(
     }
 }
 
-/**
- * A field whose value is chosen rather than typed — a date, a place. It looks exactly like
- * [LabelledField] on purpose: a form should read as one list of named things, not as a form with a
- * button in the middle of it.
- */
+/** Поле з вибором замість введення: дата, місце. Виглядає як [LabelledField], щоб форма лишалась одним списком. */
 @Composable
 fun PickerField(
     label: String, value: String, onClick: () -> Unit, modifier: Modifier = Modifier,
@@ -499,14 +470,9 @@ fun PickerField(
     }
 }
 
-// ---------------------------------------------------------------- event surfaces
+// ---- Поверхні подій
 
-/**
- * A cover with no photo is not an empty box: it is the category's own gradient with the category's
- * glyph on it, so a feed of photoless events still reads as a row of coloured objects. A photo,
- * when there is one, gets a bottom scrim — white badges and the save button sit on top of it, and
- * a bright sky underneath would swallow both.
- */
+/** Обкладинка без фото — градієнт категорії з її гліфом. Фото отримує затемнення знизу під білі бейджі. */
 @Composable
 private fun EventImage(event: Event, modifier: Modifier) {
     Box(modifier.background(categoryGradient(event.category)), contentAlignment = Alignment.Center) {
@@ -522,13 +488,7 @@ private fun EventImage(event: Event, modifier: Modifier) {
     }
 }
 
-/**
- * Один рядок стану над карткою.
- *
- * Афіша завжди підписана джерелом, і це не стилістика: без видимої атрибуції ми не маємо права
- * її показувати (docs/event-ingestion.md §8). Місця, черга й «ви йдете» стосуються тільки кімнати —
- * тепер до них не дістатися, не спитавши спершу, чи вона взагалі є.
- */
+/** Рядок стану над карткою. Афіша завжди підписана джерелом (docs/event-ingestion.md §8); місця й черга лише в кімнати. */
 @Composable
 private fun eventStatus(event: Event, waitlisted: Boolean = false): Pair<String, BadgeTone>? {
     if (event.isCancelled) return stringResource(R.string.cancelled) to BadgeTone.Danger
@@ -546,11 +506,7 @@ private fun eventStatus(event: Event, waitlisted: Boolean = false): Pair<String,
     }
 }
 
-/**
- * Рядок під назвою: скільки людей іде — або скільки коштує квиток. Що саме, вирішує наявність
- * кімнати, а не збіг обставин: у афіші учасників немає, і «0 з 1» під чужим концертом було
- * єдиною вадою, яку тут видно неозброєним оком.
- */
+/** Рядок під назвою: учасники для кімнати, ціна для афіші. */
 @Composable
 private fun EventMeta(event: Event, short: Boolean = false) {
     val room = event.gathering
@@ -564,7 +520,7 @@ private fun EventMeta(event: Event, short: Boolean = false) {
     }
 }
 
-/** Category dot plus a lowercase descriptor — the line Corner puts under every place name. */
+/** Крапка категорії плюс опис малими літерами. */
 @Composable
 fun EventDescriptor(event: Event, modifier: Modifier = Modifier) {
     val colors = Poruch.colors
@@ -574,7 +530,7 @@ fun EventDescriptor(event: Event, modifier: Modifier = Modifier) {
             stringResource(categoryLabel(event.category)).lowercase(),
             style = PoruchType.descriptor, color = categoryInk(event.category), maxLines = 1
         )
-        // Крапка розділяє, а не прикрашає: без тексту праворуч вона читається як самотня «•».
+        // Роздільник лише коли є текст праворуч.
         event.address.ifBlank { event.city }.takeIf { it.isNotBlank() }?.let { place ->
             Text(
                 "· $place",
@@ -603,7 +559,7 @@ private fun SaveButton(saved: Boolean, onSave: () -> Unit, modifier: Modifier = 
     }
 }
 
-/** Feed card: photo, then the date overline, the name and one descriptor line. */
+/** Картка стрічки: фото, надрядок дати, назва, рядок опису. */
 @Composable
 fun EventCard(
     event: Event, modifier: Modifier = Modifier, saved: Boolean = false, waitlisted: Boolean = false,
@@ -616,14 +572,14 @@ fun EventCard(
         modifier.fillMaxWidth().pressable(onClick = onClick).cardSurface().padding(Spacing.sm)
             .alpha(if (cancelled) 0.6f else 1f)
     ) {
-        // Without a photo the placeholder shrinks: an empty 16:9 band would dominate the card.
+        // Без фото плейсхолдер нижчий: порожній 16:9 домінував би на картці.
         Box(Modifier.fillMaxWidth().height(if (event.imageUrl != null) 168.dp else 96.dp)) {
             EventImage(event, Modifier.fillMaxSize().clip(Radius.sm))
             badge?.let { (text, tone) -> Box(Modifier.padding(Spacing.sm)) { StatusBadge(text, tone) } }
             if (onSave != null) SaveButton(saved, onSave, Modifier.align(Alignment.TopEnd).padding(Spacing.sm))
         }
         Column(Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-            Text(eventOverline(event, dateWords()), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
+            Text(cardOverline(event, dateWords()), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
             Text(
                 event.title.uppercase(), style = MaterialTheme.typography.titleSmall, color = colors.ink,
                 maxLines = 2, overflow = TextOverflow.Ellipsis
@@ -634,7 +590,7 @@ fun EventCard(
     }
 }
 
-/** Compact row for lists: square thumbnail, name, descriptor. */
+/** Компактний рядок списку: квадратне превʼю, назва, опис. */
 @Composable
 fun EventRow(event: Event, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val colors = Poruch.colors
@@ -646,7 +602,7 @@ fun EventRow(event: Event, modifier: Modifier = Modifier, onClick: () -> Unit) {
     ) {
         EventImage(event, Modifier.size(60.dp).clip(Radius.xs))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-            Text(eventOverline(event, dateWords()), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
+            Text(cardOverline(event, dateWords()), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
             Text(
                 event.title.uppercase(), style = MaterialTheme.typography.titleSmall, color = colors.ink,
                 maxLines = 2, overflow = TextOverflow.Ellipsis
@@ -657,7 +613,7 @@ fun EventRow(event: Event, modifier: Modifier = Modifier, onClick: () -> Unit) {
     }
 }
 
-/** Carousel card above the map: wide enough for the name, short enough to leave the map readable. */
+/** Картка каруселі над мапою: досить широка для назви, досить низька, щоб мапу було видно. */
 @Composable
 fun EventMapCard(
     event: Event, modifier: Modifier = Modifier, focused: Boolean = false,
@@ -673,7 +629,7 @@ fun EventMapCard(
     ) {
         EventImage(event, Modifier.size(84.dp).clip(Radius.xs))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-            Text(eventOverline(event, dateWords()), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
+            Text(cardOverline(event, dateWords()), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
             Text(
                 event.title.uppercase(), style = MaterialTheme.typography.titleSmall, color = colors.ink,
                 maxLines = 2, overflow = TextOverflow.Ellipsis
@@ -684,7 +640,7 @@ fun EventMapCard(
     }
 }
 
-/** Narrow tile for horizontal rails on the home screen. */
+/** Вузька плитка для горизонтальних стрічок головної. */
 @Composable
 fun EventTile(event: Event, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val colors = Poruch.colors
@@ -698,7 +654,7 @@ fun EventTile(event: Event, modifier: Modifier = Modifier, onClick: () -> Unit) 
             Modifier.padding(horizontal = Spacing.sm).padding(bottom = Spacing.sm),
             verticalArrangement = Arrangement.spacedBy(Spacing.xs)
         ) {
-            Text(eventOverline(event, dateWords()), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
+            Text(cardOverline(event, dateWords()), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
             Text(
                 event.title.uppercase(), style = MaterialTheme.typography.titleSmall, color = colors.ink,
                 minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis
@@ -708,7 +664,7 @@ fun EventTile(event: Event, modifier: Modifier = Modifier, onClick: () -> Unit) 
     }
 }
 
-/** Overlapping avatars, the social proof Meetup puts under every event. */
+/** Аватари внапуск. */
 @Composable
 fun AvatarStack(attendees: List<Attendee>, modifier: Modifier = Modifier, total: Int = attendees.size, size: Dp = 32.dp) {
     val colors = Poruch.colors
@@ -746,11 +702,11 @@ fun MetaLine(icon: ImageVector, text: String, modifier: Modifier = Modifier, ton
     }
 }
 
-// ---------------------------------------------------------------- navigation
+// ---- Навігація
 
 data class TabItem(val key: String, val label: String, val icon: ImageVector)
 
-/** Floating capsule bar; the active item is inked while the rest stay quiet, as Corner marks tabs. */
+/** Плаваючий таббар-капсула; активний пункт залитий чорнилом. */
 @Composable
 fun PoruchTabBar(items: List<TabItem>, selected: String, modifier: Modifier = Modifier, onSelect: (String) -> Unit, trailing: @Composable (() -> Unit)? = null) {
     val colors = Poruch.colors
@@ -795,15 +751,11 @@ fun CreateButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     ) { Icon(PoruchIcons.plus, stringResource(R.string.create), Modifier.size(24.dp), tint = colors.onBrand) }
 }
 
-/** Photos carry no information the title does not, so they are hidden from screen readers. */
+/** Фото не додає нічого до назви, тому сховане від скрінрідера. */
 @Composable
 fun Modifier.decorative(): Modifier = this.clearAndSetSemantics { }
 
-/**
- * Notices land under the status bar, not over the tab bar: the eye is already at the top after a
- * tap, and the bottom edge belongs to navigation. Tone carries the meaning — a red wash for a
- * failure, green for a success — so the two never read the same at a glance.
- */
+/** Банер під статус-баром, а не над таббаром. Тон несе зміст: червоний для помилки, зелений для успіху. */
 @Composable
 fun NoticeBanner(text: String, error: Boolean, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
     val colors = Poruch.colors
@@ -829,13 +781,9 @@ fun NoticeBanner(text: String, error: Boolean, onDismiss: () -> Unit, modifier: 
 }
 
 /**
- * Keeps a text field responsive when its value lives in a ViewModel.
- *
- * The store answers through a flow, so its echo arrives a frame or more after the keystroke that
- * caused it. Binding the field straight to that value drops or reorders characters during fast
- * typing. The buffer holds what the reader typed and adopts an incoming value only when it is
- * *not* the echo of the last edit sent up — a reset, a restored draft, a value the store changed
- * on its own — so the loop stays unidirectional without fighting the keyboard.
+ * Буфер для поля, чиє значення живе у ViewModel: відлуння зі стору приходить на кадр пізніше і
+ * при швидкому наборі губило б символи. Буфер приймає вхідне значення лише коли це не відлуння
+ * останньої правки (скидання, відновлена чернетка).
  */
 @Composable
 fun rememberBufferedText(value: String, onValueChange: (String) -> Unit): BufferedText {

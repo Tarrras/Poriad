@@ -2,10 +2,7 @@ package app.poruch.android.feature.onboarding
 
 import app.poruch.domain.Crowd
 
-/**
- * The opening questions. Four steps and not one more: every extra screen between a person and the
- * events is a screen they can leave the app on, so this asks only what the ranking actually reads.
- */
+/** Кроки онбордингу. Лише те, що читає ранжування: кожен зайвий екран — привід піти. */
 enum class OnboardingStep { WELCOME, INTERESTS, TIMES, CROWD }
 
 data class OnboardingState(
@@ -14,7 +11,7 @@ data class OnboardingState(
     val times: List<String> = emptyList(),
     val crowd: String = Crowd.ANY
 ) {
-    /** The welcome screen is not a question, so it is not counted as one. */
+    /** Вітання — не питання, тому не рахується. */
     val questionNumber get() = OnboardingStep.entries.indexOf(step)
     val questionCount get() = OnboardingStep.entries.size - 1
     val isLast get() = step == OnboardingStep.CROWD

@@ -1,57 +1,23 @@
--- Подія, що вже почалась, але ще не скінчилась.
---
--- Конвеєр давно імпортує виставки, ярмарки й фестивальні програми, але показати їх не було кому:
--- і `private.discover_index`, і `public.search_events_in_view` відсікали подію за часом **початку**
--- (`e.starts_at > now()`). На обході пʼяти міст під цю умову потрапляли 62 події, яких застосунок
--- не показував жодного дня їхнього прокату.
---
--- Заміна умови на `ends_at` безпечна лише після того, як у базі не лишиться записів із вигаданим
--- кінцем, — тому спершу знімаємо з публікації постійні пропозиції, а вже потім міняємо умову.
--- Межа прокату відтепер стоїть в `tools/ingest/pipeline.py` (`PERMANENT_RUN`), тобто при імпорті,
--- а не при показі: фільтр ховає рядок, але рядок лишається й спливає в кожному новому запиті.
---
--- Чого ця міграція НЕ чіпає:
---   `p_from`/`p_to` лишаються на `starts_at`. «На вихідних» — це питання про те, що **почнеться**
---   на вихідних, а не про те, що тоді триватиме. Різні питання, один параметр їх не вміщає.
---
---   `public.events_in_view` лишається на `starts_at`: жоден клієнт її не викликає (карта ходить у
---   `discover_events`, запасний шлях — у `search_events_in_view`), і міняти умову в функції, якої
---   ніхто не питає, означало б додати третє місце, де ця умова написана.
+-- Події, що вже йдуть: виставки й фестивалі відсікались за часом початку. Умова переходить на
+-- `ends_at`, але спершу знімаємо з публікації постійні пропозиції з вигаданим кінцем; далі межу
+-- прокату тримає `tools/ingest/pipeline.py` (`PERMANENT_RUN`).
+-- Не чіпаємо: `p_from`/`p_to` лишаються на `starts_at` («на вихідних» — про те, що почнеться);
+-- `public.events_in_view` теж, її ніхто не викликає.
 
--- ------------------------------------------------------------------ 1. постійні пропозиції геть
---
--- Десять таких рядків уже завезено: «Київський океанаріум», «Музей медуз», VR-екскурсія,
--- майстер-клас із кінцем через 560 днів. У них `endDate` — не кінець події, а дата, доки діє
--- квиткова пропозиція. Після зміни умови нижче вони висіли б у стрічці як «триває зараз»
--- місяцями.
---
--- `withdrawn`, а не `delete`: якщо хтось уже зберіг океанаріум, порожній запис гірший за позначку
--- (та сама причина, що в `private.is_discoverable` — відкликана подія лишається доступною тому,
--- хто її зберіг). Межа тут повторює `tools/ingest/pipeline.py`: 90 днів.
+-- ---- 1. Постійні пропозиції (океанаріум, музей медуз) з `endDate` через 560 днів висіли б як
+-- «триває зараз» місяцями. `withdrawn`, а не `delete`: збережений запис лишається. Межа 90 днів, як у pipeline.py.
 update public.events set import_status='withdrawn', updated_at=now()
 where origin='import' and import_status='live' and ends_at - starts_at > interval '90 days';
 
--- ------------------------------------------------------------------ 2. умова й порядок в індексі
---
--- Дві зміни в одному тілі, і друга без першої ламає стрічку. Умова `ends_at > now()` впускає
--- виставку, що почалась 38 днів тому, а `order by starts_at` розставляє все, що вже йде, за тим,
--- хто почався давніше: найдовший прокат опиняється першим і лишається там до кінця.
--- `greatest(starts_at, now())` згортає те, що вже йде, в одну точку «зараз» і далі розрізняє за
--- `id`; майбутнє лишається в порядку початку.
---
--- Чого це НЕ робить, і це варто сказати прямо: те, що йде зараз, і далі стоїть попереду того, що
--- почнеться завтра, — це і є «цікаво зараз». Змінюється лише те, що перше місце в цій групі
--- більше не дістається найдовшому прокату за вислугою років.
---
--- Решта тіла — слово в слово з 20260911070031: сигнатура та сама, тож це заміна тіла, і жоден
--- грант не губиться дорогою.
+-- ---- 2. Умова й порядок в індексі. `ends_at > now()` впускає прокати, а `order by
+-- greatest(starts_at, now())` не дає найдовшому прокату вічно стояти першим: усе, що вже йде,
+-- згортається в точку «зараз». Решта тіла — з 20260911070031, сигнатура та сама.
 create or replace function private.discover_index(
  p_south double precision, p_west double precision, p_north double precision, p_east double precision,
  p_category text, p_from timestamptz, p_to timestamptz, p_text text, p_available boolean,
  p_limit integer, p_cards integer)
 returns table(index jsonb, total integer, truncated boolean, card_ids uuid[])
--- Без `plan_cache_mode='force_custom_plan'`, як і в 20260911070031: узагальнений план бере
--- gist-індекс і без нього, а планування цього запиту коштує ~65 мс.
+-- Без `plan_cache_mode='force_custom_plan'`, як у 20260911070031.
 language sql stable security definer set search_path='' as $$
  with matched as (
   select e.id, e.starts_at, e.latitude, e.longitude, e.category, e.time_zone, e.title,
@@ -61,8 +27,7 @@ language sql stable security definer set search_path='' as $$
     and private.is_discoverable(e.origin, e.import_status, e.quality)
     and (nullif(btrim(p_text),'') is null
          or strpos(lower(concat_ws(' ', e.title, e.description, e.city, e.address)), lower(btrim(p_text))) > 0)
-    -- `case` замість `and`: порядок обчислення в кон'юнкції не гарантований, а нам потрібно, щоб
-    -- перевірка колонки стояла перед викликом функції.
+    -- `case` замість `and`: порядок обчислення кон'юнкції не гарантований.
     and (not coalesce(p_available,false)
          or case when e.capacity is null then false else private.event_has_space(e.id) end)
     and (p_category is null or e.category = p_category)
@@ -92,12 +57,8 @@ language sql stable security definer set search_path='' as $$
   coalesce((select array_agg(p.id order by p.rank) from page p where p.rank <= p_cards), '{}'::uuid[]);
 $$;
 
--- ------------------------------------------------------------------ 3. те саме в запасному шляху
---
--- Збірки, які ще не знають про `discover_events`, ходять сюди. Умова й порядок мають збігатись з
--- індексом, інакше та сама область показувала б різне залежно від версії застосунку. Порядок тут
--- у двох місцях — у підзапиті з `limit 300` і в зовнішньому `order by`; загубити друге найлегше,
--- і саме воно вирішує, що людина побачить першим.
+-- ---- 3. Те саме в запасному шляху для старих збірок. Порядок у двох місцях: у підзапиті з
+-- `limit 300` і в зовнішньому `order by`.
 create or replace function public.search_events_in_view(p_south double precision,p_west double precision,p_north double precision,p_east double precision,p_category text default null,p_from timestamptz default null,p_to timestamptz default null,p_text text default null,p_available boolean default false)
  returns setof public.event_result language plpgsql stable security invoker set search_path = '' as $$
 begin

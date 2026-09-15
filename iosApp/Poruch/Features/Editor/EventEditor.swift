@@ -1,8 +1,7 @@
 import SwiftUI
 import Shared
 
-/// Publishing in three steps: what, where, when. The view draws [EventEditorModel] and forwards
-/// edits to it; validation and persistence live there.
+/// Публікація в три кроки: що, де, коли. View малює `EventEditorModel`, валідація й збереження там.
 struct EventEditor: View {
     let event: Event?
     @EnvironmentObject var model: AppModel
@@ -33,7 +32,7 @@ struct EventEditor: View {
         }
         .background(Palette.canvas)
         .onChange(of: editor.form) { _, _ in editor.scheduleSave() }
-        // Аркуш не «зникає», коли застосунок згортають, тож відкладений запис треба дожати самим.
+        // При згортанні застосунку аркуш не зникає, тож відкладений запис дожимаємо самі.
         .onChange(of: scenePhase) { _, phase in if phase != .active { editor.persist() } }
         .onDisappear { editor.persist() }
         .onChange(of: model.state?.completedEventId) { _, id in
@@ -92,7 +91,7 @@ private struct AboutStep: View {
                     }
                 }
             }
-            // Поля — всередині смуги; поля сторінки, які дає крок форми, тут знімаються.
+            // Поля всередині смуги, поля сторінки знімаємо.
             .railContentPadding()
             .padding(.horizontal, -Space.page)
         }
@@ -105,8 +104,7 @@ private struct PlaceStep: View {
     @State private var mapLongitude: Double
     @State private var picking = false
 
-    /// Мапа читає свій центр один раз — але вже тут, а не в `onAppear`: інакше перший кадр вона
-    /// малює в точці (0, 0), тобто посеред океану, і лише потім стрибає на місце.
+    /// Центр мапи задаємо тут, а не в `onAppear`, інакше перший кадр малюється в (0, 0).
     init(editor: EventEditorModel) {
         _editor = ObservedObject(wrappedValue: editor)
         _mapLatitude = State(initialValue: editor.form.latitude)
@@ -120,8 +118,7 @@ private struct PlaceStep: View {
             placeholder: "Вулиця, будинок або назва закладу",
             hint: "Почніть набирати — знайдемо на мапі"
         )
-        // Підказки стоять одразу під полем: список нижче за мапу читався б як щось інше, а не як
-        // продовження того, що набирають.
+        // Підказки одразу під полем, як продовження набору.
         if !editor.addressSuggestions.isEmpty {
             VStack(spacing: 0) {
                 ForEach(Array(editor.addressSuggestions.enumerated()), id: \.offset) { index, place in
@@ -145,11 +142,10 @@ private struct PlaceStep: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .cardSurface()
         }
-        // Мапа тут нічого не обирає: вона показує, що вибрано. Жести на клаптику 240 pt коштували
-        // б точності, якої від крапки зустрічі й чекають.
+        // Мапа лише показує вибране: жести на 240 pt коштували б точності.
         EventMap(
             events: [], latitude: mapLatitude, longitude: mapLongitude,
-            // Крапку принесла адреса — отже, показуємо будинок, а не місто.
+            // Є крапка — показуємо будинок, а не місто.
             centerZoom: editor.pointChosen ? MapZoom.street : MapZoom.city,
             chosenPoint: editor.form.point,
             interactive: false,
@@ -158,8 +154,7 @@ private struct PlaceStep: View {
         )
         .frame(height: 240)
         .clipShape(RoundedRectangle(cornerRadius: Corner.md, style: .continuous))
-        // Координат тут більше немає: людина знає адресу, а не широту. Лишається сказати, чи
-        // крапку вже поставлено.
+        // Координат не показуємо: людина знає адресу, а не широту.
         MetaLine(
             symbol: editor.pointChosen ? "checkmark.circle" : "mappin.and.ellipse",
             text: editor.pointChosen ? "Точку зустрічі позначено" : "Знайдіть адресу або вкажіть точку на мапі"
@@ -168,8 +163,7 @@ private struct PlaceStep: View {
             picking = true
         }
         .frame(maxWidth: .infinity)
-        // Обрана адреса рухає мапу під приціл. Слухаємо лічильник, а не координати: від панорами
-        // вони теж міняються, і мапа ганялася б за власним центром.
+        // Слухаємо лічильник, а не координати: від панорами вони теж міняються.
         .onChange(of: editor.placedAt) { _, _ in
             mapLatitude = editor.form.latitude
             mapLongitude = editor.form.longitude
@@ -198,8 +192,7 @@ private struct ScheduleStep: View {
             .font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
             .padding(Space.lg).cardSurface()
         TimeZoneNote(zone: form.timeZone, fromPlace: timeZoneFromPlace)
-        // Who may come is part of publishing, not a setting hidden afterwards: an organizer decides
-        // it while they are still thinking about what the evening is.
+        // Хто може прийти — частина публікації, а не сховане налаштування.
         VStack(alignment: .leading, spacing: Space.md) {
             SectionHeader(title: "Хто може прийти")
             VStack(spacing: Space.lg) {
@@ -239,20 +232,15 @@ private struct ScheduleStep: View {
     }
 }
 
-/// The platform floor is the lowest an organizer may set; the server refuses anything under it.
+/// Нижче за мінімум платформи організатор поставити не може.
 private var ageRange: ClosedRange<Int> { Int(SafetyRules.shared.MIN_SIGNUP_AGE)...100 }
 
-/// The same range the server's CHECK constraint enforces.
+/// Той самий діапазон, що в CHECK на сервері.
 private var capacityRange: ClosedRange<Int> {
     Int(EventRules.shared.capacity.first)...Int(EventRules.shared.capacity.last)
 }
 
-/**
- Повноекранна мапа, де крапка — це центр.
-
- Ціль не рухається, рухається світ під нею: так крапку видно завжди, і її не затуляє палець.
- Підтвердження — окрема дія, тож дорогою можна роздивитись околиці, нічого не змінивши.
- */
+/// Повноекранна мапа з ціллю в центрі: рухається світ під нею, крапку не затуляє палець.
 private struct PointPicker: View {
     @ObservedObject var editor: EventEditorModel
     let start: (latitude: Double, longitude: Double)
@@ -283,8 +271,7 @@ private struct PointPicker: View {
                 centerZoom: zoom,
                 selected: { _ in },
                 moved: { _ in },
-                // Мапа повідомляє про зупинку, а не про кожен кадр: питати адресу має сенс тоді,
-                // коли палець уже відпустив мапу.
+                // Мапа повідомляє про зупинку, а не про кожен кадр.
                 centerChanged: { latitude, longitude in
                     center = (latitude, longitude)
                     editor.aim(at: latitude, longitude: longitude)
@@ -292,7 +279,7 @@ private struct PointPicker: View {
                 controller: controller
             )
             .ignoresSafeArea()
-            // Ціль малюється поверх мапи й не приймає дотиків: під нею мапа, і вона має тягтися.
+            // Ціль не приймає дотиків: мапа під нею має тягтися.
             PoruchIcon(glyph: PoruchIcons.pin, size: 36)
                 .foregroundStyle(Palette.brand)
                 .offset(y: -18)
@@ -311,7 +298,7 @@ private struct PointPicker: View {
                 .padding(Space.lg)
                 Spacer(minLength: 0)
                 VStack(spacing: Space.md) {
-                    // Адреса — головне тут, тож вона й читається як головне: сам рядок, а не підпис.
+                    // Адреса тут головна, тож і виглядає як головна.
                     HStack(spacing: Space.md) {
                         PoruchIcon(glyph: PoruchIcons.pin, size: 18).foregroundStyle(Palette.inkSecondary)
                         VStack(alignment: .leading, spacing: 2) {
@@ -339,7 +326,7 @@ private struct PointPicker: View {
     }
 }
 
-/// Кругла кнопка масштабу поверх мапи: та сама вага, що й у решти круглих кнопок застосунку.
+/// Кругла кнопка масштабу поверх мапи.
 private struct ZoomButton: View {
     let symbol: String
     let label: String

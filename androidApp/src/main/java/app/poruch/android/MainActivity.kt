@@ -1,6 +1,7 @@
+@file:OptIn(KoinExperimentalAPI::class)
+
 package app.poruch.android
 
-import android.app.Application
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
@@ -8,62 +9,43 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.viewModels
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavKey
-import androidx.navigation3.runtime.entryProvider
-import androidx.navigation3.runtime.rememberNavBackStack
+import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
-import app.poruch.android.feature.*
-import app.poruch.android.mvi.LocalPoruchApp
+import app.poruch.android.feature.OnboardingRoute
+import app.poruch.android.navigation.*
 import app.poruch.android.ui.*
-import app.poruch.domain.PoruchLog
-import app.poruch.shared.AppConfig
-import app.poruch.shared.AppGraph
 import app.poruch.shared.AppNotice
-import app.poruch.shared.PlatformSetup
+import app.poruch.shared.PoruchApp
 import kotlinx.coroutines.delay
-import kotlinx.serialization.Serializable
+import org.koin.android.ext.android.inject
+import org.koin.androidx.compose.KoinAndroidContext
+import org.koin.androidx.compose.navigation3.getEntryProvider
+import org.koin.android.scope.AndroidScopeComponent
+import org.koin.androidx.scope.activityRetainedScope
+import org.koin.compose.koinInject
+import org.koin.compose.navigation3.EntryProvider
+import org.koin.core.annotation.KoinExperimentalAPI
+import org.koin.core.scope.Scope
 import java.util.Locale
 
-@Serializable
-data class Route(val screen: Screen, val id: String = "") : NavKey
+class MainActivity : ComponentActivity(), AndroidScopeComponent {
+    /** Retained-скоуп: [Navigator] і записи стека переживають поворот. */
+    override val scope: Scope by activityRetainedScope()
+    private val app: PoruchApp by inject()
 
-/** Holds the object graph for the process; screens get their own ViewModels from it. */
-class PoruchModel(application: Application) : AndroidViewModel(application) {
-    init {
-        // Tracing is a debug-build tool; release keeps the sinks silent.
-        PoruchLog.enabled = BuildConfig.DEBUG
-        PlatformSetup.initialize(application)
-        PoruchLog.i("app") { "graph created" }
-    }
-
-    private val graph = AppGraph(AppConfig(BuildConfig.SUPABASE_URL, BuildConfig.SUPABASE_KEY), SessionStore(application))
-    val app = graph.app
-    override fun onCleared() { graph.close() }
-}
-
-class MainActivity : ComponentActivity() {
-    private val model: PoruchModel by viewModels()
-
-    /**
-     * The app ships one language, so it runs in it regardless of the phone's setting. Without this
-     * the platform pickers and `java.time` formatting would come out in the system locale while
-     * every string around them stayed Ukrainian.
-     */
+    /** Застосунок одномовний: без цього системні пікери й `java.time` виходили б мовою телефону. */
     override fun attachBaseContext(base: Context) {
         val locale = Locale.forLanguageTag(APP_LANGUAGE)
         Locale.setDefault(locale)
@@ -81,16 +63,19 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         if (savedInstanceState == null) handle(intent)
+        // Записи стека збираємо зі скоупу Activity один раз, до композиції.
+        val entryProvider = getEntryProvider<NavKey>()
+        val navigator = scope.get<Navigator>()
         setContent {
-            CompositionLocalProvider(LocalPoruchApp provides model.app) {
-                PoruchTheme { PoruchRoot() }
+            KoinAndroidContext {
+                PoruchTheme { PoruchRoot(navigator, entryProvider) }
             }
         }
     }
 
     private fun handle(intent: Intent) {
-        intent.dataString?.let(model.app::handleAuthCallback)
-        intent.getStringExtra(EXTRA_EVENT_ID)?.let(model.app::selectEvent)
+        intent.dataString?.let(app::handleAuthCallback)
+        intent.getStringExtra(EXTRA_EVENT_ID)?.let(app::selectEvent)
     }
 
     companion object {
@@ -99,48 +84,36 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-/** Tabs keep their own root; everything else is pushed on top of the current one. */
-private val TAB_SCREENS = listOf(Screen.HOME, Screen.MAP, Screen.MINE, Screen.PROFILE)
-
 @Composable
-fun PoruchRoot() {
+fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
     val context = LocalContext.current
-    val app = LocalPoruchApp.current
+    val app = koinInject<PoruchApp>()
     val state by app.state.collectAsStateWithLifecycle()
-    val stack = rememberNavBackStack(Route(Screen.HOME))
-    val route = stack.last() as Route
+    val current = navigator.current
+    // Мапа вкладки живе стільки, скільки корінь. Див. [SharedMapView].
+    val sharedMap = remember { SharedMapView(context) }
+    DisposableEffect(sharedMap) { onDispose { sharedMap.destroy() } }
 
     LaunchedEffect(state.myEvents, state.userId) { Reminders.sync(context, state) }
-    LaunchedEffect(state.passwordRecovery) {
-        if (state.passwordRecovery) { stack.clear(); stack.add(Route(Screen.PROFILE)) }
-    }
+    LaunchedEffect(state.passwordRecovery) { if (state.passwordRecovery) navigator.reset(Profile) }
 
-    fun navigate(screen: Screen, id: String) {
-        // Вкладка лишається коренем стека, але може відкритися заради конкретної події — так мапа
-        // з деталей наводиться на її пін, а не на центр міста.
-        if (screen in TAB_SCREENS) { stack.clear(); stack.add(Route(screen, id)) } else stack.add(Route(screen, id))
-    }
-    fun back() { if (stack.size > 1) stack.removeLastOrNull() }
-    fun requireAccount(action: () -> Unit) { if (state.signedIn) action() else navigate(Screen.AUTH, "") }
-
+    // Без провайдера вкладка «Мапа» будувала нову MapView на кожен вхід.
+    CompositionLocalProvider(LocalSharedMapView provides sharedMap) {
     Box(Modifier.fillMaxSize().background(Poruch.colors.canvas)) {
-        // The opening questions replace the app rather than covering it: at first launch there is
-        // nothing behind them yet, and a dismissible sheet over an empty home is a worse welcome.
+        // Онбординг замінює застосунок, а не накриває: за ним на першому запуску ще нічого нема.
         if (state.needsOnboarding) OnboardingRoute() else {
-        NavDisplay(backStack = stack, onBack = { back() }, entryProvider = entryProvider {
-            entry<Route> { current ->
-                when (current.screen) {
-                    Screen.HOME -> HomeRoute(::navigate, ::requireAccount)
-                    Screen.MAP -> ExploreRoute(current.id, ::navigate, ::requireAccount)
-                    Screen.MINE -> MyEventsRoute(::navigate, ::requireAccount)
-                    Screen.PROFILE -> ProfileRoute(::navigate)
-                    Screen.AUTH -> AuthRoute(::back)
-                    Screen.DETAIL -> DetailRoute(current.id, ::back, ::navigate)
-                    Screen.EDITOR -> EditorRoute(current.id.takeIf { it.isNotEmpty() }, ::back)
-                }
-            }
-        })
-        TabBar(route.screen, ::navigate, ::requireAccount, Modifier.align(Alignment.BottomCenter))
+            // Кожен запис стека має власне сховище моделей: пушнуті екрани переживають поворот і
+            // чистяться при знятті. Вкладки беруть моделі зі сховища Activity, див. `activityStoreOwner`.
+            NavDisplay(
+                backStack = navigator.stack,
+                onBack = navigator::back,
+                entryDecorators = listOf(
+                    rememberSaveableStateHolderNavEntryDecorator(),
+                    rememberViewModelStoreNavEntryDecorator()
+                ),
+                entryProvider = entryProvider
+            )
+            TabBar(current, navigator, Modifier.align(Alignment.BottomCenter))
         }
         NoticeHost(state.notice, app::clearNotice, Modifier.align(Alignment.TopCenter))
         if (state.mutating) LinearProgressIndicator(
@@ -148,38 +121,43 @@ fun PoruchRoot() {
             color = Poruch.colors.brand, trackColor = Poruch.colors.brandContainer
         )
     }
+    }
 }
 
 @Composable
-private fun TabBar(
-    current: Screen, navigate: (Screen, String) -> Unit, requireAccount: (() -> Unit) -> Unit, modifier: Modifier
-) {
+private fun TabBar(current: NavKey, navigator: Navigator, modifier: Modifier) {
     val reducedMotion = Poruch.reducedMotion
     val tabs = listOf(
-        TabItem(Screen.HOME.name, stringResource(R.string.home), PoruchIcons.home),
-        TabItem(Screen.MAP.name, stringResource(R.string.map), PoruchIcons.map),
-        TabItem(Screen.MINE.name, stringResource(R.string.my_events), PoruchIcons.calendar),
-        TabItem(Screen.PROFILE.name, stringResource(R.string.profile), PoruchIcons.person)
+        TabItem(Home.tabKey(), stringResource(R.string.home), PoruchIcons.home),
+        TabItem(Explore().tabKey(), stringResource(R.string.map), PoruchIcons.map),
+        TabItem(Mine.tabKey(), stringResource(R.string.my_events), PoruchIcons.calendar),
+        TabItem(Profile.tabKey(), stringResource(R.string.profile), PoruchIcons.person)
     )
     AnimatedVisibility(
-        visible = current in TAB_SCREENS,
+        visible = current is Tab,
         enter = if (reducedMotion) fadeIn() else fadeIn() + slideInVertically { it },
         exit = if (reducedMotion) fadeOut() else fadeOut() + slideOutVertically { it },
         modifier = modifier
     ) {
         PoruchTabBar(
-            tabs, current.name, Modifier.navigationBarsPadding().padding(bottom = Spacing.md),
-            onSelect = { navigate(Screen.valueOf(it), "") }
+            tabs, current.tabKey(), Modifier.navigationBarsPadding().padding(bottom = Spacing.md),
+            onSelect = { key -> navigator.open(tabFor(key)) }
         ) {
-            CreateButton({ requireAccount { navigate(Screen.EDITOR, "") } })
+            CreateButton({ navigator.requireAccount { navigator.open(Editor()) } })
         }
     }
 }
 
-/**
- * Notices land under the status bar. The last one is held past the clear so the text does not
- * vanish mid-exit, and errors linger longer because they usually ask for a decision.
- */
+/** Таббар розрізняє вкладки за класом: `Explore` з будь-яким `focusId` — та сама вкладка. */
+private fun NavKey.tabKey(): String = this::class.simpleName.orEmpty()
+private fun tabFor(key: String): Tab = when (key) {
+    Explore().tabKey() -> Explore()
+    Mine.tabKey() -> Mine
+    Profile.tabKey() -> Profile
+    else -> Home
+}
+
+/** Банер під статус-баром. Останній текст тримаємо до кінця анімації; помилки висять довше. */
 @Composable
 private fun NoticeHost(notice: AppNotice?, dismiss: () -> Unit, modifier: Modifier) {
     val reducedMotion = Poruch.reducedMotion

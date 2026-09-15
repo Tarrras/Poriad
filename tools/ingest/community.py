@@ -1,4 +1,4 @@
-"""Adapters for community calendars which need detail-page enrichment."""
+"""Адаптери для спільнотних календарів, яким потрібне доповнення зі сторінки події."""
 from __future__ import annotations
 
 import datetime as dt
@@ -34,7 +34,7 @@ def _links(html: str, base: str) -> list[str]:
 
 
 def _dou_cards(html: str, base: str) -> list[str]:
-    """Read the actual calendar list, excluding sidebar ads and comments."""
+    """Читає сам список календаря без реклами в сайдбарі й коментарів."""
     cards: list[str] = []
     class Cards(HTMLParser):
         def __init__(self):
@@ -90,7 +90,7 @@ def _ical_datetime(line: str, default_tz: str) -> str | None:
 
 
 def ical_dates(value: str, event_url: str) -> dict | None:
-    """Return safe DTSTART/DTEND for the VEVENT matching ``event_url``."""
+    """Повертає безпечні DTSTART/DTEND для VEVENT, що відповідає ``event_url``."""
     lines = _unfold_ical(value)
     default_tz = next((x.split(":", 1)[1] for x in lines if x.startswith("TZID:")), "")
     if default_tz not in {"Europe/Kiev", "Europe/Kyiv"}:
@@ -170,7 +170,7 @@ def _normalize_yoy_location(event: dict, city: str) -> None:
 
 def collect(slug: str, listing_url: str, city: str, *, get, delay: float = 2.0,
             max_details: int = 60) -> tuple[list[dict], dict]:
-    """Collect safe schema.org-shaped events from DOU or yoy! listings."""
+    """Збирає безпечні події у формі schema.org зі списків DOU або yoy!."""
     report = {"fetched": 0, "detail_links": 0, "detail_errors": [], "review": [],
               "coverage": "listing"}
     response = get(listing_url, delay=delay)

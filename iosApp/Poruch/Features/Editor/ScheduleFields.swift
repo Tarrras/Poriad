@@ -1,22 +1,8 @@
 import SwiftUI
 import Shared
 
-/**
- Коли подія починається і коли закінчується.
-
- Раніше тут стояли два системні `DatePicker` компактного стилю. Три речі в них не працювали.
-
- По-перше, вони не знали одне про одного: пересунувши початок за кінець, людина отримувала мертву
- кнопку «Опублікувати» без жодного слова про те, чому. Тепер кінець їде за початком, зберігаючи
- тривалість, — саме цього й чекають від пари полів «з» і «до».
-
- По-друге, тривалість ніде не було видно, хоч це і є те, що обирають: «на дві години», а не «з
- 19:00 до 21:00». Тепер вона написана, і її можна поставити одним дотиком.
-
- По-третє, компактний пікер відкривався системним спливаючим вікном у системному синьому посеред
- паперового застосунку. Тепер це такий самий аркуш знизу, як усі інші питання в застосунку, — і
- такий самий, як на Android.
- */
+/// Початок і кінець події. Кінець їде за початком, зберігаючи тривалість; тривалість видно й
+/// можна поставити одним дотиком; пікер — такий самий аркуш знизу, як решта питань і як на Android.
 struct ScheduleFields: View {
     @Binding var starts: Date
     @Binding var ends: Date
@@ -43,7 +29,7 @@ struct ScheduleFields: View {
             DateTimeSheet(
                 title: edge.title,
                 initial: edge == .start ? starts : ends,
-                // Подія не може закінчитись раніше, ніж почалась; початок не може бути в минулому.
+                // Кінець не раніше початку, початок не в минулому.
                 minimum: edge == .start ? Date() : starts.addingTimeInterval(minimumDuration),
                 zone: zone
             ) { picked in
@@ -53,7 +39,7 @@ struct ScheduleFields: View {
         }
     }
 
-    /// Тривалість — те, що насправді обирають. Показана словами й змінна одним дотиком.
+    /// Тривалість словами, змінна одним дотиком.
     private var durationRow: some View {
         HStack(spacing: Space.sm) {
             VStack(alignment: .leading, spacing: 2) {
@@ -83,7 +69,7 @@ struct ScheduleFields: View {
         return rest == 0 ? "\(hours) год" : "\(hours) год \(rest) хв"
     }
 
-    /// Кінець їде за початком: пересунути подію на інший день не означає скоротити її до нуля.
+    /// Кінець їде за початком, зберігаючи тривалість.
     private func moveStart(to value: Date) {
         let held = duration
         starts = value
@@ -91,7 +77,7 @@ struct ScheduleFields: View {
     }
 }
 
-/// Рядок «мітка — значення — стрілка», такий самий, як поля в решті редактора.
+/// Рядок «мітка — значення — стрілка», як поля в решті редактора.
 private struct DateTimeRow: View {
     let label: String
     let value: Date
@@ -118,12 +104,7 @@ private struct DateTimeRow: View {
     }
 }
 
-/**
- Дата й час в одному аркуші.
-
- Календар і годинник стоять поруч, а не один після одного: дата й час події — це одне рішення, і
- два кроки з переходом між ними змушували б повертатися назад, щоб перевірити перше.
- */
+/// Дата й час в одному аркуші, поруч: це одне рішення.
 private struct DateTimeSheet: View {
     let title: String
     let initial: Date
@@ -172,7 +153,7 @@ private struct DateTimeSheet: View {
     }
 }
 
-/// «Сб, 13 вер. · 19:00» — той самий словник, що й на картках, у поясі самої події.
+/// «Сб, 13 вер. · 19:00» у поясі події, як на картках.
 private func scheduleLabel(_ date: Date, in zone: TimeZone) -> String {
     let formatter = DateFormatter()
     formatter.locale = Locale(identifier: "uk_UA")
@@ -181,17 +162,12 @@ private func scheduleLabel(_ date: Date, in zone: TimeZone) -> String {
     return formatter.string(from: date)
 }
 
-/// Подія коротша за чверть години — це радше помилка вводу, ніж план.
+/// Коротше за чверть години — радше помилка вводу.
 private let minimumDuration: TimeInterval = 900
-/// Скільки триває звичайна зустріч. Три дотики покривають майже все, решта — у пікері.
+/// Типові тривалості одним дотиком; решта в пікері.
 private let commonDurations = [1, 2, 3]
 
-/**
- Пояс не набирають — його визначає місце події.
-
- Показуємо його все одно: подія зберігає власний пояс, і мовчки підставлений неправильний гірший
- за видимий. Другий рядок каже, звідки він узявся, бо це різні ступені впевненості.
- */
+/// Пояс визначає місце події, але показуємо його: мовчки підставлений неправильний гірший за видимий.
 struct TimeZoneNote: View {
     let zone: String
     let fromPlace: Bool
@@ -213,8 +189,7 @@ struct TimeZoneNote: View {
         .cardSurface()
     }
 
-    /// «Europe/Kyiv · GMT+3»: сам ідентифікатор лишається, бо саме він поїде на сервер, а зсув —
-    /// те, що людина насправді звіряє.
+    /// «Europe/Kyiv · GMT+3»: ідентифікатор їде на сервер, зсув звіряє людина.
     private var readableZone: String {
         guard let resolved = TimeZone(identifier: zone) else { return zone }
         let hours = resolved.secondsFromGMT() / 3600

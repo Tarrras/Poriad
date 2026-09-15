@@ -1,10 +1,9 @@
--- Run as database administrator. No fixtures persist.
+-- Запускати адміністратором бази. Фікстури не зберігаються.
 begin;
 select set_config('test.host',gen_random_uuid()::text,true),set_config('test.member',gen_random_uuid()::text,true),
  set_config('test.other',gen_random_uuid()::text,true),set_config('test.stranger',gen_random_uuid()::text,true),
  set_config('test.event',gen_random_uuid()::text,true);
--- Accounts now declare an age at sign-up, and joining refuses one that has not: the fixtures
--- carry a birth date so these suites test what they were written to test.
+-- Фікстури мають дату народження: без віку приєднання відмовляє.
 insert into auth.users(id,email,raw_user_meta_data) values
  (current_setting('test.host')::uuid,'poruch-host-'||current_setting('test.host')||'@example.invalid',jsonb_build_object('display_name','Host','birth_date','1990-01-01')),
  (current_setting('test.member')::uuid,'poruch-member-'||current_setting('test.member')||'@example.invalid',jsonb_build_object('display_name','Member','birth_date','1990-01-01')),
@@ -20,29 +19,28 @@ select public.join_event(current_setting('test.event')::uuid);
 select set_config('request.jwt.claim.sub',current_setting('test.other'),true);
 select public.join_event(current_setting('test.event')::uuid);
 reset role;
--- now() is the transaction timestamp, so both joins carry an identical joined_at. Separate them so
--- the ordering the function promises is actually exercised rather than decided by the uuid tiebreak.
+-- now() однаковий у транзакції, тож розводимо joined_at, щоб перевірити обіцяний порядок.
 update public.event_members set joined_at = now() - interval '1 hour'
  where event_id=current_setting('test.event')::uuid and user_id=current_setting('test.member')::uuid;
 set local role authenticated;
 
 do $$ begin
- -- A member reads the whole roster and its display names.
+ -- Учасник читає весь список з іменами.
  perform set_config('request.jwt.claim.sub',current_setting('test.member'),true);
  assert (select count(*)=2 from public.event_attendees(current_setting('test.event')::uuid)),'member reads roster';
  assert (select bool_and(display_name is not null) from public.event_attendees(current_setting('test.event')::uuid)),'roster carries names';
  assert (select user_id from public.event_attendees(current_setting('test.event')::uuid) limit 1)=current_setting('test.member')::uuid,'ordered by join time';
 
- -- The organizer reads it too, even without being a member.
+ -- Організатор теж, навіть не будучи учасником.
  perform set_config('request.jwt.claim.sub',current_setting('test.host'),true);
  assert (select count(*)=2 from public.event_attendees(current_setting('test.event')::uuid)),'organizer reads roster';
 
- -- A signed-in stranger sees nobody: the member policy still governs identities.
+ -- Сторонній не бачить нікого.
  perform set_config('request.jwt.claim.sub',current_setting('test.stranger'),true);
  assert (select count(*)=0 from public.event_attendees(current_setting('test.event')::uuid)),'stranger sees no identities';
  assert (select attendee_count=2 from public.event_details(current_setting('test.event')::uuid)),'stranger still sees the count';
 
- -- Bounds are clamped rather than trusted.
+ -- Межі обрізаються, а не приймаються на віру.
  perform set_config('request.jwt.claim.sub',current_setting('test.member'),true);
  assert (select count(*)=1 from public.event_attendees(current_setting('test.event')::uuid,1)),'limit honoured';
  assert (select count(*)=1 from public.event_attendees(current_setting('test.event')::uuid,0)),'limit clamped up to one';

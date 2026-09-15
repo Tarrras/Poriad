@@ -46,6 +46,26 @@
   <!-- Прокат виставки чи ярмарку: «триває зараз» на ньому не каже, до коли ще можна, а дата
        початку читається як минуле. %1$s — дата кінця, «30 вересня». -->
   <string name="underway_until">до %1$s</string>
+  <!-- Решта сеансів прокату на картці. Число, а не проміжок «22–30 грудня»: прокат буває з
+       розривами («Хор Гомін» 5, 12 і 27 жовтня), і проміжок збрехав би про дні між ними. -->
+  <plurals name="series_more_dates">
+    <item quantity="one">ще %d дата</item>
+    <item quantity="few">ще %d дати</item>
+    <item quantity="many">ще %d дат</item>
+    <item quantity="other">ще %d дати</item>
+  </plurals>
+  <!-- Кілька сеансів того самого дня: «ще 1 дата» про них збрехало б. -->
+  <plurals name="series_more_showings">
+    <item quantity="one">ще %d сеанс</item>
+    <item quantity="few">ще %d сеанси</item>
+    <item quantity="many">ще %d сеансів</item>
+    <item quantity="other">ще %d сеансу</item>
+  </plurals>
+  <!-- Другий сеанс того самого вечора: «і о 19:30». -->
+  <string name="series_also_at">і о %1$s</string>
+  <string name="sessions_title">Дати</string>
+  <string name="session_started">Уже почався</string>
+  <string name="session_started_hint">Сеанс уже почався, квитки на нього не продають. Оберіть іншу дату.</string>
   <!-- «У суботу о 18:00»: знахідний відмінок, бо називний тут читається як список, а не як речення. -->
   <string-array name="weekday_on">
     <item>У понеділок</item>
@@ -156,6 +176,8 @@
   <string name="events_here">Тут подій: %1$d</string>
   <string name="show_all_events">Показати всі події</string>
   <string name="events_found">Знайдено подій: %1$d</string>
+  <string name="area_custom">В області, яку ви обрали на мапі</string>
+  <string name="area_stack">Усе, що стоїть на обраному піні</string>
   <string name="nothing_here">Тут поки тихо</string>
   <string name="nothing_here_hint">Змініть область мапи, дату або категорію — і події знайдуться.</string>
   <string name="searching">Шукаємо події…</string>
@@ -165,6 +187,9 @@
   <string name="home">Головна</string>
   <string name="home_title">Що поруч</string>
   <string name="home_subtitle">Плани на найближчі дні у місті %1$s</string>
+  <string name="home_subtitle_area">Плани в області, яку ви обрали на мапі</string>
+  <string name="all_events_hint">На мапі можна змінити область, дату й категорію</string>
+  <string name="all_events_row_a11y">Усі події поруч: %1$d. Показати на мапі</string>
   <string name="upcoming_for_you">Скоро у вас</string>
   <string name="today_in_city">Сьогодні в місті</string>
   <string name="this_weekend">На вихідних</string>

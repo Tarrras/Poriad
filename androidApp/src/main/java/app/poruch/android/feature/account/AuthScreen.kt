@@ -37,7 +37,7 @@ import java.time.format.DateTimeFormatter
 fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
     val colors = Poruch.colors
     Column(Modifier.fillMaxSize().background(colors.canvas).verticalScroll(rememberScrollState())) {
-        // The same paper band every other screen opens with, so sign-in belongs to the app.
+        // Та сама шапка, що на решті екранів.
         Column(
             Modifier.fillMaxWidth().background(heroGradient()).statusBarsPadding()
                 .padding(horizontal = Spacing.page).padding(bottom = Spacing.xl),
@@ -58,8 +58,7 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
                 style = MaterialTheme.typography.bodyLarge, color = colors.inkSecondary
             )
         }
-        // Екран існує заради цих полів, тож він їх і фокусує. При реєстрації першим стоїть імʼя,
-        // при вході — пошта: фокус має падати на те поле, яке людина заповнює першим.
+        // Фокус на перше поле: імʼя при реєстрації, пошта при вході.
         val emailField = remember { FocusRequester() }
         val nameField = remember { FocusRequester() }
         LaunchedEffect(state.signup) {
@@ -71,8 +70,7 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
                 focusRequester = nameField,
                 placeholder = stringResource(R.string.name_placeholder)
             )
-            // Asked once, at sign-up, and never shown to anybody else: it is what an age limit on
-            // an event has to rest on, and what a moderation decision later refers back to.
+            // Питаємо раз, при реєстрації, і нікому не показуємо: на це спираються вікові межі й модерація.
             if (state.signup) PickerField(
                 stringResource(R.string.birth_date),
                 state.birthDateValue?.format(BIRTH_DATE_FORMAT).orEmpty(),
@@ -111,8 +109,7 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
                 stringResource(R.string.forgot_password), { onIntent(AuthIntent.ResetPassword) },
                 tone = colors.inkSecondary, enabled = state.emailValid && !state.mutating
             )
-            // Registration is the other half of this screen, not a footnote: everyone arriving
-            // without an account has to reach it, so it gets a real button under a divider.
+            // Реєстрація — друга половина екрана, а не примітка: справжня кнопка під роздільником.
             Row(
                 Modifier.padding(top = Spacing.sm), verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(Spacing.md)
@@ -135,5 +132,5 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
     ) { onIntent(AuthIntent.SetBirthDate(it)) }
 }
 
-/** A birth date is read, not calculated with, so it is shown the way people write one. */
+/** Дата народження показується так, як її пишуть люди. */
 private val BIRTH_DATE_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")

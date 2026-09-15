@@ -6,12 +6,7 @@ import io.ktor.http.*
 import kotlinx.coroutines.test.runTest
 import kotlin.test.*
 
-/**
- * Що показати в полі, коли крапку поставили на мапі.
- *
- * Найближче до крапки — не завжди адреса: Photon першим часто віддає парк або урочище. Порядок
- * вибору тут і є відповіддю, тож він і перевіряється.
- */
+/** Адреса для крапки на мапі: найближчим часто є парк, тому перевіряється порядок вибору. */
 class PhotonReverseTest {
     private fun repo(body: String) = PhotonGeoSearchRepository(
         HttpClient(MockEngine { respond(body, HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json")) }),
@@ -35,7 +30,7 @@ class PhotonReverseTest {
         assertEquals("Притисько-Микільська вулиця", repo("""{"features":[$park,$street]}""").placeAt(50.4, 30.5)?.label)
     }
 
-    /** Ані вулиці, ані будинку — краще назва місця, ніж порожнє поле. */
+    /** Без вулиці й будинку — назва місця, а не порожнє поле. */
     @Test fun fallsBackToName() = runTest {
         assertEquals("Терапевтичний сад", repo("""{"features":[$park]}""").placeAt(50.4, 30.5)?.label)
     }

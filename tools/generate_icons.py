@@ -1,23 +1,14 @@
 #!/usr/bin/env python3
-"""Single source of truth for the Poruch icon set.
+"""Єдине джерело правди для іконок Poruch.
 
-The icons are drawn once here, on a 24-unit grid, and emitted as native code for both platforms:
-Compose `ImageVector`s and SwiftUI `Shape`s. Hand-maintaining two copies of the same geometry is
-how icon sets drift apart, and rounded arcs are easy to get subtly wrong by hand — the circle
-helper below computes them.
+Іконки малюються тут на сітці 24 одиниці й генеруються в код обох платформ: Compose `ImageVector`
+і SwiftUI `Shape`. Дві копії геометрії руками розходяться, а дуги легко намалювати криво.
 
     python3 tools/generate_icons.py
 
-Style: 24-unit box, content within 3..21, drawn as **solid marks with punched negative space**
-rather than thin outlines — the Corner reference reads as stickers, not as line diagrams, and a
-2-unit outline set is exactly what looks like the platform default. Where a line is unavoidable
-(the steam over a bowl, the hands of a clock) it is a fat 2.6-unit stroke with round caps, so it
-still carries the weight of the solid shapes beside it.
-
-Holes are punched with the even-odd rule: one path, an outer shape, and the counters inside it.
-That is what makes a solid palette read as a palette and not as a blob.
-
-Colour is never baked in: strokes and fills are black and the platform tints them.
+Стиль: суцільні форми з вирізаним негативним простором (even-odd), а не тонкі контури; вміст у
+межах 3..21. Де без лінії не обійтись, це товстий штрих 2.6 із круглими кінцями. Колір не
+запікається: усе чорне, платформа тонує сама.
 """
 
 from __future__ import annotations
@@ -26,7 +17,7 @@ from pathlib import Path as FilePath
 
 ROOT = FilePath(__file__).resolve().parent.parent
 
-# Cubic approximation of a quarter circle. Four of these draw a circle indistinguishable from one.
+# Кубічна апроксимація чверті кола; чотири такі — коло, яке не відрізнити від справжнього.
 K = 0.5522847498
 
 
@@ -47,7 +38,7 @@ def close():
 
 
 def circle(cx, cy, r):
-    """A full circle as four cubic segments, starting at the left and going clockwise."""
+    """Коло з чотирьох кубічних сегментів, зліва за годинниковою стрілкою."""
     o = r * K
     return [
         move(cx - r, cy),
@@ -60,13 +51,13 @@ def circle(cx, cy, r):
 
 
 def polyline(*points):
-    """A stroke through the given x,y pairs."""
+    """Штрих через задані точки."""
     pairs = list(zip(points[0::2], points[1::2]))
     return [move(*pairs[0])] + [line(*p) for p in pairs[1:]]
 
 
 def rounded_rect(x, y, w, h, r):
-    """A rounded rectangle. Used for the fat bars and slabs the solid style is built from."""
+    """Скруглений прямокутник для товстих брусків і плит."""
     o = r * K
     return [
         move(x + r, y),
@@ -83,13 +74,12 @@ def rounded_rect(x, y, w, h, r):
 
 
 def flat(groups):
-    """Merges several subpath lists into one path, for a single even-odd fill."""
+    """Зливає кілька підшляхів в один шлях для однієї even-odd заливки."""
     return [command for group in groups for command in group]
 
 
-# --------------------------------------------------------------------------- the set
-# Each icon is (stroked subpaths, filled subpaths, even-odd filled subpaths). The third is where
-# the solid style lives: one path whose inner shapes punch holes through the outer one.
+# ---- Набір. Кожна іконка — (штрихи, заливки, even-odd заливки). У третьому живе суцільний
+# стиль: один шлях, де внутрішні форми вирізають дірки в зовнішній.
 
 ICONS: dict[str, tuple] = {}
 
@@ -98,7 +88,7 @@ def icon(name, stroke=None, fill=None, punch=None, doc=""):
     ICONS[name] = (stroke or [], fill or [], punch or [], doc)
 
 
-# ---- categories: the glyphs on tiles, map pins and the placeholder of every event without a photo
+# ---- Категорії: гліфи на плитках, пінах і плейсхолдерах подій без фото
 
 icon(
     "music",
@@ -113,8 +103,7 @@ icon(
             close(),
         ],
     ],
-    doc="A solid eighth note. The flag is a crescent rather than a hooked line, so it keeps the "
-        "weight of the head beside it.",
+    doc="Суцільна восьма нота. Прапорець — півмісяць, а не гачок, щоб тримати вагу головки.",
 )
 
 icon(
@@ -123,8 +112,7 @@ icon(
         rounded_rect(5.9, 3.2, 2.0, 17.6, 1.0),
         [move(7.9, 4.4), line(19.4, 8.1), line(7.9, 12.6), close()],
     ],
-    doc="A solid pennant. A ball would be a third circle in a set that already has two, and thin "
-        "seams across one read as a face at tile size.",
+    doc="Суцільний вимпел. М'яч був би третім колом у наборі, а шви на ньому читаються як обличчя.",
 )
 
 icon(
@@ -138,8 +126,7 @@ icon(
             circle(10.6, 15.9, 2.5),
         ])
     ],
-    doc="A palette: a solid disc with four wells punched through it, the largest the thumb hole. "
-        "Outlined wells on an outlined disc read as a bowling ball.",
+    doc="Палітра: суцільний диск із чотирма вирізами, найбільший — для пальця.",
 )
 
 icon(
@@ -157,8 +144,7 @@ icon(
             close(),
         ]
     ],
-    doc="A solid bowl under two curls of steam. Cutlery at this size turns into two "
-        "indistinguishable sticks.",
+    doc="Миска під двома завитками пари. Прибори на такому розмірі — дві нерозрізнені палички.",
 )
 
 icon(
@@ -171,8 +157,7 @@ icon(
             circle(14.9, 14.9, 1.7),
         ])
     ],
-    doc="A die on its diagonal, pips punched out of the slab. A controller has too many small "
-        "parts to survive shrinking to a map pin.",
+    doc="Гральний кубик на діагоналі з вирізаними очками. Геймпад не переживає зменшення до піна.",
 )
 
 icon(
@@ -190,8 +175,7 @@ icon(
         ],
         rounded_rect(11.0, 17.6, 2.0, 3.2, 1.0),
     ],
-    doc="A pine as one solid silhouette with two tiers. A single triangle with a crossbar reads "
-        "as the letter A.",
+    doc="Ялина двома ярусами. Один трикутник з перекладиною читається як літера A.",
 )
 
 icon(
@@ -213,14 +197,13 @@ icon(
             close(),
         ],
     ],
-    doc="Two solid figures, one behind the other: a gathering rather than a single profile.",
+    doc="Дві фігури одна за одною: зустріч, а не профіль.",
 )
 
 icon(
     "comedy",
     stroke=[
-        # The cradle is the one line the shape cannot do without: as a solid it would swallow
-        # the capsule it is meant to hold.
+        # Тримач — єдина лінія, без якої не обійтись: суцільним він поглинув би капсулу.
         [
             move(6.9, 10.3),
             curve(6.9, 13.1, 9.2, 15.4, 12.0, 15.4),
@@ -232,16 +215,13 @@ icon(
         rounded_rect(11.2, 15.0, 1.6, 3.6, 0.8),     # the stem
         rounded_rect(8.4, 18.0, 7.2, 2.0, 1.0),      # the base bar
     ],
-    doc="A hand microphone: capsule, cradle, stand. Standup is named by its instrument the way "
-        "music is by a note — a laughing mask would read as theatre, which is the very category "
-        "comedy was split out of.",
+    doc="Мікрофон: капсула, тримач, стійка. Маска читалась би як театр, з якого комедію якраз виділили.",
 )
 
 icon(
     "kids",
     stroke=[
-        # The string is the one line that cannot be solid: as a filled shape it would read as a
-        # stalk and turn the balloon into a cherry.
+        # Нитка має бути лінією: суцільна перетворила б кульку на вишню.
         [
             move(12.0, 15.6),
             curve(12.0, 17.4, 13.6, 18.2, 13.6, 20.0),
@@ -249,7 +229,7 @@ icon(
     ],
     fill=[
         circle(12.0, 9.2, 6.0),
-        # The knot: a small triangle where the balloon meets the string.
+        # Вузлик між кулькою і ниткою.
         [
             move(10.6, 14.6),
             line(13.4, 14.6),
@@ -257,8 +237,7 @@ icon(
             close(),
         ],
     ],
-    doc="A balloon on a string. Reads as «for children» at pin size, where a teddy or a kite "
-        "collapses into a blob.",
+    doc="Кулька на нитці. Читається як «для дітей» і на розмірі піна, де ведмедик стає плямою.",
 )
 
 icon(
@@ -285,9 +264,7 @@ icon(
             ],
         ])
     ],
-    doc="Брама зі склепінням. Перший варіант був вимпелом гіда — і на рендері виявився тим самим "
-        "прапорцем, що вже стоїть у «спорті»: на піні їх не розрізнити. Арка ж збігається зі "
-        "змістом кошика: вілли, катедри, вежі, кам'яниці.",
+    doc="Брама зі склепінням. Вимпел гіда на піні не відрізнити від «спорту».",
 )
 
 icon(
@@ -295,8 +272,7 @@ icon(
     punch=[
         flat(
             [rounded_rect(3.3, 3.3, 17.4, 12.5, 2.3)]
-            # Two lines of text punched out of the board. Unequal lengths on purpose: two equal
-            # bars read as a pause symbol, and one long bar reads as a crossed-out screen.
+            # Два рядки тексту різної довжини: рівні читаються як пауза, один довгий — як перекреслення.
             + [rounded_rect(6.5, 6.9, 10.9, 1.8, 0.9), rounded_rect(6.5, 10.5, 7.1, 1.8, 0.9)]
         )
     ],
@@ -304,12 +280,11 @@ icon(
         rounded_rect(11.1, 15.8, 1.8, 3.3, 0.9),
         rounded_rect(7.3, 18.9, 9.4, 1.7, 0.85),
     ],
-    doc="A slide on a stand. Distinct from the calendar glyph, which carries a month grid and two "
-        "hangers; here the board is wide, the text lines are long, and it stands on a foot.",
+    doc="Слайд на стійці. Від календаря відрізняється широкою дошкою, довгими рядками й ніжкою.",
 )
 
 
-# ---- navigation
+# ---- Навігація
 
 icon(
     "home",
@@ -328,8 +303,7 @@ icon(
             rounded_rect(10.1, 14.4, 3.8, 6.4, 1.5),
         ])
     ],
-    doc="A solid house with the door punched through it — the negative space is what keeps the "
-        "silhouette from reading as a plain pentagon.",
+    doc="Будинок із вирізаними дверима: без них силует — просто п'ятикутник.",
 )
 
 icon(
@@ -339,8 +313,7 @@ icon(
         [move(9.5, 4.4), line(14.5, 6.8), line(14.5, 20.2), line(9.5, 17.8), close()],
         [move(15.7, 6.8), line(20.8, 4.4), line(20.8, 17.8), line(15.7, 20.2), close()],
     ],
-    doc="Three solid panels with real gaps between them. Fold lines drawn as hairlines inside one "
-        "shape disappear at tab-bar size.",
+    doc="Три панелі зі справжніми проміжками: лінії згину всередині однієї форми зникають на розмірі таббара.",
 )
 
 icon(
@@ -348,8 +321,7 @@ icon(
     punch=[
         flat(
             [rounded_rect(3.4, 5.2, 17.2, 15.6, 3.6)]
-            # Two rows of days punched out of the lower half; the solid strip left above them is
-            # the header. Three dots alone made the slab read as a face with two antennae.
+            # Два ряди днів у нижній половині; смуга над ними — шапка. Три крапки читались як обличчя.
             + [
                 rounded_rect(x, y, 2.2, 2.2, 0.7)
                 for y in (12.2, 15.9)
@@ -358,8 +330,7 @@ icon(
         )
     ],
     fill=[rounded_rect(7.2, 2.2, 2.1, 4.6, 1.05), rounded_rect(14.7, 2.2, 2.1, 4.6, 1.05)],
-    doc="A solid page with a month grid punched out under a header strip, and two hangers over "
-        "the top.",
+    doc="Сторінка з вирізаною сіткою місяця під шапкою і двома вушками зверху.",
 )
 
 icon(
@@ -373,17 +344,16 @@ icon(
             close(),
         ],
     ],
-    doc="Head and shoulders as two solid masses, open at the bottom so it sits on the baseline.",
+    doc="Голова й плечі двома масами, відкриті знизу, щоб стояти на базовій лінії.",
 )
 
-# ---- actions
+# ---- Дії
 
 icon(
     "search",
     stroke=[polyline(15.3, 15.3, 19.9, 19.9)],
     punch=[flat([circle(10.4, 10.4, 7.0), circle(10.4, 10.4, 4.0)])],
-    doc="A fat ring and a fat handle. The ring is punched rather than stroked so its weight "
-        "matches the solid glyphs beside it.",
+    doc="Товсте кільце й ручка. Кільце вирізане, а не обведене, щоб важити як сусідні гліфи.",
 )
 
 icon(
@@ -393,7 +363,7 @@ icon(
         rounded_rect(6.1, 10.75, 11.8, 2.5, 1.25),
         rounded_rect(8.9, 15.6, 6.2, 2.5, 1.25),
     ],
-    doc="Three narrowing slabs: filtering as a funnel, without the sliders Material draws.",
+    doc="Три плити, що звужуються: лійка, без повзунків Material.",
 )
 
 icon(
@@ -404,13 +374,13 @@ icon(
             [move(7.9, 5.9), line(16.1, 5.9), line(16.1, 15.6), line(12.0, 12.5), line(7.9, 15.6), close()],
         ])
     ],
-    doc="A ribbon with its middle punched out, so the unsaved state is heavy without being solid.",
+    doc="Закладка з вирізаною серединою: незбережений стан важкий, але не суцільний.",
 )
 
 icon(
     "bookmarkFilled",
     fill=[[move(5.2, 3.2), line(18.8, 3.2), line(18.8, 21.0), line(12.0, 15.9), line(5.2, 21.0), close()]],
-    doc="Saved: the same ribbon, filled in.",
+    doc="Збережено: та сама закладка, залита.",
 )
 
 icon(
@@ -434,8 +404,7 @@ icon(
             circle(12.0, 9.4, 3.0),
         ])
     ],
-    doc="The app's own mark at icon size: the launcher pin, the map pin and this glyph are one "
-        "shape, down to the punched hole.",
+    doc="Знак застосунку: іконка лаунчера, пін мапи і цей гліф — одна форма.",
 )
 
 icon(
@@ -448,7 +417,7 @@ icon(
         rounded_rect(18.0, 11.0, 3.6, 2.0, 1.0),
     ],
     punch=[flat([circle(12, 12, 5.4), circle(12, 12, 3.4)])],
-    doc="A fat ring around a solid centre, with four ticks. The dot is what says «you».",
+    doc="Кільце навколо крапки з чотирма рисками. Крапка каже «ви».",
 )
 
 icon(
@@ -498,7 +467,7 @@ icon(
             ],
         ]),
     ],
-    doc="Four solid brackets closing on a dot: framing the city again after panning away.",
+    doc="Чотири дужки навколо крапки: повернути місто в кадр.",
 )
 
 icon(
@@ -513,7 +482,7 @@ icon(
             close(),
         ]
     ],
-    doc="A four-point star with concave sides — an invitation, not a rating.",
+    doc="Чотирикутна зірка з увігнутими боками: запрошення, а не рейтинг.",
 )
 
 icon(
@@ -528,7 +497,7 @@ icon(
         ]
     ],
     punch=[flat([rounded_rect(4.6, 10.1, 14.8, 10.6, 3.2), circle(12.0, 15.4, 1.7)])],
-    doc="A solid body with the keyhole punched through, under a fat shackle.",
+    doc="Замок із вирізаною шпариною під товстою дужкою.",
 )
 
 icon(
@@ -567,15 +536,15 @@ icon(
             close(),
         ],
     ],
-    doc="A solid hourglass for the waiting list: time passing, not an error.",
+    doc="Пісочний годинник для черги: час минає, а не помилка.",
 )
 
 
-# --------------------------------------------------------------------------- emitters
+# ---- Генератори коду
 
 
 def n(value):
-    """Trims the float noise that the circle helper leaves behind."""
+    """Прибирає шум float після обчислення кола."""
     return f"{round(value, 3):g}"
 
 
@@ -610,14 +579,12 @@ def write_kotlin():
         "import androidx.compose.ui.unit.dp",
         "",
         "/**",
-        " * The app's own glyphs: solid marks on a 24-unit grid, with their counters punched out by",
-        " * the even-odd rule. A few carry a fat round-capped stroke where a line is unavoidable.",
+        " * Власні гліфи застосунку: суцільні форми на сітці 24 з вирізами за even-odd.",
         " *",
-        " * GENERATED by tools/generate_icons.py — edit the geometry there, not here, or the Swift",
-        " * twin in DesignSystem/PoruchIcons.swift will drift away from this one.",
+        " * ЗГЕНЕРОВАНО tools/generate_icons.py: геометрію правити там, інакше Swift-двійник у",
+        " * DesignSystem/PoruchIcons.swift розійдеться з цим файлом.",
         " *",
-        " * Everything is black: `Icon(tint = …)` recolours the whole vector, so baking a colour in",
-        " * here would only fight the caller.",
+        " * Усе чорне: `Icon(tint = …)` перефарбовує весь вектор.",
         " */",
         "object PoruchIcons {",
     ]
@@ -655,7 +622,7 @@ def write_kotlin():
         "    private inline fun ImageVector.Builder.fill(block: androidx.compose.ui.graphics.vector.PathBuilder.() -> Unit) =",
         "        path(fill = SolidColor(Color.Black), pathBuilder = block)",
         "",
-        "    /** One path whose inner subpaths punch holes through the outer one. */",
+        "    /** Один шлях, де внутрішні підшляхи вирізають дірки в зовнішньому. */",
         "    private inline fun ImageVector.Builder.punch(block: androidx.compose.ui.graphics.vector.PathBuilder.() -> Unit) =",
         "        path(fill = SolidColor(Color.Black), pathFillType = PathFillType.EvenOdd, pathBuilder = block)",
         "}",
@@ -692,18 +659,16 @@ def write_swift():
     parts = [
         "import SwiftUI",
         "",
-        "/// The app's own glyphs: solid marks on a 24-unit grid, with their counters punched out by",
-        "/// the even-odd rule. A few carry a fat round-capped stroke where a line is unavoidable.",
+        "/// Власні гліфи застосунку: суцільні форми на сітці 24 з вирізами за even-odd.",
         "///",
-        "/// GENERATED by tools/generate_icons.py — edit the geometry there, not here, or the Kotlin",
-        "/// twin in ui/PoruchIcons.kt will drift away from this one.",
+        "/// ЗГЕНЕРОВАНО tools/generate_icons.py: геометрію правити там, інакше Kotlin-двійник у",
+        "/// ui/PoruchIcons.kt розійдеться з цим файлом.",
         "///",
-        "/// A glyph carries no colour: `PoruchIcon` strokes and fills with the ambient foreground",
-        "/// style, so `.foregroundStyle(…)` at the call site works as it does for an SF Symbol.",
+        "/// Гліф без кольору: `PoruchIcon` малює поточним foreground, тож `.foregroundStyle(…)` працює як для SF Symbol.",
         "struct PoruchGlyph {",
         "    let stroke: ((inout Path, CGFloat) -> Void)?",
         "    let fill: ((inout Path, CGFloat) -> Void)?",
-        "    /// One path whose inner subpaths punch holes through the outer one.",
+        "    /// Один шлях, де внутрішні підшляхи вирізають дірки в зовнішньому.",
         "    let punch: ((inout Path, CGFloat) -> Void)?",
         "",
         "    init(",
@@ -740,7 +705,7 @@ def write_swift():
         "    CGPoint(x: x * s, y: y * s)",
         "}",
         "",
-        "/// Draws a [PoruchGlyph] at the given size, scaling the 24-unit grid and the stroke together.",
+        "/// Малює `PoruchGlyph` заданого розміру, масштабуючи сітку 24 разом зі штрихом.",
         "struct PoruchIcon: View {",
         "    let glyph: PoruchGlyph",
         "    var size: CGFloat = 20",

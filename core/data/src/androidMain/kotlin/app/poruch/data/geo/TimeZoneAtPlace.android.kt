@@ -11,18 +11,9 @@ import kotlinx.coroutines.withContext
 import kotlin.coroutines.resume
 
 /**
- * Android не має API «пояс за координатами»: `Geocoder` віддає адресу, але не час. Тому в два
- * кроки — країна з геокодера, а далі пояси цієї країни з ICU.
- *
- * Другий крок хитріший, ніж здається. Для більшості сусідніх країн пояс один — Польща, Румунія,
- * Німеччина — і відповідь однозначна. Але для України ICU називає **два**: `Europe/Kyiv` і
- * `Europe/Simferopol`. Тобто наївне «якщо він один» не спрацювало б саме там, де потрібне
- * найбільше.
- *
- * Тому коли поясів кілька, дивимось на пояс пристрою: якщо він серед них, це майже напевно він і
- * є — організатор у тій самій країні, що й подія. Порівнюємо за правилами, а не за назвою, бо
- * пристрій може казати `Europe/Kiev` там, де ICU каже `Europe/Kyiv`. Якщо не збіглося — чесніше
- * не вгадувати.
+ * Android не має API «пояс за координатами», тому в два кроки: країна з `Geocoder`, пояси
+ * країни з ICU. Для України ICU дає два (`Europe/Kyiv` і `Europe/Simferopol`), тож із кількох
+ * беремо той, що збігається з поясом пристрою за правилами, а не за назвою. Не збіглося — не вгадуємо.
  */
 actual suspend fun timeZoneAt(latitude: Double, longitude: Double): String? {
     val country = countryAt(latitude, longitude)
@@ -36,10 +27,7 @@ actual suspend fun timeZoneAt(latitude: Double, longitude: Double): String? {
         zones.size == 1 -> zones.first()
         else -> zones.firstOrNull(::sameRulesAsDevice)
     }
-    // Просимо в ICU канонічну назву. Перевірено на Android 16: для України вона лишає
-    // `Europe/Kiev`, бо саме так її називає тамтешня база — тобто це не приведе Kiev до Kyiv.
-    // Лишаємо все одно: там, де ICU таки знає новішу назву, вона буде правильною, а обидва
-    // написання однаково чинні й дають ті самі правила. Порівнянь цього рядка ніде немає.
+    // Канонічна назва ICU. На Android 16 для України це досі `Europe/Kiev`; до `Kyiv` зводить modernZoneName.
     val canonical = zone?.let { android.icu.util.TimeZone.getCanonicalID(it) ?: it }
     PoruchLog.d("geo") { "$country → ${zones.joinToString()} — chose ${canonical ?: "none"}" }
     return canonical
@@ -71,7 +59,7 @@ private suspend fun countryAt(latitude: Double, longitude: Double): String? {
                 })
             }
         } else {
-            // Синхронний виклик ходить у мережу, тож йому не місце на головному потоці.
+            // Синхронний виклик ходить у мережу, тому не на головному потоці.
             withContext(Dispatchers.IO) {
                 @Suppress("DEPRECATION")
                 geocoder.getFromLocation(latitude, longitude, 1).orEmpty()

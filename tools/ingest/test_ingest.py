@@ -26,7 +26,7 @@ def check(name: str, got, want) -> None:
         print(f"  ✗ {name}\n      очікувано: {want!r}\n      отримано : {got!r}")
 
 
-# ---------------------------------------------------------------- пастка A: час
+# ---- Пастка A: час
 
 def test_timezone_trap() -> None:
     print("\nПастка A — moemisto віддає локальний київський час зі зсувом +0000")
@@ -46,9 +46,7 @@ def test_timezone_trap() -> None:
     check("взимку — +2 години (EET), а не той самий зсув",
           winter.utcoffset(), dt.timedelta(hours=2))
 
-    # karabas — підступніший випадок: зсув коректний і навіть з переходом на зимовий час, тому
-    # дані виглядають бездоганно. Але момент зсунуто вперед рівно на цей зсув: сторінка показує
-    # «17 жовтня 2026, 18:00», а JSON-LD каже 21:00+03:00. Перевірено на 10 сторінках із 10.
+    # karabas: зсув коректний, але момент зсунуто вперед на нього (сторінка 18:00, JSON-LD 21:00+03:00).
     k1 = normalize.parse_datetime("2026-10-17T21:00:00+03:00", "utc_is_local", "Europe/Kyiv")
     check("karabas: 21:00+03:00 насправді 18:00 (літо)",
           k1.astimezone(normalize.zone("Europe/Kyiv")).strftime("%H:%M"), "18:00")
@@ -56,13 +54,13 @@ def test_timezone_trap() -> None:
     check("karabas: 21:00+02:00 насправді 19:00 (зима)",
           k2.astimezone(normalize.zone("Europe/Kyiv")).strftime("%H:%M"), "19:00")
 
-    # concert.ua зсув віддає правильно, і його не можна ламати поправкою для іншого джерела.
+    # concert.ua віддає правильний зсув: поправка іншого джерела не має його ламати.
     ok = normalize.parse_datetime("2026-09-12T21:00:00+03:00", "source", "Europe/Kyiv")
     check("джерело з коректним зсувом читається як є",
           ok.astimezone(normalize.zone("Europe/Kyiv")).strftime("%H:%M"), "21:00")
 
 
-# ---------------------------------------------------------------- пастка B: місто
+# ---- Пастка B: місто
 
 def test_city_trap() -> None:
     print("\nПастка B — місто береться з розмітки, а не зі сторінки, де знайшли подію")
@@ -78,7 +76,7 @@ def test_city_trap() -> None:
           street, "вулиця Січових Стрільців, 3")
 
 
-# ---------------------------------------------------------------- пастка C: опис
+# ---- Пастка C: опис
 
 def test_description_trap() -> None:
     print("\nПастка C — опис джерела охороняється, тож обрізається")
@@ -92,7 +90,7 @@ def test_description_trap() -> None:
           normalize.clean_text("рядок\r\n\r\n\r\nдругий"), "рядок\n\nдругий")
 
 
-# ---------------------------------------------------------------- заголовок і категорія
+# ---- Заголовок і категорія
 
 def test_title_and_category() -> None:
     print("\nЗаголовок під CHECK (3..120) і категорія")
@@ -101,8 +99,7 @@ def test_title_and_category() -> None:
     check("заголовок вкладається в CHECK", 3 <= len(t) <= normalize.TITLE_MAX, True)
     check("короткий сміттєвий заголовок відкидається", normalize.normalize_title("а"), None)
 
-    # ── Десята й одинадцята категорії. Обидві виділені з кошиків, які їх ховали, тож найцінніше
-    # тут — не те, що вони спрацьовують, а те, ДЕ проходить межа з сусідом.
+    # tours і conference: найцінніше — де проходить межа з сусідньою категорією.
     def cat(title):
         return normalize.classify_with_reason({}, title, "")[0]
 
@@ -111,23 +108,34 @@ def test_title_and_category() -> None:
     check("конференція — це conference, а не social", cat("Event Industry Forum 2027"), "conference")
     check("саміт теж", cat("SBC Summit Ukraine 2026"), "conference")
 
-    # Межа з outdoors: піша прогулянка з гідом — екскурсія, а велопрогулянка й похід — ні.
-    # Без цієї пари наступний рефакторинг легко забере в outdoors те, заради чого він існує.
+    # Межа з outdoors: піша прогулянка з гідом — екскурсія, велопрогулянка й похід — ні.
     check("піша прогулянка — екскурсія", cat("Піша прогулянка Личаковом"), "tours")
     check("похід лишається природою", cat("Похід у Карпати"), "outdoors")
     check("велопрогулянка не стає екскурсією", cat("Велопрогулянка Дніпром") != "tours", True)
 
-    # Межа з social: побачення наосліп — це зустрічі, і конференцією воно стати не має.
+    # Межа з social: побачення наосліп — зустріч, не конференція.
     check("знайомства лишаються в social",
           cat("Побачення наосліп (23-35 років)") != "conference", True)
 
-    # «рок» усередині «року» робив музикою лекцію про архів 1939-го. Межі слова тепер стоять.
+    # «рок» усередині «року» робив лекцію музикою: межі слова.
     check("«рок» не ловиться в «року»",
           cat("Пастка серпня 1939 року: радянський архів") != "music", True)
     check("а рок-опера лишається музикою", cat("Рок-опера «Ісус Христос»"), "music")
 
-    # Перелік категорій має збігатися зі спільним переліком клієнтів і з CHECK у базі.
+    # Перелік категорій збігається з клієнтами і CHECK у базі.
     check("категорій одинадцять", len(normalize.CATEGORIES), 11)
+
+    # concert.ua ставить `MusicEvent` усьому: щабель типу для нього вимкнено.
+    standup = {"@type": "MusicEvent"}
+    check("слабкому типу не вірять",
+          normalize.classify_with_reason(standup, "Суботній Стендап", "", "weak"),
+          ("comedy", "lexicon"))
+    check("а сильному вірять",
+          normalize.classify_with_reason(standup, "Суботній Стендап", "")[1], "type")
+    # Без слів-підказок подія зі слабким типом падає у fallback, де її побачить агент.
+    check("слабкий тип без лексикону дає fallback",
+          normalize.classify_with_reason(standup, "Закритий Мікрофон", "Бочка PUB", "weak"),
+          ("social", "fallback"))
 
     check("@type виграє першим",
           normalize.classify({"@type": "MusicEvent"}, "Вечір настолок", ""), "music")
@@ -135,13 +143,10 @@ def test_title_and_category() -> None:
           normalize.classify({"@type": "Event"}, "Вечір настолок і квізу", ""), "games")
     check("забіг — це sport, а не social",
           normalize.classify({"@type": "Event"}, "Ранковий забіг на 5 км", ""), "sport")
-    # Дитяча вистава — це art. У social вона розводила б категорію вістря, яку продукт і так
-    # намагається наповнити спільнотними подіями.
-    # 91 подія по пʼятьох містах, 15% кошика art — це знайшов report.category_gaps.
+    # Дитяча вистава — kids, не art і не social.
     check("дитяча вистава — власна категорія kids",
           normalize.classify({"@type": "ChildrensEvent"}, "Рапунцель", ""), "kids")
-    # Стендап має власну категорію: у спільній скриньці з театром він губиться саме для тієї
-    # аудиторії, заради якої його й імпортують.
+    # Стендап — власна категорія.
     check("ComedyEvent — це comedy, а не art",
           normalize.classify({"@type": "ComedyEvent"}, "Сольний стендап", ""), "comedy")
     check("нетипізований стендап лексикон теж ловить",
@@ -150,7 +155,7 @@ def test_title_and_category() -> None:
           normalize.classify({"@type": "Event"}, "Вистава «Гойзум»", ""), "art")
 
 
-# ---------------------------------------------------------------- ціна
+# ---- Ціна
 
 def test_price() -> None:
     print("\nЦіна й безкоштовність")
@@ -164,7 +169,7 @@ def test_price() -> None:
           normalize.parse_price({"description": "Концерт"}), (None, None))
 
 
-# ---------------------------------------------------------------- майданчики
+# ---- Майданчики
 
 def test_venue_matching() -> None:
     print("\nЗіставлення майданчиків")
@@ -185,22 +190,17 @@ def test_venue_matching() -> None:
     check("псевдонім координатами для відсутнього в OSM",
           index.match("ORIGIN STAGE")["lat"], 50.45)
     check("невідомий майданчик не вгадується", index.match("COMEDY SHELTER"), None)
-    # Найважливіше: «Клуб ATLAS» — не «Atlas Coffee». Хибна точка гірша за її відсутність,
-    # бо подія тихо зʼявляється на мапі не там, де відбувається.
+    # «Клуб ATLAS» — не «Atlas Coffee»: хибна точка гірша за відсутню.
     check("схожа назва іншого закладу не приймається", index.match("Клуб ATLAS"), None)
 
-    # Однослівна загальна назва — найпідступніший клас помилок: «Feels Garden» знаходив «Garden»
-    # за десять кілометрів. Двослівна назва з тим самим score правильна, тому поріг залежить від
-    # кількості слів, а не лише від score.
+    # Однослівна назва — найпідступніший клас: «Feels Garden» знаходив «Garden» за 10 км.
     loose = VenueIndex([
         {"type": "node", "id": 4, "lat": 50.45, "lon": 30.63, "tags": {"name": "Garden"}},
         {"type": "node", "id": 5, "lat": 50.43, "lon": 30.52, "tags": {"name": "Палац спорту"}},
     ], "Київ", {})
     check("однослівна загальна назва відкидається", loose.match("Feels Garden"), None)
 
-    # Шостий приклад, знайдений із появою internet-bilet: правильний збіг, який поріг усе одно
-    # відхиляє (0.480 при 0.5). Тест закріплює саме те, що поріг НЕ зсунуто, а розвʼязано
-    # псевдонімом — інакше наступний рефакторинг «полагодить» його зниженням межі для всіх.
+    # Правильний збіг під порогом (0.480) розв'язано псевдонімом, а не зниженням порога для всіх.
     kino = VenueIndex([{"type": "way", "id": 9, "lat": 50.4363, "lon": 30.5196,
                         "tags": {"name": "Будинок кіно", "amenity": "cinema"}}], "Київ", {})
     check("«Будинок Кіно. Червоний зал» поріг відхиляє",
@@ -213,17 +213,17 @@ def test_venue_matching() -> None:
     check("двослівна назва з нижчим score приймається",
           loose.match("Київський Палац спорту")["how"], "contains")
 
+    # Назва міста — не назва майданчика: «Київ» зіставлявся з «Київська Русь».
+    city_trap = VenueIndex([{"type": "way", "id": 7, "lat": 50.52, "lon": 30.50,
+                             "tags": {"name": "Київська Русь", "tourism": "attraction"}}], "Київ", {})
+    check("місто як назва майданчика не зіставляється", city_trap.match("Київ"), None)
+    check("а справжня назва в тому ж індексі зіставляється",
+          city_trap.match("Київська Русь")["how"], "exact")
+
 
 def test_aliases_resolve() -> None:
-    """Кожен псевдонім за назвою мусить знаходити щось хоча б в одному місті.
-
-    Псевдонім із значенням-рядком шукається в індексі ТОЧНИМ ключем. Якщо в OSM назву
-    відредагували, псевдонім перестає діяти — і робить це мовчки: подія просто йде в чергу
-    перегляду, як і будь-яка інша незіставлена. Саме так «Український театр ім. В. Василька»
-    вказував на назву без ініціала «С.», якого в OSM тим часом додали.
-
-    Тест читає закомітовані дампи, тож мережі не потребує. Місто, чийого дампу немає, просто
-    пропускається — інакше свіжий клон падав би без причини.
+    """Кожен псевдонім за назвою має знаходити щось хоча б в одному місті: після правки назви
+    в OSM псевдонім перестає діяти мовчки. Читає закомітовані дампи; місто без дампу пропускається.
     """
     print("\nПсевдоніми майданчиків розвʼязуються")
     from .venues import CACHE_DIR, build_index, load_aliases
@@ -237,8 +237,7 @@ def test_aliases_resolve() -> None:
     dead = sorted(k for k in aliases if not any(i.match(k) for i in indexes))
     check(f"усі {len(aliases)} псевдонімів дають координати", dead, [])
 
-    # «ім.» і «імені» — одне слово. Розкол по крапці лишав театр Франка в черзі перегляду,
-    # хоч він є в дампі під тією ж назвою слово в слово.
+    # «ім.» і «імені» — одне слово.
     check("«ім.» зводиться з «імені»",
           normalize.normalize_name("Театр ім. Івана Франка"),
           normalize.normalize_name("Театр імені Івана Франка"))
@@ -246,22 +245,21 @@ def test_aliases_resolve() -> None:
     check("«імперія» не чіпається", normalize.normalize_name("Імперія"), "імперія")
 
 
-# ---------------------------------------------------------------- геокодер
+# ---- Геокодер
 
 def test_geocoder_guards() -> None:
     print("\nГеокодер — запобіжники, без яких він шкодить")
     from .geocode import Geocoder
     g = Geocoder("Київ", enabled=True)
 
-    # Найдорожчий урок: на «ORIGIN STAGE» Photon віддає кам'яну стелу з type=house. Тому назви
-    # закладів у геокодер не потрапляють узагалі — метод приймає лише вуличну адресу.
+    # На «ORIGIN STAGE» Photon віддає кам'яну стелу з type=house: назви закладів у геокодер не йдуть.
     check("метод пошуку за назвою закладу відсутній як клас",
           hasattr(g, "lookup"), False)
     check("адреса без номера будинку не геокодується",
           g.lookup_street("вул. Хрещатик"), None)
     check("порожня адреса не геокодується", g.lookup_street(""), None)
 
-    # Фільтри рівня точності й меж міста — на синтетичних відповідях, без мережі.
+    # Фільтри точності й меж міста на синтетичних відповідях.
     coarse = [{"properties": {"type": "city", "name": "Київ"},
                "geometry": {"coordinates": [30.52, 50.45]}}]
     check("рівень «місто» відкидається", g._pick(coarse), None)
@@ -270,10 +268,7 @@ def test_geocoder_guards() -> None:
             "geometry": {"coordinates": [24.03, 49.84]}}]      # Львів у київському запиті
     check("точка за межами міста відкидається", g._pick(far), None)
 
-    # ── Одне написання типу вулиці. Два джерела пишуть ту саму адресу по-різному, і поки це
-    # доходило до Photon як є, кожне написання давало свій ключ кешу, свій запит і свою точку.
-    # Жива пара: «Lely45» в Одесі, karabas пише «пр-т Небесної Сотні, 4/7», internet-bilet
-    # «пр. Небесної сотні, 4/7». Точки розійшлись на 42.8 м, подія не злилась і стояла двічі.
+    # Одне написання типу вулиці: «пр-т» і «пр.» давали різні ключі кешу й різні точки.
     from .geocode import canonical_street
     check("«пр.» і «пр-т» дають один ключ",
           normalize.normalize_name(canonical_street("пр. Небесної сотні, 4/7")),
@@ -281,7 +276,7 @@ def test_geocoder_guards() -> None:
     check("«просп.» теж", canonical_street("просп. Берестейський, 37"),
           "проспект Берестейський, 37")
     check("«вул.» розгортається", canonical_street("вул. Хрещатик, 19А"), "вулиця Хрещатик, 19А")
-    # Найважливіше: провулок не має стати проспектом. «пров» перевіряється раніше за «пр».
+    # Провулок не має стати проспектом: «пров» раніше за «пр».
     check("провулок лишається провулком", canonical_street("пров. Тараса Шевченка, 5"),
           "провулок Тараса Шевченка, 5")
     # І скорочення всередині слова чіпати не можна.
@@ -295,7 +290,7 @@ def test_geocoder_guards() -> None:
     check("довіра нижча за OSM і за ручну вивірку", hit["confidence"] < 0.9, True)
 
 
-# ---------------------------------------------------------------- дедуплікація
+# ---- Дедуплікація
 
 def _item(slug, title, start="2026-10-17T18:00:00+03:00", lat=50.45, lon=30.53):
     import datetime as _dt
@@ -322,8 +317,7 @@ def test_dedupe() -> None:
           same_event(_item("karabas", "Ніно Катамадзе"),
                      _item("concert_ua", "Ніно Катамадзе. Премʼєра нового альбому")), True)
 
-    # Найдорожча помилка тут — злити РІЗНІ події. У MODI о 19:00 того самого дня справді йдуть
-    # дві різні події на одній точці; хибне злиття сховало б одну з них назавжди.
+    # Найдорожча помилка — злити різні події на одній точці в одну годину.
     check("різні події на одній точці й у той самий час не зливаються",
           same_event(_item("karabas", "Відео-галерея: кращі імпресіоністи"),
                      _item("concert_ua", "Відкритий Клуб «Бувальщина»")), False)
@@ -333,17 +327,14 @@ def test_dedupe() -> None:
           same_event(_item("karabas", "ДахаБраха"),
                      _item("concert_ua", "ДахаБраха", start="2026-10-18T18:00:00+03:00")), False)
 
-    # Координати: раніше тут вимагалась побітова рівність, і цей тест її закріплював. Межу
-    # свідомо зсунуто на 25 м, бо суворість коштувала 45 подій на прогоні пʼяти міст — той самий
-    # заклад двома щаблями драбини давав точки за 2–7 м, і подія публікувалась двічі.
-    # Обидві межі закріплені навмисно: хто колись розширить допуск, має перевернути другий рядок.
+    # Допуск координат 25 м: той самий заклад двома щаблями давав точки за 2–7 м. Обидві межі закріплено.
     check("той самий заклад двома щаблями драбини — дубль",
           same_event(_item("karabas", "ДахаБраха"),
                      _item("concert_ua", "ДахаБраха", lat=50.45004, lon=30.53003)), True)
     check("сто метрів — це вже інший майданчик",
           same_event(_item("karabas", "ДахаБраха"),
                      _item("concert_ua", "ДахаБраха", lat=50.4509, lon=30.53)), False)
-    # Захист від MODI від допуску не залежить: він тримається на словах у назві, а не на точці.
+    # Захист від різних подій на одній точці тримається на словах у назві, не на координатах.
     check("різні події за десять метрів теж не зливаються",
           same_event(_item("karabas", "Відео-галерея: кращі імпресіоністи"),
                      _item("concert_ua", "Відкритий Клуб «Бувальщина»", lat=50.45009)), False)
@@ -351,9 +342,7 @@ def test_dedupe() -> None:
           same_event(_item("karabas", "ДахаБраха", lat=None, lon=None),
                      _item("concert_ua", "ДахаБраха")), False)
 
-    # ── Справжні пари з бази після обходу пʼяти міст. Правило-підмножина не зловило жодної з
-    # них, і саме тому в базі лишались дублікати. Кожен рядок — дві назви тієї самої події, як їх
-    # підписали два різні джерела.
+    # Справжні пари з бази: дві назви тієї самої події від двох джерел.
     from .pipeline import _titles_agree, _tokens
 
     def agree(a, b):
@@ -371,9 +360,7 @@ def test_dedupe() -> None:
     ]:
         check(f"дубль: {left[:26]}", agree(left, right), True)
 
-    # ── І три пари, які виглядають так само (та сама зала, та сама хвилина), але це РІЗНІ події.
-    # Вони й задають межу: усі три мають нульове перекриття слів. Той, хто колись послабить
-    # правило, має спершу пояснити, чому ці три лишаться нерозділеними.
+    # І три пари з тієї ж зали й хвилини, які є різними подіями: нульове перекриття слів задає межу.
     for left, right in [
         ("Дванадцята ніч, або Що захочете (ТЮГ Одеса)", "Вистава \"Лісова пісня\""),
         ("Стендап Володимира Шумко «Шо ти клоун?»", "Концерт \"New Symphonic Vibes\""),
@@ -381,7 +368,7 @@ def test_dedupe() -> None:
     ]:
         check(f"різні: {left[:26]}", agree(left, right), False)
 
-    # Довга назва вимагає двох спільних слів: одне випадкове в ній важить менше, ніж у короткій.
+    # Довга назва вимагає двох спільних слів.
     check("одне спільне слово в довгих назвах не досить",
           agree("Осінній фестиваль джазу в Парку Шевченка",
                 "Зимовий ярмарок ремесел у Парку Франка"), False)
@@ -393,7 +380,7 @@ def test_dedupe() -> None:
     check("лишається рівно одна", len(kept), 1)
 
 
-# ---------------------------------------------------------------- витяг
+# ---- Витяг
 
 def test_extract() -> None:
     print("\nВитяг JSON-LD")
@@ -408,7 +395,7 @@ def test_extract() -> None:
     check("зламаний блок не валить розбір", len(events), 2)
 
 
-# ---------------------------------------------------------------- реєстр джерел
+# ---- Реєстр джерел
 
 def test_source_registry() -> None:
     print("\nРеєстр джерел")
@@ -416,17 +403,16 @@ def test_source_registry() -> None:
     from .sources import SOURCES, by_slug
 
     ib = by_slug("internet_bilet")
-    # Найважливіше твердження файлу: політика часу цього джерела виміряна, а не успадкована.
+    # Політика часу джерела виміряна, а не успадкована.
     check("internet_bilet читає час як є (8 із 8 сторінок звірено)", ib.tz_policy, "source")
     check("internet_bilet увімкнено", ib.enabled, True)
     check("покриває пʼять міст", len(ib.listing_urls), 5)
 
-    # Порядок ваг — це рішення про те, чия копія переживе дедуплікацію. Хай воно буде закріплене,
-    # а не випадкове.
+    # Порядок ваг вирішує, чия копія переживе дедуплікацію.
     check("karabas < internet_bilet < concert_ua",
           by_slug("karabas").weight < ib.weight < by_slug("concert_ua").weight, True)
 
-    # Обмеження БД, перенесене в тест: slug, який не пройде CHECK, впаде тут, а не при вставці.
+    # Slug, який не пройде CHECK у базі, падає тут, а не при вставці.
     bad = [s.slug for s in SOURCES if not _re.fullmatch(r"[a-z0-9_]{2,40}", s.slug)]
     check("усі slug відповідають CHECK у event_sources", bad, [])
 
@@ -467,8 +453,7 @@ def test_build_internet_bilet() -> None:
     check("опис не довший за правовий ліміт",
           len(item.description) <= normalize.DESCRIPTION_LIMIT + 1, True)
 
-    # Детермінізм uuid5: саме на ньому тримається те, що повторний обхід ОНОВЛЮЄ подію,
-    # а не створює другу. Досі це не було перевірено ніде.
+    # Детермінізм uuid5: повторний обхід оновлює подію, а не створює другу.
     again = _build(raw, by_slug("internet_bilet"), "Київ", index, now, None)
     check("той самий ідентифікатор при повторному обході", item.event_id, again.event_id)
 
@@ -482,8 +467,7 @@ def test_internet_bilet_timezone() -> None:
     check("взимку 19:00+02:00 лишається 19:00",
           winter.astimezone(normalize.zone("Europe/Kyiv")).strftime("%H:%M"), "19:00")
 
-    # Найважливіше — негативне твердження. Воно каже, у що обійшлося б скопіювати сюди політику
-    # karabas: кожна подія поїхала б на зсув назад, і побачили б ми це не одразу.
+    # Негативне твердження: політика karabas тут зсунула б кожну подію назад.
     wrong = normalize.parse_datetime("2026-09-15T19:00:00+03:00", "utc_is_local", "Europe/Kyiv")
     check("політика karabas зсунула б цей час на 16:00",
           wrong.astimezone(normalize.zone("Europe/Kyiv")).strftime("%H:%M"), "16:00")
@@ -499,8 +483,7 @@ def test_category_gaps() -> None:
             self.title, self.category, self.category_how = title, category, how
             self.source_type, self.stage = source_type, "published"
 
-    # Дванадцять заголовків у art, дев'ять з яких — про той самий тип події. Приблизно так
-    # виглядав стендап усередині art перед тим, як його виділили.
+    # Дев'ять із дванадцяти заголовків в art про один тип: так виглядав стендап до виділення.
     items = [_Fake(f"Вечір імпровізації №{i}", "art", "type") for i in range(9)]
     items += [_Fake(f"Виставка живопису №{i}", "art", "type") for i in range(9)]
     gaps = rep.category_gaps(items)
@@ -509,7 +492,7 @@ def test_category_gaps() -> None:
     check("групу видно як кандидата", "імпровізації" in words, True)
     check("щабель класифікації порахований", gaps["how"], {"type": 18})
 
-    # Місто й місяць у заголовку не є типом події — вони не повинні очолювати рейтинг.
+    # Місто й місяць — не тип події.
     noisy = [_Fake(f"Концерт у Львові {i} вересня", "music", "type") for i in range(8)]
     noisy += [_Fake(f"Опера у Львові {i} вересня", "music", "type") for i in range(8)]
     g2 = rep.category_gaps(noisy)
@@ -517,17 +500,160 @@ def test_category_gaps() -> None:
     check("місто не потрапляє в кандидати", "львові" in w2, False)
     check("місяць не потрапляє в кандидати", "вересня" in w2, False)
 
-    # fallback рахується окремо: саме він каже, що словник відстав від джерел.
+    # fallback окремо: він каже, що словник відстав.
     fb = [_Fake(f"Щось незнайоме {i}", "social", "fallback") for i in range(4)]
     check("fallback видно в зведенні", rep.category_gaps(fb)["how"], {"fallback": 4})
 
-    # Головна перевірка: саме тип, а не слова, ловить прихований рід події. Це зʼясувалось на
-    # реальних даних — заголовки стендапу надто різні, щоб їх зібрало спільне слово.
+    # Тип, а не слова, ловить прихований рід події.
     mixed = [_Fake(f"Вистава {i}", "art", "type", "TheaterEvent") for i in range(20)]
     mixed += [_Fake(f"Батя {i}", "art", "type", "ComedyEvent") for i in range(6)]
     types = rep.category_gaps(mixed)["types"]["art"]
     check("склад кошика за типами видно", types, {"TheaterEvent": 20, "ComedyEvent": 6})
     check("чужий тип займає помітну частку", round(100 * 6 / 26), 23)
+    # Щабель агента у зведенні окремо.
+    import contextlib
+    import io
+    out = io.StringIO()
+    with contextlib.redirect_stdout(out):
+        rep.print_category_gaps(rep.category_gaps([_Fake("Вілла Айва", "tours", "agent")]),
+                                list(normalize.CATEGORIES))
+    check("щабель агента видно у звіті", "агент" in out.getvalue(), True)
+
+    # Детектор джерела, яке ставить один тип усьому.
+    class _Src:
+        def __init__(self, slug, policy="trust"):
+            self.slug, self.type_policy = slug, policy
+
+    uniform = [_Fake(f"Подія {i}", "music", "type", "MusicEvent") for i in range(40)]
+    for item in uniform:
+        item.source_slug = "liar"
+    rows = rep.source_health(uniform, [_Src("liar")])
+    check("однаковий тип у всіх подій — позначено", rows[0]["useless"], True)
+    check("частка головного типу порахована", rows[0]["share"], 100.0)
+
+    # Уже вимкнений тип не позначається вдруге.
+    quiet = rep.source_health(uniform, [_Src("liar", "weak")])
+    check("вимкнений тип більше не турбує", quiet[0]["useless"], False)
+
+    # Здорове джерело мовчить.
+    mixed = [_Fake(f"Подія {i}", "art", "type", t)
+             for i, t in enumerate(["TheaterEvent", "MusicEvent", "ComedyEvent"] * 14)]
+    for item in mixed:
+        item.source_slug = "honest"
+    check("різні типи не позначаються", rep.source_health(mixed, [_Src("honest")])[0]["useless"],
+          False)
+
+    # Мала вибірка — не привід робити висновок про джерело.
+    few = [_Fake(f"Подія {i}", "music", "type", "MusicEvent") for i in range(5)]
+    for item in few:
+        item.source_slug = "tiny"
+    check("на пʼятьох подіях висновку не роблять", rep.source_health(few, [_Src("tiny")]), [])
+
+
+def test_address_rescue() -> None:
+    """Адреса зі сторінки події рятує майданчик, якого немає в індексі.
+
+    Найважливіше тут не те, що рятує, а те, ЗВІДКИ береться точка: адресу знайшли в розмітці
+    джерела, а координату дав геокодер із перевіркою за прямокутником міста. Модель у цьому
+    ланцюжку не бере участі, і правило «координати вигадувати не можна» лишається незрушним.
+    """
+    print("\nАдреса зі сторінки події")
+    import dataclasses as _dc
+    from unittest.mock import patch
+
+    from .pipeline import harvest
+    from .sources import by_slug
+    from .venues import VenueIndex
+
+    source = _dc.replace(by_slug("concert_ua"), catalogs=None)
+    index = VenueIndex([], "Київ", {})          # порожній індекс: збігтися нема з чим
+    listed = {"@type": "MusicEvent", "name": "Стендап у підвалі",
+              "startDate": "2090-06-01T19:00:00+03:00", "endDate": "2090-06-01T21:00:00+03:00",
+              "url": "https://concert.ua/uk/event/x",
+              "location": {"name": "Komediant", "address": {"addressLocality": "Київ"}}}
+    detail = {**listed, "location": {"name": "Komediant",
+              "address": {"addressLocality": "Київ", "streetAddress": "вул. Велика Житомирська, 16"}}}
+
+    class _R:
+        status, body = 200, "<html></html>"
+
+    class _Geo:
+        """Відповідає лише на адресу зі сторінки: зі списку її взяти нізвідки."""
+        calls, errors = 0, []
+        seen: list = []
+        def lookup_street(self, street):
+            self.seen.append(street)
+            if "Житомирська" not in (street or ""):
+                return None
+            return {"lat": 50.4556, "lon": 30.5140, "ref": None, "how": "photon", "confidence": 0.8}
+
+    with patch("tools.ingest.pipeline.get", return_value=_R()), \
+         patch("tools.ingest.extract.events_from_html", side_effect=[[listed], [detail]]):
+        items, counters = harvest(source, "Київ", index, geocoder=_Geo())
+
+    check("подія врятована", len(items), 1)
+    check("координата з геокодера", (items[0].latitude, items[0].longitude), (50.4556, 30.5140))
+    check("щабель названо чесно", items[0].venue_how, "detail")
+    check("порахований у лічильниках", counters.get("rescued_events"), 1)
+    check("у геокодер пішла адреса зі сторінки",
+          any("Житомирська" in (x or "") for x in _Geo.seen), True)
+
+    # Точка за межами міста не приймається навіть із правильної адреси.
+    class _Far:
+        calls, errors = 0, []
+        def lookup_street(self, street):
+            if "Житомирська" not in (street or ""):
+                return None
+            return {"lat": 49.84, "lon": 24.03, "ref": None, "how": "photon", "confidence": 0.8}
+
+    with patch("tools.ingest.pipeline.get", return_value=_R()), \
+         patch("tools.ingest.extract.events_from_html", side_effect=[[listed], [detail]]):
+        far, _ = harvest(source, "Київ", index, geocoder=_Far())
+    check("чужа точка відхиляється", far[0].latitude, None)
+
+
+def test_catalog_rung() -> None:
+    """Каталог джерела — верхній щабель: це не наш здогад, а вивіска, під якою продають квиток."""
+    print("\nКаталог джерела")
+    import dataclasses as _dc
+
+    from .pipeline import harvest
+    from .sources import by_slug
+    from .venues import VenueIndex
+
+    source = by_slug("concert_ua")
+    check("каталоги оголошені", bool(source.catalogs), True)
+    check("жоден каталог не мапиться в неіснуючу категорію",
+          [c for c in source.catalogs.values() if c not in normalize.CATEGORIES], [])
+    check("привід — не рід події: festivals і gifts не мапляться",
+          any(k in source.catalogs for k in ("festivals", "gifts", "other", "new-year")), False)
+
+    # Каталог перемагає і тип, і словник: тип каже MusicEvent, каталог — humor.
+    index = VenueIndex([], "Київ", {"Зал": {"lat": 50.45, "lon": 30.53}})
+    raw = {"@type": "MusicEvent", "name": "Закритий Мікрофон",
+           "startDate": "2090-06-01T19:00:00+03:00", "endDate": "2090-06-01T21:00:00+03:00",
+           "url": "https://concert.ua/uk/event/x",
+           "location": {"name": "Зал", "address": {"addressLocality": "Київ"}},
+           "_poruch_category": "comedy"}
+    one = _dc.replace(source, catalogs=None)
+    from unittest.mock import patch
+
+    class _R:
+        # Тіло має бути непорожнім: harvest відкидає порожню відповідь як помилку джерела.
+        status, body = 200, "<html></html>"
+    with patch("tools.ingest.pipeline.get", return_value=_R()), \
+         patch("tools.ingest.extract.events_from_html", return_value=[raw]):
+        items, _ = harvest(one, "Київ", index)
+    check("подія з каталогу побудувалась", len(items), 1)
+    check("категорія взята з каталогу", items[0].category, "comedy")
+    check("щабель названо catalog", items[0].category_how, "catalog")
+
+    # Вигадана категорія з каталогу не приймається, як і від агента.
+    with patch("tools.ingest.pipeline.get", return_value=_R()), \
+         patch("tools.ingest.extract.events_from_html",
+               return_value=[{**raw, "_poruch_category": "вигадане"}]):
+        items, _ = harvest(one, "Київ", index)
+    check("невідома категорія зі стампу відкидається", items[0].category_how != "catalog", True)
 
 
 def main() -> int:
@@ -535,7 +661,7 @@ def main() -> int:
                  test_title_and_category, test_price, test_venue_matching,
                  test_aliases_resolve, test_geocoder_guards, test_dedupe, test_extract,
                  test_source_registry, test_build_internet_bilet, test_category_gaps,
-                 test_internet_bilet_timezone):
+                 test_internet_bilet_timezone, test_catalog_rung, test_address_rescue):
         test()
     print("\n" + "─" * 58)
     if FAILURES:
