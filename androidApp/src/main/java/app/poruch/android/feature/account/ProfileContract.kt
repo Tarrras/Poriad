@@ -13,7 +13,11 @@ data class ProfileState(
     val blocked: List<Attendee> = emptyList(),
     val mutating: Boolean = false,
     val passwordRecovery: Boolean = false,
-    val newPassword: String = ""
+    val newPassword: String = "",
+    /** Перемикач нагадувань зі спільного стану. */
+    val reminders: Boolean = false,
+    /** Людина відмовила в дозволі на сповіщення: перемикач лишається вимкненим, підпис каже чому. */
+    val remindersDenied: Boolean = false
 ) {
     val canSavePassword get() = !mutating && AccountRules.isPassword(newPassword)
 }
@@ -28,8 +32,12 @@ sealed interface ProfileIntent {
     data class Unblock(val userId: String) : ProfileIntent
     data class SetNewPassword(val value: String) : ProfileIntent
     data object SavePassword : ProfileIntent
+    data class SetReminders(val enabled: Boolean) : ProfileIntent
+    /** Відповідь системи на запит дозволу, який маршрут показав за [ProfileEffect.AskNotificationPermission]. */
+    data class NotificationPermissionAnswered(val granted: Boolean) : ProfileIntent
 }
 
 sealed interface ProfileEffect {
     data object SignIn : ProfileEffect
+    data object AskNotificationPermission : ProfileEffect
 }

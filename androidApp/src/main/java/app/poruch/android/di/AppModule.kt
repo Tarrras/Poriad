@@ -13,6 +13,8 @@ import app.poruch.android.feature.mine.MyEventsViewModel
 import app.poruch.android.feature.onboarding.OnboardingViewModel
 import app.poruch.android.navigation.Detail
 import app.poruch.android.navigation.Editor
+import app.poruch.android.platform.AlarmReminderScheduler
+import app.poruch.android.platform.NotificationPermission
 import app.poruch.domain.PoruchLog
 import app.poruch.shared.AppConfig
 import app.poruch.shared.AppGraph
@@ -30,10 +32,14 @@ import org.koin.dsl.onClose
 val appModule = module {
     single {
         PoruchLog.i("app") { "graph created" }
-        AppGraph(AppConfig(BuildConfig.SUPABASE_URL, BuildConfig.SUPABASE_KEY), SessionStore(androidContext()))
+        AppGraph(
+            AppConfig(BuildConfig.SUPABASE_URL, BuildConfig.SUPABASE_KEY), SessionStore(androidContext()),
+            AlarmReminderScheduler(androidContext())
+        )
     } onClose { it?.close() }
     single { get<AppGraph>().app }
     single { DraftStore(androidContext()) }
+    single { NotificationPermission(androidContext()) }
 
     viewModelOf(::HomeViewModel)
     viewModelOf(::ExploreViewModel)

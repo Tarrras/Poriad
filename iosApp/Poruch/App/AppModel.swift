@@ -43,7 +43,6 @@ final class KeychainSessionStore: SecureSessionStore {
     /// Списки головної, зібрані раз на емісію стану: в тілі view це коштувало більше за кадр.
     @Published private(set) var home = HomePresentation(state: nil)
 
-    let reminders = EventReminders()
     private var subscription: Subscription?
     private var lastIndexIDs: [String] = []
     init() {
@@ -57,7 +56,7 @@ final class KeychainSessionStore: SecureSessionStore {
             publishableKey: info["SUPABASE_PUBLISHABLE_KEY"] as? String ?? "",
             home: HomeLocation.companion.Kyiv
         )
-        graph = AppGraph(config: config, sessionStore: KeychainSessionStore())
+        graph = AppGraph(config: config, sessionStore: KeychainSessionStore(), reminders: LocalReminderScheduler())
         PoruchLog.shared.i(tag: "app") { "graph created" }
         start()
     }
@@ -91,7 +90,6 @@ final class KeychainSessionStore: SecureSessionStore {
             .merging(state.cards.map { ($0.key as String, $0.value) }) { current, _ in current }
         savedIDs = Set(state.savedIds)
         waitlistedIDs = Set(state.waitlistedIds)
-        reminders.reconcile(state)
     }
     func stop() { subscription?.close(); subscription = nil }
     deinit { subscription?.close(); graph.close() }

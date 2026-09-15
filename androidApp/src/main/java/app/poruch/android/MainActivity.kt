@@ -94,7 +94,6 @@ fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
     val sharedMap = remember { SharedMapView(context) }
     DisposableEffect(sharedMap) { onDispose { sharedMap.destroy() } }
 
-    LaunchedEffect(state.myEvents, state.userId) { Reminders.sync(context, state) }
     LaunchedEffect(state.passwordRecovery) { if (state.passwordRecovery) navigator.reset(Profile) }
 
     // Без провайдера вкладка «Мапа» будувала нову MapView на кожен вхід.

@@ -148,29 +148,30 @@ struct ProfileView: View {
     }
 }
 
-/// Перемикач нагадувань з власними дозволами. Сам читає плани зі стору.
+/// Перемикач нагадувань. Стан живе у спільному сторі, дозвіл питає система; план рахує `shared`.
 struct ReminderPreference: View {
     @EnvironmentObject var model: AppModel
-    @AppStorage("poruch.reminders") private var enabled = false
     @State private var denied = false
+
+    private var enabled: Binding<Bool> {
+        Binding(
+            get: { model.state?.remindersEnabled ?? false },
+            set: { isOn in
+                guard isOn else { model.app.setRemindersEnabled(enabled: false); return }
+                NotificationPermission.request { granted in
+                    denied = !granted
+                    model.app.setRemindersEnabled(enabled: granted)
+                }
+            }
+        )
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.sm) {
-            Toggle(isOn: $enabled) {
+            Toggle(isOn: enabled) {
                 Text("Нагадувати за годину до події").font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
             }
             .tint(Palette.brand)
-            .onChange(of: enabled) { _, isOn in
-                guard isOn else {
-                    if let state = model.state { model.reminders.reconcile(state) }
-                    return
-                }
-                model.reminders.request { granted in
-                    DispatchQueue.main.async {
-                        enabled = granted; denied = !granted; model.app.loadMyEvents()
-                    }
-                }
-            }
             Text(denied ? "Дозвольте сповіщення в налаштуваннях iOS." : "Локальне нагадування приблизно за годину до початку.")
                 .font(PoruchFont.caption).foregroundStyle(denied ? Palette.danger : Palette.inkTertiary)
         }.padding(Space.lg).cardSurface()

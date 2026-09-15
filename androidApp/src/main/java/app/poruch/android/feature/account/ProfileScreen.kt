@@ -12,6 +12,8 @@ import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -24,10 +26,10 @@ import app.poruch.android.R
 import app.poruch.android.ui.*
 import app.poruch.android.feature.editor.BirthDateSheet
 
-/** Екран акаунта. [reminders] передається ззовні: планування сповіщень з його дозволами належить маршруту. */
+/** Екран акаунта: хто ви, що вам цікаво, як з вами зв'язатися. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun ProfileScreen(state: ProfileState, onIntent: (ProfileIntent) -> Unit, reminders: @Composable () -> Unit) {
+fun ProfileScreen(state: ProfileState, onIntent: (ProfileIntent) -> Unit) {
     val colors = Poruch.colors
     Column(
         Modifier.fillMaxSize().background(colors.canvas).verticalScroll(rememberScrollState())
@@ -119,7 +121,7 @@ fun ProfileScreen(state: ProfileState, onIntent: (ProfileIntent) -> Unit, remind
                     Column(
                         Modifier.fillMaxWidth().cardSurface().padding(Spacing.lg),
                         verticalArrangement = Arrangement.spacedBy(Spacing.sm)
-                    ) { reminders() }
+                    ) { ReminderSetting(state, onIntent) }
                 }
                 SecondaryButton(
                     stringResource(R.string.logout), { onIntent(ProfileIntent.SignOut) }, Modifier.fillMaxWidth(),
@@ -151,4 +153,24 @@ fun ProfileScreen(state: ProfileState, onIntent: (ProfileIntent) -> Unit, remind
     if (state.pickingBirthDate) BirthDateSheet(
         null, { onIntent(ProfileIntent.ShowBirthDatePicker(false)) }
     ) { onIntent(ProfileIntent.SetBirthDate(it)) }
+}
+
+/** Перемикач нагадувань. Дозвіл системи запитує маршрут, тут лише стан і підпис. */
+@Composable
+private fun ReminderSetting(state: ProfileState, onIntent: (ProfileIntent) -> Unit) {
+    val colors = Poruch.colors
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(
+            stringResource(R.string.reminders), Modifier.weight(1f).padding(end = 12.dp),
+            style = MaterialTheme.typography.bodyLarge, color = colors.ink
+        )
+        Switch(
+            state.reminders, { onIntent(ProfileIntent.SetReminders(it)) },
+            colors = SwitchDefaults.colors(checkedTrackColor = colors.brand, checkedThumbColor = colors.onBrand)
+        )
+    }
+    Text(
+        stringResource(if (state.remindersDenied) R.string.reminder_permission else R.string.reminder_note),
+        style = MaterialTheme.typography.bodySmall, color = if (state.remindersDenied) colors.danger else colors.inkTertiary
+    )
 }

@@ -34,6 +34,9 @@ class PoruchApp internal constructor(
     private val creationIdentity: CreationIdentityStore? = null,
     private val timeZones: TimeZoneLocator? = null,
     private val addresses: AddressSearch? = null,
+    private val reminderStore: ReminderPreferenceStore? = null,
+    /** Системний планувальник нагадувань. Null у тестах і превʼю: план рахується, але нікуди не йде. */
+    reminders: ReminderScheduler? = null,
     config: AppConfig = AppConfig("", ""),
     /** Стан живе на головному потоці: звідси читають і Compose, і SwiftUI. */
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
@@ -42,7 +45,10 @@ class PoruchApp internal constructor(
 ) {
     // Відповіді читаємо синхронно: від них залежить, чи перший кадр — онбординг чи застосунок.
     private val mutable = MutableStateFlow(
-        AppState(userId = auth.session.value?.userId, taste = tasteStore?.read() ?: Taste())
+        AppState(
+            userId = auth.session.value?.userId, taste = tasteStore?.read() ?: Taste(),
+            remindersEnabled = reminderStore?.enabled() ?: false
+        )
     )
     val state: StateFlow<AppState> = mutable.asStateFlow()
 
@@ -60,6 +66,7 @@ class PoruchApp internal constructor(
         }
         refresh()
         if (state.value.signedIn) loadMyEvents()
+        if (reminders != null) ReminderSync(state, reminders, scope).start()
     }
 
     // ---- Сесія
@@ -344,6 +351,18 @@ class PoruchApp internal constructor(
         val next = if (category in selected) selected - category else selected + category
         applyTaste(state.value.taste.copy(interests = next))
         if (state.value.signedIn) preferences?.setInterests(next)
+    }
+
+    // ---- Нагадування
+
+    /**
+     * Перемикач у профілі. Дозвіл системи — справа платформи: сюди приходить уже результат,
+     * а план нагадувань перераховується зі стану, див. [ReminderSync].
+     */
+    fun setRemindersEnabled(enabled: Boolean) {
+        PoruchLog.i("reminders") { if (enabled) "enabled" else "disabled" }
+        reminderStore?.setEnabled(enabled)
+        mutable.update { it.copy(remindersEnabled = enabled) }
     }
 
     private fun applyTaste(taste: Taste) {

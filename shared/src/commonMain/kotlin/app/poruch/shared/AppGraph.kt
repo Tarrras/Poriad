@@ -9,6 +9,7 @@ import app.poruch.data.cache.PoruchDatabase
 import app.poruch.data.events.*
 import app.poruch.data.geo.PhotonGeoSearchRepository
 import app.poruch.data.geo.PlatformTimeZoneLocator
+import app.poruch.data.local.LocalReminderPreference
 import app.poruch.data.local.LocalTasteStore
 import app.poruch.data.local.PersistentCreationIdentity
 import app.poruch.data.platformDatabaseDriver
@@ -26,7 +27,7 @@ import org.koin.dsl.module
  * Ізольований контейнер Koin, щоб превʼю й тести не ділили глобальну сесію. Доступ до подій
  * зареєстровано п'ятьма інтерфейсами, аргументи іменовані: позиційні `get()` легко переплутати.
  */
-class AppGraph(config: AppConfig, sessionStore: SecureSessionStore) {
+class AppGraph(config: AppConfig, sessionStore: SecureSessionStore, reminders: ReminderScheduler? = null) {
     private val http = platformHttpClient()
     private val driver = platformDatabaseDriver()
     private val container = koinApplication {
@@ -47,6 +48,7 @@ class AppGraph(config: AppConfig, sessionStore: SecureSessionStore) {
             single<CreationIdentityStore> { PersistentCreationIdentity(get(), get()) }
             single<PreferencesRepository> { SupabasePreferencesRepository(get(), get()) }
             single<TasteStore> { LocalTasteStore(get()) }
+            single<ReminderPreferenceStore> { LocalReminderPreference(get()) }
             single<SafetyRepository> { SupabaseSafetyRepository(get(), get()) }
             // Один клас, два питання: місто зміщує мапу, адреса ставить крапку.
             single { PhotonGeoSearchRepository(http) }
@@ -62,7 +64,8 @@ class AppGraph(config: AppConfig, sessionStore: SecureSessionStore) {
                     requests = get(), auth = get(), geo = get(),
                     eventActions = get(), accountActions = get(),
                     preferences = get(), safety = get(), tasteStore = get(),
-                    creationIdentity = get(), timeZones = get(), addresses = get(), config = config,
+                    creationIdentity = get(), timeZones = get(), addresses = get(),
+                    reminderStore = get(), reminders = reminders, config = config,
                     // Обидва потоки названі явно: тут єдине місце, де видно, що вони різні.
                     scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
                     compute = Dispatchers.Default

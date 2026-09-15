@@ -344,7 +344,7 @@ func categoryGlyph(_ key: String) -> PoruchGlyph {
 
 /// Кеш форматерів за парою «пояс + шаблон»: створення `DateFormatter` дороге (ICU, локаль,
 /// календар), а рядки списку перебудовуються на кожен крок скролу. Парсери незмінні й безпечні
-/// між потоками (`EventReminders` розбирає дати з фонового колбека); словники під замком.
+/// між потоками (`SystemActions` розбирає дати поза головним потоком); словники під замком.
 private let isoParser: ISO8601DateFormatter = ISO8601DateFormatter()
 private let isoParserWithFraction: ISO8601DateFormatter = {
     let parser = ISO8601DateFormatter()

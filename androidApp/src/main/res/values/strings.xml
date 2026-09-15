@@ -129,7 +129,7 @@
   <string name="photo_load_error">Фото зараз недоступне.</string>
   <string name="add_photo">Додати або замінити фото</string>
   <string name="reminders">Нагадувати про мою участь</string>
-  <string name="reminder_body">Подія почнеться приблизно за годину. Перевірте актуальні деталі.</string>
+  <string name="reminder_body">Початок за годину · %1$s</string>
   <string name="reminder_note">Локальне нагадування приблизно за годину. Час доставки залежить від Android; зміни перевіряються під час відкриття застосунку.</string>
   <string name="reminder_permission">Сповіщення вимкнено. Їх можна дозволити в налаштуваннях Android.</string>
   <string name="interests">Ваші інтереси</string>

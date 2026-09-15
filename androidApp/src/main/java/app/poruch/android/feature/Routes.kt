@@ -14,7 +14,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.poruch.android.R
-import app.poruch.android.ReminderPreference
 import app.poruch.android.feature.account.*
 import app.poruch.android.feature.detail.*
 import app.poruch.android.feature.editor.*
@@ -151,8 +150,16 @@ fun AuthRoute(navigator: Navigator) {
 @Composable
 fun ProfileRoute(navigator: Navigator) {
     val model = koinViewModel<ProfileViewModel>(viewModelStoreOwner = activityStoreOwner())
-    model.effects.handle { effect -> when (effect) { ProfileEffect.SignIn -> navigator.open(Auth) } }
-    ProfileScreen(model.state.collectAsStateWithLifecycle().value, model::dispatch) { ReminderPreference() }
+    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        model.dispatch(ProfileIntent.NotificationPermissionAnswered(granted))
+    }
+    model.effects.handle { effect ->
+        when (effect) {
+            ProfileEffect.SignIn -> navigator.open(Auth)
+            ProfileEffect.AskNotificationPermission -> permission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+    ProfileScreen(model.state.collectAsStateWithLifecycle().value, model::dispatch)
 }
 
 /** Поштовий застосунок за категорією, без переліку клієнтів. Якщо його нема, лишаємось тут. */
