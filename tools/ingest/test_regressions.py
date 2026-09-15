@@ -11,7 +11,7 @@ import unittest
 from unittest.mock import patch
 
 from . import emit, extract, normalize, pipeline
-from .__main__ import run_city, _write_sql
+from .__main__ import main, run_city, _write_sql
 from .fetch import Response
 from . import fetch
 import urllib.error
@@ -282,6 +282,20 @@ class RegressionTests(unittest.TestCase):
         self.assertIn(f"greatest({emit.RETIRE_ALLOWANCE}, {emit.RETIRE_MAX_SHARE}", sql)
         self.assertNotIn("delete", sql.lower())
         self.assertEqual(emit.retire_absent_sql("karabas", "Київ", []), "")
+
+    def test_finished_imports_go_stale_last_and_never_by_delete(self):
+        sql = emit.retire_finished_sql()
+        self.assertIn("private.retire_finished_imports(interval '7 days')", sql)
+        self.assertNotIn("delete", sql.lower())
+        with self.assertRaises(ValueError):
+            emit.retire_finished_sql(-1)
+        with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(io.StringIO()), \
+             patch("tools.ingest.__main__.run_city", return_value=([], ["select 1;\n"])), \
+             patch("tools.ingest.__main__.karabas_status.collect", return_value=([], {"pages_fetched": 1})):
+            path = Path(tmp) / "events.sql"
+            main(["--city", "Київ", "--sql", str(path)])
+            body = path.read_text("utf-8")
+        self.assertTrue(body.rstrip().endswith(sql.strip() + "\ncommit;"))
 
     def test_run_city_retires_last_and_only_after_a_full_crawl(self):
         events = [raw_event(name=f"Подія номер {k}", url=f"https://example.org/e{k}") for k in range(12)]

@@ -256,6 +256,19 @@ def retire_absent_sql(slug: str, city: str, seen_uids: list[str]) -> str:
         f" {RETIRE_MAX_SHARE} * (select count(*) from scope));\n")
 
 
+# Скільки днів після кінця подія ще вважається живою: перенесення під тим самим ключем повертають
+# її в `live` наступним дампом, а тиждень покриває типовий зсув афіші.
+FINISHED_GRACE_DAYS = 7
+
+
+def retire_finished_sql(grace_days: int = FINISHED_GRACE_DAYS) -> str:
+    """Завершені імпортовані події → `stale` (міграція 20260915120000). Один виклик на дамп,
+    останньою командою: до нього upsert уже повернув у `live` те, що джерело перенесло."""
+    if grace_days < 0:
+        raise ValueError("grace_days must be non-negative")
+    return f"select private.retire_finished_imports(interval '{grace_days} days');\n"
+
+
 def to_json(items: list[Item]) -> str:
     return json.dumps([{
         "source": i.source_slug, "source_uid": i.source_uid, "event_id": str(i.event_id),

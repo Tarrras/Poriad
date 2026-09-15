@@ -60,6 +60,10 @@ Executed successfully on the selected project:
 - Live concurrent capacity test: **PASS**. Two parallel database transactions called `join_event` for the last place, with a three-second lock hold. Exactly one succeeded and the other returned `EVENT_FULL`; stored membership count was 1. A single bounded orchestration used `try/finally` cleanup; final checks showed **0 remaining test users and 0 remaining test events**. The earlier isolated setup was rejected by automatic review; the complete cleanup-scoped run was accepted.
 - `tests/concurrent_capacity.py`: Python syntax checked; reusable two-connection runner with a `finally` cleanup that verifies deletion. Requires `psycopg[binary]==3.2.9` and `TEST_DATABASE_URL` pointed at an authorized test database. The live run above used the Supabase SQL tool concurrently, not this Python transport.
 
+## Завершені імпортовані події
+
+`20260915120000_stale_finished_imports.sql` додає `private.retire_finished_imports(p_grace)`: імпортовані події, що закінчились понад тиждень тому, отримують `import_status='stale'`. Не `delete`: збережена подія лишається з чесною позначкою. Тиждень запасу потрібен, бо перенесений сеанс джерело часто публікує під тим самим ключем, і наступний дамп повертає рядок у `live` через upsert. Викликається останньою командою кожного дампу `tools.ingest` (`emit.retire_finished_sql`), тож окремого планувальника немає: очищення їде разом зі щоденним `apply_sql.py run --apply`. Спільнотні події не чіпаються. Застосовано 2026-09-15: 15 рядків стали `stale`.
+
 ## Застосування SQL із коду
 
 `tools/apply_sql.py` застосовує міграції й дампи конвеєра прямим зʼєднанням з Postgres, без SQL Editor і без MCP. Рядок зʼєднання — `SUPABASE_DB_URL` у середовищі чи в `.env` (Dashboard → Connect → Session pooler; transaction pooler не годиться для довгих транзакцій). Потрібен `psycopg[binary]`.
