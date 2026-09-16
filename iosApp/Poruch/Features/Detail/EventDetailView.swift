@@ -19,7 +19,6 @@ struct EventDetailView: View {
     @State private var blocking = false
     /// Попередження перед виходом у чужий чат: спершу кажемо, куди й хто це додав.
     @State private var openingContact = false
-    @State private var chatting = false
     @State private var photo: PhotosPickerItem?
     /// Картка, з якою відкрили екран. Карусель будується від неї: скасованого вечора в індексі нема.
     @State private var anchor: Event?
@@ -74,7 +73,7 @@ struct EventDetailView: View {
             stickyBar(event, view)
         }
         .background(Palette.canvas)
-        .modifier(DetailSheets(event: event, view: view, editing: $editing, chatting: $chatting, actions: actions))
+        .modifier(DetailSheets(event: event, view: view, editing: $editing, actions: actions))
         .modifier(DetailDialogs(event: event, view: view, openingContact: $openingContact, cancelling: $cancelling, blocking: $blocking, reporting: $reporting, actions: actions))
     }
 
@@ -111,19 +110,17 @@ struct EventDetailView: View {
     }
 }
 
-/// Аркуші деталей: редактор, чат, календар. Винесено з `detail`, щоб вираз лишався компільованим.
+/// Аркуші деталей: редактор, календар. Винесено з `detail`, щоб вираз лишався компільованим.
 private struct DetailSheets: ViewModifier {
     @EnvironmentObject var model: AppModel
     let event: Event
     let view: EventDetailPresentation
     @Binding var editing: Bool
-    @Binding var chatting: Bool
     @ObservedObject var actions: EventActionsModel
 
     func body(content: Content) -> some View {
         content
         .sheet(isPresented: $editing) { EventEditor(event: event, app: model.app, home: model.state) }
-        .sheet(isPresented: $chatting) { ChatView(event: event) }
         .sheet(item: Binding(
             get: { actions.calendarStore.map(CalendarSession.init) },
             set: { if $0 == nil { actions.calendarStore = nil } }
@@ -370,8 +367,17 @@ extension EventDetailView {
         VStack(alignment: .leading, spacing: Space.sm) {
             SectionHeader(title: "Звʼязок з учасниками")
             if view.hasChat {
-                SecondaryButton(title: "Чат учасників", symbol: "bubble.left.and.bubble.right") { chatting = true }
-                    .frame(maxWidth: .infinity)
+                // Повний екран у стеку, а не шторка: чат читають довго.
+                NavigationLink(value: ChatRoute(id: view.event?.id ?? "")) {
+                    HStack(spacing: Space.sm) {
+                        Image(systemName: "bubble.left.and.bubble.right").font(.system(size: 15, weight: .semibold))
+                        Text("Чат учасників").font(PoruchFont.button).lineLimit(1)
+                    }
+                    .foregroundStyle(Palette.ink)
+                    .padding(.horizontal, Space.xxl).frame(height: 52).frame(maxWidth: .infinity)
+                    .background(Palette.surfaceMuted, in: Capsule())
+                }
+                .buttonStyle(PressableStyle())
                 Text("Пишуть лише організатор і підтверджені учасники.")
                     .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
             }

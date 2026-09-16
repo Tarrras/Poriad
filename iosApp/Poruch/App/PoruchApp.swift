@@ -38,10 +38,8 @@ struct RootView: View {
     @State private var tabBarHidden = false
     /// Явні шляхи стосів замість `navigationDestination(isPresented:)`: після `dismiss()` SwiftUI
     /// не завжди скидав біндінг, і наступний тап по картці відкривав попередню або нічого.
-    @State private var homePath: [EventRoute] = []
-    @State private var minePath: [EventRoute] = []
-    /// Чат, відкритий з головної. Аркуш над коренем, як і з деталей.
-    @State private var chatting: Event?
+    @State private var homePath = NavigationPath()
+    @State private var minePath = NavigationPath()
     var body: some View {
         // Онбординг замінює застосунок, а не накриває: за ним на першому запуску ще нічого нема.
         if model.state?.needsOnboarding == true {
@@ -60,17 +58,19 @@ struct RootView: View {
                         openMap: { tab = 1 }, openProfile: { tab = 3 },
                         createEvent: { if model.state?.userId == nil { authenticating = true } else { creating = true } },
                         openEvent: { homePath.append(EventRoute(id: $0)) },
-                        openChat: { chatting = $0 }
+                        openChat: { homePath.append(ChatRoute(id: $0.id)) }
                     )
                     .safeAreaPadding(.bottom, 92)
                     .toolbar(.hidden, for: .tabBar)
                     .navigationDestination(for: EventRoute.self) { EventDetailView(app: model.app, eventID: $0.id) }
+                    .navigationDestination(for: ChatRoute.self) { ChatView(eventID: $0.id) }
                 }.tag(0)
                 NavigationStack { DiscoveryView().toolbar(.hidden, for: .tabBar) }.tag(1)
                 NavigationStack(path: $minePath) {
                     MyEventsView(openEvent: { minePath.append(EventRoute(id: $0)) })
                         .safeAreaPadding(.bottom, 92).toolbar(.hidden, for: .tabBar)
                         .navigationDestination(for: EventRoute.self) { EventDetailView(app: model.app, eventID: $0.id) }
+                        .navigationDestination(for: ChatRoute.self) { ChatView(eventID: $0.id) }
                 }.tag(2)
                 NavigationStack { ProfileView().safeAreaPadding(.bottom, 92).toolbar(.hidden, for: .tabBar) }.tag(3)
             }
@@ -87,11 +87,10 @@ struct RootView: View {
         .animation(.easeInOut(duration: 0.2), value: tabBarHidden)
         .onAppear {
             // Тап по сповіщенню веде на подію зі стеку головної.
-            PushDelegate.openEvent = { id in tab = 0; model.app.selectEvent(id: id); homePath = [EventRoute(id: id)] }
+            PushDelegate.openEvent = { id in tab = 0; model.app.selectEvent(id: id); homePath = NavigationPath([EventRoute(id: id)]) }
         }
         .environment(\.openMap) { tab = 1 }
         .sheet(isPresented: $creating) { EventEditor(event: nil, app: model.app, home: model.state) }
-        .sheet(item: $chatting) { event in ChatView(event: event) }
         .sheet(isPresented: $authenticating) {
             NavigationStack {
                 AuthView().toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Готово") { authenticating = false } } }
