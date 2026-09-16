@@ -15,6 +15,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.poruch.android.R
 import app.poruch.android.feature.account.*
+import app.poruch.android.feature.chat.*
 import app.poruch.android.feature.detail.*
 import app.poruch.android.feature.editor.*
 import app.poruch.android.feature.explore.*
@@ -122,9 +123,17 @@ fun DetailRoute(route: Detail, navigator: Navigator) {
             is DetailEffect.OpenMaps -> if (!context.openInMaps(effect.event)) context.toast(R.string.maps_unavailable)
             is DetailEffect.OpenLink -> if (!context.openLink(effect.url)) context.toast(R.string.link_unavailable)
             is DetailEffect.OpenMap -> navigator.open(Explore(effect.id))
+            is DetailEffect.OpenChat -> navigator.open(Chat(effect.id))
         }
     }
     DetailScreen(model.state.collectAsStateWithLifecycle().value, model::dispatch)
+}
+
+@Composable
+fun ChatRoute(route: Chat, navigator: Navigator) {
+    val model = koinViewModel<ChatViewModel> { parametersOf(route) }
+    model.effects.handle { effect -> when (effect) { ChatEffect.Back -> navigator.back() } }
+    ChatScreen(model.state.collectAsStateWithLifecycle().value, model::dispatch)
 }
 
 @Composable

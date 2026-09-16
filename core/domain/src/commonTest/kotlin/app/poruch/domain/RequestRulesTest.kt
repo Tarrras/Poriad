@@ -39,3 +39,21 @@ class RequestRulesTest {
         assertEquals(mapOf("a" to 2, "b" to 1), counts)
     }
 }
+
+/** Злиття хвоста чату: без дублів, за часом, потім за id. */
+class ChatRulesTest {
+    private fun message(id: String, at: String) = ChatMessage(id, "ev", "u", "U", null, "…", at)
+
+    @Test fun mergeDeduplicatesAndOrders() {
+        val known = listOf(message("a", "2026-09-16T10:00:00Z"), message("b", "2026-09-16T10:01:00Z"))
+        val fresh = listOf(message("b", "2026-09-16T10:01:00Z"), message("c", "2026-09-16T10:00:30Z"))
+        assertEquals(listOf("a", "c", "b"), ChatRules.merge(known, fresh).map { it.id })
+        assertSame(known, ChatRules.merge(known, emptyList()))
+    }
+
+    @Test fun bodyLimits() {
+        assertTrue(ChatRules.isBody("  привіт  "))
+        assertFalse(ChatRules.isBody("   "))
+        assertFalse(ChatRules.isBody("a".repeat(ChatRules.MAX_BODY + 1)))
+    }
+}

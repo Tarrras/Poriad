@@ -93,6 +93,20 @@ internal data class EventDto(
     }
 }
 
+/** Рядок `public.message_result` з `event_messages`. */
+@Serializable
+internal data class ChatMessageDto(
+    val id: String,
+    @SerialName("event_id") val eventId: String,
+    @SerialName("author_id") val authorId: String,
+    @SerialName("author_name") val authorName: String = "",
+    @SerialName("avatar_url") val avatarUrl: String? = null,
+    val body: String = "",
+    @SerialName("created_at") val createdAt: String = ""
+) {
+    fun domain() = app.poruch.domain.ChatMessage(id, eventId, authorId, authorName, avatarUrl, body, createdAt)
+}
+
 /** Рядок `public.join_request_result` з `my_join_requests`. */
 @Serializable
 internal data class JoinRequestDto(

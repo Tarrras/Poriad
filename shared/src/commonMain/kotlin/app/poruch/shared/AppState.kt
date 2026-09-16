@@ -47,7 +47,9 @@ data class AppState(
     val searchText: String = "", val onlyAvailable: Boolean = false,
     /** Область поставлена рукою («Шукати тут»), а не обрана зі списку міст. Головна каже це вголос. */
     val customArea: Boolean = false,
-    val attendees: List<Attendee> = emptyList(), val waitlistedIds: List<String> = emptyList()
+    val attendees: List<Attendee> = emptyList(), val waitlistedIds: List<String> = emptyList(),
+    /** Відкритий чат події. Null — екран чату закрито, і опитування зупинено. */
+    val chat: ChatState? = null
 ) {
     val signedIn get() = userId != null
     fun isSaved(id: String) = id in savedIds
@@ -101,6 +103,20 @@ private fun AppState.cardsWithSessions(): Map<String, Event> {
     }
     return changed ?: cards
 }
+
+/**
+ * Чат однієї події, поки його екран відкритий. Живе в [AppState], а не в екрані: обидві
+ * платформи слухають один стор, а опитування веде [ChatEngine].
+ */
+data class ChatState(
+    val eventId: String,
+    val messages: List<ChatMessage> = emptyList(),
+    /** Перше читання ще в дорозі. */
+    val loading: Boolean = true,
+    val sending: Boolean = false,
+    /** Сервер без міграції чату: екран каже про це замість порожнього списку. */
+    val available: Boolean = true
+)
 
 /** Значення фільтра «без фільтра». Не категорія, тому окремо. */
 const val ALL_CATEGORIES = "all"

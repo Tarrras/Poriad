@@ -44,6 +44,7 @@ class Navigator(private val app: PoruchApp) {
     private fun NavKey.label() = when (this) {
         is Detail -> "Detail(${eventId.take(8)})"
         is Editor -> "Editor(${editingId?.take(8) ?: "new"})"
+        is Chat -> "Chat(${eventId.take(8)})"
         is Explore -> if (focusId.isEmpty()) "Explore" else "Explore(${focusId.take(8)})"
         else -> this::class.simpleName ?: toString()
     }

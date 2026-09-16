@@ -76,8 +76,8 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
                 ExternalActions(state, onIntent)
                 Venue(event, onIntent)
                 Description(event, onIntent)
-                // Сервер віддає посилання лише організатору й підтвердженим: є посилання — є кому показати.
-                if (event.gathering?.hasContact == true) ContactSection(onIntent)
+                // Чат і посилання — для своїх: сервер віддає посилання лише організатору й підтвердженим.
+                if (state.hasChat || event.gathering?.hasContact == true) ContactSection(state, event, onIntent)
                 if (state.organizer && state.requests.isNotEmpty()) JoinRequests(state, onIntent)
                 if (state.organizer && !state.cancelled) OrganizerActions(state, onIntent)
                 if (!state.organizer) SafetyActions(event, onIntent)
@@ -112,15 +112,24 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
  * перевіряли, і людина має це знати до того, як вийде із застосунку.
  */
 @Composable
-private fun ContactSection(onIntent: (DetailIntent) -> Unit) {
+private fun ContactSection(state: DetailState, event: Event, onIntent: (DetailIntent) -> Unit) {
     val colors = Poruch.colors
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         SectionHeader(stringResource(R.string.contact_section))
-        SecondaryButton(
-            stringResource(R.string.contact_open), { onIntent(DetailIntent.ConfirmContact(true)) },
-            Modifier.fillMaxWidth(), icon = Icons.Outlined.ChatBubbleOutline
-        )
-        Text(stringResource(R.string.contact_members_hint), style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary)
+        if (state.hasChat) {
+            SecondaryButton(
+                stringResource(R.string.chat_open), { onIntent(DetailIntent.OpenChat) },
+                Modifier.fillMaxWidth(), icon = Icons.Outlined.ChatBubbleOutline
+            )
+            Text(stringResource(R.string.chat_open_hint), style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary)
+        }
+        if (event.gathering?.hasContact == true) {
+            SecondaryButton(
+                stringResource(R.string.contact_open), { onIntent(DetailIntent.ConfirmContact(true)) },
+                Modifier.fillMaxWidth(), icon = Icons.Outlined.Link
+            )
+            Text(stringResource(R.string.contact_members_hint), style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary)
+        }
     }
 }
 

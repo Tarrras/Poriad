@@ -19,6 +19,7 @@ struct EventDetailView: View {
     @State private var blocking = false
     /// Попередження перед виходом у чужий чат: спершу кажемо, куди й хто це додав.
     @State private var openingContact = false
+    @State private var chatting = false
     @State private var photo: PhotosPickerItem?
     /// Картка, з якою відкрили екран. Карусель будується від неї: скасованого вечора в індексі нема.
     @State private var anchor: Event?
@@ -67,34 +68,62 @@ struct EventDetailView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: Space.xl) {
                     hero(event, view)
-                    VStack(alignment: .leading, spacing: Space.lg) {
-                        headline(event, view)
-                        if sessions.count > 1 { sessionRail(event) }
-                        facts(event)
-                        if !view.attendees.isEmpty { roster(event, view) }
-                        externalActions(event, view)
-                        venue(event)
-                        // Більшість афіш без опису: заголовок над порожнечею гірший за відсутність секції.
-                        if !event.displayDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                            SectionHeader(title: "Опис")
-                            // Свій опис повністю, чужий уривком: межу проводить домен (`displayDescription`).
-                            Text(event.displayDescription).font(PoruchFont.lead).foregroundStyle(Palette.inkSecondary).lineSpacing(5)
-                        }
-                        if let url = sourceURL(event) {
-                            Link("Читати повністю на джерелі", destination: url)
-                                .font(PoruchFont.button).foregroundStyle(Palette.brand)
-                        }
-                        if let url = view.contactURL { contact(url) }
-                        if view.organizer && !view.requests.isEmpty { joinRequests(event, view) }
-                        if view.organizer && !view.cancelled { organizerActions(view) }
-                        if !view.organizer { safetyActions(view) }
-                    }.padding(.horizontal, Space.page)
+                    sections(event, view).padding(.horizontal, Space.page)
                 }.padding(.bottom, 140)
             }.ignoresSafeArea(edges: .top)
             stickyBar(event, view)
         }
         .background(Palette.canvas)
+        .modifier(DetailSheets(event: event, view: view, editing: $editing, chatting: $chatting, actions: actions))
+        .modifier(DetailDialogs(event: event, view: view, openingContact: $openingContact, cancelling: $cancelling, blocking: $blocking, reporting: $reporting, actions: actions))
+    }
+
+    /// Секції під обкладинкою. Окремою функцією: в одному виразі компілятор не встигав вивести тип.
+    @ViewBuilder
+    private func sections(_ event: Event, _ view: EventDetailPresentation) -> some View {
+        VStack(alignment: .leading, spacing: Space.lg) {
+            headline(event, view)
+            if sessions.count > 1 { sessionRail(event) }
+            facts(event)
+            if !view.attendees.isEmpty { roster(event, view) }
+            externalActions(event, view)
+            venue(event)
+            description(event)
+            if view.hasChat || view.contactURL != nil { contact(view) }
+            if view.organizer && !view.requests.isEmpty { joinRequests(event, view) }
+            if view.organizer && !view.cancelled { organizerActions(view) }
+            if !view.organizer { safetyActions(view) }
+        }
+    }
+
+    /// Свій опис повністю, чужий уривком: межу проводить домен (`displayDescription`).
+    @ViewBuilder
+    private func description(_ event: Event) -> some View {
+        // Більшість афіш без опису: заголовок над порожнечею гірший за відсутність секції.
+        if !event.displayDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            SectionHeader(title: "Опис")
+            Text(event.displayDescription).font(PoruchFont.lead).foregroundStyle(Palette.inkSecondary).lineSpacing(5)
+        }
+        if let url = sourceURL(event) {
+            Link("Читати повністю на джерелі", destination: url)
+                .font(PoruchFont.button).foregroundStyle(Palette.brand)
+        }
+    }
+}
+
+/// Аркуші деталей: редактор, чат, календар. Винесено з `detail`, щоб вираз лишався компільованим.
+private struct DetailSheets: ViewModifier {
+    @EnvironmentObject var model: AppModel
+    let event: Event
+    let view: EventDetailPresentation
+    @Binding var editing: Bool
+    @Binding var chatting: Bool
+    @ObservedObject var actions: EventActionsModel
+
+    func body(content: Content) -> some View {
+        content
         .sheet(isPresented: $editing) { EventEditor(event: event, app: model.app, home: model.state) }
+        .sheet(isPresented: $chatting) { ChatView(event: event) }
         .sheet(item: Binding(
             get: { actions.calendarStore.map(CalendarSession.init) },
             set: { if $0 == nil { actions.calendarStore = nil } }
@@ -104,6 +133,23 @@ struct EventDetailView: View {
         .alert("Календар", isPresented: $actions.calendarDenied) {
             Button("Добре") { actions.calendarDenied = false }
         } message: { Text("Дозвольте доступ до календаря в налаштуваннях iOS.") }
+    }
+}
+
+/// Діалоги деталей: посилання, скасування, блокування, скарга.
+private struct DetailDialogs: ViewModifier {
+    @EnvironmentObject var model: AppModel
+    @Environment(\.dismiss) private var dismiss
+    let event: Event
+    let view: EventDetailPresentation
+    @Binding var openingContact: Bool
+    @Binding var cancelling: Bool
+    @Binding var blocking: Bool
+    @Binding var reporting: ReportTarget?
+    @ObservedObject var actions: EventActionsModel
+
+    func body(content: Content) -> some View {
+        content
         .confirmationDialog(
             "Ви переходите на \(view.contactURL.map { ContactRules.shared.host(url: $0.absoluteString) } ?? "сторонній сайт"). Це посилання додав організатор події. «Поруч» не перевіряє його і не відповідає за вміст сторінки чи чату за ним. Не переходьте, якщо не довіряєте організатору.",
             isPresented: $openingContact, titleVisibility: .visible
@@ -133,11 +179,15 @@ struct EventDetailView: View {
                     if let organizerId = event.organizerId {
                         model.app.reportUser(userId: organizerId, reason: reason, details: details)
                     }
+                // Скарга на повідомлення відкривається з чату, не звідси.
+                case .message: break
                 }
             }.presentationDetents([.medium, .large])
         }
     }
+}
 
+extension EventDetailView {
     private func hero(_ event: Event, _ view: EventDetailPresentation) -> some View {
         // Справжній відступ під смугу статусу: з вирізом кнопки заходили під годинник.
         let topInset = UIApplication.shared.connectedScenes
@@ -316,13 +366,21 @@ struct EventDetailView: View {
 
     /// Чат учасників. Кнопка веде не в браузер, а на попередження: посилання чуже, ми його не
     /// перевіряли, і людина має це знати до того, як вийде із застосунку.
-    private func contact(_ url: URL) -> some View {
+    private func contact(_ view: EventDetailPresentation) -> some View {
         VStack(alignment: .leading, spacing: Space.sm) {
             SectionHeader(title: "Звʼязок з учасниками")
-            SecondaryButton(title: "Відкрити чат", symbol: "bubble.left.and.bubble.right") { openingContact = true }
-                .frame(maxWidth: .infinity)
-            Text("Посилання від організатора. Бачать лише учасники події.")
-                .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
+            if view.hasChat {
+                SecondaryButton(title: "Чат учасників", symbol: "bubble.left.and.bubble.right") { chatting = true }
+                    .frame(maxWidth: .infinity)
+                Text("Пишуть лише організатор і підтверджені учасники.")
+                    .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
+            }
+            if view.contactURL != nil {
+                SecondaryButton(title: "Відкрити посилання", symbol: "link") { openingContact = true }
+                    .frame(maxWidth: .infinity)
+                Text("Посилання від організатора. Бачать лише учасники події.")
+                    .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
+            }
         }
     }
 
@@ -443,9 +501,15 @@ struct ScrimButton: View {
 
 /// На що скарга: на подію чи на того, хто її опублікував.
 enum ReportTarget: String, Identifiable {
-    case event, organizer
+    case event, organizer, message
     var id: String { rawValue }
-    var title: String { self == .event ? "Поскаржитись на подію" : "Поскаржитись на організатора" }
+    var title: String {
+        switch self {
+        case .event: "Поскаржитись на подію"
+        case .organizer: "Поскаржитись на організатора"
+        case .message: "Поскаржитись на повідомлення"
+        }
+    }
 }
 
 /// Скарга: іменована причина для сортування черги модерації плюс необов'язковий текст.

@@ -24,6 +24,7 @@ class PoruchApp internal constructor(
     private val authoring: EventAuthoring,
     private val participation: EventParticipation,
     private val requests: EventRequests,
+    chat: EventChat,
     private val auth: AuthRepository,
     geo: GeoSearchRepository,
     private val eventActions: EventActions,
@@ -57,6 +58,7 @@ class PoruchApp internal constructor(
 
     private val discovery = DiscoveryEngine(events, geo, mutable, scope, config.home, compute)
     private val library = UserLibrary(events, saved, participation, requests, auth, preferences, safety, tasteStore, mutable, scope)
+    private val chatEngine = ChatEngine(chat, mutable, scope)
 
     private var mutationJob: Job? = null
     /** Повтор непевного створення має взяти той самий id, інакше опублікує другу подію. */
@@ -82,7 +84,7 @@ class PoruchApp internal constructor(
         }
         PoruchLog.i("session") { "identity → ${uid.shortId()}, clearing private state" }
         pendingCreation = null
-        library.clear()
+        library.clear(); chatEngine.close()
         mutable.update {
             it.copy(
                 userId = uid, events = emptyList(), passwordRecovery = false, completedEventId = null,
@@ -199,12 +201,28 @@ class PoruchApp internal constructor(
     fun loadMyEvents() = library.load()
 
     /**
-     * Повернення на передній план: за час у фоні могли прийти запити й відповіді.
+     * Повернення на передній план: за час у фоні могли прийти запити, відповіді й повідомлення.
      * Перечитує мапу, «мої» і відкриту подію, бо запити на її екрані живуть окремо від стрічки.
      */
     fun resume() {
         refresh(); loadMyEvents()
         library.openEventId?.let { library.select(it, full = true) }
+    }
+
+    // ---- Чат події
+
+    /** Екран чату відкрито: тягнемо хвіст і перечитуємо, поки не закриють. */
+    fun openChat(eventId: String) = chatEngine.open(eventId)
+    fun closeChat() = chatEngine.close()
+    fun sendMessage(text: String) = chatEngine.send(text)
+    fun deleteMessage(messageId: String) = chatEngine.delete(messageId)
+
+    fun reportMessage(messageId: String, reason: String, details: String? = null) = mutate {
+        val store = safety ?: fail(AppError.ServiceUnavailable)
+        if (!state.value.signedIn) fail(AppError.SessionRequired)
+        PoruchLog.i("safety") { "report message ${messageId.shortId()} reason=$reason" }
+        store.reportMessage(messageId, reason, details)
+        tell(AppMessage.REPORT_SENT)
     }
 
     // ---- Зміни
@@ -467,7 +485,7 @@ class PoruchApp internal constructor(
         PoruchLog.i("auth") { "sign out" }
         // Локальний стан чистимо навіть якщо сервер відмовив: людина попросила вийти.
         try { auth.signOut() } finally {
-            library.clear()
+            library.clear(); chatEngine.close()
             mutable.update { it.copy(userId = null) }
             refresh()
         }

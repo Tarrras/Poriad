@@ -16,4 +16,6 @@ sealed interface Tab : NavKey
 
 @Serializable data class Detail(val eventId: String) : NavKey
 @Serializable data class Editor(val editingId: String? = null) : NavKey
+/** Чат події. Лише для організатора й учасників: іншим сервер віддасть порожньо. */
+@Serializable data class Chat(val eventId: String) : NavKey
 @Serializable data object Auth : NavKey

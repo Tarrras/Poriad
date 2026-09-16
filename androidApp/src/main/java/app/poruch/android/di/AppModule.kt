@@ -11,6 +11,8 @@ import app.poruch.android.feature.explore.ExploreViewModel
 import app.poruch.android.feature.home.HomeViewModel
 import app.poruch.android.feature.mine.MyEventsViewModel
 import app.poruch.android.feature.onboarding.OnboardingViewModel
+import app.poruch.android.feature.chat.ChatViewModel
+import app.poruch.android.navigation.Chat
 import app.poruch.android.navigation.Detail
 import app.poruch.android.navigation.Editor
 import app.poruch.android.platform.AlarmReminderScheduler
@@ -50,4 +52,5 @@ val appModule = module {
     viewModelOf(::AuthViewModel)
     viewModel { (route: Detail) -> DetailViewModel(get(), route.eventId) }
     viewModel { (route: Editor) -> EditorViewModel(get(), get(), route.editingId) }
+    viewModel { (route: Chat) -> ChatViewModel(get(), route.eventId) }
 }
