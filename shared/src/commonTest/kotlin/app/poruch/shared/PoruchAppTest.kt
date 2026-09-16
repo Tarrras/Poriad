@@ -26,7 +26,16 @@ class PoruchAppTest {
         override suspend fun handleCallback(url:String):Boolean { session.value=UserSession("recovered","new","refresh",9999999999); return true }
     }
     /** Підробка реалізує всі п'ять інтерфейсів, бо [PoruchApp] користується всіма. */
-    private class Events: EventDiscovery, SavedEvents, EventAuthoring, EventParticipation, EventRequests {
+    private class Events: EventDiscovery, SavedEvents, EventAuthoring, EventParticipation, EventRequests, EventChat {
+        val sent=mutableListOf<Pair<String,String>>()
+        var chatMessages=emptyList<ChatMessage>()
+        override suspend fun messages(eventId:String,after:String?)=chatMessages.filter { after==null || it.createdAt>after }
+        override suspend fun send(eventId:String,body:String):String { sent+=eventId to body; val m=ChatMessage("m${sent.size}",eventId,"user","Я",null,body,"2026-09-16T10:0${sent.size}:00Z"); chatMessages=chatMessages+m; return m.id }
+        override suspend fun delete(messageId:String) { chatMessages=chatMessages.filterNot { it.id==messageId } }
+        var unreadChats=emptyList<ChatUnread>()
+        val readMarks=mutableListOf<String>()
+        override suspend fun unread()=unreadChats
+        override suspend fun markRead(eventId:String) { readMarks+=eventId }
         val queries=mutableListOf<EventQuery>()
         val cardRequests=mutableListOf<List<String>>()
         val createIds=mutableListOf<String>()
@@ -66,7 +75,7 @@ class PoruchAppTest {
     }
     private fun app(events:Events,scope:CoroutineScope,auth:Auth=Auth()):PoruchApp {
         return PoruchApp(
-            events=events, saved=events, authoring=events, participation=events, requests=events,
+            events=events, saved=events, authoring=events, participation=events, requests=events, chat=events,
             auth=auth,
             geo=object:GeoSearchRepository { override suspend fun search(query:String)=emptyList<CityResult>() },
             eventActions=EventActions(events,events,auth), accountActions=AccountActions(auth),
@@ -83,6 +92,7 @@ class PoruchAppTest {
         override suspend fun declareBirthDate(date:String) { declared=date; facts=facts.copy(birthDate=date) }
         override suspend fun reportEvent(eventId:String,reason:String,details:String?) { reports+=Triple(eventId,reason,details) }
         override suspend fun reportUser(userId:String,reason:String,details:String?) { reports+=Triple(userId,reason,details) }
+        override suspend fun reportMessage(messageId:String,reason:String,details:String?) { reports+=Triple(messageId,reason,details) }
         override suspend fun block(userId:String) { blocked+=userId }
         override suspend fun unblock(userId:String) { blocked-=userId }
         override suspend fun blocked()=this.blocked.map { Attendee(it,"Заблокований",null) }
@@ -430,6 +440,59 @@ class PoruchAppTest {
         assertEquals(180.0,events.queries.last().east);app.close()
     }
 
+    /** Чат: відкриття тягне хвіст, відправлення обрізає текст і дописує нове, закриття зупиняє опитування. */
+    @Test fun chatPollsWhileOpenAndStopsWhenClosed()=runTest {
+        val events=Events(); val app=app(events,backgroundScope)
+        events.chatMessages=listOf(ChatMessage("m0","ev","host","Host",null,"Привіт","2026-09-16T09:00:00Z"))
+        app.openChat("ev"); runCurrent()
+        assertEquals(listOf("m0"),app.state.value.chat?.messages?.map { it.id })
+        assertFalse(app.state.value.chat!!.loading)
+
+        app.sendMessage("  Буду о сьомій  "); runCurrent()
+        assertEquals(listOf("ev" to "Буду о сьомій"),events.sent)
+        assertEquals(listOf("m0","m1"),app.state.value.chat?.messages?.map { it.id })
+
+        app.sendMessage("   "); runCurrent()
+        assertEquals(1,events.sent.size,"порожнє не летить на сервер")
+        assertIs<AppNotice.Failed>(app.state.value.notice)
+
+        // Хтось інший написав: наступне опитування підхопить лише нове.
+        events.chatMessages=events.chatMessages+ChatMessage("m9","ev","other","Інший",null,"Ок","2026-09-16T10:30:00Z")
+        advanceTimeBy(ChatRules.POLL_INTERVAL_MS+1); runCurrent()
+        assertEquals(listOf("m0","m1","m9"),app.state.value.chat?.messages?.map { it.id })
+
+        app.closeChat(); runCurrent()
+        assertNull(app.state.value.chat)
+        app.close()
+    }
+
+    /** Непрочитане: відкриття чату знімає бейдж і позначає прочитаним; нове чуже дзвонить раз. */
+    @Test fun unreadChatsRingOnceAndClearWhenOpened()=runTest {
+        val events=Events()
+        val seen=object:SeenRequestStore { val keys=mutableSetOf<String>(); override fun seen()=keys.toSet(); override fun markSeen(keys:Set<String>) { this.keys+=keys } }
+        val rung=mutableListOf<ChatAlert>()
+        val app=PoruchApp(
+            events=events, saved=events, authoring=events, participation=events, requests=events, chat=events,
+            auth=Auth(), geo=object:GeoSearchRepository { override suspend fun search(query:String)=emptyList<CityResult>() },
+            eventActions=EventActions(events,events,Auth()), accountActions=AccountActions(Auth()),
+            safety=safety, tasteStore=taste, scope=backgroundScope,
+            reminderStore=object:ReminderPreferenceStore { override fun enabled()=true; override fun setEnabled(enabled:Boolean) {} },
+            seenMessages=seen, chatNotifier=object:ChatNotifier { override fun notifyMessages(alerts:List<ChatAlert>) { rung+=alerts } }
+        )
+        events.unreadChats=listOf(ChatUnread("ev","Настілки",2,"m9","Інший","Ок","2026-09-16T10:30:00Z"))
+        app.loadMyEvents(); advanceTimeBy(200); runCurrent()
+        assertEquals(1,app.state.value.unreadChats)
+        assertEquals(listOf(ChatAlert("ev","Настілки",2,"Інший","Ок")),rung)
+
+        app.loadMyEvents(); advanceTimeBy(200); runCurrent()
+        assertEquals(1,rung.size,"те саме повідомлення не дзвонить удруге")
+
+        app.openChat("ev"); runCurrent()
+        assertEquals(0,app.state.value.unreadChats,"відкритий чат більше не непрочитаний")
+        assertEquals(listOf("ev"),events.readMarks)
+        app.close()
+    }
+
     /** Новий запит дзвонить раз: після перечитування ті самі ключі вже «бачені». */
     @Test fun aNewJoinRequestRingsOnceAndShowsOnTheFeed()=runTest {
         val events=Events()
@@ -437,7 +500,7 @@ class PoruchAppTest {
         val seen=object:SeenRequestStore { val keys=mutableSetOf<String>(); override fun seen()=keys.toSet(); override fun markSeen(keys:Set<String>) { this.keys+=keys } }
         val rung=mutableListOf<RequestAlert>()
         val app=PoruchApp(
-            events=events, saved=events, authoring=events, participation=events, requests=events,
+            events=events, saved=events, authoring=events, participation=events, requests=events, chat=events,
             auth=Auth(), geo=object:GeoSearchRepository { override suspend fun search(query:String)=emptyList<CityResult>() },
             eventActions=EventActions(events,events,Auth()), accountActions=AccountActions(Auth()),
             safety=safety, tasteStore=taste, scope=backgroundScope,

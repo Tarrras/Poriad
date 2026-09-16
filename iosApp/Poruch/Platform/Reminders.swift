@@ -14,7 +14,7 @@ enum NotificationPermission {
 /// Локальні сповіщення за планом зі спільного шару: що і коли вирішено там, тут лише центр
 /// сповіщень. Делегат потрібен, щоб банер показувався й у відкритому застосунку: без нього
 /// iOS у фореграунді мовчить.
-final class LocalReminderScheduler: NSObject, ReminderScheduler, RequestNotifier, UNUserNotificationCenterDelegate {
+final class LocalReminderScheduler: NSObject, ReminderScheduler, RequestNotifier, ChatNotifier, UNUserNotificationCenterDelegate {
     private let center = UNUserNotificationCenter.current()
     private let prefix = "poruch.event."
 
@@ -55,6 +55,25 @@ final class LocalReminderScheduler: NSObject, ReminderScheduler, RequestNotifier
         }
     }
 
+    /// Нові повідомлення в чаті: одне сповіщення на подію, з іменем і початком останнього.
+    func notifyMessages(alerts: [ChatAlert]) {
+        for alert in alerts {
+            let content = UNMutableNotificationContent()
+            content.title = alert.eventTitle
+            let author = alert.authorName.isEmpty ? "Учасник" : alert.authorName
+            content.body = "\(author): \(alert.preview)"
+            content.subtitle = chatCount(Int(alert.count))
+            content.sound = .default
+            content.userInfo = ["eventId": alert.eventId]
+            center.add(UNNotificationRequest(identifier: "poruch.chat." + alert.eventId, content: content, trigger: nil))
+        }
+    }
+
+    private func chatCount(_ count: Int) -> String {
+        let last = count % 10, tens = count % 100
+        return last == 1 && tens != 11 ? "\(count) нове повідомлення" : "\(count) нових повідомлень"
+    }
+
     private func requestBody(_ count: Int) -> String {
         let last = count % 10, tens = count % 100
         let noun = last == 1 && tens != 11 ? "новий запит"
@@ -66,6 +85,22 @@ final class LocalReminderScheduler: NSObject, ReminderScheduler, RequestNotifier
         _ center: UNUserNotificationCenter, willPresent notification: UNNotification,
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
+        // Пуш у відкритому застосунку: стан перечитуємо, а банер показуємо, як і локальні.
+        let info = notification.request.content.userInfo
+        if let kind = info["kind"] as? String {
+            PushDelegate.app?.pushReceived(kind: kind, key: info["key"] as? String ?? "")
+        }
         completionHandler([.banner, .list, .sound])
+    }
+
+    /// Тап по сповіщенню, локальному чи пушу: відкрити подію, про яку воно.
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        if let eventId = response.notification.request.content.userInfo["eventId"] as? String {
+            DispatchQueue.main.async { PushDelegate.openEvent?(eventId) }
+        }
+        completionHandler()
     }
 }

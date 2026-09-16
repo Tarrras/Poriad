@@ -24,6 +24,8 @@ class PoruchApp internal constructor(
     private val authoring: EventAuthoring,
     private val participation: EventParticipation,
     private val requests: EventRequests,
+    chat: EventChat,
+    private val push: PushTokens? = null,
     private val auth: AuthRepository,
     geo: GeoSearchRepository,
     private val eventActions: EventActions,
@@ -40,6 +42,9 @@ class PoruchApp internal constructor(
     /** Сповіщення про нові запити на участь: сховище «бачених» і платформний показ. Обидва або нічого. */
     private val seenRequests: SeenRequestStore? = null,
     requestNotifier: RequestNotifier? = null,
+    /** Сповіщення про нові повідомлення в чатах: окремий список «бачених» і показ. Обидва або нічого. */
+    private val seenMessages: SeenRequestStore? = null,
+    chatNotifier: ChatNotifier? = null,
     config: AppConfig = AppConfig("", ""),
     /** Стан живе на головному потоці: звідси читають і Compose, і SwiftUI. */
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
@@ -56,9 +61,14 @@ class PoruchApp internal constructor(
     val state: StateFlow<AppState> = mutable.asStateFlow()
 
     private val discovery = DiscoveryEngine(events, geo, mutable, scope, config.home, compute)
-    private val library = UserLibrary(events, saved, participation, requests, auth, preferences, safety, tasteStore, mutable, scope)
+    private val library = UserLibrary(events, saved, participation, requests, chat, auth, preferences, safety, tasteStore, mutable, scope)
+    private val chatEngine = ChatEngine(chat, mutable, scope)
 
     private var mutationJob: Job? = null
+    /** Токен пристрою від платформи. Реєструється під кожним акаунтом, з яким входять. */
+    private var pushToken: Pair<String, String>? = null
+    /** Токен і акаунт, для яких реєстрація вже йде: токен і вхід часто приходять одночасно. */
+    private var pushRegistering: Pair<String, String?>? = null
     /** Повтор непевного створення має взяти той самий id, інакше опублікує другу подію. */
     private var pendingCreation: Pair<EventDraft, String>? = null
 
@@ -71,6 +81,7 @@ class PoruchApp internal constructor(
         if (state.value.signedIn) loadMyEvents()
         if (reminders != null) ReminderSync(state, reminders, scope).start()
         if (requestNotifier != null && seenRequests != null) RequestAlertSync(state, seenRequests, requestNotifier, scope).start()
+        if (chatNotifier != null && seenMessages != null) ChatAlertSync(state, seenMessages, chatNotifier, scope).start()
     }
 
     // ---- Сесія
@@ -82,7 +93,8 @@ class PoruchApp internal constructor(
         }
         PoruchLog.i("session") { "identity → ${uid.shortId()}, clearing private state" }
         pendingCreation = null
-        library.clear()
+        library.clear(); chatEngine.close()
+        mutable.update { it.copy(pushRegistered = false) }
         mutable.update {
             it.copy(
                 userId = uid, events = emptyList(), passwordRecovery = false, completedEventId = null,
@@ -91,7 +103,53 @@ class PoruchApp internal constructor(
             )
         }
         refresh()
-        if (uid != null) loadMyEvents()
+        if (uid != null) { loadMyEvents(); registerPush() }
+    }
+
+    // ---- Пуші
+
+    /**
+     * Платформа отримала або оновила токен. Реєструємо одразу, якщо є акаунт, і знову після
+     * кожного входу: токен один на телефон, а людей на ньому може бути кілька.
+     */
+    fun pushTokenChanged(token: String, platform: String) {
+        if (pushToken?.first == token && state.value.pushRegistered) return
+        pushToken = token to platform
+        registerPush()
+    }
+
+    private fun registerPush() {
+        val (token, platform) = pushToken ?: return
+        val store = push ?: return
+        val uid = state.value.userId ?: return
+        if (pushRegistering == token to uid) return
+        pushRegistering = token to uid
+        scope.launch {
+            try {
+                store.register(token, platform)
+                PoruchLog.i("push") { "registered $platform token" }
+                mutable.update { it.copy(pushRegistered = true) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                PoruchLog.w("push") { "register failed: ${e.asAppError()}" }
+            } finally {
+                if (pushRegistering == token to uid) pushRegistering = null
+            }
+        }
+    }
+
+    /**
+     * Пуш прийшов на цей пристрій: перечитуємо стан, щоб бейджі й списки відповідали, і
+     * позначаємо ключ баченим, щоб локальне сповіщення не повторило те саме.
+     */
+    fun pushReceived(kind: String, key: String) {
+        PoruchLog.i("push") { "received $kind" }
+        when (kind) {
+            "chat" -> seenMessages?.markSeen(setOf(key))
+            "request" -> seenRequests?.markSeen(setOf(key))
+        }
+        resume()
     }
 
     fun observe(onChange: (AppState) -> Unit): Subscription {
@@ -199,12 +257,28 @@ class PoruchApp internal constructor(
     fun loadMyEvents() = library.load()
 
     /**
-     * Повернення на передній план: за час у фоні могли прийти запити й відповіді.
+     * Повернення на передній план: за час у фоні могли прийти запити, відповіді й повідомлення.
      * Перечитує мапу, «мої» і відкриту подію, бо запити на її екрані живуть окремо від стрічки.
      */
     fun resume() {
         refresh(); loadMyEvents()
         library.openEventId?.let { library.select(it, full = true) }
+    }
+
+    // ---- Чат події
+
+    /** Екран чату відкрито: тягнемо хвіст і перечитуємо, поки не закриють. */
+    fun openChat(eventId: String) = chatEngine.open(eventId)
+    fun closeChat() = chatEngine.close()
+    fun sendMessage(text: String) = chatEngine.send(text)
+    fun deleteMessage(messageId: String) = chatEngine.delete(messageId)
+
+    fun reportMessage(messageId: String, reason: String, details: String? = null) = mutate {
+        val store = safety ?: fail(AppError.ServiceUnavailable)
+        if (!state.value.signedIn) fail(AppError.SessionRequired)
+        PoruchLog.i("safety") { "report message ${messageId.shortId()} reason=$reason" }
+        store.reportMessage(messageId, reason, details)
+        tell(AppMessage.REPORT_SENT)
     }
 
     // ---- Зміни
@@ -465,9 +539,11 @@ class PoruchApp internal constructor(
 
     fun signOut() = mutate {
         PoruchLog.i("auth") { "sign out" }
+        // Токен знімаємо до виходу: після нього RPC уже не знає, чий він.
+        pushToken?.let { (token, _) -> runCatching { push?.unregister(token) } }
         // Локальний стан чистимо навіть якщо сервер відмовив: людина попросила вийти.
         try { auth.signOut() } finally {
-            library.clear()
+            library.clear(); chatEngine.close()
             mutable.update { it.copy(userId = null) }
             refresh()
         }

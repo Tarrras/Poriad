@@ -40,6 +40,8 @@ interface SafetyRepository {
     suspend fun declareBirthDate(date: String)
     suspend fun reportEvent(eventId: String, reason: String, details: String?)
     suspend fun reportUser(userId: String, reason: String, details: String?)
+    /** Скарга на повідомлення в чаті: іде на автора, з подією і текстом для контексту. */
+    suspend fun reportMessage(messageId: String, reason: String, details: String?)
     suspend fun block(userId: String)
     suspend fun unblock(userId: String)
     /** Кого заблокував цей акаунт, з іменами, щоб можна було розблокувати. */

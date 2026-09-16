@@ -18,6 +18,7 @@ val navigationModule = module {
         navigation<Profile> { ProfileRoute(get()) }
         navigation<Detail> { route -> DetailRoute(route, get()) }
         navigation<Editor> { route -> EditorRoute(route, get()) }
+        navigation<Chat> { route -> ChatRoute(route, get()) }
         navigation<Auth> { AuthRoute(get()) }
     }
 }

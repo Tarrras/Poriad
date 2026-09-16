@@ -702,6 +702,8 @@ struct TabItem: Identifiable {
     let id: Int
     let label: String
     let glyph: PoruchGlyph
+    /// Скільки справ чекає: 0 — без бейджа.
+    var badge: Int = 0
 }
 
 /// Таббар плаває поверх застосунку, тож екран із власною нижньою панеллю (деталі) має сам
@@ -742,6 +744,15 @@ struct PoruchTabBar<Trailing: View>: View {
                         VStack(spacing: 3) {
                             // Активна вкладка заливається, а не товщає: інакше рядок смикається.
                             PoruchIcon(glyph: item.glyph, size: 22)
+                                .overlay(alignment: .topTrailing) {
+                                    // Бейдж поверх кута гліфа: число справ, не повідомлень.
+                                    if item.badge > 0 {
+                                        Text("\(min(item.badge, 99))").font(PoruchFont.overline).foregroundStyle(Palette.onBrand)
+                                            .padding(.horizontal, 5).padding(.vertical, 1)
+                                            .background(Palette.accent, in: Capsule())
+                                            .offset(x: 10, y: -6)
+                                    }
+                                }
                             Text(item.label).font(PoruchFont.overline).lineLimit(1)
                         }
                         .foregroundStyle(selection == item.id ? Palette.ink : Palette.inkTertiary)
@@ -752,7 +763,7 @@ struct PoruchTabBar<Trailing: View>: View {
                         }
                     }
                     .buttonStyle(PressableStyle(pressedScale: 0.94))
-                    .accessibilityLabel(item.label)
+                    .accessibilityLabel(item.badge > 0 ? "\(item.label), непрочитаних чатів: \(item.badge)" : item.label)
                     .accessibilityAddTraits(selection == item.id ? .isSelected : [])
                 }
             }

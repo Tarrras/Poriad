@@ -47,8 +47,19 @@ data class AppState(
     val searchText: String = "", val onlyAvailable: Boolean = false,
     /** Область поставлена рукою («Шукати тут»), а не обрана зі списку міст. Головна каже це вголос. */
     val customArea: Boolean = false,
-    val attendees: List<Attendee> = emptyList(), val waitlistedIds: List<String> = emptyList()
+    val attendees: List<Attendee> = emptyList(), val waitlistedIds: List<String> = emptyList(),
+    /** Відкритий чат події. Null — екран чату закрито, і опитування зупинено. */
+    val chat: ChatState? = null,
+    /** Події з непрочитаними повідомленнями, свіжіші першими. Бейджі й секція на головній. */
+    val chatUnread: List<ChatUnread> = emptyList(),
+    /**
+     * Пристрій зареєстровано для пушів під цим акаунтом. Тоді про нове дзвонить сервер, а
+     * локальні сповіщення при перечитуванні мовчать, щоб не дублювати.
+     */
+    val pushRegistered: Boolean = false
 ) {
+    /** Скільки чатів чекають: бейдж на вкладці. Не сума повідомлень: три чати — три справи. */
+    val unreadChats get() = chatUnread.size
     val signedIn get() = userId != null
     fun isSaved(id: String) = id in savedIds
     fun isWaitlisted(id: String) = id in waitlistedIds
@@ -101,6 +112,24 @@ private fun AppState.cardsWithSessions(): Map<String, Event> {
     }
     return changed ?: cards
 }
+
+/**
+ * Чат однієї події, поки його екран відкритий. Живе в [AppState], а не в екрані: обидві
+ * платформи слухають один стор, а опитування веде [ChatEngine].
+ */
+data class ChatState(
+    val eventId: String,
+    val messages: List<ChatMessage> = emptyList(),
+    /** Перше читання ще в дорозі. */
+    val loading: Boolean = true,
+    val sending: Boolean = false,
+    /** Сервер без міграції чату: екран каже про це замість порожнього списку. */
+    val available: Boolean = true
+)
+
+/** Тримає значення `chatUnread` без події [eventId]: чат відкрито або прочитано. */
+internal fun AppState.withoutUnread(eventId: String): AppState =
+    if (chatUnread.none { it.eventId == eventId }) this else copy(chatUnread = chatUnread.filterNot { it.eventId == eventId })
 
 /** Значення фільтра «без фільтра». Не категорія, тому окремо. */
 const val ALL_CATEGORIES = "all"

@@ -49,7 +49,7 @@ import java.time.LocalDateTime
 @Composable
 fun EditorScreen(state: EditorState, onIntent: (EditorIntent) -> Unit, onClose: () -> Unit) {
     val colors = Poruch.colors
-    Column(Modifier.fillMaxSize().background(colors.canvas).statusBarsPadding()) {
+    Column(Modifier.fillMaxSize().background(colors.canvas).statusBarsPadding().imePadding()) {
         PageHeader(stringResource(if (state.editing) R.string.edit else R.string.create), back = onClose)
         StepBar(state.step)
         Column(

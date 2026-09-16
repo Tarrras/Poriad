@@ -21,6 +21,7 @@ import app.poruch.events.EventActions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import org.koin.core.qualifier.named
 import org.koin.dsl.koinApplication
 import org.koin.dsl.module
 
@@ -33,7 +34,9 @@ class AppGraph(
     sessionStore: SecureSessionStore,
     reminders: ReminderScheduler? = null,
     /** Показ сповіщення про новий запит на участь. Null — лише бейджі на головній. */
-    requestNotifier: RequestNotifier? = null
+    requestNotifier: RequestNotifier? = null,
+    /** Показ сповіщення про нові повідомлення в чатах. Null — лише бейджі. */
+    chatNotifier: ChatNotifier? = null
 ) {
     private val http = platformHttpClient()
     private val driver = platformDatabaseDriver()
@@ -51,12 +54,15 @@ class AppGraph(
             single<EventAuthoring> { get<EventData>().authoring }
             single<EventParticipation> { get<EventData>().participation }
             single<EventRequests> { get<EventData>().requests }
+            single<EventChat> { get<EventData>().chat }
+            single<PushTokens> { get<EventData>().push }
 
             single<CreationIdentityStore> { PersistentCreationIdentity(get(), get()) }
             single<PreferencesRepository> { SupabasePreferencesRepository(get(), get()) }
             single<TasteStore> { LocalTasteStore(get()) }
             single<ReminderPreferenceStore> { LocalReminderPreference(get()) }
             single<SeenRequestStore> { LocalSeenRequests(get(), get()) }
+            single<SeenRequestStore>(named("messages")) { LocalSeenRequests(get(), get(), "chat-seen") }
             single<SafetyRepository> { SupabaseSafetyRepository(get(), get()) }
             // Один клас, два питання: місто зміщує мапу, адреса ставить крапку.
             single { PhotonGeoSearchRepository(http) }
@@ -69,12 +75,13 @@ class AppGraph(
             single {
                 PoruchApp(
                     events = get(), saved = get(), authoring = get(), participation = get(),
-                    requests = get(), auth = get(), geo = get(),
+                    requests = get(), chat = get(), push = get(), auth = get(), geo = get(),
                     eventActions = get(), accountActions = get(),
                     preferences = get(), safety = get(), tasteStore = get(),
                     creationIdentity = get(), timeZones = get(), addresses = get(),
                     reminderStore = get(), reminders = reminders,
-                    seenRequests = get(), requestNotifier = requestNotifier, config = config,
+                    seenRequests = get(), requestNotifier = requestNotifier,
+                    seenMessages = get(named("messages")), chatNotifier = chatNotifier, config = config,
                     // Обидва потоки названі явно: тут єдине місце, де видно, що вони різні.
                     scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
                     compute = Dispatchers.Default

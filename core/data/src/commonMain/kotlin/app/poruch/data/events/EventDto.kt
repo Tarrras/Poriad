@@ -93,6 +93,34 @@ internal data class EventDto(
     }
 }
 
+/** Рядок `public.message_result` з `event_messages`. */
+@Serializable
+internal data class ChatMessageDto(
+    val id: String,
+    @SerialName("event_id") val eventId: String,
+    @SerialName("author_id") val authorId: String,
+    @SerialName("author_name") val authorName: String = "",
+    @SerialName("avatar_url") val avatarUrl: String? = null,
+    val body: String = "",
+    @SerialName("created_at") val createdAt: String = ""
+) {
+    fun domain() = app.poruch.domain.ChatMessage(id, eventId, authorId, authorName, avatarUrl, body, createdAt)
+}
+
+/** Рядок `public.chat_unread_result` з `my_chat_unread`. */
+@Serializable
+internal data class ChatUnreadDto(
+    @SerialName("event_id") val eventId: String,
+    @SerialName("event_title") val eventTitle: String = "",
+    val unread: Int = 0,
+    @SerialName("last_message_id") val lastMessageId: String,
+    @SerialName("last_author_name") val lastAuthorName: String = "",
+    @SerialName("last_body") val lastBody: String = "",
+    @SerialName("last_at") val lastAt: String = ""
+) {
+    fun domain() = app.poruch.domain.ChatUnread(eventId, eventTitle, unread, lastMessageId, lastAuthorName, lastBody, lastAt)
+}
+
 /** Рядок `public.join_request_result` з `my_join_requests`. */
 @Serializable
 internal data class JoinRequestDto(

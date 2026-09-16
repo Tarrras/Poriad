@@ -78,6 +78,9 @@ struct EventDetailPresentation {
 
     var full: Bool { room?.isFull == true }
 
+    /// Чат є для своїх: організатора й підтверджених. Скасована подія лишає його для читання.
+    var hasChat: Bool { room != nil && (organizer || room?.joined == true) }
+
     /// Афіша відгалужується першою: кнопка «приєднатися», яка гарантовано отримає відмову, гірша за відсутність кнопки.
     var action: DetailAction {
         guard event != nil else { return .none }

@@ -32,7 +32,7 @@ import app.poruch.android.feature.editor.BirthDateSheet
 fun ProfileScreen(state: ProfileState, onIntent: (ProfileIntent) -> Unit) {
     val colors = Poruch.colors
     Column(
-        Modifier.fillMaxSize().background(colors.canvas).verticalScroll(rememberScrollState())
+        Modifier.fillMaxSize().background(colors.canvas).verticalScroll(rememberScrollState()).imePadding()
             .padding(bottom = 120.dp)
     ) {
         Column(

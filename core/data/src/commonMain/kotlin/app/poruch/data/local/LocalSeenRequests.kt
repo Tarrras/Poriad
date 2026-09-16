@@ -16,8 +16,13 @@ import kotlinx.serialization.json.jsonPrimitive
  * починає з чистого. Тримаємо останні [RequestRules.SEEN_CAPACITY]: старіші запити або
  * отримали відповідь, або подія минула.
  */
-class LocalSeenRequests(private val database: PoruchDatabase, private val auth: AuthRepository) : SeenRequestStore {
-    private fun key() = "requests-seen:${auth.session.value?.userId ?: "guest"}"
+class LocalSeenRequests(
+    private val database: PoruchDatabase,
+    private val auth: AuthRepository,
+    /** Простір ключів: запити й повідомлення тримають окремі списки. */
+    private val namespace: String = "requests-seen"
+) : SeenRequestStore {
+    private fun key() = "$namespace:${auth.session.value?.userId ?: "guest"}"
 
     override fun seen(): Set<String> {
         val raw = database.cacheQueries.readDevice(key()).executeAsOneOrNull() ?: return emptySet()

@@ -15,6 +15,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.poruch.android.R
 import app.poruch.android.feature.account.*
+import app.poruch.android.feature.chat.*
 import app.poruch.android.feature.detail.*
 import app.poruch.android.feature.editor.*
 import app.poruch.android.feature.explore.*
@@ -56,6 +57,7 @@ fun HomeRoute(navigator: Navigator) {
         when (effect) {
             is HomeEffect.Navigate -> when (effect.destination) {
                 HomeDestination.DETAIL -> navigator.open(Detail(effect.id))
+                HomeDestination.CHAT -> navigator.open(Chat(effect.id))
                 HomeDestination.MAP -> navigator.open(Explore())
                 HomeDestination.PROFILE -> navigator.open(Profile)
                 HomeDestination.EDITOR -> navigator.requireAccount { navigator.open(Editor()) }
@@ -122,9 +124,23 @@ fun DetailRoute(route: Detail, navigator: Navigator) {
             is DetailEffect.OpenMaps -> if (!context.openInMaps(effect.event)) context.toast(R.string.maps_unavailable)
             is DetailEffect.OpenLink -> if (!context.openLink(effect.url)) context.toast(R.string.link_unavailable)
             is DetailEffect.OpenMap -> navigator.open(Explore(effect.id))
+            is DetailEffect.OpenChat -> navigator.open(Chat(effect.id))
         }
     }
     DetailScreen(model.state.collectAsStateWithLifecycle().value, model::dispatch)
+}
+
+@Composable
+fun ChatRoute(route: Chat, navigator: Navigator) {
+    val model = koinViewModel<ChatViewModel> { parametersOf(route) }
+    val context = LocalContext.current
+    model.effects.handle { effect ->
+        when (effect) {
+            ChatEffect.Back -> navigator.back()
+            is ChatEffect.Copy -> { context.copyText(effect.text); context.toast(R.string.chat_copied) }
+        }
+    }
+    ChatScreen(model.state.collectAsStateWithLifecycle().value, model::dispatch)
 }
 
 @Composable

@@ -58,7 +58,7 @@ final class KeychainSessionStore: SecureSessionStore {
         )
         // Один центр сповіщень для нагадувань і запитів: делегат у нього теж один.
         let notifications = LocalReminderScheduler()
-        graph = AppGraph(config: config, sessionStore: KeychainSessionStore(), reminders: notifications, requestNotifier: notifications)
+        graph = AppGraph(config: config, sessionStore: KeychainSessionStore(), reminders: notifications, requestNotifier: notifications, chatNotifier: notifications)
         PoruchLog.shared.i(tag: "app") { "graph created" }
         start()
     }

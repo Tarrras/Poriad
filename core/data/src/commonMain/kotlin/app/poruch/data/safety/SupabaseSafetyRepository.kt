@@ -35,6 +35,11 @@ class SupabaseSafetyRepository(private val api: ApiClient, private val auth: Aut
         rpc("report_user", buildJsonObject { put("p_user_id", userId); put("p_reason", reason); putDetails(details) })
     }
 
+    override suspend fun reportMessage(messageId: String, reason: String, details: String?) {
+        if (!ReportReason.isReason(reason)) fail(AppError.Rejected)
+        rpc("report_message", buildJsonObject { put("p_message_id", messageId); put("p_reason", reason); putDetails(details) })
+    }
+
     override suspend fun block(userId: String) {
         api.request(
             "/rest/v1/user_blocks", HttpMethod.Post,

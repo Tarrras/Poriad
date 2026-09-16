@@ -118,7 +118,7 @@ fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
                 ),
                 entryProvider = entryProvider
             )
-            TabBar(current, navigator, Modifier.align(Alignment.BottomCenter))
+            TabBar(current, navigator, Modifier.align(Alignment.BottomCenter), unreadChats = state.unreadChats)
         }
         NoticeHost(state.notice, app::clearNotice, Modifier.align(Alignment.TopCenter))
         if (state.mutating) LinearProgressIndicator(
@@ -130,12 +130,13 @@ fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
 }
 
 @Composable
-private fun TabBar(current: NavKey, navigator: Navigator, modifier: Modifier) {
+private fun TabBar(current: NavKey, navigator: Navigator, modifier: Modifier, unreadChats: Int = 0) {
     val reducedMotion = Poruch.reducedMotion
     val tabs = listOf(
         TabItem(Home.tabKey(), stringResource(R.string.home), PoruchIcons.home),
         TabItem(Explore().tabKey(), stringResource(R.string.map), PoruchIcons.map),
-        TabItem(Mine.tabKey(), stringResource(R.string.my_events), PoruchIcons.calendar),
+        // Непрочитані чати живуть у «Моїх подіях»: туди й бейдж.
+        TabItem(Mine.tabKey(), stringResource(R.string.my_events), PoruchIcons.calendar, badge = unreadChats),
         TabItem(Profile.tabKey(), stringResource(R.string.profile), PoruchIcons.person)
     )
     AnimatedVisibility(

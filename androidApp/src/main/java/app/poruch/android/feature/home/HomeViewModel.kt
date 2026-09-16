@@ -41,6 +41,7 @@ class HomeViewModel(private val app: PoruchApp) : MviViewModel<HomeState, HomeIn
                 .filter { shared.concerns(it) && it.isPublished && it.isCurrent(now) }
                 .sortedBy { it.startsAt },
             requests = pendingRequests(shared),
+            unread = shared.chatUnread,
             suggested = suggested,
             today = onToday,
             rest = later - runningToday.toSet(),
@@ -57,6 +58,10 @@ class HomeViewModel(private val app: PoruchApp) : MviViewModel<HomeState, HomeIn
         is HomeIntent.OpenEvent -> {
             app.selectEvent(intent.id)
             send(HomeEffect.Navigate(HomeDestination.DETAIL, intent.id))
+        }
+        is HomeIntent.OpenChat -> {
+            app.selectEvent(intent.id)
+            send(HomeEffect.Navigate(HomeDestination.CHAT, intent.id))
         }
         is HomeIntent.Search -> app.setSearchText(intent.text)
         is HomeIntent.ToggleSaved -> app.toggleSaved(intent.id)

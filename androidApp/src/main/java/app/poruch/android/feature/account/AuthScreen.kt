@@ -37,7 +37,7 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
     val colors = Poruch.colors
-    Column(Modifier.fillMaxSize().background(colors.canvas).verticalScroll(rememberScrollState())) {
+    Column(Modifier.fillMaxSize().background(colors.canvas).verticalScroll(rememberScrollState()).imePadding()) {
         // Та сама шапка, що на решті екранів.
         Column(
             Modifier.fillMaxWidth().background(heroGradient()).statusBarsPadding()

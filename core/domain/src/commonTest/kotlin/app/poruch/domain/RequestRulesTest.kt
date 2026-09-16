@@ -39,3 +39,39 @@ class RequestRulesTest {
         assertEquals(mapOf("a" to 2, "b" to 1), counts)
     }
 }
+
+/** Злиття хвоста чату: без дублів, за часом, потім за id. */
+class ChatRulesTest {
+    private fun message(id: String, at: String) = ChatMessage(id, "ev", "u", "U", null, "…", at)
+
+    @Test fun mergeDeduplicatesAndOrders() {
+        val known = listOf(message("a", "2026-09-16T10:00:00Z"), message("b", "2026-09-16T10:01:00Z"))
+        val fresh = listOf(message("b", "2026-09-16T10:01:00Z"), message("c", "2026-09-16T10:00:30Z"))
+        assertEquals(listOf("a", "c", "b"), ChatRules.merge(known, fresh).map { it.id })
+        assertSame(known, ChatRules.merge(known, emptyList()))
+    }
+
+    @Test fun bodyLimits() {
+        assertTrue(ChatRules.isBody("  привіт  "))
+        assertFalse(ChatRules.isBody("   "))
+        assertFalse(ChatRules.isBody("a".repeat(ChatRules.MAX_BODY + 1)))
+    }
+}
+
+/** Про які чати дзвонити: не бачені, не відкритий, лише за згодою. */
+class ChatAlertRulesTest {
+    private fun unread(eventId: String, last: String) = ChatUnread(eventId, "Подія $eventId", 3, last, "Оля", "a".repeat(200), "2026-09-16T10:00:00Z")
+
+    @Test fun unseenChatsRingWithATrimmedPreview() {
+        val alerts = ChatAlertRules.alerts(listOf(unread("a", "m1"), unread("b", "m2")), seen = setOf("m2"), openEventId = null, enabled = true)
+        assertEquals(listOf("a"), alerts.map { it.eventId })
+        assertEquals(ChatAlertRules.PREVIEW, alerts.single().preview.length)
+        assertEquals(3, alerts.single().count)
+    }
+
+    @Test fun theOpenChatAndOptOutsStaySilent() {
+        val all = listOf(unread("a", "m1"))
+        assertTrue(ChatAlertRules.alerts(all, emptySet(), openEventId = "a", enabled = true).isEmpty())
+        assertTrue(ChatAlertRules.alerts(all, emptySet(), openEventId = null, enabled = false).isEmpty())
+    }
+}

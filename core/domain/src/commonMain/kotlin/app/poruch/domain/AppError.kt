@@ -46,6 +46,14 @@ sealed interface AppError {
     data object TooManyReports : AppError
     data object TooManyEvents : AppError
 
+    // ---- Чат
+    /** Писати можуть лише організатор і підтверджені учасники. */
+    data object NotMember : AppError
+    /** Подія давно минула: чат лише для читання. */
+    data object ChatClosed : AppError
+    data object TooManyMessages : AppError
+    data object InvalidMessage : AppError
+
     // ---- Введення
     data class InvalidDraft(val fields: List<DraftField>) : AppError
     data object InvalidEmail : AppError

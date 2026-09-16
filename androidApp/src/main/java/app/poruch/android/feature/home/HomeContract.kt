@@ -1,5 +1,6 @@
 package app.poruch.android.feature.home
 
+import app.poruch.domain.ChatUnread
 import app.poruch.domain.Event
 
 /** Стан головної: усе вже відфільтроване й посортоване для рендеру. */
@@ -11,6 +12,8 @@ data class HomeState(
     val plans: List<Event> = emptyList(),
     /** Мої події, де чекають запити на участь, зі скількома. Лише в організатора. */
     val requests: List<PendingRequests> = emptyList(),
+    /** Чати з непрочитаним, свіжіші першими. */
+    val unread: List<ChatUnread> = emptyList(),
     /** Добірка за відповідями онбордингу. Порожня, якщо не відповідали. */
     val suggested: List<Event> = emptyList(),
     val today: List<Event> = emptyList(),
@@ -36,6 +39,8 @@ data class PendingRequests(val event: Event, val count: Int)
 sealed interface HomeIntent {
     data class Search(val text: String) : HomeIntent
     data class OpenEvent(val id: String) : HomeIntent
+    /** Прямо в чат події, минаючи деталі. */
+    data class OpenChat(val id: String) : HomeIntent
     data class ToggleSaved(val id: String) : HomeIntent
     data object CreateEvent : HomeIntent
     data object OpenMap : HomeIntent
@@ -47,4 +52,4 @@ sealed interface HomeEffect {
     data class Navigate(val destination: HomeDestination, val id: String = "") : HomeEffect
 }
 
-enum class HomeDestination { DETAIL, MAP, PROFILE, EDITOR }
+enum class HomeDestination { DETAIL, CHAT, MAP, PROFILE, EDITOR }

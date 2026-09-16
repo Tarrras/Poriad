@@ -21,6 +21,12 @@ android {
         // configurable, and blank means the defaults in shared MapEndpoints.
         buildConfigField("String", "MAP_TILES_URL", "\"${config("MAP_TILES_URL")}\"")
         buildConfigField("String", "MAP_GLYPHS_URL", "\"${config("MAP_GLYPHS_URL")}\"")
+        // Firebase лише для пушів. Без плагіна google-services: значення з local.properties
+        // (Firebase → Project settings → Your apps → Android). Порожньо — пушів нема, решта працює.
+        buildConfigField("String", "FIREBASE_PROJECT_ID", "\"${config("FIREBASE_PROJECT_ID")}\"")
+        buildConfigField("String", "FIREBASE_APP_ID", "\"${config("FIREBASE_APP_ID")}\"")
+        buildConfigField("String", "FIREBASE_API_KEY", "\"${config("FIREBASE_API_KEY")}\"")
+        buildConfigField("String", "FIREBASE_SENDER_ID", "\"${config("FIREBASE_SENDER_ID")}\"")
     }
     buildFeatures { compose = true; buildConfig = true }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
@@ -46,4 +52,5 @@ dependencies {
     implementation("io.insert-koin:koin-compose-navigation3")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.10.0")
     implementation("org.maplibre.gl:android-sdk:11.11.0")
+    implementation("com.google.firebase:firebase-messaging:24.1.0")
 }

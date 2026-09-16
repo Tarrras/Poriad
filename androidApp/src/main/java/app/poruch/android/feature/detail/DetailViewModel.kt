@@ -123,6 +123,7 @@ class DetailViewModel(private val app: PoruchApp, private val openedId: String) 
                 // Блокування прибирає подію з мапи, тож і екран за нею.
                 event?.organizerId?.let { app.blockUser(it); send(DetailEffect.Back) }
             }
+            DetailIntent.OpenChat -> authenticated { send(DetailEffect.OpenChat(eventId)) }
             is DetailIntent.ConfirmContact -> reduce { copy(confirmingContact = intent.open) }
             DetailIntent.OpenContact -> {
                 reduce { copy(confirmingContact = false) }

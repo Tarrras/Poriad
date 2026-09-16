@@ -56,5 +56,11 @@ fun Context.openInMaps(event: Event): Boolean {
 
 fun Context.toast(@StringRes message: Int) = Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
 
+/** Текст у буфер обміну без позначки «чутливе»: це повідомлення чату, а не пароль. */
+fun Context.copyText(text: String) {
+    val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+    clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Poruch", text))
+}
+
 /** Тривалість для календаря, якщо кінець не розібрався. */
 private const val DEFAULT_DURATION_MS = 3_600_000L

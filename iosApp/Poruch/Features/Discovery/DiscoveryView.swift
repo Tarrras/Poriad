@@ -172,7 +172,10 @@ struct DiscoveryView: View {
         .sheet(isPresented: $citySearch) { CitySearchView().presentationDetents([.medium, .large]) }
         .sheet(isPresented: $filters) { FiltersView().presentationDetents([.medium, .large]) }
         .sheet(item: $detail) { route in
-            NavigationStack { EventDetailView(app: model.app, eventID: route.id) }
+            NavigationStack {
+                EventDetailView(app: model.app, eventID: route.id)
+                    .navigationDestination(for: ChatRoute.self) { ChatView(eventID: $0.id) }
+            }
                 .presentationDetents([.large]).presentationDragIndicator(.visible)
         }
         .onReceive(location.$coordinate) { coordinate in

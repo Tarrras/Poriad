@@ -37,6 +37,9 @@ data class DetailState(
 
     val full get() = room?.isFull == true
 
+    /** Чат є для своїх: організатора й підтверджених. Скасована подія лишає його для читання. */
+    val hasChat get() = room != null && (organizer || room!!.joined)
+
     /**
      * Єдина дія нижньої панелі. Рахується тут, щоб підпис, тап і доступність не розходились.
      * Афіша відгалужується першою: кнопка «приєднатися», яка гарантовано отримає відмову, гірша за відсутність кнопки.
@@ -104,6 +107,8 @@ sealed interface DetailIntent {
     /** Відкрити чат учасників: спершу попередження, потім браузер. */
     data class ConfirmContact(val open: Boolean) : DetailIntent
     data object OpenContact : DetailIntent
+    /** Чат події всередині застосунку. */
+    data object OpenChat : DetailIntent
     data class ApproveRequest(val userId: String) : DetailIntent
     data class DeclineRequest(val userId: String) : DetailIntent
     data object CancelEvent : DetailIntent
@@ -126,4 +131,5 @@ sealed interface DetailEffect {
     data class OpenLink(val url: String) : DetailEffect
     /** Наша власна мапа, наведена на цю подію. */
     data class OpenMap(val id: String) : DetailEffect
+    data class OpenChat(val id: String) : DetailEffect
 }

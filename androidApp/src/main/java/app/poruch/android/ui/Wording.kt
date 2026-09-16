@@ -59,6 +59,10 @@ private val AppError.resource: Int
         AppError.Underage -> R.string.err_underage
         AppError.TooManyReports -> R.string.err_too_many_reports
         AppError.TooManyEvents -> R.string.err_too_many_events
+        AppError.NotMember -> R.string.err_not_member
+        AppError.ChatClosed -> R.string.err_chat_closed
+        AppError.TooManyMessages -> R.string.err_too_many_messages
+        AppError.InvalidMessage -> R.string.err_invalid_message
         is AppError.InvalidDraft -> R.string.err_rejected
     }
 

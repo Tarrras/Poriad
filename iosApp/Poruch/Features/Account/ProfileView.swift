@@ -161,6 +161,8 @@ struct ReminderPreference: View {
                 NotificationPermission.request { granted in
                     denied = !granted
                     model.app.setRemindersEnabled(enabled: granted)
+                    // Дозвіл є — можна просити токен APNs.
+                    if granted { PushDelegate.registerIfAllowed() }
                 }
             }
         )
