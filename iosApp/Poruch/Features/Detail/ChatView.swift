@@ -107,7 +107,8 @@ struct ChatView: View {
             }
             .padding(.horizontal, Space.md).padding(.vertical, Space.sm)
             .background(mine ? Palette.ink : Palette.surface, in: RoundedRectangle(cornerRadius: Corner.md, style: .continuous))
-            .frame(maxWidth: 300, alignment: .leading)
+            // Рамка обмежує ширину, а не задає її: своє тулиться до правого краю рамки, чуже — до лівого.
+            .frame(maxWidth: 300, alignment: mine ? .trailing : .leading)
             .onLongPressGesture { selected = message }
             if !mine { Spacer(minLength: Space.section) }
         }
