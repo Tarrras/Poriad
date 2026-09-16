@@ -67,6 +67,8 @@ class PoruchApp internal constructor(
     private var mutationJob: Job? = null
     /** Токен пристрою від платформи. Реєструється під кожним акаунтом, з яким входять. */
     private var pushToken: Pair<String, String>? = null
+    /** Токен і акаунт, для яких реєстрація вже йде: токен і вхід часто приходять одночасно. */
+    private var pushRegistering: Pair<String, String?>? = null
     /** Повтор непевного створення має взяти той самий id, інакше опублікує другу подію. */
     private var pendingCreation: Pair<EventDraft, String>? = null
 
@@ -119,7 +121,9 @@ class PoruchApp internal constructor(
     private fun registerPush() {
         val (token, platform) = pushToken ?: return
         val store = push ?: return
-        if (!state.value.signedIn) return
+        val uid = state.value.userId ?: return
+        if (pushRegistering == token to uid) return
+        pushRegistering = token to uid
         scope.launch {
             try {
                 store.register(token, platform)
@@ -129,6 +133,8 @@ class PoruchApp internal constructor(
                 throw e
             } catch (e: Exception) {
                 PoruchLog.w("push") { "register failed: ${e.asAppError()}" }
+            } finally {
+                if (pushRegistering == token to uid) pushRegistering = null
             }
         }
     }
