@@ -53,7 +53,7 @@ iPad-скріншотів немає: у pbxproj `TARGETED_DEVICE_FAMILY = "1,2"
 Мапа: MapLibre, дані © учасники OpenStreetMap, тайли OpenFreeMap.
 
 **Категорія:** Events. **Теги:** events, meetups, map, місто.
-**Контакт:** support@poruch.app (замінити). **Політика:** https://poruch.app/privacy.html (замінити на реальний URL).
+**Контакт:** hello@poruch.app (замінити). **Політика:** https://poruch.app/privacy.html (замінити на реальний URL).
 
 ### Data safety (як заповнювати)
 

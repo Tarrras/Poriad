@@ -15,7 +15,7 @@
 Усе, що позначено класом `.todo` (помаранчева підсвітка), треба замінити:
 
 - назва контролера даних (ФОП / юрособа), код, адреса — у `privacy*.html`, `terms*.html`;
-- `privacy@poruch.app`, `support@poruch.app` — на реальні скриньки (або одну);
+- `privacy@poruch.app`, `hello@poruch.app` — на реальні скриньки (або одну);
 - регіон проєкту Supabase (Dashboard → Settings → General → Region);
 - посилання на App Store / Google Play у `index.html` після публікації.
 

@@ -9,5 +9,5 @@ object LegalLinks {
     const val TERMS = "$SITE/terms.html"
     const val PRIVACY = "$SITE/privacy.html"
     const val DELETE_ACCOUNT = "$SITE/delete-account.html"
-    const val SUPPORT_EMAIL = "support@poruch.app"
+    const val SUPPORT_EMAIL = "hello@poruch.app"
 }
