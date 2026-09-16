@@ -55,6 +55,7 @@ class AppGraph(
             single<EventParticipation> { get<EventData>().participation }
             single<EventRequests> { get<EventData>().requests }
             single<EventChat> { get<EventData>().chat }
+            single<PushTokens> { get<EventData>().push }
 
             single<CreationIdentityStore> { PersistentCreationIdentity(get(), get()) }
             single<PreferencesRepository> { SupabasePreferencesRepository(get(), get()) }
@@ -74,7 +75,7 @@ class AppGraph(
             single {
                 PoruchApp(
                     events = get(), saved = get(), authoring = get(), participation = get(),
-                    requests = get(), chat = get(), auth = get(), geo = get(),
+                    requests = get(), chat = get(), push = get(), auth = get(), geo = get(),
                     eventActions = get(), accountActions = get(),
                     preferences = get(), safety = get(), tasteStore = get(),
                     creationIdentity = get(), timeZones = get(), addresses = get(),

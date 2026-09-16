@@ -25,6 +25,7 @@ class PoruchApp internal constructor(
     private val participation: EventParticipation,
     private val requests: EventRequests,
     chat: EventChat,
+    private val push: PushTokens? = null,
     private val auth: AuthRepository,
     geo: GeoSearchRepository,
     private val eventActions: EventActions,
@@ -64,6 +65,8 @@ class PoruchApp internal constructor(
     private val chatEngine = ChatEngine(chat, mutable, scope)
 
     private var mutationJob: Job? = null
+    /** Токен пристрою від платформи. Реєструється під кожним акаунтом, з яким входять. */
+    private var pushToken: Pair<String, String>? = null
     /** Повтор непевного створення має взяти той самий id, інакше опублікує другу подію. */
     private var pendingCreation: Pair<EventDraft, String>? = null
 
@@ -89,6 +92,7 @@ class PoruchApp internal constructor(
         PoruchLog.i("session") { "identity → ${uid.shortId()}, clearing private state" }
         pendingCreation = null
         library.clear(); chatEngine.close()
+        mutable.update { it.copy(pushRegistered = false) }
         mutable.update {
             it.copy(
                 userId = uid, events = emptyList(), passwordRecovery = false, completedEventId = null,
@@ -97,7 +101,49 @@ class PoruchApp internal constructor(
             )
         }
         refresh()
-        if (uid != null) loadMyEvents()
+        if (uid != null) { loadMyEvents(); registerPush() }
+    }
+
+    // ---- Пуші
+
+    /**
+     * Платформа отримала або оновила токен. Реєструємо одразу, якщо є акаунт, і знову після
+     * кожного входу: токен один на телефон, а людей на ньому може бути кілька.
+     */
+    fun pushTokenChanged(token: String, platform: String) {
+        if (pushToken?.first == token && state.value.pushRegistered) return
+        pushToken = token to platform
+        registerPush()
+    }
+
+    private fun registerPush() {
+        val (token, platform) = pushToken ?: return
+        val store = push ?: return
+        if (!state.value.signedIn) return
+        scope.launch {
+            try {
+                store.register(token, platform)
+                PoruchLog.i("push") { "registered $platform token" }
+                mutable.update { it.copy(pushRegistered = true) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                PoruchLog.w("push") { "register failed: ${e.asAppError()}" }
+            }
+        }
+    }
+
+    /**
+     * Пуш прийшов на цей пристрій: перечитуємо стан, щоб бейджі й списки відповідали, і
+     * позначаємо ключ баченим, щоб локальне сповіщення не повторило те саме.
+     */
+    fun pushReceived(kind: String, key: String) {
+        PoruchLog.i("push") { "received $kind" }
+        when (kind) {
+            "chat" -> seenMessages?.markSeen(setOf(key))
+            "request" -> seenRequests?.markSeen(setOf(key))
+        }
+        resume()
     }
 
     fun observe(onChange: (AppState) -> Unit): Subscription {
@@ -487,6 +533,8 @@ class PoruchApp internal constructor(
 
     fun signOut() = mutate {
         PoruchLog.i("auth") { "sign out" }
+        // Токен знімаємо до виходу: після нього RPC уже не знає, чий він.
+        pushToken?.let { (token, _) -> runCatching { push?.unregister(token) } }
         // Локальний стан чистимо навіть якщо сервер відмовив: людина попросила вийти.
         try { auth.signOut() } finally {
             library.clear(); chatEngine.close()

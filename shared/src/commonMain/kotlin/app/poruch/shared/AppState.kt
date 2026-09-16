@@ -51,7 +51,12 @@ data class AppState(
     /** Відкритий чат події. Null — екран чату закрито, і опитування зупинено. */
     val chat: ChatState? = null,
     /** Події з непрочитаними повідомленнями, свіжіші першими. Бейджі й секція на головній. */
-    val chatUnread: List<ChatUnread> = emptyList()
+    val chatUnread: List<ChatUnread> = emptyList(),
+    /**
+     * Пристрій зареєстровано для пушів під цим акаунтом. Тоді про нове дзвонить сервер, а
+     * локальні сповіщення при перечитуванні мовчать, щоб не дублювати.
+     */
+    val pushRegistered: Boolean = false
 ) {
     /** Скільки чатів чекають: бейдж на вкладці. Не сума повідомлень: три чати — три справи. */
     val unreadChats get() = chatUnread.size

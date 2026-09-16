@@ -2,12 +2,14 @@ import SwiftUI
 import Shared
 
 @main struct PoruchApplication: App {
+    @UIApplicationDelegateAdaptor(PushDelegate.self) private var pushDelegate
     @StateObject private var model = AppModel()
     @Environment(\.scenePhase) private var scenePhase
     var body: some Scene {
         WindowGroup {
             RootView().environmentObject(model).tint(Palette.brand)
                 .onOpenURL { model.app.handleAuthCallback(url: $0.absoluteString) }
+                .onAppear { PushDelegate.app = model.app }
                 .onChange(of: scenePhase) { _, phase in
                     // Повернення в застосунок: запити на участь і членство могли змінитися, поки його не було.
                     if phase == .active { model.start(); model.app.resume() }
@@ -83,6 +85,10 @@ struct RootView: View {
             }
         }
         .animation(.easeInOut(duration: 0.2), value: tabBarHidden)
+        .onAppear {
+            // Тап по сповіщенню веде на подію зі стеку головної.
+            PushDelegate.openEvent = { id in tab = 0; model.app.selectEvent(id: id); homePath = [EventRoute(id: id)] }
+        }
         .environment(\.openMap) { tab = 1 }
         .sheet(isPresented: $creating) { EventEditor(event: nil, app: model.app, home: model.state) }
         .sheet(item: $chatting) { event in ChatView(event: event) }

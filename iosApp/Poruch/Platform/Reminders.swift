@@ -85,6 +85,22 @@ final class LocalReminderScheduler: NSObject, ReminderScheduler, RequestNotifier
         _ center: UNUserNotificationCenter, willPresent notification: UNNotification,
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
+        // Пуш у відкритому застосунку: стан перечитуємо, а банер показуємо, як і локальні.
+        let info = notification.request.content.userInfo
+        if let kind = info["kind"] as? String {
+            PushDelegate.app?.pushReceived(kind: kind, key: info["key"] as? String ?? "")
+        }
         completionHandler([.banner, .list, .sound])
+    }
+
+    /// Тап по сповіщенню, локальному чи пушу: відкрити подію, про яку воно.
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        if let eventId = response.notification.request.content.userInfo["eventId"] as? String {
+            DispatchQueue.main.async { PushDelegate.openEvent?(eventId) }
+        }
+        completionHandler()
     }
 }

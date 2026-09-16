@@ -90,6 +90,12 @@ Executed successfully on the selected project:
 
 `tests/chat_unread.sql`: порожній чат — нічого; своє не рахується; лічильник і превʼю найновішого; позначка обнуляє, новіше рахується знову; сторонній нічого не бачить і не позначає; скасована подія випадає; гість без гранту. Прогнано на проєкті в транзакції з відкатом: **PASS**.
 
+## Пуші
+
+`20260916115335_push_notifications.sql` (застосовано 2026-09-16 через Supabase MCP `apply_migration`) вмикає `pg_net`, додає `public.push_tokens` (без політик: клієнт лише через `register_push_token` / `unregister_push_token`, токен переходить до акаунта, що ввійшов на цьому телефоні; знімати можна лише своє) і тригери `event_messages_push` та `event_members_push` (лише `requested`), які через `private.notify_push` асинхронно кличуть Edge Function `push`. Адреса й спільний секрет читаються з Vault (`push_function_url`, `push_function_secret`); без них тригери мовчать, а збій доставки ніколи не ламає запис. Функція `supabase/functions/push/index.ts` (задеплоєна, `verify_jwt=false`, автентифікація заголовком `x-push-secret`) вирішує отримувачів і шле у FCM HTTP v1 та APNs; ключі провайдерів — у секретах функції, див. `docs/push-setup.md`.
+
+`tests/push.sql`: валідація токена й платформи, таблиця недоступна клієнту, токен переходить між акаунтами, зняття лише свого, тригери увімкнені й не заважають запису без адреси у Vault. Прогнано в транзакції з відкатом: **PASS**.
+
 ## Застосування SQL із коду
 
 `tools/apply_sql.py` застосовує міграції й дампи конвеєра прямим зʼєднанням з Postgres, без SQL Editor і без MCP. Рядок зʼєднання — `SUPABASE_DB_URL` у середовищі чи в `.env` (Dashboard → Connect → Session pooler; transaction pooler не годиться для довгих транзакцій). Потрібен `psycopg[binary]`.

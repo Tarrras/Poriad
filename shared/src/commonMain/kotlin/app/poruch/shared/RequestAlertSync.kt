@@ -30,7 +30,8 @@ internal class RequestAlertSync(
                     val current = state.value
                     val alerts = RequestRules.alerts(
                         current.pendingRequests, seen.seen(), current.myEvents,
-                        enabled = current.signedIn && current.remindersEnabled
+                        // З пушами про нове каже сервер: локально лише позначаємо бачене.
+                        enabled = current.signedIn && current.remindersEnabled && !current.pushRegistered
                     )
                     if (alerts.isNotEmpty()) {
                         PoruchLog.i("requests") { "${alerts.sumOf { it.count }} new across ${alerts.size} events" }
