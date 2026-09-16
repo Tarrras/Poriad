@@ -24,9 +24,11 @@ const PREVIEW = 120;
 Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "method" }, 405);
   const secret = Deno.env.get("PUSH_SECRET");
-  if (!secret || req.headers.get("x-push-secret") !== secret) return json({ error: "forbidden" }, 403);
+  if (!secret || !sameSecret(req.headers.get("x-push-secret") ?? "", secret)) return json({ error: "forbidden" }, 403);
 
-  const payload = (await req.json()) as Payload;
+  let payload: Payload;
+  try { payload = (await req.json()) as Payload; } catch { return json({ error: "bad json" }, 400); }
+  if (!isPayload(payload)) return json({ error: "bad payload" }, 400);
   const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
   const { push, recipients } = payload.type === "message" ? await forMessage(db, payload) : await forRequest(db, payload);
@@ -101,6 +103,26 @@ async function withoutBlocked(db: ReturnType<typeof createClient>, people: strin
   return people.filter((id) => !excluded.has(id));
 }
 
+// ---- Вхід: секрет порівнюємо за постійний час, тіло перевіряємо до будь-якого запиту в базу.
+
+function sameSecret(given: string, expected: string): boolean {
+  const a = new TextEncoder().encode(given), b = new TextEncoder().encode(expected);
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
+  return diff === 0;
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isPayload(p: unknown): p is Payload {
+  if (!p || typeof p !== "object") return false;
+  const o = p as Record<string, unknown>;
+  if (o.type === "message") return typeof o.message_id === "string" && UUID.test(o.message_id) && typeof o.event_id === "string" && UUID.test(o.event_id);
+  if (o.type === "request") return typeof o.event_id === "string" && UUID.test(o.event_id) && typeof o.user_id === "string" && UUID.test(o.user_id);
+  return false;
+}
+
 // ---- FCM HTTP v1 (Android). Лише data: застосунок сам малює сповіщення своїм каналом і веде на подію.
 
 let fcmToken: { value: string; expires: number } | null = null;
@@ -145,7 +167,11 @@ async function sendFcm(token: string, push: Push): Promise<boolean | "stale"> {
   });
   if (res.ok) return true;
   const text = await res.text();
-  if (res.status === 404 || text.includes("UNREGISTERED") || text.includes("INVALID_ARGUMENT")) return "stale";
+  // «Мертвий» токен — лише UNREGISTERED або INVALID_ARGUMENT про сам токен. INVALID_ARGUMENT про
+  // payload (задовге тіло, не-рядок у data) не привід стерти всі Android-токени за один прохід.
+  let code = "", message = "";
+  try { const err = JSON.parse(text)?.error; code = err?.details?.find((d: { errorCode?: string }) => d.errorCode)?.errorCode ?? ""; message = err?.message ?? ""; } catch { /* не JSON */ }
+  if (res.status === 404 || code === "UNREGISTERED" || (code === "INVALID_ARGUMENT" && /registration token/i.test(message))) return "stale";
   throw new Error(`fcm ${res.status}: ${text}`);
 }
 

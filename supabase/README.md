@@ -272,3 +272,33 @@ gist-індекс, бо межі приходять параметрами. Ви
 | Постійні пропозиції зняті | `select count(*) from public.events where origin='import' and import_status='live' and ends_at-starts_at > interval '90 days'` → 0 |
 | Прокат видно | `select count(*) from public.events where status='published' and ends_at>now() and starts_at<=now()` до і після зміни умови |
 | Пошук «на вихідних» | не повертає виставку, що почалась місяць тому |
+
+## Аудит перед релізом (2026-09-17)
+
+Чотири міграції за звітом `docs/release-audit-2026-09-16.md`, застосовані до того самого проєкту (перші дві через Supabase MCP, решта — `tools/apply_sql.py migrations --apply`; локальні файли `20260917100000…100300`, у реєстрі перші дві під штампами сервера).
+
+**`organizer_null_guard`.** Імпортовані події мають `organizer_id = null`, а перевірка власника `v.organizer_id <> v_user` з NULL не піднімала виняток: будь-хто з акаунтом міг редагувати й скасовувати всю афішу. Тепер `private.assert_organizer(event, user)` — `is distinct from` плюс нарешті задіяний `assert_event_editable` — стоїть у `cancel_event`, `update_event`, `decide_member`; retry-гілка `create_event` теж через `is distinct from`. Перевірено на проді під `authenticated`: обидва виклики на імпортовану подію → `NOT_ORGANIZER`.
+
+**`delete_my_account`.** `public.delete_my_account()` (invoker → definer `private.delete_my_account`) прибирає фото з `event-images/<uid>/…` і видаляє `auth.users`; каскади FK роблять решту, власні події зникають разом із членствами й чатом. `public.export_my_data()` віддає JSON з усім, що належить акаунту (definer, кожен підзапит по `auth.uid()`). Клієнт перед викликом повторно підтверджує пароль (`AuthRepository.verifyPassword`) і після — чистить локальний стан як при виході.
+
+**`ugc_moderation`.** Три шари, яких вимагають App Store 1.2 і Play UGC policy:
+
+1. Стоп-словник `private.banned_terms` і `private.assert_clean_text(text)` (`OBJECTIONABLE_CONTENT`, 22023) у `send_message`, `create_event`, `update_event`. Збіг по межах слова для коротких термінів і як підрядок для ≥4 символів. Поповнювати: `insert into private.banned_terms(term) values ('…')`.
+2. Автоприховування: тригер `reports_auto_hide` ховає подію (`status='hidden'`) або повідомлення (`hidden_at`) після трьох відкритих скарг від різних людей. Прихована подія для клієнта — «скасована» (`EventStatus.HIDDEN`), з мапи зникає, приєднатись не можна. Повідомлення тепер не видаляються фізично (`deleted_at`), тож ліміт 20/хв рахує все надіслане.
+3. Модератори — `private.moderators(user_id)`; додавати лише з SQL-консолі. RPC для авторизованого модератора (решті — `NOT_MODERATOR`): `moderation_queue(p_limit)`, `moderate_event(id, 'hide'|'unhide'|'cancel')`, `moderate_message(id, 'hide'|'unhide'|'delete')`, `moderate_user(id, 'active'|'limited'|'banned', note)`, `resolve_report(id, 'reviewing'|'actioned'|'dismissed')`. Радник безпеки позначає їх як definer, доступні `authenticated` — це навмисно, доступ перевіряє `private.assert_moderator()`.
+
+Runbook (реакція ≤ 24 год, як обіцяно в умовах): раз на день `select * from moderation_queue()` під токеном модератора (curl до `/rest/v1/rpc/moderation_queue`, або SQL Editor), рішення через `moderate_*`, закрити `resolve_report`. Зняття прихованого — окреме `moderate_event(id,'unhide')`: закриття скарги само нічого не повертає.
+
+**`read_exposure`.** Грант на `events` звужено до колонок, які потрібні invoker-функціям (без `contact_url`, `content_hash`, `dedupe_key`, `source_uid`, `ingest_run_id`; `location` і `quality` лишились, бо їх фільтрують `events_in_view`/`search_events_in_view`). `profiles` більше не читає anon; `members_read` показує запити лише організатору й самому прохачу; `event_sources` — лише `id, slug, name, base_url`; з `private.age_of` та інших помічників знято зайвий execute.
+
+**PKCE.** Не міграція, а клієнт (`SupabaseAuthRepository`): реєстрація і відновлення шлють `code_challenge`, лист несе лише одноразовий `code`, колбек з токенами у фрагменті відхиляється. Налаштувань Auth це не потребує; посилання з листа треба відкривати на тому самому пристрої (інакше `LinkOnAnotherDevice`).
+
+Лишилось із аудиту (не блокує реліз): антиспам join→leave→join (V3), розбір `errorCode` у Edge Function замість `includes("INVALID_ARGUMENT")` (V7), дедуп `report_message` по `message_id`, стеля на кількість push-токенів, leaked password protection у Auth (вмикається в Dashboard), App Links / Universal Links замість custom scheme, коли зʼявиться домен.
+
+### Друга хвиля (2026-09-17, `20260917110000_abuse_limits`)
+
+- **V3.** `private.join_attempts` + `private.assert_join_rate`: понад 20 приєднань (або нових позицій у черзі) за годину з одного акаунта → `TOO_MANY_JOINS`. Перевірено: цикл join→leave зупиняється на 21-й спробі.
+- **V6.** `private.assert_image_url`: обкладинка спільнотної події — лише `…/storage/v1/object/public/event-images/<uid>/<event-id>/…` з нашого проєкту, інакше `INVALID_IMAGE_URL`; `profiles.avatar_url` — лише `https://`. Імпорт це не зачіпає.
+- **S3.** `report_message` дедуплікує по `message_id`; друга скарга на інше повідомлення того ж автора йде окремим рядком (`private.file_report_message`); `details` обрізається до 2000.
+- **N3.** `register_push_token` лишає не більше десяти найсвіжіших токенів на акаунт.
+- **V7 (Edge Function `push`, задеплоєно CLI).** «Мертвим» вважається лише токен з `errorCode=UNREGISTERED` або `INVALID_ARGUMENT` про сам registration token; тіло запиту валідується (uuid, тип) до звернення в базу; секрет порівнюється за постійний час.
