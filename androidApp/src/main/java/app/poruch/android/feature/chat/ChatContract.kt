@@ -6,6 +6,8 @@ import app.poruch.domain.ChatMessage
 data class ChatState(
     val eventId: String,
     val title: String = "",
+    /** Хто бачить чат: організатор і підтверджені. Нуль, поки подія не завантажена. */
+    val members: Int = 0,
     val messages: List<ChatMessage> = emptyList(),
     val loading: Boolean = true,
     val sending: Boolean = false,
@@ -20,7 +22,9 @@ data class ChatState(
     /** Повідомлення, для якого відкрито меню дій. */
     val selected: ChatMessage? = null,
     /** Повідомлення, на яке пишуть скаргу. */
-    val reporting: ChatMessage? = null
+    val reporting: ChatMessage? = null,
+    /** Повідомлення, видалення якого підтверджують. */
+    val deleting: ChatMessage? = null
 ) {
     fun isMine(message: ChatMessage) = message.authorId == userId
     fun canDelete(message: ChatMessage) = organizer || isMine(message)
@@ -32,6 +36,9 @@ sealed interface ChatIntent {
     data object Send : ChatIntent
     /** Довгий тап по повідомленню: меню дій або закриття. */
     data class Select(val message: ChatMessage?) : ChatIntent
+    data class Copy(val message: ChatMessage) : ChatIntent
+    /** Крок підтвердження перед видаленням; `null` — передумали. */
+    data class ConfirmDelete(val message: ChatMessage?) : ChatIntent
     data class Delete(val id: String) : ChatIntent
     data class ShowReport(val message: ChatMessage?) : ChatIntent
     /** Ціль їде всередині: шторка спершу закривається (і скидає [ChatState.reporting]), а вже потім шле це. */
@@ -40,4 +47,5 @@ sealed interface ChatIntent {
 
 sealed interface ChatEffect {
     data object Back : ChatEffect
+    data class Copy(val text: String) : ChatEffect
 }

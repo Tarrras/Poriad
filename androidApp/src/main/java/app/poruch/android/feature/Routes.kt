@@ -133,7 +133,13 @@ fun DetailRoute(route: Detail, navigator: Navigator) {
 @Composable
 fun ChatRoute(route: Chat, navigator: Navigator) {
     val model = koinViewModel<ChatViewModel> { parametersOf(route) }
-    model.effects.handle { effect -> when (effect) { ChatEffect.Back -> navigator.back() } }
+    val context = LocalContext.current
+    model.effects.handle { effect ->
+        when (effect) {
+            ChatEffect.Back -> navigator.back()
+            is ChatEffect.Copy -> { context.copyText(effect.text); context.toast(R.string.chat_copied) }
+        }
+    }
     ChatScreen(model.state.collectAsStateWithLifecycle().value, model::dispatch)
 }
 

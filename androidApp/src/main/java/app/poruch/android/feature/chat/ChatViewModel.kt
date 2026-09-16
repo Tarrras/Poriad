@@ -18,6 +18,7 @@ class ChatViewModel(private val app: PoruchApp, private val eventId: String) :
             val now = Clock.System.now()
             copy(
                 title = event?.title ?: title,
+                members = event?.gathering?.let { it.attendeeCount + 1 } ?: members,
                 messages = chat?.messages ?: messages,
                 loading = chat?.loading ?: loading,
                 sending = chat?.sending ?: false,
@@ -41,8 +42,10 @@ class ChatViewModel(private val app: PoruchApp, private val eventId: String) :
                 app.sendMessage(text)
             }
             is ChatIntent.Select -> reduce { copy(selected = intent.message) }
+            is ChatIntent.Copy -> { reduce { copy(selected = null) }; send(ChatEffect.Copy(intent.message.body)) }
+            is ChatIntent.ConfirmDelete -> reduce { copy(selected = null, deleting = intent.message) }
             is ChatIntent.Delete -> {
-                reduce { copy(selected = null) }
+                reduce { copy(selected = null, deleting = null) }
                 app.deleteMessage(intent.id)
             }
             is ChatIntent.ShowReport -> reduce { copy(selected = null, reporting = intent.message) }
