@@ -119,6 +119,19 @@ class PoruchAppTest {
         advanceTimeBy(101);runCurrent()
         assertFalse(app.state.value.loading);app.close()
     }
+    /** Потяг вниз повертається лише коли пошук і «мої» доїхали: індикатор ховається разом із відповіддю, не раніше. */
+    @Test fun pullToRefreshWaitsForTheAnswersBeforeReturning()=runTest {
+        val events=Events(); val app=app(events,backgroundScope)
+        runCurrent(); advanceTimeBy(101); runCurrent()
+        val before=events.queries.size
+        var returned=false
+        backgroundScope.launch { app.reloadAll(); returned=true }
+        runCurrent()
+        assertEquals(before+1,events.queries.size)
+        assertTrue(app.state.value.loading); assertFalse(returned)
+        advanceTimeBy(101); runCurrent()
+        assertFalse(app.state.value.loading); assertTrue(returned); app.close()
+    }
     /** Стос майданчика — не початок стрічки: просимо картки для хвоста списку, якого у вікні нема. */
     @Test fun tappingAVenueStackAsksForItsOwnCardsNotTheStartOfTheList()=runTest {
         val events=Events(); val app=app(events,backgroundScope)

@@ -60,27 +60,29 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
         return
     }
     Box(Modifier.fillMaxSize().background(colors.canvas)) {
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 128.dp)) {
-            Hero(event, state.saved, onIntent)
-            Column(Modifier.padding(horizontal = Spacing.page), verticalArrangement = Arrangement.spacedBy(Spacing.lg)) {
-                Headline(event, state)
-            }
-            // Поза колонкою з полями: смуга дат іде від краю до краю.
-            if (state.sessions.size > 1) Sessions(state, onIntent, Modifier.padding(top = Spacing.lg))
-            Column(
-                Modifier.padding(horizontal = Spacing.page).padding(top = Spacing.lg),
-                verticalArrangement = Arrangement.spacedBy(Spacing.lg)
-            ) {
-                Facts(event)
-                if (state.attendees.isNotEmpty()) Roster(state, event)
-                ExternalActions(state, onIntent)
-                Venue(event, onIntent)
-                Description(event, onIntent)
-                // Чат і посилання — для своїх: сервер віддає посилання лише організатору й підтвердженим.
-                if (state.hasChat || event.gathering?.hasContact == true) ContactSection(state, event, onIntent)
-                if (state.organizer && state.requests.isNotEmpty()) JoinRequests(state, onIntent)
-                if (state.organizer && !state.cancelled) OrganizerActions(state, onIntent)
-                if (!state.organizer) SafetyActions(event, onIntent)
+        PullToRefresh(state.refreshing, { onIntent(DetailIntent.Refresh) }, Modifier.fillMaxSize(), underStatusBar = true) {
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 128.dp)) {
+                Hero(event, state.saved, onIntent)
+                Column(Modifier.padding(horizontal = Spacing.page), verticalArrangement = Arrangement.spacedBy(Spacing.lg)) {
+                    Headline(event, state)
+                }
+                // Поза колонкою з полями: смуга дат іде від краю до краю.
+                if (state.sessions.size > 1) Sessions(state, onIntent, Modifier.padding(top = Spacing.lg))
+                Column(
+                    Modifier.padding(horizontal = Spacing.page).padding(top = Spacing.lg),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.lg)
+                ) {
+                    Facts(event)
+                    if (state.attendees.isNotEmpty()) Roster(state, event)
+                    ExternalActions(state, onIntent)
+                    Venue(event, onIntent)
+                    Description(event, onIntent)
+                    // Чат і посилання — для своїх: сервер віддає посилання лише організатору й підтвердженим.
+                    if (state.hasChat || event.gathering?.hasContact == true) ContactSection(state, event, onIntent)
+                    if (state.organizer && state.requests.isNotEmpty()) JoinRequests(state, onIntent)
+                    if (state.organizer && !state.cancelled) OrganizerActions(state, onIntent)
+                    if (!state.organizer) SafetyActions(event, onIntent)
+                }
             }
         }
         StickyAction(state, event, Modifier.align(Alignment.BottomCenter), onIntent)

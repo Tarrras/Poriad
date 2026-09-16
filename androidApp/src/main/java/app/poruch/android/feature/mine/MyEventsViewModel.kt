@@ -26,7 +26,7 @@ class MyEventsViewModel(private val app: PoruchApp) :
     override fun onIntent(intent: MyEventsIntent) {
         when (intent) {
             is MyEventsIntent.PickTab -> reduce { copy(tab = intent.tab, visible = shared.forTab(intent.tab)) }
-            MyEventsIntent.Refresh -> app.loadMyEvents()
+            MyEventsIntent.Refresh -> refresh({ refreshing }, { copy(refreshing = it) }) { app.reloadMyEvents() }
             is MyEventsIntent.OpenEvent -> {
                 app.selectEvent(intent.id)
                 send(MyEventsEffect.OpenDetail(intent.id))

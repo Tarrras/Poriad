@@ -68,6 +68,7 @@ class DetailViewModel(private val app: PoruchApp, private val openedId: String) 
         val event = state.value.event
         when (intent) {
             DetailIntent.Back -> send(DetailEffect.Back)
+            DetailIntent.Refresh -> refresh({ refreshing }, { copy(refreshing = it) }) { app.reloadEvent(eventId) }
 
             // Спершу pendingId, потім запит: згортка вище має впізнати картку нового вечора.
             is DetailIntent.PickSession -> if (intent.id != eventId) {

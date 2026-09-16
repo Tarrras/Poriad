@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Lock
@@ -38,34 +39,37 @@ fun MyEventsScreen(state: MyEventsState, onIntent: (MyEventsIntent) -> Unit) {
             }
             Spacer(Modifier.height(Spacing.md))
         }
-        when {
-            !state.signedIn -> EmptyState(
-                PoruchIcons.lock, stringResource(R.string.guest_empty), stringResource(R.string.guest_description),
-                Modifier.padding(top = Spacing.section), stringResource(R.string.login), { onIntent(MyEventsIntent.SignIn) }
-            )
-
-            state.visible.isEmpty() && state.loading -> Box(
-                Modifier.fillMaxWidth().padding(Spacing.section), contentAlignment = Alignment.Center
-            ) { CircularProgressIndicator(color = colors.ink) }
-
-            state.visible.isEmpty() -> EmptyState(
-                PoruchIcons.calendar, stringResource(R.string.my_events_empty),
-                stringResource(R.string.my_events_empty_hint), Modifier.padding(top = Spacing.section)
-            )
-
-            else -> LazyColumn(
-                contentPadding = PaddingValues(start = Spacing.page, end = Spacing.page, top = Spacing.sm, bottom = 120.dp),
-                verticalArrangement = Arrangement.spacedBy(Spacing.md)
-            ) {
-                item {
-                    BannerCard(
-                        stringResource(R.string.create_banner_title), stringResource(R.string.create_banner_subtitle),
-                        { onIntent(MyEventsIntent.CreateEvent) }
+        // Гостю оновлювати нічого, тож і потягу нема.
+        if (!state.signedIn) EmptyState(
+            PoruchIcons.lock, stringResource(R.string.guest_empty), stringResource(R.string.guest_description),
+            Modifier.padding(top = Spacing.section), stringResource(R.string.login), { onIntent(MyEventsIntent.SignIn) }
+        ) else PullToRefresh(state.refreshing, { onIntent(MyEventsIntent.Refresh) }, Modifier.fillMaxSize()) {
+            when {
+                // Порожній стан теж прокручується: інакше потяг не має за що зачепитись.
+                state.visible.isEmpty() -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                    if (state.loading) Box(
+                        Modifier.fillMaxWidth().padding(Spacing.section), contentAlignment = Alignment.Center
+                    ) { CircularProgressIndicator(color = colors.ink) }
+                    else EmptyState(
+                        PoruchIcons.calendar, stringResource(R.string.my_events_empty),
+                        stringResource(R.string.my_events_empty_hint), Modifier.padding(top = Spacing.section)
                     )
                 }
-                items(state.visible, key = { it.id }) { event ->
-                    EventCard(event, saved = event.id in state.savedIds, waitlisted = event.id in state.waitlistedIds) {
-                        onIntent(MyEventsIntent.OpenEvent(event.id))
+
+                else -> LazyColumn(
+                    contentPadding = PaddingValues(start = Spacing.page, end = Spacing.page, top = Spacing.sm, bottom = 120.dp),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.md)
+                ) {
+                    item {
+                        BannerCard(
+                            stringResource(R.string.create_banner_title), stringResource(R.string.create_banner_subtitle),
+                            { onIntent(MyEventsIntent.CreateEvent) }
+                        )
+                    }
+                    items(state.visible, key = { it.id }) { event ->
+                        EventCard(event, saved = event.id in state.savedIds, waitlisted = event.id in state.waitlistedIds) {
+                            onIntent(MyEventsIntent.OpenEvent(event.id))
+                        }
                     }
                 }
             }

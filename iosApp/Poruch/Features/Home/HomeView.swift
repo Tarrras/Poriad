@@ -1,6 +1,10 @@
 import SwiftUI
 import Shared
 
+/// Скільки верхнього тону тримати під смугою статусу для потягу вниз і відскоку: більше за
+/// будь-який потяг, але менше за хедер, щоб під коротким вмістом лишався папір.
+private let overscrollReserve: CGFloat = 240
+
 /// Головна: плани, сьогодні і все поруч з даних, які вже завантажила мапа.
 struct HomeView: View {
     @EnvironmentObject var model: AppModel
@@ -11,13 +15,12 @@ struct HomeView: View {
     var openEvent: (String) -> Void
     /// Прямо в чат події, минаючи деталі.
     var openChat: (Event) -> Void
-    /// Висота смуги статусу: хедер додає відступ сам. Див. `tracksStatusBarInset`.
+    /// Висота смуги статусу: стільки верхнього тону лежить над хедером. Див. `tracksStatusBarInset`.
     @State private var statusBar: CGFloat = Space.xxl
 
     private var view: HomePresentation { model.home }
 
     var body: some View {
-        // Стрічка виходить під смугу статусу, щоб градієнт хедера дійшов до краю.
         let view = self.view
         ScrollView {
             VStack(alignment: .leading, spacing: Space.xxl) {
@@ -97,10 +100,21 @@ struct HomeView: View {
                         .padding(.horizontal, Space.page)
                 }
             }.padding(.bottom, Space.section)
+            // Вміст непрозорий: усе, що не він, — тло нижче. Так проміжок потягу над хедером
+            // лишається верхнім тоном, а прокручений вміст під смугою статусу — папером.
+            .background(Palette.canvas)
         }
-        .background(Palette.canvas)
+        // Стрічка лишається в safe area: якщо вона сама ігнорує верх, SwiftUI не показує
+        // індикатор потягу. А індикатор малюється під вмістом, тож фон хедера не може
+        // заходити в проміжок: під смугою статусу й у проміжку лежить це нерухоме тло.
+        .refreshable { await model.reloadAll() }
+        .background(alignment: .top) {
+            VStack(spacing: 0) {
+                Palette.heroTop.frame(height: statusBar + overscrollReserve)
+                Palette.canvas
+            }.ignoresSafeArea()
+        }
         .toolbar(.hidden, for: .navigationBar)
-        .ignoresSafeArea(edges: .top)
         .tracksStatusBarInset($statusBar)
     }
 
@@ -128,8 +142,8 @@ struct HomeView: View {
             }
         }
         .padding(.horizontal, Space.page).padding(.vertical, Space.xl)
-        .padding(.top, statusBar)
         .frame(maxWidth: .infinity, alignment: .leading)
+        // Під смугою статусу той самий верхній тон, з якого починається градієнт (тло стрічки).
         .background(heroGradient)
     }
 

@@ -11,11 +11,14 @@ data class MyEventsState(
     val savedIds: List<String> = emptyList(),
     val waitlistedIds: List<String> = emptyList(),
     val signedIn: Boolean = false,
-    val loading: Boolean = false
+    val loading: Boolean = false,
+    /** Потяг вниз або кнопка «Оновити» в дорозі. */
+    val refreshing: Boolean = false
 )
 
 sealed interface MyEventsIntent {
     data class PickTab(val tab: MyEventsTab) : MyEventsIntent
+    /** Потяг вниз або кнопка «Оновити»: перечитати «мої». */
     data object Refresh : MyEventsIntent
     data class OpenEvent(val id: String) : MyEventsIntent
     data object SignIn : MyEventsIntent

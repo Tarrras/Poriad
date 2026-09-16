@@ -94,5 +94,13 @@ final class KeychainSessionStore: SecureSessionStore {
         waitlistedIDs = Set(state.waitlistedIds)
     }
     func stop() { subscription?.close(); subscription = nil }
+
+    // ---- Потяг вниз. Kotlin-suspend кличемо з головного потоку, тож обгортки на `@MainActor`
+    // моделі, а не в `.refreshable` напряму. Збій не кидає: він уже в `state.notice`.
+
+    /// Головна: перечитати все, як при поверненні в застосунок, і дочекатись відповідей.
+    func reloadAll() async { try? await app.reloadAll() }
+    func reloadMyEvents() async { try? await app.reloadMyEvents() }
+    func reloadEvent(id: String) async { try? await app.reloadEvent(id: id) }
     deinit { subscription?.close(); graph.close() }
 }

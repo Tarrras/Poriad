@@ -297,6 +297,17 @@ func measuredStatusBarInset() -> CGFloat {
 }
 
 extension View {
+    /**
+     Повідомляє зміщення вмісту стрічки від її верху: 0 у спокої, більше нуля при потягу вниз,
+     менше — при прокрутці. Вішається на кореневий вміст `ScrollView`, що має `.coordinateSpace(name:)`
+     з тим самим ім'ям. Потрібно екранам, чий верх візуально заходить під смугу статусу: сама
+     стрічка має лишатись у safe area, інакше SwiftUI не показує індикатор потягу вниз (він стає
+     на верхній відступ, якого нема), тож тло під смугою малюється окремим шаром і їде за вмістом.
+     */
+    func reportsScrollOffset(in space: String, to offset: Binding<CGFloat>) -> some View {
+        onGeometryChange(for: CGFloat.self) { $0.frame(in: .named(space)).minY } action: { offset.wrappedValue = $0 }
+    }
+
     /// Тримає `inset` рівним висоті смуги статусу: міряє при появі екрана і після повороту.
     func tracksStatusBarInset(_ inset: Binding<CGFloat>) -> some View {
         modifier(StatusBarInsetReader(inset: inset))

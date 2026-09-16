@@ -68,6 +68,7 @@ class HomeViewModel(private val app: PoruchApp) : MviViewModel<HomeState, HomeIn
         HomeIntent.CreateEvent -> send(HomeEffect.Navigate(HomeDestination.EDITOR))
         HomeIntent.OpenMap -> send(HomeEffect.Navigate(HomeDestination.MAP))
         HomeIntent.OpenProfile -> send(HomeEffect.Navigate(HomeDestination.PROFILE))
+        HomeIntent.Refresh -> refresh({ refreshing }, { copy(refreshing = it) }) { app.reloadAll() }
     }
 
     /** Запити за подіями, у порядку стрічки (свіжіші першими). Подія без картки в «моїх» пропускається. */

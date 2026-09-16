@@ -85,6 +85,9 @@ internal class UserLibrary(
         }
     }
 
+    /** Чекає, поки доїдуть деталі відкритої події разом з учасниками й запитами. */
+    suspend fun awaitDetail() { detailJob?.join() }
+
     fun dismiss() {
         openEventId = null
         detailJob?.cancel()
@@ -125,6 +128,9 @@ internal class UserLibrary(
             }
         }
     }
+
+    /** Чекає, поки доїдуть «мої». Гість нічого не вантажить, тож повертається одразу. */
+    suspend fun awaitList() { listJob?.join() }
 
     /**
      * Узгоджує інтереси пристрою з акаунтом. Акаунт перемагає, якщо має хоч щось; порожній

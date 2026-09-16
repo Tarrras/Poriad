@@ -14,6 +14,8 @@ data class DetailState(
     val sessionStarted: Boolean = false,
     val attendees: List<Attendee> = emptyList(),
     val loading: Boolean = false,
+    /** Потяг вниз у дорозі. */
+    val refreshing: Boolean = false,
     val mutating: Boolean = false,
     val signedIn: Boolean = false,
     val saved: Boolean = false,
@@ -86,6 +88,8 @@ enum class ReportTarget { EVENT, ORGANIZER }
 
 sealed interface DetailIntent {
     data object Back : DetailIntent
+    /** Потяг вниз: перечитати місця, членство й запити. */
+    data object Refresh : DetailIntent
     /** Інша дата в каруселі прокату. */
     data class PickSession(val id: String) : DetailIntent
     data object PrimaryAction : DetailIntent

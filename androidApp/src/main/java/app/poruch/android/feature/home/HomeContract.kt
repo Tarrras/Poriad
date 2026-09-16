@@ -8,6 +8,8 @@ data class HomeState(
     val signedIn: Boolean = false,
     val cityName: String = "",
     val loading: Boolean = false,
+    /** Потяг вниз у дорозі. Окремо від [loading]: те піднімає й мапа, а індикатор жесту має слухати лише жест. */
+    val refreshing: Boolean = false,
     /** Плани: організую або йду, найближчі першими. */
     val plans: List<Event> = emptyList(),
     /** Мої події, де чекають запити на участь, зі скількома. Лише в організатора. */
@@ -45,6 +47,8 @@ sealed interface HomeIntent {
     data object CreateEvent : HomeIntent
     data object OpenMap : HomeIntent
     data object OpenProfile : HomeIntent
+    /** Потяг вниз: перечитати все, як при поверненні в застосунок. */
+    data object Refresh : HomeIntent
 }
 
 /** Куди переходити: те, чого стан не виразить. */

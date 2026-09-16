@@ -23,6 +23,8 @@ struct EventDetailView: View {
     /// Картка, з якою відкрили екран. Карусель будується від неї: скасованого вечора в індексі нема.
     @State private var anchor: Event?
     @State private var sessions: [EventSession] = []
+    /// Зміщення стрічки, за яким їде обкладинка. Див. `reportsScrollOffset`.
+    @State private var offset: CGFloat = 0
     @Environment(\.openMap) private var openMap
 
     /// Id відкритої події від того, хто відкриває, а не зі стану: див. `.task` нижче.
@@ -69,7 +71,18 @@ struct EventDetailView: View {
                     hero(event, view)
                     sections(event, view).padding(.horizontal, Space.page)
                 }.padding(.bottom, 140)
-            }.ignoresSafeArea(edges: .top)
+                .reportsScrollOffset(in: detailScrollSpace, to: $offset)
+            }
+            .coordinateSpace(name: detailScrollSpace)
+            .refreshable { await model.reloadEvent(id: eventID) }
+            // Обкладинка від краю екрана, під смугою статусу. Їде разом зі стрічкою, а при потягу
+            // вниз розтягується; сама стрічка лишається в safe area, щоб індикатор потягу було видно.
+            .background(alignment: .top) {
+                EventThumbnail(event: event, glyphSize: 48, maxDimension: 420)
+                    .frame(height: heroHeight + max(offset, 0)).frame(maxWidth: .infinity).clipped()
+                    .offset(y: min(offset, 0))
+                    .ignoresSafeArea()
+            }
             stickyBar(event, view)
         }
         .background(Palette.canvas)
@@ -184,13 +197,20 @@ private struct DetailDialogs: ViewModifier {
     }
 }
 
+/// Висота обкладинки від краю екрана.
+private let heroHeight: CGFloat = 300
+/// Ім'я системи координат стрічки для `reportsScrollOffset`.
+private let detailScrollSpace = "detail"
+
 extension EventDetailView {
+    /// Справжній відступ під смугу статусу: з вирізом кнопки заходили під годинник.
+    private var topInset: CGFloat { measuredStatusBarInset() }
+
+    /// Місце обкладинки у стрічці: саму картинку малює тло під нею (див. `detail`). Стрічка
+    /// починається під смугою статусу, тож тут лише решта висоти.
     private func hero(_ event: Event, _ view: EventDetailPresentation) -> some View {
-        // Справжній відступ під смугу статусу: з вирізом кнопки заходили під годинник.
-        let topInset = UIApplication.shared.connectedScenes
-            .compactMap { ($0 as? UIWindowScene)?.keyWindow?.safeAreaInsets.top }.first ?? Space.xxl
-        return EventThumbnail(event: event, glyphSize: 48, maxDimension: 420)
-            .frame(height: 300).frame(maxWidth: .infinity).clipped()
+        Color.clear
+            .frame(height: heroHeight - topInset).frame(maxWidth: .infinity)
             .overlay(alignment: .bottom) {
                 LinearGradient(colors: [.clear, Palette.canvas], startPoint: .top, endPoint: .bottom).frame(height: 120)
             }
@@ -204,7 +224,7 @@ extension EventDetailView {
                         symbol: view.saved ? "bookmark.fill" : "bookmark",
                         label: view.saved ? "Прибрати зі збережених" : "Зберегти подію"
                     ) { if !actions.toggleSaved(event, signedIn: view.signedIn) { auth = true } }
-                }.padding(Space.page).padding(.top, topInset)
+                }.padding(Space.page)
             }
     }
 

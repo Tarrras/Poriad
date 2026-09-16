@@ -34,6 +34,18 @@ abstract class MviViewModel<State : Any, Intent : Any, Effect : Any>(initial: St
         viewModelScope.launch { channel.send(effect) }
     }
 
+    /**
+     * Потяг вниз: тримає прапорець піднятим, поки [block] не поверне, щоб індикатор знав, коли
+     * сховатись. Другий потяг під час першого нічого не робить: запит уже в дорозі.
+     */
+    protected fun refresh(refreshing: State.() -> Boolean, set: State.(Boolean) -> State, block: suspend () -> Unit) {
+        if (state.value.refreshing()) return
+        viewModelScope.launch {
+            reduce { set(true) }
+            try { block() } finally { reduce { set(false) } }
+        }
+    }
+
     /** Згортає спільний стор у стан екрана, поки екран живий. */
     protected fun observe(app: PoruchApp, fold: State.(AppState) -> State) {
         viewModelScope.launch { app.state.collect { shared -> reduce { fold(shared) } } }

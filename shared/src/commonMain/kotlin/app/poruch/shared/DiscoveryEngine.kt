@@ -64,6 +64,9 @@ internal class DiscoveryEngine(
         }
     }
 
+    /** Чекає, поки доїде поточний пошук. Без пошуку або скасований — повертається одразу. */
+    suspend fun awaitSearch() { searchJob?.join() }
+
     /** Довантажити картки до [count] перших у порядку показу. Не пагінація: індекс повний, id відомі. */
     fun materialize(count: Int) {
         if (cardsJob?.isActive == true) return

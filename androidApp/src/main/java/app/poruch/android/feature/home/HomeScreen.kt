@@ -32,64 +32,65 @@ import app.poruch.domain.Event
 @Composable
 fun HomeScreen(state: HomeState, onIntent: (HomeIntent) -> Unit) {
     val colors = Poruch.colors
-    Column(
-        // Без statusBarsPadding: відступ бере хедер, інакше над градієнтом холодна смуга.
-        Modifier.fillMaxSize().background(colors.canvas).verticalScroll(rememberScrollState())
-            .padding(bottom = 120.dp),
-        verticalArrangement = Arrangement.spacedBy(Spacing.xxl)
-    ) {
-        Header(state, onIntent)
+    PullToRefresh(state.refreshing, { onIntent(HomeIntent.Refresh) }, Modifier.fillMaxSize().background(colors.canvas), underStatusBar = true) {
+        Column(
+            // Без statusBarsPadding: відступ бере хедер, інакше над градієнтом холодна смуга.
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 120.dp),
+            verticalArrangement = Arrangement.spacedBy(Spacing.xxl)
+        ) {
+            Header(state, onIntent)
 
-        // Поки шукають, дайджест сховано.
-        if (!state.searching) {
-            if (!state.signedIn) BannerCard(
-                stringResource(R.string.guest_title), stringResource(R.string.guest_home_hint),
-                { onIntent(HomeIntent.OpenProfile) }, Modifier.padding(horizontal = Spacing.page), PoruchIcons.lock
-            ) else {
-                // Запити й нові повідомлення вище за плани: на них чекає інша людина.
-                if (state.requests.isNotEmpty()) RequestsSection(state.requests, onIntent)
-                if (state.unread.isNotEmpty()) UnreadSection(state.unread, onIntent)
-                PlansSection(state.plans, onIntent)
+            // Поки шукають, дайджест сховано.
+            if (!state.searching) {
+                if (!state.signedIn) BannerCard(
+                    stringResource(R.string.guest_title), stringResource(R.string.guest_home_hint),
+                    { onIntent(HomeIntent.OpenProfile) }, Modifier.padding(horizontal = Spacing.page), PoruchIcons.lock
+                ) else {
+                    // Запити й нові повідомлення вище за плани: на них чекає інша людина.
+                    if (state.requests.isNotEmpty()) RequestsSection(state.requests, onIntent)
+                    if (state.unread.isNotEmpty()) UnreadSection(state.unread, onIntent)
+                    PlansSection(state.plans, onIntent)
+                }
             }
-        }
 
-        when {
-            state.isEmpty && state.loading -> Box(
-                Modifier.fillMaxWidth().padding(Spacing.section), contentAlignment = Alignment.Center
-            ) { CircularProgressIndicator(color = colors.ink) }
+            when {
+                state.isEmpty && state.loading -> Box(
+                    Modifier.fillMaxWidth().padding(Spacing.section), contentAlignment = Alignment.Center
+                ) { CircularProgressIndicator(color = colors.ink) }
 
-            // Порожній пошук і порожня околиця ведуть до різних дій.
-            state.isEmpty -> EmptyState(
-                if (state.searching) PoruchIcons.search else Icons.Outlined.Explore,
-                stringResource(if (state.searching) R.string.nothing_found else R.string.nothing_here),
-                stringResource(if (state.searching) R.string.nothing_found_hint else R.string.nothing_here_hint),
-                actionLabel = stringResource(R.string.find_on_map), onAction = { onIntent(HomeIntent.OpenMap) }
-            )
-
-            state.searching -> EventSection(
-                stringResource(R.string.events_found, state.results.size),
-                state.results.take(RESULTS_LIMIT), state, onIntent,
-                actionLabel = if (state.results.size > RESULTS_LIMIT) stringResource(R.string.see_all_short) else null
-            )
-
-            else -> {
-                if (state.suggested.isNotEmpty()) EventSection(
-                    stringResource(R.string.picked_for_you), state.suggested, state, onIntent,
-                    subtitle = stringResource(R.string.picked_for_you_hint)
+                // Порожній пошук і порожня околиця ведуть до різних дій.
+                state.isEmpty -> EmptyState(
+                    if (state.searching) PoruchIcons.search else Icons.Outlined.Explore,
+                    stringResource(if (state.searching) R.string.nothing_found else R.string.nothing_here),
+                    stringResource(if (state.searching) R.string.nothing_found_hint else R.string.nothing_here_hint),
+                    actionLabel = stringResource(R.string.find_on_map), onAction = { onIntent(HomeIntent.OpenMap) }
                 )
-                if (state.today.isNotEmpty()) EventSection(
-                    stringResource(R.string.today_in_city), state.today.take(TODAY_LIMIT), state, onIntent,
-                    actionLabel = if (state.today.size > TODAY_LIMIT) stringResource(R.string.see_all_short) else null
+
+                state.searching -> EventSection(
+                    stringResource(R.string.events_found, state.results.size),
+                    state.results.take(RESULTS_LIMIT), state, onIntent,
+                    actionLabel = if (state.results.size > RESULTS_LIMIT) stringResource(R.string.see_all_short) else null
                 )
-                // Каталог живе на мапі, головна лише каже, який він завбільшки.
-                if (state.rest.isNotEmpty()) AllEventsRow(state.totalFound) { onIntent(HomeIntent.OpenMap) }
+
+                else -> {
+                    if (state.suggested.isNotEmpty()) EventSection(
+                        stringResource(R.string.picked_for_you), state.suggested, state, onIntent,
+                        subtitle = stringResource(R.string.picked_for_you_hint)
+                    )
+                    if (state.today.isNotEmpty()) EventSection(
+                        stringResource(R.string.today_in_city), state.today.take(TODAY_LIMIT), state, onIntent,
+                        actionLabel = if (state.today.size > TODAY_LIMIT) stringResource(R.string.see_all_short) else null
+                    )
+                    // Каталог живе на мапі, головна лише каже, який він завбільшки.
+                    if (state.rest.isNotEmpty()) AllEventsRow(state.totalFound) { onIntent(HomeIntent.OpenMap) }
+                }
             }
-        }
 
-        if (!state.searching) BannerCard(
-            stringResource(R.string.create_banner_title), stringResource(R.string.create_banner_subtitle),
-            { onIntent(HomeIntent.CreateEvent) }, Modifier.padding(horizontal = Spacing.page)
-        )
+            if (!state.searching) BannerCard(
+                stringResource(R.string.create_banner_title), stringResource(R.string.create_banner_subtitle),
+                { onIntent(HomeIntent.CreateEvent) }, Modifier.padding(horizontal = Spacing.page)
+            )
+        }
     }
 }
 

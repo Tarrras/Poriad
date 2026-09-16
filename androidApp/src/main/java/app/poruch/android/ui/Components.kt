@@ -25,6 +25,9 @@ import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -160,6 +163,31 @@ fun IconPill(icon: ImageVector, contentDescription: String, selected: Boolean = 
             .clip(CircleShape).pressable(onClick = onClick).semantics { this.contentDescription = contentDescription },
         contentAlignment = Alignment.Center
     ) { Icon(icon, null, Modifier.size(20.dp), tint = if (selected) colors.onBrand else colors.ink) }
+}
+
+/**
+ * Потяг стрічки вниз. Вміст має вміти прокручуватись, інакше жест нікуди не дійде.
+ * [underStatusBar] — вміст заходить під смугу статусу (хедер із градієнтом, обкладинка): тоді
+ * індикатор відступає від неї, інакше коло висіло б на годиннику.
+ */
+@Composable
+fun PullToRefresh(
+    refreshing: Boolean, onRefresh: () -> Unit, modifier: Modifier = Modifier, underStatusBar: Boolean = false,
+    content: @Composable BoxScope.() -> Unit
+) {
+    val colors = Poruch.colors
+    val state = rememberPullToRefreshState()
+    PullToRefreshBox(
+        isRefreshing = refreshing, onRefresh = onRefresh, modifier = modifier, state = state,
+        indicator = {
+            PullToRefreshDefaults.Indicator(
+                state = state, isRefreshing = refreshing,
+                modifier = Modifier.align(Alignment.TopCenter).then(if (underStatusBar) Modifier.statusBarsPadding() else Modifier),
+                containerColor = colors.surface, color = colors.ink
+            )
+        },
+        content = content
+    )
 }
 
 /** Чип: біла пігулка над папером; обраний заливається чорнилом і сидить вище, тож стан видно з тіні. */

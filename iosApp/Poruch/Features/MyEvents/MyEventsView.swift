@@ -44,7 +44,8 @@ struct MyEventsView: View {
         .background(Palette.canvas)
         .toolbar(.hidden, for: .navigationBar)
         .task { model.app.loadMyEvents() }
-        .refreshable { model.app.loadMyEvents() }
+        // Потяг ловлять стрічка й порожній стан нижче; гостю оновлювати нічого, і його екран не прокручується.
+        .refreshable { await model.reloadMyEvents() }
         .sheet(isPresented: $creating) { EventEditor(event: nil, app: model.app, home: model.state) }
     }
 
@@ -76,11 +77,13 @@ struct MyEventsView: View {
             )
             Spacer()
         } else if visible.isEmpty {
-            EmptyState(
-                symbol: "calendar", title: "Тут з’являться ваші плани",
-                message: "Приєднуйтесь до подій або створіть власну — усе буде на цій вкладці."
-            )
-            Spacer()
+            // У стрічці, щоб потяг мав за що зачепитись.
+            ScrollView {
+                EmptyState(
+                    symbol: "calendar", title: "Тут з’являться ваші плани",
+                    message: "Приєднуйтесь до подій або створіть власну — усе буде на цій вкладці."
+                )
+            }
         } else {
             ScrollView {
                 LazyVStack(spacing: Space.lg) {

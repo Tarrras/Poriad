@@ -265,6 +265,27 @@ class PoruchApp internal constructor(
         library.openEventId?.let { library.select(it, full = true) }
     }
 
+    // ---- Оновлення жестом
+
+    /**
+     * Потяг головної вниз: перечитує те саме, що [resume], але повертається лише коли відповіді
+     * приїхали, щоб індикатор знав, коли сховатись. Збій не кидає: він уже в [AppState.notice].
+     */
+    suspend fun reloadAll() {
+        resume()
+        discovery.awaitSearch(); library.awaitList(); library.awaitDetail()
+    }
+
+    /** Потяг «моїх подій» вниз. Див. [reloadAll]. */
+    suspend fun reloadMyEvents() {
+        loadMyEvents(); library.awaitList()
+    }
+
+    /** Потяг деталей вниз: місця, членство й запити перечитуються, як при відкритті. Див. [reloadAll]. */
+    suspend fun reloadEvent(id: String) {
+        openEvent(id); library.awaitDetail()
+    }
+
     // ---- Чат події
 
     /** Екран чату відкрито: тягнемо хвіст і перечитуємо, поки не закриють. */
