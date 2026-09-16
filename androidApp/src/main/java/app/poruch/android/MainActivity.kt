@@ -56,7 +56,7 @@ class MainActivity : ComponentActivity(), AndroidScopeComponent {
     /** Повернення в застосунок: запити на участь і членство могли змінитися, поки його не було. */
     override fun onStart() {
         super.onStart()
-        app.loadMyEvents()
+        app.resume()
     }
 
     override fun onNewIntent(intent: Intent) {

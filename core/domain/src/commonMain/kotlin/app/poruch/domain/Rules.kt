@@ -64,9 +64,14 @@ object ContactRules {
     /** Те, що зберігаємо: обрізане, порожнє стає null. */
     fun normalize(value: String?): String? = value?.trim()?.takeIf { it.isNotEmpty() }
 
-    /** Хост для попередження: людина має бачити, куди її ведуть, до того як вийде із застосунку. */
-    fun host(url: String): String =
-        url.removePrefix(SCHEME).substringBefore('/').substringBefore('?').substringBefore('#').substringBefore('@').ifEmpty { url }
+    /**
+     * Хост для попередження: людина має бачити, куди її ведуть, до того як вийде із застосунку.
+     * Без userinfo й порту: `https://t.me@evil.example` має показати `evil.example`, а не `t.me`.
+     */
+    fun host(url: String): String {
+        val authority = url.removePrefix(SCHEME).substringBefore('/').substringBefore('?').substringBefore('#')
+        return authority.substringAfterLast('@').substringBefore(':').ifEmpty { url }
+    }
 }
 
 /** Причина скарги. Фіксований список, а не вільний текст, щоб чергу можна було сортувати. */

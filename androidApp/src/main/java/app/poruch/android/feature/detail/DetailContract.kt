@@ -97,7 +97,8 @@ sealed interface DetailIntent {
     data object Edit : DetailIntent
     data class ConfirmCancel(val open: Boolean) : DetailIntent
     data class ShowReport(val target: ReportTarget?) : DetailIntent
-    data class SendReport(val reason: String, val details: String) : DetailIntent
+    /** Ціль їде всередині: шторка спершу закривається (і скидає [DetailState.reporting]), а вже потім шле це. */
+    data class SendReport(val target: ReportTarget, val reason: String, val details: String) : DetailIntent
     data class ConfirmBlock(val open: Boolean) : DetailIntent
     data object BlockOrganizer : DetailIntent
     /** Відкрити чат учасників: спершу попередження, потім браузер. */

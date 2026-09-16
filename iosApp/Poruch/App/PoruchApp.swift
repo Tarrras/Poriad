@@ -10,7 +10,7 @@ import Shared
                 .onOpenURL { model.app.handleAuthCallback(url: $0.absoluteString) }
                 .onChange(of: scenePhase) { _, phase in
                     // Повернення в застосунок: запити на участь і членство могли змінитися, поки його не було.
-                    if phase == .active { model.start(); model.app.refresh(); model.app.loadMyEvents() }
+                    if phase == .active { model.start(); model.app.resume() }
                     if phase == .background { model.stop() }
                 }
         }

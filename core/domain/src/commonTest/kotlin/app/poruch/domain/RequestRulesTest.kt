@@ -23,7 +23,7 @@ class RequestRulesTest {
     @Test fun seenRequestsDoNotRingTwice() {
         val alerts = RequestRules.alerts(
             listOf(request("a", "u1"), request("a", "u2")),
-            seen = setOf("a:u1"), events = listOf(event("a")), enabled = true
+            seen = setOf("a:u1:2026-09-16T10:00:00Z"), events = listOf(event("a")), enabled = true
         )
         assertEquals(listOf(RequestAlert("a", "Подія a", 1)), alerts)
     }

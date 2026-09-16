@@ -162,7 +162,7 @@ private fun ReportSheet(target: ReportTarget, onIntent: (DetailIntent) -> Unit) 
             )
             PrimaryButton(
                 stringResource(R.string.report_send),
-                { sheet.close { onIntent(DetailIntent.SendReport(reason, details)) } },
+                { sheet.close { onIntent(DetailIntent.SendReport(target, reason, details)) } },
                 Modifier.fillMaxWidth()
             )
         }

@@ -198,6 +198,15 @@ class PoruchApp internal constructor(
     fun dismissEvent() = library.dismiss()
     fun loadMyEvents() = library.load()
 
+    /**
+     * Повернення на передній план: за час у фоні могли прийти запити й відповіді.
+     * Перечитує мапу, «мої» і відкриту подію, бо запити на її екрані живуть окремо від стрічки.
+     */
+    fun resume() {
+        refresh(); loadMyEvents()
+        library.openEventId?.let { library.select(it, full = true) }
+    }
+
     // ---- Зміни
 
     /** Одна зміна за раз: другий тап під час першої — це подвійний тап, а не другий намір. */

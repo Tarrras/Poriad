@@ -108,13 +108,11 @@ class DetailViewModel(private val app: PoruchApp, private val openedId: String) 
                 send(DetailEffect.RequireSignIn)
             } else reduce { copy(reporting = intent.target) }
             is DetailIntent.SendReport -> {
-                val target = state.value.reporting
                 reduce { copy(reporting = null) }
-                when (target) {
+                when (intent.target) {
                     ReportTarget.EVENT -> app.reportEvent(eventId, intent.reason, intent.details)
                     // В афіші організатора нема; на саму подію скаржаться через ReportTarget.EVENT.
                     ReportTarget.ORGANIZER -> event?.organizerId?.let { app.reportUser(it, intent.reason, intent.details) }
-                    null -> Unit
                 }
             }
             is DetailIntent.ConfirmBlock -> if (intent.open && !state.value.signedIn) {
