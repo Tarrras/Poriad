@@ -39,6 +39,7 @@ private val AppError.resource: Int
         AppError.SessionRequired -> R.string.err_session_required
         AppError.InvalidCredentials -> R.string.err_invalid_credentials
         AppError.EmailNotConfirmed -> R.string.err_email_not_confirmed
+        AppError.LinkOnAnotherDevice -> R.string.err_link_other_device
         AppError.NotOwner -> R.string.err_not_owner
         AppError.EventUnavailable -> R.string.err_event_unavailable
         AppError.EventCancelled -> R.string.err_event_cancelled
@@ -63,6 +64,7 @@ private val AppError.resource: Int
         AppError.ChatClosed -> R.string.err_chat_closed
         AppError.TooManyMessages -> R.string.err_too_many_messages
         AppError.InvalidMessage -> R.string.err_invalid_message
+        AppError.ObjectionableContent -> R.string.err_objectionable
         is AppError.InvalidDraft -> R.string.err_rejected
     }
 
@@ -101,6 +103,7 @@ private val AppMessage.resource: Int
         AppMessage.REPORT_SENT -> R.string.msg_report_sent
         AppMessage.USER_BLOCKED -> R.string.msg_user_blocked
         AppMessage.AGE_CONFIRMED -> R.string.msg_age_confirmed
+        AppMessage.ACCOUNT_DELETED -> R.string.msg_account_deleted
     }
 
 /** Причини скарги в порядку шторки. */

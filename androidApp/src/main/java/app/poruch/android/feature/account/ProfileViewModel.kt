@@ -1,11 +1,14 @@
 package app.poruch.android.feature.account
 
+import app.poruch.android.BuildConfig
 import app.poruch.android.mvi.MviViewModel
 import app.poruch.android.platform.NotificationPermission
+import app.poruch.domain.LegalLinks
+import app.poruch.shared.AppNotice
 import app.poruch.shared.PoruchApp
 
 class ProfileViewModel(private val app: PoruchApp, private val notifications: NotificationPermission) :
-    MviViewModel<ProfileState, ProfileIntent, ProfileEffect>(ProfileState()) {
+    MviViewModel<ProfileState, ProfileIntent, ProfileEffect>(ProfileState(version = BuildConfig.VERSION_NAME)) {
 
     init {
         observe(app) { shared ->
@@ -18,7 +21,11 @@ class ProfileViewModel(private val app: PoruchApp, private val notifications: No
                 passwordRecovery = shared.passwordRecovery,
                 // Після відновлення поле чистимо, щоб пароль не висів.
                 newPassword = if (shared.passwordRecovery) newPassword else "",
-                reminders = shared.remindersEnabled
+                reminders = shared.remindersEnabled,
+                // Акаунта більше нема — шторка видалення зникає разом із паролем.
+                deleting = deleting && shared.signedIn,
+                deletePassword = if (shared.signedIn) deletePassword else "",
+                deleteError = (shared.notice as? AppNotice.Failed)?.error?.takeIf { deleting && shared.signedIn }
             )
         }
     }
@@ -45,6 +52,15 @@ class ProfileViewModel(private val app: PoruchApp, private val notifications: No
                 reduce { copy(remindersDenied = !intent.granted) }
                 app.setRemindersEnabled(intent.granted)
             }
+            ProfileIntent.OpenPrivacy -> send(ProfileEffect.OpenLink(LegalLinks.PRIVACY))
+            ProfileIntent.OpenTerms -> send(ProfileEffect.OpenLink(LegalLinks.TERMS))
+            ProfileIntent.ContactSupport -> send(ProfileEffect.WriteEmail(LegalLinks.SUPPORT_EMAIL))
+            is ProfileIntent.ShowDeleteAccount -> {
+                if (!intent.show) app.clearNotice()
+                reduce { copy(deleting = intent.show, deletePassword = "", deleteError = null) }
+            }
+            is ProfileIntent.SetDeletePassword -> reduce { copy(deletePassword = intent.value, deleteError = null) }
+            ProfileIntent.ConfirmDeleteAccount -> app.deleteAccount(state.value.deletePassword)
         }
     }
 }

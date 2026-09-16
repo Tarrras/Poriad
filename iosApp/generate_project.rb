@@ -6,6 +6,7 @@ group = project.main_group.new_group('Poruch', 'Poruch')
 Dir.glob(File.join(root, 'Poruch', '*.swift')).sort.each { |f| target.source_build_phase.add_file_reference(group.new_file(File.basename(f))) }
 group.new_file('Info.plist')
 target.resources_build_phase.add_file_reference(group.new_file('Localizable.xcstrings'))
+target.resources_build_phase.add_file_reference(group.new_file('PrivacyInfo.xcprivacy'))
 project.root_object.development_region = 'uk'
 project.root_object.known_regions = ['uk', 'Base']
 config = project.main_group.new_file('Config.xcconfig')
@@ -23,8 +24,10 @@ target.build_configurations.each do |c|
  c.build_settings.merge!({
  'PRODUCT_BUNDLE_IDENTIFIER'=>'app.poruch.ios', 'SWIFT_VERSION'=>'5.0', 'INFOPLIST_FILE'=>'Poruch/Info.plist',
  'TARGETED_DEVICE_FAMILY'=>'1,2', 'ENABLE_USER_SCRIPT_SANDBOXING'=>'NO',
- 'FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]'=>'$(inherited) $(SRCROOT)/../shared/build/bin/iosSimulatorArm64/debugFramework',
- 'FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]'=>'$(inherited) $(SRCROOT)/../shared/build/bin/iosArm64/debugFramework',
+ # Тека фреймворку залежить від конфігурації: скрипт збирає link${CONFIGURATION}Framework,
+ # тож Release має шукати releaseFramework, інакше архів лінкує застарілий debug.
+ 'FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]'=>"$(inherited) $(SRCROOT)/../shared/build/bin/iosSimulatorArm64/#{c.name.downcase}Framework",
+ 'FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]'=>"$(inherited) $(SRCROOT)/../shared/build/bin/iosArm64/#{c.name.downcase}Framework",
  'OTHER_LDFLAGS'=>'$(inherited) -framework Shared -lsqlite3', 'ARCHS'=>'arm64', 'CODE_SIGN_STYLE'=>'Automatic',
  'SWIFT_EMIT_LOC_STRINGS'=>'YES', 'IPHONEOS_DEPLOYMENT_TARGET'=>'17.0'
  })

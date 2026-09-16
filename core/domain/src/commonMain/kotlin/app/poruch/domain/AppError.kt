@@ -20,6 +20,8 @@ sealed interface AppError {
     data object SessionRequired : AppError
     data object InvalidCredentials : AppError
     data object EmailNotConfirmed : AppError
+    /** Посилання з листа відкрили не там, де починали: PKCE-verifier лишився на іншому пристрої. */
+    data object LinkOnAnotherDevice : AppError
     data object NotOwner : AppError
 
     // ---- Події
@@ -53,6 +55,8 @@ sealed interface AppError {
     data object ChatClosed : AppError
     data object TooManyMessages : AppError
     data object InvalidMessage : AppError
+    /** Стоп-словник сервера: текст не опублікуємо, людина має переписати. */
+    data object ObjectionableContent : AppError
 
     // ---- Введення
     data class InvalidDraft(val fields: List<DraftField>) : AppError

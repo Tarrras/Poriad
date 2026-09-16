@@ -9,7 +9,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.automirrored.outlined.Login
 import androidx.compose.material.icons.automirrored.outlined.Logout
+import androidx.compose.material.icons.outlined.DeleteForever
+import androidx.compose.material.icons.outlined.MailOutline
+import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Shield
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
@@ -20,6 +25,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.res.stringResource
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import app.poruch.android.R
@@ -127,6 +134,13 @@ fun ProfileScreen(state: ProfileState, onIntent: (ProfileIntent) -> Unit) {
                     stringResource(R.string.logout), { onIntent(ProfileIntent.SignOut) }, Modifier.fillMaxWidth(),
                     icon = Icons.AutoMirrored.Outlined.Logout, tone = colors.danger
                 )
+                // Видалення тихіше за вихід: сюди не тягнуться випадково, а знаходять навмисно.
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    GhostButton(
+                        stringResource(R.string.delete_account), { onIntent(ProfileIntent.ShowDeleteAccount(true)) },
+                        tone = colors.danger
+                    )
+                }
             }
             // Блок, який не можна скасувати, не використовуватимуть: список з іменами.
             if (state.blocked.isNotEmpty()) Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
@@ -144,15 +158,71 @@ fun ProfileScreen(state: ProfileState, onIntent: (ProfileIntent) -> Unit) {
                     }
                 }
             }
-            Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
                 SectionHeader(stringResource(R.string.about_app))
                 Text(stringResource(R.string.about_app_body), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
+                LinkRow(Icons.Outlined.Shield, stringResource(R.string.privacy_policy)) { onIntent(ProfileIntent.OpenPrivacy) }
+                LinkRow(Icons.Outlined.Description, stringResource(R.string.terms_of_use)) { onIntent(ProfileIntent.OpenTerms) }
+                LinkRow(Icons.Outlined.MailOutline, stringResource(R.string.contact_support)) { onIntent(ProfileIntent.ContactSupport) }
+                Text(
+                    stringResource(R.string.app_version, state.version),
+                    style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary
+                )
             }
         }
     }
     if (state.pickingBirthDate) BirthDateSheet(
         null, { onIntent(ProfileIntent.ShowBirthDatePicker(false)) }
     ) { onIntent(ProfileIntent.SetBirthDate(it)) }
+    if (state.deleting) DeleteAccountSheet(state, onIntent)
+}
+
+/** Рядок-картка з переходом назовні: той самий вигляд, що в «Налаштувати рекомендації». */
+@Composable
+private fun LinkRow(icon: ImageVector, title: String, onClick: () -> Unit) {
+    val colors = Poruch.colors
+    Row(
+        Modifier.fillMaxWidth().cardSurface().pressable(onClick = onClick).padding(Spacing.lg),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)
+    ) {
+        Icon(icon, null, Modifier.size(20.dp), tint = colors.brand)
+        Text(title, style = MaterialTheme.typography.titleSmall, color = colors.ink, modifier = Modifier.weight(1f))
+        Icon(Icons.AutoMirrored.Outlined.ArrowForward, null, Modifier.size(18.dp), tint = colors.inkTertiary)
+    }
+}
+
+/**
+ * Видалення акаунта: пароль замість «введіть DELETE» — він доводить, що телефон у руках власника.
+ * Помилка показується тут: банер застосунку лежить під шторкою.
+ */
+@Composable
+private fun DeleteAccountSheet(state: ProfileState, onIntent: (ProfileIntent) -> Unit) {
+    val colors = Poruch.colors
+    PoruchSheet({ onIntent(ProfileIntent.ShowDeleteAccount(false)) }) { sheet ->
+        Column(
+            Modifier.padding(horizontal = Spacing.page).padding(bottom = Spacing.section).imePadding(),
+            verticalArrangement = Arrangement.spacedBy(Spacing.md)
+        ) {
+            Text(stringResource(R.string.delete_account_title), style = MaterialTheme.typography.titleLarge, color = colors.ink)
+            Text(stringResource(R.string.delete_account_body), style = MaterialTheme.typography.bodyLarge, color = colors.inkSecondary)
+            LabelledField(
+                stringResource(R.string.password_label), state.deletePassword,
+                { onIntent(ProfileIntent.SetDeletePassword(it)) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                visualTransformation = PasswordVisualTransformation()
+            )
+            state.deleteError?.let { Text(it.text(), style = MaterialTheme.typography.bodySmall, color = colors.danger) }
+            PrimaryButton(
+                stringResource(R.string.delete_account_confirm), { onIntent(ProfileIntent.ConfirmDeleteAccount) },
+                Modifier.fillMaxWidth(), enabled = state.canDelete, loading = state.mutating,
+                icon = Icons.Outlined.DeleteForever, tone = colors.danger
+            )
+            SecondaryButton(
+                stringResource(R.string.delete_account_cancel), { sheet.close() }, Modifier.fillMaxWidth(),
+                enabled = !state.mutating
+            )
+        }
+    }
 }
 
 /** Перемикач нагадувань. Дозвіл системи запитує маршрут, тут лише стан і підпис. */

@@ -14,7 +14,7 @@ android {
         minSdk = 26
         targetSdk = 36
         versionCode = 1
-        versionName = "0.1.0"
+        versionName = "1.0.0"
         buildConfigField("String", "SUPABASE_URL", "\"${config("SUPABASE_URL", "https://tzdogzdvctlumsqlqskr.supabase.co")}\"")
         buildConfigField("String", "SUPABASE_KEY", "\"${config("SUPABASE_KEY", "sb_publishable_RoY0wFzTOcXlmOIYC0UE-w_fOt5rXPq")}\"")
         // The style is the app's own; only where its geometry and letterforms come from is
@@ -27,6 +27,27 @@ android {
         buildConfigField("String", "FIREBASE_APP_ID", "\"${config("FIREBASE_APP_ID")}\"")
         buildConfigField("String", "FIREBASE_API_KEY", "\"${config("FIREBASE_API_KEY")}\"")
         buildConfigField("String", "FIREBASE_SENDER_ID", "\"${config("FIREBASE_SENDER_ID")}\"")
+    }
+    // Ключ релізу з local.properties або оточення. Без нього assembleRelease збирає непідписаний APK:
+    // так CI й чужі машини не падають, а магазинну збірку підписує лише той, у кого є сховище.
+    signingConfigs.create("release") {
+        val store = config("RELEASE_STORE_FILE")
+        if (store.isNotEmpty()) {
+            storeFile = file(store)
+            storePassword = config("RELEASE_STORE_PASSWORD")
+            keyAlias = config("RELEASE_KEY_ALIAS")
+            keyPassword = config("RELEASE_KEY_PASSWORD")
+        }
+    }
+    buildTypes {
+        release {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            if (config("RELEASE_STORE_FILE").isNotEmpty()) signingConfig = signingConfigs.getByName("release")
+        }
+        // Без applicationIdSuffix: id застосунку у Firebase прив'язаний до пакета.
+        debug { }
     }
     buildFeatures { compose = true; buildConfig = true }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }

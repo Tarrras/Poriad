@@ -570,6 +570,23 @@ class PoruchApp internal constructor(
         }
     }
 
+    /**
+     * Видалення акаунту: пароль підтверджує, що телефон у руках власника, сервер видаляє все
+     * каскадом (власні події скасовуються, фото прибираються), далі — те саме прибирання, що при виході.
+     */
+    fun deleteAccount(password: String) = mutate {
+        PoruchLog.i("auth") { "account deletion requested" }
+        if (!AccountRules.isPassword(password)) fail(AppError.InvalidCredentials)
+        auth.verifyPassword(password)
+        pushToken?.let { (token, _) -> runCatching { push?.unregister(token) } }
+        try { auth.deleteAccount() } finally {
+            library.clear(); chatEngine.close()
+            mutable.update { it.copy(userId = null) }
+            refresh()
+        }
+        tell(AppMessage.ACCOUNT_DELETED)
+    }
+
     fun requestPasswordReset(email: String) = mutate {
         if (!AccountRules.isEmail(email)) fail(AppError.InvalidEmail)
         auth.requestPasswordReset(email)

@@ -1,7 +1,11 @@
 package app.poruch.android.feature.detail
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.ImageDecoder
 import android.net.Uri
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -25,7 +29,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 
-/** Читає обраний файл і віддає байти інтентом. Ліміт розміру перевіряється під час читання. */
+/** Читає обраний файл, перекодовує в JPEG без метаданих і віддає байти інтентом. */
 @Composable
 fun PhotoPickerButton(busy: Boolean, onPicked: (ByteArray, String) -> Unit) {
     val colors = Poruch.colors
@@ -54,22 +58,45 @@ fun PhotoPickerButton(busy: Boolean, onPicked: (ByteArray, String) -> Unit) {
     }
 }
 
+/**
+ * Файл із галереї не йде на сервер як є: бакет публічний, а EXIF несе GPS і модель телефона.
+ * Перекодування через bitmap лишає лише пікселі; заодно вкорочує довшу сторону до [MAX_SIDE].
+ * Тип джерела перевіряємо за білим списком, ліміт розміру — до вже перекодованих байтів.
+ */
 private fun Context.readImage(uri: Uri): Pair<ByteArray, String> {
     val mime = contentResolver.getType(uri).orEmpty()
     require(mime in ImageRules.extensions) { "unsupported type" }
-    val bytes = contentResolver.openInputStream(uri)?.use { input ->
-        val output = ByteArrayOutputStream()
-        val buffer = ByteArray(READ_CHUNK)
-        while (true) {
-            val count = input.read(buffer)
-            if (count < 0) break
-            output.write(buffer, 0, count)
-            require(output.size() <= ImageRules.MAX_BYTES) { "too large" }
-        }
-        output.toByteArray()
-    } ?: error("unreadable")
-    require(bytes.isNotEmpty()) { "empty" }
-    return bytes to mime
+    val bitmap = decodeBounded(uri) ?: error("undecodable")
+    val output = ByteArrayOutputStream()
+    try {
+        require(bitmap.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, output)) { "compress failed" }
+    } finally { bitmap.recycle() }
+    require(output.size() in 1..ImageRules.MAX_BYTES) { "too large" }
+    return output.toByteArray() to "image/jpeg"
 }
 
-private const val READ_CHUNK = 8192
+private fun Context.decodeBounded(uri: Uri): Bitmap? =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        // ImageDecoder сам повертає кадр за EXIF-орієнтацією і не переносить метадані у bitmap.
+        ImageDecoder.decodeBitmap(ImageDecoder.createSource(contentResolver, uri)) { decoder, info, _ ->
+            val longest = maxOf(info.size.width, info.size.height)
+            if (longest > MAX_SIDE) {
+                val scale = MAX_SIDE.toFloat() / longest
+                decoder.setTargetSize((info.size.width * scale).toInt().coerceAtLeast(1), (info.size.height * scale).toInt().coerceAtLeast(1))
+            }
+            decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+            decoder.isMutableRequired = false
+        }
+    } else {
+        // API 26–27: BitmapFactory. Орієнтацію з EXIF тут не читаємо, зате й нічого не витікає.
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+        var sample = 1
+        while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= MAX_SIDE) sample *= 2
+        val options = BitmapFactory.Options().apply { inSampleSize = sample }
+        contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) }
+    }
+
+/** Довша сторона після перекодування: досить для картки й екрана деталей. */
+private const val MAX_SIDE = 2048
+private const val JPEG_QUALITY = 85

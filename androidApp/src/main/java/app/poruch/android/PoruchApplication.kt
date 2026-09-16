@@ -4,6 +4,8 @@ import android.app.Application
 import app.poruch.android.di.appModule
 import app.poruch.android.navigation.navigationModule
 import app.poruch.android.platform.Push
+import app.poruch.android.feature.editor.DraftStore
+import app.poruch.shared.PoruchApp
 import app.poruch.domain.PoruchLog
 import app.poruch.shared.PlatformSetup
 import org.koin.android.ext.android.get
@@ -26,5 +28,13 @@ class PoruchApplication : Application() {
         }
         // Пуші: токен їде в стор і реєструється, щойно є акаунт.
         Push.start(this, get())
+        // Чернетка події належить людині, а не телефону: після виходу наступний акаунт її не бачить.
+        // Нагадування чистить ReminderSync сам, бо план для гостя порожній.
+        val app: PoruchApp = get(); val drafts: DraftStore = get()
+        var lastUser: String? = app.state.value.userId
+        app.observe { state ->
+            if (lastUser != null && state.userId == null) drafts.clear()
+            lastUser = state.userId
+        }
     }
 }

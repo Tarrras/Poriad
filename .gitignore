@@ -27,3 +27,8 @@ __pycache__/
 .applied_sql.json
 # Робочі теки tools/apply_sql.py run: живуть до успішного застосування
 out/
+
+# Ключ підпису релізу: лише локально
+*.jks
+*.keystore
+keystore.properties

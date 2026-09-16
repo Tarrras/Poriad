@@ -1,6 +1,7 @@
 package app.poruch.android.feature.account
 
 import app.poruch.android.mvi.MviViewModel
+import app.poruch.domain.LegalLinks
 import app.poruch.shared.PoruchApp
 
 class AuthViewModel(private val app: PoruchApp) : MviViewModel<AuthState, AuthIntent, AuthEffect>(AuthState()) {
@@ -30,6 +31,8 @@ class AuthViewModel(private val app: PoruchApp) : MviViewModel<AuthState, AuthIn
             // Лист підтверджено: пошта вже в полі, лишається пароль.
             AuthIntent.ConfirmedGoLogin -> { app.dismissConfirmationStep(); reduce { copy(signup = false, password = "") } }
             AuthIntent.OpenMail -> send(AuthEffect.OpenMail)
+            AuthIntent.OpenTerms -> send(AuthEffect.OpenLink(LegalLinks.TERMS))
+            AuthIntent.OpenPrivacy -> send(AuthEffect.OpenLink(LegalLinks.PRIVACY))
             AuthIntent.Back -> { app.dismissConfirmationStep(); send(AuthEffect.Close) }
         }
     }

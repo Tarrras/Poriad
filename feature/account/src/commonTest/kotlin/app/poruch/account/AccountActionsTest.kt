@@ -15,6 +15,8 @@ class AccountActionsTest {
         override suspend fun requestPasswordReset(email:String) {}
         override suspend fun updatePassword(password:String) {}
         override suspend fun handleCallback(url:String) = false
+        override suspend fun verifyPassword(password: String) {}
+        override suspend fun deleteAccount() { session.value = null }
     }
     @Test fun ordinaryEmailCanSignIn() = runTest {
         val auth=Auth(); AccountActions(auth).signIn("person@example.com","password123")

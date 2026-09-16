@@ -13,7 +13,7 @@ enum SystemActions {
     /// Маршрут будує системна мапа.
     @MainActor static func openInMaps(_ event: Event) {
         let query = event.title.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-        guard let url = URL(string: "http://maps.apple.com/?ll=\(event.latitude),\(event.longitude)&q=\(query)") else { return }
+        guard let url = URL(string: "https://maps.apple.com/?ll=\(event.latitude),\(event.longitude)&q=\(query)") else { return }
         UIApplication.shared.open(url)
     }
 

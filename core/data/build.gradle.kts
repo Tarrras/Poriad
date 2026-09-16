@@ -15,7 +15,7 @@ kotlin {
             implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.7.1")
             api(project(":core:domain"))
             implementation("io.ktor:ktor-client-core:3.2.3")
-            implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
+            implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.10.0")
             implementation("app.cash.sqldelight:runtime:2.1.0")
         }
         commonTest.dependencies { implementation(kotlin("test")); implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2") }

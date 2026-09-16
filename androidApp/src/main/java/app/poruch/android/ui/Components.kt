@@ -323,12 +323,12 @@ fun GhostButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier
 
 // ---- Структура
 
-/** Заголовок секції: малими літерами, читабельного розміру. Капітель лишається там, де несе дані: дати, бейджі, підписи полів. */
+/** Заголовок секції: як написано в ресурсі, читабельного розміру. Капітель лишається там, де несе дані: дати, бейджі, підписи полів. */
 @Composable
 fun SectionHeader(title: String, modifier: Modifier = Modifier, actionLabel: String? = null, onAction: (() -> Unit)? = null) {
     val colors = Poruch.colors
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(title.lowercase(), style = PoruchType.sectionTitle, color = colors.ink, modifier = Modifier.weight(1f))
+        Text(title, style = PoruchType.sectionTitle, color = colors.ink, modifier = Modifier.weight(1f))
         if (actionLabel != null && onAction != null) Text(
             actionLabel, style = MaterialTheme.typography.labelMedium, color = colors.ink,
             modifier = Modifier.clip(Radius.pill).clickable(onClick = onAction).padding(horizontal = Spacing.sm, vertical = Spacing.xs)
@@ -548,14 +548,14 @@ private fun EventMeta(event: Event, short: Boolean = false) {
     }
 }
 
-/** Крапка категорії плюс опис малими літерами. */
+/** Крапка категорії плюс опис курсивною антиквою. */
 @Composable
 fun EventDescriptor(event: Event, modifier: Modifier = Modifier) {
     val colors = Poruch.colors
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
         CategoryDot(event.category)
         Text(
-            stringResource(categoryLabel(event.category)).lowercase(),
+            stringResource(categoryLabel(event.category)),
             style = PoruchType.descriptor, color = categoryInk(event.category), maxLines = 1
         )
         // Роздільник лише коли є текст праворуч.

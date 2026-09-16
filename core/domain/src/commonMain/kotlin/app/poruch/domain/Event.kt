@@ -30,7 +30,7 @@ data class Event(
      */
     val sessions: List<EventSession> = emptyList()
 ) : Rankable {
-    override val isCancelled get() = status == EventStatus.CANCELLED
+    override val isCancelled get() = status == EventStatus.CANCELLED || status == EventStatus.HIDDEN
 
     // ---- Прокат
 
@@ -190,6 +190,8 @@ object Membership {
 object EventStatus {
     const val PUBLISHED = "published"
     const val CANCELLED = "cancelled"
+    /** Приховано модерацією (три скарги або рішення модератора): для клієнта — недоступна. */
+    const val HIDDEN = "hidden"
 }
 
 /** Звідки взявся рядок, як його називає `events.origin`. */

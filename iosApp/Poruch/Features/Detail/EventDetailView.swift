@@ -25,6 +25,11 @@ struct EventDetailView: View {
     @State private var sessions: [EventSession] = []
     /// Зміщення стрічки, за яким їде обкладинка. Див. `reportsScrollOffset`.
     @State private var offset: CGFloat = 0
+    /// Верхній відступ safe area саме цієї стрічки. У стосі це смуга статусу, у шторці — майже
+    /// нуль; число з вікна (`measuredStatusBarInset`) у шторці завищене на висоту смуги, і
+    /// обкладинка стирчала з-під місця, відведеного їй у стрічці. Початкове значення — для
+    /// першого кадру в стосі; далі уточнює `onGeometryChange`.
+    @State private var topInset: CGFloat = measuredStatusBarInset()
     @Environment(\.openMap) private var openMap
 
     /// Id відкритої події від того, хто відкриває, а не зі стану: див. `.task` нижче.
@@ -75,13 +80,24 @@ struct EventDetailView: View {
             }
             .coordinateSpace(name: detailScrollSpace)
             .refreshable { await model.reloadEvent(id: eventID) }
-            // Обкладинка від краю екрана, під смугою статусу. Їде разом зі стрічкою, а при потягу
-            // вниз розтягується; сама стрічка лишається в safe area, щоб індикатор потягу було видно.
+            .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: { topInset = $0 }
+            // Єдиний шар обкладинки: від краю екрана, під смугою статусу. При потягу вниз
+            // розтягується, при прокрутці їде вгору вдвічі повільніше за стрічку (паралакс);
+            // сама стрічка лишається в safe area, щоб індикатор потягу було видно. Градієнт у
+            // папір тут же, на картинці, а не в стрічці: інакше при паралаксі вони розходяться
+            // і низ фото стирчить різким краєм.
             .background(alignment: .top) {
                 EventThumbnail(event: event, glyphSize: 48, maxDimension: 420)
                     .frame(height: heroHeight + max(offset, 0)).frame(maxWidth: .infinity).clipped()
-                    .offset(y: min(offset, 0))
-                    .ignoresSafeArea()
+                    .overlay(alignment: .bottom) {
+                        LinearGradient(
+                            stops: [.init(color: .clear, location: 0), .init(color: Palette.canvas.opacity(0.75), location: 0.6),
+                                    .init(color: Palette.canvas, location: 1)],
+                            startPoint: .top, endPoint: .bottom
+                        ).frame(height: 150)
+                    }
+                    .offset(y: min(offset, 0) * heroParallax)
+                    .ignoresSafeArea(edges: .top)
             }
             stickyBar(event, view)
         }
@@ -199,21 +215,19 @@ private struct DetailDialogs: ViewModifier {
 
 /// Висота обкладинки від краю екрана.
 private let heroHeight: CGFloat = 300
+/// Частка швидкості стрічки, з якою обкладинка їде вгору. Менше одиниці — паралакс.
+private let heroParallax: CGFloat = 0.5
 /// Ім'я системи координат стрічки для `reportsScrollOffset`.
 private let detailScrollSpace = "detail"
 
 extension EventDetailView {
-    /// Справжній відступ під смугу статусу: з вирізом кнопки заходили під годинник.
-    private var topInset: CGFloat { measuredStatusBarInset() }
-
     /// Місце обкладинки у стрічці: саму картинку малює тло під нею (див. `detail`). Стрічка
-    /// починається під смугою статусу, тож тут лише решта висоти.
+    /// починається під верхнім відступом, тож тут лише решта висоти. Кнопки згори, бейджі внизу,
+    /// на фото, де вже темніє градієнт: тому вони в стилі «на фото».
     private func hero(_ event: Event, _ view: EventDetailPresentation) -> some View {
         Color.clear
-            .frame(height: heroHeight - topInset).frame(maxWidth: .infinity)
-            .overlay(alignment: .bottom) {
-                LinearGradient(colors: [.clear, Palette.canvas], startPoint: .top, endPoint: .bottom).frame(height: 120)
-            }
+            .frame(height: max(heroHeight - topInset, 0)).frame(maxWidth: .infinity)
+            .overlay(alignment: .bottomLeading) { badges(event, view).padding(.horizontal, Space.page) }
             .overlay(alignment: .top) {
                 HStack(spacing: Space.sm) {
                     ScrimButton(symbol: "chevron.left", label: "Назад") { dismiss() }
@@ -228,21 +242,25 @@ extension EventDetailView {
             }
     }
 
+    /// Категорія і стан: на обкладинці, тому в стилі «на фото».
+    private func badges(_ event: Event, _ view: EventDetailPresentation) -> some View {
+        HStack(spacing: Space.sm) {
+            StatusBadge(text: categoryName(event.category), tone: .brand, onPhoto: true)
+            if view.cancelled { StatusBadge(text: "Скасовано", tone: .danger, onPhoto: true) }
+            // Афіша завжди підписана джерелом: атрибуція обов'язкова.
+            else if let listing = view.listing {
+                StatusBadge(text: listing.isWithdrawn ? "Більше не проводиться" : "Афіша · \(listing.sourceName)", tone: .neutral, onPhoto: true)
+            }
+            else if view.organizer { StatusBadge(text: "Ви організатор", tone: .neutral, onPhoto: true) }
+            else if view.room?.joined == true { StatusBadge(text: "Ви йдете", tone: .success, symbol: "checkmark", onPhoto: true) }
+            else if view.waitlisted { StatusBadge(text: "У черзі", tone: .accent, symbol: "hourglass", onPhoto: true) }
+            else if view.room?.awaitingApproval == true { StatusBadge(text: "Запит надіслано", tone: .accent, symbol: "hourglass", onPhoto: true) }
+            else if eventScarce(event), let room = view.room { StatusBadge(text: "Лишилось \(room.seatsLeft) місць", tone: .accent, onPhoto: true) }
+        }
+    }
+
     private func headline(_ event: Event, _ view: EventDetailPresentation) -> some View {
         VStack(alignment: .leading, spacing: Space.lg) {
-            HStack(spacing: Space.sm) {
-                StatusBadge(text: categoryName(event.category), tone: .brand)
-                if view.cancelled { StatusBadge(text: "Скасовано", tone: .danger) }
-                // Афіша завжди підписана джерелом: атрибуція обов'язкова.
-                else if let listing = view.listing {
-                    StatusBadge(text: listing.isWithdrawn ? "Більше не проводиться" : "Афіша · \(listing.sourceName)", tone: .neutral)
-                }
-                else if view.organizer { StatusBadge(text: "Ви організатор", tone: .neutral) }
-                else if view.room?.joined == true { StatusBadge(text: "Ви йдете", tone: .success, symbol: "checkmark") }
-                else if view.waitlisted { StatusBadge(text: "У черзі", tone: .accent, symbol: "hourglass") }
-                else if view.room?.awaitingApproval == true { StatusBadge(text: "Запит надіслано", tone: .accent, symbol: "hourglass") }
-                else if eventScarce(event), let room = view.room { StatusBadge(text: "Лишилось \(room.seatsLeft) місць", tone: .accent) }
-            }
             // Для кого подія, на картці, а не через відмову сервера.
             if let room = view.room, room.hasAgeLimit || room.approvalRequired {
                 HStack(spacing: Space.sm) {

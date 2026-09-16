@@ -40,6 +40,9 @@ sealed interface AuthIntent {
     /** З кроку «перевірте пошту» назад до форми входу з тією ж поштою. */
     data object ConfirmedGoLogin : AuthIntent
     data object OpenMail : AuthIntent
+    /** Умови й політика з підпису під кнопкою реєстрації. */
+    data object OpenTerms : AuthIntent
+    data object OpenPrivacy : AuthIntent
     data object Back : AuthIntent
 }
 
@@ -48,4 +51,6 @@ sealed interface AuthEffect {
     data object Close : AuthEffect
     /** Відкрити поштовий застосунок, якщо він є. */
     data object OpenMail : AuthEffect
+    /** Відкрити сторінку в браузері. */
+    data class OpenLink(val url: String) : AuthEffect
 }

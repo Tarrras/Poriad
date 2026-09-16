@@ -70,6 +70,8 @@ final class KeychainSessionStore: SecureSessionStore {
     }
 
     private func apply(_ state: AppState) {
+        // Чернетка події належить людині, а не телефону: після виходу наступний акаунт її не бачить.
+        if self.state?.userId != nil && state.userId == nil { UserDefaults.standard.removeObject(forKey: "poruch.draft.new") }
         self.state = state
         home = HomePresentation(state: state)
         // Мапа малює індекс, картки приїжджають вікном; порядок один.

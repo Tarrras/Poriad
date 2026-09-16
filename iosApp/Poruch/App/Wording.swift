@@ -33,6 +33,8 @@ extension AppError {
         case is AppErrorChatClosed: "Чат закрито: подія давно минула"
         case is AppErrorTooManyMessages: "Забагато повідомлень поспіль. Зачекайте хвилину"
         case is AppErrorInvalidMessage: "Повідомлення порожнє або задовге (до 2000 символів)"
+        case is AppErrorObjectionableContent: "Текст містить слова, які ми не публікуємо. Перепишіть, будь ласка."
+        case is AppErrorLinkOnAnotherDevice: "Відкрийте посилання з листа на тому самому пристрої, де ви реєструвались або запитували відновлення."
         case is AppErrorInvalidEmail: "Вкажіть коректний email"
         case is AppErrorInvalidName: "Вкажіть імʼя від 2 до 60 символів"
         case is AppErrorWeakPassword: "Пароль має містити щонайменше 8 символів"
@@ -78,6 +80,7 @@ extension AppMessage {
         case "PASSWORD_CHANGED": "Пароль змінено"
         case "SET_NEW_PASSWORD": "Вкажіть новий пароль у профілі"
         case "EMAIL_CONFIRMED": "Email підтверджено"
+        case "ACCOUNT_DELETED": "Обліковий запис видалено"
         default: "Збільшіть масштаб мапи, щоб побачити всі події в цій області"
         }
     }

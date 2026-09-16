@@ -24,6 +24,8 @@ class PoruchAppTest {
         override suspend fun requestPasswordReset(email:String) {}
         override suspend fun updatePassword(password:String) {}
         override suspend fun handleCallback(url:String):Boolean { session.value=UserSession("recovered","new","refresh",9999999999); return true }
+        override suspend fun verifyPassword(password: String) {}
+        override suspend fun deleteAccount() { session.value = null }
     }
     /** Підробка реалізує всі п'ять інтерфейсів, бо [PoruchApp] користується всіма. */
     private class Events: EventDiscovery, SavedEvents, EventAuthoring, EventParticipation, EventRequests, EventChat {

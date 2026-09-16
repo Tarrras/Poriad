@@ -47,6 +47,12 @@ fun Context.openLink(url: String): Boolean {
     return runCatching { startActivity(Intent(Intent.ACTION_VIEW, uri)) }.isSuccess
 }
 
+/** Лист у підтримку: адресу підставляємо, тему й текст пише людина. */
+fun Context.writeEmail(address: String): Boolean {
+    val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$address"))
+    return runCatching { startActivity(intent) }.isSuccess
+}
+
 /** Маршрут будує системна мапа. */
 fun Context.openInMaps(event: Event): Boolean {
     val label = Uri.encode(event.title)

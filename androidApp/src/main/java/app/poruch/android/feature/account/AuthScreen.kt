@@ -25,7 +25,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
@@ -123,6 +130,8 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
                 { onIntent(AuthIntent.Submit) },
                 Modifier.fillMaxWidth(), enabled = state.canSubmit, loading = state.mutating
             )
+            // Згода — під кнопкою, а не чекбокс: натискання на «Створити» і є згодою, посилання ведуть на текст.
+            if (state.signup) ConsentNote(onIntent)
             if (!state.signup) GhostButton(
                 stringResource(R.string.forgot_password), { onIntent(AuthIntent.ResetPassword) },
                 tone = colors.inkSecondary, enabled = state.emailValid && !state.mutating
@@ -148,6 +157,32 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
     if (state.pickingBirthDate) BirthDateSheet(
         state.birthDateValue, { onIntent(AuthIntent.ShowBirthDatePicker(false)) }
     ) { onIntent(AuthIntent.SetBirthDate(it)) }
+}
+
+/** Підпис про згоду: дві назви документів — посилання в тексті, решта — тихий підпис. */
+@Composable
+private fun ConsentNote(onIntent: (AuthIntent) -> Unit) {
+    val colors = Poruch.colors
+    val terms = stringResource(R.string.auth_consent_terms)
+    val privacy = stringResource(R.string.auth_consent_privacy)
+    val sentence = stringResource(R.string.auth_consent, terms, privacy)
+    val linkStyle = TextLinkStyles(
+        SpanStyle(color = colors.ink, fontWeight = FontWeight.SemiBold, textDecoration = TextDecoration.Underline)
+    )
+    val text = buildAnnotatedString {
+        var cursor = 0
+        // Назви шукаємо у вже відформатованому реченні, щоб порядок слів належав перекладу.
+        listOf(terms to AuthIntent.OpenTerms, privacy to AuthIntent.OpenPrivacy)
+            .map { (label, intent) -> Triple(sentence.indexOf(label, cursor), label, intent) }
+            .filter { it.first >= 0 }.sortedBy { it.first }
+            .forEach { (start, label, intent) ->
+                append(sentence.substring(cursor, start))
+                withLink(LinkAnnotation.Clickable(label, linkStyle) { onIntent(intent) }) { append(label) }
+                cursor = start + label.length
+            }
+        append(sentence.substring(cursor))
+    }
+    Text(text, style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary)
 }
 
 /**

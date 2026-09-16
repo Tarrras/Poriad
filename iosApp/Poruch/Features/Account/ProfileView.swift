@@ -7,6 +7,7 @@ struct ProfileView: View {
     @State private var newPassword = ""
     @State private var revealed = false
     @State private var showAuth = false
+    @State private var deleting = false
     /// Висота смуги статусу: хедер додає її сам, як на головній.
     @State private var statusBar: CGFloat = Space.xxl
     @State private var birthDate = Calendar.current.date(byAdding: .year, value: -Int(SafetyRules.shared.MIN_SIGNUP_AGE), to: Date()) ?? Date()
@@ -35,6 +36,9 @@ struct ProfileView: View {
         .background(Palette.canvas)
         .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $showAuth) { NavigationStack { AuthView() } }
+        .sheet(isPresented: $deleting) { DeleteAccountSheet().presentationDetents([.medium, .large]) }
+        // Сесії більше нема: акаунт видалено, шторці нема що показувати.
+        .onChange(of: signedIn) { _, signedIn in if !signedIn { deleting = false } }
         .ignoresSafeArea(edges: .top)
         .tracksStatusBarInset($statusBar)
     }
@@ -136,15 +140,105 @@ struct ProfileView: View {
             SecondaryButton(title: "Вийти з облікового запису", symbol: "rectangle.portrait.and.arrow.right", tone: Palette.danger) {
                 model.app.signOut()
             }
+            // Видалення — окрема, важча дія: без заливки, лише червоний текст, і завжди через пароль.
+            Button { deleting = true } label: {
+                HStack(spacing: Space.sm) {
+                    Image(systemName: "trash").font(.system(size: 15, weight: .semibold))
+                    Text("Видалити обліковий запис").font(PoruchFont.button).lineLimit(1)
+                }
+                .foregroundStyle(Palette.danger)
+                .padding(.horizontal, Space.xxl).frame(height: 52).frame(maxWidth: .infinity)
+                .overlay(Capsule().strokeBorder(Palette.danger.opacity(0.35), lineWidth: 1))
+            }
+            .buttonStyle(PressableStyle())
         }
     }
 
     private var about: some View {
-        VStack(alignment: .leading, spacing: Space.sm) {
+        VStack(alignment: .leading, spacing: Space.md) {
             SectionHeader(title: "Про застосунок")
             Text("«Поруч» — події та люди у вашому місті. Мапа: MapLibre та OpenFreeMap.")
                 .font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
+            VStack(spacing: Space.sm) {
+                LinkRow(title: "Політика конфіденційності", symbol: "hand.raised", url: LegalLinks.shared.PRIVACY)
+                LinkRow(title: "Умови користування", symbol: "doc.text", url: LegalLinks.shared.TERMS)
+                LinkRow(title: "Написати в підтримку", subtitle: LegalLinks.shared.SUPPORT_EMAIL, symbol: "envelope",
+                        url: "mailto:" + LegalLinks.shared.SUPPORT_EMAIL)
+            }
+            Text("Версія \(appVersion)")
+                .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
         }
+    }
+
+    /// «1.0.0 (12)» з бандла: те саме число, що бачить магазин.
+    private var appVersion: String {
+        let info = Bundle.main.infoDictionary
+        let version = info?["CFBundleShortVersionString"] as? String ?? "—"
+        let build = info?["CFBundleVersion"] as? String ?? "—"
+        return "\(version) (\(build))"
+    }
+}
+
+/// Рядок-картка з посиланням назовні, як «Налаштувати рекомендації».
+private struct LinkRow: View {
+    let title: String
+    var subtitle: String?
+    let symbol: String
+    let url: String
+    var body: some View {
+        Button {
+            if let url = URL(string: url) { UIApplication.shared.open(url) }
+        } label: {
+            HStack(spacing: Space.md) {
+                Image(systemName: symbol).font(.system(size: 17, weight: .medium)).foregroundStyle(Palette.ink)
+                    .frame(width: 24)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).font(PoruchFont.cardName).foregroundStyle(Palette.ink)
+                    if let subtitle {
+                        Text(subtitle).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
+                    }
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "arrow.up.right").font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Palette.inkTertiary)
+            }
+            .padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()
+        }.buttonStyle(PressableStyle())
+    }
+}
+
+/// Видалення облікового запису: що зникне, пароль для підтвердження, червона кнопка.
+/// Пароль перевіряє сервер (`deleteAccount`); хибний повертає звичайну відмову в банері.
+struct DeleteAccountSheet: View {
+    @EnvironmentObject var model: AppModel
+    @Environment(\.dismiss) private var dismiss
+    @State private var password = ""
+    @State private var revealed = false
+
+    private var mutating: Bool { model.state?.mutating == true }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: Space.lg) {
+                Text("Видалити обліковий запис?").font(PoruchFont.title1).titleTracking().foregroundStyle(Palette.ink)
+                Text("Профіль, участь у подіях, повідомлення й фото буде видалено. Ваші опубліковані події скасуються. Скасувати це буде неможливо.")
+                    .font(PoruchFont.bodyText).foregroundStyle(Palette.inkSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                LabelledField(label: "Пароль", text: $password, hint: "Для підтвердження введіть пароль", secure: !revealed) {
+                    PasswordRevealToggle(revealed: $revealed)
+                }
+                .textContentType(.password)
+                PrimaryButton(
+                    title: "Видалити", symbol: "trash", tone: Palette.danger,
+                    loading: mutating, enabled: AccountRules.shared.isPassword(value: password)
+                ) { model.app.deleteAccount(password: password) }
+                SecondaryButton(title: "Скасувати", enabled: !mutating) { dismiss() }
+            }
+            .padding(Space.page).padding(.top, Space.sm)
+        }
+        .background(Palette.canvas)
+        // Банер кореня під шторкою: відмову з хибним паролем показуємо тут.
+        .notice(model.state?.notice?.presented) { model.app.clearNotice() }
     }
 }
 

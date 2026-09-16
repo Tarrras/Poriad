@@ -101,6 +101,7 @@ struct AuthView: View {
                 loading: model.state?.mutating == true,
                 enabled: form.canSubmit
             ) { form.submit(with: model.app) }
+            if form.register { consent }
             Button("Забули пароль?") { model.app.requestPasswordReset(email: form.email) }
                 .font(PoruchFont.label).foregroundStyle(Palette.inkSecondary)
                 .disabled(!form.emailValid || model.state?.mutating == true)
@@ -114,6 +115,27 @@ struct AuthView: View {
             SecondaryButton(title: form.register ? "Увійти" : "Створити профіль") { form.toggleMode() }
                 .frame(maxWidth: .infinity)
         }.padding(.horizontal, Space.page)
+    }
+
+    /// Згода під кнопкою реєстрації: назви документів — посилання, але в чорнилі, а не в
+    /// системному синьому, щоб рядок лишався підписом, а не закликом. Адреси спільні з Android.
+    private var consent: some View {
+        var text = AttributedString("Реєструючись, ви погоджуєтесь з ")
+        text.append(legalLink("Умовами користування", LegalLinks.shared.TERMS))
+        text.append(AttributedString(" та "))
+        text.append(legalLink("Політикою конфіденційності", LegalLinks.shared.PRIVACY))
+        return Text(text)
+            .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
+            .tint(Palette.ink)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func legalLink(_ title: String, _ url: String) -> AttributedString {
+        var link = AttributedString(title)
+        link.link = URL(string: url)
+        link.underlineStyle = .single
+        link.foregroundColor = Palette.ink
+        return link
     }
 }
 

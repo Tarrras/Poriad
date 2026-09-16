@@ -545,5 +545,5 @@ func listingPrice(_ listing: Listing) -> String {
     if listing.isFree?.boolValue == true { return "Безкоштовно" }
     guard let price = listing.priceMin?.doubleValue else { return "Ціну вкаже джерело" }
     let amount = price == price.rounded() ? String(Int(price)) : String(format: "%.2f", price)
-    return "від \(amount) ₴"
+    return "Від \(amount) ₴"
 }

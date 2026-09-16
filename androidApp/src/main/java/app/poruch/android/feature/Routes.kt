@@ -90,7 +90,8 @@ fun ExploreRoute(focusId: String, navigator: Navigator) {
             is ExploreEffect.OpenDetail -> navigator.open(Detail(effect.id))
             ExploreEffect.CreateEvent -> navigator.requireAccount { navigator.open(Editor()) }
             ExploreEffect.AskLocationPermission -> permission.launch(
-                arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION)
+                // Лише приблизна: «події поруч» — це кілометр, а не метр, і Play не питає, навіщо точна.
+                arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION)
             )
         }
     }
@@ -158,6 +159,7 @@ fun AuthRoute(navigator: Navigator) {
         when (effect) {
             AuthEffect.Close -> navigator.back()
             AuthEffect.OpenMail -> context.openMailApp()
+            is AuthEffect.OpenLink -> if (!context.openLink(effect.url)) context.toast(R.string.link_unavailable)
         }
     }
     AuthScreen(model.state.collectAsStateWithLifecycle().value, model::dispatch)
@@ -166,6 +168,7 @@ fun AuthRoute(navigator: Navigator) {
 @Composable
 fun ProfileRoute(navigator: Navigator) {
     val model = koinViewModel<ProfileViewModel>(viewModelStoreOwner = activityStoreOwner())
+    val context = LocalContext.current
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         model.dispatch(ProfileIntent.NotificationPermissionAnswered(granted))
     }
@@ -173,6 +176,8 @@ fun ProfileRoute(navigator: Navigator) {
         when (effect) {
             ProfileEffect.SignIn -> navigator.open(Auth)
             ProfileEffect.AskNotificationPermission -> permission.launch(Manifest.permission.POST_NOTIFICATIONS)
+            is ProfileEffect.OpenLink -> if (!context.openLink(effect.url)) context.toast(R.string.link_unavailable)
+            is ProfileEffect.WriteEmail -> if (!context.writeEmail(effect.address)) context.toast(R.string.mail_unavailable)
         }
     }
     ProfileScreen(model.state.collectAsStateWithLifecycle().value, model::dispatch)

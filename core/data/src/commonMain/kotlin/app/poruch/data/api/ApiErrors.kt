@@ -21,7 +21,9 @@ internal fun apiFailure(status: Int, body: String): AppFailure {
         "too_many_reports" in lower -> AppError.TooManyReports
         "too_many_events" in lower -> AppError.TooManyEvents
         "too_many_messages" in lower -> AppError.TooManyMessages
+        "too_many_joins" in lower -> AppError.TooManyAttempts
         "invalid_message" in lower -> AppError.InvalidMessage
+        "objectionable_content" in lower -> AppError.ObjectionableContent
         "chat_closed" in lower -> AppError.ChatClosed
         "not_member" in lower -> AppError.NotMember
         "invalid_age_limit" in lower -> AppError.InvalidDraft(listOf(DraftField.AGE_LIMITS))

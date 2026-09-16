@@ -38,6 +38,7 @@
 		9DF075062CCF1FD1F72C4A0A /* MapLibre in Frameworks */ = {isa = PBXBuildFile; productRef = 9231879E3F0B11FEA295A882 /* MapLibre */; };
 		A55E75D1C9C240A1B7E30002 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A55E75D1C9C240A1B7E30001 /* Assets.xcassets */; };
 		BB46274833515DEABB878F98 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 2028C0857000504373B0CF5C /* Localizable.xcstrings */; };
+		A55E75D1C9C240A1B7E30012 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A55E75D1C9C240A1B7E30011 /* PrivacyInfo.xcprivacy */; };
 		FD4C22CA5E51D45B968201C0 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C2C28ECC9E6CE535C692120F /* Foundation.framework */; };
 /* End PBXBuildFile section */
 
@@ -71,6 +72,7 @@
 		42CA2D02B26DFE199CA7568A /* EventMap.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EventMap.swift; path = Platform/EventMap.swift; sourceTree = "<group>"; };
 		AC3C08E1817D0B6805F5569C /* Reminders.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = Reminders.swift; path = Platform/Reminders.swift; sourceTree = "<group>"; };
 		2E017DF76B18C2E8FBF62AFD /* SystemActions.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SystemActions.swift; path = Platform/SystemActions.swift; sourceTree = "<group>"; };
+		A55E75D1C9C240A1B7E30011 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		2028C0857000504373B0CF5C /* Localizable.xcstrings */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		618789C05028D745C7564123 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		6D705A65FCCD2B71ACD7CE44 /* Poruch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Poruch.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -105,6 +107,7 @@
 			children = (
 				618789C05028D745C7564123 /* Info.plist */,
 				2028C0857000504373B0CF5C /* Localizable.xcstrings */,
+				A55E75D1C9C240A1B7E30011 /* PrivacyInfo.xcprivacy */,
 				A55E75D1C9C240A1B7E30001 /* Assets.xcassets */,
 			
 			
@@ -228,6 +231,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				BB46274833515DEABB878F98 /* Localizable.xcstrings in Resources */,
+				A55E75D1C9C240A1B7E30012 /* PrivacyInfo.xcprivacy in Resources */,
 				A55E75D1C9C240A1B7E30002 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -402,11 +406,11 @@
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				"FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]" = (
 					"$(inherited)",
-					"$(SRCROOT)/../shared/build/bin/iosArm64/debugFramework",
+					"$(SRCROOT)/../shared/build/bin/iosArm64/releaseFramework",
 				);
 				"FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]" = (
 					"$(inherited)",
-					"$(SRCROOT)/../shared/build/bin/iosSimulatorArm64/debugFramework",
+					"$(SRCROOT)/../shared/build/bin/iosSimulatorArm64/releaseFramework",
 				);
 				INFOPLIST_FILE = Poruch/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;

@@ -177,6 +177,9 @@ struct StatusBadge: View {
     let text: String
     var tone: BadgeTone = .neutral
     var symbol: String?
+    /// Бейдж лежить на фото. Тонована напівпрозора пігулка на випадковому знімку не читалась:
+    /// сірий текст на сірому. На фото — майже непрозора поверхня, чорнило й тінь, як у `SaveButton`.
+    var onPhoto: Bool = false
     private var colors: (Color, Color) {
         switch tone {
         case .brand: return (Palette.brandContainer, Palette.onBrandContainer)
@@ -191,9 +194,17 @@ struct StatusBadge: View {
             if let symbol { Image(systemName: symbol).font(.system(size: 10, weight: .bold)) }
             Text(text.uppercased()).font(PoruchFont.overline).kerning(1.2)
         }
-        .foregroundStyle(colors.1)
+        .foregroundStyle(onPhoto && (tone == .neutral || tone == .brand) ? Palette.ink : colors.1)
         .padding(.horizontal, Space.md).padding(.vertical, 5)
-        .background(toneGradient(colors.0, colors.1), in: Capsule())
+        .background {
+            if onPhoto {
+                Capsule().fill(Palette.surface.opacity(0.92))
+                    .overlay(Capsule().strokeBorder(.black.opacity(0.06), lineWidth: 1))
+                    .shadow(color: .black.opacity(0.22), radius: 6, y: 2)
+            } else {
+                Capsule().fill(toneGradient(colors.0, colors.1))
+            }
+        }
     }
 }
 
@@ -251,14 +262,14 @@ struct SecondaryButton: View {
 
 // ---- Структура
 
-/// Заголовок секції малими літерами читабельного розміру. Капітель лишається там, де несе дані.
+/// Заголовок секції читабельного розміру, як написано. Капітель лишається там, де несе дані.
 struct SectionHeader: View {
     let title: String
     var actionLabel: String?
     var action: (() -> Void)?
     var body: some View {
         HStack {
-            Text(title.lowercased()).font(PoruchFont.sectionTitle).kerning(-0.3).foregroundStyle(Palette.ink)
+            Text(title).font(PoruchFont.sectionTitle).kerning(-0.3).foregroundStyle(Palette.ink)
             Spacer(minLength: Space.sm)
             if let actionLabel, let action {
                 Button(actionLabel, action: action).font(PoruchFont.label).foregroundStyle(Palette.ink)
@@ -527,14 +538,14 @@ struct EventMeta: View {
     }
 }
 
-/// Крапка категорії плюс опис малими літерами.
+/// Крапка категорії плюс опис курсивною антиквою.
 struct EventDescriptor: View {
     let event: Event
     var body: some View {
         HStack(spacing: Space.sm) {
             CategoryDot(category: event.category)
             // Антиква — категорія, гротеск — місце: «що це» не читається як частина адреси.
-            Text(categoryName(event.category).lowercased())
+            Text(categoryName(event.category))
                 .font(PoruchFont.descriptor).foregroundStyle(categoryInk(event.category)).lineLimit(1)
             Text((event.address.isEmpty ? event.city : event.address).isEmpty ? "" : "· " + (event.address.isEmpty ? event.city : event.address))
                 .font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(1)
@@ -579,7 +590,7 @@ struct EventCard: View {
                     .clipShape(RoundedRectangle(cornerRadius: Corner.sm, style: .continuous))
                     .overlay(alignment: .topLeading) {
                         if let badge = eventBadge(event, waitlisted: waitlisted) {
-                            StatusBadge(text: badge.0, tone: badge.1, symbol: badge.2).padding(Space.sm)
+                            StatusBadge(text: badge.0, tone: badge.1, symbol: badge.2, onPhoto: true).padding(Space.sm)
                         }
                     }
                     .overlay(alignment: .topTrailing) {

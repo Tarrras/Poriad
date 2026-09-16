@@ -41,15 +41,46 @@ class AuthRepositoryTest {
         runCatching { auth.signOut() }
         assertNull(store.value); assertNull(auth.session.value); api.close()
     }
-    @Test fun callbackIdentityComesFromAuthServer()=runTest {
-        val store=Store()
+    @Test fun callbackExchangesCodeWithStoredVerifier()=runTest {
+        val store=Store("""{"pkce_verifier":"v-secret","pkce_flow":"recovery"}""")
         val api=ApiClient(HttpClient(MockEngine { request ->
-            assertEquals("Bearer token",request.headers["Authorization"])
-            respond("""{"id":"verified-user"}""",HttpStatusCode.OK)
+            assertEquals("pkce",request.url.parameters["grant_type"])
+            val body=request.body.toByteArray().decodeToString()
+            assertTrue("\"auth_code\":\"c1\"" in body && "\"code_verifier\":\"v-secret\"" in body)
+            respond("""{"access_token":"token","refresh_token":"refresh","expires_in":3600,"user":{"id":"verified-user"}}""",HttpStatusCode.OK)
         }),"https://test.invalid","public")
         val auth=SupabaseAuthRepository(api,store)
-        assertTrue(auth.handleCallback("poruch://auth/callback#access_token=token&refresh_token=refresh&type=recovery&expires_in=3600"))
-        assertEquals("verified-user",auth.session.value?.userId); api.close()
+        assertTrue(auth.handleCallback("poruch://auth/callback?code=c1"))
+        assertEquals("verified-user",auth.session.value?.userId)
+        assertFalse(store.value!!.contains("pkce_verifier")); api.close()
+    }
+    @Test fun implicitTokensInCallbackAreRejected()=runTest {
+        val api=ApiClient(HttpClient(MockEngine { error("must not call network") }),"https://test.invalid","public")
+        val auth=SupabaseAuthRepository(api,Store())
+        assertFails { auth.handleCallback("poruch://auth/callback#access_token=token&refresh_token=refresh&type=recovery") }
+        assertNull(auth.session.value); api.close()
+    }
+    @Test fun callbackWithoutVerifierExplainsOtherDevice()=runTest {
+        val api=ApiClient(HttpClient(MockEngine { error("must not call network") }),"https://test.invalid","public")
+        val auth=SupabaseAuthRepository(api,Store())
+        val failure=assertFailsWith<app.poruch.domain.AppFailure> { auth.handleCallback("poruch://auth/callback?code=c1") }
+        assertEquals(app.poruch.domain.AppError.LinkOnAnotherDevice,failure.error); api.close()
+    }
+    @Test fun signUpSendsChallengeAndKeepsVerifier()=runTest {
+        val store=Store()
+        val api=ApiClient(HttpClient(MockEngine { request ->
+            val body=request.body.toByteArray().decodeToString()
+            assertTrue("code_challenge_method" in body && "\"code_challenge\"" in body)
+            respond("""{"id":"u1"}""",HttpStatusCode.OK)
+        }),"https://test.invalid","public")
+        val auth=SupabaseAuthRepository(api,store)
+        assertFalse(auth.signUp("a@b.co","password1","Імʼя","2000-01-01"))
+        assertTrue(store.value!!.contains("pkce_verifier")); assertNull(auth.session.value); api.close()
+    }
+    @Test fun sha256MatchesKnownVector() {
+        val hex=Pkce.sha256("abc".encodeToByteArray()).joinToString("") { (it.toInt() and 0xff).toString(16).padStart(2,'0') }
+        assertEquals("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",hex)
+        assertEquals(43,Pkce.newVerifier().length)
     }
     @Test fun foreignCallbackCannotReplaceSession()=runTest {
         val api=ApiClient(HttpClient(MockEngine { error("must not call network") }),"https://test.invalid","public")
