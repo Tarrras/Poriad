@@ -14,6 +14,7 @@ internal class UserLibrary(
     private val saved: SavedEvents,
     private val participation: EventParticipation,
     private val requests: EventRequests,
+    private val chat: EventChat,
     private val auth: AuthRepository,
     private val preferences: PreferencesRepository?,
     private val safety: SafetyRepository?,
@@ -105,11 +106,14 @@ internal class UserLibrary(
                 val queued = participation.waitlistIds()
                 // Стрічка запитів — доповнення: без неї головна лише не покаже бейджів.
                 val pending = try { requests.pendingRequests() } catch (e: CancellationException) { throw e } catch (e: Exception) { emptyList() }
+                val unread = try { chat.unread() } catch (e: CancellationException) { throw e } catch (e: Exception) { emptyList() }
                 PoruchLog.i("mine") { "${mine.size} of mine, ${savedEvents.size} saved, ${queued.size} queued, ${pending.size} requests, ${interests.size} interests" }
                 state.update {
                     it.copy(
                         myEvents = mine, savedIds = savedEvents, waitlistedIds = queued,
                         pendingRequests = pending,
+                        // Відкритий чат уже прочитаний: сервер міг ще не знати.
+                        chatUnread = unread.filterNot { u -> u.eventId == it.chat?.eventId },
                         account = facts, blocked = blocked,
                         taste = it.taste.copy(interests = interests)
                     ).ranked()
@@ -145,7 +149,7 @@ internal class UserLibrary(
             it.copy(
                 myEvents = emptyList(), savedIds = emptyList(), waitlistedIds = emptyList(),
                 attendees = emptyList(), selectedEvent = null, joinRequests = emptyList(),
-                pendingRequests = emptyList(), account = AccountFacts(), blocked = emptyList()
+                pendingRequests = emptyList(), chatUnread = emptyList(), account = AccountFacts(), blocked = emptyList()
             )
         }
     }

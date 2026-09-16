@@ -9,6 +9,8 @@ struct HomeView: View {
     var createEvent: () -> Void
     /// Відкрити деталі. Шлях стосу тримає корінь (`RootView.homePath`).
     var openEvent: (String) -> Void
+    /// Прямо в чат події, минаючи деталі.
+    var openChat: (Event) -> Void
     /// Висота смуги статусу: хедер додає відступ сам. Див. `tracksStatusBarInset`.
     @State private var statusBar: CGFloat = Space.xxl
 
@@ -32,6 +34,7 @@ struct HomeView: View {
                 } else {
                     // Запити вище за плани: на них чекає інша людина.
                     if !view.requests.isEmpty { requestsSection(view) }
+                    if !view.unread.isEmpty { unreadSection(view) }
                     VStack(alignment: .leading, spacing: Space.md) {
                         SectionHeader(title: "Скоро у вас")
                         if view.plans.isEmpty {
@@ -155,6 +158,33 @@ struct HomeView: View {
                 }
                 .buttonStyle(PressableStyle())
                 .accessibilityLabel("\(pending.event.title), \(label)")
+            }
+        }.padding(.horizontal, Space.page)
+    }
+
+    /// Чати з непрочитаним: назва події, хто й що написав останнім. Тап веде одразу в чат.
+    private func unreadSection(_ view: HomePresentation) -> some View {
+        VStack(alignment: .leading, spacing: Space.md) {
+            VStack(alignment: .leading, spacing: Space.xs) {
+                SectionHeader(title: "Нові повідомлення")
+                Text("Відкрийте чат, щоб відповісти.").font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
+            }
+            ForEach(view.unread) { chat in
+                let author = chat.summary.lastAuthorName.isEmpty ? "Учасник" : chat.summary.lastAuthorName
+                Button { openChat(chat.event) } label: {
+                    HStack(spacing: Space.md) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(chat.summary.eventTitle).font(PoruchFont.cardName).foregroundStyle(Palette.ink).lineLimit(1)
+                            Text("\(author): \(chat.summary.lastBody)").font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(2)
+                                .multilineTextAlignment(.leading)
+                        }
+                        Spacer(minLength: Space.sm)
+                        StatusBadge(text: "\(chat.summary.unread)", tone: .accent)
+                    }
+                    .padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()
+                }
+                .buttonStyle(PressableStyle())
+                .accessibilityLabel("\(chat.summary.eventTitle), нових: \(chat.summary.unread). \(author): \(chat.summary.lastBody)")
             }
         }.padding(.horizontal, Space.page)
     }

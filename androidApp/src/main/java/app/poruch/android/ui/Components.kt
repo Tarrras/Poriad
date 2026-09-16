@@ -704,7 +704,7 @@ fun MetaLine(icon: ImageVector, text: String, modifier: Modifier = Modifier, ton
 
 // ---- Навігація
 
-data class TabItem(val key: String, val label: String, val icon: ImageVector)
+data class TabItem(val key: String, val label: String, val icon: ImageVector, /** Скільки справ чекає: 0 — без бейджа. */ val badge: Int = 0)
 
 /** Плаваючий таббар-капсула; активний пункт залитий чорнилом. */
 @Composable
@@ -724,7 +724,15 @@ fun PoruchTabBar(items: List<TabItem>, selected: String, modifier: Modifier = Mo
                         .semantics { contentDescription = item.label },
                     horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center
                 ) {
-                    Icon(item.icon, null, Modifier.size(20.dp), tint = if (active) colors.ink else colors.inkTertiary)
+                    Box {
+                        Icon(item.icon, null, Modifier.size(20.dp), tint = if (active) colors.ink else colors.inkTertiary)
+                        // Бейдж поверх кута гліфа: число справ, не повідомлень.
+                        if (item.badge > 0) Text(
+                            item.badge.coerceAtMost(99).toString(), style = MaterialTheme.typography.labelSmall, color = colors.onBrand,
+                            modifier = Modifier.align(Alignment.TopEnd).offset(x = 10.dp, y = (-6).dp)
+                                .background(colors.accent, Radius.pill).padding(horizontal = 5.dp, vertical = 1.dp)
+                        )
+                    }
                     Text(
                         item.label, style = MaterialTheme.typography.labelSmall,
                         color = if (active) colors.ink else colors.inkTertiary,

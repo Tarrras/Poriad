@@ -159,3 +159,5 @@ private func messageTime(_ iso: String) -> String {
 
 /// `sheet(item:)` потребує identity; в Kotlin-класу вона є, лише не оголошена.
 extension ChatMessage: Identifiable {}
+/// Аркуш чату з головної відкривається за подією; identity в Kotlin-класу є, лише не оголошена.
+extension Event: Identifiable {}

@@ -41,6 +41,9 @@ class PoruchApp internal constructor(
     /** Сповіщення про нові запити на участь: сховище «бачених» і платформний показ. Обидва або нічого. */
     private val seenRequests: SeenRequestStore? = null,
     requestNotifier: RequestNotifier? = null,
+    /** Сповіщення про нові повідомлення в чатах: окремий список «бачених» і показ. Обидва або нічого. */
+    private val seenMessages: SeenRequestStore? = null,
+    chatNotifier: ChatNotifier? = null,
     config: AppConfig = AppConfig("", ""),
     /** Стан живе на головному потоці: звідси читають і Compose, і SwiftUI. */
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
@@ -57,7 +60,7 @@ class PoruchApp internal constructor(
     val state: StateFlow<AppState> = mutable.asStateFlow()
 
     private val discovery = DiscoveryEngine(events, geo, mutable, scope, config.home, compute)
-    private val library = UserLibrary(events, saved, participation, requests, auth, preferences, safety, tasteStore, mutable, scope)
+    private val library = UserLibrary(events, saved, participation, requests, chat, auth, preferences, safety, tasteStore, mutable, scope)
     private val chatEngine = ChatEngine(chat, mutable, scope)
 
     private var mutationJob: Job? = null
@@ -73,6 +76,7 @@ class PoruchApp internal constructor(
         if (state.value.signedIn) loadMyEvents()
         if (reminders != null) ReminderSync(state, reminders, scope).start()
         if (requestNotifier != null && seenRequests != null) RequestAlertSync(state, seenRequests, requestNotifier, scope).start()
+        if (chatNotifier != null && seenMessages != null) ChatAlertSync(state, seenMessages, chatNotifier, scope).start()
     }
 
     // ---- Сесія

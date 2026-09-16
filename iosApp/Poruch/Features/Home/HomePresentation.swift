@@ -10,6 +10,8 @@ struct HomePresentation {
     let plans: [Event]
     /// Мої події, де чекають запити на участь, зі скількома. Лише в організатора.
     let requests: [PendingRequests]
+    /// Чати з непрочитаним, свіжіші першими, разом із карткою події для відкриття чату.
+    let unread: [UnreadChat]
     /// Добірка за відповідями онбордингу. Порожня, якщо не відповідали.
     let suggested: [Event]
     let today: [Event]
@@ -49,6 +51,8 @@ struct HomePresentation {
         let mine = state?.myEvents ?? []
         plans = mine.filter { state?.concerns(event: $0) == true && $0.isPublished }.sorted { $0.startsAt < $1.startsAt }
         requests = HomePresentation.pendingRequests(state?.pendingRequests ?? [], among: mine)
+        let mineById = Dictionary(mine.map { ($0.id, $0) }) { first, _ in first }
+        unread = (state?.chatUnread ?? []).compactMap { u in mineById[u.eventId].map { UnreadChat(summary: u, event: $0) } }
 
         // Увесь екран в одному порядку. Кожне звертання до Kotlin-списку — міст, тому читаємо раз у змінну.
         let cards = state?.cards ?? [:]
@@ -95,6 +99,13 @@ struct HomePresentation {
     }
     func isSaved(_ event: Event) -> Bool { savedIds.contains(event.id) }
     func isWaitlisted(_ event: Event) -> Bool { waitlistedIds.contains(event.id) }
+}
+
+/// Непрочитане в чаті з карткою події: чат відкривається з події, а не з id.
+struct UnreadChat: Identifiable {
+    let summary: ChatUnread
+    let event: Event
+    var id: String { event.id }
 }
 
 /// Подія й скільки людей просяться до неї.

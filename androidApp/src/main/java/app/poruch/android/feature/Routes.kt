@@ -57,6 +57,7 @@ fun HomeRoute(navigator: Navigator) {
         when (effect) {
             is HomeEffect.Navigate -> when (effect.destination) {
                 HomeDestination.DETAIL -> navigator.open(Detail(effect.id))
+                HomeDestination.CHAT -> navigator.open(Chat(effect.id))
                 HomeDestination.MAP -> navigator.open(Explore())
                 HomeDestination.PROFILE -> navigator.open(Profile)
                 HomeDestination.EDITOR -> navigator.requireAccount { navigator.open(Editor()) }

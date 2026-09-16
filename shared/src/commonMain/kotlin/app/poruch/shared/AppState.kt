@@ -49,8 +49,12 @@ data class AppState(
     val customArea: Boolean = false,
     val attendees: List<Attendee> = emptyList(), val waitlistedIds: List<String> = emptyList(),
     /** Відкритий чат події. Null — екран чату закрито, і опитування зупинено. */
-    val chat: ChatState? = null
+    val chat: ChatState? = null,
+    /** Події з непрочитаними повідомленнями, свіжіші першими. Бейджі й секція на головній. */
+    val chatUnread: List<ChatUnread> = emptyList()
 ) {
+    /** Скільки чатів чекають: бейдж на вкладці. Не сума повідомлень: три чати — три справи. */
+    val unreadChats get() = chatUnread.size
     val signedIn get() = userId != null
     fun isSaved(id: String) = id in savedIds
     fun isWaitlisted(id: String) = id in waitlistedIds
@@ -117,6 +121,10 @@ data class ChatState(
     /** Сервер без міграції чату: екран каже про це замість порожнього списку. */
     val available: Boolean = true
 )
+
+/** Тримає значення `chatUnread` без події [eventId]: чат відкрито або прочитано. */
+internal fun AppState.withoutUnread(eventId: String): AppState =
+    if (chatUnread.none { it.eventId == eventId }) this else copy(chatUnread = chatUnread.filterNot { it.eventId == eventId })
 
 /** Значення фільтра «без фільтра». Не категорія, тому окремо. */
 const val ALL_CATEGORIES = "all"

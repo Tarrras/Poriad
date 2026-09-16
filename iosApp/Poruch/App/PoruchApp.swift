@@ -17,12 +17,15 @@ import Shared
     }
 }
 
-private let tabItems = [
-    TabItem(id: 0, label: "Головна", glyph: PoruchIcons.home),
-    TabItem(id: 1, label: "Мапа", glyph: PoruchIcons.map),
-    TabItem(id: 2, label: "Мої події", glyph: PoruchIcons.calendar),
-    TabItem(id: 3, label: "Профіль", glyph: PoruchIcons.person)
-]
+/// Непрочитані чати живуть у «Моїх подіях»: туди й бейдж.
+private func tabItems(unreadChats: Int) -> [TabItem] {
+    [
+        TabItem(id: 0, label: "Головна", glyph: PoruchIcons.home),
+        TabItem(id: 1, label: "Мапа", glyph: PoruchIcons.map),
+        TabItem(id: 2, label: "Мої події", glyph: PoruchIcons.calendar, badge: unreadChats),
+        TabItem(id: 3, label: "Профіль", glyph: PoruchIcons.person)
+    ]
+}
 
 struct RootView: View {
     @EnvironmentObject var model: AppModel
@@ -35,6 +38,8 @@ struct RootView: View {
     /// не завжди скидав біндінг, і наступний тап по картці відкривав попередню або нічого.
     @State private var homePath: [EventRoute] = []
     @State private var minePath: [EventRoute] = []
+    /// Чат, відкритий з головної. Аркуш над коренем, як і з деталей.
+    @State private var chatting: Event?
     var body: some View {
         // Онбординг замінює застосунок, а не накриває: за ним на першому запуску ще нічого нема.
         if model.state?.needsOnboarding == true {
@@ -52,7 +57,8 @@ struct RootView: View {
                     HomeView(
                         openMap: { tab = 1 }, openProfile: { tab = 3 },
                         createEvent: { if model.state?.userId == nil { authenticating = true } else { creating = true } },
-                        openEvent: { homePath.append(EventRoute(id: $0)) }
+                        openEvent: { homePath.append(EventRoute(id: $0)) },
+                        openChat: { chatting = $0 }
                     )
                     .safeAreaPadding(.bottom, 92)
                     .toolbar(.hidden, for: .tabBar)
@@ -69,7 +75,7 @@ struct RootView: View {
             .toolbar(.hidden, for: .tabBar)
             .onPreferenceChange(HidesTabBarKey.self) { hidden in tabBarHidden = hidden }
             if !tabBarHidden {
-                PoruchTabBar(items: tabItems, selection: $tab) {
+                PoruchTabBar(items: tabItems(unreadChats: Int(model.state?.unreadChats ?? 0)), selection: $tab) {
                     CreateButton { if model.state?.userId == nil { authenticating = true } else { creating = true } }
                 }
                 .padding(.bottom, Space.sm)
@@ -79,6 +85,7 @@ struct RootView: View {
         .animation(.easeInOut(duration: 0.2), value: tabBarHidden)
         .environment(\.openMap) { tab = 1 }
         .sheet(isPresented: $creating) { EventEditor(event: nil, app: model.app, home: model.state) }
+        .sheet(item: $chatting) { event in ChatView(event: event) }
         .sheet(isPresented: $authenticating) {
             NavigationStack {
                 AuthView().toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Готово") { authenticating = false } } }

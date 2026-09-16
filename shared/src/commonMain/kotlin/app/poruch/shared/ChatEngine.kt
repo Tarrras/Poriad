@@ -25,7 +25,8 @@ internal class ChatEngine(
         if (openEventId == eventId && polling?.isActive == true) return
         close()
         PoruchLog.i("chat") { "open ${eventId.shortId()}" }
-        state.update { it.copy(chat = ChatState(eventId)) }
+        // Відкрили — прочитали: бейдж зникає одразу, сервер дізнається після першого читання.
+        state.update { it.copy(chat = ChatState(eventId)).withoutUnread(eventId) }
         polls = 0
         polling = scope.launch {
             while (isActive) {
@@ -92,6 +93,11 @@ internal class ChatEngine(
             val fresh = chat.messages(eventId, after)
             update(eventId) {
                 copy(messages = if (full) ChatRules.merge(emptyList(), fresh) else ChatRules.merge(messages, fresh), loading = false, available = true)
+            }
+            // Прочитано до зараз: при відкритті і щоразу, коли приїхало чуже нове.
+            val me = state.value.userId
+            if (current.loading || fresh.any { it.authorId != me }) {
+                try { chat.markRead(eventId) } catch (e: CancellationException) { throw e } catch (e: Exception) { /* best-effort */ }
             }
         } catch (e: CancellationException) {
             throw e

@@ -32,6 +32,10 @@ class PoruchAppTest {
         override suspend fun messages(eventId:String,after:String?)=chatMessages.filter { after==null || it.createdAt>after }
         override suspend fun send(eventId:String,body:String):String { sent+=eventId to body; val m=ChatMessage("m${sent.size}",eventId,"user","Я",null,body,"2026-09-16T10:0${sent.size}:00Z"); chatMessages=chatMessages+m; return m.id }
         override suspend fun delete(messageId:String) { chatMessages=chatMessages.filterNot { it.id==messageId } }
+        var unreadChats=emptyList<ChatUnread>()
+        val readMarks=mutableListOf<String>()
+        override suspend fun unread()=unreadChats
+        override suspend fun markRead(eventId:String) { readMarks+=eventId }
         val queries=mutableListOf<EventQuery>()
         val cardRequests=mutableListOf<List<String>>()
         val createIds=mutableListOf<String>()
@@ -459,6 +463,33 @@ class PoruchAppTest {
 
         app.closeChat(); runCurrent()
         assertNull(app.state.value.chat)
+        app.close()
+    }
+
+    /** Непрочитане: відкриття чату знімає бейдж і позначає прочитаним; нове чуже дзвонить раз. */
+    @Test fun unreadChatsRingOnceAndClearWhenOpened()=runTest {
+        val events=Events()
+        val seen=object:SeenRequestStore { val keys=mutableSetOf<String>(); override fun seen()=keys.toSet(); override fun markSeen(keys:Set<String>) { this.keys+=keys } }
+        val rung=mutableListOf<ChatAlert>()
+        val app=PoruchApp(
+            events=events, saved=events, authoring=events, participation=events, requests=events, chat=events,
+            auth=Auth(), geo=object:GeoSearchRepository { override suspend fun search(query:String)=emptyList<CityResult>() },
+            eventActions=EventActions(events,events,Auth()), accountActions=AccountActions(Auth()),
+            safety=safety, tasteStore=taste, scope=backgroundScope,
+            reminderStore=object:ReminderPreferenceStore { override fun enabled()=true; override fun setEnabled(enabled:Boolean) {} },
+            seenMessages=seen, chatNotifier=object:ChatNotifier { override fun notifyMessages(alerts:List<ChatAlert>) { rung+=alerts } }
+        )
+        events.unreadChats=listOf(ChatUnread("ev","Настілки",2,"m9","Інший","Ок","2026-09-16T10:30:00Z"))
+        app.loadMyEvents(); advanceTimeBy(200); runCurrent()
+        assertEquals(1,app.state.value.unreadChats)
+        assertEquals(listOf(ChatAlert("ev","Настілки",2,"Інший","Ок")),rung)
+
+        app.loadMyEvents(); advanceTimeBy(200); runCurrent()
+        assertEquals(1,rung.size,"те саме повідомлення не дзвонить удруге")
+
+        app.openChat("ev"); runCurrent()
+        assertEquals(0,app.state.value.unreadChats,"відкритий чат більше не непрочитаний")
+        assertEquals(listOf("ev"),events.readMarks)
         app.close()
     }
 

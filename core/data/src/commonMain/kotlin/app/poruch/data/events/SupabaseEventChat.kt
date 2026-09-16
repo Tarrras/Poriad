@@ -1,8 +1,11 @@
 package app.poruch.data.events
 
+import app.poruch.domain.AppFailure
 import app.poruch.domain.ChatMessage
 import app.poruch.domain.ChatRules
+import app.poruch.domain.ChatUnread
 import app.poruch.domain.EventChat
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.buildJsonObject
@@ -27,5 +30,24 @@ internal class SupabaseEventChat(private val rpc: EventRpc) : EventChat {
 
     override suspend fun delete(messageId: String) {
         rpc.call("delete_message", buildJsonObject { put("p_message_id", messageId) })
+    }
+
+    /** Сервер без міграції `chat_unread` не має цієї функції: тоді бейджів просто нема. */
+    override suspend fun unread(): List<ChatUnread> = try {
+        rpc.json.decodeFromJsonElement(ListSerializer(ChatUnreadDto.serializer()), rpc.read("my_chat_unread")).map { it.domain() }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: AppFailure) {
+        if (e.isMissingFunction()) emptyList() else throw e
+    }
+
+    override suspend fun markRead(eventId: String) {
+        try {
+            rpc.call("mark_chat_read", rpc.eventParams(eventId))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: AppFailure) {
+            if (!e.isMissingFunction()) throw e
+        }
     }
 }

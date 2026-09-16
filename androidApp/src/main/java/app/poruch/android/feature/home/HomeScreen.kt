@@ -25,6 +25,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import app.poruch.android.R
 import app.poruch.android.ui.*
+import app.poruch.domain.ChatUnread
 import app.poruch.domain.Event
 
 /** Головна: плани, сьогодні і все поруч з даних, які вже завантажила мапа. Малює [HomeState], шле [HomeIntent]. */
@@ -45,8 +46,9 @@ fun HomeScreen(state: HomeState, onIntent: (HomeIntent) -> Unit) {
                 stringResource(R.string.guest_title), stringResource(R.string.guest_home_hint),
                 { onIntent(HomeIntent.OpenProfile) }, Modifier.padding(horizontal = Spacing.page), PoruchIcons.lock
             ) else {
-                // Запити вище за плани: на них чекає інша людина.
+                // Запити й нові повідомлення вище за плани: на них чекає інша людина.
                 if (state.requests.isNotEmpty()) RequestsSection(state.requests, onIntent)
+                if (state.unread.isNotEmpty()) UnreadSection(state.unread, onIntent)
                 PlansSection(state.plans, onIntent)
             }
         }
@@ -179,6 +181,36 @@ private fun RequestsSection(requests: List<PendingRequests>, onIntent: (HomeInte
                 }
                 StatusBadge(count.toString(), BadgeTone.Accent)
                 Icon(Icons.AutoMirrored.Outlined.ArrowForward, null, Modifier.size(16.dp), tint = colors.inkSecondary)
+            }
+        }
+    }
+}
+
+/** Чати з непрочитаним: назва події, хто й що написав останнім. Тап веде одразу в чат. */
+@Composable
+private fun UnreadSection(unread: List<ChatUnread>, onIntent: (HomeIntent) -> Unit) {
+    val colors = Poruch.colors
+    Column(
+        Modifier.padding(horizontal = Spacing.page).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.md)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+            SectionHeader(stringResource(R.string.chat_home_section))
+            Text(stringResource(R.string.chat_home_hint), style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
+        }
+        unread.forEach { chat ->
+            val count = pluralStringResource(R.plurals.chat_unread_count, chat.unread, chat.unread)
+            val preview = stringResource(R.string.chat_preview, chat.lastAuthorName.ifBlank { stringResource(R.string.chat_member) }, chat.lastBody)
+            Row(
+                Modifier.fillMaxWidth()
+                    .semantics(mergeDescendants = true) { contentDescription = "${chat.eventTitle}, $count. $preview"; role = Role.Button }
+                    .pressable { onIntent(HomeIntent.OpenChat(chat.eventId)) }.cardSurface().padding(Spacing.lg),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)
+            ) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(chat.eventTitle, style = MaterialTheme.typography.titleSmall, color = colors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(preview, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                }
+                StatusBadge(chat.unread.toString(), BadgeTone.Accent)
             }
         }
     }

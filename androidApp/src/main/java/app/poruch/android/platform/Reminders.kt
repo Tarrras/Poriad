@@ -15,6 +15,8 @@ import app.poruch.android.MainActivity
 import app.poruch.android.R
 import app.poruch.domain.EventReminder
 import app.poruch.domain.ReminderScheduler
+import app.poruch.domain.ChatAlert
+import app.poruch.domain.ChatNotifier
 import app.poruch.domain.RequestAlert
 import app.poruch.domain.RequestNotifier
 import org.json.JSONArray
@@ -132,6 +134,38 @@ class RequestNotificationCenter(private val context: Context) : RequestNotifier 
     private companion object {
         const val CHANNEL = "join_requests"
         const val TAG = "request"
+    }
+}
+
+/** Сповіщення про нові повідомлення в чаті: одне на подію, з іменем і початком останнього. Тап веде на подію. */
+class ChatNotificationCenter(private val context: Context) : ChatNotifier {
+    override fun notifyMessages(alerts: List<ChatAlert>) {
+        if (!NotificationPermission(context).granted()) return
+        val manager = context.getSystemService(NotificationManager::class.java)
+        manager.createNotificationChannel(
+            NotificationChannel(CHANNEL, context.getString(R.string.chat_notification_channel), NotificationManager.IMPORTANCE_DEFAULT)
+        )
+        alerts.forEach { alert ->
+            val open = PendingIntent.getActivity(
+                context, alert.eventId.hashCode(),
+                Intent(context, MainActivity::class.java).putExtra(MainActivity.EXTRA_EVENT_ID, alert.eventId),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val preview = context.getString(R.string.chat_preview, alert.authorName.ifBlank { context.getString(R.string.chat_member) }, alert.preview)
+            val notification = Notification.Builder(context, CHANNEL)
+                .setSmallIcon(R.drawable.ic_notification)
+                .setContentTitle(alert.eventTitle)
+                .setContentText(preview)
+                .setSubText(context.resources.getQuantityString(R.plurals.chat_unread_count, alert.count, alert.count))
+                .setContentIntent(open).setAutoCancel(true).build()
+            // Свій простір id: чат, запит і нагадування про ту саму подію — три сповіщення.
+            manager.notify(TAG, alert.eventId.hashCode(), notification)
+        }
+    }
+
+    private companion object {
+        const val CHANNEL = "chat_messages"
+        const val TAG = "chat"
     }
 }
 

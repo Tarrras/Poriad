@@ -14,7 +14,7 @@ enum NotificationPermission {
 /// Локальні сповіщення за планом зі спільного шару: що і коли вирішено там, тут лише центр
 /// сповіщень. Делегат потрібен, щоб банер показувався й у відкритому застосунку: без нього
 /// iOS у фореграунді мовчить.
-final class LocalReminderScheduler: NSObject, ReminderScheduler, RequestNotifier, UNUserNotificationCenterDelegate {
+final class LocalReminderScheduler: NSObject, ReminderScheduler, RequestNotifier, ChatNotifier, UNUserNotificationCenterDelegate {
     private let center = UNUserNotificationCenter.current()
     private let prefix = "poruch.event."
 
@@ -53,6 +53,25 @@ final class LocalReminderScheduler: NSObject, ReminderScheduler, RequestNotifier
             // Інший префікс, ніж у нагадувань: запит і нагадування про ту саму подію — два сповіщення.
             center.add(UNNotificationRequest(identifier: "poruch.request." + alert.eventId, content: content, trigger: nil))
         }
+    }
+
+    /// Нові повідомлення в чаті: одне сповіщення на подію, з іменем і початком останнього.
+    func notifyMessages(alerts: [ChatAlert]) {
+        for alert in alerts {
+            let content = UNMutableNotificationContent()
+            content.title = alert.eventTitle
+            let author = alert.authorName.isEmpty ? "Учасник" : alert.authorName
+            content.body = "\(author): \(alert.preview)"
+            content.subtitle = chatCount(Int(alert.count))
+            content.sound = .default
+            content.userInfo = ["eventId": alert.eventId]
+            center.add(UNNotificationRequest(identifier: "poruch.chat." + alert.eventId, content: content, trigger: nil))
+        }
+    }
+
+    private func chatCount(_ count: Int) -> String {
+        let last = count % 10, tens = count % 100
+        return last == 1 && tens != 11 ? "\(count) нове повідомлення" : "\(count) нових повідомлень"
     }
 
     private func requestBody(_ count: Int) -> String {

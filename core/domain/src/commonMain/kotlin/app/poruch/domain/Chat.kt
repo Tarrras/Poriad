@@ -38,10 +38,52 @@ object ChatRules {
     }
 }
 
+/** Непрочитане в чаті однієї події, як його віддає `my_chat_unread`: скільки і що останнє. */
+data class ChatUnread(
+    val eventId: String,
+    val eventTitle: String,
+    val unread: Int,
+    val lastMessageId: String,
+    val lastAuthorName: String,
+    val lastBody: String,
+    val lastAt: String
+)
+
+/** Сповіщення про нові повідомлення в одній події. */
+data class ChatAlert(val eventId: String, val eventTitle: String, val count: Int, val authorName: String, val preview: String)
+
+/** Показує сповіщення про повідомлення негайно. Реалізує платформа, зазвичай той самий клас, що й [RequestNotifier]. */
+interface ChatNotifier {
+    /** Не `notify`: разом із [RequestNotifier] в одному класі Swift плутав би підписи. */
+    fun notifyMessages(alerts: List<ChatAlert>)
+}
+
 /** Чат події: читання хвоста, запис, видалення. Сервер пускає організатора й підтверджених. */
 interface EventChat {
     /** Хвіст чату; з [after] — лише пізніше за цей момент (ISO-8601). Старіші вгорі. */
     suspend fun messages(eventId: String, after: String? = null): List<ChatMessage>
     suspend fun send(eventId: String, body: String): String
     suspend fun delete(messageId: String)
+
+    /** Події з непрочитаним, свіжіші першими. Сервер без міграції — порожній список. */
+    suspend fun unread(): List<ChatUnread>
+
+    /** Прочитано до зараз. */
+    suspend fun markRead(eventId: String)
+}
+
+/** Про що дзвонити з чатів. Чисте правило, як [RequestRules]. */
+object ChatAlertRules {
+    /**
+     * Сповіщення за подіями, чиє останнє повідомлення ще не бачили. Відкритий чат ([openEventId])
+     * пропускаємо: людина і так дивиться на нього.
+     */
+    fun alerts(unread: List<ChatUnread>, seen: Set<String>, openEventId: String?, enabled: Boolean): List<ChatAlert> {
+        if (!enabled) return emptyList()
+        return unread.filter { it.eventId != openEventId && it.lastMessageId !in seen }
+            .map { ChatAlert(it.eventId, it.eventTitle, it.unread, it.lastAuthorName, it.lastBody.take(PREVIEW)) }
+    }
+
+    /** Скільки знаків повідомлення показує сповіщення. */
+    const val PREVIEW = 120
 }
