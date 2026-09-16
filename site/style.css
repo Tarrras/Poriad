@@ -1,0 +1,55 @@
+/* Сайт «Поруч»: та сама паперова мова, що й у застосунку (docs/design-system.md). */
+:root {
+  --ink: #14130F; --ink-2: #6B675E; --ink-3: #9A958A;
+  --paper: #F2F0EA; --paper-tint: #EAE6DA; --surface: #FFFFFF; --hairline: #E5E1D6;
+  --accent: #D9603A; --accent-soft: #FBE7DE; --hero-top: #F4E7D8;
+  --radius: 20px; --max: 760px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --ink: #F5F3EE; --ink-2: #A8A398; --ink-3: #7C776C; --paper: #121110; --paper-tint: #1B1A17;
+    --surface: #1F1E1B; --hairline: #33302B; --accent: #EE8B63; --accent-soft: #40251A; --hero-top: #272119; }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--paper); color: var(--ink);
+  font: 17px/1.6 -apple-system, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+a { color: var(--ink); text-decoration-color: var(--accent); text-underline-offset: 3px; }
+a:hover { color: var(--accent); }
+.hero { background: linear-gradient(180deg, var(--hero-top), var(--paper)); padding: 40px 16px 24px; }
+.wrap { max-width: var(--max); margin: 0 auto; padding: 0 16px; }
+.brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+.brand img { width: 44px; height: 44px; border-radius: 12px; }
+.brand b { font-size: 20px; letter-spacing: -0.01em; }
+nav.top { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 20px; font-size: 15px; color: var(--ink-2); }
+nav.top a { color: inherit; text-decoration: none; }
+nav.top a[aria-current] { color: var(--ink); font-weight: 600; }
+h1 { font-size: clamp(32px, 6vw, 46px); line-height: 1.1; letter-spacing: -0.02em; margin: 24px 0 8px; }
+h2 { font-size: 22px; margin: 40px 0 12px; letter-spacing: -0.01em; }
+h3 { font-size: 17px; margin: 24px 0 8px; }
+.lead { font-family: Georgia, "Times New Roman", serif; font-size: 19px; color: var(--ink-2); margin: 0 0 8px; }
+.meta { font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+main { padding: 8px 0 64px; }
+.card { background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--radius); padding: 20px; margin: 16px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 15px; margin: 12px 0; }
+th, td { text-align: left; vertical-align: top; padding: 10px 8px; border-bottom: 1px solid var(--hairline); }
+th { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+ul, ol { padding-left: 22px; } li { margin: 4px 0; }
+.pill { display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; border-radius: 999px;
+  background: var(--ink); color: var(--paper); text-decoration: none; font-weight: 600; }
+.pill.ghost { background: var(--surface); color: var(--ink); border: 1px solid var(--hairline); }
+.row { display: flex; flex-wrap: wrap; gap: 12px; margin: 20px 0; }
+.todo { background: var(--accent-soft); color: var(--accent); padding: 0 6px; border-radius: 6px; font-weight: 600; }
+.shots { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin: 24px 0; }
+.shots img { width: 100%; border-radius: 18px; border: 1px solid var(--hairline); background: var(--surface); }
+footer { border-top: 1px solid var(--hairline); padding: 24px 16px 40px; font-size: 14px; color: var(--ink-2); }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 20px; }
+footer a { color: inherit; }
+.note { font-size: 15px; color: var(--ink-2); }
+kbd { font: 14px ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--paper-tint); padding: 2px 6px; border-radius: 6px; }
+
+/* Вузькі екрани: таблиці прокручуються всередині картки, сторінка не розтягується. */
+html, body { max-width: 100%; overflow-x: hidden; }
+.wrap { min-width: 0; }
+h1, h2, .lead { overflow-wrap: anywhere; }
+.card { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.card table { min-width: 560px; }
