@@ -31,11 +31,11 @@ supabase secrets set FCM_SERVICE_ACCOUNT="$(cat service-account.json)" --project
 ## 3. iOS: APNs
 
 1. Apple Developer → Certificates, Identifiers & Profiles → Keys → новий ключ з увімкненим **Apple Push Notifications service (APNs)**. Завантажити `.p8` (один раз), запамʼятати Key ID. Team ID: `QTYQMJ94D2`.
-2. Identifiers → `app.poruch.ios` → увімкнути capability **Push Notifications** (ентайтлмент `aps-environment` у проєкті вже є, підпис автоматичний).
+2. Identifiers → `app.poriad.ios` → увімкнути capability **Push Notifications** (ентайтлмент `aps-environment` у проєкті вже є, підпис автоматичний).
 3. Секрети функції:
 
 ```bash
-supabase secrets set APNS_KEY="$(cat AuthKey_XXXXXXXXXX.p8)" APNS_KEY_ID=XXXXXXXXXX APNS_TEAM_ID=QTYQMJ94D2 APNS_BUNDLE_ID=app.poruch.ios APNS_SANDBOX=true --project-ref tzdogzdvctlumsqlqskr
+supabase secrets set APNS_KEY="$(cat AuthKey_XXXXXXXXXX.p8)" APNS_KEY_ID=XXXXXXXXXX APNS_TEAM_ID=QTYQMJ94D2 APNS_BUNDLE_ID=app.poriad.ios APNS_SANDBOX=true --project-ref tzdogzdvctlumsqlqskr
 ```
 
 `APNS_SANDBOX=true` для dev-збірок (Xcode, симулятор, TestFlight-development). Для App Store — `false`.
