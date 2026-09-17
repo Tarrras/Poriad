@@ -15,9 +15,6 @@
 
 Усе, що позначено класом `.todo` (помаранчева підсвітка), треба замінити:
 
-- назва контролера даних (ФОП / юрособа), код, адреса — у `privacy*.html`, `terms*.html`;
-- `privacy@poriad.app`, `hello@poriad.app` — на реальні скриньки (або одну);
-- регіон проєкту Supabase (Dashboard → Settings → General → Region);
 - посилання на App Store / Google Play у `index.html` після публікації.
 
 Перевірити, що нічого не лишилось:
