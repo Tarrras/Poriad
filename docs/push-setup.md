@@ -17,15 +17,8 @@ supabase secrets set PUSH_SECRET='<push_function_secret з Vault>' --project-ref
 
 ## 2. Android: Firebase Cloud Messaging
 
-1. Firebase Console → створити проєкт (або взяти наявний) → Add app → Android, package `app.poruch.android`.
-2. Project settings → General → у картці застосунку взяти `App ID`, `API key`, `Project ID`, `Sender ID` (Cloud Messaging → Sender ID). `google-services.json` не потрібен: значення йдуть у `local.properties`:
-
-```properties
-FIREBASE_PROJECT_ID=poruch-xxxxx
-FIREBASE_APP_ID=1:1234567890:android:abcdef123456
-FIREBASE_API_KEY=AIza...
-FIREBASE_SENDER_ID=1234567890
-```
+1. Firebase Console → проєкт `poruchapp-1e5c4` → Add app → Android, package `app.poriad.android` (вже додано).
+2. Завантажити `google-services.json` і покласти в `androidApp/google-services.json`. Плагін `com.google.gms.google-services` сам генерує ресурси й ініціалізує Firebase на старті процесу; ніяких значень у `local.properties` не треба. Файл комітиться: у ньому лише публічні ідентифікатори.
 
 3. Project settings → Service accounts → Generate new private key. JSON цілком — у секрет функції:
 

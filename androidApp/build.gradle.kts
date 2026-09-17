@@ -3,6 +3,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.kotlin.plugin.serialization")
+    id("com.google.gms.google-services")
 }
 val local = Properties().apply { rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) } }
 fun config(name: String, default: String = "") = (local.getProperty(name) ?: System.getenv(name) ?: default).replace("\\", "\\\\").replace("\"", "\\\"")
@@ -21,12 +22,6 @@ android {
         // configurable, and blank means the defaults in shared MapEndpoints.
         buildConfigField("String", "MAP_TILES_URL", "\"${config("MAP_TILES_URL")}\"")
         buildConfigField("String", "MAP_GLYPHS_URL", "\"${config("MAP_GLYPHS_URL")}\"")
-        // Firebase лише для пушів. Без плагіна google-services: значення з local.properties
-        // (Firebase → Project settings → Your apps → Android). Порожньо — пушів нема, решта працює.
-        buildConfigField("String", "FIREBASE_PROJECT_ID", "\"${config("FIREBASE_PROJECT_ID")}\"")
-        buildConfigField("String", "FIREBASE_APP_ID", "\"${config("FIREBASE_APP_ID")}\"")
-        buildConfigField("String", "FIREBASE_API_KEY", "\"${config("FIREBASE_API_KEY")}\"")
-        buildConfigField("String", "FIREBASE_SENDER_ID", "\"${config("FIREBASE_SENDER_ID")}\"")
     }
     // Ключ релізу з local.properties або оточення. Без нього assembleRelease збирає непідписаний APK:
     // так CI й чужі машини не падають, а магазинну збірку підписує лише той, у кого є сховище.

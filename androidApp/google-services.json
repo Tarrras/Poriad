@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "797169969688",
+    "project_id": "poruchapp-1e5c4",
+    "storage_bucket": "poruchapp-1e5c4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:797169969688:android:8c8ab5090b0090c25c316d",
+        "android_client_info": {
+          "package_name": "app.poriad.android"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAFJbjXia3Wbx0mOAf-H2aew9xGsUzmWxM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:797169969688:android:20c668567dae59d65c316d",
+        "android_client_info": {
+          "package_name": "app.poruch.android"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAFJbjXia3Wbx0mOAf-H2aew9xGsUzmWxM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
