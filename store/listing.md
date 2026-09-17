@@ -53,7 +53,7 @@ iPad-скріншотів немає: у pbxproj `TARGETED_DEVICE_FAMILY = "1,2"
 Мапа: MapLibre, дані © учасники OpenStreetMap, тайли OpenFreeMap.
 
 **Категорія:** Events. **Теги:** events, meetups, map, місто.
-**Контакт:** hello@poriad.app (замінити). **Політика:** https://poriad.app/privacy.html (замінити на реальний URL).
+**Контакт:** hello@poriad.app (замінити). **Політика:** https://poriad.app/privacy.html.
 
 ### Data safety (як заповнювати)
 
@@ -89,7 +89,7 @@ UGC: так. Спілкування між користувачами: так (�
 **Keywords (100):** події,афіша,мапа,зустрічі,концерти,настолки,пробіжка,київ,львів,meetup,events,куди піти
 **Description:** той самий текст, що для Play, без заголовків капсом за бажанням.
 **Primary language:** Ukrainian. **Category:** Social Networking (secondary: Lifestyle). **Age rating:** 18+ (UGC, повідомлення між користувачами, чат зі стоп-словником і модерацією; «unrestricted web access» — ні, WebView немає).
-**Support URL:** лендинг. **Privacy Policy URL:** privacy-en.html або privacy.html.
+**Support URL:** https://poriad.app. **Privacy Policy URL:** https://poriad.app/privacy-en.html (українська: privacy.html). **Account deletion URL для Play:** https://poriad.app/delete-account.html.
 
 ### App Privacy (Data linked to you)
 
