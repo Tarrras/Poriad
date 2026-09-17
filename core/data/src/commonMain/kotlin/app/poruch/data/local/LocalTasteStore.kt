@@ -15,12 +15,14 @@ import kotlinx.serialization.json.*
 class LocalTasteStore(private val database: PoruchDatabase) : TasteStore {
     override fun read(): Taste {
         val stored = database.cacheQueries.readDevice(KEY).executeAsOneOrNull() ?: return Taste()
-        val json = runCatching { Json.parseToJsonElement(stored).jsonObject }.getOrNull() ?: return Taste()
+        val json =
+            runCatching { Json.parseToJsonElement(stored).jsonObject }.getOrNull() ?: return Taste()
         // Невідомі значення відкидаємо: застаріле ранжувало б проти нічого.
         return Taste(
             interests = json.strings("interests"),
             times = json.strings("times").filter(TimeSlot::isSlot),
-            crowd = json["crowd"]?.jsonPrimitive?.contentOrNull?.takeIf(Crowd::isCrowd) ?: Crowd.ANY,
+            crowd = json["crowd"]?.jsonPrimitive?.contentOrNull?.takeIf(Crowd::isCrowd)
+                ?: Crowd.ANY,
             answered = json["answered"]?.jsonPrimitive?.booleanOrNull ?: false
         )
     }

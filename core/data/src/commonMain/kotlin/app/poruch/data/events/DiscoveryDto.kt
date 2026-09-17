@@ -67,7 +67,9 @@ private fun JsonArray.indexEntry(): EventIndexEntry? {
     )
 }
 
-private fun JsonArray.at(position: Int) = getOrNull(position)?.takeIf { it != JsonNull } as? JsonPrimitive
+private fun JsonArray.at(position: Int) =
+    getOrNull(position)?.takeIf { it != JsonNull } as? JsonPrimitive
+
 private fun JsonArray.text(position: Int) = at(position)?.contentOrNull
 private fun JsonArray.number(position: Int) = at(position)?.doubleOrNull
 private fun JsonArray.int(position: Int) = at(position)?.intOrNull

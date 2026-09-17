@@ -20,7 +20,12 @@ class PhotonGeoSearchRepository(
         // У лог іде лише довжина запиту, не сам текст.
         val started = TimeSource.Monotonic.markNow()
         try {
-            val response = client.get(endpoint) { parameter("q",query.trim()); parameter("limit",CITY_LIMIT * OVERFETCH); header("User-Agent","Poruch-development/1.0") }
+            val response = client.get(endpoint) {
+                parameter("q", query.trim()); parameter(
+                "limit",
+                CITY_LIMIT * OVERFETCH
+            ); header("User-Agent", "Poruch-development/1.0")
+            }
             if (response.status.value !in 200..299) fail(AppError.ServiceUnavailable)
             return Json.parseToJsonElement(response.bodyAsText()).jsonObject["features"]!!.jsonArray.mapNotNull { element ->
                 val obj = element.jsonObject
@@ -30,13 +35,21 @@ class PhotonGeoSearchRepository(
                 val coords = obj["geometry"]!!.jsonObject["coordinates"]!!.jsonArray
                 // Лише назва, без країни: поле йде в заголовки виду «Плани у місті Львів».
                 val name = props.string("name")
-                if (name.isBlank()) null else CityResult(name,coords[1].jsonPrimitive.double,coords[0].jsonPrimitive.double)
+                if (name.isBlank()) null else CityResult(
+                    name,
+                    coords[1].jsonPrimitive.double,
+                    coords[0].jsonPrimitive.double
+                )
             }.distinctBy { it.name }.take(CITY_LIMIT).also {
                 PoruchLog.d("geo") { "geocode ${query.trim().length} chars → ${it.size} places in ${started.elapsedNow().inWholeMilliseconds}ms" }
             }
-        } catch (e: CancellationException) { throw e }
-        catch (e: Exception) {
-            PoruchLog.e("geo", e) { "geocode failed after ${started.elapsedNow().inWholeMilliseconds}ms" }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            PoruchLog.e(
+                "geo",
+                e
+            ) { "geocode failed after ${started.elapsedNow().inWholeMilliseconds}ms" }
             fail(AppError.Network)
         }
     }
@@ -45,7 +58,11 @@ class PhotonGeoSearchRepository(
      * Пошук адреси з пріоритетом біля міста події. Порожній список — не помилка, і мережеві
      * збої теж тихі: крапку завжди можна поставити на мапі рукою.
      */
-    override suspend fun places(query: String, latitude: Double, longitude: Double): List<PlaceResult> {
+    override suspend fun places(
+        query: String,
+        latitude: Double,
+        longitude: Double
+    ): List<PlaceResult> {
         val text = query.trim()
         if (text.length < MIN_QUERY) return emptyList()
         val started = TimeSource.Monotonic.markNow()
@@ -87,11 +104,14 @@ class PhotonGeoSearchRepository(
                 header("User-Agent", "Poruch-development/1.0")
             }
             if (response.status.value !in 200..299) return null
-            val features = Json.parseToJsonElement(response.bodyAsText()).jsonObject["features"]?.jsonArray
-                ?.map { it.jsonObject }
-                ?.filterNot { it["properties"]?.jsonObject?.isExcluded() == true }
-                .orEmpty()
-            val house = features.firstOrNull { it.props("housenumber").isNotBlank() && it.props("street").isNotBlank() }
+            val features =
+                Json.parseToJsonElement(response.bodyAsText()).jsonObject["features"]?.jsonArray
+                    ?.map { it.jsonObject }
+                    ?.filterNot { it["properties"]?.jsonObject?.isExcluded() == true }
+                    .orEmpty()
+            val house = features.firstOrNull {
+                it.props("housenumber").isNotBlank() && it.props("street").isNotBlank()
+            }
             val street = features.firstOrNull { it.props("street").isNotBlank() }
             (house ?: street ?: features.firstOrNull())?.toPlace().also {
                 PoruchLog.d("geo") { "reverse → ${if (it == null) "nothing" else "address"} in ${started.elapsedNow().inWholeMilliseconds}ms" }
@@ -104,7 +124,8 @@ class PhotonGeoSearchRepository(
         }
     }
 
-    private fun JsonObject.props(key: String) = this["properties"]?.jsonObject?.string(key).orEmpty()
+    private fun JsonObject.props(key: String) =
+        this["properties"]?.jsonObject?.string(key).orEmpty()
 
     private fun JsonObject.toPlace(): PlaceResult? {
         val props = this["properties"]?.jsonObject ?: return null
@@ -124,7 +145,13 @@ class PhotonGeoSearchRepository(
             .filter { it.isNotBlank() }
             .distinct()
             .joinToString(", ")
-        return PlaceResult(label, detail, city, coords[1].jsonPrimitive.double, coords[0].jsonPrimitive.double)
+        return PlaceResult(
+            label,
+            detail,
+            city,
+            coords[1].jsonPrimitive.double,
+            coords[0].jsonPrimitive.double
+        )
     }
 
     /** Виключені країни — рішення продукту. Порівнюємо за кодом: назва залежить від мови запиту. */
@@ -151,8 +178,10 @@ class PhotonGeoSearchRepository(
 
         /** Коротший запит нічого не звужує, а мережі коштує. */
         const val MIN_QUERY = 3
+
         /** Скільки підказок показуємо. */
         const val LIMIT = 6
+
         /** Скільки міст показуємо. */
         const val CITY_LIMIT = 8
     }
