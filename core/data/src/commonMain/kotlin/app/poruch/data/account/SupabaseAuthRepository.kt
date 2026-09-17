@@ -15,7 +15,7 @@ import kotlin.time.Clock
 /**
  * Auth через GoTrue REST. У сховищі один JSON: поля сесії плюс, поки триває підтвердження пошти
  * чи відновлення, `pkce_verifier` і `pkce_flow`. Лист несе лише одноразовий `code` (PKCE):
- * перехопити `poruch://` може інший застосунок, але без verifier код не обміняти, а колбек із
+ * перехопити `poriad://` може інший застосунок, але без verifier код не обміняти, а колбек із
  * готовими токенами у фрагменті ми більше не приймаємо — так закрито і session fixation.
  */
 class SupabaseAuthRepository(private val api: ApiClient, private val store: SecureSessionStore): AuthRepository {
@@ -118,13 +118,13 @@ class SupabaseAuthRepository(private val api: ApiClient, private val store: Secu
         }
     }
     /**
-     * Приймає лише `poruch://auth/callback?code=…`. Код обмінюється на сесію разом із verifier,
+     * Приймає лише `poriad://auth/callback?code=…`. Код обмінюється на сесію разом із verifier,
      * який чекає у сховищі з моменту реєстрації чи запиту відновлення; без нього (лист відкрили
      * на іншому пристрої) — [AppError.LinkOnAnotherDevice]. Повертає true для відновлення пароля.
      */
     override suspend fun handleCallback(url: String): Boolean = mutex.withLock {
         val parsed = Url(url)
-        require(parsed.protocol.name == "poruch" && parsed.host == "auth" && parsed.encodedPath == "/callback")
+        require(parsed.protocol.name == "poriad" && parsed.host == "auth" && parsed.encodedPath == "/callback")
         val code = parsed.parameters["code"] ?: run {
             // Старий implicit-колбек з токенами у фрагменті: чужий застосунок міг би підсунути
             // свою сесію. Не довіряємо.
@@ -147,7 +147,7 @@ class SupabaseAuthRepository(private val api: ApiClient, private val store: Secu
     }
 
     private companion object {
-        const val CALLBACK = "poruch://auth/callback"
+        const val CALLBACK = "poriad://auth/callback"
         const val FLOW_SIGNUP = "signup"
         const val FLOW_RECOVERY = "recovery"
     }

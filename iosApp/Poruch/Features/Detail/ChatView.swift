@@ -139,7 +139,7 @@ struct ChatView: View {
     private var rules: some View {
         HStack(alignment: .top, spacing: Space.sm) {
             Image(systemName: "hand.raised").font(.system(size: 13, weight: .medium)).foregroundStyle(Palette.inkTertiary).padding(.top, 1)
-            Text("Повідомлення пишуть учасники. «Поруч» їх не перевіряє. На образи чи спам можна поскаржитись, затиснувши повідомлення.")
+            Text("Повідомлення пишуть учасники. «Поряд» їх не перевіряє. На образи чи спам можна поскаржитись, затиснувши повідомлення.")
                 .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
         }
         .padding(.vertical, Space.md)

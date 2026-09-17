@@ -50,20 +50,20 @@ class AuthRepositoryTest {
             respond("""{"access_token":"token","refresh_token":"refresh","expires_in":3600,"user":{"id":"verified-user"}}""",HttpStatusCode.OK)
         }),"https://test.invalid","public")
         val auth=SupabaseAuthRepository(api,store)
-        assertTrue(auth.handleCallback("poruch://auth/callback?code=c1"))
+        assertTrue(auth.handleCallback("poriad://auth/callback?code=c1"))
         assertEquals("verified-user",auth.session.value?.userId)
         assertFalse(store.value!!.contains("pkce_verifier")); api.close()
     }
     @Test fun implicitTokensInCallbackAreRejected()=runTest {
         val api=ApiClient(HttpClient(MockEngine { error("must not call network") }),"https://test.invalid","public")
         val auth=SupabaseAuthRepository(api,Store())
-        assertFails { auth.handleCallback("poruch://auth/callback#access_token=token&refresh_token=refresh&type=recovery") }
+        assertFails { auth.handleCallback("poriad://auth/callback#access_token=token&refresh_token=refresh&type=recovery") }
         assertNull(auth.session.value); api.close()
     }
     @Test fun callbackWithoutVerifierExplainsOtherDevice()=runTest {
         val api=ApiClient(HttpClient(MockEngine { error("must not call network") }),"https://test.invalid","public")
         val auth=SupabaseAuthRepository(api,Store())
-        val failure=assertFailsWith<app.poruch.domain.AppFailure> { auth.handleCallback("poruch://auth/callback?code=c1") }
+        val failure=assertFailsWith<app.poruch.domain.AppFailure> { auth.handleCallback("poriad://auth/callback?code=c1") }
         assertEquals(app.poruch.domain.AppError.LinkOnAnotherDevice,failure.error); api.close()
     }
     @Test fun signUpSendsChallengeAndKeepsVerifier()=runTest {

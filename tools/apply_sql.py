@@ -82,7 +82,7 @@ def connect(url: str, statement_timeout: str):
         raise SystemExit('Потрібен драйвер: python3 -m pip install "psycopg[binary]"')
     try:
         conn = psycopg.connect(url, connect_timeout=15, autocommit=True,
-                               application_name="poruch.apply_sql")
+                               application_name="poriad.apply_sql")
     except psycopg.OperationalError as exc:
         raise SystemExit(f"Не вдалося зʼєднатися: {str(exc).strip()}")
     # Не «0»: дамп великого міста йде хвилину-дві, але завислий запит не має тримати базу вічно.

@@ -157,7 +157,7 @@ struct ProfileView: View {
     private var about: some View {
         VStack(alignment: .leading, spacing: Space.md) {
             SectionHeader(title: "Про застосунок")
-            Text("«Поруч» — події та люди у вашому місті. Мапа: MapLibre та OpenFreeMap.")
+            Text("«Поряд» — події та люди у вашому місті. Мапа: MapLibre та OpenFreeMap.")
                 .font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
             VStack(spacing: Space.sm) {
                 LinkRow(title: "Політика конфіденційності", symbol: "hand.raised", url: LegalLinks.shared.PRIVACY)

@@ -15,7 +15,7 @@ import urllib.request
 import urllib.robotparser
 from dataclasses import dataclass
 
-USER_AGENT = "PoruchBot/0.1 (+https://poruch.app/bot; contact@poruch.app)"
+USER_AGENT = "PoriadBot/0.1 (+https://poriad.app/bot; contact@poriad.app)"
 
 _robots_cache: dict[str, urllib.robotparser.RobotFileParser | None] = {}
 _last_hit: dict[str, float] = {}

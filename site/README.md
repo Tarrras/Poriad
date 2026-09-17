@@ -1,4 +1,4 @@
-# Сайт «Поруч»
+# Сайт «Поряд»
 
 Статичні сторінки, які потрібні магазинам і застосунку: лендинг, політика конфіденційності, умови користування, видалення акаунту. Без збірки: HTML + один CSS, кольори з `docs/design-system.md`.
 
@@ -15,7 +15,7 @@
 Усе, що позначено класом `.todo` (помаранчева підсвітка), треба замінити:
 
 - назва контролера даних (ФОП / юрособа), код, адреса — у `privacy*.html`, `terms*.html`;
-- `privacy@poruch.app`, `hello@poruch.app` — на реальні скриньки (або одну);
+- `privacy@poriad.app`, `hello@poriad.app` — на реальні скриньки (або одну);
 - регіон проєкту Supabase (Dashboard → Settings → General → Region);
 - посилання на App Store / Google Play у `index.html` після публікації.
 
@@ -27,7 +27,14 @@ grep -n 'class="todo"' site/*.html
 
 ## Хостинг
 
-Будь-який статичний хостинг. Найпростіше — GitHub Pages з підпапки: Settings → Pages → Source: branch `main`, folder `/site` (потрібно винести в корінь або налаштувати Actions), або Cloudflare Pages / Netlify з `site` як publish directory. Домен `poruch.app` у текстах — припущення; якщо домен інший, замінити в `mailto:` і в App Links / Universal Links, коли вони з'являться.
+GitHub Pages, безкоштовно. Воркфлоу `.github/workflows/site.yml` викладає теку `site/` після кожного пушу в `main`; у репозиторії один раз увімкнути Settings → Pages → Source: **GitHub Actions**. Файл `site/CNAME` прив'язує домен `poriad.app`; у DNS домену додати:
+
+| Тип | Ім'я | Значення |
+| --- | --- | --- |
+| A | @ | 185.199.108.153, 185.199.109.153, 185.199.110.153, 185.199.111.153 |
+| CNAME | www | `<github-user>.github.io` |
+
+Потім Settings → Pages → Custom domain: `poriad.app`, поставити «Enforce HTTPS» (для зони `.app` HTTPS обов'язковий, сертифікат GitHub видає сам за кілька хвилин). Якщо домен інший, замінити в `CNAME`, у `mailto:` і в App Links / Universal Links, коли вони з'являться.
 
 Після публікації вписати URL:
 

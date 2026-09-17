@@ -22,7 +22,7 @@ build = project.new(Xcodeproj::Project::Object::PBXBuildFile); build.product_ref
 target.build_configurations.each do |c|
  c.base_configuration_reference = config
  c.build_settings.merge!({
- 'PRODUCT_BUNDLE_IDENTIFIER'=>'app.poruch.ios', 'SWIFT_VERSION'=>'5.0', 'INFOPLIST_FILE'=>'Poruch/Info.plist',
+ 'PRODUCT_BUNDLE_IDENTIFIER'=>'app.poriad.ios', 'SWIFT_VERSION'=>'5.0', 'INFOPLIST_FILE'=>'Poruch/Info.plist',
  'TARGETED_DEVICE_FAMILY'=>'1,2', 'ENABLE_USER_SCRIPT_SANDBOXING'=>'NO',
  # Тека фреймворку залежить від конфігурації: скрипт збирає link${CONFIGURATION}Framework,
  # тож Release має шукати releaseFramework, інакше архів лінкує застарілий debug.

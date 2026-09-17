@@ -76,7 +76,7 @@ struct OnboardingView: View {
                 .frame(width: 72, height: 72)
                 .background(Palette.brandContainer, in: RoundedRectangle(cornerRadius: Corner.lg, style: .continuous))
             Text("Знайомимось").font(PoruchFont.display).displayTracking().foregroundStyle(Palette.ink)
-            Text("Три питання — і «Поруч» показуватиме спершу те, що вам підходить. Відповіді лишаються на цьому пристрої, змінити їх можна будь-коли у профілі.")
+            Text("Три питання — і «Поряд» показуватиме спершу те, що вам підходить. Відповіді лишаються на цьому пристрої, змінити їх можна будь-коли у профілі.")
                 .font(PoruchFont.lead).foregroundStyle(Palette.inkSecondary)
         }
     }

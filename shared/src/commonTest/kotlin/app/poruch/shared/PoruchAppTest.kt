@@ -286,8 +286,8 @@ class PoruchAppTest {
     @Test fun signUpWithoutSessionOpensConfirmationStep()=runTest {
         val auth=Auth(); auth.session.value=null; auth.signUpSignsIn=false
         val app=app(Events(),backgroundScope,auth)
-        runCurrent();app.signUp(" new@poruch.app ","password1","Імʼя","1990-01-01");runCurrent()
-        assertEquals("new@poruch.app",app.state.value.awaitingConfirmation)
+        runCurrent();app.signUp(" new@poriad.app ","password1","Імʼя","1990-01-01");runCurrent()
+        assertEquals("new@poriad.app",app.state.value.awaitingConfirmation)
         assertNull(app.state.value.notice)
         app.dismissConfirmationStep()
         assertNull(app.state.value.awaitingConfirmation)
@@ -296,7 +296,7 @@ class PoruchAppTest {
     @Test fun signUpWithSessionSkipsConfirmationStep()=runTest {
         val auth=Auth(); auth.session.value=null
         val app=app(Events(),backgroundScope,auth)
-        runCurrent();app.signUp("new@poruch.app","password1","Імʼя","1990-01-01");runCurrent()
+        runCurrent();app.signUp("new@poriad.app","password1","Імʼя","1990-01-01");runCurrent()
         assertNull(app.state.value.awaitingConfirmation)
         assertEquals(AppNotice.Told(AppMessage.ACCOUNT_CREATED),app.state.value.notice)
         assertTrue(app.state.value.signedIn)
@@ -306,15 +306,15 @@ class PoruchAppTest {
     @Test fun signingInClearsConfirmationStep()=runTest {
         val auth=Auth(); auth.session.value=null; auth.signUpSignsIn=false
         val app=app(Events(),backgroundScope,auth)
-        runCurrent();app.signUp("new@poruch.app","password1","Імʼя","1990-01-01");runCurrent()
+        runCurrent();app.signUp("new@poriad.app","password1","Імʼя","1990-01-01");runCurrent()
         assertNotNull(app.state.value.awaitingConfirmation)
-        app.handleAuthCallback("poruch://auth/callback");runCurrent()
+        app.handleAuthCallback("poriad://auth/callback");runCurrent()
         assertNull(app.state.value.awaitingConfirmation)
         app.close()
     }
     @Test fun recoveryFlagSurvivesIdentityChange()=runTest {
         val app=app(Events(),backgroundScope)
-        runCurrent();app.handleAuthCallback("poruch://auth/callback");runCurrent()
+        runCurrent();app.handleAuthCallback("poriad://auth/callback");runCurrent()
         assertTrue(app.state.value.passwordRecovery)
         app.close()
     }

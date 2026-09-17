@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-  <string name="app_name">Поруч</string>
+  <string name="app_name">Поряд</string>
   <string name="map">Мапа</string>
   <string name="my_events">Мої події</string>
   <string name="profile">Профіль</string>
@@ -182,7 +182,7 @@
   <string name="auth_consent">Реєструючись, ви погоджуєтесь з %1$s та %2$s</string>
   <string name="auth_consent_terms">Умовами користування</string>
   <string name="auth_consent_privacy">Політикою конфіденційності</string>
-  <string name="about_app_body">«Поруч» — події та люди у вашому місті. Мапа: MapLibre та OpenFreeMap.</string>
+  <string name="about_app_body">«Поряд» — події та люди у вашому місті. Мапа: MapLibre та OpenFreeMap.</string>
   <string name="step_of">Крок %1$d із 3</string>
   <string name="step_one">Про подію</string>
   <string name="step_two">Місце</string>
@@ -213,7 +213,7 @@
   <string name="picked_for_you_hint">Дібрано за вашими відповідями</string>
 
   <string name="onboarding_welcome_title">Знайомимось</string>
-  <string name="onboarding_welcome_body">Три питання — і «Поруч» показуватиме спершу те, що вам підходить. Відповіді лишаються на цьому пристрої, змінити їх можна будь-коли у профілі.</string>
+  <string name="onboarding_welcome_body">Три питання — і «Поряд» показуватиме спершу те, що вам підходить. Відповіді лишаються на цьому пристрої, змінити їх можна будь-коли у профілі.</string>
   <string name="onboarding_start">Почати</string>
   <string name="onboarding_skip">Пропустити</string>
   <string name="onboarding_step">Крок %1$d з %2$d</string>
@@ -242,7 +242,7 @@
   <string name="tune_recommendations_hint">Пройти опитування ще раз</string>
 
   <string name="birth_date">Дата народження</string>
-  <string name="birth_date_hint">«Поруч» — застосунок для повнолітніх. Дату видно лише вам.</string>
+  <string name="birth_date_hint">«Поряд» — застосунок для повнолітніх. Дату видно лише вам.</string>
   <string name="birth_date_placeholder">Оберіть дату</string>
   <string name="confirm_age_title">Підтвердьте вік</string>
   <string name="confirm_age_body">Ваш обліковий запис створено до того, як ми почали питати вік. Вкажіть дату народження — без неї не вийде приєднатись до події.</string>
@@ -272,7 +272,7 @@
   <string name="chat_empty_hint">Напишіть першим: де зустрітись, що взяти, як упізнати одне одного.</string>
   <string name="chat_unavailable_title">Чат ще недоступний</string>
   <string name="chat_unavailable_hint">Сервер ще не оновлено. Спробуйте пізніше.</string>
-  <string name="chat_disclaimer">Повідомлення пишуть учасники. «Поруч» їх не перевіряє. На образи чи спам можна поскаржитись, затиснувши повідомлення.</string>
+  <string name="chat_disclaimer">Повідомлення пишуть учасники. «Поряд» їх не перевіряє. На образи чи спам можна поскаржитись, затиснувши повідомлення.</string>
   <string name="chat_subtitle">%1$s · організатор і підтверджені</string>
   <string name="chat_subtitle_plain">Чат учасників</string>
   <plurals name="chat_members">
@@ -310,7 +310,7 @@
   <string name="err_too_many_messages">Забагато повідомлень поспіль. Зачекайте хвилину</string>
   <string name="err_invalid_message">Повідомлення порожнє або задовге (до 2000 символів)</string>
   <string name="contact_confirm_title">Відкрити посилання від організатора?</string>
-  <string name="contact_confirm_body">Ви переходите на %1$s. Це посилання додав організатор події. «Поруч» не перевіряє його і не відповідає за вміст сторінки чи чату за ним. Не переходьте, якщо не довіряєте організатору.</string>
+  <string name="contact_confirm_body">Ви переходите на %1$s. Це посилання додав організатор події. «Поряд» не перевіряє його і не відповідає за вміст сторінки чи чату за ним. Не переходьте, якщо не довіряєте організатору.</string>
   <string name="contact_confirm_open">Перейти</string>
   <string name="field_contact_url">Посилання на чат (лише https)</string>
   <string name="requests_home_section">Запити на участь</string>

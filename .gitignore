@@ -32,3 +32,6 @@ out/
 *.jks
 *.keystore
 keystore.properties
+
+# graphify knowledge graph output
+graphify-out/

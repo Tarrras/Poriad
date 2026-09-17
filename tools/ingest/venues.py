@@ -71,7 +71,7 @@ def fetch_osm(city: str, *, refresh: bool = False) -> list[dict]:
             endpoint, data=body,
             headers={"Accept": "application/json",       # без цього Overpass віддає 406
                      "Content-Type": "application/x-www-form-urlencoded",
-                     "User-Agent": "PoruchBot/0.1 (+https://poruch.app/bot)"})
+                     "User-Agent": "PoriadBot/0.1 (+https://poriad.app/bot)"})
         try:
             with urllib.request.urlopen(req, timeout=240) as r:
                 payload = json.loads(r.read().decode("utf-8"))

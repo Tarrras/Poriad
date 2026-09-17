@@ -107,7 +107,7 @@ class Geocoder:
         })
         req = urllib.request.Request(
             f"{ENDPOINT}?{params}",
-            headers={"User-Agent": "PoruchBot/0.1 (+https://poruch.app/bot)",
+            headers={"User-Agent": "PoriadBot/0.1 (+https://poriad.app/bot)",
                      "Accept": "application/json"})
         self.calls += 1
         try:

@@ -177,7 +177,7 @@ private struct DetailDialogs: ViewModifier {
     func body(content: Content) -> some View {
         content
         .confirmationDialog(
-            "Ви переходите на \(view.contactURL.map { ContactRules.shared.host(url: $0.absoluteString) } ?? "сторонній сайт"). Це посилання додав організатор події. «Поруч» не перевіряє його і не відповідає за вміст сторінки чи чату за ним. Не переходьте, якщо не довіряєте організатору.",
+            "Ви переходите на \(view.contactURL.map { ContactRules.shared.host(url: $0.absoluteString) } ?? "сторонній сайт"). Це посилання додав організатор події. «Поряд» не перевіряє його і не відповідає за вміст сторінки чи чату за ним. Не переходьте, якщо не довіряєте організатору.",
             isPresented: $openingContact, titleVisibility: .visible
         ) {
             Button("Перейти") { if let url = view.contactURL { UIApplication.shared.open(url) } }

@@ -1,6 +1,6 @@
 # Тексти й графіка для сторів
 
-Графіка в цій теці згенерована 2026-09-16 з реальних екранів debug-збірок (iPhone 17 Pro, Pixel 9a) через `tools`-скрипт у сесії аудиту; перегенерувати після зміни UI. Перезнято 2026-09-17 після появи видалення акаунту, юридичних посилань і реалістичних спільнотних подій у Києві.
+Графіка в цій теці згенерована 2026-09-16 з реальних екранів debug-збірок (iPhone 17 Pro, Pixel 9a) через `tools`-скрипт у сесії аудиту; перегенерувати після зміни UI. Перезнято 2026-09-17 після появи видалення акаунту, юридичних посилань і реалістичних спільнотних подій у Києві. Того ж дня після перейменування на «Поряд» вордмарк на `feature_graphic` і `site/img/og.png` перемальовано, а на `appstore/*_05.png` (профіль) підправлено рядок «Про застосунок» і пошту підтримки. Скріншоти екранів без назви бренду не чіпали. Перед подачею перезняти `*_05.png` зі свіжої збірки, щоб текст був справжнім, а не ретушшю.
 
 ## Файли
 
@@ -17,13 +17,13 @@ iPad-скріншотів немає: у pbxproj `TARGETED_DEVICE_FAMILY = "1,2"
 
 ## Google Play
 
-**Назва (30):** Поруч — події поруч з вами
+**Назва (30):** Поряд — події поряд з вами
 
 **Короткий опис (80):** Події міста на мапі: концерти, настолки, пробіжки, зустрічі. Створюйте свої.
 
 **Повний опис (4000):**
 
-Поруч — застосунок про те, що відбувається поруч із вами просто зараз. Замість стрічки — мапа міста з подіями: концерти й вистави з афіш, настільні ігри, ранкові пробіжки, розмовні клуби, лекції та зустрічі, які створюють такі самі люди, як ви.
+Поряд — застосунок про те, що відбувається поруч із вами просто зараз. Замість стрічки — мапа міста з подіями: концерти й вистави з афіш, настільні ігри, ранкові пробіжки, розмовні клуби, лекції та зустрічі, які створюють такі самі люди, як ви.
 
 ЗНАХОДЬТЕ
 • Мапа з кластерами за категоріями: музика, спорт, мистецтво, їжа, ігри, природа, стендап, екскурсії, конференції, зустрічі.
@@ -53,7 +53,7 @@ iPad-скріншотів немає: у pbxproj `TARGETED_DEVICE_FAMILY = "1,2"
 Мапа: MapLibre, дані © учасники OpenStreetMap, тайли OpenFreeMap.
 
 **Категорія:** Events. **Теги:** events, meetups, map, місто.
-**Контакт:** hello@poruch.app (замінити). **Політика:** https://poruch.app/privacy.html (замінити на реальний URL).
+**Контакт:** hello@poriad.app (замінити). **Політика:** https://poriad.app/privacy.html (замінити на реальний URL).
 
 ### Data safety (як заповнювати)
 
@@ -83,7 +83,7 @@ UGC: так. Спілкування між користувачами: так (�
 
 ## App Store
 
-**Name (30):** Поруч — події поруч
+**Name (30):** Поряд — події поряд
 **Subtitle (30):** Мапа подій і зустрічей міста
 **Promotional text (170):** Концерти, настолки, пробіжки й зустрічі за 15 хвилин ходьби від вас. Знаходьте на мапі, приєднуйтесь, створюйте власні.
 **Keywords (100):** події,афіша,мапа,зустрічі,концерти,настолки,пробіжка,київ,львів,meetup,events,куди піти
@@ -97,4 +97,4 @@ Contact Info: Email, Name. Identifiers: User ID, Device ID. Location: Coarse Loc
 
 ### App Review Notes (англійською)
 
-> Poruch is a Ukrainian-language event discovery app (map + community meetups). Sign-up requires age 18+ (birth date is validated server-side). Test account: <email> / <password> (already 18+ and confirmed). The default city is Kyiv, which has imported public listings; tap any pin on the Map tab to open an event. "Buy ticket" opens the organizer's website in Safari (physical events, no IAP). User-generated events, chat, report and block are available from the event screen after sign-in. Account deletion: Profile → Delete account. Location is requested only when tapping "Near me".
+> Poriad is a Ukrainian-language event discovery app (map + community meetups). Sign-up requires age 18+ (birth date is validated server-side). Test account: <email> / <password> (already 18+ and confirmed). The default city is Kyiv, which has imported public listings; tap any pin on the Map tab to open an event. "Buy ticket" opens the organizer's website in Safari (physical events, no IAP). User-generated events, chat, report and block are available from the event screen after sign-in. Account deletion: Profile → Delete account. Location is requested only when tapping "Near me".

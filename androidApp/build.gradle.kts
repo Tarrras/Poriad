@@ -10,7 +10,7 @@ android {
     namespace = "app.poruch.android"
     compileSdk = 36
     defaultConfig {
-        applicationId = "app.poruch.android"
+        applicationId = "app.poriad.android"
         minSdk = 26
         targetSdk = 36
         versionCode = 1

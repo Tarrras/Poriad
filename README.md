@@ -1,4 +1,6 @@
-# Поруч
+# Поряд
+
+Публічна назва — «Поряд» (Play/App Store, сайт poriad.app, схема `poriad://`, applicationId `app.poriad.android`, bundle `app.poriad.ios`). Кодова назва в репозиторії лишилась Poruch: Kotlin-пакети `app.poruch.*`, тека `iosApp/Poruch`, ключі UserDefaults і назви шарів мапи. Це свідомо: перейменування пакетів не дає користувачу нічого.
 
 Нативний Android/iOS застосунок для міських подій: інтерактивна мапа, пошук міста, створення події та приєднання. Спільна бізнес-логіка — Kotlin Multiplatform; Android — Jetpack Compose + Navigation 3; iOS — SwiftUI + NavigationStack.
 
@@ -82,7 +84,7 @@ Poruch/discovery  0 events
 Для email callback у [Supabase Auth URL Configuration](https://supabase.com/dashboard/project/tzdogzdvctlumsqlqskr/auth/url-configuration) додайте:
 
 ```text
-poruch://auth/callback
+poriad://auth/callback
 ```
 
 Перевірте email confirmation, поштовий провайдер і redirect allowlist. Ці глобальні Auth settings не були змінені або перевірені доступним MCP конектором. Логін/реєстрація та recovery реалізовані в коді; доставку листів і повний перехід із листа на фізичному пристрої ще потрібно перевірити.

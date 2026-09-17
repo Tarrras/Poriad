@@ -84,7 +84,7 @@ struct AuthView: View {
                         displayedComponents: .date
                     )
                     .datePickerStyle(.compact).labelsHidden().tint(Palette.brand)
-                    Text("«Поруч» — застосунок для повнолітніх. Дату видно лише вам.")
+                    Text("«Поряд» — застосунок для повнолітніх. Дату видно лише вам.")
                         .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
                 }
             }

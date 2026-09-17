@@ -384,7 +384,7 @@
 					Shared,
 					"-lsqlite3",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = app.poruch.ios;
+				PRODUCT_BUNDLE_IDENTIFIER = app.poriad.ios;
 				SDKROOT = iphoneos;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -424,7 +424,7 @@
 					Shared,
 					"-lsqlite3",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = app.poruch.ios;
+				PRODUCT_BUNDLE_IDENTIFIER = app.poriad.ios;
 				SDKROOT = iphoneos;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;

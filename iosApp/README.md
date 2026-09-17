@@ -1,4 +1,4 @@
-# Поруч for iOS
+# Поряд for iOS
 
 Native SwiftUI application, iOS 17+, arm64. Business operations use the KMP `Shared` facade; Swift has no duplicate authentication or event API client. Session data uses Keychain with `AfterFirstUnlockThisDeviceOnly`. Flow observation is started on activation and cancelled on backgrounding; its owner closes the graph on disposal.
 
@@ -27,7 +27,7 @@ For an iPhone, first run `./gradlew :shared:linkDebugFrameworkIosArm64`, open `P
 
 ## Remaining product verification
 
-Real-device accessibility/VoiceOver and full multi-account UI flows remain unverified. Auth callback scheme `poruch://` and recovery UI are implemented; configure the matching Supabase redirect allowlist. Organizer details provide native PhotosPicker upload (converted to JPEG, maximum 5 MiB). Event date pickers and event display use the explicit IANA time zone; persisted timestamps are UTC. Offline discovery is supplied by shared cache. Drafts are local to this installation.
+Real-device accessibility/VoiceOver and full multi-account UI flows remain unverified. Auth callback scheme `poriad://` and recovery UI are implemented; configure the matching Supabase redirect allowlist. Organizer details provide native PhotosPicker upload (converted to JPEG, maximum 5 MiB). Event date pickers and event display use the explicit IANA time zone; persisted timestamps are UTC. Offline discovery is supplied by shared cache. Drafts are local to this installation.
 
 Project generation is reproducible using `ruby generate_project.rb` with the `xcodeproj` gem; normal Xcode usage does not require Ruby. Swift strings are Ukrainian, with a source string catalog; localization extraction should be reviewed before adding other locales.
 
