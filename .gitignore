@@ -35,3 +35,6 @@ keystore.properties
 
 # graphify knowledge graph output
 graphify-out/
+
+# Android Studio / IntelliJ
+.idea/
