@@ -9,6 +9,7 @@
 | `terms.html`, `terms-en.html` | Terms / EULA з правилами UGC (Apple 1.2, Play UGC policy) |
 | `delete-account.html` | Обов'язковий веб-URL для Play «Account deletion» |
 | `img/` | Скріншоти для лендингу |
+| `CNAME`, `robots.txt` | Домен для GitHub Pages і дозвіл на індексацію |
 
 ## Перед публікацією
 
