@@ -43,6 +43,7 @@
 <tr><td>Location</td><td>Only when you tap "Near me" and grant permission</td><td>Centering the map. Coordinates are not stored on the server; only the visible map area is sent. You can pick a city manually instead.</td></tr>
 <tr><td>Push token</td><td>When you allow notifications</td><td>Delivering notifications about new messages and join requests. Removed on sign-out.</td></tr>
 <tr><td>Interests and onboarding answers</td><td>First launch, profile</td><td>Ranking events for you. Answers stay on the device; chosen categories are stored in your server profile.</td></tr>
+<tr><td>Usage statistics and crash reports</td><td>Automatically while the app runs</td><td>Which screens are opened and where the app crashes, so we can fix bugs. Via Firebase Analytics and Crashlytics, without the advertising identifier; not linked to your account.</td></tr>
 <tr><td>Technical data</td><td>Automatically with each request</td><td>IP address and app version in server logs for security and diagnostics, kept for a limited time by our hosting provider.</td></tr>
 </table>
 </div>
@@ -63,6 +64,7 @@
 <tr><th>Provider</th><th>What</th></tr>
 <tr><td>Supabase, Inc. (database, auth, file storage, functions)</td><td>All account data, events, messages, photos. Hosted in <span class="todo">[Supabase project region: Dashboard → Settings → General]</span>.</td></tr>
 <tr><td>Google LLC, Firebase Cloud Messaging (Android)</td><td>Device token and notification content for delivery.</td></tr>
+<tr><td>Google LLC, Firebase Analytics and Crashlytics (Android, iOS)</td><td>Anonymous usage statistics, crash reports, device model and OS version.</td></tr>
 <tr><td>Apple Inc., Apple Push Notification service (iOS)</td><td>Device token and notification content for delivery.</td></tr>
 <tr><td>OpenFreeMap (map tiles)</td><td>Device IP address and the map area you view while tiles load.</td></tr>
 <tr><td>Photon / komoot (city search)</td><td>City search text and IP address.</td></tr>

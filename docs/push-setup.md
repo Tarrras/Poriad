@@ -41,6 +41,13 @@ supabase secrets set APNS_KEY="$(cat AuthKey_XXXXXXXXXX.p8)" APNS_KEY_ID=XXXXXXX
 `APNS_SANDBOX=true` для dev-збірок (Xcode, симулятор, TestFlight-development). Для App Store — `false`.
 Симулятор на Apple silicon (Xcode 14+) отримує справжні токени APNs і приймає пуші з sandbox.
 
+## 3a. Analytics і Crashlytics
+
+Обидві платформи, той самий проєкт Firebase `poruchapp-1e5c4`.
+
+- **Android:** плагін `com.google.firebase.crashlytics` і `firebase-analytics`/`firebase-crashlytics` з BOM. Advertising ID вимкнено в маніфесті (`google_analytics_adid_collection_enabled=false`, дозволи `AD_ID` вирізано), бо політика обіцяє «без рекламних ідентифікаторів». Mapping для релізу плагін вивантажує сам.
+- **iOS:** Swift Package `firebase-ios-sdk`, продукти `FirebaseAnalyticsCore` (без IDFA) і `FirebaseCrashlytics`. Firebase Console → Add app → iOS, bundle `app.poriad.ios` → завантажити `GoogleService-Info.plist` у `iosApp/Poruch/` і додати в таргет як ресурс (Xcode: перетягнути у групу Poruch, галочка Poruch у Target Membership). Без plist застосунок збирається й працює, просто `FirebaseApp.configure()` не викликається, а фаза «Crashlytics dSYM» пропускає вивантаження.
+
 ## 4. Перевірка
 
 - Після входу в застосунок з дозволом на сповіщення в `public.push_tokens` має зʼявитись рядок пристрою.

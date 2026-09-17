@@ -1,10 +1,15 @@
 import SwiftUI
 import Shared
+import FirebaseCore
 
 @main struct PoruchApplication: App {
     @UIApplicationDelegateAdaptor(PushDelegate.self) private var pushDelegate
     @StateObject private var model = AppModel()
     @Environment(\.scenePhase) private var scenePhase
+    init() {
+        // Analytics і Crashlytics. Без GoogleService-Info.plist (збірка без ключів) Firebase не піднімаємо.
+        if Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist") != nil { FirebaseApp.configure() }
+    }
     var body: some Scene {
         WindowGroup {
             RootView().environmentObject(model).tint(Palette.brand)

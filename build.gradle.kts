@@ -6,6 +6,7 @@ plugins {
     id("com.android.kotlin.multiplatform.library") version "9.0.1" apply false
     id("app.cash.sqldelight") version "2.1.0" apply false
     id("com.google.gms.google-services") version "4.4.4" apply false
+    id("com.google.firebase.crashlytics") version "3.0.6" apply false
 }
 
 // androidApp compiles at JVM 17 while the KMP android targets default to 21. An inline function

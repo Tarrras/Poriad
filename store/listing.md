@@ -46,7 +46,7 @@ iPad-скріншотів немає: у pbxproj `TARGETED_DEVICE_FAMILY = "1,2"
 • Тільки для дорослих: реєстрація з 18 років.
 • Скарга й блокування з екрана кожної події.
 • Імена учасників — лише організатору й тим, хто вже приєднався.
-• Без реклами й стеження. Геолокація — лише за вашим запитом.
+• Без реклами й рекламних ідентифікаторів. Геолокація — лише за вашим запитом.
 
 Афішні події беруться з відкритих джерел із зазначенням джерела; квитки купуються на сайті організатора.
 
@@ -69,9 +69,11 @@ iPad-скріншотів немає: у pbxproj `TARGETED_DEVICE_FAMILY = "1,2"
 | Фото | ні | обкладинка події (публічна) | ні |
 | Повідомлення в застосунку | ні | чат події | Google (FCM) для доставки пушів |
 | Інший контент користувача | ні | події, скарги, блокування | ні |
-| Device or other IDs (FCM token, Firebase Installation ID) | ні | пуші | Google |
+| Device or other IDs (FCM token, Firebase Installation ID) | ні | пуші, аналітика | Google |
+| App interactions (Analytics) | ні | аналітика | Google |
+| Crash logs, Diagnostics | ні | стабільність | Google |
 
-Crash logs, diagnostics, реклама, фінанси, контакти, здоров'я — не збираються.
+Реклама, фінанси, контакти, здоров'я — не збираються. Advertising ID вимкнено в маніфесті, тож у Data safety його не вказувати.
 
 ### Content rating (IARC)
 
@@ -93,7 +95,7 @@ UGC: так. Спілкування між користувачами: так (�
 
 ### App Privacy (Data linked to you)
 
-Contact Info: Email, Name. Identifiers: User ID, Device ID. Location: Coarse Location (not linked). Photos or Videos. User Content: Other User Content, Messages (push через APNs). Other Data: дата народження. Tracking: none.
+Contact Info: Email, Name. Identifiers: User ID, Device ID. Location: Coarse Location (not linked). Photos or Videos. User Content: Other User Content, Messages (push через APNs). Other Data: дата народження. **Not linked to you:** Diagnostics (Crash Data, Performance Data), Usage Data (Product Interaction). Tracking: none (Analytics без IDFA).
 
 ### App Review Notes (англійською)
 
