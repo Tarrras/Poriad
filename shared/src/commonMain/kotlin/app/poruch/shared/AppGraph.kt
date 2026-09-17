@@ -62,7 +62,13 @@ class AppGraph(
             single<TasteStore> { LocalTasteStore(get()) }
             single<ReminderPreferenceStore> { LocalReminderPreference(get()) }
             single<SeenRequestStore> { LocalSeenRequests(get(), get()) }
-            single<SeenRequestStore>(named("messages")) { LocalSeenRequests(get(), get(), "chat-seen") }
+            single<SeenRequestStore>(named("messages")) {
+                LocalSeenRequests(
+                    get(),
+                    get(),
+                    "chat-seen"
+                )
+            }
             single<SafetyRepository> { SupabaseSafetyRepository(get(), get()) }
             // Один клас, два питання: місто зміщує мапу, адреса ставить крапку.
             single { PhotonGeoSearchRepository(http) }
@@ -74,14 +80,30 @@ class AppGraph(
             single { AccountActions(get()) }
             single {
                 PoruchApp(
-                    events = get(), saved = get(), authoring = get(), participation = get(),
-                    requests = get(), chat = get(), push = get(), auth = get(), geo = get(),
-                    eventActions = get(), accountActions = get(),
-                    preferences = get(), safety = get(), tasteStore = get(),
-                    creationIdentity = get(), timeZones = get(), addresses = get(),
-                    reminderStore = get(), reminders = reminders,
-                    seenRequests = get(), requestNotifier = requestNotifier,
-                    seenMessages = get(named("messages")), chatNotifier = chatNotifier, config = config,
+                    events = get(),
+                    saved = get(),
+                    authoring = get(),
+                    participation = get(),
+                    requests = get(),
+                    chat = get(),
+                    push = get(),
+                    auth = get(),
+                    geo = get(),
+                    eventActions = get(),
+                    accountActions = get(),
+                    preferences = get(),
+                    safety = get(),
+                    tasteStore = get(),
+                    creationIdentity = get(),
+                    timeZones = get(),
+                    addresses = get(),
+                    reminderStore = get(),
+                    reminders = reminders,
+                    seenRequests = get(),
+                    requestNotifier = requestNotifier,
+                    seenMessages = get(named("messages")),
+                    chatNotifier = chatNotifier,
+                    config = config,
                     // Обидва потоки названі явно: тут єдине місце, де видно, що вони різні.
                     scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
                     compute = Dispatchers.Default
@@ -90,5 +112,7 @@ class AppGraph(
         })
     }
     val app: PoruchApp = container.koin.get()
-    fun close() { app.close(); http.close(); driver.close(); container.close() }
+    fun close() {
+        app.close(); http.close(); driver.close(); container.close()
+    }
 }

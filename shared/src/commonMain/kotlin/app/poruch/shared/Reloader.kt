@@ -1,0 +1,19 @@
+package app.poruch.shared
+
+/**
+ * Перечитування після змін і повернення з фону. Мапа й «мої» — завжди разом; відкрита подія
+ * окремо, бо її запити й учасники живуть поза стрічкою і їх знає лише сервер.
+ */
+internal class Reloader(private val discovery: DiscoveryEngine, private val library: UserLibrary) {
+    /** Мапа й «мої події». Гість перечитує лише мапу. */
+    fun lists() { discovery.refresh(); library.load() }
+
+    /** Те саме плюс відкрита подія: за час у фоні могли прийти запити, відповіді й повідомлення. */
+    fun all() { lists(); library.openEventId?.let { library.select(it, full = true) } }
+
+    /** Усе, чого могла торкнутися зміна [id]. Відкриту подію — повним запитом: змінились учасники й членство. */
+    fun changed(id: String) { lists(); if (library.openEventId == id) library.select(id, full = true) }
+
+    /** Чекає, поки доїде все, що запустив [all]. Збій не кидає: він уже в [AppState.notice]. */
+    suspend fun awaitAll() { discovery.awaitSearch(); library.awaitList(); library.awaitDetail() }
+}

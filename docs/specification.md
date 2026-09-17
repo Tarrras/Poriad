@@ -51,7 +51,7 @@ GeoSearchRepository абстрагує геокодування. Заміна п
 
 ### Презентація
 
-Спільний стан живе в `PoruchApp` (модуль `shared`), і саме його спостерігають обидві платформи. Читання й фільтрація винесені в `DiscoveryEngine` та `UserLibrary`, тож у фасаді лишаються тільки дієслова, які викликає екран.
+Спільний стан живе в `PoruchApp` (модуль `shared`), і саме його спостерігають обидві платформи. `PoruchApp` — тонкий фасад із дієсловами екранів: стан і правило «одна зміна за раз» тримає `AppStore`; читання й фільтрація — у `DiscoveryEngine`, `UserLibrary` і `ChatEngine`; дії — у `EventUseCases`, `SessionUseCases`, `SafetyUseCases`, `TasteUseCases`; сесія й пуші — в `IdentitySync` і `PushSync`; перечитування після змін — у `Reloader`.
 
 На Android кожен екран має власну `ViewModel` з циклом **MVI**: `State` → `Intent` → `Effect` (`app/poruch/android/mvi/MviViewModel.kt`). Composable отримує лише `state` і `onIntent`: він не знає ані про сховище, ані про навігацію. Ефекти — одноразові (навігація, системні виклики) — проходять через `Channel`, тому не повторюються після зміни конфігурації. Зв'язок екрана з платформою робить `Route`-composable у `feature/Routes.kt`.
 

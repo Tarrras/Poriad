@@ -77,6 +77,20 @@ data class AppState(
     /** Акаунт без віку має його вказати, перш ніж кудись приєднатись. Питає застосунок, відмовляє сервер. */
     val needsAgeDeclaration get() = signedIn && !account.ageDeclared
     fun hasBlocked(userId: String) = blocked.any { it.userId == userId }
+
+    /**
+     * Сеанси прокату, до якого належить подія, за часом. Без запиту: дати вже в індексі, але
+     * лише в межах поточної видачі (під «Сьогодні» — сьогоднішні). Приймає id будь-якого сеансу.
+     */
+    fun sessionsOf(id: String): List<EventSession> = runOf(id)?.sessions ?: emptyList()
+
+    /**
+     * Id картки, під якою подія стоїть у видачі: для сеансу прокату — представник, для решти — вона
+     * сама. Потрібно мапі, відкритій з другої дати прокату: окремого піна для неї нема.
+     */
+    fun cardIdOf(id: String): String = runOf(id)?.id ?: id
+
+    private fun runOf(id: String) = index.firstOrNull { run -> run.sessions.any { it.id == id } }
 }
 
 /** Ранжує індекс за смаком, а не картки: порядок вирішується над усією областю. */
