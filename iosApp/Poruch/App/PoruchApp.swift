@@ -101,7 +101,7 @@ struct RootView: View {
                 AuthView().toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Готово") { authenticating = false } } }
             }
         }
-        .sheet(isPresented: Binding(get: { model.state?.passwordRecovery == true }, set: { _ in })) { NavigationStack { ProfileView() } }
+        .sheet(isPresented: Binding(get: { model.state?.passwordRecovery == true }, set: { _ in })) { NewPasswordView() }
         .notice(model.state?.notice?.presented) { model.app.clearNotice() }
     }
 }

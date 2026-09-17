@@ -36,6 +36,7 @@ internal fun apiFailure(status: Int, body: String): AppFailure {
         "not_organizer" in lower -> AppError.NotOwner
         "invalid login" in lower -> AppError.InvalidCredentials
         "email not confirmed" in lower -> AppError.EmailNotConfirmed
+        "different from the old password" in lower -> AppError.SamePassword
         status == 401 -> AppError.SessionRequired
         status == 403 -> AppError.NotOwner
         status == 429 -> AppError.TooManyAttempts

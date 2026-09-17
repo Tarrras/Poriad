@@ -10,6 +10,7 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.automirrored.outlined.Login
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.DeleteForever
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.MailOutline
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Person
@@ -129,6 +130,7 @@ fun ProfileScreen(state: ProfileState, onIntent: (ProfileIntent) -> Unit) {
                         Modifier.fillMaxWidth().cardSurface().padding(Spacing.lg),
                         verticalArrangement = Arrangement.spacedBy(Spacing.sm)
                     ) { ReminderSetting(state, onIntent) }
+                    LinkRow(Icons.Outlined.Lock, stringResource(R.string.update_password)) { onIntent(ProfileIntent.ShowChangePassword(true)) }
                 }
                 SecondaryButton(
                     stringResource(R.string.logout), { onIntent(ProfileIntent.SignOut) }, Modifier.fillMaxWidth(),
@@ -175,6 +177,43 @@ fun ProfileScreen(state: ProfileState, onIntent: (ProfileIntent) -> Unit) {
         null, { onIntent(ProfileIntent.ShowBirthDatePicker(false)) }
     ) { onIntent(ProfileIntent.SetBirthDate(it)) }
     if (state.deleting) DeleteAccountSheet(state, onIntent)
+    if (state.changingPassword) ChangePasswordSheet(state, onIntent)
+}
+
+/** Зміна пароля: поточний доводить власника, помилка показується тут — банер лежить під шторкою. */
+@Composable
+private fun ChangePasswordSheet(state: ProfileState, onIntent: (ProfileIntent) -> Unit) {
+    val colors = Poruch.colors
+    PoruchSheet({ onIntent(ProfileIntent.ShowChangePassword(false)) }) { sheet ->
+        Column(
+            Modifier.padding(horizontal = Spacing.page).padding(bottom = Spacing.section).imePadding(),
+            verticalArrangement = Arrangement.spacedBy(Spacing.md)
+        ) {
+            Text(stringResource(R.string.update_password), style = MaterialTheme.typography.titleLarge, color = colors.ink)
+            LabelledField(
+                stringResource(R.string.current_password_label), state.currentPassword,
+                { onIntent(ProfileIntent.SetCurrentPassword(it)) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                visualTransformation = PasswordVisualTransformation()
+            )
+            LabelledField(
+                stringResource(R.string.new_password), state.newPassword,
+                { onIntent(ProfileIntent.SetNewPassword(it)) },
+                hint = stringResource(R.string.password_hint),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                visualTransformation = PasswordVisualTransformation()
+            )
+            state.changeError?.let { Text(it.text(), style = MaterialTheme.typography.bodySmall, color = colors.danger) }
+            PrimaryButton(
+                stringResource(R.string.update_password), { onIntent(ProfileIntent.ConfirmChangePassword) },
+                Modifier.fillMaxWidth(), enabled = state.canChangePassword, loading = state.mutating
+            )
+            SecondaryButton(
+                stringResource(R.string.delete_account_cancel), { sheet.close() }, Modifier.fillMaxWidth(),
+                enabled = !state.mutating
+            )
+        }
+    }
 }
 
 /** Рядок-картка з переходом назовні: той самий вигляд, що в «Налаштувати рекомендації». */
@@ -229,7 +268,7 @@ private fun DeleteAccountSheet(state: ProfileState, onIntent: (ProfileIntent) ->
 @Composable
 private fun ReminderSetting(state: ProfileState, onIntent: (ProfileIntent) -> Unit) {
     val colors = Poruch.colors
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
         Text(
             stringResource(R.string.reminders), Modifier.weight(1f).padding(end = 12.dp),
             style = MaterialTheme.typography.bodyLarge, color = colors.ink

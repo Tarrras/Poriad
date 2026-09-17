@@ -24,9 +24,20 @@ data class ProfileState(
     val deletePassword: String = "",
     /** Помилка видалення показується в шторці: банер під нею не видно. */
     val deleteError: AppError? = null,
+    /** Шторка зміни пароля: поточний і новий живуть лише в ній. */
+    val changingPassword: Boolean = false,
+    val currentPassword: String = "",
+    val changeError: AppError? = null,
+    /** Повтор і показ пароля на екрані нового пароля після листа відновлення. */
+    val newPasswordConfirm: String = "",
+    val newPasswordRevealed: Boolean = false,
     val version: String = ""
 ) {
     val canSavePassword get() = !mutating && AccountRules.isPassword(newPassword)
+    /** Помилку показуємо лише коли в повторі вже щось є: порожнє поле — ще не помилка. */
+    val passwordsMismatch get() = newPasswordConfirm.isNotEmpty() && newPasswordConfirm != newPassword
+    val canSetNewPassword get() = canSavePassword && newPasswordConfirm == newPassword
+    val canChangePassword get() = canSavePassword && currentPassword.isNotEmpty()
     val canDelete get() = AccountRules.isPassword(deletePassword)
 }
 
@@ -40,6 +51,8 @@ sealed interface ProfileIntent {
     data class Unblock(val userId: String) : ProfileIntent
     data class SetNewPassword(val value: String) : ProfileIntent
     data object SavePassword : ProfileIntent
+    data class SetNewPasswordConfirm(val value: String) : ProfileIntent
+    data object ToggleNewPasswordReveal : ProfileIntent
     data class SetReminders(val enabled: Boolean) : ProfileIntent
     /** Відповідь системи на запит дозволу, який маршрут показав за [ProfileEffect.AskNotificationPermission]. */
     data class NotificationPermissionAnswered(val granted: Boolean) : ProfileIntent
@@ -49,6 +62,9 @@ sealed interface ProfileIntent {
     data class ShowDeleteAccount(val show: Boolean) : ProfileIntent
     data class SetDeletePassword(val value: String) : ProfileIntent
     data object ConfirmDeleteAccount : ProfileIntent
+    data class ShowChangePassword(val show: Boolean) : ProfileIntent
+    data class SetCurrentPassword(val value: String) : ProfileIntent
+    data object ConfirmChangePassword : ProfileIntent
 }
 
 sealed interface ProfileEffect {

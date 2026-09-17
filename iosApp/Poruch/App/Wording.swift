@@ -38,6 +38,7 @@ extension AppError {
         case is AppErrorInvalidEmail: "Вкажіть коректний email"
         case is AppErrorInvalidName: "Вкажіть імʼя від 2 до 60 символів"
         case is AppErrorWeakPassword: "Пароль має містити щонайменше 8 символів"
+        case is AppErrorSamePassword: "Новий пароль збігається з поточним"
         // Відхилена чернетка називає поля, тож повідомлення вказує на них.
         case let draft as AppErrorInvalidDraft:
             "Перевірте поля: " + draft.fields.map(\.text).joined(separator: ", ")

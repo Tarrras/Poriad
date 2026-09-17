@@ -62,6 +62,7 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
                 stringResource(
                     when {
                         confirming -> R.string.auth_check_email_title
+                        state.resetting -> R.string.auth_reset_title
                         state.signup -> R.string.auth_create
                         else -> R.string.auth_welcome
                     }
@@ -72,6 +73,7 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
                 stringResource(
                     when {
                         confirming -> R.string.auth_check_email_subtitle
+                        state.resetting -> R.string.auth_reset_subtitle
                         state.signup -> R.string.auth_subtitle_signup
                         else -> R.string.auth_description
                     }
@@ -81,6 +83,10 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
         }
         if (state.awaitingConfirmation != null) {
             ConfirmationStep(state.awaitingConfirmation, onIntent)
+            return@Column
+        }
+        if (state.resetting) {
+            ResetStep(state, onIntent)
             return@Column
         }
         // Фокус на перше поле: імʼя при реєстрації, пошта при вході.
@@ -132,10 +138,13 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
             )
             // Згода — під кнопкою, а не чекбокс: натискання на «Створити» і є згодою, посилання ведуть на текст.
             if (state.signup) ConsentNote(onIntent)
-            if (!state.signup) GhostButton(
-                stringResource(R.string.forgot_password), { onIntent(AuthIntent.ResetPassword) },
-                tone = colors.inkSecondary, enabled = state.emailValid && !state.mutating
-            )
+            // По центру, як «Видалити обліковий запис» у профілі: текстова кнопка з лівим відступом виглядала зсунутою.
+            if (!state.signup) Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                GhostButton(
+                    stringResource(R.string.forgot_password), { onIntent(AuthIntent.ShowReset(true)) },
+                    tone = colors.inkSecondary, enabled = !state.mutating
+                )
+            }
             // Реєстрація — друга половина екрана, а не примітка: справжня кнопка під роздільником.
             Row(
                 Modifier.padding(top = Spacing.sm), verticalAlignment = Alignment.CenterVertically,
@@ -219,6 +228,27 @@ private fun ConfirmationStep(email: String, onIntent: (AuthIntent) -> Unit) {
             stringResource(R.string.auth_confirmed_login), { onIntent(AuthIntent.ConfirmedGoLogin) },
             Modifier.fillMaxWidth()
         )
+    }
+}
+
+/** Скидання пароля: лише пошта, вже вписана переноситься з форми входу. Лист веде назад у застосунок. */
+@Composable
+private fun ResetStep(state: AuthState, onIntent: (AuthIntent) -> Unit) {
+    val emailField = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { emailField.requestFocus() } }
+    Column(Modifier.padding(Spacing.page), verticalArrangement = Arrangement.spacedBy(Spacing.lg)) {
+        LabelledField(
+            stringResource(R.string.email), state.email, { onIntent(AuthIntent.SetEmail(it)) },
+            focusRequester = emailField,
+            placeholder = stringResource(R.string.email_placeholder),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, autoCorrectEnabled = false)
+        )
+        PrimaryButton(
+            stringResource(R.string.auth_reset_send), { onIntent(AuthIntent.ResetPassword) },
+            Modifier.fillMaxWidth(), icon = Icons.Outlined.MailOutline,
+            enabled = state.emailValid, loading = state.mutating
+        )
+        SecondaryButton(stringResource(R.string.auth_reset_back), { onIntent(AuthIntent.ShowReset(false)) }, Modifier.fillMaxWidth())
     }
 }
 

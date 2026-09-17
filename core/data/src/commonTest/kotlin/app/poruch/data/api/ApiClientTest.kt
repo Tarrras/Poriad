@@ -13,6 +13,13 @@ class ApiClientTest {
         assertEquals(AppError.SessionRequired, error.error)
         client.close()
     }
+    @Test fun samePasswordRefusalIsTyped() = runTest {
+        val body = """{"code":422,"error_code":"same_password","msg":"New password should be different from the old password."}"""
+        val client = ApiClient(HttpClient(MockEngine { respond(body, HttpStatusCode.UnprocessableEntity) }), "https://test.invalid", "public")
+        val error = assertFailsWith<AppFailure> { client.request("/auth/v1/user", HttpMethod.Put) }
+        assertEquals(AppError.SamePassword, error.error)
+        client.close()
+    }
     @Test fun noBearerIsSentForGuestPublishableKey() = runTest {
         val client = ApiClient(HttpClient(MockEngine { request ->
             assertNull(request.headers["Authorization"])

@@ -183,6 +183,16 @@ fun ProfileRoute(navigator: Navigator) {
     ProfileScreen(model.state.collectAsStateWithLifecycle().value, model::dispatch)
 }
 
+/** Той самий стан профілю: поле нового пароля й прапорець відновлення живуть у ньому. */
+@Composable
+fun NewPasswordRoute(navigator: Navigator) {
+    val model = koinViewModel<ProfileViewModel>(viewModelStoreOwner = activityStoreOwner())
+    val state = model.state.collectAsStateWithLifecycle().value
+    // Пароль збережено — екран більше не потрібен.
+    LaunchedEffect(state.passwordRecovery) { if (!state.passwordRecovery) navigator.back() }
+    NewPasswordScreen(state, model::dispatch)
+}
+
 /** Поштовий застосунок за категорією, без переліку клієнтів. Якщо його нема, лишаємось тут. */
 private fun Context.openMailApp() {
     val intent = Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_EMAIL)

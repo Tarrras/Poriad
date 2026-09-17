@@ -63,6 +63,8 @@ sealed interface AppError {
     data object InvalidEmail : AppError
     data object InvalidName : AppError
     data object WeakPassword : AppError
+    /** GoTrue відмовляє змінити пароль на той самий. */
+    data object SamePassword : AppError
 }
 
 /** Поля, які може відхилити [EventDraft.validate], щоб екран підсвітив потрібне. */

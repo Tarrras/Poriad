@@ -16,7 +16,9 @@ data class AuthState(
     val birthDate: String = "",
     val pickingBirthDate: Boolean = false,
     /** Пошта, на яку пішов лист після реєстрації. Поки є — замість форми показуємо наступний крок. */
-    val awaitingConfirmation: String? = null
+    val awaitingConfirmation: String? = null,
+    /** Крок «Забули пароль?»: та сама пошта, окремий екран, щоб кнопка не залежала від форми входу. */
+    val resetting: Boolean = false
 ) {
     val emailValid get() = AccountRules.isEmail(email)
     val birthDateValue: LocalDate? get() = runCatching { LocalDate.parse(birthDate) }.getOrNull()
@@ -36,6 +38,7 @@ sealed interface AuthIntent {
     data object TogglePasswordReveal : AuthIntent
     data object ToggleMode : AuthIntent
     data object Submit : AuthIntent
+    data class ShowReset(val show: Boolean) : AuthIntent
     data object ResetPassword : AuthIntent
     /** З кроку «перевірте пошту» назад до форми входу з тією ж поштою. */
     data object ConfirmedGoLogin : AuthIntent

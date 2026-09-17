@@ -599,6 +599,14 @@ class PoruchApp internal constructor(
         mutable.update { it.copy(passwordRecovery = false, notice = AppNotice.Told(AppMessage.PASSWORD_CHANGED)) }
     }
 
+    /** Зміна пароля з профілю: поточний пароль доводить, що телефон у руках власника, як і при видаленні. */
+    fun changePassword(current: String, password: String) = mutate {
+        if (!AccountRules.isPassword(password)) fail(AppError.WeakPassword)
+        auth.verifyPassword(current)
+        auth.updatePassword(password)
+        tell(AppMessage.PASSWORD_CHANGED)
+    }
+
     fun handleAuthCallback(url: String) = mutate {
         PoruchLog.i("auth") { "handling auth callback" }
         val recovery = auth.handleCallback(url)

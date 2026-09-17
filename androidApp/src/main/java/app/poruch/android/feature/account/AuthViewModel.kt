@@ -2,6 +2,8 @@ package app.poruch.android.feature.account
 
 import app.poruch.android.mvi.MviViewModel
 import app.poruch.domain.LegalLinks
+import app.poruch.shared.AppMessage
+import app.poruch.shared.AppNotice
 import app.poruch.shared.PoruchApp
 
 class AuthViewModel(private val app: PoruchApp) : MviViewModel<AuthState, AuthIntent, AuthEffect>(AuthState()) {
@@ -9,7 +11,11 @@ class AuthViewModel(private val app: PoruchApp) : MviViewModel<AuthState, AuthIn
         observe(app) { shared ->
             // Лист відновлення веде на профіль: пароль треба задати, а не ввести.
             if (shared.signedIn && !signedIn && !shared.passwordRecovery) send(AuthEffect.Close)
-            copy(mutating = shared.mutating, signedIn = shared.signedIn, awaitingConfirmation = shared.awaitingConfirmation)
+            copy(
+                mutating = shared.mutating, signedIn = shared.signedIn, awaitingConfirmation = shared.awaitingConfirmation,
+                // Лист пішов — повертаємось до входу, банер скаже решту.
+                resetting = resetting && shared.notice != AppNotice.Told(AppMessage.RECOVERY_SENT)
+            )
         }
     }
 
@@ -27,13 +33,16 @@ class AuthViewModel(private val app: PoruchApp) : MviViewModel<AuthState, AuthIn
                 if (it.signup) app.signUp(it.email.trim(), it.password, it.name.trim(), it.birthDate)
                 else app.signIn(it.email.trim(), it.password)
             }
+            is AuthIntent.ShowReset -> reduce { copy(resetting = intent.show) }
             AuthIntent.ResetPassword -> app.requestPasswordReset(state.value.email.trim())
             // Лист підтверджено: пошта вже в полі, лишається пароль.
             AuthIntent.ConfirmedGoLogin -> { app.dismissConfirmationStep(); reduce { copy(signup = false, password = "") } }
             AuthIntent.OpenMail -> send(AuthEffect.OpenMail)
             AuthIntent.OpenTerms -> send(AuthEffect.OpenLink(LegalLinks.TERMS))
             AuthIntent.OpenPrivacy -> send(AuthEffect.OpenLink(LegalLinks.PRIVACY))
-            AuthIntent.Back -> { app.dismissConfirmationStep(); send(AuthEffect.Close) }
+            AuthIntent.Back ->
+                if (state.value.resetting) reduce { copy(resetting = false) }
+                else { app.dismissConfirmationStep(); send(AuthEffect.Close) }
         }
     }
 }

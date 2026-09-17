@@ -51,6 +51,7 @@ private val AppError.resource: Int
         AppError.InvalidEmail -> R.string.err_invalid_email
         AppError.InvalidName -> R.string.err_invalid_name
         AppError.WeakPassword -> R.string.err_weak_password
+        AppError.SamePassword -> R.string.err_same_password
         AppError.AgeRequired -> R.string.err_age_required
         AppError.TooYoung -> R.string.err_too_young
         AppError.TooOld -> R.string.err_too_old

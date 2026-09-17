@@ -8,6 +8,7 @@ struct ProfileView: View {
     @State private var revealed = false
     @State private var showAuth = false
     @State private var deleting = false
+    @State private var changingPassword = false
     /// Висота смуги статусу: хедер додає її сам, як на головній.
     @State private var statusBar: CGFloat = Space.xxl
     @State private var birthDate = Calendar.current.date(byAdding: .year, value: -Int(SafetyRules.shared.MIN_SIGNUP_AGE), to: Date()) ?? Date()
@@ -37,6 +38,11 @@ struct ProfileView: View {
         .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $showAuth) { NavigationStack { AuthView() } }
         .sheet(isPresented: $deleting) { DeleteAccountSheet().presentationDetents([.medium, .large]) }
+        .sheet(isPresented: $changingPassword) { ChangePasswordSheet().presentationDetents([.medium, .large]) }
+        // Пароль змінено: шторці нема що показувати, підтвердження побачать у банері кореня.
+        .onChange(of: (model.state?.notice as? AppNoticeTold)?.message) { _, message in
+            if message == .passwordChanged { changingPassword = false }
+        }
         // Сесії більше нема: акаунт видалено, шторці нема що показувати.
         .onChange(of: signedIn) { _, signedIn in if !signedIn { deleting = false } }
         .ignoresSafeArea(edges: .top)
@@ -136,6 +142,7 @@ struct ProfileView: View {
             VStack(alignment: .leading, spacing: Space.md) {
                 SectionHeader(title: "Налаштування")
                 ReminderPreference()
+                LinkRow(title: "Змінити пароль", symbol: "lock", external: false) { changingPassword = true }
             }
             SecondaryButton(title: "Вийти з облікового запису", symbol: "rectangle.portrait.and.arrow.right", tone: Palette.danger) {
                 model.app.signOut()
@@ -179,15 +186,17 @@ struct ProfileView: View {
     }
 }
 
-/// Рядок-картка з посиланням назовні, як «Налаштувати рекомендації».
+/// Рядок-картка з посиланням назовні, як «Налаштувати рекомендації»; `external: false` — дія всередині.
 private struct LinkRow: View {
     let title: String
     var subtitle: String?
     let symbol: String
-    let url: String
+    var url: String = ""
+    var external = true
+    var action: () -> Void = {}
     var body: some View {
         Button {
-            if let url = URL(string: url) { UIApplication.shared.open(url) }
+            if external, let url = URL(string: url) { UIApplication.shared.open(url) } else { action() }
         } label: {
             HStack(spacing: Space.md) {
                 Image(systemName: symbol).font(.system(size: 17, weight: .medium)).foregroundStyle(Palette.ink)
@@ -199,11 +208,44 @@ private struct LinkRow: View {
                     }
                 }
                 Spacer(minLength: 0)
-                Image(systemName: "arrow.up.right").font(.system(size: 13, weight: .semibold))
+                Image(systemName: external ? "arrow.up.right" : "chevron.right").font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(Palette.inkTertiary)
             }
             .padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()
         }.buttonStyle(PressableStyle())
+    }
+}
+
+/// Зміна пароля: поточний доводить власника, як при видаленні; хибний повертає відмову в банері під шторкою.
+struct ChangePasswordSheet: View {
+    @EnvironmentObject var model: AppModel
+    @Environment(\.dismiss) private var dismiss
+    @State private var current = ""
+    @State private var newPassword = ""
+    @State private var revealed = false
+
+    private var mutating: Bool { model.state?.mutating == true }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: Space.lg) {
+                Text("Змінити пароль").font(PoruchFont.title1).titleTracking().foregroundStyle(Palette.ink)
+                LabelledField(label: "Поточний пароль", text: $current, secure: !revealed) {
+                    PasswordRevealToggle(revealed: $revealed)
+                }
+                .textContentType(.password)
+                LabelledField(label: "Новий пароль", text: $newPassword, hint: "Щонайменше 8 символів", secure: !revealed)
+                    .textContentType(.newPassword)
+                PrimaryButton(
+                    title: "Змінити пароль", loading: mutating,
+                    enabled: !current.isEmpty && AccountRules.shared.isPassword(value: newPassword)
+                ) { model.app.changePassword(current: current, password: newPassword) }
+                SecondaryButton(title: "Скасувати", enabled: !mutating) { dismiss() }
+            }
+            .padding(Space.page).padding(.top, Space.sm)
+        }
+        .background(Palette.canvas)
+        .notice(model.state?.notice?.presented) { model.app.clearNotice() }
     }
 }
 

@@ -6,12 +6,16 @@ struct AuthView: View {
     @EnvironmentObject var model: AppModel
     @Environment(\.dismiss) private var dismiss
     @StateObject private var form = AuthFormModel()
+    /// Крок «Забули пароль?»: окремий екран лише з поштою, щоб кнопка не залежала від форми входу.
+    @State private var resetting = false
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Space.xxl) {
                 header
-                if let email = model.state?.awaitingConfirmation { confirmation(email) } else { fields }
+                if let email = model.state?.awaitingConfirmation { confirmation(email) }
+                else if resetting { reset }
+                else { fields }
             }.padding(.bottom, Space.section)
         }
         .background(Palette.canvas)
@@ -22,17 +26,23 @@ struct AuthView: View {
             if userId != nil && model.state?.passwordRecovery != true { dismiss() }
         }
         .onDisappear { model.app.dismissConfirmationStep() }
+        // Лист пішов — повертаємось до входу, банер скаже решту.
+        .onChange(of: (model.state?.notice as? AppNoticeTold)?.message) { _, message in
+            if message == .recoverySent { resetting = false }
+        }
     }
 
     private var confirming: Bool { model.state?.awaitingConfirmation != nil }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: Space.md) {
-            ScrimButton(symbol: "chevron.left", label: "Назад") { dismiss() }
-            Text(confirming ? "Перевірте пошту" : form.register ? "Створити профіль" : "З поверненням")
+            ScrimButton(symbol: "chevron.left", label: "Назад") { if resetting { resetting = false } else { dismiss() } }
+            Text(confirming ? "Перевірте пошту" : resetting ? "Відновити пароль" : form.register ? "Створити профіль" : "З поверненням")
                 .font(PoruchFont.title1).titleTracking().foregroundStyle(Palette.ink)
             Text(confirming
                  ? "Лишився один крок — підтвердити адресу."
+                 : resetting
+                 ? "Вкажіть пошту профілю — надішлемо лист із посиланням для нового пароля."
                  : form.register
                  ? "Кілька секунд — і ви зможете приєднуватись до подій та створювати власні."
                  : "Події можна переглядати без входу. Для участі потрібен профіль.")
@@ -71,6 +81,19 @@ struct AuthView: View {
         }.padding(.horizontal, Space.page)
     }
 
+    /// Скидання пароля: лише пошта, вже вписана переноситься з форми входу. Лист веде назад у застосунок.
+    private var reset: some View {
+        VStack(alignment: .leading, spacing: Space.lg) {
+            LabelledField(label: "Електронна пошта", text: $form.email, placeholder: "you@example.com")
+                .textContentType(.emailAddress).keyboardType(.emailAddress)
+                .textInputAutocapitalization(.never).autocorrectionDisabled()
+            PrimaryButton(title: "Надіслати лист", symbol: "envelope", loading: model.state?.mutating == true, enabled: form.emailValid) {
+                model.app.requestPasswordReset(email: form.email)
+            }
+            SecondaryButton(title: "Назад до входу") { resetting = false }.frame(maxWidth: .infinity)
+        }.padding(.horizontal, Space.page)
+    }
+
     private var fields: some View {
         VStack(alignment: .leading, spacing: Space.lg) {
             if form.register {
@@ -102,9 +125,10 @@ struct AuthView: View {
                 enabled: form.canSubmit
             ) { form.submit(with: model.app) }
             if form.register { consent }
-            Button("Забули пароль?") { model.app.requestPasswordReset(email: form.email) }
+            Button("Забули пароль?") { resetting = true }
                 .font(PoruchFont.label).foregroundStyle(Palette.inkSecondary)
-                .disabled(!form.emailValid || model.state?.mutating == true)
+                .frame(maxWidth: .infinity)
+                .disabled(model.state?.mutating == true)
             HStack(spacing: Space.md) {
                 Rectangle().fill(Palette.hairline).frame(height: 1)
                 Text(form.register ? "Уже зареєстровані?" : "Ще немає профілю?")

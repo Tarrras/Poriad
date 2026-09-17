@@ -123,8 +123,16 @@
   <string name="publish">Опублікувати</string>
   <string name="photo_after_publish">Фото можна додати на сторінці події після публікації.</string>
   <string name="new_password">Новий пароль</string>
+  <string name="new_password_subtitle">Придумайте новий пароль для входу — він збережеться для вашого профілю.</string>
+  <string name="save_password">Зберегти пароль</string>
+  <string name="password_confirm_label">Повторіть пароль</string>
+  <string name="err_passwords_mismatch">Паролі не збігаються</string>
   <string name="update_password">Змінити пароль</string>
-  <string name="forgot_password">Забули пароль? Надіслати лист</string>
+  <string name="forgot_password">Забули пароль?</string>
+  <string name="auth_reset_title">Відновити пароль</string>
+  <string name="auth_reset_subtitle">Вкажіть пошту профілю — надішлемо лист із посиланням для нового пароля.</string>
+  <string name="auth_reset_send">Надіслати лист</string>
+  <string name="auth_reset_back">Назад до входу</string>
   <string name="photo_error">Оберіть JPEG, PNG або WebP розміром до 5 МБ.</string>
   <string name="photo_load_error">Фото зараз недоступне.</string>
   <string name="add_photo">Додати або замінити фото</string>
@@ -399,6 +407,7 @@
   <string name="auth_subtitle_signup">Кілька секунд — і ви зможете приєднуватись до подій та створювати власні.</string>
   <string name="password_label">Пароль</string>
   <string name="password_hint">Щонайменше 8 символів</string>
+  <string name="current_password_label">Поточний пароль</string>
   <string name="show_password">Показати пароль</string>
   <string name="hide_password">Приховати пароль</string>
   <string name="name_placeholder">Як до вас звертатися</string>
@@ -424,6 +433,7 @@
   <string name="err_invalid_email">Вкажіть коректний email</string>
   <string name="err_invalid_name">Вкажіть імʼя від 2 до 60 символів</string>
   <string name="err_weak_password">Пароль має містити щонайменше 8 символів</string>
+  <string name="err_same_password">Новий пароль збігається з поточним</string>
   <string name="err_invalid_draft">Перевірте поля: %1$s</string>
   <string name="field_title">Назва (3–120 символів)</string>
   <string name="field_description">Опис (10–5000 символів)</string>

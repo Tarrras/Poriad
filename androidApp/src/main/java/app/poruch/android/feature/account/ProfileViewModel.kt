@@ -4,6 +4,7 @@ import app.poruch.android.BuildConfig
 import app.poruch.android.mvi.MviViewModel
 import app.poruch.android.platform.NotificationPermission
 import app.poruch.domain.LegalLinks
+import app.poruch.shared.AppMessage
 import app.poruch.shared.AppNotice
 import app.poruch.shared.PoruchApp
 
@@ -19,8 +20,13 @@ class ProfileViewModel(private val app: PoruchApp, private val notifications: No
                 blocked = shared.blocked,
                 mutating = shared.mutating,
                 passwordRecovery = shared.passwordRecovery,
-                // Після відновлення поле чистимо, щоб пароль не висів.
-                newPassword = if (shared.passwordRecovery) newPassword else "",
+                // Після відновлення чи зміни поле чистимо, щоб пароль не висів.
+                newPassword = if (shared.passwordRecovery || changingPassword) newPassword else "",
+                newPasswordConfirm = if (shared.passwordRecovery) newPasswordConfirm else "",
+                // Пароль змінено або сесії нема — шторка зміни закривається разом із полями.
+                changingPassword = changingPassword && shared.signedIn && shared.notice != AppNotice.Told(AppMessage.PASSWORD_CHANGED),
+                currentPassword = if (changingPassword && shared.signedIn) currentPassword else "",
+                changeError = (shared.notice as? AppNotice.Failed)?.error?.takeIf { changingPassword && shared.signedIn },
                 reminders = shared.remindersEnabled,
                 // Акаунта більше нема — шторка видалення зникає разом із паролем.
                 deleting = deleting && shared.signedIn,
@@ -44,6 +50,8 @@ class ProfileViewModel(private val app: PoruchApp, private val notifications: No
             is ProfileIntent.Unblock -> app.unblockUser(intent.userId)
             is ProfileIntent.SetNewPassword -> reduce { copy(newPassword = intent.value) }
             ProfileIntent.SavePassword -> app.updatePassword(state.value.newPassword)
+            is ProfileIntent.SetNewPasswordConfirm -> reduce { copy(newPasswordConfirm = intent.value) }
+            ProfileIntent.ToggleNewPasswordReveal -> reduce { copy(newPasswordRevealed = !newPasswordRevealed) }
             // Увімкнути можна лише з дозволом системи; без нього спершу питаємо, а стор чекає відповіді.
             is ProfileIntent.SetReminders ->
                 if (intent.enabled && !notifications.granted()) send(ProfileEffect.AskNotificationPermission)
@@ -61,6 +69,12 @@ class ProfileViewModel(private val app: PoruchApp, private val notifications: No
             }
             is ProfileIntent.SetDeletePassword -> reduce { copy(deletePassword = intent.value, deleteError = null) }
             ProfileIntent.ConfirmDeleteAccount -> app.deleteAccount(state.value.deletePassword)
+            is ProfileIntent.ShowChangePassword -> {
+                if (!intent.show) app.clearNotice()
+                reduce { copy(changingPassword = intent.show, currentPassword = "", newPassword = "", changeError = null) }
+            }
+            is ProfileIntent.SetCurrentPassword -> reduce { copy(currentPassword = intent.value, changeError = null) }
+            ProfileIntent.ConfirmChangePassword -> app.changePassword(state.value.currentPassword, state.value.newPassword)
         }
     }
 }

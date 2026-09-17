@@ -20,5 +20,6 @@ val navigationModule = module {
         navigation<Editor> { route -> EditorRoute(route, get()) }
         navigation<Chat> { route -> ChatRoute(route, get()) }
         navigation<Auth> { AuthRoute(get()) }
+        navigation<NewPassword> { NewPasswordRoute(get()) }
     }
 }

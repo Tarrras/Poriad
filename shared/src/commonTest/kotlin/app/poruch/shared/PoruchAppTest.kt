@@ -22,9 +22,12 @@ class PoruchAppTest {
         override suspend fun signOut() { session.value=null }
         override suspend fun accessToken()=session.value?.accessToken
         override suspend fun requestPasswordReset(email:String) {}
-        override suspend fun updatePassword(password:String) {}
+        var updated=false
+        override suspend fun updatePassword(password:String) { updated=true }
         override suspend fun handleCallback(url:String):Boolean { session.value=UserSession("recovered","new","refresh",9999999999); return true }
-        override suspend fun verifyPassword(password: String) {}
+        /** Єдиний пароль, який підробка вважає правильним; null — приймає будь-який. */
+        var currentPassword:String?=null
+        override suspend fun verifyPassword(password: String) { if(currentPassword!=null&&password!=currentPassword) fail(AppError.InvalidCredentials) }
         override suspend fun deleteAccount() { session.value = null }
     }
     /** Підробка реалізує всі п'ять інтерфейсів, бо [PoruchApp] користується всіма. */
@@ -310,6 +313,18 @@ class PoruchAppTest {
         assertNotNull(app.state.value.awaitingConfirmation)
         app.handleAuthCallback("poriad://auth/callback");runCurrent()
         assertNull(app.state.value.awaitingConfirmation)
+        app.close()
+    }
+    /** Хибний поточний пароль зупиняє зміну до виклику updatePassword. */
+    @Test fun changePasswordVerifiesCurrentFirst()=runTest {
+        val auth=Auth().apply { currentPassword="right-one" }
+        val app=app(Events(),backgroundScope,auth)
+        runCurrent();app.changePassword("wrong-one","password1");runCurrent()
+        assertFalse(auth.updated)
+        assertEquals(AppNotice.Failed(AppError.InvalidCredentials),app.state.value.notice)
+        app.changePassword("right-one","password1");runCurrent()
+        assertTrue(auth.updated)
+        assertEquals(AppNotice.Told(AppMessage.PASSWORD_CHANGED),app.state.value.notice)
         app.close()
     }
     @Test fun recoveryFlagSurvivesIdentityChange()=runTest {
