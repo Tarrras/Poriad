@@ -747,26 +747,27 @@ fun PoruchTabBar(items: List<TabItem>, selected: String, modifier: Modifier = Mo
         ) {
             items.forEach { item ->
                 val active = item.key == selected
-                Column(
-                    Modifier.weight(1f).height(42.dp).clip(Radius.pill)
-                        .background(if (active) colors.brandContainer else Color.Transparent, Radius.pill)
-                        .clickable { onSelect(item.key) }
-                        .semantics { contentDescription = item.label },
-                    horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center
-                ) {
-                    Box {
+                // Бейдж живе поза капсулою пункту: її обрізає clip для ріплу, і кут числа зникав.
+                Box(Modifier.weight(1f)) {
+                    Column(
+                        Modifier.fillMaxWidth().height(42.dp).clip(Radius.pill)
+                            .background(if (active) colors.brandContainer else Color.Transparent, Radius.pill)
+                            .clickable { onSelect(item.key) }
+                            .semantics { contentDescription = item.label },
+                        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center
+                    ) {
                         Icon(item.icon, null, Modifier.size(20.dp), tint = if (active) colors.ink else colors.inkTertiary)
-                        // Бейдж поверх кута гліфа: число справ, не повідомлень.
-                        if (item.badge > 0) Text(
-                            item.badge.coerceAtMost(99).toString(), style = MaterialTheme.typography.labelSmall, color = colors.onBrand,
-                            modifier = Modifier.align(Alignment.TopEnd).offset(x = 10.dp, y = (-6).dp)
-                                .background(colors.accent, Radius.pill).padding(horizontal = 5.dp, vertical = 1.dp)
+                        Text(
+                            item.label, style = MaterialTheme.typography.labelSmall,
+                            color = if (active) colors.ink else colors.inkTertiary,
+                            maxLines = 1, overflow = TextOverflow.Clip, modifier = Modifier.padding(top = 3.dp)
                         )
                     }
-                    Text(
-                        item.label, style = MaterialTheme.typography.labelSmall,
-                        color = if (active) colors.ink else colors.inkTertiary,
-                        maxLines = 1, overflow = TextOverflow.Clip, modifier = Modifier.padding(top = 3.dp)
+                    // Поверх кута гліфа: число справ, не повідомлень.
+                    if (item.badge > 0) Text(
+                        item.badge.coerceAtMost(99).toString(), style = MaterialTheme.typography.labelSmall, color = colors.onBrand,
+                        modifier = Modifier.align(Alignment.TopCenter).offset(x = 14.dp, y = (-4).dp)
+                            .background(colors.accent, Radius.pill).padding(horizontal = 5.dp, vertical = 1.dp)
                     )
                 }
             }
