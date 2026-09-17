@@ -19,8 +19,6 @@ import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -344,10 +342,7 @@ private fun ScheduleStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
                 Text(stringResource(R.string.approval_label), style = MaterialTheme.typography.titleSmall, color = colors.ink)
                 Text(stringResource(R.string.approval_hint), style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
             }
-            Switch(
-                form.approvalRequired, { value -> onIntent(EditorIntent.Edit { copy(approvalRequired = value) }) },
-                colors = SwitchDefaults.colors(checkedTrackColor = colors.brand, checkedThumbColor = colors.onBrand)
-            )
+            PoruchSwitch(form.approvalRequired, { value -> onIntent(EditorIntent.Edit { copy(approvalRequired = value) }) })
         }
         // Чат — єдиний канал до учасників. Лише https: решту відкидає і чернетка, і сервер.
         LabelledField(

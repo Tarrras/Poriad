@@ -18,8 +18,6 @@ import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -273,10 +271,7 @@ private fun ReminderSetting(state: ProfileState, onIntent: (ProfileIntent) -> Un
             stringResource(R.string.reminders), Modifier.weight(1f).padding(end = 12.dp),
             style = MaterialTheme.typography.bodyLarge, color = colors.ink
         )
-        Switch(
-            state.reminders, { onIntent(ProfileIntent.SetReminders(it)) },
-            colors = SwitchDefaults.colors(checkedTrackColor = colors.brand, checkedThumbColor = colors.onBrand)
-        )
+        PoruchSwitch(state.reminders, { onIntent(ProfileIntent.SetReminders(it)) })
     }
     Text(
         stringResource(if (state.remindersDenied) R.string.reminder_permission else R.string.reminder_note),

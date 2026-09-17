@@ -45,12 +45,20 @@ struct RootView: View {
     /// не завжди скидав біндінг, і наступний тап по картці відкривав попередню або нічого.
     @State private var homePath = NavigationPath()
     @State private var minePath = NavigationPath()
+    /// Стартове місто — те, де людина зараз, а не Київ за замовчуванням. Відмову мовчки приймаємо.
+    @StateObject private var location = LocationFinder()
     var body: some View {
         // Онбординг замінює застосунок, а не накриває: за ним на першому запуску ще нічого нема.
         if model.state?.needsOnboarding == true {
             OnboardingView()
         } else {
             app
+                .onAppear { location.request() }
+                .onReceive(location.$coordinate) { coordinate in
+                    if let coordinate {
+                        model.app.selectCity(city: CityResult(name: "Поруч зі мною", latitude: coordinate.latitude, longitude: coordinate.longitude))
+                    }
+                }
         }
     }
 

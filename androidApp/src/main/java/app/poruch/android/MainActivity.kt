@@ -2,18 +2,23 @@
 
 package app.poruch.android
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -24,6 +29,8 @@ import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import app.poruch.android.feature.OnboardingRoute
+import app.poruch.android.feature.cityAt
+import app.poruch.android.feature.lastKnownPosition
 import app.poruch.android.navigation.*
 import app.poruch.android.ui.*
 import app.poruch.shared.AppNotice
@@ -99,6 +106,20 @@ fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
     // Мапа вкладки живе стільки, скільки корінь. Див. [SharedMapView].
     val sharedMap = remember { SharedMapView(context) }
     DisposableEffect(sharedMap) { onDispose { sharedMap.destroy() } }
+
+    // Стартове місто — те, де людина зараз, а не Київ за замовчуванням. Приблизне положення, без
+    // підписки: відмову мовчки приймаємо, «Поруч» на мапі лишається ручним шляхом.
+    val nearby = stringResource(R.string.nearby)
+    val locate = { context.lastKnownPosition({ lat, lon -> context.cityAt(lat, lon, nearby, app::selectCity) }, {}) }
+    val locationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { if (it) locate() }
+    // Один раз на запуск, а не на кожен поворот: інакше обране руками місто зникало б.
+    var located by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(state.needsOnboarding) {
+        if (state.needsOnboarding || located) return@LaunchedEffect
+        located = true
+        if (context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) locate()
+        else locationPermission.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
+    }
 
     // Лист відновлення: окремий екран поверх того, де людина була. Профіль лишається запасним шляхом.
     LaunchedEffect(state.passwordRecovery) { if (state.passwordRecovery && navigator.current != NewPassword) navigator.open(NewPassword) }

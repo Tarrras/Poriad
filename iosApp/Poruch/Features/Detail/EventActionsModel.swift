@@ -1,6 +1,7 @@
 import EventKit
 import PhotosUI
 import SwiftUI
+import UserNotifications
 import Shared
 
 /// Побічні дії екрана деталей (фото, календар) та їхній прогрес. Переживають рендер, тому не в тілі view.
@@ -21,13 +22,27 @@ import Shared
         }
         guard signedIn else { return false }
         switch action {
-        case .join, .request: app.joinEvent(id: event.id)
+        case .join, .request: app.joinEvent(id: event.id); offerReminders()
         case .leave: app.leaveEvent(id: event.id)
-        case .joinWaitlist: app.joinWaitlist(id: event.id)
+        case .joinWaitlist: app.joinWaitlist(id: event.id); offerReminders()
         case .leaveWaitlist: app.leaveWaitlist(id: event.id)
         default: break
         }
         return true
+    }
+
+    /// Перше приєднання — природний момент увімкнути нагадування. Той, хто вимкнув їх у профілі,
+    /// дозвіл системи вже дав, і система вдруге не питає: його вибір лишається.
+    private func offerReminders() {
+        guard (app.state.value as? AppState)?.remindersEnabled == false else { return }
+        UNUserNotificationCenter.current().getNotificationSettings { [app] settings in
+            guard settings.authorizationStatus == .notDetermined else { return }
+            NotificationPermission.request { granted in
+                guard granted else { return }
+                app.setRemindersEnabled(enabled: true)
+                PushDelegate.registerIfAllowed()
+            }
+        }
     }
 
     func toggleSaved(_ event: Event, signedIn: Bool) -> Bool {

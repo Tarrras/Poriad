@@ -24,6 +24,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
@@ -834,3 +836,19 @@ fun rememberBufferedText(value: String, onValueChange: (String) -> Unit): Buffer
 }
 
 class BufferedText(val text: String, val onChange: (String) -> Unit)
+
+/**
+ * Перемикач у кольорах токенів. Стандартний вимкнений стан бере `surfaceContainerHighest`, якого
+ * в нашій схемі нема, і на теплому папері виглядав як сіра пляма без бігунка.
+ */
+@Composable
+fun PoruchSwitch(checked: Boolean, onCheckedChange: (Boolean) -> Unit, modifier: Modifier = Modifier) {
+    val colors = Poruch.colors
+    Switch(
+        checked, onCheckedChange, modifier,
+        colors = SwitchDefaults.colors(
+            checkedTrackColor = colors.brand, checkedThumbColor = colors.onBrand, checkedBorderColor = colors.brand,
+            uncheckedTrackColor = colors.surfaceMuted, uncheckedThumbColor = colors.inkTertiary, uncheckedBorderColor = colors.hairline
+        )
+    )
+}

@@ -88,6 +88,8 @@ enum class ReportTarget { EVENT, ORGANIZER }
 
 sealed interface DetailIntent {
     data object Back : DetailIntent
+    /** Відповідь системи на [DetailEffect.AskNotificationPermission]. */
+    data class NotificationPermissionAnswered(val granted: Boolean) : DetailIntent
     /** Потяг вниз: перечитати місця, членство й запити. */
     data object Refresh : DetailIntent
     /** Інша дата в каруселі прокату. */
@@ -128,6 +130,8 @@ sealed interface DetailEffect {
     data object Back : DetailEffect
     data class Edit(val id: String) : DetailEffect
     data object RequireSignIn : DetailEffect
+    /** Приєднались, а нагадування ще не ввімкнені: питаємо дозвіл системи, маршрут повертає відповідь у [DetailIntent.NotificationPermissionAnswered]. */
+    data object AskNotificationPermission : DetailEffect
     data class ShareEvent(val event: Event) : DetailEffect
     data class OpenCalendar(val event: Event) : DetailEffect
     data class OpenMaps(val event: Event) : DetailEffect

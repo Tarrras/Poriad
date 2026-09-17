@@ -4,6 +4,7 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
+import android.location.Geocoder
 import android.location.LocationManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -25,9 +26,11 @@ import app.poruch.android.feature.onboarding.*
 import app.poruch.android.mvi.activityStoreOwner
 import app.poruch.android.navigation.*
 import app.poruch.android.platform.*
+import app.poruch.domain.CityResult
 import kotlinx.coroutines.flow.Flow
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
+import java.util.Locale
 
 /*
  * Маршрути — шов між екраном і платформою: беруть ViewModel з Koin, перетворюють ефекти на
@@ -81,7 +84,9 @@ fun ExploreRoute(focusId: String, navigator: Navigator) {
             return@rememberLauncherForActivityResult
         }
         context.lastKnownPosition(
-            onFound = { latitude, longitude -> model.dispatch(ExploreIntent.LocatedAt(nearbyLabel, latitude, longitude)) },
+            onFound = { latitude, longitude ->
+                context.cityAt(latitude, longitude, nearbyLabel) { model.dispatch(ExploreIntent.LocatedAt(it.name, it.latitude, it.longitude)) }
+            },
             onUnavailable = { model.dispatch(ExploreIntent.LocationDenied) }
         )
     }
@@ -115,9 +120,13 @@ fun MyEventsRoute(navigator: Navigator) {
 fun DetailRoute(route: Detail, navigator: Navigator) {
     val context = LocalContext.current
     val model = koinViewModel<DetailViewModel> { parametersOf(route) }
+    val notifications = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        model.dispatch(DetailIntent.NotificationPermissionAnswered(granted))
+    }
     model.effects.handle { effect ->
         when (effect) {
             DetailEffect.Back -> navigator.back()
+            DetailEffect.AskNotificationPermission -> notifications.launch(Manifest.permission.POST_NOTIFICATIONS)
             is DetailEffect.Edit -> navigator.open(Editor(effect.id))
             DetailEffect.RequireSignIn -> navigator.open(Auth)
             is DetailEffect.ShareEvent -> context.shareEvent(effect.event)
@@ -200,9 +209,30 @@ private fun Context.openMailApp() {
     runCatching { startActivity(intent) }
 }
 
+/**
+ * Місто за положенням: людина живе не в «Поруч зі мною», а в Полтаві. Геокодер системний, без
+ * мережі своєї; коли він мовчить, лишається [fallback].
+ */
+internal fun Context.cityAt(latitude: Double, longitude: Double, fallback: String, onCity: (CityResult) -> Unit) {
+    val done = { places: List<android.location.Address> ->
+        onCity(CityResult(places.firstOrNull()?.locality?.takeIf { it.isNotBlank() } ?: fallback, latitude, longitude))
+    }
+    if (!Geocoder.isPresent()) return done(emptyList())
+    val geocoder = Geocoder(this, Locale.getDefault())
+    if (Build.VERSION.SDK_INT >= 33) {
+        geocoder.getFromLocation(latitude, longitude, 1, object : Geocoder.GeocodeListener {
+            override fun onGeocode(addresses: MutableList<android.location.Address>) = mainExecutor.execute { done(addresses) }
+            override fun onError(errorMessage: String?) = mainExecutor.execute { done(emptyList()) }
+        })
+    } else {
+        @Suppress("DEPRECATION")
+        done(runCatching { geocoder.getFromLocation(latitude, longitude, 1) }.getOrNull().orEmpty())
+    }
+}
+
 /** Грубе положення без підписки: останнього відомого досить, свіже просимо лише коли його нема. */
 @SuppressLint("MissingPermission")
-private fun Context.lastKnownPosition(onFound: (Double, Double) -> Unit, onUnavailable: () -> Unit) {
+internal fun Context.lastKnownPosition(onFound: (Double, Double) -> Unit, onUnavailable: () -> Unit) {
     val manager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
     val known = manager.getProviders(true)
         .mapNotNull { runCatching { manager.getLastKnownLocation(it) }.getOrNull() }

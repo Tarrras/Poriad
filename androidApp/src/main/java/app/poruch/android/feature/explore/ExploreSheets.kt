@@ -79,10 +79,7 @@ internal fun FilterSheet(state: ExploreState, onIntent: (ExploreIntent) -> Unit,
                 stringResource(R.string.only_available), style = MaterialTheme.typography.bodyLarge,
                 color = colors.ink, modifier = Modifier.weight(1f)
             )
-            Switch(
-                available, { available = it },
-                colors = SwitchDefaults.colors(checkedTrackColor = colors.brand, checkedThumbColor = colors.onBrand)
-            )
+            PoruchSwitch(available, { available = it })
         }
         PrimaryButton(stringResource(R.string.apply), apply, Modifier.fillMaxWidth())
     }

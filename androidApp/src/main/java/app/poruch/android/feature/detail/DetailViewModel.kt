@@ -1,13 +1,14 @@
 package app.poruch.android.feature.detail
 
 import app.poruch.android.mvi.MviViewModel
+import app.poruch.android.platform.NotificationPermission
 import app.poruch.domain.Event
 import app.poruch.domain.EventIndexEntry
 import app.poruch.domain.EventSession
 import app.poruch.shared.PoruchApp
 import kotlin.time.Clock
 
-class DetailViewModel(private val app: PoruchApp, private val openedId: String) :
+class DetailViewModel(private val app: PoruchApp, private val notifications: NotificationPermission, private val openedId: String) :
     MviViewModel<DetailState, DetailIntent, DetailEffect>(DetailState(sessionId = openedId)) {
 
     /**
@@ -18,6 +19,15 @@ class DetailViewModel(private val app: PoruchApp, private val openedId: String) 
 
     /** Дата, обрана в каруселі, чиєї картки ще нема. Стане обраною, коли картка приїде; до того дії йдуть на попередню. */
     private var pendingId: String? = null
+
+    /**
+     * Перше приєднання — природний момент увімкнути нагадування. Той, хто вимкнув їх у профілі, дозвіл
+     * системи вже має, і сюди не потрапляє: його вибір лишається.
+     */
+    private fun offerReminders() {
+        if (app.state.value.remindersEnabled || notifications.granted()) return
+        send(DetailEffect.AskNotificationPermission)
+    }
 
     /** Картка, з якою відкрили екран. Карусель будується від неї: скасованого вечора в індексі нема. */
     private var anchor: Event? = null
@@ -68,6 +78,7 @@ class DetailViewModel(private val app: PoruchApp, private val openedId: String) 
         val event = state.value.event
         when (intent) {
             DetailIntent.Back -> send(DetailEffect.Back)
+            is DetailIntent.NotificationPermissionAnswered -> if (intent.granted) app.setRemindersEnabled(true)
             DetailIntent.Refresh -> refresh({ refreshing }, { copy(refreshing = it) }) { app.reloadEvent(eventId) }
 
             // Спершу pendingId, потім запит: згортка вище має впізнати картку нового вечора.
@@ -82,9 +93,9 @@ class DetailViewModel(private val app: PoruchApp, private val openedId: String) 
                 event?.listing?.canonicalUrl?.let { send(DetailEffect.OpenLink(it)) }
             } else authenticated {
                 when (state.value.action) {
-                    DetailAction.JOIN, DetailAction.REQUEST -> app.joinEvent(eventId)
+                    DetailAction.JOIN, DetailAction.REQUEST -> { app.joinEvent(eventId); offerReminders() }
                     DetailAction.LEAVE -> app.leaveEvent(eventId)
-                    DetailAction.JOIN_WAITLIST -> app.joinWaitlist(eventId)
+                    DetailAction.JOIN_WAITLIST -> { app.joinWaitlist(eventId); offerReminders() }
                     DetailAction.LEAVE_WAITLIST -> app.leaveWaitlist(eventId)
                     else -> Unit
                 }
