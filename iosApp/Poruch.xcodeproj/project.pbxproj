@@ -10,6 +10,7 @@
 		00DE124B302DBFA67177DF8F /* DiscoveryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 722D4830B32E9A87B9EC99D1 /* DiscoveryView.swift */; };
 		01F323049824D969157C428C /* CachedImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2A16662CB532CE098E794F7 /* CachedImage.swift */; };
 		0A174502FBD8AA659F92DC67 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F18A547F44E536F8A458AA57 /* HomeView.swift */; };
+		1107A8A8198442D6F043C1D9 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 12C0ADCDD45A02F79BEE976D /* GoogleService-Info.plist */; };
 		1E027063A472D0A13B6FA3D1 /* EventDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331698CB208B31630D4A20AE /* EventDetailView.swift */; };
 		1EE67397B57452C272910AF2 /* Wording.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDCD431C75499D6D42D85E08 /* Wording.swift */; };
 		2691C808DB0B081FD159A6B5 /* EventDeck.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9105301F6177DD6D82AA446 /* EventDeck.swift */; };
@@ -47,6 +48,7 @@
 /* Begin PBXFileReference section */
 		0FEBDE6DB777033A65306F53 /* EventDetailPresentation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EventDetailPresentation.swift; path = Features/Detail/EventDetailPresentation.swift; sourceTree = "<group>"; };
 		10EEAF42E8B97D34FBB2ECBC /* Debounce.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = Debounce.swift; path = Platform/Debounce.swift; sourceTree = "<group>"; };
+		12C0ADCDD45A02F79BEE976D /* GoogleService-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		14CCD46204242AE4E715A09B /* EventActionsModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EventActionsModel.swift; path = Features/Detail/EventActionsModel.swift; sourceTree = "<group>"; };
 		1A424667F3E38589CA6E2190 /* ChatView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ChatView.swift; path = Features/Detail/ChatView.swift; sourceTree = "<group>"; };
 		2028C0857000504373B0CF5C /* Localizable.xcstrings */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
@@ -142,6 +144,7 @@
 				42CA2D02B26DFE199CA7568A /* EventMap.swift */,
 				AC3C08E1817D0B6805F5569C /* Reminders.swift */,
 				2E017DF76B18C2E8FBF62AFD /* SystemActions.swift */,
+				12C0ADCDD45A02F79BEE976D /* GoogleService-Info.plist */,
 			);
 			path = Poruch;
 			sourceTree = "<group>";
@@ -238,6 +241,7 @@
 				BB46274833515DEABB878F98 /* Localizable.xcstrings in Resources */,
 				A55E75D1C9C240A1B7E30012 /* PrivacyInfo.xcprivacy in Resources */,
 				A55E75D1C9C240A1B7E30002 /* Assets.xcassets in Resources */,
+				1107A8A8198442D6F043C1D9 /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
