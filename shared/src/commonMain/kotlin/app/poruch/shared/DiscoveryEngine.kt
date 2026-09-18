@@ -27,7 +27,9 @@ internal class DiscoveryEngine(
      * Де рахувати ранжування й розбір кеша. Порожній контекст лишає виклик на місці, тож тести
      * під `runTest` нічого не знають; [AppGraph] підставляє `Dispatchers.Default`.
      */
-    private val compute: CoroutineContext = EmptyCoroutineContext
+    private val compute: CoroutineContext = EmptyCoroutineContext,
+    /** Куди запам'ятати обране місто для наступного запуску. */
+    private val cityStore: CityStore? = null
 ) {
     private var query = EventQuery(home.south, home.west, home.north, home.east)
     /** Межі обраного міста. Головна завжди дивиться сюди; «Шукати тут» рухає лише мапу. */
@@ -391,7 +393,15 @@ internal class DiscoveryEngine(
     }
 
     fun selectCity(city: CityResult) {
+        // Те саме місто, що вже на екрані: геолокація на старті збігається з запам'ятаним, і
+        // перечитувати видачу нема чого. Після «Шукати тут» повернення до міста — вже зміна.
+        val current = state.value
+        if (city.name == current.cityName && !current.customArea) {
+            state.update { it.copy(cities = emptyList()) }
+            return
+        }
         PoruchLog.i("discovery") { "city → ${city.name}" }
+        cityStore?.write(city)
         state.update {
             it.copy(cityName = city.name, cityLatitude = city.latitude, cityLongitude = city.longitude, cities = emptyList())
         }

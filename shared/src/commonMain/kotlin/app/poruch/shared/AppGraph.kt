@@ -9,6 +9,7 @@ import app.poruch.data.cache.PoruchDatabase
 import app.poruch.data.events.*
 import app.poruch.data.geo.PhotonGeoSearchRepository
 import app.poruch.data.geo.PlatformTimeZoneLocator
+import app.poruch.data.local.LocalCityStore
 import app.poruch.data.local.LocalReminderPreference
 import app.poruch.data.local.LocalSeenRequests
 import app.poruch.data.local.LocalTasteStore
@@ -61,6 +62,7 @@ class AppGraph(
             single<PreferencesRepository> { SupabasePreferencesRepository(get(), get()) }
             single<TasteStore> { LocalTasteStore(get()) }
             single<ReminderPreferenceStore> { LocalReminderPreference(get()) }
+            single<CityStore> { LocalCityStore(get()) }
             single<SeenRequestStore> { LocalSeenRequests(get(), get()) }
             single<SeenRequestStore>(named("messages")) {
                 LocalSeenRequests(
@@ -98,6 +100,7 @@ class AppGraph(
                     timeZones = get(),
                     addresses = get(),
                     reminderStore = get(),
+                    cityStore = get(),
                     reminders = reminders,
                     seenRequests = get(),
                     requestNotifier = requestNotifier,
