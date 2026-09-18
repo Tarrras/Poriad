@@ -13,11 +13,11 @@ sdk.dir=/absolute/path/to/Android/sdk
 ```
 
 ```sh
-./gradlew :androidApp:assembleDebug
-./gradlew :androidApp:installDebug
+./gradlew :androidApp:assembleDevDebug
+./gradlew :androidApp:installDevDebug
 ```
 
-APK: `androidApp/build/outputs/apk/debug/androidApp-debug.apk`. Мінімальна версія — Android 8 / API 26. Це debug-збірка для перевірки, не реліз для Google Play.
+APK: `androidApp/build/outputs/apk/dev/debug/androidApp-dev-debug.apk`. Середовища описані в розділі [Supabase](#supabase). Мінімальна версія — Android 8 / API 26. Це debug-збірка для перевірки, не реліз для Google Play.
 
 ## Запуск iOS
 
@@ -27,6 +27,8 @@ APK: `androidApp/build/outputs/apk/debug/androidApp-debug.apk`. Мінімаль
 ./gradlew :shared:linkDebugFrameworkIosSimulatorArm64
 open iosApp/Poruch.xcodeproj
 ```
+
+Схема `Poruch-Dev` — щоденна робота проти dev, `Poruch-Prod` — архів у TestFlight/App Store.
 
 Оберіть схему Poruch та arm64 iPhone Simulator. Або зберіть із командного рядка:
 
@@ -79,9 +81,29 @@ Poruch/discovery  0 events
 
 ## Supabase
 
-Схему вже застосовано до погодженого проєкту **EventOrganiztor** (`tzdogzdvctlumsqlqskr`). Репозиторій містить лише публічний client key. Service-role key не використовується клієнтами.
+Два середовища, обидва в організації «Poriad», eu-west-1. Середовище — окремий вимір від debug/release, адреси й ключі задані в `gradle.properties` (`poriad.dev.*`, `poriad.prod.*`), з них генерується `BuildConfig` у `shared`, звідки їх бере `AppEnvironment`; платформа тільки вибирає середовище:
 
-Для email callback у [Supabase Auth URL Configuration](https://supabase.com/dashboard/project/tzdogzdvctlumsqlqskr/auth/url-configuration) додайте:
+| Середовище | Проєкт | Android | iOS |
+|---|---|---|---|
+| **dev** | `PoriadApp-dev` (`ojadoyxeahepycpmjuvf`) | flavor `dev`: `devDebug`, `devRelease` | схема `Poruch-Dev`: `Debug-Dev`, `Release-Dev` |
+| **prod** | `PoriadApp` (`tzdogzdvctlumsqlqskr`), SMTP підключено | flavor `prod`: `prodDebug`, `prodRelease` (магазин: `bundleProdRelease`) | схема `Poruch-Prod`: `Debug-Prod`, `Release-Prod` (архів) |
+
+Dev — окремий застосунок, який стоїть на пристрої поруч із prod:
+
+| | dev | prod |
+|---|---|---|
+| Назва | «Поряд Dev» | «Поряд» |
+| Android / iOS id | `app.poriad.android.dev` / `app.poriad.ios.dev` | `app.poriad.android` / `app.poriad.ios` |
+| Auth-колбек | `poriad-dev://auth/callback` | `poriad://auth/callback` |
+| Firebase | `poriad-dev`: `androidApp/src/dev/google-services.json`, `iosApp/Firebase/dev/` | `poruchapp-1e5c4`: `androidApp/src/prod/…`, `iosApp/Firebase/prod/` |
+
+Схема колбеку задана в `gradle.properties` (`poriad.*.authScheme`) і дублюється в `iosApp/Config.xcconfig`, бо Info.plist реєструє її статично. iOS копіює `GoogleService-Info.plist` потрібного середовища в бандл окремою фазою збірки. `tools/apply_sql.py` бере базу з `SUPABASE_DB_URL` у `.env`.
+
+Порядок змін схеми: міграція спершу в dev, перевірка, потім prod. Для dev: `supabase link --project-ref ojadoyxeahepycpmjuvf`, далі `supabase db push`. MCP: `supabase` — prod, `supabase-dev` — dev. У dev немає власного SMTP: вбудована пошта Supabase надсилає кілька листів на годину і лише адресам учасників організації.
+
+Репозиторій містить лише публічні client keys. Service-role key не використовується клієнтами.
+
+Для email callback у [Supabase Auth URL Configuration](https://supabase.com/dashboard/project/tzdogzdvctlumsqlqskr/auth/url-configuration) prod-проєкту додайте (у dev уже стоїть `poriad-dev://auth/callback`):
 
 ```text
 poriad://auth/callback
@@ -89,7 +111,7 @@ poriad://auth/callback
 
 Перевірте email confirmation, поштовий провайдер і redirect allowlist. Ці глобальні Auth settings не були змінені або перевірені доступним MCP конектором. Логін/реєстрація та recovery реалізовані в коді; доставку листів і повний перехід із листа на фізичному пристрої ще потрібно перевірити.
 
-Android: `SUPABASE_URL`, `SUPABASE_KEY`, `MAP_TILES_URL`, `MAP_GLYPHS_URL` можна перевизначити через `local.properties` або environment. iOS: `iosApp/Config.xcconfig`. Стандартні значення вже вказують на погоджений проєкт.
+Адресу й ключ середовища перевизначають лише gradle-властивості `poriad.*` (`-P`, `~/.gradle/gradle.properties`, `ORG_GRADLE_PROJECT_*`), напр. для локального `supabase start`; це діє на обидві платформи. Android: `MAP_TILES_URL`, `MAP_GLYPHS_URL` — через `local.properties` або environment. iOS: вибір середовища й назва — `iosApp/Config.xcconfig`.
 
 Не застосовуйте початкову міграцію повторно до цього проєкту. Для нового середовища використовуйте міграції з `supabase/migrations`. Політики RLS, RPC, тести й результати описані в [supabase/README.md](supabase/README.md).
 

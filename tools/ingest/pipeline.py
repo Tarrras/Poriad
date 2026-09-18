@@ -549,7 +549,7 @@ def _tokens(title: str) -> set[str]:
 
 # Допуск координат того самого майданчика. Один заклад з двох джерел бере точку з OSM і з
 # Photon, і вони розходяться на 2–7 м; різні відповіді Photon на одну адресу — на 43–211 м.
-# 25 м накриває перше і не чіпає друге (те лишається в `near_miss_pairs`). Від хибного злиття
+# 25 м накриває перше; друге зливається лише в межах міста й потрапляє в `near_miss_pairs`. Від хибного злиття
 # боронить перевірка слів у назві, а два різні заклади в межах однієї будівлі з однаковою
 # афішею на ту саму хвилину неправдоподібні.
 SAME_PLACE_METRES = 25.0
@@ -569,9 +569,14 @@ def same_event(a: Item, b: Item) -> bool:
         return False
     if None in (a.latitude, a.longitude, b.latitude, b.longitude):
         return False
-    if _metres(a, b) > SAME_PLACE_METRES:
-        return False
     if a.starts_at != b.starts_at:
+        return False
+    # Далі за `SAME_PLACE_METRES` зливаємо лише в межах міста: той самий концерт із двох афіш
+    # роз'їжджається на кілометри через геокодинг (Feels Garden — 1,5 км, ATLAS — 3,5 км). На зрізі
+    # бази це 29 пар із 441 і жодної хибної; без умови про місто — п'ять хибних із п'яти, бо
+    # «сольний стендап» о 19:00 є і в Одесі, і в Харкові.
+    if _metres(a, b) > SAME_PLACE_METRES and \
+            normalize.normalize_name(a.city) != normalize.normalize_name(b.city):
         return False
     return _titles_agree(_tokens(a.title), _tokens(b.title))
 
@@ -595,31 +600,23 @@ def _metres(a: Item, b: Item) -> float:
     return 6371000 * math.hypot(dx, dy)
 
 
-def near_miss_pairs(items: list[Item], limit_metres: float = 400.0) -> list[tuple[Item, Item, float]]:
-    """Пари, які схожі на ту саму подію, але НЕ злились через розбіжність координат.
+def near_miss_pairs(items: list[Item]) -> list[tuple[Item, Item, float]]:
+    """Пари, злиті попри розбіжність координат: (переможець, дубль, метри), найдальші перші.
 
-    `same_event` тепер має допуск `SAME_PLACE_METRES`, тож дрібні розходження зливаються самі.
-    Лишається те, що за нього виходить: дві різні відповіді Photon на одну адресу, від сорока
-    метрів до двохсот. Там точка ненадійна сама по собі, і зливати за нею небезпечно — тому
-    поріг навмисно не піднято, а такі пари виводяться як робота для псевдонімів.
-
-    Ця функція нічого не змінює. Вона лише перетворює ризик на список, за яким видно, які
-    майданчики варто занести в aliases.json, щоб обидва джерела приходили до однієї точки.
+    `same_event` зводить їх за містом, хвилиною й назвою, але принаймні одна з двох точок хибна.
+    Дубль зник, хибна точка — ні. Функція нічого не змінює: це список майданчиків для
+    aliases.json, щоб обидва джерела приходили до однієї точки.
     """
+    by_key = {(i.source_slug, i.source_uid): i for i in items}
     out: list[tuple[Item, Item, float]] = []
-    live = [i for i in items if i.stage == "published" and i.latitude is not None]
-    for idx, a in enumerate(live):
-        for b in live[idx + 1:]:
-            if a.source_slug == b.source_slug or a.starts_at != b.starts_at:
-                continue
-            if _metres(a, b) <= SAME_PLACE_METRES:
-                continue                      # це вже зловить same_event
-            if not _titles_agree(_tokens(a.title), _tokens(b.title)):
-                continue
-            d = _metres(a, b)
-            if d <= limit_metres:
-                out.append((a, b, d))
-    return sorted(out, key=lambda p: p[2])
+    for item in items:
+        winner = by_key.get(item.duplicate_of) if item.stage == "duplicate" else None
+        if winner is None or None in (item.latitude, winner.latitude):
+            continue
+        d = _metres(winner, item)
+        if d > SAME_PLACE_METRES:
+            out.append((winner, item, d))
+    return sorted(out, key=lambda p: -p[2])
 
 
 def undecided_pairs(items: list[Item]) -> list[tuple[Item, Item]]:
@@ -667,6 +664,11 @@ def drop_cross_source_duplicates(items: list[Item], weights: dict[str, float],
         candidate.stage = "duplicate"
         candidate.duplicate_of = (winner.source_slug, winner.source_uid)
         candidate.reject_reason = f"DUPLICATE_OF {winner.source_slug}"
+        # Переможець за вагою джерела, але точка — за довірою до геокодингу: інакше на мапі
+        # лишилась би гірша з двох.
+        if _metres(winner, candidate) > SAME_PLACE_METRES and candidate.geo_confidence > winner.geo_confidence:
+            for field in ("latitude", "longitude", "venue_ref", "venue_how", "venue_display", "geo_confidence"):
+                setattr(winner, field, getattr(candidate, field))
 
     if agent is not None:
         pairs = undecided_pairs(items)

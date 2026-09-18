@@ -264,6 +264,11 @@ def test_geocoder_guards() -> None:
                "geometry": {"coordinates": [30.52, 50.45]}}]
     check("рівень «місто» відкидається", g._pick(coarse), None)
 
+    # «пр. Глушкова, 1»: будинку в Photon немає, він віддає відрізок траси. Краще черга перегляду.
+    road = [{"properties": {"type": "street", "name": "проспект Академіка Глушкова"},
+             "geometry": {"coordinates": [30.4644336, 50.3739621]}}]
+    check("рівень «вулиця» відкидається", g._pick(road), None)
+
     far = [{"properties": {"type": "house", "name": "десь"},
             "geometry": {"coordinates": [24.03, 49.84]}}]      # Львів у київському запиті
     check("точка за межами міста відкидається", g._pick(far), None)
@@ -331,9 +336,28 @@ def test_dedupe() -> None:
     check("той самий заклад двома щаблями драбини — дубль",
           same_event(_item("karabas", "ДахаБраха"),
                      _item("concert_ua", "ДахаБраха", lat=50.45004, lon=30.53003)), True)
-    check("сто метрів — це вже інший майданчик",
+    # Feels Garden: три афіші — три точки до 1,5 км. У межах міста місце більше не розводить дубль.
+    check("те саме місто, та сама хвилина й назва, півтора кілометра — дубль",
           same_event(_item("karabas", "ДахаБраха"),
-                     _item("concert_ua", "ДахаБраха", lat=50.4509, lon=30.53)), False)
+                     _item("concert_ua", "ДахаБраха", lat=50.4635, lon=30.53)), True)
+    far = _item("concert_ua", "Сольний стендап концерт", lat=46.48, lon=30.73)
+    far.city = "Одеса"
+    check("інше місто — інша подія, хоч назва й хвилина ті самі",
+          same_event(_item("karabas", "Сольний стендап концерт"), far), False)
+    check("різні назви далеко одна від одної не зливаються",
+          same_event(_item("karabas", "Вечір джазу"),
+                     _item("concert_ua", "Вечір поезії", lat=50.4635, lon=30.53)), False)
+
+    # Точку злитої картки дає копія з кращим геокодингом, а пара лишається у звіті для aliases.json.
+    from .pipeline import near_miss_pairs
+    strong, weak = _item("concert_ua", "ДахаБраха"), _item("karabas", "ДахаБраха", lat=50.4635, lon=30.53)
+    strong.geo_confidence, weak.geo_confidence = 0.6, 0.98
+    drop_cross_source_duplicates([strong, weak], w)
+    check("переможець — джерело з вищою вагою", (strong.stage, weak.stage), ("published", "duplicate"))
+    check("але точка — з надійнішого геокодингу", (strong.latitude, strong.geo_confidence), (50.4635, 0.98))
+    strong2, weak2 = _item("concert_ua", "ДахаБраха"), _item("karabas", "ДахаБраха", lat=50.4635, lon=30.53)
+    drop_cross_source_duplicates([strong2, weak2], w)
+    check("далеке злиття лишається у звіті near_miss", len(near_miss_pairs([strong2, weak2])), 1)
     # Захист від різних подій на одній точці тримається на словах у назві, не на координатах.
     check("різні події за десять метрів теж не зливаються",
           same_event(_item("karabas", "Відео-галерея: кращі імпресіоністи"),

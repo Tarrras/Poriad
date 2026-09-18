@@ -113,9 +113,9 @@ def run_city(city: str, sources: list, run_id: str, *, agent: Agent | None = Non
 
     misses = near_miss_pairs(all_items)
     if misses:
-        print(f"  ⚠ схожі на дублі, але координати розійшлись: {len(misses)}"
+        print(f"  ⚠ злито як дублі попри розбіжність координат: {len(misses)}"
               f" — майданчики для aliases.json")
-        for a, b, d in misses[:3]:
+        for a, b, d in misses[:10]:
             print(f"      {d:5.0f} м  «{a.venue_name[:30]}»  {a.venue_how} ↔ {b.venue_how}")
 
     sql_parts: list[str] = [emit.sources_sql(usable)]

@@ -22,7 +22,14 @@ internal class ReminderSync(
 ) {
     fun start() {
         scope.launch {
-            state.map { ReminderRules.plan(it.myEvents, it.userId, it.remindersEnabled, Clock.System.now()) }
+            state.map {
+                ReminderRules.plan(
+                    it.myEvents,
+                    it.userId,
+                    it.remindersEnabled,
+                    Clock.System.now()
+                )
+            }
                 .distinctUntilChanged()
                 .collect { plan ->
                     PoruchLog.i("reminders") { "${plan.size} scheduled" }

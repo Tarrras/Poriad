@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "521159115012",
+    "project_id": "poriad-dev",
+    "storage_bucket": "poriad-dev.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:521159115012:android:0ed8f46749fc2a8fd81051",
+        "android_client_info": {
+          "package_name": "app.poriad.android.dev"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDRRWbshLIaoBirJ3c3d_xZSEvABhLHzLQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

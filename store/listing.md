@@ -1,6 +1,6 @@
 # Тексти й графіка для сторів
 
-Графіка в цій теці згенерована 2026-09-16 з реальних екранів debug-збірок (iPhone 17 Pro, Pixel 9a) через `tools`-скрипт у сесії аудиту; перегенерувати після зміни UI. Перезнято 2026-09-17 після появи видалення акаунту, юридичних посилань і реалістичних спільнотних подій у Києві. Того ж дня після перейменування на «Поряд» вордмарк на `feature_graphic` і `site/img/og.png` перемальовано, а на `appstore/*_05.png` (профіль) підправлено рядок «Про застосунок» і пошту підтримки. Скріншоти екранів без назви бренду не чіпали. Перед подачею перезняти `*_05.png` зі свіжої збірки, щоб текст був справжнім, а не ретушшю.
+Графіку в цій теці збирає `python3 tools/store_shots.py` (HTML + headless Chrome) із сирих екранів у `screens/`. Скріни перезняті 2026-09-18 після редизайну з prod-збірок Debug-Prod (iPhone 17 Pro, Android-емулятор) місто Київ; слайди 1, 3, 4 без входу в акаунт, слайди 2 («Мої події») і 5 (створення події) з тестовим акаунтом, форму не опубліковано. На Android поля форми порожні: кирилицю в емулятор через adb не ввести. Після зміни UI треба перезняти `screens/*.png` з тими самими іменами, за потреби поправити координати винесених шматків у `SLIDES` і запустити скрипт.
 
 ## Файли
 
@@ -8,12 +8,13 @@
 | --- | --- | --- |
 | `play/icon_512.png` | 512×512 | Play Console → Store listing → App icon |
 | `play/feature_graphic_1024x500.png` | 1024×500 | Play Console → Feature graphic |
-| `play/phone_01..06.png` | 1080×1920 | Play Console → Phone screenshots (порядок = нумерація) |
+| `play/phone_01..05.png` | 1080×1920 | Play Console → Phone screenshots (порядок = нумерація) |
 | `appstore/iphone69_01..05.png` | 1320×2868 | App Store Connect → iPhone 6.9" |
 | `appstore/iphone67_01..05.png` | 1290×2796 | App Store Connect → iPhone 6.7" |
+| `appstore/iphone65_01..05.png` | 1242×2688 | App Store Connect → iPhone 6.5" |
 | `../iosApp/Poruch/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png` | 1024×1024 | іконка App Store (уже в проєкті) |
 
-iPad-скріншотів немає: у pbxproj `TARGETED_DEVICE_FAMILY = "1,2"`. Або зняти iPad 13" (2064×2752), або перейти на iPhone-only (`TARGETED_DEVICE_FAMILY = 1`), що безпечніше для першого релізу.
+iPad-скріншоти не потрібні: застосунок iPhone-only (`TARGETED_DEVICE_FAMILY = 1`, рішення 2026-09-18). Додати iPad можна пізніше, прибрати після релізу — ні.
 
 ## Google Play
 

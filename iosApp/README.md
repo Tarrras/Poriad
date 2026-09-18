@@ -8,12 +8,12 @@ From the repository root, build the KMP framework first:
 
 ```sh
 ./gradlew :shared:linkDebugFrameworkIosSimulatorArm64
-xcodebuild -project iosApp/Poruch.xcodeproj -scheme Poruch \
+xcodebuild -project iosApp/Poruch.xcodeproj -scheme Poruch-Dev \
   -destination 'generic/platform=iOS Simulator' \
   -derivedDataPath iosApp/.build/DerivedData CODE_SIGNING_ALLOWED=NO build
 ```
 
-For an iPhone, first run `./gradlew :shared:linkDebugFrameworkIosArm64`, open `Poruch.xcodeproj`, choose a signing team and device. The project currently links debug KMP frameworks for both Xcode configurations. Produce and configure release frameworks before distributing.
+For an iPhone, first run `./gradlew :shared:linkDebugFrameworkIosArm64`, open `Poruch.xcodeproj`, choose a signing team and device. Configurations are `Debug-Dev`, `Release-Dev`, `Debug-Prod`, `Release-Prod`; `KOTLIN_BUILD_TYPE` picks the matching debug/release KMP framework. Schemes: `Poruch-Dev`, `Poruch-Prod`.
 
 `Config.xcconfig` contains only the public Supabase client configuration and configurable map style. Never place service-role credentials here. MapLibre is pinned to 6.28.0 through its [official Swift package distribution](https://maplibre.org/maplibre-native/ios/latest/documentation/maplibre-native-for-ios/gettingstarted/). The default map style is OpenFreeMap Positron. Review the provider’s production terms and retain on-map attribution.
 

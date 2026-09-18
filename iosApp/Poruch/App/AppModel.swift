@@ -51,10 +51,13 @@ final class KeychainSessionStore: SecureSessionStore {
         PoruchLog.shared.enabled = true
         #endif
         let info = Bundle.main.infoDictionary ?? [:]
+        // Невідоме чи відсутнє середовище — dev: помилка конфігурації не має тихо вести в prod.
+        let env: AppEnvironment = info["APP_ENV"] as? String == "PROD" ? .prod : .dev
         let config = AppConfig(
-            supabaseUrl: info["SUPABASE_URL"] as? String ?? "",
-            publishableKey: info["SUPABASE_PUBLISHABLE_KEY"] as? String ?? "",
-            home: HomeLocation.companion.Kyiv
+            supabaseUrl: env.supabaseUrl,
+            publishableKey: env.publishableKey,
+            home: HomeLocation.companion.Kyiv,
+            authScheme: env.authScheme
         )
         // Один центр сповіщень для нагадувань і запитів: делегат у нього теж один.
         let notifications = LocalReminderScheduler()

@@ -714,7 +714,9 @@ struct EventMapCard: View {
             }
             .padding(Space.md)
             .frame(height: mapCardHeight)
-            .glassSurface(radius: Corner.lg)
+            // Скло без тіні: широка тінь просвічувала крізь напівпрозору картку, і карусель лежала
+            // на сірій плямі. Край картки тримає світла лінія.
+            .glassSurface(radius: Corner.lg, shadow: false)
             .overlay(
                 RoundedRectangle(cornerRadius: Corner.lg, style: .continuous)
                     .strokeBorder(Palette.ink, lineWidth: focused ? 2 : 0)
