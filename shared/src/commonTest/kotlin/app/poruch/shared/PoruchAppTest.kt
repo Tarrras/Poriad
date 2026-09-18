@@ -434,6 +434,40 @@ class PoruchAppTest {
         app.close()
     }
 
+    /** Мапа й головна просять той самий початок видачі: кожну картку питаємо раз. */
+    @Test fun mapAndHomeDoNotAskForTheSameCardsTwice()=runTest {
+        val events=Events(); events.results=(1..40).map { event("e%02d".format(it),"music","2090-01-01T10:00:00Z") }; events.inlineCards=0
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(1000); runCurrent()
+        val asked=events.cardRequests.flatten()
+        assertEquals(asked.distinct(),asked)
+        assertEquals(DiscoveryRules.FIRST_CARDS,app.state.value.home.events.size)
+        app.close()
+    }
+
+    /** Перечитування «моїх» без зміни смаку не пересортовує видачу: піни не перебудовуються. */
+    @Test fun reloadingMineKeepsTheIndexWhenTasteIsTheSame()=runTest {
+        val events=Events(); events.results=listOf(event("a","music","2090-01-05T19:00:00Z"),event("b","art","2090-01-06T19:00:00Z"))
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(1000); runCurrent()
+        val version=app.state.value.indexVersion
+        app.loadMyEvents(); advanceTimeBy(1000); runCurrent()
+        assertEquals(version,app.state.value.indexVersion)
+        app.close()
+    }
+
+    /** Платформа кличе resume одразу після старту: запит у дорозі не скасовується й не дублюється. */
+    @Test fun resumeRightAfterLaunchDoesNotRepeatTheSearch()=runTest {
+        val events=Events(); events.results=listOf(event("jazz","music","2090-01-05T19:00:00Z"))
+        val app=app(events,backgroundScope); runCurrent()
+        app.resume(); advanceTimeBy(1000); runCurrent()
+        app.resume(); advanceTimeBy(1000); runCurrent()
+        assertEquals(1,events.queries.size)
+        assertEquals(1,app.state.value.index.size)
+
+        backgroundScope.launch { app.reloadAll() }; advanceTimeBy(1000); runCurrent()
+        assertEquals(2,events.queries.size,"потяг униз перечитує завжди")
+        app.close()
+    }
+
     @Test fun availabilityIsPartOfServerQuery()=runTest {
         val events=Events();val app=app(events,backgroundScope)
         runCurrent();app.setOnlyAvailable(true);runCurrent()

@@ -59,12 +59,10 @@ struct HomePresentation {
         let mineById = Dictionary(mine.map { ($0.id, $0) }) { first, _ in first }
         unread = (state?.chatUnread ?? []).compactMap { u in mineById[u.eventId].map { UnreadChat(summary: u, event: $0) } }
 
-        // Увесь екран в одному порядку. Кожне звертання до Kotlin-списку — міст, тому читаємо раз у змінну.
-        let cards = state?.cards ?? [:]
-        let ranked = (home?.index ?? []).compactMap { cards[$0.id] }
-        suggested = Array((home?.suggestedIndex ?? [])
-            .compactMap { cards[$0.id] }
-            .prefix(homeSuggestedLimit))
+        // Увесь екран в одному порядку. Картки до індексу прив'язує спільний код: тут лише
+        // завантажені, десятки, а не тисячі записів індексу через міст.
+        let ranked = home?.events ?? []
+        suggested = Array((home?.suggested ?? []).prefix(homeSuggestedLimit))
         // Те, що вже в «Для вас», нижче не повторюємо.
         let shown = Set(suggested.map(\.id))
         let remaining = ranked.filter { !shown.contains($0.id) }
@@ -86,7 +84,7 @@ struct HomePresentation {
         today = startingToday + runningToday
         let shownToday = Set(runningToday.map(\.id))
         rest = later.filter { !shownToday.contains($0.id) }
-        results = (home?.results ?? []).compactMap { cards[$0.id] }
+        results = home?.found ?? []
     }
 
     var isEmpty: Bool { suggested.isEmpty && today.isEmpty && rest.isEmpty }

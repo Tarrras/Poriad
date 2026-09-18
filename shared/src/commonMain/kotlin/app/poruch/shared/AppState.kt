@@ -54,6 +54,13 @@ data class AppState(
     val joinRequests: List<Attendee> = emptyList(),
     /** Запити до всіх моїх подій, свіжіші першими. Головна показує, [RequestAlertSync] дзвонить про нові. */
     val pendingRequests: List<JoinRequest> = emptyList(),
+    /**
+     * Лічильник змін складу чи порядку [index]. Платформи порівнюють число, а не обходять
+     * тисячі записів через міст на кожну емісію: так iOS знає, коли перебудувати піни.
+     */
+    val indexVersion: Int = 0,
+    /** Лічильник перебудов [cards], [events] і стрічки головної. Змінюється лише в [materialized]. */
+    val feedVersion: Int = 0,
     /** Пошук мапи. У головної свій: [HomeFeed.searchText]. */
     val searchText: String = "",
     val onlyAvailable: Boolean = false,
@@ -129,7 +136,16 @@ data class HomeFeed(
     /** Знайдене пошуком головної в тій самій області, ранжоване. */
     val results: List<EventIndexEntry> = emptyList(),
     val resultsTotal: Int = 0,
-    val searchLoading: Boolean = false
+    val searchLoading: Boolean = false,
+    /**
+     * Завантажені картки [index] у його порядку, з пропусками тих, що ще їдуть. Складає
+     * [materialized], щоб платформи не з'єднували індекс з картками самі, через міст.
+     */
+    val events: List<Event> = emptyList(),
+    /** Картки [suggestedIndex] у його порядку. */
+    val suggested: List<Event> = emptyList(),
+    /** Картки [results] у його порядку. */
+    val found: List<Event> = emptyList()
 ) {
     val searching get() = searchText.isNotBlank()
 
@@ -141,17 +157,25 @@ data class HomeFeed(
 /** Ранжує індекс за смаком, а не картки: порядок вирішується над усією областю. */
 internal fun AppState.ranked(now: Instant = Clock.System.now()): AppState {
     val ordered = TasteRanking.rank(index, taste, now)
-    val homeOrdered = TasteRanking.rank(home.index, taste, now)
+    val suggested = TasteRanking.matching(ordered, taste)
+    // Мапа без фільтрів ділить видачу з головною: той самий список ранжуємо раз.
+    val sharedWithHome = home.index === index
+    val homeOrdered = if (sharedWithHome) ordered else TasteRanking.rank(home.index, taste, now)
     return copy(
         index = ordered,
-        suggestedIndex = TasteRanking.matching(ordered, taste),
+        suggestedIndex = suggested,
+        indexVersion = if (ordered == index) indexVersion else indexVersion + 1,
         home = home.copy(
             index = homeOrdered,
-            suggestedIndex = TasteRanking.matching(homeOrdered, taste),
+            suggestedIndex = if (sharedWithHome) suggested else TasteRanking.matching(homeOrdered, taste),
             results = TasteRanking.rank(home.results, taste, now)
         )
     ).materialized()
 }
+
+/** Перераховує порядок лише тоді, коли змінився смак: ранжування тисяч подій не безкоштовне. */
+internal fun AppState.rankedIfTasteChanged(before: Taste): AppState =
+    if (taste == before) this else ranked()
 
 /**
  * Перебудовує [events] і [suggested] під поточні [cards]. Стрічка обривається на першій
@@ -161,10 +185,15 @@ internal fun AppState.materialized(): AppState {
     val cards = cardsWithSessions()
     val shown = ArrayList<Event>(minOf(index.size, cards.size))
     for (entry in index) shown += cards[entry.id] ?: break
+    fun List<EventIndexEntry>.loaded() = mapNotNull { cards[it.id] }
+    val homeEvents = if (home.index === index) index.loaded() else home.index.loaded()
     return copy(
         cards = cards,
         events = shown,
-        suggested = suggestedIndex.mapNotNull { cards[it.id] })
+        suggested = suggestedIndex.mapNotNull { cards[it.id] },
+        home = home.copy(events = homeEvents, suggested = home.suggestedIndex.loaded(), found = home.results.loaded()),
+        feedVersion = feedVersion + 1
+    )
 }
 
 /**

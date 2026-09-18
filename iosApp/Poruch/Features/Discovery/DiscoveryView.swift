@@ -78,28 +78,30 @@ struct DiscoveryView: View {
     /// Категорія мапи. Головна має свою.
     private var category: String { model.state?.category ?? AppStateKt.ALL_CATEGORIES }
 
-    /// Що малює мапа: індекс, звужений до категорії. Фільтр тут, а не в запиті, щоб не звужувати й головну.
-    var mapEntries: [EventIndexEntry] {
-        let all = category == AppStateKt.ALL_CATEGORIES
-        return all ? model.mapEntries : model.mapEntries.filter { $0.category == category }
+    /// Похідні списки, пораховані раз на зміну входів. Тіло перераховується на кожен кадр
+    /// протягування шторки, а кожен прохід по індексу — тисячі звертань через міст.
+    @State private var memo = DeckMemo()
+
+    private var derived: DeckMemo {
+        memo.update(DeckMemo.Key(
+            entries: model.entriesRevision, cards: model.cardsRevision,
+            category: category, listCategory: listCategory, stack: stackIDs
+        ), model: model)
+        return memo
     }
+
+    /// Що малює мапа: індекс, звужений до категорії. Фільтр тут, а не в запиті, щоб не звужувати й головну.
+    var mapEntries: [EventIndexEntry] { derived.mapEntries }
     private var selectedID: String? { model.state?.selectedEvent?.id }
     private var savedIDs: Set<String> { model.savedIDs }
 
-    /// Події обраного піна в порядку індексу. Порожньо, якщо після нової видачі стосу не лишилось.
-    private var stackEntries: [EventIndexEntry] {
-        stackIDs.isEmpty ? [] : mapEntries.filter { stackIDs.contains($0.id) }
-    }
-    private var stackFocused: Bool { !stackEntries.isEmpty }
+    /// Стос обраного піна не порожній. Порожньо, якщо після нової видачі стосу не лишилось.
+    private var stackFocused: Bool { derived.stackFocused }
 
     /// Вміст шторки: стос обраного піна або вся видача, звужені категорією плиток. Плитки звужують список, а не мапу.
-    private var listEntries: [EventIndexEntry] {
-        let base = stackFocused ? stackEntries : mapEntries
-        guard listCategory != AppStateKt.ALL_CATEGORIES else { return base }
-        return base.filter { $0.category == listCategory }
-    }
+    private var listEntries: [EventIndexEntry] { derived.listEntries }
     /// Завантажені картки списку. Може бути менше за `listEntries`: решту список просить сам.
-    private var shownEvents: [Event] { listEntries.compactMap { model.cardsByID[$0.id] } }
+    private var shownEvents: [Event] { derived.shownEvents }
     private var activeFilters: Int {
         [model.state?.dateFilter != DateFilter.shared.ANY, model.state?.category != AppStateKt.ALL_CATEGORIES, model.state?.onlyAvailable == true]
             .filter { $0 }.count
@@ -667,3 +669,34 @@ private let coastShare: CGFloat = 0.25
 private let cardPrefetchAhead = 8
 /// Скільки карток додає одне довантаження.
 private let cardPage = 24
+
+/// Кеш похідних списків мапи. Клас, щоб оновлення в тілі не було зміною стану подання.
+private final class DeckMemo {
+    struct Key: Equatable {
+        let entries: Int
+        let cards: Int
+        let category: String
+        let listCategory: String
+        let stack: [String]
+    }
+
+    private var key: Key?
+    private(set) var mapEntries: [EventIndexEntry] = []
+    private(set) var stackFocused = false
+    private(set) var listEntries: [EventIndexEntry] = []
+    private(set) var shownEvents: [Event] = []
+
+    @MainActor func update(_ next: Key, model: AppModel) {
+        guard next != key else { return }
+        key = next
+        let all = AppStateKt.ALL_CATEGORIES
+        mapEntries = next.category == all ? model.mapEntries : model.mapEntries.filter { $0.category == next.category }
+        let stack = Set(next.stack)
+        let stackEntries = stack.isEmpty ? [] : mapEntries.filter { stack.contains($0.id) }
+        stackFocused = !stackEntries.isEmpty
+        let base = stackFocused ? stackEntries : mapEntries
+        listEntries = next.listCategory == all ? base : base.filter { $0.category == next.listCategory }
+        let cards = model.cardsByID
+        shownEvents = listEntries.compactMap { cards[$0.id] }
+    }
+}

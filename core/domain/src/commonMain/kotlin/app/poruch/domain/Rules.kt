@@ -131,6 +131,8 @@ object DiscoveryRules {
     const val SEARCH_TEXT_LIMIT = 120
     /** Довше за набір тексту, коротше за відчуття «мапа відстає». */
     const val SEARCH_DEBOUNCE_MS = 300L
+    /** Скільки видача вважається свіжою для повернення в застосунок. Потяг униз перечитує завжди. */
+    const val RESUME_FRESH_MS = 30_000L
     /** Геокодер сторонній, тож чекаємо довше, ніж на свій пошук. */
     const val CITY_DEBOUNCE_MS = 400L
     const val MIN_CITY_QUERY = 2

@@ -9,6 +9,7 @@ import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.math.abs
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Тримає запит мапи: область, фільтри й один активний пошук. І стрічку головної ([HomeFeed]):
@@ -41,8 +42,15 @@ internal class DiscoveryEngine(
     private var homeCardsJob: Job? = null
     private var homeSearchJob: Job? = null
     private var homeDebounceJob: Job? = null
+    /** Коли мапа й головна востаннє отримали відповідь мережі. Null — ще ні або офлайн. */
+    private var freshAt: kotlin.time.Instant? = null
     /** Поточний [searchJob] несе й стрічку головної: мапа була без фільтрів. */
     private var sharedPending = false
+    /**
+     * Картки, по які вже пішли, і завдання, що їх везе. Мапа й головна просять той самий
+     * початок видачі одночасно. Скасоване завдання одразу неактивне, тож його id знову вільні.
+     */
+    private val inFlight = HashMap<String, Job>()
 
     /** Викликається, коли зміна запиту має закрити відкриту картку. */
     var onQueryChanged: () -> Unit = {}
@@ -82,6 +90,17 @@ internal class DiscoveryEngine(
                 publish(cached, offline = true, failure = e.asAppError(), home = shared)
             }
         }
+    }
+
+    /**
+     * Повернення в застосунок. На старті платформа кличе його одразу після першого пошуку, і
+     * безумовний [refresh] скасовував запит у дорозі та слав такий самий.
+     */
+    fun refreshIfStale() {
+        if (searchJob?.isActive == true) return
+        val fresh = freshAt
+        if (fresh != null && Clock.System.now() - fresh < DiscoveryRules.RESUME_FRESH_MS.milliseconds) return
+        refresh()
     }
 
     /**
@@ -131,7 +150,7 @@ internal class DiscoveryEngine(
         val blank = trimmed.isBlank()
         state.update {
             it.copy(
-                home = if (blank) it.home.copy(searchText = trimmed, results = emptyList(), resultsTotal = 0, searchLoading = false)
+                home = if (blank) it.home.copy(searchText = trimmed, results = emptyList(), found = emptyList(), resultsTotal = 0, searchLoading = false)
                 else it.home.copy(searchText = trimmed, searchLoading = true)
             )
         }
@@ -205,9 +224,9 @@ internal class DiscoveryEngine(
     /** Довантажує картки, яких ще немає. Null, якщо питати нема чого. */
     private fun load(ids: List<String>): Job? {
         val known = state.value.cards
-        val wanted = ids.filterNot { it in known }
+        val wanted = ids.filterNot { it in known || inFlight[it]?.isActive == true }
         if (wanted.isEmpty()) return null
-        return scope.launch {
+        val job = scope.launch(start = CoroutineStart.LAZY) {
             try {
                 val loaded = events.cards(wanted)
                 state.update { current ->
@@ -218,8 +237,14 @@ internal class DiscoveryEngine(
             } catch (e: Exception) {
                 // Вікно не приїхало — коротша стрічка, а не банер: мапа вже показує все.
                 PoruchLog.w("discovery") { "cards for ${wanted.size} ids failed: ${e.asAppError()}" }
+            } finally {
+                val self = coroutineContext[Job]
+                for (id in wanted) if (inFlight[id] === self) inFlight.remove(id)
             }
         }
+        for (id in wanted) inFlight[id] = job
+        job.start()
+        return job
     }
 
     /** Видача після склейки й ранжування. [taste] — смак, яким рахували. */
@@ -259,7 +284,7 @@ internal class DiscoveryEngine(
             // Крім тих, що показує головна: її видача від фільтрів мапи не залежить.
             val keep = it.home.shownIds()
             it.copy(
-                index = ranked.index, suggestedIndex = ranked.suggested,
+                index = ranked.index, suggestedIndex = ranked.suggested, indexVersion = it.indexVersion + 1,
                 cards = it.cards.filterKeys { id -> id in keep } + page.cards.associateBy { card -> card.id },
                 totalFound = ranked.total,
                 loading = false, offline = offline,
@@ -274,6 +299,8 @@ internal class DiscoveryEngine(
             ).settled(ranked.taste)
         }
         sharedPending = false
+        // Свіжа лише повна відповідь мережі: після офлайну повернення в застосунок має перепитати.
+        freshAt = if (offline) null else if (home) Clock.System.now() else freshAt
         // Смак міг переставити порядок так, що перші картки з відповіді вже не перші.
         materialize(DiscoveryRules.FIRST_CARDS)
         if (home) materializeHome()

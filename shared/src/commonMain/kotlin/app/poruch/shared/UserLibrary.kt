@@ -119,7 +119,7 @@ internal class UserLibrary(
                         chatUnread = unread.filterNot { u -> u.eventId == it.chat?.eventId },
                         account = facts, blocked = blocked,
                         taste = it.taste.copy(interests = interests)
-                    ).ranked()
+                    ).rankedIfTasteChanged(it.taste)
                 }
             } catch (e: CancellationException) {
                 throw e

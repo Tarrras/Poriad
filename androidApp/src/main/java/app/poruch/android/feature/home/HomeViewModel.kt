@@ -26,9 +26,10 @@ class HomeViewModel(private val app: PoruchApp) : MviViewModel<HomeState, HomeIn
         val today = LocalDate.now(zone)
         // Увесь екран в одному порядку — ранжованому.
         // Своя стрічка: та сама область, що на мапі, але без її фільтрів.
+        // Картки до індексу прив'язує спільний код: тут лише завантажені, а не тисячі записів.
         val home = shared.home
-        val ranked = home.index.mapNotNull { shared.cards[it.id] }
-        val suggested = home.suggestedIndex.mapNotNull { shared.cards[it.id] }.take(SUGGESTED_LIMIT)
+        val ranked = home.events
+        val suggested = home.suggested.take(SUGGESTED_LIMIT)
         // Те, що вже в «Для вас», нижче не повторюємо.
         val remaining = ranked - suggested.toSet()
         // «Сьогодні» — куди можна піти сьогодні, включно з прокатами. Але те, що сьогодні
@@ -53,7 +54,7 @@ class HomeViewModel(private val app: PoruchApp) : MviViewModel<HomeState, HomeIn
             savedIds = shared.savedIds,
             waitlistedIds = shared.waitlistedIds,
             searchText = home.searchText,
-            results = home.results.mapNotNull { shared.cards[it.id] },
+            results = home.found,
             resultsTotal = home.resultsTotal,
             searchLoading = home.searchLoading,
             cityMatch = if (home.searching) HomeLocation.mentioned(home.searchText, shared.cityName) else null

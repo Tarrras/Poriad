@@ -199,17 +199,17 @@ class PoruchApp internal constructor(
     fun dismissEvent() = library.dismiss()
     fun loadMyEvents() = library.load()
 
-    /** Повернення на передній план: перечитує мапу, «мої» і відкриту подію. */
-    fun resume() = reloader.all()
+    /** Повернення на передній план: перечитує «мої» і відкриту подію, мапу — якщо видача не свіжа. */
+    fun resume() = reloader.resumed()
 
     // ---- Оновлення жестом
 
     /**
-     * Потяг головної вниз: перечитує те саме, що [resume], але повертається лише коли відповіді
+     * Потяг головної вниз: перечитує все, як [resume], але й свіжу видачу, і повертається лише коли відповіді
      * приїхали, щоб індикатор знав, коли сховатись. Збій не кидає: він уже в [AppState.notice].
      */
     suspend fun reloadAll() {
-        resume(); reloader.awaitAll()
+        reloader.all(); reloader.awaitAll()
     }
 
     /** Потяг «моїх подій» вниз. Див. [reloadAll]. */
