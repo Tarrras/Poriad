@@ -8,7 +8,11 @@ import app.poruch.domain.EventSession
 import app.poruch.shared.PoruchApp
 import kotlin.time.Clock
 
-class DetailViewModel(private val app: PoruchApp, private val notifications: NotificationPermission, private val openedId: String) :
+class DetailViewModel(
+    private val app: PoruchApp,
+    private val notifications: NotificationPermission,
+    private val openedId: String
+) :
     MviViewModel<DetailState, DetailIntent, DetailEffect>(DetailState(sessionId = openedId)) {
 
     /**
@@ -31,6 +35,7 @@ class DetailViewModel(private val app: PoruchApp, private val notifications: Not
 
     /** Картка, з якою відкрили екран. Карусель будується від неї: скасованого вечора в індексі нема. */
     private var anchor: Event? = null
+
     // Не `sessions`: у згортці нижче отримувач — DetailState, і те саме ім'я читало б старий стан.
     private var carousel: List<EventSession> = emptyList()
     private var carouselFrom: Pair<Event, List<EventIndexEntry>>? = null
@@ -61,7 +66,7 @@ class DetailViewModel(private val app: PoruchApp, private val notifications: Not
                     carousel.map { if (it.id == event.id) it.copy(cancelled = true) else it }
                 } else carousel,
                 sessionStarted = event != null && carousel.size > 1 && !event.isMultiDay &&
-                    event.hasStarted(Clock.System.now()),
+                        event.hasStarted(Clock.System.now()),
                 attendees = shared.attendees,
                 loading = shared.loading,
                 mutating = shared.mutating,
@@ -78,8 +83,13 @@ class DetailViewModel(private val app: PoruchApp, private val notifications: Not
         val event = state.value.event
         when (intent) {
             DetailIntent.Back -> send(DetailEffect.Back)
-            is DetailIntent.NotificationPermissionAnswered -> if (intent.granted) app.setRemindersEnabled(true)
-            DetailIntent.Refresh -> refresh({ refreshing }, { copy(refreshing = it) }) { app.reloadEvent(eventId) }
+            is DetailIntent.NotificationPermissionAnswered -> if (intent.granted) app.setRemindersEnabled(
+                true
+            )
+
+            DetailIntent.Refresh -> refresh(
+                { refreshing },
+                { copy(refreshing = it) }) { app.reloadEvent(eventId) }
 
             // Спершу pendingId, потім запит: згортка вище має впізнати картку нового вечора.
             is DetailIntent.PickSession -> if (intent.id != eventId) {
@@ -93,14 +103,27 @@ class DetailViewModel(private val app: PoruchApp, private val notifications: Not
                 event?.listing?.canonicalUrl?.let { send(DetailEffect.OpenLink(it)) }
             } else authenticated {
                 when (state.value.action) {
-                    DetailAction.JOIN, DetailAction.REQUEST -> { app.joinEvent(eventId); offerReminders() }
+                    DetailAction.JOIN, DetailAction.REQUEST -> {
+                        app.joinEvent(eventId); offerReminders()
+                    }
+
                     DetailAction.LEAVE -> app.leaveEvent(eventId)
-                    DetailAction.JOIN_WAITLIST -> { app.joinWaitlist(eventId); offerReminders() }
+                    DetailAction.JOIN_WAITLIST -> {
+                        app.joinWaitlist(eventId); offerReminders()
+                    }
+
                     DetailAction.LEAVE_WAITLIST -> app.leaveWaitlist(eventId)
                     else -> Unit
                 }
             }
-            DetailIntent.OpenSource -> event?.listing?.canonicalUrl?.let { send(DetailEffect.OpenLink(it)) }
+
+            DetailIntent.OpenSource -> event?.listing?.canonicalUrl?.let {
+                send(
+                    DetailEffect.OpenLink(
+                        it
+                    )
+                )
+            }
 
             DetailIntent.ToggleSaved -> authenticated { app.toggleSaved(eventId) }
             DetailIntent.Share -> event?.let { send(DetailEffect.ShareEvent(it)) }
@@ -114,33 +137,50 @@ class DetailViewModel(private val app: PoruchApp, private val notifications: Not
                 reduce { copy(confirmingCancel = false) }
                 app.cancelEvent(eventId)
             }
-            is DetailIntent.AttachPhoto -> app.uploadEventImage(eventId, intent.bytes, intent.contentType)
+
+            is DetailIntent.AttachPhoto -> app.uploadEventImage(
+                eventId,
+                intent.bytes,
+                intent.contentType
+            )
 
             is DetailIntent.ShowReport -> if (intent.target != null && !state.value.signedIn) {
                 send(DetailEffect.RequireSignIn)
             } else reduce { copy(reporting = intent.target) }
+
             is DetailIntent.SendReport -> {
                 reduce { copy(reporting = null) }
                 when (intent.target) {
                     ReportTarget.EVENT -> app.reportEvent(eventId, intent.reason, intent.details)
                     // В афіші організатора нема; на саму подію скаржаться через ReportTarget.EVENT.
-                    ReportTarget.ORGANIZER -> event?.organizerId?.let { app.reportUser(it, intent.reason, intent.details) }
+                    ReportTarget.ORGANIZER -> event?.organizerId?.let {
+                        app.reportUser(
+                            it,
+                            intent.reason,
+                            intent.details
+                        )
+                    }
                 }
             }
+
             is DetailIntent.ConfirmBlock -> if (intent.open && !state.value.signedIn) {
                 send(DetailEffect.RequireSignIn)
             } else reduce { copy(confirmingBlock = intent.open) }
+
             DetailIntent.BlockOrganizer -> {
                 reduce { copy(confirmingBlock = false) }
                 // Блокування прибирає подію з мапи, тож і екран за нею.
-                event?.organizerId?.let { app.blockUser(it); send(DetailEffect.Back) }
+                event?.organizerId?.let { app.blockUser(it)
+                send(DetailEffect.Back) }
             }
+
             DetailIntent.OpenChat -> authenticated { send(DetailEffect.OpenChat(eventId)) }
             is DetailIntent.ConfirmContact -> reduce { copy(confirmingContact = intent.open) }
             DetailIntent.OpenContact -> {
                 reduce { copy(confirmingContact = false) }
                 event?.gathering?.contactUrl?.let { send(DetailEffect.OpenLink(it)) }
             }
+
             is DetailIntent.ApproveRequest -> app.approveMember(eventId, intent.userId)
             is DetailIntent.DeclineRequest -> app.declineMember(eventId, intent.userId)
         }

@@ -41,7 +41,13 @@ class AlarmReminderScheduler(private val context: Context) : ReminderScheduler {
     override fun replace(reminders: List<EventReminder>) {
         val alarms = context.getSystemService(AlarmManager::class.java)
         stored(context).forEach { alarms.cancel(pending(context, it)) }
-        reminders.forEach { alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, it.fireAtEpochMillis, pending(context, it)) }
+        reminders.forEach {
+            alarms.setAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                it.fireAtEpochMillis,
+                pending(context, it)
+            )
+        }
         store(context, reminders)
     }
 
@@ -53,16 +59,31 @@ class AlarmReminderScheduler(private val context: Context) : ReminderScheduler {
         fun restore(context: Context) {
             val alarms = context.getSystemService(AlarmManager::class.java)
             stored(context).filter { it.fireAtEpochMillis > System.currentTimeMillis() }
-                .forEach { alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, it.fireAtEpochMillis, pending(context, it)) }
+                .forEach {
+                    alarms.setAndAllowWhileIdle(
+                        AlarmManager.RTC_WAKEUP,
+                        it.fireAtEpochMillis,
+                        pending(context, it)
+                    )
+                }
         }
 
         fun show(context: Context, reminder: EventReminder) {
             if (!NotificationPermission(context).granted()) return
             val manager = context.getSystemService(NotificationManager::class.java)
-            manager.createNotificationChannel(NotificationChannel(CHANNEL, context.getString(R.string.reminders), NotificationManager.IMPORTANCE_DEFAULT))
+            manager.createNotificationChannel(
+                NotificationChannel(
+                    CHANNEL,
+                    context.getString(R.string.reminders),
+                    NotificationManager.IMPORTANCE_DEFAULT
+                )
+            )
             val open = PendingIntent.getActivity(
                 context, reminder.eventId.hashCode(),
-                Intent(context, MainActivity::class.java).putExtra(MainActivity.EXTRA_EVENT_ID, reminder.eventId),
+                Intent(context, MainActivity::class.java).putExtra(
+                    MainActivity.EXTRA_EVENT_ID,
+                    reminder.eventId
+                ),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             val notification = Notification.Builder(context, CHANNEL)
@@ -74,26 +95,42 @@ class AlarmReminderScheduler(private val context: Context) : ReminderScheduler {
         }
 
         /** Той самий intent для постановки і зняття: AlarmManager порівнює їх за дією і додатковими даними не дивиться. */
-        private fun pending(context: Context, reminder: EventReminder): PendingIntent = PendingIntent.getBroadcast(
-            context, reminder.eventId.hashCode(),
-            Intent(context, ReminderReceiver::class.java).setAction("app.poruch.REMIND.${reminder.eventId}")
-                .putExtra(EXTRA_ID, reminder.eventId).putExtra(EXTRA_TITLE, reminder.title).putExtra(EXTRA_ADDRESS, reminder.address),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
+        private fun pending(context: Context, reminder: EventReminder): PendingIntent =
+            PendingIntent.getBroadcast(
+                context, reminder.eventId.hashCode(),
+                Intent(
+                    context,
+                    ReminderReceiver::class.java
+                ).setAction("app.poruch.REMIND.${reminder.eventId}")
+                    .putExtra(EXTRA_ID, reminder.eventId).putExtra(EXTRA_TITLE, reminder.title)
+                    .putExtra(EXTRA_ADDRESS, reminder.address),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
 
-        private fun prefs(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        private fun prefs(context: Context) =
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
         private fun stored(context: Context): List<EventReminder> {
-            val array = runCatching { JSONArray(prefs(context).getString(KEY, "[]")) }.getOrDefault(JSONArray())
+            val array = runCatching { JSONArray(prefs(context).getString(KEY, "[]")) }.getOrDefault(
+                JSONArray()
+            )
             return (0 until array.length()).map { array.getJSONObject(it) }.map {
-                EventReminder(it.getString("id"), it.getString("title"), it.optString("address"), it.getLong("time"))
+                EventReminder(
+                    it.getString("id"),
+                    it.getString("title"),
+                    it.optString("address"),
+                    it.getLong("time")
+                )
             }
         }
 
         private fun store(context: Context, reminders: List<EventReminder>) {
             val array = JSONArray()
             reminders.forEach {
-                array.put(JSONObject().put("id", it.eventId).put("title", it.title).put("address", it.address).put("time", it.fireAtEpochMillis))
+                array.put(
+                    JSONObject().put("id", it.eventId).put("title", it.title)
+                        .put("address", it.address).put("time", it.fireAtEpochMillis)
+                )
             }
             prefs(context).edit().putString(KEY, array.toString()).apply()
         }
@@ -113,18 +150,31 @@ class RequestNotificationCenter(private val context: Context) : RequestNotifier 
         if (!NotificationPermission(context).granted()) return
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(
-            NotificationChannel(CHANNEL, context.getString(R.string.request_notification_channel), NotificationManager.IMPORTANCE_DEFAULT)
+            NotificationChannel(
+                CHANNEL,
+                context.getString(R.string.request_notification_channel),
+                NotificationManager.IMPORTANCE_DEFAULT
+            )
         )
         alerts.forEach { alert ->
             val open = PendingIntent.getActivity(
                 context, alert.eventId.hashCode(),
-                Intent(context, MainActivity::class.java).putExtra(MainActivity.EXTRA_EVENT_ID, alert.eventId),
+                Intent(context, MainActivity::class.java).putExtra(
+                    MainActivity.EXTRA_EVENT_ID,
+                    alert.eventId
+                ),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             val notification = Notification.Builder(context, CHANNEL)
                 .setSmallIcon(R.drawable.ic_notification)
                 .setContentTitle(alert.eventTitle)
-                .setContentText(context.resources.getQuantityString(R.plurals.request_notification_body, alert.count, alert.count))
+                .setContentText(
+                    context.resources.getQuantityString(
+                        R.plurals.request_notification_body,
+                        alert.count,
+                        alert.count
+                    )
+                )
                 .setContentIntent(open).setAutoCancel(true).build()
             // Інший простір id, ніж у нагадувань: запит і нагадування про ту саму подію — два сповіщення.
             manager.notify(TAG, alert.eventId.hashCode(), notification)
@@ -143,20 +193,37 @@ class ChatNotificationCenter(private val context: Context) : ChatNotifier {
         if (!NotificationPermission(context).granted()) return
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(
-            NotificationChannel(CHANNEL, context.getString(R.string.chat_notification_channel), NotificationManager.IMPORTANCE_DEFAULT)
+            NotificationChannel(
+                CHANNEL,
+                context.getString(R.string.chat_notification_channel),
+                NotificationManager.IMPORTANCE_DEFAULT
+            )
         )
         alerts.forEach { alert ->
             val open = PendingIntent.getActivity(
                 context, alert.eventId.hashCode(),
-                Intent(context, MainActivity::class.java).putExtra(MainActivity.EXTRA_EVENT_ID, alert.eventId),
+                Intent(context, MainActivity::class.java).putExtra(
+                    MainActivity.EXTRA_EVENT_ID,
+                    alert.eventId
+                ),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
-            val preview = context.getString(R.string.chat_preview, alert.authorName.ifBlank { context.getString(R.string.chat_member) }, alert.preview)
+            val preview = context.getString(
+                R.string.chat_preview,
+                alert.authorName.ifBlank { context.getString(R.string.chat_member) },
+                alert.preview
+            )
             val notification = Notification.Builder(context, CHANNEL)
                 .setSmallIcon(R.drawable.ic_notification)
                 .setContentTitle(alert.eventTitle)
                 .setContentText(preview)
-                .setSubText(context.resources.getQuantityString(R.plurals.chat_unread_count, alert.count, alert.count))
+                .setSubText(
+                    context.resources.getQuantityString(
+                        R.plurals.chat_unread_count,
+                        alert.count,
+                        alert.count
+                    )
+                )
                 .setContentIntent(open).setAutoCancel(true).build()
             // Свій простір id: чат, запит і нагадування про ту саму подію — три сповіщення.
             manager.notify(TAG, alert.eventId.hashCode(), notification)
@@ -179,7 +246,12 @@ class ReminderReceiver : BroadcastReceiver() {
         val id = intent.getStringExtra(AlarmReminderScheduler.EXTRA_ID) ?: return
         AlarmReminderScheduler.show(
             context,
-            EventReminder(id, intent.getStringExtra(AlarmReminderScheduler.EXTRA_TITLE).orEmpty(), intent.getStringExtra(AlarmReminderScheduler.EXTRA_ADDRESS).orEmpty(), 0)
+            EventReminder(
+                id,
+                intent.getStringExtra(AlarmReminderScheduler.EXTRA_TITLE).orEmpty(),
+                intent.getStringExtra(AlarmReminderScheduler.EXTRA_ADDRESS).orEmpty(),
+                0
+            )
         )
     }
 }
