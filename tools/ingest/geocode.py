@@ -6,11 +6,16 @@ Photon завжди повертає найкращий здогад, навіт
   · номер будинку в запиті, інакше точка посеред вулиці;
   · рівень результату: лише `house`/`building`. `street` відкидаємо: на «пр. Глушкова, 1» Photon
     віддає довільний відрізок проспекту, і той самий концерт із двох афіш розʼїжджається на 1,5 км;
-  · межі міста: Photon охоче знаходить ту саму вулицю в іншому місті.
+  · межі міста: Photon охоче знаходить ту саму вулицю в іншому місті;
+  · збіг адреси: номер будинку, вулиця й місто результату мають збігатися із запитом. Без цього
+    першим приходить зупинка з назвою вулиці, сусідній бізнес-центр або село з тією самою
+    адресою всередині прямокутника міста (на зрізі кешу — 42 адреси з 256);
+  · однозначність: дві «Сонячна, 5» в Одесі за 7 км одна від одної — це черга перегляду, а не вибір.
 """
 from __future__ import annotations
 
 import json
+import math
 import pathlib
 import re
 import time
@@ -37,6 +42,38 @@ _CONFIDENCE = {"house": 0.72, "building": 0.70}
 
 # Без номера будинку точність лише рівня вулиці.
 _HAS_NUMBER = re.compile(r"\d")
+
+# Номер будинку в адресі: «5», «19А», «23-В», «37/41», «1-3/11». Літера — лише впритул: у
+# «Сумська, 25 м. Університет» «м» — це метро, а не корпус.
+_HOUSE_NUMBER = re.compile(r"\d+(?:\s?[/-]\s?\d+)*(?:-?[а-яіїєґa-z])?(?![а-яіїєґa-z])", re.I)
+# Родові слова, за якими вулиці не розрізнити.
+_STREET_KINDS = {"вулиця", "проспект", "площа", "провулок", "бульвар", "шосе", "майдан", "узвіз", "алея"}
+# Далі одна від одної точки з тією самою адресою — це вже дві різні адреси.
+_AMBIGUOUS_METRES = 500.0
+# Версія фільтрів `_pick`. Змінили правила — підняли число, і старі точки перевіряються заново.
+_RULES_VERSION = 3
+
+
+def _squash(text: str | None) -> str:
+    return re.sub(r"[^0-9a-zа-яіїєґ]", "", (text or "").lower())
+
+
+def _same_address(props: dict, query: str, city: str) -> bool:
+    """Чи результат Photon — саме та адреса, яку питали, а не найближчий здогад."""
+    wanted = _HOUSE_NUMBER.search(query)
+    if not wanted or _squash(props.get("housenumber")) != _squash(wanted.group(0)):
+        return False
+    if normalize_name(props.get("city") or "") != normalize_name(city):
+        return False
+    words = [w for w in normalize_name(props.get("street") or "").split()
+             if len(w) >= 4 and w not in _STREET_KINDS]
+    haystack = normalize_name(query)
+    return not words or any(w[:5] in haystack for w in words)
+
+
+def _metres(a: tuple[float, float], b: tuple[float, float]) -> float:
+    lat = math.radians((a[0] + b[0]) / 2)
+    return 6371000 * math.hypot(math.radians(a[1] - b[1]) * math.cos(lat), math.radians(a[0] - b[0]))
 
 _MIN_DELAY = 1.0            # публічний інстанс: ходимо повільно й послідовно
 _last_call = 0.0
@@ -92,9 +129,10 @@ class Geocoder:
         key = f"{self.city}|{normalize_name(query)}"
         if key in self._cache:
             hit = self._cache[key]
-            # Порожній запис = «шукали, не знайшли». Запис рівня, якого вже немає в _CONFIDENCE
-            # (старі `street`), — те саме: кеш не має права обходити фільтр.
-            return hit if hit and hit.get("confidence") in _CONFIDENCE.values() else None
+            # Запис без поточної версії правил питаємо заново: кеш не має права обходити фільтр,
+            # якого не було, коли його записали. Запис без точки = «шукали, не знайшли».
+            if hit.get("v") == _RULES_VERSION:
+                return hit if "lat" in hit else None
 
         global _last_call
         wait = _MIN_DELAY - (time.monotonic() - _last_call)
@@ -121,12 +159,13 @@ class Geocoder:
             self.errors.append(f"{query}: {exc}")
             return None
 
-        result = self._pick(payload.get("features") or [])
-        self._cache[key] = result or {}
+        result = self._pick(payload.get("features") or [], query)
+        self._cache[key] = result or {"v": _RULES_VERSION}
         self._save()
         return result
 
-    def _pick(self, features: list[dict]) -> dict | None:
+    def _pick(self, features: list[dict], query: str = "") -> dict | None:
+        hits = []
         for feature in features:
             props = feature.get("properties") or {}
             confidence = _CONFIDENCE.get(props.get("type"))
@@ -138,9 +177,20 @@ class Geocoder:
             lon, lat = float(coords[0]), float(coords[1])
             if not self._in_bbox(lat, lon):
                 continue                       # інше місто
+            if query and not _same_address(props, query, self.city):
+                continue                       # зупинка, сусідній будинок або село з тією самою вулицею
             # display порожній: Photon віддає назву сусіднього POI, а не майданчика.
-            return {"lat": lat, "lon": lon,
-                    "display": "",
-                    "ref": f"photon/{props.get('osm_type','')}{props.get('osm_id','')}",
-                    "confidence": confidence, "how": "photon"}
+            hits.append({"lat": lat, "lon": lon,
+                         "display": "",
+                         "ref": f"photon/{props.get('osm_type','')}{props.get('osm_id','')}",
+                         "confidence": confidence, "how": "photon", "v": _RULES_VERSION,
+                         "_building": props.get("osm_key") == "building"})
+        # Дві однакові адреси в місті. Будівлі з адресою віримо більше, ніж закладу, якому адресу
+        # вписав автор точки: «Сонячна, 5» в Одесі — це будівля в Аркадії, а не косметолог у
+        # «Дружному». Якщо й будівлі розходяться — вибирати нема за чим, у чергу перегляду.
+        buildings = [h for h in hits if h.pop("_building")]      # службове поле далі не йде
+        for pool in (hits, buildings):
+            if pool and all(_metres((pool[0]["lat"], pool[0]["lon"]), (h["lat"], h["lon"]))
+                            <= _AMBIGUOUS_METRES for h in pool[1:]):
+                return pool[0]
         return None

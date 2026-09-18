@@ -33,6 +33,8 @@ class PoruchApp internal constructor(
     timeZones: TimeZoneLocator? = null,
     addresses: AddressSearch? = null,
     private val reminderStore: ReminderPreferenceStore? = null,
+    /** Останнє обране місто. Null — кожен запуск з [AppConfig.home]. */
+    cityStore: CityStore? = null,
     /** Системний планувальник нагадувань. Null у тестах і превʼю: план рахується, але нікуди не йде. */
     reminders: ReminderScheduler? = null,
     /** Сповіщення про нові запити на участь: сховище «бачених» і платформний показ. Обидва або нічого. */
@@ -47,17 +49,21 @@ class PoruchApp internal constructor(
     /** Де рахувати важке. Порожньо за замовчуванням, щоб тести під `runTest` нічого не знали; [AppGraph] підставляє диспетчер. */
     compute: CoroutineContext = EmptyCoroutineContext
 ) {
+    /** Звідки стартує пошук: останнє обране місто, інакше місто збірки. */
+    private val startCity = cityStore?.read()?.let { HomeLocation(it.name, it.latitude, it.longitude) } ?: config.home
+
     // Відповіді читаємо синхронно: від них залежить, чи перший кадр — онбординг чи застосунок.
     private val store = AppStore(
         AppState(
             userId = auth.session.value?.userId, taste = tasteStore?.read() ?: Taste(),
-            remindersEnabled = reminderStore?.enabled() ?: false
+            remindersEnabled = reminderStore?.enabled() ?: false,
+            cityName = startCity.city, cityLatitude = startCity.latitude, cityLongitude = startCity.longitude
         ),
         scope
     )
     val state: StateFlow<AppState> get() = store.state
 
-    private val discovery = DiscoveryEngine(events, geo, store.flow, scope, config.home, compute)
+    private val discovery = DiscoveryEngine(events, geo, store.flow, scope, startCity, compute, cityStore)
     private val library = UserLibrary(
         events,
         saved,

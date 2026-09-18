@@ -54,12 +54,18 @@ struct RootView: View {
         } else {
             app
                 .onAppear { location.request() }
-                .onReceive(location.$coordinate) { coordinate in
-                    if let coordinate {
-                        model.app.selectCity(city: CityResult(name: "Поруч зі мною", latitude: coordinate.latitude, longitude: coordinate.longitude))
-                    }
+                .onReceive(location.$city) { city in
+                    if let city { model.app.selectCity(city: city) }
                 }
         }
+    }
+
+    /// Мапа з деталей: стоси скидаємо самі. `dismiss()` у ту ж мить, що й зміна вкладки, SwiftUI
+    /// пропускав, деталі лишались у стосі головної, а їхній `hidesTabBar()` ховав таббар і на мапі.
+    private func showMap() {
+        homePath = NavigationPath()
+        minePath = NavigationPath()
+        tab = 1
     }
 
     private var app: some View {
@@ -68,7 +74,7 @@ struct RootView: View {
             TabView(selection: $tab) {
                 NavigationStack(path: $homePath) {
                     HomeView(
-                        openMap: { tab = 1 }, openProfile: { tab = 3 },
+                        openMap: showMap, openProfile: { tab = 3 },
                         createEvent: { if model.state?.userId == nil { authenticating = true } else { creating = true } },
                         openEvent: { homePath.append(EventRoute(id: $0)) },
                         openChat: { homePath.append(ChatRoute(id: $0.id)) }
@@ -102,7 +108,7 @@ struct RootView: View {
             // Тап по сповіщенню веде на подію зі стеку головної.
             PushDelegate.openEvent = { id in tab = 0; model.app.selectEvent(id: id); homePath = NavigationPath([EventRoute(id: id)]) }
         }
-        .environment(\.openMap) { tab = 1 }
+        .environment(\.openMap, showMap)
         .sheet(isPresented: $creating) { EventEditor(event: nil, app: model.app, home: model.state) }
         .sheet(isPresented: $authenticating) {
             NavigationStack {

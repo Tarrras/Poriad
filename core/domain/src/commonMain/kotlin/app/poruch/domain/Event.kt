@@ -210,6 +210,12 @@ object ImportStatus {
 
 data class Attendee(val userId: String, val name: String, val avatarUrl: String?)
 data class CityResult(val name: String, val latitude: Double, val longitude: Double)
+
+/** Останнє обране місто на пристрої: наступний запуск одразу показує його, а не Київ за замовчуванням. */
+interface CityStore {
+    fun read(): CityResult?
+    fun write(city: CityResult)
+}
 data class EventDraft(
     val title: String, val description: String, val category: String, val city: String,
     val address: String, val latitude: Double, val longitude: Double, val startsAt: String,

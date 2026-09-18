@@ -269,6 +269,33 @@ def test_geocoder_guards() -> None:
              "geometry": {"coordinates": [30.4644336, 50.3739621]}}]
     check("рівень «вулиця» відкидається", g._pick(road), None)
 
+    # Бізнес-центр «Сонячний» в Одесі: Photon першим віддав косметолога з тією самою адресою за 7 км.
+    def house(lat, lon, number="5", street="Сонячна вулиця", city="Одеса", name=None, key="shop"):
+        return {"properties": {"type": "house", "housenumber": number, "street": street,
+                               "city": city, "name": name, "osm_key": key},
+                "geometry": {"coordinates": [lon, lat]}}
+    o = Geocoder("Одеса", enabled=True)
+    arcadia, druzhnyi = house(46.4368, 30.7495), house(46.3772, 30.7106, street="вулиця Сонячна")
+    check("єдиний збіг адреси приймається", o._pick([arcadia], "вулиця Сонячна, 5")["lat"], 46.4368)
+    check("дві однакові адреси за 7 км — неоднозначно, у чергу перегляду",
+          o._pick([druzhnyi, arcadia], "вулиця Сонячна, 5"), None)
+    building = house(46.4368, 30.7495, key="building")
+    picked = o._pick([druzhnyi, building, arcadia], "вулиця Сонячна, 5")
+    check("будівля з адресою переважує заклад з тією самою адресою за 7 км", picked["lat"], 46.4368)
+    check("службове поле в результат не потрапляє", "_building" in picked, False)
+    check("дві будівлі з однією адресою за 7 км — знову неоднозначно",
+          o._pick([house(46.3772, 30.7106, key="building"), building], "вулиця Сонячна, 5"), None)
+    check("зупинка з назвою вулиці без номера будинку — не адреса",
+          o._pick([house(46.4827, 30.7325, number=None, name="Вул. Грецька")], "вулиця Грецька, 48а"), None)
+    check("інший номер будинку — не та адреса",
+          o._pick([house(46.4368, 30.7495, number="13/5")], "вулиця Сонячна, 5"), None)
+    check("та сама адреса в селі всередині прямокутника — не та адреса",
+          o._pick([house(46.4368, 30.7495, city="Фонтанка")], "вулиця Сонячна, 5"), None)
+    check("«37/41» і «37-41» — один номер",
+          o._pick([house(46.47, 30.73, number="37-41")], "вулиця Сонячна, 37/41") is not None, True)
+    check("«м.» після номера — метро, а не літера будинку",
+          o._pick([house(46.47, 30.73, number="25")], "вулиця Сонячна, 25 м. Університет") is not None, True)
+
     far = [{"properties": {"type": "house", "name": "десь"},
             "geometry": {"coordinates": [24.03, 49.84]}}]      # Львів у київському запиті
     check("точка за межами міста відкидається", g._pick(far), None)

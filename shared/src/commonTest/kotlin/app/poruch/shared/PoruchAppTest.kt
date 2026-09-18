@@ -78,10 +78,15 @@ class PoruchAppTest {
         override suspend fun approveMember(eventId:String,userId:String) {}
         override suspend fun declineMember(eventId:String,userId:String) {}
     }
-    private fun app(events:Events,scope:CoroutineScope,auth:Auth=Auth()):PoruchApp {
+    /** Місто в пам'яті замість бази пристрою. */
+    private class Cities(var stored:CityResult?=null): CityStore {
+        override fun read()=stored
+        override fun write(city:CityResult) { stored=city }
+    }
+    private fun app(events:Events,scope:CoroutineScope,auth:Auth=Auth(),cities:CityStore?=null):PoruchApp {
         return PoruchApp(
             events=events, saved=events, authoring=events, participation=events, requests=events, chat=events,
-            auth=auth,
+            auth=auth, cityStore=cities,
             geo=object:GeoSearchRepository { override suspend fun search(query:String)=emptyList<CityResult>() },
             eventActions=EventActions(events,events,auth), accountActions=AccountActions(auth),
             safety=safety, tasteStore=taste, scope=scope
@@ -465,6 +470,31 @@ class PoruchAppTest {
 
         backgroundScope.launch { app.reloadAll() }; advanceTimeBy(1000); runCurrent()
         assertEquals(2,events.queries.size,"потяг униз перечитує завжди")
+        app.close()
+    }
+
+    /** Наступний запуск починає з останнього обраного міста: перший запит — уже туди. */
+    @Test fun launchStartsFromTheRememberedCity()=runTest {
+        val odesa=HomeLocation.covered.first { it.city=="Одеса" }
+        val cities=Cities(CityResult(odesa.city,odesa.latitude,odesa.longitude))
+        val events=Events(); val app=app(events,backgroundScope,cities=cities); runCurrent()
+        assertEquals("Одеса",app.state.value.cityName)
+        assertEquals(odesa.south,events.queries.single().south)
+        app.close()
+    }
+
+    /** Обране місто запам'ятовується; те саме місто вдруге (геолокація на старті) не перечитує видачу. */
+    @Test fun selectedCityIsRememberedAndTheSameCityCostsNothing()=runTest {
+        val cities=Cities(); val events=Events(); val app=app(events,backgroundScope,cities=cities)
+        runCurrent(); advanceTimeBy(1000); runCurrent()
+        val kharkiv=CityResult("Харків",49.9935,36.2304)
+        app.selectCity(kharkiv); advanceTimeBy(1000); runCurrent()
+        assertEquals(kharkiv,cities.stored)
+        val before=events.queries.size
+
+        app.selectCity(CityResult("Харків",49.99,36.23)); advanceTimeBy(1000); runCurrent()
+        assertEquals(before,events.queries.size)
+        assertEquals(kharkiv,cities.stored)
         app.close()
     }
 
