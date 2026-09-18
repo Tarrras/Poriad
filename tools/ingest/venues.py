@@ -9,6 +9,7 @@ usage policy, якої дотримуємось: один запит на міс
 """
 from __future__ import annotations
 
+import datetime as dt
 import json
 import pathlib
 import urllib.parse
@@ -23,6 +24,8 @@ OVERPASS_MIRRORS = (
     "https://overpass.kumi.systems/api/interpreter",
     "https://overpass.osm.ch/api/interpreter",
 )
+# Скільки дзеркало може відставати від OSM. Здорове відстає на хвилини.
+MAX_DUMP_AGE = dt.timedelta(days=7)
 CACHE_DIR = pathlib.Path(__file__).resolve().parent / "cache"
 ALIASES_PATH = pathlib.Path(__file__).resolve().parent / "aliases.json"
 
@@ -34,7 +37,7 @@ ALIASES_PATH = pathlib.Path(__file__).resolve().parent / "aliases.json"
 _TAGS = """
   nwr["amenity"~"^(theatre|cinema|arts_centre|community_centre|nightclub|library|bar|pub|restaurant|cafe|planetarium|exhibition_centre|conference_centre|events_venue|music_venue|concert_hall|food_court)$"](area.a);
   nwr["tourism"~"^(gallery|museum|attraction|theme_park|zoo|aquarium)$"](area.a);
-  nwr["leisure"~"^(park|sports_centre|fitness_centre|stadium|dance|escape_game|amusement_arcade|bowling_alley)$"](area.a);
+  nwr["leisure"~"^(park|sports_centre|fitness_centre|stadium|dance|escape_game|amusement_arcade|bowling_alley|events)$"](area.a);
   nwr["shop"~"^(mall|books)$"](area.a);
   nwr["office"="coworking"](area.a);
   nwr["building"~"^(palace|civic)$"](area.a);
@@ -83,6 +86,16 @@ def fetch_osm(city: str, *, refresh: bool = False) -> list[dict]:
         if not elements:
             problems.append(f"{urllib.parse.urlsplit(endpoint).netloc}: порожній дамп"
                             + (f" ({payload['remark']})" if payload.get("remark") else ""))
+            continue
+        # Дзеркала відстають мовчки: одне віддало Київ станом на чотири місяці тому, і псевдонім
+        # «Feels Garden → Feels Live» перестав зводитись, бо назву обʼєкту дали пізніше.
+        stamp = (payload.get("osm3s") or {}).get("timestamp_osm_base") or ""
+        try:
+            age = dt.datetime.now(dt.timezone.utc) - dt.datetime.fromisoformat(stamp.replace("Z", "+00:00"))
+        except ValueError:
+            age = None
+        if age is None or age > MAX_DUMP_AGE:
+            problems.append(f"{urllib.parse.urlsplit(endpoint).netloc}: застарілі дані ({stamp or 'без дати'})")
             continue
         cache.write_text(json.dumps(payload, ensure_ascii=False), "utf-8")
         return elements

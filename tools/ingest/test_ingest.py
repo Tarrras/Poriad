@@ -296,6 +296,33 @@ def test_geocoder_guards() -> None:
     check("«м.» після номера — метро, а не літера будинку",
           o._pick([house(46.47, 30.73, number="25")], "вулиця Сонячна, 25 м. Університет") is not None, True)
 
+    # Nominatim — запасний: Photon не знає «Верхній Вал, 66-А», Nominatim знає. Фільтри ті самі.
+    from unittest.mock import patch
+    from . import geocode as _geocode
+    row = {"lat": "50.470901", "lon": "30.520205", "category": "building", "osm_type": "way",
+           "osm_id": 45341077, "addresstype": "building",
+           "address": {"house_number": "66-А", "road": "вулиця Верхній Вал", "city": "Київ"}}
+    stop = {"lat": "50.4699", "lon": "30.5190", "category": "highway", "osm_type": "node",
+            "osm_id": 1, "addresstype": "road", "address": {"road": "вулиця Верхній Вал", "city": "Київ"}}
+    calls = []
+
+    def fake_get(self, endpoint, query, params):
+        calls.append(endpoint)
+        return {"features": []} if endpoint == _geocode.ENDPOINT else [stop, row]
+
+    with patch.object(_geocode.Geocoder, "_get", fake_get), \
+         patch.object(_geocode.Geocoder, "_save", lambda self: None):
+        k = Geocoder("Київ", enabled=True)
+        k._cache = {}
+        hit = k.lookup_street("вул. Верхній Вал, 66а")
+        check("Photon промовчав — питаємо Nominatim", calls, [_geocode.ENDPOINT, _geocode.NOMINATIM])
+        check("будинок з Nominatim проходить ті самі фільтри", (hit["lat"], hit["ref"]),
+              (50.470901, "nominatim/W45341077"))
+        check("щабель лишається «геокодер»: на ньому CHECK у public.venues", hit["how"], "photon")
+        k.lookup_street("вул. Верхній Вал, 66а")
+        check("друга спроба — з кешу, без мережі", len(calls), 2)
+
+
     far = [{"properties": {"type": "house", "name": "десь"},
             "geometry": {"coordinates": [24.03, 49.84]}}]      # Львів у київському запиті
     check("точка за межами міста відкидається", g._pick(far), None)

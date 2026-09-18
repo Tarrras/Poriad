@@ -1,6 +1,9 @@
 """Photon — запасний геокодер для майданчиків, яких немає в дампі OSM. Той самий інстанс, що в застосунку.
 
-Порядок: aliases.json (звірено людиною) -> дамп OSM (збіг назви) -> Photon (адресний рядок).
+Порядок: aliases.json (звірено людиною) -> дамп OSM (збіг назви) -> Photon (адресний рядок)
+-> Nominatim (той самий рядок, коли Photon не дав збігу). Дані в обох ті самі, з OSM, але
+Nominatim краще розбирає українські адреси: «Мала Шияновська, 5», «пров. М'ясний, 1»,
+«Верхній Вал, 66-А» Photon не знаходив узагалі. Фільтри для обох одні.
 Photon завжди повертає найкращий здогад, навіть коли відповіді не існує, тому фільтри:
   · лише вулична адреса, ніколи назва закладу (на «ORIGIN STAGE» він віддає кам'яну стелу);
   · номер будинку в запиті, інакше точка посеред вулиці;
@@ -25,6 +28,7 @@ import urllib.request
 from .normalize import normalize_name
 
 ENDPOINT = "https://photon.komoot.io/api/"
+NOMINATIM = "https://nominatim.openstreetmap.org/search"
 CACHE_PATH = pathlib.Path(__file__).resolve().parent / "cache" / "photon.json"
 
 # Межі міст (south, west, north, east): фільтр Photon і межа запиту до Overpass. Місто без
@@ -51,7 +55,7 @@ _STREET_KINDS = {"вулиця", "проспект", "площа", "провул
 # Далі одна від одної точки з тією самою адресою — це вже дві різні адреси.
 _AMBIGUOUS_METRES = 500.0
 # Версія фільтрів `_pick`. Змінили правила — підняли число, і старі точки перевіряються заново.
-_RULES_VERSION = 3
+_RULES_VERSION = 4
 
 
 def _squash(text: str | None) -> str:
@@ -71,11 +75,28 @@ def _same_address(props: dict, query: str, city: str) -> bool:
     return not words or any(w[:5] in haystack for w in words)
 
 
+def _photon_shaped(row: dict) -> dict:
+    """Рядок Nominatim у формі результату Photon, щоб обидва йшли крізь один `_pick`."""
+    address = row.get("address") or {}
+    return {
+        "properties": {
+            "type": "house" if address.get("house_number") else row.get("addresstype"),
+            "housenumber": address.get("house_number"),
+            "street": address.get("road") or address.get("pedestrian") or address.get("square"),
+            "city": address.get("city") or address.get("town") or address.get("village"),
+            "osm_key": row.get("category"),
+            "osm_type": str(row.get("osm_type") or "")[:1].upper(),
+            "osm_id": row.get("osm_id"),
+        },
+        "geometry": {"coordinates": [float(row["lon"]), float(row["lat"])]},
+    }
+
+
 def _metres(a: tuple[float, float], b: tuple[float, float]) -> float:
     lat = math.radians((a[0] + b[0]) / 2)
     return 6371000 * math.hypot(math.radians(a[1] - b[1]) * math.cos(lat), math.radians(a[0] - b[0]))
 
-_MIN_DELAY = 1.0            # публічний інстанс: ходимо повільно й послідовно
+_MIN_DELAY = 1.1            # публічні інстанси, у Nominatim межа 1 запит/с: ходимо повільно й послідовно
 _last_call = 0.0
 
 
@@ -134,37 +155,49 @@ class Geocoder:
             if hit.get("v") == _RULES_VERSION:
                 return hit if "lat" in hit else None
 
+        # Photon приймає лише default/de/en/fr; `default` віддає українські назви, `uk` дає 400.
+        payload = self._get(ENDPOINT, query, {
+            "q": f"{query}, {self.city}", "limit": 5, "lang": "default",
+            "lat": (self.bbox[0] + self.bbox[2]) / 2,
+            "lon": (self.bbox[1] + self.bbox[3]) / 2,
+        })
+        if payload is None:
+            return None
+        result = self._pick(payload.get("features") or [], query)
+        if result is None:
+            south, west, north, east = self.bbox
+            rows = self._get(NOMINATIM, query, {
+                "q": f"{query}, {self.city}", "format": "jsonv2", "limit": 5, "addressdetails": 1,
+                "countrycodes": "ua", "accept-language": "uk",
+                "viewbox": f"{west},{north},{east},{south}", "bounded": 1,
+            })
+            if rows is None:
+                return None                    # збій мережі не кешуємо як «не знайшли»
+            result = self._pick([_photon_shaped(row) for row in rows], query, service="nominatim")
+        self._cache[key] = result or {"v": _RULES_VERSION}
+        self._save()
+        return result
+
+    def _get(self, endpoint: str, query: str, params: dict):
         global _last_call
         wait = _MIN_DELAY - (time.monotonic() - _last_call)
         if wait > 0:
             time.sleep(wait)
         _last_call = time.monotonic()
-
-        # Photon приймає лише default/de/en/fr; `default` віддає українські назви, `uk` дає 400.
-        params = urllib.parse.urlencode({
-            "q": f"{query}, {self.city}", "limit": 5, "lang": "default",
-            "lat": (self.bbox[0] + self.bbox[2]) / 2,
-            "lon": (self.bbox[1] + self.bbox[3]) / 2,
-        })
         req = urllib.request.Request(
-            f"{ENDPOINT}?{params}",
+            f"{endpoint}?{urllib.parse.urlencode(params)}",
             headers={"User-Agent": "PoriadBot/0.1 (+https://poriad.app/bot)",
                      "Accept": "application/json"})
         self.calls += 1
         try:
             with urllib.request.urlopen(req, timeout=30) as r:
-                payload = json.loads(r.read().decode("utf-8"))
+                return json.loads(r.read().decode("utf-8"))
         except Exception as exc:
             # Помилку не ковтаємо: мовчазний геокодер невідрізнений від порожнього результату.
             self.errors.append(f"{query}: {exc}")
             return None
 
-        result = self._pick(payload.get("features") or [], query)
-        self._cache[key] = result or {"v": _RULES_VERSION}
-        self._save()
-        return result
-
-    def _pick(self, features: list[dict], query: str = "") -> dict | None:
+    def _pick(self, features: list[dict], query: str = "", service: str = "photon") -> dict | None:
         hits = []
         for feature in features:
             props = feature.get("properties") or {}
@@ -182,7 +215,9 @@ class Geocoder:
             # display порожній: Photon віддає назву сусіднього POI, а не майданчика.
             hits.append({"lat": lat, "lon": lon,
                          "display": "",
-                         "ref": f"photon/{props.get('osm_type','')}{props.get('osm_id','')}",
+                         "ref": f"{service}/{props.get('osm_type','')}{props.get('osm_id','')}",
+                         # `how` — щабель «геокодер», спільний для обох сервісів: на ньому CHECK у
+                         # public.venues.source. Хто саме відповів, видно з `ref`.
                          "confidence": confidence, "how": "photon", "v": _RULES_VERSION,
                          "_building": props.get("osm_key") == "building"})
         # Дві однакові адреси в місті. Будівлі з адресою віримо більше, ніж закладу, якому адресу
