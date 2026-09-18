@@ -11,7 +11,8 @@ import kotlin.math.abs
 import kotlin.time.Clock
 
 /**
- * Тримає запит мапи: область, фільтри й один активний пошук. Винесено з [PoruchApp], бо це
+ * Тримає запит мапи: область, фільтри й один активний пошук. І стрічку головної ([HomeFeed]):
+ * та сама область без фільтрів мапи і зі своїм пошуком. Винесено з [PoruchApp], бо це
  * єдиний стан, що змінюється на кожен рух мапи, і правило «стара відповідь не перекриває
  * свіжу» перевіряється в одному місці.
  */
@@ -28,22 +29,41 @@ internal class DiscoveryEngine(
     private val compute: CoroutineContext = EmptyCoroutineContext
 ) {
     private var query = EventQuery(home.south, home.west, home.north, home.east)
+    /** Межі обраного міста. Головна завжди дивиться сюди; «Шукати тут» рухає лише мапу. */
+    private var cityArea = EventQuery(home.south, home.west, home.north, home.east)
     private var searchJob: Job? = null
     private var cardsJob: Job? = null
     private var sessionsJob: Job? = null
     private var sessionsWanted: Set<String> = emptySet()
     private var debounceJob: Job? = null
     private var cityJob: Job? = null
+    private var homeJob: Job? = null
+    private var homeCardsJob: Job? = null
+    private var homeSearchJob: Job? = null
+    private var homeDebounceJob: Job? = null
+    /** Поточний [searchJob] несе й стрічку головної: мапа була без фільтрів. */
+    private var sharedPending = false
 
     /** Викликається, коли зміна запиту має закрити відкриту картку. */
     var onQueryChanged: () -> Unit = {}
 
-    fun refresh() {
+    /**
+     * Перечитує мапу, а з [home] і головну. Поки мапа без фільтрів, їхні запити однакові, тож
+     * головна їде тим самим запитом. Зміна фільтра мапи ([home] = false) головну не чіпає.
+     */
+    fun refresh(home: Boolean = true) {
+        // Скасовуємо запит, що ніс і головну: тоді вона мусить поїхати сама.
+        val needHome = home || (sharedPending && searchJob?.isActive == true)
         searchJob?.cancel()
         cardsJob?.cancel()
+        val shared = needHome && mapUnfiltered()
+        sharedPending = shared
+        if (shared) homeJob?.cancel() else if (needHome) refreshHome()
+        // Нова область — нові результати пошуку головної.
+        if (home) searchHome()
         val snapshot = query
         searchJob = scope.launch {
-            state.update { it.copy(loading = true) }
+            state.update { it.copy(loading = true, home = if (shared) it.home.copy(loading = true) else it.home) }
             PoruchLog.d("discovery") {
                 "search ${snapshot.south},${snapshot.west}..${snapshot.north},${snapshot.east} " +
                     "category=${snapshot.category ?: ALL_CATEGORIES} from=${snapshot.from ?: "now"} " +
@@ -52,20 +72,107 @@ internal class DiscoveryEngine(
             try {
                 val page = events.discover(snapshot)
                 PoruchLog.i("discovery") { "${page.total} events, ${page.cards.size} cards inline" }
-                publish(page, offline = false, failure = null)
+                publish(page, offline = false, failure = null, home = shared)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 // Офлайн — не порожньо: остання відповідь для області все ще найкраща.
                 val cached = withContext(compute) { events.cached(snapshot) }
                 PoruchLog.e("discovery", e) { "search failed, showing ${cached.index.size} cached events" }
-                publish(cached, offline = true, failure = e.asAppError())
+                publish(cached, offline = true, failure = e.asAppError(), home = shared)
             }
         }
     }
 
-    /** Чекає, поки доїде поточний пошук. Без пошуку або скасований — повертається одразу. */
-    suspend fun awaitSearch() { searchJob?.join() }
+    /**
+     * Мапа показує ціле місто без фільтрів: її запит збігається з запитом головної. Категорія
+     * в запит не їде взагалі.
+     */
+    private fun mapUnfiltered() =
+        !state.value.customArea && query.text == null && !query.available && state.value.dateFilter == DateFilter.ANY
+
+    /** Запит головної: ціле місто, без фільтрів мапи. */
+    private fun areaQuery() = cityArea
+
+    /** Стрічка головної окремим запитом, коли мапа звужена фільтрами. */
+    private fun refreshHome() {
+        homeJob?.cancel()
+        val snapshot = areaQuery()
+        homeJob = scope.launch {
+            state.update { it.copy(home = it.home.copy(loading = true)) }
+            val page = try {
+                events.discover(snapshot)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // Про збій уже скаже мапа своїм банером; головна тихо бере кеш.
+                PoruchLog.w("discovery") { "home feed failed: ${e.asAppError()}" }
+                withContext(compute) { events.cached(snapshot) }
+            }
+            val ranked = rank(page)
+            state.update {
+                it.copy(
+                    cards = it.cards + page.cards.associateBy { card -> card.id },
+                    home = it.home.copy(
+                        index = ranked.index, suggestedIndex = ranked.suggested,
+                        totalFound = ranked.total, loading = false
+                    )
+                ).settled(ranked.taste)
+            }
+            materializeHome()
+        }
+    }
+
+    /** Пошук головної в тій самій області, без фільтрів мапи. */
+    fun setHomeSearchText(text: String) {
+        val trimmed = text.take(DiscoveryRules.SEARCH_TEXT_LIMIT)
+        if (trimmed == state.value.home.searchText) return
+        homeDebounceJob?.cancel(); homeSearchJob?.cancel()
+        val blank = trimmed.isBlank()
+        state.update {
+            it.copy(
+                home = if (blank) it.home.copy(searchText = trimmed, results = emptyList(), resultsTotal = 0, searchLoading = false)
+                else it.home.copy(searchText = trimmed, searchLoading = true)
+            )
+        }
+        if (!blank) homeDebounceJob = scope.launch { delay(DiscoveryRules.SEARCH_DEBOUNCE_MS); searchHome() }
+    }
+
+    private fun searchHome() {
+        homeDebounceJob?.cancel(); homeSearchJob?.cancel()
+        val text = state.value.home.searchText.trim()
+        if (text.isEmpty()) return
+        val snapshot = areaQuery().copy(text = text)
+        homeSearchJob = scope.launch {
+            state.update { it.copy(home = it.home.copy(searchLoading = true)) }
+            try {
+                val page = events.discover(snapshot)
+                val ranked = rank(page)
+                state.update {
+                    it.copy(
+                        cards = it.cards + page.cards.associateBy { card -> card.id },
+                        home = it.home.copy(results = ranked.index, resultsTotal = ranked.total, searchLoading = false)
+                    ).settled(ranked.taste)
+                }
+                materializeHome()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                state.update { it.copy(home = it.home.copy(searchLoading = false), notice = AppNotice.Failed(e.asAppError())) }
+            }
+        }
+    }
+
+    /** Картки, які головна показує першими: добірка, початок стрічки й пошуку. */
+    private fun materializeHome() {
+        val home = state.value.home
+        val ids = (home.suggestedIndex.take(DiscoveryRules.FIRST_CARDS) + home.index.take(DiscoveryRules.FIRST_CARDS) +
+            home.results.take(DiscoveryRules.FIRST_CARDS)).map { it.id }.distinct()
+        load(ids)?.let { homeCardsJob?.cancel(); homeCardsJob = it }
+    }
+
+    /** Чекає, поки доїдуть поточні пошуки. Без пошуку або скасований — повертається одразу. */
+    suspend fun awaitSearch() { searchJob?.join(); homeJob?.join(); homeSearchJob?.join() }
 
     /** Довантажити картки до [count] перших у порядку показу. Не пагінація: індекс повний, id відомі. */
     fun materialize(count: Int) {
@@ -115,12 +222,11 @@ internal class DiscoveryEngine(
         }
     }
 
-    /**
-     * Кладе видачу в стан: рахунок поза потоком, потім одне атомарне `update`. Всередині
-     * `update` читаємо лише стан, а не `state.value` до `withContext`, інакше паралельна закладка
-     * чи відповіді онбордингу загубилися б. Після `withContext` ми знову на головному потоці.
-     */
-    private suspend fun publish(page: DiscoveryPage, offline: Boolean, failure: AppError?) {
+    /** Видача після склейки й ранжування. [taste] — смак, яким рахували. */
+    private class Ranked(val index: List<EventIndexEntry>, val suggested: List<EventIndexEntry>, val total: Int, val taste: Taste)
+
+    /** Склеює й ранжує видачу поза головним потоком. */
+    private suspend fun rank(page: DiscoveryPage): Ranked {
         val taste = state.value.taste
         // Склеюємо до ранжування, щоб дубль не отримав бали двічі. Порядок обов'язковий:
         // спершу дублі між продавцями, потім прокат, інакше один вечір став би двома сеансами.
@@ -131,34 +237,58 @@ internal class DiscoveryEngine(
                 "${page.index.size - folded.size} rows folded away, $series runs"
             }
         }
-        val ranking = withContext(compute) {
+        return withContext(compute) {
             val ordered = TasteRanking.rank(folded, taste, Clock.System.now())
-            ordered to TasteRanking.matching(ordered, taste)
+            // Склеєні дублікати не рахуємо двічі. Різниця з page.total — лише коли спрацював запобіжник.
+            Ranked(ordered, TasteRanking.matching(ordered, taste), folded.size + (page.total - page.index.size), taste)
         }
+    }
+
+    /** Смак міг змінитися, поки рахували: тоді перераховуємо. */
+    private fun AppState.settled(taste: Taste) = if (this.taste == taste) materialized() else ranked()
+
+    /**
+     * Кладе видачу мапи в стан, з [home] — і в головну. Рахунок поза потоком, потім одне атомарне
+     * `update`. Всередині `update` читаємо лише стан, а не `state.value` до `withContext`, інакше
+     * паралельна закладка чи відповіді онбордингу загубилися б.
+     */
+    private suspend fun publish(page: DiscoveryPage, offline: Boolean, failure: AppError?, home: Boolean) {
+        val ranked = rank(page)
         state.update {
             // Картки старої області викидаємо: пам'ять і застарілі числа місць того не варті.
-            val base = it.copy(
-                index = folded,
-                cards = page.cards.associateBy { card -> card.id },
-                // Склеєні дублікати не рахуємо двічі. Різниця з page.total — лише коли спрацював запобіжник.
-                totalFound = folded.size + (page.total - page.index.size),
+            // Крім тих, що показує головна: її видача від фільтрів мапи не залежить.
+            val keep = it.home.shownIds()
+            it.copy(
+                index = ranked.index, suggestedIndex = ranked.suggested,
+                cards = it.cards.filterKeys { id -> id in keep } + page.cards.associateBy { card -> card.id },
+                totalFound = ranked.total,
                 loading = false, offline = offline,
                 notice = when {
                     failure != null -> AppNotice.Failed(failure)
                     page.truncated -> AppNotice.Told(AppMessage.ZOOM_IN_FOR_MORE)
                     else -> it.notice
-                }
-            )
-            // Смак міг змінитися, поки рахували: тоді перераховуємо.
-            if (it.taste == taste) base.copy(index = ranking.first, suggestedIndex = ranking.second).materialized()
-            else base.ranked()
+                },
+                home = if (home) it.home.copy(
+                    index = ranked.index, suggestedIndex = ranked.suggested, totalFound = ranked.total, loading = false
+                ) else it.home
+            ).settled(ranked.taste)
         }
+        sharedPending = false
         // Смак міг переставити порядок так, що перші картки з відповіді вже не перші.
         materialize(DiscoveryRules.FIRST_CARDS)
+        if (home) materializeHome()
     }
 
+    /** «Шукати тут»: область лише для мапи. Головна лишається на цілому місті й не перепитує. */
     fun searchArea(south: Double, west: Double, north: Double, east: Double) {
-        if (listOf(south, west, north, east).any { !it.isFinite() } || south > north) return
+        if (!moveTo(south, west, north, east)) return
+        state.update { it.copy(customArea = true) }
+        onQueryChanged(); refresh(home = false)
+    }
+
+    /** Ставить область запиту мапи. False — межі непридатні, нічого не змінено. */
+    private fun moveTo(south: Double, west: Double, north: Double, east: Double): Boolean {
+        if (listOf(south, west, north, east).any { !it.isFinite() } || south > north) return false
         // SDK мап віддають незагорнуті довготи після переходу через лінію зміни дат.
         fun longitude(value: Double) = ((value + 180.0) % 360.0 + 360.0) % 360.0 - 180.0
         val wholeWorld = abs(east - west) >= 360.0
@@ -166,9 +296,7 @@ internal class DiscoveryEngine(
             south = south.coerceIn(-90.0, 90.0), west = if (wholeWorld) -180.0 else longitude(west),
             north = north.coerceIn(-90.0, 90.0), east = if (wholeWorld) 180.0 else longitude(east)
         )
-        // Область поставили рукою. [selectCity] одразу після цього скине прапорець.
-        state.update { it.copy(customArea = true) }
-        onQueryChanged(); refresh()
+        return true
     }
 
     fun setSearchText(text: String) {
@@ -177,12 +305,12 @@ internal class DiscoveryEngine(
         state.update { it.copy(searchText = trimmed, loading = true) }
         query = query.copy(text = trimmed.trim().takeIf { it.isNotEmpty() })
         debounceJob?.cancel(); searchJob?.cancel(); onQueryChanged()
-        debounceJob = scope.launch { delay(DiscoveryRules.SEARCH_DEBOUNCE_MS); refresh() }
+        debounceJob = scope.launch { delay(DiscoveryRules.SEARCH_DEBOUNCE_MS); refresh(home = false) }
     }
 
     fun setOnlyAvailable(available: Boolean) {
         state.update { it.copy(onlyAvailable = available) }
-        query = query.copy(available = available); onQueryChanged(); refresh()
+        query = query.copy(available = available); onQueryChanged(); refresh(home = false)
     }
 
     /**
@@ -212,7 +340,7 @@ internal class DiscoveryEngine(
         }
         state.update { it.copy(dateFilter = filter) }
         query = query.copy(from = start.toString(), to = end?.toString())
-        refresh()
+        refresh(home = false)
     }
 
     fun searchCity(text: String) {
@@ -241,8 +369,10 @@ internal class DiscoveryEngine(
             it.copy(cityName = city.name, cityLatitude = city.latitude, cityLongitude = city.longitude, cities = emptyList())
         }
         val view = HomeLocation(city.name, city.latitude, city.longitude)
-        searchArea(view.south, view.west, view.north, view.east)
-        // Область міста — не «рукою», хоч її й поставив searchArea.
+        if (!moveTo(view.south, view.west, view.north, view.east)) return
+        cityArea = EventQuery(query.south, query.west, query.north, query.east)
         state.update { it.copy(customArea = false) }
+        // Нове місто — і для мапи, і для головної.
+        onQueryChanged(); refresh()
     }
 }

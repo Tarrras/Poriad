@@ -147,8 +147,7 @@ class PoruchApp internal constructor(
      * Сеанси для каруселі на екрані деталей. На відміну від [sessionsOf] за id, бачить і
      * скасований сеанс, якого в індексі нема. Див. [EventSeries.sessionsOf].
      */
-    fun sessionsOf(event: Event): List<EventSession> =
-        EventSeries.sessionsOf(event, state.value.index)
+    fun sessionsOf(event: Event): List<EventSession> = state.value.sessionsOf(event)
 
     /** Id картки, під якою подія стоїть у видачі. Див. [AppState.cardIdOf]. */
     fun cardIdOf(id: String): String = state.value.cardIdOf(id)
@@ -156,7 +155,10 @@ class PoruchApp internal constructor(
     fun searchArea(south: Double, west: Double, north: Double, east: Double) =
         discovery.searchArea(south, west, north, east)
 
+    /** Пошук мапи. */
     fun setSearchText(query: String) = discovery.setSearchText(query)
+    /** Пошук головної: окремий від мапи, у тій самій області. */
+    fun setHomeSearchText(query: String) = discovery.setHomeSearchText(query)
     fun setOnlyAvailable(available: Boolean) = discovery.setOnlyAvailable(available)
     fun setCategory(category: String) = discovery.setCategory(category)
     fun setDateFilter(filter: String) = discovery.setDateFilter(filter)

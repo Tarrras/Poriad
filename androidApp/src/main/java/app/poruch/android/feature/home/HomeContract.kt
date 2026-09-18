@@ -2,6 +2,7 @@ package app.poruch.android.feature.home
 
 import app.poruch.domain.ChatUnread
 import app.poruch.domain.Event
+import app.poruch.domain.HomeLocation
 
 /** Стан головної: усе вже відфільтроване й посортоване для рендеру. */
 data class HomeState(
@@ -20,19 +21,23 @@ data class HomeState(
     val suggested: List<Event> = emptyList(),
     val today: List<Event> = emptyList(),
     val rest: List<Event> = emptyList(),
-    /** Скільки подій в області, те саме число, що на мапі. */
+    /** Скільки подій в області, без фільтрів мапи. */
     val totalFound: Int = 0,
-    /** Область поставили рукою через «Шукати тут». */
-    val customArea: Boolean = false,
     val savedIds: List<String> = emptyList(),
     val waitlistedIds: List<String> = emptyList(),
-    /** Той самий пошук, що на мапі: другого джерела правди нема. */
+    /** Пошук головної, окремий від мапи: фільтр одного екрана не порожнить інший. */
     val searchText: String = "",
-    /** Результати пошуку одним списком, без дайджесту. */
-    val results: List<Event> = emptyList()
+    /** Результати пошуку одним списком, без дайджесту. Лише ті, чиї картки вже приїхали. */
+    val results: List<Event> = emptyList(),
+    /** Скільки знайдено насправді. */
+    val resultsTotal: Int = 0,
+    val searchLoading: Boolean = false,
+    /** Місто з подіями, назване в пошуку, крім поточного: текстовий пошук іде лише в межах міста. */
+    val cityMatch: HomeLocation? = null
 ) {
     val searching get() = searchText.isNotBlank()
     val isEmpty get() = if (searching) results.isEmpty() else suggested.isEmpty() && today.isEmpty() && rest.isEmpty()
+    val busy get() = if (searching) searchLoading else loading
 }
 
 /** Подія й скільки людей просяться до неї. */
@@ -40,6 +45,10 @@ data class PendingRequests(val event: Event, val count: Int)
 
 sealed interface HomeIntent {
     data class Search(val text: String) : HomeIntent
+    /** Підказка «Показати події в місті …» під пошуком. */
+    data class SwitchCity(val city: HomeLocation) : HomeIntent
+    /** «Усі» під результатами: мапа відкривається з тим самим пошуком. Єдиний міст між пошуками. */
+    data object ShowResultsOnMap : HomeIntent
     data class OpenEvent(val id: String) : HomeIntent
     /** Прямо в чат події, минаючи деталі. */
     data class OpenChat(val id: String) : HomeIntent

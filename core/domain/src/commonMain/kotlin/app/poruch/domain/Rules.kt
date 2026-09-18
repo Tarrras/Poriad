@@ -161,5 +161,20 @@ data class HomeLocation(
             HomeLocation("Дніпро", 48.4647, 35.0462),
             HomeLocation("Львів", 49.8397, 24.0297)
         )
+
+        /**
+         * Місто з [covered], назване в пошуку: «харків», «у харкові», «харк». Крім [current]: текстовий
+         * пошук іде лише в межах міста, тож назва іншого міста в ньому — майже завжди прохання туди перейти.
+         * ponytail: грубий збіг за основою, «Києві» не впізнає; потрібні всі відмінки — нехай геопошук.
+         */
+        fun mentioned(query: String, current: String): HomeLocation? {
+            val words = query.lowercase().split(Regex("[^\\p{L}'’]+")).filter { it.isNotEmpty() }
+            if (words.isEmpty()) return null
+            return covered.firstOrNull { place ->
+                val city = place.city.lowercase()
+                val stem = city.take(maxOf(3, city.length - 2))
+                place.city != current && words.any { it.startsWith(stem) || (it.length >= 3 && city.startsWith(it)) }
+            }
+        }
     }
 }

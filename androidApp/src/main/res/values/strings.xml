@@ -196,6 +196,8 @@
   <string name="step_three">Час і місця</string>
   <string name="events_here">Тут подій: %1$d</string>
   <string name="show_all_events">Показати всі події</string>
+  <string name="home_switch_city">Показати події в місті %1$s</string>
+  <string name="home_switch_city_hint">Пошук за словом іде лише в межах міста %1$s.</string>
   <string name="events_found">Знайдено подій: %1$d</string>
   <string name="area_custom">В області, яку ви обрали на мапі</string>
   <string name="area_stack">Усе, що стоїть на обраному піні</string>
@@ -208,7 +210,6 @@
   <string name="home">Головна</string>
   <string name="home_title">Що поруч</string>
   <string name="home_subtitle">Плани на найближчі дні у місті %1$s</string>
-  <string name="home_subtitle_area">Плани в області, яку ви обрали на мапі</string>
   <string name="all_events_hint">На мапі можна змінити область, дату й категорію</string>
   <string name="all_events_row_a11y">Усі події поруч: %1$d. Показати на мапі</string>
   <string name="upcoming_for_you">Скоро у вас</string>

@@ -9,7 +9,7 @@ typealias SecureSessionStore = app.poruch.domain.SecureSessionStore
 
 /** Увесь стан застосунку одним незмінним знімком. Екрани беруть свій зріз. */
 data class AppState(
-    /** Усе в області в порядку показу. Повний список, не вікно: мапа малює його, ранжування йде по ньому. */
+    /** Видача мапи (з її фільтрами) в порядку показу. Повний список, не вікно: мапа малює його, ранжування йде по ньому. */
     val index: List<EventIndexEntry> = emptyList(),
     /** Завантажені картки за id. Переживають зміну області й фільтра. */
     val cards: Map<String, Event> = emptyMap(),
@@ -54,8 +54,11 @@ data class AppState(
     val joinRequests: List<Attendee> = emptyList(),
     /** Запити до всіх моїх подій, свіжіші першими. Головна показує, [RequestAlertSync] дзвонить про нові. */
     val pendingRequests: List<JoinRequest> = emptyList(),
+    /** Пошук мапи. У головної свій: [HomeFeed.searchText]. */
     val searchText: String = "",
     val onlyAvailable: Boolean = false,
+    /** Головна: та сама область, але без фільтрів мапи і зі своїм пошуком. */
+    val home: HomeFeed = HomeFeed(),
     /** Область поставлена рукою («Шукати тут»), а не обрана зі списку міст. Головна каже це вголос. */
     val customArea: Boolean = false,
     val attendees: List<Attendee> = emptyList(),
@@ -102,15 +105,51 @@ data class AppState(
      */
     fun cardIdOf(id: String): String = runOf(id)?.id ?: id
 
+    /** Сеанси прокату з видачі мапи, а якщо там його нема (відсік фільтр) — з головної. */
+    internal fun sessionsOf(event: Event): List<EventSession> =
+        EventSeries.sessionsOf(event, index).ifEmpty { EventSeries.sessionsOf(event, home.index) }
+
     private fun runOf(id: String) = index.firstOrNull { run -> run.sessions.any { it.id == id } }
+        ?: home.index.firstOrNull { run -> run.sessions.any { it.id == id } }
+}
+
+/**
+ * Стрічка головної. Мапа звужує свою видачу фільтрами й пошуком, а головна завжди показує
+ * область цілою: інакше фільтр, поставлений на одному екрані, мовчки порожнив інший.
+ * Спільні з мапою лише область (місто) і картки [AppState.cards].
+ */
+data class HomeFeed(
+    /** Усе в області, ранжоване за смаком. */
+    val index: List<EventIndexEntry> = emptyList(),
+    /** Ті з [index], що відповідають смаку: «Для вас». */
+    val suggestedIndex: List<EventIndexEntry> = emptyList(),
+    val totalFound: Int = 0,
+    val loading: Boolean = false,
+    val searchText: String = "",
+    /** Знайдене пошуком головної в тій самій області, ранжоване. */
+    val results: List<EventIndexEntry> = emptyList(),
+    val resultsTotal: Int = 0,
+    val searchLoading: Boolean = false
+) {
+    val searching get() = searchText.isNotBlank()
+
+    /** Id, картки яких головна показує: зміна видачі мапи їх не викидає. */
+    internal fun shownIds(): Set<String> =
+        buildSet { index.forEach { add(it.id) }; results.forEach { add(it.id) } }
 }
 
 /** Ранжує індекс за смаком, а не картки: порядок вирішується над усією областю. */
 internal fun AppState.ranked(now: Instant = Clock.System.now()): AppState {
     val ordered = TasteRanking.rank(index, taste, now)
+    val homeOrdered = TasteRanking.rank(home.index, taste, now)
     return copy(
         index = ordered,
-        suggestedIndex = TasteRanking.matching(ordered, taste)
+        suggestedIndex = TasteRanking.matching(ordered, taste),
+        home = home.copy(
+            index = homeOrdered,
+            suggestedIndex = TasteRanking.matching(homeOrdered, taste),
+            results = TasteRanking.rank(home.results, taste, now)
+        )
     ).materialized()
 }
 
@@ -135,6 +174,7 @@ internal fun AppState.materialized(): AppState {
 private fun AppState.cardsWithSessions(): Map<String, Event> {
     val runs = HashMap<String, List<EventSession>>()
     for (entry in index) if (entry.isSeries) runs[entry.id] = entry.sessions
+    for (entry in home.index) if (entry.isSeries) runs.getOrPut(entry.id) { entry.sessions }
     var changed: MutableMap<String, Event>? = null
     for ((id, card) in cards) {
         val sessions = runs[id] ?: emptyList()

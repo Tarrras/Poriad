@@ -71,8 +71,8 @@ struct SearchBar: View {
     var body: some View {
         SearchField(text: $text, placeholder: placeholder, activeFilters: activeFilters, onFilters: onFilters)
             .onSettled(text, after: .milliseconds(searchSettle)) { sent = $0; onSettled($0) }
-            // Пошук спільний: текст, набраний на іншій вкладці, мусить з'явитися й тут, інакше фільтр
-            // діє невидимо. Власну луну пропускаємо, щоб не затерти літери, набрані поки вона йшла.
+            // Текст може прийти ззовні («Усі» з головної несе запит на мапу): поле мусить його показати,
+            // інакше фільтр діє невидимо. Власну луну пропускаємо, щоб не затерти літери, набрані поки вона йшла.
             .onChange(of: initial) { _, value in
                 guard value != sent else { return }
                 sent = value; text = value
