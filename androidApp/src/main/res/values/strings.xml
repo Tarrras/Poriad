@@ -1,6 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-  <string name="app_name">Поряд</string>
   <string name="map">Мапа</string>
   <string name="my_events">Мої події</string>
   <string name="profile">Профіль</string>

@@ -45,7 +45,7 @@ class AppGraph(
             single { ApiClient(http, config.supabaseUrl, config.publishableKey) }
             single { ImageStorage(http, config.supabaseUrl, config.publishableKey) }
             single { PoruchDatabase(driver) }
-            single<AuthRepository> { SupabaseAuthRepository(get(), sessionStore) }
+            single<AuthRepository> { SupabaseAuthRepository(get(), sessionStore, config.authScheme) }
 
             // Реалізації сховані за EventData; граф бачить лише доменні інтерфейси.
             single { EventData(api = get(), auth = get(), database = get(), storage = get()) }

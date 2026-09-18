@@ -60,6 +60,13 @@ class AuthRepositoryTest {
         assertFails { auth.handleCallback("poriad://auth/callback#access_token=token&refresh_token=refresh&type=recovery") }
         assertNull(auth.session.value); api.close()
     }
+    @Test fun callbackOnlyAcceptsItsEnvironmentScheme()=runTest {
+        val api=ApiClient(HttpClient(MockEngine { error("must not call network") }),"https://test.invalid","public")
+        val auth=SupabaseAuthRepository(api,Store(),"poriad-dev")
+        assertFails { auth.handleCallback("poriad://auth/callback?code=c1") }
+        val failure=assertFailsWith<app.poruch.domain.AppFailure> { auth.handleCallback("poriad-dev://auth/callback?code=c1") }
+        assertEquals(app.poruch.domain.AppError.LinkOnAnotherDevice,failure.error); api.close()
+    }
     @Test fun callbackWithoutVerifierExplainsOtherDevice()=runTest {
         val api=ApiClient(HttpClient(MockEngine { error("must not call network") }),"https://test.invalid","public")
         val auth=SupabaseAuthRepository(api,Store())

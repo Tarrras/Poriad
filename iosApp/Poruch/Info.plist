@@ -2,10 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>APP_ENV</key>
+	<string>$(APP_ENV)</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>uk</string>
 	<key>CFBundleDisplayName</key>
-	<string>Поряд</string>
+	<string>$(APP_DISPLAY_NAME)</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -21,7 +23,7 @@
 		<dict>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>poriad</string>
+				<string>$(APP_AUTH_SCHEME)</string>
 			</array>
 		</dict>
 	</array>
@@ -37,10 +39,6 @@
 	<string>Щоб додати подію у ваш календар.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Щоб знайти події поруч із вами. Також можна обрати місто вручну.</string>
-	<key>SUPABASE_PUBLISHABLE_KEY</key>
-	<string>$(SUPABASE_PUBLISHABLE_KEY)</string>
-	<key>SUPABASE_URL</key>
-	<string>$(SUPABASE_URL)</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

@@ -58,14 +58,40 @@ class PoruchApp internal constructor(
     val state: StateFlow<AppState> get() = store.state
 
     private val discovery = DiscoveryEngine(events, geo, store.flow, scope, config.home, compute)
-    private val library = UserLibrary(events, saved, participation, requests, chat, auth, preferences, safety, tasteStore, store.flow, scope)
+    private val library = UserLibrary(
+        events,
+        saved,
+        participation,
+        requests,
+        chat,
+        auth,
+        preferences,
+        safety,
+        tasteStore,
+        store.flow,
+        scope
+    )
     private val chatEngine = ChatEngine(chat, store.flow, scope)
     private val reloader = Reloader(discovery, library)
     private val pushSync = PushSync(push, seenRequests, seenMessages, store)
     private val places = PlaceLookup(addresses, timeZones, scope)
-    private val eventUseCases = EventUseCases(events, saved, authoring, participation, requests, auth, eventActions, creationIdentity, store, library, reloader)
-    private val identity = IdentitySync(auth, store, discovery, library, chatEngine, pushSync, eventUseCases)
-    private val sessionUseCases = SessionUseCases(auth, accountActions, store, identity, pushSync, reloader)
+    private val eventUseCases = EventUseCases(
+        events,
+        saved,
+        authoring,
+        participation,
+        requests,
+        auth,
+        eventActions,
+        creationIdentity,
+        store,
+        library,
+        reloader
+    )
+    private val identity =
+        IdentitySync(auth, store, discovery, library, chatEngine, pushSync, eventUseCases)
+    private val sessionUseCases =
+        SessionUseCases(auth, accountActions, store, identity, pushSync, reloader)
     private val safetyUseCases = SafetyUseCases(safety, store, library, reloader)
     private val tasteUseCases = TasteUseCases(tasteStore, preferences, store)
 
@@ -75,8 +101,18 @@ class PoruchApp internal constructor(
         refresh()
         if (state.value.signedIn) loadMyEvents()
         if (reminders != null) ReminderSync(state, reminders, scope).start()
-        if (requestNotifier != null && seenRequests != null) RequestAlertSync(state, seenRequests, requestNotifier, scope).start()
-        if (chatNotifier != null && seenMessages != null) ChatAlertSync(state, seenMessages, chatNotifier, scope).start()
+        if (requestNotifier != null && seenRequests != null) RequestAlertSync(
+            state,
+            seenRequests,
+            requestNotifier,
+            scope
+        ).start()
+        if (chatNotifier != null && seenMessages != null) ChatAlertSync(
+            state,
+            seenMessages,
+            chatNotifier,
+            scope
+        ).start()
     }
 
     fun observe(onChange: (AppState) -> Unit): Subscription {
@@ -90,7 +126,9 @@ class PoruchApp internal constructor(
     fun pushTokenChanged(token: String, platform: String) = pushSync.tokenChanged(token, platform)
 
     /** Пуш прийшов на цей пристрій: перечитуємо стан, щоб бейджі й списки відповідали. */
-    fun pushReceived(kind: String, key: String) { pushSync.received(kind, key); resume() }
+    fun pushReceived(kind: String, key: String) {
+        pushSync.received(kind, key); resume()
+    }
 
     // ---- Пошук
 
@@ -109,12 +147,15 @@ class PoruchApp internal constructor(
      * Сеанси для каруселі на екрані деталей. На відміну від [sessionsOf] за id, бачить і
      * скасований сеанс, якого в індексі нема. Див. [EventSeries.sessionsOf].
      */
-    fun sessionsOf(event: Event): List<EventSession> = EventSeries.sessionsOf(event, state.value.index)
+    fun sessionsOf(event: Event): List<EventSession> =
+        EventSeries.sessionsOf(event, state.value.index)
 
     /** Id картки, під якою подія стоїть у видачі. Див. [AppState.cardIdOf]. */
     fun cardIdOf(id: String): String = state.value.cardIdOf(id)
 
-    fun searchArea(south: Double, west: Double, north: Double, east: Double) = discovery.searchArea(south, west, north, east)
+    fun searchArea(south: Double, west: Double, north: Double, east: Double) =
+        discovery.searchArea(south, west, north, east)
+
     fun setSearchText(query: String) = discovery.setSearchText(query)
     fun setOnlyAvailable(available: Boolean) = discovery.setOnlyAvailable(available)
     fun setCategory(category: String) = discovery.setCategory(category)
@@ -123,7 +164,12 @@ class PoruchApp internal constructor(
     fun selectCity(city: CityResult) = discovery.selectCity(city)
 
     /** Підказки адрес для редактора. Порожній список — просто нічого не знайшли. */
-    fun searchAddress(query: String, latitude: Double, longitude: Double, onFound: (List<PlaceResult>) -> Unit) =
+    fun searchAddress(
+        query: String,
+        latitude: Double,
+        longitude: Double,
+        onFound: (List<PlaceResult>) -> Unit
+    ) =
         places.searchAddress(query, latitude, longitude, onFound)
 
     /** Адреса поставленої крапки, зворотний бік [searchAddress]. Null — у полі лишається старе. */
@@ -160,13 +206,19 @@ class PoruchApp internal constructor(
      * Потяг головної вниз: перечитує те саме, що [resume], але повертається лише коли відповіді
      * приїхали, щоб індикатор знав, коли сховатись. Збій не кидає: він уже в [AppState.notice].
      */
-    suspend fun reloadAll() { resume(); reloader.awaitAll() }
+    suspend fun reloadAll() {
+        resume(); reloader.awaitAll()
+    }
 
     /** Потяг «моїх подій» вниз. Див. [reloadAll]. */
-    suspend fun reloadMyEvents() { loadMyEvents(); library.awaitList() }
+    suspend fun reloadMyEvents() {
+        loadMyEvents(); library.awaitList()
+    }
 
     /** Потяг деталей вниз: місця, членство й запити перечитуються, як при відкритті. Див. [reloadAll]. */
-    suspend fun reloadEvent(id: String) { openEvent(id); library.awaitDetail() }
+    suspend fun reloadEvent(id: String) {
+        openEvent(id); library.awaitDetail()
+    }
 
     // ---- Чат події
 
@@ -175,7 +227,8 @@ class PoruchApp internal constructor(
     fun closeChat() = chatEngine.close()
     fun sendMessage(text: String) = chatEngine.send(text)
     fun deleteMessage(messageId: String) = chatEngine.delete(messageId)
-    fun reportMessage(messageId: String, reason: String, details: String? = null) = safetyUseCases.reportMessage(messageId, reason, details)
+    fun reportMessage(messageId: String, reason: String, details: String? = null) =
+        safetyUseCases.reportMessage(messageId, reason, details)
 
     // ---- Події
 
@@ -184,20 +237,29 @@ class PoruchApp internal constructor(
     fun leaveWaitlist(id: String) = eventUseCases.leaveWaitlist(id)
     fun leaveEvent(id: String) = eventUseCases.leave(id)
     fun cancelEvent(id: String) = eventUseCases.cancel(id)
+
     /** Закладка спрацьовує одразу, запит іде окремо; при збої повертається як було. */
     fun toggleSaved(id: String) = eventUseCases.toggleSaved(id)
     fun createEvent(draft: EventDraft) = eventUseCases.create(draft)
     fun updateEvent(id: String, draft: EventDraft) = eventUseCases.update(id, draft)
-    fun uploadEventImage(eventId: String, bytes: ByteArray, contentType: String) = eventUseCases.uploadImage(eventId, bytes, contentType)
-    fun approveMember(eventId: String, userId: String) = eventUseCases.approveMember(eventId, userId)
-    fun declineMember(eventId: String, userId: String) = eventUseCases.declineMember(eventId, userId)
+    fun uploadEventImage(eventId: String, bytes: ByteArray, contentType: String) =
+        eventUseCases.uploadImage(eventId, bytes, contentType)
+
+    fun approveMember(eventId: String, userId: String) =
+        eventUseCases.approveMember(eventId, userId)
+
+    fun declineMember(eventId: String, userId: String) =
+        eventUseCases.declineMember(eventId, userId)
 
     // ---- Смак і нагадування
 
     /** Відповіді онбордингу. Зберігаються на пристрої, щоб мав і гість. */
-    fun saveTaste(interests: List<String>, times: List<String>, crowd: String) = tasteUseCases.save(interests, times, crowd)
+    fun saveTaste(interests: List<String>, times: List<String>, crowd: String) =
+        tasteUseCases.save(interests, times, crowd)
+
     /** «Не зараз»: питання закриті, ранжуємо лише за часом. */
     fun skipOnboarding() = tasteUseCases.skipOnboarding()
+
     /** Знову відкриває питання з профілю. */
     fun restartOnboarding() = tasteUseCases.restartOnboarding()
     fun toggleInterest(category: String) = tasteUseCases.toggleInterest(category)
@@ -216,8 +278,12 @@ class PoruchApp internal constructor(
 
     /** Вік для акаунта, створеного до появи питання. Дозволено раз. */
     fun declareBirthDate(birthDate: String) = safetyUseCases.declareBirthDate(birthDate)
-    fun reportEvent(eventId: String, reason: String, details: String? = null) = safetyUseCases.reportEvent(eventId, reason, details)
-    fun reportUser(userId: String, reason: String, details: String? = null) = safetyUseCases.reportUser(userId, reason, details)
+    fun reportEvent(eventId: String, reason: String, details: String? = null) =
+        safetyUseCases.reportEvent(eventId, reason, details)
+
+    fun reportUser(userId: String, reason: String, details: String? = null) =
+        safetyUseCases.reportUser(userId, reason, details)
+
     /** Блокування взаємне й миттєве: події людини зникають з мапи при наступному читанні. */
     fun blockUser(userId: String) = safetyUseCases.blockUser(userId)
     fun unblockUser(userId: String) = safetyUseCases.unblockUser(userId)
@@ -225,22 +291,37 @@ class PoruchApp internal constructor(
     // ---- Акаунт
 
     fun signIn(email: String, password: String) = sessionUseCases.signIn(email, password)
+
     /** [birthDate] — ISO-8601. Платформа лише для дорослих. */
-    fun signUp(email: String, password: String, name: String, birthDate: String) = sessionUseCases.signUp(email, password, name, birthDate)
+    fun signUp(email: String, password: String, name: String, birthDate: String) =
+        sessionUseCases.signUp(email, password, name, birthDate)
+
     /** Людина повернулась до форми або закрила екран: крок «перевірте пошту» більше не показуємо. */
     fun dismissConfirmationStep() = sessionUseCases.dismissConfirmationStep()
     fun signOut() = sessionUseCases.signOut()
+
     /** Видалення акаунту: пароль підтверджує власника, сервер видаляє все каскадом. */
     fun deleteAccount(password: String) = sessionUseCases.deleteAccount(password)
     fun requestPasswordReset(email: String) = sessionUseCases.requestPasswordReset(email)
     fun updatePassword(password: String) = sessionUseCases.updatePassword(password)
+
     /** Зміна пароля з профілю: поточний пароль доводить, що телефон у руках власника. */
-    fun changePassword(current: String, password: String) = sessionUseCases.changePassword(current, password)
+    fun changePassword(current: String, password: String) =
+        sessionUseCases.changePassword(current, password)
+
     fun handleAuthCallback(url: String) = sessionUseCases.handleAuthCallback(url)
 
     // ---- Одноразовий стан
 
-    fun clearNotice() { store.update { it.copy(notice = null) } }
-    fun clearCompletedEvent() { store.update { it.copy(completedEventId = null) } }
-    fun close() { scope.cancel() }
+    fun clearNotice() {
+        store.update { it.copy(notice = null) }
+    }
+
+    fun clearCompletedEvent() {
+        store.update { it.copy(completedEventId = null) }
+    }
+
+    fun close() {
+        scope.cancel()
+    }
 }

@@ -30,15 +30,28 @@ supabase secrets set FCM_SERVICE_ACCOUNT="$(cat service-account.json)" --project
 
 ## 3. iOS: APNs
 
-1. Apple Developer → Certificates, Identifiers & Profiles → Keys → новий ключ з увімкненим **Apple Push Notifications service (APNs)**. Завантажити `.p8` (один раз), запамʼятати Key ID. Team ID: `QTYQMJ94D2`.
-2. Identifiers → `app.poriad.ios` → увімкнути capability **Push Notifications** (ентайтлмент `aps-environment` у проєкті вже є, підпис автоматичний).
-3. Секрети функції:
+Два середовища — два ключі й два App ID. Team ID: `QTYQMJ94D2`.
+
+| | Dev | Prod |
+|---|---|---|
+| Supabase | `ojadoyxeahepycpmjuvf` | `tzdogzdvctlumsqlqskr` |
+| Bundle / App ID | `app.poriad.ios.dev` | `app.poriad.ios` |
+| APNs-ключ | `Poriad APNs Dev`, Sandbox | `Poriad APNs Prod`, Production |
+| `APNS_SANDBOX` | `true` | `false` |
+
+1. Identifiers → обидва App ID з capability **Push Notifications** (ентайтлмент `aps-environment` у проєкті вже є, підпис автоматичний).
+2. Keys → два ключі з **Apple Push Notifications service (APNs)**, Team Scoped. Завантажити `.p8` (один раз), запамʼятати Key ID. Файли тримати поза репозиторієм. Apple дає максимум два APNs-ключі на команду, тож ротація = відкликати й перевипустити.
+3. Секрети функції `push` у кожному проєкті:
 
 ```bash
-supabase secrets set APNS_KEY="$(cat AuthKey_XXXXXXXXXX.p8)" APNS_KEY_ID=XXXXXXXXXX APNS_TEAM_ID=QTYQMJ94D2 APNS_BUNDLE_ID=app.poriad.ios APNS_SANDBOX=true --project-ref tzdogzdvctlumsqlqskr
+supabase secrets set APNS_KEY="$(cat ~/.keys/AuthKey_D476H38CX8.p8)" APNS_KEY_ID=D476H38CX8 APNS_TEAM_ID=QTYQMJ94D2 APNS_BUNDLE_ID=app.poriad.ios.dev APNS_SANDBOX=true --project-ref ojadoyxeahepycpmjuvf
 ```
 
-`APNS_SANDBOX=true` для dev-збірок (Xcode, симулятор, TestFlight-development). Для App Store — `false`.
+```bash
+supabase secrets set APNS_KEY="$(cat ~/.keys/AuthKey_85C6JXDXN2.p8)" APNS_KEY_ID=85C6JXDXN2 APNS_TEAM_ID=QTYQMJ94D2 APNS_BUNDLE_ID=app.poriad.ios APNS_SANDBOX=false --project-ref tzdogzdvctlumsqlqskr
+```
+
+Середовище APNs визначає підпис збірки, а не bundle id: запуск з Xcode дає sandbox-токен, TestFlight і App Store — production. Тому пуші приходять у Dev-збірку з Xcode і в Prod-збірку з TestFlight/App Store; Prod з Xcode і Dev через TestFlight пушів не отримають.
 Симулятор на Apple silicon (Xcode 14+) отримує справжні токени APNs і приймає пуші з sandbox.
 
 ## 3a. Analytics і Crashlytics

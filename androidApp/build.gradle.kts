@@ -17,8 +17,6 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "1.0.0"
-        buildConfigField("String", "SUPABASE_URL", "\"${config("SUPABASE_URL", "https://tzdogzdvctlumsqlqskr.supabase.co")}\"")
-        buildConfigField("String", "SUPABASE_KEY", "\"${config("SUPABASE_KEY", "sb_publishable_RoY0wFzTOcXlmOIYC0UE-w_fOt5rXPq")}\"")
         // The style is the app's own; only where its geometry and letterforms come from is
         // configurable, and blank means the defaults in shared MapEndpoints.
         buildConfigField("String", "MAP_TILES_URL", "\"${config("MAP_TILES_URL")}\"")
@@ -35,6 +33,26 @@ android {
             keyPassword = config("RELEASE_KEY_PASSWORD")
         }
     }
+    // Середовище — окремий вимір від debug/release: devDebug щодня, prodRelease у магазин,
+    // prodDebug — відтворити баг на живих даних, devRelease — перевірити R8 без ризику для prod.
+    // Dev — окремий застосунок (.dev) у власному Firebase-проєкті: src/dev/google-services.json,
+    // prod — src/prod/google-services.json. Схема auth-колбеку — з gradle.properties, як і в shared.
+    flavorDimensions += "env"
+    productFlavors {
+        create("dev") {
+            dimension = "env"
+            applicationIdSuffix = ".dev"
+            buildConfigField("String", "ENVIRONMENT", "\"DEV\"")
+            resValue("string", "app_name", "Поряд Dev")
+            manifestPlaceholders["authScheme"] = providers.gradleProperty("poriad.dev.authScheme").get()
+        }
+        create("prod") {
+            dimension = "env"
+            buildConfigField("String", "ENVIRONMENT", "\"PROD\"")
+            resValue("string", "app_name", "Поряд")
+            manifestPlaceholders["authScheme"] = providers.gradleProperty("poriad.prod.authScheme").get()
+        }
+    }
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -42,10 +60,9 @@ android {
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             if (config("RELEASE_STORE_FILE").isNotEmpty()) signingConfig = signingConfigs.getByName("release")
         }
-        // Без applicationIdSuffix: id застосунку у Firebase прив'язаний до пакета.
         debug { }
     }
-    buildFeatures { compose = true; buildConfig = true }
+    buildFeatures { compose = true; buildConfig = true; resValues = true }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
 }
 dependencies {

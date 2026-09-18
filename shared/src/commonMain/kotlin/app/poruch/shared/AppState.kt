@@ -16,14 +16,23 @@ data class AppState(
     /** Скільки подій в області насправді. Дорівнює `index.size`, поки не спрацював запобіжник. */
     val totalFound: Int = 0,
     /** Те з [index], для чого вже є картка, у тому ж порядку. Це показують стрічка, карусель і головна. */
-    val events: List<Event> = emptyList(), val selectedEvent: Event? = null,
-    val myEvents: List<Event> = emptyList(), val savedIds: List<String> = emptyList(),
-    val userId: String? = null, val loading: Boolean = false, val mutating: Boolean = false,
-    val notice: AppNotice? = null, val cityName: String = HomeLocation.Kyiv.city,
+    val events: List<Event> = emptyList(),
+    val selectedEvent: Event? = null,
+    val myEvents: List<Event> = emptyList(),
+    val savedIds: List<String> = emptyList(),
+    val userId: String? = null,
+    val loading: Boolean = false,
+    val mutating: Boolean = false,
+    val notice: AppNotice? = null,
+    val cityName: String = HomeLocation.Kyiv.city,
     val cityLatitude: Double = HomeLocation.Kyiv.latitude,
-    val cityLongitude: Double = HomeLocation.Kyiv.longitude, val cities: List<CityResult> = emptyList(),
-    val category: String = ALL_CATEGORIES, val dateFilter: String = DateFilter.ANY, val offline: Boolean = false,
-    val passwordRecovery: Boolean = false, val completedEventId: String? = null,
+    val cityLongitude: Double = HomeLocation.Kyiv.longitude,
+    val cities: List<CityResult> = emptyList(),
+    val category: String = ALL_CATEGORIES,
+    val dateFilter: String = DateFilter.ANY,
+    val offline: Boolean = false,
+    val passwordRecovery: Boolean = false,
+    val completedEventId: String? = null,
     /**
      * Пошта, на яку після реєстрації пішов лист із підтвердженням. Поки непорожньо, екран входу
      * показує наступний крок замість форми. Зникає з входом або коли людина повертається до форми.
@@ -39,15 +48,18 @@ data class AppState(
     val suggested: List<Event> = emptyList(),
     /** Ті з [index], що відповідають смаку. Картки можуть ще не приїхати. */
     val suggestedIndex: List<EventIndexEntry> = emptyList(),
-    val account: AccountFacts = AccountFacts(), val blocked: List<Attendee> = emptyList(),
+    val account: AccountFacts = AccountFacts(),
+    val blocked: List<Attendee> = emptyList(),
     /** Хто проситься на відкриту подію. Непорожньо лише для організатора. */
     val joinRequests: List<Attendee> = emptyList(),
     /** Запити до всіх моїх подій, свіжіші першими. Головна показує, [RequestAlertSync] дзвонить про нові. */
     val pendingRequests: List<JoinRequest> = emptyList(),
-    val searchText: String = "", val onlyAvailable: Boolean = false,
+    val searchText: String = "",
+    val onlyAvailable: Boolean = false,
     /** Область поставлена рукою («Шукати тут»), а не обрана зі списку міст. Головна каже це вголос. */
     val customArea: Boolean = false,
-    val attendees: List<Attendee> = emptyList(), val waitlistedIds: List<String> = emptyList(),
+    val attendees: List<Attendee> = emptyList(),
+    val waitlistedIds: List<String> = emptyList(),
     /** Відкритий чат події. Null — екран чату закрито, і опитування зупинено. */
     val chat: ChatState? = null,
     /** Події з непрочитаними повідомленнями, свіжіші першими. Бейджі й секція на головній. */
@@ -96,7 +108,10 @@ data class AppState(
 /** Ранжує індекс за смаком, а не картки: порядок вирішується над усією областю. */
 internal fun AppState.ranked(now: Instant = Clock.System.now()): AppState {
     val ordered = TasteRanking.rank(index, taste, now)
-    return copy(index = ordered, suggestedIndex = TasteRanking.matching(ordered, taste)).materialized()
+    return copy(
+        index = ordered,
+        suggestedIndex = TasteRanking.matching(ordered, taste)
+    ).materialized()
 }
 
 /**
@@ -107,7 +122,10 @@ internal fun AppState.materialized(): AppState {
     val cards = cardsWithSessions()
     val shown = ArrayList<Event>(minOf(index.size, cards.size))
     for (entry in index) shown += cards[entry.id] ?: break
-    return copy(cards = cards, events = shown, suggested = suggestedIndex.mapNotNull { cards[it.id] })
+    return copy(
+        cards = cards,
+        events = shown,
+        suggested = suggestedIndex.mapNotNull { cards[it.id] })
 }
 
 /**
@@ -177,11 +195,28 @@ enum class AppMessage {
     REQUEST_SENT, REPORT_SENT, USER_BLOCKED, AGE_CONFIRMED, ACCOUNT_DELETED
 }
 
+/**
+ * Бекенд, у який ходить збірка. Вибирає платформа (Android flavor, iOS конфігурація), значення —
+ * зі згенерованого [BuildConfig] (gradle.properties, `poriad.*`). Ключі публічні; service-role у клієнті не буває.
+ */
+enum class AppEnvironment(
+    val supabaseUrl: String,
+    val publishableKey: String,
+    val authScheme: String
+) {
+    DEV(BuildConfig.DEV_SUPABASE_URL, BuildConfig.DEV_SUPABASE_KEY, BuildConfig.DEV_AUTH_SCHEME),
+    PROD(BuildConfig.PROD_SUPABASE_URL, BuildConfig.PROD_SUPABASE_KEY, BuildConfig.PROD_AUTH_SCHEME)
+}
+
 /** Що збірці треба, щоб дістатися бекенду і знати, де відкривати мапу. */
 data class AppConfig(
     val supabaseUrl: String,
     val publishableKey: String,
-    val home: HomeLocation = HomeLocation.Kyiv
+    val home: HomeLocation = HomeLocation.Kyiv,
+    /** Схема `<scheme>://auth/callback` з листів Auth; має збігатися з зареєстрованою платформою. */
+    val authScheme: String = "poriad"
 )
 
-class Subscription(private val cancel: () -> Unit) { fun close() = cancel() }
+class Subscription(private val cancel: () -> Unit) {
+    fun close() = cancel()
+}

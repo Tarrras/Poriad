@@ -10,7 +10,7 @@
         <meta-data android:name="google_analytics_adid_collection_enabled" android:value="false"/>
         <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTop" android:windowSoftInputMode="adjustResize">
             <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
-            <intent-filter><action android:name="android.intent.action.VIEW"/><category android:name="android.intent.category.DEFAULT"/><category android:name="android.intent.category.BROWSABLE"/><data android:scheme="poriad" android:host="auth"/></intent-filter>
+            <intent-filter><action android:name="android.intent.action.VIEW"/><category android:name="android.intent.category.DEFAULT"/><category android:name="android.intent.category.BROWSABLE"/><data android:scheme="${authScheme}" android:host="auth"/></intent-filter>
         </activity>
         <service android:name=".platform.PushService" android:exported="false">
             <intent-filter><action android:name="com.google.firebase.MESSAGING_EVENT"/></intent-filter>

@@ -18,7 +18,12 @@ import kotlin.time.Clock
  * перехопити `poriad://` може інший застосунок, але без verifier код не обміняти, а колбек із
  * готовими токенами у фрагменті ми більше не приймаємо — так закрито і session fixation.
  */
-class SupabaseAuthRepository(private val api: ApiClient, private val store: SecureSessionStore): AuthRepository {
+class SupabaseAuthRepository(
+    private val api: ApiClient,
+    private val store: SecureSessionStore,
+    private val scheme: String = "poriad"
+): AuthRepository {
+    private val callback = "$scheme://auth/callback"
     private val mutable = MutableStateFlow(readStored())
     override val session = mutable.asStateFlow()
     private val mutex = Mutex()
@@ -66,7 +71,7 @@ class SupabaseAuthRepository(private val api: ApiClient, private val store: Secu
             // Дата народження їде в метаданих: тригер акаунта відмовляє неповнолітнім у тій самій транзакції.
             put("data", buildJsonObject { put("display_name", name.trim()); put("birth_date", birthDate) })
             pkceParams(verifier).forEach { (k, v) -> put(k, v) }
-        }, query=mapOf("redirect_to" to CALLBACK)).jsonObject
+        }, query=mapOf("redirect_to" to callback)).jsonObject
         if (result.string("access_token").isNotEmpty()) { persist(result); true }
         else { rememberVerifier(verifier, FLOW_SIGNUP); false }
     }
@@ -95,7 +100,7 @@ class SupabaseAuthRepository(private val api: ApiClient, private val store: Secu
         api.request("/auth/v1/recover", HttpMethod.Post, buildJsonObject {
             put("email", email.trim())
             pkceParams(verifier).forEach { (k, v) -> put(k, v) }
-        }, query=mapOf("redirect_to" to CALLBACK))
+        }, query=mapOf("redirect_to" to callback))
         rememberVerifier(verifier, FLOW_RECOVERY)
     }
     override suspend fun updatePassword(password: String) {
@@ -118,13 +123,13 @@ class SupabaseAuthRepository(private val api: ApiClient, private val store: Secu
         }
     }
     /**
-     * Приймає лише `poriad://auth/callback?code=…`. Код обмінюється на сесію разом із verifier,
+     * Приймає лише `<scheme>://auth/callback?code=…`. Код обмінюється на сесію разом із verifier,
      * який чекає у сховищі з моменту реєстрації чи запиту відновлення; без нього (лист відкрили
      * на іншому пристрої) — [AppError.LinkOnAnotherDevice]. Повертає true для відновлення пароля.
      */
     override suspend fun handleCallback(url: String): Boolean = mutex.withLock {
         val parsed = Url(url)
-        require(parsed.protocol.name == "poriad" && parsed.host == "auth" && parsed.encodedPath == "/callback")
+        require(parsed.protocol.name == scheme && parsed.host == "auth" && parsed.encodedPath == "/callback")
         val code = parsed.parameters["code"] ?: run {
             // Старий implicit-колбек з токенами у фрагменті: чужий застосунок міг би підсунути
             // свою сесію. Не довіряємо.
@@ -147,7 +152,6 @@ class SupabaseAuthRepository(private val api: ApiClient, private val store: Secu
     }
 
     private companion object {
-        const val CALLBACK = "poriad://auth/callback"
         const val FLOW_SIGNUP = "signup"
         const val FLOW_RECOVERY = "recovery"
     }
