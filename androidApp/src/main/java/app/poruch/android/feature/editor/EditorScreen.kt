@@ -15,6 +15,7 @@ import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Remove
 import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.Icon
@@ -32,6 +33,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -48,12 +52,16 @@ import java.time.LocalDateTime
 fun EditorScreen(state: EditorState, onIntent: (EditorIntent) -> Unit, onClose: () -> Unit) {
     val colors = Poruch.colors
     Column(Modifier.fillMaxSize().background(colors.canvas).statusBarsPadding().imePadding()) {
-        PageHeader(stringResource(if (state.editing) R.string.edit else R.string.create), back = onClose)
-        StepBar(state.step)
+        WizardHeader(state, onClose)
         Column(
             Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(Spacing.page),
             verticalArrangement = Arrangement.spacedBy(Spacing.lg)
         ) {
+            // Кожен крок — одне питання великим заголовком, як в онбордингу.
+            Column(Modifier.padding(bottom = Spacing.xs), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                Text(stringResource(state.step.headline), style = MaterialTheme.typography.displaySmall, color = colors.ink)
+                Text(stringResource(state.step.hint), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
+            }
             when (state.step) {
                 EditorStep.ABOUT -> AboutStep(state.form, onIntent)
                 EditorStep.PLACE -> PlaceStep(state, onIntent)
@@ -96,24 +104,32 @@ fun EditorScreen(state: EditorState, onIntent: (EditorIntent) -> Unit, onClose: 
 private fun EditorForm.parse(value: String) =
     runCatching { LocalDateTime.parse(value, EditorForm.LOCAL_FORMAT) }.getOrNull()
 
+/** Закрити, прогрес трьома сегментами і назва режиму. Той самий ряд, що в онбордингу. */
 @Composable
-private fun StepBar(step: EditorStep) {
+private fun WizardHeader(state: EditorState, onClose: () -> Unit) {
     val colors = Poruch.colors
-    Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.page), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-        EditorStep.entries.forEach { entry ->
-            val reached = entry.ordinal <= step.ordinal
-            val tint by animateColorAsState(
-                if (reached) colors.brand else colors.hairline,
-                animationSpec = tween(if (Poruch.reducedMotion) 0 else 220), label = "step"
-            )
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                Box(Modifier.fillMaxWidth().height(4.dp).background(tint, Radius.pill))
-                Text(
-                    stringResource(entry.label), style = MaterialTheme.typography.labelSmall,
-                    color = if (reached) colors.ink else colors.inkTertiary
+    val stepLabel = stringResource(state.step.label)
+    Row(
+        Modifier.fillMaxWidth().height(56.dp).padding(horizontal = Spacing.page),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)
+    ) {
+        IconPill(Icons.Outlined.Close, stringResource(R.string.close), size = 40.dp, onClick = onClose)
+        Row(
+            Modifier.weight(1f).clearAndSetSemantics { contentDescription = stepLabel },
+            horizontalArrangement = Arrangement.spacedBy(Spacing.xs)
+        ) {
+            EditorStep.entries.forEach { entry ->
+                val tint by animateColorAsState(
+                    if (entry.ordinal <= state.step.ordinal) colors.brand else colors.brandContainer,
+                    animationSpec = tween(if (Poruch.reducedMotion) 0 else 220), label = "step"
                 )
+                Box(Modifier.weight(1f).height(4.dp).background(tint, Radius.pill))
             }
         }
+        Text(
+            stringResource(if (state.editing) R.string.editor_mode_edit else R.string.editor_mode_new),
+            style = MaterialTheme.typography.labelLarge, color = colors.inkSecondary
+        )
     }
 }
 
@@ -129,12 +145,20 @@ private fun AboutStep(form: EditorForm, onIntent: (EditorIntent) -> Unit) {
     )
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         Text(
-            stringResource(R.string.categories).uppercase(), style = MaterialTheme.typography.labelSmall,
+            stringResource(R.string.category_single).uppercase(), style = MaterialTheme.typography.labelSmall,
             color = Poruch.colors.inkTertiary
         )
-        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-            categories.forEach { key ->
-                CategoryTile(key, form.category == key) { onIntent(EditorIntent.Edit { copy(category = key) }) }
+        // Сітка замість стрічки: всі одинадцять видно одразу, без прокрутки вбік.
+        Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            categories.chunked(3).forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                    row.forEach { key ->
+                        CategoryCard(key, form.category == key, Modifier.weight(1f), role = Role.RadioButton) {
+                            onIntent(EditorIntent.Edit { copy(category = key) })
+                        }
+                    }
+                    repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
+                }
             }
         }
     }
@@ -361,7 +385,7 @@ private fun ScheduleStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
             stringResource(categoryLabel(form.category)).uppercase(), style = MaterialTheme.typography.labelSmall,
             color = categoryInk(form.category)
         )
-        Text(form.title.ifBlank { stringResource(R.string.title) }, style = MaterialTheme.typography.titleLarge, color = colors.ink)
+        Text(form.title.trim().ifEmpty { stringResource(R.string.title) }, style = MaterialTheme.typography.titleLarge, color = colors.ink)
         MetaLine(PoruchIcons.pin, "${form.city} · ${form.address}")
         MetaLine(PoruchIcons.calendar, form.starts.ifBlank { stringResource(R.string.date_help) })
     }
@@ -376,7 +400,7 @@ private fun DateTimeField(label: String, value: String, onOpen: () -> Unit) {
         Text(label.uppercase(), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
         Row(
             Modifier.fillMaxWidth().defaultMinSize(minHeight = 56.dp).background(colors.surface, Radius.sm)
-                .border(1.dp, colors.hairline, Radius.sm).clip(Radius.sm).clickable(onClick = onOpen).padding(horizontal = Spacing.lg),
+                .clip(Radius.sm).clickable(onClick = onOpen).padding(horizontal = Spacing.lg),
             horizontalArrangement = Arrangement.spacedBy(Spacing.md), verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(PoruchIcons.clock, null, Modifier.size(20.dp), tint = colors.inkSecondary)
@@ -388,6 +412,20 @@ private fun DateTimeField(label: String, value: String, onOpen: () -> Unit) {
         }
     }
 }
+
+private val EditorStep.headline: Int
+    get() = when (this) {
+        EditorStep.ABOUT -> R.string.editor_about_title
+        EditorStep.PLACE -> R.string.editor_place_title
+        EditorStep.SCHEDULE -> R.string.editor_schedule_title
+    }
+
+private val EditorStep.hint: Int
+    get() = when (this) {
+        EditorStep.ABOUT -> R.string.editor_about_hint
+        EditorStep.PLACE -> R.string.editor_place_hint
+        EditorStep.SCHEDULE -> R.string.editor_schedule_hint
+    }
 
 private val EditorStep.label: Int
     get() = when (this) {

@@ -12,7 +12,7 @@ func dateLabel(_ key: String) -> String {
     }
 }
 
-private let topControlsInset: CGFloat = 196
+private let topControlsInset: CGFloat = 140
 private let carouselInset: CGFloat = 268
 private let tabBarInset: CGFloat = 92
 /// Скільки мапи лишаємо над повністю піднятою шторкою. Фільтри повертаються в половинному положенні.
@@ -123,7 +123,7 @@ struct DiscoveryView: View {
             )
             .ignoresSafeArea()
             LinearGradient(colors: [Palette.canvas.opacity(0.94), Palette.canvas.opacity(0)], startPoint: .top, endPoint: .bottom)
-                .frame(height: 230).ignoresSafeArea(edges: .top).allowsHitTesting(false)
+                .frame(height: 175).ignoresSafeArea(edges: .top).allowsHitTesting(false)
             VStack(spacing: Space.md) {
                 topControls
                 if mapFailed {
@@ -197,22 +197,11 @@ struct DiscoveryView: View {
                 activeFilters: activeFilters,
                 onFilters: { filters = true }
             ) { model.app.setSearchText(query: $0) }
-            HStack(spacing: Space.sm) {
-                Button { citySearch = true } label: {
-                    HStack(spacing: Space.sm) {
-                        PoruchIcon(glyph: PoruchIcons.pin, size: 16).foregroundStyle(Palette.brand)
-                        Text(model.state?.cityName ?? "Київ").font(.system(size: 14, weight: .semibold)).foregroundStyle(Palette.ink)
-                        Image(systemName: "chevron.down").font(.system(size: 11, weight: .bold)).foregroundStyle(Palette.inkSecondary)
-                    }.padding(.horizontal, Space.lg).frame(height: 44).cardSurface(radius: 22, elevation: 6)
-                }.buttonStyle(.plain).accessibilityLabel("Змінити місто")
-                Spacer(minLength: 0)
-                IconPill(symbol: "viewfinder", label: "Повернутися до міста") {
-                    model.app.dismissEvent(); centerToken += 1
-                }
-                IconPill(symbol: "location", label: "Поруч зі мною") { location.request() }
-            }
+            // Один ряд замість двох: місто веде стрічку фільтрів. Керування мапою — над каруселлю, під пальцем.
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: Space.sm) {
+                    Chip(label: model.state?.cityName ?? "Київ", symbol: "mappin.and.ellipse", trailingSymbol: "chevron.down", selected: false) { citySearch = true }
+                        .accessibilityLabel("Змінити місто")
                     ForEach(dateFilterKeys, id: \.self) { key in
                         // Повторний тап знімає вибір, щоб не шукати «Будь-коли» за краєм рядка.
                         Chip(label: dateLabel(key), selected: model.state?.dateFilter == key) {
@@ -315,6 +304,11 @@ struct DiscoveryView: View {
 
     private var peekHeader: some View {
         HStack(spacing: Space.sm) {
+            // Керування мапою в зоні великого пальця. Це кнопки, тож за них шторку не тягнуть — лише за решту ряду.
+            IconPill(symbol: "viewfinder", label: "Повернутися до міста", size: 40) {
+                model.app.dismissEvent(); centerToken += 1
+            }
+            IconPill(symbol: "location", label: "Поруч зі мною", size: 40) { location.request() }
             Spacer(minLength: 0)
             // Не `Button`: кнопка забирає дотик, і протягнути шторку за неї не виходить.
             HStack(spacing: Space.sm) {

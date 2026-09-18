@@ -34,11 +34,17 @@ struct AuthView: View {
 
     private var confirming: Bool { model.state?.awaitingConfirmation != nil }
 
+    /// Знак застосунку й назва по центру, як вхід в Apple ID; «назад» окремо в кутку.
     private var header: some View {
-        VStack(alignment: .leading, spacing: Space.md) {
-            ScrimButton(symbol: "chevron.left", label: "Назад") { if resetting { resetting = false } else { dismiss() } }
+        VStack(spacing: Space.md) {
+            IconPill(symbol: "chevron.left", label: "Назад", size: 40) { if resetting { resetting = false } else { dismiss() } }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            PoruchIcon(glyph: confirming ? PoruchIcons.checkCircle : resetting ? PoruchIcons.lock : PoruchIcons.pin, size: 32)
+                .foregroundStyle(Palette.onBrand)
+                .frame(width: 72, height: 72).background(Palette.brand, in: Circle())
+                .decorative()
             Text(confirming ? "Перевірте пошту" : resetting ? "Відновити пароль" : form.register ? "Створити профіль" : "З поверненням")
-                .font(PoruchFont.title1).titleTracking().foregroundStyle(Palette.ink)
+                .font(PoruchFont.title1).titleTracking().foregroundStyle(Palette.ink).multilineTextAlignment(.center)
             Text(confirming
                  ? "Лишився один крок — підтвердити адресу."
                  : resetting
@@ -46,11 +52,11 @@ struct AuthView: View {
                  : form.register
                  ? "Кілька секунд — і ви зможете приєднуватись до подій та створювати власні."
                  : "Події можна переглядати без входу. Для участі потрібен профіль.")
-                .font(PoruchFont.bodyText).foregroundStyle(Palette.inkSecondary)
+                .font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary).multilineTextAlignment(.center)
+                .padding(.horizontal, Space.lg)
         }
-        .padding(.horizontal, Space.page).padding(.vertical, Space.xxl)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(heroGradient)
+        .padding(.horizontal, Space.page).padding(.top, Space.lg)
+        .frame(maxWidth: .infinity)
     }
 
     /// Наступний крок після реєстрації без сесії: куди пішов лист і що з ним робити. Той самий
@@ -96,17 +102,22 @@ struct AuthView: View {
 
     private var fields: some View {
         VStack(alignment: .leading, spacing: Space.lg) {
+            // Вхід і реєстрація — два рівноправні режими, тож перемикач угорі, а не кнопка під формою.
+            SegmentedPill(items: ["Вхід", "Реєстрація"], selection: form.register ? 1 : 0) { _ in form.toggleMode() }
             if form.register {
                 LabelledField(label: "Ваше ім’я", text: $form.name, placeholder: "Як до вас звертатися")
                     .textContentType(.name)
                 // Питаємо раз, при реєстрації, і нікому не показуємо: на це спираються вікові межі й модерація.
                 VStack(alignment: .leading, spacing: Space.sm) {
-                    Text("ДАТА НАРОДЖЕННЯ").font(PoruchFont.overline).kerning(1.2).foregroundStyle(Palette.inkTertiary)
+                    Text("ДАТА НАРОДЖЕННЯ").font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
                     DatePicker(
                         "", selection: $form.birthDate, in: form.earliestBirthDate...form.latestBirthDate,
                         displayedComponents: .date
                     )
                     .datePickerStyle(.compact).labelsHidden().tint(Palette.brand)
+                    // У рамці поля, як решта форми: голий компактний пікер висів з власним відступом.
+                    .padding(.horizontal, Space.md).frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
+                    .background(Palette.surface, in: RoundedRectangle(cornerRadius: Corner.sm, style: .continuous))
                     Text("«Поряд» — застосунок для повнолітніх. Дату видно лише вам.")
                         .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
                 }
@@ -114,7 +125,8 @@ struct AuthView: View {
             LabelledField(label: "Електронна пошта", text: $form.email, placeholder: "you@example.com")
                 .textContentType(.emailAddress).keyboardType(.emailAddress)
                 .textInputAutocapitalization(.never).autocorrectionDisabled()
-            LabelledField(label: "Пароль", text: $form.password, hint: "Щонайменше 8 символів", secure: !form.revealed) {
+            // Вимогу до пароля кажемо лише тому, хто його вигадує.
+            LabelledField(label: "Пароль", text: $form.password, hint: form.register ? "Щонайменше 8 символів" : nil, secure: !form.revealed) {
                 PasswordRevealToggle(revealed: $form.revealed)
             }
             .textContentType(form.register ? .newPassword : .password)
@@ -124,20 +136,12 @@ struct AuthView: View {
                 loading: model.state?.mutating == true,
                 enabled: form.canSubmit
             ) { form.submit(with: model.app) }
-            if form.register { consent }
-            Button("Забули пароль?") { resetting = true }
-                .font(PoruchFont.label).foregroundStyle(Palette.inkSecondary)
-                .frame(maxWidth: .infinity)
-                .disabled(model.state?.mutating == true)
-            HStack(spacing: Space.md) {
-                Rectangle().fill(Palette.hairline).frame(height: 1)
-                Text(form.register ? "Уже зареєстровані?" : "Ще немає профілю?")
-                    .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary).fixedSize()
-                Rectangle().fill(Palette.hairline).frame(height: 1)
+            if form.register { consent } else {
+                Button("Забули пароль?") { resetting = true }
+                    .font(PoruchFont.button).foregroundStyle(Palette.inkSecondary)
+                    .frame(maxWidth: .infinity).frame(minHeight: 44)
+                    .disabled(model.state?.mutating == true)
             }
-            .padding(.top, Space.xs)
-            SecondaryButton(title: form.register ? "Увійти" : "Створити профіль") { form.toggleMode() }
-                .frame(maxWidth: .infinity)
         }.padding(.horizontal, Space.page)
     }
 

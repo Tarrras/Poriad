@@ -6,23 +6,20 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.automirrored.outlined.Login
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.DeleteForever
-import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.MailOutline
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Shield
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
@@ -41,21 +38,22 @@ fun ProfileScreen(state: ProfileState, onIntent: (ProfileIntent) -> Unit) {
         Modifier.fillMaxSize().background(colors.canvas).verticalScroll(rememberScrollState()).imePadding()
             .padding(bottom = 120.dp)
     ) {
+        // Аватар і назва по центру, як картка акаунта в Apple Store.
         Column(
-            Modifier.fillMaxWidth().background(heroGradient()).statusBarsPadding()
-                .padding(horizontal = Spacing.page, vertical = Spacing.xxl),
-            verticalArrangement = Arrangement.spacedBy(Spacing.md)
+            Modifier.fillMaxWidth().statusBarsPadding()
+                .padding(horizontal = Spacing.xxl).padding(top = Spacing.section, bottom = Spacing.xl),
+            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
-            Box(Modifier.size(64.dp).background(colors.brandContainer, CircleShape), contentAlignment = Alignment.Center) {
-                Icon(PoruchIcons.person, null, Modifier.size(30.dp), tint = colors.onBrandContainer)
+            Box(Modifier.size(88.dp).background(colors.brandContainer, CircleShape), contentAlignment = Alignment.Center) {
+                Icon(PoruchIcons.person, null, Modifier.size(36.dp), tint = colors.onBrandContainer)
             }
             Text(
                 stringResource(if (state.signedIn) R.string.account_title else R.string.guest_title),
-                style = MaterialTheme.typography.headlineMedium, color = colors.ink
+                style = MaterialTheme.typography.headlineMedium, color = colors.ink, textAlign = TextAlign.Center
             )
             Text(
                 stringResource(if (state.signedIn) R.string.account_description else R.string.guest_description),
-                style = MaterialTheme.typography.bodyLarge, color = colors.inkSecondary
+                style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary, textAlign = TextAlign.Center
             )
             if (!state.signedIn) PrimaryButton(
                 stringResource(R.string.profile_guest_cta), { onIntent(ProfileIntent.SignIn) },
@@ -102,33 +100,21 @@ fun ProfileScreen(state: ProfileState, onIntent: (ProfileIntent) -> Unit) {
                         )
                     }
                 }
-                Row(
-                    Modifier.fillMaxWidth().cardSurface().pressable { onIntent(ProfileIntent.TuneRecommendations) }
-                        .padding(Spacing.lg),
-                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)
-                ) {
-                    Icon(PoruchIcons.sparkle, null, Modifier.size(20.dp), tint = colors.brand)
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            stringResource(R.string.tune_recommendations),
-                            style = MaterialTheme.typography.titleSmall, color = colors.ink
-                        )
-                        Text(
-                            stringResource(R.string.tune_recommendations_hint),
-                            style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary
-                        )
-                    }
-                    Icon(Icons.AutoMirrored.Outlined.ArrowForward, null, Modifier.size(18.dp), tint = colors.inkTertiary)
+                GroupedRows {
+                    LinkRow(
+                        PoruchIcons.sparkle, stringResource(R.string.tune_recommendations),
+                        stringResource(R.string.tune_recommendations_hint), { onIntent(ProfileIntent.TuneRecommendations) }
+                    )
                 }
             }
             if (state.signedIn) {
                 Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
                     SectionHeader(stringResource(R.string.settings))
-                    Column(
-                        Modifier.fillMaxWidth().cardSurface().padding(Spacing.lg),
-                        verticalArrangement = Arrangement.spacedBy(Spacing.sm)
-                    ) { ReminderSetting(state, onIntent) }
-                    LinkRow(Icons.Outlined.Lock, stringResource(R.string.update_password)) { onIntent(ProfileIntent.ShowChangePassword(true)) }
+                    GroupedRows {
+                        Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) { ReminderSetting(state, onIntent) }
+                        HairLine(Modifier.padding(start = Spacing.lg))
+                        LinkRow(PoruchIcons.lock, stringResource(R.string.update_password), onClick = { onIntent(ProfileIntent.ShowChangePassword(true)) })
+                    }
                 }
                 SecondaryButton(
                     stringResource(R.string.logout), { onIntent(ProfileIntent.SignOut) }, Modifier.fillMaxWidth(),
@@ -161,9 +147,13 @@ fun ProfileScreen(state: ProfileState, onIntent: (ProfileIntent) -> Unit) {
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
                 SectionHeader(stringResource(R.string.about_app))
                 Text(stringResource(R.string.about_app_body), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
-                LinkRow(Icons.Outlined.Shield, stringResource(R.string.privacy_policy)) { onIntent(ProfileIntent.OpenPrivacy) }
-                LinkRow(Icons.Outlined.Description, stringResource(R.string.terms_of_use)) { onIntent(ProfileIntent.OpenTerms) }
-                LinkRow(Icons.Outlined.MailOutline, stringResource(R.string.contact_support)) { onIntent(ProfileIntent.ContactSupport) }
+                GroupedRows {
+                    LinkRow(Icons.Outlined.Shield, stringResource(R.string.privacy_policy), onClick = { onIntent(ProfileIntent.OpenPrivacy) })
+                    HairLine(Modifier.padding(start = Spacing.lg + 40.dp + Spacing.md))
+                    LinkRow(Icons.Outlined.Description, stringResource(R.string.terms_of_use), onClick = { onIntent(ProfileIntent.OpenTerms) })
+                    HairLine(Modifier.padding(start = Spacing.lg + 40.dp + Spacing.md))
+                    LinkRow(Icons.Outlined.MailOutline, stringResource(R.string.contact_support), onClick = { onIntent(ProfileIntent.ContactSupport) })
+                }
                 Text(
                     stringResource(R.string.app_version, state.version),
                     style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary
@@ -211,20 +201,6 @@ private fun ChangePasswordSheet(state: ProfileState, onIntent: (ProfileIntent) -
                 enabled = !state.mutating
             )
         }
-    }
-}
-
-/** Рядок-картка з переходом назовні: той самий вигляд, що в «Налаштувати рекомендації». */
-@Composable
-private fun LinkRow(icon: ImageVector, title: String, onClick: () -> Unit) {
-    val colors = Poruch.colors
-    Row(
-        Modifier.fillMaxWidth().cardSurface().pressable(onClick = onClick).padding(Spacing.lg),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)
-    ) {
-        Icon(icon, null, Modifier.size(20.dp), tint = colors.brand)
-        Text(title, style = MaterialTheme.typography.titleSmall, color = colors.ink, modifier = Modifier.weight(1f))
-        Icon(Icons.AutoMirrored.Outlined.ArrowForward, null, Modifier.size(18.dp), tint = colors.inkTertiary)
     }
 }
 

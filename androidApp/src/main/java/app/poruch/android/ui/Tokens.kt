@@ -19,10 +19,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -44,31 +43,34 @@ data class PoruchColors(
     val hairline: Color, val onBrand: Color, val dark: Boolean
 )
 
-/** Теплий папір, білі картки над ним, майже чорні дії. */
+/** Світла тема: прохолодний сірий фон і білі картки без рамок (Apple Store). Дії майже чорні. */
 val LightPoruchColors = PoruchColors(
-    brand = Color(0xFF14130F), brandPressed = Color(0xFF32302A), brandContainer = Color(0xFFEAE7DE), onBrandContainer = Color(0xFF14130F),
-    accent = Color(0xFFD9603A), accentContainer = Color(0xFFFBE7DE), onAccentContainer = Color(0xFF7A2E14),
-    success = Color(0xFF2F7D4F), successContainer = Color(0xFFDFF0E3), onSuccessContainer = Color(0xFF1B4C2F),
-    danger = Color(0xFFB3402B), dangerContainer = Color(0xFFF8E1DC),
-    ink = Color(0xFF14130F), inkSecondary = Color(0xFF6B675E), inkTertiary = Color(0xFF9A958A),
-    surface = Color(0xFFFFFFFF), surfaceRaised = Color(0xFFFFFFFF), surfaceMuted = Color(0xFFEDEBE4),
-    canvas = Color(0xFFF2F0EA), canvasTint = Color(0xFFEAE6DA),
-    heroTop = Color(0xFFF4E7D8), heroBottom = Color(0xFFF2F0EA),
-    shadowAmbient = Color(0x1A2A2016), shadowSpot = Color(0x332A2016),
-    hairline = Color(0xFFE5E1D6), onBrand = Color(0xFFFBFAF7), dark = false
+    brand = Color(0xFF1D1D1F), brandPressed = Color(0xFF3A3A3C), brandContainer = Color(0xFFE8E8ED), onBrandContainer = Color(0xFF1D1D1F),
+    accent = Color(0xFFE0582F), accentContainer = Color(0xFFFDE7DF), onAccentContainer = Color(0xFF7A2E14),
+    success = Color(0xFF2E7D4F), successContainer = Color(0xFFDFF3E6), onSuccessContainer = Color(0xFF1B4C2F),
+    danger = Color(0xFFC0392B), dangerContainer = Color(0xFFFBE3E0),
+    ink = Color(0xFF1D1D1F), inkSecondary = Color(0xFF6E6E73), inkTertiary = Color(0xFF98989D),
+    surface = Color(0xFFFFFFFF), surfaceRaised = Color(0xFFFFFFFF), surfaceMuted = Color(0xFFF2F2F7),
+    canvas = Color(0xFFF5F5F7), canvasTint = Color(0xFFEBEBF0),
+    // Шапка того ж тону, що й полотно: екран — один спокійний аркуш.
+    heroTop = Color(0xFFF5F5F7), heroBottom = Color(0xFFF5F5F7),
+    // Тінь є лише в того, що плаває: мʼяка, нейтральна.
+    shadowAmbient = Color(0x0F000000), shadowSpot = Color(0x1A000000),
+    hairline = Color(0xFFE5E5EA), onBrand = Color(0xFFFFFFFF), dark = false
 )
 
+/** Темна тема: майже чорне полотно й трохи світліші картки з тонкою лінією по краю (Moonly). */
 val DarkPoruchColors = PoruchColors(
-    brand = Color(0xFFF5F3EE), brandPressed = Color(0xFFD9D6CE), brandContainer = Color(0xFF2A2823), onBrandContainer = Color(0xFFF5F3EE),
-    accent = Color(0xFFEE8B63), accentContainer = Color(0xFF40251A), onAccentContainer = Color(0xFFFBDACB),
-    success = Color(0xFF5CBF85), successContainer = Color(0xFF17301F), onSuccessContainer = Color(0xFFBFE8CD),
-    danger = Color(0xFFE9705A), dangerContainer = Color(0xFF3A1A15),
-    ink = Color(0xFFF5F3EE), inkSecondary = Color(0xFFA8A398), inkTertiary = Color(0xFF7C776C),
-    surface = Color(0xFF1F1E1B), surfaceRaised = Color(0xFF272521), surfaceMuted = Color(0xFF2C2A25),
-    canvas = Color(0xFF121110), canvasTint = Color(0xFF1B1A17),
-    heroTop = Color(0xFF272119), heroBottom = Color(0xFF121110),
-    shadowAmbient = Color(0x00000000), shadowSpot = Color(0x00000000),
-    hairline = Color(0xFF33302B), onBrand = Color(0xFF14130F), dark = true
+    brand = Color(0xFFF5F5F7), brandPressed = Color(0xFFD1D1D6), brandContainer = Color(0xFF2C2C33), onBrandContainer = Color(0xFFF5F5F7),
+    accent = Color(0xFFFF8A5B), accentContainer = Color(0xFF3F2419), onAccentContainer = Color(0xFFFFD9C8),
+    success = Color(0xFF5DC389), successContainer = Color(0xFF16311F), onSuccessContainer = Color(0xFFBFEBD0),
+    danger = Color(0xFFFF6B5B), dangerContainer = Color(0xFF3C1A16),
+    ink = Color(0xFFF5F5F7), inkSecondary = Color(0xFFA1A1A8), inkTertiary = Color(0xFF6E6E76),
+    surface = Color(0xFF17171C), surfaceRaised = Color(0xFF202027), surfaceMuted = Color(0xFF26262E),
+    canvas = Color(0xFF0B0B0F), canvasTint = Color(0xFF141419),
+    heroTop = Color(0xFF0B0B0F), heroBottom = Color(0xFF0B0B0F),
+    shadowAmbient = Color(0x4D000000), shadowSpot = Color(0x66000000),
+    hairline = Color(0xFF2A2A33), onBrand = Color(0xFF1D1D1F), dark = true
 )
 
 /** Глибокий відтінок категорії для гліфів і тексту; пастель для плиток і пінів робить [categoryGradient]. */
@@ -131,11 +133,9 @@ fun categoryGradient(category: String): Brush {
 @Composable
 fun heroGradient(): Brush = Poruch.colors.let { Brush.verticalGradient(listOf(it.heroTop, it.heroBottom)) }
 
-/** Головна дія: заливка чорнилом зі світлою ниткою по верхньому краю. */
+/** Головна дія: рівна заливка чорнилом. Лишилось [Brush], щоб місця виклику не змінювались. */
 @Composable
-fun brandGradient(): Brush = Poruch.colors.let {
-    Brush.verticalGradient(listOf(lerp(it.brand, if (it.dark) Color.White else Color(0xFF4A463D), 0.22f), it.brand))
-}
+fun brandGradient(): Brush = SolidColor(Poruch.colors.brand)
 
 object Spacing {
     val xs = 4.dp; val sm = 8.dp; val md = 12.dp; val lg = 16.dp
@@ -143,46 +143,40 @@ object Spacing {
 }
 
 object Radius {
-    val xs = RoundedCornerShape(10.dp)
+    val xs = RoundedCornerShape(12.dp)
     val sm = RoundedCornerShape(14.dp)
-    val md = RoundedCornerShape(16.dp)
-    val lg = RoundedCornerShape(20.dp)
-    val xl = RoundedCornerShape(26.dp)
-    val sheet: Shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp)
+    val md = RoundedCornerShape(18.dp)
+    val lg = RoundedCornerShape(24.dp)
+    val xl = RoundedCornerShape(28.dp)
+    val sheet: Shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     val pill: Shape = CircleShape
 }
 
-/** Чотири рівні відстані від паперу: картка лежить, чип висить, таббар і карусель плавають. У темній темі тіні прозорі, глибину несе поверхня. */
-object Elevation { val flat = 0.dp; val card = 4.dp; val raised = 10.dp; val overlay = 20.dp }
+/** Усе в потоці лежить пласко (`card` = 0, картку робить різниця тону з полотном); плаває лише таббар, карусель, банер. */
+object Elevation { val flat = 0.dp; val card = 0.dp; val raised = 8.dp; val overlay = 24.dp }
 
+/** Один голос — системний гротеск. Ієрархію несуть кегль і вага, а не гарнітура чи регістр. */
 private val PoruchTypography = Typography(
-    displaySmall = TextStyle(fontSize = 32.sp, lineHeight = 37.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.8).sp),
-    headlineMedium = TextStyle(fontSize = 26.sp, lineHeight = 31.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.7).sp),
-    headlineSmall = TextStyle(fontSize = 21.sp, lineHeight = 27.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.4).sp),
-    titleLarge = TextStyle(fontSize = 19.sp, lineHeight = 25.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.3).sp),
-    titleMedium = TextStyle(fontSize = 16.sp, lineHeight = 21.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.1).sp),
-    // Назви карток читаються як капітель.
-    titleSmall = TextStyle(fontSize = 15.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.4.sp),
-    bodyLarge = TextStyle(fontSize = 15.sp, lineHeight = 22.sp, fontWeight = FontWeight.Normal),
-    bodyMedium = TextStyle(fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.Normal),
+    displaySmall = TextStyle(fontSize = 34.sp, lineHeight = 40.sp, fontWeight = FontWeight.Bold, letterSpacing = (-1.0).sp),
+    headlineMedium = TextStyle(fontSize = 28.sp, lineHeight = 34.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.8).sp),
+    headlineSmall = TextStyle(fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.5).sp),
+    titleLarge = TextStyle(fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.5).sp),
+    titleMedium = TextStyle(fontSize = 17.sp, lineHeight = 22.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.2).sp),
+    // Назва картки звичайним регістром.
+    titleSmall = TextStyle(fontSize = 17.sp, lineHeight = 22.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.2).sp),
+    bodyLarge = TextStyle(fontSize = 16.sp, lineHeight = 22.sp, fontWeight = FontWeight.Normal),
+    bodyMedium = TextStyle(fontSize = 15.sp, lineHeight = 21.sp, fontWeight = FontWeight.Normal),
     bodySmall = TextStyle(fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.Normal),
-    labelLarge = TextStyle(fontSize = 15.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold),
-    labelMedium = TextStyle(fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.Medium),
-    labelSmall = TextStyle(fontSize = 11.sp, lineHeight = 14.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
+    labelLarge = TextStyle(fontSize = 16.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold),
+    labelMedium = TextStyle(fontSize = 14.sp, lineHeight = 18.sp, fontWeight = FontWeight.Medium),
+    labelSmall = TextStyle(fontSize = 11.sp, lineHeight = 14.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.0.sp)
 )
 
-/**
- * Два стилі, яких нема в шкалі Material: `sectionTitle` — заголовок секції малими літерами,
- * `descriptor` — курсивна антиква під назвою, що відділяє «що це» від «як зветься».
- */
+/** Стилі поза шкалою Material: великий заголовок секції, підпис категорії під назвою, лід деталей. */
 object PoruchType {
-    val sectionTitle = TextStyle(fontSize = 17.sp, lineHeight = 22.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.3).sp)
-    val descriptor = TextStyle(
-        fontFamily = FontFamily.Serif, fontStyle = FontStyle.Italic,
-        fontSize = 14.sp, lineHeight = 18.sp, fontWeight = FontWeight.Normal
-    )
-    /** Та сама антиква прямо: лід на екрані деталей. */
-    val lead = TextStyle(fontFamily = FontFamily.Serif, fontSize = 16.sp, lineHeight = 24.sp, fontWeight = FontWeight.Normal)
+    val sectionTitle = TextStyle(fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.5).sp)
+    val descriptor = TextStyle(fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.Medium)
+    val lead = TextStyle(fontSize = 17.sp, lineHeight = 25.sp, fontWeight = FontWeight.Normal)
 }
 
 val LocalPoruchColors = staticCompositionLocalOf { LightPoruchColors }

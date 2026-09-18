@@ -63,8 +63,6 @@ struct ChatView: View {
             Button { dismiss() } label: {
                 Image(systemName: "chevron.left").font(.system(size: 16, weight: .semibold)).foregroundStyle(Palette.ink)
                     .frame(width: 40, height: 40).background(Palette.surface, in: Circle())
-                    .overlay(Circle().strokeBorder(Palette.hairline.opacity(0.55), lineWidth: 1))
-                    .lifted(Elevation.card)
             }.buttonStyle(PressableStyle()).accessibilityLabel("Назад")
             VStack(alignment: .leading, spacing: 2) {
                 Text(event?.title ?? "Чат").font(PoruchFont.title3).foregroundStyle(Palette.ink).lineLimit(1)

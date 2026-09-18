@@ -243,6 +243,9 @@ private fun SheetHeader(
                     )
                 }
             } else {
+                // Керування мапою в зоні великого пальця, над каруселлю.
+                IconPill(PoruchIcons.recenter, stringResource(R.string.recenter), size = 40.dp) { onIntent(ExploreIntent.Recenter) }
+                IconPill(PoruchIcons.myLocation, stringResource(R.string.nearby), size = 40.dp) { onIntent(ExploreIntent.RequestLocation) }
                 Spacer(Modifier.weight(1f))
                 // Тягнеться і натискається: тап по лічильнику пояснює жест.
                 Row(

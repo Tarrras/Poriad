@@ -22,7 +22,7 @@ import app.poruch.android.ui.*
 import app.poruch.shared.DateFilter
 
 /** Висота градієнта під верхніми контролами і відступ мапи під ними. */
-internal val TopControlsInset = 208.dp
+internal val TopControlsInset = 152.dp
 /** Смуга шторки, з каруселлю чи порожньою карткою. */
 internal val CarouselInset = 268.dp
 
@@ -65,21 +65,12 @@ private fun TopControls(state: ExploreState, onIntent: (ExploreIntent) -> Unit) 
             state.searchText, { onIntent(ExploreIntent.Search(it)) }, stringResource(R.string.search_placeholder),
             activeFilters = state.activeFilters, onFilters = { onIntent(ExploreIntent.ShowSheet(ExploreSheet.FILTERS)) }
         )
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-            Row(
-                Modifier.minimumInteractiveComponentSize().height(44.dp).cardSurface(Radius.pill)
-                    .clickable { onIntent(ExploreIntent.ShowSheet(ExploreSheet.CITY)) }.padding(horizontal = Spacing.lg),
-                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
-            ) {
-                Icon(PoruchIcons.pin, null, Modifier.size(16.dp), tint = colors.brand)
-                Text(state.cityName, style = MaterialTheme.typography.labelLarge, color = colors.ink)
-                Icon(Icons.Outlined.ExpandMore, null, Modifier.size(16.dp), tint = colors.inkSecondary)
-            }
-            Spacer(Modifier.weight(1f))
-            IconPill(PoruchIcons.recenter, stringResource(R.string.recenter)) { onIntent(ExploreIntent.Recenter) }
-            IconPill(PoruchIcons.myLocation, stringResource(R.string.nearby)) { onIntent(ExploreIntent.RequestLocation) }
-        }
-        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        // Один ряд замість двох: місто веде стрічку фільтрів. Керування мапою — над каруселлю, під пальцем.
+        Row(
+            Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically
+        ) {
+            PoruchChip(state.cityName, false, { onIntent(ExploreIntent.ShowSheet(ExploreSheet.CITY)) }, PoruchIcons.pin, trailingIcon = Icons.Outlined.ExpandMore)
             dateFilters.forEach { (key, label) ->
                 // Повторний тап знімає вибір, щоб не шукати «Будь-коли» за краєм рядка.
                 PoruchChip(stringResource(label), state.dateFilter == key, {

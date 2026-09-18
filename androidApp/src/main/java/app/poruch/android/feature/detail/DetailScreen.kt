@@ -26,6 +26,7 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -62,9 +63,13 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
     Box(Modifier.fillMaxSize().background(colors.canvas)) {
         PullToRefresh(state.refreshing, { onIntent(DetailIntent.Refresh) }, Modifier.fillMaxSize(), underStatusBar = true) {
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 128.dp)) {
-                Hero(event, state.saved, onIntent)
-                Column(Modifier.padding(horizontal = Spacing.page), verticalArrangement = Arrangement.spacedBy(Spacing.lg)) {
-                    Headline(event, state)
+                Hero(event, state, onIntent)
+                Column(
+                    Modifier.padding(horizontal = Spacing.page).padding(top = Spacing.md),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.lg)
+                ) {
+                    Restrictions(state)
+                    ExternalActions(state, onIntent)
                 }
                 // Поза колонкою з полями: смуга дат іде від краю до краю.
                 if (state.sessions.size > 1) Sessions(state, onIntent, Modifier.padding(top = Spacing.lg))
@@ -74,7 +79,6 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
                 ) {
                     Facts(event)
                     if (state.attendees.isNotEmpty()) Roster(state, event)
-                    ExternalActions(state, onIntent)
                     Venue(event, onIntent)
                     Description(event, onIntent)
                     // Чат і посилання — для своїх: сервер віддає посилання лише організатору й підтвердженим.
@@ -180,58 +184,71 @@ private fun ReportSheet(target: ReportTarget, onIntent: (DetailIntent) -> Unit) 
     }
 }
 
+/**
+ * Обкладинка на весь верх екрана, що згасає в полотно; назва й стан лежать на цьому згасанні,
+ * як у картці дня Moonly: одна сцена, а не фото з підписом.
+ */
 @Composable
-private fun Hero(event: Event, saved: Boolean, onIntent: (DetailIntent) -> Unit) {
-    Box(Modifier.fillMaxWidth().height(272.dp).padding(Spacing.sm).clip(Radius.lg)) {
-        Box(Modifier.fillMaxSize().background(categoryGradient(event.category)), contentAlignment = Alignment.Center) {
-            Icon(categoryIcon(event.category), null, Modifier.size(48.dp), tint = categoryInk(event.category))
+private fun Hero(event: Event, state: DetailState, onIntent: (DetailIntent) -> Unit) {
+    val colors = Poruch.colors
+    val room = state.room
+    Box(Modifier.fillMaxWidth()) {
+        Box(Modifier.fillMaxWidth().height(400.dp).background(categoryGradient(event.category)), contentAlignment = Alignment.Center) {
+            Icon(categoryIcon(event.category), null, Modifier.size(56.dp), tint = categoryInk(event.category))
             event.imageUrl?.let {
                 AsyncImage(model = it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
             }
+            // Обкладинка довільна, тож тонка тінь зверху тримає смугу статусу читабельною.
+            Box(
+                Modifier.fillMaxWidth().align(Alignment.TopCenter)
+                    .windowInsetsTopHeight(WindowInsets.statusBars.add(WindowInsets(top = Spacing.lg)))
+                    .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.32f), Color.Transparent)))
+            )
+            Box(
+                Modifier.fillMaxWidth().height(260.dp).align(Alignment.BottomCenter).background(
+                    Brush.verticalGradient(0f to Color.Transparent, 0.55f to colors.canvas.copy(alpha = 0.85f), 1f to colors.canvas)
+                )
+            )
         }
-        // Обкладинка довільна, тож тонка тінь зверху тримає смугу статусу читабельною.
-        Box(
-            Modifier.fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars.add(WindowInsets(top = Spacing.lg)))
-                .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.32f), Color.Transparent)))
-        )
         Row(Modifier.fillMaxWidth().statusBarsPadding().padding(Spacing.md), verticalAlignment = Alignment.CenterVertically) {
             ScrimButton(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.back)) { onIntent(DetailIntent.Back) }
             Spacer(Modifier.weight(1f))
-            ScrimButton(Icons.Outlined.Share, stringResource(R.string.share)) { onIntent(DetailIntent.Share) }
-            Spacer(Modifier.width(Spacing.sm))
             ScrimButton(
-                if (saved) PoruchIcons.bookmarkFilled else PoruchIcons.bookmark,
-                stringResource(if (saved) R.string.unsave else R.string.save)
+                if (state.saved) PoruchIcons.bookmarkFilled else PoruchIcons.bookmark,
+                stringResource(if (state.saved) R.string.unsave else R.string.save)
             ) { onIntent(DetailIntent.ToggleSaved) }
+        }
+        Column(
+            Modifier.align(Alignment.BottomStart).padding(horizontal = Spacing.page),
+            verticalArrangement = Arrangement.spacedBy(Spacing.sm)
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
+                StatusBadge(stringResource(categoryLabel(event.category)), BadgeTone.Brand)
+                when {
+                    state.cancelled -> StatusBadge(stringResource(R.string.cancelled), BadgeTone.Danger)
+                    // Афіша завжди підписана джерелом: атрибуція обов'язкова.
+                    state.listing?.isWithdrawn == true -> StatusBadge(stringResource(R.string.listing_withdrawn), BadgeTone.Neutral)
+                    state.listing != null -> StatusBadge(stringResource(R.string.listing_badge, state.listing!!.sourceName), BadgeTone.Neutral)
+                    state.organizer -> StatusBadge(stringResource(R.string.you_organize), BadgeTone.Neutral, PoruchIcons.sparkle)
+                    room?.joined == true -> StatusBadge(stringResource(R.string.going), BadgeTone.Success, Icons.Outlined.Check)
+                    state.waitlisted -> StatusBadge(stringResource(R.string.in_queue), BadgeTone.Accent, PoruchIcons.queue)
+                    room?.awaitingApproval == true -> StatusBadge(stringResource(R.string.request_pending), BadgeTone.Accent, PoruchIcons.clock)
+                    room?.isScarce == true && !state.cancelled ->
+                        StatusBadge(stringResource(R.string.seats_left, room.seatsLeft), BadgeTone.Accent)
+                }
+            }
+            Text(eventOverline(event, dateWords()), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
+            Text(event.title, style = MaterialTheme.typography.displaySmall, color = colors.ink)
         }
     }
 }
 
+/** Для кого подія, на картці, а не через відмову сервера. В афіші обмежень віку нема. */
 @Composable
-private fun Headline(event: Event, state: DetailState) {
-    val colors = Poruch.colors
-    val room = state.room
-    Text(eventOverline(event, dateWords()), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
-    Text(event.title, style = MaterialTheme.typography.displaySmall, color = colors.ink)
+private fun Restrictions(state: DetailState) {
+    val room = state.room ?: return
+    if (!room.hasAgeLimit && !room.approvalRequired) return
     Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
-        EventDescriptor(event, Modifier.weight(1f, fill = false))
-        when {
-            state.cancelled -> StatusBadge(stringResource(R.string.cancelled), BadgeTone.Danger)
-            // Афіша завжди підписана джерелом: атрибуція обов'язкова.
-            state.listing?.isWithdrawn == true -> StatusBadge(stringResource(R.string.listing_withdrawn), BadgeTone.Neutral)
-            state.listing != null -> StatusBadge(stringResource(R.string.listing_badge, state.listing!!.sourceName), BadgeTone.Neutral)
-            state.organizer -> StatusBadge(stringResource(R.string.you_organize), BadgeTone.Neutral, PoruchIcons.sparkle)
-            room?.joined == true -> StatusBadge(stringResource(R.string.going), BadgeTone.Success, Icons.Outlined.Check)
-            state.waitlisted -> StatusBadge(stringResource(R.string.in_queue), BadgeTone.Accent, PoruchIcons.queue)
-            room?.awaitingApproval == true -> StatusBadge(stringResource(R.string.request_pending), BadgeTone.Accent, PoruchIcons.clock)
-            room?.isScarce == true && !state.cancelled ->
-                StatusBadge(stringResource(R.string.seats_left, room.seatsLeft), BadgeTone.Accent)
-        }
-    }
-    // Для кого подія, на картці, а не через відмову сервера. В афіші обмежень віку нема.
-    if (room != null && (room.hasAgeLimit || room.approvalRequired)) Row(
-        horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically
-    ) {
         if (room.hasAgeLimit) StatusBadge(ageLimitLabel(room), BadgeTone.Brand, PoruchIcons.person)
         if (room.approvalRequired) StatusBadge(stringResource(R.string.approval_badge), BadgeTone.Neutral, PoruchIcons.lock)
     }
@@ -267,8 +284,7 @@ private fun Sessions(state: DetailState, onIntent: (DetailIntent) -> Unit, modif
                 val onInk = colors.canvas
                 Column(
                     Modifier.widthIn(min = 96.dp).clip(Radius.sm)
-                        .background(if (selected) colors.ink else colors.canvas)
-                        .border(1.dp, if (selected) colors.ink else colors.hairline, Radius.sm)
+                        .background(if (selected) colors.ink else colors.surface)
                         .selectable(selected, role = Role.RadioButton) { onIntent(DetailIntent.PickSession(session.id)) }
                         .alpha(if (session.cancelled && !selected) 0.6f else 1f)
                         .padding(horizontal = Spacing.md, vertical = Spacing.sm),
@@ -337,25 +353,37 @@ private fun SafetyActions(event: Event, onIntent: (DetailIntent) -> Unit) {
 }
 
 /** Факти про подію в чотирьох рядках. Останні два різні для кімнати й афіші. */
+/** Факти про подію сіткою два на два, як картка дня в Moonly: підпис над значенням, без гліфів. */
 @Composable
 private fun Facts(event: Event) {
-    Column(Modifier.fillMaxWidth().cardSurface().padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.lg)) {
-        InfoRow(PoruchIcons.calendar, stringResource(R.string.when_label), eventTime(event, dateWords()))
-        InfoRow(PoruchIcons.pin, stringResource(R.string.where), listOf(event.city, event.address).filter { it.isNotBlank() }.joinToString(" · "))
+    val cells = buildList {
+        add(stringResource(R.string.when_label) to eventTime(event, dateWords()))
+        add(stringResource(R.string.where) to listOf(event.city, event.address).filter { it.isNotBlank() }.joinToString(" · "))
         event.gathering?.let { room ->
-            InfoRow(
-                PoruchIcons.person, stringResource(R.string.organizer_short),
-                room.organizerName.ifBlank { stringResource(R.string.organizer_short) }
-            )
-            InfoRow(
-                PoruchIcons.social, stringResource(R.string.capacity_label),
-                stringResource(R.string.attendees, room.attendeeCount, room.capacity)
-            )
+            add(stringResource(R.string.organizer_short) to room.organizerName.ifBlank { stringResource(R.string.organizer_short) })
+            add(stringResource(R.string.capacity_label) to stringResource(R.string.attendees_short, room.attendeeCount, room.capacity))
         }
         event.listing?.let { listing ->
-            InfoRow(Icons.Outlined.Public, stringResource(R.string.listing_source_label), listing.sourceName)
-            InfoRow(Icons.Outlined.ConfirmationNumber, stringResource(R.string.listing_price_label), listingPrice(listing))
+            add(stringResource(R.string.listing_source_label) to listing.sourceName)
+            add(stringResource(R.string.listing_price_label) to listingPrice(listing))
         }
+    }
+    Column(Modifier.fillMaxWidth().cardSurface().padding(Spacing.xl), verticalArrangement = Arrangement.spacedBy(Spacing.xl)) {
+        cells.chunked(2).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.lg)) {
+                row.forEach { (label, value) -> FactCell(label, value, Modifier.weight(1f)) }
+                if (row.size == 1) Spacer(Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun FactCell(label: String, value: String, modifier: Modifier) {
+    val colors = Poruch.colors
+    Column(modifier.semantics(mergeDescendants = true) {}, verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+        Text(label.uppercase(), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
+        Text(value, style = MaterialTheme.typography.titleMedium, color = colors.ink)
     }
 }
 
@@ -378,17 +406,14 @@ private fun Roster(state: DetailState, event: Event) {
     }
 }
 
+/** Ряд круглих дій із підписами, як панель під картою дня в Moonly. */
 @Composable
 private fun ExternalActions(state: DetailState, onIntent: (DetailIntent) -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
-        SecondaryButton(
-            stringResource(R.string.add_to_calendar), { onIntent(DetailIntent.AddToCalendar) },
-            Modifier.weight(1f), enabled = !state.cancelled, icon = Icons.Outlined.EditCalendar
-        )
-        SecondaryButton(
-            stringResource(R.string.open_in_maps), { onIntent(DetailIntent.OpenInMaps) },
-            Modifier.weight(1f), icon = Icons.Outlined.Directions
-        )
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        RoundAction(Icons.Outlined.EditCalendar, stringResource(R.string.calendar_short), { onIntent(DetailIntent.AddToCalendar) }, Modifier.weight(1f), enabled = !state.cancelled)
+        RoundAction(Icons.Outlined.Directions, stringResource(R.string.open_in_maps), { onIntent(DetailIntent.OpenInMaps) }, Modifier.weight(1f))
+        RoundAction(Icons.Outlined.Share, stringResource(R.string.share), { onIntent(DetailIntent.Share) }, Modifier.weight(1f))
+        RoundAction(PoruchIcons.map, stringResource(R.string.on_map), { onIntent(DetailIntent.OpenMap) }, Modifier.weight(1f))
     }
 }
 
@@ -535,20 +560,6 @@ private fun ScrimButton(icon: ImageVector, description: String, onClick: () -> U
             .border(1.dp, Color.Black.copy(alpha = 0.06f), CircleShape).clip(CircleShape).clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) { Icon(icon, description, Modifier.size(18.dp), tint = Color(0xFF14130F)) }
-}
-
-@Composable
-private fun InfoRow(icon: ImageVector, label: String, value: String) {
-    val colors = Poruch.colors
-    Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md), verticalAlignment = Alignment.Top) {
-        Box(Modifier.size(34.dp).background(colors.surfaceMuted, Radius.xs), contentAlignment = Alignment.Center) {
-            Icon(icon, null, Modifier.size(17.dp), tint = colors.inkSecondary)
-        }
-        Column {
-            Text(label.uppercase(), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
-            Text(value, style = MaterialTheme.typography.bodyLarge, color = colors.ink)
-        }
-    }
 }
 
 private const val ROSTER_PREVIEW = 80

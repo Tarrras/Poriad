@@ -4,6 +4,8 @@ import Shared
 // ---- Пошук і чипи
 
 struct SearchField: View {
+    @Environment(\.colorScheme) private var scheme
+    private var darkStroke: Double { scheme == .dark ? 1 : 0 }
     @Binding var text: String
     var placeholder: String
     var activeFilters: Int = 0
@@ -20,10 +22,9 @@ struct SearchField: View {
                         .accessibilityLabel("Очистити пошук")
                 }
             }
-            .padding(.horizontal, Space.lg).frame(height: 48)
+            .padding(.horizontal, Space.lg).frame(height: 50)
             .background(Palette.surface, in: Capsule())
-            .overlay(Capsule().strokeBorder(Palette.hairline.opacity(0.55), lineWidth: 1))
-            .lifted(Elevation.card)
+            .overlay(Capsule().strokeBorder(Palette.hairline, lineWidth: 1).opacity(darkStroke))
             if let onFilters {
                 IconPill(symbol: "slider.horizontal.3", label: "Фільтри", action: onFilters)
                     .overlay(alignment: .topTrailing) {
@@ -74,6 +75,7 @@ struct SearchBar: View {
 private let searchSettle = 250
 
 struct IconPill: View {
+    @Environment(\.colorScheme) private var scheme
     let symbol: String
     let label: String
     var selected: Bool = false
@@ -87,8 +89,7 @@ struct IconPill: View {
                 .background {
                     if selected { Circle().fill(brandGradient) } else { Circle().fill(Palette.surface) }
                 }
-                .overlay(Circle().strokeBorder(Palette.hairline, lineWidth: selected ? 0 : 1))
-                .lifted(Elevation.card)
+                .overlay(Circle().strokeBorder(Palette.hairline, lineWidth: selected || scheme == .light ? 0 : 1))
         }
         .buttonStyle(PressableStyle())
         .accessibilityLabel(label)
@@ -102,11 +103,14 @@ struct CategoryDot: View {
     var body: some View { Circle().fill(categoryInk(category)).frame(width: size, height: size) }
 }
 
-/// Чип: біла пігулка над папером; обраний заливається чорнилом і сидить вище, тож стан видно з тіні.
+/// Чип: біла пігулка на сірому; обраний заливається чорнилом.
 struct Chip: View {
+    @Environment(\.colorScheme) private var scheme
     let label: String
     var symbol: String?
     var dot: String?
+    /// Гліф після підпису: шеврон каже, що чип відкриває вибір, а не перемикає фільтр.
+    var trailingSymbol: String?
     let selected: Bool
     let action: () -> Void
     var body: some View {
@@ -119,19 +123,53 @@ struct Chip: View {
                         .foregroundStyle(selected ? Palette.onBrand : Palette.inkSecondary)
                 }
                 Text(label).font(PoruchFont.label)
+                if let trailingSymbol {
+                    Image(systemName: trailingSymbol).font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(selected ? Palette.onBrand : Palette.inkSecondary)
+                }
             }
             .foregroundStyle(selected ? Palette.onBrand : Palette.ink)
             .padding(.horizontal, Space.lg).frame(height: 38)
             .background {
                 if selected { Capsule().fill(brandGradient) } else { Capsule().fill(Palette.surface) }
             }
-            .overlay(Capsule().strokeBorder(Palette.hairline, lineWidth: selected ? 0 : 1))
-            .lifted(selected ? Elevation.raised : Elevation.card)
+            .overlay(Capsule().strokeBorder(Palette.hairline, lineWidth: selected || scheme == .light ? 0 : 1))
             .frame(minHeight: 44)
             .contentShape(Rectangle())
         }
         .buttonStyle(PressableStyle())
         .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+}
+
+/// Сегментований перемикач-пігулка: тиха доріжка, біла пластина під обраним. Два-три рівноправні режими одного екрана.
+struct SegmentedPill: View {
+    let items: [String]
+    let selection: Int
+    let select: (Int) -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Namespace private var thumb
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(Array(items.enumerated()), id: \.offset) { index, title in
+                Button { if index != selection { select(index) } } label: {
+                    Text(title).font(PoruchFont.button)
+                        .foregroundStyle(index == selection ? Palette.ink : Palette.inkSecondary)
+                        .frame(maxWidth: .infinity).frame(height: 40)
+                        .background {
+                            if index == selection {
+                                Capsule().fill(Palette.surface).matchedGeometryEffect(id: "thumb", in: thumb)
+                            }
+                        }
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(index == selection ? .isSelected : [])
+            }
+        }
+        .padding(4)
+        .background(Palette.brandContainer, in: Capsule())
+        .animation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.85), value: selection)
     }
 }
 
@@ -148,20 +186,46 @@ struct CategoryTile: View {
                     .frame(width: 60, height: 60)
                     .background(
                         categoryGradient(category),
-                        in: RoundedRectangle(cornerRadius: Corner.sm, style: .continuous)
+                        in: RoundedRectangle(cornerRadius: Corner.md, style: .continuous)
                     )
                     .overlay(
-                        RoundedRectangle(cornerRadius: Corner.sm, style: .continuous)
-                            .strokeBorder(
-                                selected ? Palette.ink : categoryColor(category).opacity(0.18),
-                                lineWidth: selected ? 2 : 1
-                            )
+                        RoundedRectangle(cornerRadius: Corner.md, style: .continuous)
+                            .strokeBorder(Palette.ink, lineWidth: selected ? 2 : 0)
                     )
-                    // Плитка світиться власним відтінком, а не сірою тінню.
-                    .lifted(Elevation.card, tint: categoryColor(category).opacity(0.28))
                 Text(categoryName(category)).font(PoruchFont.label).lineLimit(1)
                     .foregroundStyle(selected ? Palette.ink : Palette.inkSecondary)
             }.frame(width: 76)
+        }
+        .buttonStyle(PressableStyle())
+        .accessibilityLabel(categoryName(category))
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+}
+
+/// Картка категорії для сіток вибору (онбординг, редактор): пастель на всю картку, гліф угорі, назва внизу, позначка в кутку.
+struct CategoryCard: View {
+    let category: String
+    let selected: Bool
+    let action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(alignment: .top) {
+                    PoruchIcon(glyph: categoryGlyph(category), size: 24).foregroundStyle(categoryInk(category))
+                    Spacer(minLength: 0)
+                    ZStack {
+                        Circle().fill(selected ? Palette.brand : Palette.surface.opacity(0.7))
+                        if selected {
+                            Image(systemName: "checkmark").font(.system(size: 10, weight: .bold)).foregroundStyle(Palette.onBrand)
+                        }
+                    }.frame(width: 20, height: 20)
+                }
+                Spacer(minLength: Space.md)
+                Text(categoryName(category)).font(PoruchFont.label).foregroundStyle(Palette.ink).lineLimit(1).minimumScaleFactor(0.8)
+            }
+            .padding(Space.md).frame(maxWidth: .infinity, minHeight: 96, alignment: .leading)
+            .background(categoryGradient(category), in: RoundedRectangle(cornerRadius: Corner.md, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Corner.md, style: .continuous).strokeBorder(Palette.ink, lineWidth: selected ? 2 : 0))
         }
         .buttonStyle(PressableStyle())
         .accessibilityLabel(categoryName(category))
@@ -192,7 +256,7 @@ struct StatusBadge: View {
     var body: some View {
         HStack(spacing: Space.xs) {
             if let symbol { Image(systemName: symbol).font(.system(size: 10, weight: .bold)) }
-            Text(text.uppercased()).font(PoruchFont.overline).kerning(1.2)
+            Text(text.uppercased()).font(PoruchFont.overline).kerning(1.0)
         }
         .foregroundStyle(onPhoto && (tone == .neutral || tone == .brand) ? Palette.ink : colors.1)
         .padding(.horizontal, Space.md).padding(.vertical, 5)
@@ -226,13 +290,12 @@ struct PrimaryButton: View {
             .padding(.horizontal, Space.xxl).frame(height: 52).frame(maxWidth: .infinity)
             .background {
                 switch (enabled, tone) {
-                case (false, _): Capsule().fill(Palette.surfaceMuted)
+                // Блідіша за другорядну кнопку поруч: інакше «Назад» і неактивна «Далі» виглядали однаково.
+                case (false, _): Capsule().fill(Palette.brandContainer.opacity(0.55))
                 case (true, .some(let tone)): Capsule().fill(LinearGradient(colors: [tone.opacity(0.92), tone], startPoint: .top, endPoint: .bottom))
                 case (true, .none): Capsule().fill(brandGradient)
                 }
             }
-            // Тінь кнопки тонована її кольором.
-            .lifted(enabled ? Elevation.raised : 0, tint: enabled ? (tone ?? Palette.ink).opacity(0.28) : nil)
         }
         .buttonStyle(PressableStyle())
         .disabled(!enabled || loading)
@@ -253,7 +316,7 @@ struct SecondaryButton: View {
             }
             .foregroundStyle(enabled ? tone ?? Palette.ink : Palette.inkTertiary)
             .padding(.horizontal, Space.xxl).frame(height: 52).frame(maxWidth: .infinity)
-            .background(Palette.surfaceMuted, in: Capsule())
+            .background(Palette.brandContainer, in: Capsule())
         }
         .buttonStyle(PressableStyle())
         .disabled(!enabled)
@@ -269,7 +332,7 @@ struct SectionHeader: View {
     var action: (() -> Void)?
     var body: some View {
         HStack {
-            Text(title).font(PoruchFont.sectionTitle).kerning(-0.3).foregroundStyle(Palette.ink)
+            Text(title).font(PoruchFont.sectionTitle).kerning(-0.5).foregroundStyle(Palette.ink)
             Spacer(minLength: Space.sm)
             if let actionLabel, let action {
                 Button(actionLabel, action: action).font(PoruchFont.label).foregroundStyle(Palette.ink)
@@ -288,8 +351,6 @@ struct PageHeader<Trailing: View>: View {
                 Button(action: back) {
                     Image(systemName: "chevron.left").font(.system(size: 16, weight: .semibold)).foregroundStyle(Palette.ink)
                         .frame(width: 40, height: 40).background(Palette.surface, in: Circle())
-                        .overlay(Circle().strokeBorder(Palette.hairline.opacity(0.55), lineWidth: 1))
-                        .lifted(Elevation.card)
                 }.buttonStyle(PressableStyle()).accessibilityLabel("Назад")
             }
             Text(title).font(PoruchFont.title1).titleTracking().foregroundStyle(Palette.ink)
@@ -314,12 +375,7 @@ struct EmptyState: View {
         VStack(spacing: compact ? Space.sm : Space.md) {
             Image(systemName: symbol).font(.system(size: compact ? 20 : 26, weight: .medium)).foregroundStyle(Palette.inkSecondary)
                 .frame(width: compact ? 52 : 64, height: compact ? 52 : 64)
-                .background(
-                    LinearGradient(colors: [Palette.surface, Palette.surfaceMuted], startPoint: .top, endPoint: .bottom),
-                    in: RoundedRectangle(cornerRadius: Corner.md, style: .continuous)
-                )
-                .overlay(RoundedRectangle(cornerRadius: Corner.md, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
-                .lifted(Elevation.card)
+                .background(Palette.surface, in: RoundedRectangle(cornerRadius: Corner.md, style: .continuous))
             Text(title).font(compact ? PoruchFont.title3 : PoruchFont.title2).foregroundStyle(Palette.ink).multilineTextAlignment(.center)
             Text(message).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary).multilineTextAlignment(.center)
             if let actionLabel, let action {
@@ -339,11 +395,7 @@ struct BannerCard: View {
             HStack(spacing: Space.md) {
                 Image(systemName: symbol).font(.system(size: 17, weight: .medium)).foregroundStyle(Palette.ink)
                     .frame(width: 44, height: 44)
-                    .background(
-                        LinearGradient(colors: [Palette.surface, Palette.brandContainer], startPoint: .top, endPoint: .bottom),
-                        in: RoundedRectangle(cornerRadius: Corner.xs, style: .continuous)
-                    )
-                    .overlay(RoundedRectangle(cornerRadius: Corner.xs, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
+                    .background(Palette.surfaceMuted, in: RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title).font(PoruchFont.cardName).foregroundStyle(Palette.ink).multilineTextAlignment(.leading)
                     Text(subtitle).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).multilineTextAlignment(.leading)
@@ -353,13 +405,7 @@ struct BannerCard: View {
                     .frame(width: 32, height: 32).background(Palette.brand, in: Circle())
             }
             .padding(Space.lg)
-            // Єдина тепло підсвічена поверхня на головній: запрошує, а не інформує.
-            .background(
-                LinearGradient(colors: [Palette.heroTop, Palette.surface], startPoint: .topLeading, endPoint: .bottomTrailing),
-                in: RoundedRectangle(cornerRadius: Corner.lg, style: .continuous)
-            )
-            .overlay(RoundedRectangle(cornerRadius: Corner.lg, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
-            .lifted(Elevation.card)
+            .cardSurface()
         }.buttonStyle(PressableStyle())
     }
 }
@@ -415,13 +461,9 @@ struct InfoRow: View {
         HStack(alignment: .top, spacing: Space.md) {
             Image(systemName: symbol).font(.system(size: 15, weight: .medium)).foregroundStyle(Palette.inkSecondary)
                 .frame(width: 34, height: 34)
-                .background(
-                    LinearGradient(colors: [Palette.surface, Palette.surfaceMuted], startPoint: .top, endPoint: .bottom),
-                    in: RoundedRectangle(cornerRadius: Corner.xs, style: .continuous)
-                )
-                .overlay(RoundedRectangle(cornerRadius: Corner.xs, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
+                .background(Palette.surfaceMuted, in: RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
-                Text(label.uppercased()).font(PoruchFont.overline).kerning(1.2).foregroundStyle(Palette.inkTertiary)
+                Text(label.uppercased()).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
                 Text(value).font(PoruchFont.bodyText).foregroundStyle(Palette.ink).fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 0)
@@ -441,7 +483,7 @@ struct LabelledField<Trailing: View>: View {
     @ViewBuilder var trailing: Trailing
     var body: some View {
         VStack(alignment: .leading, spacing: Space.sm) {
-            Text(label.uppercased()).font(PoruchFont.overline).kerning(1.2).foregroundStyle(Palette.inkTertiary)
+            Text(label.uppercased()).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
             HStack(spacing: Space.sm) {
                 Group {
                     if secure {
@@ -460,8 +502,8 @@ struct LabelledField<Trailing: View>: View {
             .padding(.horizontal, Space.lg)
             .padding(.vertical, multiline ? Space.md : 0)
             .frame(minHeight: 56, alignment: multiline ? .top : .center)
+            // Біле поле на сірому полотні: `surfaceMuted` відрізнявся від полотна на два тони і поле зникало.
             .background(Palette.surface, in: RoundedRectangle(cornerRadius: Corner.sm, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: Corner.sm, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
             if let hint {
                 Text(hint).font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
             }
@@ -494,6 +536,11 @@ struct EventThumbnail: View {
             categoryGradient(event.category)
             PoruchIcon(glyph: categoryGlyph(event.category), size: glyphSize)
                 .foregroundStyle(categoryInk(event.category))
+        }
+        // Фото в накладці, а не в стосі: `scaledToFill` повідомляє розмір заповнення, і горизонтальний
+        // знімок у високій обкладинці робив її ширшою за екран, розпираючи всю сторінку. Накладка
+        // отримує розмір основи й не впливає на розкладку.
+        .overlay {
             if let source = event.imageUrl, let url = URL(string: source), url.scheme == "https" {
                 CachedImage(url: url, maxDimension: maxDimension)
                     .overlay(
@@ -503,7 +550,9 @@ struct EventThumbnail: View {
                         )
                     )
             }
-        }.decorative()
+        }
+        .clipped()
+        .decorative()
     }
 }
 
@@ -538,13 +587,12 @@ struct EventMeta: View {
     }
 }
 
-/// Крапка категорії плюс опис курсивною антиквою.
+/// Крапка категорії плюс її назва кольором категорії.
 struct EventDescriptor: View {
     let event: Event
     var body: some View {
         HStack(spacing: Space.sm) {
             CategoryDot(category: event.category)
-            // Антиква — категорія, гротеск — місце: «що це» не читається як частина адреси.
             Text(categoryName(event.category))
                 .font(PoruchFont.descriptor).foregroundStyle(categoryInk(event.category)).lineLimit(1)
             Text((event.address.isEmpty ? event.city : event.address).isEmpty ? "" : "· " + (event.address.isEmpty ? event.city : event.address))
@@ -586,8 +634,7 @@ struct EventCard: View {
             VStack(alignment: .leading, spacing: 0) {
                 // Без фото плейсхолдер нижчий: порожній 16:9 домінував би на картці.
                 EventThumbnail(event: event, maxDimension: 420)
-                    .frame(height: event.imageUrl == nil ? 96 : 168).frame(maxWidth: .infinity).clipped()
-                    .clipShape(RoundedRectangle(cornerRadius: Corner.sm, style: .continuous))
+                    .frame(height: event.imageUrl == nil ? 120 : 200).frame(maxWidth: .infinity).clipped()
                     .overlay(alignment: .topLeading) {
                         if let badge = eventBadge(event, waitlisted: waitlisted) {
                             StatusBadge(text: badge.0, tone: badge.1, symbol: badge.2, onPhoto: true).padding(Space.sm)
@@ -597,14 +644,15 @@ struct EventCard: View {
                         if let onSave { SaveButton(saved: saved, action: onSave).padding(Space.sm) }
                     }
                 VStack(alignment: .leading, spacing: Space.sm) {
-                    Text(cardOverline(event)).font(PoruchFont.overline).kerning(1.2).foregroundStyle(Palette.inkTertiary)
-                    Text(event.title.uppercased()).font(PoruchFont.cardName).kerning(0.3).foregroundStyle(Palette.ink)
+                    Text(cardOverline(event)).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
+                    Text(event.title).font(PoruchFont.cardName).kerning(-0.2).foregroundStyle(Palette.ink)
                         .multilineTextAlignment(.leading).lineLimit(2)
                     EventDescriptor(event: event)
                     EventMeta(event: event)
-                }.padding(Space.md).frame(maxWidth: .infinity, alignment: .leading)
+                }.padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(Space.sm)
+            // Фото врівень із краєм картки, тому обрізаємо всю картку за її ж радіусом.
+            .clipShape(RoundedRectangle(cornerRadius: Corner.lg, style: .continuous))
             .cardSurface()
             .opacity(event.isCancelled ? 0.6 : 1)
         }
@@ -622,8 +670,8 @@ struct EventRow: View {
                 .frame(width: 60, height: 60)
                 .clipShape(RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
             VStack(alignment: .leading, spacing: Space.xs) {
-                Text(cardOverline(event)).font(PoruchFont.overline).kerning(1.2).foregroundStyle(Palette.inkTertiary)
-                Text(event.title.uppercased()).font(PoruchFont.cardName).kerning(0.3).foregroundStyle(Palette.ink)
+                Text(cardOverline(event)).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
+                Text(event.title).font(PoruchFont.cardName).kerning(-0.2).foregroundStyle(Palette.ink)
                     .multilineTextAlignment(.leading).lineLimit(2)
                 if let badge = eventBadge(event) { StatusBadge(text: badge.0, tone: badge.1, symbol: badge.2) }
                 else { EventDescriptor(event: event) }
@@ -655,8 +703,8 @@ struct EventMapCard: View {
                     .frame(width: 84, height: 84)
                     .clipShape(RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
                 VStack(alignment: .leading, spacing: Space.xs) {
-                    Text(cardOverline(event)).font(PoruchFont.overline).kerning(1.2).foregroundStyle(Palette.inkTertiary)
-                    Text(event.title.uppercased()).font(PoruchFont.cardName).kerning(0.3).foregroundStyle(Palette.ink)
+                    Text(cardOverline(event)).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
+                    Text(event.title).font(PoruchFont.cardName).kerning(-0.2).foregroundStyle(Palette.ink)
                         .multilineTextAlignment(.leading).lineLimit(2)
                     if let badge = eventBadge(event) { StatusBadge(text: badge.0, tone: badge.1, symbol: badge.2) }
                     else { EventMeta(event: event, short: true) }
@@ -666,7 +714,7 @@ struct EventMapCard: View {
             }
             .padding(Space.md)
             .frame(height: mapCardHeight)
-            .cardSurface(radius: Corner.lg, elevation: Elevation.overlay)
+            .glassSurface(radius: Corner.lg)
             .overlay(
                 RoundedRectangle(cornerRadius: Corner.lg, style: .continuous)
                     .strokeBorder(Palette.ink, lineWidth: focused ? 2 : 0)
@@ -685,25 +733,196 @@ struct EventTile: View {
     let action: () -> Void
     var body: some View {
         Button(action: action) {
-            VStack(alignment: .leading, spacing: Space.sm) {
+            VStack(alignment: .leading, spacing: 0) {
                 EventThumbnail(event: event, maxDimension: 240)
-                    .frame(height: 104).frame(maxWidth: .infinity).clipped()
-                    .clipShape(RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
+                    .frame(height: 120).frame(maxWidth: .infinity).clipped()
                 VStack(alignment: .leading, spacing: Space.xs) {
-                    Text(cardOverline(event)).font(PoruchFont.overline).kerning(1.2).foregroundStyle(Palette.inkTertiary)
-                    Text(event.title.uppercased()).font(PoruchFont.cardName).kerning(0.3).foregroundStyle(Palette.ink)
+                    Text(cardOverline(event)).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
+                    Text(event.title).font(PoruchFont.cardName).kerning(-0.2).foregroundStyle(Palette.ink)
                         .multilineTextAlignment(.leading).lineLimit(2, reservesSpace: true)
                     EventDescriptor(event: event)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, Space.sm).padding(.bottom, Space.sm)
+                .padding(Space.md)
             }
-            .padding(Space.sm)
+            .clipShape(RoundedRectangle(cornerRadius: Corner.lg, style: .continuous))
             .cardSurface()
             .opacity(event.isCancelled ? 0.6 : 1)
         }
         .buttonStyle(PressableStyle())
         .accessibilityElement(children: .combine)
+    }
+}
+
+// ---- Композиційні картки головної
+
+/// Велика картка-афіша: обкладинка на всю висоту, текст на затемненні внизу. Одна на екран, для головного.
+struct EventHeroCard: View {
+    let event: Event
+    let eyebrow: String
+    var saved: Bool = false
+    var onSave: (() -> Void)?
+    let action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            EventThumbnail(event: event, glyphSize: 56, maxDimension: 800)
+                .frame(height: 360).frame(maxWidth: .infinity).clipped()
+                .overlay(
+                    LinearGradient(
+                        stops: [.init(color: .clear, location: 0.3), .init(color: .black.opacity(0.55), location: 0.7),
+                                .init(color: .black.opacity(0.85), location: 1)],
+                        startPoint: .top, endPoint: .bottom
+                    )
+                )
+                .overlay(alignment: .bottomLeading) {
+                    VStack(alignment: .leading, spacing: Space.sm) {
+                        Text(eyebrow.uppercased()).font(PoruchFont.overline).kerning(1.0).foregroundStyle(.white.opacity(0.75))
+                        Text(event.title).font(PoruchFont.title1).titleTracking().foregroundStyle(.white)
+                            .multilineTextAlignment(.leading).lineLimit(3).fixedSize(horizontal: false, vertical: true)
+                        Text([cardOverline(event), categoryName(event.category)].joined(separator: " · "))
+                            .font(PoruchFont.subhead).foregroundStyle(.white.opacity(0.85)).lineLimit(1)
+                    }
+                    .padding(Space.xl)
+                }
+                .overlay(alignment: .topTrailing) {
+                    if let onSave { SaveButton(saved: saved, action: onSave).padding(Space.md) }
+                }
+                .overlay(alignment: .topLeading) {
+                    if let badge = eventBadge(event) {
+                        StatusBadge(text: badge.0, tone: badge.1, symbol: badge.2, onPhoto: true).padding(Space.lg)
+                    }
+                }
+                .clipShape(RoundedRectangle(cornerRadius: Corner.xl, style: .continuous))
+                .opacity(event.isCancelled ? 0.6 : 1)
+        }
+        .buttonStyle(PressableStyle())
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// Широка картка горизонтальної стрічки: фото врівень із краєм, текст під ним. Сусідня визирає з-за краю.
+struct EventRailCard: View {
+    let event: Event
+    var saved: Bool = false
+    var onSave: (() -> Void)?
+    let action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 0) {
+                EventThumbnail(event: event, glyphSize: 32, maxDimension: 600)
+                    .frame(height: 170).frame(maxWidth: .infinity).clipped()
+                    .overlay(alignment: .topLeading) {
+                        if let badge = eventBadge(event) {
+                            StatusBadge(text: badge.0, tone: badge.1, symbol: badge.2, onPhoto: true).padding(Space.md)
+                        }
+                    }
+                    .overlay(alignment: .topTrailing) {
+                        if let onSave { SaveButton(saved: saved, action: onSave).padding(Space.sm) }
+                    }
+                VStack(alignment: .leading, spacing: Space.xs) {
+                    Text(cardOverline(event)).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
+                    Text(event.title).font(PoruchFont.cardName).kerning(-0.2).foregroundStyle(Palette.ink)
+                        .multilineTextAlignment(.leading).lineLimit(2, reservesSpace: true)
+                    EventDescriptor(event: event)
+                    EventMeta(event: event, short: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(Space.lg)
+            }
+            .frame(width: 300)
+            .clipShape(RoundedRectangle(cornerRadius: Corner.lg, style: .continuous))
+            .cardSurface()
+            .opacity(event.isCancelled ? 0.6 : 1)
+        }
+        .buttonStyle(PressableStyle())
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// Швидка дія на пів ширини: надрядок, назва, гліф у кутку.
+struct QuickActionCard: View {
+    let eyebrow: String
+    let title: String
+    let symbol: String
+    var filled = false
+    let action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: Space.md) {
+                Image(systemName: symbol).font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(filled ? Palette.onBrand : Palette.ink)
+                    .frame(width: 40, height: 40)
+                    .background(filled ? Palette.onBrand.opacity(0.14) : Palette.surfaceMuted, in: Circle())
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(eyebrow.uppercased()).font(PoruchFont.overline).kerning(1.0)
+                        .foregroundStyle(filled ? Palette.onBrand.opacity(0.7) : Palette.inkTertiary)
+                    Text(title).font(PoruchFont.cardName).kerning(-0.2)
+                        .foregroundStyle(filled ? Palette.onBrand : Palette.ink).lineLimit(1)
+                }
+            }
+            .padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading)
+            .background {
+                // Незалита картка — звичайна поверхня, з лінією по краю в темній темі, як усі картки поруч.
+                if filled { RoundedRectangle(cornerRadius: Corner.lg, style: .continuous).fill(Palette.brand) }
+                else { Color.clear.cardSurface() }
+            }
+        }
+        .buttonStyle(PressableStyle())
+        .accessibilityLabel("\(eyebrow): \(title)")
+    }
+}
+
+/// Рядок групового списку: гліф, назва, підпис, справа значення й шеврон. Кілька рядків збирає `GroupedRows`.
+struct LinkRow: View {
+    let symbol: String
+    let title: String
+    var subtitle: String? = nil
+    var value: String?
+    let action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: Space.md) {
+                Image(systemName: symbol).font(.system(size: 17, weight: .medium)).foregroundStyle(Palette.ink)
+                    .frame(width: 40, height: 40).background(Palette.surfaceMuted, in: RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).font(PoruchFont.cardName).kerning(-0.2).foregroundStyle(Palette.ink).multilineTextAlignment(.leading)
+                    if let subtitle {
+                        Text(subtitle).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).multilineTextAlignment(.leading)
+                    }
+                }
+                Spacer(minLength: Space.sm)
+                if let value {
+                    Text(value).font(PoruchFont.title2).foregroundStyle(Palette.ink).monospacedDigit()
+                }
+                Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold)).foregroundStyle(Palette.inkTertiary)
+            }
+            .padding(Space.lg).contentShape(Rectangle())
+        }
+        .buttonStyle(PressableStyle(pressedScale: 1))
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// Біла картка з рядками, розділеними лінією від тексту, а не від краю.
+struct GroupedRows<Content: View>: View {
+    @ViewBuilder var content: Content
+    var body: some View {
+        VStack(spacing: 0) { content }
+            .cardSurface()
+    }
+}
+
+/// Кругла дія з підписом під нею: ряд таких — панель дій на деталях.
+struct RoundAction<Label: View>: View {
+    let title: String
+    var enabled = true
+    @ViewBuilder var label: Label
+    var body: some View {
+        VStack(spacing: Space.sm) {
+            label.font(.system(size: 19, weight: .semibold)).foregroundStyle(enabled ? Palette.ink : Palette.inkTertiary)
+                .frame(width: 56, height: 56).background(Palette.surface, in: Circle())
+            Text(title).font(PoruchFont.label).foregroundStyle(enabled ? Palette.ink : Palette.inkTertiary).lineLimit(1)
+        }.frame(maxWidth: .infinity)
     }
 }
 
@@ -742,7 +961,7 @@ extension View {
     func hidesTabBar() -> some View { preference(key: HidesTabBarKey.self, value: true) }
 }
 
-/// Плаваючий таббар-капсула; активний пункт залитий чорнилом.
+/// Плаваючий скляний таббар; під активним пунктом тонова пігулка.
 struct PoruchTabBar<Trailing: View>: View {
     let items: [TabItem]
     @Binding var selection: Int
@@ -779,7 +998,7 @@ struct PoruchTabBar<Trailing: View>: View {
                 }
             }
             .padding(.horizontal, Space.xs).padding(.vertical, Space.sm)
-            .cardSurface(radius: 32, elevation: Elevation.overlay)
+            .glassSurface(radius: 32)
             trailing
         }.padding(.horizontal, Space.lg)
     }
@@ -791,9 +1010,7 @@ struct CreateButton: View {
         Button(action: action) {
             PoruchIcon(glyph: PoruchIcons.plus, size: 24).foregroundStyle(Palette.onBrand)
                 .frame(width: 56, height: 56).background(brandGradient, in: Circle())
-                // Тепле сяйво замість сірої тіні для єдиної завжди видимої дії.
-                .shadow(color: Palette.accent.opacity(0.45), radius: 14, y: 6)
-                .shadow(color: .black.opacity(0.16), radius: 5, y: 2)
+                .lifted(Elevation.overlay)
         }
         .buttonStyle(PressableStyle(pressedScale: 0.94))
         .accessibilityLabel("Створити подію")

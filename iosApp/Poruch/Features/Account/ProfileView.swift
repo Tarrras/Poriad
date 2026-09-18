@@ -9,8 +9,6 @@ struct ProfileView: View {
     @State private var showAuth = false
     @State private var deleting = false
     @State private var changingPassword = false
-    /// Висота смуги статусу: хедер додає її сам, як на головній.
-    @State private var statusBar: CGFloat = Space.xxl
     @State private var birthDate = Calendar.current.date(byAdding: .year, value: -Int(SafetyRules.shared.MIN_SIGNUP_AGE), to: Date()) ?? Date()
     private let latestBirthDate = Calendar.current.date(byAdding: .year, value: -Int(SafetyRules.shared.MIN_SIGNUP_AGE), to: Date()) ?? Date()
     private let earliestBirthDate = Calendar.current.date(byAdding: .year, value: -100, to: Date()) ?? Date.distantPast
@@ -45,24 +43,21 @@ struct ProfileView: View {
         }
         // Сесії більше нема: акаунт видалено, шторці нема що показувати.
         .onChange(of: signedIn) { _, signedIn in if !signedIn { deleting = false } }
-        .ignoresSafeArea(edges: .top)
-        .tracksStatusBarInset($statusBar)
     }
 
+    /// Аватар і назва по центру, як картка акаунта в Apple Store.
     private var header: some View {
-        VStack(alignment: .leading, spacing: Space.md) {
-            PoruchIcon(glyph: PoruchIcons.person, size: 32).foregroundStyle(Palette.onBrandContainer)
-                .frame(width: 64, height: 64).background(Palette.brandContainer, in: Circle())
+        VStack(spacing: Space.md) {
+            PoruchIcon(glyph: PoruchIcons.person, size: 36).foregroundStyle(Palette.onBrandContainer)
+                .frame(width: 88, height: 88).background(Palette.brandContainer, in: Circle())
             Text(signedIn ? "Ви з нами" : "Ваші люди — поруч").font(PoruchFont.title1).titleTracking().foregroundStyle(Palette.ink)
             Text(signedIn
                  ? "Ваші створені, збережені та заплановані події — у вкладці «Мої події»."
                  : "Увійдіть, щоб зберігати цікаве, приєднуватись і створювати власні зустрічі.")
-                .font(PoruchFont.bodyText).foregroundStyle(Palette.inkSecondary)
+                .font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary).multilineTextAlignment(.center)
         }
-        .padding(.horizontal, Space.page).padding(.vertical, Space.xxl)
-        .padding(.top, statusBar)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(heroGradient)
+        .padding(.horizontal, Space.xxl).padding(.top, Space.section).padding(.bottom, Space.sm)
+        .frame(maxWidth: .infinity)
     }
 
     private var signInPrompt: some View {
@@ -121,19 +116,11 @@ struct ProfileView: View {
                 items: categories.map { ($0.0, $0.1, $0.0) },
                 isSelected: { model.state?.interests.contains($0) == true }
             ) { model.app.toggleInterest(category: $0) }
-            Button { model.app.restartOnboarding() } label: {
-                HStack(spacing: Space.md) {
-                    PoruchIcon(glyph: PoruchIcons.sparkle, size: 20).foregroundStyle(Palette.brand)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Налаштувати рекомендації").font(PoruchFont.cardName).foregroundStyle(Palette.ink)
-                        Text("Пройти опитування ще раз").font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
-                    }
-                    Spacer(minLength: 0)
-                    Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(Palette.inkTertiary)
+            GroupedRows {
+                LinkRow(symbol: "sparkles", title: "Налаштувати рекомендації", subtitle: "Пройти опитування ще раз") {
+                    model.app.restartOnboarding()
                 }
-                .padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()
-            }.buttonStyle(PressableStyle())
+            }
         }
     }
 
@@ -141,8 +128,11 @@ struct ProfileView: View {
         VStack(alignment: .leading, spacing: Space.xxl) {
             VStack(alignment: .leading, spacing: Space.md) {
                 SectionHeader(title: "Налаштування")
-                ReminderPreference()
-                LinkRow(title: "Змінити пароль", symbol: "lock", external: false) { changingPassword = true }
+                GroupedRows {
+                    ReminderPreference()
+                    Divider().overlay(Palette.hairline).padding(.leading, Space.lg)
+                    LinkRow(symbol: "lock", title: "Змінити пароль") { changingPassword = true }
+                }
             }
             SecondaryButton(title: "Вийти з облікового запису", symbol: "rectangle.portrait.and.arrow.right", tone: Palette.danger) {
                 model.app.signOut()
@@ -166,16 +156,21 @@ struct ProfileView: View {
             SectionHeader(title: "Про застосунок")
             Text("«Поряд» — події та люди у вашому місті. Мапа: MapLibre та OpenFreeMap.")
                 .font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
-            VStack(spacing: Space.sm) {
-                LinkRow(title: "Політика конфіденційності", symbol: "hand.raised", url: LegalLinks.shared.PRIVACY)
-                LinkRow(title: "Умови користування", symbol: "doc.text", url: LegalLinks.shared.TERMS)
-                LinkRow(title: "Написати в підтримку", subtitle: LegalLinks.shared.SUPPORT_EMAIL, symbol: "envelope",
-                        url: "mailto:" + LegalLinks.shared.SUPPORT_EMAIL)
+            GroupedRows {
+                LinkRow(symbol: "hand.raised", title: "Політика конфіденційності") { open(LegalLinks.shared.PRIVACY) }
+                Divider().overlay(Palette.hairline).padding(.leading, Space.lg + 40 + Space.md)
+                LinkRow(symbol: "doc.text", title: "Умови користування") { open(LegalLinks.shared.TERMS) }
+                Divider().overlay(Palette.hairline).padding(.leading, Space.lg + 40 + Space.md)
+                LinkRow(symbol: "envelope", title: "Написати в підтримку", subtitle: LegalLinks.shared.SUPPORT_EMAIL) {
+                    open("mailto:" + LegalLinks.shared.SUPPORT_EMAIL)
+                }
             }
             Text("Версія \(appVersion)")
                 .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
         }
     }
+
+    private func open(_ url: String) { if let url = URL(string: url) { UIApplication.shared.open(url) } }
 
     /// «1.0.0 (12)» з бандла: те саме число, що бачить магазин.
     private var appVersion: String {
@@ -183,36 +178,6 @@ struct ProfileView: View {
         let version = info?["CFBundleShortVersionString"] as? String ?? "—"
         let build = info?["CFBundleVersion"] as? String ?? "—"
         return "\(version) (\(build))"
-    }
-}
-
-/// Рядок-картка з посиланням назовні, як «Налаштувати рекомендації»; `external: false` — дія всередині.
-private struct LinkRow: View {
-    let title: String
-    var subtitle: String?
-    let symbol: String
-    var url: String = ""
-    var external = true
-    var action: () -> Void = {}
-    var body: some View {
-        Button {
-            if external, let url = URL(string: url) { UIApplication.shared.open(url) } else { action() }
-        } label: {
-            HStack(spacing: Space.md) {
-                Image(systemName: symbol).font(.system(size: 17, weight: .medium)).foregroundStyle(Palette.ink)
-                    .frame(width: 24)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(PoruchFont.cardName).foregroundStyle(Palette.ink)
-                    if let subtitle {
-                        Text(subtitle).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
-                    }
-                }
-                Spacer(minLength: 0)
-                Image(systemName: external ? "arrow.up.right" : "chevron.right").font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Palette.inkTertiary)
-            }
-            .padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()
-        }.buttonStyle(PressableStyle())
     }
 }
 
@@ -312,6 +277,6 @@ struct ReminderPreference: View {
             .tint(Palette.brand)
             Text(denied ? "Дозвольте сповіщення в налаштуваннях iOS." : "Нагадування за годину до початку і нові запити на участь у ваших подіях. Запити перевіряються, коли застосунок відкрито.")
                 .font(PoruchFont.caption).foregroundStyle(denied ? Palette.danger : Palette.inkTertiary)
-        }.padding(Space.lg).cardSurface()
+        }.padding(Space.lg)
     }
 }

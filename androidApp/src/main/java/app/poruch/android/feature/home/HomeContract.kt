@@ -46,6 +46,8 @@ sealed interface HomeIntent {
     data class ToggleSaved(val id: String) : HomeIntent
     data object CreateEvent : HomeIntent
     data object OpenMap : HomeIntent
+    /** Плитка категорії на головній: мапа відкривається вже з цим фільтром. */
+    data class OpenCategory(val category: String) : HomeIntent
     data object OpenProfile : HomeIntent
     /** Потяг вниз: перечитати все, як при поверненні в застосунок. */
     data object Refresh : HomeIntent

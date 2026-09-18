@@ -17,10 +17,14 @@ struct EventEditor: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            PageHeader(title: editor.editing ? "Редагування" : "Нова подія", back: { editor.persist(); dismiss() })
-            stepBar
+            wizardHeader
             ScrollView {
                 VStack(alignment: .leading, spacing: Space.lg) {
+                    // Кожен крок — одне питання великим заголовком, як в онбордингу.
+                    VStack(alignment: .leading, spacing: Space.xs) {
+                        Text(editor.step.headline).font(PoruchFont.display).displayTracking().foregroundStyle(Palette.ink)
+                        Text(editor.step.hint).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
+                    }.padding(.bottom, Space.xs)
                     switch editor.step {
                     case .about: AboutStep(form: $editor.form)
                     case .place: PlaceStep(editor: editor)
@@ -42,18 +46,20 @@ struct EventEditor: View {
         }
     }
 
-    private var stepBar: some View {
-        HStack(spacing: Space.sm) {
-            ForEach(EditorStep.allCases) { entry in
-                let reached = entry.rawValue <= editor.step.rawValue
-                VStack(alignment: .leading, spacing: Space.sm) {
-                    Capsule().fill(reached ? Palette.brand : Palette.hairline).frame(height: 4)
-                    Text(entry.title).font(PoruchFont.overline)
-                        .foregroundStyle(reached ? Palette.ink : Palette.inkTertiary)
-                }.frame(maxWidth: .infinity, alignment: .leading)
+    /// Закрити, прогрес трьома сегментами і назва режиму. Той самий ряд, що в онбордингу.
+    private var wizardHeader: some View {
+        HStack(spacing: Space.md) {
+            IconPill(symbol: "xmark", label: "Закрити", size: 40) { editor.persist(); dismiss() }
+            HStack(spacing: Space.xs) {
+                ForEach(EditorStep.allCases) { entry in
+                    Capsule().fill(entry.rawValue <= editor.step.rawValue ? Palette.brand : Palette.brandContainer).frame(height: 4)
+                }
             }
+            .accessibilityElement()
+            .accessibilityLabel("Крок \(editor.step.rawValue + 1) з \(EditorStep.allCases.count): \(editor.step.title)")
+            Text(editor.editing ? "Редагування" : "Нова подія").font(PoruchFont.button).foregroundStyle(Palette.inkSecondary)
         }
-        .padding(.horizontal, Space.page)
+        .frame(height: 56).padding(.horizontal, Space.page).padding(.top, Space.sm)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.22), value: editor.step)
     }
 
@@ -77,23 +83,19 @@ private struct AboutStep: View {
     var body: some View {
         LabelledField(label: "Назва події", text: $form.title, placeholder: "Наприклад: Вечір настільних ігор")
         LabelledField(
-            label: "Що плануєте?", text: $form.description,
+            label: "Опис", text: $form.description,
             placeholder: "Кілька речень про подію", multiline: true
         )
         VStack(alignment: .leading, spacing: Space.sm) {
-            Text("КАТЕГОРІЇ").font(PoruchFont.overline).kerning(1.2).foregroundStyle(Palette.inkTertiary)
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: Space.xs) {
-                    ForEach(categories, id: \.0) { category in
-                        CategoryTile(category: category.0, selected: form.category == category.0) {
-                            form.category = category.0
-                        }
+            Text("КАТЕГОРІЯ").font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
+            // Сітка замість стрічки: всі одинадцять видно одразу, без прокрутки вбік.
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: Space.sm), count: 3), spacing: Space.sm) {
+                ForEach(categories, id: \.0) { category in
+                    CategoryCard(category: category.0, selected: form.category == category.0) {
+                        form.category = category.0
                     }
                 }
             }
-            // Поля всередині смуги, поля сторінки знімаємо.
-            .railContentPadding()
-            .padding(.horizontal, -Space.page)
         }
     }
 }
@@ -235,7 +237,7 @@ private struct ScheduleStep: View {
         VStack(alignment: .leading, spacing: Space.sm) {
             Text(categoryName(form.category).uppercased()).font(PoruchFont.overline)
                 .foregroundStyle(categoryInk(form.category))
-            Text(form.title.isEmpty ? "Назва події" : form.title).font(PoruchFont.title2).foregroundStyle(Palette.ink)
+            Text(form.title.trimmingCharacters(in: .whitespaces).isEmpty ? "Назва події" : form.title.trimmingCharacters(in: .whitespaces)).font(PoruchFont.title2).foregroundStyle(Palette.ink)
             MetaLine(symbol: "mappin.and.ellipse", text: "\(form.city) · \(form.address)")
             MetaLine(symbol: "person.2", text: "\(form.capacity) місць")
         }.padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()

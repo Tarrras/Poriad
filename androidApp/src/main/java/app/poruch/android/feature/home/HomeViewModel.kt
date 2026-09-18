@@ -67,6 +67,10 @@ class HomeViewModel(private val app: PoruchApp) : MviViewModel<HomeState, HomeIn
         is HomeIntent.ToggleSaved -> app.toggleSaved(intent.id)
         HomeIntent.CreateEvent -> send(HomeEffect.Navigate(HomeDestination.EDITOR))
         HomeIntent.OpenMap -> send(HomeEffect.Navigate(HomeDestination.MAP))
+        is HomeIntent.OpenCategory -> {
+            app.setCategory(intent.category)
+            send(HomeEffect.Navigate(HomeDestination.MAP))
+        }
         HomeIntent.OpenProfile -> send(HomeEffect.Navigate(HomeDestination.PROFILE))
         HomeIntent.Refresh -> refresh({ refreshing }, { copy(refreshing = it) }) { app.reloadAll() }
     }

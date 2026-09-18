@@ -50,10 +50,16 @@ struct MyEventsView: View {
     }
 
     private var header: some View {
-        VStack(spacing: Space.sm) {
-            PageHeader(title: "Мої події") {
-                IconPill(symbol: "arrow.clockwise", label: "Оновити") { model.app.loadMyEvents() }
-            }
+        VStack(alignment: .leading, spacing: Space.lg) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: Space.xs) {
+                    Text("Мої події").font(PoruchFont.display).displayTracking().foregroundStyle(Palette.ink)
+                    Text(signedIn ? "Плани, власні зустрічі й збережене в одному місці" : "Увійдіть, щоб бачити свої плани")
+                        .font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
+                }
+                Spacer(minLength: Space.sm)
+                if signedIn { IconPill(symbol: "arrow.clockwise", label: "Оновити") { model.app.loadMyEvents() } }
+            }.padding(.horizontal, Space.page)
             if signedIn {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: Space.sm) {
@@ -61,12 +67,10 @@ struct MyEventsView: View {
                             Chip(label: entry.title, selected: tab == entry) { tab = entry }
                         }
                     }
-                }.railContentPadding()
+                }.railContentPadding(spread: 0)
             }
         }
-        .padding(.bottom, Space.md)
-        // Фон під смугу статусу, вміст під нею, інакше над градієнтом холодна смуга.
-        .background(heroGradient.ignoresSafeArea(edges: .top))
+        .padding(.top, Space.xl).padding(.bottom, Space.md)
     }
 
     @ViewBuilder private var content: some View {
@@ -86,16 +90,20 @@ struct MyEventsView: View {
             }
         } else {
             ScrollView {
-                LazyVStack(spacing: Space.lg) {
-                    BannerCard(title: "Маєте ідею зустрічі?", subtitle: "Опублікуйте подію за три кроки") { creating = true }
-                    ForEach(visible, id: \.id) { event in
-                        EventCard(
-                            event: event,
-                            saved: model.savedIDs.contains(event.id),
-                            waitlisted: model.waitlistedIDs.contains(event.id)
-                        ) {
-                            model.app.selectEvent(id: event.id); openEvent(event.id)
+                VStack(alignment: .leading, spacing: Space.xxl) {
+                    // Один груповий список компактних рядків: тут переглядають своє, а не обирають чуже.
+                    GroupedRows {
+                        ForEach(Array(visible.enumerated()), id: \.element.id) { position, event in
+                            Button { model.app.selectEvent(id: event.id); openEvent(event.id) } label: {
+                                EventRow(event: event).padding(.horizontal, Space.lg)
+                            }.buttonStyle(PressableStyle(pressedScale: 1))
+                            if position < visible.count - 1 {
+                                Divider().overlay(Palette.hairline).padding(.leading, Space.lg + 60 + Space.md)
+                            }
                         }
+                    }
+                    GroupedRows {
+                        LinkRow(symbol: "sparkles", title: "Маєте ідею зустрічі?", subtitle: "Опублікуйте подію за три кроки") { creating = true }
                     }
                 }.padding(.horizontal, Space.page).padding(.vertical, Space.md)
             }

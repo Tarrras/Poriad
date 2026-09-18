@@ -105,7 +105,7 @@
   <string name="already_registered">Уже зареєстровані?</string>
   <string name="step">Крок %1$d із 3</string>
   <string name="title">Назва події</string>
-  <string name="description">Що плануєте?</string>
+  <string name="description">Опис</string>
   <string name="address">Адреса та місце зустрічі</string>
   <string name="point_help">Натисніть і утримуйте точку на мапі, щоб обрати місце. Або введіть координати вручну.</string>
   <string name="latitude">Широта</string>
@@ -218,6 +218,25 @@
   <string name="all_events_section">Усі події поруч</string>
   <string name="browse_categories">Категорії</string>
   <string name="picked_for_you">Для вас</string>
+  <string name="more_for_you">Ще для вас</string>
+  <string name="today_eyebrow">Сьогодні</string>
+  <string name="home_organize">Організувати</string>
+  <string name="home_explore">Дослідити</string>
+  <string name="on_map">На мапі</string>
+  <string name="home_next">Далі</string>
+  <string name="editor_mode_new">Нова подія</string>
+  <string name="editor_mode_edit">Редагування</string>
+  <string name="category_single">Категорія</string>
+  <string name="editor_about_title">Що плануєте?</string>
+  <string name="editor_about_hint">Назва, кілька речень і категорія — за цим подію знайдуть.</string>
+  <string name="editor_place_title">Де зустрічаємось?</string>
+  <string name="editor_place_hint">Адреса або точка на мапі. Її побачать усі, хто відкриє подію.</string>
+  <string name="editor_schedule_title">Коли і для кого?</string>
+  <string name="editor_schedule_hint">Час, місткість і хто може приєднатись.</string>
+  <string name="auth_tab_login">Вхід</string>
+  <string name="auth_tab_signup">Реєстрація</string>
+  <string name="my_events_subtitle">Плани, власні зустрічі й збережене в одному місці</string>
+  <string name="calendar_short">Календар</string>
   <string name="picked_for_you_hint">Дібрано за вашими відповідями</string>
 
   <string name="onboarding_welcome_title">Знайомимось</string>

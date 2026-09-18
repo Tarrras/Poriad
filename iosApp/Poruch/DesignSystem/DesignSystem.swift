@@ -34,45 +34,47 @@ private func blend(_ a: UInt32, _ b: UInt32, _ t: CGFloat) -> UIColor {
     )
 }
 
-/// Теплий папір, білі картки над ним, майже чорні дії.
+/// Світла тема — прохолодний сірий фон і білі картки без рамок (Apple Store); темна — майже
+/// чорне полотно й напівпрозорі картки з тонкою світлою лінією (Moonly). Дії майже чорні / білі.
 enum Palette {
-    static let brand = Color(light: 0x14130F, dark: 0xF5F3EE)
-    static let brandPressed = Color(light: 0x32302A, dark: 0xD9D6CE)
-    static let brandContainer = Color(light: 0xEAE7DE, dark: 0x2A2823)
-    static let onBrandContainer = Color(light: 0x14130F, dark: 0xF5F3EE)
-    static let onBrand = Color(light: 0xFBFAF7, dark: 0x14130F)
+    static let brand = Color(light: 0x1D1D1F, dark: 0xF5F5F7)
+    static let brandPressed = Color(light: 0x3A3A3C, dark: 0xD1D1D6)
+    static let brandContainer = Color(light: 0xE8E8ED, dark: 0x2C2C33)
+    static let onBrandContainer = Color(light: 0x1D1D1F, dark: 0xF5F5F7)
+    static let onBrand = Color(light: 0xFFFFFF, dark: 0x1D1D1F)
 
-    static let accent = Color(light: 0xD9603A, dark: 0xEE8B63)
-    static let accentContainer = Color(light: 0xFBE7DE, dark: 0x40251A)
-    static let onAccentContainer = Color(light: 0x7A2E14, dark: 0xFBDACB)
+    static let accent = Color(light: 0xE0582F, dark: 0xFF8A5B)
+    static let accentContainer = Color(light: 0xFDE7DF, dark: 0x3F2419)
+    static let onAccentContainer = Color(light: 0x7A2E14, dark: 0xFFD9C8)
 
-    static let success = Color(light: 0x2F7D4F, dark: 0x5CBF85)
-    static let successContainer = Color(light: 0xDFF0E3, dark: 0x17301F)
-    static let onSuccessContainer = Color(light: 0x1B4C2F, dark: 0xBFE8CD)
+    static let success = Color(light: 0x2E7D4F, dark: 0x5DC389)
+    static let successContainer = Color(light: 0xDFF3E6, dark: 0x16311F)
+    static let onSuccessContainer = Color(light: 0x1B4C2F, dark: 0xBFEBD0)
 
-    static let danger = Color(light: 0xB3402B, dark: 0xE9705A)
-    static let dangerContainer = Color(light: 0xF8E1DC, dark: 0x3A1A15)
+    static let danger = Color(light: 0xC0392B, dark: 0xFF6B5B)
+    static let dangerContainer = Color(light: 0xFBE3E0, dark: 0x3C1A16)
 
-    static let ink = Color(light: 0x14130F, dark: 0xF5F3EE)
-    static let inkSecondary = Color(light: 0x6B675E, dark: 0xA8A398)
-    static let inkTertiary = Color(light: 0x9A958A, dark: 0x7C776C)
+    static let ink = Color(light: 0x1D1D1F, dark: 0xF5F5F7)
+    static let inkSecondary = Color(light: 0x6E6E73, dark: 0xA1A1A8)
+    static let inkTertiary = Color(light: 0x98989D, dark: 0x6E6E76)
 
-    static let surface = Color(light: 0xFFFFFF, dark: 0x1F1E1B)
-    /// Піднята картка на чорному: лише світліша заливка читається як «ближче».
-    static let surfaceRaised = Color(light: 0xFFFFFF, dark: 0x272521)
-    static let surfaceMuted = Color(light: 0xEDEBE4, dark: 0x2C2A25)
-    static let canvas = Color(light: 0xF2F0EA, dark: 0x121110)
-    static let canvasTint = Color(light: 0xEAE6DA, dark: 0x1B1A17)
+    static let surface = Color(light: 0xFFFFFF, dark: 0x17171C)
+    /// Те, що плаває над темним полотном, світліше за картку в потоці.
+    static let surfaceRaised = Color(light: 0xFFFFFF, dark: 0x202027)
+    static let surfaceMuted = Color(light: 0xF2F2F7, dark: 0x26262E)
+    static let canvas = Color(light: 0xF5F5F7, dark: 0x0B0B0F)
+    static let canvasTint = Color(light: 0xEBEBF0, dark: 0x141419)
 
-    /// Тепле світло вгорі шапки, згасає в папір.
-    static let heroTop = Color(light: 0xF4E7D8, dark: 0x272119)
-    static let heroBottom = Color(light: 0xF2F0EA, dark: 0x121110)
+    /// Шапка тепер того ж тону, що й полотно: екран — один спокійний аркуш.
+    static let heroTop = Color(light: 0xF5F5F7, dark: 0x0B0B0F)
+    static let heroBottom = Color(light: 0xF5F5F7, dark: 0x0B0B0F)
 
-    /// Тіні коричнево-чорні: сіра на теплому папері виглядає як бруд. У темній темі альфа нуль.
-    static let shadowSpot = Color(light: 0x2A2016, dark: 0x000000, lightAlpha: 0.20, darkAlpha: 0)
-    static let shadowAmbient = Color(light: 0x2A2016, dark: 0x000000, lightAlpha: 0.10, darkAlpha: 0)
+    /// Тінь є лише в того, що плаває (таббар, карусель): мʼяка, нейтральна, майже непомітна.
+    static let shadowSpot = Color(light: 0x000000, dark: 0x000000, lightAlpha: 0.10, darkAlpha: 0.40)
+    static let shadowAmbient = Color(light: 0x000000, dark: 0x000000, lightAlpha: 0.06, darkAlpha: 0.30)
 
-    static let hairline = Color(light: 0xE5E1D6, dark: 0x33302B)
+    /// Розділювачі у світлій темі; у темній — ще й край картки.
+    static let hairline = Color(light: 0xE5E5EA, dark: 0x2A2A33)
 }
 
 /// Глибокий відтінок категорії для гліфів і тексту; пастель для плиток і пінів робиться з нього.
@@ -151,18 +153,12 @@ func categoryGradient(_ category: String) -> LinearGradient {
 /// Заливка шапки: тепле світло вгорі, папір унизу.
 let heroGradient = LinearGradient(colors: [Palette.heroTop, Palette.heroBottom], startPoint: .top, endPoint: .bottom)
 
-/// Головна дія: заливка чорнилом зі світлою ниткою по верхньому краю.
-let brandGradient = LinearGradient(
-    colors: [
-        Color(UIColor { $0.userInterfaceStyle == .dark ? blend(0xF5F3EE, 0xFFFFFF, 0.22) : blend(0x14130F, 0x4A463D, 0.22) }),
-        Palette.brand
-    ],
-    startPoint: .top, endPoint: .bottom
-)
+/// Головна дія: рівна заливка чорнилом. Градієнт лишився типом, щоб місця виклику не змінювались.
+let brandGradient = LinearGradient(colors: [Palette.brand, Palette.brand], startPoint: .top, endPoint: .bottom)
 
-/// Тон поверх власного контейнера: бейджі й плитки гліфів читаються як об'єкти, а не плями.
+/// Бейдж — рівна заливка контейнера. Градієнт лишився типом, щоб місця виклику не змінювались.
 func toneGradient(_ container: Color, _ tone: Color) -> LinearGradient {
-    LinearGradient(colors: [container, tone.opacity(0.16)], startPoint: .top, endPoint: .bottom)
+    LinearGradient(colors: [container, container], startPoint: .top, endPoint: .bottom)
 }
 
 /// Пастель у світлій темі; у темній той самий відтінок як вуаль з низькою альфою.
@@ -171,33 +167,32 @@ func categoryWash(_ category: String) -> Color {
     return Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(rgb: hue).withAlphaComponent(0.22) : UIColor(rgb: wash) })
 }
 
-/// Два голоси: гротеск для назв, дій і даних; антиква для рядка «що це» (`descriptor`, `lead`).
-/// Обидва системні (SF Pro, New York), тож масштабуються з Dynamic Type і мають кирилицю.
+/// Один голос — SF Pro. Ієрархію несуть кегль і вага, а не зміна гарнітури чи регістру.
 enum PoruchFont {
-    static let display = Font.system(size: 32, weight: .bold)
-    static let title1 = Font.system(size: 26, weight: .bold)
-    static let title2 = Font.system(size: 19, weight: .bold)
-    static let title3 = Font.system(size: 16, weight: .semibold)
-    /// Заголовок секції малими літерами; капітель лишається там, де несе дані.
-    static let sectionTitle = Font.system(size: 17, weight: .bold)
-    /// Назви карток капітеллю.
-    static let cardName = Font.system(size: 15, weight: .bold)
-    static let bodyText = Font.system(size: 15)
-    static let subhead = Font.system(size: 14)
+    static let display = Font.system(size: 34, weight: .bold)
+    static let title1 = Font.system(size: 28, weight: .bold)
+    static let title2 = Font.system(size: 22, weight: .bold)
+    static let title3 = Font.system(size: 17, weight: .semibold)
+    /// Заголовок секції великий і жирний, як «Discover what's new».
+    static let sectionTitle = Font.system(size: 22, weight: .bold)
+    /// Назва картки звичайним регістром.
+    static let cardName = Font.system(size: 17, weight: .semibold)
+    static let bodyText = Font.system(size: 16)
+    static let subhead = Font.system(size: 15)
     static let caption = Font.system(size: 13)
-    static let label = Font.system(size: 13, weight: .medium)
-    static let button = Font.system(size: 15, weight: .semibold)
-    static let overline = Font.system(size: 11, weight: .bold)
-    /// Курсивна антиква під назвою.
-    static let descriptor = Font.system(size: 14, design: .serif).italic()
-    /// Та сама антиква прямо: лід на екрані деталей.
-    static let lead = Font.system(size: 16, design: .serif)
+    static let label = Font.system(size: 14, weight: .medium)
+    static let button = Font.system(size: 16, weight: .semibold)
+    static let overline = Font.system(size: 11, weight: .semibold)
+    /// Категорія під назвою: той самий гротеск, кольором категорії.
+    static let descriptor = Font.system(size: 13, weight: .medium)
+    /// Лід на екрані деталей.
+    static let lead = Font.system(size: 17)
 }
 
-/// Трекінг за розміром, а не за місцем виклику: великий текст стискається, капітель розріджується.
+/// Трекінг за розміром: великий текст стискається в одну форму.
 extension View {
-    func displayTracking() -> some View { kerning(-0.8) }
-    func titleTracking() -> some View { kerning(-0.6) }
+    func displayTracking() -> some View { kerning(-1.0) }
+    func titleTracking() -> some View { kerning(-0.7) }
 }
 
 enum Space {
@@ -212,35 +207,36 @@ enum Space {
 }
 
 enum Corner {
-    static let xs: CGFloat = 10
+    static let xs: CGFloat = 12
     static let sm: CGFloat = 14
-    static let md: CGFloat = 16
-    static let lg: CGFloat = 20
-    static let xl: CGFloat = 26
+    static let md: CGFloat = 18
+    static let lg: CGFloat = 24
+    static let xl: CGFloat = 28
 }
 
-/// Чотири рівні відстані від паперу: картка лежить, чип висить, таббар і карусель плавають.
-/// У темній темі тіні прозорі, глибину несе поверхня.
+/// Два рівні: усе в потоці лежить пласко (`card` = 0, картку робить лише різниця тону
+/// з полотном); плаває тільки те, що справді над екраном — таббар, карусель, банер.
 enum Elevation {
     static let flat: CGFloat = 0
-    static let card: CGFloat = 4
-    static let raised: CGFloat = 10
-    static let overlay: CGFloat = 20
+    static let card: CGFloat = 0
+    static let raised: CGFloat = 8
+    static let overlay: CGFloat = 24
 }
 
 extension View {
-    /// Дві тіні роблять об'єкт: вузька малює край дотику, широка — відстань до землі.
-    /// `tint` дає кнопці або плитці тінь власного кольору замість спільної сірої.
-    func lifted(_ elevation: CGFloat, tint: Color? = nil) -> some View {
-        shadow(color: tint ?? Palette.shadowSpot, radius: elevation / 3, y: elevation / 8)
-            .shadow(color: tint?.opacity(0.5) ?? Palette.shadowAmbient, radius: elevation, y: elevation / 2.5)
+    /// Одна мʼяка тінь, широка й бліда. Нуль — без тіні. `tint` фарбує її кольором обʼєкта.
+    @ViewBuilder func lifted(_ elevation: CGFloat, tint: Color? = nil) -> some View {
+        if elevation > 0 {
+            shadow(color: tint ?? Palette.shadowSpot, radius: elevation, y: elevation / 3)
+        } else { self }
     }
 }
 
-/// Підняття картки: дві тіні на папері, світліша поверхня і лінія в темряві.
+/// Картка: біла на сірому без рамки; у темряві — трохи світліша за полотно, з тонкою лінією по краю.
 struct CardSurface: ViewModifier {
     var radius: CGFloat = Corner.lg
     var elevation: CGFloat = Elevation.card
+    @Environment(\.colorScheme) private var scheme
     func body(content: Content) -> some View {
         content
             .background(
@@ -249,10 +245,25 @@ struct CardSurface: ViewModifier {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    // Піднятій картці досить тоншої лінії; плоскій потрібна повна.
-                    .strokeBorder(Palette.hairline.opacity(elevation > 0 ? 0.55 : 1), lineWidth: 1)
+                    .strokeBorder(Palette.hairline, lineWidth: scheme == .dark ? 1 : 0)
             )
             .lifted(elevation)
+    }
+}
+
+/// Скло під тим, що плаває над вмістом: таббар, карусель мапи. Розмиває те, що проїжджає під ним.
+struct GlassSurface: ViewModifier {
+    var radius: CGFloat = Corner.xl
+    @Environment(\.colorScheme) private var scheme
+    func body(content: Content) -> some View {
+        content
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
+            .background(Palette.surface.opacity(scheme == .dark ? 0.55 : 0.6), in: RoundedRectangle(cornerRadius: radius, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: radius, style: .continuous)
+                    .strokeBorder(scheme == .dark ? Palette.hairline : Color.white.opacity(0.6), lineWidth: 1)
+            )
+            .lifted(Elevation.overlay)
     }
 }
 
@@ -272,6 +283,7 @@ extension View {
     func cardSurface(radius: CGFloat = Corner.lg, elevation: CGFloat = Elevation.card) -> some View {
         modifier(CardSurface(radius: radius, elevation: elevation))
     }
+    func glassSurface(radius: CGFloat = Corner.xl) -> some View { modifier(GlassSurface(radius: radius)) }
     /// Фото не додає нічого до назви, тому поза деревом доступності.
     func decorative() -> some View { accessibilityHidden(true) }
 }

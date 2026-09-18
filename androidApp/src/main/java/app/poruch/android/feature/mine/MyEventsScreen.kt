@@ -3,15 +3,13 @@ package app.poruch.android.feature.mine
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.CalendarMonth
-import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -24,20 +22,29 @@ import app.poruch.android.ui.*
 fun MyEventsScreen(state: MyEventsState, onIntent: (MyEventsIntent) -> Unit) {
     val colors = Poruch.colors
     Column(Modifier.fillMaxSize().background(colors.canvas)) {
-        Column(Modifier.background(heroGradient()).statusBarsPadding()) {
-            // Гостю оновлювати нічого: списки належать акаунту.
-            PageHeader(stringResource(R.string.my_events), trailing = if (!state.signedIn) null else ({
-                IconPill(Icons.Outlined.Refresh, stringResource(R.string.refresh)) { onIntent(MyEventsIntent.Refresh) }
-            }))
+        Column(
+            Modifier.statusBarsPadding().padding(top = Spacing.xl, bottom = Spacing.md),
+            verticalArrangement = Arrangement.spacedBy(Spacing.lg)
+        ) {
+            Row(Modifier.padding(horizontal = Spacing.page), verticalAlignment = Alignment.Top) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                    Text(stringResource(R.string.my_events), style = MaterialTheme.typography.displaySmall, color = colors.ink)
+                    Text(
+                        stringResource(if (state.signedIn) R.string.my_events_subtitle else R.string.guest_empty),
+                        style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary
+                    )
+                }
+                // Гостю оновлювати нічого: списки належать акаунту.
+                if (state.signedIn) IconPill(Icons.Outlined.Refresh, stringResource(R.string.refresh)) { onIntent(MyEventsIntent.Refresh) }
+            }
             if (state.signedIn) Row(
-                Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = Spacing.page, vertical = Spacing.sm),
+                Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = Spacing.page),
                 horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
             ) {
                 MyEventsTab.entries.forEach { tab ->
                     PoruchChip(stringResource(tab.label), state.tab == tab, { onIntent(MyEventsIntent.PickTab(tab)) })
                 }
             }
-            Spacer(Modifier.height(Spacing.md))
         }
         // Гостю оновлювати нічого, тож і потягу нема.
         if (!state.signedIn) EmptyState(
@@ -56,20 +63,23 @@ fun MyEventsScreen(state: MyEventsState, onIntent: (MyEventsIntent) -> Unit) {
                     )
                 }
 
-                else -> LazyColumn(
-                    contentPadding = PaddingValues(start = Spacing.page, end = Spacing.page, top = Spacing.sm, bottom = 120.dp),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.md)
+                // Один груповий список компактних рядків: тут переглядають своє, а не обирають чуже.
+                else -> Column(
+                    Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+                        .padding(start = Spacing.page, end = Spacing.page, top = Spacing.sm, bottom = 120.dp),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.xxl)
                 ) {
-                    item {
-                        BannerCard(
-                            stringResource(R.string.create_banner_title), stringResource(R.string.create_banner_subtitle),
-                            { onIntent(MyEventsIntent.CreateEvent) }
-                        )
-                    }
-                    items(state.visible, key = { it.id }) { event ->
-                        EventCard(event, saved = event.id in state.savedIds, waitlisted = event.id in state.waitlistedIds) {
-                            onIntent(MyEventsIntent.OpenEvent(event.id))
+                    GroupedRows {
+                        state.visible.forEachIndexed { index, event ->
+                            EventRow(event) { onIntent(MyEventsIntent.OpenEvent(event.id)) }
+                            if (index < state.visible.lastIndex) HairLine(Modifier.padding(start = Spacing.lg + 60.dp + Spacing.md))
                         }
+                    }
+                    GroupedRows {
+                        LinkRow(
+                            PoruchIcons.sparkle, stringResource(R.string.create_banner_title),
+                            stringResource(R.string.create_banner_subtitle), { onIntent(MyEventsIntent.CreateEvent) }
+                        )
                     }
                 }
             }

@@ -91,10 +91,10 @@ struct EventDetailView: View {
                     .frame(height: heroHeight + max(offset, 0)).frame(maxWidth: .infinity).clipped()
                     .overlay(alignment: .bottom) {
                         LinearGradient(
-                            stops: [.init(color: .clear, location: 0), .init(color: Palette.canvas.opacity(0.75), location: 0.6),
+                            stops: [.init(color: .clear, location: 0), .init(color: Palette.canvas.opacity(0.85), location: 0.55),
                                     .init(color: Palette.canvas, location: 1)],
                             startPoint: .top, endPoint: .bottom
-                        ).frame(height: 150)
+                        ).frame(height: 240)
                     }
                     .offset(y: min(offset, 0) * heroParallax)
                     .ignoresSafeArea(edges: .top)
@@ -110,11 +110,11 @@ struct EventDetailView: View {
     @ViewBuilder
     private func sections(_ event: Event, _ view: EventDetailPresentation) -> some View {
         VStack(alignment: .leading, spacing: Space.lg) {
-            headline(event, view)
+            if let room = view.room, room.hasAgeLimit || room.approvalRequired { restrictions(room) }
+            externalActions(event, view)
             if sessions.count > 1 { sessionRail(event) }
             facts(event)
             if !view.attendees.isEmpty { roster(event, view) }
-            externalActions(event, view)
             venue(event)
             description(event)
             if view.hasChat || view.contactURL != nil { contact(view) }
@@ -214,7 +214,7 @@ private struct DetailDialogs: ViewModifier {
 }
 
 /// Висота обкладинки від краю екрана.
-private let heroHeight: CGFloat = 300
+private let heroHeight: CGFloat = 400
 /// Частка швидкості стрічки, з якою обкладинка їде вгору. Менше одиниці — паралакс.
 private let heroParallax: CGFloat = 0.5
 /// Ім'я системи координат стрічки для `reportsScrollOffset`.
@@ -227,13 +227,18 @@ extension EventDetailView {
     private func hero(_ event: Event, _ view: EventDetailPresentation) -> some View {
         Color.clear
             .frame(height: max(heroHeight - topInset, 0)).frame(maxWidth: .infinity)
-            .overlay(alignment: .bottomLeading) { badges(event, view).padding(.horizontal, Space.page) }
+            // Назва лежить на згасанні обкладинки в полотно, як у Moonly: одна сцена, а не фото з підписом.
+            .overlay(alignment: .bottomLeading) {
+                VStack(alignment: .leading, spacing: Space.md) {
+                    badges(event, view)
+                    Text(event.title).font(PoruchFont.display).displayTracking().foregroundStyle(Palette.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                }.padding(.horizontal, Space.page)
+            }
             .overlay(alignment: .top) {
                 HStack(spacing: Space.sm) {
                     ScrimButton(symbol: "chevron.left", label: "Назад") { dismiss() }
                     Spacer()
-                    ShareLink(item: SystemActions.shareText(for: event)) { ScrimGlyph(symbol: "square.and.arrow.up") }
-                        .accessibilityLabel("Поділитися")
                     ScrimButton(
                         symbol: view.saved ? "bookmark.fill" : "bookmark",
                         label: view.saved ? "Прибрати зі збережених" : "Зберегти подію"
@@ -259,17 +264,11 @@ extension EventDetailView {
         }
     }
 
-    private func headline(_ event: Event, _ view: EventDetailPresentation) -> some View {
-        VStack(alignment: .leading, spacing: Space.lg) {
-            // Для кого подія, на картці, а не через відмову сервера.
-            if let room = view.room, room.hasAgeLimit || room.approvalRequired {
-                HStack(spacing: Space.sm) {
-                    if let limit = ageLimitLabel(room) { StatusBadge(text: limit, tone: .brand, symbol: "person") }
-                    if room.approvalRequired { StatusBadge(text: "За підтвердженням", tone: .neutral, symbol: "lock") }
-                }
-            }
-            Text(event.title).font(PoruchFont.display).displayTracking().foregroundStyle(Palette.ink)
-                .fixedSize(horizontal: false, vertical: true)
+    /// Для кого подія, на картці, а не через відмову сервера.
+    private func restrictions(_ room: Gathering) -> some View {
+        HStack(spacing: Space.sm) {
+            if let limit = ageLimitLabel(room) { StatusBadge(text: limit, tone: .brand, symbol: "person") }
+            if room.approvalRequired { StatusBadge(text: "За підтвердженням", tone: .neutral, symbol: "lock") }
         }
     }
 
@@ -317,10 +316,6 @@ extension EventDetailView {
             .frame(minWidth: 96, alignment: .leading)
             .background(selected ? Palette.ink : Palette.surface,
                         in: RoundedRectangle(cornerRadius: Corner.sm, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: Corner.sm, style: .continuous)
-                    .strokeBorder(Palette.hairline, lineWidth: selected ? 0 : 1)
-            )
             .opacity(session.cancelled && !selected ? 0.6 : 1)
         }
         .buttonStyle(PressableStyle())
@@ -328,21 +323,30 @@ extension EventDetailView {
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
-    /// Факти про подію в чотирьох рядках. Останні два різні для кімнати й афіші.
-    @ViewBuilder
+    /// Факти про подію сіткою два на два, як картка дня в Moonly: підпис над значенням, без гліфів.
     private func facts(_ event: Event) -> some View {
-        VStack(spacing: Space.lg) {
-            InfoRow(symbol: "calendar", label: "КОЛИ", value: eventDate(event))
-            InfoRow(symbol: "mappin.and.ellipse", label: "ДЕ", value: [event.city, event.address].filter { !$0.isEmpty }.joined(separator: " · "))
-            if let room = event.gathering {
-                InfoRow(symbol: "person.crop.circle", label: "ОРГАНІЗАТОР", value: room.organizerName.isEmpty ? "Організатор" : room.organizerName)
-                InfoRow(symbol: "person.2", label: "МІСТКІСТЬ", value: "\(room.attendeeCount) з \(room.capacity) учасників")
+        var cells: [(String, String)] = [
+            ("Коли", eventDate(event)),
+            ("Де", [event.city, event.address].filter { !$0.isEmpty }.joined(separator: " · "))
+        ]
+        if let room = event.gathering {
+            cells.append(("Організатор", room.organizerName.isEmpty ? "Організатор" : room.organizerName))
+            cells.append(("Місткість", "\(room.attendeeCount) з \(room.capacity)"))
+        }
+        if let listing = event.listing {
+            cells.append(("Джерело", listing.sourceName))
+            cells.append(("Квитки", listingPrice(listing)))
+        }
+        return LazyVGrid(columns: [GridItem(.flexible(), alignment: .topLeading), GridItem(.flexible(), alignment: .topLeading)], spacing: Space.xl) {
+            ForEach(Array(cells.enumerated()), id: \.offset) { _, cell in
+                VStack(alignment: .leading, spacing: Space.xs) {
+                    Text(cell.0.uppercased()).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
+                    Text(cell.1).font(PoruchFont.title3).foregroundStyle(Palette.ink).fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityElement(children: .combine)
             }
-            if let listing = event.listing {
-                InfoRow(symbol: "globe", label: "ДЖЕРЕЛО", value: listing.sourceName)
-                InfoRow(symbol: "ticket", label: "КВИТКИ", value: listingPrice(listing))
-            }
-        }.padding(Space.lg).cardSurface()
+        }.padding(Space.xl).cardSurface()
     }
 
     private func roster(_ event: Event, _ view: EventDetailPresentation) -> some View {
@@ -357,14 +361,21 @@ extension EventDetailView {
         }.padding(Space.lg).cardSurface()
     }
 
+    /// Ряд круглих дій із підписами, як панель під картою дня в Moonly.
     private func externalActions(_ event: Event, _ view: EventDetailPresentation) -> some View {
-        HStack(spacing: Space.md) {
-            SecondaryButton(title: "У календар", symbol: "calendar.badge.plus", enabled: !view.cancelled) {
-                actions.requestCalendar()
-            }
-            SecondaryButton(title: "Маршрут", symbol: "arrow.triangle.turn.up.right") {
-                SystemActions.openInMaps(event)
-            }
+        HStack(spacing: Space.sm) {
+            Button { actions.requestCalendar() } label: {
+                RoundAction(title: "Календар", enabled: !view.cancelled) { Image(systemName: "calendar.badge.plus") }
+            }.buttonStyle(PressableStyle()).disabled(view.cancelled)
+            Button { SystemActions.openInMaps(event) } label: {
+                RoundAction(title: "Маршрут") { Image(systemName: "arrow.turn.up.right") }
+            }.buttonStyle(PressableStyle())
+            ShareLink(item: SystemActions.shareText(for: event)) {
+                RoundAction(title: "Поділитися") { Image(systemName: "square.and.arrow.up") }
+            }.buttonStyle(PressableStyle())
+            Button { model.app.selectEvent(id: model.app.cardIdOf(id: event.id)); dismiss(); openMap() } label: {
+                RoundAction(title: "На мапі") { Image(systemName: "map") }
+            }.buttonStyle(PressableStyle())
         }
     }
 
@@ -379,10 +390,7 @@ extension EventDetailView {
                     selectedID: event.id, interactive: false, selected: { _ in }, moved: { _ in }
                 )
                 .frame(height: 180)
-                .clipShape(RoundedRectangle(cornerRadius: Corner.sm, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: Corner.sm, style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1)
-                )
+                .clipShape(RoundedRectangle(cornerRadius: Corner.md, style: .continuous))
                 .allowsHitTesting(false)
                 StatusBadge(text: "Показати на мапі", tone: .neutral, symbol: "map").padding(Space.sm)
             }
@@ -413,7 +421,7 @@ extension EventDetailView {
                     }
                     .foregroundStyle(Palette.ink)
                     .padding(.horizontal, Space.xxl).frame(height: 52).frame(maxWidth: .infinity)
-                    .background(Palette.surfaceMuted, in: Capsule())
+                    .background(Palette.brandContainer, in: Capsule())
                 }
                 .buttonStyle(PressableStyle())
                 Text("Пишуть лише організатор і підтверджені учасники.")
@@ -435,13 +443,14 @@ extension EventDetailView {
             ForEach(view.requests, id: \.userId) { person in
                 HStack(spacing: Space.md) {
                     AvatarStack(attendees: [person], total: 1, size: 36)
+                    // Поступається імʼя, а не дії: з більшим кеглем кнопок «Прийняти» переносилось на два рядки.
                     Text(person.name.isEmpty ? "Учасник" : person.name)
-                        .font(PoruchFont.cardName).foregroundStyle(Palette.ink)
+                        .font(PoruchFont.cardName).foregroundStyle(Palette.ink).lineLimit(1)
                     Spacer(minLength: 0)
                     Button("Відхилити") { model.app.declineMember(eventId: event.id, userId: person.userId) }
-                        .font(PoruchFont.button).foregroundStyle(Palette.inkSecondary)
+                        .font(PoruchFont.button).foregroundStyle(Palette.inkSecondary).lineLimit(1).fixedSize()
                     Button("Прийняти") { model.app.approveMember(eventId: event.id, userId: person.userId) }
-                        .font(PoruchFont.button).foregroundStyle(Palette.onBrand)
+                        .font(PoruchFont.button).foregroundStyle(Palette.onBrand).lineLimit(1).fixedSize()
                         .padding(.horizontal, Space.lg).frame(height: 40)
                         .background(Palette.brand, in: Capsule())
                 }.padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()
@@ -471,8 +480,7 @@ extension EventDetailView {
                 Label("Додати або замінити фото", systemImage: "camera")
                     .font(.system(size: 15, weight: .semibold)).foregroundStyle(Palette.ink)
                     .frame(maxWidth: .infinity).frame(height: 52)
-                    .background(Palette.surface, in: Capsule())
-                    .overlay(Capsule().strokeBorder(Palette.hairline, lineWidth: 1))
+                    .background(Palette.brandContainer, in: Capsule())
             }.disabled(view.mutating)
             if let error = actions.photoError {
                 Text(error).font(PoruchFont.caption).foregroundStyle(Palette.danger)
@@ -526,7 +534,9 @@ struct CalendarSession: Identifiable {
 struct ScrimGlyph: View {
     let symbol: String
     var body: some View {
-        Image(systemName: symbol).font(.system(size: 16, weight: .semibold)).foregroundStyle(Palette.ink)
+        // Коло завжди біле, бо лежить на довільному фото, тож і гліф завжди темний: `Palette.ink`
+        // у темній темі майже білий, і кнопки «назад» та «зберегти» ставали порожніми колами.
+        Image(systemName: symbol).font(.system(size: 16, weight: .semibold)).foregroundStyle(Color(light: 0x1D1D1F, dark: 0x1D1D1F))
             .frame(width: 40, height: 40).background(.white.opacity(0.92), in: Circle())
             .overlay(Circle().strokeBorder(.black.opacity(0.06), lineWidth: 1))
     }

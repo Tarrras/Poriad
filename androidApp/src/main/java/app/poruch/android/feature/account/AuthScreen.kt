@@ -1,7 +1,6 @@
 package app.poruch.android.feature.account
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -30,6 +29,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withLink
@@ -45,19 +45,21 @@ import java.time.format.DateTimeFormatter
 fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
     val colors = Poruch.colors
     Column(Modifier.fillMaxSize().background(colors.canvas).verticalScroll(rememberScrollState()).imePadding()) {
-        // Та сама шапка, що на решті екранів.
+        // Знак застосунку й назва по центру, як вхід в Apple ID; «назад» окремо в кутку.
         Column(
-            Modifier.fillMaxWidth().background(heroGradient()).statusBarsPadding()
-                .padding(horizontal = Spacing.page).padding(bottom = Spacing.xl),
-            verticalArrangement = Arrangement.spacedBy(Spacing.md)
+            Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = Spacing.page).padding(bottom = Spacing.sm),
+            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
-            Box(
-                Modifier.padding(top = Spacing.md).size(40.dp).background(colors.surface, CircleShape)
-                    .border(1.dp, colors.hairline, CircleShape).clip(CircleShape)
-                    .clickable { onIntent(AuthIntent.Back) },
-                contentAlignment = Alignment.Center
-            ) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.back), Modifier.size(18.dp), tint = colors.ink) }
             val confirming = state.awaitingConfirmation != null
+            Box(Modifier.fillMaxWidth().padding(top = Spacing.md)) {
+                IconPill(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.back), size = 40.dp) { onIntent(AuthIntent.Back) }
+            }
+            Box(Modifier.size(72.dp).background(colors.brand, CircleShape), contentAlignment = Alignment.Center) {
+                Icon(
+                    when { confirming -> PoruchIcons.checkCircle; state.resetting -> PoruchIcons.lock; else -> PoruchIcons.pin },
+                    null, Modifier.size(32.dp), tint = colors.onBrand
+                )
+            }
             Text(
                 stringResource(
                     when {
@@ -67,7 +69,7 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
                         else -> R.string.auth_welcome
                     }
                 ),
-                style = MaterialTheme.typography.displaySmall, color = colors.ink
+                style = MaterialTheme.typography.headlineMedium, color = colors.ink, textAlign = TextAlign.Center
             )
             Text(
                 stringResource(
@@ -78,7 +80,8 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
                         else -> R.string.auth_description
                     }
                 ),
-                style = MaterialTheme.typography.bodyLarge, color = colors.inkSecondary
+                style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary, textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = Spacing.lg)
             )
         }
         if (state.awaitingConfirmation != null) {
@@ -96,6 +99,11 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
             runCatching { if (state.signup) nameField.requestFocus() else emailField.requestFocus() }
         }
         Column(Modifier.padding(Spacing.page), verticalArrangement = Arrangement.spacedBy(Spacing.lg)) {
+            // Вхід і реєстрація — два рівноправні режими, тож перемикач угорі, а не кнопка під формою.
+            SegmentedPill(
+                listOf(stringResource(R.string.auth_tab_login), stringResource(R.string.auth_tab_signup)),
+                if (state.signup) 1 else 0, { onIntent(AuthIntent.ToggleMode) }
+            )
             if (state.signup) LabelledField(
                 stringResource(R.string.name), state.name, { onIntent(AuthIntent.SetName(it)) },
                 focusRequester = nameField,
@@ -118,7 +126,8 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
             )
             LabelledField(
                 stringResource(R.string.password_label), state.password, { onIntent(AuthIntent.SetPassword(it)) },
-                hint = stringResource(R.string.password_hint),
+                // Вимогу до пароля кажемо лише тому, хто його вигадує.
+                hint = if (state.signup) stringResource(R.string.password_hint) else null,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 visualTransformation = if (state.passwordRevealed) VisualTransformation.None else PasswordVisualTransformation(),
                 trailing = {
@@ -145,22 +154,6 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
                     tone = colors.inkSecondary, enabled = !state.mutating
                 )
             }
-            // Реєстрація — друга половина екрана, а не примітка: справжня кнопка під роздільником.
-            Row(
-                Modifier.padding(top = Spacing.sm), verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(Spacing.md)
-            ) {
-                HairLine(Modifier.weight(1f))
-                Text(
-                    stringResource(if (state.signup) R.string.already_registered else R.string.no_account_yet),
-                    style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary
-                )
-                HairLine(Modifier.weight(1f))
-            }
-            SecondaryButton(
-                stringResource(if (state.signup) R.string.login else R.string.signup),
-                { onIntent(AuthIntent.ToggleMode) }, Modifier.fillMaxWidth()
-            )
         }
     }
     if (state.pickingBirthDate) BirthDateSheet(
@@ -203,8 +196,7 @@ private fun ConfirmationStep(email: String, onIntent: (AuthIntent) -> Unit) {
     val colors = Poruch.colors
     Column(Modifier.padding(Spacing.page), verticalArrangement = Arrangement.spacedBy(Spacing.lg)) {
         Column(
-            Modifier.fillMaxWidth().background(colors.surface, Radius.md).border(1.dp, colors.hairline, Radius.md)
-                .padding(Spacing.xl),
+            Modifier.fillMaxWidth().cardSurface(Radius.lg).padding(Spacing.xl),
             verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
             Box(

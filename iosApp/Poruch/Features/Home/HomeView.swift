@@ -1,10 +1,6 @@
 import SwiftUI
 import Shared
 
-/// Скільки верхнього тону тримати під смугою статусу для потягу вниз і відскоку: більше за
-/// будь-який потяг, але менше за хедер, щоб під коротким вмістом лишався папір.
-private let overscrollReserve: CGFloat = 240
-
 /// Головна: плани, сьогодні і все поруч з даних, які вже завантажила мапа.
 struct HomeView: View {
     @EnvironmentObject var model: AppModel
@@ -15,116 +11,61 @@ struct HomeView: View {
     var openEvent: (String) -> Void
     /// Прямо в чат події, минаючи деталі.
     var openChat: (Event) -> Void
-    /// Висота смуги статусу: стільки верхнього тону лежить над хедером. Див. `tracksStatusBarInset`.
-    @State private var statusBar: CGFloat = Space.xxl
 
     private var view: HomePresentation { model.home }
 
     var body: some View {
         let view = self.view
         ScrollView {
-            VStack(alignment: .leading, spacing: Space.xxl) {
+            VStack(alignment: .leading, spacing: Space.section) {
                 headerView(view)
-                // Поки шукають, дайджест сховано.
                 if view.searching {
-                    EmptyView()
-                } else if !view.signedIn {
-                    BannerCard(
-                        title: "Ваші люди — поруч",
-                        subtitle: "Увійдіть, щоб зберігати події та отримувати нагадування.",
-                        symbol: "lock", action: openProfile
-                    ).padding(.horizontal, Space.page)
+                    searchResults(view)
                 } else {
-                    // Запити вище за плани: на них чекає інша людина.
-                    if !view.requests.isEmpty { requestsSection(view) }
-                    if !view.unread.isEmpty { unreadSection(view) }
-                    VStack(alignment: .leading, spacing: Space.md) {
-                        SectionHeader(title: "Скоро у вас")
-                        if view.plans.isEmpty {
-                            VStack(alignment: .leading, spacing: Space.xs) {
-                                Text("Ще немає планів").font(PoruchFont.cardName).foregroundStyle(Palette.ink)
-                                Text("Створіть подію або приєднайтесь до чужої — вона зʼявиться тут із нагадуванням.")
-                                    .font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
-                            }
-                            .padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()
-                        } else {
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: Space.md) {
-                                    ForEach(view.plans.prefix(homePlansLimit), id: \.id) { event in
-                                        EventTile(event: event) { model.app.selectEvent(id: event.id); openEvent(event.id) }
-                                            .frame(width: 220)
-                                    }
-                                }
-                            }
-                            // Поля всередині смуги, тож смуга йде від краю до краю.
-                            .railContentPadding()
-                            .padding(.horizontal, -Space.page)
-                        }
-                    }
-                    // Горизонтальна стрічка над змінними секціями має ловити дотик раніше за них.
-                    .padding(.horizontal, Space.page).zIndex(1)
-                }
-
-                if view.isEmpty {
-                    if view.loading {
-                        ProgressView().frame(maxWidth: .infinity).padding(.vertical, Space.section)
-                    } else if view.searching {
-                        // Порожній пошук і порожня околиця ведуть до різних дій.
-                        EmptyState(
-                            symbol: "magnifyingglass", title: "Нічого не знайшлося",
-                            message: "Спробуйте інше слово або пошукайте на мапі — там можна змінити область і фільтри.",
-                            actionLabel: "Знайти на мапі", action: openMap
-                        )
+                    quickActions
+                    if !view.signedIn {
+                        BannerCard(
+                            title: "Ваші люди — поруч",
+                            subtitle: "Увійдіть, щоб зберігати події та отримувати нагадування.",
+                            symbol: "lock", action: openProfile
+                        ).padding(.horizontal, Space.page)
                     } else {
-                        EmptyState(
-                            symbol: "safari", title: "Тут поки тихо",
-                            message: "Змініть область мапи, дату або категорію — і події знайдуться.",
-                            actionLabel: "Знайти на мапі", action: openMap
-                        )
+                        // Запити вище за плани: на них чекає інша людина.
+                        if !view.requests.isEmpty { requestsSection(view) }
+                        if !view.unread.isEmpty { unreadSection(view) }
+                        if !view.plans.isEmpty { plansRail(view) }
                     }
-                } else if view.searching {
-                    section("Знайдено подій: \(view.results.count)", Array(view.results.prefix(homeResultsLimit)), view)
-                } else {
-                    if !view.suggested.isEmpty {
-                        section("Для вас", view.suggested, view, subtitle: "Дібрано за вашими відповідями")
+                    if view.isEmpty {
+                        if view.loading {
+                            ProgressView().frame(maxWidth: .infinity).padding(.vertical, Space.section)
+                        } else {
+                            EmptyState(
+                                symbol: "safari", title: "Тут поки тихо",
+                                message: "Змініть область мапи, дату або категорію — і події знайдуться.",
+                                actionLabel: "Знайти на мапі", action: openMap
+                            )
+                        }
+                    } else {
+                        digest(view)
                     }
-                    if !view.today.isEmpty {
-                        section("Сьогодні в місті", Array(view.today.prefix(homeTodayLimit)), view)
-                    }
-                    // Каталог живе на мапі, головна лише каже, який він завбільшки.
-                    if !view.rest.isEmpty { allEventsRow(view) }
-                }
-
-                if !view.searching {
-                    BannerCard(title: "Маєте ідею зустрічі?", subtitle: "Опублікуйте подію за три кроки", action: createEvent)
-                        .padding(.horizontal, Space.page)
+                    // Категорії нижче за дайджест: спершу що є, потім чим звузити. Тап відкриває мапу з фільтром.
+                    categoryRail
+                    moreRows(view)
                 }
             }.padding(.bottom, Space.section)
-            // Вміст непрозорий: усе, що не він, — тло нижче. Так проміжок потягу над хедером
-            // лишається верхнім тоном, а прокручений вміст під смугою статусу — папером.
             .background(Palette.canvas)
         }
-        // Стрічка лишається в safe area: якщо вона сама ігнорує верх, SwiftUI не показує
-        // індикатор потягу. А індикатор малюється під вмістом, тож фон хедера не може
-        // заходити в проміжок: під смугою статусу й у проміжку лежить це нерухоме тло.
         .refreshable { await model.reloadAll() }
-        .background(alignment: .top) {
-            VStack(spacing: 0) {
-                Palette.heroTop.frame(height: statusBar + overscrollReserve)
-                Palette.canvas
-            }.ignoresSafeArea()
-        }
+        .background(Palette.canvas.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
-        .tracksStatusBarInset($statusBar)
     }
 
     private func headerView(_ view: HomePresentation) -> some View {
-        VStack(alignment: .leading, spacing: Space.md) {
+        VStack(alignment: .leading, spacing: Space.lg) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: Space.xs) {
                     Text("Що поруч").font(PoruchFont.display).displayTracking().foregroundStyle(Palette.ink)
-                    Text(view.areaLabel)
-                        .font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
+                    Text(view.areaLabel).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
                 }
                 Spacer(minLength: Space.sm)
                 IconPill(symbol: "person.crop.circle", label: "Профіль", action: openProfile)
@@ -132,19 +73,126 @@ struct HomeView: View {
             SearchBar(placeholder: "Подія, місце або тема", initial: view.searchText) {
                 model.app.setSearchText(query: $0)
             }
-            // Поки шукають, ці дії сховано.
-            if !view.searching {
-                HStack(spacing: Space.sm) {
-                    Chip(label: "Створити подію", symbol: "plus", selected: true, action: createEvent)
-                    Chip(label: "Знайти на мапі", symbol: "map", selected: false, action: openMap)
-                    Spacer(minLength: 0)
+        }
+        .padding(.horizontal, Space.page).padding(.top, Space.xl)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Плитки категорій від краю до краю, як ряд продуктів в Apple Store.
+    private var categoryRail: some View {
+        VStack(alignment: .leading, spacing: Space.md) {
+            SectionHeader(title: "Категорії").padding(.horizontal, Space.page)
+            ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: Space.xs) {
+                ForEach(categories, id: \.0) { entry in
+                    CategoryTile(category: entry.0, selected: false) {
+                        model.app.setCategory(category: entry.0)
+                        openMap()
+                    }
                 }
             }
+            }
+            .railContentPadding(spread: 0)
+        }.zIndex(1)
+    }
+
+    /// Дві дії на пів ширини: створити й дослідити.
+    private var quickActions: some View {
+        HStack(spacing: Space.md) {
+            QuickActionCard(eyebrow: "Організувати", title: "Створити подію", symbol: "plus", filled: true, action: createEvent)
+            QuickActionCard(eyebrow: "Дослідити", title: "На мапі", symbol: "map", action: openMap)
+        }.padding(.horizontal, Space.page)
+    }
+
+    /// Дайджест: перша рекомендація — велика афіша, решта — горизонтальні стрічки.
+    @ViewBuilder private func digest(_ view: HomePresentation) -> some View {
+        let featured = view.suggested.first ?? view.today.first
+        let suggested = view.suggested.filter { $0.id != featured?.id }
+        let today = view.today.filter { $0.id != featured?.id }.prefix(homeTodayLimit)
+        if let featured {
+            VStack(alignment: .leading, spacing: Space.md) {
+                SectionHeader(title: view.suggested.isEmpty ? "Сьогодні в місті" : "Для вас")
+                EventHeroCard(
+                    event: featured, eyebrow: view.suggested.isEmpty ? "Сьогодні" : "Дібрано за вашими відповідями",
+                    saved: view.isSaved(featured), onSave: { model.app.toggleSaved(id: featured.id) }
+                ) { model.app.selectEvent(id: featured.id); openEvent(featured.id) }
+            }.padding(.horizontal, Space.page)
         }
-        .padding(.horizontal, Space.page).padding(.vertical, Space.xl)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        // Під смугою статусу той самий верхній тон, з якого починається градієнт (тло стрічки).
-        .background(heroGradient)
+        if !suggested.isEmpty { rail("Ще для вас", Array(suggested), view) }
+        if !today.isEmpty { rail("Сьогодні в місті", Array(today), view, action: openMap) }
+    }
+
+    /// Горизонтальна стрічка широких карток; сусідня визирає з-за краю.
+    private func rail(_ title: String, _ items: [Event], _ view: HomePresentation, action: (() -> Void)? = nil) -> some View {
+        VStack(alignment: .leading, spacing: Space.md) {
+            SectionHeader(title: title, actionLabel: action == nil ? nil : "Усі", action: action).padding(.horizontal, Space.page)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Space.md) {
+                    ForEach(items, id: \.id) { event in
+                        EventRailCard(event: event, saved: view.isSaved(event), onSave: { model.app.toggleSaved(id: event.id) }) {
+                            model.app.selectEvent(id: event.id); openEvent(event.id)
+                        }
+                    }
+                }
+            }
+            .railContentPadding(spread: 0)
+        }
+        // Горизонтальна стрічка має ловити дотик раніше за сусідів.
+        .zIndex(1)
+    }
+
+    private func plansRail(_ view: HomePresentation) -> some View {
+        VStack(alignment: .leading, spacing: Space.md) {
+            SectionHeader(title: "Скоро у вас").padding(.horizontal, Space.page)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Space.md) {
+                    ForEach(view.plans.prefix(homePlansLimit), id: \.id) { event in
+                        EventTile(event: event) { model.app.selectEvent(id: event.id); openEvent(event.id) }
+                            .frame(width: 220)
+                    }
+                }
+            }
+            .railContentPadding(spread: 0)
+        }.zIndex(1)
+    }
+
+    /// Результати пошуку одним списком.
+    @ViewBuilder private func searchResults(_ view: HomePresentation) -> some View {
+        if view.loading && view.results.isEmpty {
+            ProgressView().frame(maxWidth: .infinity).padding(.vertical, Space.section)
+        } else if view.results.isEmpty {
+            EmptyState(
+                symbol: "magnifyingglass", title: "Нічого не знайшлося",
+                message: "Спробуйте інше слово або пошукайте на мапі — там можна змінити область і фільтри.",
+                actionLabel: "Знайти на мапі", action: openMap
+            )
+        } else {
+            VStack(alignment: .leading, spacing: Space.md) {
+                SectionHeader(title: "Знайдено подій: \(view.results.count)")
+                ForEach(view.results.prefix(homeResultsLimit), id: \.id) { event in
+                    EventCard(
+                        event: event, saved: view.isSaved(event), waitlisted: view.isWaitlisted(event),
+                        onSave: { model.app.toggleSaved(id: event.id) }
+                    ) { model.app.selectEvent(id: event.id); openEvent(event.id) }
+                }
+            }.padding(.horizontal, Space.page)
+        }
+    }
+
+    /// Каталог і створення одним груповим списком: головна лише каже, куди далі.
+    private func moreRows(_ view: HomePresentation) -> some View {
+        VStack(alignment: .leading, spacing: Space.md) {
+            SectionHeader(title: "Далі")
+            GroupedRows {
+                LinkRow(
+                    symbol: "map", title: "Усі події поруч",
+                    subtitle: "На мапі можна змінити область, дату й категорію",
+                    value: view.totalFound > 0 ? "\(view.totalFound)" : nil, action: openMap
+                )
+                Divider().overlay(Palette.hairline).padding(.leading, Space.lg + 40 + Space.md)
+                LinkRow(symbol: "sparkles", title: "Маєте ідею зустрічі?", subtitle: "Опублікуйте подію за три кроки", action: createEvent)
+            }
+        }.padding(.horizontal, Space.page)
     }
 
     /// Мої події, де хтось проситься. Тап веде на подію: відповідають там, дивлячись на неї.
@@ -209,48 +257,5 @@ struct HomeView: View {
         if last == 1 && tens != 11 { return "\(count) запит" }
         if (2...4).contains(last) && !(12...14).contains(tens) { return "\(count) запити" }
         return "\(count) запитів"
-    }
-
-    /// Кількість подій в області і перехід до каталогу.
-    private func allEventsRow(_ view: HomePresentation) -> some View {
-        Button(action: openMap) {
-            HStack(spacing: Space.md) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Усі події поруч").font(PoruchFont.cardName).foregroundStyle(Palette.ink)
-                    Text("На мапі можна змінити область, дату й категорію")
-                        .font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
-                        .multilineTextAlignment(.leading)
-                }
-                Spacer(minLength: Space.sm)
-                Text("\(view.totalFound)").font(PoruchFont.title2).foregroundStyle(Palette.ink)
-                    .monospacedDigit()
-                Image(systemName: "arrow.right").font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(Palette.inkSecondary)
-            }
-            .padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()
-        }
-        .buttonStyle(PressableStyle())
-        .accessibilityLabel("Усі події поруч: \(view.totalFound). Показати на мапі")
-        .padding(.horizontal, Space.page)
-    }
-
-    @ViewBuilder private func section(
-        _ title: String, _ items: [Event], _ view: HomePresentation, subtitle: String? = nil
-    ) -> some View {
-        VStack(alignment: .leading, spacing: Space.md) {
-            VStack(alignment: .leading, spacing: Space.xs) {
-                SectionHeader(title: title, actionLabel: subtitle == nil ? "Усі" : nil, action: openMap)
-                // Рекомендація каже, чому вона рекомендація.
-                if let subtitle {
-                    Text(subtitle).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
-                }
-            }
-            ForEach(items, id: \.id) { event in
-                EventCard(
-                    event: event, saved: view.isSaved(event), waitlisted: view.isWaitlisted(event),
-                    onSave: { model.app.toggleSaved(id: event.id) }
-                ) { model.app.selectEvent(id: event.id); openEvent(event.id) }
-            }
-        }.padding(.horizontal, Space.page)
     }
 }

@@ -60,6 +60,21 @@ enum EditorStep: Int, CaseIterable, Identifiable {
         case .schedule: "Час і місця"
         }
     }
+    /// Питання кроку великим заголовком.
+    var headline: String {
+        switch self {
+        case .about: "Що плануєте?"
+        case .place: "Де зустрічаємось?"
+        case .schedule: "Коли і для кого?"
+        }
+    }
+    var hint: String {
+        switch self {
+        case .about: "Назва, кілька речень і категорія — за цим подію знайдуть."
+        case .place: "Адреса або точка на мапі. Її побачать усі, хто відкриє подію."
+        case .schedule: "Час, місткість і хто може приєднатись."
+        }
+    }
     var isLast: Bool { self == .schedule }
 }
 
@@ -68,6 +83,8 @@ enum EditorStep: Int, CaseIterable, Identifiable {
     @Published var form = EditorForm()
     @Published var step = EditorStep.about
     @Published private(set) var submitted = false
+    /// Подію збережено, чернетку стерто: більше нічого не пишемо.
+    private var finished = false
     /// Пояс визначено за місцем події, а не взято з пристрою.
     @Published private(set) var timeZoneFromPlace = false
     /// Підказки адрес: людина набирає вулицю й будинок, крапку ставить застосунок.
@@ -219,6 +236,9 @@ enum EditorStep: Int, CaseIterable, Identifiable {
     /// Стор підтвердив запис: чернетка більше не потрібна.
     func finish() {
         UserDefaults.standard.removeObject(forKey: storageKey)
+        // Після цього екран закривається, і `onDisappear` кличе `persist`: без прапорця він
+        // записував щойно опубліковану форму назад, і наступне «+» відкривало ту саму подію.
+        finished = true
         submitted = false
         app.clearCompletedEvent()
     }
@@ -236,7 +256,7 @@ enum EditorStep: Int, CaseIterable, Identifiable {
 
     func persist() {
         pendingSave?.cancel(); pendingSave = nil
-        guard !submitted, let data = try? encoder.encode(form) else { return }
+        guard !submitted, !finished, let data = try? encoder.encode(form) else { return }
         UserDefaults.standard.set(data, forKey: storageKey)
     }
 
