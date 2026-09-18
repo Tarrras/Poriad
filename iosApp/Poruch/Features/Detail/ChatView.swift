@@ -169,7 +169,8 @@ struct ChatView: View {
                 }
                 Text(message.body).font(PoruchFont.bodyText).foregroundStyle(mine ? Palette.onBrand : Palette.ink)
                     .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    // Не вужче за час, щоб він не вилазив за ліве поле короткого «Так».
+                    .frame(minWidth: 36, alignment: .leading)
                     .overlay(alignment: .bottomTrailing) {
                         // Час у кутку, під останнім рядком, як у месенджерах.
                         Text(clock(message.createdAt)).font(.system(size: 11))
@@ -181,9 +182,10 @@ struct ChatView: View {
             .padding(.horizontal, Space.md).padding(.top, Space.sm).padding(.bottom, Space.sm)
             .background(mine ? Palette.brand : Palette.surface, in: BubbleShape(mine: mine, continued: continued))
             .overlay(BubbleShape(mine: mine, continued: continued).strokeBorder(mine ? .clear : Palette.hairline, lineWidth: 1))
-            .fixedSize(horizontal: true, vertical: false)
             // Рамка обмежує ширину, а не задає її: своє тулиться до правого краю, чуже — до лівого.
+            // Текст переноситься в межах пропозиції; пріоритет — щоб відступ забрав решту, а не половину.
             .frame(maxWidth: 300, alignment: mine ? .trailing : .leading)
+            .layoutPriority(1)
             .contextMenu {
                 Button { UIPasteboard.general.string = message.body } label: { Label("Скопіювати", systemImage: "doc.on.doc") }
                 if message.authorId != userId {
