@@ -42,13 +42,15 @@ struct SearchField: View {
 /// Інакше кожна літера перемальовувала весь екран разом із мапою.
 struct SearchBar: View {
     let placeholder: String
-    /// Початковий текст. Читається один раз.
+    /// Текст зі спільного стану. Поле бере його при створенні й коли він змінився ззовні.
     let initial: String
     var activeFilters: Int = 0
     var onFilters: (() -> Void)?
     let onSettled: (String) -> Void
 
     @State private var text: String
+    /// Що поле саме віддало нагору. Повернення цього ж значення — луна, а не зміна ззовні.
+    @State private var sent: String
 
     init(
         placeholder: String,
@@ -63,11 +65,18 @@ struct SearchBar: View {
         self.onFilters = onFilters
         self.onSettled = onSettled
         _text = State(initialValue: initial)
+        _sent = State(initialValue: initial)
     }
 
     var body: some View {
         SearchField(text: $text, placeholder: placeholder, activeFilters: activeFilters, onFilters: onFilters)
-            .onSettled(text, after: .milliseconds(searchSettle), perform: onSettled)
+            .onSettled(text, after: .milliseconds(searchSettle)) { sent = $0; onSettled($0) }
+            // Пошук спільний: текст, набраний на іншій вкладці, мусить з'явитися й тут, інакше фільтр
+            // діє невидимо. Власну луну пропускаємо, щоб не затерти літери, набрані поки вона йшла.
+            .onChange(of: initial) { _, value in
+                guard value != sent else { return }
+                sent = value; text = value
+            }
     }
 }
 
@@ -583,6 +592,9 @@ struct EventThumbnail: View {
                             startPoint: .top, endPoint: .bottom
                         )
                     )
+                    // `clipped` ріже лише малюнок: вертикальне фото в `scaledToFill` виходить за картку
+                    // й ловить дотики над сусідами — тап по назві відкривав наступну подію, поле пошуку глухло.
+                    .allowsHitTesting(false)
             }
         }
         .clipped()
