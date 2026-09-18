@@ -13,8 +13,10 @@ func dateLabel(_ key: String) -> String {
 }
 
 private let topControlsInset: CGFloat = 140
-private let carouselInset: CGFloat = 268
+private let carouselInset: CGFloat = 280
 private let tabBarInset: CGFloat = 92
+/// Повітря між рядком лічильника і каруселлю.
+private let deckGap: CGFloat = Space.md
 /// Скільки мапи лишаємо над повністю піднятою шторкою. Фільтри повертаються в половинному положенні.
 private let sheetTopInset: CGFloat = Space.sm
 
@@ -236,6 +238,7 @@ struct DiscoveryView: View {
                         open: { model.app.selectEvent(id: $0); detail = EventRoute(id: $0) },
                         toggleSaved: { model.app.toggleSaved(id: $0) }
                     )
+                    .padding(.top, deckGap)
                 }
             } else {
                 sheetList
@@ -274,7 +277,7 @@ struct DiscoveryView: View {
     }
 
     /// Згорнута шторка: рядок лічильника, карусель і місце під таббар.
-    private var peekHeight: CGFloat { 44 + Space.sm + mapCardHeight + tabBarInset }
+    private var peekHeight: CGFloat { 44 + deckGap + Space.sm + mapCardHeight + tabBarInset }
 
     /// Ручка шторки: тягнеться і натискається, тож список доступний і для VoiceOver.
     private var sheetHandle: some View {

@@ -254,6 +254,9 @@ struct CardSurface: ViewModifier {
 /// Скло під тим, що плаває над вмістом: таббар, карусель мапи. Розмиває те, що проїжджає під ним.
 struct GlassSurface: ViewModifier {
     var radius: CGFloat = Corner.xl
+    /// Тінь під склом просвічує крізь нього. Над однорідним тлом це непомітно, над мапою — сіра пляма.
+    /// `false` лишає мʼяку тінь лише назовні від форми: опора є, а всередину скла нічого не потрапляє.
+    var shadow = true
     @Environment(\.colorScheme) private var scheme
     func body(content: Content) -> some View {
         content
@@ -263,7 +266,26 @@ struct GlassSurface: ViewModifier {
                 RoundedRectangle(cornerRadius: radius, style: .continuous)
                     .strokeBorder(scheme == .dark ? Palette.hairline : Color.white.opacity(0.6), lineWidth: 1)
             )
-            .lifted(Elevation.overlay)
+            .background { if !shadow { OuterShadow(radius: radius) } }
+            .lifted(shadow ? Elevation.overlay : 0)
+    }
+}
+
+/// Тінь лише назовні від скругленого прямокутника: з шару тіні вирізано саму форму.
+private struct OuterShadow: View {
+    let radius: CGFloat
+    /// Наскільки тінь виходить за форму; маска має її вміщати.
+    private let reach: CGFloat = 28
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+        shape.fill(Color.black)
+            .shadow(color: Palette.shadowSpot, radius: 12, y: 4)
+            .mask {
+                Rectangle().padding(-reach)
+                    .overlay { shape.blendMode(.destinationOut) }
+                    .compositingGroup()
+            }
+            .allowsHitTesting(false)
     }
 }
 
@@ -283,7 +305,7 @@ extension View {
     func cardSurface(radius: CGFloat = Corner.lg, elevation: CGFloat = Elevation.card) -> some View {
         modifier(CardSurface(radius: radius, elevation: elevation))
     }
-    func glassSurface(radius: CGFloat = Corner.xl) -> some View { modifier(GlassSurface(radius: radius)) }
+    func glassSurface(radius: CGFloat = Corner.xl, shadow: Bool = true) -> some View { modifier(GlassSurface(radius: radius, shadow: shadow)) }
     /// Фото не додає нічого до назви, тому поза деревом доступності.
     func decorative() -> some View { accessibilityHidden(true) }
 }
