@@ -166,7 +166,11 @@ struct DiscoveryView: View {
         // Біля краю завантаженого просимо наступне вікно карток.
         .onChange(of: selectedID) { _, id in
             guard let id, !stackFocused, shownEvents.count < listEntries.count else { return }
-            guard let position = shownEvents.firstIndex(where: { $0.id == id }) else { return }
+            guard let position = shownEvents.firstIndex(where: { $0.id == id }) else {
+                // Вибір ззовні (кнопка «На мапі» в деталях) може бути за краєм вікна карток.
+                if listEntries.contains(where: { $0.id == id }) { model.app.loadCards(ids: [id]) }
+                return
+            }
             if position >= shownEvents.count - cardPrefetchAhead { loadHead(shownEvents.count + cardPage) }
         }
         // Картки просимо під категорію, яку показуємо: під фільтром вони лежать за краєм вікна.

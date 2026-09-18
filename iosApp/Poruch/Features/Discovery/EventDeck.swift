@@ -51,9 +51,17 @@ struct EventDeck: View {
                 select(value)
             }
         }
+        // Нова карусель стає на вибране, а не на першу картку: інакше перша ж позиція прокрутки
+        // обирала її і перебивала подію, з якою прийшли з деталей.
+        .onAppear { if let selectedID, events.contains(where: { $0.id == selectedID }) { carouselID = selectedID } }
         .onChange(of: selectedID) { _, value in
-            guard let value, value != carouselID else { return }
+            // Картки ще нема у вікні: прокрутка на неї не стане, а позиція лишиться чужою.
+            guard let value, value != carouselID, events.contains(where: { $0.id == value }) else { return }
             if reduceMotion { carouselID = value } else { withAnimation { carouselID = value } }
+        }
+        // Картка вибраної події доїхала пізніше за вибір.
+        .onChange(of: events.contains { $0.id == selectedID }) { _, present in
+            if present, let selectedID, selectedID != carouselID { carouselID = selectedID }
         }
         .onChange(of: resetToken) { _, _ in carouselID = nil }
         .onDisappear { settle?.cancel(); settle = nil }
