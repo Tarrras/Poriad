@@ -110,14 +110,7 @@ struct AuthView: View {
                 // Питаємо раз, при реєстрації, і нікому не показуємо: на це спираються вікові межі й модерація.
                 VStack(alignment: .leading, spacing: Space.sm) {
                     Text("ДАТА НАРОДЖЕННЯ").font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
-                    DatePicker(
-                        "", selection: $form.birthDate, in: form.earliestBirthDate...form.latestBirthDate,
-                        displayedComponents: .date
-                    )
-                    .datePickerStyle(.compact).labelsHidden().tint(Palette.brand)
-                    // У рамці поля, як решта форми: голий компактний пікер висів з власним відступом.
-                    .padding(.horizontal, Space.md).frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
-                    .background(Palette.surface, in: RoundedRectangle(cornerRadius: Corner.sm, style: .continuous))
+                    BirthDateField(date: $form.birthDate, range: form.earliestBirthDate...form.latestBirthDate)
                     Text("«Поряд» — застосунок для повнолітніх. Дату видно лише вам.")
                         .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
                 }

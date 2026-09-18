@@ -85,8 +85,7 @@ struct ProfileView: View {
             Text("Підтвердьте вік").font(PoruchFont.cardName).foregroundStyle(Palette.ink)
             Text("Ваш обліковий запис створено до того, як ми почали питати вік. Вкажіть дату народження — без неї не вийде приєднатись до події.")
                 .font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
-            DatePicker("", selection: $birthDate, in: earliestBirthDate...latestBirthDate, displayedComponents: .date)
-                .datePickerStyle(.compact).labelsHidden().tint(Palette.brand)
+            BirthDateField(date: $birthDate, range: earliestBirthDate...latestBirthDate)
             PrimaryButton(title: "Вказати дату") { model.app.declareBirthDate(birthDate: isoDay(birthDate)) }
         }
         .padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()

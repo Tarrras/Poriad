@@ -511,6 +511,40 @@ struct LabelledField<Trailing: View>: View {
     }
 }
 
+/// Дата народження в рамці поля: повна дата словами, тап розгортає барабан.
+/// Компактний `DatePicker` без мітки висів з порожнім відступом і писав рік двома цифрами.
+struct BirthDateField: View {
+    @Binding var date: Date
+    let range: ClosedRange<Date>
+    @State private var open = false
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Button { withAnimation(.snappy) { open.toggle() } } label: {
+                HStack(spacing: Space.sm) {
+                    Text(date.formatted(.dateTime.day().month(.wide).year().locale(Locale(identifier: "uk_UA"))))
+                        .font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
+                    Spacer(minLength: 0)
+                    PoruchIcon(glyph: PoruchIcons.calendar, size: 18)
+                        .foregroundStyle(open ? Palette.brand : Palette.inkSecondary)
+                }
+                .padding(.horizontal, Space.lg).frame(minHeight: 56).contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint(open ? "Згорнути вибір дати" : "Змінити дату")
+            if open {
+                DatePicker("", selection: $date, in: range, displayedComponents: .date)
+                    .datePickerStyle(.wheel).labelsHidden()
+                    .environment(\.locale, Locale(identifier: "uk_UA"))
+                    .frame(maxWidth: .infinity)
+                    .transition(.opacity)
+            }
+        }
+        .background(Palette.surface, in: RoundedRectangle(cornerRadius: Corner.sm, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: Corner.sm, style: .continuous))
+    }
+}
+
 extension LabelledField where Trailing == EmptyView {
     init(
         label: String, text: Binding<String>, placeholder: String = "",
