@@ -450,19 +450,61 @@ struct EventMap: UIViewRepresentable {
     }
 }
 
+/// Місто, де людина зараз. Як на Android: спершу останнє відоме положення (миттєво), свіже лише
+/// уточнює; назва — від системного геокодера, а не «Поруч зі мною». Свіжий вимір того самого міста
+/// не перемикає місто вдруге: інакше видача перечитувалась би без причини.
 @MainActor final class LocationFinder: NSObject, ObservableObject, @preconcurrency CLLocationManagerDelegate {
     private let manager = CLLocationManager()
-    @Published var coordinate: CLLocationCoordinate2D?
+    private let geocoder = CLGeocoder()
+    @Published var city: CityResult?
     @Published var message: String?
+    /// Назва, вже віддана в межах поточного запиту.
+    private var announced: String?
+    /// Положення просили. Система кличе `locationManagerDidChangeAuthorization` і при створенні
+    /// менеджера: без прапорця кожен екземпляр сам визначав місто, і воно перемикалось двічі.
+    private var wanted = false
     override init() { super.init(); manager.delegate = self; manager.desiredAccuracy = kCLLocationAccuracyKilometer }
     func request() {
-        if manager.authorizationStatus == .notDetermined { manager.requestWhenInUseAuthorization() }
-        else if manager.authorizationStatus == .denied || manager.authorizationStatus == .restricted { message = "Геолокація недоступна. Ви можете знайти місто вручну." }
-        else { manager.requestLocation() }
+        announced = nil
+        wanted = true
+        switch manager.authorizationStatus {
+        case .notDetermined: manager.requestWhenInUseAuthorization()
+        case .denied, .restricted: message = "Геолокація недоступна. Ви можете знайти місто вручну."
+        default: locate()
+        }
+    }
+    private func locate() {
+        // Свіжий вимір буває за десять секунд; останній відомий майже завжди вже є.
+        if let known = manager.location { resolve(known) }
+        manager.requestLocation()
     }
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        if manager.authorizationStatus == .authorizedWhenInUse || manager.authorizationStatus == .authorizedAlways { manager.requestLocation() }
+        guard wanted, manager.authorizationStatus == .authorizedWhenInUse || manager.authorizationStatus == .authorizedAlways else { return }
+        locate()
     }
-    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) { coordinate = locations.last?.coordinate }
-    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) { message = "Не вдалося визначити місце. Скористайтеся пошуком міста." }
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        if let last = locations.last { resolve(last) }
+    }
+    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        // Останній відомий уже спрацював: мовчимо.
+        if announced == nil { message = "Не вдалося визначити місце. Скористайтеся пошуком міста." }
+    }
+
+    private func resolve(_ location: CLLocation) {
+        geocoder.cancelGeocode()
+        geocoder.reverseGeocodeLocation(location, preferredLocale: Locale(identifier: "uk_UA")) { [weak self] places, error in
+            Task { @MainActor in
+                guard let self else { return }
+                // Скасоване наступним виміром — не відповідь.
+                if (error as? CLError)?.code == .geocodeCanceled { return }
+                let locality = places?.first?.locality.flatMap { $0.isEmpty ? nil : $0 }
+                // Геокодер змовчав, а місто вже є: заглушка його не перебиває.
+                if locality == nil && self.announced != nil { return }
+                let name = locality ?? "Поруч зі мною"
+                guard name != self.announced else { return }
+                self.announced = name
+                self.city = CityResult(name: name, latitude: location.coordinate.latitude, longitude: location.coordinate.longitude)
+            }
+        }
+    }
 }

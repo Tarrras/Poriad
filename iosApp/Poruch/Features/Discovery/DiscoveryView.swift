@@ -186,9 +186,9 @@ struct DiscoveryView: View {
             }
                 .presentationDetents([.large]).presentationDragIndicator(.visible)
         }
-        .onReceive(location.$coordinate) { coordinate in
-            if let coordinate {
-                model.app.selectCity(city: CityResult(name: "Поруч зі мною", latitude: coordinate.latitude, longitude: coordinate.longitude))
+        .onReceive(location.$city) { city in
+            if let city {
+                model.app.selectCity(city: city)
                 region = nil
             }
         }
