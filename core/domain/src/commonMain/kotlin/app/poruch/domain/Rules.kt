@@ -131,6 +131,8 @@ object DiscoveryRules {
     const val SEARCH_TEXT_LIMIT = 120
     /** Довше за набір тексту, коротше за відчуття «мапа відстає». */
     const val SEARCH_DEBOUNCE_MS = 300L
+    /** Скільки видача вважається свіжою для повернення в застосунок. Потяг униз перечитує завжди. */
+    const val RESUME_FRESH_MS = 30_000L
     /** Геокодер сторонній, тож чекаємо довше, ніж на свій пошук. */
     const val CITY_DEBOUNCE_MS = 400L
     const val MIN_CITY_QUERY = 2
@@ -161,5 +163,20 @@ data class HomeLocation(
             HomeLocation("Дніпро", 48.4647, 35.0462),
             HomeLocation("Львів", 49.8397, 24.0297)
         )
+
+        /**
+         * Місто з [covered], назване в пошуку: «харків», «у харкові», «харк». Крім [current]: текстовий
+         * пошук іде лише в межах міста, тож назва іншого міста в ньому — майже завжди прохання туди перейти.
+         * ponytail: грубий збіг за основою, «Києві» не впізнає; потрібні всі відмінки — нехай геопошук.
+         */
+        fun mentioned(query: String, current: String): HomeLocation? {
+            val words = query.lowercase().split(Regex("[^\\p{L}'’]+")).filter { it.isNotEmpty() }
+            if (words.isEmpty()) return null
+            return covered.firstOrNull { place ->
+                val city = place.city.lowercase()
+                val stem = city.take(maxOf(3, city.length - 2))
+                place.city != current && words.any { it.startsWith(stem) || (it.length >= 3 && city.startsWith(it)) }
+            }
+        }
     }
 }

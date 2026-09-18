@@ -11,6 +11,9 @@ internal class Reloader(private val discovery: DiscoveryEngine, private val libr
     /** Те саме плюс відкрита подія: за час у фоні могли прийти запити, відповіді й повідомлення. */
     fun all() { lists(); library.openEventId?.let { library.select(it, full = true) } }
 
+    /** Повернення в застосунок: як [all], але свіжу видачу не перепитуємо. */
+    fun resumed() { discovery.refreshIfStale(); library.load(); library.openEventId?.let { library.select(it, full = true) } }
+
     /** Усе, чого могла торкнутися зміна [id]. Відкриту подію — повним запитом: змінились учасники й членство. */
     fun changed(id: String) { lists(); if (library.openEventId == id) library.select(id, full = true) }
 

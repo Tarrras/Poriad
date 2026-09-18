@@ -5,7 +5,10 @@ import Shared
 struct HomePresentation {
     let signedIn: Bool
     let cityName: String
+    /// Стрічка головної ще їде.
     let loading: Bool
+    /// Пошук головної ще їде.
+    let searchLoading: Bool
     /// Плани: організую або йду, найближчі першими.
     let plans: [Event]
     /// Мої події, де чекають запити на участь, зі скількома. Лише в організатора.
@@ -17,23 +20,22 @@ struct HomePresentation {
     let today: [Event]
     /// Решта поза дайджестом. Головна лише каже, скільки її.
     let rest: [Event]
-    /// Скільки подій в області, те саме число, що на мапі.
+    /// Скільки подій в області, без фільтрів мапи.
     let totalFound: Int
-    /// Область поставили рукою через «Шукати тут».
-    let customArea: Bool
-    /// Той самий пошук, що на мапі: другого джерела правди нема.
+    /// Пошук головної, окремий від мапи: фільтр одного екрана не порожнить інший.
     let searchText: String
-    /// Результати пошуку одним списком, без дайджесту.
+    /// Результати пошуку одним списком, без дайджесту. Лише ті, чиї картки вже приїхали.
     let results: [Event]
+    /// Скільки знайдено насправді.
+    let resultsTotal: Int
 
     var searching: Bool { !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
-    /// Що означає «поруч»: місто зі списку чи область на мапі.
-    var areaLabel: String {
-        customArea
-            ? "Плани в області, яку ви обрали на мапі"
-            : "Плани на найближчі дні у місті \(cityName)"
-    }
+    /// Місто з подіями, назване в пошуку, крім поточного: текстовий пошук іде лише в межах міста.
+    var cityMatch: HomeLocation? { searching ? HomeLocation.companion.mentioned(query: searchText, current: cityName) : nil }
+
+    /// Що означає «поруч»: завжди ціле місто. «Шукати тут» на мапі головну не звужує.
+    var areaLabel: String { "Плани на найближчі дні у місті \(cityName)" }
 
     private let savedIds: Set<String>
     private let waitlistedIds: Set<String>
@@ -41,10 +43,13 @@ struct HomePresentation {
     init(state: AppState?) {
         signedIn = state?.signedIn == true
         cityName = state?.cityName ?? HomeLocation.companion.Kyiv.city
-        loading = state?.loading == true
-        totalFound = Int(state?.totalFound ?? 0)
-        customArea = state?.customArea == true
-        searchText = state?.searchText ?? ""
+        // Своя стрічка: та сама область, що на мапі, але без її фільтрів.
+        let home = state?.home
+        loading = home?.loading == true
+        searchLoading = home?.searchLoading == true
+        totalFound = Int(home?.totalFound ?? 0)
+        resultsTotal = Int(home?.resultsTotal ?? 0)
+        searchText = home?.searchText ?? ""
         savedIds = Set(state?.savedIds ?? [])
         waitlistedIds = Set(state?.waitlistedIds ?? [])
         // І свої, і ті, куди йду: `concerns` — те саме правило, що в нагадуваннях.
@@ -54,12 +59,10 @@ struct HomePresentation {
         let mineById = Dictionary(mine.map { ($0.id, $0) }) { first, _ in first }
         unread = (state?.chatUnread ?? []).compactMap { u in mineById[u.eventId].map { UnreadChat(summary: u, event: $0) } }
 
-        // Увесь екран в одному порядку. Кожне звертання до Kotlin-списку — міст, тому читаємо раз у змінну.
-        let cards = state?.cards ?? [:]
-        let ranked = (state?.index ?? []).compactMap { cards[$0.id] }
-        suggested = Array((state?.suggestedIndex ?? [])
-            .compactMap { cards[$0.id] }
-            .prefix(homeSuggestedLimit))
+        // Увесь екран в одному порядку. Картки до індексу прив'язує спільний код: тут лише
+        // завантажені, десятки, а не тисячі записів індексу через міст.
+        let ranked = home?.events ?? []
+        suggested = Array((home?.suggested ?? []).prefix(homeSuggestedLimit))
         // Те, що вже в «Для вас», нижче не повторюємо.
         let shown = Set(suggested.map(\.id))
         let remaining = ranked.filter { !shown.contains($0.id) }
@@ -81,10 +84,10 @@ struct HomePresentation {
         today = startingToday + runningToday
         let shownToday = Set(runningToday.map(\.id))
         rest = later.filter { !shownToday.contains($0.id) }
-        results = ranked
+        results = home?.found ?? []
     }
 
-    var isEmpty: Bool { searching ? results.isEmpty : suggested.isEmpty && today.isEmpty && rest.isEmpty }
+    var isEmpty: Bool { suggested.isEmpty && today.isEmpty && rest.isEmpty }
 
     /// Запити за подіями, у порядку стрічки (свіжіші першими). Подія без картки в «моїх» пропускається.
     private static func pendingRequests(_ requests: [JoinRequest], among events: [Event]) -> [PendingRequests] {

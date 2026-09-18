@@ -147,8 +147,7 @@ class PoruchApp internal constructor(
      * Сеанси для каруселі на екрані деталей. На відміну від [sessionsOf] за id, бачить і
      * скасований сеанс, якого в індексі нема. Див. [EventSeries.sessionsOf].
      */
-    fun sessionsOf(event: Event): List<EventSession> =
-        EventSeries.sessionsOf(event, state.value.index)
+    fun sessionsOf(event: Event): List<EventSession> = state.value.sessionsOf(event)
 
     /** Id картки, під якою подія стоїть у видачі. Див. [AppState.cardIdOf]. */
     fun cardIdOf(id: String): String = state.value.cardIdOf(id)
@@ -156,7 +155,10 @@ class PoruchApp internal constructor(
     fun searchArea(south: Double, west: Double, north: Double, east: Double) =
         discovery.searchArea(south, west, north, east)
 
+    /** Пошук мапи. */
     fun setSearchText(query: String) = discovery.setSearchText(query)
+    /** Пошук головної: окремий від мапи, у тій самій області. */
+    fun setHomeSearchText(query: String) = discovery.setHomeSearchText(query)
     fun setOnlyAvailable(available: Boolean) = discovery.setOnlyAvailable(available)
     fun setCategory(category: String) = discovery.setCategory(category)
     fun setDateFilter(filter: String) = discovery.setDateFilter(filter)
@@ -197,17 +199,17 @@ class PoruchApp internal constructor(
     fun dismissEvent() = library.dismiss()
     fun loadMyEvents() = library.load()
 
-    /** Повернення на передній план: перечитує мапу, «мої» і відкриту подію. */
-    fun resume() = reloader.all()
+    /** Повернення на передній план: перечитує «мої» і відкриту подію, мапу — якщо видача не свіжа. */
+    fun resume() = reloader.resumed()
 
     // ---- Оновлення жестом
 
     /**
-     * Потяг головної вниз: перечитує те саме, що [resume], але повертається лише коли відповіді
+     * Потяг головної вниз: перечитує все, як [resume], але й свіжу видачу, і повертається лише коли відповіді
      * приїхали, щоб індикатор знав, коли сховатись. Збій не кидає: він уже в [AppState.notice].
      */
     suspend fun reloadAll() {
-        resume(); reloader.awaitAll()
+        reloader.all(); reloader.awaitAll()
     }
 
     /** Потяг «моїх подій» вниз. Див. [reloadAll]. */

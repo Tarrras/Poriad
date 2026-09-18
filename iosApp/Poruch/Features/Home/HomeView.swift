@@ -71,7 +71,7 @@ struct HomeView: View {
                 IconPill(symbol: "person.crop.circle", label: "Профіль", action: openProfile)
             }
             SearchBar(placeholder: "Подія, місце або тема", initial: view.searchText) {
-                model.app.setSearchText(query: $0)
+                model.app.setHomeSearchText(query: $0)
             }
         }
         .padding(.horizontal, Space.page).padding(.top, Space.xl)
@@ -158,7 +158,18 @@ struct HomeView: View {
 
     /// Результати пошуку одним списком.
     @ViewBuilder private func searchResults(_ view: HomePresentation) -> some View {
-        if view.loading && view.results.isEmpty {
+        if let city = view.cityMatch {
+            BannerCard(
+                title: "Показати події в місті \(city.city)",
+                subtitle: "Пошук за словом іде лише в межах міста \(view.cityName).",
+                symbol: "mappin.and.ellipse"
+            ) {
+                // Спершу текст: інакше «Харків» лишився б фільтром і в новому місті.
+                model.app.setHomeSearchText(query: "")
+                model.app.selectCity(city: CityResult(name: city.city, latitude: city.latitude, longitude: city.longitude))
+            }.padding(.horizontal, Space.page)
+        }
+        if view.searchLoading && view.results.isEmpty {
             ProgressView().frame(maxWidth: .infinity).padding(.vertical, Space.section)
         } else if view.results.isEmpty {
             EmptyState(
@@ -168,7 +179,12 @@ struct HomeView: View {
             )
         } else {
             VStack(alignment: .leading, spacing: Space.md) {
-                SectionHeader(title: "Знайдено подій: \(view.results.count)")
+                // «Усі» несе запит на мапу явно: інакше пошуки екранів незалежні.
+                SectionHeader(
+                    title: "Знайдено подій: \(max(view.resultsTotal, view.results.count))",
+                    actionLabel: view.resultsTotal > homeResultsLimit ? "Усі" : nil,
+                    action: { model.app.setSearchText(query: view.searchText); openMap() }
+                )
                 ForEach(view.results.prefix(homeResultsLimit), id: \.id) { event in
                     EventCard(
                         event: event, saved: view.isSaved(event), waitlisted: view.isWaitlisted(event),

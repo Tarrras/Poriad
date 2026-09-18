@@ -1,7 +1,9 @@
 package app.poruch.android.feature.home
 
 import app.poruch.android.mvi.MviViewModel
+import app.poruch.domain.CityResult
 import app.poruch.domain.Event
+import app.poruch.domain.HomeLocation
 import app.poruch.domain.RequestRules
 import app.poruch.shared.AppState
 import app.poruch.shared.PoruchApp
@@ -23,8 +25,11 @@ class HomeViewModel(private val app: PoruchApp) : MviViewModel<HomeState, HomeIn
         val now = Clock.System.now()
         val today = LocalDate.now(zone)
         // Увесь екран в одному порядку — ранжованому.
-        val ranked = shared.index.mapNotNull { shared.cards[it.id] }
-        val suggested = shared.suggestedIndex.mapNotNull { shared.cards[it.id] }.take(SUGGESTED_LIMIT)
+        // Своя стрічка: та сама область, що на мапі, але без її фільтрів.
+        // Картки до індексу прив'язує спільний код: тут лише завантажені, а не тисячі записів.
+        val home = shared.home
+        val ranked = home.events
+        val suggested = home.suggested.take(SUGGESTED_LIMIT)
         // Те, що вже в «Для вас», нижче не повторюємо.
         val remaining = ranked - suggested.toSet()
         // «Сьогодні» — куди можна піти сьогодні, включно з прокатами. Але те, що сьогодні
@@ -35,7 +40,7 @@ class HomeViewModel(private val app: PoruchApp) : MviViewModel<HomeState, HomeIn
         return copy(
             signedIn = shared.signedIn,
             cityName = shared.cityName,
-            loading = shared.loading,
+            loading = home.loading,
             // У планах лише те, що ще не завершилось: і свої, і ті, куди йду.
             plans = shared.myEvents
                 .filter { shared.concerns(it) && it.isPublished && it.isCurrent(now) }
@@ -45,12 +50,14 @@ class HomeViewModel(private val app: PoruchApp) : MviViewModel<HomeState, HomeIn
             suggested = suggested,
             today = onToday,
             rest = later - runningToday.toSet(),
-            totalFound = shared.totalFound,
-            customArea = shared.customArea,
+            totalFound = home.totalFound,
             savedIds = shared.savedIds,
             waitlistedIds = shared.waitlistedIds,
-            searchText = shared.searchText,
-            results = ranked
+            searchText = home.searchText,
+            results = home.found,
+            resultsTotal = home.resultsTotal,
+            searchLoading = home.searchLoading,
+            cityMatch = if (home.searching) HomeLocation.mentioned(home.searchText, shared.cityName) else null
         )
     }
 
@@ -63,10 +70,19 @@ class HomeViewModel(private val app: PoruchApp) : MviViewModel<HomeState, HomeIn
             app.selectEvent(intent.id)
             send(HomeEffect.Navigate(HomeDestination.CHAT, intent.id))
         }
-        is HomeIntent.Search -> app.setSearchText(intent.text)
+        is HomeIntent.Search -> app.setHomeSearchText(intent.text)
+        is HomeIntent.SwitchCity -> {
+            // Спершу текст: інакше назва міста лишилася б фільтром і в новому місті.
+            app.setHomeSearchText("")
+            app.selectCity(CityResult(intent.city.city, intent.city.latitude, intent.city.longitude))
+        }
         is HomeIntent.ToggleSaved -> app.toggleSaved(intent.id)
         HomeIntent.CreateEvent -> send(HomeEffect.Navigate(HomeDestination.EDITOR))
         HomeIntent.OpenMap -> send(HomeEffect.Navigate(HomeDestination.MAP))
+        HomeIntent.ShowResultsOnMap -> {
+            app.setSearchText(state.value.searchText)
+            send(HomeEffect.Navigate(HomeDestination.MAP))
+        }
         is HomeIntent.OpenCategory -> {
             app.setCategory(intent.category)
             send(HomeEffect.Navigate(HomeDestination.MAP))

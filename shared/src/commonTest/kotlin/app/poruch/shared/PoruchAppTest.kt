@@ -52,7 +52,7 @@ class PoruchAppTest {
         var results=emptyList<Event>()
         /** Скільки карток сервер кладе у відповідь одразу. Решта окремим запитом. */
         var inlineCards=Int.MAX_VALUE
-        override suspend fun discover(query:EventQuery):DiscoveryPage { queries+=query; delay(100); return page(results,inlineCards) }
+        override suspend fun discover(query:EventQuery):DiscoveryPage { queries+=query; delay(100); return page(results.filter { e -> query.text.let { it==null || it in e.title } },inlineCards) }
         override fun cached(query:EventQuery)=DiscoveryPage.Empty
         override suspend fun cards(ids:List<String>):List<Event> { cardRequests+=ids; return results.filter { it.id in ids } }
         override suspend fun details(id:String):Event? { if(failDetails) fail(AppError.ServiceUnavailable); return null }
@@ -119,7 +119,9 @@ class PoruchAppTest {
     @Test fun replacementQueryCancelsPreviousDiscovery()=runTest {
         val events=Events(); val app=app(events,backgroundScope)
         runCurrent(); app.searchArea(1.0,2.0,3.0,4.0); runCurrent()
-        assertEquals(2,events.queries.size)
+        // Скасований стартовий запит ніс і головну: вона їде сама, на цілому місті.
+        assertEquals(3,events.queries.size)
+        assertEquals(HomeLocation.Kyiv.south,events.queries[1].south)
         assertEquals(1.0,events.queries.last().south)
         advanceTimeBy(101);runCurrent()
         assertFalse(app.state.value.loading);app.close()
@@ -345,6 +347,127 @@ class PoruchAppTest {
         assertEquals("Музика",events.queries.last().text)
         assertEquals(before+1,events.queries.size);app.close()
     }
+    /** Фільтри й пошук мапи звужують лише мапу: головна лишається цілою і не перепитує сервер. */
+    @Test fun mapFiltersLeaveHomeWhole()=runTest {
+        val events=Events(); events.results=listOf(event("jazz","music","2090-01-05T19:00:00Z"),event("yoga","sport","2090-01-06T19:00:00Z"))
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
+        assertEquals(1,events.queries.size)
+        assertEquals(2,app.state.value.home.index.size)
+
+        app.setSearchText("jazz"); advanceTimeBy(1000); runCurrent()
+        app.setOnlyAvailable(true); advanceTimeBy(1000); runCurrent()
+        app.setDateFilter(DateFilter.TODAY); advanceTimeBy(1000); runCurrent()
+
+        assertEquals(listOf("jazz"),app.state.value.index.map { it.id })
+        assertEquals(setOf("jazz","yoga"),app.state.value.home.index.map { it.id }.toSet())
+        assertTrue(events.queries.drop(1).all { it.text=="jazz" },"мапа без головної: ${events.queries}")
+        assertTrue(app.state.value.home.index.all { it.id in app.state.value.cards },"картки головної пережили видачу мапи")
+        app.close()
+    }
+
+    /** Пошук головної — свій запит в тій самій області; мапа його не бачить. */
+    @Test fun homeSearchIsItsOwnQuery()=runTest {
+        val events=Events(); events.results=listOf(event("jazz","music","2090-01-05T19:00:00Z"),event("yoga","sport","2090-01-06T19:00:00Z"))
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
+
+        app.setHomeSearchText("yoga"); advanceTimeBy(1000); runCurrent()
+
+        val home=app.state.value.home
+        assertEquals(listOf("yoga"),home.results.map { it.id })
+        assertEquals(1,home.resultsTotal)
+        assertFalse(home.searchLoading)
+        assertEquals("yoga",events.queries.last().text)
+        assertEquals("",app.state.value.searchText)
+        assertEquals(2,app.state.value.index.size)
+
+        app.setHomeSearchText(""); runCurrent()
+        assertEquals(emptyList(),app.state.value.home.results)
+        app.close()
+    }
+
+    /** «Шукати тут» рухає лише мапу: головна лишається на цілому місті й не перепитує сервер. */
+    @Test fun searchHereMovesOnlyTheMap()=runTest {
+        val events=Events(); events.results=listOf(event("jazz","music","2090-01-05T19:00:00Z"),event("yoga","sport","2090-01-06T19:00:00Z"))
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(1000); runCurrent()
+        app.setHomeSearchText("yoga"); advanceTimeBy(1000); runCurrent()
+        val before=events.queries.size
+
+        app.searchArea(1.0,2.0,3.0,4.0); advanceTimeBy(1000); runCurrent()
+
+        val fresh=events.queries.drop(before)
+        assertEquals(1,fresh.size,"лише мапа: $fresh")
+        assertEquals(1.0,fresh.single().south)
+        assertTrue(app.state.value.customArea)
+        assertEquals(2,app.state.value.home.index.size)
+        assertEquals(listOf("yoga"),app.state.value.home.results.map { it.id })
+        app.close()
+    }
+
+    /** Нове місто при звуженій мапі: головна їде окремим запитом міста без фільтрів, пошук головної — теж. */
+    @Test fun newCityReloadsHomeWithoutMapFilters()=runTest {
+        val events=Events(); events.results=listOf(event("jazz","music","2090-01-05T19:00:00Z"),event("yoga","sport","2090-01-06T19:00:00Z"))
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(1000); runCurrent()
+        app.setSearchText("jazz"); advanceTimeBy(1000); runCurrent()
+        app.setHomeSearchText("yoga"); advanceTimeBy(1000); runCurrent()
+        app.searchArea(1.0,2.0,3.0,4.0); advanceTimeBy(1000); runCurrent()
+        val before=events.queries.size
+
+        val kharkiv=HomeLocation.covered.first { it.city=="Харків" }
+        app.selectCity(CityResult(kharkiv.city,kharkiv.latitude,kharkiv.longitude)); advanceTimeBy(1000); runCurrent()
+
+        val fresh=events.queries.drop(before)
+        assertEquals(setOf("jazz",null,"yoga"),fresh.map { it.text }.toSet())
+        assertTrue(fresh.all { it.south==kharkiv.south && it.north==kharkiv.north })
+        assertFalse(app.state.value.customArea)
+        assertEquals(2,app.state.value.home.index.size)
+        app.close()
+    }
+
+    /** Фільтр, поставлений до першої відповіді, не лишає головну без стрічки. */
+    @Test fun filterDuringSharedLoadStillFillsHome()=runTest {
+        val events=Events(); events.results=listOf(event("jazz","music","2090-01-05T19:00:00Z"))
+        val app=app(events,backgroundScope); runCurrent()
+        app.setOnlyAvailable(true); advanceTimeBy(1000); runCurrent()
+        assertEquals(1,app.state.value.home.index.size)
+        assertFalse(app.state.value.home.loading)
+        assertTrue(events.queries.any { !it.available })
+        app.close()
+    }
+
+    /** Мапа й головна просять той самий початок видачі: кожну картку питаємо раз. */
+    @Test fun mapAndHomeDoNotAskForTheSameCardsTwice()=runTest {
+        val events=Events(); events.results=(1..40).map { event("e%02d".format(it),"music","2090-01-01T10:00:00Z") }; events.inlineCards=0
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(1000); runCurrent()
+        val asked=events.cardRequests.flatten()
+        assertEquals(asked.distinct(),asked)
+        assertEquals(DiscoveryRules.FIRST_CARDS,app.state.value.home.events.size)
+        app.close()
+    }
+
+    /** Перечитування «моїх» без зміни смаку не пересортовує видачу: піни не перебудовуються. */
+    @Test fun reloadingMineKeepsTheIndexWhenTasteIsTheSame()=runTest {
+        val events=Events(); events.results=listOf(event("a","music","2090-01-05T19:00:00Z"),event("b","art","2090-01-06T19:00:00Z"))
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(1000); runCurrent()
+        val version=app.state.value.indexVersion
+        app.loadMyEvents(); advanceTimeBy(1000); runCurrent()
+        assertEquals(version,app.state.value.indexVersion)
+        app.close()
+    }
+
+    /** Платформа кличе resume одразу після старту: запит у дорозі не скасовується й не дублюється. */
+    @Test fun resumeRightAfterLaunchDoesNotRepeatTheSearch()=runTest {
+        val events=Events(); events.results=listOf(event("jazz","music","2090-01-05T19:00:00Z"))
+        val app=app(events,backgroundScope); runCurrent()
+        app.resume(); advanceTimeBy(1000); runCurrent()
+        app.resume(); advanceTimeBy(1000); runCurrent()
+        assertEquals(1,events.queries.size)
+        assertEquals(1,app.state.value.index.size)
+
+        backgroundScope.launch { app.reloadAll() }; advanceTimeBy(1000); runCurrent()
+        assertEquals(2,events.queries.size,"потяг униз перечитує завжди")
+        app.close()
+    }
+
     @Test fun availabilityIsPartOfServerQuery()=runTest {
         val events=Events();val app=app(events,backgroundScope)
         runCurrent();app.setOnlyAvailable(true);runCurrent()

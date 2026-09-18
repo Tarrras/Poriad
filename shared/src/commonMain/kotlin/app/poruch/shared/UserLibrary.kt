@@ -45,7 +45,7 @@ internal class UserLibrary(
         // гірший за секунду старої дати, а при 504 людина лишається з банером, а не спінером.
         val stay = known == null && state.value.let { current ->
             val open = current.selectedEvent
-            open != null && open.id != id && EventSeries.sessionsOf(open, current.index).any { it.id == id }
+            open != null && open.id != id && current.sessionsOf(open).any { it.id == id }
         }
         state.update {
             it.copy(
@@ -119,7 +119,7 @@ internal class UserLibrary(
                         chatUnread = unread.filterNot { u -> u.eventId == it.chat?.eventId },
                         account = facts, blocked = blocked,
                         taste = it.taste.copy(interests = interests)
-                    ).ranked()
+                    ).rankedIfTasteChanged(it.taste)
                 }
             } catch (e: CancellationException) {
                 throw e

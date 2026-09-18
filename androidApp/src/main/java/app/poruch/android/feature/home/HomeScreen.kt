@@ -83,10 +83,9 @@ private fun Header(state: HomeState, onIntent: (HomeIntent) -> Unit) {
         Row(verticalAlignment = Alignment.Top) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                 Text(stringResource(R.string.home_title), style = MaterialTheme.typography.displaySmall, color = colors.ink)
-                // Що означає «поруч»: місто зі списку чи область на мапі.
+                // Що означає «поруч»: завжди ціле місто. «Шукати тут» на мапі головну не звужує.
                 Text(
-                    if (state.customArea) stringResource(R.string.home_subtitle_area)
-                    else stringResource(R.string.home_subtitle, state.cityName),
+                    stringResource(R.string.home_subtitle, state.cityName),
                     style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary
                 )
             }
@@ -168,8 +167,16 @@ private fun Rail(title: String, events: List<Event>, state: HomeState, onIntent:
 @Composable
 private fun SearchResults(state: HomeState, onIntent: (HomeIntent) -> Unit) {
     val colors = Poruch.colors
+    state.cityMatch?.let { city ->
+        BannerCard(
+            stringResource(R.string.home_switch_city, city.city),
+            stringResource(R.string.home_switch_city_hint, state.cityName),
+            onClick = { onIntent(HomeIntent.SwitchCity(city)) },
+            modifier = Modifier.padding(horizontal = Spacing.page), icon = PoruchIcons.pin
+        )
+    }
     when {
-        state.isEmpty && state.loading -> Box(
+        state.isEmpty && state.busy -> Box(
             Modifier.fillMaxWidth().padding(Spacing.section), contentAlignment = Alignment.Center
         ) { CircularProgressIndicator(color = colors.ink) }
         state.isEmpty -> EmptyState(
@@ -180,9 +187,9 @@ private fun SearchResults(state: HomeState, onIntent: (HomeIntent) -> Unit) {
             Modifier.padding(horizontal = Spacing.page).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
             SectionHeader(
-                stringResource(R.string.events_found, state.results.size),
-                actionLabel = if (state.results.size > RESULTS_LIMIT) stringResource(R.string.see_all_short) else null,
-                onAction = { onIntent(HomeIntent.OpenMap) }
+                stringResource(R.string.events_found, maxOf(state.resultsTotal, state.results.size)),
+                actionLabel = if (state.resultsTotal > RESULTS_LIMIT) stringResource(R.string.see_all_short) else null,
+                onAction = { onIntent(HomeIntent.ShowResultsOnMap) }
             )
             state.results.take(RESULTS_LIMIT).forEach { event ->
                 EventCard(
