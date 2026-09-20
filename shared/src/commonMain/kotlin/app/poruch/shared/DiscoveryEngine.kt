@@ -82,6 +82,7 @@ internal class DiscoveryEngine(
             try {
                 val page = events.discover(snapshot)
                 PoruchLog.i("discovery") { "${page.total} events, ${page.cards.size} cards inline" }
+                reportEmptyCity(page.total)
                 publish(page, offline = false, failure = null, home = shared)
             } catch (e: CancellationException) {
                 throw e
@@ -111,6 +112,16 @@ internal class DiscoveryEngine(
      */
     private fun mapUnfiltered() =
         !state.value.customArea && query.text == null && !query.available && state.value.dateFilter == DateFilter.ANY
+
+    /** Міста, чию порожнечу вже звітували в цьому запуску: панорама мапи не має множити подію. */
+    private val emptyCities = mutableSetOf<String>()
+
+    /** Ризик №1 — людина відкрила місто без фільтрів і не побачила жодної події. */
+    private fun reportEmptyCity(total: Int) {
+        if (total > 0 || !mapUnfiltered() || query.category != null) return
+        val city = state.value.cityName
+        if (emptyCities.add(city)) PoruchAnalytics.track("empty_map", "city" to city)
+    }
 
     /** Запит головної: ціле місто, без фільтрів мапи. */
     private fun areaQuery() = cityArea

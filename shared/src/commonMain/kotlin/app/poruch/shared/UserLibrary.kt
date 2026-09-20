@@ -34,6 +34,7 @@ internal class UserLibrary(
      * в пам'яті або деталі справді відкрито (місця й членство могли змінитися).
      */
     fun select(id: String, full: Boolean = false) {
+        if (openEventId != id) PoruchAnalytics.track("event_view")
         openEventId = id
         detailJob?.cancel()
         // Показуємо те, що вже знаємо, поки їдуть деталі. `cards` теж: сеанс прокату, обраний

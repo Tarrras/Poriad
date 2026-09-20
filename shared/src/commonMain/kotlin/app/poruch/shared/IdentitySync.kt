@@ -32,14 +32,19 @@ internal class IdentitySync(
         library.clear(); chat.close()
         store.update {
             it.copy(
-                userId = uid, events = emptyList(), pushRegistered = false, passwordRecovery = false,
+                userId = uid,
+                events = emptyList(),
+                pushRegistered = false,
+                passwordRecovery = false,
                 completedEventId = null,
                 // Вхід або підтвердження з листа: наступний крок реєстрації вже не потрібен.
                 awaitingConfirmation = if (uid != null) null else it.awaitingConfirmation
             )
         }
         discovery.refresh()
-        if (uid != null) { library.load(); push.register() }
+        if (uid != null) {
+            library.load(); push.register()
+        }
     }
 
     /** Локальний вихід. Чистимо навіть якщо сервер відмовив: людина попросила вийти. */

@@ -1,6 +1,7 @@
 import SwiftUI
 import Shared
 import FirebaseCore
+import FirebaseAnalytics
 
 @main struct PoruchApplication: App {
     @UIApplicationDelegateAdaptor(PushDelegate.self) private var pushDelegate
@@ -8,7 +9,11 @@ import FirebaseCore
     @Environment(\.scenePhase) private var scenePhase
     init() {
         // Analytics і Crashlytics. Без GoogleService-Info.plist (збірка без ключів) Firebase не піднімаємо.
-        if Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist") != nil { FirebaseApp.configure() }
+        if Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist") != nil {
+            FirebaseApp.configure()
+            // Продуктові події зі спільного коду → Firebase. Словник — docs/analytics.md.
+            PoruchAnalytics.shared.sink = { name, params in Analytics.logEvent(name, parameters: params) }
+        }
     }
     var body: some Scene {
         WindowGroup {

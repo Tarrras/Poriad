@@ -28,7 +28,9 @@ internal class EventUseCases(
     private var pendingCreation: Pair<EventDraft, String>? = null
 
     /** Інший акаунт — чернетка вже не його. */
-    fun forgetPendingCreation() { pendingCreation = null }
+    fun forgetPendingCreation() {
+        pendingCreation = null
+    }
 
     fun join(id: String) = store.mutate {
         PoruchLog.i("action") { "joinEvent ${id.shortId()}" }
@@ -36,12 +38,14 @@ internal class EventUseCases(
         val byRequest = (store.value.selectedEvent?.takeIf { it.id == id }
             ?: store.value.events.firstOrNull { it.id == id })?.gathering?.approvalRequired == true
         actions.join(id); reloader.changed(id)
+        PoruchAnalytics.track("event_join", "by_request" to byRequest)
         store.tell(if (byRequest) AppMessage.REQUEST_SENT else AppMessage.JOINED_EVENT)
     }
 
     fun joinWaitlist(id: String) = store.mutate {
         PoruchLog.i("action") { "joinWaitlist ${id.shortId()}" }
         participation.joinWaitlist(id); reloader.changed(id); store.tell(AppMessage.JOINED_WAITLIST)
+        PoruchAnalytics.track("waitlist_join")
     }
 
     fun leaveWaitlist(id: String) = store.mutate {
@@ -77,7 +81,10 @@ internal class EventUseCases(
                 val error = e.asAppError()
                 PoruchLog.w("action") { "toggleSaved ${id.shortId()} failed: $error" }
                 store.update {
-                    it.copy(savedIds = it.savedIds.toggling(id, add = wasSaved), notice = AppNotice.Failed(error))
+                    it.copy(
+                        savedIds = it.savedIds.toggling(id, add = wasSaved),
+                        notice = AppNotice.Failed(error)
+                    )
                 }
             }
         }
@@ -94,14 +101,29 @@ internal class EventUseCases(
         PoruchLog.i("action") { "createEvent ${id.shortId()} category=${draft.category} capacity=${draft.capacity}" }
         val created = actions.create(id, draft)
         pendingCreation = null; creationIdentity?.clear()
+        PoruchAnalytics.track(
+            "event_create",
+            "category" to draft.category,
+            "approval" to draft.approvalRequired
+        )
         reloader.changed(created); library.select(created)
-        store.update { it.copy(notice = AppNotice.Told(AppMessage.EVENT_PUBLISHED), completedEventId = created) }
+        store.update {
+            it.copy(
+                notice = AppNotice.Told(AppMessage.EVENT_PUBLISHED),
+                completedEventId = created
+            )
+        }
     }
 
     fun update(id: String, draft: EventDraft) = store.mutate {
         PoruchLog.i("action") { "updateEvent ${id.shortId()} capacity=${draft.capacity}" }
         actions.update(id, draft); reloader.changed(id)
-        store.update { it.copy(notice = AppNotice.Told(AppMessage.CHANGES_SAVED), completedEventId = id) }
+        store.update {
+            it.copy(
+                notice = AppNotice.Told(AppMessage.CHANGES_SAVED),
+                completedEventId = id
+            )
+        }
     }
 
     fun uploadImage(eventId: String, bytes: ByteArray, contentType: String) = store.mutate {

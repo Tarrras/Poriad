@@ -43,5 +43,9 @@ internal class AppStore(initial: AppState, val scope: CoroutineScope) {
     }
 
     fun tell(message: AppMessage) = update { it.copy(notice = AppNotice.Told(message)) }
-    fun failed(error: AppError) = update { it.copy(notice = AppNotice.Failed(error)) }
+    fun failed(error: AppError) {
+        // Стіна входу: дія, яку гість хотів зробити, але мусив би спершу зареєструватись.
+        if (error == AppError.SessionRequired) PoruchAnalytics.track("auth_wall")
+        update { it.copy(notice = AppNotice.Failed(error)) }
+    }
 }

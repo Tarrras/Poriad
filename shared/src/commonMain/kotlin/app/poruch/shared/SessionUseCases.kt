@@ -18,6 +18,7 @@ internal class SessionUseCases(
     fun signIn(email: String, password: String) = store.mutate {
         PoruchLog.i("auth") { "sign in requested" }
         account.signIn(email, password)
+        PoruchAnalytics.track("login")
         store.tell(AppMessage.SIGNED_IN); reloader.lists()
     }
 
@@ -26,6 +27,7 @@ internal class SessionUseCases(
         PoruchLog.i("auth") { "sign up requested" }
         val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
         val signedIn = account.signUp(email, password, name, birthDate, today)
+        PoruchAnalytics.track("sign_up", "confirmed" to signedIn)
         PoruchLog.i("auth") { "sign up ${if (signedIn) "signed in immediately" else "awaiting email confirmation"}" }
         // Без сесії відповідь — не банер, а окремий крок: екран входу показує, куди пішов лист і що далі.
         if (signedIn) store.tell(AppMessage.ACCOUNT_CREATED)
