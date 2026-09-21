@@ -52,9 +52,10 @@ struct HomePresentation {
         searchText = home?.searchText ?? ""
         savedIds = Set(state?.savedIds ?? [])
         waitlistedIds = Set(state?.waitlistedIds ?? [])
-        // І свої, і ті, куди йду: `concerns` — те саме правило, що в нагадуваннях.
+        // І свої, і ті, куди йду: `concerns` — те саме правило, що в нагадуваннях. Лише те, що ще не завершилось, як на Android.
         let mine = state?.myEvents ?? []
-        plans = mine.filter { state?.concerns(event: $0) == true && $0.isPublished }.sorted { $0.startsAt < $1.startsAt }
+        let now = nowInstant()
+        plans = mine.filter { state?.concerns(event: $0) == true && $0.isPublished && $0.isCurrent(now: now) }.sorted { $0.startsAt < $1.startsAt }
         requests = HomePresentation.pendingRequests(state?.pendingRequests ?? [], among: mine)
         let mineById = Dictionary(mine.map { ($0.id, $0) }) { first, _ in first }
         unread = (state?.chatUnread ?? []).compactMap { u in mineById[u.eventId].map { UnreadChat(summary: u, event: $0) } }
@@ -70,7 +71,6 @@ struct HomePresentation {
         // починається, йде першим: прокат буде відкритий і завтра. `Calendar.current` — новий
         // об'єкт на кожне звертання, тому один на цикл.
         let calendar = Calendar.current
-        let now = nowInstant()
         var startingToday: [Event] = []
         var later: [Event] = []
         for event in remaining {

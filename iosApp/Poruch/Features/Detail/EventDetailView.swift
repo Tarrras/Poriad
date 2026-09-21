@@ -263,6 +263,8 @@ extension EventDetailView {
                 StatusBadge(text: listing.isWithdrawn ? "Більше не проводиться" : "Афіша · \(listing.sourceName)", tone: .neutral, onPhoto: true)
             }
             else if view.organizer { StatusBadge(text: "Ви організатор", tone: .neutral, onPhoto: true) }
+            // Після кінця лишається лише факт участі: черга й місця вже нічого не значать.
+            else if view.ended { if view.room?.joined == true { StatusBadge(text: "Ви були", tone: .neutral, symbol: "checkmark", onPhoto: true) } }
             else if view.room?.joined == true { StatusBadge(text: "Ви йдете", tone: .success, symbol: "checkmark", onPhoto: true) }
             else if view.waitlisted { StatusBadge(text: "У черзі", tone: .accent, symbol: "hourglass", onPhoto: true) }
             else if view.room?.awaitingApproval == true { StatusBadge(text: "Запит надіслано", tone: .accent, symbol: "hourglass", onPhoto: true) }
