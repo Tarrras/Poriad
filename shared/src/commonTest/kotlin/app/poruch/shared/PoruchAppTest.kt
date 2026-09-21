@@ -91,7 +91,7 @@ class PoruchAppTest {
             auth=auth, cityStore=cities,
             geo=object:GeoSearchRepository { override suspend fun search(query:String)=emptyList<CityResult>() },
             eventActions=EventActions(events,events,auth), accountActions=AccountActions(auth),
-            safety=safety, tasteStore=taste, scope=scope
+            safety=safety, tasteStore=taste, reminderStore=reminders, scope=scope
         )
     }
 
@@ -117,6 +117,13 @@ class PoruchAppTest {
         override fun write(taste: Taste) { stored = taste }
     }
     private var taste = Answers()
+
+    /** Прапорець нагадувань пристрою в пам'яті. */
+    private class Reminders(var on: Boolean = false): ReminderPreferenceStore {
+        override fun enabled() = on
+        override fun setEnabled(enabled: Boolean) { on = enabled }
+    }
+    private var reminders = Reminders()
 
     private fun event(id:String,category:String,startsAt:String)=Event(
         id,id,"",category,"Київ","Поділ",startsAt,startsAt,"Europe/Kyiv",
@@ -340,6 +347,15 @@ class PoruchAppTest {
         val app=app(Events(),backgroundScope)
         runCurrent();app.handleAuthCallback("poriad://auth/callback");runCurrent()
         assertTrue(app.state.value.session.passwordRecovery)
+        app.close()
+    }
+    /** Перемикач профілю пише і в стан, і на пристрій, щоб пережити перезапуск. */
+    @Test fun remindersToggleIsStoredOnTheDevice()=runTest {
+        val app=app(Events(),backgroundScope)
+        app.setRemindersEnabled(true)
+        assertTrue(app.state.value.remindersEnabled); assertTrue(reminders.on)
+        app.setRemindersEnabled(false)
+        assertFalse(app.state.value.remindersEnabled); assertFalse(reminders.on)
         app.close()
     }
     /** Вихід чистить те саме, що й зміна акаунта: раніше крок нового пароля переживав вихід. */
