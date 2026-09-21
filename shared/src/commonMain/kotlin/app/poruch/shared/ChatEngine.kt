@@ -120,3 +120,21 @@ internal class ChatEngine(
         state.update { s -> if (s.chat?.eventId == eventId) s.copy(chat = s.chat.change()) else s }
     }
 }
+
+/**
+ * Чат однієї події, поки його екран відкритий. Живе в [AppState], а не в екрані: обидві
+ * платформи слухають один стор, а опитування веде [ChatEngine].
+ */
+data class ChatState(
+    val eventId: String,
+    val messages: List<ChatMessage> = emptyList(),
+    /** Перше читання ще в дорозі. */
+    val loading: Boolean = true,
+    val sending: Boolean = false,
+    /** Сервер без міграції чату: екран каже про це замість порожнього списку. */
+    val available: Boolean = true
+)
+
+/** Тримає значення `chatUnread` без події [eventId]: чат відкрито або прочитано. */
+internal fun AppState.withoutUnread(eventId: String): AppState =
+    if (chatUnread.none { it.eventId == eventId }) this else copy(chatUnread = chatUnread.filterNot { it.eventId == eventId })
