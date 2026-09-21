@@ -15,13 +15,12 @@ import kotlinx.coroutines.launch
  * збою в [AppNotice], щоб сценарії ([EventUseCases], [SessionUseCases] тощо) писали лише суть.
  */
 internal class AppStore(initial: AppState, val scope: CoroutineScope) {
-    /** Для рушіїв, що пишуть стан напряму: [DiscoveryEngine], [UserLibrary], [ChatEngine]. */
-    val flow = MutableStateFlow(initial)
+    private val flow = MutableStateFlow(initial)
     val state: StateFlow<AppState> = flow.asStateFlow()
     val value: AppState get() = flow.value
     private var mutationJob: Job? = null
 
-    inline fun update(change: (AppState) -> AppState) = flow.update(change)
+    fun update(change: (AppState) -> AppState) = flow.update(change)
 
     /** Одна зміна за раз: другий тап під час першої — це подвійний тап, а не другий намір. */
     fun mutate(block: suspend () -> Unit) {

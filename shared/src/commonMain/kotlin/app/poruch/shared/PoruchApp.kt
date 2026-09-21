@@ -63,7 +63,7 @@ class PoruchApp internal constructor(
     )
     val state: StateFlow<AppState> get() = store.state
 
-    private val discovery = DiscoveryEngine(events, geo, store.flow, scope, startCity, compute, cityStore)
+    private val discovery = DiscoveryEngine(events, geo, store, scope, startCity, compute, cityStore)
     private val library = UserLibrary(
         events,
         saved,
@@ -74,10 +74,10 @@ class PoruchApp internal constructor(
         preferences,
         safety,
         tasteStore,
-        store.flow,
+        store,
         scope
     )
-    private val chatEngine = ChatEngine(chat, store.flow, scope)
+    private val chatEngine = ChatEngine(chat, store, scope)
     private val reloader = Reloader(discovery, library)
     private val pushSync = PushSync(push, seenRequests, seenMessages, store)
     private val places = PlaceLookup(addresses, timeZones, scope)

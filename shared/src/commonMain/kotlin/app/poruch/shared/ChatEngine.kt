@@ -2,8 +2,6 @@ package app.poruch.shared
 
 import app.poruch.domain.*
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.update
 
 /**
  * Чат однієї події, поки його екран відкритий. Без сокетів: перечитує хвіст кожні
@@ -11,7 +9,7 @@ import kotlinx.coroutines.flow.update
  */
 internal class ChatEngine(
     private val chat: EventChat,
-    private val state: MutableStateFlow<AppState>,
+    private val store: AppStore,
     private val scope: CoroutineScope
 ) {
     private var polling: Job? = null
@@ -19,14 +17,14 @@ internal class ChatEngine(
     /** Лічильник опитувань: кожне [FULL_EVERY] читає весь хвіст, щоб видалені зникали й у інших. */
     private var polls = 0
 
-    val openEventId: String? get() = state.value.chat?.eventId
+    val openEventId: String? get() = store.value.chat?.eventId
 
     fun open(eventId: String) {
         if (openEventId == eventId && polling?.isActive == true) return
         close()
         PoruchLog.i("chat") { "open ${eventId.shortId()}" }
         // Відкрили — прочитали: бейдж зникає одразу, сервер дізнається після першого читання.
-        state.update { it.copy(chat = ChatState(eventId)).withoutUnread(eventId) }
+        store.update { it.copy(chat = ChatState(eventId)).withoutUnread(eventId) }
         polls = 0
         polling = scope.launch {
             while (isActive) {
@@ -39,15 +37,15 @@ internal class ChatEngine(
     fun close() {
         polling?.cancel(); polling = null
         sending?.cancel(); sending = null
-        if (state.value.chat != null) state.update { it.copy(chat = null) }
+        if (store.value.chat != null) store.update { it.copy(chat = null) }
     }
 
-    /** Відправлення поза [PoruchApp.mutate]: спінер на кнопці чату, а не на всьому застосунку. */
+    /** Відправлення поза [AppStore.mutate]: спінер на кнопці чату, а не на всьому застосунку. */
     fun send(text: String) {
         val eventId = openEventId ?: return
         val body = ChatRules.normalize(text)
         if (!ChatRules.isBody(body)) {
-            state.update { it.copy(notice = AppNotice.Failed(AppError.InvalidMessage)) }
+            store.failed(AppError.InvalidMessage)
             return
         }
         if (sending?.isActive == true) return
@@ -59,7 +57,7 @@ internal class ChatEngine(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                state.update { it.copy(notice = AppNotice.Failed(e.asAppError())) }
+                store.failed(e.asAppError())
             } finally {
                 update(eventId) { copy(sending = false) }
             }
@@ -76,7 +74,7 @@ internal class ChatEngine(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                state.update { it.copy(notice = AppNotice.Failed(e.asAppError())) }
+                store.failed(e.asAppError())
             }
         }
     }
@@ -86,7 +84,7 @@ internal class ChatEngine(
      * опитування знову читає весь хвіст: так видалене кимось повідомлення зникає й у решти.
      */
     private suspend fun poll(eventId: String) {
-        val current = state.value.chat?.takeIf { it.eventId == eventId } ?: return
+        val current = store.value.chat?.takeIf { it.eventId == eventId } ?: return
         val full = current.messages.isEmpty() || polls++ % FULL_EVERY == 0
         val after = if (full) null else current.messages.last().createdAt
         try {
@@ -95,7 +93,7 @@ internal class ChatEngine(
                 copy(messages = if (full) ChatRules.merge(emptyList(), fresh) else ChatRules.merge(messages, fresh), loading = false, available = true)
             }
             // Прочитано до зараз: при відкритті і щоразу, коли приїхало чуже нове.
-            val me = state.value.userId
+            val me = store.value.userId
             if (current.loading || fresh.any { it.authorId != me }) {
                 try { chat.markRead(eventId) } catch (e: CancellationException) { throw e } catch (e: Exception) { /* best-effort */ }
             }
@@ -104,10 +102,10 @@ internal class ChatEngine(
         } catch (e: AppFailure) {
             // Сервер без міграції чату: екран каже про це один раз і не заливає банерами.
             if (e.serverCode == "PGRST202") update(eventId) { copy(loading = false, available = false) }
-            else if (current.loading) state.update { it.copy(notice = AppNotice.Failed(e.error)) }
+            else if (current.loading) store.failed(e.error)
             if (e.serverCode == "PGRST202") polling?.cancel()
         } catch (e: Exception) {
-            if (current.loading) state.update { it.copy(notice = AppNotice.Failed(e.asAppError())) }
+            if (current.loading) store.failed(e.asAppError())
         }
     }
 
@@ -116,8 +114,8 @@ internal class ChatEngine(
         const val FULL_EVERY = 6
     }
 
-    private inline fun update(eventId: String, change: ChatState.() -> ChatState) {
-        state.update { s -> if (s.chat?.eventId == eventId) s.copy(chat = s.chat.change()) else s }
+    private fun update(eventId: String, change: ChatState.() -> ChatState) {
+        store.update { s -> if (s.chat?.eventId == eventId) s.copy(chat = s.chat.change()) else s }
     }
 }
 

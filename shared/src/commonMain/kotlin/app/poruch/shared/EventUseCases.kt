@@ -87,12 +87,8 @@ internal class EventUseCases(
             } catch (e: Exception) {
                 val error = e.asAppError()
                 PoruchLog.w("action") { "toggleSaved ${id.shortId()} failed: $error" }
-                store.update {
-                    it.copy(
-                        savedIds = it.savedIds.toggling(id, add = wasSaved),
-                        notice = AppNotice.Failed(error)
-                    )
-                }
+                store.update { it.copy(savedIds = it.savedIds.toggling(id, add = wasSaved)) }
+                store.failed(error)
             }
         }
     }
