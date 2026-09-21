@@ -12,7 +12,7 @@ import kotlinx.coroutines.launch
 
 /**
  * Дзвонить про нові запити на участь. Пушів нема, тож «нове» — те, що зʼявилось у
- * [AppState.pendingRequests] після останнього перечитування і чого ще нема у [SeenRequestStore].
+ * [LibraryState.pendingRequests] після останнього перечитування і чого ще нема у [SeenRequestStore].
  * Слухає лише склад запитів: інші зміни стану сюди не доходять.
  */
 internal class RequestAlertSync(
@@ -23,15 +23,15 @@ internal class RequestAlertSync(
 ) {
     fun start() {
         scope.launch {
-            state.map { it.pendingRequests.map { request -> request.key } }
+            state.map { it.library.pendingRequests.map { request -> request.key } }
                 .distinctUntilChanged()
                 .collect { keys ->
                     if (keys.isEmpty()) return@collect
                     val current = state.value
                     val alerts = RequestRules.alerts(
-                        current.pendingRequests, seen.seen(), current.myEvents,
+                        current.library.pendingRequests, seen.seen(), current.library.myEvents,
                         // З пушами про нове каже сервер: локально лише позначаємо бачене.
-                        enabled = current.signedIn && current.remindersEnabled && !current.pushRegistered
+                        enabled = current.signedIn && current.remindersEnabled && !current.session.pushRegistered
                     )
                     if (alerts.isNotEmpty()) {
                         PoruchLog.i("requests") { "${alerts.sumOf { it.count }} new across ${alerts.size} events" }

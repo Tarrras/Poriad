@@ -76,7 +76,7 @@ struct DiscoveryView: View {
     @State private var listCategory = DiscoveryStateKt.ALL_CATEGORIES
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// Категорія мапи. Головна має свою.
-    private var category: String { model.state?.category ?? DiscoveryStateKt.ALL_CATEGORIES }
+    private var category: String { model.state?.map.category ?? DiscoveryStateKt.ALL_CATEGORIES }
 
     /// Похідні списки, пораховані раз на зміну входів. Тіло перераховується на кожен кадр
     /// протягування шторки, а кожен прохід по індексу — тисячі звертань через міст.
@@ -92,7 +92,7 @@ struct DiscoveryView: View {
 
     /// Що малює мапа: індекс, звужений до категорії. Фільтр тут, а не в запиті, щоб не звужувати й головну.
     var mapEntries: [EventIndexEntry] { derived.mapEntries }
-    private var selectedID: String? { model.state?.selectedEvent?.id }
+    private var selectedID: String? { model.state?.detail.event?.id }
     private var savedIDs: Set<String> { model.savedIDs }
 
     /// Стос обраного піна не порожній. Порожньо, якщо після нової видачі стосу не лишилось.
@@ -103,13 +103,13 @@ struct DiscoveryView: View {
     /// Завантажені картки списку. Може бути менше за `listEntries`: решту список просить сам.
     private var shownEvents: [Event] { derived.shownEvents }
     private var activeFilters: Int {
-        [model.state?.dateFilter != DateFilter.shared.ANY, model.state?.category != DiscoveryStateKt.ALL_CATEGORIES, model.state?.onlyAvailable == true]
+        [model.state?.map.dateFilter != DateFilter.shared.ANY, model.state?.map.category != DiscoveryStateKt.ALL_CATEGORIES, model.state?.map.onlyAvailable == true]
             .filter { $0 }.count
     }
     var body: some View {
         ZStack(alignment: .top) {
             EventMap(
-                events: mapEntries, latitude: model.state?.cityLatitude ?? 50.45, longitude: model.state?.cityLongitude ?? 30.52,
+                events: mapEntries, latitude: model.state?.city.latitude ?? 50.45, longitude: model.state?.city.longitude ?? 30.52,
                 selectedID: selectedID, eventsRevision: model.eventsRevision, filterKey: category,
                 retryToken: retryToken, centerToken: centerToken,
                 topInset: topControlsInset, bottomInset: carouselInset,
@@ -201,23 +201,23 @@ struct DiscoveryView: View {
         VStack(spacing: Space.md) {
             SearchBar(
                 placeholder: "Подія, місце або тема",
-                initial: model.state?.searchText ?? "",
+                initial: model.state?.map.searchText ?? "",
                 activeFilters: activeFilters,
                 onFilters: { filters = true }
             ) { model.app.setSearchText(query: $0) }
             // Один ряд замість двох: місто веде стрічку фільтрів. Керування мапою — над каруселлю, під пальцем.
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: Space.sm) {
-                    Chip(label: model.state?.cityName ?? "Київ", symbol: "mappin.and.ellipse", trailingSymbol: "chevron.down", selected: false) { citySearch = true }
+                    Chip(label: model.state?.city.name ?? "Київ", symbol: "mappin.and.ellipse", trailingSymbol: "chevron.down", selected: false) { citySearch = true }
                         .accessibilityLabel("Змінити місто")
                     ForEach(dateFilterKeys, id: \.self) { key in
                         // Повторний тап знімає вибір, щоб не шукати «Будь-коли» за краєм рядка.
-                        Chip(label: dateLabel(key), selected: model.state?.dateFilter == key) {
-                            model.app.setDateFilter(filter: model.state?.dateFilter == key ? DateFilter.shared.ANY : key)
+                        Chip(label: dateLabel(key), selected: model.state?.map.dateFilter == key) {
+                            model.app.setDateFilter(filter: model.state?.map.dateFilter == key ? DateFilter.shared.ANY : key)
                         }
                     }
-                    Chip(label: "Можна приєднатись", symbol: "checkmark.circle", selected: model.state?.onlyAvailable == true) {
-                        model.app.setOnlyAvailable(available: !(model.state?.onlyAvailable ?? false))
+                    Chip(label: "Можна приєднатись", symbol: "checkmark.circle", selected: model.state?.map.onlyAvailable == true) {
+                        model.app.setOnlyAvailable(available: !(model.state?.map.onlyAvailable ?? false))
                     }
                 }
             }
@@ -235,7 +235,7 @@ struct DiscoveryView: View {
             sheetHandle
             if !expanded {
                 if shownEvents.isEmpty {
-                    if model.state?.loading != true { quietCard.padding(.horizontal, Space.page) }
+                    if model.state?.map.loading != true { quietCard.padding(.horizontal, Space.page) }
                 } else {
                     EventDeck(
                         events: shownEvents, selectedID: selectedID, savedIDs: savedIDs,
@@ -321,8 +321,8 @@ struct DiscoveryView: View {
             Spacer(minLength: 0)
             // Не `Button`: кнопка забирає дотик, і протягнути шторку за неї не виходить.
             HStack(spacing: Space.sm) {
-                if model.state?.loading == true { ProgressView().controlSize(.mini) }
-                else if model.state?.offline == true {
+                if model.state?.map.loading == true { ProgressView().controlSize(.mini) }
+                else if model.state?.map.offline == true {
                     Image(systemName: "wifi.slash").font(.system(size: 12)).foregroundStyle(Palette.accent)
                 }
                 Text(countLabel).font(PoruchFont.label).foregroundStyle(Palette.ink)
@@ -376,7 +376,7 @@ struct DiscoveryView: View {
                 }
             }.railContentPadding()
             if shownEvents.isEmpty {
-                if model.state?.loading == true {
+                if model.state?.map.loading == true {
                     ProgressView().frame(maxWidth: .infinity).padding(.vertical, Space.section)
                 } else {
                     quietCard.padding(Space.page)
@@ -458,18 +458,18 @@ struct DiscoveryView: View {
 
     /// Лічильник шторки: з індексу, а не з `totalFound` чи завантажених карток.
     private var countLabel: String {
-        if model.state?.loading == true { return "Шукаємо події…" }
+        if model.state?.map.loading == true { return "Шукаємо події…" }
         if stackFocused { return "Тут подій: \(listEntries.count)" }
         let whole = category == DiscoveryStateKt.ALL_CATEGORIES && listCategory == DiscoveryStateKt.ALL_CATEGORIES
-        return "Знайдено подій: \(whole ? Int(model.state?.totalFound ?? 0) : listEntries.count)"
+        return "Знайдено подій: \(whole ? Int(model.state?.map.totalFound ?? 0) : listEntries.count)"
     }
 
     /// Що показує екран: пін, область рукою чи ціле місто.
     private var areaLabel: String {
         if stackFocused { return "Усе, що стоїть на обраному піні" }
-        return model.state?.customArea == true
+        return model.state?.city.custom == true
             ? "В області, яку ви обрали на мапі"
-            : "Знайдіть, куди піти у місті \(model.state?.cityName ?? "Київ")"
+            : "Знайдіть, куди піти у місті \(model.state?.city.name ?? "Київ")"
     }
 
     /// Перевести шторку в положення.
@@ -518,14 +518,14 @@ struct FiltersView: View {
     @State private var category: String?
     @State private var available: Bool?
 
-    private var pickedDate: String { date ?? model.state?.dateFilter ?? DateFilter.shared.ANY }
-    private var pickedCategory: String { category ?? model.state?.category ?? DiscoveryStateKt.ALL_CATEGORIES }
-    private var pickedAvailable: Bool { available ?? model.state?.onlyAvailable ?? false }
+    private var pickedDate: String { date ?? model.state?.map.dateFilter ?? DateFilter.shared.ANY }
+    private var pickedCategory: String { category ?? model.state?.map.category ?? DiscoveryStateKt.ALL_CATEGORIES }
+    private var pickedAvailable: Bool { available ?? model.state?.map.onlyAvailable ?? false }
 
     private func apply() {
-        if pickedDate != model.state?.dateFilter { model.app.setDateFilter(filter: pickedDate) }
-        if pickedCategory != model.state?.category { model.app.setCategory(category: pickedCategory) }
-        if pickedAvailable != model.state?.onlyAvailable { model.app.setOnlyAvailable(available: pickedAvailable) }
+        if pickedDate != model.state?.map.dateFilter { model.app.setDateFilter(filter: pickedDate) }
+        if pickedCategory != model.state?.map.category { model.app.setCategory(category: pickedCategory) }
+        if pickedAvailable != model.state?.map.onlyAvailable { model.app.setOnlyAvailable(available: pickedAvailable) }
         dismiss()
     }
 
@@ -647,7 +647,7 @@ struct CitySearchView: View {
                         }
                     }
                 } else {
-                    ForEach(model.state?.cities ?? [], id: \.name) { city in
+                    ForEach(model.state?.city.suggestions ?? [], id: \.name) { city in
                         Button { open(city) } label: {
                             HStack(spacing: Space.md) {
                                 PoruchIcon(glyph: PoruchIcons.pin, size: 18).foregroundStyle(Palette.brand)

@@ -10,9 +10,9 @@ class AuthViewModel(private val app: PoruchApp) : MviViewModel<AuthState, AuthIn
     init {
         observe(app) { shared ->
             // Лист відновлення веде на профіль: пароль треба задати, а не ввести.
-            if (shared.signedIn && !signedIn && !shared.passwordRecovery) send(AuthEffect.Close)
+            if (shared.signedIn && !signedIn && !shared.session.passwordRecovery) send(AuthEffect.Close)
             copy(
-                mutating = shared.mutating, signedIn = shared.signedIn, awaitingConfirmation = shared.awaitingConfirmation,
+                mutating = shared.mutating, signedIn = shared.signedIn, awaitingConfirmation = shared.session.awaitingConfirmation,
                 // Лист пішов — повертаємось до входу, банер скаже решту.
                 resetting = resetting && shared.notice != AppNotice.Told(AppMessage.RECOVERY_SENT)
             )

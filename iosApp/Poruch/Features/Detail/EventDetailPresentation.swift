@@ -60,22 +60,22 @@ struct EventDetailPresentation {
     /// `sessions` — карусель дат: від неї залежить лише, чи ховати кнопку квитка на сеансі, що почався.
     init(state: AppState?, eventID: String, sessions: [EventSession] = []) {
         // Лише відкрита подія або інша дата її прокату: знімок стану в першу мить ще тримає попередню.
-        let event = state?.selectedEvent.flatMap { selected in
+        let event = state?.detail.event.flatMap { selected in
             selected.id == eventID || sessions.contains(where: { $0.id == selected.id }) ? selected : nil
         }
         self.event = event
-        attendees = state?.attendees ?? []
+        attendees = state?.detail.attendees ?? []
         mutating = state?.mutating == true
         signedIn = state?.signedIn == true
         // Від обраної картки: після перемикання дати зберігається той вечір, що на екрані.
         saved = event.map { state?.isSaved(id: $0.id) == true } ?? false
         waitlisted = event.map { state?.isWaitlisted(id: $0.id) == true } ?? false
         organizer = event.flatMap { state?.organizes(event: $0) } ?? false
-        requests = state?.joinRequests ?? []
+        requests = state?.detail.joinRequests ?? []
         sessionStarted = event.map { sessions.count > 1 && !$0.isMultiDay && $0.hasStarted(now: nowInstant()) } ?? false
         ended = event?.hasEnded(now: nowInstant()) == true
         canRate = event.map { RatingRules.shared.canRate(event: $0, now: nowInstant()) } ?? false
-        ratings = state?.ratings ?? []
+        ratings = state?.detail.ratings ?? []
     }
 
     var cancelled: Bool { event?.isCancelled == true }

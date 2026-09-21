@@ -122,7 +122,7 @@ fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
     }
 
     // Лист відновлення: окремий екран поверх того, де людина була. Профіль лишається запасним шляхом.
-    LaunchedEffect(state.passwordRecovery) { if (state.passwordRecovery && navigator.current != NewPassword) navigator.open(NewPassword) }
+    LaunchedEffect(state.session.passwordRecovery) { if (state.session.passwordRecovery && navigator.current != NewPassword) navigator.open(NewPassword) }
 
     // Без провайдера вкладка «Мапа» будувала нову MapView на кожен вхід.
     CompositionLocalProvider(LocalSharedMapView provides sharedMap) {

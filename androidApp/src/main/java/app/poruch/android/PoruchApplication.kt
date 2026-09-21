@@ -39,10 +39,10 @@ class PoruchApplication : Application() {
         // Чернетка події належить людині, а не телефону: після виходу наступний акаунт її не бачить.
         // Нагадування чистить ReminderSync сам, бо план для гостя порожній.
         val app: PoruchApp = get(); val drafts: DraftStore = get()
-        var lastUser: String? = app.state.value.userId
+        var lastUser: String? = app.state.value.session.userId
         app.observe { state ->
-            if (lastUser != null && state.userId == null) drafts.clear()
-            lastUser = state.userId
+            if (lastUser != null && state.session.userId == null) drafts.clear()
+            lastUser = state.session.userId
         }
     }
 }

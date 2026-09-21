@@ -13,7 +13,7 @@ struct AuthView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Space.xxl) {
                 header
-                if let email = model.state?.awaitingConfirmation { confirmation(email) }
+                if let email = model.state?.session.awaitingConfirmation { confirmation(email) }
                 else if resetting { reset }
                 else { fields }
             }.padding(.bottom, Space.section)
@@ -22,8 +22,8 @@ struct AuthView: View {
         .toolbar(.hidden, for: .navigationBar)
         // Екран живе в шиті, а банер кореня лишається під ним: помилки й відповіді показуємо тут.
         .notice(model.state?.notice?.presented) { model.app.clearNotice() }
-        .onChange(of: model.state?.userId) { _, userId in
-            if userId != nil && model.state?.passwordRecovery != true { dismiss() }
+        .onChange(of: model.state?.session.userId) { _, userId in
+            if userId != nil && model.state?.session.passwordRecovery != true { dismiss() }
         }
         .onDisappear { model.app.dismissConfirmationStep() }
         // Лист пішов — повертаємось до входу, банер скаже решту.
@@ -32,7 +32,7 @@ struct AuthView: View {
         }
     }
 
-    private var confirming: Bool { model.state?.awaitingConfirmation != nil }
+    private var confirming: Bool { model.state?.session.awaitingConfirmation != nil }
 
     /// Знак застосунку й назва по центру, як вхід в Apple ID; «назад» окремо в кутку.
     private var header: some View {

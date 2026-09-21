@@ -35,8 +35,8 @@ internal class EventUseCases(
     fun join(id: String) = store.mutate {
         PoruchLog.i("action") { "joinEvent ${id.shortId()}" }
         // Подія з підтвердженням відповідає запитом, а не місцем, тож і повідомлення інше.
-        val byRequest = (store.value.selectedEvent?.takeIf { it.id == id }
-            ?: store.value.events.firstOrNull { it.id == id })?.gathering?.approvalRequired == true
+        val byRequest = (store.value.detail.event?.takeIf { it.id == id }
+            ?: store.value.map.events.firstOrNull { it.id == id })?.gathering?.approvalRequired == true
         actions.join(id); reloader.changed(id)
         PoruchAnalytics.track("event_join", "by_request" to byRequest)
         store.tell(if (byRequest) AppMessage.REQUEST_SENT else AppMessage.JOINED_EVENT)
@@ -78,7 +78,7 @@ internal class EventUseCases(
         if (!store.value.signedIn) return store.failed(AppError.SessionRequired)
         val wasSaved = store.value.isSaved(id)
         PoruchLog.i("action") { "toggleSaved ${id.shortId()} saved=${!wasSaved}" }
-        store.update { it.copy(savedIds = it.savedIds.toggling(id, add = !wasSaved)) }
+        store.update { it.copy(library = it.library.copy(savedIds = it.library.savedIds.toggling(id, add = !wasSaved))) }
         store.scope.launch {
             try {
                 if (wasSaved) saved.unsave(id) else saved.save(id)
@@ -87,7 +87,7 @@ internal class EventUseCases(
             } catch (e: Exception) {
                 val error = e.asAppError()
                 PoruchLog.w("action") { "toggleSaved ${id.shortId()} failed: $error" }
-                store.update { it.copy(savedIds = it.savedIds.toggling(id, add = wasSaved)) }
+                store.update { it.copy(library = it.library.copy(savedIds = it.library.savedIds.toggling(id, add = wasSaved))) }
                 store.failed(error)
             }
         }

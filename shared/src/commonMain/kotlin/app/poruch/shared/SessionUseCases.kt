@@ -31,11 +31,11 @@ internal class SessionUseCases(
         PoruchLog.i("auth") { "sign up ${if (signedIn) "signed in immediately" else "awaiting email confirmation"}" }
         // Без сесії відповідь — не банер, а окремий крок: екран входу показує, куди пішов лист і що далі.
         if (signedIn) store.tell(AppMessage.ACCOUNT_CREATED)
-        else store.update { it.copy(awaitingConfirmation = email.trim()) }
+        else store.update { it.copy(session = it.session.copy(awaitingConfirmation = email.trim())) }
     }
 
     /** Людина повернулась до форми або закрила екран: крок «перевірте пошту» більше не показуємо. */
-    fun dismissConfirmationStep() = store.update { it.copy(awaitingConfirmation = null) }
+    fun dismissConfirmationStep() = store.update { it.copy(session = it.session.copy(awaitingConfirmation = null)) }
 
     fun signOut() = store.mutate {
         PoruchLog.i("auth") { "sign out" }
@@ -66,7 +66,7 @@ internal class SessionUseCases(
     fun updatePassword(password: String) = store.mutate {
         if (!AccountRules.isPassword(password)) fail(AppError.WeakPassword)
         auth.updatePassword(password)
-        store.update { it.copy(passwordRecovery = false, notice = AppNotice.Told(AppMessage.PASSWORD_CHANGED)) }
+        store.update { it.copy(session = it.session.copy(passwordRecovery = false), notice = AppNotice.Told(AppMessage.PASSWORD_CHANGED)) }
     }
 
     /** Зміна пароля з профілю: поточний пароль доводить, що телефон у руках власника, як і при видаленні. */
@@ -84,7 +84,7 @@ internal class SessionUseCases(
         identity.synchronize(auth.session.value?.userId)
         store.update {
             it.copy(
-                passwordRecovery = recovery,
+                session = it.session.copy(passwordRecovery = recovery),
                 notice = AppNotice.Told(if (recovery) AppMessage.SET_NEW_PASSWORD else AppMessage.EMAIL_CONFIRMED)
             )
         }

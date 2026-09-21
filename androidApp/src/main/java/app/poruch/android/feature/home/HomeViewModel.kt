@@ -39,10 +39,10 @@ class HomeViewModel(private val app: PoruchApp) : MviViewModel<HomeState, HomeIn
         val onToday = startingToday + runningToday
         return copy(
             signedIn = shared.signedIn,
-            cityName = shared.cityName,
+            cityName = shared.city.name,
             loading = home.loading,
             // У планах лише те, що ще не завершилось: і свої, і ті, куди йду.
-            plans = shared.myEvents
+            plans = shared.library.myEvents
                 .filter { shared.concerns(it) && it.isPublished && it.isCurrent(now) }
                 .sortedBy { it.startsAt },
             requests = pendingRequests(shared),
@@ -51,13 +51,13 @@ class HomeViewModel(private val app: PoruchApp) : MviViewModel<HomeState, HomeIn
             today = onToday,
             rest = later - runningToday.toSet(),
             totalFound = home.totalFound,
-            savedIds = shared.savedIds,
-            waitlistedIds = shared.waitlistedIds,
+            savedIds = shared.library.savedIds,
+            waitlistedIds = shared.library.waitlistedIds,
             searchText = home.searchText,
             results = home.found,
             resultsTotal = home.resultsTotal,
             searchLoading = home.searchLoading,
-            cityMatch = if (home.searching) HomeLocation.mentioned(home.searchText, shared.cityName) else null
+            cityMatch = if (home.searching) HomeLocation.mentioned(home.searchText, shared.city.name) else null
         )
     }
 
@@ -93,10 +93,10 @@ class HomeViewModel(private val app: PoruchApp) : MviViewModel<HomeState, HomeIn
 
     /** Запити за подіями, у порядку стрічки (свіжіші першими). Подія без картки в «моїх» пропускається. */
     private fun pendingRequests(shared: AppState): List<PendingRequests> {
-        if (shared.pendingRequests.isEmpty()) return emptyList()
-        val counts = RequestRules.pendingByEvent(shared.pendingRequests)
-        val cards = shared.myEvents.associateBy { it.id }
-        return shared.pendingRequests.map { it.eventId }.distinct()
+        if (shared.library.pendingRequests.isEmpty()) return emptyList()
+        val counts = RequestRules.pendingByEvent(shared.library.pendingRequests)
+        val cards = shared.library.myEvents.associateBy { it.id }
+        return shared.library.pendingRequests.map { it.eventId }.distinct()
             .mapNotNull { id -> cards[id]?.let { PendingRequests(it, counts.getValue(id)) } }
     }
 

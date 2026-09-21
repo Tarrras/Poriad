@@ -20,10 +20,10 @@ struct ChatView: View {
     /// Подія з будь-якого списку стану: чат відкривають з деталей, з головної і з пушу.
     private var event: Event? {
         guard let state = model.state else { return nil }
-        return ([state.selectedEvent].compactMap { $0 } + state.myEvents + state.events).first { $0.id == eventID }
+        return ([state.detail.event].compactMap { $0 } + state.library.myEvents + state.map.events).first { $0.id == eventID }
     }
     private var chat: ChatState? { model.state?.chat.flatMap { $0.eventId == eventID ? $0 : nil } }
-    private var userId: String? { model.state?.userId }
+    private var userId: String? { model.state?.session.userId }
     private var organizer: Bool { event.flatMap { model.state?.organizes(event: $0) } ?? false }
     /// Той самий поріг, що на сервері: тиждень після кінця.
     private var readOnly: Bool {

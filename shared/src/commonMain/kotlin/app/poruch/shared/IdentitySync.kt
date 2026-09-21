@@ -26,7 +26,7 @@ internal class IdentitySync(
 
     /** Наводить стан на акаунт [uid]. Той самий акаунт — нічого не робить. */
     fun synchronize(uid: String?) {
-        if (store.value.userId == uid) return
+        if (store.value.session.userId == uid) return
         PoruchLog.i("session") { "identity → ${uid.shortId()}, clearing private state" }
         events.forgetPendingCreation()
         library.clear(); chat.close()

@@ -71,7 +71,7 @@ internal class DiscoveryEngine(
         if (home) searchHome()
         val snapshot = query
         searchJob = scope.launch {
-            store.update { it.copy(loading = true, home = if (shared) it.home.copy(loading = true) else it.home) }
+            store.update { it.copy(map = it.map.copy(loading = true), home = if (shared) it.home.copy(loading = true) else it.home) }
             PoruchLog.d("discovery") {
                 "search ${snapshot.south},${snapshot.west}..${snapshot.north},${snapshot.east} " +
                     "category=${snapshot.category ?: ALL_CATEGORIES} from=${snapshot.from ?: "now"} " +
@@ -109,7 +109,7 @@ internal class DiscoveryEngine(
      * в запит не їде взагалі.
      */
     private fun mapUnfiltered() =
-        !store.value.customArea && query.text == null && !query.available && store.value.dateFilter == DateFilter.ANY
+        !store.value.city.custom && query.text == null && !query.available && store.value.map.dateFilter == DateFilter.ANY
 
     /** Міста, чию порожнечу вже звітували в цьому запуску: панорама мапи не має множити подію. */
     private val emptyCities = mutableSetOf<String>()
@@ -117,7 +117,7 @@ internal class DiscoveryEngine(
     /** Ризик №1 — людина відкрила місто без фільтрів і не побачила жодної події. */
     private fun reportEmptyCity(total: Int) {
         if (total > 0 || !mapUnfiltered() || query.category != null) return
-        val city = store.value.cityName
+        val city = store.value.city.name
         if (emptyCities.add(city)) PoruchAnalytics.track("empty_map", "city" to city)
     }
 
@@ -208,7 +208,7 @@ internal class DiscoveryEngine(
     /** Довантажити картки до [count] перших у порядку показу. Не пагінація: індекс повний, id відомі. */
     fun materialize(count: Int) {
         if (cardsJob?.isActive == true) return
-        load(store.value.index.take(count).map { it.id })?.let { cardsJob = it }
+        load(store.value.map.index.take(count).map { it.id })?.let { cardsJob = it }
     }
 
     /**
@@ -296,10 +296,11 @@ internal class DiscoveryEngine(
             // Крім тих, що показує головна: її видача від фільтрів мапи не залежить.
             val keep = it.home.shownIds()
             it.copy(
-                index = ranked.index, suggestedIndex = ranked.suggested, indexVersion = it.indexVersion + 1,
+                map = it.map.copy(
+                    index = ranked.index, suggestedIndex = ranked.suggested, indexVersion = it.map.indexVersion + 1,
+                    totalFound = ranked.total, loading = false, offline = offline
+                ),
                 cards = it.cards.filterKeys { id -> id in keep } + page.cards.associateBy { card -> card.id },
-                totalFound = ranked.total,
-                loading = false, offline = offline,
                 notice = when {
                     failure != null -> AppNotice.Failed(failure)
                     page.truncated -> AppNotice.Told(AppMessage.ZOOM_IN_FOR_MORE)
@@ -321,7 +322,7 @@ internal class DiscoveryEngine(
     /** «Шукати тут»: область лише для мапи. Головна лишається на цілому місті й не перепитує. */
     fun searchArea(south: Double, west: Double, north: Double, east: Double) {
         if (!moveTo(south, west, north, east)) return
-        store.update { it.copy(customArea = true) }
+        store.update { it.copy(city = it.city.copy(custom = true)) }
         onQueryChanged(); refresh(home = false)
     }
 
@@ -340,15 +341,15 @@ internal class DiscoveryEngine(
 
     fun setSearchText(text: String) {
         val trimmed = text.take(DiscoveryRules.SEARCH_TEXT_LIMIT)
-        if (trimmed == store.value.searchText) return
-        store.update { it.copy(searchText = trimmed, loading = true) }
+        if (trimmed == store.value.map.searchText) return
+        store.update { it.copy(map = it.map.copy(searchText = trimmed, loading = true)) }
         query = query.copy(text = trimmed.trim().takeIf { it.isNotEmpty() })
         debounceJob?.cancel(); searchJob?.cancel(); onQueryChanged()
         debounceJob = scope.launch { delay(DiscoveryRules.SEARCH_DEBOUNCE_MS); refresh(home = false) }
     }
 
     fun setOnlyAvailable(available: Boolean) {
-        store.update { it.copy(onlyAvailable = available) }
+        store.update { it.copy(map = it.map.copy(onlyAvailable = available)) }
         query = query.copy(available = available); onQueryChanged(); refresh(home = false)
     }
 
@@ -357,7 +358,7 @@ internal class DiscoveryEngine(
      * звужував би й головну. Сервер віддає місто цілим, категорію відбирає екран.
      */
     fun setCategory(category: String) {
-        store.update { it.copy(category = category) }
+        store.update { it.copy(map = it.map.copy(category = category)) }
         onQueryChanged()
     }
 
@@ -377,7 +378,7 @@ internal class DiscoveryEngine(
             DateFilter.WEEKEND -> today.plus(8 - today.dayOfWeek.isoDayNumber, DateTimeUnit.DAY).atStartOfDayIn(zone)
             else -> null
         }
-        store.update { it.copy(dateFilter = filter) }
+        store.update { it.copy(map = it.map.copy(dateFilter = filter)) }
         query = query.copy(from = start.toString(), to = end?.toString())
         refresh(home = false)
     }
@@ -385,7 +386,7 @@ internal class DiscoveryEngine(
     fun searchCity(text: String) {
         cityJob?.cancel()
         if (text.trim().length < DiscoveryRules.MIN_CITY_QUERY) {
-            store.update { it.copy(cities = emptyList()) }
+            store.update { it.copy(city = it.city.copy(suggestions = emptyList())) }
             return
         }
         cityJob = scope.launch {
@@ -393,7 +394,7 @@ internal class DiscoveryEngine(
             try {
                 val result = geo.search(text)
                 PoruchLog.d("geo") { "city suggestions: ${result.size}" }
-                store.update { it.copy(cities = result) }
+                store.update { it.copy(city = it.city.copy(suggestions = result)) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -406,19 +407,19 @@ internal class DiscoveryEngine(
         // Те саме місто, що вже на екрані: геолокація на старті збігається з запам'ятаним, і
         // перечитувати видачу нема чого. Після «Шукати тут» повернення до міста — вже зміна.
         val current = store.value
-        if (city.name == current.cityName && !current.customArea) {
-            store.update { it.copy(cities = emptyList()) }
+        if (city.name == current.city.name && !current.city.custom) {
+            store.update { it.copy(city = it.city.copy(suggestions = emptyList())) }
             return
         }
         PoruchLog.i("discovery") { "city → ${city.name}" }
         cityStore?.write(city)
         store.update {
-            it.copy(cityName = city.name, cityLatitude = city.latitude, cityLongitude = city.longitude, cities = emptyList())
+            it.copy(city = it.city.copy(name = city.name, latitude = city.latitude, longitude = city.longitude, suggestions = emptyList()))
         }
         val view = HomeLocation(city.name, city.latitude, city.longitude)
         if (!moveTo(view.south, view.west, view.north, view.east)) return
         cityArea = EventQuery(query.south, query.west, query.north, query.east)
-        store.update { it.copy(customArea = false) }
+        store.update { it.copy(city = it.city.copy(custom = false)) }
         // Нове місто — і для мапи, і для головної.
         onQueryChanged(); refresh()
     }

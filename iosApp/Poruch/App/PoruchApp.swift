@@ -80,7 +80,7 @@ struct RootView: View {
                 NavigationStack(path: $homePath) {
                     HomeView(
                         openMap: showMap, openProfile: { tab = 3 },
-                        createEvent: { if model.state?.userId == nil { authenticating = true } else { creating = true } },
+                        createEvent: { if model.state?.session.userId == nil { authenticating = true } else { creating = true } },
                         openEvent: { homePath.append(EventRoute(id: $0)) },
                         openChat: { homePath.append(ChatRoute(id: $0.id)) }
                     )
@@ -102,7 +102,7 @@ struct RootView: View {
             .onPreferenceChange(HidesTabBarKey.self) { hidden in tabBarHidden = hidden }
             if !tabBarHidden {
                 PoruchTabBar(items: tabItems(unreadChats: Int(model.state?.unreadChats ?? 0)), selection: $tab) {
-                    CreateButton { if model.state?.userId == nil { authenticating = true } else { creating = true } }
+                    CreateButton { if model.state?.session.userId == nil { authenticating = true } else { creating = true } }
                 }
                 .padding(.bottom, Space.sm)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -120,7 +120,7 @@ struct RootView: View {
                 AuthView().toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Готово") { authenticating = false } } }
             }
         }
-        .sheet(isPresented: Binding(get: { model.state?.passwordRecovery == true }, set: { _ in })) { NewPasswordView() }
+        .sheet(isPresented: Binding(get: { model.state?.session.passwordRecovery == true }, set: { _ in })) { NewPasswordView() }
         .notice(model.state?.notice?.presented) { model.app.clearNotice() }
     }
 }

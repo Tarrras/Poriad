@@ -131,7 +131,7 @@ class PoruchAppTest {
         assertEquals(HomeLocation.Kyiv.south,events.queries[1].south)
         assertEquals(1.0,events.queries.last().south)
         advanceTimeBy(101);runCurrent()
-        assertFalse(app.state.value.loading);app.close()
+        assertFalse(app.state.value.map.loading);app.close()
     }
     /** Потяг вниз повертається лише коли пошук і «мої» доїхали: індикатор ховається разом із відповіддю, не раніше. */
     @Test fun pullToRefreshWaitsForTheAnswersBeforeReturning()=runTest {
@@ -142,9 +142,9 @@ class PoruchAppTest {
         backgroundScope.launch { app.reloadAll(); returned=true }
         runCurrent()
         assertEquals(before+1,events.queries.size)
-        assertTrue(app.state.value.loading); assertFalse(returned)
+        assertTrue(app.state.value.map.loading); assertFalse(returned)
         advanceTimeBy(101); runCurrent()
-        assertFalse(app.state.value.loading); assertTrue(returned); app.close()
+        assertFalse(app.state.value.map.loading); assertTrue(returned); app.close()
     }
     /** Стос майданчика — не початок стрічки: просимо картки для хвоста списку, якого у вікні нема. */
     @Test fun tappingAVenueStackAsksForItsOwnCardsNotTheStartOfTheList()=runTest {
@@ -186,9 +186,9 @@ class PoruchAppTest {
         app.setCategory("music"); runCurrent(); advanceTimeBy(101); runCurrent()
 
         assertEquals(searches,events.queries.size,"категорія не має коштувати запиту")
-        assertEquals("music",app.state.value.category)
+        assertEquals("music",app.state.value.map.category)
         // Індекс лишається повним: звужує екран.
-        assertEquals(listOf("m","a"),app.state.value.index.map { it.id })
+        assertEquals(listOf("m","a"),app.state.value.map.index.map { it.id })
         app.close()
     }
 
@@ -201,9 +201,9 @@ class PoruchAppTest {
             event(id,"art",at).copy(title="Лускунчик", gathering=null) }
         app.searchArea(1.0,2.0,3.0,4.0); advanceTimeBy(101); runCurrent()
 
-        assertEquals(1,app.state.value.index.size,"прокат — одна картка")
-        assertEquals("s1",app.state.value.index[0].id,"показуємо найближчу дату")
-        assertEquals(3,app.state.value.index[0].sessionCount)
+        assertEquals(1,app.state.value.map.index.size,"прокат — одна картка")
+        assertEquals("s1",app.state.value.map.index[0].id,"показуємо найближчу дату")
+        assertEquals(3,app.state.value.map.index[0].sessionCount)
 
         // Карусель однакова з будь-якого сеансу, не лише з представника.
         assertEquals(listOf("s1","s2","s3"),app.sessionsOf("s1").map { it.id })
@@ -224,7 +224,7 @@ class PoruchAppTest {
         app.searchArea(1.0,2.0,3.0,4.0); advanceTimeBy(101); runCurrent()
 
         assertEquals(listOf("s1","s2"),app.state.value.cards.getValue("s1").sessions.map { it.id })
-        assertTrue(app.state.value.events.single().isSeries)
+        assertTrue(app.state.value.map.events.single().isSeries)
         assertTrue(app.state.value.cards.getValue("s2").sessions.isEmpty(),"поглинутий сеанс сам прокатом не є")
         app.close()
     }
@@ -242,7 +242,7 @@ class PoruchAppTest {
         assertEquals(listOf(listOf("s2","s3")),events.cardRequests,"решта дат — одним запитом на відкриття")
 
         app.openEvent("s2")
-        assertEquals("s2",app.state.value.selectedEvent?.id,"картка обраної дати одразу, без порожнього екрана")
+        assertEquals("s2",app.state.value.detail.event?.id,"картка обраної дати одразу, без порожнього екрана")
         runCurrent()
         assertEquals(1,events.cardRequests.size,"вдруге за тими самими картками не питаємо")
         app.close()
@@ -260,14 +260,14 @@ class PoruchAppTest {
 
         // Картка другої дати ще не приїхала.
         app.openEvent("s2")
-        assertEquals("s1",app.state.value.selectedEvent?.id,"до відповіді на екрані лишається поточна дата")
+        assertEquals("s1",app.state.value.detail.event?.id,"до відповіді на екрані лишається поточна дата")
         runCurrent()
-        assertEquals("s1",app.state.value.selectedEvent?.id,"і після відмови сервера теж")
+        assertEquals("s1",app.state.value.detail.event?.id,"і після відмови сервера теж")
         assertNotNull(app.state.value.notice)
 
         // Подія без прокату так не поводиться: чужа картка на екрані була б неправдою.
         app.selectEvent("s1"); app.openEvent("невідомий")
-        assertNull(app.state.value.selectedEvent)
+        assertNull(app.state.value.detail.event)
         app.close()
     }
 
@@ -299,17 +299,17 @@ class PoruchAppTest {
         val auth=Auth(); auth.session.value=null; auth.signUpSignsIn=false
         val app=app(Events(),backgroundScope,auth)
         runCurrent();app.signUp(" new@poriad.app ","password1","Імʼя","1990-01-01");runCurrent()
-        assertEquals("new@poriad.app",app.state.value.awaitingConfirmation)
+        assertEquals("new@poriad.app",app.state.value.session.awaitingConfirmation)
         assertNull(app.state.value.notice)
         app.dismissConfirmationStep()
-        assertNull(app.state.value.awaitingConfirmation)
+        assertNull(app.state.value.session.awaitingConfirmation)
         app.close()
     }
     @Test fun signUpWithSessionSkipsConfirmationStep()=runTest {
         val auth=Auth(); auth.session.value=null
         val app=app(Events(),backgroundScope,auth)
         runCurrent();app.signUp("new@poriad.app","password1","Імʼя","1990-01-01");runCurrent()
-        assertNull(app.state.value.awaitingConfirmation)
+        assertNull(app.state.value.session.awaitingConfirmation)
         assertEquals(AppNotice.Told(AppMessage.ACCOUNT_CREATED),app.state.value.notice)
         assertTrue(app.state.value.signedIn)
         app.close()
@@ -319,9 +319,9 @@ class PoruchAppTest {
         val auth=Auth(); auth.session.value=null; auth.signUpSignsIn=false
         val app=app(Events(),backgroundScope,auth)
         runCurrent();app.signUp("new@poriad.app","password1","Імʼя","1990-01-01");runCurrent()
-        assertNotNull(app.state.value.awaitingConfirmation)
+        assertNotNull(app.state.value.session.awaitingConfirmation)
         app.handleAuthCallback("poriad://auth/callback");runCurrent()
-        assertNull(app.state.value.awaitingConfirmation)
+        assertNull(app.state.value.session.awaitingConfirmation)
         app.close()
     }
     /** Хибний поточний пароль зупиняє зміну до виклику updatePassword. */
@@ -339,7 +339,7 @@ class PoruchAppTest {
     @Test fun recoveryFlagSurvivesIdentityChange()=runTest {
         val app=app(Events(),backgroundScope)
         runCurrent();app.handleAuthCallback("poriad://auth/callback");runCurrent()
-        assertTrue(app.state.value.passwordRecovery)
+        assertTrue(app.state.value.session.passwordRecovery)
         app.close()
     }
     /** Вихід чистить те саме, що й зміна акаунта: раніше крок нового пароля переживав вихід. */
@@ -347,8 +347,8 @@ class PoruchAppTest {
         val app=app(Events(),backgroundScope)
         runCurrent();app.handleAuthCallback("poriad://auth/callback");runCurrent()
         app.signOut();runCurrent()
-        assertFalse(app.state.value.passwordRecovery)
-        assertEquals(null,app.state.value.userId)
+        assertFalse(app.state.value.session.passwordRecovery)
+        assertEquals(null,app.state.value.session.userId)
         app.close()
     }
 
@@ -374,7 +374,7 @@ class PoruchAppTest {
         app.setOnlyAvailable(true); advanceTimeBy(1000); runCurrent()
         app.setDateFilter(DateFilter.TODAY); advanceTimeBy(1000); runCurrent()
 
-        assertEquals(listOf("jazz"),app.state.value.index.map { it.id })
+        assertEquals(listOf("jazz"),app.state.value.map.index.map { it.id })
         assertEquals(setOf("jazz","yoga"),app.state.value.home.index.map { it.id }.toSet())
         assertTrue(events.queries.drop(1).all { it.text=="jazz" },"мапа без головної: ${events.queries}")
         assertTrue(app.state.value.home.index.all { it.id in app.state.value.cards },"картки головної пережили видачу мапи")
@@ -393,8 +393,8 @@ class PoruchAppTest {
         assertEquals(1,home.resultsTotal)
         assertFalse(home.searchLoading)
         assertEquals("yoga",events.queries.last().text)
-        assertEquals("",app.state.value.searchText)
-        assertEquals(2,app.state.value.index.size)
+        assertEquals("",app.state.value.map.searchText)
+        assertEquals(2,app.state.value.map.index.size)
 
         app.setHomeSearchText(""); runCurrent()
         assertEquals(emptyList(),app.state.value.home.results)
@@ -413,7 +413,7 @@ class PoruchAppTest {
         val fresh=events.queries.drop(before)
         assertEquals(1,fresh.size,"лише мапа: $fresh")
         assertEquals(1.0,fresh.single().south)
-        assertTrue(app.state.value.customArea)
+        assertTrue(app.state.value.city.custom)
         assertEquals(2,app.state.value.home.index.size)
         assertEquals(listOf("yoga"),app.state.value.home.results.map { it.id })
         app.close()
@@ -434,7 +434,7 @@ class PoruchAppTest {
         val fresh=events.queries.drop(before)
         assertEquals(setOf("jazz",null,"yoga"),fresh.map { it.text }.toSet())
         assertTrue(fresh.all { it.south==kharkiv.south && it.north==kharkiv.north })
-        assertFalse(app.state.value.customArea)
+        assertFalse(app.state.value.city.custom)
         assertEquals(2,app.state.value.home.index.size)
         app.close()
     }
@@ -464,9 +464,9 @@ class PoruchAppTest {
     @Test fun reloadingMineKeepsTheIndexWhenTasteIsTheSame()=runTest {
         val events=Events(); events.results=listOf(event("a","music","2090-01-05T19:00:00Z"),event("b","art","2090-01-06T19:00:00Z"))
         val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(1000); runCurrent()
-        val version=app.state.value.indexVersion
+        val version=app.state.value.map.indexVersion
         app.loadMyEvents(); advanceTimeBy(1000); runCurrent()
-        assertEquals(version,app.state.value.indexVersion)
+        assertEquals(version,app.state.value.map.indexVersion)
         app.close()
     }
 
@@ -477,7 +477,7 @@ class PoruchAppTest {
         app.resume(); advanceTimeBy(1000); runCurrent()
         app.resume(); advanceTimeBy(1000); runCurrent()
         assertEquals(1,events.queries.size)
-        assertEquals(1,app.state.value.index.size)
+        assertEquals(1,app.state.value.map.index.size)
 
         backgroundScope.launch { app.reloadAll() }; advanceTimeBy(1000); runCurrent()
         assertEquals(2,events.queries.size,"потяг униз перечитує завжди")
@@ -489,7 +489,7 @@ class PoruchAppTest {
         val odesa=HomeLocation.covered.first { it.city=="Одеса" }
         val cities=Cities(CityResult(odesa.city,odesa.latitude,odesa.longitude))
         val events=Events(); val app=app(events,backgroundScope,cities=cities); runCurrent()
-        assertEquals("Одеса",app.state.value.cityName)
+        assertEquals("Одеса",app.state.value.city.name)
         assertEquals(odesa.south,events.queries.single().south)
         app.close()
     }
@@ -513,22 +513,22 @@ class PoruchAppTest {
         val events=Events();val app=app(events,backgroundScope)
         runCurrent();app.setOnlyAvailable(true);runCurrent()
         assertTrue(events.queries.last().available)
-        assertTrue(app.state.value.onlyAvailable);app.close()
+        assertTrue(app.state.value.map.onlyAvailable);app.close()
     }
 
     @Test fun answeringTheOpeningQuestionsEndsThemAndReordersWhatWasFound()=runTest {
         val events=Events(); events.results=listOf(event("social-later","social","2090-01-06T19:00:00Z"),event("music-sooner","music","2090-01-05T19:00:00Z"))
         val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
         assertTrue(app.state.value.needsOnboarding)
-        assertEquals("music-sooner",app.state.value.index.first().id)
+        assertEquals("music-sooner",app.state.value.map.index.first().id)
         // Лише інтереси: вплив слотів на порядок — предмет TasteRankingTest.
         app.saveTaste(listOf("social"),emptyList(),Crowd.ANY); runCurrent()
         assertFalse(app.state.value.needsOnboarding)
         // Збережено на наступний запуск, обрана категорія веде список.
         assertEquals(listOf("social"),taste.stored.interests)
         assertTrue(taste.stored.answered)
-        assertEquals("social-later",app.state.value.index.first().id)
-        assertEquals(listOf("social-later"),app.state.value.suggested.map { it.id })
+        assertEquals("social-later",app.state.value.map.index.first().id)
+        assertEquals(listOf("social-later"),app.state.value.map.suggested.map { it.id })
         app.close()
     }
 
@@ -548,7 +548,7 @@ class PoruchAppTest {
         assertFalse(app.state.value.needsOnboarding)
         assertTrue(app.state.value.taste.isBlank)
         // Нічого не сказано — нічого не запропоновано.
-        assertTrue(app.state.value.suggested.isEmpty())
+        assertTrue(app.state.value.map.suggested.isEmpty())
         app.close()
     }
 
@@ -572,7 +572,7 @@ class PoruchAppTest {
         assertTrue(app.state.value.hasBlocked("organizer"))
         // Блок діє одразу: мапу перепитуємо, не чекаючи наступного руху.
         assertTrue(events.queries.size > before)
-        assertNull(app.state.value.selectedEvent)
+        assertNull(app.state.value.detail.event)
         app.close()
     }
 
@@ -705,7 +705,7 @@ class PoruchAppTest {
         events.mine=listOf(mine)
         app.loadMyEvents(); advanceTimeBy(200); runCurrent()
         assertEquals(listOf(RequestAlert("mine","mine",1)),rung)
-        assertEquals(1,app.state.value.pendingRequests.size)
+        assertEquals(1,app.state.value.library.pendingRequests.size)
 
         app.loadMyEvents(); advanceTimeBy(200); runCurrent()
         assertEquals(1,rung.size,"той самий запит не дзвонить удруге")

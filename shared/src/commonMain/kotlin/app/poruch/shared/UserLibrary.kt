@@ -39,19 +39,16 @@ internal class UserLibrary(
         // Показуємо те, що вже знаємо, поки їдуть деталі. `cards` теж: сеанс прокату, обраний
         // у каруселі дат, у стрічці згорнуто.
         val known = store.value.let {
-            (it.events + it.myEvents).firstOrNull { event -> event.id == id } ?: it.cards[id]
+            (it.map.events + it.library.myEvents).firstOrNull { event -> event.id == id } ?: it.cards[id]
         }
         // Інша дата того ж прокату без картки: лишаємо поточну до відповіді. Порожній екран
         // гірший за секунду старої дати, а при 504 людина лишається з банером, а не спінером.
         val stay = known == null && store.value.let { current ->
-            val open = current.selectedEvent
+            val open = current.detail.event
             open != null && open.id != id && current.sessionsOf(open).any { it.id == id }
         }
         store.update {
-            it.copy(
-                selectedEvent = known ?: it.selectedEvent?.takeIf { open -> open.id == id || stay },
-                attendees = emptyList(), ratings = emptyList(), joinRequests = emptyList()
-            )
+            it.copy(detail = DetailState(event = known ?: it.detail.event?.takeIf { open -> open.id == id || stay }))
         }
         if (!full && known != null) {
             PoruchLog.d("detail") { "select ${id.shortId()} from memory, no request" }
@@ -62,7 +59,7 @@ internal class UserLibrary(
                 val event = events.details(id)
                 PoruchLog.d("detail") { "loaded ${id.shortId()} kind=${if (event?.isCommunity == true) "community" else "listing"} joined=${event?.gathering?.joined} attendees=${event?.gathering?.attendeeCount}/${event?.gathering?.capacity} status=${event?.status}" }
                 if (openEventId == id) {
-                    store.update { it.copy(selectedEvent = event) }
+                    detail { copy(event = event) }
                     if (event == null) store.failed(AppError.EventUnavailable)
                 }
             } catch (e: CancellationException) {
@@ -72,27 +69,29 @@ internal class UserLibrary(
             }
             // Учасники — доповнення до лічильника, тож збій лишає лише число. Афішу не питаємо:
             // ростер бачать організатор і учасники (`can_view_members`), а в неї нема ні тих, ні тих.
-            if (store.value.signedIn && store.value.selectedEvent?.isCommunity == true) {
+            if (store.value.signedIn && store.value.detail.event?.isCommunity == true) {
                 val roster = try { events.attendees(id) } catch (e: CancellationException) { throw e } catch (e: Exception) { emptyList() }
                 PoruchLog.d("detail") { "roster for ${id.shortId()}: ${roster.size} visible" }
-                if (openEventId == id) store.update { it.copy(attendees = roster) }
+                if (openEventId == id) detail { copy(attendees = roster) }
             }
             // Запити є лише в організатора і лише для своєї події.
-            val mine = store.value.selectedEvent?.let { it.id == id && store.value.organizes(it) } == true
+            val mine = store.value.detail.event?.let { it.id == id && store.value.organizes(it) } == true
             val requests = if (mine) {
                 try { requests.joinRequests(id) } catch (e: CancellationException) { throw e } catch (e: Exception) { emptyList() }
             } else emptyList()
-            if (openEventId == id) store.update { it.copy(joinRequests = requests) }
+            if (openEventId == id) detail { copy(joinRequests = requests) }
             // Оцінки — лише завершеної кімнати і лише своїм: організатору й учасникам.
-            val ended = store.value.selectedEvent?.takeIf {
+            val ended = store.value.detail.event?.takeIf {
                 it.id == id && it.isCommunity && it.hasEnded(Clock.System.now()) && store.value.concerns(it)
             }
             val ratings = if (ended != null) {
                 try { participation.ratings(id) } catch (e: CancellationException) { throw e } catch (e: Exception) { emptyList() }
             } else emptyList()
-            if (openEventId == id) store.update { it.copy(ratings = ratings) }
+            if (openEventId == id) detail { copy(ratings = ratings) }
         }
     }
+
+    private fun detail(change: DetailState.() -> DetailState) = store.update { it.copy(detail = it.detail.change()) }
 
     /** Чекає, поки доїдуть деталі відкритої події разом з учасниками й запитами. */
     suspend fun awaitDetail() { detailJob?.join() }
@@ -100,7 +99,7 @@ internal class UserLibrary(
     fun dismiss() {
         openEventId = null
         detailJob?.cancel()
-        store.update { it.copy(selectedEvent = null, attendees = emptyList(), ratings = emptyList(), joinRequests = emptyList()) }
+        store.update { it.copy(detail = DetailState()) }
     }
 
     fun load() {
@@ -122,11 +121,12 @@ internal class UserLibrary(
                 PoruchLog.i("mine") { "${mine.size} of mine, ${savedEvents.size} saved, ${queued.size} queued, ${pending.size} requests, ${interests.size} interests" }
                 store.update {
                     it.copy(
-                        myEvents = mine, savedIds = savedEvents, waitlistedIds = queued,
-                        pendingRequests = pending,
+                        library = LibraryState(
+                            myEvents = mine, savedIds = savedEvents, waitlistedIds = queued,
+                            pendingRequests = pending, account = facts, blocked = blocked
+                        ),
                         // Відкритий чат уже прочитаний: сервер міг ще не знати.
                         chatUnread = unread.filterNot { u -> u.eventId == it.chat?.eventId },
-                        account = facts, blocked = blocked,
                         taste = it.taste.copy(interests = interests)
                     ).rankedIfTasteChanged(it.taste)
                 }

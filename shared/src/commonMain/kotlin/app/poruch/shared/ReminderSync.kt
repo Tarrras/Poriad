@@ -24,8 +24,8 @@ internal class ReminderSync(
         scope.launch {
             state.map {
                 ReminderRules.plan(
-                    it.myEvents,
-                    it.userId,
+                    it.library.myEvents,
+                    it.session.userId,
                     it.remindersEnabled,
                     Clock.System.now()
                 )

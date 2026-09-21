@@ -82,25 +82,25 @@ final class KeychainSessionStore: SecureSessionStore {
 
     private func apply(_ state: AppState) {
         // Чернетка події належить людині, а не телефону: після виходу наступний акаунт її не бачить.
-        if self.state?.userId != nil && state.userId == nil { UserDefaults.standard.removeObject(forKey: "poruch.draft.new") }
+        if self.state?.session.userId != nil && state.session.userId == nil { UserDefaults.standard.removeObject(forKey: "poruch.draft.new") }
         self.state = state
         // Головна дешева: картки вже зібрані в спільному коді, тут лише десятки подій.
         home = HomePresentation(state: state)
         // Мапа малює індекс, картки приїжджають вікном; порядок один. Емісій багато (вибір у
         // каруселі, чат, прапорці завантаження), а індекс міняється рідко: перебудова лише за версією.
-        let indexChanged = state.indexVersion != lastIndexVersion
+        let indexChanged = state.map.indexVersion != lastIndexVersion
         if indexChanged {
-            lastIndexVersion = state.indexVersion
-            indexIDs = Set(state.index.map(\.id))
+            lastIndexVersion = state.map.indexVersion
+            indexIDs = Set(state.map.index.map(\.id))
             eventsRevision &+= 1
         }
-        let selectedID = state.selectedEvent?.id
+        let selectedID = state.detail.event?.id
         if indexChanged || selectedID != lastSelectedID {
             lastSelectedID = selectedID
-            let index = state.index
+            let index = state.map.index
             // Подія, на яку навели з деталей, може не бути у видачі: додаємо, щоб був пін. Сеанс
             // прокату «вже там» через представника, інакше пін майданчика рахував би прокат двічі.
-            if let selected = state.selectedEvent, !indexIDs.contains(selected.id),
+            if let selected = state.detail.event, !indexIDs.contains(selected.id),
                !index.contains(where: { run in run.sessions.contains { $0.id == selected.id } }) {
                 mapEntries = index + [selected.asIndexEntry()]
             } else {
@@ -110,15 +110,15 @@ final class KeychainSessionStore: SecureSessionStore {
         }
         if state.feedVersion != lastFeedVersion {
             lastFeedVersion = state.feedVersion
-            cards = state.events
-            cardsByID = Dictionary(uniqueKeysWithValues: state.events.map { ($0.id, $0) })
+            cards = state.map.events
+            cardsByID = Dictionary(uniqueKeysWithValues: state.map.events.map { ($0.id, $0) })
                 .merging(state.cards.map { ($0.key as String, $0.value) }) { current, _ in current }
             cardsRevision &+= 1
         }
         // Присвоюємо лише зміну: кожне присвоєння @Published перемальовує всіх спостерігачів.
-        let saved = Set(state.savedIds)
+        let saved = Set(state.library.savedIds)
         if saved != savedIDs { savedIDs = saved }
-        let waitlisted = Set(state.waitlistedIds)
+        let waitlisted = Set(state.library.waitlistedIds)
         if waitlisted != waitlistedIDs { waitlistedIDs = waitlisted }
     }
     func stop() { subscription?.close(); subscription = nil }

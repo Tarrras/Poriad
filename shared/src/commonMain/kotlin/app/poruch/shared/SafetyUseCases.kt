@@ -23,7 +23,7 @@ internal class SafetyUseCases(
         val declared = runCatching { LocalDate.parse(birthDate) }.getOrElse { fail(AppError.Rejected) }
         if (!SafetyRules.isSignupAge(declared, today)) fail(AppError.Underage)
         repository.declareBirthDate(declared.toString())
-        store.update { it.copy(account = it.account.copy(birthDate = declared.toString())) }
+        store.update { it.copy(library = it.library.copy(account = it.library.account.copy(birthDate = declared.toString()))) }
         store.tell(AppMessage.AGE_CONFIRMED)
     }
 
@@ -60,7 +60,7 @@ internal class SafetyUseCases(
 
     fun unblockUser(userId: String) = store.mutate {
         repository().unblock(userId)
-        store.update { it.copy(blocked = it.blocked.filterNot { person -> person.userId == userId }) }
+        store.update { it.copy(library = it.library.copy(blocked = it.library.blocked.filterNot { person -> person.userId == userId })) }
         reloader.lists()
     }
 }

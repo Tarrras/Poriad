@@ -93,7 +93,7 @@ internal class ChatEngine(
                 copy(messages = if (full) ChatRules.merge(emptyList(), fresh) else ChatRules.merge(messages, fresh), loading = false, available = true)
             }
             // Прочитано до зараз: при відкритті і щоразу, коли приїхало чуже нове.
-            val me = store.value.userId
+            val me = store.value.session.userId
             if (current.loading || fresh.any { it.authorId != me }) {
                 try { chat.markRead(eventId) } catch (e: CancellationException) { throw e } catch (e: Exception) { /* best-effort */ }
             }

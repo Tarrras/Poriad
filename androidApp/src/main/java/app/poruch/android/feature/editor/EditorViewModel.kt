@@ -30,17 +30,17 @@ class EditorViewModel(
 
     init {
         val shared = app.state.value
-        val event = editingId?.let { id -> (shared.myEvents + shared.events).firstOrNull { it.id == id } }
+        val event = editingId?.let { id -> (shared.library.myEvents + shared.map.events).firstOrNull { it.id == id } }
         original = event
         reduce {
-            val restored = event?.toForm() ?: drafts.load(shared.cityName)
+            val restored = event?.toForm() ?: drafts.load(shared.city.name)
             // Мапа відкривається на крапці, якщо вона вже є.
-            val (latitude, longitude) = restored.point ?: (shared.cityLatitude to shared.cityLongitude)
+            val (latitude, longitude) = restored.point ?: (shared.city.latitude to shared.city.longitude)
             copy(form = restored, mapLatitude = latitude, mapLongitude = longitude)
         }
         observe(app) { latest ->
             // Редагування з deep link: запис може приїхати після екрана.
-            val loaded = editingId?.let { id -> latest.selectedEvent?.takeIf { it.id == id } }
+            val loaded = editingId?.let { id -> latest.detail.event?.takeIf { it.id == id } }
             if (loaded != null && original == null) {
                 original = loaded
                 val form = loaded.toForm() ?: return@observe copy(mutating = latest.mutating)

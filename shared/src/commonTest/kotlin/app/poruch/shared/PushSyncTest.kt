@@ -25,11 +25,11 @@ class PushSyncTest {
         sync.tokenChanged("t1", PushPlatform.ANDROID); runCurrent(); advanceTimeBy(100)
         assertTrue(tokens.registered.isEmpty(), "без акаунта нема кого реєструвати")
 
-        store.update { it.copy(userId = "user") }
+        store.update { it.copy(session = SessionState(userId = "user")) }
         // Токен і вхід приходять одночасно: обидва шляхи ведуть до однієї реєстрації.
         sync.register(); sync.tokenChanged("t1", PushPlatform.ANDROID); runCurrent(); advanceTimeBy(100); runCurrent()
         assertEquals(listOf("t1" to PushPlatform.ANDROID), tokens.registered)
-        assertTrue(store.value.pushRegistered)
+        assertTrue(store.value.session.pushRegistered)
 
         sync.tokenChanged("t1", PushPlatform.ANDROID); advanceTimeBy(100); runCurrent()
         assertEquals(1, tokens.registered.size, "той самий зареєстрований токен не реєструємо вдруге")
@@ -37,10 +37,10 @@ class PushSyncTest {
 
     /** Інший акаунт на тому ж телефоні — та сама реєстрація під ним. */
     @Test fun anotherAccountRegistersTheSameTokenAgain() = runTest {
-        val tokens = Tokens(); val store = AppStore(AppState(userId = "a"), backgroundScope)
+        val tokens = Tokens(); val store = AppStore(AppState(session = SessionState(userId = "a")), backgroundScope)
         val sync = PushSync(tokens, null, null, store)
         sync.tokenChanged("t1", PushPlatform.IOS); advanceTimeBy(100); runCurrent()
-        store.update { it.copy(userId = "b", pushRegistered = false) }
+        store.update { it.copy(session = SessionState(userId = "b")) }
         sync.register(); advanceTimeBy(100); runCurrent()
         assertEquals(2, tokens.registered.size)
         sync.unregister()
@@ -49,13 +49,13 @@ class PushSyncTest {
 
     /** Відмова сервера не позначає пристрій зареєстрованим і не блокує наступну спробу. */
     @Test fun aRefusedRegistrationCanBeRetried() = runTest {
-        val tokens = Tokens().apply { fail = true }; val store = AppStore(AppState(userId = "a"), backgroundScope)
+        val tokens = Tokens().apply { fail = true }; val store = AppStore(AppState(session = SessionState(userId = "a")), backgroundScope)
         val sync = PushSync(tokens, null, null, store)
         sync.tokenChanged("t1", PushPlatform.IOS); advanceTimeBy(100); runCurrent()
-        assertFalse(store.value.pushRegistered)
+        assertFalse(store.value.session.pushRegistered)
         tokens.fail = false
         sync.register(); advanceTimeBy(100); runCurrent()
-        assertTrue(store.value.pushRegistered)
+        assertTrue(store.value.session.pushRegistered)
     }
 
     /** Пуш про чат позначає ключ баченим у списку чатів, а не запитів. */

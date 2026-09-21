@@ -14,26 +14,26 @@ class ExploreViewModel(private val app: PoruchApp) :
             // Мапа малює індекс, карусель і список — картки, яких може бути менше.
             copy(
                 // Свіжа відповідь означає, що мапа вже показує цю область: підказка зникає.
-                pendingArea = if (shared.index !== index) null else pendingArea,
-                index = shared.index,
-                totalFound = shared.totalFound,
-                events = shared.events,
+                pendingArea = if (shared.map.index !== index) null else pendingArea,
+                index = shared.map.index,
+                totalFound = shared.map.totalFound,
+                events = shared.map.events,
                 cards = shared.cards,
-                selectedId = shared.selectedEvent?.id,
-                focused = shared.selectedEvent,
-                savedIds = shared.savedIds,
-                waitlistedIds = shared.waitlistedIds,
-                cityName = shared.cityName,
-                cityLatitude = shared.cityLatitude,
-                cityLongitude = shared.cityLongitude,
-                cities = shared.cities,
-                searchText = shared.searchText,
-                category = shared.category,
-                dateFilter = shared.dateFilter,
-                onlyAvailable = shared.onlyAvailable,
-                loading = shared.loading,
-                offline = shared.offline,
-                customArea = shared.customArea
+                selectedId = shared.detail.event?.id,
+                focused = shared.detail.event,
+                savedIds = shared.library.savedIds,
+                waitlistedIds = shared.library.waitlistedIds,
+                cityName = shared.city.name,
+                cityLatitude = shared.city.latitude,
+                cityLongitude = shared.city.longitude,
+                cities = shared.city.suggestions,
+                searchText = shared.map.searchText,
+                category = shared.map.category,
+                dateFilter = shared.map.dateFilter,
+                onlyAvailable = shared.map.onlyAvailable,
+                loading = shared.map.loading,
+                offline = shared.map.offline,
+                customArea = shared.city.custom
             )
         }
     }

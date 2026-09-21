@@ -55,9 +55,9 @@ class PoruchApp internal constructor(
     // Відповіді читаємо синхронно: від них залежить, чи перший кадр — онбординг чи застосунок.
     private val store = AppStore(
         AppState(
-            userId = auth.session.value?.userId, taste = tasteStore?.read() ?: Taste(),
+            session = SessionState(userId = auth.session.value?.userId), taste = tasteStore?.read() ?: Taste(),
             remindersEnabled = reminderStore?.enabled() ?: false,
-            cityName = startCity.city, cityLatitude = startCity.latitude, cityLongitude = startCity.longitude
+            city = CityState(startCity.city, startCity.latitude, startCity.longitude)
         ),
         scope
     )

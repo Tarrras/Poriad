@@ -16,10 +16,10 @@ class MyEventsViewModel(private val app: PoruchApp) :
             shared = latest
             copy(
                 visible = latest.forTab(tab),
-                savedIds = latest.savedIds,
-                waitlistedIds = latest.waitlistedIds,
+                savedIds = latest.library.savedIds,
+                waitlistedIds = latest.library.waitlistedIds,
                 signedIn = latest.signedIn,
-                loading = latest.loading
+                loading = latest.map.loading
             )
         }
         app.loadMyEvents()
@@ -44,8 +44,8 @@ class MyEventsViewModel(private val app: PoruchApp) :
      */
     private fun AppState.forTab(tab: MyEventsTab): List<Event> {
         val now = Clock.System.now()
-        if (tab == MyEventsTab.ENDED) return myEvents.filter { concerns(it) && it.hasEnded(now) }.asReversed()
-        return myEvents.filter { event ->
+        if (tab == MyEventsTab.ENDED) return library.myEvents.filter { concerns(it) && it.hasEnded(now) }.asReversed()
+        return library.myEvents.filter { event ->
             !event.hasEnded(now) && when (tab) {
                 MyEventsTab.ATTENDING -> event.gathering?.joined == true
                 MyEventsTab.ORGANIZING -> organizes(event)

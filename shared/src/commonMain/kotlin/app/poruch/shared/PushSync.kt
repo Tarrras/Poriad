@@ -21,7 +21,7 @@ internal class PushSync(
 
     /** Платформа отримала або оновила токен. Реєструємо одразу, якщо є акаунт. */
     fun tokenChanged(token: String, platform: String) {
-        if (this.token?.first == token && store.value.pushRegistered) return
+        if (this.token?.first == token && store.value.session.pushRegistered) return
         this.token = token to platform
         register()
     }
@@ -30,14 +30,14 @@ internal class PushSync(
     fun register() {
         val (token, platform) = this.token ?: return
         val tokens = push ?: return
-        val uid = store.value.userId ?: return
+        val uid = store.value.session.userId ?: return
         if (registering == token to uid) return
         registering = token to uid
         store.scope.launch {
             try {
                 tokens.register(token, platform)
                 PoruchLog.i("push") { "registered $platform token" }
-                store.update { it.copy(pushRegistered = true) }
+                store.update { it.copy(session = it.session.copy(pushRegistered = true)) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

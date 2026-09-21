@@ -42,7 +42,7 @@ struct HomePresentation {
 
     init(state: AppState?) {
         signedIn = state?.signedIn == true
-        cityName = state?.cityName ?? HomeLocation.companion.Kyiv.city
+        cityName = state?.city.name ?? HomeLocation.companion.Kyiv.city
         // Своя стрічка: та сама область, що на мапі, але без її фільтрів.
         let home = state?.home
         loading = home?.loading == true
@@ -50,13 +50,13 @@ struct HomePresentation {
         totalFound = Int(home?.totalFound ?? 0)
         resultsTotal = Int(home?.resultsTotal ?? 0)
         searchText = home?.searchText ?? ""
-        savedIds = Set(state?.savedIds ?? [])
-        waitlistedIds = Set(state?.waitlistedIds ?? [])
+        savedIds = Set(state?.library.savedIds ?? [])
+        waitlistedIds = Set(state?.library.waitlistedIds ?? [])
         // І свої, і ті, куди йду: `concerns` — те саме правило, що в нагадуваннях. Лише те, що ще не завершилось, як на Android.
-        let mine = state?.myEvents ?? []
+        let mine = state?.library.myEvents ?? []
         let now = nowInstant()
         plans = mine.filter { state?.concerns(event: $0) == true && $0.isPublished && $0.isCurrent(now: now) }.sorted { $0.startsAt < $1.startsAt }
-        requests = HomePresentation.pendingRequests(state?.pendingRequests ?? [], among: mine)
+        requests = HomePresentation.pendingRequests(state?.library.pendingRequests ?? [], among: mine)
         let mineById = Dictionary(mine.map { ($0.id, $0) }) { first, _ in first }
         unread = (state?.chatUnread ?? []).compactMap { u in mineById[u.eventId].map { UnreadChat(summary: u, event: $0) } }
 

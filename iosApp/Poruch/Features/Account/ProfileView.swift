@@ -14,7 +14,7 @@ struct ProfileView: View {
     private let earliestBirthDate = Calendar.current.date(byAdding: .year, value: -100, to: Date()) ?? Date.distantPast
 
     private var signedIn: Bool { model.state?.signedIn == true }
-    private var recovering: Bool { model.state?.passwordRecovery == true }
+    private var recovering: Bool { model.state?.session.passwordRecovery == true }
 
     var body: some View {
         // Як у HomeView: стрічка під смугу статусу, хедер додає відступ.
@@ -27,7 +27,7 @@ struct ProfileView: View {
                     if model.state?.needsAgeDeclaration == true { ageDeclaration }
                     taste
                     if signedIn { account }
-                    if !(model.state?.blocked ?? []).isEmpty { blocked }
+                    if !(model.state?.library.blocked ?? []).isEmpty { blocked }
                     about
                 }.padding(.horizontal, Space.page)
             }.padding(.bottom, Space.section)
@@ -95,7 +95,7 @@ struct ProfileView: View {
     private var blocked: some View {
         VStack(alignment: .leading, spacing: Space.md) {
             SectionHeader(title: "Заблоковані")
-            ForEach(model.state?.blocked ?? [], id: \.userId) { person in
+            ForEach(model.state?.library.blocked ?? [], id: \.userId) { person in
                 HStack(spacing: Space.md) {
                     Text(person.name.isEmpty ? "Учасник" : person.name)
                         .font(PoruchFont.cardName).foregroundStyle(Palette.ink)

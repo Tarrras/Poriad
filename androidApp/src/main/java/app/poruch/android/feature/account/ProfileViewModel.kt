@@ -17,12 +17,12 @@ class ProfileViewModel(private val app: PoruchApp, private val notifications: No
                 signedIn = shared.signedIn,
                 interests = shared.interests,
                 needsAge = shared.needsAgeDeclaration,
-                blocked = shared.blocked,
+                blocked = shared.library.blocked,
                 mutating = shared.mutating,
-                passwordRecovery = shared.passwordRecovery,
+                passwordRecovery = shared.session.passwordRecovery,
                 // Після відновлення чи зміни поле чистимо, щоб пароль не висів.
-                newPassword = if (shared.passwordRecovery || changingPassword) newPassword else "",
-                newPasswordConfirm = if (shared.passwordRecovery) newPasswordConfirm else "",
+                newPassword = if (shared.session.passwordRecovery || changingPassword) newPassword else "",
+                newPasswordConfirm = if (shared.session.passwordRecovery) newPasswordConfirm else "",
                 // Пароль змінено або сесії нема — шторка зміни закривається разом із полями.
                 changingPassword = changingPassword && shared.signedIn && shared.notice != AppNotice.Told(AppMessage.PASSWORD_CHANGED),
                 currentPassword = if (changingPassword && shared.signedIn) currentPassword else "",

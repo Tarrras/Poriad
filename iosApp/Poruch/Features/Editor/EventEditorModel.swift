@@ -282,9 +282,9 @@ enum EditorStep: Int, CaseIterable, Identifiable {
             pointChosen = true
             accepted = event.address
         } else if event == nil {
-            form.city = home?.cityName ?? HomeLocation.companion.Kyiv.city
-            form.latitude = home?.cityLatitude ?? HomeLocation.companion.Kyiv.latitude
-            form.longitude = home?.cityLongitude ?? HomeLocation.companion.Kyiv.longitude
+            form.city = home?.city.name ?? HomeLocation.companion.Kyiv.city
+            form.latitude = home?.city.latitude ?? HomeLocation.companion.Kyiv.latitude
+            form.longitude = home?.city.longitude ?? HomeLocation.companion.Kyiv.longitude
         }
     }
 }

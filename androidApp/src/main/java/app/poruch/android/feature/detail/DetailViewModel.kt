@@ -46,18 +46,18 @@ class DetailViewModel(
         // композиції: модель переживає поворот, запит іде один раз.
         app.openEvent(openedId)
         observe(app) { shared ->
-            if (pendingId != null && shared.selectedEvent?.id == pendingId) {
+            if (pendingId != null && shared.detail.event?.id == pendingId) {
                 eventId = pendingId!!
                 pendingId = null
             }
-            val event = shared.selectedEvent?.takeIf { it.id == eventId }
+            val event = shared.detail.event?.takeIf { it.id == eventId }
             if (event != null && event.id == openedId) anchor = event
             // Перебудова лише при зміні картки або індексу: пошук прокату проходить увесь індекс.
             val source = anchor
             val from = carouselFrom
-            if (source != null && (from == null || from.first !== source || from.second !== shared.index)) {
+            if (source != null && (from == null || from.first !== source || from.second !== shared.map.index)) {
                 carousel = app.sessionsOf(source)
-                carouselFrom = source to shared.index
+                carouselFrom = source to shared.map.index
             }
             val now = Clock.System.now()
             copy(
@@ -69,17 +69,17 @@ class DetailViewModel(
                 } else carousel,
                 sessionStarted = event != null && carousel.size > 1 && !event.isMultiDay &&
                         event.hasStarted(now),
-                attendees = shared.attendees,
-                loading = shared.loading,
+                attendees = shared.detail.attendees,
+                loading = shared.map.loading,
                 mutating = shared.mutating,
                 signedIn = shared.signedIn,
                 saved = shared.isSaved(eventId),
                 waitlisted = shared.isWaitlisted(eventId),
                 organizer = event != null && shared.organizes(event),
-                requests = shared.joinRequests,
+                requests = shared.detail.joinRequests,
                 ended = event?.hasEnded(now) == true,
                 canRate = event != null && RatingRules.canRate(event, now),
-                ratings = shared.ratings
+                ratings = shared.detail.ratings
             )
         }
     }

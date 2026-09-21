@@ -13,7 +13,7 @@ class ChatViewModel(private val app: PoruchApp, private val eventId: String) :
     init {
         app.openChat(eventId)
         observe(app) { shared ->
-            val event = (listOf(shared.selectedEvent) + shared.myEvents).firstOrNull { it?.id == eventId }
+            val event = (listOf(shared.detail.event) + shared.library.myEvents).firstOrNull { it?.id == eventId }
             val chat = shared.chat?.takeIf { it.eventId == eventId }
             val now = Clock.System.now()
             copy(
@@ -23,7 +23,7 @@ class ChatViewModel(private val app: PoruchApp, private val eventId: String) :
                 loading = chat?.loading ?: loading,
                 sending = chat?.sending ?: false,
                 available = chat?.available ?: available,
-                userId = shared.userId,
+                userId = shared.session.userId,
                 organizer = event != null && shared.organizes(event),
                 // Той самий поріг, що на сервері: тиждень після кінця.
                 readOnly = event != null && (event.isCancelled || event.endInstant?.let { it + CHAT_GRACE < now } == true)

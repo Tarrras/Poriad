@@ -29,7 +29,7 @@ internal class ChatAlertSync(
                     val current = state.value
                     val alerts = ChatAlertRules.alerts(
                         current.chatUnread, seen.seen(), current.chat?.eventId,
-                        enabled = current.signedIn && current.remindersEnabled && !current.pushRegistered
+                        enabled = current.signedIn && current.remindersEnabled && !current.session.pushRegistered
                     )
                     if (alerts.isNotEmpty()) {
                         PoruchLog.i("chat") { "${alerts.size} chats with new messages" }

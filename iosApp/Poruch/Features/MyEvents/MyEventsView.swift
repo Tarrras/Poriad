@@ -30,8 +30,8 @@ struct MyEventsView: View {
         guard let state = model.state else { return [] }
         let now = Date()
         let ended = { (event: Event) in parseEventDate(event.endsAt).map { $0 <= now } ?? false }
-        if tab == .ended { return state.myEvents.filter { state.concerns(event: $0) && ended($0) }.reversed() }
-        return state.myEvents.filter { event in
+        if tab == .ended { return state.library.myEvents.filter { state.concerns(event: $0) && ended($0) }.reversed() }
+        return state.library.myEvents.filter { event in
             guard !ended(event) else { return false }
             switch tab {
             case .attending: return event.gathering?.joined == true
