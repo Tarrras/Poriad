@@ -3,12 +3,13 @@ package app.poruch.shared
 import app.poruch.domain.*
 
 /**
- * Відповіді онбордингу й інтереси. Зберігаються на пристрої, щоб мав і гість; акаунт
+ * Відповіді онбордингу, інтереси й нагадування. Зберігаються на пристрої, щоб мав і гість; акаунт
  * переносить лише категорії на інший пристрій.
  */
 internal class TasteUseCases(
     private val tasteStore: TasteStore?,
     private val preferences: PreferencesRepository?,
+    private val reminderStore: ReminderPreferenceStore?,
     private val store: AppStore
 ) {
     /** Словник перевіряємо тут, а не довіряємо екрану. */
@@ -41,6 +42,13 @@ internal class TasteUseCases(
         val next = if (category in selected) selected - category else selected + category
         apply(store.value.taste.copy(interests = next))
         if (store.value.signedIn) preferences?.setInterests(next)
+    }
+
+    /** Дозвіл системи — справа платформи: сюди приходить уже результат, план рахує [ReminderSync]. */
+    fun setRemindersEnabled(enabled: Boolean) {
+        PoruchLog.i("reminders") { if (enabled) "enabled" else "disabled" }
+        reminderStore?.setEnabled(enabled)
+        store.update { it.copy(remindersEnabled = enabled) }
     }
 
     private fun apply(taste: Taste) {

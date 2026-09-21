@@ -116,3 +116,20 @@ data class AppState(
     private fun runOf(id: String) = index.firstOrNull { run -> run.sessions.any { it.id == id } }
         ?: home.index.firstOrNull { run -> run.sessions.any { it.id == id } }
 }
+
+/**
+ * Стан під акаунтом [uid]: усе приватне попереднього зникає. Єдиний перелік того, що належить
+ * акаунту, для входу, виходу й зміни акаунта. Відповіді онбордингу й місто належать телефону і лишаються.
+ */
+internal fun AppState.forAccount(uid: String?): AppState = copy(
+    userId = uid,
+    events = emptyList(),
+    myEvents = emptyList(), savedIds = emptyList(), waitlistedIds = emptyList(),
+    selectedEvent = null, attendees = emptyList(), ratings = emptyList(), joinRequests = emptyList(),
+    pendingRequests = emptyList(), chatUnread = emptyList(), account = AccountFacts(), blocked = emptyList(),
+    pushRegistered = false,
+    passwordRecovery = false,
+    completedEventId = null,
+    // Вхід або підтвердження з листа: наступний крок реєстрації вже не потрібен.
+    awaitingConfirmation = if (uid != null) null else awaitingConfirmation
+)

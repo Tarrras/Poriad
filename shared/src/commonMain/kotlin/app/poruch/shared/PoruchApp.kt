@@ -32,7 +32,7 @@ class PoruchApp internal constructor(
     creationIdentity: CreationIdentityStore? = null,
     timeZones: TimeZoneLocator? = null,
     addresses: AddressSearch? = null,
-    private val reminderStore: ReminderPreferenceStore? = null,
+    reminderStore: ReminderPreferenceStore? = null,
     /** Останнє обране місто. Null — кожен запуск з [AppConfig.home]. */
     cityStore: CityStore? = null,
     /** Системний планувальник нагадувань. Null у тестах і превʼю: план рахується, але нікуди не йде. */
@@ -99,7 +99,7 @@ class PoruchApp internal constructor(
     private val sessionUseCases =
         SessionUseCases(auth, accountActions, store, identity, pushSync, reloader)
     private val safetyUseCases = SafetyUseCases(safety, store, library, reloader)
-    private val tasteUseCases = TasteUseCases(tasteStore, preferences, store)
+    private val tasteUseCases = TasteUseCases(tasteStore, preferences, reminderStore, store)
 
     init {
         discovery.onQueryChanged = library::dismiss
@@ -277,11 +277,7 @@ class PoruchApp internal constructor(
      * Перемикач у профілі. Дозвіл системи — справа платформи: сюди приходить уже результат,
      * а план нагадувань перераховується зі стану, див. [ReminderSync].
      */
-    fun setRemindersEnabled(enabled: Boolean) {
-        PoruchLog.i("reminders") { if (enabled) "enabled" else "disabled" }
-        reminderStore?.setEnabled(enabled)
-        store.update { it.copy(remindersEnabled = enabled) }
-    }
+    fun setRemindersEnabled(enabled: Boolean) = tasteUseCases.setRemindersEnabled(enabled)
 
     // ---- Безпека
 

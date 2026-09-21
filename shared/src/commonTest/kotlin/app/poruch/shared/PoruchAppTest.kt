@@ -342,6 +342,15 @@ class PoruchAppTest {
         assertTrue(app.state.value.passwordRecovery)
         app.close()
     }
+    /** Вихід чистить те саме, що й зміна акаунта: раніше крок нового пароля переживав вихід. */
+    @Test fun signingOutForgetsTheRecoveryStep()=runTest {
+        val app=app(Events(),backgroundScope)
+        runCurrent();app.handleAuthCallback("poriad://auth/callback");runCurrent()
+        app.signOut();runCurrent()
+        assertFalse(app.state.value.passwordRecovery)
+        assertEquals(null,app.state.value.userId)
+        app.close()
+    }
 
     @Test fun textSearchDebouncesAndKeepsLatestQuery()=runTest {
         val events=Events();val app=app(events,backgroundScope)

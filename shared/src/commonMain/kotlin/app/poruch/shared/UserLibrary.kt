@@ -156,16 +156,9 @@ internal class UserLibrary(
         return remote
     }
 
-    /** Прибирає все від попереднього акаунта в пам'яті й на диску. Відповіді онбордингу належать телефону і лишаються. */
+    /** Зупиняє читання для попереднього акаунта і чистить його кеш на диску. Стан чистить [forAccount]. */
     fun clear() {
         listJob?.cancel(); detailJob?.cancel(); openEventId = null
         events.clearPrivateCache()
-        store.update {
-            it.copy(
-                myEvents = emptyList(), savedIds = emptyList(), waitlistedIds = emptyList(),
-                attendees = emptyList(), ratings = emptyList(), selectedEvent = null, joinRequests = emptyList(),
-                pendingRequests = emptyList(), chatUnread = emptyList(), account = AccountFacts(), blocked = emptyList()
-            )
-        }
     }
 }

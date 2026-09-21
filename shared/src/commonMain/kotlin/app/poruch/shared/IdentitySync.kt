@@ -30,17 +30,7 @@ internal class IdentitySync(
         PoruchLog.i("session") { "identity → ${uid.shortId()}, clearing private state" }
         events.forgetPendingCreation()
         library.clear(); chat.close()
-        store.update {
-            it.copy(
-                userId = uid,
-                events = emptyList(),
-                pushRegistered = false,
-                passwordRecovery = false,
-                completedEventId = null,
-                // Вхід або підтвердження з листа: наступний крок реєстрації вже не потрібен.
-                awaitingConfirmation = if (uid != null) null else it.awaitingConfirmation
-            )
-        }
+        store.update { it.forAccount(uid) }
         discovery.refresh()
         if (uid != null) {
             library.load(); push.register()
@@ -50,7 +40,7 @@ internal class IdentitySync(
     /** Локальний вихід. Чистимо навіть якщо сервер відмовив: людина попросила вийти. */
     fun forget() {
         library.clear(); chat.close()
-        store.update { it.copy(userId = null) }
+        store.update { it.forAccount(null) }
         discovery.refresh()
     }
 }
