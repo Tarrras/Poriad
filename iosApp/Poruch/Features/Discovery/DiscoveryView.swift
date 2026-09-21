@@ -73,10 +73,10 @@ struct DiscoveryView: View {
     /// Розмір екрана під контролами: з нього рахуються висоти шторки.
     @State private var screen: CGSize = .zero
     /// Категорія, обрана плитками в шторці. Звужує список, а не мапу.
-    @State private var listCategory = AppStateKt.ALL_CATEGORIES
+    @State private var listCategory = DiscoveryStateKt.ALL_CATEGORIES
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// Категорія мапи. Головна має свою.
-    private var category: String { model.state?.category ?? AppStateKt.ALL_CATEGORIES }
+    private var category: String { model.state?.category ?? DiscoveryStateKt.ALL_CATEGORIES }
 
     /// Похідні списки, пораховані раз на зміну входів. Тіло перераховується на кожен кадр
     /// протягування шторки, а кожен прохід по індексу — тисячі звертань через міст.
@@ -103,7 +103,7 @@ struct DiscoveryView: View {
     /// Завантажені картки списку. Може бути менше за `listEntries`: решту список просить сам.
     private var shownEvents: [Event] { derived.shownEvents }
     private var activeFilters: Int {
-        [model.state?.dateFilter != DateFilter.shared.ANY, model.state?.category != AppStateKt.ALL_CATEGORIES, model.state?.onlyAvailable == true]
+        [model.state?.dateFilter != DateFilter.shared.ANY, model.state?.category != DiscoveryStateKt.ALL_CATEGORIES, model.state?.onlyAvailable == true]
             .filter { $0 }.count
     }
     var body: some View {
@@ -370,7 +370,7 @@ struct DiscoveryView: View {
                 HStack(spacing: Space.xs) {
                     ForEach(categories, id: \.0) { entry in
                         CategoryTile(category: entry.0, selected: listCategory == entry.0) {
-                            listCategory = listCategory == entry.0 ? AppStateKt.ALL_CATEGORIES : entry.0
+                            listCategory = listCategory == entry.0 ? DiscoveryStateKt.ALL_CATEGORIES : entry.0
                         }
                     }
                 }
@@ -460,7 +460,7 @@ struct DiscoveryView: View {
     private var countLabel: String {
         if model.state?.loading == true { return "Шукаємо події…" }
         if stackFocused { return "Тут подій: \(listEntries.count)" }
-        let whole = category == AppStateKt.ALL_CATEGORIES && listCategory == AppStateKt.ALL_CATEGORIES
+        let whole = category == DiscoveryStateKt.ALL_CATEGORIES && listCategory == DiscoveryStateKt.ALL_CATEGORIES
         return "Знайдено подій: \(whole ? Int(model.state?.totalFound ?? 0) : listEntries.count)"
     }
 
@@ -519,7 +519,7 @@ struct FiltersView: View {
     @State private var available: Bool?
 
     private var pickedDate: String { date ?? model.state?.dateFilter ?? DateFilter.shared.ANY }
-    private var pickedCategory: String { category ?? model.state?.category ?? AppStateKt.ALL_CATEGORIES }
+    private var pickedCategory: String { category ?? model.state?.category ?? DiscoveryStateKt.ALL_CATEGORIES }
     private var pickedAvailable: Bool { available ?? model.state?.onlyAvailable ?? false }
 
     private func apply() {
@@ -545,9 +545,9 @@ struct FiltersView: View {
                     }
                     section("Категорії") {
                         FlexibleChips(
-                            items: [(AppStateKt.ALL_CATEGORIES, "Усі", nil)] + categories.map { ($0.0, $0.1, $0.0) },
+                            items: [(DiscoveryStateKt.ALL_CATEGORIES, "Усі", nil)] + categories.map { ($0.0, $0.1, $0.0) },
                             isSelected: { pickedCategory == $0 }
-                        ) { category = pickedCategory == $0 ? AppStateKt.ALL_CATEGORIES : $0 }
+                        ) { category = pickedCategory == $0 ? DiscoveryStateKt.ALL_CATEGORIES : $0 }
                     }
                     Toggle(isOn: Binding(get: { pickedAvailable }, set: { available = $0 })) {
                         Text("Лише події, до яких можна приєднатись").font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
@@ -568,7 +568,7 @@ struct FiltersView: View {
             Spacer(minLength: Space.sm)
             Button("Скинути") {
                 date = DateFilter.shared.ANY
-                category = AppStateKt.ALL_CATEGORIES
+                category = DiscoveryStateKt.ALL_CATEGORIES
                 available = false
             }
             .font(PoruchFont.label).foregroundStyle(Palette.inkSecondary)
@@ -693,7 +693,7 @@ private final class DeckMemo {
     @MainActor func update(_ next: Key, model: AppModel) {
         guard next != key else { return }
         key = next
-        let all = AppStateKt.ALL_CATEGORIES
+        let all = DiscoveryStateKt.ALL_CATEGORIES
         mapEntries = next.category == all ? model.mapEntries : model.mapEntries.filter { $0.category == next.category }
         let stack = Set(next.stack)
         let stackEntries = stack.isEmpty ? [] : mapEntries.filter { stack.contains($0.id) }
