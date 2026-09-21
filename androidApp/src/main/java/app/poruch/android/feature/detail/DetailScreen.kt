@@ -30,6 +30,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -62,9 +64,10 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
         }
         return
     }
+    val scroll = rememberScrollState()
     Box(Modifier.fillMaxSize().background(colors.canvas)) {
         PullToRefresh(state.refreshing, { onIntent(DetailIntent.Refresh) }, Modifier.fillMaxSize(), underStatusBar = true) {
-            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 128.dp)) {
+            Column(Modifier.fillMaxSize().verticalScroll(scroll).padding(bottom = 128.dp)) {
                 Hero(event, state, onIntent)
                 Column(
                     Modifier.padding(horizontal = Spacing.page).padding(top = Spacing.md),
@@ -88,11 +91,19 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
                     if (state.organizer && state.requests.isNotEmpty()) JoinRequests(state, onIntent)
                     if (state.canRate) RateEvent(state, onIntent)
                     if (state.organizer && state.ended && !state.cancelled) Ratings(state)
-                    if (state.organizer && !state.cancelled) OrganizerActions(state, onIntent)
+                    // Після кінця редагувати й скасовувати нічого: лишаються відгуки.
+                    if (state.organizer && !state.cancelled && !state.ended) OrganizerActions(state, onIntent)
                     if (!state.organizer) SafetyActions(event, onIntent)
                 }
             }
         }
+        // Коли обкладинка поїхала вгору, текст інакше йде під годинник: смуга статусу набирає колір полотна.
+        val density = LocalDensity.current
+        Box(
+            Modifier.fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars)
+                .graphicsLayer { alpha = with(density) { ((scroll.value - SCRIM_FROM.toPx()) / SCRIM_FADE.toPx()).coerceIn(0f, 1f) } }
+                .background(colors.canvas)
+        )
         StickyAction(state, event, Modifier.align(Alignment.BottomCenter), onIntent)
     }
     if (state.confirmingBlock) PoruchConfirmSheet(
@@ -638,3 +649,7 @@ private fun ScrimButton(icon: ImageVector, description: String, onClick: () -> U
 }
 
 private const val ROSTER_PREVIEW = 80
+
+/** Звідки й за скільки проявляється смуга під статусом: обкладинка 400 dp, її низ уже згас у полотно. */
+private val SCRIM_FROM = 180.dp
+private val SCRIM_FADE = 80.dp

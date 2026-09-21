@@ -99,6 +99,12 @@ struct EventDetailView: View {
                     .offset(y: min(offset, 0) * heroParallax)
                     .ignoresSafeArea(edges: .top)
             }
+            // Коли обкладинка поїхала вгору, текст інакше йде під годинник: смуга статусу набирає колір полотна.
+            .overlay(alignment: .top) {
+                Palette.canvas.frame(height: topInset).ignoresSafeArea(edges: .top)
+                    .opacity(min(max((-offset - scrimFrom) / scrimFade, 0), 1))
+                    .allowsHitTesting(false)
+            }
             stickyBar(event, view)
         }
         .background(Palette.canvas)
@@ -125,7 +131,8 @@ struct EventDetailView: View {
                 }.id(view.myRating?.createdAt)
             }
             if view.organizer && view.ended && !view.cancelled { RatingsSummary(ratings: view.ratings) }
-            if view.organizer && !view.cancelled { organizerActions(view) }
+            // Після кінця редагувати й скасовувати нічого: лишаються відгуки.
+            if view.organizer && !view.cancelled && !view.ended { organizerActions(view) }
             if !view.organizer { safetyActions(view) }
         }
     }
@@ -221,6 +228,9 @@ private struct DetailDialogs: ViewModifier {
 
 /// Висота обкладинки від краю екрана.
 private let heroHeight: CGFloat = 400
+/// Звідки й за скільки проявляється смуга під статусом: низ обкладинки вже згас у полотно.
+private let scrimFrom: CGFloat = 220
+private let scrimFade: CGFloat = 80
 /// Частка швидкості стрічки, з якою обкладинка їде вгору. Менше одиниці — паралакс.
 private let heroParallax: CGFloat = 0.5
 /// Ім'я системи координат стрічки для `reportsScrollOffset`.
