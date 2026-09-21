@@ -1,15 +1,16 @@
 import SwiftUI
 import Shared
 
-/// «Мої події» — один список у трьох розрізах.
+/// «Мої події» — один список у чотирьох розрізах.
 enum MyEventsTab: Int, CaseIterable, Identifiable {
-    case attending, organizing, saved
+    case attending, organizing, saved, ended
     var id: Int { rawValue }
     var title: String {
         switch self {
         case .attending: "Відвідую"
         case .organizing: "Організовую"
         case .saved: "Збережені"
+        case .ended: "Завершено"
         }
     }
 }
@@ -23,15 +24,20 @@ struct MyEventsView: View {
 
     private var signedIn: Bool { model.state?.signedIn == true }
 
-    /// «Збережені» з того ж списку: зберегти можна, не приєднуючись.
+    /// «Збережені» з того ж списку: зберегти можна, не приєднуючись. Завершене йде лише в
+    /// «Завершено», свіжіше першим; збережене, куди людина не йшла, просто зникає.
     private var visible: [Event] {
         guard let state = model.state else { return [] }
+        let now = Date()
+        let ended = { (event: Event) in parseEventDate(event.endsAt).map { $0 <= now } ?? false }
+        if tab == .ended { return state.myEvents.filter { state.concerns(event: $0) && ended($0) }.reversed() }
         return state.myEvents.filter { event in
+            guard !ended(event) else { return false }
             switch tab {
-            case .attending: event.gathering?.joined == true
-            case .organizing: state.organizes(event: event)
+            case .attending: return event.gathering?.joined == true
+            case .organizing: return state.organizes(event: event)
             // Набір із моделі, а не `isSaved` через міст: там лінійний пошук на кожен рядок.
-            case .saved: model.savedIDs.contains(event.id)
+            case .saved, .ended: return model.savedIDs.contains(event.id)
             }
         }
     }

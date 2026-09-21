@@ -553,6 +553,8 @@ private fun eventStatus(event: Event, waitlisted: Boolean = false): Pair<String,
         else stringResource(R.string.listing_badge, listing.sourceName) to BadgeTone.Neutral
     }
     val room = event.gathering ?: return null
+    // Місця й «ви йдете» після кінця нічого не кажуть: рядок покаже категорію.
+    if (event.hasEnded(kotlin.time.Clock.System.now())) return null
     return when {
         room.joined -> stringResource(R.string.going) to BadgeTone.Success
         waitlisted -> stringResource(R.string.in_queue) to BadgeTone.Accent

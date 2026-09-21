@@ -69,6 +69,8 @@ data class AppState(
     /** Область поставлена рукою («Шукати тут»), а не обрана зі списку міст. Головна каже це вголос. */
     val customArea: Boolean = false,
     val attendees: List<Attendee> = emptyList(),
+    /** Оцінки відкритої завершеної події: організаторові всі, учасникові — своя. */
+    val ratings: List<EventRating> = emptyList(),
     val waitlistedIds: List<String> = emptyList(),
     /** Відкритий чат події. Null — екран чату закрито, і опитування зупинено. */
     val chat: ChatState? = null,
@@ -261,7 +263,7 @@ enum class AppMessage {
     JOINED_EVENT, JOINED_WAITLIST, SIGNED_IN, ACCOUNT_CREATED, CONFIRM_EMAIL_FIRST,
     EVENT_PUBLISHED, CHANGES_SAVED, PHOTO_ADDED, RECOVERY_SENT, PASSWORD_CHANGED,
     SET_NEW_PASSWORD, EMAIL_CONFIRMED, ZOOM_IN_FOR_MORE,
-    REQUEST_SENT, REPORT_SENT, USER_BLOCKED, AGE_CONFIRMED, ACCOUNT_DELETED
+    REQUEST_SENT, REPORT_SENT, USER_BLOCKED, AGE_CONFIRMED, ACCOUNT_DELETED, RATING_SENT
 }
 
 /**

@@ -610,6 +610,8 @@ func eventBadge(_ event: Event, waitlisted: Bool = false) -> (String, BadgeTone,
         return ("Афіша · \(listing.sourceName)", .neutral, nil)
     }
     guard let room = event.gathering else { return nil }
+    // Місця й «ви йдете» після кінця нічого не кажуть: рядок покаже категорію.
+    if event.hasEnded(now: nowInstant()) { return nil }
     if room.joined { return ("Ви йдете", .success, "checkmark") }
     if waitlisted { return ("У черзі", .accent, "hourglass") }
     if room.isFull { return ("Місць немає", .neutral, nil) }

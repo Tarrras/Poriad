@@ -4,6 +4,7 @@ import app.poruch.domain.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
+import kotlin.time.Clock
 
 /**
  * Стан, прив'язаний до акаунта: відкрита подія з учасниками і списки «мої». Окремо від пошуку,
@@ -51,7 +52,7 @@ internal class UserLibrary(
         state.update {
             it.copy(
                 selectedEvent = known ?: it.selectedEvent?.takeIf { open -> open.id == id || stay },
-                attendees = emptyList(), joinRequests = emptyList()
+                attendees = emptyList(), ratings = emptyList(), joinRequests = emptyList()
             )
         }
         if (!full && known != null) {
@@ -83,6 +84,14 @@ internal class UserLibrary(
                 try { requests.joinRequests(id) } catch (e: CancellationException) { throw e } catch (e: Exception) { emptyList() }
             } else emptyList()
             if (openEventId == id) state.update { it.copy(joinRequests = requests) }
+            // Оцінки — лише завершеної кімнати і лише своїм: організатору й учасникам.
+            val ended = state.value.selectedEvent?.takeIf {
+                it.id == id && it.isCommunity && it.hasEnded(Clock.System.now()) && state.value.concerns(it)
+            }
+            val ratings = if (ended != null) {
+                try { participation.ratings(id) } catch (e: CancellationException) { throw e } catch (e: Exception) { emptyList() }
+            } else emptyList()
+            if (openEventId == id) state.update { it.copy(ratings = ratings) }
         }
     }
 
@@ -92,7 +101,7 @@ internal class UserLibrary(
     fun dismiss() {
         openEventId = null
         detailJob?.cancel()
-        state.update { it.copy(selectedEvent = null, attendees = emptyList(), joinRequests = emptyList()) }
+        state.update { it.copy(selectedEvent = null, attendees = emptyList(), ratings = emptyList(), joinRequests = emptyList()) }
     }
 
     fun load() {
@@ -155,7 +164,7 @@ internal class UserLibrary(
         state.update {
             it.copy(
                 myEvents = emptyList(), savedIds = emptyList(), waitlistedIds = emptyList(),
-                attendees = emptyList(), selectedEvent = null, joinRequests = emptyList(),
+                attendees = emptyList(), ratings = emptyList(), selectedEvent = null, joinRequests = emptyList(),
                 pendingRequests = emptyList(), chatUnread = emptyList(), account = AccountFacts(), blocked = emptyList()
             )
         }

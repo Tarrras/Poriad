@@ -2,6 +2,7 @@ package app.poruch.android.feature.detail
 
 import app.poruch.domain.Attendee
 import app.poruch.domain.Event
+import app.poruch.domain.EventRating
 import app.poruch.domain.EventSession
 
 data class DetailState(
@@ -27,8 +28,16 @@ data class DetailState(
     val reporting: ReportTarget? = null,
     val confirmingBlock: Boolean = false,
     /** Попередження перед виходом у чужий чат: спершу кажемо, куди й хто це додав. */
-    val confirmingContact: Boolean = false
+    val confirmingContact: Boolean = false,
+    /** Подія завершилась: участь уже нічого не змінює. */
+    val ended: Boolean = false,
+    /** Учасник і вікно оцінки ще відкрите. */
+    val canRate: Boolean = false,
+    /** Організаторові всі оцінки, учасникові — своя. */
+    val ratings: List<EventRating> = emptyList()
 ) {
+    val myRating get() = ratings.firstOrNull { it.mine }
+
     val cancelled get() = event?.isCancelled == true
 
     /** Кімната, якщо це кімната. Місця й участь лише в неї. */
@@ -54,6 +63,7 @@ data class DetailState(
                 if (listing!!.isWithdrawn || !listing!!.hasSource || sessionStarted) DetailAction.NONE
                 else DetailAction.TICKETS
             organizer -> DetailAction.ORGANIZER
+            ended -> DetailAction.NONE
             // Ні кімнати, ні оголошення — зіпсований рядок: без дій.
             room == null -> DetailAction.NONE
             room!!.awaitingApproval -> DetailAction.REQUESTED
@@ -118,6 +128,7 @@ sealed interface DetailIntent {
     data class ApproveRequest(val userId: String) : DetailIntent
     data class DeclineRequest(val userId: String) : DetailIntent
     data object CancelEvent : DetailIntent
+    data class Rate(val score: Int, val comment: String) : DetailIntent
     data class AttachPhoto(val bytes: ByteArray, val contentType: String) : DetailIntent {
         // Масиви байтів порівнюються за посиланням: два вибори того самого файлу — різні інтенти.
         override fun equals(other: Any?) = this === other ||

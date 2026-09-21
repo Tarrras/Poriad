@@ -1,8 +1,10 @@
 package app.poruch.android.feature.mine
 
 import app.poruch.android.mvi.MviViewModel
+import app.poruch.domain.Event
 import app.poruch.shared.AppState
 import app.poruch.shared.PoruchApp
+import kotlin.time.Clock
 
 class MyEventsViewModel(private val app: PoruchApp) :
     MviViewModel<MyEventsState, MyEventsIntent, MyEventsEffect>(MyEventsState()) {
@@ -36,12 +38,19 @@ class MyEventsViewModel(private val app: PoruchApp) :
         }
     }
 
-    /** «Збережені» з того ж списку: зберегти можна, не приєднуючись. */
-    private fun AppState.forTab(tab: MyEventsTab) = myEvents.filter { event ->
-        when (tab) {
-            MyEventsTab.ATTENDING -> event.gathering?.joined == true
-            MyEventsTab.ORGANIZING -> organizes(event)
-            MyEventsTab.SAVED -> isSaved(event.id)
+    /**
+     * «Збережені» з того ж списку: зберегти можна, не приєднуючись. Завершене йде лише в
+     * «Завершено», свіжіше першим; збережене, куди людина не йшла, просто зникає.
+     */
+    private fun AppState.forTab(tab: MyEventsTab): List<Event> {
+        val now = Clock.System.now()
+        if (tab == MyEventsTab.ENDED) return myEvents.filter { concerns(it) && it.hasEnded(now) }.asReversed()
+        return myEvents.filter { event ->
+            !event.hasEnded(now) && when (tab) {
+                MyEventsTab.ATTENDING -> event.gathering?.joined == true
+                MyEventsTab.ORGANIZING -> organizes(event)
+                MyEventsTab.SAVED, MyEventsTab.ENDED -> isSaved(event.id)
+            }
         }
     }
 }

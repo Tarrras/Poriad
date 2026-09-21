@@ -5,6 +5,7 @@ import app.poruch.android.platform.NotificationPermission
 import app.poruch.domain.Event
 import app.poruch.domain.EventIndexEntry
 import app.poruch.domain.EventSession
+import app.poruch.domain.RatingRules
 import app.poruch.shared.PoruchApp
 import kotlin.time.Clock
 
@@ -58,6 +59,7 @@ class DetailViewModel(
                 carousel = app.sessionsOf(source)
                 carouselFrom = source to shared.index
             }
+            val now = Clock.System.now()
             copy(
                 event = event,
                 sessionId = eventId,
@@ -66,7 +68,7 @@ class DetailViewModel(
                     carousel.map { if (it.id == event.id) it.copy(cancelled = true) else it }
                 } else carousel,
                 sessionStarted = event != null && carousel.size > 1 && !event.isMultiDay &&
-                        event.hasStarted(Clock.System.now()),
+                        event.hasStarted(now),
                 attendees = shared.attendees,
                 loading = shared.loading,
                 mutating = shared.mutating,
@@ -74,7 +76,10 @@ class DetailViewModel(
                 saved = shared.isSaved(eventId),
                 waitlisted = shared.isWaitlisted(eventId),
                 organizer = event != null && shared.organizes(event),
-                requests = shared.joinRequests
+                requests = shared.joinRequests,
+                ended = event?.hasEnded(now) == true,
+                canRate = event != null && RatingRules.canRate(event, now),
+                ratings = shared.ratings
             )
         }
     }
@@ -183,6 +188,7 @@ class DetailViewModel(
 
             is DetailIntent.ApproveRequest -> app.approveMember(eventId, intent.userId)
             is DetailIntent.DeclineRequest -> app.declineMember(eventId, intent.userId)
+            is DetailIntent.Rate -> app.rateEvent(eventId, intent.score, intent.comment)
         }
     }
 

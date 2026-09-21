@@ -119,6 +119,12 @@ struct EventDetailView: View {
             description(event)
             if view.hasChat || view.contactURL != nil { contact(view) }
             if view.organizer && !view.requests.isEmpty { joinRequests(event, view) }
+            if view.canRate {
+                RateEventCard(mine: view.myRating, mutating: view.mutating) { score, comment in
+                    model.app.rateEvent(id: event.id, score: Int32(score), comment: comment)
+                }.id(view.myRating?.createdAt)
+            }
+            if view.organizer && view.ended && !view.cancelled { RatingsSummary(ratings: view.ratings) }
             if view.organizer && !view.cancelled { organizerActions(view) }
             if !view.organizer { safetyActions(view) }
         }
@@ -567,6 +573,83 @@ enum ReportTarget: String, Identifiable {
 }
 
 /// Скарга: іменована причина для сортування черги модерації плюс необов'язковий текст.
+/// Оцінка учасника: зірки й необовʼязковий коментар. Повторна відправка замінює попередню.
+struct RateEventCard: View {
+    let mine: EventRating?
+    let mutating: Bool
+    let send: (Int, String) -> Void
+    @State private var score: Int
+    @State private var comment: String
+
+    init(mine: EventRating?, mutating: Bool, send: @escaping (Int, String) -> Void) {
+        self.mine = mine; self.mutating = mutating; self.send = send
+        _score = State(initialValue: mine.map { Int($0.score) } ?? 0)
+        _comment = State(initialValue: mine?.comment ?? "")
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Space.md) {
+            SectionHeader(title: "Як усе пройшло?")
+            Stars(score: score, size: 30) { score = $0 }
+            LabelledField(label: "Коментар (необовʼязково)", text: $comment, multiline: true)
+                .onChange(of: comment) { _, value in
+                    let limit = Int(RatingRules.shared.COMMENT_MAX)
+                    if value.count > limit { comment = String(value.prefix(limit)) }
+                }
+            Text("Оцінку бачить лише організатор, без вашого імені. Змінити можна протягом 14 днів.")
+                .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
+            PrimaryButton(title: mine == nil ? "Надіслати оцінку" : "Оновити оцінку", loading: mutating,
+                          enabled: score > 0 && !mutating) { send(score, comment) }
+        }
+    }
+}
+
+/// Відгуки для організатора: середнє і коментарі, без імен.
+struct RatingsSummary: View {
+    let ratings: [EventRating]
+    var body: some View {
+        VStack(alignment: .leading, spacing: Space.md) {
+            SectionHeader(title: "Відгуки учасників")
+            if let average = RatingRules.shared.average(ratings: ratings)?.doubleValue {
+                Text("★ \(String(format: "%.1f", average).replacingOccurrences(of: ".", with: ",")) з 5 · оцінок: \(ratings.count)")
+                    .font(PoruchFont.cardName).foregroundStyle(Palette.ink)
+                ForEach(Array(ratings.filter { !($0.comment ?? "").isEmpty }.enumerated()), id: \.offset) { _, rating in
+                    VStack(alignment: .leading, spacing: Space.xs) {
+                        Stars(score: Int(rating.score), size: 14)
+                        Text(rating.comment ?? "").font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
+                    }.padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()
+                }
+            } else {
+                Text("Учасники ще не оцінили зустріч. Оцінити можна протягом 14 днів після завершення.")
+                    .font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
+            }
+        }
+    }
+}
+
+/// Пʼять зірок. З `pick` — вибір, без нього — лише показ.
+struct Stars: View {
+    let score: Int
+    var size: CGFloat
+    var pick: ((Int) -> Void)?
+    var body: some View {
+        HStack(spacing: pick == nil ? 2 : Space.xs) {
+            ForEach(1...5, id: \.self) { value in
+                let star = Image(systemName: value <= score ? "star.fill" : "star")
+                    .font(.system(size: size)).foregroundStyle(value <= score ? Palette.brand : Palette.inkTertiary)
+                if let pick {
+                    Button { pick(value) } label: { star.frame(minWidth: 44, minHeight: 44) }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("\(value) з 5")
+                        .accessibilityAddTraits(value == score ? .isSelected : [])
+                } else { star }
+            }
+        }
+        .accessibilityElement(children: pick == nil ? .ignore : .contain)
+        .accessibilityLabel(pick == nil ? "\(score) з 5" : "")
+    }
+}
+
 struct ReportSheet: View {
     let target: ReportTarget
     let send: (String, String) -> Void

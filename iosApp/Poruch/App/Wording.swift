@@ -82,6 +82,7 @@ extension AppMessage {
         case "SET_NEW_PASSWORD": "Вкажіть новий пароль у профілі"
         case "EMAIL_CONFIRMED": "Email підтверджено"
         case "ACCOUNT_DELETED": "Обліковий запис видалено"
+        case "RATING_SENT": "Дякуємо за оцінку"
         default: "Збільшіть масштаб мапи, щоб побачити всі події в цій області"
         }
     }

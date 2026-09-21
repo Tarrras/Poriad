@@ -102,6 +102,7 @@ private val AppMessage.resource: Int
         AppMessage.ZOOM_IN_FOR_MORE -> R.string.msg_zoom_in
         AppMessage.REQUEST_SENT -> R.string.msg_request_sent
         AppMessage.REPORT_SENT -> R.string.msg_report_sent
+        AppMessage.RATING_SENT -> R.string.msg_rating_sent
         AppMessage.USER_BLOCKED -> R.string.msg_user_blocked
         AppMessage.AGE_CONFIRMED -> R.string.msg_age_confirmed
         AppMessage.ACCOUNT_DELETED -> R.string.msg_account_deleted

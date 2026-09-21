@@ -58,6 +58,13 @@ internal class EventUseCases(
         actions.leave(id); reloader.changed(id)
     }
 
+    fun rate(id: String, score: Int, comment: String?) = store.mutate {
+        PoruchLog.i("action") { "rateEvent ${id.shortId()} score=$score" }
+        participation.rate(id, score, comment?.trim()?.take(RatingRules.COMMENT_MAX)?.ifEmpty { null })
+        reloader.changed(id)
+        store.tell(AppMessage.RATING_SENT)
+    }
+
     fun cancel(id: String) = store.mutate {
         PoruchLog.i("action") { "cancelEvent ${id.shortId()}" }
         actions.cancel(id); reloader.changed(id)

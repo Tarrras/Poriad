@@ -59,6 +59,10 @@ interface EventParticipation {
     suspend fun waitlistIds(): List<String>
     suspend fun joinWaitlist(id: String)
     suspend fun leaveWaitlist(id: String)
+
+    /** Оцінки завершеної події: організаторові всі, учасникові — своя. */
+    suspend fun ratings(id: String): List<EventRating>
+    suspend fun rate(id: String, score: Int, comment: String?)
 }
 
 /** Двері організатора: хто просить увійти і кого впустити. */

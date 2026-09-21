@@ -92,4 +92,5 @@ private val MyEventsTab.label: Int
         MyEventsTab.ATTENDING -> R.string.attending
         MyEventsTab.ORGANIZING -> R.string.organizing
         MyEventsTab.SAVED -> R.string.saved
+        MyEventsTab.ENDED -> R.string.ended
     }

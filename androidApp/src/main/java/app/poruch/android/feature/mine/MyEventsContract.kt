@@ -2,8 +2,8 @@ package app.poruch.android.feature.mine
 
 import app.poruch.domain.Event
 
-/** «Мої події» — один список у трьох розрізах. */
-enum class MyEventsTab { ATTENDING, ORGANIZING, SAVED }
+/** «Мої події» — один список у чотирьох розрізах. */
+enum class MyEventsTab { ATTENDING, ORGANIZING, SAVED, ENDED }
 
 data class MyEventsState(
     val tab: MyEventsTab = MyEventsTab.ATTENDING,

@@ -120,11 +120,16 @@ private fun rangeLabel(start: ZonedDateTime, end: ZonedDateTime, now: ZonedDateT
 
 /**
  * Надрядок картки: «СЬОГОДНІ · 18:30», «СБ, 13 БЕР. 2027 · 18:00», у поясі події. Для того,
- * що вже йде: сеанс — «ТРИВАЄ ЗАРАЗ», прокат — «ДО 30 ВЕРЕСНЯ».
+ * що вже йде: сеанс — «ТРИВАЄ ЗАРАЗ», прокат — «ДО 30 ВЕРЕСНЯ». Минуле — просто датою:
+ * «20 ВЕРЕСНЯ · 14:00», бо «НД» тижневої давності читається як найближча неділя.
  */
 fun eventOverline(event: Event, words: DateWords, now: Instant = Instant.now()): String {
     val at = zoned(event) ?: return event.startsAt
     val instant = now.toKotlin()
+    if (event.hasEnded(instant)) {
+        val withYear = at.year != now.atZone(at.zone).year
+        return "${plainDate(at, withYear)} · ${at.format(pattern(HOUR))}".uppercase(ukrainian)
+    }
     // Про прокат питаємо лише коли подія вже йде: невідкрита виставка показує початок, як усі.
     if (event.isUnderway(instant)) {
         val end = if (event.isMultiDay) zonedEnd(event) else null

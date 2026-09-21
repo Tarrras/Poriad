@@ -501,9 +501,16 @@ private func rangeLabel(_ event: Event, _ start: Date, _ end: Date) -> String {
 }
 
 /// Надрядок картки: «СЬОГОДНІ · 18:30», «СБ, 13 БЕР. 2027 · 18:00», у поясі події. Для того,
-/// що вже йде: сеанс — «ТРИВАЄ ЗАРАЗ», прокат — «ДО 30 ВЕРЕСНЯ». Слова ті самі, що в Android `Format.kt`.
+/// що вже йде: сеанс — «ТРИВАЄ ЗАРАЗ», прокат — «ДО 30 ВЕРЕСНЯ». Минуле — просто датою: «20 ВЕРЕСНЯ · 14:00»,
+/// бо «НД» тижневої давності читається як найближча неділя. Слова ті самі, що в Android `Format.kt`.
 func eventOverline(_ event: Event) -> String {
     guard let date = parseEventDate(event.startsAt) else { return event.startsAt }
+    if event.hasEnded(now: nowInstant()) {
+        let calendar = calendar(event)
+        let sameYear = calendar.component(.year, from: date) == calendar.component(.year, from: Date())
+        let hour = formatter(event, "HH:mm").string(from: date)
+        return "\(plainDate(event, date, withYear: !sameYear)) · \(hour)".uppercased(with: ukrainian)
+    }
     // Про прокат питаємо лише коли подія вже йде: невідкрита виставка показує початок, як усі.
     if event.isUnderway(now: nowInstant()) {
         if event.isMultiDay, let until = untilLabel(event) {

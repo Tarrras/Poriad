@@ -49,6 +49,13 @@ struct EventDetailPresentation {
     }
     /// Сеанс прокату вже почався: показати можна, купити квиток — ні. Тижневої виставки не стосується.
     let sessionStarted: Bool
+    /// Подія завершилась: участь уже нічого не змінює.
+    let ended: Bool
+    /// Учасник і вікно оцінки ще відкрите.
+    let canRate: Bool
+    /// Організаторові всі оцінки, учасникові — своя.
+    let ratings: [EventRating]
+    var myRating: EventRating? { ratings.first { $0.mine } }
 
     /// `sessions` — карусель дат: від неї залежить лише, чи ховати кнопку квитка на сеансі, що почався.
     init(state: AppState?, eventID: String, sessions: [EventSession] = []) {
@@ -66,6 +73,9 @@ struct EventDetailPresentation {
         organizer = event.flatMap { state?.organizes(event: $0) } ?? false
         requests = state?.joinRequests ?? []
         sessionStarted = event.map { sessions.count > 1 && !$0.isMultiDay && $0.hasStarted(now: nowInstant()) } ?? false
+        ended = event?.hasEnded(now: nowInstant()) == true
+        canRate = event.map { RatingRules.shared.canRate(event: $0, now: nowInstant()) } ?? false
+        ratings = state?.ratings ?? []
     }
 
     var cancelled: Bool { event?.isCancelled == true }
@@ -87,6 +97,7 @@ struct EventDetailPresentation {
         if cancelled { return .cancelled }
         if let listing { return listing.isWithdrawn || !listing.hasSource || sessionStarted ? .none : .tickets }
         if organizer { return .organizer }
+        if ended { return .none }
         // Ні кімнати, ні оголошення — зіпсований рядок: без дій.
         guard let room else { return .none }
         if room.awaitingApproval { return .requested }
@@ -106,6 +117,7 @@ struct EventDetailPresentation {
             return listing.hasSource ? listingPrice(listing) : "Подія з афіші. Ми лише показуємо її."
         }
         guard let room else { return "" }
+        if ended { return "Подію завершено" }
         if room.awaitingApproval { return "Організатор ще не відповів" }
         // Гостю — що його чекає, не текст перемикача з редактора.
         if room.approvalRequired && !room.joined && !organizer { return "Організатор підтверджує кожного гостя." }

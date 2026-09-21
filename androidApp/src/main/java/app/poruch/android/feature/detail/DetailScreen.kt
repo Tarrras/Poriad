@@ -15,6 +15,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -44,6 +45,7 @@ import app.poruch.domain.ContactRules
 import app.poruch.domain.Event
 import app.poruch.domain.asIndexEntry
 import app.poruch.domain.Gathering
+import app.poruch.domain.RatingRules
 import app.poruch.domain.ReportReason
 import coil3.compose.AsyncImage
 
@@ -84,6 +86,8 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
                     // Чат і посилання — для своїх: сервер віддає посилання лише організатору й підтвердженим.
                     if (state.hasChat || event.gathering?.hasContact == true) ContactSection(state, event, onIntent)
                     if (state.organizer && state.requests.isNotEmpty()) JoinRequests(state, onIntent)
+                    if (state.canRate) RateEvent(state, onIntent)
+                    if (state.organizer && state.ended && !state.cancelled) Ratings(state)
                     if (state.organizer && !state.cancelled) OrganizerActions(state, onIntent)
                     if (!state.organizer) SafetyActions(event, onIntent)
                 }
@@ -338,6 +342,74 @@ private fun JoinRequests(state: DetailState, onIntent: (DetailIntent) -> Unit) {
     }
 }
 
+/** Оцінка учасника: зірки й необов'язковий коментар. Повторна відправка замінює попередню. */
+@Composable
+private fun RateEvent(state: DetailState, onIntent: (DetailIntent) -> Unit) {
+    val colors = Poruch.colors
+    val mine = state.myRating
+    var score by remember(mine) { mutableStateOf(mine?.score ?: 0) }
+    var comment by remember(mine) { mutableStateOf(mine?.comment.orEmpty()) }
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+        SectionHeader(stringResource(R.string.rate_title))
+        Stars(score, onPick = { score = it })
+        LabelledField(
+            stringResource(R.string.rate_comment), comment, { comment = it.take(RatingRules.COMMENT_MAX) },
+            singleLine = false, minLines = 3
+        )
+        Text(stringResource(R.string.rate_hint), style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary)
+        PrimaryButton(
+            stringResource(if (mine == null) R.string.rate_send else R.string.rate_update),
+            { onIntent(DetailIntent.Rate(score, comment)) }, Modifier.fillMaxWidth(),
+            enabled = score > 0 && !state.mutating
+        )
+    }
+}
+
+/** Відгуки для організатора: середнє і коментарі, без імен. */
+@Composable
+private fun Ratings(state: DetailState) {
+    val colors = Poruch.colors
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+        SectionHeader(stringResource(R.string.ratings_title))
+        val average = RatingRules.average(state.ratings)
+        if (average == null) {
+            Text(stringResource(R.string.ratings_empty), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
+            return@Column
+        }
+        Text(
+            stringResource(R.string.ratings_summary, average.toString().replace('.', ','), state.ratings.size),
+            style = MaterialTheme.typography.titleMedium, color = colors.ink
+        )
+        state.ratings.filter { !it.comment.isNullOrBlank() }.forEach { rating ->
+            Column(Modifier.fillMaxWidth().cardSurface().padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                Stars(rating.score, size = 16.dp)
+                Text(rating.comment.orEmpty(), style = MaterialTheme.typography.bodyMedium, color = colors.ink)
+            }
+        }
+    }
+}
+
+/** П'ять зірок. З [onPick] — вибір, без нього — лише показ. */
+@Composable
+private fun Stars(score: Int, size: androidx.compose.ui.unit.Dp = 36.dp, onPick: ((Int) -> Unit)? = null) {
+    val colors = Poruch.colors
+    Row(horizontalArrangement = Arrangement.spacedBy(if (onPick == null) 2.dp else Spacing.xs)) {
+        (1..5).forEach { value ->
+            val label = stringResource(R.string.rate_star, value)
+            Icon(
+                if (value <= score) Icons.Filled.Star else Icons.Outlined.StarOutline,
+                if (onPick == null) null else label,
+                Modifier.then(
+                    if (onPick == null) Modifier.size(size)
+                    else Modifier.minimumInteractiveComponentSize().clip(CircleShape)
+                        .selectable(value == score, role = Role.RadioButton) { onPick(value) }.padding(4.dp).size(size)
+                ),
+                tint = if (value <= score) colors.brand else colors.inkTertiary
+            )
+        }
+    }
+}
+
 /** Скарга й блокування внизу сторінки, не в меню: важка скарга — неподана скарга. */
 @Composable
 private fun SafetyActions(event: Event, onIntent: (DetailIntent) -> Unit) {
@@ -531,6 +603,7 @@ private fun stickyHint(state: DetailState): String {
     }
     val room = state.room ?: return ""
     return when {
+        state.ended -> stringResource(R.string.event_ended)
         room.awaitingApproval -> stringResource(R.string.request_pending_hint)
         // Гостю — що його чекає, не текст перемикача з редактора.
         room.approvalRequired && !room.joined && !state.organizer -> stringResource(R.string.approval_guest_hint)
