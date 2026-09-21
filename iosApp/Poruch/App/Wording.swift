@@ -83,6 +83,10 @@ extension AppMessage {
         case "EMAIL_CONFIRMED": "Email підтверджено"
         case "ACCOUNT_DELETED": "Обліковий запис видалено"
         case "RATING_SENT": "Дякуємо за оцінку"
+        case "REQUEST_SENT": "Запит надіслано організатору"
+        case "REPORT_SENT": "Дякуємо. Модерація перегляне скаргу"
+        case "USER_BLOCKED": "Заблоковано"
+        case "AGE_CONFIRMED": "Вік підтверджено"
         default: "Збільшіть масштаб мапи, щоб побачити всі події в цій області"
         }
     }
