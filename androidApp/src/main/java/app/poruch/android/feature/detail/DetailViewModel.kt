@@ -39,6 +39,9 @@ class DetailViewModel(
 
     // Не `sessions`: у згортці нижче отримувач — DetailState, і те саме ім'я читало б старий стан.
     private var carousel: List<EventSession> = emptyList()
+    private var nearby: List<EventIndexEntry> = emptyList()
+    /** Картку вже показували: порожній слот далі — не завантаження, а інший екран деталей поверх. */
+    private var shown = false
     private var carouselFrom: Pair<Event, List<EventIndexEntry>>? = null
 
     init {
@@ -57,8 +60,10 @@ class DetailViewModel(
             val from = carouselFrom
             if (source != null && (from == null || from.first !== source || from.second !== shared.map.index)) {
                 carousel = app.sessionsOf(source)
+                nearby = app.othersAt(source)
                 carouselFrom = source to shared.map.index
             }
+            if (event != null) shown = true
             val now = Clock.System.now()
             copy(
                 event = event,
@@ -69,6 +74,7 @@ class DetailViewModel(
                 } else carousel,
                 sessionStarted = event != null && carousel.size > 1 && !event.isMultiDay &&
                         event.hasStarted(now),
+                othersHere = nearby,
                 attendees = shared.detail.attendees,
                 loading = shared.map.loading,
                 mutating = shared.mutating,
@@ -136,6 +142,8 @@ class DetailViewModel(
             DetailIntent.OpenInMaps -> event?.let { send(DetailEffect.OpenMaps(it)) }
             // Для другої дати прокату — картка представника: окремого піна в сеансу нема.
             DetailIntent.OpenMap -> send(DetailEffect.OpenMap(app.cardIdOf(eventId)))
+            is DetailIntent.OpenEvent -> send(DetailEffect.OpenEvent(intent.id))
+            DetailIntent.Reopen -> if (shown && event == null) app.openEvent(eventId)
             DetailIntent.Edit -> send(DetailEffect.Edit(eventId))
             is DetailIntent.ConfirmCancel -> reduce { copy(confirmingCancel = intent.open) }
             DetailIntent.CancelEvent -> {

@@ -130,6 +130,21 @@ class PoruchAppTest {
         EventStatus.PUBLISHED,50.45,30.52,null,
         Gathering("organizer","Організатор",20,0,false)
     )
+    /** «Ще в цьому місці»: інші картки на тій самій точці, без відкритої. */
+    @Test fun othersAtTheVenueComeFromTheMapIndex()=runTest {
+        val events=Events(); val app=app(events,backgroundScope)
+        events.results=listOf("a" to "2090-12-22T18:00:00Z","b" to "2090-12-23T18:00:00Z","c" to "2090-12-24T18:00:00Z")
+            .map { (id,at) -> event(id,"art",at).copy(title=id) }+
+            event("far","art","2090-12-22T18:00:00Z").copy(latitude=50.46)
+        app.searchArea(1.0,2.0,3.0,4.0); advanceTimeBy(101); runCurrent()
+        val opened=app.state.value.cards.getValue("b")
+        assertEquals(listOf("a","c"),app.othersAt(opened).map { it.id })
+        // Пошук звузив мапу до однієї картки: решту місця досі видно з індексу головної.
+        app.setSearchText("c"); advanceTimeBy(101); runCurrent()
+        assertEquals(listOf("a","c"),app.othersAt(opened).map { it.id })
+        app.close()
+    }
+
     @Test fun replacementQueryCancelsPreviousDiscovery()=runTest {
         val events=Events(); val app=app(events,backgroundScope)
         runCurrent(); app.searchArea(1.0,2.0,3.0,4.0); runCurrent()

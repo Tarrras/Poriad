@@ -72,4 +72,24 @@ class MapPinsTest {
         assertTrue(!pin.contains("b"))
         assertTrue(!pin.contains(null))
     }
+
+    @Test
+    fun `others at the venue skip the opened card and its own run`() {
+        val opened = event("a", 50.45, 30.52, "2026-10-17T15:00:00Z")
+        val run = event("b", 50.45, 30.52, "2026-10-19T15:00:00Z").copy(
+            sessions = listOf(EventSession("b", "2026-10-19T15:00:00Z", "Europe/Kyiv"), EventSession("a", opened.startsAt, "Europe/Kyiv"))
+        )
+        val index = listOf(
+            event("later", 50.45, 30.52, "2026-10-20T15:00:00Z"),
+            event("elsewhere", 50.46, 30.52, "2026-10-18T15:00:00Z"),
+            event("sooner", 50.45, 30.52, "2026-10-18T15:00:00Z"),
+            run, opened
+        )
+        val full = Event(
+            id = "a", title = "a", description = "", category = "music", city = "Київ", address = "",
+            startsAt = opened.startsAt, endsAt = opened.startsAt, timeZone = "Europe/Kyiv",
+            status = EventStatus.PUBLISHED, latitude = 50.45, longitude = 30.52
+        )
+        assertEquals(listOf("sooner", "later"), MapPins.othersAt(full, index).map { it.id })
+    }
 }

@@ -2,6 +2,7 @@ package app.poruch.android.feature.detail
 
 import app.poruch.domain.Attendee
 import app.poruch.domain.Event
+import app.poruch.domain.EventIndexEntry
 import app.poruch.domain.EventRating
 import app.poruch.domain.EventSession
 
@@ -13,6 +14,8 @@ data class DetailState(
     val sessionId: String = "",
     /** Сеанс прокату вже почався: показати можна, купити квиток — ні. Тижневої виставки не стосується. */
     val sessionStarted: Boolean = false,
+    /** Інші події на цій же точці: «Ще в цьому місці». */
+    val othersHere: List<EventIndexEntry> = emptyList(),
     val attendees: List<Attendee> = emptyList(),
     val loading: Boolean = false,
     /** Потяг вниз у дорозі. */
@@ -104,6 +107,10 @@ sealed interface DetailIntent {
     data object Refresh : DetailIntent
     /** Інша дата в каруселі прокату. */
     data class PickSession(val id: String) : DetailIntent
+    /** Інша подія цього місця: окремий екран поверх, щоб «назад» повертало сюди. */
+    data class OpenEvent(val id: String) : DetailIntent
+    /** Екран знову зверху після іншого екрана деталей: той перебрав єдиний слот відкритої події. */
+    data object Reopen : DetailIntent
     data object PrimaryAction : DetailIntent
     data object ToggleSaved : DetailIntent
     data object Share : DetailIntent
@@ -151,4 +158,5 @@ sealed interface DetailEffect {
     /** Наша власна мапа, наведена на цю подію. */
     data class OpenMap(val id: String) : DetailEffect
     data class OpenChat(val id: String) : DetailEffect
+    data class OpenEvent(val id: String) : DetailEffect
 }

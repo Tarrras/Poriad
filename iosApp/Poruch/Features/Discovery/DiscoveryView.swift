@@ -182,6 +182,7 @@ struct DiscoveryView: View {
         .sheet(item: $detail) { route in
             NavigationStack {
                 EventDetailView(app: model.app, eventID: route.id)
+                    .navigationDestination(for: EventRoute.self) { EventDetailView(app: model.app, eventID: $0.id) }
                     .navigationDestination(for: ChatRoute.self) { ChatView(eventID: $0.id) }
             }
                 .presentationDetents([.large]).presentationDragIndicator(.visible)

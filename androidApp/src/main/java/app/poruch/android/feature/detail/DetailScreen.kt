@@ -45,6 +45,8 @@ import app.poruch.android.R
 import app.poruch.android.ui.*
 import app.poruch.domain.ContactRules
 import app.poruch.domain.Event
+import app.poruch.domain.EventIndexEntry
+import app.poruch.domain.EventSession
 import app.poruch.domain.asIndexEntry
 import app.poruch.domain.Gathering
 import app.poruch.domain.RatingRules
@@ -85,6 +87,7 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
                     Facts(event)
                     if (state.attendees.isNotEmpty()) Roster(state, event)
                     Venue(event, onIntent)
+                    if (state.othersHere.isNotEmpty()) OthersHere(state.othersHere, onIntent)
                     Description(event, onIntent)
                     // Чат і посилання — для своїх: сервер віддає посилання лише організатору й підтвердженим.
                     if (state.hasChat || event.gathering?.hasContact == true) ContactSection(state, event, onIntent)
@@ -522,6 +525,35 @@ private fun Venue(event: Event, onIntent: (DetailIntent) -> Unit) {
             ) {
                 Box(Modifier.padding(Spacing.sm)) {
                     StatusBadge(stringResource(R.string.show_map), BadgeTone.Neutral, PoruchIcons.map)
+                }
+            }
+        }
+    }
+}
+
+/** Інші події на цій точці. Заголовок — місце, тому рядку досить дати й назви. */
+@Composable
+private fun OthersHere(others: List<EventIndexEntry>, onIntent: (DetailIntent) -> Unit) {
+    val colors = Poruch.colors
+    val words = dateWords()
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        SectionHeader(stringResource(R.string.others_here))
+        Column(Modifier.cardSurface(Radius.md)) {
+            others.forEach { other ->
+                val (day, hour) = sessionLabel(EventSession(other.id, other.startsAt, other.timeZone), words)
+                Row(
+                    Modifier.fillMaxWidth().pressable { onIntent(DetailIntent.OpenEvent(other.id)) }
+                        .padding(horizontal = Spacing.lg, vertical = Spacing.md),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.md), verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                        Text("$day · $hour", style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
+                        Text(
+                            other.title, style = MaterialTheme.typography.titleSmall, color = colors.ink,
+                            maxLines = 2, overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    Icon(Icons.Outlined.ChevronRight, null, Modifier.size(18.dp), tint = colors.inkTertiary)
                 }
             }
         }

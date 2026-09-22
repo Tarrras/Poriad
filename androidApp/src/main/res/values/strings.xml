@@ -63,6 +63,7 @@
   <!-- Другий сеанс того самого вечора: «і о 19:30». -->
   <string name="series_also_at">і о %1$s</string>
   <string name="sessions_title">Дати</string>
+  <string name="others_here">Ще в цьому місці</string>
   <string name="session_started">Уже почався</string>
   <string name="session_started_hint">Сеанс уже почався, квитки на нього не продають. Оберіть іншу дату.</string>
   <!-- «У суботу о 18:00»: знахідний відмінок, бо називний тут читається як список, а не як речення. -->

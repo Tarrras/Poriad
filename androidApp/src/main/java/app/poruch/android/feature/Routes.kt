@@ -135,8 +135,11 @@ fun DetailRoute(route: Detail, navigator: Navigator) {
             is DetailEffect.OpenLink -> if (!context.openLink(effect.url)) context.toast(R.string.link_unavailable)
             is DetailEffect.OpenMap -> navigator.open(Explore(effect.id))
             is DetailEffect.OpenChat -> navigator.open(Chat(effect.id))
+            is DetailEffect.OpenEvent -> navigator.open(Detail(effect.id))
         }
     }
+    // Після повернення з іншого екрана деталей слот відкритої події треба забрати назад.
+    LaunchedEffect(Unit) { model.dispatch(DetailIntent.Reopen) }
     DetailScreen(model.state.collectAsStateWithLifecycle().value, model::dispatch)
 }
 

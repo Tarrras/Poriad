@@ -50,4 +50,15 @@ object MapPins {
             VenuePin(first.latitude, first.longitude, atPlace.map { it.id }, first)
         }
     }
+
+    /**
+     * Інші картки на точці [event], за часом: «що ще в цьому закладі». Власна картка й сеанси її
+     * прокату не рахуються — вони вже в каруселі дат.
+     */
+    fun othersAt(event: Event, index: List<EventIndexEntry>): List<EventIndexEntry> {
+        val place = key(event.latitude, event.longitude)
+        return index
+            .filter { placeOf(it) == place && it.id != event.id && it.sessions.none { s -> s.id == event.id } }
+            .sortedBy { it.startsAt }
+    }
 }

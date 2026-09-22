@@ -70,6 +70,15 @@ data class AppState(
     internal fun sessionsOf(event: Event): List<EventSession> =
         EventSeries.sessionsOf(event, map.index).ifEmpty { EventSeries.sessionsOf(event, home.index) }
 
+    /**
+     * Інші події в цьому ж місці. Обидва індекси разом: мапу міг звузити фільтр чи пошук до
+     * однієї картки, а головна тримає область цілою, але без сьогоднішніх, коли фільтр «сьогодні».
+     */
+    internal fun othersAt(event: Event): List<EventIndexEntry> =
+        MapPins.othersAt(event, (map.index + home.index).distinctBy { it.id }).also { others ->
+            PoruchLog.d("detail") { "others at ${event.id.shortId()}: ${others.size} of map=${map.index.size} home=${home.index.size}" }
+        }
+
     private fun runOf(id: String) = map.index.firstOrNull { run -> run.sessions.any { it.id == id } }
         ?: home.index.firstOrNull { run -> run.sessions.any { it.id == id } }
 }

@@ -23,6 +23,8 @@ struct EventDetailView: View {
     /// Картка, з якою відкрили екран. Карусель будується від неї: скасованого вечора в індексі нема.
     @State private var anchor: Event?
     @State private var sessions: [EventSession] = []
+    /// Інші події на цій же точці: «Ще в цьому місці».
+    @State private var othersHere: [EventIndexEntry] = []
     /// Зміщення стрічки, за яким їде обкладинка. Див. `reportsScrollOffset`.
     @State private var offset: CGFloat = 0
     /// Верхній відступ safe area саме цієї стрічки. У стосі це смуга статусу, у шторці — майже
@@ -57,9 +59,13 @@ struct EventDetailView: View {
             guard let event, anchor == nil || anchor?.id == event.id else { return }
             anchor = event
             sessions = model.app.sessionsOf(event: event)
+            othersHere = model.app.othersAt(event: event)
         }
         .onChange(of: model.eventsRevision) {
-            if let anchor { sessions = model.app.sessionsOf(event: anchor) }
+            if let anchor {
+                sessions = model.app.sessionsOf(event: anchor)
+                othersHere = model.app.othersAt(event: anchor)
+            }
         }
         .task(id: photo) { if let event = view.event { await actions.upload(photo, to: event) } }
         // У деталей власна нижня панель, таббар стояв би на ній.
@@ -122,6 +128,7 @@ struct EventDetailView: View {
             facts(event)
             if !view.attendees.isEmpty { roster(event, view) }
             venue(event)
+            if !othersHere.isEmpty { othersHereSection }
             description(event)
             if view.hasChat || view.contactURL != nil { contact(view) }
             if view.organizer && !view.requests.isEmpty { joinRequests(event, view) }
@@ -422,6 +429,35 @@ extension EventDetailView {
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(.isButton)
             .accessibilityLabel("Показати на мапі")
+        }
+    }
+
+    /// Інші події на цій точці. Заголовок — місце, тому рядку досить дати й назви. Окремий екран
+    /// поверх, а не підміна: «назад» має повертати сюди; `.task` вище перечитає подію після повернення.
+    private var othersHereSection: some View {
+        VStack(alignment: .leading, spacing: Space.sm) {
+            SectionHeader(title: "Ще в цьому місці")
+            VStack(spacing: 0) {
+                ForEach(othersHere, id: \.id) { other in
+                    let label = sessionLabel(EventSession(id: other.id, startsAt: other.startsAt, timeZone: other.timeZone, cancelled: false))
+                    NavigationLink(value: EventRoute(id: other.id)) {
+                        HStack(spacing: Space.md) {
+                            VStack(alignment: .leading, spacing: Space.xs) {
+                                Text("\(label.day) · \(label.hour)").font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
+                                Text(other.title).font(PoruchFont.cardName).kerning(-0.2).foregroundStyle(Palette.ink)
+                                    .multilineTextAlignment(.leading).lineLimit(2)
+                            }
+                            Spacer(minLength: 0)
+                            Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundStyle(Palette.inkTertiary)
+                        }
+                        .padding(.horizontal, Space.lg).padding(.vertical, Space.md)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(PressableStyle())
+                    .accessibilityElement(children: .combine)
+                }
+            }
+            .cardSurface()
         }
     }
 

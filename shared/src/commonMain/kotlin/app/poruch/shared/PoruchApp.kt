@@ -155,6 +155,9 @@ class PoruchApp internal constructor(
      */
     fun sessionsOf(event: Event): List<EventSession> = state.value.sessionsOf(event)
 
+    /** Інші події на тій самій точці, для секції «Ще в цьому місці». Див. [AppState.othersAt]. */
+    fun othersAt(event: Event): List<EventIndexEntry> = state.value.othersAt(event)
+
     /** Id картки, під якою подія стоїть у видачі. Див. [AppState.cardIdOf]. */
     fun cardIdOf(id: String): String = state.value.cardIdOf(id)
 
