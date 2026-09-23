@@ -1,5 +1,6 @@
 package app.poruch.android.platform
 
+import android.app.ActivityManager
 import android.content.Context
 import app.poruch.domain.ChatAlert
 import app.poruch.domain.PoruchLog
@@ -44,7 +45,8 @@ class PushService : FirebaseMessagingService() {
         val title = data["title"].orEmpty()
         val body = data["body"].orEmpty()
         when (kind) {
-            "chat" -> {
+            // Цей чат зараз на екрані: повідомлення й так видно, дзвонити нема про що.
+            "chat" -> if (!(foreground() && app.state.value.chat?.eventId == eventId)) {
                 val (author, text) = body.split(": ", limit = 2).let { if (it.size == 2) it[0] to it[1] else "" to body }
                 ChatNotificationCenter(this).notifyMessages(listOf(ChatAlert(eventId, title, 1, author, text)))
             }
@@ -52,4 +54,7 @@ class PushService : FirebaseMessagingService() {
         }
         app.pushReceived(kind, data["key"].orEmpty())
     }
+
+    private fun foreground() = ActivityManager.RunningAppProcessInfo().also(ActivityManager::getMyMemoryState)
+        .importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
 }

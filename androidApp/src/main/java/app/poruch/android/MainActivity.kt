@@ -87,13 +87,31 @@ class MainActivity : ComponentActivity(), AndroidScopeComponent {
     }
 
     private fun handle(intent: Intent) {
-        intent.dataString?.let(app::handleAuthCallback)
-        intent.getStringExtra(EXTRA_EVENT_ID)?.let(app::selectEvent)
+        // Запуск з «Недавніх» несе старий intent: колбек уже використано, сповіщення вже відкривали.
+        if (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0) return
+        val data = intent.data
+        if (intent.action == Intent.ACTION_VIEW && data?.scheme == BuildConfig.AUTH_SCHEME && data.host == "auth") {
+            app.handleAuthCallback(data.toString())
+        }
+        // Тап по сповіщенню: подія (або її чат) поверх головної, «назад» веде туди, а не з застосунку.
+        val eventId = intent.getStringExtra(EXTRA_EVENT_ID) ?: return
+        val navigator = scope.get<Navigator>()
+        navigator.reset(Home)
+        navigator.open(if (intent.getStringExtra(EXTRA_TARGET) == TARGET_CHAT) Chat(eventId) else Detail(eventId))
     }
 
     companion object {
         const val EXTRA_EVENT_ID = "eventId"
+        private const val EXTRA_TARGET = "target"
+        private const val TARGET_CHAT = "chat"
         private const val APP_LANGUAGE = "uk"
+
+        /** Intent сповіщення: відкрити подію або, з [chat], її чат. Наявний екземпляр отримує його в `onNewIntent`. */
+        fun open(context: Context, eventId: String, chat: Boolean = false): Intent =
+            Intent(context, MainActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                .putExtra(EXTRA_EVENT_ID, eventId)
+                .apply { if (chat) putExtra(EXTRA_TARGET, TARGET_CHAT) }
     }
 }
 
@@ -117,8 +135,12 @@ fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
     LaunchedEffect(state.needsOnboarding) {
         if (state.needsOnboarding || located) return@LaunchedEffect
         located = true
-        if (context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) locate()
-        else locationPermission.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
+        if (context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) return@LaunchedEffect locate()
+        // Питаємо раз, після онбордингу; далі — лише кнопкою «Поруч» на мапі.
+        val prompts = context.getSharedPreferences(PROMPTS, Context.MODE_PRIVATE)
+        if (prompts.getBoolean(LOCATION_ASKED, false)) return@LaunchedEffect
+        prompts.edit().putBoolean(LOCATION_ASKED, true).apply()
+        locationPermission.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
     }
 
     // Лист відновлення: окремий екран поверх того, де людина була. Профіль лишається запасним шляхом.
@@ -211,5 +233,7 @@ private fun NoticeHost(notice: AppNotice?, dismiss: () -> Unit, modifier: Modifi
     }
 }
 
+private const val PROMPTS = "prompts"
+private const val LOCATION_ASKED = "location_asked"
 private const val INFO_NOTICE_MS = 3_000L
 private const val ERROR_NOTICE_MS = 5_000L

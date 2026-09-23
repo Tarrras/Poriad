@@ -80,10 +80,7 @@ class AlarmReminderScheduler(private val context: Context) : ReminderScheduler {
             )
             val open = PendingIntent.getActivity(
                 context, reminder.eventId.hashCode(),
-                Intent(context, MainActivity::class.java).putExtra(
-                    MainActivity.EXTRA_EVENT_ID,
-                    reminder.eventId
-                ),
+                MainActivity.open(context, reminder.eventId),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             val notification = Notification.Builder(context, CHANNEL)
@@ -159,10 +156,7 @@ class RequestNotificationCenter(private val context: Context) : RequestNotifier 
         alerts.forEach { alert ->
             val open = PendingIntent.getActivity(
                 context, alert.eventId.hashCode(),
-                Intent(context, MainActivity::class.java).putExtra(
-                    MainActivity.EXTRA_EVENT_ID,
-                    alert.eventId
-                ),
+                MainActivity.open(context, alert.eventId),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             val notification = Notification.Builder(context, CHANNEL)
@@ -187,7 +181,7 @@ class RequestNotificationCenter(private val context: Context) : RequestNotifier 
     }
 }
 
-/** Сповіщення про нові повідомлення в чаті: одне на подію, з іменем і початком останнього. Тап веде на подію. */
+/** Сповіщення про нові повідомлення в чаті: одне на подію, з іменем і початком останнього. Тап веде в чат. */
 class ChatNotificationCenter(private val context: Context) : ChatNotifier {
     override fun notifyMessages(alerts: List<ChatAlert>) {
         if (!NotificationPermission(context).granted()) return
@@ -200,12 +194,11 @@ class ChatNotificationCenter(private val context: Context) : ChatNotifier {
             )
         )
         alerts.forEach { alert ->
+            // Свій requestCode: інакше PendingIntent збігся б із запитом і нагадуванням про ту саму
+            // подію (extras не розрізняють), і їхні тапи теж вели б у чат.
             val open = PendingIntent.getActivity(
-                context, alert.eventId.hashCode(),
-                Intent(context, MainActivity::class.java).putExtra(
-                    MainActivity.EXTRA_EVENT_ID,
-                    alert.eventId
-                ),
+                context, (TAG + alert.eventId).hashCode(),
+                MainActivity.open(context, alert.eventId, chat = true),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             val preview = context.getString(

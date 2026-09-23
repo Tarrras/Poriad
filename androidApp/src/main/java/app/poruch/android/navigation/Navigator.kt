@@ -17,7 +17,8 @@ class Navigator(private val app: PoruchApp) {
     /** Вкладка лишається коренем стека; все інше пушиться зверху. */
     fun open(key: NavKey) {
         PoruchLog.d("nav") { "open ${key.label()} from ${describe()}" }
-        if (key !is Tab) { stack.add(key); return }
+        // Подвійний тап не кладе той самий екран двічі.
+        if (key !is Tab) { if (stack.last() != key) stack.add(key); return }
         // Тап по вже відкритій вкладці — не перехід.
         if (stack.size == 1 && stack.last() == key) return
         // Стек чистимо, а не тримаємо корені всіх вкладок: NavDisplay не показує перенесений запис.
