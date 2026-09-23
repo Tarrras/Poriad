@@ -643,7 +643,8 @@ struct EventDescriptor: View {
     var withCity = false
     private var place: String {
         if event.address.isEmpty { return event.city }
-        if withCity && !event.city.isEmpty && !event.address.hasPrefix(event.city) { return "\(event.city), \(event.address)" }
+        if withCity && !event.city.isEmpty && event.address != event.city
+            && !event.address.hasPrefix(event.city + ",") { return "\(event.city), \(event.address)" }
         return event.address
     }
     var body: some View {

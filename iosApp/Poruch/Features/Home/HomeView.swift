@@ -15,6 +15,8 @@ struct HomeView: View {
     private var view: HomePresentation { model.home }
     /// Фільтри пошуку видно, поки поле у фокусі або в ньому є текст.
     @FocusState private var searchFocused: Bool
+    /// Скільки результатів пошуку показано. «Показати ще» додає шматок.
+    @State private var resultsLimit = homeResultsLimit
 
     var body: some View {
         let view = self.view
@@ -26,6 +28,7 @@ struct HomeView: View {
         }
         .background(Palette.canvas.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
+        .onChange(of: view.searchKey) { _, _ in resultsLimit = homeResultsLimit }
     }
 
     private func feed(_ view: HomePresentation) -> some View {
@@ -70,24 +73,29 @@ struct HomeView: View {
     }
 
     private func headerView(_ view: HomePresentation) -> some View {
-        VStack(alignment: .leading, spacing: Space.lg) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: Space.xs) {
-                    Text("Що поруч").font(PoruchFont.display).displayTracking().foregroundStyle(Palette.ink)
-                    Text(view.areaLabel).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
+        let searchActive = searchFocused || view.searching
+        return VStack(alignment: .leading, spacing: Space.lg) {
+            // Під час пошуку великий заголовок ховається: місце — фільтрам і результатам.
+            if !searchActive {
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: Space.xs) {
+                        Text("Що поруч").font(PoruchFont.display).displayTracking().foregroundStyle(Palette.ink)
+                        Text(view.areaLabel).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
+                    }
+                    Spacer(minLength: Space.sm)
+                    IconPill(symbol: "person.crop.circle", label: "Профіль", action: openProfile)
                 }
-                Spacer(minLength: Space.sm)
-                IconPill(symbol: "person.crop.circle", label: "Профіль", action: openProfile)
+                .padding(.horizontal, Space.page)
             }
-            .padding(.horizontal, Space.page)
             SearchBar(placeholder: "Пошук \(view.searchScope)", initial: view.searchText) {
                 model.app.setHomeSearchText(query: $0)
             }
             .focused($searchFocused)
             .padding(.horizontal, Space.page)
-            if searchFocused || view.searching { searchFilters(view) }
+            if searchActive { searchFilters(view) }
         }
-        .padding(.top, Space.xl).padding(.bottom, Space.md)
+        .padding(.top, searchActive ? Space.md : Space.xl).padding(.bottom, Space.md)
+        .animation(.snappy, value: searchActive)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
@@ -242,12 +250,19 @@ struct HomeView: View {
                     actionLabel: view.resultsTotal > homeResultsLimit && !view.searchEverywhere ? "Усі" : nil,
                     action: { model.app.setSearchText(query: view.searchText); openMap() }
                 )
-                ForEach(view.results.prefix(homeResultsLimit), id: \.id) { event in
+                ForEach(view.results(limit: resultsLimit), id: \.id) { event in
                     EventCard(
                         event: event, saved: view.isSaved(event), waitlisted: view.isWaitlisted(event),
                         withCity: view.searchEverywhere,
                         onSave: { model.app.toggleSaved(id: event.id) }
                     ) { model.app.selectEvent(id: event.id); openEvent(event.id) }
+                }
+                // Наступний шматок: картки, яких ще немає, довантажуються; решта приїде в `found`.
+                if view.resultIDs.count > resultsLimit {
+                    SecondaryButton(title: "Показати ще") {
+                        resultsLimit += homeResultsLimit
+                        model.app.loadCards(ids: Array(view.resultIDs.prefix(resultsLimit)))
+                    }
                 }
             }.padding(.horizontal, Space.page)
         }

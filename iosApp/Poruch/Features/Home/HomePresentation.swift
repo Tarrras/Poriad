@@ -26,6 +26,8 @@ struct HomePresentation {
     let searchText: String
     /// Результати пошуку одним списком, без дайджесту. Лише ті, чиї картки вже приїхали.
     let results: [Event]
+    /// Id усього знайденого, у порядку видачі: з нього довантажують картки наступного шматка.
+    let resultIDs: [String]
     /// Скільки знайдено насправді.
     let resultsTotal: Int
     /// Фільтри пошуку: усі міста чи лише обране, категорія, дата. Стрічку не звужують.
@@ -42,6 +44,16 @@ struct HomePresentation {
 
     /// Де шукає поле: без цього неочевидно, що пошук іде лише в обраному місті.
     var searchScope: String { searchEverywhere ? "усюди" : "у місті \(cityName)" }
+
+    /// Будь-яка зміна запиту чи фільтрів — нова видача: «Показати ще» починає спочатку.
+    var searchKey: String { "\(searchText)|\(searchEverywhere)|\(searchCategory)|\(searchDate)" }
+
+    /// Перші `limit` знайдених, чиї картки вже приїхали. `found` пропускає ті, що ще їдуть,
+    /// тож беремо за id, а не `prefix`: інакше пізніша картка стала б на місце неприїхалої.
+    func results(limit: Int) -> [Event] {
+        let wanted = Set(resultIDs.prefix(limit))
+        return results.filter { wanted.contains($0.id) }
+    }
 
     /// Що означає «поруч»: завжди ціле місто. «Шукати тут» на мапі головну не звужує.
     var areaLabel: String { "Плани на найближчі дні у місті \(cityName)" }
@@ -97,6 +109,7 @@ struct HomePresentation {
         let shownToday = Set(runningToday.map(\.id))
         rest = later.filter { !shownToday.contains($0.id) }
         results = home?.found ?? []
+        resultIDs = (home?.results ?? []).map(\.id)
     }
 
     var isEmpty: Bool { suggested.isEmpty && today.isEmpty && rest.isEmpty }
