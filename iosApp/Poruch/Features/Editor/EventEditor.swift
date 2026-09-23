@@ -39,6 +39,10 @@ struct EventEditor: View {
         // При згортанні застосунку аркуш не зникає, тож відкладений запис дожимаємо самі.
         .onChange(of: scenePhase) { _, phase in if phase != .active { editor.persist() } }
         .onDisappear { editor.persist() }
+        // Зміна закінчилась без підтвердженого запису — відмова: форма лишається редагованою й зберігається.
+        .onChange(of: model.state?.mutating) { _, mutating in
+            if mutating == false, editor.submitted, model.state?.completedEventId == nil { editor.failed() }
+        }
         .onChange(of: model.state?.completedEventId) { _, id in
             guard editor.submitted, id != nil else { return }
             editor.finish()

@@ -109,6 +109,8 @@ enum EditorStep: Int, CaseIterable, Identifiable {
     private var pendingAim: Task<Void, Never>?
     /// Останнє знайдене під ціллю, разом із координатами.
     private var aimed: (point: (latitude: Double, longitude: Double), place: PlaceResult)?
+    /// Де ціль зараз: відповідь для попередньої точки не підписує нову.
+    private var aimPoint: (latitude: Double, longitude: Double)?
 
     init(app: PoruchApp, event: Event?, home: AppState?) {
         self.app = app
@@ -171,7 +173,9 @@ enum EditorStep: Int, CaseIterable, Identifiable {
             try? await Task.sleep(for: .milliseconds(600))
             guard !Task.isCancelled else { return }
             app.resolveAddress(latitude: latitude, longitude: longitude) { [weak self] place in
-                guard let self, let place, !Task.isCancelled else { return }
+                // Колбек живе поза задачею, тож `Task.isCancelled` тут нічого не знає: застарілу
+                // відповідь відсікає лише порівняння з крапкою, яка стоїть зараз.
+                guard let self, let place, form.latitude == latitude, form.longitude == longitude else { return }
                 // Старі підказки стосувались набору до крапки.
                 accepted = place.label
                 form.address = place.label
@@ -186,11 +190,12 @@ enum EditorStep: Int, CaseIterable, Identifiable {
     func aim(at latitude: Double, longitude: Double) {
         pendingAim?.cancel()
         aimAddress = ""
+        aimPoint = (latitude, longitude)
         pendingAim = Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(200))
             guard !Task.isCancelled else { return }
             app.resolveAddress(latitude: latitude, longitude: longitude) { [weak self] place in
-                guard let self, let place, !Task.isCancelled else { return }
+                guard let self, let place, aimPoint.map({ $0 == (latitude, longitude) }) == true else { return }
                 aimed = ((latitude, longitude), place)
                 aimAddress = place.label
             }
@@ -216,7 +221,8 @@ enum EditorStep: Int, CaseIterable, Identifiable {
 
     func resolveTimeZone(latitude: Double, longitude: Double) {
         app.resolveTimeZone(latitude: latitude, longitude: longitude) { [weak self] zone in
-            guard let self, let zone, zone != form.timeZone else { return }
+            // Пояс для крапки, яку вже пересунули, — чужий.
+            guard let self, let zone, zone != form.timeZone, form.latitude == latitude, form.longitude == longitude else { return }
             form.timeZone = zone
             timeZoneFromPlace = true
         }
@@ -232,6 +238,9 @@ enum EditorStep: Int, CaseIterable, Identifiable {
         submitted = true
         if let event { app.updateEvent(id: event.id, draft: draft) } else { app.createEvent(draft: draft) }
     }
+
+    /// Запис не пройшов: форма лишається людині, і подальші правки знову зберігаються в чернетку.
+    func failed() { submitted = false }
 
     /// Стор підтвердив запис: чернетка більше не потрібна.
     func finish() {
@@ -254,14 +263,16 @@ enum EditorStep: Int, CaseIterable, Identifiable {
         }
     }
 
+    /// Чернетка лише для нової події: у наявної джерело правди — сервер, а стара локальна копія
+    /// переважила б свіжіші зміни (іншого пристрою, скасування, нову місткість).
     func persist() {
         pendingSave?.cancel(); pendingSave = nil
-        guard !submitted, !finished, let data = try? encoder.encode(form) else { return }
+        guard event == nil, !submitted, !finished, let data = try? encoder.encode(form) else { return }
         UserDefaults.standard.set(data, forKey: storageKey)
     }
 
     private func restore(home: AppState?) {
-        if let data = UserDefaults.standard.data(forKey: storageKey),
+        if event == nil, let data = UserDefaults.standard.data(forKey: storageKey),
            let saved = try? JSONDecoder().decode(EditorForm.self, from: data) {
             form = saved
             pointChosen = saved.placed ?? false

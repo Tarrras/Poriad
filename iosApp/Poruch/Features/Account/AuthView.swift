@@ -206,12 +206,13 @@ struct PasswordRevealToggle: View {
     }
 }
 
-/// Дата народження їде як календарний день, без часу й поясу.
+/// Дата народження їде як календарний день, без часу й поясу. День — той, що людина бачила в
+/// пікері, тобто в поясі пристрою: у UTC локальна північ Києва — ще вчора.
 func isoDay(_ date: Date) -> String {
     let formatter = DateFormatter()
     formatter.calendar = Calendar(identifier: .gregorian)
     formatter.locale = Locale(identifier: "en_US_POSIX")
-    formatter.timeZone = TimeZone(secondsFromGMT: 0)
+    formatter.timeZone = .current
     formatter.dateFormat = "yyyy-MM-dd"
     return formatter.string(from: date)
 }
