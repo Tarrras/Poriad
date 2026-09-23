@@ -51,6 +51,7 @@ class PushService : FirebaseMessagingService() {
                 ChatNotificationCenter(this).notifyMessages(listOf(ChatAlert(eventId, title, 1, author, text)))
             }
             "request" -> RequestNotificationCenter(this).notify(listOf(RequestAlert(eventId, title, 1)))
+            "joined" -> RequestNotificationCenter(this).notifyJoined(eventId, title, body)
         }
         app.pushReceived(kind, data["key"].orEmpty())
     }

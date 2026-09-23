@@ -155,7 +155,17 @@ class AlarmReminderScheduler(private val context: Context) : ReminderScheduler {
 class RequestNotificationCenter(context: Context) : RequestNotifier {
     private val context = context.inAppLanguage()
 
-    override fun notify(alerts: List<RequestAlert>) {
+    override fun notify(alerts: List<RequestAlert>) = alerts.forEach { alert ->
+        post(
+            TAG, alert.eventId, alert.eventTitle,
+            context.resources.getQuantityString(R.plurals.request_notification_body, alert.count, alert.count)
+        )
+    }
+
+    /** Хтось приєднався до відкритої події: той самий канал і тап на подію, свій простір id. */
+    fun notifyJoined(eventId: String, eventTitle: String, text: String) = post(JOINED_TAG, eventId, eventTitle, text)
+
+    private fun post(tag: String, eventId: String, title: String, text: String) {
         if (!NotificationPermission(context).granted()) return
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(
@@ -165,31 +175,24 @@ class RequestNotificationCenter(context: Context) : RequestNotifier {
                 NotificationManager.IMPORTANCE_DEFAULT
             )
         )
-        alerts.forEach { alert ->
-            val open = PendingIntent.getActivity(
-                context, alert.eventId.hashCode(),
-                MainActivity.open(context, alert.eventId),
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-            val notification = Notification.Builder(context, CHANNEL)
-                .setSmallIcon(R.drawable.ic_notification)
-                .setContentTitle(alert.eventTitle)
-                .setContentText(
-                    context.resources.getQuantityString(
-                        R.plurals.request_notification_body,
-                        alert.count,
-                        alert.count
-                    )
-                )
-                .setContentIntent(open).setAutoCancel(true).build()
-            // Інший простір id, ніж у нагадувань: запит і нагадування про ту саму подію — два сповіщення.
-            manager.notify(TAG, alert.eventId.hashCode(), notification)
-        }
+        val open = PendingIntent.getActivity(
+            context, eventId.hashCode(),
+            MainActivity.open(context, eventId),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val notification = Notification.Builder(context, CHANNEL)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setContentIntent(open).setAutoCancel(true).build()
+        // Інший простір id, ніж у нагадувань: запит і нагадування про ту саму подію — два сповіщення.
+        manager.notify(tag, eventId.hashCode(), notification)
     }
 
     private companion object {
         const val CHANNEL = "join_requests"
         const val TAG = "request"
+        const val JOINED_TAG = "joined"
     }
 }
 
