@@ -6,7 +6,7 @@
 //   FCM_SERVICE_ACCOUNT   — JSON сервісного акаунта Firebase (роль Firebase Cloud Messaging API Admin)
 //   APNS_KEY              — вміст .p8 ключа APNs (PEM)
 //   APNS_KEY_ID, APNS_TEAM_ID, APNS_BUNDLE_ID
-//   APNS_SANDBOX          — "true" для dev-збірок (за замовчуванням true)
+//   APNS_SANDBOX          — "true" лише для dev-збірок з Xcode; будь-що інше — production
 // SUPABASE_URL і SUPABASE_SERVICE_ROLE_KEY середовище дає саме.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -20,6 +20,10 @@ type Push = { kind: "chat" | "request"; eventId: string; title: string; body: st
 type Token = { token: string; platform: "android" | "ios" };
 
 const PREVIEW = 120;
+// Скільки запитів до провайдерів водночас і скільки чекати кожен: тригер кличе функцію
+// через pg_net, і одна зависла відповідь APNs не має тримати розсилку решті.
+const CONCURRENCY = 10;
+const TIMEOUT_MS = 10_000;
 
 Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "method" }, 405);
@@ -40,15 +44,21 @@ Deno.serve(async (req) => {
 
   const stale: string[] = [];
   let sent = 0;
-  for (const t of list) {
-    try {
-      const ok = t.platform === "android" ? await sendFcm(t.token, push) : await sendApns(t.token, push);
-      if (ok === "stale") stale.push(t.token);
-      else if (ok) sent++;
-    } catch (e) {
-      console.error("push failed", t.platform, String(e));
+  // Пул з CONCURRENCY воркерів: беруть наступний токен зі спільного індексу.
+  let next = 0;
+  const worker = async () => {
+    while (next < list.length) {
+      const t = list[next++];
+      try {
+        const ok = t.platform === "android" ? await sendFcm(t.token, push) : await sendApns(t.token, push);
+        if (ok === "stale") stale.push(t.token);
+        else if (ok) sent++;
+      } catch (e) {
+        console.error("push failed", t.platform, String(e));
+      }
     }
-  }
+  };
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, list.length) }, worker));
   // Токени, які провайдер уже не знає, прибираємо: інакше вони лишаються назавжди.
   if (stale.length > 0) await db.from("push_tokens").delete().in("token", stale);
   return json({ sent, stale: stale.length, recipients: recipients.length });
@@ -142,6 +152,7 @@ async function fcmAccessToken(): Promise<{ token: string; project: string } | nu
     .sign(key);
   const res = await fetch(account.token_uri ?? "https://oauth2.googleapis.com/token", {
     method: "POST",
+    signal: AbortSignal.timeout(TIMEOUT_MS),
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion }),
   });
@@ -156,6 +167,7 @@ async function sendFcm(token: string, push: Push): Promise<boolean | "stale"> {
   if (!auth) { console.warn("FCM_SERVICE_ACCOUNT is not set; skipping android"); return false; }
   const res = await fetch(`https://fcm.googleapis.com/v1/projects/${auth.project}/messages:send`, {
     method: "POST",
+    signal: AbortSignal.timeout(TIMEOUT_MS),
     headers: { Authorization: `Bearer ${auth.token}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       message: {
@@ -177,6 +189,8 @@ async function sendFcm(token: string, push: Push): Promise<boolean | "stale"> {
 
 // ---- APNs (iOS). Alert-пуш: систему малює сама, тап веде на подію через userInfo.
 
+const APNS_TOKEN = /^[0-9a-f]{64,200}$/i;
+
 let apnsJwt: { value: string; issued: number } | null = null;
 
 async function apnsAuth(): Promise<{ jwt: string; topic: string; host: string } | null> {
@@ -188,15 +202,19 @@ async function apnsAuth(): Promise<{ jwt: string; topic: string; host: string } 
     const jwt = await new jose.SignJWT({}).setProtectedHeader({ alg: "ES256", kid: keyId }).setIssuer(teamId).setIssuedAt().sign(pk);
     apnsJwt = { value: jwt, issued: Date.now() };
   }
-  const sandbox = (Deno.env.get("APNS_SANDBOX") ?? "true") !== "false";
+  // Production за замовчуванням: забутий секрет на проді не має слати TestFlight/App Store-токени в sandbox.
+  const sandbox = Deno.env.get("APNS_SANDBOX") === "true";
   return { jwt: apnsJwt.value, topic, host: sandbox ? "https://api.sandbox.push.apple.com" : "https://api.push.apple.com" };
 }
 
 async function sendApns(token: string, push: Push): Promise<boolean | "stale"> {
   const auth = await apnsAuth();
   if (!auth) { console.warn("APNS_* are not set; skipping ios"); return false; }
+  // Токен іде в шлях URL: лише hex, інакше це не токен APNs, а спроба підмінити запит.
+  if (!APNS_TOKEN.test(token)) { console.warn("invalid apns token format; skipping"); return false; }
   const res = await fetch(`${auth.host}/3/device/${token}`, {
     method: "POST",
+    signal: AbortSignal.timeout(TIMEOUT_MS),
     headers: {
       authorization: `bearer ${auth.jwt}`,
       "apns-topic": auth.topic,
@@ -211,7 +229,9 @@ async function sendApns(token: string, push: Push): Promise<boolean | "stale"> {
   });
   if (res.ok) return true;
   const text = await res.text();
-  if (res.status === 410 || text.includes("BadDeviceToken") || text.includes("Unregistered")) return "stale";
+  // Лише 410 / Unregistered — токен мертвий. BadDeviceToken означає розбіжність середовищ
+  // (sandbox ↔ production): стерти токен тут — втратити справний пристрій через конфіг.
+  if (res.status === 410 || text.includes("Unregistered")) return "stale";
   throw new Error(`apns ${res.status}: ${text}`);
 }
 

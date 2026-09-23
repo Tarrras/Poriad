@@ -37,7 +37,9 @@ supabase secrets set FCM_SERVICE_ACCOUNT="$(cat service-account.json)" --project
 | Supabase | `ojadoyxeahepycpmjuvf` | `tzdogzdvctlumsqlqskr` |
 | Bundle / App ID | `app.poriad.ios.dev` | `app.poriad.ios` |
 | APNs-ключ | `Poriad APNs Dev`, Sandbox | `Poriad APNs Prod`, Production |
-| `APNS_SANDBOX` | `true` | `false` |
+| `APNS_SANDBOX` | `true` | `false` (або не задано: за замовчуванням production) |
+
+Функція йде в sandbox лише при `APNS_SANDBOX=true`, будь-яке інше значення — production. Токен стирається з `push_tokens` лише на 410 / `Unregistered`; `BadDeviceToken` (розбіжність sandbox ↔ production) лише логується — це помилка конфігурації, а не мертвий пристрій.
 
 1. Identifiers → обидва App ID з capability **Push Notifications** (ентайтлмент `aps-environment` у проєкті вже є, підпис автоматичний).
 2. Keys → два ключі з **Apple Push Notifications service (APNs)**, Team Scoped. Завантажити `.p8` (один раз), запамʼятати Key ID. Файли тримати поза репозиторієм. Apple дає максимум два APNs-ключі на команду, тож ротація = відкликати й перевипустити.

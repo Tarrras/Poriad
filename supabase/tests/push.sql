@@ -28,7 +28,7 @@ select public.register_push_token('token-android-0123456789abcdef','android');
 reset role;
 do $$ begin
  assert (select user_id=current_setting('test.b')::uuid from public.push_tokens where token='token-android-0123456789abcdef'),'token moves to the new account';
- assert (select count(*)=2 from public.push_tokens),'two tokens in total';
+ assert (select count(*)=2 from public.push_tokens where user_id in (current_setting('test.a')::uuid,current_setting('test.b')::uuid)),'two tokens in total';
 end $$;
 
 -- Зняти можна лише своє.
@@ -38,8 +38,8 @@ select public.unregister_push_token('token-ios-0123456789abcdef');
 select public.unregister_push_token('token-android-0123456789abcdef');
 reset role;
 do $$ begin
- assert (select count(*)=1 from public.push_tokens),'only the own token is removed';
- assert (select platform='ios' from public.push_tokens),'the other account''s token stays';
+ assert (select count(*)=1 from public.push_tokens where user_id in (current_setting('test.a')::uuid,current_setting('test.b')::uuid)),'only the own token is removed';
+ assert (select platform='ios' from public.push_tokens where user_id in (current_setting('test.a')::uuid,current_setting('test.b')::uuid)),'the other account''s token stays';
 end $$;
 
 -- Тригери є, але без адреси у Vault не роблять запитів і не ламають запис.
