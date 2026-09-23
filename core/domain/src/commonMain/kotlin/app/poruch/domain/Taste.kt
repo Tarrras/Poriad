@@ -14,7 +14,12 @@ data class Taste(
     val interests: List<String> = emptyList(),
     val times: List<String> = emptyList(),
     val crowd: String = Crowd.ANY,
-    val answered: Boolean = false
+    val answered: Boolean = false,
+    /**
+     * Акаунт, з яким [interests] синхронізовано. Null — відповіді гостя, ще нічиї: їх отримує
+     * перший порожній акаунт. Чужі (інший id) новому акаунту не переходять.
+     */
+    val interestsOwner: String? = null
 ) {
     /** Відповіли, але нема за чим ранжувати: свідоме «покажи все». */
     val isBlank get() = interests.isEmpty() && times.isEmpty() && crowd == Crowd.ANY

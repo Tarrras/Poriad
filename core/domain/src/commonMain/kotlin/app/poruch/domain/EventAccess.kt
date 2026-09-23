@@ -48,6 +48,8 @@ interface EventAuthoring {
     suspend fun update(id: String, draft: EventDraft): String
     suspend fun cancel(id: String)
     suspend fun uploadImage(eventId: String, bytes: ByteArray, contentType: String): String
+    /** Прибирає завантажене фото, яке так і не стало фото події. За замовчуванням нічого. */
+    suspend fun deleteImage(url: String) {}
 }
 
 /** Участь: двері й черга під ними. */

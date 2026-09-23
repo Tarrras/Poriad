@@ -20,7 +20,10 @@ interface AuthRepository {
     suspend fun handleCallback(url: String): Boolean
     /** Повторно підтверджує пароль поточного акаунта; помилка — [AppError.InvalidCredentials]. */
     suspend fun verifyPassword(password: String)
-    /** Видаляє акаунт на сервері (RPC `delete_my_account`) і чистить локальну сесію. */
+    /**
+     * Видаляє акаунт на сервері (Edge Function `delete-account`). Локальну сесію чистить лише
+     * після успіху або 401; мережевий збій лишає людину в акаунті, щоб могла повторити.
+     */
     suspend fun deleteAccount()
 }
 // Доступ до подій — в EventAccess.kt.

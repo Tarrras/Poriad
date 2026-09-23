@@ -16,7 +16,15 @@ import kotlin.time.TimeSource
  * серверні відмови в доменні перекладає `ApiErrors.kt`.
  */
 class ApiClient(private val client: HttpClient, private val baseUrl: String, private val key: String) {
-    val json = Json { ignoreUnknownKeys = true; isLenient = false }
+    // `explicitNulls = false` — відсутнє поле як null; `coerceInputValues` — null або невідоме
+    // значення enum у полі з дефолтом бере дефолт, а не валить увесь список подій.
+    val json = Json { ignoreUnknownKeys = true; isLenient = false; explicitNulls = false; coerceInputValues = true }
+
+    /**
+     * Дає свіжий токен замість відхиленого (401): один примусовий refresh і один повтор запиту.
+     * Ставить [app.poruch.data.account.SupabaseAuthRepository]; null — повторів нема.
+     */
+    var reauthorize: (suspend (rejected: String) -> String?)? = null
 
     suspend fun request(
         path: String,
@@ -30,10 +38,17 @@ class ApiClient(private val client: HttpClient, private val baseUrl: String, pri
          * RPC — це POST, тож позначають себе самі (`EventRpc.read`). Запис не повторюємо ніколи:
          * `join_event` із загубленою відповіддю вдруге дав би дубль.
          */
-        idempotent: Boolean = method == HttpMethod.Get
+        idempotent: Boolean = method == HttpMethod.Get,
+        /**
+         * Чи можна на 401 оновити [token] і повторити. Ні — коли токен чужий для поточної сесії
+         * (зняття пуш-токена акаунта, що вже вийшов) або запит іде зсередини м'ютекса сесії.
+         */
+        reauthorizable: Boolean = true
     ): JsonElement {
         if (key.isBlank()) fail(AppError.NotConfigured)
         var retriesLeft = if (idempotent) RETRIES else 0
+        var token = token
+        var reauthorized = !reauthorizable
         while (true) {
             // У лог ідуть лише шлях і статус: у тілі може бути пароль або токен.
             val started = TimeSource.Monotonic.markNow()
@@ -58,6 +73,17 @@ class ApiClient(private val client: HttpClient, private val baseUrl: String, pri
                 PoruchLog.w("http") { "${method.value} $path → ${status.value}, retrying once" }
                 delay(RETRY_DELAY)
                 continue
+            }
+            // Токен прострочився раніше, ніж думав годинник пристрою: оновлюємо і повторюємо раз.
+            // Запис теж: 401 означає, що база його не бачила.
+            if (status.value == 401 && token != null && !reauthorized) {
+                reauthorized = true
+                val fresh = try { reauthorize?.invoke(token) } catch (e: CancellationException) { throw e } catch (e: Exception) { null }
+                if (fresh != null && fresh != token) {
+                    PoruchLog.w("http") { "${method.value} $path → 401, retrying with a refreshed token" }
+                    token = fresh
+                    continue
+                }
             }
             if (!status.isSuccess()) {
                 val failure = apiFailure(status.value, text)

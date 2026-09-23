@@ -15,7 +15,7 @@ class PushSyncTest {
         val unregistered = mutableListOf<String>()
         var fail = false
         override suspend fun register(token: String, platform: String) { delay(50); if (fail) fail(AppError.Network); registered += token to platform }
-        override suspend fun unregister(token: String) { unregistered += token }
+        override suspend fun unregister(token: String, accessToken: String?) { unregistered += token }
     }
 
     /** Токен приходить до входу: чекає акаунта, потім реєструється один раз. */

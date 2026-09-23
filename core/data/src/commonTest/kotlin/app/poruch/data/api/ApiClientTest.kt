@@ -93,4 +93,23 @@ class ApiClientTest {
         assertEquals(1, writes[0])
         writer.close()
     }
+    /** Точні імена з `raise exception`: CAPACITY_BELOW_ATTENDANCE — не «подія заповнена». */
+    @Test fun serverErrorsAreMatchedByExactName() {
+        fun error(message: String, status: Int = 400) = apiFailure(status, """{"code":"P0001","message":"$message","details":null,"hint":null}""").error
+        assertEquals(AppError.CapacityBelowAttendance, error("CAPACITY_BELOW_ATTENDANCE"))
+        assertEquals(AppError.EventFull, error("EVENT_FULL"))
+        assertEquals(AppError.SessionRequired, error("AUTH_REQUIRED", 403))
+        // Слова «blocked» чи «capacity» деінде в тексті — не блокування й не заповнена подія.
+        assertEquals(AppError.Rejected, error("request blocked by capacity rules"))
+        assertEquals(AppError.InvalidCredentials, apiFailure(400, """{"error":"invalid_grant","error_description":"Invalid login credentials"}""").error)
+    }
+
+    @kotlinx.serialization.Serializable private data class Row(val id: String, val note: String?, val count: Int = 0)
+
+    /** Відсутнє nullable-поле й null у полі з дефолтом не валять розбір. */
+    @Test fun lenientDecodingKeepsDefaults() {
+        val client = ApiClient(HttpClient(MockEngine { respond("[]", HttpStatusCode.OK) }), "https://test.invalid", "public")
+        assertEquals(Row("a", null, 0), client.json.decodeFromString(Row.serializer(), """{"id":"a","count":null}"""))
+        client.close()
+    }
 }

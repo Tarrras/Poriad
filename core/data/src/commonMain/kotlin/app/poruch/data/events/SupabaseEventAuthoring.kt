@@ -35,6 +35,10 @@ internal class SupabaseEventAuthoring(
         return storage.upload("$uid/$eventId/${Uuid.random()}.$extension", bytes, contentType, token)
     }
 
+    override suspend fun deleteImage(url: String) {
+        storage.delete(url, auth.accessToken() ?: fail(AppError.SessionRequired))
+    }
+
     private fun draftParams(id: String, d: EventDraft) = buildJsonObject {
         put("p_id", id); put("p_title", d.title.trim()); put("p_description", d.description.trim())
         put("p_category", d.category); put("p_city", d.city); put("p_address", d.address)

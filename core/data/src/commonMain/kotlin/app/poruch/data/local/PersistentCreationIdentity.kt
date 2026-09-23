@@ -16,22 +16,10 @@ class PersistentCreationIdentity(
 
     @OptIn(ExperimentalUuidApi::class)
     override fun idFor(draft: EventDraft): String {
-        val fingerprint = JsonArray(
-            listOf(
-                draft.title,
-                draft.description,
-                draft.category,
-                draft.city,
-                draft.address,
-                draft.latitude.toString(),
-                draft.longitude.toString(),
-                draft.startsAt,
-                draft.endsAt,
-                draft.timeZone,
-                draft.capacity.toString(),
-                draft.imageUrl.orEmpty()
-            ).map(::JsonPrimitive)
-        ).toString()
+        // Уся чернетка, а не перелік полів: вік, схвалення й контакт колись випадали з відбитка, і
+        // повтор після збою мережі публікував подію без змін безпеки. `toString` data-класу бачить
+        // кожне поле, включно з майбутніми.
+        val fingerprint = draft.toString()
         val previous = database.cacheQueries.readDevice(key()).executeAsOneOrNull()
             ?.let { runCatching { Json.parseToJsonElement(it).jsonObject }.getOrNull() }
         if (previous?.string("fingerprint") == fingerprint) return previous.string("id")

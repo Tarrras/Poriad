@@ -23,7 +23,8 @@ class LocalTasteStore(private val database: PoruchDatabase) : TasteStore {
             times = json.strings("times").filter(TimeSlot::isSlot),
             crowd = json["crowd"]?.jsonPrimitive?.contentOrNull?.takeIf(Crowd::isCrowd)
                 ?: Crowd.ANY,
-            answered = json["answered"]?.jsonPrimitive?.booleanOrNull ?: false
+            answered = json["answered"]?.jsonPrimitive?.booleanOrNull ?: false,
+            interestsOwner = json["owner"]?.jsonPrimitive?.contentOrNull
         )
     }
 
@@ -33,6 +34,7 @@ class LocalTasteStore(private val database: PoruchDatabase) : TasteStore {
             put("times", JsonArray(taste.times.map(::JsonPrimitive)))
             put("crowd", taste.crowd)
             put("answered", taste.answered)
+            taste.interestsOwner?.let { put("owner", it) }
         }
         database.cacheQueries.writeDevice(KEY, payload.toString())
     }

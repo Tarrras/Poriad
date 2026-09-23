@@ -12,8 +12,8 @@ internal class SupabasePushTokens(private val rpc: EventRpc) : PushTokens {
         rpc.call("register_push_token", buildJsonObject { put("p_token", token); put("p_platform", platform) })
     }
 
-    override suspend fun unregister(token: String) = quiet {
-        rpc.call("unregister_push_token", buildJsonObject { put("p_token", token) })
+    override suspend fun unregister(token: String, accessToken: String?) = quiet {
+        rpc.call("unregister_push_token", buildJsonObject { put("p_token", token) }, accessToken)
     }
 
     private suspend inline fun quiet(block: () -> Unit) {

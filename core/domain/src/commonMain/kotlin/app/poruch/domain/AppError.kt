@@ -22,6 +22,11 @@ sealed interface AppError {
     data object EmailNotConfirmed : AppError
     /** Посилання з листа відкрили не там, де починали: PKCE-verifier лишився на іншому пристрої. */
     data object LinkOnAnotherDevice : AppError
+    /**
+     * Verifier для посилання на цьому пристрої вже нема або сервер каже, що код прострочено:
+     * посиланням уже скористались, воно старе, або лист просили деінде. Вихід один — новий лист.
+     */
+    data object LinkExpired : AppError
     data object NotOwner : AppError
 
     // ---- Події
@@ -32,6 +37,8 @@ sealed interface AppError {
     data object OrganizerCannotJoin : AppError
     /** Просилися в чергу, а місця є: треба приєднуватись. */
     data object EventHasSpace : AppError
+    /** Редагування зменшує місткість нижче за тих, хто вже йде. */
+    data object CapacityBelowAttendance : AppError
     data object ImageUploadFailed : AppError
 
     // ---- Безпека

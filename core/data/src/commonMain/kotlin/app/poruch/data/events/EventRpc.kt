@@ -12,9 +12,13 @@ internal class EventRpc(private val api: ApiClient, private val auth: AuthReposi
     /** PostgREST чекає тіло навіть у функції без аргументів. */
     private val noParams = JsonObject(emptyMap())
 
-    /** Запис: приєднатися, створити, скасувати. Не повторюється, див. [read]. */
-    suspend fun call(name: String, params: JsonObject = noParams): JsonElement =
-        api.request("/rest/v1/rpc/$name", HttpMethod.Post, params, auth.accessToken())
+    /**
+     * Запис: приєднатися, створити, скасувати. Не повторюється, див. [read]. [token] — ключ
+     * акаунта, якого вже нема в сесії; такий на 401 не оновлюємо: оновився б чужий.
+     */
+    suspend fun call(name: String, params: JsonObject = noParams, token: String? = null): JsonElement =
+        if (token != null) api.request("/rest/v1/rpc/$name", HttpMethod.Post, params, token, reauthorizable = false)
+        else api.request("/rest/v1/rpc/$name", HttpMethod.Post, params, auth.accessToken())
 
     /** Читання: повторюється після збою шлюзу. Транспорт POST від POST не відрізнить, тому окрема функція. */
     suspend fun read(name: String, params: JsonObject = noParams): JsonElement =

@@ -22,6 +22,16 @@ class ImageStorage(private val client: HttpClient, private val baseUrl: String, 
         catch (e: Exception) { fail(AppError.ImageUploadFailed) }
     }
 
+    /** Видаляє файл за публічною адресою, яку повернув [upload]. Чуже посилання — нічого. */
+    suspend fun delete(url: String, token: String) {
+        val prefix = baseUrl.trimEnd('/') + PUBLIC
+        if (!url.startsWith(prefix)) return
+        val response = client.delete(baseUrl.trimEnd('/') + BUCKET + url.removePrefix(prefix)) {
+            header("apikey", key); bearerAuth(token)
+        }
+        if (!response.status.isSuccess()) throw apiFailure(response.status.value, response.bodyAsText())
+    }
+
     private companion object {
         const val BUCKET = "/storage/v1/object/event-images/"
         const val PUBLIC = "/storage/v1/object/public/event-images/"
