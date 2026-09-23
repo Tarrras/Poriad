@@ -638,12 +638,20 @@ struct EventMeta: View {
 /// Крапка категорії плюс її назва кольором категорії.
 struct EventDescriptor: View {
     let event: Event
+    /// Місто перед адресою: у видачі з різних міст сама адреса не каже, де це. Першим, бо хвіст
+    /// адреси, де місто буває, обрізається.
+    var withCity = false
+    private var place: String {
+        if event.address.isEmpty { return event.city }
+        if withCity && !event.city.isEmpty && !event.address.hasPrefix(event.city) { return "\(event.city), \(event.address)" }
+        return event.address
+    }
     var body: some View {
         HStack(spacing: Space.sm) {
             CategoryDot(category: event.category)
             Text(categoryName(event.category))
                 .font(PoruchFont.descriptor).foregroundStyle(categoryInk(event.category)).lineLimit(1)
-            Text((event.address.isEmpty ? event.city : event.address).isEmpty ? "" : "· " + (event.address.isEmpty ? event.city : event.address))
+            Text(place.isEmpty ? "" : "· " + place)
                 .font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(1)
         }
     }
@@ -675,6 +683,7 @@ struct EventCard: View {
     let event: Event
     var saved: Bool = false
     var waitlisted: Bool = false
+    var withCity = false
     var onSave: (() -> Void)?
     let action: () -> Void
     var body: some View {
@@ -695,7 +704,7 @@ struct EventCard: View {
                     Text(cardOverline(event)).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
                     Text(event.title).font(PoruchFont.cardName).kerning(-0.2).foregroundStyle(Palette.ink)
                         .multilineTextAlignment(.leading).lineLimit(2)
-                    EventDescriptor(event: event)
+                    EventDescriptor(event: event, withCity: withCity)
                     EventMeta(event: event)
                 }.padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading)
             }

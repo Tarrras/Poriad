@@ -28,11 +28,20 @@ struct HomePresentation {
     let results: [Event]
     /// Скільки знайдено насправді.
     let resultsTotal: Int
+    /// Фільтри пошуку: усі міста чи лише обране, категорія, дата. Стрічку не звужують.
+    let searchEverywhere: Bool
+    let searchCategory: String
+    let searchDate: String
 
     var searching: Bool { !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
-    /// Місто з подіями, назване в пошуку, крім поточного: текстовий пошук іде лише в межах міста.
-    var cityMatch: HomeLocation? { searching ? HomeLocation.companion.mentioned(query: searchText, current: cityName) : nil }
+    /// Місто з подіями, назване в пошуку, крім поточного. Пошук усюди його вже охоплює.
+    var cityMatch: HomeLocation? {
+        searching && !searchEverywhere ? HomeLocation.companion.mentioned(query: searchText, current: cityName) : nil
+    }
+
+    /// Де шукає поле: без цього неочевидно, що пошук іде лише в обраному місті.
+    var searchScope: String { searchEverywhere ? "усюди" : "у місті \(cityName)" }
 
     /// Що означає «поруч»: завжди ціле місто. «Шукати тут» на мапі головну не звужує.
     var areaLabel: String { "Плани на найближчі дні у місті \(cityName)" }
@@ -50,6 +59,9 @@ struct HomePresentation {
         totalFound = Int(home?.totalFound ?? 0)
         resultsTotal = Int(home?.resultsTotal ?? 0)
         searchText = home?.searchText ?? ""
+        searchEverywhere = home?.searchEverywhere == true
+        searchCategory = home?.searchCategory ?? DiscoveryStateKt.ALL_CATEGORIES
+        searchDate = home?.searchDate ?? DateFilter.shared.ANY
         savedIds = Set(state?.library.savedIds ?? [])
         waitlistedIds = Set(state?.library.waitlistedIds ?? [])
         // І свої, і ті, куди йду: `concerns` — те саме правило, що в нагадуваннях. Лише те, що ще не завершилось, як на Android.

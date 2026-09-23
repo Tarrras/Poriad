@@ -13,12 +13,24 @@ struct HomeView: View {
     var openChat: (Event) -> Void
 
     private var view: HomePresentation { model.home }
+    /// Фільтри пошуку видно, поки поле у фокусі або в ньому є текст.
+    @FocusState private var searchFocused: Bool
 
     var body: some View {
         let view = self.view
+        // Шапка над стрічкою, а не в ній: `refreshable` стрічки діставався б горизонтальному ряду
+        // фільтрів, і той отримував власний індикатор оновлення та гойдався вертикально, як у «Моїх подіях».
+        VStack(spacing: 0) {
+            headerView(view)
+            feed(view).refreshable { await model.reloadAll() }
+        }
+        .background(Palette.canvas.ignoresSafeArea())
+        .toolbar(.hidden, for: .navigationBar)
+    }
+
+    private func feed(_ view: HomePresentation) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Space.section) {
-                headerView(view)
                 if view.searching {
                     searchResults(view)
                 } else {
@@ -52,12 +64,9 @@ struct HomeView: View {
                     categoryRail
                     moreRows(view)
                 }
-            }.padding(.bottom, Space.section)
+            }.padding(.top, Space.md).padding(.bottom, Space.section)
             .background(Palette.canvas)
         }
-        .refreshable { await model.reloadAll() }
-        .background(Palette.canvas.ignoresSafeArea())
-        .toolbar(.hidden, for: .navigationBar)
     }
 
     private func headerView(_ view: HomePresentation) -> some View {
@@ -70,12 +79,51 @@ struct HomeView: View {
                 Spacer(minLength: Space.sm)
                 IconPill(symbol: "person.crop.circle", label: "Профіль", action: openProfile)
             }
-            SearchBar(placeholder: "Подія, місце або тема", initial: view.searchText) {
+            .padding(.horizontal, Space.page)
+            SearchBar(placeholder: "Пошук \(view.searchScope)", initial: view.searchText) {
                 model.app.setHomeSearchText(query: $0)
             }
+            .focused($searchFocused)
+            .padding(.horizontal, Space.page)
+            if searchFocused || view.searching { searchFilters(view) }
         }
-        .padding(.horizontal, Space.page).padding(.top, Space.xl)
+        .padding(.top, Space.xl).padding(.bottom, Space.md)
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Де й що шукати: місто чи всюди, дата, категорія. Ті самі чипи й підписи, що на мапі.
+    private func searchFilters(_ view: HomePresentation) -> some View {
+        VStack(alignment: .leading, spacing: Space.sm) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Space.sm) {
+                    Chip(label: view.cityName, symbol: "mappin.and.ellipse", selected: !view.searchEverywhere) {
+                        model.app.setHomeSearchEverywhere(everywhere: false)
+                    }
+                    Chip(label: "Усюди", symbol: "globe", selected: view.searchEverywhere) {
+                        model.app.setHomeSearchEverywhere(everywhere: true)
+                    }
+                    Divider().frame(height: 24).overlay(Palette.hairline)
+                    ForEach(dateFilterKeys, id: \.self) { key in
+                        // Повторний тап знімає вибір, як на мапі.
+                        Chip(label: dateLabel(key), selected: view.searchDate == key) {
+                            model.app.setHomeSearchDate(filter: view.searchDate == key ? DateFilter.shared.ANY : key)
+                        }
+                    }
+                }
+            }.railContentPadding(spread: 0)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Space.sm) {
+                    Chip(label: "Усі категорії", selected: view.searchCategory == DiscoveryStateKt.ALL_CATEGORIES) {
+                        model.app.setHomeSearchCategory(category: DiscoveryStateKt.ALL_CATEGORIES)
+                    }
+                    ForEach(categories, id: \.0) { entry in
+                        Chip(label: entry.1, dot: entry.0, selected: view.searchCategory == entry.0) {
+                            model.app.setHomeSearchCategory(category: view.searchCategory == entry.0 ? DiscoveryStateKt.ALL_CATEGORIES : entry.0)
+                        }
+                    }
+                }
+            }.railContentPadding(spread: 0)
+        }
     }
 
     /// Плитки категорій від краю до краю, як ряд продуктів в Apple Store.
@@ -172,22 +220,32 @@ struct HomeView: View {
         if view.searchLoading && view.results.isEmpty {
             ProgressView().frame(maxWidth: .infinity).padding(.vertical, Space.section)
         } else if view.results.isEmpty {
-            EmptyState(
-                symbol: "magnifyingglass", title: "Нічого не знайшлося",
-                message: "Спробуйте інше слово або пошукайте на мапі — там можна змінити область і фільтри.",
-                actionLabel: "Знайти на мапі", action: openMap
-            )
+            if view.searchEverywhere {
+                EmptyState(
+                    symbol: "magnifyingglass", title: "Нічого не знайшлося",
+                    message: "Спробуйте інше слово або зніміть фільтри дати й категорії."
+                )
+            } else {
+                EmptyState(
+                    symbol: "magnifyingglass", title: "Нічого не знайшлося",
+                    message: "У місті \(view.cityName) такого поки немає. Пошукайте в усіх містах або спробуйте інше слово.",
+                    actionLabel: "Шукати усюди", action: { model.app.setHomeSearchEverywhere(everywhere: true) }
+                )
+            }
         } else {
+            let total = max(view.resultsTotal, view.results.count)
             VStack(alignment: .leading, spacing: Space.md) {
-                // «Усі» несе запит на мапу явно: інакше пошуки екранів незалежні.
+                // «Усі» несе запит на мапу явно: інакше пошуки екранів незалежні. Мапа — лише обране місто,
+                // тож для пошуку всюди вона показала б менше.
                 SectionHeader(
-                    title: "Знайдено подій: \(max(view.resultsTotal, view.results.count))",
-                    actionLabel: view.resultsTotal > homeResultsLimit ? "Усі" : nil,
+                    title: "Знайдено \(total) \(ukrainianPlural(total, "подію", "події", "подій")) \(view.searchScope)",
+                    actionLabel: view.resultsTotal > homeResultsLimit && !view.searchEverywhere ? "Усі" : nil,
                     action: { model.app.setSearchText(query: view.searchText); openMap() }
                 )
                 ForEach(view.results.prefix(homeResultsLimit), id: \.id) { event in
                     EventCard(
                         event: event, saved: view.isSaved(event), waitlisted: view.isWaitlisted(event),
+                        withCity: view.searchEverywhere,
                         onSave: { model.app.toggleSaved(id: event.id) }
                     ) { model.app.selectEvent(id: event.id); openEvent(event.id) }
                 }
