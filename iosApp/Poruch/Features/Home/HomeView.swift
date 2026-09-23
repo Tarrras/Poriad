@@ -13,8 +13,12 @@ struct HomeView: View {
     var openChat: (Event) -> Void
 
     private var view: HomePresentation { model.home }
-    /// Фільтри пошуку видно, поки поле у фокусі або в ньому є текст.
     @FocusState private var searchFocused: Bool
+    /// Режим пошуку: вмикає тап у поле, вимикає лише «Скасувати». Стрічка головної і фільтри
+    /// пошуку ніколи не видно разом, тож стертий текст лишає в режимі з підказкою, а не повертає стрічку.
+    @State private var searchMode = false
+    /// Нове поле після «Скасувати»: набране, але ще не віддане нагору, інакше повернулося б за паузу.
+    @State private var searchEpoch = 0
     /// Скільки результатів пошуку показано. «Показати ще» додає шматок.
     @State private var resultsLimit = homeResultsLimit
 
@@ -29,6 +33,20 @@ struct HomeView: View {
         .background(Palette.canvas.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
         .onChange(of: view.searchKey) { _, _ in resultsLimit = homeResultsLimit }
+        .onChange(of: searchFocused) { _, focused in
+            if focused && !searchMode { withAnimation(.snappy) { searchMode = true } }
+        }
+    }
+
+    /// Текст, що лишився зі спільного стану, теж тримає режим: інакше фільтри діяли б невидимо.
+    private func searchActive(_ view: HomePresentation) -> Bool { searchMode || view.searching }
+
+    /// «Скасувати»: текст і фільтри скидаються, фокус знімається, повертається стрічка.
+    private func cancelSearch() {
+        searchFocused = false
+        searchEpoch += 1
+        model.app.cancelHomeSearch()
+        withAnimation(.snappy) { searchMode = false }
     }
 
     private func feed(_ view: HomePresentation) -> some View {
@@ -36,6 +54,11 @@ struct HomeView: View {
             VStack(alignment: .leading, spacing: Space.section) {
                 if view.searching {
                     searchResults(view)
+                } else if searchActive(view) {
+                    EmptyState(
+                        symbol: "magnifyingglass", title: "Шукайте за назвою, місцем чи виконавцем",
+                        message: "Шукаємо \(view.searchScope)"
+                    ).padding(.horizontal, Space.page).padding(.top, Space.section)
                 } else {
                     quickActions
                     if !view.signedIn {
@@ -73,7 +96,7 @@ struct HomeView: View {
     }
 
     private func headerView(_ view: HomePresentation) -> some View {
-        let searchActive = searchFocused || view.searching
+        let searchActive = searchActive(view)
         return VStack(alignment: .leading, spacing: Space.lg) {
             // Під час пошуку великий заголовок ховається: місце — фільтрам і результатам.
             if !searchActive {
@@ -87,10 +110,18 @@ struct HomeView: View {
                 }
                 .padding(.horizontal, Space.page)
             }
-            SearchBar(placeholder: "Пошук \(view.searchScope)", initial: view.searchText) {
-                model.app.setHomeSearchText(query: $0)
+            HStack(spacing: Space.md) {
+                SearchBar(placeholder: "Пошук \(view.searchScope)", initial: view.searchText) {
+                    model.app.setHomeSearchText(query: $0)
+                }
+                .id(searchEpoch)
+                .focused($searchFocused)
+                if searchActive {
+                    Button("Скасувати", action: cancelSearch)
+                        .font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                }
             }
-            .focused($searchFocused)
             .padding(.horizontal, Space.page)
             if searchActive { searchFilters(view) }
         }
