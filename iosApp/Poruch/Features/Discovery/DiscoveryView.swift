@@ -102,6 +102,14 @@ struct DiscoveryView: View {
     private var listEntries: [EventIndexEntry] { derived.listEntries }
     /// Завантажені картки списку. Може бути менше за `listEntries`: решту список просить сам.
     private var shownEvents: [Event] { derived.shownEvents }
+
+    /// Картки каруселі. Вибрана подія є завжди: вибір ззовні («На мапі» з деталей) буває за краєм
+    /// вікна карток, поза фільтром чи ще без індексу. Без неї карусель стояла на першій картці, а
+    /// за мить обирала її. Коли справжня картка доїде у своє місце списку, ця зникне.
+    private var deckEvents: [Event] {
+        guard let event = model.state?.detail.event, !derived.shownIDs.contains(event.id) else { return shownEvents }
+        return [event] + shownEvents
+    }
     private var activeFilters: Int {
         [model.state?.map.dateFilter != DateFilter.shared.ANY, model.state?.map.category != DiscoveryStateKt.ALL_CATEGORIES, model.state?.map.onlyAvailable == true]
             .filter { $0 }.count
@@ -163,16 +171,9 @@ struct DiscoveryView: View {
         .background(Palette.canvas)
         .toolbar(.hidden, for: .navigationBar)
         .onChange(of: model.eventsRevision) { _, _ in region = nil }
-        // Біля краю завантаженого просимо наступне вікно карток.
-        .onChange(of: selectedID) { _, id in
-            guard let id, !stackFocused, shownEvents.count < listEntries.count else { return }
-            guard let position = shownEvents.firstIndex(where: { $0.id == id }) else {
-                // Вибір ззовні (кнопка «На мапі» в деталях) може бути за краєм вікна карток.
-                if listEntries.contains(where: { $0.id == id }) { model.app.loadCards(ids: [id]) }
-                return
-            }
-            if position >= shownEvents.count - cardPrefetchAhead { loadHead(shownEvents.count + cardPage) }
-        }
+        // Вибір, зроблений до появи мапи (перший перехід на вкладку), `onChange` не бачить.
+        .onAppear { reveal(selectedID) }
+        .onChange(of: selectedID) { _, id in reveal(id) }
         // Картки просимо під категорію, яку показуємо: під фільтром вони лежать за краєм вікна.
         .onChange(of: listCategory) { _, _ in loadHead(cardPage) }
         .onChange(of: category) { _, _ in loadHead(cardPage) }
@@ -235,11 +236,11 @@ struct DiscoveryView: View {
         VStack(spacing: 0) {
             sheetHandle
             if !expanded {
-                if shownEvents.isEmpty {
+                if deckEvents.isEmpty {
                     if model.state?.map.loading != true { quietCard.padding(.horizontal, Space.page) }
                 } else {
                     EventDeck(
-                        events: shownEvents, selectedID: selectedID, savedIDs: savedIDs,
+                        events: deckEvents, selectedID: selectedID, savedIDs: savedIDs,
                         resetToken: centerToken,
                         select: { model.app.selectEvent(id: $0) },
                         open: { model.app.selectEvent(id: $0); detail = EventRoute(id: $0) },
@@ -496,6 +497,19 @@ struct DiscoveryView: View {
         open(nearest)
     }
 
+    /// Вибрана подія має бути в каруселі на своєму місці. Стос іншого піна її не покаже, тож його знімаємо;
+    /// картку за краєм вікна довантажуємо; біля краю завантаженого просимо наступне вікно.
+    private func reveal(_ id: String?) {
+        guard let id else { return }
+        if stackFocused, !stackIDs.contains(id) { stackIDs = [] }
+        guard !stackFocused, shownEvents.count < listEntries.count else { return }
+        guard let position = shownEvents.firstIndex(where: { $0.id == id }) else {
+            if listEntries.contains(where: { $0.id == id }) { model.app.loadCards(ids: [id]) }
+            return
+        }
+        if position >= shownEvents.count - cardPrefetchAhead { loadHead(shownEvents.count + cardPage) }
+    }
+
     /// Наступне вікно карток біля краю завантаженого.
     private func loadMore(reaching position: Int) {
         guard shownEvents.count < listEntries.count else { return }
@@ -690,6 +704,8 @@ private final class DeckMemo {
     private(set) var stackFocused = false
     private(set) var listEntries: [EventIndexEntry] = []
     private(set) var shownEvents: [Event] = []
+    /// Id показаних карток: перевірка «чи вибрана вже в каруселі» на кожен кадр без проходу через міст.
+    private(set) var shownIDs: Set<String> = []
 
     @MainActor func update(_ next: Key, model: AppModel) {
         guard next != key else { return }
@@ -703,5 +719,6 @@ private final class DeckMemo {
         listEntries = next.listCategory == all ? base : base.filter { $0.category == next.listCategory }
         let cards = model.cardsByID
         shownEvents = listEntries.compactMap { cards[$0.id] }
+        shownIDs = Set(shownEvents.map(\.id))
     }
 }

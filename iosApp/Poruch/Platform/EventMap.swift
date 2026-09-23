@@ -257,13 +257,19 @@ struct EventMap: UIViewRepresentable {
         }
         context.coordinator.updateFeatures(map)
         context.coordinator.updateChosen(map)
-        if context.coordinator.focusedID != selectedID {
-            context.coordinator.focusedID = selectedID
+        // Вибір, якого ще нема серед подій (індекс у дорозі), не вважаємо наведеним: шукаємо знову,
+        // щойно зміниться склад. Інакше мапа, відкрита з деталей до приходу індексу, лишалась на місті.
+        let focusKey = "\(selectedID ?? "")#\(eventsRevision)#\(filterKey)"
+        if context.coordinator.focusedID != selectedID, context.coordinator.focusKey != focusKey {
+            context.coordinator.focusKey = focusKey
             if let id = selectedID, let event = events.first(where: { $0.id == id }) {
+                context.coordinator.focusedID = id
                 map.setCenter(
                     CLLocationCoordinate2D(latitude: event.latitude, longitude: event.longitude),
                     zoomLevel: max(map.zoomLevel, focusZoom), animated: animated
                 )
+            } else {
+                context.coordinator.focusedID = nil
             }
         }
     }
@@ -281,6 +287,8 @@ struct EventMap: UIViewRepresentable {
         var featureKey = ""
         var chosenKey = ""
         var focusedID: String?
+        /// Вибір і склад, для яких уже шукали подію, щоб не ходити по індексу на кожен кадр.
+        var focusKey = ""
         var retryToken = 0
         var scheme: ColorScheme = .light
         private var styleReady = false
