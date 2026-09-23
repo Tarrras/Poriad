@@ -36,7 +36,7 @@ fun ProfileScreen(state: ProfileState, onIntent: (ProfileIntent) -> Unit) {
     val colors = Poruch.colors
     Column(
         Modifier.fillMaxSize().background(colors.canvas).verticalScroll(rememberScrollState()).imePadding()
-            .padding(bottom = 120.dp)
+            .tabBarClearance()
     ) {
         // Аватар і назва по центру, як картка акаунта в Apple Store.
         Column(

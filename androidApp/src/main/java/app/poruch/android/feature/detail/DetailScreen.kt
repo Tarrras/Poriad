@@ -69,7 +69,8 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
     val scroll = rememberScrollState()
     Box(Modifier.fillMaxSize().background(colors.canvas)) {
         PullToRefresh(state.refreshing, { onIntent(DetailIntent.Refresh) }, Modifier.fillMaxSize(), underStatusBar = true) {
-            Column(Modifier.fillMaxSize().verticalScroll(scroll).padding(bottom = 128.dp)) {
+            // Під нижньою панеллю дії: її висота плюс системна смуга, якою б вона не була.
+            Column(Modifier.fillMaxSize().verticalScroll(scroll).navigationBarsPadding().padding(bottom = 104.dp)) {
                 Hero(event, state, onIntent)
                 Column(
                     Modifier.padding(horizontal = Spacing.page).padding(top = Spacing.md),
@@ -674,8 +675,8 @@ private val DetailAction.label: Int
 private fun ScrimButton(icon: ImageVector, description: String, onClick: () -> Unit) {
     // Фото довільне, тож кнопки на власному світлому скримі.
     Box(
-        Modifier.size(40.dp).background(Color.White.copy(alpha = 0.92f), CircleShape)
-            .border(1.dp, Color.Black.copy(alpha = 0.06f), CircleShape).clip(CircleShape).clickable(onClick = onClick),
+        Modifier.minimumInteractiveComponentSize().size(40.dp).background(Color.White.copy(alpha = 0.92f), CircleShape)
+            .border(1.dp, Color.Black.copy(alpha = 0.06f), CircleShape).clip(CircleShape).clickable(role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center
     ) { Icon(icon, description, Modifier.size(18.dp), tint = Color(0xFF14130F)) }
 }

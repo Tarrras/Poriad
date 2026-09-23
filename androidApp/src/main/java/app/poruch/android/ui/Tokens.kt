@@ -49,7 +49,7 @@ val LightPoruchColors = PoruchColors(
     accent = Color(0xFFE0582F), accentContainer = Color(0xFFFDE7DF), onAccentContainer = Color(0xFF7A2E14),
     success = Color(0xFF2E7D4F), successContainer = Color(0xFFDFF3E6), onSuccessContainer = Color(0xFF1B4C2F),
     danger = Color(0xFFC0392B), dangerContainer = Color(0xFFFBE3E0),
-    ink = Color(0xFF1D1D1F), inkSecondary = Color(0xFF6E6E73), inkTertiary = Color(0xFF98989D),
+    ink = Color(0xFF1D1D1F), inkSecondary = Color(0xFF6E6E73), inkTertiary = Color(0xFF6E6E78),
     surface = Color(0xFFFFFFFF), surfaceRaised = Color(0xFFFFFFFF), surfaceMuted = Color(0xFFF2F2F7),
     canvas = Color(0xFFF5F5F7), canvasTint = Color(0xFFEBEBF0),
     // Шапка того ж тону, що й полотно: екран — один спокійний аркуш.
@@ -65,7 +65,7 @@ val DarkPoruchColors = PoruchColors(
     accent = Color(0xFFFF8A5B), accentContainer = Color(0xFF3F2419), onAccentContainer = Color(0xFFFFD9C8),
     success = Color(0xFF5DC389), successContainer = Color(0xFF16311F), onSuccessContainer = Color(0xFFBFEBD0),
     danger = Color(0xFFFF6B5B), dangerContainer = Color(0xFF3C1A16),
-    ink = Color(0xFFF5F5F7), inkSecondary = Color(0xFFA1A1A8), inkTertiary = Color(0xFF6E6E76),
+    ink = Color(0xFFF5F5F7), inkSecondary = Color(0xFFA1A1A8), inkTertiary = Color(0xFF8E8E96),
     surface = Color(0xFF17171C), surfaceRaised = Color(0xFF202027), surfaceMuted = Color(0xFF26262E),
     canvas = Color(0xFF0B0B0F), canvasTint = Color(0xFF141419),
     heroTop = Color(0xFF0B0B0F), heroBottom = Color(0xFF0B0B0F),

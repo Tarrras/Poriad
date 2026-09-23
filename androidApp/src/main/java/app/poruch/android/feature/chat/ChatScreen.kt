@@ -118,7 +118,8 @@ private fun Header(state: ChatState, onIntent: (ChatIntent) -> Unit) {
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
             Box(
-                Modifier.size(40.dp).cardSurface(CircleShape, Elevation.card).pressable(onClick = { onIntent(ChatIntent.Back) }),
+                Modifier.minimumInteractiveComponentSize().size(40.dp).cardSurface(CircleShape, Elevation.card)
+                    .pressable(onClick = { onIntent(ChatIntent.Back) }),
                 contentAlignment = Alignment.Center
             ) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.back), Modifier.size(18.dp), tint = colors.ink) }
             Column(Modifier.weight(1f)) {
@@ -169,7 +170,7 @@ private fun Feed(state: ChatState, onIntent: (ChatIntent) -> Unit) {
             Column {
                 row.day?.let { DayLabel(it) }
                 Spacer(Modifier.height(if (row.continued) 3.dp else Spacing.md))
-                Bubble(row.message, row.continued, state, onIntent)
+                Bubble(row.message, row.continued, state.isMine(row.message), onIntent)
             }
         }
         item(key = "rules") {
@@ -214,9 +215,8 @@ private fun DayLabel(day: LocalDate) {
 }
 
 @Composable
-private fun Bubble(message: ChatMessage, continued: Boolean, state: ChatState, onIntent: (ChatIntent) -> Unit) {
+private fun Bubble(message: ChatMessage, continued: Boolean, mine: Boolean, onIntent: (ChatIntent) -> Unit) {
     val colors = Poruch.colors
-    val mine = state.isMine(message)
     val name = message.authorName.ifBlank { stringResource(R.string.chat_member) }
     val time = remember(message.createdAt) { clock(message.createdAt) }
     val shape = bubbleShape(mine, continued)

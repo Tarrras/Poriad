@@ -66,7 +66,7 @@ fun MyEventsScreen(state: MyEventsState, onIntent: (MyEventsIntent) -> Unit) {
                 // Один груповий список компактних рядків: тут переглядають своє, а не обирають чуже.
                 else -> Column(
                     Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-                        .padding(start = Spacing.page, end = Spacing.page, top = Spacing.sm, bottom = 120.dp),
+                        .tabBarClearance().padding(start = Spacing.page, end = Spacing.page, top = Spacing.sm),
                     verticalArrangement = Arrangement.spacedBy(Spacing.xxl)
                 ) {
                     GroupedRows {

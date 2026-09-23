@@ -11,6 +11,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -51,6 +52,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -86,7 +88,7 @@ fun Modifier.cardSurface(shape: Shape = Radius.lg, elevation: Dp = Elevation.car
  * Reduced motion лишає ripple і прибирає просідання.
  */
 @Composable
-fun Modifier.pressable(enabled: Boolean = true, pressedScale: Float = 0.98f, onClick: () -> Unit): Modifier {
+fun Modifier.pressable(enabled: Boolean = true, pressedScale: Float = 0.98f, role: Role? = Role.Button, onClick: () -> Unit): Modifier {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val scale by animateFloatAsState(
@@ -96,8 +98,14 @@ fun Modifier.pressable(enabled: Boolean = true, pressedScale: Float = 0.98f, onC
     )
     return this
         .graphicsLayer { scaleX = scale; scaleY = scale }
-        .clickable(interactionSource = interaction, indication = LocalIndication.current, enabled = enabled, onClick = onClick)
+        .clickable(interactionSource = interaction, indication = LocalIndication.current, enabled = enabled, role = role, onClick = onClick)
 }
+
+/**
+ * Низ прокручуваного вмісту вкладки: під плаваючим таббаром (кнопка 56 dp і його відступ) і системною
+ * смугою навігації, якої заввишки вона б не була.
+ */
+fun Modifier.tabBarClearance(): Modifier = navigationBarsPadding().padding(bottom = 56.dp + Spacing.md + Spacing.lg)
 
 @Composable
 fun HairLine(modifier: Modifier = Modifier) = Box(modifier.fillMaxWidth().height(1.dp).background(Poruch.colors.hairline))
@@ -377,7 +385,7 @@ fun PageHeader(title: String, modifier: Modifier = Modifier, back: (() -> Unit)?
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)
     ) {
         if (back != null) Box(
-            Modifier.size(40.dp).cardSurface(CircleShape, Elevation.card).pressable(onClick = back),
+            Modifier.minimumInteractiveComponentSize().size(40.dp).cardSurface(CircleShape, Elevation.card).pressable(onClick = back),
             contentAlignment = Alignment.Center
         ) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.back), Modifier.size(18.dp), tint = colors.ink) }
         Text(title, style = MaterialTheme.typography.headlineMedium, color = colors.ink, modifier = Modifier.weight(1f))
@@ -895,18 +903,21 @@ fun PoruchTabBar(items: List<TabItem>, selected: String, modifier: Modifier = Mo
     val colors = Poruch.colors
     Row(modifier.padding(horizontal = Spacing.lg), horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
         Row(
-            Modifier.weight(1f).cardSurface(Radius.pill, Elevation.overlay).padding(horizontal = Spacing.xs, vertical = Spacing.sm),
+            Modifier.weight(1f).cardSurface(Radius.pill, Elevation.overlay).padding(horizontal = Spacing.xs, vertical = Spacing.xs).selectableGroup(),
             horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically
         ) {
             items.forEach { item ->
                 val active = item.key == selected
+                // Скрінрідер чує вкладку, її стан і бейдж одним рядком.
+                val description = if (item.badge > 0) item.label + ", " +
+                    pluralStringResource(R.plurals.tab_unread_chats, item.badge, item.badge) else item.label
                 // Бейдж живе поза капсулою пункту: її обрізає clip для ріплу, і кут числа зникав.
                 Box(Modifier.weight(1f)) {
                     Column(
-                        Modifier.fillMaxWidth().height(42.dp).clip(Radius.pill)
+                        Modifier.fillMaxWidth().height(48.dp).clip(Radius.pill)
                             .background(if (active) colors.brandContainer else Color.Transparent, Radius.pill)
-                            .clickable { onSelect(item.key) }
-                            .semantics { contentDescription = item.label },
+                            .selectable(active, role = Role.Tab) { onSelect(item.key) }
+                            .semantics { contentDescription = description },
                         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center
                     ) {
                         Icon(item.icon, null, Modifier.size(20.dp), tint = if (active) colors.ink else colors.inkTertiary)
@@ -919,7 +930,7 @@ fun PoruchTabBar(items: List<TabItem>, selected: String, modifier: Modifier = Mo
                     // Поверх кута гліфа: число справ, не повідомлень.
                     if (item.badge > 0) Text(
                         item.badge.coerceAtMost(99).toString(), style = MaterialTheme.typography.labelSmall, color = colors.onBrand,
-                        modifier = Modifier.align(Alignment.TopCenter).offset(x = 14.dp, y = (-4).dp)
+                        modifier = Modifier.align(Alignment.TopCenter).offset(x = 14.dp, y = (-4).dp).clearAndSetSemantics { }
                             .background(colors.accent, Radius.pill).padding(horizontal = 5.dp, vertical = 1.dp)
                     )
                 }

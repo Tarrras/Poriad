@@ -34,7 +34,7 @@ fun HomeScreen(state: HomeState, onIntent: (HomeIntent) -> Unit) {
     val colors = Poruch.colors
     PullToRefresh(state.refreshing, { onIntent(HomeIntent.Refresh) }, Modifier.fillMaxSize().background(colors.canvas)) {
         Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).statusBarsPadding().padding(bottom = 120.dp),
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).statusBarsPadding().tabBarClearance(),
             verticalArrangement = Arrangement.spacedBy(Spacing.section)
         ) {
             Header(state, onIntent)

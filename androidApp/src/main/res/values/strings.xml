@@ -341,6 +341,12 @@
   <string name="chat_home_section">Нові повідомлення</string>
   <string name="chat_home_hint">Відкрийте чат, щоб відповісти.</string>
   <string name="chat_preview">%1$s: %2$s</string>
+  <plurals name="tab_unread_chats">
+    <item quantity="one">%1$d чат з новими повідомленнями</item>
+    <item quantity="few">%1$d чати з новими повідомленнями</item>
+    <item quantity="many">%1$d чатів з новими повідомленнями</item>
+    <item quantity="other">%1$d чату з новими повідомленнями</item>
+  </plurals>
   <plurals name="chat_unread_count">
     <item quantity="one">%1$d нове</item>
     <item quantity="few">%1$d нових</item>
