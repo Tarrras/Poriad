@@ -10,6 +10,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.os.Build
 import app.poruch.android.MainActivity
 import app.poruch.android.R
@@ -21,6 +22,14 @@ import app.poruch.domain.RequestAlert
 import app.poruch.domain.RequestNotifier
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.Locale
+
+/**
+ * Сповіщення малюють сервіс і приймач, чий контекст живе локаллю системи: відмінки ("2 нових")
+ * мають іти за правилами мови застосунку, як в Activity.
+ */
+internal fun Context.inAppLanguage(): Context =
+    createConfigurationContext(Configuration(resources.configuration).apply { setLocale(Locale.forLanguageTag("uk")) })
 
 /**
  * Дозвіл на сповіщення. До Android 13 його не існує, і питання зникає разом із ним.
@@ -68,7 +77,8 @@ class AlarmReminderScheduler(private val context: Context) : ReminderScheduler {
                 }
         }
 
-        fun show(context: Context, reminder: EventReminder) {
+        fun show(system: Context, reminder: EventReminder) {
+            val context = system.inAppLanguage()
             if (!NotificationPermission(context).granted()) return
             val manager = context.getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(
@@ -142,7 +152,9 @@ class AlarmReminderScheduler(private val context: Context) : ReminderScheduler {
  * Сповіщення про нові запити на участь. Негайне, без будильника: план тут не потрібен, бо
  * «нове» вже вирішив спільний шар. Одне сповіщення на подію, тап веде на неї.
  */
-class RequestNotificationCenter(private val context: Context) : RequestNotifier {
+class RequestNotificationCenter(context: Context) : RequestNotifier {
+    private val context = context.inAppLanguage()
+
     override fun notify(alerts: List<RequestAlert>) {
         if (!NotificationPermission(context).granted()) return
         val manager = context.getSystemService(NotificationManager::class.java)
@@ -182,7 +194,9 @@ class RequestNotificationCenter(private val context: Context) : RequestNotifier 
 }
 
 /** Сповіщення про нові повідомлення в чаті: одне на подію, з іменем і початком останнього. Тап веде в чат. */
-class ChatNotificationCenter(private val context: Context) : ChatNotifier {
+class ChatNotificationCenter(context: Context) : ChatNotifier {
+    private val context = context.inAppLanguage()
+
     override fun notifyMessages(alerts: List<ChatAlert>) {
         if (!NotificationPermission(context).granted()) return
         val manager = context.getSystemService(NotificationManager::class.java)
