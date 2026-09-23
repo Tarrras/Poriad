@@ -25,4 +25,14 @@ kotlin {
         commonTest.dependencies { implementation("io.ktor:ktor-client-mock:3.2.3") }
     }
 }
-sqldelight { databases { create("PoruchDatabase") { packageName.set("app.poruch.data.cache") } } }
+sqldelight {
+    databases {
+        create("PoruchDatabase") {
+            packageName.set("app.poruch.data.cache")
+            // Знімки схеми (`<версія>.db`): збірка падає, якщо міграції з них не дають поточну схему.
+            // Нова міграція N.sqm — спершу `./gradlew :core:data:generateCommonMainPoruchDatabaseSchema`.
+            schemaOutputDirectory.set(file("src/commonMain/sqldelight/databases"))
+            verifyMigrations.set(true)
+        }
+    }
+}
