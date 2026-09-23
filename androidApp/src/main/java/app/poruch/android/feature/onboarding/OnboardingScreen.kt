@@ -1,5 +1,6 @@
 package app.poruch.android.feature.onboarding
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -40,6 +41,7 @@ import app.poruch.domain.TimeSlot
 @Composable
 fun OnboardingScreen(state: OnboardingState, onIntent: (OnboardingIntent) -> Unit) {
     val colors = Poruch.colors
+    BackHandler(state.step != OnboardingStep.WELCOME) { onIntent(OnboardingIntent.Back) }
     Column(
         Modifier.fillMaxSize().background(colors.canvas).statusBarsPadding().navigationBarsPadding()
             .padding(horizontal = Spacing.page)

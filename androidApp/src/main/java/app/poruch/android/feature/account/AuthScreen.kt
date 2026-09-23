@@ -1,5 +1,6 @@
 package app.poruch.android.feature.account
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -44,6 +45,8 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
     val colors = Poruch.colors
+    // Системний «назад» — як стрілка: з «Забули пароль?» до форми, з кроку листа — з його скиданням.
+    BackHandler { onIntent(AuthIntent.Back) }
     Column(Modifier.fillMaxSize().background(colors.canvas).verticalScroll(rememberScrollState()).imePadding()) {
         // Знак застосунку й назва по центру, як вхід в Apple ID; «назад» окремо в кутку.
         Column(

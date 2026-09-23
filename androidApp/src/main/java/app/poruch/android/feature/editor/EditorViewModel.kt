@@ -2,6 +2,7 @@ package app.poruch.android.feature.editor
 
 import androidx.lifecycle.viewModelScope
 import app.poruch.android.mvi.MviViewModel
+import app.poruch.android.platform.NotificationPermission
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -15,6 +16,7 @@ import java.time.ZoneId
 class EditorViewModel(
     private val app: PoruchApp,
     private val drafts: DraftStore,
+    private val notifications: NotificationPermission,
     private val editingId: String?
 ) : MviViewModel<EditorState, EditorIntent, EditorEffect>(EditorState(editing = editingId != null)) {
 
@@ -47,7 +49,12 @@ class EditorViewModel(
                 return@observe copy(form = form, mapLatitude = loaded.latitude, mapLongitude = loaded.longitude, mutating = latest.mutating)
             }
             if (submitted && latest.completedEventId != null) {
-                drafts.clear(); app.clearCompletedEvent(); send(EditorEffect.Close)
+                submitted = false
+                drafts.clear(); app.clearCompletedEvent()
+                // Нова подія — момент спитати про сповіщення: без дозволу запити на участь не дзвонять.
+                // Закриваємось після відповіді, бо запит живе в маршруті редактора.
+                if (editingId == null && !latest.remindersEnabled && !notifications.granted()) send(EditorEffect.AskNotificationPermission)
+                else send(EditorEffect.Close)
             }
             copy(mutating = latest.mutating)
         }
@@ -122,6 +129,10 @@ class EditorViewModel(
                 persist()
             }
             EditorIntent.Submit -> submit()
+            is EditorIntent.NotificationPermissionAnswered -> {
+                if (intent.granted) app.setRemindersEnabled(true)
+                send(EditorEffect.Close)
+            }
         }
     }
 

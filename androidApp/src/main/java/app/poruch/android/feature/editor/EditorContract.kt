@@ -112,8 +112,11 @@ sealed interface EditorIntent {
     data object Submit : EditorIntent
     data class ShowPicker(val request: PickerRequest?) : EditorIntent
     data class SetDateTime(val request: PickerRequest, val value: LocalDateTime) : EditorIntent
+    /** Відповідь системи на [EditorEffect.AskNotificationPermission]. */
+    data class NotificationPermissionAnswered(val granted: Boolean) : EditorIntent
 }
 
 sealed interface EditorEffect {
     data object Close : EditorEffect
+    data object AskNotificationPermission : EditorEffect
 }

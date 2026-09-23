@@ -1,5 +1,6 @@
 package app.poruch.android.feature.editor
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -51,6 +52,8 @@ import java.time.LocalDateTime
 @Composable
 fun EditorScreen(state: EditorState, onIntent: (EditorIntent) -> Unit, onClose: () -> Unit) {
     val colors = Poruch.colors
+    // Системний «назад» — крок назад, з першого кроку — закрити майстер.
+    BackHandler(state.step != EditorStep.ABOUT) { onIntent(EditorIntent.Back) }
     Column(Modifier.fillMaxSize().background(colors.canvas).statusBarsPadding().imePadding()) {
         WizardHeader(state, onClose)
         Column(

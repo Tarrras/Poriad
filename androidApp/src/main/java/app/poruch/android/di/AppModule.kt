@@ -53,7 +53,7 @@ val appModule = module {
     viewModelOf(::OnboardingViewModel)
     viewModelOf(::AuthViewModel)
     viewModel { (route: Detail) -> DetailViewModel(get(), get(), route.eventId) }
-    viewModel { (route: Editor) -> EditorViewModel(get(), get(), route.editingId) }
+    viewModel { (route: Editor) -> EditorViewModel(get(), get(), get(), route.editingId) }
     viewModel { (route: Chat) -> ChatViewModel(get(), route.eventId) }
 }
 

@@ -159,7 +159,15 @@ fun ChatRoute(route: Chat, navigator: Navigator) {
 @Composable
 fun EditorRoute(route: Editor, navigator: Navigator) {
     val model = koinViewModel<EditorViewModel> { parametersOf(route) }
-    model.effects.handle { effect -> when (effect) { EditorEffect.Close -> navigator.back() } }
+    val notifications = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        model.dispatch(EditorIntent.NotificationPermissionAnswered(granted))
+    }
+    model.effects.handle { effect ->
+        when (effect) {
+            EditorEffect.Close -> navigator.back()
+            EditorEffect.AskNotificationPermission -> notifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
     EditorScreen(model.state.collectAsStateWithLifecycle().value, model::dispatch, navigator::back)
 }
 
