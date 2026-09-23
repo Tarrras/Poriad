@@ -47,18 +47,18 @@ iPad-скріншоти не потрібні: застосунок iPhone-only 
 • Тільки для дорослих: реєстрація з 18 років.
 • Скарга й блокування з екрана кожної події.
 • Імена учасників — лише організатору й тим, хто вже приєднався.
-• Без реклами й рекламних ідентифікаторів. Геолокація — лише за вашим запитом.
+• Без реклами й рекламних ідентифікаторів. Геолокація — приблизна й лише за вашим запитом. Аналітику можна вимкнути в профілі.
 
 Афішні події беруться з відкритих джерел із зазначенням джерела; квитки купуються на сайті організатора.
 
 Мапа: MapLibre, дані © учасники OpenStreetMap, тайли OpenFreeMap.
 
 **Категорія:** Events. **Теги:** events, meetups, map, місто.
-**Контакт:** hello@poriad.app (замінити). **Політика:** https://poriad.app/privacy.html.
+**Контакт:** hello@poriad.app. **Політика:** https://poriad.app/privacy.html.
 
 ### Data safety (як заповнювати)
 
-Збирається / шифрується в дорозі: так / можна запросити видалення: так (`delete_my_account`, кнопка в профілі).
+Збирається / шифрується в дорозі: так / можна запросити видалення: так (`delete_my_account`, кнопка в профілі; веб — https://poriad.app/delete-account.html). Видалення одразу, не відкладене.
 
 | Тип | Обов'язково | Мета | Передається |
 | --- | --- | --- | --- |
@@ -66,13 +66,16 @@ iPad-скріншоти не потрібні: застосунок iPhone-only 
 | Ім'я | так | акаунт, показ учасникам | ні |
 | Інша особиста інформація (дата народження) | так | вікова перевірка | ні |
 | User ID | так | акаунт | ні |
-| Приблизна геолокація | ні | функціональність, ефемерно | ні |
-| Фото | ні | обкладинка події (публічна) | ні |
-| Повідомлення в застосунку | ні | чат події | Google (FCM) для доставки пушів |
-| Інший контент користувача | ні | події, скарги, блокування | ні |
+| Приблизна геолокація | ні | функціональність (центр мапи, місто), ефемерно | ні¹ |
+| Фото | ні | обкладинка події (публічна), аватар | ні |
+| Повідомлення в застосунку (Other in-app messages) | ні | чат події | Google (FCM) для доставки пушів |
+| Історія пошуку в застосунку | ні | функціональність: пошук подій, міст і адрес, ефемерно | ні¹ |
+| Інший контент користувача | ні | події, оцінки завершених подій (1–5 + коментар, бачить організатор), скарги, блокування | ні |
 | Device or other IDs (FCM token, Firebase Installation ID) | ні | пуші, аналітика | Google |
-| App interactions (Analytics) | ні | аналітика | Google |
-| Crash logs, Diagnostics | ні | стабільність | Google |
+| App interactions (Analytics) | ні — вимикається перемикачем «Аналітика» в профілі | аналітика | Google |
+| Crash logs, Diagnostics | ні — той самий перемикач | стабільність | Google |
+
+¹ Набраний текст пошуку міста/адреси й координати для зворотного геокодування йдуть у Photon (komoot, Німеччина) за дією користувача — виняток «user-initiated» у визначенні sharing. Якщо рецензент заперечить — позначити «передається» для цих двох рядків.
 
 Реклама, фінанси, контакти, здоров'я — не збираються. Advertising ID вимкнено в маніфесті, тож у Data safety його не вказувати.
 
@@ -96,7 +99,11 @@ UGC: так. Спілкування між користувачами: так (�
 
 ### App Privacy (Data linked to you)
 
-Contact Info: Email, Name. Identifiers: User ID, Device ID. Location: Coarse Location (not linked). Photos or Videos. User Content: Other User Content, Messages (push через APNs). Other Data: дата народження. **Not linked to you:** Diagnostics (Crash Data, Performance Data), Usage Data (Product Interaction). Tracking: none (Analytics без IDFA).
+Contact Info: Email, Name. Identifiers: User ID, Device ID. Photos or Videos. User Content: Emails or Text Messages (чат події; push через APNs), Other User Content (події, оцінки 1–5 з коментарем, скарги). Other Data: дата народження. Мета для всіх — App Functionality.
+
+**Not linked to you:** Location — Coarse Location (App Functionality; координати для назви міста йдуть у Photon). Search History (пошук подій, міст, адрес; App Functionality). Usage Data — Product Interaction (Analytics). Diagnostics — Crash Data, Performance Data (App Functionality). Аналітику й звіти про збої користувач вимикає перемикачем «Аналітика» в профілі. Tracking: none (без IDFA).
+
+Має збігатися з `iosApp/Poruch/PrivacyInfo.xcprivacy` (С28 аудиту 2026-09-23: там бракує ProductInteraction і EmailsOrTextMessages).
 
 ### App Review Notes (англійською)
 
