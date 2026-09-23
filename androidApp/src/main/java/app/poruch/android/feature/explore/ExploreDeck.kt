@@ -10,6 +10,7 @@ import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -331,9 +332,14 @@ private fun EventCarousel(state: ExploreState, onIntent: (ExploreIntent) -> Unit
             info.visibleItemsInfo.minByOrNull { abs(it.offset + it.size / 2 - middle) }?.index
         }
     }
-    LaunchedEffect(listState.isScrollInProgress) {
-        if (listState.isScrollInProgress) userDriven = true
+    // Лише палець: власна прокрутка до вибору теж «scroll in progress», і обірвана посередині
+    // вона обирала проміжну картку замість потрібної.
+    val dragged by listState.interactionSource.collectIsDraggedAsState()
+    LaunchedEffect(dragged) {
+        if (dragged) userDriven = true
     }
+    // Перше вирівнювання — стрибком: карусель щойно з'явилась (напр., «На мапі» з деталей).
+    var aligned by remember { mutableStateOf(false) }
     LaunchedEffect(centered, listState.isScrollInProgress) {
         if (listState.isScrollInProgress || !userDriven) return@LaunchedEffect
         userDriven = false
@@ -353,12 +359,15 @@ private fun EventCarousel(state: ExploreState, onIntent: (ExploreIntent) -> Unit
     LaunchedEffect(state.selectedId, state.deckEvents) {
         val id = state.selectedId ?: return@LaunchedEffect
         val index = state.deckEvents.indexOfFirst { it.id == id }
-        if (index >= 0 && index != centered) {
+        val from = centered
+        if (index >= 0 && index != from) {
             userDriven = false
-            if (reducedMotion) listState.scrollToItem(index) else listState.animateScrollToItem(
-                index
-            )
+            // Анімація лише на кілька карток. Далеко — стрибок: прогін через десятки карток ішов
+            // довго, а довантаження дорогою ще й відсувало ціль.
+            if (reducedMotion || !aligned || from == null || abs(index - from) > NEAR_CARDS) listState.scrollToItem(index)
+            else listState.animateScrollToItem(index)
         }
+        if (index >= 0) aligned = true
     }
     BoxWithConstraints {
         // Картка вужча за екран, щоб наступна визирала.
@@ -487,6 +496,9 @@ private fun QuietCard(modifier: Modifier, onIntent: (ExploreIntent) -> Unit) {
 
 /** За скільки карток до кінця просити наступні: приблизно екран списку. */
 private const val PREFETCH_AHEAD = 8
+
+/** Скільки карток каруселі ще доїжджаємо анімацією; далі — стрибок. */
+private const val NEAR_CARDS = 3
 
 /** Скільки карток додає одне довантаження. */
 internal const val PAGE = 24
