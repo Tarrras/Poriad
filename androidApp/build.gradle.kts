@@ -15,7 +15,8 @@ android {
         applicationId = "app.poriad.android"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
+        // Номер збірки для магазину: `-Pporiad.versionCode=N` або gradle.properties. Без нього — 1.
+        versionCode = providers.gradleProperty("poriad.versionCode").orNull?.toInt() ?: 1
         versionName = "1.0.0"
         // The style is the app's own; only where its geometry and letterforms come from is
         // configurable, and blank means the defaults in shared MapEndpoints.
