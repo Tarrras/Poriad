@@ -1,6 +1,8 @@
 package app.poruch.android.feature.mine
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -11,6 +13,8 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -42,7 +46,13 @@ fun MyEventsScreen(state: MyEventsState, onIntent: (MyEventsIntent) -> Unit) {
                 horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
             ) {
                 MyEventsTab.entries.forEach { tab ->
-                    PoruchChip(stringResource(tab.label), state.tab == tab, { onIntent(MyEventsIntent.PickTab(tab)) })
+                    // Обраний чип завжди на виду: і після тапу по напівсхованому, і коли вкладку
+                    // відкрили знову, а прокрутка рядка почалася з нуля.
+                    val reveal = remember { BringIntoViewRequester() }
+                    if (state.tab == tab) LaunchedEffect(Unit) { reveal.bringIntoView() }
+                    Box(Modifier.bringIntoViewRequester(reveal)) {
+                        PoruchChip(stringResource(tab.label), state.tab == tab, { onIntent(MyEventsIntent.PickTab(tab)) })
+                    }
                 }
             }
         }
