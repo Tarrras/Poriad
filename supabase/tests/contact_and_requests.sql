@@ -36,7 +36,7 @@ end $$;
 -- Порожній рядок з редактора — це «без чату», а не посилання.
 select public.update_event(current_setting('test.gated')::uuid,'By approval','Description here','social','Kyiv','Park',50.45,30.52,now()+interval '1 day',now()+interval '2 days','Europe/Kyiv',5,null,18,null,true,'  ');
 do $$ begin
- assert (select contact_url is null from public.events where id=current_setting('test.gated')::uuid),'blank link is stored as null';
+ assert (select contact_url is null from public.event_details(current_setting('test.gated')::uuid)),'blank link is stored as null';
 end $$;
 
 -- Сторонній не бачить чату; гість без акаунта — теж.
