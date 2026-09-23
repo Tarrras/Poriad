@@ -243,11 +243,11 @@ struct HomeView: View {
         } else {
             let total = max(view.resultsTotal, view.results.count)
             VStack(alignment: .leading, spacing: Space.md) {
-                // «Усі» несе запит на мапу явно: інакше пошуки екранів незалежні. Мапа — лише обране місто,
+                // «На мапі» несе запит на мапу явно: інакше пошуки екранів незалежні. Мапа — лише обране місто,
                 // тож для пошуку всюди вона показала б менше.
                 SectionHeader(
                     title: "Знайдено \(total) \(ukrainianPlural(total, "подію", "події", "подій")) \(view.searchScope)",
-                    actionLabel: view.resultsTotal > homeResultsLimit && !view.searchEverywhere ? "Усі" : nil,
+                    actionLabel: view.searchEverywhere ? nil : "На мапі",
                     action: { model.app.setSearchText(query: view.searchText); openMap() }
                 )
                 ForEach(view.results(limit: resultsLimit), id: \.id) { event in
