@@ -157,6 +157,8 @@ Composable ──Intent──▶ ViewModel ──▶ PoruchApp (спільне �
   :feature:account:jvmTest :shared:jvmTest
 ```
 
+CI (`.github/workflows/ci.yml`) на кожен push і PR ганяє `./gradlew jvmTest` і тести конвеєра імпорту `python3 -m unittest discover -s tools/ingest -p 'test_*.py' -t .`. iOS-тести, lint і SQL-набори `supabase/tests` у CI не входять.
+
 2026-09-05:
 
 - **22 KMP/JVM тести — PASS:** валідація, Auth refresh/logout/callback, створення з idempotency ID, скасування застарілих запитів, стан recovery.
