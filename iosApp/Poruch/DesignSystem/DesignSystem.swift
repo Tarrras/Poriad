@@ -561,7 +561,7 @@ func seriesNote(_ event: Event) -> String? {
     return "ще \(others) \(ukrainianPlural(others, "сеанс", "сеанси", "сеансів"))"
 }
 
-private func ukrainianPlural(_ count: Int, _ one: String, _ few: String, _ many: String) -> String {
+func ukrainianPlural(_ count: Int, _ one: String, _ few: String, _ many: String) -> String {
     if (11...14).contains(count % 100) { return many }
     switch count % 10 {
     case 1: return one

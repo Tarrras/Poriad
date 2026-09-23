@@ -33,11 +33,22 @@ struct EditorForm: Codable, Equatable {
     /// Посилання, як його бачить чернетка: обрізане, порожнє стає nil.
     var contactLink: String? { ContactRules.shared.normalize(value: contactUrl) }
 
-    /// Nil, поки не заповнене кожне поле. Кнопка публікації дивиться сюди.
+    /// Довжина опису так, як її рахує `EventDraft.validate`: без крайових пробілів, у UTF-16.
+    var descriptionLength: Int { description.trimmed.utf16.count }
+
+    /// Порушені правила. Та сама `EventDraft.validate`, що на Android і в спільному шарі, тож межі
+    /// з `EventRules` не дублюються тут числами.
+    func issues(imageUrl: String?) -> [DraftField] {
+        build(imageUrl: imageUrl).validate(now: ISO8601DateFormatter().string(from: Date()))
+    }
+
+    /// Nil, поки хоч одне поле порушує правило. Публікація дивиться сюди.
     func draft(imageUrl: String?) -> EventDraft? {
-        guard !title.trimmed.isEmpty, !city.trimmed.isEmpty, !address.trimmed.isEmpty, ends > starts else { return nil }
-        guard SafetyRules.shared.isAgeLimit(minAge: Int32(minAge), maxAge: maxAge.map { KotlinInt(int: Int32($0)) }) else { return nil }
-        guard ContactRules.shared.isContactUrl(value: contactLink) else { return nil }
+        let draft = build(imageUrl: imageUrl)
+        return draft.validate(now: ISO8601DateFormatter().string(from: Date())).isEmpty ? draft : nil
+    }
+
+    private func build(imageUrl: String?) -> EventDraft {
         let formatter = ISO8601DateFormatter()
         return EventDraft(
             title: title.trimmed, description: description.trimmed, category: category,
@@ -76,12 +87,28 @@ enum EditorStep: Int, CaseIterable, Identifiable {
         }
     }
     var isLast: Bool { self == .schedule }
+
+    /// Крок, де поле вводять: там «Далі» не пускає далі, туди веде й відмова публікації.
+    static func of(_ field: DraftField) -> EditorStep {
+        switch field.name {
+        case "TITLE", "DESCRIPTION", "CATEGORY": .about
+        case "ADDRESS", "LOCATION": .place
+        default: .schedule
+        }
+    }
 }
 
 /// Форма редактора, крок і чернетка. View лише малює й передає правки; тестується без SwiftUI.
 @MainActor final class EventEditorModel: ObservableObject {
-    @Published var form = EditorForm()
+    @Published var form = EditorForm() { didSet { issues = form.issues(imageUrl: event?.imageUrl) } }
     @Published var step = EditorStep.about
+    /// Порушені правила всієї форми. Рахуються раз на правку, а не на кожне поле в тілі.
+    @Published private(set) var issues: [DraftField] = []
+    /// Людина вже натиснула «Далі» чи «Опублікувати» на цьому кроці: тепер червоніють і порожні поля.
+    @Published private(set) var revealed = false
+    /// Поле, до якого прокрутити, і лічильник-сигнал: той самий збій двічі має прокрутити двічі.
+    @Published private(set) var focus: DraftField?
+    @Published private(set) var jump = 0
     @Published private(set) var submitted = false
     /// Подію збережено, чернетку стерто: більше нічого не пишемо.
     private var finished = false
@@ -116,17 +143,38 @@ enum EditorStep: Int, CaseIterable, Identifiable {
         self.app = app
         self.event = event
         restore(home: home)
+        issues = form.issues(imageUrl: event?.imageUrl)
     }
 
     var editing: Bool { event != nil }
 
-    /// Кожен крок перевіряє лише свої поля, тож «Далі» не блокується наступним.
-    var canAdvance: Bool {
-        switch step {
-        case .about: !form.title.trimmed.isEmpty
-        case .place: !form.city.trimmed.isEmpty && !form.address.trimmed.isEmpty
-        case .schedule: form.draft(imageUrl: event?.imageUrl) != nil
+    /// Правило, яке порушує поле, для тексту під ним. До спроби йти далі — лише для того, що
+    /// людина вже набрала, щоб порожня форма не червоніла з першого кадру.
+    func issue(_ field: DraftField) -> String? {
+        guard issues.contains(field) else { return nil }
+        let touched: Bool
+        switch field.name {
+        case "TITLE": touched = !form.title.isEmpty
+        case "DESCRIPTION": touched = !form.description.isEmpty
+        case "CONTACT_URL": touched = form.contactLink != nil
+        case "ADDRESS", "LOCATION", "CATEGORY": touched = false
+        // Дати, місткість, вік і пояс мають значення завжди: їхню помилку видно одразу.
+        default: touched = true
         }
+        guard revealed || touched else { return nil }
+        switch field.name {
+        case "TITLE": return field.text(length: form.title.trimmed.utf16.count)
+        case "DESCRIPTION": return field.text(length: form.descriptionLength)
+        default: return field.text
+        }
+    }
+
+    /// Показати поле з порушенням: його крок, текст під ним і прокрутка до нього.
+    private func show(_ field: DraftField) {
+        step = EditorStep.of(field)
+        revealed = true
+        focus = field
+        jump += 1
     }
 
     /// Обрана адреса: інакше вибір підказки міняв поле, а зміна поля відкривала список знову.
@@ -228,10 +276,16 @@ enum EditorStep: Int, CaseIterable, Identifiable {
         }
     }
 
-    func advance() { if let next = EditorStep(rawValue: step.rawValue + 1) { step = next } }
+    /// Кожен крок перевіряє лише свої поля, тож «Далі» не блокується наступним.
+    func advance() {
+        if let field = issues.first(where: { EditorStep.of($0) == step }) { return show(field) }
+        if let next = EditorStep(rawValue: step.rawValue + 1) { step = next; revealed = false }
+    }
     func retreat() { if let previous = EditorStep(rawValue: step.rawValue - 1) { step = previous } }
 
     func submit() {
+        // Поле попереднього кроку могло зламатись після переходу (напр. початок став минулим).
+        if let field = issues.first { return show(field) }
         guard let draft = form.draft(imageUrl: event?.imageUrl) else { return }
         persist()
         app.clearCompletedEvent()
@@ -240,7 +294,11 @@ enum EditorStep: Int, CaseIterable, Identifiable {
     }
 
     /// Запис не пройшов: форма лишається людині, і подальші правки знову зберігаються в чернетку.
-    func failed() { submitted = false }
+    /// Відмова з назвами полів (сервер теж так відповідає) веде до першого з них.
+    func failed(fields: [DraftField]) {
+        submitted = false
+        if let field = fields.first { show(field) }
+    }
 
     /// Стор підтвердив запис: чернетка більше не потрібна.
     func finish() {

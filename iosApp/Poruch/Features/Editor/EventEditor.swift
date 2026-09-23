@@ -18,30 +18,45 @@ struct EventEditor: View {
     var body: some View {
         VStack(spacing: 0) {
             wizardHeader
-            ScrollView {
-                VStack(alignment: .leading, spacing: Space.lg) {
-                    // Кожен крок — одне питання великим заголовком, як в онбордингу.
-                    VStack(alignment: .leading, spacing: Space.xs) {
-                        Text(editor.step.headline).font(PoruchFont.display).displayTracking().foregroundStyle(Palette.ink)
-                        Text(editor.step.hint).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
-                    }.padding(.bottom, Space.xs)
-                    switch editor.step {
-                    case .about: AboutStep(form: $editor.form)
-                    case .place: PlaceStep(editor: editor)
-                    case .schedule: ScheduleStep(form: $editor.form, timeZoneFromPlace: editor.timeZoneFromPlace)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: Space.lg) {
+                        // Кожен крок — одне питання великим заголовком, як в онбордингу.
+                        VStack(alignment: .leading, spacing: Space.xs) {
+                            Text(editor.step.headline).font(PoruchFont.display).displayTracking().foregroundStyle(Palette.ink)
+                            Text(editor.step.hint).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
+                        }.padding(.bottom, Space.xs)
+                        switch editor.step {
+                        case .about: AboutStep(form: $editor.form, issue: editor.issue)
+                        case .place: PlaceStep(editor: editor)
+                        case .schedule: ScheduleStep(form: $editor.form, timeZoneFromPlace: editor.timeZoneFromPlace, issue: editor.issue)
+                        }
+                    }.padding(Space.page)
+                }
+                // Поле з порушенням — у видиму частину: інакше текст під ним лишався за краєм екрана.
+                .onChange(of: editor.jump) { _, _ in
+                    guard let field = editor.focus else { return }
+                    // Після зміни кроку поле зʼявляється лише в наступному проході розкладки.
+                    DispatchQueue.main.async {
+                        if reduceMotion { proxy.scrollTo(field, anchor: .center) }
+                        else { withAnimation { proxy.scrollTo(field, anchor: .center) } }
                     }
-                }.padding(Space.page)
+                }
             }
             actions
         }
         .background(Palette.canvas)
+        // Редактор — аркуш над коренем, тож банер кореня з помилкою публікації лишався під ним.
+        .notice(model.state?.notice?.presented) { model.app.clearNotice() }
         .onChange(of: editor.form) { _, _ in editor.scheduleSave() }
         // При згортанні застосунку аркуш не зникає, тож відкладений запис дожимаємо самі.
         .onChange(of: scenePhase) { _, phase in if phase != .active { editor.persist() } }
         .onDisappear { editor.persist() }
         // Зміна закінчилась без підтвердженого запису — відмова: форма лишається редагованою й зберігається.
         .onChange(of: model.state?.mutating) { _, mutating in
-            if mutating == false, editor.submitted, model.state?.completedEventId == nil { editor.failed() }
+            guard mutating == false, editor.submitted, model.state?.completedEventId == nil else { return }
+            let error = (model.state?.notice as? AppNoticeFailed)?.error
+            editor.failed(fields: (error as? AppErrorInvalidDraft)?.fields ?? [])
         }
         .onChange(of: model.state?.completedEventId) { _, id in
             guard editor.submitted, id != nil else { return }
@@ -73,7 +88,8 @@ struct EventEditor: View {
             PrimaryButton(
                 title: !editor.step.isLast ? "Далі" : editor.editing ? "Зберегти зміни" : "Опублікувати",
                 loading: model.state?.mutating == true,
-                enabled: editor.canAdvance && model.state?.mutating != true
+                // Не вимкнена, поки крок не заповнено: натискання показує, що саме не так.
+                enabled: model.state?.mutating != true
             ) { if editor.step.isLast { editor.submit() } else { editor.advance() } }
         }
         .padding(Space.page)
@@ -82,14 +98,35 @@ struct EventEditor: View {
     }
 }
 
+/// Правило, яке порушує поле, одразу під ним.
+private struct FieldIssue: View {
+    let text: String?
+    var body: some View {
+        if let text {
+            Text(text).font(PoruchFont.caption).foregroundStyle(Palette.danger)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+}
+
 private struct AboutStep: View {
     @Binding var form: EditorForm
+    let issue: (DraftField) -> String?
+    private var descriptionRange: KotlinIntRange { EventRules.shared.descriptionLength }
     var body: some View {
-        LabelledField(label: "Назва події", text: $form.title, placeholder: "Наприклад: Вечір настільних ігор")
-        LabelledField(
-            label: "Опис", text: $form.description,
-            placeholder: "Кілька речень про подію", multiline: true
-        )
+        VStack(alignment: .leading, spacing: Space.sm) {
+            LabelledField(label: "Назва події", text: $form.title, placeholder: "Наприклад: Вечір настільних ігор")
+            FieldIssue(text: issue(.title))
+        }.id(DraftField.title)
+        VStack(alignment: .leading, spacing: Space.sm) {
+            LabelledField(
+                label: "Опис", text: $form.description,
+                placeholder: "Кілька речень про подію",
+                hint: "Щонайменше \(descriptionRange.first) символів · \(form.descriptionLength)/\(descriptionRange.last)",
+                multiline: true
+            )
+            FieldIssue(text: issue(.description_))
+        }.id(DraftField.description_)
         VStack(alignment: .leading, spacing: Space.sm) {
             Text("КАТЕГОРІЯ").font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
             // Сітка замість стрічки: всі одинадцять видно одразу, без прокрутки вбік.
@@ -119,11 +156,14 @@ private struct PlaceStep: View {
     private var form: Binding<EditorForm> { $editor.form }
     var body: some View {
         LabelledField(label: "Місто", text: form.city, placeholder: "Київ")
-        LabelledField(
-            label: "Адреса", text: form.address,
-            placeholder: "Вулиця, будинок або назва закладу",
-            hint: "Почніть набирати — знайдемо на мапі"
-        )
+        VStack(alignment: .leading, spacing: Space.sm) {
+            LabelledField(
+                label: "Адреса", text: form.address,
+                placeholder: "Вулиця, будинок або назва закладу",
+                hint: "Почніть набирати — знайдемо на мапі"
+            )
+            FieldIssue(text: editor.issue(.address))
+        }.id(DraftField.address)
         // Підказки одразу під полем, як продовження набору.
         if !editor.addressSuggestions.isEmpty {
             VStack(spacing: 0) {
@@ -165,6 +205,7 @@ private struct PlaceStep: View {
             symbol: editor.pointChosen ? "checkmark.circle" : "mappin.and.ellipse",
             text: editor.pointChosen ? "Точку зустрічі позначено" : "Знайдіть адресу або вкажіть точку на мапі"
         )
+        FieldIssue(text: editor.issue(.location)).id(DraftField.location)
         SecondaryButton(title: editor.pointChosen ? "Змінити точку" : "Обрати точку на мапі") {
             picking = true
         }
@@ -191,13 +232,18 @@ private struct PlaceStep: View {
 private struct ScheduleStep: View {
     @Binding var form: EditorForm
     let timeZoneFromPlace: Bool
+    let issue: (DraftField) -> String?
     private var zone: TimeZone { TimeZone(identifier: form.timeZone) ?? .current }
     var body: some View {
-        ScheduleFields(starts: $form.starts, ends: $form.ends, zone: zone)
+        ScheduleFields(starts: $form.starts, ends: $form.ends, zone: zone).id(DraftField.startsAt)
+        FieldIssue(text: issue(.startsAt) ?? issue(.endsAt)).id(DraftField.endsAt)
         Stepper("Місткість: \(form.capacity)", value: $form.capacity, in: capacityRange)
             .font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
             .padding(Space.lg).cardSurface()
-        TimeZoneNote(zone: form.timeZone, fromPlace: timeZoneFromPlace)
+            .id(DraftField.capacity)
+        FieldIssue(text: issue(.capacity))
+        TimeZoneNote(zone: form.timeZone, fromPlace: timeZoneFromPlace).id(DraftField.timeZone)
+        FieldIssue(text: issue(.timeZone))
         // Хто може прийти — частина публікації, а не сховане налаштування.
         VStack(alignment: .leading, spacing: Space.md) {
             SectionHeader(title: "Хто може прийти")
@@ -223,6 +269,8 @@ private struct ScheduleStep: View {
             }
             .font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
             .padding(Space.lg).cardSurface()
+            .id(DraftField.ageLimits)
+            FieldIssue(text: issue(.ageLimits))
             Text("Мінімум \(Int(SafetyRules.shared.MIN_SIGNUP_AGE)) — молодших у застосунку немає.")
                 .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
             // Чат — єдиний канал до учасників. Лише https: решту відкидає і чернетка, і сервер.
@@ -233,10 +281,8 @@ private struct ScheduleStep: View {
                 hint: "Посилання на Telegram, Instagram, Viber тощо. Його побачать лише ви та підтверджені учасники. За вміст чату відповідаєте ви."
             )
             .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
-            if let link = form.contactLink, !ContactRules.shared.isContactUrl(value: link) {
-                Text("Посилання має починатися з https:// і не містити пробілів.")
-                    .font(PoruchFont.caption).foregroundStyle(Palette.danger)
-            }
+            .id(DraftField.contactUrl)
+            FieldIssue(text: issue(.contactUrl))
         }
         VStack(alignment: .leading, spacing: Space.sm) {
             Text(categoryName(form.category).uppercased()).font(PoruchFont.overline)

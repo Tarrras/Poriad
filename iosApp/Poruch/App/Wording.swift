@@ -41,30 +41,41 @@ extension AppError {
         case is AppErrorInvalidName: "Вкажіть імʼя від 2 до 60 символів"
         case is AppErrorWeakPassword: "Пароль має містити щонайменше 8 символів"
         case is AppErrorSamePassword: "Новий пароль збігається з поточним"
-        // Відхилена чернетка називає поля, тож повідомлення вказує на них.
+        // Відхилена чернетка називає поля, тож повідомлення каже правило кожного.
         case let draft as AppErrorInvalidDraft:
-            "Перевірте поля: " + draft.fields.map(\.text).joined(separator: ", ")
+            draft.fields.map(\.text).joined(separator: ". ")
         default: "Не вдалося виконати дію. Спробуйте ще раз"
         }
     }
 }
 
 extension DraftField {
-    var text: String {
+    /// Правило поля одним реченням. Межі з `EventRules`, тими самими, що перевіряє `EventDraft.validate`.
+    var text: String { text(length: nil) }
+
+    /// З довжиною набраного кажемо, в який бік помилка: «щонайменше» чи «не більше».
+    func text(length: Int?) -> String {
+        let rules = EventRules.shared
         switch name {
-        case "TITLE": "назва (3–120 символів)"
-        case "DESCRIPTION": "опис (10–5000 символів)"
-        case "CATEGORY": "категорія"
-        case "ADDRESS": "місто та адреса"
-        case "LOCATION": "точка на мапі"
-        case "CAPACITY": "кількість місць (1–10000)"
-        case "STARTS_AT": "майбутня дата початку"
-        case "ENDS_AT": "час закінчення"
-        case "TIME_ZONE": "часовий пояс"
-        case "AGE_LIMITS": "вікові обмеження"
-        case "CONTACT_URL": "посилання на чат (лише https)"
-        default: "фото"
+        case "TITLE": return lengthRule("Назва", low: Int(rules.titleLength.first), high: Int(rules.titleLength.last), length)
+        case "DESCRIPTION": return lengthRule("Опис", low: Int(rules.descriptionLength.first), high: Int(rules.descriptionLength.last), length)
+        case "CATEGORY": return "Оберіть категорію"
+        case "ADDRESS": return "Вкажіть місто й адресу"
+        case "LOCATION": return "Позначте точку зустрічі на мапі"
+        case "CAPACITY": return "Кількість місць — від \(rules.capacity.first) до \(rules.capacity.last)"
+        case "STARTS_AT": return "Початок має бути в майбутньому"
+        case "ENDS_AT": return "Кінець має бути пізніше за початок"
+        case "TIME_ZONE": return "Не вдалося визначити часовий пояс. Оберіть місце ще раз"
+        case "AGE_LIMITS": return "Вік — від \(SafetyRules.shared.MIN_SIGNUP_AGE) до \(SafetyRules.shared.MAX_AGE_LIMIT), і «від» не більше за «до»"
+        case "CONTACT_URL": return "Посилання на чат має починатися з https:// і не містити пробілів"
+        default: return "Фото — JPEG, PNG або WebP до 5 МБ"
         }
+    }
+
+    private func lengthRule(_ subject: String, low: Int, high: Int, _ length: Int?) -> String {
+        if let length, length < low { return "\(subject) — щонайменше \(low) \(ukrainianPlural(low, "символ", "символи", "символів"))" }
+        if let length, length > high { return "\(subject) — не більше \(high) \(ukrainianPlural(high, "символ", "символи", "символів")) (зараз \(length))" }
+        return "\(subject) — від \(low) до \(high) символів"
     }
 }
 
