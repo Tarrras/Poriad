@@ -47,7 +47,7 @@ iPad-скріншоти не потрібні: застосунок iPhone-only 
 • Тільки для дорослих: реєстрація з 18 років.
 • Скарга й блокування з екрана кожної події.
 • Імена учасників — лише організатору й тим, хто вже приєднався.
-• Без реклами й рекламних ідентифікаторів. Геолокація — приблизна й лише за вашим запитом. Аналітику можна вимкнути в профілі.
+• Без реклами й рекламних ідентифікаторів. Геолокація — лише приблизна, щоб визначити ваше місто; дозвіл можна не давати. Аналітику можна вимкнути в профілі.
 
 Афішні події беруться з відкритих джерел із зазначенням джерела; квитки купуються на сайті організатора.
 
@@ -107,4 +107,4 @@ Contact Info: Email, Name. Identifiers: User ID, Device ID. Photos or Videos. Us
 
 ### App Review Notes (англійською)
 
-> Poriad is a Ukrainian-language event discovery app (map + community meetups). Sign-up requires age 18+ (birth date is validated server-side). Test account: <email> / <password> (already 18+ and confirmed). The default city is Kyiv, which has imported public listings; tap any pin on the Map tab to open an event. "Buy ticket" opens the organizer's website in Safari (physical events, no IAP). User-generated events, chat, report and block are available from the event screen after sign-in. Account deletion: Profile → Delete account. Location is requested only when tapping "Near me".
+> Poriad is a Ukrainian-language event discovery app (map + community meetups). Sign-up requires age 18+ (birth date is validated server-side). Test account: <email> / <password> (already 18+ and confirmed). The default city is Kyiv, which has imported public listings; tap any pin on the Map tab to open an event. "Buy ticket" opens the organizer's website in Safari (physical events, no IAP). User-generated events, chat, report and block are available from the event screen after sign-in. Account deletion: Profile → Delete account. Approximate location is requested once after onboarding to pick the starting city; the app works fully if it is denied.
