@@ -98,20 +98,24 @@ Executed successfully on the selected project:
 
 ## Застосування SQL із коду
 
-`tools/apply_sql.py` застосовує міграції й дампи конвеєра прямим зʼєднанням з Postgres, без SQL Editor і без MCP. Рядок зʼєднання — `SUPABASE_DB_URL` у середовищі чи в `.env` (Dashboard → Connect → Session pooler; transaction pooler не годиться для довгих транзакцій). Потрібен `psycopg[binary]`.
+`tools/apply_sql.py` застосовує міграції й дампи конвеєра прямим зʼєднанням з Postgres, без SQL Editor і без MCP. Потрібен `psycopg[binary]`; рядок — Dashboard → Connect → Session pooler (transaction pooler не годиться для довгих транзакцій).
+
+Будь-який запис (`--apply`, `--mark-applied`) вимагає `--env dev|prod`. Рядок зʼєднання: dev — `SUPABASE_DB_URL_DEV`, prod — `SUPABASE_DB_URL` (середовище чи `.env`) або `--db-url`. Скрипт дістає ref з рядка й звіряє з очікуваним для `--env` (dev `ojadoyxeahepycpmjuvf`, prod `tzdogzdvctlumsqlqskr`); розбіжність — відмова. Перед записом друкується ціль, а prod просить ввести ref (`--yes` — для неінтерактивного запуску). Без `--env` і без запису скрипт лише читає базу з `SUPABASE_DB_URL` / `DATABASE_URL`; тихого переходу на `TEST_DATABASE_URL` більше немає.
 
 ```bash
-python3 tools/apply_sql.py migrations          # що не застосовано; --apply виконує й записує в реєстр CLI
-python3 tools/apply_sql.py dump out/ --apply     # SQL від tools.ingest; маніфест задає порядок частин і звіряє sha256
-python3 tools/apply_sql.py all ~/sql-2026-09-15 --apply   # день змін: нові міграції, потім poruch-events-1…N.sql по черзі
+python3 tools/apply_sql.py migrations --env dev           # що не застосовано; --apply виконує й записує в реєстр CLI
+python3 tools/apply_sql.py dump out/ --env dev --apply    # SQL від tools.ingest; маніфест задає порядок частин і звіряє sha256
+python3 tools/apply_sql.py all ~/sql-2026-09-15 --env prod --apply   # день змін: нові міграції, потім poruch-events-1…N.sql
 ```
+
+Міграція і її запис у реєстр — одна транзакція. `--only` застосовує вибрані міграції лише тоді, коли раніших незастосованих немає.
 
 `all` сортує файли даних як числа (`-2` перед `-10`) і веде журнал `.applied_sql.json` поруч із ними: після збою на девʼятому файлі повторний запуск пропускає перші вісім, а змінений файл застосовує знову. `--force` ігнорує журнал.
 
-`run` робить повний цикл сам: створює теку `out/sql-<дата>`, кладе туди копії ще не застосованих міграцій, генерує дамп конвеєром `tools.ingest` (аргументи конвеєра після `--`), застосовує спершу міграції, потім дані, і за успіху видаляє теку. Після збою тека лишається з журналом і `report.json`; дозастосувати її можна через `all <тека> --apply`. Джерело, що не обійшлось, лише згадується в попередженні: конвеєр і так не знімає його події; `--strict` натомість зупиняє запис.
+`run` робить повний цикл сам: створює теку `out/sql-<дата>`, генерує дамп конвеєром `tools.ingest` (аргументи конвеєра після `--`), застосовує дані й за успіху видаляє теку. Міграції `run` застосовує лише з `--with-migrations` (тоді кладе їхні копії в теку й застосовує перед даними); без прапорця лише попереджає про незастосовані. Після збою тека лишається з журналом і `report.json`; дозастосувати її можна через `all <тека> --apply`. Джерело, що не обійшлось, лише згадується в попередженні: конвеєр і так не знімає його події; `--strict` натомість зупиняє запис.
 
 ```bash
-python3 tools/apply_sql.py run --apply -- --city Київ
+python3 tools/apply_sql.py run --env prod --apply -- --city Київ
 ```
 
 Реєстр — `supabase_migrations.schema_migrations`, спільний із Supabase CLI. Частину міграцій цього проєкту застосовано з Dashboard під іншими штампами часу, тому міграція вважається застосованою, якщо в реєстрі є її версія або її назва; скрипт показує обидва випадки окремо. Міграцію, яка вже виконана вручну, але в реєстрі відсутня, записують без виконання: `migrations --mark-applied <назва>` (так зроблено з `listing_has_no_capacity` 2026-09-15).
@@ -302,3 +306,24 @@ Runbook (реакція ≤ 24 год, як обіцяно в умовах): р�
 - **S3.** `report_message` дедуплікує по `message_id`; друга скарга на інше повідомлення того ж автора йде окремим рядком (`private.file_report_message`); `details` обрізається до 2000.
 - **N3.** `register_push_token` лишає не більше десяти найсвіжіших токенів на акаунт.
 - **V7 (Edge Function `push`, задеплоєно CLI).** «Мертвим» вважається лише токен з `errorCode=UNREGISTERED` або `INVALID_ARGUMENT` про сам registration token; тіло запиту валідується (uuid, тип) до звернення в базу; секрет порівнюється за постійний час.
+
+## Аудит 2026-09-23: видалення акаунта, UGC, витоки
+
+Міграції `20260923100000`–`20260923100300` і Edge Function `delete-account`. Застосовано до dev (`ojadoyxeahepycpmjuvf`) 2026-09-23; prod — окремим кроком.
+
+- **Видалення акаунта.** Основний шлях — `POST /functions/v1/delete-account` з токеном користувача: функція (service role) видаляє файли `event-images/<uid>/…` через Storage API, потім `auth.admin.deleteUser`; каскади FK прибирають решту. `public.delete_my_account` лишено для вже випущених збірок: тепер вона ставить `storage.allow_delete_query` у межах транзакції й не падає на `storage.protect_delete` (рядки файлів зникають, байти в S3 лишаються сиротами). CHECK `reports_subject` знято: скарга на видаленого користувача чи подію лишається з `subject_type` і null-посиланням. Текст повідомлення, видаленого автором чи організатором, стирається (`body = null`).
+- **UGC.** Коментар до оцінки проходить стоп-словник, `rate_event` відмовляє при блокуванні з організатором (`BLOCKED`). Організатор скаржиться через `report_rating(event, created_at, reason)` (`subject_type='rating'`), модератор бачить коментар у `moderation_queue` і керує ним через `moderate_rating(event, user, hide|unhide|delete)`. Автоприховування рахує лише активні акаунти, старші за три дні; обмежений акаунт скаржитись не може. Ліміти (`send_message`, `create_event`, `file_report`, `assert_join_rate`) серіалізовані `pg_advisory_xact_lock` на користувача.
+- **Витоки.** `profiles_read` — лише сам, заблоковані мною й люди зі спільних подій (`private.can_see_profile`). URL обкладинки й аватара — лише бакет власного проєкту (з `iss` токена). Ім'я, місто, адреса — через стоп-словник. Anon більше не перелічує бакет, `UPDATE`-політику знято (власник читає лише свої файли). Блокування організатором виганяє учасника з поточних і майбутніх подій. Індекси на FK `reports`, `event_waitlist`, `event_ratings`, `chat_reads`; `my_chat_unread` стартує від власних членств.
+- Тести: `tests/account_deletion.sql`, `tests/ugc_and_limits.sql`; `tests/push.sql` рахує лише власні фікстури.
+
+## Бекапи і відкат
+
+- **PITR** (Point-in-Time Recovery) вмикається в Dashboard → Database → Backups; без нього є лише щоденні бекапи плану. Вмикає людина з доступом до білінгу — з коду це не робиться.
+- Перед застосуванням дампу конвеєра чи міграції в prod — локальна копія подій:
+
+```bash
+pg_dump "$SUPABASE_DB_URL" -t public.events --data-only -Fc -f events-$(date +%F_%H%M).dump
+# відкат: pg_restore у тимчасову базу, звідти вибірково назад (events має FK з members/messages — не TRUNCATE)
+```
+
+- Для міграцій, що змінюють функції, відкат — нова міграція з попереднім визначенням (воно лежить у попередньому файлі `migrations/`); старі файли міграцій не редагуються.

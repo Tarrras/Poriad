@@ -1,18 +1,22 @@
 """Застосування SQL до Supabase прямим зʼєднанням з Postgres, без SQL Editor і без MCP.
 
-    python3 tools/apply_sql.py migrations                 # що з supabase/migrations ще не застосовано
-    python3 tools/apply_sql.py migrations --apply         # застосувати й записати в реєстр CLI
-    python3 tools/apply_sql.py dump out.sql               # перевірити файл дампу конвеєра
-    python3 tools/apply_sql.py dump out.sql --apply       # застосувати
-    python3 tools/apply_sql.py dump out/ --apply          # усі *.sql у теці, за маніфестом або за іменем
-    python3 tools/apply_sql.py dump out.manifest.json --apply
-    python3 tools/apply_sql.py all out/ --apply           # міграції, потім усі poruch-events-N.sql по черзі
-    python3 tools/apply_sql.py run --apply                # згенерувати SQL у теку, застосувати, теку прибрати
-    python3 tools/apply_sql.py run --apply -- --city Київ --agent   # усе після «--» іде в tools.ingest
+    python3 tools/apply_sql.py migrations --env dev                 # що з supabase/migrations ще не застосовано
+    python3 tools/apply_sql.py migrations --env dev --apply         # застосувати й записати в реєстр CLI
+    python3 tools/apply_sql.py dump out.sql                         # перевірити файл дампу конвеєра
+    python3 tools/apply_sql.py dump out.sql --env dev --apply       # застосувати
+    python3 tools/apply_sql.py dump out/ --env prod --apply         # усі *.sql у теці; prod питає ref
+    python3 tools/apply_sql.py all out/ --env dev --apply           # міграції, потім усі poruch-events-N.sql
+    python3 tools/apply_sql.py run --env dev --apply                # згенерувати дані, застосувати, теку прибрати
+    python3 tools/apply_sql.py run --env prod --apply --with-migrations -- --city Київ --agent
 
-Зʼєднання — з `SUPABASE_DB_URL` (або `DATABASE_URL`) у середовищі чи в `.env`. Беріть рядок
-"Session pooler" або прямий з Dashboard → Connect: transaction pooler не тримає стан сесії,
-а дампи й міграції — це довгі багатокомандні транзакції. Потрібен `psycopg[binary]`:
+Будь-який запис (`--apply`, `--mark-applied`) вимагає `--env dev|prod`. Рядок зʼєднання:
+dev — `SUPABASE_DB_URL_DEV`, prod — `SUPABASE_DB_URL` (середовище чи `.env`) або `--db-url`.
+Ref проєкту береться з рядка й звіряється з очікуваним для `--env`; перед записом друкується ціль,
+а prod вимагає ввести ref (або `--yes` для неінтерактивного запуску). Без `--env` і без запису
+скрипт лише читає базу з `SUPABASE_DB_URL` / `DATABASE_URL`.
+
+Беріть рядок "Session pooler" або прямий з Dashboard → Connect: transaction pooler не тримає
+стан сесії, а дампи й міграції — це довгі багатокомандні транзакції. Потрібен `psycopg[binary]`:
 
     python3 -m pip install "psycopg[binary]"
 
@@ -36,6 +40,9 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 MIGRATIONS_DIR = ROOT / "supabase" / "migrations"
 ENV_FILE = ROOT / ".env"
 URL_VARS = ("SUPABASE_DB_URL", "DATABASE_URL")
+# Очікувані проєкти й змінні з рядком зʼєднання для кожного середовища.
+ENVS = {"dev": ("ojadoyxeahepycpmjuvf", "SUPABASE_DB_URL_DEV"),
+        "prod": ("tzdogzdvctlumsqlqskr", "SUPABASE_DB_URL")}
 
 _MIGRATION_NAME = re.compile(r"^(\d{14})_(.+)\.sql$")
 _COMMENT = re.compile(r"(--[^\n]*\n)|(/\*.*?\*/)", re.S)
@@ -61,18 +68,49 @@ def _read_env_file(path: pathlib.Path) -> dict:
     return values
 
 
-def database_url(explicit: str | None) -> str:
-    if explicit:
-        return explicit
+def _env_values() -> dict:
     env = dict(_read_env_file(ENV_FILE))
     env.update(os.environ)
-    for var in URL_VARS:
-        if env.get(var):
-            return env[var]
-        if env.get(f"TEST_{var}") and var == "DATABASE_URL":
-            return env[f"TEST_{var}"]
-    raise SystemExit("Немає рядка зʼєднання: задайте SUPABASE_DB_URL у середовищі чи в .env, "
-                     "або передайте --db-url. Dashboard → Connect → Session pooler.")
+    return env
+
+
+def project_ref(url: str) -> str | None:
+    """Ref з рядка Supabase: `postgres.<ref>@…pooler.supabase.com` або `@db.<ref>.supabase.co`."""
+    m = re.search(r"://postgres\.([a-z0-9]{20})[:@]", url) or re.search(r"@db\.([a-z0-9]{20})\.supabase\.co", url)
+    return m.group(1) if m else None
+
+
+def database_url(args, *, writing: bool) -> str:
+    """Рядок зʼєднання для команди. Запис — лише з явним --env і збігом ref; prod — з підтвердженням."""
+    env_name = getattr(args, "env", None)
+    if writing and not env_name:
+        raise SystemExit("Запис у базу вимагає --env dev|prod: без нього скрипт не вгадує ціль.")
+    values = _env_values()
+    if env_name:
+        expected, var = ENVS[env_name]
+        url = args.db_url or values.get(var)
+        if not url:
+            raise SystemExit(f"--env {env_name}: немає рядка зʼєднання. Задайте {var} у середовищі чи в .env "
+                             "або передайте --db-url. Dashboard → Connect → Session pooler.")
+        ref = project_ref(url)
+        if ref != expected:
+            raise SystemExit(f"--env {env_name} очікує проєкт {expected}, а рядок зʼєднання веде в "
+                             f"{ref or 'невідомий проєкт'}. Нічого не виконано.")
+    else:
+        url = args.db_url or next((values[v] for v in URL_VARS if values.get(v)), None)
+        if not url:
+            raise SystemExit("Немає рядка зʼєднання: задайте SUPABASE_DB_URL у середовищі чи в .env, "
+                             "або передайте --db-url, або --env dev|prod.")
+        ref = project_ref(url)
+    print(f"Ціль: {env_name or 'без --env, лише читання'} · проєкт {ref or 'невідомий'}"
+          + (" · ЗАПИС" if writing else ""))
+    if writing and env_name == "prod" and not getattr(args, "yes", False):
+        if not sys.stdin.isatty():
+            raise SystemExit("Запис у prod без термінала: підтвердіть явно прапорцем --yes.")
+        typed = input(f"Запис у PROD ({ref}). Введіть ref проєкту, щоб продовжити: ").strip()
+        if typed != ref:
+            raise SystemExit("Ref не збігся — нічого не виконано.")
+    return url
 
 
 def connect(url: str, statement_timeout: str):
@@ -103,21 +141,27 @@ def has_own_transaction(sql: str) -> bool:
     return bool(_OWN_TRANSACTION.match(_COMMENT.sub("\n", sql)))
 
 
-def run_sql(conn, sql: str, label: str) -> float:
+def run_sql(conn, sql: str, label: str, then: tuple | None = None) -> float:
     """Виконує файл цілком, однією транзакцією. Повертає тривалість у секундах.
 
     psycopg без параметрів шле текст простим протоколом, тож багато команд в одному виклику —
     штатний режим, як `psql -f`. Файл із власними begin/commit виконується в autocommit і сам
     керує межами транзакції; решту загортаємо ми, щоб половина міграції не лишилась у базі.
+    `then` — (запит, параметри), що виконується в тій самій транзакції (запис у реєстр міграцій).
     """
     import psycopg
     started = time.monotonic()
     try:
         if has_own_transaction(sql):
+            if then:
+                raise SystemExit(f"✗ {label}: файл сам відкриває транзакцію — запис у реєстр не буде атомарним. "
+                                 "Приберіть begin/commit з міграції.")
             conn.execute(sql)
         else:
             with conn.transaction():
                 conn.execute(sql)
+                if then:
+                    conn.execute(*then)
     except psycopg.Error as exc:
         diag = exc.diag
         where = f" (рядок {diag.internal_position})" if diag.internal_position else ""
@@ -166,7 +210,7 @@ def local_migrations() -> list[tuple[str, str, pathlib.Path]]:
 
 
 def cmd_migrations(args) -> int:
-    conn = connect(database_url(args.db_url), args.statement_timeout)
+    conn = connect(database_url(args, writing=bool(args.apply or args.mark_applied)), args.statement_timeout)
     if args.mark_applied:
         return mark_applied(conn, args.mark_applied)
     return apply_migrations(conn, apply=args.apply, only=args.only)
@@ -220,17 +264,24 @@ def apply_migrations(conn, *, apply: bool, only: str | None = None) -> int:
         print(f"\nДо застосування: {len(pending)}. Повторіть із --apply.")
         return 0
     if only:
-        pending = [p for p in pending if only in p[0] or only in p[1]]
-        if not pending:
+        chosen = [p for p in pending if only in p[0] or only in p[1]]
+        if not chosen:
             raise SystemExit(f"--only {only!r} не збігається з жодною незастосованою міграцією")
+        # Лише по порядку: пропустити ранішу незастосовану — отримати схему, якої не було ніде.
+        earlier = [p for p in pending[:pending.index(chosen[-1]) + 1] if p not in chosen]
+        if earlier:
+            raise SystemExit(f"--only {only!r}: спершу мають бути застосовані раніші міграції: "
+                             + ", ".join(p[2].name for p in earlier))
+        pending = chosen
     print()
     for version, name, path in pending:
         sql = read_sql(path)
-        seconds = run_sql(conn, sql, path.name)
-        # Один запис — одна міграція, як робить CLI. statements CLI ріже по командах; нам досить
-        # цілого файлу: реєстр потрібен, щоб не застосувати двічі, а не щоб відтворити файл.
-        conn.execute("insert into supabase_migrations.schema_migrations (version, name, statements) "
-                     "values (%s, %s, %s)", (version, name, [sql]))
+        # Один запис — одна міграція, як робить CLI, у тій самій транзакції, що й міграція: збій
+        # між ними інакше лишав би застосовану схему без запису (і повтор падав би на дублікатах).
+        # statements CLI ріже по командах; нам досить цілого файлу.
+        seconds = run_sql(conn, sql, path.name, then=(
+            "insert into supabase_migrations.schema_migrations (version, name, statements) values (%s, %s, %s)",
+            (version, name, [sql])))
         print(f"  ✓ {path.name}  ({seconds:.1f} с)")
     print(f"\nЗастосовано {len(pending)}.")
     return 0
@@ -334,7 +385,7 @@ def cmd_dump(args) -> int:
         print("\nПеревірка. Повторіть із --apply, щоб записати в базу.")
         return 0
 
-    conn = connect(database_url(args.db_url), args.statement_timeout)
+    conn = connect(database_url(args, writing=True), args.statement_timeout)
     return apply_dump_files(conn, files, force=args.force)
 
 
@@ -378,7 +429,7 @@ def cmd_all(args) -> int:
         raise SystemExit(f"Немає SQL у {args.path}" + (f" за шаблоном {args.pattern}" if args.pattern else ""))
     _verify_manifest(files, manifest)
     print(f"Файлів даних: {len(files)} — {files[0].name} … {files[-1].name}\n")
-    conn = connect(database_url(args.db_url), args.statement_timeout)
+    conn = connect(database_url(args, writing=args.apply), args.statement_timeout)
     print("── Міграції")
     apply_migrations(conn, apply=args.apply)
     print("\n── Дані")
@@ -404,9 +455,10 @@ def _failed_sources(report: pathlib.Path) -> list[str]:
 def cmd_run(args) -> int:
     """Створити файли → застосувати → прибрати. Тека лишається лише після збою, як доказ.
 
-    Міграції з `supabase/migrations` копіюються в теку, щоб партія була самодостатньою й видимою,
-    але джерело правди — репозиторій: прибираємо копії, а не оригінали. Дані генерує сам
-    конвеєр `tools.ingest`; його аргументи передаються після «--».
+    Міграції застосовуються лише з `--with-migrations`: щоденний прогін даних не має тягнути в базу
+    незакомічену чи ще не перевірену на dev схему. Тоді їх копіюють у теку, щоб партія була
+    самодостатньою й видимою; джерело правди — репозиторій. Дані генерує сам конвеєр
+    `tools.ingest`; його аргументи передаються після «--».
     """
     import shutil
     import subprocess
@@ -418,16 +470,20 @@ def cmd_run(args) -> int:
     workdir.mkdir(parents=True, exist_ok=True)
     print(f"Тека партії: {workdir}")
 
-    # 1. Копії нових міграцій — щоб бачити, що саме поїде разом із даними.
-    conn = connect(database_url(args.db_url), args.statement_timeout)
+    # 1. Ціль і нові міграції — до генерації, щоб підтвердження prod не чекало кінця обходу.
+    conn = connect(database_url(args, writing=args.apply), args.statement_timeout)
     ensure_ledger(conn)
     applied = applied_migrations(conn)
     versions = {v for v, _ in applied}
     names = {n for _, n in applied if n}
     pending = [(v, n, path) for v, n, path in local_migrations() if v not in versions and n not in names]
-    for _, _, path in pending:
-        shutil.copy2(path, workdir / path.name)
-    print(f"Міграцій до застосування: {len(pending)}" + (": " + ", ".join(p.name for *_, p in pending) if pending else ""))
+    if args.with_migrations:
+        for _, _, path in pending:
+            shutil.copy2(path, workdir / path.name)
+        print(f"Міграцій до застосування: {len(pending)}" + (": " + ", ".join(p.name for *_, p in pending) if pending else ""))
+    elif pending:
+        print(f"⚠ Незастосованих міграцій: {len(pending)} ({', '.join(p.name for *_, p in pending)}). Вони НЕ "
+              "застосовуються без --with-migrations; дамп під нову схему може впасти.")
 
     # 2. Дані — конвеєром. Один файл на обхід = одна транзакція; --split-bytes ріже на частини.
     data_file = workdir / "poruch-events.sql"
@@ -458,9 +514,10 @@ def cmd_run(args) -> int:
               "\nПовторіть із --apply або застосуйте пізніше: apply_sql.py all <тека> --apply.")
         return 0
 
-    # 3. Застосування: схема, потім дані. Збій лишає теку з журналом для повтору через `all`.
-    print("\n── Міграції")
-    apply_migrations(conn, apply=True)
+    # 3. Застосування: схема (лише з --with-migrations), потім дані. Збій лишає теку з журналом.
+    if args.with_migrations:
+        print("\n── Міграції")
+        apply_migrations(conn, apply=True)
     print("\n── Дані")
     apply_dump_files(conn, data_files)
 
@@ -478,25 +535,29 @@ def cmd_run(args) -> int:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="tools/apply_sql.py",
                                  description="SQL до Supabase прямим зʼєднанням")
-    ap.add_argument("--db-url", help="рядок зʼєднання; інакше SUPABASE_DB_URL / DATABASE_URL із середовища чи .env")
+    ap.add_argument("--db-url", help="рядок зʼєднання; інакше за --env (SUPABASE_DB_URL_DEV / SUPABASE_DB_URL)")
     ap.add_argument("--statement-timeout", default="10min",
                     help="statement_timeout сесії (типово 10min)")
+    # --env і --yes — у кожної підкоманди, щоб стояли поруч із --apply.
+    target = argparse.ArgumentParser(add_help=False)
+    target.add_argument("--env", choices=sorted(ENVS), help="ціль: dev чи prod; обовʼязково для запису")
+    target.add_argument("--yes", action="store_true", help="не питати ref перед записом у prod (для CI)")
     sub = ap.add_subparsers(dest="command", required=True)
 
-    m = sub.add_parser("migrations", help="застосувати незастосовані supabase/migrations/*.sql")
+    m = sub.add_parser("migrations", parents=[target], help="застосувати незастосовані supabase/migrations/*.sql")
     m.add_argument("--apply", action="store_true", help="справді виконати; без прапорця — лише список")
     m.add_argument("--only", help="лише міграції, у версії чи назві яких є цей підрядок")
     m.add_argument("--mark-applied", metavar="ПІДРЯДОК",
                    help="записати міграцію в реєстр без виконання (вже застосована вручну)")
     m.set_defaults(func=cmd_migrations)
 
-    d = sub.add_parser("dump", help="застосувати SQL, згенерований tools.ingest")
+    d = sub.add_parser("dump", parents=[target], help="застосувати SQL, згенерований tools.ingest")
     d.add_argument("path", type=pathlib.Path, help="файл .sql, .manifest.json або тека з ними")
     d.add_argument("--apply", action="store_true", help="справді виконати; без прапорця — лише перевірка")
     d.add_argument("--force", action="store_true", help="повторити файли, що вже є в журналі")
     d.set_defaults(func=cmd_dump)
 
-    a = sub.add_parser("all", help="незастосовані міграції, потім усі файли даних по черзі")
+    a = sub.add_parser("all", parents=[target], help="незастосовані міграції, потім усі файли даних по черзі")
     a.add_argument("path", type=pathlib.Path, help="тека з poruch-events-N.sql (або файл чи маніфест)")
     a.add_argument("--pattern", default="poruch-events*.sql",
                    help="які файли з теки брати (типово poruch-events*.sql); '*.sql' — усі")
@@ -504,12 +565,14 @@ def main(argv: list[str] | None = None) -> int:
     a.add_argument("--force", action="store_true", help="повторити файли, що вже є в журналі")
     a.set_defaults(func=cmd_all)
 
-    r = sub.add_parser("run", help="згенерувати SQL конвеєром, застосувати міграції й дані, прибрати теку")
+    r = sub.add_parser("run", parents=[target], help="згенерувати SQL конвеєром, застосувати дані, прибрати теку")
     r.add_argument("--dir", type=pathlib.Path, help="робоча тека (типово out/sql-<дата>)")
     r.add_argument("--split-bytes", type=int, default=0,
                    help="різати дамп на poruch-events.NN.sql не більші за N байтів; 0 — один файл")
     r.add_argument("--apply", action="store_true", help="справді виконати; без прапорця — лише згенерувати")
     r.add_argument("--keep", action="store_true", help="не видаляти теку після успіху")
+    r.add_argument("--with-migrations", action="store_true",
+                   help="перед даними застосувати незастосовані міграції (типово — ні, лише попередити)")
     r.add_argument("--strict", action="store_true",
                    help="не застосовувати, якщо хоч одне джерело не обійшлось (типово — лише попередити)")
     r.add_argument("ingest_args", nargs=argparse.REMAINDER,
