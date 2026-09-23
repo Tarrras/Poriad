@@ -55,6 +55,7 @@ do $$ begin
  assert (select count(*)=1 from public.event_members where event_id=current_setting('test.event')::uuid and status='requested'),'request written with the trigger in place';
  assert (select tgenabled<>'D' from pg_trigger where tgname='event_messages_push'),'message trigger enabled';
  assert (select tgenabled<>'D' from pg_trigger where tgname='event_members_push'),'request trigger enabled';
+ assert (select pg_get_triggerdef(oid) like '%approved%' from pg_trigger where tgname='event_members_push'),'join to an open event also pushes the organizer';
 end $$;
 
 rollback;

@@ -1,5 +1,5 @@
 // Edge Function `push`: тригери бази кличуть її на нове повідомлення в чаті й новий запит на
-// участь. Вона вирішує, кому слати, бере токени й шле у FCM (Android) і APNs (iOS).
+// участь чи приєднання до відкритої події. Вона вирішує, кому слати, бере токени й шле у FCM (Android) і APNs (iOS).
 //
 // Секрети функції (`supabase secrets set …`):
 //   PUSH_SECRET           — той самий рядок, що у Vault як push_function_secret
@@ -14,9 +14,9 @@ import * as jose from "npm:jose@5";
 
 type Payload =
   | { type: "message"; message_id: string; event_id: string }
-  | { type: "request"; event_id: string; user_id: string };
+  | { type: "request" | "joined"; event_id: string; user_id: string };
 
-type Push = { kind: "chat" | "request"; eventId: string; title: string; body: string; key: string };
+type Push = { kind: "chat" | "request" | "joined"; eventId: string; title: string; body: string; key: string };
 type Token = { token: string; platform: "android" | "ios" };
 
 const PREVIEW = 120;
@@ -88,15 +88,18 @@ async function forMessage(db: ReturnType<typeof createClient>, p: Extract<Payloa
   };
 }
 
-// Запит: лише організатор.
-async function forRequest(db: ReturnType<typeof createClient>, p: Extract<Payload, { type: "request" }>) {
+// Запит або приєднання до відкритої події: лише організатор.
+async function forRequest(db: ReturnType<typeof createClient>, p: Extract<Payload, { type: "request" | "joined" }>) {
   const { data: e } = await db.from("events").select("id,title,organizer_id,status").eq("id", p.event_id).maybeSingle();
-  if (!e || e.status !== "published" || !e.organizer_id) return { push: null, recipients: [] };
+  if (!e || e.status !== "published" || !e.organizer_id || e.organizer_id === p.user_id) return { push: null, recipients: [] };
   const { data: who } = await db.from("profiles").select("display_name").eq("id", p.user_id).maybeSingle();
   const recipients = await withoutBlocked(db, [e.organizer_id as string], p.user_id);
   const name = (who?.display_name as string | undefined)?.trim() || "Хтось";
   return {
-    push: { kind: "request" as const, eventId: e.id as string, title: e.title as string, body: `${name} просить приєднатися`, key: `${e.id}:${p.user_id}` },
+    push: {
+      kind: p.type, eventId: e.id as string, title: e.title as string,
+      body: p.type === "request" ? `${name} просить приєднатися` : `${name} приєднується до події`, key: `${e.id}:${p.user_id}`,
+    },
     recipients,
   };
 }
@@ -129,7 +132,7 @@ function isPayload(p: unknown): p is Payload {
   if (!p || typeof p !== "object") return false;
   const o = p as Record<string, unknown>;
   if (o.type === "message") return typeof o.message_id === "string" && UUID.test(o.message_id) && typeof o.event_id === "string" && UUID.test(o.event_id);
-  if (o.type === "request") return typeof o.event_id === "string" && UUID.test(o.event_id) && typeof o.user_id === "string" && UUID.test(o.user_id);
+  if (o.type === "request" || o.type === "joined") return typeof o.event_id === "string" && UUID.test(o.event_id) && typeof o.user_id === "string" && UUID.test(o.user_id);
   return false;
 }
 
