@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PoriadBot — Поряд</title>
+<meta name="description" content="Що таке PoriadBot, які сторінки він читає і як заборонити йому доступ до вашого сайту.">
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="icon.png">
+</head>
+<body>
+<header class="hero"><div class="wrap">
+  <a class="brand" href="index.html"><img src="icon.png" alt=""><b>Поряд</b></a>
+  <nav class="top">
+    <a href="index.html">Про застосунок</a>
+    <a href="privacy.html">Конфіденційність</a>
+    <a href="terms.html">Умови</a>
+    <a href="#en">English</a>
+  </nav>
+  <h1 style="margin-top:32px">PoriadBot</h1>
+  <p class="lead">Робот застосунку «Поряд», який читає публічні афіші, щоб показати події міста на мапі з посиланням на ваш сайт.</p>
+</div></header>
+
+<main class="wrap">
+
+<h2>Як його впізнати</h2>
+<div class="card">
+<p>User-Agent у кожному запиті:</p>
+<p><code>PoriadBot/0.1 (+https://poriad.app/bot; hello@poriad.app)</code></p>
+<p class="note">Той самий рядок робот надсилає й сервісам геокодування (Nominatim, Overpass, Photon), коли шукає координати місця проведення.</p>
+</div>
+
+<h2>Що він читає і що бере</h2>
+<ul>
+  <li>Лише публічні сторінки-списки подій і картки подій — без входу, форм і кошиків.</li>
+  <li>Розмітку schema.org <code>Event</code>: назву, дату й час, місце, ціну від, посилання на подію та на обкладинку.</li>
+  <li>З опису — не більше ~200 символів; повний текст лишається на вашому сайті за посиланням «Читати повністю».</li>
+  <li>Обкладинка не копіюється: застосунок показує її за посиланням з вашого сайту.</li>
+  <li>Персональні дані (імена, контакти) не збираються.</li>
+</ul>
+<p>У застосунку кожна така подія підписана «Афіша · назва вашого сайту» й веде на вашу сторінку, зокрема кнопкою «Купити квиток».</p>
+
+<h2>Як він поводиться</h2>
+<ul>
+  <li>Виконує <code>robots.txt</code> буквально, зокрема <code>Crawl-delay</code>. Якщо <code>robots.txt</code> недоступний, робот сайт не читає.</li>
+  <li>Переадресацію теж перевіряє за <code>robots.txt</code> сайту, куди вона веде.</li>
+  <li>Щонайменше секунда між запитами до одного сайту (більше, якщо так вимагає <code>Crawl-delay</code>), умовні запити (<code>If-None-Match</code>, <code>If-Modified-Since</code>), обмежені повтори при 429/5xx з урахуванням <code>Retry-After</code>.</li>
+  <li>Не завантажує відповіді, більші за 10 МБ.</li>
+</ul>
+
+<h2>Як відмовитись</h2>
+<p>Досить одного з двох:</p>
+<ol>
+  <li>Рядок у <code>robots.txt</code>:
+<pre><code>User-agent: PoriadBot
+Disallow: /</code></pre></li>
+  <li>Лист на <a href="mailto:hello@poriad.app?subject=PoriadBot">hello@poriad.app</a> з адресою сайту. Того ж дня ми вимикаємо джерело й прибираємо з застосунку всі його події.</li>
+</ol>
+<p>Так само пишіть, якщо хочете виправити подію, дати нам офіційний фід (ICS, API) замість обходу сторінок або домовитись про інші умови.</p>
+
+<h2 id="en">English</h2>
+<p>PoriadBot is the crawler of the Poriad app. It reads public event listings and schema.org <code>Event</code> markup (title, date, venue, price, link, image URL, a description snippet of up to ~200 characters) to show events on a map with visible attribution and a link back to your site. It sends the User-Agent <code>PoriadBot/0.1 (+https://poriad.app/bot; hello@poriad.app)</code>, obeys <code>robots.txt</code> and <code>Crawl-delay</code> literally (including on redirects to another host), and does not read a site whose <code>robots.txt</code> is unavailable.</p>
+<p>To opt out, add <code>User-agent: PoriadBot</code> / <code>Disallow: /</code> to your <code>robots.txt</code>, or email <a href="mailto:hello@poriad.app?subject=PoriadBot">hello@poriad.app</a>: we disable the source and remove all its events from the app the same day.</p>
+
+</main>
+<footer><div class="wrap">
+  <span>© 2026 Поряд</span>
+  <a href="privacy.html">Конфіденційність</a>
+  <a href="terms.html">Умови користування</a>
+  <a href="mailto:hello@poriad.app">Підтримка</a>
+</div></footer>
+</body>
+</html>
