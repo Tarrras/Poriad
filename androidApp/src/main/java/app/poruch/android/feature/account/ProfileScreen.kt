@@ -148,6 +148,9 @@ fun ProfileScreen(state: ProfileState, onIntent: (ProfileIntent) -> Unit) {
                 SectionHeader(stringResource(R.string.about_app))
                 Text(stringResource(R.string.about_app_body), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
                 GroupedRows {
+                    Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) { AnalyticsSetting(state, onIntent) }
+                }
+                GroupedRows {
                     LinkRow(Icons.Outlined.Shield, stringResource(R.string.privacy_policy), onClick = { onIntent(ProfileIntent.OpenPrivacy) })
                     HairLine(Modifier.padding(start = Spacing.lg + 40.dp + Spacing.md))
                     LinkRow(Icons.Outlined.Description, stringResource(R.string.terms_of_use), onClick = { onIntent(ProfileIntent.OpenTerms) })
@@ -253,4 +256,18 @@ private fun ReminderSetting(state: ProfileState, onIntent: (ProfileIntent) -> Un
         stringResource(if (state.remindersDenied) R.string.reminder_permission else R.string.reminder_note),
         style = MaterialTheme.typography.bodySmall, color = if (state.remindersDenied) colors.danger else colors.inkTertiary
     )
+}
+
+/** Перемикач аналітики. Вимикає і продуктові події, і звіти про збої: так обіцяє політика. */
+@Composable
+private fun AnalyticsSetting(state: ProfileState, onIntent: (ProfileIntent) -> Unit) {
+    val colors = Poruch.colors
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(
+            stringResource(R.string.analytics), Modifier.weight(1f).padding(end = 12.dp),
+            style = MaterialTheme.typography.bodyLarge, color = colors.ink
+        )
+        PoruchSwitch(state.analytics, { onIntent(ProfileIntent.SetAnalytics(it)) })
+    }
+    Text(stringResource(R.string.analytics_note), style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary)
 }

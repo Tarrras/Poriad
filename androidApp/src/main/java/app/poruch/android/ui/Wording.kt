@@ -40,6 +40,7 @@ private val AppError.resource: Int
         AppError.InvalidCredentials -> R.string.err_invalid_credentials
         AppError.EmailNotConfirmed -> R.string.err_email_not_confirmed
         AppError.LinkOnAnotherDevice -> R.string.err_link_other_device
+        AppError.LinkExpired -> R.string.err_link_expired
         AppError.NotOwner -> R.string.err_not_owner
         AppError.EventUnavailable -> R.string.err_event_unavailable
         AppError.EventCancelled -> R.string.err_event_cancelled
@@ -47,6 +48,7 @@ private val AppError.resource: Int
         AppError.AlreadyMember -> R.string.err_already_member
         AppError.OrganizerCannotJoin -> R.string.err_organizer_cannot_join
         AppError.EventHasSpace -> R.string.err_event_has_space
+        AppError.CapacityBelowAttendance -> R.string.err_capacity_below_attendance
         AppError.ImageUploadFailed -> R.string.err_image_upload
         AppError.InvalidEmail -> R.string.err_invalid_email
         AppError.InvalidName -> R.string.err_invalid_name

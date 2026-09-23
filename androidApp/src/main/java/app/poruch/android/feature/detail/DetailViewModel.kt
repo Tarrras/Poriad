@@ -76,7 +76,7 @@ class DetailViewModel(
                         event.hasStarted(now),
                 othersHere = nearby,
                 attendees = shared.detail.attendees,
-                loading = shared.map.loading,
+                loading = shared.detail.loading,
                 mutating = shared.mutating,
                 signedIn = shared.signedIn,
                 saved = shared.isSaved(eventId),

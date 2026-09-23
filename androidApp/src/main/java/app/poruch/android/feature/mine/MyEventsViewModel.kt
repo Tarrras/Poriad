@@ -19,7 +19,7 @@ class MyEventsViewModel(private val app: PoruchApp) :
                 savedIds = latest.library.savedIds,
                 waitlistedIds = latest.library.waitlistedIds,
                 signedIn = latest.signedIn,
-                loading = latest.map.loading
+                loading = latest.library.loading
             )
         }
         app.loadMyEvents()

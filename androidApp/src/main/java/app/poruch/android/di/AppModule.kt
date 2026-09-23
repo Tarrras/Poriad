@@ -21,7 +21,6 @@ import app.poruch.android.platform.NotificationPermission
 import app.poruch.android.platform.RequestNotificationCenter
 import app.poruch.domain.PoruchLog
 import app.poruch.shared.AppConfig
-import app.poruch.shared.AppEnvironment
 import app.poruch.shared.AppGraph
 import app.poruch.shared.PoruchApp
 import org.koin.android.ext.koin.androidContext
@@ -58,7 +57,7 @@ val appModule = module {
     viewModel { (route: Chat) -> ChatViewModel(get(), route.eventId) }
 }
 
-private fun appConfig(): AppConfig {
-    val env = AppEnvironment.valueOf(BuildConfig.ENVIRONMENT)
-    return AppConfig(env.supabaseUrl, env.publishableKey, authScheme = env.authScheme)
-}
+private fun appConfig() = AppConfig(
+    BuildConfig.SUPABASE_URL, BuildConfig.SUPABASE_KEY,
+    authScheme = BuildConfig.AUTH_SCHEME, appVersion = BuildConfig.VERSION_NAME
+)

@@ -28,6 +28,7 @@ class ProfileViewModel(private val app: PoruchApp, private val notifications: No
                 currentPassword = if (changingPassword && shared.signedIn) currentPassword else "",
                 changeError = (shared.notice as? AppNotice.Failed)?.error?.takeIf { changingPassword && shared.signedIn },
                 reminders = shared.remindersEnabled,
+                analytics = shared.analyticsEnabled,
                 // Акаунта більше нема — шторка видалення зникає разом із паролем.
                 deleting = deleting && shared.signedIn,
                 deletePassword = if (shared.signedIn) deletePassword else "",
@@ -56,6 +57,7 @@ class ProfileViewModel(private val app: PoruchApp, private val notifications: No
             is ProfileIntent.SetReminders ->
                 if (intent.enabled && !notifications.granted()) send(ProfileEffect.AskNotificationPermission)
                 else app.setRemindersEnabled(intent.enabled)
+            is ProfileIntent.SetAnalytics -> app.setAnalyticsEnabled(intent.enabled)
             is ProfileIntent.NotificationPermissionAnswered -> {
                 reduce { copy(remindersDenied = !intent.granted) }
                 app.setRemindersEnabled(intent.granted)

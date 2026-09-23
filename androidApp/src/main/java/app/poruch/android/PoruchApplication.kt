@@ -10,6 +10,7 @@ import app.poruch.shared.PoruchApp
 import app.poruch.domain.PoruchAnalytics
 import app.poruch.domain.PoruchLog
 import com.google.firebase.analytics.FirebaseAnalytics
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import app.poruch.shared.PlatformSetup
 import org.koin.android.ext.android.get
 import org.koin.android.ext.koin.androidContext
@@ -34,11 +35,17 @@ class PoruchApplication : Application() {
             androidContext(this@PoruchApplication)
             modules(appModule, navigationModule)
         }
+        val app: PoruchApp = get(); val drafts: DraftStore = get()
+        // Перемикач збору — після створення стора: хук одразу отримує збережений вибір людини, без
+        // проміжного «увімкнено». Firebase сам пам'ятає його між запусками.
+        PoruchAnalytics.collection = { enabled ->
+            firebase.setAnalyticsCollectionEnabled(enabled)
+            FirebaseCrashlytics.getInstance().setCrashlyticsCollectionEnabled(enabled)
+        }
         // Пуші: токен їде в стор і реєструється, щойно є акаунт.
-        Push.start(this, get())
+        Push.start(this, app)
         // Чернетка події належить людині, а не телефону: після виходу наступний акаунт її не бачить.
         // Нагадування чистить ReminderSync сам, бо план для гостя порожній.
-        val app: PoruchApp = get(); val drafts: DraftStore = get()
         var lastUser: String? = app.state.value.session.userId
         app.observe { state ->
             if (lastUser != null && state.session.userId == null) drafts.clear()

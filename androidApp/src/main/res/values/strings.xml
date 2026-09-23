@@ -139,6 +139,8 @@
   <string name="reminders">Сповіщення про мої події</string>
   <string name="reminder_body">Початок за годину · %1$s</string>
   <string name="reminder_note">Нагадування приблизно за годину до початку і нові запити на участь у ваших подіях. Запити перевіряються, коли застосунок відкрито.</string>
+  <string name="analytics">Аналітика</string>
+  <string name="analytics_note">Псевдонімна статистика використання й звіти про збої. Без реклами.</string>
   <string name="reminder_permission">Сповіщення вимкнено. Їх можна дозволити в налаштуваннях Android.</string>
   <string name="interests">Ваші інтереси</string>
     <string name="empty_map">Тут поки немає подій. Змініть фільтри або створіть першу зустріч.</string>
@@ -461,6 +463,7 @@
   <string name="err_event_full">Вільних місць уже немає</string>
   <string name="err_already_member">Ви вже берете участь у цій події</string>
   <string name="err_organizer_cannot_join">Ви організатор цієї події — місце гостя вам не потрібне</string>
+  <string name="err_capacity_below_attendance">Не можна зменшити кількість місць нижче за тих, хто вже йде</string>
   <string name="err_event_has_space">У події вже є вільні місця — приєднуйтесь одразу</string>
   <string name="err_image_upload">Не вдалося завантажити зображення</string>
   <string name="err_invalid_email">Вкажіть коректний email</string>
@@ -532,5 +535,6 @@
   <string name="title_placeholder">Наприклад: Вечір настільних ігор</string>
   <string name="description_placeholder">Кілька речень про подію</string>
   <string name="err_objectionable">Текст містить слова, які ми не публікуємо. Перепишіть, будь ласка.</string>
+  <string name="err_link_expired">Посилання застаріло або вже використане. Запросіть новий лист на цьому пристрої</string>
   <string name="err_link_other_device">Відкрийте посилання з листа на тому самому пристрої, де ви реєструвались або запитували відновлення.</string>
 </resources>

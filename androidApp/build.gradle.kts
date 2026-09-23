@@ -35,6 +35,7 @@ android {
     }
     // Середовище — окремий вимір від debug/release: devDebug щодня, prodRelease у магазин,
     // prodDebug — відтворити баг на живих даних, devRelease — перевірити R8 без ризику для prod.
+    // Адреса й ключ бекенду — лише свого середовища: prod-бінарник не несе dev.
     // Dev — окремий застосунок (.dev) у власному Firebase-проєкті: src/dev/google-services.json,
     // prod — src/prod/google-services.json. Схема auth-колбеку — з gradle.properties, як і в shared.
     flavorDimensions += "env"
@@ -42,15 +43,19 @@ android {
         create("dev") {
             dimension = "env"
             applicationIdSuffix = ".dev"
-            buildConfigField("String", "ENVIRONMENT", "\"DEV\"")
+            buildConfigField("String", "SUPABASE_URL", "\"${providers.gradleProperty("poriad.dev.supabaseUrl").get()}\"")
+            buildConfigField("String", "SUPABASE_KEY", "\"${providers.gradleProperty("poriad.dev.supabaseKey").get()}\"")
             resValue("string", "app_name", "Поряд Dev")
             manifestPlaceholders["authScheme"] = providers.gradleProperty("poriad.dev.authScheme").get()
+            buildConfigField("String", "AUTH_SCHEME", "\"${providers.gradleProperty("poriad.dev.authScheme").get()}\"")
         }
         create("prod") {
             dimension = "env"
-            buildConfigField("String", "ENVIRONMENT", "\"PROD\"")
+            buildConfigField("String", "SUPABASE_URL", "\"${providers.gradleProperty("poriad.prod.supabaseUrl").get()}\"")
+            buildConfigField("String", "SUPABASE_KEY", "\"${providers.gradleProperty("poriad.prod.supabaseKey").get()}\"")
             resValue("string", "app_name", "Поряд")
             manifestPlaceholders["authScheme"] = providers.gradleProperty("poriad.prod.authScheme").get()
+            buildConfigField("String", "AUTH_SCHEME", "\"${providers.gradleProperty("poriad.prod.authScheme").get()}\"")
         }
     }
     buildTypes {

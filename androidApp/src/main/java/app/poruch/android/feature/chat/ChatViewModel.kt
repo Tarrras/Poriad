@@ -1,8 +1,12 @@
 package app.poruch.android.feature.chat
 
+import androidx.lifecycle.viewModelScope
 import app.poruch.android.mvi.MviViewModel
 import app.poruch.domain.ChatRules
 import app.poruch.shared.PoruchApp
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.days
 
@@ -28,6 +32,13 @@ class ChatViewModel(private val app: PoruchApp, private val eventId: String) :
                 // Той самий поріг, що на сервері: тиждень після кінця.
                 readOnly = event != null && (event.isCancelled || event.endInstant?.let { it + CHAT_GRACE < now } == true)
             )
+        }
+        // Текст, що не пішов, повертається в поле, якщо людина ще не почала нове.
+        viewModelScope.launch {
+            app.state.map { it.chat?.takeIf { chat -> chat.eventId == eventId }?.failedDraft }.filterNotNull().collect {
+                val failed = app.consumeFailedDraft() ?: return@collect
+                reduce { if (draft.isBlank()) copy(draft = failed) else this }
+            }
         }
     }
 
