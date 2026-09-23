@@ -244,8 +244,8 @@ private fun SearchResults(state: HomeState, onIntent: (HomeIntent) -> Unit) {
             SectionHeader(
                 if (state.searchEverywhere) pluralStringResource(R.plurals.events_found_everywhere, found, found)
                 else pluralStringResource(R.plurals.events_found_in_city, found, found, state.cityName),
-                // Мапа шукає в межах міста, тож для «усюди» вона показала б інше: там «Показати ще» нижче.
-                actionLabel = if (state.resultsTotal > state.resultsLimit && !state.searchEverywhere) stringResource(R.string.see_all_short) else null,
+                // Мапа шукає в межах міста, тож для «усюди» вона показала б інше.
+                actionLabel = if (state.searchEverywhere) null else stringResource(R.string.on_map),
                 onAction = { onIntent(HomeIntent.ShowResultsOnMap) }
             )
             state.results.take(state.resultsLimit).forEach { event ->
@@ -254,7 +254,7 @@ private fun SearchResults(state: HomeState, onIntent: (HomeIntent) -> Unit) {
                     withCity = state.searchEverywhere, onSave = { onIntent(HomeIntent.ToggleSaved(event.id)) }
                 ) { onIntent(HomeIntent.OpenEvent(event.id)) }
             }
-            if (state.searchEverywhere && state.resultsIndexed > state.resultsLimit) SecondaryButton(
+            if (state.resultsIndexed > state.resultsLimit) SecondaryButton(
                 stringResource(R.string.show_more), { onIntent(HomeIntent.ShowMoreResults) }, Modifier.fillMaxWidth()
             )
         }

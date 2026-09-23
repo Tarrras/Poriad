@@ -64,9 +64,9 @@ sealed interface HomeIntent {
     data class SearchDate(val filter: String) : HomeIntent
     /** Підказка «Показати події в місті …» під пошуком. */
     data class SwitchCity(val city: HomeLocation) : HomeIntent
-    /** «Показати ще» під результатами «усюди»: мапа шукає лише в місті, тож догортаємо тут. */
+    /** «Показати ще» під результатами: видача росте на місці, нова видача починає знову з [RESULTS_PAGE]. */
     data object ShowMoreResults : HomeIntent
-    /** «Усі» під результатами: мапа відкривається з тим самим пошуком. Єдиний міст між пошуками. */
+    /** «На мапі» біля заголовка результатів у місті: мапа відкривається з тим самим пошуком. Єдиний міст між пошуками. */
     data object ShowResultsOnMap : HomeIntent
     data class OpenEvent(val id: String) : HomeIntent
     /** Прямо в чат події, минаючи деталі. */
