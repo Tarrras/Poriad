@@ -81,7 +81,7 @@ Poruch/discovery  0 events
 
 ## Supabase
 
-Два середовища, обидва в організації «Poriad», eu-west-1. Середовище — окремий вимір від debug/release, адреси й ключі задані в `gradle.properties` (`poriad.dev.*`, `poriad.prod.*`), з них генерується `BuildConfig` у `shared`, звідки їх бере `AppEnvironment`; платформа тільки вибирає середовище:
+Два середовища, обидва в організації «Poriad», eu-west-1. Середовище — окремий вимір від debug/release, адреси й ключі задані в `gradle.properties` (`poriad.dev.*`, `poriad.prod.*`), Android бере їх у `BuildConfig` свого flavor-а, iOS — з `Config.xcconfig` через Info.plist; у бінарнику лише своє середовище:
 
 | Середовище | Проєкт | Android | iOS |
 |---|---|---|---|

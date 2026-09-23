@@ -34,24 +34,3 @@ kotlin {
     }
 }
 
-// BuildConfig для commonMain: у KMP-модуля свого немає. Значення — з gradle.properties (poriad.*).
-val buildConfigFields = mapOf(
-    "DEV_SUPABASE_URL" to "poriad.dev.supabaseUrl",
-    "DEV_SUPABASE_KEY" to "poriad.dev.supabaseKey",
-    "DEV_AUTH_SCHEME" to "poriad.dev.authScheme",
-    "PROD_SUPABASE_URL" to "poriad.prod.supabaseUrl",
-    "PROD_SUPABASE_KEY" to "poriad.prod.supabaseKey",
-    "PROD_AUTH_SCHEME" to "poriad.prod.authScheme",
-).mapValues { (_, property) -> providers.gradleProperty(property).orElse(providers.provider { error("Немає $property у gradle.properties") }) }
-val generateBuildConfig by tasks.registering {
-    val fields = buildConfigFields
-    val outputDir = layout.buildDirectory.dir("generated/buildConfig/commonMain")
-    fields.forEach { (name, value) -> inputs.property(name, value) }
-    outputs.dir(outputDir)
-    doLast {
-        val body = fields.entries.joinToString("\n") { (name, value) -> "    const val $name = \"${value.get()}\"" }
-        outputDir.get().file("app/poruch/shared/BuildConfig.kt").asFile.apply { parentFile.mkdirs() }
-            .writeText("package app.poruch.shared\n\ninternal object BuildConfig {\n$body\n}\n")
-    }
-}
-kotlin.sourceSets.commonMain { kotlin.srcDir(generateBuildConfig) }
