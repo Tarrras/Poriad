@@ -6,6 +6,7 @@ import app.poruch.domain.Event
 import app.poruch.domain.HomeLocation
 import app.poruch.domain.RequestRules
 import app.poruch.shared.AppState
+import app.poruch.shared.HomeFeed
 import app.poruch.shared.PoruchApp
 import kotlin.time.Clock
 import java.time.Instant
@@ -54,7 +55,8 @@ class HomeViewModel(private val app: PoruchApp) : MviViewModel<HomeState, HomeIn
             savedIds = shared.library.savedIds,
             waitlistedIds = shared.library.waitlistedIds,
             searchText = home.searchText,
-            results = home.found,
+            results = inOrder(home),
+            resultsIndexed = home.results.size,
             resultsTotal = home.resultsTotal,
             searchLoading = home.searchLoading,
             searchEverywhere = home.searchEverywhere,
@@ -74,10 +76,17 @@ class HomeViewModel(private val app: PoruchApp) : MviViewModel<HomeState, HomeIn
             app.selectEvent(intent.id)
             send(HomeEffect.Navigate(HomeDestination.CHAT, intent.id))
         }
-        is HomeIntent.Search -> app.setHomeSearchText(intent.text)
-        is HomeIntent.SearchEverywhere -> app.setHomeSearchEverywhere(intent.everywhere)
-        is HomeIntent.SearchCategory -> app.setHomeSearchCategory(intent.category)
-        is HomeIntent.SearchDate -> app.setHomeSearchDate(intent.filter)
+        // Нова видача — знову з першої сторінки.
+        is HomeIntent.Search -> { firstPage(); app.setHomeSearchText(intent.text) }
+        is HomeIntent.SearchEverywhere -> { firstPage(); app.setHomeSearchEverywhere(intent.everywhere) }
+        is HomeIntent.SearchCategory -> { firstPage(); app.setHomeSearchCategory(intent.category) }
+        is HomeIntent.SearchDate -> { firstPage(); app.setHomeSearchDate(intent.filter) }
+        HomeIntent.ShowMoreResults -> {
+            val limit = state.value.resultsLimit + RESULTS_PAGE
+            reduce { copy(resultsLimit = limit) }
+            // Спільний код везе картки лише початку видачі; решту просимо шматками. Відомі він пропустить сам.
+            app.loadCards(app.state.value.home.results.take(limit).map { it.id })
+        }
         is HomeIntent.SwitchCity -> {
             // Спершу текст: інакше назва міста лишилася б фільтром і в новому місті.
             app.setHomeSearchText("")
@@ -96,6 +105,19 @@ class HomeViewModel(private val app: PoruchApp) : MviViewModel<HomeState, HomeIn
         }
         HomeIntent.OpenProfile -> send(HomeEffect.Navigate(HomeDestination.PROFILE))
         HomeIntent.Refresh -> refresh({ refreshing }, { copy(refreshing = it) }) { app.reloadAll() }
+    }
+
+    private fun firstPage() = reduce { copy(resultsLimit = RESULTS_PAGE) }
+
+    /**
+     * Картки видачі в її порядку, до першої, що ще їде: [HomeFeed.found] її пропускає,
+     * і після довантаження нижні картки стрибали б.
+     */
+    private fun inOrder(home: HomeFeed): List<Event> {
+        val cards = home.found.associateBy { it.id }
+        val shown = ArrayList<Event>(home.found.size)
+        for (entry in home.results) shown += cards[entry.id] ?: break
+        return shown
     }
 
     /** Запити за подіями, у порядку стрічки (свіжіші першими). Подія без картки в «моїх» пропускається. */

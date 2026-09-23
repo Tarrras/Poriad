@@ -78,8 +78,6 @@ fun HomeScreen(state: HomeState, onIntent: (HomeIntent) -> Unit) {
 // Головна — дайджест, а не каталог: далі краще на мапу.
 private const val TODAY_LIMIT = 5
 private const val PLANS_LIMIT = 8
-/** Скільки результатів пошуку показує головна. */
-private const val RESULTS_LIMIT = 12
 
 @Composable
 private fun Header(state: HomeState, onIntent: (HomeIntent) -> Unit) {
@@ -237,27 +235,28 @@ private fun SearchResults(state: HomeState, onIntent: (HomeIntent) -> Unit) {
             PoruchIcons.search, stringResource(R.string.nothing_found), stringResource(R.string.nothing_found_city_hint, state.cityName),
             actionLabel = stringResource(R.string.search_everywhere), onAction = { onIntent(HomeIntent.SearchEverywhere(true)) }
         )
-        state.isEmpty -> EmptyState(
-            PoruchIcons.search, stringResource(R.string.nothing_found), stringResource(R.string.nothing_found_hint),
-            actionLabel = stringResource(R.string.find_on_map), onAction = { onIntent(HomeIntent.OpenMap) }
-        )
+        // Усюди без кнопки: мапа шукає лише в місті, тож розширювати вже нікуди.
+        state.isEmpty -> EmptyState(PoruchIcons.search, stringResource(R.string.nothing_found), stringResource(R.string.nothing_found_hint))
         else -> Column(
             Modifier.padding(horizontal = Spacing.page).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
             val found = maxOf(state.resultsTotal, state.results.size)
             SectionHeader(
-                if (state.searchEverywhere) stringResource(R.string.events_found_everywhere, found)
-                else stringResource(R.string.events_found_in_city, state.cityName, found),
-                // Мапа шукає в межах міста, тож для «усюди» вона показала б інше.
-                actionLabel = if (state.resultsTotal > RESULTS_LIMIT && !state.searchEverywhere) stringResource(R.string.see_all_short) else null,
+                if (state.searchEverywhere) pluralStringResource(R.plurals.events_found_everywhere, found, found)
+                else pluralStringResource(R.plurals.events_found_in_city, found, found, state.cityName),
+                // Мапа шукає в межах міста, тож для «усюди» вона показала б інше: там «Показати ще» нижче.
+                actionLabel = if (state.resultsTotal > state.resultsLimit && !state.searchEverywhere) stringResource(R.string.see_all_short) else null,
                 onAction = { onIntent(HomeIntent.ShowResultsOnMap) }
             )
-            state.results.take(RESULTS_LIMIT).forEach { event ->
+            state.results.take(state.resultsLimit).forEach { event ->
                 EventCard(
                     event, saved = event.id in state.savedIds, waitlisted = event.id in state.waitlistedIds,
                     withCity = state.searchEverywhere, onSave = { onIntent(HomeIntent.ToggleSaved(event.id)) }
                 ) { onIntent(HomeIntent.OpenEvent(event.id)) }
             }
+            if (state.searchEverywhere && state.resultsIndexed > state.resultsLimit) SecondaryButton(
+                stringResource(R.string.show_more), { onIntent(HomeIntent.ShowMoreResults) }, Modifier.fillMaxWidth()
+            )
         }
     }
 }

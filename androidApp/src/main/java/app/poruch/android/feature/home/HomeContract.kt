@@ -31,6 +31,10 @@ data class HomeState(
     val searchText: String = "",
     /** Результати пошуку одним списком, без дайджесту. Лише ті, чиї картки вже приїхали. */
     val results: List<Event> = emptyList(),
+    /** Скільки результатів показуємо; «Показати ще» додає [RESULTS_PAGE]. */
+    val resultsLimit: Int = RESULTS_PAGE,
+    /** Скільки результатів прийшло в індексі: більше за [resultsLimit] — є що показати ще. */
+    val resultsIndexed: Int = 0,
     /** Скільки знайдено насправді. */
     val resultsTotal: Int = 0,
     val searchLoading: Boolean = false,
@@ -46,6 +50,9 @@ data class HomeState(
     val busy get() = if (searching) searchLoading else loading
 }
 
+/** Скільки результатів пошуку головна показує за раз. */
+const val RESULTS_PAGE = 12
+
 /** Подія й скільки людей просяться до неї. */
 data class PendingRequests(val event: Event, val count: Int)
 
@@ -57,6 +64,8 @@ sealed interface HomeIntent {
     data class SearchDate(val filter: String) : HomeIntent
     /** Підказка «Показати події в місті …» під пошуком. */
     data class SwitchCity(val city: HomeLocation) : HomeIntent
+    /** «Показати ще» під результатами «усюди»: мапа шукає лише в місті, тож догортаємо тут. */
+    data object ShowMoreResults : HomeIntent
     /** «Усі» під результатами: мапа відкривається з тим самим пошуком. Єдиний міст між пошуками. */
     data object ShowResultsOnMap : HomeIntent
     data class OpenEvent(val id: String) : HomeIntent

@@ -196,8 +196,19 @@
   <string name="home_search_everywhere">Пошук усюди</string>
   <string name="everywhere">Усюди</string>
   <string name="search_everywhere">Шукати усюди</string>
-  <string name="events_found_in_city">Знайдено подій у місті %1$s: %2$d</string>
-  <string name="events_found_everywhere">Знайдено подій усюди: %1$d</string>
+  <plurals name="events_found_in_city">
+    <item quantity="one">Знайдено %1$d подію у місті %2$s</item>
+    <item quantity="few">Знайдено %1$d події у місті %2$s</item>
+    <item quantity="many">Знайдено %1$d подій у місті %2$s</item>
+    <item quantity="other">Знайдено %1$d події у місті %2$s</item>
+  </plurals>
+  <plurals name="events_found_everywhere">
+    <item quantity="one">Знайдено %1$d подію усюди</item>
+    <item quantity="few">Знайдено %1$d події усюди</item>
+    <item quantity="many">Знайдено %1$d подій усюди</item>
+    <item quantity="other">Знайдено %1$d події усюди</item>
+  </plurals>
+  <string name="show_more">Показати ще</string>
   <string name="nothing_found_city_hint">У місті %1$s за цим запитом нічого. Пошукайте в усіх містах або спробуйте інше слово.</string>
   <string name="area_custom">В області, яку ви обрали на мапі</string>
   <string name="area_stack">Усе, що стоїть на обраному піні</string>
@@ -510,7 +521,7 @@
   <string name="link_unavailable">Немає застосунку, щоб відкрити посилання</string>
   <!-- Порожній пошук — не те саме, що порожня околиця: підказка має вести до іншої дії. -->
   <string name="nothing_found">Нічого не знайшлося</string>
-  <string name="nothing_found_hint">Спробуйте інше слово або пошукайте на мапі — там можна змінити область і фільтри.</string>
+  <string name="nothing_found_hint">Спробуйте інше слово або зніміть фільтри.</string>
   <!-- Адресу набирають, крапку ставить застосунок. Мапа лишається для місць без адреси. -->
   <string name="address_hint">Почніть набирати — знайдемо на мапі</string>
   <string name="address_placeholder">Вулиця, будинок або назва закладу</string>
