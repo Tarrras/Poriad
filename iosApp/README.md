@@ -15,7 +15,7 @@ xcodebuild -project iosApp/Poruch.xcodeproj -scheme Poruch-Dev \
 
 For an iPhone, first run `./gradlew :shared:linkDebugFrameworkIosArm64`, open `Poruch.xcodeproj`, choose a signing team and device. Configurations are `Debug-Dev`, `Release-Dev`, `Debug-Prod`, `Release-Prod`; `KOTLIN_BUILD_TYPE` picks the matching debug/release KMP framework. Schemes: `Poruch-Dev`, `Poruch-Prod`.
 
-`Config.xcconfig` contains only the public Supabase client configuration and configurable map style. Never place service-role credentials here. MapLibre is pinned to 6.28.0 through its [official Swift package distribution](https://maplibre.org/maplibre-native/ios/latest/documentation/maplibre-native-for-ios/gettingstarted/). The default map style is OpenFreeMap Positron. Review the provider’s production terms and retain on-map attribution.
+`Config.xcconfig` contains only the public Supabase client configuration (URL and publishable key per environment, passed through `Info.plist`, so a prod binary carries no dev values) and configurable map style. Never place service-role credentials here. MapLibre is pinned to 6.28.0 through its [official Swift package distribution](https://maplibre.org/maplibre-native/ios/latest/documentation/maplibre-native-for-ios/gettingstarted/). The default map style is OpenFreeMap Positron. Review the provider’s production terms and retain on-map attribution.
 
 ## Included flows
 
@@ -29,7 +29,7 @@ For an iPhone, first run `./gradlew :shared:linkDebugFrameworkIosArm64`, open `P
 
 Real-device accessibility/VoiceOver and full multi-account UI flows remain unverified. Auth callback scheme `poriad://` and recovery UI are implemented; configure the matching Supabase redirect allowlist. Organizer details provide native PhotosPicker upload (converted to JPEG, maximum 5 MiB). Event date pickers and event display use the explicit IANA time zone; persisted timestamps are UTC. Offline discovery is supplied by shared cache. Drafts are local to this installation.
 
-Project generation is reproducible using `ruby generate_project.rb` with the `xcodeproj` gem; normal Xcode usage does not require Ruby. Swift strings are Ukrainian, with a source string catalog; localization extraction should be reviewed before adding other locales.
+The project file is maintained in Xcode. After adding, moving or deleting Swift files, run `python3 tools/sync_xcode_sources.py` from the repository root: it rewrites the target's Swift source list from the files on disk (resources and settings are untouched). Swift strings are Ukrainian, with a source string catalog; localization extraction should be reviewed before adding other locales.
 
 ## Verification
 

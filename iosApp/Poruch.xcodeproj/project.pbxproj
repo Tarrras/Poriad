@@ -250,6 +250,7 @@
 /* Begin PBXShellScriptBuildPhase section */
 		6DFED18337C68AD2A2DE5561 /* Crashlytics dSYM */ = {
 			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
 			files = (
 			);
@@ -269,7 +270,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# Без GoogleService-Info.plist (збірка без ключів) вивантажувати нема куди.\nPLIST=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/GoogleService-Info.plist\"\nif [ ! -f \"$PLIST\" ]; then echo \"Crashlytics: no GoogleService-Info.plist, skipping dSYM upload\"; exit 0; fi\n\"${BUILD_DIR%/Build/*}/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/run\"\n";
+			shellScript = "# dSYM потрібні лише з архівів, що йдуть людям: debug-збірки не чекають вивантаження.\ncase \"$CONFIGURATION\" in Release*) ;; *) echo \"Crashlytics: $CONFIGURATION, skipping dSYM upload\"; exit 0 ;; esac\n# Без GoogleService-Info.plist (збірка без ключів) вивантажувати нема куди.\nPLIST=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/GoogleService-Info.plist\"\nif [ ! -f \"$PLIST\" ]; then echo \"Crashlytics: no GoogleService-Info.plist, skipping dSYM upload\"; exit 0; fi\n\"${BUILD_DIR%/Build/*}/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/run\"\n";
 		};
 		B01D5EA7C4F011F0A1D50001 /* Build Shared framework */ = {
 			isa = PBXShellScriptBuildPhase;
