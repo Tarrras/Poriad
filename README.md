@@ -97,7 +97,7 @@ Dev — окремий застосунок, який стоїть на прис
 | Auth-колбек | `poriad-dev://auth/callback` | `poriad://auth/callback` |
 | Firebase | `poriad-dev`: `androidApp/src/dev/google-services.json`, `iosApp/Firebase/dev/` | `poruchapp-1e5c4`: `androidApp/src/prod/…`, `iosApp/Firebase/prod/` |
 
-Схема колбеку задана в `gradle.properties` (`poriad.*.authScheme`) і дублюється в `iosApp/Config.xcconfig`, бо Info.plist реєструє її статично. iOS копіює `GoogleService-Info.plist` потрібного середовища в бандл окремою фазою збірки. `tools/apply_sql.py` бере базу з `SUPABASE_DB_URL` у `.env`.
+Схема колбеку задана в `gradle.properties` (`poriad.*.authScheme`) і дублюється в `iosApp/Config.xcconfig`, бо Info.plist реєструє її статично. iOS копіює `GoogleService-Info.plist` потрібного середовища в бандл окремою фазою збірки. `tools/apply_sql.py` бере базу з `SUPABASE_DB_URL` (prod) або `SUPABASE_DB_URL_DEV` (dev) у `.env`; будь-який запис вимагає `--env dev|prod`, prod — ще й підтвердження.
 
 Порядок змін схеми: міграція спершу в dev, перевірка, потім prod. Для dev: `supabase link --project-ref ojadoyxeahepycpmjuvf`, далі `supabase db push`. MCP: `supabase` — prod, `supabase-dev` — dev. У dev немає власного SMTP: вбудована пошта Supabase надсилає кілька листів на годину і лише адресам учасників організації.
 

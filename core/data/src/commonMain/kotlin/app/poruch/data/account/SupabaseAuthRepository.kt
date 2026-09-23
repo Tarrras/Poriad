@@ -93,7 +93,7 @@ class SupabaseAuthRepository(
         // Свіжий токен до м'ютекса: з простроченим сервер відмовив би, і refresh-токен лишився б живим.
         val token = try { accessToken() } catch (e: CancellationException) { throw e } catch (e: Exception) { null }
         mutex.withLock {
-            try { if (token != null) api.request("/auth/v1/logout", HttpMethod.Post, token=token, reauthorizable=false) }
+            try { if (token != null) api.request("/auth/v1/logout", HttpMethod.Post, token=token, query=mapOf("scope" to "local"), reauthorizable=false) }
             finally { clearSession() }
         }
     }
