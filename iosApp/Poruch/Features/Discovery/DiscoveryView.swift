@@ -133,8 +133,8 @@ struct DiscoveryView: View {
                 if mapFailed {
                     Button { mapFailed = false; retryToken += 1 } label: {
                         Label("Мапа недоступна · Повторити", systemImage: "arrow.clockwise")
-                            .font(.system(size: 14, weight: .semibold)).foregroundStyle(Palette.ink)
-                            .padding(.horizontal, Space.lg).frame(height: 44).cardSurface(radius: 22, elevation: 6)
+                            .font(PoruchFont.label.weight(.semibold)).foregroundStyle(Palette.ink)
+                            .padding(.horizontal, Space.lg).frame(minHeight: 44).cardSurface(radius: 22, elevation: 6)
                     }.buttonStyle(.plain)
                 }
                 if region != nil {

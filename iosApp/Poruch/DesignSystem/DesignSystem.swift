@@ -56,7 +56,8 @@ enum Palette {
 
     static let ink = Color(light: 0x1D1D1F, dark: 0xF5F5F7)
     static let inkSecondary = Color(light: 0x6E6E73, dark: 0xA1A1A8)
-    static let inkTertiary = Color(light: 0x98989D, dark: 0x6E6E76)
+    /// Контраст ≥ 4.5:1 на полотні, картці й `surfaceMuted` в обох темах: цим кольором пишуть підписи, не лише гліфи.
+    static let inkTertiary = Color(light: 0x6E6E78, dark: 0x8E8E96)
 
     static let surface = Color(light: 0xFFFFFF, dark: 0x17171C)
     /// Те, що плаває над темним полотном, світліше за картку в потоці.
@@ -168,25 +169,27 @@ func categoryWash(_ category: String) -> Color {
 }
 
 /// Один голос — SF Pro. Ієрархію несуть кегль і вага, а не зміна гарнітури чи регістру.
+/// Кожен токен — текстовий стиль системи з вагою: кегль росте з Dynamic Type. Базові розміри в
+/// дужках (стандартний розмір тексту); `label` на пункт більший за колишні 14.
 enum PoruchFont {
-    static let display = Font.system(size: 34, weight: .bold)
-    static let title1 = Font.system(size: 28, weight: .bold)
-    static let title2 = Font.system(size: 22, weight: .bold)
-    static let title3 = Font.system(size: 17, weight: .semibold)
+    static let display = Font.system(.largeTitle, weight: .bold)       // 34
+    static let title1 = Font.system(.title, weight: .bold)             // 28
+    static let title2 = Font.system(.title2, weight: .bold)            // 22
+    static let title3 = Font.system(.headline, weight: .semibold)      // 17
     /// Заголовок секції великий і жирний, як «Discover what's new».
-    static let sectionTitle = Font.system(size: 22, weight: .bold)
+    static let sectionTitle = Font.system(.title2, weight: .bold)      // 22
     /// Назва картки звичайним регістром.
-    static let cardName = Font.system(size: 17, weight: .semibold)
-    static let bodyText = Font.system(size: 16)
-    static let subhead = Font.system(size: 15)
-    static let caption = Font.system(size: 13)
-    static let label = Font.system(size: 14, weight: .medium)
-    static let button = Font.system(size: 16, weight: .semibold)
-    static let overline = Font.system(size: 11, weight: .semibold)
+    static let cardName = Font.system(.headline, weight: .semibold)    // 17
+    static let bodyText = Font.system(.callout)                        // 16
+    static let subhead = Font.system(.subheadline)                     // 15
+    static let caption = Font.system(.footnote)                        // 13
+    static let label = Font.system(.subheadline, weight: .medium)      // 15
+    static let button = Font.system(.callout, weight: .semibold)       // 16
+    static let overline = Font.system(.caption2, weight: .semibold)    // 11
     /// Категорія під назвою: той самий гротеск, кольором категорії.
-    static let descriptor = Font.system(size: 13, weight: .medium)
+    static let descriptor = Font.system(.footnote, weight: .medium)    // 13
     /// Лід на екрані деталей.
-    static let lead = Font.system(size: 17)
+    static let lead = Font.system(.body)                               // 17
 }
 
 /// Трекінг за розміром: великий текст стискається в одну форму.
