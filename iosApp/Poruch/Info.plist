@@ -4,6 +4,8 @@
 <dict>
 	<key>APP_ENV</key>
 	<string>$(APP_ENV)</string>
+	<key>APP_AUTH_SCHEME</key>
+	<string>$(APP_AUTH_SCHEME)</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>uk</string>
 	<key>CFBundleDisplayName</key>
@@ -35,8 +37,8 @@
 	<string>$(MAP_GLYPHS_URL)</string>
 	<key>MAP_TILES_URL</key>
 	<string>$(MAP_TILES_URL)</string>
-	<key>NSCalendarsWriteOnlyAccessUsageDescription</key>
-	<string>Щоб додати подію у ваш календар.</string>
+	<key>NSLocationDefaultAccuracyReduced</key>
+	<true/>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Щоб знайти події поруч із вами. Також можна обрати місто вручну.</string>
 	<key>UIApplicationSceneManifest</key>
@@ -44,7 +46,18 @@
 		<key>UIApplicationSupportsMultipleScenes</key>
 		<false/>
 	</dict>
+	<key>SUPABASE_KEY</key>
+	<string>$(SUPABASE_KEY)</string>
+	<key>SUPABASE_URL</key>
+	<string>$(SUPABASE_URL)</string>
 	<key>UILaunchScreen</key>
-	<dict/>
+	<dict>
+		<key>UIColorName</key>
+		<string>LaunchBackground</string>
+	</dict>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
 </dict>
 </plist>

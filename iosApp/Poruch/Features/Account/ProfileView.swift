@@ -155,6 +155,8 @@ struct ProfileView: View {
             SectionHeader(title: "Про застосунок")
             Text("«Поряд» — події та люди у вашому місті. Мапа: MapLibre та OpenFreeMap.")
                 .font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
+            // Згода належить пристрою, як і нагадування: перемикач є і в гостя.
+            GroupedRows { AnalyticsPreference() }
             GroupedRows {
                 LinkRow(symbol: "hand.raised", title: "Політика конфіденційності") { open(LegalLinks.shared.PRIVACY) }
                 Divider().overlay(Palette.hairline).padding(.leading, Space.lg + 40 + Space.md)
@@ -274,8 +276,28 @@ struct ReminderPreference: View {
                 Text("Сповіщення про мої події").font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
             }
             .tint(Palette.brand)
-            Text(denied ? "Дозвольте сповіщення в налаштуваннях iOS." : "Нагадування за годину до початку і нові запити на участь у ваших подіях. Запити перевіряються, коли застосунок відкрито.")
+            Text(denied ? "Дозвольте сповіщення в налаштуваннях iOS." : "Нагадування за годину до початку і нові запити на участь у ваших подіях.")
                 .font(PoruchFont.caption).foregroundStyle(denied ? Palette.danger : Palette.inkTertiary)
+        }.padding(Space.lg)
+    }
+}
+
+/// Перемикач аналітики. Прапорець у спільному сторі; Firebase вмикає й вимикає хук
+/// `PoruchAnalytics.collection` (див. `PoruchApplication.init`).
+struct AnalyticsPreference: View {
+    @EnvironmentObject var model: AppModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Space.sm) {
+            Toggle(isOn: Binding(
+                get: { model.state?.analyticsEnabled ?? true },
+                set: { model.app.setAnalyticsEnabled(enabled: $0) }
+            )) {
+                Text("Аналітика").font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
+            }
+            .tint(Palette.brand)
+            Text("Статистика використання й звіти про збої, без реклами.")
+                .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
         }.padding(Space.lg)
     }
 }

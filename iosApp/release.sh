@@ -26,7 +26,8 @@ xcodebuild archive -project Poruch.xcodeproj -scheme Poruch-Prod -configuration 
 
 # Єдина перевірка, без якої вантажити не можна: у стор не має поїхати dev.
 APP=$OUT/Poriad.xcarchive/Products/Applications/Poruch.app
-[[ "$(pb 'Print :APP_ENV' $APP/Info.plist)" == PROD && "$(pb 'Print :CFBundleIdentifier' $APP/Info.plist)" == app.poriad.ios ]] \
+[[ "$(pb 'Print :APP_ENV' $APP/Info.plist)" == PROD && "$(pb 'Print :CFBundleIdentifier' $APP/Info.plist)" == app.poriad.ios \
+   && "$(pb 'Print :SUPABASE_URL' $APP/Info.plist)" == https://tzdogzdvctlumsqlqskr.supabase.co ]] \
   || { echo "Архів не prod, зупиняюсь." >&2; exit 1; }
 
 cat > $OUT/ExportOptions.plist <<PLIST

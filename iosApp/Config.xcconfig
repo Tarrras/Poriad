@@ -1,6 +1,11 @@
 // Середовище — окремий вимір від Debug/Release: схема Poruch-Dev (Debug-Dev / Release-Dev)
 // ходить у dev-проєкт Supabase, Poruch-Prod (Debug-Prod / Release-Prod) — у prod.
-// Адреси й ключі живуть у shared AppEnvironment, тут лише вибір.
+// Адреса й публічний ключ — лише свого середовища: prod-бінарник не несе dev. Ті самі значення,
+// що poriad.<env>.* у gradle.properties. `/$()/` — бо `//` в xcconfig починає коментар.
+SUPABASE_URL[config=*-Dev] = https:/$()/ojadoyxeahepycpmjuvf.supabase.co
+SUPABASE_URL[config=*-Prod] = https:/$()/tzdogzdvctlumsqlqskr.supabase.co
+SUPABASE_KEY[config=*-Dev] = sb_publishable_J56z68XYw4Qn1nuivKO1Dw_zEb2zaEu
+SUPABASE_KEY[config=*-Prod] = sb_publishable_RoY0wFzTOcXlmOIYC0UE-w_fOt5rXPq
 APP_ENV[config=*-Dev] = DEV
 APP_ENV[config=*-Prod] = PROD
 APP_DISPLAY_NAME[config=*-Dev] = Поряд Dev

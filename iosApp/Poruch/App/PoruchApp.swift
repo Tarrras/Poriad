@@ -2,6 +2,7 @@ import SwiftUI
 import Shared
 import FirebaseCore
 import FirebaseAnalytics
+import FirebaseCrashlytics
 
 @main struct PoruchApplication: App {
     @UIApplicationDelegateAdaptor(PushDelegate.self) private var pushDelegate
@@ -13,6 +14,12 @@ import FirebaseAnalytics
             FirebaseApp.configure()
             // Продуктові події зі спільного коду → Firebase. Словник — docs/analytics.md.
             PoruchAnalytics.shared.sink = { name, params in Analytics.logEvent(name, parameters: params) }
+            // Перемикач «Аналітика» в профілі: і події, і звіти про збої. Хук кличеться одразу з поточним
+            // значенням, а спільний шар ставить збережене до першої події.
+            PoruchAnalytics.shared.collection = { enabled in
+                Analytics.setAnalyticsCollectionEnabled(enabled.boolValue)
+                Crashlytics.crashlytics().setCrashlyticsCollectionEnabled(enabled.boolValue)
+            }
         }
     }
     var body: some Scene {
@@ -54,14 +61,20 @@ struct RootView: View {
     @StateObject private var location = LocationFinder()
     var body: some View {
         // Онбординг замінює застосунок, а не накриває: за ним на першому запуску ще нічого нема.
-        if model.state?.needsOnboarding == true {
-            OnboardingView()
+        // Поки стану нема, невідомо, чи потрібен онбординг: нейтральне полотно, без запиту геолокації.
+        if let state = model.state {
+            if state.needsOnboarding {
+                OnboardingView()
+            } else {
+                app
+                    // Геолокацію питаємо, лише коли онбординг позаду: не поверх його першого екрана.
+                    .onAppear { location.request() }
+                    .onReceive(location.$city) { city in
+                        if let city { model.app.selectCity(city: city) }
+                    }
+            }
         } else {
-            app
-                .onAppear { location.request() }
-                .onReceive(location.$city) { city in
-                    if let city { model.app.selectCity(city: city) }
-                }
+            Palette.canvas.ignoresSafeArea()
         }
     }
 
@@ -104,14 +117,26 @@ struct RootView: View {
                 PoruchTabBar(items: tabItems(unreadChats: Int(model.state?.unreadChats ?? 0)), selection: $tab) {
                     CreateButton { if model.state?.session.userId == nil { authenticating = true } else { creating = true } }
                 }
+                // Як системний таббар: підписи не ростуть з Dynamic Type, інакше чотири вкладки не вміщаються.
+                .dynamicTypeSize(...DynamicTypeSize.large)
                 .padding(.bottom, Space.sm)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
         .animation(.easeInOut(duration: 0.2), value: tabBarHidden)
         .onAppear {
-            // Тап по сповіщенню веде на подію зі стеку головної.
-            PushDelegate.openEvent = { id in tab = 0; model.app.selectEvent(id: id); homePath = NavigationPath([EventRoute(id: id)]) }
+            // Тап по сповіщенню веде на подію (або в її чат) зі стеку головної, поверх усього, що було відкрите.
+            PushDelegate.openEvent = { id, chat in
+                creating = false
+                authenticating = false
+                dismissPresentedSheets()
+                tab = 0
+                model.app.selectEvent(id: id)
+                var path = NavigationPath()
+                if chat { path.append(ChatRoute(id: id)) } else { path.append(EventRoute(id: id)) }
+                homePath = path
+                minePath = NavigationPath()
+            }
         }
         .environment(\.openMap, showMap)
         .sheet(isPresented: $creating) { EventEditor(event: nil, app: model.app, home: model.state) }
@@ -123,4 +148,11 @@ struct RootView: View {
         .sheet(isPresented: Binding(get: { model.state?.session.passwordRecovery == true }, set: { _ in })) { NewPasswordView() }
         .notice(model.state?.notice?.presented) { model.app.clearNotice() }
     }
+}
+
+/// Шторки з будь-якої вкладки (редактор у «Моїх», скарга в деталях): SwiftUI-прапорці в кожної свої,
+/// тож закриваємо все, що показує корінь вікна.
+@MainActor private func dismissPresentedSheets() {
+    let root = UIApplication.shared.connectedScenes.compactMap { ($0 as? UIWindowScene)?.keyWindow }.first?.rootViewController
+    root?.presentedViewController?.dismiss(animated: false)
 }

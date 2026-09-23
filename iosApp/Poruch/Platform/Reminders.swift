@@ -13,15 +13,12 @@ enum NotificationPermission {
 
 /// Локальні сповіщення за планом зі спільного шару: що і коли вирішено там, тут лише центр
 /// сповіщень. Делегат потрібен, щоб банер показувався й у відкритому застосунку: без нього
-/// iOS у фореграунді мовчить.
+/// iOS у фореграунді мовчить. Один на застосунок: делегатом його ставить `PushDelegate` при запуску.
 final class LocalReminderScheduler: NSObject, ReminderScheduler, RequestNotifier, ChatNotifier, UNUserNotificationCenterDelegate {
+    static let shared = LocalReminderScheduler()
     private let center = UNUserNotificationCenter.current()
     private let prefix = "poruch.event."
-
-    override init() {
-        super.init()
-        center.delegate = self
-    }
+    private let chatPrefix = "poruch.chat."
 
     func replace(reminders: [EventReminder]) {
         center.getPendingNotificationRequests { [center, prefix] requests in
@@ -65,7 +62,7 @@ final class LocalReminderScheduler: NSObject, ReminderScheduler, RequestNotifier
             content.subtitle = chatCount(Int(alert.count))
             content.sound = .default
             content.userInfo = ["eventId": alert.eventId]
-            center.add(UNNotificationRequest(identifier: "poruch.chat." + alert.eventId, content: content, trigger: nil))
+            center.add(UNNotificationRequest(identifier: chatPrefix + alert.eventId, content: content, trigger: nil))
         }
     }
 
@@ -93,13 +90,15 @@ final class LocalReminderScheduler: NSObject, ReminderScheduler, RequestNotifier
         completionHandler([.banner, .list, .sound])
     }
 
-    /// Тап по сповіщенню, локальному чи пушу: відкрити подію, про яку воно.
+    /// Тап по сповіщенню, локальному чи пушу: відкрити подію, про яку воно, а про повідомлення — її чат.
     func userNotificationCenter(
         _ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
-        if let eventId = response.notification.request.content.userInfo["eventId"] as? String {
-            DispatchQueue.main.async { PushDelegate.openEvent?(eventId) }
+        let request = response.notification.request
+        if let eventId = request.content.userInfo["eventId"] as? String {
+            let chat = request.content.userInfo["kind"] as? String == "chat" || request.identifier.hasPrefix(chatPrefix)
+            DispatchQueue.main.async { PushDelegate.open(eventId: eventId, chat: chat) }
         }
         completionHandler()
     }

@@ -14,10 +14,22 @@ final class PushDelegate: NSObject, UIApplicationDelegate {
         }
     }
     private static var pendingToken: String?
-    /// Тап по сповіщенню: подія, яку відкрити. Ставить корінь.
-    static var openEvent: ((String) -> Void)?
+    /// Тап по сповіщенню: подія, яку відкрити, і чи в її чат. Ставить корінь, коли застосунок уже на екрані.
+    static var openEvent: ((String, Bool) -> Void)? {
+        didSet {
+            if let openEvent, let pending = pendingOpen { pendingOpen = nil; openEvent(pending.id, pending.chat) }
+        }
+    }
+    /// Тап при холодному старті приходить раніше, ніж корінь готовий: чекає тут.
+    private static var pendingOpen: (id: String, chat: Bool)?
+
+    static func open(eventId: String, chat: Bool) {
+        if let openEvent { openEvent(eventId, chat) } else { pendingOpen = (eventId, chat) }
+    }
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions options: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        // Делегат центру — до кінця запуску, інакше тап, що запустив застосунок, губиться.
+        UNUserNotificationCenter.current().delegate = LocalReminderScheduler.shared
         PushDelegate.registerIfAllowed()
         return true
     }

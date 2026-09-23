@@ -10,15 +10,21 @@ final class KeychainSessionStore: SecureSessionStore {
         guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess, let data = result as? Data else { return nil }
         return String(data: data, encoding: .utf8)
     }
-    func write(value: String) {
+    /// `value_`: Kotlin/Native так експортує `write(value:)`, бо в `PendingUnregisterStore` метод з тією ж назвою.
+    func write(value_ value: String) {
         let data = Data(value.utf8)
-        let status = SecItemUpdate(base as CFDictionary, [kSecValueData as String: data] as CFDictionary)
+        var status = SecItemUpdate(base as CFDictionary, [kSecValueData as String: data] as CFDictionary)
         if status == errSecItemNotFound {
             var query = base; query[kSecValueData as String] = data; query[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-            SecItemAdd(query as CFDictionary, nil)
+            status = SecItemAdd(query as CFDictionary, nil)
         }
+        // Сесія не записалась — наступний запуск буде без входу. Лише код, без вмісту.
+        if status != errSecSuccess { NSLog("Poruch/keychain: session write failed, status %d", status) }
     }
-    func clear() { SecItemDelete(base as CFDictionary) }
+    func clear() {
+        let status = SecItemDelete(base as CFDictionary)
+        if status != errSecSuccess && status != errSecItemNotFound { NSLog("Poruch/keychain: session clear failed, status %d", status) }
+    }
 }
 
 @MainActor final class AppModel: ObservableObject {
@@ -59,16 +65,18 @@ final class KeychainSessionStore: SecureSessionStore {
         PoruchLog.shared.enabled = true
         #endif
         let info = Bundle.main.infoDictionary ?? [:]
-        // Невідоме чи відсутнє середовище — dev: помилка конфігурації не має тихо вести в prod.
-        let env: AppEnvironment = info["APP_ENV"] as? String == "PROD" ? .prod : .dev
+        // Адреса, ключ і схема — лише свого середовища, з Config.xcconfig через Info.plist: prod-бінарник
+        // не несе dev. Без значень спільний шар каже «не налаштовано», а не йде кудись навмання.
         let config = AppConfig(
-            supabaseUrl: env.supabaseUrl,
-            publishableKey: env.publishableKey,
+            supabaseUrl: info["SUPABASE_URL"] as? String ?? "",
+            publishableKey: info["SUPABASE_KEY"] as? String ?? "",
             home: HomeLocation.companion.Kyiv,
-            authScheme: env.authScheme
+            authScheme: info["APP_AUTH_SCHEME"] as? String ?? "poriad",
+            appVersion: info["CFBundleShortVersionString"] as? String ?? "dev",
+            geocoderUrl: "https://photon.komoot.io/api/"
         )
         // Один центр сповіщень для нагадувань і запитів: делегат у нього теж один.
-        let notifications = LocalReminderScheduler()
+        let notifications = LocalReminderScheduler.shared
         graph = AppGraph(config: config, sessionStore: KeychainSessionStore(), reminders: notifications, requestNotifier: notifications, chatNotifier: notifications)
         PoruchLog.shared.i(tag: "app") { "graph created" }
         start()
