@@ -181,6 +181,10 @@ class PoruchApp internal constructor(
     fun setSearchText(query: String) = discovery.setSearchText(query)
     /** Пошук головної: окремий від мапи, у тій самій області. */
     fun setHomeSearchText(query: String) = discovery.setHomeSearchText(query)
+    /** Пошук головної: усі міста чи лише обране; категорія й дата звужують лише знайдене. */
+    fun setHomeSearchEverywhere(everywhere: Boolean) = discovery.setHomeSearchEverywhere(everywhere)
+    fun setHomeSearchCategory(category: String) = discovery.setHomeSearchCategory(category)
+    fun setHomeSearchDate(filter: String) = discovery.setHomeSearchDate(filter)
     fun setOnlyAvailable(available: Boolean) = discovery.setOnlyAvailable(available)
     fun setCategory(category: String) = discovery.setCategory(category)
     fun setDateFilter(filter: String) = discovery.setDateFilter(filter)

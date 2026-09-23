@@ -30,6 +30,8 @@ internal class DiscoveryEngine(
     private val cityStore: CityStore? = null
 ) {
     private var query = EventQuery(home.south, home.west, home.north, home.east)
+    /** «Усюди» для пошуку головної: сервер приймає весь світ, ліміт видачі той самий. */
+    private val WORLD = EventQuery(-90.0, -180.0, 90.0, 180.0)
     /** Межі обраного міста. Головна завжди дивиться сюди; «Шукати тут» рухає лише мапу. */
     private var cityArea = EventQuery(home.south, home.west, home.north, home.east)
     private var searchJob: Job? = null
@@ -168,11 +170,35 @@ internal class DiscoveryEngine(
         if (!blank) homeDebounceJob = scope.launch { delay(DiscoveryRules.SEARCH_DEBOUNCE_MS); searchHome() }
     }
 
+    /** Пошук головної по всіх містах чи лише в обраному. */
+    fun setHomeSearchEverywhere(everywhere: Boolean) =
+        updateHomeSearch { it.copy(searchEverywhere = everywhere) }
+
+    fun setHomeSearchCategory(category: String) =
+        updateHomeSearch { it.copy(searchCategory = category) }
+
+    fun setHomeSearchDate(filter: String) =
+        updateHomeSearch { it.copy(searchDate = filter) }
+
+    private fun updateHomeSearch(change: (HomeFeed) -> HomeFeed) {
+        val before = store.value.home
+        val after = change(before)
+        if (after == before) return
+        store.update { it.copy(home = change(it.home)) }
+        if (after.searching) searchHome()
+    }
+
     private fun searchHome() {
         homeDebounceJob?.cancel(); homeSearchJob?.cancel()
-        val text = store.value.home.searchText.trim()
+        val home = store.value.home
+        val text = home.searchText.trim()
         if (text.isEmpty()) return
-        val snapshot = areaQuery().copy(text = text)
+        val (from, to) = dateRange(home.searchDate)
+        val snapshot = (if (home.searchEverywhere) WORLD else areaQuery()).copy(
+            text = text,
+            category = home.searchCategory.takeIf { it != ALL_CATEGORIES },
+            from = from?.toString(), to = to?.toString()
+        )
         homeSearchJob = scope.launch {
             store.update { it.copy(home = it.home.copy(searchLoading = true)) }
             try {
@@ -395,6 +421,14 @@ internal class DiscoveryEngine(
     }
 
     fun setDateFilter(filter: String) {
+        val (start, end) = dateRange(filter)
+        store.update { it.copy(map = it.map.copy(dateFilter = filter)) }
+        query = query.copy(from = start?.toString(), to = end?.toString())
+        refresh(home = false)
+    }
+
+    /** Межі [DateFilter] від сьогодні в поясі пристрою; для «Усі» — без меж. */
+    private fun dateRange(filter: String): Pair<kotlin.time.Instant?, kotlin.time.Instant?> {
         val zone = TimeZone.currentSystemDefault()
         val now = Clock.System.now()
         val today = now.toLocalDateTime(zone).date
@@ -412,9 +446,7 @@ internal class DiscoveryEngine(
             DateFilter.WEEKEND -> today.plus(8 - today.dayOfWeek.isoDayNumber, DateTimeUnit.DAY).atStartOfDayIn(zone)
             else -> null
         }
-        store.update { it.copy(map = it.map.copy(dateFilter = filter)) }
-        query = query.copy(from = start?.toString(), to = end?.toString())
-        refresh(home = false)
+        return start to end
     }
 
     fun searchCity(text: String) {

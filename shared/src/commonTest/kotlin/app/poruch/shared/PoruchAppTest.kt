@@ -439,6 +439,29 @@ class PoruchAppTest {
         app.close()
     }
 
+    /** Фільтри пошуку головної: «Усюди» — весь світ, категорія й дата йдуть на сервер; стрічка не звужується. */
+    @Test fun homeSearchFiltersAndScope()=runTest {
+        val events=Events(); events.results=listOf(event("jazz","music","2090-01-05T19:00:00Z"))
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(1000); runCurrent()
+        app.setHomeSearchEverywhere(true); runCurrent()
+        val idle=events.queries.size
+        assertEquals(idle,events.queries.size,"без тексту фільтр лише запам'ятовується")
+
+        app.setHomeSearchText("jazz"); advanceTimeBy(1000); runCurrent()
+        val world=events.queries.last()
+        assertEquals(-90.0,world.south); assertEquals(180.0,world.east); assertEquals(null,world.category)
+
+        app.setHomeSearchCategory("music"); runCurrent()
+        assertEquals("music",events.queries.last().category)
+        app.setHomeSearchDate(DateFilter.TODAY); runCurrent()
+        assertTrue(events.queries.last().from!=null && events.queries.last().to!=null)
+
+        app.setHomeSearchEverywhere(false); runCurrent()
+        assertTrue(events.queries.last().south > -90.0,"назад до міста")
+        assertEquals(1,app.state.value.home.index.size,"стрічка без фільтрів пошуку")
+        app.close()
+    }
+
     /** «Шукати тут» рухає лише мапу: головна лишається на цілому місті й не перепитує сервер. */
     @Test fun searchHereMovesOnlyTheMap()=runTest {
         val events=Events(); events.results=listOf(event("jazz","music","2090-01-05T19:00:00Z"),event("yoga","sport","2090-01-06T19:00:00Z"))

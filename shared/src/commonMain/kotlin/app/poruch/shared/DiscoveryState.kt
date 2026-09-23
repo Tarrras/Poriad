@@ -62,6 +62,11 @@ data class HomeFeed(
     val results: List<EventIndexEntry> = emptyList(),
     val resultsTotal: Int = 0,
     val searchLoading: Boolean = false,
+    /** Пошук головної по всіх містах, а не лише в обраному. */
+    val searchEverywhere: Boolean = false,
+    /** Фільтри пошуку головної. Стрічку не звужують — лише знайдене. */
+    val searchCategory: String = ALL_CATEGORIES,
+    val searchDate: String = DateFilter.ANY,
     /**
      * Завантажені картки [index] у його порядку, з пропусками тих, що ще їдуть. Складає
      * [materialized], щоб платформи не з'єднували індекс з картками самі, через міст.
