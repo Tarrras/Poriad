@@ -18,6 +18,7 @@ __pycache__/
 *.py
 !tools/*.py
 !tools/**/*.py
+!supabase/tests/*.py
 
 .env
 .env.*
