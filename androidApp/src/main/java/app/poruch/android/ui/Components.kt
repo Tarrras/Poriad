@@ -472,6 +472,8 @@ fun LabelledField(
     visualTransformation: VisualTransformation = VisualTransformation.None,
     /** Фокус для екрана, що відкривається заради цього поля. */
     focusRequester: FocusRequester? = null,
+    /** Що не так із полем: під ним, кольором помилки. */
+    error: String? = null,
     trailing: @Composable (() -> Unit)? = null
 ) {
     val colors = Poruch.colors
@@ -504,6 +506,7 @@ fun LabelledField(
             trailing?.invoke()
         }
         hint?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary) }
+        error?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = colors.danger) }
     }
 }
 

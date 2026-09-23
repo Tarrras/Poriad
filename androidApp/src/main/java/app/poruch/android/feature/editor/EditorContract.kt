@@ -1,9 +1,12 @@
 package app.poruch.android.feature.editor
 
+import app.poruch.domain.AppError
 import app.poruch.domain.ContactRules
+import app.poruch.domain.DraftField
 import app.poruch.domain.EventDraft
 import app.poruch.domain.PlaceResult
 import app.poruch.domain.SafetyRules
+import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -50,6 +53,24 @@ data class EditorForm(
         }
     }.getOrNull()
 
+    /**
+     * Що не так у формі, за тими самими правилами, що й [EventDraft.validate]: недонабране число
+     * чи дата стають явно хибним значенням, і доменна перевірка називає поле.
+     */
+    fun problems(now: Instant = Instant.now()): List<DraftField> {
+        val zone = runCatching { ZoneId.of(timeZone) }.getOrNull()
+        fun instant(value: String) = runCatching { LocalDateTime.parse(value, LOCAL_FORMAT).atZone(zone).toInstant().toString() }
+            .getOrDefault("")
+        return EventDraft(
+            title = title, description = description, category = category, city = city, address = address,
+            latitude = latitude.toDoubleOrNull() ?: Double.NaN, longitude = longitude.toDoubleOrNull() ?: Double.NaN,
+            startsAt = instant(starts), endsAt = instant(ends), timeZone = timeZone,
+            capacity = capacity.toIntOrNull() ?: 0, minAge = minAge.toIntOrNull() ?: 0,
+            maxAge = maxAge.trim().takeIf { it.isNotEmpty() }?.let { it.toIntOrNull() ?: -1 },
+            approvalRequired = approvalRequired, contactUrl = ContactRules.normalize(contactUrl)
+        ).validate(now.toString())
+    }
+
     companion object {
         const val DEFAULT_CATEGORY = "social"
         const val DEFAULT_CAPACITY = "20"
@@ -59,7 +80,20 @@ data class EditorForm(
     }
 }
 
-enum class EditorStep { ABOUT, PLACE, SCHEDULE;
+enum class EditorStep(
+    /** Поля, які людина вводить на цьому кроці: їхні помилки тримають «Далі». */
+    val fields: Set<DraftField>
+) {
+    ABOUT(setOf(DraftField.TITLE, DraftField.DESCRIPTION, DraftField.CATEGORY)),
+    PLACE(setOf(DraftField.ADDRESS, DraftField.LOCATION)),
+    // Фото додають після публікації, тож IMAGE_URL тут лише щоб кожне поле мало свій крок.
+    SCHEDULE(
+        setOf(
+            DraftField.STARTS_AT, DraftField.ENDS_AT, DraftField.TIME_ZONE, DraftField.CAPACITY,
+            DraftField.AGE_LIMITS, DraftField.CONTACT_URL, DraftField.IMAGE_URL
+        )
+    );
+
     val isLast get() = this == SCHEDULE
     fun next() = entries.getOrElse(ordinal + 1) { this }
     fun previous() = entries.getOrElse(ordinal - 1) { this }
@@ -81,18 +115,17 @@ data class EditorState(
     /** Відкрито повноекранний вибір точки: на міні-мапі 260 dp обирати незручно. */
     val pickingPoint: Boolean = false,
     /** Адреса під ціллю на екрані вибору. Порожня, поки відповідь у дорозі. */
-    val aimAddress: String = ""
+    val aimAddress: String = "",
+    /** «Далі» натиснули з помилками: тепер вони видні під полями, поки крок не зміниться. */
+    val showProblems: Boolean = false,
+    /** Публікацію відхилено: текст стоїть над кнопкою, а не зникає банером. */
+    val failure: AppError? = null
 ) {
     val point get() = form.point
     val pointChosen get() = point != null
 
     /** Кожен крок перевіряє лише свої поля, тож «Далі» не блокується наступним. */
-    val canAdvance: Boolean
-        get() = when (step) {
-            EditorStep.ABOUT -> form.title.isNotBlank()
-            EditorStep.PLACE -> form.city.isNotBlank() && form.address.isNotBlank() && point != null
-            EditorStep.SCHEDULE -> form.toDraft(null) != null
-        }
+    val stepProblems: List<DraftField> get() = form.problems().filter { it in step.fields }
 }
 
 /** Яке поле дати зараз редагує пікер. */

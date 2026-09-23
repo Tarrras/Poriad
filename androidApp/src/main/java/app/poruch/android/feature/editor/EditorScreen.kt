@@ -46,6 +46,8 @@ import app.poruch.android.MapZoom
 import app.poruch.android.R
 import app.poruch.android.ui.*
 import app.poruch.domain.ContactRules
+import app.poruch.domain.DraftField
+import app.poruch.domain.EventRules
 import app.poruch.domain.SafetyRules
 import java.time.LocalDateTime
 
@@ -66,24 +68,31 @@ fun EditorScreen(state: EditorState, onIntent: (EditorIntent) -> Unit, onClose: 
                 Text(stringResource(state.step.hint), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
             }
             when (state.step) {
-                EditorStep.ABOUT -> AboutStep(state.form, onIntent)
+                EditorStep.ABOUT -> AboutStep(state, onIntent)
                 EditorStep.PLACE -> PlaceStep(state, onIntent)
                 EditorStep.SCHEDULE -> ScheduleStep(state, onIntent)
             }
         }
-        Row(
+        Column(
             Modifier.fillMaxWidth().background(colors.surface).navigationBarsPadding().padding(Spacing.page),
-            horizontalArrangement = Arrangement.spacedBy(Spacing.md)
+            verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
-            if (state.step != EditorStep.ABOUT) SecondaryButton(
-                stringResource(R.string.back), { onIntent(EditorIntent.Back) }, Modifier.weight(1f)
-            )
-            PrimaryButton(
-                stringResource(if (!state.step.isLast) R.string.next else if (state.editing) R.string.apply else R.string.publish),
-                { onIntent(if (state.step.isLast) EditorIntent.Submit else EditorIntent.Next) },
-                Modifier.weight(if (state.step != EditorStep.ABOUT) 1f else 2f),
-                enabled = state.canAdvance && !state.mutating, loading = state.mutating
-            )
+            // Над кнопкою, бо поле з помилкою може бути за краєм або під клавіатурою.
+            (state.failure?.text() ?: state.stepProblems.firstOrNull()?.takeIf { state.showProblems }?.rule())?.let {
+                Text(it, style = MaterialTheme.typography.bodyMedium, color = colors.danger)
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                if (state.step != EditorStep.ABOUT) SecondaryButton(
+                    stringResource(R.string.back), { onIntent(EditorIntent.Back) }, Modifier.weight(1f)
+                )
+                // Активна й з помилками: тап показує, що виправити, замість мовчазної сірої кнопки.
+                PrimaryButton(
+                    stringResource(if (!state.step.isLast) R.string.next else if (state.editing) R.string.apply else R.string.publish),
+                    { onIntent(if (state.step.isLast) EditorIntent.Submit else EditorIntent.Next) },
+                    Modifier.weight(if (state.step != EditorStep.ABOUT) 1f else 2f),
+                    enabled = !state.mutating, loading = state.mutating
+                )
+            }
         }
     }
 
@@ -137,14 +146,23 @@ private fun WizardHeader(state: EditorState, onClose: () -> Unit) {
 }
 
 @Composable
-private fun AboutStep(form: EditorForm, onIntent: (EditorIntent) -> Unit) {
+private fun AboutStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
+    val form = state.form
+    val description = form.description.trim().length
     LabelledField(
-        stringResource(R.string.title), form.title, { value -> onIntent(EditorIntent.Edit { copy(title = value) }) },
-        placeholder = stringResource(R.string.title_placeholder)
+        stringResource(R.string.title), form.title,
+        { value -> onIntent(EditorIntent.Edit { copy(title = value.take(EventRules.titleLength.last)) }) },
+        placeholder = stringResource(R.string.title_placeholder), error = state.problem(DraftField.TITLE)
     )
     LabelledField(
-        stringResource(R.string.description), form.description, { value -> onIntent(EditorIntent.Edit { copy(description = value) }) },
-        placeholder = stringResource(R.string.description_placeholder), singleLine = false
+        stringResource(R.string.description), form.description,
+        { value -> onIntent(EditorIntent.Edit { copy(description = value.take(EventRules.descriptionLength.last)) }) },
+        placeholder = stringResource(R.string.description_placeholder), singleLine = false,
+        hint = EventRules.descriptionLength.let { rule ->
+            if (description < rule.first) stringResource(R.string.description_counter_min, description, rule.first)
+            else stringResource(R.string.description_counter, description, rule.last)
+        },
+        error = state.problem(DraftField.DESCRIPTION)
     )
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         Text(
@@ -164,8 +182,18 @@ private fun AboutStep(form: EditorForm, onIntent: (EditorIntent) -> Unit) {
                 }
             }
         }
+        state.problem(DraftField.CATEGORY)?.let { FieldError(it) }
     }
 }
+
+/** Правило поля, якщо людина вже натиснула «Далі», а воно не пройшло. */
+@Composable
+private fun EditorState.problem(field: DraftField): String? =
+    if (showProblems && field in stepProblems) field.rule() else null
+
+@Composable
+private fun FieldError(text: String) =
+    Text(text, style = MaterialTheme.typography.bodySmall, color = Poruch.colors.danger)
 
 @Composable
 private fun PlaceStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
@@ -175,7 +203,7 @@ private fun PlaceStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
     LabelledField(
         stringResource(R.string.address), form.address, { value -> onIntent(EditorIntent.Edit { copy(address = value) }) },
         placeholder = stringResource(R.string.address_placeholder),
-        hint = stringResource(R.string.address_hint)
+        hint = stringResource(R.string.address_hint), error = state.problem(DraftField.ADDRESS)
     )
     // Підказки одразу під полем, як продовження набору.
     if (state.addressSuggestions.isNotEmpty()) Column(
@@ -205,6 +233,7 @@ private fun PlaceStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
         style = MaterialTheme.typography.bodySmall,
         color = if (state.pointChosen) colors.success else colors.inkTertiary
     )
+    state.problem(DraftField.LOCATION)?.let { FieldError(it) }
     // Мапа лише показує вибране: жести на 260 dp коштували б точності.
     Box(Modifier.fillMaxWidth().height(260.dp).clip(Radius.md)) {
         EventMap(
@@ -334,13 +363,18 @@ private fun TimeZoneNote(zone: String, fromPlace: Boolean) {
 private fun ScheduleStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
     val colors = Poruch.colors
     val form = state.form
-    DateTimeField(stringResource(R.string.starts), form.starts) { onIntent(EditorIntent.ShowPicker(PickerRequest.STARTS)) }
-    DateTimeField(stringResource(R.string.ends), form.ends) { onIntent(EditorIntent.ShowPicker(PickerRequest.ENDS)) }
+    DateTimeField(stringResource(R.string.starts), form.starts, state.problem(DraftField.STARTS_AT)) {
+        onIntent(EditorIntent.ShowPicker(PickerRequest.STARTS))
+    }
+    DateTimeField(stringResource(R.string.ends), form.ends, state.problem(DraftField.ENDS_AT)) {
+        onIntent(EditorIntent.ShowPicker(PickerRequest.ENDS))
+    }
     LabelledField(
         stringResource(R.string.capacity), form.capacity, { value -> onIntent(EditorIntent.Edit { copy(capacity = value.filter(Char::isDigit)) }) },
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), error = state.problem(DraftField.CAPACITY)
     )
     TimeZoneNote(form.timeZone, state.timeZoneFromPlace)
+    state.problem(DraftField.TIME_ZONE)?.let { FieldError(it) }
     // Хто може прийти — частина публікації, а не сховане налаштування.
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
         SectionHeader(stringResource(R.string.who_can_come))
@@ -361,6 +395,7 @@ private fun ScheduleStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
             stringResource(R.string.age_limit_hint, SafetyRules.MIN_SIGNUP_AGE),
             style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary
         )
+        state.problem(DraftField.AGE_LIMITS)?.let { FieldError(it) }
         Row(
             Modifier.fillMaxWidth().cardSurface().padding(Spacing.lg),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)
@@ -379,9 +414,7 @@ private fun ScheduleStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
             hint = stringResource(R.string.contact_editor_hint),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri)
         )
-        if (form.contactUrl.isNotBlank() && !ContactRules.isContactUrl(form.contactUrl)) Text(
-            stringResource(R.string.field_contact_url), style = MaterialTheme.typography.bodySmall, color = colors.danger
-        )
+        if (form.contactUrl.isNotBlank() && !ContactRules.isContactUrl(form.contactUrl)) FieldError(DraftField.CONTACT_URL.rule())
     }
     Column(Modifier.fillMaxWidth().cardSurface().padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         Text(
@@ -397,7 +430,7 @@ private fun ScheduleStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
 
 /** Поле дати виглядає як решта полів, але відкриває пікер замість клавіатури. */
 @Composable
-private fun DateTimeField(label: String, value: String, onOpen: () -> Unit) {
+private fun DateTimeField(label: String, value: String, error: String?, onOpen: () -> Unit) {
     val colors = Poruch.colors
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         Text(label.uppercase(), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
@@ -413,6 +446,7 @@ private fun DateTimeField(label: String, value: String, onOpen: () -> Unit) {
             )
             Icon(Icons.Outlined.ChevronRight, null, Modifier.size(20.dp), tint = colors.inkTertiary)
         }
+        error?.let { FieldError(it) }
     }
 }
 

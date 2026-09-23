@@ -331,7 +331,7 @@
   <string name="contact_confirm_title">Відкрити посилання від організатора?</string>
   <string name="contact_confirm_body">Ви переходите на %1$s. Це посилання додав організатор події. «Поряд» не перевіряє його і не відповідає за вміст сторінки чи чату за ним. Не переходьте, якщо не довіряєте організатору.</string>
   <string name="contact_confirm_open">Перейти</string>
-  <string name="field_contact_url">Посилання на чат (лише https)</string>
+  <string name="field_contact_url">Посилання на чат — лише https://, без пробілів</string>
   <string name="requests_home_section">Запити на участь</string>
   <string name="requests_home_hint">Відкрийте подію, щоб прийняти або відхилити.</string>
   <plurals name="requests_count">
@@ -390,7 +390,7 @@
   <string name="err_underage">Реєстрація доступна з %1$d років</string>
   <string name="err_too_many_reports">Забагато скарг поспіль. Спробуйте за годину</string>
   <string name="err_too_many_events">Забагато подій за добу. Спробуйте завтра</string>
-  <string name="field_age_limits">Вікові обмеження</string>
+  <string name="field_age_limits">Вік — від %1$d; «до» не менше за «від» і не більше %2$d</string>
   <string name="find_on_map">Знайти на мапі</string>
   <string name="share">Поділитися</string>
   <string name="share_event_text">%1$s · %2$s · %3$s</string>
@@ -442,17 +442,30 @@
   <string name="err_invalid_name">Вкажіть імʼя від 2 до 60 символів</string>
   <string name="err_weak_password">Пароль має містити щонайменше 8 символів</string>
   <string name="err_same_password">Новий пароль збігається з поточним</string>
-  <string name="err_invalid_draft">Перевірте поля: %1$s</string>
-  <string name="field_title">Назва (3–120 символів)</string>
-  <string name="field_description">Опис (10–5000 символів)</string>
-  <string name="field_category">Категорія</string>
-  <string name="field_address">Місто та адреса</string>
-  <string name="field_location">Точка на мапі</string>
-  <string name="field_capacity">Кількість місць (1–10000)</string>
-  <string name="field_starts_at">Майбутня дата початку</string>
-  <string name="field_ends_at">Час закінчення</string>
-  <string name="field_time_zone">Часовий пояс</string>
-  <string name="field_image_url">Фото</string>
+  <!-- Правило поля, що не пройшло: межі з EventRules, щоб текст не розійшовся з перевіркою. -->
+  <plurals name="field_title">
+    <item quantity="one">Назва — щонайменше %d символ</item>
+    <item quantity="few">Назва — щонайменше %d символи</item>
+    <item quantity="many">Назва — щонайменше %d символів</item>
+    <item quantity="other">Назва — щонайменше %d символу</item>
+  </plurals>
+  <plurals name="field_description">
+    <item quantity="one">Опис — щонайменше %d символ</item>
+    <item quantity="few">Опис — щонайменше %d символи</item>
+    <item quantity="many">Опис — щонайменше %d символів</item>
+    <item quantity="other">Опис — щонайменше %d символу</item>
+  </plurals>
+  <string name="field_category">Оберіть категорію</string>
+  <string name="field_address">Вкажіть місто й адресу</string>
+  <string name="field_location">Поставте точку зустрічі на мапі</string>
+  <string name="field_capacity">Кількість місць — від %1$d до %2$d</string>
+  <string name="field_starts_at">Початок — дата й час у майбутньому</string>
+  <string name="field_ends_at">Кінець — пізніше за початок</string>
+  <string name="field_time_zone">Не вдалося визначити часовий пояс. Оберіть точку на мапі ще раз</string>
+  <string name="field_image_url">Фото — JPEG, PNG або WebP до %1$d МБ</string>
+  <!-- Лічильник під описом: скільки набрано з мінімуму, потім — зі стелі. -->
+  <string name="description_counter_min">%1$d / щонайменше %2$d</string>
+  <string name="description_counter">%1$d / %2$d</string>
   <string name="msg_joined_event">Ви приєдналися до події</string>
   <string name="msg_joined_waitlist">Ви в черзі. Місце звільниться — додамо вас автоматично</string>
   <string name="msg_signed_in">Ви увійшли</string>

@@ -1,10 +1,13 @@
 package app.poruch.android.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import app.poruch.android.R
 import app.poruch.domain.AppError
 import app.poruch.domain.DraftField
+import app.poruch.domain.EventRules
+import app.poruch.domain.ImageRules
 import app.poruch.domain.ReportReason
 import app.poruch.domain.SafetyRules
 import app.poruch.shared.AppMessage
@@ -19,11 +22,8 @@ fun AppNotice.text(): String = when (this) {
 
 @Composable
 fun AppError.text(): String = when (this) {
-    // Відхилена чернетка називає поля, тож повідомлення вказує на них.
-    is AppError.InvalidDraft -> stringResource(
-        R.string.err_invalid_draft,
-        fields.map { stringResource(it.resource) }.joinToString()
-    )
+    // Відхилена чернетка називає поля, тож повідомлення каже правило кожного.
+    is AppError.InvalidDraft -> fields.map { it.rule() }.joinToString(". ")
     // Мінімальний вік показуємо числом.
     AppError.Underage -> stringResource(R.string.err_underage, SafetyRules.MIN_SIGNUP_AGE)
     else -> stringResource(resource)
@@ -71,21 +71,25 @@ private val AppError.resource: Int
         is AppError.InvalidDraft -> R.string.err_rejected
     }
 
-private val DraftField.resource: Int
-    get() = when (this) {
-        DraftField.TITLE -> R.string.field_title
-        DraftField.DESCRIPTION -> R.string.field_description
-        DraftField.CATEGORY -> R.string.field_category
-        DraftField.ADDRESS -> R.string.field_address
-        DraftField.LOCATION -> R.string.field_location
-        DraftField.CAPACITY -> R.string.field_capacity
-        DraftField.STARTS_AT -> R.string.field_starts_at
-        DraftField.ENDS_AT -> R.string.field_ends_at
-        DraftField.TIME_ZONE -> R.string.field_time_zone
-        DraftField.IMAGE_URL -> R.string.field_image_url
-        DraftField.AGE_LIMITS -> R.string.field_age_limits
-        DraftField.CONTACT_URL -> R.string.field_contact_url
-    }
+/**
+ * Правило поля чернетки людськими словами, з межами з [EventRules]. Довжину згори тримає саме
+ * поле введення, тож для назви й опису лишається сказати лише про мінімум.
+ */
+@Composable
+fun DraftField.rule(): String = when (this) {
+    DraftField.TITLE -> EventRules.titleLength.first.let { pluralStringResource(R.plurals.field_title, it, it) }
+    DraftField.DESCRIPTION -> EventRules.descriptionLength.first.let { pluralStringResource(R.plurals.field_description, it, it) }
+    DraftField.CATEGORY -> stringResource(R.string.field_category)
+    DraftField.ADDRESS -> stringResource(R.string.field_address)
+    DraftField.LOCATION -> stringResource(R.string.field_location)
+    DraftField.CAPACITY -> stringResource(R.string.field_capacity, EventRules.capacity.first, EventRules.capacity.last)
+    DraftField.STARTS_AT -> stringResource(R.string.field_starts_at)
+    DraftField.ENDS_AT -> stringResource(R.string.field_ends_at)
+    DraftField.TIME_ZONE -> stringResource(R.string.field_time_zone)
+    DraftField.IMAGE_URL -> stringResource(R.string.field_image_url, ImageRules.MAX_BYTES / (1024 * 1024))
+    DraftField.AGE_LIMITS -> stringResource(R.string.field_age_limits, SafetyRules.MIN_SIGNUP_AGE, SafetyRules.MAX_AGE_LIMIT)
+    DraftField.CONTACT_URL -> stringResource(R.string.field_contact_url)
+}
 
 private val AppMessage.resource: Int
     get() = when (this) {

@@ -8,6 +8,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import app.poruch.domain.Event
 import app.poruch.domain.PlaceResult
+import app.poruch.shared.AppNotice
 import app.poruch.shared.PoruchApp
 import java.time.Instant
 import java.time.ZoneId
@@ -47,6 +48,13 @@ class EditorViewModel(
                 original = loaded
                 val form = loaded.toForm() ?: return@observe copy(mutating = latest.mutating)
                 return@observe copy(form = form, mapLatitude = loaded.latitude, mapLongitude = loaded.longitude, mutating = latest.mutating)
+            }
+            // Відмову показуємо над кнопкою, де людина щойно натиснула, а не банером згори.
+            val failed = (latest.notice as? AppNotice.Failed)?.error
+            if (submitted && failed != null) {
+                submitted = false
+                app.clearNotice()
+                return@observe copy(mutating = latest.mutating, failure = failed)
             }
             if (submitted && latest.completedEventId != null) {
                 submitted = false
@@ -112,8 +120,10 @@ class EditorViewModel(
                 // Екран вибору вже спитав про цю крапку.
                 if (known == null) describePoint(intent.latitude, intent.longitude)
             }
-            EditorIntent.Next -> reduce { if (canAdvance) copy(step = step.next()) else this }
-            EditorIntent.Back -> reduce { copy(step = step.previous()) }
+            EditorIntent.Next -> reduce {
+                if (stepProblems.isEmpty()) copy(step = step.next(), showProblems = false) else copy(showProblems = true)
+            }
+            EditorIntent.Back -> reduce { copy(step = step.previous(), showProblems = false, failure = null) }
             is EditorIntent.ShowPicker -> reduce { copy(picker = intent.request) }
             is EditorIntent.SetDateTime -> {
                 val text = intent.value.format(EditorForm.LOCAL_FORMAT)
@@ -137,7 +147,9 @@ class EditorViewModel(
     }
 
     private fun submit() {
+        if (state.value.stepProblems.isNotEmpty()) return reduce { copy(showProblems = true) }
         val draft = state.value.form.toDraft(original?.imageUrl) ?: return
+        reduce { copy(failure = null) }
         app.clearCompletedEvent()
         submitted = true
         val id = editingId
