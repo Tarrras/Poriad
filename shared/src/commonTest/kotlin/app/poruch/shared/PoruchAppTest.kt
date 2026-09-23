@@ -171,7 +171,7 @@ class PoruchAppTest {
     /** Стос майданчика — не початок стрічки: просимо картки для хвоста списку, якого у вікні нема. */
     @Test fun tappingAVenueStackAsksForItsOwnCardsNotTheStartOfTheList()=runTest {
         val events=Events(); val app=app(events,backgroundScope)
-        val all=(1..40).map { event("e%02d".format(it),"music","2090-01-01T10:00:00Z") }
+        val all=(1..40).map { event("e${it.toString().padStart(2,'0')}","music","2090-01-01T10:00:00Z") }
         events.results=all; events.inlineCards=2
         app.searchArea(1.0,2.0,3.0,4.0); advanceTimeBy(101); runCurrent()
         events.cardRequests.clear()
@@ -187,7 +187,7 @@ class PoruchAppTest {
     /** Повторний тап по тому самому піну нічого не питає. */
     @Test fun aStackAlreadyInHandCostsNoRequest()=runTest {
         val events=Events(); val app=app(events,backgroundScope)
-        val all=(1..10).map { event("e%02d".format(it),"music","2090-01-01T10:00:00Z") }
+        val all=(1..10).map { event("e${it.toString().padStart(2,'0')}","music","2090-01-01T10:00:00Z") }
         events.results=all; events.inlineCards=10
         app.searchArea(1.0,2.0,3.0,4.0); advanceTimeBy(101); runCurrent()
         events.cardRequests.clear()
@@ -483,7 +483,7 @@ class PoruchAppTest {
 
     /** Мапа й головна просять той самий початок видачі: кожну картку питаємо раз. */
     @Test fun mapAndHomeDoNotAskForTheSameCardsTwice()=runTest {
-        val events=Events(); events.results=(1..40).map { event("e%02d".format(it),"music","2090-01-01T10:00:00Z") }; events.inlineCards=0
+        val events=Events(); events.results=(1..40).map { event("e${it.toString().padStart(2,'0')}","music","2090-01-01T10:00:00Z") }; events.inlineCards=0
         val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(1000); runCurrent()
         val asked=events.cardRequests.flatten()
         assertEquals(asked.distinct(),asked)

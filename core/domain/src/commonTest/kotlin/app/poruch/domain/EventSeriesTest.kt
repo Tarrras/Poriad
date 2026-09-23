@@ -167,7 +167,7 @@ class EventSeriesTest {
     )
 
     @Test
-    fun `a cancelled session stays in the carousel, marked`() {
+    fun `a cancelled session stays in the carousel and is marked`() {
         // Скасований вечір в індексі відсутній, але відкритий зі «Збережених» має показати інші дати.
         val index = EventSeries.fold(
             listOf(
@@ -205,7 +205,7 @@ class EventSeriesTest {
     }
 
     @Test
-    fun `other days count days, not sessions`() {
+    fun `other days count days not sessions`() {
         fun session(id: String, at: String) = EventSession(id, at, "Europe/Kyiv")
         // Два сеанси одного дня — «ще 1 дата» збрехало б.
         assertEquals(0, EventSeries.otherDays(listOf(session("m", "2026-10-27T13:30:00Z"), session("e", "2026-10-27T16:30:00Z"))))
@@ -215,7 +215,7 @@ class EventSeriesTest {
     }
 
     @Test
-    fun `a day is the session's own day, not the UTC one`() {
+    fun `a day is the session's own day and not the UTC one`() {
         // 00:30 за Києвом — це 22:30 UTC напередодні; за UTC вийшло б два дні.
         val sessions = listOf(
             EventSession("night", "2026-12-22T22:30:00Z", "Europe/Kyiv"),
