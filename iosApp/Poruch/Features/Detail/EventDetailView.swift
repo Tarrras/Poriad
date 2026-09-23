@@ -32,6 +32,8 @@ struct EventDetailView: View {
     /// обкладинка стирчала з-під місця, відведеного їй у стрічці. Початкове значення — для
     /// першого кадру в стосі; далі уточнює `onGeometryChange`.
     @State private var topInset: CGFloat = measuredStatusBarInset()
+    /// Запит деталей уже побачили в стані. До того порожня подія — ще не відповідь, а перший кадр.
+    @State private var requested = false
     @Environment(\.openMap) private var openMap
 
     /// Id відкритої події від того, хто відкриває, а не зі стану: див. `.task` нижче.
@@ -47,10 +49,22 @@ struct EventDetailView: View {
         Group {
             if let event = view.event {
                 detail(event, view)
+            } else if requested && model.state?.detail.loading == false {
+                // Сервер відповів порожньо або з помилкою: не вічний спінер, а вихід.
+                VStack(spacing: Space.lg) {
+                    EmptyState(
+                        symbol: "calendar.badge.exclamationmark", title: "Подія недоступна",
+                        message: "Її могли скасувати, приховати або видалити.",
+                        actionLabel: "Спробувати ще раз"
+                    ) { model.app.openEvent(id: eventID) }
+                    SecondaryButton(title: "Назад") { dismiss() }
+                }
+                .padding(Space.page).frame(maxWidth: .infinity, maxHeight: .infinity).background(Palette.canvas)
             } else {
                 ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity).background(Palette.canvas)
             }
         }
+        .onChange(of: model.state?.detail.loading) { _, loading in if loading == true { requested = true } }
         // Єдине місце, де перепитуємо місця й членство. За переданим id, а не за `model.state`:
         // знімок стану приходить асинхронно і в мить появи ще тримає попередню відкриту подію.
         .task { model.app.openEvent(id: eventID) }
@@ -176,9 +190,6 @@ private struct DetailSheets: ViewModifier {
         )) { session in
             CalendarEditor(event: event, store: session.store)
         }
-        .alert("Календар", isPresented: $actions.calendarDenied) {
-            Button("Добре") { actions.calendarDenied = false }
-        } message: { Text("Дозвольте доступ до календаря в налаштуваннях iOS.") }
     }
 }
 
@@ -389,7 +400,7 @@ extension EventDetailView {
     /// Ряд круглих дій із підписами, як панель під картою дня в Moonly.
     private func externalActions(_ event: Event, _ view: EventDetailPresentation) -> some View {
         HStack(spacing: Space.sm) {
-            Button { actions.requestCalendar() } label: {
+            Button { actions.openCalendar() } label: {
                 RoundAction(title: "Календар", enabled: !view.cancelled) { Image(systemName: "calendar.badge.plus") }
             }.buttonStyle(PressableStyle()).disabled(view.cancelled)
             Button { SystemActions.openInMaps(event) } label: {
@@ -410,10 +421,7 @@ extension EventDetailView {
             // В афіші це адреса залу, а не «місце зустрічі».
             SectionHeader(title: event.isCommunity ? "Місце зустрічі" : "Місце")
             ZStack(alignment: .bottomTrailing) {
-                EventMap(
-                    events: [event.asIndexEntry()], latitude: event.latitude, longitude: event.longitude,
-                    selectedID: event.id, interactive: false, selected: { _ in }, moved: { _ in }
-                )
+                EventMapSnapshot(latitude: event.latitude, longitude: event.longitude, category: event.category)
                 .frame(height: 180)
                 .clipShape(RoundedRectangle(cornerRadius: Corner.md, style: .continuous))
                 .allowsHitTesting(false)
@@ -532,8 +540,8 @@ extension EventDetailView {
             Divider().overlay(Palette.hairline)
             PhotosPicker(selection: $photo, matching: .images) {
                 Label("Додати або замінити фото", systemImage: "camera")
-                    .font(.system(size: 15, weight: .semibold)).foregroundStyle(Palette.ink)
-                    .frame(maxWidth: .infinity).frame(height: 52)
+                    .font(PoruchFont.subhead.weight(.semibold)).foregroundStyle(Palette.ink)
+                    .frame(maxWidth: .infinity).frame(minHeight: 52)
                     .background(Palette.brandContainer, in: Capsule())
             }.disabled(view.mutating)
             if let error = actions.photoError {
@@ -702,7 +710,8 @@ struct ReportSheet: View {
     let target: ReportTarget
     let send: (String, String) -> Void
     @Environment(\.dismiss) private var dismiss
-    @State private var reason = ReportReason.shared.MINORS
+    /// Без причини за замовчуванням: інакше поспіх дає хибні скарги найвищого пріоритету.
+    @State private var reason: String?
     @State private var details = ""
 
     var body: some View {
@@ -725,9 +734,12 @@ struct ReportSheet: View {
                             Spacer(minLength: 0)
                         }.padding(.vertical, Space.sm).contentShape(Rectangle())
                     }.buttonStyle(.plain)
+                    .accessibilityAddTraits(reason == option.value ? .isSelected : [])
                 }
                 LabelledField(label: "Що сталося (необовʼязково)", text: $details, multiline: true)
-                PrimaryButton(title: "Надіслати скаргу") { send(reason, details); dismiss() }
+                PrimaryButton(title: "Надіслати скаргу", enabled: reason != nil) {
+                    if let reason { send(reason, details); dismiss() }
+                }
             }
             .padding(Space.page)
         }

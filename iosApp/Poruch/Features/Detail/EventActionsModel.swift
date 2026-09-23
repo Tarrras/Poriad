@@ -8,7 +8,6 @@ import Shared
 @MainActor final class EventActionsModel: ObservableObject {
     @Published var photoError: String?
     @Published var calendarStore: EKEventStore?
-    @Published var calendarDenied = false
 
     private let app: PoruchApp
 
@@ -53,24 +52,28 @@ import Shared
 
     func cancel(_ event: Event) { app.cancelEvent(id: event.id) }
 
-    func requestCalendar() {
-        SystemActions.requestCalendarAccess { [weak self] store in
-            guard let self else { return }
-            if let store { calendarStore = store } else { calendarDenied = true }
-        }
-    }
+    /// З iOS 17 редактор EventKit працює поза процесом застосунку і доступу до календаря не потребує:
+    /// людина сама обирає календар і зберігає. Тож дозволу не питаємо.
+    func openCalendar() { calendarStore = EKEventStore() }
 
-    /// Перекодовує будь-що з пікера в JPEG: один тип простіше гарантувати, ніж визначати.
+    /// Перекодовує будь-що з пікера в JPEG: один тип простіше гарантувати, ніж визначати. Фото з
+    /// камери 24–48 Мп у JPEG завжди більше за ліміт, тому спершу зменшуємо до обкладинки.
+    /// Декодування й копіювання в Kotlin — поза головним потоком: це сотні мілісекунд.
     func upload(_ item: PhotosPickerItem?, to event: Event) async {
         guard let item else { return }
         do {
-            guard let data = try await item.loadTransferable(type: Data.self),
-                  let image = UIImage(data: data),
-                  let jpeg = image.jpegData(compressionQuality: jpegQuality)
-            else { photoError = "Не вдалося прочитати фото"; return }
+            guard let data = try await item.loadTransferable(type: Data.self) else { photoError = "Не вдалося прочитати фото"; return }
+            let jpeg = await Task.detached(priority: .userInitiated) {
+                ThumbnailCache.downsample(data, to: uploadMaxPixel)?.jpegData(compressionQuality: jpegQuality)
+            }.value
+            guard let jpeg else { photoError = "Не вдалося прочитати фото"; return }
             guard jpeg.count <= Int(ImageRules.shared.MAX_BYTES) else { photoError = "Оберіть фото до 5 МБ"; return }
-            let bytes = KotlinByteArray(size: Int32(jpeg.count))
-            for (index, byte) in jpeg.enumerated() { bytes.set(index: Int32(index), value: Int8(bitPattern: byte)) }
+            // Мосту Data → ByteArray у shared нема: копіюємо побайтово, але у фоні.
+            let bytes = await Task.detached(priority: .userInitiated) {
+                let bytes = KotlinByteArray(size: Int32(jpeg.count))
+                for (index, byte) in jpeg.enumerated() { bytes.set(index: Int32(index), value: Int8(bitPattern: byte)) }
+                return bytes
+            }.value
             photoError = nil
             app.uploadEventImage(eventId: event.id, bytes: bytes, contentType: "image/jpeg")
         } catch {
@@ -81,3 +84,5 @@ import Shared
 
 /// Досить для обкладинки і не виходить за ліміт сховища.
 private let jpegQuality: CGFloat = 0.8
+/// Найбільша сторона обкладинки в пікселях: з запасом для екрана деталей.
+private let uploadMaxPixel: CGFloat = 2048

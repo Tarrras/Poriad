@@ -16,17 +16,10 @@ enum SystemActions {
         guard let url = URL(string: "https://maps.apple.com/?ll=\(event.latitude),\(event.longitude)&q=\(query)") else { return }
         UIApplication.shared.open(url)
     }
-
-    /// Копія в системному календарі переживає наші локальні сповіщення.
-    static func requestCalendarAccess(_ completion: @escaping (EKEventStore?) -> Void) {
-        let store = EKEventStore()
-        store.requestWriteOnlyAccessToEvents { granted, _ in
-            DispatchQueue.main.async { completion(granted ? store : nil) }
-        }
-    }
 }
 
-/// Редактор EventKit: вибір календаря, нагадування й підтвердження лишаються в Apple.
+/// Редактор EventKit: вибір календаря, нагадування й підтвердження лишаються в Apple. Копія в
+/// системному календарі переживає наші локальні сповіщення.
 struct CalendarEditor: UIViewControllerRepresentable {
     let event: Event
     let store: EKEventStore
@@ -45,7 +38,6 @@ struct CalendarEditor: UIViewControllerRepresentable {
         let start = parseEventDate(event.startsAt) ?? Date()
         entry.startDate = start
         entry.endDate = parseEventDate(event.endsAt) ?? start.addingTimeInterval(defaultDuration)
-        entry.calendar = store.defaultCalendarForNewEvents
         controller.event = entry
         controller.editViewDelegate = context.coordinator
         return controller

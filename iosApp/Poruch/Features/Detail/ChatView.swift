@@ -15,6 +15,7 @@ struct ChatView: View {
     @State private var draft = ""
     @State private var reporting: ChatMessage?
     @State private var deleting: ChatMessage?
+    @State private var blocking: ChatMessage?
     @FocusState private var composing: Bool
 
     /// Подія з будь-якого списку стану: чат відкривають з деталей, з головної і з пушу.
@@ -48,6 +49,17 @@ struct ChatView: View {
         .confirmationDialog("Видалити повідомлення?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible) {
             Button("Видалити", role: .destructive) { if let message = deleting { model.app.deleteMessage(messageId: message.id) } }
         } message: { Text("Його не побачить ніхто з учасників.") }
+        .confirmationDialog(
+            "Ви більше не побачите подій і повідомлень цієї людини, а вона — ваших. Скасувати можна у профілі.",
+            isPresented: Binding(get: { blocking != nil }, set: { if !$0 { blocking = nil } }), titleVisibility: .visible
+        ) {
+            Button("Заблокувати", role: .destructive) { if let message = blocking { model.app.blockUser(userId: message.authorId) } }
+        }
+        // Текст, що не пішов, повертається в поле, якщо людина ще не почала нового.
+        .onChange(of: chat?.failedDraft) { _, failed in
+            guard failed != nil, let text = model.app.consumeFailedDraft() else { return }
+            if draft.isEmpty { draft = text }
+        }
         .sheet(item: $reporting) { message in
             ReportSheet(target: .message) { reason, details in
                 model.app.reportMessage(messageId: message.id, reason: reason, details: details)
@@ -137,7 +149,7 @@ struct ChatView: View {
     private var rules: some View {
         HStack(alignment: .top, spacing: Space.sm) {
             Image(systemName: "hand.raised").font(.system(size: 13, weight: .medium)).foregroundStyle(Palette.inkTertiary).padding(.top, 1)
-            Text("Повідомлення пишуть учасники. «Поряд» їх не перевіряє. На образи чи спам можна поскаржитись, затиснувши повідомлення.")
+            Text("Повідомлення пишуть учасники. «Поряд» їх не перевіряє. На образи чи спам можна поскаржитись або заблокувати автора, затиснувши повідомлення.")
                 .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
         }
         .padding(.vertical, Space.md)
@@ -173,7 +185,7 @@ struct ChatView: View {
                     .frame(minWidth: 36, alignment: .leading)
                     .overlay(alignment: .bottomTrailing) {
                         // Час у кутку, під останнім рядком, як у месенджерах.
-                        Text(clock(message.createdAt)).font(.system(size: 11))
+                        Text(clock(message.createdAt)).font(.caption2)
                             .foregroundStyle(mine ? Palette.onBrand.opacity(0.65) : Palette.inkTertiary)
                             .offset(y: 15)
                     }
@@ -188,8 +200,9 @@ struct ChatView: View {
             .layoutPriority(1)
             .contextMenu {
                 Button { UIPasteboard.general.string = message.body } label: { Label("Скопіювати", systemImage: "doc.on.doc") }
-                if message.authorId != userId {
+                if !mine {
                     Button { reporting = message } label: { Label("Поскаржитись", systemImage: "flag") }
+                    Button(role: .destructive) { blocking = message } label: { Label("Заблокувати автора", systemImage: "hand.raised") }
                 }
                 if organizer || mine {
                     Button(role: .destructive) { deleting = message } label: { Label("Видалити", systemImage: "trash") }
@@ -200,6 +213,15 @@ struct ChatView: View {
         .frame(maxWidth: .infinity, alignment: mine ? .trailing : .leading)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(mine ? "Ви" : name), \(clock(message.createdAt)): \(message.body)")
+        // Контекстне меню VoiceOver не відкриває: ті самі дії — через ротор.
+        .accessibilityActions {
+            Button("Скопіювати") { UIPasteboard.general.string = message.body }
+            if !mine {
+                Button("Поскаржитись") { reporting = message }
+                Button("Заблокувати автора") { blocking = message }
+            }
+            if organizer || mine { Button("Видалити") { deleting = message } }
+        }
     }
 
     // ---- Низ
@@ -317,4 +339,4 @@ private func sameThread(_ previous: ChatMessage, _ next: ChatMessage) -> Bool {
 }
 
 /// `sheet(item:)` потребує identity; в Kotlin-класу вона є, лише не оголошена.
-extension ChatMessage: Identifiable {}
+extension ChatMessage: @retroactive Identifiable {}

@@ -107,6 +107,70 @@ private func pinImage(glyph: PoruchGlyph, hue: UIColor, surface: UIColor, select
     }
 }
 
+/// Стиль мапи з токенів палітри під тему.
+private func mapStyleJSON(_ scheme: ColorScheme) -> String {
+    func endpoint(_ key: String, _ fallback: String) -> String {
+        let value = Bundle.main.object(forInfoDictionaryKey: key) as? String ?? ""
+        return value.isEmpty ? fallback : value
+    }
+    return MapStyleKt.poruchMapStyle(
+        tokens: mapTokens(scheme),
+        tilesUrl: endpoint("MAP_TILES_URL", MapEndpoints.shared.TILES),
+        glyphsUrl: endpoint("MAP_GLYPHS_URL", MapEndpoints.shared.GLYPHS)
+    )
+}
+
+/// Нерухома мініатюра місця (деталі події): одна картинка від `MLNMapSnapshotter` замість живого
+/// `MLNMapView` з GL-контекстом і тайлами в памʼяті, поки людина читає опис. Пін малюємо поверх.
+struct EventMapSnapshot: View {
+    let latitude: Double
+    let longitude: Double
+    let category: String
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.displayScale) private var displayScale
+    @State private var image: UIImage?
+    /// Знімальник живе до кінця знімка: звільнений, він його скасовує.
+    @State private var snapshotter: MLNMapSnapshotter?
+
+    var body: some View {
+        let pin = pinImage(
+            glyph: categoryGlyph(category), hue: categoryUIColor(category), surface: UIColor(Palette.surface), selected: true
+        )
+        GeometryReader { geometry in
+            ZStack {
+                Palette.canvasTint
+                if let image { Image(uiImage: image).resizable().scaledToFill() }
+                // Вістря піна — у центрі, там, де точка події. 6 — відступ під тінь у `pinImage`.
+                Image(uiImage: pin).offset(y: -(pin.size.height / 2 - 6))
+            }
+            .frame(width: geometry.size.width, height: geometry.size.height)
+            .task(id: "\(latitude),\(longitude),\(scheme),\(Int(geometry.size.width))x\(Int(geometry.size.height))") {
+                await render(geometry.size)
+            }
+        }
+    }
+
+    private func render(_ size: CGSize) async {
+        guard size.width > 0, size.height > 0 else { return }
+        // Знімку потрібен URL стилю, а стиль у нас рядок: кладемо його у тимчасовий файл теми.
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("poruch-style-\(scheme == .dark ? "dark" : "light").json")
+        guard (try? mapStyleJSON(scheme).write(to: file, atomically: true, encoding: .utf8)) != nil else { return }
+        let camera = MLNMapCamera()
+        camera.centerCoordinate = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+        let options = MLNMapSnapshotOptions(styleURL: file, camera: camera, size: size)
+        options.zoomLevel = MapZoom.street
+        options.scale = displayScale
+        // Як на живій мапі: без логотипу рендерера, атрибуція даних лишається.
+        options.showsLogo = false
+        let snapshotter = MLNMapSnapshotter(options: options)
+        self.snapshotter = snapshotter
+        let rendered: UIImage? = await withCheckedContinuation { continuation in
+            snapshotter.start { snapshot, _ in continuation.resume(returning: snapshot?.image) }
+        }
+        if let rendered, !Task.isCancelled { image = rendered }
+    }
+}
+
 /// Мапа подій. Кластеризацію робить MapLibre всередині стилю, тож панорамування не перебудовує анотації.
 struct EventMap: UIViewRepresentable {
     /// Індекс, а не картки: мапі досить координат і категорії.
@@ -209,17 +273,7 @@ struct EventMap: UIViewRepresentable {
         map.delegate = nil
     }
 
-    private func styleJSON(_ scheme: ColorScheme) -> String {
-        func endpoint(_ key: String, _ fallback: String) -> String {
-            let value = Bundle.main.object(forInfoDictionaryKey: key) as? String ?? ""
-            return value.isEmpty ? fallback : value
-        }
-        return MapStyleKt.poruchMapStyle(
-            tokens: mapTokens(scheme),
-            tilesUrl: endpoint("MAP_TILES_URL", MapEndpoints.shared.TILES),
-            glyphsUrl: endpoint("MAP_GLYPHS_URL", MapEndpoints.shared.GLYPHS)
-        )
-    }
+    private func styleJSON(_ scheme: ColorScheme) -> String { mapStyleJSON(scheme) }
 
     final class Coordinator: NSObject, MLNMapViewDelegate {
         var parent: EventMap
