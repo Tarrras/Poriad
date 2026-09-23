@@ -57,6 +57,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -133,7 +134,10 @@ fun PoruchSearchField(
                 textStyle = MaterialTheme.typography.bodyLarge.copy(color = colors.ink),
                 cursorBrush = SolidColor(colors.ink),
                 decorationBox = { inner ->
-                    if (value.isEmpty()) Text(placeholder, style = MaterialTheme.typography.bodyLarge, color = colors.inkTertiary)
+                    if (value.isEmpty()) Text(
+                        placeholder, style = MaterialTheme.typography.bodyLarge, color = colors.inkTertiary,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis
+                    )
                     inner()
                 }
             )
@@ -209,7 +213,7 @@ fun PoruchChip(
         Modifier.minimumInteractiveComponentSize().height(38.dp)
             .background(if (selected) brandGradient() else SolidColor(colors.surface), Radius.pill)
             .border(1.dp, if (selected || !colors.dark) Color.Transparent else colors.hairline, Radius.pill)
-            .clip(Radius.pill).pressable(onClick = onClick).padding(horizontal = Spacing.lg),
+            .clip(Radius.pill).semantics { this.selected = selected }.pressable(onClick = onClick).padding(horizontal = Spacing.lg),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
     ) {
         when {
@@ -590,7 +594,7 @@ private fun EventMeta(event: Event, short: Boolean = false) {
 
 /** Крапка категорії плюс її назва кольором категорії. */
 @Composable
-fun EventDescriptor(event: Event, modifier: Modifier = Modifier) {
+fun EventDescriptor(event: Event, modifier: Modifier = Modifier, withCity: Boolean = false) {
     val colors = Poruch.colors
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
         CategoryDot(event.category)
@@ -599,7 +603,10 @@ fun EventDescriptor(event: Event, modifier: Modifier = Modifier) {
             style = PoruchType.descriptor, color = categoryInk(event.category), maxLines = 1
         )
         // Роздільник лише коли є текст праворуч.
-        event.address.ifBlank { event.city }.takeIf { it.isNotBlank() }?.let { place ->
+        // Місто першим: у видачі з різних міст воно важливіше за адресу й не зникає під трьома крапками.
+        val place = if (withCity) listOf(event.city, event.address).filter { it.isNotBlank() }.joinToString(", ")
+        else event.address.ifBlank { event.city }
+        place.takeIf { it.isNotBlank() }?.let { place ->
             Text(
                 "· $place",
                 style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary,
@@ -631,7 +638,8 @@ private fun SaveButton(saved: Boolean, onSave: () -> Unit, modifier: Modifier = 
 @Composable
 fun EventCard(
     event: Event, modifier: Modifier = Modifier, saved: Boolean = false, waitlisted: Boolean = false,
-    onSave: (() -> Unit)? = null, onClick: () -> Unit
+    /** Назвати місто в підписі: видача з різних міст. */
+    withCity: Boolean = false, onSave: (() -> Unit)? = null, onClick: () -> Unit
 ) {
     val colors = Poruch.colors
     val cancelled = event.isCancelled
@@ -653,7 +661,7 @@ fun EventCard(
                 event.title, style = MaterialTheme.typography.titleSmall, color = colors.ink,
                 maxLines = 2, overflow = TextOverflow.Ellipsis
             )
-            EventDescriptor(event)
+            EventDescriptor(event, withCity = withCity)
             EventMeta(event)
         }
     }

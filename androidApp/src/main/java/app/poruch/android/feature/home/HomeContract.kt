@@ -3,6 +3,8 @@ package app.poruch.android.feature.home
 import app.poruch.domain.ChatUnread
 import app.poruch.domain.Event
 import app.poruch.domain.HomeLocation
+import app.poruch.shared.ALL_CATEGORIES
+import app.poruch.shared.DateFilter
 
 /** Стан головної: усе вже відфільтроване й посортоване для рендеру. */
 data class HomeState(
@@ -32,6 +34,10 @@ data class HomeState(
     /** Скільки знайдено насправді. */
     val resultsTotal: Int = 0,
     val searchLoading: Boolean = false,
+    /** Пошук по всіх містах, а не лише в [cityName]. Фільтри пошуку звужують лише знайдене, не стрічку. */
+    val searchEverywhere: Boolean = false,
+    val searchCategory: String = ALL_CATEGORIES,
+    val searchDate: String = DateFilter.ANY,
     /** Місто з подіями, назване в пошуку, крім поточного: текстовий пошук іде лише в межах міста. */
     val cityMatch: HomeLocation? = null
 ) {
@@ -45,6 +51,10 @@ data class PendingRequests(val event: Event, val count: Int)
 
 sealed interface HomeIntent {
     data class Search(val text: String) : HomeIntent
+    /** Фільтри під полем пошуку: область, категорія, дата. */
+    data class SearchEverywhere(val everywhere: Boolean) : HomeIntent
+    data class SearchCategory(val category: String) : HomeIntent
+    data class SearchDate(val filter: String) : HomeIntent
     /** Підказка «Показати події в місті …» під пошуком. */
     data class SwitchCity(val city: HomeLocation) : HomeIntent
     /** «Усі» під результатами: мапа відкривається з тим самим пошуком. Єдиний міст між пошуками. */

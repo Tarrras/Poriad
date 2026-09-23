@@ -57,7 +57,11 @@ class HomeViewModel(private val app: PoruchApp) : MviViewModel<HomeState, HomeIn
             results = home.found,
             resultsTotal = home.resultsTotal,
             searchLoading = home.searchLoading,
-            cityMatch = if (home.searching) HomeLocation.mentioned(home.searchText, shared.city.name) else null
+            searchEverywhere = home.searchEverywhere,
+            searchCategory = home.searchCategory,
+            searchDate = home.searchDate,
+            // Пошук усюди вже бачить інші міста: підказка «лише в межах міста» була б неправдою.
+            cityMatch = if (home.searching && !home.searchEverywhere) HomeLocation.mentioned(home.searchText, shared.city.name) else null
         )
     }
 
@@ -71,6 +75,9 @@ class HomeViewModel(private val app: PoruchApp) : MviViewModel<HomeState, HomeIn
             send(HomeEffect.Navigate(HomeDestination.CHAT, intent.id))
         }
         is HomeIntent.Search -> app.setHomeSearchText(intent.text)
+        is HomeIntent.SearchEverywhere -> app.setHomeSearchEverywhere(intent.everywhere)
+        is HomeIntent.SearchCategory -> app.setHomeSearchCategory(intent.category)
+        is HomeIntent.SearchDate -> app.setHomeSearchDate(intent.filter)
         is HomeIntent.SwitchCity -> {
             // Спершу текст: інакше назва міста лишилася б фільтром і в новому місті.
             app.setHomeSearchText("")

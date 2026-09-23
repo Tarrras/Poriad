@@ -13,8 +13,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -24,9 +29,12 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import app.poruch.android.R
+import app.poruch.android.feature.explore.dateFilters
 import app.poruch.android.ui.*
 import app.poruch.domain.ChatUnread
 import app.poruch.domain.Event
+import app.poruch.shared.ALL_CATEGORIES
+import app.poruch.shared.DateFilter
 
 /** Головна: плани, сьогодні і все поруч з даних, які вже завантажила мапа. Малює [HomeState], шле [HomeIntent]. */
 @Composable
@@ -91,9 +99,54 @@ private fun Header(state: HomeState, onIntent: (HomeIntent) -> Unit) {
             }
             IconPill(PoruchIcons.person, stringResource(R.string.profile)) { onIntent(HomeIntent.OpenProfile) }
         }
+        // Плейсхолдер каже, де шукаємо: інакше пошук лише в місті ніхто не помічав.
+        var focused by remember { mutableStateOf(false) }
         PoruchSearchField(
-            state.searchText, { onIntent(HomeIntent.Search(it)) }, stringResource(R.string.search_placeholder)
+            state.searchText, { onIntent(HomeIntent.Search(it)) },
+            when {
+                state.searchEverywhere -> stringResource(R.string.home_search_everywhere)
+                state.cityName.isBlank() -> stringResource(R.string.search_placeholder)
+                else -> stringResource(R.string.home_search_in_city, state.cityName)
+            },
+            Modifier.onFocusChanged { focused = it.hasFocus }
         )
+        if (focused || state.searching) SearchFilters(state, onIntent)
+    }
+}
+
+/** Фільтри пошуку тими ж чипами, що на мапі: область і дата в одному ряду, категорії — у другому. */
+@Composable
+private fun SearchFilters(state: HomeState, onIntent: (HomeIntent) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        Row(
+            Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (state.cityName.isNotBlank()) PoruchChip(
+                state.cityName, !state.searchEverywhere, { onIntent(HomeIntent.SearchEverywhere(false)) }, PoruchIcons.pin
+            )
+            PoruchChip(
+                stringResource(R.string.everywhere), state.searchEverywhere,
+                { onIntent(HomeIntent.SearchEverywhere(!state.searchEverywhere)) }, Icons.Outlined.Public
+            )
+            dateFilters.forEach { (key, label) ->
+                // Повторний тап знімає вибір, як на мапі.
+                PoruchChip(stringResource(label), state.searchDate == key, {
+                    onIntent(HomeIntent.SearchDate(if (state.searchDate == key) DateFilter.ANY else key))
+                })
+            }
+        }
+        Row(
+            Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically
+        ) {
+            PoruchChip(stringResource(R.string.all), state.searchCategory == ALL_CATEGORIES, { onIntent(HomeIntent.SearchCategory(ALL_CATEGORIES)) })
+            categories.forEach { key ->
+                PoruchChip(stringResource(categoryLabel(key)), state.searchCategory == key, {
+                    onIntent(HomeIntent.SearchCategory(if (state.searchCategory == key) ALL_CATEGORIES else key))
+                }, dot = key)
+            }
+        }
     }
 }
 
@@ -179,6 +232,11 @@ private fun SearchResults(state: HomeState, onIntent: (HomeIntent) -> Unit) {
         state.isEmpty && state.busy -> Box(
             Modifier.fillMaxWidth().padding(Spacing.section), contentAlignment = Alignment.Center
         ) { CircularProgressIndicator(color = colors.ink) }
+        // У місті порожньо — найближчий крок розширити область, а не йти на мапу.
+        state.isEmpty && !state.searchEverywhere -> EmptyState(
+            PoruchIcons.search, stringResource(R.string.nothing_found), stringResource(R.string.nothing_found_city_hint, state.cityName),
+            actionLabel = stringResource(R.string.search_everywhere), onAction = { onIntent(HomeIntent.SearchEverywhere(true)) }
+        )
         state.isEmpty -> EmptyState(
             PoruchIcons.search, stringResource(R.string.nothing_found), stringResource(R.string.nothing_found_hint),
             actionLabel = stringResource(R.string.find_on_map), onAction = { onIntent(HomeIntent.OpenMap) }
@@ -186,15 +244,18 @@ private fun SearchResults(state: HomeState, onIntent: (HomeIntent) -> Unit) {
         else -> Column(
             Modifier.padding(horizontal = Spacing.page).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
+            val found = maxOf(state.resultsTotal, state.results.size)
             SectionHeader(
-                stringResource(R.string.events_found, maxOf(state.resultsTotal, state.results.size)),
-                actionLabel = if (state.resultsTotal > RESULTS_LIMIT) stringResource(R.string.see_all_short) else null,
+                if (state.searchEverywhere) stringResource(R.string.events_found_everywhere, found)
+                else stringResource(R.string.events_found_in_city, state.cityName, found),
+                // Мапа шукає в межах міста, тож для «усюди» вона показала б інше.
+                actionLabel = if (state.resultsTotal > RESULTS_LIMIT && !state.searchEverywhere) stringResource(R.string.see_all_short) else null,
                 onAction = { onIntent(HomeIntent.ShowResultsOnMap) }
             )
             state.results.take(RESULTS_LIMIT).forEach { event ->
                 EventCard(
                     event, saved = event.id in state.savedIds, waitlisted = event.id in state.waitlistedIds,
-                    onSave = { onIntent(HomeIntent.ToggleSaved(event.id)) }
+                    withCity = state.searchEverywhere, onSave = { onIntent(HomeIntent.ToggleSaved(event.id)) }
                 ) { onIntent(HomeIntent.OpenEvent(event.id)) }
             }
         }
