@@ -409,7 +409,7 @@ extension EventDetailView {
             ShareLink(item: SystemActions.shareText(for: event)) {
                 RoundAction(title: "Поділитися") { Image(systemName: "square.and.arrow.up") }
             }.buttonStyle(PressableStyle())
-            Button { model.app.selectEvent(id: model.app.cardIdOf(id: event.id)); dismiss(); openMap() } label: {
+            Button { model.app.selectEvent(id: model.app.cardIdOf(id: event.id)); openMap() } label: {
                 RoundAction(title: "На мапі") { Image(systemName: "map") }
             }.buttonStyle(PressableStyle())
         }
@@ -430,8 +430,9 @@ extension EventDetailView {
             .contentShape(Rectangle())
             .onTapGesture {
                 // Вибір до переходу, щоб мапа навелась. Для другої дати прокату — картка представника.
+                // Без `dismiss()`: деталі закриває `openMap` разом зі стеком. Pop лише верхніх деталей
+                // показував нижчі, і їхній `.task` знову обирав свою подію замість цієї.
                 model.app.selectEvent(id: model.app.cardIdOf(id: event.id))
-                dismiss()
                 openMap()
             }
             .accessibilityElement(children: .combine)

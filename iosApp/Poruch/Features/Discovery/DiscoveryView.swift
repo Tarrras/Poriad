@@ -49,6 +49,8 @@ private extension View {
 }
 
 struct DiscoveryView: View {
+    /// Росте з кожним переходом на мапу (`openMap`): деталі й список закриваються, лишається пін і його картка.
+    var openToken = 0
     @EnvironmentObject var model: AppModel
     @StateObject private var location = LocationFinder()
     @State private var citySearch = false
@@ -174,6 +176,11 @@ struct DiscoveryView: View {
         // Вибір, зроблений до появи мапи (перший перехід на вкладку), `onChange` не бачить.
         .onAppear { reveal(selectedID) }
         .onChange(of: selectedID) { _, id in reveal(id) }
+        // Шторка деталей закривається разом зі своїм стеком, навіть коли «На мапі» натиснули в запушених деталях.
+        .onChange(of: openToken) { _, _ in
+            detail = nil
+            open(.peek)
+        }
         // Картки просимо під категорію, яку показуємо: під фільтром вони лежать за краєм вікна.
         .onChange(of: listCategory) { _, _ in loadHead(cardPage) }
         .onChange(of: category) { _, _ in loadHead(cardPage) }

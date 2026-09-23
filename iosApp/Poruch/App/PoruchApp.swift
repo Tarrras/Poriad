@@ -57,6 +57,8 @@ struct RootView: View {
     /// не завжди скидав біндінг, і наступний тап по картці відкривав попередню або нічого.
     @State private var homePath = NavigationPath()
     @State private var minePath = NavigationPath()
+    /// Лічильник переходів на мапу: мапа по ньому закриває свої шторки, щоб показати вибрану подію.
+    @State private var mapToken = 0
     /// Стартове місто — те, де людина зараз, а не Київ за замовчуванням. Відмову мовчки приймаємо.
     @StateObject private var location = LocationFinder()
     var body: some View {
@@ -83,6 +85,7 @@ struct RootView: View {
     private func showMap() {
         homePath = NavigationPath()
         minePath = NavigationPath()
+        mapToken += 1
         tab = 1
     }
 
@@ -102,7 +105,7 @@ struct RootView: View {
                     .navigationDestination(for: EventRoute.self) { EventDetailView(app: model.app, eventID: $0.id) }
                     .navigationDestination(for: ChatRoute.self) { ChatView(eventID: $0.id) }
                 }.tag(0)
-                NavigationStack { DiscoveryView().toolbar(.hidden, for: .tabBar) }.tag(1)
+                NavigationStack { DiscoveryView(openToken: mapToken).toolbar(.hidden, for: .tabBar) }.tag(1)
                 NavigationStack(path: $minePath) {
                     MyEventsView(openEvent: { minePath.append(EventRoute(id: $0)) })
                         .safeAreaPadding(.bottom, 92).toolbar(.hidden, for: .tabBar)
