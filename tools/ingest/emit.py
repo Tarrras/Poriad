@@ -49,12 +49,16 @@ def venues_sql(items: list[Item], city: str) -> str:
         if it.latitude is None or key in seen or it.venue_how == "source":
             continue
         seen.add(key)
-        rows.append(
-            "  (" + ",".join([
-                _lit(key[0]), _lit(key[1]), _lit(it.venue_display or it.venue_name),
-                repr(it.latitude), repr(it.longitude), _lit(it.city),
-                _lit(_VENUE_SOURCE.get(it.venue_how, "osm")),
-                _lit(it.venue_ref), repr(it.geo_confidence)]) + ")")
+        row = "  (" + ",".join([
+            _lit(key[0]), _lit(key[1]), _lit(it.venue_display or it.venue_name),
+            repr(it.latitude), repr(it.longitude), _lit(it.city),
+            _lit(_VENUE_SOURCE.get(it.venue_how, "osm")),
+            _lit(it.venue_ref), repr(it.geo_confidence)]) + ")"
+        try:
+            row.encode("utf-8")      # сурогат із відповіді геокодера — пропуск кешу, не падіння дампу
+        except UnicodeEncodeError:
+            continue
+        rows.append(row)
     if not rows:
         return ""
     return ("insert into public.venues"
@@ -100,39 +104,88 @@ def _insert(publishable: list[Item], run_id: str) -> str:
     rows: list[str] = []
     for it in publishable:
         rows.append("  (" + ",".join([
-            _lit(str(it.event_id)),
-            f"(select organizer_id from public.event_sources where slug={_lit(it.source_slug)})",
+            _lit(str(it.event_id)), _lit(it.source_slug),
             _lit(it.title), _lit(it.description), _lit(it.category),
             _lit(it.city), _lit(it.address),
             repr(it.latitude), repr(it.longitude),
             _lit(it.starts_at.isoformat()), _lit(it.ends_at.isoformat()),
-            _lit(it.time_zone),
-            "null",                    # місткості в афіші немає — і тепер колонка може це сказати
-                                       # (20260907150000): вигадана одиниця малювала «Лишилось 1 місце».
-            _lit(it.image_url),
-            _lit("import"),
-            f"(select id from public.event_sources where slug={_lit(it.source_slug)})",
+            _lit(it.time_zone), _lit(it.image_url),
             _lit(it.source_uid), _lit(it.canonical_url), _lit(it.dedupe_key),
-            repr(it.quality), _lit("live"),
+            repr(it.quality),
             _lit(it.price_min) if it.price_min is not None else "null",
-            _lit(it.is_free), _lit(run_id)]) + ")")
+            _lit(it.is_free)]) + ")")
 
+    # Рядки через `select … join event_sources`: вимкнене джерело (opt-out, `enabled=false`) не
+    # вставляється й не оновлюється. Типи явно: у `values` без цільової таблиці літерали — текст.
+    # Ручне зняття (`withdrawn` з `ingest_run_id is null`, див. docs/event-ingestion.md) upsert
+    # не скасовує; автоматичні зняття несуть run_id, і повернута в афішу подія знову `live`.
     return ("".join(_adopt_identity(it) for it in publishable) + _adopt_moved_urls(publishable) +
         "insert into public.events (\n"
         "  id,organizer_id,title,description,category,city,address,latitude,longitude,\n"
         "  starts_at,ends_at,time_zone,capacity,image_url,\n"
         "  origin,source_id,source_uid,canonical_url,dedupe_key,quality,import_status,\n"
-        "  price_min,is_free,ingest_run_id)\nvalues\n"
+        "  price_min,is_free,ingest_run_id)\n"
+        "select v.id::uuid, s.organizer_id, v.title, v.description, v.category, v.city, v.address,\n"
+        "  v.latitude::float8, v.longitude::float8, v.starts_at::timestamptz, v.ends_at::timestamptz,\n"
+        "  v.time_zone,\n"
+        "  null,                       -- місткості в афіші немає — і колонка може це сказати\n"
+        "                              -- (20260907150000): вигадана одиниця малювала «Лишилось 1 місце».\n"
+        "  v.image_url, 'import', s.id, v.source_uid, v.canonical_url, v.dedupe_key,\n"
+        f"  v.quality::numeric, 'live', v.price_min::numeric, v.is_free::boolean, {_lit(run_id)}::uuid\n"
+        "from (values\n"
         + ",\n".join(rows)
-        + "\non conflict (source_id,source_uid) where source_id is not null do update set\n"
+        + "\n) v(id,slug,title,description,category,city,address,latitude,longitude,starts_at,ends_at,\n"
+          "     time_zone,image_url,source_uid,canonical_url,dedupe_key,quality,price_min,is_free)\n"
+          "join public.event_sources s on s.slug=v.slug\n"
+          "where s.enabled\n"
+          "on conflict (source_id,source_uid) where source_id is not null do update set\n"
           "  title=excluded.title, description=excluded.description, category=excluded.category,\n"
           "  city=excluded.city, address=excluded.address,\n"
           "  latitude=excluded.latitude, longitude=excluded.longitude,\n"
           "  starts_at=excluded.starts_at, ends_at=excluded.ends_at, time_zone=excluded.time_zone,\n"
           "  image_url=excluded.image_url, canonical_url=excluded.canonical_url,\n"
           "  dedupe_key=excluded.dedupe_key, quality=excluded.quality,\n"
-          "  import_status='live', price_min=excluded.price_min, is_free=excluded.is_free,\n"
-          "  ingest_run_id=excluded.ingest_run_id, updated_at=now();\n")
+          "  import_status=case when events.import_status='withdrawn' and events.ingest_run_id is null\n"
+          "                     then 'withdrawn' else 'live' end,\n"
+          "  price_min=excluded.price_min, is_free=excluded.is_free,\n"
+          "  ingest_run_id=case when events.import_status='withdrawn' and events.ingest_run_id is null\n"
+          "                     then null else excluded.ingest_run_id end,\n"
+          "  updated_at=now();\n")
+
+
+def unwritable(it: Item, run_id: str) -> str | None:
+    """Чому подію не можна записати, або None. Перевірка до дампу: одна погана подія інакше
+    валить або запис файлу (сурогат у UTF-8), або всю транзакцію (CHECK у events)."""
+    checks = [
+        (3 <= len(it.title.strip()) <= 120, "title"),
+        (len(it.description or "") <= 5000, "description"),
+        (1 <= len(it.city.strip()) <= 160, "city"),
+        (1 <= len((it.address or "").strip()) <= 300, "address"),
+        (it.canonical_url.startswith("https://") and len(it.canonical_url) <= 2048, "canonical_url"),
+        (it.image_url is None or (it.image_url.startswith("https://") and len(it.image_url) <= 2048),
+         "image_url"),
+    ]
+    for ok, field in checks:
+        if not ok:
+            return field
+    try:
+        _insert([it], run_id).encode("utf-8")
+    except (UnicodeEncodeError, TypeError, ValueError, AttributeError) as exc:
+        return f"{type(exc).__name__}: {exc}"[:200]
+    return None
+
+
+def drop_unwritable(items: list[Item], run_id: str) -> list[str]:
+    """Незаписувані опубліковані події → черга перегляду. Повертає рядки для звіту."""
+    bad = []
+    for it in items:
+        if it.stage != "published":
+            continue
+        why = unwritable(it, run_id)
+        if why:
+            it.stage, it.reject_reason = "review", f"UNWRITABLE {why}"
+            bad.append(f"{it.canonical_url[:200]}: {why}")
+    return bad
 
 
 def _adopt_identity(it: Item) -> str:
@@ -217,7 +270,8 @@ def duplicates_sql(items: list[Item], run_id: str) -> list[str]:
             starts.append(it.previous_start)
         time_condition = " or ".join(f"e.starts_at={_lit(t.isoformat())}::timestamptz" for t in starts)
         parts.append(
-            "update public.events e set import_status='withdrawn', updated_at=now()\n"
+            "update public.events e set import_status='withdrawn', updated_at=now(),\n"
+            f"  ingest_run_id={_lit(run_id)}\n"
             f"where e.source_id=(select id from public.event_sources where slug={_lit(it.source_slug)})\n"
             f"  and e.canonical_url={_lit(it.canonical_url)} and ({time_condition})\n"
             "  and exists (select 1 from public.events w\n"
@@ -233,7 +287,7 @@ RETIRE_MAX_SHARE = 0.3
 RETIRE_ALLOWANCE = 5
 
 
-def retire_absent_sql(slug: str, city: str, seen_uids: list[str]) -> str:
+def retire_absent_sql(slug: str, city: str, seen_uids: list[str], run_id: str) -> str:
     """Знімає живі майбутні події, яких цей обхід не бачив (ні опублікованих, ні на перевірці, ні
     дублікатів). Команда після вставок міста: перехід на новий ключ уже перейменував рядки.
     Знімається, а не видаляється: збережена подія лишається з позначкою.
@@ -250,7 +304,7 @@ def retire_absent_sql(slug: str, city: str, seen_uids: list[str]) -> str:
         "), gone as (\n"
         f"  select id from scope where source_uid <> all (array[{seen}]::text[])\n"
         ")\n"
-        "update public.events set import_status='withdrawn', updated_at=now()\n"
+        f"update public.events set import_status='withdrawn', updated_at=now(), ingest_run_id={_lit(run_id)}\n"
         "where id in (select id from gone)\n"
         f"  and (select count(*) from gone) <= greatest({RETIRE_ALLOWANCE},"
         f" {RETIRE_MAX_SHARE} * (select count(*) from scope));\n")

@@ -215,7 +215,7 @@ def harvest(source: Source, city: str, index: VenueIndex,
     for raw in raw_events:
         status = str(raw.get("eventStatus") or "EventScheduled").rsplit("/", 1)[-1]
         if status in {"EventCancelled", "EventPostponed"}:
-            canonical = str(raw.get("url") or raw.get("@id") or "").strip()
+            canonical = normalize.clean_url(raw.get("url") or raw.get("@id"))
             if canonical.startswith("https://"):
                 start = normalize.parse_datetime(raw.get("startDate"), source.tz_policy, source.time_zone)
                 counters["withdrawals"].append({"url": canonical,
@@ -223,7 +223,13 @@ def harvest(source: Source, city: str, index: VenueIndex,
             counters["rejected"] += 1
             counters["reasons"][status] = counters["reasons"].get(status, 0) + 1
             continue
-        item = _build(raw, source, city, index, now, geocoder)
+        try:
+            item = _build(raw, source, city, index, now, geocoder)
+        except Exception as exc:
+            # Одна дивна подія не зупиняє джерело: пропуск і рядок у звіті.
+            counters.setdefault("bad_events", []).append(
+                f"{str(raw.get('url') or raw.get('@id') or '?')[:200]}: {type(exc).__name__}: {exc}")
+            item = None
         if item is None:
             counters["rejected"] += 1
             continue
@@ -232,6 +238,10 @@ def harvest(source: Source, city: str, index: VenueIndex,
             counters["reasons"]["PERMANENT_OFFER"] = counters["reasons"].get("PERMANENT_OFFER", 0) + 1
             continue
         items.append(item)
+
+    # Тихий нуль: розмітка є, а придатних подій немає — майже завжди зміна верстки, не порожня афіша.
+    if not items and not counters["withdrawals"]:
+        return [], {**counters, "error": f"NO_USABLE_EVENTS: розібрано {counters['parsed']}, придатних 0"}
 
     _rescue_addresses(items, source, city, geocoder, counters)
 
@@ -375,7 +385,7 @@ def _build(raw: dict, source: Source, city: str, index: VenueIndex,
     if status not in {"EventScheduled", "EventRescheduled", "EventMovedOnline"}:
         return None
 
-    canonical = str(raw.get("url") or raw.get("@id") or "").strip()
+    canonical = normalize.clean_url(raw.get("url") or raw.get("@id"))
     if not canonical.startswith("https://"):
         return None                                    # без посилання на джерело атрибуція неможлива
 
@@ -432,7 +442,8 @@ def _build(raw: dict, source: Source, city: str, index: VenueIndex,
         image = image.get("url")
     if isinstance(image, list):
         image = next((i for i in image if isinstance(i, str)), None)
-    image = image if isinstance(image, str) and image.startswith("https://") else None
+    image = normalize.clean_url(image) if isinstance(image, str) else ""
+    image = image if image.startswith("https://") else None
 
     source_uid = occurrence_uid(canonical, start)
     return Item(
@@ -446,7 +457,7 @@ def _build(raw: dict, source: Source, city: str, index: VenueIndex,
         category_how=category_how,
         source_type=normalize.schema_type(raw),
         city=event_city[:160] or city,
-        address=address or venue_name or event_city,
+        address=(address or venue_name or event_city)[:300],   # CHECK у events
         venue_name=venue_name,
         venue_display=(hit.get("display") or None) if hit else None,
         latitude=hit["lat"] if hit else None,

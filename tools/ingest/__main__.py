@@ -74,6 +74,7 @@ def run_city(city: str, sources: list, run_id: str, *, agent: Agent | None = Non
     for source in usable:
         items, counters = harvest(source, city, index, geocoder=geocoder, now=now,
             status_notices=(status_by_source or {}).get(source.slug))
+        counters["items"] = len(items)
         if reports is not None:
             counters.update({"city": city, "source": source.slug})
             reports.append(counters)
@@ -120,6 +121,10 @@ def run_city(city: str, sources: list, run_id: str, *, agent: Agent | None = Non
 
     sql_parts: list[str] = [emit.sources_sql(usable)]
     for source, items, counters in harvested:
+        bad = emit.drop_unwritable(items, run_id)
+        if bad:
+            counters["bad_events"] = counters.get("bad_events", []) + bad
+            print(f"  ⚠ {source.slug}: {len(bad)} подій не записати, пропущено (bad_events у звіті)")
         counters["published"] = sum(i.stage == "published" for i in items)
         counters["duplicates"] = sum(i.stage == "duplicate" for i in items)
         if items:
@@ -134,7 +139,7 @@ def run_city(city: str, sources: list, run_id: str, *, agent: Agent | None = Non
         allowed, why = _may_retire(source, items, counters)
         counters["retire"] = "так" if allowed else why
         if allowed:
-            sql_parts.append(emit.retire_absent_sql(source.slug, city, [i.source_uid for i in items]))
+            sql_parts.append(emit.retire_absent_sql(source.slug, city, [i.source_uid for i in items], run_id))
             retired.append(source.slug)
         else:
             skipped.append(f"{source.slug}: {why}")
@@ -145,6 +150,26 @@ def run_city(city: str, sources: list, run_id: str, *, agent: Agent | None = Non
     return all_items, sql_parts
 
 
+# Спад нижче цієї частки від минулого звіту — поломка, а не сезон: у звичний тиждень афіша
+# змінюється на відсотки. Малі джерела (менше RETIRE_MIN_SEEN) не порівнюємо — там шум.
+DROP_MIN_SHARE = 0.3
+
+
+def mark_sharp_drops(reports: list[dict], previous: list) -> list[str]:
+    """Позначає помилкою джерела, чиїх придатних подій стало менше за DROP_MIN_SHARE від
+    минулого звіту (`sources` з нього). Без минулого звіту перевірки немає."""
+    was = {(r.get("city"), r.get("source")): r["items"] for r in previous
+           if isinstance(r, dict) and isinstance(r.get("items"), int)}
+    drops = []
+    for r in reports:
+        prev = was.get((r.get("city"), r.get("source")))
+        if (prev and prev >= RETIRE_MIN_SEEN and "items" in r and not r.get("error")
+                and r["items"] < DROP_MIN_SHARE * prev):
+            r["error"] = f"SHARP_DROP: {r['items']} придатних проти {prev} минулого разу"
+            drops.append(f"{r['city']} · {r['source']}: {r['error']}")
+    return drops
+
+
 def _write_sql(path: pathlib.Path, run_id: str, parts: list[str], count: int,
                max_bytes: int = 0) -> None:
     """Перевіряє цілісність команд і бюджет байтів до запису будь-якого виводу."""
@@ -153,7 +178,7 @@ def _write_sql(path: pathlib.Path, run_id: str, parts: list[str], count: int,
             "-- Лише підтверджені скасування; відсутність у списку не знімає подію.\n")
     chunks: list[list[str]] = [[]]
     # Запас на обгортки транзакцій і коментарі з номером частини.
-    budget = max_bytes - len(head.encode("utf-8")) - 128 if max_bytes else 0
+    budget = max_bytes - len(head.encode("utf-8")) - 192 if max_bytes else 0
     if max_bytes and (budget <= 0 or any(len(p.encode("utf-8")) > budget for p in used)):
         raise ValueError("SQL-команда з заголовком перевищує --sql-max-bytes")
     size = 0
@@ -168,7 +193,9 @@ def _write_sql(path: pathlib.Path, run_id: str, parts: list[str], count: int,
     for number, chunk in enumerate(chunks, 1):
         out = path.with_name(f"{path.stem}.{number:02d}{path.suffix}") if max_bytes else path
         comment = f"-- частина {number} з {len(chunks)}. Застосовувати по порядку.\n"
-        content = head + comment + "begin;\n" + "".join(chunk) + "commit;\n"
+        # Екранування в `_lit` розраховане на стандартні рядки: не покладаємось на налаштування бази.
+        content = (head + comment + "begin;\nset local standard_conforming_strings = on;\n"
+                   + "".join(chunk) + "commit;\n")
         if max_bytes and len(content.encode("utf-8")) > max_bytes:
             raise ValueError("SQL-файл перевищує --sql-max-bytes")
         outputs.append((out, content))
@@ -238,6 +265,14 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         print(f"Агент: {agent.provider.name}, модель {agent.model}")
 
+    # Минулий звіт читається до обходу: цей прогін перезапише файл.
+    previous: list = []
+    if args.report and args.report.exists():
+        try:
+            previous = json.loads(args.report.read_text("utf-8")).get("sources") or []
+        except (OSError, ValueError, AttributeError):
+            print(f"Минулий звіт {args.report} не прочитано: спад не перевіряється", file=sys.stderr)
+
     run_id = str(uuid.uuid4())
     print(f"Обхід: {', '.join(cities)}\nrun_id={run_id}")
 
@@ -263,6 +298,9 @@ def main(argv: list[str] | None = None) -> int:
         per_city[city] = (items, parts)
         everything += items
 
+    for line in mark_sharp_drops(reports, previous):
+        print(f"⚠ різкий спад — {line}", file=sys.stderr)
+
     published = [i for i in everything if i.stage == "published"]
     print("\n" + "═" * 62)
     print(f"УСЬОГО: {len(published)} подій до публікації по {len(cities)} містах")
@@ -285,7 +323,7 @@ def main(argv: list[str] | None = None) -> int:
     report.print_source_health(report.source_health(everything, sources))
 
     if args.json:
-        args.json.write_text(emit.to_json(everything), "utf-8")
+        args.json.write_text(emit.to_json(everything), "utf-8", errors="replace")
         print(f"\nJSON: {args.json}")
     # Завершені події → stale, останньою командою дампу: після upsert, який повернув перенесені.
     # Крок не залежить від міста, тому в кожному файлі по місту він теж є — він ідемпотентний.
@@ -306,8 +344,11 @@ def main(argv: list[str] | None = None) -> int:
         print("\nСуха проба: нічого не записано. Додайте --sql-dir, щоб отримати SQL.")
     if args.report:
         args.report.write_text(json.dumps({"run_id": run_id, "sources": reports},
-                                         ensure_ascii=False, indent=2), "utf-8")
-    return 1 if any(r.get("error") for r in reports) else 0
+                                         ensure_ascii=False, indent=2), "utf-8", errors="replace")
+    failed = [r for r in reports if r.get("error")]
+    for r in failed:
+        print(f"ПОМИЛКА ДЖЕРЕЛА {r.get('city', '—')} · {r.get('source')}: {r['error']}", file=sys.stderr)
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":

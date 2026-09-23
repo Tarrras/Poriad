@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import gzip
 import datetime as dt
+import io
 from email.utils import parsedate_to_datetime
 import time
 import urllib.error
@@ -15,7 +16,9 @@ import urllib.request
 import urllib.robotparser
 from dataclasses import dataclass
 
-USER_AGENT = "PoriadBot/0.1 (+https://poriad.app/bot; contact@poriad.app)"
+USER_AGENT = "PoriadBot/0.1 (+https://poriad.app/bot; hello@poriad.app)"
+# Більше за будь-яку афішу в рази; межа і для розпакованого gzip, інакше 1 МБ стиснутих нулів — гігабайти.
+MAX_BYTES = 10 * 1024 * 1024
 
 _robots_cache: dict[str, urllib.robotparser.RobotFileParser | None] = {}
 _last_hit: dict[str, float] = {}
@@ -78,6 +81,29 @@ def _throttle(url: str, delay: float) -> None:
     _last_hit[host] = time.monotonic()
 
 
+class _Redirects(urllib.request.HTTPRedirectHandler):
+    """Переадресація не обходить robots.txt: новий хост читається за його власними правилами."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        if getattr(req, "check_robots", True) and not allowed(newurl):
+            raise PermissionError(f"robots.txt забороняє переадресацію на {newurl}")
+        new = super().redirect_request(req, fp, code, msg, headers, newurl)
+        if new is not None:
+            new.check_robots = getattr(req, "check_robots", True)
+        return new
+
+
+_opener = urllib.request.build_opener(_Redirects)
+
+
+def _read_limited(r) -> bytes | None:
+    """Тіло не більше MAX_BYTES, з розпакуванням; None — задовге."""
+    raw = r.read(MAX_BYTES + 1)
+    if len(raw) <= MAX_BYTES and r.headers.get("Content-Encoding") == "gzip":
+        raw = gzip.GzipFile(fileobj=io.BytesIO(raw)).read(MAX_BYTES + 1)
+    return raw if len(raw) <= MAX_BYTES else None
+
+
 def _get_once(url: str, *, delay: float = 2.0, etag: str | None = None,
         last_modified: str | None = None, timeout: int = 60,
         check_robots: bool = True) -> Response:
@@ -98,13 +124,17 @@ def _get_once(url: str, *, delay: float = 2.0, etag: str | None = None,
         headers["If-Modified-Since"] = last_modified
 
     req = urllib.request.Request(url, headers=headers)
+    req.check_robots = check_robots
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
-            raw = r.read()
-            if r.headers.get("Content-Encoding") == "gzip":
-                raw = gzip.decompress(raw)
+        with _opener.open(req, timeout=timeout) as r:
+            raw = _read_limited(r)
+            if raw is None:
+                # 413 не повторюється: та сама сторінка завтра буде такою ж великою.
+                return Response(url, 413, "", error=f"відповідь понад {MAX_BYTES} байтів")
             return Response(url, r.status, raw.decode("utf-8", "replace"),
                             r.headers.get("ETag"), r.headers.get("Last-Modified"))
+    except PermissionError:
+        raise
     except urllib.error.HTTPError as e:
         if e.code == 304:
             return Response(url, 304, "", etag, last_modified)

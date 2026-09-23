@@ -16,6 +16,7 @@ import urllib.parse
 import urllib.request
 
 from .geocode import CITY_BBOX
+from .fetch import USER_AGENT
 from .normalize import normalize_name
 
 # Дзеркала Overpass перебираємо по черзі: один зайнятий інстанс не має блокувати ціле місто.
@@ -74,7 +75,7 @@ def fetch_osm(city: str, *, refresh: bool = False) -> list[dict]:
             endpoint, data=body,
             headers={"Accept": "application/json",       # без цього Overpass віддає 406
                      "Content-Type": "application/x-www-form-urlencoded",
-                     "User-Agent": "PoriadBot/0.1 (+https://poriad.app/bot)"})
+                     "User-Agent": USER_AGENT})
         try:
             with urllib.request.urlopen(req, timeout=240) as r:
                 payload = json.loads(r.read().decode("utf-8"))

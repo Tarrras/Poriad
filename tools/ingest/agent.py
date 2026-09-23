@@ -25,10 +25,14 @@ from .normalize import CATEGORIES
 ENV_FILE = pathlib.Path(__file__).resolve().parent.parent.parent / ".env"
 
 
+_ENV_PREFIXES = ("OPENAI_", "ANTHROPIC_")
+
+
 def load_env(path: pathlib.Path = ENV_FILE) -> int:
     """Підтягує `.env`, якщо він є. Повертає, скільки змінних додано.
 
     Наявне середовище сильніше за файл; відсутній файл — не помилка. Без сторонніх бібліотек.
+    Лише ключі моделей: `.env` тримає й `SUPABASE_DB_URL`, а конвеєру доступ до бази не потрібен.
     """
     try:
         text = path.read_text("utf-8")
@@ -42,7 +46,7 @@ def load_env(path: pathlib.Path = ENV_FILE) -> int:
         name, _, value = line.partition("=")
         name = name.removeprefix("export ").strip()
         value = value.strip().strip('"').strip("'")
-        if name and value and name not in os.environ:
+        if name.startswith(_ENV_PREFIXES) and value and name not in os.environ:
             os.environ[name] = value
             added += 1
     return added
@@ -304,7 +308,7 @@ def _parse_pairs(text: str) -> dict:
             number = int(row.get("n"))
         except (TypeError, ValueError):
             continue
-        out[number] = (bool(row.get("same")), str(row.get("why") or "").strip()[:80])
+        out[number] = (row.get("same") is True, str(row.get("why") or "").strip()[:80])
     return out
 
 

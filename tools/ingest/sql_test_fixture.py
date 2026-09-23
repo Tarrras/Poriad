@@ -35,6 +35,8 @@ for item in (before, after, other):
     item.stage = "published"
     item.quality = .8
 karabas_uids = [f"https://example.org/k{i}" for i in range(10)]
+fresh = pipeline._build(raw_event(url="https://example.org/fresh"), source, "Київ", index, NOW)
+fresh.stage, fresh.quality = "published", .8
 
 print(json.dumps({
     "sources": emit.sources_sql(enabled_sources()),
@@ -48,8 +50,12 @@ print(json.dumps({
     "move_after": "".join(emit.events_sql([after], RUN)),
     "move_other": "".join(emit.events_sql([other], RUN)),
     "move_uids": [before.source_uid, after.source_uid, other.source_uid],
-    "retire_after_move": emit.retire_absent_sql("ticketsbox", "Київ", [after.source_uid, other.source_uid]),
+    "retire_after_move": emit.retire_absent_sql("ticketsbox", "Київ", [after.source_uid, other.source_uid], RUN),
     "karabas_uids": karabas_uids,
-    "retire_one": emit.retire_absent_sql("karabas", "Київ", karabas_uids[:9]),
-    "retire_mass": emit.retire_absent_sql("karabas", "Київ", karabas_uids[:1]),
+    "run": RUN,
+    "insert_a": "".join(emit.events_sql([a], RUN)),
+    "fresh": "".join(emit.events_sql([fresh], RUN)),
+    "fresh_uid": fresh.source_uid,
+    "retire_one": emit.retire_absent_sql("karabas", "Київ", karabas_uids[:9], RUN),
+    "retire_mass": emit.retire_absent_sql("karabas", "Київ", karabas_uids[:1], RUN),
 }))

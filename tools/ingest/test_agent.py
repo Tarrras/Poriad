@@ -131,6 +131,11 @@ class PairJudging(unittest.TestCase):
         agent = _agent('[{"n":1,"same":false,"why":"різні вистави в сусідніх залах"}]')
         self.assertEqual(agent.judge_pairs([self._pair()]), [False])
 
+    def test_string_false_is_not_a_merge(self):
+        """`bool("false")` — True; злиття лише за справжнім JSON `true`."""
+        agent = _agent('[{"n":1,"same":"false"}]')
+        self.assertEqual(agent.judge_pairs([self._pair()]), [False])
+
     def test_failure_means_no_merge(self):
         """Невдача мережі має лишити сьогоднішню поведінку, а не злити навмання."""
         def boom(_):
@@ -212,7 +217,7 @@ class EnvFile(unittest.TestCase):
         import os, tempfile
         self.dir = tempfile.TemporaryDirectory()
         self.path = pathlib.Path(self.dir.name) / ".env"
-        self.saved = {k: os.environ.get(k) for k in ("T_KEY", "T_MODEL")}
+        self.saved = {k: os.environ.get(k) for k in ("OPENAI_T_KEY", "OPENAI_T_MODEL", "SUPABASE_DB_URL")}
         for k in self.saved:
             os.environ.pop(k, None)
 
@@ -226,34 +231,43 @@ class EnvFile(unittest.TestCase):
 
     def test_reads_pairs_and_skips_noise(self):
         import os
-        self.path.write_text("# коментар\n\nT_KEY=sk-123\nбез-рівності\n", "utf-8")
+        self.path.write_text("# коментар\n\nOPENAI_T_KEY=sk-123\nбез-рівності\n", "utf-8")
         self.assertEqual(load_env(self.path), 1)
-        self.assertEqual(os.environ["T_KEY"], "sk-123")
+        self.assertEqual(os.environ["OPENAI_T_KEY"], "sk-123")
 
     def test_export_prefix_and_quotes_are_stripped(self):
         import os
-        self.path.write_text('export T_KEY="sk-456"\n', "utf-8")
+        self.path.write_text('export OPENAI_T_KEY="sk-456"\n', "utf-8")
         load_env(self.path)
-        self.assertEqual(os.environ["T_KEY"], "sk-456")
+        self.assertEqual(os.environ["OPENAI_T_KEY"], "sk-456")
 
     def test_environment_beats_the_file(self):
         """Забутий старий ключ у файлі не має перебивати щойно заданий свідомо."""
         import os
-        os.environ["T_KEY"] = "exported"
-        self.path.write_text("T_KEY=from-file\n", "utf-8")
+        os.environ["OPENAI_T_KEY"] = "exported"
+        self.path.write_text("OPENAI_T_KEY=from-file\n", "utf-8")
         self.assertEqual(load_env(self.path), 0)
-        self.assertEqual(os.environ["T_KEY"], "exported")
+        self.assertEqual(os.environ["OPENAI_T_KEY"], "exported")
 
     def test_missing_file_is_not_an_error(self):
         """Файла немає на свіжому клоні, і робота без агента від нього не залежить."""
         self.assertEqual(load_env(pathlib.Path(self.dir.name) / "немає"), 0)
 
+    def test_only_model_keys_are_loaded(self):
+        """Доступ до бази конвеєру не потрібен: `SUPABASE_DB_URL` з файлу в середовище не йде."""
+        import os
+        self.path.write_text("SUPABASE_DB_URL=postgres://x\nANTHROPIC_T=1\n", "utf-8")
+        os.environ.pop("ANTHROPIC_T", None)
+        self.assertEqual(load_env(self.path), 1)
+        self.assertNotIn("SUPABASE_DB_URL", os.environ)
+        os.environ.pop("ANTHROPIC_T", None)
+
     def test_empty_value_is_not_set(self):
         """Порожній рядок у зразку не має вдавати заданий ключ."""
         import os
-        self.path.write_text("T_KEY=\n", "utf-8")
+        self.path.write_text("OPENAI_T_KEY=\n", "utf-8")
         self.assertEqual(load_env(self.path), 0)
-        self.assertNotIn("T_KEY", os.environ)
+        self.assertNotIn("OPENAI_T_KEY", os.environ)
 
 
 class ReplyParsing(unittest.TestCase):

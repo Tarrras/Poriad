@@ -85,7 +85,28 @@ assert.equal(await statusOf('https://example.org/k-lviv'), 'live');
 // Зламаний обхід, що «бачив» одну подію з девʼяти, не знімає нічого: частка понад запобіжник.
 await db.exec(fixture.retire_mass);
 for (const uid of fixture.karabas_uids.slice(0, 9)) assert.equal(await statusOf(uid), 'live');
+assert.equal((await db.query('select ingest_run_id from events where source_uid=$1', [fixture.karabas_uids[9]])).rows[0].ingest_run_id, fixture.run);
 console.log('PostgreSQL: moved URL keeps row id, retire scoped to source/city/future, mass retire blocked OK');
+
+// ── Автоматичне зняття (з run_id) повертається в live, коли подія знову в афіші; ручне — ні.
+await db.exec(fixture.insert_a);
+assert.equal(await statusOf(fixture.uids[0]), 'live');
+await db.exec(`update events set import_status='withdrawn', ingest_run_id=null where source_uid='${fixture.uids[0]}'`);
+await db.exec(fixture.insert_a);
+assert.equal(await statusOf(fixture.uids[0]), 'withdrawn');
+assert.equal((await db.query('select ingest_run_id from events where source_uid=$1', [fixture.uids[0]])).rows[0].ingest_run_id, null);
+// Вимкнене джерело (opt-out): дамп нічого не вставляє і не повертає зняте.
+await db.exec("update event_sources set enabled=false where slug='concert_ua'");
+// run_id не обнулено: без перевірки `enabled` upsert повернув би подію в live.
+await db.exec(`update events set import_status='withdrawn', ingest_run_id='${fixture.run}' where source_id=(select id from event_sources where slug='concert_ua')`);
+await db.exec(fixture.insert_a);
+await db.exec(fixture.fresh);
+assert.equal(await statusOf(fixture.uids[0]), 'withdrawn');
+assert.equal(await statusOf(fixture.fresh_uid), undefined);
+await db.exec("update event_sources set enabled=true where slug='concert_ua'");
+await db.exec(fixture.fresh);
+assert.equal(await statusOf(fixture.fresh_uid), 'live');
+console.log('PostgreSQL: manual withdrawal and disabled source survive the next dump OK');
 
 for (const path of process.argv.slice(3)) {
  const sql = readFileSync(path, 'utf8');

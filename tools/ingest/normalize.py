@@ -73,6 +73,23 @@ def zone(name: str):
 
 # ---- Текст
 
+# Невидимі керівні символи: TicketsBox дописує U+200E до назви міста, і «Одеса» стає іншим рядком.
+# Одинокий сурогат (Cs) з JSON `\ud800` не кодується в UTF-8 і валив запис усього дампу.
+def _visible(s: str) -> str:
+    return "".join(c for c in s if c in "\n\t" or unicodedata.category(c) not in ("Cf", "Cc", "Cs"))
+
+
+# Межа URL у CHECK таблиці events (canonical_url, image_url).
+URL_LIMIT = 2048
+
+
+def clean_url(value) -> str:
+    """Посилання без невидимих символів; задовге — порожнє. Без html.unescape: `&reg…` у запиті
+    він перетворив би на «®», і ключ події змінився б."""
+    s = _visible(str(value or "")).strip()
+    return s if len(s) <= URL_LIMIT else ""
+
+
 def clean_text(value) -> str:
     if not value:
         return ""
@@ -82,8 +99,7 @@ def clean_text(value) -> str:
     s = re.sub(r"<[^>]+>", " ", s)                 # у описах трапляється розмітка
     s = s.replace("\r\n", "\n").replace("\r", "\n")
     s = unicodedata.normalize("NFC", s)
-    # Невидимі керівні символи: TicketsBox дописує U+200E до назви міста, і «Одеса» стає іншим рядком.
-    s = "".join(c for c in s if c in "\n\t" or unicodedata.category(c) not in ("Cf", "Cc"))
+    s = _visible(s)
     s = re.sub(r"[ \t ]+", " ", s)
     return re.sub(r"\n{3,}", "\n\n", s).strip()
 

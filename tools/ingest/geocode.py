@@ -25,6 +25,7 @@ import time
 import urllib.parse
 import urllib.request
 
+from .fetch import USER_AGENT
 from .normalize import normalize_name
 
 ENDPOINT = "https://photon.komoot.io/api/"
@@ -186,7 +187,7 @@ class Geocoder:
         _last_call = time.monotonic()
         req = urllib.request.Request(
             f"{endpoint}?{urllib.parse.urlencode(params)}",
-            headers={"User-Agent": "PoriadBot/0.1 (+https://poriad.app/bot)",
+            headers={"User-Agent": USER_AGENT,
                      "Accept": "application/json"})
         self.calls += 1
         try:

@@ -274,14 +274,14 @@ class RegressionTests(unittest.TestCase):
         self.assertFalse(_may_retire(self.source, few, few_counters)[0])
 
     def test_retire_sql_is_scoped_and_guarded(self):
-        sql = emit.retire_absent_sql("karabas", "Київ", ["u2", "u1", "u1"])
+        sql = emit.retire_absent_sql("karabas", "Київ", ["u2", "u1", "u1"], "run")
         self.assertIn("e.city='Київ'", sql)
         self.assertIn("slug='karabas'", sql)
         self.assertIn("<> all (array['u1','u2']::text[])", sql)
         self.assertIn("e.ends_at > now()", sql)
         self.assertIn(f"greatest({emit.RETIRE_ALLOWANCE}, {emit.RETIRE_MAX_SHARE}", sql)
         self.assertNotIn("delete", sql.lower())
-        self.assertEqual(emit.retire_absent_sql("karabas", "Київ", []), "")
+        self.assertEqual(emit.retire_absent_sql("karabas", "Київ", [], "run"), "")
 
     def test_finished_imports_go_stale_last_and_never_by_delete(self):
         sql = emit.retire_finished_sql()
@@ -346,7 +346,7 @@ class RegressionTests(unittest.TestCase):
         with patch("tools.ingest.fetch.allowed", return_value=True), \
              patch("tools.ingest.fetch.crawl_delay", return_value=0), \
              patch("tools.ingest.fetch.time.sleep"), \
-             patch("tools.ingest.fetch.urllib.request.urlopen", side_effect=[failure, failure, failure]):
+             patch("tools.ingest.fetch._opener.open", side_effect=[failure, failure, failure]):
             result = fetch.get("https://example.org", delay=0)
         self.assertEqual(result.status, 503)
         self.assertEqual(getattr(result, "attempts", 1), 3)
@@ -416,6 +416,182 @@ class RegressionTests(unittest.TestCase):
         with patch("tools.ingest.pipeline.get", side_effect=responses):
             items, _ = pipeline.harvest(source, "Київ", self.index, now=NOW)
         self.assertEqual(items[0].previous_start, dt.datetime.fromisoformat("2026-10-16T18:00:00+03:00"))
+
+
+class Robustness(unittest.TestCase):
+    """Одна брудна подія чи зламана верстка не мають ні валити дамп, ні минати мовчки."""
+
+    def setUp(self):
+        self.source = dataclasses.replace(by_slug("concert_ua"), catalogs=None)
+        self.index = VenueIndex([], "Київ", {"Зал": {"lat": 50.45, "lon": 30.53}})
+
+    def harvest(self, events):
+        with patch("tools.ingest.pipeline.get", return_value=Response("https://example.org", 200, html(events))):
+            return pipeline.harvest(self.source, "Київ", self.index, now=NOW)
+
+    def test_lone_surrogate_is_dropped_from_text_and_url(self):
+        self.assertEqual(normalize.clean_text("Джаз\ud800 вечір"), "Джаз вечір")
+        self.assertEqual(normalize.clean_url(" https://example.org/a\udfff\u200e "), "https://example.org/a")
+        "".join([normalize.clean_text("x\ud800"), normalize.clean_url("y\udc00")]).encode("utf-8")
+
+    def test_url_keeps_query_entities_and_rejects_overlong(self):
+        # html.unescape зробив би з `&reg` «®» і змінив ключ події.
+        self.assertEqual(normalize.clean_url("https://example.org/?a=1&region=2"), "https://example.org/?a=1&region=2")
+        self.assertEqual(normalize.clean_url("https://example.org/" + "a" * 2100), "")
+
+    def test_build_clips_address_and_drops_overlong_urls(self):
+        long_address = {"name": "Зал", "address": {"streetAddress": "вул. " + "Д" * 400,
+                                                   "addressLocality": "Київ"}}
+        item = pipeline._build(raw_event(location=long_address), self.source, "Київ", self.index, NOW)
+        self.assertLessEqual(len(item.address), 300)
+        item = pipeline._build(raw_event(location={"name": "Зал " + "ї" * 400}), self.source, "Київ",
+                               self.index, NOW)
+        self.assertLessEqual(len(item.address), 300)
+        item = pipeline._build(raw_event(image="https://example.org/" + "i" * 2100), self.source, "Київ",
+                               self.index, NOW)
+        self.assertIsNone(item.image_url)
+        self.assertIsNone(pipeline._build(raw_event(url="https://example.org/" + "u" * 2100),
+                                          self.source, "Київ", self.index, NOW))
+
+    def test_one_crashing_event_is_skipped_and_reported(self):
+        real = pipeline._build
+        calls = iter([RuntimeError("дивна розмітка")])
+
+        def flaky(*args, **kwargs):
+            error = next(calls, None)
+            if error:
+                raise error
+            return real(*args, **kwargs)
+        with patch("tools.ingest.pipeline._build", side_effect=flaky):
+            items, counters = self.harvest([raw_event(url="https://example.org/bad"),
+                                            raw_event(name="Інший концерт", url="https://example.org/ok")])
+        self.assertEqual(len(items), 1)
+        self.assertEqual(len(counters["bad_events"]), 1)
+        self.assertIn("https://example.org/bad", counters["bad_events"][0])
+        self.assertNotIn("error", counters)
+
+    def test_unwritable_event_goes_to_review_not_into_the_dump(self):
+        from .test_ingest import _item
+        good, bad = _item("concert_ua", "Добрий концерт"), _item("concert_ua", "Поганий концерт")
+        bad.title = "Поганий\ud800 концерт"
+        odd_venue = _item("concert_ua", "Концерт у дивному залі")
+        odd_venue.venue_display = "Зал\ud800"
+        long_url = _item("concert_ua", "Задовге посилання")
+        long_url.canonical_url = "https://x/" + "u" * 2100
+        items = [good, bad, long_url, odd_venue]
+        report = emit.drop_unwritable(items, "00000000-0000-0000-0000-000000000001")
+        self.assertEqual(len(report), 2)
+        self.assertEqual([i.stage for i in items], ["published", "review", "review", "published"])
+        "".join(emit.events_sql(items, "00000000-0000-0000-0000-000000000001")).encode("utf-8")
+        emit.venues_sql(items, "Київ").encode("utf-8")      # у кеш майданчиків той зал не йде
+
+    def test_parsed_but_nothing_usable_is_a_source_error(self):
+        past = raw_event(startDate="2026-01-01T18:00:00+02:00", endDate="2026-01-01T21:00:00+02:00")
+        items, counters = self.harvest([past])
+        self.assertEqual(items, [])
+        self.assertTrue(counters["error"].startswith("NO_USABLE_EVENTS"))
+
+    def test_sharp_drop_against_previous_report_is_an_error(self):
+        from .__main__ import mark_sharp_drops
+        previous = [{"city": "Київ", "source": "karabas", "items": 100},
+                    {"city": "Київ", "source": "dou", "items": 4}]
+        now = [{"city": "Київ", "source": "karabas", "items": 20},
+               {"city": "Київ", "source": "dou", "items": 0}]
+        self.assertEqual(len(mark_sharp_drops(now, previous)), 1)
+        self.assertTrue(now[0]["error"].startswith("SHARP_DROP"))
+        self.assertNotIn("error", now[1])            # мале джерело — шум, а не спад
+        steady = [{"city": "Київ", "source": "karabas", "items": 90}]
+        self.assertEqual(mark_sharp_drops(steady, previous), [])
+        self.assertEqual(mark_sharp_drops(steady, []), [])
+
+    def test_sharp_drop_fails_the_run(self):
+        with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(io.StringIO()), \
+             contextlib.redirect_stderr(io.StringIO()), \
+             patch("tools.ingest.__main__.karabas_status.collect", return_value=([], {"pages_fetched": 1})):
+            report_path = Path(tmp) / "report.json"
+            report_path.write_text(json.dumps({"sources": [{"city": "Київ", "source": "concert_ua",
+                                                            "items": 50}]}), "utf-8")
+
+            def fake_run_city(city, sources, run_id, reports=None, **_):
+                reports.append({"city": city, "source": "concert_ua", "items": 3})
+                return [], []
+            with patch("tools.ingest.__main__.run_city", side_effect=fake_run_city):
+                code = main(["--city", "Київ", "--source", "concert_ua", "--report", str(report_path)])
+            self.assertEqual(code, 1)
+            saved = json.loads(report_path.read_text("utf-8"))["sources"][0]
+            self.assertTrue(saved["error"].startswith("SHARP_DROP"))
+
+    def test_dump_pins_standard_conforming_strings(self):
+        with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(io.StringIO()):
+            path = Path(tmp) / "events.sql"
+            _write_sql(path, "run", ["select 'a\\b';\n"], 1)
+            body = path.read_text("utf-8")
+        self.assertIn("begin;\nset local standard_conforming_strings = on;\n", body)
+
+    def test_upsert_respects_manual_withdrawal_and_disabled_source(self):
+        from .test_ingest import _item
+        sql = emit._insert([_item("concert_ua", "Концерт")], "00000000-0000-0000-0000-000000000001")
+        self.assertIn("join public.event_sources s on s.slug=v.slug\nwhere s.enabled", sql)
+        self.assertIn("events.import_status='withdrawn' and events.ingest_run_id is null", sql)
+
+    def test_automatic_withdrawals_carry_run_id(self):
+        from .test_ingest import _item
+        loser = _item("internet_bilet", "Концерт")
+        loser.duplicate_of = ("concert_ua", "winner")
+        run = "00000000-0000-0000-0000-000000000009"
+        self.assertIn(f"ingest_run_id='{run}'", "".join(emit.duplicates_sql([loser], run)))
+        self.assertIn(f"ingest_run_id='{run}'", emit.retire_absent_sql("karabas", "Київ", ["u"], run))
+
+
+class FetchLimits(unittest.TestCase):
+    class _Body:
+        def __init__(self, data, encoding=None):
+            self.data, self.status = data, 200
+            self.headers = {"Content-Encoding": encoding} if encoding else {}
+
+        def read(self, n=-1):
+            return self.data[:n] if n >= 0 else self.data
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    def _get(self, body):
+        with patch("tools.ingest.fetch.allowed", return_value=True), \
+             patch("tools.ingest.fetch.crawl_delay", return_value=0), \
+             patch("tools.ingest.fetch._opener.open", return_value=body):
+            return fetch.get("https://example.org", delay=0)
+
+    def test_oversized_and_gzip_bomb_are_refused_without_retry(self):
+        import gzip as gz
+        with patch("tools.ingest.fetch.MAX_BYTES", 1000):
+            plain = self._get(self._Body(b"x" * 2000))
+            bomb = self._get(self._Body(gz.compress(b"0" * 100000), "gzip"))
+            fine = self._get(self._Body(gz.compress("афіша".encode()), "gzip"))
+        self.assertEqual((plain.status, plain.attempts), (413, 1))
+        self.assertEqual(bomb.status, 413)
+        self.assertEqual((fine.status, fine.body), (200, "афіша"))
+
+    def test_redirect_to_disallowed_host_is_refused(self):
+        import urllib.request
+        handler = fetch._Redirects()
+        req = urllib.request.Request("https://example.org/a")
+        with patch("tools.ingest.fetch.allowed", side_effect=lambda u: "example.org" in u):
+            self.assertIsNotNone(handler.redirect_request(req, None, 302, "Found", {}, "https://example.org/b"))
+            with self.assertRaises(PermissionError):
+                handler.redirect_request(req, None, 302, "Found", {}, "https://tracker.example.net/x")
+        req.check_robots = False
+        with patch("tools.ingest.fetch.allowed", return_value=False):
+            self.assertIsNotNone(handler.redirect_request(req, None, 302, "Found", {}, "https://other.net/"))
+
+    def test_bot_page_and_contact_in_every_user_agent(self):
+        from . import geocode, venues
+        self.assertIn("https://poriad.app/bot", fetch.USER_AGENT)
+        self.assertIn("hello@poriad.app", fetch.USER_AGENT)
+        for module in (geocode, venues):
+            self.assertIn("USER_AGENT", module.__dict__)
 
 
 if __name__ == "__main__":
