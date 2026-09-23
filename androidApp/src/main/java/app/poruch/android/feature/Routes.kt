@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.Flow
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 import java.util.Locale
+import kotlin.concurrent.thread
 
 /*
  * Маршрути — шов між екраном і платформою: беруть ViewModel з Koin, перетворюють ефекти на
@@ -235,9 +236,11 @@ internal fun Context.cityAt(latitude: Double, longitude: Double, fallback: Strin
             override fun onGeocode(addresses: MutableList<android.location.Address>) = mainExecutor.execute { done(addresses) }
             override fun onError(errorMessage: String?) = mainExecutor.execute { done(emptyList()) }
         })
-    } else {
+    } else thread(name = "geocoder") {
+        // До API 33 виклик синхронний і ходить у мережу: не на головному.
         @Suppress("DEPRECATION")
-        done(runCatching { geocoder.getFromLocation(latitude, longitude, 1) }.getOrNull().orEmpty())
+        val found = runCatching { geocoder.getFromLocation(latitude, longitude, 1) }.getOrNull().orEmpty()
+        mainExecutor.execute { done(found) }
     }
 }
 
@@ -252,11 +255,12 @@ internal fun Context.lastKnownPosition(onFound: (Double, Double) -> Unit, onUnav
         onFound(known.latitude, known.longitude)
         return
     }
-    val provider = if (manager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) LocationManager.NETWORK_PROVIDER
-    else LocationManager.GPS_PROVIDER
-    if (Build.VERSION.SDK_INT >= 30 && manager.isProviderEnabled(provider)) {
+    // Лише мережевий провайдер: GPS з одним COARSE на Android 11 кидає SecurityException.
+    val provider = LocationManager.NETWORK_PROVIDER
+    val asked = Build.VERSION.SDK_INT >= 30 && manager.isProviderEnabled(provider) && runCatching {
         manager.getCurrentLocation(provider, null, mainExecutor) { fresh ->
             if (fresh != null) onFound(fresh.latitude, fresh.longitude) else onUnavailable()
         }
-    } else onUnavailable()
+    }.isSuccess
+    if (!asked) onUnavailable()
 }

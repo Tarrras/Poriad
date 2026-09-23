@@ -4,6 +4,8 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.ImageDecoder
+import android.graphics.Matrix
+import android.media.ExifInterface
 import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -61,11 +63,11 @@ fun PhotoPickerButton(busy: Boolean, onPicked: (ByteArray, String) -> Unit) {
 /**
  * Файл із галереї не йде на сервер як є: бакет публічний, а EXIF несе GPS і модель телефона.
  * Перекодування через bitmap лишає лише пікселі; заодно вкорочує довшу сторону до [MAX_SIDE].
- * Тип джерела перевіряємо за білим списком, ліміт розміру — до вже перекодованих байтів.
+ * Джерело — будь-яке зображення, яке декодує система (HEIC, AVIF з камери теж): на сервер однаково
+ * йде JPEG. Ліміт розміру — до вже перекодованих байтів.
  */
 private fun Context.readImage(uri: Uri): Pair<ByteArray, String> {
-    val mime = contentResolver.getType(uri).orEmpty()
-    require(mime in ImageRules.extensions) { "unsupported type" }
+    require(contentResolver.getType(uri).orEmpty().startsWith("image/")) { "not an image" }
     val bitmap = decodeBounded(uri) ?: error("undecodable")
     val output = ByteArrayOutputStream()
     try {
@@ -88,13 +90,27 @@ private fun Context.decodeBounded(uri: Uri): Bitmap? =
             decoder.isMutableRequired = false
         }
     } else {
-        // API 26–27: BitmapFactory. Орієнтацію з EXIF тут не читаємо, зате й нічого не витікає.
+        // API 26–27: BitmapFactory. Грубо зменшуємо ще при декодуванні (inSampleSize), решту й поворот
+        // з EXIF — однією матрицею. Самі метадані в bitmap не потрапляють.
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
         var sample = 1
         while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= MAX_SIDE) sample *= 2
         val options = BitmapFactory.Options().apply { inSampleSize = sample }
-        contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) }
+        contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) }?.let { decoded ->
+            val degrees = contentResolver.openInputStream(uri)?.use {
+                when (ExifInterface(it).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)) {
+                    ExifInterface.ORIENTATION_ROTATE_90 -> 90f
+                    ExifInterface.ORIENTATION_ROTATE_180 -> 180f
+                    ExifInterface.ORIENTATION_ROTATE_270 -> 270f
+                    else -> 0f
+                }
+            } ?: 0f
+            val scale = minOf(1f, MAX_SIDE.toFloat() / maxOf(decoded.width, decoded.height))
+            if (degrees == 0f && scale == 1f) return@let decoded
+            val matrix = Matrix().apply { postScale(scale, scale); postRotate(degrees) }
+            Bitmap.createBitmap(decoded, 0, 0, decoded.width, decoded.height, matrix, true).also { if (it !== decoded) decoded.recycle() }
+        }
     }
 
 /** Довша сторона після перекодування: досить для картки й екрана деталей. */
