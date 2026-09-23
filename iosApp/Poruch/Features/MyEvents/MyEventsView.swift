@@ -45,13 +45,14 @@ struct MyEventsView: View {
     var body: some View {
         VStack(spacing: 0) {
             header
-            content
+            // Потяг ловлять стрічка й порожній стан нижче; гостю оновлювати нічого, і його екран не прокручується.
+            // Лише на вмісті: `refreshable` на всьому екрані діставався й горизонтальному ряду чипів,
+            // і той отримував власний індикатор оновлення та гойдався вертикально.
+            content.refreshable { await model.reloadMyEvents() }
         }
         .background(Palette.canvas)
         .toolbar(.hidden, for: .navigationBar)
         .task { model.app.loadMyEvents() }
-        // Потяг ловлять стрічка й порожній стан нижче; гостю оновлювати нічого, і його екран не прокручується.
-        .refreshable { await model.reloadMyEvents() }
         .sheet(isPresented: $creating) { EventEditor(event: nil, app: model.app, home: model.state) }
     }
 
