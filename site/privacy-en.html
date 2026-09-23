@@ -18,7 +18,7 @@
     <a href="delete-account.html">Delete account</a>
     <a href="privacy.html">Українською</a>
   </nav>
-  <p class="meta" style="margin-top:32px">Effective 16 September 2026</p>
+  <p class="meta" style="margin-top:32px">Effective 23 September 2026</p>
   <h1>Privacy Policy</h1>
   <p class="lead">In short: we keep only what is needed for you to find events, host your own and talk to attendees. We do not sell data and show no ads.</p>
 </div></header>
@@ -37,13 +37,15 @@
 <tr><td>Date of birth</td><td>Sign-up</td><td>Verifying you are 18+ and enforcing event age limits. Stored separately from the profile and never displayed.</td></tr>
 <tr><td>Events you create</td><td>Publishing an event</td><td>Title, description, category, place, time, capacity, cover photo and chat link are public to all users.</td></tr>
 <tr><td>Attendance, waiting list, saved events</td><td>Joining, queueing, saving</td><td>Your plans in "My events". Queue positions and saved events are private; attendance is visible to the organizer and attendees.</td></tr>
-<tr><td>Event chat messages</td><td>Sending a message</td><td>Communication between the organizer and confirmed attendees. Stored on the server, visible to event members only, deleted with the event.</td></tr>
+<tr><td>Event chat messages</td><td>Sending a message</td><td>Communication between the organizer and confirmed attendees. Stored on the server, visible to event members only, deleted with the event. A message you delete is erased completely, text included. To show unread messages we store how far you have read each chat.</td></tr>
+<tr><td>Event ratings</td><td>Rating an event that has ended</td><td>A score from 1 to 5 and an optional comment of up to 500 characters. Visible to the event organizer so they can improve future meetups; not shown to other attendees.</td></tr>
 <tr><td>Reports and blocks</td><td>Reporting or blocking</td><td>Moderation. Reports are visible only to us; blocked users are not notified.</td></tr>
 <tr><td>Photos</td><td>Adding a cover</td><td>Covers are public. We use the system photo picker and never see other photos in your library.</td></tr>
-<tr><td>Location</td><td>Only when you tap "Near me" and grant permission</td><td>Centering the map. Coordinates are not stored on the server; only the visible map area is sent. You can pick a city manually instead.</td></tr>
+<tr><td>Approximate location</td><td>Only when you tap "Near me" and grant permission</td><td>Centering the map and detecting your city. The app asks only for approximate location (Android "Approximate" permission, about one kilometre accuracy on iOS) and only while in use. Coordinates are not stored on our server; only the visible map area is sent there. To name the city for a point, coordinates are sent to Photon (see section 4). You can pick a city manually instead.</td></tr>
+<tr><td>City and address search</td><td>Searching for a city or setting the place of your event</td><td>City and address suggestions, finding the address of a point on the map. The text you type and the point's coordinates are sent to Photon (see section 4) and are not stored by us separately; the address of an event you create is public with the event.</td></tr>
 <tr><td>Push token</td><td>When you allow notifications</td><td>Delivering notifications about new messages and join requests. Removed on sign-out.</td></tr>
 <tr><td>Interests and onboarding answers</td><td>First launch, profile</td><td>Ranking events for you. Answers stay on the device; chosen categories are stored in your server profile.</td></tr>
-<tr><td>Usage statistics and crash reports</td><td>Automatically while the app runs</td><td>Which steps people take (viewing, joining, creating an event) and where the app crashes, so we can fix bugs. Via Firebase Analytics and Crashlytics, without the advertising identifier; not linked to your account.</td></tr>
+<tr><td>Usage statistics and crash reports</td><td>Automatically while the app runs</td><td>Which steps people take (viewing, joining, creating an event) and where the app crashes, so we can fix bugs. Via Firebase Analytics and Crashlytics, without the advertising identifier. The data is pseudonymous: tied to a random app-instance identifier, not to your account, name or email. You can turn collection off with the <b>Profile → Analytics</b> switch.</td></tr>
 <tr><td>Technical data</td><td>Automatically with each request</td><td>IP address and app version in server logs for security and diagnostics, kept for a limited time by our hosting provider.</td></tr>
 </table>
 </div>
@@ -52,7 +54,7 @@
 <h2>3. Legal bases</h2>
 <ul>
   <li><b>Contract</b> (Terms of Use): account, events, attendance, chat, notifications.</li>
-  <li><b>Legitimate interest</b>: security, abuse prevention, rate limiting, moderation.</li>
+  <li><b>Legitimate interest</b>: security, abuse prevention, rate limiting, moderation; usage statistics and crash reports to keep the app stable. You can opt out of analytics with the "Analytics" switch in your profile.</li>
   <li><b>Consent</b>: location, push notifications, local reminders. Withdraw at any time in device or app settings.</li>
   <li><b>Legal obligation</b>: age verification and lawful requests from authorities.</li>
 </ul>
@@ -64,10 +66,10 @@
 <tr><th>Provider</th><th>What</th></tr>
 <tr><td>Supabase, Inc. (database, auth, file storage, functions)</td><td>All account data, events, messages, photos. Hosted in Ireland (AWS eu-west-1, European Union).</td></tr>
 <tr><td>Google LLC, Firebase Cloud Messaging (Android)</td><td>Device token and notification content for delivery.</td></tr>
-<tr><td>Google LLC, Firebase Analytics and Crashlytics (Android, iOS)</td><td>Anonymous usage statistics, crash reports, device model and OS version.</td></tr>
+<tr><td>Google LLC, Firebase Analytics and Crashlytics (Android, iOS)</td><td>Pseudonymous usage statistics (with an app-instance identifier), crash reports, device model and OS version. Collection is turned off by the "Analytics" switch in your profile.</td></tr>
 <tr><td>Apple Inc., Apple Push Notification service (iOS)</td><td>Device token and notification content for delivery.</td></tr>
 <tr><td>OpenFreeMap (map tiles)</td><td>Device IP address and the map area you view while tiles load.</td></tr>
-<tr><td>Photon / komoot (city search)</td><td>City search text and IP address.</td></tr>
+<tr><td>komoot GmbH, Photon (city and address search, Germany)</td><td>Text you type when searching for a city or address, coordinates of a point whose address or city is looked up, and IP address.</td></tr>
 <tr><td>Source websites of imported events (Karabas, Concert.ua, TicketsBox, DOU and others)</td><td>Cover images of imported events load from the source site, which sees your IP address. "Buy ticket" opens the source site under its own policy.</td></tr>
 </table>
 </div>
@@ -76,8 +78,9 @@
 <h2>5. Retention</h2>
 <ul>
   <li>Account and profile: until you delete the account.</li>
-  <li>Events, attendance, chat: while the event or account exists. Chat closes one week after the event ends.</li>
-  <li>Reports: up to 12 months after review.</li>
+  <li>Events, attendance, chat, ratings: while the event or account exists. Chat closes one week after the event ends.</li>
+  <li>Reports: as long as needed for moderation. Reports you filed are deleted with your account; reports about you remain after account deletion without a link to it.</li>
+  <li>Usage statistics and crash reports: per Firebase retention settings, no longer than 14 months.</li>
   <li>Push tokens: until sign-out or device change.</li>
   <li>Server logs: up to 30 days.</li>
   <li>Local cache and drafts on the device: until sign-out or app removal.</li>
@@ -85,9 +88,9 @@
 
 <h2>6. Your rights</h2>
 <ul>
-  <li><b>Delete your account</b> in the app (Profile → Delete account) or via the <a href="delete-account.html">website instructions</a>. Account, profile, attendance, drafts, tokens and messages are deleted; events you created are cancelled.</li>
-  <li><b>Access, rectify or restrict</b> your data by emailing <a href="mailto:hello@poriad.app">hello@poriad.app</a>. We reply within 30 days.</li>
-  <li><b>Withdraw consent</b> for location and notifications in device settings.</li>
+  <li><b>Delete your account</b> in the app (Profile → Delete account) or via the <a href="delete-account.html">website instructions</a>. Deletion is immediate: account, profile, attendance, messages, ratings, reports you filed, push tokens and uploaded photos are deleted; events you created are deleted together with other people's attendance and the chat.</li>
+  <li><b>Access, rectify or restrict</b> your data by emailing <a href="mailto:hello@poriad.app">hello@poriad.app</a>. The copy includes your email, profile, your events, attendance and queue, messages, ratings, chat read markers and devices registered for notifications. We reply within 30 days.</li>
+  <li><b>Withdraw consent</b> for location and notifications in device settings; <b>opt out of analytics</b> with the "Analytics" switch in your profile.</li>
   <li><b>Complain</b> to the Ukrainian Parliament Commissioner for Human Rights or, if you are in the EU, to your supervisory authority.</li>
 </ul>
 
