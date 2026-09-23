@@ -18,6 +18,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.ArrowUpward
+import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.DeleteOutline
@@ -90,6 +91,17 @@ fun ChatScreen(state: ChatState, onIntent: (ChatIntent) -> Unit) {
         )
     }
     state.reporting?.let { message -> ReportMessageSheet(message, onIntent) }
+    state.blocking?.let { message ->
+        PoruchConfirmSheet(
+            title = stringResource(R.string.block_user_title),
+            message = stringResource(R.string.block_user_body),
+            confirmLabel = stringResource(R.string.block_confirm),
+            dismissLabel = stringResource(R.string.close),
+            onConfirm = { onIntent(ChatIntent.Block(message.authorId)) },
+            onDismiss = { onIntent(ChatIntent.ConfirmBlock(null)) },
+            tone = colors.danger
+        )
+    }
 }
 
 // ---- Шапка
@@ -306,7 +318,7 @@ private fun Composer(state: ChatState, onIntent: (ChatIntent) -> Unit) {
 
 // ---- Меню й скарга
 
-/** Довгий тап: скопіювати, поскаржитись на чуже, видалити своє (або будь-яке — організатору). */
+/** Довгий тап: скопіювати, поскаржитись на чуже чи заблокувати автора, видалити своє (або будь-яке — організатору). */
 @Composable
 private fun MessageActions(state: ChatState, message: ChatMessage, onIntent: (ChatIntent) -> Unit) {
     val colors = Poruch.colors
@@ -319,6 +331,9 @@ private fun MessageActions(state: ChatState, message: ChatMessage, onIntent: (Ch
             ActionRow(Icons.Outlined.ContentCopy, stringResource(R.string.chat_copy)) { sheet.close { onIntent(ChatIntent.Copy(message)) } }
             if (!state.isMine(message)) ActionRow(Icons.Outlined.Flag, stringResource(R.string.chat_report)) {
                 sheet.close { onIntent(ChatIntent.ShowReport(message)) }
+            }
+            if (!state.isMine(message)) ActionRow(Icons.Outlined.Block, stringResource(R.string.chat_block)) {
+                sheet.close { onIntent(ChatIntent.ConfirmBlock(message)) }
             }
             if (state.canDelete(message)) ActionRow(Icons.Outlined.DeleteOutline, stringResource(R.string.chat_delete), tone = colors.danger) {
                 sheet.close { onIntent(ChatIntent.ConfirmDelete(message)) }

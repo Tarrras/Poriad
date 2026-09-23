@@ -24,7 +24,9 @@ data class ChatState(
     /** Повідомлення, на яке пишуть скаргу. */
     val reporting: ChatMessage? = null,
     /** Повідомлення, видалення якого підтверджують. */
-    val deleting: ChatMessage? = null
+    val deleting: ChatMessage? = null,
+    /** Автора цього повідомлення блокують: крок підтвердження. */
+    val blocking: ChatMessage? = null
 ) {
     fun isMine(message: ChatMessage) = message.authorId == userId
     fun canDelete(message: ChatMessage) = organizer || isMine(message)
@@ -41,6 +43,9 @@ sealed interface ChatIntent {
     data class ConfirmDelete(val message: ChatMessage?) : ChatIntent
     data class Delete(val id: String) : ChatIntent
     data class ShowReport(val message: ChatMessage?) : ChatIntent
+    /** Крок підтвердження перед блокуванням автора; `null` — передумали. */
+    data class ConfirmBlock(val message: ChatMessage?) : ChatIntent
+    data class Block(val userId: String) : ChatIntent
     /** Ціль їде всередині: шторка спершу закривається (і скидає [ChatState.reporting]), а вже потім шле це. */
     data class SendReport(val message: ChatMessage, val reason: String, val details: String) : ChatIntent
 }

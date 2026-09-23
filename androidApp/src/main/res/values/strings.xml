@@ -336,6 +336,7 @@
   <string name="chat_read_only">Чат закрито: подію скасовано або вона давно минула.</string>
   <string name="chat_delete">Видалити</string>
   <string name="chat_report">Поскаржитись</string>
+  <string name="chat_block">Заблокувати автора</string>
   <string name="chat_report_title">Поскаржитись на повідомлення</string>
   <string name="chat_home_section">Нові повідомлення</string>
   <string name="chat_home_hint">Відкрийте чат, щоб відповісти.</string>

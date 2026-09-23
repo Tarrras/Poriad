@@ -60,6 +60,11 @@ class ChatViewModel(private val app: PoruchApp, private val eventId: String) :
                 app.deleteMessage(intent.id)
             }
             is ChatIntent.ShowReport -> reduce { copy(selected = null, reporting = intent.message) }
+            is ChatIntent.ConfirmBlock -> reduce { copy(selected = null, blocking = intent.message) }
+            is ChatIntent.Block -> {
+                reduce { copy(blocking = null) }
+                app.blockUser(intent.userId)
+            }
             is ChatIntent.SendReport -> {
                 reduce { copy(reporting = null) }
                 app.reportMessage(intent.message.id, intent.reason, intent.details)
