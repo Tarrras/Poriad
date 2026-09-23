@@ -170,6 +170,17 @@ internal class DiscoveryEngine(
         if (!blank) homeDebounceJob = scope.launch { delay(DiscoveryRules.SEARCH_DEBOUNCE_MS); searchHome() }
     }
 
+    /** Вихід з режиму пошуку головної: текст і фільтри назад до типових, стрічка як була. */
+    fun cancelHomeSearch() {
+        homeDebounceJob?.cancel(); homeSearchJob?.cancel()
+        store.update {
+            it.copy(home = it.home.copy(
+                searchText = "", results = emptyList(), found = emptyList(), resultsTotal = 0, searchLoading = false,
+                searchEverywhere = false, searchCategory = ALL_CATEGORIES, searchDate = DateFilter.ANY
+            ))
+        }
+    }
+
     /** Пошук головної по всіх містах чи лише в обраному. */
     fun setHomeSearchEverywhere(everywhere: Boolean) =
         updateHomeSearch { it.copy(searchEverywhere = everywhere) }

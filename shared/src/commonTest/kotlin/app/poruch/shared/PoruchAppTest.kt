@@ -459,6 +459,13 @@ class PoruchAppTest {
         app.setHomeSearchEverywhere(false); runCurrent()
         assertTrue(events.queries.last().south > -90.0,"назад до міста")
         assertEquals(1,app.state.value.home.index.size,"стрічка без фільтрів пошуку")
+
+        app.setHomeSearchEverywhere(true); runCurrent()
+        app.cancelHomeSearch(); runCurrent()
+        val home=app.state.value.home
+        assertEquals("",home.searchText); assertFalse(home.searchEverywhere)
+        assertEquals(ALL_CATEGORIES,home.searchCategory); assertEquals(DateFilter.ANY,home.searchDate)
+        assertEquals(emptyList(),home.results)
         app.close()
     }
 
