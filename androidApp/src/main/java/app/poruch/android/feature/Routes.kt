@@ -7,6 +7,8 @@ import android.content.Intent
 import android.location.Geocoder
 import android.location.LocationManager
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
@@ -117,6 +119,8 @@ fun MyEventsRoute(navigator: Navigator) {
     MyEventsScreen(model.state.collectAsStateWithLifecycle().value, model::dispatch)
 }
 
+// Запит дозволу шле модель лише коли NotificationPermission.required (API 33+).
+@SuppressLint("InlinedApi")
 @Composable
 fun DetailRoute(route: Detail, navigator: Navigator) {
     val context = LocalContext.current
@@ -157,6 +161,8 @@ fun ChatRoute(route: Chat, navigator: Navigator) {
     ChatScreen(model.state.collectAsStateWithLifecycle().value, model::dispatch)
 }
 
+// Запит дозволу шле модель лише коли NotificationPermission.required (API 33+).
+@SuppressLint("InlinedApi")
 @Composable
 fun EditorRoute(route: Editor, navigator: Navigator) {
     val model = koinViewModel<EditorViewModel> { parametersOf(route) }
@@ -186,6 +192,8 @@ fun AuthRoute(navigator: Navigator) {
     AuthScreen(model.state.collectAsStateWithLifecycle().value, model::dispatch)
 }
 
+// Запит дозволу шле модель лише коли NotificationPermission.required (API 33+).
+@SuppressLint("InlinedApi")
 @Composable
 fun ProfileRoute(navigator: Navigator) {
     val model = koinViewModel<ProfileViewModel>(viewModelStoreOwner = activityStoreOwner())
@@ -240,7 +248,7 @@ internal fun Context.cityAt(latitude: Double, longitude: Double, fallback: Strin
         // До API 33 виклик синхронний і ходить у мережу: не на головному.
         @Suppress("DEPRECATION")
         val found = runCatching { geocoder.getFromLocation(latitude, longitude, 1) }.getOrNull().orEmpty()
-        mainExecutor.execute { done(found) }
+        Handler(Looper.getMainLooper()).post { done(found) }
     }
 }
 

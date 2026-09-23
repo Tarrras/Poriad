@@ -52,7 +52,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -909,8 +908,7 @@ fun PoruchTabBar(items: List<TabItem>, selected: String, modifier: Modifier = Mo
             items.forEach { item ->
                 val active = item.key == selected
                 // Скрінрідер чує вкладку, її стан і бейдж одним рядком.
-                val description = if (item.badge > 0) item.label + ", " +
-                    pluralStringResource(R.plurals.tab_unread_chats, item.badge, item.badge) else item.label
+                val description = if (item.badge > 0) stringResource(R.string.tab_badge_a11y, item.label, item.badge) else item.label
                 // Бейдж живе поза капсулою пункту: її обрізає clip для ріплу, і кут числа зникав.
                 Box(Modifier.weight(1f)) {
                     Column(

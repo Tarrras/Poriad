@@ -4,6 +4,7 @@ import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
+import androidx.core.content.edit
 import app.poruch.shared.SecureSessionStore
 import android.security.keystore.KeyPermanentlyInvalidatedException
 import java.security.GeneralSecurityException
@@ -38,7 +39,7 @@ class SessionStore(context: Context) : SecureSessionStore {
     override fun write(value: String) {
         val cipher = Cipher.getInstance("AES/GCM/NoPadding").apply { init(Cipher.ENCRYPT_MODE, key()) }
         // apply: запис іде з головного потоку, диск — у фоні; пам'ять SharedPreferences оновлюється одразу.
-        preferences.edit().putString("data", Base64.encodeToString(cipher.iv + cipher.doFinal(value.toByteArray()), Base64.NO_WRAP)).apply()
+        preferences.edit { putString("data", Base64.encodeToString(cipher.iv + cipher.doFinal(value.toByteArray()), Base64.NO_WRAP)) }
     }
-    override fun clear() { preferences.edit().clear().apply() }
+    override fun clear() { preferences.edit { clear() } }
 }

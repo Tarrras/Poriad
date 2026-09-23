@@ -3,7 +3,6 @@
   <string name="map">Мапа</string>
   <string name="my_events">Мої події</string>
   <string name="profile">Профіль</string>
-  <string name="offline">Офлайн · показуємо останні доступні дані</string>
   <string name="music">Музика</string>
   <string name="sport">Спорт</string>
   <string name="art">Мистецтво</string>
@@ -19,13 +18,10 @@
   <string name="back">Назад</string>
   <string name="cancelled">Подію скасовано</string>
   <string name="seats">Вільних місць: %1$d</string>
-  <string name="no_events">Тут поки немає подій. Спробуйте іншу область або фільтри.</string>
   <string name="login">Увійти</string>
   <string name="refresh">Оновити</string>
   <string name="details">Про подію</string>
-  <string name="loading">Завантаження…</string>
   <string name="event_unavailable">Подія недоступна. Поверніться до мапи й спробуйте ще раз.</string>
-  <string name="organizer">Організатор · %1$s</string>
   <string name="leave">Ви берете участь · вийти</string>
   <string name="full">Місць немає</string>
   <string name="join">Приєднатися</string>
@@ -36,8 +32,6 @@
   <string name="cancel_explain">Подія залишиться в історії учасників. Нові приєднання буде закрито.</string>
   <string name="keep">Залишити подію</string>
   <string name="nearby">Поруч зі мною</string>
-  <string name="discover">Події поруч</string>
-  <string name="list">Список</string>
   <string name="any_date">Будь-коли</string>
   <string name="today">Сьогодні</string>
   <string name="tomorrow">Завтра</string>
@@ -85,10 +79,8 @@
   <string name="create">Створити подію</string>
   <string name="city_search">Пошук міста</string>
   <string name="city">Місто</string>
-  <string name="search">Знайти</string>
   <string name="close">Закрити</string>
   <string name="search_here">Шукати тут</string>
-  <string name="map_error">Не вдалося завантажити мапу. Перевірте мережу або відкрийте список подій.</string>
   <string name="guest_title">Ваші люди — поруч</string>
   <string name="account_title">Ви з нами</string>
   <string name="guest_description">Увійдіть, щоб зберігати цікаве, приєднуватись і створювати власні зустрічі.</string>
@@ -98,18 +90,9 @@
   <string name="auth_description">Події можна переглядати без входу. Для участі потрібен обліковий запис.</string>
   <string name="name">Ваше ім’я</string>
   <string name="email">Електронна пошта</string>
-  <string name="password">Пароль (щонайменше 8 символів)</string>
-  <string name="have_account">Уже є обліковий запис? Увійти</string>
-  <string name="new_account">Створити новий обліковий запис</string>
-  <string name="no_account_yet">Ще немає облікового запису?</string>
-  <string name="already_registered">Уже зареєстровані?</string>
-  <string name="step">Крок %1$d із 3</string>
   <string name="title">Назва події</string>
   <string name="description">Опис</string>
   <string name="address">Адреса та місце зустрічі</string>
-  <string name="point_help">Натисніть і утримуйте точку на мапі, щоб обрати місце. Або введіть координати вручну.</string>
-  <string name="latitude">Широта</string>
-  <string name="longitude">Довгота</string>
   <string name="starts">Початок</string>
   <string name="ends">Закінчення</string>
   <string name="timezone">Часовий пояс</string>
@@ -118,7 +101,6 @@
   <string name="timezone_from_device">За вашим пристроєм — місце не вдалося визначити</string>
   <string name="capacity">Кількість місць</string>
   <string name="date_help">Оберіть дату й час</string>
-  <string name="invalid_draft">Перевірте дату, часовий пояс, координати та кількість місць.</string>
   <string name="next">Далі</string>
   <string name="publish">Опублікувати</string>
   <string name="photo_after_publish">Фото можна додати на сторінці події після публікації.</string>
@@ -134,7 +116,6 @@
   <string name="auth_reset_send">Надіслати лист</string>
   <string name="auth_reset_back">Назад до входу</string>
   <string name="photo_error">Оберіть JPEG, PNG або WebP розміром до 5 МБ.</string>
-  <string name="photo_load_error">Фото зараз недоступне.</string>
   <string name="add_photo">Додати або замінити фото</string>
   <string name="reminders">Сповіщення про мої події</string>
   <string name="reminder_body">Початок за годину · %1$s</string>
@@ -143,13 +124,11 @@
   <string name="analytics_note">Псевдонімна статистика використання й звіти про збої. Без реклами.</string>
   <string name="reminder_permission">Сповіщення вимкнено. Їх можна дозволити в налаштуваннях Android.</string>
   <string name="interests">Ваші інтереси</string>
-    <string name="empty_map">Тут поки немає подій. Змініть фільтри або створіть першу зустріч.</string>
   <string name="clear_search">Очистити пошук</string>
   <string name="filters">Фільтри</string>
   <string name="going">Ви йдете</string>
   <string name="seats_left">Лишилось %1$d місць</string>
   <string name="attendees">%1$d з %2$d учасників</string>
-  <string name="see_all">Усі</string>
   <string name="explore_subtitle">Знайдіть, куди піти сьогодні у місті %1$s</string>
   <string name="search_placeholder">Подія, місце або тема</string>
   <string name="show_list">Показати списком</string>
@@ -188,7 +167,6 @@
   <string name="create_banner_title">Маєте ідею зустрічі?</string>
   <string name="create_banner_subtitle">Опублікуйте подію за три кроки</string>
   <string name="profile_guest_cta">Увійти або зареєструватися</string>
-  <string name="account">Обліковий запис</string>
   <string name="settings">Налаштування</string>
   <string name="about_app">Про застосунок</string>
   <string name="privacy_policy">Політика конфіденційності</string>
@@ -206,7 +184,6 @@
   <string name="auth_consent_terms">Умовами користування</string>
   <string name="auth_consent_privacy">Політикою конфіденційності</string>
   <string name="about_app_body">«Поряд» — події та люди у вашому місті. Мапа: MapLibre та OpenFreeMap.</string>
-  <string name="step_of">Крок %1$d із 3</string>
   <string name="step_one">Про подію</string>
   <string name="step_two">Місце</string>
   <string name="step_three">Час і місця</string>
@@ -227,10 +204,8 @@
   <string name="home_title">Що поруч</string>
   <string name="home_subtitle">Плани на найближчі дні у місті %1$s</string>
   <string name="all_events_hint">На мапі можна змінити область, дату й категорію</string>
-  <string name="all_events_row_a11y">Усі події поруч: %1$d. Показати на мапі</string>
   <string name="upcoming_for_you">Скоро у вас</string>
   <string name="today_in_city">Сьогодні в місті</string>
-  <string name="this_weekend">На вихідних</string>
   <string name="all_events_section">Усі події поруч</string>
   <string name="browse_categories">Категорії</string>
   <string name="picked_for_you">Для вас</string>
@@ -341,12 +316,6 @@
   <string name="chat_home_section">Нові повідомлення</string>
   <string name="chat_home_hint">Відкрийте чат, щоб відповісти.</string>
   <string name="chat_preview">%1$s: %2$s</string>
-  <plurals name="tab_unread_chats">
-    <item quantity="one">%1$d чат з новими повідомленнями</item>
-    <item quantity="few">%1$d чати з новими повідомленнями</item>
-    <item quantity="many">%1$d чатів з новими повідомленнями</item>
-    <item quantity="other">%1$d чату з новими повідомленнями</item>
-  </plurals>
   <plurals name="chat_unread_count">
     <item quantity="one">%1$d нове</item>
     <item quantity="few">%1$d нових</item>
@@ -407,7 +376,6 @@
   <string name="block_confirm">Заблокувати</string>
   <string name="blocked_section">Заблоковані</string>
   <string name="unblock">Розблокувати</string>
-  <string name="blocked_count">Ви заблокували %1$d людей</string>
 
   <string name="msg_request_sent">Запит надіслано організатору</string>
   <string name="msg_report_sent">Дякуємо. Модерація перегляне скаргу</string>
@@ -424,8 +392,6 @@
   <string name="err_too_many_events">Забагато подій за добу. Спробуйте завтра</string>
   <string name="field_age_limits">Вікові обмеження</string>
   <string name="find_on_map">Знайти на мапі</string>
-  <string name="no_plans_title">Ще немає планів</string>
-  <string name="no_plans_hint">Створіть подію або приєднайтесь до чужої — вона зʼявиться тут із нагадуванням.</string>
   <string name="share">Поділитися</string>
   <string name="share_event_text">%1$s · %2$s · %3$s</string>
   <string name="share_chooser">Поділитися подією</string>
@@ -433,7 +399,6 @@
   <string name="guest_home_hint">Увійдіть, щоб зберігати події та отримувати нагадування.</string>
   <string name="attendees_going">Ідуть</string>
   <string name="attendees_more">+%1$d</string>
-  <string name="add_to_calendar">У календар</string>
   <string name="calendar_unavailable">Не знайшли застосунок календаря</string>
   <string name="open_in_maps">Маршрут</string>
   <string name="maps_unavailable">Не знайшли застосунок мап</string>

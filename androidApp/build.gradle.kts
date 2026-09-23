@@ -92,6 +92,8 @@ dependencies {
     implementation("io.insert-koin:koin-compose-navigation3")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.10.0")
     implementation("org.maplibre.gl:android-sdk:11.11.0")
+    // Орієнтація фото на API 26–27: системний ExifInterface там має відомі вразливості.
+    implementation("androidx.exifinterface:exifinterface:1.4.2")
     // Firebase: пуші, аналітика, крашлітика. Версії з BOM.
     implementation(platform("com.google.firebase:firebase-bom:34.3.0"))
     implementation("com.google.firebase:firebase-messaging")

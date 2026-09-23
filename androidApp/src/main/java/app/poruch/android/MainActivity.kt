@@ -23,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.core.content.edit
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavKey
@@ -139,7 +140,7 @@ fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
         // Питаємо раз, після онбордингу; далі — лише кнопкою «Поруч» на мапі.
         val prompts = context.getSharedPreferences(PROMPTS, Context.MODE_PRIVATE)
         if (prompts.getBoolean(LOCATION_ASKED, false)) return@LaunchedEffect
-        prompts.edit().putBoolean(LOCATION_ASKED, true).apply()
+        prompts.edit { putBoolean(LOCATION_ASKED, true) }
         locationPermission.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
     }
 
