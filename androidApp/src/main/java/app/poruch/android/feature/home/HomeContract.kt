@@ -29,6 +29,8 @@ data class HomeState(
     val waitlistedIds: List<String> = emptyList(),
     /** Пошук головної, окремий від мапи: фільтр одного екрана не порожнить інший. */
     val searchText: String = "",
+    /** Режим пошуку: тап у поле ховає стрічку, «Скасувати» чи «назад» повертає її без фільтрів. */
+    val searchMode: Boolean = false,
     /** Результати пошуку одним списком, без дайджесту. Лише ті, чиї картки вже приїхали. */
     val results: List<Event> = emptyList(),
     /** Скільки результатів показуємо; «Показати ще» додає [RESULTS_PAGE]. */
@@ -57,6 +59,10 @@ const val RESULTS_PAGE = 12
 data class PendingRequests(val event: Event, val count: Int)
 
 sealed interface HomeIntent {
+    /** Тап у поле пошуку. */
+    data object EnterSearch : HomeIntent
+    /** «Скасувати» або «назад» у режимі пошуку: текст і фільтри скидаються. */
+    data object CancelSearch : HomeIntent
     data class Search(val text: String) : HomeIntent
     /** Фільтри під полем пошуку: область, категорія, дата. */
     data class SearchEverywhere(val everywhere: Boolean) : HomeIntent

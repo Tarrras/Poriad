@@ -59,6 +59,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -410,8 +411,9 @@ fun EmptyState(
             Modifier.size(64.dp).cardSurface(Radius.md),
             contentAlignment = Alignment.Center
         ) { Icon(icon, null, Modifier.size(26.dp), tint = colors.inkSecondary) }
-        Text(title, style = MaterialTheme.typography.titleLarge, color = colors.ink)
-        Text(message, style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
+        // Довгі рядки переносяться: по центру, як і значок над ними.
+        Text(title, style = MaterialTheme.typography.titleLarge, color = colors.ink, textAlign = TextAlign.Center)
+        Text(message, style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary, textAlign = TextAlign.Center)
         if (actionLabel != null && onAction != null) PrimaryButton(actionLabel, onAction, Modifier.padding(top = Spacing.sm))
     }
 }

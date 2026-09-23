@@ -76,6 +76,11 @@ class HomeViewModel(private val app: PoruchApp) : MviViewModel<HomeState, HomeIn
             app.selectEvent(intent.id)
             send(HomeEffect.Navigate(HomeDestination.CHAT, intent.id))
         }
+        HomeIntent.EnterSearch -> reduce { copy(searchMode = true) }
+        HomeIntent.CancelSearch -> {
+            reduce { copy(searchMode = false, resultsLimit = RESULTS_PAGE) }
+            app.cancelHomeSearch()
+        }
         // Нова видача — знову з першої сторінки.
         is HomeIntent.Search -> { firstPage(); app.setHomeSearchText(intent.text) }
         is HomeIntent.SearchEverywhere -> { firstPage(); app.setHomeSearchEverywhere(intent.everywhere) }

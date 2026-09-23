@@ -1,5 +1,6 @@
 package app.poruch.android.feature.home
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -13,13 +14,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -46,7 +44,15 @@ fun HomeScreen(state: HomeState, onIntent: (HomeIntent) -> Unit) {
             verticalArrangement = Arrangement.spacedBy(Spacing.section)
         ) {
             Header(state, onIntent)
-            if (state.searching) SearchResults(state, onIntent) else {
+            // Стрічка й фільтри пошуку ніколи разом: у режимі пошуку — видача або підказка.
+            if (state.searchMode) {
+                if (state.searching) SearchResults(state, onIntent)
+                else EmptyState(
+                    PoruchIcons.search, stringResource(R.string.search_hint_title),
+                    if (state.searchEverywhere || state.cityName.isBlank()) stringResource(R.string.search_hint_everywhere)
+                    else stringResource(R.string.search_hint_in_city, state.cityName)
+                )
+            } else {
                 QuickActions(onIntent)
                 if (!state.signedIn) BannerCard(
                     stringResource(R.string.guest_title), stringResource(R.string.guest_home_hint),
@@ -86,7 +92,8 @@ private fun Header(state: HomeState, onIntent: (HomeIntent) -> Unit) {
         Modifier.fillMaxWidth().padding(horizontal = Spacing.page).padding(top = Spacing.xl),
         verticalArrangement = Arrangement.spacedBy(Spacing.lg)
     ) {
-        Row(verticalAlignment = Alignment.Top) {
+        // Режим пошуку ховає шапку: поле піднімається нагору.
+        if (!state.searchMode) Row(verticalAlignment = Alignment.Top) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                 Text(stringResource(R.string.home_title), style = MaterialTheme.typography.displaySmall, color = colors.ink)
                 // Що означає «поруч»: завжди ціле місто. «Шукати тут» на мапі головну не звужує.
@@ -97,18 +104,24 @@ private fun Header(state: HomeState, onIntent: (HomeIntent) -> Unit) {
             }
             IconPill(PoruchIcons.person, stringResource(R.string.profile)) { onIntent(HomeIntent.OpenProfile) }
         }
-        // Плейсхолдер каже, де шукаємо: інакше пошук лише в місті ніхто не помічав.
-        var focused by remember { mutableStateOf(false) }
-        PoruchSearchField(
-            state.searchText, { onIntent(HomeIntent.Search(it)) },
-            when {
-                state.searchEverywhere -> stringResource(R.string.home_search_everywhere)
-                state.cityName.isBlank() -> stringResource(R.string.search_placeholder)
-                else -> stringResource(R.string.home_search_in_city, state.cityName)
-            },
-            Modifier.onFocusChanged { focused = it.hasFocus }
-        )
-        if (focused || state.searching) SearchFilters(state, onIntent)
+        val focus = LocalFocusManager.current
+        val cancel = { focus.clearFocus(); onIntent(HomeIntent.CancelSearch) }
+        BackHandler(state.searchMode, cancel)
+        // Поле в тому самому ряду в обох режимах: інакше перебудова забирала б фокус.
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
+            // Плейсхолдер каже, де шукаємо: інакше пошук лише в місті ніхто не помічав.
+            PoruchSearchField(
+                state.searchText, { onIntent(HomeIntent.Search(it)) },
+                when {
+                    state.searchEverywhere -> stringResource(R.string.home_search_everywhere)
+                    state.cityName.isBlank() -> stringResource(R.string.search_placeholder)
+                    else -> stringResource(R.string.home_search_in_city, state.cityName)
+                },
+                Modifier.weight(1f).onFocusChanged { if (it.hasFocus && !state.searchMode) onIntent(HomeIntent.EnterSearch) }
+            )
+            if (state.searchMode) GhostButton(stringResource(R.string.cancel), cancel)
+        }
+        if (state.searchMode) SearchFilters(state, onIntent)
     }
 }
 

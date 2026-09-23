@@ -194,6 +194,10 @@
   <string name="events_found">Знайдено подій: %1$d</string>
   <string name="home_search_in_city">Шукати в місті %1$s</string>
   <string name="home_search_everywhere">Пошук усюди</string>
+  <string name="cancel">Скасувати</string>
+  <string name="search_hint_title">Шукайте за назвою, місцем чи виконавцем</string>
+  <string name="search_hint_in_city">Шукаємо в місті %1$s</string>
+  <string name="search_hint_everywhere">Шукаємо в усіх містах</string>
   <string name="everywhere">Усюди</string>
   <string name="search_everywhere">Шукати усюди</string>
   <plurals name="events_found_in_city">
