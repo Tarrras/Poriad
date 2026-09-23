@@ -202,6 +202,38 @@ internal class DiscoveryEngine(
         load(ids)?.let { homeCardsJob?.cancel(); homeCardsJob = it }
     }
 
+    /**
+     * Зміна акаунта: картки в дорозі несуть членство попереднього, тож їх скасовуємо разом із
+     * записами [inFlight]. Пошуки скасує наступний [refresh].
+     */
+    fun reset() {
+        cardsJob?.cancel(); homeCardsJob?.cancel(); sessionsJob?.cancel()
+        inFlight.values.forEach { it.cancel() }
+        inFlight.clear(); sessionsWanted = emptySet()
+    }
+
+    /**
+     * Дія змінила одну подію (участь, черга, оцінка, фото): перечитуємо лише її картку, а не
+     * індекс міста. Подія зникла з видачі — картку викидаємо; збій — теж, щоб не показувати
+     * старе членство: наступне довантаження спитає знову.
+     */
+    fun reloadCard(id: String) {
+        scope.launch {
+            val fresh = try {
+                events.cards(listOf(id)).firstOrNull { it.id == id }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                PoruchLog.w("discovery") { "card ${id.shortId()} not reloaded: ${e.asAppError()}" }
+                null
+            }
+            store.update {
+                if (fresh == null && id !in it.cards) it
+                else it.copy(cards = if (fresh != null) it.cards + (id to fresh) else it.cards - id).materialized()
+            }
+        }
+    }
+
     /** Чекає, поки доїдуть поточні пошуки. Без пошуку або скасований — повертається одразу. */
     suspend fun awaitSearch() { searchJob?.join(); homeJob?.join(); homeSearchJob?.join() }
 
@@ -368,10 +400,12 @@ internal class DiscoveryEngine(
         val today = now.toLocalDateTime(zone).date
         // Вихідні — з суботи 00:00 до понеділка 00:00, найближчі.
         val daysToSaturday = (6 - today.dayOfWeek.isoDayNumber).coerceAtLeast(0)
+        // «Усі» — без меж: сервер сам бере «від зараз» разом із тим, що вже триває. Застиглий
+        // `now` ховав виставки й фестивалі і щоразу давав новий ключ кешу.
         val start = when (filter) {
             DateFilter.TODAY -> today.atStartOfDayIn(zone)
             DateFilter.WEEKEND -> today.plus(daysToSaturday, DateTimeUnit.DAY).atStartOfDayIn(zone)
-            else -> now
+            else -> null
         }
         val end = when (filter) {
             DateFilter.TODAY -> today.plus(1, DateTimeUnit.DAY).atStartOfDayIn(zone)
@@ -379,7 +413,7 @@ internal class DiscoveryEngine(
             else -> null
         }
         store.update { it.copy(map = it.map.copy(dateFilter = filter)) }
-        query = query.copy(from = start.toString(), to = end?.toString())
+        query = query.copy(from = start?.toString(), to = end?.toString())
         refresh(home = false)
     }
 

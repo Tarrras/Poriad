@@ -19,7 +19,9 @@ class PoruchAppTest {
             if(signUpSignsIn) session.value=UserSession("fresh","token","refresh",9999999999)
             return signUpSignsIn
         }
-        override suspend fun signOut() { session.value=null }
+        /** Сервер не впізнав прострочений токен: локально вихід усе одно відбувся. */
+        var signOutRefused=false
+        override suspend fun signOut() { session.value=null; if(signOutRefused) fail(AppError.SessionRequired) }
         override suspend fun accessToken()=session.value?.accessToken
         override suspend fun requestPasswordReset(email:String) {}
         var updated=false
@@ -35,7 +37,9 @@ class PoruchAppTest {
         val sent=mutableListOf<Pair<String,String>>()
         var chatMessages=emptyList<ChatMessage>()
         override suspend fun messages(eventId:String,after:String?)=chatMessages.filter { after==null || it.createdAt>after }
-        override suspend fun send(eventId:String,body:String):String { sent+=eventId to body; val m=ChatMessage("m${sent.size}",eventId,"user","Я",null,body,"2026-09-16T10:0${sent.size}:00Z"); chatMessages=chatMessages+m; return m.id }
+        var failSend=false
+        var slowSend=false
+        override suspend fun send(eventId:String,body:String):String { if(slowSend) delay(100); if(failSend) fail(AppError.Network); sent+=eventId to body; val m=ChatMessage("m${sent.size}",eventId,"user","Я",null,body,"2026-09-16T10:0${sent.size}:00Z"); chatMessages=chatMessages+m; return m.id }
         override suspend fun delete(messageId:String) { chatMessages=chatMessages.filterNot { it.id==messageId } }
         var unreadChats=emptyList<ChatUnread>()
         val readMarks=mutableListOf<String>()
@@ -55,6 +59,8 @@ class PoruchAppTest {
         override suspend fun discover(query:EventQuery):DiscoveryPage { queries+=query; delay(100); return page(results.filter { e -> query.text.let { it==null || it in e.title } },inlineCards) }
         override fun cached(query:EventQuery)=DiscoveryPage.Empty
         override suspend fun cards(ids:List<String>):List<Event> { cardRequests+=ids; return results.filter { it.id in ids } }
+        var failPending=false
+        var failFacts=false
         override suspend fun details(id:String):Event? { if(failDetails) fail(AppError.ServiceUnavailable); return null }
         var mine=emptyList<Event>()
         override suspend fun myEvents()=mine
@@ -76,7 +82,7 @@ class PoruchAppTest {
         override suspend fun rate(id:String, score:Int, comment:String?) {}
         override suspend fun joinRequests(id:String)=emptyList<Attendee>()
         var pending=emptyList<JoinRequest>()
-        override suspend fun pendingRequests()=pending
+        override suspend fun pendingRequests()=if(failPending) fail(AppError.ServiceUnavailable) else pending
         override suspend fun approveMember(eventId:String,userId:String) {}
         override suspend fun declineMember(eventId:String,userId:String) {}
     }
@@ -97,10 +103,11 @@ class PoruchAppTest {
 
     /** Скарги й блокування записуються, а не надсилаються. */
     private class Safety(var facts: AccountFacts = AccountFacts("1990-01-01")): SafetyRepository {
+        var fail=false
         val reports=mutableListOf<Triple<String,String,String?>>()
         val blocked=mutableListOf<String>()
         var declared: String? = null
-        override suspend fun account()=facts
+        override suspend fun account()=if(fail) fail(AppError.ServiceUnavailable) else facts
         override suspend fun declareBirthDate(date:String) { declared=date; facts=facts.copy(birthDate=date) }
         override suspend fun reportEvent(eventId:String,reason:String,details:String?) { reports+=Triple(eventId,reason,details) }
         override suspend fun reportUser(userId:String,reason:String,details:String?) { reports+=Triple(userId,reason,details) }
@@ -740,6 +747,179 @@ class PoruchAppTest {
 
         app.loadMyEvents(); advanceTimeBy(200); runCurrent()
         assertEquals(1,rung.size,"той самий запит не дзвонить удруге")
+        app.close()
+    }
+
+
+    // ---- Аудит 2026-09-23
+
+    /** «Усі» — без меж дати: застиглий `from = now` ховав події, що вже тривають. */
+    @Test fun theAnyDateFilterHasNoBounds()=runTest {
+        val events=Events(); val app=app(events,backgroundScope); runCurrent()
+        app.setDateFilter(DateFilter.TODAY); runCurrent()
+        assertNotNull(events.queries.last().from)
+        app.setDateFilter(DateFilter.ANY); runCurrent()
+        assertNull(events.queries.last().from); assertNull(events.queries.last().to)
+        app.close()
+    }
+
+    /** Пуш приходить з фонового потоку FCM: стан змінюється лише в scope застосунку. */
+    @Test fun aPushIsHandledOnTheAppScope()=runTest {
+        val events=Events()
+        val seen=object:SeenRequestStore { val keys=mutableSetOf<String>(); override fun seen()=keys.toSet(); override fun markSeen(keys:Set<String>) { this.keys+=keys } }
+        val app=PoruchApp(
+            events=events, saved=events, authoring=events, participation=events, requests=events, chat=events,
+            auth=Auth(), geo=object:GeoSearchRepository { override suspend fun search(query:String)=emptyList<CityResult>() },
+            eventActions=EventActions(events,events,Auth()), accountActions=AccountActions(Auth()),
+            seenMessages=seen, chatNotifier=object:ChatNotifier { override fun notifyMessages(alerts:List<ChatAlert>) {} }, scope=backgroundScope
+        )
+        app.pushReceived("chat","m1")
+        assertTrue(seen.keys.isEmpty(),"не в потоці виклику")
+        runCurrent()
+        assertEquals(setOf("m1"),seen.keys)
+        app.close()
+    }
+
+    /** Вихід не лишає «Ви йдете» на картках: вони належать акаунту. */
+    @Test fun signingOutLeavesNoMembershipInTheCards()=runTest {
+        val events=Events(); events.results=listOf(event("mine","games","2090-01-05T19:00:00Z").let { it.copy(gathering=it.gathering!!.copy(joined=true)) })
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(1000); runCurrent()
+        assertTrue(app.state.value.cards.getValue("mine").gathering!!.joined)
+        app.signOut(); runCurrent()
+        assertTrue(app.state.value.cards.isEmpty())
+        assertTrue(app.state.value.home.events.isEmpty() && app.state.value.map.events.isEmpty())
+        app.close()
+    }
+
+    /** Прострочений токен при виході: локально вийшли, банера помилки нема. */
+    @Test fun signingOutWithAnExpiredTokenShowsNoError()=runTest {
+        val auth=Auth().apply { signOutRefused=true }
+        val app=app(Events(),backgroundScope,auth); runCurrent()
+        app.signOut(); runCurrent()
+        assertNull(app.state.value.session.userId)
+        assertNull(app.state.value.notice)
+        app.close()
+    }
+
+    /** Текст, що не пішов, повертається через стан один раз; закриття екрана відправлення не скасовує. */
+    @Test fun aFailedMessageComesBackAndClosingDoesNotCancelSending()=runTest {
+        val events=Events(); val app=app(events,backgroundScope)
+        app.openChat("ev"); runCurrent()
+        events.failSend=true
+        app.sendMessage("Буду о сьомій"); runCurrent()
+        assertEquals("Буду о сьомій",app.state.value.chat?.failedDraft)
+        assertEquals("Буду о сьомій",app.consumeFailedDraft())
+        assertNull(app.consumeFailedDraft())
+
+        events.failSend=false; events.slowSend=true
+        app.sendMessage("Ще одне"); runCurrent()
+        app.closeChat(); advanceTimeBy(200); runCurrent()
+        assertEquals(listOf("ev" to "Ще одне"),events.sent)
+        app.close()
+    }
+
+    /** Дія з подією перечитує її картку, а не індекс міста. */
+    @Test fun joiningReloadsTheCardNotTheWholeCity()=runTest {
+        val events=Events(); events.results=listOf(event("e","games","2090-01-05T19:00:00Z"))
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(1000); runCurrent()
+        val searches=events.queries.size; events.cardRequests.clear()
+        events.results=listOf(event("e","games","2090-01-05T19:00:00Z").let { it.copy(gathering=it.gathering!!.copy(joined=true)) })
+        app.joinEvent("e"); runCurrent(); advanceTimeBy(1000); runCurrent()
+        assertEquals(searches,events.queries.size)
+        assertEquals(listOf(listOf("e")),events.cardRequests)
+        assertTrue(app.state.value.cards.getValue("e").gathering!!.joined)
+        app.close()
+    }
+
+    /** Закладка, поставлена поки «мої» в дорозі, не зникає з відповіддю, що її ще не бачила. */
+    @Test fun aSaveMadeDuringALoadSurvivesIt()=runTest {
+        val events=Events(); val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(1000); runCurrent()
+        app.loadMyEvents(); app.toggleSaved("e"); runCurrent()
+        assertTrue(app.state.value.isSaved("e"))
+        app.close()
+    }
+
+    /** Тимчасовий збій доповнень лишає відоме: без цього 504 знову питав вік. */
+    @Test fun aFailedOptionalReadKeepsWhatWasKnown()=runTest {
+        val events=Events(); events.pending=listOf(JoinRequest("mine","guest","Гість",null,"2026-09-16T10:00:00Z"))
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(1000); runCurrent()
+        assertTrue(app.state.value.library.account.ageDeclared)
+        safety.fail=true; events.failPending=true
+        app.loadMyEvents(); runCurrent()
+        assertTrue(app.state.value.library.account.ageDeclared)
+        assertEquals(1,app.state.value.library.pendingRequests.size)
+        assertFalse(app.state.value.library.loading)
+        app.close()
+    }
+
+    /** Інтереси акаунта, що вийшов, не переходять наступному. */
+    @Test fun anAccountsInterestsDoNotMoveToTheNextOne()=runTest {
+        val app=app(Events(),backgroundScope); runCurrent(); advanceTimeBy(1000); runCurrent()
+        app.saveTaste(listOf("music"),emptyList(),Crowd.ANY); runCurrent()
+        app.handleAuthCallback("poriad://auth/callback"); runCurrent(); advanceTimeBy(1000); runCurrent()
+        assertEquals("recovered",app.state.value.session.userId)
+        assertEquals(emptyList(),app.state.value.interests)
+        app.close()
+    }
+
+    /** `event_view` — відкриті деталі, а не кроки каруселі й не перечитування. Деталі мають свій прапорець завантаження. */
+    @Test fun anEventViewIsCountedOncePerOpening()=runTest {
+        val tracked=mutableListOf<String>()
+        PoruchAnalytics.sink={ name,_ -> tracked+=name }
+        try {
+            val events=Events(); events.results=listOf(event("a","art","2090-01-05T19:00:00Z"),event("b","art","2090-01-06T19:00:00Z"))
+            val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(1000); runCurrent()
+            app.selectEvent("a"); app.selectEvent("b"); runCurrent()
+            assertEquals(0,tracked.count { it=="event_view" })
+            app.openEvent("b")
+            assertTrue(app.state.value.detail.loading)
+            runCurrent()
+            assertFalse(app.state.value.detail.loading)
+            app.resume(); runCurrent()
+            assertEquals(1,tracked.count { it=="event_view" })
+            app.close()
+        } finally { PoruchAnalytics.sink=null }
+    }
+
+    /** Перемикач аналітики: пристрій, стан, платформний хук; вимкнено — у сінк нічого. */
+    @Test fun turningAnalyticsOffStopsEventsAndTellsThePlatform()=runTest {
+        val tracked=mutableListOf<String>(); val collection=mutableListOf<Boolean>()
+        val stored=object:AnalyticsPreferenceStore { var on=true; override fun enabled()=on; override fun setEnabled(enabled:Boolean) { on=enabled } }
+        PoruchAnalytics.sink={ name,_ -> tracked+=name }
+        try {
+            val events=Events()
+            val app=PoruchApp(
+                events=events, saved=events, authoring=events, participation=events, requests=events, chat=events,
+                auth=Auth(), geo=object:GeoSearchRepository { override suspend fun search(query:String)=emptyList<CityResult>() },
+                eventActions=EventActions(events,events,Auth()), accountActions=AccountActions(Auth()),
+                analyticsStore=stored, scope=backgroundScope
+            )
+            PoruchAnalytics.collection={ collection+=it }
+            assertEquals(listOf(true),collection,"хук отримує поточне значення одразу")
+            app.setAnalyticsEnabled(false)
+            assertFalse(stored.on); assertFalse(app.state.value.analyticsEnabled)
+            assertEquals(listOf(true,false),collection)
+            PoruchAnalytics.track("login")
+            assertTrue(tracked.isEmpty())
+            app.close()
+        } finally { PoruchAnalytics.sink=null; PoruchAnalytics.collection=null; PoruchAnalytics.enabled=true }
+    }
+
+    /** Запит до події без назви (мої ще не доїхали) не позначається баченим: задзвонить пізніше. */
+    @Test fun aRequestWithoutATitleIsNotMarkedSeen()=runTest {
+        val events=Events()
+        val seen=object:SeenRequestStore { val keys=mutableSetOf<String>(); override fun seen()=keys.toSet(); override fun markSeen(keys:Set<String>) { this.keys+=keys } }
+        val app=PoruchApp(
+            events=events, saved=events, authoring=events, participation=events, requests=events, chat=events,
+            auth=Auth(), geo=object:GeoSearchRepository { override suspend fun search(query:String)=emptyList<CityResult>() },
+            eventActions=EventActions(events,events,Auth()), accountActions=AccountActions(Auth()),
+            safety=safety, tasteStore=taste, scope=backgroundScope,
+            reminderStore=object:ReminderPreferenceStore { override fun enabled()=true; override fun setEnabled(enabled:Boolean) {} },
+            seenRequests=seen, requestNotifier=object:RequestNotifier { override fun notify(alerts:List<RequestAlert>) {} }
+        )
+        events.pending=listOf(JoinRequest("unknown","guest","Гість",null,"2026-09-16T10:00:00Z"))
+        app.loadMyEvents(); advanceTimeBy(200); runCurrent()
+        assertTrue(seen.keys.isEmpty())
         app.close()
     }
 

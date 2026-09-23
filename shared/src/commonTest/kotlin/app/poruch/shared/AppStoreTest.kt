@@ -44,4 +44,30 @@ class AppStoreTest {
         store.tell(AppMessage.JOINED_EVENT)
         assertEquals(AppNotice.Told(AppMessage.JOINED_EVENT), store.value.notice)
     }
+
+    /** Посилання з листа під час іншої дії не губиться, а чекає своєї черги. */
+    @Test fun aQueuedMutationRunsAfterTheCurrentOne() = runTest {
+        val store = AppStore(AppState(), backgroundScope)
+        val gate = CompletableDeferred<Unit>()
+        val order = mutableListOf<String>()
+        store.mutate { gate.await(); order += "first" }
+        store.mutate(queued = true) { order += "callback" }
+        runCurrent()
+        assertEquals(emptyList(), order)
+        gate.complete(Unit); runCurrent()
+        assertEquals(listOf("first", "callback"), order)
+    }
+
+    /** `auth_wall` — лише коли гість сам спробував дію, не на фоновому 401. */
+    @Test fun onlyAPersonsActionCountsAsAnAuthWall() = runTest {
+        val tracked = mutableListOf<String>()
+        PoruchAnalytics.sink = { name, _ -> tracked += name }
+        try {
+            val store = AppStore(AppState(), backgroundScope)
+            store.failed(AppError.SessionRequired)
+            assertEquals(emptyList(), tracked)
+            store.mutate { fail(AppError.SessionRequired) }; runCurrent()
+            assertEquals(listOf("auth_wall"), tracked)
+        } finally { PoruchAnalytics.sink = null }
+    }
 }

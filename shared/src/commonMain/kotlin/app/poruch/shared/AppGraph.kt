@@ -9,7 +9,9 @@ import app.poruch.data.cache.PoruchDatabase
 import app.poruch.data.events.*
 import app.poruch.data.geo.PhotonGeoSearchRepository
 import app.poruch.data.geo.PlatformTimeZoneLocator
+import app.poruch.data.local.LocalAnalyticsPreference
 import app.poruch.data.local.LocalCityStore
+import app.poruch.data.local.LocalPendingUnregister
 import app.poruch.data.local.LocalReminderPreference
 import app.poruch.data.local.LocalSeenRequests
 import app.poruch.data.local.LocalTasteStore
@@ -62,6 +64,8 @@ class AppGraph(
             single<PreferencesRepository> { SupabasePreferencesRepository(get(), get()) }
             single<TasteStore> { LocalTasteStore(get()) }
             single<ReminderPreferenceStore> { LocalReminderPreference(get()) }
+            single<AnalyticsPreferenceStore> { LocalAnalyticsPreference(get()) }
+            single<PendingUnregisterStore> { LocalPendingUnregister(get()) }
             single<CityStore> { LocalCityStore(get()) }
             single<SeenRequestStore> { LocalSeenRequests(get(), get()) }
             single<SeenRequestStore>(named("messages")) {
@@ -73,7 +77,7 @@ class AppGraph(
             }
             single<SafetyRepository> { SupabaseSafetyRepository(get(), get()) }
             // Один клас, два питання: місто зміщує мапу, адреса ставить крапку.
-            single { PhotonGeoSearchRepository(http) }
+            single { PhotonGeoSearchRepository(http, config.geocoderUrl, config.userAgent) }
             single<GeoSearchRepository> { get<PhotonGeoSearchRepository>() }
             single<AddressSearch> { get<PhotonGeoSearchRepository>() }
             single<TimeZoneLocator> { PlatformTimeZoneLocator() }
@@ -106,6 +110,8 @@ class AppGraph(
                     requestNotifier = requestNotifier,
                     seenMessages = get(named("messages")),
                     chatNotifier = chatNotifier,
+                    analyticsStore = get(),
+                    pendingPush = get(),
                     config = config,
                     // Обидва потоки названі явно: тут єдине місце, де видно, що вони різні.
                     scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),

@@ -26,6 +26,13 @@ internal class UserLibrary(
     /** Id відкритої події. Запізніла відповідь для іншого id відкидається. */
     var openEventId: String? = null
         private set
+    /** Подія, чиї деталі вже порахували в `event_view`: перечитування й потяг униз — не новий перегляд. */
+    private var viewedId: String? = null
+    /**
+     * Лічильник оптимістичних змін закладок. [load], що стартував до зміни, приносить список
+     * з сервера без неї: тоді лишаємо закладки зі стану.
+     */
+    private var savedEdits = 0
 
     /**
      * Наводить застосунок на подію. [full] — відкриття екрана деталей, інакше підсвітка.
@@ -33,7 +40,9 @@ internal class UserLibrary(
      * в пам'яті або деталі справді відкрито (місця й членство могли змінитися).
      */
     fun select(id: String, full: Boolean = false) {
-        if (openEventId != id) PoruchAnalytics.track("event_view")
+        // Перегляд — відкриті деталі, а не крок каруселі: інакше метрика росла б від гортання.
+        if (full && viewedId != id) PoruchAnalytics.track("event_view")
+        if (full) viewedId = id
         openEventId = id
         detailJob?.cancel()
         // Показуємо те, що вже знаємо, поки їдуть деталі. `cards` теж: сеанс прокату, обраний
@@ -47,10 +56,11 @@ internal class UserLibrary(
             val open = current.detail.event
             open != null && open.id != id && current.sessionsOf(open).any { it.id == id }
         }
+        val willLoad = full || known == null
         store.update {
-            it.copy(detail = DetailState(event = known ?: it.detail.event?.takeIf { open -> open.id == id || stay }))
+            it.copy(detail = DetailState(event = known ?: it.detail.event?.takeIf { open -> open.id == id || stay }, loading = willLoad))
         }
-        if (!full && known != null) {
+        if (!willLoad) {
             PoruchLog.d("detail") { "select ${id.shortId()} from memory, no request" }
             return
         }
@@ -59,12 +69,13 @@ internal class UserLibrary(
                 val event = events.details(id)
                 PoruchLog.d("detail") { "loaded ${id.shortId()} kind=${if (event?.isCommunity == true) "community" else "listing"} joined=${event?.gathering?.joined} attendees=${event?.gathering?.attendeeCount}/${event?.gathering?.capacity} status=${event?.status}" }
                 if (openEventId == id) {
-                    detail { copy(event = event) }
+                    detail { copy(event = event, loading = false) }
                     if (event == null) store.failed(AppError.EventUnavailable)
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                if (openEventId == id) detail { copy(loading = false) }
                 store.failed(e.asAppError())
             }
             // Учасники — доповнення до лічильника, тож збій лишає лише число. Афішу не питаємо:
@@ -97,44 +108,79 @@ internal class UserLibrary(
     suspend fun awaitDetail() { detailJob?.join() }
 
     fun dismiss() {
-        openEventId = null
+        openEventId = null; viewedId = null
         detailJob?.cancel()
         store.update { it.copy(detail = DetailState()) }
     }
 
     fun load() {
-        if (auth.session.value == null) return
+        val uid = auth.session.value?.userId ?: return
         listJob?.cancel()
+        val edits = savedEdits
         listJob = scope.launch {
+            store.update { it.copy(library = it.library.copy(loading = true)) }
             try {
-                val mine = events.myEvents()
-                val savedEvents = saved.savedIds()
-                val interests = adoptInterests()
-                // Best-effort: сервер без міграції безпеки не має спустошити «мої події».
-                val facts = try { safety?.account() ?: AccountFacts() } catch (e: CancellationException) { throw e } catch (e: Exception) { AccountFacts() }
-                val blocked = try { safety?.blocked().orEmpty() } catch (e: CancellationException) { throw e } catch (e: Exception) { emptyList() }
-                // Черга вирішує, яку кнопку показати на деталях, тому не best-effort.
-                val queued = participation.waitlistIds()
-                // Стрічка запитів — доповнення: без неї головна лише не покаже бейджів.
-                val pending = try { requests.pendingRequests() } catch (e: CancellationException) { throw e } catch (e: Exception) { emptyList() }
-                val unread = try { chat.unread() } catch (e: CancellationException) { throw e } catch (e: Exception) { emptyList() }
-                PoruchLog.i("mine") { "${mine.size} of mine, ${savedEvents.size} saved, ${queued.size} queued, ${pending.size} requests, ${interests.size} interests" }
-                store.update {
-                    it.copy(
-                        library = LibraryState(
-                            myEvents = mine, savedIds = savedEvents, waitlistedIds = queued,
-                            pendingRequests = pending, account = facts, blocked = blocked
-                        ),
-                        // Відкритий чат уже прочитаний: сервер міг ще не знати.
-                        chatUnread = unread.filterNot { u -> u.eventId == it.chat?.eventId },
-                        taste = it.taste.copy(interests = interests)
-                    ).rankedIfTasteChanged(it.taste)
+                // Запити незалежні: паралельно, а не десять поспіль. Перший обов'язковий збій скасовує решту.
+                coroutineScope {
+                    val mine = async { events.myEvents() }
+                    val savedEvents = async { saved.savedIds() }
+                    val interests = async { adoptInterests(uid) }
+                    // Черга вирішує, яку кнопку показати на деталях, тому не best-effort.
+                    val queued = async { participation.waitlistIds() }
+                    // Решта — доповнення: збій лишає те, що вже знали (null), а не порожнечу. Порожні
+                    // факти після 504 знову питали вік, і сервер відповідав AGE_ALREADY_SET.
+                    val facts = async { optional { safety?.account() } }
+                    val blocked = async { optional { safety?.blocked() } }
+                    // Стрічка запитів — без неї головна лише не покаже бейджів.
+                    val pending = async { optional { requests.pendingRequests() } }
+                    val unread = async { optional { chat.unread() } }
+                    val result = Loaded(
+                        mine.await(), savedEvents.await(), interests.await(), queued.await(),
+                        facts.await(), blocked.await(), pending.await(), unread.await()
+                    )
+                    PoruchLog.i("mine") { "${result.mine.size} of mine, ${result.saved.size} saved, ${result.queued.size} queued, ${result.pending?.size} requests, ${result.interests.size} interests" }
+                    store.update {
+                        val previous = it.library
+                        it.copy(
+                            library = LibraryState(
+                                myEvents = result.mine,
+                                // Закладку поставили, поки їхала відповідь: сервер її ще не бачив.
+                                savedIds = if (edits == savedEdits) result.saved else previous.savedIds,
+                                waitlistedIds = result.queued,
+                                pendingRequests = result.pending ?: previous.pendingRequests,
+                                account = result.facts ?: previous.account,
+                                blocked = result.blocked ?: previous.blocked
+                            ),
+                            // Відкритий чат уже прочитаний: сервер міг ще не знати.
+                            chatUnread = result.unread?.filterNot { u -> u.eventId == it.chat?.eventId } ?: it.chatUnread,
+                            taste = it.taste.copy(interests = result.interests, interestsOwner = uid)
+                        ).rankedIfTasteChanged(it.taste)
+                    }
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                store.update { it.copy(library = it.library.copy(loading = false)) }
                 store.failed(e.asAppError())
             }
+        }
+    }
+
+    private class Loaded(
+        val mine: List<Event>, val saved: List<String>, val interests: List<String>, val queued: List<String>,
+        val facts: AccountFacts?, val blocked: List<Attendee>?, val pending: List<JoinRequest>?, val unread: List<ChatUnread>?
+    )
+
+    /** Best-effort: збій (чи сервер без міграції) — null, і стан лишає попереднє. */
+    private suspend fun <T> optional(block: suspend () -> T?): T? =
+        try { block() } catch (e: CancellationException) { throw e } catch (e: Exception) { null }
+
+    /** Оптимістична закладка: стан одразу, і [load], що вже в дорозі, її не затре. */
+    fun setSaved(id: String, saved: Boolean) {
+        savedEdits++
+        store.update {
+            val ids = it.library.savedIds
+            it.copy(library = it.library.copy(savedIds = if (saved) (ids + id).distinct() else ids - id))
         }
     }
 
@@ -142,17 +188,19 @@ internal class UserLibrary(
     suspend fun awaitList() { listJob?.join() }
 
     /**
-     * Узгоджує інтереси пристрою з акаунтом. Акаунт перемагає, якщо має хоч щось; порожній
-     * акаунт (звичний випадок, питання ставлять до реєстрації) отримує відповіді пристрою.
+     * Узгоджує інтереси пристрою з акаунтом [uid]. Акаунт перемагає, якщо має хоч щось; порожній
+     * акаунт (звичний випадок, питання ставлять до реєстрації) отримує відповіді пристрою — але
+     * лише гостьові чи свої: інтереси акаунта A, що лишились на телефоні після виходу, до B не йдуть.
      */
-    private suspend fun adoptInterests(): List<String> {
-        val local = store.value.taste.interests
+    private suspend fun adoptInterests(uid: String): List<String> {
+        val local = store.value.taste
         val remote = preferences?.interests().orEmpty()
-        if (remote.isEmpty() && local.isNotEmpty()) {
-            runCatching { preferences?.setInterests(local) }
-            return local
+        if (remote.isEmpty() && local.interests.isNotEmpty() && (local.interestsOwner == null || local.interestsOwner == uid)) {
+            runCatching { preferences?.setInterests(local.interests) }
+            if (local.interestsOwner != uid) taste?.write(local.copy(interestsOwner = uid))
+            return local.interests
         }
-        if (remote != local) taste?.write(store.value.taste.copy(interests = remote))
+        if (remote != local.interests || local.interestsOwner != uid) taste?.write(store.value.taste.copy(interests = remote, interestsOwner = uid))
         return remote
     }
 

@@ -34,9 +34,9 @@ internal class ChatEngine(
         }
     }
 
+    /** Зупиняє опитування. Відправлення в дорозі доїде: закрити екран — не те саме, що передумати. */
     fun close() {
         polling?.cancel(); polling = null
-        sending?.cancel(); sending = null
         if (store.value.chat != null) store.update { it.copy(chat = null) }
     }
 
@@ -57,11 +57,20 @@ internal class ChatEngine(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                store.failed(e.asAppError())
+                // Платформа чистить поле до відповіді: текст повертається через стан, а не губиться.
+                update(eventId) { copy(failedDraft = text) }
+                store.failed(e.asAppError(), byPerson = true)
             } finally {
                 update(eventId) { copy(sending = false) }
             }
         }
+    }
+
+    /** Текст, що не пішов, для поля вводу. Віддає раз: друге читання — null. */
+    fun consumeFailedDraft(): String? {
+        val draft = store.value.chat?.failedDraft ?: return null
+        store.update { s -> s.copy(chat = s.chat?.copy(failedDraft = null)) }
+        return draft
     }
 
     fun delete(messageId: String) {
@@ -130,7 +139,12 @@ data class ChatState(
     val loading: Boolean = true,
     val sending: Boolean = false,
     /** Сервер без міграції чату: екран каже про це замість порожнього списку. */
-    val available: Boolean = true
+    val available: Boolean = true,
+    /**
+     * Текст, який не вдалося надіслати: екран повертає його в поле вводу і кличе
+     * `PoruchApp.consumeFailedDraft()`, щоб не повернути двічі.
+     */
+    val failedDraft: String? = null
 )
 
 /** Тримає значення `chatUnread` без події [eventId]: чат відкрито або прочитано. */

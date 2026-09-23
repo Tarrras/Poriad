@@ -12,14 +12,15 @@ internal class SessionUseCases(
     private val account: AccountActions,
     private val store: AppStore,
     private val identity: IdentitySync,
-    private val push: PushSync,
-    private val reloader: Reloader
+    private val push: PushSync
 ) {
     fun signIn(email: String, password: String) = store.mutate {
         PoruchLog.i("auth") { "sign in requested" }
         account.signIn(email, password)
         PoruchAnalytics.track("login")
-        store.tell(AppMessage.SIGNED_IN); reloader.lists()
+        // Одразу, не чекаючи слухача сесії: мапа й «мої» перечитуються там, один раз.
+        identity.synchronize(auth.session.value?.userId)
+        store.tell(AppMessage.SIGNED_IN)
     }
 
     /** [birthDate] — ISO-8601. Платформа лише для дорослих, і перевірка починається тут. */
@@ -39,20 +40,36 @@ internal class SessionUseCases(
 
     fun signOut() = store.mutate {
         PoruchLog.i("auth") { "sign out" }
-        push.unregister()
-        try { auth.signOut() } finally { identity.forget() }
+        push.unregister(auth.session.value)
+        try {
+            auth.signOut()
+        } catch (e: AppFailure) {
+            // Токен уже прострочений: сервер не впізнав сесію, а локально вихід відбувся. Банер тут збрехав би.
+            if (e.error != AppError.SessionRequired) throw e
+        } finally {
+            // Чистимо навіть якщо сервер відмовив: людина попросила вийти.
+            identity.synchronize(null)
+        }
     }
 
     /**
-     * Пароль підтверджує, що телефон у руках власника; сервер видаляє все каскадом (власні події
-     * скасовуються, фото прибираються), далі — те саме прибирання, що при виході.
+     * Пароль підтверджує, що телефон у руках власника; сервер (Edge Function) видаляє все каскадом,
+     * далі — те саме прибирання, що при виході. Мережевий збій лишає людину в акаунті: вона ще
+     * існує на сервері, і видалення можна повторити.
      */
     fun deleteAccount(password: String) = store.mutate {
         PoruchLog.i("auth") { "account deletion requested" }
         if (!AccountRules.isPassword(password)) fail(AppError.InvalidCredentials)
         auth.verifyPassword(password)
-        push.unregister()
-        try { auth.deleteAccount() } finally { identity.forget() }
+        push.unregister(auth.session.value)
+        try {
+            auth.deleteAccount()
+        } catch (e: Exception) {
+            // 401 — сесії вже нема, акаунт вийшов разом з нею. Інакше повертаємо пуші, які щойно зняли.
+            if (e.asAppError() == AppError.SessionRequired) identity.synchronize(null) else push.register()
+            throw e
+        }
+        identity.synchronize(null)
         store.tell(AppMessage.ACCOUNT_DELETED)
     }
 
@@ -78,7 +95,7 @@ internal class SessionUseCases(
     }
 
     /** Посилання з листа: підтвердження пошти або відновлення пароля. */
-    fun handleAuthCallback(url: String) = store.mutate {
+    fun handleAuthCallback(url: String) = store.mutate(queued = true) {
         PoruchLog.i("auth") { "handling auth callback" }
         val recovery = auth.handleCallback(url)
         identity.synchronize(auth.session.value?.userId)
@@ -88,6 +105,5 @@ internal class SessionUseCases(
                 notice = AppNotice.Told(if (recovery) AppMessage.SET_NEW_PASSWORD else AppMessage.EMAIL_CONFIRMED)
             )
         }
-        reloader.lists()
     }
 }

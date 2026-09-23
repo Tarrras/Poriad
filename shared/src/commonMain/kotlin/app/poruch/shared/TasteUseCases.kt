@@ -10,7 +10,8 @@ internal class TasteUseCases(
     private val tasteStore: TasteStore?,
     private val preferences: PreferencesRepository?,
     private val reminderStore: ReminderPreferenceStore?,
-    private val store: AppStore
+    private val store: AppStore,
+    private val analyticsStore: AnalyticsPreferenceStore? = null
 ) {
     /** Словник перевіряємо тут, а не довіряємо екрану. */
     fun save(interests: List<String>, times: List<String>, crowd: String) = store.mutate {
@@ -51,8 +52,18 @@ internal class TasteUseCases(
         store.update { it.copy(remindersEnabled = enabled) }
     }
 
+    /** Згода на аналітику: пристрій, стан і платформний перемикач збору одним рухом. */
+    fun setAnalyticsEnabled(enabled: Boolean) {
+        PoruchLog.i("analytics") { if (enabled) "enabled" else "disabled" }
+        analyticsStore?.setEnabled(enabled)
+        PoruchAnalytics.enabled = enabled
+        store.update { it.copy(analyticsEnabled = enabled) }
+    }
+
+    /** Змінені відповіді належать тому, хто їх змінив: гостю (null) чи поточному акаунту. */
     private fun apply(taste: Taste) {
-        tasteStore?.write(taste)
-        store.update { it.copy(taste = taste).ranked() }
+        val owned = taste.copy(interestsOwner = store.value.session.userId)
+        tasteStore?.write(owned)
+        store.update { it.copy(taste = owned).ranked() }
     }
 }

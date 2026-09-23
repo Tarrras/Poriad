@@ -22,10 +22,15 @@ internal class AppStore(initial: AppState, val scope: CoroutineScope) {
 
     fun update(change: (AppState) -> AppState) = flow.update(change)
 
-    /** Одна зміна за раз: другий тап під час першої — це подвійний тап, а не другий намір. */
-    fun mutate(block: suspend () -> Unit) {
-        if (mutationJob?.isActive == true) { PoruchLog.w("action") { "ignored: a mutation is already running" }; return }
+    /**
+     * Одна зміна за раз: другий тап під час першої — це подвійний тап, а не другий намір. [queued] —
+     * не тап, а подія ззовні (посилання з листа): її не відкидаємо, а виконуємо після поточної.
+     */
+    fun mutate(queued: Boolean = false, block: suspend () -> Unit) {
+        val running = mutationJob?.takeIf { it.isActive }
+        if (running != null && !queued) { PoruchLog.w("action") { "ignored: a mutation is already running" }; return }
         mutationJob = scope.launch {
+            running?.join()
             update { it.copy(mutating = true, notice = null) }
             try {
                 block()
@@ -34,7 +39,7 @@ internal class AppStore(initial: AppState, val scope: CoroutineScope) {
             } catch (e: Exception) {
                 val error = e.asAppError()
                 PoruchLog.w("action") { "failed: $error" }
-                failed(error)
+                failed(error, byPerson = true)
             } finally {
                 update { it.copy(mutating = false) }
             }
@@ -42,9 +47,10 @@ internal class AppStore(initial: AppState, val scope: CoroutineScope) {
     }
 
     fun tell(message: AppMessage) = update { it.copy(notice = AppNotice.Told(message)) }
-    fun failed(error: AppError) {
+    /** [byPerson] — збій дії людини, а не фонового перечитування: лише такий рахується в аналітиці. */
+    fun failed(error: AppError, byPerson: Boolean = false) {
         // Стіна входу: дія, яку гість хотів зробити, але мусив би спершу зареєструватись.
-        if (error == AppError.SessionRequired) PoruchAnalytics.track("auth_wall")
+        if (byPerson && error == AppError.SessionRequired) PoruchAnalytics.track("auth_wall")
         update { it.copy(notice = AppNotice.Failed(error)) }
     }
 }

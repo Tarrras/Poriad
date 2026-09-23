@@ -26,6 +26,8 @@ data class AppState(
     val taste: Taste = Taste(),
     /** Людина попросила нагадувати про свої події. Прапорець пристрою, дозвіл системи перевіряє платформа. */
     val remindersEnabled: Boolean = false,
+    /** Людина дозволила продуктову аналітику. Прапорець пристрою, за замовчуванням так. Див. [PoruchAnalytics.enabled]. */
+    val analyticsEnabled: Boolean = true,
     val mutating: Boolean = false,
     val notice: AppNotice? = null,
     val completedEventId: String? = null,
@@ -90,7 +92,12 @@ data class DetailState(
     /** Оцінки відкритої завершеної події: організаторові всі, учасникові — своя. */
     val ratings: List<EventRating> = emptyList(),
     /** Хто проситься на відкриту подію. Непорожньо лише для організатора. */
-    val joinRequests: List<Attendee> = emptyList()
+    val joinRequests: List<Attendee> = emptyList(),
+    /**
+     * Сама подія ще в дорозі. Поки так, порожній [event] — не «подія недоступна», а спінер.
+     * Власний прапорець: `map.loading` про мапу, а не про деталі.
+     */
+    val loading: Boolean = false
 )
 
 /** Списки й факти акаунта. Зникають разом з ним, див. [forAccount]. */
@@ -101,7 +108,9 @@ data class LibraryState(
     /** Запити до всіх моїх подій, свіжіші першими. Головна показує, [RequestAlertSync] дзвонить про нові. */
     val pendingRequests: List<JoinRequest> = emptyList(),
     val account: AccountFacts = AccountFacts(),
-    val blocked: List<Attendee> = emptyList()
+    val blocked: List<Attendee> = emptyList(),
+    /** «Мої події» перечитуються. Для спінера екрана «Мої», замість `map.loading`. */
+    val loading: Boolean = false
 )
 
 data class SessionState(
@@ -123,6 +132,7 @@ data class SessionState(
 /**
  * Стан під акаунтом [uid]: усе приватне попереднього зникає. Єдиний перелік того, що належить
  * акаунту, для входу, виходу й зміни акаунта. Відповіді онбордингу й місто належать телефону і лишаються.
+ * Картки теж: у них членство («Ви йдете»), тож їх перечитує новий акаунт. Індекси — публічні й лишаються.
  */
 internal fun AppState.forAccount(uid: String?): AppState = copy(
     session = SessionState(
@@ -130,9 +140,9 @@ internal fun AppState.forAccount(uid: String?): AppState = copy(
         // Вхід або підтвердження з листа: наступний крок реєстрації вже не потрібен.
         awaitingConfirmation = if (uid != null) null else session.awaitingConfirmation
     ),
-    map = map.copy(events = emptyList()),
+    cards = emptyMap(),
     detail = DetailState(),
     library = LibraryState(),
     chatUnread = emptyList(),
     completedEventId = null
-)
+).materialized()

@@ -43,6 +43,10 @@ class PoruchApp internal constructor(
     /** Сповіщення про нові повідомлення в чатах: окремий список «бачених» і показ. Обидва або нічого. */
     seenMessages: SeenRequestStore? = null,
     chatNotifier: ChatNotifier? = null,
+    /** Згода на аналітику на пристрої. Null — збір увімкнено й не запам'ятовується. */
+    analyticsStore: AnalyticsPreferenceStore? = null,
+    /** Пуш-токен, який не вдалося зняти при виході: повторюємо на старті й при поверненні. */
+    pendingPush: PendingUnregisterStore? = null,
     config: AppConfig = AppConfig("", ""),
     /** Стан живе на головному потоці: звідси читають і Compose, і SwiftUI. */
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
@@ -57,6 +61,7 @@ class PoruchApp internal constructor(
         AppState(
             session = SessionState(userId = auth.session.value?.userId), taste = tasteStore?.read() ?: Taste(),
             remindersEnabled = reminderStore?.enabled() ?: false,
+            analyticsEnabled = analyticsStore?.enabled() ?: true,
             city = CityState(startCity.city, startCity.latitude, startCity.longitude)
         ),
         scope
@@ -79,7 +84,7 @@ class PoruchApp internal constructor(
     )
     private val chatEngine = ChatEngine(chat, store, scope)
     private val reloader = Reloader(discovery, library)
-    private val pushSync = PushSync(push, seenRequests, seenMessages, store)
+    private val pushSync = PushSync(push, seenRequests, seenMessages, store, pendingPush)
     private val places = PlaceLookup(addresses, timeZones, scope)
     private val eventUseCases = EventUseCases(
         events,
@@ -97,13 +102,16 @@ class PoruchApp internal constructor(
     private val identity =
         IdentitySync(auth, store, discovery, library, chatEngine, pushSync, eventUseCases)
     private val sessionUseCases =
-        SessionUseCases(auth, accountActions, store, identity, pushSync, reloader)
+        SessionUseCases(auth, accountActions, store, identity, pushSync)
     private val safetyUseCases = SafetyUseCases(safety, store, library, reloader)
-    private val tasteUseCases = TasteUseCases(tasteStore, preferences, reminderStore, store)
+    private val tasteUseCases = TasteUseCases(tasteStore, preferences, reminderStore, store, analyticsStore)
 
     init {
+        // Перемикач збору — до першої події: `first_open` не має піти, якщо людина відмовилась.
+        PoruchAnalytics.enabled = state.value.analyticsEnabled
         discovery.onQueryChanged = library::dismiss
         identity.start()
+        pushSync.retryPending()
         refresh()
         if (state.value.signedIn) loadMyEvents()
         if (reminders != null) ReminderSync(state, reminders, scope).start()
@@ -128,12 +136,17 @@ class PoruchApp internal constructor(
 
     // ---- Пуші
 
+    // Обидва входи платформа кличе з будь-якого потоку (FCM — з фонового), а стан і рушії живуть
+    // на головному: тіло завжди переходить у [scope].
+
     /** Платформа отримала або оновила токен. Реєструється під кожним акаунтом, з яким входять. */
-    fun pushTokenChanged(token: String, platform: String) = pushSync.tokenChanged(token, platform)
+    fun pushTokenChanged(token: String, platform: String) {
+        scope.launch { pushSync.tokenChanged(token, platform) }
+    }
 
     /** Пуш прийшов на цей пристрій: перечитуємо стан, щоб бейджі й списки відповідали. */
     fun pushReceived(kind: String, key: String) {
-        pushSync.received(kind, key); resume()
+        scope.launch { pushSync.received(kind, key); resume() }
     }
 
     // ---- Пошук
@@ -209,7 +222,9 @@ class PoruchApp internal constructor(
     fun loadMyEvents() = library.load()
 
     /** Повернення на передній план: перечитує «мої» і відкриту подію, мапу — якщо видача не свіжа. */
-    fun resume() = reloader.resumed()
+    fun resume() {
+        reloader.resumed(); pushSync.retryPending()
+    }
 
     // ---- Оновлення жестом
 
@@ -237,6 +252,9 @@ class PoruchApp internal constructor(
     fun openChat(eventId: String) = chatEngine.open(eventId)
     fun closeChat() = chatEngine.close()
     fun sendMessage(text: String) = chatEngine.send(text)
+
+    /** Текст, що не пішов (див. [ChatState.failedDraft]), для поля вводу. Віддає раз. */
+    fun consumeFailedDraft(): String? = chatEngine.consumeFailedDraft()
     fun deleteMessage(messageId: String) = chatEngine.delete(messageId)
     fun reportMessage(messageId: String, reason: String, details: String? = null) =
         safetyUseCases.reportMessage(messageId, reason, details)
@@ -282,6 +300,12 @@ class PoruchApp internal constructor(
      */
     fun setRemindersEnabled(enabled: Boolean) = tasteUseCases.setRemindersEnabled(enabled)
 
+    /**
+     * Перемикач аналітики в профілі. Вимкнено — події не йдуть у сінк, а платформа отримує
+     * [PoruchAnalytics.collection] з false (Firebase `setAnalyticsCollectionEnabled`).
+     */
+    fun setAnalyticsEnabled(enabled: Boolean) = tasteUseCases.setAnalyticsEnabled(enabled)
+
     // ---- Безпека
 
     /** Вік для акаунта, створеного до появи питання. Дозволено раз. */
@@ -308,7 +332,7 @@ class PoruchApp internal constructor(
     fun dismissConfirmationStep() = sessionUseCases.dismissConfirmationStep()
     fun signOut() = sessionUseCases.signOut()
 
-    /** Видалення акаунту: пароль підтверджує власника, сервер видаляє все каскадом. */
+    /** Видалення акаунту: пароль підтверджує власника, сервер видаляє все каскадом. Збій мережі лишає в акаунті. */
     fun deleteAccount(password: String) = sessionUseCases.deleteAccount(password)
     fun requestPasswordReset(email: String) = sessionUseCases.requestPasswordReset(email)
     fun updatePassword(password: String) = sessionUseCases.updatePassword(password)

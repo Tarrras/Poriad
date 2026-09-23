@@ -10,10 +10,14 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.*
 import kotlin.time.TimeSource
 
-/** Публічний Photon — для розробки. У продакшн підставляти власний endpoint. */
+/**
+ * Геокодер Photon. Адреса й User-Agent — з конфігу збірки (`AppConfig`): поки власного сервера
+ * нема, це публічний komoot, і UA з контактом — умова його чесного використання.
+ */
 class PhotonGeoSearchRepository(
     private val client: HttpClient,
-    private val endpoint: String = "https://photon.komoot.io/api/"
+    private val endpoint: String,
+    private val userAgent: String = "Poriad"
 ) : GeoSearchRepository, AddressSearch {
     override suspend fun search(query: String): List<CityResult> {
         if (query.trim().length < 2) return emptyList()
@@ -24,7 +28,7 @@ class PhotonGeoSearchRepository(
                 parameter("q", query.trim()); parameter(
                 "limit",
                 CITY_LIMIT * OVERFETCH
-            ); header("User-Agent", "Poruch-development/1.0")
+            ); header("User-Agent", userAgent)
             }
             if (response.status.value !in 200..299) fail(AppError.ServiceUnavailable)
             return Json.parseToJsonElement(response.bodyAsText()).jsonObject["features"]!!.jsonArray.mapNotNull { element ->
@@ -72,7 +76,7 @@ class PhotonGeoSearchRepository(
                 parameter("limit", LIMIT * OVERFETCH)
                 // Пріоритет, а не фільтр: однакова вулиця є в десятку міст.
                 parameter("lat", latitude); parameter("lon", longitude)
-                header("User-Agent", "Poruch-development/1.0")
+                header("User-Agent", userAgent)
             }
             if (response.status.value !in 200..299) return emptyList()
             Json.parseToJsonElement(response.bodyAsText()).jsonObject["features"]?.jsonArray
@@ -101,7 +105,7 @@ class PhotonGeoSearchRepository(
             val response = client.get(reverseEndpoint) {
                 parameter("lat", latitude); parameter("lon", longitude)
                 parameter("limit", REVERSE_LIMIT)
-                header("User-Agent", "Poruch-development/1.0")
+                header("User-Agent", userAgent)
             }
             if (response.status.value !in 200..299) return null
             val features =

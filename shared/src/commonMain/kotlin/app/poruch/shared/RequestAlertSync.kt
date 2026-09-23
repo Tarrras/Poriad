@@ -23,7 +23,12 @@ internal class RequestAlertSync(
 ) {
     fun start() {
         scope.launch {
-            state.map { it.library.pendingRequests.map { request -> request.key } }
+            // Лише запити до подій, чию назву вже знаємо: без назви сповіщення нема, а позначене
+            // баченим не задзвонило б і тоді, коли «мої події» доїдуть.
+            state.map { s ->
+                val titled = s.library.myEvents.mapTo(HashSet()) { it.id }
+                s.library.pendingRequests.filter { it.eventId in titled }.map { request -> request.key }
+            }
                 .distinctUntilChanged()
                 .collect { keys ->
                     if (keys.isEmpty()) return@collect

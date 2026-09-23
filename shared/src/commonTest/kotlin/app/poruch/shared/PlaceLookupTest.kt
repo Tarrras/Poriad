@@ -2,6 +2,7 @@ package app.poruch.shared
 
 import app.poruch.domain.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.test.*
@@ -44,5 +45,22 @@ class PlaceLookupTest {
         }
         runCurrent()
         assertEquals(listOf<Any?>(listOf(place), place, "Europe/Kyiv"), answers)
+    }
+
+    /** Пояс повільної старої крапки не перепише пояс нової: останній запит виграє. */
+    @Test fun theLastTimeZoneRequestWins() = runTest {
+        val zones = object : TimeZoneLocator {
+            override suspend fun zoneAt(latitude: Double, longitude: Double): String {
+                kotlinx.coroutines.delay(if (latitude > 0) 500 else 100)
+                return if (latitude > 0) "Europe/Kyiv" else "America/Lima"
+            }
+        }
+        val answers = mutableListOf<String?>()
+        PlaceLookup(null, zones, backgroundScope).apply {
+            resolveTimeZone(50.0, 30.0) { answers.add(it) }
+            resolveTimeZone(-12.0, -77.0) { answers.add(it) }
+        }
+        advanceTimeBy(1000); runCurrent()
+        assertEquals(listOf<String?>("America/Lima"), answers)
     }
 }

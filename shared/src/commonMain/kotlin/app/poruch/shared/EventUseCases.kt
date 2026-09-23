@@ -3,7 +3,9 @@ package app.poruch.shared
 import app.poruch.domain.*
 import app.poruch.events.EventActions
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -67,7 +69,7 @@ internal class EventUseCases(
 
     fun cancel(id: String) = store.mutate {
         PoruchLog.i("action") { "cancelEvent ${id.shortId()}" }
-        actions.cancel(id); reloader.changed(id)
+        actions.cancel(id); reloader.changed(id, index = true)
     }
 
     /**
@@ -75,10 +77,10 @@ internal class EventUseCases(
      * збої повертаємо як було й показуємо помилку.
      */
     fun toggleSaved(id: String) {
-        if (!store.value.signedIn) return store.failed(AppError.SessionRequired)
+        if (!store.value.signedIn) return store.failed(AppError.SessionRequired, byPerson = true)
         val wasSaved = store.value.isSaved(id)
         PoruchLog.i("action") { "toggleSaved ${id.shortId()} saved=${!wasSaved}" }
-        store.update { it.copy(library = it.library.copy(savedIds = it.library.savedIds.toggling(id, add = !wasSaved))) }
+        library.setSaved(id, !wasSaved)
         store.scope.launch {
             try {
                 if (wasSaved) saved.unsave(id) else saved.save(id)
@@ -87,14 +89,11 @@ internal class EventUseCases(
             } catch (e: Exception) {
                 val error = e.asAppError()
                 PoruchLog.w("action") { "toggleSaved ${id.shortId()} failed: $error" }
-                store.update { it.copy(library = it.library.copy(savedIds = it.library.savedIds.toggling(id, add = wasSaved))) }
-                store.failed(error)
+                library.setSaved(id, wasSaved)
+                store.failed(error, byPerson = true)
             }
         }
     }
-
-    private fun List<String>.toggling(id: String, add: Boolean) =
-        if (add) (this + id).distinct() else this - id
 
     @OptIn(ExperimentalUuidApi::class)
     fun create(draft: EventDraft) = store.mutate {
@@ -109,7 +108,7 @@ internal class EventUseCases(
             "category" to draft.category,
             "approval" to draft.approvalRequired
         )
-        reloader.changed(created); library.select(created)
+        reloader.changed(created, index = true); library.select(created)
         store.update {
             it.copy(
                 notice = AppNotice.Told(AppMessage.EVENT_PUBLISHED),
@@ -120,7 +119,7 @@ internal class EventUseCases(
 
     fun update(id: String, draft: EventDraft) = store.mutate {
         PoruchLog.i("action") { "updateEvent ${id.shortId()} capacity=${draft.capacity}" }
-        actions.update(id, draft); reloader.changed(id)
+        actions.update(id, draft); reloader.changed(id, index = true)
         store.update {
             it.copy(
                 notice = AppNotice.Told(AppMessage.CHANGES_SAVED),
@@ -135,14 +134,23 @@ internal class EventUseCases(
         val room = event.gathering ?: fail(AppError.NotOwner)
         if (room.organizerId != auth.session.value?.userId) fail(AppError.NotOwner)
         val url = authoring.uploadImage(eventId, bytes, contentType)
-        authoring.update(
-            eventId,
-            EventDraft(
-                event.title, event.description, event.category, event.city, event.address,
-                event.latitude, event.longitude, event.startsAt, event.endsAt, event.timeZone,
-                room.capacity, url, room.minAge, room.maxAge, room.approvalRequired, room.contactUrl
+        try {
+            authoring.update(
+                eventId,
+                EventDraft(
+                    event.title, event.description, event.category, event.city, event.address,
+                    event.latitude, event.longitude, event.startsAt, event.endsAt, event.timeZone,
+                    room.capacity, url, room.minAge, room.maxAge, room.approvalRequired, room.contactUrl
+                )
             )
-        )
+        } catch (e: Exception) {
+            // Подія фото не отримала: файл у Storage лишився б сиротою, видимою за прямим посиланням.
+            // `NonCancellable`, бо прибирати треба і тоді, коли дію скасовано.
+            withContext(NonCancellable) {
+                try { authoring.deleteImage(url) } catch (cleanup: Exception) { PoruchLog.w("action") { "orphan photo not removed: ${cleanup.asAppError()}" } }
+            }
+            throw e
+        }
         reloader.changed(eventId); store.tell(AppMessage.PHOTO_ADDED)
     }
 
