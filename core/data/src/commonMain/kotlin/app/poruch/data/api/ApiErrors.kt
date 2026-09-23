@@ -47,6 +47,8 @@ private val SERVER_ERRORS: Map<String, AppError> = mapOf(
     "OBJECTIONABLE_CONTENT" to AppError.ObjectionableContent,
     "CHAT_CLOSED" to AppError.ChatClosed,
     "NOT_MEMBER" to AppError.NotMember,
+    "INVALID_TITLE" to AppError.InvalidDraft(listOf(DraftField.TITLE)),
+    "INVALID_DESCRIPTION" to AppError.InvalidDraft(listOf(DraftField.DESCRIPTION)),
     "INVALID_AGE_LIMIT" to AppError.InvalidDraft(listOf(DraftField.AGE_LIMITS)),
     "INVALID_CONTACT_URL" to AppError.InvalidDraft(listOf(DraftField.CONTACT_URL)),
     "ORGANIZER_CANNOT_JOIN" to AppError.OrganizerCannotJoin,

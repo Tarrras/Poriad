@@ -22,9 +22,9 @@ end $$;
 
 -- Завершена подія (напряму: create_event не приймає минуле) і майбутня.
 insert into public.events(id,organizer_id,title,description,category,city,address,latitude,longitude,starts_at,ends_at,time_zone,capacity)
-values (current_setting('test.past')::uuid,current_setting('test.host')::uuid,'Past night','','games','Kyiv','Park',50.45,30.52,now()-interval '2 days',now()-interval '1 day','Europe/Kyiv',10),
- (current_setting('test.future')::uuid,current_setting('test.host')::uuid,'Future night','','games','Kyiv','Park',50.45,30.52,now()+interval '1 day',now()+interval '2 days','Europe/Kyiv',10),
- (current_setting('test.target')::uuid,current_setting('test.host')::uuid,'Target night','','games','Kyiv','Park',50.45,30.52,now()+interval '1 day',now()+interval '2 days','Europe/Kyiv',10);
+values (current_setting('test.past')::uuid,current_setting('test.host')::uuid,'Past night','Test description','games','Kyiv','Park',50.45,30.52,now()-interval '2 days',now()-interval '1 day','Europe/Kyiv',10),
+ (current_setting('test.future')::uuid,current_setting('test.host')::uuid,'Future night','Test description','games','Kyiv','Park',50.45,30.52,now()+interval '1 day',now()+interval '2 days','Europe/Kyiv',10),
+ (current_setting('test.target')::uuid,current_setting('test.host')::uuid,'Target night','Test description','games','Kyiv','Park',50.45,30.52,now()+interval '1 day',now()+interval '2 days','Europe/Kyiv',10);
 insert into public.event_members(event_id,user_id,status) values
  (current_setting('test.past')::uuid,current_setting('test.member')::uuid,'approved'),
  (current_setting('test.past')::uuid,current_setting('test.critic')::uuid,'approved'),
@@ -114,7 +114,7 @@ do $$ begin
  exception when sqlstate '22023' then assert sqlerrm='INVALID_IMAGE_URL'; end;
  update public.profiles set avatar_url='https://ojadoyxeahepycpmjuvf.supabase.co/storage/v1/object/public/event-images/'||auth.uid()||'/a.jpg' where id=auth.uid();
  assert (select avatar_url like 'https://ojadoyxeahepycpmjuvf.supabase.co/%' from public.profiles where id=auth.uid()),'own storage avatar accepted';
- begin perform public.create_event(gen_random_uuid(),'Street night','Description','games','Kyiv','Гашиш-бар',50.45,30.52,now()+interval '1 day',now()+interval '2 days','Europe/Kyiv',5);
+ begin perform public.create_event(gen_random_uuid(),'Street night','Test description','games','Kyiv','Гашиш-бар',50.45,30.52,now()+interval '1 day',now()+interval '2 days','Europe/Kyiv',5);
   raise exception 'expected address rejection';
  exception when sqlstate '22023' then assert sqlerrm='OBJECTIONABLE_CONTENT'; end;
 end $$;

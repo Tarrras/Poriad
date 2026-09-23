@@ -12,16 +12,17 @@ do $$ begin
 end $$;
 set local role authenticated;
 select set_config('request.jwt.claim.sub',current_setting('test.a'),true);
-select public.create_event(current_setting('test.event')::uuid,'Test event','Description','social','Kyiv','Park',50.45,30.52,now()+interval '1 day',now()+interval '2 days','Europe/Kyiv',1,null);
-select public.create_event(current_setting('test.event')::uuid,'Retry does not duplicate','Description','social','Kyiv','Park',50.45,30.52,now()+interval '1 day',now()+interval '2 days','Europe/Kyiv',1,null);
+select public.create_event(current_setting('test.event')::uuid,'Test event','Test description','social','Kyiv','Park',50.45,30.52,now()+interval '1 day',now()+interval '2 days','Europe/Kyiv',1,null);
+select public.create_event(current_setting('test.event')::uuid,'Retry does not duplicate','Test description','social','Kyiv','Park',50.45,30.52,now()+interval '1 day',now()+interval '2 days','Europe/Kyiv',1,null);
 do $$ begin
  assert (select count(*)=1 from public.events where id=current_setting('test.event')::uuid),'idempotent create';
  begin perform public.join_event(current_setting('test.event')::uuid); raise exception 'expected organizer exclusion'; exception when sqlstate 'P0001' then if sqlerrm <> 'ORGANIZER_CANNOT_JOIN' then raise; end if; end;
- begin perform public.create_event(gen_random_uuid(),'Past event','','social','Kyiv','Park',50,30,now()-interval '1 day',now()+interval '1 day','Europe/Kyiv',1,null); raise exception 'expected past rejection'; exception when sqlstate '22023' then assert sqlerrm='START_MUST_BE_FUTURE'; end;
- begin perform public.create_event(gen_random_uuid(),'Bad coordinate','','social','Kyiv','Park',91,30,now()+interval '1 day',now()+interval '2 days','Europe/Kyiv',1,null); raise exception 'expected coordinate rejection'; exception when check_violation then null; end;
- begin perform public.create_event(gen_random_uuid(),'Zero capacity','','social','Kyiv','Park',50,30,now()+interval '1 day',now()+interval '2 days','Europe/Kyiv',0,null); raise exception 'expected capacity rejection'; exception when check_violation then null; end;
- begin perform public.create_event(gen_random_uuid(),'Bad timezone','','social','Kyiv','Park',50,30,now()+interval '1 day',now()+interval '2 days','Fake/Zone',1,null); raise exception 'expected timezone rejection'; exception when sqlstate '22023' then assert sqlerrm='INVALID_TIME_ZONE'; end;
- begin perform public.create_event(gen_random_uuid(),'Bad end','','social','Kyiv','Park',50,30,now()+interval '2 days',now()+interval '1 day','Europe/Kyiv',1,null); raise exception 'expected end rejection'; exception when check_violation then null; end;
+ begin perform public.create_event(gen_random_uuid(),'Past event','Test description','social','Kyiv','Park',50,30,now()-interval '1 day',now()+interval '1 day','Europe/Kyiv',1,null); raise exception 'expected past rejection'; exception when sqlstate '22023' then assert sqlerrm='START_MUST_BE_FUTURE'; end;
+ begin perform public.create_event(gen_random_uuid(),'Bad coordinate','Test description','social','Kyiv','Park',91,30,now()+interval '1 day',now()+interval '2 days','Europe/Kyiv',1,null); raise exception 'expected coordinate rejection'; exception when check_violation then null; end;
+ begin perform public.create_event(gen_random_uuid(),'Zero capacity','Test description','social','Kyiv','Park',50,30,now()+interval '1 day',now()+interval '2 days','Europe/Kyiv',0,null); raise exception 'expected capacity rejection'; exception when check_violation then null; end;
+ begin perform public.create_event(gen_random_uuid(),'Short text','Ура','social','Kyiv','Park',50,30,now()+interval '1 day',now()+interval '2 days','Europe/Kyiv',1,null); raise exception 'expected description rejection'; exception when sqlstate '22023' then assert sqlerrm='INVALID_DESCRIPTION'; end;
+ begin perform public.create_event(gen_random_uuid(),'Bad timezone','Test description','social','Kyiv','Park',50,30,now()+interval '1 day',now()+interval '2 days','Fake/Zone',1,null); raise exception 'expected timezone rejection'; exception when sqlstate '22023' then assert sqlerrm='INVALID_TIME_ZONE'; end;
+ begin perform public.create_event(gen_random_uuid(),'Bad end','Test description','social','Kyiv','Park',50,30,now()+interval '2 days',now()+interval '1 day','Europe/Kyiv',1,null); raise exception 'expected end rejection'; exception when check_violation then null; end;
 end $$;
 select set_config('request.jwt.claim.sub',current_setting('test.b'),true);
 insert into public.saved_events(user_id,event_id) values(auth.uid(),current_setting('test.event')::uuid);

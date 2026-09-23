@@ -98,6 +98,7 @@ class ApiClientTest {
         fun error(message: String, status: Int = 400) = apiFailure(status, """{"code":"P0001","message":"$message","details":null,"hint":null}""").error
         assertEquals(AppError.CapacityBelowAttendance, error("CAPACITY_BELOW_ATTENDANCE"))
         assertEquals(AppError.EventFull, error("EVENT_FULL"))
+        assertEquals(AppError.InvalidDraft(listOf(DraftField.DESCRIPTION)), error("INVALID_DESCRIPTION"))
         assertEquals(AppError.SessionRequired, error("AUTH_REQUIRED", 403))
         // Слова «blocked» чи «capacity» деінде в тексті — не блокування й не заповнена подія.
         assertEquals(AppError.Rejected, error("request blocked by capacity rules"))

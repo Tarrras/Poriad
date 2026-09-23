@@ -3,9 +3,9 @@ begin;
 select set_config('test.host',gen_random_uuid()::text,true);
 insert into auth.users(id,email,raw_user_meta_data) values(current_setting('test.host')::uuid,'poruch-geo-'||current_setting('test.host')||'@example.invalid',jsonb_build_object('birth_date','1990-01-01'));
 insert into public.events(id,organizer_id,title,description,category,city,address,latitude,longitude,starts_at,ends_at,time_zone,capacity)
-select gen_random_uuid(),current_setting('test.host')::uuid,'Geo '||i,'','social','Ocean','Buoy',-40.5,-30.5,now()+interval '1 day',now()+interval '2 days','UTC',10 from generate_series(1,301) i;
+select gen_random_uuid(),current_setting('test.host')::uuid,'Geo '||i,'Test description','social','Ocean','Buoy',-40.5,-30.5,now()+interval '1 day',now()+interval '2 days','UTC',10 from generate_series(1,301) i;
 insert into public.events(id,organizer_id,title,description,category,city,address,latitude,longitude,starts_at,ends_at,time_zone,capacity)
-select gen_random_uuid(),current_setting('test.host')::uuid,'Dateline '||x,'','outdoors','Dateline','Coast',0,x,now()+interval '3 days',now()+interval '4 days','UTC',10 from unnest(array[-179.5,179.5]) x;
+select gen_random_uuid(),current_setting('test.host')::uuid,'Dateline '||x,'Test description','outdoors','Dateline','Coast',0,x,now()+interval '3 days',now()+interval '4 days','UTC',10 from unnest(array[-179.5,179.5]) x;
 set local role anon;
 select set_config('request.jwt.claim.sub','',true);
 -- Фікстури — посеред Атлантики (-40.5,-30.5), де справжніх подій немає: ліміт 300 рахується до
