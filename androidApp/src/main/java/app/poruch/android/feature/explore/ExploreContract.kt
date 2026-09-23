@@ -47,20 +47,24 @@ data class ExploreState(
     /** Подія, на яку навели з деталей. Може не бути в поточній видачі, тоді піна для неї нема. */
     val focused: Event? = null
 ) {
+    // Похідні рахуються раз на знімок стану, а не на кожне читання з композиції: `copy` дає новий
+    // екземпляр, і `lazy` з ним. У `equals` вони не входять — лише поля конструктора.
+
     /** Індекс, звужений до категорії. Фільтр тут, а не в запиті, щоб мапа й головна не ділили один фільтр. */
-    val visibleIndex get(): List<EventIndexEntry> =
+    val visibleIndex: List<EventIndexEntry> by lazy {
         if (category == ALL_CATEGORIES) index else index.filter { it.category == category }
+    }
 
     /**
      * Що малює мапа: звужений індекс плюс [focused], якщо її там ще нема. Сеанс прокату «вже
      * там» через представника, інакше пін майданчика рахував би прокат двічі.
      */
-    val mapEvents get(): List<EventIndexEntry> {
+    val mapEvents: List<EventIndexEntry> by lazy {
         val shown = visibleIndex
         val present = focused == null || shown.any { entry ->
             entry.id == focused.id || entry.sessions.any { it.id == focused.id }
         }
-        return if (present) shown else shown + focused!!.asIndexEntry()
+        if (present) shown else shown + focused!!.asIndexEntry()
     }
 
     /** Скільки подій показує мапа, з урахуванням фільтра. */
@@ -69,20 +73,23 @@ data class ExploreState(
     val activeFilters get() =
         listOf(dateFilter != DateFilter.ANY, category != ALL_CATEGORIES, onlyAvailable).count { it }
 
-    val stackFocused get() = stackIds.isNotEmpty() && visibleIndex.count { it.id in stackIds } > 1
+    val stackFocused: Boolean by lazy {
+        stackIds.isNotEmpty() && stackIds.toSet().let { ids -> visibleIndex.count { it.id in ids } > 1 }
+    }
 
     /** Вміст шторки: стос обраного піна або вся видача, звужені категорією плиток. Порядок стосу — з індексу. */
-    val listEntries get(): List<EventIndexEntry> {
-        val base = if (stackFocused) index.filter { it.id in stackIds } else mapEvents
-        return if (listCategory == ALL_CATEGORIES) base else base.filter { it.category == listCategory }
+    val listEntries: List<EventIndexEntry> by lazy {
+        val base = if (stackFocused) stackIds.toSet().let { ids -> index.filter { it.id in ids } } else mapEvents
+        if (listCategory == ALL_CATEGORIES) base else base.filter { it.category == listCategory }
     }
 
     /**
      * Завантажені картки шторки для каруселі й списку. З [cards], а не з [events]: під фільтром
      * перші події категорії лежать за краєм вікна. [focused] без картки у видачі додається окремо.
      */
-    val deckEvents get(): List<Event> =
+    val deckEvents: List<Event> by lazy {
         listEntries.mapNotNull { entry -> cards[entry.id] ?: focused?.takeIf { it.id == entry.id } }
+    }
 
     /** Чи є що довантажувати: індекс повний, картки — ні. */
     val hasMoreCards get() = deckEvents.size < listEntries.size

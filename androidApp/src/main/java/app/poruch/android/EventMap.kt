@@ -253,16 +253,28 @@ val LocalSharedMapView = staticCompositionLocalOf<SharedMapView?> { null }
     val pins = remember(events) { MapPins.group(events) }
 
     // Той самий набір удруге не пишемо: перебудова GeoJSON коштує кадру.
-    val written = remember { arrayOf<Any?>(null, null, null) }
-    LaunchedEffect(map, styleRevision, pins, selectedId) {
+    val written = remember { arrayOf<Any?>(null, null) }
+    LaunchedEffect(map, styleRevision, pins) {
         val style = map?.style ?: return@LaunchedEffect
         val source = style.getSourceAs<GeoJsonSource>(EventSource) ?: return@LaunchedEffect
-        if (written[0] == styleRevision && written[1] === pins && written[2] == selectedId) return@LaunchedEffect
-        written[0] = styleRevision; written[1] = pins; written[2] = selectedId
-        source.setGeoJson(FeatureCollection.fromFeatures(pins.map { it.toFeature(selectedId) }))
-        PoruchLog.d("map") {
-            "${pins.size} pins for ${events.size} events, selected=${selectedId.shortId()}, style rev $styleRevision"
-        }
+        if (written[0] == styleRevision && written[1] === pins) return@LaunchedEffect
+        written[0] = styleRevision; written[1] = pins
+        source.setGeoJson(FeatureCollection.fromFeatures(pins.map { it.toFeature() }))
+        PoruchLog.d("map") { "${pins.size} pins for ${events.size} events, style rev $styleRevision" }
+    }
+
+    // Крок каруселі міняє лише вираз шару: GeoJSON і кластери лишаються як були.
+    LaunchedEffect(map, styleRevision, selectedId) {
+        val layer = map?.style?.getLayerAs<SymbolLayer>(PinLayer) ?: return@LaunchedEffect
+        val selected = Expression.`in`(Expression.literal(",${selectedId.orEmpty()},"), Expression.get("ids"))
+        layer.setProperties(
+            PropertyFactory.iconImage(
+                Expression.concat(Expression.literal("poruch-pin-"), Expression.get("category"),
+                    Expression.switchCase(selected, Expression.literal("-on"), Expression.literal("")))
+            ),
+            PropertyFactory.symbolSortKey(Expression.switchCase(selected, Expression.literal(1), Expression.literal(0)))
+        )
+        PoruchLog.d("map") { "selected=${selectedId.shortId()}" }
     }
 
     LaunchedEffect(map, styleRevision, chosenPoint) {
@@ -361,18 +373,18 @@ private fun Feature.idsProperty(): List<String> =
     getStringProperty("ids")?.split(",")?.filter { it.isNotBlank() }
         ?: listOfNotNull(getStringProperty("id"))
 
-/** Одна фіча — одне місце. Усі події місця їдуть у властивості `ids`, щоб тап читав готовий список. */
-private fun VenuePin.toFeature(selectedId: String?): Feature {
-    val selected = contains(selectedId)
-    return Feature.fromGeometry(Point.fromLngLat(longitude, latitude)).apply {
-        // `id` — конкретна подія, що підписує пін: решта мапи оперує подіями.
-        addStringProperty("id", if (selected) selectedId else representative.id)
-        addStringProperty("ids", eventIds.joinToString(","))
-        addStringProperty("icon", iconName(representative.category, selected))
+/**
+ * Одна фіча — одне місце. Усі події місця їдуть у властивості `ids`, щоб тап читав готовий список.
+ * Коми з обох боків — щоб шар шукав обрану подію як `,id,`, а не підрядок чужого id. Від вибору
+ * фіча не залежить: його малює вираз шару.
+ */
+private fun VenuePin.toFeature(): Feature =
+    Feature.fromGeometry(Point.fromLngLat(longitude, latitude)).apply {
+        addStringProperty("id", representative.id)
+        addStringProperty("ids", eventIds.joinToString(",", prefix = ",", postfix = ","))
+        addStringProperty("category", representative.category)
         addNumberProperty("count", count)
-        addNumberProperty("sort", if (selected) 1 else 0)
     }
-}
 
 private fun iconName(category: String, selected: Boolean) = "poruch-pin-$category" + if (selected) "-on" else ""
 
@@ -415,12 +427,11 @@ private fun clusterCountLayer(colors: PoruchColors) = SymbolLayer(ClusterCountLa
     PropertyFactory.textIgnorePlacement(true)
 ).withFilter(Expression.has("point_count"))
 
+/** Значок і порядок залежать від обраної події: їх ставить ефект вибору в [EventMap]. */
 private fun pinLayer() = SymbolLayer(PinLayer, EventSource).withProperties(
-    PropertyFactory.iconImage(Expression.get("icon")),
     PropertyFactory.iconAnchor(Property.ICON_ANCHOR_BOTTOM),
     PropertyFactory.iconAllowOverlap(true),
-    PropertyFactory.iconIgnorePlacement(true),
-    PropertyFactory.symbolSortKey(Expression.get("sort"))
+    PropertyFactory.iconIgnorePlacement(true)
 ).withFilter(Expression.not(Expression.has("point_count")))
 
 /** Підпис з кількістю подій біля піна: значок лишається впізнаваним, стос не прикидається однією подією. */
