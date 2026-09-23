@@ -94,7 +94,9 @@ internal fun DiscoverySheet(
     // Висота йде за пальцем, а не за положенням, інакше під час жесту над вмістом порожнеча.
     // Звичайний стан, а не Animatable: вкладена прокрутка питає, скільки спожито, тут і зараз,
     // а snapTo у корутині відповідав би на наступному кадрі й губив кроки.
-    var height by remember { mutableFloatStateOf(peekPx) }
+    // Починаємо з положення стану, а не згорнутою: повернення на мапу не анімує шторку знову,
+    // а застаріле положення першого кадру не перебиває нове (FocusEvent закриває шторку).
+    var height by remember { mutableFloatStateOf(anchor(state.detent)) }
     var settling by remember { mutableStateOf<Job?>(null) }
     fun settleAt(detent: SheetDetent) {
         settling?.cancel()

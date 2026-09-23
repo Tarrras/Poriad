@@ -68,9 +68,13 @@ class ExploreViewModel(private val app: PoruchApp) :
             is ExploreIntent.MapFailed -> reduce { copy(mapFailed = intent.failed) }
 
             is ExploreIntent.SelectEvent -> app.selectEvent(intent.id)
-            // Мапу відкрили заради цієї події: скидаємо стос, вибір наводить мапу (EventMap слухає selectedId).
+            // Мапу відкрили заради цієї події: шторки й стос закриваємо, щоб видно було пін і карусель
+            // на ній; плитки категорій теж скидаємо, інакше картки в каруселі могло не бути.
+            // Вибір наводить мапу (EventMap слухає selectedId).
             is ExploreIntent.FocusEvent -> {
-                reduce { copy(stackIds = emptyList()) }
+                reduce {
+                    copy(stackIds = emptyList(), detent = SheetDetent.PEEK, sheet = ExploreSheet.NONE, listCategory = ALL_CATEGORIES)
+                }
                 app.selectEvent(intent.id)
             }
             is ExploreIntent.SelectStack -> {
