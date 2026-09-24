@@ -28,6 +28,8 @@ class PoruchApp internal constructor(
     accountActions: AccountActions,
     preferences: PreferencesRepository? = null,
     safety: SafetyRepository? = null,
+    /** Профіль і картки людей. Null — у тестах і превʼю, дії профілю відповідають «сервіс недоступний». */
+    profiles: ProfileRepository? = null,
     tasteStore: TasteStore? = null,
     creationIdentity: CreationIdentityStore? = null,
     timeZones: TimeZoneLocator? = null,
@@ -78,6 +80,7 @@ class PoruchApp internal constructor(
         auth,
         preferences,
         safety,
+        profiles,
         tasteStore,
         store,
         scope
@@ -104,6 +107,7 @@ class PoruchApp internal constructor(
     private val sessionUseCases =
         SessionUseCases(auth, accountActions, store, identity, pushSync)
     private val safetyUseCases = SafetyUseCases(safety, store, library, reloader)
+    private val profileUseCases = ProfileUseCases(profiles, store, scope)
     private val tasteUseCases = TasteUseCases(tasteStore, preferences, reminderStore, store, analyticsStore)
 
     init {
@@ -325,6 +329,19 @@ class PoruchApp internal constructor(
     /** Блокування взаємне й миттєве: події людини зникають з мапи при наступному читанні. */
     fun blockUser(userId: String) = safetyUseCases.blockUser(userId)
     fun unblockUser(userId: String) = safetyUseCases.unblockUser(userId)
+
+    // ---- Профіль
+
+    /** Імʼя й «Про себе». Перевіряє стоп-словник сервера: відмова — [AppError.ObjectionableContent]. */
+    fun saveProfile(name: String, bio: String?) = profileUseCases.save(name, bio)
+
+    /** Нове фото профілю: JPEG/PNG/WebP до 5 MiB, платформа вже перекодувала його без EXIF. */
+    fun setAvatar(bytes: ByteArray, contentType: String) = profileUseCases.setAvatar(bytes, contentType)
+    fun removeAvatar() = profileUseCases.removeAvatar()
+
+    /** Картка людини в [AppState.person]. Видимість вирішує сервер. */
+    fun openPerson(userId: String) = profileUseCases.open(userId)
+    fun closePerson() = profileUseCases.close()
 
     // ---- Акаунт
 

@@ -17,6 +17,7 @@ internal class UserLibrary(
     private val auth: AuthRepository,
     private val preferences: PreferencesRepository?,
     private val safety: SafetyRepository?,
+    private val profiles: ProfileRepository?,
     private val taste: TasteStore?,
     private val store: AppStore,
     private val scope: CoroutineScope
@@ -85,6 +86,12 @@ internal class UserLibrary(
                 PoruchLog.d("detail") { "roster for ${id.shortId()}: ${roster.size} visible" }
                 if (openEventId == id) detail { copy(attendees = roster) }
             }
+            // Фото організатора — з його картки. Best-effort, як ростер: без нього лишається літера.
+            val organizerId = store.value.detail.event?.takeIf { it.id == id && it.isCommunity }?.organizerId
+            if (store.value.signedIn && organizerId != null) {
+                val avatar = optional { profiles?.profile(organizerId)?.avatarUrl }
+                if (openEventId == id) detail { copy(organizerAvatar = avatar) }
+            }
             // Запити є лише в організатора і лише для своєї події.
             val mine = store.value.detail.event?.let { it.id == id && store.value.organizes(it) } == true
             val requests = if (mine) {
@@ -131,12 +138,13 @@ internal class UserLibrary(
                     // факти після 504 знову питали вік, і сервер відповідав AGE_ALREADY_SET.
                     val facts = async { optional { safety?.account() } }
                     val blocked = async { optional { safety?.blocked() } }
+                    val profile = async { optional { profiles?.profile(uid) } }
                     // Стрічка запитів — без неї головна лише не покаже бейджів.
                     val pending = async { optional { requests.pendingRequests() } }
                     val unread = async { optional { chat.unread() } }
                     val result = Loaded(
                         mine.await(), savedEvents.await(), interests.await(), queued.await(),
-                        facts.await(), blocked.await(), pending.await(), unread.await()
+                        facts.await(), blocked.await(), pending.await(), unread.await(), profile.await()
                     )
                     PoruchLog.i("mine") { "${result.mine.size} of mine, ${result.saved.size} saved, ${result.queued.size} queued, ${result.pending?.size} requests, ${result.interests.size} interests" }
                     store.update {
@@ -149,6 +157,7 @@ internal class UserLibrary(
                                 waitlistedIds = result.queued,
                                 pendingRequests = result.pending ?: previous.pendingRequests,
                                 account = result.facts ?: previous.account,
+                                profile = result.profile ?: previous.profile,
                                 blocked = result.blocked ?: previous.blocked
                             ),
                             // Відкритий чат уже прочитаний: сервер міг ще не знати.
@@ -168,7 +177,8 @@ internal class UserLibrary(
 
     private class Loaded(
         val mine: List<Event>, val saved: List<String>, val interests: List<String>, val queued: List<String>,
-        val facts: AccountFacts?, val blocked: List<Attendee>?, val pending: List<JoinRequest>?, val unread: List<ChatUnread>?
+        val facts: AccountFacts?, val blocked: List<Attendee>?, val pending: List<JoinRequest>?, val unread: List<ChatUnread>?,
+        val profile: Profile?
     )
 
     /** Best-effort: збій (чи сервер без міграції) — null, і стан лишає попереднє. */

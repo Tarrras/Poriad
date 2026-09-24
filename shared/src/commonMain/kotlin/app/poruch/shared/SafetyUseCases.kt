@@ -54,7 +54,9 @@ internal class SafetyUseCases(
         PoruchLog.i("safety") { "block ${userId.shortId()}" }
         repository.block(userId)
         // Блок діє на сервері, тож перечитуємо: мапа й «мої події» повертаються відфільтрованими.
-        library.dismiss(); reloader.lists()
+        // Подія заблокованого організатора зникає разом з екраном; учасника — лише з ростеру.
+        store.update { it.copy(person = null) }
+        if (store.value.detail.event?.organizerId == userId) { library.dismiss(); reloader.lists() } else reloader.all()
         store.tell(AppMessage.USER_BLOCKED)
     }
 

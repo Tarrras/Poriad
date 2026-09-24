@@ -34,7 +34,9 @@ data class AppState(
     /** Відкритий чат події. Null — екран чату закрито, і опитування зупинено. */
     val chat: ChatState? = null,
     /** Події з непрочитаними повідомленнями, свіжіші першими. Бейджі й секція на головній. */
-    val chatUnread: List<ChatUnread> = emptyList()
+    val chatUnread: List<ChatUnread> = emptyList(),
+    /** Відкрита картка людини. Null — картку закрито. Пише [ProfileUseCases]. */
+    val person: PersonState? = null
 ) {
     /** Скільки чатів чекають: бейдж на вкладці. Не сума повідомлень: три чати — три справи. */
     val unreadChats get() = chatUnread.size
@@ -93,6 +95,8 @@ data class DetailState(
     val ratings: List<EventRating> = emptyList(),
     /** Хто проситься на відкриту подію. Непорожньо лише для організатора. */
     val joinRequests: List<Attendee> = emptyList(),
+    /** Фото організатора для рядка в «Ідуть»: проєкція події його не несе. Null — нема фото або не завантажилось. */
+    val organizerAvatar: String? = null,
     /**
      * Сама подія ще в дорозі. Поки так, порожній [event] — не «подія недоступна», а спінер.
      * Власний прапорець: `map.loading` про мапу, а не про деталі.
@@ -108,10 +112,15 @@ data class LibraryState(
     /** Запити до всіх моїх подій, свіжіші першими. Головна показує, [RequestAlertSync] дзвонить про нові. */
     val pendingRequests: List<JoinRequest> = emptyList(),
     val account: AccountFacts = AccountFacts(),
+    /** Свій профіль. Null — ще не завантажено або сервер без міграції профілю. */
+    val profile: Profile? = null,
     val blocked: List<Attendee> = emptyList(),
     /** «Мої події» перечитуються. Для спінера екрана «Мої», замість `map.loading`. */
     val loading: Boolean = false
 )
+
+/** Відкрита картка людини. [profile] null після завантаження — людина недоступна (блок, приватність). */
+data class PersonState(val userId: String, val profile: Profile? = null, val loading: Boolean = true)
 
 data class SessionState(
     val userId: String? = null,
@@ -144,5 +153,6 @@ internal fun AppState.forAccount(uid: String?): AppState = copy(
     detail = DetailState(),
     library = LibraryState(),
     chatUnread = emptyList(),
+    person = null,
     completedEventId = null
 ).materialized()

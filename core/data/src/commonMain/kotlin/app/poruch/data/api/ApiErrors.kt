@@ -45,6 +45,7 @@ private val SERVER_ERRORS: Map<String, AppError> = mapOf(
     "TOO_MANY_JOINS" to AppError.TooManyAttempts,
     "INVALID_MESSAGE" to AppError.InvalidMessage,
     "OBJECTIONABLE_CONTENT" to AppError.ObjectionableContent,
+    "INVALID_IMAGE_URL" to AppError.ImageUploadFailed,
     "CHAT_CLOSED" to AppError.ChatClosed,
     "NOT_MEMBER" to AppError.NotMember,
     "INVALID_TITLE" to AppError.InvalidDraft(listOf(DraftField.TITLE)),

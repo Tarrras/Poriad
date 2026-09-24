@@ -97,9 +97,24 @@ class PoruchAppTest {
             auth=auth, cityStore=cities,
             geo=object:GeoSearchRepository { override suspend fun search(query:String)=emptyList<CityResult>() },
             eventActions=EventActions(events,events,auth), accountActions=AccountActions(auth),
-            safety=safety, tasteStore=taste, reminderStore=reminders, scope=scope
+            safety=safety, profiles=profiles, tasteStore=taste, reminderStore=reminders, scope=scope
         )
     }
+
+    /** Профілі в пам'яті: свій — [mine], чужі — [cards]; видалені файли записуються. */
+    private class Profiles: ProfileRepository {
+        var mine=Profile("user","Я",null,null,"2026-09-01T00:00:00Z",0,0,"me@example.invalid")
+        var cards=mapOf<String,Profile>()
+        var slow=emptySet<String>()
+        val deleted=mutableListOf<String>()
+        var uploads=0
+        override suspend fun profile(userId:String):Profile? { if(userId in slow) delay(100); return if(userId==mine.userId) mine else cards[userId] }
+        override suspend fun update(name:String,bio:String?) { mine=mine.copy(name=name.trim(),bio=ProfileRules.normalizeBio(bio)) }
+        override suspend fun setAvatar(bytes:ByteArray,contentType:String):String { uploads++; return "https://test.invalid/avatar/$uploads.jpg".also { mine=mine.copy(avatarUrl=it) } }
+        override suspend fun removeAvatar() { mine=mine.copy(avatarUrl=null) }
+        override suspend fun deleteImage(url:String) { deleted+=url }
+    }
+    private var profiles = Profiles()
 
     /** Скарги й блокування записуються, а не надсилаються. */
     private class Safety(var facts: AccountFacts = AccountFacts("1990-01-01")): SafetyRepository {
@@ -950,6 +965,56 @@ class PoruchAppTest {
         events.pending=listOf(JoinRequest("unknown","guest","Гість",null,"2026-09-16T10:00:00Z"))
         app.loadMyEvents(); advanceTimeBy(200); runCurrent()
         assertTrue(seen.keys.isEmpty())
+        app.close()
+    }
+
+    /** Свій профіль приходить разом із «моїми» і зникає з акаунтом. */
+    @Test fun ownProfileLoadsWithTheAccountAndLeavesWithIt()=runTest {
+        val app=app(Events(),backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
+        assertEquals("me@example.invalid",app.state.value.library.profile?.email)
+        app.signOut(); runCurrent()
+        assertNull(app.state.value.library.profile)
+        app.close()
+    }
+
+    /** Нове фото стає профілем, і лише тоді зникає старий файл; прибрати фото — теж прибрати файл. */
+    @Test fun replacingTheAvatarRemovesTheOldFileAfterwards()=runTest {
+        val app=app(Events(),backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
+        app.setAvatar(byteArrayOf(1),"image/jpeg"); runCurrent()
+        assertEquals("https://test.invalid/avatar/1.jpg",app.state.value.library.profile?.avatarUrl)
+        assertTrue(profiles.deleted.isEmpty())
+        app.setAvatar(byteArrayOf(2),"image/jpeg"); runCurrent()
+        assertEquals(listOf("https://test.invalid/avatar/1.jpg"),profiles.deleted)
+        app.removeAvatar(); runCurrent()
+        assertNull(app.state.value.library.profile?.avatarUrl)
+        assertEquals("https://test.invalid/avatar/2.jpg",profiles.deleted.last())
+        app.close()
+    }
+
+    /** Імʼя перевіряється до сервера, «Про себе» зберігається обрізаним. */
+    @Test fun savingTheProfileValidatesTheNameAndTrimsTheBio()=runTest {
+        val app=app(Events(),backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
+        app.saveProfile(" ",null); runCurrent()
+        assertEquals(AppNotice.Failed(AppError.InvalidName),app.state.value.notice)
+        app.saveProfile(" Оля ","  Люблю настолки  "); runCurrent()
+        assertEquals("Оля",app.state.value.library.profile?.name)
+        assertEquals("Люблю настолки",app.state.value.library.profile?.bio)
+        app.close()
+    }
+
+    /** Картка іншої людини: запізніла відповідь для попередньої не перезаписує відкриту. */
+    @Test fun aLateCardForAnotherPersonIsDropped()=runTest {
+        profiles.cards=mapOf("a" to Profile("a","А",null,null,null,1,2),"b" to Profile("b","Б",null,null,null,0,0))
+        profiles.slow=setOf("a")
+        val app=app(Events(),backgroundScope); runCurrent()
+        app.openPerson("a"); runCurrent()
+        assertTrue(app.state.value.person?.loading==true)
+        app.openPerson("b"); runCurrent(); advanceTimeBy(101); runCurrent()
+        assertEquals("Б",app.state.value.person?.profile?.name)
+        app.openPerson("hidden"); runCurrent()
+        assertEquals(PersonState("hidden",null,loading=false),app.state.value.person)
+        app.closePerson(); runCurrent()
+        assertNull(app.state.value.person)
         app.close()
     }
 

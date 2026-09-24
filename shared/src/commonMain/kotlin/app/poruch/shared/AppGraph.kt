@@ -3,6 +3,7 @@ package app.poruch.shared
 import app.poruch.account.AccountActions
 import app.poruch.data.account.SupabaseAuthRepository
 import app.poruch.data.account.SupabasePreferencesRepository
+import app.poruch.data.account.SupabaseProfileRepository
 import app.poruch.data.api.ApiClient
 import app.poruch.data.api.ImageStorage
 import app.poruch.data.cache.PoruchDatabase
@@ -76,6 +77,7 @@ class AppGraph(
                 )
             }
             single<SafetyRepository> { SupabaseSafetyRepository(get(), get()) }
+            single<ProfileRepository> { SupabaseProfileRepository(get(), get(), get()) }
             // Один клас, два питання: місто зміщує мапу, адреса ставить крапку.
             single { PhotonGeoSearchRepository(http, config.geocoderUrl, config.userAgent) }
             single<GeoSearchRepository> { get<PhotonGeoSearchRepository>() }
@@ -99,6 +101,7 @@ class AppGraph(
                     accountActions = get(),
                     preferences = get(),
                     safety = get(),
+                    profiles = get(),
                     tasteStore = get(),
                     creationIdentity = get(),
                     timeZones = get(),
