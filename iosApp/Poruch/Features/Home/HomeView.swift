@@ -30,8 +30,6 @@ struct HomeView: View {
             if searchActive(view) { headerView(view) }
             feed(view).refreshable { await model.reloadAll() }
         }
-        // Смуга статусу — тлом сторінки: прокручена стрічка під нею не просвічує.
-        .overlay(alignment: .top) { Color.clear.frame(height: 0).background(Palette.canvas) }
         .background(Palette.canvas.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
         .onChange(of: view.searchKey) { _, _ in resultsLimit = homeResultsLimit }
