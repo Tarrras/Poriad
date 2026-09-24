@@ -24,12 +24,14 @@ struct HomeView: View {
 
     var body: some View {
         let view = self.view
-        // Шапка над стрічкою, а не в ній: `refreshable` стрічки діставався б горизонтальному ряду
-        // фільтрів, і той отримував власний індикатор оновлення та гойдався вертикально, як у «Моїх подіях».
+        // У пошуку поле з фільтрами закріплене над стрічкою, а не в ній: `refreshable` стрічки діставався б
+        // горизонтальним рядам чипів, і ті отримували власний індикатор оновлення та гойдалися вертикально.
         VStack(spacing: 0) {
-            headerView(view)
+            if searchActive(view) { headerView(view) }
             feed(view).refreshable { await model.reloadAll() }
         }
+        // Смуга статусу — тлом сторінки: прокручена стрічка під нею не просвічує.
+        .overlay(alignment: .top) { Color.clear.frame(height: 0).background(Palette.canvas) }
         .background(Palette.canvas.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
         .onChange(of: view.searchKey) { _, _ in resultsLimit = homeResultsLimit }
@@ -41,6 +43,13 @@ struct HomeView: View {
     /// Текст, що лишився зі спільного стану, теж тримає режим: інакше фільтри діяли б невидимо.
     private func searchActive(_ view: HomePresentation) -> Bool { searchMode || view.searching }
 
+    /// Тап у поле стрічки: поле в ній лише показує, де шукати, а вводять уже в закріпленому зверху.
+    /// Так фокус не перескакує між двома полями і клавіатура з'являється один раз.
+    private func startSearch() {
+        withAnimation(.snappy) { searchMode = true }
+        searchFocused = true
+    }
+
     /// «Скасувати»: текст і фільтри скидаються, фокус знімається, повертається стрічка.
     private func cancelSearch() {
         searchFocused = false
@@ -51,47 +60,51 @@ struct HomeView: View {
 
     private func feed(_ view: HomePresentation) -> some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: Space.section) {
-                if view.searching {
-                    searchResults(view)
-                } else if searchActive(view) {
-                    EmptyState(
-                        symbol: "magnifyingglass", title: "Шукайте за назвою, місцем чи виконавцем",
-                        message: "Шукаємо \(view.searchScope)"
-                    ).padding(.horizontal, Space.page).padding(.top, Space.section)
-                } else {
-                    quickActions
-                    if !view.signedIn {
-                        BannerCard(
-                            title: "Ваші люди — поруч",
-                            subtitle: "Увійдіть, щоб зберігати події та отримувати нагадування.",
-                            symbol: "lock", action: openProfile
-                        ).padding(.horizontal, Space.page)
+            VStack(spacing: 0) {
+                // Поза пошуком шапка — перший рядок стрічки і прокручується разом з нею.
+                if !searchActive(view) { headerView(view) }
+                VStack(alignment: .leading, spacing: Space.section) {
+                    if view.searching {
+                        searchResults(view)
+                    } else if searchActive(view) {
+                        EmptyState(
+                            symbol: "magnifyingglass", title: "Шукайте за назвою, місцем чи виконавцем",
+                            message: "Шукаємо \(view.searchScope)"
+                        ).padding(.horizontal, Space.page).padding(.top, Space.section)
                     } else {
-                        // Запити вище за плани: на них чекає інша людина.
-                        if !view.requests.isEmpty { requestsSection(view) }
-                        if !view.unread.isEmpty { unreadSection(view) }
-                        if !view.plans.isEmpty { plansRail(view) }
-                    }
-                    if view.isEmpty {
-                        if view.loading {
-                            ProgressView().frame(maxWidth: .infinity).padding(.vertical, Space.section)
+                        quickActions
+                        if !view.signedIn {
+                            BannerCard(
+                                title: "Ваші люди — поруч",
+                                subtitle: "Увійдіть, щоб зберігати події та отримувати нагадування.",
+                                symbol: "lock", action: openProfile
+                            ).padding(.horizontal, Space.page)
                         } else {
-                            EmptyState(
-                                symbol: "safari", title: "Тут поки тихо",
-                                message: "Змініть область мапи, дату або категорію — і події знайдуться.",
-                                actionLabel: "Знайти на мапі", action: openMap
-                            )
+                            // Запити вище за плани: на них чекає інша людина.
+                            if !view.requests.isEmpty { requestsSection(view) }
+                            if !view.unread.isEmpty { unreadSection(view) }
+                            if !view.plans.isEmpty { plansRail(view) }
                         }
-                    } else {
-                        digest(view)
+                        if view.isEmpty {
+                            if view.loading {
+                                ProgressView().frame(maxWidth: .infinity).padding(.vertical, Space.section)
+                            } else {
+                                EmptyState(
+                                    symbol: "safari", title: "Тут поки тихо",
+                                    message: "Змініть область мапи, дату або категорію — і події знайдуться.",
+                                    actionLabel: "Знайти на мапі", action: openMap
+                                )
+                            }
+                        } else {
+                            digest(view)
+                        }
+                        // Категорії нижче за дайджест: спершу що є, потім чим звузити. Тап відкриває мапу з фільтром.
+                        categoryRail
+                        moreRows(view)
                     }
-                    // Категорії нижче за дайджест: спершу що є, потім чим звузити. Тап відкриває мапу з фільтром.
-                    categoryRail
-                    moreRows(view)
-                }
-            }.padding(.top, Space.md).padding(.bottom, Space.section)
-            .background(Palette.canvas)
+                }.padding(.top, Space.md).padding(.bottom, Space.section)
+                .background(Palette.canvas)
+            }
         }
     }
 
@@ -111,15 +124,22 @@ struct HomeView: View {
                 .padding(.horizontal, Space.page)
             }
             HStack(spacing: Space.md) {
-                SearchBar(placeholder: "Пошук \(view.searchScope)", initial: view.searchText) {
-                    model.app.setHomeSearchText(query: $0)
-                }
-                .id(searchEpoch)
-                .focused($searchFocused)
                 if searchActive {
+                    SearchBar(placeholder: "Пошук \(view.searchScope)", initial: view.searchText) {
+                        model.app.setHomeSearchText(query: $0)
+                    }
+                    .id(searchEpoch)
+                    .focused($searchFocused)
                     Button("Скасувати", action: cancelSearch)
                         .font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
                         .transition(.move(edge: .trailing).combined(with: .opacity))
+                } else {
+                    Button(action: startSearch) {
+                        SearchBar(placeholder: "Пошук \(view.searchScope)", initial: "") { _ in }
+                            .allowsHitTesting(false).contentShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Пошук \(view.searchScope)")
                 }
             }
             .padding(.horizontal, Space.page)
