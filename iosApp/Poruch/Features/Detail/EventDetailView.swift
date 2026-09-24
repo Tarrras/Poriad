@@ -34,6 +34,10 @@ struct EventDetailView: View {
     @State private var topInset: CGFloat = measuredStatusBarInset()
     /// Запит деталей уже побачили в стані. До того порожня подія — ще не відповідь, а перший кадр.
     @State private var requested = false
+    /// Ростер розгорнуто кнопкою «Показати всіх».
+    @State private var showAllPeople = false
+    /// Картка людини відкрита з цього екрана. Див. `personSheet`.
+    @State private var showingPerson = false
     @Environment(\.openMap) private var openMap
 
     /// Id відкритої події від того, хто відкриває, а не зі стану: див. `.task` нижче.
@@ -86,6 +90,17 @@ struct EventDetailView: View {
         .hidesTabBar()
         .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $auth) { NavigationStack { AuthView() } }
+        .personSheet(model, isPresented: $showingPerson, request: { userId in
+            guard let event = view.event, view.organizer, view.requests.contains(where: { $0.userId == userId }) else { return nil }
+            return PersonRequest(
+                approve: { model.app.approveMember(eventId: event.id, userId: userId) },
+                decline: { model.app.declineMember(eventId: event.id, userId: userId) }
+            )
+        }, onBlocked: { userId in
+            // Організатор — разом із подією; учасник зникає лише з ростеру.
+            if userId == view.event?.organizerId { dismiss() }
+        })
+        .onDisappear { model.app.closePerson() }
     }
 
     @ViewBuilder
@@ -140,7 +155,7 @@ struct EventDetailView: View {
             externalActions(event, view)
             if sessions.count > 1 { sessionRail(event) }
             facts(event)
-            if !view.attendees.isEmpty { roster(event, view) }
+            if let room = view.room { people(room, view) }
             venue(event)
             if !othersHere.isEmpty { othersHereSection }
             description(event)
@@ -236,14 +251,16 @@ private struct DetailDialogs: ViewModifier {
                     if let organizerId = event.organizerId {
                         model.app.reportUser(userId: organizerId, reason: reason, details: details)
                     }
-                // Скарга на повідомлення відкривається з чату, не звідси.
-                case .message: break
+                // Скарга на повідомлення — з чату, на людину — з її картки.
+                case .message, .person: break
                 }
             }.presentationDetents([.medium, .large])
         }
     }
 }
 
+/// Скільки учасників видно до «Показати всіх».
+private let rosterCollapsed = 3
 /// Висота обкладинки від краю екрана.
 private let heroHeight: CGFloat = 400
 /// Звідки й за скільки проявляється смуга під статусом: низ обкладинки вже згас у полотно.
@@ -385,16 +402,55 @@ extension EventDetailView {
         }.padding(Space.xl).cardSurface()
     }
 
-    private func roster(_ event: Event, _ view: EventDetailPresentation) -> some View {
-        HStack(spacing: Space.md) {
-            AvatarStack(attendees: view.attendees, total: Int(event.gathering?.attendeeCount ?? Int32(view.attendees.count)))
-            VStack(alignment: .leading, spacing: 2) {
-                Text("ІДУТЬ").font(PoruchFont.overline).kerning(1.2).foregroundStyle(Palette.inkTertiary)
-                Text(view.attendees.map(\.name).joined(separator: ", "))
-                    .font(PoruchFont.subhead).foregroundStyle(Palette.ink).lineLimit(1)
+    /// Люди події: організатор і ті, хто йде. Рядок відкриває картку людини — так організатор і
+    /// учасники бачать одне одного. Ростер віддає лише своїм, решта бачить тільки організатора.
+    private func people(_ room: Gathering, _ view: EventDetailPresentation) -> some View {
+        let organizerAvatar = model.state?.detail.organizerAvatar
+        let shown = showAllPeople ? view.attendees : Array(view.attendees.prefix(rosterCollapsed))
+        return VStack(alignment: .leading, spacing: Space.sm) {
+            SectionHeader(title: "Ідуть")
+            GroupedRows {
+                personRow(room.organizerName.isEmpty ? "Організатор" : room.organizerName,
+                          avatar: organizerAvatar, caption: "Організатор", userId: room.organizerId, view)
+                ForEach(shown, id: \.userId) { person in
+                    Divider().overlay(Palette.hairline).padding(.leading, Space.lg + 40 + Space.md)
+                    personRow(person.name.isEmpty ? "Учасник" : person.name, avatar: person.avatarUrl, caption: nil, userId: person.userId, view)
+                }
+                if !showAllPeople && view.attendees.count > rosterCollapsed {
+                    Divider().overlay(Palette.hairline).padding(.leading, Space.lg)
+                    Button { showAllPeople = true } label: {
+                        Text("Показати всіх · \(view.attendees.count)").font(PoruchFont.button).foregroundStyle(Palette.ink)
+                            .frame(maxWidth: .infinity, alignment: .leading).padding(Space.lg).contentShape(Rectangle())
+                    }.buttonStyle(.plain)
+                }
             }
-            Spacer(minLength: 0)
-        }.padding(Space.lg).cardSurface()
+            // Гість і сторонній бачать лише число: імена — межа RLS.
+            if view.attendees.isEmpty && room.attendeeCount > 0 {
+                Text("Ідуть \(room.attendeeCount) з \(room.capacity)").font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
+            }
+        }
+    }
+
+    private func openPerson(_ userId: String) {
+        showingPerson = true
+        model.app.openPerson(userId: userId)
+    }
+
+    private func personRow(_ name: String, avatar: String?, caption: String?, userId: String, _ view: EventDetailPresentation) -> some View {
+        Button { if view.signedIn { openPerson(userId) } else { auth = true } } label: {
+            HStack(spacing: Space.md) {
+                Avatar(name: name, url: avatar, size: 40)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(name).font(PoruchFont.cardName).foregroundStyle(Palette.ink).lineLimit(1)
+                    if let caption { Text(caption).font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary) }
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold)).foregroundStyle(Palette.inkTertiary)
+            }
+            .padding(.horizontal, Space.lg).padding(.vertical, Space.md).contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Відкрити профіль: \(name)")
     }
 
     /// Ряд круглих дій із підписами, як панель під картою дня в Moonly.
@@ -505,10 +561,15 @@ extension EventDetailView {
             SectionHeader(title: "Запити на участь")
             ForEach(view.requests, id: \.userId) { person in
                 HStack(spacing: Space.md) {
-                    AvatarStack(attendees: [person], total: 1, size: 36)
-                    // Поступається імʼя, а не дії: з більшим кеглем кнопок «Прийняти» переносилось на два рядки.
-                    Text(person.name.isEmpty ? "Учасник" : person.name)
-                        .font(PoruchFont.cardName).foregroundStyle(Palette.ink).lineLimit(1)
+                    // Імʼя й фото — вхід у картку: вирішувати, дивлячись на людину, а не на імʼя.
+                    Button { openPerson(person.userId) } label: {
+                        HStack(spacing: Space.md) {
+                            Avatar(name: person.name, url: person.avatarUrl, size: 36)
+                            // Поступається імʼя, а не дії: з більшим кеглем кнопок «Прийняти» переносилось на два рядки.
+                            Text(person.name.isEmpty ? "Учасник" : person.name)
+                                .font(PoruchFont.cardName).foregroundStyle(Palette.ink).lineLimit(1)
+                        }.contentShape(Rectangle())
+                    }.buttonStyle(.plain).accessibilityLabel("Відкрити профіль: \(person.name)")
                     Spacer(minLength: 0)
                     Button("Відхилити") { model.app.declineMember(eventId: event.id, userId: person.userId) }
                         .font(PoruchFont.button).foregroundStyle(Palette.inkSecondary).lineLimit(1).fixedSize()
@@ -618,13 +679,14 @@ struct ScrimButton: View {
 
 /// На що скарга: на подію чи на того, хто її опублікував.
 enum ReportTarget: String, Identifiable {
-    case event, organizer, message
+    case event, organizer, message, person
     var id: String { rawValue }
     var title: String {
         switch self {
         case .event: "Поскаржитись на подію"
         case .organizer: "Поскаржитись на організатора"
         case .message: "Поскаржитись на повідомлення"
+        case .person: "Поскаржитись на людину"
         }
     }
 }

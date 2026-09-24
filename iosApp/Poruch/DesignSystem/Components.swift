@@ -419,6 +419,25 @@ struct BannerCard: View {
     }
 }
 
+/// Фото людини або перша літера імені, поки фото нема чи воно ще їде.
+struct Avatar: View {
+    let name: String
+    let url: String?
+    var size: CGFloat = 32
+    var body: some View {
+        ZStack {
+            Circle().fill(Palette.surfaceMuted)
+            Text(name.trimmingCharacters(in: .whitespaces).prefix(1).uppercased())
+                .font(size >= 56 ? PoruchFont.title1 : PoruchFont.label).foregroundStyle(Palette.inkSecondary)
+            if let url, let source = URL(string: url), source.scheme == "https" {
+                // Той самий кеш, що в картках: `AsyncImage` нічого не пам'ятає.
+                CachedImage(url: source, maxDimension: size).clipShape(Circle())
+            }
+        }
+        .frame(width: size, height: size)
+    }
+}
+
 /// Аватари внапуск.
 struct AvatarStack: View {
     let attendees: [Attendee]
@@ -428,16 +447,7 @@ struct AvatarStack: View {
     var body: some View {
         HStack(spacing: 0) {
             ForEach(Array(shown.enumerated()), id: \.element.userId) { index, attendee in
-                ZStack {
-                    Circle().fill(Palette.surfaceMuted)
-                    Text(attendee.name.trimmingCharacters(in: .whitespaces).prefix(1).uppercased())
-                        .font(PoruchFont.label).foregroundStyle(Palette.inkSecondary)
-                    if let source = attendee.avatarUrl, let url = URL(string: source), url.scheme == "https" {
-                        // Той самий кеш, що в картках: `AsyncImage` нічого не пам'ятає.
-                        CachedImage(url: url, maxDimension: size).clipShape(Circle())
-                    }
-                }
-                .frame(width: size, height: size)
+                Avatar(name: attendee.name, url: attendee.avatarUrl, size: size)
                 .overlay(Circle().strokeBorder(Palette.surface, lineWidth: 2))
                 .offset(x: CGFloat(-index * 10))
                 .zIndex(Double(shown.count - index))

@@ -9,6 +9,7 @@ struct ProfileView: View {
     @State private var showAuth = false
     @State private var deleting = false
     @State private var changingPassword = false
+    @State private var editingProfile = false
     @State private var birthDate = Calendar.current.date(byAdding: .year, value: -Int(SafetyRules.shared.MIN_SIGNUP_AGE), to: Date()) ?? Date()
     private let latestBirthDate = Calendar.current.date(byAdding: .year, value: -Int(SafetyRules.shared.MIN_SIGNUP_AGE), to: Date()) ?? Date()
     private let earliestBirthDate = Calendar.current.date(byAdding: .year, value: -100, to: Date()) ?? Date.distantPast
@@ -37,16 +38,36 @@ struct ProfileView: View {
         .sheet(isPresented: $showAuth) { NavigationStack { AuthView() } }
         .sheet(isPresented: $deleting) { DeleteAccountSheet().presentationDetents([.medium, .large]) }
         .sheet(isPresented: $changingPassword) { ChangePasswordSheet().presentationDetents([.medium, .large]) }
+        .sheet(isPresented: $editingProfile) {
+            if let profile = model.state?.library.profile { EditProfileSheet(profile: profile).presentationDetents([.large]) }
+        }
         // Пароль змінено: шторці нема що показувати, підтвердження побачать у банері кореня.
         .onChange(of: (model.state?.notice as? AppNoticeTold)?.message) { _, message in
             if message == .passwordChanged { changingPassword = false }
         }
         // Сесії більше нема: акаунт видалено, шторці нема що показувати.
-        .onChange(of: signedIn) { _, signedIn in if !signedIn { deleting = false } }
+        .onChange(of: signedIn) { _, signedIn in if !signedIn { deleting = false; editingProfile = false } }
     }
 
     /// Аватар і назва по центру, як картка акаунта в Apple Store.
+    @ViewBuilder
     private var header: some View {
+        if signedIn, let profile = model.state?.library.profile {
+            VStack(spacing: Space.md) {
+                ProfileSummary(profile: profile)
+                if let bio = profile.bio {
+                    Text(bio).font(PoruchFont.bodyText).foregroundStyle(Palette.ink).multilineTextAlignment(.center)
+                }
+                SecondaryButton(title: "Редагувати профіль", symbol: "pencil") { editingProfile = true }
+            }
+            .padding(.horizontal, Space.page).padding(.top, Space.section).padding(.bottom, Space.sm)
+            .frame(maxWidth: .infinity)
+        } else {
+            genericHeader
+        }
+    }
+
+    private var genericHeader: some View {
         VStack(spacing: Space.md) {
             PoruchIcon(glyph: PoruchIcons.person, size: 36).foregroundStyle(Palette.onBrandContainer)
                 .frame(width: 88, height: 88).background(Palette.brandContainer, in: Circle())

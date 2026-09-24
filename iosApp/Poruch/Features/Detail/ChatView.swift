@@ -14,6 +14,8 @@ struct ChatView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var draft = ""
     @State private var reporting: ChatMessage?
+    /// Картка автора відкрита з чату. Див. `personSheet`.
+    @State private var showingPerson = false
     @State private var deleting: ChatMessage?
     @State private var blocking: ChatMessage?
     @FocusState private var composing: Bool
@@ -45,7 +47,8 @@ struct ChatView: View {
         .toolbar(.hidden, for: .navigationBar)
         .navigationBarBackButtonHidden()
         .task { model.app.openChat(eventId: eventID) }
-        .onDisappear { model.app.closeChat() }
+        .onDisappear { model.app.closeChat(); model.app.closePerson() }
+        .personSheet(model, isPresented: $showingPerson)
         .confirmationDialog("Видалити повідомлення?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible) {
             Button("Видалити", role: .destructive) { if let message = deleting { model.app.deleteMessage(messageId: message.id) } }
         } message: { Text("Його не побачить ніхто з учасників.") }
@@ -173,7 +176,9 @@ struct ChatView: View {
             } else if continued {
                 Color.clear.frame(width: 28, height: 28)
             } else {
-                AvatarStack(attendees: [Attendee(userId: message.authorId, name: name, avatarUrl: message.avatarUrl)], total: 1, size: 28)
+                Button { showingPerson = true; model.app.openPerson(userId: message.authorId) } label: {
+                    Avatar(name: name, url: message.avatarUrl, size: 28)
+                }.buttonStyle(.plain).accessibilityLabel("Відкрити профіль: \(name)")
             }
             VStack(alignment: .leading, spacing: 3) {
                 if !mine && !continued {

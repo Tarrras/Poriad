@@ -61,24 +61,40 @@ import Shared
     /// Декодування й копіювання в Kotlin — поза головним потоком: це сотні мілісекунд.
     func upload(_ item: PhotosPickerItem?, to event: Event) async {
         guard let item else { return }
-        do {
-            guard let data = try await item.loadTransferable(type: Data.self) else { photoError = "Не вдалося прочитати фото"; return }
-            let jpeg = await Task.detached(priority: .userInitiated) {
-                ThumbnailCache.downsample(data, to: uploadMaxPixel)?.jpegData(compressionQuality: jpegQuality)
-            }.value
-            guard let jpeg else { photoError = "Не вдалося прочитати фото"; return }
-            guard jpeg.count <= Int(ImageRules.shared.MAX_BYTES) else { photoError = "Оберіть фото до 5 МБ"; return }
-            // Мосту Data → ByteArray у shared нема: копіюємо побайтово, але у фоні.
-            let bytes = await Task.detached(priority: .userInitiated) {
-                let bytes = KotlinByteArray(size: Int32(jpeg.count))
-                for (index, byte) in jpeg.enumerated() { bytes.set(index: Int32(index), value: Int8(bitPattern: byte)) }
-                return bytes
-            }.value
+        switch await pickedJPEG(item, maxPixel: uploadMaxPixel) {
+        case .success(let bytes):
             photoError = nil
             app.uploadEventImage(eventId: event.id, bytes: bytes, contentType: "image/jpeg")
-        } catch {
-            photoError = "Не вдалося завантажити фото"
+        case .failure(let problem):
+            photoError = problem.message
         }
+    }
+}
+
+/// Чому фото з пікера не стало байтами. Текст — для підпису під кнопкою.
+struct PhotoProblem: Error {
+    let message: String
+}
+
+/// Будь-що з пікера → JPEG без метаданих з довшою стороною до `maxPixel`, готовий для `shared`.
+/// Декодування й копіювання в Kotlin — поза головним потоком: це сотні мілісекунд.
+func pickedJPEG(_ item: PhotosPickerItem, maxPixel: CGFloat) async -> Result<KotlinByteArray, PhotoProblem> {
+    do {
+        guard let data = try await item.loadTransferable(type: Data.self) else { return .failure(PhotoProblem(message: "Не вдалося прочитати фото")) }
+        let jpeg = await Task.detached(priority: .userInitiated) {
+            ThumbnailCache.downsample(data, to: maxPixel)?.jpegData(compressionQuality: jpegQuality)
+        }.value
+        guard let jpeg else { return .failure(PhotoProblem(message: "Не вдалося прочитати фото")) }
+        guard jpeg.count <= Int(ImageRules.shared.MAX_BYTES) else { return .failure(PhotoProblem(message: "Оберіть фото до 5 МБ")) }
+        // Мосту Data → ByteArray у shared нема: копіюємо побайтово, але у фоні.
+        let bytes = await Task.detached(priority: .userInitiated) {
+            let bytes = KotlinByteArray(size: Int32(jpeg.count))
+            for (index, byte) in jpeg.enumerated() { bytes.set(index: Int32(index), value: Int8(bitPattern: byte)) }
+            return bytes
+        }.value
+        return .success(bytes)
+    } catch {
+        return .failure(PhotoProblem(message: "Не вдалося завантажити фото"))
     }
 }
 
