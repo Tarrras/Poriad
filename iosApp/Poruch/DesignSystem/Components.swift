@@ -1071,8 +1071,9 @@ struct PoruchTabBar<Trailing: View>: View {
                         .foregroundStyle(selection == item.id ? Palette.ink : Palette.inkTertiary)
                         .frame(maxWidth: .infinity).frame(height: 42)
                         .background {
-                            // Тонова пігулка під активним гліфом: стан видно й на відстані руки.
-                            if selection == item.id { Capsule().fill(Palette.brandContainer) }
+                            // Тонова пігулка під активним гліфом: стан видно й на відстані руки. Від кольору
+                            // тексту, а не brandContainer: той на склі (≈#F2F2F6) майже зливався з тлом.
+                            if selection == item.id { Capsule().fill(Palette.ink.opacity(0.1)) }
                         }
                     }
                     .buttonStyle(PressableStyle(pressedScale: 0.94))
