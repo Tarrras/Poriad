@@ -63,14 +63,14 @@ iPad-скріншоти не потрібні: застосунок iPhone-only 
 | Тип | Обов'язково | Мета | Передається |
 | --- | --- | --- | --- |
 | Email | так | акаунт | ні |
-| Ім'я | так | акаунт, показ учасникам | ні |
+| Ім'я | так | акаунт, картка профілю (учасникам і організаторам) | ні |
 | Інша особиста інформація (дата народження) | так | вікова перевірка | ні |
 | User ID | так | акаунт | ні |
 | Приблизна геолокація | ні | функціональність (центр мапи, місто), ефемерно | ні¹ |
-| Фото | ні | обкладинка події (публічна), аватар | ні |
+| Фото | ні | обкладинка події (публічна), фото профілю | ні |
 | Повідомлення в застосунку (Other in-app messages) | ні | чат події | Google (FCM) для доставки пушів |
 | Історія пошуку в застосунку | ні | функціональність: пошук подій, міст і адрес, ефемерно | ні¹ |
-| Інший контент користувача | ні | події, оцінки завершених подій (1–5 + коментар, бачить організатор), скарги, блокування | ні |
+| Інший контент користувача | ні | «Про себе» в профілі, події, оцінки завершених подій (1–5 + коментар, бачить організатор), скарги, блокування | ні |
 | Device or other IDs (FCM token, Firebase Installation ID) | ні | пуші, аналітика | Google |
 | App interactions (Analytics) | ні — вимикається перемикачем «Аналітика» в профілі | аналітика | Google |
 | Crash logs, Diagnostics | ні — той самий перемикач | стабільність | Google |
@@ -99,7 +99,7 @@ UGC: так. Спілкування між користувачами: так (�
 
 ### App Privacy (Data linked to you)
 
-Contact Info: Email, Name. Identifiers: User ID, Device ID. Photos or Videos. User Content: Emails or Text Messages (чат події; push через APNs), Other User Content (події, оцінки 1–5 з коментарем, скарги). Other Data: дата народження. Мета для всіх — App Functionality.
+Contact Info: Email, Name. Identifiers: User ID, Device ID. Photos or Videos. User Content: Emails or Text Messages (чат події; push через APNs), Other User Content («Про себе» в профілі, події, оцінки 1–5 з коментарем, скарги). Other Data: дата народження. Мета для всіх — App Functionality.
 
 **Not linked to you:** Location — Coarse Location (App Functionality; координати для назви міста йдуть у Photon). Search History (пошук подій, міст, адрес; App Functionality). Usage Data — Product Interaction (Analytics). Diagnostics — Crash Data, Performance Data (App Functionality). Аналітику й звіти про збої користувач вимикає перемикачем «Аналітика» в профілі. Tracking: none (без IDFA).
 
