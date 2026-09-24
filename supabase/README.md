@@ -327,3 +327,7 @@ pg_dump "$SUPABASE_DB_URL" -t public.events --data-only -Fc -f events-$(date +%F
 ```
 
 - Для міграцій, що змінюють функції, відкат — нова міграція з попереднім визначенням (воно лежить у попередньому файлі `migrations/`); старі файли міграцій не редагуються.
+
+## Профіль
+
+`20260924100000_profiles.sql` (dev 2026-09-24; prod — ще ні): `profiles.bio` (≤ 300, стоп-словник у тригері `profiles_validate`), `profiles.created_at` (заповнено з `auth.users`), `public.profile_card(uuid)` — картка людини з лічильниками «організував / відвідав»; пошта лише власна, з JWT. Видимість — `private.can_see_profile` плюс організатор опублікованої спільнотної події; блокування в будь-який бік і обмежений акаунт ховають картку. Фото профілю — `event-images/<uid>/avatar/<файл>`: `owns_image_path` пускає туди запис, тригер приймає `avatar_url` лише з цієї теки. `public.moderate_profile(uuid, 'clear_avatar'|'clear_bio'|'reset_name')` — для модераторів. `tests/profiles.sql` — **PASS** на dev; `tests/ugc_and_limits.sql` оновлено під теку `avatar`. Деталі — `docs/profile.md`.

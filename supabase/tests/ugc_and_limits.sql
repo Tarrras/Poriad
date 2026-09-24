@@ -109,10 +109,10 @@ do $$ begin
  exception when sqlstate '22023' then assert sqlerrm='OBJECTIONABLE_CONTENT'; end;
  begin update public.profiles set avatar_url='https://tracker.example/pixel.png' where id=auth.uid(); raise exception 'expected foreign avatar rejection';
  exception when sqlstate '22023' then assert sqlerrm='INVALID_IMAGE_URL'; end;
- begin update public.profiles set avatar_url='https://evilref.supabase.co/storage/v1/object/public/event-images/'||auth.uid()||'/a.jpg' where id=auth.uid();
+ begin update public.profiles set avatar_url='https://evilref.supabase.co/storage/v1/object/public/event-images/'||auth.uid()||'/avatar/a.jpg' where id=auth.uid();
   raise exception 'expected other project rejection';
  exception when sqlstate '22023' then assert sqlerrm='INVALID_IMAGE_URL'; end;
- update public.profiles set avatar_url='https://ojadoyxeahepycpmjuvf.supabase.co/storage/v1/object/public/event-images/'||auth.uid()||'/a.jpg' where id=auth.uid();
+ update public.profiles set avatar_url='https://ojadoyxeahepycpmjuvf.supabase.co/storage/v1/object/public/event-images/'||auth.uid()||'/avatar/a.jpg' where id=auth.uid();
  assert (select avatar_url like 'https://ojadoyxeahepycpmjuvf.supabase.co/%' from public.profiles where id=auth.uid()),'own storage avatar accepted';
  begin perform public.create_event(gen_random_uuid(),'Street night','Test description','games','Kyiv','Гашиш-бар',50.45,30.52,now()+interval '1 day',now()+interval '2 days','Europe/Kyiv',5);
   raise exception 'expected address rejection';
