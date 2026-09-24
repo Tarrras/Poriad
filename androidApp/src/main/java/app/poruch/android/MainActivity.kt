@@ -110,7 +110,11 @@ class MainActivity : ComponentActivity(), AndroidScopeComponent {
         val eventId = intent.getStringExtra(EXTRA_EVENT_ID) ?: return
         val navigator = scope.get<Navigator>()
         navigator.reset(Home)
-        navigator.open(if (intent.getStringExtra(EXTRA_TARGET) == TARGET_CHAT) Chat(eventId) else Detail(eventId))
+        navigator.open(
+            if (intent.getStringExtra(EXTRA_TARGET) == TARGET_CHAT) Chat(eventId) else Detail(
+                eventId
+            )
+        )
     }
 
     companion object {
@@ -141,8 +145,18 @@ fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
     // Стартове місто — те, де людина зараз, а не Київ за замовчуванням. Приблизне положення, без
     // підписки: відмову мовчки приймаємо, «Поруч» на мапі лишається ручним шляхом.
     val nearby = stringResource(R.string.nearby)
-    val locate = { context.lastKnownPosition({ lat, lon -> context.cityAt(lat, lon, nearby, app::selectCity) }, {}) }
-    val locationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { if (it) locate() }
+    val locate = {
+        context.lastKnownPosition({ lat, lon ->
+            context.cityAt(
+                lat,
+                lon,
+                nearby,
+                app::selectCity
+            )
+        }, {})
+    }
+    val locationPermission =
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { if (it) locate() }
     // Один раз на запуск, а не на кожен поворот: інакше обране руками місто зникало б.
     var located by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(state.needsOnboarding) {
@@ -157,43 +171,66 @@ fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
     }
 
     // Лист відновлення: окремий екран поверх того, де людина була. Профіль лишається запасним шляхом.
-    LaunchedEffect(state.session.passwordRecovery) { if (state.session.passwordRecovery && navigator.current != NewPassword) navigator.open(NewPassword) }
+    LaunchedEffect(state.session.passwordRecovery) {
+        if (state.session.passwordRecovery && navigator.current != NewPassword) navigator.open(
+            NewPassword
+        )
+    }
 
     // Без провайдера вкладка «Мапа» будувала нову MapView на кожен вхід.
     CompositionLocalProvider(LocalSharedMapView provides sharedMap) {
-    Box(Modifier.fillMaxSize().background(Poruch.colors.canvas)) {
-        // Онбординг замінює застосунок, а не накриває: за ним на першому запуску ще нічого нема.
-        if (state.needsOnboarding) OnboardingRoute() else {
-            // Кожен запис стека має власне сховище моделей: пушнуті екрани переживають поворот і
-            // чистяться при знятті. Вкладки беруть моделі зі сховища Activity, див. `activityStoreOwner`.
-            NavDisplay(
-                backStack = navigator.stack,
-                onBack = navigator::back,
-                entryDecorators = listOf(
-                    rememberSaveableStateHolderNavEntryDecorator(),
-                    rememberViewModelStoreNavEntryDecorator()
-                ),
-                entryProvider = entryProvider
+        Box(Modifier
+            .fillMaxSize()
+            .background(Poruch.colors.canvas)) {
+            // Онбординг замінює застосунок, а не накриває: за ним на першому запуску ще нічого нема.
+            if (state.needsOnboarding) OnboardingRoute() else {
+                // Кожен запис стека має власне сховище моделей: пушнуті екрани переживають поворот і
+                // чистяться при знятті. Вкладки беруть моделі зі сховища Activity, див. `activityStoreOwner`.
+                NavDisplay(
+                    backStack = navigator.stack,
+                    onBack = navigator::back,
+                    entryDecorators = listOf(
+                        rememberSaveableStateHolderNavEntryDecorator(),
+                        rememberViewModelStoreNavEntryDecorator()
+                    ),
+                    entryProvider = entryProvider
+                )
+                TabBar(
+                    current,
+                    navigator,
+                    Modifier.align(Alignment.BottomCenter),
+                    unreadChats = state.unreadChats
+                )
+            }
+            NoticeHost(state.notice, app::clearNotice, Modifier.align(Alignment.TopCenter))
+            if (state.mutating) LinearProgressIndicator(
+                Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.TopCenter),
+                color = Poruch.colors.brand, trackColor = Poruch.colors.brandContainer
             )
-            TabBar(current, navigator, Modifier.align(Alignment.BottomCenter), unreadChats = state.unreadChats)
         }
-        NoticeHost(state.notice, app::clearNotice, Modifier.align(Alignment.TopCenter))
-        if (state.mutating) LinearProgressIndicator(
-            Modifier.fillMaxWidth().align(Alignment.TopCenter),
-            color = Poruch.colors.brand, trackColor = Poruch.colors.brandContainer
-        )
-    }
     }
 }
 
 @Composable
-private fun TabBar(current: NavKey, navigator: Navigator, modifier: Modifier, unreadChats: Int = 0) {
+private fun TabBar(
+    current: NavKey,
+    navigator: Navigator,
+    modifier: Modifier,
+    unreadChats: Int = 0
+) {
     val reducedMotion = Poruch.reducedMotion
     val tabs = listOf(
         TabItem(Home.tabKey(), stringResource(R.string.home), PoruchIcons.home),
         TabItem(Explore().tabKey(), stringResource(R.string.map), PoruchIcons.map),
         // Непрочитані чати живуть у «Моїх подіях»: туди й бейдж.
-        TabItem(Mine.tabKey(), stringResource(R.string.my_events), PoruchIcons.calendar, badge = unreadChats),
+        TabItem(
+            Mine.tabKey(),
+            stringResource(R.string.my_events),
+            PoruchIcons.calendar,
+            badge = unreadChats
+        ),
         TabItem(Profile.tabKey(), stringResource(R.string.profile), PoruchIcons.person)
     )
     AnimatedVisibility(
@@ -203,7 +240,9 @@ private fun TabBar(current: NavKey, navigator: Navigator, modifier: Modifier, un
         modifier = modifier
     ) {
         PoruchTabBar(
-            tabs, current.tabKey(), Modifier.navigationBarsPadding().padding(bottom = Spacing.md),
+            tabs, current.tabKey(), Modifier
+                .navigationBarsPadding()
+                .padding(bottom = Spacing.md),
             onSelect = { key -> navigator.open(tabFor(key)) }
         ) {
             CreateButton({ navigator.requireAccount { navigator.open(Editor()) } })
@@ -240,7 +279,9 @@ private fun NoticeHost(notice: AppNotice?, dismiss: () -> Unit, modifier: Modifi
         shown?.let {
             NoticeBanner(
                 it.text(), it.isError, dismiss,
-                Modifier.statusBarsPadding().padding(horizontal = Spacing.page, vertical = Spacing.sm)
+                Modifier
+                    .statusBarsPadding()
+                    .padding(horizontal = Spacing.page, vertical = Spacing.sm)
             )
         }
     }
@@ -270,8 +311,14 @@ private fun Splash() {
     val title by animateFloatAsState(if (titled) 1f else 0f, tween(400), label = "title")
     // Вихід — наліт на мапу: сплеш росте з центру й розчиняється в головній.
     val exit = tween<Float>(450, easing = FastOutLinearInEasing)
-    AnimatedVisibility(!done, enter = EnterTransition.None, exit = fadeOut(exit) + scaleOut(exit, targetScale = 2.4f)) {
-        Box(Modifier.fillMaxSize().background(colors.canvas), contentAlignment = Alignment.Center) {
+    AnimatedVisibility(
+        !done,
+        enter = EnterTransition.None,
+        exit = fadeOut(exit) + scaleOut(exit, targetScale = 2.4f)
+    ) {
+        Box(Modifier
+            .fillMaxSize()
+            .background(colors.canvas), contentAlignment = Alignment.Center) {
             LottieAnimation(composition, { progress }, Modifier.size(280.dp))
             // Назва висить під мапою, а не стоїть з нею в стовпці: так мапа точно в центрі екрана,
             // і виліт у місто йде з неї. Приходить, коли шпилька торкається землі.
@@ -279,13 +326,26 @@ private fun Splash() {
                 Modifier
                     .layout { measurable, constraints ->
                         val text = measurable.measure(constraints)
-                        layout(text.width, text.height) { text.place(0, text.height / 2 + (140.dp + Spacing.xs).roundToPx()) }
+                        layout(text.width, text.height) {
+                            text.place(
+                                0,
+                                text.height / 2 + (140.dp + Spacing.xs).roundToPx()
+                            )
+                        }
                     }
                     .graphicsLayer { alpha = title; translationY = (1 - title) * 8.dp.toPx() },
                 Arrangement.spacedBy(Spacing.xs), Alignment.CenterHorizontally
             ) {
-                Text(stringResource(R.string.brand_name), style = MaterialTheme.typography.displaySmall, color = colors.ink)
-                Text(stringResource(R.string.tagline), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
+                Text(
+                    stringResource(R.string.brand_name),
+                    style = MaterialTheme.typography.displaySmall,
+                    color = colors.ink
+                )
+                Text(
+                    stringResource(R.string.tagline),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colors.inkSecondary
+                )
             }
         }
     }
