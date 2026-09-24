@@ -418,7 +418,7 @@ private fun SheetList(state: ExploreState, onIntent: (ExploreIntent) -> Unit) {
                 .padding(vertical = Spacing.section),
             Alignment.Center
         ) {
-            CircularProgressIndicator(color = colors.brand)
+            PoruchLoader()
         } else QuietCard(Modifier.padding(Spacing.page), onIntent)
         return
     }

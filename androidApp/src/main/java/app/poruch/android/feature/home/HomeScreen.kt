@@ -66,7 +66,7 @@ fun HomeScreen(state: HomeState, onIntent: (HomeIntent) -> Unit) {
                 when {
                     state.isEmpty && state.loading -> Box(
                         Modifier.fillMaxWidth().padding(Spacing.section), contentAlignment = Alignment.Center
-                    ) { CircularProgressIndicator(color = colors.ink) }
+                    ) { PoruchLoader() }
                     state.isEmpty -> EmptyState(
                         Icons.Outlined.Explore, stringResource(R.string.nothing_here), stringResource(R.string.nothing_here_hint),
                         actionLabel = stringResource(R.string.find_on_map), onAction = { onIntent(HomeIntent.OpenMap) }
@@ -242,7 +242,7 @@ private fun SearchResults(state: HomeState, onIntent: (HomeIntent) -> Unit) {
     when {
         state.isEmpty && state.busy -> Box(
             Modifier.fillMaxWidth().padding(Spacing.section), contentAlignment = Alignment.Center
-        ) { CircularProgressIndicator(color = colors.ink) }
+        ) { PoruchLoader() }
         // У місті порожньо — найближчий крок розширити область, а не йти на мапу.
         state.isEmpty && !state.searchEverywhere -> EmptyState(
             PoruchIcons.search, stringResource(R.string.nothing_found), stringResource(R.string.nothing_found_city_hint, state.cityName),

@@ -75,7 +75,7 @@ fun PersonSheet(
             val profile = person.profile
             when {
                 person.loading -> Box(Modifier.fillMaxWidth().padding(Spacing.section), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = colors.ink)
+                    PoruchLoader()
                 }
                 profile == null -> Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                     Text(stringResource(R.string.person_unavailable), style = MaterialTheme.typography.titleLarge, color = colors.ink)

@@ -85,7 +85,7 @@ struct HomeView: View {
                         }
                         if view.isEmpty {
                             if view.loading {
-                                ProgressView().frame(maxWidth: .infinity).padding(.vertical, Space.section)
+                                PoruchLoader().frame(maxWidth: .infinity).padding(.vertical, Space.section)
                             } else {
                                 EmptyState(
                                     symbol: "safari", title: "Тут поки тихо",
@@ -275,7 +275,7 @@ struct HomeView: View {
             }.padding(.horizontal, Space.page)
         }
         if view.searchLoading && view.results.isEmpty {
-            ProgressView().frame(maxWidth: .infinity).padding(.vertical, Space.section)
+            PoruchLoader().frame(maxWidth: .infinity).padding(.vertical, Space.section)
         } else if view.results.isEmpty {
             if view.searchEverywhere {
                 EmptyState(

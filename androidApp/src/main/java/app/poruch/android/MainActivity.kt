@@ -16,13 +16,20 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import com.airbnb.lottie.compose.*
 import androidx.core.content.edit
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
@@ -82,7 +89,10 @@ class MainActivity : ComponentActivity(), AndroidScopeComponent {
         val navigator = scope.get<Navigator>()
         setContent {
             KoinAndroidContext {
-                PoruchTheme { PoruchRoot(navigator, entryProvider) }
+                PoruchTheme {
+                    PoruchRoot(navigator, entryProvider)
+                    Splash()
+                }
             }
         }
     }
@@ -230,6 +240,45 @@ private fun NoticeHost(notice: AppNotice?, dismiss: () -> Unit, modifier: Modifi
                 it.text(), it.isError, dismiss,
                 Modifier.statusBarsPadding().padding(horizontal = Spacing.page, vertical = Spacing.sm)
             )
+        }
+    }
+}
+
+/**
+ * Сплеш поверх застосунку, що вже вантажиться під ним: на диску мапи спливають події, у центр падає
+ * шпилька з іконки, під нею зʼявляються назва й обіцянка. Системний сплеш — те саме полотно без іконки
+ * (styles.xml), тож шва нема. Анімація — tools/generate_lottie.py.
+ */
+@Composable
+private fun Splash() {
+    val colors = Poruch.colors
+    val reducedMotion = Poruch.reducedMotion
+    var done by rememberSaveable { mutableStateOf(reducedMotion) }
+    var titled by remember { mutableStateOf(false) }
+    val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.splash))
+    val progress by animateLottieCompositionAsState(composition)
+    LaunchedEffect(progress == 1f) { if (progress == 1f) done = true }
+    LaunchedEffect(Unit) {
+        delay(950) // шпилька торкається землі
+        titled = true
+        // Страховка: анімація не завантажилась чи не відіграла — не тримаємо людину на сплеші.
+        delay(2_500)
+        done = true
+    }
+    val title by animateFloatAsState(if (titled) 1f else 0f, tween(400), label = "title")
+    AnimatedVisibility(!done, enter = EnterTransition.None, exit = fadeOut()) {
+        Column(
+            Modifier.fillMaxSize().background(colors.canvas),
+            Arrangement.Center, Alignment.CenterHorizontally
+        ) {
+            LottieAnimation(composition, { progress }, Modifier.size(280.dp))
+            Column(
+                Modifier.graphicsLayer { alpha = title; translationY = (1 - title) * 8.dp.toPx() },
+                Arrangement.spacedBy(Spacing.xs), Alignment.CenterHorizontally
+            ) {
+                Text(stringResource(R.string.brand_name), style = MaterialTheme.typography.displaySmall, color = colors.ink)
+                Text(stringResource(R.string.tagline), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
+            }
         }
     }
 }

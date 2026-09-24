@@ -386,7 +386,7 @@ struct DiscoveryView: View {
             }.railContentPadding()
             if shownEvents.isEmpty {
                 if model.state?.map.loading == true {
-                    ProgressView().frame(maxWidth: .infinity).padding(.vertical, Space.section)
+                    PoruchLoader().frame(maxWidth: .infinity).padding(.vertical, Space.section)
                 } else {
                     quietCard.padding(Space.page)
                 }

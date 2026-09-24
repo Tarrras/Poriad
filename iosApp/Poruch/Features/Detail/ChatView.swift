@@ -108,7 +108,7 @@ struct ChatView: View {
             EmptyState(symbol: "clock", title: "Чат ще недоступний", message: "Сервер ще не оновлено. Спробуйте пізніше.")
                 .frame(maxHeight: .infinity)
         } else if chat == nil || (chat!.loading && chat!.messages.isEmpty) {
-            ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+            PoruchLoader().frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             feed(chat!.messages)
         }

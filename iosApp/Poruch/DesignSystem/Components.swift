@@ -1,5 +1,6 @@
 import SwiftUI
 import Shared
+import Lottie
 
 // ---- Пошук і чипи
 
@@ -376,7 +377,29 @@ extension PageHeader where Trailing == EmptyView {
     init(title: String, back: (() -> Void)? = nil) { self.init(title: title, back: back) { EmptyView() } }
 }
 
+/// Фірмова Lottie-анімація з Assets: `<name>Light` або `<name>Dark` за темою. Малюнки — tools/generate_lottie.py.
+struct BrandAnimation: View {
+    let name: String
+    var loop = true
+    var onFinish: (() -> Void)?
+    @Environment(\.colorScheme) private var scheme
+    var body: some View {
+        LottieView(animation: .asset(name + (scheme == .dark ? "Dark" : "Light")))
+            .playing(loopMode: loop ? .loop : .playOnce)
+            .animationDidFinish { _ in onFinish?() }
+    }
+}
+
+/// Лоадер екрана чи секції: шпилька з іконки підстрибує. Кнопки й дрібні підвантаження лишаються з системним.
+struct PoruchLoader: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    var body: some View {
+        if reduceMotion { ProgressView() } else { BrandAnimation(name: "Loader").frame(width: 56, height: 56) }
+    }
+}
+
 struct EmptyState: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let symbol: String
     let title: String
     let message: String
@@ -388,6 +411,9 @@ struct EmptyState: View {
             Image(systemName: symbol).font(.system(size: compact ? 20 : 26, weight: .medium)).foregroundStyle(Palette.inkSecondary)
                 .frame(width: compact ? 52 : 64, height: compact ? 52 : 64)
                 .background(Palette.surface, in: RoundedRectangle(cornerRadius: Corner.md, style: .continuous))
+                // Кола й крапка «шукаємо поруч» довкола гліфа; тло не займає місця, відступ дає їм простір.
+                .background { if !compact && !reduceMotion { BrandAnimation(name: "Empty").frame(width: 160, height: 160) } }
+                .padding(compact || reduceMotion ? 0 : 28)
             Text(title).font(compact ? PoruchFont.title3 : PoruchFont.title2).foregroundStyle(Palette.ink).multilineTextAlignment(.center)
             Text(message).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary).multilineTextAlignment(.center)
             if let actionLabel, let action {

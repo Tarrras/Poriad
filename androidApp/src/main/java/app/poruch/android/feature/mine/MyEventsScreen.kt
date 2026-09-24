@@ -69,7 +69,7 @@ fun MyEventsScreen(state: MyEventsState, onIntent: (MyEventsIntent) -> Unit) {
                 state.visible.isEmpty() -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
                     if (state.loading) Box(
                         Modifier.fillMaxWidth().padding(Spacing.section), contentAlignment = Alignment.Center
-                    ) { CircularProgressIndicator(color = colors.ink) }
+                    ) { PoruchLoader() }
                     else EmptyState(
                         PoruchIcons.calendar, stringResource(R.string.my_events_empty),
                         stringResource(R.string.my_events_empty_hint), Modifier.padding(top = Spacing.section)

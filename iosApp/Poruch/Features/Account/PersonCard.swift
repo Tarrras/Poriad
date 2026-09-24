@@ -69,7 +69,7 @@ struct PersonSheet: View {
             VStack(alignment: .leading, spacing: Space.md) {
                 if let person {
                     if person.loading {
-                        ProgressView().frame(maxWidth: .infinity).padding(Space.section)
+                        PoruchLoader().frame(maxWidth: .infinity).padding(Space.section)
                     } else if let profile = person.profile {
                         ProfileSummary(profile: profile)
                         if let bio = profile.bio {

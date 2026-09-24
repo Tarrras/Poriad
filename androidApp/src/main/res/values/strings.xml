@@ -1,5 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
+  <string name="brand_name" translatable="false">Поряд</string>
+  <string name="tagline">Події поряд з вами</string>
   <string name="map">Мапа</string>
   <string name="my_events">Мої події</string>
   <string name="profile">Профіль</string>

@@ -65,6 +65,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.poruch.android.R
+import androidx.annotation.RawRes
+import com.airbnb.lottie.compose.LottieAnimation
+import com.airbnb.lottie.compose.LottieCompositionSpec
+import com.airbnb.lottie.compose.LottieConstants
+import com.airbnb.lottie.compose.rememberLottieComposition
 import app.poruch.domain.Attendee
 import app.poruch.domain.Event
 import coil3.compose.AsyncImage
@@ -401,6 +406,20 @@ fun PageHeader(title: String, modifier: Modifier = Modifier, back: (() -> Unit)?
     }
 }
 
+/** Фірмова Lottie-анімація в циклі; темний варіант лежить у raw-night. Малюнки — tools/generate_lottie.py. */
+@Composable
+fun BrandAnimation(@RawRes res: Int, modifier: Modifier = Modifier) {
+    val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(res))
+    LottieAnimation(composition, modifier, iterations = LottieConstants.IterateForever)
+}
+
+/** Лоадер екрана чи секції: шпилька з іконки підстрибує. Кнопки й дрібні підвантаження лишаються з системним. */
+@Composable
+fun PoruchLoader(modifier: Modifier = Modifier) {
+    if (Poruch.reducedMotion) CircularProgressIndicator(modifier, color = Poruch.colors.ink)
+    else BrandAnimation(R.raw.loader, modifier.size(56.dp))
+}
+
 @Composable
 fun EmptyState(
     icon: ImageVector, title: String, message: String, modifier: Modifier = Modifier,
@@ -411,10 +430,14 @@ fun EmptyState(
         modifier.fillMaxWidth().padding(Spacing.xxl),
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.md)
     ) {
-        Box(
-            Modifier.size(64.dp).cardSurface(Radius.md),
-            contentAlignment = Alignment.Center
-        ) { Icon(icon, null, Modifier.size(26.dp), tint = colors.inkSecondary) }
+        // Кола й крапка «шукаємо поруч» довкола гліфа; їм можна вийти за рамку, під ними лише відступи.
+        Box(Modifier.size(if (Poruch.reducedMotion) 64.dp else 120.dp), contentAlignment = Alignment.Center) {
+            if (!Poruch.reducedMotion) BrandAnimation(R.raw.empty, Modifier.requiredSize(160.dp))
+            Box(
+                Modifier.size(64.dp).cardSurface(Radius.md),
+                contentAlignment = Alignment.Center
+            ) { Icon(icon, null, Modifier.size(26.dp), tint = colors.inkSecondary) }
+        }
         // Довгі рядки переносяться: по центру, як і значок над ними.
         Text(title, style = MaterialTheme.typography.titleLarge, color = colors.ink, textAlign = TextAlign.Center)
         Text(message, style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary, textAlign = TextAlign.Center)

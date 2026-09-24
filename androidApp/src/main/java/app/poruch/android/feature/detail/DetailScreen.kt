@@ -62,7 +62,7 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
         Column(Modifier.fillMaxSize().background(colors.canvas).statusBarsPadding()) {
             PageHeader(stringResource(R.string.about_event), back = { onIntent(DetailIntent.Back) })
             if (state.loading) Box(Modifier.fillMaxWidth().padding(Spacing.section), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = colors.ink)
+                PoruchLoader()
             } else EmptyState(PoruchIcons.search, stringResource(R.string.details), stringResource(R.string.event_unavailable))
         }
         return

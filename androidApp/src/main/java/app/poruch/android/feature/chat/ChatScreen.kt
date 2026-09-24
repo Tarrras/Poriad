@@ -72,7 +72,7 @@ fun ChatScreen(state: ChatState, onIntent: (ChatIntent) -> Unit) {
                     PoruchIcons.clock, stringResource(R.string.chat_unavailable_title), stringResource(R.string.chat_unavailable_hint)
                 )
                 state.loading && state.messages.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = colors.ink)
+                    PoruchLoader()
                 }
                 else -> Feed(state, onIntent)
             }

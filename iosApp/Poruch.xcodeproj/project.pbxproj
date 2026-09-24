@@ -39,6 +39,7 @@
 		55044778DBD8958302A7BD69 /* SystemActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E017DF76B18C2E8FBF62AFD /* SystemActions.swift */; };
 		88F77F161468DFF1EDA9804C /* FirebaseAnalyticsCore in Frameworks */ = {isa = PBXBuildFile; productRef = 88C9B9FFD11B3259FCC98F00 /* FirebaseAnalyticsCore */; };
 		8B0499831DD513F94BFEF281 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = 93137F34CDE574FF270B4740 /* FirebaseCrashlytics */; };
+		A1B2C3D4E5F60718293A4B03 /* Lottie in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D4E5F60718293A4B02 /* Lottie */; };
 		9DF075062CCF1FD1F72C4A0A /* MapLibre in Frameworks */ = {isa = PBXBuildFile; productRef = 9231879E3F0B11FEA295A882 /* MapLibre */; };
 		A55E75D1C9C240A1B7E30002 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A55E75D1C9C240A1B7E30001 /* Assets.xcassets */; };
 		A55E75D1C9C240A1B7E30012 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A55E75D1C9C240A1B7E30011 /* PrivacyInfo.xcprivacy */; };
@@ -94,6 +95,7 @@
 			files = (
 				FD4C22CA5E51D45B968201C0 /* Foundation.framework in Frameworks */,
 				9DF075062CCF1FD1F72C4A0A /* MapLibre in Frameworks */,
+				A1B2C3D4E5F60718293A4B03 /* Lottie in Frameworks */,
 				88F77F161468DFF1EDA9804C /* FirebaseAnalyticsCore in Frameworks */,
 				8B0499831DD513F94BFEF281 /* FirebaseCrashlytics in Frameworks */,
 			);
@@ -200,6 +202,7 @@
 			name = Poruch;
 			packageProductDependencies = (
 				9231879E3F0B11FEA295A882 /* MapLibre */,
+				A1B2C3D4E5F60718293A4B02 /* Lottie */,
 				88C9B9FFD11B3259FCC98F00 /* FirebaseAnalyticsCore */,
 				93137F34CDE574FF270B4740 /* FirebaseCrashlytics */,
 			);
@@ -227,6 +230,7 @@
 			mainGroup = DAA39DC22065C741307771F6;
 			packageReferences = (
 				00418E938B5CF332FA864AAA /* XCRemoteSwiftPackageReference "maplibre-gl-native-distribution" */,
+				A1B2C3D4E5F60718293A4B01 /* XCRemoteSwiftPackageReference "lottie-spm" */,
 				20532F13824402617BD1BB70 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 			);
 			productRefGroup = 3F0D5AA0F1A0EE0655FDC90F /* Products */;
@@ -795,6 +799,14 @@
 				minimumVersion = 12.0.0;
 			};
 		};
+		A1B2C3D4E5F60718293A4B01 /* XCRemoteSwiftPackageReference "lottie-spm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/airbnb/lottie-spm";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 4.6.1;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -812,6 +824,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 20532F13824402617BD1BB70 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseCrashlytics;
+		};
+		A1B2C3D4E5F60718293A4B02 /* Lottie */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1B2C3D4E5F60718293A4B01 /* XCRemoteSwiftPackageReference "lottie-spm" */;
+			productName = Lottie;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

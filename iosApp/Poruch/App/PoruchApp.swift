@@ -25,6 +25,7 @@ import FirebaseCrashlytics
     var body: some Scene {
         WindowGroup {
             RootView().environmentObject(model).tint(Palette.brand)
+                .overlay { SplashView() }
                 .onOpenURL { model.app.handleAuthCallback(url: $0.absoluteString) }
                 .onAppear { PushDelegate.app = model.app }
                 .onChange(of: scenePhase) { _, phase in
@@ -34,6 +35,40 @@ import FirebaseCrashlytics
                 }
         }
     }
+}
+
+/// Сплеш поверх застосунку, що вже вантажиться під ним: на диску мапи спливають події, у центр падає
+/// шпилька з іконки, під нею зʼявляються назва й обіцянка. Системний екран запуску — те саме полотно.
+private struct SplashView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var done = false
+    @State private var titled = false
+    var body: some View {
+        if !done, !reduceMotion {
+            ZStack {
+                Palette.canvas.ignoresSafeArea()
+                VStack(spacing: Space.xs) {
+                    BrandAnimation(name: "Splash", loop: false, onFinish: finish).frame(width: 280, height: 280)
+                    // Назва приходить, коли шпилька торкається землі.
+                    VStack(spacing: Space.xs) {
+                        Text("Поряд").font(PoruchFont.display).displayTracking().foregroundStyle(Palette.ink)
+                        Text("Події поряд з вами").font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
+                    }
+                    .opacity(titled ? 1 : 0).offset(y: titled ? 0 : 8)
+                }
+            }
+            .transition(.opacity)
+            .task {
+                try? await Task.sleep(for: .milliseconds(950))
+                withAnimation(.easeOut(duration: 0.4)) { titled = true }
+                // Страховка: анімація не завантажилась чи не відіграла — не тримаємо людину на сплеші.
+                try? await Task.sleep(for: .seconds(2.5))
+                finish()
+            }
+        }
+    }
+
+    private func finish() { withAnimation(.easeOut(duration: 0.3)) { done = true } }
 }
 
 /// Непрочитані чати живуть у «Моїх подіях»: туди й бейдж.

@@ -65,7 +65,7 @@ struct EventDetailView: View {
                 }
                 .padding(Space.page).frame(maxWidth: .infinity, maxHeight: .infinity).background(Palette.canvas)
             } else {
-                ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity).background(Palette.canvas)
+                PoruchLoader().frame(maxWidth: .infinity, maxHeight: .infinity).background(Palette.canvas)
             }
         }
         .onChange(of: model.state?.detail.loading) { _, loading in if loading == true { requested = true } }
