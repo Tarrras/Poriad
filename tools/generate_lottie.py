@@ -2,7 +2,7 @@
 """Фірмові Lottie-анімації: сплеш, лоадер і порожній стан.
 
 Усі три зібрані з двох знаків продукту: шпильки з іконки застосунку (чорнило або папір і помаранчева
-крапка «ви тут») і пінів подій з мапи (біле коло з кільцем кольору категорії). Кольори запечені, тож
+крапка «ви тут») і пінів подій з мапи (біле коло з кільцем і гліфом категорії). Кольори запечені, тож
 кожна анімація має світлий і темний варіант. Android бере їх із raw / raw-night під одним іменем,
 iOS — з Data Set `<Name>Light` / `<Name>Dark`.
 
@@ -14,6 +14,8 @@ from __future__ import annotations
 import json
 import math
 from pathlib import Path
+
+from generate_icons import ICONS
 
 ROOT = Path(__file__).resolve().parent.parent
 FPS = 60
@@ -64,8 +66,9 @@ def transform(p=(0, 0), a=(0, 0), s=None, o=None, r=None):
             "a": static(list(a)), "s": s or static([100, 100])}
 
 
-def group(*items):
-    return {"ty": "gr", "it": [*items, {"ty": "tr", **transform(), "sk": static(0), "sa": static(0)}]}
+def group(*items, at=(0, 0), anchor=(0, 0), scale=100):
+    tr = transform(p=at, a=anchor, s=static([scale, scale]))
+    return {"ty": "gr", "it": [*items, {"ty": "tr", **tr, "sk": static(0), "sa": static(0)}]}
 
 
 def fill(hex_, opacity=100):
@@ -83,6 +86,34 @@ def ellipse(size, p=(0, 0)):
 def path(points, closed=False):
     return {"ty": "sh", "ks": static({"c": closed, "v": [list(p) for p in points],
                                       "i": [[0, 0]] * len(points), "o": [[0, 0]] * len(points)})}
+
+
+def bezier(commands):
+    """Підшлях генератора іконок (M/L/C/Z в абсолютних координатах) → фігура Lottie з відносними дотичними."""
+    v, i, o, closed = [], [], [], False
+    for op, args in commands:
+        if op in ("M", "L"):
+            v.append(list(args)); i.append([0, 0]); o.append([0, 0])
+        elif op == "C":
+            x1, y1, x2, y2, x, y = args
+            o[-1] = [x1 - v[-1][0], y1 - v[-1][1]]
+            v.append([x, y]); i.append([x2 - x, y2 - y]); o.append([0, 0])
+        else:
+            closed = True
+    if closed and len(v) > 1 and v[-1] == v[0]:  # остання точка збігається з першою: зливаємо
+        i[0] = i.pop(); v.pop(); o.pop()
+    return {"ty": "sh", "ks": static({"c": closed, "v": v, "i": i, "o": o})}
+
+
+def glyph(name, hex_, **placement):
+    """Іконка з tools/generate_icons.py (сітка 24): штрихи лінією, решта заливкою."""
+    strokes, fills, _, _ = ICONS[name]
+    items = []
+    if strokes:
+        items.append(group(*map(bezier, strokes), stroke(hex_, 2.2)))
+    if fills:
+        items.append(group(*map(bezier, fills), fill(hex_)))
+    return group(*items, anchor=(12, 12), **placement)
 
 
 def compose(name, size, end, layers):
@@ -118,12 +149,12 @@ def brand_pin(theme, ind, position, scale, opacity=None):
     return dot, pin
 
 
-def event_pin(theme, hue, at, pop, react):
-    """Пін події з мапи: біле коло з кільцем категорії та хвостиком; росте з точки на землі."""
+def event_pin(theme, category, hue, at, pop, react):
+    """Пін події з мапи: біле коло з кільцем і гліфом категорії та хвостиком; росте з точки на землі."""
     s = anim((pop, [0, 0], EASE_OUT), (pop + 10, [148, 148]), (pop + 18, [130, 130], LINEAR),
              (react, [130, 130], SMOOTH), (react + 6, [152, 152]), (react + 16, [130, 130]))
     return layer(f"Event {hue}", [
-        group(ellipse((6, 6), (0, -24)), fill(hue)),
+        glyph(category, hue, at=(0, -24), scale=68),
         group(ellipse((30, 30), (0, -24)), stroke(hue, 3.5), fill(theme["surface"])),
         group(path([(-6, -11), (6, -11), (0, -2)], closed=True), fill(hue)),
     ], transform(p=at, s=s), ip=pop)
@@ -149,10 +180,10 @@ def splash(theme):
                                         stroke(theme["road"], w))],
                          transform()) for n, (pts, w) in enumerate(roads)]
     spots = [(110, 125), (298, 118), (95, 250), (300, 262), (205, 322)]
-    hues = [h if theme is THEMES["light"] else blend(h, 0.45) for h in CATEGORIES.values()]
+    hues = {c: h if theme is THEMES["light"] else blend(h, 0.45) for c, h in CATEGORIES.items()}
     # Хвиля біжить від вістря ~170 одиниць за 40 кадрів: кожна подія відповідає, коли її досягає.
-    events = [event_pin(theme, hue, at, 18 + n * 5, land + 2 + round(math.dist(at, tip) / 170 * 30))
-              for n, (at, hue) in enumerate(zip(spots, hues))]
+    events = [event_pin(theme, category, hue, at, 18 + n * 5, land + 2 + round(math.dist(at, tip) / 170 * 30))
+              for n, (at, (category, hue)) in enumerate(zip(spots, hues.items()))]
     x, y = tip
     dot, pin = brand_pin(theme, 12, anim((40, [x, y - 70], EASE_IN), (land, [x, y])),
                          anim((40, [scale * 0.94, scale * 1.04], EASE_IN),

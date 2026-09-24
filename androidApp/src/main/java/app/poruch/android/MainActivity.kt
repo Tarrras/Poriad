@@ -17,7 +17,9 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.ui.layout.layout
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -266,14 +268,20 @@ private fun Splash() {
         done = true
     }
     val title by animateFloatAsState(if (titled) 1f else 0f, tween(400), label = "title")
-    AnimatedVisibility(!done, enter = EnterTransition.None, exit = fadeOut()) {
-        Column(
-            Modifier.fillMaxSize().background(colors.canvas),
-            Arrangement.Center, Alignment.CenterHorizontally
-        ) {
+    // Вихід — наліт на мапу: сплеш росте з центру й розчиняється в головній.
+    val exit = tween<Float>(450, easing = FastOutLinearInEasing)
+    AnimatedVisibility(!done, enter = EnterTransition.None, exit = fadeOut(exit) + scaleOut(exit, targetScale = 2.4f)) {
+        Box(Modifier.fillMaxSize().background(colors.canvas), contentAlignment = Alignment.Center) {
             LottieAnimation(composition, { progress }, Modifier.size(280.dp))
+            // Назва висить під мапою, а не стоїть з нею в стовпці: так мапа точно в центрі екрана,
+            // і виліт у місто йде з неї. Приходить, коли шпилька торкається землі.
             Column(
-                Modifier.graphicsLayer { alpha = title; translationY = (1 - title) * 8.dp.toPx() },
+                Modifier
+                    .layout { measurable, constraints ->
+                        val text = measurable.measure(constraints)
+                        layout(text.width, text.height) { text.place(0, text.height / 2 + (140.dp + Spacing.xs).roundToPx()) }
+                    }
+                    .graphicsLayer { alpha = title; translationY = (1 - title) * 8.dp.toPx() },
                 Arrangement.spacedBy(Spacing.xs), Alignment.CenterHorizontally
             ) {
                 Text(stringResource(R.string.brand_name), style = MaterialTheme.typography.displaySmall, color = colors.ink)

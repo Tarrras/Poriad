@@ -47,17 +47,21 @@ private struct SplashView: View {
         if !done, !reduceMotion {
             ZStack {
                 Palette.canvas.ignoresSafeArea()
-                VStack(spacing: Space.xs) {
-                    BrandAnimation(name: "Splash", loop: false, onFinish: finish).frame(width: 280, height: 280)
-                    // Назва приходить, коли шпилька торкається землі.
-                    VStack(spacing: Space.xs) {
-                        Text("Поряд").font(PoruchFont.display).displayTracking().foregroundStyle(Palette.ink)
-                        Text("Події поряд з вами").font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
+                BrandAnimation(name: "Splash", loop: false, onFinish: finish).frame(width: 280, height: 280)
+                    // Назва висить під мапою, а не стоїть з нею в стовпці: так мапа точно в центрі екрана,
+                    // і виліт у місто йде з неї. Приходить, коли шпилька торкається землі.
+                    .overlay(alignment: .bottom) {
+                        VStack(spacing: Space.xs) {
+                            Text("Поряд").font(PoruchFont.display).displayTracking().foregroundStyle(Palette.ink)
+                            Text("Події поряд з вами").font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
+                        }
+                        .fixedSize()
+                        .alignmentGuide(.bottom) { $0[.top] - Space.xs }
+                        .opacity(titled ? 1 : 0).offset(y: titled ? 0 : 8)
                     }
-                    .opacity(titled ? 1 : 0).offset(y: titled ? 0 : 8)
-                }
             }
-            .transition(.opacity)
+            // Вихід — наліт на мапу: сплеш росте з центру й розчиняється в головній.
+            .transition(.asymmetric(insertion: .identity, removal: .scale(scale: 2.4).combined(with: .opacity)))
             .task {
                 try? await Task.sleep(for: .milliseconds(950))
                 withAnimation(.easeOut(duration: 0.4)) { titled = true }
@@ -68,7 +72,7 @@ private struct SplashView: View {
         }
     }
 
-    private func finish() { withAnimation(.easeOut(duration: 0.3)) { done = true } }
+    private func finish() { withAnimation(.easeIn(duration: 0.45)) { done = true } }
 }
 
 /// Непрочитані чати живуть у «Моїх подіях»: туди й бейдж.
