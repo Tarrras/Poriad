@@ -78,8 +78,6 @@ fun HomeScreen(state: HomeState, onIntent: (HomeIntent) -> Unit) {
                 MoreRows(state, onIntent)
             }
         }
-        // Шапка їде зі стрічкою, тож без смуги полотна поле й картки йшли б під годинник. У спокої її не видно: під нею те саме полотно.
-        Box(Modifier.fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars).background(colors.canvas))
     }
 }
 
