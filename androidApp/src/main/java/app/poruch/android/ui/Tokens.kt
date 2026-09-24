@@ -29,48 +29,99 @@ import androidx.compose.ui.unit.sp
 /** Токени дизайну. Джерело правди — docs/design-system.md; екрани беруть кольори, відступи й радіуси звідси. */
 @Immutable
 data class PoruchColors(
-    val brand: Color, val brandPressed: Color, val brandContainer: Color, val onBrandContainer: Color,
-    val accent: Color, val accentContainer: Color, val onAccentContainer: Color,
-    val success: Color, val successContainer: Color, val onSuccessContainer: Color,
-    val danger: Color, val dangerContainer: Color,
-    val ink: Color, val inkSecondary: Color, val inkTertiary: Color,
-    val surface: Color, val surfaceRaised: Color, val surfaceMuted: Color,
-    val canvas: Color, val canvasTint: Color,
+    val brand: Color,
+    val brandPressed: Color,
+    val brandContainer: Color,
+    val onBrandContainer: Color,
+    val accent: Color,
+    val accentContainer: Color,
+    val onAccentContainer: Color,
+    val success: Color,
+    val successContainer: Color,
+    val onSuccessContainer: Color,
+    val danger: Color,
+    val dangerContainer: Color,
+    val ink: Color,
+    val inkSecondary: Color,
+    val inkTertiary: Color,
+    val surface: Color,
+    val surfaceRaised: Color,
+    val surfaceMuted: Color,
+    val canvas: Color,
+    val canvasTint: Color,
     /** Тепла заливка вгорі шапки, згасає в `canvas`. */
-    val heroTop: Color, val heroBottom: Color,
+    val heroTop: Color,
+    val heroBottom: Color,
     /** Тіні коричнево-чорні, не нейтральні: сіра тінь на теплому папері виглядає як бруд. */
-    val shadowAmbient: Color, val shadowSpot: Color,
-    val hairline: Color, val onBrand: Color, val dark: Boolean
+    val shadowAmbient: Color,
+    val shadowSpot: Color,
+    val hairline: Color,
+    val onBrand: Color,
+    val dark: Boolean
 )
 
 /** Світла тема: прохолодний сірий фон і білі картки без рамок (Apple Store). Дії майже чорні. */
 val LightPoruchColors = PoruchColors(
-    brand = Color(0xFF1D1D1F), brandPressed = Color(0xFF3A3A3C), brandContainer = Color(0xFFE8E8ED), onBrandContainer = Color(0xFF1D1D1F),
-    accent = Color(0xFFE0582F), accentContainer = Color(0xFFFDE7DF), onAccentContainer = Color(0xFF7A2E14),
-    success = Color(0xFF2E7D4F), successContainer = Color(0xFFDFF3E6), onSuccessContainer = Color(0xFF1B4C2F),
-    danger = Color(0xFFC0392B), dangerContainer = Color(0xFFFBE3E0),
-    ink = Color(0xFF1D1D1F), inkSecondary = Color(0xFF6E6E73), inkTertiary = Color(0xFF6E6E78),
-    surface = Color(0xFFFFFFFF), surfaceRaised = Color(0xFFFFFFFF), surfaceMuted = Color(0xFFF2F2F7),
-    canvas = Color(0xFFF5F5F7), canvasTint = Color(0xFFEBEBF0),
+    brand = Color(0xFF1D1D1F),
+    brandPressed = Color(0xFF3A3A3C),
+    brandContainer = Color(0xFFE8E8ED),
+    onBrandContainer = Color(0xFF1D1D1F),
+    accent = Color(0xFFE0582F),
+    accentContainer = Color(0xFFFDE7DF),
+    onAccentContainer = Color(0xFF7A2E14),
+    success = Color(0xFF2E7D4F),
+    successContainer = Color(0xFFDFF3E6),
+    onSuccessContainer = Color(0xFF1B4C2F),
+    danger = Color(0xFFC0392B),
+    dangerContainer = Color(0xFFFBE3E0),
+    ink = Color(0xFF1D1D1F),
+    inkSecondary = Color(0xFF6E6E73),
+    inkTertiary = Color(0xFF6E6E78),
+    surface = Color(0xFFFFFFFF),
+    surfaceRaised = Color(0xFFFFFFFF),
+    surfaceMuted = Color(0xFFF2F2F7),
+    canvas = Color(0xFFF5F5F7),
+    canvasTint = Color(0xFFEBEBF0),
     // Шапка того ж тону, що й полотно: екран — один спокійний аркуш.
-    heroTop = Color(0xFFF5F5F7), heroBottom = Color(0xFFF5F5F7),
+    heroTop = Color(0xFFF5F5F7),
+    heroBottom = Color(0xFFF5F5F7),
     // Тінь є лише в того, що плаває: мʼяка, нейтральна.
-    shadowAmbient = Color(0x0F000000), shadowSpot = Color(0x1A000000),
-    hairline = Color(0xFFE5E5EA), onBrand = Color(0xFFFFFFFF), dark = false
+    shadowAmbient = Color(0x0F000000),
+    shadowSpot = Color(0x1A000000),
+    hairline = Color(0xFFE5E5EA),
+    onBrand = Color(0xFFFFFFFF),
+    dark = false
 )
 
 /** Темна тема: майже чорне полотно й трохи світліші картки з тонкою лінією по краю (Moonly). */
 val DarkPoruchColors = PoruchColors(
-    brand = Color(0xFFF5F5F7), brandPressed = Color(0xFFD1D1D6), brandContainer = Color(0xFF2C2C33), onBrandContainer = Color(0xFFF5F5F7),
-    accent = Color(0xFFFF8A5B), accentContainer = Color(0xFF3F2419), onAccentContainer = Color(0xFFFFD9C8),
-    success = Color(0xFF5DC389), successContainer = Color(0xFF16311F), onSuccessContainer = Color(0xFFBFEBD0),
-    danger = Color(0xFFFF6B5B), dangerContainer = Color(0xFF3C1A16),
-    ink = Color(0xFFF5F5F7), inkSecondary = Color(0xFFA1A1A8), inkTertiary = Color(0xFF8E8E96),
-    surface = Color(0xFF17171C), surfaceRaised = Color(0xFF202027), surfaceMuted = Color(0xFF26262E),
-    canvas = Color(0xFF0B0B0F), canvasTint = Color(0xFF141419),
-    heroTop = Color(0xFF0B0B0F), heroBottom = Color(0xFF0B0B0F),
-    shadowAmbient = Color(0x4D000000), shadowSpot = Color(0x66000000),
-    hairline = Color(0xFF2A2A33), onBrand = Color(0xFF1D1D1F), dark = true
+    brand = Color(0xFFF5F5F7),
+    brandPressed = Color(0xFFD1D1D6),
+    brandContainer = Color(0xFF2C2C33),
+    onBrandContainer = Color(0xFFF5F5F7),
+    accent = Color(0xFFFF8A5B),
+    accentContainer = Color(0xFF3F2419),
+    onAccentContainer = Color(0xFFFFD9C8),
+    success = Color(0xFF5DC389),
+    successContainer = Color(0xFF16311F),
+    onSuccessContainer = Color(0xFFBFEBD0),
+    danger = Color(0xFFFF6B5B),
+    dangerContainer = Color(0xFF3C1A16),
+    ink = Color(0xFFF5F5F7),
+    inkSecondary = Color(0xFFA1A1A8),
+    inkTertiary = Color(0xFF8E8E96),
+    surface = Color(0xFF17171C),
+    surfaceRaised = Color(0xFF202027),
+    surfaceMuted = Color(0xFF26262E),
+    canvas = Color(0xFF0B0B0F),
+    canvasTint = Color(0xFF141419),
+    heroTop = Color(0xFF0B0B0F),
+    heroBottom = Color(0xFF0B0B0F),
+    shadowAmbient = Color(0x4D000000),
+    shadowSpot = Color(0x66000000),
+    hairline = Color(0xFF2A2A33),
+    onBrand = Color(0xFF1D1D1F),
+    dark = true
 )
 
 /** Глибокий відтінок категорії для гліфів і тексту; пастель для плиток і пінів робить [categoryGradient]. */
@@ -107,10 +158,14 @@ fun categoryColor(category: String): Color = CategoryHues[category] ?: Color(0xF
  * Відтінок категорії для тексту й гліфів. У темній темі освітлюється до контрасту 4.5:1.
  * `categoryColor` лишається сирим відтінком для пінів і заливок.
  */
-@Composable fun categoryInk(category: String): Color =
-    if (Poruch.colors.dark) lerp(categoryColor(category), Color.White, 0.45f) else categoryColor(category)
+@Composable
+fun categoryInk(category: String): Color =
+    if (Poruch.colors.dark) lerp(categoryColor(category), Color.White, 0.45f) else categoryColor(
+        category
+    )
 
-@Composable fun categoryWash(category: String): Color =
+@Composable
+fun categoryWash(category: String): Color =
     if (Poruch.colors.dark) categoryColor(category).copy(alpha = 0.22f)
     else CategoryWashes[category] ?: Color(0xFFEDEBE4)
 
@@ -131,15 +186,22 @@ fun categoryGradient(category: String): Brush {
 
 /** Заливка шапки: тепле світло вгорі, папір унизу. */
 @Composable
-fun heroGradient(): Brush = Poruch.colors.let { Brush.verticalGradient(listOf(it.heroTop, it.heroBottom)) }
+fun heroGradient(): Brush =
+    Poruch.colors.let { Brush.verticalGradient(listOf(it.heroTop, it.heroBottom)) }
 
 /** Головна дія: рівна заливка чорнилом. Лишилось [Brush], щоб місця виклику не змінювались. */
 @Composable
 fun brandGradient(): Brush = SolidColor(Poruch.colors.brand)
 
 object Spacing {
-    val xs = 4.dp; val sm = 8.dp; val md = 12.dp; val lg = 16.dp
-    val xl = 20.dp; val xxl = 24.dp; val section = 32.dp; val page = 16.dp
+    val xs = 4.dp;
+    val sm = 8.dp;
+    val md = 12.dp;
+    val lg = 16.dp
+    val xl = 20.dp;
+    val xxl = 24.dp;
+    val section = 32.dp;
+    val page = 16.dp
 }
 
 object Radius {
@@ -153,28 +215,73 @@ object Radius {
 }
 
 /** Усе в потоці лежить пласко (`card` = 0, картку робить різниця тону з полотном); плаває лише таббар, карусель, банер. */
-object Elevation { val flat = 0.dp; val card = 0.dp; val raised = 8.dp; val overlay = 24.dp }
+object Elevation {
+    val flat = 0.dp;
+    val card = 0.dp;
+    val raised = 8.dp;
+    val overlay = 24.dp
+}
 
 /** Один голос — системний гротеск. Ієрархію несуть кегль і вага, а не гарнітура чи регістр. */
 private val PoruchTypography = Typography(
-    displaySmall = TextStyle(fontSize = 34.sp, lineHeight = 40.sp, fontWeight = FontWeight.Bold, letterSpacing = (-1.0).sp),
-    headlineMedium = TextStyle(fontSize = 28.sp, lineHeight = 34.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.8).sp),
-    headlineSmall = TextStyle(fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.5).sp),
-    titleLarge = TextStyle(fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.5).sp),
-    titleMedium = TextStyle(fontSize = 17.sp, lineHeight = 22.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.2).sp),
+    displaySmall = TextStyle(
+        fontSize = 34.sp,
+        lineHeight = 40.sp,
+        fontWeight = FontWeight.Bold,
+        letterSpacing = (-1.0).sp
+    ),
+    headlineMedium = TextStyle(
+        fontSize = 28.sp,
+        lineHeight = 34.sp,
+        fontWeight = FontWeight.Bold,
+        letterSpacing = (-0.8).sp
+    ),
+    headlineSmall = TextStyle(
+        fontSize = 22.sp,
+        lineHeight = 28.sp,
+        fontWeight = FontWeight.Bold,
+        letterSpacing = (-0.5).sp
+    ),
+    titleLarge = TextStyle(
+        fontSize = 22.sp,
+        lineHeight = 28.sp,
+        fontWeight = FontWeight.Bold,
+        letterSpacing = (-0.5).sp
+    ),
+    titleMedium = TextStyle(
+        fontSize = 17.sp,
+        lineHeight = 22.sp,
+        fontWeight = FontWeight.SemiBold,
+        letterSpacing = (-0.2).sp
+    ),
     // Назва картки звичайним регістром.
-    titleSmall = TextStyle(fontSize = 17.sp, lineHeight = 22.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.2).sp),
+    titleSmall = TextStyle(
+        fontSize = 17.sp,
+        lineHeight = 22.sp,
+        fontWeight = FontWeight.SemiBold,
+        letterSpacing = (-0.2).sp
+    ),
     bodyLarge = TextStyle(fontSize = 16.sp, lineHeight = 22.sp, fontWeight = FontWeight.Normal),
     bodyMedium = TextStyle(fontSize = 15.sp, lineHeight = 21.sp, fontWeight = FontWeight.Normal),
     bodySmall = TextStyle(fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.Normal),
     labelLarge = TextStyle(fontSize = 16.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold),
     labelMedium = TextStyle(fontSize = 14.sp, lineHeight = 18.sp, fontWeight = FontWeight.Medium),
-    labelSmall = TextStyle(fontSize = 11.sp, lineHeight = 14.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.0.sp)
+    labelSmall = TextStyle(
+        fontSize = 11.sp,
+        lineHeight = 14.sp,
+        fontWeight = FontWeight.SemiBold,
+        letterSpacing = 1.0.sp
+    )
 )
 
 /** Стилі поза шкалою Material: великий заголовок секції, підпис категорії під назвою, лід деталей. */
 object PoruchType {
-    val sectionTitle = TextStyle(fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.5).sp)
+    val sectionTitle = TextStyle(
+        fontSize = 22.sp,
+        lineHeight = 28.sp,
+        fontWeight = FontWeight.Bold,
+        letterSpacing = (-0.5).sp
+    )
     val descriptor = TextStyle(fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.Medium)
     val lead = TextStyle(fontSize = 17.sp, lineHeight = 25.sp, fontWeight = FontWeight.Normal)
 }
@@ -197,26 +304,61 @@ fun PoruchTheme(dark: Boolean = isSystemInDarkTheme(), content: @Composable () -
     // «Вимкнути анімації» в налаштуваннях доступності обнуляє масштаб аніматора.
     val context = LocalContext.current
     val reducedMotion = remember(context) {
-        Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
+        Settings.Global.getFloat(
+            context.contentResolver,
+            Settings.Global.ANIMATOR_DURATION_SCALE,
+            1f
+        ) == 0f
     }
     val scheme = if (dark) darkColorScheme(
-        primary = palette.brand, onPrimary = palette.onBrand, primaryContainer = palette.brandContainer, onPrimaryContainer = palette.onBrandContainer,
-        secondaryContainer = palette.brandContainer, onSecondaryContainer = palette.onBrandContainer,
-        background = palette.canvas, onBackground = palette.ink, surface = palette.surface, onSurface = palette.ink,
-        surfaceVariant = palette.surfaceMuted, onSurfaceVariant = palette.inkSecondary, outline = palette.hairline, outlineVariant = palette.hairline,
-        error = palette.danger, errorContainer = palette.dangerContainer
+        primary = palette.brand,
+        onPrimary = palette.onBrand,
+        primaryContainer = palette.brandContainer,
+        onPrimaryContainer = palette.onBrandContainer,
+        secondaryContainer = palette.brandContainer,
+        onSecondaryContainer = palette.onBrandContainer,
+        background = palette.canvas,
+        onBackground = palette.ink,
+        surface = palette.surface,
+        onSurface = palette.ink,
+        surfaceVariant = palette.surfaceMuted,
+        onSurfaceVariant = palette.inkSecondary,
+        outline = palette.hairline,
+        outlineVariant = palette.hairline,
+        error = palette.danger,
+        errorContainer = palette.dangerContainer
     ) else lightColorScheme(
-        primary = palette.brand, onPrimary = palette.onBrand, primaryContainer = palette.brandContainer, onPrimaryContainer = palette.onBrandContainer,
-        secondaryContainer = palette.brandContainer, onSecondaryContainer = palette.onBrandContainer,
-        background = palette.canvas, onBackground = palette.ink, surface = palette.surface, onSurface = palette.ink,
-        surfaceVariant = palette.surfaceMuted, onSurfaceVariant = palette.inkSecondary, outline = palette.hairline, outlineVariant = palette.hairline,
-        error = palette.danger, errorContainer = palette.dangerContainer
+        primary = palette.brand,
+        onPrimary = palette.onBrand,
+        primaryContainer = palette.brandContainer,
+        onPrimaryContainer = palette.onBrandContainer,
+        secondaryContainer = palette.brandContainer,
+        onSecondaryContainer = palette.onBrandContainer,
+        background = palette.canvas,
+        onBackground = palette.ink,
+        surface = palette.surface,
+        onSurface = palette.ink,
+        surfaceVariant = palette.surfaceMuted,
+        onSurfaceVariant = palette.inkSecondary,
+        outline = palette.hairline,
+        outlineVariant = palette.hairline,
+        error = palette.danger,
+        errorContainer = palette.dangerContainer
     )
-    CompositionLocalProvider(LocalPoruchColors provides palette, LocalReducedMotion provides reducedMotion) {
+    CompositionLocalProvider(
+        LocalPoruchColors provides palette,
+        LocalReducedMotion provides reducedMotion
+    ) {
         MaterialTheme(
             colorScheme = scheme,
             typography = PoruchTypography,
-            shapes = Shapes(extraSmall = Radius.xs, small = Radius.sm, medium = Radius.md, large = Radius.lg, extraLarge = Radius.xl),
+            shapes = Shapes(
+                extraSmall = Radius.xs,
+                small = Radius.sm,
+                medium = Radius.md,
+                large = Radius.lg,
+                extraLarge = Radius.xl
+            ),
             content = content
         )
     }

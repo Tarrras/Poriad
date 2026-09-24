@@ -140,17 +140,21 @@ fun Modifier.tabBarClearance(): Modifier =
 
 @Composable
 fun HairLine(modifier: Modifier = Modifier) =
-    Box(modifier
-        .fillMaxWidth()
-        .height(1.dp)
-        .background(Poruch.colors.hairline))
+    Box(
+        modifier
+            .fillMaxWidth()
+            .height(1.dp)
+            .background(Poruch.colors.hairline)
+    )
 
 /** Крапка категорії: найменший носій її кольору. */
 @Composable
 fun CategoryDot(category: String, size: Dp = 8.dp) =
-    Box(Modifier
-        .size(size)
-        .background(categoryInk(category), CircleShape))
+    Box(
+        Modifier
+            .size(size)
+            .background(categoryInk(category), CircleShape)
+    )
 
 // ---- Пошук і чипи
 
@@ -356,10 +360,12 @@ fun SegmentedPill(
     modifier: Modifier = Modifier
 ) {
     val colors = Poruch.colors
-    Row(modifier
-        .fillMaxWidth()
-        .background(colors.brandContainer, Radius.pill)
-        .padding(4.dp)) {
+    Row(
+        modifier
+            .fillMaxWidth()
+            .background(colors.brandContainer, Radius.pill)
+            .padding(4.dp)
+    ) {
         items.forEachIndexed { index, title ->
             val active = index == selected
             Box(
@@ -1056,9 +1062,11 @@ fun EventCard(
             .alpha(if (cancelled) 0.6f else 1f)
     ) {
         // Без фото плейсхолдер нижчий: порожній 16:9 домінував би на картці.
-        Box(Modifier
-            .fillMaxWidth()
-            .height(if (event.imageUrl != null) 200.dp else 120.dp)) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(if (event.imageUrl != null) 200.dp else 120.dp)
+        ) {
             EventImage(event, Modifier.fillMaxSize())
             badge?.let { (text, tone) ->
                 Box(Modifier.padding(Spacing.md)) {
@@ -1112,9 +1120,11 @@ fun EventRow(event: Event, modifier: Modifier = Modifier, unread: Int = 0, onCli
         horizontalArrangement = Arrangement.spacedBy(Spacing.md),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        EventImage(event, Modifier
-            .size(60.dp)
-            .clip(Radius.xs))
+        EventImage(
+            event, Modifier
+                .size(60.dp)
+                .clip(Radius.xs)
+        )
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
             Text(
                 cardOverline(event, dateWords()),
@@ -1166,9 +1176,11 @@ fun EventMapCard(
         horizontalArrangement = Arrangement.spacedBy(Spacing.md),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        EventImage(event, Modifier
-            .size(84.dp)
-            .clip(Radius.xs))
+        EventImage(
+            event, Modifier
+                .size(84.dp)
+                .clip(Radius.xs)
+        )
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
             Text(
                 cardOverline(event, dateWords()),
@@ -1198,9 +1210,11 @@ fun EventTile(event: Event, modifier: Modifier = Modifier, onClick: () -> Unit) 
             .cardSurface()
             .alpha(if (event.isCancelled) 0.6f else 1f)
     ) {
-        EventImage(event, Modifier
-            .fillMaxWidth()
-            .height(120.dp))
+        EventImage(
+            event, Modifier
+                .fillMaxWidth()
+                .height(120.dp)
+        )
         Column(
             Modifier.padding(Spacing.md),
             verticalArrangement = Arrangement.spacedBy(Spacing.xs)
@@ -1382,9 +1396,11 @@ fun EventRailCard(
             .cardSurface()
             .alpha(if (event.isCancelled) 0.6f else 1f)
     ) {
-        Box(Modifier
-            .fillMaxWidth()
-            .height(170.dp)) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(170.dp)
+        ) {
             EventImage(event, Modifier.fillMaxSize(), glyphSize = 32.dp)
             badge?.let { (text, tone) ->
                 Box(Modifier.padding(Spacing.md)) {
@@ -1519,9 +1535,11 @@ fun LinkRow(
 /** Біла картка з рядками; лінія між ними йде від тексту, а не від краю. */
 @Composable
 fun GroupedRows(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) =
-    Column(modifier
-        .fillMaxWidth()
-        .cardSurface(), content = content)
+    Column(
+        modifier
+            .fillMaxWidth()
+            .cardSurface(), content = content
+    )
 
 /** Кругла дія з підписом під нею: ряд таких — панель дій на деталях. */
 @Composable
@@ -1542,9 +1560,11 @@ fun RoundAction(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(Spacing.sm)
     ) {
-        Box(Modifier
-            .size(56.dp)
-            .cardSurface(CircleShape), contentAlignment = Alignment.Center) {
+        Box(
+            Modifier
+                .size(56.dp)
+                .cardSurface(CircleShape), contentAlignment = Alignment.Center
+        ) {
             Icon(icon, null, Modifier.size(22.dp), tint = ink)
         }
         Text(title, style = MaterialTheme.typography.labelMedium, color = ink, maxLines = 1)
