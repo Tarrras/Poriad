@@ -26,7 +26,14 @@ struct MyEventsView: View {
 
     /// «Збережені» з того ж списку: зберегти можна, не приєднуючись. Завершене йде лише в
     /// «Завершено», свіжіше першим; збережене, куди людина не йшла, просто зникає.
-    private var visible: [Event] {
+    private var visible: [Event] { events(for: tab) }
+
+    /// Непрочитане за id події, з тієї самої стрічки, що й бейдж вкладки.
+    private var unread: [String: Int] {
+        Dictionary((model.state?.chatUnread ?? []).map { ($0.eventId, Int($0.unread)) }, uniquingKeysWith: { a, _ in a })
+    }
+
+    private func events(for tab: MyEventsTab) -> [Event] {
         guard let state = model.state else { return [] }
         let now = Date()
         let ended = { (event: Event) in parseEventDate(event.endsAt).map { $0 <= now } ?? false }
@@ -70,8 +77,11 @@ struct MyEventsView: View {
             if signedIn {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: Space.sm) {
+                        let unread = unread
                         ForEach(MyEventsTab.allCases) { entry in
-                            Chip(label: entry.title, selected: tab == entry) { tab = entry }
+                            // Скільки чатів з непрочитаним у розрізі: видно, куди веде бейдж вкладки.
+                            Chip(label: entry.title, badge: events(for: entry).filter { unread[$0.id] != nil }.count,
+                                 selected: tab == entry) { tab = entry }
                         }
                     }
                 }.railContentPadding(spread: 0)
@@ -99,10 +109,11 @@ struct MyEventsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: Space.xxl) {
                     // Один груповий список компактних рядків: тут переглядають своє, а не обирають чуже.
+                    let unread = unread
                     GroupedRows {
                         ForEach(Array(visible.enumerated()), id: \.element.id) { position, event in
                             Button { model.app.selectEvent(id: event.id); openEvent(event.id) } label: {
-                                EventRow(event: event).padding(.horizontal, Space.lg)
+                                EventRow(event: event, unread: unread[event.id] ?? 0).padding(.horizontal, Space.lg)
                             }.buttonStyle(PressableStyle(pressedScale: 1))
                             if position < visible.count - 1 {
                                 Divider().overlay(Palette.hairline).padding(.leading, Space.lg + 60 + Space.md)

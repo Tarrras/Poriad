@@ -13,7 +13,11 @@ data class MyEventsState(
     val signedIn: Boolean = false,
     val loading: Boolean = false,
     /** Потяг вниз або кнопка «Оновити» в дорозі. */
-    val refreshing: Boolean = false
+    val refreshing: Boolean = false,
+    /** Непрочитані повідомлення за id події: бейдж на рядку. */
+    val unread: Map<String, Int> = emptyMap(),
+    /** Скільки чатів з непрочитаним у кожному розрізі: бейдж на чипі, щоб було видно, куди йти. */
+    val unreadByTab: Map<MyEventsTab, Int> = emptyMap()
 )
 
 sealed interface MyEventsIntent {

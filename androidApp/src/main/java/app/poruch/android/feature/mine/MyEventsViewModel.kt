@@ -19,7 +19,11 @@ class MyEventsViewModel(private val app: PoruchApp) :
                 savedIds = latest.library.savedIds,
                 waitlistedIds = latest.library.waitlistedIds,
                 signedIn = latest.signedIn,
-                loading = latest.library.loading
+                loading = latest.library.loading,
+                unread = latest.chatUnread.associate { it.eventId to it.unread },
+                unreadByTab = MyEventsTab.entries.associateWith { t ->
+                    latest.forTab(t).count { e -> latest.chatUnread.any { it.eventId == e.id } }
+                }
             )
         }
         app.loadMyEvents()

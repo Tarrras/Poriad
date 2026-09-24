@@ -120,6 +120,8 @@ struct Chip: View {
     var dot: String?
     /// Гліф після підпису: шеврон каже, що чип відкриває вибір, а не перемикає фільтр.
     var trailingSymbol: String?
+    /// Скільки непрочитаних чатів у цьому розрізі.
+    var badge: Int = 0
     let selected: Bool
     let action: () -> Void
     var body: some View {
@@ -136,6 +138,7 @@ struct Chip: View {
                     Image(systemName: trailingSymbol).font(.system(size: 10, weight: .bold))
                         .foregroundStyle(selected ? Palette.onBrand : Palette.inkSecondary)
                 }
+                if badge > 0 { CountBadge(count: badge) }
             }
             .foregroundStyle(selected ? Palette.onBrand : Palette.ink)
             .padding(.horizontal, Space.lg).frame(height: 38)
@@ -730,8 +733,21 @@ struct EventCard: View {
 }
 
 /// Компактний рядок списку: квадратне превʼю, назва, опис.
+/// Число на акцентній пігулці: бейдж вкладки, рядка й чипа однаковий.
+struct CountBadge: View {
+    let count: Int
+    var body: some View {
+        Text("\(min(count, 99))").font(PoruchFont.overline).foregroundStyle(Palette.onBrand)
+            .padding(.horizontal, 5).padding(.vertical, 1)
+            .background(Palette.accent, in: Capsule())
+            .accessibilityHidden(true)
+    }
+}
+
 struct EventRow: View {
     let event: Event
+    /// Непрочитані повідомлення чату: той самий бейдж, що на вкладці, — видно, куди він веде.
+    var unread: Int = 0
     var body: some View {
         HStack(spacing: Space.md) {
             EventThumbnail(event: event, maxDimension: 60)
@@ -745,12 +761,14 @@ struct EventRow: View {
                 else { EventDescriptor(event: event) }
             }
             Spacer(minLength: 0)
+            if unread > 0 { CountBadge(count: unread) }
             Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundStyle(Palette.inkTertiary)
         }
         .padding(.vertical, Space.md)
         .opacity(event.isCancelled ? 0.6 : 1)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
+        .accessibilityValue(unread > 0 ? "нових повідомлень: \(unread)" : "")
     }
 }
 
@@ -1046,12 +1064,7 @@ struct PoruchTabBar<Trailing: View>: View {
                             PoruchIcon(glyph: item.glyph, size: 22)
                                 .overlay(alignment: .topTrailing) {
                                     // Бейдж поверх кута гліфа: число справ, не повідомлень.
-                                    if item.badge > 0 {
-                                        Text("\(min(item.badge, 99))").font(PoruchFont.overline).foregroundStyle(Palette.onBrand)
-                                            .padding(.horizontal, 5).padding(.vertical, 1)
-                                            .background(Palette.accent, in: Capsule())
-                                            .offset(x: 10, y: -6)
-                                    }
+                                    if item.badge > 0 { CountBadge(count: item.badge).offset(x: 10, y: -6) }
                                 }
                             Text(item.label).font(PoruchFont.overline).lineLimit(1)
                         }

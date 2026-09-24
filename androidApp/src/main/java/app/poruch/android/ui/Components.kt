@@ -59,6 +59,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -207,7 +208,9 @@ fun PullToRefresh(
 fun PoruchChip(
     label: String, selected: Boolean, onClick: () -> Unit, icon: ImageVector? = null, dot: String? = null,
     /** Гліф після підпису: шеврон каже, що чип відкриває вибір, а не перемикає фільтр. */
-    trailingIcon: ImageVector? = null
+    trailingIcon: ImageVector? = null,
+    /** Скільки непрочитаних чатів у цьому розрізі. */
+    badge: Int = 0
 ) {
     val colors = Poruch.colors
     Row(
@@ -223,6 +226,7 @@ fun PoruchChip(
         }
         Text(label, style = MaterialTheme.typography.labelMedium, color = if (selected) colors.onBrand else colors.ink, maxLines = 1)
         if (trailingIcon != null) Icon(trailingIcon, null, Modifier.size(16.dp), tint = if (selected) colors.onBrand else colors.inkSecondary)
+        if (badge > 0) CountBadge(badge)
     }
 }
 
@@ -671,11 +675,13 @@ fun EventCard(
 
 /** Компактний рядок списку: квадратне превʼю, назва, опис. */
 @Composable
-fun EventRow(event: Event, modifier: Modifier = Modifier, onClick: () -> Unit) {
+fun EventRow(event: Event, modifier: Modifier = Modifier, unread: Int = 0, onClick: () -> Unit) {
     val colors = Poruch.colors
     val badge = eventStatus(event)
+    val unreadLabel = if (unread > 0) stringResource(R.string.unread_messages_a11y, unread) else null
     Row(
-        modifier.fillMaxWidth().pressable(onClick = onClick).padding(horizontal = Spacing.lg, vertical = Spacing.md)
+        modifier.fillMaxWidth().semantics(mergeDescendants = true) { unreadLabel?.let { stateDescription = it } }
+            .pressable(onClick = onClick).padding(horizontal = Spacing.lg, vertical = Spacing.md)
             .alpha(if (event.isCancelled) 0.6f else 1f),
         horizontalArrangement = Arrangement.spacedBy(Spacing.md), verticalAlignment = Alignment.CenterVertically
     ) {
@@ -688,8 +694,20 @@ fun EventRow(event: Event, modifier: Modifier = Modifier, onClick: () -> Unit) {
             )
             if (badge != null) StatusBadge(badge.first, badge.second) else EventDescriptor(event)
         }
+        // Непрочитане в чаті — той самий бейдж, що на вкладці: видно, куди він веде.
+        if (unread > 0) CountBadge(unread)
         Icon(Icons.Outlined.ChevronRight, null, Modifier.size(18.dp), tint = colors.inkTertiary)
     }
+}
+
+/** Число на акцентній пігулці: бейдж вкладки, рядка й чипа однаковий. */
+@Composable
+fun CountBadge(count: Int, modifier: Modifier = Modifier) {
+    val colors = Poruch.colors
+    Text(
+        count.coerceAtMost(99).toString(), style = MaterialTheme.typography.labelSmall, color = colors.onBrand,
+        modifier = modifier.clearAndSetSemantics { }.background(colors.accent, Radius.pill).padding(horizontal = 6.dp, vertical = 1.dp)
+    )
 }
 
 /** Картка каруселі над мапою: досить широка для назви, досить низька, щоб мапу було видно. */
@@ -944,11 +962,7 @@ fun PoruchTabBar(items: List<TabItem>, selected: String, modifier: Modifier = Mo
                         )
                     }
                     // Поверх кута гліфа: число справ, не повідомлень.
-                    if (item.badge > 0) Text(
-                        item.badge.coerceAtMost(99).toString(), style = MaterialTheme.typography.labelSmall, color = colors.onBrand,
-                        modifier = Modifier.align(Alignment.TopCenter).offset(x = 14.dp, y = (-4).dp).clearAndSetSemantics { }
-                            .background(colors.accent, Radius.pill).padding(horizontal = 5.dp, vertical = 1.dp)
-                    )
+                    if (item.badge > 0) CountBadge(item.badge, Modifier.align(Alignment.TopCenter).offset(x = 14.dp, y = (-4).dp))
                 }
             }
         }

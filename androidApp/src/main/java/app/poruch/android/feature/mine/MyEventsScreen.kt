@@ -51,7 +51,10 @@ fun MyEventsScreen(state: MyEventsState, onIntent: (MyEventsIntent) -> Unit) {
                     val reveal = remember { BringIntoViewRequester() }
                     if (state.tab == tab) LaunchedEffect(Unit) { reveal.bringIntoView() }
                     Box(Modifier.bringIntoViewRequester(reveal)) {
-                        PoruchChip(stringResource(tab.label), state.tab == tab, { onIntent(MyEventsIntent.PickTab(tab)) })
+                        PoruchChip(
+                            stringResource(tab.label), state.tab == tab, { onIntent(MyEventsIntent.PickTab(tab)) },
+                            badge = state.unreadByTab[tab] ?: 0
+                        )
                     }
                 }
             }
@@ -81,7 +84,7 @@ fun MyEventsScreen(state: MyEventsState, onIntent: (MyEventsIntent) -> Unit) {
                 ) {
                     GroupedRows {
                         state.visible.forEachIndexed { index, event ->
-                            EventRow(event) { onIntent(MyEventsIntent.OpenEvent(event.id)) }
+                            EventRow(event, unread = state.unread[event.id] ?: 0) { onIntent(MyEventsIntent.OpenEvent(event.id)) }
                             if (index < state.visible.lastIndex) HairLine(Modifier.padding(start = Spacing.lg + 60.dp + Spacing.md))
                         }
                     }

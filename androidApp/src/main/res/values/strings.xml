@@ -346,6 +346,7 @@
   </plurals>
   <string name="chat_notification_channel">Повідомлення в чатах</string>
   <string name="tab_badge_a11y">%1$s, непрочитаних чатів: %2$d</string>
+  <string name="unread_messages_a11y">нових повідомлень: %1$d</string>
   <string name="err_not_member">Писати можуть лише організатор і підтверджені учасники</string>
   <string name="err_chat_closed">Чат закрито: подія давно минула</string>
   <string name="err_too_many_messages">Забагато повідомлень поспіль. Зачекайте хвилину</string>
