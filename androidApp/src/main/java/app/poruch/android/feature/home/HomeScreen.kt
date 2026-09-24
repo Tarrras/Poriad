@@ -38,7 +38,7 @@ import app.poruch.shared.DateFilter
 @Composable
 fun HomeScreen(state: HomeState, onIntent: (HomeIntent) -> Unit) {
     val colors = Poruch.colors
-    PullToRefresh(state.refreshing, { onIntent(HomeIntent.Refresh) }, Modifier.fillMaxSize().background(colors.canvas)) {
+    PullToRefresh(state.refreshing, { onIntent(HomeIntent.Refresh) }, Modifier.fillMaxSize().background(colors.canvas), underStatusBar = true) {
         Column(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).statusBarsPadding().tabBarClearance(),
             verticalArrangement = Arrangement.spacedBy(Spacing.section)
