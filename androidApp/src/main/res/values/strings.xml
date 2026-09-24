@@ -544,4 +544,27 @@
   <string name="err_objectionable">Текст містить слова, які ми не публікуємо. Перепишіть, будь ласка.</string>
   <string name="err_link_expired">Посилання застаріло або вже використане. Запросіть новий лист на цьому пристрої</string>
   <string name="err_link_other_device">Відкрийте посилання з листа на тому самому пристрої, де ви реєструвались або запитували відновлення.</string>
+  <!-- Профіль: свій і картка людини. Див. docs/profile.md. -->
+  <string name="profile_edit">Редагувати профіль</string>
+  <string name="profile_name">Імʼя</string>
+  <string name="profile_bio">Про себе</string>
+  <string name="profile_bio_hint">Кілька слів для організаторів і учасників: чим займаєтесь, що любите. До 300 знаків.</string>
+  <string name="profile_photo_add">Додати фото</string>
+  <string name="profile_photo_change">Змінити фото</string>
+  <string name="profile_photo_remove">Видалити фото</string>
+  <string name="profile_photo_hint">Фото й «Про себе» бачать організатори та учасники спільних подій.</string>
+  <string name="profile_save">Зберегти</string>
+  <!-- %1$s — місяць і рік у родовому відмінку, «вересня 2026». -->
+  <string name="profile_member_since">На «Поряд» з %1$s</string>
+  <string name="profile_organized">Як організатор</string>
+  <string name="profile_attended">Як учасник</string>
+  <string name="person_unavailable">Профіль недоступний</string>
+  <string name="person_unavailable_hint">Людина приховала профіль від вас або його обмежила модерація.</string>
+  <string name="person_request">Хоче приєднатися до вашої події</string>
+  <string name="person_you">Це ви</string>
+  <string name="person_block">Заблокувати</string>
+  <string name="person_block_confirm">Точно заблокувати</string>
+  <string name="report_person_title">Поскаржитись на людину</string>
+  <string name="attendees_show_all">Показати всіх</string>
+  <string name="person_open">Відкрити профіль: %1$s</string>
 </resources>

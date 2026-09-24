@@ -30,7 +30,8 @@ class ChatViewModel(private val app: PoruchApp, private val eventId: String) :
                 userId = shared.session.userId,
                 organizer = event != null && shared.organizes(event),
                 // Той самий поріг, що на сервері: тиждень після кінця.
-                readOnly = event != null && (event.isCancelled || event.endInstant?.let { it + CHAT_GRACE < now } == true)
+                readOnly = event != null && (event.isCancelled || event.endInstant?.let { it + CHAT_GRACE < now } == true),
+                person = shared.person
             )
         }
         // Текст, що не пішов, повертається в поле, якщо людина ще не почала нове.
@@ -65,6 +66,8 @@ class ChatViewModel(private val app: PoruchApp, private val eventId: String) :
                 reduce { copy(blocking = null) }
                 app.blockUser(intent.userId)
             }
+            is ChatIntent.OpenPerson -> app.openPerson(intent.userId)
+            ChatIntent.ClosePerson -> app.closePerson()
             is ChatIntent.SendReport -> {
                 reduce { copy(reporting = null) }
                 app.reportMessage(intent.message.id, intent.reason, intent.details)
@@ -73,7 +76,7 @@ class ChatViewModel(private val app: PoruchApp, private val eventId: String) :
     }
 
     override fun onCleared() {
-        app.closeChat()
+        app.closeChat(); app.closePerson()
         super.onCleared()
     }
 

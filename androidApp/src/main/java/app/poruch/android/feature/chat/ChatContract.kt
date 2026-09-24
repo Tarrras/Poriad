@@ -1,6 +1,7 @@
 package app.poruch.android.feature.chat
 
 import app.poruch.domain.ChatMessage
+import app.poruch.shared.PersonState
 
 /** Стан екрана чату: зріз [app.poruch.shared.ChatState] плюс те, що потрібно лише для промальовки. */
 data class ChatState(
@@ -26,7 +27,9 @@ data class ChatState(
     /** Повідомлення, видалення якого підтверджують. */
     val deleting: ChatMessage? = null,
     /** Автора цього повідомлення блокують: крок підтвердження. */
-    val blocking: ChatMessage? = null
+    val blocking: ChatMessage? = null,
+    /** Картка автора: тап по аватару. */
+    val person: PersonState? = null
 ) {
     fun isMine(message: ChatMessage) = message.authorId == userId
     fun canDelete(message: ChatMessage) = organizer || isMine(message)
@@ -46,6 +49,8 @@ sealed interface ChatIntent {
     /** Крок підтвердження перед блокуванням автора; `null` — передумали. */
     data class ConfirmBlock(val message: ChatMessage?) : ChatIntent
     data class Block(val userId: String) : ChatIntent
+    data class OpenPerson(val userId: String) : ChatIntent
+    data object ClosePerson : ChatIntent
     /** Ціль їде всередині: шторка спершу закривається (і скидає [ChatState.reporting]), а вже потім шле це. */
     data class SendReport(val message: ChatMessage, val reason: String, val details: String) : ChatIntent
 }

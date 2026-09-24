@@ -15,6 +15,10 @@ class ProfileViewModel(private val app: PoruchApp, private val notifications: No
         observe(app) { shared ->
             copy(
                 signedIn = shared.signedIn,
+                profile = shared.library.profile,
+                // Збережено або сесії нема — шторка редагування закривається.
+                editing = editing && shared.signedIn && shared.notice != AppNotice.Told(AppMessage.CHANGES_SAVED),
+                editError = (shared.notice as? AppNotice.Failed)?.error?.takeIf { editing && shared.signedIn },
                 interests = shared.interests,
                 needsAge = shared.needsAgeDeclaration,
                 blocked = shared.library.blocked,
@@ -40,6 +44,13 @@ class ProfileViewModel(private val app: PoruchApp, private val notifications: No
     override fun onIntent(intent: ProfileIntent) {
         when (intent) {
             ProfileIntent.SignIn -> send(ProfileEffect.SignIn)
+            is ProfileIntent.ShowEdit -> {
+                if (!intent.show) app.clearNotice()
+                reduce { copy(editing = intent.show, editError = null) }
+            }
+            is ProfileIntent.SaveProfile -> app.saveProfile(intent.name, intent.bio)
+            is ProfileIntent.PickAvatar -> app.setAvatar(intent.bytes, intent.contentType)
+            ProfileIntent.RemoveAvatar -> app.removeAvatar()
             ProfileIntent.SignOut -> app.signOut()
             is ProfileIntent.ToggleInterest -> app.toggleInterest(intent.category)
             ProfileIntent.TuneRecommendations -> app.restartOnboarding()

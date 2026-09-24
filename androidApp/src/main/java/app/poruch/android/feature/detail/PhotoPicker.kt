@@ -31,10 +31,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 
-/** Читає обраний файл, перекодовує в JPEG без метаданих і віддає байти інтентом. */
+/** Системний Photo Picker: читає обраний файл, перекодовує в JPEG без метаданих з довшою стороною до [maxSide]. */
+class ImagePicker internal constructor(val reading: Boolean, val failed: Boolean, val open: () -> Unit)
+
 @Composable
-fun PhotoPickerButton(busy: Boolean, onPicked: (ByteArray, String) -> Unit) {
-    val colors = Poruch.colors
+fun rememberImagePicker(maxSide: Int = MAX_SIDE, onPicked: (ByteArray, String) -> Unit): ImagePicker {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var error by remember { mutableStateOf(false) }
@@ -43,20 +44,27 @@ fun PhotoPickerButton(busy: Boolean, onPicked: (ByteArray, String) -> Unit) {
         if (uri == null) return@rememberLauncherForActivityResult
         scope.launch {
             reading = true
-            val picked = withContext(Dispatchers.IO) { runCatching { context.readImage(uri) }.getOrNull() }
+            val picked = withContext(Dispatchers.IO) { runCatching { context.readImage(uri, maxSide) }.getOrNull() }
             reading = false
             error = picked == null
             picked?.let { (bytes, mime) -> onPicked(bytes, mime) }
         }
     }
+    return ImagePicker(reading, error) { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
+}
+
+/** Кнопка фото події: той самий вибір, з прогресом і помилкою під нею. */
+@Composable
+fun PhotoPickerButton(busy: Boolean, onPicked: (ByteArray, String) -> Unit) {
+    val colors = Poruch.colors
+    val picker = rememberImagePicker(onPicked = onPicked)
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         SecondaryButton(
-            stringResource(R.string.add_photo),
-            { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-            Modifier.fillMaxWidth(), enabled = !busy && !reading, icon = Icons.Outlined.PhotoCamera
+            stringResource(R.string.add_photo), picker.open,
+            Modifier.fillMaxWidth(), enabled = !busy && !picker.reading, icon = Icons.Outlined.PhotoCamera
         )
-        if (reading) LinearProgressIndicator(Modifier.fillMaxWidth(), color = colors.brand, trackColor = colors.brandContainer)
-        if (error) Text(stringResource(R.string.photo_error), style = MaterialTheme.typography.bodySmall, color = colors.danger)
+        if (picker.reading) LinearProgressIndicator(Modifier.fillMaxWidth(), color = colors.brand, trackColor = colors.brandContainer)
+        if (picker.failed) Text(stringResource(R.string.photo_error), style = MaterialTheme.typography.bodySmall, color = colors.danger)
     }
 }
 
@@ -66,9 +74,9 @@ fun PhotoPickerButton(busy: Boolean, onPicked: (ByteArray, String) -> Unit) {
  * Джерело — будь-яке зображення, яке декодує система (HEIC, AVIF з камери теж): на сервер однаково
  * йде JPEG. Ліміт розміру — до вже перекодованих байтів.
  */
-private fun Context.readImage(uri: Uri): Pair<ByteArray, String> {
+private fun Context.readImage(uri: Uri, maxSide: Int): Pair<ByteArray, String> {
     require(contentResolver.getType(uri).orEmpty().startsWith("image/")) { "not an image" }
-    val bitmap = decodeBounded(uri) ?: error("undecodable")
+    val bitmap = decodeBounded(uri, maxSide) ?: error("undecodable")
     val output = ByteArrayOutputStream()
     try {
         require(bitmap.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, output)) { "compress failed" }
@@ -77,13 +85,13 @@ private fun Context.readImage(uri: Uri): Pair<ByteArray, String> {
     return output.toByteArray() to "image/jpeg"
 }
 
-private fun Context.decodeBounded(uri: Uri): Bitmap? =
+private fun Context.decodeBounded(uri: Uri, maxSide: Int): Bitmap? =
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
         // ImageDecoder сам повертає кадр за EXIF-орієнтацією і не переносить метадані у bitmap.
         ImageDecoder.decodeBitmap(ImageDecoder.createSource(contentResolver, uri)) { decoder, info, _ ->
             val longest = maxOf(info.size.width, info.size.height)
-            if (longest > MAX_SIDE) {
-                val scale = MAX_SIDE.toFloat() / longest
+            if (longest > maxSide) {
+                val scale = maxSide.toFloat() / longest
                 decoder.setTargetSize((info.size.width * scale).toInt().coerceAtLeast(1), (info.size.height * scale).toInt().coerceAtLeast(1))
             }
             decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
@@ -95,7 +103,7 @@ private fun Context.decodeBounded(uri: Uri): Bitmap? =
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
         var sample = 1
-        while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= MAX_SIDE) sample *= 2
+        while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= maxSide) sample *= 2
         val options = BitmapFactory.Options().apply { inSampleSize = sample }
         contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) }?.let { decoded ->
             val degrees = contentResolver.openInputStream(uri)?.use {
@@ -106,7 +114,7 @@ private fun Context.decodeBounded(uri: Uri): Bitmap? =
                     else -> 0f
                 }
             } ?: 0f
-            val scale = minOf(1f, MAX_SIDE.toFloat() / maxOf(decoded.width, decoded.height))
+            val scale = minOf(1f, maxSide.toFloat() / maxOf(decoded.width, decoded.height))
             if (degrees == 0f && scale == 1f) return@let decoded
             val matrix = Matrix().apply { postScale(scale, scale); postRotate(degrees) }
             Bitmap.createBitmap(decoded, 0, 0, decoded.width, decoded.height, matrix, true).also { if (it !== decoded) decoded.recycle() }

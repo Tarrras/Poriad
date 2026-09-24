@@ -739,6 +739,20 @@ fun EventTile(event: Event, modifier: Modifier = Modifier, onClick: () -> Unit) 
     }
 }
 
+/** Фото людини або перша літера імені, поки фото нема чи воно ще їде. */
+@Composable
+fun Avatar(name: String, url: String?, size: Dp, modifier: Modifier = Modifier) {
+    val colors = Poruch.colors
+    Box(modifier.size(size).clip(CircleShape).background(colors.surfaceMuted), contentAlignment = Alignment.Center) {
+        Text(
+            name.trim().take(1).uppercase(),
+            style = if (size >= 56.dp) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.labelMedium,
+            color = colors.inkSecondary
+        )
+        url?.let { AsyncImage(model = it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize()) }
+    }
+}
+
 /** Аватари внапуск. */
 @Composable
 fun AvatarStack(attendees: List<Attendee>, modifier: Modifier = Modifier, total: Int = attendees.size, size: Dp = 32.dp) {
@@ -747,19 +761,10 @@ fun AvatarStack(attendees: List<Attendee>, modifier: Modifier = Modifier, total:
     val hidden = (total - shown.size).coerceAtLeast(0)
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
         shown.forEachIndexed { index, attendee ->
-            Box(
-                Modifier.offset(x = -(index * 10).dp).size(size).background(colors.surfaceMuted, CircleShape)
-                    .border(2.dp, colors.surface, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    attendee.name.trim().take(1).uppercase(), style = MaterialTheme.typography.labelMedium,
-                    color = colors.inkSecondary
-                )
-                attendee.avatarUrl?.let {
-                    AsyncImage(model = it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().clip(CircleShape))
-                }
-            }
+            Avatar(
+                attendee.name, attendee.avatarUrl, size,
+                Modifier.offset(x = -(index * 10).dp).border(2.dp, colors.surface, CircleShape)
+            )
         }
         if (hidden > 0) Text(
             stringResource(R.string.attendees_more, hidden), style = MaterialTheme.typography.labelMedium,

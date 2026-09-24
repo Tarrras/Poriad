@@ -43,6 +43,8 @@ class DetailViewModel(
     /** Картку вже показували: порожній слот далі — не завантаження, а інший екран деталей поверх. */
     private var shown = false
     private var carouselFrom: Pair<Event, List<EventIndexEntry>>? = null
+    /** На кого скарга з картки: картка вже закрита, коли людина обирає причину. */
+    private var reportedUser: String? = null
 
     init {
         // openEvent, а не selectEvent: лише цей екран показує місця й членство. Тут, а не з
@@ -85,7 +87,10 @@ class DetailViewModel(
                 requests = shared.detail.joinRequests,
                 ended = event?.hasEnded(now) == true,
                 canRate = event != null && RatingRules.canRate(event, now),
-                ratings = shared.detail.ratings
+                ratings = shared.detail.ratings,
+                person = shared.person,
+                userId = shared.session.userId,
+                organizerAvatar = shared.detail.organizerAvatar
             )
         }
     }
@@ -165,6 +170,7 @@ class DetailViewModel(
                 reduce { copy(reporting = null) }
                 when (intent.target) {
                     ReportTarget.EVENT -> app.reportEvent(eventId, intent.reason, intent.details)
+                    ReportTarget.PERSON -> reportedUser?.let { app.reportUser(it, intent.reason, intent.details) }
                     // В афіші організатора нема; на саму подію скаржаться через ReportTarget.EVENT.
                     ReportTarget.ORGANIZER -> event?.organizerId?.let {
                         app.reportUser(
@@ -194,10 +200,28 @@ class DetailViewModel(
                 event?.gathering?.contactUrl?.let { send(DetailEffect.OpenLink(it)) }
             }
 
+            is DetailIntent.OpenPerson -> authenticated { app.openPerson(intent.userId) }
+            DetailIntent.ClosePerson -> app.closePerson()
+            is DetailIntent.BlockPerson -> {
+                // Організатор — разом із подією, як BlockOrganizer; учасник зникає лише з ростеру.
+                val organizer = intent.userId == event?.organizerId
+                app.blockUser(intent.userId)
+                if (organizer) send(DetailEffect.Back)
+            }
+            is DetailIntent.ReportPerson -> {
+                reportedUser = intent.userId
+                reduce { copy(reporting = ReportTarget.PERSON) }
+            }
             is DetailIntent.ApproveRequest -> app.approveMember(eventId, intent.userId)
             is DetailIntent.DeclineRequest -> app.declineMember(eventId, intent.userId)
             is DetailIntent.Rate -> app.rateEvent(eventId, intent.score, intent.comment)
         }
+    }
+
+    override fun onCleared() {
+        // Картка належить екрану: інший екран не має відкритись із чужою шторкою.
+        app.closePerson()
+        super.onCleared()
     }
 
     /** Гостя ведемо на вхід, а не на дію, яку сервер відхилить. */

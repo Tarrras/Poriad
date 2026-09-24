@@ -3,6 +3,7 @@ package app.poruch.android.feature.chat
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
@@ -91,6 +92,13 @@ fun ChatScreen(state: ChatState, onIntent: (ChatIntent) -> Unit) {
         )
     }
     state.reporting?.let { message -> ReportMessageSheet(message, onIntent) }
+    state.person?.let { person ->
+        PersonSheet(
+            person, isMe = person.userId == state.userId,
+            onDismiss = { onIntent(ChatIntent.ClosePerson) },
+            onBlock = { onIntent(ChatIntent.Block(person.userId)) }
+        )
+    }
     state.blocking?.let { message ->
         PoruchConfirmSheet(
             title = stringResource(R.string.block_user_title),
@@ -228,7 +236,13 @@ private fun Bubble(message: ChatMessage, continued: Boolean, mine: Boolean, onIn
         if (mine) Spacer(Modifier.width(56.dp))
         else {
             if (continued) Spacer(Modifier.size(28.dp))
-            else AvatarStack(listOf(Attendee(message.authorId, name, message.avatarUrl)), total = 1, size = 28.dp)
+            else {
+                val description = stringResource(R.string.person_open, name)
+                Avatar(
+                    name, message.avatarUrl, 28.dp,
+                    Modifier.semantics { contentDescription = description }.clickable { onIntent(ChatIntent.OpenPerson(message.authorId)) }
+                )
+            }
             Spacer(Modifier.width(Spacing.sm))
         }
         Column(

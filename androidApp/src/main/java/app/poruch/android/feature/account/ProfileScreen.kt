@@ -9,25 +9,32 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Login
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.DeleteForever
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.MailOutline
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Shield
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import app.poruch.android.R
 import app.poruch.android.ui.*
 import app.poruch.android.feature.editor.BirthDateSheet
+import app.poruch.android.feature.detail.rememberImagePicker
+import app.poruch.domain.AccountRules
+import app.poruch.domain.Profile
+import app.poruch.domain.ProfileRules
 
 /** Екран акаунта: хто ви, що вам цікаво, як з вами зв'язатися. */
 @OptIn(ExperimentalLayoutApi::class)
@@ -44,17 +51,27 @@ fun ProfileScreen(state: ProfileState, onIntent: (ProfileIntent) -> Unit) {
                 .padding(horizontal = Spacing.xxl).padding(top = Spacing.section, bottom = Spacing.xl),
             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
-            Box(Modifier.size(88.dp).background(colors.brandContainer, CircleShape), contentAlignment = Alignment.Center) {
-                Icon(PoruchIcons.person, null, Modifier.size(36.dp), tint = colors.onBrandContainer)
+            val profile = state.profile
+            if (state.signedIn && profile != null) {
+                ProfileSummary(profile)
+                profile.bio?.let { Text(it, style = MaterialTheme.typography.bodyLarge, color = colors.ink, textAlign = TextAlign.Center) }
+                SecondaryButton(
+                    stringResource(R.string.profile_edit), { onIntent(ProfileIntent.ShowEdit(true)) },
+                    Modifier.fillMaxWidth(), icon = Icons.Outlined.Edit
+                )
+            } else {
+                Box(Modifier.size(88.dp).background(colors.brandContainer, CircleShape), contentAlignment = Alignment.Center) {
+                    Icon(PoruchIcons.person, null, Modifier.size(36.dp), tint = colors.onBrandContainer)
+                }
+                Text(
+                    stringResource(if (state.signedIn) R.string.account_title else R.string.guest_title),
+                    style = MaterialTheme.typography.headlineMedium, color = colors.ink, textAlign = TextAlign.Center
+                )
+                Text(
+                    stringResource(if (state.signedIn) R.string.account_description else R.string.guest_description),
+                    style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary, textAlign = TextAlign.Center
+                )
             }
-            Text(
-                stringResource(if (state.signedIn) R.string.account_title else R.string.guest_title),
-                style = MaterialTheme.typography.headlineMedium, color = colors.ink, textAlign = TextAlign.Center
-            )
-            Text(
-                stringResource(if (state.signedIn) R.string.account_description else R.string.guest_description),
-                style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary, textAlign = TextAlign.Center
-            )
             if (!state.signedIn) PrimaryButton(
                 stringResource(R.string.profile_guest_cta), { onIntent(ProfileIntent.SignIn) },
                 Modifier.fillMaxWidth(), icon = Icons.AutoMirrored.Outlined.Login
@@ -169,6 +186,61 @@ fun ProfileScreen(state: ProfileState, onIntent: (ProfileIntent) -> Unit) {
     ) { onIntent(ProfileIntent.SetBirthDate(it)) }
     if (state.deleting) DeleteAccountSheet(state, onIntent)
     if (state.changingPassword) ChangePasswordSheet(state, onIntent)
+    if (state.editing) state.profile?.let { EditProfileSheet(it, state, onIntent) }
+}
+
+/**
+ * Редагування профілю: фото, імʼя, «Про себе». Фото йде одразу після вибору (своя дія й банер),
+ * текст — кнопкою. Помилку збереження показуємо тут: банер лежить під шторкою.
+ */
+@Composable
+private fun EditProfileSheet(profile: Profile, state: ProfileState, onIntent: (ProfileIntent) -> Unit) {
+    val colors = Poruch.colors
+    var name by remember { mutableStateOf(profile.name) }
+    var bio by remember { mutableStateOf(profile.bio.orEmpty()) }
+    val picker = rememberImagePicker(ProfileRules.AVATAR_SIDE) { bytes, mime -> onIntent(ProfileIntent.PickAvatar(bytes, mime)) }
+    PoruchSheet({ onIntent(ProfileIntent.ShowEdit(false)) }) { sheet ->
+        Column(
+            Modifier.padding(horizontal = Spacing.page).padding(bottom = Spacing.section).imePadding()
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(Spacing.md)
+        ) {
+            Text(stringResource(R.string.profile_edit), style = MaterialTheme.typography.titleLarge, color = colors.ink)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.lg)) {
+                Box(contentAlignment = Alignment.Center) {
+                    Avatar(name, profile.avatarUrl, 72.dp)
+                    if (picker.reading || state.mutating) CircularProgressIndicator(Modifier.size(72.dp), color = colors.brand)
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                    GhostButton(
+                        stringResource(if (profile.avatarUrl == null) R.string.profile_photo_add else R.string.profile_photo_change),
+                        picker.open, enabled = !state.mutating && !picker.reading
+                    )
+                    if (profile.avatarUrl != null) GhostButton(
+                        stringResource(R.string.profile_photo_remove), { onIntent(ProfileIntent.RemoveAvatar) },
+                        tone = colors.danger, enabled = !state.mutating
+                    )
+                }
+            }
+            if (picker.failed) Text(stringResource(R.string.photo_error), style = MaterialTheme.typography.bodySmall, color = colors.danger)
+            Text(stringResource(R.string.profile_photo_hint), style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary)
+            LabelledField(
+                stringResource(R.string.profile_name), name, { name = it.take(AccountRules.nameLength.last) },
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words)
+            )
+            LabelledField(
+                stringResource(R.string.profile_bio), bio, { bio = it.take(ProfileRules.BIO_MAX) },
+                hint = stringResource(R.string.profile_bio_hint), singleLine = false, minLines = 3,
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
+            )
+            state.editError?.let { Text(it.text(), style = MaterialTheme.typography.bodySmall, color = colors.danger) }
+            PrimaryButton(
+                stringResource(R.string.profile_save), { onIntent(ProfileIntent.SaveProfile(name, bio)) },
+                Modifier.fillMaxWidth(), enabled = AccountRules.isName(name) && !state.mutating, loading = state.mutating
+            )
+            SecondaryButton(stringResource(R.string.delete_account_cancel), { sheet.close() }, Modifier.fillMaxWidth(), enabled = !state.mutating)
+        }
+    }
 }
 
 /** Зміна пароля: поточний доводить власника, помилка показується тут — банер лежить під шторкою. */

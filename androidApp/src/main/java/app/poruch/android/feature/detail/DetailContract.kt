@@ -5,6 +5,7 @@ import app.poruch.domain.Event
 import app.poruch.domain.EventIndexEntry
 import app.poruch.domain.EventRating
 import app.poruch.domain.EventSession
+import app.poruch.shared.PersonState
 
 data class DetailState(
     val event: Event? = null,
@@ -37,7 +38,13 @@ data class DetailState(
     /** Учасник і вікно оцінки ще відкрите. */
     val canRate: Boolean = false,
     /** Організаторові всі оцінки, учасникові — своя. */
-    val ratings: List<EventRating> = emptyList()
+    val ratings: List<EventRating> = emptyList(),
+    /** Відкрита картка людини: з ростеру, запиту чи рядка організатора. */
+    val person: PersonState? = null,
+    /** Хто дивиться: своя картка без скарги й блокування. */
+    val userId: String? = null,
+    /** Фото організатора для рядка в «Ідуть». */
+    val organizerAvatar: String? = null
 ) {
     val myRating get() = ratings.firstOrNull { it.mine }
 
@@ -96,8 +103,8 @@ enum class DetailAction {
         this == LEAVE_WAITLIST || this == REQUEST || this == TICKETS
 }
 
-/** На що скарга: на подію чи на того, хто її опублікував. */
-enum class ReportTarget { EVENT, ORGANIZER }
+/** На що скарга: на подію, на того, хто її опублікував, чи на людину з картки. */
+enum class ReportTarget { EVENT, ORGANIZER, PERSON }
 
 sealed interface DetailIntent {
     data object Back : DetailIntent
@@ -132,6 +139,11 @@ sealed interface DetailIntent {
     data object OpenContact : DetailIntent
     /** Чат події всередині застосунку. */
     data object OpenChat : DetailIntent
+    /** Картка людини: організатор, учасник чи той, хто проситься. Гостя веде на вхід. */
+    data class OpenPerson(val userId: String) : DetailIntent
+    data object ClosePerson : DetailIntent
+    data class BlockPerson(val userId: String) : DetailIntent
+    data class ReportPerson(val userId: String) : DetailIntent
     data class ApproveRequest(val userId: String) : DetailIntent
     data class DeclineRequest(val userId: String) : DetailIntent
     data object CancelEvent : DetailIntent

@@ -3,10 +3,16 @@ package app.poruch.android.feature.account
 import app.poruch.domain.AccountRules
 import app.poruch.domain.AppError
 import app.poruch.domain.Attendee
+import app.poruch.domain.Profile
 import java.time.LocalDate
 
 data class ProfileState(
     val signedIn: Boolean = false,
+    /** Свій профіль. Null — ще їде або сервер без міграції: шапка лишається загальною. */
+    val profile: Profile? = null,
+    /** Шторка редагування профілю; помилка збереження показується в ній. */
+    val editing: Boolean = false,
+    val editError: AppError? = null,
     val interests: List<String> = emptyList(),
     /** Акаунт без віку має його вказати, перш ніж приєднуватись. */
     val needsAge: Boolean = false,
@@ -45,6 +51,10 @@ data class ProfileState(
 
 sealed interface ProfileIntent {
     data object SignIn : ProfileIntent
+    data class ShowEdit(val show: Boolean) : ProfileIntent
+    data class SaveProfile(val name: String, val bio: String) : ProfileIntent
+    class PickAvatar(val bytes: ByteArray, val contentType: String) : ProfileIntent
+    data object RemoveAvatar : ProfileIntent
     data object SignOut : ProfileIntent
     data class ToggleInterest(val category: String) : ProfileIntent
     data object TuneRecommendations : ProfileIntent

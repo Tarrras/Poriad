@@ -27,6 +27,7 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
@@ -86,7 +87,7 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
                     verticalArrangement = Arrangement.spacedBy(Spacing.lg)
                 ) {
                     Facts(event)
-                    if (state.attendees.isNotEmpty()) Roster(state, event)
+                    event.gathering?.let { People(state, it, onIntent) }
                     Venue(event, onIntent)
                     if (state.othersHere.isNotEmpty()) OthersHere(state.othersHere, onIntent)
                     Description(event, onIntent)
@@ -130,6 +131,29 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
         )
     }
     state.reporting?.let { target -> ReportSheet(target, onIntent) }
+    state.person?.let { person ->
+        val request = state.organizer && state.requests.any { it.userId == person.userId }
+        PersonSheet(
+            person, isMe = person.userId == state.userId,
+            onDismiss = { onIntent(DetailIntent.ClosePerson) },
+            onBlock = { onIntent(DetailIntent.BlockPerson(person.userId)) },
+            onReport = { onIntent(DetailIntent.ReportPerson(person.userId)) }
+        ) { sheet ->
+            if (request) {
+                Text(stringResource(R.string.person_request), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
+                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                    SecondaryButton(
+                        stringResource(R.string.decline), { sheet.close { onIntent(DetailIntent.DeclineRequest(person.userId)) } },
+                        Modifier.weight(1f), enabled = !state.mutating
+                    )
+                    PrimaryButton(
+                        stringResource(R.string.approve), { sheet.close { onIntent(DetailIntent.ApproveRequest(person.userId)) } },
+                        Modifier.weight(1f), enabled = !state.mutating
+                    )
+                }
+            }
+        }
+    }
 }
 
 /**
@@ -170,7 +194,13 @@ private fun ReportSheet(target: ReportTarget, onIntent: (DetailIntent) -> Unit) 
             verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
             Text(
-                stringResource(if (target == ReportTarget.EVENT) R.string.report_event_title else R.string.report_user_title),
+                stringResource(
+                    when (target) {
+                        ReportTarget.EVENT -> R.string.report_event_title
+                        ReportTarget.ORGANIZER -> R.string.report_user_title
+                        ReportTarget.PERSON -> R.string.report_person_title
+                    }
+                ),
                 style = MaterialTheme.typography.titleLarge, color = colors.ink
             )
             Text(stringResource(R.string.report_body), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
@@ -350,8 +380,14 @@ private fun JoinRequests(state: DetailState, onIntent: (DetailIntent) -> Unit) {
                 Modifier.fillMaxWidth().cardSurface().padding(Spacing.lg),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)
             ) {
-                AvatarStack(listOf(person), total = 1, size = 36.dp)
-                Text(person.name, style = MaterialTheme.typography.titleSmall, color = colors.ink, modifier = Modifier.weight(1f))
+                // Імʼя й фото — вхід у картку: вирішувати, дивлячись на людину, а не на імʼя.
+                Row(
+                    Modifier.weight(1f).clip(Radius.sm).clickable { onIntent(DetailIntent.OpenPerson(person.userId)) },
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)
+                ) {
+                    Avatar(person.name, person.avatarUrl, 36.dp)
+                    Text(person.name, style = MaterialTheme.typography.titleSmall, color = colors.ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                }
                 GhostButton(stringResource(R.string.decline), { onIntent(DetailIntent.DeclineRequest(person.userId)) }, tone = colors.inkSecondary)
                 PrimaryButton(stringResource(R.string.approve), { onIntent(DetailIntent.ApproveRequest(person.userId)) }, enabled = !state.mutating)
             }
@@ -476,22 +512,62 @@ private fun FactCell(label: String, value: String, modifier: Modifier) {
     }
 }
 
+/**
+ * Люди події: організатор і ті, хто йде. Рядок відкриває картку людини — так організатор і учасники
+ * бачать одне одного. Ростер віддає лише організатору й учасникам, решта бачить тільки організатора.
+ */
 @Composable
-private fun Roster(state: DetailState, event: Event) {
+private fun People(state: DetailState, room: Gathering, onIntent: (DetailIntent) -> Unit) {
     val colors = Poruch.colors
+    var expanded by remember { mutableStateOf(false) }
+    val shown = if (expanded) state.attendees else state.attendees.take(ROSTER_COLLAPSED)
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        SectionHeader(stringResource(R.string.attendees_going))
+        GroupedRows {
+            PersonRow(
+                room.organizerName.ifBlank { stringResource(R.string.organizer_short) },
+                state.organizerAvatar,
+                stringResource(R.string.organizer_short)
+            ) { onIntent(DetailIntent.OpenPerson(room.organizerId)) }
+            shown.forEach { person ->
+                HairLine(Modifier.padding(start = Spacing.lg + 40.dp + Spacing.md))
+                PersonRow(person.name.ifBlank { stringResource(R.string.chat_member) }, person.avatarUrl) {
+                    onIntent(DetailIntent.OpenPerson(person.userId))
+                }
+            }
+            if (!expanded && state.attendees.size > ROSTER_COLLAPSED) {
+                HairLine(Modifier.padding(start = Spacing.lg))
+                Text(
+                    stringResource(R.string.attendees_show_all) + " · " + state.attendees.size,
+                    style = MaterialTheme.typography.labelLarge, color = colors.ink,
+                    modifier = Modifier.fillMaxWidth().clickable { expanded = true }.padding(Spacing.lg)
+                )
+            }
+        }
+        // Гість і сторонній бачать лише число: імена — межа RLS.
+        if (state.attendees.isEmpty() && room.attendeeCount > 0) Text(
+            stringResource(R.string.attendees_short, room.attendeeCount, room.capacity),
+            style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary
+        )
+    }
+}
+
+/** Рядок людини: фото, імʼя, необовʼязковий підпис; весь рядок — кнопка на картку. */
+@Composable
+private fun PersonRow(name: String, avatarUrl: String?, caption: String? = null, onClick: () -> Unit) {
+    val colors = Poruch.colors
+    val description = stringResource(R.string.person_open, name)
     Row(
-        Modifier.fillMaxWidth().cardSurface().padding(Spacing.lg),
+        Modifier.fillMaxWidth().semantics(mergeDescendants = true) { contentDescription = description }
+            .clickable(onClick = onClick).padding(horizontal = Spacing.lg, vertical = Spacing.md),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)
     ) {
-        AvatarStack(state.attendees, total = event.gathering?.attendeeCount ?: state.attendees.size)
-        Column {
-            Text(stringResource(R.string.attendees_going).uppercase(), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
-            Text(
-                state.attendees.joinToString(", ") { it.name }.take(ROSTER_PREVIEW),
-                style = MaterialTheme.typography.bodyMedium, color = colors.ink,
-                maxLines = 1, overflow = TextOverflow.Ellipsis
-            )
+        Avatar(name, avatarUrl, 40.dp)
+        Column(Modifier.weight(1f)) {
+            Text(name, style = MaterialTheme.typography.titleSmall, color = colors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            caption?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary) }
         }
+        Icon(Icons.Outlined.ChevronRight, null, Modifier.size(20.dp), tint = colors.inkTertiary)
     }
 }
 
@@ -681,7 +757,8 @@ private fun ScrimButton(icon: ImageVector, description: String, onClick: () -> U
     ) { Icon(icon, description, Modifier.size(18.dp), tint = Color(0xFF14130F)) }
 }
 
-private const val ROSTER_PREVIEW = 80
+/** Скільки учасників видно до «Показати всіх». */
+private const val ROSTER_COLLAPSED = 3
 
 /** Звідки й за скільки проявляється смуга під статусом: обкладинка 400 dp, її низ уже згас у полотно. */
 private val SCRIM_FROM = 180.dp
