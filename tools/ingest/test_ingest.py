@@ -247,6 +247,47 @@ def test_aliases_resolve() -> None:
 
 # ---- Геокодер
 
+def test_osm_dump_fallback() -> None:
+    """Свіжого дампу немає: беремо найновіше із застарілих, а не зупиняємо обхід. Без мережі."""
+    print("\nДамп OSM — запасний варіант")
+    import io, json as _json, tempfile
+    from unittest.mock import patch
+    from . import venues
+    fresh = "2026-09-25T00:00:00Z"
+    old = {"osm3s": {"timestamp_osm_base": "2026-07-15T00:00:00Z"}, "elements": [{"id": 1, "tags": {"name": "старий"}}]}
+    older = {"osm3s": {"timestamp_osm_base": "2026-05-01T00:00:00Z"}, "elements": [{"id": 2, "tags": {"name": "ще старіший"}}]}
+
+    class _Resp(io.BytesIO):
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+
+    def urlopen(req, timeout=0):
+        host = req.full_url.split("/")[2]
+        if host.startswith("overpass-api"): raise OSError("504")
+        if host.startswith("overpass.kumi"): return _Resp(_json.dumps(old).encode())
+        return _Resp(_json.dumps({"elements": []}).encode())
+
+    with tempfile.TemporaryDirectory() as tmp, \
+         patch.object(venues, "CACHE_DIR", venues.pathlib.Path(tmp)), \
+         patch.object(venues.urllib.request, "urlopen", urlopen), \
+         patch.object(venues, "dt", venues.dt):
+        (venues.pathlib.Path(tmp) / "osm_київ.json").write_text(_json.dumps(older), "utf-8")
+        elements = venues.fetch_osm("Київ", refresh=True)
+        check("узято найновіше із застарілого (дзеркало, не кеш)", elements[0]["id"], 1)
+        saved = _json.loads((venues.pathlib.Path(tmp) / "osm_київ.json").read_text("utf-8"))
+        check("кеш оновлено новішим застарілим", saved["osm3s"]["timestamp_osm_base"], "2026-07-15T00:00:00Z")
+
+        def all_down(req, timeout=0): raise OSError("down")
+        with patch.object(venues.urllib.request, "urlopen", all_down):
+            check("усі дзеркала мовчать — живемо з кешу", venues.fetch_osm("Київ", refresh=True)[0]["id"], 1)
+        (venues.pathlib.Path(tmp) / "osm_київ.json").unlink()
+        with patch.object(venues.urllib.request, "urlopen", all_down):
+            try:
+                venues.fetch_osm("Київ", refresh=True); check("без жодного дампу — помилка", True, False)
+            except RuntimeError:
+                check("без жодного дампу — помилка", True, True)
+
+
 def test_geocoder_guards() -> None:
     print("\nГеокодер — запобіжники, без яких він шкодить")
     from .geocode import Geocoder
@@ -737,7 +778,7 @@ def test_catalog_rung() -> None:
 def main() -> int:
     for test in (test_timezone_trap, test_city_trap, test_description_trap,
                  test_title_and_category, test_price, test_venue_matching,
-                 test_aliases_resolve, test_geocoder_guards, test_dedupe, test_extract,
+                 test_aliases_resolve, test_osm_dump_fallback, test_geocoder_guards, test_dedupe, test_extract,
                  test_source_registry, test_build_internet_bilet, test_category_gaps,
                  test_internet_bilet_timezone, test_catalog_rung, test_address_rescue):
         test()

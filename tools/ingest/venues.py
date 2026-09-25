@@ -12,6 +12,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 import pathlib
+import sys
 import urllib.parse
 import urllib.request
 
@@ -70,7 +71,9 @@ def fetch_osm(city: str, *, refresh: bool = False) -> list[dict]:
 
     body = urllib.parse.urlencode({"data": _query(city)}).encode()
     problems: list[str] = []
+    stale: list[tuple[dt.datetime, dict]] = []      # запасний варіант: найновіше з застарілого
     for endpoint in OVERPASS_MIRRORS:
+        host = urllib.parse.urlsplit(endpoint).netloc
         req = urllib.request.Request(
             endpoint, data=body,
             headers={"Accept": "application/json",       # без цього Overpass віддає 406
@@ -80,28 +83,49 @@ def fetch_osm(city: str, *, refresh: bool = False) -> list[dict]:
             with urllib.request.urlopen(req, timeout=240) as r:
                 payload = json.loads(r.read().decode("utf-8"))
         except Exception as exc:
-            problems.append(f"{urllib.parse.urlsplit(endpoint).netloc}: {exc}")
+            problems.append(f"{host}: {exc}")
             continue
         elements = payload.get("elements") or []
         # Порожнє місто — несправність дзеркала або прямокутника, не відповідь: не кешуємо, пробуємо далі.
         if not elements:
-            problems.append(f"{urllib.parse.urlsplit(endpoint).netloc}: порожній дамп"
+            problems.append(f"{host}: порожній дамп"
                             + (f" ({payload['remark']})" if payload.get("remark") else ""))
             continue
         # Дзеркала відстають мовчки: одне віддало Київ станом на чотири місяці тому, і псевдонім
         # «Feels Garden → Feels Live» перестав зводитись, бо назву обʼєкту дали пізніше.
-        stamp = (payload.get("osm3s") or {}).get("timestamp_osm_base") or ""
-        try:
-            age = dt.datetime.now(dt.timezone.utc) - dt.datetime.fromisoformat(stamp.replace("Z", "+00:00"))
-        except ValueError:
-            age = None
-        if age is None or age > MAX_DUMP_AGE:
-            problems.append(f"{urllib.parse.urlsplit(endpoint).netloc}: застарілі дані ({stamp or 'без дати'})")
+        based = _dump_time(payload)
+        if based is None or dt.datetime.now(dt.timezone.utc) - based > MAX_DUMP_AGE:
+            problems.append(f"{host}: застарілі дані ({based or 'без дати'})")
+            if based is not None:
+                stale.append((based, payload))
             continue
         cache.write_text(json.dumps(payload, ensure_ascii=False), "utf-8")
         return elements
+    # Свіжого немає. Застарілий дамп гірший за свіжий, але кращий за зупинку всього обходу:
+    # беремо найновіше із застарілих дзеркал і старого кешу, кажемо про це вголос і не кешуємо
+    # застаріле поверх новішого.
+    if cache.exists():
+        cached = json.loads(cache.read_text("utf-8"))
+        based = _dump_time(cached)
+        if based is not None:
+            stale.append((based, cached))
+    if stale:
+        based, payload = max(stale, key=lambda pair: pair[0])
+        print(f"  ⚠ OSM для {city}: свіжого дампу немає ({'; '.join(problems)}); "
+              f"беремо застарілий станом на {based:%Y-%m-%d}", file=sys.stderr)
+        if not cache.exists() or _dump_time(json.loads(cache.read_text("utf-8"))) != based:
+            cache.write_text(json.dumps(payload, ensure_ascii=False), "utf-8")
+        return payload["elements"]
     # Порожній дамп не має проходити мовчки.
     raise RuntimeError(f"жодне дзеркало Overpass не відповіло для {city!r}: " + "; ".join(problems))
+
+
+def _dump_time(payload: dict) -> dt.datetime | None:
+    stamp = (payload.get("osm3s") or {}).get("timestamp_osm_base") or ""
+    try:
+        return dt.datetime.fromisoformat(stamp.replace("Z", "+00:00"))
+    except ValueError:
+        return None
 
 
 class VenueIndex:

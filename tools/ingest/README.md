@@ -373,7 +373,13 @@ UPDATE на подію займав 55% SQL. Переймаються лише �
 
 ## Розклад
 
-`.github/workflows/ingest.yml` запускає `apply_sql.py run --env prod --apply --yes` кожні три дні
-(і вручну через workflow_dispatch). Потрібен секрет репозиторію `SUPABASE_DB_URL` — рядок
-«Session pooler» prod-проєкту. Кеш геокодера й дампи OSM переносяться між запусками через
-actions/cache; звіт обходу — в артефакті `ingest-<run_id>` на 14 днів.
+GitHub Actions для цього не годиться: Concert.ua відповідає 403 на адреси runner-ів (перевірено
+2026-09-25), а обхід без найбільшого джерела Києва публікує копії з Karabas як окремі події.
+`.github/workflows/ingest.yml` лишено як ручний запасний вхід (workflow_dispatch, секрет
+`SUPABASE_DB_URL`). Регулярний обхід — launchd на Mac: `tools/ingest/launchd/app.poriad.ingest.plist`
+запускає `apply_sql.py run --env prod --apply --yes --keep` кожні три дні о 06:00; пропущений
+запуск (ноутбук спав) launchd виконує при пробудженні. Журнал — `out/launchd.log`.
+
+Дамп OSM: якщо жодне дзеркало Overpass не віддало свіжих даних, береться найновіше із
+застарілого (дзеркало або старий кеш) із попередженням у stderr; обхід зупиняється лише коли
+дампу немає взагалі.
