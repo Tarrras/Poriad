@@ -1,0 +1,73 @@
+<!-- @dsCard group="Screens" -->
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Home — recipe vs app</title>
+<link rel="stylesheet" href="../../../styles.css">
+<style>
+  body { padding: 24px; display: flex; gap: 32px; align-items: flex-start; flex-wrap: wrap; }
+  figure { margin: 0; display: flex; flex-direction: column; gap: 8px; }
+  figcaption { font: 600 11px/14px var(--font); letter-spacing: 1px; text-transform: uppercase; color: var(--ink-tertiary); }
+  .phone { width: 402px; height: 874px; border-radius: 48px; overflow: hidden; position: relative; background: var(--canvas); box-shadow: 0 0 0 1px var(--hairline); }
+  .phone > .p-screen { height: 100%; overflow: hidden; padding-top: 54px; }
+  .shot { width: 402px; height: 874px; border-radius: 48px; box-shadow: 0 0 0 1px var(--hairline); }
+</style>
+</head>
+<body>
+<figure>
+  <figcaption>Built from styles.css</figcaption>
+  <div class="phone">
+    <div class="p-screen">
+      <header class="p-page-header">
+        <div><h1>Що поруч</h1><p>Плани на найближчі дні у місті Київ</p></div>
+        <span class="p-icon-btn"><i class="p-icon i-person"></i></span>
+      </header>
+      <div class="p-search" style="margin-top:20px"><i class="p-icon i-search"></i>Пошук у місті Київ</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:24px">
+        <div class="p-quick p-quick--filled">
+          <span class="p-quick__icon"><i class="p-icon i-plus"></i></span>
+          <div><div class="p-overline">Організувати</div><div class="p-card-name" style="color:inherit">Створити подію</div></div>
+        </div>
+        <div class="p-quick">
+          <span class="p-quick__icon"><i class="p-icon i-map"></i></span>
+          <div><div class="p-overline">Дослідити</div><div class="p-card-name">На мапі</div></div>
+        </div>
+      </div>
+      <div class="p-rows" style="margin-top:32px">
+        <div class="p-row">
+          <span class="p-row__icon"><i class="p-icon i-lock"></i></span>
+          <div><div class="p-row__title">Ваші люди — поруч</div><div class="p-row__sub">Увійдіть, щоб зберігати події та отримувати нагадування.</div></div>
+          <span class="p-create" style="width:32px;height:32px;margin-left:auto;box-shadow:none">→</span>
+        </div>
+      </div>
+      <section class="p-section">
+        <h2 class="p-section-title">Ще для вас</h2>
+        <article class="p-card cat-comedy">
+          <div class="p-card__cover p-cat-fill" style="display:grid;place-items:center;height:120px"><i class="p-icon i-comedy" style="width:40px;height:40px"></i></div>
+          <div class="p-card__body">
+            <div class="p-overline">Сьогодні · 19:00</div>
+            <h3 class="p-card-name">Стендап та вино</h3>
+            <div class="p-descriptor"><span class="p-dot p-cat-ink"></span><b class="p-cat-ink">Стендап</b> · F-Bar, Київ</div>
+          </div>
+        </article>
+      </section>
+    </div>
+    <div class="p-tabbar-wrap">
+      <nav class="p-tabbar p-glass">
+        <span class="p-tab" aria-selected="true"><i class="p-icon i-home"></i>Головна</span>
+        <span class="p-tab"><i class="p-icon i-map"></i>Мапа</span>
+        <span class="p-tab"><i class="p-icon i-calendar"></i>Мої події</span>
+        <span class="p-tab"><i class="p-icon i-person"></i>Профіль</span>
+      </nav>
+      <span class="p-create"><i class="p-icon i-plus" style="width:24px;height:24px"></i></span>
+    </div>
+  </div>
+</figure>
+<figure>
+  <figcaption>App (iOS, 25.09.2026)</figcaption>
+  <img class="shot" src="../../../guidelines/screens/02-home-1-light.png" alt="Home screen screenshot">
+</figure>
+</body>
+</html>

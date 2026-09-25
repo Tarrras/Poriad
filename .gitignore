@@ -39,3 +39,6 @@ graphify-out/
 
 # Android Studio / IntelliJ
 .idea/
+
+# Claude Design upload (built by .design-sync/build.py)
+ds-bundle/

@@ -1,0 +1,7 @@
+{
+  "projectId": "929180c4-fa09-40eb-8202-53fa18e11b8c",
+  "shape": "native-screenshots",
+  "readmeHeader": ".design-sync/conventions.md",
+  "build": "python3 .design-sync/build.py",
+  "localDir": "./ds-bundle"
+}

@@ -1,0 +1,21 @@
+@import "tokens/fonts.css";
+@import "tokens/poriad.css";
+@import "tokens/components.css";
+@import "tokens/icons.css";
+
+/* Base + type roles (px values = iOS default Dynamic Type sizes). */
+body { margin: 0; background: var(--canvas); color: var(--ink); font-family: var(--font); -webkit-font-smoothing: antialiased; }
+
+.t-display   { font-size: 34px; line-height: 40px; font-weight: 700; letter-spacing: -1px; }
+.t-title1    { font-size: 28px; line-height: 34px; font-weight: 700; letter-spacing: -0.8px; }
+.t-title2, .t-section { font-size: 22px; line-height: 28px; font-weight: 700; letter-spacing: -0.5px; }
+.t-title3    { font-size: 17px; line-height: 22px; font-weight: 600; }
+.t-card-name { font-size: 17px; line-height: 22px; font-weight: 600; letter-spacing: -0.2px; }
+.t-lead      { font-size: 17px; line-height: 25px; font-weight: 400; }
+.t-body      { font-size: 16px; line-height: 22px; font-weight: 400; }
+.t-subhead   { font-size: 15px; line-height: 21px; font-weight: 400; }
+.t-caption   { font-size: 13px; line-height: 18px; font-weight: 400; }
+.t-descriptor{ font-size: 13px; line-height: 18px; font-weight: 500; }
+.t-label     { font-size: 15px; line-height: 18px; font-weight: 500; }
+.t-button    { font-size: 16px; line-height: 20px; font-weight: 600; }
+.t-overline  { font-size: 11px; line-height: 14px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; }
