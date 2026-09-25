@@ -327,6 +327,24 @@ RETIRE_MAX_SHARE = 0.3
 RETIRE_ALLOWANCE = 5
 
 
+def demote_sql(items: list[Item], run_id: str) -> list[str]:
+    """Знімає живий рядок події, яку цей обхід бачив, але більше не публікує: пішла в чергу
+    перегляду (без координат, низька якість, конфлікт дат). Без цього старий рядок лишався
+    `live` зі старою точкою, доки подія не закінчиться. Зняття несе run_id, тож наступний обхід,
+    де подія знову проходить фільтри, повертає її в `live` (див. upsert у `_insert`).
+    """
+    parts = []
+    for it in items:
+        if it.stage != "review":
+            continue
+        parts.append(
+            "update public.events e set import_status='withdrawn', updated_at=now(),\n"
+            f"  ingest_run_id={_lit(run_id)}\n"
+            f"where e.source_id=(select id from public.event_sources where slug={_lit(it.source_slug)})\n"
+            f"  and e.source_uid={_lit(it.source_uid)} and e.origin='import' and e.import_status='live';\n")
+    return parts
+
+
 def retire_absent_sql(slug: str, city: str, seen_uids: list[str], run_id: str) -> str:
     """Знімає живі майбутні події, яких цей обхід не бачив (ні опублікованих, ні на перевірці, ні
     дублікатів). Команда після вставок міста: перехід на новий ключ уже перейменував рядки.

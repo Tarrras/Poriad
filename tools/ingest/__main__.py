@@ -132,6 +132,7 @@ def run_city(city: str, sources: list, run_id: str, *, agent: Agent | None = Non
                           + emit.events_sql(items, run_id, max_bytes=statement_bytes))
         sql_parts += emit.withdrawals_sql(source.slug, counters.get("withdrawals", []), run_id)
     sql_parts += emit.duplicates_sql(all_items, run_id)
+    sql_parts += emit.demote_sql(all_items, run_id)
 
     # Зняття за відсутністю останнім: вставки вище вже перейменували рядки з новим ключем.
     retired, skipped = [], []
