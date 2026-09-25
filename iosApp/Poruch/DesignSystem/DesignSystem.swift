@@ -104,14 +104,16 @@ func categoryColor(_ category: String) -> Color {
 func categoryUIColor(_ category: String) -> UIColor { UIColor(rgb: categoryHues[category] ?? 0x6B675E) }
 
 /// Токени палітри для стилю мапи. MapLibre хоче hex, тому кожен резолвиться під поточну тему.
+/// Резолвимо засобами SwiftUI: `UIColor(Color).resolvedColor(with:)` з голою trait collection
+/// на iOS 18 віддає світлий варіант, і темна мапа виходила зі світлою землею й темною водою.
 func mapTokens(_ scheme: ColorScheme) -> MapTokens {
-    let traits = UITraitCollection(userInterfaceStyle: scheme == .dark ? .dark : .light)
+    var environment = EnvironmentValues()
+    environment.colorScheme = scheme
     func hex(_ color: Color) -> String {
-        var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
-        UIColor(color).resolvedColor(with: traits).getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+        let resolved = color.resolve(in: environment)
         return String(
             format: "#%02X%02X%02X",
-            Int((red * 255).rounded()), Int((green * 255).rounded()), Int((blue * 255).rounded())
+            Int((resolved.red * 255).rounded()), Int((resolved.green * 255).rounded()), Int((resolved.blue * 255).rounded())
         )
     }
     return MapTokens(
