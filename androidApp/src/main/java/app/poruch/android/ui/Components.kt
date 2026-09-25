@@ -311,7 +311,7 @@ fun PoruchChip(
         Modifier
             .minimumInteractiveComponentSize()
             .height(38.dp)
-            .background(if (selected) brandGradient() else SolidColor(colors.surface), Radius.pill)
+            .background(if (selected) brandGradient() else SolidColor(LocalFieldSurface.current ?: colors.surface), Radius.pill)
             .border(
                 1.dp,
                 if (selected || !colors.dark) Color.Transparent else colors.hairline,
@@ -823,7 +823,8 @@ fun LabelledField(
                 .fillMaxWidth()
                 .defaultMinSize(minHeight = 56.dp)
                 // Біле поле на сірому полотні: `surfaceMuted` відрізнявся від полотна на два тони і поле зникало.
-                .background(colors.surface, Radius.sm)
+                // У шторці навпаки — див. [LocalFieldSurface].
+                .background(LocalFieldSurface.current ?: colors.surface, Radius.sm)
                 .padding(horizontal = Spacing.lg, vertical = if (singleLine) 0.dp else Spacing.md),
             verticalAlignment = if (singleLine) Alignment.CenterVertically else Alignment.Top,
             horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
@@ -881,7 +882,8 @@ fun PickerField(
                 .fillMaxWidth()
                 .defaultMinSize(minHeight = 56.dp)
                 // Біле поле на сірому полотні: `surfaceMuted` відрізнявся від полотна на два тони і поле зникало.
-                .background(colors.surface, Radius.sm)
+                // У шторці навпаки — див. [LocalFieldSurface].
+                .background(LocalFieldSurface.current ?: colors.surface, Radius.sm)
                 .clip(Radius.sm)
                 .pressable(onClick = onClick)
                 .padding(horizontal = Spacing.lg),

@@ -16,6 +16,8 @@ import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,9 +54,17 @@ fun PoruchSheet(
         scrimColor = (if (colors.dark) colors.canvas else colors.ink).copy(alpha = if (colors.dark) 0.62f else 0.32f),
         dragHandle = { SheetHandle() }
     ) {
-        content(PoruchSheetScope(state, scope, reducedMotion, onDismiss))
+        CompositionLocalProvider(LocalFieldSurface provides colors.surfaceMuted) {
+            content(PoruchSheetScope(state, scope, reducedMotion, onDismiss))
+        }
     }
 }
+
+/**
+ * Фон полів і чипів. Біле поле тримається на сірому полотні, а шторка сама `surface`, і на ній
+ * воно зникає; тому [PoruchSheet] дає вмісту `surfaceMuted`. `null` — звичайний `surface`.
+ */
+internal val LocalFieldSurface = staticCompositionLocalOf<Color?> { null }
 
 /** Тонка риска замість пігулки Material: шторка — папір, ручка — згин. */
 @Composable
