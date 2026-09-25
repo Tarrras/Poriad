@@ -78,4 +78,42 @@ class EventDtoTest {
         assertNotNull(event.gathering)
         assertNull(event.listing)
     }
+
+    /** Картка афіші з міграції місць несе заклад; підпис картки бере його назву замість адреси. */
+    @Test fun aListingCarriesItsPlace() {
+        val event = parse(
+            "origin" to "\"import\"", "source_name" to "\"Karabas\"",
+            "place_id" to "\"p1\"", "place_name" to "\"Малевич\""
+        )
+        assertEquals("p1", event.placeId)
+        assertEquals("Малевич", event.placeName)
+        assertEquals("Малевич", event.placeLabel)
+    }
+
+    /** Спільнотна подія закладу не має: `jsonb_strip_nulls` поля не шле, підпис — адреса. */
+    @Test fun aRowWithoutPlaceFallsBackToAddress() {
+        val event = parse("origin" to "\"import\"", "source_name" to "\"Karabas\"")
+        assertNull(event.placeId)
+        assertEquals("Поділ", event.placeLabel)
+    }
+
+    /** Кеш, записаний до міграції місць: старі картки читаються, заклад просто відсутній. */
+    @Test fun aCacheEntryFromBeforePlacesStillReads() {
+        val card = row("origin" to "\"import\"", "source_name" to "\"Karabas\"")
+        val stored = """{"total":1,"truncated":false,"index":[["e1",50.45,30.52,"music","2030-09-06T19:00:00Z","Europe/Kyiv","Подія","import","karabas",null,0]],"cards":[$card]}"""
+        val page = json.decodeFromString<DiscoveryEnvelope>(stored).domain()
+        assertEquals(listOf("e1"), page.index.map { it.id })
+        assertNull(page.cards.single().placeId)
+        assertEquals("Karabas", page.cards.single().listing?.sourceName)
+    }
+
+    @Test fun aPlaceRowParses() {
+        val place = json.decodeFromString<List<PlaceDto>>(
+            """[{"id":"p1","name":"Малевич","city":"Львів","address":"пр-т В'ячеслава Чорновола, 2, Львів","latitude":49.8475,"longitude":24.0263,"upcoming":26}]"""
+        ).single().domain()
+        assertEquals("Малевич", place.name)
+        assertEquals(26, place.upcoming)
+        assertTrue(place.isAt(49.8475, 24.0263))
+        assertFalse(place.isAt(49.8476, 24.0263))
+    }
 }

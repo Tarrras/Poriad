@@ -75,13 +75,30 @@ data class AppState(
         EventSeries.sessionsOf(event, map.index).ifEmpty { EventSeries.sessionsOf(event, home.index) }
 
     /**
-     * Інші події в цьому ж місці. Обидва індекси разом: мапу міг звузити фільтр чи пошук до
-     * однієї картки, а головна тримає область цілою, але без сьогоднішніх, коли фільтр «сьогодні».
+     * Інші події в цьому ж місці. Для афіші — з `place_events`, коли вони вже приїхали: сервер
+     * знає всі події закладу, а індекс — лише ті, що потрапили в завантажену область. Інакше
+     * (спільнотна подія, офлайн, відповідь ще їде) — з обох індексів разом: мапу міг звузити
+     * фільтр чи пошук до однієї картки, а головна тримає область цілою.
      */
-    internal fun othersAt(event: Event): List<EventIndexEntry> =
-        MapPins.othersAt(event, (map.index + home.index).distinctBy { it.id }).also { others ->
-            PoruchLog.d("detail") { "others at ${event.id.shortId()}: ${others.size} of map=${map.index.size} home=${home.index.size}" }
+    internal fun othersAt(event: Event): List<EventIndexEntry> {
+        val atPlace = detail.placeEvents?.takeIf { it.placeId == event.placeId }
+        val others = if (atPlace != null) othersAmong(event, atPlace.events)
+        else MapPins.othersAt(event, (map.index + home.index).distinctBy { it.id })
+        PoruchLog.d("detail") {
+            "others at ${event.id.shortId()}: ${others.size} of " +
+                if (atPlace != null) "place=${atPlace.events.size}" else "map=${map.index.size} home=${home.index.size}"
         }
+        return others
+    }
+
+    /**
+     * Події закладу без цієї картки, її дублів і сеансів її прокату. Склеюємо, як видачу мапи:
+     * інакше тижневий прокат у кінотеатрі займав би секцію десятком однакових рядків.
+     */
+    private fun othersAmong(event: Event, events: List<Event>): List<EventIndexEntry> =
+        EventSeries.fold(DuplicateEvents.fold(events.map { it.asIndexEntry() }))
+            .filter { it.id != event.id && event.id !in it.mergedWith && it.sessions.none { s -> s.id == event.id } }
+            .sortedBy { it.startsAt }
 
     private fun runOf(id: String) = map.index.firstOrNull { run -> run.sessions.any { it.id == id } }
         ?: home.index.firstOrNull { run -> run.sessions.any { it.id == id } }
@@ -97,12 +114,17 @@ data class DetailState(
     val joinRequests: List<Attendee> = emptyList(),
     /** Фото організатора для рядка в «Ідуть»: проєкція події його не несе. Null — нема фото або не завантажилось. */
     val organizerAvatar: String? = null,
+    /** Майбутні події закладу відкритої афіші, для «Ще в цьому місці». Null — не питали або збій. */
+    val placeEvents: PlaceEvents? = null,
     /**
      * Сама подія ще в дорозі. Поки так, порожній [event] — не «подія недоступна», а спінер.
      * Власний прапорець: `map.loading` про мапу, а не про деталі.
      */
     val loading: Boolean = false
 )
+
+/** Події закладу [placeId] з `place_events`, від найближчої. */
+data class PlaceEvents(val placeId: String, val events: List<Event>)
 
 /** Списки й факти акаунта. Зникають разом з ним, див. [forAccount]. */
 data class LibraryState(

@@ -60,6 +60,13 @@ data class Event(
     /** Є лише в кімнати: блокувати й скаржитись можна тільки на людину. */
     val organizerId get() = gathering?.organizerId
 
+    /** Заклад з `public.places`. Лише в афіші: у спільнотних подій місця нема. */
+    val placeId get() = listing?.placeId
+    val placeName get() = listing?.placeName?.takeIf { it.isNotBlank() }
+
+    /** Підпис місця в картці: назва закладу, коли вона є, інакше адреса або місто. */
+    val placeLabel: String get() = placeName ?: address.ifBlank { city }
+
     /**
      * Опис, який дозволено показати. Для афіші — лише початок: чужа анотація захищена авторським
      * правом (docs/event-ingestion.md §8), решту читають на сайті джерела. Обмеження правове,
@@ -170,7 +177,11 @@ data class Listing(
     /** Найдешевший квиток у гривнях. Null — джерело не сказало, а не «безкоштовно». */
     val priceMin: Double? = null,
     val isFree: Boolean? = null,
-    val status: String = ImportStatus.LIVE
+    val status: String = ImportStatus.LIVE,
+    /** Id у `public.places`: одна точка на мапі, той самий ключ, що в [MapPins]. */
+    val placeId: String? = null,
+    /** Назва закладу («Малевич»), коротша й певніша за початок адреси. */
+    val placeName: String? = null
 ) {
     /** Джерело зняло подію. Збережений запис лишається як позначка, не як план. */
     val isWithdrawn get() = status == ImportStatus.WITHDRAWN

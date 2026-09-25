@@ -87,6 +87,38 @@ internal class SupabaseEventDiscovery(
     override suspend fun attendees(id: String): List<Attendee> =
         rpc.people("event_attendees", buildJsonObject { put("p_event_id", id); put("p_limit", ROSTER_LIMIT) })
 
+    /**
+     * Сервер без міграції місць відповідає `PGRST202`: тоді місць просто нема, а пошук подій
+     * працює як раніше. Порожній текст сервер віддав би `[]` і сам, але запит не вартий того.
+     */
+    override suspend fun searchPlaces(text: String, city: String?, bounds: EventQuery?): List<Place> {
+        val trimmed = text.trim().take(DiscoveryRules.SEARCH_TEXT_LIMIT)
+        if (trimmed.isEmpty()) return emptyList()
+        val response = runCatching {
+            rpc.read("search_places", buildJsonObject {
+                put("p_text", trimmed)
+                put("p_city", city?.let(::JsonPrimitive) ?: JsonNull)
+                if (bounds != null) putBounds(bounds)
+                put("p_limit", DiscoveryRules.PLACES_LIMIT)
+            })
+        }.getOrElse { failure ->
+            if (!failure.isMissingFunction()) throw failure
+            PoruchLog.w("discovery") { "server has no search_places" }
+            return emptyList()
+        }
+        return withContext(compute) { rpc.json.decodeFromJsonElement<List<PlaceDto>>(response).map { it.domain() } }
+    }
+
+    override suspend fun placeEvents(placeId: String): List<Event> {
+        val response = rpc.read("place_events", buildJsonObject {
+            put("p_place_id", placeId)
+            put("p_limit", DiscoveryRules.PLACE_EVENTS_LIMIT)
+        })
+        return withContext(compute) {
+            rpc.json.decodeFromJsonElement<List<EventDto>>(response).map { it.domain() }
+        }.also { PoruchLog.d("discovery") { "${it.size} events at place ${placeId.shortId()}" } }
+    }
+
     override fun clearPrivateCache() { cache.clearPrivate() }
 
     private fun EventQuery.indexParams() = buildJsonObject {

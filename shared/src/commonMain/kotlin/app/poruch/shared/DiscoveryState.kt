@@ -26,6 +26,10 @@ data class MapFeed(
     val indexVersion: Int = 0,
     /** Пошук мапи. У головної свій: [HomeFeed.searchText]. */
     val searchText: String = "",
+    /** Заклади за [searchText] у тій самій області. Порожньо без пошуку. */
+    val places: List<Place> = emptyList(),
+    /** Заклад, обраний у пошуку: мапа наводиться на нього й відкриває його стос. */
+    val placeFocus: PlaceFocus? = null,
     val onlyAvailable: Boolean = false,
     val category: String = ALL_CATEGORIES,
     val dateFilter: String = DateFilter.ANY,
@@ -33,6 +37,17 @@ data class MapFeed(
     /** Показано кеш: мережа не відповіла. */
     val offline: Boolean = false
 )
+
+/**
+ * Заклад, на який тицьнули в пошуку. [eventIds] — події на його піні з видачі, що приїхала
+ * після тапу; null — видача ще їде. [version] росте з кожним тапом, тож повторний тап по тому
+ * самому закладу платформа теж побачить.
+ */
+data class PlaceFocus(val place: Place, val version: Int, val eventIds: List<String>? = null) {
+    /** Події закладу з [index] за часом: той самий стос, що дає тап по піну. */
+    internal fun resolved(index: List<EventIndexEntry>) =
+        copy(eventIds = index.filter { place.isAt(it.latitude, it.longitude) }.sortedBy { it.startsAt }.map { it.id })
+}
 
 /** Область, у якій шукають мапа й головна. */
 data class CityState(
@@ -61,6 +76,8 @@ data class HomeFeed(
     /** Знайдене пошуком головної в тій самій області, ранжоване. */
     val results: List<EventIndexEntry> = emptyList(),
     val resultsTotal: Int = 0,
+    /** Заклади за [searchText] у тій самій області, що й [results]. */
+    val places: List<Place> = emptyList(),
     val searchLoading: Boolean = false,
     /** Пошук головної по всіх містах, а не лише в обраному. */
     val searchEverywhere: Boolean = false,
