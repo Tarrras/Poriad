@@ -18,7 +18,7 @@ create table event_sources (
 create table events (
  id uuid primary key, organizer_id uuid, title text not null check(length(title) between 3 and 120),
  description text, category text, city text, address text, latitude double precision,
- longitude double precision, starts_at timestamptz not null, ends_at timestamptz not null,
+ longitude double precision, place_id uuid references places(id), starts_at timestamptz not null, ends_at timestamptz not null,
  time_zone text, capacity int, image_url text, origin text, source_id uuid references event_sources(id),
  source_uid text, canonical_url text, dedupe_key text, quality numeric,
  import_status text check(import_status in ('live','stale','withdrawn')),
@@ -26,6 +26,14 @@ create table events (
  updated_at timestamptz default now(), check(ends_at > starts_at)
 );
 create unique index events_source_uid_uidx on events(source_id,source_uid) where source_id is not null;
+create table places (
+ id uuid primary key default gen_random_uuid(), name text not null, city text, address text,
+ latitude double precision, longitude double precision, source text, osm_ref text,
+ updated_at timestamptz default now(), unique (latitude, longitude)
+);
+create schema if not exists private;
+create function private.place_source_rank(p_source text) returns integer language sql immutable as $$
+ select case p_source when 'manual' then 3 when 'osm' then 2 else 1 end $$;
 create table venues (
  norm_name text, norm_address text, display_name text, latitude double precision,
  longitude double precision, city text, source text, osm_ref text, confidence numeric,
