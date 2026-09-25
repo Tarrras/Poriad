@@ -1,10 +1,14 @@
 package app.poruch.android.feature.explore
 
+import androidx.lifecycle.viewModelScope
 import app.poruch.android.mvi.MviViewModel
 import app.poruch.domain.CityResult
 import app.poruch.shared.ALL_CATEGORIES
 import app.poruch.shared.DateFilter
 import app.poruch.shared.PoruchApp
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 
 class ExploreViewModel(private val app: PoruchApp) :
     MviViewModel<ExploreState, ExploreIntent, ExploreEffect>(ExploreState()) {
@@ -28,6 +32,7 @@ class ExploreViewModel(private val app: PoruchApp) :
                 cityLongitude = shared.city.longitude,
                 cities = shared.city.suggestions,
                 searchText = shared.map.searchText,
+                places = shared.map.places,
                 category = shared.map.category,
                 dateFilter = shared.map.dateFilter,
                 onlyAvailable = shared.map.onlyAvailable,
@@ -35,6 +40,15 @@ class ExploreViewModel(private val app: PoruchApp) :
                 offline = shared.map.offline,
                 customArea = shared.city.custom
             )
+        }
+        // Тап по закладу в пошуку (тут чи на головній): стос відкриваємо, коли видача сказала, що на піні.
+        // Модель могла з'явитись уже після цього — тоді поточне значення прийде першим.
+        viewModelScope.launch {
+            app.state.map { it.map.placeFocus }.distinctUntilChanged().collect { focus ->
+                val ids = focus?.eventIds ?: return@collect
+                showStack(ids)
+                app.placeFocusShown()
+            }
         }
     }
 
@@ -77,17 +91,13 @@ class ExploreViewModel(private val app: PoruchApp) :
                 }
                 app.selectEvent(intent.id)
             }
-            is ExploreIntent.SelectStack -> {
-                // Одна подія — звичайний вибір; кілька — стос.
-                if (intent.ids.size <= 1) {
-                    reduce { copy(stackIds = emptyList()) }
-                    intent.ids.firstOrNull()?.let { app.selectEvent(it) }
-                } else {
-                    reduce { copy(stackIds = intent.ids) }
-                    // Стос — не початок стрічки, вікно його не покриває.
-                    app.loadCards(intent.ids)
-                    app.selectEvent(intent.ids.first())
+            is ExploreIntent.SelectStack -> showStack(intent.ids)
+            // Шторку опускаємо: людина хоче бачити заклад на мапі. Плитки категорій скидаємо, як для FocusEvent.
+            is ExploreIntent.FocusPlace -> {
+                reduce {
+                    copy(stackIds = emptyList(), detent = SheetDetent.PEEK, sheet = ExploreSheet.NONE, listCategory = ALL_CATEGORIES)
                 }
+                app.focusPlace(intent.place)
             }
             // Знімає і підсвітку піна, інакше мапа й список розходились.
             ExploreIntent.ClearStack -> {
@@ -122,6 +132,19 @@ class ExploreViewModel(private val app: PoruchApp) :
             }
             is ExploreIntent.LocatedAt -> app.selectCity(CityResult(intent.name, intent.latitude, intent.longitude))
             ExploreIntent.LocationDenied -> reduce { copy(locationDenied = true) }
+        }
+    }
+
+    /** Одна подія — звичайний вибір; кілька — стос. Вибір наводить мапу на пін. */
+    private fun showStack(ids: List<String>) {
+        if (ids.size <= 1) {
+            reduce { copy(stackIds = emptyList()) }
+            ids.firstOrNull()?.let { app.selectEvent(it) }
+        } else {
+            reduce { copy(stackIds = ids) }
+            // Стос — не початок стрічки, вікно його не покриває.
+            app.loadCards(ids)
+            app.selectEvent(ids.first())
         }
     }
 

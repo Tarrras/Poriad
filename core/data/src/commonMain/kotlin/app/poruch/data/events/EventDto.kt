@@ -6,6 +6,7 @@ import app.poruch.domain.Gathering
 import app.poruch.domain.ImportStatus
 import app.poruch.domain.Listing
 import app.poruch.domain.Membership
+import app.poruch.domain.Place
 import app.poruch.domain.SafetyRules
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerialName
@@ -47,7 +48,10 @@ internal data class EventDto(
     @SerialName("price_min") val priceMin: Double? = null,
     @SerialName("is_free") val isFree: Boolean? = null,
     // Лише для організатора й підтверджених: решті сервер віддає null. Картки з `discover_events` його не несуть.
-    @SerialName("contact_url") val contactUrl: String? = null
+    @SerialName("contact_url") val contactUrl: String? = null,
+    // Лише афіша (міграція 20260925120000). `event_details` і кеш до неї поля не несуть.
+    @SerialName("place_id") val placeId: String? = null,
+    @SerialName("place_name") val placeName: String? = null
 ) {
     fun domain() = Event(
         id = id, title = title, description = description, category = category,
@@ -88,9 +92,25 @@ internal data class EventDto(
             canonicalUrl = canonicalUrl,
             priceMin = priceMin,
             isFree = isFree,
-            status = importStatus ?: ImportStatus.LIVE
+            status = importStatus ?: ImportStatus.LIVE,
+            placeId = placeId,
+            placeName = placeName
         )
     }
+}
+
+/** Елемент відповіді `search_places`. */
+@Serializable
+internal data class PlaceDto(
+    val id: String,
+    val name: String,
+    val city: String = "",
+    val address: String = "",
+    val latitude: Double,
+    val longitude: Double,
+    val upcoming: Int = 0
+) {
+    fun domain() = Place(id, name, city, address, latitude, longitude, upcoming)
 }
 
 /** Рядок `public.message_result` з `event_messages`. */

@@ -59,7 +59,10 @@ internal class UserLibrary(
         }
         val willLoad = full || known == null
         store.update {
-            it.copy(detail = DetailState(event = known ?: it.detail.event?.takeIf { open -> open.id == id || stay }, loading = willLoad))
+            val shown = known ?: it.detail.event?.takeIf { open -> open.id == id || stay }
+            // Інша дата того ж закладу: «Ще в цьому місці» не блимає, поки події закладу перечитуються.
+            val atPlace = it.detail.placeEvents?.takeIf { place -> shown?.placeId == place.placeId }
+            it.copy(detail = DetailState(event = shown, loading = willLoad, placeEvents = atPlace))
         }
         if (!willLoad) {
             PoruchLog.d("detail") { "select ${id.shortId()} from memory, no request" }
@@ -67,7 +70,8 @@ internal class UserLibrary(
         }
         detailJob = scope.launch {
             try {
-                val event = events.details(id)
+                // `event_details` віддає старий композит без закладу: беремо його з картки.
+                val event = events.details(id)?.withPlaceOf(store.value.cards[id] ?: known)
                 PoruchLog.d("detail") { "loaded ${id.shortId()} kind=${if (event?.isCommunity == true) "community" else "listing"} joined=${event?.gathering?.joined} attendees=${event?.gathering?.attendeeCount}/${event?.gathering?.capacity} status=${event?.status}" }
                 if (openEventId == id) {
                     detail { copy(event = event, loading = false) }
@@ -78,6 +82,12 @@ internal class UserLibrary(
             } catch (e: Exception) {
                 if (openEventId == id) detail { copy(loading = false) }
                 store.failed(e.asAppError())
+            }
+            // Події закладу для «Ще в цьому місці». Збій лишає секцію на індексі мапи.
+            val placeId = store.value.detail.event?.takeIf { it.id == id }?.placeId
+            if (full && placeId != null) {
+                val atPlace = optional { events.placeEvents(placeId) }
+                if (openEventId == id && atPlace != null) detail { copy(placeEvents = PlaceEvents(placeId, atPlace)) }
             }
             // Учасники — доповнення до лічильника, тож збій лишає лише число. Афішу не питаємо:
             // ростер бачать організатор і учасники (`can_view_members`), а в неї нема ні тих, ні тих.
@@ -107,6 +117,13 @@ internal class UserLibrary(
             } else emptyList()
             if (openEventId == id) detail { copy(ratings = ratings) }
         }
+    }
+
+    private fun Event.withPlaceOf(card: Event?): Event {
+        val own = listing ?: return this
+        val place = card?.takeIf { it.id == id }?.listing ?: return this
+        if (own.placeId != null || place.placeId == null) return this
+        return copy(listing = own.copy(placeId = place.placeId, placeName = place.placeName))
     }
 
     private fun detail(change: DetailState.() -> DetailState) = store.update { it.copy(detail = it.detail.change()) }

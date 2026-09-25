@@ -85,6 +85,10 @@ struct EventDetailView: View {
                 othersHere = model.app.othersAt(event: anchor)
             }
         }
+        // Події закладу з сервера приїхали: «Ще в цьому місці» бачить і те, чого нема в індексі мапи.
+        .onChange(of: model.state?.detail.placeEvents) {
+            if let anchor { othersHere = model.app.othersAt(event: anchor) }
+        }
         .task(id: photo) { if let event = view.event { await actions.upload(photo, to: event) } }
         // У деталей власна нижня панель, таббар стояв би на ній.
         .hidesTabBar()
@@ -157,7 +161,7 @@ struct EventDetailView: View {
             facts(event)
             if let room = view.room { people(room, view) }
             venue(event)
-            if !othersHere.isEmpty { othersHereSection }
+            if !othersHere.isEmpty { othersHereSection(placeName: event.placeName) }
             description(event)
             if view.hasChat || view.contactURL != nil { contact(view) }
             if view.organizer && !view.requests.isEmpty { joinRequests(event, view) }
@@ -497,11 +501,11 @@ extension EventDetailView {
         }
     }
 
-    /// Інші події на цій точці. Заголовок — місце, тому рядку досить дати й назви. Окремий екран
-    /// поверх, а не підміна: «назад» має повертати сюди; `.task` вище перечитає подію після повернення.
-    private var othersHereSection: some View {
+    /// Інші події на цій точці. Заголовок — місце (назва закладу, коли є), тому рядку досить дати й назви.
+    /// Окремий екран поверх, а не підміна: «назад» має повертати сюди; `.task` вище перечитає подію після повернення.
+    private func othersHereSection(placeName: String?) -> some View {
         VStack(alignment: .leading, spacing: Space.sm) {
-            SectionHeader(title: "Ще в цьому місці")
+            SectionHeader(title: placeName.map { "Ще в «\($0)»" } ?? "Ще в цьому місці")
             VStack(spacing: 0) {
                 ForEach(othersHere, id: \.id) { other in
                     let label = sessionLabel(EventSession(id: other.id, startsAt: other.startsAt, timeZone: other.timeZone, cancelled: false))

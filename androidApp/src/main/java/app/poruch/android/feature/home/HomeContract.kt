@@ -3,6 +3,7 @@ package app.poruch.android.feature.home
 import app.poruch.domain.ChatUnread
 import app.poruch.domain.Event
 import app.poruch.domain.HomeLocation
+import app.poruch.domain.Place
 import app.poruch.shared.ALL_CATEGORIES
 import app.poruch.shared.DateFilter
 
@@ -39,6 +40,8 @@ data class HomeState(
     val resultsIndexed: Int = 0,
     /** Скільки знайдено насправді. */
     val resultsTotal: Int = 0,
+    /** Заклади за тим самим запитом: секція «Місця» під подіями. */
+    val places: List<Place> = emptyList(),
     val searchLoading: Boolean = false,
     /** Пошук по всіх містах, а не лише в [cityName]. Фільтри пошуку звужують лише знайдене, не стрічку. */
     val searchEverywhere: Boolean = false,
@@ -48,7 +51,7 @@ data class HomeState(
     val cityMatch: HomeLocation? = null
 ) {
     val searching get() = searchText.isNotBlank()
-    val isEmpty get() = if (searching) results.isEmpty() else suggested.isEmpty() && today.isEmpty() && rest.isEmpty()
+    val isEmpty get() = if (searching) results.isEmpty() && places.isEmpty() else suggested.isEmpty() && today.isEmpty() && rest.isEmpty()
     val busy get() = if (searching) searchLoading else loading
 }
 
@@ -75,6 +78,8 @@ sealed interface HomeIntent {
     /** «На мапі» біля заголовка результатів у місті: мапа відкривається з тим самим пошуком. Єдиний міст між пошуками. */
     data object ShowResultsOnMap : HomeIntent
     data class OpenEvent(val id: String) : HomeIntent
+    /** Заклад з пошуку: мапа переходить до нього й відкриває його стос. */
+    data class OpenPlace(val place: Place) : HomeIntent
     /** Прямо в чат події, минаючи деталі. */
     data class OpenChat(val id: String) : HomeIntent
     data class ToggleSaved(val id: String) : HomeIntent

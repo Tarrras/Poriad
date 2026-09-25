@@ -52,9 +52,11 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
@@ -72,6 +74,7 @@ import com.airbnb.lottie.compose.LottieConstants
 import com.airbnb.lottie.compose.rememberLottieComposition
 import app.poruch.domain.Attendee
 import app.poruch.domain.Event
+import app.poruch.domain.Place
 import coil3.compose.AsyncImage
 
 /**
@@ -995,11 +998,9 @@ fun EventDescriptor(event: Event, modifier: Modifier = Modifier, withCity: Boole
             stringResource(categoryLabel(event.category)),
             style = PoruchType.descriptor, color = categoryInk(event.category), maxLines = 1
         )
-        // Роздільник лише коли є текст праворуч.
+        // Роздільник лише коли є текст праворуч. Назва закладу, коли є, замість адреси.
         // Місто першим: у видачі з різних міст воно важливіше за адресу й не зникає під трьома крапками.
-        val place = if (withCity) listOf(event.city, event.address).filter { it.isNotBlank() }
-            .joinToString(", ")
-        else event.address.ifBlank { event.city }
+        val place = if (withCity) placeWithCity(event) else event.placeLabel
         place.takeIf { it.isNotBlank() }?.let { place ->
             Text(
                 "· $place",
@@ -1140,6 +1141,124 @@ fun EventRow(event: Event, modifier: Modifier = Modifier, unread: Int = 0, onCli
         // Непрочитане в чаті — той самий бейдж, що на вкладці: видно, куди він веде.
         if (unread > 0) CountBadge(unread)
         Icon(Icons.Outlined.ChevronRight, null, Modifier.size(18.dp), tint = colors.inkTertiary)
+    }
+}
+
+/** Місто перед закладом чи адресою, якщо адреса вже з нього не починається. */
+private fun placeWithCity(event: Event): String {
+    val place = event.placeLabel
+    return if (event.city.isBlank() || place == event.city || place.startsWith(event.city + ",")) place
+    else listOf(event.city, place).filter { it.isNotBlank() }.joinToString(", ")
+}
+
+/** Відступ лінії між рядками видачі пошуку: від тексту, а не від краю. */
+val ResultRowInset = Spacing.lg + 56.dp + Spacing.md
+
+/**
+ * Рядок видачі пошуку: обкладинка категорії, дата, назва й «категорія · місце · ціна»; справа —
+ * стан кімнати. Кілька рядків збирає [GroupedRows]. Афіша підписана джерелом окремим рядком:
+ * атрибуція на картці обов'язкова (docs/event-ingestion.md §8).
+ */
+@Composable
+fun EventResultRow(
+    event: Event,
+    modifier: Modifier = Modifier,
+    waitlisted: Boolean = false,
+    /** Назвати місто в підписі: видача з різних міст. */
+    withCity: Boolean = false,
+    onClick: () -> Unit
+) {
+    val colors = Poruch.colors
+    val badge = resultBadge(event, waitlisted)
+    val price = event.listing?.takeIf { it.isFree == true || it.priceMin != null }
+        ?.let { listingPrice(it).replaceFirstChar { c -> c.lowercase() } }
+    val subtitle = listOfNotNull(
+        stringResource(categoryLabel(event.category)),
+        (if (withCity) placeWithCity(event) else event.placeLabel).takeIf { it.isNotBlank() },
+        price
+    ).joinToString(" · ")
+    Row(
+        modifier
+            .fillMaxWidth()
+            .semantics(mergeDescendants = true) {}
+            .pressable(onClick = onClick)
+            .padding(horizontal = Spacing.lg, vertical = Spacing.md)
+            .alpha(if (event.isCancelled) 0.6f else 1f),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.md),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        EventImage(event, Modifier.size(56.dp).clip(Radius.xs), glyphSize = 22.dp)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                cardOverline(event, dateWords()), style = MaterialTheme.typography.labelSmall,
+                color = colors.inkTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                event.title, style = MaterialTheme.typography.titleSmall, color = colors.ink,
+                maxLines = 2, overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                subtitle, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary,
+                maxLines = 1, overflow = TextOverflow.Ellipsis
+            )
+            event.listing?.let { listing ->
+                Text(
+                    stringResource(R.string.listing_badge, listing.sourceName), style = MaterialTheme.typography.labelSmall,
+                    color = colors.inkTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+        badge?.let { (text, tone) -> StatusBadge(text, tone) }
+    }
+}
+
+/** Бейдж рядка видачі: лише те, що міняє рішення, — скасування, зняття, стан кімнати. Джерело афіші — окремим рядком. */
+@Composable
+private fun resultBadge(event: Event, waitlisted: Boolean): Pair<String, BadgeTone>? {
+    if (event.isCancelled) return stringResource(R.string.cancelled) to BadgeTone.Danger
+    if (event.listing?.isWithdrawn == true) return stringResource(R.string.listing_withdrawn) to BadgeTone.Neutral
+    val room = event.gathering ?: return null
+    if (event.hasEnded(kotlin.time.Clock.System.now())) return null
+    return when {
+        room.joined -> stringResource(R.string.going) to BadgeTone.Success
+        waitlisted -> stringResource(R.string.in_queue) to BadgeTone.Accent
+        room.isFull -> stringResource(R.string.full) to BadgeTone.Neutral
+        room.isScarce -> pluralStringResource(R.plurals.seats_short, room.seatsLeft, room.seatsLeft) to BadgeTone.Accent
+        else -> null
+    }
+}
+
+/** Рядок закладу в пошуку: піктограма місця, назва, адреса й скільки подій попереду. */
+@Composable
+fun PlaceRow(place: Place, modifier: Modifier = Modifier, withCity: Boolean = false, onClick: () -> Unit) {
+    val colors = Poruch.colors
+    val address = if (withCity && place.city.isNotBlank() && !place.address.contains(place.city)) {
+        listOf(place.city, place.address).filter { it.isNotBlank() }.joinToString(", ")
+    } else place.address
+    val subtitle = listOf(address, pluralStringResource(R.plurals.place_upcoming, place.upcoming, place.upcoming))
+        .filter { it.isNotBlank() }.joinToString(" · ")
+    Row(
+        modifier
+            .fillMaxWidth()
+            .semantics(mergeDescendants = true) {}
+            .pressable(onClick = onClick)
+            .padding(horizontal = Spacing.lg, vertical = Spacing.md),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.md),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(Modifier.size(40.dp).background(colors.surfaceMuted, Radius.xs), contentAlignment = Alignment.Center) {
+            Icon(PoruchIcons.pin, null, Modifier.size(20.dp), tint = colors.ink)
+        }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                place.name, style = MaterialTheme.typography.titleSmall, color = colors.ink,
+                maxLines = 1, overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                subtitle, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary,
+                maxLines = 2, overflow = TextOverflow.Ellipsis
+            )
+        }
     }
 }
 
@@ -1529,6 +1648,39 @@ fun LinkRow(
             color = colors.ink
         )
         Icon(Icons.Outlined.ChevronRight, null, Modifier.size(18.dp), tint = colors.inkTertiary)
+    }
+}
+
+/** Підпис над [GroupedRows] капітеллю: «Події · 7», «Місця». Праворуч — необов'язкова дія. */
+@Composable
+fun GroupLabel(text: String, modifier: Modifier = Modifier, actionLabel: String? = null, onAction: (() -> Unit)? = null) {
+    val colors = Poruch.colors
+    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text.uppercase(), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary,
+            modifier = Modifier.weight(1f).semantics { heading() }
+        )
+        if (actionLabel != null && onAction != null) Text(
+            actionLabel, style = MaterialTheme.typography.labelMedium, color = colors.ink,
+            modifier = Modifier
+                .clip(Radius.pill)
+                .clickable(onClick = onAction)
+                .padding(horizontal = Spacing.sm, vertical = Spacing.xs)
+        )
+    }
+}
+
+/** Секція «Місця» у видачі пошуку: заклади з тим самим словом. Тап — мапа на закладі. */
+@Composable
+fun PlacesGroup(places: List<Place>, withCity: Boolean, modifier: Modifier = Modifier, onOpen: (Place) -> Unit) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        GroupLabel(stringResource(R.string.search_places_group))
+        GroupedRows {
+            places.forEachIndexed { position, place ->
+                if (position > 0) HairLine(Modifier.padding(start = Spacing.lg + 40.dp + Spacing.md))
+                PlaceRow(place, withCity = withCity) { onOpen(place) }
+            }
+        }
     }
 }
 

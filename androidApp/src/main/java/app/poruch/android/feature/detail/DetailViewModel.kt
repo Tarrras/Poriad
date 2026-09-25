@@ -6,6 +6,7 @@ import app.poruch.domain.Event
 import app.poruch.domain.EventIndexEntry
 import app.poruch.domain.EventSession
 import app.poruch.domain.RatingRules
+import app.poruch.shared.PlaceEvents
 import app.poruch.shared.PoruchApp
 import kotlin.time.Clock
 
@@ -43,6 +44,8 @@ class DetailViewModel(
     /** Картку вже показували: порожній слот далі — не завантаження, а інший екран деталей поверх. */
     private var shown = false
     private var carouselFrom: Pair<Event, List<EventIndexEntry>>? = null
+    /** Події закладу, з яких порахували [nearby]: приїхали — перераховуємо «Ще в цьому місці». */
+    private var nearbyFrom: PlaceEvents? = null
     /** На кого скарга з картки: картка вже закрита, коли людина обирає причину. */
     private var reportedUser: String? = null
 
@@ -64,6 +67,10 @@ class DetailViewModel(
                 carousel = app.sessionsOf(source)
                 nearby = app.othersAt(source)
                 carouselFrom = source to shared.map.index
+                nearbyFrom = shared.detail.placeEvents
+            } else if (source != null && nearbyFrom !== shared.detail.placeEvents) {
+                nearby = app.othersAt(source)
+                nearbyFrom = shared.detail.placeEvents
             }
             if (event != null) shown = true
             val now = Clock.System.now()

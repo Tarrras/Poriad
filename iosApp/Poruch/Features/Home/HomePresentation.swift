@@ -30,6 +30,8 @@ struct HomePresentation {
     let resultIDs: [String]
     /// Скільки знайдено насправді.
     let resultsTotal: Int
+    /// Заклади за тим самим запитом: секція «Місця» під подіями.
+    let places: [Place]
     /// Фільтри пошуку: усі міста чи лише обране, категорія, дата. Стрічку не звужують.
     let searchEverywhere: Bool
     let searchCategory: String
@@ -70,6 +72,7 @@ struct HomePresentation {
         searchLoading = home?.searchLoading == true
         totalFound = Int(home?.totalFound ?? 0)
         resultsTotal = Int(home?.resultsTotal ?? 0)
+        places = home?.places ?? []
         searchText = home?.searchText ?? ""
         searchEverywhere = home?.searchEverywhere == true
         searchCategory = home?.searchCategory ?? DiscoveryStateKt.ALL_CATEGORIES
