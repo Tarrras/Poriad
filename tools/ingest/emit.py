@@ -100,6 +100,43 @@ def bounded_sql(items: list, render, max_bytes: int) -> list[str]:
     return bounded_sql(items[:middle], render, max_bytes) + bounded_sql(items[middle:], render, max_bytes)
 
 
+def places_sql(items: list[Item]) -> str:
+    """Місця (20260925120000): один рядок на точку, назва — з найвищого щабля. Перетираємо назву
+    лише щаблем не нижчим за поточний: `manual` з aliases.json дамп із Photon не зіпсує."""
+    by_point: dict[tuple, Item] = {}
+    for it in items:
+        if it.stage != "published" or it.latitude is None:
+            continue
+        key = (it.latitude, it.longitude)
+        if key not in by_point or _PLACE_RANK.get(it.venue_how, 1) > _PLACE_RANK.get(by_point[key].venue_how, 1):
+            by_point[key] = it
+    rows = []
+    for (lat, lon), it in by_point.items():
+        name = (it.venue_display or it.venue_name or it.address.split(",")[0]).strip()[:200]
+        if not name:
+            continue
+        row = "  (" + ",".join([_lit(name), _lit(it.city), _lit(it.address), repr(lat), repr(lon),
+                                _lit(_PLACE_SOURCE.get(it.venue_how, "source")), _lit(it.venue_ref)]) + ")"
+        try:
+            row.encode("utf-8")      # сурогат у назві з геокодера — подія без місця, не без дампу
+        except UnicodeEncodeError:
+            continue
+        rows.append(row)
+    if not rows:
+        return ""
+    return ("insert into public.places (name,city,address,latitude,longitude,source,osm_ref)\nvalues\n"
+            + ",\n".join(rows)
+            + "\non conflict (latitude,longitude) do update set\n"
+              "  name=excluded.name, city=excluded.city, address=excluded.address,\n"
+              "  source=excluded.source, osm_ref=excluded.osm_ref, updated_at=now()\n"
+              "where private.place_source_rank(excluded.source) >= private.place_source_rank(places.source);\n")
+
+
+# Щабель драбини → джерело назви місця, як у CHECK на places.source.
+_PLACE_SOURCE = {"alias": "manual", "exact": "osm", "contains": "osm", "photon": "photon", "detail": "photon"}
+_PLACE_RANK = {"alias": 3, "exact": 2, "contains": 2}
+
+
 def _insert(publishable: list[Item], run_id: str) -> str:
     rows: list[str] = []
     for it in publishable:
@@ -120,13 +157,16 @@ def _insert(publishable: list[Item], run_id: str) -> str:
     # Ручне зняття (`withdrawn` з `ingest_run_id is null`, див. docs/event-ingestion.md) upsert
     # не скасовує; автоматичні зняття несуть run_id, і повернута в афішу подія знову `live`.
     return ("".join(_adopt_identity(it) for it in publishable) + _adopt_moved_urls(publishable) +
+        places_sql(publishable) +
         "insert into public.events (\n"
-        "  id,organizer_id,title,description,category,city,address,latitude,longitude,\n"
+        "  id,organizer_id,title,description,category,city,address,latitude,longitude,place_id,\n"
         "  starts_at,ends_at,time_zone,capacity,image_url,\n"
         "  origin,source_id,source_uid,canonical_url,dedupe_key,quality,import_status,\n"
         "  price_min,is_free,ingest_run_id)\n"
         "select v.id::uuid, s.organizer_id, v.title, v.description, v.category, v.city, v.address,\n"
-        "  v.latitude::float8, v.longitude::float8, v.starts_at::timestamptz, v.ends_at::timestamptz,\n"
+        "  v.latitude::float8, v.longitude::float8,\n"
+        "  (select p.id from public.places p where p.latitude=v.latitude::float8 and p.longitude=v.longitude::float8),\n"
+        "  v.starts_at::timestamptz, v.ends_at::timestamptz,\n"
         "  v.time_zone,\n"
         "  null,                       -- місткості в афіші немає — і колонка може це сказати\n"
         "                              -- (20260907150000): вигадана одиниця малювала «Лишилось 1 місце».\n"
@@ -141,7 +181,7 @@ def _insert(publishable: list[Item], run_id: str) -> str:
           "on conflict (source_id,source_uid) where source_id is not null do update set\n"
           "  title=excluded.title, description=excluded.description, category=excluded.category,\n"
           "  city=excluded.city, address=excluded.address,\n"
-          "  latitude=excluded.latitude, longitude=excluded.longitude,\n"
+          "  latitude=excluded.latitude, longitude=excluded.longitude, place_id=excluded.place_id,\n"
           "  starts_at=excluded.starts_at, ends_at=excluded.ends_at, time_zone=excluded.time_zone,\n"
           "  image_url=excluded.image_url, canonical_url=excluded.canonical_url,\n"
           "  dedupe_key=excluded.dedupe_key, quality=excluded.quality,\n"
@@ -285,6 +325,24 @@ def duplicates_sql(items: list[Item], run_id: str) -> list[str]:
 # зламаний парсер дає майже 100%, і зняття не відбувається. П'ять дозволено завжди для малих міст.
 RETIRE_MAX_SHARE = 0.3
 RETIRE_ALLOWANCE = 5
+
+
+def demote_sql(items: list[Item], run_id: str) -> list[str]:
+    """Знімає живий рядок події, яку цей обхід бачив, але більше не публікує: пішла в чергу
+    перегляду (без координат, низька якість, конфлікт дат). Без цього старий рядок лишався
+    `live` зі старою точкою, доки подія не закінчиться. Зняття несе run_id, тож наступний обхід,
+    де подія знову проходить фільтри, повертає її в `live` (див. upsert у `_insert`).
+    """
+    parts = []
+    for it in items:
+        if it.stage != "review":
+            continue
+        parts.append(
+            "update public.events e set import_status='withdrawn', updated_at=now(),\n"
+            f"  ingest_run_id={_lit(run_id)}\n"
+            f"where e.source_id=(select id from public.event_sources where slug={_lit(it.source_slug)})\n"
+            f"  and e.source_uid={_lit(it.source_uid)} and e.origin='import' and e.import_status='live';\n")
+    return parts
 
 
 def retire_absent_sql(slug: str, city: str, seen_uids: list[str], run_id: str) -> str:

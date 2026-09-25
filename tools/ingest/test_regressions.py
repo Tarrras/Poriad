@@ -418,6 +418,21 @@ class RegressionTests(unittest.TestCase):
         self.assertEqual(items[0].previous_start, dt.datetime.fromisoformat("2026-10-16T18:00:00+03:00"))
 
 
+class Demotion(unittest.TestCase):
+    def test_reviewed_event_withdraws_its_live_row_reversibly(self):
+        from .test_ingest import _item
+        run = "00000000-0000-0000-0000-000000000001"
+        kept, demoted = _item("concert_ua", "Живий"), _item("concert_ua", "Без точки", lat=None, lon=None)
+        demoted.stage, demoted.reject_reason = "review", "NO_GEO"
+        sql = "".join(emit.demote_sql([kept, demoted], run))
+        self.assertEqual(sql.count("update public.events"), 1)
+        self.assertIn(f"source_uid='{demoted.source_uid}'", sql)
+        self.assertIn("import_status='withdrawn'", sql)
+        self.assertIn(f"ingest_run_id='{run}'", sql)          # з run_id — наступний обхід поверне в live
+        self.assertIn("import_status='live'", sql)             # ручне зняття не перезаписується
+        self.assertEqual(emit.demote_sql([kept], run), [])
+
+
 class Robustness(unittest.TestCase):
     """Одна брудна подія чи зламана верстка не мають ні валити дамп, ні минати мовчки."""
 

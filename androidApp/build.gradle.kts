@@ -10,7 +10,7 @@ val local = Properties().apply { rootProject.file("local.properties").takeIf { i
 fun config(name: String, default: String = "") = (local.getProperty(name) ?: System.getenv(name) ?: default).replace("\\", "\\\\").replace("\"", "\\\"")
 android {
     namespace = "app.poruch.android"
-    compileSdk = 36
+    compileSdk = 37
     defaultConfig {
         applicationId = "app.poriad.android"
         minSdk = 26
@@ -82,8 +82,8 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.10.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0")
-    implementation("androidx.navigation3:navigation3-runtime:1.0.1")
-    implementation("androidx.navigation3:navigation3-ui:1.0.1")
+    implementation("androidx.navigation3:navigation3-runtime:1.2.0")
+    implementation("androidx.navigation3:navigation3-ui:1.2.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-navigation3:2.10.0")
     // Koin: граф, моделі й записи стека навігації. Версія збігається з koin-core у :shared.
     implementation(platform("io.insert-koin:koin-bom:4.2.2"))
