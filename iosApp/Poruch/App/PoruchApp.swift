@@ -146,7 +146,7 @@ struct RootView: View {
                 }.tag(0)
                 NavigationStack { DiscoveryView(openToken: mapToken).toolbar(.hidden, for: .tabBar) }.tag(1)
                 NavigationStack(path: $minePath) {
-                    MyEventsView(openEvent: { minePath.append(EventRoute(id: $0)) })
+                    MyEventsView(openEvent: { minePath.append(EventRoute(id: $0)) }, openChat: { minePath.append(ChatRoute(id: $0)) })
                         .safeAreaPadding(.bottom, 92).toolbar(.hidden, for: .tabBar)
                         .navigationDestination(for: EventRoute.self) { EventDetailView(app: model.app, eventID: $0.id) }
                         .navigationDestination(for: ChatRoute.self) { ChatView(eventID: $0.id) }

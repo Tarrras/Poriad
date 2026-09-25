@@ -907,7 +907,7 @@ fun PickerField(
 
 /** Обкладинка без фото — градієнт категорії з її гліфом. Фото отримує затемнення знизу під білі бейджі. */
 @Composable
-private fun EventImage(event: Event, modifier: Modifier, glyphSize: Dp = 26.dp) {
+fun EventImage(event: Event, modifier: Modifier, glyphSize: Dp = 26.dp) {
     Box(
         modifier.background(categoryGradient(event.category)),
         contentAlignment = Alignment.Center
@@ -955,6 +955,7 @@ private fun eventStatus(event: Event, waitlisted: Boolean = false): Pair<String,
     if (event.hasEnded(kotlin.time.Clock.System.now())) return null
     return when {
         room.joined -> stringResource(R.string.going) to BadgeTone.Success
+        room.awaitingApproval -> stringResource(R.string.request_pending) to BadgeTone.Accent
         waitlisted -> stringResource(R.string.in_queue) to BadgeTone.Accent
         room.isFull -> stringResource(R.string.full) to BadgeTone.Neutral
         room.isScarce -> stringResource(R.string.seats_left, room.seatsLeft) to BadgeTone.Accent
@@ -1011,7 +1012,7 @@ fun EventDescriptor(event: Event, modifier: Modifier = Modifier, withCity: Boole
 }
 
 @Composable
-private fun SaveButton(saved: Boolean, onSave: () -> Unit, modifier: Modifier = Modifier) {
+fun SaveButton(saved: Boolean, onSave: () -> Unit, modifier: Modifier = Modifier) {
     val colors = Poruch.colors
     Box(
         modifier
@@ -1105,9 +1106,21 @@ fun EventCard(
 
 /** Компактний рядок списку: квадратне превʼю, назва, опис. */
 @Composable
-fun EventRow(event: Event, modifier: Modifier = Modifier, unread: Int = 0, onClick: () -> Unit) {
+fun EventRow(
+    event: Event,
+    modifier: Modifier = Modifier,
+    unread: Int = 0,
+    waitlisted: Boolean = false,
+    /** Рядок замість статусу й категорії: «Ваша оцінка ★ 5». */
+    note: String? = null,
+    /** Праворуч власна дія рядка замість шеврона. */
+    trailing: (@Composable () -> Unit)? = null,
+    /** Статус замість звичного: «2 запити на участь» у своїй події. */
+    status: Pair<String, BadgeTone>? = null,
+    onClick: () -> Unit
+) {
     val colors = Poruch.colors
-    val badge = eventStatus(event)
+    val badge = status ?: eventStatus(event, waitlisted)
     val unreadLabel =
         if (unread > 0) stringResource(R.string.unread_messages_a11y, unread) else null
     Row(
@@ -1135,11 +1148,16 @@ fun EventRow(event: Event, modifier: Modifier = Modifier, unread: Int = 0, onCli
                 event.title, style = MaterialTheme.typography.titleSmall, color = colors.ink,
                 maxLines = 2, overflow = TextOverflow.Ellipsis
             )
-            if (badge != null) StatusBadge(badge.first, badge.second) else EventDescriptor(event)
+            when {
+                note != null -> Text(note, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary, maxLines = 1)
+                badge != null -> StatusBadge(badge.first, badge.second)
+                else -> EventDescriptor(event)
+            }
         }
         // Непрочитане в чаті — той самий бейдж, що на вкладці: видно, куди він веде.
         if (unread > 0) CountBadge(unread)
-        Icon(Icons.Outlined.ChevronRight, null, Modifier.size(18.dp), tint = colors.inkTertiary)
+        if (trailing != null) trailing()
+        else Icon(Icons.Outlined.ChevronRight, null, Modifier.size(18.dp), tint = colors.inkTertiary)
     }
 }
 

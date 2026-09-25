@@ -142,9 +142,10 @@ internal class UserLibrary(
                     // Стрічка запитів — без неї головна лише не покаже бейджів.
                     val pending = async { optional { requests.pendingRequests() } }
                     val unread = async { optional { chat.unread() } }
+                    val ratings = async { optional { participation.myRatings() } }
                     val result = Loaded(
                         mine.await(), savedEvents.await(), interests.await(), queued.await(),
-                        facts.await(), blocked.await(), pending.await(), unread.await(), profile.await()
+                        facts.await(), blocked.await(), pending.await(), unread.await(), profile.await(), ratings.await()
                     )
                     PoruchLog.i("mine") { "${result.mine.size} of mine, ${result.saved.size} saved, ${result.queued.size} queued, ${result.pending?.size} requests, ${result.interests.size} interests" }
                     store.update {
@@ -156,6 +157,7 @@ internal class UserLibrary(
                                 savedIds = if (edits == savedEdits) result.saved else previous.savedIds,
                                 waitlistedIds = result.queued,
                                 pendingRequests = result.pending ?: previous.pendingRequests,
+                                myRatings = result.ratings ?: previous.myRatings,
                                 account = result.facts ?: previous.account,
                                 profile = result.profile ?: previous.profile,
                                 blocked = result.blocked ?: previous.blocked
@@ -178,7 +180,7 @@ internal class UserLibrary(
     private class Loaded(
         val mine: List<Event>, val saved: List<String>, val interests: List<String>, val queued: List<String>,
         val facts: AccountFacts?, val blocked: List<Attendee>?, val pending: List<JoinRequest>?, val unread: List<ChatUnread>?,
-        val profile: Profile?
+        val profile: Profile?, val ratings: Map<String, Int>?
     )
 
     /** Best-effort: збій (чи сервер без міграції) — null, і стан лишає попереднє. */

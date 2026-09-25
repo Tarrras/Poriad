@@ -22,6 +22,12 @@ internal class SupabaseEventParticipation(private val rpc: EventRpc) : EventPart
                 row.getValue("created_at").jsonPrimitive.content, row["mine"]?.jsonPrimitive?.boolean == true)
         }
 
+    override suspend fun myRatings(): Map<String, Int> =
+        rpc.read("my_ratings").jsonArray.associate {
+            val row = it.jsonObject
+            row.getValue("event_id").jsonPrimitive.content to row.getValue("score").jsonPrimitive.int
+        }
+
     override suspend fun rate(id: String, score: Int, comment: String?) {
         rpc.call("rate_event", buildJsonObject { put("p_event_id", id); put("p_score", score); put("p_comment", comment) })
     }

@@ -1,6 +1,8 @@
 package app.poruch.shared
 
 import app.poruch.domain.*
+import kotlin.time.Instant
+import kotlinx.datetime.TimeZone
 
 /**
  * Увесь стан застосунку одним незмінним знімком. Поділений на зрізи за власником: кожен зріз
@@ -47,6 +49,15 @@ data class AppState(
 
     /** Своя подія: організую або йду. Це і є «плани» на головній і в нагадуваннях. */
     fun concerns(event: Event) = event.gathering?.joined == true || organizes(event)
+
+    /** «Мої події», розкладені по розрізах. Пояс — телефона: «сьогодні» — це день людини. */
+    fun myEventsBoard(now: Instant): MyEventsBoard = MyEventsRules.board(
+        library.myEvents, session.userId, library.savedIds, library.waitlistedIds, library.pendingRequests,
+        chatUnread.map { it.eventId }, now, TimeZone.currentSystemDefault()
+    )
+
+    /** Мій бал за подію або null. */
+    fun myScore(eventId: String): Int? = library.myRatings[eventId]
 
     /** Обрані категорії. Живуть у [taste], щоб були і в гостя. */
     val interests: List<String> get() = taste.interests
@@ -111,6 +122,8 @@ data class LibraryState(
     val waitlistedIds: List<String> = emptyList(),
     /** Запити до всіх моїх подій, свіжіші першими. Головна показує, [RequestAlertSync] дзвонить про нові. */
     val pendingRequests: List<JoinRequest> = emptyList(),
+    /** Мої бали за id події. Порожньо — не оцінював або сервер без `my_ratings`. */
+    val myRatings: Map<String, Int> = emptyMap(),
     val account: AccountFacts = AccountFacts(),
     /** Свій профіль. Null — ще не завантажено або сервер без міграції профілю. */
     val profile: Profile? = null,

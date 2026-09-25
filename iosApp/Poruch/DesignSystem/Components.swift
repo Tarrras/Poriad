@@ -652,6 +652,7 @@ func eventBadge(_ event: Event, waitlisted: Bool = false) -> (String, BadgeTone,
     // Місця й «ви йдете» після кінця нічого не кажуть: рядок покаже категорію.
     if event.hasEnded(now: nowInstant()) { return nil }
     if room.joined { return ("Ви йдете", .success, "checkmark") }
+    if room.awaitingApproval { return ("Запит надіслано", .accent, "hourglass") }
     if waitlisted { return ("У черзі", .accent, "hourglass") }
     if room.isFull { return ("Місць немає", .neutral, nil) }
     if room.isScarce { return ("Лишилось \(room.seatsLeft)", .accent, nil) }
@@ -774,6 +775,13 @@ struct EventRow: View {
     let event: Event
     /// Непрочитані повідомлення чату: той самий бейдж, що на вкладці, — видно, куди він веде.
     var unread: Int = 0
+    var waitlisted = false
+    /// Рядок замість статусу й категорії: «Ваша оцінка ★ 5».
+    var note: String? = nil
+    /// Без шеврона, коли праворуч стоїть власна дія рядка.
+    var chevron = true
+    /// Статус замість `eventBadge`: «2 запити на участь» у своїй події.
+    var status: (String, BadgeTone, String?)? = nil
     var body: some View {
         HStack(spacing: Space.md) {
             EventThumbnail(event: event, maxDimension: 60)
@@ -783,12 +791,15 @@ struct EventRow: View {
                 Text(cardOverline(event)).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
                 Text(event.title).font(PoruchFont.cardName).kerning(-0.2).foregroundStyle(Palette.ink)
                     .multilineTextAlignment(.leading).lineLimit(2)
-                if let badge = eventBadge(event) { StatusBadge(text: badge.0, tone: badge.1, symbol: badge.2) }
+                if let note { Text(note).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(1) }
+                else if let badge = status ?? eventBadge(event, waitlisted: waitlisted) { StatusBadge(text: badge.0, tone: badge.1, symbol: badge.2) }
                 else { EventDescriptor(event: event) }
             }
             Spacer(minLength: 0)
             if unread > 0 { CountBadge(count: unread) }
-            Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundStyle(Palette.inkTertiary)
+            if chevron {
+                Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundStyle(Palette.inkTertiary)
+            }
         }
         .padding(.vertical, Space.md)
         .opacity(event.isCancelled ? 0.6 : 1)

@@ -21,7 +21,6 @@
   <string name="cancelled">Подію скасовано</string>
   <string name="seats">Вільних місць: %1$d</string>
   <string name="login">Увійти</string>
-  <string name="refresh">Оновити</string>
   <string name="details">Про подію</string>
   <string name="event_unavailable">Подія недоступна. Поверніться до мапи й спробуйте ще раз.</string>
   <string name="leave">Ви берете участь · вийти</string>
@@ -141,10 +140,8 @@
   <string name="pick_time">Оберіть час</string>
   <string name="reset_filters">Скинути</string>
   <string name="apply">Готово</string>
-  <string name="attending">Відвідую</string>
   <string name="organizing">Організовую</string>
   <string name="saved">Збережені</string>
-  <string name="ended">Завершено</string>
   <string name="event_ended">Подію завершено</string>
   <string name="went">Ви були</string>
   <string name="rate_title">Як усе пройшло?</string>
@@ -157,8 +154,6 @@
   <string name="ratings_summary">★ %1$s з 5 · оцінок: %2$d</string>
   <string name="ratings_empty">Учасники ще не оцінили зустріч. Оцінити можна протягом 14 днів після завершення.</string>
   <string name="msg_rating_sent">Дякуємо за оцінку</string>
-  <string name="my_events_empty">Тут з’являться ваші плани</string>
-  <string name="my_events_empty_hint">Приєднуйтесь до подій або створіть власну — усе буде на цій вкладці.</string>
   <string name="guest_empty">Увійдіть, щоб бачити свої події</string>
   <string name="about_event">Про подію</string>
   <string name="organizer_short">Організатор</string>
@@ -570,4 +565,62 @@
   <string name="report_person_title">Поскаржитись на людину</string>
   <string name="attendees_show_all">Показати всіх</string>
   <string name="person_open">Відкрити профіль: %1$s</string>
+  <!-- «Мої події» (docs/my-events.md) -->
+  <string name="tab_going">Іду</string>
+  <string name="section_today">Сьогодні</string>
+  <string name="section_next">Далі</string>
+  <string name="section_nearest">Найближча</string>
+  <string name="section_past">Минулі</string>
+  <string name="section_this_week">Цього тижня</string>
+  <string name="section_later">Пізніше</string>
+  <string name="show_all_past">Показати всі · %1$d</string>
+  <string name="rate_action">Оцінити</string>
+  <string name="my_score">Ваша оцінка ★ %1$d</string>
+  <string name="chat_short">Чат</string>
+  <string name="chat_short_unread">Чат · %1$d</string>
+  <string name="participants">Учасники</string>
+  <string name="countdown_minutes">через %1$d хв</string>
+  <string name="countdown_hours">через %1$d год</string>
+  <string name="seats_of">з %1$d місць</string>
+  <string name="wants_to_join">Хоче приєднатись</string>
+  <string name="wants_to_join_more">Хоче приєднатись · ще %1$d</string>
+  <string name="decline_request_a11y">Відхилити запит: %1$s</string>
+  <string name="saved_this_week">%1$d цього тижня</string>
+  <string name="going_empty_title">Поки жодних планів</string>
+  <string name="going_empty_text">Приєднайтесь до зустрічі поруч — вона з’явиться тут із часом і маршрутом.</string>
+  <string name="find_nearby">Знайти подію поруч</string>
+  <string name="organizing_empty_title">Ви ще нічого не організували</string>
+  <string name="organizing_empty_text">Зберіть людей на настолки, пробіжку чи кіно — це три кроки.</string>
+  <string name="saved_empty_title">Нічого не збережено</string>
+  <string name="saved_empty_text">Торкніться закладки на картці події, щоб повернутися до неї пізніше.</string>
+  <plurals name="going_ahead">
+    <item quantity="one">%1$d план попереду</item>
+    <item quantity="few">%1$d плани попереду</item>
+    <item quantity="many">%1$d планів попереду</item>
+    <item quantity="other">%1$d планів попереду</item>
+  </plurals>
+  <plurals name="awaiting_reply">
+    <item quantity="one">%1$d чекає відповіді</item>
+    <item quantity="few">%1$d чекають відповіді</item>
+    <item quantity="many">%1$d чекають відповіді</item>
+    <item quantity="other">%1$d чекають відповіді</item>
+  </plurals>
+  <plurals name="organizing_ahead">
+    <item quantity="one">%1$d подія попереду</item>
+    <item quantity="few">%1$d події попереду</item>
+    <item quantity="many">%1$d подій попереду</item>
+    <item quantity="other">%1$d подій попереду</item>
+  </plurals>
+  <plurals name="join_requests">
+    <item quantity="one">%1$d запит на участь</item>
+    <item quantity="few">%1$d запити на участь</item>
+    <item quantity="many">%1$d запитів на участь</item>
+    <item quantity="other">%1$d запитів на участь</item>
+  </plurals>
+  <plurals name="saved_ahead">
+    <item quantity="one">%1$d збережена</item>
+    <item quantity="few">%1$d збережені</item>
+    <item quantity="many">%1$d збережених</item>
+    <item quantity="other">%1$d збережених</item>
+  </plurals>
 </resources>

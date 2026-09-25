@@ -112,6 +112,8 @@ fun MyEventsRoute(navigator: Navigator) {
     model.effects.handle { effect ->
         when (effect) {
             is MyEventsEffect.OpenDetail -> navigator.open(Detail(effect.id))
+            is MyEventsEffect.OpenChat -> navigator.open(Chat(effect.id))
+            MyEventsEffect.OpenMap -> navigator.open(Explore())
             MyEventsEffect.SignIn -> navigator.open(Auth)
             MyEventsEffect.CreateEvent -> navigator.requireAccount { navigator.open(Editor()) }
         }

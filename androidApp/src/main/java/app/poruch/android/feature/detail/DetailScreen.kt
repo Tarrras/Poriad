@@ -50,6 +50,7 @@ import app.poruch.domain.EventIndexEntry
 import app.poruch.domain.EventSession
 import app.poruch.domain.asIndexEntry
 import app.poruch.domain.Gathering
+import app.poruch.domain.EventRating
 import app.poruch.domain.RatingRules
 import app.poruch.domain.ReportReason
 import coil3.compose.AsyncImage
@@ -395,11 +396,20 @@ private fun JoinRequests(state: DetailState, onIntent: (DetailIntent) -> Unit) {
     }
 }
 
-/** Оцінка учасника: зірки й необов'язковий коментар. Повторна відправка замінює попередню. */
 @Composable
-private fun RateEvent(state: DetailState, onIntent: (DetailIntent) -> Unit) {
+private fun RateEvent(state: DetailState, onIntent: (DetailIntent) -> Unit) =
+    RatingForm(state.myRating, state.mutating) { score, comment -> onIntent(DetailIntent.Rate(score, comment)) }
+
+/**
+ * Оцінка учасника: зірки й необов'язковий коментар. Повторна відправка замінює попередню.
+ * Спільна для деталей і шторки «Моїх подій».
+ */
+@Composable
+internal fun RatingForm(
+    mine: EventRating?, mutating: Boolean,
+    onSend: (Int, String) -> Unit
+) {
     val colors = Poruch.colors
-    val mine = state.myRating
     var score by remember(mine) { mutableStateOf(mine?.score ?: 0) }
     var comment by remember(mine) { mutableStateOf(mine?.comment.orEmpty()) }
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
@@ -412,8 +422,8 @@ private fun RateEvent(state: DetailState, onIntent: (DetailIntent) -> Unit) {
         Text(stringResource(R.string.rate_hint), style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary)
         PrimaryButton(
             stringResource(if (mine == null) R.string.rate_send else R.string.rate_update),
-            { onIntent(DetailIntent.Rate(score, comment)) }, Modifier.fillMaxWidth(),
-            enabled = score > 0 && !state.mutating
+            { onSend(score, comment) }, Modifier.fillMaxWidth(),
+            enabled = score > 0 && !mutating
         )
     }
 }
