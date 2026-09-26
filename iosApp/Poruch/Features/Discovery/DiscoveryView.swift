@@ -104,6 +104,8 @@ struct DiscoveryView: View {
     private var listEntries: [EventIndexEntry] { derived.listEntries }
     /// Завантажені картки списку. Може бути менше за `listEntries`: решту список просить сам.
     private var shownEvents: [Event] { derived.shownEvents }
+    /// Заклади за текстом пошуку мапи. У стосі піна вони зайві: там уже одне місце.
+    private var places: [Place] { stackFocused ? [] : (model.state?.map.places ?? []) }
 
     /// Картки каруселі. Вибрана подія є завжди: вибір ззовні («На мапі» з деталей) буває за краєм
     /// вікна карток, поза фільтром чи ще без індексу. Без неї карусель стояла на першій картці, а
@@ -176,6 +178,9 @@ struct DiscoveryView: View {
         // Вибір, зроблений до появи мапи (перший перехід на вкладку), `onChange` не бачить.
         .onAppear { reveal(selectedID) }
         .onChange(of: selectedID) { _, id in reveal(id) }
+        // Тап по закладу в пошуку (тут чи на головній): стос відкриваємо, коли видача сказала, що на піні.
+        // `initial`: з головної мапа могла з'явитись уже після цього.
+        .onChange(of: model.state?.map.placeFocus, initial: true) { _, focus in showPlace(focus) }
         // Шторка деталей закривається разом зі своїм стеком, навіть коли «На мапі» натиснули в запушених деталях.
         .onChange(of: openToken) { _, _ in
             detail = nil
@@ -384,7 +389,7 @@ struct DiscoveryView: View {
                     }
                 }
             }.railContentPadding()
-            if shownEvents.isEmpty {
+            if shownEvents.isEmpty && places.isEmpty {
                 if model.state?.map.loading == true {
                     PoruchLoader().frame(maxWidth: .infinity).padding(.vertical, Space.section)
                 } else {
@@ -394,6 +399,10 @@ struct DiscoveryView: View {
             } else {
                 ScrollView {
                     LazyVStack(spacing: Space.lg) {
+                        // Заклади — над подіями: список подій довгий, під ним їх ніхто б не побачив.
+                        if !places.isEmpty {
+                            PlacesGroup(places: places) { focusPlace($0) }
+                        }
                         ForEach(Array(shownEvents.enumerated()), id: \.element.id) { position, event in
                             EventCard(
                                 event: event, saved: savedIDs.contains(event.id),
@@ -425,6 +434,23 @@ struct DiscoveryView: View {
                 .simultaneousGesture(listDragGesture, including: detent == .full ? .all : .subviews)
             }
         }
+    }
+
+    /// Заклад з пошуку: шторку опускаємо, щоб бачити мапу, а стос відкриє `showPlace`, коли приїде видача.
+    private func focusPlace(_ place: Place) {
+        stackIDs = []
+        listCategory = DiscoveryStateKt.ALL_CATEGORIES
+        open(.peek)
+        model.app.focusPlace(place: place)
+    }
+
+    /// Одна подія — звичайний вибір; кілька — стос. Вибір наводить мапу на пін.
+    private func showPlace(_ focus: PlaceFocus?) {
+        guard let ids = focus?.eventIds else { return }
+        stackIDs = ids.count > 1 ? ids : []
+        if ids.count > 1 { model.app.loadCards(ids: ids) }
+        if let first = ids.first { model.app.selectEvent(id: first); open(.peek) }
+        model.app.placeFocusShown()
     }
 
     /// Прокрутка списку тягне шторку: угору — доки не повна, униз від верху списку — опускає її.

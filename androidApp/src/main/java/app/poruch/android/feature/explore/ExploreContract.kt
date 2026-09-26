@@ -3,6 +3,7 @@ package app.poruch.android.feature.explore
 import app.poruch.domain.CityResult
 import app.poruch.domain.Event
 import app.poruch.domain.EventIndexEntry
+import app.poruch.domain.Place
 import app.poruch.domain.asIndexEntry
 import app.poruch.shared.ALL_CATEGORIES
 import app.poruch.shared.DateFilter
@@ -23,6 +24,8 @@ data class ExploreState(
     val cityLongitude: Double = 0.0,
     val cities: List<CityResult> = emptyList(),
     val searchText: String = "",
+    /** Заклади за [searchText]: секція «Місця» у списку шторки. */
+    val places: List<Place> = emptyList(),
     val category: String = ALL_CATEGORIES,
     val dateFilter: String = DateFilter.ANY,
     val onlyAvailable: Boolean = false,
@@ -123,6 +126,8 @@ sealed interface ExploreIntent {
     data class FocusEvent(val id: String) : ExploreIntent
     /** Тап у точку з кількома подіями: показуємо всі. */
     data class SelectStack(val ids: List<String>) : ExploreIntent
+    /** Заклад з пошуку: мапа переходить до нього, а стос відкривається, щойно приїде видача. */
+    data class FocusPlace(val place: Place) : ExploreIntent
     data object ClearStack : ExploreIntent
     data class OpenEvent(val id: String) : ExploreIntent
     /** Карусель або список дійшли до краю: наступне вікно [ExploreState.listEntries]. */

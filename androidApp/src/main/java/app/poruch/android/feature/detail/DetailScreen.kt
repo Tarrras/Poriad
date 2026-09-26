@@ -90,7 +90,7 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
                     Facts(event)
                     event.gathering?.let { People(state, it, onIntent) }
                     Venue(event, onIntent)
-                    if (state.othersHere.isNotEmpty()) OthersHere(state.othersHere, onIntent)
+                    if (state.othersHere.isNotEmpty()) OthersHere(state.othersHere, event.placeName, onIntent)
                     Description(event, onIntent)
                     // Чат і посилання — для своїх: сервер віддає посилання лише організатору й підтвердженим.
                     if (state.hasChat || event.gathering?.hasContact == true) ContactSection(state, event, onIntent)
@@ -618,13 +618,13 @@ private fun Venue(event: Event, onIntent: (DetailIntent) -> Unit) {
     }
 }
 
-/** Інші події на цій точці. Заголовок — місце, тому рядку досить дати й назви. */
+/** Інші події на цій точці. Заголовок — місце (назва закладу, коли є), тому рядку досить дати й назви. */
 @Composable
-private fun OthersHere(others: List<EventIndexEntry>, onIntent: (DetailIntent) -> Unit) {
+private fun OthersHere(others: List<EventIndexEntry>, placeName: String?, onIntent: (DetailIntent) -> Unit) {
     val colors = Poruch.colors
     val words = dateWords()
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-        SectionHeader(stringResource(R.string.others_here))
+        SectionHeader(if (placeName != null) stringResource(R.string.others_here_at, placeName) else stringResource(R.string.others_here))
         Column(Modifier.cardSurface(Radius.md)) {
             others.forEach { other ->
                 val (day, hour) = sessionLabel(EventSession(other.id, other.startsAt, other.timeZone), words)

@@ -61,7 +61,14 @@ class PoruchAppTest {
         override suspend fun cards(ids:List<String>):List<Event> { cardRequests+=ids; return results.filter { it.id in ids } }
         var failPending=false
         var failFacts=false
-        override suspend fun details(id:String):Event? { if(failDetails) fail(AppError.ServiceUnavailable); return null }
+        var detailsById=emptyMap<String,Event>()
+        override suspend fun details(id:String):Event? { if(failDetails) fail(AppError.ServiceUnavailable); return detailsById[id] }
+        var places=emptyList<Place>()
+        val placeQueries=mutableListOf<Pair<String,EventQuery?>>()
+        override suspend fun searchPlaces(text:String,city:String?,bounds:EventQuery?):List<Place> { placeQueries+=text to bounds; delay(50); return places.filter { it.name.lowercase().startsWith(text.lowercase()) } }
+        var atPlace=emptyMap<String,List<Event>>()
+        var failPlaceEvents=false
+        override suspend fun placeEvents(placeId:String):List<Event> { if(failPlaceEvents) fail(AppError.Network); return atPlace[placeId].orEmpty() }
         var mine=emptyList<Event>()
         override suspend fun myEvents()=mine
         override suspend fun attendees(id:String)=emptyList<Attendee>()
@@ -153,6 +160,92 @@ class PoruchAppTest {
         EventStatus.PUBLISHED,50.45,30.52,null,
         Gathering("organizer","Організатор",20,0,false)
     )
+    /** Афіша в закладі: `event_details` місця не несе, тож воно приходить з картки. */
+    private fun listed(id:String,startsAt:String,placeId:String?="p1")=event(id,"music",startsAt).copy(
+        title=id,gathering=null,listing=Listing("Karabas",placeId=placeId,placeName=placeId?.let { "Малевич" })
+    )
+    private val malevych=Place("p1","Малевич","Київ","вул. Велика Васильківська, 1",50.45,30.52,3)
+
+    /** «Ще в цьому місці» з `place_events`: сервер знає події закладу, яких нема в завантаженому індексі. */
+    @Test fun othersAtTheVenueComeFromPlaceEvents()=runTest {
+        val events=Events(); val app=app(events,backgroundScope)
+        val opened=listed("b","2090-12-23T18:00:00Z")
+        events.results=listOf(opened)
+        // Картка деталей без закладу, як старий композит `event_details`.
+        events.detailsById=mapOf("b" to opened.copy(listing=opened.listing!!.copy(placeId=null,placeName=null)))
+        events.atPlace=mapOf("p1" to listOf(listed("a","2090-12-22T18:00:00Z"),opened,listed("c","2090-12-30T18:00:00Z")))
+        runCurrent(); advanceTimeBy(101); runCurrent()
+
+        app.openEvent("b"); advanceTimeBy(1000); runCurrent()
+        val detail=app.state.value.detail.event!!
+        assertEquals("p1",detail.placeId,"заклад узято з картки")
+        assertEquals("Малевич",detail.placeLabel)
+        assertEquals(listOf("a","c"),app.othersAt(detail).map { it.id })
+        app.close()
+    }
+
+    /** Без мережі для `place_events` секція лишається на індексі мапи. */
+    @Test fun othersAtFallsBackToTheIndexWhenPlaceEventsFail()=runTest {
+        val events=Events(); val app=app(events,backgroundScope)
+        events.results=listOf(listed("a","2090-12-22T18:00:00Z"),listed("b","2090-12-23T18:00:00Z"))
+        events.detailsById=events.results.associateBy { it.id }
+        events.failPlaceEvents=true
+        runCurrent(); advanceTimeBy(101); runCurrent()
+        app.openEvent("b"); advanceTimeBy(1000); runCurrent()
+        assertNull(app.state.value.detail.placeEvents)
+        assertEquals(listOf("a"),app.othersAt(app.state.value.detail.event!!).map { it.id })
+        app.close()
+    }
+
+    /** Пошук мапи шукає й заклади, у тій самій області; порожній текст їх прибирає. */
+    @Test fun mapSearchFindsPlaces()=runTest {
+        val events=Events(); events.places=listOf(malevych)
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
+        app.setSearchText("мал"); advanceTimeBy(1000); runCurrent()
+        assertEquals(listOf("p1"),app.state.value.map.places.map { it.id })
+        val (text,bounds)=events.placeQueries.last()
+        assertEquals("мал",text)
+        assertEquals(HomeLocation.Kyiv.south,bounds?.south)
+        app.setSearchText(""); runCurrent()
+        assertEquals(emptyList(),app.state.value.map.places)
+        app.close()
+    }
+
+    /** Пошук головної «усюди» питає заклади без рамки; скасування пошуку їх прибирає. */
+    @Test fun homeSearchFindsPlacesEverywhere()=runTest {
+        val events=Events(); events.places=listOf(malevych)
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
+        app.setHomeSearchText("мал"); advanceTimeBy(1000); runCurrent()
+        assertEquals(listOf("p1"),app.state.value.home.places.map { it.id })
+        assertNotNull(events.placeQueries.last().second)
+        app.setHomeSearchEverywhere(true); advanceTimeBy(1000); runCurrent()
+        assertNull(events.placeQueries.last().second)
+        app.cancelHomeSearch(); runCurrent()
+        assertEquals(emptyList(),app.state.value.home.places)
+        app.close()
+    }
+
+    /** Тап по закладу: пошук мапи знято, а перша видача каже, які події на його піні. */
+    @Test fun focusPlaceResolvesItsStack()=runTest {
+        val events=Events(); events.places=listOf(malevych)
+        events.results=listOf(listed("c","2090-12-24T18:00:00Z"),listed("a","2090-12-22T18:00:00Z"),
+            listed("far","2090-12-22T18:00:00Z",placeId="p2").copy(latitude=50.46))
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
+        app.setSearchText("мал"); advanceTimeBy(1000); runCurrent()
+
+        app.focusPlace(malevych); runCurrent()
+        assertEquals("",app.state.value.map.searchText)
+        assertNull(app.state.value.map.placeFocus?.eventIds,"видача ще їде")
+        advanceTimeBy(1000); runCurrent()
+        val focus=app.state.value.map.placeFocus!!
+        assertEquals(listOf("a","c"),focus.eventIds)
+        assertNull(events.queries.last().text)
+
+        app.placeFocusShown()
+        assertNull(app.state.value.map.placeFocus)
+        app.close()
+    }
+
     /** «Ще в цьому місці»: інші картки на тій самій точці, без відкритої. */
     @Test fun othersAtTheVenueComeFromTheMapIndex()=runTest {
         val events=Events(); val app=app(events,backgroundScope)

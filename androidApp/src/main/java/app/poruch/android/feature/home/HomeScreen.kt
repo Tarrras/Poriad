@@ -268,25 +268,29 @@ private fun SearchResults(state: HomeState, onIntent: (HomeIntent) -> Unit) {
         // Усюди без кнопки: мапа шукає лише в місті, тож розширювати вже нікуди.
         state.isEmpty -> EmptyState(PoruchIcons.search, stringResource(R.string.nothing_found), stringResource(R.string.nothing_found_hint))
         else -> Column(
-            Modifier.padding(horizontal = Spacing.page).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.md)
+            Modifier.padding(horizontal = Spacing.page).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.xl)
         ) {
-            val found = maxOf(state.resultsTotal, state.results.size)
-            SectionHeader(
-                if (state.searchEverywhere) pluralStringResource(R.plurals.events_found_everywhere, found, found)
-                else pluralStringResource(R.plurals.events_found_in_city, found, found, state.cityName),
-                // Мапа шукає в межах міста, тож для «усюди» вона показала б інше.
-                actionLabel = if (state.searchEverywhere) null else stringResource(R.string.on_map),
-                onAction = { onIntent(HomeIntent.ShowResultsOnMap) }
-            )
-            state.results.take(state.resultsLimit).forEach { event ->
-                EventCard(
-                    event, saved = event.id in state.savedIds, waitlisted = event.id in state.waitlistedIds,
-                    withCity = state.searchEverywhere, onSave = { onIntent(HomeIntent.ToggleSaved(event.id)) }
-                ) { onIntent(HomeIntent.OpenEvent(event.id)) }
+            // Події, під ними — заклади з тим самим словом. Групові списки: видача пошуку — перелік, а не стрічка.
+            if (state.results.isNotEmpty()) Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                GroupLabel(
+                    stringResource(R.string.search_events_group, maxOf(state.resultsTotal, state.results.size)),
+                    // Мапа шукає в межах міста, тож для «усюди» вона показала б інше.
+                    actionLabel = if (state.searchEverywhere) null else stringResource(R.string.on_map),
+                    onAction = { onIntent(HomeIntent.ShowResultsOnMap) }
+                )
+                GroupedRows {
+                    state.results.take(state.resultsLimit).forEachIndexed { position, event ->
+                        if (position > 0) HairLine(Modifier.padding(start = ResultRowInset))
+                        EventResultRow(
+                            event, waitlisted = event.id in state.waitlistedIds, withCity = state.searchEverywhere
+                        ) { onIntent(HomeIntent.OpenEvent(event.id)) }
+                    }
+                }
+                if (state.resultsIndexed > state.resultsLimit) SecondaryButton(
+                    stringResource(R.string.show_more), { onIntent(HomeIntent.ShowMoreResults) }, Modifier.fillMaxWidth()
+                )
             }
-            if (state.resultsIndexed > state.resultsLimit) SecondaryButton(
-                stringResource(R.string.show_more), { onIntent(HomeIntent.ShowMoreResults) }, Modifier.fillMaxWidth()
-            )
+            if (state.places.isNotEmpty()) PlacesGroup(state.places, state.searchEverywhere) { onIntent(HomeIntent.OpenPlace(it)) }
         }
     }
 }

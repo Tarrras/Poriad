@@ -31,6 +31,15 @@ interface EventDiscovery {
     /** Учасники події. Бачать лише організатор і учасники, решта отримує порожній список. */
     suspend fun attendees(id: String): List<Attendee>
 
+    /**
+     * Заклади, в назві чи адресі яких є слово з префіксом [text], лише з майбутніми подіями,
+     * найживіші першими. Без [bounds] — усюди, з [city] — у місті.
+     */
+    suspend fun searchPlaces(text: String, city: String? = null, bounds: EventQuery? = null): List<Place>
+
+    /** Майбутні події закладу від найближчої, тими самими картками, що [cards]. */
+    suspend fun placeEvents(placeId: String): List<Event>
+
     /** Скидає кеш попереднього акаунта. Викликати при зміні користувача. */
     fun clearPrivateCache()
 }

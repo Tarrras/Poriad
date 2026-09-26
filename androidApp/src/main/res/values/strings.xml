@@ -59,6 +59,7 @@
   <string name="series_also_at">і о %1$s</string>
   <string name="sessions_title">Дати</string>
   <string name="others_here">Ще в цьому місці</string>
+  <string name="others_here_at">Ще в «%1$s»</string>
   <string name="session_started">Уже почався</string>
   <string name="session_started_hint">Сеанс уже почався, квитки на нього не продають. Оберіть іншу дату.</string>
   <!-- «У суботу о 18:00»: знахідний відмінок, бо називний тут читається як список, а не як речення. -->
@@ -197,17 +198,19 @@
   <string name="search_hint_everywhere">Шукаємо в усіх містах</string>
   <string name="everywhere">Усюди</string>
   <string name="search_everywhere">Шукати усюди</string>
-  <plurals name="events_found_in_city">
-    <item quantity="one">Знайдено %1$d подію у місті %2$s</item>
-    <item quantity="few">Знайдено %1$d події у місті %2$s</item>
-    <item quantity="many">Знайдено %1$d подій у місті %2$s</item>
-    <item quantity="other">Знайдено %1$d події у місті %2$s</item>
+  <string name="search_events_group">Події · %1$d</string>
+  <string name="search_places_group">Місця</string>
+  <plurals name="place_upcoming">
+    <item quantity="one">%1$d подія</item>
+    <item quantity="few">%1$d події</item>
+    <item quantity="many">%1$d подій</item>
+    <item quantity="other">%1$d події</item>
   </plurals>
-  <plurals name="events_found_everywhere">
-    <item quantity="one">Знайдено %1$d подію усюди</item>
-    <item quantity="few">Знайдено %1$d події усюди</item>
-    <item quantity="many">Знайдено %1$d подій усюди</item>
-    <item quantity="other">Знайдено %1$d події усюди</item>
+  <plurals name="seats_short">
+    <item quantity="one">%1$d місце</item>
+    <item quantity="few">%1$d місця</item>
+    <item quantity="many">%1$d місць</item>
+    <item quantity="other">%1$d місця</item>
   </plurals>
   <string name="show_more">Показати ще</string>
   <string name="nothing_found_city_hint">У місті %1$s за цим запитом нічого. Пошукайте в усіх містах або спробуйте інше слово.</string>

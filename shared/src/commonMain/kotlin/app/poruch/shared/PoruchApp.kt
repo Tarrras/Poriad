@@ -183,6 +183,10 @@ class PoruchApp internal constructor(
 
     /** Пошук мапи. */
     fun setSearchText(query: String) = discovery.setSearchText(query)
+    /** Тап по закладу в пошуку мапи чи головної: мапа переходить до нього й відкриває його стос. Див. [PlaceFocus]. */
+    fun focusPlace(place: Place) = discovery.focusPlace(place)
+    /** Платформа відкрила стос з [MapFeed.placeFocus]. */
+    fun placeFocusShown() = discovery.placeFocusShown()
     /** Пошук головної: окремий від мапи, у тій самій області. */
     fun setHomeSearchText(query: String) = discovery.setHomeSearchText(query)
     /** Пошук головної: усі міста чи лише обране; категорія й дата звужують лише знайдене. */

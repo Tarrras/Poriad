@@ -286,9 +286,9 @@ struct HomeView: View {
                 model.app.selectCity(city: CityResult(name: city.city, latitude: city.latitude, longitude: city.longitude))
             }.padding(.horizontal, Space.page)
         }
-        if view.searchLoading && view.results.isEmpty {
+        if view.searchLoading && view.results.isEmpty && view.places.isEmpty {
             PoruchLoader().frame(maxWidth: .infinity).padding(.vertical, Space.section)
-        } else if view.results.isEmpty {
+        } else if view.results.isEmpty && view.places.isEmpty {
             if view.searchEverywhere {
                 EmptyState(
                     symbol: "magnifyingglass", title: "Нічого не знайшлося",
@@ -302,27 +302,40 @@ struct HomeView: View {
                 )
             }
         } else {
-            let total = max(view.resultsTotal, view.results.count)
-            VStack(alignment: .leading, spacing: Space.md) {
-                // «На мапі» несе запит на мапу явно: інакше пошуки екранів незалежні. Мапа — лише обране місто,
-                // тож для пошуку всюди вона показала б менше.
-                SectionHeader(
-                    title: "Знайдено \(total) \(ukrainianPlural(total, "подію", "події", "подій")) \(view.searchScope)",
-                    actionLabel: view.searchEverywhere ? nil : "На мапі",
-                    action: { model.app.setSearchText(query: view.searchText); openMap() }
-                )
-                ForEach(view.results(limit: resultsLimit), id: \.id) { event in
-                    EventCard(
-                        event: event, saved: view.isSaved(event), waitlisted: view.isWaitlisted(event),
-                        withCity: view.searchEverywhere,
-                        onSave: { model.app.toggleSaved(id: event.id) }
-                    ) { model.app.selectEvent(id: event.id); openEvent(event.id) }
+            // Події, під ними — заклади з тим самим словом. Групові списки: видача пошуку — перелік, а не стрічка.
+            VStack(alignment: .leading, spacing: Space.xl) {
+                if !view.results.isEmpty {
+                    let total = max(view.resultsTotal, view.results.count)
+                    let shown = view.results(limit: resultsLimit)
+                    VStack(alignment: .leading, spacing: Space.sm) {
+                        // «На мапі» несе запит на мапу явно: інакше пошуки екранів незалежні. Мапа — лише обране місто,
+                        // тож для пошуку всюди вона показала б менше.
+                        GroupLabel(
+                            title: "Події · \(total)",
+                            actionLabel: view.searchEverywhere ? nil : "На мапі",
+                            action: { model.app.setSearchText(query: view.searchText); openMap() }
+                        )
+                        GroupedRows {
+                            ForEach(Array(shown.enumerated()), id: \.element.id) { position, event in
+                                if position > 0 { Divider().overlay(Palette.hairline).padding(.leading, resultRowInset) }
+                                EventResultRow(event: event, waitlisted: view.isWaitlisted(event), withCity: view.searchEverywhere) {
+                                    model.app.selectEvent(id: event.id); openEvent(event.id)
+                                }
+                            }
+                        }
+                        // Наступний шматок: картки, яких ще немає, довантажуються; решта приїде в `found`.
+                        if view.resultIDs.count > resultsLimit {
+                            SecondaryButton(title: "Показати ще") {
+                                resultsLimit += homeResultsLimit
+                                model.app.loadCards(ids: Array(view.resultIDs.prefix(resultsLimit)))
+                            }
+                        }
+                    }
                 }
-                // Наступний шматок: картки, яких ще немає, довантажуються; решта приїде в `found`.
-                if view.resultIDs.count > resultsLimit {
-                    SecondaryButton(title: "Показати ще") {
-                        resultsLimit += homeResultsLimit
-                        model.app.loadCards(ids: Array(view.resultIDs.prefix(resultsLimit)))
+                if !view.places.isEmpty {
+                    PlacesGroup(places: view.places, withCity: view.searchEverywhere) { place in
+                        model.app.focusPlace(place: place)
+                        openMap()
                     }
                 }
             }.padding(.horizontal, Space.page)
