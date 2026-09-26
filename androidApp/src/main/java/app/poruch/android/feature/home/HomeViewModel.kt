@@ -1,7 +1,6 @@
 package app.poruch.android.feature.home
 
 import app.poruch.android.mvi.MviViewModel
-import app.poruch.domain.CityResult
 import app.poruch.domain.Event
 import app.poruch.domain.HomeLocation
 import app.poruch.domain.RequestRules
@@ -41,6 +40,7 @@ class HomeViewModel(private val app: PoruchApp) : MviViewModel<HomeState, HomeIn
         return copy(
             signedIn = shared.signedIn,
             cityName = shared.city.name,
+            cities = shared.city.suggestions,
             loading = home.loading,
             // У планах лише те, що ще не завершилось: і свої, і ті, куди йду.
             plans = shared.library.myEvents
@@ -95,8 +95,11 @@ class HomeViewModel(private val app: PoruchApp) : MviViewModel<HomeState, HomeIn
         is HomeIntent.SwitchCity -> {
             // Спершу текст: інакше назва міста лишилася б фільтром і в новому місті.
             app.setHomeSearchText("")
-            app.selectCity(CityResult(intent.city.city, intent.city.latitude, intent.city.longitude))
+            reduce { copy(citySheet = false) }
+            app.selectCity(intent.city)
         }
+        is HomeIntent.ShowCitySheet -> reduce { copy(citySheet = intent.show) }
+        is HomeIntent.SearchCity -> app.searchCity(intent.query)
         is HomeIntent.ToggleSaved -> app.toggleSaved(intent.id)
         HomeIntent.CreateEvent -> send(HomeEffect.Navigate(HomeDestination.EDITOR))
         HomeIntent.OpenMap -> send(HomeEffect.Navigate(HomeDestination.MAP))

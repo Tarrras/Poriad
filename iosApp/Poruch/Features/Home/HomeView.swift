@@ -21,6 +21,8 @@ struct HomeView: View {
     @State private var searchEpoch = 0
     /// Скільки результатів пошуку показано. «Показати ще» додає шматок.
     @State private var resultsLimit = homeResultsLimit
+    /// Шторка вибору міста з шапки: та сама, що на мапі.
+    @State private var citySearch = false
 
     var body: some View {
         let view = self.view
@@ -32,6 +34,7 @@ struct HomeView: View {
         }
         .background(Palette.canvas.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
+        .sheet(isPresented: $citySearch) { CitySearchView().presentationDetents([.medium, .large]) }
         .onChange(of: view.searchKey) { _, _ in resultsLimit = homeResultsLimit }
         .onChange(of: searchFocused) { _, focused in
             if focused && !searchMode { withAnimation(.snappy) { searchMode = true } }
@@ -114,7 +117,16 @@ struct HomeView: View {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: Space.xs) {
                         Text("Що поруч").font(PoruchFont.display).displayTracking().foregroundStyle(Palette.ink)
-                        Text(view.areaLabel).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
+                        // Тап міняє місто тут же, без переходу на мапу.
+                        Button { citySearch = true } label: {
+                            HStack(spacing: Space.xs) {
+                                Text(view.areaLabel).multilineTextAlignment(.leading)
+                                Image(systemName: "chevron.down").font(.system(size: 12, weight: .semibold))
+                            }
+                            .font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityHint("Змінити місто")
                     }
                     Spacer(minLength: Space.sm)
                     IconPill(symbol: "person.crop.circle", label: "Профіль", action: openProfile)

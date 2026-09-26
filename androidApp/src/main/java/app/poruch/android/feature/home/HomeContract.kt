@@ -1,6 +1,7 @@
 package app.poruch.android.feature.home
 
 import app.poruch.domain.ChatUnread
+import app.poruch.domain.CityResult
 import app.poruch.domain.Event
 import app.poruch.domain.HomeLocation
 import app.poruch.shared.ALL_CATEGORIES
@@ -45,7 +46,10 @@ data class HomeState(
     val searchCategory: String = ALL_CATEGORIES,
     val searchDate: String = DateFilter.ANY,
     /** Місто з подіями, назване в пошуку, крім поточного: текстовий пошук іде лише в межах міста. */
-    val cityMatch: HomeLocation? = null
+    val cityMatch: HomeLocation? = null,
+    /** Шторка вибору міста з шапки і підказки геопошуку для неї. */
+    val citySheet: Boolean = false,
+    val cities: List<CityResult> = emptyList()
 ) {
     val searching get() = searchText.isNotBlank()
     val isEmpty get() = if (searching) results.isEmpty() else suggested.isEmpty() && today.isEmpty() && rest.isEmpty()
@@ -68,8 +72,11 @@ sealed interface HomeIntent {
     data class SearchEverywhere(val everywhere: Boolean) : HomeIntent
     data class SearchCategory(val category: String) : HomeIntent
     data class SearchDate(val filter: String) : HomeIntent
-    /** Підказка «Показати події в місті …» під пошуком. */
-    data class SwitchCity(val city: HomeLocation) : HomeIntent
+    /** Підказка «Показати події в місті …» під пошуком або місто зі шторки шапки. */
+    data class SwitchCity(val city: CityResult) : HomeIntent
+    /** Тап по місту в шапці відкриває шторку, закриття — ховає. */
+    data class ShowCitySheet(val show: Boolean) : HomeIntent
+    data class SearchCity(val query: String) : HomeIntent
     /** «Показати ще» під результатами: видача росте на місці, нова видача починає знову з [RESULTS_PAGE]. */
     data object ShowMoreResults : HomeIntent
     /** «На мапі» біля заголовка результатів у місті: мапа відкривається з тим самим пошуком. Єдиний міст між пошуками. */

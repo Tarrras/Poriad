@@ -49,7 +49,10 @@ fun ExploreScreen(state: ExploreState, onIntent: (ExploreIntent) -> Unit) {
     }
 
     when (state.sheet) {
-        ExploreSheet.CITY -> CitySearchSheet(state, onIntent)
+        ExploreSheet.CITY -> CitySearchSheet(
+            state.cityName, state.cities, { onIntent(ExploreIntent.SearchCity(it)) },
+            { onIntent(ExploreIntent.SelectCity(it)) }, { onIntent(ExploreIntent.ShowSheet(ExploreSheet.NONE)) }
+        )
         ExploreSheet.FILTERS -> PoruchSheet({ onIntent(ExploreIntent.ShowSheet(ExploreSheet.NONE)) }) { sheet ->
             FilterSheet(state, onIntent) { sheet.close() }
         }

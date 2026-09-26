@@ -85,16 +85,19 @@ internal fun FilterSheet(state: ExploreState, onIntent: (ExploreIntent) -> Unit,
     }
 }
 
+/** Вибір міста: спільний для мапи й головної. [suggestions] — відповідь геопошуку на набране в [onQuery]. */
 @Composable
-internal fun CitySearchSheet(state: ExploreState, onIntent: (ExploreIntent) -> Unit) {
+internal fun CitySearchSheet(
+    current: String, suggestions: List<CityResult>,
+    onQuery: (String) -> Unit, onPick: (CityResult) -> Unit, onClose: () -> Unit
+) {
     val colors = Poruch.colors
     var query by rememberSaveable { mutableStateOf("") }
-    val close = { onIntent(ExploreIntent.ShowSheet(ExploreSheet.NONE)) }
     // Шторка існує заради одного поля, тож фокусує його одразу.
     val field = remember { FocusRequester() }
     LaunchedEffect(Unit) { field.requestFocus() }
-    LaunchedEffect(query) { onIntent(ExploreIntent.SearchCity(query)) }
-    PoruchSheet(close) { sheet ->
+    LaunchedEffect(query) { onQuery(query) }
+    PoruchSheet(onClose) { sheet ->
         Column(
             // Поле піднімає клавіатуру, шторка стає на неї.
             Modifier.padding(horizontal = Spacing.page).padding(bottom = Spacing.section).imePadding(),
@@ -114,19 +117,17 @@ internal fun CitySearchSheet(state: ExploreState, onIntent: (ExploreIntent) -> U
                 verticalArrangement = Arrangement.spacedBy(Spacing.sm)
             ) {
                 HomeLocation.covered.forEach { place ->
-                    PoruchChip(place.city, place.city == state.cityName, {
-                        sheet.close {
-                            onIntent(ExploreIntent.SelectCity(CityResult(place.city, place.latitude, place.longitude)))
-                        }
+                    PoruchChip(place.city, place.city == current, {
+                        sheet.close { onPick(CityResult(place.city, place.latitude, place.longitude)) }
                     })
                 }
             }
             // Гортаються лише підказки, щоб остання не ховалась під клавіатурою.
             Column(Modifier.heightIn(max = SUGGESTION_BAND).verticalScroll(rememberScrollState())) {
-                state.cities.take(CITY_SUGGESTIONS).forEach { city ->
+                suggestions.take(CITY_SUGGESTIONS).forEach { city ->
                     Row(
                         Modifier.fillMaxWidth().clip(Radius.sm)
-                            .clickable { sheet.close { onIntent(ExploreIntent.SelectCity(city)) } }
+                            .clickable { sheet.close { onPick(city) } }
                             .padding(vertical = Spacing.md, horizontal = Spacing.sm),
                         horizontalArrangement = Arrangement.spacedBy(Spacing.md), verticalAlignment = Alignment.CenterVertically
                     ) {

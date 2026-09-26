@@ -2,6 +2,7 @@ package app.poruch.android.feature.home
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -27,9 +28,11 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import app.poruch.android.R
+import app.poruch.android.feature.explore.CitySearchSheet
 import app.poruch.android.feature.explore.dateFilters
 import app.poruch.android.ui.*
 import app.poruch.domain.ChatUnread
+import app.poruch.domain.CityResult
 import app.poruch.domain.Event
 import app.poruch.shared.ALL_CATEGORIES
 import app.poruch.shared.DateFilter
@@ -79,6 +82,10 @@ fun HomeScreen(state: HomeState, onIntent: (HomeIntent) -> Unit) {
             }
         }
     }
+    if (state.citySheet) CitySearchSheet(
+        state.cityName, state.cities, { onIntent(HomeIntent.SearchCity(it)) },
+        { onIntent(HomeIntent.SwitchCity(it)) }, { onIntent(HomeIntent.ShowCitySheet(false)) }
+    )
 }
 
 // Головна — дайджест, а не каталог: далі краще на мапу.
@@ -97,10 +104,20 @@ private fun Header(state: HomeState, onIntent: (HomeIntent) -> Unit) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                 Text(stringResource(R.string.home_title), style = MaterialTheme.typography.displaySmall, color = colors.ink)
                 // Що означає «поруч»: завжди ціле місто. «Шукати тут» на мапі головну не звужує.
-                Text(
-                    stringResource(R.string.home_subtitle, state.cityName),
-                    style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary
-                )
+                // Тап міняє місто тут же, без переходу на мапу.
+                Row(
+                    Modifier.clickable(onClickLabel = stringResource(R.string.city_search), role = Role.Button) {
+                        onIntent(HomeIntent.ShowCitySheet(true))
+                    },
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        stringResource(R.string.home_subtitle, state.cityName),
+                        style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    Icon(Icons.Outlined.ExpandMore, null, Modifier.size(18.dp), tint = colors.inkSecondary)
+                }
             }
             IconPill(PoruchIcons.person, stringResource(R.string.profile)) { onIntent(HomeIntent.OpenProfile) }
         }
@@ -235,7 +252,7 @@ private fun SearchResults(state: HomeState, onIntent: (HomeIntent) -> Unit) {
         BannerCard(
             stringResource(R.string.home_switch_city, city.city),
             stringResource(R.string.home_switch_city_hint, state.cityName),
-            onClick = { onIntent(HomeIntent.SwitchCity(city)) },
+            onClick = { onIntent(HomeIntent.SwitchCity(CityResult(city.city, city.latitude, city.longitude))) },
             modifier = Modifier.padding(horizontal = Spacing.page), icon = PoruchIcons.pin
         )
     }
