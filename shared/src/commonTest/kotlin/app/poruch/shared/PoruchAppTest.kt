@@ -686,6 +686,20 @@ class PoruchAppTest {
         app.close()
     }
 
+    /** Заклад в іншому місті — лише перегляд: екран переходить туди, а збережене місто лишається як було. */
+    @Test fun placeInAnotherCityDoesNotReplaceChosenCity()=runTest {
+        val cities=Cities(); val events=Events(); val app=app(events,backgroundScope,cities=cities)
+        runCurrent(); advanceTimeBy(1000); runCurrent()
+        val lviv=CityResult("Львів",49.8397,24.0297)
+        app.selectCity(lviv); advanceTimeBy(1000); runCurrent()
+
+        app.focusPlace(malevych.copy(city="Київ",latitude=50.45,longitude=30.52)); advanceTimeBy(1000); runCurrent()
+        assertEquals("Київ",app.state.value.city.name)
+        assertEquals("Львів",cities.stored?.name,"перегляд закладу не міняє обране місто")
+        assertTrue(cities.manual)
+        app.close()
+    }
+
     /** Місто, обране руками, геолокація на старті не перебиває; «Поруч зі мною» — перебиває і знімає позначку. */
     @Test fun manualCityWinsOverStartupLocation()=runTest {
         val cities=Cities(); val events=Events(); val app=app(events,backgroundScope,cities=cities)

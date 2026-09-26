@@ -138,9 +138,10 @@ internal class DiscoveryEngine(
         store.update { it.copy(map = it.map.copy(searchText = "", places = emptyList(), placeFocus = PlaceFocus(place, version))) }
         query = query.copy(text = null)
         if (!query.covers(place)) {
-            // Заклад з пошуку «усюди» в іншому місті: переходимо в те місто, як зі списку міст.
+            // Заклад з пошуку «усюди» в іншому місті: екран переходить у те місто, але це перегляд,
+            // а не вибір — збережене місто (і чи обрано воно руками) лишається як було.
             if (place.city.isNotBlank() && place.city != store.value.city.name) {
-                selectCity(CityResult(place.city, place.latitude, place.longitude), manual = true)
+                showCity(CityResult(place.city, place.latitude, place.longitude))
                 return
             }
             val view = HomeLocation(place.city, place.latitude, place.longitude)
@@ -572,6 +573,11 @@ internal class DiscoveryEngine(
         }
         PoruchLog.i("discovery") { "city → ${city.name}${if (manual) " (manual)" else ""}" }
         cityStore?.write(city, manual)
+        showCity(city)
+    }
+
+    /** Місто на екрані без запису: перегляд, наступний старт його не пам'ятає. */
+    private fun showCity(city: CityResult) {
         store.update {
             it.copy(city = it.city.copy(name = city.name, latitude = city.latitude, longitude = city.longitude, suggestions = emptyList()))
         }
