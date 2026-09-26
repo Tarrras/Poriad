@@ -195,7 +195,12 @@ class PoruchApp internal constructor(
     fun setCategory(category: String) = discovery.setCategory(category)
     fun setDateFilter(filter: String) = discovery.setDateFilter(filter)
     fun searchCity(query: String) = discovery.searchCity(query)
-    fun selectCity(city: CityResult) = discovery.selectCity(city)
+    /** Місто, обране руками: запам'ятовується і має перевагу над геолокацією на старті. */
+    fun selectCity(city: CityResult) = discovery.selectCity(city, manual = true)
+    /** Геолокація на старті застосунку. Обране руками місто не перебиває. */
+    fun locatedCity(city: CityResult) = discovery.locatedCity(city)
+    /** «Поруч зі мною» на мапі: людина сама попросила геолокацію, тож далі місто знову йде за нею. */
+    fun followLocation(city: CityResult) = discovery.selectCity(city, manual = false)
 
     /** Підказки адрес для редактора. Порожній список — просто нічого не знайшли. */
     fun searchAddress(

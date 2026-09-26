@@ -151,13 +151,13 @@ fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
                 lat,
                 lon,
                 nearby,
-                app::selectCity
+                app::locatedCity
             )
         }, {})
     }
     val locationPermission =
         rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { if (it) locate() }
-    // Один раз на запуск, а не на кожен поворот: інакше обране руками місто зникало б.
+    // Один раз на запуск, а не на кожен поворот. Обране руками місто спільний код не перебиває.
     var located by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(state.needsOnboarding) {
         if (state.needsOnboarding || located) return@LaunchedEffect

@@ -214,7 +214,9 @@ data class CityResult(val name: String, val latitude: Double, val longitude: Dou
 /** Останнє обране місто на пристрої: наступний запуск одразу показує його, а не Київ за замовчуванням. */
 interface CityStore {
     fun read(): CityResult?
-    fun write(city: CityResult)
+    /** [manual] — людина обрала місто сама: геолокація на старті його не перебиває. */
+    fun write(city: CityResult, manual: Boolean)
+    fun manual(): Boolean
 }
 data class EventDraft(
     val title: String, val description: String, val category: String, val city: String,

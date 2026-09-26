@@ -480,16 +480,25 @@ internal class DiscoveryEngine(
         }
     }
 
-    fun selectCity(city: CityResult) {
+    /** Геолокація на старті: місто, обране руками, не перебиває. */
+    fun locatedCity(city: CityResult) {
+        if (cityStore?.manual() == true) return PoruchLog.d("discovery") { "located ${city.name}, keeping manual city" }
+        selectCity(city, manual = false)
+    }
+
+    /** [manual] — обрано руками; `false` — за геолокацією, і наступний старт знову піде за нею. */
+    fun selectCity(city: CityResult, manual: Boolean) {
         // Те саме місто, що вже на екрані: геолокація на старті збігається з запам'ятаним, і
         // перечитувати видачу нема чого. Після «Шукати тут» повернення до міста — вже зміна.
         val current = store.value
         if (city.name == current.city.name && !current.city.custom) {
+            // Видача та сама, але хто обрав — могло змінитись.
+            cityStore?.write(CityResult(current.city.name, current.city.latitude, current.city.longitude), manual)
             store.update { it.copy(city = it.city.copy(suggestions = emptyList())) }
             return
         }
-        PoruchLog.i("discovery") { "city → ${city.name}" }
-        cityStore?.write(city)
+        PoruchLog.i("discovery") { "city → ${city.name}${if (manual) " (manual)" else ""}" }
+        cityStore?.write(city, manual)
         store.update {
             it.copy(city = it.city.copy(name = city.name, latitude = city.latitude, longitude = city.longitude, suggestions = emptyList()))
         }

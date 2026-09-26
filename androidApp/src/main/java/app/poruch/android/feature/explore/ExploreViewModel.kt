@@ -120,7 +120,7 @@ class ExploreViewModel(private val app: PoruchApp) :
                 reduce { copy(locationDenied = false) }
                 send(ExploreEffect.AskLocationPermission)
             }
-            is ExploreIntent.LocatedAt -> app.selectCity(CityResult(intent.name, intent.latitude, intent.longitude))
+            is ExploreIntent.LocatedAt -> app.followLocation(CityResult(intent.name, intent.latitude, intent.longitude))
             ExploreIntent.LocationDenied -> reduce { copy(locationDenied = true) }
         }
     }

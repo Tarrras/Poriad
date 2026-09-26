@@ -87,9 +87,10 @@ class PoruchAppTest {
         override suspend fun declineMember(eventId:String,userId:String) {}
     }
     /** Місто в пам'яті замість бази пристрою. */
-    private class Cities(var stored:CityResult?=null): CityStore {
+    private class Cities(var stored:CityResult?=null, var manual:Boolean=false): CityStore {
         override fun read()=stored
-        override fun write(city:CityResult) { stored=city }
+        override fun write(city:CityResult, manual:Boolean) { stored=city; this.manual=manual }
+        override fun manual()=manual
     }
     private fun app(events:Events,scope:CoroutineScope,auth:Auth=Auth(),cities:CityStore?=null):PoruchApp {
         return PoruchApp(
@@ -589,6 +590,24 @@ class PoruchAppTest {
         app.selectCity(CityResult("Харків",49.99,36.23)); advanceTimeBy(1000); runCurrent()
         assertEquals(before,events.queries.size)
         assertEquals(kharkiv,cities.stored)
+        app.close()
+    }
+
+    /** Місто, обране руками, геолокація на старті не перебиває; «Поруч зі мною» — перебиває і знімає позначку. */
+    @Test fun manualCityWinsOverStartupLocation()=runTest {
+        val cities=Cities(); val events=Events(); val app=app(events,backgroundScope,cities=cities)
+        runCurrent(); advanceTimeBy(1000); runCurrent()
+        val lviv=CityResult("Львів",49.8397,24.0297); val odesa=CityResult("Одеса",46.4825,30.7233)
+        app.selectCity(lviv); advanceTimeBy(1000); runCurrent()
+        app.locatedCity(odesa); advanceTimeBy(1000); runCurrent()
+        assertEquals("Львів",app.state.value.city.name)
+        assertTrue(cities.manual)
+
+        app.followLocation(odesa); advanceTimeBy(1000); runCurrent()
+        assertEquals("Одеса",app.state.value.city.name)
+        assertFalse(cities.manual)
+        app.locatedCity(CityResult("Київ",50.4501,30.5234)); advanceTimeBy(1000); runCurrent()
+        assertEquals("Київ",app.state.value.city.name,"без ручного вибору місто йде за геолокацією")
         app.close()
     }
 

@@ -111,7 +111,7 @@ struct RootView: View {
                     // Геолокацію питаємо, лише коли онбординг позаду: не поверх його першого екрана.
                     .onAppear { location.request() }
                     .onReceive(location.$city) { city in
-                        if let city { model.app.selectCity(city: city) }
+                        if let city { model.app.locatedCity(city: city) }
                     }
             }
         } else {

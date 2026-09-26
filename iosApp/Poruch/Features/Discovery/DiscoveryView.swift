@@ -197,7 +197,7 @@ struct DiscoveryView: View {
         }
         .onReceive(location.$city) { city in
             if let city {
-                model.app.selectCity(city: city)
+                model.app.followLocation(city: city)
                 region = nil
             }
         }
