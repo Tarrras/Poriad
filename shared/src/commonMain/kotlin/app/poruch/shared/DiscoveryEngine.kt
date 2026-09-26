@@ -140,7 +140,7 @@ internal class DiscoveryEngine(
         if (!query.covers(place)) {
             // Заклад з пошуку «усюди» в іншому місті: переходимо в те місто, як зі списку міст.
             if (place.city.isNotBlank() && place.city != store.value.city.name) {
-                selectCity(CityResult(place.city, place.latitude, place.longitude))
+                selectCity(CityResult(place.city, place.latitude, place.longitude), manual = true)
                 return
             }
             val view = HomeLocation(place.city, place.latitude, place.longitude)
