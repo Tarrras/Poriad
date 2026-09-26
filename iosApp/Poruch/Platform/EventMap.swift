@@ -554,6 +554,14 @@ struct EventMap: UIViewRepresentable {
 
     private func resolve(_ location: CLLocation) {
         geocoder.cancelGeocode()
+        // У місті з подіями назва — його, а не громади від геокодера.
+        let point = location.coordinate
+        if let place = HomeLocation.companion.around(latitude: point.latitude, longitude: point.longitude) {
+            guard place.city != announced else { return }
+            announced = place.city
+            city = CityResult(name: place.city, latitude: place.latitude, longitude: place.longitude)
+            return
+        }
         geocoder.reverseGeocodeLocation(location, preferredLocale: Locale(identifier: "uk_UA")) { [weak self] places, error in
             Task { @MainActor in
                 guard let self else { return }

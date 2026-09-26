@@ -1,6 +1,12 @@
 package app.poruch.domain
 
 import kotlinx.datetime.LocalDate
+import kotlin.math.PI
+import kotlin.math.asin
+import kotlin.math.cos
+import kotlin.math.pow
+import kotlin.math.sin
+import kotlin.math.sqrt
 
 /** Ліміти подій. Сервер перевіряє ті самі: міграція рухає число — рухається й константа тут. */
 object EventRules {
@@ -152,6 +158,14 @@ data class HomeLocation(
     val west get() = longitude - spanLongitude
     val east get() = longitude + spanLongitude
 
+    /** Відстань по великому колу. */
+    private fun kmTo(lat: Double, lon: Double): Double {
+        val dLat = (lat - latitude) * PI / 180
+        val dLon = (lon - longitude) * PI / 180
+        val a = sin(dLat / 2).pow(2) + cos(latitude * PI / 180) * cos(lat * PI / 180) * sin(dLon / 2).pow(2)
+        return 2 * 6371 * asin(sqrt(a))
+    }
+
     companion object {
         val Kyiv = HomeLocation("Київ", 50.4501, 30.5234)
 
@@ -163,6 +177,16 @@ data class HomeLocation(
             HomeLocation("Дніпро", 48.4647, 35.0462),
             HomeLocation("Львів", 49.8397, 24.0297)
         )
+
+        /**
+         * Місто з [covered], у якому точка. Системний геокодер називає громаду, а не місто: частина
+         * Київського району Одеси для нього «Лиманка». Події ж шукаються по місту.
+         * ponytail: коло від центру, не межі міста; впритул до міста передмістя теж стане містом.
+         */
+        fun around(latitude: Double, longitude: Double): HomeLocation? =
+            covered.map { it to it.kmTo(latitude, longitude) }.filter { it.second <= CITY_RADIUS_KM }.minByOrNull { it.second }?.first
+
+        private const val CITY_RADIUS_KM = 25.0
 
         /**
          * Місто з [covered], назване в пошуку: «харків», «у харкові», «харк». Крім [current]: текстовий

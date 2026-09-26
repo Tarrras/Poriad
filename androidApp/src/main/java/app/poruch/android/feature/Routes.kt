@@ -29,6 +29,7 @@ import app.poruch.android.mvi.activityStoreOwner
 import app.poruch.android.navigation.*
 import app.poruch.android.platform.*
 import app.poruch.domain.CityResult
+import app.poruch.domain.HomeLocation
 import kotlinx.coroutines.flow.Flow
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -239,6 +240,8 @@ internal fun Context.cityAt(latitude: Double, longitude: Double, fallback: Strin
     val done = { places: List<android.location.Address> ->
         onCity(CityResult(places.firstOrNull()?.locality?.takeIf { it.isNotBlank() } ?: fallback, latitude, longitude))
     }
+    // У місті з подіями назва — його, а не громади від геокодера.
+    HomeLocation.around(latitude, longitude)?.let { return onCity(CityResult(it.city, it.latitude, it.longitude)) }
     if (!Geocoder.isPresent()) return done(emptyList())
     val geocoder = Geocoder(this, Locale.getDefault())
     if (Build.VERSION.SDK_INT >= 33) {

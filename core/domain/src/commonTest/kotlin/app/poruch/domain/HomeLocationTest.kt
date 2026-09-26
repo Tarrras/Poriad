@@ -24,4 +24,13 @@ class HomeLocationTest {
         assertNull(match("ха"))
         assertNull(match("  "))
     }
+
+    @Test
+    fun pointInsideCoveredCityIsThatCity() {
+        // Київський район Одеси: геокодер каже «Лиманка».
+        assertEquals("Одеса", HomeLocation.around(46.405, 30.715)?.city)
+        assertEquals("Київ", HomeLocation.around(50.45, 30.52)?.city)
+        // Полтава далеко від усіх покритих міст.
+        assertNull(HomeLocation.around(49.5883, 34.5514))
+    }
 }
