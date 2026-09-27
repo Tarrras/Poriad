@@ -10,6 +10,8 @@ import app.poruch.shared.PoruchApp
 
 class ProfileViewModel(private val app: PoruchApp, private val notifications: NotificationPermission) :
     MviViewModel<ProfileState, ProfileIntent, ProfileEffect>(ProfileState(version = BuildConfig.VERSION_NAME)) {
+    /** Один запит дозволу на два перемикачі: відповідь іде тому, хто питав. */
+    private var askingDigest = false
 
     init {
         observe(app) { shared ->
@@ -32,6 +34,7 @@ class ProfileViewModel(private val app: PoruchApp, private val notifications: No
                 currentPassword = if (changingPassword && shared.signedIn) currentPassword else "",
                 changeError = (shared.notice as? AppNotice.Failed)?.error?.takeIf { changingPassword && shared.signedIn },
                 reminders = shared.remindersEnabled,
+                digest = shared.digestEnabled && notifications.granted(),
                 analytics = shared.analyticsEnabled,
                 // Акаунта більше нема — шторка видалення зникає разом із паролем.
                 deleting = deleting && shared.signedIn,
@@ -69,7 +72,14 @@ class ProfileViewModel(private val app: PoruchApp, private val notifications: No
                 if (intent.enabled && !notifications.granted()) send(ProfileEffect.AskNotificationPermission)
                 else app.setRemindersEnabled(intent.enabled)
             is ProfileIntent.SetAnalytics -> app.setAnalyticsEnabled(intent.enabled)
-            is ProfileIntent.NotificationPermissionAnswered -> {
+            is ProfileIntent.SetDigest ->
+                if (intent.enabled && !notifications.granted()) { askingDigest = true; send(ProfileEffect.AskNotificationPermission) }
+                else app.setDigestEnabled(intent.enabled)
+            is ProfileIntent.NotificationPermissionAnswered -> if (askingDigest) {
+                askingDigest = false
+                reduce { copy(digestDenied = !intent.granted) }
+                app.setDigestEnabled(intent.granted)
+            } else {
                 reduce { copy(remindersDenied = !intent.granted) }
                 app.setRemindersEnabled(intent.granted)
             }

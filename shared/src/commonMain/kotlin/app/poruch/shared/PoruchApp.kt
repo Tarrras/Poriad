@@ -63,6 +63,7 @@ class PoruchApp internal constructor(
         AppState(
             session = SessionState(userId = auth.session.value?.userId), taste = tasteStore?.read() ?: Taste(),
             remindersEnabled = reminderStore?.enabled() ?: false,
+            digestEnabled = reminderStore?.digestEnabled() ?: true,
             analyticsEnabled = analyticsStore?.enabled() ?: true,
             city = CityState(startCity.city, startCity.latitude, startCity.longitude)
         ),
@@ -319,6 +320,23 @@ class PoruchApp internal constructor(
      * а план нагадувань перераховується зі стану, див. [ReminderSync].
      */
     fun setRemindersEnabled(enabled: Boolean) = tasteUseCases.setRemindersEnabled(enabled)
+
+    /** Перемикач дайджесту вихідних. Як і нагадування: дозвіл уже спитала платформа. */
+    fun setDigestEnabled(enabled: Boolean) = tasteUseCases.setDigestEnabled(enabled)
+
+    /**
+     * Відповідь на мʼяке питання про дайджест. Дозвіл дано — вмикаємо й нагадування про свої
+     * події: людина погодилась на сповіщення, а інакше Android більше б про них не спитав.
+     */
+    fun digestPromptAnswered(granted: Boolean) {
+        PoruchAnalytics.track("digest_prompt", "granted" to granted)
+        if (!granted) return
+        tasteUseCases.setDigestEnabled(true)
+        tasteUseCases.setRemindersEnabled(true)
+    }
+
+    /** Тап по дайджесту: єдиний спосіб дізнатися, чи він повертає людей. */
+    fun digestOpened() = PoruchAnalytics.track("digest_open")
 
     /**
      * Перемикач аналітики в профілі. Вимкнено — події не йдуть у сінк, а платформа отримує

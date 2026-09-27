@@ -141,6 +141,8 @@ struct ProfileView: View {
                     model.app.restartOnboarding()
                 }
             }
+            // Дайджест про місто, а не про акаунт: гість його теж отримує.
+            GroupedRows { DigestPreference() }
         }
     }
 
@@ -300,6 +302,45 @@ struct ReminderPreference: View {
             Text(denied ? "Дозвольте сповіщення в налаштуваннях iOS." : "Нагадування за годину до початку і нові запити на участь у ваших подіях.")
                 .font(PoruchFont.caption).foregroundStyle(denied ? Palette.danger : Palette.inkTertiary)
         }.padding(Space.lg)
+    }
+}
+
+/// Перемикач дайджесту вихідних. Прапорець пристрою, за замовчуванням так; без дозволу системи
+/// він однаково мовчить, тож перемикач показує «увімкнено» лише разом із дозволом.
+struct DigestPreference: View {
+    @EnvironmentObject var model: AppModel
+    @State private var allowed = false
+    @State private var denied = false
+
+    private var enabled: Binding<Bool> {
+        Binding(
+            get: { allowed && (model.state?.digestEnabled ?? true) },
+            set: { isOn in
+                guard isOn else { model.app.setDigestEnabled(enabled: false); return }
+                NotificationPermission.request { granted in
+                    allowed = granted
+                    denied = !granted
+                    model.app.setDigestEnabled(enabled: granted)
+                    if granted { PushDelegate.registerIfAllowed() }
+                }
+            }
+        )
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Space.sm) {
+            Toggle(isOn: enabled) {
+                Text("Що поруч на вихідних").font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
+            }
+            .tint(Palette.brand)
+            Text(denied ? "Дозвольте сповіщення в налаштуваннях iOS." : "Щопʼятниці о 17:00 — скільки подій у вашому місті на вихідних і що серед них.")
+                .font(PoruchFont.caption).foregroundStyle(denied ? Palette.danger : Palette.inkTertiary)
+        }
+        .padding(Space.lg)
+        .task {
+            let status = await NotificationPermission.status()
+            allowed = status == .authorized || status == .provisional
+        }
     }
 }
 

@@ -1,5 +1,6 @@
 package app.poruch.shared
 
+import app.poruch.domain.DigestRules
 import app.poruch.domain.PoruchLog
 import app.poruch.domain.ReminderRules
 import app.poruch.domain.ReminderScheduler
@@ -8,6 +9,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.datetime.TimeZone
 import kotlin.time.Clock
 
 /**
@@ -34,6 +36,25 @@ internal class ReminderSync(
                 .collect { plan ->
                     PoruchLog.i("reminders") { "${plan.size} scheduled" }
                     scheduler.replace(plan)
+                }
+        }
+        // Дайджест — з видачі головної: вся область без фільтрів мапи. Індекс міняється рідко, а
+        // стан — на кожен кадр, тож рахуємо лише на новий список, а не на кожну емісію.
+        scope.launch {
+            state.distinctUntilChanged { a, b -> a.home.index === b.home.index && a.digestEnabled == b.digestEnabled }
+                .map {
+                    DigestRules.plan(
+                        it.home.index,
+                        if (it.city.custom) null else it.city.name,
+                        it.digestEnabled,
+                        Clock.System.now(),
+                        TimeZone.currentSystemDefault()
+                    )
+                }
+                .distinctUntilChanged()
+                .collect { digest ->
+                    PoruchLog.i("digest") { digest?.let { "${it.count} events, fires ${it.fireAtEpochMillis}" } ?: "none" }
+                    scheduler.replaceDigest(digest)
                 }
         }
     }

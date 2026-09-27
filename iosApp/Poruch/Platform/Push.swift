@@ -14,16 +14,17 @@ final class PushDelegate: NSObject, UIApplicationDelegate {
         }
     }
     private static var pendingToken: String?
-    /// Тап по сповіщенню: подія, яку відкрити, і чи в її чат. Ставить корінь, коли застосунок уже на екрані.
-    static var openEvent: ((String, Bool) -> Void)? {
+    /// Тап по сповіщенню: подія, яку відкрити, і чи в її чат; nil — дайджест, лише головна.
+    /// Ставить корінь, коли застосунок уже на екрані.
+    static var openEvent: ((String?, Bool) -> Void)? {
         didSet {
             if let openEvent, let pending = pendingOpen { pendingOpen = nil; openEvent(pending.id, pending.chat) }
         }
     }
     /// Тап при холодному старті приходить раніше, ніж корінь готовий: чекає тут.
-    private static var pendingOpen: (id: String, chat: Bool)?
+    private static var pendingOpen: (id: String?, chat: Bool)?
 
-    static func open(eventId: String, chat: Bool) {
+    static func open(eventId: String?, chat: Bool) {
         if let openEvent { openEvent(eventId, chat) } else { pendingOpen = (eventId, chat) }
     }
 

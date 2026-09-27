@@ -3,6 +3,7 @@
 package app.poruch.android
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -42,6 +43,7 @@ import app.poruch.android.feature.OnboardingRoute
 import app.poruch.android.feature.cityAt
 import app.poruch.android.feature.lastKnownPosition
 import app.poruch.android.navigation.*
+import app.poruch.android.platform.NotificationPermission
 import app.poruch.android.ui.*
 import app.poruch.shared.AppNotice
 import app.poruch.shared.PoruchApp
@@ -106,6 +108,12 @@ class MainActivity : ComponentActivity(), AndroidScopeComponent {
         if (intent.action == Intent.ACTION_VIEW && data?.scheme == BuildConfig.AUTH_SCHEME && data.host == "auth") {
             app.handleAuthCallback(data.toString())
         }
+        // Дайджест вихідних веде на головну: там уся область, ранжована за смаком.
+        if (intent.action == ACTION_DIGEST) {
+            scope.get<Navigator>().reset(Home)
+            app.digestOpened()
+            return
+        }
         // Тап по сповіщенню: подія (або її чат) поверх головної, «назад» веде туди, а не з застосунку.
         val eventId = intent.getStringExtra(EXTRA_EVENT_ID) ?: return
         val navigator = scope.get<Navigator>()
@@ -122,6 +130,7 @@ class MainActivity : ComponentActivity(), AndroidScopeComponent {
         private const val EXTRA_TARGET = "target"
         private const val TARGET_CHAT = "chat"
         private const val APP_LANGUAGE = "uk"
+        private const val ACTION_DIGEST = "app.poruch.OPEN_DIGEST"
 
         /** Intent сповіщення: відкрити подію або, з [chat], її чат. Наявний екземпляр отримує його в `onNewIntent`. */
         fun open(context: Context, eventId: String, chat: Boolean = false): Intent =
@@ -129,9 +138,16 @@ class MainActivity : ComponentActivity(), AndroidScopeComponent {
                 .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                 .putExtra(EXTRA_EVENT_ID, eventId)
                 .apply { if (chat) putExtra(EXTRA_TARGET, TARGET_CHAT) }
+
+        /** Intent дайджесту. Своя дія: PendingIntent не сплутається з intent-ом події, extras він не порівнює. */
+        fun openDigest(context: Context): Intent =
+            Intent(context, MainActivity::class.java).setAction(ACTION_DIGEST)
+                .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
     }
 }
 
+// POST_NOTIFICATIONS питаємо лише коли NotificationPermission.required (API 33+).
+@SuppressLint("InlinedApi")
 @Composable
 fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
     val context = LocalContext.current
@@ -168,6 +184,43 @@ fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
         if (prompts.getBoolean(LOCATION_ASKED, false)) return@LaunchedEffect
         prompts.edit { putBoolean(LOCATION_ASKED, true) }
         locationPermission.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
+    }
+
+    // Дайджест вихідних: гостя без дозволу питаємо на другому запуску, раз, спершу своїми словами.
+    // Перший запуск належить онбордингу й геолокації. До Android 13 дозволу нема й питати нема про що.
+    var digestAsk by remember { mutableStateOf(false) }
+    val digestPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission(), app::digestPromptAnswered)
+    var counted by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(state.needsOnboarding) {
+        if (state.needsOnboarding || counted) return@LaunchedEffect
+        counted = true
+        val prompts = context.getSharedPreferences(PROMPTS, Context.MODE_PRIVATE)
+        val launches = prompts.getInt(LAUNCHES, 0) + 1
+        prompts.edit { putInt(LAUNCHES, launches) }
+        val permission = NotificationPermission(context)
+        if (launches < 2 || prompts.getBoolean(DIGEST_ASKED, false) || !state.digestEnabled || permission.granted()) return@LaunchedEffect
+        prompts.edit { putBoolean(DIGEST_ASKED, true) }
+        digestAsk = true
+    }
+    if (digestAsk) PoruchSheet({ digestAsk = false }) { sheet ->
+        Column(
+            Modifier.padding(horizontal = Spacing.page).padding(bottom = Spacing.section),
+            verticalArrangement = Arrangement.spacedBy(Spacing.md)
+        ) {
+            Text(stringResource(R.string.digest_prompt_title), style = MaterialTheme.typography.titleLarge, color = Poruch.colors.ink)
+            Text(
+                stringResource(R.string.digest_prompt_body), style = MaterialTheme.typography.bodyLarge,
+                color = Poruch.colors.inkSecondary, modifier = Modifier.padding(bottom = Spacing.sm)
+            )
+            PrimaryButton(
+                stringResource(R.string.digest_prompt_yes),
+                { sheet.close { digestPermission.launch(Manifest.permission.POST_NOTIFICATIONS) } }, Modifier.fillMaxWidth()
+            )
+            SecondaryButton(
+                stringResource(R.string.digest_prompt_no),
+                { sheet.close { app.digestPromptAnswered(false) } }, Modifier.fillMaxWidth()
+            )
+        }
     }
 
     // Лист відновлення: окремий екран поверх того, де людина була. Профіль лишається запасним шляхом.
@@ -353,5 +406,7 @@ private fun Splash() {
 
 private const val PROMPTS = "prompts"
 private const val LOCATION_ASKED = "location_asked"
+private const val LAUNCHES = "launches"
+private const val DIGEST_ASKED = "digest_asked"
 private const val INFO_NOTICE_MS = 3_000L
 private const val ERROR_NOTICE_MS = 5_000L

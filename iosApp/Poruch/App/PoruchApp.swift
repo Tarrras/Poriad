@@ -107,6 +107,8 @@ struct RootView: View {
     @State private var mapToken = 0
     /// Стартове місто — те, де людина зараз, а не Київ за замовчуванням. Відмову мовчки приймаємо.
     @StateObject private var location = LocationFinder()
+    /// Мʼяке питання про дайджест вихідних, див. `DigestPrompt`.
+    @State private var digestAsk = false
     var body: some View {
         // Онбординг замінює застосунок, а не накриває: за ним на першому запуску ще нічого нема.
         // Поки стану нема, невідомо, чи потрібен онбординг: нейтральне полотно, без запиту геолокації.
@@ -117,6 +119,18 @@ struct RootView: View {
                 app
                     // Геолокацію питаємо, лише коли онбординг позаду: не поверх його першого екрана.
                     .onAppear { location.request() }
+                    .task { digestAsk = await DigestPrompt.due(digestEnabled: state.digestEnabled) }
+                    .alert("Що поруч на вихідних?", isPresented: $digestAsk) {
+                        Button("Так, нагадувати") {
+                            NotificationPermission.request { granted in
+                                model.app.digestPromptAnswered(granted: granted)
+                                if granted { PushDelegate.registerIfAllowed() }
+                            }
+                        }
+                        Button("Не зараз", role: .cancel) { model.app.digestPromptAnswered(granted: false) }
+                    } message: {
+                        Text("Щопʼятниці ввечері коротко скажемо, скільки подій у вашому місті на вихідних. Одне сповіщення на тиждень, вимкнути можна в профілі.")
+                    }
                     .onReceive(location.$city) { city in
                         if let city { model.app.locatedCity(city: city) }
                     }
@@ -175,16 +189,18 @@ struct RootView: View {
         .animation(.easeInOut(duration: 0.2), value: tabBarHidden)
         .onAppear {
             // Тап по сповіщенню веде на подію (або в її чат) зі стеку головної, поверх усього, що було відкрите.
+            // Без події — дайджест вихідних: лише головна.
             PushDelegate.openEvent = { id, chat in
                 creating = false
                 authenticating = false
                 dismissPresentedSheets()
                 tab = 0
+                minePath = NavigationPath()
+                guard let id else { homePath = NavigationPath(); model.app.digestOpened(); return }
                 model.app.selectEvent(id: id)
                 var path = NavigationPath()
                 if chat { path.append(ChatRoute(id: id)) } else { path.append(EventRoute(id: id)) }
                 homePath = path
-                minePath = NavigationPath()
             }
         }
         .environment(\.openMap, showMap)

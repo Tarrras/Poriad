@@ -125,6 +125,15 @@
   <string name="reminder_note">Нагадування приблизно за годину до початку і нові запити на участь у ваших подіях. Запити перевіряються, коли застосунок відкрито.</string>
   <string name="analytics">Аналітика</string>
   <string name="analytics_note">Псевдонімна статистика використання й звіти про збої. Без реклами.</string>
+  <string name="digest">Що поруч на вихідних</string>
+  <string name="digest_note">Щопʼятниці о 17:00 — скільки подій у вашому місті на вихідних і що серед них.</string>
+  <string name="digest_title">%1$s: %2$s на вихідних</string>
+  <string name="digest_nearby">Поруч</string>
+  <string name="digest_more">%1$s та ще %2$d</string>
+  <string name="digest_prompt_title">Що поруч на вихідних?</string>
+  <string name="digest_prompt_body">Щопʼятниці ввечері коротко скажемо, скільки подій у вашому місті на вихідних. Одне сповіщення на тиждень, вимкнути можна в профілі.</string>
+  <string name="digest_prompt_yes">Так, нагадувати</string>
+  <string name="digest_prompt_no">Не зараз</string>
   <string name="reminder_permission">Сповіщення вимкнено. Їх можна дозволити в налаштуваннях Android.</string>
   <string name="interests">Ваші інтереси</string>
   <string name="clear_search">Очистити пошук</string>
@@ -397,6 +406,12 @@
     <item quantity="other">%1$d запитів</item>
   </plurals>
   <string name="request_notification_channel">Запити на участь</string>
+  <plurals name="digest_count">
+    <item quantity="one">%1$d подія</item>
+    <item quantity="few">%1$d події</item>
+    <item quantity="many">%1$d подій</item>
+    <item quantity="other">%1$d події</item>
+  </plurals>
   <plurals name="request_notification_body">
     <item quantity="one">%1$d новий запит на участь. Відкрийте подію, щоб відповісти.</item>
     <item quantity="few">%1$d нові запити на участь. Відкрийте подію, щоб відповісти.</item>

@@ -28,6 +28,8 @@ data class AppState(
     val taste: Taste = Taste(),
     /** Людина попросила нагадувати про свої події. Прапорець пристрою, дозвіл системи перевіряє платформа. */
     val remindersEnabled: Boolean = false,
+    /** Пʼятничний дайджест вихідних. Прапорець пристрою, за замовчуванням так; дозвіл системи перевіряє платформа. */
+    val digestEnabled: Boolean = true,
     /** Людина дозволила продуктову аналітику. Прапорець пристрою, за замовчуванням так. Див. [PoruchAnalytics.enabled]. */
     val analyticsEnabled: Boolean = true,
     val mutating: Boolean = false,

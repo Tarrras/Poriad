@@ -149,9 +149,11 @@ class PoruchAppTest {
     private var taste = Answers()
 
     /** Прапорець нагадувань пристрою в пам'яті. */
-    private class Reminders(var on: Boolean = false): ReminderPreferenceStore {
+    private class Reminders(var on: Boolean = false, var digest: Boolean = true): ReminderPreferenceStore {
         override fun enabled() = on
         override fun setEnabled(enabled: Boolean) { on = enabled }
+        override fun digestEnabled() = digest
+        override fun setDigestEnabled(enabled: Boolean) { digest = enabled }
     }
     private var reminders = Reminders()
 
@@ -487,6 +489,18 @@ class PoruchAppTest {
         assertTrue(app.state.value.remindersEnabled); assertTrue(reminders.on)
         app.setRemindersEnabled(false)
         assertFalse(app.state.value.remindersEnabled); assertFalse(reminders.on)
+        app.close()
+    }
+    /** Згода на дайджест — це згода на сповіщення: вмикає і його, і нагадування. Відмова нічого не чіпає. */
+    @Test fun digestPromptConsentEnablesDigestAndReminders()=runTest {
+        reminders=Reminders(digest=false)
+        val app=app(Events(),backgroundScope)
+        assertFalse(app.state.value.digestEnabled)
+        app.digestPromptAnswered(false)
+        assertFalse(app.state.value.digestEnabled); assertFalse(app.state.value.remindersEnabled)
+        app.digestPromptAnswered(true)
+        assertTrue(app.state.value.digestEnabled); assertTrue(reminders.digest)
+        assertTrue(app.state.value.remindersEnabled); assertTrue(reminders.on)
         app.close()
     }
     /** Вихід чистить те саме, що й зміна акаунта: раніше крок нового пароля переживав вихід. */
@@ -878,7 +892,7 @@ class PoruchAppTest {
             auth=Auth(), geo=object:GeoSearchRepository { override suspend fun search(query:String)=emptyList<CityResult>() },
             eventActions=EventActions(events,events,Auth()), accountActions=AccountActions(Auth()),
             safety=safety, tasteStore=taste, scope=backgroundScope,
-            reminderStore=object:ReminderPreferenceStore { override fun enabled()=true; override fun setEnabled(enabled:Boolean) {} },
+            reminderStore=object:ReminderPreferenceStore { override fun enabled()=true; override fun setEnabled(enabled:Boolean) {}; override fun digestEnabled()=false; override fun setDigestEnabled(enabled:Boolean) {} },
             seenMessages=seen, chatNotifier=object:ChatNotifier { override fun notifyMessages(alerts:List<ChatAlert>) { rung+=alerts } }
         )
         events.unreadChats=listOf(ChatUnread("ev","Настілки",2,"m9","Інший","Ок","2026-09-16T10:30:00Z"))
@@ -906,7 +920,7 @@ class PoruchAppTest {
             auth=Auth(), geo=object:GeoSearchRepository { override suspend fun search(query:String)=emptyList<CityResult>() },
             eventActions=EventActions(events,events,Auth()), accountActions=AccountActions(Auth()),
             safety=safety, tasteStore=taste, scope=backgroundScope,
-            reminderStore=object:ReminderPreferenceStore { override fun enabled()=true; override fun setEnabled(enabled:Boolean) {} },
+            reminderStore=object:ReminderPreferenceStore { override fun enabled()=true; override fun setEnabled(enabled:Boolean) {}; override fun digestEnabled()=false; override fun setDigestEnabled(enabled:Boolean) {} },
             seenRequests=seen, requestNotifier=object:RequestNotifier { override fun notify(alerts:List<RequestAlert>) { rung+=alerts } }
         )
         events.pending=listOf(JoinRequest("mine","guest","Гість",null,"2026-09-16T10:00:00Z"))
@@ -1084,7 +1098,7 @@ class PoruchAppTest {
             auth=Auth(), geo=object:GeoSearchRepository { override suspend fun search(query:String)=emptyList<CityResult>() },
             eventActions=EventActions(events,events,Auth()), accountActions=AccountActions(Auth()),
             safety=safety, tasteStore=taste, scope=backgroundScope,
-            reminderStore=object:ReminderPreferenceStore { override fun enabled()=true; override fun setEnabled(enabled:Boolean) {} },
+            reminderStore=object:ReminderPreferenceStore { override fun enabled()=true; override fun setEnabled(enabled:Boolean) {}; override fun digestEnabled()=false; override fun setDigestEnabled(enabled:Boolean) {} },
             seenRequests=seen, requestNotifier=object:RequestNotifier { override fun notify(alerts:List<RequestAlert>) {} }
         )
         events.pending=listOf(JoinRequest("unknown","guest","Гість",null,"2026-09-16T10:00:00Z"))

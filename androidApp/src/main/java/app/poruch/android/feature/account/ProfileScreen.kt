@@ -123,6 +123,10 @@ fun ProfileScreen(state: ProfileState, onIntent: (ProfileIntent) -> Unit) {
                         stringResource(R.string.tune_recommendations_hint), { onIntent(ProfileIntent.TuneRecommendations) }
                     )
                 }
+                // Дайджест про місто, а не про акаунт: гість його теж отримує.
+                GroupedRows {
+                    Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) { DigestSetting(state, onIntent) }
+                }
             }
             if (state.signedIn) {
                 Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
@@ -327,6 +331,23 @@ private fun ReminderSetting(state: ProfileState, onIntent: (ProfileIntent) -> Un
     Text(
         stringResource(if (state.remindersDenied) R.string.reminder_permission else R.string.reminder_note),
         style = MaterialTheme.typography.bodySmall, color = if (state.remindersDenied) colors.danger else colors.inkTertiary
+    )
+}
+
+/** Перемикач дайджесту вихідних. Дозвіл системи запитує маршрут, як і для нагадувань. */
+@Composable
+private fun DigestSetting(state: ProfileState, onIntent: (ProfileIntent) -> Unit) {
+    val colors = Poruch.colors
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(
+            stringResource(R.string.digest), Modifier.weight(1f).padding(end = 12.dp),
+            style = MaterialTheme.typography.bodyLarge, color = colors.ink
+        )
+        PoruchSwitch(state.digest, { onIntent(ProfileIntent.SetDigest(it)) })
+    }
+    Text(
+        stringResource(if (state.digestDenied) R.string.reminder_permission else R.string.digest_note),
+        style = MaterialTheme.typography.bodySmall, color = if (state.digestDenied) colors.danger else colors.inkTertiary
     )
 }
 

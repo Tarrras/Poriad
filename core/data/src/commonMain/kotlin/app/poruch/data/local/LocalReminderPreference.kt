@@ -12,7 +12,16 @@ class LocalReminderPreference(private val database: PoruchDatabase) : ReminderPr
         database.cacheQueries.writeDevice(KEY, enabled.toString())
     }
 
+    /** Увімкнено, поки людина не вимкнула: рядка нема — так. */
+    override fun digestEnabled(): Boolean =
+        database.cacheQueries.readDevice(DIGEST).executeAsOneOrNull() != "false"
+
+    override fun setDigestEnabled(enabled: Boolean) {
+        database.cacheQueries.writeDevice(DIGEST, enabled.toString())
+    }
+
     private companion object {
         const val KEY = "device:reminders"
+        const val DIGEST = "device:digest"
     }
 }

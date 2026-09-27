@@ -26,6 +26,9 @@ data class ProfileState(
     val reminders: Boolean = false,
     /** Людина відмовила в дозволі на сповіщення: перемикач лишається вимкненим, підпис каже чому. */
     val remindersDenied: Boolean = false,
+    /** Перемикач дайджесту вихідних: прапорець пристрою, тож є і в гостя. */
+    val digest: Boolean = true,
+    val digestDenied: Boolean = false,
     /** Перемикач аналітики: прапорець пристрою, тож є і в гостя. */
     val analytics: Boolean = true,
     /** Шторка видалення акаунта відкрита; пароль живе лише в ній. */
@@ -68,6 +71,7 @@ sealed interface ProfileIntent {
     data object ToggleNewPasswordReveal : ProfileIntent
     data class SetReminders(val enabled: Boolean) : ProfileIntent
     data class SetAnalytics(val enabled: Boolean) : ProfileIntent
+    data class SetDigest(val enabled: Boolean) : ProfileIntent
     /** Відповідь системи на запит дозволу, який маршрут показав за [ProfileEffect.AskNotificationPermission]. */
     data class NotificationPermissionAnswered(val granted: Boolean) : ProfileIntent
     data object OpenPrivacy : ProfileIntent

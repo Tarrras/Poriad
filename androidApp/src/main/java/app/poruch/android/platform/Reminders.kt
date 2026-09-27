@@ -20,6 +20,7 @@ import app.poruch.domain.ChatAlert
 import app.poruch.domain.ChatNotifier
 import app.poruch.domain.RequestAlert
 import app.poruch.domain.RequestNotifier
+import app.poruch.domain.WeekendDigest
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.Locale
@@ -60,6 +61,13 @@ class AlarmReminderScheduler(private val context: Context) : ReminderScheduler {
         store(context, reminders)
     }
 
+    override fun replaceDigest(digest: WeekendDigest?) {
+        val alarms = context.getSystemService(AlarmManager::class.java)
+        alarms.cancel(digestPending(context))
+        storeDigest(context, digest)
+        if (digest != null) alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, digest.fireAtEpochMillis, digestPending(context))
+    }
+
     internal companion object {
         private const val PREFS = "reminders"
         private const val KEY = "scheduled"
@@ -75,6 +83,60 @@ class AlarmReminderScheduler(private val context: Context) : ReminderScheduler {
                         pending(context, it)
                     )
                 }
+            storedDigest(context)?.takeIf { it.fireAtEpochMillis > System.currentTimeMillis() }?.let {
+                alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, it.fireAtEpochMillis, digestPending(context))
+            }
+        }
+
+        /** Будильник дайджесту спрацював: текст — з останнього збереженого плану. Тап веде на головну. */
+        fun showDigest(system: Context) {
+            val context = system.inAppLanguage()
+            val digest = storedDigest(context) ?: return
+            if (!NotificationPermission(context).granted()) return
+            val manager = context.getSystemService(NotificationManager::class.java)
+            manager.createNotificationChannel(
+                NotificationChannel(DIGEST_CHANNEL, context.getString(R.string.digest), NotificationManager.IMPORTANCE_DEFAULT)
+            )
+            val open = PendingIntent.getActivity(
+                context, DIGEST_ID, MainActivity.openDigest(context),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val count = context.resources.getQuantityString(R.plurals.digest_count, digest.count, digest.count)
+            val titles = digest.titles.joinToString(", ")
+            val more = digest.count - digest.titles.size
+            val notification = Notification.Builder(context, DIGEST_CHANNEL)
+                .setSmallIcon(R.drawable.ic_notification)
+                .setContentTitle(context.getString(R.string.digest_title, digest.city ?: context.getString(R.string.digest_nearby), count))
+                .setContentText(if (more > 0) context.getString(R.string.digest_more, titles, more) else titles)
+                .setContentIntent(open).setAutoCancel(true).build()
+            manager.notify(DIGEST_TAG, DIGEST_ID, notification)
+        }
+
+        private fun digestPending(context: Context): PendingIntent =
+            PendingIntent.getBroadcast(
+                context, DIGEST_ID,
+                Intent(context, ReminderReceiver::class.java).setAction(DIGEST_ACTION),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+
+        private fun storedDigest(context: Context): WeekendDigest? {
+            val json = prefs(context).getString(DIGEST_KEY, null) ?: return null
+            return runCatching {
+                val it = JSONObject(json)
+                val titles = it.getJSONArray("titles")
+                WeekendDigest(
+                    if (it.isNull("city")) null else it.getString("city"), it.getInt("count"),
+                    (0 until titles.length()).map(titles::getString), it.getLong("time")
+                )
+            }.getOrNull()
+        }
+
+        private fun storeDigest(context: Context, digest: WeekendDigest?) {
+            val json = digest?.let {
+                JSONObject().put("city", it.city ?: JSONObject.NULL).put("count", it.count)
+                    .put("titles", JSONArray(it.titles)).put("time", it.fireAtEpochMillis).toString()
+            }
+            prefs(context).edit().putString(DIGEST_KEY, json).apply()
         }
 
         fun show(system: Context, reminder: EventReminder) {
@@ -145,6 +207,11 @@ class AlarmReminderScheduler(private val context: Context) : ReminderScheduler {
         const val EXTRA_ID = "id"
         const val EXTRA_TITLE = "title"
         const val EXTRA_ADDRESS = "address"
+        const val DIGEST_ACTION = "app.poruch.DIGEST"
+        private const val DIGEST_KEY = "digest"
+        private const val DIGEST_CHANNEL = "weekend_digest"
+        private const val DIGEST_TAG = "digest"
+        private const val DIGEST_ID = 1
     }
 }
 
@@ -253,6 +320,7 @@ class ReminderReceiver : BroadcastReceiver() {
             AlarmReminderScheduler.restore(context)
             return
         }
+        if (intent.action == AlarmReminderScheduler.DIGEST_ACTION) return AlarmReminderScheduler.showDigest(context)
         val id = intent.getStringExtra(AlarmReminderScheduler.EXTRA_ID) ?: return
         AlarmReminderScheduler.show(
             context,

@@ -51,6 +51,12 @@ internal class TasteUseCases(
         store.update { it.copy(remindersEnabled = enabled) }
     }
 
+    fun setDigestEnabled(enabled: Boolean) {
+        PoruchLog.i("digest") { if (enabled) "enabled" else "disabled" }
+        reminderStore?.setDigestEnabled(enabled)
+        store.update { it.copy(digestEnabled = enabled) }
+    }
+
     /** Згода на аналітику: пристрій, стан і платформний перемикач збору одним рухом. */
     fun setAnalyticsEnabled(enabled: Boolean) {
         PoruchLog.i("analytics") { if (enabled) "enabled" else "disabled" }
