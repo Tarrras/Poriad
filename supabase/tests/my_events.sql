@@ -28,8 +28,20 @@ do $$ begin
  assert (select count(*)=0 from public.my_ratings()),'no ratings yet';
  perform public.rate_event(current_setting('test.past')::uuid,4);
  assert (select score=4 from public.my_ratings() where event_id=current_setting('test.past')::uuid),'own score is returned';
+ -- Теги: дублікати зливаються, повтор замінює набір, чужий ключ відмовляє.
+ perform public.rate_event(current_setting('test.past')::uuid,5,null,array['music','atmosphere','music']);
+ assert (select tags=array['atmosphere','music'] from public.event_ratings(current_setting('test.past')::uuid)),'tags stored once, sorted';
+ begin perform public.rate_event(current_setting('test.past')::uuid,5,null,array['bribe']); raise exception 'unknown tag accepted';
+ exception when check_violation then null; end;
+ begin perform public.rate_event(current_setting('test.past')::uuid,5,null,array['music','sound','humor','host','route','views','pace']);
+  raise exception 'seven tags accepted';
+ exception when invalid_parameter_value then null; end;
+ -- Категорійний тег зі словника проходить.
+ perform public.rate_event(current_setting('test.past')::uuid,5,null,array['conversation','people']);
+ perform public.rate_event(current_setting('test.past')::uuid,5,null,array['music','atmosphere']);
  perform set_config('request.jwt.claim.sub',current_setting('test.host'),true);
  assert (select count(*)=0 from public.my_ratings()),'organizer sees no one else''s scores here';
+ assert (select tags=array['atmosphere','music'] from public.event_ratings(current_setting('test.past')::uuid)),'organizer sees the tags';
 end $$;
 
 set local role anon;
@@ -39,5 +51,5 @@ do $$ begin
  exception when insufficient_privilege then null; end;
 end $$;
 reset role;
-select 'PASS: queued events in my_events, my_ratings private to the author, guests refused' as result;
+select 'PASS: queued events in my_events, my_ratings private to the author, rating tags, guests refused' as result;
 rollback;

@@ -285,7 +285,8 @@ class PoruchApp internal constructor(
     fun leaveWaitlist(id: String) = eventUseCases.leaveWaitlist(id)
     fun leaveEvent(id: String) = eventUseCases.leave(id)
     fun cancelEvent(id: String) = eventUseCases.cancel(id)
-    fun rateEvent(id: String, score: Int, comment: String? = null) = eventUseCases.rate(id, score, comment)
+    fun rateEvent(id: String, score: Int, comment: String? = null, tags: List<RatingTag> = emptyList()) =
+        eventUseCases.rate(id, score, comment, tags)
 
     /** Закладка спрацьовує одразу, запит іде окремо; при збої повертається як було. */
     fun toggleSaved(id: String) = eventUseCases.toggleSaved(id)

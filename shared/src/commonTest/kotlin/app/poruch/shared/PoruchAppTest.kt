@@ -86,7 +86,7 @@ class PoruchAppTest {
         override suspend fun joinWaitlist(id:String) {}
         override suspend fun leaveWaitlist(id:String) {}
         override suspend fun ratings(id:String) = emptyList<EventRating>()
-        override suspend fun rate(id:String, score:Int, comment:String?) {}
+        override suspend fun rate(id:String, score:Int, comment:String?, tags:List<RatingTag>) {}
         override suspend fun joinRequests(id:String)=emptyList<Attendee>()
         var pending=emptyList<JoinRequest>()
         override suspend fun pendingRequests()=if(failPending) fail(AppError.ServiceUnavailable) else pending

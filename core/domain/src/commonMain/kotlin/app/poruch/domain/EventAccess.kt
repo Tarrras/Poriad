@@ -73,7 +73,7 @@ interface EventParticipation {
 
     /** Оцінки завершеної події: організаторові всі, учасникові — своя. */
     suspend fun ratings(id: String): List<EventRating>
-    suspend fun rate(id: String, score: Int, comment: String?)
+    suspend fun rate(id: String, score: Int, comment: String?, tags: List<RatingTag>)
 
     /** Мої бали за id події: «Мої події» знають, де ще «Оцінити». Сервер без міграції — порожньо. */
     suspend fun myRatings(): Map<String, Int> = emptyMap()

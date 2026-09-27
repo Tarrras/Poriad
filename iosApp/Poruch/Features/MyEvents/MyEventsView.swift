@@ -38,7 +38,9 @@ struct MyEventsView: View {
         .sheet(isPresented: $creating) { EventEditor(event: nil, app: model.app, home: model.state) }
         .sheet(item: $rating) { route in
             if let event = model.state?.library.myEvents.first(where: { $0.id == route.id }) {
-                RateSheet(event: event, score: model.state?.myScore(eventId: event.id)?.intValue)
+                RateSheet(event: event, mine: model.state?.myScore(eventId: event.id).map {
+                    EventRating(score: $0.int32Value, comment: nil, createdAt: "", mine: true, tags: [])
+                })
             }
         }
     }
@@ -374,35 +376,5 @@ private struct OrganizerPanel: View {
         .disabled(model.state?.mutating == true)
         .padding(Space.md)
         .background(Palette.accentContainer, in: RoundedRectangle(cornerRadius: Corner.md, style: .continuous))
-    }
-}
-
-/// Оцінка зі списку: той самий `RateEventCard`, що на деталях, у шторці.
-private struct RateSheet: View {
-    @EnvironmentObject var model: AppModel
-    @Environment(\.dismiss) private var dismiss
-    let event: Event
-    let score: Int?
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: Space.lg) {
-                HStack(spacing: Space.md) {
-                    EventThumbnail(event: event, maxDimension: 52).frame(width: 52, height: 52)
-                        .clipShape(RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(cardOverline(event)).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
-                        Text(event.title).font(PoruchFont.cardName).foregroundStyle(Palette.ink).lineLimit(2)
-                    }
-                }
-                RateEventCard(mine: score.map { EventRating(score: Int32($0), comment: nil, createdAt: "", mine: true) },
-                              mutating: model.state?.mutating == true) { score, comment in
-                    model.app.rateEvent(id: event.id, score: Int32(score), comment: comment)
-                    dismiss()
-                }
-            }.padding(Space.page)
-        }
-        .background(Palette.canvas)
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
     }
 }

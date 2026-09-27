@@ -26,4 +26,25 @@ class RatingRulesTest {
         val r = listOf(5, 4, 4).map { EventRating(it, null, "", false) }
         assertEquals(4.3, RatingRules.average(r))
     }
+
+    @Test fun tagCountsMostFrequentFirst() {
+        val r = listOf(
+            listOf(RatingTag.PEOPLE, RatingTag.MUSIC), listOf(RatingTag.MUSIC), listOf(RatingTag.ATMOSPHERE)
+        ).map { EventRating(5, null, "", false, it) }
+        assertEquals(
+            listOf(TagCount(RatingTag.MUSIC, 2), TagCount(RatingTag.ATMOSPHERE, 1), TagCount(RatingTag.PEOPLE, 1)),
+            RatingRules.tagCounts(r)
+        )
+        assertNull(RatingTag.fromKey("bribe"))
+    }
+
+    @Test fun everyCategoryOffersSixDistinctTags() {
+        EventRules.categories.forEach { category ->
+            val tags = RatingRules.tagsFor(category)
+            assertEquals(6, tags.toSet().size, category)
+        }
+        assertTrue(RatingTag.GAME_CHOICE in RatingRules.tagsFor("games"))
+        assertFalse(RatingTag.MUSIC in RatingRules.tagsFor("games"))
+        assertEquals(5, RatingRules.tagsFor("невідома").size)
+    }
 }

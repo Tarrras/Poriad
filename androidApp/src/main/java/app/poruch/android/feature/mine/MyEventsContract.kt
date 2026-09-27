@@ -4,6 +4,7 @@ import app.poruch.domain.Event
 import app.poruch.domain.JoinRequest
 import app.poruch.domain.MyEventsBoard
 import app.poruch.domain.MyEventsTab
+import app.poruch.domain.RatingTag
 
 /** «Мої події» — три розрізи з секціями за часом (docs/my-events.md). Розклад рахує `MyEventsRules`. */
 data class MyEventsState(
@@ -36,7 +37,7 @@ sealed interface MyEventsIntent {
     data object ShowAllPast : MyEventsIntent
     data class StartRating(val event: Event) : MyEventsIntent
     data object DismissRating : MyEventsIntent
-    data class Rate(val id: String, val score: Int, val comment: String) : MyEventsIntent
+    data class Rate(val id: String, val score: Int, val comment: String, val tags: List<RatingTag>) : MyEventsIntent
     data class Approve(val eventId: String, val userId: String) : MyEventsIntent
     data class Decline(val eventId: String, val userId: String) : MyEventsIntent
     data class Unsave(val id: String) : MyEventsIntent

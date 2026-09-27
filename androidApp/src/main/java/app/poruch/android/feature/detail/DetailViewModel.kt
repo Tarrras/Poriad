@@ -221,7 +221,7 @@ class DetailViewModel(
             }
             is DetailIntent.ApproveRequest -> app.approveMember(eventId, intent.userId)
             is DetailIntent.DeclineRequest -> app.declineMember(eventId, intent.userId)
-            is DetailIntent.Rate -> app.rateEvent(eventId, intent.score, intent.comment)
+            is DetailIntent.Rate -> app.rateEvent(eventId, intent.score, intent.comment, intent.tags)
         }
     }
 

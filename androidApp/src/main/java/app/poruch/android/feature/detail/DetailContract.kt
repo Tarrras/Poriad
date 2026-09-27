@@ -5,6 +5,7 @@ import app.poruch.domain.Event
 import app.poruch.domain.EventIndexEntry
 import app.poruch.domain.EventRating
 import app.poruch.domain.EventSession
+import app.poruch.domain.RatingTag
 import app.poruch.shared.PersonState
 
 data class DetailState(
@@ -147,7 +148,7 @@ sealed interface DetailIntent {
     data class ApproveRequest(val userId: String) : DetailIntent
     data class DeclineRequest(val userId: String) : DetailIntent
     data object CancelEvent : DetailIntent
-    data class Rate(val score: Int, val comment: String) : DetailIntent
+    data class Rate(val score: Int, val comment: String, val tags: List<RatingTag>) : DetailIntent
     data class AttachPhoto(val bytes: ByteArray, val contentType: String) : DetailIntent {
         // Масиви байтів порівнюються за посиланням: два вибори того самого файлу — різні інтенти.
         override fun equals(other: Any?) = this === other ||

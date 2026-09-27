@@ -37,7 +37,7 @@ class MyEventsViewModel(private val app: PoruchApp) :
             is MyEventsIntent.StartRating -> reduce { copy(rating = intent.event) }
             MyEventsIntent.DismissRating -> reduce { copy(rating = null) }
             is MyEventsIntent.Rate -> {
-                app.rateEvent(intent.id, intent.score, intent.comment)
+                app.rateEvent(intent.id, intent.score, intent.comment, intent.tags)
                 reduce { copy(rating = null) }
             }
             is MyEventsIntent.Approve -> app.approveMember(intent.eventId, intent.userId)

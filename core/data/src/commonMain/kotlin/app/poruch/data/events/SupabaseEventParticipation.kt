@@ -2,6 +2,7 @@ package app.poruch.data.events
 
 import app.poruch.domain.EventParticipation
 import app.poruch.domain.EventRating
+import app.poruch.domain.RatingTag
 import kotlinx.serialization.json.*
 
 /** Участь і черга. Перевірок тут нема навмисно: усі на сервері в `assert_can_join`. */
@@ -19,7 +20,8 @@ internal class SupabaseEventParticipation(private val rpc: EventRpc) : EventPart
         rpc.read("event_ratings", rpc.eventParams(id)).jsonArray.map {
             val row = it.jsonObject
             EventRating(row.getValue("score").jsonPrimitive.int, row["comment"]?.jsonPrimitive?.contentOrNull,
-                row.getValue("created_at").jsonPrimitive.content, row["mine"]?.jsonPrimitive?.boolean == true)
+                row.getValue("created_at").jsonPrimitive.content, row["mine"]?.jsonPrimitive?.boolean == true,
+                (row["tags"] as? JsonArray).orEmpty().mapNotNull { tag -> RatingTag.fromKey(tag.jsonPrimitive.content) })
         }
 
     override suspend fun myRatings(): Map<String, Int> =
@@ -28,7 +30,10 @@ internal class SupabaseEventParticipation(private val rpc: EventRpc) : EventPart
             row.getValue("event_id").jsonPrimitive.content to row.getValue("score").jsonPrimitive.int
         }
 
-    override suspend fun rate(id: String, score: Int, comment: String?) {
-        rpc.call("rate_event", buildJsonObject { put("p_event_id", id); put("p_score", score); put("p_comment", comment) })
+    override suspend fun rate(id: String, score: Int, comment: String?, tags: List<RatingTag>) {
+        rpc.call("rate_event", buildJsonObject {
+            put("p_event_id", id); put("p_score", score); put("p_comment", comment)
+            putJsonArray("p_tags") { tags.forEach { add(it.key) } }
+        })
     }
 }

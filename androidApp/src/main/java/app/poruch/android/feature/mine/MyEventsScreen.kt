@@ -28,7 +28,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.poruch.android.R
-import app.poruch.android.feature.detail.RatingForm
+import app.poruch.android.feature.detail.RatingSheet
 import app.poruch.android.platform.openInMaps
 import app.poruch.android.platform.shareEvent
 import app.poruch.android.ui.*
@@ -135,42 +135,9 @@ fun MyEventsScreen(state: MyEventsState, onIntent: (MyEventsIntent) -> Unit) {
         }
     }
     state.rating?.let { event ->
-        PoruchSheet({ onIntent(MyEventsIntent.DismissRating) }) { sheet ->
-            Column(
-                Modifier
-                    .padding(horizontal = Spacing.page)
-                    .padding(bottom = Spacing.xl)
-                    .navigationBarsPadding(),
-                verticalArrangement = Arrangement.spacedBy(Spacing.lg)
-            ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(Spacing.md),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    EventImage(
-                        event, Modifier
-                            .size(52.dp)
-                            .clip(Radius.xs)
-                    )
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text(
-                            cardOverline(event, dateWords()),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Poruch.colors.inkTertiary
-                        )
-                        Text(
-                            event.title,
-                            style = MaterialTheme.typography.titleSmall,
-                            color = Poruch.colors.ink,
-                            maxLines = 2
-                        )
-                    }
-                }
-                val mine = state.myRatings[event.id]?.let { EventRating(it, null, "", true) }
-                RatingForm(mine, state.mutating) { score, comment ->
-                    sheet.close { onIntent(MyEventsIntent.Rate(event.id, score, comment)) }
-                }
-            }
+        val mine = state.myRatings[event.id]?.let { EventRating(it, null, "", true) }
+        RatingSheet(event, mine, state.mutating, { onIntent(MyEventsIntent.DismissRating) }) { score, comment, tags ->
+            onIntent(MyEventsIntent.Rate(event.id, score, comment, tags))
         }
     }
 }

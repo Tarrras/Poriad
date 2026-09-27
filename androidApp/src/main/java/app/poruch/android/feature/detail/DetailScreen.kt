@@ -35,6 +35,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
@@ -52,6 +53,7 @@ import app.poruch.domain.asIndexEntry
 import app.poruch.domain.Gathering
 import app.poruch.domain.EventRating
 import app.poruch.domain.RatingRules
+import app.poruch.domain.RatingTag
 import app.poruch.domain.ReportReason
 import coil3.compose.AsyncImage
 
@@ -396,39 +398,143 @@ private fun JoinRequests(state: DetailState, onIntent: (DetailIntent) -> Unit) {
     }
 }
 
+/** Кнопка замість форми: сама оцінка — у [RatingSheet], як у «Моїх подіях». */
 @Composable
-private fun RateEvent(state: DetailState, onIntent: (DetailIntent) -> Unit) =
-    RatingForm(state.myRating, state.mutating) { score, comment -> onIntent(DetailIntent.Rate(score, comment)) }
-
-/**
- * Оцінка учасника: зірки й необов'язковий коментар. Повторна відправка замінює попередню.
- * Спільна для деталей і шторки «Моїх подій».
- */
-@Composable
-internal fun RatingForm(
-    mine: EventRating?, mutating: Boolean,
-    onSend: (Int, String) -> Unit
-) {
-    val colors = Poruch.colors
-    var score by remember(mine) { mutableStateOf(mine?.score ?: 0) }
-    var comment by remember(mine) { mutableStateOf(mine?.comment.orEmpty()) }
+private fun RateEvent(state: DetailState, onIntent: (DetailIntent) -> Unit) {
+    val event = state.event ?: return
+    var open by remember { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
         SectionHeader(stringResource(R.string.rate_title))
-        Stars(score, onPick = { score = it })
-        LabelledField(
-            stringResource(R.string.rate_comment), comment, { comment = it.take(RatingRules.COMMENT_MAX) },
-            singleLine = false, minLines = 3
+        val mine = state.myRating
+        if (mine == null) PrimaryButton(stringResource(R.string.rate_action), { open = true }, Modifier.fillMaxWidth())
+        else SecondaryButton(
+            stringResource(R.string.my_score, mine.score) + " · " + stringResource(R.string.rate_change),
+            { open = true }, Modifier.fillMaxWidth()
         )
-        Text(stringResource(R.string.rate_hint), style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary)
-        PrimaryButton(
-            stringResource(if (mine == null) R.string.rate_send else R.string.rate_update),
-            { onSend(score, comment) }, Modifier.fillMaxWidth(),
-            enabled = score > 0 && !mutating
-        )
+    }
+    if (open) RatingSheet(event, state.myRating, state.mutating, { open = false }) { score, comment, tags ->
+        onIntent(DetailIntent.Rate(score, comment, tags))
     }
 }
 
-/** Відгуки для організатора: середнє і коментарі, без імен. */
+/**
+ * «Як пройшло?»: бал 1–5, що сподобалось, кілька слів організатору. Повторна відправка замінює
+ * попередню. Спільна для деталей і «Моїх подій».
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun RatingSheet(
+    event: Event, mine: EventRating?, mutating: Boolean,
+    onDismiss: () -> Unit,
+    onSend: (score: Int, comment: String, tags: List<RatingTag>) -> Unit
+) {
+    val colors = Poruch.colors
+    var score by remember(mine) { mutableStateOf(mine?.score ?: 0) }
+    var tags by remember(mine) { mutableStateOf(mine?.tags.orEmpty().toSet()) }
+    var comment by remember(mine) { mutableStateOf(mine?.comment.orEmpty()) }
+    val offered = remember(event.category) { RatingRules.tagsFor(event.category) }
+    PoruchSheet(onDismiss) { sheet ->
+        Column(
+            Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())
+                .padding(horizontal = Spacing.page).padding(bottom = Spacing.lg),
+            verticalArrangement = Arrangement.spacedBy(Spacing.lg)
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md), verticalAlignment = Alignment.CenterVertically) {
+                EventImage(event, Modifier.size(52.dp).clip(Radius.xs))
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(cardOverline(event, dateWords()), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
+                    Text(event.title, style = MaterialTheme.typography.titleSmall, color = colors.ink, maxLines = 2)
+                }
+            }
+            Text(stringResource(R.string.rate_title), style = MaterialTheme.typography.titleLarge, color = colors.ink)
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                Row(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                    (1..5).forEach { value ->
+                        val picked = value == score
+                        val label = stringResource(R.string.rate_star, value)
+                        Box(
+                            Modifier.weight(1f).height(56.dp)
+                                .background(if (picked) brandGradient() else SolidColor(LocalFieldSurface.current ?: colors.surface), Radius.sm)
+                                .clip(Radius.sm)
+                                .selectable(picked, role = Role.RadioButton) { score = value }
+                                .semantics { contentDescription = label },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                value.toString(), style = MaterialTheme.typography.titleMedium,
+                                color = if (picked) colors.onBrand else colors.ink
+                            )
+                        }
+                    }
+                }
+                Row {
+                    Text(stringResource(R.string.rate_low), Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary)
+                    Text(stringResource(R.string.rate_high), style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary)
+                }
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                Text(stringResource(R.string.rate_liked).uppercase(), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                    offered.forEach { tag ->
+                        PoruchChip(stringResource(tag.label), tag in tags, { tags = if (tag in tags) tags - tag else tags + tag })
+                    }
+                }
+            }
+            LabelledField(
+                stringResource(R.string.rate_comment), comment, { comment = it.take(RatingRules.COMMENT_MAX) },
+                placeholder = stringResource(R.string.rate_optional), singleLine = false, minLines = 3
+            )
+        }
+        HairLine()
+        Column(
+            Modifier.padding(horizontal = Spacing.page).padding(top = Spacing.lg, bottom = Spacing.md).navigationBarsPadding().imePadding(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(Spacing.xs)
+        ) {
+            PrimaryButton(
+                stringResource(if (mine == null) R.string.rate_send else R.string.rate_update),
+                // Порядок шторки, не порядок тапів: так і на сервері, і в тестах.
+                { sheet.close { onSend(score, comment, offered.filter { it in tags }) } },
+                Modifier.fillMaxWidth(), enabled = score > 0 && !mutating, loading = mutating
+            )
+            GhostButton(stringResource(R.string.rate_skip), { sheet.close() }, tone = colors.inkSecondary)
+        }
+    }
+}
+
+internal val RatingTag.label: Int
+    get() = when (this) {
+        RatingTag.ATMOSPHERE -> R.string.rate_tag_atmosphere
+        RatingTag.ORGANIZATION -> R.string.rate_tag_organization
+        RatingTag.PLACE -> R.string.rate_tag_place
+        RatingTag.PEOPLE -> R.string.rate_tag_people
+        RatingTag.ON_TIME -> R.string.rate_tag_on_time
+        RatingTag.MUSIC -> R.string.rate_tag_music
+        RatingTag.SOUND -> R.string.rate_tag_sound
+        RatingTag.HUMOR -> R.string.rate_tag_humor
+        RatingTag.HOST -> R.string.rate_tag_host
+        RatingTag.PROGRAM -> R.string.rate_tag_program
+        RatingTag.COACH -> R.string.rate_tag_coach
+        RatingTag.WORKOUT -> R.string.rate_tag_workout
+        RatingTag.ROUTE -> R.string.rate_tag_route
+        RatingTag.VIEWS -> R.string.rate_tag_views
+        RatingTag.PACE -> R.string.rate_tag_pace
+        RatingTag.GUIDE -> R.string.rate_tag_guide
+        RatingTag.STORIES -> R.string.rate_tag_stories
+        RatingTag.FOOD -> R.string.rate_tag_food
+        RatingTag.DRINKS -> R.string.rate_tag_drinks
+        RatingTag.GAME_CHOICE -> R.string.rate_tag_game_choice
+        RatingTag.RULES -> R.string.rate_tag_rules
+        RatingTag.CONVERSATION -> R.string.rate_tag_conversation
+        RatingTag.KIDS_LIKED -> R.string.rate_tag_kids_liked
+        RatingTag.SAFETY -> R.string.rate_tag_safety
+        RatingTag.SPEAKERS -> R.string.rate_tag_speakers
+        RatingTag.USEFUL -> R.string.rate_tag_useful
+        RatingTag.NETWORKING -> R.string.rate_tag_networking
+    }
+
+/** Відгуки для організатора: середнє, що сподобалось, коментарі — без імен. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun Ratings(state: DetailState) {
     val colors = Poruch.colors
@@ -443,6 +549,10 @@ private fun Ratings(state: DetailState) {
             stringResource(R.string.ratings_summary, average.toString().replace('.', ','), state.ratings.size),
             style = MaterialTheme.typography.titleMedium, color = colors.ink
         )
+        val tags = RatingRules.tagCounts(state.ratings)
+        if (tags.isNotEmpty()) FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            tags.forEach { StatusBadge("${stringResource(it.tag.label)} · ${it.count}") }
+        }
         state.ratings.filter { !it.comment.isNullOrBlank() }.forEach { rating ->
             Column(Modifier.fillMaxWidth().cardSurface().padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                 Stars(rating.score, size = 16.dp)
@@ -452,21 +562,14 @@ private fun Ratings(state: DetailState) {
     }
 }
 
-/** П'ять зірок. З [onPick] — вибір, без нього — лише показ. */
+/** П'ять зірок у відгуку організатора. */
 @Composable
-private fun Stars(score: Int, size: androidx.compose.ui.unit.Dp = 36.dp, onPick: ((Int) -> Unit)? = null) {
+private fun Stars(score: Int, size: androidx.compose.ui.unit.Dp) {
     val colors = Poruch.colors
-    Row(horizontalArrangement = Arrangement.spacedBy(if (onPick == null) 2.dp else Spacing.xs)) {
+    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
         (1..5).forEach { value ->
-            val label = stringResource(R.string.rate_star, value)
             Icon(
-                if (value <= score) Icons.Filled.Star else Icons.Outlined.StarOutline,
-                if (onPick == null) null else label,
-                Modifier.then(
-                    if (onPick == null) Modifier.size(size)
-                    else Modifier.minimumInteractiveComponentSize().clip(CircleShape)
-                        .selectable(value == score, role = Role.RadioButton) { onPick(value) }.padding(4.dp).size(size)
-                ),
+                if (value <= score) Icons.Filled.Star else Icons.Outlined.StarOutline, null, Modifier.size(size),
                 tint = if (value <= score) colors.brand else colors.inkTertiary
             )
         }
