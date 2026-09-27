@@ -95,14 +95,37 @@ class ApiClientTest {
     }
     /** Точні імена з `raise exception`: CAPACITY_BELOW_ATTENDANCE — не «подія заповнена». */
     @Test fun serverErrorsAreMatchedByExactName() {
-        fun error(message: String, status: Int = 400) = apiFailure(status, """{"code":"P0001","message":"$message","details":null,"hint":null}""").error
+        fun error(message: String, status: Int = 400) = apiFailure(status, """{"code":"P0001","message":"$message","details":null,"hint":null}""", "POST /rpc").error
         assertEquals(AppError.CapacityBelowAttendance, error("CAPACITY_BELOW_ATTENDANCE"))
         assertEquals(AppError.EventFull, error("EVENT_FULL"))
         assertEquals(AppError.InvalidDraft(listOf(DraftField.DESCRIPTION)), error("INVALID_DESCRIPTION"))
         assertEquals(AppError.SessionRequired, error("AUTH_REQUIRED", 403))
         // Слова «blocked» чи «capacity» деінде в тексті — не блокування й не заповнена подія.
         assertEquals(AppError.Rejected, error("request blocked by capacity rules"))
-        assertEquals(AppError.InvalidCredentials, apiFailure(400, """{"error":"invalid_grant","error_description":"Invalid login credentials"}""").error)
+        assertEquals(AppError.InvalidCredentials, apiFailure(400, """{"error":"invalid_grant","error_description":"Invalid login credentials"}""", "POST /token").error)
+    }
+
+    /** У звіт — лише відмова, яку не впізнали; вільний текст Postgres (зі значеннями) туди не йде. */
+    @Test fun onlyUnrecognizedFailuresAreReported() {
+        val issues = mutableListOf<String>()
+        PoruchLog.reporter = { issue, _ -> issues += issue }
+        try {
+            apiFailure(400, """{"code":"P0001","message":"EVENT_FULL"}""", "POST /rest/v1/rpc/join_event")
+            apiFailure(401, """{"message":"JWT expired"}""", "GET /rest/v1/profiles")
+            apiFailure(400, """{"code":"P0001","message":"RATING_CLOSED"}""", "POST /rest/v1/rpc/rate_event")
+            apiFailure(403, """{"code":"42501","message":"new row violates row-level security policy for table \"x\""}""", "POST /rest/v1/user_blocks")
+            apiFailure(500, "<html>", "POST /rest/v1/rpc/discover_events")
+            assertEquals(
+                listOf(
+                    "http: POST /rest/v1/rpc/rate_event 400 P0001 RATING_CLOSED",
+                    "http: POST /rest/v1/user_blocks 403 42501",
+                    "http: POST /rest/v1/rpc/discover_events 500"
+                ),
+                issues
+            )
+        } finally {
+            PoruchLog.reporter = null
+        }
     }
 
     @kotlinx.serialization.Serializable private data class Row(val id: String, val note: String?, val count: Int = 0)

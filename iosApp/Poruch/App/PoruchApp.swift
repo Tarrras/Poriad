@@ -14,11 +14,18 @@ import FirebaseCrashlytics
             FirebaseApp.configure()
             // Продуктові події зі спільного коду → Firebase. Словник — docs/analytics.md.
             PoruchAnalytics.shared.sink = { name, params in Analytics.logEvent(name, parameters: params) }
+            // Збої бізнес-логіки → Crashlytics non-fatal, з кроками перед ними. NSError групується за
+            // domain, тож назва проблеми йде туди; текст — лише безпечний підсумок винятку.
+            let crashlytics = Crashlytics.crashlytics()
+            PoruchLog.shared.breadcrumbs = { crashlytics.log($0) }
+            PoruchLog.shared.reporter = { issue, error in
+                crashlytics.record(error: NSError(domain: issue, code: 0, userInfo: error.map { [NSLocalizedDescriptionKey: $0.summary()] }))
+            }
             // Перемикач «Аналітика» в профілі: і події, і звіти про збої. Хук кличеться одразу з поточним
             // значенням, а спільний шар ставить збережене до першої події.
             PoruchAnalytics.shared.collection = { enabled in
                 Analytics.setAnalyticsCollectionEnabled(enabled.boolValue)
-                Crashlytics.crashlytics().setCrashlyticsCollectionEnabled(enabled.boolValue)
+                crashlytics.setCrashlyticsCollectionEnabled(enabled.boolValue)
             }
         }
     }

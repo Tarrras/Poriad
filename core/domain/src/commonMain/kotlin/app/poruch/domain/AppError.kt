@@ -87,8 +87,15 @@ class AppFailure(
     val serverCode: String? = null
 ) : Exception(error.toString())
 
-/** Типізована помилка з будь-якого винятку. Чужі винятки — проблема сервісу. */
-fun Throwable.asAppError(): AppError = (this as? AppFailure)?.error ?: AppError.ServiceUnavailable
+/**
+ * Типізована помилка з будь-якого винятку. Чужі винятки — проблема сервісу для людини, але для нас —
+ * баг (розбір JSON, стан, платформа), тож кожен іде в звіт про збій зі своїм стеком. Мережу й відмови
+ * сервера [app.poruch.data.api.ApiClient] уже переклав в [AppFailure], вони сюди не доходять.
+ */
+fun Throwable.asAppError(): AppError = (this as? AppFailure)?.error ?: run {
+    PoruchLog.report("unexpected", this::class.simpleName ?: "Throwable", this)
+    AppError.ServiceUnavailable
+}
 
 /** Скорочення для `throw AppFailure(...)`. */
 fun fail(error: AppError): Nothing = throw AppFailure(error)

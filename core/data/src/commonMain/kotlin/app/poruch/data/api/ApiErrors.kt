@@ -7,27 +7,40 @@ import kotlinx.serialization.json.*
  * Перекладає відмову PostgREST / GoTrue в доменну помилку. Збігаємо точні імена з
  * `raise exception 'NAME'` (поле `message` PostgREST) і `error_code` GoTrue, а не підрядки:
  * `"capacity" in body` колись робило з CAPACITY_BELOW_ATTENDANCE «Подія заповнена».
- * Окремо від транспорту, бо росте разом із серверними правилами.
+ * Окремо від транспорту, бо росте разом із серверними правилами. [request] — «метод шлях» без id,
+ * для звіту про невпізнану відмову.
  */
-internal fun apiFailure(status: Int, body: String): AppFailure {
+internal fun apiFailure(status: Int, body: String, request: String): AppFailure {
     val parsed = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
     val name = parsed?.string("message")?.trim()?.uppercase()
     val authCode = parsed?.string("error_code")?.takeIf { it.isNotEmpty() } ?: parsed?.string("error")
     // Старі відповіді GoTrue без `error_code` мають лише текст.
     val authText = (parsed?.string("msg")?.takeIf { it.isNotEmpty() } ?: parsed?.string("error_description")).orEmpty().lowercase()
-    val error = SERVER_ERRORS[name] ?: AUTH_ERRORS[authCode] ?: when {
+    val named = SERVER_ERRORS[name] ?: AUTH_ERRORS[authCode] ?: when {
         "invalid login" in authText -> AppError.InvalidCredentials
         "email not confirmed" in authText -> AppError.EmailNotConfirmed
         "different from the old password" in authText -> AppError.SamePassword
+        else -> null
+    }
+    // Код сервера потрібен для сумісності (чи знає база функцію), а не для тексту людині.
+    val code = authCode?.takeIf { it.isNotEmpty() } ?: serverCode(parsed)
+    // Відмову не впізнали: нове правило сервера, RLS, збій бази. Це баг або розбіжність версій —
+    // у звіт. Ім'я з `raise exception` — константа, йому можна; вільний текст Postgres — ні, там значення.
+    if (named == null && status != 401 && status != 429) {
+        val constant = name?.takeIf { RAISED_NAME.matches(it) }
+        PoruchLog.report("http", listOfNotNull(request, status.toString(), code, constant).joinToString(" "))
+    }
+    val error = named ?: when {
         status == 401 -> AppError.SessionRequired
         status == 403 -> AppError.NotOwner
         status == 429 -> AppError.TooManyAttempts
         status in 400..499 -> AppError.Rejected
         else -> AppError.ServiceUnavailable
     }
-    // Код сервера потрібен для сумісності (чи знає база функцію), а не для тексту людині.
-    return AppFailure(error, authCode?.takeIf { it.isNotEmpty() } ?: serverCode(parsed))
+    return AppFailure(error, code)
 }
+
+private val RAISED_NAME = Regex("[A-Z][A-Z_]{2,40}")
 
 /** Імена з `raise exception` у міграціях. Невідоме ім'я падає до статусу. */
 private val SERVER_ERRORS: Map<String, AppError> = mapOf(

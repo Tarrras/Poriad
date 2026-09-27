@@ -56,5 +56,8 @@ final class PushDelegate: NSObject, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
         NSLog("Poruch/push: apns registration failed: %@", error.localizedDescription)
+        // Без токена пуші мовчать: у звіт, з доменом і кодом системної помилки, без її тексту.
+        let failure = error as NSError
+        PoruchLog.shared.report(tag: "push", issue: "apns registration failed \(failure.domain) \(failure.code)", error: nil)
     }
 }

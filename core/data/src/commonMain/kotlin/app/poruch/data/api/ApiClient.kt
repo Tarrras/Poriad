@@ -86,14 +86,14 @@ class ApiClient(private val client: HttpClient, private val baseUrl: String, pri
                 }
             }
             if (!status.isSuccess()) {
-                val failure = apiFailure(status.value, text)
+                val failure = apiFailure(status.value, text, "${method.value} $path")
                 PoruchLog.w("http") { "${method.value} $path failed: ${failure.error}" }
                 throw failure
             }
             return try {
                 if (text.isBlank()) JsonNull else json.parseToJsonElement(text)
             } catch (e: Exception) {
-                PoruchLog.e("http", e) { "${method.value} $path returned unreadable body" }
+                PoruchLog.report("http", "${method.value} $path unreadable body", e)
                 fail(AppError.Network)
             }
         }

@@ -23,7 +23,7 @@ object Push {
         if (FirebaseApp.getApps(context).isEmpty()) { PoruchLog.i("push") { "firebase not configured; local alerts only" }; return }
         FirebaseMessaging.getInstance().token
             .addOnSuccessListener { token -> app.pushTokenChanged(token, PushPlatform.ANDROID) }
-            .addOnFailureListener { PoruchLog.w("push") { "token failed: ${it.message}" } }
+            .addOnFailureListener { PoruchLog.report("push", "token failed", it) }
     }
 }
 

@@ -15,7 +15,8 @@ class ImageStorage(private val client: HttpClient, private val baseUrl: String, 
             val response = client.post(baseUrl.trimEnd('/') + BUCKET + path) {
                 header("apikey", key); bearerAuth(token); contentType(ContentType.parse(mime)); setBody(bytes)
             }
-            if (!response.status.isSuccess()) throw apiFailure(response.status.value, response.bodyAsText())
+            // У шляху файлу — id власника: у звіт іде лише дія.
+            if (!response.status.isSuccess()) throw apiFailure(response.status.value, response.bodyAsText(), "storage upload")
             return baseUrl.trimEnd('/') + PUBLIC + path
         } catch (e: CancellationException) { throw e }
         catch (e: AppFailure) { throw e }
@@ -29,7 +30,7 @@ class ImageStorage(private val client: HttpClient, private val baseUrl: String, 
         val response = client.delete(baseUrl.trimEnd('/') + BUCKET + url.removePrefix(prefix)) {
             header("apikey", key); bearerAuth(token)
         }
-        if (!response.status.isSuccess()) throw apiFailure(response.status.value, response.bodyAsText())
+        if (!response.status.isSuccess()) throw apiFailure(response.status.value, response.bodyAsText(), "storage delete")
     }
 
     private companion object {
