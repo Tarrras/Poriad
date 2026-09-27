@@ -30,7 +30,7 @@ internal class EventCache(private val database: PoruchDatabase, private val json
         return listOf(
             userId ?: "guest",
             "$centreLatitude/$centreLongitude@$zoom",
-            query.category ?: "-",
+            query.category?.key ?: "-",
             query.from ?: "-",
             query.to ?: "-",
             query.text?.lowercase()?.trim().takeUnless { it.isNullOrEmpty() } ?: "-",

@@ -1,5 +1,6 @@
 package app.poruch.android.ui
 
+import app.poruch.domain.EventCategory
 import android.provider.Settings
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.CircleShape
@@ -124,64 +125,53 @@ val DarkPoruchColors = PoruchColors(
     dark = true
 )
 
-/** Глибокий відтінок категорії для гліфів і тексту; пастель для плиток і пінів робить [categoryGradient]. */
-private val CategoryHues = mapOf(
-    "music" to Color(0xFF6D4AC9), "sport" to Color(0xFF0F7F73), "art" to Color(0xFFC43B6B),
-    "food" to Color(0xFFC96A1E), "games" to Color(0xFF2F63C4), "outdoors" to Color(0xFF3E7D3A),
-    "social" to Color(0xFFB8562F),
+/**
+ * Палітра категорії: [hue] — глибокий відтінок для гліфів і тексту, [wash] — пастель плиток і пінів,
+ * [partner] — другий відтінок пари для градієнта обкладинки.
+ */
+private class CategoryPalette(val hue: Color, val wash: Color, val partner: Color)
+
+private fun palette(category: EventCategory) = when (category) {
+    EventCategory.MUSIC -> CategoryPalette(Color(0xFF6D4AC9), Color(0xFFEBE4FB), Color(0xFFC43B6B))
+    EventCategory.SPORT -> CategoryPalette(Color(0xFF0F7F73), Color(0xFFDDF0EC), Color(0xFF2F63C4))
+    EventCategory.ART -> CategoryPalette(Color(0xFFC43B6B), Color(0xFFFBE1EA), Color(0xFF6D4AC9))
+    EventCategory.FOOD -> CategoryPalette(Color(0xFFC96A1E), Color(0xFFFBEBD9), Color(0xFFC43B6B))
+    EventCategory.GAMES -> CategoryPalette(Color(0xFF2F63C4), Color(0xFFE1EAFB), Color(0xFF0F7F73))
+    EventCategory.OUTDOORS -> CategoryPalette(Color(0xFF3E7D3A), Color(0xFFE4F1E2), Color(0xFF0F7F73))
+    EventCategory.SOCIAL -> CategoryPalette(Color(0xFFB8562F), Color(0xFFFAE5DA), Color(0xFFC96A1E))
     // Палітру будували на сім категорій. Золото й бірюза підібрані вручну за контрастом,
     // варті погляду дизайнера.
-    "comedy" to Color(0xFFA07813),
-    "kids" to Color(0xFF1F8A8A),
+    EventCategory.COMEDY -> CategoryPalette(Color(0xFFA07813), Color(0xFFF7ECD2), Color(0xFFC43B6B))
+    EventCategory.KIDS -> CategoryPalette(Color(0xFF1F8A8A), Color(0xFFD9EFEF), Color(0xFF2F63C4))
     // Олива й пурпур — середини найбільших вільних проміжків на колі відтінків, контраст у нормі.
-    "tours" to Color(0xFF5F7F1F),
-    "conference" to Color(0xFF933FA8)
-)
-private val CategoryWashes = mapOf(
-    "music" to Color(0xFFEBE4FB), "sport" to Color(0xFFDDF0EC), "art" to Color(0xFFFBE1EA),
-    "food" to Color(0xFFFBEBD9), "games" to Color(0xFFE1EAFB), "outdoors" to Color(0xFFE4F1E2),
-    "social" to Color(0xFFFAE5DA), "comedy" to Color(0xFFF7ECD2), "kids" to Color(0xFFD9EFEF),
-    "tours" to Color(0xFFECF0E4), "conference" to Color(0xFFF2E8F5)
-)
+    EventCategory.TOURS -> CategoryPalette(Color(0xFF5F7F1F), Color(0xFFECF0E4), Color(0xFF3E7D3A))
+    EventCategory.CONFERENCE -> CategoryPalette(Color(0xFF933FA8), Color(0xFFF2E8F5), Color(0xFF6D4AC9))
+    EventCategory.UNKNOWN -> CategoryPalette(Color(0xFF6B675E), Color(0xFFEDEBE4), Color(0xFF6B675E))
+}
 
-/** Другий відтінок пари для градієнта обкладинки. */
-private val CategoryPartners = mapOf(
-    "music" to Color(0xFFC43B6B), "sport" to Color(0xFF2F63C4), "art" to Color(0xFF6D4AC9),
-    "food" to Color(0xFFC43B6B), "games" to Color(0xFF0F7F73), "outdoors" to Color(0xFF0F7F73),
-    "social" to Color(0xFFC96A1E), "comedy" to Color(0xFFC43B6B), "kids" to Color(0xFF2F63C4),
-    "tours" to Color(0xFF3E7D3A), "conference" to Color(0xFF6D4AC9)
-)
-
-fun categoryColor(category: String): Color = CategoryHues[category] ?: Color(0xFF6B675E)
+fun categoryColor(category: EventCategory): Color = palette(category).hue
 
 /**
  * Відтінок категорії для тексту й гліфів. У темній темі освітлюється до контрасту 4.5:1.
  * `categoryColor` лишається сирим відтінком для пінів і заливок.
  */
 @Composable
-fun categoryInk(category: String): Color =
-    if (Poruch.colors.dark) lerp(categoryColor(category), Color.White, 0.45f) else categoryColor(
-        category
-    )
+fun categoryInk(category: EventCategory): Color =
+    if (Poruch.colors.dark) lerp(categoryColor(category), Color.White, 0.45f) else categoryColor(category)
 
 @Composable
-fun categoryWash(category: String): Color =
-    if (Poruch.colors.dark) categoryColor(category).copy(alpha = 0.22f)
-    else CategoryWashes[category] ?: Color(0xFFEDEBE4)
+fun categoryWash(category: EventCategory): Color =
+    if (Poruch.colors.dark) categoryColor(category).copy(alpha = 0.22f) else palette(category).wash
 
 /** Заливка обкладинки: пастель у світлій темі, тонка вуаль у темній. Два відтінки, щоб стіна обкладинок не зливалась. */
 @Composable
-fun categoryGradient(category: String): Brush {
-    val hue = categoryColor(category)
-    val partner = CategoryPartners[category] ?: hue
+fun categoryGradient(category: EventCategory): Brush {
+    val p = palette(category)
     return if (Poruch.colors.dark) Brush.linearGradient(
-        listOf(hue.copy(alpha = 0.30f), partner.copy(alpha = 0.14f))
-    ) else {
-        val wash = CategoryWashes[category] ?: Color(0xFFEDEBE4)
-        Brush.linearGradient(
-            listOf(lerp(wash, Color.White, 0.55f), wash, lerp(wash, partner, 0.22f))
-        )
-    }
+        listOf(p.hue.copy(alpha = 0.30f), p.partner.copy(alpha = 0.14f))
+    ) else Brush.linearGradient(
+        listOf(lerp(p.wash, Color.White, 0.55f), p.wash, lerp(p.wash, p.partner, 0.22f))
+    )
 }
 
 /** Заливка шапки: тепле світло вгорі, папір унизу. */

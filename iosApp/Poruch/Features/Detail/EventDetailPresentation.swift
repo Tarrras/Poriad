@@ -134,11 +134,11 @@ func ageLimitLabel(_ room: Gathering) -> String? {
 }
 
 /// Причини скарги в порядку шторки.
-let reportReasons: [(value: String, title: String)] = [
-    (ReportReason.shared.MINORS, "Небезпечно для неповнолітніх"),
-    (ReportReason.shared.SAFETY, "Загроза безпеці"),
-    (ReportReason.shared.HARASSMENT, "Домагання або образи"),
-    (ReportReason.shared.SCAM, "Шахрайство"),
-    (ReportReason.shared.SPAM, "Спам"),
-    (ReportReason.shared.OTHER, "Інше")
+let reportReasons: [(value: ReportReason, title: String)] = [
+    (.minors, "Небезпечно для неповнолітніх"),
+    (.safety, "Загроза безпеці"),
+    (.harassment, "Домагання або образи"),
+    (.scam, "Шахрайство"),
+    (.spam, "Спам"),
+    (.other, "Інше")
 ]

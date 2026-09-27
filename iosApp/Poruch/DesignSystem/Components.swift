@@ -108,7 +108,7 @@ struct IconPill: View {
 
 /// Крапка категорії: найменший носій її кольору.
 struct CategoryDot: View {
-    let category: String
+    let category: EventCategory
     var size: CGFloat = 8
     var body: some View { Circle().fill(categoryInk(category)).frame(width: size, height: size) }
 }
@@ -118,7 +118,7 @@ struct Chip: View {
     @Environment(\.colorScheme) private var scheme
     let label: String
     var symbol: String?
-    var dot: String?
+    var dot: EventCategory?
     /// Гліф після підпису: шеврон каже, що чип відкриває вибір, а не перемикає фільтр.
     var trailingSymbol: String?
     /// Скільки непрочитаних чатів у цьому розрізі.
@@ -188,7 +188,7 @@ struct SegmentedPill: View {
 
 /// Плитка категорії: скруглений квадрат у пастелі категорії.
 struct CategoryTile: View {
-    let category: String
+    let category: EventCategory
     let selected: Bool
     let action: () -> Void
     var body: some View {
@@ -217,7 +217,7 @@ struct CategoryTile: View {
 
 /// Картка категорії для сіток вибору (онбординг, редактор): пастель на всю картку, гліф угорі, назва внизу, позначка в кутку.
 struct CategoryCard: View {
-    let category: String
+    let category: EventCategory
     let selected: Bool
     let action: () -> Void
     var body: some View {

@@ -1,5 +1,6 @@
 package app.poruch.android.feature.account
 
+import app.poruch.domain.EventCategory
 import app.poruch.domain.AccountRules
 import app.poruch.domain.AppError
 import app.poruch.domain.Attendee
@@ -13,7 +14,7 @@ data class ProfileState(
     /** Шторка редагування профілю; помилка збереження показується в ній. */
     val editing: Boolean = false,
     val editError: AppError? = null,
-    val interests: List<String> = emptyList(),
+    val interests: List<EventCategory> = emptyList(),
     /** Акаунт без віку має його вказати, перш ніж приєднуватись. */
     val needsAge: Boolean = false,
     val pickingBirthDate: Boolean = false,
@@ -56,7 +57,7 @@ sealed interface ProfileIntent {
     class PickAvatar(val bytes: ByteArray, val contentType: String) : ProfileIntent
     data object RemoveAvatar : ProfileIntent
     data object SignOut : ProfileIntent
-    data class ToggleInterest(val category: String) : ProfileIntent
+    data class ToggleInterest(val category: EventCategory) : ProfileIntent
     data object TuneRecommendations : ProfileIntent
     data class ShowBirthDatePicker(val show: Boolean) : ProfileIntent
     data class SetBirthDate(val value: LocalDate) : ProfileIntent

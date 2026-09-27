@@ -17,7 +17,7 @@ class SupabaseSafetyRepository(private val api: ApiClient, private val auth: Aut
         ).jsonArray.firstOrNull()?.jsonObject ?: return AccountFacts()
         return AccountFacts(
             birthDate = row["birth_date"]?.jsonPrimitive?.contentOrNull,
-            status = row["status"]?.jsonPrimitive?.contentOrNull ?: AccountStatus.ACTIVE
+            status = row["status"]?.jsonPrimitive?.contentOrNull?.let(AccountStatus::fromKey) ?: AccountStatus.ACTIVE
         )
     }
 
@@ -25,19 +25,16 @@ class SupabaseSafetyRepository(private val api: ApiClient, private val auth: Aut
         rpc("set_birth_date", buildJsonObject { put("p_birth", date) })
     }
 
-    override suspend fun reportEvent(eventId: String, reason: String, details: String?) {
-        if (!ReportReason.isReason(reason)) fail(AppError.Rejected)
-        rpc("report_event", buildJsonObject { put("p_event_id", eventId); put("p_reason", reason); putDetails(details) })
+    override suspend fun reportEvent(eventId: String, reason: ReportReason, details: String?) {
+        rpc("report_event", buildJsonObject { put("p_event_id", eventId); put("p_reason", reason.key); putDetails(details) })
     }
 
-    override suspend fun reportUser(userId: String, reason: String, details: String?) {
-        if (!ReportReason.isReason(reason)) fail(AppError.Rejected)
-        rpc("report_user", buildJsonObject { put("p_user_id", userId); put("p_reason", reason); putDetails(details) })
+    override suspend fun reportUser(userId: String, reason: ReportReason, details: String?) {
+        rpc("report_user", buildJsonObject { put("p_user_id", userId); put("p_reason", reason.key); putDetails(details) })
     }
 
-    override suspend fun reportMessage(messageId: String, reason: String, details: String?) {
-        if (!ReportReason.isReason(reason)) fail(AppError.Rejected)
-        rpc("report_message", buildJsonObject { put("p_message_id", messageId); put("p_reason", reason); putDetails(details) })
+    override suspend fun reportMessage(messageId: String, reason: ReportReason, details: String?) {
+        rpc("report_message", buildJsonObject { put("p_message_id", messageId); put("p_reason", reason.key); putDetails(details) })
     }
 
     override suspend fun block(userId: String) {

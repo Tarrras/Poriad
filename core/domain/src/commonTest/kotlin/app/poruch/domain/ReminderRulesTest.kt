@@ -10,9 +10,9 @@ class ReminderRulesTest {
 
     private fun event(
         id: String, startsAt: String, organizer: String = "someone", joined: Boolean = false,
-        status: String = EventStatus.PUBLISHED, room: Boolean = true
+        status: EventStatus = EventStatus.PUBLISHED, room: Boolean = true
     ) = Event(
-        id = id, title = "Настілки", description = "", category = "games", city = "Київ",
+        id = id, title = "Настілки", description = "", category = EventCategory.GAMES, city = "Київ",
         address = "Поділ", startsAt = startsAt, endsAt = startsAt, timeZone = "Europe/Kyiv",
         status = status, latitude = 50.45, longitude = 30.52,
         gathering = if (room) Gathering(organizer, "", 10, 1, joined) else null,

@@ -191,7 +191,7 @@ class AuthRepositoryTest {
         val auth=SupabaseAuthRepository(api,Store())
         val driver=platformDatabaseDriver()
         val database=app.poruch.data.cache.PoruchDatabase(driver)
-        val draft=app.poruch.domain.EventDraft("Прогулянка","Зустріч у центрі","outdoors","Київ","Поділ",50.45,30.5,"2090-01-01T10:00:00Z","2090-01-01T12:00:00Z","Europe/Kyiv",10)
+        val draft=app.poruch.domain.EventDraft("Прогулянка","Зустріч у центрі",app.poruch.domain.EventCategory.OUTDOORS,"Київ","Поділ",50.45,30.5,"2090-01-01T10:00:00Z","2090-01-01T12:00:00Z","Europe/Kyiv",10)
         val first=PersistentCreationIdentity(database,auth).idFor(draft)
         assertEquals(first,PersistentCreationIdentity(database,auth).idFor(draft))
         val next=PersistentCreationIdentity(database,auth).idFor(draft.copy(title="Інша подія"))

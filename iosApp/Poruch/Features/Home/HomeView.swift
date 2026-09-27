@@ -175,19 +175,19 @@ struct HomeView: View {
                     ForEach(dateFilterKeys, id: \.self) { key in
                         // Повторний тап знімає вибір, як на мапі.
                         Chip(label: dateLabel(key), selected: view.searchDate == key) {
-                            model.app.setHomeSearchDate(filter: view.searchDate == key ? DateFilter.shared.ANY : key)
+                            model.app.setHomeSearchDate(filter: view.searchDate == key ? DateFilter.any : key)
                         }
                     }
                 }
             }.railContentPadding(spread: 0)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: Space.sm) {
-                    Chip(label: "Усі категорії", selected: view.searchCategory == DiscoveryStateKt.ALL_CATEGORIES) {
-                        model.app.setHomeSearchCategory(category: DiscoveryStateKt.ALL_CATEGORIES)
+                    Chip(label: "Усі категорії", selected: view.searchCategory == nil) {
+                        model.app.setHomeSearchCategory(category: nil)
                     }
                     ForEach(categories, id: \.0) { entry in
                         Chip(label: entry.1, dot: entry.0, selected: view.searchCategory == entry.0) {
-                            model.app.setHomeSearchCategory(category: view.searchCategory == entry.0 ? DiscoveryStateKt.ALL_CATEGORIES : entry.0)
+                            model.app.setHomeSearchCategory(category: view.searchCategory == entry.0 ? nil : entry.0)
                         }
                     }
                 }

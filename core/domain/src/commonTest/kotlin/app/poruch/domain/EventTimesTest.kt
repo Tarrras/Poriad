@@ -6,7 +6,7 @@ import kotlin.time.Instant
 /** Два питання про час: чи подія йде зараз і чи це сеанс, а не прокат. */
 class EventTimesTest {
     private fun event(startsAt: String, endsAt: String, zone: String = "Europe/Kyiv") = Event(
-        id = "e", title = "Виставка", description = "", category = "art", city = "Київ",
+        id = "e", title = "Виставка", description = "", category = EventCategory.ART, city = "Київ",
         address = "Поділ", startsAt = startsAt, endsAt = endsAt, timeZone = zone,
         status = EventStatus.PUBLISHED, latitude = 50.45, longitude = 30.52,
         listing = Listing(sourceName = "Karabas")

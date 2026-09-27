@@ -34,7 +34,6 @@ import app.poruch.android.ui.*
 import app.poruch.domain.ChatUnread
 import app.poruch.domain.CityResult
 import app.poruch.domain.Event
-import app.poruch.shared.ALL_CATEGORIES
 import app.poruch.shared.DateFilter
 
 /** Головна: плани, сьогодні і все поруч з даних, які вже завантажила мапа. Малює [HomeState], шле [HomeIntent]. */
@@ -168,10 +167,10 @@ private fun SearchFilters(state: HomeState, onIntent: (HomeIntent) -> Unit) {
             Modifier.horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically
         ) {
-            PoruchChip(stringResource(R.string.all), state.searchCategory == ALL_CATEGORIES, { onIntent(HomeIntent.SearchCategory(ALL_CATEGORIES)) })
+            PoruchChip(stringResource(R.string.all), state.searchCategory == null, { onIntent(HomeIntent.SearchCategory(null)) })
             categories.forEach { key ->
                 PoruchChip(stringResource(categoryLabel(key)), state.searchCategory == key, {
-                    onIntent(HomeIntent.SearchCategory(if (state.searchCategory == key) ALL_CATEGORIES else key))
+                    onIntent(HomeIntent.SearchCategory(if (state.searchCategory == key) null else key))
                 }, dot = key)
             }
         }

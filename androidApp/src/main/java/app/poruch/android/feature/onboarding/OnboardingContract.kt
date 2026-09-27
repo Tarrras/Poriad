@@ -1,15 +1,17 @@
 package app.poruch.android.feature.onboarding
 
+import app.poruch.domain.EventCategory
 import app.poruch.domain.Crowd
+import app.poruch.domain.TimeSlot
 
 /** Кроки онбордингу. Лише те, що читає ранжування: кожен зайвий екран — привід піти. */
 enum class OnboardingStep { WELCOME, INTERESTS, TIMES, CROWD }
 
 data class OnboardingState(
     val step: OnboardingStep = OnboardingStep.WELCOME,
-    val interests: List<String> = emptyList(),
-    val times: List<String> = emptyList(),
-    val crowd: String = Crowd.ANY
+    val interests: List<EventCategory> = emptyList(),
+    val times: List<TimeSlot> = emptyList(),
+    val crowd: Crowd = Crowd.ANY
 ) {
     /** Вітання — не питання, тому не рахується. */
     val questionNumber get() = OnboardingStep.entries.indexOf(step)
@@ -21,7 +23,7 @@ sealed interface OnboardingIntent {
     data object Next : OnboardingIntent
     data object Back : OnboardingIntent
     data object Skip : OnboardingIntent
-    data class ToggleInterest(val category: String) : OnboardingIntent
-    data class ToggleTime(val slot: String) : OnboardingIntent
-    data class PickCrowd(val crowd: String) : OnboardingIntent
+    data class ToggleInterest(val category: EventCategory) : OnboardingIntent
+    data class ToggleTime(val slot: TimeSlot) : OnboardingIntent
+    data class PickCrowd(val crowd: Crowd) : OnboardingIntent
 }

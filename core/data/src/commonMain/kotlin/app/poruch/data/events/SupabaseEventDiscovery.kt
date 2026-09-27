@@ -139,7 +139,7 @@ internal class SupabaseEventDiscovery(
     }
 
     private fun JsonObjectBuilder.putFilters(query: EventQuery) {
-        put("p_category", query.category?.let(::JsonPrimitive) ?: JsonNull)
+        put("p_category", query.category?.key?.let(::JsonPrimitive) ?: JsonNull)
         put("p_text", query.text?.let(::JsonPrimitive) ?: JsonNull)
         put("p_available", query.available)
         put("p_from", query.from?.let(::JsonPrimitive) ?: JsonNull)

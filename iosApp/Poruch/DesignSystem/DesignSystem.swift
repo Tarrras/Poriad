@@ -96,12 +96,14 @@ private let categoryWashes: [String: UInt32] = [
     "tours": 0xECF0E4, "conference": 0xF2E8F5
 ]
 
-func categoryColor(_ category: String) -> Color {
-    guard let hue = categoryHues[category] else { return Palette.inkSecondary }
+/// Палітри нижче — за `EventCategory.key`: Swift не бачить enum Kotlin вичерпним, тож таблиця читабельніша за `switch`.
+/// Невідома категорія (`unknown`, ключ порожній) бере нейтральний вигляд.
+func categoryColor(_ category: EventCategory) -> Color {
+    guard let hue = categoryHues[category.key] else { return Palette.inkSecondary }
     return Color(light: hue, dark: hue)
 }
 
-func categoryUIColor(_ category: String) -> UIColor { UIColor(rgb: categoryHues[category] ?? 0x6B675E) }
+func categoryUIColor(_ category: EventCategory) -> UIColor { UIColor(rgb: categoryHues[category.key] ?? 0x6B675E) }
 
 /// Токени палітри для стилю мапи. MapLibre хоче hex, тому кожен резолвиться під поточну тему.
 /// Резолвимо засобами SwiftUI: `UIColor(Color).resolvedColor(with:)` з голою trait collection
@@ -125,8 +127,8 @@ func mapTokens(_ scheme: ColorScheme) -> MapTokens {
 
 /// Відтінок категорії для тексту й гліфів. У темній темі освітлюється до контрасту 4.5:1.
 /// `categoryColor` лишається сирим відтінком для пінів і заливок.
-func categoryInk(_ category: String) -> Color {
-    guard let hue = categoryHues[category] else { return Palette.inkSecondary }
+func categoryInk(_ category: EventCategory) -> Color {
+    guard let hue = categoryHues[category.key] else { return Palette.inkSecondary }
     return Color(UIColor { $0.userInterfaceStyle == .dark ? blend(hue, 0xFFFFFF, 0.45) : UIColor(rgb: hue) })
 }
 
@@ -138,10 +140,10 @@ private let categoryPartners: [String: UInt32] = [
 ]
 
 /// Заливка обкладинки: пастель у світлій темі, тонка вуаль у темній. Два відтінки, щоб стіна обкладинок не зливалась.
-func categoryGradient(_ category: String) -> LinearGradient {
-    let hue = categoryHues[category] ?? 0x6B675E
-    let partner = categoryPartners[category] ?? hue
-    let wash = categoryWashes[category] ?? 0xEDEBE4
+func categoryGradient(_ category: EventCategory) -> LinearGradient {
+    let hue = categoryHues[category.key] ?? 0x6B675E
+    let partner = categoryPartners[category.key] ?? hue
+    let wash = categoryWashes[category.key] ?? 0xEDEBE4
     let stops = [
         Color(UIColor { $0.userInterfaceStyle == .dark
             ? UIColor(rgb: hue).withAlphaComponent(0.30) : blend(wash, 0xFFFFFF, 0.55) }),
@@ -165,8 +167,8 @@ func toneGradient(_ container: Color, _ tone: Color) -> LinearGradient {
 }
 
 /// Пастель у світлій темі; у темній той самий відтінок як вуаль з низькою альфою.
-func categoryWash(_ category: String) -> Color {
-    guard let wash = categoryWashes[category], let hue = categoryHues[category] else { return Palette.surfaceMuted }
+func categoryWash(_ category: EventCategory) -> Color {
+    guard let wash = categoryWashes[category.key], let hue = categoryHues[category.key] else { return Palette.surfaceMuted }
     return Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(rgb: hue).withAlphaComponent(0.22) : UIColor(rgb: wash) })
 }
 
@@ -365,19 +367,20 @@ private struct StatusBarInsetReader: ViewModifier {
 
 // ---- Форматування подій
 
-let categories: [(String, String, String)] = [
-    ("music", "Музика", "music.note"), ("sport", "Спорт", "figure.run"), ("art", "Мистецтво", "paintpalette"),
-    ("food", "Їжа", "fork.knife"), ("games", "Ігри", "dice"), ("outdoors", "Природа", "leaf"),
-    ("social", "Зустрічі", "person.2"), ("comedy", "Стендап", "mic"), ("kids", "Дітям", "balloon.2"),
-    ("tours", "Екскурсії", "building.columns"), ("conference", "Конференції", "display")
+/// Те, що людина може обрати, з підписом і SF Symbol. Порядок — як у домені.
+let categories: [(EventCategory, String, String)] = [
+    (.music, "Музика", "music.note"), (.sport, "Спорт", "figure.run"), (.art, "Мистецтво", "paintpalette"),
+    (.food, "Їжа", "fork.knife"), (.games, "Ігри", "dice"), (.outdoors, "Природа", "leaf"),
+    (.social, "Зустрічі", "person.2"), (.comedy, "Стендап", "mic"), (.kids, "Дітям", "balloon.2"),
+    (.tours, "Екскурсії", "building.columns"), (.conference, "Конференції", "display")
 ]
 
-func categoryName(_ key: String) -> String { categories.first { $0.0 == key }?.1 ?? key }
-func categorySymbol(_ key: String) -> String { categories.first { $0.0 == key }?.2 ?? "mappin" }
+func categoryName(_ category: EventCategory) -> String { categories.first { $0.0 == category }?.1 ?? "Інше" }
+func categorySymbol(_ category: EventCategory) -> String { categories.first { $0.0 == category }?.2 ?? "mappin" }
 
 /// Гліф категорії, двійник `categoryIcon` на Android.
-func categoryGlyph(_ key: String) -> PoruchGlyph {
-    switch key {
+func categoryGlyph(_ category: EventCategory) -> PoruchGlyph {
+    switch category.key {
     case "music": PoruchIcons.music
     case "sport": PoruchIcons.sport
     case "art": PoruchIcons.art

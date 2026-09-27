@@ -133,9 +133,9 @@ struct ProfileView: View {
         VStack(alignment: .leading, spacing: Space.md) {
             SectionHeader(title: "Ваші інтереси")
             FlexibleChips(
-                items: categories.map { ($0.0, $0.1, $0.0) },
-                isSelected: { model.state?.interests.contains($0) == true }
-            ) { model.app.toggleInterest(category: $0) }
+                items: categories.map { ($0.0.key, $0.1, $0.0) },
+                isSelected: { key in model.state?.interests.contains { $0.key == key } == true }
+            ) { model.app.toggleInterest(category: EventCategory.companion.fromKey(key: $0)) }
             GroupedRows {
                 LinkRow(symbol: "sparkles", title: "Налаштувати рекомендації", subtitle: "Пройти опитування ще раз") {
                     model.app.restartOnboarding()

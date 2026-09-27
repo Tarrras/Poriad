@@ -5,7 +5,7 @@ import kotlin.test.*
 /** Про що дзвонити: лише нове, згруповане за подією, лише з назвою, лише за згодою. */
 class RequestRulesTest {
     private fun event(id: String) = Event(
-        id = id, title = "Подія $id", description = "", category = "games", city = "Київ",
+        id = id, title = "Подія $id", description = "", category = EventCategory.GAMES, city = "Київ",
         address = "Поділ", startsAt = "2026-09-20T18:00:00Z", endsAt = "2026-09-20T20:00:00Z",
         timeZone = "Europe/Kyiv", status = EventStatus.PUBLISHED, latitude = 50.45, longitude = 30.52,
         gathering = Gathering("me", "", 10, 1, false)

@@ -8,7 +8,7 @@ class MapPinsTest {
 
     // Піни групують афішу: її координати приходять з кеша майданчиків і збігаються.
     private fun event(id: String, lat: Double, lon: Double, startsAt: String) = EventIndexEntry(
-        id = id, latitude = lat, longitude = lon, category = "music",
+        id = id, latitude = lat, longitude = lon, category = EventCategory.MUSIC,
         startsAt = startsAt, timeZone = "Europe/Kyiv", title = id,
         origin = EventOrigin.IMPORT, source = "karabas"
     )
@@ -86,7 +86,7 @@ class MapPinsTest {
             run, opened
         )
         val full = Event(
-            id = "a", title = "a", description = "", category = "music", city = "Київ", address = "",
+            id = "a", title = "a", description = "", category = EventCategory.MUSIC, city = "Київ", address = "",
             startsAt = opened.startsAt, endsAt = opened.startsAt, timeZone = "Europe/Kyiv",
             status = EventStatus.PUBLISHED, latitude = 50.45, longitude = 30.52
         )

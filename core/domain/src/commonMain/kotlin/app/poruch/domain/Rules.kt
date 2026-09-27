@@ -10,18 +10,9 @@ import kotlin.math.sqrt
 
 /** Ліміти подій. Сервер перевіряє ті самі: міграція рухає число — рухається й константа тут. */
 object EventRules {
-    /** Словник категорій. CHECK-обмеження на сервері тримає ті самі значення. */
-    val categories = listOf(
-        "music", "sport", "art", "food", "games", "outdoors", "social", "comedy", "kids",
-        // Додані за звітом про прогалини: екскурсії тонули в «природі», конференції — у «зустрічах».
-        "tours", "conference",
-    )
-
     val titleLength = 3..120
     val descriptionLength = 10..5000
     val capacity = 1..10_000
-
-    fun isCategory(value: String) = value in categories
 }
 
 /**
@@ -81,16 +72,8 @@ object ContactRules {
 }
 
 /** Причина скарги. Фіксований список, а не вільний текст, щоб чергу можна було сортувати. */
-object ReportReason {
-    const val MINORS = "minors"
-    const val SAFETY = "safety"
-    const val HARASSMENT = "harassment"
-    const val SCAM = "scam"
-    const val SPAM = "spam"
-    const val OTHER = "other"
-
-    val all = listOf(MINORS, SAFETY, HARASSMENT, SCAM, SPAM, OTHER)
-    fun isReason(value: String) = value in all
+enum class ReportReason(val key: String) {
+    MINORS("minors"), SAFETY("safety"), HARASSMENT("harassment"), SCAM("scam"), SPAM("spam"), OTHER("other")
 }
 
 /** Ліміти полів акаунта, узгоджені з Supabase Auth. */

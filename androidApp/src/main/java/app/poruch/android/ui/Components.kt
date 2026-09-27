@@ -72,6 +72,7 @@ import com.airbnb.lottie.compose.LottieAnimation
 import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.LottieConstants
 import com.airbnb.lottie.compose.rememberLottieComposition
+import app.poruch.domain.EventCategory
 import app.poruch.domain.Attendee
 import app.poruch.domain.Event
 import app.poruch.domain.Place
@@ -152,7 +153,7 @@ fun HairLine(modifier: Modifier = Modifier) =
 
 /** Крапка категорії: найменший носій її кольору. */
 @Composable
-fun CategoryDot(category: String, size: Dp = 8.dp) =
+fun CategoryDot(category: EventCategory, size: Dp = 8.dp) =
     Box(
         Modifier
             .size(size)
@@ -300,7 +301,7 @@ fun PoruchChip(
     selected: Boolean,
     onClick: () -> Unit,
     icon: ImageVector? = null,
-    dot: String? = null,
+    dot: EventCategory? = null,
     /** Гліф після підпису: шеврон каже, що чип відкриває вибір, а не перемикає фільтр. */
     trailingIcon: ImageVector? = null,
     /** Скільки непрочитаних чатів у цьому розрізі. */
@@ -393,7 +394,7 @@ fun SegmentedPill(
 
 /** Плитка категорії: скруглений квадрат у пастелі категорії. */
 @Composable
-fun CategoryTile(category: String, selected: Boolean, onClick: () -> Unit) {
+fun CategoryTile(category: EventCategory, selected: Boolean, onClick: () -> Unit) {
     val colors = Poruch.colors
     Column(
         Modifier
@@ -424,7 +425,7 @@ fun CategoryTile(category: String, selected: Boolean, onClick: () -> Unit) {
 /** Картка категорії для сіток вибору (онбординг, редактор): пастель на всю картку, гліф угорі, назва внизу, позначка в кутку. */
 @Composable
 fun CategoryCard(
-    category: String,
+    category: EventCategory,
     selected: Boolean,
     modifier: Modifier = Modifier,
     role: Role = Role.Checkbox,

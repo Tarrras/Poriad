@@ -60,7 +60,7 @@ data class AppState(
     fun myScore(eventId: String): Int? = library.myRatings[eventId]
 
     /** Обрані категорії. Живуть у [taste], щоб були і в гостя. */
-    val interests: List<String> get() = taste.interests
+    val interests: List<EventCategory> get() = taste.interests
 
     /** Поки на питання онбордингу не відповіли і не відмахнулись. */
     val needsOnboarding get() = !taste.answered

@@ -6,9 +6,9 @@ import Shared
 struct OnboardingView: View {
     @EnvironmentObject var model: AppModel
     @State private var step = OnboardingStep.welcome
-    @State private var interests: [String] = []
-    @State private var times: [String] = []
-    @State private var crowd = Crowd.shared.ANY
+    @State private var interests: [EventCategory] = []
+    @State private var times: [TimeSlot] = []
+    @State private var crowd = Crowd.any
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -67,11 +67,11 @@ struct OnboardingView: View {
     private var welcome: some View {
         VStack(spacing: Space.xl) {
             HStack(alignment: .center, spacing: Space.sm) {
-                mosaicTile("music", 52).offset(y: 18)
-                mosaicTile("food", 68).offset(y: -6)
-                mosaicTile("social", 96)
-                mosaicTile("outdoors", 68).offset(y: -6)
-                mosaicTile("games", 52).offset(y: 18)
+                mosaicTile(.music, 52).offset(y: 18)
+                mosaicTile(.food, 68).offset(y: -6)
+                mosaicTile(.social, 96)
+                mosaicTile(.outdoors, 68).offset(y: -6)
+                mosaicTile(.games, 52).offset(y: 18)
             }
             .padding(.top, Space.section).padding(.bottom, Space.lg)
             .decorative()
@@ -83,7 +83,7 @@ struct OnboardingView: View {
         }.frame(maxWidth: .infinity)
     }
 
-    private func mosaicTile(_ category: String, _ size: CGFloat) -> some View {
+    private func mosaicTile(_ category: EventCategory, _ size: CGFloat) -> some View {
         PoruchIcon(glyph: categoryGlyph(category), size: size * 0.42).foregroundStyle(categoryInk(category))
             .frame(width: size, height: size)
             .background(categoryGradient(category), in: RoundedRectangle(cornerRadius: size * 0.3, style: .continuous))
@@ -201,19 +201,19 @@ private struct ChoiceRow: View {
 }
 
 /// Слоти зі спільного модуля з підписами, у порядку тижня.
-private let timeSlots: [(slot: String, title: String, hint: String)] = [
-    (TimeSlot.shared.WEEKDAY_EVENING, "Будні, ввечері", "Після 17:00"),
-    (TimeSlot.shared.WEEKEND_DAY, "Вихідні, вдень", "Субота й неділя до 17:00"),
-    (TimeSlot.shared.WEEKEND_EVENING, "Вихідні, ввечері", "Субота й неділя після 17:00"),
-    (TimeSlot.shared.WEEKDAY_DAY, "Будні, вдень", "До 17:00")
+private let timeSlots: [(slot: TimeSlot, title: String, hint: String)] = [
+    (.weekdayEvening, "Будні, ввечері", "Після 17:00"),
+    (.weekendDay, "Вихідні, вдень", "Субота й неділя до 17:00"),
+    (.weekendEvening, "Вихідні, ввечері", "Субота й неділя після 17:00"),
+    (.weekdayDay, "Будні, вдень", "До 17:00")
 ]
 
-private let crowdOptions: [(value: String, title: String, hint: String)] = [
-    (Crowd.shared.INTIMATE, "Камерна", "До 12 місць"),
-    (Crowd.shared.MEDIUM, "Середня", "13–40 місць"),
-    (Crowd.shared.ANY, "Будь-яка", "Розмір не має значення")
+private let crowdOptions: [(value: Crowd, title: String, hint: String)] = [
+    (.intimate, "Камерна", "До 12 місць"),
+    (.medium, "Середня", "13–40 місць"),
+    (.any, "Будь-яка", "Розмір не має значення")
 ]
 
-private extension Array where Element == String {
-    func toggling(_ value: String) -> [String] { contains(value) ? filter { $0 != value } : self + [value] }
+private extension Array where Element: Equatable {
+    func toggling(_ value: Element) -> [Element] { contains(value) ? filter { $0 != value } : self + [value] }
 }

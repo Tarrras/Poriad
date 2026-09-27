@@ -72,7 +72,7 @@ internal class UserLibrary(
             try {
                 // `event_details` віддає старий композит без закладу: беремо його з картки.
                 val event = events.details(id)?.withPlaceOf(store.value.cards[id] ?: known)
-                PoruchLog.d("detail") { "loaded ${id.shortId()} kind=${if (event?.isCommunity == true) "community" else "listing"} joined=${event?.gathering?.joined} attendees=${event?.gathering?.attendeeCount}/${event?.gathering?.capacity} status=${event?.status}" }
+                PoruchLog.d("detail") { "loaded ${id.shortId()} kind=${if (event?.isCommunity == true) "community" else "listing"} joined=${event?.gathering?.joined} attendees=${event?.gathering?.attendeeCount}/${event?.gathering?.capacity} status=${event?.status?.key}" }
                 if (openEventId == id) {
                     detail { copy(event = event, loading = false) }
                     if (event == null) store.failed(AppError.EventUnavailable)
@@ -195,7 +195,7 @@ internal class UserLibrary(
     }
 
     private class Loaded(
-        val mine: List<Event>, val saved: List<String>, val interests: List<String>, val queued: List<String>,
+        val mine: List<Event>, val saved: List<String>, val interests: List<EventCategory>, val queued: List<String>,
         val facts: AccountFacts?, val blocked: List<Attendee>?, val pending: List<JoinRequest>?, val unread: List<ChatUnread>?,
         val profile: Profile?, val ratings: Map<String, Int>?
     )
@@ -221,7 +221,7 @@ internal class UserLibrary(
      * акаунт (звичний випадок, питання ставлять до реєстрації) отримує відповіді пристрою — але
      * лише гостьові чи свої: інтереси акаунта A, що лишились на телефоні після виходу, до B не йдуть.
      */
-    private suspend fun adoptInterests(uid: String): List<String> {
+    private suspend fun adoptInterests(uid: String): List<EventCategory> {
         val local = store.value.taste
         val remote = preferences?.interests().orEmpty()
         if (remote.isEmpty() && local.interests.isNotEmpty() && (local.interestsOwner == null || local.interestsOwner == uid)) {

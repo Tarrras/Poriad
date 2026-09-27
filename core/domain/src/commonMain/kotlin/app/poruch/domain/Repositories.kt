@@ -29,15 +29,18 @@ interface AuthRepository {
 // Доступ до подій — в EventAccess.kt.
 
 /** Що акаунт про себе заявив і що про нього думає модерація. */
-data class AccountFacts(val birthDate: String? = null, val status: String = AccountStatus.ACTIVE) {
+data class AccountFacts(val birthDate: String? = null, val status: AccountStatus = AccountStatus.ACTIVE) {
     val ageDeclared get() = birthDate != null
     val restricted get() = status != AccountStatus.ACTIVE
 }
 
-object AccountStatus {
-    const val ACTIVE = "active"
-    const val LIMITED = "limited"
-    const val BANNED = "banned"
+/** Стан акаунта, як його називає `account_facts.status`. Невідомий — [UNKNOWN], і це вже обмеження. */
+enum class AccountStatus(val key: String) {
+    ACTIVE("active"), LIMITED("limited"), BANNED("banned"), UNKNOWN("");
+
+    companion object {
+        fun fromKey(key: String?): AccountStatus = entries.firstOrNull { it != UNKNOWN && it.key == key } ?: UNKNOWN
+    }
 }
 
 /** Скарги й блокування. Окремо від подій, бо стосується людей. */
@@ -45,10 +48,10 @@ interface SafetyRepository {
     suspend fun account(): AccountFacts
     /** Дозволено один раз, для акаунтів, створених до появи питання про вік. */
     suspend fun declareBirthDate(date: String)
-    suspend fun reportEvent(eventId: String, reason: String, details: String?)
-    suspend fun reportUser(userId: String, reason: String, details: String?)
+    suspend fun reportEvent(eventId: String, reason: ReportReason, details: String?)
+    suspend fun reportUser(userId: String, reason: ReportReason, details: String?)
     /** Скарга на повідомлення в чаті: іде на автора, з подією і текстом для контексту. */
-    suspend fun reportMessage(messageId: String, reason: String, details: String?)
+    suspend fun reportMessage(messageId: String, reason: ReportReason, details: String?)
     suspend fun block(userId: String)
     suspend fun unblock(userId: String)
     /** Кого заблокував цей акаунт, з іменами, щоб можна було розблокувати. */
@@ -88,8 +91,8 @@ interface TimeZoneLocator {
     suspend fun zoneAt(latitude: Double, longitude: Double): String?
 }
 interface PreferencesRepository {
-    suspend fun interests(): List<String>
-    suspend fun setInterests(categories: List<String>)
+    suspend fun interests(): List<EventCategory>
+    suspend fun setInterests(categories: List<EventCategory>)
 }
 
 interface CreationIdentityStore {

@@ -3,7 +3,6 @@ package app.poruch.android.feature.explore
 import androidx.lifecycle.viewModelScope
 import app.poruch.android.mvi.MviViewModel
 import app.poruch.domain.CityResult
-import app.poruch.shared.ALL_CATEGORIES
 import app.poruch.shared.DateFilter
 import app.poruch.shared.PoruchApp
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -67,7 +66,7 @@ class ExploreViewModel(private val app: PoruchApp) :
             is ExploreIntent.PickCategory -> app.setCategory(intent.category)
             is ExploreIntent.OnlyAvailable -> app.setOnlyAvailable(intent.value)
             ExploreIntent.ResetFilters -> {
-                app.setDateFilter(DateFilter.ANY); app.setCategory(ALL_CATEGORIES); app.setOnlyAvailable(false)
+                app.setDateFilter(DateFilter.ANY); app.setCategory(null); app.setOnlyAvailable(false)
             }
 
             is ExploreIntent.AreaMoved -> reduce { copy(pendingArea = intent.area) }
@@ -87,7 +86,7 @@ class ExploreViewModel(private val app: PoruchApp) :
             // Вибір наводить мапу (EventMap слухає selectedId).
             is ExploreIntent.FocusEvent -> {
                 reduce {
-                    copy(stackIds = emptyList(), detent = SheetDetent.PEEK, sheet = ExploreSheet.NONE, listCategory = ALL_CATEGORIES)
+                    copy(stackIds = emptyList(), detent = SheetDetent.PEEK, sheet = ExploreSheet.NONE, listCategory = null)
                 }
                 app.selectEvent(intent.id)
             }
@@ -95,7 +94,7 @@ class ExploreViewModel(private val app: PoruchApp) :
             // Шторку опускаємо: людина хоче бачити заклад на мапі. Плитки категорій скидаємо, як для FocusEvent.
             is ExploreIntent.FocusPlace -> {
                 reduce {
-                    copy(stackIds = emptyList(), detent = SheetDetent.PEEK, sheet = ExploreSheet.NONE, listCategory = ALL_CATEGORIES)
+                    copy(stackIds = emptyList(), detent = SheetDetent.PEEK, sheet = ExploreSheet.NONE, listCategory = null)
                 }
                 app.focusPlace(intent.place)
             }
@@ -116,7 +115,7 @@ class ExploreViewModel(private val app: PoruchApp) :
             is ExploreIntent.ShowSheet -> reduce { copy(sheet = intent.sheet) }
             is ExploreIntent.SetDetent -> reduce { copy(detent = intent.detent) }
             is ExploreIntent.PickListCategory -> {
-                reduce { copy(listCategory = if (listCategory == intent.category) ALL_CATEGORIES else intent.category) }
+                reduce { copy(listCategory = if (listCategory == intent.category) null else intent.category) }
                 // Голова нового списку майже напевно ще не завантажена.
                 loadHead(PAGE)
             }

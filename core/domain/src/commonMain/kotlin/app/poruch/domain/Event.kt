@@ -16,9 +16,9 @@ import kotlinx.datetime.TimeZone
  * без дій, а не падають.
  */
 data class Event(
-    val id: String, val title: String, val description: String, override val category: String,
+    val id: String, val title: String, val description: String, override val category: EventCategory,
     val city: String, val address: String,
-    override val startsAt: String, val endsAt: String, override val timeZone: String, val status: String,
+    override val startsAt: String, val endsAt: String, override val timeZone: String, val status: EventStatus,
     val latitude: Double, val longitude: Double, val imageUrl: String? = null,
     /** Кімната: заповнена лише для події, яку створила людина. */
     val gathering: Gathering? = null,
@@ -134,7 +134,7 @@ data class Gathering(
     val attendeeCount: Int,
     val joined: Boolean,
     /** Статус цього акаунта в події, див. [Membership]. */
-    val membership: String = Membership.NONE,
+    val membership: Membership = Membership.NONE,
     /** Приєднання — запит організатору, а не відкриті двері. */
     val approvalRequired: Boolean = false,
     /** Вікові межі гостей. Сервер відмовляє тим, хто поза діапазоном. */
@@ -177,7 +177,7 @@ data class Listing(
     /** Найдешевший квиток у гривнях. Null — джерело не сказало, а не «безкоштовно». */
     val priceMin: Double? = null,
     val isFree: Boolean? = null,
-    val status: String = ImportStatus.LIVE,
+    val status: ImportStatus = ImportStatus.LIVE,
     /** Id у `public.places`: одна точка на мапі, той самий ключ, що в [MapPins]. */
     val placeId: String? = null,
     /** Назва закладу («Малевич»), коротша й певніша за початок адреси. */
@@ -190,33 +190,49 @@ data class Listing(
     val hasSource get() = !canonicalUrl.isNullOrBlank()
 }
 
-/** Статус участі. Запит не тримає місце: поки організатор не відповів, це «нічого». */
-object Membership {
-    const val NONE = "none"
-    const val REQUESTED = "requested"
-    const val APPROVED = "approved"
+/**
+ * Статус участі. Запит не тримає місце: поки організатор не відповів, це «нічого».
+ * [key] — як його називає сервер; невідоме значення читається як [NONE].
+ */
+enum class Membership(val key: String) {
+    NONE("none"), REQUESTED("requested"), APPROVED("approved");
+
+    companion object {
+        fun fromKey(key: String?): Membership = entries.firstOrNull { it.key == key } ?: NONE
+    }
 }
 
 /** Стан події, як його називає `events.status`. */
-object EventStatus {
-    const val PUBLISHED = "published"
-    const val CANCELLED = "cancelled"
+enum class EventStatus(val key: String) {
+    PUBLISHED("published"), CANCELLED("cancelled"),
     /** Приховано модерацією (три скарги або рішення модератора): для клієнта — недоступна. */
-    const val HIDDEN = "hidden"
+    HIDDEN("hidden"),
+    /** Сервер новіший за застосунок: ні опублікована, ні скасована — подія без дій. */
+    UNKNOWN("");
+
+    companion object {
+        fun fromKey(key: String?): EventStatus = entries.firstOrNull { it != UNKNOWN && it.key == key } ?: UNKNOWN
+    }
 }
 
 /** Звідки взявся рядок, як його називає `events.origin`. */
-object EventOrigin {
-    const val COMMUNITY = "community"
-    const val IMPORT = "import"
-    const val PARTNER = "partner"
+enum class EventOrigin(val key: String) {
+    COMMUNITY("community"), IMPORT("import"), PARTNER("partner"),
+    /** Сервер новіший за застосунок. Не спільнота — тож показуємо як афішу. */
+    UNKNOWN("");
+
+    companion object {
+        fun fromKey(key: String?): EventOrigin = entries.firstOrNull { it != UNKNOWN && it.key == key } ?: UNKNOWN
+    }
 }
 
-/** Чи ще жива імпортована подія, як її називає `events.import_status`. */
-object ImportStatus {
-    const val LIVE = "live"
-    const val STALE = "stale"
-    const val WITHDRAWN = "withdrawn"
+/** Чи ще жива імпортована подія, як її називає `events.import_status`. Невідоме — [LIVE]. */
+enum class ImportStatus(val key: String) {
+    LIVE("live"), STALE("stale"), WITHDRAWN("withdrawn");
+
+    companion object {
+        fun fromKey(key: String?): ImportStatus = entries.firstOrNull { it.key == key } ?: LIVE
+    }
 }
 
 data class Attendee(val userId: String, val name: String, val avatarUrl: String?)
@@ -230,7 +246,8 @@ interface CityStore {
     fun manual(): Boolean
 }
 data class EventDraft(
-    val title: String, val description: String, val category: String, val city: String,
+    /** Null — ще не обрали. */
+    val title: String, val description: String, val category: EventCategory?, val city: String,
     val address: String, val latitude: Double, val longitude: Double, val startsAt: String,
     val endsAt: String, val timeZone: String, val capacity: Int, val imageUrl: String? = null,
     val minAge: Int = SafetyRules.MIN_SIGNUP_AGE, val maxAge: Int? = null,
@@ -242,7 +259,7 @@ data class EventDraft(
     fun validate(now: String): List<DraftField> = buildList {
         if (title.trim().length !in EventRules.titleLength) add(DraftField.TITLE)
         if (description.trim().length !in EventRules.descriptionLength) add(DraftField.DESCRIPTION)
-        if (!EventRules.isCategory(category)) add(DraftField.CATEGORY)
+        if (category == null || category == EventCategory.UNKNOWN) add(DraftField.CATEGORY)
         if (city.isBlank() || address.isBlank()) add(DraftField.ADDRESS)
         if (!latitude.isFinite() || !longitude.isFinite() || latitude !in -90.0..90.0 || longitude !in -180.0..180.0) add(DraftField.LOCATION)
         if (capacity !in EventRules.capacity) add(DraftField.CAPACITY)

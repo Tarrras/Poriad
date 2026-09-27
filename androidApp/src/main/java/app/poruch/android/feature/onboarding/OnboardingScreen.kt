@@ -32,6 +32,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import app.poruch.domain.EventCategory
 import app.poruch.android.R
 import app.poruch.android.ui.*
 import app.poruch.domain.Crowd
@@ -117,11 +118,11 @@ private fun Welcome() {
             Modifier.padding(top = Spacing.section, bottom = Spacing.lg).clearAndSetSemantics { },
             horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically
         ) {
-            MosaicTile("music", 52.dp, Modifier.offset(y = 18.dp))
-            MosaicTile("food", 68.dp, Modifier.offset(y = (-6).dp))
-            MosaicTile("social", 96.dp)
-            MosaicTile("outdoors", 68.dp, Modifier.offset(y = (-6).dp))
-            MosaicTile("games", 52.dp, Modifier.offset(y = 18.dp))
+            MosaicTile(EventCategory.MUSIC, 52.dp, Modifier.offset(y = 18.dp))
+            MosaicTile(EventCategory.FOOD, 68.dp, Modifier.offset(y = (-6).dp))
+            MosaicTile(EventCategory.SOCIAL, 96.dp)
+            MosaicTile(EventCategory.OUTDOORS, 68.dp, Modifier.offset(y = (-6).dp))
+            MosaicTile(EventCategory.GAMES, 52.dp, Modifier.offset(y = 18.dp))
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
             Text(stringResource(R.string.onboarding_welcome_title), style = MaterialTheme.typography.displaySmall, color = colors.ink)
@@ -134,7 +135,7 @@ private fun Welcome() {
 }
 
 @Composable
-private fun MosaicTile(category: String, size: Dp, modifier: Modifier = Modifier) {
+private fun MosaicTile(category: EventCategory, size: Dp, modifier: Modifier = Modifier) {
     Box(
         modifier.size(size).background(categoryGradient(category), RoundedCornerShape(size * 0.3f)),
         contentAlignment = Alignment.Center

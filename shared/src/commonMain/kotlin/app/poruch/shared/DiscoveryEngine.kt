@@ -80,7 +80,7 @@ internal class DiscoveryEngine(
             store.update { it.copy(map = it.map.copy(loading = true), home = if (shared) it.home.copy(loading = true) else it.home) }
             PoruchLog.d("discovery") {
                 "search ${snapshot.south},${snapshot.west}..${snapshot.north},${snapshot.east} " +
-                    "category=${snapshot.category ?: ALL_CATEGORIES} from=${snapshot.from ?: "now"} " +
+                    "category=${snapshot.category?.key ?: "all"} from=${snapshot.from ?: "now"} " +
                     "text=${if (snapshot.text.isNullOrBlank()) "-" else "yes"} available=${snapshot.available}"
             }
             try {
@@ -240,7 +240,7 @@ internal class DiscoveryEngine(
         store.update {
             it.copy(home = it.home.copy(
                 searchText = "", results = emptyList(), found = emptyList(), resultsTotal = 0, places = emptyList(), searchLoading = false,
-                searchEverywhere = false, searchCategory = ALL_CATEGORIES, searchDate = DateFilter.ANY
+                searchEverywhere = false, searchCategory = null, searchDate = DateFilter.ANY
             ))
         }
     }
@@ -249,10 +249,10 @@ internal class DiscoveryEngine(
     fun setHomeSearchEverywhere(everywhere: Boolean) =
         updateHomeSearch { it.copy(searchEverywhere = everywhere) }
 
-    fun setHomeSearchCategory(category: String) =
+    fun setHomeSearchCategory(category: EventCategory?) =
         updateHomeSearch { it.copy(searchCategory = category) }
 
-    fun setHomeSearchDate(filter: String) =
+    fun setHomeSearchDate(filter: DateFilter) =
         updateHomeSearch { it.copy(searchDate = filter) }
 
     private fun updateHomeSearch(change: (HomeFeed) -> HomeFeed) {
@@ -278,7 +278,7 @@ internal class DiscoveryEngine(
         }
         val snapshot = (if (home.searchEverywhere) WORLD else areaQuery()).copy(
             text = text,
-            category = home.searchCategory.takeIf { it != ALL_CATEGORIES },
+            category = home.searchCategory,
             from = from?.toString(), to = to?.toString()
         )
         homeSearchJob = scope.launch {
@@ -500,12 +500,12 @@ internal class DiscoveryEngine(
      * Категорія мапи, без запиту до сервера: індекс один на всі екрани, тож фільтр на сервері
      * звужував би й головну. Сервер віддає місто цілим, категорію відбирає екран.
      */
-    fun setCategory(category: String) {
+    fun setCategory(category: EventCategory?) {
         store.update { it.copy(map = it.map.copy(category = category)) }
         onQueryChanged()
     }
 
-    fun setDateFilter(filter: String) {
+    fun setDateFilter(filter: DateFilter) {
         val (start, end) = dateRange(filter)
         store.update { it.copy(map = it.map.copy(dateFilter = filter)) }
         query = query.copy(from = start?.toString(), to = end?.toString())
@@ -513,7 +513,7 @@ internal class DiscoveryEngine(
     }
 
     /** Межі [DateFilter] від сьогодні в поясі пристрою; для «Усі» — без меж. */
-    private fun dateRange(filter: String): Pair<kotlin.time.Instant?, kotlin.time.Instant?> {
+    private fun dateRange(filter: DateFilter): Pair<kotlin.time.Instant?, kotlin.time.Instant?> {
         val zone = TimeZone.currentSystemDefault()
         val now = Clock.System.now()
         val today = now.toLocalDateTime(zone).date
@@ -524,12 +524,12 @@ internal class DiscoveryEngine(
         val start = when (filter) {
             DateFilter.TODAY -> today.atStartOfDayIn(zone)
             DateFilter.WEEKEND -> today.plus(daysToSaturday, DateTimeUnit.DAY).atStartOfDayIn(zone)
-            else -> null
+            DateFilter.ANY -> null
         }
         val end = when (filter) {
             DateFilter.TODAY -> today.plus(1, DateTimeUnit.DAY).atStartOfDayIn(zone)
             DateFilter.WEEKEND -> today.plus(8 - today.dayOfWeek.isoDayNumber, DateTimeUnit.DAY).atStartOfDayIn(zone)
-            else -> null
+            DateFilter.ANY -> null
         }
         return start to end
     }

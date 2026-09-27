@@ -9,7 +9,7 @@ final class PushDelegate: NSObject, UIApplicationDelegate {
     /// APNs може прийти ще раніше. Тому токен тримаємо і віддаємо, щойно стор зʼявився.
     static var app: PoruchApp? {
         didSet {
-            if let token = pendingToken { app?.pushTokenChanged(token: token, platform: PushPlatform.shared.IOS) }
+            if let token = pendingToken { app?.pushTokenChanged(token: token, platform: PushPlatform.ios) }
             else { registerIfAllowed() }
         }
     }
@@ -51,7 +51,7 @@ final class PushDelegate: NSObject, UIApplicationDelegate {
         // NSLog, а не PoruchLog: цю подію треба бачити в системному журналі й без консолі Xcode.
         NSLog("Poruch/push: apns token received (%d bytes)", deviceToken.count)
         PushDelegate.pendingToken = token
-        PushDelegate.app?.pushTokenChanged(token: token, platform: PushPlatform.shared.IOS)
+        PushDelegate.app?.pushTokenChanged(token: token, platform: PushPlatform.ios)
     }
 
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {

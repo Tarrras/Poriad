@@ -27,23 +27,23 @@ internal class SafetyUseCases(
         store.tell(AppMessage.AGE_CONFIRMED)
     }
 
-    fun reportEvent(eventId: String, reason: String, details: String?) = store.mutate {
+    fun reportEvent(eventId: String, reason: ReportReason, details: String?) = store.mutate {
         val repository = signedInRepository()
-        PoruchLog.i("safety") { "report event ${eventId.shortId()} reason=$reason" }
+        PoruchLog.i("safety") { "report event ${eventId.shortId()} reason=${reason.key}" }
         repository.reportEvent(eventId, reason, details)
         store.tell(AppMessage.REPORT_SENT)
     }
 
-    fun reportUser(userId: String, reason: String, details: String?) = store.mutate {
+    fun reportUser(userId: String, reason: ReportReason, details: String?) = store.mutate {
         val repository = signedInRepository()
-        PoruchLog.i("safety") { "report user ${userId.shortId()} reason=$reason" }
+        PoruchLog.i("safety") { "report user ${userId.shortId()} reason=${reason.key}" }
         repository.reportUser(userId, reason, details)
         store.tell(AppMessage.REPORT_SENT)
     }
 
-    fun reportMessage(messageId: String, reason: String, details: String?) = store.mutate {
+    fun reportMessage(messageId: String, reason: ReportReason, details: String?) = store.mutate {
         val repository = signedInRepository()
-        PoruchLog.i("safety") { "report message ${messageId.shortId()} reason=$reason" }
+        PoruchLog.i("safety") { "report message ${messageId.shortId()} reason=${reason.key}" }
         repository.reportMessage(messageId, reason, details)
         store.tell(AppMessage.REPORT_SENT)
     }

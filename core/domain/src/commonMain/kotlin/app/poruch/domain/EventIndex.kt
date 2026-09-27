@@ -14,12 +14,11 @@ data class EventIndexEntry(
     val id: String,
     val latitude: Double,
     val longitude: Double,
-    override val category: String,
+    override val category: EventCategory,
     override val startsAt: String,
     override val timeZone: String,
     val title: String,
-    /** `community` або `import`, як в `events.origin`. */
-    val origin: String,
+    val origin: EventOrigin,
     /** Слаг джерела (`event_sources.slug`). Порожній для події спільноти. */
     val source: String? = null,
     /** Місткість кімнати. Null — кімнати немає, а не «місць нуль». */

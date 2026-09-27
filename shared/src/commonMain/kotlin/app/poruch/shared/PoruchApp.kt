@@ -144,7 +144,7 @@ class PoruchApp internal constructor(
     // на головному: тіло завжди переходить у [scope].
 
     /** Платформа отримала або оновила токен. Реєструється під кожним акаунтом, з яким входять. */
-    fun pushTokenChanged(token: String, platform: String) {
+    fun pushTokenChanged(token: String, platform: PushPlatform) {
         scope.launch { pushSync.tokenChanged(token, platform) }
     }
 
@@ -193,11 +193,11 @@ class PoruchApp internal constructor(
     fun setHomeSearchEverywhere(everywhere: Boolean) = discovery.setHomeSearchEverywhere(everywhere)
     /** «Скасувати» в режимі пошуку: текст і фільтри скидаються. */
     fun cancelHomeSearch() = discovery.cancelHomeSearch()
-    fun setHomeSearchCategory(category: String) = discovery.setHomeSearchCategory(category)
-    fun setHomeSearchDate(filter: String) = discovery.setHomeSearchDate(filter)
+    fun setHomeSearchCategory(category: EventCategory?) = discovery.setHomeSearchCategory(category)
+    fun setHomeSearchDate(filter: DateFilter) = discovery.setHomeSearchDate(filter)
     fun setOnlyAvailable(available: Boolean) = discovery.setOnlyAvailable(available)
-    fun setCategory(category: String) = discovery.setCategory(category)
-    fun setDateFilter(filter: String) = discovery.setDateFilter(filter)
+    fun setCategory(category: EventCategory?) = discovery.setCategory(category)
+    fun setDateFilter(filter: DateFilter) = discovery.setDateFilter(filter)
     fun searchCity(query: String) = discovery.searchCity(query)
     /** Місто, обране руками: запам'ятовується і має перевагу над геолокацією на старті. */
     fun selectCity(city: CityResult) = discovery.selectCity(city, manual = true)
@@ -275,7 +275,7 @@ class PoruchApp internal constructor(
     /** Текст, що не пішов (див. [ChatState.failedDraft]), для поля вводу. Віддає раз. */
     fun consumeFailedDraft(): String? = chatEngine.consumeFailedDraft()
     fun deleteMessage(messageId: String) = chatEngine.delete(messageId)
-    fun reportMessage(messageId: String, reason: String, details: String? = null) =
+    fun reportMessage(messageId: String, reason: ReportReason, details: String? = null) =
         safetyUseCases.reportMessage(messageId, reason, details)
 
     // ---- Події
@@ -304,7 +304,7 @@ class PoruchApp internal constructor(
     // ---- Смак і нагадування
 
     /** Відповіді онбордингу. Зберігаються на пристрої, щоб мав і гість. */
-    fun saveTaste(interests: List<String>, times: List<String>, crowd: String) =
+    fun saveTaste(interests: List<EventCategory>, times: List<TimeSlot>, crowd: Crowd) =
         tasteUseCases.save(interests, times, crowd)
 
     /** «Не зараз»: питання закриті, ранжуємо лише за часом. */
@@ -312,7 +312,7 @@ class PoruchApp internal constructor(
 
     /** Знову відкриває питання з профілю. */
     fun restartOnboarding() = tasteUseCases.restartOnboarding()
-    fun toggleInterest(category: String) = tasteUseCases.toggleInterest(category)
+    fun toggleInterest(category: EventCategory) = tasteUseCases.toggleInterest(category)
 
     /**
      * Перемикач у профілі. Дозвіл системи — справа платформи: сюди приходить уже результат,
@@ -330,10 +330,10 @@ class PoruchApp internal constructor(
 
     /** Вік для акаунта, створеного до появи питання. Дозволено раз. */
     fun declareBirthDate(birthDate: String) = safetyUseCases.declareBirthDate(birthDate)
-    fun reportEvent(eventId: String, reason: String, details: String? = null) =
+    fun reportEvent(eventId: String, reason: ReportReason, details: String? = null) =
         safetyUseCases.reportEvent(eventId, reason, details)
 
-    fun reportUser(userId: String, reason: String, details: String? = null) =
+    fun reportUser(userId: String, reason: ReportReason, details: String? = null) =
         safetyUseCases.reportUser(userId, reason, details)
 
     /** Блокування взаємне й миттєве: події людини зникають з мапи при наступному читанні. */

@@ -6,14 +6,13 @@ import kotlinx.datetime.isoDayNumber
 import kotlinx.datetime.toLocalDateTime
 
 /**
- * Три відповіді з онбордингу — все, що застосунок знає про смак людини. Рядки, а не enum,
- * бо обидві платформи їх зберігають і передають. [answered] відрізняє «без уподобань» від
+ * Три відповіді з онбордингу — все, що застосунок знає про смак людини. [answered] відрізняє «без уподобань» від
  * «ще не питали», щоб не показувати питання двічі.
  */
 data class Taste(
-    val interests: List<String> = emptyList(),
-    val times: List<String> = emptyList(),
-    val crowd: String = Crowd.ANY,
+    val interests: List<EventCategory> = emptyList(),
+    val times: List<TimeSlot> = emptyList(),
+    val crowd: Crowd = Crowd.ANY,
     val answered: Boolean = false,
     /**
      * Акаунт, з яким [interests] синхронізовано. Null — відповіді гостя, ще нічиї: їх отримує
@@ -25,34 +24,34 @@ data class Taste(
     val isBlank get() = interests.isEmpty() && times.isEmpty() && crowd == Crowd.ANY
 }
 
-/** Коли людина вільна, у локальному часі події. Чотири слоти, а не розклад: відповідь одним тапом. */
-object TimeSlot {
-    const val WEEKDAY_DAY = "weekday_day"
-    const val WEEKDAY_EVENING = "weekday_evening"
-    const val WEEKEND_DAY = "weekend_day"
-    const val WEEKEND_EVENING = "weekend_evening"
+/**
+ * Коли людина вільна, у локальному часі події. Чотири слоти, а не розклад: відповідь одним тапом.
+ * [key] — як слот лежить у сховищі пристрою.
+ */
+enum class TimeSlot(val key: String) {
+    WEEKDAY_DAY("weekday_day"), WEEKDAY_EVENING("weekday_evening"),
+    WEEKEND_DAY("weekend_day"), WEEKEND_EVENING("weekend_evening");
 
-    val all = listOf(WEEKDAY_DAY, WEEKDAY_EVENING, WEEKEND_DAY, WEEKEND_EVENING)
+    companion object {
+        /** Після роботи. */
+        const val EVENING_FROM_HOUR = 17
 
-    /** Після роботи. */
-    const val EVENING_FROM_HOUR = 17
-
-    fun isSlot(value: String) = value in all
+        /** Невідомий ключ (старе сховище) — null: застаріле ранжувало б проти нічого. */
+        fun fromKey(key: String): TimeSlot? = entries.firstOrNull { it.key == key }
+    }
 }
 
 /** Бажаний розмір компанії. Пороги — місткість події, а не кількість учасників. */
-object Crowd {
-    const val INTIMATE = "intimate"
-    const val MEDIUM = "medium"
-    const val ANY = "any"
+enum class Crowd(val key: String) {
+    INTIMATE("intimate"), MEDIUM("medium"), ANY("any");
 
-    val all = listOf(INTIMATE, MEDIUM, ANY)
+    companion object {
+        /** Стіл, кімната, будь-що. */
+        const val INTIMATE_UP_TO = 12
+        const val MEDIUM_UP_TO = 40
 
-    /** Стіл, кімната, будь-що. */
-    const val INTIMATE_UP_TO = 12
-    const val MEDIUM_UP_TO = 40
-
-    fun isCrowd(value: String) = value in all
+        fun fromKey(key: String?): Crowd? = entries.firstOrNull { it.key == key }
+    }
 }
 
 /** Відповіді на пристрої: потрібні ще до акаунта і переживають його. */
@@ -67,7 +66,7 @@ interface TasteStore {
  * питаннями — розмір і чи є місце; в афіші кімнати нема, і обидва відповідають «ні».
  */
 interface Rankable {
-    val category: String
+    val category: EventCategory
     val startsAt: String
     val timeZone: String
     val isCancelled: Boolean
@@ -152,9 +151,9 @@ object TasteRanking {
         !event.isCancelled && (event.category in taste.interests || slotOf(event) in taste.times)
 
     /** Слот події в її часовому поясі. */
-    fun slotOf(event: Rankable): String? = slotOf(event, Zones())
+    fun slotOf(event: Rankable): TimeSlot? = slotOf(event, Zones())
 
-    private fun slotOf(event: Rankable, zones: Zones): String? {
+    private fun slotOf(event: Rankable, zones: Zones): TimeSlot? {
         val zone = zones.of(event.timeZone)
         val local = runCatching { Instant.parse(event.startsAt).toLocalDateTime(zone) }.getOrNull() ?: return null
         val weekend = local.dayOfWeek.isoDayNumber >= 6
@@ -168,12 +167,12 @@ object TasteRanking {
     }
 
     /** `ANY` балів не дає: це відсутність відповіді. Афіша теж не дає — кімнати нема. */
-    private fun fitsCrowd(event: Rankable, crowd: String): Boolean {
+    private fun fitsCrowd(event: Rankable, crowd: Crowd): Boolean {
         val capacity = event.roomCapacity ?: return false
         return when (crowd) {
             Crowd.INTIMATE -> capacity <= Crowd.INTIMATE_UP_TO
             Crowd.MEDIUM -> capacity in (Crowd.INTIMATE_UP_TO + 1)..Crowd.MEDIUM_UP_TO
-            else -> false
+            Crowd.ANY -> false
         }
     }
 

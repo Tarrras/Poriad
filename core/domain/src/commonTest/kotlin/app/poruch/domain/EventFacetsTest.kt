@@ -6,7 +6,7 @@ import kotlin.test.*
 class EventFacetsTest {
 
     private fun base(gathering: Gathering? = null, listing: Listing? = null, description: String = "") = Event(
-        id = "e", title = "Подія", description = description, category = "music",
+        id = "e", title = "Подія", description = description, category = EventCategory.MUSIC,
         city = "Київ", address = "Поділ", startsAt = "2030-09-06T19:00:00Z",
         endsAt = "2030-09-06T22:00:00Z", timeZone = "Europe/Kyiv", status = EventStatus.PUBLISHED,
         latitude = 50.45, longitude = 30.52, gathering = gathering, listing = listing

@@ -31,8 +31,9 @@ data class MapFeed(
     /** Заклад, обраний у пошуку: мапа наводиться на нього й відкриває його стос. */
     val placeFocus: PlaceFocus? = null,
     val onlyAvailable: Boolean = false,
-    val category: String = ALL_CATEGORIES,
-    val dateFilter: String = DateFilter.ANY,
+    /** Фільтр мапи. Null — усі категорії. */
+    val category: EventCategory? = null,
+    val dateFilter: DateFilter = DateFilter.ANY,
     val loading: Boolean = false,
     /** Показано кеш: мережа не відповіла. */
     val offline: Boolean = false
@@ -82,8 +83,8 @@ data class HomeFeed(
     /** Пошук головної по всіх містах, а не лише в обраному. */
     val searchEverywhere: Boolean = false,
     /** Фільтри пошуку головної. Стрічку не звужують — лише знайдене. */
-    val searchCategory: String = ALL_CATEGORIES,
-    val searchDate: String = DateFilter.ANY,
+    val searchCategory: EventCategory? = null,
+    val searchDate: DateFilter = DateFilter.ANY,
     /**
      * Завантажені картки [index] у його порядку, з пропусками тих, що ще їдуть. Складає
      * [materialized], щоб платформи не з'єднували індекс з картками самі, через міст.
@@ -162,12 +163,5 @@ private fun AppState.cardsWithSessions(): Map<String, Event> {
     return changed ?: cards
 }
 
-/** Значення фільтра «без фільтра». Не категорія, тому окремо. */
-const val ALL_CATEGORIES = "all"
-
-/** Фільтри дати. Рядки, бо обидві платформи їх так зберігають. */
-object DateFilter {
-    const val ANY = "all"
-    const val TODAY = "today"
-    const val WEEKEND = "weekend"
-}
+/** Фільтр дати мапи й пошуку. Лише стан клієнта: на сервер іде вже діапазон `from`/`to`. */
+enum class DateFilter { ANY, TODAY, WEEKEND }

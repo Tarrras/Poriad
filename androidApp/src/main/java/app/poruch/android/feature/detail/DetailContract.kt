@@ -6,6 +6,7 @@ import app.poruch.domain.EventIndexEntry
 import app.poruch.domain.EventRating
 import app.poruch.domain.EventSession
 import app.poruch.domain.RatingTag
+import app.poruch.domain.ReportReason
 import app.poruch.shared.PersonState
 
 data class DetailState(
@@ -132,7 +133,7 @@ sealed interface DetailIntent {
     data class ConfirmCancel(val open: Boolean) : DetailIntent
     data class ShowReport(val target: ReportTarget?) : DetailIntent
     /** Ціль їде всередині: шторка спершу закривається (і скидає [DetailState.reporting]), а вже потім шле це. */
-    data class SendReport(val target: ReportTarget, val reason: String, val details: String) : DetailIntent
+    data class SendReport(val target: ReportTarget, val reason: ReportReason, val details: String) : DetailIntent
     data class ConfirmBlock(val open: Boolean) : DetailIntent
     data object BlockOrganizer : DetailIntent
     /** Відкрити чат учасників: спершу попередження, потім браузер. */

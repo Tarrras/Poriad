@@ -1,6 +1,7 @@
 package app.poruch.android.feature.chat
 
 import app.poruch.domain.ChatMessage
+import app.poruch.domain.ReportReason
 import app.poruch.shared.PersonState
 
 /** Стан екрана чату: зріз [app.poruch.shared.ChatState] плюс те, що потрібно лише для промальовки. */
@@ -52,7 +53,7 @@ sealed interface ChatIntent {
     data class OpenPerson(val userId: String) : ChatIntent
     data object ClosePerson : ChatIntent
     /** Ціль їде всередині: шторка спершу закривається (і скидає [ChatState.reporting]), а вже потім шле це. */
-    data class SendReport(val message: ChatMessage, val reason: String, val details: String) : ChatIntent
+    data class SendReport(val message: ChatMessage, val reason: ReportReason, val details: String) : ChatIntent
 }
 
 sealed interface ChatEffect {

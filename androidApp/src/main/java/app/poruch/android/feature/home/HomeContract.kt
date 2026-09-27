@@ -1,11 +1,11 @@
 package app.poruch.android.feature.home
 
+import app.poruch.domain.EventCategory
 import app.poruch.domain.ChatUnread
 import app.poruch.domain.CityResult
 import app.poruch.domain.Event
 import app.poruch.domain.HomeLocation
 import app.poruch.domain.Place
-import app.poruch.shared.ALL_CATEGORIES
 import app.poruch.shared.DateFilter
 
 /** Стан головної: усе вже відфільтроване й посортоване для рендеру. */
@@ -46,8 +46,8 @@ data class HomeState(
     val searchLoading: Boolean = false,
     /** Пошук по всіх містах, а не лише в [cityName]. Фільтри пошуку звужують лише знайдене, не стрічку. */
     val searchEverywhere: Boolean = false,
-    val searchCategory: String = ALL_CATEGORIES,
-    val searchDate: String = DateFilter.ANY,
+    val searchCategory: EventCategory? = null,
+    val searchDate: DateFilter = DateFilter.ANY,
     /** Місто з подіями, назване в пошуку, крім поточного: текстовий пошук іде лише в межах міста. */
     val cityMatch: HomeLocation? = null,
     /** Шторка вибору міста з шапки і підказки геопошуку для неї. */
@@ -73,8 +73,8 @@ sealed interface HomeIntent {
     data class Search(val text: String) : HomeIntent
     /** Фільтри під полем пошуку: область, категорія, дата. */
     data class SearchEverywhere(val everywhere: Boolean) : HomeIntent
-    data class SearchCategory(val category: String) : HomeIntent
-    data class SearchDate(val filter: String) : HomeIntent
+    data class SearchCategory(val category: EventCategory?) : HomeIntent
+    data class SearchDate(val filter: DateFilter) : HomeIntent
     /** Підказка «Показати події в місті …» під пошуком або місто зі шторки шапки. */
     data class SwitchCity(val city: CityResult) : HomeIntent
     /** Тап по місту в шапці відкриває шторку, закриття — ховає. */
@@ -93,7 +93,7 @@ sealed interface HomeIntent {
     data object CreateEvent : HomeIntent
     data object OpenMap : HomeIntent
     /** Плитка категорії на головній: мапа відкривається вже з цим фільтром. */
-    data class OpenCategory(val category: String) : HomeIntent
+    data class OpenCategory(val category: EventCategory) : HomeIntent
     data object OpenProfile : HomeIntent
     /** Потяг вниз: перечитати все, як при поверненні в застосунок. */
     data object Refresh : HomeIntent

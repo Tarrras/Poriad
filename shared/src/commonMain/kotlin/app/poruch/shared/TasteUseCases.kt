@@ -13,16 +13,15 @@ internal class TasteUseCases(
     private val store: AppStore,
     private val analyticsStore: AnalyticsPreferenceStore? = null
 ) {
-    /** Словник перевіряємо тут, а не довіряємо екрану. */
-    fun save(interests: List<String>, times: List<String>, crowd: String) = store.mutate {
+    fun save(interests: List<EventCategory>, times: List<TimeSlot>, crowd: Crowd) = store.mutate {
         val answered = Taste(
-            interests = interests.filter(EventRules::isCategory).distinct(),
-            times = times.filter(TimeSlot::isSlot).distinct(),
-            crowd = crowd.takeIf(Crowd::isCrowd) ?: Crowd.ANY,
+            interests = interests.filter { it != EventCategory.UNKNOWN }.distinct(),
+            times = times.distinct(),
+            crowd = crowd,
             answered = true
         )
         PoruchLog.i("taste") {
-            "answered: ${answered.interests.size} interests, ${answered.times.size} slots, crowd=${answered.crowd}"
+            "answered: ${answered.interests.size} interests, ${answered.times.size} slots, crowd=${answered.crowd.key}"
         }
         apply(answered)
         if (store.value.signedIn) preferences?.setInterests(answered.interests)
@@ -37,8 +36,8 @@ internal class TasteUseCases(
     /** Знову відкриває питання з профілю, з поточними відповідями як початковими. */
     fun restartOnboarding() = apply(store.value.taste.copy(answered = false))
 
-    fun toggleInterest(category: String) = store.mutate {
-        if (!EventRules.isCategory(category)) return@mutate
+    fun toggleInterest(category: EventCategory) = store.mutate {
+        if (category == EventCategory.UNKNOWN) return@mutate
         val selected = store.value.taste.interests
         val next = if (category in selected) selected - category else selected + category
         apply(store.value.taste.copy(interests = next))

@@ -11,11 +11,11 @@ class MyEventsRulesTest {
 
     private fun room(
         id: String, starts: String, hours: Int = 2, organizer: String = "host", joined: Boolean = false,
-        membership: String = if (joined) Membership.APPROVED else Membership.NONE, status: String = EventStatus.PUBLISHED
+        membership: Membership = if (joined) Membership.APPROVED else Membership.NONE, status: EventStatus = EventStatus.PUBLISHED
     ): Event {
         val start = Instant.parse(starts)
         return Event(
-            id = id, title = id, description = "", category = "games", city = "Київ", address = "Поділ",
+            id = id, title = id, description = "", category = EventCategory.GAMES, city = "Київ", address = "Поділ",
             startsAt = starts, endsAt = (start + kotlin.time.Duration.parse("${hours}h")).toString(), timeZone = "Europe/Kyiv",
             status = status, latitude = 0.0, longitude = 0.0,
             gathering = Gathering(organizerId = organizer, organizerName = "", capacity = 10, attendeeCount = 3, joined = joined, membership = membership)

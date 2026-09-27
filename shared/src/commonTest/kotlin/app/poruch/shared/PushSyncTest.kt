@@ -11,13 +11,13 @@ import kotlin.test.*
 @OptIn(ExperimentalCoroutinesApi::class)
 class PushSyncTest {
     private class Tokens : PushTokens {
-        val registered = mutableListOf<Pair<String, String>>()
+        val registered = mutableListOf<Pair<String, PushPlatform>>()
         val unregistered = mutableListOf<String>()
         /** Яким ключем знімали: null — поточною сесією. */
         val keys = mutableListOf<String?>()
         var fail = false
         var failUnregister: AppError? = null
-        override suspend fun register(token: String, platform: String) { delay(50); if (fail) fail(AppError.Network); registered += token to platform }
+        override suspend fun register(token: String, platform: PushPlatform) { delay(50); if (fail) fail(AppError.Network); registered += token to platform }
         override suspend fun unregister(token: String, accessToken: String?) { failUnregister?.let { fail(it) }; unregistered += token; keys += accessToken }
     }
     private class Pending : PendingUnregisterStore {

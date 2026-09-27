@@ -16,10 +16,10 @@ class EventSeriesTest {
         startsAt: String,
         lat: Double = 50.45,
         lon: Double = 30.53,
-        origin: String = EventOrigin.IMPORT,
+        origin: EventOrigin = EventOrigin.IMPORT,
         source: String? = "karabas",
     ) = EventIndexEntry(
-        id = id, latitude = lat, longitude = lon, category = "art",
+        id = id, latitude = lat, longitude = lon, category = EventCategory.ART,
         startsAt = startsAt, timeZone = "Europe/Kyiv", title = title,
         origin = origin, source = source,
     )
@@ -162,8 +162,8 @@ class EventSeriesTest {
     // ---- Карусель на екрані деталей
 
     /** Картка афіші, як її віддає `event_details`. */
-    private fun card(id: String, title: String, startsAt: String, status: String = EventStatus.PUBLISHED) = Event(
-        id, title, "", "art", "Київ", "Хрещатик", startsAt, startsAt, "Europe/Kyiv", status, 50.45, 30.53
+    private fun card(id: String, title: String, startsAt: String, status: EventStatus = EventStatus.PUBLISHED) = Event(
+        id, title, "", EventCategory.ART, "Київ", "Хрещатик", startsAt, startsAt, "Europe/Kyiv", status, 50.45, 30.53
     )
 
     @Test

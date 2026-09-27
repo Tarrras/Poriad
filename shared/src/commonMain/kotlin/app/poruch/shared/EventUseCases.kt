@@ -100,12 +100,12 @@ internal class EventUseCases(
         val id = creationIdentity?.idFor(draft)
             ?: pendingCreation?.takeIf { it.first == draft }?.second
             ?: Uuid.random().toString().also { pendingCreation = draft to it }
-        PoruchLog.i("action") { "createEvent ${id.shortId()} category=${draft.category} capacity=${draft.capacity}" }
+        PoruchLog.i("action") { "createEvent ${id.shortId()} category=${draft.category?.key} capacity=${draft.capacity}" }
         val created = actions.create(id, draft)
         pendingCreation = null; creationIdentity?.clear()
         PoruchAnalytics.track(
             "event_create",
-            "category" to draft.category,
+            "category" to draft.category?.key,
             "approval" to draft.approvalRequired
         )
         reloader.changed(created, index = true); library.select(created)

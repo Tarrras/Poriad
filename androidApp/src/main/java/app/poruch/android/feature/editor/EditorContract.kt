@@ -1,5 +1,6 @@
 package app.poruch.android.feature.editor
 
+import app.poruch.domain.EventCategory
 import app.poruch.domain.AppError
 import app.poruch.domain.ContactRules
 import app.poruch.domain.DraftField
@@ -15,7 +16,7 @@ import java.time.format.DateTimeFormatter
 data class EditorForm(
     val title: String = "",
     val description: String = "",
-    val category: String = DEFAULT_CATEGORY,
+    val category: EventCategory = DEFAULT_CATEGORY,
     val city: String = "",
     val address: String = "",
     val latitude: String = "",
@@ -72,7 +73,7 @@ data class EditorForm(
     }
 
     companion object {
-        const val DEFAULT_CATEGORY = "social"
+        val DEFAULT_CATEGORY = EventCategory.SOCIAL
         const val DEFAULT_CAPACITY = "20"
         val DEFAULT_MIN_AGE = SafetyRules.MIN_SIGNUP_AGE.toString()
         /** Формат дат у чернетці: локальний час, не UTC. */

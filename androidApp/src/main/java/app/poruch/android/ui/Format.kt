@@ -2,8 +2,8 @@ package app.poruch.android.ui
 
 import androidx.compose.ui.graphics.vector.ImageVector
 import app.poruch.android.R
+import app.poruch.domain.EventCategory
 import app.poruch.domain.Event
-import app.poruch.domain.EventRules
 import app.poruch.domain.EventSession
 import app.poruch.domain.Listing
 import android.content.Context
@@ -21,24 +21,36 @@ import java.time.temporal.ChronoUnit
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 
-/** Словник домену в його порядку: підписи нижче збігаються за індексом. */
-val categories = EventRules.categories
-private val categoryLabels = listOf(R.string.music, R.string.sport, R.string.art, R.string.food, R.string.games, R.string.outdoors, R.string.social, R.string.comedy, R.string.kids, R.string.tours, R.string.conference)
+/** Те, що людина може обрати, у порядку домену. */
+val categories = EventCategory.selectable
 
-fun categoryLabel(key: String) = categoryLabels.getOrElse(categories.indexOf(key)) { R.string.all }
+fun categoryLabel(category: EventCategory) = when (category) {
+    EventCategory.MUSIC -> R.string.music
+    EventCategory.SPORT -> R.string.sport
+    EventCategory.ART -> R.string.art
+    EventCategory.FOOD -> R.string.food
+    EventCategory.GAMES -> R.string.games
+    EventCategory.OUTDOORS -> R.string.outdoors
+    EventCategory.SOCIAL -> R.string.social
+    EventCategory.COMEDY -> R.string.comedy
+    EventCategory.KIDS -> R.string.kids
+    EventCategory.TOURS -> R.string.tours
+    EventCategory.CONFERENCE -> R.string.conference
+    EventCategory.UNKNOWN -> R.string.category_other
+}
 
-fun categoryIcon(category: String): ImageVector = when (category) {
-    "music" -> PoruchIcons.music
-    "sport" -> PoruchIcons.sport
-    "art" -> PoruchIcons.art
-    "food" -> PoruchIcons.food
-    "games" -> PoruchIcons.games
-    "outdoors" -> PoruchIcons.outdoors
-    "comedy" -> PoruchIcons.comedy
-    "kids" -> PoruchIcons.kids
-    "tours" -> PoruchIcons.tours
-    "conference" -> PoruchIcons.conference
-    else -> PoruchIcons.social
+fun categoryIcon(category: EventCategory): ImageVector = when (category) {
+    EventCategory.MUSIC -> PoruchIcons.music
+    EventCategory.SPORT -> PoruchIcons.sport
+    EventCategory.ART -> PoruchIcons.art
+    EventCategory.FOOD -> PoruchIcons.food
+    EventCategory.GAMES -> PoruchIcons.games
+    EventCategory.OUTDOORS -> PoruchIcons.outdoors
+    EventCategory.COMEDY -> PoruchIcons.comedy
+    EventCategory.KIDS -> PoruchIcons.kids
+    EventCategory.TOURS -> PoruchIcons.tours
+    EventCategory.CONFERENCE -> PoruchIcons.conference
+    EventCategory.SOCIAL, EventCategory.UNKNOWN -> PoruchIcons.social
 }
 
 private val ukrainian: Locale = Locale.forLanguageTag("uk")

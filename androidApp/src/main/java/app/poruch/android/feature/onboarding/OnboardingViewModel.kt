@@ -30,5 +30,5 @@ class OnboardingViewModel(private val app: PoruchApp) :
         }
     }
 
-    private fun List<String>.toggle(value: String) = if (value in this) this - value else this + value
+    private fun <T> List<T>.toggle(value: T) = if (value in this) this - value else this + value
 }

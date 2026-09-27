@@ -8,8 +8,8 @@ class TasteRankingTest {
     private val now = Instant.parse("2030-09-04T09:00:00Z")
 
     private fun event(
-        id: String, category: String = "music", startsAt: String = "2030-09-06T19:00:00+03:00",
-        capacity: Int = 20, attendees: Int = 0, status: String = EventStatus.PUBLISHED
+        id: String, category: EventCategory = EventCategory.MUSIC, startsAt: String = "2030-09-06T19:00:00+03:00",
+        capacity: Int = 20, attendees: Int = 0, status: EventStatus = EventStatus.PUBLISHED
     ) = Event(
         id = id, title = id, description = "", category = category, city = "Київ", address = "Поділ",
         startsAt = startsAt, endsAt = startsAt, timeZone = "Europe/Kyiv", status = status,
@@ -21,7 +21,7 @@ class TasteRankingTest {
     )
 
     /** Афіша: та сама подія без кімнати. */
-    private fun listing(id: String, category: String = "music", startsAt: String = "2030-09-06T19:00:00+03:00") = Event(
+    private fun listing(id: String, category: EventCategory = EventCategory.MUSIC, startsAt: String = "2030-09-06T19:00:00+03:00") = Event(
         id = id, title = id, description = "", category = category, city = "Київ", address = "Поділ",
         startsAt = startsAt, endsAt = startsAt, timeZone = "Europe/Kyiv", status = EventStatus.PUBLISHED,
         latitude = 50.45, longitude = 30.52, listing = Listing(sourceName = "Karabas")
@@ -41,14 +41,14 @@ class TasteRankingTest {
     }
 
     @Test fun theChosenSubjectComesFirst() {
-        val taste = Taste(interests = listOf("art"), answered = true)
-        val ranked = TasteRanking.rank(listOf(event("music"), event("art", category = "art")), taste, now)
+        val taste = Taste(interests = listOf(EventCategory.ART), answered = true)
+        val ranked = TasteRanking.rank(listOf(event("music"), event("art", category = EventCategory.ART)), taste, now)
         assertEquals("art", ranked.first().id)
     }
 
     @Test fun nothingIsEverDropped() {
-        val taste = Taste(interests = listOf("art"), times = listOf(TimeSlot.WEEKEND_DAY), answered = true)
-        val all = listOf(event("a"), event("b", category = "food"), event("c", category = "sport"))
+        val taste = Taste(interests = listOf(EventCategory.ART), times = listOf(TimeSlot.WEEKEND_DAY), answered = true)
+        val all = listOf(event("a"), event("b", category = EventCategory.FOOD), event("c", category = EventCategory.SPORT))
         assertEquals(all.map { it.id }.toSet(), TasteRanking.rank(all, taste, now).map { it.id }.toSet())
     }
 
@@ -61,7 +61,7 @@ class TasteRankingTest {
     }
 
     @Test fun aFullEventSinksBelowAnOpenOne() {
-        val taste = Taste(interests = listOf("music"), answered = true)
+        val taste = Taste(interests = listOf(EventCategory.MUSIC), answered = true)
         val ranked = TasteRanking.rank(
             listOf(event("full", capacity = 10, attendees = 10), event("open", capacity = 10)), taste, now
         )
@@ -69,9 +69,9 @@ class TasteRankingTest {
     }
 
     @Test fun aCancelledEventGoesLast() {
-        val taste = Taste(interests = listOf("music"), answered = true)
+        val taste = Taste(interests = listOf(EventCategory.MUSIC), answered = true)
         val ranked = TasteRanking.rank(
-            listOf(event("cancelled", status = EventStatus.CANCELLED), event("other", category = "food")), taste, now
+            listOf(event("cancelled", status = EventStatus.CANCELLED), event("other", category = EventCategory.FOOD)), taste, now
         )
         assertEquals("cancelled", ranked.last().id)
     }
@@ -91,16 +91,16 @@ class TasteRankingTest {
     }
 
     @Test fun onlyAnAnsweredQuestionMakesASuggestion() {
-        val taste = Taste(interests = listOf("art"), times = listOf(TimeSlot.WEEKEND_EVENING), answered = true)
-        assertTrue(TasteRanking.matches(event("a", category = "art"), taste))
-        assertTrue(TasteRanking.matches(event("b", category = "food", startsAt = saturdayEvening), taste))
-        assertFalse(TasteRanking.matches(event("c", category = "food", startsAt = fridayMorning), taste))
-        assertFalse(TasteRanking.matches(event("d", category = "art", status = EventStatus.CANCELLED), taste))
+        val taste = Taste(interests = listOf(EventCategory.ART), times = listOf(TimeSlot.WEEKEND_EVENING), answered = true)
+        assertTrue(TasteRanking.matches(event("a", category = EventCategory.ART), taste))
+        assertTrue(TasteRanking.matches(event("b", category = EventCategory.FOOD, startsAt = saturdayEvening), taste))
+        assertFalse(TasteRanking.matches(event("c", category = EventCategory.FOOD, startsAt = fridayMorning), taste))
+        assertFalse(TasteRanking.matches(event("d", category = EventCategory.ART, status = EventStatus.CANCELLED), taste))
     }
 
     /** docs/event-discovery.md §4.2: імпорт — тло. Виходить само собою, бо бали за місця отримує лише кімната. */
     @Test fun aListingNeverOutranksACommunityEventItTies() {
-        val taste = Taste(interests = listOf("music"), answered = true)
+        val taste = Taste(interests = listOf(EventCategory.MUSIC), answered = true)
         val ranked = TasteRanking.rank(listOf(listing("afisha"), event("community")), taste, now)
         assertEquals(listOf("community", "afisha"), ranked.map { it.id })
         assertTrue(TasteRanking.score(event("community"), taste, now) > TasteRanking.score(listing("afisha"), taste, now))
@@ -132,7 +132,7 @@ class TasteRankingTest {
     /** Битий часовий пояс не має валити весь список. */
     @Test fun brokenTimestampsRankWithoutThrowing() {
         val broken = event("broken", startsAt = "not-a-date").copy(timeZone = "Mars/Olympus")
-        val ranked = TasteRanking.rank(listOf(broken, event("fine")), Taste(interests = listOf("music"), answered = true), now)
+        val ranked = TasteRanking.rank(listOf(broken, event("fine")), Taste(interests = listOf(EventCategory.MUSIC), answered = true), now)
         assertEquals(2, ranked.size)
         assertNull(TasteRanking.slotOf(broken))
     }

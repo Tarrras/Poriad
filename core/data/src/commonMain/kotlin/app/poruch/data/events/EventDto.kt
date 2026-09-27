@@ -1,7 +1,9 @@
 package app.poruch.data.events
 
+import app.poruch.domain.EventCategory
 import app.poruch.domain.Event
 import app.poruch.domain.EventOrigin
+import app.poruch.domain.EventStatus
 import app.poruch.domain.Gathering
 import app.poruch.domain.ImportStatus
 import app.poruch.domain.Listing
@@ -39,9 +41,9 @@ internal data class EventDto(
     @SerialName("min_age") val minAge: Int = SafetyRules.MIN_SIGNUP_AGE,
     @SerialName("max_age") val maxAge: Int? = null,
     @SerialName("approval_required") val approvalRequired: Boolean = false,
-    val membership: String = Membership.NONE,
+    val membership: String = Membership.NONE.key,
     // Старіша база без міграції імпорту віддає все як спільнотне, чим воно там і є.
-    val origin: String = EventOrigin.COMMUNITY,
+    val origin: String = EventOrigin.COMMUNITY.key,
     @SerialName("source_name") val sourceName: String? = null,
     @SerialName("canonical_url") val canonicalUrl: String? = null,
     @SerialName("import_status") val importStatus: String? = null,
@@ -54,9 +56,9 @@ internal data class EventDto(
     @SerialName("place_name") val placeName: String? = null
 ) {
     fun domain() = Event(
-        id = id, title = title, description = description, category = category,
+        id = id, title = title, description = description, category = EventCategory.fromKey(category),
         city = city, address = address,
-        startsAt = startsAt, endsAt = endsAt, timeZone = timeZone, status = status,
+        startsAt = startsAt, endsAt = endsAt, timeZone = timeZone, status = EventStatus.fromKey(status),
         latitude = latitude, longitude = longitude, imageUrl = imageUrl,
         gathering = gathering(), listing = listing()
     )
@@ -66,14 +68,14 @@ internal data class EventDto(
      * (`events_community_has_*_ck`). Без них рядок зіпсований: віддаємо подію без дій, а не вигадуємо місткість.
      */
     private fun gathering(): Gathering? {
-        if (origin != EventOrigin.COMMUNITY) return null
+        if (EventOrigin.fromKey(origin) != EventOrigin.COMMUNITY) return null
         return Gathering(
             organizerId = organizerId ?: return null,
             organizerName = organizerName,
             capacity = capacity ?: return null,
             attendeeCount = attendeeCount,
             joined = joined,
-            membership = membership,
+            membership = Membership.fromKey(membership),
             approvalRequired = approvalRequired,
             minAge = minAge,
             maxAge = maxAge,
@@ -86,13 +88,13 @@ internal data class EventDto(
      * проєкція робить `coalesce(profile, source)`, тож це те саме значення з іншої колонки.
      */
     private fun listing(): Listing? {
-        if (origin == EventOrigin.COMMUNITY) return null
+        if (EventOrigin.fromKey(origin) == EventOrigin.COMMUNITY) return null
         return Listing(
             sourceName = sourceName?.takeIf { it.isNotBlank() } ?: organizerName,
             canonicalUrl = canonicalUrl,
             priceMin = priceMin,
             isFree = isFree,
-            status = importStatus ?: ImportStatus.LIVE,
+            status = ImportStatus.fromKey(importStatus),
             placeId = placeId,
             placeName = placeName
         )

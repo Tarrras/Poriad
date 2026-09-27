@@ -886,10 +886,10 @@ struct Stars: View {
 
 struct ReportSheet: View {
     let target: ReportTarget
-    let send: (String, String) -> Void
+    let send: (ReportReason, String) -> Void
     @Environment(\.dismiss) private var dismiss
     /// Без причини за замовчуванням: інакше поспіх дає хибні скарги найвищого пріоритету.
-    @State private var reason: String?
+    @State private var reason: ReportReason?
     @State private var details = ""
 
     var body: some View {

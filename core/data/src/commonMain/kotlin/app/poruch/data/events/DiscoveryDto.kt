@@ -1,7 +1,9 @@
 package app.poruch.data.events
 
+import app.poruch.domain.EventCategory
 import app.poruch.domain.DiscoveryPage
 import app.poruch.domain.EventIndexEntry
+import app.poruch.domain.EventOrigin
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonNull
@@ -56,11 +58,11 @@ private fun JsonArray.indexEntry(): EventIndexEntry? {
         id = id,
         latitude = latitude,
         longitude = longitude,
-        category = text(Column.CATEGORY).orEmpty(),
+        category = EventCategory.fromKey(text(Column.CATEGORY)),
         startsAt = text(Column.STARTS_AT).orEmpty(),
         timeZone = text(Column.TIME_ZONE).orEmpty(),
         title = text(Column.TITLE).orEmpty(),
-        origin = text(Column.ORIGIN).orEmpty(),
+        origin = EventOrigin.fromKey(text(Column.ORIGIN)),
         source = text(Column.SOURCE),
         capacity = int(Column.CAPACITY),
         attendeeCount = int(Column.ATTENDEE_COUNT) ?: 0

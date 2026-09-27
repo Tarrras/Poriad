@@ -44,8 +44,8 @@ enum MapZoom {
 private let cityZoom = MapZoom.city
 private let focusZoom = MapZoom.street
 
-private func iconName(_ category: String, selected: Bool) -> String {
-    "poruch-pin-\(category)" + (selected ? "-on" : "")
+private func iconName(_ category: EventCategory, selected: Bool) -> String {
+    "poruch-pin-\(category.key)" + (selected ? "-on" : "")
 }
 
 /// Значок піна, один на категорію, кешується стилем: кільце на диску в спокої, інверсія у фокусі.
@@ -125,7 +125,7 @@ private func mapStyleJSON(_ scheme: ColorScheme) -> String {
 struct EventMapSnapshot: View {
     let latitude: Double
     let longitude: Double
-    let category: String
+    let category: EventCategory
     @Environment(\.colorScheme) private var scheme
     @Environment(\.displayScale) private var displayScale
     @State private var image: UIImage?
@@ -400,15 +400,16 @@ struct EventMap: UIViewRepresentable {
 
         private func registerImages(_ style: MLNStyle) {
             let surface = UIColor(Palette.surface)
-            for category in categories {
-                let hue = categoryUIColor(category.0)
+            // З невідомою: пін події з новішою категорією бере нейтральний значок, а не зникає.
+            for category in EventCategory.entries {
+                let hue = categoryUIColor(category)
                 style.setImage(
-                    pinImage(glyph: categoryGlyph(category.0), hue: hue, surface: surface, selected: false),
-                    forName: iconName(category.0, selected: false)
+                    pinImage(glyph: categoryGlyph(category), hue: hue, surface: surface, selected: false),
+                    forName: iconName(category, selected: false)
                 )
                 style.setImage(
-                    pinImage(glyph: categoryGlyph(category.0), hue: hue, surface: surface, selected: true),
-                    forName: iconName(category.0, selected: true)
+                    pinImage(glyph: categoryGlyph(category), hue: hue, surface: surface, selected: true),
+                    forName: iconName(category, selected: true)
                 )
             }
             style.setImage(

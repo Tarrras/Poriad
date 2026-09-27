@@ -2,12 +2,12 @@ import SwiftUI
 import Shared
 
 /// Фільтри дати в порядку показу. Читають і рядок чипів, і шторка фільтрів.
-var dateFilterKeys: [String] { [DateFilter.shared.ANY, DateFilter.shared.TODAY, DateFilter.shared.WEEKEND] }
+let dateFilterKeys: [DateFilter] = [.any, .today, .weekend]
 
-func dateLabel(_ key: String) -> String {
-    switch key {
-    case DateFilter.shared.TODAY: "Сьогодні"
-    case DateFilter.shared.WEEKEND: "Вихідні"
+func dateLabel(_ filter: DateFilter) -> String {
+    switch filter {
+    case .today: "Сьогодні"
+    case .weekend: "Вихідні"
     default: "Будь-коли"
     }
 }
@@ -75,10 +75,11 @@ struct DiscoveryView: View {
     /// Розмір екрана під контролами: з нього рахуються висоти шторки.
     @State private var screen: CGSize = .zero
     /// Категорія, обрана плитками в шторці. Звужує список, а не мапу.
-    @State private var listCategory = DiscoveryStateKt.ALL_CATEGORIES
+    /// Плитки шторки. Nil — усі.
+    @State private var listCategory: EventCategory?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// Категорія мапи. Головна має свою.
-    private var category: String { model.state?.map.category ?? DiscoveryStateKt.ALL_CATEGORIES }
+    private var category: EventCategory? { model.state?.map.category }
 
     /// Похідні списки, пораховані раз на зміну входів. Тіло перераховується на кожен кадр
     /// протягування шторки, а кожен прохід по індексу — тисячі звертань через міст.
@@ -115,14 +116,14 @@ struct DiscoveryView: View {
         return [event] + shownEvents
     }
     private var activeFilters: Int {
-        [model.state?.map.dateFilter != DateFilter.shared.ANY, model.state?.map.category != DiscoveryStateKt.ALL_CATEGORIES, model.state?.map.onlyAvailable == true]
+        [model.state?.map.dateFilter != DateFilter.any, model.state?.map.category != nil, model.state?.map.onlyAvailable == true]
             .filter { $0 }.count
     }
     var body: some View {
         ZStack(alignment: .top) {
             EventMap(
                 events: mapEntries, latitude: model.state?.city.latitude ?? 50.45, longitude: model.state?.city.longitude ?? 30.52,
-                selectedID: selectedID, eventsRevision: model.eventsRevision, filterKey: category,
+                selectedID: selectedID, eventsRevision: model.eventsRevision, filterKey: category?.key ?? "",
                 retryToken: retryToken, centerToken: centerToken,
                 topInset: topControlsInset, bottomInset: carouselInset,
                 loadFailed: { mapFailed = $0 },
@@ -227,7 +228,7 @@ struct DiscoveryView: View {
                     ForEach(dateFilterKeys, id: \.self) { key in
                         // Повторний тап знімає вибір, щоб не шукати «Будь-коли» за краєм рядка.
                         Chip(label: dateLabel(key), selected: model.state?.map.dateFilter == key) {
-                            model.app.setDateFilter(filter: model.state?.map.dateFilter == key ? DateFilter.shared.ANY : key)
+                            model.app.setDateFilter(filter: model.state?.map.dateFilter == key ? DateFilter.any : key)
                         }
                     }
                     Chip(label: "Можна приєднатись", symbol: "checkmark.circle", selected: model.state?.map.onlyAvailable == true) {
@@ -384,7 +385,7 @@ struct DiscoveryView: View {
                 HStack(spacing: Space.xs) {
                     ForEach(categories, id: \.0) { entry in
                         CategoryTile(category: entry.0, selected: listCategory == entry.0) {
-                            listCategory = listCategory == entry.0 ? DiscoveryStateKt.ALL_CATEGORIES : entry.0
+                            listCategory = listCategory == entry.0 ? nil : entry.0
                         }
                     }
                 }
@@ -439,7 +440,7 @@ struct DiscoveryView: View {
     /// Заклад з пошуку: шторку опускаємо, щоб бачити мапу, а стос відкриє `showPlace`, коли приїде видача.
     private func focusPlace(_ place: Place) {
         stackIDs = []
-        listCategory = DiscoveryStateKt.ALL_CATEGORIES
+        listCategory = nil
         open(.peek)
         model.app.focusPlace(place: place)
     }
@@ -495,7 +496,7 @@ struct DiscoveryView: View {
     private var countLabel: String {
         if model.state?.map.loading == true { return "Шукаємо події…" }
         if stackFocused { return "Тут подій: \(listEntries.count)" }
-        let whole = category == DiscoveryStateKt.ALL_CATEGORIES && listCategory == DiscoveryStateKt.ALL_CATEGORIES
+        let whole = category == nil && listCategory == nil
         return "Знайдено подій: \(whole ? Int(model.state?.map.totalFound ?? 0) : listEntries.count)"
     }
 
@@ -558,16 +559,21 @@ struct DiscoveryView: View {
     }
 }
 
+/// Ключ чипа «Усі»: не категорія, тож окремо від словника.
+private let allKey = "*"
+
 struct FiltersView: View {
     @EnvironmentObject var model: AppModel
     @Environment(\.dismiss) var dismiss
     /// Вибір накопичується і летить на сервер один раз по «Готово»: проміжних результатів за шторкою не видно.
-    @State private var date: String?
-    @State private var category: String?
+    @State private var date: DateFilter?
+    @State private var category: EventCategory?
+    /// Категорію чіпали: nil у [category] тоді — «усі», а не «як було».
+    @State private var categoryTouched = false
     @State private var available: Bool?
 
-    private var pickedDate: String { date ?? model.state?.map.dateFilter ?? DateFilter.shared.ANY }
-    private var pickedCategory: String { category ?? model.state?.map.category ?? DiscoveryStateKt.ALL_CATEGORIES }
+    private var pickedDate: DateFilter { date ?? model.state?.map.dateFilter ?? DateFilter.any }
+    private var pickedCategory: EventCategory? { categoryTouched ? category : model.state?.map.category }
     private var pickedAvailable: Bool { available ?? model.state?.map.onlyAvailable ?? false }
 
     private func apply() {
@@ -586,16 +592,20 @@ struct FiltersView: View {
                         HStack(spacing: Space.sm) {
                             ForEach(dateFilterKeys, id: \.self) { key in
                                 Chip(label: dateLabel(key), selected: pickedDate == key) {
-                                    date = pickedDate == key ? DateFilter.shared.ANY : key
+                                    date = pickedDate == key ? DateFilter.any : key
                                 }
                             }
                         }
                     }
                     section("Категорії") {
                         FlexibleChips(
-                            items: [(DiscoveryStateKt.ALL_CATEGORIES, "Усі", nil)] + categories.map { ($0.0, $0.1, $0.0) },
-                            isSelected: { pickedCategory == $0 }
-                        ) { category = pickedCategory == $0 ? DiscoveryStateKt.ALL_CATEGORIES : $0 }
+                            items: [(allKey, "Усі", nil)] + categories.map { ($0.0.key, $0.1, $0.0) },
+                            isSelected: { $0 == (pickedCategory?.key ?? allKey) }
+                        ) { key in
+                            let tapped = key == allKey ? nil : EventCategory.companion.fromKey(key: key)
+                            category = pickedCategory == tapped ? nil : tapped
+                            categoryTouched = true
+                        }
                     }
                     Toggle(isOn: Binding(get: { pickedAvailable }, set: { available = $0 })) {
                         Text("Лише події, до яких можна приєднатись").font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
@@ -615,8 +625,9 @@ struct FiltersView: View {
             Text("Фільтри").font(PoruchFont.title2).foregroundStyle(Palette.ink)
             Spacer(minLength: Space.sm)
             Button("Скинути") {
-                date = DateFilter.shared.ANY
-                category = DiscoveryStateKt.ALL_CATEGORIES
+                date = DateFilter.any
+                category = nil
+                categoryTouched = true
                 available = false
             }
             .font(PoruchFont.label).foregroundStyle(Palette.inkSecondary)
@@ -647,7 +658,7 @@ struct FiltersView: View {
 /// Чипи з переносом за шириною, як `FlowRow` на Android.
 struct FlexibleChips: View {
     /// (ключ, підпис, категорія для крапки або nil).
-    let items: [(String, String, String?)]
+    let items: [(String, String, EventCategory?)]
     let isSelected: (String) -> Bool
     let action: (String) -> Void
     var body: some View {
@@ -751,8 +762,8 @@ private final class DeckMemo {
     struct Key: Equatable {
         let entries: Int
         let cards: Int
-        let category: String
-        let listCategory: String
+        let category: EventCategory?
+        let listCategory: EventCategory?
         let stack: [String]
     }
 
@@ -767,13 +778,12 @@ private final class DeckMemo {
     @MainActor func update(_ next: Key, model: AppModel) {
         guard next != key else { return }
         key = next
-        let all = DiscoveryStateKt.ALL_CATEGORIES
-        mapEntries = next.category == all ? model.mapEntries : model.mapEntries.filter { $0.category == next.category }
+        mapEntries = next.category.map { chosen in model.mapEntries.filter { $0.category == chosen } } ?? model.mapEntries
         let stack = Set(next.stack)
         let stackEntries = stack.isEmpty ? [] : mapEntries.filter { stack.contains($0.id) }
         stackFocused = !stackEntries.isEmpty
         let base = stackFocused ? stackEntries : mapEntries
-        listEntries = next.listCategory == all ? base : base.filter { $0.category == next.listCategory }
+        listEntries = next.listCategory.map { chosen in base.filter { $0.category == chosen } } ?? base
         let cards = model.cardsByID
         shownEvents = listEntries.compactMap { cards[$0.id] }
         shownIDs = Set(shownEvents.map(\.id))

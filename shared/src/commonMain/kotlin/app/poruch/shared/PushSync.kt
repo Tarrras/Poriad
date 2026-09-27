@@ -20,7 +20,7 @@ internal class PushSync(
     private val pending: PendingUnregisterStore? = null
 ) {
     /** Токен пристрою від платформи і його платформа. */
-    private var token: Pair<String, String>? = null
+    private var token: Pair<String, PushPlatform>? = null
     /** Токен і акаунт, для яких реєстрація вже йде: токен і вхід часто приходять одночасно. */
     private var registering: Pair<String, String?>? = null
     /** Акаунт, під яким токен зареєстровано. Null — ні під яким, або вже знято. */
@@ -28,7 +28,7 @@ internal class PushSync(
     private var retrying: Job? = null
 
     /** Платформа отримала або оновила токен. Реєструємо одразу, якщо є акаунт. */
-    fun tokenChanged(token: String, platform: String) {
+    fun tokenChanged(token: String, platform: PushPlatform) {
         if (this.token?.first == token && store.value.session.pushRegistered) return
         this.token = token to platform
         register()
@@ -44,7 +44,7 @@ internal class PushSync(
         store.scope.launch {
             try {
                 tokens.register(token, platform)
-                PoruchLog.i("push") { "registered $platform token" }
+                PoruchLog.i("push") { "registered ${platform.key} token" }
                 registeredFor = uid
                 // Сервер переписав власника токена: попередній акаунт його вже не тримає.
                 if (pending?.read()?.token == token) pending.write(null)

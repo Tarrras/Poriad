@@ -1,5 +1,6 @@
 package app.poruch.data.local
 
+import app.poruch.domain.EventCategory
 import app.poruch.domain.Crowd
 import app.poruch.domain.Taste
 import app.poruch.domain.TasteStore
@@ -19,10 +20,9 @@ class LocalTasteStore(private val database: PoruchDatabase) : TasteStore {
             runCatching { Json.parseToJsonElement(stored).jsonObject }.getOrNull() ?: return Taste()
         // Невідомі значення відкидаємо: застаріле ранжувало б проти нічого.
         return Taste(
-            interests = json.strings("interests"),
-            times = json.strings("times").filter(TimeSlot::isSlot),
-            crowd = json["crowd"]?.jsonPrimitive?.contentOrNull?.takeIf(Crowd::isCrowd)
-                ?: Crowd.ANY,
+            interests = json.strings("interests").map(EventCategory::fromKey).filter { it != EventCategory.UNKNOWN },
+            times = json.strings("times").mapNotNull(TimeSlot::fromKey),
+            crowd = Crowd.fromKey(json["crowd"]?.jsonPrimitive?.contentOrNull) ?: Crowd.ANY,
             answered = json["answered"]?.jsonPrimitive?.booleanOrNull ?: false,
             interestsOwner = json["owner"]?.jsonPrimitive?.contentOrNull
         )
@@ -30,9 +30,9 @@ class LocalTasteStore(private val database: PoruchDatabase) : TasteStore {
 
     override fun write(taste: Taste) {
         val payload = buildJsonObject {
-            put("interests", JsonArray(taste.interests.map(::JsonPrimitive)))
-            put("times", JsonArray(taste.times.map(::JsonPrimitive)))
-            put("crowd", taste.crowd)
+            put("interests", JsonArray(taste.interests.map { JsonPrimitive(it.key) }))
+            put("times", JsonArray(taste.times.map { JsonPrimitive(it.key) }))
+            put("crowd", taste.crowd.key)
             put("answered", taste.answered)
             taste.interestsOwner?.let { put("owner", it) }
         }

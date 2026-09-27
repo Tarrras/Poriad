@@ -35,6 +35,7 @@ import app.poruch.android.ui.PoruchColors
 import app.poruch.android.ui.categories
 import app.poruch.android.ui.categoryColor
 import app.poruch.android.ui.categoryIcon
+import app.poruch.domain.EventCategory
 import app.poruch.domain.EventIndexEntry
 import app.poruch.domain.MapPins
 import app.poruch.domain.VenuePin
@@ -382,11 +383,11 @@ private fun VenuePin.toFeature(): Feature =
     Feature.fromGeometry(Point.fromLngLat(longitude, latitude)).apply {
         addStringProperty("id", representative.id)
         addStringProperty("ids", eventIds.joinToString(",", prefix = ",", postfix = ","))
-        addStringProperty("category", representative.category)
+        addStringProperty("category", representative.category.key)
         addNumberProperty("count", count)
     }
 
-private fun iconName(category: String, selected: Boolean) = "poruch-pin-$category" + if (selected) "-on" else ""
+private fun iconName(category: EventCategory, selected: Boolean) = "poruch-pin-${category.key}" + if (selected) "-on" else ""
 
 /** Збірка може вказати інший сервер тайлів; порожньо — звичний. */
 private fun tilesUrl() = BuildConfig.MAP_TILES_URL.ifBlank { MapEndpoints.TILES }
@@ -460,13 +461,14 @@ private fun chosenPointLayer() = SymbolLayer(PointLayer, PointSource).withProper
 
 private fun registerImages(context: Context, style: Style, colors: PoruchColors, density: Float) {
     val surface = colors.surface.toArgb()
-    categories.forEach { category ->
+    // З невідомою: її ключ порожній, і пін такої події бере нейтральний значок, а не зникає.
+    EventCategory.entries.forEach { category ->
         val hue = categoryColor(category).toArgb()
         val glyph = categoryIcon(category)
         style.addImage(iconName(category, false), pinBitmap(context, glyph, hue, surface, false, density))
         style.addImage(iconName(category, true), pinBitmap(context, glyph, hue, surface, true, density))
     }
-    style.addImage(ChosenPointIcon, pinBitmap(context, categoryIcon("social"), colors.brand.toArgb(), surface, true, density))
+    style.addImage(ChosenPointIcon, pinBitmap(context, categoryIcon(EventCategory.SOCIAL), colors.brand.toArgb(), surface, true, density))
 }
 
 /** Значок піна, один на категорію, кешується стилем: кільце на диску в спокої, інверсія у фокусі. */

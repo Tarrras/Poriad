@@ -51,23 +51,20 @@ object RatingRules {
     fun average(ratings: List<EventRating>): Double? =
         if (ratings.isEmpty()) null else kotlin.math.round(ratings.sumOf { it.score } * 10.0 / ratings.size) / 10
 
-    /**
-     * Шість тегів шторки для категорії: спершу про суть події, далі загальні. Невідома категорія — лише загальні.
-     * Нова категорія в [EventRules.categories] без рядка тут отримає загальний набір.
-     */
-    fun tagsFor(category: String): List<RatingTag> = when (category) {
-        "music" -> listOf(ATMOSPHERE, MUSIC, SOUND, ORGANIZATION, PLACE, ON_TIME)
-        "comedy" -> listOf(HUMOR, HOST, ATMOSPHERE, PLACE, ORGANIZATION, ON_TIME)
-        "sport" -> listOf(COACH, WORKOUT, PEOPLE, PLACE, ORGANIZATION, ON_TIME)
-        "outdoors" -> listOf(ROUTE, VIEWS, PACE, PEOPLE, ORGANIZATION, ON_TIME)
-        "tours" -> listOf(GUIDE, STORIES, ROUTE, PACE, ORGANIZATION, ON_TIME)
-        "food" -> listOf(FOOD, DRINKS, ATMOSPHERE, PEOPLE, PLACE, ORGANIZATION)
-        "games" -> listOf(GAME_CHOICE, RULES, PEOPLE, ATMOSPHERE, PLACE, ORGANIZATION)
-        "art" -> listOf(HOST, PROGRAM, ATMOSPHERE, PEOPLE, PLACE, ORGANIZATION)
-        "social" -> listOf(PEOPLE, CONVERSATION, ATMOSPHERE, PLACE, ORGANIZATION, ON_TIME)
-        "kids" -> listOf(KIDS_LIKED, HOST, SAFETY, PLACE, ORGANIZATION, ON_TIME)
-        "conference" -> listOf(SPEAKERS, USEFUL, NETWORKING, PLACE, ORGANIZATION, ON_TIME)
-        else -> listOf(ATMOSPHERE, ORGANIZATION, PLACE, PEOPLE, ON_TIME)
+    /** Шість тегів шторки для категорії: спершу про суть події, далі загальні. Невідома — лише загальні. */
+    fun tagsFor(category: EventCategory): List<RatingTag> = when (category) {
+        EventCategory.MUSIC -> listOf(ATMOSPHERE, MUSIC, SOUND, ORGANIZATION, PLACE, ON_TIME)
+        EventCategory.COMEDY -> listOf(HUMOR, HOST, ATMOSPHERE, PLACE, ORGANIZATION, ON_TIME)
+        EventCategory.SPORT -> listOf(COACH, WORKOUT, PEOPLE, PLACE, ORGANIZATION, ON_TIME)
+        EventCategory.OUTDOORS -> listOf(ROUTE, VIEWS, PACE, PEOPLE, ORGANIZATION, ON_TIME)
+        EventCategory.TOURS -> listOf(GUIDE, STORIES, ROUTE, PACE, ORGANIZATION, ON_TIME)
+        EventCategory.FOOD -> listOf(FOOD, DRINKS, ATMOSPHERE, PEOPLE, PLACE, ORGANIZATION)
+        EventCategory.GAMES -> listOf(GAME_CHOICE, RULES, PEOPLE, ATMOSPHERE, PLACE, ORGANIZATION)
+        EventCategory.ART -> listOf(HOST, PROGRAM, ATMOSPHERE, PEOPLE, PLACE, ORGANIZATION)
+        EventCategory.SOCIAL -> listOf(PEOPLE, CONVERSATION, ATMOSPHERE, PLACE, ORGANIZATION, ON_TIME)
+        EventCategory.KIDS -> listOf(KIDS_LIKED, HOST, SAFETY, PLACE, ORGANIZATION, ON_TIME)
+        EventCategory.CONFERENCE -> listOf(SPEAKERS, USEFUL, NETWORKING, PLACE, ORGANIZATION, ON_TIME)
+        EventCategory.UNKNOWN -> listOf(ATMOSPHERE, ORGANIZATION, PLACE, PEOPLE, ON_TIME)
     }
 
     /** Що відзначили найчастіше: для організатора, від більшого до меншого, рівні — в порядку шторки. */

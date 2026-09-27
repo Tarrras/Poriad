@@ -127,14 +127,14 @@ class PoruchAppTest {
     /** Скарги й блокування записуються, а не надсилаються. */
     private class Safety(var facts: AccountFacts = AccountFacts("1990-01-01")): SafetyRepository {
         var fail=false
-        val reports=mutableListOf<Triple<String,String,String?>>()
+        val reports=mutableListOf<Triple<String,ReportReason,String?>>()
         val blocked=mutableListOf<String>()
         var declared: String? = null
         override suspend fun account()=if(fail) fail(AppError.ServiceUnavailable) else facts
         override suspend fun declareBirthDate(date:String) { declared=date; facts=facts.copy(birthDate=date) }
-        override suspend fun reportEvent(eventId:String,reason:String,details:String?) { reports+=Triple(eventId,reason,details) }
-        override suspend fun reportUser(userId:String,reason:String,details:String?) { reports+=Triple(userId,reason,details) }
-        override suspend fun reportMessage(messageId:String,reason:String,details:String?) { reports+=Triple(messageId,reason,details) }
+        override suspend fun reportEvent(eventId:String,reason:ReportReason,details:String?) { reports+=Triple(eventId,reason,details) }
+        override suspend fun reportUser(userId:String,reason:ReportReason,details:String?) { reports+=Triple(userId,reason,details) }
+        override suspend fun reportMessage(messageId:String,reason:ReportReason,details:String?) { reports+=Triple(messageId,reason,details) }
         override suspend fun block(userId:String) { blocked+=userId }
         override suspend fun unblock(userId:String) { blocked-=userId }
         override suspend fun blocked()=this.blocked.map { Attendee(it,"Заблокований",null) }
@@ -155,13 +155,13 @@ class PoruchAppTest {
     }
     private var reminders = Reminders()
 
-    private fun event(id:String,category:String,startsAt:String)=Event(
+    private fun event(id:String,category:EventCategory,startsAt:String)=Event(
         id,id,"",category,"Київ","Поділ",startsAt,startsAt,"Europe/Kyiv",
         EventStatus.PUBLISHED,50.45,30.52,null,
         Gathering("organizer","Організатор",20,0,false)
     )
     /** Афіша в закладі: `event_details` місця не несе, тож воно приходить з картки. */
-    private fun listed(id:String,startsAt:String,placeId:String?="p1")=event(id,"music",startsAt).copy(
+    private fun listed(id:String,startsAt:String,placeId:String?="p1")=event(id,EventCategory.MUSIC,startsAt).copy(
         title=id,gathering=null,listing=Listing("Karabas",placeId=placeId,placeName=placeId?.let { "Малевич" })
     )
     private val malevych=Place("p1","Малевич","Київ","вул. Велика Васильківська, 1",50.45,30.52,3)
@@ -250,8 +250,8 @@ class PoruchAppTest {
     @Test fun othersAtTheVenueComeFromTheMapIndex()=runTest {
         val events=Events(); val app=app(events,backgroundScope)
         events.results=listOf("a" to "2090-12-22T18:00:00Z","b" to "2090-12-23T18:00:00Z","c" to "2090-12-24T18:00:00Z")
-            .map { (id,at) -> event(id,"art",at).copy(title=id) }+
-            event("far","art","2090-12-22T18:00:00Z").copy(latitude=50.46)
+            .map { (id,at) -> event(id,EventCategory.ART,at).copy(title=id) }+
+            event("far",EventCategory.ART,"2090-12-22T18:00:00Z").copy(latitude=50.46)
         app.searchArea(1.0,2.0,3.0,4.0); advanceTimeBy(101); runCurrent()
         val opened=app.state.value.cards.getValue("b")
         assertEquals(listOf("a","c"),app.othersAt(opened).map { it.id })
@@ -287,7 +287,7 @@ class PoruchAppTest {
     /** Стос майданчика — не початок стрічки: просимо картки для хвоста списку, якого у вікні нема. */
     @Test fun tappingAVenueStackAsksForItsOwnCardsNotTheStartOfTheList()=runTest {
         val events=Events(); val app=app(events,backgroundScope)
-        val all=(1..40).map { event("e${it.toString().padStart(2,'0')}","music","2090-01-01T10:00:00Z") }
+        val all=(1..40).map { event("e${it.toString().padStart(2,'0')}",EventCategory.MUSIC,"2090-01-01T10:00:00Z") }
         events.results=all; events.inlineCards=2
         app.searchArea(1.0,2.0,3.0,4.0); advanceTimeBy(101); runCurrent()
         events.cardRequests.clear()
@@ -303,7 +303,7 @@ class PoruchAppTest {
     /** Повторний тап по тому самому піну нічого не питає. */
     @Test fun aStackAlreadyInHandCostsNoRequest()=runTest {
         val events=Events(); val app=app(events,backgroundScope)
-        val all=(1..10).map { event("e${it.toString().padStart(2,'0')}","music","2090-01-01T10:00:00Z") }
+        val all=(1..10).map { event("e${it.toString().padStart(2,'0')}",EventCategory.MUSIC,"2090-01-01T10:00:00Z") }
         events.results=all; events.inlineCards=10
         app.searchArea(1.0,2.0,3.0,4.0); advanceTimeBy(101); runCurrent()
         events.cardRequests.clear()
@@ -317,14 +317,14 @@ class PoruchAppTest {
     /** Категорія не їде в запит, тому фільтри екранів незалежні. */
     @Test fun pickingACategoryNarrowsTheScreenNotTheQuery()=runTest {
         val events=Events()
-        events.results=listOf(event("m","music","2090-01-05T19:00:00Z"),event("a","art","2090-01-06T19:00:00Z"))
+        events.results=listOf(event("m",EventCategory.MUSIC,"2090-01-05T19:00:00Z"),event("a",EventCategory.ART,"2090-01-06T19:00:00Z"))
         val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
         val searches=events.queries.size
 
-        app.setCategory("music"); runCurrent(); advanceTimeBy(101); runCurrent()
+        app.setCategory(EventCategory.MUSIC); runCurrent(); advanceTimeBy(101); runCurrent()
 
         assertEquals(searches,events.queries.size,"категорія не має коштувати запиту")
-        assertEquals("music",app.state.value.map.category)
+        assertEquals(EventCategory.MUSIC,app.state.value.map.category)
         // Індекс лишається повним: звужує екран.
         assertEquals(listOf("m","a"),app.state.value.map.index.map { it.id })
         app.close()
@@ -336,7 +336,7 @@ class PoruchAppTest {
         // Прокат буває лише в афіші: `gathering` має бути порожнім.
         events.results=listOf("s1" to "2090-12-22T18:00:00Z", "s2" to "2090-12-23T18:00:00Z",
                               "s3" to "2090-12-30T18:00:00Z").map { (id,at) ->
-            event(id,"art",at).copy(title="Лускунчик", gathering=null) }
+            event(id,EventCategory.ART,at).copy(title="Лускунчик", gathering=null) }
         app.searchArea(1.0,2.0,3.0,4.0); advanceTimeBy(101); runCurrent()
 
         assertEquals(1,app.state.value.map.index.size,"прокат — одна картка")
@@ -358,7 +358,7 @@ class PoruchAppTest {
     @Test fun aRunCardCarriesItsSessionsWhereverItIsRead()=runTest {
         val events=Events(); val app=app(events,backgroundScope)
         events.results=listOf("s1" to "2090-12-22T18:00:00Z","s2" to "2090-12-23T18:00:00Z").map { (id,at) ->
-            event(id,"art",at).copy(title="Лускунчик",gathering=null) }
+            event(id,EventCategory.ART,at).copy(title="Лускунчик",gathering=null) }
         app.searchArea(1.0,2.0,3.0,4.0); advanceTimeBy(101); runCurrent()
 
         assertEquals(listOf("s1","s2"),app.state.value.cards.getValue("s1").sessions.map { it.id })
@@ -371,7 +371,7 @@ class PoruchAppTest {
     @Test fun switchingTheDateShowsTheCardAtOnce()=runTest {
         val events=Events(); val app=app(events,backgroundScope)
         events.results=listOf("s1" to "2090-12-22T18:00:00Z","s2" to "2090-12-23T18:00:00Z","s3" to "2090-12-30T18:00:00Z").map { (id,at) ->
-            event(id,"art",at).copy(title="Лускунчик",gathering=null) }
+            event(id,EventCategory.ART,at).copy(title="Лускунчик",gathering=null) }
         events.inlineCards=1
         app.searchArea(1.0,2.0,3.0,4.0); advanceTimeBy(101); runCurrent()
         events.cardRequests.clear()
@@ -390,7 +390,7 @@ class PoruchAppTest {
     @Test fun aDateWhoseCardFailsToArriveKeepsTheCurrentOneOnScreen()=runTest {
         val events=Events(); val app=app(events,backgroundScope)
         events.results=listOf("s1" to "2090-12-22T18:00:00Z","s2" to "2090-12-23T18:00:00Z").map { (id,at) ->
-            event(id,"art",at).copy(title="Лускунчик",gathering=null) }
+            event(id,EventCategory.ART,at).copy(title="Лускунчик",gathering=null) }
         events.inlineCards=1
         app.searchArea(1.0,2.0,3.0,4.0); advanceTimeBy(101); runCurrent()
         app.selectEvent("s1")
@@ -411,7 +411,7 @@ class PoruchAppTest {
 
     @Test fun retryCreationReusesIdAfterUncertainNetworkFailure()=runTest {
         val events=Events(); val app=app(events,backgroundScope)
-        val draft=EventDraft("Прогулянка","Зустріч у центрі міста","outdoors","Київ","Поділ",50.45,30.5,"2090-01-01T10:00:00Z","2090-01-01T12:00:00Z","Europe/Kyiv",10)
+        val draft=EventDraft("Прогулянка","Зустріч у центрі міста",EventCategory.OUTDOORS,"Київ","Поділ",50.45,30.5,"2090-01-01T10:00:00Z","2090-01-01T12:00:00Z","Europe/Kyiv",10)
         events.failCreate=true;app.createEvent(draft);runCurrent()
         assertNull(app.state.value.completedEventId)
         events.failCreate=false;app.createEvent(draft);runCurrent()
@@ -422,7 +422,7 @@ class PoruchAppTest {
     }
     @Test fun invalidCreationNeverReachesRepository()=runTest {
         val events=Events(); val app=app(events,backgroundScope)
-        app.createEvent(EventDraft("","","social","Київ","Поділ",50.0,30.0,"2090-01-01T10:00:00Z","2090-01-01T12:00:00Z","Europe/Kyiv",0));runCurrent()
+        app.createEvent(EventDraft("","",EventCategory.SOCIAL,"Київ","Поділ",50.0,30.0,"2090-01-01T10:00:00Z","2090-01-01T12:00:00Z","Europe/Kyiv",0));runCurrent()
         assertTrue(events.createIds.isEmpty())
         // Чернетку відхилено по полях, щоб редактор підсвітив потрібні.
         val notice=app.state.value.notice
@@ -512,7 +512,7 @@ class PoruchAppTest {
     }
     /** Фільтри й пошук мапи звужують лише мапу: головна лишається цілою і не перепитує сервер. */
     @Test fun mapFiltersLeaveHomeWhole()=runTest {
-        val events=Events(); events.results=listOf(event("jazz","music","2090-01-05T19:00:00Z"),event("yoga","sport","2090-01-06T19:00:00Z"))
+        val events=Events(); events.results=listOf(event("jazz",EventCategory.MUSIC,"2090-01-05T19:00:00Z"),event("yoga",EventCategory.SPORT,"2090-01-06T19:00:00Z"))
         val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
         assertEquals(1,events.queries.size)
         assertEquals(2,app.state.value.home.index.size)
@@ -530,7 +530,7 @@ class PoruchAppTest {
 
     /** Пошук головної — свій запит в тій самій області; мапа його не бачить. */
     @Test fun homeSearchIsItsOwnQuery()=runTest {
-        val events=Events(); events.results=listOf(event("jazz","music","2090-01-05T19:00:00Z"),event("yoga","sport","2090-01-06T19:00:00Z"))
+        val events=Events(); events.results=listOf(event("jazz",EventCategory.MUSIC,"2090-01-05T19:00:00Z"),event("yoga",EventCategory.SPORT,"2090-01-06T19:00:00Z"))
         val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
 
         app.setHomeSearchText("yoga"); advanceTimeBy(1000); runCurrent()
@@ -550,7 +550,7 @@ class PoruchAppTest {
 
     /** Фільтри пошуку головної: «Усюди» — весь світ, категорія й дата йдуть на сервер; стрічка не звужується. */
     @Test fun homeSearchFiltersAndScope()=runTest {
-        val events=Events(); events.results=listOf(event("jazz","music","2090-01-05T19:00:00Z"))
+        val events=Events(); events.results=listOf(event("jazz",EventCategory.MUSIC,"2090-01-05T19:00:00Z"))
         val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(1000); runCurrent()
         app.setHomeSearchEverywhere(true); runCurrent()
         val idle=events.queries.size
@@ -560,8 +560,8 @@ class PoruchAppTest {
         val world=events.queries.last()
         assertEquals(-90.0,world.south); assertEquals(180.0,world.east); assertEquals(null,world.category)
 
-        app.setHomeSearchCategory("music"); runCurrent()
-        assertEquals("music",events.queries.last().category)
+        app.setHomeSearchCategory(EventCategory.MUSIC); runCurrent()
+        assertEquals(EventCategory.MUSIC,events.queries.last().category)
         app.setHomeSearchDate(DateFilter.TODAY); runCurrent()
         assertTrue(events.queries.last().from!=null && events.queries.last().to!=null)
 
@@ -573,14 +573,14 @@ class PoruchAppTest {
         app.cancelHomeSearch(); runCurrent()
         val home=app.state.value.home
         assertEquals("",home.searchText); assertFalse(home.searchEverywhere)
-        assertEquals(ALL_CATEGORIES,home.searchCategory); assertEquals(DateFilter.ANY,home.searchDate)
+        assertNull(home.searchCategory); assertEquals(DateFilter.ANY,home.searchDate)
         assertEquals(emptyList(),home.results)
         app.close()
     }
 
     /** «Шукати тут» рухає лише мапу: головна лишається на цілому місті й не перепитує сервер. */
     @Test fun searchHereMovesOnlyTheMap()=runTest {
-        val events=Events(); events.results=listOf(event("jazz","music","2090-01-05T19:00:00Z"),event("yoga","sport","2090-01-06T19:00:00Z"))
+        val events=Events(); events.results=listOf(event("jazz",EventCategory.MUSIC,"2090-01-05T19:00:00Z"),event("yoga",EventCategory.SPORT,"2090-01-06T19:00:00Z"))
         val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(1000); runCurrent()
         app.setHomeSearchText("yoga"); advanceTimeBy(1000); runCurrent()
         val before=events.queries.size
@@ -598,7 +598,7 @@ class PoruchAppTest {
 
     /** Нове місто при звуженій мапі: головна їде окремим запитом міста без фільтрів, пошук головної — теж. */
     @Test fun newCityReloadsHomeWithoutMapFilters()=runTest {
-        val events=Events(); events.results=listOf(event("jazz","music","2090-01-05T19:00:00Z"),event("yoga","sport","2090-01-06T19:00:00Z"))
+        val events=Events(); events.results=listOf(event("jazz",EventCategory.MUSIC,"2090-01-05T19:00:00Z"),event("yoga",EventCategory.SPORT,"2090-01-06T19:00:00Z"))
         val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(1000); runCurrent()
         app.setSearchText("jazz"); advanceTimeBy(1000); runCurrent()
         app.setHomeSearchText("yoga"); advanceTimeBy(1000); runCurrent()
@@ -618,7 +618,7 @@ class PoruchAppTest {
 
     /** Фільтр, поставлений до першої відповіді, не лишає головну без стрічки. */
     @Test fun filterDuringSharedLoadStillFillsHome()=runTest {
-        val events=Events(); events.results=listOf(event("jazz","music","2090-01-05T19:00:00Z"))
+        val events=Events(); events.results=listOf(event("jazz",EventCategory.MUSIC,"2090-01-05T19:00:00Z"))
         val app=app(events,backgroundScope); runCurrent()
         app.setOnlyAvailable(true); advanceTimeBy(1000); runCurrent()
         assertEquals(1,app.state.value.home.index.size)
@@ -629,7 +629,7 @@ class PoruchAppTest {
 
     /** Мапа й головна просять той самий початок видачі: кожну картку питаємо раз. */
     @Test fun mapAndHomeDoNotAskForTheSameCardsTwice()=runTest {
-        val events=Events(); events.results=(1..40).map { event("e${it.toString().padStart(2,'0')}","music","2090-01-01T10:00:00Z") }; events.inlineCards=0
+        val events=Events(); events.results=(1..40).map { event("e${it.toString().padStart(2,'0')}",EventCategory.MUSIC,"2090-01-01T10:00:00Z") }; events.inlineCards=0
         val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(1000); runCurrent()
         val asked=events.cardRequests.flatten()
         assertEquals(asked.distinct(),asked)
@@ -639,7 +639,7 @@ class PoruchAppTest {
 
     /** Перечитування «моїх» без зміни смаку не пересортовує видачу: піни не перебудовуються. */
     @Test fun reloadingMineKeepsTheIndexWhenTasteIsTheSame()=runTest {
-        val events=Events(); events.results=listOf(event("a","music","2090-01-05T19:00:00Z"),event("b","art","2090-01-06T19:00:00Z"))
+        val events=Events(); events.results=listOf(event("a",EventCategory.MUSIC,"2090-01-05T19:00:00Z"),event("b",EventCategory.ART,"2090-01-06T19:00:00Z"))
         val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(1000); runCurrent()
         val version=app.state.value.map.indexVersion
         app.loadMyEvents(); advanceTimeBy(1000); runCurrent()
@@ -649,7 +649,7 @@ class PoruchAppTest {
 
     /** Платформа кличе resume одразу після старту: запит у дорозі не скасовується й не дублюється. */
     @Test fun resumeRightAfterLaunchDoesNotRepeatTheSearch()=runTest {
-        val events=Events(); events.results=listOf(event("jazz","music","2090-01-05T19:00:00Z"))
+        val events=Events(); events.results=listOf(event("jazz",EventCategory.MUSIC,"2090-01-05T19:00:00Z"))
         val app=app(events,backgroundScope); runCurrent()
         app.resume(); advanceTimeBy(1000); runCurrent()
         app.resume(); advanceTimeBy(1000); runCurrent()
@@ -726,15 +726,15 @@ class PoruchAppTest {
     }
 
     @Test fun answeringTheOpeningQuestionsEndsThemAndReordersWhatWasFound()=runTest {
-        val events=Events(); events.results=listOf(event("social-later","social","2090-01-06T19:00:00Z"),event("music-sooner","music","2090-01-05T19:00:00Z"))
+        val events=Events(); events.results=listOf(event("social-later",EventCategory.SOCIAL,"2090-01-06T19:00:00Z"),event("music-sooner",EventCategory.MUSIC,"2090-01-05T19:00:00Z"))
         val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
         assertTrue(app.state.value.needsOnboarding)
         assertEquals("music-sooner",app.state.value.map.index.first().id)
         // Лише інтереси: вплив слотів на порядок — предмет TasteRankingTest.
-        app.saveTaste(listOf("social"),emptyList(),Crowd.ANY); runCurrent()
+        app.saveTaste(listOf(EventCategory.SOCIAL),emptyList(),Crowd.ANY); runCurrent()
         assertFalse(app.state.value.needsOnboarding)
         // Збережено на наступний запуск, обрана категорія веде список.
-        assertEquals(listOf("social"),taste.stored.interests)
+        assertEquals(listOf(EventCategory.SOCIAL),taste.stored.interests)
         assertTrue(taste.stored.answered)
         assertEquals("social-later",app.state.value.map.index.first().id)
         assertEquals(listOf("social-later"),app.state.value.map.suggested.map { it.id })
@@ -744,10 +744,9 @@ class PoruchAppTest {
     /** Невідома категорія не зберігається. */
     @Test fun unknownAnswersAreDropped()=runTest {
         val app=app(Events(),backgroundScope); runCurrent()
-        app.saveTaste(listOf("music","astrology"),listOf("never"),"enormous"); runCurrent()
-        assertEquals(listOf("music"),taste.stored.interests)
-        assertTrue(taste.stored.times.isEmpty())
-        assertEquals(Crowd.ANY,taste.stored.crowd)
+        // Час і компанію тепер тримає тип; невідомою лишається лише категорія з новішого сервера.
+        app.saveTaste(listOf(EventCategory.MUSIC,EventCategory.UNKNOWN),emptyList(),Crowd.ANY); runCurrent()
+        assertEquals(listOf(EventCategory.MUSIC),taste.stored.interests)
         app.close()
     }
 
@@ -764,15 +763,15 @@ class PoruchAppTest {
     /** Відповіді належать пристрою: вихід з акаунта їх не забирає. */
     @Test fun signingOutKeepsTheAnswers()=runTest {
         val app=app(Events(),backgroundScope); runCurrent()
-        app.saveTaste(listOf("music"),emptyList(),Crowd.ANY); runCurrent()
+        app.saveTaste(listOf(EventCategory.MUSIC),emptyList(),Crowd.ANY); runCurrent()
         app.signOut(); runCurrent()
-        assertEquals(listOf("music"),app.state.value.interests)
+        assertEquals(listOf(EventCategory.MUSIC),app.state.value.interests)
         assertFalse(app.state.value.needsOnboarding)
         app.close()
     }
 
     @Test fun blockingHidesTheOpenEventAndAsksTheMapAgain()=runTest {
-        val events=Events(); events.results=listOf(event("theirs","social","2090-01-05T19:00:00Z"))
+        val events=Events(); events.results=listOf(event("theirs",EventCategory.SOCIAL,"2090-01-05T19:00:00Z"))
         val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
         val before=events.queries.size
         app.selectEvent("theirs"); runCurrent()
@@ -899,7 +898,7 @@ class PoruchAppTest {
     /** Новий запит дзвонить раз: після перечитування ті самі ключі вже «бачені». */
     @Test fun aNewJoinRequestRingsOnceAndShowsOnTheFeed()=runTest {
         val events=Events()
-        val mine=event("mine","games","2090-01-01T10:00:00Z").let { it.copy(gathering=it.gathering!!.copy(organizerId="user")) }
+        val mine=event("mine",EventCategory.GAMES,"2090-01-01T10:00:00Z").let { it.copy(gathering=it.gathering!!.copy(organizerId="user")) }
         val seen=object:SeenRequestStore { val keys=mutableSetOf<String>(); override fun seen()=keys.toSet(); override fun markSeen(keys:Set<String>) { this.keys+=keys } }
         val rung=mutableListOf<RequestAlert>()
         val app=PoruchApp(
@@ -953,7 +952,7 @@ class PoruchAppTest {
 
     /** Вихід не лишає «Ви йдете» на картках: вони належать акаунту. */
     @Test fun signingOutLeavesNoMembershipInTheCards()=runTest {
-        val events=Events(); events.results=listOf(event("mine","games","2090-01-05T19:00:00Z").let { it.copy(gathering=it.gathering!!.copy(joined=true)) })
+        val events=Events(); events.results=listOf(event("mine",EventCategory.GAMES,"2090-01-05T19:00:00Z").let { it.copy(gathering=it.gathering!!.copy(joined=true)) })
         val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(1000); runCurrent()
         assertTrue(app.state.value.cards.getValue("mine").gathering!!.joined)
         app.signOut(); runCurrent()
@@ -991,10 +990,10 @@ class PoruchAppTest {
 
     /** Дія з подією перечитує її картку, а не індекс міста. */
     @Test fun joiningReloadsTheCardNotTheWholeCity()=runTest {
-        val events=Events(); events.results=listOf(event("e","games","2090-01-05T19:00:00Z"))
+        val events=Events(); events.results=listOf(event("e",EventCategory.GAMES,"2090-01-05T19:00:00Z"))
         val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(1000); runCurrent()
         val searches=events.queries.size; events.cardRequests.clear()
-        events.results=listOf(event("e","games","2090-01-05T19:00:00Z").let { it.copy(gathering=it.gathering!!.copy(joined=true)) })
+        events.results=listOf(event("e",EventCategory.GAMES,"2090-01-05T19:00:00Z").let { it.copy(gathering=it.gathering!!.copy(joined=true)) })
         app.joinEvent("e"); runCurrent(); advanceTimeBy(1000); runCurrent()
         assertEquals(searches,events.queries.size)
         assertEquals(listOf(listOf("e")),events.cardRequests)
@@ -1026,7 +1025,7 @@ class PoruchAppTest {
     /** Інтереси акаунта, що вийшов, не переходять наступному. */
     @Test fun anAccountsInterestsDoNotMoveToTheNextOne()=runTest {
         val app=app(Events(),backgroundScope); runCurrent(); advanceTimeBy(1000); runCurrent()
-        app.saveTaste(listOf("music"),emptyList(),Crowd.ANY); runCurrent()
+        app.saveTaste(listOf(EventCategory.MUSIC),emptyList(),Crowd.ANY); runCurrent()
         app.handleAuthCallback("poriad://auth/callback"); runCurrent(); advanceTimeBy(1000); runCurrent()
         assertEquals("recovered",app.state.value.session.userId)
         assertEquals(emptyList(),app.state.value.interests)
@@ -1038,7 +1037,7 @@ class PoruchAppTest {
         val tracked=mutableListOf<String>()
         PoruchAnalytics.sink={ name,_ -> tracked+=name }
         try {
-            val events=Events(); events.results=listOf(event("a","art","2090-01-05T19:00:00Z"),event("b","art","2090-01-06T19:00:00Z"))
+            val events=Events(); events.results=listOf(event("a",EventCategory.ART,"2090-01-05T19:00:00Z"),event("b",EventCategory.ART,"2090-01-06T19:00:00Z"))
             val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(1000); runCurrent()
             app.selectEvent("a"); app.selectEvent("b"); runCurrent()
             assertEquals(0,tracked.count { it=="event_view" })

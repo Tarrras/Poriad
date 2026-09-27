@@ -41,7 +41,7 @@ internal class SupabaseEventAuthoring(
 
     private fun draftParams(id: String, d: EventDraft) = buildJsonObject {
         put("p_id", id); put("p_title", d.title.trim()); put("p_description", d.description.trim())
-        put("p_category", d.category); put("p_city", d.city); put("p_address", d.address)
+        put("p_category", d.category?.key); put("p_city", d.city); put("p_address", d.address)
         put("p_latitude", d.latitude); put("p_longitude", d.longitude)
         put("p_starts_at", d.startsAt); put("p_ends_at", d.endsAt); put("p_time_zone", d.timeZone)
         put("p_capacity", d.capacity)

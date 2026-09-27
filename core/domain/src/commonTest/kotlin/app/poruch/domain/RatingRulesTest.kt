@@ -4,8 +4,8 @@ import kotlin.test.*
 import kotlin.time.Instant
 
 class RatingRulesTest {
-    private fun event(joined: Boolean, status: String = EventStatus.PUBLISHED) = Event(
-        id = "e", title = "Пікнік", description = "", category = "outdoors", city = "Київ", address = "Труханів",
+    private fun event(joined: Boolean, status: EventStatus = EventStatus.PUBLISHED) = Event(
+        id = "e", title = "Пікнік", description = "", category = EventCategory.OUTDOORS, city = "Київ", address = "Труханів",
         startsAt = "2026-09-20T11:00:00Z", endsAt = "2026-09-20T14:00:00Z", timeZone = "Europe/Kyiv", status = status,
         latitude = 0.0, longitude = 0.0,
         gathering = Gathering(organizerId = "o", organizerName = "Оля", capacity = 10, attendeeCount = 3, joined = joined)
@@ -39,12 +39,14 @@ class RatingRulesTest {
     }
 
     @Test fun everyCategoryOffersSixDistinctTags() {
-        EventRules.categories.forEach { category ->
+        EventCategory.selectable.forEach { category ->
             val tags = RatingRules.tagsFor(category)
-            assertEquals(6, tags.toSet().size, category)
+            assertEquals(6, tags.toSet().size, category.key)
         }
-        assertTrue(RatingTag.GAME_CHOICE in RatingRules.tagsFor("games"))
-        assertFalse(RatingTag.MUSIC in RatingRules.tagsFor("games"))
-        assertEquals(5, RatingRules.tagsFor("невідома").size)
+        assertTrue(RatingTag.GAME_CHOICE in RatingRules.tagsFor(EventCategory.GAMES))
+        assertFalse(RatingTag.MUSIC in RatingRules.tagsFor(EventCategory.GAMES))
+        assertEquals(5, RatingRules.tagsFor(EventCategory.UNKNOWN).size)
+        assertEquals(EventCategory.UNKNOWN, EventCategory.fromKey("opera"))
+        assertFalse(EventCategory.UNKNOWN in EventCategory.selectable)
     }
 }

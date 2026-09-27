@@ -16,11 +16,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import app.poruch.domain.EventCategory
 import app.poruch.android.R
 import app.poruch.android.ui.*
 import app.poruch.domain.CityResult
 import app.poruch.domain.HomeLocation
-import app.poruch.shared.ALL_CATEGORIES
 import app.poruch.shared.DateFilter
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -49,7 +49,7 @@ internal fun FilterSheet(state: ExploreState, onIntent: (ExploreIntent) -> Unit,
             )
             GhostButton(
                 stringResource(R.string.reset_filters),
-                { date = DateFilter.ANY; category = ALL_CATEGORIES; available = false },
+                { date = DateFilter.ANY; category = null; available = false },
                 tone = colors.inkSecondary
             )
         }
@@ -64,11 +64,11 @@ internal fun FilterSheet(state: ExploreState, onIntent: (ExploreIntent) -> Unit,
         Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
             SectionHeader(stringResource(R.string.categories))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                PoruchChip(stringResource(R.string.all), category == ALL_CATEGORIES, { category = ALL_CATEGORIES })
+                PoruchChip(stringResource(R.string.all), category == null, { category = null })
                 categories.forEach { value ->
                     PoruchChip(
                         stringResource(categoryLabel(value)), category == value,
-                        { category = if (category == value) ALL_CATEGORIES else value }, dot = value
+                        { category = if (category == value) null else value }, dot = value
                     )
                 }
             }

@@ -5,7 +5,12 @@ import Shared
 struct EditorForm: Codable, Equatable {
     var title = ""
     var description = ""
-    var category = defaultCategory
+    /// Категорія зберігається ключем: enum з Kotlin не буває `Codable`, а старі чернетки лежать із рядком.
+    var categoryKey = defaultCategory.key
+    var category: EventCategory {
+        get { EventCategory.companion.fromKey(key: categoryKey) }
+        set { categoryKey = newValue.key }
+    }
     var city = ""
     var address = ""
     var latitude = 0.0
@@ -29,6 +34,11 @@ struct EditorForm: Codable, Equatable {
     var approvalRequired = false
     /// Чат учасників. Optional, щоб старі чернетки читались далі; порожньо — без чату.
     var contactUrl: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case title, description, categoryKey = "category", city, address, latitude, longitude, placed
+        case starts, ends, timeZone, capacity, minAge, maxAge, approvalRequired, contactUrl
+    }
 
     /// Посилання, як його бачить чернетка: обрізане, порожнє стає nil.
     var contactLink: String? { ContactRules.shared.normalize(value: contactUrl) }
@@ -340,7 +350,7 @@ enum EditorStep: Int, CaseIterable, Identifiable {
         // Редагувати можна лише кімнату: сервер перевіряє те саме в `assert_event_editable`.
         if let event, let room = event.gathering {
             form = EditorForm(
-                title: event.title, description: event.description_, category: event.category,
+                title: event.title, description: event.description_, categoryKey: event.category.key,
                 city: event.city, address: event.address, latitude: event.latitude, longitude: event.longitude,
                 starts: parseEventDate(event.startsAt) ?? Date(), ends: parseEventDate(event.endsAt) ?? Date(),
                 timeZone: event.timeZone, capacity: Int(room.capacity),
@@ -367,5 +377,5 @@ private let minAddressQuery = 3
 
 private let defaultLead: TimeInterval = 3600
 private let defaultDuration: TimeInterval = 3600
-private let defaultCategory = "social"
+private let defaultCategory = EventCategory.social
 private let defaultCapacity = 20

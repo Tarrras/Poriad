@@ -14,9 +14,9 @@ class DuplicateEventsTest {
     private fun entry(
         id: String, title: String, source: String? = "karabas",
         startsAt: String = when1, at: Pair<Double, Double> = venue,
-        origin: String = EventOrigin.IMPORT
+        origin: EventOrigin = EventOrigin.IMPORT
     ) = EventIndexEntry(
-        id = id, latitude = at.first, longitude = at.second, category = "art",
+        id = id, latitude = at.first, longitude = at.second, category = EventCategory.ART,
         startsAt = startsAt, timeZone = "Europe/Kyiv", title = title,
         origin = origin, source = source,
         capacity = if (origin == EventOrigin.COMMUNITY) 10 else null

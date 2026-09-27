@@ -8,7 +8,7 @@ package app.poruch.domain
  */
 data class EventQuery(
     val south: Double, val west: Double, val north: Double, val east: Double,
-    val category: String? = null, val from: String? = null, val to: String? = null,
+    val category: EventCategory? = null, val from: String? = null, val to: String? = null,
     val text: String? = null, val available: Boolean = false
 )
 

@@ -1,14 +1,11 @@
 package app.poruch.domain
 
 /** Платформа пуш-токена, як її називає `push_tokens.platform`. */
-object PushPlatform {
-    const val ANDROID = "android"
-    const val IOS = "ios"
-}
+enum class PushPlatform(val key: String) { ANDROID("android"), IOS("ios") }
 
 /** Реєстрація пристрою для пушів. Токен дає платформа (FCM або APNs), сервер шле сам. */
 interface PushTokens {
-    suspend fun register(token: String, platform: String)
+    suspend fun register(token: String, platform: PushPlatform)
     /**
      * [accessToken] — ключ акаунта, під яким токен реєстрували, коли його сесії вже нема (вихід
      * офлайн, відкликана сесія). Null — поточна сесія.

@@ -1,5 +1,6 @@
 package app.poruch.android.feature.editor
 
+import app.poruch.domain.EventCategory
 import android.content.Context
 import androidx.core.content.edit
 
@@ -11,7 +12,7 @@ class DraftStore(context: Context) {
     fun load(city: String) = EditorForm(
         title = store.read(TITLE),
         description = store.read(DESCRIPTION),
-        category = store.read(CATEGORY).ifEmpty { EditorForm.DEFAULT_CATEGORY },
+        category = EventCategory.fromKey(store.read(CATEGORY)).takeIf { it != EventCategory.UNKNOWN } ?: EditorForm.DEFAULT_CATEGORY,
         city = store.read(CITY).ifEmpty { city },
         address = store.read(ADDRESS),
         latitude = store.read(LATITUDE),
@@ -27,7 +28,7 @@ class DraftStore(context: Context) {
     )
 
     fun save(form: EditorForm) = store.edit {
-        putString(TITLE, form.title); putString(DESCRIPTION, form.description); putString(CATEGORY, form.category)
+        putString(TITLE, form.title); putString(DESCRIPTION, form.description); putString(CATEGORY, form.category.key)
         putString(CITY, form.city); putString(ADDRESS, form.address)
         putString(LATITUDE, form.latitude); putString(LONGITUDE, form.longitude)
         putString(ZONE, form.timeZone); putString(STARTS, form.starts); putString(ENDS, form.ends)

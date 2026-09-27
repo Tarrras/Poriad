@@ -1,11 +1,11 @@
 package app.poruch.android.feature.explore
 
+import app.poruch.domain.EventCategory
 import app.poruch.domain.CityResult
 import app.poruch.domain.Event
 import app.poruch.domain.EventIndexEntry
 import app.poruch.domain.Place
 import app.poruch.domain.asIndexEntry
-import app.poruch.shared.ALL_CATEGORIES
 import app.poruch.shared.DateFilter
 
 data class ExploreState(
@@ -26,8 +26,8 @@ data class ExploreState(
     val searchText: String = "",
     /** Заклади за [searchText]: секція «Місця» у списку шторки. */
     val places: List<Place> = emptyList(),
-    val category: String = ALL_CATEGORIES,
-    val dateFilter: String = DateFilter.ANY,
+    val category: EventCategory? = null,
+    val dateFilter: DateFilter = DateFilter.ANY,
     val onlyAvailable: Boolean = false,
     val loading: Boolean = false,
     val offline: Boolean = false,
@@ -37,7 +37,7 @@ data class ExploreState(
     /** Положення шторки: згорнута — карусель, вище — список тієї ж видачі. */
     val detent: SheetDetent = SheetDetent.PEEK,
     /** Категорія плиток у шторці. Звужує список і карусель, а не мапу: у мапи власна категорія у фільтрах. */
-    val listCategory: String = ALL_CATEGORIES,
+    val listCategory: EventCategory? = null,
     val sheet: ExploreSheet = ExploreSheet.NONE,
     /** Камера посунулась: мапа тримає старі результати, поки не попросять «Шукати тут». */
     val pendingArea: Area? = null,
@@ -55,7 +55,7 @@ data class ExploreState(
 
     /** Індекс, звужений до категорії. Фільтр тут, а не в запиті, щоб мапа й головна не ділили один фільтр. */
     val visibleIndex: List<EventIndexEntry> by lazy {
-        if (category == ALL_CATEGORIES) index else index.filter { it.category == category }
+        if (category == null) index else index.filter { it.category == category }
     }
 
     /**
@@ -71,10 +71,10 @@ data class ExploreState(
     }
 
     /** Скільки подій показує мапа, з урахуванням фільтра. */
-    val shownCount get() = if (category == ALL_CATEGORIES) totalFound else visibleIndex.size
+    val shownCount get() = if (category == null) totalFound else visibleIndex.size
 
     val activeFilters get() =
-        listOf(dateFilter != DateFilter.ANY, category != ALL_CATEGORIES, onlyAvailable).count { it }
+        listOf(dateFilter != DateFilter.ANY, category != null, onlyAvailable).count { it }
 
     val stackFocused: Boolean by lazy {
         stackIds.isNotEmpty() && stackIds.toSet().let { ids -> visibleIndex.count { it.id in ids } > 1 }
@@ -83,7 +83,7 @@ data class ExploreState(
     /** Вміст шторки: стос обраного піна або вся видача, звужені категорією плиток. Порядок стосу — з індексу. */
     val listEntries: List<EventIndexEntry> by lazy {
         val base = if (stackFocused) stackIds.toSet().let { ids -> index.filter { it.id in ids } } else mapEvents
-        if (listCategory == ALL_CATEGORIES) base else base.filter { it.category == listCategory }
+        if (listCategory == null) base else base.filter { it.category == listCategory }
     }
 
     /**
@@ -99,7 +99,7 @@ data class ExploreState(
 
     /** Лічильник шторки: з індексу, а не з завантажених карток. */
     val listCount get(): Int =
-        if (category == ALL_CATEGORIES && listCategory == ALL_CATEGORIES && !stackFocused) totalFound else listEntries.size
+        if (category == null && listCategory == null && !stackFocused) totalFound else listEntries.size
 }
 
 data class Area(val south: Double, val west: Double, val north: Double, val east: Double)
@@ -111,8 +111,8 @@ enum class SheetDetent { PEEK, HALF, FULL }
 
 sealed interface ExploreIntent {
     data class Search(val text: String) : ExploreIntent
-    data class PickDate(val filter: String) : ExploreIntent
-    data class PickCategory(val category: String) : ExploreIntent
+    data class PickDate(val filter: DateFilter) : ExploreIntent
+    data class PickCategory(val category: EventCategory?) : ExploreIntent
     data class OnlyAvailable(val value: Boolean) : ExploreIntent
     data object ResetFilters : ExploreIntent
 
@@ -138,7 +138,7 @@ sealed interface ExploreIntent {
     data class ShowSheet(val sheet: ExploreSheet) : ExploreIntent
     data class SetDetent(val detent: SheetDetent) : ExploreIntent
     /** Плитка категорії в шторці. Повторний тап знімає вибір. */
-    data class PickListCategory(val category: String) : ExploreIntent
+    data class PickListCategory(val category: EventCategory) : ExploreIntent
 
     data class SearchCity(val query: String) : ExploreIntent
     data class SelectCity(val city: CityResult) : ExploreIntent

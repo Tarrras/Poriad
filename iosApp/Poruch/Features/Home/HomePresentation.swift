@@ -34,8 +34,8 @@ struct HomePresentation {
     let places: [Place]
     /// Фільтри пошуку: усі міста чи лише обране, категорія, дата. Стрічку не звужують.
     let searchEverywhere: Bool
-    let searchCategory: String
-    let searchDate: String
+    let searchCategory: EventCategory?
+    let searchDate: DateFilter
 
     var searching: Bool { !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
@@ -48,7 +48,7 @@ struct HomePresentation {
     var searchScope: String { searchEverywhere ? "усюди" : "у місті \(cityName)" }
 
     /// Будь-яка зміна запиту чи фільтрів — нова видача: «Показати ще» починає спочатку.
-    var searchKey: String { "\(searchText)|\(searchEverywhere)|\(searchCategory)|\(searchDate)" }
+    var searchKey: String { "\(searchText)|\(searchEverywhere)|\(searchCategory?.key ?? "*")|\(searchDate.name)" }
 
     /// Перші `limit` знайдених, чиї картки вже приїхали. `found` пропускає ті, що ще їдуть,
     /// тож беремо за id, а не `prefix`: інакше пізніша картка стала б на місце неприїхалої.
@@ -75,8 +75,8 @@ struct HomePresentation {
         places = home?.places ?? []
         searchText = home?.searchText ?? ""
         searchEverywhere = home?.searchEverywhere == true
-        searchCategory = home?.searchCategory ?? DiscoveryStateKt.ALL_CATEGORIES
-        searchDate = home?.searchDate ?? DateFilter.shared.ANY
+        searchCategory = home?.searchCategory
+        searchDate = home?.searchDate ?? .any
         savedIds = Set(state?.library.savedIds ?? [])
         waitlistedIds = Set(state?.library.waitlistedIds ?? [])
         // І свої, і ті, куди йду: `concerns` — те саме правило, що в нагадуваннях. Лише те, що ще не завершилось, як на Android.
