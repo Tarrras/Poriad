@@ -644,23 +644,47 @@ struct FiltersView: View {
     }
 }
 
-/// Чипи з переносом: у SwiftUI на цільовій версії нема flow layout, рядки міряються вручну.
+/// Чипи з переносом за шириною, як `FlowRow` на Android.
 struct FlexibleChips: View {
     /// (ключ, підпис, категорія для крапки або nil).
     let items: [(String, String, String?)]
     let isSelected: (String) -> Bool
     let action: (String) -> Void
     var body: some View {
-        VStack(alignment: .leading, spacing: Space.sm) {
-            ForEach(Array(stride(from: 0, to: items.count, by: 2)), id: \.self) { index in
-                HStack(spacing: Space.sm) {
-                    ForEach(items[index..<min(index + 2, items.count)], id: \.0) { item in
-                        Chip(label: item.1, dot: item.2, selected: isSelected(item.0)) { action(item.0) }
-                    }
-                    Spacer(minLength: 0)
-                }
+        FlowLayout(spacing: Space.sm) {
+            ForEach(items, id: \.0) { item in
+                Chip(label: item.1, dot: item.2, selected: isSelected(item.0)) { action(item.0) }
             }
         }
+    }
+}
+
+/// Рядки зліва направо; що не влазить — з нового рядка. Вбудованого flow layout у SwiftUI нема.
+struct FlowLayout: Layout {
+    var spacing: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let frames = arrange(subviews, width: proposal.width ?? .infinity)
+        return CGSize(width: frames.map(\.maxX).max() ?? 0, height: frames.map(\.maxY).max() ?? 0)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        for (subview, frame) in zip(subviews, arrange(subviews, width: bounds.width)) {
+            subview.place(at: CGPoint(x: bounds.minX + frame.minX, y: bounds.minY + frame.minY), proposal: ProposedViewSize(frame.size))
+        }
+    }
+
+    private func arrange(_ subviews: Subviews, width: CGFloat) -> [CGRect] {
+        var frames: [CGRect] = []
+        var x: CGFloat = 0, y: CGFloat = 0, row: CGFloat = 0
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > 0 && x + size.width > width { x = 0; y += row + spacing; row = 0 }
+            frames.append(CGRect(origin: CGPoint(x: x, y: y), size: size))
+            x += size.width + spacing
+            row = max(row, size.height)
+        }
+        return frames
     }
 }
 
