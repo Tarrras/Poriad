@@ -136,7 +136,11 @@ fun MyEventsScreen(state: MyEventsState, onIntent: (MyEventsIntent) -> Unit) {
     }
     state.rating?.let { event ->
         val mine = state.myRatings[event.id]?.let { EventRating(it, null, "", true) }
-        RatingSheet(event, mine, state.mutating, { onIntent(MyEventsIntent.DismissRating) }) { score, comment, tags ->
+        RatingSheet(
+            event,
+            mine,
+            state.mutating,
+            { onIntent(MyEventsIntent.DismissRating) }) { score, comment, tags ->
             onIntent(MyEventsIntent.Rate(event.id, score, comment, tags))
         }
     }
@@ -318,7 +322,8 @@ private fun Rows(events: List<Event>, state: MyEventsState, onIntent: (MyEventsI
             val rate =
                 state.tab == MyEventsTab.GOING && score == null && RatingRules.canRate(event, now)
             // Запит до не найближчої події інакше видно лише в бейджі чипа.
-            val asks = if (state.tab == MyEventsTab.ORGANIZING) state.requests.count { it.eventId == event.id } else 0
+            val asks =
+                if (state.tab == MyEventsTab.ORGANIZING) state.requests.count { it.eventId == event.id } else 0
             EventRow(
                 event,
                 unread = state.unread[event.id] ?: 0,
@@ -338,7 +343,11 @@ private fun Rows(events: List<Event>, state: MyEventsState, onIntent: (MyEventsI
 
                     else -> null
                 },
-                status = if (asks > 0) pluralStringResource(R.plurals.join_requests, asks, asks) to BadgeTone.Accent else null
+                status = if (asks > 0) pluralStringResource(
+                    R.plurals.join_requests,
+                    asks,
+                    asks
+                ) to BadgeTone.Accent else null
             ) { onIntent(MyEventsIntent.OpenEvent(event.id)) }
             if (index < events.lastIndex) HairLine(Modifier.padding(start = Spacing.lg + 60.dp + Spacing.md))
         }
@@ -350,9 +359,17 @@ private fun Rows(events: List<Event>, state: MyEventsState, onIntent: (MyEventsI
 private fun RateButton(onClick: () -> Unit) {
     val colors = Poruch.colors
     Text(
-        stringResource(R.string.rate_action), style = MaterialTheme.typography.labelLarge, color = colors.onBrand, maxLines = 1,
-        modifier = Modifier.height(36.dp).background(colors.brand, Radius.pill).clip(Radius.pill)
-            .pressable(onClick = onClick).padding(horizontal = Spacing.md).wrapContentHeight(Alignment.CenterVertically)
+        stringResource(R.string.rate_action),
+        style = MaterialTheme.typography.labelLarge,
+        color = colors.onBrand,
+        maxLines = 1,
+        modifier = Modifier
+            .height(36.dp)
+            .background(colors.brand, Radius.pill)
+            .clip(Radius.pill)
+            .pressable(onClick = onClick)
+            .padding(horizontal = Spacing.md)
+            .wrapContentHeight(Alignment.CenterVertically)
     )
 }
 
@@ -383,7 +400,9 @@ private fun HeroHead(event: Event, status: @Composable () -> Unit, onClick: () -
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Розмір рядка: картку вирізняють відлік і дії, а велика плитка лише важчала сірим градієнтом.
-        EventImage(event, Modifier.size(60.dp).clip(Radius.xs))
+        EventImage(event, Modifier
+            .size(60.dp)
+            .clip(Radius.xs))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
             Text(
                 countdownOverline(event),
