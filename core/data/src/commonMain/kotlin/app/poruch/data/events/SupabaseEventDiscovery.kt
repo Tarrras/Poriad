@@ -119,6 +119,13 @@ internal class SupabaseEventDiscovery(
         }.also { PoruchLog.d("discovery") { "${it.size} events at place ${placeId.shortId()}" } }
     }
 
+    override suspend fun safety(id: String): EventSafety? {
+        val response = rpc.read("event_safety", rpc.eventParams(id))
+        if (response is JsonNull) return null
+        return rpc.json.decodeFromJsonElement<SafetyDto>(response).domain()
+            .also { PoruchLog.d("detail") { "safety ${id.shortId()}: ${it.shelters.size} shelters curfew=${it.curfew != null}" } }
+    }
+
     override fun clearPrivateCache() { cache.clearPrivate() }
 
     private fun EventQuery.indexParams() = buildJsonObject {

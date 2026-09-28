@@ -97,7 +97,9 @@ class DetailViewModel(
                 ratings = shared.detail.ratings,
                 person = shared.person,
                 userId = shared.session.userId,
-                organizerAvatar = shared.detail.organizerAvatar
+                organizerAvatar = shared.detail.organizerAvatar,
+                safety = shared.detail.safety,
+                curfew = shared.detail.curfewNote(now)
             )
         }
     }
@@ -155,6 +157,7 @@ class DetailViewModel(
             // Для другої дати прокату — картка представника: окремого піна в сеансу нема.
             DetailIntent.OpenMap -> send(DetailEffect.OpenMap(app.cardIdOf(eventId)))
             is DetailIntent.OpenEvent -> send(DetailEffect.OpenEvent(intent.id))
+            is DetailIntent.OpenShelter -> send(DetailEffect.OpenShelter(intent.shelter))
             DetailIntent.Reopen -> if (shown && event == null) app.openEvent(eventId)
             DetailIntent.Edit -> send(DetailEffect.Edit(eventId))
             is DetailIntent.ConfirmCancel -> reduce { copy(confirmingCancel = intent.open) }

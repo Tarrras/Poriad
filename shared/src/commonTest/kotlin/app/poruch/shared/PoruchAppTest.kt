@@ -69,6 +69,7 @@ class PoruchAppTest {
         var atPlace=emptyMap<String,List<Event>>()
         var failPlaceEvents=false
         override suspend fun placeEvents(placeId:String):List<Event> { if(failPlaceEvents) fail(AppError.Network); return atPlace[placeId].orEmpty() }
+        override suspend fun safety(id:String):EventSafety? = null
         var mine=emptyList<Event>()
         override suspend fun myEvents()=mine
         override suspend fun attendees(id:String)=emptyList<Attendee>()

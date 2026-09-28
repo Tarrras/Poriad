@@ -1,6 +1,9 @@
 package app.poruch.android.feature.detail
 
 import app.poruch.domain.Attendee
+import app.poruch.domain.CurfewNote
+import app.poruch.domain.EventSafety
+import app.poruch.domain.Shelter
 import app.poruch.domain.Event
 import app.poruch.domain.EventIndexEntry
 import app.poruch.domain.EventRating
@@ -46,7 +49,11 @@ data class DetailState(
     /** Хто дивиться: своя картка без скарги й блокування. */
     val userId: String? = null,
     /** Фото організатора для рядка в «Ідуть». */
-    val organizerAvatar: String? = null
+    val organizerAvatar: String? = null,
+    /** Укриття поруч і комендантська міста; null — не завантажилось або даних нема. */
+    val safety: EventSafety? = null,
+    /** Рядок «до комендантської»; null — не вечір або міста нема в довіднику. */
+    val curfew: CurfewNote? = null
 ) {
     val myRating get() = ratings.firstOrNull { it.mine }
 
@@ -118,6 +125,8 @@ sealed interface DetailIntent {
     data class PickSession(val id: String) : DetailIntent
     /** Інша подія цього місця: окремий екран поверх, щоб «назад» повертало сюди. */
     data class OpenEvent(val id: String) : DetailIntent
+    /** Маршрут до укриття в системних мапах. */
+    data class OpenShelter(val shelter: Shelter) : DetailIntent
     /** Екран знову зверху після іншого екрана деталей: той перебрав єдиний слот відкритої події. */
     data object Reopen : DetailIntent
     data object PrimaryAction : DetailIntent
@@ -167,6 +176,7 @@ sealed interface DetailEffect {
     data class ShareEvent(val event: Event) : DetailEffect
     data class OpenCalendar(val event: Event) : DetailEffect
     data class OpenMaps(val event: Event) : DetailEffect
+    data class OpenShelter(val shelter: Shelter) : DetailEffect
     /** Сторінка джерела афіші в браузері. */
     data class OpenLink(val url: String) : DetailEffect
     /** Наша власна мапа, наведена на цю подію. */

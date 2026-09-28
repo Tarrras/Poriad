@@ -161,6 +161,7 @@ struct EventDetailView: View {
             facts(event)
             if let room = view.room { people(room, view) }
             venue(event)
+            if !view.cancelled && !view.ended { safety() }
             if !othersHere.isEmpty { othersHereSection(placeName: event.placeName) }
             description(event)
             if view.hasChat || view.contactURL != nil { contact(view) }
@@ -495,6 +496,82 @@ extension EventDetailView {
             .accessibilityAddTraits(.isButton)
             .accessibilityLabel("Показати на мапі")
         }
+    }
+
+    /// Безпека: чи встигнеш до комендантської і куди йти під час тривоги. Правила Мінкульту з 11.09.2026
+    /// вимагають заздалегідь казати учасникам про найближче укриття. Нема даних міста — нема секції.
+    @ViewBuilder
+    private func safety() -> some View {
+        let shelters = model.state?.detail.safety?.shelters ?? []
+        let curfew = model.state?.detail.curfewNote(now: nowInstant())
+        if !shelters.isEmpty || curfew != nil {
+            VStack(alignment: .leading, spacing: Space.sm) {
+                SectionHeader(title: "Безпека")
+                VStack(spacing: 0) {
+                    if let curfew {
+                        // Година й менше до комендантської — уже привід планувати дорогу, тож колір попередження.
+                        let tight = curfew.minutesLeft <= 60
+                        HStack(spacing: Space.md) {
+                            Image(systemName: "moon.stars").font(.system(size: 16, weight: .semibold))
+                            Text(curfew.minutesLeft == 0
+                                 ? "Закінчиться о \(curfew.endsAt), уже під час комендантської (з \(curfew.curfew.starts))"
+                                 : "Закінчиться о \(curfew.endsAt). Комендантська з \(curfew.curfew.starts) — до неї лишиться \(durationWords(Int(curfew.minutesLeft)))")
+                                .font(PoruchFont.bodyText).multilineTextAlignment(.leading)
+                            Spacer(minLength: 0)
+                        }
+                        .foregroundStyle(tight ? Palette.danger : Palette.inkSecondary)
+                        .padding(.horizontal, Space.lg).padding(.vertical, Space.md)
+                    }
+                    ForEach(Array(shelters.enumerated()), id: \.offset) { index, shelter in
+                        if index > 0 || curfew != nil { Divider().overlay(Palette.hairline) }
+                        Button { SystemActions.openInMaps(latitude: shelter.latitude, longitude: shelter.longitude, label: shelter.address) } label: {
+                            HStack(spacing: Space.md) {
+                                Image(systemName: shelter.kind == .metro ? "tram.fill.tunnel" : "shield")
+                                    .font(.system(size: 16, weight: .semibold)).foregroundStyle(Palette.inkTertiary)
+                                VStack(alignment: .leading, spacing: Space.xs) {
+                                    Text("\(shelterLabel(shelter.kind)) · \(shelter.distanceMeters) м")
+                                        .font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
+                                    Text(shelter.address).font(PoruchFont.cardName).kerning(-0.2).foregroundStyle(Palette.ink)
+                                        .multilineTextAlignment(.leading).lineLimit(2)
+                                    let extras = [shelter.hours, shelter.accessible ? "Є пандус" : nil].compactMap { $0 }
+                                    if !extras.isEmpty {
+                                        Text(extras.joined(separator: " · ")).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
+                                    }
+                                }
+                                Spacer(minLength: 0)
+                                Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundStyle(Palette.inkTertiary)
+                            }
+                            .padding(.horizontal, Space.lg).padding(.vertical, Space.md)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(PressableStyle())
+                        .accessibilityElement(children: .combine)
+                        .accessibilityHint("Маршрут до укриття")
+                    }
+                }
+                .cardSurface()
+                // Ліцензія CC BY вимагає вказати джерело.
+                if !shelters.isEmpty {
+                    Text("Укриття — за відкритими даними КМДА. Тап відкриває маршрут.")
+                        .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
+                }
+            }
+        }
+    }
+
+    private func shelterLabel(_ kind: ShelterKind) -> String {
+        switch kind {
+        case .metro: "Метро"
+        case .underpass: "Підземний перехід"
+        case .parking: "Підземний паркінг"
+        default: "Укриття"
+        }
+    }
+
+    private func durationWords(_ minutes: Int) -> String {
+        let hours = minutes / 60, rest = minutes % 60
+        if hours == 0 { return "\(rest) хв" }
+        return rest == 0 ? "\(hours) год" : "\(hours) год \(rest) хв"
     }
 
     /// Інші події на цій точці. Заголовок — місце (назва закладу, коли є), тому рядку досить дати й назви.

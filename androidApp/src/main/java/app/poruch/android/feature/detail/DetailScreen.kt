@@ -55,6 +55,7 @@ import app.poruch.domain.EventRating
 import app.poruch.domain.RatingRules
 import app.poruch.domain.RatingTag
 import app.poruch.domain.ReportReason
+import app.poruch.domain.ShelterKind
 import coil3.compose.AsyncImage
 
 @Composable
@@ -92,6 +93,7 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
                     Facts(event)
                     event.gathering?.let { People(state, it, onIntent) }
                     Venue(event, onIntent)
+                    if (!state.cancelled && !state.ended) Safety(state, onIntent)
                     if (state.othersHere.isNotEmpty()) OthersHere(state.othersHere, event.placeName, onIntent)
                     Description(event, onIntent)
                     // Чат і посилання — для своїх: сервер віддає посилання лише організатору й підтвердженим.
@@ -718,6 +720,82 @@ private fun Venue(event: Event, onIntent: (DetailIntent) -> Unit) {
                 }
             }
         }
+    }
+}
+
+/**
+ * Безпека: чи встигнеш до комендантської і куди йти під час тривоги. Правила Мінкульту з 11.09.2026
+ * вимагають заздалегідь казати учасникам про найближче укриття. Нема даних міста — нема секції.
+ */
+@Composable
+private fun Safety(state: DetailState, onIntent: (DetailIntent) -> Unit) {
+    val shelters = state.safety?.shelters.orEmpty()
+    val curfew = state.curfew
+    if (shelters.isEmpty() && curfew == null) return
+    val colors = Poruch.colors
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        SectionHeader(stringResource(R.string.safety_title))
+        Column(Modifier.cardSurface(Radius.md)) {
+            if (curfew != null) Row(
+                Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.md),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.md), verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Година й менше до комендантської — уже привід планувати дорогу, тож колір попередження.
+                val tight = curfew.minutesLeft <= 60
+                Icon(Icons.Outlined.NightsStay, null, Modifier.size(20.dp), tint = if (tight) colors.danger else colors.inkTertiary)
+                Text(
+                    if (curfew.minutesLeft == 0) stringResource(R.string.curfew_during, curfew.endsAt, curfew.curfew.starts)
+                    else stringResource(R.string.curfew_left, curfew.endsAt, curfew.curfew.starts, durationWords(curfew.minutesLeft)),
+                    style = MaterialTheme.typography.bodyMedium, color = if (tight) colors.danger else colors.inkSecondary
+                )
+            }
+            shelters.forEachIndexed { index, shelter ->
+                if (index > 0 || curfew != null) HairLine()
+                Row(
+                    Modifier.fillMaxWidth().pressable { onIntent(DetailIntent.OpenShelter(shelter)) }
+                        .padding(horizontal = Spacing.lg, vertical = Spacing.md),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.md), verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        if (shelter.kind == ShelterKind.METRO) Icons.Outlined.Subway else Icons.Outlined.Shield,
+                        null, Modifier.size(20.dp), tint = colors.inkTertiary
+                    )
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                        Text(
+                            stringResource(R.string.shelter_kind_distance, stringResource(shelter.kind.label()), shelter.distanceMeters),
+                            style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary
+                        )
+                        Text(shelter.address, style = MaterialTheme.typography.titleSmall, color = colors.ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        val extras = listOfNotNull(
+                            shelter.hours,
+                            stringResource(R.string.shelter_accessible).takeIf { shelter.accessible }
+                        )
+                        if (extras.isNotEmpty()) Text(extras.joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
+                    }
+                    Icon(Icons.Outlined.ChevronRight, null, Modifier.size(18.dp), tint = colors.inkTertiary)
+                }
+            }
+        }
+        // Ліцензія CC BY вимагає вказати джерело.
+        if (shelters.isNotEmpty()) Text(stringResource(R.string.shelters_source), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
+    }
+}
+
+private fun ShelterKind.label() = when (this) {
+    ShelterKind.METRO -> R.string.shelter_metro
+    ShelterKind.UNDERPASS -> R.string.shelter_underpass
+    ShelterKind.PARKING -> R.string.shelter_parking
+    ShelterKind.BASEMENT -> R.string.shelter_basement
+}
+
+@Composable
+private fun durationWords(minutes: Int): String {
+    val hours = minutes / 60
+    val rest = minutes % 60
+    return when {
+        hours == 0 -> stringResource(R.string.duration_minutes, rest)
+        rest == 0 -> stringResource(R.string.duration_hours, hours)
+        else -> stringResource(R.string.duration_hours_minutes, hours, rest)
     }
 }
 

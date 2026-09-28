@@ -140,6 +140,9 @@ fun DetailRoute(route: Detail, navigator: Navigator) {
             is DetailEffect.ShareEvent -> context.shareEvent(effect.event)
             is DetailEffect.OpenCalendar -> if (!context.addToCalendar(effect.event)) context.toast(R.string.calendar_unavailable)
             is DetailEffect.OpenMaps -> if (!context.openInMaps(effect.event)) context.toast(R.string.maps_unavailable)
+            is DetailEffect.OpenShelter -> with(effect.shelter) {
+                if (!context.openInMaps(latitude, longitude, address)) context.toast(R.string.maps_unavailable)
+            }
             is DetailEffect.OpenLink -> if (!context.openLink(effect.url)) context.toast(R.string.link_unavailable)
             is DetailEffect.OpenMap -> navigator.open(Explore(effect.id))
             is DetailEffect.OpenChat -> navigator.open(Chat(effect.id))

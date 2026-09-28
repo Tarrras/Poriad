@@ -129,12 +129,17 @@ data class DetailState(
     val organizerAvatar: String? = null,
     /** Майбутні події закладу відкритої афіші, для «Ще в цьому місці». Null — не питали або збій. */
     val placeEvents: PlaceEvents? = null,
+    /** Укриття поруч і комендантська міста. Null — не питали, збій або подію не видно. */
+    val safety: EventSafety? = null,
     /**
      * Сама подія ще в дорозі. Поки так, порожній [event] — не «подія недоступна», а спінер.
      * Власний прапорець: `map.loading` про мапу, а не про деталі.
      */
     val loading: Boolean = false
-)
+) {
+    /** Рядок «до комендантської» для відкритої події; null — не вечір, нема даних міста чи подія минула. */
+    fun curfewNote(now: Instant): CurfewNote? = event?.let { CurfewRules.note(it, safety?.curfew, now) }
+}
 
 /** Події закладу [placeId] з `place_events`, від найближчої. */
 data class PlaceEvents(val placeId: String, val events: List<Event>)

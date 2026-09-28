@@ -40,6 +40,9 @@ interface EventDiscovery {
     /** Майбутні події закладу від найближчої, тими самими картками, що [cards]. */
     suspend fun placeEvents(placeId: String): List<Event>
 
+    /** Укриття поруч і комендантська міста для блоку «Безпека». Null — подію не видно. */
+    suspend fun safety(id: String): EventSafety?
+
     /** Скидає кеш попереднього акаунта. Викликати при зміні користувача. */
     fun clearPrivateCache()
 }

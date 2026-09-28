@@ -54,9 +54,10 @@ fun Context.writeEmail(address: String): Boolean {
 }
 
 /** Маршрут будує системна мапа. */
-fun Context.openInMaps(event: Event): Boolean {
-    val label = Uri.encode(event.title)
-    val uri = Uri.parse("geo:${event.latitude},${event.longitude}?q=${event.latitude},${event.longitude}($label)")
+fun Context.openInMaps(event: Event): Boolean = openInMaps(event.latitude, event.longitude, event.title)
+
+fun Context.openInMaps(latitude: Double, longitude: Double, label: String): Boolean {
+    val uri = Uri.parse("geo:$latitude,$longitude?q=$latitude,$longitude(${Uri.encode(label)})")
     return runCatching { startActivity(Intent(Intent.ACTION_VIEW, uri)) }.isSuccess
 }
 

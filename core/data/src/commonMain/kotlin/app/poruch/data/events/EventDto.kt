@@ -9,6 +9,10 @@ import app.poruch.domain.ImportStatus
 import app.poruch.domain.Listing
 import app.poruch.domain.Membership
 import app.poruch.domain.Place
+import app.poruch.domain.Curfew
+import app.poruch.domain.EventSafety
+import app.poruch.domain.Shelter
+import app.poruch.domain.ShelterKind
 import app.poruch.domain.SafetyRules
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerialName
@@ -100,6 +104,28 @@ internal data class EventDto(
         )
     }
 }
+
+/** Відповідь `event_safety`. */
+@Serializable
+internal data class SafetyDto(val shelters: List<ShelterDto> = emptyList(), val curfew: CurfewDto? = null) {
+    fun domain() = EventSafety(shelters.map { it.domain() }, curfew?.let { Curfew(it.starts, it.ends) })
+}
+
+@Serializable
+internal data class ShelterDto(
+    val kind: String? = null,
+    val address: String,
+    @SerialName("distance_m") val distanceMeters: Int,
+    val accessible: Boolean = false,
+    val hours: String? = null,
+    val latitude: Double,
+    val longitude: Double
+) {
+    fun domain() = Shelter(ShelterKind.fromKey(kind), address, distanceMeters, accessible, hours, latitude, longitude)
+}
+
+@Serializable
+internal data class CurfewDto(val starts: String, val ends: String)
 
 /** Елемент відповіді `search_places`. */
 @Serializable

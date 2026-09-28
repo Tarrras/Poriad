@@ -116,6 +116,12 @@ internal class UserLibrary(
                 try { participation.ratings(id) } catch (e: CancellationException) { throw e } catch (e: Exception) { emptyList() }
             } else emptyList()
             if (openEventId == id) detail { copy(ratings = ratings) }
+            // Укриття поруч і комендантська для блоку «Безпека». Останнім: він під згином екрана,
+            // а збій лише ховає блок.
+            if (full) {
+                val safety = optional { events.safety(id) }
+                if (openEventId == id) detail { copy(safety = safety) }
+            }
         }
     }
 
