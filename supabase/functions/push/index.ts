@@ -1,5 +1,6 @@
-// Edge Function `push`: тригери бази кличуть її на нове повідомлення в чаті й новий запит на
-// участь чи приєднання до відкритої події. Вона вирішує, кому слати, бере токени й шле у FCM (Android) і APNs (iOS).
+// Edge Function `push`: тригери бази кличуть її на нове повідомлення в чаті, новий запит на
+// участь чи приєднання до відкритої події, на скасування й перенесення події (docs/event-change-push.md).
+// Вона вирішує, кому слати, бере токени й шле у FCM (Android) і APNs (iOS).
 //
 // Секрети функції (`supabase secrets set …`):
 //   PUSH_SECRET           — той самий рядок, що у Vault як push_function_secret
@@ -14,9 +15,13 @@ import * as jose from "npm:jose@5";
 
 type Payload =
   | { type: "message"; message_id: string; event_id: string }
-  | { type: "request" | "joined"; event_id: string; user_id: string };
+  | { type: "request" | "joined"; event_id: string; user_id: string }
+  | { type: "event"; kind: EventKind; event_id: string };
 
-type Push = { kind: "chat" | "request" | "joined"; eventId: string; title: string; body: string; key: string };
+type EventKind = "moved" | "cancelled";
+const EVENT_KINDS: readonly string[] = ["moved", "cancelled"];
+
+type Push = { kind: "chat" | "request" | "joined" | EventKind; eventId: string; title: string; body: string; key: string };
 type Token = { token: string; platform: "android" | "ios" };
 
 const PREVIEW = 120;
@@ -35,7 +40,8 @@ Deno.serve(async (req) => {
   if (!isPayload(payload)) return json({ error: "bad payload" }, 400);
   const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-  const { push, recipients } = payload.type === "message" ? await forMessage(db, payload) : await forRequest(db, payload);
+  const { push, recipients } = payload.type === "message" ? await forMessage(db, payload)
+    : payload.type === "event" ? await forEvent(db, payload) : await forRequest(db, payload);
   if (!push || recipients.length === 0) return json({ sent: 0, reason: "no recipients" });
 
   const { data: tokens } = await db.from("push_tokens").select("token,platform").in("user_id", recipients);
@@ -104,6 +110,27 @@ async function forRequest(db: ReturnType<typeof createClient>, p: Extract<Payloa
   };
 }
 
+// Скасування й перенесення: підтверджені учасники, крім організатора й тих, хто заблокований з ним
+// у будь-який бік.
+async function forEvent(db: ReturnType<typeof createClient>, p: Extract<Payload, { type: "event" }>) {
+  const { data: e } = await db.from("events").select("id,title,organizer_id,status,starts_at,time_zone").eq("id", p.event_id).maybeSingle();
+  if (!e || !e.organizer_id || e.status !== (p.kind === "cancelled" ? "cancelled" : "published")) return { push: null, recipients: [] };
+  const { data: members } = await db.from("event_members").select("user_id").eq("event_id", e.id).eq("status", "approved");
+  const people = (members ?? []).map((r) => r.user_id as string).filter((id) => id !== e.organizer_id);
+  const recipients = await withoutBlocked(db, people, e.organizer_id as string);
+  const body = {
+    moved: `Перенесено на ${when(e.starts_at as string, e.time_zone as string)}`,
+    cancelled: "Подію скасовано",
+  }[p.kind];
+  // Ключ з часом: друге перенесення — нове сповіщення, а не тиха заміна першого.
+  return { push: { kind: p.kind, eventId: e.id as string, title: e.title as string, body, key: `${e.id}:${p.kind}:${Date.now()}` }, recipients };
+}
+
+function when(iso: string, zone: string): string {
+  const opts: Intl.DateTimeFormatOptions = { weekday: "short", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" };
+  try { return new Date(iso).toLocaleString("uk-UA", { ...opts, timeZone: zone }); } catch { return new Date(iso).toLocaleString("uk-UA", opts); }
+}
+
 async function withoutBlocked(db: ReturnType<typeof createClient>, people: string[], other: string): Promise<string[]> {
   if (people.length === 0) return [];
   const { data: blocks } = await db.from("user_blocks").select("user_id,blocked_id")
@@ -133,6 +160,7 @@ function isPayload(p: unknown): p is Payload {
   const o = p as Record<string, unknown>;
   if (o.type === "message") return typeof o.message_id === "string" && UUID.test(o.message_id) && typeof o.event_id === "string" && UUID.test(o.event_id);
   if (o.type === "request" || o.type === "joined") return typeof o.event_id === "string" && UUID.test(o.event_id) && typeof o.user_id === "string" && UUID.test(o.user_id);
+  if (o.type === "event") return typeof o.kind === "string" && EVENT_KINDS.includes(o.kind) && typeof o.event_id === "string" && UUID.test(o.event_id);
   return false;
 }
 
@@ -223,7 +251,8 @@ async function sendApns(token: string, push: Push): Promise<boolean | "stale"> {
       "apns-topic": auth.topic,
       "apns-push-type": "alert",
       "apns-priority": "10",
-      "apns-collapse-id": push.eventId.slice(0, 64),
+      // Зміна події — окрема група: повідомлення чату не має витіснити «подію скасовано».
+      "apns-collapse-id": EVENT_KINDS.includes(push.kind) ? `${push.eventId}:state` : push.eventId,
     },
     body: JSON.stringify({
       aps: { alert: { title: push.title, body: push.body }, sound: "default", "thread-id": push.eventId },

@@ -52,6 +52,7 @@ class PushService : FirebaseMessagingService() {
             }
             "request" -> RequestNotificationCenter(this).notify(listOf(RequestAlert(eventId, title, 1)))
             "joined" -> RequestNotificationCenter(this).notifyJoined(eventId, title, body)
+            "moved", "cancelled" -> RequestNotificationCenter(this).notifyEventChange(eventId, title, body)
         }
         app.pushReceived(kind, data["key"].orEmpty())
     }

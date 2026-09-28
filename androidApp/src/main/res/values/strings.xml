@@ -406,6 +406,7 @@
     <item quantity="other">%1$d запитів</item>
   </plurals>
   <string name="request_notification_channel">Запити на участь</string>
+  <string name="event_change_notification_channel">Скасування й перенесення подій</string>
   <plurals name="digest_count">
     <item quantity="one">%1$d подія</item>
     <item quantity="few">%1$d події</item>

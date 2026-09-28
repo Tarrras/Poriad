@@ -232,25 +232,30 @@ class RequestNotificationCenter(context: Context) : RequestNotifier {
     /** Хтось приєднався до відкритої події: той самий канал і тап на подію, свій простір id. */
     fun notifyJoined(eventId: String, eventTitle: String, text: String) = post(JOINED_TAG, eventId, eventTitle, text)
 
-    private fun post(tag: String, eventId: String, title: String, text: String) {
+    /**
+     * Подію скасовано чи перенесено — учасникам. Свій канал з високою важливістю: скасування за годину
+     * до початку має спливти, а не лежати в шторці. Одне на подію: новіша зміна замінює попередню.
+     */
+    fun notifyEventChange(eventId: String, eventTitle: String, text: String) =
+        post(CHANGE_TAG, eventId, eventTitle, text, CHANGE_CHANNEL, R.string.event_change_notification_channel, NotificationManager.IMPORTANCE_HIGH)
+
+    private fun post(
+        tag: String, eventId: String, title: String, text: String, channel: String = CHANNEL,
+        channelName: Int = R.string.request_notification_channel, importance: Int = NotificationManager.IMPORTANCE_DEFAULT
+    ) {
         if (!NotificationPermission(context).granted()) return
         val manager = context.getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(
-            NotificationChannel(
-                CHANNEL,
-                context.getString(R.string.request_notification_channel),
-                NotificationManager.IMPORTANCE_DEFAULT
-            )
-        )
+        manager.createNotificationChannel(NotificationChannel(channel, context.getString(channelName), importance))
         val open = PendingIntent.getActivity(
             context, eventId.hashCode(),
             MainActivity.open(context, eventId),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        val notification = Notification.Builder(context, CHANNEL)
+        val notification = Notification.Builder(context, channel)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
             .setContentText(text)
+            .setStyle(Notification.BigTextStyle().bigText(text))
             .setContentIntent(open).setAutoCancel(true).build()
         // Інший простір id, ніж у нагадувань: запит і нагадування про ту саму подію — два сповіщення.
         manager.notify(tag, eventId.hashCode(), notification)
@@ -260,6 +265,8 @@ class RequestNotificationCenter(context: Context) : RequestNotifier {
         const val CHANNEL = "join_requests"
         const val TAG = "request"
         const val JOINED_TAG = "joined"
+        const val CHANGE_CHANNEL = "event_changes"
+        const val CHANGE_TAG = "change"
     }
 }
 
