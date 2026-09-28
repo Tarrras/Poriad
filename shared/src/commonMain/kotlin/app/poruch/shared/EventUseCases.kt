@@ -6,6 +6,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -36,11 +37,16 @@ internal class EventUseCases(
 
     fun join(id: String) = store.mutate {
         PoruchLog.i("action") { "joinEvent ${id.shortId()}" }
+        // Супутник — з картки на сторінці афіші або зі своєї сторінки. Завжди за запитом.
+        val fromCard = store.value.detail.companions?.any { it.id == id } == true
+        val companion = fromCard || store.value.detail.event?.takeIf { it.id == id }?.gathering?.companionOf != null
         // Подія з підтвердженням відповідає запитом, а не місцем, тож і повідомлення інше.
-        val byRequest = (store.value.detail.event?.takeIf { it.id == id }
+        val byRequest = fromCard || (store.value.detail.event?.takeIf { it.id == id }
             ?: store.value.map.events.firstOrNull { it.id == id })?.gathering?.approvalRequired == true
         actions.join(id); reloader.changed(id)
+        if (fromCard) library.refreshCompanions()
         PoruchAnalytics.track("event_join", "by_request" to byRequest)
+        if (companion) PoruchAnalytics.track("companion_join")
         store.tell(if (byRequest) AppMessage.REQUEST_SENT else AppMessage.JOINED_EVENT)
     }
 
@@ -115,6 +121,21 @@ internal class EventUseCases(
                 completedEventId = created
             )
         }
+    }
+
+    /**
+     * Супутник «Йдемо разом» на відкриту афішу [parentId]. Після успіху — [AppState.createdCompanion]:
+     * платформа відкриває «Поділитися», бо без поширення пошук компанії нікого не знайде.
+     */
+    fun createCompanion(parentId: String, meetAt: String, note: String?, capacity: Int) = store.mutate {
+        val parent = store.value.detail.event?.takeIf { it.id == parentId } ?: fail(AppError.EventUnavailable)
+        val invalid = CompanionRules.validate(parent.startsAt, meetAt, note, capacity, Clock.System.now())
+        if (invalid.isNotEmpty()) fail(AppError.InvalidDraft(invalid))
+        PoruchLog.i("action") { "createCompanion for ${parentId.shortId()} capacity=$capacity" }
+        val id = authoring.createCompanion(parentId, meetAt, note?.trim()?.ifEmpty { null }, capacity)
+        PoruchAnalytics.track("companion_create", "category" to parent.category.key, "capacity" to capacity)
+        reloader.changed(id, index = true); library.refreshCompanions()
+        store.update { it.copy(createdCompanion = id) }
     }
 
     fun update(id: String, draft: EventDraft) = store.mutate {

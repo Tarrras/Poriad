@@ -21,6 +21,12 @@ internal class SupabaseEventAuthoring(
 
     override suspend fun cancel(id: String) { rpc.call("cancel_event", rpc.eventParams(id)) }
 
+    override suspend fun createCompanion(parentId: String, meetAt: String, note: String?, capacity: Int): String =
+        rpc.call("create_companion", buildJsonObject {
+            put("p_parent_id", parentId); put("p_meet_at", meetAt)
+            put("p_meet_note", note?.trim()?.ifEmpty { null }); put("p_capacity", capacity)
+        }).jsonPrimitive.content
+
     @OptIn(ExperimentalUuidApi::class)
     override suspend fun uploadImage(eventId: String, bytes: ByteArray, contentType: String): String {
         // Тип і розмір перевіряємо до завантаження, щоб не ганяти трафік дарма.

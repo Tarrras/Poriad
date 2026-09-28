@@ -73,6 +73,10 @@ class DetailViewModel(
                 nearbyFrom = shared.detail.placeEvents
             }
             if (event != null) shown = true
+            // Супутник створено: «Поділитися» один раз, прапорець гасимо в сторі.
+            shared.createdCompanion?.let { created ->
+                if (event != null) { app.clearCreatedCompanion(); send(DetailEffect.ShareCompanion(event, created)) }
+            }
             val now = Clock.System.now()
             copy(
                 event = event,
@@ -99,7 +103,9 @@ class DetailViewModel(
                 userId = shared.session.userId,
                 organizerAvatar = shared.detail.organizerAvatar,
                 safety = shared.detail.safety,
-                curfew = shared.detail.curfewNote(now)
+                curfew = shared.detail.curfewNote(now),
+                companions = if (event != null) shared.detail.companions.orEmpty() else emptyList(),
+                canSeekCompany = event != null && shared.detail.canSeekCompany(now)
             )
         }
     }
@@ -158,6 +164,13 @@ class DetailViewModel(
             DetailIntent.OpenMap -> send(DetailEffect.OpenMap(app.cardIdOf(eventId)))
             is DetailIntent.OpenEvent -> send(DetailEffect.OpenEvent(intent.id))
             is DetailIntent.OpenShelter -> send(DetailEffect.OpenShelter(intent.shelter))
+            is DetailIntent.SeekCompany -> if (intent.open) authenticated { reduce { copy(seekingCompany = true) } }
+                else reduce { copy(seekingCompany = false) }
+            is DetailIntent.CreateCompanion -> {
+                reduce { copy(seekingCompany = false) }
+                app.createCompanion(eventId, intent.meetAt, intent.note, intent.capacity)
+            }
+            is DetailIntent.JoinCompanion -> authenticated { app.joinEvent(intent.id); offerReminders() }
             DetailIntent.Reopen -> if (shown && event == null) app.openEvent(eventId)
             DetailIntent.Edit -> send(DetailEffect.Edit(eventId))
             is DetailIntent.ConfirmCancel -> reduce { copy(confirmingCancel = intent.open) }

@@ -38,6 +38,10 @@ struct EventDetailView: View {
     @State private var showAllPeople = false
     /// Картка людини відкрита з цього екрана. Див. `personSheet`.
     @State private var showingPerson = false
+    /// Шторка «Шукаю компанію».
+    @State private var seekingCompany = false
+    /// «Поділитися» щойно створеним супутником.
+    @State private var sharingCompanion: ShareText?
     @Environment(\.openMap) private var openMap
 
     /// Id відкритої події від того, хто відкриває, а не зі стану: див. `.task` нижче.
@@ -105,6 +109,14 @@ struct EventDetailView: View {
             if userId == view.event?.organizerId { dismiss() }
         })
         .onDisappear { model.app.closePerson() }
+        // Супутник створено: «Поділитися» з посиланням на нього, бо без поширення компанію не знайти.
+        .onChange(of: model.state?.createdCompanion) { _, created in
+            guard let created, let event = view.event else { return }
+            model.app.clearCreatedCompanion()
+            sharingCompanion = ShareText(text: "Шукаю компанію на \(event.title), \(eventDate(event))\n\(EventLinks.shared.url(eventId: created))")
+        }
+        .sheet(item: $sharingCompanion) { share in ActivitySheet(items: [share.text]).presentationDetents([.medium, .large]) }
+        .sheet(isPresented: $seekingCompany) { if let event = view.event { CompanionSheet(event: event) } }
     }
 
     @ViewBuilder
@@ -114,7 +126,7 @@ struct EventDetailView: View {
                 VStack(alignment: .leading, spacing: Space.xl) {
                     hero(event, view)
                     sections(event, view).padding(.horizontal, Space.page)
-                }.padding(.bottom, 140)
+                }.padding(.bottom, view.canSeekCompany ? 210 : 140)
                 .reportsScrollOffset(in: detailScrollSpace, to: $offset)
             }
             .coordinateSpace(name: detailScrollSpace)
@@ -156,9 +168,25 @@ struct EventDetailView: View {
     private func sections(_ event: Event, _ view: EventDetailPresentation) -> some View {
         VStack(alignment: .leading, spacing: Space.lg) {
             if let room = view.room, room.hasAgeLimit || room.approvalRequired { restrictions(room) }
+            if let parent = view.companionOf {
+                NavigationLink(value: EventRoute(id: parent.id)) {
+                    HStack(spacing: Space.md) {
+                        Image(systemName: "person.2").font(.system(size: 17, weight: .medium)).foregroundStyle(Palette.ink)
+                            .frame(width: 40, height: 40).background(Palette.surfaceMuted, in: RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
+                        Text("Разом на: \(parent.title)").font(PoruchFont.cardName).kerning(-0.2).foregroundStyle(Palette.ink)
+                            .multilineTextAlignment(.leading).lineLimit(2)
+                        Spacer(minLength: Space.sm)
+                        Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold)).foregroundStyle(Palette.inkTertiary)
+                    }
+                    .padding(Space.lg).contentShape(Rectangle())
+                }
+                .buttonStyle(PressableStyle(pressedScale: 1)).cardSurface()
+                .accessibilityElement(children: .combine)
+            }
             externalActions(event, view)
             if sessions.count > 1 { sessionRail(event) }
             facts(event)
+            if !view.companions.isEmpty && !view.cancelled { companionsSection(view) }
             if let room = view.room { people(room, view) }
             venue(event)
             if !view.cancelled && !view.ended { safety() }
@@ -678,46 +706,204 @@ extension EventDetailView {
     private func organizerActions(_ view: EventDetailPresentation) -> some View {
         VStack(alignment: .leading, spacing: Space.md) {
             Divider().overlay(Palette.hairline)
-            PhotosPicker(selection: $photo, matching: .images) {
-                Label("Додати або замінити фото", systemImage: "camera")
-                    .font(PoruchFont.subhead.weight(.semibold)).foregroundStyle(Palette.ink)
-                    .frame(maxWidth: .infinity).frame(minHeight: 52)
-                    .background(Palette.brandContainer, in: Capsule())
-            }.disabled(view.mutating)
+            // Час, місце й місткість супутника тримає сервер: лишається скасувати.
+            if view.companionOf == nil {
+                PhotosPicker(selection: $photo, matching: .images) {
+                    Label("Додати або замінити фото", systemImage: "camera")
+                        .font(PoruchFont.subhead.weight(.semibold)).foregroundStyle(Palette.ink)
+                        .frame(maxWidth: .infinity).frame(minHeight: 52)
+                        .background(Palette.brandContainer, in: Capsule())
+                }.disabled(view.mutating)
+            }
             if let error = actions.photoError {
                 Text(error).font(PoruchFont.caption).foregroundStyle(Palette.danger)
             }
             HStack(spacing: Space.md) {
-                SecondaryButton(title: "Редагувати", symbol: "pencil") { editing = true }
+                if view.companionOf == nil { SecondaryButton(title: "Редагувати", symbol: "pencil") { editing = true } }
                 SecondaryButton(title: "Скасувати", symbol: "xmark", tone: Palette.danger) { cancelling = true }
             }
         }
     }
 
     private func stickyBar(_ event: Event, _ view: EventDetailPresentation) -> some View {
-        HStack(spacing: Space.md) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(eventOverline(event)).font(PoruchFont.overline).kerning(1.2)
-                    .foregroundStyle(Palette.inkTertiary).lineLimit(1)
-                Text(view.seatsSummary).font(PoruchFont.subhead)
-                    .foregroundStyle(view.cancelled ? Palette.danger : Palette.inkSecondary).lineLimit(2)
+        VStack(spacing: Space.md) {
+            HStack(spacing: Space.md) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(eventOverline(event)).font(PoruchFont.overline).kerning(1.2)
+                        .foregroundStyle(Palette.inkTertiary).lineLimit(1)
+                    Text(view.seatsSummary).font(PoruchFont.subhead)
+                        .foregroundStyle(view.cancelled ? Palette.danger : Palette.inkSecondary).lineLimit(2)
+                }
+                Spacer(minLength: 0)
+                // Кнопки може не бути: у знятої афіші й афіші без посилання нема куди вести.
+                if view.action != .none {
+                    primaryAction(event, view).fixedSize(horizontal: true, vertical: false)
+                }
             }
-            Spacer(minLength: 0)
-            // Кнопки може не бути: у знятої афіші й афіші без посилання нема куди вести.
-            if view.action != .none {
-                PrimaryButton(
-                    title: view.action.title,
-                    tone: view.action == .leave ? Palette.success : view.action == .leaveWaitlist ? Palette.accent : nil,
-                    loading: view.mutating,
-                    enabled: view.action.isEnabled && !view.mutating
-                ) {
-                    if !actions.perform(view.action, on: event, signedIn: view.signedIn) { auth = true }
-                }.fixedSize(horizontal: true, vertical: false)
+            // «Шукаю компанію» під квитком на всю ширину: поруч із ціною й квитком не влазить.
+            if view.canSeekCompany {
+                SecondaryButton(title: "Шукаю компанію", symbol: "person.2", enabled: !view.mutating) {
+                    if view.signedIn { seekingCompany = true } else { auth = true }
+                }
             }
         }
         .padding(.horizontal, Space.page).padding(.vertical, Space.md)
         .background(Palette.surface.ignoresSafeArea(edges: .bottom))
         .overlay(alignment: .top) { Rectangle().fill(Palette.hairline).frame(height: 1) }
+    }
+}
+
+extension EventDetailView {
+    private func primaryAction(_ event: Event, _ view: EventDetailPresentation) -> some View {
+        PrimaryButton(
+            title: view.action.title,
+            tone: view.action == .leave ? Palette.success : view.action == .leaveWaitlist ? Palette.accent : nil,
+            loading: view.mutating,
+            enabled: view.action.isEnabled && !view.mutating
+        ) {
+            if !actions.perform(view.action, on: event, signedIn: view.signedIn) { auth = true }
+        }
+    }
+
+    /// Хто вже шукає компанію на цю афішу. Без імен: організатора видно на сторінці супутника, туди
+    /// й веде рядок. «Долучитися» — запит організатору прямо звідси.
+    private func companionsSection(_ view: EventDetailPresentation) -> some View {
+        VStack(alignment: .leading, spacing: Space.sm) {
+            SectionHeader(title: "Шукають компанію")
+            VStack(spacing: 0) {
+                ForEach(Array(view.companions.enumerated()), id: \.element.id) { index, card in
+                    if index > 0 { Divider().overlay(Palette.hairline) }
+                    let label = sessionLabel(EventSession(id: card.id, startsAt: card.meetAt, timeZone: card.timeZone, cancelled: false))
+                    HStack(spacing: Space.md) {
+                        NavigationLink(value: EventRoute(id: card.id)) {
+                            VStack(alignment: .leading, spacing: Space.xs) {
+                                Text("\(label.day) · \(label.hour)").font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
+                                Text(card.meetNote ?? "Місце зустрічі").font(PoruchFont.cardName).kerning(-0.2).foregroundStyle(Palette.ink)
+                                    .multilineTextAlignment(.leading).lineLimit(2)
+                                Text("\(card.attendeeCount) з \(card.capacity)").font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
+                        }
+                        .buttonStyle(PressableStyle(pressedScale: 1))
+                        .accessibilityElement(children: .combine)
+                        if card.mine { StatusBadge(text: "Ваш пошук", tone: .brand) }
+                        else if card.membership == .approved { StatusBadge(text: "Ви йдете", tone: .success, symbol: "checkmark") }
+                        else if card.membership == .requested { StatusBadge(text: "Запит надіслано", tone: .accent, symbol: "hourglass") }
+                        else if card.isFull { StatusBadge(text: "Місць немає") }
+                        else {
+                            SecondaryButton(title: "Долучитися", enabled: !view.mutating) {
+                                if !actions.joinCompanion(id: card.id, signedIn: view.signedIn) { auth = true }
+                            }.fixedSize()
+                        }
+                    }
+                    .padding(.horizontal, Space.lg).padding(.vertical, Space.md)
+                }
+            }
+            .cardSurface()
+        }
+    }
+}
+
+/// Текст для системного «Поділитися», відкритого не кнопкою, а подією стану.
+struct ShareText: Identifiable {
+    let text: String
+    var id: String { text }
+}
+
+/// Системний аркуш «Поділитися». `ShareLink` — лише кнопка, а тут його відкриває створення супутника.
+struct ActivitySheet: UIViewControllerRepresentable {
+    let items: [Any]
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+    func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
+}
+
+/// Коротка шторка замість повного редактора: лише час зустрічі, де зустрітись і скільки людей.
+/// Назву, місце й кінець сервер бере з афіші.
+struct CompanionSheet: View {
+    @EnvironmentObject var model: AppModel
+    @Environment(\.dismiss) private var dismiss
+    let event: Event
+    private let times: [String]
+    @State private var at: Int
+    @State private var note = ""
+    @State private var capacity = Int(CompanionRules.shared.DEFAULT_CAPACITY)
+
+    init(event: Event) {
+        self.event = event
+        let now = nowInstant()
+        let times = CompanionRules.shared.meetTimes(startsAt: event.startsAt, now: now)
+        let fallback = CompanionRules.shared.defaultMeetAt(startsAt: event.startsAt, now: now)
+        self.times = times
+        _at = State(initialValue: fallback.flatMap { times.firstIndex(of: $0) } ?? 0)
+    }
+
+    private var mutating: Bool { model.state?.mutating == true }
+    private var meetAt: String? { times.indices.contains(at) ? times[at] : nil }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: Space.lg) {
+                Text("Шукаю компанію").font(PoruchFont.title2).foregroundStyle(Palette.ink)
+                Text(event.title).font(PoruchFont.cardName).foregroundStyle(Palette.inkSecondary).lineLimit(2)
+                Text("Зберіть невелику компанію й ідіть разом. Хто хоче долучитися, надсилає запит — ви вирішуєте, кого взяти. Лише 18+.")
+                    .font(PoruchFont.bodyText).foregroundStyle(Palette.inkSecondary)
+                if let meetAt {
+                    let lead = (times.count - 1 - at) * Int(CompanionRules.shared.STEP_MINUTES)
+                    stepper("Час зустрічі", value: sessionLabel(EventSession(id: event.id, startsAt: meetAt, timeZone: event.timeZone, cancelled: false)).hour,
+                            caption: lead == 0 ? "На початку" : "За \(leadWords(lead)) до початку",
+                            minus: ("Раніше", at > 0, { at -= 1 }), plus: ("Пізніше", at < times.count - 1, { at += 1 }))
+                }
+                LabelledField(label: "Де зустрітись", text: $note, placeholder: "Біля головного входу")
+                    .onChange(of: note) { _, value in
+                        let limit = Int(CompanionRules.shared.NOTE_MAX)
+                        if value.count > limit { note = String(value.prefix(limit)) }
+                    }
+                stepper("Скільки людей шукаєте", value: "\(capacity)", caption: nil,
+                        minus: ("Менше", capacity > Int(CompanionRules.shared.MIN_CAPACITY), { capacity -= 1 }),
+                        plus: ("Більше", capacity < Int(CompanionRules.shared.MAX_CAPACITY), { capacity += 1 }))
+                PrimaryButton(title: "Опублікувати й поділитися", symbol: "square.and.arrow.up", loading: mutating,
+                              enabled: meetAt != nil && !mutating) {
+                    guard let meetAt else { return }
+                    model.app.createCompanion(parentId: event.id, meetAt: meetAt, note: note, capacity: Int32(capacity))
+                    dismiss()
+                }
+            }
+            .padding(Space.page)
+        }
+        .background(Palette.canvas)
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+    }
+
+    private func leadWords(_ minutes: Int) -> String {
+        let hours = minutes / 60, rest = minutes % 60
+        if hours == 0 { return "\(rest) хв" }
+        return rest == 0 ? "\(hours) год" : "\(hours) год \(rest) хв"
+    }
+
+    /// Значення з кнопками «−» і «+». Підписи кнопок — для VoiceOver.
+    private func stepper(_ label: String, value: String, caption: String?,
+                         minus: (String, Bool, () -> Void), plus: (String, Bool, () -> Void)) -> some View {
+        HStack(spacing: Space.md) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(label.uppercased()).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
+                Text(value).font(PoruchFont.title2).foregroundStyle(Palette.ink).monospacedDigit()
+                if let caption { Text(caption).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary) }
+            }
+            Spacer(minLength: 0)
+            ForEach([(minus, "minus"), (plus, "plus")], id: \.1) { step, symbol in
+                Button(action: step.2) {
+                    Image(systemName: symbol).font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(step.1 ? Palette.ink : Palette.inkTertiary)
+                        .frame(width: 44, height: 44).background(Palette.surfaceMuted, in: Circle())
+                }
+                .buttonStyle(PressableStyle()).disabled(!step.1).accessibilityLabel(step.0)
+            }
+        }
+        .padding(.horizontal, Space.lg).padding(.vertical, Space.md)
+        .cardSurface()
     }
 }
 

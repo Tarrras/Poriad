@@ -72,7 +72,13 @@ private val SERVER_ERRORS: Map<String, AppError> = mapOf(
     "CAPACITY_BELOW_ATTENDANCE" to AppError.CapacityBelowAttendance,
     "EVENT_CANCELLED" to AppError.EventCancelled,
     "EVENT_NOT_FOUND" to AppError.EventUnavailable,
-    "NOT_ORGANIZER" to AppError.NotOwner
+    "NOT_ORGANIZER" to AppError.NotOwner,
+    // Супутник «Йдемо разом»: афіша вже почалась чи знята, форма поза правилами CompanionRules.
+    "COMPANION_UNAVAILABLE" to AppError.EventUnavailable,
+    "COMPANION_LOCKED" to AppError.Rejected,
+    "INVALID_MEET_TIME" to AppError.InvalidDraft(listOf(DraftField.STARTS_AT)),
+    "INVALID_CAPACITY" to AppError.InvalidDraft(listOf(DraftField.CAPACITY)),
+    "INVALID_MEET_NOTE" to AppError.InvalidDraft(listOf(DraftField.DESCRIPTION))
 )
 
 /** `error_code` GoTrue. */

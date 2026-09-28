@@ -1,6 +1,7 @@
 package app.poruch.android.feature.detail
 
 import app.poruch.domain.Attendee
+import app.poruch.domain.CompanionCard
 import app.poruch.domain.CurfewNote
 import app.poruch.domain.EventSafety
 import app.poruch.domain.Shelter
@@ -53,8 +54,17 @@ data class DetailState(
     /** Укриття поруч і комендантська міста; null — не завантажилось або даних нема. */
     val safety: EventSafety? = null,
     /** Рядок «до комендантської»; null — не вечір або міста нема в довіднику. */
-    val curfew: CurfewNote? = null
+    val curfew: CurfewNote? = null,
+    /** Хто шукає компанію на цю афішу: картки супутників без імен. */
+    val companions: List<CompanionCard> = emptyList(),
+    /** Кнопка «Шукаю компанію»: афіша ще попереду, мого пошуку на неї нема. */
+    val canSeekCompany: Boolean = false,
+    /** Відкрита шторка створення супутника. */
+    val seekingCompany: Boolean = false
 ) {
+    /** Супутник «Йдемо разом»: час і місце тримає сервер, редагувати нема чого. */
+    val companionOf get() = room?.companionOf
+
     val myRating get() = ratings.firstOrNull { it.mine }
 
     val cancelled get() = event?.isCancelled == true
@@ -127,6 +137,12 @@ sealed interface DetailIntent {
     data class OpenEvent(val id: String) : DetailIntent
     /** Маршрут до укриття в системних мапах. */
     data class OpenShelter(val shelter: Shelter) : DetailIntent
+    /** «Шукаю компанію»: шторка створення супутника. Гостя веде на вхід. */
+    data class SeekCompany(val open: Boolean) : DetailIntent
+    /** [meetAt] — з [app.poruch.domain.CompanionRules.meetTimes]. */
+    data class CreateCompanion(val meetAt: String, val note: String, val capacity: Int) : DetailIntent
+    /** Запит у чужий супутник прямо з картки. */
+    data class JoinCompanion(val id: String) : DetailIntent
     /** Екран знову зверху після іншого екрана деталей: той перебрав єдиний слот відкритої події. */
     data object Reopen : DetailIntent
     data object PrimaryAction : DetailIntent
@@ -177,6 +193,8 @@ sealed interface DetailEffect {
     data class OpenCalendar(val event: Event) : DetailEffect
     data class OpenMaps(val event: Event) : DetailEffect
     data class OpenShelter(val shelter: Shelter) : DetailEffect
+    /** Супутник створено: «Поділитися» з посиланням на нього і назвою афіші. */
+    data class ShareCompanion(val parent: Event, val companionId: String) : DetailEffect
     /** Сторінка джерела афіші в браузері. */
     data class OpenLink(val url: String) : DetailEffect
     /** Наша власна мапа, наведена на цю подію. */

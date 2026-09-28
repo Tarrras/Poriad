@@ -35,6 +35,8 @@ data class AppState(
     val mutating: Boolean = false,
     val notice: AppNotice? = null,
     val completedEventId: String? = null,
+    /** Щойно створений супутник «Йдемо разом»: платформа відкриває «Поділитися» і кличе [PoruchApp.clearCreatedCompanion]. */
+    val createdCompanion: String? = null,
     /** Відкритий чат події. Null — екран чату закрито, і опитування зупинено. */
     val chat: ChatState? = null,
     /** Події з непрочитаними повідомленнями, свіжіші першими. Бейджі й секція на головній. */
@@ -131,6 +133,8 @@ data class DetailState(
     val placeEvents: PlaceEvents? = null,
     /** Укриття поруч і комендантська міста. Null — не питали, збій або подію не видно. */
     val safety: EventSafety? = null,
+    /** Хто шукає компанію на відкриту афішу. Null — не афіша, не питали або збій. */
+    val companions: List<CompanionCard>? = null,
     /**
      * Сама подія ще в дорозі. Поки так, порожній [event] — не «подія недоступна», а спінер.
      * Власний прапорець: `map.loading` про мапу, а не про деталі.
@@ -139,6 +143,10 @@ data class DetailState(
 ) {
     /** Рядок «до комендантської» для відкритої події; null — не вечір, нема даних міста чи подія минула. */
     fun curfewNote(now: Instant): CurfewNote? = event?.let { CurfewRules.note(it, safety?.curfew, now) }
+
+    /** Кнопка «Шукаю компанію»: афіша ще попереду, а мого пошуку на неї ще нема. */
+    fun canSeekCompany(now: Instant): Boolean =
+        event?.let { CompanionRules.canOffer(it, now) } == true && companions.orEmpty().none { it.mine }
 }
 
 /** Події закладу [placeId] з `place_events`, від найближчої. */
@@ -196,5 +204,6 @@ internal fun AppState.forAccount(uid: String?): AppState = copy(
     library = LibraryState(),
     chatUnread = emptyList(),
     person = null,
-    completedEventId = null
+    completedEventId = null,
+    createdCompanion = null
 ).materialized()

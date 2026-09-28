@@ -29,6 +29,16 @@ fun Context.shareEvent(event: Event) {
     KoinJavaComponent.get<PoruchApp>(PoruchApp::class.java).eventShared()
 }
 
+/** Пошук компанії щойно створено: «Шукаю компанію на …» з посиланням на супутник, а не на афішу. */
+fun Context.shareCompanion(parent: Event, companionId: String) {
+    val text = getString(R.string.companion_share_text, parent.title, eventTime(parent, dateWords()), EventLinks.url(companionId))
+    val intent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_TEXT, text)
+    }
+    startActivity(Intent.createChooser(intent, getString(R.string.companion_share_chooser)))
+}
+
 /** Копія в системному календарі переживає наші локальні сповіщення. */
 fun Context.addToCalendar(event: Event): Boolean {
     val start = runCatching { Instant.parse(event.startsAt).toEpochMilli() }.getOrNull() ?: return false

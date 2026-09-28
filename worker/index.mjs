@@ -59,6 +59,8 @@ export function eventPage(e, now, shelters = []) {
   const past = new Date(e.ends_at || e.starts_at) < now;
   const image = httpsOrNull(e.image_url);
   const ticketUrl = imported ? httpsOrNull(e.canonical_url) : null;
+  // Супутник «Йдемо разом»: посилання на афішу, на яку йдуть. UUID перевіряємо — рядок з бази йде в href.
+  const parent = UUID.test(e.companion_of ?? "") ? { id: e.companion_of, title: e.companion_of_title || "подію" } : null;
 
   const facts = [
     price(e),
@@ -82,6 +84,7 @@ ${notice ? `<p class="notice">${notice}</p>` : ""}
 <article class="card event">
   ${image ? `<img class="cover" src="${esc(image)}" alt="">` : ""}
   <h1>${esc(e.title)}</h1>
+  ${parent ? `<p class="note">Разом на: <a href="/e/${parent.id}">${esc(parent.title)}</a></p>` : ""}
   <p class="when">${esc(when)}</p>
   <p class="where"><a href="https://maps.google.com/?q=${Number(e.latitude)},${Number(e.longitude)}">${esc(place)}</a></p>
   ${facts.length ? `<p class="facts">${facts.map(esc).join(" · ")}</p>` : ""}

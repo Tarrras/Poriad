@@ -43,6 +43,9 @@ interface EventDiscovery {
     /** Укриття поруч і комендантська міста для блоку «Безпека». Null — подію не видно. */
     suspend fun safety(id: String): EventSafety?
 
+    /** Хто шукає компанію на афішу [parentId]: картки супутників без імен, найближча зустріч першою. */
+    suspend fun companions(parentId: String): List<CompanionCard>
+
     /** Скидає кеш попереднього акаунта. Викликати при зміні користувача. */
     fun clearPrivateCache()
 }
@@ -59,6 +62,8 @@ interface EventAuthoring {
     suspend fun create(id: String, draft: EventDraft): String
     suspend fun update(id: String, draft: EventDraft): String
     suspend fun cancel(id: String)
+    /** Супутник «Йдемо разом» на афішу [parentId]. Повтор повертає вже створений. */
+    suspend fun createCompanion(parentId: String, meetAt: String, note: String?, capacity: Int): String
     suspend fun uploadImage(eventId: String, bytes: ByteArray, contentType: String): String
     /** Прибирає завантажене фото, яке так і не стало фото події. За замовчуванням нічого. */
     suspend fun deleteImage(url: String) {}

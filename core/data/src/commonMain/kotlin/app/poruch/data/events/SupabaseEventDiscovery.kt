@@ -126,6 +126,11 @@ internal class SupabaseEventDiscovery(
             .also { PoruchLog.d("detail") { "safety ${id.shortId()}: ${it.shelters.size} shelters curfew=${it.curfew != null}" } }
     }
 
+    override suspend fun companions(parentId: String): List<CompanionCard> =
+        rpc.json.decodeFromJsonElement<List<CompanionDto>>(rpc.read("companions", buildJsonObject { put("p_parent_id", parentId) }))
+            .map { it.domain() }
+            .also { PoruchLog.d("detail") { "companions for ${parentId.shortId()}: ${it.size}" } }
+
     override fun clearPrivateCache() { cache.clearPrivate() }
 
     private fun EventQuery.indexParams() = buildJsonObject {

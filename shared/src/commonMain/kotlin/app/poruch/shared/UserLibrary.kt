@@ -62,7 +62,9 @@ internal class UserLibrary(
             val shown = known ?: it.detail.event?.takeIf { open -> open.id == id || stay }
             // Інша дата того ж закладу: «Ще в цьому місці» не блимає, поки події закладу перечитуються.
             val atPlace = it.detail.placeEvents?.takeIf { place -> shown?.placeId == place.placeId }
-            it.copy(detail = DetailState(event = shown, loading = willLoad, placeEvents = atPlace))
+            // Перечитування тієї ж афіші (після запиту в супутник) не ховає секцію «Шукають компанію».
+            val companions = it.detail.companions?.takeIf { _ -> it.detail.event?.id == id }
+            it.copy(detail = DetailState(event = shown, loading = willLoad, placeEvents = atPlace, companions = companions))
         }
         if (!willLoad) {
             PoruchLog.d("detail") { "select ${id.shortId()} from memory, no request" }
@@ -88,6 +90,11 @@ internal class UserLibrary(
             if (full && placeId != null) {
                 val atPlace = optional { events.placeEvents(placeId) }
                 if (openEventId == id && atPlace != null) detail { copy(placeEvents = PlaceEvents(placeId, atPlace)) }
+            }
+            // Хто шукає компанію на цю афішу. Одразу після події: секція вище за згином, а збій лише її ховає.
+            if (full && store.value.detail.event?.takeIf { it.id == id }?.let { CompanionRules.canOffer(it, Clock.System.now()) } == true) {
+                val companions = optional { events.companions(id) }
+                if (openEventId == id) detail { copy(companions = companions) }
             }
             // Учасники — доповнення до лічильника, тож збій лишає лише число. Афішу не питаємо:
             // ростер бачать організатор і учасники (`can_view_members`), а в неї нема ні тих, ні тих.
@@ -122,6 +129,16 @@ internal class UserLibrary(
                 val safety = optional { events.safety(id) }
                 if (openEventId == id) detail { copy(safety = safety) }
             }
+        }
+    }
+
+    /** Перечитує «Шукають компанію» відкритої афіші: після створення супутника чи запиту в нього. */
+    fun refreshCompanions() {
+        val id = openEventId ?: return
+        if (store.value.detail.event?.takeIf { it.id == id }?.listing == null) return
+        scope.launch {
+            val companions = optional { events.companions(id) } ?: return@launch
+            if (openEventId == id) detail { copy(companions = companions) }
         }
     }
 

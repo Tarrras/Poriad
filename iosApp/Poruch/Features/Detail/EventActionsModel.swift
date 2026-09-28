@@ -44,6 +44,13 @@ import Shared
         }
     }
 
+    /// Запит у чужий супутник прямо з картки на сторінці афіші.
+    func joinCompanion(id: String, signedIn: Bool) -> Bool {
+        guard signedIn else { return false }
+        app.joinEvent(id: id); offerReminders()
+        return true
+    }
+
     func toggleSaved(_ event: Event, signedIn: Bool) -> Bool {
         guard signedIn else { return false }
         app.toggleSaved(id: event.id)

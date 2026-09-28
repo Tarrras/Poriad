@@ -32,5 +32,9 @@ assert.ok(!eventPage(base, now).includes("Укриття поруч"), "без �
 assert.ok(!eventPage({ ...base, status: "cancelled" }, now, shelters).includes("Укриття поруч"), "скасованій — ні");
 assert.ok(eventPage({ ...base, status: "cancelled" }, now).includes("Подію скасовано."));
 assert.ok(eventPage(base, new Date("2026-10-05T00:00:00Z")).includes("вже минула"));
+const companion = eventPage({ ...base, title: "Йдемо разом: Концерт", companion_of: "b2000000-0000-4000-8000-000000000001", companion_of_title: "Концерт <b>" }, now);
+assert.ok(companion.includes('Разом на: <a href="/e/b2000000-0000-4000-8000-000000000001">Концерт &lt;b&gt;</a>'), "супутник веде на афішу");
+assert.ok(!eventPage({ ...base, companion_of: "javascript:alert(1)" }, now).includes("Разом на"), "лише uuid у href");
+assert.ok(!community.includes("Разом на"), "звичайна подія без рядка");
 assert.equal(esc(`"'<&>`), "&quot;&#39;&lt;&amp;&gt;");
 console.log("ok");

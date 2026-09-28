@@ -468,6 +468,27 @@
   <string name="share_event_text">%1$s · %2$s · %3$s\n%4$s</string>
   <string name="share_chooser">Поділитися подією</string>
   <string name="safety_title">Безпека</string>
+  <string name="companion_seek">Шукаю компанію</string>
+  <string name="companions_title">Шукають компанію</string>
+  <string name="companion_join">Долучитися</string>
+  <string name="companion_mine">Ваш пошук</string>
+  <string name="companion_full">Місць немає</string>
+  <string name="companion_parent">Разом на: %1$s</string>
+  <string name="companion_sheet_body">Зберіть невелику компанію й ідіть разом. Хто хоче долучитися, надсилає запит — ви вирішуєте, кого взяти. Лише 18+.</string>
+  <string name="companion_meet_time">Час зустрічі</string>
+  <string name="companion_lead">За %1$s до початку</string>
+  <string name="companion_at_start">На початку</string>
+  <string name="companion_earlier">Раніше</string>
+  <string name="companion_later">Пізніше</string>
+  <string name="companion_meet_note">Де зустрітись</string>
+  <string name="companion_meet_note_hint">Біля головного входу</string>
+  <string name="companion_capacity">Скільки людей шукаєте</string>
+  <string name="companion_fewer">Менше</string>
+  <string name="companion_more">Більше</string>
+  <string name="companion_create">Опублікувати й поділитися</string>
+  <string name="companion_share_text">Шукаю компанію на %1$s, %2$s
+%3$s</string>
+  <string name="companion_share_chooser">Поділитися пошуком компанії</string>
   <string name="curfew_left">Закінчиться о %1$s. Комендантська з %2$s — до неї лишиться %3$s</string>
   <string name="curfew_during">Закінчиться о %1$s, уже під час комендантської (з %2$s)</string>
   <string name="duration_minutes">%d хв</string>

@@ -48,6 +48,8 @@ import app.poruch.android.ui.*
 import app.poruch.domain.ContactRules
 import app.poruch.domain.Event
 import app.poruch.domain.EventIndexEntry
+import app.poruch.domain.CompanionRules
+import app.poruch.domain.Membership
 import app.poruch.domain.EventSession
 import app.poruch.domain.asIndexEntry
 import app.poruch.domain.Gathering
@@ -75,13 +77,20 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
     Box(Modifier.fillMaxSize().background(colors.canvas)) {
         PullToRefresh(state.refreshing, { onIntent(DetailIntent.Refresh) }, Modifier.fillMaxSize(), underStatusBar = true) {
             // Під нижньою панеллю дії: її висота плюс системна смуга, якою б вона не була.
-            Column(Modifier.fillMaxSize().verticalScroll(scroll).navigationBarsPadding().padding(bottom = 104.dp)) {
+            // Дві кнопки в панелі («Шукаю компанію» і квиток) стоять другим рядом — панель вища.
+            val bottom = if (state.canSeekCompany) 168.dp else 104.dp
+            Column(Modifier.fillMaxSize().verticalScroll(scroll).navigationBarsPadding().padding(bottom = bottom)) {
                 Hero(event, state, onIntent)
                 Column(
                     Modifier.padding(horizontal = Spacing.page).padding(top = Spacing.md),
                     verticalArrangement = Arrangement.spacedBy(Spacing.lg)
                 ) {
                     Restrictions(state)
+                    state.companionOf?.let { parent ->
+                        GroupedRows {
+                            LinkRow(Icons.Outlined.Groups, stringResource(R.string.companion_parent, parent.title), onClick = { onIntent(DetailIntent.OpenEvent(parent.id)) })
+                        }
+                    }
                     ExternalActions(state, onIntent)
                 }
                 // Поза колонкою з полями: смуга дат іде від краю до краю.
@@ -91,6 +100,7 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
                     verticalArrangement = Arrangement.spacedBy(Spacing.lg)
                 ) {
                     Facts(event)
+                    if (state.companions.isNotEmpty() && !state.cancelled) Companions(state, onIntent)
                     event.gathering?.let { People(state, it, onIntent) }
                     Venue(event, onIntent)
                     if (!state.cancelled && !state.ended) Safety(state, onIntent)
@@ -136,6 +146,7 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
         )
     }
     state.reporting?.let { target -> ReportSheet(target, onIntent) }
+    if (state.seekingCompany) CompanionSheet(event, state.mutating, onIntent)
     state.person?.let { person ->
         val request = state.organizer && state.requests.any { it.userId == person.userId }
         PersonSheet(
@@ -850,9 +861,11 @@ private fun Description(event: Event, onIntent: (DetailIntent) -> Unit) {
 private fun OrganizerActions(state: DetailState, onIntent: (DetailIntent) -> Unit) {
     val colors = Poruch.colors
     HairLine()
-    PhotoPickerButton(state.mutating) { bytes, mime -> onIntent(DetailIntent.AttachPhoto(bytes, mime)) }
+    // Час, місце й місткість супутника тримає сервер: лишається скасувати.
+    val companion = state.companionOf != null
+    if (!companion) PhotoPickerButton(state.mutating) { bytes, mime -> onIntent(DetailIntent.AttachPhoto(bytes, mime)) }
     Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
-        SecondaryButton(stringResource(R.string.edit), { onIntent(DetailIntent.Edit) }, Modifier.weight(1f), icon = Icons.Outlined.Edit)
+        if (!companion) SecondaryButton(stringResource(R.string.edit), { onIntent(DetailIntent.Edit) }, Modifier.weight(1f), icon = Icons.Outlined.Edit)
         SecondaryButton(
             stringResource(R.string.cancel_event), { onIntent(DetailIntent.ConfirmCancel(true)) },
             Modifier.weight(1f), enabled = !state.mutating, tone = colors.danger
@@ -872,34 +885,179 @@ private fun OrganizerActions(state: DetailState, onIntent: (DetailIntent) -> Uni
 @Composable
 private fun StickyAction(state: DetailState, event: Event, modifier: Modifier, onIntent: (DetailIntent) -> Unit) {
     val colors = Poruch.colors
-    Row(
+    Column(
         modifier.fillMaxWidth().background(colors.canvas).navigationBarsPadding().padding(Spacing.page),
-        horizontalArrangement = Arrangement.spacedBy(Spacing.md), verticalAlignment = Alignment.CenterVertically
+        verticalArrangement = Arrangement.spacedBy(Spacing.md)
     ) {
-        Column(Modifier.weight(1f)) {
-            Text(
-                eventOverline(event, dateWords()), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary,
-                maxLines = 1, overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                stickyHint(state),
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (state.cancelled) colors.danger else colors.inkSecondary,
-                maxLines = 2, overflow = TextOverflow.Ellipsis
-            )
-        }
-        // Кнопки може не бути: у знятої афіші й афіші без посилання нема куди вести.
-        if (state.action != DetailAction.NONE) PrimaryButton(
-            stringResource(state.action.label),
-            { onIntent(DetailIntent.PrimaryAction) },
-            enabled = state.action.isEnabled && !state.mutating, loading = state.mutating,
-            tone = when (state.action) {
-                DetailAction.LEAVE -> colors.success
-                DetailAction.LEAVE_WAITLIST -> colors.accent
-                else -> null
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    eventOverline(event, dateWords()), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    stickyHint(state),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (state.cancelled) colors.danger else colors.inkSecondary,
+                    maxLines = 2, overflow = TextOverflow.Ellipsis
+                )
             }
+            // Кнопки може не бути: у знятої афіші й афіші без посилання нема куди вести.
+            if (state.action != DetailAction.NONE) PrimaryAction(state, onIntent)
+        }
+        // «Шукаю компанію» під квитком на всю ширину: поруч із ціною й квитком не влазить.
+        if (state.canSeekCompany) SecondaryButton(
+            stringResource(R.string.companion_seek), { onIntent(DetailIntent.SeekCompany(true)) },
+            Modifier.fillMaxWidth(), enabled = !state.mutating, icon = Icons.Outlined.Groups
         )
     }
+}
+
+@Composable
+private fun PrimaryAction(state: DetailState, onIntent: (DetailIntent) -> Unit, modifier: Modifier = Modifier) {
+    val colors = Poruch.colors
+    PrimaryButton(
+        stringResource(state.action.label),
+        { onIntent(DetailIntent.PrimaryAction) },
+        modifier,
+        enabled = state.action.isEnabled && !state.mutating, loading = state.mutating,
+        tone = when (state.action) {
+            DetailAction.LEAVE -> colors.success
+            DetailAction.LEAVE_WAITLIST -> colors.accent
+            else -> null
+        }
+    )
+}
+
+/**
+ * Хто вже шукає компанію на цю афішу. Без імен: організатора видно на сторінці супутника, туди
+ * й веде рядок. «Долучитися» — запит організатору прямо звідси.
+ */
+@Composable
+private fun Companions(state: DetailState, onIntent: (DetailIntent) -> Unit) {
+    val colors = Poruch.colors
+    val words = dateWords()
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        SectionHeader(stringResource(R.string.companions_title))
+        Column(Modifier.cardSurface(Radius.md)) {
+            state.companions.forEachIndexed { index, card ->
+                if (index > 0) HairLine()
+                val (day, hour) = sessionLabel(EventSession(card.id, card.meetAt, card.timeZone), words)
+                Row(
+                    Modifier.fillMaxWidth().pressable { onIntent(DetailIntent.OpenEvent(card.id)) }
+                        .padding(horizontal = Spacing.lg, vertical = Spacing.md),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.md), verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                        Text("$day · $hour", style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
+                        Text(
+                            card.meetNote ?: stringResource(R.string.venue), style = MaterialTheme.typography.titleSmall,
+                            color = colors.ink, maxLines = 2, overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            stringResource(R.string.attendees_short, card.attendeeCount, card.capacity),
+                            style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary
+                        )
+                    }
+                    when {
+                        card.mine -> StatusBadge(stringResource(R.string.companion_mine), BadgeTone.Brand)
+                        card.membership == Membership.APPROVED -> StatusBadge(stringResource(R.string.going), BadgeTone.Success, Icons.Outlined.Check)
+                        card.membership == Membership.REQUESTED -> StatusBadge(stringResource(R.string.request_pending), BadgeTone.Accent, PoruchIcons.clock)
+                        card.isFull -> StatusBadge(stringResource(R.string.companion_full))
+                        else -> SecondaryButton(
+                            stringResource(R.string.companion_join), { onIntent(DetailIntent.JoinCompanion(card.id)) },
+                            enabled = !state.mutating
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Коротка шторка замість повного редактора: лише час зустрічі, де зустрітись і скільки людей.
+ * Назву, місце й кінець сервер бере з афіші.
+ */
+@Composable
+private fun CompanionSheet(event: Event, mutating: Boolean, onIntent: (DetailIntent) -> Unit) {
+    val colors = Poruch.colors
+    val times = remember(event.startsAt) { CompanionRules.meetTimes(event.startsAt, kotlin.time.Clock.System.now()) }
+    var at by remember(times) {
+        mutableStateOf(times.indexOf(CompanionRules.defaultMeetAt(event.startsAt, kotlin.time.Clock.System.now())).coerceAtLeast(0))
+    }
+    var note by remember { mutableStateOf("") }
+    var capacity by remember { mutableStateOf(CompanionRules.DEFAULT_CAPACITY) }
+    val words = dateWords()
+    PoruchSheet({ onIntent(DetailIntent.SeekCompany(false)) }) { sheet ->
+        Column(
+            Modifier.padding(horizontal = Spacing.page).padding(bottom = Spacing.section).imePadding(),
+            verticalArrangement = Arrangement.spacedBy(Spacing.lg)
+        ) {
+            Text(stringResource(R.string.companion_seek), style = MaterialTheme.typography.titleLarge, color = colors.ink)
+            Text(event.title, style = MaterialTheme.typography.titleSmall, color = colors.inkSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(stringResource(R.string.companion_sheet_body), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
+            val meetAt = times.getOrNull(at)
+            if (meetAt != null) {
+                val lead = (times.size - 1 - at) * CompanionRules.STEP_MINUTES
+                Stepper(
+                    stringResource(R.string.companion_meet_time),
+                    sessionLabel(EventSession(event.id, meetAt, event.timeZone), words).second,
+                    if (lead == 0) stringResource(R.string.companion_at_start) else stringResource(R.string.companion_lead, durationWords(lead)),
+                    stringResource(R.string.companion_earlier) to { at-- }, at > 0,
+                    stringResource(R.string.companion_later) to { at++ }, at < times.lastIndex
+                )
+            }
+            LabelledField(
+                stringResource(R.string.companion_meet_note), note, { note = it.take(CompanionRules.NOTE_MAX) },
+                placeholder = stringResource(R.string.companion_meet_note_hint)
+            )
+            Stepper(
+                stringResource(R.string.companion_capacity), capacity.toString(), null,
+                stringResource(R.string.companion_fewer) to { capacity-- }, capacity > CompanionRules.MIN_CAPACITY,
+                stringResource(R.string.companion_more) to { capacity++ }, capacity < CompanionRules.MAX_CAPACITY
+            )
+            PrimaryButton(
+                stringResource(R.string.companion_create),
+                { if (meetAt != null) sheet.close { onIntent(DetailIntent.CreateCompanion(meetAt, note, capacity)) } },
+                Modifier.fillMaxWidth(), enabled = meetAt != null && !mutating, loading = mutating, icon = Icons.Outlined.Share
+            )
+        }
+    }
+}
+
+/** Значення з кнопками «−» і «+». Підписи кнопок — для TalkBack. */
+@Composable
+private fun Stepper(
+    label: String, value: String, caption: String?,
+    minus: Pair<String, () -> Unit>, minusEnabled: Boolean,
+    plus: Pair<String, () -> Unit>, plusEnabled: Boolean
+) {
+    val colors = Poruch.colors
+    Row(
+        // Тло поля, а не картки: у шторці картка біла на білому.
+        Modifier.fillMaxWidth().background(LocalFieldSurface.current ?: colors.surface, Radius.md)
+            .padding(horizontal = Spacing.lg, vertical = Spacing.md),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)
+    ) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(label.uppercase(), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
+            Text(value, style = MaterialTheme.typography.titleLarge, color = colors.ink)
+            caption?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary) }
+        }
+        StepButton(Icons.Outlined.Remove, minus.first, minusEnabled, minus.second)
+        StepButton(Icons.Outlined.Add, plus.first, plusEnabled, plus.second)
+    }
+}
+
+@Composable
+private fun StepButton(icon: ImageVector, description: String, enabled: Boolean, onClick: () -> Unit) {
+    val colors = Poruch.colors
+    Box(
+        Modifier.minimumInteractiveComponentSize().size(40.dp).clip(CircleShape).background(colors.surface)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) { Icon(icon, description, Modifier.size(20.dp), tint = if (enabled) colors.ink else colors.inkTertiary) }
 }
 
 /** Рядок під датою в нижній панелі: місця й черга для кімнати, ціна або причина відсутності кнопки для афіші. */

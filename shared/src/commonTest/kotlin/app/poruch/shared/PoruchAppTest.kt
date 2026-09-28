@@ -70,6 +70,14 @@ class PoruchAppTest {
         var failPlaceEvents=false
         override suspend fun placeEvents(placeId:String):List<Event> { if(failPlaceEvents) fail(AppError.Network); return atPlace[placeId].orEmpty() }
         override suspend fun safety(id:String):EventSafety? = null
+        var companionCards=emptyList<CompanionCard>()
+        override suspend fun companions(parentId:String)=companionCards
+        val companionsCreated=mutableListOf<List<Any?>>()
+        override suspend fun createCompanion(parentId:String,meetAt:String,note:String?,capacity:Int):String {
+            companionsCreated+=listOf(parentId,meetAt,note,capacity)
+            companionCards=companionCards+CompanionCard("c1",meetAt,"Europe/Kyiv",note,capacity,0,Membership.NONE,true)
+            return "c1"
+        }
         var mine=emptyList<Event>()
         override suspend fun myEvents()=mine
         override suspend fun attendees(id:String)=emptyList<Attendee>()
@@ -185,6 +193,43 @@ class PoruchAppTest {
         assertEquals("Малевич",detail.placeLabel)
         assertEquals(listOf("a","c"),app.othersAt(detail).map { it.id })
         app.close()
+    }
+
+    /**
+     * «Шукаю компанію»: картки приходять разом з афішею; створення перечитує їх, ховає кнопку й
+     * просить платформу відкрити «Поділитися»; запит із картки рахується як companion_join.
+     */
+    @Test fun seekingCompanyOnAListing()=runTest {
+        val tracked=mutableListOf<String>()
+        PoruchAnalytics.sink={ name,_ -> tracked+=name }
+        try {
+            val events=Events(); val app=app(events,backgroundScope)
+            val concert=listed("b","2090-12-23T18:00:00Z")
+            events.results=listOf(concert); events.detailsById=mapOf("b" to concert)
+            events.companionCards=listOf(CompanionCard("other","2090-12-23T17:30:00Z","Europe/Kyiv","Біля входу",4,2,Membership.NONE,false))
+            runCurrent(); advanceTimeBy(101); runCurrent()
+            app.openEvent("b"); advanceTimeBy(1000); runCurrent()
+            val now=kotlin.time.Clock.System.now()
+            assertEquals(listOf("other"),app.state.value.detail.companions?.map { it.id })
+            assertTrue(app.state.value.detail.canSeekCompany(now))
+
+            app.createCompanion("b","2090-12-23T18:30:00Z",null,4); runCurrent()
+            assertTrue(events.companionsCreated.isEmpty(),"after the start is refused before the network")
+            assertTrue(app.state.value.notice is AppNotice.Failed)
+
+            app.createCompanion("b","2090-12-23T17:30:00Z","  Біля входу  ",4); advanceTimeBy(1000); runCurrent()
+            assertEquals(listOf<Any?>("b","2090-12-23T17:30:00Z","Біля входу",4),events.companionsCreated.single())
+            assertEquals("c1",app.state.value.createdCompanion)
+            assertFalse(app.state.value.detail.canSeekCompany(now),"one search per person")
+            app.clearCreatedCompanion()
+            assertNull(app.state.value.createdCompanion)
+
+            app.joinEvent("other"); advanceTimeBy(1000); runCurrent()
+            assertEquals(1,tracked.count { it=="companion_create" })
+            assertEquals(1,tracked.count { it=="companion_join" })
+            assertEquals(AppNotice.Told(AppMessage.REQUEST_SENT),app.state.value.notice,"companions are by request")
+            app.close()
+        } finally { PoruchAnalytics.sink=null }
     }
 
     /** Без мережі для `place_events` секція лишається на індексі мапи. */

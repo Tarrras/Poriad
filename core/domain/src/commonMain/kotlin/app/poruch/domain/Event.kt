@@ -144,7 +144,9 @@ data class Gathering(
      * Чат учасників (Telegram, Instagram тощо). Сервер віддає його лише організатору й
      * підтвердженим учасникам, решті — null. Куди веде — не перевіряємо, див. [ContactRules].
      */
-    val contactUrl: String? = null
+    val contactUrl: String? = null,
+    /** Супутник «Йдемо разом»: на яку афішу йдуть. Null — звичайна подія. */
+    val companionOf: CompanionParent? = null
 ) {
     val seatsLeft get() = (capacity - attendeeCount).coerceAtLeast(0)
 

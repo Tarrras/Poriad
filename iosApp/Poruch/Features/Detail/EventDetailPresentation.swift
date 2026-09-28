@@ -56,6 +56,10 @@ struct EventDetailPresentation {
     /// Організаторові всі оцінки, учасникові — своя.
     let ratings: [EventRating]
     var myRating: EventRating? { ratings.first { $0.mine } }
+    /// Хто шукає компанію на цю афішу: картки супутників без імен.
+    let companions: [CompanionCard]
+    /// Кнопка «Шукаю компанію»: афіша ще попереду, мого пошуку на неї нема.
+    let canSeekCompany: Bool
 
     /// `sessions` — карусель дат: від неї залежить лише, чи ховати кнопку квитка на сеансі, що почався.
     init(state: AppState?, eventID: String, sessions: [EventSession] = []) {
@@ -76,12 +80,17 @@ struct EventDetailPresentation {
         ended = event?.hasEnded(now: nowInstant()) == true
         canRate = event.map { RatingRules.shared.canRate(event: $0, now: nowInstant()) } ?? false
         ratings = state?.detail.ratings ?? []
+        companions = event != nil ? state?.detail.companions ?? [] : []
+        canSeekCompany = event != nil && state?.detail.canSeekCompany(now: nowInstant()) == true
     }
 
     var cancelled: Bool { event?.isCancelled == true }
 
     /// Кімната, якщо це кімната. Місця й участь лише в неї.
     var room: Gathering? { event?.gathering }
+
+    /// Супутник «Йдемо разом»: час і місце тримає сервер, редагувати нема чого.
+    var companionOf: CompanionParent? { room?.companionOf }
 
     /// Оголошення, якщо це афіша. Тоді дія одна: вийти на джерело.
     var listing: Listing? { event?.listing }

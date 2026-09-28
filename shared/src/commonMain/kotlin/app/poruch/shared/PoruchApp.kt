@@ -292,6 +292,10 @@ class PoruchApp internal constructor(
     /** Закладка спрацьовує одразу, запит іде окремо; при збої повертається як було. */
     fun toggleSaved(id: String) = eventUseCases.toggleSaved(id)
     fun createEvent(draft: EventDraft) = eventUseCases.create(draft)
+
+    /** «Шукаю компанію» на відкриту афішу. [meetAt] — з [CompanionRules.meetTimes], ISO-8601. */
+    fun createCompanion(parentId: String, meetAt: String, note: String?, capacity: Int) =
+        eventUseCases.createCompanion(parentId, meetAt, note, capacity)
     fun updateEvent(id: String, draft: EventDraft) = eventUseCases.update(id, draft)
     fun uploadEventImage(eventId: String, bytes: ByteArray, contentType: String) =
         eventUseCases.uploadImage(eventId, bytes, contentType)
@@ -404,6 +408,11 @@ class PoruchApp internal constructor(
 
     fun clearNotice() {
         store.update { it.copy(notice = null) }
+    }
+
+    /** «Поділитися» для щойно створеного супутника вже відкрито. */
+    fun clearCreatedCompanion() {
+        store.update { it.copy(createdCompanion = null) }
     }
 
     fun clearCompletedEvent() {

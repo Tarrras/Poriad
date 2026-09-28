@@ -1,6 +1,8 @@
 package app.poruch.data.events
 
 import app.poruch.domain.EventCategory
+import app.poruch.domain.CompanionCard
+import app.poruch.domain.CompanionParent
 import app.poruch.domain.Event
 import app.poruch.domain.EventOrigin
 import app.poruch.domain.EventStatus
@@ -57,7 +59,10 @@ internal data class EventDto(
     @SerialName("contact_url") val contactUrl: String? = null,
     // Лише афіша (міграція 20260925120000). `event_details` і кеш до неї поля не несуть.
     @SerialName("place_id") val placeId: String? = null,
-    @SerialName("place_name") val placeName: String? = null
+    @SerialName("place_name") val placeName: String? = null,
+    // Лише супутник (міграція 20260928140000). Картки з `discover_events` їх не несуть — лише `event_details`.
+    @SerialName("companion_of") val companionOf: String? = null,
+    @SerialName("companion_of_title") val companionOfTitle: String? = null
 ) {
     fun domain() = Event(
         id = id, title = title, description = description, category = EventCategory.fromKey(category),
@@ -83,7 +88,8 @@ internal data class EventDto(
             approvalRequired = approvalRequired,
             minAge = minAge,
             maxAge = maxAge,
-            contactUrl = contactUrl
+            contactUrl = contactUrl,
+            companionOf = companionOf?.let { CompanionParent(it, companionOfTitle.orEmpty()) }
         )
     }
 
@@ -126,6 +132,21 @@ internal data class ShelterDto(
 
 @Serializable
 internal data class CurfewDto(val starts: String, val ends: String)
+
+/** Рядок `companions`: картка супутника без імен. */
+@Serializable
+internal data class CompanionDto(
+    val id: String,
+    @SerialName("starts_at") val startsAt: String,
+    @SerialName("time_zone") val timeZone: String,
+    @SerialName("meet_note") val meetNote: String? = null,
+    val capacity: Int,
+    @SerialName("attendee_count") val attendeeCount: Int = 0,
+    val membership: String = Membership.NONE.key,
+    val mine: Boolean = false
+) {
+    fun domain() = CompanionCard(id, startsAt, timeZone, meetNote, capacity, attendeeCount, Membership.fromKey(membership), mine)
+}
 
 /** Елемент відповіді `search_places`. */
 @Serializable
