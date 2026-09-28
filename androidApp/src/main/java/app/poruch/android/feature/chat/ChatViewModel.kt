@@ -3,6 +3,7 @@ package app.poruch.android.feature.chat
 import androidx.lifecycle.viewModelScope
 import app.poruch.android.mvi.MviViewModel
 import app.poruch.domain.ChatRules
+import app.poruch.domain.FollowKind
 import app.poruch.shared.PoruchApp
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
@@ -31,7 +32,8 @@ class ChatViewModel(private val app: PoruchApp, private val eventId: String) :
                 organizer = event != null && shared.organizes(event),
                 // Той самий поріг, що на сервері: тиждень після кінця.
                 readOnly = event != null && (event.isCancelled || event.endInstant?.let { it + CHAT_GRACE < now } == true),
-                person = shared.person
+                person = shared.person,
+                followedOrganizers = shared.library.follows.filter { it.kind == FollowKind.ORGANIZER }.mapTo(HashSet()) { it.targetId }
             )
         }
         // Текст, що не пішов, повертається в поле, якщо людина ще не почала нове.
@@ -68,6 +70,8 @@ class ChatViewModel(private val app: PoruchApp, private val eventId: String) :
             }
             is ChatIntent.OpenPerson -> app.openPerson(intent.userId)
             ChatIntent.ClosePerson -> app.closePerson()
+            is ChatIntent.ToggleFollowPerson ->
+                app.setFollowing(FollowKind.ORGANIZER, intent.userId, intent.name, intent.userId !in state.value.followedOrganizers)
             is ChatIntent.SendReport -> {
                 reduce { copy(reporting = null) }
                 app.reportMessage(intent.message.id, intent.reason, intent.details)

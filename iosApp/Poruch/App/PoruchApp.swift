@@ -129,6 +129,8 @@ struct RootView: View {
                     // Геолокацію питаємо, лише коли онбординг позаду: не поверх його першого екрана.
                     .onAppear { location.request() }
                     .task { digestAsk = await DigestPrompt.due(digestEnabled: state.digestEnabled) }
+                    // Перша підписка за запуск: питаємо про сповіщення, без них пуші про нове не дійдуть.
+                    .onChange(of: state.library.followsMade) { _, made in if made > 0 { FollowPrompt.ask() } }
                     .alert("Що поруч на вихідних?", isPresented: $digestAsk) {
                         Button("Так, нагадувати") {
                             NotificationPermission.request { granted in
@@ -198,13 +200,15 @@ struct RootView: View {
         .animation(.easeInOut(duration: 0.2), value: tabBarHidden)
         .onAppear {
             // Тап по сповіщенню веде на подію (або в її чат) зі стеку головної, поверх усього, що було відкрите.
-            // Без події — дайджест вихідних: лише головна.
-            PushDelegate.openEvent = { id, chat in
+            // Без події, але із закладом — пуш про кілька його нових подій: мапа на його стосі.
+            // Без нічого — дайджест вихідних: лише головна.
+            PushDelegate.openEvent = { id, chat, placeId in
                 creating = false
                 authenticating = false
                 dismissPresentedSheets()
                 tab = 0
                 minePath = NavigationPath()
+                if id == nil, let placeId { showMap(); model.app.openPlace(placeId: placeId); return }
                 guard let id else { homePath = NavigationPath(); model.app.digestOpened(); return }
                 model.app.selectEvent(id: id)
                 var path = NavigationPath()

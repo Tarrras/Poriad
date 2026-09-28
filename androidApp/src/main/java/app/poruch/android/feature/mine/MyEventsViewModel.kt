@@ -1,6 +1,7 @@
 package app.poruch.android.feature.mine
 
 import app.poruch.android.mvi.MviViewModel
+import app.poruch.domain.FollowKind
 import app.poruch.shared.PoruchApp
 import kotlin.time.Clock
 
@@ -17,7 +18,8 @@ class MyEventsViewModel(private val app: PoruchApp) :
                 signedIn = latest.signedIn,
                 loading = latest.library.loading,
                 mutating = latest.mutating,
-                unread = latest.chatUnread.associate { it.eventId to it.unread }
+                unread = latest.chatUnread.associate { it.eventId to it.unread },
+                followedOrganizers = latest.library.follows.filter { it.kind == FollowKind.ORGANIZER }.mapTo(HashSet()) { it.targetId }
             )
         }
         app.loadMyEvents()
@@ -37,7 +39,7 @@ class MyEventsViewModel(private val app: PoruchApp) :
             is MyEventsIntent.StartRating -> reduce { copy(rating = intent.event) }
             MyEventsIntent.DismissRating -> reduce { copy(rating = null) }
             is MyEventsIntent.Rate -> {
-                app.rateEvent(intent.id, intent.score, intent.comment, intent.tags)
+                app.rateEvent(intent.id, intent.score, intent.comment, intent.tags, intent.follow)
                 reduce { copy(rating = null) }
             }
             is MyEventsIntent.Approve -> app.approveMember(intent.eventId, intent.userId)

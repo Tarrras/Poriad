@@ -155,6 +155,25 @@ struct Chip: View {
     }
 }
 
+/// «Стежити» / «Ви стежите» біля закладу чи організатора: чип-перемикач, обраний заливається, як усі чипи.
+/// Гліф — дзвінок, бо пуш про нове і є суттю підписки. Стан приходить зі спільного шару, тап лише просить його змінити.
+struct FollowPill: View {
+    let following: Bool
+    /// Лише дзвінок, для тісної шапки мапи; підпис читає VoiceOver.
+    var iconOnly = false
+    let action: () -> Void
+    private var label: String { following ? "Ви стежите" : "Стежити" }
+    private var symbol: String { following ? "bell.fill" : "bell" }
+    var body: some View {
+        if iconOnly {
+            IconPill(symbol: symbol, label: label, selected: following, size: 40, action: action)
+                .accessibilityAddTraits(following ? .isSelected : [])
+        } else {
+            Chip(label: label, symbol: symbol, selected: following, action: action)
+        }
+    }
+}
+
 /// Сегментований перемикач-пігулка: тиха доріжка, біла пластина під обраним. Два-три рівноправні режими одного екрана.
 struct SegmentedPill: View {
     let items: [String]

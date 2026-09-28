@@ -11,6 +11,8 @@ struct HomePresentation {
     let searchLoading: Bool
     /// Плани: організую або йду, найближчі першими.
     let plans: [Event]
+    /// Нове від закладів і організаторів, за якими стежу, найближчі першими.
+    let followed: [Event]
     /// Мої події, де чекають запити на участь, зі скількома. Лише в організатора.
     let requests: [PendingRequests]
     /// Чати з непрочитаним, свіжіші першими, разом із карткою події для відкриття чату.
@@ -83,6 +85,8 @@ struct HomePresentation {
         let mine = state?.library.myEvents ?? []
         let now = nowInstant()
         plans = mine.filter { state?.concerns(event: $0) == true && $0.isPublished && $0.isCurrent(now: now) }.sorted { $0.startsAt < $1.startsAt }
+        // Порядок дає сервер; за час, що картка лежить у стані, подія могла скінчитись чи зникнути.
+        followed = (state?.library.followEvents ?? []).filter { $0.isPublished && $0.isCurrent(now: now) }
         requests = HomePresentation.pendingRequests(state?.library.pendingRequests ?? [], among: mine)
         let mineById = Dictionary(mine.map { ($0.id, $0) }) { first, _ in first }
         unread = (state?.chatUnread ?? []).compactMap { u in mineById[u.eventId].map { UnreadChat(summary: u, event: $0) } }

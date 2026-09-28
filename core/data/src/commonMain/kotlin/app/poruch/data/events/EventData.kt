@@ -24,4 +24,5 @@ class EventData(
     val requests: EventRequests = SupabaseEventRequests(rpc)
     val chat: EventChat = SupabaseEventChat(rpc)
     val push: PushTokens = SupabasePushTokens(rpc)
+    val follows: Follows = SupabaseFollows(rpc)
 }

@@ -18,12 +18,14 @@ internal class UserLibrary(
     private val preferences: PreferencesRepository?,
     private val safety: SafetyRepository?,
     private val profiles: ProfileRepository?,
+    private val follows: Follows?,
     private val taste: TasteStore?,
     private val store: AppStore,
     private val scope: CoroutineScope
 ) {
     private var detailJob: Job? = null
     private var listJob: Job? = null
+    private var followJob: Job? = null
     /** Id відкритої події. Запізніла відповідь для іншого id відкидається. */
     var openEventId: String? = null
         private set
@@ -34,6 +36,15 @@ internal class UserLibrary(
      * з сервера без неї: тоді лишаємо закладки зі стану.
      */
     private var savedEdits = 0
+
+    /** Те саме для підписок: [load], що стартував до зміни «Стежити», не має її затерти. */
+    private var followEdits = 0
+
+    /**
+     * Запитів «Стежити» у дорозі. Поки хоч один не завершився, список із сервера міг його не побачити: [load] і
+     * [refreshFollows] стану не чіпають, а той, що завершився останнім, перечитує сам ([followFinished]).
+     */
+    private var followBusy = 0
 
     /**
      * Наводить застосунок на подію. [full] — відкриття екрана деталей, інакше підсвітка.
@@ -78,6 +89,12 @@ internal class UserLibrary(
                 if (openEventId == id) {
                     detail { copy(event = event, loading = false) }
                     if (event == null) store.failed(AppError.EventUnavailable)
+                }
+                // Афішу відкрили без картки (посилання, пуш): заклад є лише в картці, тож беремо її окремо. Без
+                // цього не було б ні «Стежити» на місці, ні «Ще в «…»» у деталях.
+                if (event?.listing != null && event.placeId == null) {
+                    val withPlace = event.withPlaceOf(optional { events.cards(listOf(id)).firstOrNull() })
+                    if (openEventId == id && withPlace.placeId != null) detail { copy(event = withPlace) }
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -164,6 +181,7 @@ internal class UserLibrary(
         val uid = auth.session.value?.userId ?: return
         listJob?.cancel()
         val edits = savedEdits
+        val followsAtStart = followEdits
         listJob = scope.launch {
             store.update { it.copy(library = it.library.copy(loading = true)) }
             try {
@@ -183,9 +201,12 @@ internal class UserLibrary(
                     val pending = async { optional { requests.pendingRequests() } }
                     val unread = async { optional { chat.unread() } }
                     val ratings = async { optional { participation.myRatings() } }
+                    val followed = async { optional { follows?.mine() } }
+                    val followFeed = async { optional { follows?.upcoming() } }
                     val result = Loaded(
                         mine.await(), savedEvents.await(), interests.await(), queued.await(),
-                        facts.await(), blocked.await(), pending.await(), unread.await(), profile.await(), ratings.await()
+                        facts.await(), blocked.await(), pending.await(), unread.await(), profile.await(), ratings.await(),
+                        followed.await(), followFeed.await()
                     )
                     PoruchLog.i("mine") { "${result.mine.size} of mine, ${result.saved.size} saved, ${result.queued.size} queued, ${result.pending?.size} requests, ${result.interests.size} interests" }
                     store.update {
@@ -200,7 +221,11 @@ internal class UserLibrary(
                                 myRatings = result.ratings ?: previous.myRatings,
                                 account = result.facts ?: previous.account,
                                 profile = result.profile ?: previous.profile,
-                                blocked = result.blocked ?: previous.blocked
+                                blocked = result.blocked ?: previous.blocked,
+                                // «Стежити» натиснули, поки їхала відповідь, чи його запит ще в дорозі: сервер його не бачив.
+                                follows = if (followsAtStart == followEdits && followBusy == 0) result.follows ?: previous.follows else previous.follows,
+                                followEvents = result.followFeed ?: previous.followEvents,
+                                followsMade = previous.followsMade
                             ),
                             // Відкритий чат уже прочитаний: сервер міг ще не знати.
                             chatUnread = result.unread?.filterNot { u -> u.eventId == it.chat?.eventId } ?: it.chatUnread,
@@ -220,7 +245,7 @@ internal class UserLibrary(
     private class Loaded(
         val mine: List<Event>, val saved: List<String>, val interests: List<EventCategory>, val queued: List<String>,
         val facts: AccountFacts?, val blocked: List<Attendee>?, val pending: List<JoinRequest>?, val unread: List<ChatUnread>?,
-        val profile: Profile?, val ratings: Map<String, Int>?
+        val profile: Profile?, val ratings: Map<String, Int>?, val follows: List<Follow>?, val followFeed: List<Event>?
     )
 
     /** Best-effort: збій (чи сервер без міграції) — null, і стан лишає попереднє. */
@@ -233,6 +258,57 @@ internal class UserLibrary(
         store.update {
             val ids = it.library.savedIds
             it.copy(library = it.library.copy(savedIds = if (saved) (ids + id).distinct() else ids - id))
+        }
+    }
+
+    /**
+     * Оптимістична підписка: кнопка перемикається одразу, і [load], що вже в дорозі, її не затре. [known] — підписка
+     * з усіма даними, якщо вона була: відкат відписки повертає її, а не голе ім'я.
+     */
+    fun setFollow(kind: FollowKind, id: String, name: String, following: Boolean, known: Follow? = null) {
+        followEdits++
+        store.update {
+            val current = it.library.follows
+            val next = when {
+                !following -> current.filterNot { f -> f.kind == kind && f.targetId == id }
+                current.any { f -> f.kind == kind && f.targetId == id } -> current
+                else -> listOf(known ?: Follow(kind, id, name)) + current
+            }
+            it.copy(library = it.library.copy(follows = next))
+        }
+    }
+
+    /** Підписка вдалась: платформа бачить це й питає про сповіщення, див. [LibraryState.followsMade]. */
+    fun followMade() = store.update { it.copy(library = it.library.copy(followsMade = it.library.followsMade + 1)) }
+
+    /** Запит «Стежити» пішов: до [followFinished] список із сервера не пишемо в стан. */
+    fun followStarted() { followBusy++ }
+
+    /** Запит завершився (вдало чи ні). Хто завершився останнім, той і звіряє список із сервером. */
+    fun followFinished() {
+        followBusy--; followEdits++
+        if (followBusy == 0) refreshFollows()
+    }
+
+    /**
+     * Перечитує лише підписки й стрічку з них: після «Стежити» чи відписки, без десяти запитів [load].
+     * Відповідь не пишемо, якщо за цей час змінилась підписка чи акаунт або хоч один запит іще в дорозі:
+     * останній із них перечитає сам.
+     */
+    fun refreshFollows() {
+        val repository = follows ?: return
+        val uid = store.value.session.userId ?: return
+        followJob?.cancel()
+        val edits = followEdits
+        followJob = scope.launch {
+            val mine = optional { repository.mine() }
+            val feed = optional { repository.upcoming() }
+            if (edits != followEdits || followBusy > 0 || store.value.session.userId != uid) return@launch
+            store.update {
+                it.copy(library = it.library.copy(
+                    follows = mine ?: it.library.follows, followEvents = feed ?: it.library.followEvents
+                ))
+            }
         }
     }
 
@@ -258,7 +334,7 @@ internal class UserLibrary(
 
     /** Зупиняє читання для попереднього акаунта і чистить його кеш на диску. Стан чистить [forAccount]. */
     fun clear() {
-        listJob?.cancel(); detailJob?.cancel(); openEventId = null
+        listJob?.cancel(); detailJob?.cancel(); followJob?.cancel(); openEventId = null
         events.clearPrivateCache()
     }
 }

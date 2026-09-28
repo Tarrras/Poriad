@@ -64,6 +64,7 @@ fun HomeScreen(state: HomeState, onIntent: (HomeIntent) -> Unit) {
                     if (state.requests.isNotEmpty()) RequestsSection(state.requests, onIntent)
                     if (state.unread.isNotEmpty()) UnreadSection(state.unread, onIntent)
                     if (state.plans.isNotEmpty()) PlansSection(state.plans, onIntent)
+                    if (state.followed.isNotEmpty()) Rail(stringResource(R.string.followed_home_section), state.followed, state, onIntent)
                 }
                 when {
                     state.isEmpty && state.loading -> Box(

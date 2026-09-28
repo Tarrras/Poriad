@@ -41,18 +41,25 @@ class PushService : FirebaseMessagingService() {
     override fun onMessageReceived(message: RemoteMessage) {
         val data = message.data
         val kind = data["kind"] ?: return
-        val eventId = data["eventId"] ?: return
+        val eventId = data["eventId"]
+        val placeId = data["placeId"]
+        // Пуш про кілька нових подій закладу — без події, лише з закладом; усі інші кажуть про подію.
+        if (eventId == null && !(kind == "place" && placeId != null)) return
         val title = data["title"].orEmpty()
         val body = data["body"].orEmpty()
+        val alerts = RequestNotificationCenter(this)
         when (kind) {
             // Цей чат зараз на екрані: повідомлення й так видно, дзвонити нема про що.
-            "chat" -> if (!(foreground() && app.state.value.chat?.eventId == eventId)) {
+            "chat" -> if (eventId != null && !(foreground() && app.state.value.chat?.eventId == eventId)) {
                 val (author, text) = body.split(": ", limit = 2).let { if (it.size == 2) it[0] to it[1] else "" to body }
                 ChatNotificationCenter(this).notifyMessages(listOf(ChatAlert(eventId, title, 1, author, text)))
             }
-            "request" -> RequestNotificationCenter(this).notify(listOf(RequestAlert(eventId, title, 1)))
-            "joined" -> RequestNotificationCenter(this).notifyJoined(eventId, title, body)
-            "moved", "cancelled" -> RequestNotificationCenter(this).notifyEventChange(eventId, title, body)
+            "request" -> eventId?.let { alerts.notify(listOf(RequestAlert(it, title, 1))) }
+            "joined" -> eventId?.let { alerts.notifyJoined(it, title, body) }
+            "moved", "cancelled" -> eventId?.let { alerts.notifyEventChange(it, title, body, kind) }
+            // Нова подія організатора чи закладу, за якими стежить людина: тап веде на подію або на стос закладу.
+            "organizer" -> eventId?.let { alerts.notifyFollowed(kind, it, null, title, body) }
+            "place" -> placeId?.let { alerts.notifyFollowed(kind, eventId, it, title, body) }
         }
         app.pushReceived(kind, data["key"].orEmpty())
     }

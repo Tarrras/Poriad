@@ -25,7 +25,8 @@ internal class EventUseCases(
     private val creationIdentity: CreationIdentityStore?,
     private val store: AppStore,
     private val library: UserLibrary,
-    private val reloader: Reloader
+    private val reloader: Reloader,
+    private val follows: FollowUseCases? = null
 ) {
     /** Повтор непевного створення має взяти той самий id, інакше опублікує другу подію. */
     private var pendingCreation: Pair<EventDraft, String>? = null
@@ -66,11 +67,24 @@ internal class EventUseCases(
         actions.leave(id); reloader.changed(id)
     }
 
-    fun rate(id: String, score: Int, comment: String?, tags: List<RatingTag>) = store.mutate {
-        PoruchLog.i("action") { "rateEvent ${id.shortId()} score=$score tags=${tags.size}" }
+    /**
+     * Оцінка й, якщо шторка це попросила, «Стежити за організатором»: [follow] null — перемикача не було,
+     * true/false — що він показував. Підписка йде після оцінки й не може її зіпсувати.
+     */
+    fun rate(id: String, score: Int, comment: String?, tags: List<RatingTag>, follow: Boolean? = null) = store.mutate {
+        PoruchLog.i("action") { "rateEvent ${id.shortId()} score=$score tags=${tags.size} follow=$follow" }
+        // Організатор — з події, що оцінюється, поки вона ще під рукою.
+        val room = if (follow != null) ratedEvent(id)?.gathering else null
         participation.rate(id, score, comment?.trim()?.take(RatingRules.COMMENT_MAX)?.ifEmpty { null }, tags)
         reloader.changed(id)
         store.tell(AppMessage.RATING_SENT)
+        // Підписка окремо й після: запит на неї не тримає ні оцінку, ні шторку.
+        if (room != null && follow != null) follows?.afterRating(room.organizerId, room.organizerName, follow)
+    }
+
+    /** Подія, яку оцінюють: відкрита, зі «Моїх подій» або з завантажених карток. */
+    private fun ratedEvent(id: String): Event? = store.value.let { state ->
+        state.detail.event?.takeIf { it.id == id } ?: state.library.myEvents.firstOrNull { it.id == id } ?: state.cards[id]
     }
 
     fun cancel(id: String) = store.mutate {

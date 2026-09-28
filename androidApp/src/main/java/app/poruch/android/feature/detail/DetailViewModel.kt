@@ -3,6 +3,7 @@ package app.poruch.android.feature.detail
 import app.poruch.android.mvi.MviViewModel
 import app.poruch.android.platform.NotificationPermission
 import app.poruch.domain.Event
+import app.poruch.domain.FollowKind
 import app.poruch.domain.EventIndexEntry
 import app.poruch.domain.EventSession
 import app.poruch.domain.RatingRules
@@ -105,7 +106,9 @@ class DetailViewModel(
                 safety = shared.detail.safety,
                 curfew = shared.detail.curfewNote(now),
                 companions = if (event != null) shared.detail.companions.orEmpty() else emptyList(),
-                canSeekCompany = event != null && shared.detail.canSeekCompany(now)
+                canSeekCompany = event != null && shared.detail.canSeekCompany(now),
+                followingPlace = event?.placeId?.let { shared.isFollowing(FollowKind.PLACE, it) } == true,
+                followedOrganizers = shared.library.follows.filter { it.kind == FollowKind.ORGANIZER }.mapTo(HashSet()) { it.targetId }
             )
         }
     }
@@ -172,6 +175,12 @@ class DetailViewModel(
             }
             is DetailIntent.JoinCompanion -> authenticated { app.joinEvent(intent.id); offerReminders() }
             DetailIntent.Reopen -> if (shown && event == null) app.openEvent(eventId)
+            DetailIntent.ToggleFollowPlace -> authenticated {
+                event?.let { e -> e.placeId?.let { app.setFollowing(FollowKind.PLACE, it, e.placeLabel, !state.value.followingPlace) } }
+            }
+            is DetailIntent.ToggleFollowPerson -> authenticated {
+                app.setFollowing(FollowKind.ORGANIZER, intent.userId, intent.name, intent.userId !in state.value.followedOrganizers)
+            }
             DetailIntent.Edit -> send(DetailEffect.Edit(eventId))
             is DetailIntent.ConfirmCancel -> reduce { copy(confirmingCancel = intent.open) }
             DetailIntent.CancelEvent -> {
@@ -237,7 +246,7 @@ class DetailViewModel(
             }
             is DetailIntent.ApproveRequest -> app.approveMember(eventId, intent.userId)
             is DetailIntent.DeclineRequest -> app.declineMember(eventId, intent.userId)
-            is DetailIntent.Rate -> app.rateEvent(eventId, intent.score, intent.comment, intent.tags)
+            is DetailIntent.Rate -> app.rateEvent(eventId, intent.score, intent.comment, intent.tags, intent.follow)
         }
     }
 

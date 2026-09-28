@@ -1,6 +1,7 @@
 package app.poruch.data.events
 
 import app.poruch.domain.EventStatus
+import app.poruch.domain.FollowKind
 import app.poruch.domain.ImportStatus
 import app.poruch.domain.Membership
 import kotlinx.serialization.json.Json
@@ -115,5 +116,20 @@ class EventDtoTest {
         assertEquals(26, place.upcoming)
         assertTrue(place.isAt(49.8475, 24.0263))
         assertFalse(place.isAt(49.8476, 24.0263))
+    }
+
+    /** `my_follows`: `jsonb_strip_nulls` не шле порожнє, а невідомий рід (сервер новіший) — не рядок списку. */
+    @Test fun followsParseAndDropUnknownKinds() {
+        val follows = json.decodeFromString<List<FollowDto>>(
+            """[{"kind":"place","id":"p1","name":"Клуб","city":"Київ","address":"Хрещатик, 1","latitude":50.45,"longitude":30.52,"upcoming":3,"since":"2026-09-28T10:00:00Z"},
+               {"kind":"organizer","id":"u1","name":"Олена","avatar_url":"https://x.invalid/a.jpg","upcoming":1},
+               {"kind":"group","id":"g1","name":"Нове"}]"""
+        ).mapNotNull { it.domain() }
+        assertEquals(listOf(FollowKind.PLACE, FollowKind.ORGANIZER), follows.map { it.kind })
+        assertEquals("Клуб", follows[0].place?.name)
+        assertEquals(3, follows[0].upcoming)
+        assertNull(follows[1].place)
+        assertEquals("https://x.invalid/a.jpg", follows[1].avatarUrl)
+        assertEquals("", follows[1].city)
     }
 }

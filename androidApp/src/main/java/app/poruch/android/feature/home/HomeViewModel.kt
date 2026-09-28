@@ -47,6 +47,8 @@ class HomeViewModel(private val app: PoruchApp) : MviViewModel<HomeState, HomeIn
                 .filter { shared.concerns(it) && it.isPublished && it.isCurrent(now) }
                 .sortedBy { it.startsAt },
             requests = pendingRequests(shared),
+            // Стрічка приїхала з сервера, а події за час у застосунку встигають скінчитись.
+            followed = shared.library.followEvents.filter { it.isPublished && it.isCurrent(now) },
             unread = shared.chatUnread,
             suggested = suggested,
             today = onToday,

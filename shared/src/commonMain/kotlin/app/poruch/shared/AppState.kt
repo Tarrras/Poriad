@@ -73,6 +73,17 @@ data class AppState(
     val needsAgeDeclaration get() = signedIn && !library.account.ageDeclared
     fun hasBlocked(userId: String) = library.blocked.any { it.userId == userId }
 
+    /** Чи стежить акаунт за закладом чи організатором. Оптимістична зміна видна одразу, див. [FollowUseCases]. */
+    fun isFollowing(kind: FollowKind, targetId: String) = library.follows.any { it.kind == kind && it.targetId == targetId }
+
+    /**
+     * Заклад, що стоїть за стосом на мапі: з перших завантажених карток афіші. Null — картки ще їдуть або
+     * це спільнотні події, у яких місця нема.
+     */
+    fun placeOfStack(ids: List<String>): PlaceRef? = ids.firstNotNullOfOrNull { id ->
+        cards[id]?.let { card -> card.placeId?.let { PlaceRef(it, card.placeName ?: card.placeLabel) } }
+    }
+
     /**
      * Сеанси прокату, до якого належить подія, за часом. Без запиту: дати вже в індексі, але
      * лише в межах поточної видачі (під «Сьогодні» — сьогоднішні). Приймає id будь-якого сеансу.
@@ -152,6 +163,9 @@ data class DetailState(
 /** Події закладу [placeId] з `place_events`, від найближчої. */
 data class PlaceEvents(val placeId: String, val events: List<Event>)
 
+/** Заклад за id і назвою: досить, щоб стежити за ним, коли повної [Place] ще нема. */
+data class PlaceRef(val id: String, val name: String)
+
 /** Списки й факти акаунта. Зникають разом з ним, див. [forAccount]. */
 data class LibraryState(
     val myEvents: List<Event> = emptyList(),
@@ -165,6 +179,15 @@ data class LibraryState(
     /** Свій профіль. Null — ще не завантажено або сервер без міграції профілю. */
     val profile: Profile? = null,
     val blocked: List<Attendee> = emptyList(),
+    /** За ким і за чим стежу: закладі й організатори, нові першими. Профіль показує, картки знають, кнопка «Стежити» тримає стан. */
+    val follows: List<Follow> = emptyList(),
+    /** Майбутні події з підписок для секції на головній, найближчі першими. */
+    val followEvents: List<Event> = emptyList(),
+    /**
+     * Скільки разів людина за цей запуск підписалась (запит вдався). Сигнал платформі: підписка корисна лише з пушами,
+     * тож після першої вона питає дозвіл на сповіщення, якщо ще не питала.
+     */
+    val followsMade: Int = 0,
     /** «Мої події» перечитуються. Для спінера екрана «Мої», замість `map.loading`. */
     val loading: Boolean = false
 )

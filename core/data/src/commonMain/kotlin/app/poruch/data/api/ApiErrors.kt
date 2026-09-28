@@ -78,7 +78,11 @@ private val SERVER_ERRORS: Map<String, AppError> = mapOf(
     "COMPANION_LOCKED" to AppError.Rejected,
     "INVALID_MEET_TIME" to AppError.InvalidDraft(listOf(DraftField.STARTS_AT)),
     "INVALID_CAPACITY" to AppError.InvalidDraft(listOf(DraftField.CAPACITY)),
-    "INVALID_MEET_NOTE" to AppError.InvalidDraft(listOf(DraftField.DESCRIPTION))
+    "INVALID_MEET_NOTE" to AppError.InvalidDraft(listOf(DraftField.DESCRIPTION)),
+    // Підписки: заклад чи організатор зник або перестав бути таким, поки людина дивилась на екран; двісті підписок — стеля.
+    "FOLLOW_UNAVAILABLE" to AppError.Rejected,
+    "INVALID_FOLLOW" to AppError.Rejected,
+    "TOO_MANY_FOLLOWS" to AppError.Rejected
 )
 
 /** `error_code` GoTrue. */

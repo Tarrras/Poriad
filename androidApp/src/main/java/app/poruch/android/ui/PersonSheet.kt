@@ -11,6 +11,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import app.poruch.android.R
+import app.poruch.domain.FollowRules
 import app.poruch.domain.Profile
 import app.poruch.shared.PersonState
 import java.time.Instant
@@ -52,8 +53,12 @@ private fun memberSince(iso: String?): String? = remember(iso) {
         ?.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.forLanguageTag("uk")))
 }
 
+/** «Стежити» на картці організатора: поточний стан і що робити на тап. Немає — кнопки нема. */
+class FollowAction(val following: Boolean, val onToggle: () -> Unit)
+
 /**
  * Картка людини. [actions] — дії контексту (прийняти запит); скарга й блокування — для всіх, крім себе.
+ * [follow] — «Стежити», лише коли людина вже проводить події й це не ви (див. [FollowRules]).
  * Блокування в два кроки прямо в шторці: друга шторка поверх цієї губила б контекст.
  */
 @Composable
@@ -63,6 +68,7 @@ fun PersonSheet(
     onDismiss: () -> Unit,
     onBlock: (() -> Unit)?,
     onReport: (() -> Unit)? = null,
+    follow: FollowAction? = null,
     actions: @Composable ColumnScope.(PoruchSheetScope) -> Unit = {}
 ) {
     val colors = Poruch.colors
@@ -88,6 +94,16 @@ fun PersonSheet(
                         stringResource(R.string.person_you), style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary,
                         modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center
                     )
+                    if (follow != null && FollowRules.canFollowOrganizer(profile, isMe)) Column(
+                        Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(Spacing.xs)
+                    ) {
+                        FollowPill(follow.following, follow.onToggle)
+                        Text(
+                            stringResource(R.string.follow_organizer_hint), style = MaterialTheme.typography.bodySmall,
+                            color = colors.inkTertiary, textAlign = TextAlign.Center
+                        )
+                    }
                 }
             }
             if (!person.loading) actions(sheet)

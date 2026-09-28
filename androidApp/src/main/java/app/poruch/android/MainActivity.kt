@@ -115,6 +115,16 @@ class MainActivity : ComponentActivity(), AndroidScopeComponent {
             app.digestOpened()
             return
         }
+        // Тап по сповіщенню: що воно було — для метрики, яка повертає людей, а яка лише дратує.
+        intent.getStringExtra(EXTRA_REASON)?.let(app::pushOpened)
+        // Пуш про кілька нових подій закладу: мапа на його стосі. Одна подія йде звичайним шляхом нижче.
+        intent.getStringExtra(EXTRA_PLACE_ID)?.let { placeId ->
+            val navigator = scope.get<Navigator>()
+            navigator.reset(Home)
+            app.openPlace(placeId)
+            navigator.open(Explore())
+            return
+        }
         // Посилання на подію (`poriad.app/e/…` чи `poriad://event/…`) і тап по сповіщенню: подія (або її чат)
         // поверх головної, «назад» веде туди, а не з застосунку.
         val linked = data?.takeIf { intent.action == Intent.ACTION_VIEW }?.let { EventLinks.eventId(it.toString()) }
@@ -131,17 +141,30 @@ class MainActivity : ComponentActivity(), AndroidScopeComponent {
 
     companion object {
         const val EXTRA_EVENT_ID = "eventId"
+        private const val EXTRA_PLACE_ID = "placeId"
+        private const val EXTRA_REASON = "reason"
         private const val EXTRA_TARGET = "target"
         private const val TARGET_CHAT = "chat"
         private const val APP_LANGUAGE = "uk"
         private const val ACTION_DIGEST = "app.poruch.OPEN_DIGEST"
 
         /** Intent сповіщення: відкрити подію або, з [chat], її чат. Наявний екземпляр отримує його в `onNewIntent`. */
-        fun open(context: Context, eventId: String, chat: Boolean = false): Intent =
+        fun open(context: Context, eventId: String, chat: Boolean = false, reason: String? = null): Intent =
             Intent(context, MainActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                 .putExtra(EXTRA_EVENT_ID, eventId)
-                .apply { if (chat) putExtra(EXTRA_TARGET, TARGET_CHAT) }
+                .apply {
+                    if (chat) putExtra(EXTRA_TARGET, TARGET_CHAT)
+                    // Причина сповіщення для `push_open`: без неї (посилання, нагадування зі старого плану) метрики нема.
+                    reason?.let { putExtra(EXTRA_REASON, it) }
+                }
+
+        /** Intent пуша про кілька нових подій закладу: мапа відкривається на його стосі. */
+        fun openPlace(context: Context, placeId: String, reason: String): Intent =
+            Intent(context, MainActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                .putExtra(EXTRA_PLACE_ID, placeId)
+                .putExtra(EXTRA_REASON, reason)
 
         /** Intent дайджесту. Своя дія: PendingIntent не сплутається з intent-ом події, extras він не порівнює. */
         fun openDigest(context: Context): Intent =
@@ -225,6 +248,17 @@ fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
                 { sheet.close { app.digestPromptAnswered(false) } }, Modifier.fillMaxWidth()
             )
         }
+    }
+
+    // «Стежити» без дозволу на сповіщення марне: пуші про нове не дійдуть. Питаємо раз, одразу після першої підписки:
+    // людина щойно сама попросила, і причина зрозуміла. До Android 13 дозволу нема й питати нема про що.
+    val followPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
+    LaunchedEffect(state.library.followsMade) {
+        if (state.library.followsMade == 0) return@LaunchedEffect
+        val prompts = context.getSharedPreferences(PROMPTS, Context.MODE_PRIVATE)
+        if (prompts.getBoolean(FOLLOW_ASKED, false) || NotificationPermission(context).granted()) return@LaunchedEffect
+        prompts.edit { putBoolean(FOLLOW_ASKED, true) }
+        followPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 
     // Лист відновлення: окремий екран поверх того, де людина була. Профіль лишається запасним шляхом.
@@ -412,5 +446,6 @@ private const val PROMPTS = "prompts"
 private const val LOCATION_ASKED = "location_asked"
 private const val LAUNCHES = "launches"
 private const val DIGEST_ASKED = "digest_asked"
+private const val FOLLOW_ASKED = "follow_asked"
 private const val INFO_NOTICE_MS = 3_000L
 private const val ERROR_NOTICE_MS = 5_000L

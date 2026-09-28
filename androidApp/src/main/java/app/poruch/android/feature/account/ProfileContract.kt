@@ -4,7 +4,9 @@ import app.poruch.domain.EventCategory
 import app.poruch.domain.AccountRules
 import app.poruch.domain.AppError
 import app.poruch.domain.Attendee
+import app.poruch.domain.Follow
 import app.poruch.domain.Profile
+import app.poruch.shared.PersonState
 import java.time.LocalDate
 
 data class ProfileState(
@@ -43,7 +45,11 @@ data class ProfileState(
     /** Повтор і показ пароля на екрані нового пароля після листа відновлення. */
     val newPasswordConfirm: String = "",
     val newPasswordRevealed: Boolean = false,
-    val version: String = ""
+    val version: String = "",
+    /** За кого й за чим стежу: секція «Підписки». Порожньо — секції нема. */
+    val follows: List<Follow> = emptyList(),
+    /** Картка організатора з рядка підписки. */
+    val person: PersonState? = null
 ) {
     val canSavePassword get() = !mutating && AccountRules.isPassword(newPassword)
     /** Помилку показуємо лише коли в повторі вже щось є: порожнє поле — ще не помилка. */
@@ -72,6 +78,11 @@ sealed interface ProfileIntent {
     data class SetReminders(val enabled: Boolean) : ProfileIntent
     data class SetAnalytics(val enabled: Boolean) : ProfileIntent
     data class SetDigest(val enabled: Boolean) : ProfileIntent
+    /** Рядок підписки: заклад відкриває мапу на ньому, організатор — свою картку. */
+    data class OpenFollow(val follow: Follow) : ProfileIntent
+    data class Unfollow(val follow: Follow) : ProfileIntent
+    data object ClosePerson : ProfileIntent
+    data class ToggleFollowPerson(val userId: String, val name: String) : ProfileIntent
     /** Відповідь системи на запит дозволу, який маршрут показав за [ProfileEffect.AskNotificationPermission]. */
     data class NotificationPermissionAnswered(val granted: Boolean) : ProfileIntent
     data object OpenPrivacy : ProfileIntent
@@ -88,6 +99,7 @@ sealed interface ProfileIntent {
 sealed interface ProfileEffect {
     data object SignIn : ProfileEffect
     data object AskNotificationPermission : ProfileEffect
+    data object OpenMap : ProfileEffect
     data class OpenLink(val url: String) : ProfileEffect
     data class WriteEmail(val address: String) : ProfileEffect
 }

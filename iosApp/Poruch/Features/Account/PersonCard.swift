@@ -64,6 +64,17 @@ struct PersonSheet: View {
     private var person: PersonState? { model.state?.person }
     private var isMe: Bool { person?.userId == model.state?.session.userId }
 
+    /// «Стежити» за організатором: пуш, коли в нього зʼявиться нова подія. Картку відкривають лише з акаунта.
+    private func follow(_ profile: Profile) -> some View {
+        let following = model.state?.isFollowing(kind: .organizer, targetId: profile.userId) == true
+        return VStack(spacing: Space.xs) {
+            FollowPill(following: following) {
+                model.app.setFollowing(kind: .organizer, targetId: profile.userId, name: profile.name, following: !following)
+            }
+            Text("Скажемо, коли в нього зʼявиться нова подія").font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
+        }.frame(maxWidth: .infinity)
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Space.md) {
@@ -79,6 +90,7 @@ struct PersonSheet: View {
                         if isMe {
                             Text("Це ви").font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary).frame(maxWidth: .infinity)
                         }
+                        if FollowRules.shared.canFollowOrganizer(profile: profile, isMe: isMe) { follow(profile) }
                     } else {
                         VStack(spacing: Space.sm) {
                             Text("Профіль недоступний").font(PoruchFont.title2).foregroundStyle(Palette.ink)

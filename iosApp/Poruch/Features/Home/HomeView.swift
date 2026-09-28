@@ -85,6 +85,7 @@ struct HomeView: View {
                             if !view.requests.isEmpty { requestsSection(view) }
                             if !view.unread.isEmpty { unreadSection(view) }
                             if !view.plans.isEmpty { plansRail(view) }
+                            if !view.followed.isEmpty { rail("Від тих, за ким ви стежите", view.followed, view) }
                         }
                         if view.isEmpty {
                             if view.loading {

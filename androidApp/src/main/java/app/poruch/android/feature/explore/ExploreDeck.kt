@@ -24,6 +24,8 @@ import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.material.icons.outlined.NotificationsActive
+import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -40,6 +42,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
@@ -214,6 +217,8 @@ private fun SheetHeader(
     val colors = Poruch.colors
     val label = countLabel(state)
     val showList = stringResource(R.string.show_list)
+    // «Стежити» лише на стосі закладу: це одне з двох місць, де людина бачить заклад як окрему річ.
+    val stackPlace = state.stackPlace.takeIf { state.stackFocused }
     Column(
         Modifier
             .fillMaxWidth()
@@ -242,9 +247,11 @@ private fun SheetHeader(
                         areaLabel(state),
                         style = MaterialTheme.typography.bodySmall,
                         color = colors.inkSecondary,
-                        maxLines = 1
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
+                if (stackPlace != null) FollowPill(state.stackFollowing, { onIntent(ExploreIntent.ToggleFollowStack) })
             } else {
                 // Керування мапою в зоні великого пальця, над каруселлю.
                 IconPill(PoruchIcons.recenter, stringResource(R.string.recenter), size = 40.dp) { onIntent(ExploreIntent.Recenter) }
@@ -282,6 +289,12 @@ private fun SheetHeader(
                         tint = colors.inkSecondary
                     )
                 }
+                // Згорнута шапка тісна: тут лише дзвінок, підпис читає доступність.
+                if (stackPlace != null) IconPill(
+                    if (state.stackFollowing) Icons.Outlined.NotificationsActive else Icons.Outlined.NotificationsNone,
+                    stringResource(if (state.stackFollowing) R.string.following else R.string.follow),
+                    selected = state.stackFollowing, size = 40.dp
+                ) { onIntent(ExploreIntent.ToggleFollowStack) }
             }
             // Вихід із фокуса на піні знімає і підсвітку, інакше мапа й список розходились.
             if (state.stackFocused) IconPill(

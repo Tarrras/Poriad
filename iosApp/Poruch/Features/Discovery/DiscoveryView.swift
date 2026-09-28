@@ -57,6 +57,8 @@ struct DiscoveryView: View {
     /// Подія з відкритими деталями. Значення, а не прапорець, щоб не читати id з асинхронного стану.
     @State private var detail: EventRoute?
     @State private var filters = false
+    /// Вхід для гостя, що натиснув «Стежити».
+    @State private var auth = false
     @State private var mapFailed = false
     @State private var retryToken = 0
     @State private var centerToken = 0
@@ -100,6 +102,8 @@ struct DiscoveryView: View {
 
     /// Стос обраного піна не порожній. Порожньо, якщо після нової видачі стосу не лишилось.
     private var stackFocused: Bool { derived.stackFocused }
+    /// Заклад за стосом, для «Стежити». Nil — це спільнотні події або картки ще їдуть.
+    private var stackPlace: PlaceRef? { derived.stackPlace }
 
     /// Вміст шторки: стос обраного піна або вся видача, звужені категорією плиток. Плитки звужують список, а не мапу.
     private var listEntries: [EventIndexEntry] { derived.listEntries }
@@ -193,6 +197,7 @@ struct DiscoveryView: View {
         .onChange(of: model.eventsRevision) { _, _ in loadHead(cardPage) }
         .sheet(isPresented: $citySearch) { CitySearchView().presentationDetents([.medium, .large]) }
         .sheet(isPresented: $filters) { FiltersView().presentationDetents([.medium, .large]) }
+        .sheet(isPresented: $auth) { NavigationStack { AuthView() } }
         .sheet(item: $detail) { route in
             NavigationStack {
                 EventDetailView(app: model.app, eventID: route.id)
@@ -340,7 +345,8 @@ struct DiscoveryView: View {
                 else if model.state?.map.offline == true {
                     Image(systemName: "wifi.slash").font(.system(size: 12)).foregroundStyle(Palette.accent)
                 }
-                Text(countLabel).font(PoruchFont.label).foregroundStyle(Palette.ink)
+                // Зі «Стежити» ряд на вузькому екрані тісний: лічильник стискається, а не переноситься.
+                Text(countLabel).font(PoruchFont.label).foregroundStyle(Palette.ink).lineLimit(1).minimumScaleFactor(0.75)
                 Image(systemName: "chevron.up").font(.system(size: 11, weight: .bold)).foregroundStyle(Palette.inkSecondary)
             }
             .padding(.horizontal, Space.lg).frame(height: 40)
@@ -351,7 +357,10 @@ struct DiscoveryView: View {
             .accessibilityLabel("\(countLabel). Показати списком")
             .accessibilityAddTraits(.isButton)
             .accessibilityAction { open(.half) }
-            if stackFocused { clearStackButton }
+            if stackFocused {
+                followButton(iconOnly: true)
+                clearStackButton
+            }
         }
         .frame(height: 44)
     }
@@ -361,6 +370,8 @@ struct DiscoveryView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(countLabel).font(PoruchFont.title2).foregroundStyle(Palette.ink)
                 Text(areaLabel).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(1)
+                // Під підписом, а не в ряду: лічильник і дві кнопки праворуч не лишають йому місця.
+                if stackPlace != nil { followButton(iconOnly: false).padding(.top, Space.sm) }
             }
             Spacer(minLength: Space.sm)
             if stackFocused { clearStackButton }
@@ -376,6 +387,17 @@ struct DiscoveryView: View {
         IconPill(symbol: "xmark", label: "Показати всі події") {
             stackIDs = []
             model.app.dismissEvent()
+        }
+    }
+
+    /// «Стежити» за закладом стосу. Гостя ведемо на вхід: пуш прив'язаний до акаунта.
+    @ViewBuilder private func followButton(iconOnly: Bool) -> some View {
+        if let place = stackPlace {
+            let following = model.state?.isFollowing(kind: .place, targetId: place.id) == true
+            FollowPill(following: following, iconOnly: iconOnly) {
+                guard model.state?.signedIn == true else { auth = true; return }
+                model.app.setFollowing(kind: .place, targetId: place.id, name: place.name, following: !following)
+            }
         }
     }
 
@@ -770,6 +792,7 @@ private final class DeckMemo {
     private var key: Key?
     private(set) var mapEntries: [EventIndexEntry] = []
     private(set) var stackFocused = false
+    private(set) var stackPlace: PlaceRef?
     private(set) var listEntries: [EventIndexEntry] = []
     private(set) var shownEvents: [Event] = []
     /// Id показаних карток: перевірка «чи вибрана вже в каруселі» на кожен кадр без проходу через міст.
@@ -782,6 +805,7 @@ private final class DeckMemo {
         let stack = Set(next.stack)
         let stackEntries = stack.isEmpty ? [] : mapEntries.filter { stack.contains($0.id) }
         stackFocused = !stackEntries.isEmpty
+        stackPlace = stackFocused ? model.state?.placeOfStack(ids: next.stack) : nil
         let base = stackFocused ? stackEntries : mapEntries
         listEntries = next.listCategory.map { chosen in base.filter { $0.category == chosen } } ?? base
         let cards = model.cardsByID

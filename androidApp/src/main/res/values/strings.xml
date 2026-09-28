@@ -709,4 +709,17 @@
     <item quantity="many">%1$d збережених</item>
     <item quantity="other">%1$d збережених</item>
   </plurals>
+  <!-- Підписки: «Стежити» на закладі й організаторі (docs/follows.md) -->
+  <string name="follow">Стежити</string>
+  <string name="following">Ви стежите</string>
+  <string name="follow_place_hint">Скажемо, коли тут зʼявиться щось нове</string>
+  <string name="follow_organizer_hint">Скажемо, коли в нього зʼявиться нова подія</string>
+  <string name="rate_follow_title">Стежити за організатором</string>
+  <string name="rate_follow_hint">Скажемо, коли в нього зʼявиться нова подія</string>
+  <string name="follows_title">Підписки</string>
+  <string name="follows_place_caption">%1$s · %2$s</string>
+  <string name="follows_organizer_caption">Організатор · %1$s</string>
+  <string name="unfollow">Не стежити</string>
+  <string name="followed_home_section">Від тих, за ким ви стежите</string>
+  <string name="follow_notification_channel">Нові події тих, за ким ви стежите</string>
 </resources>

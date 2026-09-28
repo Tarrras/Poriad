@@ -6,6 +6,8 @@ import app.poruch.domain.CompanionParent
 import app.poruch.domain.Event
 import app.poruch.domain.EventOrigin
 import app.poruch.domain.EventStatus
+import app.poruch.domain.Follow
+import app.poruch.domain.FollowKind
 import app.poruch.domain.Gathering
 import app.poruch.domain.ImportStatus
 import app.poruch.domain.Listing
@@ -160,6 +162,25 @@ internal data class PlaceDto(
     val upcoming: Int = 0
 ) {
     fun domain() = Place(id, name, city, address, latitude, longitude, upcoming)
+}
+
+/** Елемент відповіді `my_follows`: заклад чи організатор з тим, що потрібно списку. */
+@Serializable
+internal data class FollowDto(
+    val kind: String,
+    val id: String,
+    val name: String = "",
+    val city: String? = null,
+    val address: String? = null,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+    @SerialName("avatar_url") val avatarUrl: String? = null,
+    val upcoming: Int = 0
+) {
+    /** Невідомий рід (сервер новіший за застосунок) — не рядок списку, а відсутня підписка. */
+    fun domain() = FollowKind.fromKey(kind)?.let {
+        Follow(it, id, name, city.orEmpty(), address.orEmpty(), latitude, longitude, avatarUrl, upcoming)
+    }
 }
 
 /** Рядок `public.message_result` з `event_messages`. */

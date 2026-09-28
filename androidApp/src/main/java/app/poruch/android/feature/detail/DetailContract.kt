@@ -60,7 +60,11 @@ data class DetailState(
     /** Кнопка «Шукаю компанію»: афіша ще попереду, мого пошуку на неї нема. */
     val canSeekCompany: Boolean = false,
     /** Відкрита шторка створення супутника. */
-    val seekingCompany: Boolean = false
+    val seekingCompany: Boolean = false,
+    /** Стежу за закладом цієї афіші. */
+    val followingPlace: Boolean = false,
+    /** Люди, за якими стежу: кнопка на картці людини й початковий стан перемикача в шторці оцінки. */
+    val followedOrganizers: Set<String> = emptySet()
 ) {
     /** Супутник «Йдемо разом»: час і місце тримає сервер, редагувати нема чого. */
     val companionOf get() = room?.companionOf
@@ -145,6 +149,10 @@ sealed interface DetailIntent {
     data class JoinCompanion(val id: String) : DetailIntent
     /** Екран знову зверху після іншого екрана деталей: той перебрав єдиний слот відкритої події. */
     data object Reopen : DetailIntent
+    /** «Стежити» / «Ви стежите» на закладі афіші. Гостя веде на вхід. */
+    data object ToggleFollowPlace : DetailIntent
+    /** Те саме на картці людини: [name] — для списку підписок, поки сервер не віддав повні дані. */
+    data class ToggleFollowPerson(val userId: String, val name: String) : DetailIntent
     data object PrimaryAction : DetailIntent
     data object ToggleSaved : DetailIntent
     data object Share : DetailIntent
@@ -174,7 +182,8 @@ sealed interface DetailIntent {
     data class ApproveRequest(val userId: String) : DetailIntent
     data class DeclineRequest(val userId: String) : DetailIntent
     data object CancelEvent : DetailIntent
-    data class Rate(val score: Int, val comment: String, val tags: List<RatingTag>) : DetailIntent
+    /** [follow] — що показував перемикач «Стежити за організатором»; null — перемикача не було. */
+    data class Rate(val score: Int, val comment: String, val tags: List<RatingTag>, val follow: Boolean? = null) : DetailIntent
     data class AttachPhoto(val bytes: ByteArray, val contentType: String) : DetailIntent {
         // Масиви байтів порівнюються за посиланням: два вибори того самого файлу — різні інтенти.
         override fun equals(other: Any?) = this === other ||

@@ -34,6 +34,7 @@ import app.poruch.android.platform.shareEvent
 import app.poruch.android.ui.*
 import app.poruch.domain.Event
 import app.poruch.domain.EventRating
+import app.poruch.domain.FollowRules
 import app.poruch.domain.JoinRequest
 import app.poruch.domain.MyEventsGroup
 import app.poruch.domain.MyEventsRules
@@ -136,12 +137,15 @@ fun MyEventsScreen(state: MyEventsState, onIntent: (MyEventsIntent) -> Unit) {
     }
     state.rating?.let { event ->
         val mine = state.myRatings[event.id]?.let { EventRating(it, null, "", true) }
+        // Оцінюють лише те, куди ходили: організатор тут завжди хтось інший.
+        val follow = event.organizerId?.let { FollowRules.followOnRating(it in state.followedOrganizers, mine != null) }
         RatingSheet(
             event,
             mine,
             state.mutating,
-            { onIntent(MyEventsIntent.DismissRating) }) { score, comment, tags ->
-            onIntent(MyEventsIntent.Rate(event.id, score, comment, tags))
+            follow,
+            { onIntent(MyEventsIntent.DismissRating) }) { score, comment, tags, following ->
+            onIntent(MyEventsIntent.Rate(event.id, score, comment, tags, following))
         }
     }
 }

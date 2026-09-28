@@ -152,7 +152,7 @@ class AlarmReminderScheduler(private val context: Context) : ReminderScheduler {
             )
             val open = PendingIntent.getActivity(
                 context, reminder.eventId.hashCode(),
-                MainActivity.open(context, reminder.eventId),
+                MainActivity.open(context, reminder.eventId, reason = "reminder"),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             val notification = Notification.Builder(context, CHANNEL)
@@ -225,30 +225,46 @@ class RequestNotificationCenter(context: Context) : RequestNotifier {
     override fun notify(alerts: List<RequestAlert>) = alerts.forEach { alert ->
         post(
             TAG, alert.eventId, alert.eventTitle,
-            context.resources.getQuantityString(R.plurals.request_notification_body, alert.count, alert.count)
+            context.resources.getQuantityString(R.plurals.request_notification_body, alert.count, alert.count),
+            reason = "request"
         )
     }
 
     /** Хтось приєднався до відкритої події: той самий канал і тап на подію, свій простір id. */
-    fun notifyJoined(eventId: String, eventTitle: String, text: String) = post(JOINED_TAG, eventId, eventTitle, text)
+    fun notifyJoined(eventId: String, eventTitle: String, text: String) = post(JOINED_TAG, eventId, eventTitle, text, reason = "joined")
 
     /**
      * Подію скасовано чи перенесено — учасникам. Свій канал з високою важливістю: скасування за годину
      * до початку має спливти, а не лежати в шторці. Одне на подію: новіша зміна замінює попередню.
+     * [reason] — `moved` чи `cancelled`, для метрики відкриттів.
      */
-    fun notifyEventChange(eventId: String, eventTitle: String, text: String) =
-        post(CHANGE_TAG, eventId, eventTitle, text, CHANGE_CHANNEL, R.string.event_change_notification_channel, NotificationManager.IMPORTANCE_HIGH)
+    fun notifyEventChange(eventId: String, eventTitle: String, text: String, reason: String) =
+        post(CHANGE_TAG, eventId, eventTitle, text, CHANGE_CHANNEL, R.string.event_change_notification_channel, NotificationManager.IMPORTANCE_HIGH, reason)
+
+    /**
+     * Нова подія організатора чи закладу, за якими стежить людина ([reason] — `organizer` чи `place`, він же
+     * тип пуша). З [eventId] тап веде на подію; без нього (кілька нових подій закладу) — на стос закладу
+     * на мапі. Одне сповіщення на заклад: новіше заміняє попереднє.
+     */
+    fun notifyFollowed(reason: String, eventId: String?, placeId: String?, title: String, text: String) {
+        val key = eventId ?: placeId ?: return
+        val open = if (eventId == null && placeId != null) MainActivity.openPlace(context, placeId, reason)
+        else MainActivity.open(context, eventId ?: return, reason = reason)
+        post(FOLLOW_TAG, key, title, text, FOLLOW_CHANNEL, R.string.follow_notification_channel, NotificationManager.IMPORTANCE_DEFAULT, reason, open)
+    }
 
     private fun post(
         tag: String, eventId: String, title: String, text: String, channel: String = CHANNEL,
-        channelName: Int = R.string.request_notification_channel, importance: Int = NotificationManager.IMPORTANCE_DEFAULT
+        channelName: Int = R.string.request_notification_channel, importance: Int = NotificationManager.IMPORTANCE_DEFAULT,
+        reason: String? = null, target: Intent = MainActivity.open(context, eventId, reason = reason)
     ) {
         if (!NotificationPermission(context).granted()) return
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(NotificationChannel(channel, context.getString(channelName), importance))
+        // Свій requestCode на кожен вид: extras PendingIntent не порівнює, і тап по старому сповіщенню
+        // про ту саму подію інакше ніс би причину нового.
         val open = PendingIntent.getActivity(
-            context, eventId.hashCode(),
-            MainActivity.open(context, eventId),
+            context, (tag + eventId).hashCode(), target,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val notification = Notification.Builder(context, channel)
@@ -267,6 +283,8 @@ class RequestNotificationCenter(context: Context) : RequestNotifier {
         const val JOINED_TAG = "joined"
         const val CHANGE_CHANNEL = "event_changes"
         const val CHANGE_TAG = "change"
+        const val FOLLOW_CHANNEL = "follows"
+        const val FOLLOW_TAG = "follow"
     }
 }
 
@@ -289,7 +307,7 @@ class ChatNotificationCenter(context: Context) : ChatNotifier {
             // подію (extras не розрізняють), і їхні тапи теж вели б у чат.
             val open = PendingIntent.getActivity(
                 context, (TAG + alert.eventId).hashCode(),
-                MainActivity.open(context, alert.eventId, chat = true),
+                MainActivity.open(context, alert.eventId, chat = true, reason = "chat"),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             val preview = context.getString(

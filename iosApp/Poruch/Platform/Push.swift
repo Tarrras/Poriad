@@ -11,21 +11,30 @@ final class PushDelegate: NSObject, UIApplicationDelegate {
         didSet {
             if let token = pendingToken { app?.pushTokenChanged(token: token, platform: PushPlatform.ios) }
             else { registerIfAllowed() }
+            if let app, let reason = pendingReason { pendingReason = nil; app.pushOpened(reason: reason) }
         }
     }
     private static var pendingToken: String?
-    /// Тап по сповіщенню: подія, яку відкрити, і чи в її чат; nil — дайджест, лише головна.
+    /// Тап по сповіщенню: подія, яку відкрити, і чи в її чат; без події — заклад, чий стос показати на мапі
+    /// (пуш про кілька нових подій), а без нього — дайджест, лише головна.
     /// Ставить корінь, коли застосунок уже на екрані.
-    static var openEvent: ((String?, Bool) -> Void)? {
+    static var openEvent: ((String?, Bool, String?) -> Void)? {
         didSet {
-            if let openEvent, let pending = pendingOpen { pendingOpen = nil; openEvent(pending.id, pending.chat) }
+            if let openEvent, let pending = pendingOpen { pendingOpen = nil; openEvent(pending.id, pending.chat, pending.placeId) }
         }
     }
     /// Тап при холодному старті приходить раніше, ніж корінь готовий: чекає тут.
-    private static var pendingOpen: (id: String?, chat: Bool)?
+    private static var pendingOpen: (id: String?, chat: Bool, placeId: String?)?
 
-    static func open(eventId: String?, chat: Bool) {
-        if let openEvent { openEvent(eventId, chat) } else { pendingOpen = (eventId, chat) }
+    static func open(eventId: String?, chat: Bool, placeId: String? = nil) {
+        if let openEvent { openEvent(eventId, chat, placeId) } else { pendingOpen = (eventId, chat, placeId) }
+    }
+
+    /// Що це було, для аналітики (`push_open`). Так само чекає на `app`: при холодному старті його ще нема.
+    private static var pendingReason: String?
+
+    static func opened(reason: String) {
+        if let app { app.pushOpened(reason: reason) } else { pendingReason = reason }
     }
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions options: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {

@@ -58,7 +58,9 @@ class PoruchAppTest {
         var inlineCards=Int.MAX_VALUE
         override suspend fun discover(query:EventQuery):DiscoveryPage { queries+=query; delay(100); return page(results.filter { e -> query.text.let { it==null || it in e.title } },inlineCards) }
         override fun cached(query:EventQuery)=DiscoveryPage.Empty
-        override suspend fun cards(ids:List<String>):List<Event> { cardRequests+=ids; return results.filter { it.id in ids } }
+        /** Картки, яких нема у видачі, але сервер їх віддає за id: подія, відкрита посиланням. */
+        var offFeedCards=emptyList<Event>()
+        override suspend fun cards(ids:List<String>):List<Event> { cardRequests+=ids; return (results+offFeedCards).filter { it.id in ids } }
         var failPending=false
         var failFacts=false
         var detailsById=emptyMap<String,Event>()
@@ -68,7 +70,8 @@ class PoruchAppTest {
         override suspend fun searchPlaces(text:String,city:String?,bounds:EventQuery?):List<Place> { placeQueries+=text to bounds; delay(50); return places.filter { it.name.lowercase().startsWith(text.lowercase()) } }
         var atPlace=emptyMap<String,List<Event>>()
         var failPlaceEvents=false
-        override suspend fun placeEvents(placeId:String):List<Event> { if(failPlaceEvents) fail(AppError.Network); return atPlace[placeId].orEmpty() }
+        var placeEventCalls=0
+        override suspend fun placeEvents(placeId:String):List<Event> { placeEventCalls++; if(failPlaceEvents) fail(AppError.Network); return atPlace[placeId].orEmpty() }
         override suspend fun safety(id:String):EventSafety? = null
         var companionCards=emptyList<CompanionCard>()
         override suspend fun companions(parentId:String)=companionCards
@@ -95,7 +98,8 @@ class PoruchAppTest {
         override suspend fun joinWaitlist(id:String) {}
         override suspend fun leaveWaitlist(id:String) {}
         override suspend fun ratings(id:String) = emptyList<EventRating>()
-        override suspend fun rate(id:String, score:Int, comment:String?, tags:List<RatingTag>) {}
+        val rated=mutableListOf<String>()
+        override suspend fun rate(id:String, score:Int, comment:String?, tags:List<RatingTag>) { rated+=id }
         override suspend fun joinRequests(id:String)=emptyList<Attendee>()
         var pending=emptyList<JoinRequest>()
         override suspend fun pendingRequests()=if(failPending) fail(AppError.ServiceUnavailable) else pending
@@ -108,10 +112,30 @@ class PoruchAppTest {
         override fun write(city:CityResult, manual:Boolean) { stored=city; this.manual=manual }
         override fun manual()=manual
     }
-    private fun app(events:Events,scope:CoroutineScope,auth:Auth=Auth(),cities:CityStore?=null):PoruchApp {
+    /** Підписки в пам'яті: сервер приймає з паузою, а список і стрічку віддає, як записав. */
+    private class FollowsFake: Follows {
+        var list=emptyList<Follow>()
+        var feed=emptyList<Event>()
+        val calls=mutableListOf<String>()
+        var failFollow=false
+        var failUnfollow=false
+        var failMine=false
+        override suspend fun mine():List<Follow> { if(failMine) fail(AppError.Network); return list }
+        override suspend fun follow(kind:FollowKind,targetId:String) {
+            delay(100); if(failFollow) fail(AppError.Network)
+            calls+="follow ${kind.key} $targetId"; list=list+Follow(kind,targetId,"srv $targetId",upcoming=2)
+        }
+        override suspend fun unfollow(kind:FollowKind,targetId:String) {
+            delay(100); if(failUnfollow) fail(AppError.Network)
+            calls+="unfollow ${kind.key} $targetId"; list=list.filterNot { it.kind==kind&&it.targetId==targetId }
+        }
+        override suspend fun upcoming()=feed
+    }
+
+    private fun app(events:Events,scope:CoroutineScope,auth:Auth=Auth(),cities:CityStore?=null,follows:Follows?=null):PoruchApp {
         return PoruchApp(
             events=events, saved=events, authoring=events, participation=events, requests=events, chat=events,
-            auth=auth, cityStore=cities,
+            auth=auth, cityStore=cities, follows=follows,
             geo=object:GeoSearchRepository { override suspend fun search(query:String)=emptyList<CityResult>() },
             eventActions=EventActions(events,events,auth), accountActions=AccountActions(auth),
             safety=safety, profiles=profiles, tasteStore=taste, reminderStore=reminders, scope=scope
@@ -1201,6 +1225,216 @@ class PoruchAppTest {
         app.closePerson(); runCurrent()
         assertNull(app.state.value.person)
         app.close()
+    }
+
+    /** «Стежити»: кнопка перемикається до відповіді, сервер підтверджує, список перечитується, метрика — лише про вдалу. */
+    @Test fun followingAPlaceFlipsAtOnceAndTheServerConfirmsIt()=runTest {
+        val tracked=mutableListOf<Pair<String,Map<String,String>>>()
+        PoruchAnalytics.sink={ name,params -> tracked+=name to params }
+        try {
+            val follows=FollowsFake(); val app=app(Events(),backgroundScope,follows=follows); runCurrent(); advanceTimeBy(101); runCurrent()
+            assertFalse(app.state.value.isFollowing(FollowKind.PLACE,"p1"))
+            app.setFollowing(FollowKind.PLACE,"p1","Малевич",true); runCurrent()
+            assertTrue(app.state.value.isFollowing(FollowKind.PLACE,"p1"),"the button flips before the network answers")
+            assertEquals("Малевич",app.state.value.library.follows.single().name)
+            assertTrue(follows.calls.isEmpty())
+            advanceTimeBy(300); runCurrent()
+            assertEquals(listOf("follow place p1"),follows.calls)
+            assertEquals("srv p1",app.state.value.library.follows.single().name,"the list is re-read from the server")
+            assertEquals(listOf("follow" to mapOf("target" to "place")),tracked.filter { it.first=="follow" })
+            assertEquals(1,app.state.value.library.followsMade,"the platform is told: time to ask about notifications")
+
+            app.setFollowing(FollowKind.PLACE,"p1","Малевич",true); advanceTimeBy(300); runCurrent()
+            assertEquals(1,follows.calls.size,"already following: nothing to send")
+            app.setFollowing(FollowKind.PLACE,"p1","",false); runCurrent()
+            assertFalse(app.state.value.isFollowing(FollowKind.PLACE,"p1"))
+            advanceTimeBy(300); runCurrent()
+            assertEquals("unfollow place p1",follows.calls.last())
+            assertEquals(1,tracked.count { it.first=="follow" },"unfollowing is not a follow")
+            app.loadMyEvents(); advanceTimeBy(300); runCurrent()
+            assertEquals(1,app.state.value.library.followsMade,"neither unfollowing nor a reload resets or adds to it")
+            app.close()
+        } finally { PoruchAnalytics.sink=null }
+    }
+
+    @Test fun aFailedFollowRollsBackAndIsNotCounted()=runTest {
+        val tracked=mutableListOf<String>()
+        PoruchAnalytics.sink={ name,_ -> tracked+=name }
+        try {
+            val follows=FollowsFake().apply { failFollow=true }
+            val app=app(Events(),backgroundScope,follows=follows); runCurrent(); advanceTimeBy(101); runCurrent()
+            app.setFollowing(FollowKind.ORGANIZER,"u1","Олена",true); runCurrent()
+            assertTrue(app.state.value.isFollowing(FollowKind.ORGANIZER,"u1"))
+            advanceTimeBy(300); runCurrent()
+            assertFalse(app.state.value.isFollowing(FollowKind.ORGANIZER,"u1"),"back to how it was")
+            assertEquals(AppNotice.Failed(AppError.Network),app.state.value.notice)
+            assertFalse("follow" in tracked)
+            assertEquals(0,app.state.value.library.followsMade,"a failed follow asks for nothing")
+            app.close()
+        } finally { PoruchAnalytics.sink=null }
+    }
+
+    /** Відписка не вдалась і список не перечитати (мережі нема): підписка повертається з усіма даними, а не голим імʼям. */
+    @Test fun aFailedUnfollowBringsTheFollowBackWithItsData()=runTest {
+        val place=Follow(FollowKind.PLACE,"p1","Малевич","Київ","Хрещатик",50.45,30.52,upcoming=3)
+        val follows=FollowsFake().apply { list=listOf(place) }
+        val app=app(Events(),backgroundScope,follows=follows); runCurrent(); advanceTimeBy(101); runCurrent()
+        follows.failUnfollow=true; follows.failMine=true
+        app.setFollowing(FollowKind.PLACE,"p1","Малевич",false); runCurrent()
+        assertFalse(app.state.value.isFollowing(FollowKind.PLACE,"p1"))
+        advanceTimeBy(300); runCurrent()
+        assertEquals(listOf(place),app.state.value.library.follows,"the same follow, with its city, coordinates and count")
+        assertEquals(AppNotice.Failed(AppError.Network),app.state.value.notice)
+        app.close()
+    }
+
+    /** Відповідь списку, що не бачила запиту в дорозі, не скасовує кнопку: сервер ще не встиг. */
+    @Test fun aReloadThatMissedTheRequestInFlightDoesNotUndoTheFollow()=runTest {
+        val follows=FollowsFake(); val app=app(Events(),backgroundScope,follows=follows); runCurrent(); advanceTimeBy(101); runCurrent()
+        app.setFollowing(FollowKind.PLACE,"p1","Малевич",true); runCurrent()
+        app.loadMyEvents(); runCurrent()
+        assertTrue(app.state.value.isFollowing(FollowKind.PLACE,"p1"),"the server has not seen it yet, the list does not say it is gone")
+        advanceTimeBy(300); runCurrent()
+        assertEquals("srv p1",app.state.value.library.follows.single().name,"the request is done: the list is re-read")
+        app.close()
+    }
+
+    /** «Стежити» й одразу «Не стежити»: запити йдуть по черзі, а кнопка ні на мить не повертається до старого. */
+    @Test fun followThenUnfollowQuicklyEndsUpUnfollowedWithoutFlicker()=runTest {
+        val follows=FollowsFake(); val app=app(Events(),backgroundScope,follows=follows); runCurrent(); advanceTimeBy(101); runCurrent()
+        app.setFollowing(FollowKind.PLACE,"p1","Малевич",true); runCurrent()
+        app.setFollowing(FollowKind.PLACE,"p1","",false); runCurrent()
+        assertFalse(app.state.value.isFollowing(FollowKind.PLACE,"p1"))
+        advanceTimeBy(120); runCurrent()
+        assertEquals(listOf("follow place p1"),follows.calls,"the first request is done, the second is on its way")
+        assertFalse(app.state.value.isFollowing(FollowKind.PLACE,"p1"),"the list that saw only the first request is not written")
+        advanceTimeBy(500); runCurrent()
+        assertEquals(listOf("follow place p1","unfollow place p1"),follows.calls)
+        assertFalse(app.state.value.isFollowing(FollowKind.PLACE,"p1"))
+        assertTrue(app.state.value.library.follows.isEmpty())
+        app.close()
+    }
+
+    /** Збій запиту, що поїхав з іншого акаунта, новому нічого не каже й нічого в ньому не відкочує. */
+    @Test fun aFailureAfterTheAccountSwitchedTellsTheNewAccountNothing()=runTest {
+        val follows=FollowsFake().apply { failFollow=true }; val auth=Auth()
+        val app=app(Events(),backgroundScope,auth,follows=follows); runCurrent(); advanceTimeBy(101); runCurrent()
+        app.setFollowing(FollowKind.PLACE,"p1","Малевич",true); runCurrent()
+        auth.session.value=UserSession("other","token","refresh",9999999999); runCurrent()
+        advanceTimeBy(300); runCurrent()
+        assertNotEquals(AppNotice.Failed(AppError.Network),app.state.value.notice,"the other account is not told about the old one's failure")
+        assertFalse(app.state.value.isFollowing(FollowKind.PLACE,"p1"))
+        app.close()
+    }
+
+    @Test fun aGuestIsSentToSignInAndNothingGoesOut()=runTest {
+        val follows=FollowsFake(); val auth=Auth().apply { session.value=null }
+        val app=app(Events(),backgroundScope,auth,follows=follows); runCurrent(); advanceTimeBy(101); runCurrent()
+        app.setFollowing(FollowKind.PLACE,"p1","Малевич",true); advanceTimeBy(300); runCurrent()
+        assertEquals(AppNotice.Failed(AppError.SessionRequired),app.state.value.notice)
+        assertFalse(app.state.value.isFollowing(FollowKind.PLACE,"p1"))
+        assertTrue(follows.calls.isEmpty())
+        app.close()
+    }
+
+    @Test fun followsAndTheirEventsLoadWithTheLibrary()=runTest {
+        val follows=FollowsFake().apply {
+            list=listOf(Follow(FollowKind.PLACE,"p1","Малевич","Київ","Хрещатик",50.45,30.52,upcoming=3),Follow(FollowKind.ORGANIZER,"u1","Олена"))
+            feed=listOf(listed("a","2090-12-22T18:00:00Z"))
+        }
+        val app=app(Events(),backgroundScope,follows=follows); runCurrent(); advanceTimeBy(101); runCurrent()
+        assertEquals(listOf("p1","u1"),app.state.value.library.follows.map { it.targetId })
+        assertEquals(listOf("a"),app.state.value.library.followEvents.map { it.id })
+        assertTrue(app.state.value.isFollowing(FollowKind.ORGANIZER,"u1"))
+        app.close()
+    }
+
+    /** Шторка оцінки: перемикач «Стежити за організатором» іде разом з оцінкою, а збій підписки її не псує. */
+    @Test fun ratingCanFollowTheOrganizerAndAFailedFollowDoesNotSpoilTheRating()=runTest {
+        val events=Events().apply { mine=listOf(event("a",EventCategory.MUSIC,"2020-01-01T18:00:00Z")) }
+        val follows=FollowsFake(); val app=app(events,backgroundScope,follows=follows); runCurrent(); advanceTimeBy(101); runCurrent()
+        app.rateEvent("a",5,null,emptyList(),true); runCurrent()
+        assertEquals(AppNotice.Told(AppMessage.RATING_SENT),app.state.value.notice,"the rating is confirmed before the follow request is done")
+        assertTrue(follows.calls.isEmpty())
+        advanceTimeBy(1000); runCurrent()
+        assertEquals(listOf("a"),events.rated)
+        assertEquals(listOf("follow organizer organizer"),follows.calls)
+        assertTrue(app.state.value.isFollowing(FollowKind.ORGANIZER,"organizer"))
+        assertEquals(AppNotice.Told(AppMessage.RATING_SENT),app.state.value.notice)
+
+        app.rateEvent("a",4,null,emptyList(),null); advanceTimeBy(1000); runCurrent()
+        assertEquals(1,follows.calls.size,"no switch, no change")
+        app.rateEvent("a",4,null,emptyList(),false); advanceTimeBy(1000); runCurrent()
+        assertFalse(app.state.value.isFollowing(FollowKind.ORGANIZER,"organizer"))
+
+        follows.failFollow=true
+        app.rateEvent("a",5,null,emptyList(),true); advanceTimeBy(1000); runCurrent()
+        assertEquals(listOf("a","a","a","a"),events.rated,"the rating went out anyway")
+        assertEquals(AppNotice.Told(AppMessage.RATING_SENT),app.state.value.notice,"and the person is not told off")
+        assertFalse(app.state.value.isFollowing(FollowKind.ORGANIZER,"organizer"))
+        app.close()
+    }
+
+    /** Тап по пушу про кілька подій: мапа переходить до закладу й відкриває його стос. */
+    @Test fun openingAPlaceFromAPushFocusesItsStack()=runTest {
+        val events=Events()
+        val all=listOf(listed("c","2090-12-24T18:00:00Z"),listed("a","2090-12-22T18:00:00Z"))
+        events.results=all; events.atPlace=mapOf("p1" to all.sortedBy { it.startsAt })
+        val app=app(events,backgroundScope,follows=FollowsFake()); runCurrent(); advanceTimeBy(101); runCurrent()
+        app.openPlace("p1"); advanceTimeBy(1000); runCurrent()
+        val focus=app.state.value.map.placeFocus!!
+        assertEquals("p1",focus.place.id)
+        assertEquals("Малевич",focus.place.name)
+        assertEquals(listOf("a","c"),focus.eventIds)
+        assertEquals(1,events.placeEventCalls,"the place came from its events")
+
+        // Заклад із підписок: без запиту.
+        val follows=FollowsFake().apply { list=listOf(Follow(FollowKind.PLACE,"p2","Клуб","Київ","Хрещатик",50.44,30.5,upcoming=1)) }
+        val known=app(events,backgroundScope,follows=follows); runCurrent(); advanceTimeBy(101); runCurrent()
+        known.openPlace("p2"); advanceTimeBy(1000); runCurrent()
+        assertEquals("Клуб",known.state.value.map.placeFocus?.place?.name)
+        assertEquals(1,events.placeEventCalls,"a followed place needs no request")
+
+        // Заклад зник і подій нема: банер, а не порожня мапа.
+        known.openPlace("gone"); advanceTimeBy(1000); runCurrent()
+        assertEquals(AppNotice.Failed(AppError.EventUnavailable),known.state.value.notice)
+        app.close(); known.close()
+    }
+
+    /** Посилання чи пуш відкривають афішу без картки: заклад для «Стежити» береться з її картки окремим запитом. */
+    @Test fun aDeepLinkedListingGetsItsPlaceFromItsCard()=runTest {
+        val events=Events(); val opened=listed("z","2090-12-23T18:00:00Z")
+        events.detailsById=mapOf("z" to opened.copy(listing=opened.listing!!.copy(placeId=null,placeName=null)))
+        events.offFeedCards=listOf(opened)
+        events.atPlace=mapOf("p1" to listOf(opened))
+        val app=app(events,backgroundScope,follows=FollowsFake()); runCurrent(); advanceTimeBy(101); runCurrent()
+        assertNull(app.state.value.cards["z"],"nothing in the feed")
+
+        app.openEvent("z"); advanceTimeBy(1000); runCurrent()
+        val detail=app.state.value.detail.event!!
+        assertEquals("p1",detail.placeId)
+        assertEquals("Малевич",detail.placeLabel)
+        assertTrue(FollowRules.canFollowPlace(detail))
+        assertEquals(listOf("p1"),app.state.value.detail.placeEvents?.let { listOf(it.placeId) },"and the venue's events follow from it")
+        app.close()
+    }
+
+    @Test fun theStackKnowsItsPlaceOnlyForListings() {
+        val state=AppState(cards=listOf(listed("a","2090-12-22T18:00:00Z"),event("room",EventCategory.SOCIAL,"2090-12-23T18:00:00Z")).associateBy { it.id })
+        assertEquals(PlaceRef("p1","Малевич"),state.placeOfStack(listOf("room","a")))
+        assertNull(state.placeOfStack(listOf("room")),"community events have no place")
+        assertNull(state.placeOfStack(listOf("not loaded yet")))
+    }
+
+    @Test fun pushOpenedIsCountedWithItsReason()=runTest {
+        val tracked=mutableListOf<Pair<String,Map<String,String>>>()
+        PoruchAnalytics.sink={ name,params -> tracked+=name to params }
+        try {
+            val app=app(Events(),backgroundScope); runCurrent()
+            app.pushOpened("place")
+            assertEquals(listOf("push_open" to mapOf("reason" to "place")),tracked.filter { it.first=="push_open" })
+            app.close()
+        } finally { PoruchAnalytics.sink=null }
     }
 
 }

@@ -48,6 +48,7 @@ import app.poruch.android.ui.*
 import app.poruch.domain.ContactRules
 import app.poruch.domain.Event
 import app.poruch.domain.EventIndexEntry
+import app.poruch.domain.FollowRules
 import app.poruch.domain.CompanionRules
 import app.poruch.domain.Membership
 import app.poruch.domain.EventSession
@@ -102,7 +103,7 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
                     Facts(event)
                     if (state.companions.isNotEmpty() && !state.cancelled) Companions(state, onIntent)
                     event.gathering?.let { People(state, it, onIntent) }
-                    Venue(event, onIntent)
+                    Venue(event, state.followingPlace, onIntent)
                     if (!state.cancelled && !state.ended) Safety(state, onIntent)
                     if (state.othersHere.isNotEmpty()) OthersHere(state.othersHere, event.placeName, onIntent)
                     Description(event, onIntent)
@@ -153,7 +154,10 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
             person, isMe = person.userId == state.userId,
             onDismiss = { onIntent(DetailIntent.ClosePerson) },
             onBlock = { onIntent(DetailIntent.BlockPerson(person.userId)) },
-            onReport = { onIntent(DetailIntent.ReportPerson(person.userId)) }
+            onReport = { onIntent(DetailIntent.ReportPerson(person.userId)) },
+            follow = FollowAction(person.userId in state.followedOrganizers) {
+                onIntent(DetailIntent.ToggleFollowPerson(person.userId, person.profile?.name.orEmpty()))
+            }
         ) { sheet ->
             if (request) {
                 Text(stringResource(R.string.person_request), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
@@ -425,8 +429,11 @@ private fun RateEvent(state: DetailState, onIntent: (DetailIntent) -> Unit) {
             { open = true }, Modifier.fillMaxWidth()
         )
     }
-    if (open) RatingSheet(event, state.myRating, state.mutating, { open = false }) { score, comment, tags ->
-        onIntent(DetailIntent.Rate(score, comment, tags))
+    // Оцінюють учасники: організатор свою подію не оцінює, тож перемикач лише для тих, у кого є організатор.
+    val follow = event.organizerId?.takeIf { !state.organizer }
+        ?.let { FollowRules.followOnRating(it in state.followedOrganizers, state.myRating != null) }
+    if (open) RatingSheet(event, state.myRating, state.mutating, follow, { open = false }) { score, comment, tags, following ->
+        onIntent(DetailIntent.Rate(score, comment, tags, following))
     }
 }
 
@@ -438,13 +445,16 @@ private fun RateEvent(state: DetailState, onIntent: (DetailIntent) -> Unit) {
 @Composable
 internal fun RatingSheet(
     event: Event, mine: EventRating?, mutating: Boolean,
+    /** Початковий стан перемикача «Стежити за організатором»; null — перемикача нема. */
+    followOrganizer: Boolean?,
     onDismiss: () -> Unit,
-    onSend: (score: Int, comment: String, tags: List<RatingTag>) -> Unit
+    onSend: (score: Int, comment: String, tags: List<RatingTag>, follow: Boolean?) -> Unit
 ) {
     val colors = Poruch.colors
     var score by remember(mine) { mutableStateOf(mine?.score ?: 0) }
     var tags by remember(mine) { mutableStateOf(mine?.tags.orEmpty().toSet()) }
     var comment by remember(mine) { mutableStateOf(mine?.comment.orEmpty()) }
+    var follow by remember(mine, followOrganizer) { mutableStateOf(followOrganizer ?: false) }
     val offered = remember(event.category) { RatingRules.tagsFor(event.category) }
     PoruchSheet(onDismiss) { sheet ->
         Column(
@@ -497,6 +507,16 @@ internal fun RatingSheet(
                 stringResource(R.string.rate_comment), comment, { comment = it.take(RatingRules.COMMENT_MAX) },
                 placeholder = stringResource(R.string.rate_optional), singleLine = false, minLines = 3
             )
+            if (followOrganizer != null) Row(
+                Modifier.fillMaxWidth().cardSurface(Radius.md).padding(horizontal = Spacing.lg, vertical = Spacing.md),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)
+            ) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(stringResource(R.string.rate_follow_title), style = MaterialTheme.typography.titleSmall, color = colors.ink)
+                    Text(stringResource(R.string.rate_follow_hint), style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
+                }
+                PoruchSwitch(follow, { follow = it })
+            }
         }
         HairLine()
         Column(
@@ -507,7 +527,7 @@ internal fun RatingSheet(
             PrimaryButton(
                 stringResource(if (mine == null) R.string.rate_send else R.string.rate_update),
                 // Порядок шторки, не порядок тапів: так і на сервері, і в тестах.
-                { sheet.close { onSend(score, comment, offered.filter { it in tags }) } },
+                { sheet.close { onSend(score, comment, offered.filter { it in tags }, follow.takeIf { followOrganizer != null }) } },
                 Modifier.fillMaxWidth(), enabled = score > 0 && !mutating, loading = mutating
             )
             GhostButton(stringResource(R.string.rate_skip), { sheet.close() }, tone = colors.inkSecondary)
@@ -713,7 +733,7 @@ private fun ExternalActions(state: DetailState, onIntent: (DetailIntent) -> Unit
  * MapView з вимкненими жестами все одно поглинає його.
  */
 @Composable
-private fun Venue(event: Event, onIntent: (DetailIntent) -> Unit) {
+private fun Venue(event: Event, following: Boolean, onIntent: (DetailIntent) -> Unit) {
     // Мапу вбудовуємо після другого кадру: MapView і стиль — найдорожче на екрані, і перехід чекав на них.
     var mapReady by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { withFrameNanos {}; withFrameNanos {}; mapReady = true }
@@ -730,6 +750,17 @@ private fun Venue(event: Event, onIntent: (DetailIntent) -> Unit) {
                     StatusBadge(stringResource(R.string.show_map), BadgeTone.Neutral, PoruchIcons.map)
                 }
             }
+        }
+        // Заклад знає лише афіша: у спільнотної події місця нема, тож і стежити нема за чим.
+        if (FollowRules.canFollowPlace(event)) Row(
+            Modifier.fillMaxWidth().cardSurface(Radius.md).padding(horizontal = Spacing.lg, vertical = Spacing.md),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)
+        ) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(event.placeLabel, style = MaterialTheme.typography.titleSmall, color = Poruch.colors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(stringResource(R.string.follow_place_hint), style = MaterialTheme.typography.bodySmall, color = Poruch.colors.inkSecondary)
+            }
+            FollowPill(following, { onIntent(DetailIntent.ToggleFollowPlace) }, onCard = true)
         }
     }
 }

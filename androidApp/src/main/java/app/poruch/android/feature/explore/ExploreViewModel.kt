@@ -3,6 +3,7 @@ package app.poruch.android.feature.explore
 import androidx.lifecycle.viewModelScope
 import app.poruch.android.mvi.MviViewModel
 import app.poruch.domain.CityResult
+import app.poruch.domain.FollowKind
 import app.poruch.shared.DateFilter
 import app.poruch.shared.PoruchApp
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -14,6 +15,7 @@ class ExploreViewModel(private val app: PoruchApp) :
 
     init {
         observe(app) { shared ->
+            val stackPlace = shared.placeOfStack(stackIds)
             // Мапа малює індекс, карусель і список — картки, яких може бути менше.
             copy(
                 // Свіжа відповідь означає, що мапа вже показує цю область: підказка зникає.
@@ -37,7 +39,10 @@ class ExploreViewModel(private val app: PoruchApp) :
                 onlyAvailable = shared.map.onlyAvailable,
                 loading = shared.map.loading,
                 offline = shared.map.offline,
-                customArea = shared.city.custom
+                customArea = shared.city.custom,
+                signedIn = shared.signedIn,
+                stackPlace = stackPlace,
+                stackFollowing = stackPlace != null && shared.isFollowing(FollowKind.PLACE, stackPlace.id)
             )
         }
         // Тап по закладу в пошуку (тут чи на головній): стос відкриваємо, коли видача сказала, що на піні.
@@ -102,6 +107,10 @@ class ExploreViewModel(private val app: PoruchApp) :
             ExploreIntent.ClearStack -> {
                 reduce { copy(stackIds = emptyList()) }
                 app.dismissEvent()
+            }
+            ExploreIntent.ToggleFollowStack -> state.value.stackPlace?.let { place ->
+                if (state.value.signedIn) app.setFollowing(FollowKind.PLACE, place.id, place.name, !state.value.stackFollowing)
+                else send(ExploreEffect.SignIn)
             }
             is ExploreIntent.OpenEvent -> {
                 app.selectEvent(intent.id)

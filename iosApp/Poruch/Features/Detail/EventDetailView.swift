@@ -188,7 +188,7 @@ struct EventDetailView: View {
             facts(event)
             if !view.companions.isEmpty && !view.cancelled { companionsSection(view) }
             if let room = view.room { people(room, view) }
-            venue(event)
+            venue(event, view)
             if !view.cancelled && !view.ended { safety() }
             if !othersHere.isEmpty { othersHereSection(placeName: event.placeName) }
             description(event)
@@ -502,7 +502,7 @@ extension EventDetailView {
     }
 
     /// Місце події. Мініатюра без жестів, тап веде на велику мапу.
-    private func venue(_ event: Event) -> some View {
+    private func venue(_ event: Event, _ view: EventDetailPresentation) -> some View {
         VStack(alignment: .leading, spacing: Space.sm) {
             // В афіші це адреса залу, а не «місце зустрічі».
             SectionHeader(title: event.isCommunity ? "Місце зустрічі" : "Місце")
@@ -524,7 +524,29 @@ extension EventDetailView {
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(.isButton)
             .accessibilityLabel("Показати на мапі")
+            if FollowRules.shared.canFollowPlace(event: event), let placeId = event.placeId {
+                followPlace(event, placeId, view)
+            }
         }
+    }
+
+    /// «Стежити» за закладом афіші: пуш, коли тут зʼявиться нове. Гостя — на вхід, пуш прив'язаний до акаунта.
+    private func followPlace(_ event: Event, _ placeId: String, _ view: EventDetailPresentation) -> some View {
+        let following = model.state?.isFollowing(kind: .place, targetId: placeId) == true
+        return HStack(spacing: Space.md) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(event.placeLabel).font(PoruchFont.cardName).kerning(-0.2).foregroundStyle(Palette.ink)
+                    .multilineTextAlignment(.leading).lineLimit(2)
+                Text("Скажемо, коли тут зʼявиться щось нове").font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
+            }
+            Spacer(minLength: Space.sm)
+            FollowPill(following: following) {
+                guard view.signedIn else { auth = true; return }
+                model.app.setFollowing(kind: .place, targetId: placeId, name: event.placeLabel, following: !following)
+            }
+        }
+        .padding(.horizontal, Space.lg).padding(.vertical, Space.md).frame(maxWidth: .infinity, alignment: .leading)
+        .cardSurface()
     }
 
     /// Безпека: чи встигнеш до комендантської і куди йти під час тривоги. Правила Мінкульту з 11.09.2026
@@ -984,6 +1006,8 @@ struct RateSheet: View {
     @State private var score: Int
     @State private var tags: Set<String>
     @State private var comment: String
+    /// Перемикач «Стежити за організатором». Nil — не чіпали: тоді початкове значення дає стан підписок.
+    @State private var follow: Bool?
 
     init(event: Event, mine: EventRating?) {
         self.event = event; self.mine = mine
@@ -995,6 +1019,15 @@ struct RateSheet: View {
     private var mutating: Bool { model.state?.mutating == true }
     /// Теги за категорією події: спершу про суть, далі загальні.
     private var offered: [RatingTag] { RatingRules.shared.tagsFor(category: event.category) }
+    /// Організатор, за яким можна стежити: у афіші його нема, а за собою не стежать.
+    private var organizerId: String? { event.organizerId.flatMap { $0 == model.state?.session.userId ? nil : $0 } }
+    /// Що показує перемикач. Нова оцінка — увімкнено, змінена — як є, щоб не підписати знову того, від кого відписались.
+    private var followOrganizer: Bool {
+        guard let organizerId else { return false }
+        return follow ?? FollowRules.shared.followOnRating(
+            alreadyFollowing: model.state?.isFollowing(kind: .organizer, targetId: organizerId) == true, alreadyRated: mine != nil
+        )
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -1045,6 +1078,15 @@ struct RateSheet: View {
                             let limit = Int(RatingRules.shared.COMMENT_MAX)
                             if value.count > limit { comment = String(value.prefix(limit)) }
                         }
+                    if organizerId != nil {
+                        VStack(alignment: .leading, spacing: Space.sm) {
+                            Toggle(isOn: Binding(get: { followOrganizer }, set: { follow = $0 })) {
+                                Text("Стежити за організатором").font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
+                            }
+                            .tint(Palette.brand)
+                            Text("Скажемо, коли в нього зʼявиться нова подія").font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
+                        }.padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()
+                    }
                 }
                 .padding(Space.page)
             }
@@ -1054,7 +1096,8 @@ struct RateSheet: View {
                               enabled: score > 0 && !mutating) {
                     // Порядок шторки, не порядок тапів.
                     model.app.rateEvent(id: event.id, score: Int32(score), comment: comment,
-                                        tags: offered.filter { tags.contains($0.key) })
+                                        tags: offered.filter { tags.contains($0.key) },
+                                        followOrganizer: organizerId == nil ? nil : KotlinBoolean(bool: followOrganizer))
                     dismiss()
                 }
                 Button("Пропустити") { dismiss() }

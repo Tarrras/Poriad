@@ -1,5 +1,6 @@
 // Edge Function `push`: тригери бази кличуть її на нове повідомлення в чаті, новий запит на
-// участь чи приєднання до відкритої події, на скасування й перенесення події (docs/event-change-push.md).
+// участь чи приєднання до відкритої події, на скасування й перенесення події (docs/event-change-push.md),
+// на нову подію організатора й зведення нових подій закладів (docs/follows.md).
 // Вона вирішує, кому слати, бере токени й шле у FCM (Android) і APNs (iOS).
 //
 // Секрети функції (`supabase secrets set …`):
@@ -12,16 +13,20 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import * as jose from "npm:jose@5";
+import { organizerText, placeText, type EventLine, type PlaceLine } from "./follow_text.ts";
 
 type Payload =
   | { type: "message"; message_id: string; event_id: string }
   | { type: "request" | "joined"; event_id: string; user_id: string }
-  | { type: "event"; kind: EventKind; event_id: string };
+  | { type: "event"; kind: EventKind; event_id: string }
+  | { type: "follow"; kind: "organizer"; event_id: string }
+  // Зведення `notify_place_follows`: одна людина, скільки нового, у скількох закладах і найближчі події.
+  | { type: "follow"; kind: "place"; user_id: string; total: number; place_count: number; places: { id: string; n: number }[]; event_ids: string[] };
 
 type EventKind = "moved" | "cancelled";
 const EVENT_KINDS: readonly string[] = ["moved", "cancelled"];
 
-type Push = { kind: "chat" | "request" | "joined" | EventKind; eventId: string; title: string; body: string; key: string };
+type Push = { kind: "chat" | "request" | "joined" | "organizer" | "place" | EventKind; eventId?: string; placeId?: string; title: string; body: string; key: string };
 type Token = { token: string; platform: "android" | "ios" };
 
 const PREVIEW = 120;
@@ -29,6 +34,8 @@ const PREVIEW = 120;
 // через pg_net, і одна зависла відповідь APNs не має тримати розсилку решті.
 const CONCURRENCY = 10;
 const TIMEOUT_MS = 10_000;
+// Скільки людей у одному запиті за токенами: id ідуть у рядок адреси, а їх може бути сотні.
+const TOKEN_CHUNK = 100;
 
 Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "method" }, 405);
@@ -41,11 +48,15 @@ Deno.serve(async (req) => {
   const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
   const { push, recipients } = payload.type === "message" ? await forMessage(db, payload)
-    : payload.type === "event" ? await forEvent(db, payload) : await forRequest(db, payload);
+    : payload.type === "event" ? await forEvent(db, payload)
+    : payload.type === "follow" ? await forFollow(db, payload) : await forRequest(db, payload);
   if (!push || recipients.length === 0) return json({ sent: 0, reason: "no recipients" });
 
-  const { data: tokens } = await db.from("push_tokens").select("token,platform").in("user_id", recipients);
-  const list = (tokens ?? []) as Token[];
+  const list: Token[] = [];
+  for (let i = 0; i < recipients.length; i += TOKEN_CHUNK) {
+    const { data: tokens } = await db.from("push_tokens").select("token,platform").in("user_id", recipients.slice(i, i + TOKEN_CHUNK));
+    list.push(...((tokens ?? []) as Token[]));
+  }
   if (list.length === 0) return json({ sent: 0, reason: "no tokens" });
 
   const stale: string[] = [];
@@ -126,6 +137,44 @@ async function forEvent(db: ReturnType<typeof createClient>, p: Extract<Payload,
   return { push: { kind: p.kind, eventId: e.id as string, title: e.title as string, body, key: `${e.id}:${p.kind}:${Date.now()}` }, recipients };
 }
 
+// Підписки. Організатор: його підписники, крім заблокованих з ним у будь-який бік. Заклади: одна людина,
+// яку вже вибрала база (нове, ліміт на добу) — тут лише текст.
+async function forFollow(db: ReturnType<typeof createClient>, p: Extract<Payload, { type: "follow" }>) {
+  return p.kind === "organizer" ? forOrganizer(db, p) : forPlaces(db, p);
+}
+
+// ponytail: підписників не більше 1000 — стільки віддає PostgREST за раз; більше — сторінками.
+async function forOrganizer(db: ReturnType<typeof createClient>, p: Extract<Payload, { type: "follow"; kind: "organizer" }>) {
+  const { data: e } = await db.from("events").select("id,title,organizer_id,status,origin,companion_of,starts_at,time_zone").eq("id", p.event_id).maybeSingle();
+  // Супутник — не оголошення організатора, тригер його й не кличе; тут друга перевірка на випадок ручного виклику.
+  if (!e || e.origin !== "community" || e.status !== "published" || !e.organizer_id || e.companion_of) return { push: null, recipients: [] };
+  const { data: follows } = await db.from("follows").select("user_id").eq("target_kind", "organizer").eq("target_id", e.organizer_id);
+  const people = (follows ?? []).map((r) => r.user_id as string).filter((id) => id !== e.organizer_id);
+  const recipients = await withoutBlocked(db, people, e.organizer_id as string);
+  const { data: who } = await db.from("profiles").select("display_name").eq("id", e.organizer_id).maybeSingle();
+  const text = organizerText(e.title as string, ((who?.display_name as string | undefined) ?? "").trim(), when(e.starts_at as string, e.time_zone as string));
+  return { push: { kind: "organizer" as const, eventId: e.id as string, title: text.title, body: text.body, key: `organizer:${e.id}` }, recipients };
+}
+
+async function forPlaces(db: ReturnType<typeof createClient>, p: Extract<Payload, { type: "follow"; kind: "place" }>) {
+  const { data: rows } = await db.from("places").select("id,name").in("id", p.places.map((x) => x.id));
+  const names = new Map((rows ?? []).map((r) => [r.id as string, r.name as string]));
+  const places: PlaceLine[] = p.places.filter((x) => names.has(x.id)).map((x) => ({ id: x.id, name: names.get(x.id)!, n: x.n }));
+  const { data: found } = await db.from("events").select("id,title,status,ends_at,starts_at,time_zone").in("id", p.event_ids);
+  // Між прогоном бази й доставкою міг минути час: скасовану чи вже минулу подію не рекламуємо.
+  const live = new Map((found ?? []).filter((e) => e.status === "published" && new Date(e.ends_at as string).getTime() > Date.now()).map((e) => [e.id as string, e]));
+  const events: EventLine[] = p.event_ids.filter((id) => live.has(id)).map((id) => {
+    const e = live.get(id)!;
+    return { id, title: e.title as string, when: when(e.starts_at as string, e.time_zone as string) };
+  });
+  const text = events.length > 0 ? placeText(p.total, p.place_count, places, events) : null;
+  if (!text) return { push: null, recipients: [] };
+  return {
+    push: { kind: "place" as const, eventId: text.eventId, placeId: text.placeId, title: text.title, body: text.body, key: `place:${text.placeId}:${Date.now()}` },
+    recipients: [p.user_id],
+  };
+}
+
 function when(iso: string, zone: string): string {
   const opts: Intl.DateTimeFormatOptions = { weekday: "short", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" };
   try { return new Date(iso).toLocaleString("uk-UA", { ...opts, timeZone: zone }); } catch { return new Date(iso).toLocaleString("uk-UA", opts); }
@@ -155,12 +204,22 @@ function sameSecret(given: string, expected: string): boolean {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+const isUuid = (v: unknown): v is string => typeof v === "string" && UUID.test(v);
+const isCount = (v: unknown): v is number => Number.isInteger(v) && (v as number) >= 1 && (v as number) <= 100_000;
+
 function isPayload(p: unknown): p is Payload {
   if (!p || typeof p !== "object") return false;
   const o = p as Record<string, unknown>;
   if (o.type === "message") return typeof o.message_id === "string" && UUID.test(o.message_id) && typeof o.event_id === "string" && UUID.test(o.event_id);
   if (o.type === "request" || o.type === "joined") return typeof o.event_id === "string" && UUID.test(o.event_id) && typeof o.user_id === "string" && UUID.test(o.user_id);
   if (o.type === "event") return typeof o.kind === "string" && EVENT_KINDS.includes(o.kind) && typeof o.event_id === "string" && UUID.test(o.event_id);
+  if (o.type === "follow" && o.kind === "organizer") return isUuid(o.event_id);
+  if (o.type === "follow" && o.kind === "place") {
+    return isUuid(o.user_id) && isCount(o.total) && isCount(o.place_count)
+      && Array.isArray(o.places) && o.places.length >= 1 && o.places.length <= 5
+      && o.places.every((x) => !!x && typeof x === "object" && isUuid((x as Record<string, unknown>).id) && isCount((x as Record<string, unknown>).n))
+      && Array.isArray(o.event_ids) && o.event_ids.length >= 1 && o.event_ids.length <= 3 && o.event_ids.every(isUuid);
+  }
   return false;
 }
 
@@ -203,7 +262,11 @@ async function sendFcm(token: string, push: Push): Promise<boolean | "stale"> {
     body: JSON.stringify({
       message: {
         token,
-        data: { kind: push.kind, eventId: push.eventId, title: push.title, body: push.body, key: push.key },
+        // Лише задані поля: FCM приймає в data тільки рядки. Заклад — для пуша про кілька подій.
+        data: {
+          kind: push.kind, title: push.title, body: push.body, key: push.key,
+          ...(push.eventId ? { eventId: push.eventId } : {}), ...(push.placeId ? { placeId: push.placeId } : {}),
+        },
         android: { priority: "high" },
       },
     }),
@@ -251,12 +314,13 @@ async function sendApns(token: string, push: Push): Promise<boolean | "stale"> {
       "apns-topic": auth.topic,
       "apns-push-type": "alert",
       "apns-priority": "10",
-      // Зміна події — окрема група: повідомлення чату не має витіснити «подію скасовано».
-      "apns-collapse-id": EVENT_KINDS.includes(push.kind) ? `${push.eventId}:state` : push.eventId,
+      // Зміна події — окрема група: повідомлення чату не має витіснити «подію скасовано». Новіший пуш про
+      // ті самі заклади заміняє попередній.
+      "apns-collapse-id": push.kind === "place" ? `place:${push.placeId}` : EVENT_KINDS.includes(push.kind) ? `${push.eventId}:state` : push.eventId!,
     },
     body: JSON.stringify({
-      aps: { alert: { title: push.title, body: push.body }, sound: "default", "thread-id": push.eventId },
-      kind: push.kind, eventId: push.eventId, key: push.key,
+      aps: { alert: { title: push.title, body: push.body }, sound: "default", "thread-id": push.eventId ?? `place:${push.placeId}` },
+      kind: push.kind, eventId: push.eventId, placeId: push.placeId, key: push.key,
     }),
   });
   if (res.ok) return true;

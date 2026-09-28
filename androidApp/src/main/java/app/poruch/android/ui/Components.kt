@@ -33,6 +33,7 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -352,6 +353,23 @@ fun PoruchChip(
             tint = if (selected) colors.onBrand else colors.inkSecondary
         )
         if (badge > 0) CountBadge(badge)
+    }
+}
+
+/**
+ * «Стежити» / «Ви стежите»: чип-перемикач біля закладу чи організатора. Гліф — дзвінок, бо пуш про нове
+ * і є суттю підписки. Стан приходить зі спільного шару, тап лише просить його змінити.
+ */
+@Composable
+fun FollowPill(following: Boolean, onToggle: () -> Unit, modifier: Modifier = Modifier, onCard: Boolean = false) {
+    // На білій картці біла пігулка злилась би з нею: тоді підкладка приглушена, як у полях шторки.
+    CompositionLocalProvider(LocalFieldSurface provides if (onCard) Poruch.colors.surfaceMuted else LocalFieldSurface.current) {
+        Box(modifier) {
+            PoruchChip(
+                stringResource(if (following) R.string.following else R.string.follow), following, onToggle,
+                if (following) Icons.Outlined.NotificationsActive else Icons.Outlined.NotificationsNone
+            )
+        }
     }
 }
 

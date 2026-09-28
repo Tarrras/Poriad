@@ -60,6 +60,7 @@ class AppGraph(
             single<EventRequests> { get<EventData>().requests }
             single<EventChat> { get<EventData>().chat }
             single<PushTokens> { get<EventData>().push }
+            single<Follows> { get<EventData>().follows }
 
             single<CreationIdentityStore> { PersistentCreationIdentity(get(), get()) }
             single<PreferencesRepository> { SupabasePreferencesRepository(get(), get()) }
@@ -95,6 +96,7 @@ class AppGraph(
                     requests = get(),
                     chat = get(),
                     push = get(),
+                    follows = get(),
                     auth = get(),
                     geo = get(),
                     eventActions = get(),

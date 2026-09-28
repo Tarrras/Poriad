@@ -19,6 +19,8 @@ data class HomeState(
     val plans: List<Event> = emptyList(),
     /** Мої події, де чекають запити на участь, зі скількома. Лише в організатора. */
     val requests: List<PendingRequests> = emptyList(),
+    /** Майбутні події закладів і організаторів, за якими стежу, найближчі першими. Порожньо — секції нема. */
+    val followed: List<Event> = emptyList(),
     /** Чати з непрочитаним, свіжіші першими. */
     val unread: List<ChatUnread> = emptyList(),
     /** Добірка за відповідями онбордингу. Порожня, якщо не відповідали. */

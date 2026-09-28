@@ -96,7 +96,10 @@ fun ChatScreen(state: ChatState, onIntent: (ChatIntent) -> Unit) {
         PersonSheet(
             person, isMe = person.userId == state.userId,
             onDismiss = { onIntent(ChatIntent.ClosePerson) },
-            onBlock = { onIntent(ChatIntent.Block(person.userId)) }
+            onBlock = { onIntent(ChatIntent.Block(person.userId)) },
+            follow = FollowAction(person.userId in state.followedOrganizers) {
+                onIntent(ChatIntent.ToggleFollowPerson(person.userId, person.profile?.name.orEmpty()))
+            }
         )
     }
     state.blocking?.let { message ->

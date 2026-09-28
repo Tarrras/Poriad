@@ -98,6 +98,7 @@ fun ExploreRoute(focusId: String, navigator: Navigator) {
         when (effect) {
             is ExploreEffect.OpenDetail -> navigator.open(Detail(effect.id))
             ExploreEffect.CreateEvent -> navigator.requireAccount { navigator.open(Editor()) }
+            ExploreEffect.SignIn -> navigator.open(Auth)
             ExploreEffect.AskLocationPermission -> permission.launch(
                 // Лише приблизна: «події поруч» — це кілометр, а не метр, і Play не питає, навіщо точна.
                 arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION)
@@ -212,6 +213,7 @@ fun ProfileRoute(navigator: Navigator) {
         when (effect) {
             ProfileEffect.SignIn -> navigator.open(Auth)
             ProfileEffect.AskNotificationPermission -> permission.launch(Manifest.permission.POST_NOTIFICATIONS)
+            ProfileEffect.OpenMap -> navigator.open(Explore())
             is ProfileEffect.OpenLink -> if (!context.openLink(effect.url)) context.toast(R.string.link_unavailable)
             is ProfileEffect.WriteEmail -> if (!context.writeEmail(effect.address)) context.toast(R.string.mail_unavailable)
         }

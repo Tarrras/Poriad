@@ -297,6 +297,24 @@ class RegressionTests(unittest.TestCase):
             body = path.read_text("utf-8")
         self.assertTrue(body.rstrip().endswith(sql.strip() + "\ncommit;"))
 
+    def test_place_followers_are_notified_before_the_finished_step_and_guarded(self):
+        sql = emit.notify_follows_sql()
+        self.assertIn("perform private.notify_place_follows()", sql)
+        # База без міграції не має відкотити транзакцію дампу: виклик під перевіркою наявності функції.
+        self.assertIn("to_regprocedure('private.notify_place_follows()') is not null", sql)
+        # І збій самого зведення не відкочує дамп: він лише попередження.
+        self.assertIn("exception when others then", sql)
+        self.assertIn("raise warning", sql)
+        self.assertNotIn("delete", sql.lower())
+        with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(io.StringIO()), \
+             patch("tools.ingest.__main__.run_city", return_value=([], ["select 1;\n"])), \
+             patch("tools.ingest.__main__.karabas_status.collect", return_value=([], {"pages_fetched": 1})):
+            path = Path(tmp) / "events.sql"
+            main(["--city", "Київ", "--sql", str(path)])
+            body = path.read_text("utf-8")
+        self.assertIn(sql, body)
+        self.assertLess(body.index(sql), body.index(emit.retire_finished_sql()), "пуш перед завершеними, вони — останні")
+
     def test_run_city_retires_last_and_only_after_a_full_crawl(self):
         events = [raw_event(name=f"Подія номер {k}", url=f"https://example.org/e{k}") for k in range(12)]
         with patch("tools.ingest.__main__.build_index", return_value=self.index), \

@@ -22,6 +22,8 @@ class PoruchApp internal constructor(
     requests: EventRequests,
     chat: EventChat,
     push: PushTokens? = null,
+    /** Підписки «Стежити». Null — у тестах і превʼю: дії відповідають «сервіс недоступний». */
+    follows: Follows? = null,
     auth: AuthRepository,
     geo: GeoSearchRepository,
     eventActions: EventActions,
@@ -82,6 +84,7 @@ class PoruchApp internal constructor(
         preferences,
         safety,
         profiles,
+        follows,
         tasteStore,
         store,
         scope
@@ -90,6 +93,7 @@ class PoruchApp internal constructor(
     private val reloader = Reloader(discovery, library)
     private val pushSync = PushSync(push, seenRequests, seenMessages, store, pendingPush)
     private val places = PlaceLookup(addresses, timeZones, scope)
+    private val followUseCases = FollowUseCases(follows, events, store, library, discovery)
     private val eventUseCases = EventUseCases(
         events,
         saved,
@@ -101,7 +105,8 @@ class PoruchApp internal constructor(
         creationIdentity,
         store,
         library,
-        reloader
+        reloader,
+        followUseCases
     )
     private val identity =
         IdentitySync(auth, store, discovery, library, chatEngine, pushSync, eventUseCases)
@@ -286,8 +291,10 @@ class PoruchApp internal constructor(
     fun leaveWaitlist(id: String) = eventUseCases.leaveWaitlist(id)
     fun leaveEvent(id: String) = eventUseCases.leave(id)
     fun cancelEvent(id: String) = eventUseCases.cancel(id)
-    fun rateEvent(id: String, score: Int, comment: String? = null, tags: List<RatingTag> = emptyList()) =
-        eventUseCases.rate(id, score, comment, tags)
+    /** [followOrganizer]: що показував перемикач «Стежити за організатором» у шторці; null — перемикача не було. */
+    fun rateEvent(
+        id: String, score: Int, comment: String? = null, tags: List<RatingTag> = emptyList(), followOrganizer: Boolean? = null
+    ) = eventUseCases.rate(id, score, comment, tags, followOrganizer)
 
     /** Закладка спрацьовує одразу, запит іде окремо; при збої повертається як було. */
     fun toggleSaved(id: String) = eventUseCases.toggleSaved(id)
@@ -305,6 +312,24 @@ class PoruchApp internal constructor(
 
     fun declineMember(eventId: String, userId: String) =
         eventUseCases.declineMember(eventId, userId)
+
+    // ---- Підписки
+
+    /**
+     * «Стежити» / «Ви стежите» на закладі чи організаторі. Кнопка перемикається одразу ([AppState.isFollowing]),
+     * запит іде окремо. [name] — для списку, поки сервер не віддав повних даних. Гостя веде на вхід платформа.
+     */
+    fun setFollowing(kind: FollowKind, targetId: String, name: String, following: Boolean) =
+        followUseCases.set(kind, targetId, name, following)
+
+    /** Тап по пушу про кілька подій закладу: мапа переходить до нього й відкриває його стос. */
+    fun openPlace(placeId: String) = followUseCases.openPlace(placeId)
+
+    /**
+     * Сповіщення відкрито тапом. [reason] — що воно було: chat, request, joined, moved, cancelled, place,
+     * organizer, reminder. Єдиний спосіб дізнатись, який тригер повертає людей, а який лише дратує.
+     */
+    fun pushOpened(reason: String) = PoruchAnalytics.track("push_open", "reason" to reason)
 
     // ---- Смак і нагадування
 

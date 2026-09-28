@@ -381,6 +381,23 @@ def retire_finished_sql(grace_days: int = FINISHED_GRACE_DAYS) -> str:
     return f"select private.retire_finished_imports(interval '{grace_days} days');\n"
 
 
+def notify_follows_sql() -> str:
+    """Пуш підписникам закладів про нові події (20260928160000): одна команда на дамп, перед
+    `retire_finished_sql`. Ідемпотентна, як і вона: функція сама пам'ятає, кому вже казала, і
+    не частіше ніж раз на добу на людину. Ні відсутня функція (`to_regprocedure`: дамп, застосований до
+    бази без міграції), ні її збій не мають відкотити всю транзакцію дампу заради пуша: збій — лише
+    попередження, зведення відкотиться саме, а нове дочекається наступного прогону."""
+    return ("do $$ begin\n"
+            "  if to_regprocedure('private.notify_place_follows()') is not null then\n"
+            "    begin\n"
+            "      perform private.notify_place_follows();\n"
+            "    exception when others then\n"
+            "      raise warning 'notify_place_follows: %', sqlerrm;\n"
+            "    end;\n"
+            "  end if;\n"
+            "end $$;\n")
+
+
 def to_json(items: list[Item]) -> str:
     return json.dumps([{
         "source": i.source_slug, "source_uid": i.source_uid, "event_id": str(i.event_id),

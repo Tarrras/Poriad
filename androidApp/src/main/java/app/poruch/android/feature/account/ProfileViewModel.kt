@@ -3,6 +3,7 @@ package app.poruch.android.feature.account
 import app.poruch.android.BuildConfig
 import app.poruch.android.mvi.MviViewModel
 import app.poruch.android.platform.NotificationPermission
+import app.poruch.domain.FollowKind
 import app.poruch.domain.LegalLinks
 import app.poruch.shared.AppMessage
 import app.poruch.shared.AppNotice
@@ -24,6 +25,8 @@ class ProfileViewModel(private val app: PoruchApp, private val notifications: No
                 interests = shared.interests,
                 needsAge = shared.needsAgeDeclaration,
                 blocked = shared.library.blocked,
+                follows = shared.library.follows,
+                person = shared.person,
                 mutating = shared.mutating,
                 passwordRecovery = shared.session.passwordRecovery,
                 // Після відновлення чи зміни поле чистимо, щоб пароль не висів.
@@ -63,6 +66,16 @@ class ProfileViewModel(private val app: PoruchApp, private val notifications: No
                 app.declareBirthDate(intent.value.toString())
             }
             is ProfileIntent.Unblock -> app.unblockUser(intent.userId)
+            is ProfileIntent.Unfollow -> app.setFollowing(intent.follow.kind, intent.follow.targetId, intent.follow.name, false)
+            is ProfileIntent.OpenFollow -> when (intent.follow.kind) {
+                FollowKind.PLACE -> intent.follow.place?.let { app.focusPlace(it); send(ProfileEffect.OpenMap) }
+                FollowKind.ORGANIZER -> app.openPerson(intent.follow.targetId)
+            }
+            ProfileIntent.ClosePerson -> app.closePerson()
+            is ProfileIntent.ToggleFollowPerson -> app.setFollowing(
+                FollowKind.ORGANIZER, intent.userId, intent.name,
+                state.value.follows.none { it.kind == FollowKind.ORGANIZER && it.targetId == intent.userId }
+            )
             is ProfileIntent.SetNewPassword -> reduce { copy(newPassword = intent.value) }
             ProfileIntent.SavePassword -> app.updatePassword(state.value.newPassword)
             is ProfileIntent.SetNewPasswordConfirm -> reduce { copy(newPasswordConfirm = intent.value) }

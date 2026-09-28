@@ -15,6 +15,19 @@ enum NotificationPermission {
     }
 }
 
+/// Питання про сповіщення після першої підписки: «Стежити» без них марне, пуші про нове не дійдуть. Система питає
+/// один раз і лише поки не питала, тож далі це нічого не робить. Дозвіл дає й реєстрацію в APNs.
+enum FollowPrompt {
+    static func ask() {
+        Task {
+            guard await NotificationPermission.status() == .notDetermined else { return }
+            NotificationPermission.request { granted in
+                if granted { PushDelegate.registerIfAllowed() }
+            }
+        }
+    }
+}
+
 /// Мʼяке питання про дайджест: на другому запуску, раз, лише поки система ще не питала.
 /// Перший запуск належить онбордингу й геолокації; системне питання iOS ставить лише раз.
 enum DigestPrompt {
@@ -41,6 +54,7 @@ final class LocalReminderScheduler: NSObject, ReminderScheduler, RequestNotifier
     private let center = UNUserNotificationCenter.current()
     private let prefix = "poruch.event."
     private let chatPrefix = "poruch.chat."
+    private let requestPrefix = "poruch.request."
     private let digestID = "poruch.digest"
 
     func replace(reminders: [EventReminder]) {
@@ -96,7 +110,7 @@ final class LocalReminderScheduler: NSObject, ReminderScheduler, RequestNotifier
             content.sound = .default
             content.userInfo = ["eventId": alert.eventId]
             // Інший префікс, ніж у нагадувань: запит і нагадування про ту саму подію — два сповіщення.
-            center.add(UNNotificationRequest(identifier: "poruch.request." + alert.eventId, content: content, trigger: nil))
+            center.add(UNNotificationRequest(identifier: requestPrefix + alert.eventId, content: content, trigger: nil))
         }
     }
 
@@ -139,16 +153,26 @@ final class LocalReminderScheduler: NSObject, ReminderScheduler, RequestNotifier
     }
 
     /// Тап по сповіщенню, локальному чи пушу: відкрити подію, про яку воно, а про повідомлення — її чат.
+    /// Пуш про кілька нових подій закладу веде на мапу, до його стосу.
     func userNotificationCenter(
         _ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
         let request = response.notification.request
+        let info = request.content.userInfo
         if request.identifier == digestID {
             DispatchQueue.main.async { PushDelegate.open(eventId: nil, chat: false) }
-        } else if let eventId = request.content.userInfo["eventId"] as? String {
-            let chat = request.content.userInfo["kind"] as? String == "chat" || request.identifier.hasPrefix(chatPrefix)
-            DispatchQueue.main.async { PushDelegate.open(eventId: eventId, chat: chat) }
+        } else {
+            // Пуш з сервера каже, що він, у `kind`; локальне сповіщення — префікс ідентифікатора. Дайджест — свій `digest_open`.
+            let id = request.identifier
+            let reason = info["kind"] as? String
+                ?? (id.hasPrefix(chatPrefix) ? "chat" : id.hasPrefix(requestPrefix) ? "request" : id.hasPrefix(prefix) ? "reminder" : nil)
+            let eventId = info["eventId"] as? String, placeId = info["placeId"] as? String
+            let chat = info["kind"] as? String == "chat" || id.hasPrefix(chatPrefix)
+            DispatchQueue.main.async {
+                if let reason { PushDelegate.opened(reason: reason) }
+                if eventId != nil || placeId != nil { PushDelegate.open(eventId: eventId, chat: chat, placeId: placeId) }
+            }
         }
         completionHandler()
     }

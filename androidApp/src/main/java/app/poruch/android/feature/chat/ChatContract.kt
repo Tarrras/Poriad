@@ -30,7 +30,9 @@ data class ChatState(
     /** Автора цього повідомлення блокують: крок підтвердження. */
     val blocking: ChatMessage? = null,
     /** Картка автора: тап по аватару. */
-    val person: PersonState? = null
+    val person: PersonState? = null,
+    /** Люди, за якими стежу: кнопка «Стежити» на картці автора. */
+    val followedOrganizers: Set<String> = emptySet()
 ) {
     fun isMine(message: ChatMessage) = message.authorId == userId
     fun canDelete(message: ChatMessage) = organizer || isMine(message)
@@ -52,6 +54,8 @@ sealed interface ChatIntent {
     data class Block(val userId: String) : ChatIntent
     data class OpenPerson(val userId: String) : ChatIntent
     data object ClosePerson : ChatIntent
+    /** «Стежити» на картці автора. Картка відкривається лише з акаунтом, тож гостя тут нема. */
+    data class ToggleFollowPerson(val userId: String, val name: String) : ChatIntent
     /** Ціль їде всередині: шторка спершу закривається (і скидає [ChatState.reporting]), а вже потім шле це. */
     data class SendReport(val message: ChatMessage, val reason: ReportReason, val details: String) : ChatIntent
 }

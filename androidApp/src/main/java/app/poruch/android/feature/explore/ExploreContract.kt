@@ -7,6 +7,7 @@ import app.poruch.domain.EventIndexEntry
 import app.poruch.domain.Place
 import app.poruch.domain.asIndexEntry
 import app.poruch.shared.DateFilter
+import app.poruch.shared.PlaceRef
 
 data class ExploreState(
     /** Усе, що є в області: мапа малює це, не чекаючи карток. */
@@ -48,7 +49,11 @@ data class ExploreState(
     /** Події на одній точці (всі події закладу): без стосу тап відкривав завжди ту саму. */
     val stackIds: List<String> = emptyList(),
     /** Подія, на яку навели з деталей. Може не бути в поточній видачі, тоді піна для неї нема. */
-    val focused: Event? = null
+    val focused: Event? = null,
+    val signedIn: Boolean = false,
+    /** Заклад за стосом: для кнопки «Стежити». Null — стосу нема, це спільнотні події або картки ще їдуть. */
+    val stackPlace: PlaceRef? = null,
+    val stackFollowing: Boolean = false
 ) {
     // Похідні рахуються раз на знімок стану, а не на кожне читання з композиції: `copy` дає новий
     // екземпляр, і `lazy` з ним. У `equals` вони не входять — лише поля конструктора.
@@ -129,6 +134,8 @@ sealed interface ExploreIntent {
     /** Заклад з пошуку: мапа переходить до нього, а стос відкривається, щойно приїде видача. */
     data class FocusPlace(val place: Place) : ExploreIntent
     data object ClearStack : ExploreIntent
+    /** «Стежити» / «Ви стежите» на закладі стосу. Гостя веде на вхід. */
+    data object ToggleFollowStack : ExploreIntent
     data class OpenEvent(val id: String) : ExploreIntent
     /** Карусель або список дійшли до краю: наступне вікно [ExploreState.listEntries]. */
     data class LoadMore(val upTo: Int) : ExploreIntent
@@ -150,5 +157,6 @@ sealed interface ExploreIntent {
 sealed interface ExploreEffect {
     data class OpenDetail(val id: String) : ExploreEffect
     data object CreateEvent : ExploreEffect
+    data object SignIn : ExploreEffect
     data object AskLocationPermission : ExploreEffect
 }
