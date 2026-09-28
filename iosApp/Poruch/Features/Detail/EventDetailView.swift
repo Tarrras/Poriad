@@ -466,6 +466,7 @@ extension EventDetailView {
             ShareLink(item: SystemActions.shareText(for: event)) {
                 RoundAction(title: "Поділитися") { Image(systemName: "square.and.arrow.up") }
             }.buttonStyle(PressableStyle())
+            .simultaneousGesture(TapGesture().onEnded { model.app.eventShared() })
             Button { model.app.selectEvent(id: model.app.cardIdOf(id: event.id)); openMap() } label: {
                 RoundAction(title: "На мапі") { Image(systemName: "map") }
             }.buttonStyle(PressableStyle())

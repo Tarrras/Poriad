@@ -464,7 +464,7 @@
   <string name="field_age_limits">Вік — від %1$d; «до» не менше за «від» і не більше %2$d</string>
   <string name="find_on_map">Знайти на мапі</string>
   <string name="share">Поділитися</string>
-  <string name="share_event_text">%1$s · %2$s · %3$s</string>
+  <string name="share_event_text">%1$s · %2$s · %3$s\n%4$s</string>
   <string name="share_chooser">Поділитися подією</string>
   <string name="safety_title">Безпека</string>
   <string name="curfew_left">Закінчиться о %1$s. Комендантська з %2$s — до неї лишиться %3$s</string>

@@ -45,6 +45,7 @@ import app.poruch.android.feature.lastKnownPosition
 import app.poruch.android.navigation.*
 import app.poruch.android.platform.NotificationPermission
 import app.poruch.android.ui.*
+import app.poruch.domain.EventLinks
 import app.poruch.shared.AppNotice
 import app.poruch.shared.PoruchApp
 import kotlinx.coroutines.delay
@@ -114,8 +115,11 @@ class MainActivity : ComponentActivity(), AndroidScopeComponent {
             app.digestOpened()
             return
         }
-        // Тап по сповіщенню: подія (або її чат) поверх головної, «назад» веде туди, а не з застосунку.
-        val eventId = intent.getStringExtra(EXTRA_EVENT_ID) ?: return
+        // Посилання на подію (`poriad.app/e/…` чи `poriad://event/…`) і тап по сповіщенню: подія (або її чат)
+        // поверх головної, «назад» веде туди, а не з застосунку.
+        val linked = data?.takeIf { intent.action == Intent.ACTION_VIEW }?.let { EventLinks.eventId(it.toString()) }
+        if (linked != null) app.eventLinkOpened()
+        val eventId = linked ?: intent.getStringExtra(EXTRA_EVENT_ID) ?: return
         val navigator = scope.get<Navigator>()
         navigator.reset(Home)
         navigator.open(

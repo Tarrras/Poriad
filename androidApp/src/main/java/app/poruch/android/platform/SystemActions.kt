@@ -10,19 +10,23 @@ import app.poruch.android.R
 import app.poruch.android.ui.dateWords
 import app.poruch.android.ui.eventTime
 import app.poruch.domain.Event
+import app.poruch.domain.EventLinks
+import app.poruch.shared.PoruchApp
+import org.koin.java.KoinJavaComponent
 import java.time.Instant
 
 // Передача в системні застосунки. Кожна функція повертає, чи був обробник, щоб тап не мовчав.
 
-/** Поділитись через будь-який застосунок; своїх запрошень не тримаємо. */
+/** Поділитись через будь-який застосунок. Посилання в кінці: Telegram і месенджери розгортають з нього прев'ю. */
 fun Context.shareEvent(event: Event) {
-    val summary = getString(R.string.share_event_text, event.title, eventTime(event, dateWords()), "${event.city}, ${event.address}")
+    val summary = getString(R.string.share_event_text, event.title, eventTime(event, dateWords()), "${event.city}, ${event.address}", EventLinks.url(event.id))
     val intent = Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"
         putExtra(Intent.EXTRA_SUBJECT, event.title)
         putExtra(Intent.EXTRA_TEXT, summary)
     }
     startActivity(Intent.createChooser(intent, getString(R.string.share_chooser)))
+    KoinJavaComponent.get<PoruchApp>(PoruchApp::class.java).eventShared()
 }
 
 /** Копія в системному календарі переживає наші локальні сповіщення. */

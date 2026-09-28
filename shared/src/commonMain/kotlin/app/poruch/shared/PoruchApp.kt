@@ -338,6 +338,12 @@ class PoruchApp internal constructor(
     /** Тап по дайджесту: єдиний спосіб дізнатися, чи він повертає людей. */
     fun digestOpened() = PoruchAnalytics.track("digest_open")
 
+    /** Відкрито системне «Поділитися» з посиланням на подію: чи працює петля запрошень. */
+    fun eventShared() = PoruchAnalytics.track("share", "kind" to "event")
+
+    /** Подію відкрито з посилання `poriad.app/e/…` — друга половина тієї ж петлі. */
+    fun eventLinkOpened() = PoruchAnalytics.track("link_open", "kind" to "event")
+
     /**
      * Перемикач аналітики в профілі. Вимкнено — події не йдуть у сінк, а платформа отримує
      * [PoruchAnalytics.collection] з false (Firebase `setAnalyticsCollectionEnabled`).

@@ -42,3 +42,6 @@ graphify-out/
 
 # Claude Design upload (built by .design-sync/build.py)
 ds-bundle/
+
+# Локальний кеш Wrangler (акаунт Cloudflare)
+.wrangler/

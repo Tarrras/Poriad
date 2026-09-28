@@ -6,8 +6,9 @@ import Shared
 /// Передача в системні застосунки, поза view, що їх викликають.
 enum SystemActions {
     /// Поділитись через будь-який застосунок; своїх запрошень не тримаємо.
+    /// Посилання в кінці: Telegram і месенджери розгортають з нього прев'ю сторінки події.
     static func shareText(for event: Event) -> String {
-        "\(event.title) · \(eventDate(event)) · \(event.city), \(event.address)"
+        "\(event.title) · \(eventDate(event)) · \(event.city), \(event.address)\n\(EventLinks.shared.url(eventId: event.id))"
     }
 
     /// Маршрут будує системна мапа.

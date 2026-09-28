@@ -1,0 +1,14 @@
+<!-- App Links лише для prod: сторінки poriad.app/e/* показують prod-базу, id подій з dev там не знайдуться.
+     Перевірка — worker/ віддає /.well-known/assetlinks.json з відбитком ключа підпису Play. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <activity android:name=".MainActivity">
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="https" android:host="poriad.app" android:pathPrefix="/e/"/>
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

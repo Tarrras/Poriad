@@ -350,6 +350,7 @@ private struct OrganizerPanel: View {
                     Image(systemName: "square.and.arrow.up").font(.system(size: 15, weight: .semibold)).foregroundStyle(Palette.ink)
                         .frame(width: 48, height: 48).background(Palette.surfaceMuted, in: Circle())
                 }.accessibilityLabel("Поділитись")
+                .simultaneousGesture(TapGesture().onEnded { model.app.eventShared() })
             }
         }
         .padding(Space.lg).cardSurface()

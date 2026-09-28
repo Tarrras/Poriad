@@ -16,7 +16,7 @@
 
 Усе, що позначено класом `.todo` (помаранчева підсвітка), треба замінити:
 
-- посилання на App Store / Google Play у `index.html` після публікації.
+- посилання на Google Play у `index.html` після публікації (App Store — уже є).
 
 Перевірити, що нічого не лишилось:
 
@@ -33,7 +33,7 @@ GitHub Pages, безкоштовно. Воркфлоу `.github/workflows/site.y
 | A | @ | 185.199.108.153, 185.199.109.153, 185.199.110.153, 185.199.111.153 |
 | CNAME | www | `<github-user>.github.io` |
 
-Потім Settings → Pages → Custom domain: `poriad.app`, поставити «Enforce HTTPS» (для зони `.app` HTTPS обов'язковий, сертифікат GitHub видає сам за кілька хвилин). Якщо домен інший, замінити в `CNAME`, у `mailto:` і в App Links / Universal Links, коли вони з'являться.
+Потім Settings → Pages → Custom domain: `poriad.app`, поставити «Enforce HTTPS» (для зони `.app` HTTPS обов'язковий, сертифікат GitHub видає сам за кілька хвилин). Якщо домен інший, замінити в `CNAME`, у `mailto:` і в `worker/` (сторінки подій `/e/…`, App Links / Universal Links — див. [worker/README.md](../worker/README.md)).
 
 Після публікації вписати URL:
 

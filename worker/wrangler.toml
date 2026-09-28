@@ -1,0 +1,16 @@
+# Сторінки подій і файли App Links / Universal Links для poriad.app. Деплой і налаштування — README.md.
+name = "poriad-web"
+main = "index.mjs"
+compatibility_date = "2026-09-01"
+workers_dev = false
+
+routes = [
+  { pattern = "poriad.app/e/*", zone_name = "poriad.app" },
+  { pattern = "poriad.app/.well-known/apple-app-site-association", zone_name = "poriad.app" },
+  { pattern = "poriad.app/.well-known/assetlinks.json", zone_name = "poriad.app" },
+]
+
+# Prod-проєкт Supabase і його публічний (publishable) ключ — ті самі, що в iosApp/Config.xcconfig.
+[vars]
+SUPABASE_URL = "https://tzdogzdvctlumsqlqskr.supabase.co"
+SUPABASE_KEY = "sb_publishable_RoY0wFzTOcXlmOIYC0UE-w_fOt5rXPq"

@@ -33,7 +33,16 @@ import FirebaseCrashlytics
         WindowGroup {
             RootView().environmentObject(model).tint(Palette.brand)
                 .overlay { SplashView() }
-                .onOpenURL { model.app.handleAuthCallback(url: $0.absoluteString) }
+                // Сюди приходять і auth-колбек, і посилання на подію: Universal Link `poriad.app/e/…` та
+                // `poriad://event/…` з кнопки веб-сторінки. Подію відкриваємо тим самим шляхом, що й тап по пушу.
+                .onOpenURL { url in
+                    if let id = EventLinks.shared.eventId(link: url.absoluteString) {
+                        model.app.eventLinkOpened()
+                        PushDelegate.open(eventId: id, chat: false)
+                    } else {
+                        model.app.handleAuthCallback(url: url.absoluteString)
+                    }
+                }
                 .onAppear { PushDelegate.app = model.app }
                 .onChange(of: scenePhase) { _, phase in
                     // Повернення в застосунок: запити на участь і членство могли змінитися, поки його не було.

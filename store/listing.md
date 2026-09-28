@@ -56,6 +56,16 @@ iPad-скріншоти не потрібні: застосунок iPhone-only 
 **Категорія:** Events. **Теги:** events, meetups, map, місто.
 **Контакт:** hello@poriad.app. **Політика:** https://poriad.app/privacy.html.
 
+### Після публікації в Play: посилання на події
+
+Без цього Android відкриває `poriad.app/e/…` у браузері, а не в застосунку (App Links не підтверджено), а на веб-сторінці події нема кнопки Google Play.
+
+1. Play Console → Test and release → App integrity → App signing: скопіювати **SHA-256** ключа підпису застосунку (не upload key; можна обидва).
+2. `worker/index.mjs`: вписати його в `ANDROID_CERT_FINGERPRINTS`, а `PLAY_URL` = `https://play.google.com/store/apps/details?id=app.poriad.android`.
+3. `cd worker && npx wrangler deploy`; перевірити `curl -s https://poriad.app/.well-known/assetlinks.json`.
+4. На телефоні з prod-збіркою з Play: `adb shell pm get-app-links app.poriad.android` → `poriad.app: verified`. Якщо `none` — `adb shell pm verify-app-links --re-verify app.poriad.android`.
+5. `site/index.html`: замінити «Google Play · скоро» на посилання (там само, де App Store).
+
 ### Data safety (як заповнювати)
 
 Збирається / шифрується в дорозі: так / можна запросити видалення: так (`delete_my_account`, кнопка в профілі; веб — https://poriad.app/delete-account.html). Видалення одразу, не відкладене.
