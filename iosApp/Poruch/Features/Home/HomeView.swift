@@ -11,6 +11,8 @@ struct HomeView: View {
     var openEvent: (String) -> Void
     /// Прямо в чат події, минаючи деталі.
     var openChat: (Event) -> Void
+    /// Список підписок: посилання біля секції «Від тих, за ким ви стежите».
+    var openFollows: () -> Void
 
     private var view: HomePresentation { model.home }
     @FocusState private var searchFocused: Bool
@@ -85,7 +87,7 @@ struct HomeView: View {
                             if !view.requests.isEmpty { requestsSection(view) }
                             if !view.unread.isEmpty { unreadSection(view) }
                             if !view.plans.isEmpty { plansRail(view) }
-                            if !view.followed.isEmpty { rail("Від тих, за ким ви стежите", view.followed, view) }
+                            if !view.followed.isEmpty { rail("Від тих, за ким ви стежите", view.followed, view, actionLabel: "Підписки", action: openFollows) }
                         }
                         if view.isEmpty {
                             if view.loading {
@@ -241,9 +243,9 @@ struct HomeView: View {
     }
 
     /// Горизонтальна стрічка широких карток; сусідня визирає з-за краю.
-    private func rail(_ title: String, _ items: [Event], _ view: HomePresentation, action: (() -> Void)? = nil) -> some View {
+    private func rail(_ title: String, _ items: [Event], _ view: HomePresentation, actionLabel: String = "Усі", action: (() -> Void)? = nil) -> some View {
         VStack(alignment: .leading, spacing: Space.md) {
-            SectionHeader(title: title, actionLabel: action == nil ? nil : "Усі", action: action).padding(.horizontal, Space.page)
+            SectionHeader(title: title, actionLabel: action == nil ? nil : actionLabel, action: action).padding(.horizontal, Space.page)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: Space.md) {
                     ForEach(items, id: \.id) { event in

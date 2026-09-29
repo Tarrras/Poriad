@@ -717,6 +717,10 @@
   <string name="rate_follow_title">Стежити за організатором</string>
   <string name="rate_follow_hint">Скажемо, коли в нього зʼявиться нова подія</string>
   <string name="follows_title">Підписки</string>
+  <string name="follows_hint">Заклади й організатори</string>
+  <string name="follows_subtitle">Скажемо, коли в них зʼявиться щось нове</string>
+  <string name="follows_empty_title">Ви ні за ким не стежите</string>
+  <string name="follows_empty_hint">Натисніть «Стежити» на закладі чи в організатора — і ми скажемо, коли в них зʼявиться щось нове.</string>
   <string name="follows_place_caption">%1$s · %2$s</string>
   <string name="follows_organizer_caption">Організатор · %1$s</string>
   <string name="unfollow">Не стежити</string>

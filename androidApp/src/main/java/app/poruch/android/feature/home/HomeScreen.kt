@@ -64,7 +64,10 @@ fun HomeScreen(state: HomeState, onIntent: (HomeIntent) -> Unit) {
                     if (state.requests.isNotEmpty()) RequestsSection(state.requests, onIntent)
                     if (state.unread.isNotEmpty()) UnreadSection(state.unread, onIntent)
                     if (state.plans.isNotEmpty()) PlansSection(state.plans, onIntent)
-                    if (state.followed.isNotEmpty()) Rail(stringResource(R.string.followed_home_section), state.followed, state, onIntent)
+                    if (state.followed.isNotEmpty()) Rail(
+                        stringResource(R.string.followed_home_section), state.followed, state, onIntent,
+                        actionLabel = stringResource(R.string.follows_title), onAction = { onIntent(HomeIntent.OpenFollows) }
+                    )
                 }
                 when {
                     state.isEmpty && state.loading -> Box(
@@ -228,9 +231,12 @@ private fun Digest(state: HomeState, onIntent: (HomeIntent) -> Unit) {
 
 /** Горизонтальна стрічка широких карток; сусідня визирає з-за краю. */
 @Composable
-private fun Rail(title: String, events: List<Event>, state: HomeState, onIntent: (HomeIntent) -> Unit, actionLabel: String? = null) {
+private fun Rail(
+    title: String, events: List<Event>, state: HomeState, onIntent: (HomeIntent) -> Unit, actionLabel: String? = null,
+    onAction: () -> Unit = { onIntent(HomeIntent.OpenMap) }
+) {
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
-        SectionHeader(title, Modifier.padding(horizontal = Spacing.page), actionLabel = actionLabel, onAction = { onIntent(HomeIntent.OpenMap) })
+        SectionHeader(title, Modifier.padding(horizontal = Spacing.page), actionLabel = actionLabel, onAction = onAction)
         Row(
             Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = Spacing.page),
             horizontalArrangement = Arrangement.spacedBy(Spacing.md)

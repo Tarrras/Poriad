@@ -112,6 +112,7 @@ struct RootView: View {
     /// не завжди скидав біндінг, і наступний тап по картці відкривав попередню або нічого.
     @State private var homePath = NavigationPath()
     @State private var minePath = NavigationPath()
+    @State private var profilePath = NavigationPath()
     /// Лічильник переходів на мапу: мапа по ньому закриває свої шторки, щоб показати вибрану подію.
     @State private var mapToken = 0
     /// Стартове місто — те, де людина зараз, а не Київ за замовчуванням. Відмову мовчки приймаємо.
@@ -156,6 +157,7 @@ struct RootView: View {
     private func showMap() {
         homePath = NavigationPath()
         minePath = NavigationPath()
+        profilePath = NavigationPath()
         mapToken += 1
         tab = 1
     }
@@ -169,12 +171,14 @@ struct RootView: View {
                         openMap: showMap, openProfile: { tab = 3 },
                         createEvent: { if model.state?.session.userId == nil { authenticating = true } else { creating = true } },
                         openEvent: { homePath.append(EventRoute(id: $0)) },
-                        openChat: { homePath.append(ChatRoute(id: $0.id)) }
+                        openChat: { homePath.append(ChatRoute(id: $0.id)) },
+                        openFollows: { homePath.append(FollowsRoute()) }
                     )
                     .safeAreaPadding(.bottom, 92)
                     .toolbar(.hidden, for: .tabBar)
                     .navigationDestination(for: EventRoute.self) { EventDetailView(app: model.app, eventID: $0.id) }
                     .navigationDestination(for: ChatRoute.self) { ChatView(eventID: $0.id) }
+                    .navigationDestination(for: FollowsRoute.self) { _ in FollowsView() }
                 }.tag(0)
                 NavigationStack { DiscoveryView(openToken: mapToken).toolbar(.hidden, for: .tabBar) }.tag(1)
                 NavigationStack(path: $minePath) {
@@ -183,7 +187,11 @@ struct RootView: View {
                         .navigationDestination(for: EventRoute.self) { EventDetailView(app: model.app, eventID: $0.id) }
                         .navigationDestination(for: ChatRoute.self) { ChatView(eventID: $0.id) }
                 }.tag(2)
-                NavigationStack { ProfileView().safeAreaPadding(.bottom, 92).toolbar(.hidden, for: .tabBar) }.tag(3)
+                NavigationStack(path: $profilePath) {
+                    ProfileView(openFollows: { profilePath.append(FollowsRoute()) })
+                        .safeAreaPadding(.bottom, 92).toolbar(.hidden, for: .tabBar)
+                        .navigationDestination(for: FollowsRoute.self) { _ in FollowsView() }
+                }.tag(3)
             }
             .toolbar(.hidden, for: .tabBar)
             .onPreferenceChange(HidesTabBarKey.self) { hidden in tabBarHidden = hidden }
@@ -208,6 +216,7 @@ struct RootView: View {
                 dismissPresentedSheets()
                 tab = 0
                 minePath = NavigationPath()
+                profilePath = NavigationPath()
                 if id == nil, let placeId { showMap(); model.app.openPlace(placeId: placeId); return }
                 guard let id else { homePath = NavigationPath(); model.app.digestOpened(); return }
                 model.app.selectEvent(id: id)

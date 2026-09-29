@@ -119,6 +119,7 @@ class HomeViewModel(private val app: PoruchApp) : MviViewModel<HomeState, HomeIn
             send(HomeEffect.Navigate(HomeDestination.MAP))
         }
         HomeIntent.OpenProfile -> send(HomeEffect.Navigate(HomeDestination.PROFILE))
+        HomeIntent.OpenFollows -> send(HomeEffect.Navigate(HomeDestination.FOLLOWS))
         HomeIntent.Refresh -> refresh({ refreshing }, { copy(refreshing = it) }) { app.reloadAll() }
     }
 

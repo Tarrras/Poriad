@@ -3,6 +3,7 @@ package app.poruch.android.di
 import app.poruch.android.BuildConfig
 import app.poruch.android.SessionStore
 import app.poruch.android.feature.account.AuthViewModel
+import app.poruch.android.feature.account.FollowsViewModel
 import app.poruch.android.feature.account.ProfileViewModel
 import app.poruch.android.feature.detail.DetailViewModel
 import app.poruch.android.feature.editor.DraftStore
@@ -50,6 +51,7 @@ val appModule = module {
     viewModelOf(::ExploreViewModel)
     viewModelOf(::MyEventsViewModel)
     viewModelOf(::ProfileViewModel)
+    viewModelOf(::FollowsViewModel)
     viewModelOf(::OnboardingViewModel)
     viewModelOf(::AuthViewModel)
     viewModel { (route: Detail) -> DetailViewModel(get(), get(), route.eventId) }

@@ -4,15 +4,14 @@ import Shared
 /// Екран акаунта: хто ви, що вам цікаво, як з вами зв'язатися.
 struct ProfileView: View {
     @EnvironmentObject var model: AppModel
+    /// Список підписок — окремий екран у стосі вкладки (`RootView.profilePath`).
+    var openFollows: () -> Void
     @State private var newPassword = ""
     @State private var revealed = false
     @State private var showAuth = false
     @State private var deleting = false
     @State private var changingPassword = false
     @State private var editingProfile = false
-    /// Картка організатора з «Підписок». Див. `personSheet`.
-    @State private var showingPerson = false
-    @Environment(\.openMap) private var openMap
     @State private var birthDate = Calendar.current.date(byAdding: .year, value: -Int(SafetyRules.shared.MIN_SIGNUP_AGE), to: Date()) ?? Date()
     private let latestBirthDate = Calendar.current.date(byAdding: .year, value: -Int(SafetyRules.shared.MIN_SIGNUP_AGE), to: Date()) ?? Date()
     private let earliestBirthDate = Calendar.current.date(byAdding: .year, value: -100, to: Date()) ?? Date.distantPast
@@ -29,8 +28,8 @@ struct ProfileView: View {
                     if recovering { recovery }
                     if !signedIn && !recovering { signInPrompt }
                     if model.state?.needsAgeDeclaration == true { ageDeclaration }
+                    if signedIn && !(model.state?.library.follows ?? []).isEmpty { follows }
                     taste
-                    if !(model.state?.library.follows ?? []).isEmpty { follows }
                     if signedIn { account }
                     if !(model.state?.library.blocked ?? []).isEmpty { blocked }
                     about
@@ -45,7 +44,6 @@ struct ProfileView: View {
         .sheet(isPresented: $editingProfile) {
             if let profile = model.state?.library.profile { EditProfileSheet(profile: profile).presentationDetents([.large]) }
         }
-        .personSheet(model, isPresented: $showingPerson)
         // Пароль змінено: шторці нема що показувати, підтвердження побачать у банері кореня.
         .onChange(of: (model.state?.notice as? AppNoticeTold)?.message) { _, message in
             if message == .passwordChanged { changingPassword = false }
@@ -133,60 +131,14 @@ struct ProfileView: View {
         }
     }
 
-    /// За ким і за чим стежу, нові першими. Тап по закладу веде на мапу, по організатору — до його картки.
+    /// Список підписок — окремий екран: тут лише рядок, що каже, що вони є й де. Порожнім його не показуємо.
     private var follows: some View {
-        VStack(alignment: .leading, spacing: Space.md) {
-            SectionHeader(title: "Підписки")
-            GroupedRows {
-                ForEach(Array((model.state?.library.follows ?? []).enumerated()), id: \.element.targetId) { position, follow in
-                    if position > 0 { Divider().overlay(Palette.hairline).padding(.leading, Space.lg + 40 + Space.md) }
-                    followRow(follow)
-                }
-            }
+        GroupedRows {
+            LinkRow(
+                symbol: "bell", title: "Підписки", subtitle: "Заклади й організатори",
+                value: "\(model.state?.library.follows.count ?? 0)", action: openFollows
+            )
         }
-    }
-
-    private func followRow(_ follow: Follow) -> some View {
-        let organizer = follow.kind == .organizer
-        let upcoming = Int(follow.upcoming)
-        let caption = [organizer ? "Організатор" : follow.city, "\(upcoming) \(ukrainianPlural(upcoming, "подія", "події", "подій"))"]
-            .filter { !$0.isEmpty }.joined(separator: " · ")
-        return HStack(spacing: Space.md) {
-            Button {
-                if organizer {
-                    showingPerson = true
-                    model.app.openPerson(userId: follow.targetId)
-                } else {
-                    model.app.openPlace(placeId: follow.targetId)
-                    openMap()
-                }
-            } label: {
-                HStack(spacing: Space.md) {
-                    if organizer {
-                        Avatar(name: follow.name, url: follow.avatarUrl, size: 40)
-                    } else {
-                        Image(systemName: "mappin.and.ellipse").font(.system(size: 17, weight: .medium)).foregroundStyle(Palette.ink)
-                            .frame(width: 40, height: 40)
-                            .background(Palette.surfaceMuted, in: RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
-                    }
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(follow.name).font(PoruchFont.cardName).kerning(-0.2).foregroundStyle(Palette.ink)
-                            .multilineTextAlignment(.leading).lineLimit(2)
-                        Text(caption).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(1)
-                    }
-                    Spacer(minLength: 0)
-                }.contentShape(Rectangle())
-            }.buttonStyle(.plain)
-            Button {
-                model.app.setFollowing(kind: follow.kind, targetId: follow.targetId, name: follow.name, following: false)
-            } label: {
-                Text("Не стежити").font(PoruchFont.button).foregroundStyle(Palette.ink)
-                    .frame(minHeight: 44).contentShape(Rectangle())
-            }
-            .buttonStyle(.plain).fixedSize()
-            .accessibilityLabel("Не стежити: \(follow.name)")
-        }
-        .padding(.horizontal, Space.lg).padding(.vertical, Space.md)
     }
 
     /// Відповіді онбордингу належать пристрою, тож секція є і в гостя.

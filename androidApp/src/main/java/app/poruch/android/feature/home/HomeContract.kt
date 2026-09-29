@@ -97,6 +97,8 @@ sealed interface HomeIntent {
     /** Плитка категорії на головній: мапа відкривається вже з цим фільтром. */
     data class OpenCategory(val category: EventCategory) : HomeIntent
     data object OpenProfile : HomeIntent
+    /** «Підписки» біля секції «Від тих, за ким ви стежите»: сам список підписок. */
+    data object OpenFollows : HomeIntent
     /** Потяг вниз: перечитати все, як при поверненні в застосунок. */
     data object Refresh : HomeIntent
 }
@@ -106,4 +108,4 @@ sealed interface HomeEffect {
     data class Navigate(val destination: HomeDestination, val id: String = "") : HomeEffect
 }
 
-enum class HomeDestination { DETAIL, CHAT, MAP, PROFILE, EDITOR }
+enum class HomeDestination { DETAIL, CHAT, MAP, PROFILE, EDITOR, FOLLOWS }

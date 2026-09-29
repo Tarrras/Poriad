@@ -67,6 +67,7 @@ fun HomeRoute(navigator: Navigator) {
                 HomeDestination.CHAT -> navigator.open(Chat(effect.id))
                 HomeDestination.MAP -> navigator.open(Explore())
                 HomeDestination.PROFILE -> navigator.open(Profile)
+                HomeDestination.FOLLOWS -> navigator.open(Follows)
                 HomeDestination.EDITOR -> navigator.requireAccount { navigator.open(Editor()) }
             }
         }
@@ -213,12 +214,24 @@ fun ProfileRoute(navigator: Navigator) {
         when (effect) {
             ProfileEffect.SignIn -> navigator.open(Auth)
             ProfileEffect.AskNotificationPermission -> permission.launch(Manifest.permission.POST_NOTIFICATIONS)
-            ProfileEffect.OpenMap -> navigator.open(Explore())
+            ProfileEffect.OpenFollows -> navigator.open(Follows)
             is ProfileEffect.OpenLink -> if (!context.openLink(effect.url)) context.toast(R.string.link_unavailable)
             is ProfileEffect.WriteEmail -> if (!context.writeEmail(effect.address)) context.toast(R.string.mail_unavailable)
         }
     }
     ProfileScreen(model.state.collectAsStateWithLifecycle().value, model::dispatch)
+}
+
+@Composable
+fun FollowsRoute(navigator: Navigator) {
+    val model = koinViewModel<FollowsViewModel>()
+    model.effects.handle { effect ->
+        when (effect) {
+            FollowsEffect.Back -> navigator.back()
+            FollowsEffect.OpenMap -> navigator.open(Explore())
+        }
+    }
+    FollowsScreen(model.state.collectAsStateWithLifecycle().value, model::dispatch)
 }
 
 /** Той самий стан профілю: поле нового пароля й прапорець відновлення живуть у ньому. */
