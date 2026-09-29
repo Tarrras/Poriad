@@ -46,6 +46,9 @@ data class AppState(
 ) {
     /** Скільки чатів чекають: бейдж на вкладці. Не сума повідомлень: три чати — три справи. */
     val unreadChats get() = chatUnread.size
+
+    /** Скільки подій чекають на людину: непрочитаний чат чи запит на участь. Бейдж «Моїх подій»; подія з обома — одна справа. */
+    val waitingEvents get() = (chatUnread.map { it.eventId } + library.pendingRequests.map { it.eventId }).toSet().size
     val signedIn get() = session.userId != null
     fun isSaved(id: String) = id in library.savedIds
     fun isWaitlisted(id: String) = id in library.waitlistedIds

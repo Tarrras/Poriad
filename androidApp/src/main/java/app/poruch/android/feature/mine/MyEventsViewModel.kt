@@ -46,7 +46,7 @@ class MyEventsViewModel(private val app: PoruchApp) :
             is MyEventsIntent.Decline -> app.declineMember(intent.eventId, intent.userId)
             is MyEventsIntent.Unsave -> app.toggleSaved(intent.id)
             MyEventsIntent.SignIn -> send(MyEventsEffect.SignIn)
-            MyEventsIntent.CreateEvent -> send(MyEventsEffect.CreateEvent)
+            MyEventsIntent.CreateEvent -> { app.createStarted("mine"); send(MyEventsEffect.CreateEvent) }
         }
     }
 }

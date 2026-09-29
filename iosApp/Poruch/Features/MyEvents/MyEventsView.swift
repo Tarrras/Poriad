@@ -24,6 +24,12 @@ struct MyEventsView: View {
         Dictionary((model.state?.chatUnread ?? []).map { ($0.eventId, Int($0.unread)) }, uniquingKeysWith: { a, _ in a })
     }
 
+    /// Тап по «Створити» звідси: рахуємо, звідки він, і відкриваємо редактор.
+    private func startCreating() {
+        model.app.createStarted(from: "mine")
+        creating = true
+    }
+
     var body: some View {
         let board = board
         VStack(spacing: 0) {
@@ -122,7 +128,7 @@ struct MyEventsView: View {
                     }
                     if tab == .organizing {
                         GroupedRows {
-                            LinkRow(symbol: "sparkles", title: "Маєте ідею зустрічі?", subtitle: "Опублікуйте подію за три кроки") { creating = true }
+                            LinkRow(symbol: "sparkles", title: "Маєте ідею зустрічі?", subtitle: "Опублікуйте подію за три кроки") { startCreating() }
                         }
                     }
                 }.padding(.horizontal, Space.page).padding(.vertical, Space.md)
@@ -138,7 +144,7 @@ struct MyEventsView: View {
         case .organizing:
             EmptyState(symbol: "sparkles", title: "Ви ще нічого не організували",
                        message: "Зберіть людей на настолки, пробіжку чи кіно — це три кроки.",
-                       actionLabel: "Створити подію") { creating = true }
+                       actionLabel: "Створити подію") { startCreating() }
         case .saved:
             EmptyState(symbol: "bookmark", title: "Нічого не збережено",
                        message: "Торкніться закладки на картці події, щоб повернутися до неї пізніше.")
@@ -241,7 +247,7 @@ struct MyEventsView: View {
 }
 
 /// Надрядок з відліком: «СЬОГОДНІ · 19:30 · ЧЕРЕЗ 3 ГОД». Після початку `cardOverline` сам каже «триває зараз».
-private func countdownOverline(_ event: Event) -> String {
+func countdownOverline(_ event: Event) -> String {
     let base = cardOverline(event)
     guard !event.hasStarted(now: nowInstant()), let start = parseEventDate(event.startsAt) else { return base }
     let minutes = max(Int(start.timeIntervalSinceNow / 60), 1)

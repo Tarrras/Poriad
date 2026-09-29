@@ -34,6 +34,7 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -143,6 +144,11 @@ fun Modifier.pressable(
 fun Modifier.tabBarClearance(): Modifier =
     navigationBarsPadding().padding(bottom = 56.dp + Spacing.md + Spacing.lg)
 
+/** Те саме, що [tabBarClearance], для `contentPadding` лінивого списку: вміст доїжджає під таббар, а не обрізається над ним. */
+@Composable
+fun tabBarClearancePadding(top: Dp = 0.dp): PaddingValues =
+    PaddingValues(top = top, bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 56.dp + Spacing.md + Spacing.lg)
+
 @Composable
 fun HairLine(modifier: Modifier = Modifier) =
     Box(
@@ -166,9 +172,13 @@ fun CategoryDot(category: EventCategory, size: Dp = 8.dp) =
 @Composable
 fun PoruchSearchField(
     value: String, onValueChange: (String) -> Unit, placeholder: String,
-    modifier: Modifier = Modifier, activeFilters: Int = 0, onFilters: (() -> Unit)? = null
+    modifier: Modifier = Modifier, activeFilters: Int = 0, onFilters: (() -> Unit)? = null,
+    /** Поле з'явилося на вимогу людини (іконка пошуку): курсор одразу в ньому. */
+    autoFocus: Boolean = false
 ) {
     val colors = Poruch.colors
+    val focus = remember { FocusRequester() }
+    if (autoFocus) LaunchedEffect(Unit) { focus.requestFocus() }
     Row(
         modifier,
         horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
@@ -188,7 +198,7 @@ fun PoruchSearchField(
                 value = value,
                 onValueChange = onValueChange,
                 singleLine = true,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).focusRequester(focus),
                 textStyle = MaterialTheme.typography.bodyLarge.copy(color = colors.ink),
                 cursorBrush = SolidColor(colors.ink),
                 decorationBox = { inner ->
@@ -726,37 +736,39 @@ fun EmptyState(
     }
 }
 
+/** Без [subtitle] банер тонкий: гліф, один рядок і стрілка. */
 @Composable
 fun BannerCard(
     title: String,
-    subtitle: String,
+    subtitle: String?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     icon: ImageVector = PoruchIcons.sparkle
 ) {
     val colors = Poruch.colors
+    val slim = subtitle == null
     Row(
         modifier
             .fillMaxWidth()
             .pressable(onClick = onClick)
             .cardSurface()
-            .padding(Spacing.lg),
+            .padding(horizontal = Spacing.lg, vertical = if (slim) Spacing.md else Spacing.lg),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Spacing.md)
     ) {
         Box(
             Modifier
-                .size(44.dp)
+                .size(if (slim) 36.dp else 44.dp)
                 .background(colors.surfaceMuted, Radius.xs),
             contentAlignment = Alignment.Center
         ) { Icon(icon, null, Modifier.size(20.dp), tint = colors.ink) }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(title, style = MaterialTheme.typography.titleSmall, color = colors.ink)
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
+            subtitle?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary) }
         }
         Box(
             Modifier
-                .size(32.dp)
+                .size(if (slim) 28.dp else 32.dp)
                 .background(colors.brand, CircleShape),
             contentAlignment = Alignment.Center
         ) {
@@ -966,13 +978,12 @@ fun EventImage(event: Event, modifier: Modifier, glyphSize: Dp = 26.dp) {
     }
 }
 
-/** Рядок стану над карткою. Афіша завжди підписана джерелом (docs/event-ingestion.md §8); місця й черга лише в кімнати. */
+/** Стан події словами: скасовано, знято, а для кімнати — «ви йдете», запит, черга, місця. Без підпису джерела афіші. */
 @Composable
-private fun eventStatus(event: Event, waitlisted: Boolean = false): Pair<String, BadgeTone>? {
+fun eventState(event: Event, waitlisted: Boolean = false): Pair<String, BadgeTone>? {
     if (event.isCancelled) return stringResource(R.string.cancelled) to BadgeTone.Danger
     event.listing?.let { listing ->
-        return if (listing.isWithdrawn) stringResource(R.string.listing_withdrawn) to BadgeTone.Neutral
-        else stringResource(R.string.listing_badge, listing.sourceName) to BadgeTone.Neutral
+        return if (listing.isWithdrawn) stringResource(R.string.listing_withdrawn) to BadgeTone.Neutral else null
     }
     val room = event.gathering ?: return null
     // Місця й «ви йдете» після кінця нічого не кажуть: рядок покаже категорію.
@@ -986,6 +997,12 @@ private fun eventStatus(event: Event, waitlisted: Boolean = false): Pair<String,
         else -> null
     }
 }
+
+/** Рядок стану над карткою. Афіша завжди підписана джерелом (docs/event-ingestion.md §8); місця й черга лише в кімнати. */
+@Composable
+private fun eventStatus(event: Event, waitlisted: Boolean = false): Pair<String, BadgeTone>? =
+    eventState(event, waitlisted)
+        ?: event.listing?.let { stringResource(R.string.listing_badge, it.sourceName) to BadgeTone.Neutral }
 
 /** Рядок під назвою: учасники для кімнати, ціна для афіші. */
 @Composable
@@ -1006,29 +1023,36 @@ private fun EventMeta(event: Event, short: Boolean = false) {
     }
 }
 
-/** Крапка категорії плюс її назва кольором категорії. */
+/**
+ * Крапка категорії плюс її назва кольором категорії. [placeFirst] — місце першим, а категорія лише крапкою:
+ * на постері назва закладу важливіша за жанр, який і так каже афіша; жанр лишається для TalkBack.
+ */
 @Composable
-fun EventDescriptor(event: Event, modifier: Modifier = Modifier, withCity: Boolean = false) {
+fun EventDescriptor(event: Event, modifier: Modifier = Modifier, withCity: Boolean = false, placeFirst: Boolean = false) {
     val colors = Poruch.colors
+    // Роздільник лише коли є текст праворуч. Назва закладу, коли є, замість адреси.
+    // Місто першим: у видачі з різних міст воно важливіше за адресу й не зникає під трьома крапками.
+    val place = if (withCity) placeWithCity(event) else event.placeLabel
+    val category = stringResource(categoryLabel(event.category))
     Row(
-        modifier,
+        if (placeFirst) modifier.semantics(mergeDescendants = true) { contentDescription = listOf(category, place).filter { it.isNotBlank() }.joinToString(", ") }
+        else modifier,
         horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
         verticalAlignment = Alignment.CenterVertically
     ) {
         CategoryDot(event.category)
-        Text(
-            stringResource(categoryLabel(event.category)),
-            style = PoruchType.descriptor, color = categoryInk(event.category), maxLines = 1
-        )
-        // Роздільник лише коли є текст праворуч. Назва закладу, коли є, замість адреси.
-        // Місто першим: у видачі з різних міст воно важливіше за адресу й не зникає під трьома крапками.
-        val place = if (withCity) placeWithCity(event) else event.placeLabel
-        place.takeIf { it.isNotBlank() }?.let { place ->
-            Text(
-                "· $place",
-                style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary,
-                maxLines = 1, overflow = TextOverflow.Ellipsis
-            )
+        if (placeFirst) Text(
+            place.ifBlank { category }, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary,
+            maxLines = 1, overflow = TextOverflow.Ellipsis
+        ) else {
+            Text(category, style = PoruchType.descriptor, color = categoryInk(event.category), maxLines = 1)
+            place.takeIf { it.isNotBlank() }?.let { place ->
+                Text(
+                    "· $place",
+                    style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis
+                )
+            }
         }
     }
 }
@@ -1358,39 +1382,6 @@ fun EventMapCard(
     }
 }
 
-/** Вузька плитка для горизонтальних стрічок головної. */
-@Composable
-fun EventTile(event: Event, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    val colors = Poruch.colors
-    Column(
-        modifier
-            .pressable(onClick = onClick)
-            .cardSurface()
-            .alpha(if (event.isCancelled) 0.6f else 1f)
-    ) {
-        EventImage(
-            event, Modifier
-                .fillMaxWidth()
-                .height(120.dp)
-        )
-        Column(
-            Modifier.padding(Spacing.md),
-            verticalArrangement = Arrangement.spacedBy(Spacing.xs)
-        ) {
-            Text(
-                cardOverline(event, dateWords()),
-                style = MaterialTheme.typography.labelSmall,
-                color = colors.inkTertiary
-            )
-            Text(
-                event.title, style = MaterialTheme.typography.titleSmall, color = colors.ink,
-                minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis
-            )
-            EventDescriptor(event)
-        }
-    }
-}
-
 /** Фото людини або перша літера імені, поки фото нема чи воно ще їде. */
 @Composable
 fun Avatar(name: String, url: String?, size: Dp, modifier: Modifier = Modifier) {
@@ -1468,23 +1459,22 @@ fun MetaLine(icon: ImageVector, text: String, modifier: Modifier = Modifier, ton
 
 // ---- Композиційні картки головної
 
-/** Велика картка-афіша: обкладинка на всю висоту, текст на затемненні внизу. Одна на екран, для головного. */
+/** Велика картка-афіша: обкладинка на всю висоту, текст на затемненні внизу. Головний акцент екрана; на головній їх кілька, гортаються. */
 @Composable
 fun EventHeroCard(
-    event: Event, eyebrow: String, modifier: Modifier = Modifier,
+    event: Event, modifier: Modifier = Modifier, eyebrow: String? = null, height: Dp = 360.dp,
     saved: Boolean = false, onSave: (() -> Unit)? = null, onClick: () -> Unit
 ) {
-    val colors = Poruch.colors
     val badge = eventStatus(event)
     Box(
         modifier
             .fillMaxWidth()
-            .height(360.dp)
+            .height(height)
             .pressable(onClick = onClick)
             .clip(Radius.xl)
             .alpha(if (event.isCancelled) 0.6f else 1f)
     ) {
-        EventImage(event, Modifier.fillMaxSize(), glyphSize = 56.dp)
+        EventArt(event, Modifier.fillMaxSize())
         Box(
             Modifier
                 .matchParentSize()
@@ -1497,153 +1487,48 @@ fun EventHeroCard(
                 )
         )
         badge?.let { (text, tone) -> Box(Modifier.padding(Spacing.lg)) { StatusBadge(text, tone) } }
-        if (onSave != null) SaveButton(
-            saved,
-            onSave,
-            Modifier
-                .align(Alignment.TopEnd)
-                .padding(Spacing.md)
-        )
+        if (onSave != null) SaveButton(saved, onSave, Modifier.align(Alignment.TopEnd).padding(Spacing.md))
         Column(
-            Modifier
-                .align(Alignment.BottomStart)
-                .padding(Spacing.xl),
+            Modifier.align(Alignment.BottomStart).padding(Spacing.xl),
             verticalArrangement = Arrangement.spacedBy(Spacing.sm)
         ) {
+            eyebrow?.let {
+                Text(it.uppercase(), style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.75f))
+            }
             Text(
-                eyebrow.uppercase(),
-                style = MaterialTheme.typography.labelSmall,
-                color = Color.White.copy(alpha = 0.75f)
+                event.title, style = MaterialTheme.typography.headlineMedium, color = Color.White,
+                maxLines = 3, overflow = TextOverflow.Ellipsis
             )
-            Text(
-                event.title,
-                style = MaterialTheme.typography.headlineMedium,
-                color = Color.White,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                cardOverline(
-                    event,
-                    dateWords()
-                ) + " · " + stringResource(categoryLabel(event.category)),
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.White.copy(alpha = 0.85f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-    }
-}
-
-/** Широка картка горизонтальної стрічки: фото врівень із краєм, текст під ним. Сусідня визирає з-за краю. */
-@Composable
-fun EventRailCard(
-    event: Event,
-    modifier: Modifier = Modifier,
-    saved: Boolean = false,
-    onSave: (() -> Unit)? = null,
-    onClick: () -> Unit
-) {
-    val colors = Poruch.colors
-    val badge = eventStatus(event)
-    Column(
-        modifier
-            .width(300.dp)
-            .pressable(onClick = onClick)
-            .cardSurface()
-            .alpha(if (event.isCancelled) 0.6f else 1f)
-    ) {
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .height(170.dp)
-        ) {
-            EventImage(event, Modifier.fillMaxSize(), glyphSize = 32.dp)
-            badge?.let { (text, tone) ->
-                Box(Modifier.padding(Spacing.md)) {
-                    StatusBadge(
-                        text,
-                        tone
+            // Дата й місце двома рядками: в одному рядку хвіст обрізався.
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    cardOverline(event, dateWords()), style = MaterialTheme.typography.bodyMedium,
+                    color = Color.White.copy(alpha = 0.9f), maxLines = 1, overflow = TextOverflow.Ellipsis
+                )
+                event.placeLabel.takeIf { it.isNotBlank() }?.let {
+                    Text(
+                        it, style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White.copy(alpha = 0.75f), maxLines = 1, overflow = TextOverflow.Ellipsis
                     )
                 }
             }
-            if (onSave != null) SaveButton(
-                saved,
-                onSave,
-                Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(Spacing.sm)
-            )
-        }
-        Column(
-            Modifier.padding(Spacing.lg),
-            verticalArrangement = Arrangement.spacedBy(Spacing.xs)
-        ) {
-            Text(
-                cardOverline(event, dateWords()),
-                style = MaterialTheme.typography.labelSmall,
-                color = colors.inkTertiary
-            )
-            Text(
-                event.title,
-                style = MaterialTheme.typography.titleSmall,
-                color = colors.ink,
-                minLines = 2,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-            EventDescriptor(event)
-            EventMeta(event, short = true)
         }
     }
 }
 
-/** Швидка дія на пів ширини: гліф у колі, надрядок, назва. */
+/**
+ * Афіша на всю обкладинку; без фото — насичений градієнт категорії з її великим прозорим гліфом.
+ * Одна на hero й постер, щоб подія без фото не блідла серед подій із ним. [glyph] — розмір прозорого гліфа.
+ */
 @Composable
-fun QuickActionCard(
-    eyebrow: String, title: String, icon: ImageVector, onClick: () -> Unit,
-    modifier: Modifier = Modifier, filled: Boolean = false
-) {
-    val colors = Poruch.colors
-    val ink = if (filled) colors.onBrand else colors.ink
-    Column(
-        // Незалита картка — звичайна поверхня, з лінією по краю в темній темі, як усі картки поруч.
-        modifier
-            .then(
-                if (filled) Modifier
-                    .clip(Radius.lg)
-                    .background(colors.brand) else Modifier.cardSurface()
-            )
-            .pressable(onClick = onClick)
-            .semantics(mergeDescendants = true) { contentDescription = "$eyebrow: $title" }
-            .padding(Spacing.lg),
-        verticalArrangement = Arrangement.spacedBy(Spacing.md)
-    ) {
-        Box(
-            Modifier
-                .size(40.dp)
-                .background(
-                    if (filled) colors.onBrand.copy(alpha = 0.14f) else colors.surfaceMuted,
-                    CircleShape
-                ),
-            contentAlignment = Alignment.Center
-        ) { Icon(icon, null, Modifier.size(20.dp), tint = ink) }
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(
-                eyebrow.uppercase(),
-                style = MaterialTheme.typography.labelSmall,
-                color = ink.copy(alpha = 0.7f)
-            )
-            Text(
-                title,
-                style = MaterialTheme.typography.titleSmall,
-                color = ink,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-    }
+fun EventArt(event: Event, modifier: Modifier = Modifier, glyph: Dp = 220.dp) {
+    if (event.imageUrl == null) Box(modifier.background(categoryHeroGradient(event.category))) {
+        Icon(
+            categoryIcon(event.category), null,
+            Modifier.align(Alignment.TopEnd).offset(x = glyph * 0.25f, y = -glyph * 0.04f).size(glyph),
+            tint = Color.White.copy(alpha = 0.18f)
+        )
+    } else EventImage(event, modifier, glyphSize = 72.dp)
 }
 
 /** Рядок групового списку: гліф, назва, підпис, справа значення й шеврон. Кілька рядків збирає [GroupedRows]. */

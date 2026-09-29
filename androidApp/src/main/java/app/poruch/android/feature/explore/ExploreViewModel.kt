@@ -119,7 +119,7 @@ class ExploreViewModel(private val app: PoruchApp) :
             // Довантажуємо голову звуженого списку: `loadMore` по індексу під фільтром її не дістає.
             is ExploreIntent.LoadMore -> loadHead(intent.upTo)
             is ExploreIntent.ToggleSaved -> app.toggleSaved(intent.id)
-            ExploreIntent.CreateEvent -> send(ExploreEffect.CreateEvent)
+            ExploreIntent.CreateEvent -> { app.createStarted("map"); send(ExploreEffect.CreateEvent) }
 
             is ExploreIntent.ShowSheet -> reduce { copy(sheet = intent.sheet) }
             is ExploreIntent.SetDetent -> reduce { copy(detent = intent.detent) }

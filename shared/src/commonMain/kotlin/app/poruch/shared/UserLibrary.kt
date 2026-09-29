@@ -46,14 +46,20 @@ internal class UserLibrary(
      */
     private var followBusy = 0
 
+    /** Подія й підпис, звідки її відкрито (`home_hero`, `home_poster`…): лише для `event_view`. */
+    private var openedFrom: Pair<String, String>? = null
+
     /**
      * Наводить застосунок на подію. [full] — відкриття екрана деталей, інакше підсвітка.
      * Підсвітка на кожен крок каруселі, тож мережу чіпаємо лише коли є що дізнатися: рядка нема
      * в пам'яті або деталі справді відкрито (місця й членство могли змінитися).
      */
-    fun select(id: String, full: Boolean = false) {
+    fun select(id: String, full: Boolean = false, from: String? = null) {
+        // Звідки відкрили: ставить лише підсвітка, деталі приходять слідом. Підсвітка без джерела його скидає,
+        // щоб «головна» не дісталась перегляду, що почався деінде.
+        if (!full) openedFrom = from?.let { id to it }
         // Перегляд — відкриті деталі, а не крок каруселі: інакше метрика росла б від гортання.
-        if (full && viewedId != id) PoruchAnalytics.track("event_view")
+        if (full && viewedId != id) PoruchAnalytics.track("event_view", "from" to openedFrom?.takeIf { it.first == id }?.second)
         if (full) viewedId = id
         openEventId = id
         detailJob?.cancel()

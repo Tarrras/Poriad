@@ -290,7 +290,11 @@ fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
                     current,
                     navigator,
                     Modifier.align(Alignment.BottomCenter),
-                    unreadChats = state.unreadChats
+                    waiting = state.waitingEvents,
+                    onCreate = {
+                        app.createStarted("fab")
+                        navigator.requireAccount { navigator.open(Editor()) }
+                    }
                 )
             }
             NoticeHost(state.notice, app::clearNotice, Modifier.align(Alignment.TopCenter))
@@ -309,18 +313,19 @@ private fun TabBar(
     current: NavKey,
     navigator: Navigator,
     modifier: Modifier,
-    unreadChats: Int = 0
+    waiting: Int = 0,
+    onCreate: () -> Unit
 ) {
     val reducedMotion = Poruch.reducedMotion
     val tabs = listOf(
         TabItem(Home.tabKey(), stringResource(R.string.home), PoruchIcons.home),
         TabItem(Explore().tabKey(), stringResource(R.string.map), PoruchIcons.map),
-        // Непрочитані чати живуть у «Моїх подіях»: туди й бейдж.
+        // Чати з непрочитаним і запити на участь живуть у «Моїх подіях»: туди й бейдж, по одному на подію.
         TabItem(
             Mine.tabKey(),
             stringResource(R.string.my_events),
             PoruchIcons.calendar,
-            badge = unreadChats
+            badge = waiting
         ),
         TabItem(Profile.tabKey(), stringResource(R.string.profile), PoruchIcons.person)
     )
@@ -336,7 +341,7 @@ private fun TabBar(
                 .padding(bottom = Spacing.md),
             onSelect = { key -> navigator.open(tabFor(key)) }
         ) {
-            CreateButton({ navigator.requireAccount { navigator.open(Editor()) } })
+            CreateButton(onCreate)
         }
     }
 }

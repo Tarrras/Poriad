@@ -1135,6 +1135,47 @@ class PoruchAppTest {
         } finally { PoruchAnalytics.sink=null }
     }
 
+    /** `event_view` каже, звідки подію відкрито; підсвітка без джерела його скидає, щоб головна не дісталась чужому перегляду. */
+    @Test fun anEventViewNamesWhereItWasOpenedFrom()=runTest {
+        val tracked=mutableListOf<Pair<String,Map<String,String>>>()
+        PoruchAnalytics.sink={ name,params -> tracked+=name to params }
+        try {
+            val events=Events(); events.results=listOf(event("a",EventCategory.ART,"2090-01-05T19:00:00Z"),event("b",EventCategory.ART,"2090-01-06T19:00:00Z"))
+            val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(1000); runCurrent()
+            app.selectEvent("a","home_poster"); app.openEvent("a"); runCurrent()
+            app.selectEvent("b"); app.openEvent("b"); runCurrent()
+            app.selectEvent("a"); app.openEvent("a"); runCurrent()
+            assertEquals(
+                listOf(mapOf("from" to "home_poster"),emptyMap(),emptyMap()),
+                tracked.filter { it.first=="event_view" }.map { it.second }
+            )
+            app.close()
+        } finally { PoruchAnalytics.sink=null }
+    }
+
+    @Test fun startingToCreateIsCountedWithItsEntryPoint()=runTest {
+        val tracked=mutableListOf<Pair<String,Map<String,String>>>()
+        PoruchAnalytics.sink={ name,params -> tracked+=name to params }
+        try {
+            val app=app(Events(),backgroundScope); runCurrent(); advanceTimeBy(1000); runCurrent()
+            app.createStarted("home"); app.createStarted("fab")
+            assertEquals(listOf("home","fab"),tracked.filter { it.first=="create_start" }.map { it.second["from"] })
+            app.close()
+        } finally { PoruchAnalytics.sink=null }
+    }
+
+    /** Бейдж «Моїх подій» — справи, а не повідомлення: подія з чатом і запитом одразу — одна. */
+    @Test fun theTabBadgeCountsEachWaitingEventOnce() {
+        fun unread(id:String)=ChatUnread(id,"Подія",3,"m","Ім'я","Привіт","2026-09-16T10:30:00Z")
+        fun ask(id:String,user:String)=JoinRequest(id,user,"Ім'я",null,"2026-09-16T10:30:00Z")
+        val state=AppState(
+            chatUnread=listOf(unread("a"),unread("b")),
+            library=LibraryState(pendingRequests=listOf(ask("b","u1"),ask("c","u2"),ask("c","u3")))
+        )
+        assertEquals(3,state.waitingEvents)
+        assertEquals(0,AppState().waitingEvents)
+    }
+
     /** Перемикач аналітики: пристрій, стан, платформний хук; вимкнено — у сінк нічого. */
     @Test fun turningAnalyticsOffStopsEventsAndTellsThePlatform()=runTest {
         val tracked=mutableListOf<String>(); val collection=mutableListOf<Boolean>()

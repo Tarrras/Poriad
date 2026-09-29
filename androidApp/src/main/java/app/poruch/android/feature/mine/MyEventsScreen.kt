@@ -379,7 +379,7 @@ private fun RateButton(onClick: () -> Unit) {
 
 /** Надрядок з відліком: «СЬОГОДНІ · 19:30 · ЧЕРЕЗ 3 ГОД». Після початку `cardOverline` сам каже «триває зараз». */
 @Composable
-private fun countdownOverline(event: Event): String {
+internal fun countdownOverline(event: Event): String {
     val base = cardOverline(event, dateWords())
     val now = Clock.System.now()
     val start = event.startInstant

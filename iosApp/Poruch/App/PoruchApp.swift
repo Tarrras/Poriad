@@ -91,12 +91,12 @@ private struct SplashView: View {
     private func finish() { withAnimation(.easeIn(duration: 0.45)) { done = true } }
 }
 
-/// Непрочитані чати живуть у «Моїх подіях»: туди й бейдж.
-private func tabItems(unreadChats: Int) -> [TabItem] {
+/// Чати з непрочитаним і запити на участь живуть у «Моїх подіях»: туди й бейдж, по одному на подію.
+private func tabItems(waiting: Int) -> [TabItem] {
     [
         TabItem(id: 0, label: "Головна", glyph: PoruchIcons.home),
         TabItem(id: 1, label: "Мапа", glyph: PoruchIcons.map),
-        TabItem(id: 2, label: "Мої події", glyph: PoruchIcons.calendar, badge: unreadChats),
+        TabItem(id: 2, label: "Мої події", glyph: PoruchIcons.calendar, badge: waiting),
         TabItem(id: 3, label: "Профіль", glyph: PoruchIcons.person)
     ]
 }
@@ -162,14 +162,20 @@ struct RootView: View {
         tab = 1
     }
 
+    /// Тап по «Створити»: рахуємо його разом зі входом, з якого місця він був, — гостя далі чекає реєстрація.
+    private func startCreating(from: String) {
+        model.app.createStarted(from: from)
+        if model.state?.session.userId == nil { authenticating = true } else { creating = true }
+    }
+
     private var app: some View {
         ZStack(alignment: .bottom) {
             Palette.canvas.ignoresSafeArea()
             TabView(selection: $tab) {
                 NavigationStack(path: $homePath) {
                     HomeView(
-                        openMap: showMap, openProfile: { tab = 3 },
-                        createEvent: { if model.state?.session.userId == nil { authenticating = true } else { creating = true } },
+                        openMap: showMap, openProfile: { tab = 3 }, openMyEvents: { tab = 2 },
+                        createEvent: { startCreating(from: "home") },
                         openEvent: { homePath.append(EventRoute(id: $0)) },
                         openChat: { homePath.append(ChatRoute(id: $0.id)) },
                         openFollows: { homePath.append(FollowsRoute()) }
@@ -196,8 +202,8 @@ struct RootView: View {
             .toolbar(.hidden, for: .tabBar)
             .onPreferenceChange(HidesTabBarKey.self) { hidden in tabBarHidden = hidden }
             if !tabBarHidden {
-                PoruchTabBar(items: tabItems(unreadChats: Int(model.state?.unreadChats ?? 0)), selection: $tab) {
-                    CreateButton { if model.state?.session.userId == nil { authenticating = true } else { creating = true } }
+                PoruchTabBar(items: tabItems(waiting: Int(model.state?.waitingEvents ?? 0)), selection: $tab) {
+                    CreateButton { startCreating(from: "fab") }
                 }
                 // Як системний таббар: підписи не ростуть з Dynamic Type, інакше чотири вкладки не вміщаються.
                 .dynamicTypeSize(...DynamicTypeSize.large)

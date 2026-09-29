@@ -9,19 +9,16 @@ struct HomePresentation {
     let loading: Bool
     /// Пошук головної ще їде.
     let searchLoading: Bool
-    /// Плани: організую або йду, найближчі першими.
-    let plans: [Event]
     /// Нове від закладів і організаторів, за якими стежу, найближчі першими.
     let followed: [Event]
-    /// Мої події, де чекають запити на участь, зі скількома. Лише в організатора.
-    let requests: [PendingRequests]
-    /// Чати з непрочитаним, свіжіші першими, разом із карткою події для відкриття чату.
-    let unread: [UnreadChat]
-    /// Добірка за відповідями онбордингу. Порожня, якщо не відповідали.
-    let suggested: [Event]
-    let today: [Event]
-    /// Решта поза дайджестом. Головна лише каже, скільки її.
-    let rest: [Event]
+    /// «Ваше»: до `HomeRules.PERSONAL_LIMIT` своїх подій, спершу ті, де хтось чекає відповіді.
+    let personal: [PersonalRow]
+    /// Скільки подій, що чекають відповіді (чат, запит), у «Ваше» не влізло: рядок «Чекають відповіді: ще N».
+    let moreWaiting: Int
+    /// «У місті»: одна стрічка з «Для вас», афіші міста й підписок.
+    let feed: [FeedEntry]
+    /// Чипи над сіткою (без великих карток): що з цієї стрічки можна відфільтрувати. Порожньо — рядка нема.
+    let chips: [FeedFilter]
     /// Скільки подій в області, без фільтрів мапи.
     let totalFound: Int
     /// Пошук головної, окремий від мапи: фільтр одного екрана не порожнить інший.
@@ -59,9 +56,6 @@ struct HomePresentation {
         return results.filter { wanted.contains($0.id) }
     }
 
-    /// Що означає «поруч»: завжди ціле місто. «Шукати тут» на мапі головну не звужує.
-    var areaLabel: String { "Плани на найближчі дні у місті \(cityName)" }
-
     private let savedIds: Set<String>
     private let waitlistedIds: Set<String>
 
@@ -84,21 +78,18 @@ struct HomePresentation {
         // І свої, і ті, куди йду: `concerns` — те саме правило, що в нагадуваннях. Лише те, що ще не завершилось, як на Android.
         let mine = state?.library.myEvents ?? []
         let now = nowInstant()
-        plans = mine.filter { state?.concerns(event: $0) == true && $0.isPublished && $0.isCurrent(now: now) }.sorted { $0.startsAt < $1.startsAt }
+        let plans = mine.filter { state?.concerns(event: $0) == true && $0.isPublished && $0.isCurrent(now: now) }.sorted { $0.startsAt < $1.startsAt }
         // Порядок дає сервер; за час, що картка лежить у стані, подія могла скінчитись чи зникнути.
         followed = (state?.library.followEvents ?? []).filter { $0.isPublished && $0.isCurrent(now: now) }
-        requests = HomePresentation.pendingRequests(state?.library.pendingRequests ?? [], among: mine)
-        let mineById = Dictionary(mine.map { ($0.id, $0) }) { first, _ in first }
-        unread = (state?.chatUnread ?? []).compactMap { u in mineById[u.eventId].map { UnreadChat(summary: u, event: $0) } }
 
         // Увесь екран в одному порядку. Картки до індексу прив'язує спільний код: тут лише
         // завантажені, десятки, а не тисячі записів індексу через міст.
         let ranked = home?.events ?? []
-        suggested = Array((home?.suggested ?? []).prefix(homeSuggestedLimit))
-        // Те, що вже в «Для вас», нижче не повторюємо.
+        let suggested = Array((home?.suggested ?? []).prefix(homeSuggestedLimit))
+        // Те, що вже в «Для вас», у списку міста не повторюємо.
         let shown = Set(suggested.map(\.id))
         let remaining = ranked.filter { !shown.contains($0.id) }
-        // «Сьогодні» — куди можна піти сьогодні, включно з прокатами. Але те, що сьогодні
+        // Місто: куди можна піти сьогодні, включно з прокатами, далі решта за рангом. Але те, що сьогодні
         // починається, йде першим: прокат буде відкритий і завтра. `Calendar.current` — новий
         // об'єкт на кожне звертання, тому один на цикл.
         let calendar = Calendar.current
@@ -112,48 +103,48 @@ struct HomePresentation {
             }
         }
         let runningToday = later.filter { $0.isUnderway(now: now) }
-        today = startingToday + runningToday
-        let shownToday = Set(runningToday.map(\.id))
-        rest = later.filter { !shownToday.contains($0.id) }
+        let runningIds = Set(runningToday.map(\.id))
+        let city = startingToday + runningToday + later.filter { !runningIds.contains($0.id) }
         results = home?.found ?? []
         resultIDs = (home?.results ?? []).map(\.id)
-    }
 
-    var isEmpty: Bool { suggested.isEmpty && today.isEmpty && rest.isEmpty }
-
-    /// Запити за подіями, у порядку стрічки (свіжіші першими). Подія без картки в «моїх» пропускається.
-    private static func pendingRequests(_ requests: [JoinRequest], among events: [Event]) -> [PendingRequests] {
-        guard !requests.isEmpty else { return [] }
-        let counts = RequestRules.shared.pendingByEvent(requests: requests)
-        let cards = Dictionary(events.map { ($0.id, $0) }) { first, _ in first }
+        // «Ваше»: чат із непрочитаним (навіть минулої події) і запити чекають на людину, тож вони першими.
+        let mineById = Dictionary(mine.map { ($0.id, $0) }) { first, _ in first }
+        let unread = state?.chatUnread ?? []
+        let chats = Dictionary(unread.map { ($0.eventId, $0) }) { first, _ in first }
+        let pending = state?.library.pendingRequests ?? []
+        let asks = RequestRules.shared.pendingByEvent(requests: pending)
+        let waiting = unread.compactMap { mineById[$0.eventId] } + pending.compactMap { mineById[$0.eventId] }.filter { $0.isCurrent(now: now) }
         var seen = Set<String>()
-        return requests.compactMap { request in
-            guard seen.insert(request.eventId).inserted, let event = cards[request.eventId] else { return nil }
-            return PendingRequests(event: event, count: counts[request.eventId].map { Int(truncating: $0) } ?? 0)
-        }
+        let mineFirst = (waiting + plans).filter { seen.insert($0.id).inserted }
+        personal = mineFirst.prefix(Int(HomeRules.shared.PERSONAL_LIMIT))
+            .map { PersonalRow(event: $0, chat: chats[$0.id], requests: asks[$0.id]?.intValue ?? 0, organizing: state?.organizes(event: $0) == true) }
+        moreWaiting = Set(waiting.map(\.id)).subtracting(personal.map(\.event.id)).count
+        // Усі свої плани, а не лише три з «Ваше»: решта живе в «Моїх подіях», а в місті стояла б безіменним постером.
+        feed = HomeRules.shared.feed(forYou: suggested, city: city, following: followed, skip: Set(mineFirst.map(\.id)))
+        chips = HomeRules.shared.chips(entries: Array(feed.dropFirst(homeHeroCount)), now: now, zoneId: TimeZone.current.identifier)
     }
+
+    /// У «Ваше» й «У місті» нема нічого: тоді стрічка каже про це словами.
+    var isEmpty: Bool { personal.isEmpty && feed.isEmpty }
+
     func isSaved(_ event: Event) -> Bool { savedIds.contains(event.id) }
     func isWaitlisted(_ event: Event) -> Bool { waitlistedIds.contains(event.id) }
 }
 
-/// Непрочитане в чаті з карткою події: чат відкривається з події, а не з id.
-struct UnreadChat: Identifiable {
-    let summary: ChatUnread
+/// Рядок блоку «Ваше»: своя подія, її непрочитаний чат і скільки людей просяться.
+struct PersonalRow: Identifiable {
     let event: Event
+    let chat: ChatUnread?
+    let requests: Int
+    /// Організую, а не йду.
+    let organizing: Bool
     var id: String { event.id }
 }
 
-/// Подія й скільки людей просяться до неї.
-struct PendingRequests: Identifiable {
-    let event: Event
-    let count: Int
-    var id: String { event.id }
-}
-
-/// Головна — дайджест, а не каталог: далі краще на мапу.
-let homeTodayLimit = 5
+/// Кількість великих карток над сіткою «У місті».
+let homeHeroCount = 3
 /// Більше за це «для вас» перестає бути добіркою.
 let homeSuggestedLimit = 4
 /// Скільки результатів пошуку показує головна.
 let homeResultsLimit = 12
-let homePlansLimit = 8

@@ -35,6 +35,8 @@ data class PoruchColors(
     val brandContainer: Color,
     val onBrandContainer: Color,
     val accent: Color,
+    /** `accent` як колір дрібного тексту на білому: сам `accent` там дає 3,75:1, цей — 5,1:1. Заливкам і крапкам лишається `accent`. */
+    val accentText: Color,
     val accentContainer: Color,
     val onAccentContainer: Color,
     val success: Color,
@@ -50,6 +52,8 @@ data class PoruchColors(
     val surfaceMuted: Color,
     val canvas: Color,
     val canvasTint: Color,
+    /** Сяйво за шапкою головної: холодний відтінок, що на висоті екрана тане в полотно. */
+    val glow: Color,
     /** Тепла заливка вгорі шапки, згасає в `canvas`. */
     val heroTop: Color,
     val heroBottom: Color,
@@ -68,6 +72,7 @@ val LightPoruchColors = PoruchColors(
     brandContainer = Color(0xFFE8E8ED),
     onBrandContainer = Color(0xFF1D1D1F),
     accent = Color(0xFFE0582F),
+    accentText = Color(0xFFC2431F),
     accentContainer = Color(0xFFFDE7DF),
     onAccentContainer = Color(0xFF7A2E14),
     success = Color(0xFF2E7D4F),
@@ -83,6 +88,7 @@ val LightPoruchColors = PoruchColors(
     surfaceMuted = Color(0xFFF2F2F7),
     canvas = Color(0xFFF5F5F7),
     canvasTint = Color(0xFFEBEBF0),
+    glow = Color(0xFFE4E1F6),
     // Шапка того ж тону, що й полотно: екран — один спокійний аркуш.
     heroTop = Color(0xFFF5F5F7),
     heroBottom = Color(0xFFF5F5F7),
@@ -101,6 +107,7 @@ val DarkPoruchColors = PoruchColors(
     brandContainer = Color(0xFF2C2C33),
     onBrandContainer = Color(0xFFF5F5F7),
     accent = Color(0xFFFF8A5B),
+    accentText = Color(0xFFFF8A5B),
     accentContainer = Color(0xFF3F2419),
     onAccentContainer = Color(0xFFFFD9C8),
     success = Color(0xFF5DC389),
@@ -116,6 +123,7 @@ val DarkPoruchColors = PoruchColors(
     surfaceMuted = Color(0xFF26262E),
     canvas = Color(0xFF0B0B0F),
     canvasTint = Color(0xFF141419),
+    glow = Color(0xFF1B1A36),
     heroTop = Color(0xFF0B0B0F),
     heroBottom = Color(0xFF0B0B0F),
     shadowAmbient = Color(0x4D000000),
@@ -172,6 +180,12 @@ fun categoryGradient(category: EventCategory): Brush {
     ) else Brush.linearGradient(
         listOf(lerp(p.wash, Color.White, 0.55f), p.wash, lerp(p.wash, p.partner, 0.22f))
     )
+}
+
+/** Заливка великої картки без фото: глибокий відтінок категорії веде до сусіднього, текст поверх білий. */
+fun categoryHeroGradient(category: EventCategory): Brush {
+    val p = palette(category)
+    return Brush.linearGradient(listOf(p.hue, p.partner))
 }
 
 /** Заливка шапки: тепле світло вгорі, папір унизу. */

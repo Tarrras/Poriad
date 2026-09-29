@@ -44,6 +44,8 @@ enum Palette {
     static let onBrand = Color(light: 0xFFFFFF, dark: 0x1D1D1F)
 
     static let accent = Color(light: 0xE0582F, dark: 0xFF8A5B)
+    /// `accent` як колір дрібного тексту на білому: сам `accent` там дає 3,75:1, цей — 5,1:1. Заливкам і крапкам лишається `accent`.
+    static let accentText = Color(light: 0xC2431F, dark: 0xFF8A5B)
     static let accentContainer = Color(light: 0xFDE7DF, dark: 0x3F2419)
     static let onAccentContainer = Color(light: 0x7A2E14, dark: 0xFFD9C8)
 
@@ -65,6 +67,8 @@ enum Palette {
     static let surfaceMuted = Color(light: 0xF2F2F7, dark: 0x26262E)
     static let canvas = Color(light: 0xF5F5F7, dark: 0x0B0B0F)
     static let canvasTint = Color(light: 0xEBEBF0, dark: 0x141419)
+    /// Сяйво за шапкою головної: холодний відтінок, що на висоті екрана тане в полотно.
+    static let glow = Color(light: 0xE4E1F6, dark: 0x1B1A36)
 
     /// Шапка тепер того ж тону, що й полотно: екран — один спокійний аркуш.
     static let heroTop = Color(light: 0xF5F5F7, dark: 0x0B0B0F)
@@ -153,6 +157,15 @@ func categoryGradient(_ category: EventCategory) -> LinearGradient {
             ? UIColor(rgb: partner).withAlphaComponent(0.14) : blend(wash, partner, 0.22) })
     ]
     return LinearGradient(colors: stops, startPoint: .topLeading, endPoint: .bottomTrailing)
+}
+
+/// Заливка великої картки без фото: глибокий відтінок категорії веде до сусіднього, текст поверх білий.
+func categoryHeroGradient(_ category: EventCategory) -> LinearGradient {
+    let hue = categoryHues[category.key] ?? 0x6B675E
+    let partner = categoryPartners[category.key] ?? hue
+    return LinearGradient(
+        colors: [Color(UIColor(rgb: hue)), Color(UIColor(rgb: partner))], startPoint: .topLeading, endPoint: .bottomTrailing
+    )
 }
 
 /// Заливка шапки: тепле світло вгорі, папір унизу.

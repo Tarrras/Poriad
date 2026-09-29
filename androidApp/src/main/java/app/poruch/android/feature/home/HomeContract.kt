@@ -4,7 +4,10 @@ import app.poruch.domain.EventCategory
 import app.poruch.domain.ChatUnread
 import app.poruch.domain.CityResult
 import app.poruch.domain.Event
+import app.poruch.domain.FeedEntry
+import app.poruch.domain.FeedFilter
 import app.poruch.domain.HomeLocation
+import app.poruch.domain.HomeRules
 import app.poruch.domain.Place
 import app.poruch.shared.DateFilter
 
@@ -15,18 +18,20 @@ data class HomeState(
     val loading: Boolean = false,
     /** Потяг вниз у дорозі. Окремо від [loading]: те піднімає й мапа, а індикатор жесту має слухати лише жест. */
     val refreshing: Boolean = false,
-    /** Плани: організую або йду, найближчі першими. */
-    val plans: List<Event> = emptyList(),
-    /** Мої події, де чекають запити на участь, зі скількома. Лише в організатора. */
-    val requests: List<PendingRequests> = emptyList(),
-    /** Майбутні події закладів і організаторів, за якими стежу, найближчі першими. Порожньо — секції нема. */
+    /** «Ваше»: до [HomeRules.PERSONAL_LIMIT] своїх подій, спершу ті, де хтось чекає відповіді. */
+    val personal: List<PersonalRow> = emptyList(),
+    /** Майбутні події закладів і організаторів, за якими стежу, найближчі першими. Порожньо — рядка «Підписки» нема. */
     val followed: List<Event> = emptyList(),
-    /** Чати з непрочитаним, свіжіші першими. */
-    val unread: List<ChatUnread> = emptyList(),
-    /** Добірка за відповідями онбордингу. Порожня, якщо не відповідали. */
-    val suggested: List<Event> = emptyList(),
-    val today: List<Event> = emptyList(),
-    val rest: List<Event> = emptyList(),
+    /** Скільки подій, що чекають відповіді (чат, запит), у [personal] не влізло: рядок «Чекають відповіді: ще N». */
+    val moreWaiting: Int = 0,
+    /** «У місті»: [HERO_COUNT] великих карток, далі сітка, вже звужена [feedFilter]. */
+    val feed: List<FeedEntry> = emptyList(),
+    /** Чипи над сіткою: що з неї можна відфільтрувати. Порожньо — рядка нема. */
+    val chips: List<FeedFilter> = emptyList(),
+    /** Обраний чип; якщо його вже нема в [chips] (дані оновились), стрічка лишається цілою. */
+    val feedFilter: FeedFilter = FeedFilter(),
+    /** Скільки рядків [feed] видно; «Показати ще» додає [HomeRules.FEED_PAGE]. */
+    val feedLimit: Int = HomeRules.FEED_PAGE,
     /** Скільки подій в області, без фільтрів мапи. */
     val totalFound: Int = 0,
     val savedIds: List<String> = emptyList(),
@@ -57,15 +62,18 @@ data class HomeState(
     val cities: List<CityResult> = emptyList()
 ) {
     val searching get() = searchText.isNotBlank()
-    val isEmpty get() = if (searching) results.isEmpty() && places.isEmpty() else suggested.isEmpty() && today.isEmpty() && rest.isEmpty()
+    val isEmpty get() = if (searching) results.isEmpty() && places.isEmpty() else personal.isEmpty() && feed.isEmpty()
     val busy get() = if (searching) searchLoading else loading
 }
 
 /** Скільки результатів пошуку головна показує за раз. */
 const val RESULTS_PAGE = 12
 
-/** Подія й скільки людей просяться до неї. */
-data class PendingRequests(val event: Event, val count: Int)
+/** Кількість великих карток над сіткою «У місті». */
+const val HERO_COUNT = 3
+
+/** Рядок «Ваше»: своя подія, її непрочитаний чат і скільки людей просяться. */
+data class PersonalRow(val event: Event, val chat: ChatUnread?, val requests: Int, val organizing: Boolean)
 
 sealed interface HomeIntent {
     /** Тап у поле пошуку. */
@@ -86,18 +94,24 @@ sealed interface HomeIntent {
     data object ShowMoreResults : HomeIntent
     /** «На мапі» біля заголовка результатів у місті: мапа відкривається з тим самим пошуком. Єдиний міст між пошуками. */
     data object ShowResultsOnMap : HomeIntent
-    data class OpenEvent(val id: String) : HomeIntent
+    /** [from] — звідки відкрито (`home_hero`, `home_poster`, `home_your`, `home_search`): піде в `event_view`. */
+    data class OpenEvent(val id: String, val from: String) : HomeIntent
     /** Заклад з пошуку: мапа переходить до нього й відкриває його стос. */
     data class OpenPlace(val place: Place) : HomeIntent
     /** Прямо в чат події, минаючи деталі. */
     data class OpenChat(val id: String) : HomeIntent
     data class ToggleSaved(val id: String) : HomeIntent
+    /** «Показати ще» під «У місті». */
+    data object ShowMoreFeed : HomeIntent
+    /** Чип над сіткою. */
+    data class SelectFeedFilter(val filter: FeedFilter) : HomeIntent
+    /** Рядок «Планів поки нема» і підвал стрічки: новий редактор, гостя спершу до входу. */
     data object CreateEvent : HomeIntent
     data object OpenMap : HomeIntent
-    /** Плитка категорії на головній: мапа відкривається вже з цим фільтром. */
-    data class OpenCategory(val category: EventCategory) : HomeIntent
     data object OpenProfile : HomeIntent
-    /** «Підписки» біля секції «Від тих, за ким ви стежите»: сам список підписок. */
+    /** «Мої події» біля блоку «Ваше». */
+    data object OpenMyEvents : HomeIntent
+    /** Рядок «Підписки» в «Ваше»: сам список підписок. */
     data object OpenFollows : HomeIntent
     /** Потяг вниз: перечитати все, як при поверненні в застосунок. */
     data object Refresh : HomeIntent
@@ -108,4 +122,4 @@ sealed interface HomeEffect {
     data class Navigate(val destination: HomeDestination, val id: String = "") : HomeEffect
 }
 
-enum class HomeDestination { DETAIL, CHAT, MAP, PROFILE, EDITOR, FOLLOWS }
+enum class HomeDestination { DETAIL, CHAT, MAP, PROFILE, MINE, FOLLOWS, EDITOR }

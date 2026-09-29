@@ -19,12 +19,13 @@
 |---|---|---|---|
 | `first_open`, `session_start`, `user_engagement` | автоматично (Firebase) | — | Acquisition |
 | `empty_map` | місто без фільтрів, 0 подій; раз на місто за запуск | `city` | ризик №1 |
-| `event_view` | відкрито картку події | — | Activation (крок) |
+| `event_view` | відкрито картку події | `from`: `home_hero`, `home_poster`, `home_your`, `home_search`; нема — відкрито з іншого екрана (мапа, «Мої події», посилання) | Activation (крок) |
 | `auth_wall` | гість спробував дію, що потребує акаунта | — | Activation (втрата) |
 | `sign_up` / `login` | успішна реєстрація / вхід | `confirmed` (сесія одразу чи чекає лист) | Activation (крок) |
 | `event_join` | успішне приєднання | `by_request` | **Activation** |
 | `waitlist_join` | місць нема, став у чергу | — | Activation (провал пропозиції) |
 | `event_create` | опубліковано подію | `category`, `approval` | пропозиція |
+| `create_start` | тап по «Створити»: гостя після нього чекає реєстрація, тож це попит, а не редактор; публікація — окремо, `event_create` | `from`: `fab`, `home` (рядок «Планів поки нема» і підвал), `map`, `mine` | пропозиція (крок) |
 | `digest_prompt` | відповідь на мʼяке питання про пʼятничний дайджест (другий запуск, раз) | `granted` | Retention (згода) |
 | `digest_open` | тап по дайджесту «Що поруч на вихідних» | — | **Retention**: чи дайджест повертає людей |
 | `share` | відкрито «Поділитися» подією (посилання `poriad.app/e/…` у тексті) | `kind` | **Referral**: чи люди взагалі діляться |
@@ -33,6 +34,8 @@
 | `companion_join` | запит у супутник (з картки на афіші чи з його сторінки); іде разом з `event_join` | — | **Activation**: чи на пошук хтось відгукується |
 | `follow` | успішна підписка «Стежити» (кнопка на закладі чи організаторі, перемикач у шторці оцінки) | `target`: `place` / `organizer` | **Retention**: чи є на що повертати людей |
 | `push_open` | тап по сповіщенню (серверний пуш чи локальне); дайджест окремо — `digest_open` | `reason`: `chat`, `request`, `joined`, `moved`, `cancelled`, `place`, `organizer`, `reminder` | **Retention**: який тригер повертає людей, а який лише дратує |
+
+`from` у `event_view` і `create_start` відповідає на два питання про головну: які її частини (велика картка, постер, «Ваше», пошук) справді ведуть до подій і чи повертає людей до створення підвал стрічки та порожнє «Ваше», коли з екрана зникли швидкі дії. Порівнюй з попередньою збіркою: `event_view` на людину за сесію й `create_start` до `event_create`.
 
 Нову подію додавай лише тоді, коли можеш назвати рішення, яке зміниться від її числа. Подія «про всяк випадок» — шум, який потім ніхто не читає.
 
@@ -46,7 +49,7 @@ first_open → event_view → event_join
 
 Друга воронка — для гостя: `event_view → auth_wall → sign_up → event_join`. Вона показує, скільки людей губить реєстрація.
 
-Налаштування один раз: Admin → Custom definitions → зареєструвати `city` і `category` як event-scoped dimensions, інакше по них не можна ділити звіти. Нові події зʼявляються у звітах із затримкою до доби; щоб бачити їх одразу при розробці — DebugView (Android: `adb shell setprop debug.firebase.analytics.app app.poriad.android.dev`, iOS: аргумент запуску `-FIRDebugEnabled` у схемі). Dev-збірки шлють у свій Firebase-проєкт і прод не засмічують.
+Налаштування один раз: Admin → Custom definitions → зареєструвати `city`, `category` і `from` як event-scoped dimensions, інакше по них не можна ділити звіти. Нові події зʼявляються у звітах із затримкою до доби; щоб бачити їх одразу при розробці — DebugView (Android: `adb shell setprop debug.firebase.analytics.app app.poriad.android.dev`, iOS: аргумент запуску `-FIRDebugEnabled` у схемі). Dev-збірки шлють у свій Firebase-проєкт і прод не засмічують.
 
 ## SQL для Supabase
 

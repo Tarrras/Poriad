@@ -68,6 +68,7 @@ fun HomeRoute(navigator: Navigator) {
                 HomeDestination.MAP -> navigator.open(Explore())
                 HomeDestination.PROFILE -> navigator.open(Profile)
                 HomeDestination.FOLLOWS -> navigator.open(Follows)
+                HomeDestination.MINE -> navigator.open(Mine)
                 HomeDestination.EDITOR -> navigator.requireAccount { navigator.open(Editor()) }
             }
         }

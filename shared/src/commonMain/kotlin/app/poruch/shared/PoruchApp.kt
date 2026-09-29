@@ -234,6 +234,12 @@ class PoruchApp internal constructor(
     /** Підсвітити подію: пін на мапі, картка в каруселі. Без мережі, якщо рядок уже є. */
     fun selectEvent(id: String) = library.select(id)
 
+    /** Те саме з підписом, звідки людина прийшла (`home_hero`, `home_poster`, `home_your`, `home_search`): `event_view` каже, що з головної веде до подій. */
+    fun selectEvent(id: String, from: String) = library.select(id, from = from)
+
+    /** Тап по «Створити» (`fab`, `home`, `map`, `mine`); гостя після нього чекає реєстрація. Публікація рахується окремо: `event_create`. */
+    fun createStarted(from: String) = PoruchAnalytics.track("create_start", "from" to from)
+
     /**
      * Відкрити екран деталей: тут місця й членство вже варті запиту. Для прокату одразу
      * підтягує картки інших сеансів, щоб вибір дати в каруселі не показував порожній екран.

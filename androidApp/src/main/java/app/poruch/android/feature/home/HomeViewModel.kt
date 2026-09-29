@@ -2,7 +2,9 @@ package app.poruch.android.feature.home
 
 import app.poruch.android.mvi.MviViewModel
 import app.poruch.domain.Event
+import app.poruch.domain.FeedFilter
 import app.poruch.domain.HomeLocation
+import app.poruch.domain.HomeRules
 import app.poruch.domain.RequestRules
 import app.poruch.shared.AppState
 import app.poruch.shared.HomeFeed
@@ -20,9 +22,10 @@ class HomeViewModel(private val app: PoruchApp) : MviViewModel<HomeState, HomeIn
         observe(app) { shared -> fold(shared) }
     }
 
-    /** Три списки головної. Власного фільтра категорій у неї нема: каталог живе на мапі. */
+    /** Дві зони головної. Власного фільтра категорій у неї нема: каталог живе на мапі. */
     private fun HomeState.fold(shared: AppState): HomeState {
         val now = Clock.System.now()
+        val zoneId = zone.id
         val today = LocalDate.now(zone)
         // Увесь екран в одному порядку — ранжованому.
         // Своя стрічка: та сама область, що на мапі, але без її фільтрів.
@@ -30,29 +33,42 @@ class HomeViewModel(private val app: PoruchApp) : MviViewModel<HomeState, HomeIn
         val home = shared.home
         val ranked = home.events
         val suggested = home.suggested.take(SUGGESTED_LIMIT)
-        // Те, що вже в «Для вас», нижче не повторюємо.
+        // Те, що вже в «Для вас», у списку міста не повторюємо.
         val remaining = ranked - suggested.toSet()
-        // «Сьогодні» — куди можна піти сьогодні, включно з прокатами. Але те, що сьогодні
+        // Місто: куди можна піти сьогодні, включно з прокатами, далі решта за рангом. Але те, що сьогодні
         // починається, йде першим: прокат буде відкритий і завтра, а концерт можна пропустити.
         val (startingToday, later) = remaining.partition { it.startsOn(today) }
         val runningToday = later.filter { it.isUnderway(now) }
-        val onToday = startingToday + runningToday
+        val city = startingToday + runningToday + (later - runningToday.toSet())
+        // Стрічка приїхала з сервера, а події за час у застосунку встигають скінчитись.
+        val followed = shared.library.followEvents.filter { it.isPublished && it.isCurrent(now) }
+
+        // «Ваше»: чат із непрочитаним (навіть минулої події) і запити чекають на людину, тож вони першими.
+        val mine = shared.library.myEvents.associateBy { it.id }
+        val plans = shared.library.myEvents.filter { shared.concerns(it) && it.isPublished && it.isCurrent(now) }.sortedBy { it.startsAt }
+        val chats = shared.chatUnread.associateBy { it.eventId }
+        val asks = RequestRules.pendingByEvent(shared.library.pendingRequests)
+        val waiting = shared.chatUnread.mapNotNull { mine[it.eventId] } + asks.keys.mapNotNull { mine[it] }.filter { it.isCurrent(now) }
+        val mineFirst = (waiting + plans).distinctBy { it.id }
+        val personal = mineFirst.take(HomeRules.PERSONAL_LIMIT)
+            .map { PersonalRow(it, chats[it.id], asks[it.id] ?: 0, shared.organizes(it)) }
+        val shown = personal.mapTo(HashSet()) { it.event.id }
+        // Усі свої плани, а не лише три з «Ваше»: решта живе в «Моїх подіях», а в місті стояла б безіменним постером.
+        val all = HomeRules.feed(suggested, city, followed, mineFirst.mapTo(HashSet()) { it.id })
+        val rest = all.drop(HERO_COUNT)
+        val chips = HomeRules.chips(rest, now, zoneId)
+        val filter = feedFilter.takeIf { it in chips } ?: FeedFilter()
         return copy(
             signedIn = shared.signedIn,
             cityName = shared.city.name,
             cities = shared.city.suggestions,
             loading = home.loading,
-            // У планах лише те, що ще не завершилось: і свої, і ті, куди йду.
-            plans = shared.library.myEvents
-                .filter { shared.concerns(it) && it.isPublished && it.isCurrent(now) }
-                .sortedBy { it.startsAt },
-            requests = pendingRequests(shared),
-            // Стрічка приїхала з сервера, а події за час у застосунку встигають скінчитись.
-            followed = shared.library.followEvents.filter { it.isPublished && it.isCurrent(now) },
-            unread = shared.chatUnread,
-            suggested = suggested,
-            today = onToday,
-            rest = later - runningToday.toSet(),
+            personal = personal,
+            moreWaiting = waiting.mapTo(HashSet()) { it.id }.count { it !in shown },
+            followed = followed,
+            feed = all.take(HERO_COUNT) + HomeRules.apply(rest, filter, now, zoneId),
+            chips = chips,
+            feedFilter = filter,
             totalFound = home.totalFound,
             savedIds = shared.library.savedIds,
             waitlistedIds = shared.library.waitlistedIds,
@@ -72,7 +88,7 @@ class HomeViewModel(private val app: PoruchApp) : MviViewModel<HomeState, HomeIn
 
     override fun onIntent(intent: HomeIntent) = when (intent) {
         is HomeIntent.OpenEvent -> {
-            app.selectEvent(intent.id)
+            app.selectEvent(intent.id, intent.from)
             send(HomeEffect.Navigate(HomeDestination.DETAIL, intent.id))
         }
         is HomeIntent.OpenPlace -> {
@@ -108,17 +124,20 @@ class HomeViewModel(private val app: PoruchApp) : MviViewModel<HomeState, HomeIn
         is HomeIntent.ShowCitySheet -> reduce { copy(citySheet = intent.show) }
         is HomeIntent.SearchCity -> app.searchCity(intent.query)
         is HomeIntent.ToggleSaved -> app.toggleSaved(intent.id)
-        HomeIntent.CreateEvent -> send(HomeEffect.Navigate(HomeDestination.EDITOR))
+        HomeIntent.ShowMoreFeed -> reduce { copy(feedLimit = feedLimit + HomeRules.FEED_PAGE) }
+        // Чип міняє й сітку, а її збирає `fold`: перезбираємо зі свіжого спільного стану.
+        is HomeIntent.SelectFeedFilter -> reduce { copy(feedFilter = intent.filter, feedLimit = HomeRules.FEED_PAGE).fold(app.state.value) }
+        HomeIntent.CreateEvent -> {
+            app.createStarted("home")
+            send(HomeEffect.Navigate(HomeDestination.EDITOR))
+        }
         HomeIntent.OpenMap -> send(HomeEffect.Navigate(HomeDestination.MAP))
         HomeIntent.ShowResultsOnMap -> {
             app.setSearchText(state.value.searchText)
             send(HomeEffect.Navigate(HomeDestination.MAP))
         }
-        is HomeIntent.OpenCategory -> {
-            app.setCategory(intent.category)
-            send(HomeEffect.Navigate(HomeDestination.MAP))
-        }
         HomeIntent.OpenProfile -> send(HomeEffect.Navigate(HomeDestination.PROFILE))
+        HomeIntent.OpenMyEvents -> send(HomeEffect.Navigate(HomeDestination.MINE))
         HomeIntent.OpenFollows -> send(HomeEffect.Navigate(HomeDestination.FOLLOWS))
         HomeIntent.Refresh -> refresh({ refreshing }, { copy(refreshing = it) }) { app.reloadAll() }
     }
@@ -134,15 +153,6 @@ class HomeViewModel(private val app: PoruchApp) : MviViewModel<HomeState, HomeIn
         val shown = ArrayList<Event>(home.found.size)
         for (entry in home.results) shown += cards[entry.id] ?: break
         return shown
-    }
-
-    /** Запити за подіями, у порядку стрічки (свіжіші першими). Подія без картки в «моїх» пропускається. */
-    private fun pendingRequests(shared: AppState): List<PendingRequests> {
-        if (shared.library.pendingRequests.isEmpty()) return emptyList()
-        val counts = RequestRules.pendingByEvent(shared.library.pendingRequests)
-        val cards = shared.library.myEvents.associateBy { it.id }
-        return shared.library.pendingRequests.map { it.eventId }.distinct()
-            .mapNotNull { id -> cards[id]?.let { PendingRequests(it, counts.getValue(id)) } }
     }
 
     private fun Event.startsOn(date: LocalDate) =

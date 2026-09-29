@@ -266,19 +266,33 @@
   <string name="attendees_short">%1$d з %2$d</string>
   <string name="home">Головна</string>
   <string name="home_title">Що поруч</string>
-  <string name="home_subtitle">Плани на найближчі дні у місті %1$s</string>
-  <string name="all_events_hint">На мапі можна змінити область, дату й категорію</string>
-  <string name="upcoming_for_you">Скоро у вас</string>
-  <string name="today_in_city">Сьогодні в місті</string>
-  <string name="all_events_section">Усі події поруч</string>
-  <string name="browse_categories">Категорії</string>
-  <string name="picked_for_you">Для вас</string>
-  <string name="more_for_you">Ще для вас</string>
-  <string name="today_eyebrow">Сьогодні</string>
-  <string name="home_organize">Організувати</string>
-  <string name="home_explore">Дослідити</string>
-  <string name="on_map">На мапі</string>
+  <string name="home_subtitle">%1$s</string>
+  <string name="home_search_action">Пошук</string>
+  <string name="home_yours">Ваше</string>
+  <string name="home_plans_empty">Планів поки нема</string>
+  <string name="home_plans_empty_hint">Оберіть подію або створіть свою</string>
+  <string name="home_waiting_more">Чекають відповіді: ще %1$d</string>
+  <string name="home_waiting_more_hint">Чати й запити — у «Моїх подіях»</string>
+  <string name="guest_home_slim">Увійти й зберігати події</string>
+  <string name="feed_all">Усе</string>
   <string name="home_next">Далі</string>
+  <string name="all_events_section">Усі події поруч</string>
+  <string name="all_events_hint">На мапі можна змінити область, дату й категорію</string>
+  <string name="home_in_city">У місті</string>
+  <string name="home_all_count">Усі %1$d</string>
+  <string name="home_role_organizer">Ваша подія</string>
+  <string name="home_requests_short">Запити · %1$d</string>
+  <string name="home_chat_preview">%1$s: «%2$s»</string>
+  <string name="home_chat_a11y">Чат, нових повідомлень: %1$d</string>
+  <plurals name="home_follows_events">
+    <item quantity="one">Підписки: %1$d подія</item>
+    <item quantity="few">Підписки: %1$d події</item>
+    <item quantity="many">Підписки: %1$d подій</item>
+    <item quantity="other">Підписки: %1$d подій</item>
+  </plurals>
+  <string name="home_follows_more">%1$s та ще %2$d</string>
+  <string name="picked_for_you">Для вас</string>
+  <string name="on_map">На мапі</string>
   <string name="editor_mode_new">Нова подія</string>
   <string name="editor_mode_edit">Редагування</string>
   <string name="category_single">Категорія</string>
@@ -292,7 +306,6 @@
   <string name="auth_tab_signup">Реєстрація</string>
   <string name="my_events_subtitle">Плани, власні зустрічі й збережене в одному місці</string>
   <string name="calendar_short">Календар</string>
-  <string name="picked_for_you_hint">Дібрано за вашими відповідями</string>
 
   <string name="onboarding_welcome_title">Знайомимось</string>
   <string name="onboarding_welcome_body">Три питання — і «Поряд» показуватиме спершу те, що вам підходить. Відповіді лишаються на цьому пристрої, змінити їх можна будь-коли у профілі.</string>
@@ -377,8 +390,6 @@
   <string name="chat_report">Поскаржитись</string>
   <string name="chat_block">Заблокувати автора</string>
   <string name="chat_report_title">Поскаржитись на повідомлення</string>
-  <string name="chat_home_section">Нові повідомлення</string>
-  <string name="chat_home_hint">Відкрийте чат, щоб відповісти.</string>
   <string name="chat_preview">%1$s: %2$s</string>
   <plurals name="chat_unread_count">
     <item quantity="one">%1$d нове</item>
@@ -397,8 +408,6 @@
   <string name="contact_confirm_body">Ви переходите на %1$s. Це посилання додав організатор події. «Поряд» не перевіряє його і не відповідає за вміст сторінки чи чату за ним. Не переходьте, якщо не довіряєте організатору.</string>
   <string name="contact_confirm_open">Перейти</string>
   <string name="field_contact_url">Посилання на чат — лише https://, без пробілів</string>
-  <string name="requests_home_section">Запити на участь</string>
-  <string name="requests_home_hint">Відкрийте подію, щоб прийняти або відхилити.</string>
   <plurals name="requests_count">
     <item quantity="one">%1$d запит</item>
     <item quantity="few">%1$d запити</item>
@@ -501,7 +510,6 @@
   <string name="shelter_basement">Укриття</string>
   <string name="shelter_accessible">Є пандус</string>
   <string name="shelters_source">Укриття — за відкритими даними КМДА. Тап відкриває маршрут.</string>
-  <string name="see_all_short">Усі</string>
   <string name="guest_home_hint">Увійдіть, щоб зберігати події та отримувати нагадування.</string>
   <string name="attendees_going">Ідуть</string>
   <string name="attendees_more">+%1$d</string>
@@ -724,6 +732,5 @@
   <string name="follows_place_caption">%1$s · %2$s</string>
   <string name="follows_organizer_caption">Організатор · %1$s</string>
   <string name="unfollow">Не стежити</string>
-  <string name="followed_home_section">Від тих, за ким ви стежите</string>
   <string name="follow_notification_channel">Нові події тих, за ким ви стежите</string>
 </resources>
