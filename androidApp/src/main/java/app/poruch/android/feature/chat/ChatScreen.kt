@@ -50,6 +50,7 @@ import app.poruch.android.ui.*
 import app.poruch.domain.Attendee
 import app.poruch.domain.ChatMessage
 import app.poruch.domain.ReportReason
+import app.poruch.domain.TitleRules
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -135,7 +136,8 @@ private fun Header(state: ChatState, onIntent: (ChatIntent) -> Unit) {
             ) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.back), Modifier.size(18.dp), tint = colors.ink) }
             Column(Modifier.weight(1f)) {
                 Text(
-                    state.title.ifBlank { stringResource(R.string.chat_title) }, style = MaterialTheme.typography.titleMedium,
+                    state.title.takeIf { it.isNotBlank() }?.let(TitleRules::display) ?: stringResource(R.string.chat_title),
+                    style = PoruchType.serifTitle3,
                     color = colors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis
                 )
                 Text(subtitle, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -381,7 +383,7 @@ private fun ReportMessageSheet(message: ChatMessage, onIntent: (ChatIntent) -> U
             Modifier.padding(horizontal = Spacing.page).padding(bottom = Spacing.section).imePadding(),
             verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
-            Text(stringResource(R.string.chat_report_title), style = MaterialTheme.typography.titleLarge, color = colors.ink)
+            Text(stringResource(R.string.chat_report_title), style = PoruchType.serifTitle2, color = colors.ink)
             Text(stringResource(R.string.report_body), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
             Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                 reportReasons.forEach { (value, label) ->

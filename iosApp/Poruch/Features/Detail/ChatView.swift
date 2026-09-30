@@ -80,7 +80,7 @@ struct ChatView: View {
                     .frame(width: 40, height: 40).background(Palette.surface, in: Circle())
             }.buttonStyle(PressableStyle()).accessibilityLabel("Назад")
             VStack(alignment: .leading, spacing: 2) {
-                Text(event?.title ?? "Чат").font(PoruchFont.title3).foregroundStyle(Palette.ink).lineLimit(1)
+                Text(event?.displayTitle ?? "Чат").font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.ink).lineLimit(1)
                 Text(subtitle).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(1)
             }
             Spacer(minLength: 0)

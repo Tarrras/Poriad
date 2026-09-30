@@ -185,16 +185,16 @@ func categoryWash(_ category: EventCategory) -> Color {
     return Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(rgb: hue).withAlphaComponent(0.22) : UIColor(rgb: wash) })
 }
 
-/// Один голос — SF Pro. Ієрархію несуть кегль і вага, а не зміна гарнітури чи регістру.
-/// Кожен токен — текстовий стиль системи з вагою: кегль росте з Dynamic Type. Базові розміри в
-/// дужках (стандартний розмір тексту); `label` на пункт більший за колишні 14.
+/// Інтерфейс — SF Pro: ієрархію несуть кегль і вага, а не зміна регістру. Заголовки й назви подій — Source Serif 4
+/// (`serifDisplay` і його брати нижче). Кожен токен — текстовий стиль системи з вагою: кегль росте з Dynamic Type.
+/// Базові розміри в дужках (стандартний розмір тексту); `label` на пункт більший за колишні 14.
+///
+/// Sans-токени `title1`–`title3`, `cardName` лишились для цифр, значень і службових рядків (лічильники, «Сьогодні · 19:00»,
+/// підписи опцій), а не для заголовків і назв: ті — засічками.
 enum PoruchFont {
-    static let display = Font.system(.largeTitle, weight: .bold)       // 34
     static let title1 = Font.system(.title, weight: .bold)             // 28
     static let title2 = Font.system(.title2, weight: .bold)            // 22
     static let title3 = Font.system(.headline, weight: .semibold)      // 17
-    /// Заголовок секції великий і жирний, як «Discover what's new».
-    static let sectionTitle = Font.system(.title2, weight: .bold)      // 22
     /// Назва картки звичайним регістром.
     static let cardName = Font.system(.headline, weight: .semibold)    // 17
     static let bodyText = Font.system(.callout)                        // 16
@@ -209,9 +209,10 @@ enum PoruchFont {
     static let lead = Font.system(.body)                               // 17
 }
 
-/// Заголовки з засічками: Source Serif 4 (змінний шрифт, SIL OFL, `Fonts/SourceSerif4.ttf`), вага 600. Лише від 22 pt:
-/// дрібніше лишається системний шрифт. CoreText сам ставить оптичний розмір рівним кеглю, тож 34 pt — «Display»,
-/// 22 pt — «Subhead»; `relativeTo` тримає Dynamic Type. Поки що лише головна, решта екранів — після огляду.
+/// Заголовки й назви подій з засічками: Source Serif 4 (змінний шрифт, SIL OFL, `Fonts/SourceSerif4.ttf`), вага 600.
+/// Правило за змістом: назва події (`Event.displayTitle`) чи заголовок екрана або секції — так; дата, місце, чипи, кнопки,
+/// цифри й службові рядки — системний шрифт. CoreText сам ставить оптичний розмір рівним кеглю, тож 34 pt — «Display»,
+/// 17 pt — «Text»; `relativeTo` тримає Dynamic Type.
 extension PoruchFont {
     private static func serif(_ size: CGFloat, _ style: Font.TextStyle) -> Font {
         .custom("SourceSerif4Roman-SemiBold", size: size, relativeTo: style)
@@ -228,8 +229,6 @@ extension PoruchFont {
 
 /// Трекінг за розміром: великий текст стискається в одну форму.
 extension View {
-    func displayTracking() -> some View { kerning(-1.0) }
-    func titleTracking() -> some View { kerning(-0.7) }
 }
 
 enum Space {

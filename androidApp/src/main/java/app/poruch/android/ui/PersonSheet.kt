@@ -25,7 +25,7 @@ fun ProfileSummary(profile: Profile, modifier: Modifier = Modifier, avatarSize: 
     val colors = Poruch.colors
     Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         Avatar(profile.name, profile.avatarUrl, avatarSize)
-        Text(profile.name, style = MaterialTheme.typography.headlineMedium, color = colors.ink, textAlign = TextAlign.Center)
+        Text(profile.name, style = PoruchType.serifTitle1, color = colors.ink, textAlign = TextAlign.Center)
         profile.email?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary) }
         memberSince(profile.memberSince)?.let {
             Text(stringResource(R.string.profile_member_since, it), style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary)
@@ -84,7 +84,7 @@ fun PersonSheet(
                     PoruchLoader()
                 }
                 profile == null -> Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                    Text(stringResource(R.string.person_unavailable), style = MaterialTheme.typography.titleLarge, color = colors.ink)
+                    Text(stringResource(R.string.person_unavailable), style = PoruchType.serifTitle2, color = colors.ink)
                     Text(stringResource(R.string.person_unavailable_hint), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary, textAlign = TextAlign.Center)
                 }
                 else -> {

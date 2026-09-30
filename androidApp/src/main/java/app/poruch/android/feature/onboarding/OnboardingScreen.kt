@@ -125,7 +125,7 @@ private fun Welcome() {
             MosaicTile(EventCategory.GAMES, 52.dp, Modifier.offset(y = 18.dp))
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
-            Text(stringResource(R.string.onboarding_welcome_title), style = MaterialTheme.typography.displaySmall, color = colors.ink)
+            Text(stringResource(R.string.onboarding_welcome_title), style = PoruchType.serifDisplay, color = colors.ink)
             Text(
                 stringResource(R.string.onboarding_welcome_body),
                 style = PoruchType.lead, color = colors.inkSecondary, textAlign = TextAlign.Center
@@ -147,7 +147,7 @@ private fun Question(title: String, hint: String, content: @Composable ColumnSco
     val colors = Poruch.colors
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.lg)) {
         Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-            Text(title, style = MaterialTheme.typography.displaySmall, color = colors.ink)
+            Text(title, style = PoruchType.serifDisplay, color = colors.ink)
             Text(hint, style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
         }
         content()

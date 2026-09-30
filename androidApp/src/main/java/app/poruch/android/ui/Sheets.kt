@@ -113,7 +113,7 @@ fun PoruchConfirmSheet(
             Modifier.padding(horizontal = Spacing.page).padding(bottom = Spacing.section),
             verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
-            Text(title, style = MaterialTheme.typography.titleLarge, color = colors.ink)
+            Text(title, style = PoruchType.serifTitle2, color = colors.ink)
             Text(
                 message, style = MaterialTheme.typography.bodyLarge, color = colors.inkSecondary,
                 modifier = Modifier.padding(bottom = Spacing.sm)

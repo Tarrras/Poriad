@@ -56,7 +56,7 @@ struct MyEventsView: View {
     private func header(_ board: MyEventsBoard?) -> some View {
         VStack(alignment: .leading, spacing: Space.lg) {
             VStack(alignment: .leading, spacing: Space.xs) {
-                Text("Мої події").font(PoruchFont.display).displayTracking().foregroundStyle(Palette.ink)
+                Text("Мої події").font(PoruchFont.serifDisplay).kerning(-0.5).foregroundStyle(Palette.ink)
                 Text(signedIn ? subtitle(board) : "Увійдіть, щоб бачити свої плани")
                     .font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
             }
@@ -290,7 +290,7 @@ private struct GoingHero: View {
                         .clipShape(RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
                     VStack(alignment: .leading, spacing: Space.xs) {
                         Text(countdownOverline(event)).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.accent)
-                        Text(event.title).font(PoruchFont.title3).foregroundStyle(Palette.ink)
+                        Text(event.displayTitle).font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
                             .multilineTextAlignment(.leading).lineLimit(2)
                         if let badge = eventBadge(event), event.gathering?.joined != true {
                             StatusBadge(text: badge.0, tone: badge.1, symbol: badge.2)
@@ -330,7 +330,7 @@ private struct OrganizerPanel: View {
                         .clipShape(RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
                     VStack(alignment: .leading, spacing: Space.xs) {
                         Text(countdownOverline(event)).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.accent)
-                        Text(event.title).font(PoruchFont.title3).foregroundStyle(Palette.ink)
+                        Text(event.displayTitle).font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
                             .multilineTextAlignment(.leading).lineLimit(2)
                         if event.isCancelled { StatusBadge(text: "Скасовано", tone: .danger) } else { EventDescriptor(event: event) }
                     }

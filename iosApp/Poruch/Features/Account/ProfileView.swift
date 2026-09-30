@@ -74,7 +74,7 @@ struct ProfileView: View {
         VStack(spacing: Space.md) {
             PoruchIcon(glyph: PoruchIcons.person, size: 36).foregroundStyle(Palette.onBrandContainer)
                 .frame(width: 88, height: 88).background(Palette.brandContainer, in: Circle())
-            Text(signedIn ? "Ви з нами" : "Ваші люди — поруч").font(PoruchFont.title1).titleTracking().foregroundStyle(Palette.ink)
+            Text(signedIn ? "Ви з нами" : "Ваші люди — поруч").font(PoruchFont.serifTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
             Text(signedIn
                  ? "Ваші створені, збережені та заплановані події — у вкладці «Мої події»."
                  : "Увійдіть, щоб зберігати цікаве, приєднуватись і створювати власні зустрічі.")
@@ -231,7 +231,7 @@ struct ChangePasswordSheet: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Space.lg) {
-                Text("Змінити пароль").font(PoruchFont.title1).titleTracking().foregroundStyle(Palette.ink)
+                Text("Змінити пароль").font(PoruchFont.serifTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
                 LabelledField(label: "Поточний пароль", text: $current, secure: !revealed) {
                     PasswordRevealToggle(revealed: $revealed)
                 }
@@ -264,7 +264,7 @@ struct DeleteAccountSheet: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Space.lg) {
-                Text("Видалити обліковий запис?").font(PoruchFont.title1).titleTracking().foregroundStyle(Palette.ink)
+                Text("Видалити обліковий запис?").font(PoruchFont.serifTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
                 Text("Профіль, участь у подіях, повідомлення й фото буде видалено. Ваші опубліковані події скасуються. Скасувати це буде неможливо.")
                     .font(PoruchFont.bodyText).foregroundStyle(Palette.inkSecondary)
                     .fixedSize(horizontal: false, vertical: true)

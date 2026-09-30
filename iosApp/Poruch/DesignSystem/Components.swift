@@ -362,12 +362,9 @@ struct SectionHeader: View {
     let title: String
     var actionLabel: String?
     var action: (() -> Void)?
-    /// Заголовок засічками (Source Serif 4): поки що лише головна.
-    var serif = false
     var body: some View {
         HStack {
-            Text(title).font(serif ? PoruchFont.serifTitle2 : PoruchFont.sectionTitle).kerning(serif ? -0.2 : -0.5)
-                .foregroundStyle(Palette.ink)
+            Text(title).font(PoruchFont.serifTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
             Spacer(minLength: Space.sm)
             if let actionLabel, let action {
                 Button(actionLabel, action: action).font(PoruchFont.label).foregroundStyle(Palette.ink)
@@ -388,7 +385,7 @@ struct PageHeader<Trailing: View>: View {
                         .frame(width: 40, height: 40).background(Palette.surface, in: Circle())
                 }.buttonStyle(PressableStyle()).accessibilityLabel("Назад")
             }
-            Text(title).font(PoruchFont.title1).titleTracking().foregroundStyle(Palette.ink)
+            Text(title).font(PoruchFont.serifTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
             Spacer(minLength: 0)
             trailing
         }.padding(.horizontal, Space.page).padding(.vertical, Space.md)
@@ -436,7 +433,7 @@ struct EmptyState: View {
                 // Кола й крапка «шукаємо поруч» довкола гліфа; тло не займає місця, відступ дає їм простір.
                 .background { if !compact && !reduceMotion { BrandAnimation(name: "Empty").frame(width: 160, height: 160) } }
                 .padding(compact || reduceMotion ? 0 : 28)
-            Text(title).font(compact ? PoruchFont.title3 : PoruchFont.title2).foregroundStyle(Palette.ink).multilineTextAlignment(.center)
+            Text(title).font(compact ? PoruchFont.serifTitle3 : PoruchFont.serifTitle2).foregroundStyle(Palette.ink).multilineTextAlignment(.center)
             Text(message).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary).multilineTextAlignment(.center)
             if let actionLabel, let action {
                 PrimaryButton(title: actionLabel, action: action).fixedSize(horizontal: true, vertical: false).padding(.top, Space.sm)
@@ -792,7 +789,7 @@ struct EventCard: View {
                     }
                 VStack(alignment: .leading, spacing: Space.sm) {
                     Text(cardOverline(event)).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
-                    Text(event.title).font(PoruchFont.cardName).kerning(-0.2).foregroundStyle(Palette.ink)
+                    Text(event.displayTitle).font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
                         .multilineTextAlignment(.leading).lineLimit(2)
                     EventDescriptor(event: event, withCity: withCity)
                     EventMeta(event: event)
@@ -838,7 +835,7 @@ struct EventRow: View {
                 .clipShape(RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
             VStack(alignment: .leading, spacing: Space.xs) {
                 Text(cardOverline(event)).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
-                Text(event.title).font(PoruchFont.cardName).kerning(-0.2).foregroundStyle(Palette.ink)
+                Text(event.displayTitle).font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
                     .multilineTextAlignment(.leading).lineLimit(2)
                 if let note { Text(note).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(1) }
                 else if let badge = status ?? eventBadge(event, waitlisted: waitlisted) { StatusBadge(text: badge.0, tone: badge.1, symbol: badge.2) }
@@ -904,7 +901,7 @@ struct EventResultRow: View {
                     .clipShape(RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
                     Text(cardOverline(event)).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary).lineLimit(1)
-                    Text(event.title).font(PoruchFont.cardName).kerning(-0.2).foregroundStyle(Palette.ink)
+                    Text(event.displayTitle).font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
                         .multilineTextAlignment(.leading).lineLimit(2)
                     Text(subtitle).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(1)
                     if let listing = event.listing {
@@ -946,7 +943,7 @@ struct PlaceRow: View {
                     .frame(width: 40, height: 40)
                     .background(Palette.surfaceMuted, in: RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(place.name).font(PoruchFont.cardName).kerning(-0.2).foregroundStyle(Palette.ink).lineLimit(1)
+                    Text(place.name).font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.ink).lineLimit(1)
                     Text(subtitle).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
                         .multilineTextAlignment(.leading).lineLimit(2)
                 }
@@ -1013,7 +1010,7 @@ struct EventMapCard: View {
                     .clipShape(RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
                 VStack(alignment: .leading, spacing: Space.xs) {
                     Text(cardOverline(event)).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
-                    Text(event.title).font(PoruchFont.cardName).kerning(-0.2).foregroundStyle(Palette.ink)
+                    Text(event.displayTitle).font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
                         .multilineTextAlignment(.leading).lineLimit(2)
                     if let badge = eventBadge(event) { StatusBadge(text: badge.0, tone: badge.1, symbol: badge.2) }
                     else { EventMeta(event: event, short: true) }

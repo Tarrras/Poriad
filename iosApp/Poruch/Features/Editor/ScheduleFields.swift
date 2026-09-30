@@ -126,7 +126,7 @@ private struct DateTimeSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.lg) {
-            Text(title).font(PoruchFont.title1).titleTracking().foregroundStyle(Palette.ink)
+            Text(title).font(PoruchFont.serifTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
             ScrollView {
                 VStack(spacing: Space.lg) {
                     DatePicker("", selection: $value, in: minimum..., displayedComponents: .date)

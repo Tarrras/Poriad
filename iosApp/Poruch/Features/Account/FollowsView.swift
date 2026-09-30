@@ -70,7 +70,7 @@ struct FollowsView: View {
                             .background(Palette.surfaceMuted, in: RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
                     }
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(follow.name).font(PoruchFont.cardName).kerning(-0.2).foregroundStyle(Palette.ink)
+                        Text(follow.name).font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
                             .multilineTextAlignment(.leading).lineLimit(2)
                         Text(caption).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(1)
                     }

@@ -76,7 +76,7 @@ struct OnboardingView: View {
             .padding(.top, Space.section).padding(.bottom, Space.lg)
             .decorative()
             VStack(spacing: Space.md) {
-                Text("Знайомимось").font(PoruchFont.display).displayTracking().foregroundStyle(Palette.ink)
+                Text("Знайомимось").font(PoruchFont.serifDisplay).kerning(-0.5).foregroundStyle(Palette.ink)
                 Text("Три питання — і «Поряд» показуватиме спершу те, що вам підходить. Відповіді лишаються на цьому пристрої, змінити їх можна будь-коли у профілі.")
                     .font(PoruchFont.lead).foregroundStyle(Palette.inkSecondary).multilineTextAlignment(.center)
             }
@@ -132,7 +132,7 @@ struct OnboardingView: View {
     ) -> some View {
         VStack(alignment: .leading, spacing: Space.lg) {
             VStack(alignment: .leading, spacing: Space.xs) {
-                Text(title).font(PoruchFont.display).displayTracking().foregroundStyle(Palette.ink)
+                Text(title).font(PoruchFont.serifDisplay).kerning(-0.5).foregroundStyle(Palette.ink)
                 Text(hint).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
             }
             content()

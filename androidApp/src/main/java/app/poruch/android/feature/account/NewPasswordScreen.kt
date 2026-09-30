@@ -40,7 +40,7 @@ fun NewPasswordScreen(state: ProfileState, onIntent: (ProfileIntent) -> Unit) {
                 .padding(horizontal = Spacing.page).padding(top = Spacing.xxl, bottom = Spacing.xl),
             verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
-            Text(stringResource(R.string.new_password), style = MaterialTheme.typography.displaySmall, color = colors.ink)
+            Text(stringResource(R.string.new_password), style = PoruchType.serifDisplay, color = colors.ink)
             Text(stringResource(R.string.new_password_subtitle), style = MaterialTheme.typography.bodyLarge, color = colors.inkSecondary)
         }
         // Один перемикач на обидва поля: показує або ховає пароль разом із повтором.

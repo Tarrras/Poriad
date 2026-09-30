@@ -72,7 +72,7 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
                         else -> R.string.auth_welcome
                     }
                 ),
-                style = MaterialTheme.typography.headlineMedium, color = colors.ink, textAlign = TextAlign.Center
+                style = PoruchType.serifTitle1, color = colors.ink, textAlign = TextAlign.Center
             )
             Text(
                 stringResource(

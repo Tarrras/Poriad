@@ -615,15 +615,13 @@ fun SectionHeader(
     title: String,
     modifier: Modifier = Modifier,
     actionLabel: String? = null,
-    onAction: (() -> Unit)? = null,
-    /** Заголовок засічками (Source Serif 4): поки що лише головна. */
-    serif: Boolean = false
+    onAction: (() -> Unit)? = null
 ) {
     val colors = Poruch.colors
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(
             title,
-            style = if (serif) PoruchType.serifTitle2 else PoruchType.sectionTitle,
+            style = PoruchType.serifTitle2,
             color = colors.ink,
             modifier = Modifier.weight(1f)
         )
@@ -669,7 +667,7 @@ fun PageHeader(
         }
         Text(
             title,
-            style = MaterialTheme.typography.headlineMedium,
+            style = PoruchType.serifTitle1,
             color = colors.ink,
             modifier = Modifier.weight(1f)
         )
@@ -720,7 +718,7 @@ fun EmptyState(
         // Довгі рядки переносяться: по центру, як і значок над ними.
         Text(
             title,
-            style = MaterialTheme.typography.titleLarge,
+            style = PoruchType.serifTitle2,
             color = colors.ink,
             textAlign = TextAlign.Center
         )
@@ -1143,7 +1141,7 @@ fun EventCard(
                 color = colors.inkTertiary
             )
             Text(
-                event.title, style = MaterialTheme.typography.titleSmall, color = colors.ink,
+                event.displayTitle, style = PoruchType.serifTitle3, color = colors.ink,
                 maxLines = 2, overflow = TextOverflow.Ellipsis
             )
             EventDescriptor(event, withCity = withCity)
@@ -1193,7 +1191,7 @@ fun EventRow(
                 color = colors.inkTertiary
             )
             Text(
-                event.title, style = MaterialTheme.typography.titleSmall, color = colors.ink,
+                event.displayTitle, style = PoruchType.serifTitle3, color = colors.ink,
                 maxLines = 2, overflow = TextOverflow.Ellipsis
             )
             when {
@@ -1259,7 +1257,7 @@ fun EventResultRow(
                 color = colors.inkTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis
             )
             Text(
-                event.title, style = MaterialTheme.typography.titleSmall, color = colors.ink,
+                event.displayTitle, style = PoruchType.serifTitle3, color = colors.ink,
                 maxLines = 2, overflow = TextOverflow.Ellipsis
             )
             Text(
@@ -1316,7 +1314,7 @@ fun PlaceRow(place: Place, modifier: Modifier = Modifier, withCity: Boolean = fa
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
-                place.name, style = MaterialTheme.typography.titleSmall, color = colors.ink,
+                place.name, style = PoruchType.serifTitle3, color = colors.ink,
                 maxLines = 1, overflow = TextOverflow.Ellipsis
             )
             Text(
@@ -1372,7 +1370,7 @@ fun EventMapCard(
                 color = colors.inkTertiary
             )
             Text(
-                event.title, style = MaterialTheme.typography.titleSmall, color = colors.ink,
+                event.displayTitle, style = PoruchType.serifTitle3, color = colors.ink,
                 maxLines = 2, overflow = TextOverflow.Ellipsis
             )
             if (badge != null) StatusBadge(badge.first, badge.second) else EventMeta(

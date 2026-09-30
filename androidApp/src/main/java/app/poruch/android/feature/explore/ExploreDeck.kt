@@ -498,7 +498,7 @@ private fun QuietCard(modifier: Modifier, onIntent: (ExploreIntent) -> Unit) {
     ) {
         Text(
             stringResource(R.string.nothing_here),
-            style = MaterialTheme.typography.titleSmall,
+            style = PoruchType.serifTitle3,
             color = colors.ink
         )
         Text(

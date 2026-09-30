@@ -48,6 +48,7 @@ import app.poruch.android.ui.*
 import app.poruch.domain.ContactRules
 import app.poruch.domain.Event
 import app.poruch.domain.EventIndexEntry
+import app.poruch.domain.TitleRules
 import app.poruch.domain.FollowRules
 import app.poruch.domain.CompanionRules
 import app.poruch.domain.Membership
@@ -89,7 +90,7 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
                     Restrictions(state)
                     state.companionOf?.let { parent ->
                         GroupedRows {
-                            LinkRow(Icons.Outlined.Groups, stringResource(R.string.companion_parent, parent.title), onClick = { onIntent(DetailIntent.OpenEvent(parent.id)) })
+                            LinkRow(Icons.Outlined.Groups, stringResource(R.string.companion_parent, TitleRules.display(parent.title)), onClick = { onIntent(DetailIntent.OpenEvent(parent.id)) })
                         }
                     }
                     ExternalActions(state, onIntent)
@@ -221,7 +222,7 @@ private fun ReportSheet(target: ReportTarget, onIntent: (DetailIntent) -> Unit) 
                         ReportTarget.PERSON -> R.string.report_person_title
                     }
                 ),
-                style = MaterialTheme.typography.titleLarge, color = colors.ink
+                style = PoruchType.serifTitle2, color = colors.ink
             )
             Text(stringResource(R.string.report_body), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
             Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
@@ -309,7 +310,7 @@ private fun Hero(event: Event, state: DetailState, onIntent: (DetailIntent) -> U
                 }
             }
             Text(eventOverline(event, dateWords()), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
-            Text(event.title, style = MaterialTheme.typography.displaySmall, color = colors.ink)
+            Text(event.displayTitle, style = PoruchType.serifDisplay, color = colors.ink)
         }
     }
 }
@@ -466,10 +467,10 @@ internal fun RatingSheet(
                 EventImage(event, Modifier.size(52.dp).clip(Radius.xs))
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(cardOverline(event, dateWords()), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
-                    Text(event.title, style = MaterialTheme.typography.titleSmall, color = colors.ink, maxLines = 2)
+                    Text(event.displayTitle, style = PoruchType.serifTitle3, color = colors.ink, maxLines = 2)
                 }
             }
-            Text(stringResource(R.string.rate_title), style = MaterialTheme.typography.titleLarge, color = colors.ink)
+            Text(stringResource(R.string.rate_title), style = PoruchType.serifTitle2, color = colors.ink)
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                 Row(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                     (1..5).forEach { value ->
@@ -859,7 +860,7 @@ private fun OthersHere(others: List<EventIndexEntry>, placeName: String?, onInte
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                         Text("$day · $hour", style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
                         Text(
-                            other.title, style = MaterialTheme.typography.titleSmall, color = colors.ink,
+                            TitleRules.display(other.title), style = PoruchType.serifTitle3, color = colors.ink,
                             maxLines = 2, overflow = TextOverflow.Ellipsis
                         )
                     }
@@ -1025,8 +1026,8 @@ private fun CompanionSheet(event: Event, mutating: Boolean, onIntent: (DetailInt
             Modifier.padding(horizontal = Spacing.page).padding(bottom = Spacing.section).imePadding(),
             verticalArrangement = Arrangement.spacedBy(Spacing.lg)
         ) {
-            Text(stringResource(R.string.companion_seek), style = MaterialTheme.typography.titleLarge, color = colors.ink)
-            Text(event.title, style = MaterialTheme.typography.titleSmall, color = colors.inkSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(stringResource(R.string.companion_seek), style = PoruchType.serifTitle2, color = colors.ink)
+            Text(event.displayTitle, style = PoruchType.serifTitle3, color = colors.inkSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(stringResource(R.string.companion_sheet_body), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
             val meetAt = times.getOrNull(at)
             if (meetAt != null) {

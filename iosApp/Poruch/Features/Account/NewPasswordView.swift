@@ -17,7 +17,7 @@ struct NewPasswordView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Space.xxl) {
                 VStack(alignment: .leading, spacing: Space.md) {
-                    Text("Новий пароль").font(PoruchFont.title1).titleTracking().foregroundStyle(Palette.ink)
+                    Text("Новий пароль").font(PoruchFont.serifTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
                     Text("Придумайте новий пароль для входу — він збережеться для вашого профілю.")
                         .font(PoruchFont.bodyText).foregroundStyle(Palette.inkSecondary)
                 }

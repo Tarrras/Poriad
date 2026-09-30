@@ -44,7 +44,7 @@ struct AuthView: View {
                 .frame(width: 72, height: 72).background(Palette.brand, in: Circle())
                 .decorative()
             Text(confirming ? "Перевірте пошту" : resetting ? "Відновити пароль" : form.register ? "Створити профіль" : "З поверненням")
-                .font(PoruchFont.title1).titleTracking().foregroundStyle(Palette.ink).multilineTextAlignment(.center)
+                .font(PoruchFont.serifTitle1).kerning(-0.4).foregroundStyle(Palette.ink).multilineTextAlignment(.center)
             Text(confirming
                  ? "Лишився один крок — підтвердити адресу."
                  : resetting

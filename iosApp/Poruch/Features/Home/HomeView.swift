@@ -200,7 +200,7 @@ struct HomeView: View {
         return VStack(alignment: .leading, spacing: Space.md) {
             SectionHeader(
                 title: "Ваше", actionLabel: view.personal.isEmpty ? nil : "Мої події",
-                action: view.personal.isEmpty ? nil : openMyEvents, serif: true
+                action: view.personal.isEmpty ? nil : openMyEvents
             )
             if let lead {
                 NextPlanCard(row: lead, open: { open(lead.event.id, from: "home_your") }, chat: { openChat(lead.event) })
@@ -271,7 +271,7 @@ struct HomeView: View {
             VStack(alignment: .leading, spacing: Space.md) {
                 SectionHeader(
                     title: "У місті", actionLabel: view.totalFound > 0 ? "Усі \(view.totalFound)" : nil,
-                    action: view.totalFound > 0 ? openMap : nil, serif: true
+                    action: view.totalFound > 0 ? openMap : nil
                 ).padding(.horizontal, Space.page)
                 heroPager(picks, view)
                 if !view.chips.isEmpty { feedChips(view.chips, selected: filter) }
@@ -344,7 +344,7 @@ struct HomeView: View {
     /// Куди далі, коли стрічку переглянуто: мапа з усім, що є, і створення власної події.
     private func moreRows(_ view: HomePresentation) -> some View {
         VStack(alignment: .leading, spacing: Space.md) {
-            SectionHeader(title: "Далі", serif: true)
+            SectionHeader(title: "Далі")
             GroupedRows {
                 LinkRow(
                     symbol: "map", title: "Усі події поруч",

@@ -8,7 +8,7 @@ struct ProfileSummary: View {
     var body: some View {
         VStack(spacing: Space.sm) {
             Avatar(name: profile.name, url: profile.avatarUrl, size: 88)
-            Text(profile.name).font(PoruchFont.title1).titleTracking().foregroundStyle(Palette.ink)
+            Text(profile.name).font(PoruchFont.serifTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
                 .multilineTextAlignment(.center)
             if let email = profile.email {
                 Text(email).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
@@ -93,7 +93,7 @@ struct PersonSheet: View {
                         if FollowRules.shared.canFollowOrganizer(profile: profile, isMe: isMe) { follow(profile) }
                     } else {
                         VStack(spacing: Space.sm) {
-                            Text("Профіль недоступний").font(PoruchFont.title2).foregroundStyle(Palette.ink)
+                            Text("Профіль недоступний").font(PoruchFont.serifTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
                             Text("Людина приховала профіль від вас або його обмежила модерація.")
                                 .font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary).multilineTextAlignment(.center)
                         }.frame(maxWidth: .infinity)
@@ -174,7 +174,7 @@ struct EditProfileSheet: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Space.lg) {
-                Text("Редагувати профіль").font(PoruchFont.title1).titleTracking().foregroundStyle(Palette.ink)
+                Text("Редагувати профіль").font(PoruchFont.serifTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
                 HStack(spacing: Space.lg) {
                     ZStack {
                         Avatar(name: name, url: avatarUrl, size: 72)

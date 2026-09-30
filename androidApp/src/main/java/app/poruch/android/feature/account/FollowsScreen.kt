@@ -97,7 +97,7 @@ private fun FollowRow(follow: Follow, onOpen: () -> Unit, onUnfollow: () -> Unit
             FollowKind.ORGANIZER -> Avatar(follow.name, follow.avatarUrl, 40.dp)
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(follow.name, style = MaterialTheme.typography.titleSmall, color = colors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(follow.name, style = PoruchType.serifTitle3, color = colors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(caption, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         GhostButton(stringResource(R.string.unfollow), onUnfollow, tone = colors.inkSecondary)

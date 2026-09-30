@@ -234,7 +234,7 @@ fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
             Modifier.padding(horizontal = Spacing.page).padding(bottom = Spacing.section),
             verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
-            Text(stringResource(R.string.digest_prompt_title), style = MaterialTheme.typography.titleLarge, color = Poruch.colors.ink)
+            Text(stringResource(R.string.digest_prompt_title), style = PoruchType.serifTitle2, color = Poruch.colors.ink)
             Text(
                 stringResource(R.string.digest_prompt_body), style = MaterialTheme.typography.bodyLarge,
                 color = Poruch.colors.inkSecondary, modifier = Modifier.padding(bottom = Spacing.sm)
@@ -434,7 +434,7 @@ private fun Splash() {
             ) {
                 Text(
                     stringResource(R.string.brand_name),
-                    style = MaterialTheme.typography.displaySmall,
+                    style = PoruchType.serifDisplay,
                     color = colors.ink
                 )
                 Text(

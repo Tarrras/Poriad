@@ -173,7 +173,7 @@ struct EventDetailView: View {
                     HStack(spacing: Space.md) {
                         Image(systemName: "person.2").font(.system(size: 17, weight: .medium)).foregroundStyle(Palette.ink)
                             .frame(width: 40, height: 40).background(Palette.surfaceMuted, in: RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
-                        Text("Разом на: \(parent.title)").font(PoruchFont.cardName).kerning(-0.2).foregroundStyle(Palette.ink)
+                        Text("Разом на: \(TitleRules.shared.display(title: parent.title))").font(PoruchFont.cardName).kerning(-0.2).foregroundStyle(Palette.ink)
                             .multilineTextAlignment(.leading).lineLimit(2)
                         Spacer(minLength: Space.sm)
                         Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold)).foregroundStyle(Palette.inkTertiary)
@@ -311,7 +311,7 @@ extension EventDetailView {
             .overlay(alignment: .bottomLeading) {
                 VStack(alignment: .leading, spacing: Space.md) {
                     badges(event, view)
-                    Text(event.title).font(PoruchFont.display).displayTracking().foregroundStyle(Palette.ink)
+                    Text(event.displayTitle).font(PoruchFont.serifDisplay).kerning(-0.5).foregroundStyle(Palette.ink)
                         .fixedSize(horizontal: false, vertical: true)
                 }.padding(.horizontal, Space.page)
             }
@@ -637,7 +637,7 @@ extension EventDetailView {
                         HStack(spacing: Space.md) {
                             VStack(alignment: .leading, spacing: Space.xs) {
                                 Text("\(label.day) · \(label.hour)").font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
-                                Text(other.title).font(PoruchFont.cardName).kerning(-0.2).foregroundStyle(Palette.ink)
+                                Text(TitleRules.shared.display(title: other.title)).font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
                                     .multilineTextAlignment(.leading).lineLimit(2)
                             }
                             Spacer(minLength: 0)
@@ -867,8 +867,8 @@ struct CompanionSheet: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Space.lg) {
-                Text("Шукаю компанію").font(PoruchFont.title2).foregroundStyle(Palette.ink)
-                Text(event.title).font(PoruchFont.cardName).foregroundStyle(Palette.inkSecondary).lineLimit(2)
+                Text("Шукаю компанію").font(PoruchFont.serifTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
+                Text(event.displayTitle).font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.inkSecondary).lineLimit(2)
                 Text("Зберіть невелику компанію й ідіть разом. Хто хоче долучитися, надсилає запит — ви вирішуєте, кого взяти. Лише 18+.")
                     .font(PoruchFont.bodyText).foregroundStyle(Palette.inkSecondary)
                 if let meetAt {
@@ -1038,10 +1038,10 @@ struct RateSheet: View {
                             .clipShape(RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
                         VStack(alignment: .leading, spacing: 2) {
                             Text(cardOverline(event)).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
-                            Text(event.title).font(PoruchFont.cardName).foregroundStyle(Palette.ink).lineLimit(2)
+                            Text(event.displayTitle).font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.ink).lineLimit(2)
                         }
                     }
-                    Text("Як пройшло?").font(PoruchFont.title2).foregroundStyle(Palette.ink)
+                    Text("Як пройшло?").font(PoruchFont.serifTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
                     VStack(spacing: Space.sm) {
                         HStack(spacing: Space.sm) {
                             ForEach(1...5, id: \.self) { value in
@@ -1202,7 +1202,7 @@ struct ReportSheet: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Space.md) {
-                Text(target.title).font(PoruchFont.title1).titleTracking().foregroundStyle(Palette.ink)
+                Text(target.title).font(PoruchFont.serifTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
                 Text("Оберіть причину. Скаргу побачить лише модерація.")
                     .font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
                 ForEach(reportReasons, id: \.value) { option in

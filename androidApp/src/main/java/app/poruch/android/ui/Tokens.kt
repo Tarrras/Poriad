@@ -232,14 +232,8 @@ object Elevation {
     val overlay = 24.dp
 }
 
-/** Один голос — системний гротеск. Ієрархію несуть кегль і вага, а не гарнітура чи регістр. */
+/** Інтерфейс — системний гротеск: ієрархію несуть кегль і вага. Заголовки й назви подій — [PoruchType.serifDisplay] і його брати. */
 private val PoruchTypography = Typography(
-    displaySmall = TextStyle(
-        fontSize = 34.sp,
-        lineHeight = 40.sp,
-        fontWeight = FontWeight.Bold,
-        letterSpacing = (-1.0).sp
-    ),
     headlineMedium = TextStyle(
         fontSize = 28.sp,
         lineHeight = 34.sp,
@@ -285,9 +279,10 @@ private val PoruchTypography = Typography(
 )
 
 /**
- * Заголовки з засічками: Source Serif 4 (змінний шрифт, SIL OFL, `res/font/source_serif4.ttf`), вага 600. Лише від 22 sp:
- * дрібніше лишається системний шрифт. Оптичний розмір шрифту — кегль стилю (`opticalSizing`): 34 sp — «Display», 22 sp — «Subhead».
- * Поки що лише головна, решта екранів — після огляду.
+ * Заголовки й назви подій з засічками: Source Serif 4 (змінний шрифт, SIL OFL, `res/font/source_serif4.ttf`), вага 600.
+ * Правило за змістом: назва події ([app.poruch.domain.Event.displayTitle]) чи заголовок екрана або секції — так; дата, місце,
+ * чипи, кнопки, цифри й службові рядки — системний шрифт. Оптичний розмір шрифту — кегль стилю (`opticalSizing`):
+ * 34 sp — «Display», 17 sp — «Text».
  */
 @OptIn(ExperimentalTextApi::class)
 private fun serifStyle(size: TextUnit, lineHeight: TextUnit, tracking: TextUnit) = TextStyle(
@@ -311,12 +306,6 @@ object PoruchType {
     /** Назва події в постері й рядку «Ваше»: 17 sp, оптичний розмір «Text». */
     val serifTitle3 = serifStyle(17.sp, 22.sp, (-0.1).sp)
 
-    val sectionTitle = TextStyle(
-        fontSize = 22.sp,
-        lineHeight = 28.sp,
-        fontWeight = FontWeight.Bold,
-        letterSpacing = (-0.5).sp
-    )
     val descriptor = TextStyle(fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.Medium)
     val lead = TextStyle(fontSize = 17.sp, lineHeight = 25.sp, fontWeight = FontWeight.Normal)
 }

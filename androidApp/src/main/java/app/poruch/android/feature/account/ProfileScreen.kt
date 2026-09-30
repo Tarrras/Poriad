@@ -66,7 +66,7 @@ fun ProfileScreen(state: ProfileState, onIntent: (ProfileIntent) -> Unit) {
                 }
                 Text(
                     stringResource(if (state.signedIn) R.string.account_title else R.string.guest_title),
-                    style = MaterialTheme.typography.headlineMedium, color = colors.ink, textAlign = TextAlign.Center
+                    style = PoruchType.serifTitle1, color = colors.ink, textAlign = TextAlign.Center
                 )
                 Text(
                     stringResource(if (state.signedIn) R.string.account_description else R.string.guest_description),
@@ -217,7 +217,7 @@ private fun EditProfileSheet(profile: Profile, state: ProfileState, onIntent: (P
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
-            Text(stringResource(R.string.profile_edit), style = MaterialTheme.typography.titleLarge, color = colors.ink)
+            Text(stringResource(R.string.profile_edit), style = PoruchType.serifTitle2, color = colors.ink)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.lg)) {
                 Box(contentAlignment = Alignment.Center) {
                     Avatar(name, profile.avatarUrl, 72.dp)
@@ -264,7 +264,7 @@ private fun ChangePasswordSheet(state: ProfileState, onIntent: (ProfileIntent) -
             Modifier.padding(horizontal = Spacing.page).padding(bottom = Spacing.section).imePadding(),
             verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
-            Text(stringResource(R.string.update_password), style = MaterialTheme.typography.titleLarge, color = colors.ink)
+            Text(stringResource(R.string.update_password), style = PoruchType.serifTitle2, color = colors.ink)
             LabelledField(
                 stringResource(R.string.current_password_label), state.currentPassword,
                 { onIntent(ProfileIntent.SetCurrentPassword(it)) },
@@ -303,7 +303,7 @@ private fun DeleteAccountSheet(state: ProfileState, onIntent: (ProfileIntent) ->
             Modifier.padding(horizontal = Spacing.page).padding(bottom = Spacing.section).imePadding(),
             verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
-            Text(stringResource(R.string.delete_account_title), style = MaterialTheme.typography.titleLarge, color = colors.ink)
+            Text(stringResource(R.string.delete_account_title), style = PoruchType.serifTitle2, color = colors.ink)
             Text(stringResource(R.string.delete_account_body), style = MaterialTheme.typography.bodyLarge, color = colors.inkSecondary)
             LabelledField(
                 stringResource(R.string.password_label), state.deletePassword,

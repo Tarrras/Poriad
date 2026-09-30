@@ -68,7 +68,7 @@ private struct SplashView: View {
                     // і виліт у місто йде з неї. Приходить, коли шпилька торкається землі.
                     .overlay(alignment: .bottom) {
                         VStack(spacing: Space.xs) {
-                            Text("Поряд").font(PoruchFont.display).displayTracking().foregroundStyle(Palette.ink)
+                            Text("Поряд").font(PoruchFont.serifDisplay).kerning(-0.5).foregroundStyle(Palette.ink)
                             Text("Події поряд з вами").font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
                         }
                         .fixedSize()

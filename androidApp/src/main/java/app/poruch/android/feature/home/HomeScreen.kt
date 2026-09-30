@@ -213,7 +213,7 @@ private fun PersonalSection(state: HomeState, onIntent: (HomeIntent) -> Unit) {
         SectionHeader(
             stringResource(R.string.home_yours),
             actionLabel = if (state.personal.isEmpty()) null else stringResource(R.string.my_events),
-            onAction = { onIntent(HomeIntent.OpenMyEvents) }, serif = true
+            onAction = { onIntent(HomeIntent.OpenMyEvents) }
         )
         lead?.let { NextPlanCard(it, onIntent) }
         if (rows.isNotEmpty()) GroupedRows {
@@ -440,7 +440,7 @@ private fun LazyListScope.cityFeed(state: HomeState, onIntent: (HomeIntent) -> U
                     SectionHeader(
                         stringResource(R.string.home_in_city), Modifier.padding(horizontal = Spacing.page),
                         actionLabel = state.totalFound.takeIf { it > 0 }?.let { stringResource(R.string.home_all_count, it) },
-                        onAction = { onIntent(HomeIntent.OpenMap) }, serif = true
+                        onAction = { onIntent(HomeIntent.OpenMap) }
                     )
                     HeroPager(picks, state, onIntent)
                     if (state.chips.isNotEmpty()) FeedChips(state, onIntent)
@@ -578,7 +578,7 @@ private fun PosterCard(
 @Composable
 private fun MoreRows(state: HomeState, onIntent: (HomeIntent) -> Unit) {
     Column(Modifier.padding(horizontal = Spacing.page).padding(top = Spacing.xxl), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
-        SectionHeader(stringResource(R.string.home_next), serif = true)
+        SectionHeader(stringResource(R.string.home_next))
         GroupedRows {
             LinkRow(
                 PoruchIcons.map, stringResource(R.string.all_events_section), stringResource(R.string.all_events_hint),

@@ -63,7 +63,7 @@ fun MyEventsScreen(state: MyEventsState, onIntent: (MyEventsIntent) -> Unit) {
             ) {
                 Text(
                     stringResource(R.string.my_events),
-                    style = MaterialTheme.typography.displaySmall,
+                    style = PoruchType.serifDisplay,
                     color = colors.ink
                 )
                 Text(
@@ -414,8 +414,8 @@ private fun HeroHead(event: Event, status: @Composable () -> Unit, onClick: () -
                 color = colors.accent
             )
             Text(
-                event.title,
-                style = MaterialTheme.typography.titleMedium,
+                event.displayTitle,
+                style = PoruchType.serifTitle3,
                 color = colors.ink,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis

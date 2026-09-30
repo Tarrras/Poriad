@@ -507,7 +507,7 @@ struct DiscoveryView: View {
 
     private var quietCard: some View {
         VStack(alignment: .leading, spacing: Space.sm) {
-            Text("Тут поки тихо").font(PoruchFont.title3).foregroundStyle(Palette.ink)
+            Text("Тут поки тихо").font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
             Text("Змініть область мапи, дату або категорію — і події знайдуться.")
                 .font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
         }
@@ -644,7 +644,7 @@ struct FiltersView: View {
     /// Заголовок шторки — заголовок, а не надрядок, інакше він менший за секції під ним.
     private var header: some View {
         HStack(alignment: .firstTextBaseline) {
-            Text("Фільтри").font(PoruchFont.title2).foregroundStyle(Palette.ink)
+            Text("Фільтри").font(PoruchFont.serifTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
             Spacer(minLength: Space.sm)
             Button("Скинути") {
                 date = DateFilter.any

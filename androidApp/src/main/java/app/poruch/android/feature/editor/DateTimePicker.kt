@@ -30,7 +30,7 @@ fun DateTimeSheet(initial: LocalDateTime, minimum: LocalDateTime?, onDismiss: ()
             val chosen = date
             Text(
                 stringResource(if (chosen == null) R.string.pick_date else R.string.pick_time),
-                style = MaterialTheme.typography.titleLarge, color = colors.ink
+                style = PoruchType.serifTitle2, color = colors.ink
             )
             if (chosen == null) {
                 val dateState = rememberDatePickerState(
@@ -129,7 +129,7 @@ fun BirthDateSheet(initial: LocalDate?, onDismiss: () -> Unit, onPicked: (LocalD
             Modifier.padding(horizontal = Spacing.page).padding(bottom = Spacing.lg),
             verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
-            Text(stringResource(R.string.birth_date), style = MaterialTheme.typography.titleLarge, color = colors.ink)
+            Text(stringResource(R.string.birth_date), style = PoruchType.serifTitle2, color = colors.ink)
             DatePicker(state, title = null, showModeToggle = false, colors = poruchDatePickerColors())
             Row(verticalAlignment = Alignment.CenterVertically) {
                 GhostButton(stringResource(R.string.close), { sheet.close() }, tone = colors.inkSecondary)
