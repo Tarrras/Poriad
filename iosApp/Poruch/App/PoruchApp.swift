@@ -9,6 +9,13 @@ import FirebaseCrashlytics
     @StateObject private var model = AppModel()
     @Environment(\.scenePhase) private var scenePhase
     init() {
+        // Єдиний системний заголовок у застосунку — «Знайти місто» у шторці міст (`navigationTitle`): і він засічками,
+        // як решта заголовків. Кегль росте з Dynamic Type, як у `PoruchFont.serif*`.
+        if let serif = UIFont(name: "SourceSerif4Roman-SemiBold", size: 34) {
+            UINavigationBar.appearance().largeTitleTextAttributes = [
+                .font: UIFontMetrics(forTextStyle: .largeTitle).scaledFont(for: serif), .kern: -0.5
+            ]
+        }
         // Analytics і Crashlytics. Без GoogleService-Info.plist (збірка без ключів) Firebase не піднімаємо.
         if Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist") != nil {
             FirebaseApp.configure()
@@ -175,7 +182,7 @@ struct RootView: View {
                 NavigationStack(path: $homePath) {
                     HomeView(
                         openMap: showMap, openProfile: { tab = 3 }, openMyEvents: { tab = 2 },
-                        createEvent: { startCreating(from: "home") },
+                        createEvent: { startCreating(from: $0) },
                         openEvent: { homePath.append(EventRoute(id: $0)) },
                         openChat: { homePath.append(ChatRoute(id: $0.id)) },
                         openFollows: { homePath.append(FollowsRoute()) }

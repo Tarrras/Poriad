@@ -35,31 +35,42 @@ object HomeRules {
     /** Більше категорій у ряду — це вже друга панель пошуку. */
     const val MAX_CATEGORY_CHIPS = 4
 
+    /** Скільки великих карток над сіткою «У місті»: їх гортають, наступна визирає з-за краю. */
+    const val HERO_COUNT = 3
+
     /**
      * Одна стрічка з трьох списків: по одній події з кожного по колу, щоб жодне джерело не витіснило решту.
      * Подія стоїть раз, там, де її знайдено першою; підпис дає найсильніший сигнал: підписка, потім смак.
      * [skip] — те, що людина вже бачить вище («Ваше»).
+     *
+     * Зустрічі від людей з вільним місцем ([Event.isOpenRoom]) ідуть уперед: головна одиниця застосунку — кімната,
+     * афіша лише тло (docs/growth-2026-09.md §3). Ранг за смаком їй місця не гарантує: кімната поза відповідями
+     * стояла б нижче афіші, що збіглась. Тож перші [HERO_COUNT] кімнат займають великі картки, а решта кімнат
+     * стоять першими в кожному колі. Порядок серед кімнат — ранг списків: «Для вас», місто, підписки.
      */
     fun feed(forYou: List<Event>, city: List<Event>, following: List<Event>, skip: Set<String> = emptySet()): List<FeedEntry> {
         val followed = following.mapTo(HashSet()) { it.id }
         val picked = forYou.mapTo(HashSet()) { it.id }
-        val lanes = listOf(forYou, city, following).map { it.iterator() }
+        val rooms = (forYou + city + following).filter { it.isOpenRoom }
         val seen = skip.toHashSet()
         val feed = ArrayList<FeedEntry>()
+        fun add(event: Event): Boolean {
+            if (!seen.add(event.id)) return false
+            val source = when (event.id) {
+                in followed -> FeedSource.FOLLOWING
+                in picked -> FeedSource.FOR_YOU
+                else -> FeedSource.CITY
+            }
+            feed += FeedEntry(event, source)
+            return true
+        }
+        rooms.forEach { if (feed.size < HERO_COUNT) add(it) }
+        val lanes = listOf(rooms, forYou, city, following).map { it.iterator() }
         do {
             var added = false
             for (lane in lanes) {
                 while (lane.hasNext()) {
-                    val event = lane.next()
-                    if (!seen.add(event.id)) continue
-                    val source = when (event.id) {
-                        in followed -> FeedSource.FOLLOWING
-                        in picked -> FeedSource.FOR_YOU
-                        else -> FeedSource.CITY
-                    }
-                    feed += FeedEntry(event, source)
-                    added = true
-                    break
+                    if (add(lane.next())) { added = true; break }
                 }
             }
         } while (added)

@@ -1459,6 +1459,33 @@ fun MetaLine(icon: ImageVector, text: String, modifier: Modifier = Modifier, ton
 
 // ---- Композиційні картки головної
 
+/**
+ * Заклик створити подію: чорна плашка на всю ширину під шапкою головної. Головна одиниця застосунку — зустріч від людини,
+ * тож дорога до неї видна одразу, а не лише плюсом у таббарі й рядком унизу. Гостя тап веде до входу.
+ */
+@Composable
+fun CreateEventCard(title: String, subtitle: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val colors = Poruch.colors
+    Row(
+        modifier
+            .fillMaxWidth()
+            .pressable(onClick = onClick)
+            .background(colors.brand, Radius.lg)
+            .padding(horizontal = Spacing.lg, vertical = Spacing.md),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Spacing.md)
+    ) {
+        Box(Modifier.size(44.dp).background(colors.onBrand.copy(alpha = 0.14f), CircleShape), contentAlignment = Alignment.Center) {
+            Icon(Icons.Outlined.Add, null, Modifier.size(20.dp), tint = colors.onBrand)
+        }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(title, style = MaterialTheme.typography.titleSmall, color = colors.onBrand)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = colors.onBrand.copy(alpha = 0.72f))
+        }
+        Icon(Icons.AutoMirrored.Outlined.ArrowForward, null, Modifier.size(16.dp), tint = colors.onBrand)
+    }
+}
+
 /** Велика картка-афіша: обкладинка на всю висоту, текст на затемненні внизу. Головний акцент екрана; на головній їх кілька, гортаються. */
 @Composable
 fun EventHeroCard(
@@ -1486,7 +1513,11 @@ fun EventHeroCard(
                     )
                 )
         )
-        badge?.let { (text, tone) -> Box(Modifier.padding(Spacing.lg)) { StatusBadge(text, tone) } }
+        // Стан кімнати важливіший; без нього — підпис походження, пара до «Афіша · джерело».
+        if (badge != null) Box(Modifier.padding(Spacing.lg)) { StatusBadge(badge.first, badge.second) }
+        else if (event.gathering != null) Box(Modifier.padding(Spacing.lg)) {
+            StatusBadge(stringResource(R.string.from_people), BadgeTone.Neutral, PoruchIcons.social)
+        }
         if (onSave != null) SaveButton(saved, onSave, Modifier.align(Alignment.TopEnd).padding(Spacing.md))
         Column(
             Modifier.align(Alignment.BottomStart).padding(Spacing.xl),

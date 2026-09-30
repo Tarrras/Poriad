@@ -269,8 +269,9 @@
   <string name="home_subtitle">%1$s</string>
   <string name="home_search_action">Пошук</string>
   <string name="home_yours">Ваше</string>
-  <string name="home_plans_empty">Планів поки нема</string>
-  <string name="home_plans_empty_hint">Оберіть подію або створіть свою</string>
+  <string name="home_create_title">Організувати подію</string>
+  <string name="home_create_subtitle">Зберіть людей на настолки, пробіжку чи кіно</string>
+  <string name="from_people">Від людей</string>
   <string name="home_waiting_more">Чекають відповіді: ще %1$d</string>
   <string name="home_waiting_more_hint">Чати й запити — у «Моїх подіях»</string>
   <string name="guest_home_slim">Увійти й зберігати події</string>

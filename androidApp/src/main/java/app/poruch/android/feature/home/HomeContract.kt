@@ -24,7 +24,7 @@ data class HomeState(
     val followed: List<Event> = emptyList(),
     /** Скільки подій, що чекають відповіді (чат, запит), у [personal] не влізло: рядок «Чекають відповіді: ще N». */
     val moreWaiting: Int = 0,
-    /** «У місті»: [HERO_COUNT] великих карток, далі сітка, вже звужена [feedFilter]. */
+    /** «У місті»: [HomeRules.HERO_COUNT] великих карток, далі сітка, вже звужена [feedFilter]. */
     val feed: List<FeedEntry> = emptyList(),
     /** Чипи над сіткою: що з неї можна відфільтрувати. Порожньо — рядка нема. */
     val chips: List<FeedFilter> = emptyList(),
@@ -69,9 +69,6 @@ data class HomeState(
 /** Скільки результатів пошуку головна показує за раз. */
 const val RESULTS_PAGE = 12
 
-/** Кількість великих карток над сіткою «У місті». */
-const val HERO_COUNT = 3
-
 /** Рядок «Ваше»: своя подія, її непрочитаний чат і скільки людей просяться. */
 data class PersonalRow(val event: Event, val chat: ChatUnread?, val requests: Int, val organizing: Boolean)
 
@@ -105,8 +102,8 @@ sealed interface HomeIntent {
     data object ShowMoreFeed : HomeIntent
     /** Чип над сіткою. */
     data class SelectFeedFilter(val filter: FeedFilter) : HomeIntent
-    /** Рядок «Планів поки нема» і підвал стрічки: новий редактор, гостя спершу до входу. */
-    data object CreateEvent : HomeIntent
+    /** Плашка «Організувати подію» вгорі й підвал стрічки: новий редактор, гостя спершу до входу. [from] — `home_top` чи `home_footer`. */
+    data class CreateEvent(val from: String) : HomeIntent
     data object OpenMap : HomeIntent
     data object OpenProfile : HomeIntent
     /** «Мої події» біля блоку «Ваше». */

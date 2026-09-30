@@ -54,6 +54,9 @@ data class Event(
     /** Подія, до якої можна прийти, а не лише подивитись. */
     val isCommunity get() = gathering != null
 
+    /** Зустріч від людини з вільним місцем, не скасована: те, заради чого застосунок, і що головна ставить першим. */
+    val isOpenRoom get() = gathering?.isFull == false && !isCancelled
+
     /** Організатор або джерело. Null — зіпсований рядок. */
     val publisherName get() = gathering?.organizerName?.takeIf { it.isNotBlank() } ?: listing?.sourceName
 

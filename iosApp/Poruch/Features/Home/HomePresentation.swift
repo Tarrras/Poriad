@@ -142,8 +142,8 @@ struct PersonalRow: Identifiable {
     var id: String { event.id }
 }
 
-/// Кількість великих карток над сіткою «У місті».
-let homeHeroCount = 3
+/// Кількість великих карток над сіткою «У місті»: одне число з домену, бо стрічка кладе в них зустрічі від людей.
+let homeHeroCount = Int(HomeRules.shared.HERO_COUNT)
 /// Більше за це «для вас» перестає бути добіркою.
 let homeSuggestedLimit = 4
 /// Скільки результатів пошуку показує головна.

@@ -51,6 +51,53 @@ class HomeRulesTest {
         assertTrue(feed().isEmpty())
     }
 
+    // ---- Зустрічі від людей
+
+    private fun room(id: String, seatsLeft: Int = 3, status: EventStatus = EventStatus.PUBLISHED) =
+        event(id, gathering = Gathering("u", "Оксана", 8, 8 - seatsLeft, false), status = status)
+
+    private fun feedOf(forYou: List<Event> = emptyList(), city: List<Event> = emptyList(), following: List<Event> = emptyList()) =
+        HomeRules.feed(forYou, city, following).map { it.event.id }
+
+    @Test fun openRoomsTakeTheBigCardsBeforeTheListings() {
+        val city = listOf(event("c1"), event("c2"), event("c3"), room("r1"), room("r2"))
+        // Афіша стоїть вище за кімнати в рангу міста, а на головній — навпаки.
+        assertEquals(listOf("r1", "r2"), feedOf(city = city).take(2))
+    }
+
+    @Test fun onlyHeroCountRoomsAreFrontLoadedTheRestGoFirstInEachRound() {
+        val rooms = (1..5).map { room("r$it") }
+        val listings = (1..5).map { event("c$it") }
+        val ids = feedOf(city = listings + rooms)
+        assertEquals(listOf("r1", "r2", "r3"), ids.take(HomeRules.HERO_COUNT))
+        // Далі по колу: кімната, афіша, кімната, афіша… Кімнати не витісняють афішу зовсім.
+        assertEquals(listOf("r4", "c1", "r5", "c2"), ids.drop(HomeRules.HERO_COUNT).take(4))
+        assertEquals(10, ids.size)
+    }
+
+    @Test fun fullOrCancelledRoomsAreNotPushedForward() {
+        val city = listOf(event("c1"), room("full", seatsLeft = 0), room("gone", status = EventStatus.CANCELLED), event("c2"))
+        assertEquals(listOf("c1", "full", "gone", "c2"), feedOf(city = city))
+    }
+
+    @Test fun aRoomStandsOnceAndKeepsItsStrongestLabel() {
+        val r = room("r1")
+        val result = HomeRules.feed(forYou = listOf(r), city = listOf(r, event("c1")), following = emptyList())
+        assertEquals(listOf("r1" to FeedSource.FOR_YOU, "c1" to FeedSource.CITY), result.map { it.event.id to it.source })
+    }
+
+    @Test fun roomsFromForYouComeBeforeRoomsFromTheCity() {
+        val ids = feedOf(forYou = listOf(room("mine")), city = listOf(room("other"), event("c1")))
+        assertEquals(listOf("mine", "other"), ids.take(2))
+    }
+
+    @Test fun noRoomsMeansTheOldOrder() {
+        assertEquals(
+            listOf("a1", "c1", "f1", "a2", "c2"),
+            feedOf(forYou = listOf(event("a1"), event("a2")), city = listOf(event("c1"), event("c2")), following = listOf(event("f1")))
+        )
+    }
+
     // ---- Найближчий план
 
     @Test fun planIsLeadWhenSoonOrWaitedFor() {

@@ -55,7 +55,7 @@ class HomeViewModel(private val app: PoruchApp) : MviViewModel<HomeState, HomeIn
         val shown = personal.mapTo(HashSet()) { it.event.id }
         // Усі свої плани, а не лише три з «Ваше»: решта живе в «Моїх подіях», а в місті стояла б безіменним постером.
         val all = HomeRules.feed(suggested, city, followed, mineFirst.mapTo(HashSet()) { it.id })
-        val rest = all.drop(HERO_COUNT)
+        val rest = all.drop(HomeRules.HERO_COUNT)
         val chips = HomeRules.chips(rest, now, zoneId)
         val filter = feedFilter.takeIf { it in chips } ?: FeedFilter()
         return copy(
@@ -66,7 +66,7 @@ class HomeViewModel(private val app: PoruchApp) : MviViewModel<HomeState, HomeIn
             personal = personal,
             moreWaiting = waiting.mapTo(HashSet()) { it.id }.count { it !in shown },
             followed = followed,
-            feed = all.take(HERO_COUNT) + HomeRules.apply(rest, filter, now, zoneId),
+            feed = all.take(HomeRules.HERO_COUNT) + HomeRules.apply(rest, filter, now, zoneId),
             chips = chips,
             feedFilter = filter,
             totalFound = home.totalFound,
@@ -127,8 +127,8 @@ class HomeViewModel(private val app: PoruchApp) : MviViewModel<HomeState, HomeIn
         HomeIntent.ShowMoreFeed -> reduce { copy(feedLimit = feedLimit + HomeRules.FEED_PAGE) }
         // Чип міняє й сітку, а її збирає `fold`: перезбираємо зі свіжого спільного стану.
         is HomeIntent.SelectFeedFilter -> reduce { copy(feedFilter = intent.filter, feedLimit = HomeRules.FEED_PAGE).fold(app.state.value) }
-        HomeIntent.CreateEvent -> {
-            app.createStarted("home")
+        is HomeIntent.CreateEvent -> {
+            app.createStarted(intent.from)
             send(HomeEffect.Navigate(HomeDestination.EDITOR))
         }
         HomeIntent.OpenMap -> send(HomeEffect.Navigate(HomeDestination.MAP))

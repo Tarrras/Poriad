@@ -80,7 +80,17 @@ fun HomeScreen(state: HomeState, onIntent: (HomeIntent) -> Unit) {
                     )
                 }
             } else {
-                item(key = "yours") {
+                // Головна одиниця застосунку — зустріч від людини: заклик створити її стоїть першим, як колись «Організувати».
+                item(key = "create") {
+                    Box(Modifier.padding(top = Spacing.xxl)) {
+                        CreateEventCard(
+                            stringResource(R.string.home_create_title), stringResource(R.string.home_create_subtitle),
+                            { onIntent(HomeIntent.CreateEvent("home_top")) }, Modifier.padding(horizontal = Spacing.page)
+                        )
+                    }
+                }
+                // Людині без планів і підписок «Ваше» не потрібне: створити подію їй пропонує плашка вгорі.
+                if (!state.signedIn || state.personal.isNotEmpty() || state.followed.isNotEmpty()) item(key = "yours") {
                     Box(Modifier.padding(top = Spacing.xxl)) {
                         if (state.signedIn) PersonalSection(state, onIntent) else BannerCard(
                             stringResource(R.string.guest_home_slim), null,
@@ -192,10 +202,7 @@ private fun SearchFilters(state: HomeState, onIntent: (HomeIntent) -> Unit) {
 /** Обкладинка-плитка блоку «Ваше». */
 private val YourTile = 52.dp
 
-/**
- * «Ваше»: найближчий план карткою з діями, решта планів і підписки — рядками під нею. Гостю блоку нема.
- * Блок є завжди, поки людина увійшла: без планів він кличе створити подію, а не зникає.
- */
+/** «Ваше»: найближчий план карткою з діями, решта планів і підписки — рядками під нею. Гостю блоку нема, як і людині без планів і підписок. */
 @Composable
 private fun PersonalSection(state: HomeState, onIntent: (HomeIntent) -> Unit) {
     val now = kotlin.time.Clock.System.now()
@@ -204,7 +211,6 @@ private fun PersonalSection(state: HomeState, onIntent: (HomeIntent) -> Unit) {
     val lead = state.personal.firstOrNull { HomeRules.isLead(it.event, it.chat != null || it.requests > 0, now, zoneId) }
     val inset = Modifier.padding(start = Spacing.lg + YourTile + Spacing.md)
     val rows = buildList<@Composable () -> Unit> {
-        if (state.personal.isEmpty()) add { EmptyPlansRow(onIntent) }
         state.personal.filter { it !== lead }.forEach { row -> add { PlanRow(row, onIntent) } }
         if (state.moreWaiting > 0) add { WaitingRow(state.moreWaiting, onIntent) }
         if (state.followed.isNotEmpty()) add { FollowsRow(state.followed) { onIntent(HomeIntent.OpenFollows) } }
@@ -232,15 +238,6 @@ private fun YourTileIcon(icon: ImageVector) {
     Box(Modifier.size(YourTile).background(colors.surfaceMuted, Radius.sm), contentAlignment = Alignment.Center) {
         Icon(icon, null, Modifier.size(20.dp), tint = colors.ink)
     }
-}
-
-/** Планів нема: рядок кличе створити, а вибрати з афіші можна нижче. */
-@Composable
-private fun EmptyPlansRow(onIntent: (HomeIntent) -> Unit) {
-    YourRow(
-        overline = null, title = stringResource(R.string.home_plans_empty), subtitle = stringResource(R.string.home_plans_empty_hint),
-        onClick = { onIntent(HomeIntent.CreateEvent) }, tile = { YourTileIcon(Icons.Outlined.Add) }
-    ) { Icon(Icons.Outlined.ChevronRight, null, Modifier.size(18.dp), tint = Poruch.colors.inkTertiary) }
 }
 
 /** Ті, що чекають відповіді, але в «Ваше» не влізли: їх видно лише в «Моїх подіях». */
@@ -433,8 +430,8 @@ private fun lane(source: FeedSource): String? = when (source) {
 private fun LazyListScope.cityFeed(state: HomeState, onIntent: (HomeIntent) -> Unit) {
     when {
         state.feed.isNotEmpty() -> {
-            val picks = state.feed.take(HERO_COUNT)
-            val rest = state.feed.drop(HERO_COUNT)
+            val picks = state.feed.take(HomeRules.HERO_COUNT)
+            val rest = state.feed.drop(HomeRules.HERO_COUNT)
             item(key = "city") {
                 Column(Modifier.padding(top = Spacing.xxl), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
                     SectionHeader(
@@ -536,6 +533,8 @@ private fun PosterCard(
     // Скасоване й знята афіша вже сказані підписом внизу, двічі не пишемо.
     val state = if (event.gathering == null || event.isCancelled) null else eventState(event, waitlisted)
     val badge = state ?: lane(entry.source)?.let { it to BadgeTone.Neutral }
+    // Ні стану, ні «Для вас»: кімнату однаково видно як зустріч від людей.
+    val fromPeople = badge == null && event.gathering != null
     // «Від 390 ₴» лише коли джерело сказало ціну; для кімнати — «3 з 8».
     val chip = event.gathering?.let { stringResource(R.string.attendees_short, it.attendeeCount, it.capacity) }
         ?: event.listing?.takeIf { it.isFree == true || it.priceMin != null }?.let { listingPrice(it) }
@@ -553,6 +552,9 @@ private fun PosterCard(
         Box(Modifier.fillMaxWidth().aspectRatio(4f / 5f).clip(Radius.lg)) {
             EventArt(event, Modifier.fillMaxSize(), glyph = 130.dp)
             badge?.let { (text, tone) -> Box(Modifier.align(Alignment.TopStart).padding(Spacing.sm)) { StatusBadge(text, tone) } }
+            if (fromPeople) Box(Modifier.align(Alignment.TopStart).padding(Spacing.sm)) {
+                StatusBadge(stringResource(R.string.from_people), BadgeTone.Neutral, PoruchIcons.social)
+            }
             SaveButton(saved, onSave, Modifier.align(Alignment.TopEnd).padding(Spacing.xs))
             chip?.let { Box(Modifier.align(Alignment.BottomStart).padding(Spacing.sm)) { StatusBadge(it) } }
         }
@@ -587,7 +589,7 @@ private fun MoreRows(state: HomeState, onIntent: (HomeIntent) -> Unit) {
             HairLine(Modifier.padding(start = Spacing.lg + 40.dp + Spacing.md))
             LinkRow(
                 PoruchIcons.sparkle, stringResource(R.string.create_banner_title), stringResource(R.string.create_banner_subtitle),
-                { onIntent(HomeIntent.CreateEvent) }
+                { onIntent(HomeIntent.CreateEvent("home_footer")) }
             )
         }
     }

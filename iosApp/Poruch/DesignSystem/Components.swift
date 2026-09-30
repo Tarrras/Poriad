@@ -679,6 +679,11 @@ func eventState(_ event: Event, waitlisted: Bool = false) -> (String, BadgeTone,
     return nil
 }
 
+/// Подія від людини, а не з афіші: підпис походження, пара до «Афіша · джерело». Стан кімнати («Ви йдете», «Лишилось 2») важливіший.
+func communityBadge(_ event: Event) -> (String, BadgeTone, String?)? {
+    event.gathering == nil ? nil : ("Від людей", .neutral, "person.2")
+}
+
 /// Рядок стану над карткою. Афіша завжди підписана джерелом (docs/event-ingestion.md §8); місця лише в кімнати.
 func eventBadge(_ event: Event, waitlisted: Bool = false) -> (String, BadgeTone, String?)? {
     if let state = eventState(event, waitlisted: waitlisted) { return state }
@@ -1037,6 +1042,34 @@ struct EventMapCard: View {
 
 // ---- Композиційні картки головної
 
+/// Заклик створити подію: чорна плашка на всю ширину під шапкою головної. Головна одиниця застосунку — зустріч від людини,
+/// тож дорога до неї видна одразу, а не лише плюсом у таббарі й рядком унизу. Гостя тап веде до входу.
+struct CreateEventCard: View {
+    let title: String
+    let subtitle: String
+    let action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: Space.md) {
+                Image(systemName: "plus").font(.system(size: 17, weight: .semibold)).foregroundStyle(Palette.onBrand)
+                    .frame(width: 44, height: 44).background(Palette.onBrand.opacity(0.14), in: Circle())
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).font(PoruchFont.cardName).kerning(-0.2).foregroundStyle(Palette.onBrand)
+                    Text(subtitle).font(PoruchFont.caption).foregroundStyle(Palette.onBrand.opacity(0.72))
+                        .multilineTextAlignment(.leading)
+                }
+                Spacer(minLength: Space.sm)
+                Image(systemName: "arrow.right").font(.system(size: 13, weight: .bold)).foregroundStyle(Palette.onBrand)
+            }
+            .padding(.horizontal, Space.lg).padding(.vertical, Space.md)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: Corner.lg, style: .continuous).fill(Palette.brand))
+        }
+        .buttonStyle(PressableStyle())
+        .accessibilityElement(children: .combine)
+    }
+}
+
 /// Велика картка-афіша: обкладинка на всю висоту, текст на затемненні внизу. Головний акцент екрана; на головній їх кілька, гортаються.
 struct EventHeroCard: View {
     let event: Event
@@ -1078,7 +1111,7 @@ struct EventHeroCard: View {
                     if let onSave { SaveButton(saved: saved, action: onSave).padding(Space.md) }
                 }
                 .overlay(alignment: .topLeading) {
-                    if let badge = eventBadge(event) {
+                    if let badge = eventBadge(event) ?? communityBadge(event) {
                         StatusBadge(text: badge.0, tone: badge.1, symbol: badge.2, onPhoto: true).padding(Space.lg)
                     }
                 }

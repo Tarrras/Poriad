@@ -8,8 +8,8 @@ struct HomeView: View {
     var openProfile: () -> Void
     /// Вкладка «Мої події»: посилання біля блоку «Ваше».
     var openMyEvents: () -> Void
-    /// Редактор нової події: порожнє «Ваше» і підвал стрічки. Гостя спершу веде до входу.
-    var createEvent: () -> Void
+    /// Редактор нової події; аргумент — звідки тап (`home_top`, `home_footer`) для аналітики. Гостя спершу веде до входу.
+    var createEvent: (String) -> Void
     /// Відкрити деталі. Шлях стосу тримає корінь (`RootView.homePath`).
     var openEvent: (String) -> Void
     /// Прямо в чат події, минаючи деталі.
@@ -85,6 +85,11 @@ struct HomeView: View {
                             message: "Шукаємо \(view.searchScope)"
                         ).padding(.horizontal, Space.page).padding(.top, Space.section)
                     } else {
+                        // Головна одиниця застосунку — зустріч від людини: заклик створити її стоїть першим, як колись «Організувати».
+                        CreateEventCard(
+                            title: "Організувати подію", subtitle: "Зберіть людей на настолки, пробіжку чи кіно",
+                            action: { createEvent("home_top") }
+                        ).padding(.horizontal, Space.page)
                         if view.signedIn {
                             personalSection(view)
                         } else {
@@ -180,9 +185,13 @@ struct HomeView: View {
         }
     }
 
-    /// «Ваше»: найближчий план карткою з діями, решта планів і підписки — рядками під нею. Гостю блоку нема.
-    /// Блок є завжди, поки людина увійшла: без планів він кличе створити подію, а не зникає.
-    private func personalSection(_ view: HomePresentation) -> some View {
+    /// «Ваше»: найближчий план карткою з діями, решта планів і підписки — рядками під нею. Гостю блоку нема, як і людині без
+    /// планів і підписок: створити подію їй пропонує плашка вгорі, а порожній рядок «Планів нема» лише дублював би її.
+    @ViewBuilder private func personalSection(_ view: HomePresentation) -> some View {
+        if !view.personal.isEmpty || !view.followed.isEmpty { personalBlock(view) }
+    }
+
+    private func personalBlock(_ view: HomePresentation) -> some View {
         // Велика картка — першому плану, що скоро чи чекає на людину; минула чи далека подія лишається рядком.
         let now = nowInstant()
         let zone = TimeZone.current.identifier
@@ -192,7 +201,6 @@ struct HomeView: View {
         let lead = leadIndex.map { view.personal[$0] }
         let rows = view.personal.enumerated().filter { $0.offset != leadIndex }.map(\.element)
         var items: [AnyView] = []
-        if view.personal.isEmpty { items.append(AnyView(emptyPlansRow)) }
         items += rows.map { row in AnyView(PlanRow(row: row, open: { open(row.event.id, from: "home_your") }, chat: { openChat(row.event) })) }
         if view.moreWaiting > 0 { items.append(AnyView(waitingRow(view.moreWaiting))) }
         if !view.followed.isEmpty { items.append(AnyView(followsRow(view.followed))) }
@@ -229,17 +237,6 @@ struct HomeView: View {
             subtitle: (events.first?.displayTitle ?? "") + (more > 0 ? " та ще \(more)" : ""), open: openFollows
         ) {
             Image(systemName: "bell").font(.system(size: 17, weight: .medium)).foregroundStyle(Palette.ink)
-                .frame(width: yourTile, height: yourTile)
-                .background(Palette.surfaceMuted, in: RoundedRectangle(cornerRadius: Corner.sm, style: .continuous))
-        } trailing: {
-            Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold)).foregroundStyle(Palette.inkTertiary)
-        }
-    }
-
-    /// Планів нема: рядок кличе створити, а вибрати з афіші можна нижче.
-    private var emptyPlansRow: some View {
-        YourRow(overline: nil, title: "Планів поки нема", subtitle: "Оберіть подію або створіть свою", open: createEvent) {
-            Image(systemName: "plus").font(.system(size: 17, weight: .medium)).foregroundStyle(Palette.ink)
                 .frame(width: yourTile, height: yourTile)
                 .background(Palette.surfaceMuted, in: RoundedRectangle(cornerRadius: Corner.sm, style: .continuous))
         } trailing: {
@@ -352,7 +349,7 @@ struct HomeView: View {
                     value: view.totalFound > 0 ? "\(view.totalFound)" : nil, action: openMap
                 )
                 Divider().overlay(Palette.hairline).padding(.leading, Space.lg + 40 + Space.md)
-                LinkRow(symbol: "sparkles", title: "Маєте ідею зустрічі?", subtitle: "Опублікуйте подію за три кроки", action: createEvent)
+                LinkRow(symbol: "sparkles", title: "Маєте ідею зустрічі?", subtitle: "Опублікуйте подію за три кроки") { createEvent("home_footer") }
             }
         }.padding(.horizontal, Space.page)
     }
@@ -678,6 +675,8 @@ private struct PosterCard: View {
                             StatusBadge(text: state.0, tone: state.1, symbol: state.2, onPhoto: true).padding(Space.sm)
                         } else if let label = lane(entry.source) {
                             StatusBadge(text: label, onPhoto: true).padding(Space.sm)
+                        } else if let community = communityBadge(event) {
+                            StatusBadge(text: community.0, symbol: community.2, onPhoto: true).padding(Space.sm)
                         }
                     }
                     .overlay(alignment: .topTrailing) { SaveButton(saved: saved, action: onSave).padding(Space.xs) }
