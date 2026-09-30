@@ -38,30 +38,62 @@ object HomeRules {
     /** Скільки великих карток над сіткою «У місті»: їх гортають, наступна визирає з-за краю. */
     const val HERO_COUNT = 3
 
+    /** Кімнат від людей з цього числа стає досить для власної секції «Від людей»; менше — вони лише першими в «У місті». */
+    const val PEOPLE_SECTION_MIN = 5
+
+    /** Скільки постерів у рейці «Від людей»: решта кімнат ідуть у стрічку «У місті» звичайним порядком. */
+    const val PEOPLE_SECTION_MAX = 8
+
+    /** Зустрічі від людей з вільним місцем у порядку списків: «Для вас», місто, підписки. Не більш як раз, без [skip]. */
+    private fun openRooms(forYou: List<Event>, city: List<Event>, following: List<Event>, skip: Set<String>): List<Event> {
+        val seen = skip.toHashSet()
+        return (forYou + city + following).filter { it.isOpenRoom && seen.add(it.id) }
+    }
+
+    /** Підпис у стрічці дає найсильніший сигнал: підписка, потім смак, інакше просто місто. */
+    private fun sourceOf(event: Event, picked: Set<String>, followed: Set<String>) = when (event.id) {
+        in followed -> FeedSource.FOLLOWING
+        in picked -> FeedSource.FOR_YOU
+        else -> FeedSource.CITY
+    }
+
+    /**
+     * Секція «Від людей»: зустрічі з вільним місцем окремою рейкою над стрічкою міста. Лише коли їх набралось
+     * [PEOPLE_SECTION_MIN] і більше: з двома кімнатами порожня на вигляд рейка гірша за одну велику картку, тож менше —
+     * порожньо, і [feed] ставить кімнати першими сам. У секцію йдуть перші [PEOPLE_SECTION_MAX]. [skip] — те, що людина
+     * вже бачить вище («Ваше»): свої зустрічі для неї не «від людей».
+     */
+    fun people(forYou: List<Event>, city: List<Event>, following: List<Event>, skip: Set<String> = emptySet()): List<FeedEntry> {
+        val rooms = openRooms(forYou, city, following, skip)
+        if (rooms.size < PEOPLE_SECTION_MIN) return emptyList()
+        val picked = forYou.mapTo(HashSet()) { it.id }
+        val followed = following.mapTo(HashSet()) { it.id }
+        return rooms.take(PEOPLE_SECTION_MAX).map { FeedEntry(it, sourceOf(it, picked, followed)) }
+    }
+
     /**
      * Одна стрічка з трьох списків: по одній події з кожного по колу, щоб жодне джерело не витіснило решту.
      * Подія стоїть раз, там, де її знайдено першою; підпис дає найсильніший сигнал: підписка, потім смак.
-     * [skip] — те, що людина вже бачить вище («Ваше»).
+     * [skip] — те, що людина вже бачить вище («Ваше», «Від людей»).
      *
-     * Зустрічі від людей з вільним місцем ([Event.isOpenRoom]) ідуть уперед: головна одиниця застосунку — кімната,
-     * афіша лише тло (docs/growth-2026-09.md §3). Ранг за смаком їй місця не гарантує: кімната поза відповідями
-     * стояла б нижче афіші, що збіглась. Тож перші [HERO_COUNT] кімнат займають великі картки, а решта кімнат
-     * стоять першими в кожному колі. Порядок серед кімнат — ранг списків: «Для вас», місто, підписки.
+     * [roomsFirst]: зустрічі від людей з вільним місцем ([Event.isOpenRoom]) ідуть уперед: головна одиниця застосунку —
+     * кімната, афіша лише тло (docs/growth-2026-09.md §3). Ранг за смаком їй місця не гарантує: кімната поза відповідями
+     * стояла б нижче афіші, що збіглась. Тож перші [HERO_COUNT] кімнат займають великі картки, а решта кімнат стоять
+     * першими в кожному колі. Порядок серед кімнат — ранг списків. Коли кімнат стільки, що їм дано власну секцію
+     * ([people]), передають `false`: тоді вони не повторюються великими картками, а решта йдуть як будь-яка подія.
      */
-    fun feed(forYou: List<Event>, city: List<Event>, following: List<Event>, skip: Set<String> = emptySet()): List<FeedEntry> {
+    fun feed(
+        forYou: List<Event>, city: List<Event>, following: List<Event>,
+        skip: Set<String> = emptySet(), roomsFirst: Boolean = true
+    ): List<FeedEntry> {
         val followed = following.mapTo(HashSet()) { it.id }
         val picked = forYou.mapTo(HashSet()) { it.id }
-        val rooms = (forYou + city + following).filter { it.isOpenRoom }
+        val rooms = if (roomsFirst) openRooms(forYou, city, following, skip) else emptyList()
         val seen = skip.toHashSet()
         val feed = ArrayList<FeedEntry>()
         fun add(event: Event): Boolean {
             if (!seen.add(event.id)) return false
-            val source = when (event.id) {
-                in followed -> FeedSource.FOLLOWING
-                in picked -> FeedSource.FOR_YOU
-                else -> FeedSource.CITY
-            }
-            feed += FeedEntry(event, source)
+            feed += FeedEntry(event, sourceOf(event, picked, followed))
             return true
         }
         rooms.forEach { if (feed.size < HERO_COUNT) add(it) }

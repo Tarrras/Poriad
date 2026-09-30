@@ -91,6 +91,54 @@ class HomeRulesTest {
         assertEquals(listOf("mine", "other"), ids.take(2))
     }
 
+    // ---- Секція «Від людей»
+
+    private fun rooms(count: Int, prefix: String = "r") = (1..count).map { room("$prefix$it") }
+    private fun people(city: List<Event> = emptyList(), forYou: List<Event> = emptyList(), skip: Set<String> = emptySet()) =
+        HomeRules.people(forYou, city, emptyList(), skip)
+
+    @Test fun peopleSectionWaitsForEnoughRooms() {
+        assertTrue(people(city = rooms(HomeRules.PEOPLE_SECTION_MIN - 1)).isEmpty())
+        assertEquals(HomeRules.PEOPLE_SECTION_MIN, people(city = rooms(HomeRules.PEOPLE_SECTION_MIN)).size)
+    }
+
+    @Test fun peopleSectionIsCappedAndKeepsListOrder() {
+        val ids = people(forYou = listOf(room("mine")), city = rooms(12)).map { it.event.id }
+        assertEquals(HomeRules.PEOPLE_SECTION_MAX, ids.size)
+        assertEquals(listOf("mine", "r1", "r2"), ids.take(3))
+    }
+
+    @Test fun peopleSectionSkipsFullCancelledAndAlreadyShownRooms() {
+        val city = listOf(room("full", seatsLeft = 0), room("gone", status = EventStatus.CANCELLED), room("own")) + rooms(HomeRules.PEOPLE_SECTION_MIN)
+        val ids = people(city = city, skip = setOf("own")).map { it.event.id }
+        assertEquals(rooms(HomeRules.PEOPLE_SECTION_MIN).map { it.id }, ids)
+    }
+
+    @Test fun peopleSectionLabelsEntriesByStrongestSignal() {
+        val followed = room("f")
+        val result = HomeRules.people(forYou = listOf(room("y")), city = rooms(HomeRules.PEOPLE_SECTION_MIN - 2), following = listOf(followed))
+        assertEquals(
+            listOf("y" to FeedSource.FOR_YOU, "r1" to FeedSource.CITY, "r2" to FeedSource.CITY, "r3" to FeedSource.CITY, "f" to FeedSource.FOLLOWING),
+            result.map { it.event.id to it.source }
+        )
+    }
+
+    @Test fun roomsFirstFalseLeavesRoomsToTheirOwnSection() {
+        val city = listOf(event("c1"), event("c2"), event("c3")) + rooms(6)
+        val shown = people(city = city).map { it.event.id }.toSet()
+        val ids = HomeRules.feed(emptyList(), city, emptyList(), skip = shown, roomsFirst = false).map { it.event.id }
+        // Секція взяла вісім із шести — усі шість; у стрічці лишились лише афіші, кімнати не повторюються.
+        assertEquals(listOf("c1", "c2", "c3"), ids)
+    }
+
+    @Test fun leftoverRoomsBeyondTheCapFlowLikeAnyEventWhenTheSectionExists() {
+        val city = listOf(event("c1")) + rooms(HomeRules.PEOPLE_SECTION_MAX + 2)
+        val shown = people(city = city).map { it.event.id }.toSet()
+        val ids = HomeRules.feed(emptyList(), city, emptyList(), skip = shown, roomsFirst = false).map { it.event.id }
+        // Дві зайві кімнати не рвуться вперед великими картками: ідуть у порядку списку міста.
+        assertEquals(listOf("c1", "r${HomeRules.PEOPLE_SECTION_MAX + 1}", "r${HomeRules.PEOPLE_SECTION_MAX + 2}"), ids)
+    }
+
     @Test fun noRoomsMeansTheOldOrder() {
         assertEquals(
             listOf("a1", "c1", "f1", "a2", "c2"),

@@ -15,6 +15,8 @@ struct HomePresentation {
     let personal: [PersonalRow]
     /// Скільки подій, що чекають відповіді (чат, запит), у «Ваше» не влізло: рядок «Чекають відповіді: ще N».
     let moreWaiting: Int
+    /// «Від людей»: зустрічі з вільним місцем окремою рейкою, коли їх набралось досить (`HomeRules.people`); інакше порожньо.
+    let people: [FeedEntry]
     /// «У місті»: одна стрічка з «Для вас», афіші міста й підписок.
     let feed: [FeedEntry]
     /// Чипи над сіткою (без великих карток): що з цієї стрічки можна відфільтрувати. Порожньо — рядка нема.
@@ -121,12 +123,17 @@ struct HomePresentation {
             .map { PersonalRow(event: $0, chat: chats[$0.id], requests: asks[$0.id]?.intValue ?? 0, organizing: state?.organizes(event: $0) == true) }
         moreWaiting = Set(waiting.map(\.id)).subtracting(personal.map(\.event.id)).count
         // Усі свої плани, а не лише три з «Ваше»: решта живе в «Моїх подіях», а в місті стояла б безіменним постером.
-        feed = HomeRules.shared.feed(forYou: suggested, city: city, following: followed, skip: Set(mineFirst.map(\.id)))
+        let mineIds = Set(mineFirst.map(\.id))
+        people = HomeRules.shared.people(forYou: suggested, city: city, following: followed, skip: mineIds)
+        // Кімнати, що дістали власну секцію, у стрічці не повторюємо й уперед їх більше не ставимо.
+        feed = HomeRules.shared.feed(
+            forYou: suggested, city: city, following: followed, skip: mineIds.union(people.map(\.event.id)), roomsFirst: people.isEmpty
+        )
         chips = HomeRules.shared.chips(entries: Array(feed.dropFirst(homeHeroCount)), now: now, zoneId: TimeZone.current.identifier)
     }
 
-    /// У «Ваше» й «У місті» нема нічого: тоді стрічка каже про це словами.
-    var isEmpty: Bool { personal.isEmpty && feed.isEmpty }
+    /// У «Ваше», «Від людей» і «У місті» нема нічого: тоді стрічка каже про це словами.
+    var isEmpty: Bool { personal.isEmpty && people.isEmpty && feed.isEmpty }
 
     func isSaved(_ event: Event) -> Bool { savedIds.contains(event.id) }
     func isWaitlisted(_ event: Event) -> Bool { waitlistedIds.contains(event.id) }

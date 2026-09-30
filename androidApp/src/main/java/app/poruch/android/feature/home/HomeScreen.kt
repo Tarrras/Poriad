@@ -81,23 +81,21 @@ fun HomeScreen(state: HomeState, onIntent: (HomeIntent) -> Unit) {
                 }
             } else {
                 // Головна одиниця застосунку — зустріч від людини: заклик створити її стоїть першим, як колись «Організувати».
+                // Гостю під плашкою лише тихий рядок входу (без картки): дві картки поспіль товпились би.
                 item(key = "create") {
-                    Box(Modifier.padding(top = Spacing.xxl)) {
+                    Column(Modifier.padding(top = Spacing.xxl), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                         CreateEventCard(
                             stringResource(R.string.home_create_title), stringResource(R.string.home_create_subtitle),
                             { onIntent(HomeIntent.CreateEvent("home_top")) }, Modifier.padding(horizontal = Spacing.page)
                         )
+                        if (!state.signedIn) GuestLoginRow(onIntent)
                     }
                 }
                 // Людині без планів і підписок «Ваше» не потрібне: створити подію їй пропонує плашка вгорі.
-                if (!state.signedIn || state.personal.isNotEmpty() || state.followed.isNotEmpty()) item(key = "yours") {
-                    Box(Modifier.padding(top = Spacing.xxl)) {
-                        if (state.signedIn) PersonalSection(state, onIntent) else BannerCard(
-                            stringResource(R.string.guest_home_slim), null,
-                            { onIntent(HomeIntent.OpenProfile) }, Modifier.padding(horizontal = Spacing.page), PoruchIcons.lock
-                        )
-                    }
+                if (state.signedIn && (state.personal.isNotEmpty() || state.followed.isNotEmpty())) item(key = "yours") {
+                    Box(Modifier.padding(top = Spacing.xxl)) { PersonalSection(state, onIntent) }
                 }
+                if (state.people.isNotEmpty()) item(key = "people") { PeopleSection(state, onIntent) }
                 cityFeed(state, onIntent)
                 // Кінець стрічки не глухий кут: далі мапа чи власна подія.
                 if (state.feed.isNotEmpty()) item(key = "next") { MoreRows(state, onIntent) }
@@ -194,6 +192,49 @@ private fun SearchFilters(state: HomeState, onIntent: (HomeIntent) -> Unit) {
                 PoruchChip(stringResource(categoryLabel(key)), state.searchCategory == key, {
                     onIntent(HomeIntent.SearchCategory(if (state.searchCategory == key) null else key))
                 }, dot = key)
+            }
+        }
+    }
+}
+
+/** Рядок входу для гостя: плашка вгорі — єдина головна дія, а вхід — для тих, хто вже має профіль, тож без картки й заливки. */
+@Composable
+private fun GuestLoginRow(onIntent: (HomeIntent) -> Unit) {
+    val colors = Poruch.colors
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = Spacing.page).minimumInteractiveComponentSize()
+            .pressable(pressedScale = 1f) { onIntent(HomeIntent.OpenProfile) }.padding(horizontal = Spacing.xs),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
+    ) {
+        Icon(PoruchIcons.lock, null, Modifier.size(14.dp), tint = colors.inkSecondary)
+        Text(
+            stringResource(R.string.guest_home_slim), style = MaterialTheme.typography.labelMedium, color = colors.inkSecondary,
+            modifier = Modifier.weight(1f)
+        )
+        Icon(Icons.Outlined.ChevronRight, null, Modifier.size(16.dp), tint = colors.inkSecondary)
+    }
+}
+
+/** Ширина постера в рейці «Від людей»: як в одній колонці сітки, щоб третій визирав із-за краю. */
+private val PeopleCardWidth = 176.dp
+
+/**
+ * «Від людей»: зустрічі з вільним місцем окремою рейкою, коли їх набралось досить ([HomeRules.people]). Ті самі постери,
+ * що в сітці міста, але без підпису походження: заголовок секції вже каже, що це люди.
+ */
+@Composable
+private fun PeopleSection(state: HomeState, onIntent: (HomeIntent) -> Unit) {
+    Column(Modifier.padding(top = Spacing.xxl), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+        SectionHeader(stringResource(R.string.from_people), Modifier.padding(horizontal = Spacing.page))
+        Row(
+            Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = Spacing.page),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.md), verticalAlignment = Alignment.Top
+        ) {
+            state.people.forEach { entry ->
+                PosterCard(
+                    entry, entry.event.id in state.savedIds, entry.event.id in state.waitlistedIds,
+                    { onIntent(HomeIntent.ToggleSaved(entry.event.id)) }, Modifier.width(PeopleCardWidth), showOrigin = false
+                ) { onIntent(HomeIntent.OpenEvent(entry.event.id, "home_people")) }
             }
         }
     }
@@ -526,7 +567,9 @@ private fun HeroPager(picks: List<FeedEntry>, state: HomeState, onIntent: (HomeI
  */
 @Composable
 private fun PosterCard(
-    entry: FeedEntry, saved: Boolean, waitlisted: Boolean, onSave: () -> Unit, modifier: Modifier = Modifier, onClick: () -> Unit
+    entry: FeedEntry, saved: Boolean, waitlisted: Boolean, onSave: () -> Unit, modifier: Modifier = Modifier,
+    /** Підпис «Від людей» на кімнаті без стану: у секції «Від людей» він зайвий. */
+    showOrigin: Boolean = true, onClick: () -> Unit
 ) {
     val colors = Poruch.colors
     val event = entry.event
@@ -534,10 +577,10 @@ private fun PosterCard(
     val state = if (event.gathering == null || event.isCancelled) null else eventState(event, waitlisted)
     val badge = state ?: lane(entry.source)?.let { it to BadgeTone.Neutral }
     // Ні стану, ні «Для вас»: кімнату однаково видно як зустріч від людей.
-    val fromPeople = badge == null && event.gathering != null
-    // «Від 390 ₴» лише коли джерело сказало ціну; для кімнати — «3 з 8».
-    val chip = event.gathering?.let { stringResource(R.string.attendees_short, it.attendeeCount, it.capacity) }
-        ?: event.listing?.takeIf { it.isFree == true || it.priceMin != null }?.let { listingPrice(it) }
+    val fromPeople = showOrigin && badge == null && event.gathering != null
+    // «Від 390 ₴» лише коли джерело сказало ціну; для кімнати — «3/8» з гліфом людей, як на iOS, де бейдж капсом і «3 З 8» читалось б «3 3 8».
+    val chip: Pair<String, ImageVector?>? = event.gathering?.let { "${it.attendeeCount}/${it.capacity}" to PoruchIcons.social }
+        ?: event.listing?.takeIf { it.isFree == true || it.priceMin != null }?.let { listingPrice(it) to null }
     // Афіша завжди підписана джерелом (docs/event-ingestion.md §8); скасоване — теж словами.
     val note: Pair<String, Color>? = when {
         event.isCancelled -> stringResource(R.string.cancelled) to colors.danger
@@ -556,7 +599,7 @@ private fun PosterCard(
                 StatusBadge(stringResource(R.string.from_people), BadgeTone.Neutral, PoruchIcons.social)
             }
             SaveButton(saved, onSave, Modifier.align(Alignment.TopEnd).padding(Spacing.xs))
-            chip?.let { Box(Modifier.align(Alignment.BottomStart).padding(Spacing.sm)) { StatusBadge(it) } }
+            chip?.let { (text, icon) -> Box(Modifier.align(Alignment.BottomStart).padding(Spacing.sm)) { StatusBadge(text, BadgeTone.Neutral, icon) } }
         }
         Column(Modifier.padding(horizontal = Spacing.xs), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
             // Коли — найважливіше в афіші, тож і найтемніше в підписі, а не найблідіше.

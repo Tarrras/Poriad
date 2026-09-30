@@ -721,6 +721,21 @@ class PoruchAppTest {
         app.close()
     }
 
+    /** Відкрита кімната далеко за першими картками все одно доїжджає до головної: інакше «люди першими» діяло б випадково. */
+    @Test fun openRoomsFarDownTheFeedAreStillLoadedForTheHome()=runTest {
+        val events=Events()
+        val full=event("full",EventCategory.SOCIAL,"2090-03-02T19:00:00Z").copy(gathering=Gathering("organizer","Організатор",2,2,false))
+        events.results=(1..30).map { listed("l${it.toString().padStart(2,'0')}","2090-01-01T10:00:00Z") } +
+            event("room",EventCategory.SOCIAL,"2090-03-01T19:00:00Z") + full
+        events.inlineCards=0
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(1000); runCurrent()
+        val home=app.state.value.home.events.map { it.id }
+        assertTrue("room" in home,"an open room past the first cards is loaded")
+        assertFalse("full" in home,"a full room is not worth a card of its own")
+        assertEquals(events.cardRequests.flatten().distinct(),events.cardRequests.flatten(),"each card is asked for once")
+        app.close()
+    }
+
     /** Перечитування «моїх» без зміни смаку не пересортовує видачу: піни не перебудовуються. */
     @Test fun reloadingMineKeepsTheIndexWhenTasteIsTheSame()=runTest {
         val events=Events(); events.results=listOf(event("a",EventCategory.MUSIC,"2090-01-05T19:00:00Z"),event("b",EventCategory.ART,"2090-01-06T19:00:00Z"))

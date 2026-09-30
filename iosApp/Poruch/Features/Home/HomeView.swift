@@ -86,16 +86,16 @@ struct HomeView: View {
                         ).padding(.horizontal, Space.page).padding(.top, Space.section)
                     } else {
                         // Головна одиниця застосунку — зустріч від людини: заклик створити її стоїть першим, як колись «Організувати».
-                        CreateEventCard(
-                            title: "Організувати подію", subtitle: "Зберіть людей на настолки, пробіжку чи кіно",
-                            action: { createEvent("home_top") }
-                        ).padding(.horizontal, Space.page)
-                        if view.signedIn {
-                            personalSection(view)
-                        } else {
-                            BannerCard(title: "Увійти й зберігати події", symbol: "lock", action: openProfile)
-                                .padding(.horizontal, Space.page)
-                        }
+                        // Гостю під плашкою лише тихий рядок входу (без картки): дві картки поспіль товпились би.
+                        VStack(alignment: .leading, spacing: Space.xs) {
+                            CreateEventCard(
+                                title: "Організувати подію", subtitle: "Зберіть людей на настолки, пробіжку чи кіно",
+                                action: { createEvent("home_top") }
+                            )
+                            if !view.signedIn { guestLoginRow }
+                        }.padding(.horizontal, Space.page)
+                        if view.signedIn { personalSection(view) }
+                        peopleSection(view)
                         cityFeed(view)
                         // Кінець стрічки не глухий кут: далі мапа чи власна подія.
                         if !view.feed.isEmpty { moreRows(view) }
@@ -182,6 +182,46 @@ struct HomeView: View {
                     }
                 }
             }.railContentPadding(spread: 0)
+        }
+    }
+
+    /// Рядок входу для гостя: плашка вгорі — єдина головна дія, а вхід — для тих, хто вже має профіль, тож без картки й заливки.
+    private var guestLoginRow: some View {
+        Button(action: openProfile) {
+            HStack(spacing: Space.sm) {
+                Image(systemName: "lock").font(.system(size: 13, weight: .semibold))
+                Text("Увійти й зберігати події").font(PoruchFont.label)
+                Spacer(minLength: Space.sm)
+                Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold))
+            }
+            .foregroundStyle(Palette.inkSecondary)
+            .padding(.horizontal, Space.xs).frame(minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PressableStyle(pressedScale: 1))
+        .accessibilityLabel("Увійти й зберігати події")
+    }
+
+    /// «Від людей»: зустрічі з вільним місцем окремою рейкою, коли їх набралось досить (`HomeRules.people`). Ті самі постери,
+    /// що в сітці міста, але без підпису походження: заголовок секції вже каже, що це люди.
+    @ViewBuilder private func peopleSection(_ view: HomePresentation) -> some View {
+        if !view.people.isEmpty {
+            VStack(alignment: .leading, spacing: Space.md) {
+                SectionHeader(title: "Від людей").padding(.horizontal, Space.page)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(alignment: .top, spacing: Space.md) {
+                        ForEach(view.people, id: \.event.id) { entry in
+                            PosterCard(
+                                entry: entry, saved: view.isSaved(entry.event), waitlisted: view.isWaitlisted(entry.event),
+                                showsOrigin: false, onSave: { model.app.toggleSaved(id: entry.event.id) }
+                            ) { open(entry.event.id, from: "home_people") }
+                            .frame(width: peopleCardWidth)
+                        }
+                    }
+                }
+                .railContentPadding(spread: 0)
+                .zIndex(1)
+            }
         }
     }
 
@@ -635,21 +675,27 @@ private func lane(_ source: FeedSource) -> String? {
     }
 }
 
+/// Ширина постера в рейці «Від людей»: як в одній колонці сітки, щоб третій визирав із-за краю.
+private let peopleCardWidth: CGFloat = 176
+
 /// Постер у сітці «У місті»: обкладинка 4:5 без коробки, підпис просто на полотні. Ціна чи «3 з 8» — плашкою на фото,
 /// стан кімнати («Ви йдете», «Лишилось 2») — плашкою нагорі замість підпису «Для вас».
 private struct PosterCard: View {
     let entry: FeedEntry
     let saved: Bool
     let waitlisted: Bool
+    /// Підпис «Від людей» на кімнаті без стану: у секції «Від людей» він зайвий.
+    var showsOrigin = true
     let onSave: () -> Void
     let open: () -> Void
 
     private var event: Event { entry.event }
 
-    /// «Від 390 ₴» лише коли джерело сказало ціну; для кімнати — «3 з 8».
-    private var chip: String? {
-        if let room = event.gathering { return "\(room.attendeeCount) з \(room.capacity)" }
-        if let listing = event.listing, listing.isFree?.boolValue == true || listing.priceMin != nil { return listingPrice(listing) }
+    /// «Від 390 ₴» лише коли джерело сказало ціну; для кімнати — «3/8» з гліфом людей. Не «3 з 8»: бейдж набраний капсом,
+    /// а кирилична «З» майже не відрізняється від цифри 3 («3 З 8» читалось як «3 3 8»).
+    private var chip: (text: String, symbol: String?)? {
+        if let room = event.gathering { return ("\(room.attendeeCount)/\(room.capacity)", "person.2") }
+        if let listing = event.listing, listing.isFree?.boolValue == true || listing.priceMin != nil { return (listingPrice(listing), nil) }
         return nil
     }
 
@@ -675,13 +721,13 @@ private struct PosterCard: View {
                             StatusBadge(text: state.0, tone: state.1, symbol: state.2, onPhoto: true).padding(Space.sm)
                         } else if let label = lane(entry.source) {
                             StatusBadge(text: label, onPhoto: true).padding(Space.sm)
-                        } else if let community = communityBadge(event) {
+                        } else if showsOrigin, let community = communityBadge(event) {
                             StatusBadge(text: community.0, symbol: community.2, onPhoto: true).padding(Space.sm)
                         }
                     }
                     .overlay(alignment: .topTrailing) { SaveButton(saved: saved, action: onSave).padding(Space.xs) }
                     .overlay(alignment: .bottomLeading) {
-                        if let chip { StatusBadge(text: chip, onPhoto: true).padding(Space.sm) }
+                        if let chip { StatusBadge(text: chip.text, symbol: chip.symbol, onPhoto: true).padding(Space.sm) }
                     }
                     .clipShape(RoundedRectangle(cornerRadius: Corner.lg, style: .continuous))
                 VStack(alignment: .leading, spacing: Space.xs) {

@@ -302,10 +302,14 @@ internal class DiscoveryEngine(
         }
     }
 
-    /** Картки, які головна показує першими: добірка, початок стрічки й пошуку. */
+    /**
+     * Картки, які головна показує першими: добірка, початок стрічки й пошуку, а ще кілька відкритих кімнат із будь-якого
+     * місця індексу ([DiscoveryRules.HOME_ROOM_CARDS]): вони йдуть у «Від людей» і перші великі картки, хоч би коли починались.
+     */
     private fun materializeHome() {
         val home = store.value.home
-        val ids = (home.suggestedIndex.take(DiscoveryRules.FIRST_CARDS) + home.index.take(DiscoveryRules.FIRST_CARDS) +
+        val rooms = home.index.filter { it.isCommunity && it.roomHasSeats }.take(DiscoveryRules.HOME_ROOM_CARDS)
+        val ids = (home.suggestedIndex.take(DiscoveryRules.FIRST_CARDS) + home.index.take(DiscoveryRules.FIRST_CARDS) + rooms +
             home.results.take(DiscoveryRules.FIRST_CARDS)).map { it.id }.distinct()
         load(ids)?.let { homeCardsJob?.cancel(); homeCardsJob = it }
     }

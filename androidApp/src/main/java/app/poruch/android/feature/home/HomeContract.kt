@@ -24,6 +24,8 @@ data class HomeState(
     val followed: List<Event> = emptyList(),
     /** Скільки подій, що чекають відповіді (чат, запит), у [personal] не влізло: рядок «Чекають відповіді: ще N». */
     val moreWaiting: Int = 0,
+    /** «Від людей»: зустрічі з вільним місцем окремою рейкою, коли їх набралось досить ([app.poruch.domain.HomeRules.people]); інакше порожньо. */
+    val people: List<FeedEntry> = emptyList(),
     /** «У місті»: [HomeRules.HERO_COUNT] великих карток, далі сітка, вже звужена [feedFilter]. */
     val feed: List<FeedEntry> = emptyList(),
     /** Чипи над сіткою: що з неї можна відфільтрувати. Порожньо — рядка нема. */
@@ -62,7 +64,7 @@ data class HomeState(
     val cities: List<CityResult> = emptyList()
 ) {
     val searching get() = searchText.isNotBlank()
-    val isEmpty get() = if (searching) results.isEmpty() && places.isEmpty() else personal.isEmpty() && feed.isEmpty()
+    val isEmpty get() = if (searching) results.isEmpty() && places.isEmpty() else personal.isEmpty() && people.isEmpty() && feed.isEmpty()
     val busy get() = if (searching) searchLoading else loading
 }
 

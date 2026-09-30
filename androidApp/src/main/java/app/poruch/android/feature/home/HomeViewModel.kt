@@ -54,7 +54,10 @@ class HomeViewModel(private val app: PoruchApp) : MviViewModel<HomeState, HomeIn
             .map { PersonalRow(it, chats[it.id], asks[it.id] ?: 0, shared.organizes(it)) }
         val shown = personal.mapTo(HashSet()) { it.event.id }
         // Усі свої плани, а не лише три з «Ваше»: решта живе в «Моїх подіях», а в місті стояла б безіменним постером.
-        val all = HomeRules.feed(suggested, city, followed, mineFirst.mapTo(HashSet()) { it.id })
+        val mineIds = mineFirst.mapTo(HashSet()) { it.id }
+        val people = HomeRules.people(suggested, city, followed, mineIds)
+        // Кімнати, що дістали власну секцію, у стрічці не повторюємо й уперед їх більше не ставимо.
+        val all = HomeRules.feed(suggested, city, followed, mineIds + people.map { it.event.id }, roomsFirst = people.isEmpty())
         val rest = all.drop(HomeRules.HERO_COUNT)
         val chips = HomeRules.chips(rest, now, zoneId)
         val filter = feedFilter.takeIf { it in chips } ?: FeedFilter()
@@ -65,6 +68,7 @@ class HomeViewModel(private val app: PoruchApp) : MviViewModel<HomeState, HomeIn
             loading = home.loading,
             personal = personal,
             moreWaiting = waiting.mapTo(HashSet()) { it.id }.count { it !in shown },
+            people = people,
             followed = followed,
             feed = all.take(HomeRules.HERO_COUNT) + HomeRules.apply(rest, filter, now, zoneId),
             chips = chips,
