@@ -209,6 +209,21 @@ enum PoruchFont {
     static let lead = Font.system(.body)                               // 17
 }
 
+/// Заголовки з засічками: Source Serif 4 (змінний шрифт, SIL OFL, `Fonts/SourceSerif4.ttf`), вага 600. Лише від 22 pt:
+/// дрібніше лишається системний шрифт. CoreText сам ставить оптичний розмір рівним кеглю, тож 34 pt — «Display»,
+/// 22 pt — «Subhead»; `relativeTo` тримає Dynamic Type. Поки що лише головна, решта екранів — після огляду.
+extension PoruchFont {
+    private static func serif(_ size: CGFloat, _ style: Font.TextStyle) -> Font {
+        .custom("SourceSerif4Roman-SemiBold", size: size, relativeTo: style)
+    }
+    /// «Що поруч».
+    static let serifDisplay = serif(34, .largeTitle)
+    /// Назва великої картки.
+    static let serifTitle1 = serif(28, .title)
+    /// Заголовок секції й назва плану.
+    static let serifTitle2 = serif(22, .title2)
+}
+
 /// Трекінг за розміром: великий текст стискається в одну форму.
 extension View {
     func displayTracking() -> some View { kerning(-1.0) }

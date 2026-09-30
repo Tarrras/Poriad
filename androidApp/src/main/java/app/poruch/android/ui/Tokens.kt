@@ -1,5 +1,6 @@
 package app.poruch.android.ui
 
+import app.poruch.android.R
 import app.poruch.domain.EventCategory
 import android.provider.Settings
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -22,8 +23,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -278,8 +284,31 @@ private val PoruchTypography = Typography(
     )
 )
 
-/** Стилі поза шкалою Material: великий заголовок секції, підпис категорії під назвою, лід деталей. */
+/**
+ * Заголовки з засічками: Source Serif 4 (змінний шрифт, SIL OFL, `res/font/source_serif4.ttf`), вага 600. Лише від 22 sp:
+ * дрібніше лишається системний шрифт. Оптичний розмір шрифту — кегль стилю (`opticalSizing`): 34 sp — «Display», 22 sp — «Subhead».
+ * Поки що лише головна, решта екранів — після огляду.
+ */
+@OptIn(ExperimentalTextApi::class)
+private fun serifStyle(size: TextUnit, lineHeight: TextUnit, tracking: TextUnit) = TextStyle(
+    fontFamily = FontFamily(
+        Font(
+            R.font.source_serif4, FontWeight.SemiBold,
+            variationSettings = FontVariation.Settings(FontVariation.weight(600), FontVariation.opticalSizing(size))
+        )
+    ),
+    fontWeight = FontWeight.SemiBold, fontSize = size, lineHeight = lineHeight, letterSpacing = tracking
+)
+
+/** Стилі поза шкалою Material: великий заголовок секції, підпис категорії під назвою, лід деталей, заголовки з засічками. */
 object PoruchType {
+    /** «Що поруч». */
+    val serifDisplay = serifStyle(34.sp, 40.sp, (-0.5).sp)
+    /** Назва великої картки. */
+    val serifTitle1 = serifStyle(28.sp, 34.sp, (-0.4).sp)
+    /** Заголовок секції й назва плану. */
+    val serifTitle2 = serifStyle(22.sp, 28.sp, (-0.2).sp)
+
     val sectionTitle = TextStyle(
         fontSize = 22.sp,
         lineHeight = 28.sp,

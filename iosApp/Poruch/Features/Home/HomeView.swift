@@ -107,7 +107,7 @@ struct HomeView: View {
             if !searchActive {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: Space.xs) {
-                        Text("Що поруч").font(PoruchFont.display).displayTracking().foregroundStyle(Palette.ink)
+                        Text("Що поруч").font(PoruchFont.serifDisplay).kerning(-0.5).foregroundStyle(Palette.ink)
                         // Тап міняє місто тут же, без переходу на мапу. Шеврон — частина тексту: довга назва
                         // переноситься разом із ним. Колір темніший за `inkSecondary`: на сяйві той дає лише ≈4:1.
                         Button { citySearch = true } label: {
@@ -200,7 +200,7 @@ struct HomeView: View {
         return VStack(alignment: .leading, spacing: Space.md) {
             SectionHeader(
                 title: "Ваше", actionLabel: view.personal.isEmpty ? nil : "Мої події",
-                action: view.personal.isEmpty ? nil : openMyEvents
+                action: view.personal.isEmpty ? nil : openMyEvents, serif: true
             )
             if let lead {
                 NextPlanCard(row: lead, open: { open(lead.event.id, from: "home_your") }, chat: { openChat(lead.event) })
@@ -271,7 +271,7 @@ struct HomeView: View {
             VStack(alignment: .leading, spacing: Space.md) {
                 SectionHeader(
                     title: "У місті", actionLabel: view.totalFound > 0 ? "Усі \(view.totalFound)" : nil,
-                    action: view.totalFound > 0 ? openMap : nil
+                    action: view.totalFound > 0 ? openMap : nil, serif: true
                 ).padding(.horizontal, Space.page)
                 heroPager(picks, view)
                 if !view.chips.isEmpty { feedChips(view.chips, selected: filter) }
@@ -344,7 +344,7 @@ struct HomeView: View {
     /// Куди далі, коли стрічку переглянуто: мапа з усім, що є, і створення власної події.
     private func moreRows(_ view: HomePresentation) -> some View {
         VStack(alignment: .leading, spacing: Space.md) {
-            SectionHeader(title: "Далі")
+            SectionHeader(title: "Далі", serif: true)
             GroupedRows {
                 LinkRow(
                     symbol: "map", title: "Усі події поруч",
@@ -526,7 +526,7 @@ private struct NextPlanCard: View {
                 HStack(alignment: .top, spacing: Space.lg) {
                     VStack(alignment: .leading, spacing: Space.xs) {
                         Text(overline).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.accentText).lineLimit(1)
-                        Text(event.title).font(PoruchFont.title2).kerning(-0.5).foregroundStyle(Palette.ink)
+                        Text(event.title).font(PoruchFont.serifTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
                             .multilineTextAlignment(.leading).lineLimit(3)
                         // Місце в один рядок: повна адреса живе в «Маршруті», а не в підписі.
                         Text(subtitle).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)

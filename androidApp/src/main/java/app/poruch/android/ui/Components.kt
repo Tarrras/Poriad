@@ -615,13 +615,15 @@ fun SectionHeader(
     title: String,
     modifier: Modifier = Modifier,
     actionLabel: String? = null,
-    onAction: (() -> Unit)? = null
+    onAction: (() -> Unit)? = null,
+    /** Заголовок засічками (Source Serif 4): поки що лише головна. */
+    serif: Boolean = false
 ) {
     val colors = Poruch.colors
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(
             title,
-            style = PoruchType.sectionTitle,
+            style = if (serif) PoruchType.serifTitle2 else PoruchType.sectionTitle,
             color = colors.ink,
             modifier = Modifier.weight(1f)
         )
@@ -1496,7 +1498,7 @@ fun EventHeroCard(
                 Text(it.uppercase(), style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.75f))
             }
             Text(
-                event.title, style = MaterialTheme.typography.headlineMedium, color = Color.White,
+                event.title, style = PoruchType.serifTitle1, color = Color.White,
                 maxLines = 3, overflow = TextOverflow.Ellipsis
             )
             // Дата й місце двома рядками: в одному рядку хвіст обрізався.

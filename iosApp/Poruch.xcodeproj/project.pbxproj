@@ -45,6 +45,8 @@
 		A55E75D1C9C240A1B7E30002 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A55E75D1C9C240A1B7E30001 /* Assets.xcassets */; };
 		A55E75D1C9C240A1B7E30012 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A55E75D1C9C240A1B7E30011 /* PrivacyInfo.xcprivacy */; };
 		BB46274833515DEABB878F98 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 2028C0857000504373B0CF5C /* Localizable.xcstrings */; };
+		A55E75D1C9C240A1B7E30022 /* SourceSerif4.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A55E75D1C9C240A1B7E30021 /* SourceSerif4.ttf */; };
+		A55E75D1C9C240A1B7E30024 /* SourceSerif4-OFL.txt in Resources */ = {isa = PBXBuildFile; fileRef = A55E75D1C9C240A1B7E30023 /* SourceSerif4-OFL.txt */; };
 		FD4C22CA5E51D45B968201C0 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C2C28ECC9E6CE535C692120F /* Foundation.framework */; };
 /* End PBXBuildFile section */
 
@@ -87,6 +89,8 @@
 		A30B2CD5491BC1CC94AC4E3F /* Poruch.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; name = Poruch.entitlements; path = Poruch.entitlements; sourceTree = "<group>"; };
 		A55E75D1C9C240A1B7E30001 /* Assets.xcassets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A55E75D1C9C240A1B7E30011 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		A55E75D1C9C240A1B7E30021 /* SourceSerif4.ttf */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = file; name = SourceSerif4.ttf; path = Fonts/SourceSerif4.ttf; sourceTree = "<group>"; };
+		A55E75D1C9C240A1B7E30023 /* SourceSerif4-OFL.txt */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; name = "SourceSerif4-OFL.txt"; path = "Fonts/SourceSerif4-OFL.txt"; sourceTree = "<group>"; };
 		C2C28ECC9E6CE535C692120F /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
 /* End PBXFileReference section */
 
@@ -121,6 +125,8 @@
 				2028C0857000504373B0CF5C /* Localizable.xcstrings */,
 				A55E75D1C9C240A1B7E30011 /* PrivacyInfo.xcprivacy */,
 				A55E75D1C9C240A1B7E30001 /* Assets.xcassets */,
+				A55E75D1C9C240A1B7E30021 /* SourceSerif4.ttf */,
+				A55E75D1C9C240A1B7E30023 /* SourceSerif4-OFL.txt */,
 				A30B2CD5491BC1CC94AC4E3F /* Poruch.entitlements */,
 			
 				CA5082FE2FDCBB5467E74BD8 /* AppModel.swift */,
@@ -253,6 +259,8 @@
 				BB46274833515DEABB878F98 /* Localizable.xcstrings in Resources */,
 				A55E75D1C9C240A1B7E30012 /* PrivacyInfo.xcprivacy in Resources */,
 				A55E75D1C9C240A1B7E30002 /* Assets.xcassets in Resources */,
+				A55E75D1C9C240A1B7E30022 /* SourceSerif4.ttf in Resources */,
+				A55E75D1C9C240A1B7E30024 /* SourceSerif4-OFL.txt in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

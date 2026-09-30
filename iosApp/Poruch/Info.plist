@@ -45,6 +45,10 @@
 	<string>$(SUPABASE_KEY)</string>
 	<key>SUPABASE_URL</key>
 	<string>$(SUPABASE_URL)</string>
+	<key>UIAppFonts</key>
+	<array>
+		<string>SourceSerif4.ttf</string>
+	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

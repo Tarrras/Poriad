@@ -362,9 +362,12 @@ struct SectionHeader: View {
     let title: String
     var actionLabel: String?
     var action: (() -> Void)?
+    /// Заголовок засічками (Source Serif 4): поки що лише головна.
+    var serif = false
     var body: some View {
         HStack {
-            Text(title).font(PoruchFont.sectionTitle).kerning(-0.5).foregroundStyle(Palette.ink)
+            Text(title).font(serif ? PoruchFont.serifTitle2 : PoruchFont.sectionTitle).kerning(serif ? -0.2 : -0.5)
+                .foregroundStyle(Palette.ink)
             Spacer(minLength: Space.sm)
             if let actionLabel, let action {
                 Button(actionLabel, action: action).font(PoruchFont.label).foregroundStyle(Palette.ink)
@@ -1062,7 +1065,7 @@ struct EventHeroCard: View {
                         if let eyebrow {
                             Text(eyebrow.uppercased()).font(PoruchFont.overline).kerning(1.0).foregroundStyle(.white.opacity(0.75))
                         }
-                        Text(event.title).font(PoruchFont.title1).titleTracking().foregroundStyle(.white)
+                        Text(event.title).font(PoruchFont.serifTitle1).kerning(-0.4).foregroundStyle(.white)
                             .multilineTextAlignment(.leading).lineLimit(3).fixedSize(horizontal: false, vertical: true)
                         // Дата й місце двома рядками: в одному рядку хвіст обрізався («Сте…»).
                         VStack(alignment: .leading, spacing: 2) {

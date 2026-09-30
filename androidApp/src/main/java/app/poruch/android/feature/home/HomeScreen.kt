@@ -109,7 +109,7 @@ private fun Header(state: HomeState, onIntent: (HomeIntent) -> Unit) {
     ) {
         if (!state.searchMode) Row(verticalAlignment = Alignment.Top) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                Text(stringResource(R.string.home_title), style = MaterialTheme.typography.displaySmall, color = colors.ink)
+                Text(stringResource(R.string.home_title), style = PoruchType.serifDisplay, color = colors.ink)
                 // Що означає «поруч»: завжди ціле місто. «Шукати тут» на мапі головну не звужує.
                 // Тап міняє місто тут же, без переходу на мапу.
                 Row(
@@ -213,7 +213,7 @@ private fun PersonalSection(state: HomeState, onIntent: (HomeIntent) -> Unit) {
         SectionHeader(
             stringResource(R.string.home_yours),
             actionLabel = if (state.personal.isEmpty()) null else stringResource(R.string.my_events),
-            onAction = { onIntent(HomeIntent.OpenMyEvents) }
+            onAction = { onIntent(HomeIntent.OpenMyEvents) }, serif = true
         )
         lead?.let { NextPlanCard(it, onIntent) }
         if (rows.isNotEmpty()) GroupedRows {
@@ -376,7 +376,7 @@ private fun NextPlanCard(row: PersonalRow, onIntent: (HomeIntent) -> Unit) {
         ) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                 Text(overline, style = MaterialTheme.typography.labelSmall, color = colors.accentText, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(event.title, style = MaterialTheme.typography.titleLarge, color = colors.ink, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                Text(event.title, style = PoruchType.serifTitle2, color = colors.ink, maxLines = 3, overflow = TextOverflow.Ellipsis)
                 Text(
                     subtitle, style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary,
                     maxLines = if (preview == null) 1 else 2, overflow = TextOverflow.Ellipsis
@@ -434,7 +434,7 @@ private fun LazyListScope.cityFeed(state: HomeState, onIntent: (HomeIntent) -> U
                     SectionHeader(
                         stringResource(R.string.home_in_city), Modifier.padding(horizontal = Spacing.page),
                         actionLabel = state.totalFound.takeIf { it > 0 }?.let { stringResource(R.string.home_all_count, it) },
-                        onAction = { onIntent(HomeIntent.OpenMap) }
+                        onAction = { onIntent(HomeIntent.OpenMap) }, serif = true
                     )
                     HeroPager(picks, state, onIntent)
                     if (state.chips.isNotEmpty()) FeedChips(state, onIntent)
@@ -572,7 +572,7 @@ private fun PosterCard(
 @Composable
 private fun MoreRows(state: HomeState, onIntent: (HomeIntent) -> Unit) {
     Column(Modifier.padding(horizontal = Spacing.page).padding(top = Spacing.xxl), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
-        SectionHeader(stringResource(R.string.home_next))
+        SectionHeader(stringResource(R.string.home_next), serif = true)
         GroupedRows {
             LinkRow(
                 PoruchIcons.map, stringResource(R.string.all_events_section), stringResource(R.string.all_events_hint),
