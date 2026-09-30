@@ -308,6 +308,8 @@ object PoruchType {
     val serifTitle1 = serifStyle(28.sp, 34.sp, (-0.4).sp)
     /** Заголовок секції й назва плану. */
     val serifTitle2 = serifStyle(22.sp, 28.sp, (-0.2).sp)
+    /** Назва події в постері й рядку «Ваше»: 17 sp, оптичний розмір «Text». */
+    val serifTitle3 = serifStyle(17.sp, 22.sp, (-0.1).sp)
 
     val sectionTitle = TextStyle(
         fontSize = 22.sp,

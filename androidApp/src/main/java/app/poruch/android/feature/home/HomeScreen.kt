@@ -262,6 +262,8 @@ private fun YourRow(
     tile: @Composable () -> Unit,
     modifier: Modifier = Modifier,
     chat: Pair<Int, () -> Unit>? = null,
+    /** Назва події (а не службового рядка) — засічками, як у постері. */
+    serifTitle: Boolean = false,
     trailing: @Composable () -> Unit = {}
 ) {
     val colors = Poruch.colors
@@ -278,7 +280,10 @@ private fun YourRow(
                 overline?.let {
                     Text(it, style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                Text(title, style = MaterialTheme.typography.titleSmall, color = colors.ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(
+                    title, style = if (serifTitle) PoruchType.serifTitle3 else MaterialTheme.typography.titleSmall,
+                    color = colors.ink, maxLines = 2, overflow = TextOverflow.Ellipsis
+                )
                 subtitle?.takeIf { it.isNotBlank() }?.let {
                     Text(it, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
@@ -321,7 +326,8 @@ private fun PlanRow(row: PersonalRow, onIntent: (HomeIntent) -> Unit) {
         tile = { EventImage(event, Modifier.size(YourTile).clip(Radius.sm), glyphSize = 24.dp) },
         modifier = Modifier.alpha(if (event.isCancelled) 0.6f else 1f),
         // Лічильник — кнопка в чат, поки праворуч не зайняли запити: на них теж чекає людина, і вони важливіші.
-        chat = row.chat?.takeIf { row.requests == 0 }?.let { it.unread to { onIntent(HomeIntent.OpenChat(event.id)) } }
+        chat = row.chat?.takeIf { row.requests == 0 }?.let { it.unread to { onIntent(HomeIntent.OpenChat(event.id)) } },
+        serifTitle = true
     ) {
         when {
             row.requests > 0 -> StatusBadge(
@@ -557,7 +563,7 @@ private fun PosterCard(
                 maxLines = 1, overflow = TextOverflow.Ellipsis
             )
             Text(
-                event.displayTitle, style = MaterialTheme.typography.titleSmall, color = colors.ink,
+                event.displayTitle, style = PoruchType.serifTitle3, color = colors.ink,
                 minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis
             )
             EventDescriptor(event, placeFirst = true)

@@ -440,6 +440,8 @@ private struct YourRow<Tile: View, Trailing: View>: View {
     let open: () -> Void
     /// Непрочитане: кнопка праворуч, що веде просто в чат. Тоді `trailing` не малюється.
     var chat: (count: Int, open: () -> Void)?
+    /// Назва події (а не службового рядка) — засічками, як у постері.
+    var serifTitle = false
     @ViewBuilder let tile: Tile
     @ViewBuilder let trailing: Trailing
 
@@ -452,8 +454,8 @@ private struct YourRow<Tile: View, Trailing: View>: View {
                         if let overline {
                             Text(overline).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary).lineLimit(1)
                         }
-                        Text(title).font(PoruchFont.cardName).kerning(-0.2).foregroundStyle(Palette.ink)
-                            .multilineTextAlignment(.leading).lineLimit(2)
+                        Text(title).font(serifTitle ? PoruchFont.serifTitle3 : PoruchFont.cardName).kerning(serifTitle ? -0.1 : -0.2)
+                            .foregroundStyle(Palette.ink).multilineTextAlignment(.leading).lineLimit(2)
                         if let subtitle, !subtitle.isEmpty {
                             Text(subtitle).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(1)
                         }
@@ -595,7 +597,7 @@ private struct PlanRow: View {
     }
 
     var body: some View {
-        YourRow(overline: overline, title: event.displayTitle, subtitle: subtitle, open: open, chat: chatButton) {
+        YourRow(overline: overline, title: event.displayTitle, subtitle: subtitle, open: open, chat: chatButton, serifTitle: true) {
             EventThumbnail(event: event, glyphSize: 24, maxDimension: 52)
                 .frame(width: yourTile, height: yourTile)
                 .clipShape(RoundedRectangle(cornerRadius: Corner.sm, style: .continuous))
@@ -687,7 +689,7 @@ private struct PosterCard: View {
                     // Коли — найважливіше в афіші, тож і найтемніше в підписі, а не найблідіше.
                     Text(cardOverline(event)).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.ink).lineLimit(1)
                         .minimumScaleFactor(0.85)
-                    Text(event.displayTitle).font(PoruchFont.cardName).kerning(-0.2).foregroundStyle(Palette.ink)
+                    Text(event.displayTitle).font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
                         .multilineTextAlignment(.leading).lineLimit(2, reservesSpace: true)
                     EventDescriptor(event: event, placeFirst: true)
                     if let note { Text(note.0).font(PoruchFont.overline).foregroundStyle(note.1).lineLimit(1) }

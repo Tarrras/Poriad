@@ -222,6 +222,8 @@ extension PoruchFont {
     static let serifTitle1 = serif(28, .title)
     /// Заголовок секції й назва плану.
     static let serifTitle2 = serif(22, .title2)
+    /// Назва події в постері й рядку «Ваше»: 17 pt, оптичний розмір «Text».
+    static let serifTitle3 = serif(17, .headline)
 }
 
 /// Трекінг за розміром: великий текст стискається в одну форму.
