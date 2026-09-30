@@ -108,11 +108,20 @@ private func tabItems(waiting: Int) -> [TabItem] {
     ]
 }
 
+/// Що показує шит входу: причина (`nil` — людина зайшла сама, не зі «Створити»).
+struct AuthSheet: Identifiable {
+    let id = UUID()
+    let reason: AuthReason?
+}
+
 struct RootView: View {
     @EnvironmentObject var model: AppModel
     @State private var tab = 0
     @State private var creating = false
-    @State private var authenticating = false
+    /// Шит входу. Причину віддаємо разом із ним, а не окремим станом: тоді екран входу отримує її в мить показу.
+    @State private var authSheet: AuthSheet?
+    /// Гість тапнув «Створити»: після входу редактор відкривається сам, а не лишає людину на головній.
+    @State private var createAfterAuth = false
     /// Екран, що заявив `hidesTabBar()`, зараз це деталі події.
     @State private var tabBarHidden = false
     /// Явні шляхи стосів замість `navigationDestination(isPresented:)`: після `dismiss()` SwiftUI
@@ -172,7 +181,15 @@ struct RootView: View {
     /// Тап по «Створити»: рахуємо його разом зі входом, з якого місця він був, — гостя далі чекає реєстрація.
     private func startCreating(from: String) {
         model.app.createStarted(from: from)
-        if model.state?.session.userId == nil { authenticating = true } else { creating = true }
+        if model.state?.session.userId == nil { createAfterAuth = true; authSheet = AuthSheet(reason: .create) } else { creating = true }
+    }
+
+    /// Шит входу закрився: якщо людина тепер увійшла, її створення не губимо — відкриваємо редактор. Закрила без входу — нічого.
+    private func continueCreating() {
+        let signedIn = model.state?.session.userId != nil
+        let go = createAfterAuth && signedIn
+        createAfterAuth = false
+        if go { creating = true }
     }
 
     private var app: some View {
@@ -225,7 +242,7 @@ struct RootView: View {
             // Без нічого — дайджест вихідних: лише головна.
             PushDelegate.openEvent = { id, chat, placeId in
                 creating = false
-                authenticating = false
+                authSheet = nil
                 dismissPresentedSheets()
                 tab = 0
                 minePath = NavigationPath()
@@ -240,9 +257,10 @@ struct RootView: View {
         }
         .environment(\.openMap, showMap)
         .sheet(isPresented: $creating) { EventEditor(event: nil, app: model.app, home: model.state) }
-        .sheet(isPresented: $authenticating) {
+        .sheet(item: $authSheet, onDismiss: continueCreating) { sheet in
             NavigationStack {
-                AuthView().toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Готово") { authenticating = false } } }
+                AuthView(reason: sheet.reason)
+                    .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Готово") { authSheet = nil } } }
             }
         }
         .sheet(isPresented: Binding(get: { model.state?.session.passwordRecovery == true }, set: { _ in })) { NewPasswordView() }

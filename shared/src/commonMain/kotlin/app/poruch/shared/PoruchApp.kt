@@ -237,8 +237,12 @@ class PoruchApp internal constructor(
     /** Те саме з підписом, звідки людина прийшла (`home_hero`, `home_poster`, `home_your`, `home_search`): `event_view` каже, що з головної веде до подій. */
     fun selectEvent(id: String, from: String) = library.select(id, from = from)
 
-    /** Тап по «Створити» (`fab`, `home`, `map`, `mine`); гостя після нього чекає реєстрація. Публікація рахується окремо: `event_create`. */
-    fun createStarted(from: String) = PoruchAnalytics.track("create_start", "from" to from)
+    /**
+     * Тап по «Створити» (`fab`, `home_top`, `home_footer`, `map`, `mine`). `guest` — людина без акаунта: її далі чекає
+     * реєстрація, тож воронку «тапнув → зареєструвався → опублікував» видно лише за `guest=true`, а не змішаною з тими,
+     * хто вже увійшов. Публікація рахується окремо: `event_create`.
+     */
+    fun createStarted(from: String) = PoruchAnalytics.track("create_start", "from" to from, "guest" to !state.value.signedIn)
 
     /**
      * Відкрити екран деталей: тут місця й членство вже варті запиту. Для прокату одразу

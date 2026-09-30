@@ -6,6 +6,8 @@ import java.time.LocalDate
 
 data class AuthState(
     val signup: Boolean = false,
+    /** Гість прийшов зі «Створити»: підпис каже про подію, а не про участь. */
+    val creating: Boolean = false,
     val email: String = "",
     val name: String = "",
     val password: String = "",
@@ -50,8 +52,10 @@ sealed interface AuthIntent {
 }
 
 sealed interface AuthEffect {
-    /** Вхід вдався, екран закривається. */
+    /** Людина вийшла з екрана сама: «назад». */
     data object Close : AuthEffect
+    /** Вхід вдався: екран закривається, а якщо гість прийшов зі «Створити» — відкривається редактор. */
+    data object SignedIn : AuthEffect
     /** Відкрити поштовий застосунок, якщо він є. */
     data object OpenMail : AuthEffect
     /** Відкрити сторінку в браузері. */

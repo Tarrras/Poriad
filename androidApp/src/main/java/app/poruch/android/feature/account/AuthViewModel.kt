@@ -6,11 +6,13 @@ import app.poruch.shared.AppMessage
 import app.poruch.shared.AppNotice
 import app.poruch.shared.PoruchApp
 
-class AuthViewModel(private val app: PoruchApp) : MviViewModel<AuthState, AuthIntent, AuthEffect>(AuthState()) {
+/** [creating] — гість тапнув «Створити»: реєстрація за замовчуванням (найімовірніше новачок) і слова про подію. */
+class AuthViewModel(private val app: PoruchApp, creating: Boolean = false) :
+    MviViewModel<AuthState, AuthIntent, AuthEffect>(AuthState(signup = creating, creating = creating)) {
     init {
         observe(app) { shared ->
             // Лист відновлення веде на профіль: пароль треба задати, а не ввести.
-            if (shared.signedIn && !signedIn && !shared.session.passwordRecovery) send(AuthEffect.Close)
+            if (shared.signedIn && !signedIn && !shared.session.passwordRecovery) send(AuthEffect.SignedIn)
             copy(
                 mutating = shared.mutating, signedIn = shared.signedIn, awaitingConfirmation = shared.session.awaitingConfirmation,
                 // Лист пішов — повертаємось до входу, банер скаже решту.

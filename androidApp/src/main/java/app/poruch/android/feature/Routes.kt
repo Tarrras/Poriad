@@ -69,7 +69,7 @@ fun HomeRoute(navigator: Navigator) {
                 HomeDestination.PROFILE -> navigator.open(Profile)
                 HomeDestination.FOLLOWS -> navigator.open(Follows)
                 HomeDestination.MINE -> navigator.open(Mine)
-                HomeDestination.EDITOR -> navigator.requireAccount { navigator.open(Editor()) }
+                HomeDestination.EDITOR -> navigator.createEvent()
             }
         }
     }
@@ -99,8 +99,8 @@ fun ExploreRoute(focusId: String, navigator: Navigator) {
     model.effects.handle { effect ->
         when (effect) {
             is ExploreEffect.OpenDetail -> navigator.open(Detail(effect.id))
-            ExploreEffect.CreateEvent -> navigator.requireAccount { navigator.open(Editor()) }
-            ExploreEffect.SignIn -> navigator.open(Auth)
+            ExploreEffect.CreateEvent -> navigator.createEvent()
+            ExploreEffect.SignIn -> navigator.open(Auth())
             ExploreEffect.AskLocationPermission -> permission.launch(
                 // Лише приблизна: «події поруч» — це кілометр, а не метр, і Play не питає, навіщо точна.
                 arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION)
@@ -118,8 +118,8 @@ fun MyEventsRoute(navigator: Navigator) {
             is MyEventsEffect.OpenDetail -> navigator.open(Detail(effect.id))
             is MyEventsEffect.OpenChat -> navigator.open(Chat(effect.id))
             MyEventsEffect.OpenMap -> navigator.open(Explore())
-            MyEventsEffect.SignIn -> navigator.open(Auth)
-            MyEventsEffect.CreateEvent -> navigator.requireAccount { navigator.open(Editor()) }
+            MyEventsEffect.SignIn -> navigator.open(Auth())
+            MyEventsEffect.CreateEvent -> navigator.createEvent()
         }
     }
     MyEventsScreen(model.state.collectAsStateWithLifecycle().value, model::dispatch)
@@ -139,7 +139,7 @@ fun DetailRoute(route: Detail, navigator: Navigator) {
             DetailEffect.Back -> navigator.back()
             DetailEffect.AskNotificationPermission -> notifications.launch(Manifest.permission.POST_NOTIFICATIONS)
             is DetailEffect.Edit -> navigator.open(Editor(effect.id))
-            DetailEffect.RequireSignIn -> navigator.open(Auth)
+            DetailEffect.RequireSignIn -> navigator.open(Auth())
             is DetailEffect.ShareEvent -> context.shareEvent(effect.event)
             is DetailEffect.ShareCompanion -> context.shareCompanion(effect.parent, effect.companionId)
             is DetailEffect.OpenCalendar -> if (!context.addToCalendar(effect.event)) context.toast(R.string.calendar_unavailable)
@@ -189,12 +189,14 @@ fun EditorRoute(route: Editor, navigator: Navigator) {
 }
 
 @Composable
-fun AuthRoute(navigator: Navigator) {
-    val model = koinViewModel<AuthViewModel>()
+fun AuthRoute(route: Auth, navigator: Navigator) {
+    val model = koinViewModel<AuthViewModel> { parametersOf(route) }
     val context = LocalContext.current
     model.effects.handle { effect ->
         when (effect) {
             AuthEffect.Close -> navigator.back()
+            // Увійшли: гість, що тапнув «Створити», не лишається на головній, а потрапляє в редактор.
+            AuthEffect.SignedIn -> { navigator.back(); if (route.creating) navigator.open(Editor()) }
             AuthEffect.OpenMail -> context.openMailApp()
             is AuthEffect.OpenLink -> if (!context.openLink(effect.url)) context.toast(R.string.link_unavailable)
         }
@@ -213,7 +215,7 @@ fun ProfileRoute(navigator: Navigator) {
     }
     model.effects.handle { effect ->
         when (effect) {
-            ProfileEffect.SignIn -> navigator.open(Auth)
+            ProfileEffect.SignIn -> navigator.open(Auth())
             ProfileEffect.AskNotificationPermission -> permission.launch(Manifest.permission.POST_NOTIFICATIONS)
             ProfileEffect.OpenFollows -> navigator.open(Follows)
             is ProfileEffect.OpenLink -> if (!context.openLink(effect.url)) context.toast(R.string.link_unavailable)

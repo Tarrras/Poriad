@@ -36,9 +36,9 @@ class Navigator(private val app: PoruchApp) {
         PoruchLog.d("nav") { "stack now ${describe()}" }
     }
 
-    /** Гість замість дії бачить вхід. */
-    fun requireAccount(action: () -> Unit) {
-        if (app.state.value.signedIn) action() else open(Auth)
+    /** «Створити»: гість замість редактора бачить реєстрацію, після якої редактор відкриється сам. */
+    fun createEvent() {
+        if (app.state.value.signedIn) open(Editor()) else open(Auth(creating = true))
     }
 
     private fun describe() = stack.joinToString { it.label() }

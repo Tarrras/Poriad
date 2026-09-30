@@ -527,6 +527,8 @@
   <string name="auth_welcome">З поверненням</string>
   <string name="auth_create">Створити профіль</string>
   <string name="auth_subtitle_signup">Кілька секунд — і ви зможете приєднуватись до подій та створювати власні.</string>
+  <string name="auth_subtitle_create_signup">Щоб організувати подію, потрібен профіль. Кілька секунд — і одразу перейдемо до створення.</string>
+  <string name="auth_subtitle_create_signin">Увійдіть, щоб організувати подію — після входу одразу перейдемо до створення.</string>
   <string name="password_label">Пароль</string>
   <string name="password_hint">Щонайменше 8 символів</string>
   <string name="current_password_label">Поточний пароль</string>

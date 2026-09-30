@@ -293,7 +293,7 @@ fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
                     waiting = state.waitingEvents,
                     onCreate = {
                         app.createStarted("fab")
-                        navigator.requireAccount { navigator.open(Editor()) }
+                        navigator.createEvent()
                     }
                 )
             }

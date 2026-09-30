@@ -1,11 +1,23 @@
 import SwiftUI
 import Shared
 
+/// Навіщо гість опинився на екрані входу. Від цього залежать вкладка за замовчуванням і слова під заголовком.
+enum AuthReason {
+    /// Тап по «Організувати подію» чи «+»: гість найімовірніше новий, тож відкриваємо реєстрацію, а після неї — редактор.
+    case create
+}
+
 /// Вхід і реєстрація: один екран, два режими. Реєстрація — друга половина, а не примітка.
 struct AuthView: View {
     @EnvironmentObject var model: AppModel
     @Environment(\.dismiss) private var dismiss
-    @StateObject private var form = AuthFormModel()
+    var reason: AuthReason?
+    @StateObject private var form: AuthFormModel
+
+    init(reason: AuthReason? = nil) {
+        self.reason = reason
+        _form = StateObject(wrappedValue: AuthFormModel(register: reason == .create))
+    }
     /// Крок «Забули пароль?»: окремий екран лише з поштою, щоб кнопка не залежала від форми входу.
     @State private var resetting = false
 
@@ -49,6 +61,10 @@ struct AuthView: View {
                  ? "Лишився один крок — підтвердити адресу."
                  : resetting
                  ? "Вкажіть пошту профілю — надішлемо лист із посиланням для нового пароля."
+                 : reason == .create && form.register
+                 ? "Щоб організувати подію, потрібен профіль. Кілька секунд — і одразу перейдемо до створення."
+                 : reason == .create
+                 ? "Увійдіть, щоб організувати подію — після входу одразу перейдемо до створення."
                  : form.register
                  ? "Кілька секунд — і ви зможете приєднуватись до подій та створювати власні."
                  : "Події можна переглядати без входу. Для участі потрібен профіль.")
@@ -166,13 +182,15 @@ struct AuthView: View {
     @Published var name = ""
     @Published var password = ""
     @Published var revealed = false
-    @Published var register = false
+    @Published var register: Bool
     /// Відкривається на дні народження того, кому щойно 18: найближча правдоподібна відповідь.
     @Published var birthDate = AuthFormModel.defaultBirthDate
 
     /// Мінімум задає сам контрол; база перевірить ще раз.
     let latestBirthDate = AuthFormModel.defaultBirthDate
     let earliestBirthDate = Calendar.current.date(byAdding: .year, value: -100, to: Date()) ?? Date.distantPast
+
+    init(register: Bool = false) { self.register = register }
 
     private static var defaultBirthDate: Date {
         Calendar.current.date(byAdding: .year, value: -Int(SafetyRules.shared.MIN_SIGNUP_AGE), to: Date()) ?? Date()

@@ -79,6 +79,8 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
                     when {
                         confirming -> R.string.auth_check_email_subtitle
                         state.resetting -> R.string.auth_reset_subtitle
+                        state.creating && state.signup -> R.string.auth_subtitle_create_signup
+                        state.creating -> R.string.auth_subtitle_create_signin
                         state.signup -> R.string.auth_subtitle_signup
                         else -> R.string.auth_description
                     }

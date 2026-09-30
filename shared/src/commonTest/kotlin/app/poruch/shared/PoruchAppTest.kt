@@ -1153,13 +1153,20 @@ class PoruchAppTest {
         } finally { PoruchAnalytics.sink=null }
     }
 
-    @Test fun startingToCreateIsCountedWithItsEntryPoint()=runTest {
+    /** `create_start` каже, звідки тап і чи був це гість: воронка реєстрації через «Створити» читається лише за `guest=true`. */
+    @Test fun startingToCreateIsCountedWithItsEntryPointAndWhetherTheUserIsAGuest()=runTest {
         val tracked=mutableListOf<Pair<String,Map<String,String>>>()
         PoruchAnalytics.sink={ name,params -> tracked+=name to params }
         try {
-            val app=app(Events(),backgroundScope); runCurrent(); advanceTimeBy(1000); runCurrent()
-            app.createStarted("home"); app.createStarted("fab")
-            assertEquals(listOf("home","fab"),tracked.filter { it.first=="create_start" }.map { it.second["from"] })
+            val auth=Auth(); auth.session.value=null
+            val app=app(Events(),backgroundScope,auth); runCurrent(); advanceTimeBy(1000); runCurrent()
+            app.createStarted("home_top")
+            app.handleAuthCallback("poriad://auth/callback"); runCurrent(); advanceTimeBy(1000); runCurrent()
+            app.createStarted("fab")
+            assertEquals(
+                listOf(mapOf("from" to "home_top","guest" to "true"),mapOf("from" to "fab","guest" to "false")),
+                tracked.filter { it.first=="create_start" }.map { it.second }
+            )
             app.close()
         } finally { PoruchAnalytics.sink=null }
     }

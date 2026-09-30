@@ -18,7 +18,8 @@ sealed interface Tab : NavKey
 @Serializable data class Editor(val editingId: String? = null) : NavKey
 /** Чат події. Лише для організатора й учасників: іншим сервер віддасть порожньо. */
 @Serializable data class Chat(val eventId: String) : NavKey
-@Serializable data object Auth : NavKey
+/** Вхід і реєстрація. [creating] — гість тапнув «Створити»: реєстрація за замовчуванням, а після входу одразу редактор. */
+@Serializable data class Auth(val creating: Boolean = false) : NavKey
 /** Підписки: заклади й організатори, за якими стежить людина. З профілю й з головної. */
 @Serializable data object Follows : NavKey
 /** Лист відновлення відкрив застосунок: окремий екран для нового пароля, поверх стека. */
