@@ -48,6 +48,9 @@ class TitleRulesTest {
 
     @Test fun apostropheInsideAWordIsTypographic() {
         assertEquals("П’ятниця, м’ясо, В’ячеслав", display("П'ятниця, м'ясо, В'ячеслав"))
+        // Джерела пишуть апостроф і зворотним штрихом, і акутом.
+        assertEquals("Прем’єра. Мар’яна", display("Прем`єра. Мар´яна"))
+        assertEquals("Клуб `Modi`", display("Клуб `Modi`"))
         // Одинарні лапки навколо слова — не апостроф.
         assertEquals("Клуб 'Модi'", display("Клуб 'Модi'"))
     }

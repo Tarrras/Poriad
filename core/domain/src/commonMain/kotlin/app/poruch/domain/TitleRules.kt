@@ -70,12 +70,15 @@ object TitleRules {
         return out.toString()
     }
 
-    /** `п'ятниця` → `п’ятниця`: прямий апостроф між двома літерами. Одинарні лапки навколо слова лишаються. */
+    /** Знаки, якими джерела пишуть апостроф: прямий, зворотний (`Прем`єра`), акут, лівий одинарний. */
+    private const val APOSTROPHE_LIKE = "'`´‘"
+
+    /** `п'ятниця`, `Прем`єра` → `п’ятниця`, `Прем’єра`: такий знак між двома літерами. Одинарні лапки навколо слова лишаються. */
     private fun apostrophes(title: String): String {
-        if ('\'' !in title) return title
+        if (title.none { it in APOSTROPHE_LIKE }) return title
         val out = StringBuilder(title.length)
         for ((i, c) in title.withIndex()) {
-            val inWord = c == '\'' && i > 0 && i < title.lastIndex && title[i - 1].isLetter() && title[i + 1].isLetter()
+            val inWord = c in APOSTROPHE_LIKE && i > 0 && i < title.lastIndex && title[i - 1].isLetter() && title[i + 1].isLetter()
             out.append(if (inWord) '’' else c)
         }
         return out.toString()
