@@ -317,7 +317,7 @@ private fun PlanRow(row: PersonalRow, onIntent: (HomeIntent) -> Unit) {
         else stringResource(R.string.home_chat_preview, chat.lastAuthorName.ifBlank { stringResource(R.string.chat_member) }, body)
     } ?: event.placeLabel
     YourRow(
-        overline, event.title, subtitle, onClick = { onIntent(HomeIntent.OpenEvent(event.id, "home_your")) },
+        overline, event.displayTitle, subtitle, onClick = { onIntent(HomeIntent.OpenEvent(event.id, "home_your")) },
         tile = { EventImage(event, Modifier.size(YourTile).clip(Radius.sm), glyphSize = 24.dp) },
         modifier = Modifier.alpha(if (event.isCancelled) 0.6f else 1f),
         // Лічильник — кнопка в чат, поки праворуч не зайняли запити: на них теж чекає людина, і вони важливіші.
@@ -376,7 +376,7 @@ private fun NextPlanCard(row: PersonalRow, onIntent: (HomeIntent) -> Unit) {
         ) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                 Text(overline, style = MaterialTheme.typography.labelSmall, color = colors.accentText, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(event.title, style = PoruchType.serifTitle2, color = colors.ink, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                Text(event.displayTitle, style = PoruchType.serifTitle2, color = colors.ink, maxLines = 3, overflow = TextOverflow.Ellipsis)
                 Text(
                     subtitle, style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary,
                     maxLines = if (preview == null) 1 else 2, overflow = TextOverflow.Ellipsis
@@ -406,7 +406,7 @@ private fun NextPlanCard(row: PersonalRow, onIntent: (HomeIntent) -> Unit) {
 private fun FollowsRow(events: List<Event>, onClick: () -> Unit) {
     val colors = Poruch.colors
     val more = events.size - 1
-    val first = events.first().title
+    val first = events.first().displayTitle
     YourRow(
         overline = null, title = pluralStringResource(R.plurals.home_follows_events, events.size, events.size),
         subtitle = if (more > 0) stringResource(R.string.home_follows_more, first, more) else first,
@@ -557,7 +557,7 @@ private fun PosterCard(
                 maxLines = 1, overflow = TextOverflow.Ellipsis
             )
             Text(
-                event.title, style = MaterialTheme.typography.titleSmall, color = colors.ink,
+                event.displayTitle, style = MaterialTheme.typography.titleSmall, color = colors.ink,
                 minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis
             )
             EventDescriptor(event, placeFirst = true)

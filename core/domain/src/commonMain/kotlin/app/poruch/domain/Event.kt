@@ -67,6 +67,9 @@ data class Event(
     /** Підпис місця в картці: назва закладу, коли вона є, інакше адреса або місто. */
     val placeLabel: String get() = placeName ?: address.ifBlank { city }
 
+    /** Назва для показу: без капсу, з лапками-ялинками й апострофом ([TitleRules]). Сама [title] лишається як прийшла. */
+    val displayTitle: String by lazy { TitleRules.display(title) }
+
     /**
      * Опис, який дозволено показати. Для афіші — лише початок: чужа анотація захищена авторським
      * правом (docs/event-ingestion.md §8), решту читають на сайті джерела. Обмеження правове,

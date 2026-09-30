@@ -226,7 +226,7 @@ struct HomeView: View {
         let more = count - 1
         return YourRow(
             overline: nil, title: "Підписки: \(count) \(ukrainianPlural(count, "подія", "події", "подій"))",
-            subtitle: (events.first?.title ?? "") + (more > 0 ? " та ще \(more)" : ""), open: openFollows
+            subtitle: (events.first?.displayTitle ?? "") + (more > 0 ? " та ще \(more)" : ""), open: openFollows
         ) {
             Image(systemName: "bell").font(.system(size: 17, weight: .medium)).foregroundStyle(Palette.ink)
                 .frame(width: yourTile, height: yourTile)
@@ -526,7 +526,7 @@ private struct NextPlanCard: View {
                 HStack(alignment: .top, spacing: Space.lg) {
                     VStack(alignment: .leading, spacing: Space.xs) {
                         Text(overline).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.accentText).lineLimit(1)
-                        Text(event.title).font(PoruchFont.serifTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
+                        Text(event.displayTitle).font(PoruchFont.serifTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
                             .multilineTextAlignment(.leading).lineLimit(3)
                         // Місце в один рядок: повна адреса живе в «Маршруті», а не в підписі.
                         Text(subtitle).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
@@ -595,7 +595,7 @@ private struct PlanRow: View {
     }
 
     var body: some View {
-        YourRow(overline: overline, title: event.title, subtitle: subtitle, open: open, chat: chatButton) {
+        YourRow(overline: overline, title: event.displayTitle, subtitle: subtitle, open: open, chat: chatButton) {
             EventThumbnail(event: event, glyphSize: 24, maxDimension: 52)
                 .frame(width: yourTile, height: yourTile)
                 .clipShape(RoundedRectangle(cornerRadius: Corner.sm, style: .continuous))
@@ -687,7 +687,7 @@ private struct PosterCard: View {
                     // Коли — найважливіше в афіші, тож і найтемніше в підписі, а не найблідіше.
                     Text(cardOverline(event)).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.ink).lineLimit(1)
                         .minimumScaleFactor(0.85)
-                    Text(event.title).font(PoruchFont.cardName).kerning(-0.2).foregroundStyle(Palette.ink)
+                    Text(event.displayTitle).font(PoruchFont.cardName).kerning(-0.2).foregroundStyle(Palette.ink)
                         .multilineTextAlignment(.leading).lineLimit(2, reservesSpace: true)
                     EventDescriptor(event: event, placeFirst: true)
                     if let note { Text(note.0).font(PoruchFont.overline).foregroundStyle(note.1).lineLimit(1) }

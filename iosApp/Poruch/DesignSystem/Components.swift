@@ -1065,7 +1065,7 @@ struct EventHeroCard: View {
                         if let eyebrow {
                             Text(eyebrow.uppercased()).font(PoruchFont.overline).kerning(1.0).foregroundStyle(.white.opacity(0.75))
                         }
-                        Text(event.title).font(PoruchFont.serifTitle1).kerning(-0.4).foregroundStyle(.white)
+                        Text(event.displayTitle).font(PoruchFont.serifTitle1).kerning(-0.4).foregroundStyle(.white)
                             .multilineTextAlignment(.leading).lineLimit(3).fixedSize(horizontal: false, vertical: true)
                         // Дата й місце двома рядками: в одному рядку хвіст обрізався («Сте…»).
                         VStack(alignment: .leading, spacing: 2) {

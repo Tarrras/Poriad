@@ -1498,7 +1498,7 @@ fun EventHeroCard(
                 Text(it.uppercase(), style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.75f))
             }
             Text(
-                event.title, style = PoruchType.serifTitle1, color = Color.White,
+                event.displayTitle, style = PoruchType.serifTitle1, color = Color.White,
                 maxLines = 3, overflow = TextOverflow.Ellipsis
             )
             // Дата й місце двома рядками: в одному рядку хвіст обрізався.
