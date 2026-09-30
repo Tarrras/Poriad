@@ -225,7 +225,11 @@ private val PeopleCardWidth = 176.dp
 @Composable
 private fun PeopleSection(state: HomeState, onIntent: (HomeIntent) -> Unit) {
     Column(Modifier.padding(top = Spacing.xxl), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
-        SectionHeader(stringResource(R.string.from_people), Modifier.padding(horizontal = Spacing.page))
+        SectionHeader(
+            stringResource(R.string.from_people), Modifier.padding(horizontal = Spacing.page),
+            actionLabel = state.openRooms.takeIf { it > 0 }?.let { stringResource(R.string.home_all_count, it) },
+            onAction = { onIntent(HomeIntent.ShowPeopleOnMap) }
+        )
         Row(
             Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = Spacing.page),
             horizontalArrangement = Arrangement.spacedBy(Spacing.md), verticalAlignment = Alignment.Top
@@ -478,7 +482,7 @@ private fun LazyListScope.cityFeed(state: HomeState, onIntent: (HomeIntent) -> U
                     SectionHeader(
                         stringResource(R.string.home_in_city), Modifier.padding(horizontal = Spacing.page),
                         actionLabel = state.totalFound.takeIf { it > 0 }?.let { stringResource(R.string.home_all_count, it) },
-                        onAction = { onIntent(HomeIntent.OpenMap) }
+                        onAction = { onIntent(HomeIntent.ShowEverythingOnMap) }
                     )
                     HeroPager(picks, state, onIntent)
                     if (state.chips.isNotEmpty()) FeedChips(state, onIntent)
@@ -627,7 +631,7 @@ private fun MoreRows(state: HomeState, onIntent: (HomeIntent) -> Unit) {
         GroupedRows {
             LinkRow(
                 PoruchIcons.map, stringResource(R.string.all_events_section), stringResource(R.string.all_events_hint),
-                { onIntent(HomeIntent.OpenMap) }, value = state.totalFound.takeIf { it > 0 }?.toString()
+                { onIntent(HomeIntent.ShowEverythingOnMap) }, value = state.totalFound.takeIf { it > 0 }?.toString()
             )
             HairLine(Modifier.padding(start = Spacing.lg + 40.dp + Spacing.md))
             LinkRow(

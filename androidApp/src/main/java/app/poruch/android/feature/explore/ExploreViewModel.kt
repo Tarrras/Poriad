@@ -7,6 +7,7 @@ import app.poruch.domain.FollowKind
 import app.poruch.shared.DateFilter
 import app.poruch.shared.PoruchApp
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
@@ -52,6 +53,18 @@ class ExploreViewModel(private val app: PoruchApp) :
                 val ids = focus?.eventIds ?: return@collect
                 showStack(ids)
                 app.placeFocusShown()
+            }
+        }
+        // «Усі N» з головної приносить мапу з чистими фільтрами й областю: камера, стос, шторки й «Шукати тут» — з чистого аркуша.
+        // Модель живе, поки жива активність: перше значення — те, що було до неї (свіжа модель уже чиста).
+        viewModelScope.launch {
+            app.state.map { it.map.arrivals }.distinctUntilChanged().drop(1).collect {
+                reduce {
+                    copy(
+                        stackIds = emptyList(), detent = SheetDetent.PEEK, sheet = ExploreSheet.NONE, listCategory = null,
+                        pendingArea = null, recenterToken = recenterToken + 1
+                    )
+                }
             }
         }
     }

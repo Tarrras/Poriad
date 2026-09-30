@@ -23,6 +23,8 @@ struct HomePresentation {
     let chips: [FeedFilter]
     /// Скільки подій в області, без фільтрів мапи.
     let totalFound: Int
+    /// Скільки відкритих зустрічей від людей у місті всього: число в «Усі N» біля «Від людей», рейка показує лише перші.
+    let openRooms: Int
     /// Пошук головної, окремий від мапи: фільтр одного екрана не порожнить інший.
     let searchText: String
     /// Результати пошуку одним списком, без дайджесту. Лише ті, чиї картки вже приїхали.
@@ -69,6 +71,7 @@ struct HomePresentation {
         loading = home?.loading == true
         searchLoading = home?.searchLoading == true
         totalFound = Int(home?.totalFound ?? 0)
+        openRooms = Int(home?.openRooms ?? 0)
         resultsTotal = Int(home?.resultsTotal ?? 0)
         places = home?.places ?? []
         searchText = home?.searchText ?? ""

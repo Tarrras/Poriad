@@ -31,6 +31,12 @@ data class MapFeed(
     /** Заклад, обраний у пошуку: мапа наводиться на нього й відкриває його стос. */
     val placeFocus: PlaceFocus? = null,
     val onlyAvailable: Boolean = false,
+    /**
+     * Скільки разів на мапу переходили з головної з готовим набором фільтрів ([DiscoveryEngine.showOnMap]). Платформа за
+     * ним повертає камеру до міста й закриває свої шторки, стос і відкриті картки: інакше після «Усі N» мапа лишилась би
+     * там, де її покинули, а не там, де щойно показала те, що обіцяла кнопка.
+     */
+    val arrivals: Int = 0,
     /** Фільтр мапи. Null — усі категорії. */
     val category: EventCategory? = null,
     val dateFilter: DateFilter = DateFilter.ANY,
@@ -96,6 +102,13 @@ data class HomeFeed(
     val found: List<Event> = emptyList()
 ) {
     val searching get() = searchText.isNotBlank()
+
+    /**
+     * Скільки в області відкритих зустрічей від людей: число в «Усі N» біля «Від людей». Рахуємо по всьому індексу тим самим
+     * предикатом, що й фільтр мапи «від людей» (кімната з вільним місцем), тож «Усі 12» збігається з «Знайдено подій: 12».
+     * Не поле: індекс змінюється рідко, а рахується по ньому за мікросекунди.
+     */
+    val openRooms: Int get() = index.count { it.isCommunity && it.roomHasSeats }
 
     /** Id, картки яких головна показує: зміна видачі мапи їх не викидає. */
     internal fun shownIds(): Set<String> =
@@ -164,4 +177,4 @@ private fun AppState.cardsWithSessions(): Map<String, Event> {
 }
 
 /** Фільтр дати мапи й пошуку. Лише стан клієнта: на сервер іде вже діапазон `from`/`to`. */
-enum class DateFilter { ANY, TODAY, WEEKEND }
+enum class DateFilter { ANY, TODAY, TOMORROW, WEEKEND }

@@ -202,6 +202,12 @@ class PoruchApp internal constructor(
     fun setHomeSearchCategory(category: EventCategory?) = discovery.setHomeSearchCategory(category)
     fun setHomeSearchDate(filter: DateFilter) = discovery.setHomeSearchDate(filter)
     fun setOnlyAvailable(available: Boolean) = discovery.setOnlyAvailable(available)
+
+    /** «Усі N» біля «Від людей»: мапа лише зі зустрічами від людей з вільним місцем, без інших фільтрів. */
+    fun showPeopleOnMap() = discovery.showOnMap(available = true)
+
+    /** «Усі N» біля «У місті»: мапа з усім містом, без фільтрів і власної області. */
+    fun showEverythingOnMap() = discovery.showOnMap(available = false)
     fun setCategory(category: EventCategory?) = discovery.setCategory(category)
     fun setDateFilter(filter: DateFilter) = discovery.setDateFilter(filter)
     fun searchCity(query: String) = discovery.searchCity(query)

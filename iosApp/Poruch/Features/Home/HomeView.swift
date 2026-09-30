@@ -207,7 +207,10 @@ struct HomeView: View {
     @ViewBuilder private func peopleSection(_ view: HomePresentation) -> some View {
         if !view.people.isEmpty {
             VStack(alignment: .leading, spacing: Space.md) {
-                SectionHeader(title: "Від людей").padding(.horizontal, Space.page)
+                SectionHeader(
+                    title: "Від людей", actionLabel: view.openRooms > 0 ? "Усі \(view.openRooms)" : nil,
+                    action: view.openRooms > 0 ? showPeople : nil
+                ).padding(.horizontal, Space.page)
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(alignment: .top, spacing: Space.md) {
                         ForEach(view.people, id: \.event.id) { entry in
@@ -308,7 +311,7 @@ struct HomeView: View {
             VStack(alignment: .leading, spacing: Space.md) {
                 SectionHeader(
                     title: "У місті", actionLabel: view.totalFound > 0 ? "Усі \(view.totalFound)" : nil,
-                    action: view.totalFound > 0 ? openMap : nil
+                    action: view.totalFound > 0 ? showCity : nil
                 ).padding(.horizontal, Space.page)
                 heroPager(picks, view)
                 if !view.chips.isEmpty { feedChips(view.chips, selected: filter) }
@@ -386,7 +389,7 @@ struct HomeView: View {
                 LinkRow(
                     symbol: "map", title: "Усі події поруч",
                     subtitle: "На мапі можна змінити область, дату й категорію",
-                    value: view.totalFound > 0 ? "\(view.totalFound)" : nil, action: openMap
+                    value: view.totalFound > 0 ? "\(view.totalFound)" : nil, action: showCity
                 )
                 Divider().overlay(Palette.hairline).padding(.leading, Space.lg + 40 + Space.md)
                 LinkRow(symbol: "sparkles", title: "Маєте ідею зустрічі?", subtitle: "Опублікуйте подію за три кроки") { createEvent("home_footer") }
@@ -395,6 +398,12 @@ struct HomeView: View {
     }
 
     private func open(_ id: String, from: String) { model.app.selectEvent(id: id, from: from); openEvent(id) }
+
+    /// «Усі N» біля «У місті» і рядок «Усі події поруч»: мапа з усім містом, а не з фільтрами, що лишились з минулого візиту.
+    private func showCity() { model.app.showEverythingOnMap(); openMap() }
+
+    /// «Усі N» біля «Від людей»: мапа лише зі зустрічами від людей з вільним місцем.
+    private func showPeople() { model.app.showPeopleOnMap(); openMap() }
 
     /// Результати пошуку одним списком.
     @ViewBuilder private func searchResults(_ view: HomePresentation) -> some View {

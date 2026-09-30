@@ -7,6 +7,12 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.*
 import kotlin.test.*
+import kotlin.time.Clock
+import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.atStartOfDayIn
+import kotlinx.datetime.plus
+import kotlinx.datetime.toLocalDateTime
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PoruchAppTest {
@@ -609,6 +615,89 @@ class PoruchAppTest {
         assertEquals(setOf("jazz","yoga"),app.state.value.home.index.map { it.id }.toSet())
         assertTrue(events.queries.drop(1).all { it.text=="jazz" },"мапа без головної: ${events.queries}")
         assertTrue(app.state.value.home.index.all { it.id in app.state.value.cards },"картки головної пережили видачу мапи")
+        app.close()
+    }
+
+    /** «Усі N» біля «Від людей»: мапа лише з відкритими зустрічами, без чужих фільтрів і власної області, одним запитом; головна цілою. */
+    @Test fun showingPeopleOnTheMapAsksOnceAndResetsLeftoverFilters()=runTest {
+        val events=Events(); events.results=listOf(event("jazz",EventCategory.MUSIC,"2090-01-05T19:00:00Z"),event("yoga",EventCategory.SPORT,"2090-01-06T19:00:00Z"))
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
+        app.setSearchText("jazz"); advanceTimeBy(1000); runCurrent()
+        app.setCategory(EventCategory.MUSIC); app.setDateFilter(DateFilter.TODAY); advanceTimeBy(1000); runCurrent()
+        app.searchArea(1.0,2.0,3.0,4.0); advanceTimeBy(1000); runCurrent()
+        app.selectEvent("jazz"); runCurrent()
+        assertEquals("jazz",app.state.value.detail.event?.id)
+        val before=events.queries.size
+
+        app.showPeopleOnMap(); advanceTimeBy(1000); runCurrent()
+
+        assertNull(app.state.value.detail.event,"обрана подія не тягне камеру до себе")
+        val map=app.state.value.map
+        assertTrue(map.onlyAvailable); assertNull(map.category); assertEquals(DateFilter.ANY,map.dateFilter); assertEquals("",map.searchText)
+        assertFalse(app.state.value.city.custom,"власна область скинута до міста")
+        assertEquals(before+1,events.queries.size,"один запит, а не по одному на фільтр")
+        val asked=events.queries.last()
+        assertTrue(asked.available); assertNull(asked.text); assertNull(asked.from); assertNull(asked.to)
+        assertEquals(HomeLocation.Kyiv.south,asked.south)
+        assertEquals(setOf("jazz","yoga"),app.state.value.home.index.map { it.id }.toSet(),"головна лишилась цілою")
+        app.close()
+    }
+
+    /** «Усі N» біля «У міcті» знімає і фільтр «від людей», що лишився від попереднього переходу. */
+    @Test fun showingEverythingClearsThePeopleFilter()=runTest {
+        val events=Events(); events.results=listOf(event("jazz",EventCategory.MUSIC,"2090-01-05T19:00:00Z"))
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
+        app.showPeopleOnMap(); advanceTimeBy(1000); runCurrent()
+        assertTrue(events.queries.last().available)
+
+        app.showEverythingOnMap(); advanceTimeBy(1000); runCurrent()
+
+        assertFalse(app.state.value.map.onlyAvailable)
+        assertFalse(events.queries.last().available)
+        app.close()
+    }
+
+    /** Мапа вже без фільтрів — нова видача не потрібна, але перехід рахується: за лічильником платформа повертає камеру й шторки. */
+    @Test fun showingEverythingOnAnUntouchedMapSkipsTheNetworkButCountsTheArrival()=runTest {
+        val events=Events(); events.results=listOf(event("jazz",EventCategory.MUSIC,"2090-01-05T19:00:00Z"))
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
+        val before=events.queries.size
+
+        app.showEverythingOnMap(); advanceTimeBy(1000); runCurrent()
+        assertEquals(before,events.queries.size,"мапа вже була без фільтрів")
+        assertEquals(1,app.state.value.map.arrivals)
+
+        app.showEverythingOnMap(); runCurrent()
+        assertEquals(2,app.state.value.map.arrivals)
+        app.close()
+    }
+
+    /** Число в «Усі N» — відкриті кімнати з усього індексу: повні й афіша не рахуються, як і на сервері для фільтра мапи. */
+    @Test fun openRoomsCountsOnlyCommunityEntriesWithFreeSeats() {
+        fun entry(id:String,origin:EventOrigin,capacity:Int?,going:Int)=EventIndexEntry(
+            id=id,latitude=0.0,longitude=0.0,category=EventCategory.SOCIAL,startsAt="2090-01-01T10:00:00Z",timeZone="Europe/Kyiv",
+            title=id,origin=origin,capacity=capacity,attendeeCount=going
+        )
+        val feed=HomeFeed(index=listOf(
+            entry("open",EventOrigin.COMMUNITY,4,1),entry("last",EventOrigin.COMMUNITY,4,3),
+            entry("full",EventOrigin.COMMUNITY,2,2),entry("listing",EventOrigin.IMPORT,null,0)
+        ))
+        assertEquals(2,feed.openRooms)
+        assertEquals(0,HomeFeed().openRooms)
+    }
+
+    /** «Завтра» питає сервер про наступну добу за місцевим часом, а не про сьогодні чи вихідні. */
+    @Test fun tomorrowFilterAsksForTheNextLocalDayOnly()=runTest {
+        val events=Events(); val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
+
+        app.setDateFilter(DateFilter.TOMORROW); advanceTimeBy(1000); runCurrent()
+
+        val zone=TimeZone.currentSystemDefault()
+        val today=Clock.System.now().toLocalDateTime(zone).date
+        val asked=events.queries.last()
+        assertEquals(today.plus(1,DateTimeUnit.DAY).atStartOfDayIn(zone).toString(),asked.from)
+        assertEquals(today.plus(2,DateTimeUnit.DAY).atStartOfDayIn(zone).toString(),asked.to)
+        assertEquals(DateFilter.TOMORROW,app.state.value.map.dateFilter)
         app.close()
     }
 

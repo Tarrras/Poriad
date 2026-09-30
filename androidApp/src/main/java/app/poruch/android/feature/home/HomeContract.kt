@@ -36,6 +36,8 @@ data class HomeState(
     val feedLimit: Int = HomeRules.FEED_PAGE,
     /** Скільки подій в області, без фільтрів мапи. */
     val totalFound: Int = 0,
+    /** Скільки відкритих зустрічей від людей у місті всього: число в «Усі N» біля «Від людей», рейка показує лише перші. */
+    val openRooms: Int = 0,
     val savedIds: List<String> = emptyList(),
     val waitlistedIds: List<String> = emptyList(),
     /** Пошук головної, окремий від мапи: фільтр одного екрана не порожнить інший. */
@@ -107,6 +109,10 @@ sealed interface HomeIntent {
     /** Плашка «Організувати подію» вгорі й підвал стрічки: новий редактор, гостя спершу до входу. [from] — `home_top` чи `home_footer`. */
     data class CreateEvent(val from: String) : HomeIntent
     data object OpenMap : HomeIntent
+    /** «Усі N» біля «Від людей»: мапа лише зі зустрічами від людей з вільним місцем. */
+    data object ShowPeopleOnMap : HomeIntent
+    /** «Усі N» біля «У місті» і рядок «Усі події поруч»: мапа з усім містом, а не з фільтрами, що лишились з минулого візиту. */
+    data object ShowEverythingOnMap : HomeIntent
     data object OpenProfile : HomeIntent
     /** «Мої події» біля блоку «Ваше». */
     data object OpenMyEvents : HomeIntent

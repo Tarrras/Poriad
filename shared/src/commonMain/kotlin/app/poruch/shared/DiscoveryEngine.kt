@@ -495,6 +495,33 @@ internal class DiscoveryEngine(
         debounceJob = scope.launch { delay(DiscoveryRules.SEARCH_DEBOUNCE_MS); refresh(home = false) }
     }
 
+    /**
+     * Мапа з готовим набором фільтрів однією зміною запиту: перехід із головної («Усі N» біля «Від людей» чи «У місті»).
+     * Скидає все, що людина лишила на мапі раніше (текст, дату, категорію, власну область), бо «Усі 378» з чужим
+     * фільтром показали б менше, ніж написано. [available] — лише зустрічі від людей з вільним місцем: сервер віддає
+     * рівно їх, афіша місткості не має. Запит один, а не по одному на фільтр; коли мапа вже такою була — мережі нема,
+     * але [MapFeed.arrivals] росте однаково: камеру й шторки платформа повертає за цим лічильником.
+     */
+    fun showOnMap(available: Boolean) {
+        debounceJob?.cancel(); placesJob?.cancel()
+        val target = cityArea.copy(available = available)
+        val current = store.value
+        val same = query == target && current.map.onlyAvailable == available && current.map.category == null &&
+            current.map.dateFilter == DateFilter.ANY && current.map.searchText.isEmpty() && !current.city.custom
+        store.update {
+            it.copy(
+                map = it.map.copy(
+                    searchText = "", places = emptyList(), onlyAvailable = available, category = null,
+                    dateFilter = DateFilter.ANY, arrivals = it.map.arrivals + 1
+                ),
+                city = it.city.copy(custom = false)
+            )
+        }
+        query = target
+        onQueryChanged()
+        if (!same) refresh(home = false)
+    }
+
     fun setOnlyAvailable(available: Boolean) {
         store.update { it.copy(map = it.map.copy(onlyAvailable = available)) }
         query = query.copy(available = available); onQueryChanged(); refresh(home = false)
@@ -527,11 +554,13 @@ internal class DiscoveryEngine(
         // `now` ховав виставки й фестивалі і щоразу давав новий ключ кешу.
         val start = when (filter) {
             DateFilter.TODAY -> today.atStartOfDayIn(zone)
+            DateFilter.TOMORROW -> today.plus(1, DateTimeUnit.DAY).atStartOfDayIn(zone)
             DateFilter.WEEKEND -> today.plus(daysToSaturday, DateTimeUnit.DAY).atStartOfDayIn(zone)
             DateFilter.ANY -> null
         }
         val end = when (filter) {
             DateFilter.TODAY -> today.plus(1, DateTimeUnit.DAY).atStartOfDayIn(zone)
+            DateFilter.TOMORROW -> today.plus(2, DateTimeUnit.DAY).atStartOfDayIn(zone)
             DateFilter.WEEKEND -> today.plus(8 - today.dayOfWeek.isoDayNumber, DateTimeUnit.DAY).atStartOfDayIn(zone)
             DateFilter.ANY -> null
         }

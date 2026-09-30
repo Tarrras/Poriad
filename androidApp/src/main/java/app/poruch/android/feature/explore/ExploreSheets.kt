@@ -55,7 +55,7 @@ internal fun FilterSheet(state: ExploreState, onIntent: (ExploreIntent) -> Unit,
         }
         Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
             SectionHeader(stringResource(R.string.date))
-            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                 dateFilters.forEach { (key, label) ->
                     PoruchChip(stringResource(label), date == key, { date = if (date == key) DateFilter.ANY else key })
                 }

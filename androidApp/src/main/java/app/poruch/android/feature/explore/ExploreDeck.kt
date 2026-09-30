@@ -371,6 +371,13 @@ private fun EventCarousel(state: ExploreState, onIntent: (ExploreIntent) -> Unit
             )
         )
     }
+    // «Повернутися до міста» і перехід з головної: карусель з першої картки й лишається на ній, доки людина не гортала чи не
+    // обрала подію. Картки нової видачі приїжджають пізніше й вставляються перед колишньою першою, а список тримається
+    // за ключ першої видимої картки: без цього він лишався б на ній.
+    var atStart by remember { mutableStateOf(false) }
+    LaunchedEffect(state.recenterToken) { atStart = true }
+    LaunchedEffect(dragged, state.selectedId) { if (dragged || state.selectedId != null) atStart = false }
+    LaunchedEffect(atStart, state.deckEvents) { if (atStart) listState.scrollToItem(0) }
     LaunchedEffect(state.selectedId, state.deckEvents) {
         val id = state.selectedId ?: return@LaunchedEffect
         val index = state.deckEvents.indexOfFirst { it.id == id }

@@ -74,16 +74,17 @@ private fun TopControls(state: ExploreState, onIntent: (ExploreIntent) -> Unit) 
             horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically
         ) {
             PoruchChip(state.cityName, false, { onIntent(ExploreIntent.ShowSheet(ExploreSheet.CITY)) }, PoruchIcons.pin, trailingIcon = Icons.Outlined.ExpandMore)
+            // Одразу після міста, а не за датами: з «Усі N» головної мапа приходить із цим фільтром, і його має бути видно.
+            PoruchChip(
+                stringResource(R.string.from_people), state.onlyAvailable,
+                { onIntent(ExploreIntent.OnlyAvailable(!state.onlyAvailable)) }, PoruchIcons.social
+            )
             dateFilters.forEach { (key, label) ->
                 // Повторний тап знімає вибір, щоб не шукати «Будь-коли» за краєм рядка.
                 PoruchChip(stringResource(label), state.dateFilter == key, {
                     onIntent(ExploreIntent.PickDate(if (state.dateFilter == key) DateFilter.ANY else key))
                 })
             }
-            PoruchChip(
-                stringResource(R.string.available), state.onlyAvailable,
-                { onIntent(ExploreIntent.OnlyAvailable(!state.onlyAvailable)) }, PoruchIcons.checkCircle
-            )
         }
         if (state.locationDenied) Text(
             stringResource(R.string.location_fallback), style = MaterialTheme.typography.bodySmall, color = colors.ink,
@@ -116,5 +117,6 @@ private fun AreaPrompts(state: ExploreState, modifier: Modifier, onIntent: (Expl
 internal val dateFilters = listOf(
     DateFilter.ANY to R.string.any_date,
     DateFilter.TODAY to R.string.today,
+    DateFilter.TOMORROW to R.string.tomorrow,
     DateFilter.WEEKEND to R.string.weekend
 )

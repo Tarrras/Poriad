@@ -2,11 +2,12 @@ import SwiftUI
 import Shared
 
 /// Фільтри дати в порядку показу. Читають і рядок чипів, і шторка фільтрів.
-let dateFilterKeys: [DateFilter] = [.any, .today, .weekend]
+let dateFilterKeys: [DateFilter] = [.any, .today, .tomorrow, .weekend]
 
 func dateLabel(_ filter: DateFilter) -> String {
     switch filter {
     case .today: "Сьогодні"
+    case .tomorrow: "Завтра"
     case .weekend: "Вихідні"
     default: "Будь-коли"
     }
@@ -191,6 +192,13 @@ struct DiscoveryView: View {
             detail = nil
             open(.peek)
         }
+        // «Усі N» з головної приносить мапу з чистими фільтрами й областю: камера, стос, плитки списку й «Шукати тут» — з чистого аркуша.
+        .onChange(of: model.state?.map.arrivals) { _, _ in
+            stackIDs = []
+            listCategory = nil
+            region = nil
+            centerToken += 1
+        }
         // Картки просимо під категорію, яку показуємо: під фільтром вони лежать за краєм вікна.
         .onChange(of: listCategory) { _, _ in loadHead(cardPage) }
         .onChange(of: category) { _, _ in loadHead(cardPage) }
@@ -230,14 +238,15 @@ struct DiscoveryView: View {
                 HStack(spacing: Space.sm) {
                     Chip(label: model.state?.city.name ?? "Київ", symbol: "mappin.and.ellipse", trailingSymbol: "chevron.down", selected: false) { citySearch = true }
                         .accessibilityLabel("Змінити місто")
+                    // Одразу після міста, а не за датами: з «Усі N» головної мапа приходить із цим фільтром, і його має бути видно.
+                    Chip(label: "Від людей", symbol: "person.2", selected: model.state?.map.onlyAvailable == true) {
+                        model.app.setOnlyAvailable(available: !(model.state?.map.onlyAvailable ?? false))
+                    }
                     ForEach(dateFilterKeys, id: \.self) { key in
                         // Повторний тап знімає вибір, щоб не шукати «Будь-коли» за краєм рядка.
                         Chip(label: dateLabel(key), selected: model.state?.map.dateFilter == key) {
                             model.app.setDateFilter(filter: model.state?.map.dateFilter == key ? DateFilter.any : key)
                         }
-                    }
-                    Chip(label: "Можна приєднатись", symbol: "checkmark.circle", selected: model.state?.map.onlyAvailable == true) {
-                        model.app.setOnlyAvailable(available: !(model.state?.map.onlyAvailable ?? false))
                     }
                 }
             }
@@ -611,7 +620,7 @@ struct FiltersView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: Space.xl) {
                     section("Коли") {
-                        HStack(spacing: Space.sm) {
+                        FlowLayout(spacing: Space.sm) {
                             ForEach(dateFilterKeys, id: \.self) { key in
                                 Chip(label: dateLabel(key), selected: pickedDate == key) {
                                     date = pickedDate == key ? DateFilter.any : key
@@ -630,7 +639,7 @@ struct FiltersView: View {
                         }
                     }
                     Toggle(isOn: Binding(get: { pickedAvailable }, set: { available = $0 })) {
-                        Text("Лише події, до яких можна приєднатись").font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
+                        Text("Лише зустрічі від людей із вільними місцями").font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
                     }.tint(Palette.brand)
                 }
                 .padding(.horizontal, Space.page)

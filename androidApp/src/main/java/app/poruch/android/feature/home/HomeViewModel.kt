@@ -74,6 +74,7 @@ class HomeViewModel(private val app: PoruchApp) : MviViewModel<HomeState, HomeIn
             chips = chips,
             feedFilter = filter,
             totalFound = home.totalFound,
+            openRooms = home.openRooms,
             savedIds = shared.library.savedIds,
             waitlistedIds = shared.library.waitlistedIds,
             searchText = home.searchText,
@@ -136,6 +137,8 @@ class HomeViewModel(private val app: PoruchApp) : MviViewModel<HomeState, HomeIn
             send(HomeEffect.Navigate(HomeDestination.EDITOR))
         }
         HomeIntent.OpenMap -> send(HomeEffect.Navigate(HomeDestination.MAP))
+        HomeIntent.ShowPeopleOnMap -> { app.showPeopleOnMap(); send(HomeEffect.Navigate(HomeDestination.MAP)) }
+        HomeIntent.ShowEverythingOnMap -> { app.showEverythingOnMap(); send(HomeEffect.Navigate(HomeDestination.MAP)) }
         HomeIntent.ShowResultsOnMap -> {
             app.setSearchText(state.value.searchText)
             send(HomeEffect.Navigate(HomeDestination.MAP))
