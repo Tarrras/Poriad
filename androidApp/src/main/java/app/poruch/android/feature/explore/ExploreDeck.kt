@@ -44,6 +44,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import app.poruch.android.R
@@ -180,6 +181,11 @@ internal fun DiscoverySheet(
     }
 
     val heightDp = with(density) { height.toDp() }
+    // Клавіатура пошуку лягає на шторку (вікно не стискається): згорнуту піднімаємо над нею.
+    // Таббар під клавіатурою ховається, тож його смугу віднімаємо.
+    // Запас Spacing.md: двоповерхова картка вища за слот, і її низ інакше ховається під клавіатурою.
+    val imeLift = WindowInsets.ime.getBottom(density) - navBottom - with(density) { TabBarInset.roundToPx() }
+    val lift = if (expanded || imeLift <= 0) 0 else imeLift + with(density) { Spacing.md.roundToPx() }
     // Згорнутій шторці підкладка не потрібна.
     val surface = if (expanded) {
         Modifier
@@ -196,6 +202,7 @@ internal fun DiscoverySheet(
     Column(
         modifier
             .fillMaxWidth()
+            .offset { IntOffset(0, -lift) }
             .height(heightDp)
             .then(surface)
             .nestedScroll(listConnection)
