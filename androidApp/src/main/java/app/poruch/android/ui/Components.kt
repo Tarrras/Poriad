@@ -1369,9 +1369,10 @@ fun EventMapCard(
                 style = MaterialTheme.typography.labelSmall,
                 color = colors.inkTertiary
             )
+            // Назва поступається чипу: слот картки фіксований, і довга назва інакше виштовхує чип за край.
             Text(
                 event.displayTitle, style = PoruchType.serifTitle3, color = colors.ink,
-                maxLines = 2, overflow = TextOverflow.Ellipsis
+                maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false)
             )
             if (badge != null) StatusBadge(badge.first, badge.second) else EventMeta(
                 event,
