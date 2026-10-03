@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 
 from .pipeline import Item, occurrence_uid
+from .artists import key as artist_key
 from .normalize import normalize_name
 
 
@@ -72,7 +73,8 @@ def venues_sql(items: list[Item], city: str) -> str:
 BATCH = 200
 
 
-def events_sql(items: list[Item], run_id: str, batch: int = BATCH, max_bytes: int = 0) -> list[str]:
+def events_sql(items: list[Item], run_id: str, batch: int = BATCH, max_bytes: int = 0,
+               replace_llm: bool = False) -> list[str]:
     """Команди `insert` для подій, по `batch` рядків у кожній.
 
     Повертає список, а не рядок, свідомо: той, хто ділить файл на частини, має різати між
@@ -84,7 +86,8 @@ def events_sql(items: list[Item], run_id: str, batch: int = BATCH, max_bytes: in
     if batch < 1:
         raise ValueError("batch must be positive")
     return [part for i in range(0, len(publishable), batch)
-            for part in bounded_sql(publishable[i:i + batch], lambda rows: _insert(rows, run_id), max_bytes)]
+            for part in bounded_sql(publishable[i:i + batch],
+                                    lambda rows: _insert(rows, run_id, replace_llm), max_bytes)]
 
 
 def bounded_sql(items: list, render, max_bytes: int) -> list[str]:
@@ -137,7 +140,7 @@ _PLACE_SOURCE = {"alias": "manual", "exact": "osm", "contains": "osm", "photon":
 _PLACE_RANK = {"alias": 3, "exact": 2, "contains": 2}
 
 
-def _insert(publishable: list[Item], run_id: str) -> str:
+def _insert(publishable: list[Item], run_id: str, replace_llm: bool = False) -> str:
     rows: list[str] = []
     for it in publishable:
         rows.append("  (" + ",".join([
@@ -190,7 +193,62 @@ def _insert(publishable: list[Item], run_id: str) -> str:
           "  price_min=excluded.price_min, is_free=excluded.is_free,\n"
           "  ingest_run_id=case when events.import_status='withdrawn' and events.ingest_run_id is null\n"
           "                     then null else excluded.ingest_run_id end,\n"
-          "  updated_at=now();\n")
+          "  updated_at=now();\n" + artists_sql(publishable, replace_llm))
+
+
+# Звідки ім'я артиста: ручний словник > автоматика > модель. Як `place_source_rank` у БД.
+_ARTIST_RANK = {"manual": 3, "auto": 2, "llm": 1}
+
+
+def artists_sql(items: list[Item], replace_llm: bool = False) -> str:
+    """Артисти подій партії (20261002120000): словник `artists` і зв'язок `event_artists`.
+
+    Іде в тій самій команді, що й вставка подій, тож зв'язок бачить свою подію. Набір артистів події
+    замінюється повністю, щоб зниклий з афіші виконавець не висів. Рядки моделі (`how='llm'`)
+    чіпаємо лише в прогоні з моделлю: без неї вони б щоразу губились.
+    """
+    ids = [it.event_id for it in items]
+    if not ids:
+        return ""
+    people: dict[str, tuple] = {}              # key -> (ім'я, вид, джерело)
+    links: list[str] = []
+    for it in items:
+        for position, a in enumerate(it.artists):
+            k = artist_key(a.name)
+            name = a.name.strip()
+            if not k or len(k) > 160 or not name or len(name) > 120:
+                continue
+            try:
+                (name + k).encode("utf-8")      # сурогат у назві валить запис усього дампу
+            except UnicodeEncodeError:
+                continue
+            source = "manual" if a.how == "dictionary" else "llm" if a.how == "llm" else "auto"
+            if k not in people or _ARTIST_RANK[source] > _ARTIST_RANK[people[k][2]]:
+                people[k] = (name, a.kind, source)
+            links.append("  (" + ",".join([_lit(str(it.event_id)), _lit(k), _lit(a.role), str(position),
+                                           _lit(a.how), repr(round(a.confidence, 2))]) + ")")
+    clear = ("delete from public.event_artists ea using (values "
+             + ",".join(f"({_lit(str(i))})" for i in ids) + ") v(id) where ea.event_id = v.id::uuid"
+             + ("" if replace_llm else " and ea.how <> 'llm'") + ";\n")
+    if not links:
+        return clear
+    rows = ["  (" + ",".join([_lit(name), _lit(k), _lit(kind), _lit(source)]) + ")"
+            for k, (name, kind, source) in people.items()]
+    return (clear +
+        "insert into public.artists (name,key,kind,source)\nvalues\n" + ",\n".join(rows) +
+        "\non conflict (key) do update set\n"
+        "  name=case when private.artist_source_rank(excluded.source) >= private.artist_source_rank(artists.source)\n"
+        "            then excluded.name else artists.name end,\n"
+        "  source=case when private.artist_source_rank(excluded.source) >= private.artist_source_rank(artists.source)\n"
+        "              then excluded.source else artists.source end,\n"
+        "  kind=coalesce(excluded.kind, artists.kind), updated_at=now();\n"
+        "insert into public.event_artists (event_id,artist_id,role,position,how,confidence)\n"
+        "select v.event_id::uuid, a.id, v.role, v.position::smallint, v.how, v.confidence::numeric\n"
+        "from (values\n" + ",\n".join(links) + "\n) v(event_id,key,role,position,how,confidence)\n"
+        "join public.events e on e.id = v.event_id::uuid\n"
+        "join public.artists a on a.key = v.key\n"
+        "on conflict (event_id,artist_id) do update set\n"
+        "  role=excluded.role, position=excluded.position, how=excluded.how, confidence=excluded.confidence;\n")
 
 
 def unwritable(it: Item, run_id: str) -> str | None:
@@ -381,21 +439,38 @@ def retire_finished_sql(grace_days: int = FINISHED_GRACE_DAYS) -> str:
     return f"select private.retire_finished_imports(interval '{grace_days} days');\n"
 
 
+def prune_artists_sql() -> str:
+    """Артисти без жодної події й без підписника (20261002120000): лишаються після злиття дублів («Київський
+    Mozart Orchestra» -> «Kyiv Mozart Orchestra») і зміни правил. Підписник утримує артиста навіть без подій:
+    людина не мусить втратити підписку, бо афіша на тиждень спорожніла. Ідемпотентна й під перевіркою
+    наявності таблиці, як пуш: дамп, застосований до бази без міграції, не має впасти."""
+    return ("do $$ begin\n"
+            "  if to_regclass('public.artists') is not null then\n"
+            "    delete from public.artists a\n"
+            "    where not exists (select 1 from public.event_artists ea where ea.artist_id = a.id)\n"
+            "      and not exists (select 1 from public.follows f where f.target_kind = 'artist' and f.target_id = a.id);\n"
+            "  end if;\n"
+            "end $$;\n")
+
+
 def notify_follows_sql() -> str:
-    """Пуш підписникам закладів про нові події (20260928160000): одна команда на дамп, перед
-    `retire_finished_sql`. Ідемпотентна, як і вона: функція сама пам'ятає, кому вже казала, і
+    """Пуш підписникам артистів і закладів про нові події (20260928160000, 20261002130000): одна команда
+    на дамп, перед `retire_finished_sql`. Артисти першими: у них спільний із закладами добовий ліміт, і
+    особистіша підписка забирає слот. Ідемпотентна, як і вона: функція сама пам'ятає, кому вже казала, і
     не частіше ніж раз на добу на людину. Ні відсутня функція (`to_regprocedure`: дамп, застосований до
     бази без міграції), ні її збій не мають відкотити всю транзакцію дампу заради пуша: збій — лише
     попередження, зведення відкотиться саме, а нове дочекається наступного прогону."""
-    return ("do $$ begin\n"
-            "  if to_regprocedure('private.notify_place_follows()') is not null then\n"
-            "    begin\n"
-            "      perform private.notify_place_follows();\n"
-            "    exception when others then\n"
-            "      raise warning 'notify_place_follows: %', sqlerrm;\n"
-            "    end;\n"
-            "  end if;\n"
-            "end $$;\n")
+    return "".join(
+        "do $$ begin\n"
+        f"  if to_regprocedure('private.{name}()') is not null then\n"
+        "    begin\n"
+        f"      perform private.{name}();\n"
+        "    exception when others then\n"
+        f"      raise warning '{name}: %', sqlerrm;\n"
+        "    end;\n"
+        "  end if;\n"
+        "end $$;\n"
+        for name in ("notify_artist_follows", "notify_place_follows"))
 
 
 def to_json(items: list[Item]) -> str:
@@ -412,4 +487,5 @@ def to_json(items: list[Item]) -> str:
         "venue_match": i.venue_how, "quality": i.quality, "stage": i.stage,
         "reject_reason": i.reject_reason, "price_min": i.price_min, "is_free": i.is_free,
         "url": i.canonical_url,
+        "artists": [{"name": a.name, "role": a.role, "how": a.how} for a in i.artists],
     } for i in items], ensure_ascii=False, indent=1)

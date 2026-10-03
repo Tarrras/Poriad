@@ -34,6 +34,16 @@ class Source:
     note: str = ""
     detail_path: str | None = None
     max_details: int = 100
+    # Каталог карток за sitemap: сторінка-список віддає лише 20 посилань, повний перелік — у sitemap.
+    # Беруться URL міста `<city_slugs[місто]>/…-РРРР-ММ-ДД` з датою від сьогодні до horizon_days.
+    sitemap_url: str | None = None
+    sitemap_prefix: str | None = None       # шаблон початку URL карток із {city}
+    horizon_days: int = 30
+    # false — addressLocality джерела ламаний (хвіст вулиці: «З», «Ніжинська»), місто беремо зі списку.
+    trust_locality: bool = True
+    # true — список не віддає виконавців, їх читаємо з картки події (кеш на диску, щоб повторний
+    # прогін не ходив по сотні сторінок): Concert.ua дає `performer[]` і повний опис із лайнапом.
+    performer_details: bool = False
     # jsonld — загальний шлях список/сторінка; іменовані адаптери можуть доповнити метадані до нормалізації.
     adapter: str = "jsonld"
 
@@ -97,6 +107,28 @@ SOURCES: list[Source] = [
              "Обхід обмежено 100 картками/місто.",
     ),
     Source(
+        slug="badseller",
+        name="Badseller",
+        base_url="https://badseller.net",
+        # Список віддає 20 посилань і пагінації не має; повний перелік — sitemap (див. sitemap_url).
+        listing_urls={"Київ": "https://badseller.net/afisha/kyiv",
+                      "Львів": "https://badseller.net/afisha/lviv",
+                      "Харків": "https://badseller.net/afisha/kharkiv",
+                      "Одеса": "https://badseller.net/afisha/odesa",
+                      "Дніпро": "https://badseller.net/afisha/dnipro"},
+        city_slugs={"Київ": "kyiv", "Львів": "lviv", "Харків": "kharkiv",
+                    "Одеса": "odesa", "Дніпро": "dnipro"},
+        sitemap_url="https://badseller.net/sitemaps/afisha.xml",
+        sitemap_prefix="https://badseller.net/afisha/{city}/",
+        # Агрегатор квитків: дані з Kontramarka, Karabas, Concert.ua. Вага трохи нижча за оригінали
+        # (0.7+), щоб канонічною лишалась їхня копія. Нижче 0.69 події з Photon-адресою падають
+        # під QUALITY_FLOOR: опис шаблонний, endDate лише датою.
+        weight=0.69, crawl_delay=1.5, max_details=1200, trust_locality=False,
+        note="2026-10-01: Event JSON-LD у кожній картці (час зі зсувом, місце з адресою, ціна, фото); "
+             "endDate лише датою → тривалість за категорією. Дата в URL старіша за сеанс на застарілих "
+             "посиланнях — їх не беремо. Опис шаблонний («… — вистава, 2 жовтня о 18:00 …»).",
+    ),
+    Source(
         slug="karabas",
         name="Karabas",
         base_url="https://karabas.com",
@@ -120,7 +152,7 @@ SOURCES: list[Source] = [
                       "Харків": "https://concert.ua/uk/kharkiv",
                       "Одеса": "https://concert.ua/uk/odesa",
                       "Дніпро": "https://concert.ua/uk/dnipro"},
-        weight=0.8, type_policy="weak",
+        weight=0.8, type_policy="weak", performer_details=True,
         crawl_delay=2.0,                     # robots.txt без Crawl-delay; беремо стриманий власний
         note="Найчистіші дані: endDate 100%, offers 100%, коректний перехід на зимовий час.",
         catalog_url="https://concert.ua/uk/catalog/{city}/{slug}",
@@ -145,7 +177,7 @@ SOURCES: list[Source] = [
                       "Дніпро": "https://dnipro.internet-bilet.ua/uk"},
         # Вище за karabas, нижче за concert.ua: вага вирішує канонічну копію при дедуплікації,
         # і прихована вада має проявитись дублем, а не тихою заміною.
-        weight=0.75,
+        weight=0.75, performer_details=True,    # виконавці лише в тексті картки (`descr-unified`)
         crawl_delay=2.0,                     # robots.txt без Crawl-delay; беремо стриманий власний
         # Явно, а не дефолтом: час звірено зі сторінкою, це виміряно.
         tz_policy="source",

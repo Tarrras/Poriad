@@ -1,0 +1,3405 @@
+{
+ "made": "2026-10-02",
+ "events": [
+  {
+   "url": "https://concert.ua/uk/event/komediine-shou-ne-problema-28",
+   "title": "Шоу \"Не проблема\"",
+   "source": "concert_ua",
+   "category": "comedy",
+   "hard": true,
+   "votes": {
+    "openai": [
+     "андрій бережко",
+     "паша пінчук",
+     "руслан колесник"
+    ],
+    "claude": [
+     "андрій бережко",
+     "паша пінчук",
+     "руслан колесник"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "Андрій Бережко",
+     "role": "headliner"
+    },
+    {
+     "name": "Паша Пінчук",
+     "role": "headliner"
+    },
+    {
+     "name": "Руслан Колесник",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://concert.ua/uk/event/novorichnii-antonio-vivaldi",
+   "title": "НОВОРІЧНИЙ АНТОНІО ВІВАЛЬДІ ПРИ СВІЧКАХ",
+   "source": "concert_ua",
+   "category": "music",
+   "hard": true,
+   "votes": {
+    "openai": [
+     "київські солісти"
+    ],
+    "claude": [
+     "київські солісти"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "Київські солісти",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.karabas.com/super-rock-halloween-show-ivan-voron-ta-hurt-beast/",
+   "title": "SUPER ROCK HALLOWEEN SHOW - Іван Ворон та гурт BEAST",
+   "source": "karabas",
+   "category": "music",
+   "hard": true,
+   "votes": {
+    "openai": [
+     "beast",
+     "іван ворон"
+    ],
+    "claude": [
+     "beast",
+     "іван ворон"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "BEAST",
+     "role": "headliner"
+    },
+    {
+     "name": "Іван Ворон",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://concert.ua/uk/event/vechir-novih-zhartiv-13",
+   "title": "Stand-up Вечір Нових Жартів",
+   "source": "concert_ua",
+   "category": "comedy",
+   "hard": true,
+   "votes": {
+    "openai": [
+     "богдан боярин",
+     "богдан письменко",
+     "бродячий стендап",
+     "денис гнатюк",
+     "дмитро захарченко",
+     "кирило залата",
+     "кирило осадчий",
+     "олеся юхнович",
+     "євген лещенко"
+    ],
+    "claude": [
+     "богдан боярин",
+     "богдан письменко",
+     "бродячий стендап",
+     "денис гнатюк",
+     "дмитро захарченко",
+     "кирило залата",
+     "кирило осадчий",
+     "олеся юхнович",
+     "євген лещенко"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "Богдан Боярин",
+     "role": "support"
+    },
+    {
+     "name": "Богдан Письменко",
+     "role": "support"
+    },
+    {
+     "name": "Бродячий Стендап",
+     "role": "headliner"
+    },
+    {
+     "name": "Денис Гнатюк",
+     "role": "support"
+    },
+    {
+     "name": "Дмитро Захарченко",
+     "role": "support"
+    },
+    {
+     "name": "Кирило Залата",
+     "role": "support"
+    },
+    {
+     "name": "Кирило Осадчий",
+     "role": "host"
+    },
+    {
+     "name": "Олеся Юхнович",
+     "role": "support"
+    },
+    {
+     "name": "Євген Лещенко",
+     "role": "support"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://concert.ua/uk/event/azhnov-24-11",
+   "title": "Шоу Ажнова \"Сам\"",
+   "source": "concert_ua",
+   "category": "art",
+   "hard": true,
+   "votes": {
+    "openai": [
+     "ажнов"
+    ],
+    "claude": [
+     "ажнов"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "Ажнов",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.karabas.com/tryb-yut-joe-cocker-hurt-rock-you-3/",
+   "title": "Триб`ют Joe Cocker - гурт ROCK YOU!",
+   "source": "karabas",
+   "category": "music",
+   "hard": true,
+   "votes": {
+    "openai": [
+     "rock you"
+    ],
+    "claude": [
+     "rock you"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "ROCK YOU!",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://badseller.net/afisha/kyiv/stendap-v-ukrytti-2026-10-03",
+   "title": "СТЕНДАП В УКРИТТІ",
+   "source": "badseller",
+   "category": "comedy",
+   "hard": true,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.karabas.com/super-rock-show-ivan-voron-ta-hurt-beast-12/",
+   "title": "SUPER ROCK SHOW - Іван Ворон та гурт BEAST",
+   "source": "karabas",
+   "category": "music",
+   "hard": true,
+   "votes": {
+    "openai": [
+     "beast",
+     "іван ворон"
+    ],
+    "claude": [
+     "beast",
+     "іван ворон"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "BEAST",
+     "role": "headliner"
+    },
+    {
+     "name": "Іван Ворон",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://concert.ua/uk/event/fraideis-stendap-14",
+   "title": "Фрайдейс Стендап",
+   "source": "concert_ua",
+   "category": "comedy",
+   "hard": true,
+   "votes": {
+    "openai": [
+     "андрій бережко",
+     "богдан письменко",
+     "бродячий стендап",
+     "ден че",
+     "марк свиридюк",
+     "паша пінчук"
+    ],
+    "claude": [
+     "андрій бережко",
+     "богдан письменко",
+     "бродячий стендап",
+     "ден че",
+     "марк свиридюк",
+     "паша пінчук"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "Андрій Бережко",
+     "role": "support"
+    },
+    {
+     "name": "Богдан Письменко",
+     "role": "support"
+    },
+    {
+     "name": "Бродячий Стендап",
+     "role": "headliner"
+    },
+    {
+     "name": "Ден Че",
+     "role": "host"
+    },
+    {
+     "name": "Марк Свиридюк",
+     "role": "support"
+    },
+    {
+     "name": "Паша Пінчук",
+     "role": "support"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.internet-bilet.ua/uk/events/100252/queen",
+   "title": "Queen при свічках",
+   "source": "internet_bilet",
+   "category": "music",
+   "hard": true,
+   "votes": {
+    "openai": [
+     "bigshow orchestra"
+    ],
+    "claude": [
+     "bigshow orchestra"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "BIGSHOW ORCHESTRA",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://concert.ua/uk/event/komediine-shou-simeina-terapija-ziomka-011",
+   "title": "Комедійне Шоу Сімейна Терапія Зйомка",
+   "source": "concert_ua",
+   "category": "comedy",
+   "hard": true,
+   "votes": {
+    "openai": [
+     "андрій бережко",
+     "даша баєва",
+     "паша пінчук",
+     "та сама марина"
+    ],
+    "claude": [
+     "андрій бережко",
+     "даша баєва",
+     "паша пінчук",
+     "та сама марина"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "Андрій Бережко",
+     "role": "headliner"
+    },
+    {
+     "name": "Даша Баєва",
+     "role": "headliner"
+    },
+    {
+     "name": "Паша Пінчук",
+     "role": "headliner"
+    },
+    {
+     "name": "Та Сама Марина",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.internet-bilet.ua/uk/charivnik-smihu-ta-fokusiv",
+   "title": "Магічне шоу «Чарівник сміху та фокусів»",
+   "source": "internet_bilet",
+   "category": "kids",
+   "hard": true,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://concert.ua/uk/event/pori-roku-vivaldi-pjaccola-pri-svichkah-23-12-2026",
+   "title": "ПОРИ РОКУ. ВІВАЛЬДІ & ПʼЯЦЦОЛА. ПРИ СВІЧКАХ",
+   "source": "concert_ua",
+   "category": "music",
+   "hard": true,
+   "votes": {
+    "openai": [
+     "київські солісти"
+    ],
+    "claude": [
+     "київські солісти"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "Київські солісти",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.internet-bilet.ua/uk/oleksiy-priymachenko",
+   "title": "СТЕНДАП. Олексій Приймаченко «Живий, і добре»",
+   "source": "internet_bilet",
+   "category": "comedy",
+   "hard": true,
+   "votes": {
+    "openai": [
+     "олексій приймаченко"
+    ],
+    "claude": [
+     "олексій приймаченко"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "Олексій Приймаченко",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.karabas.com/hurt-crazy-train-acoustic-duet-49/",
+   "title": "Гурт Crazy Train (acoustic duet)",
+   "source": "karabas",
+   "category": "music",
+   "hard": true,
+   "votes": {
+    "openai": [
+     "crazy train"
+    ],
+    "claude": [
+     "crazy train"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "Crazy Train",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://concert.ua/uk/event/komediine-shou-ne-problema-ziomka-37",
+   "title": "Комедійне Шоу Не Проблема Зйомка",
+   "source": "concert_ua",
+   "category": "comedy",
+   "hard": true,
+   "votes": {
+    "openai": [
+     "андрій бережко",
+     "богдан боярин",
+     "вова маслов"
+    ],
+    "claude": [
+     "андрій бережко",
+     "богдан боярин",
+     "вова маслов"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "Андрій Бережко",
+     "role": "headliner"
+    },
+    {
+     "name": "Богдан Боярин",
+     "role": "headliner"
+    },
+    {
+     "name": "Вова Маслов",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://badseller.net/afisha/kyiv/hurt-doppio-2026-10-04",
+   "title": "Гурт Doppio",
+   "source": "badseller",
+   "category": "music",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "doppio"
+    ],
+    "claude": [
+     "doppio"
+    ],
+    "source": [
+     "doppio"
+    ]
+   },
+   "artists": [
+    {
+     "name": "Doppio",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://concert.ua/uk/event/anna-kyiv27",
+   "title": "ANNA",
+   "source": "concert_ua",
+   "category": "music",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "anna"
+    ],
+    "claude": [
+     "anna"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "ANNA",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.internet-bilet.ua/uk/events/99260/karna",
+   "title": "KARNA. Party на Хелловін",
+   "source": "internet_bilet",
+   "category": "music",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "karna"
+    ],
+    "claude": [
+     "karna"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "KARNA",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.karabas.com/pisni-lyapis-ukrains-koyu-hurt-all-night-xl-20/",
+   "title": "Пісні Ляпіс Українською - гурт All Night XL",
+   "source": "karabas",
+   "category": "music",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "all night xl"
+    ],
+    "claude": [
+     "all night xl"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "All Night XL",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.ticketsbox.com/event/queen-kyiv-mozart-orchestra-b.html",
+   "title": "QUEEN – Kyiv Mozart Orchestra",
+   "source": "ticketsbox",
+   "category": "music",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "kyiv mozart orchestra"
+    ],
+    "claude": [
+     "kyiv mozart orchestra"
+    ],
+    "source": [
+     "marco concert"
+    ]
+   },
+   "artists": [
+    {
+     "name": "Kyiv Mozart Orchestra",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://badseller.net/afisha/kyiv/trybiut-scorpions-hurt-beast-2026-10-03",
+   "title": "Триб`ют Scorpions - гурт Beast",
+   "source": "badseller",
+   "category": "music",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "beast"
+    ],
+    "claude": [
+     "beast"
+    ],
+    "source": [
+     "beast"
+    ]
+   },
+   "artists": [
+    {
+     "name": "Beast",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://concert.ua/uk/event/susidi-sterpljat-02",
+   "title": "Сусіди стерплять",
+   "source": "concert_ua",
+   "category": "music",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "сусіди стерплять"
+    ],
+    "claude": [
+     "сусіди стерплять"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "Сусіди Стерплять",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.internet-bilet.ua/uk/privid-opera",
+   "title": "Концерт-дивертисмент \"Привид-опера\" (Новорічні хіти)",
+   "source": "internet_bilet",
+   "category": "music",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "анна зарецька",
+     "дмитро фащанко",
+     "олена гребенюк",
+     "ян кастирко"
+    ],
+    "claude": [
+     "анна зарецька",
+     "дмитро фащанко",
+     "олена гребенюк",
+     "ян кастирко"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "Анна Зарецька",
+     "role": "headliner"
+    },
+    {
+     "name": "Дмитро Фащанко",
+     "role": "headliner"
+    },
+    {
+     "name": "ОЛЕНА Гребенюк",
+     "role": "headliner"
+    },
+    {
+     "name": "Ян Кастирко",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.karabas.com/tryb-yut-ac-dc-hurt-as-ds-2/",
+   "title": "Триб`ют AC/DC - гурт AS/DS",
+   "source": "karabas",
+   "category": "music",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "as ds"
+    ],
+    "claude": [
+     "as ds"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "AS/DS",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.ticketsbox.com/event/kyiv-mozart-orchestra.html",
+   "title": "VIVALDI – Kyiv Mozart Orchestra",
+   "source": "ticketsbox",
+   "category": "music",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "kyiv mozart orchestra"
+    ],
+    "claude": [
+     "kyiv mozart orchestra"
+    ],
+    "source": [
+     "marco concert"
+    ]
+   },
+   "artists": [
+    {
+     "name": "Kyiv Mozart Orchestra",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://badseller.net/afisha/kyiv/betkhoven-sonaty-dlia-skrypky-ta-fortepiano-ii-2026-10-03",
+   "title": "Бетховен. Сонати для скрипки та фортепіано ІІ",
+   "source": "badseller",
+   "category": "music",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "notabene chamber group"
+    ],
+    "claude": [
+     "notabene chamber group"
+    ],
+    "source": [
+     "notabene chamber group"
+    ]
+   },
+   "artists": [
+    {
+     "name": "NotaBene Chamber Group",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://concert.ua/uk/event/nino-katamadze",
+   "title": "Ніно Катамадзе. Премʼєра нового альбому",
+   "source": "concert_ua",
+   "category": "music",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "ніно катамадзе"
+    ],
+    "claude": [
+     "ніно катамадзе"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "Ніно Катамадзе",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.internet-bilet.ua/uk/events/100886/nataliia-mohylevska",
+   "title": "Наталія Могилевська",
+   "source": "internet_bilet",
+   "category": "music",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "наталія могилевська"
+    ],
+    "claude": [
+     "наталія могилевська"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "Наталія Могилевська",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.ticketsbox.com/event/valerij-harchishin-rizdvyanij-kontsert.html",
+   "title": "Валерій Харчишин. Різдвяний концерт у супроводі Національного президентського оркестру.",
+   "source": "ticketsbox",
+   "category": "music",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "валерій харчишин",
+     "національний президентський оркестр"
+    ],
+    "claude": [
+     "валерій харчишин",
+     "національний президентський оркестр"
+    ],
+    "source": [
+     "валерій харчишин"
+    ]
+   },
+   "artists": [
+    {
+     "name": "Валерій Харчишин",
+     "role": "headliner"
+    },
+    {
+     "name": "Національний президентський оркестр",
+     "role": "support"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://badseller.net/afisha/kyiv/trybiut-depeche-mode-hurt-rock-you-2026-10-03",
+   "title": "Триб’ют Depeche Mode - гурт ROCK YOU!",
+   "source": "badseller",
+   "category": "music",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "rock you"
+    ],
+    "claude": [
+     "rock you"
+    ],
+    "source": [
+     "rock you"
+    ]
+   },
+   "artists": [
+    {
+     "name": "ROCK YOU",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://concert.ua/uk/event/cvjah-kyiv26",
+   "title": "Цвях",
+   "source": "concert_ua",
+   "category": "music",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "цвях"
+    ],
+    "claude": [
+     "цвях"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "ЦВЯХ",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.internet-bilet.ua/uk/events/101210/imagine-dragons",
+   "title": "Imagine Dragons & Coldplay при свічках",
+   "source": "internet_bilet",
+   "category": "music",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "black tie"
+    ],
+    "claude": [
+     "black tie"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "Black Tie",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.karabas.com/oleksandr-polozhyns-kyy-1/",
+   "title": "Олександр Положинський",
+   "source": "karabas",
+   "category": "music",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "олександр положинський"
+    ],
+    "claude": [
+     "олександр положинський"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "Олександр Положинський",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.ticketsbox.com/event/monatik-osocor-residence.html",
+   "title": "MONATIK. Osocor Residence",
+   "source": "ticketsbox",
+   "category": "music",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "monatik"
+    ],
+    "claude": [
+     "monatik"
+    ],
+    "source": [
+     "monatik"
+    ]
+   },
+   "artists": [
+    {
+     "name": "MONATIK",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://badseller.net/afisha/kyiv/vid-mifu-do-modernu-muzey-knyhy-i-drukarstva-ukrayiny-2026-10-03",
+   "title": "Від міфу до модерну (Музей книги і друкарства України)",
+   "source": "badseller",
+   "category": "music",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [
+     "юрій шутко"
+    ],
+    "source": [
+     "юрій шутко"
+    ]
+   },
+   "artists": [
+    {
+     "name": "Юрій Шутко",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:claude+source"
+  },
+  {
+   "url": "https://kyiv.internet-bilet.ua/uk/the-doors",
+   "title": "Вечір хітів: THE DOORS by THE RIDERS+ jam sassion",
+   "source": "internet_bilet",
+   "category": "music",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "the riders"
+    ],
+    "claude": [
+     "the riders"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "The Riders",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.karabas.com/tryb-yut-ozzy-osbourne-hurt-beast-rock-halloween/",
+   "title": "Триб’ют Ozzy Osbourne - гурт Beast - Rock Halloween",
+   "source": "karabas",
+   "category": "music",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "beast"
+    ],
+    "claude": [
+     "beast"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "Beast",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.ticketsbox.com/event/michael-jackson-kyiv-mozart-orchestra-a.html",
+   "title": "MICHAEL JACKSON – Kyiv Mozart Orchestra",
+   "source": "ticketsbox",
+   "category": "music",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "kyiv mozart orchestra"
+    ],
+    "claude": [
+     "kyiv mozart orchestra"
+    ],
+    "source": [
+     "marco concert"
+    ]
+   },
+   "artists": [
+    {
+     "name": "Kyiv Mozart Orchestra",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://badseller.net/afisha/kyiv/kyiv-tea-festival-2026-10-03",
+   "title": "Kyiv Tea Festival",
+   "source": "badseller",
+   "category": "music",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://concert.ua/uk/event/latexfauna",
+   "title": "LATEXFAUNA | Ювілейний концерт на біс",
+   "source": "concert_ua",
+   "category": "music",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "latexfauna"
+    ],
+    "claude": [
+     "latexfauna"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "LATEXFAUNA",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.karabas.com/mykola-moz-hovyy-naykrashche/",
+   "title": "Микола Мозговий: Найкраще",
+   "source": "karabas",
+   "category": "music",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.ticketsbox.com/event/imagine-dragons-coldplay-kyiv-mozart-orchestra-a.html",
+   "title": "IMAGINE DRAGONS & COLDPLAY – Kyiv Mozart Orchestra",
+   "source": "ticketsbox",
+   "category": "music",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "kyiv mozart orchestra"
+    ],
+    "claude": [
+     "kyiv mozart orchestra"
+    ],
+    "source": [
+     "marco concert"
+    ]
+   },
+   "artists": [
+    {
+     "name": "Kyiv Mozart Orchestra",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://badseller.net/afisha/kyiv/legendary-rock-voices-2026-10-03",
+   "title": "LEGENDARY ROCK VOICES",
+   "source": "badseller",
+   "category": "music",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "legendary rock voices"
+    ],
+    "claude": [
+     "legendary rock voices"
+    ],
+    "source": [
+     "legendary rock voices"
+    ]
+   },
+   "artists": [
+    {
+     "name": "Legendary Rock Voices",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://concert.ua/uk/event/eterija-kyiv",
+   "title": "Етерія",
+   "source": "concert_ua",
+   "category": "music",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "етерія"
+    ],
+    "claude": [
+     "етерія"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "Етерія",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.karabas.com/hurt-barracudas-the-world-s-greatest-hits/",
+   "title": "Гурт Barracudas - The World's Greatest Hits",
+   "source": "karabas",
+   "category": "music",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "barracudas"
+    ],
+    "claude": [
+     "barracudas"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "Barracudas",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://badseller.net/afisha/kyiv/muzyka-pry-svichkakh-liudoviko-eynaudi-ta-ian-tirsen-2026-10-04",
+   "title": "Музика при свічках: Людовіко Ейнауді та Ян Тірсен",
+   "source": "badseller",
+   "category": "music",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": [
+     "людовіко ейнауді та ян тірсен"
+    ]
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://concert.ua/uk/event/muzichna-platforma-ukrayini",
+   "title": "Музична Платформа України",
+   "source": "concert_ua",
+   "category": "music",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "assia аннатт",
+     "discoman",
+     "frolov",
+     "khayat",
+     "mélovin",
+     "volkanov",
+     "аліна гросу",
+     "арсен мірзоян",
+     "катерина бужинська",
+     "максим бородін",
+     "муаяд",
+     "наталія бучинська",
+     "оля полякова",
+     "оля цибульська",
+     "павло зібров",
+     "сергій мироненко",
+     "тік",
+     "ірина білик"
+    ],
+    "claude": [
+     "assia аннатт",
+     "discoman",
+     "frolov",
+     "khayat",
+     "mélovin",
+     "volkanov",
+     "аліна гросу",
+     "арсен мірзоян",
+     "катерина бужинська",
+     "максим бородін",
+     "муаяд",
+     "наталія бучинська",
+     "оля полякова",
+     "оля цибульська",
+     "павло зібров",
+     "сергій мироненко",
+     "тік",
+     "ірина білик"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "ASSIA АННАТТ",
+     "role": "headliner"
+    },
+    {
+     "name": "DISCOMAN",
+     "role": "headliner"
+    },
+    {
+     "name": "FROLOV",
+     "role": "headliner"
+    },
+    {
+     "name": "KHAYAT",
+     "role": "headliner"
+    },
+    {
+     "name": "MÉLOVIN",
+     "role": "headliner"
+    },
+    {
+     "name": "VOLKANOV",
+     "role": "headliner"
+    },
+    {
+     "name": "Аліна Гросу",
+     "role": "headliner"
+    },
+    {
+     "name": "Арсен Мірзоян",
+     "role": "headliner"
+    },
+    {
+     "name": "Катерина Бужинська",
+     "role": "headliner"
+    },
+    {
+     "name": "Максим Бородін",
+     "role": "headliner"
+    },
+    {
+     "name": "МУАЯД",
+     "role": "headliner"
+    },
+    {
+     "name": "Наталія Бучинська",
+     "role": "headliner"
+    },
+    {
+     "name": "Оля Полякова",
+     "role": "headliner"
+    },
+    {
+     "name": "Оля Цибульська",
+     "role": "headliner"
+    },
+    {
+     "name": "Павло Зібров",
+     "role": "headliner"
+    },
+    {
+     "name": "Сергій Мироненко",
+     "role": "headliner"
+    },
+    {
+     "name": "ТІК",
+     "role": "headliner"
+    },
+    {
+     "name": "Ірина Білик",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://badseller.net/afisha/kyiv/subotniy-stand-up-2026-10-03",
+   "title": "Суботній Stand Up",
+   "source": "badseller",
+   "category": "comedy",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://concert.ua/uk/event/ramil-yanhulov-solnyy-stendap",
+   "title": "Раміль Янгулов. Сольний СТЕНДАП",
+   "source": "concert_ua",
+   "category": "comedy",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "раміль янгулов"
+    ],
+    "claude": [
+     "раміль янгулов"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "Раміль Янгулов",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.internet-bilet.ua/uk/events/100743/bogdan-boyarin",
+   "title": "Сольний Стендап Концерт Богдана Боярина",
+   "source": "internet_bilet",
+   "category": "comedy",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "богдан боярин"
+    ],
+    "claude": [
+     "богдан боярин"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "Богдан Боярин",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://badseller.net/afisha/kyiv/improvizatsiyne-shou-koroli-krinzu-0310-2026-10-03",
+   "title": "Імпровізаційне шоу \"Королі Крінжу\" (03.10)",
+   "source": "badseller",
+   "category": "comedy",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "королі крінжу"
+    ],
+    "claude": [
+     "королі крінжу"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "Королі Крінжу",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://concert.ua/uk/event/stand-up-na-troh1",
+   "title": "Stand Up На Трьох",
+   "source": "concert_ua",
+   "category": "comedy",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "андрій бережко",
+     "богдан боярин",
+     "бродячий стендап",
+     "паша пінчук",
+     "євген лещенко"
+    ],
+    "claude": [
+     "андрій бережко",
+     "богдан боярин",
+     "бродячий стендап",
+     "паша пінчук",
+     "євген лещенко"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "Андрій Бережко",
+     "role": "support"
+    },
+    {
+     "name": "Богдан Боярин",
+     "role": "support"
+    },
+    {
+     "name": "Бродячий Стендап",
+     "role": "headliner"
+    },
+    {
+     "name": "Паша Пінчук",
+     "role": "support"
+    },
+    {
+     "name": "Євген Лещенко",
+     "role": "host"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.karabas.com/improvizatsiya-z-hlyadachamy-alla-volkova-ta-anastasiya-tkachenko/",
+   "title": "Імпровізація з глядачами. Алла Волкова та Анастасія Ткаченко",
+   "source": "karabas",
+   "category": "comedy",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "алла волкова",
+     "анастасія ткаченко"
+    ],
+    "claude": [
+     "алла волкова",
+     "анастасія ткаченко"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "Алла Волкова",
+     "role": "headliner"
+    },
+    {
+     "name": "Анастасія Ткаченко",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://badseller.net/afisha/kyiv/pidpilnyy-stendap-0410-2026-10-04",
+   "title": "Підпільний Стендап (04.10)",
+   "source": "badseller",
+   "category": "comedy",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "підпільний стендап"
+    ],
+    "claude": [
+     "підпільний стендап"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "Підпільний Стендап",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://concert.ua/uk/event/ganna-kochegura",
+   "title": "Сольний стендап Ганна Кочегура",
+   "source": "concert_ua",
+   "category": "comedy",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "ганна кочегура"
+    ],
+    "claude": [
+     "ганна кочегура"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "Ганна Кочегура",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://badseller.net/afisha/kyiv/stand-up-in-english-0310-2026-10-03",
+   "title": "Stand up in english (03.10)",
+   "source": "badseller",
+   "category": "comedy",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://concert.ua/uk/event/stendap-na-troh11",
+   "title": "Стендап На Трьох",
+   "source": "concert_ua",
+   "category": "comedy",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "андрій бережко",
+     "бродячий стендап",
+     "денис гнатюк",
+     "джейхун сафаров",
+     "паша пінчук"
+    ],
+    "claude": [
+     "андрій бережко",
+     "бродячий стендап",
+     "денис гнатюк",
+     "джейхун сафаров",
+     "паша пінчук"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "Андрій Бережко",
+     "role": "headliner"
+    },
+    {
+     "name": "Бродячий Стендап",
+     "role": "headliner"
+    },
+    {
+     "name": "Денис Гнатюк",
+     "role": "host"
+    },
+    {
+     "name": "Джейхун Сафаров",
+     "role": "headliner"
+    },
+    {
+     "name": "Паша Пінчук",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.internet-bilet.ua/uk/nastya-zuhvala",
+   "title": "Сольний стендап Насті Зухвалої «Необовʼязкова ганьба»",
+   "source": "internet_bilet",
+   "category": "comedy",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "настя зухвала"
+    ],
+    "claude": [
+     "настя зухвала"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "Настя Зухвала",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.karabas.com/anton-tymoshenko-1/",
+   "title": "Антон Тимошенко",
+   "source": "karabas",
+   "category": "comedy",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "антон тимошенко"
+    ],
+    "claude": [
+     "антон тимошенко"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "Антон Тимошенко",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://concert.ua/uk/event/stendap-pjatnicja-02-10-2026-19-00",
+   "title": "СТЕНДАП у П’ЯТНИЦЮ",
+   "source": "concert_ua",
+   "category": "comedy",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "арсен пучков",
+     "віталій шиндеровський",
+     "кирило осадчий",
+     "раміль янгулов"
+    ],
+    "claude": [
+     "арсен пучков",
+     "віталій шиндеровський",
+     "кирило осадчий",
+     "раміль янгулов"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "Арсен Пучков",
+     "role": "headliner"
+    },
+    {
+     "name": "Віталій Шиндеровський",
+     "role": "headliner"
+    },
+    {
+     "name": "Кирило Осадчий",
+     "role": "headliner"
+    },
+    {
+     "name": "Раміль Янгулов",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.internet-bilet.ua/uk/events/102136/dima-tyutyun",
+   "title": "Тютюн та Санич. Зйомка нового шоу",
+   "source": "internet_bilet",
+   "category": "comedy",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "санич",
+     "тютюн"
+    ],
+    "claude": [
+     "санич",
+     "тютюн"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "Санич",
+     "role": "headliner"
+    },
+    {
+     "name": "Тютюн",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.karabas.com/vasyl-baydak-25/",
+   "title": "Василь Байдак",
+   "source": "karabas",
+   "category": "comedy",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "василь байдак"
+    ],
+    "claude": [
+     "василь байдак"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "Василь Байдак",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://badseller.net/afisha/kyiv/komediyne-shou-ne-problema-2026-10-03",
+   "title": "Комедійне Шоу Не Проблема",
+   "source": "badseller",
+   "category": "comedy",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://concert.ua/uk/event/nedilnii-stendap-22",
+   "title": "Недільний Стендап",
+   "source": "concert_ua",
+   "category": "comedy",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "андрій бережко",
+     "богдан боярин",
+     "бродячий стендап",
+     "ден че",
+     "денис гнатюк",
+     "євген лещенко"
+    ],
+    "claude": [
+     "андрій бережко",
+     "богдан боярин",
+     "бродячий стендап",
+     "ден че",
+     "денис гнатюк",
+     "євген лещенко"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "Андрій Бережко",
+     "role": "support"
+    },
+    {
+     "name": "Богдан Боярин",
+     "role": "support"
+    },
+    {
+     "name": "Бродячий Стендап",
+     "role": "headliner"
+    },
+    {
+     "name": "Ден Че",
+     "role": "support"
+    },
+    {
+     "name": "Денис Гнатюк",
+     "role": "host"
+    },
+    {
+     "name": "Євген Лещенко",
+     "role": "support"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.internet-bilet.ua/uk/events/102405/brodyachiy-standup",
+   "title": "Шоу \"Кринжові історії\"",
+   "source": "internet_bilet",
+   "category": "comedy",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "андрій бережко",
+     "богдан письменко",
+     "паша пінчук"
+    ],
+    "claude": [
+     "андрій бережко",
+     "богдан письменко",
+     "паша пінчук"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "Андрій Бережко",
+     "role": "headliner"
+    },
+    {
+     "name": "Богдан Письменко",
+     "role": "headliner"
+    },
+    {
+     "name": "Паша Пінчук",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://badseller.net/afisha/kyiv/vystava-ne-idealni-kokhantsi-2026-10-04",
+   "title": "Вистава «Не ідеальні коханці»",
+   "source": "badseller",
+   "category": "art",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://concert.ua/uk/event/ne-treba-nam-pomsti",
+   "title": "Не треба нам помсти",
+   "source": "concert_ua",
+   "category": "art",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "сільвія раілану"
+    ],
+    "claude": [
+     "сільвія раілану"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "Сільвія Раілану",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude+cast-rule",
+   "why": "Монодрама, єдина виконавиця на сцені."
+  },
+  {
+   "url": "https://kyiv.karabas.com/vystava-hoyzum-11/",
+   "title": "Вистава «Гойзум»",
+   "source": "karabas",
+   "category": "art",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.ticketsbox.com/event/ne-idealni-kohantsi-k.html",
+   "title": "НЕ ІДЕАЛЬНІ КОХАНЦІ",
+   "source": "ticketsbox",
+   "category": "art",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://badseller.net/afisha/kyiv/kaminnyy-hospodar-teatr-na-pechersku-2026-10-03",
+   "title": "Камінний господар (Театр на Печерську)",
+   "source": "badseller",
+   "category": "art",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://concert.ua/uk/event/neditjachi-pristrasti-abo-beibi-bum",
+   "title": "Недитячі пристрасті або Бейбі Бум",
+   "source": "concert_ua",
+   "category": "art",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "анастасія леміш",
+     "володимир горянський",
+     "наталія кучера",
+     "олександр михайлов",
+     "сергій калантай",
+     "сергій кучера",
+     "тамара яценко",
+     "христина сінельник"
+    ],
+    "claude": [
+     "анастасія леміш",
+     "володимир горянський",
+     "наталія кучера",
+     "олександр михайлов",
+     "сергій калантай",
+     "сергій кучера",
+     "тамара яценко",
+     "христина сінельник"
+    ],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude+cast-rule",
+   "why": "Склад акторів багатоакторної вистави, не виконавці."
+  },
+  {
+   "url": "https://kyiv.internet-bilet.ua/uk/events/101615/teatr-chornyi-kvadrat",
+   "title": "Театр Чорний квадрат \"Свінгери або...\"",
+   "source": "internet_bilet",
+   "category": "art",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "театр чорний квадрат"
+    ],
+    "claude": [
+     "театр чорний квадрат"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "Театр Чорний квадрат",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.karabas.com/malyuvannya-epoksydnoyu-smoloyu-resin-art-351/",
+   "title": "Малювання епоксидною смолою (Resin Art)",
+   "source": "karabas",
+   "category": "art",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.ticketsbox.com/event/schit-ukrayini.html",
+   "title": "Щит України",
+   "source": "ticketsbox",
+   "category": "art",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://badseller.net/afisha/kyiv/iak-kozaky-zmiia-pryborkuvaly-2026-10-03",
+   "title": "Як козаки змія приборкували",
+   "source": "badseller",
+   "category": "art",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://concert.ua/uk/event/tango-dlja-troh",
+   "title": "Танго для трьох",
+   "source": "concert_ua",
+   "category": "art",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "катерина кістень",
+     "костянтин костишин",
+     "остап ступка"
+    ],
+    "claude": [
+     "катерина кістень",
+     "костянтин костишин",
+     "остап ступка"
+    ],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude+cast-rule",
+   "why": "Троє акторів вистави, не моновистава; склад акторів."
+  },
+  {
+   "url": "https://kyiv.karabas.com/za-dvoma-zaytsyamy-121/",
+   "title": "«За двома зайцями» (театр Оперети)",
+   "source": "karabas",
+   "category": "art",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.ticketsbox.com/event/v-nedilju-rano-sogrishili-g.html",
+   "title": "«В неділю рано согрішили»",
+   "source": "ticketsbox",
+   "category": "art",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://badseller.net/afisha/kyiv/slidamy-tykh-khto-nadykhaye-2026-10-02",
+   "title": "СЛІДАМИ ТИХ, ХТО НАДИХАЄ",
+   "source": "badseller",
+   "category": "art",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://concert.ua/uk/event/koroleva-detektiviv",
+   "title": "Королева детективів",
+   "source": "concert_ua",
+   "category": "art",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "інна гончарова"
+    ],
+    "claude": [
+     "інна гончарова"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "Інна Гончарова",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude+cast-rule",
+   "why": "Фестиваль монодрам, авторська вистава єдиної акторки."
+  },
+  {
+   "url": "https://kyiv.internet-bilet.ua/uk/events/101618/teatr-chornyi-kvadrat",
+   "title": "Театр Чорний квадрат \"Гола правда\"",
+   "source": "internet_bilet",
+   "category": "art",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "театр чорний квадрат"
+    ],
+    "claude": [
+     "театр чорний квадрат"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "Театр Чорний квадрат",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.karabas.com/virsky-kazka-pro-12-misyatsiv-2/",
+   "title": "«Казка про 12 місяців. Грандіозне повернення»",
+   "source": "karabas",
+   "category": "art",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "virsky"
+    ],
+    "claude": [
+     "virsky"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "VIRSKY",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.ticketsbox.com/event/muzej-prosto-neba-u-pirogovi.html",
+   "title": "Музей просто неба у Пирогові",
+   "source": "ticketsbox",
+   "category": "art",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://badseller.net/afisha/kyiv/protses-teatr-na-podoli-2026-10-03",
+   "title": "Процес (Театр на Подолі)",
+   "source": "badseller",
+   "category": "art",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://concert.ua/uk/event/trubach",
+   "title": "Трубач",
+   "source": "concert_ua",
+   "category": "art",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "крістін мілворд"
+    ],
+    "claude": [
+     "крістін мілворд"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "Крістін Мілворд",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude+cast-rule",
+   "why": "Монодрама у виконанні Мілворд; авторка й режисер окремо."
+  },
+  {
+   "url": "https://kyiv.karabas.com/vystava-tsykl-kolo-2/",
+   "title": "Вистава-цикл «Коло»",
+   "source": "karabas",
+   "category": "art",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.ticketsbox.com/event/stan-moeju-kolishnoju-b.html",
+   "title": "СТАНЬ МОЄЮ КОЛИШНЬОЮ",
+   "source": "ticketsbox",
+   "category": "art",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://badseller.net/afisha/kyiv/smert-komivoiazera-nadt-2026-10-04",
+   "title": "Смерть комівояжера (НАДТ)",
+   "source": "badseller",
+   "category": "art",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.internet-bilet.ua/uk/virni-druzhyny",
+   "title": "Вистава \"Вірні дружини\"",
+   "source": "internet_bilet",
+   "category": "art",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.karabas.com/4k-videotur-muzeyamy-vatykanu-4/",
+   "title": "4К-відеотур музеями Ватикану",
+   "source": "karabas",
+   "category": "art",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.ticketsbox.com/event/kiyiv-tisha-i-ritm.html",
+   "title": "Київ – тиша і ритм",
+   "source": "ticketsbox",
+   "category": "art",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.internet-bilet.ua/uk/events/102309/obitsyanki-tsyatsyanki",
+   "title": "Вистава \"Обіцянки цяцянки\"",
+   "source": "internet_bilet",
+   "category": "art",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.karabas.com/vidkryttya-khudozhn-oi-vystavky-100/",
+   "title": "Відкриття художньої виставки",
+   "source": "karabas",
+   "category": "art",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.ticketsbox.com/event/z-krasi-yaponiyi.html",
+   "title": "«З краси Японії»",
+   "source": "ticketsbox",
+   "category": "art",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://badseller.net/afisha/kyiv/riholetto-2026-10-04",
+   "title": "Ріголетто",
+   "source": "badseller",
+   "category": "art",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.karabas.com/kinoklub-bez-psykholoha-3/",
+   "title": "Кіноклуб без психолога",
+   "source": "karabas",
+   "category": "art",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://badseller.net/afisha/kyiv/pro-veredlyvu-husenytsiu-ta-zakokhanoho-cherviaka-teatr-lialyok-na-livomu-berezi-dnipra-2026-10-03",
+   "title": "Про вередливу Гусеницю та закоханого Черв`яка (Театр ляльок на лівому березі Дніпра)",
+   "source": "badseller",
+   "category": "kids",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://concert.ua/uk/event/fokusi-magija-krolik-dlja-ditei-4",
+   "title": "Фокуси, магія, кролик для дітей +4",
+   "source": "concert_ua",
+   "category": "kids",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.karabas.com/aladdin-87/",
+   "title": "Аладдін (Київська опера)",
+   "source": "karabas",
+   "category": "kids",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://badseller.net/afisha/kyiv/siurpryz-dlia-tata-2026-10-03",
+   "title": "Сюрприз для тата",
+   "source": "badseller",
+   "category": "kids",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.internet-bilet.ua/uk/kryzhane-sertse",
+   "title": "Новорічна вистава \"Казка про холодне серце\"",
+   "source": "internet_bilet",
+   "category": "kids",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://badseller.net/afisha/kyiv/koppeliia-nova-istoriia-lialky-kyyivska-opera-2026-10-04",
+   "title": "Коппелія. Нова історія ляльки (Київська опера)",
+   "source": "badseller",
+   "category": "kids",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://concert.ua/uk/event/magija-milnih-bulbashok-36",
+   "title": "Магія мильних бульбашок, +3,5",
+   "source": "concert_ua",
+   "category": "kids",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://concert.ua/uk/event/idu-na-vi",
+   "title": "ІДУ НА ВИ \"Тризна\". Міжнародний ММА-турнір.",
+   "source": "concert_ua",
+   "category": "sport",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.karabas.com/klub-nastil-nykh-ihor-175/",
+   "title": "«Клуб настільних ігор»",
+   "source": "karabas",
+   "category": "games",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "антон фурманюк"
+    ],
+    "claude": [
+     "антон фурманюк"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "Антон Фурманюк",
+     "role": "host"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.ticketsbox.com/event/kyiv-food-and-wine-festival.html",
+   "title": "Kyiv Food and Wine Festival",
+   "source": "ticketsbox",
+   "category": "social",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://concert.ua/uk/event/udc2026-6round-kyiv",
+   "title": "Чемпіонат України з дріфтингу",
+   "source": "concert_ua",
+   "category": "social",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.internet-bilet.ua/uk/yuriy-izdryk",
+   "title": "Іздрик. Поетичний вечір",
+   "source": "internet_bilet",
+   "category": "social",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "юрій іздрик"
+    ],
+    "claude": [
+     "юрій іздрик"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "Юрій Іздрик",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.karabas.com/4k-videoprohulyanka-paryzhem-22/",
+   "title": "4К-відеопрогулянка Парижем",
+   "source": "karabas",
+   "category": "outdoors",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.ticketsbox.com/event/zoopark.html",
+   "title": "Зоопарк",
+   "source": "ticketsbox",
+   "category": "social",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://concert.ua/uk/event/borsch",
+   "title": "БОРЩ 2026 — конференція про силу єдності та партнерства",
+   "source": "concert_ua",
+   "category": "conference",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "kadnay"
+    ],
+    "claude": [
+     "kadnay"
+    ],
+    "source": []
+   },
+   "artists": [
+    {
+     "name": "KADNAY",
+     "role": "headliner"
+    }
+   ],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.karabas.com/4k-videoprohulyanka-nitstsoyu-7/",
+   "title": "4К-Відеопрогулянка Ніццою",
+   "source": "karabas",
+   "category": "outdoors",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.ticketsbox.com/event/ekskursiya-z-krasi-yaponiyi-a.html",
+   "title": "Екскурсія «З краси Японії»",
+   "source": "ticketsbox",
+   "category": "tours",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://concert.ua/uk/event/toi-den-02-09",
+   "title": "Той День",
+   "source": "concert_ua",
+   "category": "tours",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.karabas.com/psykholohichnyy-zakhid-tin-ova-storona-3/",
+   "title": "Психологічний захід «Тіньова сторона»",
+   "source": "karabas",
+   "category": "social",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.karabas.com/4k-videoprohulyanka-barselonoyu-13/",
+   "title": "4К-Відеопрогулянка Барселоною",
+   "source": "karabas",
+   "category": "outdoors",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [],
+    "source": []
+   },
+   "artists": [],
+   "status": "agreed:openai+claude"
+  },
+  {
+   "url": "https://kyiv.karabas.com/haryacha-sumish-verona-voice-hurt-rock-you-3/",
+   "title": "Гаряча Суміш - Verona Voice - гурт ROCK YOU!",
+   "source": "karabas",
+   "category": "music",
+   "hard": true,
+   "votes": {
+    "openai": [
+     "rock you",
+     "verona voice"
+    ],
+    "claude": [
+     "rock you"
+    ],
+    "source": []
+   },
+   "status": "adjudicated",
+   "artists": [
+    {
+     "name": "Verona Voice",
+     "role": "headliner"
+    },
+    {
+     "name": "ROCK YOU!",
+     "role": "headliner"
+    }
+   ],
+   "why": "Назви учасників у заголовку: Verona Voice та гурт ROCK YOU!"
+  },
+  {
+   "url": "https://kyiv.internet-bilet.ua/uk/events/101744/antonio-vivaldi",
+   "title": "Музика Антоніо Вівальді при свічках",
+   "source": "internet_bilet",
+   "category": "music",
+   "hard": true,
+   "votes": {
+    "openai": [
+     "національний камерний ансамбль київські солісти"
+    ],
+    "claude": [
+     "київські солісти"
+    ],
+    "source": []
+   },
+   "status": "adjudicated",
+   "artists": [
+    {
+     "name": "Національний камерний ансамбль «Київські солісти»",
+     "role": "headliner"
+    }
+   ],
+   "why": "Ансамбль виконує Вівальді; Вівальді — композитор; коротка форма дублює повну"
+  },
+  {
+   "url": "https://kyiv.karabas.com/tantsyuval-nyy-proyekt-d-i-s-c-o-24/",
+   "title": "Танцювальний проєкт - D.I.S.C.O.",
+   "source": "karabas",
+   "category": "music",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [
+     "d i s c o"
+    ],
+    "source": []
+   },
+   "status": "adjudicated",
+   "artists": [
+    {
+     "name": "D.I.S.C.O.",
+     "role": "headliner"
+    }
+   ],
+   "why": "Танцювальний проєкт D.I.S.C.O. — виконавець; Docker-G pub — майданчик"
+  },
+  {
+   "url": "https://concert.ua/uk/event/osinnii-dzhazovii-koncert-muziki-frenka",
+   "title": "Осінній джазовий концерт музики Френка",
+   "source": "concert_ua",
+   "category": "music",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "kyiv jazz quintet",
+     "дмитро bobeen александров",
+     "олександр лебеденко",
+     "павло пигура",
+     "родіон іванов",
+     "сергій клюєнко"
+    ],
+    "claude": [
+     "kyiv jazz quintet"
+    ],
+    "source": []
+   },
+   "status": "adjudicated",
+   "artists": [
+    {
+     "name": "Kyiv Jazz Quintet",
+     "role": "headliner"
+    },
+    {
+     "name": "Павло Пигура",
+     "role": "support"
+    },
+    {
+     "name": "Дмитро Bobeen Александров",
+     "role": "support"
+    },
+    {
+     "name": "Родіон Іванов",
+     "role": "support"
+    },
+    {
+     "name": "Сергій Клюєнко",
+     "role": "support"
+    },
+    {
+     "name": "Олександр Лебеденко",
+     "role": "support"
+    }
+   ],
+   "why": "Kyiv Jazz Quintet і названі учасники складу на сцені; Сінатра — тема"
+  },
+  {
+   "url": "https://kyiv.internet-bilet.ua/uk/events/102172/kyiv-jazz-quintet",
+   "title": "Джаз середа: NAT KING COUL BY KYIV JAZZ QUINTET",
+   "source": "internet_bilet",
+   "category": "music",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "kyiv jazz quintet",
+     "дмитро александров",
+     "олександр лебеденко",
+     "павло пігура",
+     "родіон іванов",
+     "сергій клюєнко"
+    ],
+    "claude": [
+     "kyiv jazz quintet"
+    ],
+    "source": []
+   },
+   "status": "adjudicated",
+   "artists": [
+    {
+     "name": "Kyiv Jazz Quintet",
+     "role": "headliner"
+    },
+    {
+     "name": "Павло Пігура",
+     "role": "support"
+    },
+    {
+     "name": "Дмитро Александров",
+     "role": "support"
+    },
+    {
+     "name": "Родіон Іванов",
+     "role": "support"
+    },
+    {
+     "name": "Сергій Клюєнко",
+     "role": "support"
+    },
+    {
+     "name": "Олександр Лебеденко",
+     "role": "support"
+    }
+   ],
+   "why": "Kyiv Jazz Quintet і склад квінтету на сцені; Нет Кінг Коул — тема"
+  },
+  {
+   "url": "https://kyiv.internet-bilet.ua/uk/events/100134/oleh-skrypka",
+   "title": "Олег Скрипка та симфонічний оркестр",
+   "source": "internet_bilet",
+   "category": "music",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "олег скрипка",
+     "симфонічний оркестр"
+    ],
+    "claude": [
+     "олег скрипка"
+    ],
+    "source": []
+   },
+   "status": "adjudicated",
+   "artists": [
+    {
+     "name": "Олег Скрипка",
+     "role": "headliner"
+    }
+   ],
+   "why": "Скрипка виступає; «симфонічний оркестр» — безіменний, не назва"
+  },
+  {
+   "url": "https://kyiv.karabas.com/pidpil-nyy-stendap-311/",
+   "title": "Підпільний Стендап",
+   "source": "karabas",
+   "category": "comedy",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "антон тимошенко",
+     "ганна кочегура",
+     "олександр качура",
+     "євген євсюков"
+    ],
+    "claude": [
+     "антон тимошенко",
+     "ганна кочегура",
+     "олександр качура",
+     "підпільний стендап",
+     "євген євсюков"
+    ],
+    "source": []
+   },
+   "status": "adjudicated",
+   "artists": [
+    {
+     "name": "Олександр Качура",
+     "role": "headliner"
+    },
+    {
+     "name": "Антон Тимошенко",
+     "role": "headliner"
+    },
+    {
+     "name": "Ганна Кочегура",
+     "role": "headliner"
+    },
+    {
+     "name": "Євген Євсюков",
+     "role": "headliner"
+    },
+    {
+     "name": "Підпільний Стендап",
+     "role": "headliner"
+    }
+   ],
+   "why": "Коміки вечора та бренд шоу Підпільний Стендап"
+  },
+  {
+   "url": "https://kyiv.internet-bilet.ua/uk/events/102400/brodyachiy-standup",
+   "title": "Шоу \"Кринжові історії\". Зйомка",
+   "source": "internet_bilet",
+   "category": "comedy",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "андрій бережко",
+     "богдан письменко",
+     "кринжові історії",
+     "паша пінчук"
+    ],
+    "claude": [
+     "андрій бережко",
+     "богдан письменко",
+     "паша пінчук"
+    ],
+    "source": []
+   },
+   "status": "adjudicated",
+   "artists": [
+    {
+     "name": "Кринжові історії",
+     "role": "headliner"
+    },
+    {
+     "name": "Паша Пінчук",
+     "role": "support"
+    },
+    {
+     "name": "Андрій Бережко",
+     "role": "support"
+    },
+    {
+     "name": "Богдан Письменко",
+     "role": "support"
+    }
+   ],
+   "why": "Три коміки; Кринжові історії — бренд шоу"
+  },
+  {
+   "url": "https://kyiv.internet-bilet.ua/uk/events/101513/dizel-show",
+   "title": "Дизель Шоу. До Дня Козацтва",
+   "source": "internet_bilet",
+   "category": "comedy",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "вікторія булітко",
+     "дмитро танкович",
+     "олександр бережок",
+     "яна глущенко",
+     "євген сморигін",
+     "єгор келішев",
+     "єгор крутоголов"
+    ],
+    "claude": [],
+    "source": []
+   },
+   "status": "adjudicated",
+   "artists": [
+    {
+     "name": "Дизель Шоу",
+     "role": "headliner"
+    }
+   ],
+   "why": "Учасники колективу — трупа, а не окремі виконавці; додано бренд Дизель Шоу"
+  },
+  {
+   "url": "https://kyiv.karabas.com/kyrylo-mark-i-mykyta-v-comedy-room/",
+   "title": "Кирило, Марк і Микита в Comedy Room",
+   "source": "karabas",
+   "category": "comedy",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "кирило зай за за зай за зей",
+     "марк ільчук",
+     "микита зей зазай за зей"
+    ],
+    "claude": [
+     "кирило",
+     "марк ільчук",
+     "микита"
+    ],
+    "source": []
+   },
+   "status": "adjudicated",
+   "artists": [
+    {
+     "name": "Кирило Зай за за-зай, за зей",
+     "role": "headliner"
+    },
+    {
+     "name": "Марк Ільчук",
+     "role": "headliner"
+    },
+    {
+     "name": "Микита зей зазай-за зей",
+     "role": "headliner"
+    }
+   ],
+   "why": "Три коміки; короткі імена дублюють повні"
+  },
+  {
+   "url": "https://badseller.net/afisha/kyiv/van-panch-2026-10-04",
+   "title": "Ван Панч",
+   "source": "badseller",
+   "category": "comedy",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "ван панч"
+    ],
+    "claude": [],
+    "source": []
+   },
+   "status": "adjudicated",
+   "artists": [],
+   "why": "Виконавця не названо; Ван Панч — лише назва події, неясно"
+  },
+  {
+   "url": "https://kyiv.internet-bilet.ua/uk/events/101584/kyiv-modern-ballet-luskunchik",
+   "title": "Kyiv Modern-Ballet. Лускунчик. Версія. Раду Поклітару",
+   "source": "internet_bilet",
+   "category": "art",
+   "hard": false,
+   "votes": {
+    "openai": [],
+    "claude": [
+     "kyiv modern ballet"
+    ],
+    "source": []
+   },
+   "status": "adjudicated",
+   "artists": [
+    {
+     "name": "Kyiv Modern-Ballet",
+     "role": "headliner"
+    }
+   ],
+   "why": "Трупа-виконавець; МЦКМ — майданчик, Поклітару — постановник"
+  },
+  {
+   "url": "https://kyiv.internet-bilet.ua/uk/seks-groshi-ta-brehnya",
+   "title": "Вистава \"Секс, грошi та брехня\"",
+   "source": "internet_bilet",
+   "category": "art",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "театр візаві"
+    ],
+    "claude": [
+     "михайло романов",
+     "тамара морозова",
+     "ірина марчук"
+    ],
+    "source": []
+   },
+   "status": "adjudicated",
+   "artists": [
+    {
+     "name": "Театр «Візаві»",
+     "role": "headliner"
+    }
+   ],
+   "why": "Театр-трупа ставить виставу у Будинку Архітектора; актори не виконавці"
+  },
+  {
+   "url": "https://kyiv.internet-bilet.ua/uk/events/101743/misto",
+   "title": "Вистава \"Місто\"",
+   "source": "internet_bilet",
+   "category": "art",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "григорій бакланов"
+    ],
+    "claude": [],
+    "source": []
+   },
+   "status": "adjudicated",
+   "artists": [],
+   "why": "Актори вистави; трупу не названо"
+  },
+  {
+   "url": "https://concert.ua/uk/event/meni-tebe-malo-25-10-2026-18-00",
+   "title": "МЕНІ ТЕБЕ МАЛО",
+   "source": "concert_ua",
+   "category": "art",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "луганський обласний академічний український музично драматичний театр"
+    ],
+    "claude": [],
+    "source": []
+   },
+   "status": "adjudicated",
+   "artists": [
+    {
+     "name": "Луганський обласний академічний український музично-драматичний театр",
+     "role": "headliner"
+    }
+   ],
+   "why": "Театр-трупа гастролює й представляє виставу; актори не виконавці"
+  },
+  {
+   "url": "https://badseller.net/afisha/kyiv/vystava-antyhona-postmodern-2026-10-04",
+   "title": "Вистава \"Антигона. Постмодерн",
+   "source": "badseller",
+   "category": "art",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "театр veritas"
+    ],
+    "claude": [],
+    "source": []
+   },
+   "status": "adjudicated",
+   "artists": [
+    {
+     "name": "Театр Veritas",
+     "role": "headliner"
+    }
+   ],
+   "why": "Трупа Veritas грає в НЦТІ Курбаса (майданчик)"
+  },
+  {
+   "url": "https://concert.ua/uk/event/ladies-night",
+   "title": "Ladies‘ night",
+   "source": "concert_ua",
+   "category": "art",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "арам арзуманян",
+     "валерій швець",
+     "володимир гладкий",
+     "дмитро соловйов",
+     "михайло ігнатов",
+     "олена ященко",
+     "павло івлюшкін",
+     "станіслав ковалевський",
+     "євген юхновець",
+     "ірина бессараб"
+    ],
+    "claude": [],
+    "source": []
+   },
+   "status": "adjudicated",
+   "artists": [],
+   "why": "Лише актори в ролях; театр-трупу не названо"
+  },
+  {
+   "url": "https://concert.ua/uk/event/boying-boying-perezavantazhennja",
+   "title": "Боїнг Боїнг. Перезавантаження",
+   "source": "concert_ua",
+   "category": "art",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "олександр зінєвіч",
+     "олександр михайлов",
+     "ольга сумська",
+     "поліна василина",
+     "поліна нестерова",
+     "таїсія хвостова",
+     "євген паперний"
+    ],
+    "claude": [],
+    "source": []
+   },
+   "status": "adjudicated",
+   "artists": [],
+   "why": "Лише актори в ролях; трупу не названо"
+  },
+  {
+   "url": "https://kyiv.internet-bilet.ua/uk/bravo-dzhuliye",
+   "title": "Вистава \"Браво, Джуліє!\". Прем'єра!",
+   "source": "internet_bilet",
+   "category": "art",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "андрій сторожик",
+     "віталій борисюк",
+     "любава грешнова",
+     "олексій вертинський",
+     "олексій яровенко",
+     "ольга сумська",
+     "станіслав мельник",
+     "ірина калашник"
+    ],
+    "claude": [],
+    "source": []
+   },
+   "status": "adjudicated",
+   "artists": [],
+   "why": "Лише актори в ролях; трупу не названо"
+  },
+  {
+   "url": "https://kyiv.internet-bilet.ua/uk/events/98943/vse-mishi-lyubyat-sir",
+   "title": "Вистава \"Усі миші люблять сир\"",
+   "source": "internet_bilet",
+   "category": "kids",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "театр egoist"
+    ],
+    "claude": [
+     "egoist"
+    ],
+    "source": []
+   },
+   "status": "adjudicated",
+   "artists": [
+    {
+     "name": "театр Egoist",
+     "role": "headliner"
+    }
+   ],
+   "why": "Постановка театру Egoist; Особистості — майданчик; дубль Egoist"
+  },
+  {
+   "url": "https://concert.ua/uk/event/kotjachii-klub-10-10-2026-13-00",
+   "title": "КОТЯЧИЙ КЛУБ",
+   "source": "concert_ua",
+   "category": "kids",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "луганський обласний академічний український музично драматичний театр"
+    ],
+    "claude": [],
+    "source": []
+   },
+   "status": "adjudicated",
+   "artists": [
+    {
+     "name": "Луганський обласний академічний український музично-драматичний театр",
+     "role": "headliner"
+    }
+   ],
+   "why": "Театр-трупа представляє виставу; актори не виконавці"
+  },
+  {
+   "url": "https://kyiv.karabas.com/hrinch-vykradach-rizdva-9/",
+   "title": "«Грінч - викрадач різдва»",
+   "source": "karabas",
+   "category": "kids",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "театр egoist"
+    ],
+    "claude": [
+     "egoist"
+    ],
+    "source": []
+   },
+   "status": "adjudicated",
+   "artists": [
+    {
+     "name": "театр Egoist",
+     "role": "headliner"
+    }
+   ],
+   "why": "Постановка театру Egoist; актори не названі; дубль Egoist"
+  },
+  {
+   "url": "https://kyiv.internet-bilet.ua/uk/events/99977/grinch",
+   "title": "Вистава \"Грінч - викрадач Різдва\"",
+   "source": "internet_bilet",
+   "category": "kids",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "театр egoist"
+    ],
+    "claude": [
+     "egoist"
+    ],
+    "source": []
+   },
+   "status": "adjudicated",
+   "artists": [
+    {
+     "name": "театр Egoist",
+     "role": "headliner"
+    }
+   ],
+   "why": "Постановка театру Egoist; дубль Egoist"
+  },
+  {
+   "url": "https://kyiv.internet-bilet.ua/uk/conference",
+   "title": "Найбільша Ecommerce Conference in Kyiv",
+   "source": "internet_bilet",
+   "category": "social",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "daniel vibe",
+     "irina mi",
+     "андрій гадай",
+     "артем ситніков",
+     "артем степанов",
+     "артем степанчук",
+     "артур тахтаулов",
+     "віктор віницький",
+     "віталій сичинський",
+     "денис волосов",
+     "джамал гео",
+     "катерина мелеш",
+     "кирило донекін",
+     "ліна сівура",
+     "максим шечков",
+     "михайло хохуля",
+     "наталія яровінська",
+     "нікіта процанюк",
+     "олег ладан",
+     "олексій миропольський",
+     "саша шумило",
+     "станіслав гуня",
+     "іван степанець",
+     "ігор сіренко",
+     "ілля косенко"
+    ],
+    "claude": [],
+    "source": []
+   },
+   "status": "adjudicated",
+   "artists": [],
+   "why": "Спікери конференції не виконавці"
+  },
+  {
+   "url": "https://concert.ua/uk/event/e-commerce-conference",
+   "title": "НАЙБІЛЬША E-COMMERCE CONFERENCE in KYIV 2026",
+   "source": "concert_ua",
+   "category": "conference",
+   "hard": false,
+   "votes": {
+    "openai": [
+     "daniel vibe",
+     "irina mi",
+     "андрій гадай",
+     "артем ситніков",
+     "артем степанов",
+     "артем степанчук",
+     "артур тахтаулов",
+     "віктор віницький",
+     "віталій сичинський",
+     "денис волосов",
+     "джамал гео",
+     "катерина мелеш",
+     "кирило донекін",
+     "ліна сівура",
+     "максим шечков",
+     "михайло хохуля",
+     "наталія яровінська",
+     "нікіта процанюк",
+     "олег ладан",
+     "олексій миропольський",
+     "саша шумило",
+     "станіслав гуня",
+     "іван степанець",
+     "ігор сіренко",
+     "ілля косенко"
+    ],
+    "claude": [],
+    "source": []
+   },
+   "status": "adjudicated",
+   "artists": [],
+   "why": "Спікери конференції не виконавці"
+  }
+ ],
+ "disputed": []
+}

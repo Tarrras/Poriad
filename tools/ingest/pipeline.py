@@ -9,15 +9,16 @@ from __future__ import annotations
 
 import dataclasses
 import datetime as dt
+import json
 import math
 import uuid
 
-from . import community, culture, extract, normalize
+from . import artists, community, culture, extract, normalize
 from .fetch import get
 from .sources import Source
 from .geocode import Geocoder
 from .geocode import CITY_BBOX
-from .venues import VenueIndex
+from .venues import CACHE_DIR, VenueIndex
 
 # Простір імен детермінованих UUID: повторний обхід оновлює, а не дублює.
 NAMESPACE = uuid.UUID("8b1f0a2e-6d3c-4a5b-9e7f-2c4d6a8b0e13")
@@ -66,6 +67,8 @@ class Item:
     reject_reason: str | None = None
     duplicate_of: tuple[str, str] | None = None
     previous_start: dt.datetime | None = None
+    artists: list = dataclasses.field(default_factory=list)
+    text: str = ""                # опис без обрізання до 200: джерело для щабля 4 артистів, у базу не йде
 
     @property
     def dedupe_key(self) -> str | None:
@@ -124,6 +127,10 @@ def harvest(source: Source, city: str, index: VenueIndex,
         counters["detail_errors"] = adapter_report.get("errors", [])
         if adapter_report.get("errors"):
             counters["error"] = "PARTIAL_DETAILS"
+    elif source.adapter == "jsonld" and source.sitemap_url:
+        # Список віддає 20 посилань, повний перелік — sitemap. Його збій (badseller віддавав 500
+        # 2026-10-02) не має валити джерело, якому список нічого не додає.
+        raw_events = []
     else:
         try:
             response = get(url, delay=source.crawl_delay)
@@ -133,8 +140,9 @@ def harvest(source: Source, city: str, index: VenueIndex,
             return [], {**counters, "error": f"HTTP {response.status}"}
         counters["fetched"] = 1
         raw_events = extract.events_from_html(response.body)
-    if source.adapter == "jsonld" and source.detail_path:
-        links = extract.detail_links(response.body, url, source.detail_path)
+    if source.adapter == "jsonld" and (source.detail_path or source.sitemap_url):
+        links = (_sitemap_links(source, city, now, counters) if source.sitemap_url
+                 else extract.detail_links(response.body, url, source.detail_path))
         counters["detail_links"] = len(links)
         counters["detail_errors"] = []
         if len(links) > source.max_details:
@@ -210,6 +218,9 @@ def harvest(source: Source, city: str, index: VenueIndex,
         if counters.get("valid_empty"):
             return [], counters
         return [], {**counters, "error": "NO_EVENTS: порожня афіша або зміна розмітки"}
+
+    if source.performer_details:
+        _enrich_performers(raw_events, source, now, counters)
 
     items: list[Item] = []
     for raw in raw_events:
@@ -294,6 +305,79 @@ def harvest(source: Source, city: str, index: VenueIndex,
             counters["geocoded"] += 1
     _fold_same_source_copies(items, counters)
     return items, counters
+
+
+PERFORMER_CACHE = CACHE_DIR / "performers.json"
+PERFORMER_TTL = dt.timedelta(days=7)
+# Скільки карток за прогін. Решту добере наступний: кеш на диску не втрачається.
+PERFORMER_PAGES = 400
+
+
+def _enrich_performers(raw_events: list[dict], source: Source, now: dt.datetime, counters: dict) -> None:
+    """Дописує `performer` і повний текст картки (для артистів, не для бази) з картки події.
+
+    Кеш за посиланням: картка не міняється щодня, а сотня запитів із затримкою — це хвилини.
+    Збій однієї картки подію не губить, лише лишає її без виконавців.
+    """
+    try:
+        cache = json.loads(PERFORMER_CACHE.read_text("utf-8"))
+    except (OSError, ValueError):
+        cache = {}
+    fresh_after = (now - PERFORMER_TTL).isoformat()
+    fetched = reused = failed = 0
+    for raw in raw_events:
+        url = normalize.clean_url(raw.get("url") or "")
+        if not url.startswith("https://") or raw.get("performer"):
+            continue
+        entry = cache.get(url)
+        if not entry or entry["at"] < fresh_after:
+            if fetched >= PERFORMER_PAGES:
+                continue
+            try:
+                page = get(url, delay=source.crawl_delay)
+                if page.status != 200 or not page.body:
+                    raise ValueError(f"HTTP {page.status}")
+                same = [e for e in extract.events_from_html(page.body)
+                        if normalize.clean_url(e.get("url") or "") == url]
+                detail = same[0] if same else {}
+            except (PermissionError, OSError, ValueError):
+                failed += 1
+                continue
+            fetched += 1
+            text = max(detail.get("description") or "", extract.card_text(page.body), key=len)
+            entry = cache[url] = {"at": now.isoformat(), "performer": detail.get("performer"),
+                                  "description": text}
+        else:
+            reused += 1
+        if entry.get("performer"):
+            raw["performer"] = entry["performer"]
+        # Окреме поле, не `description`: опис у базі й quality від картки не мають мінятись.
+        if entry.get("description"):
+            raw["_poruch_text"] = entry["description"]
+    counters["performer_pages"] = {"fetched": fetched, "cached": reused, "failed": failed}
+    if fetched:
+        try:
+            PERFORMER_CACHE.parent.mkdir(exist_ok=True)
+            PERFORMER_CACHE.write_text(json.dumps(cache, ensure_ascii=False), "utf-8")
+        except OSError:
+            pass
+
+
+_sitemaps: dict[str, str] = {}
+
+
+def _sitemap_links(source: Source, city: str, now: dt.datetime, counters: dict) -> list[str]:
+    """Картки міста з sitemap джерела; sitemap один на всі міста, тож читається раз за запуск."""
+    if source.sitemap_url not in _sitemaps:
+        page = get(source.sitemap_url, delay=source.crawl_delay)
+        if page.status != 200 or not page.body:
+            counters["detail_errors"] = [f"sitemap: HTTP {page.status}"]
+            return []
+        _sitemaps[source.sitemap_url] = page.body
+    today = now.astimezone(normalize.zone(source.time_zone)).date()
+    return extract.sitemap_links(
+        _sitemaps[source.sitemap_url], source.sitemap_prefix.format(city=source.city_slugs[city]),
+        today, today + dt.timedelta(days=source.horizon_days))
 
 
 def _fold_same_source_copies(items: list[Item], counters: dict) -> None:
@@ -393,7 +477,7 @@ def _build(raw: dict, source: Source, city: str, index: VenueIndex,
     venue_name = normalize.clean_text(place.get("name"))
     address, addr_city, street = normalize.address_of(raw)
     # Місто з розмітки, а не зі сторінки, де знайшли подію.
-    event_city = addr_city or city
+    event_city = (addr_city if source.trust_locality else "") or city
 
     # Верхній щабель — жанр з каталогу продавця: сильніший за тип schema.org і словник.
     stamped = raw.get("_poruch_category")
@@ -474,8 +558,11 @@ def _build(raw: dict, source: Source, city: str, index: VenueIndex,
         price_min=price_min,
         is_free=is_free,
         description_len=len(full_description),
+        text=(raw.get("_poruch_text") or full_description)[:3000],
         reject_reason="ONLINE" if online else ("CITY_MISMATCH" if not city_matches else None),
         previous_start=normalize.parse_datetime(raw.get("previousStartDate"), source.tz_policy, source.time_zone),
+        artists=artists.merge(artists.from_source(raw, title, [venue_name], source.slug),
+                              artists.from_description(raw.get("_poruch_text") or full_description)),
     )
 
 
@@ -490,7 +577,9 @@ def _rescue_addresses(items, source, city, geocoder, counters) -> None:
     """
     if geocoder is None:
         return
-    blind = [i for i in items if i.latitude is None and i.canonical_url.startswith("https://")]
+    # Без reject_reason: чуже місто чи онлайн рятунок адресою не лікує, а далі стирав би причину.
+    blind = [i for i in items
+             if i.latitude is None and not i.reject_reason and i.canonical_url.startswith("https://")]
     if not blind:
         return
     by_venue: dict[str, list] = {}

@@ -669,6 +669,62 @@ def test_category_gaps() -> None:
     check("на пʼятьох подіях висновку не роблять", rep.source_health(few, [_Src("tiny")]), [])
 
 
+def test_rescue_keeps_city_mismatch() -> None:
+    """Адреса зі сторінки не робить публікованою подію з чужого міста (badseller: locality «Ніжинська»)."""
+    print("\nРятунок адресою і CITY_MISMATCH")
+    import dataclasses as _dc
+    from unittest.mock import patch
+
+    from .pipeline import harvest
+    from .sources import by_slug
+    from .venues import VenueIndex
+
+    source = _dc.replace(by_slug("concert_ua"), catalogs=None)
+    raw = {"@type": "MusicEvent", "name": "Вечір", "startDate": "2090-06-01T19:00:00+03:00",
+           "endDate": "2090-06-01T21:00:00+03:00", "url": "https://concert.ua/uk/event/y",
+           "location": {"name": "Зал", "address": {"addressLocality": "Ніжинська",
+                                                    "streetAddress": "вул. Велика Житомирська, 16"}}}
+
+    class _R:
+        status, body = 200, "<html></html>"
+
+    class _Geo:
+        calls, errors = 0, []
+        def lookup_street(self, street):
+            return {"lat": 50.4556, "lon": 30.5140, "ref": None, "how": "photon", "confidence": 0.8}
+
+    with patch("tools.ingest.pipeline.get", return_value=_R()), \
+         patch("tools.ingest.extract.events_from_html", side_effect=[[raw], [raw]]):
+        items, _ = harvest(source, "Київ", VenueIndex([], "Київ", {}), geocoder=_Geo())
+    check("чуже місто лишається в review", [(i.stage, i.reject_reason) for i in items],
+          [("review", "CITY_MISMATCH")])
+
+
+def test_untrusted_locality_takes_listing_city() -> None:
+    """badseller: addressLocality — хвіст вулиці («З»); місто береться зі списку, а не з розмітки."""
+    print("\nНедовірений addressLocality")
+    import dataclasses as _dc
+    from unittest.mock import patch
+
+    from .pipeline import harvest
+    from .sources import by_slug
+    from .venues import VenueIndex
+
+    raw = {"@type": "TheaterEvent", "name": "Вечір", "startDate": "2090-06-01T19:00:00+03:00",
+           "url": "https://badseller.net/afisha/kyiv/x-2090-06-01",
+           "location": {"name": "Театр", "address": {"addressLocality": "З",
+                                                      "streetAddress": "пл. Івана Франка, З"}}}
+
+    class _R:
+        status, body = 200, "<html></html>"
+
+    source = _dc.replace(by_slug("badseller"), sitemap_url=None, detail_path=None)
+    with patch("tools.ingest.pipeline.get", return_value=_R()), \
+         patch("tools.ingest.extract.events_from_html", return_value=[raw]):
+        items, _ = harvest(source, "Київ", VenueIndex([], "Київ", {}))
+    check("місто зі списку, не «З»", [(i.city, i.reject_reason) for i in items], [("Київ", "NO_GEO")])   # не CITY_MISMATCH
+
+
 def test_address_rescue() -> None:
     """Адреса зі сторінки події рятує майданчик, якого немає в індексі.
 
@@ -780,7 +836,8 @@ def main() -> int:
                  test_title_and_category, test_price, test_venue_matching,
                  test_aliases_resolve, test_osm_dump_fallback, test_geocoder_guards, test_dedupe, test_extract,
                  test_source_registry, test_build_internet_bilet, test_category_gaps,
-                 test_internet_bilet_timezone, test_catalog_rung, test_address_rescue):
+                 test_internet_bilet_timezone, test_catalog_rung, test_address_rescue,
+                 test_rescue_keeps_city_mismatch, test_untrusted_locality_takes_listing_city):
         test()
     print("\n" + "─" * 58)
     if FAILURES:

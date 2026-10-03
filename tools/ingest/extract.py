@@ -110,3 +110,36 @@ def detail_links(html: str, listing_url: str, path_prefix: str) -> list[str]:
 
     Links().feed(html)
     return list(links)
+
+
+_SLUG_DATE = re.compile(r"-(\d{4}-\d\d-\d\d)$")
+
+
+def sitemap_links(xml: str, prefix: str, first, last) -> list[str]:
+    """Картки з sitemap: URL починається з `prefix`, а датою в кінці slug — з `first` до `last`.
+    Дата в slug старша за сеанс на застарілих посиланнях, тому минулі slug не беремо: сеанс має
+    власне посилання."""
+    links = []
+    for loc in re.findall(r"<loc>\s*([^<\s]+)\s*</loc>", xml):
+        m = _SLUG_DATE.search(loc)
+        if m and loc.startswith(prefix) and "/" not in loc[len(prefix):] \
+                and first.isoformat() <= m.group(1) <= last.isoformat():
+            links.append(loc)
+    return sorted(links, key=lambda u: _SLUG_DATE.search(u).group(1))
+
+
+_CARD_TEXT = re.compile(r'class="descr-unified[^"]*"[^>]*>', re.I)
+_CARD_END = re.compile(r"Придбати квиток на|Сервіс\s*(?:&quot;|\")?Інтернет", re.I)
+
+
+def card_text(html: str) -> str:
+    """Опис із тіла картки там, де JSON-LD його не віддає (Internet-Bilet: `descr-unified`).
+    Порожній рядок, якщо контейнера нема: розмітка чужа, вгадувати нічого."""
+    m = _CARD_TEXT.search(html)
+    if not m:
+        return ""
+    body = html[m.end():]
+    end = _CARD_END.search(body)
+    body = body[:end.start()] if end else body[:6000]
+    import html as _html
+    return re.sub(r"\s+", " ", _html.unescape(re.sub(r"<[^>]+>", " ", body))).strip()

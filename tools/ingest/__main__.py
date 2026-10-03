@@ -19,7 +19,7 @@ import pathlib
 import sys
 import uuid
 
-from . import emit, karabas_status, normalize, report
+from . import artists, emit, karabas_status, normalize, report
 from .agent import Agent, DEFAULT_PROVIDER, PROVIDERS
 from .fetch import get
 from .geocode import CITY_BBOX, Geocoder
@@ -102,6 +102,15 @@ def run_city(city: str, sources: list, run_id: str, *, agent: Agent | None = Non
 
     # Дедуплікація до генерації SQL: emit фільтрує за stage у момент виклику.
     all_items = drop_cross_source_duplicates(all_items, {s.slug: s.weight for s in usable}, agent)
+    dictionary = artists.Dictionary.load()
+    settled = artists.settle(all_items, dictionary)
+    if agent is not None and agent.ready:
+        llm = artists.llm_fill(all_items, agent.ask, dictionary)
+        print(f"  Артисти (модель): запитів {llm['asked']}, з кешу {llm['cached']}, "
+              f"знайдено {llm['found']} із {llm['targets']}, збоїв {llm['errors']}")
+    with_artist = sum(1 for i in all_items if i.artists)
+    print(f"  Артисти: {with_artist} з {len(all_items)} подій; відкинуто як майданчик "
+          f"{sum(settled['dropped_as_venue'].values())}")
     # Після дедуплікації: там агент відповідає про спірні пари.
     if agent is not None and agent.merges:
         merged = sum(1 for *_, same, _ in agent.merges if same)
@@ -129,7 +138,8 @@ def run_city(city: str, sources: list, run_id: str, *, agent: Agent | None = Non
         counters["duplicates"] = sum(i.stage == "duplicate" for i in items)
         if items:
             sql_parts += (emit.bounded_sql(items, lambda rows: emit.venues_sql(rows, city), statement_bytes)
-                          + emit.events_sql(items, run_id, max_bytes=statement_bytes))
+                          + emit.events_sql(items, run_id, max_bytes=statement_bytes,
+                                                  replace_llm=agent is not None))
         sql_parts += emit.withdrawals_sql(source.slug, counters.get("withdrawals", []), run_id)
     sql_parts += emit.duplicates_sql(all_items, run_id)
     sql_parts += emit.demote_sql(all_items, run_id)
@@ -332,9 +342,11 @@ def main(argv: list[str] | None = None) -> int:
     # Пуш підписникам про нове — перед ним: обидва кроки після upsert-ів, порядок між ними неважливий,
     # а «завершені — останні» лишається правдою. Теж у кожному файлі: функція ідемпотентна.
     follows = emit.notify_follows_sql()
+    # Осиротілі артисти (після злиття дублів) прибираємо до пуша: він їх не стосується, але порядок «дані, потім пуш».
+    prune = emit.prune_artists_sql()
     if args.sql:
         # Один файл на обхід — одна транзакція. Розбиття по містах лишається для окремих оновлень.
-        parts = [p for city in cities for p in per_city[city][1]] + [follows, finished]
+        parts = [p for city in cities for p in per_city[city][1]] + [prune, follows, finished]
         _write_sql(args.sql, run_id, parts, len(published), args.sql_max_bytes)
     elif args.sql_dir:
         args.sql_dir.mkdir(parents=True, exist_ok=True)
@@ -342,7 +354,7 @@ def main(argv: list[str] | None = None) -> int:
         for city, (items, parts) in per_city.items():
             if not parts:
                 continue
-            _write_sql(args.sql_dir / f"{city}.sql", run_id, parts + [follows, finished],
+            _write_sql(args.sql_dir / f"{city}.sql", run_id, parts + [prune, follows, finished],
                        sum(1 for i in items if i.stage == "published"), args.sql_max_bytes)
     else:
         print("\nСуха проба: нічого не записано. Додайте --sql-dir, щоб отримати SQL.")

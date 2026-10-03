@@ -300,6 +300,8 @@ class RegressionTests(unittest.TestCase):
     def test_place_followers_are_notified_before_the_finished_step_and_guarded(self):
         sql = emit.notify_follows_sql()
         self.assertIn("perform private.notify_place_follows()", sql)
+        self.assertIn("perform private.notify_artist_follows()", sql)
+        self.assertLess(sql.index("notify_artist_follows"), sql.index("notify_place_follows"))   # артист забирає слот першим
         # База без міграції не має відкотити транзакцію дампу: виклик під перевіркою наявності функції.
         self.assertIn("to_regprocedure('private.notify_place_follows()') is not null", sql)
         # І збій самого зведення не відкочує дамп: він лише попередження.
@@ -625,6 +627,98 @@ class FetchLimits(unittest.TestCase):
         self.assertIn("hello@poriad.app", fetch.USER_AGENT)
         for module in (geocode, venues):
             self.assertIn("USER_AGENT", module.__dict__)
+
+
+class SitemapLinks(unittest.TestCase):
+    def test_city_dates_and_stale_slugs(self):
+        xml = "".join(f"<url><loc>{u}</loc></url>" for u in [
+            "https://badseller.net/afisha/kyiv/a-2026-10-01",         # сьогодні: беремо
+            "https://badseller.net/afisha/kyiv/b-2026-10-31",         # межа горизонту: беремо
+            "https://badseller.net/afisha/kyiv/c-2026-09-30",         # застарілий slug
+            "https://badseller.net/afisha/kyiv/d-2026-11-01",         # за горизонтом
+            "https://badseller.net/afisha/lviv/e-2026-10-02",         # інше місто
+            "https://badseller.net/afisha/kyiv/zal/f-2026-10-02",     # вкладений шлях
+            "https://badseller.net/afisha/podiia/g"])                 # без дати
+        today = dt.date(2026, 10, 1)
+        got = extract.sitemap_links(xml, "https://badseller.net/afisha/kyiv/",
+                                    today, today + dt.timedelta(days=30))
+        self.assertEqual(got, ["https://badseller.net/afisha/kyiv/a-2026-10-01",
+                               "https://badseller.net/afisha/kyiv/b-2026-10-31"])
+
+
+class SitemapSourceIgnoresListing(unittest.TestCase):
+    def test_listing_500_does_not_stop_sitemap_source(self):
+        """badseller 2026-10-02: список віддавав HTTP 500, sitemap і картки працювали."""
+        import dataclasses
+        from .sources import by_slug
+        source = dataclasses.replace(by_slug("badseller"), horizon_days=40000)
+        link = "https://badseller.net/afisha/kyiv/x-2090-06-01"
+        raw = {"@type": "TheaterEvent", "name": "Вечір", "startDate": "2090-06-01T19:00:00+03:00",
+               "url": link, "location": {"name": "Театр", "address": {"streetAddress": "вул. Б, 1"}}}
+        asked = []
+
+        def fake_get(url, **kwargs):
+            asked.append(url)
+            if url == source.listing_urls["Київ"]:
+                return Response(url, 500, "")
+            if url == source.sitemap_url:
+                return Response(url, 200, f"<loc>{link}</loc>")
+            return Response(url, 200, html([raw]))
+
+        with patch("tools.ingest.pipeline.get", side_effect=fake_get), \
+             patch("tools.ingest.pipeline._sitemaps", {}):
+            items, counters = pipeline.harvest(source, "Київ", VenueIndex([], "Київ"))
+        self.assertEqual([i.title for i in items], ["Вечір"])
+        self.assertNotIn(source.listing_urls["Київ"], asked)
+        self.assertNotIn("error", counters)
+
+
+class PerformerDetails(unittest.TestCase):
+    """Concert.ua: у списку виконавців немає, у картці є (лайнап стендапу)."""
+
+    def test_lineup_comes_from_detail_and_is_cached(self):
+        source = dataclasses.replace(by_slug("concert_ua"), catalogs=None, detail_path=None)
+        link = "https://concert.ua/uk/event/x"
+        listed = {"@type": "MusicEvent", "name": "Стендап у підвалі", "startDate": "2090-06-01T19:00:00+03:00",
+                  "endDate": "2090-06-01T21:00:00+03:00", "url": link, "workPerformed": {"name": "Стендап у підвалі"},
+                  "location": {"name": "Бочка", "address": {"addressLocality": "Київ"}}}
+        detail = {**listed, "performer": [{"@type": "Person", "name": "Арсен Пучков "},
+                                          {"@type": "Person", "name": "Раміль Янгулов"}]}
+        calls = []
+
+        def fake_get(url, **kwargs):
+            calls.append(url)
+            return Response(url, 200, html([detail if url == link else listed]))
+
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch("tools.ingest.pipeline.PERFORMER_CACHE", Path(tmp) / "p.json"), \
+             patch("tools.ingest.pipeline.get", side_effect=fake_get):
+            items, counters = pipeline.harvest(source, "Київ", VenueIndex([], "Київ"))
+            again, _ = pipeline.harvest(source, "Київ", VenueIndex([], "Київ"))
+        self.assertEqual([a.name for a in items[0].artists], ["Арсен Пучков", "Раміль Янгулов"])
+        self.assertEqual([a.name for a in again[0].artists], ["Арсен Пучков", "Раміль Янгулов"])
+        self.assertEqual(counters["performer_pages"]["fetched"], 1)
+        self.assertEqual(calls.count(link), 1)            # другий прогін узяв із кешу
+
+    def test_card_text_feeds_artists_but_not_description(self):
+        """Internet-Bilet: JSON-LD без опису, виконавці в `descr-unified`. Опис у базі лишається порожнім."""
+        source = dataclasses.replace(by_slug("internet_bilet"), catalogs=None, detail_path=None)
+        link = "https://kyiv.internet-bilet.ua/uk/events/1/x"
+        raw = {"@type": "ComedyEvent", "name": "Вечір", "startDate": "2090-06-01T19:00:00+03:00",
+               "endDate": "2090-06-01T21:00:00+03:00", "url": link,
+               "location": {"name": "Бочка", "address": {"addressLocality": "Київ"}}}
+        card = ('<div class="descr-unified"><p>Виступає Богдан Боярин.</p></div>'
+                'Придбати квиток на Вечір')
+
+        def fake_get(url, **kwargs):
+            return Response(url, 200, html([raw]) + (card if url == link else ""))
+
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch("tools.ingest.pipeline.PERFORMER_CACHE", Path(tmp) / "p.json"), \
+             patch("tools.ingest.pipeline.get", side_effect=fake_get):
+            items, _ = pipeline.harvest(source, "Київ", VenueIndex([], "Київ"))
+        self.assertIn("Богдан Боярин", items[0].text)
+        self.assertEqual((items[0].description, items[0].description_len), ("", 0))
 
 
 if __name__ == "__main__":
