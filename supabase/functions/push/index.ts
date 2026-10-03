@@ -1,6 +1,6 @@
 // Edge Function `push`: тригери бази кличуть її на нове повідомлення в чаті, новий запит на
 // участь чи приєднання до відкритої події, на скасування й перенесення події (docs/event-change-push.md),
-// на нову подію організатора й зведення нових подій закладів (docs/follows.md).
+// на нову подію організатора й зведення нових подій закладів та артистів (docs/follows.md).
 // Вона вирішує, кому слати, бере токени й шле у FCM (Android) і APNs (iOS).
 //
 // Секрети функції (`supabase secrets set …`):
@@ -13,7 +13,7 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import * as jose from "npm:jose@5";
-import { organizerText, placeText, type EventLine, type PlaceLine } from "./follow_text.ts";
+import { artistText, organizerText, placeText, type ArtistLine, type EventLine, type PlaceLine } from "./follow_text.ts";
 
 type Payload =
   | { type: "message"; message_id: string; event_id: string }
@@ -21,12 +21,14 @@ type Payload =
   | { type: "event"; kind: EventKind; event_id: string }
   | { type: "follow"; kind: "organizer"; event_id: string }
   // Зведення `notify_place_follows`: одна людина, скільки нового, у скількох закладах і найближчі події.
-  | { type: "follow"; kind: "place"; user_id: string; total: number; place_count: number; places: { id: string; n: number }[]; event_ids: string[] };
+  | { type: "follow"; kind: "place"; user_id: string; total: number; place_count: number; places: { id: string; n: number }[]; event_ids: string[] }
+  // Те саме для артистів: `notify_artist_follows`.
+  | { type: "follow"; kind: "artist"; user_id: string; total: number; artist_count: number; artists: { id: string; n: number }[]; event_ids: string[] };
 
 type EventKind = "moved" | "cancelled";
 const EVENT_KINDS: readonly string[] = ["moved", "cancelled"];
 
-type Push = { kind: "chat" | "request" | "joined" | "organizer" | "place" | EventKind; eventId?: string; placeId?: string; title: string; body: string; key: string };
+type Push = { kind: "chat" | "request" | "joined" | "organizer" | "place" | "artist" | EventKind; eventId?: string; placeId?: string; artistId?: string; title: string; body: string; key: string };
 type Token = { token: string; platform: "android" | "ios" };
 
 const PREVIEW = 120;
@@ -140,7 +142,7 @@ async function forEvent(db: ReturnType<typeof createClient>, p: Extract<Payload,
 // Підписки. Організатор: його підписники, крім заблокованих з ним у будь-який бік. Заклади: одна людина,
 // яку вже вибрала база (нове, ліміт на добу) — тут лише текст.
 async function forFollow(db: ReturnType<typeof createClient>, p: Extract<Payload, { type: "follow" }>) {
-  return p.kind === "organizer" ? forOrganizer(db, p) : forPlaces(db, p);
+  return p.kind === "organizer" ? forOrganizer(db, p) : p.kind === "artist" ? forArtists(db, p) : forPlaces(db, p);
 }
 
 // ponytail: підписників не більше 1000 — стільки віддає PostgREST за раз; більше — сторінками.
@@ -171,6 +173,25 @@ async function forPlaces(db: ReturnType<typeof createClient>, p: Extract<Payload
   if (!text) return { push: null, recipients: [] };
   return {
     push: { kind: "place" as const, eventId: text.eventId, placeId: text.placeId, title: text.title, body: text.body, key: `place:${text.placeId}:${Date.now()}` },
+    recipients: [p.user_id],
+  };
+}
+
+async function forArtists(db: ReturnType<typeof createClient>, p: Extract<Payload, { type: "follow"; kind: "artist" }>) {
+  const { data: rows } = await db.from("artists").select("id,name").in("id", p.artists.map((x) => x.id));
+  const names = new Map((rows ?? []).map((r) => [r.id as string, r.name as string]));
+  const artists: ArtistLine[] = p.artists.filter((x) => names.has(x.id)).map((x) => ({ id: x.id, name: names.get(x.id)!, n: x.n }));
+  const { data: found } = await db.from("events").select("id,title,status,ends_at,starts_at,time_zone").in("id", p.event_ids);
+  // Як для закладів: скасовану чи вже минулу подію між прогоном бази й доставкою не рекламуємо.
+  const live = new Map((found ?? []).filter((e) => e.status === "published" && new Date(e.ends_at as string).getTime() > Date.now()).map((e) => [e.id as string, e]));
+  const events: EventLine[] = p.event_ids.filter((id) => live.has(id)).map((id) => {
+    const e = live.get(id)!;
+    return { id, title: e.title as string, when: when(e.starts_at as string, e.time_zone as string) };
+  });
+  const text = events.length > 0 ? artistText(p.total, p.artist_count, artists, events) : null;
+  if (!text) return { push: null, recipients: [] };
+  return {
+    push: { kind: "artist" as const, eventId: text.eventId, artistId: text.artistId, title: text.title, body: text.body, key: `artist:${text.artistId}:${Date.now()}` },
     recipients: [p.user_id],
   };
 }
@@ -220,6 +241,12 @@ function isPayload(p: unknown): p is Payload {
       && o.places.every((x) => !!x && typeof x === "object" && isUuid((x as Record<string, unknown>).id) && isCount((x as Record<string, unknown>).n))
       && Array.isArray(o.event_ids) && o.event_ids.length >= 1 && o.event_ids.length <= 3 && o.event_ids.every(isUuid);
   }
+  if (o.type === "follow" && o.kind === "artist") {
+    return isUuid(o.user_id) && isCount(o.total) && isCount(o.artist_count)
+      && Array.isArray(o.artists) && o.artists.length >= 1 && o.artists.length <= 5
+      && o.artists.every((x) => !!x && typeof x === "object" && isUuid((x as Record<string, unknown>).id) && isCount((x as Record<string, unknown>).n))
+      && Array.isArray(o.event_ids) && o.event_ids.length >= 1 && o.event_ids.length <= 3 && o.event_ids.every(isUuid);
+  }
   return false;
 }
 
@@ -266,6 +293,7 @@ async function sendFcm(token: string, push: Push): Promise<boolean | "stale"> {
         data: {
           kind: push.kind, title: push.title, body: push.body, key: push.key,
           ...(push.eventId ? { eventId: push.eventId } : {}), ...(push.placeId ? { placeId: push.placeId } : {}),
+          ...(push.artistId ? { artistId: push.artistId } : {}),
         },
         android: { priority: "high" },
       },
@@ -316,11 +344,11 @@ async function sendApns(token: string, push: Push): Promise<boolean | "stale"> {
       "apns-priority": "10",
       // Зміна події — окрема група: повідомлення чату не має витіснити «подію скасовано». Новіший пуш про
       // ті самі заклади заміняє попередній.
-      "apns-collapse-id": push.kind === "place" ? `place:${push.placeId}` : EVENT_KINDS.includes(push.kind) ? `${push.eventId}:state` : push.eventId!,
+      "apns-collapse-id": push.kind === "place" ? `place:${push.placeId}` : push.kind === "artist" ? `artist:${push.artistId}` : EVENT_KINDS.includes(push.kind) ? `${push.eventId}:state` : push.eventId!,
     },
     body: JSON.stringify({
-      aps: { alert: { title: push.title, body: push.body }, sound: "default", "thread-id": push.eventId ?? `place:${push.placeId}` },
-      kind: push.kind, eventId: push.eventId, placeId: push.placeId, key: push.key,
+      aps: { alert: { title: push.title, body: push.body }, sound: "default", "thread-id": push.eventId ?? (push.artistId ? `artist:${push.artistId}` : `place:${push.placeId}`) },
+      kind: push.kind, eventId: push.eventId, placeId: push.placeId, artistId: push.artistId, key: push.key,
     }),
   });
   if (res.ok) return true;

@@ -2,9 +2,10 @@
 // тож її перевіряє `node supabase/functions/push/follow_text.test.mjs`.
 
 export type PlaceLine = { id: string; name: string; n: number };
+export type ArtistLine = { id: string; name: string; n: number };
 export type EventLine = { id: string; title: string; when: string };
 
-export type FollowText = { title: string; body: string; placeId?: string; eventId?: string };
+export type FollowText = { title: string; body: string; placeId?: string; artistId?: string; eventId?: string };
 
 const BODY_MAX = 180;
 
@@ -48,4 +49,30 @@ export function placeText(total: number, placeCount: number, places: PlaceLine[]
 /** Нова спільнотна подія організатора: назва події й від кого. */
 export function organizerText(eventTitle: string, organizerName: string, when: string): FollowText {
   return { title: eventTitle, body: clip(organizerName ? `Нова подія від ${organizerName} · ${when}` : `Нова подія · ${when}`) };
+}
+
+/**
+ * Один пуш про нові події артистів, за якими стежить людина (docs/artists-discovery-2026-10.md).
+ * [artists] — найзавантаженіший першим, [events] — найближчі, до трьох; [total] і [artistCount] — скільки
+ * їх усього. Заголовок — ім'я артиста: людина стежила за ним, а не за назвою вистави. Одна подія — її назва
+ * й час (назву пропускаємо, коли вона збігається з іменем: «Jerry Heil» двічі не кажемо). Тап: одна подія
+ * веде на неї, решта — на сторінку найзавантаженішого артиста.
+ */
+export function artistText(total: number, artistCount: number, artists: ArtistLine[], events: EventLine[]): FollowText | null {
+  const lead = artists[0];
+  if (!lead || total < 1) return null;
+  if (total === 1 && events[0]) {
+    const e = events[0];
+    const same = e.title.trim().toLowerCase() === lead.name.trim().toLowerCase();
+    return { title: lead.name, body: clip(same ? `Нова подія · ${e.when}` : `Нова подія: ${e.title} · ${e.when}`), artistId: lead.id, eventId: e.id };
+  }
+  if (artistCount <= 1) {
+    const rest = total - events.length;
+    const times = events.map((e) => e.when).join(" · ") + (rest > 0 ? ` та ще ${rest}` : "");
+    return { title: `${lead.name}: ${newEvents(total)}`, body: clip(times), artistId: lead.id };
+  }
+  const shown = artists.slice(0, 3);
+  const more = artistCount - shown.length;
+  const names = shown.map((a) => a.name).join(", ") + (more > 0 ? ` та ще ${more}` : "");
+  return { title: `${newEvents(total)} в артистів, за якими ви стежите`, body: clip(names), artistId: lead.id };
 }

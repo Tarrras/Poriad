@@ -1,6 +1,6 @@
 // Перевірка текстів пушів про підписки без Deno: node supabase/functions/push/follow_text.test.mjs
 import assert from "node:assert/strict";
-import { organizerText, placeText, plural } from "./follow_text.ts";
+import { artistText, organizerText, placeText, plural } from "./follow_text.ts";
 
 const forms = (n) => plural(n, "подія", "події", "подій");
 assert.deepEqual([1, 2, 4, 5, 11, 12, 14, 21, 22, 25, 101, 111].map(forms),
@@ -39,5 +39,23 @@ assert.ok(placeText(3, 1, [club], [ev("e1", "х".repeat(100)), ev("e2", "у".rep
 assert.deepEqual(organizerText("Пробіжка", "Олена", "сб, 4 жовтня, 09:00"),
   { title: "Пробіжка", body: "Нова подія від Олена · сб, 4 жовтня, 09:00" });
 assert.equal(organizerText("Пробіжка", "", "сб").body, "Нова подія · сб");
+
+// Артисти: ім'я в заголовку; назва, що збігається з іменем, не повторюється.
+const jerry = { id: "a1", name: "Jerry Heil", n: 2 };
+const beast = { id: "a2", name: "Beast", n: 1 };
+assert.deepEqual(artistText(1, 1, [{ ...jerry, n: 1 }], [ev("e1", "Jerry Heil")]),
+  { title: "Jerry Heil", body: "Нова подія · пт, 3 жовтня, 19:00", artistId: "a1", eventId: "e1" });
+assert.equal(artistText(1, 1, [{ ...jerry, n: 1 }], [ev("e1", "Jerelo")]).body, "Нова подія: Jerelo · пт, 3 жовтня, 19:00");
+const two = artistText(2, 1, [jerry], [ev("e1", "А"), ev("e2", "Б")]);
+assert.equal(two.title, "Jerry Heil: 2 нові події");
+assert.equal(two.body, "пт, 3 жовтня, 19:00 · пт, 3 жовтня, 19:00");
+assert.equal(two.eventId, undefined, "кілька подій — не одна подія");
+assert.equal(two.artistId, "a1");
+assert.equal(artistText(5, 1, [jerry], [ev("e1", "А"), ev("e2", "Б"), ev("e3", "В")]).body.endsWith("та ще 2"), true);
+const across2 = artistText(3, 2, [jerry, beast], [ev("e1", "А")]);
+assert.equal(across2.title, "3 нові події в артистів, за якими ви стежите");
+assert.equal(across2.body, "Jerry Heil, Beast");
+assert.equal(artistText(2, 1, [], [ev("e1", "А")]), null);
+assert.equal(artistText(0, 0, [jerry], []), null);
 
 console.log("follow_text: ok");
