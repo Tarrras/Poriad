@@ -440,7 +440,8 @@ private fun SheetList(state: ExploreState, onIntent: (ExploreIntent) -> Unit) {
     val rows = state.deckEvents
     // Заклади пошуку — над подіями: список подій довгий, під ним їх ніхто б не побачив.
     val places = if (state.stackFocused) emptyList() else state.places
-    if (rows.isEmpty() && places.isEmpty()) {
+    val artists = if (state.stackFocused) emptyList() else state.artists
+    if (rows.isEmpty() && places.isEmpty() && artists.isEmpty()) {
         if (state.loading) Box(
             Modifier
                 .fillMaxWidth()
@@ -477,6 +478,9 @@ private fun SheetList(state: ExploreState, onIntent: (ExploreIntent) -> Unit) {
     ) {
         if (places.isNotEmpty()) item(key = "places") {
             PlacesGroup(places, withCity = false) { onIntent(ExploreIntent.FocusPlace(it)) }
+        }
+        if (artists.isNotEmpty()) item(key = "artists") {
+            ArtistsGroup(artists) { onIntent(ExploreIntent.OpenArtist(it)) }
         }
         items(rows, key = { it.id }) { event ->
             EventCard(

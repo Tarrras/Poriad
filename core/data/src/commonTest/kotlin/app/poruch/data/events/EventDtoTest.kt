@@ -1,5 +1,7 @@
 package app.poruch.data.events
 
+import app.poruch.domain.ArtistKind
+import app.poruch.domain.ArtistRole
 import app.poruch.domain.EventStatus
 import app.poruch.domain.FollowKind
 import app.poruch.domain.ImportStatus
@@ -131,5 +133,41 @@ class EventDtoTest {
         assertNull(follows[1].place)
         assertEquals("https://x.invalid/a.jpg", follows[1].avatarUrl)
         assertEquals("", follows[1].city)
+    }
+
+    /** Картка несе склад у серверному порядку; `kind` буває відсутній, невідома роль — звичайний учасник. */
+    @Test fun aCardCarriesItsArtists() {
+        val event = parse(
+            "origin" to "\"import\"", "source_name" to "\"Karabas\"",
+            "artists" to """[{"id":"a1","name":"Андрій Бережко","kind":"person","role":"headliner"},
+                {"id":"a2","name":"Дмитро Захарченко","role":"host"},{"id":"a3","name":"Гість","kind":"band","role":"opener"}]"""
+        )
+        assertEquals(listOf("a1", "a2", "a3"), event.artists.map { it.id })
+        assertEquals(listOf(ArtistRole.HEADLINER, ArtistRole.HOST, ArtistRole.SUPPORT), event.artists.map { it.role })
+        assertEquals(listOf(ArtistKind.PERSON, null, null), event.artists.map { it.kind })
+    }
+
+    /** Нема артистів — нема поля (`jsonb_strip_nulls`); так само відповідає старий сервер і prod без даних. */
+    @Test fun aCardWithoutArtistsStillReads() {
+        assertEquals(emptyList(), parse("origin" to "\"import\"", "source_name" to "\"Karabas\"").artists)
+    }
+
+    @Test fun anArtistSearchRowParses() {
+        val hits = json.decodeFromString<List<ArtistHitDto>>(
+            """[{"id":"a1","name":"Андрій Бережко","kind":"person","upcoming":23},{"id":"a2","name":"Театр","upcoming":1}]"""
+        ).map { it.domain() }
+        assertEquals(listOf(23, 1), hits.map { it.upcoming })
+        assertEquals(listOf(ArtistKind.PERSON, null), hits.map { it.kind })
+    }
+
+    /** `my_follows`: артист несе `artist_kind` (не `kind`: там рід підписки) і лишається в списку. */
+    @Test fun anArtistFollowKeepsItsKind() {
+        val follows = json.decodeFromString<List<FollowDto>>(
+            """[{"kind":"artist","id":"a1","name":"Андрій Бережко","artist_kind":"person","upcoming":23,"since":"2026-10-03T10:00:00Z"},
+               {"kind":"artist","id":"a2","name":"Хтось","upcoming":0}]"""
+        ).mapNotNull { it.domain() }
+        assertEquals(listOf(FollowKind.ARTIST, FollowKind.ARTIST), follows.map { it.kind })
+        assertEquals(listOf(ArtistKind.PERSON, null), follows.map { it.artistKind })
+        assertNull(follows[0].place)
     }
 }

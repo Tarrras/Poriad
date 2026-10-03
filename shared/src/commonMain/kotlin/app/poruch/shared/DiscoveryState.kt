@@ -28,6 +28,8 @@ data class MapFeed(
     val searchText: String = "",
     /** Заклади за [searchText] у тій самій області. Порожньо без пошуку. */
     val places: List<Place> = emptyList(),
+    /** Артисти за [searchText]: секція «Артисти» під «Місцями». Порожньо без пошуку й до двох символів. */
+    val artists: List<ArtistHit> = emptyList(),
     /** Заклад, обраний у пошуку: мапа наводиться на нього й відкриває його стос. */
     val placeFocus: PlaceFocus? = null,
     val onlyAvailable: Boolean = false,
@@ -85,6 +87,8 @@ data class HomeFeed(
     val resultsTotal: Int = 0,
     /** Заклади за [searchText] у тій самій області, що й [results]. */
     val places: List<Place> = emptyList(),
+    /** Артисти за [searchText]. */
+    val artists: List<ArtistHit> = emptyList(),
     val searchLoading: Boolean = false,
     /** Пошук головної по всіх містах, а не лише в обраному. */
     val searchEverywhere: Boolean = false,

@@ -153,7 +153,7 @@ final class LocalReminderScheduler: NSObject, ReminderScheduler, RequestNotifier
     }
 
     /// Тап по сповіщенню, локальному чи пушу: відкрити подію, про яку воно, а про повідомлення — її чат.
-    /// Пуш про кілька нових подій закладу веде на мапу, до його стосу.
+    /// Пуш про кілька нових подій закладу веде на мапу, до його стосу, а про артиста — на його екран.
     func userNotificationCenter(
         _ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
@@ -167,11 +167,11 @@ final class LocalReminderScheduler: NSObject, ReminderScheduler, RequestNotifier
             let id = request.identifier
             let reason = info["kind"] as? String
                 ?? (id.hasPrefix(chatPrefix) ? "chat" : id.hasPrefix(requestPrefix) ? "request" : id.hasPrefix(prefix) ? "reminder" : nil)
-            let eventId = info["eventId"] as? String, placeId = info["placeId"] as? String
+            let eventId = info["eventId"] as? String, placeId = info["placeId"] as? String, artistId = info["artistId"] as? String
             let chat = info["kind"] as? String == "chat" || id.hasPrefix(chatPrefix)
             DispatchQueue.main.async {
                 if let reason { PushDelegate.opened(reason: reason) }
-                if eventId != nil || placeId != nil { PushDelegate.open(eventId: eventId, chat: chat, placeId: placeId) }
+                if eventId != nil || placeId != nil || artistId != nil { PushDelegate.open(eventId: eventId, chat: chat, placeId: placeId, artistId: artistId) }
             }
         }
         completionHandler()

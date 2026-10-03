@@ -42,7 +42,9 @@ data class AppState(
     /** Події з непрочитаними повідомленнями, свіжіші першими. Бейджі й секція на головній. */
     val chatUnread: List<ChatUnread> = emptyList(),
     /** Відкрита картка людини. Null — картку закрито. Пише [ProfileUseCases]. */
-    val person: PersonState? = null
+    val person: PersonState? = null,
+    /** Відкритий екран артиста. Null — екран закрито. Пише [FollowUseCases]. Публічний, тож зміна акаунта його не закриває. */
+    val artist: ArtistState? = null
 ) {
     /** Скільки чатів чекають: бейдж на вкладці. Не сума повідомлень: три чати — три справи. */
     val unreadChats get() = chatUnread.size
@@ -76,7 +78,7 @@ data class AppState(
     val needsAgeDeclaration get() = signedIn && !library.account.ageDeclared
     fun hasBlocked(userId: String) = library.blocked.any { it.userId == userId }
 
-    /** Чи стежить акаунт за закладом чи організатором. Оптимістична зміна видна одразу, див. [FollowUseCases]. */
+    /** Чи стежить акаунт за закладом, організатором чи артистом. Оптимістична зміна видна одразу, див. [FollowUseCases]. */
     fun isFollowing(kind: FollowKind, targetId: String) = library.follows.any { it.kind == kind && it.targetId == targetId }
 
     /**
@@ -193,6 +195,18 @@ data class LibraryState(
     val followsMade: Int = 0,
     /** «Мої події» перечитуються. Для спінера екрана «Мої», замість `map.loading`. */
     val loading: Boolean = false
+)
+
+/**
+ * Екран артиста: [events] — майбутні, найближчі першими. [name] і [kind] можуть бути порожні, коли відкрили лише за id (пуш):
+ * тоді їх дістають з карток подій.
+ */
+data class ArtistState(
+    val id: String,
+    val name: String = "",
+    val kind: ArtistKind? = null,
+    val events: List<Event> = emptyList(),
+    val loading: Boolean = true
 )
 
 /** Відкрита картка людини. [profile] null після завантаження — людина недоступна (блок, приватність). */

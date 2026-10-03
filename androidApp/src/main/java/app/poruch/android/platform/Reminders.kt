@@ -242,14 +242,17 @@ class RequestNotificationCenter(context: Context) : RequestNotifier {
         post(CHANGE_TAG, eventId, eventTitle, text, CHANGE_CHANNEL, R.string.event_change_notification_channel, NotificationManager.IMPORTANCE_HIGH, reason)
 
     /**
-     * Нова подія організатора чи закладу, за якими стежить людина ([reason] — `organizer` чи `place`, він же
-     * тип пуша). З [eventId] тап веде на подію; без нього (кілька нових подій закладу) — на стос закладу
-     * на мапі. Одне сповіщення на заклад: новіше заміняє попереднє.
+     * Нова подія організатора, закладу чи артиста, за якими стежить людина ([reason] — `organizer`, `place` чи
+     * `artist`, він же тип пуша). З [eventId] тап веде на подію; без нього (кілька нових подій) — на стос закладу
+     * на мапі чи на екран артиста. Одне сповіщення на заклад чи артиста: новіше заміняє попереднє.
      */
-    fun notifyFollowed(reason: String, eventId: String?, placeId: String?, title: String, text: String) {
-        val key = eventId ?: placeId ?: return
-        val open = if (eventId == null && placeId != null) MainActivity.openPlace(context, placeId, reason)
-        else MainActivity.open(context, eventId ?: return, reason = reason)
+    fun notifyFollowed(reason: String, eventId: String?, placeId: String?, title: String, text: String, artistId: String? = null) {
+        val key = eventId ?: placeId ?: artistId ?: return
+        val open = when {
+            eventId != null -> MainActivity.open(context, eventId, reason = reason)
+            placeId != null -> MainActivity.openPlace(context, placeId, reason)
+            else -> MainActivity.openArtist(context, artistId ?: return, reason)
+        }
         post(FOLLOW_TAG, key, title, text, FOLLOW_CHANNEL, R.string.follow_notification_channel, NotificationManager.IMPORTANCE_DEFAULT, reason, open)
     }
 

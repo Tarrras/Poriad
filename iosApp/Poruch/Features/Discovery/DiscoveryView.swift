@@ -112,6 +112,7 @@ struct DiscoveryView: View {
     private var shownEvents: [Event] { derived.shownEvents }
     /// Заклади за текстом пошуку мапи. У стосі піна вони зайві: там уже одне місце.
     private var places: [Place] { stackFocused ? [] : (model.state?.map.places ?? []) }
+    private var artists: [ArtistHit] { stackFocused ? [] : (model.state?.map.artists ?? []) }
 
     /// Картки каруселі. Вибрана подія є завжди: вибір ззовні («На мапі» з деталей) буває за краєм
     /// вікна карток, поза фільтром чи ще без індексу. Без неї карусель стояла на першій картці, а
@@ -421,7 +422,7 @@ struct DiscoveryView: View {
                     }
                 }
             }.railContentPadding()
-            if shownEvents.isEmpty && places.isEmpty {
+            if shownEvents.isEmpty && places.isEmpty && artists.isEmpty {
                 if model.state?.map.loading == true {
                     PoruchLoader().frame(maxWidth: .infinity).padding(.vertical, Space.section)
                 } else {
@@ -435,6 +436,7 @@ struct DiscoveryView: View {
                         if !places.isEmpty {
                             PlacesGroup(places: places) { focusPlace($0) }
                         }
+                        if !artists.isEmpty { ArtistsGroup(artists: artists) }
                         ForEach(Array(shownEvents.enumerated()), id: \.element.id) { position, event in
                             EventCard(
                                 event: event, saved: savedIDs.contains(event.id),

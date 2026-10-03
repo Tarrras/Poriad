@@ -1,5 +1,6 @@
 package app.poruch.android.feature.explore
 
+import app.poruch.domain.ArtistHit
 import app.poruch.domain.EventCategory
 import app.poruch.domain.CityResult
 import app.poruch.domain.Event
@@ -27,6 +28,8 @@ data class ExploreState(
     val searchText: String = "",
     /** Заклади за [searchText]: секція «Місця» у списку шторки. */
     val places: List<Place> = emptyList(),
+    /** Артисти за [searchText]: секція «Артисти» під «Місцями». */
+    val artists: List<ArtistHit> = emptyList(),
     val category: EventCategory? = null,
     val dateFilter: DateFilter = DateFilter.ANY,
     val onlyAvailable: Boolean = false,
@@ -133,6 +136,8 @@ sealed interface ExploreIntent {
     data class SelectStack(val ids: List<String>) : ExploreIntent
     /** Заклад з пошуку: мапа переходить до нього, а стос відкривається, щойно приїде видача. */
     data class FocusPlace(val place: Place) : ExploreIntent
+    /** Артист з пошуку: екран артиста поверх мапи. */
+    data class OpenArtist(val artist: ArtistHit) : ExploreIntent
     data object ClearStack : ExploreIntent
     /** «Стежити» / «Ви стежите» на закладі стосу. Гостя веде на вхід. */
     data object ToggleFollowStack : ExploreIntent
@@ -156,6 +161,7 @@ sealed interface ExploreIntent {
 
 sealed interface ExploreEffect {
     data class OpenDetail(val id: String) : ExploreEffect
+    data class OpenArtist(val id: String) : ExploreEffect
     data object CreateEvent : ExploreEffect
     data object SignIn : ExploreEffect
     data object AskLocationPermission : ExploreEffect

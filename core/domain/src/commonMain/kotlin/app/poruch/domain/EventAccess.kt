@@ -40,6 +40,12 @@ interface EventDiscovery {
     /** Майбутні події закладу від найближчої, тими самими картками, що [cards]. */
     suspend fun placeEvents(placeId: String): List<Event>
 
+    /** Артисти, в імені яких є слово з префіксом [text], лише з майбутніми подіями, найживіші першими. З [city] — у місті. */
+    suspend fun searchArtists(text: String, city: String? = null): List<ArtistHit>
+
+    /** Майбутні події артиста від найближчої, тими самими картками, що [cards]. */
+    suspend fun artistEvents(artistId: String): List<Event>
+
     /** Укриття поруч і комендантська міста для блоку «Безпека». Null — подію не видно. */
     suspend fun safety(id: String): EventSafety?
 

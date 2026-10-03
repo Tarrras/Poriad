@@ -74,6 +74,12 @@ class PoruchAppTest {
         var places=emptyList<Place>()
         val placeQueries=mutableListOf<Pair<String,EventQuery?>>()
         override suspend fun searchPlaces(text:String,city:String?,bounds:EventQuery?):List<Place> { placeQueries+=text to bounds; delay(50); return places.filter { it.name.lowercase().startsWith(text.lowercase()) } }
+        var artists=emptyList<ArtistHit>()
+        val artistQueries=mutableListOf<Pair<String,String?>>()
+        override suspend fun searchArtists(text:String,city:String?):List<ArtistHit> { artistQueries+=text to city; delay(50); return artists.filter { it.name.lowercase().contains(text.lowercase()) } }
+        var ofArtist=emptyMap<String,List<Event>>()
+        var failArtistEvents=false
+        override suspend fun artistEvents(artistId:String):List<Event> { delay(50); if(failArtistEvents) fail(AppError.Network); return ofArtist[artistId].orEmpty() }
         var atPlace=emptyMap<String,List<Event>>()
         var failPlaceEvents=false
         var placeEventCalls=0
@@ -1527,6 +1533,79 @@ class PoruchAppTest {
         app.close()
     }
 
+    private val berezhko=ArtistHit("a1","Андрій Бережко",ArtistKind.PERSON,23)
+
+    /** Пошук мапи й головної шукає й артистів; до двох символів не питає, скасування прибирає. */
+    @Test fun searchFindsArtistsFromTwoCharacters()=runTest {
+        val events=Events(); events.artists=listOf(berezhko)
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
+        app.setSearchText("б"); advanceTimeBy(1000); runCurrent()
+        assertEquals(emptyList(),events.artistQueries,"one character is not searched")
+        app.setSearchText("бер"); advanceTimeBy(1000); runCurrent()
+        assertEquals(listOf("a1"),app.state.value.map.artists.map { it.id })
+        assertEquals("бер" to HomeLocation.Kyiv.city,events.artistQueries.last(),"scoped to the chosen city")
+        app.setSearchText(""); runCurrent()
+        assertEquals(emptyList(),app.state.value.map.artists)
+
+        app.setHomeSearchText("бер"); advanceTimeBy(1000); runCurrent()
+        assertEquals(listOf("a1"),app.state.value.home.artists.map { it.id })
+        app.setHomeSearchEverywhere(true); advanceTimeBy(1000); runCurrent()
+        assertNull(events.artistQueries.last().second,"everywhere means every city")
+        app.cancelHomeSearch(); runCurrent()
+        assertEquals(emptyList(),app.state.value.home.artists)
+        app.close()
+    }
+
+    /** Екран артиста: те, що знаємо, одразу; події їдуть; за самим id ім'я береться з карток. Збій — банер. */
+    @Test fun anArtistScreenLoadsItsEventsAndLearnsItsName()=runTest {
+        val events=Events()
+        val a=listed("a","2090-12-22T18:00:00Z").copy(artists=listOf(Artist("a1","Андрій Бережко",ArtistKind.PERSON,ArtistRole.HEADLINER)))
+        events.ofArtist=mapOf("a1" to listOf(a))
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
+        app.openArtist("a1","Андрій Бережко",ArtistKind.PERSON)
+        assertEquals(ArtistState("a1","Андрій Бережко",ArtistKind.PERSON),app.state.value.artist,"shown before the events arrive")
+        advanceTimeBy(100); runCurrent()
+        assertEquals(listOf("a"),app.state.value.artist!!.events.map { it.id })
+        assertFalse(app.state.value.artist!!.loading)
+
+        app.closeArtist(); assertNull(app.state.value.artist)
+        app.openArtist("a1"); advanceTimeBy(100); runCurrent()
+        assertEquals("Андрій Бережко",app.state.value.artist!!.name,"a push carries only the id")
+        assertEquals(ArtistKind.PERSON,app.state.value.artist!!.kind)
+
+        events.failArtistEvents=true
+        app.openArtist("a1"); advanceTimeBy(100); runCurrent()
+        assertFalse(app.state.value.artist!!.loading)
+        assertEquals(AppNotice.Failed(AppError.Network),app.state.value.notice)
+        app.close()
+    }
+
+    /** Прокат на екрані артиста — одна картка з сеансами, як у «Підписках» («1 подія»), а не три однакові рядки. */
+    @Test fun anArtistScreenFoldsARunIntoOneCard()=runTest {
+        val events=Events()
+        fun show(id:String,day:Int)=listed(id,"2090-12-${day}T18:30:00Z").copy(title="Грай Марку")
+        events.ofArtist=mapOf("a1" to listOf(show("s1",19),show("s2",20),show("s3",21),listed("other","2090-12-22T18:00:00Z")))
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
+        app.openArtist("a1"); advanceTimeBy(100); runCurrent()
+        val shown=app.state.value.artist!!.events
+        assertEquals(listOf("s1","other"),shown.map { it.id })
+        assertEquals(listOf("s1","s2","s3"),shown.first().sessions.map { it.id })
+        app.close()
+    }
+
+    /** Підписка на артиста — та сама кнопка, що й на закладі; список із сервера несе його вид. */
+    @Test fun anArtistCanBeFollowed()=runTest {
+        val follows=FollowsFake(); val app=app(Events(),backgroundScope,follows=follows); runCurrent(); advanceTimeBy(101); runCurrent()
+        app.setFollowing(FollowKind.ARTIST,"a1","Андрій Бережко",true); runCurrent()
+        assertTrue(app.state.value.isFollowing(FollowKind.ARTIST,"a1"))
+        advanceTimeBy(300); runCurrent()
+        assertEquals(listOf("follow artist a1"),follows.calls)
+        assertTrue(app.state.value.isFollowing(FollowKind.ARTIST,"a1"))
+        app.setFollowing(FollowKind.ARTIST,"a1","",false); advanceTimeBy(300); runCurrent()
+        assertFalse(app.state.value.isFollowing(FollowKind.ARTIST,"a1"))
+        app.close()
+    }
+
     /** Тап по пушу про кілька подій: мапа переходить до закладу й відкриває його стос. */
     @Test fun openingAPlaceFromAPushFocusesItsStack()=runTest {
         val events=Events()
@@ -1568,6 +1647,18 @@ class PoruchAppTest {
         assertEquals("Малевич",detail.placeLabel)
         assertTrue(FollowRules.canFollowPlace(detail))
         assertEquals(listOf("p1"),app.state.value.detail.placeEvents?.let { listOf(it.placeId) },"and the venue's events follow from it")
+        app.close()
+    }
+
+    /** `event_details` не несе артистів: деталі беруть склад з картки, а картки нема — питають її. */
+    @Test fun detailsTakeTheirArtistsFromTheCard()=runTest {
+        val events=Events(); val cast=listOf(Artist("a1","Андрій Бережко",ArtistKind.PERSON,ArtistRole.HEADLINER))
+        val card=listed("z","2090-12-23T18:00:00Z").copy(artists=cast)
+        events.detailsById=mapOf("z" to card.copy(artists=emptyList(),listing=card.listing!!.copy(placeId=null,placeName=null)))
+        events.offFeedCards=listOf(card)
+        val app=app(events,backgroundScope,follows=FollowsFake()); runCurrent(); advanceTimeBy(101); runCurrent()
+        app.openEvent("z"); advanceTimeBy(1000); runCurrent()
+        assertEquals(cast,app.state.value.detail.event!!.artists)
         app.close()
     }
 

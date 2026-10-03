@@ -1,5 +1,9 @@
 package app.poruch.data.events
 
+import app.poruch.domain.Artist
+import app.poruch.domain.ArtistHit
+import app.poruch.domain.ArtistKind
+import app.poruch.domain.ArtistRole
 import app.poruch.domain.EventCategory
 import app.poruch.domain.CompanionCard
 import app.poruch.domain.CompanionParent
@@ -64,14 +68,17 @@ internal data class EventDto(
     @SerialName("place_name") val placeName: String? = null,
     // Лише супутник (міграція 20260928140000). Картки з `discover_events` їх не несуть — лише `event_details`.
     @SerialName("companion_of") val companionOf: String? = null,
-    @SerialName("companion_of_title") val companionOfTitle: String? = null
+    @SerialName("companion_of_title") val companionOfTitle: String? = null,
+    // Міграція 20261002120000. `jsonb_strip_nulls` прибирає поле, коли артистів нема, а старий сервер його не знає.
+    val artists: List<ArtistDto> = emptyList()
 ) {
     fun domain() = Event(
         id = id, title = title, description = description, category = EventCategory.fromKey(category),
         city = city, address = address,
         startsAt = startsAt, endsAt = endsAt, timeZone = timeZone, status = EventStatus.fromKey(status),
         latitude = latitude, longitude = longitude, imageUrl = imageUrl,
-        gathering = gathering(), listing = listing()
+        gathering = gathering(), listing = listing(),
+        artists = artists.map { it.domain() }
     )
 
     /**
@@ -150,6 +157,28 @@ internal data class CompanionDto(
     fun domain() = CompanionCard(id, startsAt, timeZone, meetNote, capacity, attendeeCount, Membership.fromKey(membership), mine)
 }
 
+/** Артист у картці події. `kind` буває відсутній: сервер не завжди знає вид. */
+@Serializable
+internal data class ArtistDto(
+    val id: String,
+    val name: String = "",
+    val kind: String? = null,
+    val role: String? = null
+) {
+    fun domain() = Artist(id, name, ArtistKind.fromKey(kind), ArtistRole.fromKey(role))
+}
+
+/** Елемент відповіді `search_artists`. */
+@Serializable
+internal data class ArtistHitDto(
+    val id: String,
+    val name: String = "",
+    val kind: String? = null,
+    val upcoming: Int = 0
+) {
+    fun domain() = ArtistHit(id, name, ArtistKind.fromKey(kind), upcoming)
+}
+
 /** Елемент відповіді `search_places`. */
 @Serializable
 internal data class PlaceDto(
@@ -175,11 +204,12 @@ internal data class FollowDto(
     val latitude: Double? = null,
     val longitude: Double? = null,
     @SerialName("avatar_url") val avatarUrl: String? = null,
+    @SerialName("artist_kind") val artistKind: String? = null,
     val upcoming: Int = 0
 ) {
     /** Невідомий рід (сервер новіший за застосунок) — не рядок списку, а відсутня підписка. */
     fun domain() = FollowKind.fromKey(kind)?.let {
-        Follow(it, id, name, city.orEmpty(), address.orEmpty(), latitude, longitude, avatarUrl, upcoming)
+        Follow(it, id, name, city.orEmpty(), address.orEmpty(), latitude, longitude, avatarUrl, upcoming, ArtistKind.fromKey(artistKind))
     }
 }
 

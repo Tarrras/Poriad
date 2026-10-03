@@ -96,11 +96,11 @@ internal class UserLibrary(
                     detail { copy(event = event, loading = false) }
                     if (event == null) store.failed(AppError.EventUnavailable)
                 }
-                // Афішу відкрили без картки (посилання, пуш): заклад є лише в картці, тож беремо її окремо. Без
+                // Афішу відкрили без картки (посилання, пуш): заклад і артисти є лише в картці, тож беремо її окремо. Без
                 // цього не було б ні «Стежити» на місці, ні «Ще в «…»» у деталях.
                 if (event?.listing != null && event.placeId == null) {
                     val withPlace = event.withPlaceOf(optional { events.cards(listOf(id)).firstOrNull() })
-                    if (openEventId == id && withPlace.placeId != null) detail { copy(event = withPlace) }
+                    if (openEventId == id && withPlace != event) detail { copy(event = withPlace) }
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -165,11 +165,14 @@ internal class UserLibrary(
         }
     }
 
+    /** Те, що `event_details` не несе, а картка несе: заклад і склад артистів. */
     private fun Event.withPlaceOf(card: Event?): Event {
-        val own = listing ?: return this
-        val place = card?.takeIf { it.id == id }?.listing ?: return this
-        if (own.placeId != null || place.placeId == null) return this
-        return copy(listing = own.copy(placeId = place.placeId, placeName = place.placeName))
+        val same = card?.takeIf { it.id == id } ?: return this
+        val full = if (artists.isEmpty() && same.artists.isNotEmpty()) copy(artists = same.artists) else this
+        val own = full.listing ?: return full
+        val place = same.listing ?: return full
+        if (own.placeId != null || place.placeId == null) return full
+        return full.copy(listing = own.copy(placeId = place.placeId, placeName = place.placeName))
     }
 
     private fun detail(change: DetailState.() -> DetailState) = store.update { it.copy(detail = it.detail.change()) }

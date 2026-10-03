@@ -121,12 +121,38 @@ internal class DiscoveryEngine(
         placesJob?.cancel()
         val text = snapshot.text
         if (text == null) {
-            if (store.value.map.places.isNotEmpty()) store.update { it.copy(map = it.map.copy(places = emptyList())) }
+            if (store.value.map.places.isNotEmpty() || store.value.map.artists.isNotEmpty()) {
+                store.update { it.copy(map = it.map.copy(places = emptyList(), artists = emptyList())) }
+            }
             return
         }
+        // Артисти не залежать від області: лише від міста, якщо воно обране, а не накреслене рукою.
+        val city = store.value.city.takeIf { !it.custom }?.name
         placesJob = scope.launch {
-            val found = places(text, snapshot)
-            store.update { it.copy(map = it.map.copy(places = found)) }
+            launch {
+                val found = places(text, snapshot)
+                store.update { it.copy(map = it.map.copy(places = found)) }
+            }
+            launch {
+                val found = artists(text, city)
+                store.update { it.copy(map = it.map.copy(artists = found)) }
+            }
+        }
+    }
+
+    /**
+     * Артисти за текстом або порожньо: до [DiscoveryRules.MIN_ARTIST_QUERY] символів не питаємо (одна літера дала б
+     * довільних п'ятьох). Збій теж порожньо, як у [places].
+     */
+    private suspend fun artists(text: String, city: String?): List<ArtistHit> {
+        if (text.trim().length < DiscoveryRules.MIN_ARTIST_QUERY) return emptyList()
+        return try {
+            events.searchArtists(text, city).also { PoruchLog.d("discovery") { "${it.size} artists" } }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            PoruchLog.w("discovery") { "artists failed: ${e.asAppError()}" }
+            emptyList()
         }
     }
 
@@ -155,6 +181,7 @@ internal class DiscoveryEngine(
                 map = it.map.copy(
                     searchText = "",
                     places = emptyList(),
+                    artists = emptyList(),
                     placeFocus = PlaceFocus(place, version)
                 )
             )
@@ -262,6 +289,7 @@ internal class DiscoveryEngine(
                     found = emptyList(),
                     resultsTotal = 0,
                     places = emptyList(),
+                    artists = emptyList(),
                     searchLoading = false
                 )
                 else it.home.copy(searchText = trimmed, searchLoading = true)
@@ -282,6 +310,7 @@ internal class DiscoveryEngine(
                     found = emptyList(),
                     resultsTotal = 0,
                     places = emptyList(),
+                    artists = emptyList(),
                     searchLoading = false,
                     searchEverywhere = false,
                     searchCategory = null,
@@ -318,9 +347,16 @@ internal class DiscoveryEngine(
         // Заклади не залежать від категорії й дати: ті звужують лише події.
         homePlacesJob?.cancel()
         val placesArea = if (home.searchEverywhere) null else areaQuery()
+        val artistsCity = if (home.searchEverywhere) null else store.value.city.takeIf { !it.custom }?.name
         homePlacesJob = scope.launch {
-            val found = places(text, placesArea)
-            store.update { it.copy(home = it.home.copy(places = found)) }
+            launch {
+                val found = places(text, placesArea)
+                store.update { it.copy(home = it.home.copy(places = found)) }
+            }
+            launch {
+                val found = artists(text, artistsCity)
+                store.update { it.copy(home = it.home.copy(artists = found)) }
+            }
         }
         val snapshot = (if (home.searchEverywhere) WORLD else areaQuery()).copy(
             text = text,
@@ -577,7 +613,8 @@ internal class DiscoveryEngine(
                 map = it.map.copy(
                     searchText = trimmed,
                     loading = true,
-                    places = if (blank) emptyList() else it.map.places
+                    places = if (blank) emptyList() else it.map.places,
+                    artists = if (blank) emptyList() else it.map.artists
                 )
             )
         }
@@ -606,6 +643,7 @@ internal class DiscoveryEngine(
                 map = it.map.copy(
                     searchText = "",
                     places = emptyList(),
+                    artists = emptyList(),
                     onlyAvailable = available,
                     category = null,
                     dateFilter = DateFilter.ANY,

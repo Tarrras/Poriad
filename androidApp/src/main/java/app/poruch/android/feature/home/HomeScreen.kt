@@ -689,6 +689,7 @@ private fun SearchResults(state: HomeState, onIntent: (HomeIntent) -> Unit) {
                 )
             }
             if (state.places.isNotEmpty()) PlacesGroup(state.places, state.searchEverywhere) { onIntent(HomeIntent.OpenPlace(it)) }
+            if (state.artists.isNotEmpty()) ArtistsGroup(state.artists) { onIntent(HomeIntent.OpenArtist(it)) }
         }
     }
 }

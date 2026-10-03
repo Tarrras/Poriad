@@ -82,6 +82,7 @@ class HomeViewModel(private val app: PoruchApp) : MviViewModel<HomeState, HomeIn
             resultsIndexed = home.results.size,
             resultsTotal = home.resultsTotal,
             places = home.places,
+            artists = home.artists,
             searchLoading = home.searchLoading,
             searchEverywhere = home.searchEverywhere,
             searchCategory = home.searchCategory,
@@ -99,6 +100,10 @@ class HomeViewModel(private val app: PoruchApp) : MviViewModel<HomeState, HomeIn
         is HomeIntent.OpenPlace -> {
             app.focusPlace(intent.place)
             send(HomeEffect.Navigate(HomeDestination.MAP))
+        }
+        is HomeIntent.OpenArtist -> {
+            app.openArtist(intent.artist.id, intent.artist.name, intent.artist.kind)
+            send(HomeEffect.Navigate(HomeDestination.ARTIST, intent.artist.id))
         }
         is HomeIntent.OpenChat -> {
             app.selectEvent(intent.id)

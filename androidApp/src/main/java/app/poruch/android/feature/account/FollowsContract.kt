@@ -22,4 +22,5 @@ sealed interface FollowsIntent {
 sealed interface FollowsEffect {
     data object Back : FollowsEffect
     data object OpenMap : FollowsEffect
+    data class OpenArtist(val id: String) : FollowsEffect
 }

@@ -18,6 +18,10 @@ class FollowsViewModel(private val app: PoruchApp) :
             is FollowsIntent.Open -> when (intent.follow.kind) {
                 FollowKind.PLACE -> intent.follow.place?.let { app.focusPlace(it); send(FollowsEffect.OpenMap) }
                 FollowKind.ORGANIZER -> app.openPerson(intent.follow.targetId)
+                FollowKind.ARTIST -> with(intent.follow) {
+                    app.openArtist(targetId, name, artistKind)
+                    send(FollowsEffect.OpenArtist(targetId))
+                }
             }
             FollowsIntent.ClosePerson -> app.closePerson()
             is FollowsIntent.ToggleFollowPerson -> app.setFollowing(

@@ -15,19 +15,19 @@ final class PushDelegate: NSObject, UIApplicationDelegate {
         }
     }
     private static var pendingToken: String?
-    /// Тап по сповіщенню: подія, яку відкрити, і чи в її чат; без події — заклад, чий стос показати на мапі
-    /// (пуш про кілька нових подій), а без нього — дайджест, лише головна.
+    /// Тап по сповіщенню: подія, яку відкрити, і чи в її чат; без події — заклад, чий стос показати на мапі, чи артист,
+    /// чий екран відкрити (пуш про кілька нових подій), а без них — дайджест, лише головна.
     /// Ставить корінь, коли застосунок уже на екрані.
-    static var openEvent: ((String?, Bool, String?) -> Void)? {
+    static var openEvent: ((String?, Bool, String?, String?) -> Void)? {
         didSet {
-            if let openEvent, let pending = pendingOpen { pendingOpen = nil; openEvent(pending.id, pending.chat, pending.placeId) }
+            if let openEvent, let pending = pendingOpen { pendingOpen = nil; openEvent(pending.id, pending.chat, pending.placeId, pending.artistId) }
         }
     }
     /// Тап при холодному старті приходить раніше, ніж корінь готовий: чекає тут.
-    private static var pendingOpen: (id: String?, chat: Bool, placeId: String?)?
+    private static var pendingOpen: (id: String?, chat: Bool, placeId: String?, artistId: String?)?
 
-    static func open(eventId: String?, chat: Bool, placeId: String? = nil) {
-        if let openEvent { openEvent(eventId, chat, placeId) } else { pendingOpen = (eventId, chat, placeId) }
+    static func open(eventId: String?, chat: Bool, placeId: String? = nil, artistId: String? = nil) {
+        if let openEvent { openEvent(eventId, chat, placeId, artistId) } else { pendingOpen = (eventId, chat, placeId, artistId) }
     }
 
     /// Що це було, для аналітики (`push_open`). Так само чекає на `app`: при холодному старті його ще нема.

@@ -19,6 +19,7 @@
 		344B9FAB703A8611AD96F4D4 /* PersonCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6E940D45ABD75825FAC96C4 /* PersonCard.swift */; };
 		B252AA32864504DE8FD7FA9B /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39B8DC0C3B365C8E3663478D /* ProfileView.swift */; };
 		B446D23F4370F31AEA598FE7 /* FollowsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CA055AC72087D0029689E6C /* FollowsView.swift */; };
+		A71571000000000000000A01 /* ArtistView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A71571000000000000000A02 /* ArtistView.swift */; };
 		35C1B1E33A85AE545784A155 /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 389BE804E97C692901E47112 /* ChatView.swift */; };
 		54B79975C47085C90F3626E4 /* EventActionsModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14CCD46204242AE4E715A09B /* EventActionsModel.swift */; };
 		79EA5B997F3C8BA4D1D833A6 /* EventDetailPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FEBDE6DB777033A65306F53 /* EventDetailPresentation.swift */; };
@@ -63,6 +64,7 @@
 		E6E940D45ABD75825FAC96C4 /* PersonCard.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = PersonCard.swift; path = Features/Account/PersonCard.swift; sourceTree = "<group>"; };
 		39B8DC0C3B365C8E3663478D /* ProfileView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ProfileView.swift; path = Features/Account/ProfileView.swift; sourceTree = "<group>"; };
 		1CA055AC72087D0029689E6C /* FollowsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = FollowsView.swift; path = Features/Account/FollowsView.swift; sourceTree = "<group>"; };
+		A71571000000000000000A02 /* ArtistView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ArtistView.swift; path = Features/Artist/ArtistView.swift; sourceTree = "<group>"; };
 		389BE804E97C692901E47112 /* ChatView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ChatView.swift; path = Features/Detail/ChatView.swift; sourceTree = "<group>"; };
 		14CCD46204242AE4E715A09B /* EventActionsModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EventActionsModel.swift; path = Features/Detail/EventActionsModel.swift; sourceTree = "<group>"; };
 		0FEBDE6DB777033A65306F53 /* EventDetailPresentation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EventDetailPresentation.swift; path = Features/Detail/EventDetailPresentation.swift; sourceTree = "<group>"; };
@@ -141,6 +143,7 @@
 				E6E940D45ABD75825FAC96C4 /* PersonCard.swift */,
 				39B8DC0C3B365C8E3663478D /* ProfileView.swift */,
 				1CA055AC72087D0029689E6C /* FollowsView.swift */,
+				A71571000000000000000A02 /* ArtistView.swift */,
 				389BE804E97C692901E47112 /* ChatView.swift */,
 				14CCD46204242AE4E715A09B /* EventActionsModel.swift */,
 				0FEBDE6DB777033A65306F53 /* EventDetailPresentation.swift */,
@@ -346,6 +349,7 @@
 				344B9FAB703A8611AD96F4D4 /* PersonCard.swift in Sources */,
 				B252AA32864504DE8FD7FA9B /* ProfileView.swift in Sources */,
 				B446D23F4370F31AEA598FE7 /* FollowsView.swift in Sources */,
+				A71571000000000000000A01 /* ArtistView.swift in Sources */,
 				35C1B1E33A85AE545784A155 /* ChatView.swift in Sources */,
 				54B79975C47085C90F3626E4 /* EventActionsModel.swift in Sources */,
 				79EA5B997F3C8BA4D1D833A6 /* EventDetailPresentation.swift in Sources */,

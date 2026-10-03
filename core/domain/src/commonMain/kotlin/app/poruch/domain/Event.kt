@@ -28,7 +28,9 @@ data class Event(
      * Усі сеанси прокату, якщо картка стоїть за кількома. Сервер цього поля не знає: його
      * заповнює спільний шар з [EventSeries], щоб екрани не шукали рядок в індексі на кожну промальовку.
      */
-    val sessions: List<EventSession> = emptyList()
+    val sessions: List<EventSession> = emptyList(),
+    /** Хто виступає, у серверному порядку. Порожньо, коли сервер артистів не знає (старий сервер, prod без даних). */
+    val artists: List<Artist> = emptyList()
 ) : Rankable {
     override val isCancelled get() = status == EventStatus.CANCELLED || status == EventStatus.HIDDEN
 
@@ -62,6 +64,10 @@ data class Event(
 
     /** Є лише в кімнати: блокувати й скаржитись можна тільки на людину. */
     val organizerId get() = gathering?.organizerId
+
+    /** Склад для картки: до [DiscoveryRules.CARD_ARTISTS] імен у серверному порядку, решту каже [moreArtists]. Повний — [artists]. */
+    val cardArtists: List<Artist> get() = artists.take(DiscoveryRules.CARD_ARTISTS)
+    val moreArtists: Int get() = (artists.size - DiscoveryRules.CARD_ARTISTS).coerceAtLeast(0)
 
     /** Заклад з `public.places`. Лише в афіші: у спільнотних подій місця нема. */
     val placeId get() = listing?.placeId

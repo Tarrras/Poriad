@@ -3,6 +3,7 @@ package app.poruch.android.di
 import app.poruch.android.BuildConfig
 import app.poruch.android.SessionStore
 import app.poruch.android.feature.account.AuthViewModel
+import app.poruch.android.feature.artist.ArtistViewModel
 import app.poruch.android.feature.account.FollowsViewModel
 import app.poruch.android.feature.account.ProfileViewModel
 import app.poruch.android.feature.detail.DetailViewModel
@@ -13,6 +14,7 @@ import app.poruch.android.feature.home.HomeViewModel
 import app.poruch.android.feature.mine.MyEventsViewModel
 import app.poruch.android.feature.onboarding.OnboardingViewModel
 import app.poruch.android.feature.chat.ChatViewModel
+import app.poruch.android.navigation.ArtistPage
 import app.poruch.android.navigation.Auth
 import app.poruch.android.navigation.Chat
 import app.poruch.android.navigation.Detail
@@ -58,6 +60,7 @@ val appModule = module {
     viewModel { (route: Detail) -> DetailViewModel(get(), get(), route.eventId) }
     viewModel { (route: Editor) -> EditorViewModel(get(), get(), get(), route.editingId) }
     viewModel { (route: Chat) -> ChatViewModel(get(), route.eventId) }
+    viewModel { (route: ArtistPage) -> ArtistViewModel(get(), route.artistId) }
 }
 
 private fun appConfig() = AppConfig(

@@ -5,7 +5,7 @@ import kotlin.time.Instant
 
 /** На що стежать, як це називає `follows.target_kind`. */
 enum class FollowKind(val key: String) {
-    PLACE("place"), ORGANIZER("organizer");
+    PLACE("place"), ORGANIZER("organizer"), ARTIST("artist");
 
     companion object {
         fun fromKey(key: String?): FollowKind? = entries.firstOrNull { it.key == key }
@@ -14,7 +14,7 @@ enum class FollowKind(val key: String) {
 
 /**
  * Підписка зі списку `my_follows`. Для закладу [city], [address] і координати — щоб відкрити його на мапі без
- * запиту; для організатора — [avatarUrl]. [upcoming] — скільки подій попереду (прокат — одна).
+ * запиту; для організатора — [avatarUrl]; для артиста — [artistKind], якщо сервер його знає. [upcoming] — скільки подій попереду (прокат — одна).
  */
 data class Follow(
     val kind: FollowKind,
@@ -25,7 +25,8 @@ data class Follow(
     val latitude: Double? = null,
     val longitude: Double? = null,
     val avatarUrl: String? = null,
-    val upcoming: Int = 0
+    val upcoming: Int = 0,
+    val artistKind: ArtistKind? = null
 ) {
     /** Заклад для мапи. Null — це організатор або сервер не віддав координат. */
     val place: Place?

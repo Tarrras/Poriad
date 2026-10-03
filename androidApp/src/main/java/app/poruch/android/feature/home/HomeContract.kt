@@ -1,5 +1,6 @@
 package app.poruch.android.feature.home
 
+import app.poruch.domain.ArtistHit
 import app.poruch.domain.EventCategory
 import app.poruch.domain.ChatUnread
 import app.poruch.domain.CityResult
@@ -54,6 +55,8 @@ data class HomeState(
     val resultsTotal: Int = 0,
     /** Заклади за тим самим запитом: секція «Місця» під подіями. */
     val places: List<Place> = emptyList(),
+    /** Артисти за тим самим запитом: секція «Артисти» під «Місцями». */
+    val artists: List<ArtistHit> = emptyList(),
     val searchLoading: Boolean = false,
     /** Пошук по всіх містах, а не лише в [cityName]. Фільтри пошуку звужують лише знайдене, не стрічку. */
     val searchEverywhere: Boolean = false,
@@ -66,7 +69,7 @@ data class HomeState(
     val cities: List<CityResult> = emptyList()
 ) {
     val searching get() = searchText.isNotBlank()
-    val isEmpty get() = if (searching) results.isEmpty() && places.isEmpty() else personal.isEmpty() && people.isEmpty() && feed.isEmpty()
+    val isEmpty get() = if (searching) results.isEmpty() && places.isEmpty() && artists.isEmpty() else personal.isEmpty() && people.isEmpty() && feed.isEmpty()
     val busy get() = if (searching) searchLoading else loading
 }
 
@@ -99,6 +102,8 @@ sealed interface HomeIntent {
     data class OpenEvent(val id: String, val from: String) : HomeIntent
     /** Заклад з пошуку: мапа переходить до нього й відкриває його стос. */
     data class OpenPlace(val place: Place) : HomeIntent
+    /** Артист з пошуку: екран артиста. */
+    data class OpenArtist(val artist: ArtistHit) : HomeIntent
     /** Прямо в чат події, минаючи деталі. */
     data class OpenChat(val id: String) : HomeIntent
     data class ToggleSaved(val id: String) : HomeIntent
@@ -127,4 +132,4 @@ sealed interface HomeEffect {
     data class Navigate(val destination: HomeDestination, val id: String = "") : HomeEffect
 }
 
-enum class HomeDestination { DETAIL, CHAT, MAP, PROFILE, MINE, FOLLOWS, EDITOR }
+enum class HomeDestination { DETAIL, CHAT, MAP, PROFILE, MINE, FOLLOWS, EDITOR, ARTIST }

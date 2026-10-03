@@ -15,6 +15,8 @@ sealed interface Tab : NavKey
 @Serializable data object Profile : Tab
 
 @Serializable data class Detail(val eventId: String) : NavKey
+/** Екран артиста: що показувати, тримає [app.poruch.shared.AppState.artist]; хто відкриває, кличе `openArtist` перед переходом. */
+@Serializable data class ArtistPage(val artistId: String) : NavKey
 @Serializable data class Editor(val editingId: String? = null) : NavKey
 /** Чат події. Лише для організатора й учасників: іншим сервер віддасть порожньо. */
 @Serializable data class Chat(val eventId: String) : NavKey

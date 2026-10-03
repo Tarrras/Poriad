@@ -84,6 +84,7 @@ private fun FollowRow(follow: Follow, onOpen: () -> Unit, onUnfollow: () -> Unit
     val caption = when (follow.kind) {
         FollowKind.PLACE -> if (follow.city.isBlank()) count else stringResource(R.string.follows_place_caption, follow.city, count)
         FollowKind.ORGANIZER -> stringResource(R.string.follows_organizer_caption, count)
+        FollowKind.ARTIST -> stringResource(R.string.follows_artist_caption, count)
     }
     Row(
         Modifier.fillMaxWidth().clickable(onClick = onOpen)
@@ -95,6 +96,9 @@ private fun FollowRow(follow: Follow, onOpen: () -> Unit, onUnfollow: () -> Unit
                 Icon(PoruchIcons.pin, null, Modifier.size(20.dp), tint = colors.ink)
             }
             FollowKind.ORGANIZER -> Avatar(follow.name, follow.avatarUrl, 40.dp)
+            FollowKind.ARTIST -> Box(Modifier.size(40.dp).background(colors.surfaceMuted, Radius.xs), contentAlignment = Alignment.Center) {
+                Icon(PoruchIcons.person, null, Modifier.size(20.dp), tint = colors.ink)
+            }
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(follow.name, style = PoruchType.serifTitle3, color = colors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)

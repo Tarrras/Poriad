@@ -166,6 +166,10 @@ class DetailViewModel(
             // Для другої дати прокату — картка представника: окремого піна в сеансу нема.
             DetailIntent.OpenMap -> send(DetailEffect.OpenMap(app.cardIdOf(eventId)))
             is DetailIntent.OpenEvent -> send(DetailEffect.OpenEvent(intent.id))
+            is DetailIntent.OpenArtist -> {
+                app.openArtist(intent.artist.id, intent.artist.name, intent.artist.kind)
+                send(DetailEffect.OpenArtist(intent.artist.id))
+            }
             is DetailIntent.OpenShelter -> send(DetailEffect.OpenShelter(intent.shelter))
             is DetailIntent.SeekCompany -> if (intent.open) authenticated { reduce { copy(seekingCompany = true) } }
                 else reduce { copy(seekingCompany = false) }

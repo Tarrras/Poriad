@@ -241,6 +241,7 @@
   <string name="search_everywhere">Шукати усюди</string>
   <string name="search_events_group">Події · %1$d</string>
   <string name="search_places_group">Місця</string>
+  <string name="search_artists_group">Артисти</string>
   <plurals name="place_upcoming">
     <item quantity="one">%1$d подія</item>
     <item quantity="few">%1$d події</item>
@@ -734,5 +735,16 @@
   <string name="follows_place_caption">%1$s · %2$s</string>
   <string name="follows_organizer_caption">Організатор · %1$s</string>
   <string name="unfollow">Не стежити</string>
+  <string name="follow_artist_hint">Скажемо, коли зʼявиться нова подія</string>
+  <string name="follows_artist_caption">%1$s</string>
+  <string name="lineup_title">Хто виступає</string>
+  <string name="artist_line_host">ведучий %1$s</string>
+  <string name="artist_line_more">%1$s та ще %2$d</string>
+  <string name="artist_kind_group">Гурт</string>
+  <string name="artist_kind_show">Шоу</string>
+  <string name="artist_kind_company">Трупа</string>
+  <string name="artist_empty_title">Поки нічого не заплановано</string>
+  <string name="artist_empty_hint">Натисніть «Стежити», і ми скажемо, коли зʼявиться нова подія.</string>
+  <string name="artist_events_title">Найближчі події</string>
   <string name="follow_notification_channel">Нові події тих, за ким ви стежите</string>
 </resources>

@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import app.poruch.android.EventMap
 import app.poruch.android.R
 import app.poruch.android.ui.*
+import app.poruch.domain.ArtistRole
 import app.poruch.domain.ContactRules
 import app.poruch.domain.Event
 import app.poruch.domain.EventIndexEntry
@@ -101,6 +102,7 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
                     Modifier.padding(horizontal = Spacing.page).padding(top = Spacing.lg),
                     verticalArrangement = Arrangement.spacedBy(Spacing.lg)
                 ) {
+                    if (event.artists.isNotEmpty()) Lineup(event, onIntent)
                     Facts(event)
                     if (state.companions.isNotEmpty() && !state.cancelled) Companions(state, onIntent)
                     event.gathering?.let { People(state, it, onIntent) }
@@ -311,6 +313,23 @@ private fun Hero(event: Event, state: DetailState, onIntent: (DetailIntent) -> U
             }
             Text(eventOverline(event, dateWords()), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
             Text(event.displayTitle, style = PoruchType.serifDisplay, color = colors.ink)
+        }
+    }
+}
+
+/** Хто виступає: імена тапаються й ведуть на екран артиста; ведучий підписаний. Повний склад, без «та ще N» картки. */
+@Composable
+private fun Lineup(event: Event, onIntent: (DetailIntent) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        SectionHeader(stringResource(R.string.lineup_title))
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            event.artists.forEach { artist ->
+                val host = artist.role == ArtistRole.HOST
+                PoruchChip(
+                    if (host) stringResource(R.string.artist_line_host, artist.name).replaceFirstChar { it.uppercase() } else artist.name,
+                    selected = false, onClick = { onIntent(DetailIntent.OpenArtist(artist)) }
+                )
+            }
         }
     }
 }

@@ -43,8 +43,9 @@ class PushService : FirebaseMessagingService() {
         val kind = data["kind"] ?: return
         val eventId = data["eventId"]
         val placeId = data["placeId"]
-        // Пуш про кілька нових подій закладу — без події, лише з закладом; усі інші кажуть про подію.
-        if (eventId == null && !(kind == "place" && placeId != null)) return
+        val artistId = data["artistId"]
+        // Пуш про кілька нових подій закладу чи артиста — без події, лише з ним; усі інші кажуть про подію.
+        if (eventId == null && !(kind == "place" && placeId != null) && !(kind == "artist" && artistId != null)) return
         val title = data["title"].orEmpty()
         val body = data["body"].orEmpty()
         val alerts = RequestNotificationCenter(this)
@@ -60,6 +61,8 @@ class PushService : FirebaseMessagingService() {
             // Нова подія організатора чи закладу, за якими стежить людина: тап веде на подію або на стос закладу.
             "organizer" -> eventId?.let { alerts.notifyFollowed(kind, it, null, title, body) }
             "place" -> placeId?.let { alerts.notifyFollowed(kind, eventId, it, title, body) }
+            // Нова подія артиста: одна веде на подію, кілька — на екран артиста.
+            "artist" -> alerts.notifyFollowed(kind, eventId, null, title, body, artistId)
         }
         app.pushReceived(kind, data["key"].orEmpty())
     }

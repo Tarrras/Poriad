@@ -1,5 +1,6 @@
 package app.poruch.android.feature.detail
 
+import app.poruch.domain.Artist
 import app.poruch.domain.Attendee
 import app.poruch.domain.CompanionCard
 import app.poruch.domain.CurfewNote
@@ -139,6 +140,8 @@ sealed interface DetailIntent {
     data class PickSession(val id: String) : DetailIntent
     /** Інша подія цього місця: окремий екран поверх, щоб «назад» повертало сюди. */
     data class OpenEvent(val id: String) : DetailIntent
+    /** Артист зі складу: його екран поверх. */
+    data class OpenArtist(val artist: Artist) : DetailIntent
     /** Маршрут до укриття в системних мапах. */
     data class OpenShelter(val shelter: Shelter) : DetailIntent
     /** «Шукаю компанію»: шторка створення супутника. Гостя веде на вхід. */
@@ -210,4 +213,5 @@ sealed interface DetailEffect {
     data class OpenMap(val id: String) : DetailEffect
     data class OpenChat(val id: String) : DetailEffect
     data class OpenEvent(val id: String) : DetailEffect
+    data class OpenArtist(val id: String) : DetailEffect
 }

@@ -185,6 +185,7 @@ struct EventDetailView: View {
             }
             externalActions(event, view)
             if sessions.count > 1 { sessionRail(event) }
+            if !event.artists.isEmpty { lineup(event) }
             facts(event)
             if !view.companions.isEmpty && !view.cancelled { companionsSection(view) }
             if let room = view.room { people(room, view) }
@@ -403,6 +404,25 @@ extension EventDetailView {
         .buttonStyle(PressableStyle())
         .accessibilityLabel([label.day, label.hour, status].compactMap { $0 }.joined(separator: ", "))
         .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+
+    /// Хто виступає: імена тапаються й ведуть на екран артиста стеком; ведучий підписаний. Повний склад, без «та ще N» картки.
+    private func lineup(_ event: Event) -> some View {
+        VStack(alignment: .leading, spacing: Space.sm) {
+            SectionHeader(title: "Хто виступає")
+            FlowLayout(spacing: Space.sm) {
+                ForEach(event.artists, id: \.id) { artist in
+                    NavigationLink(value: ArtistRoute(id: artist.id, name: artist.name, kind: artist.kind)) {
+                        Text(artist.role == .host ? "Ведучий \(artist.name)" : artist.name)
+                            .font(PoruchFont.label).foregroundStyle(Palette.ink)
+                            .padding(.horizontal, Space.lg).frame(minHeight: 44)
+                            .background(Palette.surface, in: Capsule())
+                            .contentShape(Capsule())
+                    }
+                    .buttonStyle(PressableStyle())
+                }
+            }
+        }
     }
 
     /// Факти про подію сіткою два на два, як картка дня в Moonly: підпис над значенням, без гліфів.

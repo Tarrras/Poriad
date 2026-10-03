@@ -48,35 +48,44 @@ struct FollowsView: View {
 
     private func followRow(_ follow: Follow) -> some View {
         let organizer = follow.kind == .organizer
+        let artist = follow.kind == .artist
         let upcoming = Int(follow.upcoming)
-        let caption = [organizer ? "Організатор" : follow.city, "\(upcoming) \(ukrainianPlural(upcoming, "подія", "події", "подій"))"]
+        let caption = [organizer ? "Організатор" : artist ? "" : follow.city, "\(upcoming) \(ukrainianPlural(upcoming, "подія", "події", "подій"))"]
             .filter { !$0.isEmpty }.joined(separator: " · ")
+        let label = HStack(spacing: Space.md) {
+            if organizer {
+                Avatar(name: follow.name, url: follow.avatarUrl, size: 40)
+            } else if artist {
+                Image(systemName: "person").font(.system(size: 17, weight: .medium)).foregroundStyle(Palette.ink)
+                    .frame(width: 40, height: 40)
+                    .background(Palette.surfaceMuted, in: RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
+            } else {
+                Image(systemName: "mappin.and.ellipse").font(.system(size: 17, weight: .medium)).foregroundStyle(Palette.ink)
+                    .frame(width: 40, height: 40)
+                    .background(Palette.surfaceMuted, in: RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(follow.name).font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
+                    .multilineTextAlignment(.leading).lineLimit(2)
+                Text(caption).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(1)
+            }
+            Spacer(minLength: 0)
+        }.contentShape(Rectangle())
         return HStack(spacing: Space.md) {
-            Button {
-                if organizer {
-                    showingPerson = true
-                    model.app.openPerson(userId: follow.targetId)
-                } else {
-                    model.app.openPlace(placeId: follow.targetId)
-                    openMap()
-                }
-            } label: {
-                HStack(spacing: Space.md) {
+            // Артист відкривається стеком, як і подія: рядок — посилання, а не кнопка.
+            if artist {
+                NavigationLink(value: ArtistRoute(id: follow.targetId, name: follow.name, kind: follow.artistKind)) { label }.buttonStyle(.plain)
+            } else {
+                Button {
                     if organizer {
-                        Avatar(name: follow.name, url: follow.avatarUrl, size: 40)
+                        showingPerson = true
+                        model.app.openPerson(userId: follow.targetId)
                     } else {
-                        Image(systemName: "mappin.and.ellipse").font(.system(size: 17, weight: .medium)).foregroundStyle(Palette.ink)
-                            .frame(width: 40, height: 40)
-                            .background(Palette.surfaceMuted, in: RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
+                        model.app.openPlace(placeId: follow.targetId)
+                        openMap()
                     }
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(follow.name).font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
-                            .multilineTextAlignment(.leading).lineLimit(2)
-                        Text(caption).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(1)
-                    }
-                    Spacer(minLength: 0)
-                }.contentShape(Rectangle())
-            }.buttonStyle(.plain)
+                } label: { label }.buttonStyle(.plain)
+            }
             Button {
                 model.app.setFollowing(kind: follow.kind, targetId: follow.targetId, name: follow.name, following: false)
             } label: {

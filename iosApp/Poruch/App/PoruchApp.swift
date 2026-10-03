@@ -209,18 +209,27 @@ struct RootView: View {
                     .navigationDestination(for: EventRoute.self) { EventDetailView(app: model.app, eventID: $0.id) }
                     .navigationDestination(for: ChatRoute.self) { ChatView(eventID: $0.id) }
                     .navigationDestination(for: FollowsRoute.self) { _ in FollowsView() }
+                    .navigationDestination(for: ArtistRoute.self) { ArtistView(route: $0) }
                 }.tag(0)
-                NavigationStack { DiscoveryView(openToken: mapToken).toolbar(.hidden, for: .tabBar) }.tag(1)
+                // Артист з пошуку мапи відкривається стеком; його події, у свою чергу, — деталями.
+                NavigationStack {
+                    DiscoveryView(openToken: mapToken).toolbar(.hidden, for: .tabBar)
+                        .navigationDestination(for: ArtistRoute.self) { ArtistView(route: $0) }
+                        .navigationDestination(for: EventRoute.self) { EventDetailView(app: model.app, eventID: $0.id) }
+                }.tag(1)
                 NavigationStack(path: $minePath) {
                     MyEventsView(openEvent: { minePath.append(EventRoute(id: $0)) }, openChat: { minePath.append(ChatRoute(id: $0)) })
                         .safeAreaPadding(.bottom, 92).toolbar(.hidden, for: .tabBar)
                         .navigationDestination(for: EventRoute.self) { EventDetailView(app: model.app, eventID: $0.id) }
                         .navigationDestination(for: ChatRoute.self) { ChatView(eventID: $0.id) }
+                        .navigationDestination(for: ArtistRoute.self) { ArtistView(route: $0) }
                 }.tag(2)
                 NavigationStack(path: $profilePath) {
                     ProfileView(openFollows: { profilePath.append(FollowsRoute()) })
                         .safeAreaPadding(.bottom, 92).toolbar(.hidden, for: .tabBar)
                         .navigationDestination(for: FollowsRoute.self) { _ in FollowsView() }
+                        .navigationDestination(for: ArtistRoute.self) { ArtistView(route: $0) }
+                        .navigationDestination(for: EventRoute.self) { EventDetailView(app: model.app, eventID: $0.id) }
                 }.tag(3)
             }
             .toolbar(.hidden, for: .tabBar)
@@ -239,8 +248,9 @@ struct RootView: View {
         .onAppear {
             // Тап по сповіщенню веде на подію (або в її чат) зі стеку головної, поверх усього, що було відкрите.
             // Без події, але із закладом — пуш про кілька його нових подій: мапа на його стосі.
+            // Без події й закладу, але з артистом — пуш про кілька його нових подій: екран артиста поверх головної.
             // Без нічого — дайджест вихідних: лише головна.
-            PushDelegate.openEvent = { id, chat, placeId in
+            PushDelegate.openEvent = { id, chat, placeId, artistId in
                 creating = false
                 authSheet = nil
                 dismissPresentedSheets()
@@ -248,6 +258,12 @@ struct RootView: View {
                 minePath = NavigationPath()
                 profilePath = NavigationPath()
                 if id == nil, let placeId { showMap(); model.app.openPlace(placeId: placeId); return }
+                if id == nil, let artistId {
+                    var path = NavigationPath()
+                    path.append(ArtistRoute(id: artistId))
+                    homePath = path
+                    return
+                }
                 guard let id else { homePath = NavigationPath(); model.app.digestOpened(); return }
                 model.app.selectEvent(id: id)
                 var path = NavigationPath()

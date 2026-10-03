@@ -342,8 +342,15 @@ class PoruchApp internal constructor(
     fun openPlace(placeId: String) = followUseCases.openPlace(placeId)
 
     /**
+     * Екран артиста в [AppState.artist]. З пошуку чи рядка підписки — з [name] і [kind]; з пуша лише за id: ім'я
+     * доїде з карток подій. Платформа показує екран, поки стан не null, і кличе [closeArtist], коли його закрито.
+     */
+    fun openArtist(artistId: String, name: String? = null, kind: ArtistKind? = null) = followUseCases.openArtist(artistId, name, kind)
+    fun closeArtist() = followUseCases.closeArtist()
+
+    /**
      * Сповіщення відкрито тапом. [reason] — що воно було: chat, request, joined, moved, cancelled, place,
-     * organizer, reminder. Єдиний спосіб дізнатись, який тригер повертає людей, а який лише дратує.
+     * artist, organizer, reminder. Єдиний спосіб дізнатись, який тригер повертає людей, а який лише дратує.
      */
     fun pushOpened(reason: String) = PoruchAnalytics.track("push_open", "reason" to reason)
 

@@ -797,6 +797,7 @@ struct EventCard: View {
                     Text(event.displayTitle).font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
                         .multilineTextAlignment(.leading).lineLimit(2)
                     EventDescriptor(event: event, withCity: withCity)
+                    if let artists = artistsLine(event) { MetaLine(symbol: "person", text: artists) }
                     EventMeta(event: event)
                 }.padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -871,7 +872,8 @@ struct EventResultRow: View {
     var waitlisted = false
     /// Назвати місто в підписі: видача з різних міст.
     var withCity = false
-    let action: () -> Void
+    /// Nil — рядок без власної кнопки, для `NavigationLink`: вкладена кнопка забрала б тап.
+    var action: (() -> Void)?
 
     private var subtitle: String {
         var parts = [categoryName(event.category)]
@@ -899,30 +901,107 @@ struct EventResultRow: View {
     }
 
     var body: some View {
-        Button(action: action) {
+        if let action {
+            Button(action: action) { row }
+                .buttonStyle(PressableStyle(pressedScale: 1))
+                .accessibilityElement(children: .combine)
+        } else {
+            row.accessibilityElement(children: .combine)
+        }
+    }
+
+    private var row: some View {
+        HStack(spacing: Space.md) {
+            EventThumbnail(event: event, glyphSize: 22, maxDimension: 56)
+                .frame(width: 56, height: 56)
+                .clipShape(RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(cardOverline(event)).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary).lineLimit(1)
+                Text(event.displayTitle).font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
+                    .multilineTextAlignment(.leading).lineLimit(2)
+                Text(subtitle).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(1)
+                if let artists = artistsLine(event) {
+                    Text(artists).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(1)
+                }
+                if let listing = event.listing {
+                    let source = "Афіша · \(listing.sourceName)"
+                    Text(source).font(PoruchFont.overline).foregroundStyle(Palette.inkTertiary).lineLimit(1)
+                }
+            }
+            Spacer(minLength: 0)
+            if let badge { StatusBadge(text: badge.0, tone: badge.1, symbol: badge.2) }
+        }
+        .padding(.horizontal, Space.lg).padding(.vertical, Space.md)
+        .opacity(event.isCancelled ? 0.6 : 1)
+        .contentShape(Rectangle())
+    }
+}
+
+/// Склад для картки одним рядком: до трьох імен, ведучий окремо («· ведучий Дмитро»), решта «та ще N». Nil — артистів нема.
+/// Імена в картці не тапаються: вся картка вже кнопка, тапабельні чипи лише в деталях. Слова ті самі, що в Android `Components.kt`.
+func artistsLine(_ event: Event) -> String? {
+    let shown = event.cardArtists
+    guard !shown.isEmpty else { return nil }
+    let performers = shown.filter { $0.role != .host }.map(\.name).joined(separator: ", ")
+    let hosts = shown.filter { $0.role == .host }.map(\.name).joined(separator: ", ")
+    let line = [performers.isEmpty ? nil : performers, hosts.isEmpty ? nil : "ведучий \(hosts)"].compactMap { $0 }.joined(separator: " · ")
+    let more = Int(event.moreArtists)
+    return more > 0 ? "\(line) та ще \(more)" : line
+}
+
+/// Вид словом, лише коли він відомий і не людина: `person` без підпису.
+func artistKindLabel(_ kind: ArtistKind?) -> String? {
+    switch kind {
+    case .group: return "Гурт"
+    case .show: return "Шоу"
+    case .company: return "Трупа"
+    default: return nil
+    }
+}
+
+/// Рядок артиста в пошуку: піктограма людини, ім'я й скільки подій попереду. Тап веде на екран артиста стеком.
+struct ArtistRow: View {
+    let artist: ArtistHit
+
+    private var subtitle: String {
+        let upcoming = Int(artist.upcoming)
+        return [artistKindLabel(artist.kind), "\(upcoming) \(ukrainianPlural(upcoming, "подія", "події", "подій"))"]
+            .compactMap { $0 }.joined(separator: " · ")
+    }
+
+    var body: some View {
+        NavigationLink(value: ArtistRoute(id: artist.id, name: artist.name, kind: artist.kind)) {
             HStack(spacing: Space.md) {
-                EventThumbnail(event: event, glyphSize: 22, maxDimension: 56)
-                    .frame(width: 56, height: 56)
-                    .clipShape(RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
+                Image(systemName: "person").font(.system(size: 17, weight: .medium)).foregroundStyle(Palette.ink)
+                    .frame(width: 40, height: 40)
+                    .background(Palette.surfaceMuted, in: RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(cardOverline(event)).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary).lineLimit(1)
-                    Text(event.displayTitle).font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
-                        .multilineTextAlignment(.leading).lineLimit(2)
+                    Text(artist.name).font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.ink).lineLimit(1)
                     Text(subtitle).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(1)
-                    if let listing = event.listing {
-                        let source = "Афіша · \(listing.sourceName)"
-                        Text(source).font(PoruchFont.overline).foregroundStyle(Palette.inkTertiary).lineLimit(1)
-                    }
                 }
                 Spacer(minLength: 0)
-                if let badge { StatusBadge(text: badge.0, tone: badge.1, symbol: badge.2) }
             }
             .padding(.horizontal, Space.lg).padding(.vertical, Space.md)
-            .opacity(event.isCancelled ? 0.6 : 1)
             .contentShape(Rectangle())
         }
         .buttonStyle(PressableStyle(pressedScale: 1))
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// Секція «Артисти» у видачі пошуку під «Місцями»: до п'яти рядків.
+struct ArtistsGroup: View {
+    let artists: [ArtistHit]
+    var body: some View {
+        VStack(alignment: .leading, spacing: Space.sm) {
+            GroupLabel(title: "Артисти")
+            GroupedRows {
+                ForEach(Array(artists.prefix(Int(DiscoveryRules.shared.ARTISTS_LIMIT)).enumerated()), id: \.element.id) { position, artist in
+                    if position > 0 { Divider().overlay(Palette.hairline).padding(.leading, Space.lg + 40 + Space.md) }
+                    ArtistRow(artist: artist)
+                }
+            }
+        }
     }
 }
 
@@ -1018,6 +1097,8 @@ struct EventMapCard: View {
                     Text(event.displayTitle).font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
                         .multilineTextAlignment(.leading).lineLimit(2)
                     if let badge = eventBadge(event) { StatusBadge(text: badge.0, tone: badge.1, symbol: badge.2) }
+                    // Склад замість ціни: на слоті картки місця для обох нема, а хто виступає каже більше.
+                    else if let artists = artistsLine(event) { MetaLine(symbol: "person", text: artists) }
                     else { EventMeta(event: event, short: true) }
                 }
                 Spacer(minLength: 0)
@@ -1102,6 +1183,9 @@ struct EventHeroCard: View {
                             Text(cardOverline(event)).font(PoruchFont.subhead).foregroundStyle(.white.opacity(0.9)).lineLimit(1)
                             if !place.isEmpty {
                                 Text(place).font(PoruchFont.subhead).foregroundStyle(.white.opacity(0.75)).lineLimit(1)
+                            }
+                            if let artists = artistsLine(event) {
+                                Text(artists).font(PoruchFont.subhead).foregroundStyle(.white.opacity(0.75)).lineLimit(1)
                             }
                         }
                     }

@@ -35,6 +35,7 @@ class ExploreViewModel(private val app: PoruchApp) :
                 cities = shared.city.suggestions,
                 searchText = shared.map.searchText,
                 places = shared.map.places,
+                artists = shared.map.artists,
                 category = shared.map.category,
                 dateFilter = shared.map.dateFilter,
                 onlyAvailable = shared.map.onlyAvailable,
@@ -115,6 +116,10 @@ class ExploreViewModel(private val app: PoruchApp) :
                     copy(stackIds = emptyList(), detent = SheetDetent.PEEK, sheet = ExploreSheet.NONE, listCategory = null)
                 }
                 app.focusPlace(intent.place)
+            }
+            is ExploreIntent.OpenArtist -> {
+                app.openArtist(intent.artist.id, intent.artist.name, intent.artist.kind)
+                send(ExploreEffect.OpenArtist(intent.artist.id))
             }
             // Знімає і підсвітку піна, інакше мапа й список розходились.
             ExploreIntent.ClearStack -> {

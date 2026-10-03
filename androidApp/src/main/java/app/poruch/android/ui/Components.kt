@@ -77,6 +77,10 @@ import com.airbnb.lottie.compose.rememberLottieComposition
 import app.poruch.domain.EventCategory
 import app.poruch.domain.Attendee
 import app.poruch.domain.Event
+import app.poruch.domain.ArtistHit
+import app.poruch.domain.ArtistKind
+import app.poruch.domain.ArtistRole
+import app.poruch.domain.DiscoveryRules
 import app.poruch.domain.Place
 import coil3.compose.AsyncImage
 
@@ -1145,6 +1149,7 @@ fun EventCard(
                 maxLines = 2, overflow = TextOverflow.Ellipsis
             )
             EventDescriptor(event, withCity = withCity)
+            artistsLine(event)?.let { MetaLine(PoruchIcons.person, it) }
             EventMeta(event)
         }
     }
@@ -1264,6 +1269,9 @@ fun EventResultRow(
                 subtitle, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary,
                 maxLines = 1, overflow = TextOverflow.Ellipsis
             )
+            artistsLine(event)?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
             event.listing?.let { listing ->
                 Text(
                     stringResource(R.string.listing_badge, listing.sourceName), style = MaterialTheme.typography.labelSmall,
@@ -1288,6 +1296,55 @@ private fun resultBadge(event: Event, waitlisted: Boolean): Pair<String, BadgeTo
         room.isFull -> stringResource(R.string.full) to BadgeTone.Neutral
         room.isScarce -> pluralStringResource(R.plurals.seats_short, room.seatsLeft, room.seatsLeft) to BadgeTone.Accent
         else -> null
+    }
+}
+
+/**
+ * Склад для картки одним рядком: до трьох імен, ведучий окремо («· ведучий Дмитро»), решта «та ще N». Null — артистів нема.
+ * Імена в картці не тапаються: вся картка вже кнопка, тапабельні чипи лише в деталях ([Lineup]).
+ */
+@Composable
+fun artistsLine(event: Event): String? {
+    val shown = event.cardArtists
+    if (shown.isEmpty()) return null
+    val performers = shown.filter { it.role != ArtistRole.HOST }.joinToString(", ") { it.name }
+    val hosts = shown.filter { it.role == ArtistRole.HOST }.joinToString(", ") { it.name }
+    val host = if (hosts.isEmpty()) null else stringResource(R.string.artist_line_host, hosts)
+    val line = listOfNotNull(performers.takeIf { it.isNotEmpty() }, host).joinToString(" · ")
+    return if (event.moreArtists > 0) stringResource(R.string.artist_line_more, line, event.moreArtists) else line
+}
+
+/** Вид словом, лише коли він відомий і не людина: `person` без підпису. */
+@Composable
+fun artistKindLabel(kind: ArtistKind?): String? = when (kind) {
+    ArtistKind.GROUP -> stringResource(R.string.artist_kind_group)
+    ArtistKind.SHOW -> stringResource(R.string.artist_kind_show)
+    ArtistKind.COMPANY -> stringResource(R.string.artist_kind_company)
+    ArtistKind.PERSON, null -> null
+}
+
+/** Рядок артиста в пошуку: піктограма людини, ім'я й скільки подій попереду. */
+@Composable
+fun ArtistRow(artist: ArtistHit, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val colors = Poruch.colors
+    val subtitle = listOfNotNull(artistKindLabel(artist.kind), pluralStringResource(R.plurals.place_upcoming, artist.upcoming, artist.upcoming))
+        .joinToString(" · ")
+    Row(
+        modifier
+            .fillMaxWidth()
+            .semantics(mergeDescendants = true) {}
+            .pressable(onClick = onClick)
+            .padding(horizontal = Spacing.lg, vertical = Spacing.md),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.md),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(Modifier.size(40.dp).background(colors.surfaceMuted, Radius.xs), contentAlignment = Alignment.Center) {
+            Icon(PoruchIcons.person, null, Modifier.size(20.dp), tint = colors.ink)
+        }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(artist.name, style = PoruchType.serifTitle3, color = colors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
     }
 }
 
@@ -1374,10 +1431,11 @@ fun EventMapCard(
                 event.displayTitle, style = PoruchType.serifTitle3, color = colors.ink,
                 maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false)
             )
-            if (badge != null) StatusBadge(badge.first, badge.second) else EventMeta(
-                event,
-                short = true
-            )
+            // Склад замість ціни: на слоті картки місця для обох нема, а хто виступає каже більше.
+            val artists = artistsLine(event)
+            if (badge != null) StatusBadge(badge.first, badge.second)
+            else if (artists != null) MetaLine(PoruchIcons.person, artists)
+            else EventMeta(event, short = true)
         }
         if (onSave != null) SaveButton(saved, onSave)
     }
@@ -1543,6 +1601,12 @@ fun EventHeroCard(
                         color = Color.White.copy(alpha = 0.75f), maxLines = 1, overflow = TextOverflow.Ellipsis
                     )
                 }
+                artistsLine(event)?.let {
+                    Text(
+                        it, style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White.copy(alpha = 0.75f), maxLines = 1, overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
         }
     }
@@ -1635,6 +1699,20 @@ fun PlacesGroup(places: List<Place>, withCity: Boolean, modifier: Modifier = Mod
             places.forEachIndexed { position, place ->
                 if (position > 0) HairLine(Modifier.padding(start = Spacing.lg + 40.dp + Spacing.md))
                 PlaceRow(place, withCity = withCity) { onOpen(place) }
+            }
+        }
+    }
+}
+
+/** Секція «Артисти» у видачі пошуку під «Місцями». Тап — екран артиста. */
+@Composable
+fun ArtistsGroup(artists: List<ArtistHit>, modifier: Modifier = Modifier, onOpen: (ArtistHit) -> Unit) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        GroupLabel(stringResource(R.string.search_artists_group))
+        GroupedRows {
+            artists.take(DiscoveryRules.ARTISTS_LIMIT).forEachIndexed { position, artist ->
+                if (position > 0) HairLine(Modifier.padding(start = Spacing.lg + 40.dp + Spacing.md))
+                ArtistRow(artist) { onOpen(artist) }
             }
         }
     }

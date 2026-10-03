@@ -121,10 +121,21 @@ class FollowRulesTest {
     @Test fun followKindsRoundTrip() {
         assertEquals(FollowKind.PLACE, FollowKind.fromKey("place"))
         assertEquals(FollowKind.ORGANIZER, FollowKind.fromKey("organizer"))
+        assertEquals(FollowKind.ARTIST, FollowKind.fromKey("artist"))
         assertNull(FollowKind.fromKey("group"))
         val place = Follow(FollowKind.PLACE, "p1", "Клуб", "Київ", "Хрещатик", 50.45, 30.52, upcoming = 3)
         assertEquals(Place("p1", "Клуб", "Київ", "Хрещатик", 50.45, 30.52, 3), place.place)
         assertNull(Follow(FollowKind.ORGANIZER, "u", "Олена").place)
         assertNull(place.copy(latitude = null).place, "no coordinates, no map")
+    }
+
+    @Test fun artistFollowHasNoMapAndKnowsItsKindOnlyWhenTheServerDoes() {
+        val artist = Follow(FollowKind.ARTIST, "a1", "Андрій Бережко", upcoming = 23, artistKind = ArtistKind.PERSON)
+        assertNull(artist.place, "an artist is not on the map")
+        assertNull(Follow(FollowKind.ARTIST, "a2", "Хтось").artistKind)
+        assertEquals(ArtistKind.GROUP, ArtistKind.fromKey("group"))
+        assertNull(ArtistKind.fromKey("band"), "unknown kind is not shown")
+        assertEquals(ArtistRole.SUPPORT, ArtistRole.fromKey("opener"), "unknown role is a plain participant")
+        assertEquals(ArtistRole.HOST, ArtistRole.fromKey("host"))
     }
 }

@@ -109,6 +109,34 @@ internal class SupabaseEventDiscovery(
         return withContext(compute) { rpc.json.decodeFromJsonElement<List<PlaceDto>>(response).map { it.domain() } }
     }
 
+    /** Як [searchPlaces]: порожній текст — без запиту, сервер без `search_artists` (prod до міграції) — порожня видача. */
+    override suspend fun searchArtists(text: String, city: String?): List<ArtistHit> {
+        val trimmed = text.trim().take(DiscoveryRules.SEARCH_TEXT_LIMIT)
+        if (trimmed.isEmpty()) return emptyList()
+        val response = runCatching {
+            rpc.read("search_artists", buildJsonObject {
+                put("p_text", trimmed)
+                put("p_city", city?.let(::JsonPrimitive) ?: JsonNull)
+                put("p_limit", DiscoveryRules.ARTISTS_LIMIT)
+            })
+        }.getOrElse { failure ->
+            if (!failure.isMissingFunction()) throw failure
+            PoruchLog.w("discovery") { "server has no search_artists" }
+            return emptyList()
+        }
+        return withContext(compute) { rpc.json.decodeFromJsonElement<List<ArtistHitDto>>(response).map { it.domain() } }
+    }
+
+    override suspend fun artistEvents(artistId: String): List<Event> {
+        val response = rpc.read("artist_events", buildJsonObject {
+            put("p_artist_id", artistId)
+            put("p_limit", DiscoveryRules.ARTIST_EVENTS_LIMIT)
+        })
+        return withContext(compute) {
+            rpc.json.decodeFromJsonElement<List<EventDto>>(response).map { it.domain() }
+        }.also { PoruchLog.d("discovery") { "${it.size} events of artist ${artistId.shortId()}" } }
+    }
+
     override suspend fun placeEvents(placeId: String): List<Event> {
         val response = rpc.read("place_events", buildJsonObject {
             put("p_place_id", placeId)

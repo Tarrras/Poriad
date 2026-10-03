@@ -89,6 +89,23 @@
   записує подію «оголошеною» ще до виклику `push`: невідомий тип дав би 400, а подія пропала б назавжди.
 - **Перевірка:** `supabase/tests/artists.sql` (SQL), `node supabase/functions/push/follow_text.test.mjs` (текст).
 
+### Клієнтська частина (2026-10-03)
+
+Android і iOS однакові; зразок усього — заклади (бриф: [artists-client-brief.md](artists-client-brief.md)).
+
+| Де | Що |
+|---|---|
+| **Картка події** (стрічка, видача пошуку, карусель мапи, hero головної) | Один рядок складу: до трьох імен, ведучий окремо («· ведучий Дмитро»), решта «та ще N». Імена в картці **не тапаються**: вся картка вже кнопка. У картці каруселі мапи рядок стоїть замість ціни/учасників |
+| **Деталі афіші** | Секція «Хто виступає»: повний склад тапабельними чипами, ведучий підписаний. `event_details` не несе `artists`, тож склад береться з картки (як заклад); афіша, відкрита без картки (посилання, пуш), питає її окремо |
+| **Пошук** (мапа й головна) | Секція «Артисти» під «Місцями», до п'яти рядків («23 події», вид словом, якщо відомий). Не шукаємо до 2 символів; у межах обраного міста, а на головній «усюди» — без міста |
+| **Екран артиста** | Ім'я, вид словом лише для `group`/`show`/`company`, «Стежити» (гість → вхід), найближчі події (`artist_events`; прокат з кількох сеансів — одна картка «ще N дати», як на мапі й у «Підписках»), порожній стан «Поки нічого не заплановано». Один слот стану `AppState.artist` на весь застосунок; Android: маршрут `ArtistPage`, iOS: `ArtistRoute` у стеках головної, «Мої», профілю й мапи |
+| **«Підписки»** | Артисти — рядки в тому самому списку (нові першими): ім'я + «N подій», тап відкриває екран артиста |
+| **Пуш** | `kind=artist`, `artistId`, `eventId` лише коли подія одна. Тап: є подія → вона, інакше екран артиста поверх головної. Метрика `push_open` `reason=artist` |
+
+Шари: `core/domain` (`Artist`, `ArtistHit`, `ArtistKind`, `ArtistRole`, `Event.artists`, `FollowKind.ARTIST`, `Follow.artistKind`, `EventAccess.searchArtists/artistEvents`), `core/data` (DTO з дефолтом `emptyList()`, RPC `search_artists`/`artist_events`; сервер без `search_artists` дає порожню видачу), `shared` (`MapFeed.artists`/`HomeFeed.artists`, `AppState.artist`, `PoruchApp.openArtist/closeArtist`). Тести: `EventDtoTest`, `FollowRulesTest`, `PoruchAppTest` (`searchFindsArtistsFromTwoCharacters`, `anArtistScreenLoadsItsEventsAndLearnsItsName`, `anArtistCanBeFollowed`, `detailsTakeTheirArtistsFromTheCard`).
+
+`FollowRules.canFollowArtist` не додавався: «є акаунт» вирішує `FollowUseCases.set` (гостя веде на вхід), «артист існує» — сервер (`FOLLOW_UNAVAILABLE`).
+
 ## Схема
 
 Міграція `20260928160000_follows.sql`:

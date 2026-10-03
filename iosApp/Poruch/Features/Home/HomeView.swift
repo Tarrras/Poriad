@@ -418,9 +418,9 @@ struct HomeView: View {
                 model.app.selectCity(city: CityResult(name: city.city, latitude: city.latitude, longitude: city.longitude))
             }.padding(.horizontal, Space.page)
         }
-        if view.searchLoading && view.results.isEmpty && view.places.isEmpty {
+        if view.searchLoading && view.results.isEmpty && view.places.isEmpty && view.artists.isEmpty {
             PoruchLoader().frame(maxWidth: .infinity).padding(.vertical, Space.section)
-        } else if view.results.isEmpty && view.places.isEmpty {
+        } else if view.results.isEmpty && view.places.isEmpty && view.artists.isEmpty {
             if view.searchEverywhere {
                 EmptyState(
                     symbol: "magnifyingglass", title: "Нічого не знайшлося",
@@ -470,6 +470,7 @@ struct HomeView: View {
                         openMap()
                     }
                 }
+                if !view.artists.isEmpty { ArtistsGroup(artists: view.artists) }
             }.padding(.horizontal, Space.page)
         }
     }

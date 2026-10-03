@@ -18,6 +18,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.poruch.android.R
 import app.poruch.android.feature.account.*
+import app.poruch.android.feature.artist.*
 import app.poruch.android.feature.chat.*
 import app.poruch.android.feature.detail.*
 import app.poruch.android.feature.editor.*
@@ -68,6 +69,7 @@ fun HomeRoute(navigator: Navigator) {
                 HomeDestination.MAP -> navigator.open(Explore())
                 HomeDestination.PROFILE -> navigator.open(Profile)
                 HomeDestination.FOLLOWS -> navigator.open(Follows)
+                HomeDestination.ARTIST -> navigator.open(ArtistPage(effect.id))
                 HomeDestination.MINE -> navigator.open(Mine)
                 HomeDestination.EDITOR -> navigator.createEvent()
             }
@@ -99,6 +101,7 @@ fun ExploreRoute(focusId: String, navigator: Navigator) {
     model.effects.handle { effect ->
         when (effect) {
             is ExploreEffect.OpenDetail -> navigator.open(Detail(effect.id))
+            is ExploreEffect.OpenArtist -> navigator.open(ArtistPage(effect.id))
             ExploreEffect.CreateEvent -> navigator.createEvent()
             ExploreEffect.SignIn -> navigator.open(Auth())
             ExploreEffect.AskLocationPermission -> permission.launch(
@@ -151,11 +154,27 @@ fun DetailRoute(route: Detail, navigator: Navigator) {
             is DetailEffect.OpenMap -> navigator.open(Explore(effect.id))
             is DetailEffect.OpenChat -> navigator.open(Chat(effect.id))
             is DetailEffect.OpenEvent -> navigator.open(Detail(effect.id))
+            is DetailEffect.OpenArtist -> navigator.open(ArtistPage(effect.id))
         }
     }
     // Після повернення з іншого екрана деталей слот відкритої події треба забрати назад.
     LaunchedEffect(Unit) { model.dispatch(DetailIntent.Reopen) }
     DetailScreen(model.state.collectAsStateWithLifecycle().value, model::dispatch)
+}
+
+@Composable
+fun ArtistRoute(route: ArtistPage, navigator: Navigator) {
+    val model = koinViewModel<ArtistViewModel> { parametersOf(route) }
+    model.effects.handle { effect ->
+        when (effect) {
+            ArtistEffect.Back -> navigator.back()
+            ArtistEffect.SignIn -> navigator.open(Auth())
+            is ArtistEffect.OpenEvent -> navigator.open(Detail(effect.id))
+        }
+    }
+    // Після повернення з іншого екрана артиста слот стану треба забрати назад.
+    LaunchedEffect(Unit) { model.dispatch(ArtistIntent.Reopen) }
+    ArtistScreen(model.state.collectAsStateWithLifecycle().value, model::dispatch)
 }
 
 @Composable
@@ -232,6 +251,7 @@ fun FollowsRoute(navigator: Navigator) {
         when (effect) {
             FollowsEffect.Back -> navigator.back()
             FollowsEffect.OpenMap -> navigator.open(Explore())
+            is FollowsEffect.OpenArtist -> navigator.open(ArtistPage(effect.id))
         }
     }
     FollowsScreen(model.state.collectAsStateWithLifecycle().value, model::dispatch)

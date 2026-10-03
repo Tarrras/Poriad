@@ -125,6 +125,14 @@ class MainActivity : ComponentActivity(), AndroidScopeComponent {
             navigator.open(Explore())
             return
         }
+        // Пуш про кілька нових подій артиста: екран артиста поверх головної. Одна подія йде звичайним шляхом нижче.
+        intent.getStringExtra(EXTRA_ARTIST_ID)?.let { artistId ->
+            val navigator = scope.get<Navigator>()
+            navigator.reset(Home)
+            app.openArtist(artistId)
+            navigator.open(ArtistPage(artistId))
+            return
+        }
         // Посилання на подію (`poriad.app/e/…` чи `poriad://event/…`) і тап по сповіщенню: подія (або її чат)
         // поверх головної, «назад» веде туди, а не з застосунку.
         val linked = data?.takeIf { intent.action == Intent.ACTION_VIEW }?.let { EventLinks.eventId(it.toString()) }
@@ -142,6 +150,7 @@ class MainActivity : ComponentActivity(), AndroidScopeComponent {
     companion object {
         const val EXTRA_EVENT_ID = "eventId"
         private const val EXTRA_PLACE_ID = "placeId"
+        private const val EXTRA_ARTIST_ID = "artistId"
         private const val EXTRA_REASON = "reason"
         private const val EXTRA_TARGET = "target"
         private const val TARGET_CHAT = "chat"
@@ -164,6 +173,13 @@ class MainActivity : ComponentActivity(), AndroidScopeComponent {
             Intent(context, MainActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                 .putExtra(EXTRA_PLACE_ID, placeId)
+                .putExtra(EXTRA_REASON, reason)
+
+        /** Intent пуша про кілька нових подій артиста: його екран відкривається поверх головної. */
+        fun openArtist(context: Context, artistId: String, reason: String): Intent =
+            Intent(context, MainActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                .putExtra(EXTRA_ARTIST_ID, artistId)
                 .putExtra(EXTRA_REASON, reason)
 
         /** Intent дайджесту. Своя дія: PendingIntent не сплутається з intent-ом події, extras він не порівнює. */

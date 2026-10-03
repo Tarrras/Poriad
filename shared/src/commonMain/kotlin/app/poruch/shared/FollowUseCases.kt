@@ -2,12 +2,13 @@ package app.poruch.shared
 
 import app.poruch.domain.*
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 /**
- * «Стежити» на закладі й організаторі (docs/follows.md). Кнопка перемикається одразу, а запит іде
+ * «Стежити» на закладі, організаторі й артисті (docs/follows.md). Кнопка перемикається одразу, а запит іде
  * окремо, як у закладки: при збої повертаємо як було й кажемо про помилку. Лише з акаунтом: гостя ведемо
  * на вхід, як у `join`.
  */
@@ -90,6 +91,57 @@ internal class FollowUseCases(
                 null
             }
             if (place != null) discovery.focusPlace(place) else store.failed(AppError.EventUnavailable)
+        }
+    }
+
+    private var artistJob: Job? = null
+
+    /**
+     * Екран артиста в [AppState.artist]: що знаємо (з пошуку, підписок) показуємо одразу, події їдуть окремо. Лише за [artistId]
+     * (пуш) ім'я й вид беремо з підписок, а коли їх нема — з карток подій, де артист названий.
+     */
+    fun openArtist(artistId: String, name: String? = null, kind: ArtistKind? = null) {
+        artistJob?.cancel()
+        val known = store.value.library.follows.firstOrNull { it.kind == FollowKind.ARTIST && it.targetId == artistId }
+        PoruchLog.i("action") { "open artist ${artistId.shortId()}" }
+        store.update {
+            it.copy(artist = ArtistState(artistId, name ?: known?.name.orEmpty(), kind ?: known?.artistKind))
+        }
+        artistJob = store.scope.launch {
+            try {
+                val cards = events.artistEvents(artistId).foldedRuns()
+                val named = cards.firstNotNullOfOrNull { card -> card.artists.firstOrNull { it.id == artistId } }
+                store.update { state ->
+                    state.artist?.takeIf { it.id == artistId }?.let {
+                        state.copy(artist = it.copy(
+                            name = it.name.ifBlank { named?.name.orEmpty() }, kind = it.kind ?: named?.kind,
+                            events = cards, loading = false
+                        ))
+                    } ?: state
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                PoruchLog.w("action") { "open artist failed: ${e.asAppError()}" }
+                store.update { state -> state.artist?.takeIf { it.id == artistId }?.let { state.copy(artist = it.copy(loading = false)) } ?: state }
+                store.failed(e.asAppError())
+            }
+        }
+    }
+
+    fun closeArtist() {
+        artistJob?.cancel()
+        if (store.value.artist != null) store.update { it.copy(artist = null) }
+    }
+
+    /**
+     * Прокат — одна картка, як на мапі й головній: інакше три сеанси однієї вистави стоять трьома рядками, а «Підписки»
+     * рахують її однією подією. Спершу дублі між продавцями, потім прокат (порядок обов'язковий, див. [EventSeries]).
+     */
+    private fun List<Event>.foldedRuns(): List<Event> {
+        val byId = associateBy { it.id }
+        return EventSeries.fold(DuplicateEvents.fold(map { it.asIndexEntry() })).mapNotNull { entry ->
+            byId[entry.id]?.copy(sessions = entry.sessions)
         }
     }
 
