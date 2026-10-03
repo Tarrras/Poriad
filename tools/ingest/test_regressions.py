@@ -651,7 +651,7 @@ class SitemapSourceIgnoresListing(unittest.TestCase):
         """badseller 2026-10-02: список віддавав HTTP 500, sitemap і картки працювали."""
         import dataclasses
         from .sources import by_slug
-        source = dataclasses.replace(by_slug("badseller"), horizon_days=40000)
+        source = dataclasses.replace(by_slug("badseller"), horizon_days=40000, detail_ttl_days=0)
         link = "https://badseller.net/afisha/kyiv/x-2090-06-01"
         raw = {"@type": "TheaterEvent", "name": "Вечір", "startDate": "2090-06-01T19:00:00+03:00",
                "url": link, "location": {"name": "Театр", "address": {"streetAddress": "вул. Б, 1"}}}
@@ -669,8 +669,105 @@ class SitemapSourceIgnoresListing(unittest.TestCase):
              patch("tools.ingest.pipeline._sitemaps", {}):
             items, counters = pipeline.harvest(source, "Київ", VenueIndex([], "Київ"))
         self.assertEqual([i.title for i in items], ["Вечір"])
-        self.assertNotIn(source.listing_urls["Київ"], asked)
+        self.assertIn(source.listing_urls["Київ"], asked)       # розділ статусів читається зі списку
         self.assertNotIn("error", counters)
+
+
+class DetailCache(unittest.TestCase):
+    """badseller: 1720 карток × 1,5 с — це й був обхід на годину; свіжі картки читаються з диска,
+    крім тих, що розділ «Скасовано й перенесено» назвав змінившимися."""
+
+    def setUp(self):
+        import dataclasses
+        from .sources import by_slug
+        self.source = dataclasses.replace(by_slug("badseller"), horizon_days=40000, detail_ttl_days=2)
+        self.link = "https://badseller.net/afisha/kyiv/x-2090-06-01"
+        self.changed = "https://badseller.net/afisha/kyiv/y-2020-01-01"      # slug поза sitemap-вікном
+        self.listing = (f'<section><h2>{self.source.status_heading}</h2>'
+                        f'<ul><li><a href="/afisha/kyiv/y-2020-01-01">Y</a></li></ul></section>')
+        self.asked = []
+
+        def card(url, status="EventScheduled"):
+            return {"@type": "TheaterEvent", "name": "Вечір " + url[-4:], "startDate": "2090-06-01T19:00:00+03:00",
+                    "url": url, "eventStatus": f"https://schema.org/{status}",
+                    "location": {"name": "Театр", "address": {"streetAddress": "вул. Б, 1"}}}
+
+        def fake_get(url, **kwargs):
+            self.asked.append(url)
+            if url == self.source.listing_urls["Київ"]:
+                return Response(url, self.listing_status, self.listing)
+            if url == self.source.sitemap_url:
+                return Response(url, 200, f"<loc>{self.link}</loc>")
+            return Response(url, 200, html([card(url)]))
+        self.fake_get, self.listing_status = fake_get, 200
+
+    def harvest(self, now):
+        with patch("tools.ingest.pipeline.get", side_effect=self.fake_get), \
+             patch("tools.ingest.pipeline._sitemaps", {}), \
+             patch("tools.ingest.pipeline.CACHE_DIR", self.cache_dir):
+            return pipeline.harvest(self.source, "Київ", VenueIndex([], "Київ"), now=now)
+
+    def test_card_is_read_from_disk_until_it_expires(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.cache_dir = Path(tmp)
+            first, _ = self.harvest(NOW)
+            self.asked.clear()
+            again, counters = self.harvest(NOW + dt.timedelta(days=1))
+            self.assertEqual(sorted(i.title for i in again), sorted(i.title for i in first))
+            self.assertNotIn(self.link, self.asked)
+            self.assertEqual(counters["cached"], 1)
+            self.harvest(NOW + dt.timedelta(days=3))
+            self.assertIn(self.link, self.asked)
+
+    def test_changed_cards_come_first_live_and_beyond_the_sitemap_window(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.cache_dir = Path(tmp)
+            self.harvest(NOW)
+            self.asked.clear()
+            _, counters = self.harvest(NOW + dt.timedelta(hours=1))
+            self.assertIn(self.changed, self.asked)                 # живий, хоч і кеш свіжий
+            self.assertNotIn(self.link, self.asked)                 # звичайна картка — з кешу
+            self.assertEqual(counters["status_links"], 1)
+
+    def test_unreadable_status_section_disables_the_cache(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.cache_dir = Path(tmp)
+            self.harvest(NOW)
+            self.asked.clear()
+            self.listing_status = 500
+            items, counters = self.harvest(NOW + dt.timedelta(hours=1))
+            self.assertIn(self.link, self.asked)                    
+            self.assertEqual(counters["cached"], 0)
+            self.assertNotIn("error", counters)
+
+
+class CrawlRunsSourcesInParallel(unittest.TestCase):
+    def test_sources_overlap_but_cities_of_one_source_do_not(self):
+        import time
+        from .__main__ import Crawl
+        from .sources import by_slug
+        a, b = by_slug("karabas"), by_slug("concert_ua")
+        active, overlap, per_source = {}, [], []
+
+        def fake_harvest(source, city, index, **kwargs):
+            active[source.slug] = active.get(source.slug, 0) + 1
+            per_source.append(active[source.slug])
+            overlap.append(len([n for n in active.values() if n]))
+            time.sleep(0.1)
+            active[source.slug] -= 1
+            return [city], {"source": source.slug}
+
+        with patch("tools.ingest.__main__.harvest", fake_harvest), \
+             patch("tools.ingest.__main__.build_index", return_value=None), \
+             patch("tools.ingest.__main__.Geocoder", return_value=None):
+            crawl = Crawl(["Київ", "Львів"], [a, b], use_photon=False)
+            started = time.monotonic()
+            got = {(c, s.slug): crawl.result(c, s)[0] for c in ("Київ", "Львів") for s in (a, b)}
+            elapsed = time.monotonic() - started
+        self.assertEqual(got[("Львів", "karabas")], ["Львів"])
+        self.assertEqual(max(per_source), 1)        # один сайт — один запит за раз
+        self.assertEqual(max(overlap), 2)           # різні сайти — одночасно
+        self.assertLess(elapsed, 0.35)              # 4 обходи по 0,1 с послідовно дали б 0,4 с
 
 
 class PerformerDetails(unittest.TestCase):

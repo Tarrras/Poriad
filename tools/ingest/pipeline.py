@@ -105,6 +105,7 @@ def harvest(source: Source, city: str, index: VenueIndex,
                 "published": 0, "rejected": 0, "review": 0,
                 "withdrawals": [], "reasons": {}, "coverage": "listing"}
 
+    status_links, status_ok = [], True
     if source.adapter in {"dou", "yoy"}:
         try:
             raw_events, adapter_report = community.collect(
@@ -131,6 +132,7 @@ def harvest(source: Source, city: str, index: VenueIndex,
         # Список віддає 20 посилань, повний перелік — sitemap. Його збій (badseller віддавав 500
         # 2026-10-02) не має валити джерело, якому список нічого не додає.
         raw_events = []
+        status_links, status_ok = _status_links(source, url, counters)
     else:
         try:
             response = get(url, delay=source.crawl_delay)
@@ -143,11 +145,21 @@ def harvest(source: Source, city: str, index: VenueIndex,
     if source.adapter == "jsonld" and (source.detail_path or source.sitemap_url):
         links = (_sitemap_links(source, city, now, counters) if source.sitemap_url
                  else extract.detail_links(response.body, url, source.detail_path))
+        # Скасовані й перенесені — першими, щоб межа max_details їх не відрізала, і завжди наживо.
+        links = list(dict.fromkeys(status_links + links))
         counters["detail_links"] = len(links)
         counters["detail_errors"] = []
         if len(links) > source.max_details:
             counters["detail_errors"].append("DETAIL_LIMIT")
+        # Розділ статусів не прочитався — свіжість кешу нічим підтвердити: цього разу читаємо все наживо.
+        details = _load_details(source, now) if status_ok else {}
+        live = set(status_links)
+        counters["cached"] = 0
         for link in links[:source.max_details]:
+            if link in details and link not in live:
+                raw_events.extend(details[link]["events"])
+                counters["cached"] += 1
+                continue
             try:
                 detail = get(link, delay=source.crawl_delay)
                 if detail.status != 200 or not detail.body:
@@ -157,8 +169,13 @@ def harvest(source: Source, city: str, index: VenueIndex,
                 if not events:
                     raise ValueError("NO_EVENTS")
                 raw_events.extend(events)
+                if source.detail_ttl_days:
+                    details[link] = {"at": now.isoformat(), "events": events}
+                    if counters["fetched"] % 100 == 0:      # обрив посеред 40 хвилин не губить зроблене
+                        _save_details(source, details)
             except (PermissionError, OSError, ValueError) as exc:
                 counters["detail_errors"].append(f"{link}: {exc}")
+        _save_details(source, details)
         if counters["detail_errors"]:
             counters["error"] = "PARTIAL_DETAILS"
     # Каталоги після головного списку: каталожна копія несе відповідь продавця про жанр.
@@ -305,6 +322,55 @@ def harvest(source: Source, city: str, index: VenueIndex,
             counters["geocoded"] += 1
     _fold_same_source_copies(items, counters)
     return items, counters
+
+
+def _status_links(source: Source, url: str, counters: dict) -> tuple[list[str], bool]:
+    """Картки з розділу «скасовано й перенесено» сторінки-списку. (посилання, чи розділ прочитано).
+    Збій списку джерело не валить (badseller віддавав 500), але кеш тоді не вірить собі."""
+    if not source.status_heading:
+        return [], True
+    try:
+        page = get(url, delay=source.crawl_delay)
+    except (PermissionError, OSError) as exc:
+        counters["status_section"] = str(exc)
+        return [], False
+    if page.status != 200 or not page.body or source.status_heading not in page.body:
+        # Заголовка нема: розділ порожній сьогодні або верстка змінилась — відрізнити не можемо.
+        counters["status_section"] = f"HTTP {page.status}" if page.status != 200 else "немає розділу"
+        return [], False
+    links = extract.section_links(page.body, source.status_heading, url)
+    counters["status_links"] = len(links)
+    return links, True
+
+
+def _details_path(source: Source):
+    return CACHE_DIR / f"details_{source.slug}.json"
+
+
+def _load_details(source: Source, now: dt.datetime) -> dict:
+    """Картки джерела з диска, не старші за `detail_ttl_days`. Прострочені відкидаються тут же,
+    тож файл не росте: наступний `_save_details` їх не поверне."""
+    if not source.detail_ttl_days:
+        return {}
+    try:
+        data = json.loads(_details_path(source).read_text("utf-8"))
+    except (OSError, ValueError):
+        return {}
+    fresh_after = (now - dt.timedelta(days=source.detail_ttl_days)).isoformat()
+    return {url: e for url, e in data.items() if e["at"] >= fresh_after}
+
+
+def _save_details(source: Source, details: dict) -> None:
+    if not source.detail_ttl_days:
+        return
+    try:
+        CACHE_DIR.mkdir(exist_ok=True)
+        path = _details_path(source)
+        tmp = path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(details, ensure_ascii=False), "utf-8")
+        tmp.replace(path)
+    except OSError:
+        pass
 
 
 PERFORMER_CACHE = CACHE_DIR / "performers.json"

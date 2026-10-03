@@ -17,7 +17,9 @@ import json
 import hashlib
 import pathlib
 import sys
+import threading
 import uuid
+from concurrent.futures import Future
 
 from . import artists, emit, karabas_status, normalize, report
 from .agent import Agent, DEFAULT_PROVIDER, PROVIDERS
@@ -54,26 +56,82 @@ def _may_retire(source, items, counters) -> tuple[bool, str]:
     return True, ""
 
 
+class Crawl:
+    """Обхід усіх міст у фоні: по потоку на джерело, а в потоці міста йдуть по черзі.
+
+    Сайт один на джерело, тож пауза `crawl_delay` між запитами до нього дотримується, як і раніше;
+    різні сайти більше не чекають один одного. Результат міста береться, щойно його джерела дійшли
+    до нього, і далі (агент, дедуплікація, SQL) працює в головному потоці, поки решта ще обходить.
+    Потоки запускаються з `start()`, тож `run_city` без `Crawl` лишається простим послідовним обходом.
+    """
+
+    def __init__(self, cities: list[str], sources: list, *, refresh_osm: bool = False,
+                 use_photon: bool = True, now=None,
+                 status_by_source: dict[str, list[dict]] | None = None):
+        self.cities, self.sources = cities, sources
+        self.refresh_osm, self.use_photon, self.now = refresh_osm, use_photon, now
+        self.status_by_source = status_by_source or {}
+        self.indexes: dict = {}
+        self.geocoders: dict = {}
+        self._futures: dict[tuple[str, str], Future] = {}
+
+    def start(self) -> None:
+        if self._futures:
+            return
+        for city in self.cities:
+            self.indexes[city] = build_index(city, refresh=self.refresh_osm)
+            self.geocoders[city] = Geocoder(city, enabled=self.use_photon)
+        for source in self.sources:
+            mine = [c for c in self.cities if c in source.listing_urls]
+            for city in mine:
+                self._futures[(city, source.slug)] = Future()
+            threading.Thread(target=self._run, args=(source, mine), daemon=True).start()
+
+    def _run(self, source, cities: list[str]) -> None:
+        for city in cities:
+            future = self._futures[(city, source.slug)]
+            try:
+                future.set_result(harvest(
+                    source, city, self.indexes[city], geocoder=self.geocoders[city], now=self.now,
+                    status_notices=self.status_by_source.get(source.slug)))
+            except BaseException as exc:
+                future.set_exception(exc)
+
+    def result(self, city: str, source) -> tuple[list, dict]:
+        self.start()
+        return self._futures[(city, source.slug)].result()
+
+
 def run_city(city: str, sources: list, run_id: str, *, agent: Agent | None = None,
              refresh_osm: bool = False, use_photon: bool = True,
              reports: list | None = None, now=None, statement_bytes: int = 0,
-             status_by_source: dict[str, list[dict]] | None = None) -> tuple[list, list[str]]:
-    """Обхід одного міста всіма його джерелами. Повертає (елементи, частини SQL)."""
+             status_by_source: dict[str, list[dict]] | None = None,
+             crawl: Crawl | None = None) -> tuple[list, list[str]]:
+    """Обхід одного міста всіма його джерелами. Повертає (елементи, частини SQL).
+
+    З `crawl` обхід уже йде в потоках, і тут лишається чекати його результат."""
     usable = [s for s in sources if city in s.listing_urls]
     if not usable:
         print(f"  {city}: немає ввімкнених джерел", file=sys.stderr)
         return [], []
 
     print(f"\n{'═' * 62}\n{city}. Джерела: {', '.join(s.slug for s in usable)}")
-    index = build_index(city, refresh=refresh_osm)
+    if crawl:
+        crawl.start()
+        index, geocoder = crawl.indexes[city], crawl.geocoders[city]
+    else:
+        index = build_index(city, refresh=refresh_osm)
+        geocoder = Geocoder(city, enabled=use_photon)
     print(f"  майданчиків у індексі: {len(index.by_name)}")
-    geocoder = Geocoder(city, enabled=use_photon)
 
     all_items: list = []
     harvested: list[tuple[object, list]] = []
     for source in usable:
-        items, counters = harvest(source, city, index, geocoder=geocoder, now=now,
-            status_notices=(status_by_source or {}).get(source.slug))
+        if crawl:
+            items, counters = crawl.result(city, source)
+        else:
+            items, counters = harvest(source, city, index, geocoder=geocoder, now=now,
+                status_notices=(status_by_source or {}).get(source.slug))
         counters["items"] = len(items)
         if reports is not None:
             counters.update({"city": city, "source": source.slug})
@@ -301,11 +359,13 @@ def main(argv: list[str] | None = None) -> int:
         reports.append(status_record)
         print(f"Karabas status: {len(notices)} точних notices, "
               f"покриття {status_report.get('coverage')}")
+    crawl = Crawl(cities, sources, refresh_osm=args.refresh_osm, use_photon=not args.no_photon,
+                  status_by_source=status_by_source)
     for city in cities:
         items, parts = run_city(city, sources, run_id, agent=agent,
                                 refresh_osm=args.refresh_osm, use_photon=not args.no_photon,
                                 reports=reports, statement_bytes=max(0, args.sql_max_bytes - 1024),
-                                status_by_source=status_by_source)
+                                status_by_source=status_by_source, crawl=crawl)
         per_city[city] = (items, parts)
         everything += items
 

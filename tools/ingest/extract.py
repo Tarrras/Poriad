@@ -112,6 +112,17 @@ def detail_links(html: str, listing_url: str, path_prefix: str) -> list[str]:
     return list(links)
 
 
+def section_links(html: str, heading: str, listing_url: str) -> list[str]:
+    """Посилання з розділу сторінки за його заголовком (badseller: «Скасовано й перенесено»).
+    Розділ — від заголовка до закриття `</section>`; немає заголовка — порожньо."""
+    start = html.find(heading)
+    if start < 0:
+        return []
+    end = html.find("</section>", start)
+    hrefs = re.findall(r'<a\s[^>]*href="([^"]+)"', html[start:end if end > 0 else None])
+    return list(dict.fromkeys(urldefrag(urljoin(listing_url, h))[0] for h in hrefs))
+
+
 _SLUG_DATE = re.compile(r"-(\d{4}-\d\d-\d\d)$")
 
 

@@ -19,8 +19,10 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import pathlib
 import re
+import threading
 import time
 import urllib.parse
 import urllib.request
@@ -99,6 +101,9 @@ def _metres(a: tuple[float, float], b: tuple[float, float]) -> float:
 
 _MIN_DELAY = 1.1            # публічні інстанси, у Nominatim межа 1 запит/с: ходимо повільно й послідовно
 _last_call = 0.0
+# Джерела обходяться паралельними потоками, а Photon/Nominatim і кеш — один на всіх.
+_lock = threading.Lock()
+_shared_cache: dict | None = None
 
 
 # Скорочення типу вулиці зводимо до повної форми, інакше «пр-т» і «пр.» — різні ключі кешу й
@@ -133,11 +138,18 @@ class Geocoder:
         self.bbox = CITY_BBOX.get(city)
         self.calls = 0
         self.errors: list[str] = []
-        CACHE_PATH.parent.mkdir(exist_ok=True)
-        self._cache: dict = json.loads(CACHE_PATH.read_text("utf-8")) if CACHE_PATH.exists() else {}
+        global _shared_cache
+        with _lock:
+            if _shared_cache is None:
+                CACHE_PATH.parent.mkdir(exist_ok=True)
+                _shared_cache = json.loads(CACHE_PATH.read_text("utf-8")) if CACHE_PATH.exists() else {}
+        self._cache: dict = _shared_cache      # спільний між містами: інакше останній запис затирає решту
 
     def _save(self) -> None:
-        CACHE_PATH.write_text(json.dumps(self._cache, ensure_ascii=False), "utf-8")
+        """Викликати під `_lock`: інакше інший потік змінить словник посеред запису."""
+        tmp = CACHE_PATH.with_suffix(".tmp")
+        tmp.write_text(json.dumps(self._cache, ensure_ascii=False), "utf-8")
+        os.replace(tmp, CACHE_PATH)            # атомарно: уривчастий файл зіпсував би весь кеш
 
     def _in_bbox(self, lat: float, lon: float) -> bool:
         s, w, n, e = self.bbox
@@ -175,21 +187,23 @@ class Geocoder:
             if rows is None:
                 return None                    # збій мережі не кешуємо як «не знайшли»
             result = self._pick([_photon_shaped(row) for row in rows], query, service="nominatim")
-        self._cache[key] = result or {"v": _RULES_VERSION}
-        self._save()
+        with _lock:
+            self._cache[key] = result or {"v": _RULES_VERSION}
+            self._save()
         return result
 
     def _get(self, endpoint: str, query: str, params: dict):
         global _last_call
-        wait = _MIN_DELAY - (time.monotonic() - _last_call)
-        if wait > 0:
-            time.sleep(wait)
-        _last_call = time.monotonic()
+        with _lock:                            # сон під замком: запити всіх потоків ідуть по черзі
+            wait = _MIN_DELAY - (time.monotonic() - _last_call)
+            if wait > 0:
+                time.sleep(wait)
+            _last_call = time.monotonic()
+            self.calls += 1
         req = urllib.request.Request(
             f"{endpoint}?{urllib.parse.urlencode(params)}",
             headers={"User-Agent": USER_AGENT,
                      "Accept": "application/json"})
-        self.calls += 1
         try:
             with urllib.request.urlopen(req, timeout=30) as r:
                 return json.loads(r.read().decode("utf-8"))
