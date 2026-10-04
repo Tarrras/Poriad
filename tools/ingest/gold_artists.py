@@ -198,7 +198,7 @@ def _parse(raw: str):
 def label_openai(workers: int = 4) -> dict:
     agent = Agent()
     if not agent.ready:
-        raise SystemExit("потрібен OPENAI_API_KEY")
+        raise SystemExit(f"потрібен {agent.provider.env_key}")
     labels = _read(LABELS_A) if LABELS_A.exists() else {}
 
     def one(path: pathlib.Path):

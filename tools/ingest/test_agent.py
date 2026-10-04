@@ -73,7 +73,7 @@ class AgentGuards(unittest.TestCase):
 
     def test_no_key_no_call(self):
         """Без ключа агент мовчить, а не падає посеред обходу."""
-        agent = Agent(api_key="")
+        agent = Agent(provider="openai", api_key="")
         self.assertFalse(agent.ready)
         self.assertEqual(agent.classify([_Item("Вілла Айва")]), 0)
 
@@ -153,7 +153,7 @@ class PairJudging(unittest.TestCase):
         self.assertEqual(len(agent.judge_pairs([self._pair()] * 3)), 3)
 
     def test_no_key_no_merge(self):
-        self.assertEqual(Agent(api_key="").judge_pairs([self._pair()]), [False])
+        self.assertEqual(Agent(provider="openai", api_key="").judge_pairs([self._pair()]), [False])
 
     def test_prompt_warns_about_the_expensive_mistake(self):
         """Асиметрія має бути в підказці: хибне злиття ховає подію назавжди."""
@@ -165,13 +165,16 @@ class PairJudging(unittest.TestCase):
 class Providers(unittest.TestCase):
     """Постачальник — параметр. Запобіжники спільні, різні лише адреса, заголовки й поле тексту."""
 
-    def test_openai_is_the_default(self):
-        agent = Agent(api_key="k")
-        self.assertEqual(agent.provider.name, "openai")
-        self.assertIn("api.openai.com", agent.provider.endpoint)
+    def test_claude_subscription_is_the_default_and_needs_no_key(self):
+        agent = Agent(call=lambda prompt: "")
+        self.assertEqual(agent.provider.name, "claude")
+        self.assertTrue(agent.provider.keyless)
+        self.assertIn("api.openai.com", Agent(provider="openai", api_key="k").provider.endpoint)
 
     def test_each_provider_reads_its_own_key(self):
         for name, provider in PROVIDERS.items():
+            if provider.keyless:
+                continue
             with self.subTest(name):
                 self.assertTrue(provider.env_key.endswith("_API_KEY"))
                 self.assertTrue(provider.headers("secret"))
@@ -192,6 +195,8 @@ class Providers(unittest.TestCase):
     def test_empty_answer_does_not_explode(self):
         """Порожня відповідь — це нуль класифікацій, а не виняток посеред обходу."""
         for name, provider in PROVIDERS.items():
+            if provider.keyless:
+                continue
             with self.subTest(name):
                 self.assertEqual(_parse(provider.text({})), {})
 
@@ -204,10 +209,10 @@ class Providers(unittest.TestCase):
         import os
         os.environ["OPENAI_MODEL"] = "gpt-test"
         try:
-            self.assertEqual(Agent(api_key="k").model, "gpt-test")
+            self.assertEqual(Agent(provider="openai", api_key="k").model, "gpt-test")
         finally:
             del os.environ["OPENAI_MODEL"]
-        self.assertEqual(Agent(api_key="k", model="explicit").model, "explicit")
+        self.assertEqual(Agent(provider="openai", api_key="k", model="explicit").model, "explicit")
 
 
 class EnvFile(unittest.TestCase):

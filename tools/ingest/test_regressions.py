@@ -6,6 +6,7 @@ import io
 import itertools
 import json
 import tempfile
+import types
 from pathlib import Path
 import unittest
 from unittest.mock import patch
@@ -671,6 +672,43 @@ class SitemapSourceIgnoresListing(unittest.TestCase):
         self.assertEqual([i.title for i in items], ["Вечір"])
         self.assertIn(source.listing_urls["Київ"], asked)       # розділ статусів читається зі списку
         self.assertNotIn("error", counters)
+
+
+class ClaudeProvider(unittest.TestCase):
+    """`--agent` за підпискою Max: `claude -p` з промптом у stdin, без ключа API."""
+
+    def test_prompt_goes_through_stdin_with_a_locked_down_cli(self):
+        from .agent import Agent
+        calls = []
+
+        def fake_run(cmd, **kwargs):
+            calls.append((cmd, kwargs))
+            return types.SimpleNamespace(returncode=0, stdout='[{"n": 1}]\n', stderr="")
+
+        with patch("tools.ingest.agent.shutil.which", return_value="/bin/claude"), \
+             patch("tools.ingest.agent.subprocess.run", fake_run):
+            agent = Agent(provider="claude")
+            self.assertTrue(agent.ready)
+            self.assertEqual(agent.model, "opus")
+            self.assertEqual(agent.ask("Питання"), '[{"n": 1}]\n')
+        cmd, kwargs = calls[0]
+        self.assertEqual(kwargs["input"], "Питання")
+        for flag in ("--restricted", "--no-session-persistence", "--strict-mcp-config"):
+            self.assertIn(flag, cmd)
+        self.assertEqual(cmd[cmd.index("--tools") + 1], "")
+
+    def test_failed_cli_is_an_error_not_an_empty_answer(self):
+        from .agent import Agent
+        failed = types.SimpleNamespace(returncode=1, stdout="", stderr="Not logged in")
+        with patch("tools.ingest.agent.shutil.which", return_value="/bin/claude"), \
+             patch("tools.ingest.agent.subprocess.run", return_value=failed):
+            with self.assertRaises(RuntimeError):
+                Agent(provider="claude").ask("Питання")
+
+    def test_not_ready_without_the_binary(self):
+        from .agent import Agent
+        with patch("tools.ingest.agent.shutil.which", return_value=None):
+            self.assertFalse(Agent(provider="claude").ready)
 
 
 class CityAndTextNormalisation(unittest.TestCase):

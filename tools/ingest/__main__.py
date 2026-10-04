@@ -299,7 +299,7 @@ def main(argv: list[str] | None = None) -> int:
                     help="дати моделі розібрати те, чого не взяли тип і словник")
     ap.add_argument("--agent-provider", choices=sorted(PROVIDERS), default=DEFAULT_PROVIDER,
                     help="постачальник моделі; ключ і модель — зі змінних середовища"
-                         " (OPENAI_API_KEY / OPENAI_MODEL)")
+                         " (claude — підписка Max; openai: OPENAI_API_KEY / OPENAI_MODEL)")
     ap.add_argument("--limit", type=int, help="показати не більше N рядків у зведенні")
     ap.add_argument("--no-karabas-status", action="store_true",
                     help="не читати окрему таблицю скасувань/переносів Karabas")

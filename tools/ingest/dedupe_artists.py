@@ -285,7 +285,7 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
     agent = Agent()
     if not agent.ready:
-        print("потрібен OPENAI_API_KEY", file=sys.stderr)
+        print(f"потрібен {agent.provider.env_key}", file=sys.stderr)
         return 1
     if not args.input and not args.db:
         ap.error("потрібен файл або --db")

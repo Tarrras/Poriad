@@ -34,9 +34,11 @@ jobs:
       - id: tests
         run: python3 -m unittest discover -s tools/ingest -p 'test_*.py' -t .
       # Розклад не має inputs — тоді prod.
+      # --agent: категорії й артисти через `claude -p` за підпискою Max (модель opus, ключ не потрібен).
       - id: dump
-        run: python3 tools/apply_sql.py run --env "${{ inputs.env || 'prod' }}" --apply --yes
+        run: python3 tools/apply_sql.py run --env "${{ inputs.env || 'prod' }}" --apply --yes -- --agent
         env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           SUPABASE_DB_URL_DEV: ${{ secrets.SUPABASE_DB_URL_DEV }}
       # Аналіз обходу: фонова сесія Claude Code на цьому ж Mac (читає базу, нічого не пише). Запускається

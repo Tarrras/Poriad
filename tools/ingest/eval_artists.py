@@ -29,7 +29,7 @@ def _items(rows: list[dict]) -> list:
         for r in rows]
 
 
-def evaluate(stage: int = 3) -> dict:
+def evaluate(stage: int = 3, provider: str = "openai") -> dict:
     gold = {e["url"]: e for e in json.loads(GOLD.read_text("utf-8"))["events"]}
     rows = json.loads(CORPUS.read_text("utf-8"))
     items = _items(rows)
@@ -39,10 +39,12 @@ def evaluate(stage: int = 3) -> dict:
         if stage >= 4:
             # Лише події золота: за решту корпусу платити для мірки ні до чого.
             from .agent import Agent
-            agent = Agent()
+            agent = Agent(provider=provider)
             if not agent.ready:
-                raise SystemExit("щабель 4 потребує OPENAI_API_KEY")
-            stats = art.llm_fill([i for i in items if i.url in gold], agent.ask, dictionary)
+                raise SystemExit(f"щабель 4 потребує {agent.provider.env_key}")
+            # Кеш на постачальника: спільний віддав би відповіді іншої моделі, і мірка нічого б не мірила.
+            cache = None if provider == "openai" else art.LLM_CACHE.with_name(f"artists_llm_{provider}_eval.json")
+            stats = art.llm_fill([i for i in items if i.url in gold], agent.ask, dictionary, cache_path=cache)
             print("щабель 4:", stats)
     else:
         art.settle([i for i in items], art.Dictionary({}))
@@ -86,9 +88,10 @@ def _line(name: str, c: collections.Counter) -> str:
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--stage", type=int, default=3)
+    ap.add_argument("--provider", default="openai", help="модель щабля 4: openai, anthropic, claude")
     ap.add_argument("--quiet", action="store_true", help="без списку промахів")
     args = ap.parse_args(argv)
-    r = evaluate(args.stage)
+    r = evaluate(args.stage, args.provider)
     print(f"золото: {r['gold']} подій, щабель ≤{args.stage}")
     print(_line("УСЬОГО", r["total"]))
     for name in sorted(r["by"]):

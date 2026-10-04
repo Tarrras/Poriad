@@ -8,14 +8,20 @@
 2. Жодних координат: модуль фізично не вміє їх повертати.
 3. Окремий щабель `category_how = "agent"`, щоб у звіті було видно частку бази на його судженні.
 
-Мережа через `urllib`, без SDK. Постачальник — параметр (за замовчуванням OpenAI); ключ і
-модель зі змінних `OPENAI_API_KEY`/`OPENAI_MODEL` або `ANTHROPIC_API_KEY`/`ANTHROPIC_MODEL`.
+Мережа через `urllib`, без SDK. Постачальник — параметр. За замовчуванням `claude`: `claude -p` за
+підпискою Max, модель `opus` (змінна `CLAUDE_AGENT_MODEL`), ключ не потрібен. Інші: `openai`
+(`OPENAI_API_KEY`/`OPENAI_MODEL`) і `anthropic` (`ANTHROPIC_API_KEY`/`ANTHROPIC_MODEL`).
+Мірка 2026-10-05 на золотих наборах: артисти precision 96,3% / recall 77,2% (OpenAI 95,6% / 80,1%),
+категорії 19 із 20 (OpenAI 20 із 20; промах — «Зоопарк», постійний заклад, дала outdoors).
 """
 from __future__ import annotations
 
 import json
 import os
 import pathlib
+import shutil
+import subprocess
+import tempfile
 import urllib.error
 import urllib.request
 
@@ -64,6 +70,7 @@ class _Provider:
     env_key: str
     env_model: str
     default_model: str
+    keyless = False          # true — без HTTP і ключа: модель кличе локальний CLI за підпискою
 
     def headers(self, key: str) -> dict: raise NotImplementedError
     def body(self, model: str, prompt: str) -> dict: raise NotImplementedError
@@ -108,8 +115,19 @@ class _Anthropic(_Provider):
         return "".join(part.get("text", "") for part in payload.get("content", []))
 
 
-PROVIDERS = {p.name: p for p in (_OpenAI(), _Anthropic())}
-DEFAULT_PROVIDER = "openai"
+class _ClaudeCLI(_Provider):
+    """`claude -p` за підпискою (Max), а не за ключем API. Вхід — звичайний вхід користувача чи
+    `CLAUDE_CODE_OAUTH_TOKEN` (`claude setup-token`). Модель — аліас CLI: `opus`, `fable`, `sonnet`."""
+    name = "claude"
+    endpoint = ""
+    env_key = "claude у PATH"      # лише для повідомлень «потрібен …»; змінної середовища нема
+    env_model = "CLAUDE_AGENT_MODEL"
+    default_model = "opus"
+    keyless = True
+
+
+PROVIDERS = {p.name: p for p in (_OpenAI(), _Anthropic(), _ClaudeCLI())}
+DEFAULT_PROVIDER = "claude"
 
 _RULES = (
     "Ти розкладаєш афішні події по категоріях застосунку.\n"
@@ -131,6 +149,8 @@ _RULES = (
     "   містом у галереї — теж art. Питай себе, що людина робитиме на місці, а не про що подія.\n"
     "2. Якщо в назві лише будівля, памʼятка чи адреса й більше нічого — це tours. Квиток продають\n"
     "   на огляд цього обʼєкта, навіть коли слова «екскурсія» немає ніде.\n"
+    "   Квиток на візит у заклад просто неба — зоопарк, ботсад, парк — це outdoors, а не «жодна»:\n"
+    "   афіша продає саме відвідування на дату, навіть коли формату події у назві нема.\n"
     "3. Джерело каже про рід події більше за назву: сайт міського туризму продає огляди,\n"
     "   майданчик із дитячим залом — дитяче, фаховий портал — конференції й воркшопи.\n"
     "4. Коли підходять дві категорії, виграє вужча. Наш перелік будувався виділенням: comedy і\n"
@@ -176,7 +196,8 @@ class Agent:
 
     @property
     def ready(self) -> bool:
-        return bool(self.api_key) or self._injected
+        keyless = self.provider.keyless and shutil.which("claude") is not None
+        return bool(self.api_key) or self._injected or keyless
 
     def classify(self, items) -> int:
         """Дописує категорію тим, що впали у fallback. Повертає, скільки змінено.
@@ -263,8 +284,23 @@ class Agent:
         text = self._call(_RULES + "\n\n" + "\n".join(lines))
         return _parse(text)
 
+    def _run_claude(self, prompt: str) -> str:
+        """Один виклик `claude -p`: без інструментів, MCP, налаштувань користувача й проєкту (hooks,
+        CLAUDE.md), у нейтральній теці. Промпт іде через stdin: він завеликий для аргументу."""
+        self.requests += 1
+        proc = subprocess.run(
+            ["claude", "-p", "--model", self.model, "--no-session-persistence", "--restricted",
+             "--tools", "", "--disable-slash-commands", "--strict-mcp-config",
+             "--system-prompt", "Відповідай лише тим, про що просять, без вступів і пояснень."],
+            input=prompt, capture_output=True, text=True, timeout=300, cwd=tempfile.gettempdir())
+        if proc.returncode != 0:
+            raise RuntimeError((proc.stderr or proc.stdout).strip()[:200] or f"claude -p: код {proc.returncode}")
+        return proc.stdout
+
     def _post(self, prompt: str) -> str:
         provider = self.provider
+        if provider.keyless:
+            return self._run_claude(prompt)
         request = urllib.request.Request(
             provider.endpoint,
             data=json.dumps(provider.body(self.model, prompt)).encode(),
