@@ -402,7 +402,8 @@ python3 tools/apply_sql.py run --env prod --apply
 виконати показані команди (`config.sh` з токеном; мітки за замовчуванням `self-hosted, macOS`
 підходять). Далі або `./run.sh` у терміналі, або `./svc.sh install && ./svc.sh start` — тоді runner
 стартує з входом у систему. Python — системний `/usr/bin/python3` з `psycopg[binary]`, як для
-ручного запуску. Секрет `SUPABASE_DB_URL` — у Settings → Secrets → Actions.
+ручного запуску. Секрети `SUPABASE_DB_URL` (prod) і `SUPABASE_DB_URL_DEV` (dev) — у Settings →
+Secrets → Actions. Розклад пише лише в prod; dev — вручну, Run workflow → env: dev.
 
 Кеш (`tools/ingest/cache`) живе в теці runner-а (`actions-runner/_work/Poriad/Poriad/`) і між
 запусками не стирається (`checkout` з `clean: false`). Щоб перший обхід не читав badseller 43 хв,

@@ -1,18 +1,26 @@
-# Обхід афіш і запис у prod. Runner — self-hosted на Mac: Concert.ua відповідає 403 на адреси
-# GitHub-runner-ів (2026-09-25), а з домашньої адреси віддає. Поки Mac спить, GitHub тримає запуск
-# у черзі до доби й стартує, щойно runner вийде на зв'язок. Реєстрація runner-а — tools/ingest/README.md.
+# Обхід афіш: за розкладом — у prod, вручну (Run workflow) — у prod чи dev на вибір.
+# Runner — self-hosted на Mac: Concert.ua відповідає 403 на адреси GitHub-runner-ів (2026-09-25),
+# а з домашньої адреси віддає. Поки Mac спить, GitHub тримає запуск у черзі до доби й стартує,
+# щойно runner вийде на зв'язок. Реєстрація runner-а — tools/ingest/README.md.
 name: ingest
 on:
   schedule:
     - cron: "0 3 * * *"          # 06:00 Київ (влітку), 05:00 узимку
   workflow_dispatch:
+    inputs:
+      env:
+        description: "Куди писати"
+        type: choice
+        options: [prod, dev]
+        default: prod
 permissions:
   contents: read
+# Одна група на обидва середовища: тека runner-а й кеш спільні, паралельний обхід їх зіпсував би.
 concurrency:
-  group: ingest-prod
+  group: ingest
   cancel-in-progress: false
 jobs:
-  prod:
+  ingest:
     runs-on: [self-hosted, macOS]
     timeout-minutes: 120
     steps:
@@ -24,9 +32,11 @@ jobs:
       # Системний python3 Mac із уже встановленим psycopg, як і для ручного запуску.
       - run: rm -rf out
       - run: python3 -m unittest discover -s tools/ingest -p 'test_*.py' -t .
-      - run: python3 tools/apply_sql.py run --env prod --apply --yes
+      # Розклад не має inputs — тоді prod.
+      - run: python3 tools/apply_sql.py run --env "${{ inputs.env || 'prod' }}" --apply --yes
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          SUPABASE_DB_URL_DEV: ${{ secrets.SUPABASE_DB_URL_DEV }}
       # Тека лишається лише після збою — тоді вона й потрібна як доказ.
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: failure()
