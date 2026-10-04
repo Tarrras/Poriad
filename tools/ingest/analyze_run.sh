@@ -21,7 +21,7 @@ prompt="$(cat tools/ingest/analyst_prompt.md)
 - запуск: ${RUN_URL:-вручну}"
 
 # RUNNER_TRACKING_ID="" — інакше runner вбиває дочірні процеси кроку, і сесія не доживе до кінця job.
-RUNNER_TRACKING_ID="" claude --bg \
+RUNNER_TRACKING_ID="" claude --bg --no-chrome \
   --strict-mcp-config --mcp-config .mcp.json \
   --allowedTools "mcp__${server}__execute_sql,Read" \
   --disallowedTools "Edit,Write,NotebookEdit,Bash" \
