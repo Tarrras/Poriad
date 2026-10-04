@@ -11,6 +11,7 @@ import dataclasses
 import datetime as dt
 import json
 import math
+import random
 import uuid
 
 from . import artists, community, culture, extract, normalize
@@ -29,6 +30,10 @@ QUALITY_FLOOR = 0.55            # той самий поріг, що в private.
 # де `endDate` — термін дії квитка. Межа евристична: реальні прокати у вибірці до 86 днів,
 # постійні від 111. Відсікаємо при імпорті, а не при показі, щоб рядок не спливав у нових запитах.
 PERMANENT_RUN = dt.timedelta(days=90)
+
+# Скільки карток із кешу, чий lastmod не змінився, перечитати для звірки. Знайдена різниця означає,
+# що lastmod джерела не ловить якусь зміну, і кешу довіряти не можна.
+DETAIL_AUDIT = 30
 
 # Скільки сторінок каталогу гортати: найбільший каталог закінчується на шостій, вісім дає запас.
 CATALOG_PAGES = 8
@@ -154,10 +159,30 @@ def harvest(source: Source, city: str, index: VenueIndex,
         # Розділ статусів не прочитався — свіжість кешу нічим підтвердити: цього разу читаємо все наживо.
         details = _load_details(source, now) if status_ok else {}
         live = set(status_links)
-        counters["cached"] = 0
+        # lastmod зі sitemap — дата зміни картки. Вона раніша за день, коли ми картку зберегли, — картка
+        # з того часу не мінялась (дата, а не час: змінена в день збереження читається ще раз, це
+        # безпечний бік). Без lastmod у записі лишається лише вік (`detail_ttl_days`).
+        mods = extract.sitemap_lastmods(_sitemaps.get(source.sitemap_url, "")) if source.sitemap_url else {}
+
+        today = now.astimezone(normalize.zone(source.time_zone)).date()
+        near_until = (today + dt.timedelta(days=source.detail_near_days)).isoformat()
+        near_after = (now - dt.timedelta(days=source.detail_near_ttl_days)).isoformat()
+
+        def cached(link):
+            entry = details.get(link)
+            changed = mods.get(link)
+            if entry and link not in live and (changed is None or changed[:10] < entry["at"][:10]):
+                slug_date = extract._SLUG_DATE.search(link)
+                if slug_date and slug_date.group(1) <= near_until and entry["at"] < near_after:
+                    return None                        # близька подія: кеш старший за near_ttl
+                return entry
+        usable = [link for link in links[:source.max_details] if cached(link)]
+        audit = set(random.sample(usable, min(DETAIL_AUDIT, len(usable)))) if mods else set()
+        counters.update({"cached": 0, "audited": len(audit), "audit_stale": []})
         for link in links[:source.max_details]:
-            if link in details and link not in live:
-                raw_events.extend(details[link]["events"])
+            entry = cached(link)
+            if entry and link not in audit:
+                raw_events.extend(entry["events"])
                 counters["cached"] += 1
                 continue
             try:
@@ -169,6 +194,8 @@ def harvest(source: Source, city: str, index: VenueIndex,
                 if not events:
                     raise ValueError("NO_EVENTS")
                 raw_events.extend(events)
+                if entry and events != entry["events"]:
+                    counters["audit_stale"].append(link)          # lastmod каже «не мінялась», а вона так
                 if source.detail_ttl_days:
                     details[link] = {"at": now.isoformat(), "events": events}
                     if counters["fetched"] % 100 == 0:      # обрив посеред 40 хвилин не губить зроблене

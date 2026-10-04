@@ -138,6 +138,9 @@ def run_city(city: str, sources: list, run_id: str, *, agent: Agent | None = Non
             reports.append(counters)
         all_items += items
         harvested.append((source, items, counters))
+        if counters.get("audit_stale"):
+            print(f"  ⚠ {source.slug}: {len(counters['audit_stale'])} із {counters['audited']} звірених карток "
+                  "змінились при незмінному lastmod — кешу за lastmod довіряти не можна")
         if counters.get("error"):
             print(f"  ── {source.name}: помилка {counters['error']}")
             continue

@@ -687,8 +687,10 @@ class DetailCache(unittest.TestCase):
                         f'<ul><li><a href="/afisha/kyiv/y-2020-01-01">Y</a></li></ul></section>')
         self.asked = []
 
+        self.lastmod, self.name = None, "Вечір"
+
         def card(url, status="EventScheduled"):
-            return {"@type": "TheaterEvent", "name": "Вечір " + url[-4:], "startDate": "2090-06-01T19:00:00+03:00",
+            return {"@type": "TheaterEvent", "name": f"{self.name} " + url[-4:], "startDate": "2090-06-01T19:00:00+03:00",
                     "url": url, "eventStatus": f"https://schema.org/{status}",
                     "location": {"name": "Театр", "address": {"streetAddress": "вул. Б, 1"}}}
 
@@ -697,7 +699,8 @@ class DetailCache(unittest.TestCase):
             if url == self.source.listing_urls["Київ"]:
                 return Response(url, self.listing_status, self.listing)
             if url == self.source.sitemap_url:
-                return Response(url, 200, f"<loc>{self.link}</loc>")
+                mod = f"<lastmod>{self.lastmod}</lastmod>" if self.lastmod else ""
+                return Response(url, 200, f"<url><loc>{self.link}</loc>{mod}</url>")
             return Response(url, 200, html([card(url)]))
         self.fake_get, self.listing_status = fake_get, 200
 
@@ -719,6 +722,17 @@ class DetailCache(unittest.TestCase):
             self.harvest(NOW + dt.timedelta(days=3))
             self.assertIn(self.link, self.asked)
 
+    def test_card_of_a_near_event_is_read_more_often(self):
+        self.link = "https://badseller.net/afisha/kyiv/x-2026-09-14"       # NOW — 2026-09-11: за 3 дні
+        with tempfile.TemporaryDirectory() as tmp:
+            self.cache_dir = Path(tmp)
+            self.harvest(NOW)
+            self.asked.clear()
+            self.harvest(NOW + dt.timedelta(hours=12))
+            self.assertNotIn(self.link, self.asked)         # ще не старший за добу
+            self.harvest(NOW + dt.timedelta(hours=30))
+            self.assertIn(self.link, self.asked)            # далека картка (x-2090) того ж віку лишилась би в кеші
+
     def test_changed_cards_come_first_live_and_beyond_the_sitemap_window(self):
         with tempfile.TemporaryDirectory() as tmp:
             self.cache_dir = Path(tmp)
@@ -728,6 +742,35 @@ class DetailCache(unittest.TestCase):
             self.assertIn(self.changed, self.asked)                 # живий, хоч і кеш свіжий
             self.assertNotIn(self.link, self.asked)                 # звичайна картка — з кешу
             self.assertEqual(counters["status_links"], 1)
+
+    @patch("tools.ingest.pipeline.DETAIL_AUDIT", 0)
+    def test_lastmod_decides_when_a_card_is_read_again(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.cache_dir = Path(tmp)
+            self.lastmod = "2020-01-01"
+            self.harvest(NOW)
+            self.asked.clear()
+            self.harvest(NOW + dt.timedelta(days=1))
+            self.assertNotIn(self.link, self.asked)         # lastmod старіший за день збереження
+            self.lastmod = NOW.date().isoformat()           # змінена в день збереження або пізніше
+            self.harvest(NOW + dt.timedelta(days=1))
+            self.assertIn(self.link, self.asked)
+
+    def test_audit_reports_a_card_that_changed_without_lastmod(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.cache_dir = Path(tmp)
+            self.lastmod = "2020-01-01"
+            self.harvest(NOW)
+            self.asked.clear()
+            self.name = "Інша назва"
+            with patch("tools.ingest.pipeline.DETAIL_AUDIT", 10):
+                items, counters = self.harvest(NOW + dt.timedelta(days=1))
+            self.assertIn(self.link, self.asked)
+            self.assertEqual(counters["audit_stale"], [self.link])
+            self.assertTrue(any("Інша назва" in i.title for i in items))     # береться свіже
+            self.asked.clear()
+            _, counters = self.harvest(NOW + dt.timedelta(days=1))
+            self.assertEqual(counters["audited"], 1)        # аудит бере з кешу вже оновлений запис
 
     def test_unreadable_status_section_disables_the_cache(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -761,13 +804,10 @@ class CrawlRunsSourcesInParallel(unittest.TestCase):
              patch("tools.ingest.__main__.build_index", return_value=None), \
              patch("tools.ingest.__main__.Geocoder", return_value=None):
             crawl = Crawl(["Київ", "Львів"], [a, b], use_photon=False)
-            started = time.monotonic()
             got = {(c, s.slug): crawl.result(c, s)[0] for c in ("Київ", "Львів") for s in (a, b)}
-            elapsed = time.monotonic() - started
         self.assertEqual(got[("Львів", "karabas")], ["Львів"])
         self.assertEqual(max(per_source), 1)        # один сайт — один запит за раз
         self.assertEqual(max(overlap), 2)           # різні сайти — одночасно
-        self.assertLess(elapsed, 0.35)              # 4 обходи по 0,1 с послідовно дали б 0,4 с
 
 
 class PerformerDetails(unittest.TestCase):

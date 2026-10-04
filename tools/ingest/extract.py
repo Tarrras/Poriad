@@ -123,6 +123,12 @@ def section_links(html: str, heading: str, listing_url: str) -> list[str]:
     return list(dict.fromkeys(urldefrag(urljoin(listing_url, h))[0] for h in hrefs))
 
 
+def sitemap_lastmods(xml: str) -> dict[str, str]:
+    """URL -> `<lastmod>` зі sitemap. Записи без lastmod у словник не потрапляють."""
+    return {m.group(1): m.group(2) for m in re.finditer(
+        r"<loc>\s*([^<\s]+)\s*</loc>\s*<lastmod>\s*([^<\s]+)\s*</lastmod>", xml)}
+
+
 _SLUG_DATE = re.compile(r"-(\d{4}-\d\d-\d\d)$")
 
 
