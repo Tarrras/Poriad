@@ -389,10 +389,25 @@ UPDATE на подію займав 55% SQL. Переймаються лише �
 python3 tools/apply_sql.py run --env prod --apply
 ```
 
-Те саме на dev: `--env dev` і `SUPABASE_DB_URL_DEV` у `.env`. GitHub Actions для розкладу не
-годиться: Concert.ua відповідає 403 на адреси runner-ів (2026-09-25), а обхід без найбільшого
-джерела Києва публікує копії з Karabas як окремі події. `.github/workflows/ingest.yml` лишено
-як ручний запасний вхід (workflow_dispatch, секрет `SUPABASE_DB_URL`).
+Те саме на dev: `--env dev` і `SUPABASE_DB_URL_DEV` у `.env`.
+
+## Розклад: GitHub Actions на self-hosted runner-і (Mac)
+
+`.github/workflows/ingest.yml` щодня о 03:00 UTC і вручну (Run workflow) запускає ту саму команду
+в prod, але на Mac, а не на машинах GitHub: Concert.ua відповідає 403 на їхні адреси (2026-09-25),
+а обхід без нього публікує копії з Karabas як окремі події й губить ~29% подій Concert.ua, яких
+немає ніде більше (2026-10-04). Поки Mac спить чи вимкнений, запуск чекає в черзі до доби.
+
+Реєстрація, один раз: GitHub → Settings → Actions → Runners → New self-hosted runner → macOS,
+виконати показані команди (`config.sh` з токеном; мітки за замовчуванням `self-hosted, macOS`
+підходять). Далі або `./run.sh` у терміналі, або `./svc.sh install && ./svc.sh start` — тоді runner
+стартує з входом у систему. Python — системний `/usr/bin/python3` з `psycopg[binary]`, як для
+ручного запуску. Секрет `SUPABASE_DB_URL` — у Settings → Secrets → Actions.
+
+Кеш (`tools/ingest/cache`) живе в теці runner-а (`actions-runner/_work/Poriad/Poriad/`) і між
+запусками не стирається (`checkout` з `clean: false`). Щоб перший обхід не читав badseller 43 хв,
+скопіюйте туди наявний кеш: `cp -R tools/ingest/cache ~/actions-runner/_work/Poriad/Poriad/tools/ingest/`
+(після першого checkout).
 
 Дамп OSM: якщо жодне дзеркало Overpass не віддало свіжих даних, береться найновіше із
 застарілого (дзеркало або старий кеш) із попередженням у stderr; обхід зупиняється лише коли
