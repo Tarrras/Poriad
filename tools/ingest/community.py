@@ -7,6 +7,7 @@ from html.parser import HTMLParser
 from urllib.parse import urljoin, urlsplit, urldefrag
 from zoneinfo import ZoneInfo
 
+from . import normalize
 from .extract import events_from_html
 
 _DOU_CARD = re.compile(r"^/calendar/\d+/$")
@@ -138,14 +139,7 @@ def _event_city(event: dict) -> str:
 def _same_city(event: dict, city: str) -> bool:
     actual = _event_city(event).casefold()
     wanted = city.casefold()
-    aliases = {
-        "київ": {"київ", "киев", "kyiv", "kiev"},
-        "львів": {"львів", "львов", "lviv"},
-        "харків": {"харків", "харьков", "kharkiv", "kharkov"},
-        "одеса": {"одеса", "одесса", "odesa", "odessa"},
-        "дніпро": {"дніпро", "днепр", "dnipro", "dnepr"},
-    }
-    accepted = aliases.get(wanted, {wanted})
+    accepted = normalize.CITY_ALIASES.get(wanted, {wanted})
     return any(name in actual for name in accepted)
 
 

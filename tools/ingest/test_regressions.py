@@ -673,6 +673,29 @@ class SitemapSourceIgnoresListing(unittest.TestCase):
         self.assertNotIn("error", counters)
 
 
+class CityAndTextNormalisation(unittest.TestCase):
+    """Знахідки нічного аналітика 2026-10-04: «Lviv» з dou і `&amp;amp;` у назвах."""
+
+    def test_latin_and_russian_city_names_become_ours(self):
+        for raw, ours in (("Lviv", "Львів"), ("Lviv, Ukraine", "Львів"), ("Днепр", "Дніпро"),
+                          ("Kyiv", "Київ"), ("Київська область", "Київська область"), ("", "")):
+            self.assertEqual(normalize.canonical_city(raw), ours)
+
+    def test_double_escaped_entities_are_decoded(self):
+        self.assertEqual(normalize.clean_text("R&amp;amp;D Day"), "R&D Day")
+        self.assertEqual(normalize.clean_text("Wine &amp; Talks"), "Wine & Talks")
+        self.assertEqual(normalize.clean_text("AT&T"), "AT&T")
+
+    def test_english_city_in_markup_is_not_a_mismatch(self):
+        raw = raw_event(location={"@type": "Place", "name": "Hall",
+                                  "address": {"streetAddress": "вул. Б, 1", "addressLocality": "Lviv"}})
+        item = pipeline._build(raw, Source(slug="x", name="x", base_url="https://example.org",
+                               listing_urls={"Львів": "https://example.org"}, weight=.7, crawl_delay=0),
+                               "Львів", VenueIndex([], "Львів"), NOW)
+        self.assertEqual(item.city, "Львів")
+        self.assertNotEqual(item.reject_reason, "CITY_MISMATCH")
+
+
 class DetailCache(unittest.TestCase):
     """badseller: 1720 карток × 1,5 с — це й був обхід на годину; свіжі картки читаються з диска,
     крім тих, що розділ «Скасовано й перенесено» назвав змінившимися."""

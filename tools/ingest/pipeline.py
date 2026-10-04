@@ -574,7 +574,7 @@ def _build(raw: dict, source: Source, city: str, index: VenueIndex,
     venue_name = normalize.clean_text(place.get("name"))
     address, addr_city, street = normalize.address_of(raw)
     # Місто з розмітки, а не зі сторінки, де знайшли подію.
-    event_city = (addr_city if source.trust_locality else "") or city
+    event_city = (normalize.canonical_city(addr_city) if source.trust_locality else "") or city
 
     # Верхній щабель — жанр з каталогу продавця: сильніший за тип schema.org і словник.
     stamped = raw.get("_poruch_category")

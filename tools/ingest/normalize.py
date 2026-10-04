@@ -95,7 +95,12 @@ def clean_text(value) -> str:
         return ""
     if isinstance(value, (list, tuple)):
         value = next((v for v in value if v), "")
-    s = html.unescape(str(value))
+    s = str(value)
+    for _ in range(3):                             # dou віддає `&amp;amp;`: одного розкодування мало
+        decoded = html.unescape(s)
+        if decoded == s:
+            break
+        s = decoded
     s = re.sub(r"<[^>]+>", " ", s)                 # у описах трапляється розмітка
     s = s.replace("\r\n", "\n").replace("\r", "\n")
     s = unicodedata.normalize("NFC", s)
@@ -122,6 +127,26 @@ def normalize_title(raw) -> str | None:
     if len(t) < TITLE_MIN:
         return None
     return clip(t, TITLE_MAX) if len(t) > TITLE_MAX else t
+
+
+# Наша назва міста -> як його пишуть джерела (укр., рос., лат.).
+CITY_ALIASES = {
+    "київ": {"київ", "киев", "kyiv", "kiev"},
+    "львів": {"львів", "львов", "lviv"},
+    "харків": {"харків", "харьков", "kharkiv", "kharkov"},
+    "одеса": {"одеса", "одесса", "odesa", "odessa"},
+    "дніпро": {"дніпро", "днепр", "dnipro", "dnepr"},
+}
+
+
+def canonical_city(raw: str) -> str:
+    """Місто з розмітки джерела в нашому написанні, якщо воно відоме («Lviv» → «Львів»);
+    інакше текст як є. Окреме слово, а не входження: «Lviv, Ukraine» — так, «Київська область» — ні."""
+    words = set(re.findall(r"[^\W\d_]+", clean_text(raw).casefold()))
+    for ours, names in CITY_ALIASES.items():
+        if words & names:
+            return ours.capitalize()
+    return clean_text(raw)
 
 
 def normalize_name(raw: str) -> str:
