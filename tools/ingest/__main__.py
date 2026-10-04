@@ -404,17 +404,25 @@ def main(argv: list[str] | None = None) -> int:
     follows = emit.notify_follows_sql()
     # Осиротілі артисти (після злиття дублів) прибираємо до пуша: він їх не стосується, але порядок «дані, потім пуш».
     prune = emit.prune_artists_sql()
+    # Статистика прогону для агента-аналітика (private.ingest_runs/_items) — після даних. Подій не
+    # чіпає, тож стоїть перед кроками prune/follows/finished: «завершені — останні» лишається правдою.
+    stats_bytes = max(0, args.sql_max_bytes - 1024)
     if args.sql:
         # Один файл на обхід — одна транзакція. Розбиття по містах лишається для окремих оновлень.
-        parts = [p for city in cities for p in per_city[city][1]] + [prune, follows, finished]
+        parts = ([p for city in cities for p in per_city[city][1]]
+                 + emit.stats_sql(reports, everything, run_id, stats_bytes) + [prune, follows, finished])
         _write_sql(args.sql, run_id, parts, len(published), args.sql_max_bytes)
     elif args.sql_dir:
         args.sql_dir.mkdir(parents=True, exist_ok=True)
         print()
+        cityless = [r for r in reports if not r.get("city")]     # перевірка статусів Karabas
         for city, (items, parts) in per_city.items():
             if not parts:
                 continue
-            _write_sql(args.sql_dir / f"{city}.sql", run_id, parts + [prune, follows, finished],
+            city_reports = [r for r in reports if r.get("city") == city] + cityless
+            cityless = []
+            _write_sql(args.sql_dir / f"{city}.sql", run_id,
+                       parts + emit.stats_sql(city_reports, items, run_id, stats_bytes) + [prune, follows, finished],
                        sum(1 for i in items if i.stage == "published"), args.sql_max_bytes)
     else:
         print("\nСуха проба: нічого не записано. Додайте --sql-dir, щоб отримати SQL.")

@@ -452,6 +452,22 @@ def _failed_sources(report: pathlib.Path) -> list[str]:
                    for r in data.get("sources", []) if r.get("error")})
 
 
+def seed_previous_report(conn, path: pathlib.Path) -> int:
+    """Останній безпомилковий звіт кожної пари джерело+місто → `path` у форматі report.json."""
+    import psycopg
+    try:
+        rows = conn.execute(
+            "select distinct on (source_id, city) report from private.ingest_runs"
+            " where report is not null and error is null and city is not null"
+            " order by source_id, city, finished_at desc").fetchall()
+    except psycopg.Error as exc:            # до міграції 20261004130000 колонки report немає
+        print(f"⚠ Минулий звіт з бази не прочитано ({str(exc).strip()}): спад не перевіряється")
+        return 0
+    if rows:
+        path.write_text(json.dumps({"sources": [r[0] for r in rows]}, ensure_ascii=False), "utf-8")
+    return len(rows)
+
+
 def cmd_run(args) -> int:
     """Створити файли → застосувати → прибрати. Тека лишається лише після збою, як доказ.
 
@@ -484,6 +500,11 @@ def cmd_run(args) -> int:
     elif pending:
         print(f"⚠ Незастосованих міграцій: {len(pending)} ({', '.join(p.name for *_, p in pending)}). Вони НЕ "
               "застосовуються без --with-migrations; дамп під нову схему може впасти.")
+
+    # Минулий звіт — з бази: тека щоразу нова, а різкий спад (SHARP_DROP) конвеєр рахує проти
+    # звіту, що вже лежить за шляхом --report.
+    seeded = seed_previous_report(conn, workdir / "report.json")
+    print(f"Минулий звіт для перевірки спаду: {seeded} записів з private.ingest_runs")
 
     # 2. Дані — конвеєром. Один файл на обхід = одна транзакція; --split-bytes ріже на частини.
     data_file = workdir / "poruch-events.sql"

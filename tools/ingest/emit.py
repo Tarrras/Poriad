@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import json
+import uuid
 
 from .pipeline import Item, occurrence_uid
 from .artists import key as artist_key
@@ -473,8 +474,8 @@ def notify_follows_sql() -> str:
         for name in ("notify_artist_follows", "notify_place_follows"))
 
 
-def to_json(items: list[Item]) -> str:
-    return json.dumps([{
+def _item_dict(i: Item) -> dict:
+    return {
         "source": i.source_slug, "source_uid": i.source_uid, "event_id": str(i.event_id),
         "category_how": i.category_how,
         "duplicate_of": i.duplicate_of,
@@ -488,4 +489,71 @@ def to_json(items: list[Item]) -> str:
         "reject_reason": i.reject_reason, "price_min": i.price_min, "is_free": i.is_free,
         "url": i.canonical_url,
         "artists": [{"name": a.name, "role": a.role, "how": a.how} for a in i.artists],
-    } for i in items], ensure_ascii=False, indent=1)
+    }
+
+
+def to_json(items: list[Item]) -> str:
+    return json.dumps([_item_dict(i) for i in items], ensure_ascii=False, indent=1)
+
+
+# Скільки днів тримати статистику прогонів (private.ingest_runs/_items). Елемент ~0,7 КБ, ~3600 за
+# обхід: місяць — ~75 МБ, вистачає на порівняння тижнів без роздування бази.
+STATS_KEEP_DAYS = 30
+_STATS_NS = uuid.UUID("5b0f4c1e-6a43-4f53-9d0a-6f2b1c7e9a10")
+
+
+def stats_run_id(run_id: str, source: str, city: str | None) -> str:
+    """Стабільний id рядка ingest_runs: елементи посилаються на нього в тому ж дампі."""
+    return str(uuid.uuid5(_STATS_NS, f"{run_id}|{source}|{city or ''}"))
+
+
+def _count(value) -> int:
+    return value if isinstance(value, int) else len(value) if isinstance(value, (list, dict)) else 0
+
+
+def stats_sql(reports: list[dict], items: list[Item], run_id: str, max_bytes: int = 0) -> list[str]:
+    """Статистика прогону для агента-аналітика: рядок на джерело+місто з повним звітом і всі
+    елементи з тим, як їх розібрано. Останніми командами дампу — після даних, у тій самій
+    транзакції. Джерело без рядка в event_sources (karabas_status) прив'язується до свого сайту."""
+    runs: dict[tuple, dict] = {}
+    for r in reports:
+        source = r.get("source")
+        if source:
+            runs[(source, r.get("city"))] = r
+    for it in items:
+        runs.setdefault((it.source_slug, it.city), {"source": it.source_slug, "city": it.city})
+    event_ids = {(i.source_slug, i.source_uid): str(i.event_id) for i in items}
+
+    rows = []
+    for (source, city), r in runs.items():
+        slug = "karabas" if source == "karabas_status" else source
+        rows.append("select " + ",".join([
+            _lit(stats_run_id(run_id, source, city)) + "::uuid", "s.id", _lit(run_id) + "::uuid", _lit(city) + "::text", "now()",
+            *(str(_count(r.get(k))) for k in ("fetched", "parsed", "geocoded", "published",
+                                             "duplicates", "rejected", "review")),
+            _lit(r.get("error")) + "::text", _lit(json.dumps(r, ensure_ascii=False, default=str)) + "::jsonb",
+        ]) + f" from public.event_sources s where s.slug={_lit(slug)}")
+    parts = [f"delete from private.ingest_runs where finished_at < now() - interval '{STATS_KEEP_DAYS} days';\n"]
+    if rows:
+        parts.append("insert into private.ingest_runs (id,source_id,run_id,city,finished_at,fetched,parsed,geocoded,"
+                     "published,merged,rejected,review,error,report)\n" + "\nunion all ".join(rows)
+                     + "\non conflict (id) do nothing;\n")
+
+    def render(chunk: list[Item]) -> str:
+        values = []
+        for it in chunk:
+            winner = event_ids.get(tuple(it.duplicate_of)) if it.duplicate_of else None
+            values.append("(" + ",".join([
+                _lit(stats_run_id(run_id, it.source_slug, it.city)), _lit(it.source_slug),
+                _lit(it.source_uid), _lit(it.canonical_url),
+                _lit(json.dumps(_item_dict(it), ensure_ascii=False, default=str)), _lit(it.stage),
+                _lit(it.reject_reason), _lit(winner)]) + ")")
+        return ("insert into private.ingest_items (run_id,source_id,source_uid,url,raw,stage,reject_reason,"
+                "candidate_event_id)\nselect v.run_id::uuid, s.id, v.uid, v.url, v.raw::jsonb, v.stage, v.reason, "
+                "v.winner::uuid\nfrom (values\n" + ",\n".join(values)
+                + "\n) v(run_id,slug,uid,url,raw,stage,reason,winner)\n"
+                "join public.event_sources s on s.slug=v.slug\n"
+                "where exists (select 1 from private.ingest_runs r where r.id=v.run_id::uuid);\n")
+    for start in range(0, len(items), BATCH):
+        parts += bounded_sql(items[start:start + BATCH], render, max_bytes)
+    return parts

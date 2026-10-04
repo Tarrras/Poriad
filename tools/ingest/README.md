@@ -413,3 +413,50 @@ Secrets → Actions. Розклад пише лише в prod; dev — вруч�
 Дамп OSM: якщо жодне дзеркало Overpass не віддало свіжих даних, береться найновіше із
 застарілого (дзеркало або старий кеш) із попередженням у stderr; обхід зупиняється лише коли
 дампу немає взагалі.
+
+## Статистика прогонів для агента-аналітика (міграція 20261004130000)
+
+Кожен дамп наприкінці пише, у тій самій транзакції, що й дані (`emit.stats_sql`):
+
+- `private.ingest_runs` — рядок на пару джерело+місто. `run_id` спільний для всього обходу
+  (= `events.ingest_run_id`), `city` (null — перевірка статусів Karabas), лічильники `fetched`,
+  `parsed`, `geocoded`, `published`, `merged` (злито як дублікати), `rejected`, `review`, `error`
+  (зокрема `NO_EVENTS`, `NO_USABLE_EVENTS`, `SHARP_DROP`) і `report` — повний запис звіту джерела:
+  `withdrawals`, `reasons`, `bad_events`, `dropped` (адреси, які `_build` відкинув), `detail_errors`,
+  `cached`, `retire` (чи знімались зниклі й чому ні) тощо.
+- `private.ingest_items` — кожен елемент обходу: `stage` (`published`, `duplicate`, `review`),
+  `reject_reason`, `candidate_event_id` (для дубля — `event_id` переможця) і `raw` — той самий
+  запис, що `--json`: категорія й як її визначено (`category_how`), майданчик і як зіставлено
+  (`venue_match`, `venue_display`, координати), `quality`, ціна, артисти. `run_id` → `ingest_runs.id`.
+
+Тримається `emit.STATS_KEEP_DAYS` (30) днів, старіше видаляє наступний дамп. `apply_sql.py run` бере
+з `ingest_runs` останній безпомилковий звіт кожної пари як базу для `SHARP_DROP`.
+
+Запити (Supabase MCP `execute_sql`, лише читання):
+
+```sql
+-- Останній обхід проти попереднього: що просіло чи зламалось.
+with r as (select s.slug, i.city, i.run_id, i.finished_at, i.parsed, i.published, i.merged, i.review, i.error,
+                  dense_rank() over (order by date_trunc('minute', i.finished_at) desc) n
+           from private.ingest_runs i join public.event_sources s on s.id = i.source_id)
+select a.slug, a.city, a.parsed, b.parsed prev_parsed, a.published, a.merged, a.review, a.error
+from r a left join r b on b.slug = a.slug and b.city is not distinct from a.city and b.n = 2
+where a.n = 1 order by a.error is null, a.slug, a.city;
+
+-- Черга ручного перегляду за причинами й найчастіші незіставлені майданчики (кандидати в aliases.json).
+select split_part(reject_reason, ' ', 1) reason, count(*) from private.ingest_items
+where stage = 'review' and run_id in (select id from private.ingest_runs
+  where finished_at > now() - interval '1 day') group by 1 order by 2 desc;
+select raw->>'city' city, raw->>'venue' venue, count(*) from private.ingest_items
+where raw->>'lat' is null and created_at > now() - interval '1 day' group by 1, 2 order by 3 desc limit 20;
+
+-- Чим визначено категорію й майданчик: частка fallback/agent і photon — де слабке місце правил.
+select raw->>'source' src, raw->>'category_how' how, raw->>'venue_match' venue, count(*)
+from private.ingest_items where stage = 'published' and created_at > now() - interval '1 day'
+group by 1, 2, 3 order by 4 desc;
+
+-- Пари дублів для перевірки злиття: копія → переможець.
+select d.raw->>'title' copy, e.title winner, d.raw->>'source' copy_src, d.raw->>'starts_at' starts
+from private.ingest_items d join public.events e on e.id = d.candidate_event_id
+where d.stage = 'duplicate' and d.created_at > now() - interval '1 day' limit 50;
+```

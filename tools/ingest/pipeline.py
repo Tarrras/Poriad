@@ -260,6 +260,8 @@ def harvest(source: Source, city: str, index: VenueIndex,
             item = None
         if item is None:
             counters["rejected"] += 1
+            # Без причини (її знає лише _build), але з адресою: агент-аналітик звірить зі сторінкою.
+            counters.setdefault("dropped", []).append(str(raw.get("url") or raw.get("@id") or "?")[:200])
             continue
         if item.ends_at - item.starts_at > PERMANENT_RUN:
             counters["rejected"] += 1
