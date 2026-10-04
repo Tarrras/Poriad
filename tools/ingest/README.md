@@ -413,6 +413,13 @@ Secrets → Actions. Розклад пише лише в prod; dev — вруч�
 скопіюйте туди наявний кеш: `cp -R tools/ingest/cache ~/actions-runner/_work/Poriad/Poriad/tools/ingest/`
 (після першого checkout).
 
+Аналіз обходу: останнім кроком воркфлоу (завжди, і після збою) `tools/ingest/analyze_run.sh` запускає
+на цьому ж Mac фонову сесію Claude Code з промптом `analyst_prompt.md`. Вона лише читає базу
+(`execute_sql`; prod-сервер у `.mcp.json` зі `read_only=true`; Edit/Write/Bash заборонені) і відповідає
+вердиктом, відхиленнями й до трьох діями. Дивитись: `claude agents`, `claude attach <id>`,
+`claude logs <id>`. Потрібен `claude auth login` під тим користувачем, що запускає runner. Збій
+аналізу обхід не валить (`continue-on-error`). Вручну: `TARGET=dev tools/ingest/analyze_run.sh`.
+
 Дамп OSM: якщо жодне дзеркало Overpass не віддало свіжих даних, береться найновіше із
 застарілого (дзеркало або старий кеш) із попередженням у stderr; обхід зупиняється лише коли
 дампу немає взагалі.

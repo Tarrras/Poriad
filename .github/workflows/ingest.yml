@@ -31,12 +31,26 @@ jobs:
           clean: false
       # Системний python3 Mac із уже встановленим psycopg, як і для ручного запуску.
       - run: rm -rf out
-      - run: python3 -m unittest discover -s tools/ingest -p 'test_*.py' -t .
+      - id: tests
+        run: python3 -m unittest discover -s tools/ingest -p 'test_*.py' -t .
       # Розклад не має inputs — тоді prod.
-      - run: python3 tools/apply_sql.py run --env "${{ inputs.env || 'prod' }}" --apply --yes
+      - id: dump
+        run: python3 tools/apply_sql.py run --env "${{ inputs.env || 'prod' }}" --apply --yes
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           SUPABASE_DB_URL_DEV: ${{ secrets.SUPABASE_DB_URL_DEV }}
+      # Аналіз обходу: фонова сесія Claude Code на цьому ж Mac (читає базу, нічого не пише). Запускається
+      # завжди, і після збою теж: тоді вона найпотрібніша. Збій самого аналізу обхід не валить.
+      - if: always()
+        continue-on-error: true
+        run: tools/ingest/analyze_run.sh
+        env:
+          # Довгий токен із `claude setup-token`: служба runner-а не бачить вхід користувача в macOS.
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          TARGET: ${{ inputs.env || 'prod' }}
+          TESTS: ${{ steps.tests.outcome }}
+          DUMP: ${{ steps.dump.outcome }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       # Тека лишається лише після збою — тоді вона й потрібна як доказ.
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: failure()
