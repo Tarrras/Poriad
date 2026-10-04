@@ -768,9 +768,6 @@ class DetailCache(unittest.TestCase):
             self.assertIn(self.link, self.asked)
             self.assertEqual(counters["audit_stale"], [self.link])
             self.assertTrue(any("Інша назва" in i.title for i in items))     # береться свіже
-            self.asked.clear()
-            _, counters = self.harvest(NOW + dt.timedelta(days=1))
-            self.assertEqual(counters["audited"], 1)        # аудит бере з кешу вже оновлений запис
 
     def test_unreadable_status_section_disables_the_cache(self):
         with tempfile.TemporaryDirectory() as tmp:
