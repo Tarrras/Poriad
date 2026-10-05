@@ -396,7 +396,7 @@ python3 tools/apply_sql.py run --env prod --apply
 
 ## Розклад: GitHub Actions на self-hosted runner-і (Mac)
 
-`.github/workflows/ingest.yml` щодня о 03:00 UTC і вручну (Run workflow) запускає ту саму команду
+`.github/workflows/ingest.yml` щодня о 09:07 UTC, 12:07 Київ влітку (не о :00 — GitHub пропускає запуски на початку години) і вручну (Run workflow) запускає ту саму команду
 в prod, але на Mac, а не на машинах GitHub: Concert.ua відповідає 403 на їхні адреси (2026-09-25),
 а обхід без нього публікує копії з Karabas як окремі події й губить ~29% подій Concert.ua, яких
 немає ніде більше (2026-10-04). Поки Mac спить чи вимкнений, запуск чекає в черзі до доби.
