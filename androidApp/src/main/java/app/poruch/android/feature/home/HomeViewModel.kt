@@ -31,8 +31,9 @@ class HomeViewModel(private val app: PoruchApp) : MviViewModel<HomeState, HomeIn
         // Своя стрічка: та сама область, що на мапі, але без її фільтрів.
         // Картки до індексу прив'язує спільний код: тут лише завантажені, а не тисячі записів.
         val home = shared.home
-        val ranked = home.events
-        val suggested = home.suggested.take(SUGGESTED_LIMIT)
+        // Сервер не віддає сеанси, що почались, але за час у застосунку вони починаються (Event.isListed).
+        val ranked = home.events.filter { it.isListed(now) }
+        val suggested = home.suggested.filter { it.isListed(now) }.take(SUGGESTED_LIMIT)
         // Те, що вже в «Для вас», у списку міста не повторюємо.
         val remaining = ranked - suggested.toSet()
         // Місто: куди можна піти сьогодні, включно з прокатами, далі решта за рангом. Але те, що сьогодні
@@ -41,7 +42,7 @@ class HomeViewModel(private val app: PoruchApp) : MviViewModel<HomeState, HomeIn
         val runningToday = later.filter { it.isUnderway(now) }
         val city = startingToday + runningToday + (later - runningToday.toSet())
         // Стрічка приїхала з сервера, а події за час у застосунку встигають скінчитись.
-        val followed = shared.library.followEvents.filter { it.isPublished && it.isCurrent(now) }
+        val followed = shared.library.followEvents.filter { it.isPublished && it.isListed(now) }
 
         // «Ваше»: чат із непрочитаним (навіть минулої події) і запити чекають на людину, тож вони першими.
         val mine = shared.library.myEvents.associateBy { it.id }

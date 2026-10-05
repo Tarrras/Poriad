@@ -87,12 +87,13 @@ struct HomePresentation {
         let now = nowInstant()
         let plans = mine.filter { state?.concerns(event: $0) == true && $0.isPublished && $0.isCurrent(now: now) }.sorted { $0.startsAt < $1.startsAt }
         // Порядок дає сервер; за час, що картка лежить у стані, подія могла скінчитись чи зникнути.
-        followed = (state?.library.followEvents ?? []).filter { $0.isPublished && $0.isCurrent(now: now) }
+        followed = (state?.library.followEvents ?? []).filter { $0.isPublished && $0.isListed(now: now) }
 
         // Увесь екран в одному порядку. Картки до індексу прив'язує спільний код: тут лише
         // завантажені, десятки, а не тисячі записів індексу через міст.
-        let ranked = home?.events ?? []
-        let suggested = Array((home?.suggested ?? []).prefix(homeSuggestedLimit))
+        // Сервер не віддає сеанси, що почались, але за час у застосунку вони починаються (Event.isListed).
+        let ranked = (home?.events ?? []).filter { $0.isListed(now: now) }
+        let suggested = Array((home?.suggested ?? []).filter { $0.isListed(now: now) }.prefix(homeSuggestedLimit))
         // Те, що вже в «Для вас», у списку міста не повторюємо.
         let shown = Set(suggested.map(\.id))
         let remaining = ranked.filter { !shown.contains($0.id) }

@@ -35,6 +35,7 @@ class FollowRulesTest {
         assertFalse(FollowRules.isNew(fresh.copy(createdAt = followed), followed, emptySet(), now), "strictly after the follow")
         assertFalse(FollowRules.isNew(listing("past", "Минулий", startsIn = (-5).hours, endsAfter = 2.hours), followed, emptySet(), now), "over")
         assertTrue(FollowRules.isNew(listing("run", "Виставка", startsIn = (-1).days, endsAfter = 3.days), followed, emptySet(), now), "a running exhibition still counts")
+        assertFalse(FollowRules.isNew(listing("live", "Стендап", startsIn = (-1).hours), followed, emptySet(), now), "a show already under way is not offered")
     }
 
     @Test fun oneRunIsOneEventAndOnePlaceLeads() {

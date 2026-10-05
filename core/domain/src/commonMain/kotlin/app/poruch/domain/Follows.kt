@@ -92,11 +92,11 @@ object FollowRules {
     fun mayPushPlaces(lastPush: Instant?, now: Instant) = lastPush == null || now - lastPush >= PLACE_PUSH_INTERVAL
 
     /**
-     * Нове — те, що з'явилось після підписки, ще не скінчилось і про що людині ще не казали ([announced]).
+     * Нове — те, що з'явилось після підписки, ще пропонується ([Event.isListed]) і про що людині ще не казали ([announced]).
      * Що не влізло в ліміт, лишається новим і їде наступним разом; про вже назване вдруге не кажемо.
      */
     fun isNew(listing: PlaceListing, followedAt: Instant, announced: Set<String>, now: Instant): Boolean =
-        listing.endsAt > now && listing.createdAt > followedAt && listing.eventId !in announced
+        Event.isListed(listing.startsAt, listing.endsAt, listing.title, now) && listing.createdAt > followedAt && listing.eventId !in announced
 
     /**
      * Пуш для однієї людини: [followedAt] — коли вона підписалась на кожен заклад (без підписки заклад

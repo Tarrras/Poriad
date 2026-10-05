@@ -12,6 +12,12 @@ values(gen_random_uuid(),current_setting('test.host')::uuid,'SearchFixture Пр�
 -- І те, що вже скінчилось: умова на `ends_at` не має впускати минуле.
 insert into public.events(id,organizer_id,title,description,category,city,address,latitude,longitude,starts_at,ends_at,time_zone,capacity)
 values(gen_random_uuid(),current_setting('test.host')::uuid,'SearchFixture Минуле','Test description','art','Test','Park',-40.5,-30.5,now()-interval '9 days',now()-interval '8 days','UTC',1);
+-- Стендап, що почався годину тому: сеанс, на який уже не встигнуть (20261006120000).
+insert into public.events(id,organizer_id,title,description,category,city,address,latitude,longitude,starts_at,ends_at,time_zone,capacity)
+values(gen_random_uuid(),current_setting('test.host')::uuid,'SearchFixture Стендап','Test description','comedy','Test','Park',-40.5,-30.5,now()-interval '1 hour',now()+interval '1 hour','UTC',1);
+-- А ярмарок на день — як прокат: приходять і посеред (20261006130000).
+insert into public.events(id,organizer_id,title,description,category,city,address,latitude,longitude,starts_at,ends_at,time_zone,capacity)
+values(gen_random_uuid(),current_setting('test.host')::uuid,'SearchFixture Ярмарок','Test description','food','Test','Park',-40.5,-30.5,now()-interval '2 hours',now()+interval '6 hours','UTC',1);
 insert into public.event_members(event_id,user_id) select id,current_setting('test.member')::uuid from public.events where organizer_id=current_setting('test.host')::uuid;
 insert into public.events(id,organizer_id,title,description,category,city,address,latitude,longitude,starts_at,ends_at,time_zone,capacity)
 values(gen_random_uuid(),current_setting('test.host')::uuid,'SearchFixture Музика 100%_','needle-description','music','needle-city','needle-address',-40.5,-30.5,now()+interval '3 days',now()+interval '4 days','UTC',10);
@@ -29,6 +35,9 @@ do $$ begin
  assert (select count(*)=0 from public.search_events_in_view(-41,-31,-40,-30,p_category=>'social',p_text=>'needle-description')),'combined category';
  assert (select count(*)=1 from public.search_events_in_view(-41,-31,-40,-30,p_text=>'SearchFixture Прокат')),'an event already under way is still discoverable';
  assert (select count(*)=0 from public.search_events_in_view(-41,-31,-40,-30,p_text=>'SearchFixture Минуле')),'an event that has ended is not';
+ assert (select count(*)=0 from public.search_events_in_view(-41,-31,-40,-30,p_text=>'SearchFixture Стендап')),'a session already under way is not';
+ assert (public.discover_events(-41,-31,-40,-30,p_text=>'SearchFixture Стендап')->>'total')::int=0,'nor in the index';
+ assert (public.discover_events(-41,-31,-40,-30,p_text=>'SearchFixture Ярмарок')->>'total')::int=1,'a one-day fair stays until it closes';
  -- «На вихідних» — про те, що почнеться: `p_from`/`p_to` на `starts_at`.
  assert (select count(*)=0 from public.search_events_in_view(-41,-31,-40,-30,p_from=>now(),p_text=>'SearchFixture Прокат')),'date window still asks about the start';
  -- Прокат змагається як «зараз»: попереду того, що почнеться завтра.
@@ -41,5 +50,5 @@ do $$ begin
  begin perform 1 from public.event_members; raise exception 'guest roster access permitted'; exception when insufficient_privilege then null; end;
 end $$;
 reset role;
-select 'PASS: search, ongoing events, date window, order, literal symbols, pre-limit availability, RLS, validation' as result;
+select 'PASS: search, ongoing runs, started sessions hidden, day fairs kept, date window, order, literal symbols, pre-limit availability, RLS, validation' as result;
 rollback;

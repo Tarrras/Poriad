@@ -122,8 +122,15 @@ data class Event(
     /** Завершилася. Таку подію не пропонуємо. */
     fun hasEnded(now: Instant): Boolean = endInstant?.let { it <= now } ?: false
 
-    /** Ще не завершилась — показуємо у стрічках і планах. */
+    /** Ще не завершилась — показуємо у планах. */
     fun isCurrent(now: Instant): Boolean = !hasEnded(now)
+
+    /** Ще можна піти, тож пропонуємо у стрічках: див. [isListed] нижче. */
+    fun isListed(now: Instant): Boolean {
+        val start = startInstant ?: return false
+        val end = endInstant ?: return false
+        return isListed(start, end, title, now)
+    }
 
     companion object {
         /** Скільки символів чужого опису показуємо, перш ніж відіслати до джерела. */
@@ -131,6 +138,24 @@ data class Event(
 
         /** Довше за добу — це вже не сеанс, а прокат. */
         private val RUN_FROM = 24.hours
+
+        /** Одноденний ярмарок чи фестиваль: довший за вечір, з назвою, що це каже. Коротша подія з «фест» — концерт фестивалю. */
+        private val DROP_IN_FROM = 4.hours
+
+        /**
+         * Корені назв, куди приходять будь-коли. Лише разом із [DROP_IN_FROM]: «Сорочинський ярмарок» на дві години —
+         * вистава. Серед 4–24-годинних без цих слів — вистави з вигаданим кінцем. Той самий список у `private.is_listed`.
+         */
+        private val DROP_IN = Regex("фест|fest|ярмар|маркет|market|базар|експо|expo|fair|виставк|форум|forum|саміт|summit|конференц|пікнік|picnic|толок|свято|день міста|ринок")
+
+        /**
+         * Чи пропонувати подію людині, що шукає, куди піти. Сеанс (стендап, концерт) — до початку: на той,
+         * що вже йде, не встигнуть. Прокат і одноденний ярмарок чи фестиваль — до кінця: туди йдуть і посеред.
+         * Свої плани, деталі й чат цим не обмежені. Дзеркало серверної `private.is_listed`.
+         */
+        fun isListed(start: Instant, end: Instant, title: String, now: Instant): Boolean =
+            end > now && (start > now || end - start > RUN_FROM ||
+                (end - start > DROP_IN_FROM && DROP_IN.containsMatchIn(title.lowercase())))
     }
 }
 
