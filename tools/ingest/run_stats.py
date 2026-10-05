@@ -25,7 +25,8 @@ def _table(header: list[str], rows: list[tuple]) -> str:
         return "  (порожньо)"
     cells = [[("—" if v is None else str(v)) for v in r] for r in rows]
     widths = [max(len(str(h)), *(len(c[i]) for c in cells)) for i, h in enumerate(header)]
-    widths = [min(w, 60) for w in widths]
+    # Посилання не обрізаємо: з обрізаним аналітик не може їх звірити.
+    widths = [w if any(c[i].startswith("http") for c in cells) else min(w, 60) for i, w in enumerate(widths)]
     line = lambda row: "  " + " | ".join(c[:w].ljust(w) for c, w in zip(row, widths))
     return "\n".join([line(header), line(["-" * w for w in widths]), *(line(c) for c in cells)])
 
@@ -45,13 +46,15 @@ def build_report(conn) -> str:
            f"подій із цим run_id у events: {events}.",
            f"Попередній обхід: {f'run_id={prev}, {gap}' if prev else 'немає (порівняти нема з чим)'}.", ""]
 
-    out += ["== Джерело × місто: останній обхід проти попереднього (parsed / published / merged / review)"]
-    rows = q("select s.slug, coalesce(r.city,'(статуси Karabas)'), r.parsed, p.parsed, r.published, p.published, r.merged, r.review, r.error, p.error"
+    out += ["== Джерело × місто: останній обхід проти попереднього («було» — попередній обхід)"]
+    rows = q("select s.slug, coalesce(r.city,'(статуси Karabas)'), r.parsed, p.parsed, r.published, p.published,"
+             " r.merged, p.merged, r.review, p.review, r.error, p.error"
              " from private.ingest_runs r join public.event_sources s on s.id = r.source_id"
              " left join private.ingest_runs p on p.run_id = %s and p.source_id = r.source_id"
              "   and p.city is not distinct from r.city"
              " where r.run_id = %s order by s.slug, r.city", prev, last)
-    out += [_table(["джерело", "місто", "parsed", "було", "published", "було", "merged", "review", "error", "було error"], rows), ""]
+    out += [_table(["джерело", "місто", "parsed", "було", "published", "було", "merged", "було", "review", "було",
+                    "error", "було error"], rows), ""]
 
     out += ["== Черга перегляду за причинами (останній обхід)"]
     out += [_table(["причина", "подій"], q(
@@ -76,8 +79,8 @@ def build_report(conn) -> str:
         " where r.run_id = %s and i.stage = 'published' group by 1 order by 2 desc", last)), ""]
 
     out += [f"== Пари злитих дублів з найбільшою різницею в назвах (до {PAIRS_LIMIT}): копія → переможець"]
-    out += [_table(["копія", "переможець", "джерело копії", "початок", "посилання копії"], q(
-        "select d.raw->>'title', e.title, d.raw->>'source', d.raw->>'starts_at', d.url"
+    out += [_table(["копія", "переможець", "джерело копії", "початок", "посилання копії", "посилання переможця"], q(
+        "select d.raw->>'title', e.title, d.raw->>'source', d.raw->>'starts_at', d.url, e.canonical_url"
         " from private.ingest_items d join private.ingest_runs r on r.id = d.run_id"
         " join public.events e on e.id = d.candidate_event_id"
         " where r.run_id = %s and d.stage = 'duplicate'"

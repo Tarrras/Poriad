@@ -697,10 +697,12 @@ class RunStats(unittest.TestCase):
             ("group by run_id order by 2 desc limit 2", [last, ("run-1", dt.datetime(2026, 10, 5, 18, 3))]),
             ("extract(epoch", [(7,)]), ("count(*) from public.events", [(2219,)]),
             ("from private.ingest_runs r join public.event_sources", [
-                ("karabas", "Київ", 161, 160, 117, 116, 29, 0, None, None)])])
+                ("karabas", "Київ", 161, 160, 117, 116, 29, 28, 0, 1, None, None)]),
+            ("d.stage = 'duplicate'", [("Копія", "Переможець", "karabas", "2026-10-10",
+                                         "https://dnipro.karabas.com/" + "a" * 70, "https://concert.ua/uk/event/b")])])
         text = build_report(conn)
         for part in ("run-2", "за 0.5 год до останнього", "7 хв тому", "2219", "karabas", "Черга перегляду", "без координат",
-                     "категорію й майданчик", "злитих дублів"):
+                     "категорію й майданчик", "злитих дублів", "посилання переможця", "було", "https://concert.ua/uk/event/b", "a" * 70):
             self.assertIn(part, text)
         self.assertFalse([q for q in conn.sql if not q.lstrip().lower().startswith(("select", "with"))])
 
