@@ -1,9 +1,8 @@
 #!/bin/bash
 # Фонова сесія Claude Code з аналізом щойно завершеного обходу (викликає .github/workflows/ingest.yml).
 #   TARGET=prod|dev TESTS=<outcome> DUMP=<outcome> RUN_URL=<посилання> tools/ingest/analyze_run.sh
-# Сесія лише читає базу (`execute_sql` MCP; prod-сервер у .mcp.json зі `read_only=true`) і нічого не
-# пише: Edit/Write/Bash заборонені, тож їй нема на що чекати дозволу. Результат: `claude agents`,
-# `claude attach <id>`, `claude logs <id>`.
+# Сесія без інструментів і без доступу до бази: дані їй дає tools/ingest/run_stats.py. Результат:
+# `claude agents`, `claude attach <id>`, `claude logs <id>`.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 # Служба runner-а стартує з мінімальним PATH.
@@ -15,19 +14,22 @@ if [ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]; then
 fi
 
 target="${TARGET:-prod}"
-server=supabase
-[ "$target" = dev ] && server=supabase-dev
+
+# Дані збирає скрипт (лише SELECT), а сесія бачить їх текстом і сама до бази не ходить: на runner нема ні
+# OAuth до Supabase MCP, ні потреби давати моделі доступ до прод-бази.
+stats="$(python3 -m tools.ingest.run_stats --env "$target" 2>&1)" || stats="НЕ ВДАЛОСЯ ЗІБРАТИ ДАНІ:
+${stats}"
 
 prompt="$(cat tools/ingest/analyst_prompt.md)
 
 Контекст:
-- середовище: ${target}; MCP-сервер для запитів: ${server} (інструмент mcp__${server}__execute_sql)
+- середовище: ${target}
 - крок «тести ingest»: ${TESTS:-невідомо}; крок «дамп у базу»: ${DUMP:-невідомо}
-- запуск: ${RUN_URL:-вручну}"
+- запуск: ${RUN_URL:-вручну}
+
+Дані з бази:
+${stats}"
 
 # RUNNER_TRACKING_ID="" — інакше runner вбиває дочірні процеси кроку, і сесія не доживе до кінця job.
-RUNNER_TRACKING_ID="" claude --bg --no-chrome \
-  --strict-mcp-config --mcp-config .mcp.json \
-  --allowedTools "mcp__${server}__execute_sql,Read" \
-  --disallowedTools "Edit,Write,NotebookEdit,Bash" \
-  -- "$prompt"      # `--`: списки інструментів жадібні й інакше проковтнули б промпт
+# --tools "" і порожній набір MCP: сесія лише читає текст і відповідає. `--` — перелік жадібний.
+RUNNER_TRACKING_ID="" claude --bg --no-chrome --strict-mcp-config --tools "" -- "$prompt"

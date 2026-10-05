@@ -44,7 +44,7 @@ jobs:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           SUPABASE_DB_URL_DEV: ${{ secrets.SUPABASE_DB_URL_DEV }}
-      # Аналіз обходу: фонова сесія Claude Code на цьому ж Mac (читає базу, нічого не пише). Запускається
+      # Аналіз обходу: фонова сесія Claude Code на цьому ж Mac. Дані з бази їй дає run_stats.py (SELECT-и), сама без доступу. Запускається
       # завжди, і після збою теж: тоді вона найпотрібніша. Збій самого аналізу обхід не валить.
       - if: always()
         continue-on-error: true
@@ -52,6 +52,8 @@ jobs:
         env:
           # Довгий токен із `claude setup-token`: служба runner-а не бачить вхід користувача в macOS.
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          SUPABASE_DB_URL_DEV: ${{ secrets.SUPABASE_DB_URL_DEV }}
           TARGET: ${{ inputs.env || 'prod' }}
           TESTS: ${{ steps.tests.outcome }}
           DUMP: ${{ steps.dump.outcome }}

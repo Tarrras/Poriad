@@ -674,6 +674,37 @@ class SitemapSourceIgnoresListing(unittest.TestCase):
         self.assertNotIn("error", counters)
 
 
+class RunStats(unittest.TestCase):
+    """Зведення для аналітика: лише SELECT, і порожня база — повідомлення, а не падіння."""
+
+    class _Conn:
+        def __init__(self, answers):
+            self.answers, self.sql = answers, []
+
+        def execute(self, sql, params=()):
+            self.sql.append(sql)
+            rows = next((r for key, r in self.answers if key in sql), [])
+            return types.SimpleNamespace(fetchall=lambda: rows)
+
+    def test_empty_base_says_so(self):
+        from .run_stats import build_report
+        self.assertIn("НЕМАЄ ДАНИХ", build_report(self._Conn([])))
+
+    def test_report_has_every_section_and_reads_only(self):
+        from .run_stats import build_report
+        last = ("run-2", dt.datetime(2026, 10, 5, 18, 33))
+        conn = self._Conn([
+            ("group by run_id order by 2 desc limit 2", [last, ("run-1", dt.datetime(2026, 10, 4, 18, 33))]),
+            ("extract(epoch", [(7,)]), ("count(*) from public.events", [(2219,)]),
+            ("from private.ingest_runs r join public.event_sources", [
+                ("karabas", "Київ", 161, 160, 117, 116, 29, 0, None, None)])])
+        text = build_report(conn)
+        for part in ("run-2", "7 хв тому", "2219", "karabas", "Черга перегляду", "без координат",
+                     "категорію й майданчик", "злитих дублів"):
+            self.assertIn(part, text)
+        self.assertFalse([q for q in conn.sql if not q.lstrip().lower().startswith(("select", "with"))])
+
+
 class ClaudeProvider(unittest.TestCase):
     """`--agent` за підпискою Max: `claude -p` з промптом у stdin, без ключа API."""
 
