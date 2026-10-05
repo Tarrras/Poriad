@@ -661,6 +661,8 @@
   <string name="person_block_confirm">Точно заблокувати</string>
   <string name="report_person_title">Поскаржитись на людину</string>
   <string name="attendees_show_all">Показати всіх</string>
+  <string name="expanded">Розгорнуто</string>
+  <string name="collapsed">Згорнуто</string>
   <string name="person_open">Відкрити профіль: %1$s</string>
   <!-- «Мої події» (docs/my-events.md) -->
   <string name="tab_going">Іду</string>

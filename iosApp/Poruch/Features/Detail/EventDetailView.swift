@@ -38,6 +38,8 @@ struct EventDetailView: View {
     @State private var showAllPeople = false
     /// Картка людини відкрита з цього екрана. Див. `personSheet`.
     @State private var showingPerson = false
+    /// «Ще в цьому місці» розгорнуто. Згорнуто за замовчуванням: це вихід з події, а не її частина.
+    @State private var showOthersHere = false
     /// Шторка «Шукаю компанію».
     @State private var seekingCompany = false
     /// «Поділитися» щойно створеним супутником.
@@ -123,10 +125,15 @@ struct EventDetailView: View {
     private func detail(_ event: Event, _ view: EventDetailPresentation) -> some View {
         ZStack(alignment: .bottom) {
             ScrollView {
-                VStack(alignment: .leading, spacing: Space.xl) {
+                VStack(alignment: .leading, spacing: 0) {
                     hero(event, view)
-                    sections(event, view).padding(.horizontal, Space.page)
-                }.padding(.bottom, view.canSeekCompany ? 210 : 140)
+                    // Аркуш із заокругленим верхом наїжджає на обкладинку: сторінка лягає на афішу, а не продовжує її.
+                    sections(event, view).padding(.horizontal, Space.page).padding(.top, Space.xl)
+                        .padding(.bottom, view.canSeekCompany ? 210 : 140)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Palette.canvas, in: UnevenRoundedRectangle(
+                            topLeadingRadius: Corner.xl, topTrailingRadius: Corner.xl, style: .continuous))
+                }
                 .reportsScrollOffset(in: detailScrollSpace, to: $offset)
             }
             .coordinateSpace(name: detailScrollSpace)
@@ -134,26 +141,27 @@ struct EventDetailView: View {
             .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: { topInset = $0 }
             // Єдиний шар обкладинки: від краю екрана, під смугою статусу. При потягу вниз
             // розтягується, при прокрутці їде вгору вдвічі повільніше за стрічку (паралакс);
-            // сама стрічка лишається в safe area, щоб індикатор потягу було видно. Градієнт у
-            // папір тут же, на картинці, а не в стрічці: інакше при паралаксі вони розходяться
-            // і низ фото стирчить різким краєм.
+            // сама стрічка лишається в safe area, щоб індикатор потягу було видно. Та сама афіша,
+            // що й велика картка головної (`EventArt`): без фото — насичений градієнт категорії,
+            // а не бліда пастель; низ темніє під білу назву.
             .background(alignment: .top) {
-                EventThumbnail(event: event, glyphSize: 48, maxDimension: 420)
+                EventArt(event: event, maxDimension: heroHeight, glyphSize: 260, glyphDrop: 120)
                     .frame(height: heroHeight + max(offset, 0)).frame(maxWidth: .infinity).clipped()
-                    .overlay(alignment: .bottom) {
+                    .overlay(
                         LinearGradient(
-                            stops: [.init(color: .clear, location: 0), .init(color: Palette.canvas.opacity(0.85), location: 0.55),
-                                    .init(color: Palette.canvas, location: 1)],
+                            stops: [.init(color: .clear, location: 0.35), .init(color: .black.opacity(0.55), location: 0.75),
+                                    .init(color: .black.opacity(0.82), location: 1)],
                             startPoint: .top, endPoint: .bottom
-                        ).frame(height: 240)
-                    }
+                        )
+                    )
                     .offset(y: min(offset, 0) * heroParallax)
                     .ignoresSafeArea(edges: .top)
             }
-            // Коли обкладинка поїхала вгору, текст інакше йде під годинник: смуга статусу набирає колір полотна.
+            // Коли аркуш доїхав до годинника, текст інакше йде під нього: смуга статусу набирає колір полотна.
+            // Не раніше: світла смуга над темною обкладинкою відрізала б її, а з-під смуги визирали б кути аркуша.
             .overlay(alignment: .top) {
                 Palette.canvas.frame(height: topInset).ignoresSafeArea(edges: .top)
-                    .opacity(min(max((-offset - scrimFrom) / scrimFade, 0), 1))
+                    .opacity(min(max((-offset - (heroHeight - topInset - Corner.xl - scrimFade)) / scrimFade, 0), 1))
                     .allowsHitTesting(false)
             }
             stickyBar(event, view)
@@ -191,8 +199,8 @@ struct EventDetailView: View {
             if let room = view.room { people(room, view) }
             venue(event, view)
             if !view.cancelled && !view.ended { safety() }
-            if !othersHere.isEmpty { othersHereSection(placeName: event.placeName) }
             description(event)
+            if !othersHere.isEmpty { othersHereSection(placeName: event.placeName) }
             if view.hasChat || view.contactURL != nil { contact(view) }
             if view.organizer && !view.requests.isEmpty { joinRequests(event, view) }
             if view.canRate { RateEventSection(event: event, mine: view.myRating) }
@@ -292,10 +300,12 @@ private struct DetailDialogs: ViewModifier {
 /// Скільки учасників видно до «Показати всіх».
 private let rosterCollapsed = 3
 /// Висота обкладинки від краю екрана.
-private let heroHeight: CGFloat = 400
-/// Звідки й за скільки проявляється смуга під статусом: низ обкладинки вже згас у полотно.
-private let scrimFrom: CGFloat = 220
-private let scrimFade: CGFloat = 80
+private let heroHeight: CGFloat = 480
+/// Звідки й за скільки гасне текст на обкладинці при прокрутці.
+private let heroTextFadeFrom: CGFloat = 100
+private let heroTextFade: CGFloat = 140
+/// За скільки проявляється смуга під статусом, поки аркуш під'їжджає до неї.
+private let scrimFade: CGFloat = 40
 /// Частка швидкості стрічки, з якою обкладинка їде вгору. Менше одиниці — паралакс.
 private let heroParallax: CGFloat = 0.5
 /// Ім'я системи координат стрічки для `reportsScrollOffset`.
@@ -307,14 +317,23 @@ extension EventDetailView {
     /// на фото, де вже темніє градієнт: тому вони в стилі «на фото».
     private func hero(_ event: Event, _ view: EventDetailPresentation) -> some View {
         Color.clear
-            .frame(height: max(heroHeight - topInset, 0)).frame(maxWidth: .infinity)
-            // Назва лежить на згасанні обкладинки в полотно, як у Moonly: одна сцена, а не фото з підписом.
+            // Низ обкладинки на `Corner.xl` ховається під аркушем секцій.
+            .frame(height: max(heroHeight - topInset - Corner.xl, 0)).frame(maxWidth: .infinity)
+            // Назва лежить на затемненні обкладинки, як на великій картці головної: одна сцена, а не фото з підписом.
             .overlay(alignment: .bottomLeading) {
                 VStack(alignment: .leading, spacing: Space.md) {
                     badges(event, view)
-                    Text(event.displayTitle).font(PoruchFont.serifDisplay).kerning(-0.5).foregroundStyle(Palette.ink)
-                        .fixedSize(horizontal: false, vertical: true)
-                }.padding(.horizontal, Space.page)
+                    VStack(alignment: .leading, spacing: Space.sm) {
+                        // Відлік лише для сьогоднішнього, як на картці плану головної.
+                        Text(heroOverline(event)).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.accentOnPhoto)
+                            .lineLimit(2)
+                        Text(event.displayTitle).font(PoruchFont.serifDisplay).kerning(-0.5).foregroundStyle(.white)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(.horizontal, Space.page).padding(.bottom, Space.xl)
+                // Текст їде зі стрічкою, а смуга статусу з'являється лише з аркушем: назва гасне, поки не дійшла до годинника.
+                .opacity(heroTextOpacity(cancelled: view.cancelled))
             }
             .overlay(alignment: .top) {
                 HStack(spacing: Space.sm) {
@@ -326,6 +345,15 @@ extension EventDetailView {
                     ) { if !actions.toggleSaved(event, signedIn: view.signedIn) { auth = true } }
                 }.padding(Space.page)
             }
+    }
+
+    private func heroTextOpacity(cancelled: Bool) -> Double {
+        let scrolled = min(max(1 - (-offset - heroTextFadeFrom) / heroTextFade, 0), 1)
+        return (cancelled ? 0.7 : 1) * scrolled
+    }
+
+    private func heroOverline(_ event: Event) -> String {
+        parseEventDate(event.startsAt).map(Calendar.current.isDateInToday) == true ? countdownOverline(event) : cardOverline(event)
     }
 
     /// Категорія і стан: на обкладинці, тому в стилі «на фото».
@@ -647,9 +675,28 @@ extension EventDetailView {
 
     /// Інші події на цій точці. Заголовок — місце (назва закладу, коли є), тому рядку досить дати й назви.
     /// Окремий екран поверх, а не підміна: «назад» має повертати сюди; `.task` вище перечитає подію після повернення.
+    /// Згорнуто після опису: у великого закладу десятки подій, і розгорнутий список відсував би решту сторінки.
     private func othersHereSection(placeName: String?) -> some View {
         VStack(alignment: .leading, spacing: Space.sm) {
-            SectionHeader(title: placeName.map { "Ще в «\($0)»" } ?? "Ще в цьому місці")
+            Button { withAnimation(.snappy) { showOthersHere.toggle() } } label: {
+                HStack(spacing: Space.sm) {
+                    Text(placeName.map { "Ще в «\($0)»" } ?? "Ще в цьому місці").font(PoruchFont.serifTitle2).kerning(-0.2)
+                        .foregroundStyle(Palette.ink).multilineTextAlignment(.leading)
+                    Spacer(minLength: Space.sm)
+                    Text("\(othersHere.count)").font(PoruchFont.label).foregroundStyle(Palette.inkSecondary).monospacedDigit()
+                    Image(systemName: "chevron.down").font(.system(size: 13, weight: .semibold)).foregroundStyle(Palette.inkTertiary)
+                        .rotationEffect(.degrees(showOthersHere ? 180 : 0))
+                }
+                .frame(minHeight: 44).contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityValue(showOthersHere ? "Розгорнуто" : "Згорнуто")
+            .accessibilityHint("Подій: \(othersHere.count)")
+            if showOthersHere { othersHereList }
+        }
+    }
+
+    private var othersHereList: some View {
             VStack(spacing: 0) {
                 ForEach(othersHere, id: \.id) { other in
                     let label = sessionLabel(EventSession(id: other.id, startsAt: other.startsAt, timeZone: other.timeZone, cancelled: false))
@@ -671,7 +718,6 @@ extension EventDetailView {
                 }
             }
             .cardSurface()
-        }
     }
 
     /// Чат учасників. Кнопка веде не в браузер, а на попередження: посилання чуже, ми його не
@@ -789,9 +835,11 @@ extension EventDetailView {
                 }
             }
         }
-        .padding(.horizontal, Space.page).padding(.vertical, Space.md)
-        .background(Palette.surface.ignoresSafeArea(edges: .bottom))
-        .overlay(alignment: .top) { Rectangle().fill(Palette.hairline).frame(height: 1) }
+        // Плаває над сторінкою: дія під пальцем, а не смуга на всю ширину. Суцільна картка, а не скло:
+        // скло над світлим полотном зливалось із ним, а «Шукаю компанію» всередині — зі склом.
+        .padding(.horizontal, Space.lg).padding(.vertical, Space.md)
+        .cardSurface(radius: Corner.xl, elevation: Elevation.overlay)
+        .padding(.horizontal, Space.md)
     }
 }
 

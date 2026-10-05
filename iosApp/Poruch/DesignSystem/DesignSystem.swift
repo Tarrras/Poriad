@@ -46,6 +46,8 @@ enum Palette {
     static let accent = Color(light: 0xE0582F, dark: 0xFF8A5B)
     /// `accent` як колір дрібного тексту на білому: сам `accent` там дає 3,75:1, цей — 5,1:1. Заливкам і крапкам лишається `accent`.
     static let accentText = Color(light: 0xC2431F, dark: 0xFF8A5B)
+    /// Акцентний текст на темному затемненні обкладинки — в обох темах світлий варіант.
+    static let accentOnPhoto = Color(light: 0xFF8A5B, dark: 0xFF8A5B)
     static let accentContainer = Color(light: 0xFDE7DF, dark: 0x3F2419)
     static let onAccentContainer = Color(light: 0x7A2E14, dark: 0xFFD9C8)
 

@@ -3,6 +3,7 @@ package app.poruch.android.feature.detail
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -29,6 +30,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
@@ -37,7 +41,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
@@ -45,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import app.poruch.android.EventMap
 import app.poruch.android.R
 import app.poruch.android.ui.*
+import app.poruch.android.feature.mine.countdownOverline
 import app.poruch.domain.ArtistRole
 import app.poruch.domain.ContactRules
 import app.poruch.domain.Event
@@ -61,7 +65,6 @@ import app.poruch.domain.RatingRules
 import app.poruch.domain.RatingTag
 import app.poruch.domain.ReportReason
 import app.poruch.domain.ShelterKind
-import coil3.compose.AsyncImage
 
 @Composable
 fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
@@ -83,49 +86,59 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
             // Дві кнопки в панелі («Шукаю компанію» і квиток) стоять другим рядом — панель вища.
             val bottom = if (state.canSeekCompany) 168.dp else 104.dp
             Column(Modifier.fillMaxSize().verticalScroll(scroll).navigationBarsPadding().padding(bottom = bottom)) {
-                Hero(event, state, onIntent)
+                Hero(event, state, scroll, onIntent)
+                // Аркуш із заокругленим верхом наїжджає на обкладинку: сторінка лягає на афішу, а не продовжує її.
                 Column(
-                    Modifier.padding(horizontal = Spacing.page).padding(top = Spacing.md),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.lg)
+                    Modifier.offset(y = -HERO_OVERLAP).fillMaxWidth().background(colors.canvas, Radius.sheet)
                 ) {
-                    Restrictions(state)
-                    state.companionOf?.let { parent ->
-                        GroupedRows {
-                            LinkRow(Icons.Outlined.Groups, stringResource(R.string.companion_parent, TitleRules.display(parent.title)), onClick = { onIntent(DetailIntent.OpenEvent(parent.id)) })
+                    Column(
+                        Modifier.padding(horizontal = Spacing.page).padding(top = Spacing.xl),
+                        verticalArrangement = Arrangement.spacedBy(Spacing.lg)
+                    ) {
+                        Restrictions(state)
+                        state.companionOf?.let { parent ->
+                            GroupedRows {
+                                LinkRow(Icons.Outlined.Groups, stringResource(R.string.companion_parent, TitleRules.display(parent.title)), onClick = { onIntent(DetailIntent.OpenEvent(parent.id)) })
+                            }
                         }
+                        ExternalActions(state, onIntent)
                     }
-                    ExternalActions(state, onIntent)
-                }
-                // Поза колонкою з полями: смуга дат іде від краю до краю.
-                if (state.sessions.size > 1) Sessions(state, onIntent, Modifier.padding(top = Spacing.lg))
-                Column(
-                    Modifier.padding(horizontal = Spacing.page).padding(top = Spacing.lg),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.lg)
-                ) {
-                    if (event.artists.isNotEmpty()) Lineup(event, onIntent)
-                    Facts(event)
-                    if (state.companions.isNotEmpty() && !state.cancelled) Companions(state, onIntent)
-                    event.gathering?.let { People(state, it, onIntent) }
-                    Venue(event, state.followingPlace, onIntent)
-                    if (!state.cancelled && !state.ended) Safety(state, onIntent)
-                    if (state.othersHere.isNotEmpty()) OthersHere(state.othersHere, event.placeName, onIntent)
-                    Description(event, onIntent)
-                    // Чат і посилання — для своїх: сервер віддає посилання лише організатору й підтвердженим.
-                    if (state.hasChat || event.gathering?.hasContact == true) ContactSection(state, event, onIntent)
-                    if (state.organizer && state.requests.isNotEmpty()) JoinRequests(state, onIntent)
-                    if (state.canRate) RateEvent(state, onIntent)
-                    if (state.organizer && state.ended && !state.cancelled) Ratings(state)
-                    // Після кінця редагувати й скасовувати нічого: лишаються відгуки.
-                    if (state.organizer && !state.cancelled && !state.ended) OrganizerActions(state, onIntent)
-                    if (!state.organizer) SafetyActions(event, onIntent)
+                    // Поза колонкою з полями: смуга дат іде від краю до краю.
+                    if (state.sessions.size > 1) Sessions(state, onIntent, Modifier.padding(top = Spacing.lg))
+                    Column(
+                        Modifier.padding(horizontal = Spacing.page).padding(top = Spacing.lg),
+                        verticalArrangement = Arrangement.spacedBy(Spacing.lg)
+                    ) {
+                        if (event.artists.isNotEmpty()) Lineup(event, onIntent)
+                        Facts(event)
+                        if (state.companions.isNotEmpty() && !state.cancelled) Companions(state, onIntent)
+                        event.gathering?.let { People(state, it, onIntent) }
+                        Venue(event, state.followingPlace, onIntent)
+                        if (!state.cancelled && !state.ended) Safety(state, onIntent)
+                        Description(event, onIntent)
+                        if (state.othersHere.isNotEmpty()) OthersHere(state.othersHere, event.placeName, onIntent)
+                        // Чат і посилання — для своїх: сервер віддає посилання лише організатору й підтвердженим.
+                        if (state.hasChat || event.gathering?.hasContact == true) ContactSection(state, event, onIntent)
+                        if (state.organizer && state.requests.isNotEmpty()) JoinRequests(state, onIntent)
+                        if (state.canRate) RateEvent(state, onIntent)
+                        if (state.organizer && state.ended && !state.cancelled) Ratings(state)
+                        // Після кінця редагувати й скасовувати нічого: лишаються відгуки.
+                        if (state.organizer && !state.cancelled && !state.ended) OrganizerActions(state, onIntent)
+                        if (!state.organizer) SafetyActions(event, onIntent)
+                    }
                 }
             }
         }
-        // Коли обкладинка поїхала вгору, текст інакше йде під годинник: смуга статусу набирає колір полотна.
+        // Коли аркуш доїхав до годинника, текст інакше йде під нього: смуга статусу набирає колір полотна.
+        // Не раніше: світла смуга над темною обкладинкою відрізала б її.
         val density = LocalDensity.current
+        val statusTop = WindowInsets.statusBars.getTop(density)
         Box(
             Modifier.fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars)
-                .graphicsLayer { alpha = with(density) { ((scroll.value - SCRIM_FROM.toPx()) / SCRIM_FADE.toPx()).coerceIn(0f, 1f) } }
+                .graphicsLayer {
+                    val from = (HERO_HEIGHT - HERO_OVERLAP - SCRIM_FADE).toPx() - statusTop
+                    alpha = ((scroll.value - from) / SCRIM_FADE.toPx()).coerceIn(0f, 1f)
+                }
                 .background(colors.canvas)
         )
         StickyAction(state, event, Modifier.align(Alignment.BottomCenter), onIntent)
@@ -257,19 +270,21 @@ private fun ReportSheet(target: ReportTarget, onIntent: (DetailIntent) -> Unit) 
 }
 
 /**
- * Обкладинка на весь верх екрана, що згасає в полотно; назва й стан лежать на цьому згасанні,
- * як у картці дня Moonly: одна сцена, а не фото з підписом.
+ * Обкладинка на весь верх екрана — та сама афіша, що й велика картка головної ([EventArt]): без фото
+ * насичений градієнт категорії, а не бліда пастель. Назва й стан лежать на затемненні внизу: одна сцена,
+ * а не фото з підписом. Низ на [HERO_OVERLAP] ховається під аркушем секцій.
  */
 @Composable
-private fun Hero(event: Event, state: DetailState, onIntent: (DetailIntent) -> Unit) {
-    val colors = Poruch.colors
+private fun Hero(event: Event, state: DetailState, scroll: ScrollState, onIntent: (DetailIntent) -> Unit) {
     val room = state.room
+    // Відлік лише для сьогоднішнього, як на картці плану головної.
+    val today = runCatching {
+        java.time.Instant.parse(event.startsAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate() == java.time.LocalDate.now()
+    }.getOrDefault(false)
+    val overline = if (today) countdownOverline(event) else cardOverline(event, dateWords())
     Box(Modifier.fillMaxWidth()) {
-        Box(Modifier.fillMaxWidth().height(400.dp).background(categoryGradient(event.category)), contentAlignment = Alignment.Center) {
-            Icon(categoryIcon(event.category), null, Modifier.size(56.dp), tint = categoryInk(event.category))
-            event.imageUrl?.let {
-                AsyncImage(model = it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-            }
+        Box(Modifier.fillMaxWidth().height(HERO_HEIGHT)) {
+            EventArt(event, Modifier.fillMaxSize(), glyph = 260.dp, glyphDrop = 120.dp)
             // Обкладинка довільна, тож тонка тінь зверху тримає смугу статусу читабельною.
             Box(
                 Modifier.fillMaxWidth().align(Alignment.TopCenter)
@@ -277,8 +292,8 @@ private fun Hero(event: Event, state: DetailState, onIntent: (DetailIntent) -> U
                     .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.32f), Color.Transparent)))
             )
             Box(
-                Modifier.fillMaxWidth().height(260.dp).align(Alignment.BottomCenter).background(
-                    Brush.verticalGradient(0f to Color.Transparent, 0.55f to colors.canvas.copy(alpha = 0.85f), 1f to colors.canvas)
+                Modifier.matchParentSize().background(
+                    Brush.verticalGradient(0.35f to Color.Transparent, 0.75f to Color.Black.copy(alpha = 0.55f), 1f to Color.Black.copy(alpha = 0.82f))
                 )
             )
         }
@@ -291,7 +306,13 @@ private fun Hero(event: Event, state: DetailState, onIntent: (DetailIntent) -> U
             ) { onIntent(DetailIntent.ToggleSaved) }
         }
         Column(
-            Modifier.align(Alignment.BottomStart).padding(horizontal = Spacing.page),
+            Modifier.align(Alignment.BottomStart).padding(horizontal = Spacing.page).padding(bottom = HERO_OVERLAP + Spacing.xl)
+                // Текст їде зі стрічкою, а смуга статусу з'являється лише з аркушем: назва гасне, поки не дійшла до годинника.
+                .graphicsLayer {
+                    // Читання в шарі, а не в композиції: прокрутка не перескладає обкладинку.
+                    val faded = 1f - (scroll.value - HERO_TEXT_FADE_FROM.toPx()) / HERO_TEXT_FADE.toPx()
+                    alpha = faded.coerceIn(0f, 1f) * if (state.cancelled) 0.7f else 1f
+                },
             verticalArrangement = Arrangement.spacedBy(Spacing.sm)
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
@@ -311,8 +332,8 @@ private fun Hero(event: Event, state: DetailState, onIntent: (DetailIntent) -> U
                         StatusBadge(stringResource(R.string.seats_left, room.seatsLeft), BadgeTone.Accent)
                 }
             }
-            Text(eventOverline(event, dateWords()), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
-            Text(event.displayTitle, style = PoruchType.serifDisplay, color = colors.ink)
+            Text(overline, style = MaterialTheme.typography.labelSmall, color = Poruch.colors.accentOnPhoto, maxLines = 2)
+            Text(event.displayTitle, style = PoruchType.serifDisplay, color = Color.White)
         }
     }
 }
@@ -866,9 +887,23 @@ private fun durationWords(minutes: Int): String {
 private fun OthersHere(others: List<EventIndexEntry>, placeName: String?, onIntent: (DetailIntent) -> Unit) {
     val colors = Poruch.colors
     val words = dateWords()
+    // Згорнуто після опису: у великого закладу десятки подій, і розгорнутий список відсував би решту сторінки.
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    val state = stringResource(if (expanded) R.string.expanded else R.string.collapsed)
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-        SectionHeader(if (placeName != null) stringResource(R.string.others_here_at, placeName) else stringResource(R.string.others_here))
-        Column(Modifier.cardSurface(Radius.md)) {
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = 44.dp).clickable(role = Role.Button) { expanded = !expanded }
+                .semantics(mergeDescendants = true) { stateDescription = state },
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                if (placeName != null) stringResource(R.string.others_here_at, placeName) else stringResource(R.string.others_here),
+                style = PoruchType.serifTitle2, color = colors.ink, modifier = Modifier.weight(1f)
+            )
+            Text("${others.size}", style = MaterialTheme.typography.labelLarge, color = colors.inkSecondary)
+            Icon(Icons.Outlined.ChevronRight, null, Modifier.size(18.dp).rotate(if (expanded) 270f else 90f), tint = colors.inkTertiary)
+        }
+        if (expanded) Column(Modifier.cardSurface(Radius.md)) {
             others.forEach { other ->
                 val (day, hour) = sessionLabel(EventSession(other.id, other.startsAt, other.timeZone), words)
                 Row(
@@ -936,8 +971,10 @@ private fun OrganizerActions(state: DetailState, onIntent: (DetailIntent) -> Uni
 @Composable
 private fun StickyAction(state: DetailState, event: Event, modifier: Modifier, onIntent: (DetailIntent) -> Unit) {
     val colors = Poruch.colors
+    // Плаває над сторінкою, як таббар головної: дія під пальцем, а не смуга на всю ширину.
     Column(
-        modifier.fillMaxWidth().background(colors.canvas).navigationBarsPadding().padding(Spacing.page),
+        modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = Spacing.md, vertical = Spacing.sm)
+            .cardSurface(Radius.xl, Elevation.overlay).padding(Spacing.lg),
         verticalArrangement = Arrangement.spacedBy(Spacing.md)
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md), verticalAlignment = Alignment.CenterVertically) {
@@ -1160,6 +1197,11 @@ private fun ScrimButton(icon: ImageVector, description: String, onClick: () -> U
 /** Скільки учасників видно до «Показати всіх». */
 private const val ROSTER_COLLAPSED = 3
 
-/** Звідки й за скільки проявляється смуга під статусом: обкладинка 400 dp, її низ уже згас у полотно. */
-private val SCRIM_FROM = 180.dp
-private val SCRIM_FADE = 80.dp
+/** Висота обкладинки й скільки її низу ховається під аркушем секцій. */
+private val HERO_HEIGHT = 480.dp
+private val HERO_OVERLAP = 28.dp
+/** Звідки й за скільки гасне текст на обкладинці при прокрутці. */
+private val HERO_TEXT_FADE_FROM = 100.dp
+private val HERO_TEXT_FADE = 140.dp
+/** За скільки проявляється смуга під статусом, поки аркуш під'їжджає до неї. */
+private val SCRIM_FADE = 40.dp

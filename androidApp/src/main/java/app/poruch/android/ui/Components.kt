@@ -1614,14 +1614,15 @@ fun EventHeroCard(
 
 /**
  * Афіша на всю обкладинку; без фото — насичений градієнт категорії з її великим прозорим гліфом.
- * Одна на hero й постер, щоб подія без фото не блідла серед подій із ним. [glyph] — розмір прозорого гліфа.
+ * Одна на hero й постер, щоб подія без фото не блідла серед подій із ним. [glyph] — розмір прозорого гліфа,
+ * [glyphDrop] — наскільки його опустити (на деталях верх зайнятий смугою статусу й кнопками).
  */
 @Composable
-fun EventArt(event: Event, modifier: Modifier = Modifier, glyph: Dp = 220.dp) {
+fun EventArt(event: Event, modifier: Modifier = Modifier, glyph: Dp = 220.dp, glyphDrop: Dp = 0.dp) {
     if (event.imageUrl == null) Box(modifier.background(categoryHeroGradient(event.category))) {
         Icon(
             categoryIcon(event.category), null,
-            Modifier.align(Alignment.TopEnd).offset(x = glyph * 0.25f, y = -glyph * 0.04f).size(glyph),
+            Modifier.align(Alignment.TopEnd).offset(x = glyph * 0.25f, y = glyphDrop - glyph * 0.04f).size(glyph),
             tint = Color.White.copy(alpha = 0.18f)
         )
     } else EventImage(event, modifier, glyphSize = 72.dp)

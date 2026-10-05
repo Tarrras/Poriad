@@ -43,6 +43,8 @@ data class PoruchColors(
     val accent: Color,
     /** `accent` як колір дрібного тексту на білому: сам `accent` там дає 3,75:1, цей — 5,1:1. Заливкам і крапкам лишається `accent`. */
     val accentText: Color,
+    /** Акцентний текст на темному затемненні обкладинки — в обох темах світлий варіант. */
+    val accentOnPhoto: Color,
     val accentContainer: Color,
     val onAccentContainer: Color,
     val success: Color,
@@ -79,6 +81,7 @@ val LightPoruchColors = PoruchColors(
     onBrandContainer = Color(0xFF1D1D1F),
     accent = Color(0xFFE0582F),
     accentText = Color(0xFFC2431F),
+    accentOnPhoto = Color(0xFFFF8A5B),
     accentContainer = Color(0xFFFDE7DF),
     onAccentContainer = Color(0xFF7A2E14),
     success = Color(0xFF2E7D4F),
@@ -114,6 +117,7 @@ val DarkPoruchColors = PoruchColors(
     onBrandContainer = Color(0xFFF5F5F7),
     accent = Color(0xFFFF8A5B),
     accentText = Color(0xFFFF8A5B),
+    accentOnPhoto = Color(0xFFFF8A5B),
     accentContainer = Color(0xFF3F2419),
     onAccentContainer = Color(0xFFFFD9C8),
     success = Color(0xFF5DC389),

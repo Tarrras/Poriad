@@ -1215,12 +1215,14 @@ struct EventArt: View {
     var maxDimension: CGFloat = 800
     /// Розмір прозорого гліфа без фото.
     var glyphSize: CGFloat = 220
+    /// Наскільки опустити гліф: на деталях верх обкладинки зайнятий смугою статусу й кнопками.
+    var glyphDrop: CGFloat = 0
     var body: some View {
         if event.imageUrl == nil {
             ZStack(alignment: .topTrailing) {
                 categoryHeroGradient(event.category)
                 PoruchIcon(glyph: categoryGlyph(event.category), size: glyphSize)
-                    .foregroundStyle(.white.opacity(0.18)).offset(x: glyphSize * 0.25, y: -glyphSize * 0.04)
+                    .foregroundStyle(.white.opacity(0.18)).offset(x: glyphSize * 0.25, y: glyphDrop - glyphSize * 0.04)
             }
         } else {
             EventThumbnail(event: event, glyphSize: 72, maxDimension: maxDimension)
