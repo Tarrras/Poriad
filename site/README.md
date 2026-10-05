@@ -4,12 +4,12 @@
 
 | Файл | Навіщо |
 | --- | --- |
-| `index.html` | Лендинг: скріншоти, що вміє, підтримка, кнопки сторів |
+| `index.html`, `home.css`, `fonts/` | Лендинг (макет 1b з Claude Design, токени застосунку; Inter і Source Serif 4 600 локально) |
 | `privacy.html`, `privacy-en.html` | Privacy Policy URL для Play Console / App Store Connect і посилання в застосунку |
 | `terms.html`, `terms-en.html` | Terms / EULA з правилами UGC (Apple 1.2, Play UGC policy) |
 | `delete-account.html` | Обов'язковий веб-URL для Play «Account deletion» |
 | `bot.html` | Сторінка робота імпорту (`/bot` з User-Agent `PoriadBot`): що читає, як відмовитись |
-| `img/` | Скріншоти для лендингу |
+| `img/` | Екрани для лендингу: `detail`, `editor` — знімки iOS; `home`, `map`, `my-events` — з макета, демо-події |
 | `CNAME`, `robots.txt` | Домен для GitHub Pages і дозвіл на індексацію |
 
 ## Перед публікацією

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="uk">
+<html lang="uk" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,62 +8,110 @@
 <meta property="og:title" content="Поряд — події вашого міста на одній мапі">
 <meta property="og:description" content="Знаходьте події на мапі, приєднуйтесь і створюйте власні зустрічі.">
 <meta property="og:image" content="img/og.png">
-<link rel="stylesheet" href="style.css">
+<link rel="preload" href="fonts/source-serif-4-600.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="home.css">
 <link rel="icon" href="icon.png">
 <link rel="apple-touch-icon" href="icon.png">
 </head>
 <body>
-<header class="hero"><div class="wrap">
-  <a class="brand" href="index.html"><img src="icon.png" alt=""><b>Поряд</b></a>
-  <nav class="top">
-    <a href="index.html" aria-current="page">Про застосунок</a>
-    <a href="privacy.html">Конфіденційність</a>
-    <a href="terms.html">Умови</a>
-    <a href="delete-account.html">Видалити акаунт</a>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21C12 21 4.8 13.6 4.8 9.4C4.8 5.4 8 2.8 12 2.8C16 2.8 19.2 5.4 19.2 9.4C19.2 13.6 12 21 12 21ZM9.2 9.4a2.8 2.8 0 1 0 5.6 0a2.8 2.8 0 1 0-5.6 0Z"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><path d="M6.5 5h11a3 3 0 0 1 3 3v9.5a3 3 0 0 1-3 3h-11a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3ZM3.5 10h17M8 3v4M16 3v4"/><circle cx="12" cy="15" r="1.35" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M12 3C12.8 8.6 15.4 11.2 21 12C15.4 12.8 12.8 15.4 12 21C11.2 15.4 8.6 12.8 3 12C8.6 11.2 11.2 8.6 12 3Z"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5M7.5 10.5h9a3 3 0 0 1 3 3v4a3 3 0 0 1-3 3h-9a3 3 0 0 1-3-3v-4a3 3 0 0 1 3-3Z"/><circle cx="12" cy="15.5" r="1.5" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-person" viewBox="0 0 24 24"><path d="M8.2 8a3.8 3.8 0 1 0 7.6 0a3.8 3.8 0 1 0-7.6 0ZM4.5 20.5C4.5 16 7.8 13.8 12 13.8C16.2 13.8 19.5 16 19.5 20.5"/></symbol>
+</svg>
+<div class="page">
+
+<header class="glow">
+  <nav>
+    <a class="brand" href="index.html"><img src="icon.png" alt="">Поряд</a>
+    <div class="links">
+      <a href="#features">Що вміє</a>
+      <a href="#safety">Безпека</a>
+      <a href="#support">Підтримка</a>
+      <a class="btn primary" href="https://apps.apple.com/ua/app/id6813543772">App Store</a>
+    </div>
   </nav>
-  <h1 style="margin-top:40px">Події вашого міста<br>на одній мапі</h1>
-  <p class="lead">Концерти, настолки, пробіжки, лекції, розмовні клуби. Те, що відбувається за 15 хвилин ходьби від вас сьогодні ввечері.</p>
-  <div class="row">
-    <!-- Після публікації: <a class="pill" href="…"> із посиланням на стор, без «скоро». -->
-    <a class="pill" data-store="ios" href="https://apps.apple.com/ua/app/id6813543772">App Store</a>
-    <span class="pill ghost" data-store="android">Google Play · <span class="todo">скоро</span></span>
+  <div class="hero">
+    <span class="chip cities"><svg class="ico"><use href="#i-pin"/></svg>Київ · Львів · Одеса · Дніпро · Харків</span>
+    <h1>Концерти, настолки, пробіжки й зустрічі у вашому місті</h1>
+    <p class="lead">Знаходьте на мапі, приєднуйтесь, створюйте власні.</p>
+    <div class="stores">
+      <a class="btn primary" href="https://apps.apple.com/ua/app/id6813543772">App Store</a>
+      <!-- Після публікації: <a class="btn secondary" href="https://play.google.com/store/apps/details?id=app.poriad.android">Google Play</a> -->
+      <span class="btn secondary soon">Google Play ·&nbsp;<span class="todo">скоро</span></span>
+    </div>
   </div>
-</div></header>
+  <div class="fan">
+    <div class="phone"><img src="img/detail.jpg" alt="Сторінка події: обкладинка, час, місце й кнопка «Іду»"></div>
+    <div class="phone"><img src="img/home.jpg" alt="Головний екран: ваші плани й події в місті"></div>
+    <div class="phone"><img src="img/map.jpg" alt="Мапа Києва з кластерами подій і карткою настолок"></div>
+    <div class="phone"><img src="img/my-events.jpg" alt="Мої події: куди ви йдете цього тижня"></div>
+  </div>
+</header>
 
-<main class="wrap">
+<main>
+<section id="features">
+  <div class="feature">
+    <div class="text">
+      <div class="overline">01 · Мапа</div>
+      <h2>Мапа замість стрічки</h2>
+      <p>Сотні подій міста з кластерами за категоріями. Фільтри «сьогодні», «вихідні», «є вільні місця».</p>
+      <div class="chips" aria-hidden="true">
+        <span class="chip on">Сьогодні</span><span class="chip">Вихідні</span><span class="chip">Є вільні місця</span>
+        <span class="chip"><span class="dot" style="color:var(--cat-music)"></span>Музика</span>
+        <span class="chip"><span class="dot" style="color:var(--cat-games)"></span>Ігри</span>
+      </div>
+    </div>
+    <div class="phone"><img src="img/map.jpg" alt="Мапа з подіями міста" loading="lazy"></div>
+  </div>
+  <div class="feature flip">
+    <div class="phone"><img src="img/home.jpg" alt="Головна: афіша й зустрічі від людей" loading="lazy"></div>
+    <div class="text">
+      <div class="overline">02 · Афіша й спільнота</div>
+      <h2>Афіша й спільнота разом</h2>
+      <p>Концерти та вистави з квиткових сервісів поруч із зустрічами, які створюють люди.</p>
+      <p class="note">Афішні події беруться з відкритих джерел із зазначенням джерела; квитки купуються на сайті організатора.</p>
+    </div>
+  </div>
+  <div class="feature">
+    <div class="text">
+      <div class="overline">03 · Свої зустрічі</div>
+      <h2>Свої зустрічі за три кроки</h2>
+      <p>Опис, точка на мапі, час і місткість. Черга очікування, підтвердження учасників, вікові межі.</p>
+      <div class="segmented" aria-hidden="true"><span class="on">Що</span><span>Де</span><span>Коли</span></div>
+    </div>
+    <div class="phone"><img src="img/editor.jpg" alt="Редактор події: назва, опис і категорія" loading="lazy"></div>
+  </div>
+</section>
 
-<div class="shots">
-  <img src="img/02_map.jpg" alt="Мапа Києва з пінами подій і каруселлю карток">
-  <img src="img/01_home.jpg" alt="Головний екран: плани на тиждень і підбірка за інтересами">
-  <img src="img/03_detail.jpg" alt="Сторінка події: час, місце, квитки, маршрут">
-  <img src="img/06_create.jpg" alt="Чат учасників події">
-</div>
+<section id="safety">
+  <div class="rows">
+    <div class="row"><span><svg class="ico"><use href="#i-calendar"/></svg></span><div><b>Плани й нагадування</b><small>«Мої події», збережене, нагадування за годину до початку, експорт у календар і маршрут у системних мапах.</small></div></div>
+    <div class="row"><span><svg class="ico"><use href="#i-sparkle"/></svg></span><div><b>Рекомендації без стеження</b><small>Відповіді про інтереси зберігаються на пристрої й лише сортують події.</small></div></div>
+  </div>
+  <div class="rows">
+    <div class="row"><span><svg class="ico"><use href="#i-lock"/></svg></span><div><b>Для дорослих</b><small>Реєстрація з 18 років. У кожній події є скарга й блокування.</small></div></div>
+    <div class="row"><span><svg class="ico"><use href="#i-person"/></svg></span><div><b>Імена учасників</b><small>Бачать лише організатор і ті, хто вже приєднався.</small></div></div>
+  </div>
+</section>
 
-<h2>Що вміє</h2>
-<div class="card">
-<ul>
-  <li><b>Мапа замість стрічки.</b> Сотні подій міста з кластерами за категоріями. Фільтри «сьогодні», «вихідні», «є вільні місця».</li>
-  <li><b>Афіша й спільнота разом.</b> Концерти та вистави з квиткових сервісів поруч із зустрічами, які створюють люди.</li>
-  <li><b>Свої зустрічі за три кроки.</b> Опис, точка на мапі, час і місткість. Черга очікування, підтвердження учасників, вікові межі.</li>
-  <li><b>Чат учасників.</b> Організатор і підтверджені учасники спілкуються всередині події.</li>
-  <li><b>Плани й нагадування.</b> «Мої події», збережене, нагадування за годину до початку, експорт у календар і маршрут у системних мапах.</li>
-  <li><b>Рекомендації без стеження.</b> Відповіді про інтереси зберігаються на пристрої й лише сортують події.</li>
-</ul>
-</div>
-
-<h2>Безпека</h2>
-<p>«Поряд» для дорослих: реєстрація з 18 років. У кожній події є скарга й блокування, а імена учасників бачать лише організатор і ті, хто вже приєднався. Детальніше в <a href="privacy.html">політиці конфіденційності</a> та <a href="terms.html">умовах</a>.</p>
-
-<h2>Підтримка</h2>
-<p>Питання, скарги, запити правовласників: <a href="mailto:hello@poriad.app">hello@poriad.app</a>. Відповідаємо протягом 24 годин.</p>
-
+<section class="cta">
+  <img src="icon.png" alt="" loading="lazy">
+  <h2>Поряд — події поряд з вами</h2>
+  <div class="stores">
+    <a class="btn primary" href="https://apps.apple.com/ua/app/id6813543772">App Store</a>
+    <span class="btn secondary soon">Google Play ·&nbsp;<span class="todo">скоро</span></span>
+  </div>
+</section>
 </main>
-<footer><div class="wrap">
-  <span>© 2026 Поряд</span>
-  <a href="privacy.html">Конфіденційність</a>
-  <a href="terms.html">Умови користування</a>
-  <a href="delete-account.html">Видалення акаунту</a>
-  <a href="privacy-en.html">English</a>
-</div></footer>
+
+<footer id="support">
+  <span>Питання, скарги, запити правовласників: <a href="mailto:hello@poriad.app">hello@poriad.app</a>. Відповідаємо протягом 24 годин.</span>
+  <div><a href="privacy.html">Конфіденційність</a><a href="terms.html">Умови</a><a href="delete-account.html">Видалити акаунт</a><a href="privacy-en.html">English</a></div>
+</footer>
+
+</div>
 </body>
 </html>
