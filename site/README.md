@@ -9,7 +9,7 @@
 | `terms.html`, `terms-en.html` | Terms / EULA з правилами UGC (Apple 1.2, Play UGC policy) |
 | `delete-account.html` | Обов'язковий веб-URL для Play «Account deletion» |
 | `bot.html` | Сторінка робота імпорту (`/bot` з User-Agent `PoriadBot`): що читає, як відмовитись |
-| `img/` | Екрани для лендингу: `detail`, `editor` — знімки iOS; `home`, `map`, `my-events` — з макета, демо-події |
+| `img/` | Екрани для лендингу — знімки iOS prod-збірки (603×1311). Без тестової «Демо для перевірки застосунку» в кадрі |
 | `CNAME`, `robots.txt` | Домен для GitHub Pages і дозвіл на індексацію |
 
 ## Перед публікацією
