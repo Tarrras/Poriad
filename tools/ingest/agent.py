@@ -185,6 +185,7 @@ class Agent:
         self._injected = call is not None
         self._call = call or self._post
         self.requests = 0
+        self.failures = 0                     # запити, що закінчились помилкою транспорту
         self.errors: list[str] = []
         self.unknown: list = []               # події, для яких модель сказала «жодна»
         # Рішення з підставами в пам'яті: людина має бачити, на чому модель помилилась.
@@ -288,12 +289,18 @@ class Agent:
         """Один виклик `claude -p`: без інструментів, MCP, налаштувань користувача й проєкту (hooks,
         CLAUDE.md), у нейтральній теці. Промпт іде через stdin: він завеликий для аргументу."""
         self.requests += 1
+        # Токен із секрету CI міг потрапити з переносом рядка (скопійований з терміналу): CLI тоді
+        # відповідає «Invalid auth token». Пробіли в токені не бувають, тож їх прибираємо.
+        env = dict(os.environ)
+        if env.get("CLAUDE_CODE_OAUTH_TOKEN"):
+            env["CLAUDE_CODE_OAUTH_TOKEN"] = "".join(env["CLAUDE_CODE_OAUTH_TOKEN"].split())
         proc = subprocess.run(
             ["claude", "-p", "--model", self.model, "--no-session-persistence", "--restricted",
              "--tools", "", "--disable-slash-commands", "--strict-mcp-config",
              "--system-prompt", "Відповідай лише тим, про що просять, без вступів і пояснень."],
-            input=prompt, capture_output=True, text=True, timeout=300, cwd=tempfile.gettempdir())
+            input=prompt, capture_output=True, text=True, timeout=300, cwd=tempfile.gettempdir(), env=env)
         if proc.returncode != 0:
+            self.failures += 1
             raise RuntimeError((proc.stderr or proc.stdout).strip()[:200] or f"claude -p: код {proc.returncode}")
         return proc.stdout
 

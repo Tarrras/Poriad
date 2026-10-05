@@ -705,6 +705,23 @@ class ClaudeProvider(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 Agent(provider="claude").ask("Питання")
 
+    def test_token_with_a_line_break_is_cleaned_and_failures_are_counted(self):
+        from .agent import Agent
+        seen = []
+
+        def fake_run(cmd, **kwargs):
+            seen.append(kwargs["env"].get("CLAUDE_CODE_OAUTH_TOKEN"))
+            return types.SimpleNamespace(returncode=1, stdout="", stderr="Invalid auth token")
+
+        with patch("tools.ingest.agent.shutil.which", return_value="/bin/claude"), \
+             patch("tools.ingest.agent.subprocess.run", fake_run), \
+             patch.dict("os.environ", {"CLAUDE_CODE_OAUTH_TOKEN": "abc\ndef "}):
+            agent = Agent(provider="claude")
+            with self.assertRaises(RuntimeError):
+                agent.ask("Питання")
+        self.assertEqual(seen, ["abcdef"])
+        self.assertEqual((agent.requests, agent.failures), (1, 1))
+
     def test_not_ready_without_the_binary(self):
         from .agent import Agent
         with patch("tools.ingest.agent.shutil.which", return_value=None):

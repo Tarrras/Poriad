@@ -432,10 +432,16 @@ def main(argv: list[str] | None = None) -> int:
     if args.report:
         args.report.write_text(json.dumps({"run_id": run_id, "sources": reports},
                                          ensure_ascii=False, indent=2), "utf-8", errors="replace")
+    # Агент, що не відповів жодного разу, — не «трохи бідніший обхід», а зламаний вхід чи токен: без цього
+    # рядка дамп із порожніми категоріями й артистами виглядає успішним (так було 2026-10-05).
+    agent_down = bool(agent and agent.requests and agent.failures == agent.requests)
+    if agent_down:
+        print(f"ПОМИЛКА АГЕНТА: усі {agent.requests} запитів до моделі невдалі — перевірте вхід "
+              f"claude / CLAUDE_CODE_OAUTH_TOKEN. Категорії й артисти цього обходу не розібрані.", file=sys.stderr)
     failed = [r for r in reports if r.get("error")]
     for r in failed:
         print(f"ПОМИЛКА ДЖЕРЕЛА {r.get('city', '—')} · {r.get('source')}: {r['error']}", file=sys.stderr)
-    return 1 if failed else 0
+    return 1 if failed or agent_down else 0
 
 
 if __name__ == "__main__":

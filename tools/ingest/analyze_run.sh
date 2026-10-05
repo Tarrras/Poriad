@@ -9,6 +9,11 @@ cd "$(dirname "$0")/../.."
 # Служба runner-а стартує з мінімальним PATH.
 export PATH="$HOME/.npm-global/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
 
+# Токен із секрету міг прийти з переносом рядка (скопійований з терміналу): CLI тоді не входить.
+if [ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]; then
+  export CLAUDE_CODE_OAUTH_TOKEN="$(printf %s "$CLAUDE_CODE_OAUTH_TOKEN" | tr -d '[:space:]')"
+fi
+
 target="${TARGET:-prod}"
 server=supabase
 [ "$target" = dev ] && server=supabase-dev
