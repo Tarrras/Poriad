@@ -37,14 +37,16 @@ def build_report(conn) -> str:
     if not runs:
         return "НЕМАЄ ДАНИХ: у private.ingest_runs жодного обходу (дамп не дійшов до бази або статистика не пишеться)."
     (last, last_at), prev = runs[0], (runs[1][0] if len(runs) > 1 else None)
+    gap = f"записано {runs[1][1]:%Y-%m-%d %H:%M} UTC, за {(last_at - runs[1][1]).total_seconds() / 3600:.1f} год до останнього" \
+        if len(runs) > 1 else ""
     age = q("select round(extract(epoch from now() - %s::timestamptz) / 60)", last_at)[0][0]
     events = q("select count(*) from public.events where ingest_run_id = %s", last)[0][0]
     out = [f"Останній обхід: run_id={last}, записано {last_at:%Y-%m-%d %H:%M} UTC ({int(age)} хв тому), "
            f"подій із цим run_id у events: {events}.",
-           f"Попередній обхід: {prev or 'немає (порівняти нема з чим)'}.", ""]
+           f"Попередній обхід: {f'run_id={prev}, {gap}' if prev else 'немає (порівняти нема з чим)'}.", ""]
 
     out += ["== Джерело × місто: останній обхід проти попереднього (parsed / published / merged / review)"]
-    rows = q("select s.slug, coalesce(r.city,'—'), r.parsed, p.parsed, r.published, p.published, r.merged, r.review, r.error, p.error"
+    rows = q("select s.slug, coalesce(r.city,'(статуси Karabas)'), r.parsed, p.parsed, r.published, p.published, r.merged, r.review, r.error, p.error"
              " from private.ingest_runs r join public.event_sources s on s.id = r.source_id"
              " left join private.ingest_runs p on p.run_id = %s and p.source_id = r.source_id"
              "   and p.city is not distinct from r.city"
@@ -57,11 +59,12 @@ def build_report(conn) -> str:
         " join private.ingest_runs r on r.id = i.run_id where r.run_id = %s and i.stage = 'review'"
         " group by 1 order by 2 desc", last)), ""]
 
-    out += [f"== Найчастіші майданчики без координат у черзі (кандидати в aliases.json), топ {VENUES_LIMIT}"]
+    out += [f"== Найчастіші майданчики без координат (NO_GEO; кандидати в aliases.json), топ {VENUES_LIMIT}"]
     out += [_table(["місто", "майданчик", "подій"], q(
         "select r.city, i.raw->>'venue', count(*) from private.ingest_items i"
         " join private.ingest_runs r on r.id = i.run_id"
         " where r.run_id = %s and i.stage = 'review' and i.raw->>'lat' is null"
+        "   and i.reject_reason like 'NO_GEO%%'"
         " group by 1, 2 order by 3 desc limit %s", last, VENUES_LIMIT)), ""]
 
     out += ["== Опубліковані: чим визначено категорію й майданчик, за джерелами"]

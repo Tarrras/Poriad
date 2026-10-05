@@ -694,12 +694,12 @@ class RunStats(unittest.TestCase):
         from .run_stats import build_report
         last = ("run-2", dt.datetime(2026, 10, 5, 18, 33))
         conn = self._Conn([
-            ("group by run_id order by 2 desc limit 2", [last, ("run-1", dt.datetime(2026, 10, 4, 18, 33))]),
+            ("group by run_id order by 2 desc limit 2", [last, ("run-1", dt.datetime(2026, 10, 5, 18, 3))]),
             ("extract(epoch", [(7,)]), ("count(*) from public.events", [(2219,)]),
             ("from private.ingest_runs r join public.event_sources", [
                 ("karabas", "Київ", 161, 160, 117, 116, 29, 0, None, None)])])
         text = build_report(conn)
-        for part in ("run-2", "7 хв тому", "2219", "karabas", "Черга перегляду", "без координат",
+        for part in ("run-2", "за 0.5 год до останнього", "7 хв тому", "2219", "karabas", "Черга перегляду", "без координат",
                      "категорію й майданчик", "злитих дублів"):
             self.assertIn(part, text)
         self.assertFalse([q for q in conn.sql if not q.lstrip().lower().startswith(("select", "with"))])
