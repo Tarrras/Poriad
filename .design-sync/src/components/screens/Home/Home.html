@@ -10,49 +10,65 @@
   body { padding: 24px; display: flex; gap: 32px; align-items: flex-start; flex-wrap: wrap; }
   figure { margin: 0; display: flex; flex-direction: column; gap: 8px; }
   figcaption { font: 600 11px/14px var(--font); letter-spacing: 1px; text-transform: uppercase; color: var(--ink-tertiary); }
-  .phone { width: 402px; height: 874px; border-radius: 48px; overflow: hidden; position: relative; background: var(--canvas); box-shadow: 0 0 0 1px var(--hairline); }
-  .phone > .p-screen { height: 100%; overflow: hidden; padding-top: 54px; }
+  .phone { width: 402px; height: 874px; border-radius: 48px; overflow: hidden; position: relative; box-shadow: 0 0 0 1px var(--hairline); }
+  .phone > .feed { height: 100%; overflow: hidden; padding-top: 54px; box-sizing: border-box; }
   .shot { width: 402px; height: 874px; border-radius: 48px; box-shadow: 0 0 0 1px var(--hairline); }
+  .gutter { padding: 0 var(--page-gutter); }
 </style>
 </head>
 <body>
 <figure>
   <figcaption>Built from styles.css</figcaption>
   <div class="phone">
-    <div class="p-screen">
-      <header class="p-page-header">
-        <div><h1>Що поруч</h1><p>Плани на найближчі дні у місті Київ</p></div>
-        <span class="p-icon-btn"><i class="p-icon i-person"></i></span>
+    <div class="feed p-glow">
+      <!-- Header: serif display title, city picker under it, two 48 IconPills. Top padding 20. -->
+      <header class="p-page-header gutter" style="padding-top:20px">
+        <div><h1>Що поруч</h1><p>Київ ⌄</p></div>
+        <div style="display:flex;gap:8px">
+          <span class="p-icon-pill"><i class="p-icon i-search"></i></span>
+          <span class="p-icon-pill"><i class="p-icon i-person"></i></span>
+        </div>
       </header>
-      <div class="p-search" style="margin-top:20px"><i class="p-icon i-search"></i>Пошук у місті Київ</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:24px">
-        <div class="p-quick p-quick--filled">
-          <span class="p-quick__icon"><i class="p-icon i-plus"></i></span>
-          <div><div class="p-overline">Організувати</div><div class="p-card-name" style="color:inherit">Створити подію</div></div>
-        </div>
-        <div class="p-quick">
-          <span class="p-quick__icon"><i class="p-icon i-map"></i></span>
-          <div><div class="p-overline">Дослідити</div><div class="p-card-name">На мапі</div></div>
-        </div>
-      </div>
-      <div class="p-rows" style="margin-top:32px">
-        <div class="p-row">
-          <span class="p-row__icon"><i class="p-icon i-lock"></i></span>
-          <div><div class="p-row__title">Ваші люди — поруч</div><div class="p-row__sub">Увійдіть, щоб зберігати події та отримувати нагадування.</div></div>
-          <span class="p-create" style="width:32px;height:32px;margin-left:auto;box-shadow:none">→</span>
-        </div>
-      </div>
-      <section class="p-section">
-        <h2 class="p-section-title">Ще для вас</h2>
-        <article class="p-card cat-comedy">
-          <div class="p-card__cover p-cat-fill" style="display:grid;place-items:center;height:120px"><i class="p-icon i-comedy" style="width:40px;height:40px"></i></div>
-          <div class="p-card__body">
-            <div class="p-overline">Сьогодні · 19:00</div>
-            <h3 class="p-card-name">Стендап та вино</h3>
-            <div class="p-descriptor"><span class="p-dot p-cat-ink"></span><b class="p-cat-ink">Стендап</b> · F-Bar, Київ</div>
+      <div style="display:flex;flex-direction:column;gap:24px;padding-top:28px">
+        <div class="gutter">
+          <div class="p-create-card">
+            <span class="p-create-card__icon"><i class="p-icon i-plus" style="width:18px;height:18px"></i></span>
+            <div><div class="p-create-card__title">Організувати подію</div><div class="p-create-card__sub">Зберіть людей на настолки, пробіжку чи кіно</div></div>
+            <span>→</span>
           </div>
-        </article>
-      </section>
+        </div>
+        <section class="gutter" style="display:flex;flex-direction:column;gap:12px">
+          <h2 class="p-section-title">Ваше</h2>
+          <div class="p-rows">
+            <div class="p-your-row">
+              <span class="p-your-row__tile"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></svg></span>
+              <div><div class="p-row__title">Підписки: 15 подій</div><div class="p-row__sub">Василь Байдак та ще 14</div></div>
+              <span class="p-row__chevron">›</span>
+            </div>
+          </div>
+        </section>
+        <section style="display:flex;flex-direction:column;gap:12px">
+          <h2 class="p-section-title gutter">У місті <a href="#">Усі 827</a></h2>
+          <div class="p-pager">
+            <article class="p-hero cat-social">
+              <div class="p-art"><i class="p-icon i-social"></i></div>
+              <span class="p-badge p-badge--on-photo" style="color:var(--on-accent-container)">Запит надіслано</span>
+              <span class="p-save"><i class="p-icon i-bookmark" style="width:16px;height:16px"></i></span>
+              <div class="p-hero__text">
+                <h3 class="p-hero__title">Демо для перевірки застосунку — закрита зустріч</h3>
+                <div><div class="p-hero__when">ЧТ, 15 ЖОВТ. · 17:22</div><div class="p-hero__where">вулиця Хрещатик, 22</div></div>
+              </div>
+            </article>
+            <article class="p-hero cat-comedy">
+              <div class="p-art"><i class="p-icon i-comedy"></i></div>
+              <div class="p-hero__text">
+                <div class="p-overline" style="color:rgba(255,255,255,.75)">Для вас</div>
+                <h3 class="p-hero__title">Стендап Субота</h3>
+              </div>
+            </article>
+          </div>
+        </section>
+      </div>
     </div>
     <div class="p-tabbar-wrap">
       <nav class="p-tabbar p-glass">
@@ -66,8 +82,36 @@
   </div>
 </figure>
 <figure>
-  <figcaption>App (iOS, 25.09.2026)</figcaption>
+  <figcaption>App (iOS, 05.10.2026)</figcaption>
   <img class="shot" src="../../../guidelines/screens/02-home-1-light.png" alt="Home screen screenshot">
+</figure>
+<figure>
+  <figcaption>Poster grid (built)</figcaption>
+  <div class="phone" style="background:var(--canvas)">
+    <div class="feed" style="padding-top:64px">
+      <div class="p-chip-row gutter"><span class="p-chip p-chip--selected">Усе</span><span class="p-chip">Сьогодні</span><span class="p-chip">Завтра</span><span class="p-chip">Вихідні</span></div>
+      <div class="p-poster-grid gutter" style="margin-top:24px">
+        <article class="p-poster cat-comedy">
+          <div class="p-poster__art"><div class="p-art"><i class="p-icon i-comedy"></i></div>
+            <span class="p-badge p-badge--on-photo top">Підписки</span><span class="p-save"><i class="p-icon i-bookmark" style="width:16px;height:16px"></i></span>
+            <span class="p-badge p-badge--on-photo bottom">Від 490 ₴</span></div>
+          <div class="p-poster__caption"><div class="p-overline">У суботу · 18:00</div><h3 class="p-card-name">Василь Байдак</h3>
+            <div class="p-descriptor"><span class="p-dot p-cat-ink"></span><span>Міжнародний культурний центр</span></div><div class="p-poster__note">Афіша · Badseller</div></div>
+        </article>
+        <article class="p-poster cat-music">
+          <div class="p-poster__art"><div class="p-art"><i class="p-icon i-music"></i></div>
+            <span class="p-badge p-badge--on-photo top">Для вас</span><span class="p-save"><i class="p-icon i-bookmark" style="width:16px;height:16px"></i></span>
+            <span class="p-badge p-badge--on-photo bottom">Від 550 ₴</span></div>
+          <div class="p-poster__caption"><div class="p-overline">Пт, 23 жовт. · 19:00</div><h3 class="p-card-name">Fiesta Del Sol</h3>
+            <div class="p-descriptor"><span class="p-dot p-cat-ink"></span><span>Міжнародний культурний центр</span></div><div class="p-poster__note">Афіша · Concert.ua</div></div>
+        </article>
+      </div>
+    </div>
+  </div>
+</figure>
+<figure>
+  <figcaption>App — poster grid</figcaption>
+  <img class="shot" src="../../../guidelines/screens/02-home-2-light.png" alt="Home poster grid screenshot">
 </figure>
 </body>
 </html>
