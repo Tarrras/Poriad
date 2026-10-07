@@ -34,6 +34,8 @@ data class ProfileState(
     val analytics: Boolean = true,
     /** Шторка видалення акаунта відкрита; пароль живе лише в ній. */
     val deleting: Boolean = false,
+    /** Акаунт без пароля (Google/Apple): ні рядка зміни пароля, ні поля пароля при видаленні. */
+    val passwordless: Boolean = false,
     val deletePassword: String = "",
     /** Помилка видалення показується в шторці: банер під нею не видно. */
     val deleteError: AppError? = null,
@@ -53,7 +55,7 @@ data class ProfileState(
     val passwordsMismatch get() = newPasswordConfirm.isNotEmpty() && newPasswordConfirm != newPassword
     val canSetNewPassword get() = canSavePassword && newPasswordConfirm == newPassword
     val canChangePassword get() = canSavePassword && currentPassword.isNotEmpty()
-    val canDelete get() = AccountRules.isPassword(deletePassword)
+    val canDelete get() = passwordless || AccountRules.isPassword(deletePassword)
 }
 
 sealed interface ProfileIntent {

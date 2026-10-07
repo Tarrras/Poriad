@@ -27,6 +27,7 @@ class ProfileViewModel(private val app: PoruchApp, private val notifications: No
                 follows = shared.library.follows,
                 mutating = shared.mutating,
                 passwordRecovery = shared.session.passwordRecovery,
+                passwordless = shared.session.passwordless,
                 // Після відновлення чи зміни поле чистимо, щоб пароль не висів.
                 newPassword = if (shared.session.passwordRecovery || changingPassword) newPassword else "",
                 newPasswordConfirm = if (shared.session.passwordRecovery) newPasswordConfirm else "",
@@ -95,7 +96,8 @@ class ProfileViewModel(private val app: PoruchApp, private val notifications: No
                 reduce { copy(deleting = intent.show, deletePassword = "", deleteError = null) }
             }
             is ProfileIntent.SetDeletePassword -> reduce { copy(deletePassword = intent.value, deleteError = null) }
-            ProfileIntent.ConfirmDeleteAccount -> app.deleteAccount(state.value.deletePassword)
+            // Акаунт Apple, видалений з Android, токенів Apple не відкликає: свіжого коду тут не взяти.
+            ProfileIntent.ConfirmDeleteAccount -> state.value.let { app.deleteAccount(it.deletePassword.takeUnless { _ -> it.passwordless }, null) }
             is ProfileIntent.ShowChangePassword -> {
                 if (!intent.show) app.clearNotice()
                 reduce { copy(changingPassword = intent.show, currentPassword = "", newPassword = "", changeError = null) }

@@ -223,7 +223,7 @@
   <string name="delete_account_confirm">Видалити</string>
   <string name="delete_account_cancel">Скасувати</string>
   <string name="msg_account_deleted">Обліковий запис видалено</string>
-  <string name="auth_consent">Реєструючись, ви погоджуєтесь з %1$s та %2$s</string>
+  <string name="auth_consent">Продовжуючи, ви погоджуєтесь з %1$s та %2$s</string>
   <string name="auth_consent_terms">Умовами користування</string>
   <string name="auth_consent_privacy">Політикою конфіденційності</string>
   <string name="about_app_body">«Поряд» — події та люди у вашому місті. Мапа: MapLibre та OpenFreeMap.</string>
@@ -309,6 +309,13 @@
   <string name="editor_schedule_hint">Час, місткість і хто може приєднатись.</string>
   <string name="auth_tab_login">Вхід</string>
   <string name="auth_tab_signup">Реєстрація</string>
+  <string name="continue_with_google">Продовжити з Google</string>
+  <string name="auth_or_email">або поштою</string>
+  <string name="google_no_account">На пристрої немає акаунта Google. Додайте його в налаштуваннях або увійдіть поштою.</string>
+  <string name="google_sign_in_failed">Не вдалося увійти через Google. Спробуйте ще раз або увійдіть поштою.</string>
+  <string name="auth_birth_date_title">Ще один крок</string>
+  <string name="auth_birth_date_subtitle">Вкажіть дату народження: «Поряд» — для повнолітніх. Її ніхто не побачить.</string>
+  <string name="auth_birth_date_continue">Продовжити</string>
   <string name="my_events_subtitle">Плани, власні зустрічі й збережене в одному місці</string>
   <string name="calendar_short">Календар</string>
 

@@ -32,6 +32,11 @@ import app.poruch.android.platform.*
 import app.poruch.domain.CityResult
 import app.poruch.domain.HomeLocation
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.credentials.exceptions.GetCredentialException
+import androidx.credentials.exceptions.NoCredentialException
+import app.poruch.domain.PoruchLog
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 import java.util.Locale
@@ -211,8 +216,19 @@ fun EditorRoute(route: Editor, navigator: Navigator) {
 fun AuthRoute(route: Auth, navigator: Navigator) {
     val model = koinViewModel<AuthViewModel> { parametersOf(route) }
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     model.effects.handle { effect ->
         when (effect) {
+            is AuthEffect.RequestGoogleToken -> scope.launch {
+                try {
+                    googleIdToken(context, effect.nonce)?.let { model.dispatch(AuthIntent.GoogleToken(it)) }
+                } catch (e: GetCredentialException) {
+                    // Нема акаунта Google на пристрої, нема Play-сервісів, збій мережі: людина бачить це тут,
+                    // а не в банері спільного шару — до нього справа не дійшла.
+                    PoruchLog.w("auth") { "google credential failed: ${e.type}" }
+                    context.toast(if (e is NoCredentialException) R.string.google_no_account else R.string.google_sign_in_failed)
+                }
+            }
             AuthEffect.Close -> navigator.back()
             // Увійшли: гість, що тапнув «Створити», не лишається на головній, а потрапляє в редактор.
             AuthEffect.SignedIn -> { navigator.back(); if (route.creating) navigator.open(Editor()) }

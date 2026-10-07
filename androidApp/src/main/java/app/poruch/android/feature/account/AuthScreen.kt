@@ -1,7 +1,9 @@
 package app.poruch.android.feature.account
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -18,7 +20,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
@@ -54,7 +59,10 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
             }
             Box(Modifier.size(72.dp).background(colors.brand, CircleShape), contentAlignment = Alignment.Center) {
                 Icon(
-                    when { confirming -> PoruchIcons.checkCircle; state.resetting -> PoruchIcons.lock; else -> PoruchIcons.pin },
+                    when {
+                        confirming -> PoruchIcons.checkCircle; state.resetting -> PoruchIcons.lock
+                        state.askBirthDate -> PoruchIcons.calendar; else -> PoruchIcons.pin
+                    },
                     null, Modifier.size(32.dp), tint = colors.onBrand
                 )
             }
@@ -63,6 +71,7 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
                     when {
                         confirming -> R.string.auth_check_email_title
                         state.resetting -> R.string.auth_reset_title
+                        state.askBirthDate -> R.string.auth_birth_date_title
                         state.signup -> R.string.auth_create
                         else -> R.string.auth_welcome
                     }
@@ -74,6 +83,7 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
                     when {
                         confirming -> R.string.auth_check_email_subtitle
                         state.resetting -> R.string.auth_reset_subtitle
+                        state.askBirthDate -> R.string.auth_birth_date_subtitle
                         state.creating && state.signup -> R.string.auth_subtitle_create_signup
                         state.creating -> R.string.auth_subtitle_create_signin
                         state.signup -> R.string.auth_subtitle_signup
@@ -92,6 +102,10 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
             ResetStep(state, onIntent)
             return@Column
         }
+        if (state.askBirthDate) {
+            BirthDateStep(state, onIntent)
+            return@Column
+        }
         // Фокус на перше поле: імʼя при реєстрації, пошта при вході.
         val emailField = remember { FocusRequester() }
         val nameField = remember { FocusRequester() }
@@ -99,6 +113,14 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
             runCatching { if (state.signup) nameField.requestFocus() else emailField.requestFocus() }
         }
         Column(Modifier.padding(Spacing.page), verticalArrangement = Arrangement.spacedBy(Spacing.lg)) {
+            // Google — найкоротший шлях, тож над формою; для нього вхід і реєстрація — одне й те саме.
+            if (state.googleAvailable) {
+                ProviderButton(
+                    painterResource(R.drawable.ic_google), stringResource(R.string.continue_with_google),
+                    { onIntent(AuthIntent.SignInWithGoogle) }, enabled = !state.mutating
+                )
+                OrDivider(stringResource(R.string.auth_or_email))
+            }
             // Вхід і реєстрація — два рівноправні режими, тож перемикач угорі, а не кнопка під формою.
             SegmentedPill(
                 listOf(stringResource(R.string.auth_tab_login), stringResource(R.string.auth_tab_signup)),
@@ -137,8 +159,8 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
                 { onIntent(AuthIntent.Submit) },
                 Modifier.fillMaxWidth(), enabled = state.canSubmit, loading = state.mutating
             )
-            // Згода — під кнопкою, а не чекбокс: натискання на «Створити» і є згодою, посилання ведуть на текст.
-            if (state.signup) ConsentNote(onIntent)
+            // Згода — під кнопкою, а не чекбокс: натискання на «Створити» чи «Продовжити з Google» і є згодою.
+            if (state.signup || state.googleAvailable) ConsentNote(onIntent)
             // По центру, як «Видалити обліковий запис» у профілі: текстова кнопка з лівим відступом виглядала зсунутою.
             if (!state.signup) Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 GhostButton(
@@ -151,6 +173,54 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
     if (state.pickingBirthDate) BirthDateSheet(
         state.birthDateValue, { onIntent(AuthIntent.ShowBirthDatePicker(false)) }
     ) { onIntent(AuthIntent.SetBirthDate(it)) }
+}
+
+/** Кнопка входу через провайдера: знак провайдера в оригінальних кольорах, світла пігулка. */
+@Composable
+private fun ProviderButton(logo: Painter, text: String, onClick: () -> Unit, enabled: Boolean) {
+    val colors = Poruch.colors
+    Row(
+        Modifier.fillMaxWidth().height(52.dp).background(colors.surface, Radius.pill).border(1.dp, colors.hairline, Radius.pill)
+            .clip(Radius.pill).pressable(enabled = enabled, onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Spacing.md, Alignment.CenterHorizontally)
+    ) {
+        Image(logo, null, Modifier.size(20.dp))
+        Text(text, style = MaterialTheme.typography.titleSmall, color = if (enabled) colors.ink else colors.inkTertiary)
+    }
+}
+
+/** Лінія з підписом посередині: «або поштою». */
+@Composable
+private fun OrDivider(text: String) {
+    val colors = Poruch.colors
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
+        HairLine(Modifier.weight(1f))
+        Text(text, style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary)
+        HairLine(Modifier.weight(1f))
+    }
+}
+
+/**
+ * Після входу через Google: провайдер вік не каже, а «Поряд» — для повнолітніх. Та сама дата, що
+ * при реєстрації поштою; «назад» лишає людину в акаунті, і картка віку чекатиме в профілі.
+ */
+@Composable
+private fun BirthDateStep(state: AuthState, onIntent: (AuthIntent) -> Unit) {
+    Column(Modifier.padding(Spacing.page), verticalArrangement = Arrangement.spacedBy(Spacing.lg)) {
+        PickerField(
+            stringResource(R.string.birth_date),
+            state.birthDateValue?.format(BIRTH_DATE_FORMAT).orEmpty(),
+            { onIntent(AuthIntent.ShowBirthDatePicker(true)) },
+            placeholder = stringResource(R.string.birth_date_placeholder),
+            hint = stringResource(R.string.birth_date_hint),
+            icon = PoruchIcons.calendar
+        )
+        PrimaryButton(
+            stringResource(R.string.auth_birth_date_continue), { onIntent(AuthIntent.DeclareBirthDate) },
+            Modifier.fillMaxWidth(), enabled = state.canDeclareBirthDate, loading = state.mutating
+        )
+    }
 }
 
 /** Підпис про згоду: дві назви документів — посилання в тексті, решта — тихий підпис. */

@@ -13,7 +13,12 @@ data class AuthState(
     val password: String = "",
     val passwordRevealed: Boolean = false,
     val mutating: Boolean = false,
-    val signedIn: Boolean = false,
+    /** Вхід завершено, екран закривається: ефект [AuthEffect.SignedIn] уже пішов. */
+    val finished: Boolean = false,
+    /** Кнопка «Продовжити з Google»: є, коли збірка знає Web client ID. */
+    val googleAvailable: Boolean = false,
+    /** Увійшли через Google, а дати народження нема: замість форми — крок дати. */
+    val askBirthDate: Boolean = false,
     /** ISO-8601, порожньо до вибору. Лише для реєстрації. */
     val birthDate: String = "",
     val pickingBirthDate: Boolean = false,
@@ -27,6 +32,8 @@ data class AuthState(
     /** Мінімальний вік перевіряємо тут заради чесної кнопки; база перевірить ще раз. */
     val adult get() = birthDateValue?.let { it <= LocalDate.now().minusYears(SafetyRules.MIN_SIGNUP_AGE.toLong()) } == true
     /** Без `mutating`: під час запиту кнопка лишається кольоровою зі спінером, а не сірою. */
+    /** Крок дати після входу через Google: лише повнолітня дата. */
+    val canDeclareBirthDate get() = adult
     val canSubmit get() = emailValid && AccountRules.isPassword(password) &&
         (!signup || (AccountRules.isName(name) && adult))
 }
@@ -40,6 +47,11 @@ sealed interface AuthIntent {
     data object TogglePasswordReveal : AuthIntent
     data object ToggleMode : AuthIntent
     data object Submit : AuthIntent
+    data object SignInWithGoogle : AuthIntent
+    /** Аркуш Google повернув токен для nonce з [AuthEffect.RequestGoogleToken]. */
+    data class GoogleToken(val idToken: String) : AuthIntent
+    /** Крок дати після входу через Google. */
+    data object DeclareBirthDate : AuthIntent
     data class ShowReset(val show: Boolean) : AuthIntent
     data object ResetPassword : AuthIntent
     /** З кроку «перевірте пошту» назад до форми входу з тією ж поштою. */
@@ -56,6 +68,8 @@ sealed interface AuthEffect {
     data object Close : AuthEffect
     /** Вхід вдався: екран закривається, а якщо гість прийшов зі «Створити» — відкривається редактор. */
     data object SignedIn : AuthEffect
+    /** Показати аркуш Google; [nonce] — SHA-256 для токена, сирий чекає в спільному шарі. */
+    data class RequestGoogleToken(val nonce: String) : AuthEffect
     /** Відкрити поштовий застосунок, якщо він є. */
     data object OpenMail : AuthEffect
     /** Відкрити сторінку в браузері. */

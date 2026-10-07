@@ -143,8 +143,11 @@ fun ProfileScreen(state: ProfileState, onIntent: (ProfileIntent) -> Unit) {
                     SectionHeader(stringResource(R.string.settings))
                     GroupedRows {
                         Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) { ReminderSetting(state, onIntent) }
-                        HairLine(Modifier.padding(start = Spacing.lg))
-                        LinkRow(PoruchIcons.lock, stringResource(R.string.update_password), onClick = { onIntent(ProfileIntent.ShowChangePassword(true)) })
+                        // Акаунт Google/Apple пароля не має — і міняти нічого.
+                        if (!state.passwordless) {
+                            HairLine(Modifier.padding(start = Spacing.lg))
+                            LinkRow(PoruchIcons.lock, stringResource(R.string.update_password), onClick = { onIntent(ProfileIntent.ShowChangePassword(true)) })
+                        }
                     }
                 }
                 SecondaryButton(
@@ -312,7 +315,8 @@ private fun DeleteAccountSheet(state: ProfileState, onIntent: (ProfileIntent) ->
         ) {
             Text(stringResource(R.string.delete_account_title), style = PoruchType.serifTitle2, color = colors.ink)
             Text(stringResource(R.string.delete_account_body), style = MaterialTheme.typography.bodyLarge, color = colors.inkSecondary)
-            LabelledField(
+            // Пароль доводить, що телефон у руках власника; в акаунта Google/Apple його нема — підтверджує кнопка.
+            if (!state.passwordless) LabelledField(
                 stringResource(R.string.password_label), state.deletePassword,
                 { onIntent(ProfileIntent.SetDeletePassword(it)) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),

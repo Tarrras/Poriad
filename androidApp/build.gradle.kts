@@ -49,6 +49,7 @@ android {
             resValue("string", "app_name", "Поряд Dev")
             manifestPlaceholders["authScheme"] = providers.gradleProperty("poriad.dev.authScheme").get()
             buildConfigField("String", "AUTH_SCHEME", "\"${providers.gradleProperty("poriad.dev.authScheme").get()}\"")
+            buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"${providers.gradleProperty("poriad.dev.googleWebClientId").getOrElse("")}\"")
         }
         create("prod") {
             dimension = "env"
@@ -57,6 +58,7 @@ android {
             resValue("string", "app_name", "Поряд")
             manifestPlaceholders["authScheme"] = providers.gradleProperty("poriad.prod.authScheme").get()
             buildConfigField("String", "AUTH_SCHEME", "\"${providers.gradleProperty("poriad.prod.authScheme").get()}\"")
+            buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"${providers.gradleProperty("poriad.prod.googleWebClientId").getOrElse("")}\"")
         }
     }
     buildTypes {
@@ -97,6 +99,10 @@ dependencies {
     implementation("androidx.exifinterface:exifinterface:1.4.2")
     // Системне вікно відгуку Google Play (після доброї оцінки події).
     implementation("com.google.android.play:review-ktx:2.0.2")
+    // Вхід через Google: Credential Manager дає ID-токен, далі — Supabase Auth.
+    implementation("androidx.credentials:credentials:1.5.0")
+    implementation("androidx.credentials:credentials-play-services-auth:1.5.0")
+    implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
     // Firebase: пуші, аналітика, крашлітика. Версії з BOM.
     implementation(platform("com.google.firebase:firebase-bom:34.3.0"))
     implementation("com.google.firebase:firebase-messaging")

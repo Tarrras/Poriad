@@ -1,6 +1,8 @@
 package app.poruch.android.feature.account
 
 import app.poruch.android.mvi.MviViewModel
+import app.poruch.android.platform.googleSignInAvailable
+import app.poruch.domain.IdProvider
 import app.poruch.domain.LegalLinks
 import app.poruch.shared.AppMessage
 import app.poruch.shared.AppNotice
@@ -8,13 +10,18 @@ import app.poruch.shared.PoruchApp
 
 /** [creating] — гість тапнув «Створити»: реєстрація за замовчуванням (найімовірніше новачок) і слова про подію. */
 class AuthViewModel(private val app: PoruchApp, creating: Boolean = false) :
-    MviViewModel<AuthState, AuthIntent, AuthEffect>(AuthState(signup = creating, creating = creating)) {
+    MviViewModel<AuthState, AuthIntent, AuthEffect>(
+        AuthState(signup = creating, creating = creating, googleAvailable = googleSignInAvailable)
+    ) {
     init {
         observe(app) { shared ->
-            // Лист відновлення веде на профіль: пароль треба задати, а не ввести.
-            if (shared.signedIn && !signedIn && !shared.session.passwordRecovery) send(AuthEffect.SignedIn)
+            // Закриваємось, коли вхід доїхав до кінця: після Google спільний шар ще питає, чи є дата
+            // народження, і без неї екран лишається на кроці дати. Лист відновлення веде на профіль.
+            val done = shared.signedIn && !shared.mutating && !shared.session.askBirthDate && !shared.session.passwordRecovery
+            if (done && !finished) send(AuthEffect.SignedIn)
             copy(
-                mutating = shared.mutating, signedIn = shared.signedIn, awaitingConfirmation = shared.session.awaitingConfirmation,
+                mutating = shared.mutating, finished = finished || done, askBirthDate = shared.session.askBirthDate,
+                awaitingConfirmation = shared.session.awaitingConfirmation,
                 // Лист пішов — повертаємось до входу, банер скаже решту.
                 resetting = resetting && shared.notice != AppNotice.Told(AppMessage.RECOVERY_SENT)
             )
@@ -35,6 +42,9 @@ class AuthViewModel(private val app: PoruchApp, creating: Boolean = false) :
                 if (it.signup) app.signUp(it.email.trim(), it.password, it.name.trim(), it.birthDate)
                 else app.signIn(it.email.trim(), it.password)
             }
+            AuthIntent.SignInWithGoogle -> send(AuthEffect.RequestGoogleToken(app.idTokenNonce()))
+            is AuthIntent.GoogleToken -> app.signInWithIdToken(IdProvider.GOOGLE, intent.idToken)
+            AuthIntent.DeclareBirthDate -> app.declareBirthDate(state.value.birthDate)
             is AuthIntent.ShowReset -> reduce { copy(resetting = intent.show) }
             AuthIntent.ResetPassword -> app.requestPasswordReset(state.value.email.trim())
             // Лист підтверджено: пошта вже в полі, лишається пароль.
