@@ -2,7 +2,6 @@ package app.poruch.android.feature.account
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -11,19 +10,15 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.MailOutline
-import androidx.compose.material.icons.outlined.Visibility
-import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
@@ -135,15 +130,7 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
                 hint = if (state.signup) stringResource(R.string.password_hint) else null,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 visualTransformation = if (state.passwordRevealed) VisualTransformation.None else PasswordVisualTransformation(),
-                trailing = {
-                    Icon(
-                        if (state.passwordRevealed) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
-                        stringResource(if (state.passwordRevealed) R.string.hide_password else R.string.show_password),
-                        Modifier.minimumInteractiveComponentSize().size(20.dp).clip(CircleShape)
-                            .clickable { onIntent(AuthIntent.TogglePasswordReveal) },
-                        tint = colors.inkSecondary
-                    )
-                }
+                trailing = { PasswordRevealIcon(state.passwordRevealed) { onIntent(AuthIntent.TogglePasswordReveal) } }
             )
             PrimaryButton(
                 stringResource(if (state.signup) R.string.signup else R.string.login),

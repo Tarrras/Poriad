@@ -5,16 +5,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Visibility
-import androidx.compose.material.icons.outlined.VisibilityOff
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.minimumInteractiveComponentSize
-import androidx.compose.ui.draw.clip
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -53,15 +45,7 @@ fun NewPasswordScreen(state: ProfileState, onIntent: (ProfileIntent) -> Unit) {
                 hint = stringResource(R.string.password_hint),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 visualTransformation = transformation,
-                trailing = {
-                    Icon(
-                        if (state.newPasswordRevealed) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
-                        stringResource(if (state.newPasswordRevealed) R.string.hide_password else R.string.show_password),
-                        Modifier.minimumInteractiveComponentSize().size(20.dp).clip(CircleShape)
-                            .clickable { onIntent(ProfileIntent.ToggleNewPasswordReveal) },
-                        tint = colors.inkSecondary
-                    )
-                }
+                trailing = { PasswordRevealIcon(state.newPasswordRevealed) { onIntent(ProfileIntent.ToggleNewPasswordReveal) } }
             )
             LabelledField(
                 stringResource(R.string.password_confirm_label), state.newPasswordConfirm,

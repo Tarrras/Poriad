@@ -899,6 +899,20 @@ fun LabelledField(
     }
 }
 
+/**
+ * Перемикач видимості пароля для [LabelledField]. Іконка — стан, як у системному полі Android:
+ * відкрите око, коли пароль видно, перекреслене — коли приховано. Підпис для TalkBack — дія.
+ */
+@Composable
+fun PasswordRevealIcon(revealed: Boolean, onToggle: () -> Unit) {
+    Icon(
+        if (revealed) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff,
+        stringResource(if (revealed) R.string.hide_password else R.string.show_password),
+        Modifier.minimumInteractiveComponentSize().size(20.dp).clip(CircleShape).clickable(onClick = onToggle),
+        tint = Poruch.colors.inkSecondary
+    )
+}
+
 /** Поле з вибором замість введення: дата, місце. Виглядає як [LabelledField], щоб форма лишалась одним списком. */
 @Composable
 fun PickerField(
