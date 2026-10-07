@@ -16,7 +16,9 @@ class AccountActionsTest {
         override suspend fun updatePassword(password:String) {}
         override suspend fun handleCallback(url:String) = false
         override suspend fun verifyPassword(password: String) {}
-        override suspend fun deleteAccount() { session.value = null }
+        override suspend fun deleteAccount(appleAuthorizationCode: String?) { session.value = null }
+        override fun idTokenNonce() = "hashed"
+        override suspend fun signInWithIdToken(provider: IdProvider, idToken: String) {}
     }
     @Test fun ordinaryEmailCanSignIn() = runTest {
         val auth=Auth(); AccountActions(auth).signIn("person@example.com","password123")

@@ -4,7 +4,9 @@ import app.poruch.data.cache.PoruchDatabase
 import app.poruch.data.local.PersistentCreationIdentity
 import app.poruch.data.platformDatabaseDriver
 
+import app.poruch.domain.IdProvider
 import app.poruch.domain.SecureSessionStore
+import kotlinx.serialization.json.*
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.*
 import io.ktor.http.*
@@ -53,6 +55,29 @@ class AuthRepositoryTest {
         assertTrue(auth.handleCallback("poriad://auth/callback?code=c1"))
         assertEquals("verified-user",auth.session.value?.userId)
         assertFalse(store.value!!.contains("pkce_")); api.close()
+    }
+    /** Google/Apple отримують SHA-256 nonce, а Supabase — сирий: так він сам звіряє токен. */
+    @Test fun idTokenSignInSendsTheRawNonceWhoseHashWentToTheProvider()=runTest {
+        var sentNonce=""
+        // JWT з app_metadata.providers=["apple"]: підпис не перевіряємо, лише читаємо.
+        val payload=kotlin.io.encoding.Base64.UrlSafe.encode("""{"sub":"u1","app_metadata":{"provider":"apple","providers":["apple"]}}""".encodeToByteArray()).trimEnd('=')
+        val api=ApiClient(HttpClient(MockEngine { request ->
+            assertEquals("id_token",request.url.parameters["grant_type"])
+            val body=Json.parseToJsonElement(request.body.toByteArray().decodeToString()).jsonObject
+            assertEquals("apple",body["provider"]!!.jsonPrimitive.content)
+            assertEquals("apple-jwt",body["id_token"]!!.jsonPrimitive.content)
+            sentNonce=body["nonce"]!!.jsonPrimitive.content
+            respond("""{"access_token":"h.$payload.s","refresh_token":"r","expires_in":3600,"user":{"id":"u1"}}""",HttpStatusCode.OK)
+        }),"https://test.invalid","public")
+        val auth=SupabaseAuthRepository(api,Store())
+        val hashed=auth.idTokenNonce()
+        auth.signInWithIdToken(IdProvider.APPLE,"apple-jwt")
+        assertEquals(Pkce.sha256(sentNonce.encodeToByteArray()).joinToString("") { (it.toInt() and 0xff).toString(16).padStart(2,'0') },hashed)
+        assertEquals(64,hashed.length)
+        assertEquals("u1",auth.session.value?.userId)
+        assertEquals(setOf("apple"),auth.session.value?.providers)
+        assertFails("the nonce is single-use") { auth.signInWithIdToken(IdProvider.APPLE,"apple-jwt") }
+        api.close()
     }
     @Test fun implicitTokensInCallbackAreRejected()=runTest {
         val api=ApiClient(HttpClient(MockEngine { error("must not call network") }),"https://test.invalid","public")
@@ -135,17 +160,17 @@ class AuthRepositoryTest {
         val session="""{"user_id":"u1","access_token":"a1","refresh_token":"r1","expires_at":9999999999}"""
         val offline=ApiClient(HttpClient(MockEngine { error("offline") }),"https://test.invalid","public")
         val kept=SupabaseAuthRepository(offline,Store(session))
-        assertEquals(app.poruch.domain.AppError.Network,assertFailsWith<app.poruch.domain.AppFailure> { kept.deleteAccount() }.error)
+        assertEquals(app.poruch.domain.AppError.Network,assertFailsWith<app.poruch.domain.AppFailure> { kept.deleteAccount(null) }.error)
         assertEquals("u1",kept.session.value?.userId); offline.close()
 
         val api=ApiClient(HttpClient(MockEngine { request ->
             assertEquals("/functions/v1/delete-account",request.url.encodedPath)
             assertEquals("Bearer a1",request.headers["Authorization"]); assertEquals("public",request.headers["apikey"])
-            assertEquals("{}",request.body.toByteArray().decodeToString())
+            assertEquals("""{"apple_authorization_code":"apple-code"}""",request.body.toByteArray().decodeToString())
             respond("""{"deleted":true}""",HttpStatusCode.OK)
         }),"https://test.invalid","public")
         val store=Store(session); val auth=SupabaseAuthRepository(api,store)
-        auth.deleteAccount()
+        auth.deleteAccount("apple-code")
         assertNull(auth.session.value); assertNull(store.value); api.close()
     }
     /** Перевірка пароля створює сесію на сервері — її одразу закриваємо, і лише її (`scope=local`). */

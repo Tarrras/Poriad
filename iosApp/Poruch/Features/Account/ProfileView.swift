@@ -288,7 +288,7 @@ struct DeleteAccountSheet: View {
                 PrimaryButton(
                     title: "Видалити", symbol: "trash", tone: Palette.danger,
                     loading: mutating, enabled: AccountRules.shared.isPassword(value: password)
-                ) { model.app.deleteAccount(password: password) }
+                ) { model.app.deleteAccount(password: password, appleAuthorizationCode: nil) }
                 SecondaryButton(title: "Скасувати", enabled: !mutating) { dismiss() }
             }
             .padding(Space.page).padding(.top, Space.sm)

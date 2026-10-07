@@ -230,17 +230,30 @@ data class SessionState(
      * Пристрій зареєстровано для пушів під цим акаунтом. Тоді про нове дзвонить сервер, а
      * локальні сповіщення при перечитуванні мовчать, щоб не дублювати.
      */
-    val pushRegistered: Boolean = false
-)
+    val pushRegistered: Boolean = false,
+    /** Чим входить акаунт: `email`, `google`, `apple` (з токена). Порожньо — невідомо, вважаємо, що пароль є. */
+    val providers: Set<String> = emptySet(),
+    /**
+     * Щойно увійшли через Google чи Apple, а дати народження в акаунта нема: екран входу не закривається,
+     * а питає її. Зникає з [PoruchApp.declareBirthDate] або коли людина закриває екран.
+     */
+    val askBirthDate: Boolean = false
+) {
+    /** Акаунт без пароля (лише Google/Apple): ні зміни пароля, ні пароля при видаленні. */
+    val passwordless get() = providers.isNotEmpty() && "email" !in providers
+    /** Акаунт входить через Apple: при видаленні відкликаємо його токени. */
+    val viaApple get() = IdProvider.APPLE.key in providers
+}
 
 /**
  * Стан під акаунтом [uid]: усе приватне попереднього зникає. Єдиний перелік того, що належить
  * акаунту, для входу, виходу й зміни акаунта. Відповіді онбордингу й місто належать телефону і лишаються.
  * Картки теж: у них членство («Ви йдете»), тож їх перечитує новий акаунт. Індекси — публічні й лишаються.
  */
-internal fun AppState.forAccount(uid: String?): AppState = copy(
+internal fun AppState.forAccount(uid: String?, providers: Set<String> = emptySet()): AppState = copy(
     session = SessionState(
         userId = uid,
+        providers = providers,
         // Вхід або підтвердження з листа: наступний крок реєстрації вже не потрібен.
         awaitingConfirmation = if (uid != null) null else session.awaitingConfirmation
     ),

@@ -41,6 +41,11 @@ class SupabaseProfileRepository(
         })
     }
 
+    override suspend fun rename(name: String) {
+        if (!AccountRules.isName(name)) fail(AppError.InvalidName)
+        patch(buildJsonObject { put("display_name", name.trim()) })
+    }
+
     @OptIn(ExperimentalUuidApi::class)
     override suspend fun setAvatar(bytes: ByteArray, contentType: String): String {
         val extension = ImageRules.extensions[contentType] ?: fail(AppError.ImageUploadFailed)

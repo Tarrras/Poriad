@@ -32,6 +32,8 @@ object ProfileRules {
 interface ProfileRepository {
     suspend fun profile(userId: String): Profile?
     suspend fun update(name: String, bio: String?)
+    /** Лише імʼя, «Про себе» не чіпає: імʼя з Apple після першого входу. */
+    suspend fun rename(name: String)
 
     /** Завантажує фото в теку `avatar` і ставить його в профіль. Повертає нову адресу. */
     suspend fun setAvatar(bytes: ByteArray, contentType: String): String

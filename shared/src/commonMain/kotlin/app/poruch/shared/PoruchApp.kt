@@ -111,7 +111,7 @@ class PoruchApp internal constructor(
     private val identity =
         IdentitySync(auth, store, discovery, library, chatEngine, pushSync, eventUseCases)
     private val sessionUseCases =
-        SessionUseCases(auth, accountActions, store, identity, pushSync)
+        SessionUseCases(auth, accountActions, store, identity, pushSync, safety, profiles)
     private val safetyUseCases = SafetyUseCases(safety, store, library, reloader)
     private val profileUseCases = ProfileUseCases(profiles, store, scope)
     private val tasteUseCases = TasteUseCases(tasteStore, preferences, reminderStore, store, analyticsStore)
@@ -439,6 +439,13 @@ class PoruchApp internal constructor(
 
     fun signIn(email: String, password: String) = sessionUseCases.signIn(email, password)
 
+    /** SHA-256 нового nonce для запиту до Google чи Apple; сирий чекає на [signInWithIdToken]. */
+    fun idTokenNonce(): String = sessionUseCases.idTokenNonce()
+
+    /** ID-токен від Google чи Apple. [name] — імʼя, яке Apple дає лише при першому вході. */
+    fun signInWithIdToken(provider: IdProvider, idToken: String, name: String? = null) =
+        sessionUseCases.signInWithIdToken(provider, idToken, name)
+
     /** [birthDate] — ISO-8601. Платформа лише для дорослих. */
     fun signUp(email: String, password: String, name: String, birthDate: String) =
         sessionUseCases.signUp(email, password, name, birthDate)
@@ -447,8 +454,13 @@ class PoruchApp internal constructor(
     fun dismissConfirmationStep() = sessionUseCases.dismissConfirmationStep()
     fun signOut() = sessionUseCases.signOut()
 
-    /** Видалення акаунту: пароль підтверджує власника, сервер видаляє все каскадом. Збій мережі лишає в акаунті. */
-    fun deleteAccount(password: String) = sessionUseCases.deleteAccount(password)
+    /**
+     * Видалення акаунту: пароль підтверджує власника (в акаунта без пароля — null), сервер видаляє все
+     * каскадом. [appleAuthorizationCode] — свіжий код Sign in with Apple, щоб відкликати токени Apple.
+     * Збій мережі лишає в акаунті.
+     */
+    fun deleteAccount(password: String? = null, appleAuthorizationCode: String? = null) =
+        sessionUseCases.deleteAccount(password, appleAuthorizationCode)
     fun requestPasswordReset(email: String) = sessionUseCases.requestPasswordReset(email)
     fun updatePassword(password: String) = sessionUseCases.updatePassword(password)
 

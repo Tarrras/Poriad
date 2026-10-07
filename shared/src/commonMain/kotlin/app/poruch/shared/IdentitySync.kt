@@ -34,7 +34,7 @@ internal class IdentitySync(
         PoruchLog.i("session") { "identity → ${uid.shortId()}, clearing private state" }
         events.forgetPendingCreation()
         library.clear(); chat.close(); discovery.reset()
-        store.update { it.forAccount(uid) }
+        store.update { it.forAccount(uid, auth.session.value?.takeIf { it.userId == uid }?.providers.orEmpty()) }
         discovery.refresh()
         if (uid != null) {
             library.load(); push.register()

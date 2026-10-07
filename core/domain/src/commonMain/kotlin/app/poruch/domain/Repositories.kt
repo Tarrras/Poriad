@@ -7,12 +7,25 @@ interface SecureSessionStore {
     fun write(value: String)
     fun clear()
 }
-data class UserSession(val userId: String, val accessToken: String, val refreshToken: String, val expiresAt: Long)
+/** [providers] — чим входить акаунт (`email`, `google`, `apple`), з токена доступу. Порожньо — невідомо. */
+data class UserSession(
+    val userId: String, val accessToken: String, val refreshToken: String, val expiresAt: Long,
+    val providers: Set<String> = emptySet()
+)
+
+/** Вхід ID-токеном Google чи Apple: [key] — назва провайдера в Supabase Auth. */
+enum class IdProvider(val key: String) { GOOGLE("google"), APPLE("apple") }
 interface AuthRepository {
     val session: StateFlow<UserSession?>
     suspend fun signIn(email: String, password: String)
     /** [birthDate] — ISO-8601, їде в метаданих реєстрації. Мінімальний вік перевіряє сервер. */
     suspend fun signUp(email: String, password: String, name: String, birthDate: String): Boolean
+    /**
+     * Новий nonce для входу ID-токеном: повертає його SHA-256 (hex) — це платформа передає Google чи
+     * Apple, а сирий лишається тут і йде в [signInWithIdToken]. Так чужий токен не підсунути.
+     */
+    fun idTokenNonce(): String
+    suspend fun signInWithIdToken(provider: IdProvider, idToken: String)
     suspend fun signOut()
     suspend fun accessToken(): String?
     suspend fun requestPasswordReset(email: String)
@@ -21,10 +34,11 @@ interface AuthRepository {
     /** Повторно підтверджує пароль поточного акаунта; помилка — [AppError.InvalidCredentials]. */
     suspend fun verifyPassword(password: String)
     /**
-     * Видаляє акаунт на сервері (Edge Function `delete-account`). Локальну сесію чистить лише
+     * Видаляє акаунт на сервері (Edge Function `delete-account`). [appleAuthorizationCode] — свіжий код
+     * Sign in with Apple: з ним сервер відкликає токени Apple (App Store 5.1.1(v)). Локальну сесію чистить лише
      * після успіху або 401; мережевий збій лишає людину в акаунті, щоб могла повторити.
      */
-    suspend fun deleteAccount()
+    suspend fun deleteAccount(appleAuthorizationCode: String?)
 }
 // Доступ до подій — в EventAccess.kt.
 

@@ -36,7 +36,12 @@ class PoruchAppTest {
         /** Єдиний пароль, який підробка вважає правильним; null — приймає будь-який. */
         var currentPassword:String?=null
         override suspend fun verifyPassword(password: String) { if(currentPassword!=null&&password!=currentPassword) fail(AppError.InvalidCredentials) }
-        override suspend fun deleteAccount() { session.value = null }
+        var deletedWithAppleCode:String?=null
+        override suspend fun deleteAccount(appleAuthorizationCode:String?) { deletedWithAppleCode=appleAuthorizationCode; session.value = null }
+        override fun idTokenNonce()="hashed-nonce"
+        /** Сесія, яку дасть вхід ID-токеном: провайдер — з неї. */
+        var idTokenUser="oauth-user"
+        override suspend fun signInWithIdToken(provider:IdProvider,idToken:String) { session.value=UserSession(idTokenUser,"token","refresh",9999999999,setOf(provider.key)) }
     }
     /** Підробка реалізує всі п'ять інтерфейсів, бо [PoruchApp] користується всіма. */
     private class Events: EventDiscovery, SavedEvents, EventAuthoring, EventParticipation, EventRequests, EventChat {
@@ -163,6 +168,7 @@ class PoruchAppTest {
         var uploads=0
         override suspend fun profile(userId:String):Profile? { if(userId in slow) delay(100); return if(userId==mine.userId) mine else cards[userId] }
         override suspend fun update(name:String,bio:String?) { mine=mine.copy(name=name.trim(),bio=ProfileRules.normalizeBio(bio)) }
+        override suspend fun rename(name:String) { mine=mine.copy(name=name.trim()) }
         override suspend fun setAvatar(bytes:ByteArray,contentType:String):String { uploads++; return "https://test.invalid/avatar/$uploads.jpg".also { mine=mine.copy(avatarUrl=it) } }
         override suspend fun removeAvatar() { mine=mine.copy(avatarUrl=null) }
         override suspend fun deleteImage(url:String) { deleted+=url }
@@ -1504,6 +1510,59 @@ class PoruchAppTest {
         assertEquals(listOf("p1","u1"),app.state.value.library.follows.map { it.targetId })
         assertEquals(listOf("a"),app.state.value.library.followEvents.map { it.id })
         assertTrue(app.state.value.isFollowing(FollowKind.ORGANIZER,"u1"))
+        app.close()
+    }
+
+    /** Вхід через Apple: імʼя з першого входу йде в профіль, а акаунт без віку лишає екран входу на кроці дати. */
+    @Test fun appleSignInSavesTheNameAndAsksForTheBirthDate()=runTest {
+        val auth=Auth().apply { session.value=null; idTokenUser="user" }
+        safety=Safety(AccountFacts(null))
+        val app=app(Events(),backgroundScope,auth); runCurrent(); advanceTimeBy(101); runCurrent()
+        app.signInWithIdToken(IdProvider.APPLE,"apple-token","  Олена Коваль "); advanceTimeBy(1000); runCurrent()
+        val session=app.state.value.session
+        assertEquals("user",session.userId)
+        assertTrue(session.passwordless); assertTrue(session.viaApple)
+        assertTrue(session.askBirthDate,"the provider does not tell the age")
+        assertEquals("Олена Коваль",profiles.mine.name)
+        app.declareBirthDate("1990-05-01"); advanceTimeBy(1000); runCurrent()
+        assertFalse(app.state.value.session.askBirthDate)
+        assertEquals("1990-05-01",safety.declared)
+        app.close()
+    }
+
+    /** Google без імені від клієнта: профіль не чіпаємо, а дорослий акаунт закриває вхід одразу. */
+    @Test fun googleSignInOfAnAdultAccountDoesNotAskTheAge()=runTest {
+        val auth=Auth().apply { session.value=null; idTokenUser="user" }
+        val app=app(Events(),backgroundScope,auth); runCurrent(); advanceTimeBy(101); runCurrent()
+        app.signInWithIdToken(IdProvider.GOOGLE,"google-token",null); advanceTimeBy(1000); runCurrent()
+        assertEquals("user",app.state.value.session.userId)
+        assertFalse(app.state.value.session.askBirthDate)
+        assertFalse(app.state.value.session.viaApple)
+        assertEquals("Я",profiles.mine.name)
+        app.close()
+    }
+
+    /** Акаунт без пароля підтверджує саме видалення; код Apple іде на сервер для відкликання. */
+    @Test fun passwordlessAccountIsDeletedWithoutAPassword()=runTest {
+        val auth=Auth().apply { session.value=null; currentPassword="password123" }
+        val app=app(Events(),backgroundScope,auth); runCurrent(); advanceTimeBy(101); runCurrent()
+        app.signInWithIdToken(IdProvider.APPLE,"apple-token"); advanceTimeBy(1000); runCurrent()
+        app.deleteAccount(null,"apple-code"); advanceTimeBy(1000); runCurrent()
+        assertNull(app.state.value.session.userId)
+        assertEquals("apple-code",auth.deletedWithAppleCode)
+        assertEquals(AppNotice.Told(AppMessage.ACCOUNT_DELETED),app.state.value.notice)
+        app.close()
+    }
+
+    /** Акаунт з паролем без нього не видалити. */
+    @Test fun passwordAccountStillNeedsItsPasswordToBeDeleted()=runTest {
+        val auth=Auth().apply { currentPassword="password123" }
+        val app=app(Events(),backgroundScope,auth); runCurrent(); advanceTimeBy(101); runCurrent()
+        app.deleteAccount(null,null); advanceTimeBy(1000); runCurrent()
+        assertEquals(AppNotice.Failed(AppError.InvalidCredentials),app.state.value.notice)
+        assertEquals("user",app.state.value.session.userId)
+        app.deleteAccount("password123",null); advanceTimeBy(1000); runCurrent()
+        assertNull(app.state.value.session.userId)
         app.close()
     }
 

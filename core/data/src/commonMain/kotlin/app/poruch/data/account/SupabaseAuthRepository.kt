@@ -11,6 +11,9 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.*
+import kotlin.concurrent.Volatile
+import kotlin.io.encoding.Base64
+import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlin.time.Clock
 
 /**
@@ -49,8 +52,16 @@ class SupabaseAuthRepository(
         // сервера несе `expires_in`; збережена сесія — вже наш локальний `expires_at`.
         val expiresAt = value["expires_in"]?.jsonPrimitive?.longOrNull?.let { Clock.System.now().epochSeconds + it }
             ?: value["expires_at"]?.jsonPrimitive?.longOrNull ?: (Clock.System.now().epochSeconds + 3600)
-        return UserSession(uid, value.string("access_token"), value.string("refresh_token"), expiresAt)
+        val token = value.string("access_token")
+        return UserSession(uid, token, value.string("refresh_token"), expiresAt, providers(token))
     }
+    /** `app_metadata.providers` з JWT доступу: так знаємо і про сесію, збережену до цієї версії. */
+    @OptIn(ExperimentalEncodingApi::class)
+    private fun providers(token: String): Set<String> = runCatching {
+        val payload = Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT_OPTIONAL).decode(token.split('.')[1])
+        api.json.parseToJsonElement(payload.decodeToString()).jsonObject["app_metadata"]!!.jsonObject["providers"]!!
+            .jsonArray.map { it.jsonPrimitive.content }.toSet()
+    }.getOrDefault(emptySet())
     /** Пише сесію. Verifier-и інших потоків лишаються: [dropVerifier] — той, що щойно обміняли. */
     private fun persist(value: JsonObject, dropVerifier: String? = null) {
         val session = decode(value)
@@ -76,6 +87,21 @@ class SupabaseAuthRepository(
         val result = api.request("/auth/v1/token", HttpMethod.Post, buildJsonObject {
             put("email", email.trim()); put("password", password)
         }, query=mapOf("grant_type" to "password"))
+        persist(result.jsonObject)
+    }
+    /** Сирий nonce останнього [idTokenNonce]: одноразовий, живе до входу. */
+    @Volatile private var pendingNonce: String? = null
+
+    override fun idTokenNonce(): String {
+        val nonce = Pkce.newVerifier().also { pendingNonce = it }
+        return Pkce.sha256(nonce.encodeToByteArray()).joinToString("") { (it.toInt() and 0xff).toString(16).padStart(2, '0') }
+    }
+    override suspend fun signInWithIdToken(provider: IdProvider, idToken: String) = mutex.withLock {
+        val nonce = pendingNonce ?: fail(AppError.Rejected)
+        pendingNonce = null
+        val result = api.request("/auth/v1/token", HttpMethod.Post, buildJsonObject {
+            put("provider", provider.key); put("id_token", idToken); put("nonce", nonce)
+        }, query=mapOf("grant_type" to "id_token"))
         persist(result.jsonObject)
     }
     override suspend fun signUp(email: String, password: String, name: String, birthDate: String): Boolean = mutex.withLock {
@@ -147,11 +173,13 @@ class SupabaseAuthRepository(
             api.request("/auth/v1/logout", HttpMethod.Post, token=proof, query=mapOf("scope" to "local"), reauthorizable=false)
         } catch (e: CancellationException) { throw e } catch (e: Exception) { PoruchLog.w("auth") { "verification session not closed: ${e.asAppError()}" } }
     }
-    override suspend fun deleteAccount() {
+    override suspend fun deleteAccount(appleAuthorizationCode: String?) {
         val token = accessToken() ?: fail(AppError.SessionRequired)
         try {
             // Edge Function під service role: прибирає фото зі Storage і видаляє користувача. Відповідь — `{"deleted":true}`.
-            api.request("/functions/v1/delete-account", HttpMethod.Post, buildJsonObject {}, token=token)
+            api.request("/functions/v1/delete-account", HttpMethod.Post, buildJsonObject {
+                appleAuthorizationCode?.let { put("apple_authorization_code", it) }
+            }, token=token)
         } catch (e: AppFailure) {
             // 401 — сесії на сервері вже нема, тож і тут тримати нічого. Решта (мережа, 5xx) лишає
             // людину в акаунті: інакше вона «вийшла», а акаунт з усім живий.

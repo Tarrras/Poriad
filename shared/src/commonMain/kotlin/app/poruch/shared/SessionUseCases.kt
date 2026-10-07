@@ -2,6 +2,7 @@ package app.poruch.shared
 
 import app.poruch.account.AccountActions
 import app.poruch.domain.*
+import kotlinx.coroutines.CancellationException
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
@@ -12,14 +13,40 @@ internal class SessionUseCases(
     private val account: AccountActions,
     private val store: AppStore,
     private val identity: IdentitySync,
-    private val push: PushSync
+    private val push: PushSync,
+    private val safety: SafetyRepository?,
+    private val profiles: ProfileRepository?
 ) {
     fun signIn(email: String, password: String) = store.mutate {
         PoruchLog.i("auth") { "sign in requested" }
         account.signIn(email, password)
-        PoruchAnalytics.track("login")
+        PoruchAnalytics.track("login", "method" to "email")
         // Одразу, не чекаючи слухача сесії: мапа й «мої» перечитуються там, один раз.
         identity.synchronize(auth.session.value?.userId)
+        store.tell(AppMessage.SIGNED_IN)
+    }
+
+    fun idTokenNonce() = auth.idTokenNonce()
+
+    /**
+     * Вхід ID-токеном Google чи Apple, виданим з nonce від [AuthRepository.idTokenNonce]. Новий акаунт
+     * з'являється тут же (тригер бази бере імʼя з профілю Google). Провайдер не каже вік, тож акаунт
+     * без дати народження лишає екран входу відкритим на кроці дати ([SessionState.askBirthDate]).
+     */
+    fun signInWithIdToken(provider: IdProvider, idToken: String, name: String?) = store.mutate {
+        PoruchLog.i("auth") { "sign in with ${provider.key} requested" }
+        auth.signInWithIdToken(provider, idToken)
+        PoruchAnalytics.track("login", "method" to provider.key)
+        identity.synchronize(auth.session.value?.userId)
+        // Apple дає імʼя лише при першому вході і не в токені: не збережемо зараз — лишиться «Учасник».
+        name?.trim()?.takeIf(AccountRules::isName)?.let { name ->
+            try { profiles?.rename(name) } catch (e: CancellationException) { throw e } catch (e: Exception) {
+                PoruchLog.w("auth") { "provider name not saved: ${e.asAppError()}" }
+            }
+        }
+        // Не вдалось дізнатись — не питаємо: картка віку в профілі й сервер при приєднанні підстрахують.
+        val ageDeclared = try { safety?.account()?.ageDeclared } catch (e: CancellationException) { throw e } catch (e: Exception) { null } ?: true
+        store.update { it.copy(session = it.session.copy(askBirthDate = !ageDeclared)) }
         store.tell(AppMessage.SIGNED_IN)
     }
 
@@ -36,7 +63,7 @@ internal class SessionUseCases(
     }
 
     /** Людина повернулась до форми або закрила екран: крок «перевірте пошту» більше не показуємо. */
-    fun dismissConfirmationStep() = store.update { it.copy(session = it.session.copy(awaitingConfirmation = null)) }
+    fun dismissConfirmationStep() = store.update { it.copy(session = it.session.copy(awaitingConfirmation = null, askBirthDate = false)) }
 
     fun signOut() = store.mutate {
         PoruchLog.i("auth") { "sign out" }
@@ -55,15 +82,18 @@ internal class SessionUseCases(
     /**
      * Пароль підтверджує, що телефон у руках власника; сервер (Edge Function) видаляє все каскадом,
      * далі — те саме прибирання, що при виході. Мережевий збій лишає людину в акаунті: вона ще
-     * існує на сервері, і видалення можна повторити.
+     * існує на сервері, і видалення можна повторити. Акаунт без пароля (Google/Apple) підтверджує
+     * саме видалення; для Apple платформа ще дає свіжий код, щоб сервер відкликав токени Apple.
      */
-    fun deleteAccount(password: String) = store.mutate {
+    fun deleteAccount(password: String?, appleAuthorizationCode: String?) = store.mutate {
         PoruchLog.i("auth") { "account deletion requested" }
-        if (!AccountRules.isPassword(password)) fail(AppError.InvalidCredentials)
-        auth.verifyPassword(password)
+        if (!store.value.session.passwordless) {
+            if (password == null || !AccountRules.isPassword(password)) fail(AppError.InvalidCredentials)
+            auth.verifyPassword(password)
+        }
         push.unregister(auth.session.value)
         try {
-            auth.deleteAccount()
+            auth.deleteAccount(appleAuthorizationCode)
         } catch (e: Exception) {
             // 401 — сесії вже нема, акаунт вийшов разом з нею. Інакше повертаємо пуші, які щойно зняли.
             if (e.asAppError() == AppError.SessionRequired) identity.synchronize(null) else push.register()

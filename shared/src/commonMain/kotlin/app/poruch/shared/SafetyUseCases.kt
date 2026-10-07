@@ -23,7 +23,12 @@ internal class SafetyUseCases(
         val declared = runCatching { LocalDate.parse(birthDate) }.getOrElse { fail(AppError.Rejected) }
         if (!SafetyRules.isSignupAge(declared, today)) fail(AppError.Underage)
         repository.declareBirthDate(declared.toString())
-        store.update { it.copy(library = it.library.copy(account = it.library.account.copy(birthDate = declared.toString()))) }
+        store.update {
+            it.copy(
+                library = it.library.copy(account = it.library.account.copy(birthDate = declared.toString())),
+                session = it.session.copy(askBirthDate = false)
+            )
+        }
         store.tell(AppMessage.AGE_CONFIRMED)
     }
 
