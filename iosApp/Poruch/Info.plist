@@ -28,7 +28,15 @@
 				<string>$(APP_AUTH_SCHEME)</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>$(GOOGLE_REVERSED_CLIENT_ID)</string>
+			</array>
+		</dict>
 	</array>
+	<key>GIDClientID</key>
+	<string>$(GOOGLE_IOS_CLIENT_ID)</string>
 	<key>CFBundleVersion</key>
 	<string>10</string>
 	<key>ITSAppUsesNonExemptEncryption</key>

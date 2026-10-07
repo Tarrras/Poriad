@@ -4,6 +4,7 @@ import FirebaseCore
 import FirebaseAnalytics
 import FirebaseCrashlytics
 import StoreKit
+import GoogleSignIn
 
 @main struct PoruchApplication: App {
     @UIApplicationDelegateAdaptor(PushDelegate.self) private var pushDelegate
@@ -44,6 +45,8 @@ import StoreKit
                 // Сюди приходять і auth-колбек, і посилання на подію: Universal Link `poriad.app/e/…` та
                 // `poriad://event/…` з кнопки веб-сторінки. Подію відкриваємо тим самим шляхом, що й тап по пушу.
                 .onOpenURL { url in
+                    // Повернення з вікна входу Google — його URL-схема, не наша.
+                    if GIDSignIn.sharedInstance.handle(url) { return }
                     if let id = EventLinks.shared.eventId(link: url.absoluteString) {
                         model.app.eventLinkOpened()
                         PushDelegate.open(eventId: id, chat: false)

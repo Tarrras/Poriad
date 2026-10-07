@@ -42,6 +42,8 @@
 		88F77F161468DFF1EDA9804C /* FirebaseAnalyticsCore in Frameworks */ = {isa = PBXBuildFile; productRef = 88C9B9FFD11B3259FCC98F00 /* FirebaseAnalyticsCore */; };
 		8B0499831DD513F94BFEF281 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = 93137F34CDE574FF270B4740 /* FirebaseCrashlytics */; };
 		A1B2C3D4E5F60718293A4B03 /* Lottie in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D4E5F60718293A4B02 /* Lottie */; };
+		B7C1D2E3F4A5061728394A03 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = B7C1D2E3F4A5061728394A02 /* GoogleSignIn */; };
+		B7C1D2E3F4A5061728394A05 /* SocialSignIn.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7C1D2E3F4A5061728394A04 /* SocialSignIn.swift */; };
 		9DF075062CCF1FD1F72C4A0A /* MapLibre in Frameworks */ = {isa = PBXBuildFile; productRef = 9231879E3F0B11FEA295A882 /* MapLibre */; };
 		A55E75D1C9C240A1B7E30002 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A55E75D1C9C240A1B7E30001 /* Assets.xcassets */; };
 		A55E75D1C9C240A1B7E30012 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A55E75D1C9C240A1B7E30011 /* PrivacyInfo.xcprivacy */; };
@@ -84,6 +86,7 @@
 		0BC2FDED6A01A03CBACAED63 /* Push.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = Push.swift; path = Platform/Push.swift; sourceTree = "<group>"; };
 		AC3C08E1817D0B6805F5569C /* Reminders.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = Reminders.swift; path = Platform/Reminders.swift; sourceTree = "<group>"; };
 		2E017DF76B18C2E8FBF62AFD /* SystemActions.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SystemActions.swift; path = Platform/SystemActions.swift; sourceTree = "<group>"; };
+		B7C1D2E3F4A5061728394A04 /* SocialSignIn.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SocialSignIn.swift; path = Platform/SocialSignIn.swift; sourceTree = "<group>"; };
 		2028C0857000504373B0CF5C /* Localizable.xcstrings */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		618789C05028D745C7564123 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		6D705A65FCCD2B71ACD7CE44 /* Poruch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Poruch.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -104,6 +107,7 @@
 				FD4C22CA5E51D45B968201C0 /* Foundation.framework in Frameworks */,
 				9DF075062CCF1FD1F72C4A0A /* MapLibre in Frameworks */,
 				A1B2C3D4E5F60718293A4B03 /* Lottie in Frameworks */,
+				B7C1D2E3F4A5061728394A03 /* GoogleSignIn in Frameworks */,
 				88F77F161468DFF1EDA9804C /* FirebaseAnalyticsCore in Frameworks */,
 				8B0499831DD513F94BFEF281 /* FirebaseCrashlytics in Frameworks */,
 			);
@@ -163,6 +167,7 @@
 				0BC2FDED6A01A03CBACAED63 /* Push.swift */,
 				AC3C08E1817D0B6805F5569C /* Reminders.swift */,
 				2E017DF76B18C2E8FBF62AFD /* SystemActions.swift */,
+				B7C1D2E3F4A5061728394A04 /* SocialSignIn.swift */,
 			);
 			path = Poruch;
 			sourceTree = "<group>";
@@ -215,6 +220,7 @@
 			packageProductDependencies = (
 				9231879E3F0B11FEA295A882 /* MapLibre */,
 				A1B2C3D4E5F60718293A4B02 /* Lottie */,
+				B7C1D2E3F4A5061728394A02 /* GoogleSignIn */,
 				88C9B9FFD11B3259FCC98F00 /* FirebaseAnalyticsCore */,
 				93137F34CDE574FF270B4740 /* FirebaseCrashlytics */,
 			);
@@ -243,6 +249,7 @@
 			packageReferences = (
 				00418E938B5CF332FA864AAA /* XCRemoteSwiftPackageReference "maplibre-gl-native-distribution" */,
 				A1B2C3D4E5F60718293A4B01 /* XCRemoteSwiftPackageReference "lottie-spm" */,
+				B7C1D2E3F4A5061728394A01 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
 				20532F13824402617BD1BB70 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 			);
 			productRefGroup = 3F0D5AA0F1A0EE0655FDC90F /* Products */;
@@ -369,6 +376,7 @@
 				E31DBA64DFB7FE04C870D470 /* Push.swift in Sources */,
 				C2E3F80530AC5467C14B0CD2 /* Reminders.swift in Sources */,
 				55044778DBD8958302A7BD69 /* SystemActions.swift in Sources */,
+				B7C1D2E3F4A5061728394A05 /* SocialSignIn.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -799,6 +807,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		B7C1D2E3F4A5061728394A01 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/google/GoogleSignIn-iOS";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 10.0.0;
+			};
+		};
 		00418E938B5CF332FA864AAA /* XCRemoteSwiftPackageReference "maplibre-gl-native-distribution" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/maplibre/maplibre-gl-native-distribution";
@@ -826,6 +842,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		B7C1D2E3F4A5061728394A02 /* GoogleSignIn */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B7C1D2E3F4A5061728394A01 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignIn;
+		};
 		88C9B9FFD11B3259FCC98F00 /* FirebaseAnalyticsCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 20532F13824402617BD1BB70 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;

@@ -167,8 +167,11 @@ struct ProfileView: View {
                 SectionHeader(title: "Налаштування")
                 GroupedRows {
                     ReminderPreference()
-                    Divider().overlay(Palette.hairline).padding(.leading, Space.lg)
-                    LinkRow(symbol: "lock", title: "Змінити пароль") { changingPassword = true }
+                    // Акаунт Google/Apple пароля не має — і міняти нічого.
+                    if model.state?.session.passwordless != true {
+                        Divider().overlay(Palette.hairline).padding(.leading, Space.lg)
+                        LinkRow(symbol: "lock", title: "Змінити пароль") { changingPassword = true }
+                    }
                 }
             }
             SecondaryButton(title: "Вийти з облікового запису", symbol: "rectangle.portrait.and.arrow.right", tone: Palette.danger) {
@@ -266,13 +269,19 @@ struct ChangePasswordSheet: View {
 
 /// Видалення облікового запису: що зникне, пароль для підтвердження, червона кнопка.
 /// Пароль перевіряє сервер (`deleteAccount`); хибний повертає звичайну відмову в банері.
+/// Акаунт без пароля підтверджує кнопкою, а акаунт Apple — ще й через Apple: свіжий код
+/// дає серверу відкликати токени Apple (App Store 5.1.1(v)).
 struct DeleteAccountSheet: View {
     @EnvironmentObject var model: AppModel
     @Environment(\.dismiss) private var dismiss
     @State private var password = ""
     @State private var revealed = false
+    @State private var apple = AppleReauthorization()
+    @State private var appleFailed = false
 
     private var mutating: Bool { model.state?.mutating == true }
+    private var passwordless: Bool { model.state?.session.passwordless == true }
+    private var viaApple: Bool { model.state?.session.viaApple == true }
 
     var body: some View {
         ScrollView {
@@ -281,14 +290,19 @@ struct DeleteAccountSheet: View {
                 Text("Профіль, участь у подіях, повідомлення й фото буде видалено. Ваші опубліковані події скасуються. Скасувати це буде неможливо.")
                     .font(PoruchFont.bodyText).foregroundStyle(Palette.inkSecondary)
                     .fixedSize(horizontal: false, vertical: true)
-                LabelledField(label: "Пароль", text: $password, hint: "Для підтвердження введіть пароль", secure: !revealed) {
-                    PasswordRevealToggle(revealed: $revealed)
+                if !passwordless {
+                    LabelledField(label: "Пароль", text: $password, hint: "Для підтвердження введіть пароль", secure: !revealed) {
+                        PasswordRevealToggle(revealed: $revealed)
+                    }
+                    .textContentType(.password)
                 }
-                .textContentType(.password)
+                if appleFailed {
+                    Text("Apple не підтвердив вхід. Спробуйте ще раз.").font(PoruchFont.caption).foregroundStyle(Palette.danger)
+                }
                 PrimaryButton(
-                    title: "Видалити", symbol: "trash", tone: Palette.danger,
-                    loading: mutating, enabled: AccountRules.shared.isPassword(value: password)
-                ) { model.app.deleteAccount(password: password, appleAuthorizationCode: nil) }
+                    title: viaApple ? "Підтвердити через Apple і видалити" : "Видалити", symbol: viaApple ? "apple.logo" : "trash",
+                    tone: Palette.danger, loading: mutating, enabled: passwordless || AccountRules.shared.isPassword(value: password)
+                ) { confirm() }
                 SecondaryButton(title: "Скасувати", enabled: !mutating) { dismiss() }
             }
             .padding(Space.page).padding(.top, Space.sm)
@@ -296,6 +310,21 @@ struct DeleteAccountSheet: View {
         .background(Palette.canvas)
         // Банер кореня під шторкою: відмову з хибним паролем показуємо тут.
         .notice(model.state?.notice?.presented) { model.app.clearNotice() }
+    }
+
+    private func confirm() {
+        guard viaApple else {
+            return model.app.deleteAccount(password: passwordless ? nil : password, appleAuthorizationCode: nil)
+        }
+        appleFailed = false
+        Task {
+            do {
+                guard let code = try await apple.authorizationCode() else { return appleFailed = true }
+                model.app.deleteAccount(password: passwordless ? nil : password, appleAuthorizationCode: code)
+            } catch {
+                if !SocialSignIn.isCancel(error) { appleFailed = true }
+            }
+        }
     }
 }
 

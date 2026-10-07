@@ -1,3 +1,4 @@
+import AuthenticationServices
 import SwiftUI
 import Shared
 
@@ -11,6 +12,7 @@ enum AuthReason {
 struct AuthView: View {
     @EnvironmentObject var model: AppModel
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     var reason: AuthReason?
     @StateObject private var form: AuthFormModel
 
@@ -20,6 +22,8 @@ struct AuthView: View {
     }
     /// Крок «Забули пароль?»: окремий екран лише з поштою, щоб кнопка не залежала від форми входу.
     @State private var resetting = false
+    /// Збій Google чи Apple до того, як справа дійшла до сервера: банера спільного шару тут не буде.
+    @State private var providerError: String?
 
     var body: some View {
         ScrollView {
@@ -27,6 +31,7 @@ struct AuthView: View {
                 header
                 if let email = model.state?.session.awaitingConfirmation { confirmation(email) }
                 else if resetting { reset }
+                else if askingBirthDate { birthDateStep }
                 else { fields }
             }.padding(.bottom, Space.section)
         }
@@ -34,9 +39,9 @@ struct AuthView: View {
         .toolbar(.hidden, for: .navigationBar)
         // Екран живе в шиті, а банер кореня лишається під ним: помилки й відповіді показуємо тут.
         .notice(model.state?.notice?.presented) { model.app.clearNotice() }
-        .onChange(of: model.state?.session.userId) { _, userId in
-            if userId != nil && model.state?.session.passwordRecovery != true { dismiss() }
-        }
+        // Закриваємось, коли вхід доїхав до кінця: після Google чи Apple спільний шар ще питає, чи є
+        // дата народження, і без неї екран лишається на кроці дати. Лист відновлення веде на профіль.
+        .onChange(of: finished) { _, finished in if finished { dismiss() } }
         .onDisappear { model.app.dismissConfirmationStep() }
         // Лист пішов — повертаємось до входу, банер скаже решту.
         .onChange(of: (model.state?.notice as? AppNoticeTold)?.message) { _, message in
@@ -45,22 +50,30 @@ struct AuthView: View {
     }
 
     private var confirming: Bool { model.state?.session.awaitingConfirmation != nil }
+    private var askingBirthDate: Bool { model.state?.session.askBirthDate == true }
+    private var finished: Bool {
+        guard let state = model.state, state.session.userId != nil else { return false }
+        return !state.mutating && !state.session.askBirthDate && !state.session.passwordRecovery
+    }
 
     /// Знак застосунку й назва по центру, як вхід в Apple ID; «назад» окремо в кутку.
     private var header: some View {
         VStack(spacing: Space.md) {
             IconPill(symbol: "chevron.left", label: "Назад", size: 40) { if resetting { resetting = false } else { dismiss() } }
                 .frame(maxWidth: .infinity, alignment: .leading)
-            PoruchIcon(glyph: confirming ? PoruchIcons.checkCircle : resetting ? PoruchIcons.lock : PoruchIcons.pin, size: 32)
+            PoruchIcon(glyph: confirming ? PoruchIcons.checkCircle : resetting ? PoruchIcons.lock : askingBirthDate ? PoruchIcons.calendar : PoruchIcons.pin, size: 32)
                 .foregroundStyle(Palette.onBrand)
                 .frame(width: 72, height: 72).background(Palette.brand, in: Circle())
                 .decorative()
-            Text(confirming ? "Перевірте пошту" : resetting ? "Відновити пароль" : form.register ? "Створити профіль" : "З поверненням")
+            Text(confirming ? "Перевірте пошту" : resetting ? "Відновити пароль" : askingBirthDate ? "Ще один крок"
+                 : form.register ? "Створити профіль" : "З поверненням")
                 .font(PoruchFont.serifTitle1).kerning(-0.4).foregroundStyle(Palette.ink).multilineTextAlignment(.center)
             Text(confirming
                  ? "Лишився один крок — підтвердити адресу."
                  : resetting
                  ? "Вкажіть пошту профілю — надішлемо лист із посиланням для нового пароля."
+                 : askingBirthDate
+                 ? "Вкажіть дату народження: «Поряд» — для повнолітніх. Її ніхто не побачить."
                  : reason == .create && form.register
                  ? "Щоб організувати подію, потрібен профіль. Кілька секунд — і одразу перейдемо до створення."
                  : reason == .create
@@ -116,8 +129,88 @@ struct AuthView: View {
         }.padding(.horizontal, Space.page)
     }
 
+    /// Apple й Google — найкоротший шлях, тож над формою; для них вхід і реєстрація — одне й те саме.
+    private var providers: some View {
+        VStack(spacing: Space.md) {
+            SignInWithAppleButton(.continue) { request in
+                providerError = nil
+                request.requestedScopes = [.fullName, .email]
+                request.nonce = model.app.idTokenNonce()
+            } onCompletion: { result in
+                switch result {
+                case .success(let authorization):
+                    guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
+                          let apple = SocialSignIn.appleToken(credential) else { return failed("Apple") }
+                    model.app.signInWithIdToken(provider: .apple, idToken: apple.token, name: apple.name)
+                case .failure(let error):
+                    if !SocialSignIn.isCancel(error) { failed("Apple") }
+                }
+            }
+            .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
+            .frame(height: 52).clipShape(Capsule())
+            .disabled(model.state?.mutating == true)
+            if SocialSignIn.googleAvailable {
+                Button { signInWithGoogle() } label: {
+                    HStack(spacing: Space.md) {
+                        Image("GoogleG").resizable().frame(width: 20, height: 20).decorative()
+                        Text("Продовжити з Google").font(PoruchFont.button).foregroundStyle(Palette.ink)
+                    }
+                    .frame(maxWidth: .infinity).frame(height: 52)
+                    .background(Palette.surface, in: Capsule())
+                    .overlay(Capsule().stroke(Palette.hairline, lineWidth: 1))
+                }
+                .buttonStyle(PressableStyle())
+                .disabled(model.state?.mutating == true)
+            }
+            if let providerError {
+                Text(providerError).font(PoruchFont.caption).foregroundStyle(Palette.danger)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            HStack(spacing: Space.md) {
+                Rectangle().fill(Palette.hairline).frame(height: 1)
+                Text("або поштою").font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary).fixedSize()
+                Rectangle().fill(Palette.hairline).frame(height: 1)
+            }
+        }
+    }
+
+    private func signInWithGoogle() {
+        providerError = nil
+        let nonce = model.app.idTokenNonce()
+        Task {
+            do {
+                guard let token = try await SocialSignIn.googleIdToken(nonce: nonce) else { return }
+                model.app.signInWithIdToken(provider: .google, idToken: token, name: nil)
+            } catch {
+                PoruchLog.shared.w(tag: "auth") { "google sign-in failed: \((error as NSError).domain) \((error as NSError).code)" }
+                failed("Google")
+            }
+        }
+    }
+
+    private func failed(_ provider: String) {
+        providerError = "Не вдалося увійти через \(provider). Спробуйте ще раз або увійдіть поштою."
+    }
+
+    /// Після входу через Google чи Apple: провайдер вік не каже, а «Поряд» — для повнолітніх. Та сама
+    /// дата, що при реєстрації поштою; «назад» лишає людину в акаунті, картка віку чекатиме в профілі.
+    private var birthDateStep: some View {
+        VStack(alignment: .leading, spacing: Space.lg) {
+            VStack(alignment: .leading, spacing: Space.sm) {
+                Text("ДАТА НАРОДЖЕННЯ").font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
+                BirthDateField(date: $form.birthDate, range: form.earliestBirthDate...form.latestBirthDate)
+                Text("«Поряд» — застосунок для повнолітніх. Дату видно лише вам.")
+                    .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
+            }
+            PrimaryButton(title: "Продовжити", loading: model.state?.mutating == true, enabled: form.birthDate <= form.latestBirthDate) {
+                model.app.declareBirthDate(birthDate: isoDay(form.birthDate))
+            }
+        }.padding(.horizontal, Space.page)
+    }
+
     private var fields: some View {
         VStack(alignment: .leading, spacing: Space.lg) {
+            providers
             // Вхід і реєстрація — два рівноправні режими, тож перемикач угорі, а не кнопка під формою.
             SegmentedPill(items: ["Вхід", "Реєстрація"], selection: form.register ? 1 : 0) { _ in form.toggleMode() }
             if form.register {
@@ -145,7 +238,9 @@ struct AuthView: View {
                 loading: model.state?.mutating == true,
                 enabled: form.canSubmit
             ) { form.submit(with: model.app) }
-            if form.register { consent } else {
+            // Згода — і для реєстрації, і для Apple/Google над формою: натискання там теж створює профіль.
+            consent
+            if !form.register {
                 Button("Забули пароль?") { resetting = true }
                     .font(PoruchFont.button).foregroundStyle(Palette.inkSecondary)
                     .frame(maxWidth: .infinity).frame(minHeight: 44)
@@ -157,7 +252,7 @@ struct AuthView: View {
     /// Згода під кнопкою реєстрації: назви документів — посилання, але в чорнилі, а не в
     /// системному синьому, щоб рядок лишався підписом, а не закликом. Адреси спільні з Android.
     private var consent: some View {
-        var text = AttributedString("Реєструючись, ви погоджуєтесь з ")
+        var text = AttributedString("Продовжуючи, ви погоджуєтесь з ")
         text.append(legalLink("Умовами користування", LegalLinks.shared.TERMS))
         text.append(AttributedString(" та "))
         text.append(legalLink("Політикою конфіденційності", LegalLinks.shared.PRIVACY))
