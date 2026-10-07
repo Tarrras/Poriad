@@ -315,6 +315,8 @@ private fun DeleteAccountSheet(state: ProfileState, onIntent: (ProfileIntent) ->
         ) {
             Text(stringResource(R.string.delete_account_title), style = PoruchType.serifTitle2, color = colors.ink)
             Text(stringResource(R.string.delete_account_body), style = MaterialTheme.typography.bodyLarge, color = colors.inkSecondary)
+            // Google чи Apple з тією ж поштою привʼязуються до наявного акаунта: людина має бачити, що видаляє саме його.
+            DeleteAccountWho(state)
             // Пароль доводить, що телефон у руках власника; в акаунта Google/Apple його нема — підтверджує кнопка.
             if (!state.passwordless) LabelledField(
                 stringResource(R.string.password_label), state.deletePassword,
@@ -333,6 +335,27 @@ private fun DeleteAccountSheet(state: ProfileState, onIntent: (ProfileIntent) ->
                 enabled = !state.mutating
             )
         }
+    }
+}
+
+/** Який акаунт зникне: пошта й усі способи входу в нього. */
+@Composable
+private fun DeleteAccountWho(state: ProfileState) {
+    val colors = Poruch.colors
+    val email = state.profile?.email ?: return
+    val methods = state.providers.mapNotNull {
+        when (it) { "email" -> stringResource(R.string.sign_in_method_email); "google" -> "Google"; "apple" -> "Apple"; else -> null }
+    }
+    Column(
+        Modifier.fillMaxWidth().background(LocalFieldSurface.current ?: colors.surface, Radius.sm).padding(Spacing.lg),
+        verticalArrangement = Arrangement.spacedBy(Spacing.xs)
+    ) {
+        Text(stringResource(R.string.delete_account_who), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
+        Text(email, style = MaterialTheme.typography.titleSmall, color = colors.ink)
+        if (methods.size > 1) Text(
+            stringResource(R.string.delete_account_methods, methods.joinToString(" · ")),
+            style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary
+        )
     }
 }
 

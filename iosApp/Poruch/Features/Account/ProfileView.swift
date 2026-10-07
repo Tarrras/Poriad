@@ -290,6 +290,8 @@ struct DeleteAccountSheet: View {
                 Text("Профіль, участь у подіях, повідомлення й фото буде видалено. Ваші опубліковані події скасуються. Скасувати це буде неможливо.")
                     .font(PoruchFont.bodyText).foregroundStyle(Palette.inkSecondary)
                     .fixedSize(horizontal: false, vertical: true)
+                // Google чи Apple з тією ж поштою привʼязуються до наявного акаунта: людина має бачити, що видаляє саме його.
+                if let email = model.state?.library.profile?.email { who(email) }
                 if !passwordless {
                     LabelledField(label: "Пароль", text: $password, hint: "Для підтвердження введіть пароль", secure: !revealed) {
                         PasswordRevealToggle(revealed: $revealed)
@@ -310,6 +312,24 @@ struct DeleteAccountSheet: View {
         .background(Palette.canvas)
         // Банер кореня під шторкою: відмову з хибним паролем показуємо тут.
         .notice(model.state?.notice?.presented) { model.app.clearNotice() }
+    }
+
+    /// Який акаунт зникне: пошта й усі способи входу в нього.
+    private func who(_ email: String) -> some View {
+        let methods = (model.state?.session.providers ?? []).sorted().compactMap { provider -> String? in
+            switch provider { case "email": "пошта"; case "google": "Google"; case "apple": "Apple"; default: nil }
+        }
+        return VStack(alignment: .leading, spacing: Space.xs) {
+            Text("БУДЕ ВИДАЛЕНО АКАУНТ").font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
+            Text(email).font(PoruchFont.cardName).foregroundStyle(Palette.ink)
+            if methods.count > 1 {
+                Text("Входи в нього: \(methods.joined(separator: " · ")). Це один акаунт — зникне разом з усіма способами входу.")
+                    .font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading)
+        .background(Palette.surface, in: RoundedRectangle(cornerRadius: Corner.sm, style: .continuous))
     }
 
     private func confirm() {

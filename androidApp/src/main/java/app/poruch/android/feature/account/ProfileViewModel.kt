@@ -28,6 +28,7 @@ class ProfileViewModel(private val app: PoruchApp, private val notifications: No
                 mutating = shared.mutating,
                 passwordRecovery = shared.session.passwordRecovery,
                 passwordless = shared.session.passwordless,
+                providers = shared.session.providers,
                 // Після відновлення чи зміни поле чистимо, щоб пароль не висів.
                 newPassword = if (shared.session.passwordRecovery || changingPassword) newPassword else "",
                 newPasswordConfirm = if (shared.session.passwordRecovery) newPasswordConfirm else "",

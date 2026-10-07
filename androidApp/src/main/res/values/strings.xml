@@ -221,6 +221,9 @@
   <string name="delete_account_title">Видалити обліковий запис?</string>
   <string name="delete_account_body">Профіль, участь у подіях, повідомлення та фото буде видалено. Опубліковані вами події буде скасовано. Цю дію не можна скасувати.</string>
   <string name="delete_account_confirm">Видалити</string>
+  <string name="delete_account_who">БУДЕ ВИДАЛЕНО АКАУНТ</string>
+  <string name="delete_account_methods">Входи в нього: %1$s. Це один акаунт — зникне разом з усіма способами входу.</string>
+  <string name="sign_in_method_email">пошта</string>
   <string name="delete_account_cancel">Скасувати</string>
   <string name="msg_account_deleted">Обліковий запис видалено</string>
   <string name="auth_consent">Продовжуючи, ви погоджуєтесь з %1$s та %2$s</string>

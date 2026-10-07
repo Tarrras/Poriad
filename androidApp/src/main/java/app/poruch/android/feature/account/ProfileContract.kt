@@ -36,6 +36,8 @@ data class ProfileState(
     val deleting: Boolean = false,
     /** Акаунт без пароля (Google/Apple): ні рядка зміни пароля, ні поля пароля при видаленні. */
     val passwordless: Boolean = false,
+    /** Чим входить акаунт (`email`, `google`, `apple`): шторка видалення каже, що це один акаунт. */
+    val providers: Set<String> = emptySet(),
     val deletePassword: String = "",
     /** Помилка видалення показується в шторці: банер під нею не видно. */
     val deleteError: AppError? = null,
