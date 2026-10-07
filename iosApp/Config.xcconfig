@@ -20,10 +20,10 @@ APP_AUTH_SCHEME[config=*-Prod] = poriad
 // client ID як URL-схема. Не секрет. Порожньо — кнопки Google нема. Той самий клієнт — у Supabase Auth
 // → Providers → Google → Client IDs (поруч із Web client ID). Заповнювати обидва разом: client ID без
 // reversed client ID у URL-схемі — і GoogleSignIn падає (NSException) на першому ж вході.
-GOOGLE_IOS_CLIENT_ID[config=*-Dev] =
-GOOGLE_IOS_CLIENT_ID[config=*-Prod] =
-GOOGLE_REVERSED_CLIENT_ID[config=*-Dev] = poriad-dev-google
-GOOGLE_REVERSED_CLIENT_ID[config=*-Prod] = poriad-google
+GOOGLE_IOS_CLIENT_ID[config=*-Dev] = 797169969688-0vddhmovgfp5jf4ff5jeeviak5scl6hr.apps.googleusercontent.com
+GOOGLE_IOS_CLIENT_ID[config=*-Prod] = 797169969688-uutjih9kh8i3eihfiat0bo68jbb547iu.apps.googleusercontent.com
+GOOGLE_REVERSED_CLIENT_ID[config=*-Dev] = com.googleusercontent.apps.797169969688-0vddhmovgfp5jf4ff5jeeviak5scl6hr
+GOOGLE_REVERSED_CLIENT_ID[config=*-Prod] = com.googleusercontent.apps.797169969688-uutjih9kh8i3eihfiat0bo68jbb547iu
 APP_FIREBASE_DIR[config=*-Dev] = dev
 APP_FIREBASE_DIR[config=*-Prod] = prod
 MAP_TILES_URL = https:/$()/tiles.openfreemap.org/planet
