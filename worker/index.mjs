@@ -149,6 +149,7 @@ function layout({ title, description, image, url, head, body }) {
 <meta property="og:url" content="${esc(url)}">
 <meta name="twitter:card" content="summary_large_image">
 ${head}
+<link rel="stylesheet" href="/tokens.css">
 <link rel="stylesheet" href="/style.css">
 <link rel="icon" href="/icon.png">
 <style>
