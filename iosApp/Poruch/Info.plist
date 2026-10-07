@@ -35,10 +35,10 @@
 			</array>
 		</dict>
 	</array>
+	<key>CFBundleVersion</key>
+	<string>11</string>
 	<key>GIDClientID</key>
 	<string>$(GOOGLE_IOS_CLIENT_ID)</string>
-	<key>CFBundleVersion</key>
-	<string>10</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>MAP_GLYPHS_URL</key>
