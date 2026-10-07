@@ -3,7 +3,8 @@
 // storage.objects напряму, а файли в S3 лишилися б сиротами. Тут — через Storage API.
 //
 // Контракт: POST /functions/v1/delete-account, Authorization: Bearer <access token користувача>,
-// apikey: <publishable>, тіло порожнє або {}.
+// apikey: <publishable>, тіло порожнє, {} або {"apple_authorization_code": "…"} — свіжий код Sign in
+// with Apple: з ним спершу відкликаємо токени Apple (5.1.1(v)), best effort — див. apple.ts.
 //   200 {"deleted":true} · 401 без/з недійсним токеном · 500 {"error":…}
 //
 // Порядок: спершу фото користувача в бакеті event-images (<uid>/…), потім auth.admin.deleteUser.
@@ -13,6 +14,7 @@
 // а користувача все одно перевіряємо getUser — токен міг бути відкликаний.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { revokeApple } from "./apple.ts";
 
 const BUCKET = "event-images";
 const PAGE = 1000;
@@ -28,8 +30,11 @@ Deno.serve(async (req) => {
   });
   const { data: { user }, error: authError } = await admin.auth.getUser(token);
   if (authError || !user) return json({ error: "unauthorized" }, 401);
+  const body = await req.json().catch(() => null);
+  const appleCode = typeof body?.apple_authorization_code === "string" ? body.apple_authorization_code : null;
 
   try {
+    if (appleCode && user.app_metadata?.providers?.includes("apple")) await revokeAppleTokens(user.id, appleCode);
     await removeFiles(admin, user.id);
     const { error } = await admin.auth.admin.deleteUser(user.id);
     if (error) throw error;
@@ -64,6 +69,20 @@ async function listAll(storage: ReturnType<ReturnType<typeof createClient>["stor
     if (error) throw error;
     all.push(...(data ?? []));
     if (!data || data.length < PAGE) return all;
+  }
+}
+
+// Відкликання не тримає людину в акаунті: прострочений код чи незаданий ключ — лише в лог.
+// Клієнт Apple — bundle id середовища (APNS_BUNDLE_ID), команда — та сама, що для пушів.
+async function revokeAppleTokens(uid: string, code: string) {
+  const teamId = Deno.env.get("APNS_TEAM_ID"), clientId = Deno.env.get("APNS_BUNDLE_ID");
+  const keyId = Deno.env.get("APPLE_SIWA_KEY_ID"), key = Deno.env.get("APPLE_SIWA_KEY");
+  if (!teamId || !clientId || !keyId || !key) return console.error("apple revoke skipped: APPLE_SIWA_* or APNS_* not set", uid);
+  try {
+    await revokeApple(code, { teamId, clientId, keyId, key });
+    console.log("apple tokens revoked", uid);
+  } catch (e) {
+    console.error("apple revoke failed", uid, String(e));
   }
 }
 
