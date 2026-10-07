@@ -1507,6 +1507,19 @@ class PoruchAppTest {
         app.close()
     }
 
+    /** Відгук у сторі просимо лише після доброї оцінки події, і платформа знімає прапорець. */
+    @Test fun goodRatingIsAMomentToAskForAStoreReview()=runTest {
+        val events=Events().apply { mine=listOf(event("a",EventCategory.MUSIC,"2020-01-01T18:00:00Z")) }
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
+        app.rateEvent("a",3); advanceTimeBy(1000); runCurrent()
+        assertFalse(app.state.value.reviewMoment,"a so-so evening is not the moment")
+        app.rateEvent("a",4); advanceTimeBy(1000); runCurrent()
+        assertTrue(app.state.value.reviewMoment)
+        app.reviewMomentHandled(prompted = false)
+        assertFalse(app.state.value.reviewMoment)
+        app.close()
+    }
+
     /** Шторка оцінки: перемикач «Стежити за організатором» іде разом з оцінкою, а збій підписки її не псує. */
     @Test fun ratingCanFollowTheOrganizerAndAFailedFollowDoesNotSpoilTheRating()=runTest {
         val events=Events().apply { mine=listOf(event("a",EventCategory.MUSIC,"2020-01-01T18:00:00Z")) }

@@ -28,6 +28,18 @@ enum FollowPrompt {
     }
 }
 
+/// Системне вікно відгуку після оцінки події 4–5 (`AppState.reviewMoment`), раз на версію.
+/// Чи показати його, вирішує iOS (до трьох разів на рік), і чи людина відповіла, не каже.
+enum ReviewPrompt {
+    static func due() -> Bool {
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
+        let defaults = UserDefaults.standard
+        guard defaults.string(forKey: "poruch.reviewAskedVersion") != version else { return false }
+        defaults.set(version, forKey: "poruch.reviewAskedVersion")
+        return true
+    }
+}
+
 /// Мʼяке питання про дайджест: на другому запуску, раз, лише поки система ще не питала.
 /// Перший запуск належить онбордингу й геолокації; системне питання iOS ставить лише раз.
 enum DigestPrompt {

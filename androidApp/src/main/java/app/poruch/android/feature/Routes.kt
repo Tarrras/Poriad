@@ -239,6 +239,8 @@ fun ProfileRoute(navigator: Navigator) {
             ProfileEffect.OpenFollows -> navigator.open(Follows)
             is ProfileEffect.OpenLink -> if (!context.openLink(effect.url)) context.toast(R.string.link_unavailable)
             is ProfileEffect.WriteEmail -> if (!context.writeEmail(effect.address)) context.toast(R.string.mail_unavailable)
+            ProfileEffect.ShareApp -> context.shareApp()
+            ProfileEffect.OpenStorePage -> if (!context.openStorePage()) context.toast(R.string.link_unavailable)
         }
     }
     ProfileScreen(model.state.collectAsStateWithLifecycle().value, model::dispatch)

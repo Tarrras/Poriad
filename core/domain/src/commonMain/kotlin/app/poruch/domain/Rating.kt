@@ -38,6 +38,8 @@ data class TagCount(val tag: RatingTag, val count: Int)
 /** Ті самі межі, що в `private.rate_event`: сервер усе одно перевірить, тут — щоб не показувати зайвого. */
 object RatingRules {
     const val COMMENT_MAX = 500
+    /** З якої оцінки події просимо відгук про застосунок: задоволена людина — чесний і добрий відгук. */
+    const val REVIEW_PROMPT_MIN = 4
     private val WINDOW = 14.days
 
     /** Учасник кімнати може оцінити її від кінця і ще [WINDOW]. */

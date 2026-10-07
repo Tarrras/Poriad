@@ -78,6 +78,7 @@ internal class EventUseCases(
         participation.rate(id, score, comment?.trim()?.take(RatingRules.COMMENT_MAX)?.ifEmpty { null }, tags)
         reloader.changed(id)
         store.tell(AppMessage.RATING_SENT)
+        if (score >= RatingRules.REVIEW_PROMPT_MIN) store.update { it.copy(reviewMoment = true) }
         // Підписка окремо й після: запит на неї не тримає ні оцінку, ні шторку.
         if (room != null && follow != null) follows?.afterRating(room.organizerId, room.organizerName, follow)
     }

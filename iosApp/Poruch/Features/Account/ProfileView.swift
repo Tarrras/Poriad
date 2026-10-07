@@ -12,6 +12,7 @@ struct ProfileView: View {
     @State private var deleting = false
     @State private var changingPassword = false
     @State private var editingProfile = false
+    @State private var sharingApp: ShareText?
     @State private var birthDate = Calendar.current.date(byAdding: .year, value: -Int(SafetyRules.shared.MIN_SIGNUP_AGE), to: Date()) ?? Date()
     private let latestBirthDate = Calendar.current.date(byAdding: .year, value: -Int(SafetyRules.shared.MIN_SIGNUP_AGE), to: Date()) ?? Date()
     private let earliestBirthDate = Calendar.current.date(byAdding: .year, value: -100, to: Date()) ?? Date.distantPast
@@ -41,6 +42,7 @@ struct ProfileView: View {
         .sheet(isPresented: $showAuth) { NavigationStack { AuthView() } }
         .sheet(isPresented: $deleting) { DeleteAccountSheet().presentationDetents([.medium, .large]) }
         .sheet(isPresented: $changingPassword) { ChangePasswordSheet().presentationDetents([.medium, .large]) }
+        .sheet(item: $sharingApp) { share in ActivitySheet(items: [share.text]).presentationDetents([.medium, .large]) }
         .sheet(isPresented: $editingProfile) {
             if let profile = model.state?.library.profile { EditProfileSheet(profile: profile).presentationDetents([.large]) }
         }
@@ -200,6 +202,17 @@ struct ProfileView: View {
                 Divider().overlay(Palette.hairline).padding(.leading, Space.lg + 40 + Space.md)
                 LinkRow(symbol: "envelope", title: "Написати в підтримку", subtitle: LegalLinks.shared.SUPPORT_EMAIL) {
                     open("mailto:" + LegalLinks.shared.SUPPORT_EMAIL)
+                }
+            }
+            GroupedRows {
+                LinkRow(symbol: "square.and.arrow.up", title: "Поділитися застосунком") {
+                    model.app.appShared()
+                    sharingApp = ShareText(text: "Знаходжу концерти, настолки й зустрічі поруч у застосунку «Поряд». Спробуй: \(StoreLinks.shared.SHARE)")
+                }
+                Divider().overlay(Palette.hairline).padding(.leading, Space.lg + 40 + Space.md)
+                LinkRow(symbol: "star", title: "Оцінити застосунок", subtitle: "Відгук в App Store допомагає нам рости") {
+                    model.app.rateAppOpened()
+                    open(StoreLinks.shared.APP_STORE_REVIEW)
                 }
             }
             Text("Версія \(appVersion)")

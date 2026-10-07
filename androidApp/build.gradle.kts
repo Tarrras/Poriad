@@ -95,6 +95,8 @@ dependencies {
     implementation("com.airbnb.android:lottie-compose:6.7.1")
     // Орієнтація фото на API 26–27: системний ExifInterface там має відомі вразливості.
     implementation("androidx.exifinterface:exifinterface:1.4.2")
+    // Системне вікно відгуку Google Play (після доброї оцінки події).
+    implementation("com.google.android.play:review-ktx:2.0.2")
     // Firebase: пуші, аналітика, крашлітика. Версії з BOM.
     implementation(platform("com.google.firebase:firebase-bom:34.3.0"))
     implementation("com.google.firebase:firebase-messaging")

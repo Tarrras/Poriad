@@ -11,6 +11,7 @@ import app.poruch.android.ui.dateWords
 import app.poruch.android.ui.eventTime
 import app.poruch.domain.Event
 import app.poruch.domain.EventLinks
+import app.poruch.domain.StoreLinks
 import app.poruch.shared.PoruchApp
 import org.koin.java.KoinJavaComponent
 import java.time.Instant
@@ -38,6 +39,20 @@ fun Context.shareCompanion(parent: Event, companionId: String) {
     }
     startActivity(Intent.createChooser(intent, getString(R.string.companion_share_chooser)))
 }
+
+/** «Поділитися застосунком» з профілю: готовий текст із посиланням на сайт, де обидва стори. */
+fun Context.shareApp() {
+    val intent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_TEXT, getString(R.string.share_app_text, StoreLinks.SHARE))
+    }
+    startActivity(Intent.createChooser(intent, getString(R.string.share_app)))
+}
+
+/** Сторінка в Google Play: застосунок Play Маркет, а без нього — сайт. Пакет прод, бо dev у сторі нема. */
+fun Context.openStorePage(): Boolean =
+    runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=${StoreLinks.ANDROID_PACKAGE}"))) }.isSuccess ||
+        openLink(StoreLinks.PLAY)
 
 /** Копія в системному календарі переживає наші локальні сповіщення. */
 fun Context.addToCalendar(event: Event): Boolean {

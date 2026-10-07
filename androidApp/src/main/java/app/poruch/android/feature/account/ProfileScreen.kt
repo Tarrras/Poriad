@@ -15,6 +15,8 @@ import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Shield
+import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.outlined.StarOutline
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -185,6 +187,11 @@ fun ProfileScreen(state: ProfileState, onIntent: (ProfileIntent) -> Unit) {
                     LinkRow(Icons.Outlined.Description, stringResource(R.string.terms_of_use), onClick = { onIntent(ProfileIntent.OpenTerms) })
                     HairLine(Modifier.padding(start = Spacing.lg + 40.dp + Spacing.md))
                     LinkRow(Icons.Outlined.MailOutline, stringResource(R.string.contact_support), onClick = { onIntent(ProfileIntent.ContactSupport) })
+                }
+                GroupedRows {
+                    LinkRow(Icons.Outlined.Share, stringResource(R.string.share_app), onClick = { onIntent(ProfileIntent.ShareApp) })
+                    HairLine(Modifier.padding(start = Spacing.lg + 40.dp + Spacing.md))
+                    LinkRow(Icons.Outlined.StarOutline, stringResource(R.string.rate_app), stringResource(R.string.rate_app_subtitle), onClick = { onIntent(ProfileIntent.RateApp) })
                 }
                 Text(
                     stringResource(R.string.app_version, state.version),

@@ -10,7 +10,12 @@ import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
+import com.google.android.play.core.review.ReviewManagerFactory
+import com.google.android.play.core.ktx.launchReview
+import com.google.android.play.core.ktx.requestReview
+import kotlinx.coroutines.CancellationException
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.enableEdgeToEdge
@@ -46,6 +51,7 @@ import app.poruch.android.navigation.*
 import app.poruch.android.platform.NotificationPermission
 import app.poruch.android.ui.*
 import app.poruch.domain.EventLinks
+import app.poruch.domain.PoruchLog
 import app.poruch.shared.AppNotice
 import app.poruch.shared.PoruchApp
 import kotlinx.coroutines.delay
@@ -277,6 +283,25 @@ fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
         followPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 
+    // Відгук у Play: після оцінки події 4–5, раз на версію. Чи показати вікно, вирішує сам Play (має свої ліміти),
+    // і чи людина відповіла, він не каже — тож жодних «дякуємо» після.
+    val activity = LocalActivity.current
+    LaunchedEffect(state.reviewMoment) {
+        if (!state.reviewMoment) return@LaunchedEffect
+        val prompts = context.getSharedPreferences(PROMPTS, Context.MODE_PRIVATE)
+        if (activity == null || prompts.getString(REVIEW_ASKED_VERSION, null) == BuildConfig.VERSION_NAME) {
+            return@LaunchedEffect app.reviewMomentHandled(prompted = false)
+        }
+        prompts.edit { putString(REVIEW_ASKED_VERSION, BuildConfig.VERSION_NAME) }
+        val reviews = ReviewManagerFactory.create(activity)
+        val prompted = try {
+            reviews.launchReview(activity, reviews.requestReview()); true
+        } catch (e: CancellationException) { throw e } catch (e: Exception) {
+            PoruchLog.w("review") { "in-app review unavailable: ${e.message}" }; false
+        }
+        app.reviewMomentHandled(prompted)
+    }
+
     // Лист відновлення: окремий екран поверх того, де людина була. Профіль лишається запасним шляхом.
     LaunchedEffect(state.session.passwordRecovery) {
         if (state.session.passwordRecovery && navigator.current != NewPassword) navigator.open(
@@ -468,5 +493,6 @@ private const val LOCATION_ASKED = "location_asked"
 private const val LAUNCHES = "launches"
 private const val DIGEST_ASKED = "digest_asked"
 private const val FOLLOW_ASKED = "follow_asked"
+private const val REVIEW_ASKED_VERSION = "review_asked_version"
 private const val INFO_NOTICE_MS = 3_000L
 private const val ERROR_NOTICE_MS = 5_000L

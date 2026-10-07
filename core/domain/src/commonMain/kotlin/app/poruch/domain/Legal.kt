@@ -12,6 +12,16 @@ object LegalLinks {
     const val SUPPORT_EMAIL = "hello@poriad.app"
 }
 
+/** Сторінки застосунку в сторах. Ділимось сайтом: на ньому обидві кнопки, а друг може бути з іншою ОС. */
+object StoreLinks {
+    const val ANDROID_PACKAGE = "app.poriad.android"
+    const val PLAY = "https://play.google.com/store/apps/details?id=$ANDROID_PACKAGE"
+    const val APP_STORE = "https://apps.apple.com/app/id6813543772"
+    /** Відкриває одразу форму відгуку в App Store. */
+    const val APP_STORE_REVIEW = "$APP_STORE?action=write-review"
+    const val SHARE = LegalLinks.SITE
+}
+
 /**
  * Посилання на подію: `poriad.app/e/{id}` віддає веб-сторінку з прев'ю (worker/), а на телефоні з
  * застосунком відкриває його (Universal Links / App Links). Кнопка сторінки «Відкрити в застосунку»

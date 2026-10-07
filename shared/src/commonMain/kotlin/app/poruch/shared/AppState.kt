@@ -37,6 +37,11 @@ data class AppState(
     val completedEventId: String? = null,
     /** Щойно створений супутник «Йдемо разом»: платформа відкриває «Поділитися» і кличе [PoruchApp.clearCreatedCompanion]. */
     val createdCompanion: String? = null,
+    /**
+     * Людина щойно поставила події 4–5: вдалий момент попросити відгук у сторі. Платформа вирішує,
+     * чи питати (раз на версію, система має свої ліміти), і кличе [PoruchApp.reviewMomentHandled].
+     */
+    val reviewMoment: Boolean = false,
     /** Відкритий чат події. Null — екран чату закрито, і опитування зупинено. */
     val chat: ChatState? = null,
     /** Події з непрочитаними повідомленнями, свіжіші першими. Бейджі й секція на головній. */

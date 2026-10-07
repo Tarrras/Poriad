@@ -88,6 +88,8 @@ class ProfileViewModel(private val app: PoruchApp, private val notifications: No
             ProfileIntent.OpenPrivacy -> send(ProfileEffect.OpenLink(LegalLinks.PRIVACY))
             ProfileIntent.OpenTerms -> send(ProfileEffect.OpenLink(LegalLinks.TERMS))
             ProfileIntent.ContactSupport -> send(ProfileEffect.WriteEmail(LegalLinks.SUPPORT_EMAIL))
+            ProfileIntent.ShareApp -> { app.appShared(); send(ProfileEffect.ShareApp) }
+            ProfileIntent.RateApp -> { app.rateAppOpened(); send(ProfileEffect.OpenStorePage) }
             is ProfileIntent.ShowDeleteAccount -> {
                 if (!intent.show) app.clearNotice()
                 reduce { copy(deleting = intent.show, deletePassword = "", deleteError = null) }

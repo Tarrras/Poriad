@@ -3,6 +3,7 @@ import Shared
 import FirebaseCore
 import FirebaseAnalytics
 import FirebaseCrashlytics
+import StoreKit
 
 @main struct PoruchApplication: App {
     @UIApplicationDelegateAdaptor(PushDelegate.self) private var pushDelegate
@@ -135,6 +136,7 @@ struct RootView: View {
     @StateObject private var location = LocationFinder()
     /// Мʼяке питання про дайджест вихідних, див. `DigestPrompt`.
     @State private var digestAsk = false
+    @Environment(\.requestReview) private var requestReview
     var body: some View {
         // Онбординг замінює застосунок, а не накриває: за ним на першому запуску ще нічого нема.
         // Поки стану нема, невідомо, чи потрібен онбординг: нейтральне полотно, без запиту геолокації.
@@ -148,6 +150,13 @@ struct RootView: View {
                     .task { digestAsk = await DigestPrompt.due(digestEnabled: state.digestEnabled) }
                     // Перша підписка за запуск: питаємо про сповіщення, без них пуші про нове не дійдуть.
                     .onChange(of: state.library.followsMade) { _, made in if made > 0 { FollowPrompt.ask() } }
+                    .onChange(of: state.reviewMoment) { _, moment in
+                        guard moment else { return }
+                        let due = ReviewPrompt.due()
+                        model.app.reviewMomentHandled(prompted: due)
+                        // Шторка оцінки ще закривається: вікно поверх анімації iOS мовчки пропускає.
+                        if due { Task { try? await Task.sleep(for: .seconds(1)); requestReview() } }
+                    }
                     .alert("Що поруч на вихідних?", isPresented: $digestAsk) {
                         Button("Так, нагадувати") {
                             NotificationPermission.request { granted in

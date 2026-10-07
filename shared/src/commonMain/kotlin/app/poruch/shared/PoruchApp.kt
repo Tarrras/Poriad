@@ -393,6 +393,12 @@ class PoruchApp internal constructor(
     /** Відкрито системне «Поділитися» з посиланням на подію: чи працює петля запрошень. */
     fun eventShared() = PoruchAnalytics.track("share", "kind" to "event")
 
+    /** «Поділитися застосунком» з профілю. */
+    fun appShared() = PoruchAnalytics.track("share", "kind" to "app")
+
+    /** «Оцінити застосунок» з профілю відкрив сторінку в сторі. */
+    fun rateAppOpened() = PoruchAnalytics.track("rate_app")
+
     /** Подію відкрито з посилання `poriad.app/e/…` — друга половина тієї ж петлі. */
     fun eventLinkOpened() = PoruchAnalytics.track("link_open", "kind" to "event")
 
@@ -461,6 +467,12 @@ class PoruchApp internal constructor(
     /** «Поділитися» для щойно створеного супутника вже відкрито. */
     fun clearCreatedCompanion() {
         store.update { it.copy(createdCompanion = null) }
+    }
+
+    /** [AppState.reviewMoment] оброблено; [prompted] — платформа справді показала системне питання. */
+    fun reviewMomentHandled(prompted: Boolean) {
+        if (prompted) PoruchAnalytics.track("review_prompt")
+        store.update { it.copy(reviewMoment = false) }
     }
 
     fun clearCompletedEvent() {

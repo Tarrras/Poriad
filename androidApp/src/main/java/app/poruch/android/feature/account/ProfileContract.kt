@@ -81,6 +81,8 @@ sealed interface ProfileIntent {
     data object OpenPrivacy : ProfileIntent
     data object OpenTerms : ProfileIntent
     data object ContactSupport : ProfileIntent
+    data object ShareApp : ProfileIntent
+    data object RateApp : ProfileIntent
     data class ShowDeleteAccount(val show: Boolean) : ProfileIntent
     data class SetDeletePassword(val value: String) : ProfileIntent
     data object ConfirmDeleteAccount : ProfileIntent
@@ -95,4 +97,6 @@ sealed interface ProfileEffect {
     data object OpenFollows : ProfileEffect
     data class OpenLink(val url: String) : ProfileEffect
     data class WriteEmail(val address: String) : ProfileEffect
+    data object ShareApp : ProfileEffect
+    data object OpenStorePage : ProfileEffect
 }

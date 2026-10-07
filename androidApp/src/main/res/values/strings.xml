@@ -211,6 +211,10 @@
   <string name="privacy_policy">Політика конфіденційності</string>
   <string name="terms_of_use">Умови користування</string>
   <string name="contact_support">Написати в підтримку</string>
+  <string name="share_app">Поділитися застосунком</string>
+  <string name="share_app_text">Знаходжу концерти, настолки й зустрічі поруч у застосунку «Поряд». Спробуй: %1$s</string>
+  <string name="rate_app">Оцінити застосунок</string>
+  <string name="rate_app_subtitle">Відгук у Google Play допомагає нам рости</string>
   <string name="app_version">Версія %1$s</string>
   <string name="mail_unavailable">Немає поштового застосунку</string>
   <string name="delete_account">Видалити обліковий запис</string>
