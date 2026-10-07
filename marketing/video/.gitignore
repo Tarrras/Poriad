@@ -1,0 +1,6 @@
+node_modules/
+out/
+public/clips/*.log
+# Відео-джерела (~110 МБ) лишаються локально: записи з симулятора й кліпи Higgsfield.
+public/clips/*.mp4
+public/hf/*.mp4
