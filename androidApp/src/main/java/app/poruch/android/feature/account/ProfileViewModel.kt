@@ -97,7 +97,7 @@ class ProfileViewModel(private val app: PoruchApp, private val notifications: No
             }
             is ProfileIntent.SetDeletePassword -> reduce { copy(deletePassword = intent.value, deleteError = null) }
             // Акаунт Apple, видалений з Android, токенів Apple не відкликає: свіжого коду тут не взяти.
-            ProfileIntent.ConfirmDeleteAccount -> state.value.let { app.deleteAccount(it.deletePassword.takeUnless { _ -> it.passwordless }, null) }
+            ProfileIntent.ConfirmDeleteAccount -> state.value.let { app.deleteAccount(if (it.passwordless) null else it.deletePassword, null) }
             is ProfileIntent.ShowChangePassword -> {
                 if (!intent.show) app.clearNotice()
                 reduce { copy(changingPassword = intent.show, currentPassword = "", newPassword = "", changeError = null) }
