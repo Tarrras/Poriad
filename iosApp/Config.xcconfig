@@ -18,7 +18,8 @@ APP_AUTH_SCHEME[config=*-Dev] = poriad-dev
 APP_AUTH_SCHEME[config=*-Prod] = poriad
 // Вхід через Google: iOS-клієнт OAuth свого bundle id (Google Cloud → Credentials) і його reversed
 // client ID як URL-схема. Не секрет. Порожньо — кнопки Google нема. Той самий клієнт — у Supabase Auth
-// → Providers → Google → Client IDs (поруч із Web client ID).
+// → Providers → Google → Client IDs (поруч із Web client ID). Заповнювати обидва разом: client ID без
+// reversed client ID у URL-схемі — і GoogleSignIn падає (NSException) на першому ж вході.
 GOOGLE_IOS_CLIENT_ID[config=*-Dev] =
 GOOGLE_IOS_CLIENT_ID[config=*-Prod] =
 GOOGLE_REVERSED_CLIENT_ID[config=*-Dev] = poriad-dev-google

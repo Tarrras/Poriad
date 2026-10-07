@@ -50,7 +50,9 @@ final class AppleReauthorization: NSObject, ASAuthorizationControllerDelegate, A
     private var controller: ASAuthorizationController?
     private var continuation: CheckedContinuation<ASAuthorizationAppleIDCredential, Error>?
 
+    /// Подвійний тап, поки перший запит ще йде: другий — як скасування, відповідь отримає перший.
     @MainActor func authorizationCode() async throws -> String? {
+        guard continuation == nil else { throw ASAuthorizationError(.canceled) }
         let credential = try await withCheckedThrowingContinuation { continuation in
             self.continuation = continuation
             let controller = ASAuthorizationController(authorizationRequests: [ASAuthorizationAppleIDProvider().createRequest()])

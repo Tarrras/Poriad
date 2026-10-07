@@ -39,8 +39,13 @@ internal class SessionUseCases(
         PoruchAnalytics.track("login", "method" to provider.key)
         identity.synchronize(auth.session.value?.userId)
         // Apple дає імʼя лише при першому вході і не в токені: не збережемо зараз — лишиться «Учасник».
+        // Лише замість імені за замовчуванням: Apple з тією ж поштою GoTrue привʼязує до наявного
+        // акаунта, і обране людиною імʼя не має мінятися на імʼя з Apple ID.
+        val uid = auth.session.value?.userId
         name?.trim()?.takeIf(AccountRules::isName)?.let { name ->
-            try { profiles?.rename(name) } catch (e: CancellationException) { throw e } catch (e: Exception) {
+            try {
+                if (uid != null && profiles?.profile(uid)?.name == ProfileRules.DEFAULT_NAME) profiles.rename(name)
+            } catch (e: CancellationException) { throw e } catch (e: Exception) {
                 PoruchLog.w("auth") { "provider name not saved: ${e.asAppError()}" }
             }
         }

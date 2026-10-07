@@ -24,6 +24,9 @@ internal class IdentitySync(
                 last?.takeIf { it.userId != session?.userId }?.let(push::accountLeft)
                 last = session
                 synchronize(session?.userId)
+                // Той самий акаунт, новий токен: провайдери могли змінитися (привʼязали пошту до Apple).
+                val providers = session?.providers.orEmpty()
+                if (store.value.session.providers != providers) store.update { it.copy(session = it.session.copy(providers = providers)) }
             }
         }
     }

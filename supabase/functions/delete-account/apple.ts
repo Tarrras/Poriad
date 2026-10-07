@@ -6,16 +6,20 @@
 export type AppleConfig = { teamId: string; clientId: string; keyId: string; key: string };
 
 const APPLE = "https://appleid.apple.com";
+/** Apple, що завис, не має тримати видалення акаунта до ліміту функції. */
+const TIMEOUT_MS = 8000;
 
 export async function revokeApple(code: string, config: AppleConfig, fetchFn: typeof fetch = fetch): Promise<void> {
   const secret = await clientSecret(config);
   const form = (fields: Record<string, string>) =>
     new URLSearchParams({ client_id: config.clientId, client_secret: secret, ...fields });
-  const tokenRes = await fetchFn(`${APPLE}/auth/token`, { method: "POST", body: form({ grant_type: "authorization_code", code }) });
+  const tokenRes = await fetchFn(`${APPLE}/auth/token`, {
+    method: "POST", body: form({ grant_type: "authorization_code", code }), signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
   const tokens = await tokenRes.json().catch(() => ({}));
   if (!tokenRes.ok || !tokens.refresh_token) throw new Error(`apple token ${tokenRes.status} ${tokens.error ?? ""}`.trim());
   const revokeRes = await fetchFn(`${APPLE}/auth/revoke`, {
-    method: "POST", body: form({ token: tokens.refresh_token, token_type_hint: "refresh_token" }),
+    method: "POST", body: form({ token: tokens.refresh_token, token_type_hint: "refresh_token" }), signal: AbortSignal.timeout(TIMEOUT_MS),
   });
   if (!revokeRes.ok) throw new Error(`apple revoke ${revokeRes.status}`);
 }

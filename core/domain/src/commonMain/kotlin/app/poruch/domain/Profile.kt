@@ -20,6 +20,8 @@ data class Profile(
 /** Межі профілю. Сервер перевіряє ті самі (CHECK на bio, стоп-словник у тригері). */
 object ProfileRules {
     const val BIO_MAX = 300
+    /** Імʼя, яке тригер `handle_new_user` дає акаунту без імені (Apple не кладе його в токен). */
+    const val DEFAULT_NAME = "Учасник"
 
     /** Довша сторона фото профілю після перекодування: аватар ніде не більший за 96 pt. */
     const val AVATAR_SIDE = 512

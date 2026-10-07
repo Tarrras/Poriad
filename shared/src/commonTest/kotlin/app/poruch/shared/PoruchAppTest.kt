@@ -1517,6 +1517,7 @@ class PoruchAppTest {
     @Test fun appleSignInSavesTheNameAndAsksForTheBirthDate()=runTest {
         val auth=Auth().apply { session.value=null; idTokenUser="user" }
         safety=Safety(AccountFacts(null))
+        profiles.mine=profiles.mine.copy(name=ProfileRules.DEFAULT_NAME)
         val app=app(Events(),backgroundScope,auth); runCurrent(); advanceTimeBy(101); runCurrent()
         app.signInWithIdToken(IdProvider.APPLE,"apple-token","  Олена Коваль "); advanceTimeBy(1000); runCurrent()
         val session=app.state.value.session
@@ -1527,6 +1528,15 @@ class PoruchAppTest {
         app.declareBirthDate("1990-05-01"); advanceTimeBy(1000); runCurrent()
         assertFalse(app.state.value.session.askBirthDate)
         assertEquals("1990-05-01",safety.declared)
+        app.close()
+    }
+
+    /** Apple з тією ж поштою привʼязався до наявного акаунта: обране імʼя лишається. */
+    @Test fun appleNameDoesNotReplaceAChosenName()=runTest {
+        val auth=Auth().apply { session.value=null; idTokenUser="user" }
+        val app=app(Events(),backgroundScope,auth); runCurrent(); advanceTimeBy(101); runCurrent()
+        app.signInWithIdToken(IdProvider.APPLE,"apple-token","Олена Коваль"); advanceTimeBy(1000); runCurrent()
+        assertEquals("Я",profiles.mine.name)
         app.close()
     }
 
@@ -1551,6 +1561,18 @@ class PoruchAppTest {
         assertNull(app.state.value.session.userId)
         assertEquals("apple-code",auth.deletedWithAppleCode)
         assertEquals(AppNotice.Told(AppMessage.ACCOUNT_DELETED),app.state.value.notice)
+        app.close()
+    }
+
+    /** Після перезапуску сесія відновлюється зі сховища: акаунт Apple лишається акаунтом без пароля. */
+    @Test fun restoredAppleSessionStaysPasswordless()=runTest {
+        val auth=Auth().apply { session.value=UserSession("user","token","refresh",9999999999,setOf("apple")) }
+        val app=app(Events(),backgroundScope,auth); runCurrent(); advanceTimeBy(101); runCurrent()
+        assertTrue(app.state.value.session.passwordless,"restored before any sign-in in this run")
+        assertTrue(app.state.value.session.viaApple)
+        // Оновлений токен з новим провайдером (привʼязали пошту) — стан за ним.
+        auth.session.value=UserSession("user","token2","refresh",9999999999,setOf("apple","email")); runCurrent()
+        assertFalse(app.state.value.session.passwordless)
         app.close()
     }
 

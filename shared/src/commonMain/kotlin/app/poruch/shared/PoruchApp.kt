@@ -63,7 +63,8 @@ class PoruchApp internal constructor(
     // Відповіді читаємо синхронно: від них залежить, чи перший кадр — онбординг чи застосунок.
     private val store = AppStore(
         AppState(
-            session = SessionState(userId = auth.session.value?.userId), taste = tasteStore?.read() ?: Taste(),
+            session = SessionState(userId = auth.session.value?.userId, providers = auth.session.value?.providers.orEmpty()),
+            taste = tasteStore?.read() ?: Taste(),
             remindersEnabled = reminderStore?.enabled() ?: false,
             digestEnabled = reminderStore?.digestEnabled() ?: true,
             analyticsEnabled = analyticsStore?.enabled() ?: true,
