@@ -7,9 +7,12 @@ const APP_STORE_URL = "https://apps.apple.com/ua/app/id6813543772";
 // Порожньо, доки застосунок не вийшов у Google Play: кнопку не показуємо.
 const PLAY_URL = "";
 const IOS_APP_ID = "QTYQMJ94D2.app.poriad.ios";
-// Play Console → Test and release → App integrity → App signing: SHA-256 ключа підпису застосунку.
-// Порожньо — Android не підтвердить App Links і відкриватиме посилання в браузері, на цій же сторінці.
-const ANDROID_CERT_FINGERPRINTS = [];
+// Play Console → Test and release → App integrity → App signing: SHA-256 ключа підпису застосунку
+// (збірки з Play) і ключа завантаження (локальні prodRelease). Без них Android відкриває посилання в браузері.
+const ANDROID_CERT_FINGERPRINTS = [
+  "E4:3A:7F:9B:CF:4B:A5:BE:77:92:7D:80:00:4A:A9:56:D1:00:B0:42:43:FD:DC:7B:B5:61:EA:C8:91:9E:C1:00",
+  "34:B7:9F:9D:37:41:74:DC:66:54:E3:6C:3E:CE:AB:04:E2:ED:5C:60:8F:49:8B:0C:6D:C4:7C:2F:78:EA:06:03",
+];
 const CACHE_SECONDS = 300;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
