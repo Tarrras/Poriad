@@ -217,6 +217,7 @@ def artists_sql(items: list[Item], replace_llm: bool = False) -> str:
     people: dict[str, tuple] = {}              # key -> (ім'я, вид, джерело)
     links: list[str] = []
     for it in items:
+        seen: set[str] = set()
         for position, a in enumerate(it.artists):
             k = artist_key(a.name)
             name = a.name.strip()
@@ -229,6 +230,11 @@ def artists_sql(items: list[Item], replace_llm: bool = False) -> str:
             source = "manual" if a.how == "dictionary" else "llm" if a.how == "llm" else "auto"
             if k not in people or _ARTIST_RANK[source] > _ARTIST_RANK[people[k][2]]:
                 people[k] = (name, a.kind, source)
+            # Повтор артиста в події валить `on conflict do update` («cannot affect row a second time»),
+            # а з ним — увесь дамп.
+            if k in seen:
+                continue
+            seen.add(k)
             links.append("  (" + ",".join([_lit(it.source_slug), _lit(it.source_uid), _lit(k), _lit(a.role),
                                            str(position), _lit(a.how), repr(round(a.confidence, 2))]) + ")")
     clear = ("delete from public.event_artists ea using public.events e, public.event_sources s, (values "

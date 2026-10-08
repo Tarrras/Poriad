@@ -114,6 +114,13 @@ class Settle(unittest.TestCase):
         self.assertEqual([(a.name, a.how) for a in items[0].artists],
                          [("Театр Чорний квадрат", "dictionary")])
 
+    def test_alias_and_canonical_in_one_event_give_one_artist(self):
+        # Concert.ua 2026-10-05..08: [Паша Пінчук, Паша Пінчук] — повтор валив запис event_artists, а з ним дамп.
+        d = Dictionary({"Паша Пінчук": {"kind": "person", "aliases": ["Павло Пінчук"]}})
+        items = [item("Павло Пінчук", "Паша Пінчук", "Джейхун Сафаров")]
+        settle(items, d)
+        self.assertEqual([a.name for a in items[0].artists], ["Паша Пінчук", "Джейхун Сафаров"])
+
     def test_dictionary_venue_kind_drops_even_at_many_places(self):
         d = Dictionary({"Київська опера": {"kind": "venue"}})
         items = [item("Київська опера", lat=1), item("Київська опера", lat=2)]
@@ -300,6 +307,12 @@ class ArtistsSql(unittest.TestCase):
         self.assertNotIn("event_id::uuid", out)
         self.assertIn("ea.how <> 'llm'", out)                                           # без моделі її рядки не чіпаємо
         self.assertNotIn("ea.how <> 'llm'", self.sql([self.ev(Artist("X Y"))], replace_llm=True))
+
+    def test_repeated_artist_gives_one_link(self):
+        out = self.sql([self.ev(Artist("Паша Пінчук"), Artist("Паша Пінчук"), Artist("Джейхун Сафаров"))])
+        links = out.split("insert into public.event_artists")[1]
+        self.assertEqual(links.count("'паша пінчук'"), 1)
+        self.assertEqual(links.count("'джейхун сафаров'"), 1)
 
     def test_event_without_artists_still_clears_stale_links(self):
         out = self.sql([self.ev()])

@@ -368,7 +368,8 @@ def _drop_venues(items: list, dictionary: Dictionary, dropped: collections.Count
                 dropped[canonical] += 1
                 continue
             kept.append(dataclasses.replace(a, name=canonical, kind=kind, how="dictionary" if kind else a.how))
-        it.artists = kept
+        # Повтори прибираємо після зведення до словника: «Павло Пінчук» і «Паша Пінчук» — одне ім'я.
+        it.artists = merge(kept)
     return {name: len(spots) for name, spots in places.items() if _is_venue_word(name)}
 
 

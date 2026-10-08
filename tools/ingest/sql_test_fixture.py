@@ -21,7 +21,8 @@ moved = dataclasses.replace(b, starts_at=b.starts_at + dt.timedelta(days=1),
 moved.source_uid = pipeline.occurrence_uid(moved.canonical_url, moved.starts_at)
 moved.event_id = __import__("uuid").uuid5(pipeline.NAMESPACE, source.slug + "|" + moved.source_uid)
 # Перенесений рядок лишає старий id, а артист має знайти саме його (МУР у Дніпрі 2026-10-08).
-moved.artists = [Artist("МУР")]
+# Повтор імені в події не має валити дамп (`on conflict do update` двічі в один рядок).
+moved.artists = [Artist("МУР"), Artist("МУР")]
 loser = dataclasses.replace(moved, source_slug="internet_bilet", previous_start=a.starts_at,
                             stage="duplicate", duplicate_of=(source.slug, moved.source_uid))
 # Зміна посилання: той самий сеанс під новою адресою лишається тим самим рядком. Окреме джерело,
