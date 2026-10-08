@@ -1,6 +1,6 @@
 // «Живі» екрани застосунку для лендингу: та сама розмітка й класи, що в ds-bundle (app-ui.css — рецепти 1:1 зі SwiftUI),
 // і справжні події з prod. Екран малюється в точках iPhone 16 Pro (402×874) і масштабується під рамку телефона.
-import { CATEGORIES, displayTitle, overline, timeOf, price, sourceNote, httpsOrNull, esc, plural, EVENTS } from "./poriad.js";
+import { CATEGORIES, displayTitle, overline, timeOf, price, sourceNote, httpsOrNull, esc, plural, EVENTS } from "./poriad.js?v=3";
 
 const ico = (name, size = 22) => `<svg width="${size}" height="${size}" aria-hidden="true"><use href="img/icons.svg#i-${name}"/></svg>`;
 

@@ -1,7 +1,7 @@
 // Лендинг: спершу продукт — живий телефон зі справжньою афішею, вітрина функцій на живих екранах; афіша міста — бонусом нижче.
-import { discover, fold, soonFirst, inWhen, eventSafety, CITIES, cityOf, WHEN, plural, EVENTS, displayTitle, httpsOrNull } from "./poriad.js";
-import { ensureCards, remember, poster, skeletons, bindCards, reveal, navGlass, bindLocks, countUp, savedCity, qr } from "./ui.js";
-import { homeScreen, detailScreen, companionsScreen, bindCompanions, notifications, safetyCard, followRows, fitScreens } from "./screens.js";
+import { discover, fold, soonFirst, inWhen, eventSafety, CITIES, cityOf, WHEN, plural, EVENTS, displayTitle, httpsOrNull } from "./poriad.js?v=3";
+import { ensureCards, remember, poster, skeletons, bindCards, reveal, navGlass, bindLocks, countUp, savedCity, qr } from "./ui.js?v=3";
+import { homeScreen, detailScreen, companionsScreen, bindCompanions, notifications, safetyCard, followRows, fitScreens } from "./screens.js?v=3";
 
 navGlass();
 bindLocks();

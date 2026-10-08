@@ -4,7 +4,7 @@
 import {
   APP_STORE_URL, PLAY_URL, CATEGORIES, cardsByIds, eventSafety, displayTitle, overline, dayLabel, timeOf,
   price, sourceNote, httpsOrNull, esc, otherDays,
-} from "./poriad.js";
+} from "./poriad.js?v=3";
 
 const ua = navigator.userAgent;
 export const isIOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
