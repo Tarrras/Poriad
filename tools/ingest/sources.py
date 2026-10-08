@@ -179,12 +179,15 @@ SOURCES: list[Source] = [
         catalog_url="https://concert.ua/uk/catalog/{city}/{slug}",
         city_slugs={"Київ": "kyiv", "Львів": "lviv", "Харків": "kharkiv",
                     "Одеса": "odesa", "Дніпро": "dnipro"},
-        # Лише однозначні каталоги. `festivals`, `gifts`, `other`, `new-year` пропущено: привід, а не рід.
+        # Жанр продавця — лише з однозначних каталогів. `festivals`, `other`, `new-year` — привід, а не рід:
+        # їх обходимо без жанру (None), бо там є події, яких немає ні в списку, ні в інших каталогах (аудит
+        # 2026-10-08: 5 з 14 на першій сторінці Києва). `gifts` — сертифікати, не події.
         catalogs={"concerts": "music", "electronic": "music",
                   "humor": "comedy", "kids": "kids", "sport": "sport",
                   "theater": "art", "cinema": "art", "dance": "art", "circus": "art",
                   "show": "art", "tvorchii-vechir": "art",
-                  "business": "conference", "excursions": "tours"},
+                  "business": "conference", "excursions": "tours",
+                  "festivals": None, "other": None, "new-year": None},
     ),
     Source(
         slug="internet_bilet",

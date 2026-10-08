@@ -24,15 +24,18 @@ class StatsSql(unittest.TestCase):
         parts = emit.stats_sql(reports, [self.a, self.b], RUN)
         sql = "".join(parts)
         self.assertIn("delete from private.ingest_runs where finished_at < now() - interval '30 days'", sql)
-        # Три пари: два з звітів (karabas_status — під slug karabas, без міста) і badseller з елементів.
-        runs = parts[1]
-        self.assertEqual(runs.count("union all"), 2)
-        self.assertIn("where s.slug='karabas'", runs)
-        self.assertIn(emit.stats_run_id(RUN, "badseller", "Київ"), runs)
+        # Три пари: два звіти (karabas_status — під slug karabas, без міста) і заглушка badseller з елементів.
+        # Звіт перезаписує заглушку з іншого файлу (--sql-dir), заглушка звіт — ні.
+        reported, stub = parts[1], parts[2]
+        self.assertEqual(reported.count("union all"), 1)
+        self.assertIn("where s.slug='karabas'", reported)
+        self.assertIn("on conflict (id) do update set", reported)
+        self.assertIn(emit.stats_run_id(RUN, "badseller", "Київ"), stub)
+        self.assertIn("on conflict (id) do nothing", stub)
         # Дубль посилається на переможця за ключем (slug, source_uid): перенесений рядок лишає старий id.
-        self.assertIn(f"'concert_ua','{self.a.source_uid}')", parts[2])
-        self.assertIn("ws.slug=v.w_slug and e.source_uid=v.w_uid", parts[2])
-        self.assertIn("'duplicate'", parts[2])
+        self.assertIn(f"'concert_ua','{self.a.source_uid}')", parts[3])
+        self.assertIn("ws.slug=v.w_slug and e.source_uid=v.w_uid", parts[3])
+        self.assertIn("'duplicate'", parts[3])
 
     def test_items_split_by_budget(self):
         items = [dataclasses.replace(self.a, source_uid=f"u{n}") for n in range(6)]

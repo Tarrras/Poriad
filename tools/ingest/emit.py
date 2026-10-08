@@ -487,6 +487,25 @@ def retire_absent_sql(slug: str, city: str, seen_uids: list[str], run_id: str, u
         "end $retire$;\n")
 
 
+def retire_replaced_sql(slug: str, items: list[Item], run_id: str) -> str:
+    """Картка з одним сеансом (TicketsBox: кожна картка — один сеанс, звірено 2026-10-08) показує його
+    теперішній час: інші майбутні сеанси того ж посилання — старий час, якого вже нема. Без цього
+    перенесення без `previousStartDate` лишало обидва рядки живими назавжди (Могилевська 9.10 → 14.05.2027,
+    «В неділю рано согрішили» 14:00 → 15:00): TicketsBox за відсутністю не знімається, бо список неповний.
+    Судимо лише картки, прочитані цим прогоном, тож неповний список тут нічого не знімає."""
+    seen = sorted({(it.canonical_url, it.source_uid) for it in items if it.canonical_url})
+    if not seen:
+        return ""
+    rows = ",".join(f"({_lit(url)},{_lit(uid)})" for url, uid in seen)
+    return (
+        f"with seen(url, uid) as (values {rows})\n"
+        f"update public.events e set import_status='withdrawn', updated_at=now(), ingest_run_id={_lit(run_id)}\n"
+        f"where e.source_id=(select id from public.event_sources where slug={_lit(slug)})\n"
+        "  and e.origin='import' and e.import_status='live' and e.starts_at > now()\n"
+        "  and e.canonical_url in (select url from seen)\n"
+        "  and not exists (select 1 from seen s where s.uid = e.source_uid);\n")
+
+
 # Скільки днів після кінця подія ще вважається живою: перенесення під тим самим ключем повертають
 # її в `live` наступним дампом, а тиждень покриває типовий зсув афіші.
 FINISHED_GRACE_DAYS = 7
@@ -580,23 +599,34 @@ def stats_sql(reports: list[dict], items: list[Item], run_id: str, max_bytes: in
         source = r.get("source")
         if source:
             runs[(source, r.get("city"))] = r
+    real = set(runs)
+    # Заглушка для пари без звіту (копія з чужого міста, CITY_MISMATCH): елементам потрібен рядок, на який
+    # посилатись. Справжній звіт заглушку перезаписує, а не навпаки: у `--sql-dir` файл іншого міста з
+    # заглушкою міг застосуватись раніше, і справжній звіт губився (`do nothing`), а з ним база SHARP_DROP.
     for it in items:
         runs.setdefault((it.source_slug, it.city), {"source": it.source_slug, "city": it.city})
 
-    rows = []
-    for (source, city), r in runs.items():
+    def row(source, city, r) -> str:
         slug = "karabas" if source == "karabas_status" else source
-        rows.append("select " + ",".join([
+        return "select " + ",".join([
             _lit(stats_run_id(run_id, source, city)) + "::uuid", "s.id", _lit(run_id) + "::uuid", _lit(city) + "::text", "now()",
             *(str(_count(r.get(k))) for k in ("fetched", "parsed", "geocoded", "published",
                                              "duplicates", "rejected", "review")),
             _lit(r.get("error")) + "::text", _lit(json.dumps(r, ensure_ascii=False, default=str)) + "::jsonb",
-        ]) + f" from public.event_sources s where s.slug={_lit(slug)}")
+        ]) + f" from public.event_sources s where s.slug={_lit(slug)}"
+    columns = ("insert into private.ingest_runs (id,source_id,run_id,city,finished_at,fetched,parsed,geocoded,"
+               "published,merged,rejected,review,error,report)\n")
     parts = [f"delete from private.ingest_runs where finished_at < now() - interval '{STATS_KEEP_DAYS} days';\n"]
-    if rows:
-        parts.append("insert into private.ingest_runs (id,source_id,run_id,city,finished_at,fetched,parsed,geocoded,"
-                     "published,merged,rejected,review,error,report)\n" + "\nunion all ".join(rows)
-                     + "\non conflict (id) do nothing;\n")
+    reported = [row(s, c, r) for (s, c), r in runs.items() if (s, c) in real]
+    stubs = [row(s, c, r) for (s, c), r in runs.items() if (s, c) not in real]
+    if reported:
+        parts.append(columns + "\nunion all ".join(reported) + "\non conflict (id) do update set\n"
+                     "  source_id=excluded.source_id, finished_at=excluded.finished_at, fetched=excluded.fetched,\n"
+                     "  parsed=excluded.parsed, geocoded=excluded.geocoded, published=excluded.published,\n"
+                     "  merged=excluded.merged, rejected=excluded.rejected, review=excluded.review,\n"
+                     "  error=excluded.error, report=excluded.report;\n")
+    if stubs:
+        parts.append(columns + "\nunion all ".join(stubs) + "\non conflict (id) do nothing;\n")
 
     def render(chunk: list[Item]) -> str:
         values = []

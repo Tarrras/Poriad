@@ -17,6 +17,7 @@ Photon завжди повертає найкращий здогад, навіт
 """
 from __future__ import annotations
 
+import datetime as dt
 import json
 import math
 import os
@@ -59,6 +60,9 @@ _STREET_KINDS = {"вулиця", "проспект", "площа", "провул
 _AMBIGUOUS_METRES = 500.0
 # Версія фільтрів `_pick`. Змінили правила — підняли число, і старі точки перевіряються заново.
 _RULES_VERSION = 4
+# «Шукали, не знайшли» — не назавжди: адресу додають в OSM, і без строку вона лишалась би без точки
+# (на 2026-10-08 у кеші 60 таких записів без дати).
+NEGATIVE_TTL = dt.timedelta(days=30)
 
 
 def _squash(text: str | None) -> str:
@@ -166,7 +170,11 @@ class Geocoder:
             # Запис без поточної версії правил питаємо заново: кеш не має права обходити фільтр,
             # якого не було, коли його записали. Запис без точки = «шукали, не знайшли».
             if hit.get("v") == _RULES_VERSION:
-                return hit if "lat" in hit else None
+                if "lat" in hit:
+                    return hit
+                fresh_after = (dt.datetime.now(dt.timezone.utc) - NEGATIVE_TTL).isoformat()
+                if str(hit.get("at", "")) >= fresh_after:
+                    return None
 
         # Photon приймає лише default/de/en/fr; `default` віддає українські назви, `uk` дає 400.
         payload = self._get(ENDPOINT, query, {
@@ -188,7 +196,7 @@ class Geocoder:
                 return None                    # збій мережі не кешуємо як «не знайшли»
             result = self._pick([_photon_shaped(row) for row in rows], query, service="nominatim")
         with _lock:
-            self._cache[key] = result or {"v": _RULES_VERSION}
+            self._cache[key] = result or {"v": _RULES_VERSION, "at": dt.datetime.now(dt.timezone.utc).isoformat()}
             self._save()
         return result
 

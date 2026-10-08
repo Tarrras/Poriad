@@ -121,6 +121,16 @@ class RegressionTests(unittest.TestCase):
         self.assertEqual(mid.duplicate_of, (top.source_slug, top.source_uid))
         self.assertEqual(low.duplicate_of, (top.source_slug, top.source_uid))
 
+    def test_bot_challenge_on_a_catalog_page_is_an_error_but_an_empty_catalog_is_not(self):
+        source = dataclasses.replace(by_slug("concert_ua"), catalogs={"sport": "sport"})
+        def run(catalog_body):
+            def fake_get(url, **kwargs):
+                return Response(url, 200, catalog_body if "/catalog/" in url else html([raw_event()]))
+            with patch("tools.ingest.pipeline.get", side_effect=fake_get):
+                return pipeline.harvest(source, "Київ", self.index, now=NOW)[1]
+        self.assertEqual(run("<html><body>Нічого не знайдено</body></html>")["catalog_errors"], [])
+        self.assertTrue(run("<html><title>Just a moment...</title></html>")["catalog_errors"])
+
     def test_title_never_exceeds_database_limit(self):
         self.assertLessEqual(len(normalize.normalize_title("А" * 130)), 120)
 
@@ -889,6 +899,63 @@ class CityAndTextNormalisation(unittest.TestCase):
         self.assertNotEqual(item.reject_reason, "CITY_MISMATCH")
 
 
+class GeocoderNegativeCache(unittest.TestCase):
+    def test_not_found_is_asked_again_after_a_month(self):
+        from . import geocode
+        calls = []
+
+        def fake_get(self, endpoint, query, params):
+            calls.append(endpoint)
+            return {"features": []} if endpoint == geocode.ENDPOINT else []
+        with patch.object(geocode.Geocoder, "_get", fake_get), patch.object(geocode.Geocoder, "_save", lambda self: None):
+            g = geocode.Geocoder("Київ", enabled=True)
+            key = "Київ|" + geocode.normalize_name(geocode.canonical_street("вул. Нова, 1"))
+            now = dt.datetime.now(dt.timezone.utc)
+            g._cache = {key: {"v": geocode._RULES_VERSION, "at": (now - dt.timedelta(days=3)).isoformat()}}
+            self.assertIsNone(g.lookup_street("вул. Нова, 1"))
+            self.assertEqual(calls, [])                                  # свіже «не знайшли» — з кешу
+            g._cache = {key: {"v": geocode._RULES_VERSION, "at": (now - dt.timedelta(days=40)).isoformat()}}
+            g.lookup_street("вул. Нова, 1")
+            self.assertEqual(calls, [geocode.ENDPOINT, geocode.NOMINATIM])   # старе — питаємо знову
+            self.assertIn("at", g._cache[key])
+
+
+class OsmRefresh(unittest.TestCase):
+    """Дамп OSM у кеші старіє тижнями: щоденний обхід оновлює його сам, але не ціною псевдоніма."""
+
+    def run_refresh(self, fresh_names):
+        from . import venues
+        old = {"osm3s": {"timestamp_osm_base": "2026-09-18T00:00:00Z"},
+               "elements": [{"lat": 48.4, "lon": 35.0, "tags": {"name": "Feels Live"}}]}
+        fresh = {"osm3s": {"timestamp_osm_base": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")},
+                 "elements": [{"lat": 48.4, "lon": 35.0, "tags": {"name": n}} for n in fresh_names]}
+        with tempfile.TemporaryDirectory() as tmp, patch.object(venues, "CACHE_DIR", Path(tmp)), \
+             contextlib.redirect_stderr(io.StringIO()) as err:
+            path = venues._cache_path("Дніпро")
+            path.write_text(json.dumps(old), "utf-8")
+
+            def fake_fetch(city, refresh=False):
+                if refresh:
+                    path.write_text(json.dumps(fresh), "utf-8")
+                return json.loads(path.read_text("utf-8"))["elements"]
+            with patch.object(venues, "fetch_osm", side_effect=fake_fetch), \
+                 patch.object(venues, "load_aliases", return_value={"Feels Garden": "Feels Live"}):
+                index = venues.build_index("Дніпро")
+            on_disk = json.loads(path.read_text("utf-8"))["osm3s"]["timestamp_osm_base"]
+        return index, on_disk, err.getvalue()
+
+    def test_old_dump_is_refreshed(self):
+        index, on_disk, _ = self.run_refresh(["Feels Live", "Новий клуб"])
+        self.assertIsNotNone(index.match("Новий клуб"))
+        self.assertNotEqual(on_disk, "2026-09-18T00:00:00Z")
+
+    def test_refresh_that_loses_an_alias_is_rejected(self):
+        index, on_disk, err = self.run_refresh(["Інший заклад"])             # обʼєкта «Feels Live» у свіжому нема
+        self.assertIsNotNone(index.match("Feels Garden"))                   # псевдонім живий на старому дампі
+        self.assertEqual(on_disk, "2026-09-18T00:00:00Z")
+        self.assertIn("губить псевдоніми", err)
+
+
 class DetailCache(unittest.TestCase):
     """badseller: 1720 карток × 1,5 с — це й був обхід на годину; свіжі картки читаються з диска,
     крім тих, що розділ «Скасовано й перенесено» назвав змінившимися."""
@@ -1077,6 +1144,21 @@ class PerformerDetails(unittest.TestCase):
         self.assertEqual([a.name for a in again[0].artists], ["Арсен Пучков", "Раміль Янгулов"])
         self.assertEqual(counters["performer_pages"]["fetched"], 1)
         self.assertEqual(calls.count(link), 1)            # другий прогін узяв із кешу
+
+    def test_performer_cache_keeps_what_another_thread_wrote_meanwhile(self):
+        # Concert.ua й Internet-Bilet ділять файл і йдуть паралельно: запис одного не стирає нове від іншого.
+        raw = {"@type": "MusicEvent", "name": "Вечір", "url": "https://concert.ua/uk/event/a"}
+        with tempfile.TemporaryDirectory() as tmp:
+            cache = Path(tmp) / "p.json"
+
+            def fake_get(url, **kwargs):          # поки ця картка читається, інший потік дописав свою
+                cache.write_text(json.dumps({"https://x/other": {"at": NOW.isoformat(), "performer": None}}), "utf-8")
+                return Response(url, 200, html([{**raw, "performer": {"name": "Хтось"}}]))
+            with patch("tools.ingest.pipeline.PERFORMER_CACHE", cache), \
+                 patch("tools.ingest.pipeline.get", side_effect=fake_get):
+                pipeline._enrich_performers([dict(raw)], by_slug("concert_ua"), NOW, {})
+            self.assertEqual(sorted(json.loads(cache.read_text("utf-8"))),
+                             ["https://concert.ua/uk/event/a", "https://x/other"])
 
     def test_card_text_feeds_artists_but_not_description(self):
         """Internet-Bilet: JSON-LD без опису, виконавці в `descr-unified`. Опис у базі лишається порожнім."""

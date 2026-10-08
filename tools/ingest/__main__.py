@@ -240,6 +240,10 @@ def emit_city(run: CityRun, run_id: str, *, agent: Agent | None = None, statemen
     retire_parts: list[str] = []
     retired, skipped = [], []
     for source, items, counters in run.harvested:
+        # Картки по одній (TicketsBox): старий час перенесеного сеансу тієї ж картки — знятий. Судимо лише
+        # прочитані картки, тож неповний обхід (межа карток, збій частини) цьому не заважає.
+        if source.detail_path:
+            retire_parts.append(emit.retire_replaced_sql(source.slug, items, run_id))
         allowed, why = _may_retire(source, items, counters)
         counters["retire"] = "так" if allowed else why
         if allowed:

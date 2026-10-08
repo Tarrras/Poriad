@@ -12,6 +12,8 @@ import datetime as dt
 import json
 import math
 import random
+import re
+import threading
 import uuid
 
 from . import artists, community, culture, extract, normalize
@@ -36,6 +38,8 @@ PERMANENT_RUN = dt.timedelta(days=90)
 # і наявність квитків; висновок зроблено (див. detail_ttl_days), тож за замовчуванням вимкнено:
 # кожен такий запит коштує crawl_delay на найдовшому потоці. Вмикати вручну, коли джерело змінилось.
 DETAIL_AUDIT = 0
+
+_CHALLENGE = re.compile(r"Just a moment|cf-chl|cf_chl|captcha|Attention Required", re.I)
 
 # Скільки сторінок каталогу гортати: найбільший каталог закінчується на шостій, вісім дає запас.
 CATALOG_PAGES = 8
@@ -231,6 +235,11 @@ def harvest(source: Source, city: str, index: VenueIndex,
                         raise ValueError(f"HTTP {page.status}")
                     counters["fetched"] += 1
                     found = extract.events_from_html(page.body)
+                    # Порожній каталог — звичайна сторінка без подій (так буває: спорт в Одесі); сторінка
+                    # перевірки на бота з кодом 200 — ні: її «порожнеча» інакше обрізала б каталог мовчки,
+                    # і зняття за відсутністю прибрало б його події.
+                    if not found and _CHALLENGE.search(page.body[:20000]):
+                        raise ValueError("сторінка перевірки на бота")
                 except (PermissionError, OSError, ValueError) as exc:
                     counters["catalog_errors"].append(f"{slug} с.{page_number}: {exc}")
                     break
@@ -241,7 +250,8 @@ def harvest(source: Source, city: str, index: VenueIndex,
                     break
                 seen.update(str(r.get("url") or "") for r in fresh)
                 for raw in fresh:
-                    raw["_poruch_category"] = category
+                    if category:                     # каталог-привід (None) жанру не каже
+                        raw["_poruch_category"] = category
                 counters["catalogs"] += len(fresh)
                 raw_events.extend(fresh)
             else:
@@ -425,10 +435,8 @@ def _enrich_performers(raw_events: list[dict], source: Source, now: dt.datetime,
     Кеш за посиланням: картка не міняється щодня, а сотня запитів із затримкою — це хвилини.
     Збій однієї картки подію не губить, лише лишає її без виконавців.
     """
-    try:
-        cache = json.loads(PERFORMER_CACHE.read_text("utf-8"))
-    except (OSError, ValueError):
-        cache = {}
+    cache = _read_performers()
+    fresh: dict = {}                       # записане цим викликом — лише воно йде на диск поверх свіжого файлу
     fresh_after = (now - PERFORMER_TTL).isoformat()
     fetched = reused = failed = 0
     for raw in raw_events:
@@ -436,7 +444,7 @@ def _enrich_performers(raw_events: list[dict], source: Source, now: dt.datetime,
         if not url.startswith("https://") or raw.get("performer"):
             continue
         entry = cache.get(url)
-        if not entry or entry["at"] < fresh_after:
+        if not isinstance(entry, dict) or str(entry.get("at", "")) < fresh_after:
             if fetched >= PERFORMER_PAGES:
                 continue
             try:
@@ -451,8 +459,8 @@ def _enrich_performers(raw_events: list[dict], source: Source, now: dt.datetime,
                 continue
             fetched += 1
             text = max(detail.get("description") or "", extract.card_text(page.body), key=len)
-            entry = cache[url] = {"at": now.isoformat(), "performer": detail.get("performer"),
-                                  "description": text}
+            entry = cache[url] = fresh[url] = {"at": now.isoformat(), "performer": detail.get("performer"),
+                                               "description": text}
         else:
             reused += 1
         if entry.get("performer"):
@@ -461,10 +469,39 @@ def _enrich_performers(raw_events: list[dict], source: Source, now: dt.datetime,
         if entry.get("description"):
             raw["_poruch_text"] = entry["description"]
     counters["performer_pages"] = {"fetched": fetched, "cached": reused, "failed": failed}
-    if fetched:
+    if fresh:
+        _write_performers(fresh)
+
+
+# Кеш виконавців спільний для Concert.ua й Internet-Bilet, а їхні обходи йдуть у різних потоках: кожен читав
+# файл на початку й писав увесь словник у кінці — переможець затирав нове від іншого, а читання посеред
+# чужого запису давало `{}` і сотні зайвих запитів. Тепер під замком, з дозаписом і атомарною заміною.
+_PERFORMER_LOCK = threading.Lock()
+
+
+def _read_performers() -> dict:
+    with _PERFORMER_LOCK:
+        try:
+            data = json.loads(PERFORMER_CACHE.read_text("utf-8"))
+        except (OSError, ValueError):
+            return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _write_performers(fresh: dict) -> None:
+    with _PERFORMER_LOCK:
+        try:
+            on_disk = json.loads(PERFORMER_CACHE.read_text("utf-8"))
+        except (OSError, ValueError):
+            on_disk = {}
+        if not isinstance(on_disk, dict):
+            on_disk = {}
+        on_disk.update(fresh)
         try:
             PERFORMER_CACHE.parent.mkdir(exist_ok=True)
-            PERFORMER_CACHE.write_text(json.dumps(cache, ensure_ascii=False), "utf-8")
+            tmp = PERFORMER_CACHE.with_suffix(f".{threading.get_ident()}.tmp")
+            tmp.write_text(json.dumps(on_disk, ensure_ascii=False), "utf-8")
+            tmp.replace(PERFORMER_CACHE)
         except OSError:
             pass
 

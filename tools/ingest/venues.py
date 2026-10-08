@@ -28,6 +28,9 @@ OVERPASS_MIRRORS = (
 )
 # Скільки дзеркало може відставати від OSM. Здорове відстає на хвилини.
 MAX_DUMP_AGE = dt.timedelta(days=7)
+# Дамп у кеші старший за це — щоденний обхід бере свіжий сам (раз на два тижні на місто), а не чекає
+# ручного --refresh-osm: на 2026-10-08 Дніпро, Одеса й Харків стояли з 18.09.
+REFRESH_AFTER = dt.timedelta(days=14)
 CACHE_DIR = pathlib.Path(__file__).resolve().parent / "cache"
 ALIASES_PATH = pathlib.Path(__file__).resolve().parent / "aliases.json"
 
@@ -62,10 +65,14 @@ def _query(city: str) -> str:
     return f"[out:json][timeout:180];({tags});out tags center;"
 
 
+def _cache_path(city: str) -> pathlib.Path:
+    return CACHE_DIR / f"osm_{normalize_name(city).replace(' ', '_')}.json"
+
+
 def fetch_osm(city: str, *, refresh: bool = False) -> list[dict]:
     """Дамп майданчиків міста. Кешується: повторний запит до Overpass — марна витрата чужого CPU."""
     CACHE_DIR.mkdir(exist_ok=True)
-    cache = CACHE_DIR / f"osm_{normalize_name(city).replace(' ', '_')}.json"
+    cache = _cache_path(city)
     if cache.exists() and not refresh:
         return json.loads(cache.read_text("utf-8"))["elements"]
 
@@ -206,4 +213,36 @@ def load_aliases() -> dict[str, str]:
 
 
 def build_index(city: str, *, refresh: bool = False) -> VenueIndex:
-    return VenueIndex(fetch_osm(city, refresh=refresh), city, load_aliases())
+    aliases = load_aliases()
+    elements = fetch_osm(city, refresh=refresh)
+    if not refresh:
+        elements = _refresh_if_old(city, elements, aliases)
+    return VenueIndex(elements, city, aliases)
+
+
+def _refresh_if_old(city: str, elements: list[dict], aliases: dict) -> list[dict]:
+    """Старий дамп оновлюється сам, але приймається, лише якщо жоден псевдонім, що знаходився в старому,
+    не загубився в новому: 2026-09-18 свіже дзеркало перейменувало обʼєкт, і «Feels Garden → Feels Live»
+    мовчки перестав зводитись. Тоді лишається старий дамп і попередження — псевдонім правити людині."""
+    path = _cache_path(city)
+    try:
+        old_text = path.read_text("utf-8")
+        based = _dump_time(json.loads(old_text))
+    except (OSError, ValueError):
+        return elements
+    if based is None or dt.datetime.now(dt.timezone.utc) - based <= REFRESH_AFTER:
+        return elements
+    try:
+        fresh = fetch_osm(city, refresh=True)
+    except RuntimeError as exc:
+        print(f"  ⚠ OSM для {city}: оновити не вдалось ({exc}); лишається дамп {based:%Y-%m-%d}", file=sys.stderr)
+        return elements
+    names = [k for k in aliases if not k.startswith("_")]
+    before, after = VenueIndex(elements, city, aliases), VenueIndex(fresh, city, aliases)
+    lost = [k for k in names if before.match(k) and not after.match(k)]
+    if lost:
+        path.write_text(old_text, "utf-8")
+        print(f"  ⚠ OSM для {city}: свіжий дамп губить псевдоніми {lost[:5]} — лишаємо дамп {based:%Y-%m-%d};"
+              " виправте aliases.json і оновіть --refresh-osm", file=sys.stderr)
+        return elements
+    return fresh

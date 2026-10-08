@@ -157,6 +157,20 @@ await db.exec(fixture.fresh);
 assert.equal(await statusOf(fixture.fresh_uid), 'live');
 console.log('PostgreSQL: manual withdrawal and disabled source survive the next dump OK');
 
+// TicketsBox переніс сеанс без previousStartDate: прочитана картка показує новий час — старий рядок того ж
+// посилання знімається; рядок іншого посилання й минулий — ні.
+const tbRow = async (uid, url, starts) => db.exec(`insert into events(id,title,city,starts_at,ends_at,source_id,source_uid,canonical_url,origin,import_status)
+ values(gen_random_uuid(),'П''ята ранку','Київ','${starts}', '${starts}'::timestamptz + interval '2 hours',
+ (select id from event_sources where slug='ticketsbox'),'${uid}','${url}','import','live');`);
+await tbRow('https://example.org/teatr-3#old', 'https://example.org/teatr-3', '2026-11-20T18:00:00+02:00');
+await tbRow('https://example.org/teatr-7#x', 'https://example.org/teatr-7', '2026-11-20T18:00:00+02:00');
+await tbRow('https://example.org/teatr-3#past', 'https://example.org/teatr-3', '2026-09-01T18:00:00+03:00');
+await db.exec(fixture.tb_replaced);
+assert.equal(await statusOf('https://example.org/teatr-3#old'), 'withdrawn');
+assert.equal(await statusOf('https://example.org/teatr-7#x'), 'live');
+assert.equal(await statusOf('https://example.org/teatr-3#past'), 'live');
+assert.equal(await statusOf(fixture.move_uids[1]), 'live');
+
 // Колишній сеанс знову в афіші, а його обчислений id носить перенесений рядок: новий рядок із
 // випадковим id, а не events_pkey і відкат усього дампу.
 await db.exec(fixture.b_again);
