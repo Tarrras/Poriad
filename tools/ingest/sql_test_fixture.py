@@ -62,4 +62,9 @@ print(json.dumps({
     "fresh_uid": fresh.source_uid,
     "retire_one": emit.retire_absent_sql("karabas", "Київ", karabas_uids[:9], RUN),
     "retire_mass": emit.retire_absent_sql("karabas", "Київ", karabas_uids[:1], RUN),
+    "karabas_stats_id": emit.stats_run_id(RUN, "karabas", "Київ"),
+    # За межею обходу (sitemap до horizon_days) відсутність нічого не доводить.
+    "retire_until": emit.retire_absent_sql("karabas", "Київ", karabas_uids, RUN, until=dt.date(2026, 12, 1)),
+    # Колишній сеанс знову в афіші: його обчислений id уже носить перенесений рядок.
+    "b_again": "".join(emit.events_sql([b], RUN)),
 }))

@@ -43,6 +43,7 @@ create table event_artists (
 );
 create function private.artist_source_rank(p_source text) returns integer language sql immutable as $$
  select case p_source when 'manual' then 3 when 'auto' then 2 else 1 end $$;
+create table private.ingest_runs (id uuid primary key, report jsonb);
 create function private.place_source_rank(p_source text) returns integer language sql immutable as $$
  select case p_source when 'manual' then 3 when 'osm' then 2 else 1 end $$;
 create table venues (
@@ -98,7 +99,12 @@ const insertKarabas = async (uid, city, starts, ends) => db.exec(`insert into ev
 for (const uid of fixture.karabas_uids) await insertKarabas(uid, 'Київ', '2026-11-01T19:00:00+02:00', '2026-11-01T21:00:00+02:00');
 await insertKarabas('https://example.org/k-past', 'Київ', '2026-09-01T19:00:00+03:00', '2026-09-01T21:00:00+03:00');
 await insertKarabas('https://example.org/k-lviv', 'Львів', '2026-11-01T19:00:00+02:00', '2026-11-01T21:00:00+02:00');
+// Почата подія не знімається за відсутністю: «скасовано» посеред показу — неправда.
+const soon = (h) => new Date(Date.now() + h * 3600e3).toISOString();
+await insertKarabas('https://example.org/k-now', 'Київ', soon(-1), soon(2));
+await db.exec(`insert into private.ingest_runs(id, report) values ('${fixture.karabas_stats_id}', '{}')`);
 await db.exec(fixture.retire_one);
+assert.equal(await statusOf('https://example.org/k-now'), 'live');
 assert.equal(await statusOf(fixture.karabas_uids[9]), 'withdrawn');
 for (const uid of fixture.karabas_uids.slice(0, 9)) assert.equal(await statusOf(uid), 'live');
 assert.equal(await statusOf('https://example.org/k-past'), 'live');
@@ -106,6 +112,13 @@ assert.equal(await statusOf('https://example.org/k-lviv'), 'live');
 // Зламаний обхід, що «бачив» одну подію з девʼяти, не знімає нічого: частка понад запобіжник.
 await db.exec(fixture.retire_mass);
 for (const uid of fixture.karabas_uids.slice(0, 9)) assert.equal(await statusOf(uid), 'live');
+// Запобіжник не мовчить: що зникло й що нічого не знято — у звіті прогону.
+const retireReport = (await db.query('select report from private.ingest_runs where id=$1', [fixture.karabas_stats_id])).rows[0].report;
+assert.deepEqual([retireReport.retire_blocked, retireReport.retire_gone, retireReport.retired], [true, 8, 0]);
+// Далі межі обходу відсутність нічого не доводить.
+await insertKarabas('https://example.org/k-far', 'Київ', '2027-01-01T19:00:00+02:00', '2027-01-01T21:00:00+02:00');
+await db.exec(fixture.retire_until);
+assert.equal(await statusOf('https://example.org/k-far'), 'live');
 assert.equal((await db.query('select ingest_run_id from events where source_uid=$1', [fixture.karabas_uids[9]])).rows[0].ingest_run_id, fixture.run);
 console.log('PostgreSQL: moved URL keeps row id, retire scoped to source/city/future, mass retire blocked OK');
 
@@ -128,6 +141,15 @@ await db.exec("update event_sources set enabled=true where slug='concert_ua'");
 await db.exec(fixture.fresh);
 assert.equal(await statusOf(fixture.fresh_uid), 'live');
 console.log('PostgreSQL: manual withdrawal and disabled source survive the next dump OK');
+
+// Колишній сеанс знову в афіші, а його обчислений id носить перенесений рядок: новий рядок із
+// випадковим id, а не events_pkey і відкат усього дампу.
+await db.exec(fixture.b_again);
+assert.equal((await db.query('select id from events where source_uid=$1', [fixture.uids[2]])).rows[0].id, secondId);
+const again = (await db.query('select id from events where source_uid=$1', [fixture.uids[1]])).rows;
+assert.equal(again.length, 1);
+assert.notEqual(again[0].id, secondId);
+console.log('PostgreSQL: started events and beyond-horizon stay live, blocked retire reported, taken id gets a fresh one OK');
 
 for (const path of process.argv.slice(3)) {
  const sql = readFileSync(path, 'utf8');

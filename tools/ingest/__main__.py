@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import argparse
 import collections
+import dataclasses
+import datetime
 import json
 import hashlib
 import pathlib
@@ -102,18 +104,27 @@ class Crawl:
         return self._futures[(city, source.slug)].result()
 
 
-def run_city(city: str, sources: list, run_id: str, *, agent: Agent | None = None,
-             refresh_osm: bool = False, use_photon: bool = True,
-             reports: list | None = None, now=None, statement_bytes: int = 0,
-             status_by_source: dict[str, list[dict]] | None = None,
-             crawl: Crawl | None = None) -> tuple[list, list[str]]:
-    """Обхід одного міста всіма його джерелами. Повертає (елементи, частини SQL).
+@dataclasses.dataclass
+class CityRun:
+    """Місто між обходом і SQL: елементи вже розібрані й злиті, артисти — ще ні."""
+    city: str
+    usable: list
+    items: list
+    harvested: list
+
+
+def gather_city(city: str, sources: list, run_id: str, *, agent: Agent | None = None,
+                refresh_osm: bool = False, use_photon: bool = True,
+                reports: list | None = None, now=None,
+                status_by_source: dict[str, list[dict]] | None = None,
+                crawl: Crawl | None = None) -> CityRun | None:
+    """Обхід одного міста всіма його джерелами до дедуплікації включно.
 
     З `crawl` обхід уже йде в потоках, і тут лишається чекати його результат."""
     usable = [s for s in sources if city in s.listing_urls]
     if not usable:
         print(f"  {city}: немає ввімкнених джерел", file=sys.stderr)
-        return [], []
+        return None
 
     print(f"\n{'═' * 62}\n{city}. Джерела: {', '.join(s.slug for s in usable)}")
     if crawl:
@@ -163,23 +174,35 @@ def run_city(city: str, sources: list, run_id: str, *, agent: Agent | None = Non
 
     # Дедуплікація до генерації SQL: emit фільтрує за stage у момент виклику.
     all_items = drop_cross_source_duplicates(all_items, {s.slug: s.weight for s in usable}, agent)
-    dictionary = artists.Dictionary.load()
-    settled = artists.settle(all_items, dictionary)
-    if agent is not None and agent.ready:
-        llm = artists.llm_fill(all_items, agent.ask, dictionary)
-        print(f"  Артисти (модель): запитів {llm['asked']}, з кешу {llm['cached']}, "
-              f"знайдено {llm['found']} із {llm['targets']}, збоїв {llm['errors']}")
-    with_artist = sum(1 for i in all_items if i.artists)
-    print(f"  Артисти: {with_artist} з {len(all_items)} подій; відкинуто як майданчик "
-          f"{sum(settled['dropped_as_venue'].values())}")
     # Після дедуплікації: там агент відповідає про спірні пари.
     if agent is not None and agent.merges:
         merged = sum(1 for *_, same, _ in agent.merges if same)
         print(f"  Агент про пари: злито {merged} із {len(agent.merges)} спірних")
+    return CityRun(city, usable, all_items, harvested)
+
+
+def settle_artists(items: list, agent: Agent | None = None) -> None:
+    """Остаточні артисти: словник, правила, модель. Змінює `item.artists` на місці."""
+    dictionary = artists.Dictionary.load()
+    settled = artists.settle(items, dictionary)
+    if agent is not None and agent.ready:
+        llm = artists.llm_fill(items, agent.ask, dictionary)
+        print(f"  Артисти (модель): запитів {llm['asked']}, з кешу {llm['cached']}, "
+              f"знайдено {llm['found']} із {llm['targets']}, збоїв {llm['errors']}")
+    with_artist = sum(1 for i in items if i.artists)
+    print(f"  Артисти: {with_artist} з {len(items)} подій; відкинуто як майданчик "
+          f"{sum(settled['dropped_as_venue'].values())}")
+
+
+def emit_city(run: CityRun, run_id: str, *, agent: Agent | None = None, statement_bytes: int = 0,
+              now=None) -> tuple[list[str], list[str]]:
+    """SQL міста: (дані, зняття зниклих). Зняття окремо: у дампі воно йде після статистики прогону,
+    щоб записати в її рядок, скільки зникло й чи не спрацював запобіжник."""
+    city, all_items = run.city, run.items
     published = [i for i in all_items if i.stage == "published"]
     duplicates = [i for i in all_items if i.stage == "duplicate"]
     review = [i for i in all_items if i.stage == "review"]
-    print(f"  РАЗОМ: {len(published)} до публікації, {len(review)} у черзі, "
+    print(f"\n{city}: {len(published)} до публікації, {len(review)} у черзі, "
           f"{len(duplicates)} злито як дублікати")
 
     misses = near_miss_pairs(all_items)
@@ -189,8 +212,8 @@ def run_city(city: str, sources: list, run_id: str, *, agent: Agent | None = Non
         for a, b, d in misses[:10]:
             print(f"      {d:5.0f} м  «{a.venue_name[:30]}»  {a.venue_how} ↔ {b.venue_how}")
 
-    sql_parts: list[str] = [emit.sources_sql(usable)]
-    for source, items, counters in harvested:
+    sql_parts: list[str] = [emit.sources_sql(run.usable)]
+    for source, items, counters in run.harvested:
         bad = emit.drop_unwritable(items, run_id)
         if bad:
             counters["bad_events"] = counters.get("bad_events", []) + bad
@@ -205,13 +228,15 @@ def run_city(city: str, sources: list, run_id: str, *, agent: Agent | None = Non
     sql_parts += emit.duplicates_sql(all_items, run_id)
     sql_parts += emit.demote_sql(all_items, run_id)
 
-    # Зняття за відсутністю останнім: вставки вище вже перейменували рядки з новим ключем.
+    # Зняття за відсутністю — після вставок: вони вже перейменували рядки з новим ключем.
+    retire_parts: list[str] = []
     retired, skipped = [], []
-    for source, items, counters in harvested:
+    for source, items, counters in run.harvested:
         allowed, why = _may_retire(source, items, counters)
         counters["retire"] = "так" if allowed else why
         if allowed:
-            sql_parts.append(emit.retire_absent_sql(source.slug, city, [i.source_uid for i in items], run_id))
+            retire_parts.append(emit.retire_absent_sql(source.slug, city, [i.source_uid for i in items], run_id,
+                                                      until=_crawl_until(source, now)))
             retired.append(source.slug)
         else:
             skipped.append(f"{source.slug}: {why}")
@@ -219,7 +244,31 @@ def run_city(city: str, sources: list, run_id: str, *, agent: Agent | None = Non
         print(f"  Зняття зниклих з афіші: {', '.join(retired) or 'жодне джерело'}")
         for line in skipped:
             print(f"    не знімаємо, {line}")
-    return all_items, sql_parts
+    return sql_parts, retire_parts
+
+
+def _crawl_until(source, now=None):
+    """Межа, далі якої обхід джерела не дивився (sitemap до horizon_days): за нею відсутність нічого
+    не доводить. Без sitemap список віддає все, межі немає."""
+    if not source.sitemap_url:
+        return None
+    now = now or datetime.datetime.now(datetime.timezone.utc)
+    return now.astimezone(normalize.zone(source.time_zone)).date() + datetime.timedelta(days=source.horizon_days + 1)
+
+
+def run_city(city: str, sources: list, run_id: str, *, agent: Agent | None = None,
+             refresh_osm: bool = False, use_photon: bool = True,
+             reports: list | None = None, now=None, statement_bytes: int = 0,
+             status_by_source: dict[str, list[dict]] | None = None,
+             crawl: Crawl | None = None) -> tuple[list, list[str]]:
+    """Обхід одного міста від початку до SQL. Повертає (елементи, частини SQL); зняття — в кінці."""
+    run = gather_city(city, sources, run_id, agent=agent, refresh_osm=refresh_osm, use_photon=use_photon,
+                      reports=reports, now=now, status_by_source=status_by_source, crawl=crawl)
+    if run is None:
+        return [], []
+    settle_artists(run.items, agent)
+    parts, retire = emit_city(run, run_id, agent=agent, statement_bytes=statement_bytes, now=now)
+    return run.items, parts + retire
 
 
 # Спад нижче цієї частки від минулого звіту — поломка, а не сезон: у звичний тиждень афіша
@@ -350,7 +399,7 @@ def main(argv: list[str] | None = None) -> int:
 
     everything: list = []
     reports: list = []
-    per_city: dict[str, tuple[list, list[str]]] = {}
+    per_city: dict[str, tuple[list, list[str], list[str]]] = {}   # місто -> (елементи, дані, зняття)
     status_by_source: dict[str, list[dict]] = {}
     if not args.no_karabas_status and any(source.slug == "karabas" for source in sources):
         notices, status_report = karabas_status.collect(get=get, max_pages=3)
@@ -364,16 +413,25 @@ def main(argv: list[str] | None = None) -> int:
               f"покриття {status_report.get('coverage')}")
     crawl = Crawl(cities, sources, refresh_osm=args.refresh_osm, use_photon=not args.no_photon,
                   status_by_source=status_by_source)
+    runs: list[CityRun] = []
     for city in cities:
-        items, parts = run_city(city, sources, run_id, agent=agent,
-                                refresh_osm=args.refresh_osm, use_photon=not args.no_photon,
-                                reports=reports, statement_bytes=max(0, args.sql_max_bytes - 1024),
-                                status_by_source=status_by_source, crawl=crawl)
-        per_city[city] = (items, parts)
-        everything += items
+        run = gather_city(city, sources, run_id, agent=agent,
+                          refresh_osm=args.refresh_osm, use_photon=not args.no_photon,
+                          reports=reports, status_by_source=status_by_source, crawl=crawl)
+        if run:
+            runs.append(run)
+            everything += run.items
 
+    # До SQL: джерело з різким спадом отримує помилку, і `_may_retire` не знімає його «зниклі» події.
     for line in mark_sharp_drops(reports, previous):
         print(f"⚠ різкий спад — {line}", file=sys.stderr)
+
+    for run in runs:
+        print(f"\n{run.city}:")
+        settle_artists(run.items, agent)
+    for run in runs:
+        parts, retire = emit_city(run, run_id, agent=agent, statement_bytes=max(0, args.sql_max_bytes - 1024))
+        per_city[run.city] = (run.items, parts, retire)
 
     published = [i for i in everything if i.stage == "published"]
     print("\n" + "═" * 62)
@@ -412,20 +470,23 @@ def main(argv: list[str] | None = None) -> int:
     stats_bytes = max(0, args.sql_max_bytes - 1024)
     if args.sql:
         # Один файл на обхід — одна транзакція. Розбиття по містах лишається для окремих оновлень.
-        parts = ([p for city in cities for p in per_city[city][1]]
-                 + emit.stats_sql(reports, everything, run_id, stats_bytes) + [prune, follows, finished])
+        # Зняття після статистики: воно дописує в її рядки, скільки зникло й чи спрацював запобіжник.
+        parts = ([p for _, data, _ in per_city.values() for p in data]
+                 + emit.stats_sql(reports, everything, run_id, stats_bytes)
+                 + [p for _, _, retire in per_city.values() for p in retire] + [prune, follows, finished])
         _write_sql(args.sql, run_id, parts, len(published), args.sql_max_bytes)
     elif args.sql_dir:
         args.sql_dir.mkdir(parents=True, exist_ok=True)
         print()
         cityless = [r for r in reports if not r.get("city")]     # перевірка статусів Karabas
-        for city, (items, parts) in per_city.items():
+        for city, (items, parts, retire) in per_city.items():
             if not parts:
                 continue
             city_reports = [r for r in reports if r.get("city") == city] + cityless
             cityless = []
             _write_sql(args.sql_dir / f"{city}.sql", run_id,
-                       parts + emit.stats_sql(city_reports, items, run_id, stats_bytes) + [prune, follows, finished],
+                       parts + emit.stats_sql(city_reports, items, run_id, stats_bytes) + retire
+                       + [prune, follows, finished],
                        sum(1 for i in items if i.stage == "published"), args.sql_max_bytes)
     else:
         print("\nСуха проба: нічого не записано. Додайте --sql-dir, щоб отримати SQL.")

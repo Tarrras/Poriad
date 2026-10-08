@@ -12,7 +12,7 @@ import unittest
 from unittest.mock import patch
 
 from . import emit, extract, normalize, pipeline
-from .__main__ import main, run_city, _write_sql
+from .__main__ import CityRun, main, run_city, _write_sql
 from .fetch import Response
 from . import fetch
 import urllib.error
@@ -217,7 +217,7 @@ class RegressionTests(unittest.TestCase):
         sql = "".join(parts)
         self.assertNotIn("ingest_run_id is distinct from", sql)
         # Список з однією подією не доводить, що решту скасовано.
-        self.assertNotIn("<> all (array[", sql)
+        self.assertNotIn("do $retire$", sql)
 
     def test_robots_failure_is_a_source_error(self):
         with patch("tools.ingest.pipeline.get", side_effect=PermissionError("robots unavailable")):
@@ -278,8 +278,19 @@ class RegressionTests(unittest.TestCase):
         sql = emit.retire_absent_sql("karabas", "Київ", ["u2", "u1", "u1"], "run")
         self.assertIn("e.city='Київ'", sql)
         self.assertIn("slug='karabas'", sql)
-        self.assertIn("<> all (array['u1','u2']::text[])", sql)
-        self.assertIn("e.ends_at > now()", sql)
+        self.assertIn("v_seen text[] := array['u1','u2']::text[]", sql)
+        self.assertIn("e.source_uid <> all (v_seen)", sql)
+        # Лише ще не початі: почата подія зі списку зникає сама, і «знято» посеред показу — неправда.
+        self.assertIn("e.starts_at > now()", sql)
+        self.assertNotIn("ends_at", sql)
+        # Запобіжник не мовчить: результат — у звіт прогону й попередженням.
+        self.assertIn("'retire_blocked', v_blocked", sql)
+        self.assertIn(f"where id = '{emit.stats_run_id('run', 'karabas', 'Київ')}'::uuid", sql)
+        self.assertIn("raise warning", sql)
+        # За межею обходу (sitemap до horizon_days) відсутність нічого не доводить.
+        self.assertNotIn("e.starts_at <", sql)
+        self.assertIn("and e.starts_at < '2027-10-09'::date",
+                      emit.retire_absent_sql("badseller", "Київ", ["u"], "run", until=dt.date(2027, 10, 9)))
         self.assertIn(f"greatest({emit.RETIRE_ALLOWANCE}, {emit.RETIRE_MAX_SHARE}", sql)
         self.assertNotIn("delete", sql.lower())
         self.assertEqual(emit.retire_absent_sql("karabas", "Київ", [], "run"), "")
@@ -291,7 +302,8 @@ class RegressionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             emit.retire_finished_sql(-1)
         with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(io.StringIO()), \
-             patch("tools.ingest.__main__.run_city", return_value=([], ["select 1;\n"])), \
+             patch("tools.ingest.__main__.gather_city", return_value=CityRun("Київ", [], [], [])), \
+             patch("tools.ingest.__main__.emit_city", return_value=(["select 1;\n"], [])), \
              patch("tools.ingest.__main__.karabas_status.collect", return_value=([], {"pages_fetched": 1})):
             path = Path(tmp) / "events.sql"
             main(["--city", "Київ", "--sql", str(path)])
@@ -310,7 +322,8 @@ class RegressionTests(unittest.TestCase):
         self.assertIn("raise warning", sql)
         self.assertNotIn("delete", sql.lower())
         with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(io.StringIO()), \
-             patch("tools.ingest.__main__.run_city", return_value=([], ["select 1;\n"])), \
+             patch("tools.ingest.__main__.gather_city", return_value=CityRun("Київ", [], [], [])), \
+             patch("tools.ingest.__main__.emit_city", return_value=(["select 1;\n"], [])), \
              patch("tools.ingest.__main__.karabas_status.collect", return_value=([], {"pages_fetched": 1})):
             path = Path(tmp) / "events.sql"
             main(["--city", "Київ", "--sql", str(path)])
@@ -326,8 +339,8 @@ class RegressionTests(unittest.TestCase):
             _, parts = run_city("Київ", [self.source], "00000000-0000-0000-0000-000000000001",
                                 use_photon=False, now=NOW)
         sql = "".join(parts)
-        self.assertIn("<> all (array[", sql)
-        self.assertGreater(sql.index("<> all (array["), sql.index("insert into public.events"))
+        self.assertIn("do $retire$", sql)
+        self.assertGreater(sql.index("do $retire$"), sql.index("insert into public.events"))
 
     def test_explicit_withdrawal_is_scoped_to_source_and_session(self):
         with patch("tools.ingest.__main__.build_index", return_value=self.index), \
@@ -548,10 +561,10 @@ class Robustness(unittest.TestCase):
             report_path.write_text(json.dumps({"sources": [{"city": "Київ", "source": "concert_ua",
                                                             "items": 50}]}), "utf-8")
 
-            def fake_run_city(city, sources, run_id, reports=None, **_):
+            def fake_gather_city(city, sources, run_id, reports=None, **_):
                 reports.append({"city": city, "source": "concert_ua", "items": 3})
-                return [], []
-            with patch("tools.ingest.__main__.run_city", side_effect=fake_run_city):
+                return None
+            with patch("tools.ingest.__main__.gather_city", side_effect=fake_gather_city):
                 code = main(["--city", "Київ", "--source", "concert_ua", "--report", str(report_path)])
             self.assertEqual(code, 1)
             saved = json.loads(report_path.read_text("utf-8"))["sources"][0]
@@ -697,12 +710,13 @@ class RunStats(unittest.TestCase):
             ("group by run_id order by 2 desc limit 2", [last, ("run-1", dt.datetime(2026, 10, 5, 18, 3))]),
             ("extract(epoch", [(7,)]), ("count(*) from public.events", [(2219,)]),
             ("from private.ingest_runs r join public.event_sources", [
-                ("karabas", "Київ", 161, 160, 117, 116, 29, 28, 0, 1, None, None)]),
+                ("karabas", "Київ", 161, 160, 117, 116, 29, 28, 0, 1, None, None, "253/799", "0", "ЗАБЛОКОВАНО")]),
             ("d.stage = 'duplicate'", [("Копія", "Переможець", "karabas", "2026-10-10",
                                          "https://dnipro.karabas.com/" + "a" * 70, "https://concert.ua/uk/event/b")])])
         text = build_report(conn)
         for part in ("run-2", "за 0.5 год до останнього", "7 хв тому", "2219", "karabas", "Черга перегляду", "без координат",
-                     "категорію й майданчик", "злитих дублів", "посилання переможця", "було", "https://concert.ua/uk/event/b", "a" * 70):
+                     "категорію й майданчик", "злитих дублів", "посилання переможця", "було", "https://concert.ua/uk/event/b", "a" * 70,
+                     "253/799", "ЗАБЛОКОВАНО"):
             self.assertIn(part, text)
         self.assertFalse([q for q in conn.sql if not q.lstrip().lower().startswith(("select", "with"))])
 

@@ -167,7 +167,13 @@ def _insert(publishable: list[Item], run_id: str, replace_llm: bool = False) -> 
         "  starts_at,ends_at,time_zone,capacity,image_url,\n"
         "  origin,source_id,source_uid,canonical_url,dedupe_key,quality,import_status,\n"
         "  price_min,is_free,ingest_run_id)\n"
-        "select v.id::uuid, s.organizer_id, v.title, v.description, v.category, v.city, v.address,\n"
+        # Обчислений id може вже належати іншому рядку: перенесений сеанс лишає старий id (`_adopt_identity`),
+        # а його колишній ключ джерело може віддати знову. Тоді новий рядок отримує випадковий id, інакше
+        # `events_pkey` відкотив би весь дамп — і так щодня, поки дані не зміняться.
+        "select case when exists (select 1 from public.events x where x.id = v.id::uuid\n"
+        "    and (x.source_id is distinct from s.id or x.source_uid is distinct from v.source_uid))\n"
+        "  then gen_random_uuid() else v.id::uuid end,\n"
+        "  s.organizer_id, v.title, v.description, v.category, v.city, v.address,\n"
         "  v.latitude::float8, v.longitude::float8,\n"
         "  (select p.id from public.places p where p.latitude=v.latitude::float8 and p.longitude=v.longitude::float8),\n"
         "  v.starts_at::timestamptz, v.ends_at::timestamptz,\n"
@@ -415,27 +421,49 @@ def demote_sql(items: list[Item], run_id: str) -> list[str]:
     return parts
 
 
-def retire_absent_sql(slug: str, city: str, seen_uids: list[str], run_id: str) -> str:
+def retire_absent_sql(slug: str, city: str, seen_uids: list[str], run_id: str, until=None) -> str:
     """Знімає живі майбутні події, яких цей обхід не бачив (ні опублікованих, ні на перевірці, ні
     дублікатів). Команда після вставок міста: перехід на новий ключ уже перейменував рядки.
     Знімається, а не видаляється: збережена подія лишається з позначкою.
+
+    Лише ще не початі: почату подію джерело зі списку прибирає саме (а конвеєр без кінця в даних
+    її відкидає), і зняття посеред показу показувало б людям «скасовано». `until` — межа обходу
+    (sitemap до horizon_days): далі нього відсутність нічого не доводить.
+
+    Запобіжник на частку — все або нічого, бо часткове зняття при зламаному обході теж шкода. Але
+    не мовчки: скільки зникло, скільки знято й чи спрацював він — у звіт прогону (`ingest_runs.report`,
+    рядок уже вставлено статистикою) і попередженням у лог застосування.
     """
     if not seen_uids:
         return ""
     seen = ",".join(_lit(uid) for uid in sorted(set(seen_uids)))
+    scope = (f"e.source_id=(select id from public.event_sources where slug={_lit(slug)})\n"
+             f"    and e.city={_lit(city)} and e.origin='import' and e.import_status='live'\n"
+             "    and e.starts_at > now()"
+             + (f" and e.starts_at < {_lit(until.isoformat())}::date" if until else ""))
     return (
-        "with scope as (\n"
-        "  select e.id, e.source_uid from public.events e\n"
-        f"  where e.source_id=(select id from public.event_sources where slug={_lit(slug)})\n"
-        f"    and e.city={_lit(city)} and e.origin='import' and e.import_status='live'\n"
-        "    and e.ends_at > now()\n"
-        "), gone as (\n"
-        f"  select id from scope where source_uid <> all (array[{seen}]::text[])\n"
-        ")\n"
-        f"update public.events set import_status='withdrawn', updated_at=now(), ingest_run_id={_lit(run_id)}\n"
-        "where id in (select id from gone)\n"
-        f"  and (select count(*) from gone) <= greatest({RETIRE_ALLOWANCE},"
-        f" {RETIRE_MAX_SHARE} * (select count(*) from scope));\n")
+        "do $retire$\n"
+        "declare\n"
+        f"  v_seen text[] := array[{seen}]::text[];\n"
+        "  v_scope integer; v_gone integer; v_done integer := 0; v_blocked boolean;\n"
+        "begin\n"
+        "  select count(*), count(*) filter (where e.source_uid <> all (v_seen)) into v_scope, v_gone\n"
+        f"  from public.events e where {scope};\n"
+        f"  v_blocked := v_gone > greatest({RETIRE_ALLOWANCE}, {RETIRE_MAX_SHARE} * v_scope);\n"
+        "  if v_blocked then\n"
+        f"    raise warning 'retire_absent %/%: зникло % з %, понад {round(RETIRE_MAX_SHARE * 100)}%% — нічого не знято',\n"
+        f"      {_lit(slug)}, {_lit(city)}, v_gone, v_scope;\n"
+        "  else\n"
+        f"    update public.events e set import_status='withdrawn', updated_at=now(), ingest_run_id={_lit(run_id)}\n"
+        f"    where {scope} and e.source_uid <> all (v_seen);\n"
+        "    get diagnostics v_done = row_count;\n"
+        "  end if;\n"
+        "  if to_regclass('private.ingest_runs') is not null then\n"
+        "    update private.ingest_runs set report = coalesce(report, '{}'::jsonb) || jsonb_build_object(\n"
+        "      'retire_scope', v_scope, 'retire_gone', v_gone, 'retired', v_done, 'retire_blocked', v_blocked)\n"
+        f"    where id = {_lit(stats_run_id(run_id, slug, city))}::uuid;\n"
+        "  end if;\n"
+        "end $retire$;\n")
 
 
 # Скільки днів після кінця подія ще вважається живою: перенесення під тим самим ключем повертають

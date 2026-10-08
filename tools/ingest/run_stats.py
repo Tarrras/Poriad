@@ -48,13 +48,16 @@ def build_report(conn) -> str:
 
     out += ["== Джерело × місто: останній обхід проти попереднього («було» — попередній обхід)"]
     rows = q("select s.slug, coalesce(r.city,'(статуси Karabas)'), r.parsed, p.parsed, r.published, p.published,"
-             " r.merged, p.merged, r.review, p.review, r.error, p.error"
+             " r.merged, p.merged, r.review, p.review, r.error, p.error,"
+             # Зняття зниклих: скільки зникло зі скількох, скільки знято, чи спрацював запобіжник на частку.
+             " concat_ws('/', r.report->>'retire_gone', r.report->>'retire_scope'), r.report->>'retired',"
+             " case when (r.report->>'retire_blocked')::boolean then 'ЗАБЛОКОВАНО' end"
              " from private.ingest_runs r join public.event_sources s on s.id = r.source_id"
              " left join private.ingest_runs p on p.run_id = %s and p.source_id = r.source_id"
              "   and p.city is not distinct from r.city"
              " where r.run_id = %s order by s.slug, r.city", prev, last)
     out += [_table(["джерело", "місто", "parsed", "було", "published", "було", "merged", "було", "review", "було",
-                    "error", "було error"], rows), ""]
+                    "error", "було error", "зникло/з", "знято", "запобіжник"], rows), ""]
 
     out += ["== Черга перегляду за причинами (останній обхід)"]
     out += [_table(["причина", "подій"], q(

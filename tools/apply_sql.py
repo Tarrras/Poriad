@@ -127,6 +127,9 @@ def connect(url: str, statement_timeout: str):
     # SET не приймає параметрів запиту, тому set_config.
     conn.execute("select set_config('statement_timeout', %s, false)", (statement_timeout,))
     conn.execute("set lock_timeout = '30s'")
+    # Попередження дампу (заблоковане зняття зниклих, збій пуша) інакше губились мовчки.
+    conn.add_notice_handler(lambda diag: diag.severity_nonlocalized == "WARNING"
+                            and print(f"  ⚠ база: {diag.message_primary}"))
     return conn
 
 
