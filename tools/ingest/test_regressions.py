@@ -601,6 +601,17 @@ class Robustness(unittest.TestCase):
         self.assertEqual(mark_sharp_drops(steady, previous), [])
         self.assertEqual(mark_sharp_drops(steady, []), [])
 
+    def test_one_source_crash_does_not_stop_the_run(self):
+        from .__main__ import gather_city
+        broken = dataclasses.replace(self.source, slug="broken")
+        with patch("tools.ingest.__main__.build_index", return_value=self.index), \
+             patch("tools.ingest.__main__.harvest", side_effect=KeyError("at")), \
+             contextlib.redirect_stdout(io.StringIO()):
+            reports = []
+            run = gather_city("Київ", [broken], "run", use_photon=False, now=NOW, reports=reports)
+        self.assertEqual(run.items, [])
+        self.assertTrue(reports[0]["error"].startswith("CRASH KeyError"))
+
     def test_artists_are_settled_across_all_cities(self):
         # «Театр 057» у Дніпрі й Харкові: по місту — «в одному місці» (майданчик), по всіх — трупа.
         from .artists import Artist
@@ -649,6 +660,14 @@ class Robustness(unittest.TestCase):
         sql = emit._insert([_item("concert_ua", "Концерт")], "00000000-0000-0000-0000-000000000001")
         self.assertIn("join public.event_sources s on s.slug=v.slug\nwhere s.enabled", sql)
         self.assertIn("events.import_status='withdrawn' and events.ingest_run_id is null", sql)
+
+    def test_demote_spares_what_another_city_published(self):
+        # Karabas показує дніпровську подію й на сторінці Києва: там вона CITY_MISMATCH у черзі.
+        from .test_ingest import _item
+        copy = _item("karabas", "Концерт")
+        copy.stage, copy.reject_reason = "review", "CITY_MISMATCH"
+        self.assertEqual(emit.demote_sql([copy], "run", {(copy.source_slug, copy.source_uid)}), [])
+        self.assertEqual(len(emit.demote_sql([copy], "run")), 1)
 
     def test_automatic_withdrawals_carry_run_id(self):
         from .test_ingest import _item
@@ -918,6 +937,34 @@ class DetailCache(unittest.TestCase):
             self.assertEqual(counters["cached"], 1)
             self.harvest(NOW + dt.timedelta(days=3))
             self.assertIn(self.link, self.asked)
+
+    def test_status_failure_reads_live_but_keeps_the_shared_cache(self):
+        # Кеш спільний для всіх міст джерела: збій розділу статусів у Києві не має стерти картки Одеси.
+        other = "https://badseller.net/afisha/odesa/z-2090-06-01"
+        with tempfile.TemporaryDirectory() as tmp:
+            self.cache_dir = Path(tmp)
+            self.harvest(NOW)
+            path = Path(tmp) / "details_badseller.json"
+            data = json.loads(path.read_text("utf-8"))
+            data[other] = {"at": NOW.isoformat(), "events": []}
+            path.write_text(json.dumps(data), "utf-8")
+            self.listing_status, self.asked = 500, []
+            self.harvest(NOW + dt.timedelta(hours=1))
+            self.assertIn(self.link, self.asked)                     # без статусів — наживо
+            self.assertIn(other, json.loads(path.read_text("utf-8")))
+
+    def test_sitemap_network_failure_is_a_source_error_not_a_crash(self):
+        def broken(url, **kwargs):
+            if url == self.source.sitemap_url:
+                raise OSError("timed out")
+            return self.fake_get(url, **kwargs)
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch("tools.ingest.pipeline.get", side_effect=broken), \
+             patch("tools.ingest.pipeline._sitemaps", {}), patch("tools.ingest.pipeline.CACHE_DIR", Path(tmp)):
+            self.listing = ""                                         # без скасованих: самі лише картки sitemap
+            items, counters = pipeline.harvest(self.source, "Київ", VenueIndex([], "Київ"), now=NOW)
+        self.assertEqual(items, [])
+        self.assertEqual(counters["error"], "sitemap: timed out")
 
     def test_card_of_a_near_event_is_read_more_often(self):
         self.link = "https://badseller.net/afisha/kyiv/x-2026-09-14"       # NOW — 2026-09-11: за 3 дні

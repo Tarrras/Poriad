@@ -156,11 +156,16 @@ def harvest(source: Source, city: str, index: VenueIndex,
         # Скасовані й перенесені — першими, щоб межа max_details їх не відрізала, і завжди наживо.
         links = list(dict.fromkeys(status_links + links))
         counters["detail_links"] = len(links)
-        counters["detail_errors"] = []
+        sitemap_errors = counters.get("detail_errors", [])        # `_sitemap_links` пише сюди збій sitemap
+        counters["detail_errors"] = list(sitemap_errors)
+        if sitemap_errors and not links:
+            return [], {**counters, "error": sitemap_errors[0]}
         if len(links) > source.max_details:
             counters["detail_errors"].append("DETAIL_LIMIT")
         # Розділ статусів не прочитався — свіжість кешу нічим підтвердити: цього разу читаємо все наживо.
-        details = _load_details(source, now) if status_ok else {}
+        # Але кеш не скидаємо: він спільний для всіх міст джерела, і порожній словник, збережений нижче,
+        # стер би картки інших міст — наступні обходи читали б усі ~2400 карток badseller (~1 год).
+        details = _load_details(source, now)
         live = set(status_links)
         # lastmod зі sitemap — дата зміни картки. Вона раніша за день, коли ми картку зберегли, — картка
         # з того часу не мінялась (дата, а не час: змінена в день збереження читається ще раз, це
@@ -172,6 +177,8 @@ def harvest(source: Source, city: str, index: VenueIndex,
         near_after = (now - dt.timedelta(days=source.detail_near_ttl_days)).isoformat()
 
         def cached(link):
+            if not status_ok:
+                return None
             entry = details.get(link)
             changed = mods.get(link)
             if entry and link not in live and (changed is None or changed[:10] < entry["at"][:10]):
@@ -389,7 +396,8 @@ def _load_details(source: Source, now: dt.datetime) -> dict:
     except (OSError, ValueError):
         return {}
     fresh_after = (now - dt.timedelta(days=source.detail_ttl_days)).isoformat()
-    return {url: e for url, e in data.items() if e["at"] >= fresh_after}
+    return {url: e for url, e in data.items()
+            if isinstance(e, dict) and str(e.get("at", "")) >= fresh_after and isinstance(e.get("events"), list)}
 
 
 def _save_details(source: Source, details: dict) -> None:
@@ -467,7 +475,11 @@ _sitemaps: dict[str, str] = {}
 def _sitemap_links(source: Source, city: str, now: dt.datetime, counters: dict) -> list[str]:
     """Картки міста з sitemap джерела; sitemap один на всі міста, тож читається раз за запуск."""
     if source.sitemap_url not in _sitemaps:
-        page = get(source.sitemap_url, delay=source.crawl_delay)
+        try:
+            page = get(source.sitemap_url, delay=source.crawl_delay)
+        except (PermissionError, OSError) as exc:
+            counters["detail_errors"] = [f"sitemap: {exc}"]
+            return []
         if page.status != 200 or not page.body:
             counters["detail_errors"] = [f"sitemap: HTTP {page.status}"]
             return []

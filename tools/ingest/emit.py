@@ -420,15 +420,19 @@ RETIRE_MAX_SHARE = 0.3
 RETIRE_ALLOWANCE = 5
 
 
-def demote_sql(items: list[Item], run_id: str) -> list[str]:
+def demote_sql(items: list[Item], run_id: str, published: set | frozenset = frozenset()) -> list[str]:
     """Знімає живий рядок події, яку цей обхід бачив, але більше не публікує: пішла в чергу
     перегляду (без координат, низька якість, конфлікт дат). Без цього старий рядок лишався
     `live` зі старою точкою, доки подія не закінчиться. Зняття несе run_id, тож наступний обхід,
     де подія знову проходить фільтри, повертає її в `live` (див. upsert у `_insert`).
+
+    `published` — (джерело, uid), опубліковані в будь-якому місті прогону: Karabas показує дніпровську подію
+    й на сторінці іншого міста, там вона йде в чергу як CITY_MISMATCH, і зняття за нею знімало б рядок,
+    щойно записаний своїм містом (рятував лише порядок міст у дампі).
     """
     parts = []
     for it in items:
-        if it.stage != "review":
+        if it.stage != "review" or (it.source_slug, it.source_uid) in published:
             continue
         parts.append(
             "update public.events e set import_status='withdrawn', updated_at=now(),\n"

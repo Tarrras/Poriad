@@ -138,11 +138,16 @@ def gather_city(city: str, sources: list, run_id: str, *, agent: Agent | None = 
     all_items: list = []
     harvested: list[tuple[object, list]] = []
     for source in usable:
-        if crawl:
-            items, counters = crawl.result(city, source)
-        else:
-            items, counters = harvest(source, city, index, geocoder=geocoder, now=now,
-                status_notices=(status_by_source or {}).get(source.slug))
+        # Неочікуваний збій одного джерела — його помилка в цьому місті, а не обрив усього обходу без запису.
+        try:
+            if crawl:
+                items, counters = crawl.result(city, source)
+            else:
+                items, counters = harvest(source, city, index, geocoder=geocoder, now=now,
+                    status_notices=(status_by_source or {}).get(source.slug))
+        except Exception as exc:                     # noqa: BLE001 — див. коментар вище
+            items, counters = [], {"fetched": 0, "parsed": 0, "published": 0,
+                                   "error": f"CRASH {type(exc).__name__}: {exc}"[:300]}
         counters["items"] = len(items)
         if reports is not None:
             counters.update({"city": city, "source": source.slug})
@@ -195,7 +200,7 @@ def settle_artists(items: list, agent: Agent | None = None) -> None:
 
 
 def emit_city(run: CityRun, run_id: str, *, agent: Agent | None = None, statement_bytes: int = 0,
-              now=None) -> tuple[list[str], list[str]]:
+              now=None, published: set | None = None) -> tuple[list[str], list[str]]:
     """SQL міста: (дані, зняття зниклих). Зняття окремо: у дампі воно йде після статистики прогону,
     щоб записати в її рядок, скільки зникло й чи не спрацював запобіжник."""
     city, all_items = run.city, run.items
@@ -226,7 +231,10 @@ def emit_city(run: CityRun, run_id: str, *, agent: Agent | None = None, statemen
                                                   replace_llm=agent is not None))
         sql_parts += emit.withdrawals_sql(source.slug, counters.get("withdrawals", []), run_id)
     sql_parts += emit.duplicates_sql(all_items, run_id)
-    sql_parts += emit.demote_sql(all_items, run_id)
+    # Опубліковане в будь-якому місті прогону не знімаємо за копією з черги іншого міста.
+    published = published if published is not None else {(i.source_slug, i.source_uid) for i in all_items
+                                                         if i.stage == "published"}
+    sql_parts += emit.demote_sql(all_items, run_id, published)
 
     # Зняття за відсутністю — після вставок: вони вже перейменували рядки з новим ключем.
     retire_parts: list[str] = []
@@ -431,8 +439,10 @@ def main(argv: list[str] | None = None) -> int:
     # містах губився в кожному).
     print("\n" + "═" * 62)
     settle_artists(everything, agent)
+    published_anywhere = {(i.source_slug, i.source_uid) for i in everything if i.stage == "published"}
     for run in runs:
-        parts, retire = emit_city(run, run_id, agent=agent, statement_bytes=max(0, args.sql_max_bytes - 1024))
+        parts, retire = emit_city(run, run_id, agent=agent, statement_bytes=max(0, args.sql_max_bytes - 1024),
+                                  published=published_anywhere)
         per_city[run.city] = (run.items, parts, retire)
 
     published = [i for i in everything if i.stage == "published"]
