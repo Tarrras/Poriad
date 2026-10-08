@@ -39,5 +39,9 @@ assert.ok(!community.includes("Разом на"), "звичайна подія �
 assert.ok(eventPage({ ...base, title: "СТЕНДАП \"ПЕРЕВІРКА\"" }, now).includes("<h1>Стендап «Перевірка»</h1>"), "назва — як у застосунку");
 assert.ok(imported.includes("Квитки на Concert.ua"), "головна дія афіші — квитки в джерела");
 assert.ok(community.includes('href="/app">Приєднатися в застосунку'), "кімната людей — у застосунок");
+const withdrawn = eventPage({ ...base, origin: "import", canonical_url: "https://concert.ua/x", source_name: "Concert.ua", import_status: "withdrawn" }, now, shelters);
+assert.ok(withdrawn.includes("Більше не проводиться"), "знята з афіші — так і сказано");
+assert.ok(!withdrawn.includes("Квитки на"), "і без кнопки квитків");
+assert.ok(!withdrawn.includes("Укриття поруч"), "і без укриттів");
 assert.equal(esc(`"'<&>`), "&quot;&#39;&lt;&amp;&gt;");
 console.log("ok");

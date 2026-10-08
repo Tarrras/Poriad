@@ -65,6 +65,9 @@ export function eventPage(e, now, shelters = []) {
   const place = e.address && e.city && e.address.includes(e.city) ? e.address : [e.city, e.address].filter(Boolean).join(", ");
   const imported = e.origin === "import";
   const cancelled = e.status === "cancelled";
+  // Знята з афіші джерела (скасована, дубль, зникла): застосунок пише «Більше не проводиться», і сторінка
+  // за посиланням не має показувати її живою з кнопкою «Квитки».
+  const withdrawn = imported && e.import_status === "withdrawn";
   const past = new Date(e.ends_at || e.starts_at) < now;
   const image = httpsOrNull(e.image_url);
   const ticketUrl = imported ? httpsOrNull(e.canonical_url) : null;
@@ -75,7 +78,9 @@ export function eventPage(e, now, shelters = []) {
   const parent = UUID.test(e.companion_of ?? "") ? { id: e.companion_of, title: displayTitle(e.companion_of_title || "подію") } : null;
   const cost = price(e);
   const spots = !imported && e.capacity ? `Учасників: ${e.attendee_count} з ${e.capacity}` : !imported && e.attendee_count > 0 ? `Учасників: ${e.attendee_count}` : null;
-  const notice = cancelled ? "Подію скасовано." : past ? "Ця подія вже минула." : null;
+  const notice = cancelled ? "Подію скасовано." : withdrawn ? "Більше не проводиться: джерело зняло цю подію."
+    : past ? "Ця подія вже минула." : null;
+  const live = !cancelled && !withdrawn && !past;
   const facts = [
     ["Коли", overline(e, now, true), null],
     ["Де", place.split(", ")[0] || e.city, place],
@@ -111,13 +116,13 @@ ${ticketUrl ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""}`,
     ${!imported && e.approval_required ? `<p class="fine">Участь за підтвердженням організатора.</p>` : ""}
     ${!imported && e.organizer_name ? `<p class="note">Організовує ${esc(e.organizer_name)}</p>` : ""}
     ${e.description ? `<div class="block"><h2>Опис</h2><p class="description">${esc(e.description)}</p></div>` : ""}
-    ${!cancelled && !past ? sheltersSection(shelters) : ""}
+    ${live ? sheltersSection(shelters) : ""}
     <div class="app-only"><b>${imported ? "Підете? Не забудьте" : "Приєднатися — в застосунку"}</b>
       <ul><li>${icon("bell")}Нагадування за годину до початку</li><li>${icon("people")}«Шукаю компанію» — знайдіть, з ким піти</li><li>${icon("map")}Що ще відбувається поряд — на мапі</li></ul>
       <div class="stores">${storeButtons()}</div></div>
   </div>
   <div class="bar"><div class="top"><div class="meta"><small>${esc(when)}</small><span>${esc(cost || spots || "Вхід уточнюйте")}</span></div>
-    ${ticketUrl && !cancelled && !past ? `<a class="btn primary" href="${esc(ticketUrl)}" rel="nofollow noopener">Квитки${e.source_name ? ` на ${esc(e.source_name)}` : ""}</a>`
+    ${ticketUrl && live ? `<a class="btn primary" href="${esc(ticketUrl)}" rel="nofollow noopener">Квитки${e.source_name ? ` на ${esc(e.source_name)}` : ""}</a>`
       : `<a class="btn primary" href="/app">${imported ? "Завантажити «Поряд»" : "Приєднатися в застосунку"}</a>`}</div></div>
 </article>`,
   });
