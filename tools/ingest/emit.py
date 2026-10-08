@@ -519,6 +519,30 @@ def retire_finished_sql(grace_days: int = FINISHED_GRACE_DAYS) -> str:
     return f"select private.retire_finished_imports(interval '{grace_days} days');\n"
 
 
+def merge_artist_follows_sql(merges: list[tuple[str, str]]) -> str:
+    """Підписка на псевдонім переходить на канонічного артиста (до `prune_artists_sql`). Без цього людина,
+    що стежила за «Олена Тополь», після злиття з «Олена Тополя» лишалась на артисті без подій — його тримав
+    живим лише її підпис — і пушів більше не отримувала. Дата підписки зберігається: пуш рахує «нове» від
+    неї, і давні події канонічного артиста не прийдуть як нові. Під перевіркою таблиці, як і prune."""
+    pairs = sorted(set(merges))
+    if not pairs:
+        return ""
+    rows = ",".join(f"({_lit(a)},{_lit(c)})" for a, c in pairs)
+    return ("do $$ begin\n"
+            "  if to_regclass('public.artists') is not null then\n"
+            f"    with m(alias_key, canon_key) as (values {rows}),\n"
+            "    pairs as (select a.id as old_id, c.id as new_id from m\n"
+            "              join public.artists a on a.key = m.alias_key join public.artists c on c.key = m.canon_key\n"
+            "              where a.id <> c.id),\n"
+            "    moved as (insert into public.follows (user_id, target_kind, target_id, created_at)\n"
+            "              select f.user_id, 'artist', p.new_id, f.created_at from public.follows f\n"
+            "              join pairs p on f.target_kind = 'artist' and f.target_id = p.old_id\n"
+            "              on conflict do nothing returning 1)\n"
+            "    delete from public.follows f using pairs p where f.target_kind = 'artist' and f.target_id = p.old_id;\n"
+            "  end if;\n"
+            "end $$;\n")
+
+
 def prune_artists_sql() -> str:
     """Артисти без жодної події й без підписника (20261002120000): лишаються після злиття дублів («Київський
     Mozart Orchestra» -> «Kyiv Mozart Orchestra») і зміни правил. Підписник утримує артиста навіть без подій:

@@ -44,6 +44,8 @@ create table event_artists (
 create function private.artist_source_rank(p_source text) returns integer language sql immutable as $$
  select case p_source when 'manual' then 3 when 'auto' then 2 else 1 end $$;
 create table private.ingest_runs (id uuid primary key, report jsonb);
+create table follows (user_id uuid, target_kind text, target_id uuid, created_at timestamptz default now(),
+ primary key (user_id, target_kind, target_id));
 create function private.place_source_rank(p_source text) returns integer language sql immutable as $$
  select case p_source when 'manual' then 3 when 'osm' then 2 else 1 end $$;
 create table venues (
@@ -170,6 +172,19 @@ assert.equal(await statusOf('https://example.org/teatr-3#old'), 'withdrawn');
 assert.equal(await statusOf('https://example.org/teatr-7#x'), 'live');
 assert.equal(await statusOf('https://example.org/teatr-3#past'), 'live');
 assert.equal(await statusOf(fixture.move_uids[1]), 'live');
+
+// Злиття артиста за псевдонімом: підписка переходить на канонічного з тією ж датою; хто стежив за обома — один рядок.
+await db.exec(`insert into artists (id, name, key) values
+ ('00000000-0000-0000-0000-00000000a0a1', 'Олена Тополь', 'олена тополь'),
+ ('00000000-0000-0000-0000-00000000a0a2', 'Олена Тополя', 'олена тополя');
+insert into follows values
+ ('00000000-0000-0000-0000-0000000000f1', 'artist', '00000000-0000-0000-0000-00000000a0a1', '2026-10-01T10:00:00Z'),
+ ('00000000-0000-0000-0000-0000000000f2', 'artist', '00000000-0000-0000-0000-00000000a0a1', '2026-10-01T10:00:00Z'),
+ ('00000000-0000-0000-0000-0000000000f2', 'artist', '00000000-0000-0000-0000-00000000a0a2', '2026-10-02T10:00:00Z');`);
+await db.exec(fixture.merge_follows);
+const follows = (await db.query(`select user_id, target_id, created_at from follows order by user_id`)).rows;
+assert.deepEqual(follows.map(f => [f.user_id.slice(-2), f.target_id.slice(-2), f.created_at.toISOString().slice(0, 10)]),
+                 [['f1', 'a2', '2026-10-01'], ['f2', 'a2', '2026-10-02']]);
 
 // Колишній сеанс знову в афіші, а його обчислений id носить перенесений рядок: новий рядок із
 // випадковим id, а не events_pkey і відкат усього дампу.

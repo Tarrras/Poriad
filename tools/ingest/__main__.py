@@ -480,7 +480,7 @@ def main(argv: list[str] | None = None) -> int:
     # а «завершені — останні» лишається правдою. Теж у кожному файлі: функція ідемпотентна.
     follows = emit.notify_follows_sql()
     # Осиротілі артисти (після злиття дублів) прибираємо до пуша: він їх не стосується, але порядок «дані, потім пуш».
-    prune = emit.prune_artists_sql()
+    prune = emit.merge_artist_follows_sql(artists.Dictionary.load().merges) + emit.prune_artists_sql()
     # Статистика прогону для агента-аналітика (private.ingest_runs/_items) — після даних. Подій не
     # чіпає, тож стоїть перед кроками prune/follows/finished: «завершені — останні» лишається правдою.
     stats_bytes = max(0, args.sql_max_bytes - 1024)

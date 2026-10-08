@@ -83,6 +83,7 @@ print(json.dumps({
     "retire_one": emit.retire_absent_sql("karabas", "Київ", karabas_uids[:9], RUN),
     "retire_mass": emit.retire_absent_sql("karabas", "Київ", karabas_uids[:1], RUN),
     "karabas_stats_id": emit.stats_run_id(RUN, "karabas", "Київ"),
+    "merge_follows": emit.merge_artist_follows_sql([("олена тополь", "олена тополя")]),
     # TicketsBox: картка показує новий час сеансу, старий рядок того ж посилання знімається.
     "tb_replaced": emit.retire_replaced_sql("ticketsbox", [after], RUN),
     # За межею обходу (sitemap до horizon_days) відсутність нічого не доводить.

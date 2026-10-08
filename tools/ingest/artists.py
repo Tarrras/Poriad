@@ -154,6 +154,7 @@ class Dictionary:
     def __init__(self, entries: dict | None = None, seed: list | None = None):
         self._by_key: dict[str, tuple[str, str | None]] = {}
         self._multi: dict[str, list[tuple[list[str], str]]] = collections.defaultdict(list)
+        self.merges: list[tuple[str, str]] = []      # (ключ псевдоніма, ключ канонічного) з ручної вивірки
         for canonical, entry in (entries or {}).items():
             if canonical == "_" or not isinstance(entry, dict):
                 continue
@@ -163,6 +164,8 @@ class Dictionary:
             for name in [canonical, *entry.get("aliases", [])]:
                 self._by_key[key(name)] = (canonical, kind)
                 self._index(name, canonical)
+                if key(name) != key(canonical):
+                    self.merges.append((key(name), key(canonical)))
         self.add_names(seed or [])
 
     def _index(self, name: str, canonical: str) -> None:
