@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="uk" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Афіша — Поряд</title>
+<meta name="description" content="Афіша Києва, Львова, Одеси, Дніпра й Харкова: концерти, вистави, стендап, виставки, настолки й зустрічі. Фільтри «сьогодні», «завтра», «вихідні», категорії й мапа.">
+<meta property="og:title" content="Афіша міста — Поряд">
+<meta property="og:description" content="Куди піти сьогодні: концерти, вистави, стендап і зустрічі на мапі.">
+<meta property="og:image" content="https://poriad.app/img/og.png">
+<meta property="og:url" content="https://poriad.app/afisha.html">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="apple-itunes-app" content="app-id=6813543772">
+<meta name="theme-color" content="#F5F5F7">
+<link rel="canonical" href="https://poriad.app/afisha.html">
+<link rel="preconnect" href="https://tzdogzdvctlumsqlqskr.supabase.co" crossorigin>
+<link rel="preload" href="fonts/source-serif-4-600.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="web.css">
+<link rel="icon" href="icon.png">
+<link rel="apple-touch-icon" href="icon.png">
+<script>document.documentElement.classList.add("js");setTimeout(function(){if(!window.poriadReady)document.documentElement.classList.remove("js")},3000)</script>
+<script type="module" src="js/afisha.js"></script>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="./"><img src="icon.png" alt="">Поряд</a>
+    <nav class="links" aria-label="Розділи">
+      <a href="afisha.html" aria-current="page">Афіша</a>
+      <a href="./#features">Можливості</a>
+      <a href="./#safety">Безпека</a>
+      <a class="btn primary small" href="./#download" data-lock="app">Завантажити</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <section class="afisha-head">
+    <div class="wrap afisha-title">
+      <h1 data-title>Афіша</h1>
+      <div class="meta"><span class="pulse"></span><span data-count>Завантажуємо…</span></div>
+    </div>
+  </section>
+
+  <div class="toolbar" data-toolbar>
+    <div class="wrap">
+      <div class="line top">
+        <label class="search"><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-search"/></svg>
+          <span class="sr">Пошук</span><input type="search" placeholder="Подія, місце або артист" autocomplete="off" enterkeyhint="search" data-q></label>
+        <label class="city-select"><span class="sr">Місто</span><select data-city></select><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-chevron"/></svg></label>
+        <div class="tabs" role="group" aria-label="Вигляд" data-view>
+          <button type="button" data-v="list"><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-list"/></svg><span class="label">Список</span></button>
+          <button type="button" data-v="map"><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-map"/></svg><span class="label">Мапа</span></button>
+        </div>
+      </div>
+      <div class="line"><div class="chips" role="group" aria-label="Фільтри" data-filters></div></div>
+    </div>
+  </div>
+
+  <div class="wrap afisha-main">
+    <section data-rail-wrap hidden>
+      <h2>Не пропустіть <small>сьогодні й завтра</small></h2>
+      <div class="rail" data-rail></div>
+    </section>
+    <section data-list-wrap>
+      <h2><span data-list-title>Усі події</span> <small data-list-count></small></h2>
+      <div class="poster-grid" data-grid></div>
+      <div class="load-more"><button class="btn secondary" type="button" data-more hidden>Показати ще</button></div>
+    </section>
+    <section data-map-wrap hidden>
+      <div class="map-view" data-map><div class="hint">Натисніть на точку&nbsp;— відкриється подія</div></div>
+    </section>
+  </div>
+</main>
+
+<aside class="app-bar gone" data-app-bar aria-label="Застосунок">
+  <img src="icon.png" alt="">
+  <div><b>Поряд у телефоні</b><span>Нагадування, компанія й мапа навколо вас</span></div>
+  <button class="btn primary" type="button" data-lock="app">Завантажити</button>
+  <button class="x" type="button" data-dismiss aria-label="Сховати"><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-close"/></svg></button>
+</aside>
+
+<footer class="site">
+  <div class="wrap">
+    <span>Афішні події&nbsp;— з відкритих джерел із зазначенням джерела; квитки купуються на сайті організатора. Мапа: © OpenStreetMap, OpenFreeMap.</span>
+    <nav aria-label="Документи"><a href="./">Головна</a><a href="privacy.html">Конфіденційність</a><a href="terms.html">Умови</a><a href="mailto:hello@poriad.app">hello@poriad.app</a></nav>
+  </div>
+</footer>
+</body>
+</html>

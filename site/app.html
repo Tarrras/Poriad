@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Завантажити «Поряд»</title>
+<meta name="robots" content="noindex">
+<!-- Куди веде QR-код сайту (poriad.app/app): одразу в стор телефона, на комп’ютері — на лендинг. -->
+<script>
+  var ua = navigator.userAgent;
+  if (/iPhone|iPad|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)) location.replace("https://apps.apple.com/ua/app/id6813543772");
+  else if (/Android/.test(ua)) location.replace("https://play.google.com/store/apps/details?id=app.poriad.android");
+  else location.replace("./#download");
+</script>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="icon.png">
+</head>
+<body>
+<header class="hero"><div class="wrap"><a class="brand" href="./"><img src="icon.png" alt=""><b>Поряд</b></a></div></header>
+<main><div class="wrap">
+  <h1>Завантажити «Поряд»</h1>
+  <div class="row">
+    <a class="pill" href="https://apps.apple.com/ua/app/id6813543772">App Store</a>
+    <a class="pill ghost" href="https://play.google.com/store/apps/details?id=app.poriad.android">Google Play</a>
+  </div>
+</div></main>
+</body>
+</html>

@@ -3,6 +3,11 @@
 // маршрути в wrangler.toml перехоплюють лише ці адреси. Дані — публічний RPC `event_details`, той
 // самий, що бачить гість у застосунку: приховані й приватні події він не віддає.
 
+// Назви, дати й ціна — ті самі правила, що на сайті (site/js/poriad.js, порт TitleRules і формату застосунку).
+// wrangler збирає цей імпорт у воркер; той самий файл сайт віддає браузеру.
+import { displayTitle, overline, price, httpsOrNull, esc, CATEGORIES } from "../site/js/poriad.js";
+export { esc };
+
 const APP_STORE_URL = "https://apps.apple.com/ua/app/id6813543772";
 // Порожньо, доки застосунок не вийшов у Google Play: кнопку не показуємо.
 const PLAY_URL = "";
@@ -54,7 +59,8 @@ async function eventResponse(id, env) {
 
 export function eventPage(e, now, shelters = []) {
   const link = `https://poriad.app/e/${e.id}`;
-  const when = formatWhen(e.starts_at, e.time_zone);
+  const title = displayTitle(e.title);
+  const tz = e.time_zone || "Europe/Kyiv";
   // Імпорт часто вже пише місто в адресі: «Київ, …, м. Київ» читається як помилка.
   const place = e.address && e.city && e.address.includes(e.city) ? e.address : [e.city, e.address].filter(Boolean).join(", ");
   const imported = e.origin === "import";
@@ -62,19 +68,24 @@ export function eventPage(e, now, shelters = []) {
   const past = new Date(e.ends_at || e.starts_at) < now;
   const image = httpsOrNull(e.image_url);
   const ticketUrl = imported ? httpsOrNull(e.canonical_url) : null;
+  const category = CATEGORIES[e.category] ? e.category : "social";
+  const when = overline(e, now);
+  const maps = `https://www.google.com/maps/dir/?api=1&destination=${Number(e.latitude)},${Number(e.longitude)}`;
   // Супутник «Йдемо разом»: посилання на афішу, на яку йдуть. UUID перевіряємо — рядок з бази йде в href.
-  const parent = UUID.test(e.companion_of ?? "") ? { id: e.companion_of, title: e.companion_of_title || "подію" } : null;
-
-  const facts = [
-    price(e),
-    !imported && e.capacity ? `Учасників: ${e.attendee_count} з ${e.capacity}` : !imported && e.attendee_count > 0 ? `Учасників: ${e.attendee_count}` : null,
-    e.min_age ? `${e.min_age}+` : null,
-    !imported && e.approval_required ? "Участь за підтвердженням організатора" : null,
-  ].filter(Boolean);
+  const parent = UUID.test(e.companion_of ?? "") ? { id: e.companion_of, title: displayTitle(e.companion_of_title || "подію") } : null;
+  const cost = price(e);
+  const spots = !imported && e.capacity ? `Учасників: ${e.attendee_count} з ${e.capacity}` : !imported && e.attendee_count > 0 ? `Учасників: ${e.attendee_count}` : null;
   const notice = cancelled ? "Подію скасовано." : past ? "Ця подія вже минула." : null;
+  const facts = [
+    ["Коли", overline(e, now, true), null],
+    ["Де", place.split(", ")[0] || e.city, place],
+    [spots ? "Учасники" : "Ціна", spots ? spots.replace("Учасників: ", "") : cost || "Уточнюйте", null],
+    [imported ? "Джерело" : "Організовує", imported ? e.source_name || "Афіша" : e.organizer_name || "Організатор", null],
+  ];
+  const extras = [e.min_age ? `${e.min_age}+` : null, !imported && e.approval_required ? "Участь за підтвердженням організатора" : null].filter(Boolean);
 
   return layout({
-    title: e.title,
+    title,
     description: [when, place].filter(Boolean).join(" · "),
     image: image || "https://poriad.app/img/og.png",
     url: link,
@@ -82,21 +93,33 @@ export function eventPage(e, now, shelters = []) {
     head: `<meta name="robots" content="noindex">
 <meta name="apple-itunes-app" content="app-id=${APP_STORE_URL.match(/id(\d+)/)[1]}, app-argument=${link}">
 ${ticketUrl ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""}`,
-    body: `
-${notice ? `<p class="notice">${notice}</p>` : ""}
-<article class="card event">
-  ${image ? `<img class="cover" src="${esc(image)}" alt="">` : ""}
-  <h1>${esc(e.title)}</h1>
-  ${parent ? `<p class="note">Разом на: <a href="/e/${parent.id}">${esc(parent.title)}</a></p>` : ""}
-  <p class="when">${esc(when)}</p>
-  <p class="where"><a href="https://maps.google.com/?q=${Number(e.latitude)},${Number(e.longitude)}">${esc(place)}</a></p>
-  ${facts.length ? `<p class="facts">${facts.map(esc).join(" · ")}</p>` : ""}
-  ${!imported && e.organizer_name ? `<p class="note">Організовує ${esc(e.organizer_name)}</p>` : ""}
-  ${e.description ? `<p class="description">${esc(e.description)}</p>` : ""}
-  ${ticketUrl ? `<p><a href="${esc(ticketUrl)}" rel="nofollow">Квитки${e.source_name ? ` на ${esc(e.source_name)}` : ""}</a></p>` : ""}
-</article>
-${!cancelled && !past ? sheltersSection(shelters) : ""}
-${storeButtons(e.id, imported ? "Зберегти подію, отримати нагадування й знайти, що ще відбувається поряд, можна в застосунку." : "Приєднатися, написати в чат учасників і отримати нагадування можна в застосунку.")}`,
+    body: `<article class="sheet-box">
+  <header class="cover-big cat-${category}"><div class="art cat-${category}">${icon(category, "glyph")}${image ? `<img src="${esc(image)}" alt="" referrerpolicy="no-referrer">` : ""}</div>
+    <div class="badges"><span class="badge">${esc(CATEGORIES[category])}</span><span class="badge">${esc(imported ? `Афіша${e.source_name ? ` · ${e.source_name}` : ""}` : "Від людей")}</span>${extras.length && e.min_age ? `<span class="badge">${Number(e.min_age)}+</span>` : ""}</div>
+    <div class="when">${esc(when)}</div><h1>${esc(title)}</h1>
+  </header>
+  <div class="detail">
+    ${notice ? `<p class="notice">${notice}</p>` : ""}
+    ${parent ? `<p class="note">Разом на: <a href="/e/${parent.id}">${esc(parent.title)}</a></p>` : ""}
+    <div class="actions">
+      <a href="${maps}" rel="noopener"><i>${icon("pin")}</i>Маршрут</a>
+      <button type="button" data-share><i>${icon("share")}</i>Поділитися</button>
+      <a href="poriad://event/${e.id}"><i>${icon("bookmark")}</i>У застосунку</a>
+      <a href="/afisha.html${e.city && e.city !== "Київ" ? `?city=${encodeURIComponent(e.city)}` : ""}"><i>${icon("map")}</i>Афіша</a>
+    </div>
+    <div class="facts">${facts.map(([label, value, sub]) => `<div><span class="overline">${label}</span><b>${esc(value)}</b>${sub && sub !== value ? `<small>${esc(sub)}</small>` : ""}</div>`).join("")}</div>
+    ${!imported && e.approval_required ? `<p class="fine">Участь за підтвердженням організатора.</p>` : ""}
+    ${!imported && e.organizer_name ? `<p class="note">Організовує ${esc(e.organizer_name)}</p>` : ""}
+    ${e.description ? `<div class="block"><h2>Опис</h2><p class="description">${esc(e.description)}</p></div>` : ""}
+    ${!cancelled && !past ? sheltersSection(shelters) : ""}
+    <div class="app-only"><b>${imported ? "Підете? Не забудьте" : "Приєднатися — в застосунку"}</b>
+      <ul><li>${icon("bell")}Нагадування за годину до початку</li><li>${icon("people")}«Шукаю компанію» — знайдіть, з ким піти</li><li>${icon("map")}Що ще відбувається поряд — на мапі</li></ul>
+      <div class="stores">${storeButtons()}</div></div>
+  </div>
+  <div class="bar"><div class="top"><div class="meta"><small>${esc(when)}</small><span>${esc(cost || spots || "Вхід уточнюйте")}</span></div>
+    ${ticketUrl && !cancelled && !past ? `<a class="btn primary" href="${esc(ticketUrl)}" rel="nofollow noopener">Квитки${e.source_name ? ` на ${esc(e.source_name)}` : ""}</a>`
+      : `<a class="btn primary" href="/app">${imported ? "Завантажити «Поряд»" : "Приєднатися в застосунку"}</a>`}</div></div>
+</article>`,
   });
 }
 
@@ -107,11 +130,10 @@ function sheltersSection(shelters) {
   if (!Array.isArray(shelters) || shelters.length === 0) return "";
   const rows = shelters.map((s) => {
     const extras = [s.hours, s.accessible ? "Є пандус" : null].filter(Boolean).map(esc).join(" · ");
-    return `<li><a href="https://maps.google.com/?q=${Number(s.latitude)},${Number(s.longitude)}">${esc(s.address)}</a>
-      <span class="note">${esc(SHELTER_KINDS[s.kind] || "Укриття")} · ${Number(s.distance_m)} м${extras ? ` · ${extras}` : ""}</span></li>`;
+    return `<a class="row" href="https://www.google.com/maps/dir/?api=1&destination=${Number(s.latitude)},${Number(s.longitude)}&travelmode=walking" rel="noopener">
+      <i>${icon("shield")}</i><div class="txt"><small>${esc(SHELTER_KINDS[s.kind] || "Укриття")} · ${Number(s.distance_m)} м${extras ? ` · ${extras}` : ""}</small><b>${esc(s.address)}</b></div></a>`;
   }).join("");
-  return `<section class="card"><h2>Укриття поруч</h2><ul class="shelters">${rows}</ul>
-<p class="note">За відкритими даними КМДА (CC BY).</p></section>`;
+  return `<div class="block"><h2>Укриття поруч</h2><div class="rows">${rows}</div><p class="fine">За відкритими даними КМДА (CC BY).</p></div>`;
 }
 
 export function notFoundPage(message = "Подію не знайдено: її могли приховати або посилання неповне.") {
@@ -121,27 +143,25 @@ export function notFoundPage(message = "Подію не знайдено: її �
     image: "https://poriad.app/img/og.png",
     url: "https://poriad.app/",
     head: `<meta name="robots" content="noindex">`,
-    body: `<p class="notice">${esc(message)}</p>${storeButtons(null, "Що відбувається поряд із вами сьогодні — у застосунку.")}`,
+    body: `<article class="sheet-box"><div class="detail lost"><p class="notice">${esc(message)}</p>
+  <div class="app-only"><b>Що відбувається поряд сьогодні</b><ul><li>${icon("map")}Афіша п’яти міст на мапі</li><li>${icon("bell")}Нагадування й компанія — у застосунку</li></ul>
+    <a class="btn" href="/afisha.html">Відкрити афішу</a><div class="stores">${storeButtons()}</div></div></div></article>`,
   });
 }
 
-function storeButtons(id, pitch) {
-  return `<div class="card">
-  <p>${esc(pitch)}</p>
-  <div class="row">
-    ${id ? `<a class="pill" href="poriad://event/${id}">Відкрити в «Поряд»</a>` : ""}
-    <a class="pill ${id ? "ghost" : ""}" href="${APP_STORE_URL}">App Store</a>
-    ${PLAY_URL ? `<a class="pill ghost" href="${PLAY_URL}">Google Play</a>` : ""}
-  </div>
-</div>`;
+function storeButtons() {
+  return `<a class="store" href="${APP_STORE_URL}">${icon("apple")}<span><small>Завантажити в</small>App Store</span></a>
+    ${PLAY_URL ? `<a class="store play" href="${PLAY_URL}">${icon("play")}<span><small>Завантажити з</small>Google Play</span></a>` : ""}`;
 }
+
+const icon = (name, cls = "ico") => `<svg class="${cls}" aria-hidden="true"><use href="/img/icons.svg#i-${name}"/></svg>`;
 
 function layout({ title, description, image, url, head, body }) {
   return `<!doctype html>
-<html lang="uk">
+<html lang="uk" data-theme="light">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>${esc(title)} — Поряд</title>
 <meta name="description" content="${esc(description)}">
 <meta property="og:type" content="website">
@@ -151,47 +171,28 @@ function layout({ title, description, image, url, head, body }) {
 <meta property="og:image" content="${esc(image)}">
 <meta property="og:url" content="${esc(url)}">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#F5F5F7">
 ${head}
+<link rel="preload" href="/fonts/source-serif-4-600.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/tokens.css">
-<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/web.css">
 <link rel="icon" href="/icon.png">
-<style>
-.event h1 { margin: 12px 0 4px; }
-.event .cover { width: 100%; max-height: 360px; object-fit: cover; border-radius: 14px; }
-.event .when { font-weight: 600; margin: 0; }
-.event .where { margin: 0 0 8px; color: var(--ink-2); }
-.event .facts { font-size: 15px; color: var(--ink-2); }
-.event .description { white-space: pre-line; overflow-wrap: anywhere; }
-.shelters { list-style: none; padding: 0; margin: 0; }
-.shelters li { display: flex; flex-direction: column; padding: 8px 0; border-bottom: 1px solid var(--hairline); }
-.shelters li:last-child { border-bottom: 0; }
-.card h2 { margin-top: 0; }
-.notice { background: var(--accent-soft); color: var(--accent); padding: 12px 16px; border-radius: 14px; font-weight: 600; }
-</style>
 </head>
-<body>
-<header class="hero"><div class="wrap"><a class="brand" href="/"><img src="/icon.png" alt=""><b>Поряд</b></a></div></header>
-<main><div class="wrap">${body}</div></main>
-<footer><div class="wrap"><a href="/privacy.html">Конфіденційність</a><a href="/terms.html">Умови</a><a href="mailto:hello@poriad.app">hello@poriad.app</a></div></footer>
+<body class="event-page">
+<header class="nav scrolled"><div class="wrap"><a class="brand" href="/"><img src="/icon.png" alt="">Поряд</a>
+  <nav class="links" aria-label="Розділи"><a href="/afisha.html">Афіша</a><a class="btn primary small" href="/app">Завантажити</a></nav></div></header>
+<main class="event-shell">${body}</main>
+<footer class="site"><div class="wrap"><span>Питання й скарги: <a href="mailto:hello@poriad.app">hello@poriad.app</a></span>
+  <nav aria-label="Документи"><a href="/afisha.html">Афіша</a><a href="/privacy.html">Конфіденційність</a><a href="/terms.html">Умови</a></nav></div></footer>
+<script>
+document.querySelector("[data-share]")?.addEventListener("click", async () => {
+  const data = { title: document.title, url: location.href };
+  if (navigator.share) { try { await navigator.share(data); } catch {} return; }
+  try { await navigator.clipboard.writeText(location.href); alert("Посилання скопійовано"); } catch { prompt("Посилання на подію", location.href); }
+});
+</script>
 </body>
 </html>`;
-}
-
-function formatWhen(startsAt, timeZone) {
-  if (!startsAt) return "";
-  const options = { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" };
-  try {
-    return new Intl.DateTimeFormat("uk-UA", { ...options, timeZone: timeZone || "Europe/Kyiv" }).format(new Date(startsAt));
-  } catch {
-    // Невідома зона з бази — показуємо київський час, а не падаємо.
-    return new Intl.DateTimeFormat("uk-UA", { ...options, timeZone: "Europe/Kyiv" }).format(new Date(startsAt));
-  }
-}
-
-function price(e) {
-  if (e.is_free) return "Безкоштовно";
-  if (e.price_min > 0) return `від ${Math.round(e.price_min)} грн`;
-  return null;
 }
 
 function appleAssociation() {
@@ -205,13 +206,6 @@ function androidAssociation() {
   }];
 }
 
-function httpsOrNull(value) {
-  return typeof value === "string" && value.startsWith("https://") ? value : null;
-}
-
-export function esc(value) {
-  return String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-}
 
 function html(body, status) {
   return new Response(body, {

@@ -21,7 +21,7 @@ assert.ok(community.includes('name="robots" content="noindex"'));
 
 const imported = eventPage({ ...base, origin: "import", canonical_url: "https://concert.ua/x", source_name: "Concert.ua", price_min: 450.4, organizer_name: "Concert.ua" }, now);
 assert.ok(imported.includes('rel="canonical" href="https://concert.ua/x"'));
-assert.ok(imported.includes("від 450 грн"));
+assert.ok(imported.includes("від 450 ₴"));
 assert.ok(!imported.includes("Учасників"), "в імпорті місць нема");
 
 const shelters = [{ kind: "metro", address: "ст. м. «Контрактова <b>»", distance_m: 66, accessible: true, hours: null, latitude: 50.46, longitude: 30.51 }];
@@ -36,5 +36,8 @@ const companion = eventPage({ ...base, title: "Йдемо разом: Конце
 assert.ok(companion.includes('Разом на: <a href="/e/b2000000-0000-4000-8000-000000000001">Концерт &lt;b&gt;</a>'), "супутник веде на афішу");
 assert.ok(!eventPage({ ...base, companion_of: "javascript:alert(1)" }, now).includes("Разом на"), "лише uuid у href");
 assert.ok(!community.includes("Разом на"), "звичайна подія без рядка");
+assert.ok(eventPage({ ...base, title: "СТЕНДАП \"ПЕРЕВІРКА\"" }, now).includes("<h1>Стендап «Перевірка»</h1>"), "назва — як у застосунку");
+assert.ok(imported.includes("Квитки на Concert.ua"), "головна дія афіші — квитки в джерела");
+assert.ok(community.includes('href="/app">Приєднатися в застосунку'), "кімната людей — у застосунок");
 assert.equal(esc(`"'<&>`), "&quot;&#39;&lt;&amp;&gt;");
 console.log("ok");
