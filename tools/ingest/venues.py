@@ -31,6 +31,11 @@ MAX_DUMP_AGE = dt.timedelta(days=7)
 # Дамп у кеші старший за це — щоденний обхід бере свіжий сам (раз на два тижні на місто), а не чекає
 # ручного --refresh-osm: на 2026-10-08 Дніпро, Одеса й Харків стояли з 18.09.
 REFRESH_AFTER = dt.timedelta(days=14)
+# Overpass часто лежить (504/500 на всіх дзеркалах), а спроба — до трьох дзеркал по 240 с, і йде вона до
+# старту обходу. Тому не більше одного міста за прогін і пауза після невдалої спроби: інакше лежачий Overpass
+# з'їдав би пів години щоденного прогону при ліміті 120 хв (суха прогонка 2026-10-08: ~3 хв на місто).
+REFRESH_RETRY_AFTER = dt.timedelta(days=3)
+_refresh_used = False
 CACHE_DIR = pathlib.Path(__file__).resolve().parent / "cache"
 ALIASES_PATH = pathlib.Path(__file__).resolve().parent / "aliases.json"
 
@@ -224,18 +229,31 @@ def _refresh_if_old(city: str, elements: list[dict], aliases: dict) -> list[dict
     """Старий дамп оновлюється сам, але приймається, лише якщо жоден псевдонім, що знаходився в старому,
     не загубився в новому: 2026-09-18 свіже дзеркало перейменувало обʼєкт, і «Feels Garden → Feels Live»
     мовчки перестав зводитись. Тоді лишається старий дамп і попередження — псевдонім правити людині."""
+    global _refresh_used
     path = _cache_path(city)
+    tried = path.with_suffix(".tried")
+    now = dt.datetime.now(dt.timezone.utc)
     try:
         old_text = path.read_text("utf-8")
         based = _dump_time(json.loads(old_text))
     except (OSError, ValueError):
         return elements
-    if based is None or dt.datetime.now(dt.timezone.utc) - based <= REFRESH_AFTER:
+    if based is None or now - based <= REFRESH_AFTER or _refresh_used:
         return elements
+    try:
+        if now - dt.datetime.fromisoformat(tried.read_text("utf-8").strip()) < REFRESH_RETRY_AFTER:
+            return elements
+    except (OSError, ValueError):
+        pass
+    _refresh_used = True
     try:
         fresh = fetch_osm(city, refresh=True)
     except RuntimeError as exc:
         print(f"  ⚠ OSM для {city}: оновити не вдалось ({exc}); лишається дамп {based:%Y-%m-%d}", file=sys.stderr)
+        fresh = None
+    if fresh is None or _dump_time(json.loads(path.read_text("utf-8"))) == based:
+        # Жодне дзеркало не дало свіжого (fetch_osm повернув той самий старий дамп): спробуємо через кілька днів.
+        tried.write_text(now.isoformat(), "utf-8")
         return elements
     names = [k for k in aliases if not k.startswith("_")]
     before, after = VenueIndex(elements, city, aliases), VenueIndex(fresh, city, aliases)

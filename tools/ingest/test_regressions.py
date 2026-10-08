@@ -923,36 +923,56 @@ class GeocoderNegativeCache(unittest.TestCase):
 class OsmRefresh(unittest.TestCase):
     """Дамп OSM у кеші старіє тижнями: щоденний обхід оновлює його сам, але не ціною псевдоніма."""
 
-    def run_refresh(self, fresh_names):
+    OLD = "2026-09-18T00:00:00Z"
+
+    def run_refresh(self, fresh_names, tmp=None, mirrors_down=False):
         from . import venues
-        old = {"osm3s": {"timestamp_osm_base": "2026-09-18T00:00:00Z"},
+        old = {"osm3s": {"timestamp_osm_base": self.OLD},
                "elements": [{"lat": 48.4, "lon": 35.0, "tags": {"name": "Feels Live"}}]}
         fresh = {"osm3s": {"timestamp_osm_base": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")},
                  "elements": [{"lat": 48.4, "lon": 35.0, "tags": {"name": n}} for n in fresh_names]}
-        with tempfile.TemporaryDirectory() as tmp, patch.object(venues, "CACHE_DIR", Path(tmp)), \
+        own = tmp is None
+        tmp = tmp or tempfile.mkdtemp()
+        self.asked = getattr(self, "asked", 0)
+        with patch.object(venues, "CACHE_DIR", Path(tmp)), patch.object(venues, "_refresh_used", False), \
              contextlib.redirect_stderr(io.StringIO()) as err:
             path = venues._cache_path("Дніпро")
-            path.write_text(json.dumps(old), "utf-8")
+            for city in ("Дніпро", "Харків"):
+                if own or not venues._cache_path(city).exists():
+                    venues._cache_path(city).write_text(json.dumps(old), "utf-8")
 
             def fake_fetch(city, refresh=False):
                 if refresh:
-                    path.write_text(json.dumps(fresh), "utf-8")
-                return json.loads(path.read_text("utf-8"))["elements"]
+                    self.asked += 1
+                    if not mirrors_down:                     # лежачий Overpass: fetch_osm віддає той самий старий
+                        venues._cache_path(city).write_text(json.dumps(fresh), "utf-8")
+                return json.loads(venues._cache_path(city).read_text("utf-8"))["elements"]
             with patch.object(venues, "fetch_osm", side_effect=fake_fetch), \
                  patch.object(venues, "load_aliases", return_value={"Feels Garden": "Feels Live"}):
                 index = venues.build_index("Дніпро")
+                venues.build_index("Харків")                 # друге старе місто того ж прогону вже не оновлюється
             on_disk = json.loads(path.read_text("utf-8"))["osm3s"]["timestamp_osm_base"]
         return index, on_disk, err.getvalue()
 
+    def test_overpass_down_is_retried_in_days_and_once_per_run(self):
+        tmp = tempfile.mkdtemp()
+        self.run_refresh(["Feels Live"], tmp=tmp, mirrors_down=True)
+        self.assertEqual(self.asked, 1)                      # одна спроба за прогін (Дніпро)
+        self.run_refresh(["Feels Live"], tmp=tmp, mirrors_down=True)
+        self.assertEqual(self.asked, 2)                      # Дніпро на паузі — черга Харкова
+        self.run_refresh(["Feels Live"], tmp=tmp, mirrors_down=True)
+        self.assertEqual(self.asked, 2)                      # обидва на паузі після невдачі
+
     def test_old_dump_is_refreshed(self):
         index, on_disk, _ = self.run_refresh(["Feels Live", "Новий клуб"])
+        self.assertEqual(self.asked, 1)                      # Харків — у наступному прогоні
         self.assertIsNotNone(index.match("Новий клуб"))
-        self.assertNotEqual(on_disk, "2026-09-18T00:00:00Z")
+        self.assertNotEqual(on_disk, self.OLD)
 
     def test_refresh_that_loses_an_alias_is_rejected(self):
         index, on_disk, err = self.run_refresh(["Інший заклад"])             # обʼєкта «Feels Live» у свіжому нема
         self.assertIsNotNone(index.match("Feels Garden"))                   # псевдонім живий на старому дампі
-        self.assertEqual(on_disk, "2026-09-18T00:00:00Z")
+        self.assertEqual(on_disk, self.OLD)
         self.assertIn("губить псевдоніми", err)
 
 
