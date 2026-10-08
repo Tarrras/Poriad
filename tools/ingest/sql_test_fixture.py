@@ -38,6 +38,22 @@ other = pipeline._build(raw_event(name="Інша вистава", url="https://e
 for item in (before, after, other):
     item.stage = "published"
     item.quality = .8
+# badseller ~2026-10-06: зал зник із назви й посилання. Старий рядок переймає новий ключ; паралельна
+# вистава в сусідньому залі в ту саму хвилину — ні. Автоматично знятий старий рядок теж переймається.
+bs_source = dataclasses.replace(source, slug="badseller", catalogs=None)
+def _bs(name, url, at="2026-10-24T19:00:00+03:00"):
+    item = pipeline._build(raw_event(name=name, url=url, startDate=at, endDate=at[:11] + "21:00:00+03:00"),
+                           bs_source, "Київ", index, NOW)
+    item.stage, item.quality = "published", .8
+    return item
+bs_old = [_bs("Гедда Габлер (Театр на Подолі)", "https://example.org/hedda-old"),
+          _bs("Моє століття (Театр на Подолі)", "https://example.org/stolittia-old"),
+          _bs("Allegretto", "https://example.org/allegretto-old", "2026-11-05T19:30:00+02:00"),
+          _bs("Ручне", "https://example.org/manual-old", "2026-11-06T19:30:00+02:00")]
+bs_new = [_bs("Гедда Габлер", "https://example.org/hedda-new"),
+          _bs("Процес", "https://example.org/protses-new"),
+          _bs("«Allegretto»!", "https://example.org/allegretto-new", "2026-11-05T19:30:00+02:00"),
+          _bs("Ручне", "https://example.org/manual-new", "2026-11-06T19:30:00+02:00")]
 karabas_uids = [f"https://example.org/k{i}" for i in range(10)]
 fresh = pipeline._build(raw_event(url="https://example.org/fresh"), source, "Київ", index, NOW)
 fresh.stage, fresh.quality = "published", .8
@@ -56,6 +72,10 @@ print(json.dumps({
     "move_uids": [before.source_uid, after.source_uid, other.source_uid],
     "retire_after_move": emit.retire_absent_sql("ticketsbox", "Київ", [after.source_uid, other.source_uid], RUN),
     "karabas_uids": karabas_uids,
+    "bs_old": "".join(emit.events_sql(bs_old, RUN)),
+    "bs_new": "".join(emit.events_sql(bs_new, RUN)),
+    "bs_old_uids": [i.source_uid for i in bs_old],
+    "bs_new_uids": [i.source_uid for i in bs_new],
     "run": RUN,
     "insert_a": "".join(emit.events_sql([a], RUN)),
     "fresh": "".join(emit.events_sql([fresh], RUN)),

@@ -353,8 +353,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--no-karabas-status", action="store_true",
                     help="не читати окрему таблицю скасувань/переносів Karabas")
     args = ap.parse_args(argv)
-    if args.sql_max_bytes and args.sql_max_bytes < 4096:
-        ap.error("--sql-max-bytes має бути 0 або не менше 4096")
+    if args.sql_max_bytes and args.sql_max_bytes < 8192:
+        ap.error("--sql-max-bytes має бути 0 або не менше 8192: одна подія з обвʼязкою — ~5 КБ")
 
     try:
         sources = list(dict.fromkeys(args.source or []))

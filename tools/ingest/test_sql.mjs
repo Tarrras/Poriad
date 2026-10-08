@@ -85,6 +85,21 @@ assert.equal(movedRows.length, 1);
 assert.equal(movedRows[0].source_uid, fixture.move_uids[1]);
 assert.equal(movedRows[0].canonical_url, 'https://example.org/teatr-3');
 assert.equal((await db.query('select count(*)::int as n from events where source_uid=$1', [fixture.move_uids[0]])).rows[0].n, 0);
+// Зал зник із назви й посилання: той самий рядок. Паралельна вистава сусіднього залу — ні.
+// Автоматично знятий старий рядок переймається й оживає; знятий вручну (без run_id) — ні.
+await db.exec(fixture.bs_old);
+const bsId = async (uid) => (await db.query('select id from events where source_uid=$1', [uid])).rows[0]?.id;
+const [heddaId, stolittiaId, allegrettoId, manualId] = await Promise.all(fixture.bs_old_uids.map(bsId));
+await db.exec(`update events set import_status='withdrawn', ingest_run_id='${fixture.run}' where id='${allegrettoId}'`);
+await db.exec(`update events set import_status='withdrawn', ingest_run_id=null where id='${manualId}'`);
+await db.exec(fixture.bs_new);
+assert.equal(await bsId(fixture.bs_new_uids[0]), heddaId);
+assert.equal(await bsId(fixture.bs_old_uids[1]), stolittiaId);
+assert.notEqual(await bsId(fixture.bs_new_uids[1]), stolittiaId);
+assert.equal(await bsId(fixture.bs_new_uids[2]), allegrettoId);
+assert.equal(await statusOf(fixture.bs_new_uids[2]), 'live');
+assert.notEqual(await bsId(fixture.bs_new_uids[3]), manualId);
+assert.equal(await statusOf(fixture.bs_old_uids[3]), 'withdrawn');
 // Інша назва в ту саму хвилину на тій самій точці — окрема подія, а не переїзд.
 await db.exec(fixture.move_other);
 assert.equal((await db.query('select count(*)::int as n from events where source_uid=$1', [fixture.move_uids[2]])).rows[0].n, 1);

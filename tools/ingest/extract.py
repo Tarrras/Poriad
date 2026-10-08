@@ -129,7 +129,9 @@ def sitemap_lastmods(xml: str) -> dict[str, str]:
         r"<loc>\s*([^<\s]+)\s*</loc>\s*<lastmod>\s*([^<\s]+)\s*</lastmod>", xml)}
 
 
-_SLUG_DATE = re.compile(r"-(\d{4}-\d\d-\d\d)$")
+# Дата в кінці slug; другий сеанс того ж дня має ще й час (`…-2026-10-23-1800`, буває `…-1900-2`):
+# 161 таку картку badseller (2026-10-08) ми не брали зовсім.
+_SLUG_DATE = re.compile(r"-(\d{4}-\d\d-\d\d)(?:-\d{4}(?:-\d+)?)?$")
 
 
 def sitemap_links(xml: str, prefix: str, first, last) -> list[str]:

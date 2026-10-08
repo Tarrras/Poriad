@@ -242,7 +242,11 @@ class RegressionTests(unittest.TestCase):
         sql = "".join(emit.events_sql(items, "00000000-0000-0000-0000-000000000001"))
         self.assertIn("'https://example.org/teatr-3'", sql)
         self.assertIn("x.canonical_url <> i.url", sql)
-        self.assertIn("lower(x.title) = lower(i.title)", sql)
+        # Назва без хвоста в дужках і розділових знаків: badseller прибрав зал із назв (2026-10-06).
+        self.assertIn(f"{emit._title_key_sql('x.title')} = {emit._title_key_sql('i.title')}", sql)
+        # Автоматично знятий рядок теж переймається; вимкнене джерело — ні.
+        self.assertIn("x.import_status='withdrawn' and x.ingest_run_id is not null", sql)
+        self.assertIn("slug='concert_ua' and enabled)", sql)
         # Обидва `distinct on` обов'язкові: інакше дві старі копії отримали б той самий ключ.
         self.assertIn("select distinct on (i.uid)", sql)
         self.assertIn("select distinct on (id)", sql)
@@ -418,8 +422,9 @@ class RegressionTests(unittest.TestCase):
 
     def test_event_batches_split_by_bytes_between_rows(self):
         items = [_item("concert_ua", "Концерт " + str(n)) for n in range(10)]
-        parts = emit.events_sql(items, "00000000-0000-0000-0000-000000000001", max_bytes=5000)
-        self.assertTrue(all(len(s.encode()) <= 5000 for s in parts))
+        parts = emit.events_sql(items, "00000000-0000-0000-0000-000000000001", max_bytes=8000)
+        self.assertGreater(len(parts), 1)
+        self.assertTrue(all(len(s.encode()) <= 8000 for s in parts))
         self.assertEqual(sum(s.count("insert into public.events") for s in parts), len(parts))
 
     def test_same_occurrence_across_listing_and_detail_only_publishes_once(self):
@@ -648,6 +653,9 @@ class SitemapLinks(unittest.TestCase):
         xml = "".join(f"<url><loc>{u}</loc></url>" for u in [
             "https://badseller.net/afisha/kyiv/a-2026-10-01",         # сьогодні: беремо
             "https://badseller.net/afisha/kyiv/b-2026-10-31",         # межа горизонту: беремо
+            "https://badseller.net/afisha/kyiv/h-2026-10-02-1800",    # другий сеанс дня: беремо
+            "https://badseller.net/afisha/kyiv/i-2026-10-02-1900-2",  # і його копія: беремо
+            "https://badseller.net/afisha/kyiv/j-2026-10-02-18",      # не час: ні
             "https://badseller.net/afisha/kyiv/c-2026-09-30",         # застарілий slug
             "https://badseller.net/afisha/kyiv/d-2026-11-01",         # за горизонтом
             "https://badseller.net/afisha/lviv/e-2026-10-02",         # інше місто
@@ -657,6 +665,8 @@ class SitemapLinks(unittest.TestCase):
         got = extract.sitemap_links(xml, "https://badseller.net/afisha/kyiv/",
                                     today, today + dt.timedelta(days=30))
         self.assertEqual(got, ["https://badseller.net/afisha/kyiv/a-2026-10-01",
+                               "https://badseller.net/afisha/kyiv/h-2026-10-02-1800",
+                               "https://badseller.net/afisha/kyiv/i-2026-10-02-1900-2",
                                "https://badseller.net/afisha/kyiv/b-2026-10-31"])
 
 

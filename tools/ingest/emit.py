@@ -310,7 +310,8 @@ def _adopt_identity(it: Item) -> str:
     old_start = it.previous_start or it.starts_at
     same_key = (
         "update public.events e set source_uid=" + _lit(it.source_uid) + "\n"
-        f"where e.source_id=(select id from public.event_sources where slug={_lit(it.source_slug)})\n"
+        # Лише ввімкнене джерело: вимкнене (opt-out) дамп не чіпає, як і в upsert.
+        f"where e.source_id=(select id from public.event_sources where slug={_lit(it.source_slug)} and enabled)\n"
         f"  and e.source_uid in ({_lit(old_uid)},{_lit(it.canonical_url)})\n"
         f"  and e.starts_at={_lit(old_start.isoformat())}::timestamptz\n"
         "  and not exists (select 1 from public.events n where n.source_id=e.source_id\n"
@@ -318,14 +319,25 @@ def _adopt_identity(it: Item) -> str:
     return same_key
 
 
+def _title_key_sql(column: str) -> str:
+    """Назва для зіставлення переїздів у SQL: без хвоста в дужках («Гедда Габлер (Театр на Подолі)» —
+    badseller ~2026-10-06 прибрав зал із назв і посилань), лапок, розділових знаків і пробілів. Символи
+    перелічено явно, а не класом: класи залежать від локалі бази. Різні вистави одного театру в ту саму
+    хвилину (зали «Колеса», Театру на Подолі) так не зливаються: виміряно на prod, 31 пара з 245."""
+    return (f"regexp_replace(regexp_replace(lower({column}), '\\s*\\([^()]*\\)\\s*$', ''),"
+            " '[\\s«»\"“”„''`ʼ’‘!?.,:;…–—-]+', '', 'g')")
+
+
 def _adopt_moved_urls(publishable: list[Item]) -> str:
     """Сеанс, у якого джерело змінило посилання, лишається тим самим рядком: інакше старий
     знімається як зниклий, і збережена людиною подія виглядає скасованою.
 
-    Старий рядок переймає новий ключ за тим самим продавцем, містом, хвилиною, назвою й точкою
-    до 30 м; `id` не змінюється. Одна команда на пачку (окремий UPDATE на подію подвоював SQL).
-    Обидва `distinct on` обов'язкові, інакше два рядки отримають той самий ключ. Назва через
-    `lower()`, а не регекс: класи символів залежать від локалі бази.
+    Старий рядок переймає новий ключ за тим самим продавцем, містом, хвилиною, назвою (`_title_key_sql`)
+    й точкою до 30 м; `id` не змінюється. Старий рядок може бути й автоматично знятим: badseller кладе
+    дату в посилання, і після перенесення старе посилання випадає з вибірки раніше, ніж з'являється нове
+    («Allegretto» 2026-10: знято 04.10, новий рядок з новим id 06.10). Ручне зняття (без run_id) не
+    чіпаємо. Одна команда на пачку (окремий UPDATE на подію подвоював SQL). Обидва `distinct on`
+    обов'язкові, інакше два рядки отримають той самий ключ.
     """
     by_source: dict[str, list[Item]] = {}
     for it in publishable:
@@ -342,15 +354,16 @@ def _adopt_moved_urls(publishable: list[Item]) -> str:
             "), matched as (\n"
             "  select distinct on (i.uid) x.id, i.uid from incoming i\n"
             "  join public.events x\n"
-            f"    on x.source_id=(select id from public.event_sources where slug={_lit(slug)})\n"
-            "   and x.origin='import' and x.import_status='live'\n"
+            f"    on x.source_id=(select id from public.event_sources where slug={_lit(slug)} and enabled)\n"
+            "   and x.origin='import'\n"
+            "   and (x.import_status='live' or (x.import_status='withdrawn' and x.ingest_run_id is not null))\n"
             "   and x.city=i.city and x.starts_at=i.starts\n"
             "   and x.canonical_url <> i.url\n"
-            "   and lower(x.title) = lower(i.title)\n"
+            f"   and {_title_key_sql('x.title')} = {_title_key_sql('i.title')}\n"
             "   and abs(x.latitude - i.lat) < 0.0003 and abs(x.longitude - i.lon) < 0.0003\n"
             "  where not exists (select 1 from public.events n\n"
             "                    where n.source_id=x.source_id and n.source_uid=i.uid)\n"
-            "  order by i.uid, x.updated_at desc, x.id\n"
+            "  order by i.uid, x.import_status='live' desc, x.updated_at desc, x.id\n"
             "), picked as (\n"
             "  select distinct on (id) id, uid from matched order by id, uid\n"
             ")\n"
