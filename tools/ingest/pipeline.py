@@ -439,6 +439,8 @@ def _enrich_performers(raw_events: list[dict], source: Source, now: dt.datetime,
     fresh: dict = {}                       # записане цим викликом — лише воно йде на диск поверх свіжого файлу
     fresh_after = (now - PERFORMER_TTL).isoformat()
     fetched = reused = failed = 0
+    known = {normalize.clean_url(r.get("url") or "") for r in raw_events}
+    extra: list[dict] = []
     for raw in raw_events:
         url = normalize.clean_url(raw.get("url") or "")
         if not url.startswith("https://") or raw.get("performer"):
@@ -451,16 +453,17 @@ def _enrich_performers(raw_events: list[dict], source: Source, now: dt.datetime,
                 page = get(url, delay=source.crawl_delay)
                 if page.status != 200 or not page.body:
                     raise ValueError(f"HTTP {page.status}")
-                same = [e for e in extract.events_from_html(page.body)
-                        if normalize.clean_url(e.get("url") or "") == url]
+                on_card = extract.events_from_html(page.body)
+                same = [e for e in on_card if normalize.clean_url(e.get("url") or "") == url]
                 detail = same[0] if same else {}
+                sessions = [e for e in on_card if _sibling_session(e, raw, url)]
             except (PermissionError, OSError, ValueError):
                 failed += 1
                 continue
             fetched += 1
             text = max(detail.get("description") or "", extract.card_text(page.body), key=len)
             entry = cache[url] = fresh[url] = {"at": now.isoformat(), "performer": detail.get("performer"),
-                                               "description": text}
+                                               "description": text, "sessions": sessions}
         else:
             reused += 1
         if entry.get("performer"):
@@ -468,9 +471,32 @@ def _enrich_performers(raw_events: list[dict], source: Source, now: dt.datetime,
         # Окреме поле, не `description`: опис у базі й quality від картки не мають мінятись.
         if entry.get("description"):
             raw["_poruch_text"] = entry["description"]
-    counters["performer_pages"] = {"fetched": fetched, "cached": reused, "failed": failed}
+        # Інші сеанси вистави з картки. Список і каталог показують плитку з найближчим сеансом, а решта
+        # сеансів (планетарій Дніпра: «Галактика» 12, 18, 29.10) для обходу «зникала» — і знімалась за
+        # відсутністю, або, як у Дніпрі (45 з 114), тримала запобіжник заблокованим.
+        for session in entry.get("sessions") or []:
+            session_url = normalize.clean_url(session.get("url") or "")
+            if session_url and session_url not in known:
+                known.add(session_url)
+                extra.append({**session, **{k: raw[k] for k in ("performer", "_poruch_text", "_poruch_category")
+                                            if k in raw}})
+    raw_events.extend(extra)
+    counters["performer_pages"] = {"fetched": fetched, "cached": reused, "failed": failed, "sessions": len(extra)}
     if fresh:
         _write_performers(fresh)
+
+
+def _sibling_session(event, raw: dict, url: str) -> bool:
+    """Інший сеанс тієї ж вистави на її картці: своє посилання, та сама назва й той самий зал. Інші події на
+    картці (добірка «вам також сподобається») назвою чи залом не збігаються."""
+    if not isinstance(event, dict):
+        return False
+    own = normalize.clean_url(event.get("url") or "")
+    if not own.startswith("https://") or own == url:
+        return False
+    place = lambda e: normalize.normalize_name(str((extract.place_of(e) or {}).get("name") or ""))
+    return (normalize.normalize_name(str(event.get("name") or "")) == normalize.normalize_name(str(raw.get("name") or ""))
+            and place(event) == place(raw))
 
 
 # Кеш виконавців спільний для Concert.ua й Internet-Bilet, а їхні обходи йдуть у різних потоках: кожен читав

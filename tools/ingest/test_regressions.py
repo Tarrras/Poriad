@@ -1165,6 +1165,25 @@ class PerformerDetails(unittest.TestCase):
         self.assertEqual(counters["performer_pages"]["fetched"], 1)
         self.assertEqual(calls.count(link), 1)            # другий прогін узяв із кешу
 
+    def test_other_sessions_on_the_card_join_the_crawl(self):
+        # Каталог дає плитку з найближчим сеансом; картка — усі сеанси вистави й добірку інших подій.
+        place = {"name": "Planetarium Noosphere"}
+        show = lambda day: {"@type": "Event", "name": "Галактика", "location": place,
+                            "url": f"https://concert.ua/uk/event/galaktika-{day}", "startDate": f"2090-06-{day}T16:00:00+03:00"}
+        other = {"@type": "Event", "name": "Динозаври", "location": place, "url": "https://concert.ua/uk/event/dino-01",
+                 "startDate": "2090-06-01T10:00:00+03:00"}
+        listed = {**show("12"), "_poruch_category": "kids"}
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch("tools.ingest.pipeline.PERFORMER_CACHE", Path(tmp) / "p.json"), \
+             patch("tools.ingest.pipeline.get", return_value=Response("x", 200, html([show("12"), show("18"), show("29"), other]))):
+            raws = [dict(listed)]
+            pipeline._enrich_performers(raws, by_slug("concert_ua"), NOW, {})
+            again = [dict(listed)]
+            pipeline._enrich_performers(again, by_slug("concert_ua"), NOW, {})        # з кешу — те саме
+        for got in (raws, again):
+            self.assertEqual([r["url"][-2:] for r in got], ["12", "18", "29"])
+            self.assertEqual({r.get("_poruch_category") for r in got}, {"kids"})
+
     def test_performer_cache_keeps_what_another_thread_wrote_meanwhile(self):
         # Concert.ua й Internet-Bilet ділять файл і йдуть паралельно: запис одного не стирає нове від іншого.
         raw = {"@type": "MusicEvent", "name": "Вечір", "url": "https://concert.ua/uk/event/a"}
