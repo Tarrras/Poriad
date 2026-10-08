@@ -3,6 +3,7 @@ import dataclasses
 import datetime as dt
 import json
 from . import emit, pipeline
+from .artists import Artist
 from .sources import enabled_sources, by_slug
 from .test_regressions import raw_event, NOW
 from .venues import VenueIndex
@@ -19,6 +20,8 @@ moved = dataclasses.replace(b, starts_at=b.starts_at + dt.timedelta(days=1),
                             ends_at=b.ends_at + dt.timedelta(days=1), previous_start=b.starts_at)
 moved.source_uid = pipeline.occurrence_uid(moved.canonical_url, moved.starts_at)
 moved.event_id = __import__("uuid").uuid5(pipeline.NAMESPACE, source.slug + "|" + moved.source_uid)
+# Перенесений рядок лишає старий id, а артист має знайти саме його (МУР у Дніпрі 2026-10-08).
+moved.artists = [Artist("МУР")]
 loser = dataclasses.replace(moved, source_slug="internet_bilet", previous_start=a.starts_at,
                             stage="duplicate", duplicate_of=(source.slug, moved.source_uid))
 # Зміна посилання: той самий сеанс під новою адресою лишається тим самим рядком. Окреме джерело,

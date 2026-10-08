@@ -29,8 +29,9 @@ class StatsSql(unittest.TestCase):
         self.assertEqual(runs.count("union all"), 2)
         self.assertIn("where s.slug='karabas'", runs)
         self.assertIn(emit.stats_run_id(RUN, "badseller", "Київ"), runs)
-        # Дубль посилається на event_id переможця з того ж прогону.
-        self.assertIn(f"'{self.a.event_id}'", parts[2])
+        # Дубль посилається на переможця за ключем (slug, source_uid): перенесений рядок лишає старий id.
+        self.assertIn(f"'concert_ua','{self.a.source_uid}')", parts[2])
+        self.assertIn("ws.slug=v.w_slug and e.source_uid=v.w_uid", parts[2])
         self.assertIn("'duplicate'", parts[2])
 
     def test_items_split_by_budget(self):

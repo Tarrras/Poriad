@@ -15,6 +15,11 @@ create table event_sources (
  kind text, base_url text, listing_urls text[], weight numeric, crawl_delay_seconds int,
  tz_policy text, default_time_zone text, enabled boolean, organizer_id uuid
 );
+create table places (
+ id uuid primary key default gen_random_uuid(), name text not null, city text, address text,
+ latitude double precision, longitude double precision, source text, osm_ref text,
+ updated_at timestamptz default now(), unique (latitude, longitude)
+);
 create table events (
  id uuid primary key, organizer_id uuid, title text not null check(length(title) between 3 and 120),
  description text, category text, city text, address text, latitude double precision,
@@ -26,12 +31,18 @@ create table events (
  updated_at timestamptz default now(), check(ends_at > starts_at)
 );
 create unique index events_source_uid_uidx on events(source_id,source_uid) where source_id is not null;
-create table places (
- id uuid primary key default gen_random_uuid(), name text not null, city text, address text,
- latitude double precision, longitude double precision, source text, osm_ref text,
- updated_at timestamptz default now(), unique (latitude, longitude)
-);
 create schema if not exists private;
+create table artists (
+ id uuid primary key default gen_random_uuid(), name text not null, key text not null unique,
+ kind text, source text not null default 'auto', updated_at timestamptz default now()
+);
+create table event_artists (
+ event_id uuid not null references events(id) on delete cascade, artist_id uuid not null references artists(id),
+ role text not null, position smallint not null, how text not null, confidence numeric(3,2),
+ primary key (event_id, artist_id)
+);
+create function private.artist_source_rank(p_source text) returns integer language sql immutable as $$
+ select case p_source when 'manual' then 3 when 'auto' then 2 else 1 end $$;
 create function private.place_source_rank(p_source text) returns integer language sql immutable as $$
  select case p_source when 'manual' then 3 when 'osm' then 2 else 1 end $$;
 create table venues (
@@ -55,6 +66,8 @@ await db.exec(fixture.move);
 await db.exec(fixture.move);
 assert.equal((await db.query('select * from events')).rows.length, 2);
 assert.equal((await db.query('select id from events where source_uid=$1', [fixture.uids[2]])).rows[0].id, secondId);
+assert.deepEqual((await db.query('select a.key from event_artists ea join artists a on a.id=ea.artist_id where ea.event_id=$1',
+ [secondId])).rows.map(r => r.key), ['мур']);
 await db.exec(`insert into events(id,title,starts_at,ends_at,source_id,source_uid,canonical_url,origin,import_status)
  values('22222222-2222-2222-2222-222222222222','Тестовий концерт','2026-10-17T18:00:00+03:00','2026-10-17T21:00:00+03:00',
  (select id from event_sources where slug='internet_bilet'),'https://example.org/event','https://example.org/event','import','live');`);

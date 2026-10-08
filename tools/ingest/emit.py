@@ -207,9 +207,12 @@ def artists_sql(items: list[Item], replace_llm: bool = False) -> str:
     Іде в тій самій команді, що й вставка подій, тож зв'язок бачить свою подію. Набір артистів події
     замінюється повністю, щоб зниклий з афіші виконавець не висів. Рядки моделі (`how='llm'`)
     чіпаємо лише в прогоні з моделлю: без неї вони б щоразу губились.
+
+    Подію шукаємо за (джерело, source_uid), а не за `event_id`: рядок, що пережив перенесення чи нове
+    посилання, лишає свій старий id (`_adopt_identity`), і зв'язок за обчисленим id тихо губився
+    (2026-10-08: 439 з 2621 подій prod без артистів, серед них МУР у Дніпрі).
     """
-    ids = [it.event_id for it in items]
-    if not ids:
+    if not items:
         return ""
     people: dict[str, tuple] = {}              # key -> (ім'я, вид, джерело)
     links: list[str] = []
@@ -226,10 +229,11 @@ def artists_sql(items: list[Item], replace_llm: bool = False) -> str:
             source = "manual" if a.how == "dictionary" else "llm" if a.how == "llm" else "auto"
             if k not in people or _ARTIST_RANK[source] > _ARTIST_RANK[people[k][2]]:
                 people[k] = (name, a.kind, source)
-            links.append("  (" + ",".join([_lit(str(it.event_id)), _lit(k), _lit(a.role), str(position),
-                                           _lit(a.how), repr(round(a.confidence, 2))]) + ")")
-    clear = ("delete from public.event_artists ea using (values "
-             + ",".join(f"({_lit(str(i))})" for i in ids) + ") v(id) where ea.event_id = v.id::uuid"
+            links.append("  (" + ",".join([_lit(it.source_slug), _lit(it.source_uid), _lit(k), _lit(a.role),
+                                           str(position), _lit(a.how), repr(round(a.confidence, 2))]) + ")")
+    clear = ("delete from public.event_artists ea using public.events e, public.event_sources s, (values "
+             + ",".join(f"({_lit(it.source_slug)},{_lit(it.source_uid)})" for it in items) + ") v(slug,uid)\n"
+             "where ea.event_id = e.id and e.source_id = s.id and s.slug = v.slug and e.source_uid = v.uid"
              + ("" if replace_llm else " and ea.how <> 'llm'") + ";\n")
     if not links:
         return clear
@@ -244,9 +248,10 @@ def artists_sql(items: list[Item], replace_llm: bool = False) -> str:
         "              then excluded.source else artists.source end,\n"
         "  kind=coalesce(excluded.kind, artists.kind), updated_at=now();\n"
         "insert into public.event_artists (event_id,artist_id,role,position,how,confidence)\n"
-        "select v.event_id::uuid, a.id, v.role, v.position::smallint, v.how, v.confidence::numeric\n"
-        "from (values\n" + ",\n".join(links) + "\n) v(event_id,key,role,position,how,confidence)\n"
-        "join public.events e on e.id = v.event_id::uuid\n"
+        "select e.id, a.id, v.role, v.position::smallint, v.how, v.confidence::numeric\n"
+        "from (values\n" + ",\n".join(links) + "\n) v(slug,uid,key,role,position,how,confidence)\n"
+        "join public.event_sources s on s.slug = v.slug\n"
+        "join public.events e on e.source_id = s.id and e.source_uid = v.uid\n"
         "join public.artists a on a.key = v.key\n"
         "on conflict (event_id,artist_id) do update set\n"
         "  role=excluded.role, position=excluded.position, how=excluded.how, confidence=excluded.confidence;\n")
@@ -522,7 +527,6 @@ def stats_sql(reports: list[dict], items: list[Item], run_id: str, max_bytes: in
             runs[(source, r.get("city"))] = r
     for it in items:
         runs.setdefault((it.source_slug, it.city), {"source": it.source_slug, "city": it.city})
-    event_ids = {(i.source_slug, i.source_uid): str(i.event_id) for i in items}
 
     rows = []
     for (source, city), r in runs.items():
@@ -542,17 +546,20 @@ def stats_sql(reports: list[dict], items: list[Item], run_id: str, max_bytes: in
     def render(chunk: list[Item]) -> str:
         values = []
         for it in chunk:
-            winner = event_ids.get(tuple(it.duplicate_of)) if it.duplicate_of else None
+            w_slug, w_uid = it.duplicate_of or (None, None)
             values.append("(" + ",".join([
                 _lit(stats_run_id(run_id, it.source_slug, it.city)), _lit(it.source_slug),
                 _lit(it.source_uid), _lit(it.canonical_url),
                 _lit(json.dumps(_item_dict(it), ensure_ascii=False, default=str)), _lit(it.stage),
-                _lit(it.reject_reason), _lit(winner)]) + ")")
+                _lit(it.reject_reason), _lit(w_slug), _lit(w_uid)]) + ")")
+        # Переможця — за ключем, а не за `event_id`: перенесений рядок лишає старий id (див. artists_sql).
         return ("insert into private.ingest_items (run_id,source_id,source_uid,url,raw,stage,reject_reason,"
                 "candidate_event_id)\nselect v.run_id::uuid, s.id, v.uid, v.url, v.raw::jsonb, v.stage, v.reason, "
-                "v.winner::uuid\nfrom (values\n" + ",\n".join(values)
-                + "\n) v(run_id,slug,uid,url,raw,stage,reason,winner)\n"
+                "w.id\nfrom (values\n" + ",\n".join(values)
+                + "\n) v(run_id,slug,uid,url,raw,stage,reason,w_slug,w_uid)\n"
                 "join public.event_sources s on s.slug=v.slug\n"
+                "left join lateral (select e.id from public.events e join public.event_sources ws on ws.id=e.source_id\n"
+                "  where ws.slug=v.w_slug and e.source_uid=v.w_uid) w on true\n"
                 "where exists (select 1 from private.ingest_runs r where r.id=v.run_id::uuid);\n")
     for start in range(0, len(items), BATCH):
         parts += bounded_sql(items[start:start + BATCH], render, max_bytes)

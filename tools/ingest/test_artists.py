@@ -288,15 +288,16 @@ class ArtistsSql(unittest.TestCase):
         return artists_sql(*a, **kw)
 
     def ev(self, *people):
-        import uuid
-        return types.SimpleNamespace(event_id=uuid.UUID(int=1), artists=list(people))
+        return types.SimpleNamespace(source_slug="badseller", source_uid="https://x/a#1", artists=list(people))
 
     def test_upsert_link_and_full_replace(self):
         out = self.sql([self.ev(Artist("Арсен Пучков", role="host", how="lineup", confidence=0.9))])
         self.assertIn("insert into public.artists", out)
         self.assertIn("'арсен пучков'", out)
         self.assertIn("on conflict (key) do update", out)
-        self.assertIn("join public.events e on e.id = v.event_id::uuid", out)       # подія могла не вставитись
+        # За ключем, а не за id: перенесений рядок лишає старий id (МУР у Дніпрі 2026-10-08), і подія могла не вставитись.
+        self.assertIn("join public.events e on e.source_id = s.id and e.source_uid = v.uid", out)
+        self.assertNotIn("event_id::uuid", out)
         self.assertIn("ea.how <> 'llm'", out)                                           # без моделі її рядки не чіпаємо
         self.assertNotIn("ea.how <> 'llm'", self.sql([self.ev(Artist("X Y"))], replace_llm=True))
 
