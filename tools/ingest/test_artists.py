@@ -305,8 +305,13 @@ class ArtistsSql(unittest.TestCase):
         # За ключем, а не за id: перенесений рядок лишає старий id (МУР у Дніпрі 2026-10-08), і подія могла не вставитись.
         self.assertIn("join public.events e on e.source_id = s.id and e.source_uid = v.uid", out)
         self.assertNotIn("event_id::uuid", out)
-        self.assertIn("ea.how <> 'llm'", out)                                           # без моделі її рядки не чіпаємо
-        self.assertNotIn("ea.how <> 'llm'", self.sql([self.ev(Artist("X Y"))], replace_llm=True))
+        # Рядки моделі: без моделі не чіпаємо; з моделлю — лише де вона відповіла.
+        self.assertIn("(ea.how <> 'llm' or v.replace_llm)", out)
+        self.assertIn("'https://x/a#1',false)", out)
+        self.assertIn("'https://x/a#1',true)", self.sql([self.ev(Artist("X Y"))], replace_llm=True))
+        pending = self.ev(Artist("X Y"))
+        pending.llm_pending = True                       # модель мала відповісти й не відповіла
+        self.assertIn("'https://x/a#1',false)", self.sql([pending], replace_llm=True))
 
     def test_repeated_artist_gives_one_link(self):
         out = self.sql([self.ev(Artist("Паша Пінчук"), Artist("Паша Пінчук"), Artist("Джейхун Сафаров"))])
@@ -325,6 +330,65 @@ class ArtistsSql(unittest.TestCase):
         self.assertIn("'Д''Артаньян'", out)
         self.assertIn("'manual'", out)
         self.assertNotIn("'llm')", out.split("insert into public.event_artists")[0])
+
+
+class NamesAndVenues(unittest.TestCase):
+    """Аудит 2026-10-08: одне ім'я двома ключами, фрази замість імен, абревіатури залів, узагальнені імена."""
+
+    def test_stress_mark_and_rare_apostrophes_give_one_key(self):
+        self.assertEqual(key("Іван Кухарчу́к"), key("Іван Кухарчук"))
+        self.assertEqual(key("Лесь Подерв‘янський"), key("Лесь Подерв'янський"))
+        self.assertEqual(key("Сергій Їжак"), "сергій їжак")                 # й/ї не розкладаються
+        self.assertEqual(display("Іван Кухарчу́к"), "Іван Кухарчук")
+
+    def test_descriptor_before_proper_name_is_dropped(self):
+        self.assertEqual(display("кабаре-дует Відірвані"), "Відірвані")
+        self.assertEqual(display("народних інструментів Дивограй"), "Дивограй")
+        self.assertEqual(display("reFunktion"), "reFunktion")                 # одне слово з малої — ім'я
+        self.assertEqual(display("Гурт Бумбокс"), "Бумбокс")
+
+    def test_host_needs_a_capitalised_name_and_stops_at_glued_word(self):
+        self.assertEqual(from_description("Ведуча — заслужена працівниця культури"), [])
+        self.assertEqual([a.name for a in from_description("Ведучий: Андрій ОзарківРозклад")], ["Андрій Озарків"])
+        self.assertEqual([a.name for a in from_description("ВЕДУЧИЙ: Марк Свиридюк")], ["Марк Свиридюк"])
+
+    def test_venue_abbreviations_and_generic_names_are_dropped(self):
+        def kept(name, venue):
+            items = [item(name, venue=venue)]
+            settle(items, Dictionary.load())
+            return [a.name for a in items[0].artists]
+        self.assertEqual(kept("ДАТОБ", "Дніпровський Академічний Театр Опери та балету"), [])
+        self.assertEqual(kept("ОАТМК ім. М. Водяного", "Театр музкомедії (ОАТМК ім. М. Водяного)"), [])
+        self.assertEqual(kept("ОНАТОБ", "Одеський театр Опери та Балету"), [])              # словник
+        self.assertEqual(kept("CВІТЛО", "Стендап-простір CВІТЛО в First Wave"), [])        # латинська C
+        self.assertEqual(kept("Академічний симфонічний оркестр", "Філармонія"), [])
+        self.assertEqual(kept("Bigshow orchestra", "Docker Pub"), ["Bigshow orchestra"])
+        self.assertEqual(kept("НАОНІ", "Будинок кіно"), ["НАОНІ"])                         # оркестр, не зал
+        # Три літери — лише повний збіг ініціалів; МУР — трупа зі словника.
+        self.assertEqual(kept("МУР", "Музей української революції, зал 2"), ["МУР"])
+        self.assertEqual(kept("МУР", "Мистецька установа Рівне"), ["МУР"])
+        self.assertEqual(kept("ЛСП", "Львівський сучасний палац мистецтв"), ["ЛСП"])       # префікс із трьох — ні
+        self.assertEqual(kept("ЛСП", "Львівський сучасний палац"), [])                     # повний збіг — зал
+
+    def test_touring_troupe_is_kept_when_counted_across_cities(self):
+        # Трупа з театральним словом у двох містах — артист; в одному місці — майданчик.
+        tour = [item("Театр 057", lat=48.46, lon=35.04), item("Театр 057", lat=50.00, lon=36.23)]
+        settle(tour)
+        self.assertEqual([[a.name for a in i.artists] for i in tour], [["Театр 057"]] * 2)
+        home = [item("Театр 057", lat=48.46, lon=35.04)]
+        settle(home)
+        self.assertEqual(home[0].artists, [])
+
+    def test_llm_failure_marks_items_pending(self):
+        it = event("Вечір", "Виступає Олена Тополя.", category="comedy")
+        def down(prompt):
+            raise RuntimeError("мережа")
+        llm_fill([it], down, cache_path=Path(tempfile.mkdtemp()) / "c.json")
+        self.assertTrue(it.llm_pending)
+        ok = event("Вечір", "Виступає Олена Тополя.", category="comedy")
+        llm_fill([ok], lambda p: answer([{"name": "Олена Тополя", "evidence": "Олена Тополя"}]),
+                 cache_path=Path(tempfile.mkdtemp()) / "c.json")
+        self.assertFalse(ok.llm_pending)
 
 
 class PruneArtists(unittest.TestCase):

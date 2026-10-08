@@ -78,6 +78,49 @@ class RegressionTests(unittest.TestCase):
         items, _ = self.harvest(events)
         self.assertEqual(sum(i.stage == "published" for i in items), 2)
 
+    def test_same_source_copies_fold_on_nested_titles_and_distance_not_rounding(self):
+        # «Bridal Forum» і «Bridal Forum. Offline» — один сеанс; 2 м між копіями через межу округлення — теж.
+        loc = lambda lat: {"@type": "Place", "name": "Bridal Hall", "geo": {"latitude": lat, "longitude": 30.53},
+                           "address": {"streetAddress": "вул. Б, 1", "addressLocality": "Київ"}}
+        events = [raw_event(name="Bridal Forum", url="https://example.org/bf1", location=loc(50.45004)),
+                  raw_event(name="Bridal Forum. Offline", url="https://example.org/bf2", location=loc(50.45006))]
+        items, _ = self.harvest(events)
+        self.assertEqual([round(i.latitude, 4) for i in items], [50.45, 50.4501])   # по різні боки округлення
+        self.assertEqual(sum(i.stage == "published" for i in items), 1)
+        # Одне слово, вкладене в довшу назву, — замало: «Квіз» і «Квіз Гаррі Поттер» лишаються окремо.
+        items, _ = self.harvest([raw_event(name="Квіз", url="https://example.org/q1"),
+                                 raw_event(name="Квіз Гаррі Поттер", url="https://example.org/q2")])
+        self.assertEqual(sum(i.stage == "published" for i in items), 2)
+
+    def test_merge_winner_takes_what_it_lacks_from_the_copy(self):
+        # Concert.ua виграє за вагою, але без опису й виконавця; Badseller віддає обидва.
+        from .artists import Artist
+        from .test_ingest import _item
+        winner, copy = _item("concert_ua", "Я бачу, вас цікавить пітьма"), _item("badseller", "Я бачу, вас цікавить пітьма")
+        copy.description, copy.description_len, copy.image_url = "Вистава Дикого театру.", 22, "https://x/i.jpg"
+        copy.artists = [Artist("Дикий театр")]
+        winner.artists = [Artist("Хтось Інший")]
+        pipeline.drop_cross_source_duplicates([winner, copy], {"concert_ua": 0.8, "badseller": 0.69})
+        self.assertEqual(copy.stage, "duplicate")
+        self.assertEqual([a.name for a in winner.artists], ["Хтось Інший", "Дикий театр"])
+        self.assertEqual((winner.description, winner.image_url), ("Вистава Дикого театру.", "https://x/i.jpg"))
+        # Абревіатура залу копії не стає артистом переможця, хоч у переможця назва залу інша.
+        winner2, copy2 = _item("karabas", "Сільва"), _item("badseller", "Сільва")
+        winner2.venue_name, copy2.venue_name = "Театр музичної комедії", "Театр музкомедії (ОАТМК ім. М. Водяного)"
+        copy2.artists = [Artist("ОАТМК ім. М. Водяного")]
+        pipeline.drop_cross_source_duplicates([winner2, copy2], {"karabas": 0.7, "badseller": 0.69})
+        self.assertEqual(winner2.artists, [])
+
+    def test_duplicate_of_a_duplicate_points_to_the_final_winner(self):
+        # Згортання одного продавця дало переможця, який потім програв іншому джерелу: копія мусить
+        # посилатись на кінцевого, інакше duplicates_sql не зніме її старий рядок.
+        from .test_ingest import _item
+        top, mid, low = _item("concert_ua", "ДахаБраха"), _item("karabas", "ДахаБраха"), _item("karabas", "ДахаБраха наживо")
+        low.stage, low.duplicate_of = "duplicate", (mid.source_slug, mid.source_uid)
+        pipeline.drop_cross_source_duplicates([top, mid, low], {"concert_ua": 0.8, "karabas": 0.7})
+        self.assertEqual(mid.duplicate_of, (top.source_slug, top.source_uid))
+        self.assertEqual(low.duplicate_of, (top.source_slug, top.source_uid))
+
     def test_title_never_exceeds_database_limit(self):
         self.assertLessEqual(len(normalize.normalize_title("А" * 130)), 120)
 
@@ -557,6 +600,25 @@ class Robustness(unittest.TestCase):
         steady = [{"city": "Київ", "source": "karabas", "items": 90}]
         self.assertEqual(mark_sharp_drops(steady, previous), [])
         self.assertEqual(mark_sharp_drops(steady, []), [])
+
+    def test_artists_are_settled_across_all_cities(self):
+        # «Театр 057» у Дніпрі й Харкові: по місту — «в одному місці» (майданчик), по всіх — трупа.
+        from .artists import Artist
+        from .test_ingest import _item
+        runs, seen = [], []
+        for city, lat in (("Дніпро", 48.46), ("Харків", 50.0)):
+            it = _item("badseller", "Вистава", lat=lat)
+            it.city, it.artists = city, [Artist("Театр 057")]
+            runs.append(CityRun(city, [], [it], []))
+        def fake_emit(run, *_, **__):
+            seen.extend(a.name for i in run.items for a in i.artists)
+            return [], []
+        with contextlib.redirect_stdout(io.StringIO()), \
+             patch("tools.ingest.__main__.karabas_status.collect", return_value=([], {"pages_fetched": 1})), \
+             patch("tools.ingest.__main__.gather_city", side_effect=lambda city, *a, **k: runs.pop(0) if runs else None), \
+             patch("tools.ingest.__main__.emit_city", side_effect=fake_emit):
+            main(["--city", "Дніпро", "--city", "Харків", "--source", "badseller"])
+        self.assertEqual(seen, ["Театр 057", "Театр 057"])
 
     def test_sharp_drop_fails_the_run(self):
         with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(io.StringIO()), \

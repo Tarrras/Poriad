@@ -76,6 +76,7 @@ class Item:
     previous_start: dt.datetime | None = None
     artists: list = dataclasses.field(default_factory=list)
     text: str = ""                # опис без обрізання до 200: джерело для щабля 4 артистів, у базу не йде
+    llm_pending: bool = False     # модель мала відповісти про артистів, але не відповіла (збій транспорту)
 
     @property
     def dedupe_key(self) -> str | None:
@@ -481,30 +482,41 @@ def _fold_same_source_copies(items: list[Item], counters: dict) -> None:
     """Зводить копії одного сеансу, які одне джерело віддало під різними посиланнями: злиття за
     `source_uid` їх не бачить (ключ включає посилання), злиття між джерелами теж (один продавець).
 
-    Назва має збігатися точно після зведення: один продавець у ту саму хвилину на тій самій точці
-    справді показує різне в сусідніх залах. Зайва копія стає `duplicate` з посиланням на
-    переможця, і `emit.duplicates_sql` зніме її рядок у базі.
+    Та сама хвилина, до `SAME_PLACE_METRES`, назва однієї вкладена в іншу (`_nested_titles`):
+    «Bridal Forum» і «Bridal Forum. Offline», «ХХ Сімейна хроніка» кирилицею й латиницею. Різні
+    вистави сусідніх залів у ту саму хвилину спільних слів не мають і не зливаються. Зайва копія
+    стає `duplicate` з посиланням на переможця, і `emit.duplicates_sql` зніме її рядок у базі.
     """
-    groups: dict[tuple, list[Item]] = {}
+    by_start: dict = {}
     for item in items:
-        if item.stage != "published":
-            continue
-        key = (normalize.normalize_name(item.title), item.starts_at,
-               round(item.latitude, 4), round(item.longitude, 4))
-        groups.setdefault(key, []).append(item)
-    for copies in groups.values():
-        if len(copies) < 2:
-            continue
+        if item.stage == "published" and item.latitude is not None:
+            by_start.setdefault(item.starts_at, []).append(item)
+    for group in by_start.values():
         # Той самий порядок, що при злитті за ключем: каталог, якість, посилання для стабільності.
-        copies.sort(key=lambda i: (i.category_how != "catalog", -i.quality, i.source_uid))
-        winner = copies[0]
-        for loser in copies[1:]:
-            loser.stage = "duplicate"
-            loser.duplicate_of = (winner.source_slug, winner.source_uid)
-            loser.reject_reason = f"DUPLICATE_OF {winner.source_slug} (same source)"
+        group.sort(key=lambda i: (i.category_how != "catalog", -i.quality, i.source_uid))
+        winners: list[Item] = []
+        for item in group:
+            winner = next((w for w in winners if _metres(w, item) <= SAME_PLACE_METRES
+                           and _nested_titles(w.title, item.title)), None)
+            if winner is None:
+                winners.append(item)
+                continue
+            item.stage = "duplicate"
+            item.duplicate_of = (winner.source_slug, winner.source_uid)
+            item.reject_reason = f"DUPLICATE_OF {winner.source_slug} (same source)"
+            _absorb(winner, item)
             counters["published"] -= 1
             counters["geocoded"] -= 1
             counters["same_source_copies"] = counters.get("same_source_copies", 0) + 1
+
+
+def _nested_titles(a: str, b: str) -> bool:
+    """Назви одного продавця про той самий сеанс: однакові значущі слова або одна множина в іншій.
+    Вкладення одного слова в довшу назву замало («Квіз» проти «Квіз Гаррі Поттер»)."""
+    ta, tb = _tokens(a), _tokens(b)
+    if not ta or not tb:
+        return normalize.normalize_name(a) == normalize.normalize_name(b)
+    return ta == tb or (min(len(ta), len(tb)) >= 2 and (ta <= tb or tb <= ta))
 
 
 def apply_status_notices(items: list[Item], notices: list[dict],
@@ -861,6 +873,7 @@ def drop_cross_source_duplicates(items: list[Item], weights: dict[str, float],
         candidate.stage = "duplicate"
         candidate.duplicate_of = (winner.source_slug, winner.source_uid)
         candidate.reject_reason = f"DUPLICATE_OF {winner.source_slug}"
+        _absorb(winner, candidate)
         # Переможець за вагою джерела, але точка — за довірою до геокодингу: інакше на мапі
         # лишилась би гірша з двох.
         if _metres(winner, candidate) > SAME_PLACE_METRES and candidate.geo_confidence > winner.geo_confidence:
@@ -878,4 +891,44 @@ def drop_cross_source_duplicates(items: list[Item], weights: dict[str, float],
             drop.stage = "duplicate"
             drop.duplicate_of = (keep.source_slug, keep.source_uid)
             drop.reject_reason = f"DUPLICATE_OF {keep.source_slug} (agent)"
+            _absorb(keep, drop)
+    _resolve_duplicate_roots(items)
     return items
+
+
+def _absorb(winner: Item, loser: Item) -> None:
+    """Переможець злиття бере в копії те, чого в нього нема: інакше воно губилось разом із копією.
+    Concert.ua й Internet-Bilet виграють за вагою, але опису не віддають (усі 1162 живі події без
+    опису на 2026-10-08), а Badseller — найкраще джерело виконавців — має найнижчу вагу. Артисти
+    об'єднуються (свої першими), решта — лише якщо своїх нема."""
+    # Зал копії перевіряємо за її власною назвою залу: у переможця вона інша, і «ОАТМК ім. М. Водяного»
+    # з «Театр музкомедії (ОАТМК ім. М. Водяного)» інакше пройшов би артистом.
+    loser_venues = [loser.venue_name, loser.venue_display]
+    winner.artists = artists.merge(winner.artists,
+                                   [a for a in loser.artists if not artists.names_venue(a.name, loser_venues)])
+    if not winner.description and loser.description:
+        winner.description, winner.description_len = loser.description, loser.description_len
+    if not winner.text and loser.text:
+        winner.text = loser.text
+    if not winner.image_url and loser.image_url:
+        winner.image_url = loser.image_url
+    if winner.price_min is None and loser.price_min is not None:
+        winner.price_min = loser.price_min
+    if winner.is_free is None and loser.is_free is not None:
+        winner.is_free = loser.is_free
+
+
+def _resolve_duplicate_roots(items: list[Item]) -> None:
+    """Дубль дубля посилається на кінцевого переможця: `emit.duplicates_sql` знімає старий рядок копії,
+    лише коли переможець записаний цим прогоном, а проміжний переможець — сам дубль і не записаний
+    (агент зливає вже зведену пару; переможець згортання одного продавця програє іншому джерелу)."""
+    by_key = {(i.source_slug, i.source_uid): i for i in items}
+    for item in items:
+        if item.stage != "duplicate" or not item.duplicate_of:
+            continue
+        root, seen = by_key.get(tuple(item.duplicate_of)), set()
+        while root is not None and root.stage == "duplicate" and root.duplicate_of and id(root) not in seen:
+            seen.add(id(root))
+            root = by_key.get(tuple(root.duplicate_of))
+        if root is not None and root.stage == "published":
+            item.duplicate_of = (root.source_slug, root.source_uid)

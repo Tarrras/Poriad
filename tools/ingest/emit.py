@@ -243,10 +243,14 @@ def artists_sql(items: list[Item], replace_llm: bool = False) -> str:
             seen.add(k)
             links.append("  (" + ",".join([_lit(it.source_slug), _lit(it.source_uid), _lit(k), _lit(a.role),
                                            str(position), _lit(a.how), repr(round(a.confidence, 2))]) + ")")
+    # Рядки моделі замінюємо лише там, де модель цього разу відповіла (чи відповідь є в кеші): збій
+    # транспорту інакше стирав би знайдене минулими прогонами.
     clear = ("delete from public.event_artists ea using public.events e, public.event_sources s, (values "
-             + ",".join(f"({_lit(it.source_slug)},{_lit(it.source_uid)})" for it in items) + ") v(slug,uid)\n"
+             + ",".join(f"({_lit(it.source_slug)},{_lit(it.source_uid)},"
+                        f"{_lit(replace_llm and not getattr(it, 'llm_pending', False))})" for it in items)
+             + ") v(slug,uid,replace_llm)\n"
              "where ea.event_id = e.id and e.source_id = s.id and s.slug = v.slug and e.source_uid = v.uid"
-             + ("" if replace_llm else " and ea.how <> 'llm'") + ";\n")
+             " and (ea.how <> 'llm' or v.replace_llm);\n")
     if not links:
         return clear
     rows = ["  (" + ",".join([_lit(name), _lit(k), _lit(kind), _lit(source)]) + ")"

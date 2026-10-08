@@ -426,9 +426,11 @@ def main(argv: list[str] | None = None) -> int:
     for line in mark_sharp_drops(reports, previous):
         print(f"⚠ різкий спад — {line}", file=sys.stderr)
 
-    for run in runs:
-        print(f"\n{run.city}:")
-        settle_artists(run.items, agent)
+    # Артисти — одним проходом по всіх містах: правило «театр в одному місці = майданчик» рахує місця
+    # трупи, а в межах одного міста трупа на гастролях завжди «в одному місці» («Театр 057» у чотирьох
+    # містах губився в кожному).
+    print("\n" + "═" * 62)
+    settle_artists(everything, agent)
     for run in runs:
         parts, retire = emit_city(run, run_id, agent=agent, statement_bytes=max(0, args.sql_max_bytes - 1024))
         per_city[run.city] = (run.items, parts, retire)

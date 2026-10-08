@@ -20,6 +20,7 @@ import hashlib
 import json
 import pathlib
 import re
+import unicodedata
 
 from .artist_prompt import BATCH_FORMAT, BODY
 from .normalize import clean_text, normalize_name
@@ -57,17 +58,26 @@ class Artist:
 
 
 _PAREN = re.compile(r"\s*\([^)]*\)")
+# Описові слова з малої перед власною назвою: «кабаре-дует Відірвані», «народних інструментів Дивограй».
+_DESCRIPTOR = re.compile(r"^(?:[a-zа-яіїєґ'’ʼ-]+\s+)+(?=[A-ZА-ЯІЇЄҐ«\"])")
+
+
+def _plain(name: str) -> str:
+    """Наголос (U+0301 — «Кухарчу́к») і рідкісні апострофи (‘ ´) не роблять іншого імені: на prod так
+    жили по двоє «Іван Кухарчук» і «Лесь Подерв'янський». NFC спершу: латинське é стає однією літерою
+    й не втрачає знака; стрип усіх знаків зламав би й/ї."""
+    return unicodedata.normalize("NFC", clean_text(name)).replace("\u0301", "").replace("‘", "'").replace("´", "'")
 
 
 def key(name: str) -> str:
     """Ключ зіставлення: регістр, апострофи, лапки, «Гурт», дужки й зайві пробіли прибрані. Дужки не
     розрізняють: «Крістін Мілворд (Kristine Milward)» і «Крістін Мілворд» — одна людина."""
-    return normalize_name(_GROUP_PREFIX.sub("", _PAREN.sub(" ", clean_text(name))))
+    return normalize_name(_GROUP_PREFIX.sub("", _PAREN.sub(" ", _plain(name))))
 
 
 def display(name: str) -> str:
-    """Ім'я для показу: без «Гурт» на початку й без дужок (переклад, уточнення)."""
-    return _GROUP_PREFIX.sub("", _PAREN.sub("", clean_text(name))).strip()
+    """Ім'я для показу: без «Гурт» і описових слів на початку, без дужок (переклад, уточнення)."""
+    return _DESCRIPTOR.sub("", _GROUP_PREFIX.sub("", _PAREN.sub("", _plain(name))).strip())
 
 
 def split_pair(name: str) -> list[str]:
@@ -286,7 +296,11 @@ _NAME_TOKEN = r"[A-ZА-ЯІЇЄҐ][\w'’ʼ\-]+"
 # Імʼя, прізвище й одразу @handle: так афіші стендапу підписують учасників. Один @handle без
 # контексту («Підписуйтесь @x») артистом не вважаємо.
 _NAME_HANDLE = re.compile(rf"({_NAME_TOKEN}\s+{_NAME_TOKEN})\s*@[\w.]{{3,30}}")
-_HOST = re.compile(rf"(?i)ведуч\w*\s*[:—–-]\s*({_NAME_TOKEN}\s+{_NAME_TOKEN})")
+# `(?i)` на весь вираз робив і «велику літеру» імені будь-якою: «ведуча — заслужена працівниця» ставала
+# артистом. Прізвище ведучого — без великої всередині: текст картки склеює його з наступним словом
+# («Андрій ОзарківРозклад»).
+_HOST_NAME = r"[A-ZА-ЯІЇЄҐ][a-zа-яіїєґ'’ʼ\-]+"
+_HOST = re.compile(rf"(?i:ведуч)\w*\s*[:—–-]\s*({_NAME_TOKEN}\s+{_HOST_NAME})")
 _LINEUP_CONTEXT = re.compile(r"(?i)ведуч|виступа|склад|учасник|хедлайнер|line-?up|лайн-?ап|коміки")
 _NOT_NAME = re.compile(r"(?i)instagram|telegram|facebook|підписуйтесь|сторінк|квитки|наш|youtube|tiktok")
 
@@ -332,17 +346,48 @@ def _spot(it):
     return it.venue_name
 
 
+_INITIALS_SKIP = frozenset({"та", "і", "й", "ім", "імені", "of", "the", "and"})
+
+
 def _is_initials(name: str, venues: list) -> bool:
     """«НАДТ» — абревіатура залу «Національний академічний драматичний театр…»: слова «театр» у ній
-    нема, тож правило слів її не бачить, а це той самий майданчик."""
+    нема, тож правило слів її не бачить, а це той самий майданчик. Службові слова не мають літери в
+    абревіатурі («ДАТОБ» — «…Театр Опери та балету»). Три літери — лише за повним збігом: префікс
+    у три слова занадто часто випадковий («МУР» — «Музей української революції, …»)."""
     token = key(name)
-    if " " in token or not 2 <= len(token) <= 6:
+    if " " in token or not 3 <= len(token) <= 6:
         return False
     for venue in venues:
-        words = key(venue or "").split()
-        if len(words) >= len(token) and "".join(w[0] for w in words[:len(token)]) == token:
+        words = [w for w in key(venue or "").split() if w not in _INITIALS_SKIP]
+        initials = "".join(w[0] for w in words)
+        if initials == token or (len(token) >= 4 and initials.startswith(token)):
             return True
     return False
+
+
+def _inside_venue(name: str, venues: list) -> bool:
+    """Ім'я з кількох слів, що стоїть усередині назви майданчика, — назва залу: «ОАТМК ім. М. Водяного»
+    у «Театр музкомедії (ОАТМК ім. М. Водяного)». Одне слово — ні: гурт може зватися як частина назви бару."""
+    k = key(name)
+    # Назву залу — без `key`: той вирізає дужки, а абревіатура часто саме в них.
+    return " " in k and any(f" {k} " in f" {normalize_name(_plain(v or ''))} " for v in venues)
+
+
+def names_venue(name: str, venues: list) -> bool:
+    """Ім'я — це назва чи абревіатура одного з цих залів."""
+    return _is_initials(name, venues) or _inside_venue(name, venues)
+
+
+# Узагальнене ім'я з самих родових слів — не виконавець: «Академічний симфонічний оркестр» (модель)
+# злив би в одного артиста оркестри всіх міст.
+_GENERIC_WORD = re.compile(r"^(академічн|симфонічн|камерн|національн|муніципальн|духов|естрадн|молодіжн|"
+                           r"дитяч|народн|оркестр|хор|ансамбл|капел|соліст|квартет|тріо|квінтет|"
+                           r"orchestra|symphony|choir|ensemble)")
+
+
+def _is_generic(name: str) -> bool:
+    words = key(name).split()
+    return bool(words) and all(_GENERIC_WORD.match(w) for w in words)
 
 
 def _drop_venues(items: list, dictionary: Dictionary, dropped: collections.Counter) -> dict:
@@ -362,8 +407,9 @@ def _drop_venues(items: list, dictionary: Dictionary, dropped: collections.Count
             if kind in ("venue", "promoter"):
                 dropped[canonical] += 1
                 continue
+            venues = [it.venue_name, getattr(it, "venue_display", None)]
             if kind is None and (
-                    _is_initials(canonical, [it.venue_name, getattr(it, "venue_display", None)])
+                    names_venue(canonical, venues) or _is_generic(canonical)
                     or (_is_venue_word(canonical) and len(places[key(canonical)]) <= 1)):
                 dropped[canonical] += 1
                 continue
@@ -490,6 +536,9 @@ def llm_fill(items: list, ask, dictionary: Dictionary | None = None, cache_path=
         else:
             todo.setdefault(h, []).append(it)
     unique = [group[0] for group in todo.values()]
+    for group in todo.values():
+        for it in group:
+            it.llm_pending = True                                # знімається, щойно модель відповіла
     for start in range(0, len(unique), LLM_BATCH):
         batch = unique[start:start + LLM_BATCH]
         try:
@@ -506,6 +555,7 @@ def llm_fill(items: list, ask, dictionary: Dictionary | None = None, cache_path=
             cache[ident(it)] = parsed[n]
             for twin in todo[ident(it)]:
                 twin.artists = _verified(parsed[n], twin, dictionary)
+                twin.llm_pending = False
     stats["found"] = sum(1 for it in targets if it.artists)
     if stats["asked"]:
         try:
