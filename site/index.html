@@ -11,10 +11,11 @@
 <meta property="og:url" content="https://poriad.app/">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="apple-itunes-app" content="app-id=6813543772">
-<meta name="theme-color" content="#F5F5F7">
+<meta name="theme-color" content="#0B0B0F">
 <link rel="preconnect" href="https://tzdogzdvctlumsqlqskr.supabase.co" crossorigin>
 <link rel="preload" href="fonts/source-serif-4-600.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="app-ui.css">
 <link rel="stylesheet" href="web.css">
 <link rel="icon" href="icon.png">
 <link rel="apple-touch-icon" href="icon.png">
@@ -23,142 +24,114 @@
 </head>
 <body>
 
-<header class="nav">
+<header class="nav on-dark">
   <div class="wrap">
     <a class="brand" href="./"><img src="icon.png" alt="">Поряд</a>
     <nav class="links" aria-label="Розділи">
-      <a href="afisha.html">Афіша</a>
       <a href="#features">Можливості</a>
       <a href="#safety">Безпека</a>
+      <a href="afisha.html">Афіша</a>
       <a class="btn primary small" href="#download" data-lock="app">Завантажити</a>
     </nav>
   </div>
 </header>
 
 <main>
-<section class="hero">
+<section class="hero dark">
   <div class="aurora" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
-  <div class="wrap">
-    <a class="live reveal" href="afisha.html" data-live>
-      <span class="pulse"></span><span>Зараз у <span data-city-in>Києві</span></span><b data-total>—</b><span data-total-word>подій</span>
-      <span class="go"><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-arrow"/></svg></span>
-    </a>
-    <h1 class="reveal" style="--d:.08s">Концерти, настолки, пробіжки й зустрічі <span class="shine">у вашому місті</span></h1>
-    <p class="lead reveal" style="--d:.16s">Афіша міста на мапі: за хвилину знайдете, куди піти сьогодні ввечері чи на вихідних&nbsp;— і з ким.</p>
-    <div class="stores reveal" style="--d:.24s">
-      <a class="store" href="https://apps.apple.com/ua/app/id6813543772"><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-apple"/></svg><span><small>Завантажити в</small>App Store</span></a>
-      <a class="store play" href="https://play.google.com/store/apps/details?id=app.poriad.android"><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-play"/></svg><span><small>Завантажити з</small>Google Play</span></a>
-    </div>
-    <a class="text-link reveal" style="--d:.3s" href="afisha.html">Або подивіться афішу просто тут<svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-arrow"/></svg></a>
-  </div>
-
-  <div class="stage" aria-hidden="true">
-    <div class="stage-inner">
-      <div class="device side left"><img src="img/map.jpg?v=2" alt=""></div>
-      <div class="device side right"><img src="img/detail.jpg" alt=""></div>
-      <div class="device center"><img src="img/home.jpg?v=2" alt=""></div>
-      <div class="float notif" hidden data-notif><img src="icon.png" alt=""><div><div class="head">Поряд<small>за годину</small></div><p></p></div></div>
-      <div class="float f1" hidden data-float></div>
-      <div class="float f2" hidden data-float></div>
-      <div class="float f3" hidden data-weekend><span class="overline">Вихідні в <span data-city-in>Києві</span></span><span class="big"></span><span class="mini"></span></div>
-    </div>
-  </div>
-</section>
-
-<section class="marquee" aria-labelledby="week-title">
-  <div class="wrap marquee-head">
-    <h2 id="week-title">Цього тижня в <span data-city-in>Києві</span></h2>
-    <a class="text-link" href="afisha.html">Уся афіша<svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-arrow"/></svg></a>
-  </div>
-  <div class="track" data-track="0"></div>
-  <div class="track reverse" data-track="1"></div>
-</section>
-
-<section class="section" id="afisha">
-  <div class="wrap">
-    <div class="section-head">
-      <div class="text reveal">
-        <span class="overline">Без застосунку</span>
-        <h2>Подивіться, що поряд&nbsp;— просто зараз</h2>
-        <p class="sub">Справжня афіша, а не скріншоти: відкрийте будь-яку подію&nbsp;— дата, місце, ціна й квитки.</p>
+  <div class="wrap hero-grid">
+    <div class="hero-copy">
+      <a class="live reveal" href="afisha.html" data-live>
+        <span class="pulse"></span><span>Зараз у <span data-city-in>Києві</span></span><b data-total>—</b><span data-total-word>подій</span>
+        <span class="go"><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-arrow"/></svg></span>
+      </a>
+      <h1 class="reveal" style="--d:.08s">Куди піти сьогодні&nbsp;— <span class="shine">і&nbsp;з&nbsp;ким</span></h1>
+      <p class="lead reveal" style="--d:.16s">Поряд&nbsp;— застосунок з афішею вашого міста на мапі. Концерти, вистави, стендап, настолки й зустрічі від людей. Нагадає вчасно, допоможе знайти компанію й зібрати свою.</p>
+      <div class="stores reveal" style="--d:.24s">
+        <a class="store light" href="https://apps.apple.com/ua/app/id6813543772"><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-apple"/></svg><span><small>Завантажити в</small>App Store</span></a>
+        <a class="store light play" href="https://play.google.com/store/apps/details?id=app.poriad.android"><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-play"/></svg><span><small>Завантажити з</small>Google Play</span></a>
       </div>
-      <div class="teaser-controls reveal" style="--d:.1s">
-        <div class="tabs" role="group" aria-label="Місто" data-cities></div>
-        <div class="chips" role="group" aria-label="Коли" data-when></div>
-      </div>
+      <p class="hero-note reveal" style="--d:.3s">Київ · Львів · Одеса · Дніпро · Харків<span>·</span>Без реклами</p>
     </div>
-    <div class="poster-grid teaser-grid" data-teaser></div>
-    <div class="teaser-foot reveal">
-      <a class="btn primary" href="afisha.html" data-all>Уся афіша й мапа<svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-arrow"/></svg></a>
-      <span class="hint"><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-lock"/></svg>Зберегти, нагадати й піти з компанією&nbsp;— у застосунку</span>
+
+    <div class="hero-stage">
+      <div class="ambient" aria-hidden="true"><i></i><i></i></div>
+      <div class="iphone hero-phone" role="img" aria-label="Головний екран застосунку «Поряд» з афішею міста">
+        <div class="screen" data-home><img src="img/home.jpg?v=2" alt=""></div>
+      </div>
+      <div class="glass notif" hidden data-notif><img src="icon.png" alt=""><div><div class="head"><b>Поряд</b><small>зараз</small></div><p></p></div></div>
+      <div class="glass chip-card company" hidden data-company><i><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-people"/></svg></i><div><b>Шукаю компанію</b><small></small></div></div>
+      <div class="glass chip-card safety" hidden data-shelter><i><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-shield"/></svg></i><div><b></b><small></small></div></div>
+      <div class="glass weekend" hidden data-weekend><span class="overline">Вихідні в <span data-city-in>Києві</span></span><span class="big"></span><span class="mini"></span></div>
     </div>
   </div>
 </section>
 
 <section class="section" id="features">
   <div class="wrap">
-    <div class="section-head"><div class="text reveal"><span class="overline">Можливості</span><h2>Від «куди б піти» до «вже йдемо»</h2></div></div>
-    <div class="story">
-      <div class="story-steps">
-        <article class="step cat-games" data-shot="img/map.jpg?v=2">
-          <span class="num"><i><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-map"/></svg></i><span class="overline">Мапа</span></span>
+    <div class="section-head"><div class="text reveal"><span class="overline">Застосунок</span><h2>Від «куди б піти» до «вже йдемо»</h2>
+      <p class="sub">Знайти, зберегти, нагадати, зібрати компанію&nbsp;— усе в одному застосунку, а не в десяти вкладках.</p></div></div>
+    <div class="bento">
+      <article class="feat f-map cat-games reveal">
+        <div class="feat-text"><span class="tag"><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-map"/></svg>Мапа</span>
           <h3>Мапа замість нескінченної стрічки</h3>
-          <p>Сотні подій міста на одній мапі, з кольором за категорією. Фільтри «сьогодні», «вихідні», «є вільні місця»&nbsp;— і видно, що відбувається за кілька кварталів від вас.</p>
-          <div class="device shot"><img src="img/map.jpg?v=2" alt="Мапа Києва з кластерами подій і карткою стендапу" loading="lazy"></div>
-        </article>
-        <article class="step cat-music" data-shot="img/home.jpg?v=2">
-          <span class="num"><i><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-home"/></svg></i><span class="overline">Афіша й люди</span></span>
-          <h3>Концерти поруч із настолками</h3>
-          <p>Концерти, вистави й стендап з квиткових сервісів&nbsp;— поруч із настолками, пробіжками й розмовними клубами, які створюють такі самі люди, як ви.</p>
-          <p class="note">Афішні події беруться з відкритих джерел із зазначенням джерела; квитки купуються на сайті організатора.</p>
-          <div class="device shot"><img src="img/home.jpg?v=2" alt="Головна: підписки й афіша міста" loading="lazy"></div>
-        </article>
-        <article class="step cat-art" data-shot="img/detail.jpg">
-          <span class="num"><i><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-calendar"/></svg></i><span class="overline">Подія</span></span>
-          <h3>Усе про вечір на одному екрані</h3>
-          <p>Хто виступає, коли й де, ціна й квитки. Нагадування за годину до початку, експорт у календар і маршрут у мапах.</p>
-          <div class="device shot"><img src="img/detail.jpg" alt="Сторінка події: обкладинка, дата, ціна й кнопка «Купити квиток»" loading="lazy"></div>
-        </article>
-        <article class="step cat-social" data-shot="img/companions.jpg">
-          <span class="num"><i><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-people"/></svg></i><span class="overline">Компанія</span></span>
+          <p>Сотні подій міста на одній мапі, кольором за категоріями. «Сьогодні», «вихідні», «є вільні місця»&nbsp;— і видно, що відбувається за кілька кварталів.</p></div>
+        <div class="iphone" role="img" aria-label="Мапа Києва з кластерами подій"><div class="screen"><img src="img/map.jpg?v=2" alt="" loading="lazy"></div></div>
+      </article>
+      <article class="feat f-company cat-social reveal" style="--d:.06s">
+        <div class="feat-text"><span class="tag"><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-people"/></svg>Компанія</span>
           <h3>Є квиток, нема з ким піти?</h3>
-          <p>«Шукаю компанію» збирає невелику компанію на конкретну подію. Хто хоче долучитися, надсилає запит&nbsp;— ви вирішуєте, кого взяти. Лише 18+.</p>
-          <div class="device shot"><img src="img/companions.jpg" alt="Шторка «Шукаю компанію»: час зустрічі, місце й кількість людей" loading="lazy"></div>
-        </article>
-        <article class="step cat-sport" data-shot="img/safety.jpg">
-          <span class="num"><i><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-shield"/></svg></i><span class="overline">Безпека</span></span>
-          <h3>Найближче укриття&nbsp;— ще до виходу з дому</h3>
-          <p>Біля кожної київської події&nbsp;— найближчі укриття й метро, а ще час до комендантської. Скарга й блокування&nbsp;— з екрана будь-якої події.</p>
-          <p class="note">Укриття&nbsp;— за відкритими даними КМДА, поки що в Києві.</p>
-          <div class="device shot"><img src="img/safety.jpg" alt="Блок «Безпека»: комендантська й три найближчі укриття" loading="lazy"></div>
-        </article>
-        <article class="step cat-food" data-shot="img/editor.jpg">
-          <span class="num"><i><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-plus"/></svg></i><span class="overline">Свої зустрічі</span></span>
+          <p>«Шукаю компанію» збирає невелику компанію на конкретну подію. Хто хоче долучитися, надсилає запит&nbsp;— ви вирішуєте. Спробуйте −/+ на екрані.</p></div>
+        <div class="iphone" role="img" aria-label="Шторка «Шукаю компанію»"><div class="screen" data-companions><img src="img/companions.jpg" alt="" loading="lazy"></div></div>
+      </article>
+      <article class="feat f-notify dark reveal">
+        <div class="feat-text"><span class="tag"><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-bell"/></svg>Нагадування</span>
+          <h3>Нічого не проґавите</h3>
+          <p>За годину до початку, дайджест вихідних щоп’ятниці й новини від тих, за ким стежите.</p></div>
+        <div class="pushes" data-push></div>
+      </article>
+      <article class="feat f-safety cat-sport reveal" style="--d:.06s">
+        <div class="feat-text"><span class="tag"><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-shield"/></svg>Безпека</span>
+          <h3>Укриття&nbsp;— ще до виходу з дому</h3>
+          <p>Біля кожної київської події&nbsp;— найближчі укриття й метро, а ще час до комендантської.</p></div>
+        <div class="mini-ui" data-safety></div>
+      </article>
+      <article class="feat f-follow cat-music reveal" style="--d:.12s">
+        <div class="feat-text"><span class="tag"><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-sparkle"/></svg>Стежити</span>
+          <h3>Улюблене не загубиться</h3>
+          <p>Заклади, артисти й організатори: Поряд скаже, щойно з’явиться нове.</p></div>
+        <div class="mini-ui" data-follow></div>
+      </article>
+      <article class="feat f-create cat-food reveal">
+        <div class="feat-text"><span class="tag"><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-plus"/></svg>Свої зустрічі</span>
           <h3>Своя зустріч за три кроки</h3>
-          <p>Опис, точка на мапі, час і кількість місць. Черга очікування, підтвердження учасників, вікові межі й чат&nbsp;— уже всередині.</p>
-          <div class="device shot"><img src="img/editor.jpg" alt="Редактор події: назва, опис і категорія" loading="lazy"></div>
-        </article>
-        <article class="step cat-kids" data-shot="img/my-events.jpg?v=2">
-          <span class="num"><i><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-bookmark"/></svg></i><span class="overline">Плани</span></span>
-          <h3>Плани, що не губляться</h3>
-          <p>«Мої події» збирають усе, куди ви йдете й що зберегли. Стежте за улюбленими закладами, артистами й організаторами&nbsp;— скажемо, щойно з’явиться нове.</p>
-          <div class="device shot"><img src="img/my-events.jpg?v=2" alt="Мої події: збережені концерти й стендапи" loading="lazy"></div>
-        </article>
-      </div>
-      <div class="story-phone" aria-hidden="true">
-        <div class="glow"></div>
-        <div class="device"><div class="screens"></div></div>
-        <div class="dots"></div>
-      </div>
+          <p>Опис, точка на мапі, час і місця. Черга, підтвердження учасників і чат&nbsp;— уже всередині.</p></div>
+        <div class="iphone" role="img" aria-label="Редактор події"><div class="screen"><img src="img/editor.jpg" alt="" loading="lazy"></div></div>
+      </article>
+      <article class="feat f-detail cat-art reveal" style="--d:.06s">
+        <div class="feat-text"><span class="tag"><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-calendar"/></svg>Подія</span>
+          <h3>Усе про вечір на одному екрані</h3>
+          <p>Хто виступає, коли й де, ціна й квитки, маршрут і календар. І кнопка, щоб піти не самому.</p></div>
+        <div class="iphone" role="img" aria-label="Сторінка події"><div class="screen" data-detail><img src="img/detail.jpg" alt="" loading="lazy"></div></div>
+      </article>
     </div>
   </div>
 </section>
 
-<section class="section" id="categories">
+<section class="section" id="afisha">
   <div class="wrap">
-    <div class="section-head"><div class="text reveal"><span class="overline">Категорії</span><h2>Що вам до душі?</h2>
-      <p class="sub">Від стендапу до екскурсій. Числа&nbsp;— справжні: стільки подій у <span data-city-in>Києві</span> просто зараз.</p></div></div>
-    <div class="cats" data-cats></div>
+    <div class="bonus reveal">
+      <div class="bonus-head">
+        <div class="text"><span class="overline">Бонус · без застосунку</span><h2>Афішу видно й тут</h2>
+          <p class="sub">Подивіться, що відбувається в місті. Зберегти, нагадати й піти з компанією&nbsp;— вже в застосунку.</p></div>
+        <a class="btn primary" href="afisha.html" data-all>Уся афіша й мапа<svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-arrow"/></svg></a>
+      </div>
+      <div class="teaser-controls">
+        <div class="tabs" role="group" aria-label="Місто" data-cities></div>
+        <div class="chips" role="group" aria-label="Коли" data-when></div>
+      </div>
+      <div class="rail posters" data-teaser></div>
+    </div>
   </div>
 </section>
 

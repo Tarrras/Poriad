@@ -293,10 +293,14 @@ export function reveal(root = document) {
   items.forEach((el) => io.observe(el));
 }
 
-/** Скляна шапка після першого пікселя прокрутки. */
+/** Скляна шапка після першого пікселя прокрутки; над темною героїнею — світлий текст. */
 export function navGlass() {
   const nav = document.querySelector(".nav");
-  const update = () => nav.classList.toggle("scrolled", scrollY > 8);
+  const dark = document.querySelector(".hero.dark");
+  const update = () => {
+    nav.classList.toggle("scrolled", scrollY > 8);
+    if (dark) nav.classList.toggle("on-dark", scrollY < dark.offsetHeight - nav.offsetHeight);
+  };
   addEventListener("scroll", update, { passive: true });
   update();
 }

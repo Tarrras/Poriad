@@ -1,0 +1,292 @@
+/* Інтерфейс застосунку для «живих» телефонів на лендингу: копія ds-bundle/tokens/poriad.css + components.css (рецепти 1:1 зі SwiftUI).
+   Не правити тут — оновити ds-bundle і скопіювати заново: cat ds-bundle/tokens/{poriad,components}.css. Темна тема — data-theme="dark" на екрані. */
+/* Поряд (Poriad) design tokens — mirrored from androidApp/.../ui/Tokens.kt and iosApp/Poruch/DesignSystem/DesignSystem.swift.
+   Light = Apple Store (cool grey canvas, white borderless cards). Dark = Moonly (near-black canvas, 1px hairline card edge).
+   Dark applies under prefers-color-scheme: dark, or with [data-theme="dark"] on any ancestor. */
+:root {
+  --brand: #1D1D1F; --brand-pressed: #3A3A3C; --brand-container: #E8E8ED; --on-brand-container: #1D1D1F; --on-brand: #FFFFFF;
+  --accent: #E0582F; --accent-container: #FDE7DF; --on-accent-container: #7A2E14;
+  /* accent as small text on white (5.1:1; plain accent is 3.75:1) and on a dark photo scrim. Fills and dots keep --accent. */
+  --accent-text: #C2431F; --accent-on-photo: #FF8A5B;
+  --success: #2E7D4F; --success-container: #DFF3E6; --on-success-container: #1B4C2F;
+  --danger: #C0392B; --danger-container: #FBE3E0;
+  --ink: #1D1D1F; --ink-secondary: #6E6E73; --ink-tertiary: #6E6E78;
+  --surface: #FFFFFF; --surface-raised: #FFFFFF; --surface-muted: #F2F2F7;
+  --canvas: #F5F5F7; --canvas-tint: #EBEBF0; --hairline: #E5E5EA;
+  /* Glow behind the home header: cool tint that melts into the canvas over 460px (linear-gradient(var(--glow), var(--canvas))). */
+  --glow: #E4E1F6;
+  /* Cards in flow: no border, no shadow in light; hairline edge in dark. */
+  --card-border-width: 0px; --card-border-color: transparent;
+  --shadow-raised: 0 4px 16px rgba(0,0,0,.10), 0 1px 4px rgba(0,0,0,.06);
+  --shadow-overlay: 0 12px 40px rgba(0,0,0,.10), 0 2px 8px rgba(0,0,0,.06);
+  --scrim: rgba(29,29,31,.32);
+
+  /* Category: hue (glyphs, dots, pins, text), wash (tiles, covers), partner (2nd gradient stop). */
+  --cat-music: #6D4AC9;      --cat-music-wash: #EBE4FB;      --cat-music-partner: #C43B6B;
+  --cat-sport: #0F7F73;      --cat-sport-wash: #DDF0EC;      --cat-sport-partner: #2F63C4;
+  --cat-art: #C43B6B;        --cat-art-wash: #FBE1EA;        --cat-art-partner: #6D4AC9;
+  --cat-food: #C96A1E;       --cat-food-wash: #FBEBD9;       --cat-food-partner: #C43B6B;
+  --cat-games: #2F63C4;      --cat-games-wash: #E1EAFB;      --cat-games-partner: #0F7F73;
+  --cat-outdoors: #3E7D3A;   --cat-outdoors-wash: #E4F1E2;   --cat-outdoors-partner: #0F7F73;
+  --cat-social: #B8562F;     --cat-social-wash: #FAE5DA;     --cat-social-partner: #C96A1E;
+  --cat-comedy: #A07813;     --cat-comedy-wash: #F7ECD2;     --cat-comedy-partner: #C43B6B;
+  --cat-kids: #1F8A8A;       --cat-kids-wash: #D9EFEF;       --cat-kids-partner: #2F63C4;
+  --cat-tours: #5F7F1F;      --cat-tours-wash: #ECF0E4;      --cat-tours-partner: #3E7D3A;
+  --cat-conference: #933FA8; --cat-conference-wash: #F2E8F5; --cat-conference-partner: #6D4AC9;
+
+  /* Spacing (4pt grid) */
+  --space-xs: 4px; --space-sm: 8px; --space-md: 12px; --space-lg: 16px; --space-xl: 20px; --space-xxl: 24px; --space-section: 32px; --space-40: 40px;
+  --page-gutter: 16px; --card-padding: 16px; --card-gap: 12px; --section-gap: 24px;
+
+  /* Radius */
+  --radius-xs: 12px; --radius-sm: 14px; --radius-md: 18px; --radius-lg: 24px; --radius-xl: 28px; --radius-sheet: 28px 28px 0 0; --radius-pill: 999px;
+
+  /* Type — two faces. UI: the app uses SF Pro (iOS) / Roboto (Android); designs use bundled Inter, the closest open match.
+     Headings and event titles: Source Serif 4 semibold (600), bundled — the same file the app ships. */
+  --font: "Inter", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-serif: "Source Serif 4", Georgia, "Times New Roman", serif;
+
+  /* Sizes */
+  --tap-min: 44px; --chip-h: 38px; --button-h: 52px; --badge-h: 24px; --avatar: 32px; --tile-category: 60px;
+  --hero-card-h: 360px; --rail-card-w: 300px; --detail-cover-h: 400px;
+}
+
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --brand: #F5F5F7; --brand-pressed: #D1D1D6; --brand-container: #2C2C33; --on-brand-container: #F5F5F7; --on-brand: #1D1D1F;
+  --accent: #FF8A5B; --accent-container: #3F2419; --on-accent-container: #FFD9C8; --accent-text: #FF8A5B;
+  --success: #5DC389; --success-container: #16311F; --on-success-container: #BFEBD0;
+  --danger: #FF6B5B; --danger-container: #3C1A16;
+  --ink: #F5F5F7; --ink-secondary: #A1A1A8; --ink-tertiary: #8E8E96;
+  --surface: #17171C; --surface-raised: #202027; --surface-muted: #26262E;
+  --canvas: #0B0B0F; --canvas-tint: #141419; --hairline: #2A2A33; --glow: #1B1A36;
+  --card-border-width: 1px; --card-border-color: #2A2A33;
+  --shadow-raised: 0 4px 16px rgba(0,0,0,.40), 0 1px 4px rgba(0,0,0,.30);
+  --shadow-overlay: 0 12px 40px rgba(0,0,0,.40), 0 2px 8px rgba(0,0,0,.30);
+  --scrim: rgba(11,11,15,.62);
+} }
+[data-theme="dark"] {
+  --brand: #F5F5F7; --brand-pressed: #D1D1D6; --brand-container: #2C2C33; --on-brand-container: #F5F5F7; --on-brand: #1D1D1F;
+  --accent: #FF8A5B; --accent-container: #3F2419; --on-accent-container: #FFD9C8; --accent-text: #FF8A5B;
+  --success: #5DC389; --success-container: #16311F; --on-success-container: #BFEBD0;
+  --danger: #FF6B5B; --danger-container: #3C1A16;
+  --ink: #F5F5F7; --ink-secondary: #A1A1A8; --ink-tertiary: #8E8E96;
+  --surface: #17171C; --surface-raised: #202027; --surface-muted: #26262E;
+  --canvas: #0B0B0F; --canvas-tint: #141419; --hairline: #2A2A33; --glow: #1B1A36;
+  --card-border-width: 1px; --card-border-color: #2A2A33;
+  --shadow-raised: 0 4px 16px rgba(0,0,0,.40), 0 1px 4px rgba(0,0,0,.30);
+  --shadow-overlay: 0 12px 40px rgba(0,0,0,.40), 0 2px 8px rgba(0,0,0,.30);
+  --scrim: rgba(11,11,15,.62);
+}
+/* Поряд component recipes. Each class mirrors a SwiftUI component in guidelines/source/Components.swift
+   (same name in the comment); values are copied from it, not invented. Phone frame is 402×874 pt (iPhone 16 Pro). */
+
+/* Screen: one calm sheet. 16 gutter, 24 between sections, 12 between cards. */
+.p-screen { background: var(--canvas); color: var(--ink); font-family: var(--font); min-height: 100%; padding: 0 var(--page-gutter) 120px; box-sizing: border-box; }
+.p-section { margin-top: var(--section-gap); display: flex; flex-direction: column; gap: var(--card-gap); }
+
+/* CardSurface — white on grey, no border/shadow in light; 1px hairline in dark. Radius lg 24. Photos sit flush (overflow hidden). */
+.p-card { background: var(--surface); border: var(--card-border-width) solid var(--card-border-color); border-radius: var(--radius-lg); overflow: hidden; }
+.p-card__body { padding: var(--card-padding); display: flex; flex-direction: column; gap: var(--space-sm); }
+.p-card__cover { display: block; width: 100%; height: 200px; object-fit: cover; }          /* 120px when the event has no photo: category gradient instead */
+
+/* GlassSurface — only for what floats over content (tab bar, map carousel). */
+.p-glass { background: color-mix(in srgb, var(--surface) 60%, transparent); backdrop-filter: blur(20px) saturate(1.6); -webkit-backdrop-filter: blur(20px) saturate(1.6);
+  border: 1px solid rgba(255,255,255,.6); box-shadow: var(--shadow-overlay); }
+[data-theme="dark"] .p-glass { border-color: var(--hairline); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .p-glass { border-color: var(--hairline); } }
+
+/* PageHeader — display title + subhead, optional round trailing button. */
+.p-page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-md); padding-top: 24px; }
+.p-page-header h1 { margin: 0; font: 600 34px/40px var(--font-serif); letter-spacing: -0.5px; }
+/* Home: the line under the title is the city picker — "Київ ⌄", ink @70% (inkSecondary is only ≈4:1 on the glow). */
+.p-page-header p { margin: 4px 0 0; font-size: 15px; line-height: 21px; color: color-mix(in srgb, var(--ink) 70%, transparent); }
+/* PageHeader (inner screens) — optional 40 round surface back button, serif title1 28, trailing slot. 16 gutter, 12 vertical. */
+.p-nav-header { display: flex; align-items: center; gap: var(--space-md); padding: var(--space-md) var(--page-gutter); }
+.p-nav-header h1 { margin: 0; flex: 1; font: 600 28px/33px var(--font-serif); letter-spacing: -0.4px; }
+.p-back { width: 40px; height: 40px; border-radius: 50%; background: var(--surface); display: grid; place-items: center; color: var(--ink); flex: none; }
+/* SectionHeader — serif 22/600, optional action on the right ("Усі 390", "Мої події") in label 15/500 ink. */
+.p-section-title { margin: 0; font: 600 22px/27px var(--font-serif); letter-spacing: -0.2px; display: flex; justify-content: space-between; align-items: baseline; }
+.p-section-title a, .p-section-title button { font: 500 15px/18px var(--font); color: var(--ink); background: none; border: 0; text-decoration: none; }
+
+/* PrimaryButton / SecondaryButton — 52 pill, full width. Primary = flat brand ink; secondary = brandContainer. */
+.p-btn { height: var(--button-h); padding: 0 var(--space-xxl); border-radius: var(--radius-pill); border: 0; width: 100%;
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-sm);
+  font: 600 16px/20px var(--font); cursor: pointer; transition: transform .15s; }
+.p-btn:active { transform: scale(.98); }
+.p-btn--primary { background: var(--brand); color: var(--on-brand); }
+.p-btn--secondary { background: var(--brand-container); color: var(--ink); }
+.p-btn--danger { background: var(--danger); color: #fff; }
+.p-btn:disabled { background: color-mix(in srgb, var(--brand-container) 55%, transparent); color: var(--ink-tertiary); }
+
+/* Chip — 38 pill, label 15/medium. Default = surface (hairline edge in dark); selected = brand fill, onBrand text. Optional 8px category dot. */
+.p-chip { height: var(--chip-h); padding: 0 var(--space-lg); border-radius: var(--radius-pill); border: var(--card-border-width) solid var(--card-border-color); background: var(--surface); color: var(--ink);
+  display: inline-flex; align-items: center; gap: var(--space-sm); font: 500 15px/18px var(--font); white-space: nowrap; }
+.p-chip[aria-pressed="true"], .p-chip--selected { background: var(--brand); color: var(--on-brand); border-color: transparent; }
+.p-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: currentColor; }
+.p-chip-row { display: flex; gap: var(--space-sm); overflow-x: auto; scrollbar-width: none; }
+
+/* StatusBadge — uppercase overline in a tone container, 5/12 padding. On photos: surface @92% + shadow. */
+.p-badge { display: inline-flex; align-items: center; gap: 4px; padding: 5px 12px; border-radius: var(--radius-pill);
+  font: 600 11px/14px var(--font); letter-spacing: 1px; text-transform: uppercase; background: var(--surface-muted); color: var(--ink-secondary); }
+.p-badge--success { background: var(--success-container); color: var(--on-success-container); }
+.p-badge--accent { background: var(--accent-container); color: var(--on-accent-container); }
+.p-badge--danger { background: var(--danger-container); color: var(--danger); }
+.p-badge--brand { background: var(--brand-container); color: var(--on-brand-container); }
+.p-badge--on-photo { background: color-mix(in srgb, var(--surface) 92%, transparent); color: var(--ink); box-shadow: 0 2px 6px rgba(0,0,0,.22); }
+
+/* EventCard text stack: overline date → card name → descriptor (dot + category in category ink + "· venue") → meta. */
+.p-overline { font: 600 11px/14px var(--font); letter-spacing: 1px; text-transform: uppercase; color: var(--ink-tertiary); }
+.p-card-name { font: 600 17px/22px var(--font-serif); letter-spacing: -0.1px; color: var(--ink); margin: 0; }  /* event names are always serif */
+.p-descriptor { display: flex; align-items: center; gap: 6px; font: 400 13px/18px var(--font); color: var(--ink-secondary); }
+.p-descriptor b { font-weight: 500; }  /* set color: var(--cat-<key>) on the <b> and its .p-dot */
+.p-meta { display: flex; align-items: center; gap: 6px; font: 400 15px/21px var(--font); color: var(--ink-secondary); }
+
+/* SaveButton — 34 circle on photos, surface + hairline + shadow; 44 hit area. */
+.p-save { width: 34px; height: 34px; border-radius: 50%; background: var(--surface); border: 1px solid var(--hairline); box-shadow: 0 2px 6px rgba(0,0,0,.22);
+  display: grid; place-items: center; color: var(--ink-secondary); }
+
+/* SearchField — pill, surface fill, magnifier glyph, 15 placeholder in inkTertiary. Filters button = 48 round surface next to it. */
+.p-search { height: 50px; border-radius: var(--radius-pill); background: var(--surface); border: var(--card-border-width) solid var(--card-border-color); display: flex; align-items: center; gap: var(--space-md);
+  padding: 0 var(--space-lg); color: var(--ink-tertiary); font: 400 16px/22px var(--font); }
+.p-icon-btn { width: 48px; height: 48px; border-radius: 50%; background: var(--surface); border: var(--card-border-width) solid var(--card-border-color); display: grid; place-items: center; color: var(--ink); flex: none; }
+
+/* GroupedRows + LinkRow — one card, rows split by a hairline that starts at the text (inset 68px), not at the edge. */
+.p-rows { background: var(--surface); border: var(--card-border-width) solid var(--card-border-color); border-radius: var(--radius-lg); overflow: hidden; }
+.p-row { display: flex; align-items: center; gap: var(--space-md); padding: var(--space-lg); position: relative; }
+.p-row + .p-row::before { content: ""; position: absolute; top: 0; left: 68px; right: 0; border-top: 1px solid var(--hairline); }
+.p-row > div { flex: 1; min-width: 0; }
+.p-row__icon { width: 40px; height: 40px; border-radius: var(--radius-xs); background: var(--surface-muted); display: grid; place-items: center; flex: none; }
+.p-row__title { font: 600 17px/22px var(--font); letter-spacing: -0.2px; }  /* LinkRow: sans; a row that names an event uses .p-card-name */
+.p-row__sub { font: 400 13px/18px var(--font); color: var(--ink-secondary); }
+.p-row__value { font: 700 22px/28px var(--font); font-variant-numeric: tabular-nums; }
+.p-row__chevron { color: var(--ink-tertiary); }
+
+/* RoundAction — 56 surface circle + label under it; a row of 4 on event detail. */
+.p-round-action { min-width: 0; white-space: nowrap; display: flex; flex-direction: column; align-items: center; gap: var(--space-sm); flex: 1; font: 500 15px/18px var(--font); }
+.p-round-action span:first-child { width: 56px; height: 56px; border-radius: 50%; background: var(--surface); display: grid; place-items: center; }
+
+/* LabelledField — UPPERCASE overline label above a borderless surface field, radius sm 14. */
+.p-field { display: flex; flex-direction: column; gap: var(--space-sm); }
+.p-field label { font: 600 11px/14px var(--font); letter-spacing: 1px; text-transform: uppercase; color: var(--ink-secondary); }
+.p-field input { height: 56px; border: 0; border-radius: var(--radius-sm); background: var(--surface); padding: 0 var(--space-lg); font: 400 17px/22px var(--font); color: var(--ink); }
+.p-field small { font: 400 13px/18px var(--font); color: var(--ink-secondary); }
+
+/* SegmentedPill — quiet track (brandContainer), white plate under the selected segment. */
+.p-segmented { display: flex; padding: 4px; border-radius: var(--radius-pill); background: var(--brand-container); }
+.p-segmented button { flex: 1; height: 40px; border: 0; border-radius: var(--radius-pill); background: none; font: 600 16px/20px var(--font); color: var(--ink-secondary); }
+.p-segmented button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+
+/* CategoryTile (60 square, radius sm) and CategoryCard (onboarding/editor grid, 3 cols) — pastel gradient + category-ink glyph. */
+.p-cat-tile { width: var(--tile-category); height: var(--tile-category); border-radius: var(--radius-sm); display: grid; place-items: center; }
+.p-cat-card { aspect-ratio: 1 / .82; border-radius: var(--radius-md); padding: var(--space-md); display: flex; flex-direction: column; justify-content: space-between; font: 500 16px/20px var(--font); }
+.p-cat-card[aria-pressed="true"] { outline: 2px solid var(--ink); outline-offset: -2px; }
+/* Category fill: light = pastel lit from top-left → wash → partner tint; dark = hue @30% → partner @14%. Use the helper classes: */
+.cat-music { --hue: var(--cat-music); --wash: var(--cat-music-wash); --partner: var(--cat-music-partner); }
+.cat-sport { --hue: var(--cat-sport); --wash: var(--cat-sport-wash); --partner: var(--cat-sport-partner); }
+.cat-art { --hue: var(--cat-art); --wash: var(--cat-art-wash); --partner: var(--cat-art-partner); }
+.cat-food { --hue: var(--cat-food); --wash: var(--cat-food-wash); --partner: var(--cat-food-partner); }
+.cat-games { --hue: var(--cat-games); --wash: var(--cat-games-wash); --partner: var(--cat-games-partner); }
+.cat-outdoors { --hue: var(--cat-outdoors); --wash: var(--cat-outdoors-wash); --partner: var(--cat-outdoors-partner); }
+.cat-social { --hue: var(--cat-social); --wash: var(--cat-social-wash); --partner: var(--cat-social-partner); }
+.cat-comedy { --hue: var(--cat-comedy); --wash: var(--cat-comedy-wash); --partner: var(--cat-comedy-partner); }
+.cat-kids { --hue: var(--cat-kids); --wash: var(--cat-kids-wash); --partner: var(--cat-kids-partner); }
+.cat-tours { --hue: var(--cat-tours); --wash: var(--cat-tours-wash); --partner: var(--cat-tours-partner); }
+.cat-conference { --hue: var(--cat-conference); --wash: var(--cat-conference-wash); --partner: var(--cat-conference-partner); }
+.p-cat-fill { background: linear-gradient(135deg, color-mix(in srgb, var(--wash) 45%, #fff), var(--wash), color-mix(in srgb, var(--wash) 78%, var(--partner))); color: var(--hue); }
+[data-theme="dark"] .p-cat-fill { background: linear-gradient(135deg, color-mix(in srgb, var(--hue) 30%, transparent), color-mix(in srgb, var(--partner) 14%, transparent)); color: color-mix(in srgb, var(--hue) 55%, #fff); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .p-cat-fill { background: linear-gradient(135deg, color-mix(in srgb, var(--hue) 30%, transparent), color-mix(in srgb, var(--partner) 14%, transparent)); color: color-mix(in srgb, var(--hue) 55%, #fff); } }
+.p-cat-ink { color: var(--hue); }  /* text/dot in category colour (light); dark lifts it 45% toward white — use .p-cat-fill's rule as reference */
+
+/* PoruchTabBar + CreateButton — floating glass pill (radius 32) with 4 tabs; active tab sits on ink@10% capsule. 56 round brand "+" beside it. */
+.p-tabbar-wrap { position: absolute; left: 16px; right: 16px; bottom: 34px; display: flex; gap: var(--space-sm); align-items: center; }
+.p-tabbar { flex: 1; display: flex; padding: 8px 4px; border-radius: 32px; }
+.p-tab { flex: 1; height: 42px; border-radius: var(--radius-pill); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  font: 600 11px/14px var(--font); color: var(--ink-tertiary); }
+.p-tab[aria-selected="true"] { color: var(--ink); background: color-mix(in srgb, var(--ink) 10%, transparent); }
+.p-create { width: 56px; height: 56px; border-radius: 50%; background: var(--brand); color: var(--on-brand); display: grid; place-items: center; box-shadow: var(--shadow-overlay); flex: none; }
+
+/* Bottom sheet (PoruchSheet) — surface, 28 top radius, 32×4 hairline grabber, scrim ink 32% / canvas 62%. Primary action pinned at bottom above a hairline. */
+.p-sheet { background: var(--surface); border-radius: var(--radius-sheet); padding: 8px var(--page-gutter) var(--space-xxl); }
+.p-sheet__grabber { width: 32px; height: 4px; border-radius: 2px; background: var(--hairline); margin: 0 auto var(--space-lg); }
+.p-scrim { background: var(--scrim); }
+
+/* IconPill — 48 round surface button with a 17pt glyph (search, profile in the home header). Selected = brand fill. 40 in tight headers. */
+.p-icon-pill { width: 48px; height: 48px; border-radius: 50%; background: var(--surface); border: var(--card-border-width) solid var(--card-border-color); display: grid; place-items: center; color: var(--ink); flex: none; }
+.p-icon-pill[aria-pressed="true"] { background: var(--brand); color: var(--on-brand); border-color: transparent; }
+
+/* Home glow — the header area sits on a cool tint that fades into the canvas over 460px. Put it on the scroll container. */
+.p-glow { background: linear-gradient(var(--glow), var(--canvas) 460px) no-repeat, var(--canvas); }
+
+/* CreateEventCard — "Організувати подію": brand slab, radius 24, 44 "+" circle (onBrand @14%), sans title 17/600, caption @72%, arrow. */
+.p-create-card { display: flex; align-items: center; gap: var(--space-md); padding: var(--space-md) var(--space-lg); border-radius: var(--radius-lg); background: var(--brand); color: var(--on-brand); }
+.p-create-card__icon { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: color-mix(in srgb, var(--on-brand) 14%, transparent); flex: none; }
+.p-create-card__title { font: 600 17px/22px var(--font); letter-spacing: -0.2px; }
+.p-create-card__sub { font: 400 13px/18px var(--font); color: color-mix(in srgb, var(--on-brand) 72%, transparent); }
+.p-create-card > div { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+/* Guest line under it: no card, no fill — lock glyph, label 15/500, chevron, inkSecondary, 44 tall. */
+.p-quiet-row { display: flex; align-items: center; gap: var(--space-sm); min-height: 44px; padding: 0 var(--space-xs); font: 500 15px/18px var(--font); color: var(--ink-secondary); }
+.p-quiet-row > span { flex: 1; }
+
+/* EventArt — cover without a photo: saturated category gradient (hue → partner, top-left → bottom-right) with a huge category glyph
+   in white @18%, pushed off the top-right corner. Same on the hero, the poster and the detail cover. Combine with .cat-<key>. */
+.p-art { position: relative; overflow: hidden; background: linear-gradient(135deg, var(--hue), var(--partner)); }
+.p-art > .p-icon { position: absolute; top: -4%; right: -25%; width: 220px; height: 220px; color: rgba(255,255,255,.18); }
+.p-art > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+
+/* EventHeroCard — big swipeable card in "У місті": 360 tall, radius 28, art full-bleed, black scrim from 30% down,
+   text bottom-left with 20 padding: overline eyebrow (white @75%), serif title1 28 white (≤3 lines), date (subhead white @90%),
+   place (white @75%). Badge top-left (16), save top-right (12). On home the pager shows 86% width so the next card peeks. */
+.p-hero { position: relative; height: var(--hero-card-h); border-radius: var(--radius-xl); overflow: hidden; color: #fff; }
+.p-hero > .p-art { position: absolute; inset: 0; }
+.p-hero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(transparent 30%, rgba(0,0,0,.55) 70%, rgba(0,0,0,.85)); }
+.p-hero__text { position: absolute; left: 0; right: 0; bottom: 0; padding: var(--space-xl); display: flex; flex-direction: column; gap: var(--space-sm); z-index: 1; }
+.p-hero__title { margin: 0; font: 600 28px/33px var(--font-serif); letter-spacing: -0.4px; }
+.p-hero__when { font: 400 15px/21px var(--font); color: rgba(255,255,255,.9); }
+.p-hero__where { font: 400 15px/21px var(--font); color: rgba(255,255,255,.75); }
+.p-hero .p-badge { position: absolute; top: 16px; left: 16px; z-index: 1; }
+.p-hero .p-save { position: absolute; top: 17px; right: 17px; z-index: 1; }
+.p-pager { display: flex; gap: var(--space-md); overflow-x: auto; scrollbar-width: none; padding: 0 var(--page-gutter); scroll-snap-type: x mandatory; }
+.p-pager > * { flex: 0 0 86%; scroll-snap-align: center; }
+
+/* PosterCard — the 2-column grid in "У місті" and the "Від людей" rail (176 wide): 4:5 art, radius 24, no box — the caption sits
+   on the canvas. Badges on the art: state/lane top-left (8), save top-right (4), price or "3/8" bottom-left (8).
+   Caption (4px side inset, 4 gap): overline in INK (when matters most), serif 17 title (2 lines reserved), dot + place in caption, source note. */
+.p-poster { display: flex; flex-direction: column; gap: var(--space-md); min-width: 0; }
+.p-poster__art { position: relative; aspect-ratio: 4 / 5; border-radius: var(--radius-lg); overflow: hidden; }
+.p-poster__art > .p-art { position: absolute; inset: 0; }
+.p-poster__art > .p-art > .p-icon { width: 130px; height: 130px; }
+.p-poster__art .p-badge { position: absolute; z-index: 1; }
+.p-poster__art .p-badge.top { top: 8px; left: 8px; } .p-poster__art .p-badge.bottom { bottom: 8px; left: 8px; }
+.p-poster__art .p-save { position: absolute; top: 9px; right: 9px; z-index: 1; }
+.p-poster__caption { display: flex; flex-direction: column; gap: var(--space-xs); padding: 0 var(--space-xs); }
+.p-poster__caption .p-overline { color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.p-poster__caption .p-card-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 44px; }
+.p-poster__caption .p-descriptor span:last-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.p-poster__note { font: 600 11px/14px var(--font); color: var(--ink-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.p-poster-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--space-md); row-gap: var(--space-xl); }
+.p-rail { display: flex; gap: var(--space-md); overflow-x: auto; scrollbar-width: none; padding: 0 var(--page-gutter); }
+.p-rail > .p-poster { flex: 0 0 176px; }
+
+/* NextPlanCard ("Ваше") — like a boarding pass: surface card radius 28, 16 padding. Overline in --accent-text (countdown today),
+   serif title2 22 (≤3 lines), subhead place or the last chat line; 88 thumbnail radius 18 on the right. Then a row of 44 pill buttons:
+   brand-container by default, brand (ink) when there's something to do (new chat, requests, route on the day). */
+.p-plan { background: var(--surface); border: var(--card-border-width) solid var(--card-border-color); border-radius: var(--radius-xl); padding: var(--space-lg); display: flex; flex-direction: column; gap: var(--space-lg); }
+.p-plan__top { display: flex; gap: var(--space-lg); align-items: flex-start; }
+.p-plan__top > div { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-xs); }
+.p-plan__top .p-overline { color: var(--accent-text); }
+.p-plan__title { margin: 0; font: 600 22px/27px var(--font-serif); letter-spacing: -0.2px; }
+.p-plan__sub { font: 400 15px/21px var(--font); color: var(--ink-secondary); }
+.p-plan__thumb { width: 88px; height: 88px; border-radius: var(--radius-md); flex: none; }
+.p-plan__actions { display: flex; gap: var(--space-sm); }
+.p-plan-btn { flex: 1; height: 44px; border-radius: var(--radius-pill); border: 0; background: var(--brand-container); color: var(--ink); display: inline-flex; align-items: center; justify-content: center; gap: 4px; font: 500 15px/18px var(--font); }
+.p-plan-btn--hot { background: var(--brand); color: var(--on-brand); }
+
+/* YourRow — rows in "Ваше" inside .p-rows: 52 tile radius 14 (event art or a glyph on surface-muted), overline, title
+   (serif 17 when it is an event name, sans 17/600 for service rows), caption; badge / count / chevron on the right. 16×12 padding. */
+.p-your-row { display: flex; align-items: center; gap: var(--space-md); padding: var(--space-md) var(--space-lg); position: relative; }
+.p-your-row + .p-your-row::before { content: ""; position: absolute; top: 0; left: 80px; right: 0; border-top: 1px solid var(--hairline); }
+.p-your-row__tile { width: 52px; height: 52px; border-radius: var(--radius-sm); flex: none; display: grid; place-items: center; background: var(--surface-muted); overflow: hidden; position: relative; }
+.p-your-row > div { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+
+/* CountBadge — unread count: overline digits on an accent pill (tab, row and chip all use the same one). */
+.p-count { display: inline-block; padding: 1px 5px; border-radius: var(--radius-pill); background: var(--accent); color: var(--on-brand); font: 600 11px/14px var(--font); }
