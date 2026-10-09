@@ -118,6 +118,14 @@ def harvest(source: Source, city: str, index: VenueIndex,
                 "withdrawals": [], "reasons": {}, "coverage": "listing"}
 
     status_links, status_ok = [], True
+    # Групові плитки (`source.group_path`) зі списку й каталогів: посилання -> жанр каталогу, де трапилась.
+    groups: dict[str, str | None] = {}
+
+    def note_groups(body: str, page_url: str, category: str | None = None) -> None:
+        if source.group_path:
+            for link in extract.detail_links(body, page_url, source.group_path):
+                groups[link] = groups.get(link) or category
+
     if source.adapter in {"dou", "yoy"}:
         try:
             raw_events, adapter_report = community.collect(
@@ -154,6 +162,7 @@ def harvest(source: Source, city: str, index: VenueIndex,
             return [], {**counters, "error": f"HTTP {response.status}"}
         counters["fetched"] = 1
         raw_events = extract.events_from_html(response.body)
+        note_groups(response.body, url)
     if source.adapter == "jsonld" and (source.detail_path or source.sitemap_url):
         links = (_sitemap_links(source, city, now, counters) if source.sitemap_url
                  else extract.detail_links(response.body, url, source.detail_path))
@@ -243,6 +252,7 @@ def harvest(source: Source, city: str, index: VenueIndex,
                 except (PermissionError, OSError, ValueError) as exc:
                     counters["catalog_errors"].append(f"{slug} с.{page_number}: {exc}")
                     break
+                note_groups(page.body, link, category)
                 # Зупинка за відсутністю нового: після останньої сторінки джерело віддає першу заново.
                 fresh = [r for r in found
                          if isinstance(r, dict) and str(r.get("url") or "") not in seen]
@@ -257,6 +267,8 @@ def harvest(source: Source, city: str, index: VenueIndex,
             else:
                 # Межа сторінок, а нове ще йшло: список обрізаний, зняття за відсутністю вимикаємо.
                 counters["catalog_capped"] = counters.get("catalog_capped", 0) + 1
+    if groups:
+        _expand_groups(groups, source, raw_events, counters)
 
     if source.slug == "karabas" and status_notices:
         counters["status_detail_errors"] = []
@@ -484,6 +496,44 @@ def _enrich_performers(raw_events: list[dict], source: Source, now: dt.datetime,
     counters["performer_pages"] = {"fetched": fetched, "cached": reused, "failed": failed, "sessions": len(extra)}
     if fresh:
         _write_performers(fresh)
+
+
+# Скільки групових сторінок читати за місто: 2026-10-09 найбільше мала Одеса — 81 плитка на головній.
+GROUP_PAGES = 300
+
+
+def _expand_groups(groups: dict[str, str | None], source: Source, raw_events: list[dict], counters: dict) -> None:
+    """Сеанси з групових сторінок. Concert.ua з ~2026-09-21 показує виставу з кількома сеансами однією
+    плиткою без JSON-LD, тож обхід їх не бачив: планетарій Дніпра (23 групи) застиг і тримав запобіжник
+    зняття заблокованим (45 з 115 «зникли»). Сторінка групи несе JSON-LD лише своїх сеансів.
+
+    Збій групи — як збій каталогу: її сеанси інакше виглядали б скасованими, тож зняття вимикається."""
+    known = {normalize.clean_url(r.get("url") or "") for r in raw_events if isinstance(r, dict)}
+    counters["groups"] = {"links": len(groups), "sessions": 0}
+    counters.setdefault("catalog_errors", [])
+    if len(groups) > GROUP_PAGES:
+        counters["catalog_capped"] = counters.get("catalog_capped", 0) + 1
+    for link, category in list(groups.items())[:GROUP_PAGES]:
+        try:
+            page = get(link, delay=source.crawl_delay)
+            if page.status != 200 or not page.body:
+                raise ValueError(f"HTTP {page.status}")
+            counters["fetched"] += 1
+            found = extract.events_from_html(page.body)
+            # Порожня група — вистава, що вже відіграла (плитка ще висить); перевірка на бота — збій.
+            if not found and _CHALLENGE.search(page.body[:20000]):
+                raise ValueError("сторінка перевірки на бота")
+        except (PermissionError, OSError, ValueError) as exc:
+            counters["catalog_errors"].append(f"група {link}: {exc}")
+            continue
+        for raw in found:
+            session_url = normalize.clean_url(raw.get("url") or "") if isinstance(raw, dict) else ""
+            if session_url and session_url not in known:
+                known.add(session_url)
+                if category:
+                    raw["_poruch_category"] = category
+                raw_events.append(raw)
+                counters["groups"]["sessions"] += 1
 
 
 def _sibling_session(event, raw: dict, url: str) -> bool:

@@ -131,6 +131,32 @@ class RegressionTests(unittest.TestCase):
         self.assertEqual(run("<html><body>Нічого не знайдено</body></html>")["catalog_errors"], [])
         self.assertTrue(run("<html><title>Just a moment...</title></html>")["catalog_errors"])
 
+    def test_group_tile_sessions_join_the_crawl_and_a_broken_group_blocks_retire(self):
+        # Concert.ua: вистава з кількома сеансами — плитка `/uk/events/…` без JSON-LD у списку й каталозі.
+        from .__main__ import _may_retire
+        source = dataclasses.replace(by_slug("concert_ua"), catalogs={"kids": "kids"}, performer_details=False)
+        tile = '<a href="/uk/events/planeti-kyiv">Планети</a>'
+        session = lambda day: raw_event(name="Планети", url=f"https://concert.ua/uk/event/planeti-{day}-10-2026",
+                                        startDate=f"2026-10-{day}T14:00:00+03:00", endDate=f"2026-10-{day}T15:30:00+03:00")
+        listed = [raw_event(name=f"Концерт {n}", url=f"https://concert.ua/uk/event/c{n}") for n in range(12)]
+
+        def run(group_status):
+            def fake_get(url, **kwargs):
+                if "/uk/events/" in url:
+                    return Response(url, group_status, html([session("24"), session("30")]))
+                return Response(url, 200, (html(listed) if "/catalog/" not in url else "") + tile)
+            with patch("tools.ingest.pipeline.get", side_effect=fake_get):
+                return pipeline.harvest(source, "Київ", self.index, now=NOW)
+
+        items, counters = run(200)
+        planets = [i for i in items if i.title == "Планети"]
+        self.assertEqual(sorted(i.starts_at.day for i in planets), [24, 30])
+        self.assertEqual({i.category for i in planets}, {"kids"})          # жанр каталогу, де трапилась плитка
+        self.assertEqual(counters["groups"], {"links": 1, "sessions": 2})
+        self.assertTrue(_may_retire(source, items, counters)[0])
+        items, counters = run(503)
+        self.assertFalse(_may_retire(source, items, counters)[0])
+
     def test_title_never_exceeds_database_limit(self):
         self.assertLessEqual(len(normalize.normalize_title("А" * 130)), 120)
 

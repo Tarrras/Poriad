@@ -56,6 +56,9 @@ class Source:
     # true — список не віддає виконавців, їх читаємо з картки події (кеш на диску, щоб повторний
     # прогін не ходив по сотні сторінок): Concert.ua дає `performer[]` і повний опис із лайнапом.
     performer_details: bool = False
+    # Початок шляху групової плитки: вистава з кількома сеансами у списку й каталогах — одна плитка без
+    # JSON-LD, сеанси лише на її сторінці (Concert.ua `/uk/events/…`, з ~2026-09-21).
+    group_path: str | None = None
     # jsonld — загальний шлях список/сторінка; іменовані адаптери можуть доповнити метадані до нормалізації.
     adapter: str = "jsonld"
 
@@ -173,7 +176,7 @@ SOURCES: list[Source] = [
                       "Харків": "https://concert.ua/uk/kharkiv",
                       "Одеса": "https://concert.ua/uk/odesa",
                       "Дніпро": "https://concert.ua/uk/dnipro"},
-        weight=0.8, type_policy="weak", performer_details=True,
+        weight=0.8, type_policy="weak", performer_details=True, group_path="/uk/events/",
         crawl_delay=2.0,                     # robots.txt без Crawl-delay; беремо стриманий власний
         note="Найчистіші дані: endDate 100%, offers 100%, коректний перехід на зимовий час.",
         catalog_url="https://concert.ua/uk/catalog/{city}/{slug}",
