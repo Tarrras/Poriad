@@ -599,9 +599,11 @@ def to_json(items: list[Item]) -> str:
     return json.dumps([_item_dict(i) for i in items], ensure_ascii=False, indent=1)
 
 
-# Скільки днів тримати статистику прогонів (private.ingest_runs/_items). Елемент ~0,7 КБ, ~3600 за
-# обхід: місяць — ~75 МБ, вистачає на порівняння тижнів без роздування бази.
+# Скільки днів тримати статистику прогонів. Звіти (ingest_runs) малі й потрібні для SHARP_DROP і
+# порівняння тижнів — місяць. Елементи (ingest_items) — ~1,4 КБ, ~3700 за обхід, тобто ~5 МБ на дамп,
+# а читається лише останній обхід (run_stats.py, запити README) — тиждень, ~40 МБ.
 STATS_KEEP_DAYS = 30
+ITEMS_KEEP_DAYS = 7
 _STATS_NS = uuid.UUID("5b0f4c1e-6a43-4f53-9d0a-6f2b1c7e9a10")
 
 
@@ -640,7 +642,8 @@ def stats_sql(reports: list[dict], items: list[Item], run_id: str, max_bytes: in
         ]) + f" from public.event_sources s where s.slug={_lit(slug)}"
     columns = ("insert into private.ingest_runs (id,source_id,run_id,city,finished_at,fetched,parsed,geocoded,"
                "published,merged,rejected,review,error,report)\n")
-    parts = [f"delete from private.ingest_runs where finished_at < now() - interval '{STATS_KEEP_DAYS} days';\n"]
+    parts = [f"delete from private.ingest_runs where finished_at < now() - interval '{STATS_KEEP_DAYS} days';\n"
+             f"delete from private.ingest_items where created_at < now() - interval '{ITEMS_KEEP_DAYS} days';\n"]
     reported = [row(s, c, r) for (s, c), r in runs.items() if (s, c) in real]
     stubs = [row(s, c, r) for (s, c), r in runs.items() if (s, c) not in real]
     if reported:

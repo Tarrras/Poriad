@@ -440,7 +440,8 @@ Secrets → Actions. Розклад пише лише в prod; dev — вруч�
   запис, що `--json`: категорія й як її визначено (`category_how`), майданчик і як зіставлено
   (`venue_match`, `venue_display`, координати), `quality`, ціна, артисти. `run_id` → `ingest_runs.id`.
 
-Тримається `emit.STATS_KEEP_DAYS` (30) днів, старіше видаляє наступний дамп. `apply_sql.py run` бере
+Звіти тримаються `emit.STATS_KEEP_DAYS` (30) днів, елементи — `emit.ITEMS_KEEP_DAYS` (7: ~5 МБ на дамп,
+а читається лише останній обхід); старіше видаляє наступний дамп. `apply_sql.py run` бере
 з `ingest_runs` останній безпомилковий звіт кожної пари як базу для `SHARP_DROP`.
 
 Запити (Supabase MCP `execute_sql`, лише читання):

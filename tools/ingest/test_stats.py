@@ -24,6 +24,7 @@ class StatsSql(unittest.TestCase):
         parts = emit.stats_sql(reports, [self.a, self.b], RUN)
         sql = "".join(parts)
         self.assertIn("delete from private.ingest_runs where finished_at < now() - interval '30 days'", sql)
+        self.assertIn("delete from private.ingest_items where created_at < now() - interval '7 days'", sql)
         # Три пари: два звіти (karabas_status — під slug karabas, без міста) і заглушка badseller з елементів.
         # Звіт перезаписує заглушку з іншого файлу (--sql-dir), заглушка звіт — ні.
         reported, stub = parts[1], parts[2]
