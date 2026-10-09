@@ -1,12 +1,10 @@
 import React from 'react';
 import {AbsoluteFill, Easing, Img, Sequence, staticFile, useCurrentFrame, useVideoConfig} from 'remotion';
-import {useFonts} from './Ad15';
-import {ease} from './Promo';
-import {BUBBLE, CORAL, Chat, Msg, Music, Sfx, Sticker, lively, typed} from './Tiktok';
-import {Grain} from './Zoomer';
+import {useFonts} from './fonts';
+import {BUBBLE, CORAL, Chat, Grain, Msg, Music, Sfx, Sticker, ease, lively, typed} from './kit';
 
-// Продуктові ролики (scripts/tiktok-genz.md, P2–P4): герой — застосунок, події лише приклад усередині UI.
-// Екрани — справжні знімки prod-збірки (screens/p1, p3/web.png — сторінка poriad.app/e/{id}).
+// Продуктові ролики P2 і P3 (scripts/tiktok-genz.md): герой — застосунок, події лише приклад усередині UI.
+// Екрани — справжні знімки prod (screens/map_posters.png, p3/web.png — сторінка poriad.app/e/{id}).
 
 const BG = '#0B0B0F';
 const SCR_W = 1206;
@@ -28,20 +26,6 @@ const MiniPhone = ({x, y, w, children, style}: {x: number; y: number; w: number;
 };
 
 const Shot = ({src}: {src: string}) => <Img src={staticFile(`screens/${src}`)} style={{width: '100%', height: '100%', display: 'block'}} />;
-
-// Коло дотику: з'являється й розходиться за 14 кадрів
-const Tap = ({at: from, x, y}: {at: number; x: number; y: number}) => {
-  const f = useCurrentFrame() - from;
-  if (f < 0 || f > 14) return null;
-  const k = f / 14;
-  return (
-    <div style={{
-      position: 'absolute', left: `${x / PT_W * 100}%`, top: `${y / PT_H * 100}%`, width: 90, height: 90, marginLeft: -45, marginTop: -45,
-      borderRadius: 45, background: 'rgba(29,29,31,.28)', border: '4px solid rgba(255,255,255,.9)',
-      transform: `scale(${0.6 + k * 0.8})`, opacity: 1 - k,
-    }} />
-  );
-};
 
 const Glow = () => (
   <AbsoluteFill style={{background: `radial-gradient(900px 1000px at 50% 60%, #2A2560 0%, transparent 70%), ${BG}`}} />
@@ -250,111 +234,6 @@ export const P3 = ({music = true}: {music?: boolean}) => {
         <Chat msgs={CHAT2} typing={[0, 0]} hookOut={0} hook={null} />
       </Sequence>
       <Sequence from={P3_CTA}><EndCTA line="кидай друзям події одним посиланням" /></Sequence>
-      <Grain />
-    </AbsoluteFill>
-  );
-};
-
-// ── P4 · «друзі злились → Шукаю компанію + події від людей у 5 містах» ──
-// Дані — dev (тестові люди й пошуки компанії, див. memory marketing-footage-dev), екрани — Debug-Dev збірка.
-type Step = {at: number; src: string};
-type TapAt = {at: number; x: number; y: number};
-
-// Екрани в телефоні: новий в'їжджає справа поверх попереднього
-const PhoneSeq = ({steps, taps = [], x, y, w}: {steps: Step[]; taps?: TapAt[]; x: number; y: number; w: number}) => {
-  const f = useCurrentFrame();
-  return (
-    <MiniPhone x={x} y={y} w={w}>
-      {steps.map((s, i) => f >= s.at && (
-        <div key={i} style={{position: 'absolute', inset: 0, transform: `translateX(${i ? ease(f, s.at, s.at + 8, [100, 0], Easing.out(Easing.cubic)) : 0}%)`}}>
-          <Shot src={s.src} />
-        </div>
-      ))}
-      {taps.map((t, i) => <Tap key={i} at={t.at} x={t.x} y={t.y} />)}
-    </MiniPhone>
-  );
-};
-
-// Наліпка у верхній смузі кадру на відрізку [from, to)
-const Top = ({from, to, children, rotate = -2, size = 52}: {from: number; to: number; children: React.ReactNode; rotate?: number; size?: number}) => {
-  const f = useCurrentFrame();
-  if (f < from || f >= to) return null;
-  return (
-    <div style={{position: 'absolute', top: 250, left: 40, right: 40, textAlign: 'center', opacity: ease(f, to - 5, to, [1, 0])}}>
-      <Sticker delay={from} rotate={rotate} style={{fontSize: size}}>{children}</Sticker>
-    </div>
-  );
-};
-
-const BAIL: Msg[] = [
-  {at: 4, mine: true, h: BUBBLE, node: 'хто на котики фест у суботу? 🐈'},
-  {at: 30, mine: false, h: BUBBLE, node: 'я пас 😬'},
-  {at: 46, mine: false, h: BUBBLE, node: 'не можу, сорі'},
-  {at: 62, mine: false, h: BUBBLE, node: 'може наступного разу 🙏'},
-];
-const P4_B = 100; // афіша → пошуки компанії → запит
-const P4_C = 265; // події від людей і міста
-const P4_D = 385; // своя подія
-const P4_CTA = 435;
-export const P4_FRAMES = 505;
-const PX = 270;
-const PY = 470;
-const PW = 540;
-
-const Companion = () => {
-  return (
-    <AbsoluteFill style={{fontFamily: 'Inter'}}>
-      <Glow />
-      <PhoneSeq x={PX} y={PY} w={PW} steps={[
-        {at: 0, src: 'p4/kotyky-detail.png'},
-        {at: 40, src: 'p4/companions-list.png'},
-        {at: 100, src: 'p4/companion-detail.png'},
-      ]} taps={[{at: 92, x: 297, y: 521}, {at: 135, x: 295, y: 800}]} />
-      <Top from={2} to={92}>а на афіші вже є ті,<br />хто теж іде сам 👀</Top>
-      <Top from={100} to={170} rotate={2}>надсилаєш запит —<br />і йдете разом 🙌</Top>
-    </AbsoluteFill>
-  );
-};
-
-const People = () => (
-  <AbsoluteFill style={{fontFamily: 'Inter'}}>
-    <Glow />
-    <PhoneSeq x={PX} y={PY} w={PW} steps={[
-      {at: 0, src: 'p4/map-people.png'},
-      {at: 42, src: 'p4/city-lviv.png'},
-      {at: 64, src: 'p4/city-odesa.png'},
-      {at: 86, src: 'p4/cities.png'},
-    ]} />
-    <Top from={2} to={42}>а ще — події від людей:<br />настолки, пробіжки, кіно 🎲</Top>
-    <Top from={42} to={64} rotate={3} size={72}>львів 📍</Top>
-    <Top from={64} to={86} rotate={-3} size={72}>одеса 📍</Top>
-    <Top from={86} to={125} size={50}>5 міст: київ, львів, одеса,<br />дніпро, харків</Top>
-  </AbsoluteFill>
-);
-
-const Organize = () => (
-  <AbsoluteFill style={{fontFamily: 'Inter'}}>
-    <Glow />
-    <PhoneSeq x={PX} y={PY} w={PW} steps={[{at: 0, src: 'ios_create.png'}]} />
-    <Top from={2} to={60}>або збери своїх:<br />«організувати подію» ✨</Top>
-  </AbsoluteFill>
-);
-
-export const P4 = ({music = true}: {music?: boolean}) => {
-  useFonts();
-  return (
-    <AbsoluteFill style={{overflow: 'hidden', background: BG}}>
-      <Music on={music} frames={P4_FRAMES} />
-      {BAIL.map((m, i) => <Sfx key={i} at={m.at} src={`pin_pop_${(i % 3) + 1}`} volume={0.28} />)}
-      {[P4_B, P4_B + 40, P4_B + 100, P4_C, P4_C + 42, P4_C + 64, P4_C + 86, P4_D].map((t, i) => <Sfx key={`w${i}`} at={t} src="whoosh" volume={0.2} />)}
-      {[P4_B + 92, P4_B + 135].map((t) => <Sfx key={`t${t}`} at={t} src="ui_tick" volume={0.3} />)}
-      <Sequence durationInFrames={P4_B + 4}>
-        <Chat msgs={BAIL} typing={[0, 0]} hookOut={P4_B} hook={<>пов: друзі злились.<br />знову.</>} who="друзі · субота" face="👥" />
-      </Sequence>
-      <Sequence from={P4_B} durationInFrames={P4_C - P4_B + 4}><Companion /></Sequence>
-      <Sequence from={P4_C} durationInFrames={P4_D - P4_C + 4}><People /></Sequence>
-      <Sequence from={P4_D} durationInFrames={P4_CTA - P4_D + 4}><Organize /></Sequence>
-      <Sequence from={P4_CTA}><EndCTA line="на події — не самому" /></Sequence>
       <Grain />
     </AbsoluteFill>
   );
