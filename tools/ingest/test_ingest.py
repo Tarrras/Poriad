@@ -799,9 +799,11 @@ def test_catalog_rung() -> None:
     source = by_slug("concert_ua")
     check("каталоги оголошені", bool(source.catalogs), True)
     check("жоден каталог не мапиться в неіснуючу категорію",
-          [c for c in source.catalogs.values() if c not in normalize.CATEGORIES], [])
-    check("привід — не рід події: festivals і gifts не мапляться",
-          any(k in source.catalogs for k in ("festivals", "gifts", "other", "new-year")), False)
+          [c for c in source.catalogs.values() if c is not None and c not in normalize.CATEGORIES], [])
+    # Каталоги-приводи обходяться (там є події, яких нема деінде — аудит 2026-10-08), але жанру не кажуть.
+    check("привід — не рід події: festivals, other, new-year без жанру, gifts не обходиться",
+          ([source.catalogs.get(k) for k in ("festivals", "other", "new-year")], "gifts" in source.catalogs),
+          ([None, None, None], False))
 
     # Каталог перемагає і тип, і словник: тип каже MusicEvent, каталог — humor.
     index = VenueIndex([], "Київ", {"Зал": {"lat": 50.45, "lon": 30.53}})
