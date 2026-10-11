@@ -1063,7 +1063,19 @@ class PoruchAppTest {
         advanceTimeBy(ChatRules.POLL_INTERVAL_MS+1); runCurrent()
         assertEquals(listOf("m0","m1","m9"),app.state.value.chat?.messages?.map { it.id })
 
-        app.closeChat(); runCurrent()
+        app.closeChat("ev"); runCurrent()
+        assertNull(app.state.value.chat)
+        app.close()
+    }
+
+    /** Пуш з чату в чат: старий екран закривається вже після того, як новий відкрив свій, і не має його закрити. */
+    @Test fun closingTheOldChatScreenKeepsTheNewChatOpen()=runTest {
+        val events=Events(); val app=app(events,backgroundScope)
+        app.openChat("a"); runCurrent()
+        app.openChat("b"); runCurrent()
+        app.closeChat("a"); runCurrent()
+        assertEquals("b",app.state.value.chat?.eventId)
+        app.closeChat("b"); runCurrent()
         assertNull(app.state.value.chat)
         app.close()
     }
@@ -1183,7 +1195,7 @@ class PoruchAppTest {
 
         events.failSend=false; events.slowSend=true
         app.sendMessage("Ще одне"); runCurrent()
-        app.closeChat(); advanceTimeBy(200); runCurrent()
+        app.closeChat("ev"); advanceTimeBy(200); runCurrent()
         assertEquals(listOf("ev" to "Ще одне"),events.sent)
         app.close()
     }

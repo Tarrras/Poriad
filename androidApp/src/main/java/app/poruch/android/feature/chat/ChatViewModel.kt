@@ -80,7 +80,7 @@ class ChatViewModel(private val app: PoruchApp, private val eventId: String) :
     }
 
     override fun onCleared() {
-        app.closeChat(); app.closePerson()
+        app.closeChat(eventId); app.closePerson()
         super.onCleared()
     }
 

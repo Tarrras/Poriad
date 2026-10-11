@@ -218,8 +218,10 @@ struct RootView: View {
                     )
                     .safeAreaPadding(.bottom, 92)
                     .toolbar(.hidden, for: .tabBar)
-                    .navigationDestination(for: EventRoute.self) { EventDetailView(app: model.app, eventID: $0.id) }
-                    .navigationDestination(for: ChatRoute.self) { ChatView(eventID: $0.id) }
+                    // Пуш і посилання ставлять нову подію в той самий слот стосу (див. `PushDelegate.openEvent`):
+                    // без `.id` SwiftUI лишав екран попередньої з її станом — датами прокату, чатом, запитом деталей.
+                    .navigationDestination(for: EventRoute.self) { EventDetailView(app: model.app, eventID: $0.id).id($0.id) }
+                    .navigationDestination(for: ChatRoute.self) { ChatView(eventID: $0.id).id($0.id) }
                     .navigationDestination(for: FollowsRoute.self) { _ in FollowsView() }
                     .navigationDestination(for: ArtistRoute.self) { ArtistView(route: $0) }
                 }.tag(0)

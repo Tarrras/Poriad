@@ -292,7 +292,8 @@ class PoruchApp internal constructor(
 
     /** Екран чату відкрито: тягнемо хвіст і перечитуємо, поки не закриють. */
     fun openChat(eventId: String) = chatEngine.open(eventId)
-    fun closeChat() = chatEngine.close()
+    /** Екран чату [eventId] закрито. Чужий чат не чіпаємо: пуш з чату в чат відкриває новий раніше, ніж іде старий екран. */
+    fun closeChat(eventId: String) { if (chatEngine.openEventId == eventId) chatEngine.close() }
     fun sendMessage(text: String) = chatEngine.send(text)
 
     /** Текст, що не пішов (див. [ChatState.failedDraft]), для поля вводу. Віддає раз. */

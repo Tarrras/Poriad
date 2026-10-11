@@ -47,7 +47,7 @@ struct ChatView: View {
         .toolbar(.hidden, for: .navigationBar)
         .navigationBarBackButtonHidden()
         .task { model.app.openChat(eventId: eventID) }
-        .onDisappear { model.app.closeChat(); model.app.closePerson() }
+        .onDisappear { model.app.closeChat(eventId: eventID); model.app.closePerson() }
         .personSheet(model, isPresented: $showingPerson)
         .confirmationDialog("Видалити повідомлення?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible) {
             Button("Видалити", role: .destructive) { if let message = deleting { model.app.deleteMessage(messageId: message.id) } }
