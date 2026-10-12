@@ -1,0 +1,193 @@
+<!-- hyperframes-registry-item: hw-path-text (customised for A3: 1080×1920, Inter italic-feel, a list of notes along paths) -->
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="utf-8" />
+  </head>
+  <body>
+    <template>
+      <style>
+        @font-face {
+          font-family: "Inter";
+          src: url("assets/fonts/inter-cyrillic-400-normal.woff2") format("woff2");
+          font-weight: 400;
+          font-display: block;
+          unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+        }
+        @font-face {
+          font-family: "Inter";
+          src: url("assets/fonts/inter-latin-400-normal.woff2") format("woff2");
+          font-weight: 400;
+          font-display: block;
+          unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2190-2193, U+2212, U+2215, U+FEFF, U+FFFD;
+        }
+        #hw-pt-root {
+          --hw-ink: #f7f1fb;
+          position: absolute;
+          inset: 0;
+          overflow: hidden;
+          background: transparent;
+        }
+        #hw-pt-svg {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 1080px;
+          height: 1920px;
+          overflow: visible;
+        }
+        /* textPath carriers are geometry only */
+        #hw-pt-svg defs path {
+          fill: none;
+        }
+        #hw-pt-svg text {
+          font-family: "Inter", system-ui, sans-serif;
+          font-weight: 400;
+          font-style: italic;
+          letter-spacing: -0.01em;
+          fill: var(--hw-ink);
+          paint-order: stroke;
+          stroke: rgba(20, 14, 44, 0.35);
+          stroke-width: 6px;
+          stroke-linejoin: round;
+        }
+        #hw-pt-svg tspan {
+          opacity: 0;
+        }
+        .hw-mark {
+          fill: none;
+          stroke: var(--hw-ink);
+          stroke-width: 3.2;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+          stroke-dasharray: 1 1;
+          stroke-dashoffset: 1;
+          opacity: 0;
+        }
+      </style>
+
+      <div id="hw-pt-root" data-composition-id="hw-path-text" data-width="1080" data-height="1920">
+        <svg id="hw-pt-svg" viewBox="0 0 1080 1920">
+          <defs id="hw-pt-defs"></defs>
+          <g id="hw-pt-lines"></g>
+        </svg>
+      </div>
+
+      <script>
+        (function () {
+          /* ---- published parameters ----
+             Handwriting along paths: each note is { text, d, size, anchor, t (start), out (fade) }.
+             Marks are hand-drawn strokes (circles around the zeros, an arrow) traced along their path. */
+          var NOTES = [
+            // hook: labels on the drawing
+            { text: "дім", d: "M 236 722 L 364 714", size: 42, anchor: "middle", t: 0.75, out: 4.1 },
+            { text: "робота", d: "M 716 532 L 884 524", size: 42, anchor: "middle", t: 0.95, out: 4.1 },
+            // the route, written along its curve instead of a big verdict
+            { text: "дім → робота → дім", d: "M 176 1122 C 380 1176, 720 1176, 924 1122", size: 46, anchor: "middle", t: 1.55, dur: 0.8, out: 4.2 },
+            // the zero tally
+            { text: "знайомих у місті:", d: "M 110 1263 L 708 1254", size: 44, anchor: "end", t: 1.95, dur: 0.5, out: 4.2 },
+            { text: "0", d: "M 728 1254 L 776 1253", size: 46, anchor: "middle", t: 2.48, out: 4.2 },
+            { text: "улюблених місць:", d: "M 110 1341 L 708 1334", size: 44, anchor: "end", t: 2.55, dur: 0.48, out: 4.2 },
+            { text: "0", d: "M 728 1334 L 776 1333", size: 46, anchor: "middle", t: 3.05, out: 4.2 },
+            { text: "планів на пʼятницю:", d: "M 110 1420 L 708 1414", size: 44, anchor: "end", t: 3.1, dur: 0.5, out: 4.2 },
+            { text: "0", d: "M 728 1414 L 776 1413", size: 46, anchor: "middle", t: 3.62, out: 4.2 },
+            // phone captions, written above the screen
+            { text: "відкриваєш мапу", d: "M 96 396 C 320 390, 600 382, 930 372", size: 50, anchor: "start", t: 7.05, out: 7.98 },
+            { text: "бачиш, що відбувається довкола", d: "M 96 396 C 320 390, 600 382, 930 372", size: 50, anchor: "start", t: 8.32, dur: 0.8, out: 9.2 },
+            // the screen has gone back into its window: a note next to it
+            { text: "і місто стає твоїм", d: "M 150 1098 C 330 1092, 520 1086, 780 1078", size: 50, anchor: "start", t: 10.7, out: 11.5 },
+          ];
+          function loop(cx, cy) {
+            return "M " + (cx + 22) + " " + (cy - 27) + " C " + (cx - 6) + " " + (cy - 38) + ", " + (cx - 35) + " " + (cy - 20) + ", " + (cx - 33) + " " + (cy + 2) +
+              " C " + (cx - 31) + " " + (cy + 26) + ", " + (cx + 12) + " " + (cy + 33) + ", " + (cx + 30) + " " + (cy + 12) +
+              " C " + (cx + 42) + " " + (cy - 5) + ", " + (cx + 31) + " " + (cy - 32) + ", " + (cx + 2) + " " + (cy - 35);
+          }
+          var MARKS = [
+            { d: loop(752, 1238), t: 2.6, dur: 0.3, out: 4.2 },
+            { d: loop(752, 1318), t: 3.16, dur: 0.3, out: 4.2 },
+            { d: loop(752, 1398), t: 3.72, dur: 0.3, out: 4.2 },
+            { d: "M 352 1122 C 372 1218, 412 1296, 454 1352", t: 11.0, dur: 0.32, out: 11.5 },
+            { d: "M 428 1342 L 456 1356 L 462 1326", t: 11.28, dur: 0.14, out: 11.5 },
+          ];
+          var CONFIG = { seed: 12, boil: { amp: 0.9, rot: 0.22, frameDrop: 3 }, charDelay: 0.045, maxWrite: 0.75, fadeOut: 0.32 };
+
+          /* hw family runtime */
+          window.hwHash = function (n, seed) {
+            var x = Math.sin(n * 127.1 + (seed || 1) * 311.7) * 43758.5453;
+            return (x - Math.floor(x)) * 2 - 1;
+          };
+
+          var NS = "http://www.w3.org/2000/svg";
+          var defs = document.getElementById("hw-pt-defs");
+          var host = document.getElementById("hw-pt-lines");
+          var tl = gsap.timeline({ paused: true });
+          var groups = [];
+
+          NOTES.forEach(function (n, i) {
+            var id = "hw-pt-path-" + i;
+            var p = document.createElementNS(NS, "path");
+            p.setAttribute("id", id);
+            p.setAttribute("d", n.d);
+            defs.appendChild(p);
+            var g = document.createElementNS(NS, "g");
+            var text = document.createElementNS(NS, "text");
+            text.setAttribute("font-size", n.size);
+            text.setAttribute("text-anchor", n.anchor);
+            var tp = document.createElementNS(NS, "textPath");
+            tp.setAttribute("href", "#" + id);
+            tp.setAttribute("startOffset", n.anchor === "middle" ? "50%" : n.anchor === "end" ? "100%" : "0%");
+            Array.from(n.text).forEach(function (ch) {
+              var s = document.createElementNS(NS, "tspan");
+              s.textContent = ch;
+              s.setAttribute("data-layout-allow-overlap", ""); // letters on a curve: neighbouring glyph boxes touch
+              tp.appendChild(s);
+            });
+            text.appendChild(tp);
+            g.appendChild(text);
+            host.appendChild(g);
+            var chars = tp.querySelectorAll("tspan");
+            var write = n.dur || Math.min(CONFIG.maxWrite, CONFIG.charDelay * chars.length);
+            tl.to(chars, { opacity: 1, duration: 0.1, stagger: write / Math.max(1, chars.length), ease: "sine.out" }, n.t);
+            tl.to(g, { opacity: 0, duration: CONFIG.fadeOut, ease: "sine.in" }, n.out);
+            groups.push({ el: g, from: n.t, to: n.out + CONFIG.fadeOut, k: i });
+          });
+
+          MARKS.forEach(function (m, i) {
+            var g = document.createElementNS(NS, "g");
+            var p = document.createElementNS(NS, "path");
+            p.setAttribute("d", m.d);
+            p.setAttribute("class", "hw-mark");
+            p.setAttribute("pathLength", "1");
+            g.appendChild(p);
+            host.appendChild(g);
+            tl.set(p, { opacity: 1 }, m.t);
+            tl.to(p, { strokeDashoffset: 0, duration: m.dur, ease: "sine.inOut" }, m.t);
+            tl.to(g, { opacity: 0, duration: CONFIG.fadeOut, ease: "sine.in" }, m.out);
+            groups.push({ el: g, from: m.t, to: m.out + CONFIG.fadeOut, k: 40 + i });
+          });
+
+          /* boil: a small stepped jitter while a note is on screen, so the lines feel hand-made; still outside that window */
+          var b = CONFIG.boil;
+          function boil() {
+            var time = tl.time();
+            var step = Math.floor((time * 30) / b.frameDrop);
+            for (var i = 0; i < groups.length; i++) {
+              var gr = groups[i];
+              var live = time >= gr.from && time <= gr.to;
+              gsap.set(gr.el, live ? {
+                x: window.hwHash(step * 3 + gr.k * 97, CONFIG.seed) * b.amp,
+                y: window.hwHash(step * 3 + 1 + gr.k * 97, CONFIG.seed) * b.amp,
+                rotation: window.hwHash(step * 3 + 2 + gr.k * 97, CONFIG.seed) * b.rot,
+                transformOrigin: "50% 50%",
+              } : { x: 0, y: 0, rotation: 0 });
+            }
+          }
+          tl.eventCallback("onUpdate", boil);
+          boil();
+
+          window.__timelines["hw-path-text"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>

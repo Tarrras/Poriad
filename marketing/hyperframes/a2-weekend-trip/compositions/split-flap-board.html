@@ -1,0 +1,100 @@
+<!-- hyperframes-registry-item: split-flap-board (customised for A2: 1080×1920 night-train departure board) -->
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8" />
+  </head>
+  <body>
+    <template>
+      <style>
+        #split-flap-board-root { position: absolute; inset: 0; overflow: hidden; background: #0e1626; }
+        /* station light: a warm lamp above the board, a cold floor under it */
+        #sf-lamp { position: absolute; inset: 0; background: radial-gradient(70% 34% at 46% 26%, rgba(242, 181, 68, 0.16), rgba(242, 181, 68, 0) 70%), linear-gradient(180deg, rgba(14, 22, 38, 0) 60%, #0a101c 100%); }
+        #sf-cam { position: absolute; left: 0; top: 110px; width: 1080px; height: 1920px; transform-origin: 490px 700px; }
+        /* the board hangs from two rods; frame inside x 60–1020, lettered tiles inside x 80–920 */
+        .sf-rod { position: absolute; top: -110px; width: 4px; height: 378px; background: linear-gradient(180deg, #1c2943, #2a3a5c); }
+        #sf-panel { position: absolute; left: 60px; top: 262px; width: 960px; height: 846px; border-radius: 22px; background: linear-gradient(180deg, #0a1020, #070b16); box-shadow: 0 40px 90px rgba(0, 0, 0, 0.55), inset 0 0 0 1.5px rgba(242, 181, 68, 0.28); }
+        #sf-head { position: absolute; left: 80px; top: 292px; width: 920px; height: 34px; display: flex; align-items: center; gap: 18px; }
+        #sf-head svg { flex: 0 0 auto; }
+        #sf-head .rule { flex: 1 1 auto; height: 1.5px; background: linear-gradient(90deg, rgba(242, 181, 68, 0.7), rgba(242, 181, 68, 0.12)); }
+        .sf-row { position: absolute; left: 80px; }
+        #sf-divider { position: absolute; left: 80px; top: 698px; width: 920px; height: 1.5px; background: rgba(242, 181, 68, 0.45); transform-origin: 0 50%; }
+        #sf-list { position: absolute; inset: 0; }
+      </style>
+
+      <div id="split-flap-board-root" data-composition-id="split-flap-board" data-width="1080" data-height="1920">
+        <div id="sf-lamp"></div>
+        <div id="sf-cam">
+          <div class="sf-rod" style="left: 200px"></div>
+          <div class="sf-rod" style="left: 820px"></div>
+          <div id="sf-panel"></div>
+          <div id="sf-head">
+            <!-- train pictogram, amber line art -->
+            <svg width="40" height="34" viewBox="0 0 40 34" fill="none" stroke="#F2B544" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="7" y="2" width="26" height="22" rx="6"></rect>
+              <path d="M7 13h26"></path>
+              <circle cx="14" cy="19" r="1.4" fill="#F2B544"></circle>
+              <circle cx="26" cy="19" r="1.4" fill="#F2B544"></circle>
+              <path d="M12 24l-5 8M28 24l5 8"></path>
+            </svg>
+            <div class="rule"></div>
+          </div>
+          <div id="sf-list">
+            <div class="sf-row" id="sf-r1" style="top: 352px"></div>
+            <div class="sf-row" id="sf-r2" style="top: 434px"></div>
+            <div class="sf-row" id="sf-r3" style="top: 516px"></div>
+            <div class="sf-row" id="sf-r4" style="top: 598px"></div>
+          </div>
+          <div id="sf-divider"></div>
+          <div class="sf-row" id="sf-v1" style="top: 736px"></div>
+          <div class="sf-row" id="sf-v2" style="top: 900px"></div>
+        </div>
+      </div>
+
+      <script>
+        (function () {
+          // Beats on the brand track (from 16.0 s): 0 · 1.25 · 2.5 · break 3.0–3.75 · whip on 4.0
+          var DUR = 4.4;
+          var F = window.SplitFlap;
+          // checklist: 15 text cells, a gap, the status cell (cell 16, ends x 892), two blank tiles to the frame
+          function item(text, status) {
+            var s = text;
+            while (s.length < 16) s += " ";
+            return s + status;
+          }
+          var small = { cells: 19, w: 44, h: 70, gap: 4, font: 39, flip: 0.034, stagger: 0.022, maxSteps: 7 };
+          function list(id, seed, script, extra) {
+            var o = { el: document.getElementById(id), seed: seed, script: script };
+            for (var k in small) o[k] = small[k];
+            for (var x in extra || {}) o[x] = extra[x];
+            return F.row(o);
+          }
+          var rows = [
+            list("sf-r1", 1, [[-0.25, item("КВИТКИ НА ПОТЯГ", " ")], [0.42, item("КВИТКИ НА ПОТЯГ", "✓")]]),
+            list("sf-r2", 2, [[0.3, item("ЖИТЛО", " ")], [0.72, item("ЖИТЛО", "✓")]]),
+            list("sf-r3", 3, [[0.6, item("ПАВЕРБАНК", " ")], [1.02, item("ПАВЕРБАНК", "✓")]]),
+            // the last cell never lands while the list is read: it spins, and falls on «—» with the verdict
+            list("sf-r4", 4, [[0.9, item("ПЛАН НА СУБОТУ", " ")], [2.5, item("ПЛАН НА СУБОТУ", "—")]], { spin: { cell: 16, from: 1.3, flip: 0.085 } }),
+          ];
+          // 8 tiles end at x 904; the question lands by 3.05 and holds until the whip
+          var big = { cells: 8, w: 96, h: 146, gap: 8, font: 98, flip: 0.036, stagger: 0.03, maxSteps: 6, color: "#F2B544" };
+          function verdict(id, seed, text) {
+            var o = { el: document.getElementById(id), seed: seed, script: [[2.5, text]] };
+            for (var k in big) o[k] = big[k];
+            return F.row(o);
+          }
+          rows.push(verdict("sf-v1", 7, "А ЩО ТАМ"));
+          rows.push(verdict("sf-v2", 8, "РОБИТИ?"));
+
+          var tl = gsap.timeline({ paused: true });
+          F.drive(tl, DUR, rows);
+          // a slow drift up the board (no scale, so the frame never leaves x 60–1020), then the list steps back
+          tl.fromTo("#sf-cam", { y: 0 }, { y: -18, duration: 3.7, ease: "sine.inOut" }, 0);
+          tl.fromTo("#sf-divider", { scaleX: 0 }, { scaleX: 1, duration: 0.5, ease: "power3.out" }, 2.3);
+          tl.fromTo("#sf-list", { opacity: 1 }, { opacity: 0.42, duration: 0.4, ease: "power2.out" }, 2.55);
+          window.__timelines["split-flap-board"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>

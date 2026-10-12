@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8" />
+  </head>
+  <body>
+    <template>
+      <style>
+        @font-face { font-family: "Unbounded"; src: url("assets/fonts/unbounded-cyrillic.woff2") format("woff2"); font-weight: 200 900; font-display: block; unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+        @font-face { font-family: "Unbounded"; src: url("assets/fonts/unbounded-latin.woff2") format("woff2"); font-weight: 200 900; font-display: block; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+        @font-face { font-family: "Inter"; src: url("assets/fonts/inter-cyrillic-600-normal.woff2") format("woff2"); font-weight: 600; font-display: block; unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+        @font-face { font-family: "Inter"; src: url("assets/fonts/inter-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-display: block; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+
+        #route-root { position: absolute; inset: 0; overflow: hidden; color: #f4efe2; font-family: "Inter", sans-serif; }
+        #rt-cam { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; transform-origin: 0 0; }
+        #rt-svg { position: absolute; left: 70px; top: 470px; width: 900px; height: 609px; overflow: visible; }
+        .rt-label { position: absolute; font-weight: 600; font-size: 30px; line-height: 1; color: #f4efe2; white-space: nowrap; }
+        #rt-beacons { position: absolute; inset: 0; }
+        .rt-beacon { position: absolute; left: 0; top: 0; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%; background: #f4efe2; box-shadow: 0 0 0 5px rgba(242, 181, 68, 0.55), 0 0 34px 10px rgba(242, 181, 68, 0.45); }
+
+        /* the ticket: paper, a perforated tear line, the stub with the destination */
+        #rt-ticket { position: absolute; left: 150px; top: 1150px; width: 740px; height: 284px; }
+        #rt-ticket .paper { position: absolute; inset: 0; border-radius: 20px; background: #f4efe2; box-shadow: 0 30px 70px rgba(0, 0, 0, 0.5);
+          -webkit-mask: radial-gradient(circle 17px at 0 192px, transparent 16px, #000 17px) left / 51% 100% no-repeat, radial-gradient(circle 17px at 100% 192px, transparent 16px, #000 17px) right / 51% 100% no-repeat;
+          mask: radial-gradient(circle 17px at 0 192px, transparent 16px, #000 17px) left / 51% 100% no-repeat, radial-gradient(circle 17px at 100% 192px, transparent 16px, #000 17px) right / 51% 100% no-repeat; }
+        #rt-ticket .band { position: absolute; left: 0; top: 0; width: 14px; height: 192px; border-radius: 20px 0 0 0; background: #f2b544; }
+        #rt-ticket .perf { position: absolute; left: 30px; right: 30px; top: 191px; height: 0; border-top: 3px dashed rgba(14, 22, 38, 0.35); }
+        #rt-ticket .line { position: absolute; left: 48px; top: 40px; width: 660px; font-family: "Unbounded", sans-serif; font-weight: 900; font-size: 50px; line-height: 1.12; letter-spacing: -0.03em; color: #0e1626; }
+        #rt-ticket .stub { position: absolute; left: 48px; top: 216px; width: 600px; font-weight: 600; font-size: 34px; line-height: 44px; color: #0e1626; white-space: nowrap; }
+        #rt-ticket .stub-icon { position: absolute; right: 40px; top: 220px; }
+
+        /* the name: one big flap tile on a seam, amber hairlines run off to the edges */
+        #rt-seam { position: absolute; left: 60px; top: 804px; width: 960px; height: 2px; background: #f2b544; transform-origin: 50% 50%; }
+        #rt-tile { position: absolute; left: 160px; top: 690px; width: 760px; height: 230px; perspective: 1100px; }
+        #rt-tile .half { position: absolute; inset: 0; border-radius: 22px; background: linear-gradient(180deg, #121c31 0%, #0b1222 50%, #101a2e 50%, #0c1424 100%); box-shadow: 0 30px 70px rgba(0, 0, 0, 0.45), inset 0 0 0 1.5px rgba(242, 181, 68, 0.3); display: flex; align-items: center; justify-content: center; transform-origin: 50% 50%; backface-visibility: hidden; }
+        #rt-tile .top { clip-path: inset(0 0 50% 0); }
+        #rt-tile .bot { clip-path: inset(50% 0 0 0); }
+        #rt-tile .word { font-family: "Unbounded", sans-serif; font-weight: 900; font-size: 150px; line-height: 1; letter-spacing: -0.04em; color: #e0582f; padding-bottom: 6px; }
+        #rt-tile .cut { position: absolute; left: 0; right: 0; top: 50%; height: 3px; margin-top: -1.5px; background: #04070d; z-index: 2; }
+        .rt-hair { position: absolute; left: 60px; width: 960px; height: 1.5px; background: rgba(242, 181, 68, 0.55); transform-origin: 50% 50%; }
+      </style>
+
+      <div id="route-root" data-composition-id="route" data-width="1080" data-height="1920">
+        <div id="rt-cam">
+          <svg id="rt-svg" viewBox="0 0 606 410" fill="none">
+            <path id="rt-ua" stroke="#F2B544" stroke-width="1.7" stroke-linejoin="round" fill="rgba(242,181,68,0.035)" d="M12.4 212.5 Q5.0 205.0 11.8 188.0 Q18.6 171.0 23.4 158.0 Q28.2 145.0 40.6 127.5 Q53.0 110.0 61.3 101.3 Q69.6 92.5 62.1 80.0 Q54.7 67.5 53.8 58.0 Q53.0 48.5 66.3 39.3 Q79.5 30.0 92.8 28.7 Q106.0 27.5 122.6 30.0 Q139.2 32.5 155.7 38.3 Q172.3 44.0 188.8 45.3 Q205.4 46.5 218.7 49.5 Q231.9 52.5 245.2 52.5 Q258.4 52.5 270.8 56.7 Q283.3 61.0 284.9 51.8 Q286.6 42.5 295.7 32.5 Q304.8 22.5 314.7 21.3 Q324.7 20.0 334.6 15.0 Q344.6 10.0 357.8 8.8 Q371.1 7.5 381.0 7.5 Q390.9 7.5 395.9 22.5 Q400.9 37.5 405.9 50.0 Q410.8 62.5 422.4 66.2 Q434.0 70.0 439.0 82.5 Q444.0 95.0 452.2 100.0 Q460.5 105.0 472.1 107.5 Q483.7 110.0 497.0 107.5 Q510.2 105.0 520.2 113.8 Q530.1 122.5 536.7 123.8 Q543.3 125.0 556.6 128.0 Q569.9 131.0 583.1 138.0 Q596.4 145.0 598.8 153.7 Q601.3 162.5 593.9 173.8 Q586.4 185.0 589.7 197.5 Q593.0 210.0 591.4 220.0 Q589.7 230.0 574.8 231.2 Q559.9 232.5 549.1 251.2 Q538.4 270.0 526.0 271.2 Q513.5 272.5 501.9 280.0 Q490.3 287.5 475.4 290.0 Q460.5 292.5 450.6 300.0 Q440.6 307.5 432.4 312.0 Q424.1 316.5 414.1 318.2 Q404.2 320.0 395.9 318.0 Q387.6 316.0 376.0 318.0 Q364.4 320.0 352.8 320.0 Q341.2 320.0 328.0 308.8 Q314.7 297.5 302.3 298.8 Q289.9 300.0 284.1 310.0 Q278.3 320.0 270.0 330.0 Q261.7 340.0 258.4 350.0 Q255.1 360.0 243.5 358.8 Q231.9 357.5 218.7 355.0 Q205.4 352.5 211.2 342.5 Q217.0 332.5 223.6 317.5 Q230.3 302.5 240.2 301.2 Q250.1 300.0 256.8 293.8 Q263.4 287.5 257.6 278.8 Q251.8 270.0 251.0 260.0 Q250.1 250.0 244.3 238.7 Q238.5 227.5 228.6 222.5 Q218.7 217.5 205.4 211.3 Q192.2 205.0 182.2 203.7 Q172.3 202.5 162.3 207.5 Q152.4 212.5 140.8 220.0 Q129.2 227.5 116.0 232.5 Q102.7 237.5 94.4 232.5 Q86.1 227.5 74.5 227.5 Q62.9 227.5 51.4 225.0 Q39.8 222.5 34.8 225.0 Q29.8 227.5 24.8 223.7 Q19.9 220.0 12.4 212.5Z M379.3 323.8 Q387.6 317.5 400.9 321.8 Q414.1 326.0 424.1 335.0 Q434.0 344.0 440.6 351.3 Q447.3 358.5 452.2 355.5 Q457.2 352.5 467.1 352.5 Q477.1 352.5 480.7 356.2 Q484.4 360.0 480.7 365.8 Q477.1 371.5 468.8 373.2 Q460.5 375.0 452.2 373.8 Q444.0 372.5 437.3 378.8 Q430.7 385.0 420.8 391.3 Q410.8 397.5 402.5 401.3 Q394.3 405.0 387.6 401.3 Q381.0 397.5 381.8 385.0 Q382.7 372.5 373.6 367.5 Q364.4 362.5 356.2 359.2 Q347.9 356.0 359.5 343.0 Q371.1 330.0 379.3 323.8Z"></path>
+            <!-- the rail: Київ → Львів, south through the Podillia line -->
+            <path id="rt-rail-glow" d="M282.3 102.5 C238 150 128 168 67.3 133" stroke="#F2B544" stroke-opacity="0.22" stroke-width="7" stroke-linecap="round"></path>
+            <path id="rt-rail" d="M282.3 102.5 C238 150 128 168 67.3 133" stroke="#F2B544" stroke-width="2.6" stroke-linecap="round"></path>
+            <g id="rt-dots" fill="#F4EFE2"></g>
+            <circle id="rt-ring" cx="282.3" cy="102.5" r="6" stroke="#F2B544" stroke-width="1.5"></circle>
+            <circle id="rt-train" r="5.5" fill="#F4EFE2" stroke="#F2B544" stroke-width="2.4"></circle>
+          </svg>
+          <div class="rt-label" id="rt-l-kyiv" style="left: 506px; top: 572px">Київ</div>
+          <div class="rt-label" id="rt-l-lviv" style="left: 132px; top: 612px">Львів</div>
+        </div>
+
+        <div id="rt-beacons"></div>
+
+        <div id="rt-ticket">
+          <div class="paper"></div>
+          <div class="band"></div>
+          <div class="perf"></div>
+          <div class="line">давай подивимось</div>
+          <div class="stub">Львів · вихідні</div>
+          <svg class="stub-icon" width="40" height="34" viewBox="0 0 40 34" fill="none" stroke="#0E1626" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="7" y="2" width="26" height="22" rx="6"></rect>
+            <path d="M7 13h26"></path>
+            <path d="M12 24l-5 8M28 24l5 8"></path>
+          </svg>
+        </div>
+
+        <div class="rt-hair" id="rt-hair-a" style="top: 674px"></div>
+        <div class="rt-hair" id="rt-hair-b" style="top: 935px"></div>
+        <div id="rt-seam"></div>
+        <div id="rt-tile">
+          <div class="half top"><span class="word" data-layout-allow-overlap>Поряд</span></div>
+          <div class="half bot"><span class="word" data-layout-allow-overlap>Поряд</span></div>
+          <div class="cut"></div>
+        </div>
+      </div>
+
+      <script>
+        (function () {
+          // Local time 0 = the whip starts (film 3.75). Film time = local + 3.75.
+          var T0 = 3.75;
+          function L(film) { return film - T0; }
+
+          // five cities, SVG units (approximate projection of lon/lat; no geodata needed)
+          var CITIES = [
+            { id: "lviv", x: 67.3, y: 133.0, on: 10.28 },
+            { id: "kyiv", x: 282.3, y: 102.5, on: 10.36 },
+            { id: "odesa", x: 289.2, y: 301.0, on: 10.74 },
+            { id: "dnipro", x: 432.4, y: 202.0, on: 11.14 },
+            { id: "kharkiv", x: 471.5, y: 125.5, on: 11.54 },
+          ];
+          var NS = "http://www.w3.org/2000/svg";
+          var dotsG = document.getElementById("rt-dots");
+          var beacons = document.getElementById("rt-beacons");
+          // the map sits at (70, 470), 900 px for 606 units
+          var K = 900 / 606, MX = 70, MY = 470;
+          // camera states (transform-origin 0 0): route push and the name beat
+          var CAM_ROUTE = { scale: 1.25, x: 37.5, y: -92.5 };
+          var CAM_NAME = { scale: 0.86, x: 75, y: 380 };
+          var MARK = { x: 540, y: 805 };
+
+          var tl = gsap.timeline({ paused: true });
+
+          CITIES.forEach(function (c, i) {
+            var d = document.createElementNS(NS, "circle");
+            d.setAttribute("cx", c.x);
+            d.setAttribute("cy", c.y);
+            d.setAttribute("r", 4.2);
+            d.setAttribute("id", "rt-dot-" + c.id);
+            dotsG.appendChild(d);
+            var b = document.createElement("div");
+            b.className = "rt-beacon";
+            b.id = "rt-b-" + c.id;
+            beacons.appendChild(b);
+            // a beacon stands exactly on its dot under the name-beat camera, then flies to the seam
+            var fx = CAM_NAME.x + CAM_NAME.scale * (MX + c.x * K);
+            var fy = CAM_NAME.y + CAM_NAME.scale * (MY + c.y * K);
+            tl.fromTo(b, { x: fx, y: fy, scale: 0, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.3, ease: "back.out(3)" }, L(c.on));
+            tl.to(b, { x: MARK.x, y: MARK.y, scale: 0.6, duration: 0.34, ease: "power3.in" }, L(11.68) + i * 0.025);
+            tl.to(b, { opacity: 0, duration: 0.06 }, L(12.04));
+          });
+
+          // whip lands at 4.3; the train leaves Київ and rides the rail to Львів on the 5.25 hit
+          var rail = document.getElementById("rt-rail");
+          var glow = document.getElementById("rt-rail-glow");
+          var len = rail.getTotalLength();
+          var pts = [];
+          for (var s = 0; s <= 60; s++) pts.push(rail.getPointAtLength((len * s) / 60));
+          var train = document.getElementById("rt-train");
+          var ride = { p: 0 };
+          function place() {
+            var q = pts[Math.round(ride.p * 60)];
+            train.setAttribute("cx", q.x.toFixed(2));
+            train.setAttribute("cy", q.y.toFixed(2));
+          }
+          gsap.set([rail, glow], { strokeDasharray: len, strokeDashoffset: len });
+          place();
+          tl.fromTo("#rt-cam", { scale: 1, x: 0, y: 0 }, { scale: CAM_ROUTE.scale, x: CAM_ROUTE.x, y: CAM_ROUTE.y, duration: 1.9, ease: "power2.inOut" }, L(4.3));
+          tl.fromTo("#rt-ring", { attr: { r: 5 }, opacity: 1 }, { attr: { r: 22 }, opacity: 0, duration: 0.6, ease: "power2.out" }, L(4.3));
+          tl.fromTo([rail, glow], { strokeDashoffset: len }, { strokeDashoffset: 0, duration: 0.95, ease: "power2.inOut" }, L(4.3));
+          tl.fromTo(ride, { p: 0 }, { p: 1, duration: 0.95, ease: "power2.inOut", onUpdate: place }, L(4.3));
+          tl.fromTo("#rt-dot-lviv", { attr: { r: 4.2 } }, { attr: { r: 7 }, duration: 0.25, ease: "back.out(3)" }, L(5.2));
+
+          // the ticket rides in behind the train, from the right, and lands on the hit
+          tl.fromTo("#rt-ticket", { x: 1000, y: -40, rotation: 7 }, { x: 0, y: 0, rotation: -2.5, duration: 0.75, ease: "power3.out" }, L(4.35));
+          // ...and goes back into the pocket as the phone comes out of it
+          tl.to("#rt-ticket", { y: 820, rotation: 9, autoAlpha: 0, duration: 0.35, ease: "power2.in" }, L(5.48));
+          tl.to("#rt-cam", { opacity: 0.22, duration: 0.45, ease: "power2.out" }, L(5.55));
+          tl.to(["#rt-l-kyiv", "#rt-l-lviv"], { opacity: 0, duration: 0.3 }, L(5.55));
+
+          // the name beat: the map comes back, smaller and lower, under the signs; five cities light up
+          tl.to("#rt-cam", { scale: CAM_NAME.scale, x: CAM_NAME.x, y: CAM_NAME.y, opacity: 1, duration: 0.5, ease: "power3.out" }, L(10.25));
+          tl.to(["#rt-train", rail, glow], { opacity: 0, duration: 0.25 }, L(10.25));
+          tl.to("#rt-cam", { opacity: 0, duration: 0.3, ease: "power2.in" }, L(11.7));
+
+          // they converge into a seam, the seam opens into «Поряд» like the last flap settling
+          tl.fromTo("#rt-seam", { scaleX: 0 }, { scaleX: 1, duration: 0.4, ease: "power3.out" }, L(11.98));
+          tl.fromTo("#rt-tile .top", { rotationX: -90 }, { rotationX: 0, duration: 0.2, ease: "power2.out" }, L(12.02));
+          tl.fromTo("#rt-tile .bot", { rotationX: 90 }, { rotationX: 0, duration: 0.24, ease: "power2.in" }, L(12.16));
+          tl.to("#rt-tile .bot", { rotationX: -10, duration: 0.07, ease: "power1.out" }, L(12.4));
+          tl.to("#rt-tile .bot", { rotationX: 0, duration: 0.12, ease: "power2.in" }, L(12.47));
+          tl.fromTo("#rt-tile .cut", { opacity: 0 }, { opacity: 1, duration: 0.01 }, L(12.02));
+          tl.fromTo(["#rt-hair-a", "#rt-hair-b"], { scaleX: 0 }, { scaleX: 1, duration: 0.6, ease: "power3.out", stagger: 0.06 }, L(12.3));
+
+          window.__timelines["route"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>

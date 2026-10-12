@@ -9,5 +9,22 @@
   "media": {
     "autoProxy": true
   },
-  "authoringSkill": "motion-graphics"
+  "authoringSkill": "motion-graphics",
+  "registryItems": [
+    {
+      "name": "split-flap-board",
+      "type": "hyperframes:block",
+      "target": "compositions/split-flap-board.html"
+    },
+    {
+      "name": "whip-pan-cut",
+      "type": "hyperframes:component",
+      "target": "compositions/components/whip-pan-cut.html"
+    },
+    {
+      "name": "tilt-card",
+      "type": "hyperframes:component",
+      "target": "compositions/components/tilt-card.html"
+    }
+  ]
 }

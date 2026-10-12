@@ -9,5 +9,17 @@
   "media": {
     "autoProxy": true
   },
-  "authoringSkill": "motion-graphics"
+  "authoringSkill": "motion-graphics",
+  "registryItems": [
+    {
+      "name": "svg-stroke-trace",
+      "type": "hyperframes:component",
+      "target": "compositions/components/svg-stroke-trace.html"
+    },
+    {
+      "name": "hw-path-text",
+      "type": "hyperframes:block",
+      "target": "compositions/hw-path-text.html"
+    }
+  ]
 }

@@ -1,0 +1,8 @@
+{
+  "assets/fonts/Caveat-700-latin.woff2": "891951df5e8b5b0f0bc760d31375405e795c666b5add70437de12d4a6482b33f",
+  "compositions/components/camera-rig-depth-stack.html": "d0ab77610390dd1e30ac53347b06e3d6aa432ac972989c18df8593d2a2b6b19e",
+  "compositions/components/svg-line-draw-loader.html": "342a55bf24a219971e165800e3b702957c0d383839e90730b27c6b0f237295b5",
+  "compositions/components/svg-stroke-trace.html": "9c57b095e28781e988a9b0ab5b077951fbe9ca2d6d46ee4ccb796502ced62ecd",
+  "compositions/hw-path-text.html": "9d090a6196583273b5b84e77a0240f2b72e8e65b5f8a098acb623f7f08d6d56d",
+  "compositions/transitions-light.html": "e5713f6e128c483130faaa3db5e9cac8ec8171d8d58b64b134b40134e07650e2"
+}

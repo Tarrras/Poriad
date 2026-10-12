@@ -3,91 +3,66 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=1080, height=1920">
-    <title>A3 · переїзд у нове місто — 14.25 с, 9:16</title>
+    <title>A3 · переїзд у нове місто — 14.5 с, 9:16</title>
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
     <style>
-      /* One ground for the whole film (compositions/film.json). Coral = the name «Поряд», nothing else. */
+      /* A3 «місто, намальоване лініями, що засвічується»: dusk ground, thin warm-white line art, amber windows.
+         Coral #E0582F lives only in the «Поряд» trace (compositions/components/svg-stroke-trace.html). */
       * { margin: 0; padding: 0; box-sizing: border-box; }
-      /* Brand ground, from the brand end card: night with a soft indigo glow and film grain */
-      html, body { width: 1080px; height: 1920px; overflow: hidden; background: #0b0b0f; }
-      #root { position: relative; width: 100%; height: 100%; overflow: hidden; background: radial-gradient(circle 820px at 540px 860px, #1b1a36, rgba(27, 26, 54, 0)), #0b0b0f; color: #f5f5f7; }
-      /* finite loop (26 × 0.5 s = 13 s), so the last 1.25 s hold still */
-      @keyframes hf-grain-noise {
-        0%, 100% { transform: translate(0, 0); }
-        10% { transform: translate(-5%, -5%); }
-        20% { transform: translate(-10%, 5%); }
-        30% { transform: translate(5%, -10%); }
-        40% { transform: translate(-5%, 15%); }
-        50% { transform: translate(-10%, 5%); }
-        60% { transform: translate(15%, 0); }
-        70% { transform: translate(0, 10%); }
-        80% { transform: translate(-15%, 0); }
-        90% { transform: translate(10%, 5%); }
-      }
-      #grain {
-        position: absolute;
-        z-index: 20;
-        pointer-events: none;
-        top: -50%;
-        left: -50%;
-        width: 200%;
-        height: 200%;
-        background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
-        opacity: 0.08;
-        animation: hf-grain-noise 0.5s steps(1) 26 both;
-      }
-      #hook, #proof { z-index: 1; }
-      #turn, #cta { z-index: 2; }
-      #card { z-index: 5; }
-      #mark { z-index: 6; }
+      html, body { width: 1080px; height: 1920px; overflow: hidden; background: #1a1c3a; }
+      #a3 { position: relative; width: 100%; height: 100%; overflow: hidden; background: linear-gradient(180deg, #16183a 0%, #1a1c3a 30%, #2b2044 72%, #3a2346 100%); }
+      #city { z-index: 1; }
+      #screen { z-index: 2; }
+      #say { z-index: 3; }
+      #hw-path-text { z-index: 4; }
+      #svg-stroke-trace { z-index: 5; }
+      #cta { z-index: 6; }
     </style>
   </head>
   <body>
-    <div id="root" data-composition-id="main" data-start="0" data-duration="14.25" data-fps="30" data-width="1080" data-height="1920">
-      <!-- Beats, back to back (times = compositions/film.json) -->
-      <section id="hook" data-composition-id="hook" data-composition-src="compositions/hook.html" data-start="0" data-duration="5.6" data-track-index="1" data-width="1080" data-height="1920"></section>
-      <section id="proof" data-composition-id="proof" data-composition-src="compositions/proof.html" data-start="5.6" data-duration="5" data-track-index="1" data-width="1080" data-height="1920"></section>
-      <section id="turn" data-composition-id="turn" data-composition-src="compositions/turn.html" data-start="10.6" data-duration="1.55" data-track-index="1" data-width="1080" data-height="1920"></section>
-      <section id="cta" data-composition-id="cta" data-composition-src="compositions/cta.html" data-start="12.15" data-duration="2.1" data-track-index="1" data-width="1080" data-height="1920"></section>
+    <div id="a3" data-composition-id="main" data-start="0" data-duration="14.5" data-fps="30" data-width="1080" data-height="1920">
+      <!--
+        One continuous drawing, no scene cuts. Beats (global seconds):
+        0.00–4.40  hook    «щойно переїхали?»; «дім» and «робота» trace in white line, a dot shuttles the dotted route,
+                           the trail wears in; notes: «дім → робота → дім», the zero tally with hand-circled zeros
+        4.40–6.35  reveal  «дім» lights, a warm radial light spreads from it, the camera pulls back and the city draws
+                           itself around in three parallax rows, windows switching on one by one; «а місто — поруч»
+        6.35–10.85 phone   one lit window comes forward and becomes the screen (map-kyiv-weekend), floating on a slow
+                           tilt rig; district → city → the card; notes «відкриваєш мапу», «бачиш, що відбувається довкола»;
+                           the screen goes back into its window; note «і місто стає твоїм»
+        11.0–12.85 name    «твоє нове місто. нарешті видно.» — every window at once; coral «Поряд» traced, then filled
+        12.85–14.5 end     the lit city settles low; bait note, icon, «безкоштовно», badge (hard cut), Apple line; still from 14.17
+      -->
+      <section id="city" data-composition-id="city" data-composition-src="compositions/city.html" data-start="0" data-duration="14.5" data-track-index="1" data-width="1080" data-height="1920"></section>
+      <section id="screen" data-composition-id="screen" data-composition-src="compositions/screen.html" data-start="6.3" data-duration="4.6" data-track-index="2" data-width="1080" data-height="1920"></section>
+      <section id="say" data-composition-id="say" data-composition-src="compositions/say.html" data-start="0" data-duration="13.3" data-track-index="3" data-width="1080" data-height="1920"></section>
+      <section id="hw-path-text" data-composition-id="hw-path-text" data-composition-src="compositions/hw-path-text.html" data-start="0" data-duration="11.9" data-track-index="4" data-width="1080" data-height="1920"></section>
+      <section id="svg-stroke-trace" data-composition-id="svg-stroke-trace" data-composition-src="compositions/components/svg-stroke-trace.html" data-start="11.75" data-duration="2.75" data-track-index="5" data-width="1080" data-height="1920"></section>
+      <section id="cta" data-composition-id="cta" data-composition-src="compositions/cta.html" data-start="12.8" data-duration="1.7" data-track-index="6" data-width="1080" data-height="1920"></section>
 
-      <!-- Carriers: one object each, on one tween across a seam -->
-      <section id="card" data-composition-id="card" data-composition-src="compositions/card.html" data-start="9.8" data-duration="2.35" data-track-index="2" data-width="1080" data-height="1920"></section>
-      <section id="mark" data-composition-id="mark" data-composition-src="compositions/mark.html" data-start="11.15" data-duration="3.1" data-track-index="3" data-width="1080" data-height="1920"></section>
-
-      <!-- Brand grain over everything, whole film -->
-      <div id="grain" class="clip" data-start="0" data-duration="14.25" data-track-index="4" data-layout-ignore=""></div>
-
-      <!-- Audio -->
-      <!-- music: calm.m4a from 2.88 s, so its lift (8.03 s in the track) lands as the city opens between the lines (5.15) -->
-      <audio id="music" src="assets/audio/music.m4a" data-start="0" data-media-start="2.88" data-duration="14.25" data-track-index="10" data-automation="{&quot;version&quot;:1,&quot;lanes&quot;:[{&quot;target&quot;:&quot;volume&quot;,&quot;points&quot;:[{&quot;t&quot;:0,&quot;v&quot;:0},{&quot;t&quot;:0.15,&quot;v&quot;:0.9},{&quot;t&quot;:13.65,&quot;v&quot;:0.9},{&quot;t&quot;:14.25,&quot;v&quot;:0}]}]}"></audio>
-      <!-- hook: two stops, three pills, question, three arrivals of the verdict, step back, «а місто — поруч», the opening -->
-      <audio id="sfx-home" src="assets/audio/ui_tick.wav" data-start="0.1" data-duration="0.1" data-track-index="11" data-volume="0.25"></audio>
-      <audio id="sfx-work" src="assets/audio/ui_tick.wav" data-start="0.25" data-duration="0.1" data-track-index="14" data-volume="0.25"></audio>
-      <audio id="sfx-pill-1" src="assets/audio/ui_tick.wav" data-start="0.7" data-duration="0.1" data-track-index="11" data-volume="0.25"></audio>
-      <audio id="sfx-pill-2" src="assets/audio/ui_tick.wav" data-start="0.9" data-duration="0.1" data-track-index="11" data-volume="0.25"></audio>
-      <audio id="sfx-pill-3" src="assets/audio/ui_tick.wav" data-start="1.1" data-duration="0.1" data-track-index="11" data-volume="0.25"></audio>
-      <audio id="sfx-ask" src="assets/audio/ui_tick.wav" data-start="1.35" data-duration="0.1" data-track-index="13" data-volume="0.25"></audio>
-      <audio id="sfx-v1" src="assets/audio/pin_pop_1.wav" data-start="2.35" data-duration="0.25" data-track-index="12" data-volume="0.28"></audio>
-      <audio id="sfx-v2" src="assets/audio/pin_pop_1.wav" data-start="2.95" data-duration="0.25" data-track-index="12" data-volume="0.28"></audio>
-      <audio id="sfx-v3" src="assets/audio/pin_pop_1.wav" data-start="3.55" data-duration="0.25" data-track-index="12" data-volume="0.28"></audio>
-      <audio id="sfx-out" src="assets/audio/whoosh.wav" data-start="3.95" data-duration="0.27" data-track-index="15" data-volume="0.2"></audio>
-      <audio id="sfx-words" src="assets/audio/ui_tick.wav" data-start="4.2" data-duration="0.1" data-track-index="13" data-volume="0.25"></audio>
-      <audio id="sfx-poruch" src="assets/audio/ui_tick.wav" data-start="4.62" data-duration="0.1" data-track-index="13" data-volume="0.25"></audio>
-      <audio id="sfx-open" src="assets/audio/whoosh.wav" data-start="5.1" data-duration="0.27" data-track-index="15" data-volume="0.28"></audio>
-      <!-- proof: captions -->
-      <audio id="sfx-cap-1" src="assets/audio/ui_tick.wav" data-start="5.8" data-duration="0.1" data-track-index="13" data-volume="0.3"></audio>
-      <audio id="sfx-cap-2" src="assets/audio/ui_tick.wav" data-start="7.55" data-duration="0.1" data-track-index="13" data-volume="0.3"></audio>
-      <audio id="sfx-cap-3" src="assets/audio/ui_tick.wav" data-start="9.05" data-duration="0.1" data-track-index="13" data-volume="0.3"></audio>
-      <!-- card lifts out, turn line, brand reveal, lockup to the end card, «безкоштовно» -->
-      <audio id="sfx-lift" src="assets/audio/whoosh.wav" data-start="9.85" data-duration="0.27" data-track-index="15" data-volume="0.28"></audio>
-      <audio id="sfx-turn" src="assets/audio/ui_tick.wav" data-start="10.7" data-duration="0.1" data-track-index="13" data-volume="0.3"></audio>
-      <audio id="sfx-brand" src="assets/audio/pin_pop_1.wav" data-start="11.15" data-duration="0.25" data-track-index="12" data-volume="0.35"></audio>
-      <audio id="sfx-travel" src="assets/audio/whoosh.wav" data-start="11.95" data-duration="0.27" data-track-index="15" data-volume="0.28"></audio>
-      <audio id="sfx-free" src="assets/audio/ui_tick.wav" data-start="12.91" data-duration="0.1" data-track-index="13" data-volume="0.3"></audio>
+      <!-- music: calm music.m4a from 3.6 s, so its lift (8.0 s in the track, +10 dB) lands as «дім» lights (4.4);
+           bars then fall on 6.4 (the window comes forward), 10.4, 11.4 (every window) and 12.4 (the coral fill) -->
+      <audio id="music" src="assets/audio/music.m4a" data-start="0" data-media-start="3.6" data-duration="14.5" data-track-index="10" data-automation="{&quot;version&quot;:1,&quot;lanes&quot;:[{&quot;target&quot;:&quot;volume&quot;,&quot;points&quot;:[{&quot;t&quot;:0,&quot;v&quot;:0},{&quot;t&quot;:0.25,&quot;v&quot;:0.9},{&quot;t&quot;:4.3,&quot;v&quot;:0.9},{&quot;t&quot;:4.7,&quot;v&quot;:0.6},{&quot;t&quot;:13.9,&quot;v&quot;:0.6},{&quot;t&quot;:14.5,&quot;v&quot;:0}]}]}"></audio>
+      <!-- hook: the tally, one soft tick per zero circled -->
+      <audio id="sfx-zero-1" src="assets/audio/ui_tick.wav" data-start="2.6" data-duration="0.1" data-track-index="11" data-volume="0.22"></audio>
+      <audio id="sfx-zero-2" src="assets/audio/ui_tick.wav" data-start="3.16" data-duration="0.1" data-track-index="11" data-volume="0.22"></audio>
+      <audio id="sfx-zero-3" src="assets/audio/ui_tick.wav" data-start="3.72" data-duration="0.1" data-track-index="11" data-volume="0.22"></audio>
+      <!-- reveal: «дім» lights -->
+      <audio id="sfx-home" src="assets/audio/pin_pop_1.wav" data-start="4.4" data-duration="0.25" data-track-index="12" data-volume="0.22"></audio>
+      <!-- phone: the window comes forward, notes, the window takes it back -->
+      <audio id="sfx-grow" src="assets/audio/whoosh.wav" data-start="6.35" data-duration="0.27" data-track-index="13" data-volume="0.16"></audio>
+      <audio id="sfx-cap-1" src="assets/audio/ui_tick.wav" data-start="7.05" data-duration="0.1" data-track-index="11" data-volume="0.22"></audio>
+      <audio id="sfx-cap-2" src="assets/audio/ui_tick.wav" data-start="8.32" data-duration="0.1" data-track-index="11" data-volume="0.22"></audio>
+      <audio id="sfx-recede" src="assets/audio/whoosh.wav" data-start="10.1" data-duration="0.27" data-track-index="13" data-volume="0.14"></audio>
+      <audio id="sfx-cap-3" src="assets/audio/ui_tick.wav" data-start="10.7" data-duration="0.1" data-track-index="11" data-volume="0.22"></audio>
+      <!-- name: every window at once, the coral fill -->
+      <audio id="sfx-all-on" src="assets/audio/pin_pop_1.wav" data-start="11.4" data-duration="0.25" data-track-index="12" data-volume="0.3"></audio>
+      <audio id="sfx-brand" src="assets/audio/pin_pop_1.wav" data-start="12.4" data-duration="0.25" data-track-index="14" data-volume="0.26"></audio>
+      <audio id="sfx-free" src="assets/audio/ui_tick.wav" data-start="13.2" data-duration="0.1" data-track-index="11" data-volume="0.2"></audio>
     </div>
 
     <script>
-      // Every move lives in the sections; the root only paints the ground and mixes the audio.
+      // Every move lives in the sub-compositions; the root paints the dusk and mixes the audio.
       window.__timelines["main"] = gsap.timeline({ paused: true });
     </script>
   </body>

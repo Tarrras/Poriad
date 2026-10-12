@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8">
+  </head>
+  <body>
+    <template>
+      <style>
+        /* The lit window that becomes the phone: a soft rounded screen with a warm halo, no device bezel,
+           floating on a small camera rig (camera-rig-depth-stack: perspective parent + CSS-var rotations). */
+        #screen-root { position: absolute; inset: 0; overflow: hidden; }
+        #screen-pos { position: absolute; left: 270px; top: 470px; width: 540px; height: 1174px; perspective: 1700px; opacity: 0; }
+        #screen-tilt { position: absolute; inset: 0; transform: rotateY(var(--ry)) rotateX(var(--rx)); --ry: 0deg; --rx: 0deg; }
+        #screen-glass { position: absolute; inset: 0; border-radius: 52px; overflow: hidden; background: #EDEDF0; box-shadow: 0 0 0 1.5px rgba(255, 226, 170, 0.4), 0 0 90px rgba(255, 196, 110, 0.38), 0 40px 120px rgba(12, 8, 30, 0.6); }
+        #screen-map { position: absolute; left: 0; top: 0; width: 540px; height: 1174px; transform-origin: 0 0; }
+        #screen-warm { position: absolute; inset: 0; background: #FFD27A; }
+      </style>
+
+      <div id="screen-root" data-composition-id="screen" data-width="1080" data-height="1920">
+        <div id="screen-pos" data-layout-allow-overflow="">
+          <div id="screen-tilt">
+            <div id="screen-glass">
+              <img id="screen-map" data-layout-allow-overflow="" src="assets/ui/map-kyiv-weekend.png" alt="">
+              <div id="screen-warm"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <script>
+        (() => {
+          // Host starts at 6.3 s; times below are written in film seconds and shifted to local.
+          const at = (t) => t - 6.3;
+          const W = { x: 458, y: 1374, w: 24, h: 52 }; // the lit window in city.html (mid row, wide shot)
+          const wScale = W.w / 540, wx = W.x + W.w / 2 - 540, wy = W.y + W.h / 2 - 1057; // screen centre is (540, 1057)
+          const tl = gsap.timeline({ paused: true });
+          // the window comes forward and opens into the screen
+          tl.set("#screen-pos", { opacity: 1, x: wx, y: wy, scale: wScale }, at(6.35));
+          tl.to("#screen-pos", { x: 0, y: 0, scale: 1, duration: 0.8, ease: "power3.inOut" }, at(6.35));
+          tl.to("#screen-warm", { opacity: 0, duration: 0.5, ease: "sine.inOut" }, at(6.7));
+          // map-kyiv-weekend: from a district (clusters, 2×) out to the whole city, then onto the card (bottom-clamped push)
+          tl.set("#screen-map", { x: -188, y: -378, scale: 2 }, 0);
+          tl.to("#screen-map", { x: 0, y: 0, scale: 1, duration: 1.1, ease: "power2.inOut" }, at(7.2));
+          tl.to("#screen-map", { x: -24, y: -235, scale: 1.2, duration: 0.75, ease: "power2.inOut" }, at(9.25));
+          tl.to("#screen-pos", { y: -140, scale: 1.08, duration: 0.75, ease: "power2.inOut" }, at(9.25));
+          // floating: a slow tilt (the city rows drift the other way in city.html)
+          tl.to("#screen-tilt", { "--ry": "-6deg", "--rx": "4deg", duration: 1.35, ease: "sine.inOut" }, at(7.15));
+          tl.to("#screen-tilt", { "--ry": "5deg", "--rx": "-2deg", duration: 1.5, ease: "sine.inOut" }, at(8.5));
+          tl.to("#screen-tilt", { "--ry": "0deg", "--rx": "0deg", duration: 0.5, ease: "sine.inOut" }, at(10.1));
+          // back into its window, which stays lit
+          tl.to("#screen-pos", { x: wx, y: wy, scale: wScale, duration: 0.75, ease: "power3.inOut" }, at(10.1));
+          tl.to("#screen-warm", { opacity: 1, duration: 0.35, ease: "sine.in" }, at(10.45));
+          tl.set("#screen-pos", { opacity: 0 }, at(10.87));
+          window.__timelines["screen"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>

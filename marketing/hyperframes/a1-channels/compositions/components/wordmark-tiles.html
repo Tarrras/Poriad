@@ -1,0 +1,212 @@
+<!doctype html>
+<!--
+  wordmark-tiles: HyperFrames video primitive (typography / holdable / reveal)
+
+  Registry component, customised in place for A1 «noise → signal»:
+    - the noise faces are ink and greys of the paper/ink film (no colour), with paper gaps;
+    - the resolved glyph is the coral «Поряд» (Unbounded 900, mixed case), the only coral in the film;
+    - the stage fills the host box and the wordmark is fitted to its width at setup, so the
+      host (index.html #wordmark-tiles, x 100–880) sets where the name sits on the end card;
+    - rows derive from the host's aspect, so tiles stay near-square;
+    - a short noise flicker before the wave; IN is 1.1 s and there is no OUT (the name holds
+      through the end card, which needs a static last 10 frames).
+
+  Concept: a wordmark begins as a field of unresolved tiles. A spatially modulated wave crosses
+  the grid, and each tile swaps its noise face for the correct clipped fragment of the final
+  wordmark (fixed-seed LCG: identical every render).
+
+  Mount contract: MOUNTABLE SUB-COMPOSITION (host owns the box). Ids are prefixed (wt-) so they
+  stay unique on the assembled page.
+-->
+<html
+  lang="uk"
+  data-composition-variables='[
+    { "id": "text", "type": "string", "role": "content", "label": "Wordmark", "description": "Text resolved by the tile wave.", "default": "Поряд", "maxLength": 12 },
+    { "id": "columns", "type": "number", "role": "layout", "label": "Columns", "description": "Number of columns in the wordmark tile grid.", "default": 12, "min": 8, "max": 14, "step": 1 },
+    { "id": "waveStagger", "type": "number", "role": "motion", "label": "Wave stagger", "description": "Delay between tile reveals in spatial wave order.", "default": 13, "min": 8, "max": 50, "step": 1, "unit": "ms" }
+  ]'
+>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Wordmark Tiles</title>
+  </head>
+  <body>
+    <template>
+      <div id="wt-root" data-composition-id="wordmark-tiles" data-start="0" data-duration="4" data-fps="30">
+        <style>
+          @font-face { font-family: "Unbounded"; src: url("assets/fonts/unbounded-cyrillic.woff2") format("woff2"); font-weight: 200 900; font-display: block; unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+          @font-face { font-family: "Unbounded"; src: url("assets/fonts/unbounded-latin.woff2") format("woff2"); font-weight: 200 900; font-display: block; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+
+          #wt-root {
+            position: absolute;
+            inset: 0;
+            container-type: size;
+            isolation: isolate;
+            overflow: visible;
+            /* film tokens: paper, ink, greys for noise, coral for the name only */
+            --wt-paper: #f5f5f7;
+            --wt-noise-a: #d9d9df;
+            --wt-noise-b: #b4b4bd;
+            --wt-noise-c: #0b0b0f;
+            --wt-name: #e0582f;
+          }
+          .wt-clip { width: 100%; height: 100%; }
+          .wt-stage { width: 100cqw; height: 100cqh; position: relative; opacity: 0; }
+          .wt-grid {
+            width: 100%;
+            height: 100%;
+            display: grid;
+            grid-template-columns: repeat(var(--wt-columns), minmax(0, 1fr));
+            grid-template-rows: repeat(var(--wt-rows), minmax(0, 1fr));
+          }
+          .wt-tile { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
+          .wt-noise, .wt-resolved { position: absolute; display: block; transform-origin: center; }
+          .wt-noise { inset: 2px; }
+          .wt-resolved { inset: 0; overflow: hidden; }
+          .wt-noise-a { background: var(--wt-noise-a); }
+          .wt-noise-b { background: var(--wt-noise-b); }
+          .wt-noise-c { background: var(--wt-noise-c); }
+          /* each tile holds one crop of the same wordmark surface */
+          .wt-fragment {
+            position: absolute;
+            left: var(--wt-fragment-x);
+            top: var(--wt-fragment-y);
+            width: 100cqw;
+            height: 100cqh;
+            display: grid;
+            place-items: center;
+            color: var(--wt-name);
+            font-family: "Unbounded", system-ui, sans-serif;
+            font-size: var(--wt-font-size);
+            font-weight: 900;
+            line-height: 1;
+            letter-spacing: -0.045em;
+            white-space: nowrap;
+          }
+        </style>
+
+        <div id="wordmark-tiles-clip" class="wt-clip clip" data-start="0" data-duration="4" data-track-index="0">
+          <div class="wt-stage">
+            <!-- every tile holds a full-size crop of the wordmark: overflow and clipping are the mechanism -->
+            <div class="wt-grid" role="img" aria-label="Поряд" data-layout-allow-overflow data-layout-allow-occlusion></div>
+          </div>
+        </div>
+
+        <script>
+          (async function () {
+            "use strict";
+
+            var root = document.getElementById("wt-root");
+            var compositionId = "wordmark-tiles";
+            var stage = root.querySelector(".wt-stage");
+            var grid = root.querySelector(".wt-grid");
+
+            var vars = window.__hyperframes && window.__hyperframes.getVariables ? window.__hyperframes.getVariables() : {};
+            var text = vars.text == null ? "Поряд" : String(vars.text).trim().slice(0, 12);
+            if (text.length === 0) text = "Поряд";
+            var rawColumns = Number(vars.columns);
+            var columns = Number.isFinite(rawColumns) ? Math.round(rawColumns) : 12;
+            columns = Math.max(8, Math.min(14, columns));
+            var rawWaveStagger = Number(vars.waveStagger);
+            var waveStaggerMs = Number.isFinite(rawWaveStagger) ? rawWaveStagger : 13;
+            waveStaggerMs = Math.max(8, Math.min(50, waveStaggerMs));
+
+            // the host owns the box; rows follow its aspect so tiles stay near-square
+            var host = root.parentElement;
+            var boxW = (host && parseFloat(host.getAttribute("data-width"))) || 780;
+            var boxH = (host && parseFloat(host.getAttribute("data-height"))) || 250;
+            var rows = Math.max(3, Math.round((columns * boxH) / boxW));
+            var tileCount = columns * rows;
+
+            // fit the wordmark to the box width once, at setup
+            await document.fonts.load('900 100px "Unbounded"', text);
+            // fitted with canvas metrics: the mount is not laid out while the timeline is built
+            var ctx = document.createElement("canvas").getContext("2d");
+            ctx.font = '900 100px "Unbounded", system-ui, sans-serif';
+            ctx.letterSpacing = "-4.5px";
+            var fontSize = Math.min(boxH * 0.9, (100 * boxW) / Math.max(1, ctx.measureText(text).width));
+
+            grid.style.setProperty("--wt-columns", String(columns));
+            grid.style.setProperty("--wt-rows", String(rows));
+            grid.style.setProperty("--wt-font-size", fontSize.toFixed(1) + "px");
+            grid.setAttribute("aria-label", text);
+
+            var seed = 0x57a7c1e;
+            function seededUnit() {
+              seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+              return seed / 4294967296;
+            }
+
+            var fragment = document.createDocumentFragment();
+            var tiles = [];
+            for (var index = 0; index < tileCount; index += 1) {
+              var row = Math.floor(index / columns);
+              var column = index % columns;
+              var tile = document.createElement("span");
+              var noise = document.createElement("span");
+              var resolved = document.createElement("span");
+              var wordmark = document.createElement("span");
+              var noiseVariant = 1 + Math.floor(seededUnit() * 3);
+
+              tile.className = "wt-tile";
+              tile.setAttribute("aria-hidden", "true");
+              tile.dataset.waveRank = String(column + row * 0.68 + Math.sin(row * 1.7 + column * 0.42) * 2.15);
+
+              noise.className = "wt-noise wt-noise-" + ["a", "b", "c"][noiseVariant - 1];
+              noise.dataset.startOpacity = String(0.72 + seededUnit() * 0.28);
+
+              resolved.className = "wt-resolved";
+              wordmark.className = "wt-fragment";
+              wordmark.textContent = text;
+              wordmark.style.setProperty("--wt-fragment-x", String((-100 * column) / columns) + "cqw");
+              wordmark.style.setProperty("--wt-fragment-y", String((-100 * row) / rows) + "cqh");
+
+              resolved.appendChild(wordmark);
+              tile.appendChild(resolved);
+              tile.appendChild(noise);
+              fragment.appendChild(tile);
+              tiles.push(tile);
+            }
+            grid.replaceChildren(fragment);
+
+            var waveTiles = tiles.slice().sort(function (a, b) {
+              return Number(a.dataset.waveRank) - Number(b.dataset.waveRank);
+            });
+            var resolvedByWave = waveTiles.map(function (t) { return t.querySelector(".wt-resolved"); });
+            var noiseByWave = waveTiles.map(function (t) { return t.querySelector(".wt-noise"); });
+
+            // envelope: fast in, no out (the name holds through the end card)
+            var IN = 1.1;
+            var STAGE_IN = 0.08;
+            var FLICKER = [0, 2 / 30];
+            var WAVE_START = 0.18;
+            var TILE_DURATION = 0.3;
+            var maxStep = Math.max(0, (IN - WAVE_START - TILE_DURATION) / Math.max(1, tileCount - 1));
+            var STAGGER_SECONDS = Math.min(waveStaggerMs / 1000, maxStep);
+
+            gsap.set(stage, { opacity: 0 });
+            gsap.set(resolvedByWave, { opacity: 0, scale: 0.82 });
+
+            var timeline = gsap.timeline({ paused: true });
+            timeline.to(stage, { opacity: 1, duration: STAGE_IN, ease: "power2.out" }, 0);
+
+            // noise: the field flickers for a few frames before the wave reads it
+            FLICKER.forEach(function (t) {
+              noiseByWave.forEach(function (n) {
+                timeline.set(n, { opacity: +(0.3 + seededUnit() * 0.7).toFixed(2), scale: 1 }, t);
+              });
+            });
+            timeline.set(noiseByWave, {
+              opacity: function (_i, el) { return Number(el.dataset.startOpacity); },
+            }, 4 / 30);
+
+            timeline.to(resolvedByWave, { opacity: 1, scale: 1, duration: TILE_DURATION, ease: "power2.out", stagger: { each: STAGGER_SECONDS, from: "start" } }, WAVE_START);
+            timeline.to(noiseByWave, { opacity: 0, scale: 1.18, duration: TILE_DURATION, ease: "power2.out", stagger: { each: STAGGER_SECONDS, from: "start" } }, WAVE_START);
+
+            window.__timelines[compositionId] = timeline;
+          })();
+        </script>
+      </div>
+    </template>
+  </body>
+</html>

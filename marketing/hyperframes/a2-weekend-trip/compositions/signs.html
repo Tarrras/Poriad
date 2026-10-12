@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8" />
+  </head>
+  <body>
+    <template>
+      <style>
+        #signs-root { position: absolute; inset: 0; overflow: hidden; }
+        #sg-all { position: absolute; inset: 0; }
+        .sg-row { position: absolute; left: 64px; }
+        /* the signs hang on their own board strip, run up to the top edge, so the phone can push up underneath it */
+        #sg-panel { position: absolute; left: -24px; width: 1128px; top: -20px; height: 638px; background: linear-gradient(180deg, #0e1626 0%, #0a1020 40%, #070b16 100%); box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5), inset 0 0 0 1.5px rgba(242, 181, 68, 0.28); }
+      </style>
+
+      <div id="signs-root" data-composition-id="signs" data-width="1080" data-height="1920">
+        <div id="sg-all">
+          <div id="sg-panel"></div>
+          <!-- amber caption board: two rows of 15 tiles -->
+          <div class="sg-row" id="sg-c1" style="top: 268px"></div>
+          <div class="sg-row" id="sg-c2" style="top: 352px"></div>
+          <!-- the destination: one row of big paper tiles -->
+          <div class="sg-row" id="sg-city" style="top: 458px"></div>
+        </div>
+      </div>
+
+      <script>
+        (function () {
+          // Local time 0 = film 5.7
+          var T0 = 5.7;
+          function L(film) { return film - T0; }
+          var F = window.SplitFlap;
+          // 15 tiles end at x 914; a row lands within 0.37 s and every caption holds ≥ 0.8 s before the next flip
+          var cap = { cells: 15, w: 52, h: 76, gap: 5, font: 44, flip: 0.028, stagger: 0.012, maxSteps: 4, color: "#F2B544" };
+          function caption(id, seed, lines) {
+            var o = { el: document.getElementById(id), seed: seed, script: lines };
+            for (var k in cap) o[k] = cap[k];
+            return F.row(o);
+          }
+          var rows = [
+            caption("sg-c1", 11, [[L(5.82), "ПЕРЕМИКАЄШ"], [L(7.82), "ОБИРАЄШ"], [L(9.04), "І ВИХІДНІ ВЖЕ"], [L(10.26), "5 МІСТ —"]]),
+            caption("sg-c2", 12, [[L(5.86), "МІСТО"], [L(7.86), "«ВИХІДНІ»"], [L(9.08), "З ПЛАНОМ"], [L(10.3), "ОДИН ЗАСТОСУНОК"]]),
+            // КИЇВ → ЛЬВІВ on the tap (lands by 7.51, holds to 10.16); then the cities roll on a short walk (cap 1): each lands in ≤ 0.16 s and holds ~0.25 s
+            F.row({
+              el: document.getElementById("sg-city"), seed: 21, cells: 6, w: 96, h: 132, gap: 7, font: 84,
+              flip: 0.024, stagger: 0.012, maxSteps: 5, color: "#F4EFE2",
+              script: [[L(5.88), "КИЇВ"], [L(7.26), "ЛЬВІВ"], [L(10.16), "КИЇВ", 1], [L(10.56), "ОДЕСА", 1], [L(10.96), "ДНІПРО", 1], [L(11.36), "ХАРКІВ", 1]],
+            }),
+          ];
+          var tl = gsap.timeline({ paused: true });
+          F.drive(tl, 6.4, rows);
+          tl.fromTo("#sg-all", { opacity: 0, y: -24 }, { opacity: 1, y: 0, duration: 0.3, ease: "power3.out" }, 0);
+          tl.to("#sg-all", { opacity: 0, y: -30, duration: 0.3, ease: "power2.in" }, L(11.78));
+          window.__timelines["signs"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>

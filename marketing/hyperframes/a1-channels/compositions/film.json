@@ -1,67 +1,68 @@
 {
-  "duration": 14.6,
+  "duration": 14.5,
   "brand": "Поряд",
-  "feature": {
-    "name": "Мапа подій",
-    "url": "https://poriad.app",
-    "viewer": "20–30-year-olds in Kyiv who follow a messenger folder of poster channels and still end up with no plan",
-    "task": "open the map of Kyiv, see events from ticket sites in one place, tap the gold stand-up pin and get the event card with its source «Афіша · Concert.ua»",
-    "before": "events are scattered across dozens of channels; reading them all is a second job: «20 каналів. 0 планів.»",
-    "after": "the events sit on one map, one tap opens the event"
+  "version": "v2 — noise → signal (own visual language, not the C-series)",
+  "ground": "#F5F5F7",
+  "ink": "#0B0B0F",
+  "coral": "#E0582F — «Поряд» only",
+  "music": {
+    "src": "assets/audio/music-electronic.wav",
+    "mediaStart": 3.0,
+    "note": "riser peaks on the RGB-split cut (4.47), the track's break is the silence (volume 0 from 4.48 to 4.97), the drop lands with the pin (5.0)"
   },
-  "ground": "#0B0B0F",
-  "ink": "#F5F5F7",
-  "current": "left",
-  "brandReveal": "turn",
+  "registry": [
+    "notification-cascade (block, customised in place)",
+    "rgb-glitch-text (component, pasted into the hook)",
+    "transitions-radial (Circle Iris recipe, ported into map.html)",
+    "wordmark-tiles (component, customised in place)"
+  ],
   "beats": [
     {
-      "id": "hook",
+      "id": "noise",
       "start": 0,
-      "end": 5.4,
-      "line": "20 каналів. 0 планів. — давай простіше: одна мапа",
-      "picture": "the messenger folder «афіші 📌» (a folder glyph, no logos) rises and rushes at the camera; the channels fly out as glass pills with unread badges whose counters climb («куди піти · київ» 342, «концерти тижня» 99+, «стендап анонси» 57, «афіша вихідних» 1.2K, «вечірки» 640, «театр сьогодні» 28) around «20 каналів. 0 планів.» (Unbounded 900); the channels are muted one by one (pill dims, badge turns grey) and the cloud lifts out; then «давай простіше: одна мапа» assembles word by word, splits open around a map badge and a stand-up mic badge, and the badges step into the chip «Що поруч · Київ» and a crop of the real Kyiv map around the gold stand-up pin before the camera lurches onto the pin",
-      "moment": "M985 + M958",
-      "take": "M985: statements land on fast decelerating rises with a smear that dies in a few frames, hard swaps, a pill cloud grows and lifts out around the verdict. M958: words assemble one by one (tinted, then settling to ink), the sentence splits open around two badges that grow, the words fade, the badges step in one frame into the product's UI, and the camera lurches before a hard cut to the product UI. The counters are an illustration of noise, not data",
-      "ui": [],
-      "exit": "match cut: the hook lurches onto the gold stand-up pin and the phone opens on that same pin"
+      "end": 4.47,
+      "file": "compositions/notification-cascade.html",
+      "picture": "a paper lock screen (19:04) is buried by 20 channel banners (neutral letter avatars, unread counters) landing faster and faster on the music, the frame shakes; the verdict slams in on paper strips through rgb-glitch-text; an RGB-split/band-tear filter ramps on the riser",
+      "line": "20 каналів. 0 планів."
     },
     {
-      "id": "proof",
-      "start": 5.4,
-      "end": 10.4,
-      "line": "події з квиткових сайтів · на одній мапі · тап — і все про подію",
-      "picture": "the gold stand-up pin from the hook turns out to sit among the clusters of the Kyiv map as the camera pulls back to the whole map; the camera pushes to the pin, a tap selects it, the map crossfades to the zoomed map with the selected card «СТЕНДАП на А… · ЧТ, 22 ЖОВТ. · 19:00 · АФІША · CONCE…» and the camera pushes onto the card",
-      "moment": null,
-      "take": "real prod screens (map-kyiv, map-kyiv-card), untouched; one caption per action; camera pushes and crossfades only; the «Знайдено подій» pill is never zoomed into (it stays above the frame on the card push)",
-      "ui": [
-        "pull back over the clusters of map-kyiv to the whole map",
-        "tap the gold stand-up pin (436, 838)",
-        "crossfade to map-kyiv-card and push onto the selected card (y 1910–2244)"
-      ],
-      "exit": "carrier",
-      "carrier": "the stand-up card lifts out of the phone while the phone falls away"
+      "id": "silence",
+      "start": 4.47,
+      "end": 5.0,
+      "file": "compositions/notification-cascade.html",
+      "picture": "hard cut: everything stops, the banners lose their words (grey slabs), then implode into one ink dot"
     },
     {
-      "id": "turn",
-      "start": 10.4,
-      "end": 12.5,
-      "line": "Поряд збирає їх на одну мапу.",
-      "picture": "the stand-up card sits alone on the ground; the «Поряд» icon and coral name arrive under it, and «збирає їх на одну мапу.» lands right under the name, so the coral wordmark is the sentence's first word",
-      "moment": null,
-      "take": "inverse zoom for the brand reveal",
-      "ui": [],
-      "exit": "carrier",
-      "carrier": "the «Поряд» lockup travels up into the end card while the card leaves left and the line fades"
+      "id": "signal",
+      "start": 5.0,
+      "end": 6.3,
+      "file": "compositions/notification-cascade.html",
+      "picture": "the dot drops and becomes an ink pin with a bounce on the drop; the line types out under it; the camera dives into the pin's hole",
+      "line": "давай простіше: одна мапа"
     },
     {
-      "id": "cta",
-      "start": 12.5,
-      "end": 14.6,
-      "line": "скільки в тебе каналів з афішами? 👇",
-      "picture": "the «Поряд» lockup over «твоє місто. нарешті видно.», «безкоштовно» and the App Store badge",
-      "moment": null,
-      "take": "end card; the official badge is a hard cut and never moves; the last 0.6 s hold still",
-      "ui": []
+      "id": "map",
+      "start": 6.3,
+      "end": 10.5,
+      "file": "compositions/map.html",
+      "picture": "map-kyiv opens full-bleed from the pin's hole as a circle iris (the gold stand-up pin sits in the hole), the camera drifts back over the clusters; annotation strips with leader lines; tap on the gold pin (436, 840) → crossfade map-kyiv-card → push onto the card",
+      "line": "події з квиткових сайтів · на одній мапі · тап — і все про подію"
+    },
+    {
+      "id": "name",
+      "start": 10.5,
+      "end": 12.4,
+      "file": "compositions/components/wordmark-tiles.html + compositions/end.html",
+      "picture": "a field of ink/grey noise tiles resolves into the coral «Поряд»; the rest of the sentence types under it",
+      "line": "Поряд збирає їх на одну мапу."
+    },
+    {
+      "id": "end",
+      "start": 12.4,
+      "end": 14.5,
+      "file": "compositions/end.html",
+      "picture": "light end card, left-aligned: bait typed at the top, «Поряд» + line, «безкоштовно», the official App Store badge by hard cut (13.5) with the Apple trademark line; still from 13.5",
+      "line": "скільки в тебе каналів з афішами? 👇"
     }
   ]
 }

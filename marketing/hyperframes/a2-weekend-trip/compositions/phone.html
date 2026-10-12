@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8" />
+  </head>
+  <body>
+    <template>
+      <style>
+        #phone-root { position: absolute; inset: 0; overflow: hidden; }
+        /* one perspective for the whole move: the phone comes out of a pocket like a ticket */
+        #ph-stage { position: absolute; inset: 0; perspective: 1900px; perspective-origin: 500px 1150px; }
+        #ph-cam { position: absolute; inset: 0; transform-origin: 500px 1559px; transform-style: preserve-3d; }
+        /* registry tilt-card, customised: the card is the phone, its glow is a glass sheen */
+        .hf-transition-tilt-card { position: absolute; left: 220px; top: 630px; width: 560px; height: 1185px; border-radius: 74px; background: #05080f; transform-style: preserve-3d; box-shadow: 0 60px 120px rgba(0, 0, 0, 0.6), 0 0 0 1.5px rgba(242, 181, 68, 0.38); }
+        .ph-back { position: absolute; inset: 0; border-radius: 74px; background: #1a2338; transform: translateZ(-18px); box-shadow: 0 0 0 2px rgba(242, 181, 68, 0.25); }
+        .hf-transition-tilt-content { position: absolute; left: 14px; top: 14px; width: 532px; height: 1157px; border-radius: 60px; overflow: hidden; background: #0e1626; transform: translateZ(1px); }
+        .hf-transition-tilt-content img { position: absolute; left: 0; top: 0; width: 532px; height: 1157px; display: block; }
+        #s-pick-top { position: absolute; inset: 0; background: url("assets/ui/picker-map.png") 0 0 / 532px 1157px no-repeat; clip-path: inset(0 0 53.16% 0); }
+        #s-pick-sheet { clip-path: inset(46.84% 0 0 0); }
+        .hf-transition-tilt-glow { position: absolute; inset: -30%; background: radial-gradient(circle at 30% 20%, rgba(255, 228, 170, 0.2), transparent 36%); mix-blend-mode: screen; pointer-events: none; }
+        .ph-tap { position: absolute; left: 0; top: 0; width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 50%; border: 4px solid #f2b544; background: rgba(242, 181, 68, 0.22); }
+      </style>
+
+      <div id="phone-root" data-composition-id="phone" data-width="1080" data-height="1920">
+        <div id="ph-stage">
+          <div id="ph-cam">
+            <div class="hf-transition-tilt-card" id="ph-card">
+              <div class="ph-back"></div>
+              <div class="hf-transition-tilt-content">
+                <img id="s-kyiv" src="assets/ui/map-kyiv.png" alt="" />
+                <img id="s-lviv" src="assets/ui/map-lviv.png" alt="" />
+                <div id="s-pick-top"></div>
+                <img id="s-pick-sheet" src="assets/ui/picker-map.png" alt="" />
+                <img id="s-lviv-wk" src="assets/ui/map-lviv-weekend.png" alt="" />
+                <div class="ph-tap" id="ph-tap-1"></div>
+                <div class="ph-tap" id="ph-tap-2"></div>
+                <div class="ph-tap" id="ph-tap-3"></div>
+                <div class="hf-transition-tilt-glow"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <script>
+        (function () {
+          // Local time 0 = film 5.5
+          var T0 = 5.5;
+          function L(film) { return film - T0; }
+          // screenshot px → screen px (532 / 1206)
+          var S = 532 / 1206;
+          var tl = gsap.timeline({ paused: true });
+
+          // out of the pocket: rotateY 18° → a slight resting tilt, the sheen slides across the glass
+          tl.fromTo("#ph-card", { y: 1150, rotationY: 18, rotationX: 12, rotationZ: -4 }, { y: 0, rotationY: -6, rotationX: 3, rotationZ: 0, duration: 0.6, ease: "power3.out" }, L(5.62));
+          tl.fromTo(".hf-transition-tilt-glow", { xPercent: -30, yPercent: 30, opacity: 1 }, { xPercent: 22, yPercent: -14, opacity: 0, duration: 0.9, ease: "power2.out" }, L(5.6));
+          tl.to("#ph-card", { rotationY: -2, rotationX: 1.5, duration: 3.1, ease: "sine.inOut" }, L(6.2));
+
+          function tap(id, x, y, film) {
+            tl.fromTo(id, { x: x * S, y: y * S, scale: 0.4, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.1, ease: "power2.out" }, L(film));
+            tl.to(id, { scale: 1.7, opacity: 0, duration: 0.35, ease: "power2.out" }, L(film) + 0.12);
+          }
+          // tap «Київ ⌄» → «Знайти місто» slides up
+          tap("#ph-tap-1", 203, 462, 6.5);
+          tl.fromTo("#s-pick-top", { opacity: 0 }, { opacity: 1, duration: 0.25, ease: "power2.out" }, L(6.58));
+          tl.fromTo("#s-pick-sheet", { y: 640 }, { y: 0, duration: 0.38, ease: "power3.out" }, L(6.58));
+          // tap «Львів» → the sheet drops, the map is Lviv
+          tap("#ph-tap-2", 150, 2447, 7.25);
+          // Lviv is already under the sheet, so the sheet drops onto it
+          tl.fromTo("#s-lviv", { opacity: 0 }, { opacity: 1, duration: 0.01 }, L(7.3));
+          tl.to("#s-pick-sheet", { y: 640, duration: 0.2, ease: "power2.in" }, L(7.32));
+          tl.to("#s-pick-top", { opacity: 0, duration: 0.25 }, L(7.42));
+          // tap «Будь-коли» → «Вихідні»
+          tap("#ph-tap-3", 1000, 462, 8.65);
+          tl.fromTo("#s-lviv-wk", { opacity: 0 }, { opacity: 1, duration: 0.25, ease: "power1.inOut" }, L(8.78));
+
+          // push onto the «Вечір джазу» card (screen y 1910–2240): the phone flattens and the card rises to frame centre
+          tl.to("#ph-card", { rotationY: 0, rotationX: 0, duration: 0.7, ease: "power3.inOut" }, L(9.3));
+          tl.fromTo("#ph-cam", { scale: 1, y: 0 }, { scale: 1.42, y: -520, duration: 0.75, ease: "power3.inOut" }, L(9.3));
+
+          // back into the pocket
+          tl.to("#ph-card", { y: 1500, rotationY: -18, rotationX: 10, duration: 0.42, ease: "power3.in" }, L(10.22));
+
+          window.__timelines["phone"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>

@@ -1,0 +1,101 @@
+<!doctype html>
+<!--
+  svg-stroke-trace: HyperFrames video primitive (intros and reveals), customised for A3.
+
+  The «Поряд» wordmark (Unbounded 900, coral #E0582F, the only coral in the film) is traced as a line,
+  every glyph contour from its own start, then filled. No hold drift and no exit: the mark lands where the
+  end-card lockup needs it and stays perfectly still to the last frame.
+
+  Envelope (seconds, local): 0.00 fade-in of the stage · 0.05–0.80 stroke trace · 0.62–0.95 fill · hold.
+-->
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8" />
+    <title>SVG Stroke Trace · Поряд</title>
+  </head>
+  <body>
+    <template>
+      <div id="sst-root" data-composition-id="svg-stroke-trace" data-width="1080" data-height="1920">
+        <style>
+          @font-face {
+            font-family: "Unbounded";
+            src: url("assets/fonts/unbounded-cyrillic.woff2") format("woff2");
+            font-weight: 200 900;
+            font-display: block;
+            unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+          }
+          #sst-root {
+            --sst-accent: #e0582f;
+            position: absolute;
+            inset: 0;
+            overflow: hidden;
+            pointer-events: none;
+          }
+          .sst-stage {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+          }
+          .sst-svg {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 1080px;
+            height: 1920px;
+            overflow: visible;
+          }
+          .sst-svg text {
+            font-family: "Unbounded", system-ui, sans-serif;
+            font-weight: 900;
+            font-size: 128px;
+            letter-spacing: -0.045em;
+          }
+          .sst-fill {
+            fill: var(--sst-accent);
+            stroke: none;
+            opacity: 0;
+          }
+          .sst-stroke {
+            fill: none;
+            stroke: var(--sst-accent);
+            stroke-width: 6px;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            stroke-dasharray: 1200 1200;
+            stroke-dashoffset: 1200;
+            filter: drop-shadow(0 0 10px rgba(224, 88, 47, 0.45));
+          }
+        </style>
+
+        <div class="sst-stage" role="img" aria-label="Поряд">
+          <svg class="sst-svg" viewBox="0 0 1080 1920" aria-hidden="true">
+            <!-- The variable font keeps overlapping contours; stroked, they show seams inside the letters.
+                 The mask keeps only the outer half of the stroke, so the silhouette alone is traced. -->
+            <mask id="sst-outside" maskUnits="userSpaceOnUse" x="0" y="0" width="1080" height="1920">
+              <rect width="1080" height="1920" fill="#fff"></rect>
+              <text class="sst-mask-text" x="540" y="926" text-anchor="middle" fill="#000" data-layout-ignore="">Поряд</text>
+            </mask>
+            <text class="sst-fill" x="540" y="926" text-anchor="middle" data-brand-mark="">Поряд</text>
+            <g mask="url(#sst-outside)"><text class="sst-stroke" x="540" y="926" text-anchor="middle" data-layout-ignore="">Поряд</text></g>
+          </svg>
+        </div>
+
+        <script>
+          (function () {
+            var root = document.getElementById("sst-root");
+            var stage = root.querySelector(".sst-stage");
+            var fill = root.querySelector(".sst-fill");
+            var stroke = root.querySelector(".sst-stroke");
+            // Text has no measurable length: one dash longer than the longest glyph contour draws every contour once.
+            var tl = gsap.timeline({ paused: true });
+            tl.to(stage, { opacity: 1, duration: 0.2, ease: "power2.out" }, 0);
+            tl.to(stroke, { strokeDashoffset: 0, duration: 0.75, ease: "sine.inOut" }, 0.05);
+            tl.to(fill, { opacity: 1, duration: 0.33, ease: "power2.out" }, 0.62);
+            tl.to(stroke, { filter: "drop-shadow(0 0 0px rgba(224, 88, 47, 0))", duration: 0.33, ease: "power2.out" }, 0.62);
+            window.__timelines["svg-stroke-trace"] = tl;
+          })();
+        </script>
+      </div>
+    </template>
+  </body>
+</html>

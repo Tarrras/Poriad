@@ -9,5 +9,22 @@
   "media": {
     "autoProxy": true
   },
-  "authoringSkill": "motion-graphics"
+  "authoringSkill": "motion-graphics",
+  "registryItems": [
+    {
+      "name": "notification-cascade",
+      "type": "hyperframes:block",
+      "target": "compositions/notification-cascade.html"
+    },
+    {
+      "name": "rgb-glitch-text",
+      "type": "hyperframes:component",
+      "target": "compositions/components/rgb-glitch-text.html"
+    },
+    {
+      "name": "wordmark-tiles",
+      "type": "hyperframes:component",
+      "target": "compositions/components/wordmark-tiles.html"
+    }
+  ]
 }

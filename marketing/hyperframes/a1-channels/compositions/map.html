@@ -1,0 +1,139 @@
+<!-- A1 proof: the real map-kyiv screen opens full-bleed from the pin as a circle iris (transitions-radial
+     «Circle Iris» recipe), the camera drifts back over the clusters, annotations with leader lines name what
+     is on screen, a tap on the gold stand-up pin, crossfade to map-kyiv-card, push onto the card.
+     Screens are untouched prod screenshots (1206×2622); camera = translate + scale only. -->
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8" />
+  </head>
+  <body>
+    <template>
+      <style>
+        @font-face { font-family: "Inter"; src: url("assets/fonts/inter-cyrillic-600-normal.woff2") format("woff2"); font-weight: 600; font-display: block; unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+        @font-face { font-family: "Inter"; src: url("assets/fonts/inter-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-display: block; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+
+        #map-root { position: absolute; inset: 0; overflow: hidden; font-family: "Inter", system-ui, sans-serif; color: #0b0b0f; }
+        #map-iris { position: absolute; inset: 0; overflow: hidden; background: #e8e8ec; }
+        #map-cam { position: absolute; left: 0; top: 0; width: 1206px; height: 2622px; transform-origin: 0 0; }
+        #map-cam img, #map-marks { position: absolute; left: 0; top: 0; width: 1206px; height: 2622px; }
+        #map-shot-card { opacity: 0; }
+        .map-over { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; overflow: visible; }
+        /* annotation: ink on a paper strip, a thin leader to the thing on screen */
+        .map-cap { position: absolute; left: 80px; display: flex; align-items: center; gap: 18px; padding: 16px 28px 17px 22px; background: #f5f5f7; border-radius: 4px; box-shadow: 0 12px 34px rgba(11, 11, 15, 0.22); font-weight: 600; font-size: 42px; line-height: 44px; letter-spacing: -0.01em; white-space: nowrap; }
+        .map-cap span { display: block; }
+        .map-cap i { display: block; width: 12px; height: 12px; background: #0b0b0f; }
+        #map-c1 { top: 1328px; }
+        #map-c2 { top: 400px; }
+        #map-c3 { top: 860px; }
+        .map-lead { stroke: #0b0b0f; stroke-width: 3; stroke-linecap: round; fill: none; }
+      </style>
+
+      <div id="map-root" data-composition-id="map" data-width="1080" data-height="1920">
+        <div id="map-iris">
+          <div id="map-cam">
+            <img id="map-shot" src="assets/ui/map-kyiv.png" alt="" />
+            <img id="map-shot-card" src="assets/ui/map-kyiv-card.png" alt="" />
+            <!-- marks live in screenshot space, so they ride the camera exactly -->
+            <svg id="map-marks" viewBox="0 0 1206 2622" aria-hidden="true">
+              <circle id="map-m1" cx="616" cy="1106" r="74" fill="none" stroke="#0b0b0f" stroke-width="5" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1" transform="rotate(-100 616 1106)" />
+              <g id="map-m2"><circle cx="203" cy="514" r="11" fill="#0b0b0f" stroke="#f5f5f7" stroke-width="5" /></g>
+              <g id="map-m3"><circle cx="420" cy="1910" r="11" fill="#0b0b0f" stroke="#f5f5f7" stroke-width="5" /></g>
+            </svg>
+          </div>
+        </div>
+        <svg class="map-over" id="map-ring-layer" viewBox="0 0 1080 1920" aria-hidden="true">
+          <circle id="map-ring" cx="540" cy="860" r="0" fill="none" stroke="#0b0b0f" stroke-width="7" />
+          <circle id="map-press" cx="386" cy="628" r="40" fill="#0b0b0f" opacity="0" />
+          <circle id="map-tap" cx="386" cy="628" r="40" fill="none" stroke="#0b0b0f" stroke-width="4" opacity="0" />
+          <line id="map-l1" class="map-lead" x1="0" y1="0" x2="0" y2="0" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1" />
+          <line id="map-l2" class="map-lead" x1="0" y1="0" x2="0" y2="0" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1" />
+          <line id="map-l3" class="map-lead" x1="0" y1="0" x2="0" y2="0" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1" />
+        </svg>
+        <div class="map-cap" id="map-c1"><i></i><span></span></div>
+        <div class="map-cap" id="map-c2"><i></i><span></span></div>
+        <div class="map-cap" id="map-c3"><i></i><span></span></div>
+      </div>
+
+      <script>
+        (async () => {
+          const root = document.getElementById("map-root");
+          const $ = (s) => root.querySelector(s);
+          const COPY = ["події з квиткових сайтів", "на одній мапі", "тап — і все про подію"];
+          await document.fonts.load('600 42px "Inter"', COPY.join(""));
+          ["#map-c1", "#map-c2", "#map-c3"].forEach((s, i) => ($(s + " span").textContent = COPY[i]));
+          // camera keys: frame = (x, y) + screenshot point × s
+          const IRIS = { x: 540, y: 860 }; // the pin's hole in the hook
+          const K0 = { s: 1.6, x: IRIS.x - 436 * 1.6, y: IRIS.y - 840 * 1.6 }; // the gold stand-up pin sits in the hole
+          const K1 = { s: 0.92, x: (1080 - 1206 * 0.92) / 2, y: -145 }; // whole screen below the status bar
+          const K2 = { s: 1.08, x: 540 - 545 * 1.08, y: 1920 - 2622 * 1.08 }; // pushed onto the card, bottom edge held
+          const SEG = [
+            { a: K0, b: K1, t: 0.1, d: 2.3, ease: "power2.inOut" },
+            { a: K1, b: K2, t: 3.0, d: 0.85, ease: "power3.inOut" },
+          ];
+          const at = (k, px, py) => [k.x + px * k.s, k.y + py * k.s];
+          const T = { iris: 0.04, irisEnd: 0.46, c1: 0.5, c1out: 1.45, c2: 1.5, c2out: 2.5, tap: 2.7, swap: 2.76, c3: 3.15 };
+
+          const tl = gsap.timeline({ paused: true });
+          const cam = $("#map-cam");
+          SEG.forEach((g, i) =>
+            tl.fromTo(cam, { x: g.a.x, y: g.a.y, scale: g.a.s }, { x: g.b.x, y: g.b.y, scale: g.b.s, duration: g.d, ease: g.ease, immediateRender: i === 0 }, g.t)
+          );
+          // a screen-space point that follows a screenshot point through every camera move (same ease, same span)
+          const follow = (el, px, py, vars) => {
+            SEG.forEach((g, i) =>
+              tl.fromTo(el, vars(...at(g.a, px, py)), { ...vars(...at(g.b, px, py)), duration: g.d, ease: g.ease, immediateRender: i === 0 }, g.t)
+            );
+          };
+
+          // ---- circle iris from the pin's hole, with an ink edge ----
+          tl.fromTo("#map-iris", { clipPath: "circle(0px at 540px 860px)" }, { clipPath: "circle(1250px at 540px 860px)", duration: T.irisEnd - T.iris, ease: "power3.in" }, T.iris);
+          tl.fromTo("#map-ring", { attr: { r: 0 } }, { attr: { r: 1250 }, duration: T.irisEnd - T.iris, ease: "power3.in" }, T.iris);
+          tl.set("#map-ring", { opacity: 0 }, T.irisEnd);
+
+          // ---- annotations ----
+          const cap = (id, line, tIn, tOut, anchor, target, markIn) => {
+            const strip = $(id);
+            const a = anchor(strip);
+            // wipe without measuring (the scene is not laid out while the timeline is built);
+            // the -60px margins keep the strip's shadow
+            const clip = (r, l) => "inset(-60px calc(" + r + "% + " + (r ? 60 : -60) + "px) -60px calc(" + l + "% + " + (l ? 60 : -60) + "px))";
+            tl.set(line, { attr: { x1: a[0], y1: a[1] } }, 0);
+            follow(line, target[0], target[1], (x, y) => ({ attr: { x2: x, y2: y } }));
+            tl.fromTo(strip, { clipPath: clip(100, 0) }, { clipPath: clip(0, 0), duration: 0.26, ease: "power3.out" }, tIn);
+            tl.fromTo(strip.querySelector("span"), { x: -14 }, { x: 0, duration: 0.36, ease: "power3.out" }, tIn);
+            tl.fromTo(line, { strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: 0.26, ease: "power2.out" }, tIn + 0.1);
+            markIn(tIn + 0.2);
+            if (tOut != null) {
+              tl.fromTo(strip, { clipPath: clip(0, 0) }, { clipPath: clip(0, 100), duration: 0.2, ease: "power2.in", immediateRender: false }, tOut);
+              tl.fromTo(line, { strokeDashoffset: 0 }, { strokeDashoffset: -1, duration: 0.2, ease: "power2.in", immediateRender: false }, tOut);
+            }
+          };
+          const popIn = (sel, tOut) => (t) => {
+            tl.fromTo(sel, { scale: 0, transformOrigin: "50% 50%" }, { scale: 1, duration: 0.3, ease: "back.out(3)" }, t);
+            if (tOut != null) tl.to(sel, { scale: 0, duration: 0.16, ease: "power2.in" }, tOut);
+          };
+          // 1 · events from ticket sites: the leader leaves the strip's top-right and the cluster gets circled
+          cap("#map-c1", "#map-l1", T.c1, T.c1out, () => [430, 1328], [616, 1106], (t) => {
+            tl.fromTo("#map-m1", { strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: 0.34, ease: "power2.inOut" }, t);
+            tl.to("#map-m1", { strokeDashoffset: -1, duration: 0.2, ease: "power2.in" }, T.c1out);
+          });
+          // 2 · on one map: a short tick up to the city chip
+          cap("#map-c2", "#map-l2", T.c2, T.c2out, () => [172, 400], [203, 514], popIn("#map-m2", T.c2out));
+          // 3 · tap, and the whole event: down to the selected card
+          cap("#map-c3", "#map-l3", T.c3, null, () => [160, 937], [420, 1910], popIn("#map-m3", null));
+
+          // ---- tap on the gold pin (camera at rest on K1) ----
+          const [tx, ty] = at(K1, 436, 840);
+          tl.set(["#map-press", "#map-tap"], { attr: { cx: tx, cy: ty } }, 0);
+          tl.fromTo("#map-press", { opacity: 0, scale: 0.6, transformOrigin: "50% 50%" }, { opacity: 0.22, scale: 1, duration: 0.08, ease: "power2.out", immediateRender: false }, T.tap);
+          tl.to("#map-press", { opacity: 0, duration: 0.2, ease: "power2.in" }, T.tap + 0.12);
+          tl.fromTo("#map-tap", { opacity: 0.9, scale: 0.5, transformOrigin: "50% 50%" }, { opacity: 0, scale: 1.9, duration: 0.42, ease: "power2.out", immediateRender: false }, T.tap);
+          tl.fromTo("#map-shot-card", { opacity: 0 }, { opacity: 1, duration: 0.24, ease: "power1.inOut" }, T.swap);
+
+          window.__timelines["map"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>

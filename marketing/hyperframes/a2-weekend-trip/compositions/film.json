@@ -1,68 +1,16 @@
 {
+  "version": "v2 — the night train (BUILD-A.md, «A2 — the night train»)",
   "duration": 14,
   "brand": "Поряд",
-  "feature": {
-    "name": "Перемикання міста на мапі + фільтр «Вихідні»",
-    "url": "https://poriad.app",
-    "viewer": "20–30-year-olds going to another city for the weekend: tickets and a bed are sorted, Saturday is not",
-    "task": "on the map, switch the city from Київ to Львів, pick «Вихідні», and land on an event («Вечір джазу»)",
-    "before": "the trip checklist is ticked except «план на суботу»: «а що там робити?»",
-    "after": "any of the 5 cities is one tap away on the same map, already filtered to the weekend"
-  },
-  "ground": "#0B0B0F",
-  "ink": "#F5F5F7",
-  "current": "left",
-  "brandReveal": "turn",
-  "music": "assets/audio/music.m4a from media offset 16.0 s (uplifting brand track, 120 bpm, 4 s phrases): hits at 0 · 1.25 · 2.5 · 4 · 5.25 · 6.5 · 8 · 9.25 · 10.5 · 11.25 · 12 · 13.25, breaks at 3.0–3.75 and 7.0–7.9; volume 0.45, 0.38 under the phone, fade 13.4 → 14",
+  "ground": "#0E1626",
+  "palette": { "navy": "#0E1626", "amber": "#F2B544", "paper": "#F4EFE2", "coral (only «Поряд»)": "#E0582F" },
+  "music": "assets/audio/music.m4a from media offset 16.0 s at 0.45 (0.38 under the phone, fade 13.4 → 14): hits 0 · 1.25 · 2.5 · 4 · 5.25 · 6.5 · 8 · 9.25 · 10.5 · 11.25 · 12 · 13.25",
+  "registry": ["split-flap-board (block, engine moved to assets/flap.js)", "whip-pan-cut (component, pasted into index.html)", "tilt-card (component, pasted into compositions/phone.html)"],
   "beats": [
-    {
-      "id": "hook",
-      "start": 0,
-      "end": 5.25,
-      "line": "а що там робити? — давай подивимось",
-      "picture": "a travel checklist lands as glass pills around a violet halo: «квитки на потяг», «житло», «павербанк» get ticked one by one, «план на суботу» lands on the 1.25 hit with its box empty; «а що там» lands word by word and «робити?» on the 2.5 hit (Unbounded 900); the cloud lifts out into the music's break, «давай подивимось» assembles, splits open around a city-pin badge and a calendar badge, and on the music's return the badges step into the chip «Львів · вихідні» and the real «Київ ⌄» city switch before the camera lurches onto the switch",
-      "moment": "M985 + M958",
-      "take": "M985: statements land on fast decelerating rises with a smear that dies in a few frames, ticks pop in, a pill cloud grows and lifts out around the verdict. M958: words assemble one by one (tinted, then settling to ink), the sentence splits open around two badges that grow, the words fade, the badges step in one frame into the product's chip and control, and the camera lurches before a hard cut to the product UI",
-      "ui": [],
-      "exit": "match cut: the hook lurches onto the «Київ ⌄» switch and the phone opens on that same chip"
-    },
-    {
-      "id": "proof",
-      "start": 5.25,
-      "end": 10.7,
-      "line": "перемикаєш місто · обираєш «вихідні» · і вихідні вже з планом",
-      "picture": "the «Київ ⌄» chip from the hook turns out to sit on the Kyiv map as the camera pulls back over the whole city; a tap dims the map and «Знайти місто» slides up on the 6.5 hit; the camera pushes onto the city list and «Львів» is tapped; the sheet drops while the camera rises to the chip row, and on the 8.0 hit «Київ» becomes «Львів» and the map changes city; a tap on «Будь-коли» and on the 9.25 hit the row reads «Вихідні»; the camera pushes onto the «Вечір джазу · У НЕДІЛЮ · 18:00 · АФІША · CONCERT.UA» card",
-      "moment": null,
-      "take": "real prod screens (map-kyiv → picker-map → map-lviv → map-lviv-weekend); one caption per action; pushes and crossfades only; the city switch is the signature: sheet up, tap, sheet down, the chip and the map change together in close-up",
-      "ui": [
-        "tap «Київ ⌄»: the map dims and the «Знайти місто» sheet slides up from the bottom",
-        "tap «Львів»: the sheet drops, the chip reads «Львів ⌄» and the map shows Lviv",
-        "tap «Будь-коли»: the date row now has «Вихідні» selected"
-      ],
-      "exit": "carrier",
-      "carrier": "the «Вечір джазу» card lifts out of the phone while the phone falls away"
-    },
-    {
-      "id": "turn",
-      "start": 10.7,
-      "end": 12,
-      "line": "5 міст — один застосунок",
-      "picture": "the «Вечір джазу» card sits alone on the ground, and the «Поряд» icon and name arrive under it on the 11.25 hit",
-      "moment": null,
-      "take": "inverse zoom for the brand reveal",
-      "ui": [],
-      "exit": "carrier",
-      "carrier": "the «Поряд» lockup travels up into the end card while the card and line leave left"
-    },
-    {
-      "id": "cta",
-      "start": 12,
-      "end": 14,
-      "line": "куди їдеш наступними вихідними? 👇",
-      "picture": "the «Поряд» lockup over «твоє місто. нарешті видно.», «безкоштовно» and the App Store badge (hard cut on the 13.25 hit)",
-      "moment": null,
-      "take": "end card; the official badge is a hard cut and never moves; the last 0.75 s hold still",
-      "ui": []
-    }
+    { "id": "hook", "scene": "split-flap-board", "start": 0, "end": 4.3, "picture": "a Solari departure board hung from two rods: «КВИТКИ НА ПОТЯГ ✓» · «ЖИТЛО ✓» · «ПАВЕРБАНК ✓» · «ПЛАН НА СУБОТУ» whose status cell spins and falls on «—»; on the 2.5 hit «А ЩО ТАМ / РОБИТИ?» flaps in on big amber tiles" },
+    { "id": "bridge", "scene": "route", "start": 3.75, "end": 5.6, "picture": "whip-pan (mid on the 4.0 hit) to an amber line map of Ukraine; the train dot rides the rail Київ → Львів, the ticket «давай подивимось» / «Львів · вихідні» rides in after it" },
+    { "id": "proof", "scene": "phone + signs", "start": 5.5, "end": 10.6, "picture": "the ticket goes back into the pocket and a 3D-tilted phone comes out of it (rotateY 18° → −6°); map-kyiv → tap «Київ ⌄» → picker sheet → tap «Львів» (the board row flips КИЇВ → ЛЬВІВ) → map-lviv → tap «Будь-коли» → map-lviv-weekend → push onto «Вечір джазу»; amber flap captions «ПЕРЕМИКАЄШ МІСТО» · «ОБИРАЄШ «ВИХІДНІ»» · «І ВИХІДНІ ВЖЕ З ПЛАНОМ»" },
+    { "id": "name", "scene": "route + signs", "start": 10.2, "end": 12.6, "picture": "«5 МІСТ — ОДИН ЗАСТОСУНОК» on the board, the city row rolls ЛЬВІВ → КИЇВ → ОДЕСА → ДНІПРО → ХАРКІВ while the five map dots light up; they converge into an amber seam that opens into the coral «Поряд» like the last flap settling" },
+    { "id": "cta", "scene": "cta", "start": 11.9, "end": 14, "picture": "navy end card with amber hairlines: «куди їдеш наступними вихідними? 👇», «Поряд», «безкоштовно», the App Store badge as a hard cut on 13.25 and the Apple trademark line; static from 13.25 to 14.0 (the track ends at 14.0)" }
   ]
 }

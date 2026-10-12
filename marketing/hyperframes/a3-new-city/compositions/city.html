@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8">
+  </head>
+  <body>
+    <template>
+      <style>
+        /* A city drawn in thin warm-white lines at dusk. Three depth layers (far / mid / near) move as one camera rig
+           with parallax; the near layer starts as the hook drawing («дім», «робота», the route) and settles into the street. */
+        #city-root { position: absolute; inset: 0; overflow: hidden; }
+        #city-root svg { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; overflow: visible; }
+        #city-world { position: absolute; inset: 0; transform-origin: 470px 1400px; filter: blur(0px); }
+        .city-layer { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; }
+        .city-line { fill: none; stroke: #F4EFF8; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1 1; stroke-dashoffset: 1; opacity: 0; }
+        #city-far .city-line { stroke-width: 1.6; stroke: rgba(244, 239, 248, 0.34); }
+        #city-mid .city-line { stroke-width: 2; stroke: rgba(244, 239, 248, 0.66); }
+        #city-near .city-line { stroke-width: 3.6; }
+        .city-win-off { fill: none; stroke: rgba(244, 239, 248, 0.34); stroke-width: 1.3; opacity: 0; }
+        .city-trail { opacity: 0; }
+        #city-near .city-win-off { stroke-width: 2.4; stroke: rgba(244, 239, 248, 0.55); }
+        .city-win-on { opacity: 0; }
+        .city-wins-on { filter: drop-shadow(0 0 5px rgba(255, 196, 102, 0.85)); }
+        #city-near .city-wins-on { filter: drop-shadow(0 0 9px rgba(255, 196, 102, 0.9)); }
+        #city-route { fill: none; stroke: rgba(244, 239, 248, 0.78); stroke-width: 4; stroke-linecap: round; stroke-dasharray: 0.1 15; }
+        .city-trail { fill: none; stroke: rgba(244, 239, 248, 0.2); stroke-width: 6; stroke-linecap: round; stroke-dasharray: 1 1; stroke-dashoffset: 1; }
+        #city-dot { fill: #F4EFF8; opacity: 0; filter: drop-shadow(0 0 8px rgba(255, 226, 170, 0.9)); }
+        #city-stars circle { fill: #F4EFF8; }
+        #city-stars { opacity: 0.6; }
+        /* warm light from «дім»: three stacked radial leaks (transitions-light), centred on the house */
+        #city-light { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; }
+        .city-glow { position: absolute; border-radius: 50%; opacity: 0; }
+        #city-glow-a { left: -1000px; top: -420px; width: 2600px; height: 2600px; background: radial-gradient(circle, rgba(255, 196, 110, 0.5) 0%, rgba(255, 170, 96, 0.18) 34%, rgba(255, 170, 96, 0) 62%); }
+        #city-glow-b { left: -600px; top: -20px; width: 1800px; height: 1800px; background: radial-gradient(circle, rgba(255, 214, 140, 0.55) 0%, rgba(255, 196, 110, 0.12) 40%, rgba(255, 196, 110, 0) 66%); }
+        #city-glow-c { left: -200px; top: 380px; width: 1000px; height: 1000px; background: radial-gradient(circle, rgba(255, 232, 180, 0.6) 0%, rgba(255, 214, 140, 0) 62%); }
+        #city-bloom { position: absolute; inset: 0; opacity: 0; background: radial-gradient(ellipse 900px 700px at 540px 1640px, rgba(255, 200, 110, 0.42), rgba(255, 200, 110, 0)); }
+      </style>
+
+      <div id="city-root" data-composition-id="city" data-width="1080" data-height="1920">
+        <svg id="city-stars" viewBox="0 0 1080 1920"></svg>
+        <div id="city-world" data-layout-allow-overflow="">
+          <div id="city-light" data-layout-allow-overflow="">
+            <div id="city-glow-a" class="city-glow"></div>
+            <div id="city-glow-b" class="city-glow"></div>
+            <div id="city-glow-c" class="city-glow"></div>
+          </div>
+          <div id="city-far" class="city-layer"><svg viewBox="0 0 1080 1920"><g class="city-lines"></g><g class="city-wins-on"></g></svg></div>
+          <div id="city-mid" class="city-layer"><svg viewBox="0 0 1080 1920"><g class="city-lines"></g><g class="city-wins-off"></g><g class="city-wins-on"></g></svg></div>
+          <div id="city-near" class="city-layer">
+            <svg viewBox="0 0 1080 1920">
+              <defs>
+                <mask id="city-route-mask" maskUnits="userSpaceOnUse" x="-500" y="-500" width="2500" height="2500">
+                  <path id="city-route-reveal" fill="none" stroke="#fff" stroke-width="40" stroke-linecap="butt" pathLength="1" stroke-dasharray="1 1" stroke-dashoffset="1"></path>
+                </mask>
+              </defs>
+              <g class="city-lines"></g>
+              <g class="city-wins-off"></g>
+              <g class="city-wins-on"></g>
+              <path id="city-route" mask="url(#city-route-mask)"></path>
+              <g id="city-trails"></g>
+              <circle id="city-dot" r="9" cx="300" cy="966"></circle>
+            </svg>
+          </div>
+          <div id="city-bloom"></div>
+        </div>
+
+      </div>
+
+      <script>
+        (() => {
+          const NS = "http://www.w3.org/2000/svg";
+          const WARM = ["#FFD27A", "#FFC766", "#FFE1A6"];
+          const G = 1730; // ground line in the wide shot
+          const HOME = [330, 1690]; // «дім» in the wide shot: the light spreads from here
+          const W = { x: 458, y: 1374, w: 24, h: 52 }; // the window that becomes the phone (mid layer); screen.html grows out of it
+          // near layer: hook drawing at scale 1, settles at scale 0.5 into the street
+          const NEAR_WIDE = { x: 180, y: 1250, scale: 0.5 };
+          const toWide = (hx, hy) => [NEAR_WIDE.x + hx * NEAR_WIDE.scale, NEAR_WIDE.y + hy * NEAR_WIDE.scale];
+
+          // Global beat times (seconds). The film is one continuous drawing; see index.html for the beat list.
+          const T = {
+            lift: 4.4, camEnd: 6.3,
+            grow: 6.35, growEnd: 7.15, pushEnd: 10.0,
+            recede: 10.1, recedeEnd: 10.85, allOn: 11.4, end: 12.85, endEnd: 13.7,
+          };
+
+          let seed = 11;
+          const rnd = () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+          const make = (tag, attrs, parent) => { const n = document.createElementNS(NS, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); parent.appendChild(n); return n; };
+          const q = (s) => document.querySelector(s);
+
+          // ---- building outlines: each stroke is its own path so every part traces from its own start
+          function outline(x, w, top, roof, g) {
+            const r = x + w, c = x + w / 2;
+            if (roof === "stepped") return [`M ${x} ${g} V ${top + 34} H ${x + 22} V ${top} H ${r - 22} V ${top + 34} H ${r} V ${g}`];
+            if (roof === "gable") return [`M ${x} ${g} V ${top + 44} L ${c} ${top} L ${r} ${top + 44} V ${g}`];
+            if (roof === "antenna") return [`M ${x} ${g} V ${top} H ${r} V ${g}`, `M ${c} ${top} V ${top - 48}`];
+            if (roof === "dome") return [`M ${x} ${g} V ${top + 70} A ${w / 2} 54 0 0 1 ${r} ${top + 70} V ${g}`, `M ${c} ${top + 16} V ${top - 20}`];
+            if (roof === "tower") return [`M ${c - 16} ${g} L ${c - 5} ${top + 130}`, `M ${c + 16} ${g} L ${c + 5} ${top + 130}`, `M ${c - 18} ${top + 118} A 18 11 0 1 0 ${c + 18} ${top + 118} A 18 11 0 1 0 ${c - 18} ${top + 118}`, `M ${c} ${top + 106} V ${top}`];
+            return [`M ${x} ${g} V ${top} H ${r} V ${g}`];
+          }
+          function grid(x, w, top, roof, g, ww, wh, px, py, pad) {
+            if (roof === "tower") return [];
+            const cols = Math.max(1, Math.floor((w - 30 + (px - ww)) / px));
+            const tw = cols * px - (px - ww), x0 = x + (w - tw) / 2;
+            const y0 = top + (roof === "gable" ? 58 : roof === "dome" ? 84 : roof === "stepped" ? 50 : 26);
+            const out = [];
+            for (let y = y0; y + wh <= g - pad; y += py) for (let i = 0; i < cols; i++) out.push([x0 + i * px, y]);
+            return out;
+          }
+
+          const paths = []; // {el, t0 (draw start), dur}
+          const wins = []; // {on, off, wx, wy, layer}
+          function building(layer, b, scale) {
+            const [x, w, top, roof] = b;
+            const g = layer === "near" ? 960 : G;
+            const root = q(`#city-${layer} svg`);
+            const lines = root.querySelector(".city-lines");
+            const [cx, cy] = layer === "near" ? toWide(x + w / 2, top) : [x + w / 2, top];
+            const dist = Math.hypot(cx - HOME[0], cy - HOME[1]);
+            const t0 = b[4] !== undefined ? b[4] : 4.55 + (dist / 1250) * 1.25;
+            outline(x, w, top, roof, g).forEach((d, i) => paths.push({ el: make("path", { d, class: "city-line", pathLength: 1 }, lines), t0: t0 + i * 0.12, dur: b[5] || 0.75 }));
+            const isFar = layer === "far";
+            const size = isFar ? [6, 8, 18, 26, 34] : layer === "mid" ? [16, 24, 32, 42, 34] : [26, 30, 44, 48, 20];
+            const cells = b[6] || grid(x, w, top, roof, g, ...size);
+            cells.forEach(([wx, wy]) => {
+              if (isFar && rnd() < 0.45) return;
+              const [ww, wh] = [b[7] || size[0], b[8] || size[1]];
+              if (layer === "mid" && wx < W.x + W.w + 4 && wx + ww > W.x - 4 && wy < W.y + W.h + 4 && wy + wh > W.y - 4) return; // room for W
+              const off = isFar ? null : make("rect", { x: wx, y: wy, width: ww, height: wh, rx: 1.5, class: "city-win-off" }, root.querySelector(".city-wins-off"));
+              const on = make("rect", { x: wx, y: wy, width: ww, height: wh, rx: 1.5, class: "city-win-on", fill: WARM[Math.floor(rnd() * 3)] }, root.querySelector(".city-wins-on"));
+              const [ax, ay] = layer === "near" ? toWide(wx, wy) : [wx, wy];
+              wins.push({ on, off, wx: ax, wy: ay, layer, t0 });
+            });
+          }
+
+          // far: a quiet back row (TV tower, a dome, towers)
+          [
+            [-150, 150, 1250, "flat"], [20, 90, 1330, "antenna"], [150, 120, 1440, "dome"], [300, 90, 1220, "stepped"],
+            [400, 70, 1350, "flat"], [560, 110, 1180, "antenna"], [690, 80, 1400, "flat"], [790, 120, 1290, "stepped"],
+            [930, 110, 1090, "tower"], [1060, 160, 1300, "flat"],
+          ].forEach((b) => building("far", b));
+          // mid: the main window field; the 4th building holds the window that becomes the phone
+          [
+            [-130, 180, 1400, "flat"], [60, 150, 1310, "stepped"], [225, 140, 1450, "gable"], [400, 140, 1260, "antenna"],
+            [560, 170, 1360, "flat"], [745, 130, 1230, "stepped"], [890, 210, 1330, "flat"],
+          ].forEach((b) => building("mid", b));
+
+          // near (hook coordinates): «дім» and «робота» first, drawn in the opening second
+          const near = q("#city-near svg"), nearLines = near.querySelector(".city-lines");
+          const hookLine = (d, t0, dur) => paths.push({ el: make("path", { d, class: "city-line", pathLength: 1 }, nearLines), t0, dur });
+          hookLine("M 540 960 H -720", 0.05, 0.95); hookLine("M 540 960 H 2140", 0.05, 0.95);
+          // дім
+          hookLine("M 220 960 V 840 H 380 V 960", 0.15, 0.6); hookLine("M 204 852 L 300 760 L 396 852", 0.4, 0.45);
+          hookLine("M 344 806 V 772 H 364 V 825", 0.6, 0.3); hookLine("M 288 960 V 914 H 314 V 960", 0.55, 0.3);
+          const homeOff = make("rect", { x: 238, y: 866, width: 32, height: 28, rx: 2, class: "city-win-off" }, near.querySelector(".city-wins-off"));
+          const homeOn = make("rect", { x: 238, y: 866, width: 32, height: 28, rx: 2, class: "city-win-on", fill: "#FFD27A" }, near.querySelector(".city-wins-on"));
+          // робота
+          hookLine("M 730 960 V 620 H 870 V 960", 0.35, 0.7); hookLine("M 762 620 V 598 H 838 V 620", 0.75, 0.3);
+          hookLine("M 800 598 V 556", 0.9, 0.2); hookLine("M 788 960 V 920 H 812 V 960", 0.8, 0.3);
+          const workWins = [];
+          for (let r = 0; r < 6; r++) for (let c = 0; c < 3; c++) workWins.push([746 + c * 40, 642 + r * 44]);
+          workWins.forEach(([wx, wy]) => {
+            const off = make("rect", { x: wx, y: wy, width: 26, height: 28, rx: 2, class: "city-win-off" }, near.querySelector(".city-wins-off"));
+            const on = make("rect", { x: wx, y: wy, width: 26, height: 28, rx: 2, class: "city-win-on", fill: WARM[Math.floor(rnd() * 3)] }, near.querySelector(".city-wins-on"));
+            const [ax, ay] = toWide(wx, wy);
+            wins.push({ on, off, wx: ax, wy: ay, layer: "near", t0: 0.85, hook: true });
+          });
+          // the street that appears around them with the light
+          [
+            [-470, 130, 840, "gable"], [-270, 100, 790, "flat"], [-70, 110, 860, "gable"], [940, 120, 830, "gable"],
+            [1110, 100, 770, "flat"], [1260, 140, 850, "gable"], [1460, 110, 800, "flat"], [1620, 130, 840, "gable"],
+            [1800, 120, 790, "flat"], [1960, 140, 850, "gable"],
+          ].forEach((b) => building("near", b));
+          // trees and lamps on the street (hook coordinates)
+          const extra = (d, hx) => { const [wx, wy] = toWide(hx, 900); return paths.push({ el: make("path", { d, class: "city-line", pathLength: 1 }, nearLines), t0: 4.6 + (Math.hypot(wx - HOME[0], wy - HOME[1]) / 1250) * 1.25, dur: 0.6 }); };
+          [[560, 44], [-160, 40], [1040, 46], [1700, 42]].forEach(([hx, r]) => { extra(`M ${hx} 960 V ${880 - r}`, hx); extra(`M ${hx} ${872 - 2 * r} A ${r} ${r} 0 1 1 ${hx - 0.1} ${872 - 2 * r}`, hx); });
+          const lamps = [];
+          [120, 1370, 1880].forEach((hx) => {
+            extra(`M ${hx} 960 V 830 Q ${hx} 812 ${hx + 22} 812`, hx);
+            lamps.push(make("circle", { cx: hx + 26, cy: 818, r: 9, class: "city-win-on", fill: "#FFD27A" }, near.querySelector(".city-wins-on")));
+          });
+
+          // the window that becomes the phone
+          const wOff = make("rect", { x: W.x, y: W.y, width: W.w, height: W.h, rx: 2, class: "city-win-off" }, q("#city-mid .city-wins-off"));
+          const wOn = make("rect", { x: W.x, y: W.y, width: W.w, height: W.h, rx: 2, class: "city-win-on", fill: "#FFD27A" }, q("#city-mid .city-wins-on"));
+
+          // route «дім ↔ робота»: dotted path, revealed by a mask; four trails drawn over each other by the shuttling dot
+          const ROUTE = "M 300 966 C 400 1082, 700 1082, 800 966";
+          const ROUTE_BACK = "M 800 966 C 700 1082, 400 1082, 300 966";
+          q("#city-route").setAttribute("d", ROUTE);
+          q("#city-route-reveal").setAttribute("d", ROUTE);
+          const LEGS = [[1.45, 2.1], [2.2, 2.85], [2.95, 3.55], [3.65, 4.2]];
+          const trails = LEGS.map((_, i) => make("path", { d: i % 2 ? ROUTE_BACK : ROUTE, class: "city-trail", pathLength: 1 }, q("#city-trails")));
+          const routeEl = q("#city-route");
+          const LEN = routeEl.getTotalLength();
+          const SAMPLES = Array.from({ length: 121 }, (_, i) => { const p = routeEl.getPointAtLength((LEN * i) / 120); return [p.x, p.y]; });
+          const dot = q("#city-dot");
+          const legEase = gsap.parseEase("sine.inOut");
+          const placeDot = (time) => {
+            let f = 0;
+            for (let i = 0; i < LEGS.length; i++) {
+              const [a, b] = LEGS[i];
+              if (time >= a) { const p = legEase(Math.min(1, (time - a) / (b - a))); f = i % 2 ? 1 - p : p; }
+            }
+            const k = f * 120, i0 = Math.floor(k), i1 = Math.min(120, i0 + 1), u = k - i0;
+            dot.setAttribute("cx", SAMPLES[i0][0] + (SAMPLES[i1][0] - SAMPLES[i0][0]) * u);
+            dot.setAttribute("cy", SAMPLES[i0][1] + (SAMPLES[i1][1] - SAMPLES[i0][1]) * u);
+          };
+
+          // stars: fixed, seeded
+          const stars = q("#city-stars");
+          for (let i = 0; i < 22; i++) make("circle", { cx: 40 + rnd() * 1000, cy: 430 + rnd() * 560, r: 1.2 + rnd() * 1.6, opacity: 0.35 + rnd() * 0.5 }, stars);
+
+          const tl = gsap.timeline({ paused: true });
+
+          // ---- HOOK: the routine
+          tl.to("#city-stars", { opacity: 1, duration: 1.2, ease: "sine.out" }, 0);
+          tl.fromTo("#city-route-reveal", { strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: 0.45, ease: "sine.inOut" }, 1.0);
+          tl.to(dot, { opacity: 1, duration: 0.25, ease: "sine.out" }, 1.25);
+          tl.to({ v: 0 }, { v: 1, duration: LEGS[3][1] - LEGS[0][0], ease: "none", onUpdate: function () { placeDot(LEGS[0][0] + this.time()); } }, LEGS[0][0]);
+          trails.forEach((p, i) => tl.set(p, { opacity: 1 }, LEGS[i][0]));
+          trails.forEach((p, i) => tl.to(p, { strokeDashoffset: 0, duration: LEGS[i][1] - LEGS[i][0], ease: "sine.inOut" }, LEGS[i][0]));
+
+          // ---- REVEAL: home lights up, the warm light spreads, the city draws itself around it
+          tl.to(dot, { opacity: 0, duration: 0.25, ease: "sine.in" }, T.lift - 0.2);
+          tl.to(homeOn, { opacity: 1, duration: 0.18, ease: "sine.out" }, T.lift);
+          tl.fromTo(".city-glow", { scale: 0.06 }, { scale: 1, duration: 1.9, ease: "power2.out", stagger: 0.08 }, T.lift + 0.05);
+          tl.to("#city-glow-c", { opacity: 1, duration: 0.5, ease: "sine.out" }, T.lift + 0.05);
+          tl.to("#city-glow-b", { opacity: 1, duration: 0.7, ease: "sine.out" }, T.lift + 0.15);
+          tl.to("#city-glow-a", { opacity: 1, duration: 0.9, ease: "sine.out" }, T.lift + 0.25);
+          tl.to("#city-glow-c", { opacity: 0.55, duration: 1.2, ease: "sine.inOut" }, T.lift + 0.8);
+          // camera pulls back around «дім» (near 1 → 0.5), the far rows settle with less travel: parallax
+          const camEase = "power2.inOut", camDur = T.camEnd - (T.lift + 0.05);
+          tl.fromTo("#city-near", { x: 0, y: 0, scale: 1, transformOrigin: "0 0" }, { x: NEAR_WIDE.x, y: NEAR_WIDE.y, scale: NEAR_WIDE.scale, duration: camDur, ease: camEase }, T.lift + 0.05);
+          tl.fromTo("#city-light", { x: 0, y: 0 }, { x: 30, y: 810, duration: camDur, ease: camEase }, T.lift + 0.05);
+          // the rows scale about their own ground and ride down with the street (ground 960 → 1730, linear in the same eased p),
+          // so every row stands on one street line throughout while scaling by less than the near row
+          tl.fromTo("#city-mid", { y: 960 - G, scale: 1.32, transformOrigin: `330px ${G}px` }, { y: 0, scale: 1, duration: camDur, ease: camEase }, T.lift + 0.05);
+          tl.fromTo("#city-far", { y: 960 - G, scale: 1.14, transformOrigin: `330px ${G}px` }, { y: 0, scale: 1, duration: camDur, ease: camEase }, T.lift + 0.05);
+          paths.forEach(({ el, t0, dur }) => {
+            tl.set(el, { opacity: 1 }, t0);
+            tl.to(el, { strokeDashoffset: 0, duration: dur, ease: "sine.inOut" }, t0);
+          });
+          // window outlines arrive with their building
+          wins.forEach((w) => w.off && tl.to(w.off, { opacity: 1, duration: 0.4, ease: "sine.out" }, w.t0 + 0.3));
+          tl.to(homeOff, { opacity: 1, duration: 0.3, ease: "sine.out" }, 0.75);
+          tl.to(wOff, { opacity: 1, duration: 0.4, ease: "sine.out" }, 5.3);
+          // windows switch on one by one, nearest to «дім» first; the rest wait for the name
+          const pending = wins.filter((w) => !w.hook);
+          const ranked = pending.map((w) => ({ w, k: Math.hypot(w.wx - HOME[0], w.wy - HOME[1]) + rnd() * 280 })).sort((a, b) => a.k - b.k).map((o) => o.w);
+          const early = ranked.slice(0, Math.round(ranked.length * 0.3));
+          const late = ranked.slice(early.length).concat(wins.filter((w) => w.hook));
+          early.forEach((w, i) => tl.to(w.on, { opacity: 1, duration: 0.14, ease: "sine.out" }, Math.max(4.85 + (i / early.length) * 1.35, w.t0 + 0.35)));
+          lamps.forEach((l, i) => tl.to(l, { opacity: 1, duration: 0.2, ease: "sine.out" }, 5.2 + i * 0.25));
+
+          // ---- PHONE (screen.html): the light reaches one window; it comes forward as the screen, the city behind pushes and blurs;
+          // the screen drifts on its tilt rig while the rows drift the other way (parallax)
+          tl.to(wOn, { opacity: 1, duration: 0.2, ease: "sine.out" }, 6.0);
+          tl.fromTo("#city-world", { scale: 1, filter: "blur(0px)", opacity: 1 }, { scale: 1.1, filter: "blur(6px)", opacity: 0.5, duration: T.growEnd - T.grow + 0.1, ease: "power2.inOut" }, T.grow);
+          tl.to("#city-far", { x: 10, duration: T.pushEnd - T.growEnd, ease: "sine.inOut" }, T.growEnd);
+          tl.to("#city-mid", { x: 26, duration: T.pushEnd - T.growEnd, ease: "sine.inOut" }, T.growEnd);
+          tl.to("#city-near", { x: NEAR_WIDE.x + 44, duration: T.pushEnd - T.growEnd, ease: "sine.inOut" }, T.growEnd);
+          tl.to("#city-light", { x: 74, duration: T.pushEnd - T.growEnd, ease: "sine.inOut" }, T.growEnd);
+
+          // ---- the screen goes back into its window (screen.html), the city comes back into focus
+          const rd = T.recedeEnd - T.recede;
+          tl.to("#city-world", { scale: 1, filter: "blur(0px)", opacity: 1, duration: rd, ease: "power2.inOut" }, T.recede);
+          tl.to("#city-far", { x: 0, duration: rd, ease: "power2.inOut" }, T.recede);
+          tl.to("#city-mid", { x: 0, duration: rd, ease: "power2.inOut" }, T.recede);
+          tl.to("#city-near", { x: NEAR_WIDE.x, duration: rd, ease: "power2.inOut" }, T.recede);
+          tl.to("#city-light", { x: 30, duration: rd, ease: "power2.inOut" }, T.recede);
+
+          // ---- NAME: every window at once
+          tl.to(late.map((w) => w.on), { opacity: 1, duration: 0.12, ease: "sine.out" }, T.allOn);
+          tl.fromTo("#city-bloom", { opacity: 0 }, { opacity: 1, duration: 0.25, ease: "sine.out" }, T.allOn);
+          tl.to("#city-bloom", { opacity: 0.55, duration: 1.0, ease: "sine.inOut" }, T.allOn + 0.25);
+          tl.to(".city-glow", { opacity: 0.75, duration: 0.6, ease: "sine.out" }, T.allOn);
+
+          // ---- END CARD: the lit city settles low, the sky clears for the lockup
+          const ed = T.endEnd - T.end;
+          tl.to("#city-far", { y: 230, duration: ed, ease: "power2.inOut" }, T.end);
+          tl.to("#city-mid", { y: 260, duration: ed, ease: "power2.inOut" }, T.end);
+          tl.to("#city-near", { y: NEAR_WIDE.y + 290, duration: ed, ease: "power2.inOut" }, T.end);
+          tl.to("#city-light", { y: 810 + 290, duration: ed, ease: "power2.inOut" }, T.end);
+          tl.to("#city-bloom", { y: 260, duration: ed, ease: "power2.inOut" }, T.end);
+          tl.to("#city-world", { opacity: 0.82, duration: ed, ease: "sine.inOut" }, T.end);
+
+          placeDot(0);
+          window.__timelines["city"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>
