@@ -29,15 +29,22 @@
         #rt-ticket .stub { position: absolute; left: 48px; top: 216px; width: 600px; font-weight: 600; font-size: 34px; line-height: 44px; color: #0e1626; white-space: nowrap; }
         #rt-ticket .stub-icon { position: absolute; right: 40px; top: 220px; }
 
-        /* the name: one big flap tile on a seam, amber hairlines run off to the edges */
-        #rt-seam { position: absolute; left: 60px; top: 804px; width: 960px; height: 2px; background: #f2b544; transform-origin: 50% 50%; }
-        #rt-tile { position: absolute; left: 160px; top: 690px; width: 760px; height: 230px; perspective: 1100px; }
+        /* the name (end-card grid v2, centred on x 540): the icon and «Поряд» as two stacked flap tiles on a seam,
+           amber hairlines frame the pair inside the safe column x 160–920 */
+        #rt-seam { position: absolute; left: 160px; top: 840px; width: 760px; height: 2px; background: #f2b544; transform-origin: 50% 50%; }
+        #rt-icon { position: absolute; left: 452px; top: 560px; width: 176px; height: 176px; perspective: 900px; }
+        /* both halves paint the official icon as a background (two <img> of one file would be discovered twice) */
+        #rt-icon .half { position: absolute; inset: 0; border-radius: 40px; background: url("assets/icon.png") 0 0 / 176px 176px no-repeat; transform-origin: 50% 50%; backface-visibility: hidden; }
+        #rt-icon .top { clip-path: inset(0 0 50% 0); }
+        #rt-icon .bot { clip-path: inset(50% 0 0 0); }
+        /* «Поряд» 128 px, cap-top ≈ 790; the seam and the cut run through the middle of the caps */
+        #rt-tile { position: absolute; left: 220px; top: 763px; width: 640px; height: 156px; perspective: 1100px; }
         #rt-tile .half { position: absolute; inset: 0; border-radius: 22px; background: linear-gradient(180deg, #121c31 0%, #0b1222 50%, #101a2e 50%, #0c1424 100%); box-shadow: 0 30px 70px rgba(0, 0, 0, 0.45), inset 0 0 0 1.5px rgba(242, 181, 68, 0.3); display: flex; align-items: center; justify-content: center; transform-origin: 50% 50%; backface-visibility: hidden; }
         #rt-tile .top { clip-path: inset(0 0 50% 0); }
         #rt-tile .bot { clip-path: inset(50% 0 0 0); }
-        #rt-tile .word { font-family: "Unbounded", sans-serif; font-weight: 900; font-size: 150px; line-height: 1; letter-spacing: -0.04em; color: #e0582f; padding-bottom: 6px; }
+        #rt-tile .word { font-family: "Unbounded", sans-serif; font-weight: 900; font-size: 128px; line-height: 1; letter-spacing: -0.04em; color: #e0582f; padding-bottom: 6px; }
         #rt-tile .cut { position: absolute; left: 0; right: 0; top: 50%; height: 3px; margin-top: -1.5px; background: #04070d; z-index: 2; }
-        .rt-hair { position: absolute; left: 60px; width: 960px; height: 1.5px; background: rgba(242, 181, 68, 0.55); transform-origin: 50% 50%; }
+        .rt-hair { position: absolute; left: 160px; width: 760px; height: 1.5px; background: rgba(242, 181, 68, 0.55); transform-origin: 50% 50%; }
       </style>
 
       <div id="route-root" data-composition-id="route" data-width="1080" data-height="1920">
@@ -70,9 +77,13 @@
           </svg>
         </div>
 
-        <div class="rt-hair" id="rt-hair-a" style="top: 674px"></div>
-        <div class="rt-hair" id="rt-hair-b" style="top: 935px"></div>
+        <div class="rt-hair" id="rt-hair-a" style="top: 528px"></div>
+        <div class="rt-hair" id="rt-hair-b" style="top: 951px"></div>
         <div id="rt-seam"></div>
+        <div id="rt-icon" role="img" aria-label="Поряд">
+          <div class="half top"></div>
+          <div class="half bot"></div>
+        </div>
         <div id="rt-tile">
           <div class="half top"><span class="word" data-layout-allow-overlap>Поряд</span></div>
           <div class="half bot"><span class="word" data-layout-allow-overlap>Поряд</span></div>
@@ -102,7 +113,7 @@
           // camera states (transform-origin 0 0): route push and the name beat
           var CAM_ROUTE = { scale: 1.25, x: 37.5, y: -92.5 };
           var CAM_NAME = { scale: 0.86, x: 75, y: 380 };
-          var MARK = { x: 540, y: 805 };
+          var MARK = { x: 540, y: 841 };
 
           var tl = gsap.timeline({ paused: true });
 
@@ -165,6 +176,13 @@
           tl.to("#rt-tile .bot", { rotationX: -10, duration: 0.07, ease: "power1.out" }, L(12.4));
           tl.to("#rt-tile .bot", { rotationX: 0, duration: 0.12, ease: "power2.in" }, L(12.47));
           tl.fromTo("#rt-tile .cut", { opacity: 0 }, { opacity: 1, duration: 0.01 }, L(12.02));
+          // once the flap has settled the amber seam leaves, so it never reads as a line struck through the name
+          tl.to(["#rt-seam", "#rt-tile .cut"], { opacity: 0, duration: 0.3, ease: "power1.out" }, L(12.6));
+          // the icon settles right after, one cell above (no cut across the official icon)
+          tl.fromTo("#rt-icon .top", { rotationX: -90 }, { rotationX: 0, duration: 0.2, ease: "power2.out" }, L(12.18));
+          tl.fromTo("#rt-icon .bot", { rotationX: 90 }, { rotationX: 0, duration: 0.24, ease: "power2.in" }, L(12.3));
+          tl.to("#rt-icon .bot", { rotationX: -10, duration: 0.07, ease: "power1.out" }, L(12.54));
+          tl.to("#rt-icon .bot", { rotationX: 0, duration: 0.12, ease: "power2.in" }, L(12.61));
           tl.fromTo(["#rt-hair-a", "#rt-hair-b"], { scaleX: 0 }, { scaleX: 1, duration: 0.6, ease: "power3.out", stagger: 0.06 }, L(12.3));
 
           window.__timelines["route"] = tl;

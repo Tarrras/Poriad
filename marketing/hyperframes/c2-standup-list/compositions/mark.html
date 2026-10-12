@@ -51,12 +51,12 @@
       }
         #mark-root { position: absolute; inset: 0; pointer-events: none; }
         /* the «Поряд» lockup, as in the brand end card: icon over the name in coral (the only coral in the film).
-           Revealed once in the turn under the card, then travels into the end card (final: y 470–870) */
-        #mark-row { position: absolute; left: 0; width: 1080px; top: 470px; height: 400px; display: flex; justify-content: center; align-items: flex-start; }
+           Revealed once in the turn under the card, then travels into the end card and lands in the v2 grid: icon 560–736, name cap-top 790 (_material/END-CARD.md) */
+        #mark-row { position: absolute; left: 0; width: 1080px; top: 560px; height: 342px; display: flex; justify-content: center; align-items: flex-start; }
         #mark-move, #mark-in { display: block; transform-origin: 50% 50%; }
         #mark-grow { display: flex; flex-direction: column; align-items: center; }
-        #mark-icon { display: block; width: 220px; height: 220px; border-radius: 50px; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 30px 110px rgba(0, 0, 0, 0.5); }
-        #mark-name { display: block; margin-top: 52px; font-family: "Unbounded", system-ui, sans-serif; font-weight: 900; font-size: 128px; line-height: 1; letter-spacing: -0.045em; color: #E0582F; white-space: nowrap; }
+        #mark-icon { display: block; width: 176px; height: 176px; border-radius: 40px; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 30px 110px rgba(0, 0, 0, 0.5); }
+        #mark-name { display: block; margin-top: 38px; font-family: "Unbounded", system-ui, sans-serif; font-weight: 900; font-size: 128px; line-height: 1; letter-spacing: -0.045em; color: #E0582F; white-space: nowrap; }
       </style>
 
       <div data-hf-id="hf-njki" id="mark-root" data-composition-id="mark" data-width="1080" data-height="1920">
@@ -70,7 +70,7 @@
         (() => {
           // Carrier turn → cta (local s; the section starts at 10.7 root, the lockup lands at 12.31 = cta + 0.61).
           const T = { reveal: 0, travel: 0.71, travelEnd: 1.61, end: 3.1 };
-          const TURN = { x: 0, y: 550, scale: 0.42 }; // under the card in the turn (card 800–1061): centre 670 → 1220
+          const TURN = { x: 0, y: 489, scale: 0.42 }; // under the card in the turn (card 800–1061): centre 731 → 1220
           const tl = gsap.timeline({ paused: true });
           // inverse zoom: the one brand reveal
           tl.fromTo("#mark-in", { scale: 1.25, opacity: 0, filter: "blur(10px)" }, { scale: 1, opacity: 1, filter: "blur(0px)", duration: 0.5, ease: "expo.out" }, T.reveal);

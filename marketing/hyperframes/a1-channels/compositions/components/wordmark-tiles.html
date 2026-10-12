@@ -5,8 +5,8 @@
   Registry component, customised in place for A1 «noise → signal»:
     - the noise faces are ink and greys of the paper/ink film (no colour), with paper gaps;
     - the resolved glyph is the coral «Поряд» (Unbounded 900, mixed case), the only coral in the film;
-    - the stage fills the host box and the wordmark is fitted to its width at setup, so the
-      host (index.html #wordmark-tiles, x 100–880) sets where the name sits on the end card;
+    - the stage fills the host box and the wordmark is fitted to it at setup, capped at 128 px (the
+      end-card grid size), so the host (index.html #wordmark-tiles, x 260–820) sets where the name sits;
     - rows derive from the host's aspect, so tiles stay near-square;
     - a short noise flicker before the wave; IN is 1.1 s and there is no OUT (the name holds
       through the end card, which needs a static last 10 frames).
@@ -113,8 +113,8 @@
 
             // the host owns the box; rows follow its aspect so tiles stay near-square
             var host = root.parentElement;
-            var boxW = (host && parseFloat(host.getAttribute("data-width"))) || 780;
-            var boxH = (host && parseFloat(host.getAttribute("data-height"))) || 250;
+            var boxW = (host && parseFloat(host.getAttribute("data-width"))) || 560;
+            var boxH = (host && parseFloat(host.getAttribute("data-height"))) || 160;
             var rows = Math.max(3, Math.round((columns * boxH) / boxW));
             var tileCount = columns * rows;
 
@@ -124,7 +124,7 @@
             var ctx = document.createElement("canvas").getContext("2d");
             ctx.font = '900 100px "Unbounded", system-ui, sans-serif';
             ctx.letterSpacing = "-4.5px";
-            var fontSize = Math.min(boxH * 0.9, (100 * boxW) / Math.max(1, ctx.measureText(text).width));
+            var fontSize = Math.min(128, boxH * 0.9, (100 * boxW) / Math.max(1, ctx.measureText(text).width));
 
             grid.style.setProperty("--wt-columns", String(columns));
             grid.style.setProperty("--wt-rows", String(rows));

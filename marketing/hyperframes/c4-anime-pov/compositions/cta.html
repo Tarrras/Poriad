@@ -53,25 +53,31 @@
         /* captions — one style for the whole film: a band (x 160–920, from y 280) above the picture, one size, centred, top-anchored */
         .caption-band { position: absolute; left: 160px; width: 760px; top: 280px; height: 204px; display: flex; align-items: flex-start; justify-content: center; }
         .caption { display: block; max-width: 760px; font-family: "Unbounded", system-ui, sans-serif; font-weight: 300; font-size: 60px; line-height: 1.13; letter-spacing: -0.045em; text-align: center; text-wrap: balance; color: #f5f5f7; text-shadow: 0 8px 30px rgba(0, 0, 0, 0.6); }
-        /* under the «Поряд» lockup (a root carrier, lands at y 530–930), as in the brand end card */
-        #cta-tagline { position: absolute; left: 0; width: 1080px; top: 972px; text-align: center; font-family: "Unbounded", system-ui, sans-serif; font-weight: 300; font-size: 44px; line-height: 1; letter-spacing: -0.045em; color: #a1a1a8; white-space: nowrap; }
-        #cta-col { position: absolute; left: 160px; width: 760px; top: 1070px; display: flex; flex-direction: column; align-items: center; }
-        #cta-free { font-weight: 600; font-size: 34px; line-height: 1.2; color: #a1a1a8; }
-        #cta-store { display: flex; flex-direction: column; align-items: center; opacity: 0; }
-        /* Official badge: untouched file, height 104px, no transform/filter/shadow */
-        #cta-store .badge { display: block; height: 104px; width: auto; margin-top: 26px; }
-        #cta-store .tm { margin-top: 30px; max-width: 760px; text-align: center; font-weight: 400; font-size: 22px; line-height: 1.35; color: #8a8a93; }
+        /* End card v2 grid (_material/END-CARD.md), centred on x 540, text only in x 160–920 / y 250–1450:
+           bait top 300 · «Поряд» lockup (the mark carrier) icon 560–736, cap-top 790 · slogan ≈ 950 · stores 1112–1372 */
+        #cta-row { top: 300px; height: auto; align-items: flex-start; }
+        #cta-bait { font-size: 52px; line-height: 1.15; }
+        #cta-tagline { position: absolute; left: 0; width: 1080px; top: 938px; text-align: center; font-family: "Unbounded", system-ui, sans-serif; font-weight: 300; font-size: 40px; line-height: 1; letter-spacing: -0.045em; color: #a1a1a8; white-space: nowrap; }
+        #cta-free { position: absolute; left: 160px; width: 760px; top: 1112px; text-align: center; font-weight: 600; font-size: 34px; line-height: 1.2; color: #a1a1a8; }
+        #cta-store { position: absolute; left: 160px; width: 760px; top: 1176px; display: flex; flex-direction: column; align-items: center; opacity: 0; }
+        /* Official badges: untouched files, both 104px tall, 32px apart, no transform/filter/shadow */
+        #cta-badges { display: flex; gap: 32px; }
+        #cta-store .badge { display: block; height: 104px; width: auto; }
+        #cta-store .tm { font-weight: 400; font-size: 20px; line-height: 28px; color: #8a8a93; white-space: nowrap; }
+        #cta-tm-apple { margin-top: 36px; }
       </style>
 
       <div data-hf-id="hf-d8xc" id="cta-root" data-composition-id="cta" data-width="1080" data-height="1920">
         <div data-hf-id="hf-9yei" id="cta-row" class="caption-band"><div data-hf-id="hf-jdfu" id="cta-bait" class="caption"></div></div>
         <div data-hf-id="hf-c4uw" id="cta-tagline"></div>
-        <div data-hf-id="hf-xtnk" id="cta-col">
-          <div data-hf-id="hf-9r5s" id="cta-free"></div>
-          <div data-hf-id="hf-mkw9" id="cta-store">
+        <div data-hf-id="hf-9r5s" id="cta-free"></div>
+        <div data-hf-id="hf-mkw9" id="cta-store">
+          <div id="cta-badges">
             <img data-hf-id="hf-5now" class="badge" src="assets/appstore-badge-uk.svg" alt="Завантажте в App Store">
-            <div data-hf-id="hf-6wg9" class="tm" id="cta-tm"></div>
+            <img class="badge" src="assets/googleplay-badge-uk.svg" alt="Завантажте з Google Play">
           </div>
+          <div data-hf-id="hf-6wg9" class="tm" id="cta-tm-apple"></div>
+          <div class="tm" id="cta-tm-google"></div>
         </div>
       </div>
 
@@ -81,19 +87,21 @@
             bait: "скинь тому одному другу, який теж дивиться 👇",
             tagline: "твоє місто. нарешті видно.",
             free: "безкоштовно",
-            tm: "Apple, логотип Apple і App Store є торговельними марками Apple Inc.",
+            tmApple: "Apple, логотип Apple і App Store є торговельними марками Apple Inc.",
+            tmGoogle: "Google Play і логотип Google Play є торговельними марками Google LLC.",
           };
           const T = { tagline: 0.66, free: 0.76, store: 1.0, end: 2.0 }; // the lockup lands at 0.61; all still from 1.21
           const $ = (s) => document.querySelector(s);
           $("#cta-bait").textContent = COPY.bait;
           $("#cta-tagline").textContent = COPY.tagline;
           $("#cta-free").textContent = COPY.free;
-          $("#cta-tm").textContent = COPY.tm;
+          $("#cta-tm-apple").textContent = COPY.tmApple;
+          $("#cta-tm-google").textContent = COPY.tmGoogle;
           const tl = gsap.timeline({ paused: true });
           tl.fromTo("#cta-bait", { opacity: 0, y: 20, filter: "blur(8px)" }, { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.45, ease: "power3.out" }, 0.05);
           tl.fromTo("#cta-tagline", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, T.tagline);
           tl.fromTo("#cta-free", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, T.free);
-          tl.set("#cta-store", { opacity: 1 }, T.store); // hard cut, the badge itself is never animated
+          tl.set("#cta-store", { opacity: 1 }, T.store); // both badges together by a hard cut, the badges themselves are never animated
           window.__timelines["cta"] = tl;
         })();
       </script>

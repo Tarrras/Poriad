@@ -65,7 +65,7 @@
         --green: #3daa6b;
         --glow-night: #1b1a36;
         --muted: #a1a1a8;
-        --fine: #6e6e78;
+        --fine: #8a8a93; /* legal lines, ≥ 4.5:1 on the night end card */
         --brand-gradient: linear-gradient(90deg, #ff7a45, #e0582f, #8b6cff);
         --card: #ffffff;
         --chip: #f0eef8;
@@ -322,28 +322,31 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        padding-top: 900px;
+        padding-top: 950px;
       }
       .slogan {
         max-width: 760px;
         text-align: center;
         font-weight: 300;
-        font-size: 44px;
+        font-size: 40px;
         line-height: 1;
         letter-spacing: -0.045em;
         color: var(--muted);
       }
+      /* End card v2 grid (_material/END-CARD.md): free 1110, badges row 1176–1280, legal 1316 / 1344 */
       .cta-col {
         display: flex;
         flex-direction: column;
         align-items: center;
-        padding-top: 1006px;
+        padding-top: 1110px;
         font-family: "Inter", system-ui, sans-serif;
       }
       .free { font-weight: 600; font-size: 34px; line-height: 1; color: var(--muted); }
-      /* Official badge: untouched file, height 104px, no transform/filter/shadow */
-      .badge { display: block; height: 104px; width: auto; margin-top: 26px; }
-      .tm { margin-top: 36px; max-width: 860px; text-align: center; font-weight: 400; font-size: 22px; line-height: 1.3; color: var(--fine); }
+      .badges { display: flex; gap: 32px; margin-top: 32px; }
+      /* Official badges: untouched files, both height 104px, no transform/filter/shadow */
+      .badge { display: block; height: 104px; width: auto; }
+      .tms { margin-top: 36px; }
+      .tm { text-align: center; white-space: nowrap; font-weight: 400; font-size: 20px; line-height: 28px; color: var(--fine); }
 
       /* grain-overlay (registry component, customised): finite loop so the last frames hold still */
       @keyframes hf-grain-noise {
@@ -510,8 +513,14 @@
       <div data-hf-id="hf-i4ey" id="cta" class="clip" data-start="8.75" data-duration="1.25" data-track-index="4">
         <div data-hf-id="hf-8aso" class="layer cta-col">
           <div data-hf-id="hf-lq5w" class="free">безкоштовно</div>
-          <img data-hf-id="hf-5now" class="badge" src="assets/appstore-badge-uk.svg" alt="Завантажте в App Store">
-          <div data-hf-id="hf-8730" class="tm">Apple, логотип Apple і App Store є торговельними марками Apple Inc.</div>
+          <div data-hf-id="hf-bd2s" class="badges">
+            <img data-hf-id="hf-5now" class="badge" src="assets/appstore-badge-uk.svg" alt="Завантажте в App Store">
+            <img data-hf-id="hf-gp7k" class="badge" src="assets/googleplay-badge-uk.svg" alt="Завантажте з Google Play">
+          </div>
+          <div data-hf-id="hf-tm0s" class="tms">
+            <div data-hf-id="hf-8730" class="tm">Apple, логотип Apple і App Store є торговельними марками Apple Inc.</div>
+            <div data-hf-id="hf-tm2g" class="tm">Google Play і логотип Google Play є торговельними марками Google LLC.</div>
+          </div>
         </div>
       </div>
 
@@ -707,11 +716,11 @@
       tl.fromTo("#iris-d", { clipPath: "circle(0px at 540px 1094px)" }, { clipPath: "circle(1200px at 540px 1094px)", duration: 0.2, ease: "power3.in" }, 7.35);
       tl.to("#grain-tex", { opacity: 0.1, duration: 0.2, ease: "sine.inOut" }, 7.35);
       tl.fromTo("#glow-d", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "sine.out" }, 7.7);
-      // Icon 64 → 220 px, centre (98,290) → (540,580).
-      tl.to("#lk-icon", { x: 442, y: 290, scale: 220 / 64, transformOrigin: "50% 50%", duration: 0.5, ease: "power3.inOut" }, 7.5);
-      // Name 42 → 120 px, centred on x 540, top ≈745 (xPercent keeps it centred whatever its width).
-      const nameScale = 120 / 42;
-      tl.to("#lk-name", { x: 540 - 146, xPercent: -50 * nameScale, y: 515, scale: nameScale, transformOrigin: "0% 50%", duration: 0.5, ease: "power3.inOut" }, 7.5);
+      // End card v2 grid. Icon 64 → 176 px (radius 40), centre (98,290) → (540,648): top 560.
+      tl.to("#lk-icon", { x: 442, y: 358, scale: 176 / 64, borderRadius: 40 / (176 / 64), transformOrigin: "50% 50%", duration: 0.5, ease: "power3.inOut" }, 7.5);
+      // Name 42 → 128 px, centred on x 540, cap-top ≈790 (xPercent keeps it centred whatever its width).
+      const nameScale = 128 / 42;
+      tl.to("#lk-name", { x: 540 - 146, xPercent: -50 * nameScale, y: 548, scale: nameScale, transformOrigin: "0% 50%", duration: 0.5, ease: "power3.inOut" }, 7.5);
       tl.fromTo("#slogan", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power1.out" }, 8.2);
       // Store block cuts in at 8.75 via its clip; nothing moves after ~8.9 s.
 

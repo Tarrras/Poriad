@@ -13,8 +13,8 @@
       #notification-cascade { z-index: 1; }
       #map { z-index: 2; }
       #end { z-index: 3; }
-      /* the wordmark tiles own this box; «Поряд» is fitted to its width (x 100–880) */
-      #wordmark-tiles { z-index: 4; position: absolute; left: 100px; top: 590px; width: 780px; height: 250px; }
+      /* the wordmark tiles own this box, centred on x 540; «Поряд» is 128 px, cap-top ≈ 790 (end-card grid v2) */
+      #wordmark-tiles { z-index: 4; position: absolute; left: 260px; top: 758px; width: 560px; height: 160px; }
     </style>
   </head>
   <body>
@@ -25,7 +25,7 @@
       <section id="map" data-composition-id="map" data-composition-src="compositions/map.html" data-start="6.3" data-duration="4.2" data-track-index="2" data-width="1080" data-height="1920"></section>
       <!-- 10.5–14.5  «Поряд збирає їх на одну мапу.» → light end card -->
       <section id="end" data-composition-id="end" data-composition-src="compositions/end.html" data-start="10.5" data-duration="4" data-track-index="3" data-width="1080" data-height="1920"></section>
-      <div id="wordmark-tiles" data-composition-id="wordmark-tiles" data-composition-src="compositions/components/wordmark-tiles.html" data-start="10.5" data-duration="4" data-track-index="4" data-width="780" data-height="250"></div>
+      <div id="wordmark-tiles" data-composition-id="wordmark-tiles" data-composition-src="compositions/components/wordmark-tiles.html" data-start="10.5" data-duration="4" data-track-index="4" data-width="560" data-height="160"></div>
 
       <!-- Music: started 3.0 s into the track so its own riser peaks on the RGB-split cut (4.47), its break is the silence
            and its drop lands with the pin (5.0); kicks every 0.5 s from there. Volume is cut to zero across the silence. -->

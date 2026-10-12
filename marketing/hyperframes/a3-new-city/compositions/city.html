@@ -277,13 +277,13 @@
           tl.to("#city-bloom", { opacity: 0.55, duration: 1.0, ease: "sine.inOut" }, T.allOn + 0.25);
           tl.to(".city-glow", { opacity: 0.75, duration: 0.6, ease: "sine.out" }, T.allOn);
 
-          // ---- END CARD: the lit city settles low, the sky clears for the lockup
-          const ed = T.endEnd - T.end;
-          tl.to("#city-far", { y: 230, duration: ed, ease: "power2.inOut" }, T.end);
-          tl.to("#city-mid", { y: 260, duration: ed, ease: "power2.inOut" }, T.end);
-          tl.to("#city-near", { y: NEAR_WIDE.y + 290, duration: ed, ease: "power2.inOut" }, T.end);
-          tl.to("#city-light", { y: 810 + 290, duration: ed, ease: "power2.inOut" }, T.end);
-          tl.to("#city-bloom", { y: 260, duration: ed, ease: "power2.inOut" }, T.end);
+          // ---- END CARD: the lit city settles low into the blind zone (below y 1450), clear of the badges and legal lines
+          const ed = T.endEnd - T.end, DROP = 100;
+          tl.to("#city-far", { y: 230 + DROP, duration: ed, ease: "power2.inOut" }, T.end);
+          tl.to("#city-mid", { y: 260 + DROP, duration: ed, ease: "power2.inOut" }, T.end);
+          tl.to("#city-near", { y: NEAR_WIDE.y + 290 + DROP, duration: ed, ease: "power2.inOut" }, T.end);
+          tl.to("#city-light", { y: 810 + 290 + DROP, duration: ed, ease: "power2.inOut" }, T.end);
+          tl.to("#city-bloom", { y: 260 + DROP, duration: ed, ease: "power2.inOut" }, T.end);
           tl.to("#city-world", { opacity: 0.82, duration: ed, ease: "sine.inOut" }, T.end);
 
           placeDot(0);

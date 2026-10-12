@@ -14,38 +14,42 @@
         @font-face { font-family: "Inter"; src: url("assets/fonts/inter-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-display: block; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
 
         #cta-root { position: absolute; inset: 0; overflow: hidden; color: #f4efe2; font-family: "Inter", sans-serif; }
-        /* the bait hangs where the signs were, and drops in like a flap */
-        #cta-bait-wrap { position: absolute; left: 160px; width: 760px; top: 300px; height: 190px; perspective: 900px; display: flex; align-items: center; justify-content: center; }
-        #cta-bait { display: block; transform-origin: 50% 0; font-family: "Unbounded", sans-serif; font-weight: 300; font-size: 58px; line-height: 1.16; letter-spacing: -0.045em; text-align: center; text-wrap: balance; color: #f4efe2; }
-        /* under the «Поряд» tile (y 690–920, a route carrier) */
-        #cta-col { position: absolute; left: 160px; width: 760px; top: 966px; display: flex; flex-direction: column; align-items: center; }
-        #cta-free { font-weight: 600; font-size: 34px; line-height: 1.2; color: #f2b544; }
-        #cta-store { display: flex; flex-direction: column; align-items: center; opacity: 0; }
-        /* Official badge: untouched file, height 104px, no transform/filter/shadow */
-        #cta-store .badge { display: block; height: 104px; width: auto; margin-top: 30px; }
-        #cta-store .tm { margin-top: 30px; max-width: 760px; text-align: center; font-weight: 400; font-size: 22px; line-height: 1.35; color: #8b93a6; }
+        /* end-card grid v2 (_material/END-CARD.md), centred on x 540. The bait hangs at the top and drops in like a flap */
+        #cta-bait-wrap { position: absolute; left: 160px; width: 760px; top: 300px; perspective: 900px; display: flex; justify-content: center; }
+        #cta-bait { display: block; transform-origin: 50% 0; font-family: "Unbounded", sans-serif; font-weight: 300; font-size: 52px; line-height: 1.15; letter-spacing: -0.045em; text-align: center; text-wrap: balance; color: #f4efe2; }
+        /* the icon and the «Поряд» tile live in route.html (y 528–951); the stores sit under them */
+        #cta-free { position: absolute; left: 0; width: 1080px; top: 1110px; text-align: center; font-weight: 600; font-size: 34px; line-height: 40px; color: #f2b544; }
+        #cta-store { position: absolute; left: 0; width: 1080px; top: 1176px; display: flex; flex-direction: column; align-items: center; opacity: 0; }
+        #cta-badges { display: flex; gap: 32px; }
+        /* Official badges: untouched files, both 104 px tall, no transform/filter/shadow */
+        #cta-badges img { display: block; height: 104px; width: auto; }
+        #cta-store .tm { margin-top: 22px; text-align: center; font-weight: 400; font-size: 20px; line-height: 28px; color: #8b93a6; white-space: nowrap; }
       </style>
 
       <div id="cta-root" data-composition-id="cta" data-width="1080" data-height="1920">
         <div id="cta-bait-wrap"><div id="cta-bait">куди їдеш наступними вихідними? 👇</div></div>
-        <div id="cta-col">
-          <div id="cta-free">безкоштовно</div>
-          <div id="cta-store">
-            <img class="badge" src="assets/appstore-badge-uk.svg" alt="Завантажте в App Store" />
-            <div class="tm">Apple, логотип Apple і App Store є торговельними марками Apple Inc.</div>
+        <div id="cta-free">безкоштовно</div>
+        <div id="cta-store">
+          <div id="cta-badges">
+            <img src="assets/appstore-badge-uk.svg" alt="Завантажте в App Store" />
+            <img src="assets/googleplay-badge-uk.svg" alt="Завантажте з Google Play" />
+          </div>
+          <div class="tm">
+            <div>Apple, логотип Apple і App Store є торговельними марками Apple Inc.</div>
+            <div>Google Play і логотип Google Play є торговельними марками Google LLC.</div>
           </div>
         </div>
       </div>
 
       <script>
         (function () {
-          // Local time 0 = film 11.9; the badge cuts in on the 13.25 hit; static from there to 14.0
+          // Local time 0 = film 11.9; both badges cut in together on the 13.25 hit; static from there to 14.0
           var T0 = 11.9;
           function L(film) { return film - T0; }
           var tl = gsap.timeline({ paused: true });
           tl.fromTo("#cta-bait", { rotationX: -88, opacity: 0 }, { rotationX: 0, opacity: 1, duration: 0.36, ease: "power2.in" }, L(12.55));
           tl.fromTo("#cta-free", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, L(12.9));
-          tl.set("#cta-store", { opacity: 1 }, L(13.25)); // hard cut, the badge itself is never animated
+          tl.set("#cta-store", { opacity: 1 }, L(13.25)); // one hard cut for both badges; they are never animated
           window.__timelines["cta"] = tl;
         })();
       </script>

@@ -1,6 +1,7 @@
-<!-- A1 name + end card, on paper. The coral «Поряд» is resolved by the wordmark-tiles mount (index.html,
-     x 100–880 / y 590–840); this scene types the rest of the sentence under it, then the bait, «безкоштовно»
-     and the official App Store badge by a hard cut. Everything is left-aligned on x 100. -->
+<!-- A1 name + end card, on paper, end-card grid v2 (_material/END-CARD.md): one centred column on x 540.
+     The icon resolves from noise tiles; the coral «Поряд» is resolved by the wordmark-tiles mount (index.html,
+     x 260–820 / y 758–918, cap-top ≈ 790); this scene types the rest of the sentence under it as the slogan,
+     then the bait at the top, «безкоштовно» and both official store badges by one hard cut. -->
 <!doctype html>
 <html lang="uk">
   <head>
@@ -17,26 +18,43 @@
         @font-face { font-family: "Inter"; src: url("assets/fonts/inter-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-display: block; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
 
         #end-root { position: absolute; inset: 0; overflow: hidden; background: #f5f5f7; color: #0b0b0f; font-family: "Inter", system-ui, sans-serif; }
-        .end-type { position: absolute; left: 100px; width: 820px; font-family: "Unbounded", system-ui, sans-serif; font-weight: 300; letter-spacing: -0.035em; white-space: pre; }
+        .end-type { position: absolute; left: 160px; width: 760px; text-align: center; font-family: "Unbounded", system-ui, sans-serif; font-weight: 300; letter-spacing: -0.035em; white-space: pre; }
         .end-type span { opacity: 0; }
-        #end-bait { top: 296px; font-size: 50px; line-height: 64px; }
-        #end-line { top: 858px; font-size: 52px; line-height: 66px; }
+        #end-bait { top: 300px; font-size: 52px; line-height: 59.8px; }
+        #end-line { top: 934px; font-size: 40px; line-height: 46px; color: #44444c; }
         #end-caret { position: absolute; left: 0; top: 0; width: 5px; height: 54px; background: #0b0b0f; opacity: 0; }
-        #end-free { position: absolute; left: 100px; top: 1110px; font-weight: 600; font-size: 34px; line-height: 40px; color: #44444c; opacity: 0; }
-        #end-store { position: absolute; left: 100px; top: 1168px; width: 800px; opacity: 0; }
-        /* Official badge: untouched file, height 104px, no transform/filter/shadow */
-        #end-store .badge { display: block; height: 104px; width: auto; }
-        #end-tm { margin-top: 24px; font-weight: 400; font-size: 22px; line-height: 30px; color: #63636d; }
+        /* the icon resolves like the name: noise tiles over the official icon flick off in a wave */
+        #end-icon { position: absolute; left: 452px; top: 560px; width: 176px; height: 176px; }
+        #end-icon img { position: absolute; inset: 0; width: 176px; height: 176px; border-radius: 40px; }
+        #end-icon-tiles { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(4, 1fr); }
+        .end-it { position: relative; background: #f5f5f7; }
+        .end-it i { position: absolute; inset: 2px; }
+        #end-free { position: absolute; left: 0; width: 1080px; top: 1110px; text-align: center; font-weight: 600; font-size: 34px; line-height: 40px; color: #44444c; opacity: 0; }
+        #end-store { position: absolute; left: 0; width: 1080px; top: 1176px; display: flex; flex-direction: column; align-items: center; opacity: 0; }
+        #end-badges { display: flex; gap: 32px; }
+        /* Official badges: untouched files, both 104 px tall, no transform/filter/shadow */
+        #end-badges img { display: block; height: 104px; width: auto; }
+        #end-tm { margin-top: 22px; text-align: center; font-weight: 400; font-size: 20px; line-height: 28px; color: #63636d; white-space: nowrap; }
       </style>
 
       <div id="end-root" data-composition-id="end" data-width="1080" data-height="1920">
         <div class="end-type" id="end-bait"></div>
         <div class="end-type" id="end-line"></div>
         <div id="end-caret"></div>
+        <div id="end-icon">
+          <img src="assets/icon.png" alt="Поряд" />
+          <div id="end-icon-tiles"></div>
+        </div>
         <div id="end-free"></div>
         <div id="end-store">
-          <img class="badge" src="assets/appstore-badge-uk.svg" alt="Завантажте в App Store" />
-          <div id="end-tm"></div>
+          <div id="end-badges">
+            <img src="assets/appstore-badge-uk.svg" alt="Завантажте в App Store" />
+            <img src="assets/googleplay-badge-uk.svg" alt="Завантажте з Google Play" />
+          </div>
+          <div id="end-tm">
+            <div>Apple, логотип Apple і App Store є торговельними марками Apple Inc.</div>
+            <div>Google Play і логотип Google Play є торговельними марками Google LLC.</div>
+          </div>
         </div>
       </div>
 
@@ -48,13 +66,11 @@
             line: "збирає їх на одну мапу.",
             bait: ["скільки в тебе каналів", "з афішами? 👇"],
             free: "безкоштовно",
-            tm: "Apple, логотип Apple і App Store є торговельними марками Apple Inc.",
           };
           // the name resolves 0.18–1.1 (wordmark-tiles); the line types as it lands; the last second holds still
           const T = { line: 0.62, bait: 1.9, free: 2.4, store: 3.0 };
           await document.fonts.load('300 52px "Unbounded"', COPY.line + COPY.bait.join(""));
           $("#end-free").textContent = COPY.free;
-          $("#end-tm").textContent = COPY.tm;
 
           const tl = gsap.timeline({ paused: true });
           const caret = $("#end-caret");
@@ -63,16 +79,19 @@
           const ctx = document.createElement("canvas").getContext("2d");
           const typeLines = (el, lines, t0, step) => {
             const cs = getComputedStyle(el);
-            const left = parseFloat(cs.left), top = parseFloat(cs.top);
+            const top = parseFloat(cs.top);
             const fs = parseFloat(cs.fontSize), lh = parseFloat(cs.lineHeight);
+            const ch = Math.round(fs * 1.04);
             ctx.font = "300 " + fs + 'px "Unbounded", system-ui, sans-serif';
             ctx.letterSpacing = (-0.035 * fs).toFixed(2) + "px";
             let t = t0;
             lines.forEach((text, li) => {
               const row = document.createElement("div");
               el.appendChild(row);
-              const y = top + li * lh + (lh - 54) / 2;
-              tl.set(caret, { x: left, y, opacity: 1 }, t - 0.08);
+              // rows are centred on x 540: the hidden characters already take their room
+              const left = 540 - ctx.measureText(text).width / 2;
+              const y = top + li * lh + (lh - ch) / 2;
+              tl.set(caret, { x: left, y, height: ch, opacity: 1 }, t - 0.08);
               [...text].forEach((ch, i, all) => {
                 const sp = document.createElement("span");
                 sp.textContent = ch;
@@ -86,6 +105,26 @@
             return t;
           };
           tl.set(caret, { x: 0, y: 0, opacity: 0 }, 0);
+
+          // icon: a 4×4 noise field (fixed pattern) flickers, then a wave lifts it off the icon
+          const NOISE = ["#d9d9df", "#b4b4bd", "#0b0b0f"];
+          const covers = [];
+          for (let i = 0; i < 16; i++) {
+            const tile = document.createElement("span");
+            tile.className = "end-it";
+            const face = document.createElement("i");
+            face.style.background = NOISE[(i * 7 + (i >> 2)) % 3];
+            tile.appendChild(face);
+            $("#end-icon-tiles").appendChild(tile);
+            covers.push({ tile, face, rank: (i % 4) + (i >> 2) * 0.68 });
+          }
+          covers.sort((a, b) => a.rank - b.rank);
+          covers.forEach((c, i) => {
+            tl.set(c.face, { opacity: 0.35 + ((i * 5) % 7) / 10 }, 0);
+            tl.set(c.face, { opacity: 0.95 - ((i * 3) % 5) / 10 }, 2 / 30);
+          });
+          tl.to(covers.map((c) => c.tile), { opacity: 0, scale: 1.18, duration: 0.3, ease: "power2.out", stagger: 0.022 }, 0.12);
+
           const lineDone = typeLines($("#end-line"), [COPY.line], T.line, 0.028);
           tl.set(caret, { opacity: 0 }, lineDone + 0.12);
           const baitDone = typeLines($("#end-bait"), COPY.bait, T.bait, 0.022);
