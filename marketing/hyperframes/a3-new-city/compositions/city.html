@@ -210,7 +210,11 @@
 
           // stars: fixed, seeded
           const stars = q("#city-stars");
-          for (let i = 0; i < 22; i++) make("circle", { cx: 40 + rnd() * 1000, cy: 430 + rnd() * 560, r: 1.2 + rnd() * 1.6, opacity: 0.35 + rnd() * 0.5 }, stars);
+          for (let i = 0; i < 22; i++) {
+            const s = { cx: 40 + rnd() * 1000, cy: 430 + rnd() * 560, r: 1.2 + rnd() * 1.6, opacity: 0.35 + rnd() * 0.5 };
+            // the end-card slogan band (cta.html, y ≈ 950) stays clear, so no star reads as a diacritic
+            if (!(s.cx > 290 && s.cx < 790 && s.cy > 900 && s.cy < 1000)) make("circle", s, stars);
+          }
 
           const tl = gsap.timeline({ paused: true });
 

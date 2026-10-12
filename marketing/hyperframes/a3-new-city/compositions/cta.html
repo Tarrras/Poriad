@@ -36,13 +36,17 @@
         }
         /* End card v2 grid (_material/END-CARD.md), one centred column on x 540: the lit city has settled low
            in the blind zone (city.html), «Поряд» is traced with cap-top ≈ 790 (svg-stroke-trace); this layer adds
-           the handwritten bait (top 300), the icon (top 560), «безкоштовно» (1110), both badges (row 1176) and
-           the legal lines (1316 / 1344). */
+           the handwritten bait (top 300), the icon (top 560), the slogan (≈ 950, letters fading in like the narrator's),
+           «безкоштовно» (1110), both badges (row 1176) and the legal lines (1316 / 1344). */
         #cta-root { position: absolute; inset: 0; overflow: hidden; color: #f7f1fb; font-family: "Inter", system-ui, sans-serif; }
         #cta-bait { position: absolute; left: 160px; top: 300px; width: 760px; text-align: center; text-wrap: balance; font-weight: 400; font-style: italic; font-size: 52px; line-height: 1.15; letter-spacing: -0.01em; text-shadow: 0 4px 22px rgba(16, 10, 36, 0.6); }
         #cta-bait span { opacity: 0; }
         #cta-bait .cta-emoji { font-style: normal; }
         #cta-icon { position: absolute; left: 452px; top: 560px; width: 176px; height: 176px; border-radius: 40px; opacity: 0; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1), 0 0 80px rgba(255, 196, 110, 0.28), 0 26px 80px rgba(12, 8, 30, 0.5); }
+        @font-face { font-family: "Unbounded"; src: url("assets/fonts/unbounded-cyrillic.woff2") format("woff2"); font-weight: 200 900; font-display: block; unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+        @font-face { font-family: "Unbounded"; src: url("assets/fonts/unbounded-latin.woff2") format("woff2"); font-weight: 200 900; font-display: block; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+        #cta-slogan { position: absolute; left: 160px; top: 927px; width: 760px; text-align: center; white-space: nowrap; font-family: "Unbounded", system-ui, sans-serif; font-weight: 300; font-size: 40px; line-height: 46px; letter-spacing: -0.035em; color: #c9bfd9; text-shadow: 0 4px 22px rgba(16, 10, 36, 0.6); }
+        #cta-slogan span { opacity: 0; }
         #cta-free { position: absolute; left: 160px; width: 760px; top: 1110px; text-align: center; font-weight: 600; font-size: 34px; line-height: 1; color: #d9d0e6; opacity: 0; }
         #cta-store { position: absolute; left: 160px; width: 760px; top: 1176px; display: flex; flex-direction: column; align-items: center; opacity: 0; }
         #cta-store .badges { display: flex; gap: 32px; }
@@ -55,6 +59,7 @@
       <div id="cta-root" data-composition-id="cta" data-width="1080" data-height="1920">
         <div id="cta-bait"></div>
         <img id="cta-icon" data-brand-mark="" src="assets/icon.png" alt="">
+        <div id="cta-slogan"></div>
         <div id="cta-free"></div>
         <div id="cta-store">
           <div class="badges">
@@ -73,11 +78,14 @@
           const COPY = {
             bait: "скільки ти вже в\u00a0новому місті?", // no-break space keeps «в» with its word on the second line
             emoji: "👇",
+            slogan: "Є куди. Буде з ким.",
             free: "безкоштовно",
             tmApple: "Apple, логотип Apple і App Store є торговельними марками Apple Inc.",
             tmGoogle: "Google Play і логотип Google Play є торговельними марками Google LLC.",
           };
-          const T = { bait: 0.45, icon: 0.15, free: 0.4, store: 0.6 }; // local; the host starts at 12.8
+          // local; the host starts at 12.3. The slogan fades in with the coral fill (12.42) and is still from 13.12,
+          // > 1 s before the static last 10 frames (14.17)
+          const T = { slogan: 0.12, bait: 0.95, icon: 0.65, free: 0.9, store: 1.1 };
           const $ = (s) => document.querySelector(s);
           const bait = $("#cta-bait");
           Array.from(COPY.bait + " ").forEach((ch) => { const s = document.createElement("span"); s.textContent = ch; bait.appendChild(s); });
@@ -85,10 +93,12 @@
           em.className = "cta-emoji";
           em.textContent = COPY.emoji;
           bait.appendChild(em);
+          Array.from(COPY.slogan).forEach((ch) => { const s = document.createElement("span"); s.textContent = ch; $("#cta-slogan").appendChild(s); });
           $("#cta-free").textContent = COPY.free;
           $("#cta-tm-apple").textContent = COPY.tmApple;
           $("#cta-tm-google").textContent = COPY.tmGoogle;
           const tl = gsap.timeline({ paused: true });
+          tl.to("#cta-slogan span", { opacity: 1, duration: 0.3, ease: "sine.out", stagger: 0.022 }, T.slogan);
           const chars = bait.querySelectorAll("span");
           tl.to(chars, { opacity: 1, duration: 0.1, ease: "sine.out", stagger: 0.62 / chars.length }, T.bait);
           tl.fromTo("#cta-icon", { opacity: 0, y: 18, filter: "blur(10px)" }, { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.75, ease: "sine.out" }, T.icon);

@@ -1,7 +1,8 @@
 <!-- A1 name + end card, on paper, end-card grid v2 (_material/END-CARD.md): one centred column on x 540.
      The icon resolves from noise tiles; the coral «Поряд» is resolved by the wordmark-tiles mount (index.html,
-     x 260–820 / y 758–918, cap-top ≈ 790); this scene types the rest of the sentence under it as the slogan,
-     then the bait at the top, «безкоштовно» and both official store badges by one hard cut. -->
+     x 260–820 / y 758–918, cap-top ≈ 790); this scene types the turn line under it («Поряд збирає їх на одну мапу.»),
+     backspaces it and types the brand slogan «Є куди. Буде з ким.» in the same slot, then the bait at the top,
+     «безкоштовно» and both official store badges by one hard cut. -->
 <!doctype html>
 <html lang="uk">
   <head>
@@ -21,7 +22,7 @@
         .end-type { position: absolute; left: 160px; width: 760px; text-align: center; font-family: "Unbounded", system-ui, sans-serif; font-weight: 300; letter-spacing: -0.035em; white-space: pre; }
         .end-type span { opacity: 0; }
         #end-bait { top: 300px; font-size: 52px; line-height: 59.8px; }
-        #end-line { top: 934px; font-size: 40px; line-height: 46px; color: #44444c; }
+        #end-line, #end-slogan { top: 934px; font-size: 40px; line-height: 46px; color: #44444c; }
         #end-caret { position: absolute; left: 0; top: 0; width: 5px; height: 54px; background: #0b0b0f; opacity: 0; }
         /* the icon resolves like the name: noise tiles over the official icon flick off in a wave */
         #end-icon { position: absolute; left: 452px; top: 560px; width: 176px; height: 176px; }
@@ -40,6 +41,7 @@
       <div id="end-root" data-composition-id="end" data-width="1080" data-height="1920">
         <div class="end-type" id="end-bait"></div>
         <div class="end-type" id="end-line"></div>
+        <div class="end-type" id="end-slogan"></div>
         <div id="end-caret"></div>
         <div id="end-icon">
           <img src="assets/icon.png" alt="Поряд" />
@@ -64,12 +66,15 @@
           const $ = (s) => root.querySelector(s);
           const COPY = {
             line: "збирає їх на одну мапу.",
+            slogan: "Є куди. Буде з ким.",
             bait: ["скільки в тебе каналів", "з афішами? 👇"],
             free: "безкоштовно",
           };
-          // the name resolves 0.18–1.1 (wordmark-tiles); the line types as it lands; the last second holds still
-          const T = { line: 0.62, bait: 1.9, free: 2.4, store: 3.0 };
-          await document.fonts.load('300 52px "Unbounded"', COPY.line + COPY.bait.join(""));
+          // the name resolves 0.18–1.1 (wordmark-tiles); the line types as it lands and holds; the caret backspaces it
+          // and types the slogan in its slot (still from 2.47, > 1 s before the static last 10 frames from 3.67);
+          // then the bait, «безкоштовно» and the badges
+          const T = { line: 0.6, erase: 1.7, slogan: 2.04, bait: 2.56, free: 2.95, store: 3.25 };
+          await document.fonts.load('300 52px "Unbounded"', COPY.line + COPY.slogan + COPY.bait.join(""));
           $("#end-free").textContent = COPY.free;
 
           const tl = gsap.timeline({ paused: true });
@@ -77,13 +82,15 @@
           // this scene is not laid out while the timeline is built, so caret stops come from canvas metrics
           // (same font, size and letter-spacing as the CSS); lines are explicit, nothing wraps
           const ctx = document.createElement("canvas").getContext("2d");
-          const typeLines = (el, lines, t0, step) => {
+          const setFont = (el) => {
             const cs = getComputedStyle(el);
-            const top = parseFloat(cs.top);
             const fs = parseFloat(cs.fontSize), lh = parseFloat(cs.lineHeight);
-            const ch = Math.round(fs * 1.04);
             ctx.font = "300 " + fs + 'px "Unbounded", system-ui, sans-serif';
             ctx.letterSpacing = (-0.035 * fs).toFixed(2) + "px";
+            return { top: parseFloat(cs.top), lh, ch: Math.round(fs * 1.04) };
+          };
+          const typeLines = (el, lines, t0, step) => {
+            const { top, lh, ch } = setFont(el);
             let t = t0;
             lines.forEach((text, li) => {
               const row = document.createElement("div");
@@ -102,6 +109,21 @@
               });
               t += 0.08;
             });
+            return t;
+          };
+          // backspace over a one-row line typed above: the caret walks back one character per step
+          const eraseLine = (el, t0, step) => {
+            const { top, lh, ch } = setFont(el);
+            const spans = [...el.querySelectorAll("span")];
+            const chars = spans.map((s) => s.textContent);
+            const left = 540 - ctx.measureText(chars.join("")).width / 2;
+            const y = top + (lh - ch) / 2;
+            let t = t0;
+            for (let i = spans.length - 1; i >= 0; i--) {
+              tl.set(spans[i], { opacity: 0 }, t);
+              tl.set(caret, { x: i ? left + ctx.measureText(chars.slice(0, i).join("")).width + 6 : left, y }, t);
+              t += step;
+            }
             return t;
           };
           tl.set(caret, { x: 0, y: 0, opacity: 0 }, 0);
@@ -125,9 +147,10 @@
           });
           tl.to(covers.map((c) => c.tile), { opacity: 0, scale: 1.18, duration: 0.3, ease: "power2.out", stagger: 0.022 }, 0.12);
 
-          const lineDone = typeLines($("#end-line"), [COPY.line], T.line, 0.028);
-          tl.set(caret, { opacity: 0 }, lineDone + 0.12);
-          const baitDone = typeLines($("#end-bait"), COPY.bait, T.bait, 0.022);
+          typeLines($("#end-line"), [COPY.line], T.line, 0.026);
+          eraseLine($("#end-line"), T.erase, 0.011);
+          typeLines($("#end-slogan"), [COPY.slogan], T.slogan, 0.024);
+          const baitDone = typeLines($("#end-bait"), COPY.bait, T.bait, 0.018);
           tl.set(caret, { opacity: 0 }, baitDone + 0.1);
 
           tl.fromTo("#end-free", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.35, ease: "power3.out" }, T.free);

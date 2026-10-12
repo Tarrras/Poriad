@@ -17,7 +17,10 @@
         /* end-card grid v2 (_material/END-CARD.md), centred on x 540. The bait hangs at the top and drops in like a flap */
         #cta-bait-wrap { position: absolute; left: 160px; width: 760px; top: 300px; perspective: 900px; display: flex; justify-content: center; }
         #cta-bait { display: block; transform-origin: 50% 0; font-family: "Unbounded", sans-serif; font-weight: 300; font-size: 52px; line-height: 1.15; letter-spacing: -0.045em; text-align: center; text-wrap: balance; color: #f4efe2; }
-        /* the icon and the «Поряд» tile live in route.html (y 528–951); the stores sit under them */
+        /* the icon and the «Поряд» tile live in route.html (hairlines y 528 and 1012); the slogan flaps down under the
+           tile like the bait, and settles with the same small overshoot as the tile's last flap; the stores sit under them */
+        #cta-slogan-wrap { position: absolute; left: 160px; width: 760px; top: 937px; perspective: 900px; display: flex; justify-content: center; }
+        #cta-slogan { display: block; transform-origin: 50% 0; font-family: "Unbounded", sans-serif; font-weight: 300; font-size: 40px; line-height: 46px; letter-spacing: -0.035em; white-space: nowrap; color: #c9bfa6; }
         #cta-free { position: absolute; left: 0; width: 1080px; top: 1110px; text-align: center; font-weight: 600; font-size: 34px; line-height: 40px; color: #f2b544; }
         #cta-store { position: absolute; left: 0; width: 1080px; top: 1176px; display: flex; flex-direction: column; align-items: center; opacity: 0; }
         #cta-badges { display: flex; gap: 32px; }
@@ -28,6 +31,7 @@
 
       <div id="cta-root" data-composition-id="cta" data-width="1080" data-height="1920">
         <div id="cta-bait-wrap"><div id="cta-bait">куди їдеш наступними вихідними? 👇</div></div>
+        <div id="cta-slogan-wrap"><div id="cta-slogan">Є куди. Буде з ким.</div></div>
         <div id="cta-free">безкоштовно</div>
         <div id="cta-store">
           <div id="cta-badges">
@@ -43,10 +47,14 @@
 
       <script>
         (function () {
-          // Local time 0 = film 11.9; both badges cut in together on the 13.25 hit; static from there to 14.0
+          // Local time 0 = film 11.9; the slogan settles at 12.62 (still > 1 s before the static last 10 frames from 13.67);
+          // both badges cut in together on the 13.25 hit; static from there to 14.0
           var T0 = 11.9;
           function L(film) { return film - T0; }
           var tl = gsap.timeline({ paused: true });
+          tl.fromTo("#cta-slogan", { rotationX: -88, opacity: 0 }, { rotationX: 0, opacity: 1, duration: 0.3, ease: "power2.in" }, L(12.16));
+          tl.to("#cta-slogan", { rotationX: -10, duration: 0.06, ease: "power1.out" }, L(12.46));
+          tl.to("#cta-slogan", { rotationX: 0, duration: 0.1, ease: "power2.in" }, L(12.52));
           tl.fromTo("#cta-bait", { rotationX: -88, opacity: 0 }, { rotationX: 0, opacity: 1, duration: 0.36, ease: "power2.in" }, L(12.55));
           tl.fromTo("#cta-free", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, L(12.9));
           tl.set("#cta-store", { opacity: 1 }, L(13.25)); // one hard cut for both badges; they are never animated

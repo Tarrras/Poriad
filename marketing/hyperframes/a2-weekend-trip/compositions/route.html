@@ -30,7 +30,7 @@
         #rt-ticket .stub-icon { position: absolute; right: 40px; top: 220px; }
 
         /* the name (end-card grid v2, centred on x 540): the icon and «Поряд» as two stacked flap tiles on a seam,
-           amber hairlines frame the pair inside the safe column x 160–920 */
+           amber hairlines frame the pair and the slogan under it (cta.html, y ≈ 950) inside the safe column x 160–920 */
         #rt-seam { position: absolute; left: 160px; top: 840px; width: 760px; height: 2px; background: #f2b544; transform-origin: 50% 50%; }
         #rt-icon { position: absolute; left: 452px; top: 560px; width: 176px; height: 176px; perspective: 900px; }
         /* both halves paint the official icon as a background (two <img> of one file would be discovered twice) */
@@ -78,7 +78,7 @@
         </div>
 
         <div class="rt-hair" id="rt-hair-a" style="top: 528px"></div>
-        <div class="rt-hair" id="rt-hair-b" style="top: 951px"></div>
+        <div class="rt-hair" id="rt-hair-b" style="top: 1012px"></div>
         <div id="rt-seam"></div>
         <div id="rt-icon" role="img" aria-label="Поряд">
           <div class="half top"></div>
@@ -183,7 +183,7 @@
           tl.fromTo("#rt-icon .bot", { rotationX: 90 }, { rotationX: 0, duration: 0.24, ease: "power2.in" }, L(12.3));
           tl.to("#rt-icon .bot", { rotationX: -10, duration: 0.07, ease: "power1.out" }, L(12.54));
           tl.to("#rt-icon .bot", { rotationX: 0, duration: 0.12, ease: "power2.in" }, L(12.61));
-          tl.fromTo(["#rt-hair-a", "#rt-hair-b"], { scaleX: 0 }, { scaleX: 1, duration: 0.6, ease: "power3.out", stagger: 0.06 }, L(12.3));
+          tl.fromTo(["#rt-hair-a", "#rt-hair-b"], { scaleX: 0 }, { scaleX: 1, duration: 0.3, ease: "power3.out", stagger: 0.06 }, L(12.3));
 
           window.__timelines["route"] = tl;
         })();

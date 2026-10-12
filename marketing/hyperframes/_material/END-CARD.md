@@ -17,7 +17,7 @@ Safe zone: text only inside x 160–920 (centred, max width 760) and y 250–145
 | ↓ air ≥ 120 px | | | |
 | 2. Brand | app icon | centred, 176×176, radius 40, top y ≈ 560 | official `icon.png` |
 | | «Поряд» wordmark | centred, cap-top y ≈ 790 | Unbounded 900, 128 px, coral `#E0582F` (the only coral) |
-| | slogan (optional, per film) | centred, y ≈ 950 | Unbounded 300, 40 px, muted |
+| | **brand slogan «Є куди. Буде з ким.»** (every video, verbatim) | centred, y ≈ 950 | Unbounded 300, 40 px, muted (never coral) |
 | ↓ air ≥ 140 px | | | |
 | 3. Stores | «безкоштовно» | centred, y ≈ 1110 | Inter 600, 34 px |
 | | **two official badges side by side**: App Store on the left, Google Play on the right | row top y = 1176, both **height 104 px** (Google Play is never smaller than App Store), gap 32 px, centred as a pair (≈ x 196–884) | `appstore-badge-uk.svg` (≈306×104), `googleplay-badge-uk.svg` (≈351×104) |
@@ -39,7 +39,7 @@ Nothing below y 1450.
 
 - Ground and palette.
 - Entrance motion of the icon and wordmark: flap / stroke-trace / glyph tiles etc.
-- Whether the slogan line is shown.
+- How the slogan enters (type-on, flap, fade), but never its wording.
 - The colour of «безкоштовно» (any non-coral brand-safe tone).
 
 Positions, alignment (always centred), sizes and order stay as above.

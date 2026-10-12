@@ -53,7 +53,7 @@
       "start": 10.5,
       "end": 12.4,
       "file": "compositions/components/wordmark-tiles.html + compositions/end.html",
-      "picture": "a field of ink/grey noise tiles resolves into the coral «Поряд»; the rest of the sentence types under it",
+      "picture": "a field of ink/grey noise tiles resolves into the coral «Поряд»; the rest of the sentence types under it, holds, and the caret backspaces it and types the slogan «Є куди. Буде з ким.» in its slot",
       "line": "Поряд збирає їх на одну мапу."
     },
     {
@@ -61,7 +61,7 @@
       "start": 12.4,
       "end": 14.5,
       "file": "compositions/end.html",
-      "picture": "light end card on the v2 grid (_material/END-CARD.md), centred: bait typed at the top, the icon resolved from noise tiles, «Поряд» + the line as slogan, «безкоштовно», the App Store and Google Play badges together by one hard cut (13.5) with the Apple and Google trademark lines; still from 13.5",
+      "picture": "light end card on the v2 grid (_material/END-CARD.md), centred: bait typed at the top, the icon resolved from noise tiles, «Поряд» + the slogan «Є куди. Буде з ким.» (typed in the turn line's slot, still from 12.97), «безкоштовно», the App Store and Google Play badges together by one hard cut (13.75) with the Apple and Google trademark lines; still from 13.94",
       "line": "скільки в тебе каналів з афішами? 👇"
     }
   ]
