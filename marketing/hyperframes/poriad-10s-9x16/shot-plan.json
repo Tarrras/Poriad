@@ -1,0 +1,217 @@
+{
+  "category": "kinetic-type",
+  "duration_s": 10,
+  "fps": 30,
+  "canvas": {
+    "w": 1080,
+    "h": 1920,
+    "aspect": "9:16"
+  },
+  "style": "Premium-for-young motion design (Apple keynote × Spotify Wrapped), vector-only product: no screenshots, no faces. Calm confident springs, letters rising one by one, one coral accent per frame, subtle film grain. Copy is Ukrainian, lowercase except the app name «Поряд».",
+  "palette": {
+    "night": "#0B0B0F",
+    "paper": "#F5F5F7",
+    "ink": "#1D1D1F",
+    "coral": "#E0582F",
+    "coral_night": "#FF8A5B",
+    "violet": "#6D4AC9",
+    "blue": "#2F63C4",
+    "amber": "#E8A33D",
+    "green": "#3DAA6B",
+    "glow_night": "#1B1A36",
+    "muted": "#A1A1A8",
+    "fine": "#6E6E78",
+    "brand_gradient": "linear-gradient(90deg, #FF7A45, #E0582F, #8B6CFF)"
+  },
+  "font": "Unbounded (local woff2: assets/fonts/unbounded-{cyrillic,latin}.woff2, variable weight, use 300 and 900) + Inter (assets/fonts/inter-{cyrillic,latin}-{400,600}-normal.woff2). Register with @font-face + unicode-range; letter-spacing -0.045em on Unbounded.",
+  "beats": [
+    0,
+    0.5,
+    1,
+    1.5,
+    2,
+    2.5,
+    3,
+    3.5,
+    4,
+    4.5,
+    5,
+    5.5,
+    6,
+    6.5,
+    7,
+    7.5,
+    8,
+    8.5,
+    9,
+    9.5
+  ],
+  "export": "mp4",
+  "asset_needs": [],
+  "block": "hand-authored scenes + registry components grain-overlay, count-up, iris-reveal (add + customize; hand-author if a component fights the layout)",
+  "customize": {
+    "grain-overlay": "opacity 0.10 on night scenes, 0.06 on the paper scene; covers the whole frame, above content",
+    "count-up": "0 → 2000 in scene A, formatted with a thin/normal space as «2 000», then «+» pops in",
+    "iris-reveal": "circle clip-path opening from the centre pin position into scene C (paper); from the card centre back to night for scene D"
+  },
+  "content": {
+    "audio": [
+      {
+        "src": "assets/audio/brand.m4a",
+        "start": 0,
+        "duration": 10,
+        "media_start": 16,
+        "volume": 0.9,
+        "fade_out": "9.4→10.0 s",
+        "note": "drop lands at t=0; beat grid every 0.5 s"
+      },
+      {
+        "src": "assets/audio/pin_pop_1.wav",
+        "start": 0.48,
+        "volume": 0.35,
+        "note": "pin impact"
+      },
+      {
+        "src": "assets/audio/whoosh.wav",
+        "start": 4.85,
+        "volume": 0.3,
+        "note": "dive into pin / iris to card"
+      },
+      {
+        "src": "assets/audio/whoosh.wav",
+        "start": 7.4,
+        "volume": 0.25,
+        "note": "card collapses to end card"
+      },
+      {
+        "src": "assets/audio/pin_pop_2.wav",
+        "start": 8,
+        "volume": 0.35,
+        "note": "app icon lands"
+      }
+    ],
+    "persistent": {
+      "lockup": "Top-left at x=96 y=76: app icon (assets/icon.png) 72×72, radius 18, shadow 0 10px 30px rgba(224,88,47,.45) + «Поряд» Unbounded 900 48px coral #E0582F, gap 18. Pops in at 0.0–0.3 s (scale from 0.6, soft overshoot), visible on scenes A–C, fades out 7.3–7.5 s (the end card carries the name). Never hidden by scene transitions — keep it on the top layer under the grain.",
+      "grain": "Whole duration, top layer."
+    },
+    "scenes": [
+      {
+        "id": "A-hook",
+        "start": 0,
+        "end": 2.5,
+        "bg": "night #0B0B0F with a soft radial glow #1B1A36 behind the pin (right side)",
+        "text": "Left column x=140, vertically centred: «2 000+» Unbounded 900 230px paper #F5F5F7 (count-up 0→2 000 from 0.25 s to 1.75 s, ease power3.out; digits tabular so the width does not jitter; «+» pops in coral at 1.8 s with a bouncy scale). Under it, margin-top 18px: «подій щомісяця» Unbounded 300 76px paper, letters rise one by one (y 0.9em→0, rotate 8°→0, stagger 0.03 s) starting 0.5 s.",
+        "emphasis_words": [
+          "2 000+"
+        ],
+        "motion": "Coral pin (SVG path M50 2 C24 2 4 22 4 48 C4 80 50 128 50 128 C50 128 96 80 96 48 C96 22 76 2 50 2 Z, white dot r=17 at 50,48; viewBox 0 0 100 130) 240px wide, tip resting at (1380, 700). Falls from y-900 between 0.15 s and 0.48 s (power2.in), squash-and-stretch on impact (scaleX 1.28 / scaleY 0.72 decaying in ~0.4 s, transform-origin bottom centre), three elliptical coral ripples (600×180 max, border thinning, fading) from the tip at 0.48/0.68/0.88 s.",
+        "beats": [
+          0.5,
+          2
+        ]
+      },
+      {
+        "id": "B-map",
+        "start": 2.5,
+        "end": 5,
+        "bg": "night",
+        "text": "Left column swaps on the 2.5 s cut: old text slides up/fades in 0.25 s; new text: «на одній» Unbounded 300 76px paper, then «мапі.» Unbounded 900 200px paper (letters rise from 2.65 s, stagger 0.03 s). A dark scrim (linear-gradient 90°, #0B0B0F 0%→ 45% → transparent 70%) keeps the left column readable over the map.",
+        "emphasis_words": [
+          "мапі."
+        ],
+        "motion": "Camera pull-back: the pin scales 1 → 0.32 around its tip (2.5–3.0 s, power2.inOut) and stays as the centre pin. A stylised city map draws on behind it (2.55–3.6 s): ~14 street lines (stroke #2A2A33, 3–6px, stroke-dashoffset draw-on, staggered) plus a wide river band (Dnipro-like S-curve, #1B1A36, 70px) running top→bottom slightly left of the pin. Then ~90 small pins (34–46px wide, colours cycling coral/violet/blue/amber/green, deterministic positions from a seeded hash — no Math.random) pop in as a wave ordered by distance from the centre pin (3.0–4.2 s, back.out(2.5)), each with a tiny shadow. Avoid placing pins under the left scrim's opaque part (x<700). At 4.5–5.0 s the camera dives into the centre pin: map group scales up 1→4 with origin at the pin tip, power2.in.",
+        "beats": [
+          3,
+          4,
+          4.5
+        ]
+      },
+      {
+        "id": "C-card",
+        "start": 5,
+        "end": 7.5,
+        "bg": "paper #F5F5F7, revealed by an iris (circle clip-path) opening from the centre pin position (≈1380, 640) over 0.4 s (power2.inOut) at 4.85–5.25 s",
+        "text": "Left column, ink #1D1D1F: «відкриваєш —» Unbounded 300 76px, then «і все ясно.» Unbounded 900 150px (letters rise from 5.3 s). Hold until the 7.4 s exit (≥2 s readable).",
+        "emphasis_words": [
+          "ясно."
+        ],
+        "motion": "Event card (pure vector, NOT a screenshot) centred at x=1340: white #FFFFFF, 560×760, radius 44, shadow 0 40px 100px rgba(29,29,31,.16). It grows out of a coral dot at the pin position (scale 0.1→1 with soft spring, 5.1–5.6 s). Inside, top: a 'poster' 512×420 radius 30 made of shapes — brand gradient background, a large paper circle and two coral triangles suggesting cat ears, a few amber confetti dots; no text in the poster. Below: title «Котики Фест» Unbounded 900 50px ink, typed letter by letter from 5.6 s. Then three chips on beats 6.0/6.25/6.5 s (pop with back.out): «сб · 11:00», «ВДНГ», «від 150 ₴» — Inter 600 28px, chip bg #F0EEF8 / ink text, radius 22, padding 10×20. Last: a coral category pin (small) pulses once at 6.8 s in the card's top-right corner. Exit 7.35–7.55 s: the card scales down to 0.15 into its centre while an iris of night colour opens from the card centre.",
+        "beats": [
+          5,
+          6,
+          6.5
+        ]
+      },
+      {
+        "id": "D-endcard",
+        "start": 7.5,
+        "end": 10,
+        "bg": "night #0B0B0F + radial glow #1B1A36 from centre (radius ~700px)",
+        "text": "Centred column. 1) App icon (assets/icon.png) 200×200, radius 46, shadow 0 40px 100px rgba(224,88,47,.4): a coral pin pops at centre at 7.6 s and cross-morphs into the icon at 7.9–8.1 s (pin scale→0 + fade, icon springs in scale 0.6→1 and rotate −20°→0, bouncy) — icon top at y=190. 2) At 8.15 s «Поряд» Unbounded 900 120px paper, letters rise (stagger 0.03 s), centred, top y≈425. 3) At 8.4 s slogan «твоє місто. нарешті видно.» Unbounded 300 44px #A1A1A8, top y≈575. 4) HARD CUT at 8.75 s (no animation, no fade, no scale): «безкоштовно» Inter 600 34px #A1A1A8 at y≈662, and directly below it the OFFICIAL badge assets/appstore-badge-uk.svg at height 104px (untouched — no recolour, no shadow, no transform), top y≈718, with ≥26px clear space all round; below the badge, top y≈866, the trademark line «Apple, логотип Apple і App Store є торговельними марками Apple Inc.» Inter 400 22px #6E6E78. Everything is completely static from 9.65 s to 10.0 s (last 10 frames).",
+        "emphasis_words": [
+          "Поряд"
+        ],
+        "motion": "Only the icon and the wordmark animate; the badge block appears by cut. Music fades out 9.4–10.0 s.",
+        "beats": [
+          8,
+          8.5
+        ]
+      }
+    ],
+    "rules": [
+      "Coral appears on at most one hero element per frame (pins on the map are the category colours; the lockup is small and allowed).",
+      "Never place text under YouTube ad chrome: keep text out of the bottom 120px band except the end-card trademark line (centred).",
+      "Every text stays readable ≥ words×0.3 s + 0.5 s before it moves.",
+      "Deterministic only: no Math.random(), no Date.now(); seeded positions for map pins.",
+      "Scene cuts land on beats 2.5 / 5.0 / 7.5 s."
+    ]
+  },
+  "derived_from": "../poriad-10s/shot-plan.json — same copy, timings, audio, palette, fonts; only layout changes (layout_9x16 overrides every 16:9 coordinate)",
+  "layout_9x16": {
+    "safe_zones": "top 0–250 and bottom 1450–1920 background only; right 940–1080 no text; key text inside x 60–920, y 250–1450",
+    "lockup": "icon 64×64 radius 16 + «Поряд» Unbounded 900 42px coral, top 258 left 66 (same timing)",
+    "A": "Text block top-left x=70, top=330: «2 000+» Unbounded 900 180px (must fit within x≤920 incl. the + ); «подій щомісяця» Unbounded 300 72px. Pin 240px wide centred x=540, tip at y=1180; ripples at the tip; glow behind the pin.",
+    "B": "Map fills the whole 1080×1920 frame, centred on the pin tip (540,1180) after the pull-back. Scrim is vertical: #0B0B0F 0% → 30% opaque → transparent at 52% from the top, so the text is readable. Text top-left x=70, top=330: «на одній» 72px, «мапі.» 200px. Seeded pins only below y≈720 (anywhere x 40–1040, down to the bottom edge is fine — they are background). Dive into the pin tip at (540,1180).",
+    "C": "Paper iris opens from (540,1120). Text top-left x=70, top=330 ink: «відкриваєш —» 72px, «і все» / «ясно.» 130px on two lines. Card scaled to ~520×700 (same inner proportions), centred x=540, top≈700, bottom ≤1420; grows from a coral dot at the pin position. Night iris for D opens from the card centre.",
+    "D": "Centred column (text max-width 760): icon 220×220 top≈470; «Поряд» Unbounded 900 120px top≈745; slogan Unbounded 300 44px top≈900 (may wrap to 2 lines centred if wider than 760); «безкоштовно» Inter 600 34px top≈1010; badge height 104px top≈1066 (untouched SVG, hard cut, ≥26px clear space); trademark line Inter 22px top≈1206, max-width 860 centred, may wrap to 2 lines. Nothing below y 1450."
+  },
+  "v2_2026_10_09": {
+    "why": "Feedback 09.10: the app name lost its accent (it only lived in the small corner lockup; the big name came at 8.15 s, after the YouTube skip point; coral was spent on the pin, ripples and «+»). Also the hook was a bare fact. v2: a hook built on the gap between what you know and what is around you, the name as the subject of the story before 5 s, coral reserved for the name, and the lockup as one persistent object from the first frame to the last.",
+    "story": "«ти знаєш про 3 події» → «у твоєму місті 200+ подій щомісяця» (city in the dark) → «Поряд збирає їх на одну мапу.» (the name flies in, the city lights up) → «відкриваєш — і все ясно.» (card) → the lockup lands as the end card, «твоє місто. нарешті видно.» pays off the dark city. 200+ is true for every one of the 5 cities (prod 09.10: Kyiv 1337 … Kharkiv 232 in 30 days); 2 000+ is only the 5-city total, so it is not used in a «твоє місто» hook.",
+    "colour_rules": [
+      "Coral (#E0582F) belongs to the name «Поряд» only (lockup in every state). Nothing else in coral: the hero pin becomes the app-icon pin (paper #F5F5F7 body with a coral dot, the dot is fine), ripples are paper at ~40% opacity, «+» is paper, map category pins use violet/blue/amber/green only (no coral), the card's corner category pin is violet. The poster's brand gradient on the card stays (it is a poster).",
+      "The pre-existing glow/night/paper tokens stay."
+    ],
+    "timeline": {
+      "A_hook_0.0-3.0": [
+        "Night. The SAME city map (streets + river) is visible from frame 0 but dark: whole map group opacity ~0.22, no draw-on (the city is there, you just do not see it).",
+        "Three dim 'known' pins (≈40px, fill #55555F, dot #0B0B0F) pop softly at 0.2 / 0.35 / 0.5 s at three scattered seeded positions inside the map area.",
+        "Text (16:9: left column, vertically centred around y≈540; 9:16: top-left x=70, top=360): three stacked lines — light top line «ти знаєш про» (Unbounded 300, 76px 16:9 / 72px 9:16), HEAVY number «3» (Unbounded 900, 300px 16:9 / 260px 9:16, paper), light bottom line «події» (same light size). Top line rises from 0.1 s, the «3» lands at 0.2 s (rise + small overshoot), «події» rises 0.3 s.",
+        "1.45–1.6 s: top and bottom light lines exit (y −30, fade). 1.6 s: new top line «у твоєму місті» rises, new bottom line «подій щомісяця» rises at 1.7 s.",
+        "1.55–2.3 s: the number rolls 3 → 200 (power3.out, frame rows via tl.set, fixed digit slots, seek-safe — reuse the existing count-up code with start 3). «+» pops in PAPER colour at 2.35 s.",
+        "1.6–2.4 s: ~90 ghost dots (6–8px circles, paper at 0.16 opacity) fade in across the dark map, staggered, at EXACTLY the seeded positions the coloured pins will take in scene B (they exist; you just don't see them).",
+        "2.85–3.0 s: all A text exits (y −40, fade)."
+      ],
+      "B_brand_map_3.0-5.5": [
+        "Hero pin = app-icon pin (paper body, coral dot) 240px wide (16:9) / 220px (9:16) falls 2.8→3.0 s (power2.in) to the map centre (16:9 tip (1380,700); 9:16 tip (540,1180)), squash-and-stretch impact at 3.0 s, three paper ripples (opacity 0.4) at 3.0/3.2/3.4. Then scales to 0.45 around its tip 3.2–3.6 so it reads as the centre of the map.",
+        "3.0–3.4 s: the city lights up — map group opacity 0.22 → 1 (sine.out), river brightens. 3.05–4.1 s: every ghost dot turns into its full coloured category pin (back.out pop) in a wave ordered by distance from the hero pin.",
+        "3.0–3.4 s (power3.inOut): the corner LOCKUP flies into the headline slot (FLIP: animate x/y/scale of the lockup group, transform-origin left top) — 16:9: left column, top of the text block, scale so «Поряд» ≈124px and the icon ≈150px; 9:16: x=70, top=360, «Поряд» ≈110px, icon ≈132px. It stays coral, single line icon + name. This is the signature moment — the name becomes the subject of the sentence.",
+        "3.35 s: under it two light lines rise (Unbounded 300, paper, 76px 16:9 / 72px 9:16): «збирає їх» then «на одну мапу.» (stagger by line 0.12 s). Full sentence readable from ≈3.7 to 5.0 s.",
+        "Keep the scrim (left-to-right in 16:9, top-down in 9:16) so the sentence stays legible over the lit map.",
+        "5.0–5.15 s: the two light lines exit. 5.05–5.45 s: the lockup FLIPs back to its corner position and size. 5.0–5.5 s: camera dives into the hero pin (map group scale 1→4 around the pin tip, power2.in)."
+      ],
+      "C_card_5.5-7.5": [
+        "Same as v1 but 0.5 s earlier and compressed: paper iris opens from the hero pin position 5.35–5.75 s; whoosh SFX at 5.35 s; card grows from a small dot (PAPER-on-paper is invisible, so use the violet #6D4AC9 dot) 5.5–5.95 s; text «відкриваєш —» / «і все ясно.» rises from 5.6 s; title «Котики Фест» typed 5.9–6.3 s; chips at 6.3 / 6.45 / 6.6 s; corner category pin (violet, on a white disc) pulses at 6.8 s. Hold to 7.35. Exit 7.35–7.55 as v1 (card scales to its centre + night iris).",
+        "The lockup stays in its corner during C."
+      ],
+      "D_endcard_7.5-10.0": [
+        "No separate pin-to-icon morph any more (remove it). Instead the corner LOCKUP flies to the centre and becomes the end card 7.5–8.0 s (power3.inOut): the icon element moves/scales into the end-card icon slot (16:9: 200px, top 190, centred; 9:16: 220px, top 470, centred) and the «Поряд» element moves/scales into the wordmark slot (16:9: 120px, top ≈425, centred; 9:16: 120px, top ≈745, centred). Animate the two children separately so the horizontal lockup becomes the vertical end-card stack. The wordmark STAYS CORAL. Glow behind the icon fades in 7.7–8.1. SFX pin_pop_2 at 7.95 s.",
+        "Slogan «твоє місто. нарешті видно.» (Unbounded 300, 44px, #A1A1A8) fades in at 8.2 s, same positions as v1.",
+        "Store block unchanged: hard cut at 8.75 s («безкоштовно», untouched badge 104px, trademark line). Static from 9.65 s to the end."
+      ]
+    },
+    "audio": "Music unchanged (brand.m4a from 16.0 s, volume lane to 0 at 10 s). SFX: remove the old 0.48 s pin_pop; pin_pop_1 at 2.98 s (hero pin impact, volume 0.35); whoosh at 5.35 s (0.3); whoosh at 7.4 s (0.25); pin_pop_2 at 7.95 s (0.35).",
+    "lockup_base": "Corner lockup positions stay as now (16:9: x=96 y=76, icon 72, name 48px; 9:16: left 66 top 258, icon 64, name 42px). It is visible from 0.0 s (pop 0–0.3) and NEVER fades out any more — it is one persistent object: corner → headline (3.0) → corner (5.05) → end card (7.5).",
+    "supersedes": "Where v2 conflicts with the v1 fields above (copy, timings, colours, lockup, audio), v2 wins."
+  }
+}

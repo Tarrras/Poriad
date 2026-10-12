@@ -1,0 +1,67 @@
+{
+  "duration": 13.8,
+  "brand": "Поряд",
+  "feature": {
+    "name": "Шукаю компанію",
+    "url": "https://poriad.app",
+    "viewer": "20–30-year-olds in Kyiv who have a checklist for the ideal stand-up company and nobody who fits it",
+    "task": "find company for Friday's «СТЕНДАП у П’ЯТНИЦЮ» (19:00): tap «Шукаю компанію», set the meeting time, publish",
+    "before": "the ideal stand-up company is a checklist nobody ticks: «таких не буває?»",
+    "after": "your search is on the event page, and people who also go can join"
+  },
+  "ground": "#0B0B0F",
+  "ink": "#F5F5F7",
+  "current": "left",
+  "brandReveal": "turn",
+  "beats": [
+    {
+      "id": "hook",
+      "start": 0,
+      "end": 5.15,
+      "line": "таких не буває? — буває. ви просто ще не знайомі",
+      "picture": "«ідеальна компанія на стендап ✍️» rises and rushes at the camera; the four checklist lines land as glass pills with empty boxes («сміється з тих самих жартів», «не питає «а це смішно?»», «не сидить у телефоні», «може в пт о 19:00») around «таких не буває?» (Unbounded 900); then «буває. ви просто ще не знайомі» assembles word by word, splits open around a company badge and a stand-up mic badge, and the badges step into the event chip «СТЕНДАП у П’ЯТНИЦЮ · пт · 19:00» and the real «Шукаю компанію» button before the camera lurches onto the button",
+      "moment": "M985 + M958",
+      "take": "M985: statements land on fast decelerating rises with a smear that dies in a few frames, hard swaps, a pill cloud grows and lifts out around the verdict. M958: words assemble one by one (tinted, then settling to ink), the sentence splits open around two badges that grow, the words fade, the badges step in one frame into the product's cards, and the camera lurches before a hard cut to the product UI",
+      "ui": [],
+      "exit": "match cut: the hook lurches onto the «Шукаю компанію» button and the phone opens on that same button"
+    },
+    {
+      "id": "proof",
+      "start": 5.15,
+      "end": 10.15,
+      "line": "тиснеш «шукаю компанію» · ставиш час зустрічі · і запит з'являється на події",
+      "picture": "the «Шукаю компанію» button from the hook turns out to sit on the «СТЕНДАП у П’ЯТНИЦЮ» page as the camera pulls back; a tap opens the sheet, «−» moves the meeting time from 18:30 to 18:15 («За 45 хв до початку»), «Опублікувати й поділитися» publishes it and the event page now shows the «Ваш пошук» card under «Шукають компанію»",
+      "moment": null,
+      "take": "real app screens; one caption per action; the camera pushes to each control before it is tapped; no share sheet (people join inside the app)",
+      "ui": [
+        "tap «Шукаю компанію»: the screen dims and the sheet slides up from the bottom",
+        "tap «−» on «Час зустрічі»: 18:30 becomes 18:15",
+        "tap «Опублікувати й поділитися»: the sheet drops and the event page lists the search under «Шукають компанію»"
+      ],
+      "exit": "carrier",
+      "carrier": "the «Ваш пошук» card lifts out of the phone while the phone falls away"
+    },
+    {
+      "id": "turn",
+      "start": 10.15,
+      "end": 11.7,
+      "line": "хто теж іде — долучається",
+      "picture": "the «Ваш пошук» card sits alone on the ground, and the «Поряд» icon and name arrive under it",
+      "moment": null,
+      "take": "inverse zoom for the brand reveal",
+      "ui": [],
+      "exit": "carrier",
+      "carrier": "the «Поряд» lockup travels up into the end card while the card and line leave left"
+    },
+    {
+      "id": "cta",
+      "start": 11.7,
+      "end": 13.8,
+      "line": "що ще в списку? 👇",
+      "picture": "the «Поряд» lockup over «твоє місто. нарешті видно.», «безкоштовно» and the App Store badge",
+      "moment": null,
+      "take": "end card; the official badge is a hard cut and never moves",
+      "ui": []
+    }
+  ]
+}

@@ -118,7 +118,7 @@
 - Постери — з карток подій prod. Не брати постери з фото артистів (права на зображення); театральні, ілюстровані, типографські — можна. Перед публікацією перевірити кожен постер очима.
 - «Демо для перевірки застосунку» в кадр не пускати.
 - Люди й обличчя — немає (крім B4 з AI-аватаром і позначкою AI).
-- Ролики в коді (09.10): лише `Hybrid`, `Motion`, `P2`, `P3`. Ассети — `marketing/video/public/`: `clips/prod/` (prod-записи), `clips/brand/` (dev: компанія, від людей), `screens/{map_posters,ios_create}.png`, `screens/p3/web.png`, `music/{calm,brand,zoomer}.m4a`. Хелпери: `ease`, зерно, звук, наліпка, чат — `src/kit.tsx`; живий телефон — `src/LiveUI.tsx`; бренд-елементи (`Lockup`, `StoreBadge`, `Sample`) — `src/Motion.tsx`.
+- Ролики (12.10): лише HyperFrames — `marketing/hyperframes/{poriad-10s-9x16,c1-standup-chat,c2-standup-list,c3-anime-multiki,c4-anime-pov}`. Remotion-проєкт `marketing/video` (Hybrid, Motion, P2, P3) прибрано 12.10 (є в git-історії). Спільні матеріали — `marketing/hyperframes/_material/library/` (music `{calm,brand,zoomer}.m4a`, sfx, шрифти Inter/Unbounded, `icon.png`, офіційний `appstore-badge-uk.svg`); рендер з нормалізацією — `_material/finish.sh`.
 
 ### Що здаємо по кожному ролику
 

@@ -1,0 +1,70 @@
+{
+  "duration": 13.9,
+  "brand": "Поряд",
+  "feature": {
+    "name": "Шукаю компанію",
+    "url": "https://poriad.app",
+    "viewer": "20–30-year-olds who are the only anime fan among their friends",
+    "task": "find company for Symphony Of Anime: tap «Шукаю компанію», pick how many people, publish",
+    "before": "you invite the group chat to an anime symphony and all three friends laugh it off",
+    "after": "your search shows on the concert page in the app, and other fans see it and ask to join (no link to share)"
+  },
+  "ground": "#0B0B0F",
+  "ink": "#F5F5F7",
+  "music": "assets/audio/music.m4a, calm, 120 bpm, no drop; started 3 s in so its one lift lands on the cut into the phone (5.0)",
+  "motion": "C1's language, a notch softer: power2 eases instead of power3/expo in the hook, smaller rush (1.22) and lurch (1.22), lighter smears",
+  "current": "left",
+  "brandReveal": "turn",
+  "beats": [
+    {
+      "id": "hook",
+      "start": 0,
+      "end": 5.0,
+      "line": "пов: ти єдиний аніме-фан у компанії",
+      "picture": "the POV line is on screen from frame 0; «го на аніме-симфонію з хором? 🎻» rises word by word and rushes at the camera; the three friends' replies («знову твої мультики? 💀», «я на 2 серії заснув 😴», «а це те, де очі великі?») land as glass pills around «ти — єдиний?» in Unbounded 900; then «давай знайдемо тих, хто теж іде» assembles, splits open around a concert badge and a company badge, and the badges step into the event chip «Symphony Of Anime · ср, 25 лист. · 19:00» and the real «Шукаю компанію» button before the camera eases onto the button",
+      "moment": "M985 + M958",
+      "take": "M985: statements land on decelerating rises with a smear that dies in a few frames, a hard swap, a pill cloud grows and lifts out around the verdict (no score, no counter). M958: words assemble one by one (tinted, then settling to ink), the sentence splits open around two badges, the words fade, the badges step in one frame into the product's cards, and the camera pushes onto the button before a hard cut to the phone",
+      "ui": [],
+      "exit": "match cut: the hook pushes onto the «Шукаю компанію» button and the phone opens on that same button"
+    },
+    {
+      "id": "proof",
+      "start": 5.0,
+      "end": 9.8,
+      "line": "шукаєш 5 людей на цей концерт",
+      "picture": "the «Шукаю компанію» button from the hook turns out to sit on the Symphony Of Anime page as the camera pulls back; a tap opens the sheet, «+» takes the count from 4 to 5, «Опублікувати й поділитися» publishes it and the concert page now shows the new «Ваш пошук» card under «Шукають компанію»",
+      "moment": null,
+      "take": "real app screens (c4-1, c4-2, c4-3, c4-5); one caption per action; the camera pushes to each control before it is tapped; the share sheet (c4-4) is never shown",
+      "captions": ["тиснеш «шукаю компанію»", "шукаєш 5 людей на цей концерт", "і запит з'являється на події"],
+      "ui": [
+        "tap «Шукаю компанію» (603, 2405): the screen dims and the sheet slides up from the bottom",
+        "tap «+» on «Скільки людей шукаєте» (1043, 1501): 4 becomes 5",
+        "tap «Опублікувати й поділитися» (603, 1729): the sheet drops and the concert page lists the search under «Шукають компанію» (y 325–680)"
+      ],
+      "exit": "carrier",
+      "carrier": "the «Ваш пошук» card lifts out of the phone while the phone falls away"
+    },
+    {
+      "id": "turn",
+      "start": 9.8,
+      "end": 11.9,
+      "line": "інші фанати бачать твій пошук і долучаються 🎶",
+      "picture": "the «Ваш пошук» card sits alone on the ground, and the «Поряд» icon and name arrive under it",
+      "moment": null,
+      "take": "inverse zoom for the brand reveal",
+      "ui": [],
+      "exit": "carrier",
+      "carrier": "the «Поряд» lockup travels up into the end card while the card and line leave left"
+    },
+    {
+      "id": "cta",
+      "start": 11.9,
+      "end": 13.9,
+      "line": "скинь тому одному другу, який теж дивиться 👇",
+      "picture": "the «Поряд» lockup over «твоє місто. нарешті видно.», «безкоштовно» and the App Store badge",
+      "moment": null,
+      "take": "end card; the official badge is a hard cut and never moves; still from 13.11",
+      "ui": []
+    }
+  ]
+}

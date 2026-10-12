@@ -1,0 +1,67 @@
+{
+  "duration": 15.1,
+  "brand": "Поряд",
+  "feature": {
+    "name": "Шукаю компанію",
+    "url": "https://poriad.app",
+    "viewer": "20–30-year-olds in Kyiv whose friends won't go to stand-up with them",
+    "task": "find company for Friday's stand-up on Podil: tap «Шукаю компанію», pick how many people, publish",
+    "before": "you ask the group chat and all three friends say no",
+    "after": "your search is live and people who also want to go can join"
+  },
+  "ground": "#0B0B0F",
+  "ink": "#F5F5F7",
+  "current": "left",
+  "brandReveal": "turn",
+  "beats": [
+    {
+      "id": "hook",
+      "start": 0,
+      "end": 5.2,
+      "line": "ніхто не йде",
+      "picture": "«йдемо в пт на стендап? 😏» rises and rushes at the camera, six excuses from the three friends stack up as pills, the friends' avatars are crossed out one by one over «ніхто не йде»; then «давай знайдемо тих, хто теж іде» assembles, splits open around a company badge and a «3» badge, and the badges step into the event chip «Великий Стендап на Подолі · у пʼятницю · 19:30», the real «Шукаю компанію» button and a «3» chip «хто хоче — надсилає запит / ти вирішуєш, кого взяти» (poriad.app style and copy) before the camera lurches onto «Шукаю компанію»",
+      "moment": "M985 + M958",
+      "take": "M985: statements land on fast decelerating rises with a smear that dies in a few frames, hard swaps, a pill cloud grows and lifts out around the verdict. M958: words assemble one by one (tinted, then settling to ink), the sentence splits open around two badges that grow, the words fade, the badges step in one frame into the product's cards, and the camera lurches before a hard cut to the product UI, which flies flat under a fading wash",
+      "ui": [],
+      "exit": "match cut: the hook lurches onto the «Шукаю компанію» button and the phone opens on that same button"
+    },
+    {
+      "id": "proof",
+      "start": 5.2,
+      "end": 10.95,
+      "line": "обираєш, скільки людей",
+      "picture": "the «Шукаю компанію» button from the hook turns out to sit on the stand-up event page as the camera pulls back; a tap opens the sheet, the count goes from 4 to 3, «Опублікувати й поділитися» publishes it and the event page now shows the new «Ваш пошук» card under «Шукають компанію»",
+      "moment": null,
+      "take": "real app screens; one caption per action; the camera pushes to each control before it is tapped",
+      "ui": [
+        "tap «Шукаю компанію»: the screen dims and the sheet slides up from the bottom",
+        "tap «−» on «Скільки людей шукаєте»: 4 becomes 3",
+        "tap «Опублікувати й поділитися»: the sheet drops and the event page lists the search under «Шукають компанію»"
+      ],
+      "exit": "carrier",
+      "carrier": "the «Ваш пошук» card lifts out of the phone while the phone falls away"
+    },
+    {
+      "id": "turn",
+      "start": 10.95,
+      "end": 12.79,
+      "line": "хто теж іде — долучається",
+      "picture": "the «Ваш пошук» card sits alone on the ground, and the «Поряд» icon and name arrive under it",
+      "moment": null,
+      "take": "inverse zoom for the brand reveal",
+      "ui": [],
+      "exit": "carrier",
+      "carrier": "the «Поряд» lockup travels up into the end card while the card and line leave left"
+    },
+    {
+      "id": "cta",
+      "start": 12.79,
+      "end": 15.1,
+      "line": "а твої друзі ходять на стендап? 👇",
+      "picture": "the «Поряд» lockup over «безкоштовно» and the App Store badge",
+      "moment": null,
+      "take": "end card; the official badge is a hard cut and never moves",
+      "ui": []
+    }
+  ]
+}

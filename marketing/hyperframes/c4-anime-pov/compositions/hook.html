@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8">
+  </head>
+  <body>
+    <template>
+      <style>
+      /* Fonts: local, variable Unbounded + Inter 400/600, split cyrillic/latin */
+      @font-face {
+        font-family: "Unbounded";
+        src: url("assets/fonts/unbounded-cyrillic.woff2") format("woff2");
+        font-weight: 200 900;
+        font-display: block;
+        unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+      }
+      @font-face {
+        font-family: "Unbounded";
+        src: url("assets/fonts/unbounded-latin.woff2") format("woff2");
+        font-weight: 200 900;
+        font-display: block;
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      @font-face {
+        font-family: "Inter";
+        src: url("assets/fonts/inter-cyrillic-400-normal.woff2") format("woff2");
+        font-weight: 400;
+        font-display: block;
+        unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+      }
+      @font-face {
+        font-family: "Inter";
+        src: url("assets/fonts/inter-cyrillic-600-normal.woff2") format("woff2");
+        font-weight: 600;
+        font-display: block;
+        unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+      }
+      @font-face {
+        font-family: "Inter";
+        src: url("assets/fonts/inter-latin-400-normal.woff2") format("woff2");
+        font-weight: 400;
+        font-display: block;
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      @font-face {
+        font-family: "Inter";
+        src: url("assets/fonts/inter-latin-600-normal.woff2") format("woff2");
+        font-weight: 600;
+        font-display: block;
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+        #hook-root { position: absolute; inset: 0; overflow: hidden; color: #f5f5f7; font-family: "Inter", system-ui, sans-serif; }
+        #hook-root .world { position: absolute; inset: 0; }
+        #hook-defs { position: absolute; width: 0; height: 0; }
+        .display { font-family: "Unbounded", system-ui, sans-serif; font-weight: 300; letter-spacing: -0.045em; }
+
+        /* 0 · the POV line, in the film's caption style: a band (x 160–920, from y 280) above the picture */
+        .caption-band { position: absolute; left: 160px; width: 760px; top: 280px; height: 204px; display: flex; align-items: flex-start; justify-content: center; }
+        .caption { display: block; max-width: 760px; font-family: "Unbounded", system-ui, sans-serif; font-weight: 300; font-size: 60px; line-height: 1.13; letter-spacing: -0.045em; text-align: center; text-wrap: balance; color: #f5f5f7; text-shadow: 0 8px 30px rgba(0, 0, 0, 0.6); }
+
+        /* 1 · the ask: three rows of words that rise in, then rush at the camera */
+        #hook-ask { transform-origin: 540px 820px; }
+        #hook-ask-rows { position: absolute; left: 0; top: 690px; width: 1080px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+        .ask-row { display: flex; gap: 0.26em; font-size: 76px; line-height: 1.08; white-space: nowrap; }
+        .ask-word { display: block; }
+
+        /* 2 · the replies: glass pills fanned around the verdict, on the frame's centre line (x 540) */
+        #hook-cloud-out, #hook-cloud-carry, #hook-cloud-scale, #hook-cloud-spin { position: absolute; inset: 0; transform-origin: 540px 900px; }
+        #hook-halo { position: absolute; left: 90px; top: 450px; width: 900px; height: 900px; border-radius: 50%; background: radial-gradient(circle closest-side, rgba(109, 74, 201, 0.34), rgba(109, 74, 201, 0)); }
+        .ring { position: absolute; border-radius: 50%; box-shadow: inset 0 0 0 2px rgba(132, 102, 224, 0.45); }
+        /* a full-width row whose centre is the pill's centre (row left = cx − 540) */
+        .pill-row { position: absolute; width: 1080px; display: flex; justify-content: center; }
+        .pill {
+          position: relative;
+          display: flex;
+          align-items: center;
+          gap: 18px;
+          height: 100px;
+          padding: 0 34px 0 18px;
+          border-radius: 50px;
+          background: linear-gradient(90deg, #3a2a9a, #7a5ce6);
+          box-shadow: inset 2px 2px 0 rgba(214, 229, 255, 0.35), 0 24px 60px rgba(0, 0, 0, 0.45);
+          font-weight: 600;
+          font-size: 40px;
+          line-height: 1;
+          color: #ffffff;
+          white-space: nowrap;
+        }
+        .pill.rev { background: linear-gradient(270deg, #3a2a9a, #7a5ce6); }
+        .pill .av { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; width: 64px; height: 64px; border-radius: 50%; font-size: 27px; color: #ffffff; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3); }
+        .av-0 { background: linear-gradient(140deg, #9a80f0, #5536b0); }
+        .av-1 { background: linear-gradient(140deg, #4c80e0, #2f63c4); }
+        .av-2 { background: linear-gradient(140deg, #f4c06a, #e8a33d); color: #1d1d1f !important; }
+        /* the verdict, between the second and third reply (no score, no counter: just the question) */
+        #hook-claim-row { position: absolute; left: 0; width: 1080px; top: 840px; height: 120px; display: flex; align-items: center; justify-content: center; }
+        #hook-claim { display: block; font-weight: 900; font-size: 84px; line-height: 1; white-space: nowrap; text-shadow: 0 0 40px rgba(189, 222, 255, 0.25); }
+        .g { opacity: 0; }
+
+        /* 3 · the turn (M958): «давай знайдемо тих, хто теж іде» assembles, splits open around two badges
+              (the concert + company), the words fade as the badges grow, and in one frame the badges become
+              the event chip and the real «Шукаю компанію» button; the camera eases onto the button and cuts */
+        #hook-head { position: absolute; left: 0; width: 1080px; top: 780px; height: 240px; }
+        .head-line { position: absolute; left: 0; width: 1080px; height: 120px; display: flex; justify-content: center; align-items: center; gap: 0.26em; font-size: 78px; line-height: 1; white-space: nowrap; }
+        #hook-l1 { top: 0; }
+        #hook-l2 { top: 120px; }
+        .hw { display: block; }
+        #hook-badges { position: absolute; inset: 0; transform-origin: 540px 900px; }
+        .badge { position: absolute; left: 470px; top: 830px; width: 140px; height: 140px; border-radius: 38px; display: flex; align-items: center; justify-content: center; }
+        .badge svg { display: block; width: 76px; height: 76px; }
+        #hook-badge-a { background: linear-gradient(140deg, #8466e0, #5536b0); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 0 50px rgba(109, 74, 201, 0.55); z-index: 2; }
+        #hook-badge-b { background: #2a2a33; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 20px 50px rgba(0, 0, 0, 0.5); z-index: 1; }
+        #hook-link { position: absolute; left: 510px; top: 893px; width: 60px; height: 14px; border-radius: 7px; background: #6d4ac9; transform-origin: 0 50%; }
+        /* the cluster: a crop of the real screen (natural-size crop, scaled) and a glass chip, on the ground */
+        #hook-cl-drift, #hook-cl-lurch { position: absolute; inset: 0; transform-origin: 540px 880px; }
+        .ui-card { position: absolute; overflow: hidden; background: #ffffff; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08); }
+        .ui-card img { position: absolute; left: 0; top: 0; display: block; object-fit: none; transform-origin: 0 0; }
+        .ui-flash { position: absolute; inset: 0; background: #ffffff; opacity: 0; }
+        /* glass chips in the style of poriad.app (its hero chip cards, scaled for the frame) */
+        .chip-row { position: absolute; left: 0; width: 1080px; display: flex; justify-content: center; }
+        .chip { position: relative; display: flex; align-items: center; gap: 30px; padding: 28px 44px 28px 28px; border-radius: 56px; overflow: hidden; color: #ffffff; background: rgba(30, 30, 38, 0.72); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.12), 0 50px 120px -30px rgba(0, 0, 0, 0.7); }
+        .chip-ico { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; width: 104px; height: 104px; border-radius: 30px; }
+        .chip-ico svg { display: block; width: 58px; height: 58px; }
+        .chip b { display: block; font-weight: 600; font-size: 40px; line-height: 1.25; white-space: nowrap; }
+        .chip small { display: block; margin-top: 4px; font-weight: 400; font-size: 32px; line-height: 1.25; color: rgba(255, 255, 255, 0.66); white-space: nowrap; }
+        .chip .ui-flash { background: rgba(255, 255, 255, 0.35); }
+      </style>
+
+      <div data-hf-id="hf-yg3u" id="hook-root" data-composition-id="hook" data-width="1080" data-height="1920">
+        <svg data-hf-id="hf-z1db" id="hook-defs" aria-hidden="true"><defs data-hf-id="hf-2dmt" id="hook-filters" /></svg>
+
+        <div data-hf-id="hf-624n" id="hook-ask" class="world">
+          <div data-hf-id="hf-9862" id="hook-ask-rows" class="display"></div>
+        </div>
+
+        <div data-hf-id="hf-zpuv" id="hook-cloud" class="world">
+          <div data-hf-id="hf-7uhj" id="hook-cloud-out">
+            <div data-hf-id="hf-qere" id="hook-cloud-carry">
+              <div data-hf-id="hf-nsux" id="hook-cloud-scale">
+                <div data-hf-id="hf-82t3" id="hook-halo"></div>
+                <div data-hf-id="hf-22bh" class="ring" style="left: 230px; top: 590px; width: 620px; height: 620px"></div>
+                <div data-hf-id="hf-epfz" class="ring" style="left: 170px; top: 530px; width: 740px; height: 740px"></div>
+                <div data-hf-id="hf-ufxn" class="ring" style="left: 110px; top: 470px; width: 860px; height: 860px"></div>
+                <div data-hf-id="hf-9pfh" id="hook-cloud-spin"></div>
+                <div data-hf-id="hf-rjvs" id="hook-claim-row"><div data-hf-id="hf-9vbr" id="hook-claim" class="display"></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div data-hf-id="hf-c4pv" id="hook-pov-row" class="caption-band"><div data-hf-id="hf-c4pw" id="hook-pov" class="caption"></div></div>
+
+        <div data-hf-id="hf-d8jd" id="hook-turn" class="world">
+          <div data-hf-id="hf-nknv" id="hook-head" class="display">
+            <div data-hf-id="hf-s1ii" id="hook-l1" class="head-line"></div>
+            <div data-hf-id="hf-lvsp" id="hook-l2" class="head-line"></div>
+          </div>
+          <div data-hf-id="hf-9ix9" id="hook-badges">
+            <div data-hf-id="hf-huup" id="hook-link"></div>
+            <!-- company (becomes the «Шукаю компанію» button) -->
+            <div data-hf-id="hf-0n7i" id="hook-badge-b" class="badge"><svg data-hf-id="hf-iwz0" viewBox="0 0 48 48" aria-hidden="true"><g data-hf-id="hf-cmkw" fill="none" stroke="#ffffff" stroke-width="3.6" stroke-linecap="round"><circle data-hf-id="hf-bboi" cx="18" cy="17" r="7" /><path data-hf-id="hf-3qez" d="M5 39c1.5-7.5 7-11.5 13-11.5S29.5 31.5 31 39" /><circle data-hf-id="hf-uxxn" cx="33" cy="15.5" r="5.5" /><path data-hf-id="hf-qdsn" d="M31 26c5.5-.3 10.5 3.5 12 11" /></g></svg></div>
+            <!-- the concert (becomes the event chip); music icon from poriad.app (img/icons.svg #i-music) -->
+            <div data-hf-id="hf-l1ii" id="hook-badge-a" class="badge"><svg data-hf-id="hf-c4mu" viewBox="0 0 24 24" aria-hidden="true"><path data-hf-id="hf-c4mp" d="M5.5 16.5 C5.5 14.843 6.843 13.5 8.5 13.5 C10.157 13.5 11.5 14.843 11.5 16.5 C11.5 18.157 10.157 19.5 8.5 19.5 C6.843 19.5 5.5 18.157 5.5 16.5 Z M11.5 16.5 L11.5 4.5 M11.5 4.5 C14.5 5 18 6.5 18 10.5" fill="none" stroke="#ffffff" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" /></svg></div>
+          </div>
+        </div>
+
+        <div data-hf-id="hf-4uay" id="hook-cluster" class="world">
+          <div data-hf-id="hf-s4me" id="hook-cl-drift"><div data-hf-id="hf-am7v" id="hook-cl-lurch"></div></div>
+        </div>
+      </div>
+
+      <script>
+        (() => {
+          // ═══ COPY (script C4; the user's wording from the desktop app) and TIMES (s; calm 120 bpm track, beat 0.5) ═══
+          const COPY = {
+            pov: "пов: ти єдиний аніме-фан у компанії",
+            ask: [["го", "на"], ["аніме-симфонію"], ["з хором?", "🎻"]],
+            friends: ["С", "Н", "К"],
+            replies: [
+              // two above the verdict, one below; centres alternate 50 px either side of x 540
+              { from: 0, text: "знову твої мультики? 💀", cx: 490, top: 590 },
+              { from: 1, text: "я на 2 серії заснув 😴", cx: 590, top: 705, rev: true },
+              { from: 2, text: "а це те, де очі великі?", cx: 490, top: 995 },
+            ],
+            claim: "ти — єдиний?",
+            turn: [["давай", "знайдемо"], ["тих,", "хто", "теж", "іде"]],
+            // what the badges become: the concert (where, when) and the real «Шукаю компанію» button (the match cut into
+            // the phone). Crops are screenshot px [x, y, w, h]
+            ui: [
+              { chip: true, top: 625, icon: "music", tint: "#6d4ac9", title: "Symphony Of Anime", sub: "ср, 25 лист. · 19:00" },
+              { src: "assets/ui/c4-1-detail.png", crop: [84, 2332, 1036, 150], r: 75, left: 140, top: 822, w: 800 },
+            ],
+          };
+          const T = {
+            ask: [0.1, 0.25, 0.4, 0.58, 0.73], zoom: 0.9, swap: 1.4,
+            pills: [1.4, 1.58, 1.76], povOut: 1.7, claim: 1.94, cloudExit: 2.72, cut: 3.02,
+            words: [3.06, 3.17, 3.28, 3.38, 3.47, 3.56], split1: 3.74, split2: 4.0, fade: 4.22, step: 4.46, lurch: 4.7, end: 5.0,
+          };
+          // camera on the cluster; proof.html's match.s = 800 × DRIFT × LURCH / (1036 × 470/1206) — keep in sync
+          const DRIFT = 1.1;
+          const LURCH = 1.22;
+
+          const tl = gsap.timeline({ paused: true });
+          const $ = (s) => document.querySelector(s);
+          const el = (tag, cls, text) => {
+            const n = document.createElement(tag);
+            if (cls) n.className = cls;
+            if (text != null) n.textContent = text;
+            return n;
+          };
+          // Directional smear: a one-axis gaussian blur that dies (or grows) over a few frames.
+          const NS = "http://www.w3.org/2000/svg";
+          let fid = 0;
+          const smear = (node, [sx, sy], at, dur, grow = false) => {
+            const f = document.createElementNS(NS, "filter");
+            f.id = `hook-smear-${fid++}`;
+            ["x", "y"].forEach((k) => f.setAttribute(k, "-50%"));
+            ["width", "height"].forEach((k) => f.setAttribute(k, "200%"));
+            const b = f.appendChild(document.createElementNS(NS, "feGaussianBlur"));
+            b.setAttribute("stdDeviation", "0 0");
+            $("#hook-filters").appendChild(f);
+            node.style.filter = `${node.style.filter || ""} url(#${f.id})`.trim();
+            const on = { attr: { stdDeviation: `${sx} ${sy}` } };
+            const off = { attr: { stdDeviation: "0 0" } };
+            if (grow) tl.fromTo(b, off, { ...on, duration: dur, ease: "power2.in" }, at);
+            // a pulse: sharp before `at` (even when seeking back), peaks at `at`, dies over `dur`
+            else {
+              tl.fromTo(b, off, { ...on, duration: 0.02, ease: "none" }, at);
+              tl.to(b, { ...off, duration: dur, ease: "power2.out" }, at + 0.02);
+            }
+          };
+
+          // ── 0. the POV line is on screen from frame 0 and settles; it leaves just before the verdict ──
+          $("#hook-pov").textContent = COPY.pov.replaceAll("-", "-⁠"); // never break after a hyphen («аніме-фан»)
+          tl.fromTo("#hook-pov", { y: 14 }, { y: 0, duration: 0.6, ease: "power2.out" }, 0);
+          tl.to("#hook-pov", { opacity: 0, filter: "blur(6px)", duration: 0.25, ease: "power2.in" }, T.povOut);
+
+          // ── 1. the ask: each word rises with a soft vertical smear, then the phrase rushes at the camera ──
+          let w = 0;
+          COPY.ask.forEach((row) => {
+            const r = $("#hook-ask-rows").appendChild(el("div", "ask-row"));
+            row.forEach((word) => {
+              const n = r.appendChild(el("span", "ask-word", word));
+              const at = T.ask[w++];
+              tl.fromTo(n, { opacity: 0, y: 34 }, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, at);
+              smear(n, [0, 10], at, 0.25);
+            });
+          });
+          tl.fromTo("#hook-ask", { scale: 1 }, { scale: 1.22, duration: T.swap - T.zoom, ease: "power2.in" }, T.zoom);
+          smear($("#hook-ask"), [8, 0], T.zoom + 0.22, T.swap - T.zoom - 0.22, true);
+          tl.set("#hook-ask", { autoAlpha: 0 }, T.swap); // hard swap
+
+          // ── 2. the replies land as pills, the verdict types on; the whole cloud rises and lifts out ──
+          tl.fromTo("#hook-cloud", { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.01, ease: "none" }, T.swap);
+          // the cloud keeps growing (fast, then easing) for its whole life, and rises as it grows
+          tl.fromTo("#hook-cloud-scale", { scale: 0.78 }, { scale: 1, duration: T.cut - T.swap, ease: "power1.out" }, T.swap);
+          smear($("#hook-cloud-scale"), [16, 0], T.swap, 0.3);
+          tl.fromTo("#hook-cloud-carry", { y: 0 }, { y: -110, duration: T.cut - T.swap, ease: "none" }, T.swap);
+          COPY.replies.forEach((r, i) => {
+            const row = $("#hook-cloud-spin").appendChild(el("div", "pill-row"));
+            row.style.left = `${r.cx - 540}px`;
+            row.style.top = `${r.top}px`;
+            const p = row.appendChild(el("div", r.rev ? "pill rev" : "pill"));
+            p.appendChild(el("span", `av av-${r.from}`, COPY.friends[r.from]));
+            p.appendChild(el("span", "", r.text));
+            tl.fromTo(p, { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, T.pills[i]);
+            smear(p, [0, 9], T.pills[i], 0.22);
+          });
+          // the verdict lands word by word, left edge fixed
+          COPY.claim.split(" ").forEach((word, i, all) => {
+            const span = $("#hook-claim").appendChild(el("span", "g", word));
+            if (i < all.length - 1) $("#hook-claim").appendChild(document.createTextNode(" "));
+            tl.set(span, { opacity: 1 }, T.claim + i * 0.1);
+          });
+          tl.to("#hook-cloud-out", { y: -260, duration: T.cut - T.cloudExit, ease: "power2.in" }, T.cloudExit);
+          tl.to("#hook-cloud-out", { opacity: 0, duration: 0.16, ease: "power1.in" }, T.cut - 0.17);
+          smear($("#hook-cloud-out"), [0, 22], T.cloudExit + 0.1, T.cut - T.cloudExit - 0.1, true);
+          tl.set("#hook-cloud", { autoAlpha: 0 }, T.cut); // hard cut
+
+          // ── 3. the turn: words assemble, split around the badges, the badges step into the app's own cards ──
+          tl.fromTo("#hook-turn", { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.01, ease: "none" }, T.cut);
+          let k = 0;
+          COPY.turn.forEach((line, li) => line.forEach((word) => {
+            const w = $(li ? "#hook-l2" : "#hook-l1").appendChild(el("span", "hw", word));
+            const at = T.words[k++];
+            // each word lands whole, tinted violet, and settles to ink
+            tl.fromTo(w, { opacity: 0, y: 44, color: "#a58cff" }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }, at);
+            tl.to(w, { color: "#f5f5f7", duration: 0.15, ease: "none" }, at + 0.18);
+            smear(w, [0, 8], at, 0.2);
+          }));
+          // split 1: the lines part and the concert badge grows in the gap
+          tl.fromTo("#hook-l1", { y: 0 }, { y: -100, duration: 0.26, ease: "power2.out" }, T.split1);
+          tl.fromTo("#hook-l2", { y: 0 }, { y: 100, duration: 0.26, ease: "power2.out" }, T.split1);
+          tl.fromTo("#hook-badge-a", { opacity: 0, scale: 0.4 }, { opacity: 1, scale: 1, duration: 0.32, ease: "power2.out" }, T.split1 + 0.02);
+          // split 2: the company badge slides out from behind it, a link joins them, the lines part further
+          tl.to("#hook-badge-a", { x: -88, duration: 0.24, ease: "power2.out" }, T.split2);
+          tl.fromTo("#hook-badge-b", { opacity: 0, x: 0, scale: 0.6 }, { opacity: 1, x: 88, scale: 1, duration: 0.24, ease: "power2.out" }, T.split2);
+          tl.fromTo("#hook-link", { scaleX: 0 }, { scaleX: 1, duration: 0.18, ease: "power2.out" }, T.split2 + 0.08);
+          tl.to("#hook-l1", { y: -190, duration: T.step - T.split2, ease: "power2.out" }, T.split2);
+          tl.to("#hook-l2", { y: 190, duration: T.step - T.split2, ease: "power2.out" }, T.split2);
+          // the words fade while the badges grow into the step
+          tl.to("#hook-head", { opacity: 0, duration: T.step - T.fade - 0.02, ease: "power1.in" }, T.fade);
+          tl.fromTo("#hook-badges", { scale: 1 }, { scale: 1.3, duration: T.step - T.fade, ease: "power2.in" }, T.fade);
+          tl.set("#hook-turn", { autoAlpha: 0 }, T.step);
+
+          // one-frame step: the badges are now the event and the button
+          tl.fromTo("#hook-cluster", { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.01, ease: "none" }, T.step);
+          // icons from poriad.app (img/icons.svg), 24-unit grid
+          const ICONS = {
+            music: "M5.5 16.5 C5.5 14.843 6.843 13.5 8.5 13.5 C10.157 13.5 11.5 14.843 11.5 16.5 C11.5 18.157 10.157 19.5 8.5 19.5 C6.843 19.5 5.5 18.157 5.5 16.5 Z M11.5 16.5 L11.5 4.5 M11.5 4.5 C14.5 5 18 6.5 18 10.5",
+          };
+          const chip = (u) => {
+            const row = $("#hook-cl-lurch").appendChild(el("div", "chip-row"));
+            row.style.top = `${u.top}px`;
+            const c = row.appendChild(el("div", "chip"));
+            const ico = c.appendChild(el("div", "chip-ico"));
+            ico.style.background = u.tint;
+            ico.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${ICONS[u.icon]}" fill="none" stroke="#ffffff" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+            const txt = c.appendChild(el("div"));
+            txt.appendChild(el("b", "", u.title));
+            txt.appendChild(el("small", "", u.sub));
+            return c;
+          };
+          COPY.ui.forEach((u, i) => {
+            const at = T.step + i * 0.06;
+            if (u.chip) {
+              const c = chip(u);
+              const flash = c.appendChild(el("div", "ui-flash"));
+              tl.fromTo(c, { opacity: 0, scale: 0.92 }, { opacity: 1, scale: 1, duration: 0.36, ease: "power2.out" }, at);
+              tl.fromTo(flash, { opacity: 0.6 }, { opacity: 0, duration: 0.24, ease: "power2.out" }, at);
+              return;
+            }
+            const [cx, cy, cw, ch] = u.crop;
+            const sc = u.w / cw;
+            const card = $("#hook-cl-lurch").appendChild(el("div", "ui-card"));
+            Object.assign(card.style, { left: `${u.left}px`, top: `${u.top}px`, width: `${u.w}px`, height: `${(ch * sc).toFixed(1)}px`, borderRadius: `${(u.r * sc).toFixed(1)}px`, transformOrigin: "50% 50%" });
+            const img = card.appendChild(el("img"));
+            img.src = u.src;
+            img.alt = "";
+            Object.assign(img.style, { width: `${cw}px`, height: `${ch}px`, objectPosition: `-${cx}px -${cy}px`, transform: `scale(${sc.toFixed(5)})` });
+            const flash = card.appendChild(el("div", "ui-flash"));
+            tl.fromTo(card, { opacity: 0, scale: 0.92 }, { opacity: 1, scale: 1, duration: 0.36, ease: "power2.out" }, at);
+            tl.fromTo(flash, { opacity: 0.6 }, { opacity: 0, duration: 0.24, ease: "power2.out" }, at);
+          });
+          // world camera: a steady push, then an easing-in push onto the button that is still moving at the cut
+          tl.fromTo("#hook-cl-drift", { scale: 1 }, { scale: DRIFT, duration: T.end - T.step, ease: "none" }, T.step);
+          tl.fromTo("#hook-cl-lurch", { scale: 1 }, { scale: LURCH, duration: T.end - T.lurch, ease: "power2.in" }, T.lurch); // the phone matches this size
+          smear($("#hook-cluster"), [10, 3], T.lurch + 0.15, T.end - T.lurch - 0.15, true);
+
+          window.__timelines["hook"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>

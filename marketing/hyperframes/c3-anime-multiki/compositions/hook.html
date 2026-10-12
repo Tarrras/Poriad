@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8">
+  </head>
+  <body>
+    <template>
+      <style>
+      /* Fonts: local, variable Unbounded + Inter 400/600, split cyrillic/latin */
+      @font-face {
+        font-family: "Unbounded";
+        src: url("assets/fonts/unbounded-cyrillic.woff2") format("woff2");
+        font-weight: 200 900;
+        font-display: block;
+        unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+      }
+      @font-face {
+        font-family: "Unbounded";
+        src: url("assets/fonts/unbounded-latin.woff2") format("woff2");
+        font-weight: 200 900;
+        font-display: block;
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      @font-face {
+        font-family: "Inter";
+        src: url("assets/fonts/inter-cyrillic-400-normal.woff2") format("woff2");
+        font-weight: 400;
+        font-display: block;
+        unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+      }
+      @font-face {
+        font-family: "Inter";
+        src: url("assets/fonts/inter-cyrillic-600-normal.woff2") format("woff2");
+        font-weight: 600;
+        font-display: block;
+        unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+      }
+      @font-face {
+        font-family: "Inter";
+        src: url("assets/fonts/inter-latin-400-normal.woff2") format("woff2");
+        font-weight: 400;
+        font-display: block;
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      @font-face {
+        font-family: "Inter";
+        src: url("assets/fonts/inter-latin-600-normal.woff2") format("woff2");
+        font-weight: 600;
+        font-display: block;
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+        #hook-root { position: absolute; inset: 0; overflow: hidden; color: #f5f5f7; font-family: "Inter", system-ui, sans-serif; }
+        #hook-root .world { position: absolute; inset: 0; }
+        #hook-defs { position: absolute; width: 0; height: 0; }
+        .display { font-family: "Unbounded", system-ui, sans-serif; font-weight: 300; letter-spacing: -0.045em; }
+
+        /* 1 · the quote: «аніме — це ж мультики для дітей», «мультики» heavy, then «— мої друзі» small */
+        #hook-quote { transform-origin: 540px 880px; }
+        #hook-q-col { position: absolute; left: 0; top: 590px; width: 1080px; display: flex; flex-direction: column; align-items: center; }
+        #hook-q-mark { display: block; height: 120px; font-weight: 900; font-size: 210px; line-height: 0.9; color: #8466e0; }
+        .q-line { display: flex; gap: 0.26em; font-size: 82px; line-height: 1.16; white-space: nowrap; }
+        .q-line.heavy { font-weight: 900; font-size: 128px; line-height: 1.1; letter-spacing: -0.05em; }
+        .q-word { display: block; }
+        #hook-q-by { display: block; margin-top: 34px; font-family: "Inter", system-ui, sans-serif; font-weight: 600; font-size: 40px; line-height: 1.2; letter-spacing: 0; color: #a1a1a8; }
+
+        /* 2 · the proof: real events land as glass pills over a halo, the verdict below them (centre line x 540) */
+        #hook-cloud-out, #hook-cloud-carry, #hook-cloud-scale { position: absolute; inset: 0; transform-origin: 540px 880px; }
+        #hook-halo { position: absolute; left: 90px; top: 430px; width: 900px; height: 900px; border-radius: 50%; background: radial-gradient(circle closest-side, rgba(109, 74, 201, 0.34), rgba(109, 74, 201, 0)); }
+        .ring { position: absolute; border-radius: 50%; box-shadow: inset 0 0 0 2px rgba(132, 102, 224, 0.45); }
+        /* a full-width row whose centre is the pill's centre (row left = cx − 540) */
+        .pill-row { position: absolute; width: 1080px; display: flex; justify-content: center; }
+        .pill {
+          position: relative;
+          display: flex;
+          align-items: center;
+          gap: 18px;
+          height: 100px;
+          padding: 0 34px 0 18px;
+          border-radius: 50px;
+          background: linear-gradient(90deg, #3a2a9a, #7a5ce6);
+          box-shadow: inset 2px 2px 0 rgba(214, 229, 255, 0.35), 0 24px 60px rgba(0, 0, 0, 0.45);
+          font-weight: 600;
+          font-size: 40px;
+          line-height: 1;
+          color: #ffffff;
+          white-space: nowrap;
+        }
+        .pill.rev { background: linear-gradient(270deg, #3a2a9a, #7a5ce6); }
+        .pill .av { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; width: 64px; height: 64px; border-radius: 50%; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3); }
+        .pill .av svg { display: block; width: 38px; height: 38px; }
+        .av-0 { background: linear-gradient(140deg, #9a80f0, #5536b0); }
+        .av-1 { background: linear-gradient(140deg, #4c80e0, #2f63c4); }
+        .av-2 { background: linear-gradient(140deg, #f4c06a, #e8a33d); }
+        /* the verdict «мультики, кажеш?» */
+        #hook-claim-row { position: absolute; left: 0; width: 1080px; top: 925px; height: 240px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .claim-line { display: block; font-weight: 900; font-size: 104px; line-height: 1.08; white-space: nowrap; text-shadow: 0 0 40px rgba(189, 222, 255, 0.25); }
+
+        /* 3 · the turn (M958): «друзі не підуть? давай знайдемо тих, хто теж іде» assembles, splits open around two
+              badges (the event + company), the words fade as the badges grow, and in one frame the badges become the
+              event chip and the real «Шукаю компанію» button; the camera pushes onto the button and cuts */
+        #hook-head { position: absolute; left: 0; width: 1080px; top: 660px; height: 360px; }
+        #hook-top { position: absolute; inset: 0; }
+        .head-line { position: absolute; left: 0; width: 1080px; height: 120px; display: flex; justify-content: center; align-items: center; gap: 0.26em; font-size: 74px; line-height: 1; white-space: nowrap; }
+        #hook-l0 { top: 0; }
+        #hook-l1 { top: 120px; }
+        #hook-l2 { top: 240px; }
+        .hw { display: block; }
+        #hook-badges { position: absolute; inset: 0; transform-origin: 540px 900px; }
+        .badge { position: absolute; left: 470px; top: 830px; width: 140px; height: 140px; border-radius: 38px; display: flex; align-items: center; justify-content: center; }
+        .badge svg { display: block; width: 76px; height: 76px; }
+        #hook-badge-a { background: linear-gradient(140deg, #8466e0, #5536b0); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 0 50px rgba(109, 74, 201, 0.55); z-index: 2; }
+        #hook-badge-b { background: #2a2a33; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 20px 50px rgba(0, 0, 0, 0.5); z-index: 1; }
+        #hook-link { position: absolute; left: 510px; top: 893px; width: 60px; height: 14px; border-radius: 7px; background: #6d4ac9; transform-origin: 0 50%; }
+        /* the cluster: the event chip and a crop of the real screen (natural-size crop, scaled), each a card on the ground */
+        #hook-cl-drift, #hook-cl-lurch { position: absolute; inset: 0; transform-origin: 540px 880px; }
+        .ui-card { position: absolute; overflow: hidden; background: #ffffff; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08); }
+        .ui-card img { position: absolute; left: 0; top: 0; display: block; object-fit: none; transform-origin: 0 0; }
+        .ui-flash { position: absolute; inset: 0; background: #ffffff; opacity: 0; }
+        /* glass chip in the style of poriad.app (its hero chip cards, scaled for the frame) */
+        .chip-row { position: absolute; left: 0; width: 1080px; display: flex; justify-content: center; }
+        .chip { position: relative; display: flex; align-items: center; gap: 30px; padding: 28px 44px 28px 28px; border-radius: 56px; overflow: hidden; color: #ffffff; background: rgba(30, 30, 38, 0.72); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.12), 0 50px 120px -30px rgba(0, 0, 0, 0.7); }
+        .chip-ico { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; width: 104px; height: 104px; border-radius: 30px; }
+        .chip-ico svg { display: block; width: 58px; height: 58px; }
+        .chip b { display: block; max-width: 540px; font-weight: 600; font-size: 40px; line-height: 1.25; text-wrap: balance; }
+        .chip small { display: block; margin-top: 4px; font-weight: 400; font-size: 32px; line-height: 1.25; color: rgba(255, 255, 255, 0.66); white-space: nowrap; }
+        .chip .ui-flash { background: rgba(255, 255, 255, 0.35); }
+      </style>
+
+      <div data-hf-id="hf-yg3u" id="hook-root" data-composition-id="hook" data-width="1080" data-height="1920">
+        <svg data-hf-id="hf-z1db" id="hook-defs" aria-hidden="true"><defs data-hf-id="hf-2dmt" id="hook-filters" /></svg>
+
+        <div data-hf-id="hf-624n" id="hook-quote" class="world">
+          <div data-hf-id="hf-9862" id="hook-q-col" class="display">
+            <div data-hf-id="hf-q0mk" id="hook-q-mark">“</div>
+            <div data-hf-id="hf-q1ln" id="hook-q-lines"></div>
+            <div data-hf-id="hf-q2by" id="hook-q-by"></div>
+          </div>
+        </div>
+
+        <div data-hf-id="hf-zpuv" id="hook-cloud" class="world">
+          <div data-hf-id="hf-7uhj" id="hook-cloud-out">
+            <div data-hf-id="hf-qere" id="hook-cloud-carry">
+              <div data-hf-id="hf-nsux" id="hook-cloud-scale">
+                <div data-hf-id="hf-82t3" id="hook-halo"></div>
+                <div data-hf-id="hf-22bh" class="ring" style="left: 230px; top: 570px; width: 620px; height: 620px"></div>
+                <div data-hf-id="hf-epfz" class="ring" style="left: 170px; top: 510px; width: 740px; height: 740px"></div>
+                <div data-hf-id="hf-ufxn" class="ring" style="left: 110px; top: 450px; width: 860px; height: 860px"></div>
+                <div data-hf-id="hf-9pfh" id="hook-pills"></div>
+                <div data-hf-id="hf-rjvs" id="hook-claim-row" class="display"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div data-hf-id="hf-d8jd" id="hook-turn" class="world">
+          <div data-hf-id="hf-nknv" id="hook-head" class="display">
+            <div data-hf-id="hf-tp0a" id="hook-top">
+              <div data-hf-id="hf-s1i0" id="hook-l0" class="head-line"></div>
+              <div data-hf-id="hf-s1ii" id="hook-l1" class="head-line"></div>
+            </div>
+            <div data-hf-id="hf-lvsp" id="hook-l2" class="head-line"></div>
+          </div>
+          <div data-hf-id="hf-9ix9" id="hook-badges">
+            <div data-hf-id="hf-huup" id="hook-link"></div>
+            <div data-hf-id="hf-0n7i" id="hook-badge-b" class="badge"></div>
+            <div data-hf-id="hf-l1ii" id="hook-badge-a" class="badge"></div>
+          </div>
+        </div>
+
+        <div data-hf-id="hf-4uay" id="hook-cluster" class="world">
+          <div data-hf-id="hf-s4me" id="hook-cl-drift"><div data-hf-id="hf-am7v" id="hook-cl-lurch"></div></div>
+        </div>
+      </div>
+
+      <script>
+        (() => {
+          // ═══ COPY (script C3) and TIMES (s). The track is calm with no drop: soft rises, light smears, no slams ═══
+          const COPY = {
+            quote: [["аніме", "—", "це ж"], ["мультики"], ["для", "дітей"]],
+            heavy: 1, // the line in Unbounded 900
+            by: "— мої друзі",
+            // real events in Kyiv (Поряд, prod); centres alternate 50 px either side of x 540
+            proofs: [
+              { icon: "music", av: 0, text: "симфонічний оркестр.", cx: 490, top: 560 },
+              { icon: "music", av: 1, text: "хор.", cx: 590, top: 675, rev: true },
+              { icon: "candle", av: 2, text: "музика міядзакі при свічках.", cx: 490, top: 790 },
+            ],
+            claim: ["мультики,", "кажеш?"],
+            turn: [["друзі", "не", "підуть?"], ["давай", "знайдемо"], ["тих,", "хто", "теж", "іде"]],
+            // what the badges become: the event (where) and the real «Шукаю компанію» button (the match cut into the phone).
+            // Crops are screenshot px [x, y, w, h]
+            ui: [
+              { chip: true, top: 596, icon: "music", tint: "#6d4ac9", title: "Музика всесвіту Хаяо Міядзакі при свічках", sub: "чт, 12 лист." },
+              { src: "assets/ui/c3-1-detail.png", crop: [84, 2332, 1036, 150], r: 75, left: 140, top: 822, w: 800 },
+            ],
+          };
+          const T = {
+            quote: [0.1, 0.18, 0.26, 0.42, 0.62, 0.7], by: 0.95, qOut: 1.4, swap: 1.45,
+            pills: [1.72, 2.05, 2.38], claim: [2.72, 2.87], cloudExit: 3.3, cut: 3.65,
+            words: [3.68, 3.75, 3.82, 3.98, 4.06, 4.14, 4.22, 4.3, 4.38], split1: 4.5, split2: 4.72, fade: 4.8, step: 5.0, lurch: 5.2, end: 5.6,
+          };
+          // icons from poriad.app (img/icons.svg; the candle is drawn to match), 24-unit grid
+          const ICONS = {
+            music: "M5.5 16.5 C5.5 14.843 6.843 13.5 8.5 13.5 C10.157 13.5 11.5 14.843 11.5 16.5 C11.5 18.157 10.157 19.5 8.5 19.5 C6.843 19.5 5.5 18.157 5.5 16.5 Z M11.5 16.5 L11.5 4.5 M11.5 4.5 C14.5 5 18 6.5 18 10.5",
+            candle: "M12 3.5 C13.9 5.6 14.8 7.1 14.8 8.5 C14.8 10 13.55 11.2 12 11.2 C10.45 11.2 9.2 10 9.2 8.5 C9.2 7.1 10.1 5.6 12 3.5 Z M9 13.5 L15 13.5 L15 20.5 L9 20.5 Z",
+            people: "M5.75 7.75a3.25 3.25 0 1 0 6.5 0a3.25 3.25 0 1 0-6.5 0ZM3 19.5c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5M15.5 4.8a3.2 3.2 0 0 1 0 6.2M17.5 14.2c2 .6 3.5 2.4 3.5 5.3",
+          };
+          const svg = (name) => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${ICONS[name]}" fill="none" stroke="#ffffff" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+          const tl = gsap.timeline({ paused: true });
+          const $ = (s) => document.querySelector(s);
+          const el = (tag, cls, text) => {
+            const n = document.createElement(tag);
+            if (cls) n.className = cls;
+            if (text != null) n.textContent = text;
+            return n;
+          };
+          // Directional smear: a one-axis gaussian blur that dies (or grows) over a few frames.
+          const NS = "http://www.w3.org/2000/svg";
+          let fid = 0;
+          const smear = (node, [sx, sy], at, dur, grow = false) => {
+            const f = document.createElementNS(NS, "filter");
+            f.id = `hook-smear-${fid++}`;
+            ["x", "y"].forEach((k) => f.setAttribute(k, "-50%"));
+            ["width", "height"].forEach((k) => f.setAttribute(k, "200%"));
+            const b = f.appendChild(document.createElementNS(NS, "feGaussianBlur"));
+            b.setAttribute("stdDeviation", "0 0");
+            $("#hook-filters").appendChild(f);
+            node.style.filter = `${node.style.filter || ""} url(#${f.id})`.trim();
+            const on = { attr: { stdDeviation: `${sx} ${sy}` } };
+            const off = { attr: { stdDeviation: "0 0" } };
+            if (grow) tl.fromTo(b, off, { ...on, duration: dur, ease: "power2.in" }, at);
+            // a pulse: sharp before `at` (even when seeking back), peaks at `at`, dies over `dur`
+            else {
+              tl.fromTo(b, off, { ...on, duration: 0.02, ease: "none" }, at);
+              tl.to(b, { ...off, duration: dur, ease: "power2.out" }, at + 0.02);
+            }
+          };
+
+          // ── 1. the quote: the mark, then each word rises softly; «мультики» lands heavy; then who said it ──
+          tl.fromTo("#hook-q-mark", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" }, 0);
+          let q = 0;
+          COPY.quote.forEach((line, li) => {
+            const row = $("#hook-q-lines").appendChild(el("div", li === COPY.heavy ? "q-line heavy" : "q-line"));
+            line.forEach((word) => {
+              const n = row.appendChild(el("span", "q-word", word));
+              const at = T.quote[q++];
+              tl.fromTo(n, { opacity: 0, y: 36 }, { opacity: 1, y: 0, duration: 0.55, ease: "power2.out" }, at);
+              smear(n, [0, 8], at, 0.3);
+            });
+          });
+          $("#hook-q-by").textContent = COPY.by;
+          tl.fromTo("#hook-q-by", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, T.by);
+          // a soft push past the camera instead of C1's rush
+          tl.to("#hook-quote", { scale: 1.12, opacity: 0, duration: T.swap + 0.25 - T.qOut, ease: "power2.in" }, T.qOut);
+          smear($("#hook-quote"), [0, 10], T.qOut, T.swap + 0.25 - T.qOut, true);
+          tl.set("#hook-quote", { autoAlpha: 0 }, T.swap + 0.25);
+
+          // ── 2. the proof: events land as pills, then the verdict; the whole cloud grows and rises, then lifts out ──
+          tl.fromTo("#hook-cloud", { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3, ease: "power1.out" }, T.swap);
+          tl.fromTo("#hook-cloud-scale", { scale: 0.8 }, { scale: 1, duration: T.cut - T.swap, ease: "power2.out" }, T.swap);
+          tl.fromTo("#hook-cloud-carry", { y: 0 }, { y: -110, duration: T.cut - T.swap, ease: "none" }, T.swap);
+          COPY.proofs.forEach((r, i) => {
+            const row = $("#hook-pills").appendChild(el("div", "pill-row"));
+            row.style.left = `${r.cx - 540}px`;
+            row.style.top = `${r.top}px`;
+            const p = row.appendChild(el("div", r.rev ? "pill rev" : "pill"));
+            p.appendChild(el("span", `av av-${r.av}`)).innerHTML = svg(r.icon);
+            p.appendChild(el("span", "", r.text));
+            tl.fromTo(p, { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.55, ease: "power2.out" }, T.pills[i]);
+            smear(p, [0, 8], T.pills[i], 0.28);
+          });
+          // the verdict, one line at a time
+          COPY.claim.forEach((line, i) => {
+            const n = $("#hook-claim-row").appendChild(el("span", "claim-line", line));
+            tl.fromTo(n, { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, T.claim[i]);
+            smear(n, [0, 10], T.claim[i], 0.3);
+          });
+          tl.to("#hook-cloud-out", { y: -220, duration: T.cut - T.cloudExit, ease: "power2.in" }, T.cloudExit);
+          tl.to("#hook-cloud-out", { opacity: 0, duration: 0.2, ease: "power1.in" }, T.cut - 0.2);
+          smear($("#hook-cloud-out"), [0, 18], T.cloudExit + 0.1, T.cut - T.cloudExit - 0.1, true);
+          tl.set("#hook-cloud", { autoAlpha: 0 }, T.cut);
+
+          // ── 3. the turn: words assemble, split around the badges, the badges step into the app's own controls ──
+          tl.fromTo("#hook-turn", { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.01, ease: "none" }, T.cut);
+          let k = 0;
+          COPY.turn.forEach((line, li) => line.forEach((word) => {
+            const w = $(`#hook-l${li}`).appendChild(el("span", "hw", word));
+            const at = T.words[k++];
+            // each word lands whole, tinted violet, and settles (the question to grey, the answer to ink)
+            tl.fromTo(w, { opacity: 0, y: 40, color: "#a58cff" }, { opacity: 1, y: 0, duration: 0.45, ease: "power2.out" }, at);
+            tl.to(w, { color: li ? "#f5f5f7" : "#a1a1a8", duration: 0.2, ease: "none" }, at + 0.2);
+            smear(w, [0, 8], at, 0.24);
+          }));
+          $("#hook-badge-a").innerHTML = svg("people");
+          $("#hook-badge-b").innerHTML = svg("music");
+          // split 1: the lines part and the company badge grows in the gap
+          tl.fromTo("#hook-top", { y: 0 }, { y: -100, duration: 0.22, ease: "power2.out" }, T.split1);
+          tl.fromTo("#hook-l2", { y: 0 }, { y: 100, duration: 0.22, ease: "power2.out" }, T.split1);
+          tl.fromTo("#hook-badge-a", { opacity: 0, scale: 0.4 }, { opacity: 1, scale: 1, duration: 0.32, ease: "power2.out" }, T.split1 + 0.02);
+          // split 2: the event badge slides out from behind it, a link joins them, the lines part further
+          tl.to("#hook-badge-a", { x: 88, duration: 0.22, ease: "power2.out" }, T.split2);
+          tl.fromTo("#hook-badge-b", { opacity: 0, x: 0, scale: 0.6 }, { opacity: 1, x: -88, scale: 1, duration: 0.22, ease: "power2.out" }, T.split2);
+          tl.fromTo("#hook-link", { scaleX: 0 }, { scaleX: 1, duration: 0.16, ease: "power2.out" }, T.split2 + 0.08);
+          tl.to("#hook-top", { y: -190, duration: T.step - T.split2, ease: "power2.out" }, T.split2);
+          tl.to("#hook-l2", { y: 190, duration: T.step - T.split2, ease: "power2.out" }, T.split2);
+          // the words fade while the badges grow into the step
+          tl.to("#hook-head", { opacity: 0, duration: T.step - T.fade - 0.02, ease: "power1.in" }, T.fade);
+          tl.fromTo("#hook-badges", { scale: 1 }, { scale: 1.3, duration: T.step - T.fade, ease: "power2.in" }, T.fade);
+          tl.set("#hook-turn", { autoAlpha: 0 }, T.step);
+
+          // one-frame step: the badges are now the event chip and the real «Шукаю компанію» button
+          tl.fromTo("#hook-cluster", { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.01, ease: "none" }, T.step);
+          const chip = (u) => {
+            const row = $("#hook-cl-lurch").appendChild(el("div", "chip-row"));
+            row.style.top = `${u.top}px`;
+            const c = row.appendChild(el("div", "chip"));
+            const ico = c.appendChild(el("div", "chip-ico"));
+            ico.style.background = u.tint;
+            ico.innerHTML = svg(u.icon);
+            const txt = c.appendChild(el("div"));
+            txt.appendChild(el("b", "", u.title));
+            txt.appendChild(el("small", "", u.sub));
+            return c;
+          };
+          COPY.ui.forEach((u, i) => {
+            const at = T.step + i * 0.06;
+            let card;
+            if (u.chip) card = chip(u);
+            else {
+              const [cx, cy, cw, ch] = u.crop;
+              const sc = u.w / cw;
+              card = $("#hook-cl-lurch").appendChild(el("div", "ui-card"));
+              Object.assign(card.style, { left: `${u.left}px`, top: `${u.top}px`, width: `${u.w}px`, height: `${(ch * sc).toFixed(1)}px`, borderRadius: `${(u.r * sc).toFixed(1)}px`, transformOrigin: "50% 50%" });
+              const img = card.appendChild(el("img"));
+              img.src = u.src;
+              img.alt = "";
+              Object.assign(img.style, { width: `${cw}px`, height: `${ch}px`, objectPosition: `-${cx}px -${cy}px`, transform: `scale(${sc.toFixed(5)})` });
+            }
+            const flash = card.appendChild(el("div", "ui-flash"));
+            tl.fromTo(card, { opacity: 0, scale: 0.92 }, { opacity: 1, scale: 1, duration: 0.36, ease: "power2.out" }, at);
+            tl.fromTo(flash, { opacity: 0.6 }, { opacity: 0, duration: 0.25, ease: "power2.out" }, at);
+          });
+          // world camera: a steady push, then a push onto the button that is still accelerating at the cut
+          tl.fromTo("#hook-cl-drift", { scale: 1 }, { scale: 1.12, duration: T.end - T.step, ease: "none" }, T.step);
+          tl.fromTo("#hook-cl-lurch", { scale: 1 }, { scale: 1.3, duration: T.end - T.lurch, ease: "power2.in" }, T.lurch); // the phone matches this size
+          smear($("#hook-cluster"), [10, 3], T.lurch + 0.15, T.end - T.lurch - 0.15, true);
+
+          window.__timelines["hook"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>

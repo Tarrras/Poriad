@@ -1,0 +1,68 @@
+{
+  "duration": 14,
+  "brand": "Поряд",
+  "feature": {
+    "name": "Шукаю компанію",
+    "url": "https://poriad.app",
+    "viewer": "anime fans of 20–30 in Kyiv whose friends say anime is cartoons for kids",
+    "task": "find company for «Музика всесвіту Хаяо Міядзакі при свічках» (Thu 12 Nov, Kyiv): tap «Шукаю компанію», pick how many people, publish",
+    "before": "your friends won't go: «аніме — це ж мультики для дітей»",
+    "after": "your search sits on the event page and people who also go can ask to join, inside the app"
+  },
+  "ground": "#0B0B0F",
+  "ink": "#F5F5F7",
+  "current": "left",
+  "brandReveal": "turn",
+  "music": "assets/audio/music.m4a — calm and even, no drop; motion runs on soft eases (power2), light smears, no slams",
+  "beats": [
+    {
+      "id": "hook",
+      "start": 0,
+      "end": 5.6,
+      "line": "мультики, кажеш?",
+      "picture": "a violet quote mark and «аніме — це ж / мультики / для дітей» rise word by word, «мультики» in Unbounded 900, then small «— мої друзі»; the quote pushes softly past the camera, and three real Kyiv events land one by one as glass pills over a halo: «симфонічний оркестр.» · «хор.» · «музика міядзакі при свічках.», then the verdict «мультики, / кажеш?»; the cloud lifts out, «друзі не підуть? / давай знайдемо / тих, хто теж іде» assembles, splits open around a music badge and a company badge, and the badges step into the event chip «Музика всесвіту Хаяо Міядзакі при свічках · чт, 12 лист.» and the real «Шукаю компанію» button before the camera pushes onto the button",
+      "moment": "M985 + M958, softened for the calm track",
+      "take": "M985: statements land on decelerating rises with a light smear, a pill cloud grows and lifts out around the verdict. M958: words assemble one by one (tinted, then settling: the question to grey, the answer to ink), the sentence splits open around two badges that grow, the words fade, the badges step in one frame into the product's cards, and the camera pushes in before a hard cut to the product UI",
+      "ui": [],
+      "exit": "match cut: the hook pushes onto the «Шукаю компанію» button and the phone opens on that same button"
+    },
+    {
+      "id": "proof",
+      "start": 5.6,
+      "end": 9.9,
+      "line": "обираєш, скільки людей",
+      "picture": "the «Шукаю компанію» button from the hook turns out to sit on the Miyazaki concert page as the camera pulls back; a tap opens the sheet, two taps on «−» take the count from 4 to 2, «Опублікувати й поділитися» publishes it and the event page now shows the new «Ваш пошук» card under «Шукають компанію»",
+      "moment": null,
+      "take": "real app screens (assets/ui/c3-*.png); one caption per action: «тиснеш «шукаю компанію»» · «обираєш, скільки людей» · «і запит з'являється на події»; the camera pushes to each control before it is tapped. The share sheet is never shown: people join inside the app, nobody has to share a link",
+      "ui": [
+        "tap «Шукаю компанію» (603, 2405): the screen dims and the sheet slides up from the bottom",
+        "tap «−» on «Скільки людей шукаєте» twice (876, 1432), 0.25 s apart: 4 becomes 2",
+        "tap «Опублікувати й поділитися» (603, 1660): the sheet drops and the event page lists the search under «Шукають компанію» (screenshot y 1170–1570)"
+      ],
+      "exit": "carrier",
+      "carrier": "the «Ваш пошук» card lifts out of the phone while the phone falls away"
+    },
+    {
+      "id": "turn",
+      "start": 9.9,
+      "end": 12.1,
+      "line": "збираєш тих, хто теж плаче на «віднесених привидами»",
+      "picture": "the «Ваш пошук» card sits alone on the ground under the line, and the «Поряд» icon and name arrive under it",
+      "moment": null,
+      "take": "inverse zoom for the brand reveal",
+      "ui": [],
+      "exit": "carrier",
+      "carrier": "the «Поряд» lockup travels up into the end card while the card and line leave left"
+    },
+    {
+      "id": "cta",
+      "start": 12.1,
+      "end": 14,
+      "line": "яка сцена міядзакі тебе зламала? 👇",
+      "picture": "the «Поряд» lockup over «твоє місто. нарешті видно.», «безкоштовно», the App Store badge and the Apple trademark line",
+      "moment": null,
+      "take": "end card; the official badge is a hard cut and never moves; the last 15 frames hold still",
+      "ui": []
+    }
+  ]
+}

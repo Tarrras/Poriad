@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8">
+  </head>
+  <body>
+    <template>
+      <style>
+        #card-root { position: absolute; inset: 0; pointer-events: none; }
+        /* the «Ваш пошук» card, cut from the same screenshot the phone shows (x 20–1186, y 325–680 px, 0.65180 px per px) */
+        #card-move { position: absolute; left: 160px; top: 800px; width: 760px; height: 231.4px; transform-origin: 0 0; }
+        #card-shadow { position: absolute; inset: 0; border-radius: 34px; box-shadow: 0 50px 120px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.08); opacity: 0; }
+        #card-face { position: absolute; inset: 0; border-radius: 34px; overflow: hidden; background: #f5f5f7; }
+        /* natural-size crop scaled down, so the picture's box is exactly the card */
+        #card-face img { position: absolute; left: 0; top: 0; width: 1166px; height: 355px; object-fit: none; object-position: -20px -325px; transform: scale(0.6518); transform-origin: 0 0; display: block; }
+      </style>
+
+      <div data-hf-id="hf-d7kc" id="card-root" data-composition-id="card" data-width="1080" data-height="1920">
+        <div data-hf-id="hf-o1uz" id="card-move">
+          <div data-hf-id="hf-i8q8" id="card-shadow"></div>
+          <div data-hf-id="hf-4r0v" id="card-face"><img data-hf-id="hf-608p" src="assets/ui/c4-5-mine.png" alt="Шукають компанію: Місце зустрічі, ваш пошук"></div>
+        </div>
+      </div>
+
+      <script>
+        (() => {
+          // Carrier proof → turn (local s; the section starts at 9.55 root = the proof hands the card over).
+          // The turn starts at 9.8 root (0.25 local), so the card crosses that seam mid-lift.
+          const T = { lift: 0.15, liftEnd: 1.2, out: 2.02, end: 2.35 };
+          // = the card's rect inside the phone at the proof's last camera (s 1.95 at [603, 502] → [510, 820]: 0.75995 canvas px per screenshot px)
+          const MATCH = { x: -93.05, y: -114.51, scale: 1.16592 };
+          const tl = gsap.timeline({ paused: true });
+          // lifts out of the phone while the phone falls away, lands in the turn
+          tl.fromTo("#card-move", { ...MATCH }, { x: 0, y: 0, scale: 1, duration: T.liftEnd - T.lift, ease: "expo.inOut", immediateRender: true }, T.lift);
+          tl.fromTo("#card-shadow", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.out" }, T.lift + 0.1);
+          // cut-the-curve: leaves left with the turn's line
+          tl.to("#card-move", { x: -230, opacity: 0, duration: T.end - T.out, ease: "power4.in" }, T.out);
+          window.__timelines["card"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>

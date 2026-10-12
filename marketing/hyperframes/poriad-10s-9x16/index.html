@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1080, height=1920">
+    <title>Поряд — 10 с, 9:16</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      /* Fonts: local, variable Unbounded (300/900) + Inter 400/600, split cyrillic/latin like the site */
+      @font-face {
+        font-family: "Unbounded";
+        src: url("assets/fonts/unbounded-cyrillic.woff2") format("woff2");
+        font-weight: 200 900;
+        font-style: normal;
+        font-display: block;
+        unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+      }
+      @font-face {
+        font-family: "Unbounded";
+        src: url("assets/fonts/unbounded-latin.woff2") format("woff2");
+        font-weight: 200 900;
+        font-style: normal;
+        font-display: block;
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      @font-face {
+        font-family: "Inter";
+        src: url("assets/fonts/inter-cyrillic-400-normal.woff2") format("woff2");
+        font-weight: 400;
+        font-display: block;
+        unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+      }
+      @font-face {
+        font-family: "Inter";
+        src: url("assets/fonts/inter-cyrillic-600-normal.woff2") format("woff2");
+        font-weight: 600;
+        font-display: block;
+        unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+      }
+      @font-face {
+        font-family: "Inter";
+        src: url("assets/fonts/inter-latin-400-normal.woff2") format("woff2");
+        font-weight: 400;
+        font-display: block;
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      @font-face {
+        font-family: "Inter";
+        src: url("assets/fonts/inter-latin-600-normal.woff2") format("woff2");
+        font-weight: 600;
+        font-display: block;
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+
+      /* Palette (shot-plan.json) — the only place colours live */
+      :root {
+        --night: #0b0b0f;
+        --paper: #f5f5f7;
+        --ink: #1d1d1f;
+        --coral: #e0582f;
+        --coral-night: #ff8a5b;
+        --violet: #6d4ac9;
+        --blue: #2f63c4;
+        --amber: #e8a33d;
+        --green: #3daa6b;
+        --glow-night: #1b1a36;
+        --muted: #a1a1a8;
+        --fine: #6e6e78;
+        --brand-gradient: linear-gradient(90deg, #ff7a45, #e0582f, #8b6cff);
+        --card: #ffffff;
+        --chip: #f0eef8;
+        --street: #2a2a33;
+        --shadow-lockup: 0 10px 30px rgba(224, 88, 47, 0.45);
+        --shadow-card: 0 40px 100px rgba(29, 29, 31, 0.16);
+        --shadow-icon: 0 40px 100px rgba(224, 88, 47, 0.4);
+        --shadow-badge: 0 6px 18px rgba(29, 29, 31, 0.18);
+        --pin-shadow: rgba(0, 0, 0, 0.5);
+        --known: #55555f;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        width: 1080px;
+        height: 1920px;
+        overflow: hidden;
+        background: var(--night);
+      }
+      #root {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: var(--night);
+        font-family: "Unbounded", system-ui, sans-serif;
+        color: var(--paper);
+      }
+      .clip,
+      .layer {
+        position: absolute;
+        inset: 0;
+      }
+      #scene-ab { z-index: 1; }
+      #scene-c { z-index: 2; }
+      #scene-d { z-index: 3; }
+      #cta { z-index: 4; }
+      #lockup-layer { z-index: 10; pointer-events: none; }
+      #grain { z-index: 20; pointer-events: none; overflow: hidden; }
+
+      /* Shared type */
+      .line {
+        font-family: "Unbounded", system-ui, sans-serif;
+        letter-spacing: -0.045em;
+        line-height: 1;
+        white-space: normal;
+      }
+      .w { display: inline-block; white-space: nowrap; }
+      .ch { display: inline-block; transform-origin: 0% 100%; }
+      .l72 { font-size: 72px; font-weight: 300; }
+      .l130 { font-size: 130px; font-weight: 900; }
+      .l200 { font-size: 200px; font-weight: 900; }
+      .l240 { font-size: 240px; font-weight: 900; }
+      .l260 { font-size: 260px; font-weight: 900; }
+      .l400 { font-size: 400px; font-weight: 900; }
+      .ink { color: var(--ink); }
+      .col {
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        align-items: flex-start;
+        /* text safe zone: x 70–920, block top 360 (38px under the lockup) */
+        padding: 360px 160px 0 70px;
+      }
+
+      /* Lockup (persistent, top layer under grain) */
+      #lockup-layer { padding: 258px 0 0 66px; }
+      /* Coral belongs to the name only. Hidden through the hook; appears at 3.0 as the answer, in the headline → corner (5.05) → end card (7.5) */
+      .lockup {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        width: max-content;
+        transform-origin: 0% 0%;
+      }
+      .lockup-icon {
+        display: block;
+        background: url("assets/icon.png") center / cover no-repeat;
+        width: 64px;
+        height: 64px;
+        border-radius: 16px;
+        box-shadow: var(--shadow-lockup);
+      }
+      .lockup-name {
+        font-family: "Unbounded", system-ui, sans-serif;
+        font-weight: 900;
+        font-size: 42px;
+        line-height: 1;
+        letter-spacing: -0.045em;
+        color: var(--coral);
+      }
+
+      /* Scene A + B (night) */
+      .glow-a {
+        background: radial-gradient(circle 650px at 540px 1040px, var(--glow-night), transparent);
+      }
+      .cam { transform-origin: 540px 1180px; }
+      .map { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+      /* The city is there from frame 0, just dark; it lights up at 3.0 s */
+      #city { opacity: 0.25; }
+      .river { fill: none; stroke: var(--glow-night); stroke-width: 70; }
+      .street { fill: none; stroke: var(--street); }
+      .mp { position: absolute; display: block; overflow: visible; transform-origin: 50% 94.1%; }
+      .mp-shadow { fill: var(--pin-shadow); }
+      .pin-dot { fill: var(--pin-dot, var(--card)); }
+      .known { color: var(--muted); --pin-dot: var(--night); }
+      .ghost { position: absolute; width: 8px; height: 8px; border-radius: 50%; background: var(--paper); opacity: 0; }
+      .scrim {
+        background: linear-gradient(180deg, var(--night) 0%, var(--night) 30%, transparent 52%);
+      }
+      .ripples { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+      .ripple { fill: none; stroke: var(--paper); opacity: 0; }
+      /* Hero pin = the app-icon pin: paper body, coral dot */
+      .hero-pin {
+        position: absolute;
+        left: 430px;
+        top: 898.4px;
+        width: 220px;
+        height: 286px;
+        color: var(--paper);
+        --pin-dot: var(--coral);
+      }
+      .hero-pin div { width: 100%; height: 100%; transform-origin: 110px 281.6px; }
+      .hero-pin svg { display: block; width: 220px; height: 286px; overflow: visible; }
+
+      /* Two lines share one slot: the old one leaves, the new one rises in its place */
+      /* Hook and headline: one centred column, everything on the x=540 axis */
+      .col-center { align-items: center; text-align: center; padding: 380px 0 0; }
+      #a-block { display: flex; flex-direction: column; align-items: center; }
+      .slot { display: grid; justify-items: center; align-items: center; }
+      .slot > * { grid-area: 1 / 1; }
+      #slot-big { margin-top: 8px; }
+      #slot-bot { margin-top: 8px; }
+      #col-b { padding-top: 545px; }
+      #b-line2 { margin-top: 10px; }
+
+      /* Scene C (paper) */
+      .iris { overflow: hidden; }
+      #iris-c { background: var(--paper); clip-path: circle(0px at 540px 1120px); }
+            #c-line2 { margin-top: 14px; }
+      .card-exit {
+        position: absolute;
+        left: 280px;
+        top: 744px;
+        width: 520px;
+        height: 700px;
+        transform-origin: 50% 50%;
+      }
+      /* Card authored at the 16:9 size (560×754) and fitted to 520×700 — same inner proportions */
+      .card-fit {
+        width: 560px;
+        height: 754px;
+        transform: scale(0.928571);
+        transform-origin: 0 0;
+      }
+      .card {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        padding: 24px;
+        border-radius: 44px;
+        background: var(--card);
+        box-shadow: var(--shadow-card);
+        transform-origin: 280px 404.9px; /* the pin position (540,1120) in card space */
+      }
+      .poster {
+        position: relative;
+        flex: 0 0 auto;
+        width: 512px;
+        height: 420px;
+        border-radius: 30px;
+        overflow: hidden;
+        background: var(--brand-gradient);
+      }
+      .poster svg { display: block; width: 512px; height: 420px; }
+      .confetti { fill: var(--amber); }
+      .cat-head { fill: var(--paper); }
+      .cat-ear { fill: var(--coral); stroke: var(--paper); stroke-width: 10; stroke-linejoin: round; }
+      .cat-badge {
+        position: absolute;
+        top: 44px;
+        right: 44px;
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        background: var(--card);
+        box-shadow: var(--shadow-badge);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--violet);
+      }
+      .cat-badge svg { display: block; width: 26px; height: 33.8px; }
+      .cat-ring {
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        border: 3px solid var(--violet);
+        opacity: 0;
+      }
+      .card-body {
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 22px;
+        padding: 0 16px;
+      }
+      .card-title {
+        font-family: "Unbounded", system-ui, sans-serif;
+        font-weight: 900;
+        font-size: 50px;
+        line-height: 1.1;
+        letter-spacing: -0.045em;
+        color: var(--ink);
+      }
+      .chips { display: flex; flex-wrap: wrap; gap: 12px; }
+      .chip {
+        display: inline-block;
+        padding: 10px 20px;
+        border-radius: 22px;
+        background: var(--chip);
+        color: var(--ink);
+        font-family: "Inter", system-ui, sans-serif;
+        font-weight: 600;
+        font-size: 28px;
+        line-height: 1.2;
+        white-space: nowrap;
+      }
+      .seed-dot {
+        position: absolute;
+        left: 518px;
+        top: 1098px;
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: var(--violet);
+      }
+
+      /* Scene D (end card, night) */
+      #iris-d {
+        background: radial-gradient(circle 700px at 50% 50%, var(--glow-night), var(--night));
+        clip-path: circle(0px at 540px 1094px);
+      }
+      .glow-d { background: radial-gradient(circle 520px at 540px 580px, var(--glow-night), transparent); }
+      .col-d {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding-top: 900px;
+      }
+      .slogan {
+        max-width: 760px;
+        text-align: center;
+        font-weight: 300;
+        font-size: 44px;
+        line-height: 1;
+        letter-spacing: -0.045em;
+        color: var(--muted);
+      }
+      .cta-col {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding-top: 1006px;
+        font-family: "Inter", system-ui, sans-serif;
+      }
+      .free { font-weight: 600; font-size: 34px; line-height: 1; color: var(--muted); }
+      /* Official badge: untouched file, height 104px, no transform/filter/shadow */
+      .badge { display: block; height: 104px; width: auto; margin-top: 26px; }
+      .tm { margin-top: 36px; max-width: 860px; text-align: center; font-weight: 400; font-size: 22px; line-height: 1.3; color: var(--fine); }
+
+      /* grain-overlay (registry component, customised): finite loop so the last frames hold still */
+      @keyframes hf-grain-noise {
+        0%, 100% { transform: translate(0, 0); }
+        10% { transform: translate(-5%, -5%); }
+        20% { transform: translate(-10%, 5%); }
+        30% { transform: translate(5%, -10%); }
+        40% { transform: translate(-5%, 15%); }
+        50% { transform: translate(-10%, 5%); }
+        60% { transform: translate(15%, 0); }
+        70% { transform: translate(0, 10%); }
+        80% { transform: translate(-15%, 0); }
+        90% { transform: translate(10%, 5%); }
+      }
+      #grain .grain-texture {
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+        opacity: 0.1;
+        /* 19 × 0.5 s = ends at 9.5 s, before the static 9.65–10 s hold */
+        animation: hf-grain-noise 0.5s steps(1) 19 both;
+      }
+    </style>
+  </head>
+  <body>
+    <div data-hf-id="hf-dpn5" id="root" data-composition-id="main" data-start="0" data-duration="10" data-fps="30" data-width="1080" data-height="1920">
+      <!-- Shared pin shape -->
+      <svg data-hf-id="hf-p3r6" width="0" height="0" style="position: absolute" aria-hidden="true">
+        <defs data-hf-id="hf-mh0t">
+          <symbol data-hf-id="hf-kwkv" id="pin" viewBox="0 0 100 130">
+            <path data-hf-id="hf-ramr" d="M50 2 C24 2 4 22 4 48 C4 80 50 128 50 128 C50 128 96 80 96 48 C96 22 76 2 50 2 Z" fill="currentColor" />
+            <circle data-hf-id="hf-oy6z" class="pin-dot" cx="50" cy="48" r="17" />
+          </symbol>
+        </defs>
+      </svg>
+
+      <!-- A-hook + B-map: one night scene, the pin carries across the 2.5 s cut -->
+      <div data-hf-id="hf-415l" id="scene-ab" class="clip" data-start="0" data-duration="5.8" data-track-index="1">
+        <div data-hf-id="hf-ztb7" class="layer glow-a" id="glow-a"></div>
+
+        <div data-hf-id="hf-elmb" id="cam-map" class="layer cam" data-layout-allow-overflow="true">
+          <svg data-hf-id="hf-4l26" class="map" id="city" viewBox="0 0 1080 1920" aria-hidden="true">
+            <path data-hf-id="hf-i5xn" class="river" pathLength="1" d="M460 -60 C300 400 520 700 360 1100 S200 1600 380 1990" />
+            <path data-hf-id="hf-5wgx" class="street" pathLength="1" stroke-width="6" d="M-20 1500 Q260 1260 540 1180 T1100 860" />
+            <path data-hf-id="hf-vb0b" class="street" pathLength="1" stroke-width="5" d="M-20 760 L1100 900" />
+            <path data-hf-id="hf-w9oe" class="street" pathLength="1" stroke-width="5" d="M-20 1020 L1100 1060" />
+            <path data-hf-id="hf-hqjk" class="street" pathLength="1" stroke-width="4" d="M300 -20 L380 1940" />
+            <path data-hf-id="hf-tkn4" class="street" pathLength="1" stroke-width="6" d="M240 1180 A300 300 0 1 1 840 1180 A300 300 0 1 1 240 1180" />
+            <path data-hf-id="hf-w5qb" class="street" pathLength="1" stroke-width="4" d="M780 -20 L720 1940" />
+            <path data-hf-id="hf-0m9m" class="street" pathLength="1" stroke-width="3" d="M-20 1600 L1100 1440" />
+            <path data-hf-id="hf-sc4f" class="street" pathLength="1" stroke-width="3" d="M960 -20 L1020 1940" />
+            <path data-hf-id="hf-u4gp" class="street" pathLength="1" stroke-width="4" d="M-20 1300 Q250 1250 420 1000 T760 600" />
+            <path data-hf-id="hf-co0j" class="street" pathLength="1" stroke-width="3" d="M-20 500 L700 1940" />
+            <path data-hf-id="hf-155r" class="street" pathLength="1" stroke-width="3" d="M1100 700 L300 1940" />
+            <path data-hf-id="hf-9nqd" class="street" pathLength="1" stroke-width="5" d="M600 1940 Q760 1700 1100 1720" />
+            <path data-hf-id="hf-tf3o" class="street" pathLength="1" stroke-width="3" d="M-20 1820 L1100 1800" />
+            <path data-hf-id="hf-hksz" class="street" pathLength="1" stroke-width="4" d="M540 -20 L540 880" />
+          </svg>
+          <div data-hf-id="hf-0tdh" id="ghosts" class="layer"></div>
+          <div data-hf-id="hf-4nvr" id="known-pins" class="layer"></div>
+          <div data-hf-id="hf-9wma" id="map-pins" class="layer"></div>
+        </div>
+
+        <div data-hf-id="hf-s7sx" class="layer scrim"></div>
+
+        <div data-hf-id="hf-f63o" id="cam-pin" class="layer cam" data-layout-allow-overflow="true">
+          <svg data-hf-id="hf-ez2x" class="ripples" viewBox="0 0 1080 1920" aria-hidden="true">
+            <ellipse data-hf-id="hf-0hiy" class="ripple" cx="540" cy="1180" rx="20" ry="6" stroke-width="8" />
+            <ellipse data-hf-id="hf-fq72" class="ripple" cx="540" cy="1180" rx="20" ry="6" stroke-width="8" />
+            <ellipse data-hf-id="hf-g4i3" class="ripple" cx="540" cy="1180" rx="20" ry="6" stroke-width="8" />
+          </svg>
+          <div data-hf-id="hf-0tlu" class="hero-pin" id="hero-pin">
+            <div data-hf-id="hf-nj1e" class="pin-shrink" id="pin-shrink">
+              <div data-hf-id="hf-3xn6" class="pin-fall" id="pin-fall">
+                <div data-hf-id="hf-4vf2" class="pin-squash" id="pin-squash">
+                  <svg data-hf-id="hf-aaph" viewBox="0 0 100 130" aria-hidden="true"><use data-hf-id="hf-7965" href="#pin" width="100" height="130" /></svg>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hook: what you know vs what is around you -->
+        <div data-hf-id="hf-6cj1" class="layer col col-center" id="col-a">
+          <div data-hf-id="hf-xvbi" id="a-block">
+          <div data-hf-id="hf-awa4" class="slot" id="slot-top">
+            <div data-hf-id="hf-3zqn" class="line l72" id="a-top1">ти знаєш лише</div>
+            <div data-hf-id="hf-xz00" class="line l72" id="a-top2">а пропускаєш</div>
+          </div>
+          <div data-hf-id="hf-63rn" class="slot" id="slot-big">
+            <div data-hf-id="hf-vo1u" class="line l400" id="a-three">3</div>
+            <div data-hf-id="hf-d2jn" class="line l240" id="a-many">сотні</div>
+          </div>
+          <div data-hf-id="hf-vwci" class="slot" id="slot-bot">
+            <div data-hf-id="hf-flmz" class="line l72" id="a-bot1">події?</div>
+            <div data-hf-id="hf-ogts" class="line l72" id="a-bot2">щомісяця</div>
+          </div>
+          </div>
+        </div>
+
+        <!-- «Поряд» (the lockup, scaled up) is the subject of this sentence -->
+        <div data-hf-id="hf-aan2" class="layer col col-center" id="col-b">
+          <div data-hf-id="hf-wr5q" class="line l72" id="b-line1">збирає їх</div>
+          <div data-hf-id="hf-r85o" class="line l72" id="b-line2">на одну мапу.</div>
+        </div>
+      </div>
+
+      <!-- C-card: paper, iris from the centre pin -->
+      <div data-hf-id="hf-ipmt" id="scene-c" class="clip" data-start="5.35" data-duration="2.25" data-track-index="2">
+        <div data-hf-id="hf-pc5r" class="layer iris" id="iris-c">
+          <div data-hf-id="hf-yy5j" class="layer col">
+            <div data-hf-id="hf-4jae" class="line l72 ink" id="c-line1">відкриваєш —</div>
+            <div data-hf-id="hf-hebf" class="line l130 ink" id="c-line2">і все</div>
+            <div data-hf-id="hf-f35k" class="line l130 ink" id="c-line3">ясно.</div>
+          </div>
+          <div data-hf-id="hf-ic5g" class="card-exit" id="card-exit">
+            <div data-hf-id="hf-732g" class="card-fit"><div data-hf-id="hf-4zky" class="card" id="card">
+              <div data-hf-id="hf-mhuf" class="poster">
+                <svg data-hf-id="hf-er66" viewBox="0 0 512 420" aria-hidden="true">
+                  <circle data-hf-id="hf-ijdm" class="confetti" cx="64" cy="64" r="9" />
+                  <circle data-hf-id="hf-ilry" class="confetti" cx="452" cy="52" r="7" />
+                  <circle data-hf-id="hf-zorb" class="confetti" cx="92" cy="322" r="8" />
+                  <circle data-hf-id="hf-pmqz" class="confetti" cx="446" cy="296" r="10" />
+                  <circle data-hf-id="hf-yjtr" class="confetti" cx="404" cy="372" r="6" />
+                  <circle data-hf-id="hf-amnw" class="confetti" cx="52" cy="200" r="6" />
+                  <circle data-hf-id="hf-z8qn" class="confetti" cx="150" cy="380" r="7" />
+                  <circle data-hf-id="hf-u1ti" class="cat-head" cx="256" cy="240" r="120" />
+                  <path data-hf-id="hf-qoy0" class="cat-ear" d="M139 90 L152 180 L225 124 Z" />
+                  <path data-hf-id="hf-qi8v" class="cat-ear" d="M373 90 L360 180 L287 124 Z" />
+                </svg>
+              </div>
+              <div data-hf-id="hf-ilmq" class="cat-badge" id="cat-badge">
+                <span data-hf-id="hf-7gkf" class="cat-ring" id="cat-ring"></span>
+                <svg data-hf-id="hf-sesp" viewBox="0 0 100 130" aria-hidden="true"><use data-hf-id="hf-d2ox" href="#pin" width="100" height="130" /></svg>
+              </div>
+              <div data-hf-id="hf-h0w3" class="card-body">
+                <div data-hf-id="hf-48ny" class="card-title" id="card-title">Котики Фест</div>
+                <div data-hf-id="hf-exrd" class="chips">
+                  <span data-hf-id="hf-sme6" class="chip" id="chip-1">сб · 11:00</span>
+                  <span data-hf-id="hf-llyk" class="chip" id="chip-2">ВДНГ</span>
+                  <span data-hf-id="hf-g8tt" class="chip" id="chip-3">від 150 грн</span>
+                </div>
+              </div>
+            </div></div>
+          </div>
+          <div data-hf-id="hf-us2y" class="seed-dot" id="seed-dot"></div>
+        </div>
+      </div>
+
+      <!-- D-endcard: night iris from the card centre -->
+      <div data-hf-id="hf-ptfy" id="scene-d" class="clip" data-start="7.35" data-duration="2.65" data-track-index="3">
+        <div data-hf-id="hf-ta9s" class="layer iris" id="iris-d">
+          <div data-hf-id="hf-549n" class="layer glow-d" id="glow-d"></div>
+          <div data-hf-id="hf-9t8q" class="layer col-d">
+            <div data-hf-id="hf-x82c" class="slogan" id="slogan">твоє місто. нарешті видно.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Store block: hard cut at 8.75 s, no animation -->
+      <div data-hf-id="hf-i4ey" id="cta" class="clip" data-start="8.75" data-duration="1.25" data-track-index="4">
+        <div data-hf-id="hf-8aso" class="layer cta-col">
+          <div data-hf-id="hf-lq5w" class="free">безкоштовно</div>
+          <img data-hf-id="hf-5now" class="badge" src="assets/appstore-badge-uk.svg" alt="Завантажте в App Store">
+          <div data-hf-id="hf-8730" class="tm">Apple, логотип Apple і App Store є торговельними марками Apple Inc.</div>
+        </div>
+      </div>
+
+      <!-- Lockup: not in the hook; from 3.0 s to the last frame, it becomes the end card -->
+      <div data-hf-id="hf-7zfr" id="lockup-layer" class="clip" data-start="3" data-duration="7" data-track-index="5">
+        <div data-hf-id="hf-9rga" class="lockup" id="lockup">
+          <span data-hf-id="hf-hfnm" class="lockup-icon" id="lk-icon" role="img" aria-label=""></span>
+          <span data-hf-id="hf-wef3" class="lockup-name" id="lk-name">Поряд</span>
+        </div>
+      </div>
+
+      <!-- grain-overlay, whole duration, top layer -->
+      <div data-hf-id="hf-it2p" id="grain" class="clip" data-start="0" data-duration="10" data-track-index="6" data-layout-ignore="">
+        <div data-hf-id="hf-co2q" class="grain-texture" id="grain-tex"></div>
+      </div>
+
+      <!-- Audio -->
+      <audio data-hf-id="hf-iuwp" id="music" src="assets/audio/brand.m4a" data-start="0" data-duration="10" data-media-start="16" data-track-index="10" data-automation="{&quot;version&quot;:1,&quot;lanes&quot;:[{&quot;target&quot;:&quot;volume&quot;,&quot;points&quot;:[{&quot;t&quot;:0,&quot;v&quot;:0.9},{&quot;t&quot;:9.4,&quot;v&quot;:0.9},{&quot;t&quot;:10,&quot;v&quot;:0}]}]}"></audio>
+      <audio data-hf-id="hf-7cdy" id="sfx-pin-1" src="assets/audio/pin_pop_1.wav" data-start="2.98" data-track-index="11" data-volume="0.35"></audio>
+      <audio data-hf-id="hf-u6vx" id="sfx-whoosh-1" src="assets/audio/whoosh.wav" data-start="5.35" data-track-index="12" data-volume="0.3"></audio>
+      <audio data-hf-id="hf-5uzf" id="sfx-whoosh-2" src="assets/audio/whoosh.wav" data-start="7.4" data-track-index="13" data-volume="0.25"></audio>
+      <audio data-hf-id="hf-vp4x" id="sfx-pin-2" src="assets/audio/pin_pop_2.wav" data-start="7.95" data-track-index="14" data-volume="0.35"></audio>
+    </div>
+
+    <script>
+      const $ = (s) => document.querySelector(s);
+      const $$ = (s) => Array.from(document.querySelectorAll(s));
+      const tl = gsap.timeline({ paused: true });
+
+      // Split a line into word boxes of letter boxes (words can still wrap).
+      function split(el) {
+        const words = el.textContent.trim().split(" ");
+        el.textContent = "";
+        const chars = [];
+        words.forEach((word, i) => {
+          if (i) el.appendChild(document.createTextNode(" "));
+          const w = document.createElement("span");
+          w.className = "w";
+          for (const c of word) {
+            const s = document.createElement("span");
+            s.className = "ch";
+            s.textContent = c;
+            w.appendChild(s);
+            chars.push(s);
+          }
+          el.appendChild(w);
+        });
+        return chars;
+      }
+      const fontPx = (el) => parseFloat(getComputedStyle(el).fontSize);
+
+      // Letters rise one by one: y 0.9em→0, rotate 8°→0, stagger 0.03 s.
+      function rise(lines, at, dur, ease) {
+        const chars = lines.flatMap((el) => split(el));
+        tl.fromTo(
+          chars,
+          { y: (i, t) => fontPx(t) * 0.9, rotation: 8, opacity: 0 },
+          { y: 0, rotation: 0, opacity: 1, duration: dur, ease, stagger: 0.03 },
+          at,
+        );
+      }
+
+
+      // ── Seeded city: ~90 event spots (mulberry32) ─────────────────────
+      function mulberry32(a) {
+        return function () {
+          a |= 0;
+          a = (a + 0x6d2b79f5) | 0;
+          let t = Math.imul(a ^ (a >>> 15), 1 | a);
+          t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+          return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+      }
+      const rnd = mulberry32(20261009);
+      const pins = [];
+      for (let tries = 0; pins.length < 90 && tries < 20000; tries++) {
+        const x = 60 + rnd() * 960; // tip x 60–1020
+        const y = 760 + rnd() * 1170; // tip y — below the scrim (pins are background, may cross y 1450)
+        const w = 34 + Math.floor(rnd() * 13); // 34–46 px wide
+        if (Math.hypot(x - 540, y - 1140) < 120) continue; // keep the centre pin clear
+        if (pins.some((p) => Math.hypot(p.x - x, p.y - y) < 74)) continue;
+        pins.push({ x, y, w });
+      }
+      const dist = pins.map((p) => Math.hypot(p.x - 540, p.y - 1180));
+      const dMax = Math.max(...dist);
+      // The three events you already know: spread out, clear of the hero pin.
+      const known = [];
+      pins.forEach((p, i) => {
+        if (known.length < 3 && p.y > 1050 && p.y < 1420 && dist[i] > 220 && known.every((k) => Math.hypot(pins[k].x - p.x, pins[k].y - p.y) > 320)) known.push(i);
+      });
+      // Left to right on the map = left to right in the hook row.
+      known.sort((a, b) => pins[a].x - pins[b].x);
+      const pinSvg = (p, cls, style) =>
+        `<svg class="mp ${cls}" viewBox="0 0 100 136" aria-hidden="true" style="left:${(p.x - p.w / 2).toFixed(1)}px;top:${(p.y - p.w * 1.28).toFixed(1)}px;width:${p.w}px;height:${(p.w * 1.36).toFixed(1)}px;${style}"><ellipse class="mp-shadow" cx="50" cy="129" rx="18" ry="5"/><use href="#pin" width="100" height="130"/></svg>`;
+      // Coral is the name's: category pins are violet / blue / amber / green only.
+      const PIN_COLORS = ["--violet", "--blue", "--amber", "--green"];
+      $("#map-pins").innerHTML = pins.map((p, i) => pinSvg(p, "", `color:var(${PIN_COLORS[i % 4]})`)).join("");
+      $("#known-pins").innerHTML = known.map((i) => pinSvg(pins[i], "known", "")).join("");
+      // Ghost dot sits on the head of the pin it will become.
+      $("#ghosts").innerHTML = pins
+        .map((p) => `<div class="ghost" style="left:${(p.x - 4).toFixed(1)}px;top:${(p.y - p.w * 0.8 - 4).toFixed(1)}px"></div>`)
+        .join("");
+      const ghostEls = $$("#ghosts .ghost");
+      const knownEls = $$("#known-pins .mp");
+
+      // ── A-hook 0.0–3.0: «ти знаєш лише 3 події?» → «а пропускаєш сотні щомісяця» ──
+      // Big words punch in from 0.2× (expo.out, no overshoot so they never cover the small lines), the small lines rise.
+      const slam = (sel, at) =>
+        tl.fromTo(sel, { scale: 0.2, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.4, ease: "expo.out", transformOrigin: "50% 50%" }, at);
+      rise([$("#a-top1")], 0.0, 0.45, "back.out(1.6)");
+      slam("#a-three", 0.12);
+      rise([$("#a-bot1")], 0.3, 0.45, "back.out(1.6)");
+      // Three big pins count «one, two, three» in a row under the text (tips at y 1250).
+      const ROW_X = [360, 540, 720];
+      knownEls.forEach((el, i) => {
+        const p = pins[known[i]];
+        const at = { x: ROW_X[i] - p.x, y: 1250 - p.y, scale: 110 / p.w };
+        tl.fromTo(el, { ...at, scale: 0 }, { ...at, duration: 0.35, ease: "back.out(2)" }, 0.45 + i * 0.15);
+        // On the swap they fly out to their real spots in the city.
+        tl.fromTo(el, at, { x: 0, y: 0, scale: 1, duration: 0.55, ease: "power3.inOut", immediateRender: false }, 1.45 + i * 0.05);
+      });
+      // Swap: the small world drops out…
+      tl.to(["#a-top1", "#a-bot1"], { y: -30, opacity: 0, duration: 0.12, ease: "power2.in" }, 1.4);
+      tl.to("#a-three", { scale: 0.4, opacity: 0, duration: 0.14, ease: "power3.in" }, 1.4);
+      // …and the city you miss slams in, dots bursting out from the centre.
+      rise([$("#a-top2")], 1.46, 0.45, "back.out(1.6)");
+      slam("#a-many", 1.5);
+      rise([$("#a-bot2")], 1.64, 0.45, "back.out(1.6)");
+      ghostEls.forEach((el, i) => {
+        if (known.includes(i)) return;
+        tl.fromTo(el, { opacity: 0, scale: 0 }, { opacity: 0.5, scale: 1, duration: 0.25, ease: "back.out(2)" }, 1.55 + (0.6 * dist[i]) / dMax);
+      });
+      tl.to("#col-a", { y: -40, opacity: 0, duration: 0.15, ease: "power2.in" }, 2.85);
+
+      // ── B-brand-map 3.0–5.5: «Поряд збирає їх на одну мапу.» ──────────
+      // Hero pin (the app-icon pin) falls into the centre, squash on impact.
+      tl.fromTo("#pin-fall", { y: -1300 }, { y: 0, duration: 0.2, ease: "power2.in" }, 2.8);
+      tl.to("#pin-squash", { scaleX: 1.28, scaleY: 0.72, duration: 0.04, ease: "power2.out" }, 3.0);
+      tl.to("#pin-squash", { scaleX: 1, scaleY: 1, duration: 0.4, ease: "elastic.out(1.2, 0.35)" }, 3.04);
+      $$(".ripple").forEach((el, i) => {
+        const t = 3.0 + i * 0.2;
+        tl.fromTo(el, { attr: { rx: 20, ry: 6, "stroke-width": 8 } }, { attr: { rx: 300, ry: 90, "stroke-width": 1.5 }, duration: 0.75, ease: "power2.out" }, t);
+        tl.fromTo(el, { opacity: 0 }, { opacity: 0.4, duration: 0.05, ease: "power1.out" }, t);
+        tl.to(el, { opacity: 0, duration: 0.65, ease: "power1.in" }, t + 0.05);
+      });
+      tl.to("#pin-shrink", { scale: 0.45, duration: 0.4, ease: "power2.inOut" }, 3.2);
+      // The city lights up; every dot becomes its event.
+      tl.to("#city", { opacity: 1, duration: 0.4, ease: "sine.out" }, 3.0);
+      tl.to("#glow-a", { opacity: 0, duration: 0.5, ease: "sine.inOut" }, 3.0);
+      $$("#map-pins .mp").forEach((el, i) => {
+        const t = 3.05 + (1.05 * dist[i]) / dMax;
+        tl.fromTo(el, { scale: 0 }, { scale: 1, duration: 0.35, ease: "back.out(2.5)" }, t);
+        tl.to(ghostEls[i], { opacity: 0, duration: 0.1, ease: "power1.in" }, t);
+        const k = known.indexOf(i);
+        if (k >= 0) tl.to(knownEls[k], { opacity: 0, duration: 0.1, ease: "power1.in" }, t);
+      });
+      // The name is nowhere in the hook: it pops straight into the headline as the answer,
+      // on the hero pin's impact (centred: xPercent follows the scale, y keeps the middle still).
+      tl.fromTo(
+        "#lockup",
+        { x: 540 - 66, xPercent: -50 * 1.02, y: 102 + (64 * (2.55 - 1.02)) / 2, scale: 1.02, opacity: 0 },
+        { x: 540 - 66, xPercent: -50 * 2.55, y: 102, scale: 2.55, opacity: 1, duration: 0.45, ease: "back.out(1.7)" },
+        3.0,
+      );
+      rise([$("#b-line1")], 3.35, 0.55, "back.out(1.4)");
+      rise([$("#b-line2")], 3.47, 0.55, "back.out(1.4)");
+      tl.to("#col-b", { y: -40, opacity: 0, duration: 0.15, ease: "power2.in" }, 5.0);
+      tl.to("#lockup", { x: 0, xPercent: 0, y: 0, scale: 1, duration: 0.4, ease: "power3.inOut" }, 5.05);
+      // Dive into the centre pin: map + pin scale 1→4 around the tip.
+      tl.to(["#cam-map", "#cam-pin"], { scale: 4, duration: 0.5, ease: "power2.in" }, 5.0);
+
+      // ── C-card 5.35–7.55 ────────────────────────────────────────────
+      tl.fromTo("#iris-c", { clipPath: "circle(0px at 540px 1120px)" }, { clipPath: "circle(1270px at 540px 1120px)", duration: 0.4, ease: "power2.inOut" }, 5.35);
+      tl.to("#grain-tex", { opacity: 0.06, duration: 0.4, ease: "sine.inOut" }, 5.35);
+      tl.fromTo("#seed-dot", { scale: 0 }, { scale: 1, duration: 0.14, ease: "back.out(2)" }, 5.42);
+      tl.to("#seed-dot", { scale: 0.5, opacity: 0, duration: 0.12, ease: "power2.in" }, 5.56);
+      tl.fromTo("#card-exit", { opacity: 0 }, { opacity: 1, duration: 0.06, ease: "power1.out" }, 5.54);
+      tl.fromTo("#card", { scale: 0.1 }, { scale: 1, duration: 0.45, ease: "back.out(1.3)" }, 5.54);
+      rise([$("#c-line1"), $("#c-line2"), $("#c-line3")], 5.6, 0.65, "power4.out");
+      tl.fromTo(split($("#card-title")), { opacity: 0 }, { opacity: 1, duration: 0.02, ease: "power1.out", stagger: 0.035 }, 5.9);
+      [6.3, 6.45, 6.6].forEach((t, i) => {
+        tl.fromTo(`#chip-${i + 1}`, { scale: 0.4, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.35, ease: "back.out(2.4)" }, t);
+      });
+      // Category pin pulses once at 6.8 s.
+      tl.to("#cat-badge", { scale: 1.28, duration: 0.14, ease: "power2.out" }, 6.8);
+      tl.to("#cat-badge", { scale: 1, duration: 0.3, ease: "sine.inOut" }, 6.94);
+      tl.fromTo("#cat-ring", { scale: 0.9, opacity: 0 }, { scale: 1.3, opacity: 0.7, duration: 0.1, ease: "power1.out" }, 6.8);
+      tl.to("#cat-ring", { scale: 2.3, opacity: 0, duration: 0.45, ease: "power2.out" }, 6.9);
+      // Exit: card collapses into its centre while night irises open from it.
+      tl.to("#card-exit", { scale: 0.15, duration: 0.2, ease: "power2.in" }, 7.35);
+
+      // ── D-endcard: the lockup itself becomes the end card ─────────────
+      tl.fromTo("#iris-d", { clipPath: "circle(0px at 540px 1094px)" }, { clipPath: "circle(1200px at 540px 1094px)", duration: 0.2, ease: "power3.in" }, 7.35);
+      tl.to("#grain-tex", { opacity: 0.1, duration: 0.2, ease: "sine.inOut" }, 7.35);
+      tl.fromTo("#glow-d", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "sine.out" }, 7.7);
+      // Icon 64 → 220 px, centre (98,290) → (540,580).
+      tl.to("#lk-icon", { x: 442, y: 290, scale: 220 / 64, transformOrigin: "50% 50%", duration: 0.5, ease: "power3.inOut" }, 7.5);
+      // Name 42 → 120 px, centred on x 540, top ≈745 (xPercent keeps it centred whatever its width).
+      const nameScale = 120 / 42;
+      tl.to("#lk-name", { x: 540 - 146, xPercent: -50 * nameScale, y: 515, scale: nameScale, transformOrigin: "0% 50%", duration: 0.5, ease: "power3.inOut" }, 7.5);
+      tl.fromTo("#slogan", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power1.out" }, 8.2);
+      // Store block cuts in at 8.75 via its clip; nothing moves after ~8.9 s.
+
+      tl.seek(0);
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>
