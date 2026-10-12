@@ -8,7 +8,8 @@
 import { displayTitle, overline, price, httpsOrNull, esc, CATEGORIES } from "../site/js/poriad.js";
 export { esc };
 
-const APP_STORE_URL = "https://apps.apple.com/ua/app/id6813543772";
+// Мітка ct=event: завантаження зі сторінок подій окремо від сайту (site/js/poriad.js).
+const APP_STORE_URL = "https://apps.apple.com/app/apple-store/id6813543772?pt=129478154&ct=event&mt=8";
 // Порожньо, доки застосунок не вийшов у Google Play: кнопку не показуємо.
 const PLAY_URL = "";
 const IOS_APP_ID = "QTYQMJ94D2.app.poriad.ios";
@@ -96,7 +97,7 @@ export function eventPage(e, now, shelters = []) {
     url: link,
     // Поки в політиці не сказано, що події індексуються пошуковиками, сторінки — лише за посиланням.
     head: `<meta name="robots" content="noindex">
-<meta name="apple-itunes-app" content="app-id=${APP_STORE_URL.match(/id(\d+)/)[1]}, app-argument=${link}">
+<meta name="apple-itunes-app" content="app-id=${APP_STORE_URL.match(/id(\d+)/)[1]}, affiliate-data=ct=event&amp;pt=129478154, app-argument=${link}">
 ${ticketUrl ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""}`,
     body: `<article class="sheet-box">
   <header class="cover-big cat-${category}"><div class="art cat-${category}">${icon(category, "glyph")}${image ? `<img src="${esc(image)}" alt="" referrerpolicy="no-referrer">` : ""}</div>
@@ -123,7 +124,7 @@ ${ticketUrl ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""}`,
   </div>
   <div class="bar"><div class="top"><div class="meta"><small>${esc(when)}</small><span>${esc(cost || spots || "Вхід уточнюйте")}</span></div>
     ${ticketUrl && live ? `<a class="btn primary" href="${esc(ticketUrl)}" rel="nofollow noopener">Квитки${e.source_name ? ` на ${esc(e.source_name)}` : ""}</a>`
-      : `<a class="btn primary" href="/app">${imported ? "Завантажити «Поряд»" : "Приєднатися в застосунку"}</a>`}</div></div>
+      : `<a class="btn primary" href="/app?from=event">${imported ? "Завантажити «Поряд»" : "Приєднатися в застосунку"}</a>`}</div></div>
 </article>`,
   });
 }
@@ -185,7 +186,7 @@ ${head}
 </head>
 <body class="event-page">
 <header class="nav scrolled"><div class="wrap"><a class="brand" href="/"><img src="/icon.png" alt="">Поряд</a>
-  <nav class="links" aria-label="Розділи"><a href="/afisha.html">Афіша</a><a class="btn primary small" href="/app">Завантажити</a></nav></div></header>
+  <nav class="links" aria-label="Розділи"><a href="/afisha.html">Афіша</a><a class="btn primary small" href="/app?from=event">Завантажити</a></nav></div></header>
 <main class="event-shell">${body}</main>
 <footer class="site"><div class="wrap"><span>Питання й скарги: <a href="mailto:hello@poriad.app">hello@poriad.app</a></span>
   <nav aria-label="Документи"><a href="/afisha.html">Афіша</a><a href="/privacy.html">Конфіденційність</a><a href="/terms.html">Умови</a></nav></div></footer>

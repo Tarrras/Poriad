@@ -7,9 +7,11 @@
 <meta name="robots" content="noindex">
 <!-- Куди веде QR-код сайту (poriad.app/app): одразу в стор телефона, на комп’ютері — на лендинг. -->
 <script>
-  var ua = navigator.userAgent;
-  if (/iPhone|iPad|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)) location.replace("https://apps.apple.com/ua/app/id6813543772");
-  else if (/Android/.test(ua)) location.replace("https://play.google.com/store/apps/details?id=app.poriad.android");
+  // Мітка джерела для App Store Connect і Play Console (див. js/poriad.js): QR — qr, сторінка події — ?from=event.
+  var ua = navigator.userAgent, from = new URLSearchParams(location.search).get("from") || "";
+  var ct = /^[a-z]{1,12}$/.test(from) ? from : "qr";
+  if (/iPhone|iPad|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)) location.replace("https://apps.apple.com/app/apple-store/id6813543772?pt=129478154&mt=8&ct=" + ct);
+  else if (/Android/.test(ua)) location.replace("https://play.google.com/store/apps/details?id=app.poriad.android&referrer=" + encodeURIComponent("utm_source=poriad.app&utm_campaign=" + ct));
   else location.replace("./#download");
 </script>
 <link rel="stylesheet" href="tokens.css">
@@ -21,8 +23,8 @@
 <main><div class="wrap">
   <h1>Завантажити «Поряд»</h1>
   <div class="row">
-    <a class="pill" href="https://apps.apple.com/ua/app/id6813543772">App Store</a>
-    <a class="pill ghost" href="https://play.google.com/store/apps/details?id=app.poriad.android">Google Play</a>
+    <a class="pill" href="https://apps.apple.com/app/apple-store/id6813543772?pt=129478154&amp;ct=qr&amp;mt=8">App Store</a>
+    <a class="pill ghost" href="https://play.google.com/store/apps/details?id=app.poriad.android&amp;referrer=utm_source%3Dporiad.app%26utm_campaign%3Dqr">Google Play</a>
   </div>
 </div></main>
 </body>

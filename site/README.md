@@ -18,7 +18,7 @@
 | `delete-account.html` | Обов'язковий веб-URL для Play «Account deletion» |
 | `bot.html` | Сторінка робота імпорту (`/bot` з User-Agent `PoriadBot`): що читає, як відмовитись |
 | `img/` | Екрани для лендингу — знімки iOS prod-збірки (603×1311; `companions.jpg`, `safety.jpg` — з `store/screens/ios_*.png`). Без тестової «Демо для перевірки застосунку» в кадрі |
-| `CNAME`, `robots.txt` | Домен для GitHub Pages і дозвіл на індексацію |
+| `CNAME`, `robots.txt`, `sitemap.xml` | Домен для GitHub Pages, дозвіл на індексацію й карта сайту для Google Search Console |
 
 ## Перевірка
 
@@ -31,11 +31,11 @@ python3 -m http.server 8766 --directory site
 
 ## Кеш
 
-Cloudflare каже браузерам тримати файли 4 години. Тому CSS і JS підключені з версією (`web.css?v=3`, `import … from "./ui.js?v=3"`):
+Cloudflare каже браузерам тримати файли 4 години. Тому CSS і JS підключені з версією (`web.css?v=4`, `import … from "./ui.js?v=4"`):
 змінили CSS чи JS — підніміть номер усюди однаково, інакше людина побачить новий HTML зі старими стилями. Одним рядком:
 
 ```bash
-sed -i '' -E 's/\?v=3"/?v=4"/g' site/index.html site/afisha.html site/js/*.js
+sed -i '' -E 's/\?v=4"/?v=5"/g' site/index.html site/afisha.html site/js/*.js
 ```
 
 ## Перед публікацією
