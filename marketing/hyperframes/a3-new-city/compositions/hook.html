@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8">
+  </head>
+  <body>
+    <template>
+      <style>
+      /* Fonts: local, variable Unbounded + Inter 400/600, split cyrillic/latin */
+      @font-face {
+        font-family: "Unbounded";
+        src: url("assets/fonts/unbounded-cyrillic.woff2") format("woff2");
+        font-weight: 200 900;
+        font-display: block;
+        unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+      }
+      @font-face {
+        font-family: "Unbounded";
+        src: url("assets/fonts/unbounded-latin.woff2") format("woff2");
+        font-weight: 200 900;
+        font-display: block;
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      @font-face {
+        font-family: "Inter";
+        src: url("assets/fonts/inter-cyrillic-400-normal.woff2") format("woff2");
+        font-weight: 400;
+        font-display: block;
+        unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+      }
+      @font-face {
+        font-family: "Inter";
+        src: url("assets/fonts/inter-cyrillic-600-normal.woff2") format("woff2");
+        font-weight: 600;
+        font-display: block;
+        unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+      }
+      @font-face {
+        font-family: "Inter";
+        src: url("assets/fonts/inter-latin-400-normal.woff2") format("woff2");
+        font-weight: 400;
+        font-display: block;
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      @font-face {
+        font-family: "Inter";
+        src: url("assets/fonts/inter-latin-600-normal.woff2") format("woff2");
+        font-weight: 600;
+        font-display: block;
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+        #hook-root { position: absolute; inset: 0; overflow: hidden; color: #f5f5f7; font-family: "Inter", system-ui, sans-serif; }
+        #hook-root .world { position: absolute; inset: 0; }
+        .display { font-family: "Unbounded", system-ui, sans-serif; font-weight: 300; letter-spacing: -0.045em; }
+
+        /* 1 · the routine: «дім» and «робота», one route between them, a dot that only ever goes back and forth */
+        #hook-a { transform-origin: 540px 900px; }
+        #hook-halo { position: absolute; left: 80px; top: 320px; width: 900px; height: 900px; border-radius: 50%; background: radial-gradient(circle closest-side, rgba(109, 74, 201, 0.28), rgba(109, 74, 201, 0)); }
+        /* the city is there, just not seen: a faint street grid */
+        #hook-grid { position: absolute; inset: 0; opacity: 0.09; background-image: radial-gradient(circle, #ffffff 2px, transparent 2.5px); background-size: 60px 60px; background-position: 10px 10px; -webkit-mask-image: radial-gradient(circle 560px at 530px 780px, #000, transparent); mask-image: radial-gradient(circle 560px at 530px 780px, #000, transparent); }
+        #hook-svg { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; overflow: visible; }
+        #hook-route { fill: none; stroke: rgba(132, 102, 224, 0.6); stroke-width: 8; stroke-linecap: round; stroke-linejoin: round; }
+        #hook-dot { fill: none; stroke: #ffffff; stroke-width: 28; stroke-linecap: round; filter: drop-shadow(0 0 14px rgba(165, 140, 255, 0.95)); opacity: 0; }
+        .stop { position: absolute; width: 80px; height: 80px; margin: -40px 0 0 -40px; }
+        .stop-core { position: absolute; inset: 0; border-radius: 50%; background: linear-gradient(140deg, #8466e0, #5536b0); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 0 50px rgba(109, 74, 201, 0.55); }
+        .stop-core::after { content: ""; position: absolute; left: 27px; top: 27px; width: 26px; height: 26px; border-radius: 50%; background: #ffffff; }
+        .stop-ring { position: absolute; inset: 0; border-radius: 50%; box-shadow: 0 0 0 3px rgba(165, 140, 255, 0.85); opacity: 0; }
+        .stop-label { position: absolute; width: 220px; margin-left: -110px; text-align: center; font-size: 40px; line-height: 1; color: #d6d0f2; white-space: nowrap; }
+
+        /* the question, in the caption band (x 160–920, y 280–416) */
+        #hook-ask-band { position: absolute; left: 160px; width: 760px; top: 280px; height: 136px; display: flex; align-items: center; justify-content: center; }
+        #hook-ask { display: flex; gap: 0.26em; font-size: 66px; line-height: 1.1; white-space: nowrap; }
+        .ask-word { display: block; }
+
+        /* the zero pills, zig-zagging about x 520 (safe zone x 60–920) */
+        .pill-row { position: absolute; width: 1080px; display: flex; justify-content: center; }
+        .pill {
+          position: relative;
+          display: flex;
+          align-items: center;
+          gap: 18px;
+          height: 100px;
+          padding: 0 34px 0 18px;
+          border-radius: 50px;
+          background: linear-gradient(90deg, #3a2a9a, #7a5ce6);
+          box-shadow: inset 2px 2px 0 rgba(214, 229, 255, 0.35), 0 24px 60px rgba(0, 0, 0, 0.45);
+          font-weight: 600;
+          font-size: 40px;
+          line-height: 1;
+          color: #ffffff;
+          white-space: nowrap;
+        }
+        .pill.rev { background: linear-gradient(270deg, #3a2a9a, #7a5ce6); }
+        .pill .box { flex: 0 0 auto; display: block; width: 52px; height: 52px; margin-left: 6px; border-radius: 50%; box-shadow: inset 0 0 0 4px rgba(255, 255, 255, 0.78); }
+
+        /* the verdict «дім → робота → дім», an itinerary in Unbounded 900, where the pills were */
+        #hook-verdict-row { position: absolute; left: 60px; width: 860px; top: 1050px; height: 360px; display: flex; justify-content: center; align-items: center; }
+        #hook-verdict { display: flex; flex-direction: column; align-items: flex-start; font-weight: 900; font-size: 96px; line-height: 1.1; white-space: nowrap; text-shadow: 0 0 40px rgba(189, 222, 255, 0.25); }
+        .v-line { display: flex; align-items: center; gap: 0.24em; }
+        .v-arrow { display: block; width: 0.82em; height: 0.62em; }
+        .v-arrow svg { display: block; width: 100%; height: 100%; overflow: visible; }
+
+        /* 2 · «а місто — поруч» assembles, parts, and the city opens between the lines */
+        #hook-head { position: absolute; left: 0; width: 1080px; top: 780px; height: 240px; }
+        .head-line { position: absolute; left: 0; width: 1080px; height: 120px; display: flex; justify-content: center; align-items: center; gap: 0.26em; font-size: 84px; line-height: 1; white-space: nowrap; }
+        #hook-l1 { top: 0; }
+        #hook-l2 { top: 120px; }
+        .hw { display: block; }
+        /* the window: the phone's own screen at the proof's first camera, so the cut into the phone is invisible.
+           Same top fade as the proof (the caption band stays on the ground) */
+        #hook-win { position: absolute; inset: 0; -webkit-mask-image: linear-gradient(to bottom, transparent 0, transparent 412px, #000 470px); mask-image: linear-gradient(to bottom, transparent 0, transparent 412px, #000 470px); }
+        #hook-win .screen { position: absolute; width: 470px; height: 1022px; border-radius: 54px; overflow: hidden; background: #050506; transform-origin: 0 0; }
+        #hook-win .shot, #hook-win .glare { position: absolute; left: 0; top: 0; width: 470px; height: 1022px; }
+        #hook-win .shot { display: block; object-fit: cover; }
+        #hook-win .glare { background: linear-gradient(118deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0) 38%); }
+      </style>
+
+      <div id="hook-root" data-composition-id="hook" data-width="1080" data-height="1920">
+        <div id="hook-a" class="world">
+          <div id="hook-halo"></div>
+          <div id="hook-grid"></div>
+          <svg id="hook-svg" viewBox="0 0 1080 1920" aria-hidden="true">
+            <path id="hook-route" d="M250 930 V820 Q250 780 290 780 H530 Q570 780 570 740 V650 Q570 610 610 610 H810" />
+            <path id="hook-dot" d="M250 930 V820 Q250 780 290 780 H530 Q570 780 570 740 V650 Q570 610 610 610 H810" />
+          </svg>
+          <div id="hook-home" class="stop" style="left: 250px; top: 930px"><div class="stop-ring"></div><div class="stop-core"></div></div>
+          <div id="hook-work" class="stop" style="left: 810px; top: 610px"><div class="stop-ring"></div><div class="stop-core"></div></div>
+          <div id="hook-home-label" class="stop-label display" style="left: 250px; top: 994px"></div>
+          <div id="hook-work-label" class="stop-label display" style="left: 810px; top: 506px"></div>
+          <div id="hook-ask-band"><div id="hook-ask" class="display"></div></div>
+          <div id="hook-pills"></div>
+          <div id="hook-verdict-row"><div id="hook-verdict" class="display"></div></div>
+        </div>
+
+        <div id="hook-b" class="world">
+          <div id="hook-win"><div id="hook-screen" class="screen" data-layout-allow-overflow="true"><img class="shot" src="assets/ui/map-kyiv-weekend.png" alt=""><div class="glare"></div></div></div>
+          <div id="hook-head" class="display">
+            <div id="hook-l1" class="head-line"></div>
+            <div id="hook-l2" class="head-line"></div>
+          </div>
+        </div>
+      </div>
+
+      <script>
+        (() => {
+          // ═══ COPY (script A3) and TIMES (s). Calm: soft eases, nothing slams ═══
+          const COPY = {
+            home: "дім",
+            work: "робота",
+            pills: [
+              { text: "знайомих у місті: 0", cx: 480, top: 1060 },
+              { text: "улюблених місць: 0", cx: 560, top: 1180, rev: true },
+              { text: "планів на пʼятницю: 0", cx: 480, top: 1300 },
+            ],
+            ask: ["щойно", "переїхали?"],
+            // «дім → робота → дім»: each stop lands as the dot arrives there
+            verdict: [["дім"], ["→", "робота"], ["→", "дім"]],
+            turn: [["а", "місто", "—"], ["поруч"]],
+          };
+          const T = {
+            home: 0.1, work: 0.25, draw: 0.4, drawEnd: 1.0,
+            pills: [0.7, 0.9, 1.1], ask: [1.35, 1.5],
+            go: 1.15, leg: 0.6, legs: 5, // arrivals: робота 1.75, дім 2.35, робота 2.95, дім 3.55, робота 4.15
+            pillsOut: 2.05, verdict: [2.35, 2.95, 3.55], out: 3.95,
+            words: [4.2, 4.3, 4.4, 4.62], split: 4.85, open: 5.15, end: 5.6,
+          };
+          // the proof's first camera (proof.html PHONE.match): screen point `at` (screenshot px) lands on canvas `to` at zoom s
+          const MATCH = { s: 4, at: [480, 1000], to: [540, 1000] };
+          const K = 470 / 1206;
+
+          const tl = gsap.timeline({ paused: true });
+          const $ = (s) => document.querySelector(s);
+          const el = (tag, cls, text) => {
+            const n = document.createElement(tag);
+            if (cls) n.className = cls;
+            if (text != null) n.textContent = text;
+            return n;
+          };
+          const ARROW = '<svg viewBox="0 0 82 62" aria-hidden="true"><path d="M6 31 H72 M46 7 L74 31 L46 55" fill="none" stroke="currentColor" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+          const soft = (n, at, from = {}) => tl.fromTo(n, { opacity: 0, y: 30, filter: "blur(8px)", ...from }, { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.55, ease: "power3.out" }, at);
+
+          // ── 1. the two stops land, the route draws between them ──
+          $("#hook-home-label").textContent = COPY.home;
+          $("#hook-work-label").textContent = COPY.work;
+          [["#hook-home", "#hook-home-label", T.home], ["#hook-work", "#hook-work-label", T.work]].forEach(([dot, label, at]) => {
+            tl.fromTo(dot, { opacity: 0, scale: 0.4 }, { opacity: 1, scale: 1, duration: 0.6, ease: "power3.out" }, at);
+            soft($(label), at + 0.1, { y: 16 });
+          });
+          const route = $("#hook-route");
+          const L = route.getTotalLength();
+          tl.fromTo(route, { attr: { "stroke-dasharray": `${L} ${L}`, "stroke-dashoffset": L } }, { attr: { "stroke-dashoffset": 0 }, duration: T.drawEnd - T.draw, ease: "power2.inOut" }, T.draw);
+
+          // the dot: a zero-length dash with round caps, sliding along the route, back and forth
+          const dot = $("#hook-dot");
+          tl.set(dot, { attr: { "stroke-dasharray": `0.01 ${L + 100}`, "stroke-dashoffset": 0 } }, 0);
+          tl.to(dot, { opacity: 1, duration: 0.25, ease: "power1.out" }, T.go - 0.1);
+          const pulse = (stop, at) => {
+            const ring = $(`${stop} .stop-ring`);
+            tl.fromTo(ring, { opacity: 0.9, scale: 1 }, { opacity: 0, scale: 1.9, duration: 0.7, ease: "power2.out", immediateRender: false }, at);
+          };
+          for (let i = 0; i < T.legs; i++) {
+            const at = T.go + i * T.leg;
+            const toWork = i % 2 === 0;
+            tl.fromTo(dot, { attr: { "stroke-dashoffset": toWork ? 0 : -L } }, { attr: { "stroke-dashoffset": toWork ? -L : 0 }, duration: T.leg, ease: "sine.inOut", immediateRender: false }, at);
+            if (at + T.leg < T.out) pulse(toWork ? "#hook-work" : "#hook-home", at + T.leg);
+          }
+
+          // the zero pills
+          COPY.pills.forEach((p, i) => {
+            const row = $("#hook-pills").appendChild(el("div", "pill-row"));
+            row.style.left = `${p.cx - 540}px`;
+            row.style.top = `${p.top}px`;
+            const pill = row.appendChild(el("div", p.rev ? "pill rev" : "pill"));
+            pill.appendChild(el("span", "box"));
+            pill.appendChild(el("span", "", p.text));
+            soft(pill, T.pills[i], { y: 36 });
+            tl.to(pill, { opacity: 0, y: 24, filter: "blur(8px)", duration: 0.3, ease: "power2.in" }, T.pillsOut + i * 0.05);
+          });
+
+          // the question
+          COPY.ask.forEach((w, i) => soft($("#hook-ask").appendChild(el("span", "ask-word", w)), T.ask[i], { y: 36 }));
+
+          // the verdict, one stop per arrival; each lands violet and settles to ink
+          COPY.verdict.forEach((line, i) => {
+            const ln = $("#hook-verdict").appendChild(el("div", "v-line"));
+            line.forEach((w) => {
+              if (w === "→") ln.appendChild(el("span", "v-arrow")).innerHTML = ARROW;
+              else ln.appendChild(el("span", "", w));
+            });
+            tl.fromTo(ln, { opacity: 0, y: 34, filter: "blur(10px)", color: "#a58cff" }, { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.55, ease: "power3.out" }, T.verdict[i]);
+            tl.to(ln, { color: "#f5f5f7", duration: 0.3, ease: "none" }, T.verdict[i] + 0.25);
+          });
+          $("#hook-verdict").setAttribute("aria-label", "дім → робота → дім");
+
+          // the routine steps back and dissolves
+          tl.to("#hook-a", { opacity: 0, scale: 0.96, filter: "blur(10px)", duration: 0.4, ease: "power2.in" }, T.out);
+
+          // ── 2. «а місто — поруч»: words land violet and settle, part, and the city opens between them ──
+          let k = 0;
+          COPY.turn.forEach((line, li) => line.forEach((word) => {
+            const w = $(li ? "#hook-l2" : "#hook-l1").appendChild(el("span", "hw", word));
+            const at = T.words[k++];
+            tl.fromTo(w, { opacity: 0, y: 40, filter: "blur(8px)", color: "#a58cff" }, { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.5, ease: "power3.out" }, at);
+            tl.to(w, { color: "#f5f5f7", duration: 0.3, ease: "none" }, at + 0.22);
+          }));
+
+          // the window holds the phone's screen exactly where the proof's first frame has it
+          const f = MATCH.s * K;
+          Object.assign($("#hook-screen").style, {
+            left: `${(MATCH.to[0] - f * MATCH.at[0]).toFixed(2)}px`,
+            top: `${(MATCH.to[1] - f * MATCH.at[1]).toFixed(2)}px`,
+            transform: `scale(${MATCH.s})`,
+          });
+          // a seam of light between the parted lines, then it opens to the whole frame
+          // left ≠ right by 1 px on purpose: the browser shortens an inset() with equal sides, and a shortened
+          // string no longer lines up number for number with the next one, so GSAP would tween the wrong values
+          const SEAM0 = "inset(896px 540px 1016px 541px round 4px)";
+          const SEAM = "inset(896px 170px 1016px 171px round 4px)";
+          const FULL = "inset(0px 0px 0px 0px round 0px)";
+          tl.fromTo("#hook-win", { clipPath: SEAM0 }, { clipPath: SEAM, duration: T.open - T.split, ease: "power2.out" }, T.split);
+          tl.fromTo("#hook-win", { clipPath: SEAM }, { clipPath: FULL, duration: T.end - T.open, ease: "power2.inOut", immediateRender: false }, T.open);
+          tl.fromTo("#hook-l1", { y: 0 }, { y: -70, duration: T.open - T.split, ease: "power2.out" }, T.split);
+          tl.fromTo("#hook-l2", { y: 0 }, { y: 70, duration: T.open - T.split, ease: "power2.out" }, T.split);
+          // the lines ride the window's edges (896 → 0, 904 → 1920) and are gone before the map reaches them
+          tl.to("#hook-l1", { y: -70 - 896, duration: T.end - T.open, ease: "power2.inOut" }, T.open);
+          tl.to("#hook-l2", { y: 70 + 1016, duration: T.end - T.open, ease: "power2.inOut" }, T.open);
+          tl.to("#hook-head", { opacity: 0, duration: 0.28, ease: "power1.in" }, T.open);
+
+          window.__timelines["hook"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>

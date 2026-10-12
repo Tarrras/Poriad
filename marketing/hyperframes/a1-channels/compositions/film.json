@@ -1,0 +1,67 @@
+{
+  "duration": 14.6,
+  "brand": "Поряд",
+  "feature": {
+    "name": "Мапа подій",
+    "url": "https://poriad.app",
+    "viewer": "20–30-year-olds in Kyiv who follow a messenger folder of poster channels and still end up with no plan",
+    "task": "open the map of Kyiv, see events from ticket sites in one place, tap the gold stand-up pin and get the event card with its source «Афіша · Concert.ua»",
+    "before": "events are scattered across dozens of channels; reading them all is a second job: «20 каналів. 0 планів.»",
+    "after": "the events sit on one map, one tap opens the event"
+  },
+  "ground": "#0B0B0F",
+  "ink": "#F5F5F7",
+  "current": "left",
+  "brandReveal": "turn",
+  "beats": [
+    {
+      "id": "hook",
+      "start": 0,
+      "end": 5.4,
+      "line": "20 каналів. 0 планів. — давай простіше: одна мапа",
+      "picture": "the messenger folder «афіші 📌» (a folder glyph, no logos) rises and rushes at the camera; the channels fly out as glass pills with unread badges whose counters climb («куди піти · київ» 342, «концерти тижня» 99+, «стендап анонси» 57, «афіша вихідних» 1.2K, «вечірки» 640, «театр сьогодні» 28) around «20 каналів. 0 планів.» (Unbounded 900); the channels are muted one by one (pill dims, badge turns grey) and the cloud lifts out; then «давай простіше: одна мапа» assembles word by word, splits open around a map badge and a stand-up mic badge, and the badges step into the chip «Що поруч · Київ» and a crop of the real Kyiv map around the gold stand-up pin before the camera lurches onto the pin",
+      "moment": "M985 + M958",
+      "take": "M985: statements land on fast decelerating rises with a smear that dies in a few frames, hard swaps, a pill cloud grows and lifts out around the verdict. M958: words assemble one by one (tinted, then settling to ink), the sentence splits open around two badges that grow, the words fade, the badges step in one frame into the product's UI, and the camera lurches before a hard cut to the product UI. The counters are an illustration of noise, not data",
+      "ui": [],
+      "exit": "match cut: the hook lurches onto the gold stand-up pin and the phone opens on that same pin"
+    },
+    {
+      "id": "proof",
+      "start": 5.4,
+      "end": 10.4,
+      "line": "події з квиткових сайтів · на одній мапі · тап — і все про подію",
+      "picture": "the gold stand-up pin from the hook turns out to sit among the clusters of the Kyiv map as the camera pulls back to the whole map; the camera pushes to the pin, a tap selects it, the map crossfades to the zoomed map with the selected card «СТЕНДАП на А… · ЧТ, 22 ЖОВТ. · 19:00 · АФІША · CONCE…» and the camera pushes onto the card",
+      "moment": null,
+      "take": "real prod screens (map-kyiv, map-kyiv-card), untouched; one caption per action; camera pushes and crossfades only; the «Знайдено подій» pill is never zoomed into (it stays above the frame on the card push)",
+      "ui": [
+        "pull back over the clusters of map-kyiv to the whole map",
+        "tap the gold stand-up pin (436, 838)",
+        "crossfade to map-kyiv-card and push onto the selected card (y 1910–2244)"
+      ],
+      "exit": "carrier",
+      "carrier": "the stand-up card lifts out of the phone while the phone falls away"
+    },
+    {
+      "id": "turn",
+      "start": 10.4,
+      "end": 12.5,
+      "line": "Поряд збирає їх на одну мапу.",
+      "picture": "the stand-up card sits alone on the ground; the «Поряд» icon and coral name arrive under it, and «збирає їх на одну мапу.» lands right under the name, so the coral wordmark is the sentence's first word",
+      "moment": null,
+      "take": "inverse zoom for the brand reveal",
+      "ui": [],
+      "exit": "carrier",
+      "carrier": "the «Поряд» lockup travels up into the end card while the card leaves left and the line fades"
+    },
+    {
+      "id": "cta",
+      "start": 12.5,
+      "end": 14.6,
+      "line": "скільки в тебе каналів з афішами? 👇",
+      "picture": "the «Поряд» lockup over «твоє місто. нарешті видно.», «безкоштовно» and the App Store badge",
+      "moment": null,
+      "take": "end card; the official badge is a hard cut and never moves; the last 0.6 s hold still",
+      "ui": []
+    }
+  ]
+}

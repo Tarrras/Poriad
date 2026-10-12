@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8">
+  </head>
+  <body>
+    <template>
+      <style>
+        #card-root { position: absolute; inset: 0; pointer-events: none; }
+        /* the event card «Вистава «Будьте як вдома»», cut from the same screenshot the phone shows
+           (x 51–1041, y 1910–2240 px, radius 60 px; 760 / 990 = 0.767677 canvas px per px) */
+        #card-move { position: absolute; left: 160px; top: 800px; width: 760px; height: 253.3px; transform-origin: 0 0; }
+        #card-shadow { position: absolute; inset: 0; border-radius: 46px; box-shadow: 0 50px 120px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.08); opacity: 0; }
+        #card-face { position: absolute; inset: 0; border-radius: 46px; overflow: hidden; background: #f2f2f4; }
+        /* natural-size crop scaled down, so the picture's box is exactly the card */
+        #card-face img { position: absolute; left: 0; top: 0; width: 990px; height: 330px; object-fit: none; object-position: -51px -1910px; transform: scale(0.767677); transform-origin: 0 0; display: block; }
+      </style>
+
+      <div id="card-root" data-composition-id="card" data-width="1080" data-height="1920">
+        <div id="card-move">
+          <div id="card-shadow"></div>
+          <div id="card-face"><img src="assets/ui/map-kyiv-weekend.png" alt="У суботу · 17:00 · Вистава «Будьте як вдома» · Афіша"></div>
+        </div>
+      </div>
+
+      <script>
+        (() => {
+          // Carrier proof → turn (local s; the section starts at proof 4.2 = the push onto the card has landed).
+          // The lift is centred on the seam (local 0.8 = the turn's start), so the card crosses it mid-move.
+          const T = { lift: 0.25, liftEnd: 1.35, out: 2.0, end: 2.35 };
+          // the card's rect inside the phone at the proof's last camera (proof.html PHONE.card)
+          const PUSH = { s: 2.2, at: [546, 2075], to: [540, 620] };
+          const CROP = [51, 1910, 990, 330];
+          const REST = { left: 160, top: 800, w: 760 };
+          const f = PUSH.s * (470 / 1206);
+          const MATCH = {
+            x: PUSH.to[0] + f * (CROP[0] - PUSH.at[0]) - REST.left,
+            y: PUSH.to[1] + f * (CROP[1] - PUSH.at[1]) - REST.top,
+            scale: (f * CROP[2]) / REST.w,
+          };
+          const tl = gsap.timeline({ paused: true });
+          // lifts out of the phone while the phone falls away, settles in the turn
+          tl.fromTo("#card-move", { ...MATCH }, { x: 0, y: 0, scale: 1, duration: T.liftEnd - T.lift, ease: "power3.inOut", immediateRender: true }, T.lift);
+          tl.fromTo("#card-shadow", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.out" }, T.lift + 0.1);
+          // leaves softly left with the turn's line
+          tl.to("#card-move", { x: -140, opacity: 0, duration: T.end - T.out, ease: "power2.in" }, T.out);
+          window.__timelines["card"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>

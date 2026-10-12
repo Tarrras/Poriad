@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8">
+  </head>
+  <body>
+    <template>
+      <style>
+      /* Fonts: local, variable Unbounded + Inter 400/600, split cyrillic/latin */
+      @font-face {
+        font-family: "Unbounded";
+        src: url("assets/fonts/unbounded-cyrillic.woff2") format("woff2");
+        font-weight: 200 900;
+        font-display: block;
+        unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+      }
+      @font-face {
+        font-family: "Unbounded";
+        src: url("assets/fonts/unbounded-latin.woff2") format("woff2");
+        font-weight: 200 900;
+        font-display: block;
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      @font-face {
+        font-family: "Inter";
+        src: url("assets/fonts/inter-cyrillic-400-normal.woff2") format("woff2");
+        font-weight: 400;
+        font-display: block;
+        unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+      }
+      @font-face {
+        font-family: "Inter";
+        src: url("assets/fonts/inter-cyrillic-600-normal.woff2") format("woff2");
+        font-weight: 600;
+        font-display: block;
+        unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+      }
+      @font-face {
+        font-family: "Inter";
+        src: url("assets/fonts/inter-latin-400-normal.woff2") format("woff2");
+        font-weight: 400;
+        font-display: block;
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      @font-face {
+        font-family: "Inter";
+        src: url("assets/fonts/inter-latin-600-normal.woff2") format("woff2");
+        font-weight: 600;
+        font-display: block;
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+        #cta-root { position: absolute; inset: 0; overflow: hidden; color: #f5f5f7; font-family: "Inter", system-ui, sans-serif; }
+        /* captions — one style for the whole film: a fixed band (x 160–920, y 280–416) above the picture,
+           one size, centred; they fade in and out in place and never move sideways */
+        .caption-band { position: absolute; left: 160px; width: 760px; top: 280px; height: 136px; display: flex; align-items: center; justify-content: center; }
+        .caption { display: block; max-width: 760px; font-family: "Unbounded", system-ui, sans-serif; font-weight: 300; font-size: 60px; line-height: 1.13; letter-spacing: -0.045em; text-align: center; text-wrap: balance; color: #f5f5f7; text-shadow: 0 8px 30px rgba(0, 0, 0, 0.6); }
+        /* under the «Поряд» lockup (a root carrier, y 470–870), as in the brand end card */
+        #cta-tagline { position: absolute; left: 0; width: 1080px; top: 912px; text-align: center; font-family: "Unbounded", system-ui, sans-serif; font-weight: 300; font-size: 44px; line-height: 1; letter-spacing: -0.045em; color: #a1a1a8; white-space: nowrap; }
+        #cta-col { position: absolute; left: 160px; width: 760px; top: 1010px; display: flex; flex-direction: column; align-items: center; }
+        #cta-free { font-weight: 600; font-size: 34px; line-height: 1.2; color: #a1a1a8; }
+        #cta-store { display: flex; flex-direction: column; align-items: center; opacity: 0; }
+        /* Official badge: untouched file, height 104px, no transform/filter/shadow */
+        #cta-store .badge { display: block; height: 104px; width: auto; margin-top: 26px; }
+        #cta-store .tm { margin-top: 30px; max-width: 760px; text-align: center; font-weight: 400; font-size: 22px; line-height: 1.35; color: #8a8a93; }
+      </style>
+
+      <div id="cta-root" data-composition-id="cta" data-width="1080" data-height="1920">
+        <div id="cta-row" class="caption-band"><div id="cta-bait" class="caption"></div></div>
+        <div id="cta-tagline"></div>
+        <div id="cta-col">
+          <div id="cta-free"></div>
+          <div id="cta-store">
+            <img class="badge" src="assets/appstore-badge-uk.svg" alt="Завантажте в App Store">
+            <div class="tm" id="cta-tm"></div>
+          </div>
+        </div>
+      </div>
+
+      <script>
+        (() => {
+          const COPY = {
+            bait: "скільки ти вже в новому місті? 👇",
+            tagline: "твоє місто. нарешті видно.",
+            free: "безкоштовно",
+            tm: "Apple, логотип Apple і App Store є торговельними марками Apple Inc.",
+          };
+          const T = { tagline: 0.66, free: 0.76, store: 1.06, end: 2.1 }; // the lockup lands at 0.61
+          const $ = (s) => document.querySelector(s);
+          $("#cta-bait").textContent = COPY.bait;
+          $("#cta-tagline").textContent = COPY.tagline;
+          $("#cta-free").textContent = COPY.free;
+          $("#cta-tm").textContent = COPY.tm;
+          const tl = gsap.timeline({ paused: true });
+          tl.fromTo("#cta-bait", { opacity: 0, y: 20, filter: "blur(8px)" }, { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.45, ease: "power3.out" }, 0.05);
+          tl.fromTo("#cta-tagline", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, T.tagline);
+          tl.fromTo("#cta-free", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, T.free);
+          tl.set("#cta-store", { opacity: 1 }, T.store); // hard cut, the badge itself is never animated
+          window.__timelines["cta"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>

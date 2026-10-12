@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8">
+  </head>
+  <body>
+    <template>
+      <style>
+      /* Fonts: local, variable Unbounded + Inter 400/600, split cyrillic/latin */
+      @font-face {
+        font-family: "Unbounded";
+        src: url("assets/fonts/unbounded-cyrillic.woff2") format("woff2");
+        font-weight: 200 900;
+        font-display: block;
+        unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+      }
+      @font-face {
+        font-family: "Unbounded";
+        src: url("assets/fonts/unbounded-latin.woff2") format("woff2");
+        font-weight: 200 900;
+        font-display: block;
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      @font-face {
+        font-family: "Inter";
+        src: url("assets/fonts/inter-cyrillic-400-normal.woff2") format("woff2");
+        font-weight: 400;
+        font-display: block;
+        unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+      }
+      @font-face {
+        font-family: "Inter";
+        src: url("assets/fonts/inter-cyrillic-600-normal.woff2") format("woff2");
+        font-weight: 600;
+        font-display: block;
+        unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+      }
+      @font-face {
+        font-family: "Inter";
+        src: url("assets/fonts/inter-latin-400-normal.woff2") format("woff2");
+        font-weight: 400;
+        font-display: block;
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      @font-face {
+        font-family: "Inter";
+        src: url("assets/fonts/inter-latin-600-normal.woff2") format("woff2");
+        font-weight: 600;
+        font-display: block;
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+        #proof-root { position: absolute; inset: 0; overflow: hidden; color: #f5f5f7; font-family: "Inter", system-ui, sans-serif; }
+        #proof-exit, #proof-enter, #proof-cam { position: absolute; inset: 0; }
+        /* the picture fades out above y 412, so the caption band above it always sits on the dark ground */
+        #proof-exit { transform-origin: 540px 930px; -webkit-mask-image: linear-gradient(to bottom, transparent 0, transparent 412px, #000 470px); mask-image: linear-gradient(to bottom, transparent 0, transparent 412px, #000 470px); }
+        #proof-enter { transform-origin: 540px 923px; }
+        #proof-cam { transform-origin: 0 0; }
+        #proof-glow { position: absolute; left: 40px; top: 420px; width: 1000px; height: 1000px; border-radius: 50%; background: radial-gradient(circle closest-side, rgba(109, 74, 201, 0.3), rgba(109, 74, 201, 0)); }
+        #proof-phone {
+          position: absolute;
+          left: 293px;
+          top: 400px;
+          width: 494px;
+          height: 1046px;
+          padding: 12px;
+          border-radius: 66px;
+          background: #050506;
+          box-shadow: 0 0 0 2px #3b3b44, 0 0 0 4px #16161b, inset 0 0 0 1px rgba(255, 255, 255, 0.09), 0 80px 160px rgba(0, 0, 0, 0.6);
+        }
+        #proof-screen { position: relative; width: 470px; height: 1022px; border-radius: 54px; overflow: hidden; background: #050506; }
+        #proof-screen .shot, #proof-screen .sheet-wrap, #proof-screen .dim, #proof-screen .glare { position: absolute; left: 0; top: 0; width: 470px; height: 1022px; }
+        #proof-screen .shot { display: block; object-fit: cover; }
+        #proof-screen .dim { background: #050506; opacity: 0; }
+        #proof-screen .glare { background: linear-gradient(118deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0) 38%); }
+        #proof-screen .tap { position: absolute; width: 44px; height: 44px; border-radius: 50%; background: rgba(120, 120, 128, 0.34); box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.95), 0 6px 16px rgba(0, 0, 0, 0.35); opacity: 0; }
+        #proof-screen .ripple { position: absolute; width: 44px; height: 44px; border-radius: 50%; box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.95); opacity: 0; }
+
+        /* captions — one style for the whole film: a fixed band (x 160–920, y 280–416) above the picture,
+           one size, centred; they fade in and out in place and never move sideways */
+        .caption-band { position: absolute; left: 160px; width: 760px; top: 280px; height: 136px; display: flex; align-items: center; justify-content: center; }
+        .caption { display: block; max-width: 760px; font-family: "Unbounded", system-ui, sans-serif; font-weight: 300; font-size: 60px; line-height: 1.13; letter-spacing: -0.045em; text-align: center; text-wrap: balance; color: #f5f5f7; text-shadow: 0 8px 30px rgba(0, 0, 0, 0.6); }
+      </style>
+
+      <div data-hf-id="hf-b5rk" id="proof-root" data-composition-id="proof" data-width="1080" data-height="1920">
+        <div data-hf-id="hf-vv0y" id="proof-exit">
+          <div data-hf-id="hf-cam0" id="proof-enter">
+            <div data-hf-id="hf-wpll" id="proof-glow"></div>
+            <div data-hf-id="hf-f010" id="proof-cam" data-layout-allow-overflow="true">
+              <div data-hf-id="hf-ztdm" id="proof-phone"><div data-hf-id="hf-2sbq" id="proof-screen"></div></div>
+            </div>
+          </div>
+        </div>
+        <div data-hf-id="hf-arq5" id="proof-caps"></div>
+      </div>
+
+      <script>
+        (() => {
+          // ═══ PHONE — UI sequence (local s; root = local + 5.25). Points are screenshot px (1206×2622); cam.at lands on canvas cam.to at zoom cam.s ═══
+          // Music hits fall on local 1.25 (sheet up), 2.75 (the city switches), 4.0 (the weekend lands)
+          const PHONE = {
+            dir: "assets/ui/",
+            shots: { kyiv: "map-kyiv.png", picker: "picker-map.png", lviv: "map-lviv.png", weekend: "map-lviv-weekend.png" },
+            sheetTop: 1230, // the «Знайти місто» sheet in picker-map.png
+            // match cut: the hook ends on the «Київ ⌄» switch (360 × 1.12 × 1.3 px wide, centre 540, 880);
+            // the phone opens on that same chip at the same size, then pulls back over the whole Kyiv map
+            match: { s: 4.311, at: [206, 460.5], to: [540, 880] },
+            overview: { t: 0, d: 0.85, s: 1, at: [603, 1311], to: [540, 923] },
+            // tap «Київ ⌄» → the screen dims and «Знайти місто» slides up
+            city: { t: 0.9, tap: [203, 462] },
+            sheet: 1.0,
+            // the camera pushes onto the city list, a tap on «Львів»
+            lviv: { t: 2.2, tap: [150, 2447], cam: { t: 1.35, d: 0.5, s: 1.55, at: [603, 1960], to: [540, 930] } },
+            drop: 2.3,
+            // the camera rises to the chip row while the sheet drops (close enough to read the chip); on the 2.75 hit
+            // «Київ» becomes «Львів» in close-up and the map changes city
+            chips: { t: 2.25, d: 0.5, s: 1.85, at: [603, 462], to: [540, 600] },
+            swap: 2.75,
+            drift: { t: 2.75, d: 1.1, s: 1.95, at: [603, 462], to: [540, 600] },
+            // tap «Будь-коли» → the row now reads «Вихідні» (selected) on the 4.0 hit
+            weekend: { t: 3.85, tap: [1000, 462], swap: 4.0 },
+            // push onto the «Вечір джазу» card (x 162–1157, y 1908–2244), framed high so the «Знайдено подій» pill above it
+            // (y 1751–1862) sits in the caption mask: the film shows the switch, not a count
+            card: { t: 4.25, d: 0.55, s: 2.25, at: [659.5, 2076], to: [540, 625] },
+            out: 5.05, // the card is handed to the root here; the phone falls away around it
+          };
+          const CAPTIONS = [
+            // one caption per action, on screen while that action happens
+            { text: "перемикаєш місто", at: 0.2, out: 3.3 },          // tap «Київ ⌄» 0.9, «Львів» 2.2, the map switches 2.75
+            { text: "обираєш «вихідні»", at: 3.35, out: 4.35 },       // tap 3.85, «Вихідні» 4.0
+            { text: "і вихідні вже з планом", at: 4.4, out: 5.4 },     // the «Вечір джазу» card, 4.8 → lift 5.05
+          ];
+
+          const tl = gsap.timeline({ paused: true });
+          const $ = (s) => document.querySelector(s);
+          const el = (tag, cls, text) => {
+            const n = document.createElement(tag);
+            if (cls) n.className = cls;
+            if (text != null) n.textContent = text;
+            return n;
+          };
+
+          const K = 470 / 1206;
+          const SCREEN_H = 1022;
+          const SCREEN_X = 540 - 235;
+          const SCREEN_Y = 400 + 12;
+          const screen = $("#proof-screen");
+          const shot = (name, parent = screen) => {
+            const img = el("img", "shot");
+            img.src = PHONE.dir + name;
+            img.alt = "";
+            return parent.appendChild(img);
+          };
+          const camState = ({ s, at, to }) => ({ scale: s, x: to[0] - s * (SCREEN_X + at[0] * K), y: to[1] - s * (SCREEN_Y + at[1] * K) });
+          const camTo = (c, ease = "expo.inOut") => tl.to("#proof-cam", { ...camState(c), duration: c.d, ease }, c.t);
+          const tap = ([px, py], t) => {
+            const place = (n) => {
+              n.style.left = `${(px * K - 22).toFixed(1)}px`;
+              n.style.top = `${(py * K - 22).toFixed(1)}px`;
+              return n;
+            };
+            const d = place(screen.appendChild(el("div", "tap")));
+            const r = place(screen.appendChild(el("div", "ripple")));
+            tl.fromTo(d, { opacity: 0, scale: 0.7 }, { opacity: 1, scale: 1, duration: 0.08, ease: "power2.out" }, t - 0.06);
+            tl.to(d, { opacity: 0, scale: 0.85, duration: 0.22, ease: "power1.in" }, t + 0.1);
+            tl.fromTo(r, { opacity: 0 }, { opacity: 0.8, duration: 0.01, ease: "none" }, t);
+            tl.fromTo(r, { scale: 1 }, { scale: 2.2, duration: 0.45, ease: "power2.out" }, t);
+            tl.to(r, { opacity: 0, duration: 0.44, ease: "power1.out" }, t + 0.01);
+          };
+
+          shot(PHONE.shots.kyiv);
+          const lviv = shot(PHONE.shots.lviv);
+          const weekend = shot(PHONE.shots.weekend);
+          const dim = screen.appendChild(el("div", "dim"));
+          // the sheet: picker-map.png below its sheet edge, slid in from the bottom of the screen
+          const wSheet = screen.appendChild(el("div", "sheet-wrap"));
+          wSheet.style.clipPath = `inset(${(PHONE.sheetTop * K).toFixed(1)}px 0 0 0 round 6px 6px 0 0)`;
+          shot(PHONE.shots.picker, wSheet);
+          screen.appendChild(el("div", "glare"));
+          const SHEET_OFF = SCREEN_H - PHONE.sheetTop * K;
+
+          // match cut onto the same chip, then the camera pulls back over the whole Kyiv map
+          tl.fromTo("#proof-cam", camState(PHONE.match), { ...camState(PHONE.overview), duration: PHONE.overview.d, ease: "expo.out", immediateRender: true }, PHONE.overview.t);
+          // tap «Київ ⌄» → the map dims (as much as the app dims it), «Знайти місто» slides up
+          tap(PHONE.city.tap, PHONE.city.t);
+          tl.fromTo(dim, { opacity: 0 }, { opacity: 0.15, duration: 0.35, ease: "power1.out" }, PHONE.sheet);
+          tl.fromTo(wSheet, { y: SHEET_OFF }, { y: 0, duration: 0.5, ease: "expo.out", immediateRender: true }, PHONE.sheet);
+          // push onto the list, tap «Львів»
+          camTo(PHONE.lviv.cam);
+          tap(PHONE.lviv.tap, PHONE.lviv.t);
+          // the sheet drops, the camera rises to the chip row, and on the hit the map changes city
+          tl.to(wSheet, { y: SHEET_OFF, duration: 0.25, ease: "power2.in" }, PHONE.drop);
+          tl.to(dim, { opacity: 0, duration: 0.25, ease: "power1.in" }, PHONE.drop);
+          camTo(PHONE.chips);
+          tl.fromTo(lviv, { opacity: 0 }, { opacity: 1, duration: 0.25, ease: "power1.inOut" }, PHONE.swap);
+          camTo(PHONE.drift, "power1.out");
+          // tap «Будь-коли» → «Вихідні»
+          tap(PHONE.weekend.tap, PHONE.weekend.t);
+          tl.fromTo(weekend, { opacity: 0 }, { opacity: 1, duration: 0.22, ease: "power1.inOut" }, PHONE.weekend.swap);
+          // push onto «Вечір джазу»
+          camTo(PHONE.card);
+          // the root lifts the card out at PHONE.out; the phone falls away around it
+          tl.to("#proof-exit", { scale: 0.92, opacity: 0, filter: "blur(12px)", duration: 0.4, ease: "power2.in" }, PHONE.out);
+
+          // captions
+          CAPTIONS.forEach((c) => {
+            const cap = $("#proof-caps").appendChild(el("div", "caption-band")).appendChild(el("div", "caption", c.text));
+            tl.fromTo(cap, { opacity: 0, y: 20, filter: "blur(8px)" }, { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.45, ease: "power3.out" }, c.at);
+            tl.to(cap, { opacity: 0, filter: "blur(6px)", duration: 0.25, ease: "power2.in" }, c.out - 0.25);
+          });
+
+          window.__timelines["proof"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>
