@@ -2,82 +2,33 @@ package app.poruch.android.feature.home
 
 import app.poruch.domain.ArtistHit
 import app.poruch.domain.EventCategory
-import app.poruch.domain.ChatUnread
 import app.poruch.domain.CityResult
-import app.poruch.domain.Event
-import app.poruch.domain.FeedEntry
 import app.poruch.domain.FeedFilter
-import app.poruch.domain.HomeLocation
 import app.poruch.domain.HomeRules
 import app.poruch.domain.Place
 import app.poruch.shared.DateFilter
+import app.poruch.shared.HomeScreenState
 
-/** Стан головної: усе вже відфільтроване й посортоване для рендеру. */
+/**
+ * Стан головної: [screen] згортає спільний стор [app.poruch.shared.HomePresenter] — одна згортка на обидві
+ * платформи; тут лише те, що належить цьому екрану на цьому пристрої: режим пошуку, ліміти, листи.
+ */
 data class HomeState(
-    val signedIn: Boolean = false,
-    val cityName: String = "",
-    val loading: Boolean = false,
-    /** Потяг вниз у дорозі. Окремо від [loading]: те піднімає й мапа, а індикатор жесту має слухати лише жест. */
+    val screen: HomeScreenState = HomeScreenState(),
+    /** Потяг вниз у дорозі. Окремо від `loading`: те піднімає й мапа, а індикатор жесту має слухати лише жест. */
     val refreshing: Boolean = false,
-    /** «Ваше»: до [HomeRules.PERSONAL_LIMIT] своїх подій, спершу ті, де хтось чекає відповіді. */
-    val personal: List<PersonalRow> = emptyList(),
-    /** Майбутні події закладів і організаторів, за якими стежу, найближчі першими. Порожньо — рядка «Підписки» нема. */
-    val followed: List<Event> = emptyList(),
-    /** Скільки подій, що чекають відповіді (чат, запит), у [personal] не влізло: рядок «Чекають відповіді: ще N». */
-    val moreWaiting: Int = 0,
-    /** «Від людей»: зустрічі з вільним місцем окремою рейкою, коли їх набралось досить ([app.poruch.domain.HomeRules.people]); інакше порожньо. */
-    val people: List<FeedEntry> = emptyList(),
-    /** «У місті»: [HomeRules.HERO_COUNT] великих карток, далі сітка, вже звужена [feedFilter]. */
-    val feed: List<FeedEntry> = emptyList(),
-    /** Чипи над сіткою: що з неї можна відфільтрувати. Порожньо — рядка нема. */
-    val chips: List<FeedFilter> = emptyList(),
-    /** Обраний чип; якщо його вже нема в [chips] (дані оновились), стрічка лишається цілою. */
-    val feedFilter: FeedFilter = FeedFilter(),
-    /** Скільки рядків [feed] видно; «Показати ще» додає [HomeRules.FEED_PAGE]. */
-    val feedLimit: Int = HomeRules.FEED_PAGE,
-    /** Скільки подій в області, без фільтрів мапи. */
-    val totalFound: Int = 0,
-    /** Скільки відкритих зустрічей від людей у місті всього: число в «Усі N» біля «Від людей», рейка показує лише перші. */
-    val openRooms: Int = 0,
-    val savedIds: List<String> = emptyList(),
-    val waitlistedIds: List<String> = emptyList(),
-    /** Пошук головної, окремий від мапи: фільтр одного екрана не порожнить інший. */
-    val searchText: String = "",
     /** Режим пошуку: тап у поле ховає стрічку, «Скасувати» чи «назад» повертає її без фільтрів. */
     val searchMode: Boolean = false,
-    /** Результати пошуку одним списком, без дайджесту. Лише ті, чиї картки вже приїхали. */
-    val results: List<Event> = emptyList(),
     /** Скільки результатів показуємо; «Показати ще» додає [RESULTS_PAGE]. */
     val resultsLimit: Int = RESULTS_PAGE,
-    /** Скільки результатів прийшло в індексі: більше за [resultsLimit] — є що показати ще. */
-    val resultsIndexed: Int = 0,
-    /** Скільки знайдено насправді. */
-    val resultsTotal: Int = 0,
-    /** Заклади за тим самим запитом: секція «Місця» під подіями. */
-    val places: List<Place> = emptyList(),
-    /** Артисти за тим самим запитом: секція «Артисти» під «Місцями». */
-    val artists: List<ArtistHit> = emptyList(),
-    val searchLoading: Boolean = false,
-    /** Пошук по всіх містах, а не лише в [cityName]. Фільтри пошуку звужують лише знайдене, не стрічку. */
-    val searchEverywhere: Boolean = false,
-    val searchCategory: EventCategory? = null,
-    val searchDate: DateFilter = DateFilter.ANY,
-    /** Місто з подіями, назване в пошуку, крім поточного: текстовий пошук іде лише в межах міста. */
-    val cityMatch: HomeLocation? = null,
-    /** Шторка вибору міста з шапки і підказки геопошуку для неї. */
-    val citySheet: Boolean = false,
-    val cities: List<CityResult> = emptyList()
-) {
-    val searching get() = searchText.isNotBlank()
-    val isEmpty get() = if (searching) results.isEmpty() && places.isEmpty() && artists.isEmpty() else personal.isEmpty() && people.isEmpty() && feed.isEmpty()
-    val busy get() = if (searching) searchLoading else loading
-}
+    /** Скільки рядків `feed` видно; «Показати ще» додає [HomeRules.FEED_PAGE]. */
+    val feedLimit: Int = HomeRules.FEED_PAGE,
+    /** Шторка вибору міста з шапки. */
+    val citySheet: Boolean = false
+)
 
 /** Скільки результатів пошуку головна показує за раз. */
 const val RESULTS_PAGE = 12
-
-/** Рядок «Ваше»: своя подія, її непрочитаний чат і скільки людей просяться. */
-data class PersonalRow(val event: Event, val chat: ChatUnread?, val requests: Int, val organizing: Boolean)
 
 sealed interface HomeIntent {
     /** Тап у поле пошуку. */

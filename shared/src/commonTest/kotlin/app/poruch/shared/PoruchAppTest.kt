@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.*
 import kotlin.test.*
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.hours
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
@@ -1786,6 +1787,34 @@ class PoruchAppTest {
         } finally { PoruchAnalytics.sink=null }
     }
 
+    /** Презентер головної: одна згортка на обидві платформи, перерахунок лише зі зміною входів, чип звужує сітку. */
+    @Test fun homePresenterDerivesFeedOncePerInputChange()=runTest {
+        val events=Events()
+        val soon=(Clock.System.now()+1.hours).toString()
+        // Афіші, не кімнати: відкриті кімнати пішли б у секцію «Від людей», і сітці не лишилось би що звужувати.
+        events.results=(1..12).map {
+            event("e$it",if(it%2==0) EventCategory.MUSIC else EventCategory.SPORT,soon).copy(gathering=null,listing=Listing("Karabas"))
+        }
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
+        val presenter=HomePresenter(app,backgroundScope,StandardTestDispatcher(testScheduler))
+        runCurrent()
+        val first=presenter.state.value
+        assertTrue(first.feed.isNotEmpty())
+        val known=events.results.map { it.id }.toSet()
+        assertTrue(first.feed.all { it.event.id in known })
+        // Емісія стору без зміни входів головної (прапорець пристрою) не перераховує стан: той самий екземпляр.
+        app.setRemindersEnabled(true); runCurrent()
+        assertSame(first,presenter.state.value)
+        // Чип категорії звужує сітку, великі картки стоять.
+        val chip=first.chips.first { it.kind==FeedFilterKind.CATEGORY }
+        presenter.selectFeedFilter(chip); runCurrent()
+        val filtered=presenter.state.value
+        assertEquals(first.feed.take(HomeRules.HERO_COUNT),filtered.feed.take(HomeRules.HERO_COUNT))
+        assertTrue(filtered.feed.drop(HomeRules.HERO_COUNT).isNotEmpty())
+        assertTrue(filtered.feed.drop(HomeRules.HERO_COUNT).all { it.event.category==chip.category })
+        assertEquals(chip,filtered.feedFilter)
+        app.close()
+    }
 }
 
 /** Підробка віддає індекс і перші картки однією відповіддю, як сервер. */

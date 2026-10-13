@@ -3,7 +3,9 @@ import Shared
 
 /// Головна з двох зон: «Ваше» (плани, чати, підписки) і «У місті» (одна стрічка з даних, які вже завантажила мапа).
 struct HomeView: View {
-    @EnvironmentObject var model: AppModel
+    /// Без підписки на весь `AppModel`: головна перемальовується зі своїм `HomeScreenState`, не з кожною емісією стору.
+    @Environment(\.appModel) private var appModel
+    private var model: AppModel { appModel! }
     var openMap: () -> Void
     var openProfile: () -> Void
     /// Вкладка «Мої події»: посилання біля блоку «Ваше».
@@ -17,7 +19,7 @@ struct HomeView: View {
     /// Екран підписок: рядок у «Ваше».
     var openFollows: () -> Void
 
-    private var view: HomePresentation { model.home }
+    private var view: HomeScreenState { model.homeScreen.state }
     @FocusState private var searchFocused: Bool
     /// Режим пошуку: вмикає тап по іконці, вимикає лише «Скасувати». Стрічка головної і фільтри
     /// пошуку ніколи не видно разом, тож стертий текст лишає в режимі з підказкою, а не повертає стрічку.
@@ -28,8 +30,6 @@ struct HomeView: View {
     @State private var resultsLimit = homeResultsLimit
     /// Скільки рядків «У місті» показано.
     @State private var feedLimit = Int(HomeRules.shared.FEED_PAGE)
-    /// Обраний чип над сіткою; якщо його вже нема в ряду (дані оновились), стрічка лишається цілою.
-    @State private var feedFilter = allFeed
     /// Шторка вибору міста з шапки: та сама, що на мапі.
     @State private var citySearch = false
 
@@ -55,7 +55,7 @@ struct HomeView: View {
     }
 
     /// Текст, що лишився зі спільного стану, теж тримає режим: інакше фільтри діяли б невидимо.
-    private func searchActive(_ view: HomePresentation) -> Bool { searchMode || view.searching }
+    private func searchActive(_ view: HomeScreenState) -> Bool { searchMode || view.searching }
 
     /// Тап по іконці пошуку: поле з'являється закріпленим зверху, курсор одразу в ньому.
     private func startSearch() {
@@ -71,7 +71,7 @@ struct HomeView: View {
         withMotion { searchMode = false }
     }
 
-    private func feed(_ view: HomePresentation) -> some View {
+    private func feed(_ view: HomeScreenState) -> some View {
         ScrollView {
             VStack(spacing: 0) {
                 // Поза пошуком шапка — перший рядок стрічки і прокручується разом з нею.
@@ -105,7 +105,7 @@ struct HomeView: View {
         }
     }
 
-    private func headerView(_ view: HomePresentation) -> some View {
+    private func headerView(_ view: HomeScreenState) -> some View {
         let searchActive = searchActive(view)
         return VStack(alignment: .leading, spacing: Space.lg) {
             // Під час пошуку великий заголовок ховається: місце — фільтрам і результатам.
@@ -151,7 +151,7 @@ struct HomeView: View {
     }
 
     /// Де й що шукати: місто чи всюди, дата, категорія. Ті самі чипи й підписи, що на мапі.
-    private func searchFilters(_ view: HomePresentation) -> some View {
+    private func searchFilters(_ view: HomeScreenState) -> some View {
         VStack(alignment: .leading, spacing: Space.sm) {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: Space.sm) {
@@ -204,7 +204,7 @@ struct HomeView: View {
 
     /// «Від людей»: зустрічі з вільним місцем окремою рейкою, коли їх набралось досить (`HomeRules.people`). Ті самі постери,
     /// що в сітці міста, але без підпису походження: заголовок секції вже каже, що це люди.
-    @ViewBuilder private func peopleSection(_ view: HomePresentation) -> some View {
+    @ViewBuilder private func peopleSection(_ view: HomeScreenState) -> some View {
         if !view.people.isEmpty {
             VStack(alignment: .leading, spacing: Space.md) {
                 SectionHeader(
@@ -230,11 +230,11 @@ struct HomeView: View {
 
     /// «Ваше»: найближчий план карткою з діями, решта планів і підписки — рядками під нею. Гостю блоку нема, як і людині без
     /// планів і підписок: створити подію їй пропонує плашка вгорі, а порожній рядок «Планів нема» лише дублював би її.
-    @ViewBuilder private func personalSection(_ view: HomePresentation) -> some View {
+    @ViewBuilder private func personalSection(_ view: HomeScreenState) -> some View {
         if !view.personal.isEmpty || !view.followed.isEmpty { personalBlock(view) }
     }
 
-    private func personalBlock(_ view: HomePresentation) -> some View {
+    private func personalBlock(_ view: HomeScreenState) -> some View {
         // Велика картка — першому плану, що скоро чи чекає на людину; минула чи далека подія лишається рядком.
         let now = nowInstant()
         let zone = TimeZone.current.identifier
@@ -245,7 +245,7 @@ struct HomeView: View {
         let rows = view.personal.enumerated().filter { $0.offset != leadIndex }.map(\.element)
         var items: [AnyView] = []
         items += rows.map { row in AnyView(PlanRow(row: row, open: { open(row.event.id, from: "home_your") }, chat: { openChat(row.event) })) }
-        if view.moreWaiting > 0 { items.append(AnyView(waitingRow(view.moreWaiting))) }
+        if view.moreWaiting > 0 { items.append(AnyView(waitingRow(Int(view.moreWaiting)))) }
         if !view.followed.isEmpty { items.append(AnyView(followsRow(view.followed))) }
         let grouped = items
         return VStack(alignment: .leading, spacing: Space.md) {
@@ -301,20 +301,18 @@ struct HomeView: View {
     }
 
     /// «У місті»: три великі картки, що гортаються (сусідня визирає), чипи, далі сітка постерів у дві колонки.
-    @ViewBuilder private func cityFeed(_ view: HomePresentation) -> some View {
+    @ViewBuilder private func cityFeed(_ view: HomeScreenState) -> some View {
         if !view.feed.isEmpty {
             let picks = Array(view.feed.prefix(homeHeroCount))
-            let rest = Array(view.feed.dropFirst(homeHeroCount))
-            let filter = view.chips.contains(feedFilter) ? feedFilter : allFeed
-            let shown = filter.kind == .all
-                ? rest : HomeRules.shared.apply(entries: rest, filter: filter, now: nowInstant(), zoneId: TimeZone.current.identifier)
+            // Сітку вже звузив презентер обраним чипом (`view.feedFilter`).
+            let shown = Array(view.feed.dropFirst(homeHeroCount))
             VStack(alignment: .leading, spacing: Space.md) {
                 SectionHeader(
                     title: Copy.home_in_city, actionLabel: view.totalFound > 0 ? Copy.home_all_count("\(view.totalFound)") : nil,
                     action: view.totalFound > 0 ? showCity : nil
                 ).padding(.horizontal, Space.page)
                 heroPager(picks, view)
-                if !view.chips.isEmpty { feedChips(view.chips, selected: filter) }
+                if !view.chips.isEmpty { feedChips(view.chips, selected: view.feedFilter) }
                 if !shown.isEmpty {
                     LazyVGrid(
                         columns: [GridItem(.flexible(), spacing: Space.md, alignment: .top), GridItem(.flexible(), alignment: .top)],
@@ -355,7 +353,7 @@ struct HomeView: View {
             HStack(spacing: Space.sm) {
                 ForEach(chips, id: \.self) { chip in
                     Chip(label: feedChipLabel(chip), dot: chip.category, selected: chip == selected) {
-                        withMotion { feedFilter = chip }
+                        withMotion { model.homeScreen.selectFeedFilter(chip) }
                         feedLimit = Int(HomeRules.shared.FEED_PAGE)
                     }
                 }
@@ -364,7 +362,7 @@ struct HomeView: View {
     }
 
     /// Гортана стрічка великих карток: наступна визирає з-за краю, як у Moonly.
-    private func heroPager(_ picks: [FeedEntry], _ view: HomePresentation) -> some View {
+    private func heroPager(_ picks: [FeedEntry], _ view: HomeScreenState) -> some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: Space.md) {
                 ForEach(picks, id: \.event.id) { entry in
@@ -382,7 +380,7 @@ struct HomeView: View {
     }
 
     /// Куди далі, коли стрічку переглянуто: мапа з усім, що є, і створення власної події.
-    private func moreRows(_ view: HomePresentation) -> some View {
+    private func moreRows(_ view: HomeScreenState) -> some View {
         VStack(alignment: .leading, spacing: Space.md) {
             SectionHeader(title: Copy.next)
             GroupedRows {
@@ -406,7 +404,7 @@ struct HomeView: View {
     private func showPeople() { model.app.showPeopleOnMap(); openMap() }
 
     /// Результати пошуку одним списком.
-    @ViewBuilder private func searchResults(_ view: HomePresentation) -> some View {
+    @ViewBuilder private func searchResults(_ view: HomeScreenState) -> some View {
         if let city = view.cityMatch {
             BannerCard(
                 title: Copy.home_switch_city("\(city.city)"),
@@ -437,7 +435,7 @@ struct HomeView: View {
             // Події, під ними — заклади з тим самим словом. Групові списки: видача пошуку — перелік, а не стрічка.
             VStack(alignment: .leading, spacing: Space.xl) {
                 if !view.results.isEmpty {
-                    let total = max(view.resultsTotal, view.results.count)
+                    let total = max(Int(view.resultsTotal), view.results.count)
                     let shown = view.results(limit: resultsLimit)
                     VStack(alignment: .leading, spacing: Space.sm) {
                         // «На мапі» несе запит на мапу явно: інакше пошуки екранів незалежні. Мапа — лише обране місто,
@@ -651,7 +649,7 @@ private struct PlanRow: View {
         } trailing: {
             if row.requests > 0 {
                 StatusBadge(
-                    text: "\(row.requests) \(ukrainianPlural(row.requests, "запит", "запити", "запитів"))",
+                    text: "\(row.requests) \(ukrainianPlural(Int(row.requests), "запит", "запити", "запитів"))",
                     tone: .accent, symbol: "person.badge.plus"
                 )
             } else if let role {
@@ -663,7 +661,6 @@ private struct PlanRow: View {
 }
 
 /// Без фільтра: усе, що є в сітці.
-private let allFeed = FeedFilter(kind: .all, category: nil)
 
 private func feedChipLabel(_ chip: FeedFilter) -> String {
     switch chip.kind {

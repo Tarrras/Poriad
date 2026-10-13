@@ -53,6 +53,7 @@ import app.poruch.domain.HomeRules
 import java.time.LocalDate
 import java.time.ZoneId
 import app.poruch.shared.DateFilter
+import app.poruch.shared.PersonalRow
 
 /** Головна з двох зон: «Ваше» (плани, чати, підписки) і «У місті» (одна стрічка з даних, які вже завантажила мапа). Малює [HomeState], шле [HomeIntent]. */
 @Composable
@@ -73,11 +74,11 @@ fun HomeScreen(state: HomeState, onIntent: (HomeIntent) -> Unit) {
             // Стрічка й фільтри пошуку ніколи разом: у режимі пошуку — видача або підказка.
             if (state.searchMode) item(key = "search") {
                 Column(Modifier.padding(top = Spacing.xxl), verticalArrangement = Arrangement.spacedBy(Spacing.xxl)) {
-                    if (state.searching) SearchResults(state, onIntent)
+                    if (state.screen.searching) SearchResults(state, onIntent)
                     else EmptyState(
                         PoruchIcons.search, stringResource(R.string.search_hint_title),
-                        if (state.searchEverywhere || state.cityName.isBlank()) stringResource(R.string.search_hint_everywhere)
-                        else stringResource(R.string.search_hint_in_city, state.cityName)
+                        if (state.screen.searchEverywhere || state.screen.cityName.isBlank()) stringResource(R.string.search_hint_everywhere)
+                        else stringResource(R.string.search_hint_in_city, state.screen.cityName)
                     )
                 }
             } else {
@@ -89,22 +90,22 @@ fun HomeScreen(state: HomeState, onIntent: (HomeIntent) -> Unit) {
                             stringResource(R.string.home_create_title), stringResource(R.string.home_create_subtitle),
                             { onIntent(HomeIntent.CreateEvent("home_top")) }, Modifier.padding(horizontal = Spacing.page)
                         )
-                        if (!state.signedIn) GuestLoginRow(onIntent)
+                        if (!state.screen.signedIn) GuestLoginRow(onIntent)
                     }
                 }
                 // Людині без планів і підписок «Ваше» не потрібне: створити подію їй пропонує плашка вгорі.
-                if (state.signedIn && (state.personal.isNotEmpty() || state.followed.isNotEmpty())) item(key = "yours") {
+                if (state.screen.signedIn && (state.screen.personal.isNotEmpty() || state.screen.followed.isNotEmpty())) item(key = "yours") {
                     Box(Modifier.padding(top = Spacing.xxl)) { PersonalSection(state, onIntent) }
                 }
-                if (state.people.isNotEmpty()) item(key = "people") { PeopleSection(state, onIntent) }
+                if (state.screen.people.isNotEmpty()) item(key = "people") { PeopleSection(state, onIntent) }
                 cityFeed(state, onIntent)
                 // Кінець стрічки не глухий кут: далі мапа чи власна подія.
-                if (state.feed.isNotEmpty()) item(key = "next") { MoreRows(state, onIntent) }
+                if (state.screen.feed.isNotEmpty()) item(key = "next") { MoreRows(state, onIntent) }
             }
         }
     }
     if (state.citySheet) CitySearchSheet(
-        state.cityName, state.cities, { onIntent(HomeIntent.SearchCity(it)) },
+        state.screen.cityName, state.screen.cities, { onIntent(HomeIntent.SearchCity(it)) },
         { onIntent(HomeIntent.SwitchCity(it)) }, { onIntent(HomeIntent.ShowCitySheet(false)) }
     )
 }
@@ -128,7 +129,7 @@ private fun Header(state: HomeState, onIntent: (HomeIntent) -> Unit) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        stringResource(R.string.home_subtitle, state.cityName),
+                        stringResource(R.string.home_subtitle, state.screen.cityName),
                         // Темніший за `inkSecondary`: на сяйві той дає лише ≈4:1.
                         style = MaterialTheme.typography.bodyMedium, color = colors.ink.copy(alpha = 0.7f),
                         modifier = Modifier.weight(1f, fill = false)
@@ -147,11 +148,11 @@ private fun Header(state: HomeState, onIntent: (HomeIntent) -> Unit) {
             Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
                 // Плейсхолдер каже, де шукаємо: інакше пошук лише в місті ніхто не помічав.
                 PoruchSearchField(
-                    state.searchText, { onIntent(HomeIntent.Search(it)) },
+                    state.screen.searchText, { onIntent(HomeIntent.Search(it)) },
                     when {
-                        state.searchEverywhere -> stringResource(R.string.home_search_everywhere)
-                        state.cityName.isBlank() -> stringResource(R.string.search_placeholder)
-                        else -> stringResource(R.string.home_search_in_city, state.cityName)
+                        state.screen.searchEverywhere -> stringResource(R.string.home_search_everywhere)
+                        state.screen.cityName.isBlank() -> stringResource(R.string.search_placeholder)
+                        else -> stringResource(R.string.home_search_in_city, state.screen.cityName)
                     },
                     Modifier.weight(1f), autoFocus = true
                 )
@@ -170,17 +171,17 @@ private fun SearchFilters(state: HomeState, onIntent: (HomeIntent) -> Unit) {
             Modifier.horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically
         ) {
-            if (state.cityName.isNotBlank()) PoruchChip(
-                state.cityName, !state.searchEverywhere, { onIntent(HomeIntent.SearchEverywhere(false)) }, PoruchIcons.pin
+            if (state.screen.cityName.isNotBlank()) PoruchChip(
+                state.screen.cityName, !state.screen.searchEverywhere, { onIntent(HomeIntent.SearchEverywhere(false)) }, PoruchIcons.pin
             )
             PoruchChip(
-                stringResource(R.string.everywhere), state.searchEverywhere,
-                { onIntent(HomeIntent.SearchEverywhere(!state.searchEverywhere)) }, Icons.Outlined.Public
+                stringResource(R.string.everywhere), state.screen.searchEverywhere,
+                { onIntent(HomeIntent.SearchEverywhere(!state.screen.searchEverywhere)) }, Icons.Outlined.Public
             )
             dateFilters.forEach { (key, label) ->
                 // Повторний тап знімає вибір, як на мапі.
-                PoruchChip(stringResource(label), state.searchDate == key, {
-                    onIntent(HomeIntent.SearchDate(if (state.searchDate == key) DateFilter.ANY else key))
+                PoruchChip(stringResource(label), state.screen.searchDate == key, {
+                    onIntent(HomeIntent.SearchDate(if (state.screen.searchDate == key) DateFilter.ANY else key))
                 })
             }
         }
@@ -188,10 +189,10 @@ private fun SearchFilters(state: HomeState, onIntent: (HomeIntent) -> Unit) {
             Modifier.horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically
         ) {
-            PoruchChip(stringResource(R.string.all), state.searchCategory == null, { onIntent(HomeIntent.SearchCategory(null)) })
+            PoruchChip(stringResource(R.string.all), state.screen.searchCategory == null, { onIntent(HomeIntent.SearchCategory(null)) })
             categories.forEach { key ->
-                PoruchChip(stringResource(categoryLabel(key)), state.searchCategory == key, {
-                    onIntent(HomeIntent.SearchCategory(if (state.searchCategory == key) null else key))
+                PoruchChip(stringResource(categoryLabel(key)), state.screen.searchCategory == key, {
+                    onIntent(HomeIntent.SearchCategory(if (state.screen.searchCategory == key) null else key))
                 }, dot = key)
             }
         }
@@ -228,16 +229,16 @@ private fun PeopleSection(state: HomeState, onIntent: (HomeIntent) -> Unit) {
     Column(Modifier.padding(top = Spacing.xxl), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
         SectionHeader(
             stringResource(R.string.from_people), Modifier.padding(horizontal = Spacing.page),
-            actionLabel = state.openRooms.takeIf { it > 0 }?.let { stringResource(R.string.home_all_count, it) },
+            actionLabel = state.screen.openRooms.takeIf { it > 0 }?.let { stringResource(R.string.home_all_count, it) },
             onAction = { onIntent(HomeIntent.ShowPeopleOnMap) }
         )
         Row(
             Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = Spacing.page),
             horizontalArrangement = Arrangement.spacedBy(Spacing.md), verticalAlignment = Alignment.Top
         ) {
-            state.people.forEach { entry ->
+            state.screen.people.forEach { entry ->
                 PosterCard(
-                    entry.event, entry.source, entry.event.id in state.savedIds, entry.event.id in state.waitlistedIds,
+                    entry.event, entry.source, entry.event.id in state.screen.savedIds, entry.event.id in state.screen.waitlistedIds,
                     { onIntent(HomeIntent.ToggleSaved(entry.event.id)) }, Modifier.width(PeopleCardWidth), showOrigin = false
                 ) { onIntent(HomeIntent.OpenEvent(entry.event.id, "home_people")) }
             }
@@ -254,17 +255,17 @@ private fun PersonalSection(state: HomeState, onIntent: (HomeIntent) -> Unit) {
     val now = kotlin.time.Clock.System.now()
     val zoneId = ZoneId.systemDefault().id
     // Велика картка — першому плану, що скоро чи чекає на людину; минула чи далека подія лишається рядком.
-    val lead = state.personal.firstOrNull { HomeRules.isLead(it.event, it.chat != null || it.requests > 0, now, zoneId) }
+    val lead = state.screen.personal.firstOrNull { HomeRules.isLead(it.event, it.chat != null || it.requests > 0, now, zoneId) }
     val inset = Modifier.padding(start = Spacing.lg + YourTile + Spacing.md)
     val rows = buildList<@Composable () -> Unit> {
-        state.personal.filter { it !== lead }.forEach { row -> add { PlanRow(row, onIntent) } }
-        if (state.moreWaiting > 0) add { WaitingRow(state.moreWaiting, onIntent) }
-        if (state.followed.isNotEmpty()) add { FollowsRow(state.followed) { onIntent(HomeIntent.OpenFollows) } }
+        state.screen.personal.filter { it !== lead }.forEach { row -> add { PlanRow(row, onIntent) } }
+        if (state.screen.moreWaiting > 0) add { WaitingRow(state.screen.moreWaiting, onIntent) }
+        if (state.screen.followed.isNotEmpty()) add { FollowsRow(state.screen.followed) { onIntent(HomeIntent.OpenFollows) } }
     }
     Column(Modifier.padding(horizontal = Spacing.page), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
         SectionHeader(
             stringResource(R.string.home_yours),
-            actionLabel = if (state.personal.isEmpty()) null else stringResource(R.string.my_events),
+            actionLabel = if (state.screen.personal.isEmpty()) null else stringResource(R.string.my_events),
             onAction = { onIntent(HomeIntent.OpenMyEvents) }
         )
         lead?.let { NextPlanCard(it, onIntent) }
@@ -475,18 +476,18 @@ private fun lane(source: FeedSource): String? = when (source) {
 /** «У місті»: великі картки, що гортаються (сусідня визирає), чипи, далі сітка постерів у дві колонки. */
 private fun LazyListScope.cityFeed(state: HomeState, onIntent: (HomeIntent) -> Unit) {
     when {
-        state.feed.isNotEmpty() -> {
-            val picks = state.feed.take(HomeRules.HERO_COUNT)
-            val rest = state.feed.drop(HomeRules.HERO_COUNT)
+        state.screen.feed.isNotEmpty() -> {
+            val picks = state.screen.feed.take(HomeRules.HERO_COUNT)
+            val rest = state.screen.feed.drop(HomeRules.HERO_COUNT)
             item(key = "city") {
                 Column(Modifier.padding(top = Spacing.xxl), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
                     SectionHeader(
                         stringResource(R.string.home_in_city), Modifier.padding(horizontal = Spacing.page),
-                        actionLabel = state.totalFound.takeIf { it > 0 }?.let { stringResource(R.string.home_all_count, it) },
+                        actionLabel = state.screen.totalFound.takeIf { it > 0 }?.let { stringResource(R.string.home_all_count, it) },
                         onAction = { onIntent(HomeIntent.ShowEverythingOnMap) }
                     )
-                    HeroPager(picks, state.savedIds, onIntent)
-                    if (state.chips.isNotEmpty()) FeedChips(state, onIntent)
+                    HeroPager(picks, state.screen.savedIds, onIntent)
+                    if (state.screen.chips.isNotEmpty()) FeedChips(state, onIntent)
                 }
             }
             val rows = rest.take(state.feedLimit).chunked(2)
@@ -497,7 +498,7 @@ private fun LazyListScope.cityFeed(state: HomeState, onIntent: (HomeIntent) -> U
                 ) {
                     pair.forEach { entry ->
                         PosterCard(
-                            entry.event, entry.source, entry.event.id in state.savedIds, entry.event.id in state.waitlistedIds,
+                            entry.event, entry.source, entry.event.id in state.screen.savedIds, entry.event.id in state.screen.waitlistedIds,
                             { onIntent(HomeIntent.ToggleSaved(entry.event.id)) }, Modifier.weight(1f)
                         ) { onIntent(HomeIntent.OpenEvent(entry.event.id, "home_poster")) }
                     }
@@ -511,10 +512,10 @@ private fun LazyListScope.cityFeed(state: HomeState, onIntent: (HomeIntent) -> U
                 )
             }
         }
-        state.isEmpty && state.loading -> item(key = "loading") {
+        state.screen.isEmpty && state.screen.loading -> item(key = "loading") {
             Box(Modifier.fillMaxWidth().padding(Spacing.section), contentAlignment = Alignment.Center) { PoruchLoader() }
         }
-        state.isEmpty -> item(key = "empty") {
+        state.screen.isEmpty -> item(key = "empty") {
             Box(Modifier.padding(top = Spacing.xxl)) {
                 EmptyState(
                     Icons.Outlined.Explore, stringResource(R.string.nothing_here), stringResource(R.string.nothing_here_hint),
@@ -532,8 +533,8 @@ private fun FeedChips(state: HomeState, onIntent: (HomeIntent) -> Unit) {
         Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = Spacing.page),
         horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically
     ) {
-        state.chips.forEach { chip ->
-            PoruchChip(feedChipLabel(chip), chip == state.feedFilter, { onIntent(HomeIntent.SelectFeedFilter(chip)) }, dot = chip.category)
+        state.screen.chips.forEach { chip ->
+            PoruchChip(feedChipLabel(chip), chip == state.screen.feedFilter, { onIntent(HomeIntent.SelectFeedFilter(chip)) }, dot = chip.category)
         }
     }
 }
@@ -634,7 +635,7 @@ private fun MoreRows(state: HomeState, onIntent: (HomeIntent) -> Unit) {
         GroupedRows {
             LinkRow(
                 PoruchIcons.map, stringResource(R.string.all_events_section), stringResource(R.string.all_events_hint),
-                { onIntent(HomeIntent.ShowEverythingOnMap) }, value = state.totalFound.takeIf { it > 0 }?.toString()
+                { onIntent(HomeIntent.ShowEverythingOnMap) }, value = state.screen.totalFound.takeIf { it > 0 }?.toString()
             )
             HairLine(Modifier.padding(start = Spacing.lg + 40.dp + Spacing.md))
             LinkRow(
@@ -649,50 +650,50 @@ private fun MoreRows(state: HomeState, onIntent: (HomeIntent) -> Unit) {
 @Composable
 private fun SearchResults(state: HomeState, onIntent: (HomeIntent) -> Unit) {
     val colors = Poruch.colors
-    state.cityMatch?.let { city ->
+    state.screen.cityMatch?.let { city ->
         BannerCard(
             stringResource(R.string.home_switch_city, city.city),
-            stringResource(R.string.home_switch_city_hint, state.cityName),
+            stringResource(R.string.home_switch_city_hint, state.screen.cityName),
             onClick = { onIntent(HomeIntent.SwitchCity(CityResult(city.city, city.latitude, city.longitude))) },
             modifier = Modifier.padding(horizontal = Spacing.page), icon = PoruchIcons.pin
         )
     }
     when {
-        state.isEmpty && state.busy -> Box(
+        state.screen.isEmpty && state.screen.busy -> Box(
             Modifier.fillMaxWidth().padding(Spacing.section), contentAlignment = Alignment.Center
         ) { PoruchLoader() }
         // У місті порожньо — найближчий крок розширити область, а не йти на мапу.
-        state.isEmpty && !state.searchEverywhere -> EmptyState(
-            PoruchIcons.search, stringResource(R.string.nothing_found), stringResource(R.string.nothing_found_city_hint, state.cityName),
+        state.screen.isEmpty && !state.screen.searchEverywhere -> EmptyState(
+            PoruchIcons.search, stringResource(R.string.nothing_found), stringResource(R.string.nothing_found_city_hint, state.screen.cityName),
             actionLabel = stringResource(R.string.search_everywhere), onAction = { onIntent(HomeIntent.SearchEverywhere(true)) }
         )
         // Усюди без кнопки: мапа шукає лише в місті, тож розширювати вже нікуди.
-        state.isEmpty -> EmptyState(PoruchIcons.search, stringResource(R.string.nothing_found), stringResource(R.string.nothing_found_hint))
+        state.screen.isEmpty -> EmptyState(PoruchIcons.search, stringResource(R.string.nothing_found), stringResource(R.string.nothing_found_hint))
         else -> Column(
             Modifier.padding(horizontal = Spacing.page).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.xl)
         ) {
             // Події, під ними — заклади з тим самим словом. Групові списки: видача пошуку — перелік, а не стрічка.
-            if (state.results.isNotEmpty()) Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            if (state.screen.results.isNotEmpty()) Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                 GroupLabel(
-                    stringResource(R.string.search_events_group, maxOf(state.resultsTotal, state.results.size)),
+                    stringResource(R.string.search_events_group, maxOf(state.screen.resultsTotal, state.screen.results.size)),
                     // Мапа шукає в межах міста, тож для «усюди» вона показала б інше.
-                    actionLabel = if (state.searchEverywhere) null else stringResource(R.string.on_map),
+                    actionLabel = if (state.screen.searchEverywhere) null else stringResource(R.string.on_map),
                     onAction = { onIntent(HomeIntent.ShowResultsOnMap) }
                 )
                 GroupedRows {
-                    state.results.take(state.resultsLimit).forEachIndexed { position, event ->
+                    state.screen.results.take(state.resultsLimit).forEachIndexed { position, event ->
                         if (position > 0) HairLine(Modifier.padding(start = ResultRowInset))
                         EventResultRow(
-                            event, waitlisted = event.id in state.waitlistedIds, withCity = state.searchEverywhere
+                            event, waitlisted = event.id in state.screen.waitlistedIds, withCity = state.screen.searchEverywhere
                         ) { onIntent(HomeIntent.OpenEvent(event.id, "home_search")) }
                     }
                 }
-                if (state.resultsIndexed > state.resultsLimit) SecondaryButton(
+                if (state.screen.resultsIndexed > state.resultsLimit) SecondaryButton(
                     stringResource(R.string.show_more), { onIntent(HomeIntent.ShowMoreResults) }, Modifier.fillMaxWidth()
                 )
             }
-            if (state.places.isNotEmpty()) PlacesGroup(state.places, state.searchEverywhere) { onIntent(HomeIntent.OpenPlace(it)) }
-            if (state.artists.isNotEmpty()) ArtistsGroup(state.artists) { onIntent(HomeIntent.OpenArtist(it)) }
+            if (state.screen.places.isNotEmpty()) PlacesGroup(state.screen.places, state.screen.searchEverywhere) { onIntent(HomeIntent.OpenPlace(it)) }
+            if (state.screen.artists.isNotEmpty()) ArtistsGroup(state.screen.artists) { onIntent(HomeIntent.OpenArtist(it)) }
         }
     }
 }

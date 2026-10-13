@@ -27,6 +27,17 @@ final class KeychainSessionStore: SecureSessionStore {
     }
 }
 
+/// `AppModel` без підписки на `objectWillChange`: екран, що бере модель звідси, перемальовується лише
+/// зі своїм станом (`@Observable` обгорткою презентера), а не на кожну емісію стору.
+private struct AppModelKey: EnvironmentKey { static let defaultValue: AppModel? = nil }
+extension EnvironmentValues {
+    /// Неявно розгорнутий: ключ пишеться через get-set, і примусове розгортання в getter падало ще до запису.
+    var appModel: AppModel! {
+        get { self[AppModelKey.self] }
+        set { self[AppModelKey.self] = newValue }
+    }
+}
+
 @MainActor final class AppModel: ObservableObject {
     let graph: AppGraph
     var app: PoruchApp { graph.app }
@@ -49,15 +60,15 @@ final class KeychainSessionStore: SecureSessionStore {
     @Published private(set) var savedIDs: Set<String> = []
     @Published private(set) var waitlistedIDs: Set<String> = []
 
-    /// Списки головної, зібрані раз на емісію стану: в тілі view це коштувало більше за кадр.
-    @Published private(set) var home = HomePresentation(state: nil)
+    /// Головна: стан екрана зі спільного `HomePresenter`, той самий, що й на Android. Спостерігається
+    /// окремо від `AppModel`, тож головна перемальовується лише зі своїм станом.
+    lazy var homeScreen = HomeScreenModel(app: app)
 
     private var subscription: Subscription?
     /// Версії зі спільного стану: порівнюємо числа, а не обходимо тисячі записів через міст на кожну емісію.
     private var lastIndexVersion: Int32 = -1
     private var lastFeedVersion: Int32 = -1
     private var lastSelectedID: String?
-    private var homeBuiltAt = Date.distantPast
     /// Id індексу набором: перевірка обраної події без лінійного пошуку.
     private var indexIDs: Set<String> = []
     init() {
@@ -92,20 +103,7 @@ final class KeychainSessionStore: SecureSessionStore {
     private func apply(_ state: AppState) {
         // Чернетка події належить людині, а не телефону: після виходу наступний акаунт її не бачить.
         if self.state?.session.userId != nil && state.session.userId == nil { EventEditorModel.clearDrafts() }
-        let previous = self.state
         self.state = state
-        // Головна лише коли змінились її вхідні зрізи: Kotlin `copy()` зберігає посилання на незмінені поля,
-        // а емісій багато (вибір піна, прапорці завантаження, полінг чату) — кожна перебудова перемальовувала
-        // всю головну з парсингом дат на картку. Раз на хвилину — все одно: «сьогодні» й «почалось» ідуть за часом.
-        let homeInputsChanged = previous == nil
-            || previous?.home !== state.home || previous?.library !== state.library
-            || previous?.city !== state.city || previous?.session !== state.session
-            // Список через міст — масив, не обʼєкт: порівнюємо значення, непрочитаних чатів одиниці.
-            || previous?.chatUnread != state.chatUnread
-        if homeInputsChanged || Date().timeIntervalSince(homeBuiltAt) > 60 {
-            home = HomePresentation(state: state)
-            homeBuiltAt = Date()
-        }
         // Мапа малює індекс, картки приїжджають вікном; порядок один. Емісій багато (вибір у
         // каруселі, чат, прапорці завантаження), а індекс міняється рідко: перебудова лише за версією.
         let indexChanged = state.map.indexVersion != lastIndexVersion

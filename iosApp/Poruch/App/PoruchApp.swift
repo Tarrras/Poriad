@@ -40,7 +40,7 @@ import GoogleSignIn
     }
     var body: some Scene {
         WindowGroup {
-            RootView().environmentObject(model).tint(Palette.brand)
+            RootView().environmentObject(model).environment(\.appModel, model).tint(Palette.brand)
                 .overlay { SplashView() }
                 // Сюди приходять і auth-колбек, і посилання на подію: Universal Link `poriad.app/e/…` та
                 // `poriad://event/…` з кнопки веб-сторінки. Подію відкриваємо тим самим шляхом, що й тап по пушу.
