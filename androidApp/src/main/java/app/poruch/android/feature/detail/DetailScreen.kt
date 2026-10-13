@@ -98,7 +98,7 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
                         Restrictions(state)
                         state.companionOf?.let { parent ->
                             GroupedRows {
-                                LinkRow(Icons.Outlined.Groups, stringResource(R.string.companion_parent, TitleRules.display(parent.title)), onClick = { onIntent(DetailIntent.OpenEvent(parent.id)) })
+                                LinkRow(PoruchIcons.social, stringResource(R.string.companion_parent, TitleRules.display(parent.title)), onClick = { onIntent(DetailIntent.OpenEvent(parent.id)) })
                             }
                         }
                         ExternalActions(state, onIntent)
@@ -204,7 +204,7 @@ private fun ContactSection(state: DetailState, event: Event, onIntent: (DetailIn
         if (state.hasChat) {
             SecondaryButton(
                 stringResource(R.string.chat_open), { onIntent(DetailIntent.OpenChat) },
-                Modifier.fillMaxWidth(), icon = Icons.Outlined.ChatBubbleOutline
+                Modifier.fillMaxWidth(), icon = PoruchIcons.chat
             )
             Text(stringResource(R.string.chat_open_hint), style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary)
         }
@@ -251,7 +251,7 @@ private fun ReportSheet(target: ReportTarget, onIntent: (DetailIntent) -> Unit) 
                         Box(
                             Modifier.size(20.dp).background(if (reason == value) colors.brand else colors.surfaceMuted, CircleShape),
                             contentAlignment = Alignment.Center
-                        ) { if (reason == value) Icon(Icons.Outlined.Check, null, Modifier.size(12.dp), tint = colors.onBrand) }
+                        ) { if (reason == value) Icon(PoruchIcons.check, null, Modifier.size(12.dp), tint = colors.onBrand) }
                         Text(stringResource(label), style = MaterialTheme.typography.bodyLarge, color = colors.ink)
                     }
                 }
@@ -323,8 +323,8 @@ private fun Hero(event: Event, state: DetailState, scroll: ScrollState, onIntent
                     state.listing != null -> StatusBadge(stringResource(R.string.listing_badge, state.listing!!.sourceName), BadgeTone.Neutral)
                     state.organizer -> StatusBadge(stringResource(R.string.you_organize), BadgeTone.Neutral, PoruchIcons.sparkle)
                     // Після кінця лишається лише факт участі: черга й місця вже нічого не значать.
-                    state.ended -> if (room?.joined == true) StatusBadge(stringResource(R.string.went), BadgeTone.Neutral, Icons.Outlined.Check)
-                    room?.joined == true -> StatusBadge(stringResource(R.string.going), BadgeTone.Success, Icons.Outlined.Check)
+                    state.ended -> if (room?.joined == true) StatusBadge(stringResource(R.string.went), BadgeTone.Neutral, PoruchIcons.check)
+                    room?.joined == true -> StatusBadge(stringResource(R.string.going), BadgeTone.Success, PoruchIcons.check)
                     state.waitlisted -> StatusBadge(stringResource(R.string.in_queue), BadgeTone.Accent, PoruchIcons.queue)
                     room?.awaitingApproval == true -> StatusBadge(stringResource(R.string.request_pending), BadgeTone.Accent, PoruchIcons.clock)
                     room?.isScarce == true && !state.cancelled ->
@@ -642,7 +642,7 @@ private fun Stars(score: Int, size: androidx.compose.ui.unit.Dp) {
     Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
         (1..5).forEach { value ->
             Icon(
-                if (value <= score) Icons.Filled.Star else Icons.Outlined.StarOutline, null, Modifier.size(size),
+                if (value <= score) Icons.Filled.Star else PoruchIcons.star, null, Modifier.size(size),
                 tint = if (value <= score) colors.brand else colors.inkTertiary
             )
         }
@@ -753,7 +753,7 @@ private fun PersonRow(name: String, avatarUrl: String?, caption: String? = null,
             Text(name, style = MaterialTheme.typography.titleSmall, color = colors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
             caption?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary) }
         }
-        Icon(Icons.Outlined.ChevronRight, null, Modifier.size(20.dp), tint = colors.inkTertiary)
+        Icon(PoruchIcons.chevronRight, null, Modifier.size(20.dp), tint = colors.inkTertiary)
     }
 }
 
@@ -761,9 +761,9 @@ private fun PersonRow(name: String, avatarUrl: String?, caption: String? = null,
 @Composable
 private fun ExternalActions(state: DetailState, onIntent: (DetailIntent) -> Unit) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-        RoundAction(Icons.Outlined.EditCalendar, stringResource(R.string.calendar_short), { onIntent(DetailIntent.AddToCalendar) }, Modifier.weight(1f), enabled = !state.cancelled)
-        RoundAction(Icons.Outlined.Directions, stringResource(R.string.open_in_maps), { onIntent(DetailIntent.OpenInMaps) }, Modifier.weight(1f))
-        RoundAction(Icons.Outlined.Share, stringResource(R.string.share), { onIntent(DetailIntent.Share) }, Modifier.weight(1f))
+        RoundAction(PoruchIcons.calendar, stringResource(R.string.calendar_short), { onIntent(DetailIntent.AddToCalendar) }, Modifier.weight(1f), enabled = !state.cancelled)
+        RoundAction(PoruchIcons.directions, stringResource(R.string.open_in_maps), { onIntent(DetailIntent.OpenInMaps) }, Modifier.weight(1f))
+        RoundAction(PoruchIcons.share, stringResource(R.string.share), { onIntent(DetailIntent.Share) }, Modifier.weight(1f))
         RoundAction(PoruchIcons.map, stringResource(R.string.on_map), { onIntent(DetailIntent.OpenMap) }, Modifier.weight(1f))
     }
 }
@@ -841,7 +841,7 @@ private fun Safety(state: DetailState, onIntent: (DetailIntent) -> Unit) {
                     horizontalArrangement = Arrangement.spacedBy(Spacing.md), verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        if (shelter.kind == ShelterKind.METRO) Icons.Outlined.Subway else Icons.Outlined.Shield,
+                        if (shelter.kind == ShelterKind.METRO) Icons.Outlined.Subway else PoruchIcons.shield,
                         null, Modifier.size(20.dp), tint = colors.inkTertiary
                     )
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
@@ -856,7 +856,7 @@ private fun Safety(state: DetailState, onIntent: (DetailIntent) -> Unit) {
                         )
                         if (extras.isNotEmpty()) Text(extras.joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
                     }
-                    Icon(Icons.Outlined.ChevronRight, null, Modifier.size(18.dp), tint = colors.inkTertiary)
+                    Icon(PoruchIcons.chevronRight, null, Modifier.size(18.dp), tint = colors.inkTertiary)
                 }
             }
         }
@@ -902,7 +902,7 @@ private fun OthersHere(others: List<EventIndexEntry>, placeName: String?, onInte
                 style = PoruchType.serifTitle2, color = colors.ink, modifier = Modifier.weight(1f)
             )
             Text("${others.size}", style = MaterialTheme.typography.labelLarge, color = colors.inkSecondary)
-            Icon(Icons.Outlined.ChevronRight, null, Modifier.size(18.dp).rotate(if (expanded) 270f else 90f), tint = colors.inkTertiary)
+            Icon(PoruchIcons.chevronRight, null, Modifier.size(18.dp).rotate(if (expanded) 270f else 90f), tint = colors.inkTertiary)
         }
         if (expanded) Column(Modifier.cardSurface(Radius.md)) {
             others.forEach { other ->
@@ -919,7 +919,7 @@ private fun OthersHere(others: List<EventIndexEntry>, placeName: String?, onInte
                             maxLines = 2, overflow = TextOverflow.Ellipsis
                         )
                     }
-                    Icon(Icons.Outlined.ChevronRight, null, Modifier.size(18.dp), tint = colors.inkTertiary)
+                    Icon(PoruchIcons.chevronRight, null, Modifier.size(18.dp), tint = colors.inkTertiary)
                 }
             }
         }
@@ -952,7 +952,7 @@ private fun OrganizerActions(state: DetailState, onIntent: (DetailIntent) -> Uni
     val companion = state.companionOf != null
     if (!companion) PhotoPickerButton(state.mutating) { bytes, mime -> onIntent(DetailIntent.AttachPhoto(bytes, mime)) }
     Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
-        if (!companion) SecondaryButton(stringResource(R.string.edit), { onIntent(DetailIntent.Edit) }, Modifier.weight(1f), icon = Icons.Outlined.Edit)
+        if (!companion) SecondaryButton(stringResource(R.string.edit), { onIntent(DetailIntent.Edit) }, Modifier.weight(1f), icon = PoruchIcons.edit)
         SecondaryButton(
             stringResource(R.string.cancel_event), { onIntent(DetailIntent.ConfirmCancel(true)) },
             Modifier.weight(1f), enabled = !state.mutating, tone = colors.danger
@@ -997,7 +997,7 @@ private fun StickyAction(state: DetailState, event: Event, modifier: Modifier, o
         // «Шукаю компанію» під квитком на всю ширину: поруч із ціною й квитком не влазить.
         if (state.canSeekCompany) SecondaryButton(
             stringResource(R.string.companion_seek), { onIntent(DetailIntent.SeekCompany(true)) },
-            Modifier.fillMaxWidth(), enabled = !state.mutating, icon = Icons.Outlined.Groups
+            Modifier.fillMaxWidth(), enabled = !state.mutating, icon = PoruchIcons.social
         )
     }
 }
@@ -1050,7 +1050,7 @@ private fun Companions(state: DetailState, onIntent: (DetailIntent) -> Unit) {
                     }
                     when {
                         card.mine -> StatusBadge(stringResource(R.string.companion_mine), BadgeTone.Brand)
-                        card.membership == Membership.APPROVED -> StatusBadge(stringResource(R.string.going), BadgeTone.Success, Icons.Outlined.Check)
+                        card.membership == Membership.APPROVED -> StatusBadge(stringResource(R.string.going), BadgeTone.Success, PoruchIcons.check)
                         card.membership == Membership.REQUESTED -> StatusBadge(stringResource(R.string.request_pending), BadgeTone.Accent, PoruchIcons.clock)
                         card.isFull -> StatusBadge(stringResource(R.string.companion_full))
                         else -> SecondaryButton(
@@ -1109,7 +1109,7 @@ private fun CompanionSheet(event: Event, mutating: Boolean, onIntent: (DetailInt
             PrimaryButton(
                 stringResource(R.string.companion_create),
                 { if (meetAt != null) sheet.close { onIntent(DetailIntent.CreateCompanion(meetAt, note, capacity)) } },
-                Modifier.fillMaxWidth(), enabled = meetAt != null && !mutating, loading = mutating, icon = Icons.Outlined.Share
+                Modifier.fillMaxWidth(), enabled = meetAt != null && !mutating, loading = mutating, icon = PoruchIcons.share
             )
         }
     }
@@ -1134,8 +1134,8 @@ private fun Stepper(
             Text(value, style = MaterialTheme.typography.titleLarge, color = colors.ink)
             caption?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary) }
         }
-        StepButton(Icons.Outlined.Remove, minus.first, minusEnabled, minus.second)
-        StepButton(Icons.Outlined.Add, plus.first, plusEnabled, plus.second)
+        StepButton(PoruchIcons.minus, minus.first, minusEnabled, minus.second)
+        StepButton(PoruchIcons.plus, plus.first, plusEnabled, plus.second)
     }
 }
 

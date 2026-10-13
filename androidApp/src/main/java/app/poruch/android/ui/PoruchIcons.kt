@@ -632,6 +632,307 @@ object PoruchIcons {
             .build()
     }
 
+    val chevronRight: ImageVector by lazy {
+        builder("chevronRight")
+            .stroke {
+                moveTo(9.5f, 6f)
+                lineTo(15.5f, 12f)
+                lineTo(9.5f, 18f)
+            }
+            .build()
+    }
+
+    /** «Назад». */
+    val chevronLeft: ImageVector by lazy {
+        builder("chevronLeft")
+            .stroke {
+                moveTo(14.5f, 6f)
+                lineTo(8.5f, 12f)
+                lineTo(14.5f, 18f)
+            }
+            .build()
+    }
+
+    val chevronDown: ImageVector by lazy {
+        builder("chevronDown")
+            .stroke {
+                moveTo(6f, 9.5f)
+                lineTo(12f, 15.5f)
+                lineTo(18f, 9.5f)
+            }
+            .build()
+    }
+
+    val chevronUp: ImageVector by lazy {
+        builder("chevronUp")
+            .stroke {
+                moveTo(6f, 14.5f)
+                lineTo(12f, 8.5f)
+                lineTo(18f, 14.5f)
+            }
+            .build()
+    }
+
+    val check: ImageVector by lazy {
+        builder("check")
+            .stroke {
+                moveTo(5f, 12.5f)
+                lineTo(9.8f, 17.3f)
+                lineTo(19f, 8f)
+            }
+            .build()
+    }
+
+    val close: ImageVector by lazy {
+        builder("close")
+            .stroke {
+                moveTo(6f, 6f)
+                lineTo(18f, 18f)
+                moveTo(18f, 6f)
+                lineTo(6f, 18f)
+            }
+            .build()
+    }
+
+    /** Очистити поле, скасувати. */
+    val closeCircle: ImageVector by lazy {
+        builder("closeCircle")
+            .stroke {
+                moveTo(3.5f, 12f)
+                curveTo(3.5f, 7.306f, 7.306f, 3.5f, 12f, 3.5f)
+                curveTo(16.694f, 3.5f, 20.5f, 7.306f, 20.5f, 12f)
+                curveTo(20.5f, 16.694f, 16.694f, 20.5f, 12f, 20.5f)
+                curveTo(7.306f, 20.5f, 3.5f, 16.694f, 3.5f, 12f)
+                close()
+                moveTo(8.8f, 8.8f)
+                lineTo(15.2f, 15.2f)
+                moveTo(15.2f, 8.8f)
+                lineTo(8.8f, 15.2f)
+            }
+            .build()
+    }
+
+    val minus: ImageVector by lazy {
+        builder("minus")
+            .stroke {
+                moveTo(5f, 12f)
+                lineTo(19f, 12f)
+            }
+            .build()
+    }
+
+    val arrowRight: ImageVector by lazy {
+        builder("arrowRight")
+            .stroke {
+                moveTo(4.5f, 12f)
+                lineTo(19.5f, 12f)
+                moveTo(13.5f, 6f)
+                lineTo(19.5f, 12f)
+                lineTo(13.5f, 18f)
+            }
+            .build()
+    }
+
+    /** Надіслати. */
+    val arrowUp: ImageVector by lazy {
+        builder("arrowUp")
+            .stroke {
+                moveTo(12f, 19.5f)
+                lineTo(12f, 4.5f)
+                moveTo(6f, 10.5f)
+                lineTo(12f, 4.5f)
+                lineTo(18f, 10.5f)
+            }
+            .build()
+    }
+
+    /** Стрілка з коробки вгору: «поділитися» однаково на обох платформах. */
+    val share: ImageVector by lazy {
+        builder("share")
+            .stroke {
+                moveTo(8.5f, 9.5f)
+                lineTo(5.5f, 9.5f)
+                lineTo(5.5f, 20f)
+                lineTo(18.5f, 20f)
+                lineTo(18.5f, 9.5f)
+                lineTo(15.5f, 9.5f)
+                moveTo(12f, 14.5f)
+                lineTo(12f, 3.5f)
+                moveTo(8.5f, 7f)
+                lineTo(12f, 3.5f)
+                lineTo(15.5f, 7f)
+            }
+            .build()
+    }
+
+    /** Маршрут: поворот угору й праворуч. */
+    val directions: ImageVector by lazy {
+        builder("directions")
+            .stroke {
+                moveTo(5f, 20f)
+                lineTo(5f, 13f)
+                curveTo(5f, 11.9f, 5.9f, 11f, 7f, 11f)
+                lineTo(18.5f, 11f)
+                moveTo(14f, 6.5f)
+                lineTo(18.5f, 11f)
+                lineTo(14f, 15.5f)
+            }
+            .build()
+    }
+
+    /** Бульбашка з хвостиком. */
+    val chat: ImageVector by lazy {
+        builder("chat")
+            .stroke {
+                moveTo(7f, 4.5f)
+                lineTo(17f, 4.5f)
+                curveTo(18.933f, 4.5f, 20.5f, 6.067f, 20.5f, 8f)
+                lineTo(20.5f, 13.5f)
+                curveTo(20.5f, 15.433f, 18.933f, 17f, 17f, 17f)
+                lineTo(7f, 17f)
+                curveTo(5.067f, 17f, 3.5f, 15.433f, 3.5f, 13.5f)
+                lineTo(3.5f, 8f)
+                curveTo(3.5f, 6.067f, 5.067f, 4.5f, 7f, 4.5f)
+                close()
+                moveTo(8f, 17f)
+                lineTo(8f, 20.5f)
+                lineTo(12f, 17f)
+            }
+            .build()
+    }
+
+    val mail: ImageVector by lazy {
+        builder("mail")
+            .stroke {
+                moveTo(6f, 5.5f)
+                lineTo(18f, 5.5f)
+                curveTo(19.381f, 5.5f, 20.5f, 6.619f, 20.5f, 8f)
+                lineTo(20.5f, 16f)
+                curveTo(20.5f, 17.381f, 19.381f, 18.5f, 18f, 18.5f)
+                lineTo(6f, 18.5f)
+                curveTo(4.619f, 18.5f, 3.5f, 17.381f, 3.5f, 16f)
+                lineTo(3.5f, 8f)
+                curveTo(3.5f, 6.619f, 4.619f, 5.5f, 6f, 5.5f)
+                close()
+                moveTo(4.5f, 7.5f)
+                lineTo(12f, 13f)
+                lineTo(19.5f, 7.5f)
+            }
+            .build()
+    }
+
+    val bell: ImageVector by lazy {
+        builder("bell")
+            .stroke {
+                moveTo(6f, 16.5f)
+                lineTo(18f, 16.5f)
+                lineTo(16.8f, 14.5f)
+                lineTo(16.8f, 10.5f)
+                curveTo(16.8f, 7.6f, 14.7f, 5.3f, 12f, 5.3f)
+                curveTo(9.3f, 5.3f, 7.2f, 7.6f, 7.2f, 10.5f)
+                lineTo(7.2f, 14.5f)
+                close()
+                moveTo(10.3f, 19.2f)
+                curveTo(10.7f, 20.2f, 11.3f, 20.5f, 12f, 20.5f)
+                curveTo(12.7f, 20.5f, 13.3f, 20.2f, 13.7f, 19.2f)
+            }
+            .build()
+    }
+
+    /** Той самий дзвінок з двома дугами: сповіщення увімкнено. */
+    val bellActive: ImageVector by lazy {
+        builder("bellActive")
+            .stroke {
+                moveTo(6f, 16.5f)
+                lineTo(18f, 16.5f)
+                lineTo(16.8f, 14.5f)
+                lineTo(16.8f, 10.5f)
+                curveTo(16.8f, 7.6f, 14.7f, 5.3f, 12f, 5.3f)
+                curveTo(9.3f, 5.3f, 7.2f, 7.6f, 7.2f, 10.5f)
+                lineTo(7.2f, 14.5f)
+                close()
+                moveTo(10.3f, 19.2f)
+                curveTo(10.7f, 20.2f, 11.3f, 20.5f, 12f, 20.5f)
+                curveTo(12.7f, 20.5f, 13.3f, 20.2f, 13.7f, 19.2f)
+                moveTo(3.5f, 9.5f)
+                curveTo(3.5f, 7.3f, 4.4f, 5.6f, 5.8f, 4.3f)
+                moveTo(20.5f, 9.5f)
+                curveTo(20.5f, 7.3f, 19.6f, 5.6f, 18.2f, 4.3f)
+            }
+            .build()
+    }
+
+    /** Олівець. */
+    val edit: ImageVector by lazy {
+        builder("edit")
+            .stroke {
+                moveTo(4f, 20f)
+                lineTo(4.4f, 16.2f)
+                lineTo(15.8f, 4.8f)
+                lineTo(19.2f, 8.2f)
+                lineTo(7.8f, 19.6f)
+                close()
+                moveTo(13.4f, 7.2f)
+                lineTo(16.8f, 10.6f)
+            }
+            .build()
+    }
+
+    /** Оцінка. */
+    val star: ImageVector by lazy {
+        builder("star")
+            .stroke {
+                moveTo(12f, 4f)
+                lineTo(14.17f, 9.61f)
+                lineTo(20.18f, 9.94f)
+                lineTo(15.52f, 13.74f)
+                lineTo(17.05f, 19.56f)
+                lineTo(12f, 16.3f)
+                lineTo(6.95f, 19.56f)
+                lineTo(8.48f, 13.74f)
+                lineTo(3.82f, 9.94f)
+                lineTo(9.83f, 9.61f)
+                close()
+            }
+            .build()
+    }
+
+    /** Безпека. */
+    val shield: ImageVector by lazy {
+        builder("shield")
+            .stroke {
+                moveTo(12f, 3.5f)
+                lineTo(19.5f, 6.5f)
+                lineTo(19.5f, 12f)
+                curveTo(19.5f, 16.5f, 16.5f, 19.5f, 12f, 21f)
+                curveTo(7.5f, 19.5f, 4.5f, 16.5f, 4.5f, 12f)
+                lineTo(4.5f, 6.5f)
+                close()
+            }
+            .build()
+    }
+
+    val trash: ImageVector by lazy {
+        builder("trash")
+            .stroke {
+                moveTo(4f, 7f)
+                lineTo(20f, 7f)
+                moveTo(9.5f, 7f)
+                lineTo(9.5f, 4.5f)
+                lineTo(14.5f, 4.5f)
+                lineTo(14.5f, 7f)
+                moveTo(6f, 7f)
+                lineTo(6.8f, 20f)
+                lineTo(17.2f, 20f)
+                lineTo(18f, 7f)
+                moveTo(10f, 10.5f)
+                lineTo(10.2f, 16.5f)
+                moveTo(14f, 10.5f)
+                lineTo(13.8f, 16.5f)
+            }
+            .build()
+    }
+
     private fun builder(name: String) =
         ImageVector.Builder("Poruch.$name", SIZE.dp, SIZE.dp, SIZE, SIZE)
 

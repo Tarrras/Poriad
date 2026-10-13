@@ -178,7 +178,7 @@ struct DiscoveryView: View {
                     .onChange(of: proxy.size) { _, value in screen = value }
             }
         }
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.22), value: region == nil)
+        .motion(value: region == nil)
         .background(Palette.canvas)
         .toolbar(.hidden, for: .navigationBar)
         .onChange(of: model.eventsRevision) { _, _ in region = nil }
@@ -293,7 +293,7 @@ struct DiscoveryView: View {
                     .ignoresSafeArea(edges: .bottom)
             }
         }
-        .animation(reduceMotion ? nil : .spring(response: 0.34, dampingFraction: 0.86), value: detent)
+        .motion(Motion.spring, value: detent)
     }
 
     /// Поточна висота шторки: положення плюс зсув пальця.
@@ -357,7 +357,7 @@ struct DiscoveryView: View {
                 }
                 // Зі «Стежити» ряд на вузькому екрані тісний: лічильник стискається, а не переноситься.
                 Text(countLabel).font(PoruchFont.label).foregroundStyle(Palette.ink).lineLimit(1).minimumScaleFactor(0.75)
-                Image(systemName: "chevron.up").font(.system(size: 11, weight: .bold)).foregroundStyle(Palette.inkSecondary)
+                PoruchIcon(glyph: PoruchIcons.chevronUp, size: 14).foregroundStyle(Palette.inkSecondary)
             }
             .padding(.horizontal, Space.lg).frame(height: 40)
             .cardSurface(radius: 20, elevation: 6)
@@ -547,7 +547,7 @@ struct DiscoveryView: View {
             sheetDrag = 0
             detent = target
         } else {
-            withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
+            withMotion(Motion.spring) {
                 sheetDrag = 0
                 detent = target
             }

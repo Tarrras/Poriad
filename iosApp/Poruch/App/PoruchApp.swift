@@ -262,7 +262,7 @@ struct RootView: View {
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-        .animation(.easeInOut(duration: 0.2), value: tabBarHidden)
+        .motion(value: tabBarHidden)
         .onAppear {
             // Тап по сповіщенню веде на подію (або в її чат) зі стеку головної, поверх усього, що було відкрите.
             // Без події, але із закладом — пуш про кілька його нових подій: мапа на його стосі.

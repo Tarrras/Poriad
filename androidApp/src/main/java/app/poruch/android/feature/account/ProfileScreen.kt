@@ -9,14 +9,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Login
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.DeleteForever
-import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.MailOutline
-import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.Shield
-import androidx.compose.material.icons.outlined.Share
-import androidx.compose.material.icons.outlined.StarOutline
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -60,7 +54,7 @@ fun ProfileScreen(state: ProfileState, onIntent: (ProfileIntent) -> Unit) {
                 profile.bio?.let { Text(it, style = MaterialTheme.typography.bodyLarge, color = colors.ink, textAlign = TextAlign.Center) }
                 SecondaryButton(
                     stringResource(R.string.profile_edit), { onIntent(ProfileIntent.ShowEdit(true)) },
-                    Modifier.fillMaxWidth(), icon = Icons.Outlined.Edit
+                    Modifier.fillMaxWidth(), icon = PoruchIcons.edit
                 )
             } else {
                 Box(Modifier.size(88.dp).background(colors.brandContainer, CircleShape), contentAlignment = Alignment.Center) {
@@ -109,7 +103,7 @@ fun ProfileScreen(state: ProfileState, onIntent: (ProfileIntent) -> Unit) {
             // Список підписок — окремий екран: тут лише рядок, що каже, що вони є й де. Порожнім його не показуємо.
             if (state.signedIn && state.follows.isNotEmpty()) GroupedRows {
                 LinkRow(
-                    Icons.Outlined.NotificationsActive, stringResource(R.string.follows_title), stringResource(R.string.follows_hint),
+                    PoruchIcons.bellActive, stringResource(R.string.follows_title), stringResource(R.string.follows_hint),
                     { onIntent(ProfileIntent.OpenFollows) }, value = state.follows.size.toString()
                 )
             }
@@ -185,16 +179,16 @@ fun ProfileScreen(state: ProfileState, onIntent: (ProfileIntent) -> Unit) {
                     Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) { AnalyticsSetting(state, onIntent) }
                 }
                 GroupedRows {
-                    LinkRow(Icons.Outlined.Shield, stringResource(R.string.privacy_policy), onClick = { onIntent(ProfileIntent.OpenPrivacy) })
+                    LinkRow(PoruchIcons.shield, stringResource(R.string.privacy_policy), onClick = { onIntent(ProfileIntent.OpenPrivacy) })
                     HairLine(Modifier.padding(start = Spacing.lg + 40.dp + Spacing.md))
                     LinkRow(Icons.Outlined.Description, stringResource(R.string.terms_of_use), onClick = { onIntent(ProfileIntent.OpenTerms) })
                     HairLine(Modifier.padding(start = Spacing.lg + 40.dp + Spacing.md))
-                    LinkRow(Icons.Outlined.MailOutline, stringResource(R.string.contact_support), onClick = { onIntent(ProfileIntent.ContactSupport) })
+                    LinkRow(PoruchIcons.mail, stringResource(R.string.contact_support), onClick = { onIntent(ProfileIntent.ContactSupport) })
                 }
                 GroupedRows {
-                    LinkRow(Icons.Outlined.Share, stringResource(R.string.share_app), onClick = { onIntent(ProfileIntent.ShareApp) })
+                    LinkRow(PoruchIcons.share, stringResource(R.string.share_app), onClick = { onIntent(ProfileIntent.ShareApp) })
                     HairLine(Modifier.padding(start = Spacing.lg + 40.dp + Spacing.md))
-                    LinkRow(Icons.Outlined.StarOutline, stringResource(R.string.rate_app), stringResource(R.string.rate_app_subtitle), onClick = { onIntent(ProfileIntent.RateApp) })
+                    LinkRow(PoruchIcons.star, stringResource(R.string.rate_app), stringResource(R.string.rate_app_subtitle), onClick = { onIntent(ProfileIntent.RateApp) })
                 }
                 Text(
                     stringResource(R.string.app_version, state.version),

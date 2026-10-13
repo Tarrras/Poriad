@@ -11,7 +11,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.MailOutline
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -264,7 +263,7 @@ private fun ConfirmationStep(email: String, onIntent: (AuthIntent) -> Unit) {
             Box(
                 Modifier.size(48.dp).background(colors.brandContainer, CircleShape),
                 contentAlignment = Alignment.Center
-            ) { Icon(Icons.Outlined.MailOutline, null, Modifier.size(22.dp), tint = colors.onBrandContainer) }
+            ) { Icon(PoruchIcons.mail, null, Modifier.size(22.dp), tint = colors.onBrandContainer) }
             Text(
                 stringResource(R.string.auth_check_email_body, email),
                 style = MaterialTheme.typography.bodyLarge, color = colors.ink
@@ -276,7 +275,7 @@ private fun ConfirmationStep(email: String, onIntent: (AuthIntent) -> Unit) {
         }
         PrimaryButton(
             stringResource(R.string.auth_open_mail), { onIntent(AuthIntent.OpenMail) },
-            Modifier.fillMaxWidth(), icon = Icons.Outlined.MailOutline
+            Modifier.fillMaxWidth(), icon = PoruchIcons.mail
         )
         SecondaryButton(
             stringResource(R.string.auth_confirmed_login), { onIntent(AuthIntent.ConfirmedGoLogin) },
@@ -299,7 +298,7 @@ private fun ResetStep(state: AuthState, onIntent: (AuthIntent) -> Unit) {
         )
         PrimaryButton(
             stringResource(R.string.auth_reset_send), { onIntent(AuthIntent.ResetPassword) },
-            Modifier.fillMaxWidth(), icon = Icons.Outlined.MailOutline,
+            Modifier.fillMaxWidth(), icon = PoruchIcons.mail,
             enabled = state.emailValid, loading = state.mutating
         )
         SecondaryButton(stringResource(R.string.auth_reset_back), { onIntent(AuthIntent.ShowReset(false)) }, Modifier.fillMaxWidth())

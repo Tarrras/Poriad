@@ -5,12 +5,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ChatBubbleOutline
-import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.Directions
-import androidx.compose.material.icons.outlined.Group
-import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -443,7 +437,7 @@ private fun GoingHero(event: Event, unread: Int, onIntent: (MyEventsIntent) -> U
                 stringResource(R.string.open_in_maps),
                 { context.openInMaps(event) },
                 Modifier.weight(1f),
-                icon = Icons.Outlined.Directions
+                icon = PoruchIcons.directions
             )
             // Чат бачать лише підтверджені: із запитом чи в черзі туди не пускає сервер.
             if (event.gathering?.joined == true) SecondaryButton(
@@ -453,7 +447,7 @@ private fun GoingHero(event: Event, unread: Int, onIntent: (MyEventsIntent) -> U
                 ) else stringResource(R.string.chat_short),
                 { onIntent(MyEventsIntent.OpenChat(event.id)) },
                 Modifier.weight(1f),
-                icon = Icons.Outlined.ChatBubbleOutline
+                icon = PoruchIcons.chat
             )
         }
     }
@@ -525,7 +519,7 @@ private fun OrganizerPanel(
                 stringResource(R.string.participants),
                 { onIntent(MyEventsIntent.OpenEvent(event.id)) },
                 Modifier.weight(1f),
-                icon = Icons.Outlined.Group
+                icon = PoruchIcons.social
             )
             SecondaryButton(
                 if (unread > 0) stringResource(
@@ -534,7 +528,7 @@ private fun OrganizerPanel(
                 ) else stringResource(R.string.chat_short),
                 { onIntent(MyEventsIntent.OpenChat(event.id)) },
                 Modifier.weight(1f),
-                icon = Icons.Outlined.ChatBubbleOutline
+                icon = PoruchIcons.chat
             )
             val share = stringResource(R.string.share)
             Box(
@@ -545,7 +539,7 @@ private fun OrganizerPanel(
                     .semantics { contentDescription = share }
                     .pressable { context.shareEvent(event) },
                 contentAlignment = Alignment.Center
-            ) { Icon(Icons.Outlined.Share, null, Modifier.size(18.dp), tint = colors.ink) }
+            ) { Icon(PoruchIcons.share, null, Modifier.size(18.dp), tint = colors.ink) }
         }
     }
 }
@@ -602,7 +596,7 @@ private fun RequestRow(
                     )
                 },
             contentAlignment = Alignment.Center
-        ) { Icon(Icons.Outlined.Close, null, Modifier.size(16.dp), tint = colors.ink) }
+        ) { Icon(PoruchIcons.close, null, Modifier.size(16.dp), tint = colors.ink) }
         Text(
             stringResource(R.string.approve),
             style = MaterialTheme.typography.labelLarge,

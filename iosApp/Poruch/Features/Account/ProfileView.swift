@@ -180,7 +180,7 @@ struct ProfileView: View {
             // Видалення — окрема, важча дія: без заливки, лише червоний текст, і завжди через пароль.
             Button { deleting = true } label: {
                 HStack(spacing: Space.sm) {
-                    Image(systemName: "trash").font(.system(size: 15, weight: .semibold))
+                    PoruchIcon(glyph: PoruchIcons.trash, size: 18)
                     Text("Видалити обліковий запис").font(PoruchFont.button).lineLimit(1)
                 }
                 .foregroundStyle(Palette.danger)

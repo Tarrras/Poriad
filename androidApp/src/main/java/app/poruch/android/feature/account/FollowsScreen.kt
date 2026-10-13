@@ -8,7 +8,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -52,7 +51,7 @@ fun FollowsScreen(state: FollowsState, onIntent: (FollowsIntent) -> Unit) {
             HorizontalDivider(color = colors.hairline)
         }
         if (state.follows.isEmpty()) EmptyState(
-            Icons.Outlined.NotificationsNone, stringResource(R.string.follows_empty_title), stringResource(R.string.follows_empty_hint),
+            PoruchIcons.bell, stringResource(R.string.follows_empty_title), stringResource(R.string.follows_empty_hint),
             Modifier.padding(top = Spacing.section)
         ) else Column(
             Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).navigationBarsPadding()

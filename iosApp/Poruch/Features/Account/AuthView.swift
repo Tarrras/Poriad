@@ -93,7 +93,7 @@ struct AuthView: View {
     private func confirmation(_ email: String) -> some View {
         VStack(alignment: .leading, spacing: Space.lg) {
             VStack(alignment: .leading, spacing: Space.md) {
-                Image(systemName: "envelope")
+                PoruchIcon(glyph: PoruchIcons.mail, size: 20)
                     .font(.system(size: 20, weight: .semibold)).foregroundStyle(Palette.onBrandContainer)
                     .frame(width: 48, height: 48).background(Palette.brandContainer, in: Circle())
                 Text("Ми надіслали лист на \(email). Відкрийте посилання в ньому — і профіль готовий, застосунок відкриється сам.")

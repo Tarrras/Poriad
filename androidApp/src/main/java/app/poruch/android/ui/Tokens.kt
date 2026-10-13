@@ -3,6 +3,12 @@ package app.poruch.android.ui
 import app.poruch.android.R
 import app.poruch.domain.EventCategory
 import android.provider.Settings
+import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.SpringSpec
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -336,6 +342,16 @@ object PoruchType {
 
 val LocalPoruchColors = staticCompositionLocalOf { LightPoruchColors }
 val LocalReducedMotion = staticCompositionLocalOf { false }
+
+/**
+ * Рух: один швидкий крок і одна пружина на весь застосунок (DS: ≤220 мс, easeInOut). При «зменшити рух»
+ * крок стає миттєвим; екрани беруть токен, а не власну тривалість.
+ */
+object Motion {
+    const val QUICK_MS = 200
+    fun <T> quick(reducedMotion: Boolean): FiniteAnimationSpec<T> = if (reducedMotion) snap() else tween(QUICK_MS)
+    fun <T> spring(): SpringSpec<T> = spring(dampingRatio = 0.86f, stiffness = Spring.StiffnessMediumLow)
+}
 
 object Poruch {
     val colors: PoruchColors

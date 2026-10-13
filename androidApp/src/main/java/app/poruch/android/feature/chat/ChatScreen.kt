@@ -18,19 +18,15 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.material.icons.outlined.Block
-import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.ContentCopy
-import androidx.compose.material.icons.outlined.DeleteOutline
-import androidx.compose.material.icons.outlined.Forum
 import androidx.compose.material.icons.outlined.Flag
-import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.PanTool
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -142,7 +138,7 @@ private fun Header(state: ChatState, onIntent: (ChatIntent) -> Unit) {
                 Text(subtitle, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Box(Modifier.size(40.dp).background(colors.surfaceMuted, CircleShape), contentAlignment = Alignment.Center) {
-                Icon(Icons.Outlined.Forum, null, Modifier.size(18.dp), tint = colors.inkSecondary)
+                Icon(PoruchIcons.chat, null, Modifier.size(18.dp), tint = colors.inkSecondary)
             }
         }
         HorizontalDivider(color = colors.hairline)
@@ -287,7 +283,7 @@ private fun ClosedNote() {
             Modifier.fillMaxWidth().background(colors.surface).padding(Spacing.lg).navigationBarsPadding(),
             horizontalArrangement = Arrangement.spacedBy(Spacing.sm, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(Icons.Outlined.Lock, null, Modifier.size(16.dp), tint = colors.inkSecondary)
+            Icon(PoruchIcons.lock, null, Modifier.size(16.dp), tint = colors.inkSecondary)
             Text(stringResource(R.string.chat_read_only), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
         }
     }
@@ -299,8 +295,9 @@ private fun Composer(state: ChatState, onIntent: (ChatIntent) -> Unit) {
     val canSend = state.draft.isNotBlank() && !state.sending
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
-    val border by animateColorAsState(if (focused) colors.ink.copy(alpha = 0.35f) else colors.hairline, label = "border")
-    val sendTint by animateColorAsState(if (canSend) colors.brand else colors.inkTertiary, label = "send")
+    val motion = Motion.quick<Color>(Poruch.reducedMotion)
+    val border by animateColorAsState(if (focused) colors.ink.copy(alpha = 0.35f) else colors.hairline, motion, label = "border")
+    val sendTint by animateColorAsState(if (canSend) colors.brand else colors.inkTertiary, motion, label = "send")
     Column {
         HorizontalDivider(color = colors.hairline)
         Row(
@@ -328,7 +325,7 @@ private fun Composer(state: ChatState, onIntent: (ChatIntent) -> Unit) {
                 contentAlignment = Alignment.Center
             ) {
                 if (state.sending) CircularProgressIndicator(Modifier.size(18.dp), color = colors.onBrand, strokeWidth = 2.dp)
-                else Icon(Icons.Outlined.ArrowUpward, stringResource(R.string.chat_send), Modifier.size(20.dp), tint = colors.onBrand)
+                else Icon(PoruchIcons.arrowUp, stringResource(R.string.chat_send), Modifier.size(20.dp), tint = colors.onBrand)
             }
         }
     }
@@ -353,7 +350,7 @@ private fun MessageActions(state: ChatState, message: ChatMessage, onIntent: (Ch
             if (!state.isMine(message)) ActionRow(Icons.Outlined.Block, stringResource(R.string.chat_block)) {
                 sheet.close { onIntent(ChatIntent.ConfirmBlock(message)) }
             }
-            if (state.canDelete(message)) ActionRow(Icons.Outlined.DeleteOutline, stringResource(R.string.chat_delete), tone = colors.danger) {
+            if (state.canDelete(message)) ActionRow(PoruchIcons.trash, stringResource(R.string.chat_delete), tone = colors.danger) {
                 sheet.close { onIntent(ChatIntent.ConfirmDelete(message)) }
             }
         }
@@ -394,7 +391,7 @@ private fun ReportMessageSheet(message: ChatMessage, onIntent: (ChatIntent) -> U
                         Box(
                             Modifier.size(20.dp).background(if (reason == value) colors.brand else colors.surfaceMuted, CircleShape),
                             contentAlignment = Alignment.Center
-                        ) { if (reason == value) Icon(Icons.Outlined.Check, null, Modifier.size(12.dp), tint = colors.onBrand) }
+                        ) { if (reason == value) Icon(PoruchIcons.check, null, Modifier.size(12.dp), tint = colors.onBrand) }
                         Text(stringResource(label), style = MaterialTheme.typography.bodyLarge, color = colors.ink)
                     }
                 }

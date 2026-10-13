@@ -59,7 +59,7 @@ struct HomeView: View {
 
     /// Тап по іконці пошуку: поле з'являється закріпленим зверху, курсор одразу в ньому.
     private func startSearch() {
-        withAnimation(.snappy) { searchMode = true }
+        withMotion { searchMode = true }
         searchFocused = true
     }
 
@@ -68,7 +68,7 @@ struct HomeView: View {
         searchFocused = false
         searchEpoch += 1
         model.app.cancelHomeSearch()
-        withAnimation(.snappy) { searchMode = false }
+        withMotion { searchMode = false }
     }
 
     private func feed(_ view: HomePresentation) -> some View {
@@ -146,7 +146,7 @@ struct HomeView: View {
             }
         }
         .padding(.top, searchActive ? Space.md : Space.xl).padding(.bottom, Space.md)
-        .animation(.snappy, value: searchActive)
+        .motion(value: searchActive)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
@@ -189,10 +189,10 @@ struct HomeView: View {
     private var guestLoginRow: some View {
         Button(action: openProfile) {
             HStack(spacing: Space.sm) {
-                Image(systemName: "lock").font(.system(size: 13, weight: .semibold))
+                PoruchIcon(glyph: PoruchIcons.lock, size: 16)
                 Text("Увійти й зберігати події").font(PoruchFont.label)
                 Spacer(minLength: Space.sm)
-                Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold))
+                PoruchIcon(glyph: PoruchIcons.chevronRight, size: 15)
             }
             .foregroundStyle(Palette.inkSecondary)
             .padding(.horizontal, Space.xs).frame(minHeight: 44)
@@ -279,11 +279,11 @@ struct HomeView: View {
             overline: nil, title: "Підписки: \(count) \(ukrainianPlural(count, "подія", "події", "подій"))",
             subtitle: (events.first?.displayTitle ?? "") + (more > 0 ? " та ще \(more)" : ""), open: openFollows
         ) {
-            Image(systemName: "bell").font(.system(size: 17, weight: .medium)).foregroundStyle(Palette.ink)
+            PoruchIcon(glyph: PoruchIcons.bell, size: 20).foregroundStyle(Palette.ink)
                 .frame(width: yourTile, height: yourTile)
                 .background(Palette.surfaceMuted, in: RoundedRectangle(cornerRadius: Corner.sm, style: .continuous))
         } trailing: {
-            Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold)).foregroundStyle(Palette.inkTertiary)
+            PoruchIcon(glyph: PoruchIcons.chevronRight, size: 16).foregroundStyle(Palette.inkTertiary)
         }
     }
 
@@ -292,11 +292,11 @@ struct HomeView: View {
         YourRow(
             overline: nil, title: "Чекають відповіді: ще \(count)", subtitle: "Чати й запити — у «Моїх подіях»", open: openMyEvents
         ) {
-            Image(systemName: "bubble.left.and.bubble.right").font(.system(size: 17, weight: .medium)).foregroundStyle(Palette.ink)
+            PoruchIcon(glyph: PoruchIcons.chat, size: 20).foregroundStyle(Palette.ink)
                 .frame(width: yourTile, height: yourTile)
                 .background(Palette.surfaceMuted, in: RoundedRectangle(cornerRadius: Corner.sm, style: .continuous))
         } trailing: {
-            Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold)).foregroundStyle(Palette.inkTertiary)
+            PoruchIcon(glyph: PoruchIcons.chevronRight, size: 16).foregroundStyle(Palette.inkTertiary)
         }
     }
 
@@ -355,7 +355,7 @@ struct HomeView: View {
             HStack(spacing: Space.sm) {
                 ForEach(chips, id: \.self) { chip in
                     Chip(label: feedChipLabel(chip), dot: chip.category, selected: chip == selected) {
-                        withAnimation(.snappy) { feedFilter = chip }
+                        withMotion { feedFilter = chip }
                         feedLimit = Int(HomeRules.shared.FEED_PAGE)
                     }
                 }

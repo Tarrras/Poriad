@@ -133,7 +133,7 @@ private fun Header(state: HomeState, onIntent: (HomeIntent) -> Unit) {
                         style = MaterialTheme.typography.bodyMedium, color = colors.ink.copy(alpha = 0.7f),
                         modifier = Modifier.weight(1f, fill = false)
                     )
-                    Icon(Icons.Outlined.ExpandMore, null, Modifier.size(18.dp), tint = colors.ink.copy(alpha = 0.7f))
+                    Icon(PoruchIcons.chevronDown, null, Modifier.size(18.dp), tint = colors.ink.copy(alpha = 0.7f))
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
@@ -212,7 +212,7 @@ private fun GuestLoginRow(onIntent: (HomeIntent) -> Unit) {
             stringResource(R.string.guest_home_slim), style = MaterialTheme.typography.labelMedium, color = colors.inkSecondary,
             modifier = Modifier.weight(1f)
         )
-        Icon(Icons.Outlined.ChevronRight, null, Modifier.size(16.dp), tint = colors.inkSecondary)
+        Icon(PoruchIcons.chevronRight, null, Modifier.size(16.dp), tint = colors.inkSecondary)
     }
 }
 
@@ -291,8 +291,8 @@ private fun YourTileIcon(icon: ImageVector) {
 private fun WaitingRow(count: Int, onIntent: (HomeIntent) -> Unit) {
     YourRow(
         overline = null, title = stringResource(R.string.home_waiting_more, count), subtitle = stringResource(R.string.home_waiting_more_hint),
-        onClick = { onIntent(HomeIntent.OpenMyEvents) }, tile = { YourTileIcon(Icons.Outlined.ChatBubbleOutline) }
-    ) { Icon(Icons.Outlined.ChevronRight, null, Modifier.size(18.dp), tint = Poruch.colors.inkTertiary) }
+        onClick = { onIntent(HomeIntent.OpenMyEvents) }, tile = { YourTileIcon(PoruchIcons.chat) }
+    ) { Icon(PoruchIcons.chevronRight, null, Modifier.size(18.dp), tint = Poruch.colors.inkTertiary) }
 }
 
 /**
@@ -436,12 +436,12 @@ private fun NextPlanCard(row: PersonalRow, onIntent: (HomeIntent) -> Unit) {
         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
             // Маршрут — головна дія, поки подія сьогодні й ще не почалась; далі — звичайна.
             PlanButton(
-                stringResource(R.string.open_in_maps), Icons.Outlined.Directions, Modifier.weight(1f),
+                stringResource(R.string.open_in_maps), PoruchIcons.directions, Modifier.weight(1f),
                 highlight = today && !event.hasStarted(kotlin.time.Clock.System.now())
             ) { context.openInMaps(event) }
             PlanButton(
                 if (chat != null) stringResource(R.string.chat_short_unread, chat.unread) else stringResource(R.string.chat_short),
-                Icons.Outlined.ChatBubbleOutline, Modifier.weight(1f), highlight = chat != null
+                PoruchIcons.chat, Modifier.weight(1f), highlight = chat != null
             ) { onIntent(HomeIntent.OpenChat(event.id)) }
             if (row.requests > 0) PlanButton(
                 stringResource(R.string.home_requests_short, row.requests), Icons.Outlined.PersonAdd, Modifier.weight(1f), highlight = true
@@ -460,8 +460,8 @@ private fun FollowsRow(events: List<Event>, onClick: () -> Unit) {
         overline = null, title = pluralStringResource(R.plurals.home_follows_events, events.size, events.size),
         subtitle = if (more > 0) stringResource(R.string.home_follows_more, first, more) else first,
         onClick = onClick,
-        tile = { YourTileIcon(Icons.Outlined.NotificationsActive) }
-    ) { Icon(Icons.Outlined.ChevronRight, null, Modifier.size(18.dp), tint = colors.inkTertiary) }
+        tile = { YourTileIcon(PoruchIcons.bellActive) }
+    ) { Icon(PoruchIcons.chevronRight, null, Modifier.size(18.dp), tint = colors.inkTertiary) }
 }
 
 /** Підпис джерела в стрічці: «Для вас», «Підписки». Афіша міста без підпису. */

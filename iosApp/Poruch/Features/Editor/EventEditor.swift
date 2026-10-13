@@ -79,7 +79,7 @@ struct EventEditor: View {
             Text(editor.editing ? "Редагування" : "Нова подія").font(PoruchFont.button).foregroundStyle(Palette.inkSecondary)
         }
         .frame(height: 56).padding(.horizontal, Space.page).padding(.top, Space.sm)
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.22), value: editor.step)
+        .motion(value: editor.step)
     }
 
     private var actions: some View {

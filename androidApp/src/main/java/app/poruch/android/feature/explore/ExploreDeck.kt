@@ -21,11 +21,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CloudOff
-import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.ExpandLess
-import androidx.compose.material.icons.outlined.ExpandMore
-import androidx.compose.material.icons.outlined.NotificationsActive
-import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -109,11 +104,7 @@ internal fun DiscoverySheet(
         val target = anchor(detent)
         settling = scope.launch {
             if (reducedMotion) height = target
-            else animate(
-                height,
-                target,
-                animationSpec = spring(dampingRatio = 0.86f, stiffness = Spring.StiffnessMediumLow)
-            ) { value, _ ->
+            else animate(height, target, animationSpec = Motion.spring()) { value, _ ->
                 height = value
             }
         }
@@ -297,7 +288,7 @@ private fun SheetHeader(
                     )
                     Text(label, style = MaterialTheme.typography.labelMedium, color = colors.ink)
                     Icon(
-                        Icons.Outlined.ExpandLess,
+                        PoruchIcons.chevronUp,
                         null,
                         Modifier.size(16.dp),
                         tint = colors.inkSecondary
@@ -305,20 +296,20 @@ private fun SheetHeader(
                 }
                 // Згорнута шапка тісна: тут лише дзвінок, підпис читає доступність.
                 if (stackPlace != null) IconPill(
-                    if (state.stackFollowing) Icons.Outlined.NotificationsActive else Icons.Outlined.NotificationsNone,
+                    if (state.stackFollowing) PoruchIcons.bellActive else PoruchIcons.bell,
                     stringResource(if (state.stackFollowing) R.string.following else R.string.follow),
                     selected = state.stackFollowing, size = 40.dp
                 ) { onIntent(ExploreIntent.ToggleFollowStack) }
             }
             // Вихід із фокуса на піні знімає і підсвітку, інакше мапа й список розходились.
             if (state.stackFocused) IconPill(
-                Icons.Outlined.Close,
+                PoruchIcons.close,
                 stringResource(R.string.show_all_events)
             ) {
                 onIntent(ExploreIntent.ClearStack)
             }
             if (expanded) IconPill(
-                Icons.Outlined.ExpandMore,
+                PoruchIcons.chevronDown,
                 stringResource(R.string.show_map)
             ) { open(SheetDetent.PEEK) }
         }

@@ -15,7 +15,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -222,7 +221,7 @@ private fun ChoiceRow(title: String, hint: String, selected: Boolean, multiple: 
                 .background(if (selected) colors.brand else colors.surfaceMuted, if (multiple) RoundedCornerShape(7.dp) else Radius.pill),
             contentAlignment = Alignment.Center
         ) {
-            if (selected) Icon(Icons.Outlined.Check, null, Modifier.size(14.dp), tint = colors.onBrand)
+            if (selected) Icon(PoruchIcons.check, null, Modifier.size(14.dp), tint = colors.onBrand)
         }
     }
 }

@@ -256,7 +256,7 @@ fun PoruchSearchField(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    Icons.Outlined.Cancel, stringResource(R.string.clear_search),
+                    PoruchIcons.closeCircle, stringResource(R.string.clear_search),
                     Modifier.size(18.dp), tint = colors.inkTertiary
                 )
             }
@@ -412,7 +412,7 @@ fun FollowPill(following: Boolean, onToggle: () -> Unit, modifier: Modifier = Mo
         Box(modifier) {
             PoruchChip(
                 stringResource(if (following) R.string.following else R.string.follow), following, onToggle,
-                if (following) Icons.Outlined.NotificationsActive else Icons.Outlined.NotificationsNone
+                if (following) PoruchIcons.bellActive else PoruchIcons.bell
             )
         }
     }
@@ -518,7 +518,7 @@ fun CategoryCard(
                 contentAlignment = Alignment.Center
             ) {
                 if (selected) Icon(
-                    Icons.Outlined.Check,
+                    PoruchIcons.check,
                     null,
                     Modifier.size(12.dp),
                     tint = colors.onBrand
@@ -1253,7 +1253,7 @@ fun EventRow(
         // Непрочитане в чаті — той самий бейдж, що на вкладці: видно, куди він веде.
         if (unread > 0) CountBadge(unread)
         if (trailing != null) trailing()
-        else Icon(Icons.Outlined.ChevronRight, null, Modifier.size(18.dp), tint = colors.inkTertiary)
+        else Icon(PoruchIcons.chevronRight, null, Modifier.size(18.dp), tint = colors.inkTertiary)
     }
 }
 
@@ -1580,7 +1580,7 @@ fun CreateEventCard(title: String, subtitle: String, onClick: () -> Unit, modifi
         horizontalArrangement = Arrangement.spacedBy(Spacing.md)
     ) {
         Box(Modifier.size(44.dp).background(colors.onBrand.copy(alpha = 0.14f), CircleShape), contentAlignment = Alignment.Center) {
-            Icon(Icons.Outlined.Add, null, Modifier.size(20.dp), tint = colors.onBrand)
+            Icon(PoruchIcons.plus, null, Modifier.size(20.dp), tint = colors.onBrand)
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(title, style = MaterialTheme.typography.titleSmall, color = colors.onBrand)
@@ -1703,7 +1703,7 @@ fun LinkRow(
             style = MaterialTheme.typography.titleLarge,
             color = colors.ink
         )
-        Icon(Icons.Outlined.ChevronRight, null, Modifier.size(18.dp), tint = colors.inkTertiary)
+        Icon(PoruchIcons.chevronRight, null, Modifier.size(18.dp), tint = colors.inkTertiary)
     }
 }
 
@@ -1947,7 +1947,7 @@ fun NoticeBanner(
             modifier = Modifier.weight(1f)
         )
         Icon(
-            Icons.Outlined.Close,
+            PoruchIcons.close,
             stringResource(R.string.close),
             Modifier.size(18.dp),
             tint = colors.inkTertiary

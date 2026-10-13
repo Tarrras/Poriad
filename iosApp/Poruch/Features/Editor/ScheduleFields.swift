@@ -92,7 +92,7 @@ private struct DateTimeRow: View {
                     Text(scheduleLabel(value, in: zone)).font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
                 }
                 Spacer(minLength: 0)
-                Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold))
+                PoruchIcon(glyph: PoruchIcons.chevronRight, size: 15)
                     .foregroundStyle(Palette.inkTertiary)
             }
             .padding(Space.lg)
@@ -174,7 +174,7 @@ struct TimeZoneNote: View {
 
     var body: some View {
         HStack(spacing: Space.md) {
-            Image(systemName: "clock").font(.system(size: 17))
+            PoruchIcon(glyph: PoruchIcons.clock, size: 20)
                 .foregroundStyle(Palette.inkSecondary)
             VStack(alignment: .leading, spacing: 2) {
                 Text("ЧАСОВИЙ ПОЯС").font(PoruchFont.overline).kerning(1.2).foregroundStyle(Palette.inkTertiary)

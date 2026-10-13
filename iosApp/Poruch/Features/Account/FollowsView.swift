@@ -56,11 +56,11 @@ struct FollowsView: View {
             if organizer {
                 Avatar(name: follow.name, url: follow.avatarUrl, size: 40)
             } else if artist {
-                Image(systemName: "person").font(.system(size: 17, weight: .medium)).foregroundStyle(Palette.ink)
+                PoruchIcon(glyph: PoruchIcons.person, size: 20).foregroundStyle(Palette.ink)
                     .frame(width: 40, height: 40)
                     .background(Palette.surfaceMuted, in: RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
             } else {
-                Image(systemName: "mappin.and.ellipse").font(.system(size: 17, weight: .medium)).foregroundStyle(Palette.ink)
+                PoruchIcon(glyph: PoruchIcons.pin, size: 20).foregroundStyle(Palette.ink)
                     .frame(width: 40, height: 40)
                     .background(Palette.surfaceMuted, in: RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
             }

@@ -73,7 +73,7 @@ private fun TopControls(state: ExploreState, onIntent: (ExploreIntent) -> Unit) 
             Modifier.horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically
         ) {
-            PoruchChip(state.cityName, false, { onIntent(ExploreIntent.ShowSheet(ExploreSheet.CITY)) }, PoruchIcons.pin, trailingIcon = Icons.Outlined.ExpandMore)
+            PoruchChip(state.cityName, false, { onIntent(ExploreIntent.ShowSheet(ExploreSheet.CITY)) }, PoruchIcons.pin, trailingIcon = PoruchIcons.chevronDown)
             // Одразу після міста, а не за датами: з «Усі N» головної мапа приходить із цим фільтром, і його має бути видно.
             PoruchChip(
                 stringResource(R.string.from_people), state.onlyAvailable,

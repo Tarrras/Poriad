@@ -32,7 +32,7 @@ struct OnboardingView: View {
         .padding(.horizontal, Space.page)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Palette.canvas.ignoresSafeArea())
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: step)
+        .motion(value: step)
         .onAppear {
             // Відкрито з профілю: починаємо з минулих відповідей.
             guard let taste = model.state?.taste else { return }
@@ -194,7 +194,7 @@ private struct ChoiceRow: View {
         ZStack {
             shape.fill(selected ? Palette.brand : Palette.surfaceMuted)
             if selected {
-                Image(systemName: "checkmark").font(.system(size: 12, weight: .bold)).foregroundStyle(Palette.onBrand)
+                PoruchIcon(glyph: PoruchIcons.check, size: 15).foregroundStyle(Palette.onBrand)
             }
         }.frame(width: 24, height: 24)
     }

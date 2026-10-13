@@ -327,6 +327,34 @@ private struct OuterShadow: View {
     }
 }
 
+// ---- Рух
+
+/// Один швидкий крок і одна пружина на весь застосунок (DS: ≤220 мс, easeInOut). Екрани беруть токен,
+/// а не власну тривалість; «зменшити рух» знімає рух через `withMotion` і `.motion(value:)`.
+enum Motion {
+    static let quick: Animation = .easeInOut(duration: 0.2)
+    static let spring: Animation = .spring(response: 0.32, dampingFraction: 0.86)
+}
+
+/// `withAnimation`, що поважає системне «зменшити рух».
+func withMotion<R>(_ animation: Animation = Motion.quick, _ body: () throws -> R) rethrows -> R {
+    try withAnimation(UIAccessibility.isReduceMotionEnabled ? nil : animation, body)
+}
+
+private struct MotionModifier<V: Equatable>: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let animation: Animation
+    let value: V
+    func body(content: Content) -> some View { content.animation(reduceMotion ? nil : animation, value: value) }
+}
+
+extension View {
+    /// `.animation(value:)`, що поважає системне «зменшити рух».
+    func motion<V: Equatable>(_ animation: Animation = Motion.quick, value: V) -> some View {
+        modifier(MotionModifier(animation: animation, value: value))
+    }
+}
+
 /// Відгук на тап: поверхня трохи просідає і повертається. Усі натискні поверхні беруть його замість `.plain`.
 /// Reduced motion прибирає просідання.
 struct PressableStyle: ButtonStyle {

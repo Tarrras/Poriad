@@ -11,12 +11,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.CalendarMonth
-import androidx.compose.material.icons.outlined.Remove
-import androidx.compose.material.icons.outlined.ChevronRight
-import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.Icon
@@ -126,7 +121,7 @@ private fun WizardHeader(state: EditorState, onClose: () -> Unit) {
         Modifier.fillMaxWidth().height(56.dp).padding(horizontal = Spacing.page),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)
     ) {
-        IconPill(Icons.Outlined.Close, stringResource(R.string.close), size = 40.dp, onClick = onClose)
+        IconPill(PoruchIcons.close, stringResource(R.string.close), size = 40.dp, onClick = onClose)
         Row(
             Modifier.weight(1f).clearAndSetSemantics { contentDescription = stepLabel },
             horizontalArrangement = Arrangement.spacedBy(Spacing.xs)
@@ -134,7 +129,7 @@ private fun WizardHeader(state: EditorState, onClose: () -> Unit) {
             EditorStep.entries.forEach { entry ->
                 val tint by animateColorAsState(
                     if (entry.ordinal <= state.step.ordinal) colors.brand else colors.brandContainer,
-                    animationSpec = tween(if (Poruch.reducedMotion) 0 else 220), label = "step"
+                    animationSpec = Motion.quick(Poruch.reducedMotion), label = "step"
                 )
                 Box(Modifier.weight(1f).height(4.dp).background(tint, Radius.pill))
             }
@@ -303,8 +298,8 @@ private fun PointPicker(state: EditorState, onIntent: (EditorIntent) -> Unit) {
                 Modifier.align(Alignment.CenterEnd).padding(Spacing.lg),
                 verticalArrangement = Arrangement.spacedBy(Spacing.sm)
             ) {
-                ZoomButton(Icons.Outlined.Add, R.string.zoom_in) { controller.zoomIn() }
-                ZoomButton(Icons.Outlined.Remove, R.string.zoom_out) { controller.zoomOut() }
+                ZoomButton(PoruchIcons.plus, R.string.zoom_in) { controller.zoomIn() }
+                ZoomButton(PoruchIcons.minus, R.string.zoom_out) { controller.zoomOut() }
             }
             Column(
                 Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(colors.surface)
@@ -445,7 +440,7 @@ private fun DateTimeField(label: String, value: String, error: String?, onOpen: 
                 value.ifBlank { stringResource(R.string.date_help) }, style = MaterialTheme.typography.bodyLarge,
                 color = if (value.isBlank()) colors.inkTertiary else colors.ink, modifier = Modifier.weight(1f)
             )
-            Icon(Icons.Outlined.ChevronRight, null, Modifier.size(20.dp), tint = colors.inkTertiary)
+            Icon(PoruchIcons.chevronRight, null, Modifier.size(20.dp), tint = colors.inkTertiary)
         }
         error?.let { FieldError(it) }
     }

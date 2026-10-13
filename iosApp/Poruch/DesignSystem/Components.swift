@@ -19,7 +19,7 @@ struct SearchField: View {
                     .font(PoruchFont.bodyText).foregroundStyle(Palette.ink).tint(Palette.ink)
                     .submitLabel(.search).accessibilityLabel("Пошук подій")
                 if !text.isEmpty {
-                    Button { text = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(Palette.inkTertiary) }
+                    Button { text = "" } label: { PoruchIcon(glyph: PoruchIcons.closeCircle, size: 20).foregroundStyle(Palette.inkTertiary) }
                         .accessibilityLabel("Очистити пошук")
                 }
             }
@@ -201,7 +201,7 @@ struct SegmentedPill: View {
         }
         .padding(4)
         .background(Palette.brandContainer, in: Capsule())
-        .animation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.85), value: selection)
+        .motion(Motion.spring, value: selection)
     }
 }
 
@@ -248,7 +248,7 @@ struct CategoryCard: View {
                     ZStack {
                         Circle().fill(selected ? Palette.brand : Palette.surface.opacity(0.7))
                         if selected {
-                            Image(systemName: "checkmark").font(.system(size: 10, weight: .bold)).foregroundStyle(Palette.onBrand)
+                            PoruchIcon(glyph: PoruchIcons.check, size: 13).foregroundStyle(Palette.onBrand)
                         }
                     }.frame(width: 20, height: 20)
                 }
@@ -381,7 +381,7 @@ struct PageHeader<Trailing: View>: View {
         HStack(spacing: Space.md) {
             if let back {
                 Button(action: back) {
-                    Image(systemName: "chevron.left").font(.system(size: 16, weight: .semibold)).foregroundStyle(Palette.ink)
+                    PoruchIcon(glyph: PoruchIcons.chevronLeft, size: 19).foregroundStyle(Palette.ink)
                         .frame(width: 40, height: 40).background(Palette.surface, in: Circle())
                 }.buttonStyle(PressableStyle()).accessibilityLabel("Назад")
             }
@@ -462,7 +462,7 @@ struct BannerCard: View {
                     }
                 }
                 Spacer(minLength: 0)
-                Image(systemName: "arrow.right").font(.system(size: 13, weight: .bold)).foregroundStyle(Palette.onBrand)
+                PoruchIcon(glyph: PoruchIcons.arrowRight, size: 16).foregroundStyle(Palette.onBrand)
                     .frame(width: slim ? 28 : 32, height: slim ? 28 : 32).background(Palette.brand, in: Circle())
             }
             .padding(.horizontal, Space.lg).padding(.vertical, slim ? Space.md : Space.lg)
@@ -591,7 +591,7 @@ struct BirthDateField: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Button { withAnimation(.snappy) { open.toggle() } } label: {
+            Button { withMotion { open.toggle() } } label: {
                 HStack(spacing: Space.sm) {
                     Text(date.formatted(.dateTime.day().month(.wide).year().locale(Locale(identifier: "uk_UA"))))
                         .font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
@@ -850,7 +850,7 @@ struct EventRow: View {
             Spacer(minLength: 0)
             if unread > 0 { CountBadge(count: unread) }
             if chevron {
-                Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundStyle(Palette.inkTertiary)
+                PoruchIcon(glyph: PoruchIcons.chevronRight, size: 15).foregroundStyle(Palette.inkTertiary)
             }
         }
         .padding(.vertical, Space.md)
@@ -972,7 +972,7 @@ struct ArtistRow: View {
     var body: some View {
         NavigationLink(value: ArtistRoute(id: artist.id, name: artist.name, kind: artist.kind)) {
             HStack(spacing: Space.md) {
-                Image(systemName: "person").font(.system(size: 17, weight: .medium)).foregroundStyle(Palette.ink)
+                PoruchIcon(glyph: PoruchIcons.person, size: 20).foregroundStyle(Palette.ink)
                     .frame(width: 40, height: 40)
                     .background(Palette.surfaceMuted, in: RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
@@ -1023,7 +1023,7 @@ struct PlaceRow: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: Space.md) {
-                Image(systemName: "mappin.and.ellipse").font(.system(size: 17, weight: .medium)).foregroundStyle(Palette.ink)
+                PoruchIcon(glyph: PoruchIcons.pin, size: 20).foregroundStyle(Palette.ink)
                     .frame(width: 40, height: 40)
                     .background(Palette.surfaceMuted, in: RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
@@ -1132,7 +1132,7 @@ struct CreateEventCard: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: Space.md) {
-                Image(systemName: "plus").font(.system(size: 17, weight: .semibold)).foregroundStyle(Palette.onBrand)
+                PoruchIcon(glyph: PoruchIcons.plus, size: 20).foregroundStyle(Palette.onBrand)
                     .frame(width: 44, height: 44).background(Palette.onBrand.opacity(0.14), in: Circle())
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title).font(PoruchFont.cardName).kerning(-0.2).foregroundStyle(Palette.onBrand)
@@ -1140,7 +1140,7 @@ struct CreateEventCard: View {
                         .multilineTextAlignment(.leading)
                 }
                 Spacer(minLength: Space.sm)
-                Image(systemName: "arrow.right").font(.system(size: 13, weight: .bold)).foregroundStyle(Palette.onBrand)
+                PoruchIcon(glyph: PoruchIcons.arrowRight, size: 16).foregroundStyle(Palette.onBrand)
             }
             .padding(.horizontal, Space.lg).padding(.vertical, Space.md)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -1254,7 +1254,7 @@ struct LinkRow: View {
                 if let value {
                     Text(value).font(PoruchFont.title2).foregroundStyle(Palette.ink).monospacedDigit()
                 }
-                Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold)).foregroundStyle(Palette.inkTertiary)
+                PoruchIcon(glyph: PoruchIcons.chevronRight, size: 16).foregroundStyle(Palette.inkTertiary)
             }
             .padding(Space.lg).contentShape(Rectangle())
         }

@@ -25,7 +25,7 @@ struct ArtistView: View {
         VStack(spacing: 0) {
             HStack {
                 Button { dismiss() } label: {
-                    Image(systemName: "chevron.left").font(.system(size: 16, weight: .semibold)).foregroundStyle(Palette.ink)
+                    PoruchIcon(glyph: PoruchIcons.chevronLeft, size: 19).foregroundStyle(Palette.ink)
                         .frame(width: 40, height: 40).background(Palette.surface, in: Circle())
                 }.buttonStyle(PressableStyle()).accessibilityLabel("Назад")
                 Spacer(minLength: 0)

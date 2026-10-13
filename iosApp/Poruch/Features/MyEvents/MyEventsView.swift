@@ -353,7 +353,7 @@ private struct OrganizerPanel: View {
                 CardButton(title: "Учасники", symbol: "person.2") { open(event.id) }
                 CardButton(title: unread > 0 ? "Чат · \(unread)" : "Чат", symbol: "bubble.left.and.bubble.right") { chat(event.id) }
                 ShareLink(item: SystemActions.shareText(for: event)) {
-                    Image(systemName: "square.and.arrow.up").font(.system(size: 15, weight: .semibold)).foregroundStyle(Palette.ink)
+                    PoruchIcon(glyph: PoruchIcons.share, size: 18).foregroundStyle(Palette.ink)
                         .frame(width: 48, height: 48).background(Palette.surfaceMuted, in: Circle())
                 }.accessibilityLabel("Поділитись")
                 .simultaneousGesture(TapGesture().onEnded { model.app.eventShared() })
@@ -372,7 +372,7 @@ private struct OrganizerPanel: View {
             }
             Spacer(minLength: 0)
             Button { model.app.declineMember(eventId: event.id, userId: request.userId) } label: {
-                Image(systemName: "xmark").font(.system(size: 13, weight: .bold)).foregroundStyle(Palette.ink)
+                PoruchIcon(glyph: PoruchIcons.close, size: 16).foregroundStyle(Palette.ink)
                     .frame(width: 40, height: 40).background(Palette.surface, in: Circle())
             }.buttonStyle(PressableStyle()).accessibilityLabel("Відхилити запит: \(request.name)")
             Button("Прийняти") { model.app.approveMember(eventId: event.id, userId: request.userId) }

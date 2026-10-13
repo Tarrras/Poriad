@@ -174,12 +174,12 @@ struct EventDetailView: View {
             if let parent = view.companionOf {
                 NavigationLink(value: EventRoute(id: parent.id)) {
                     HStack(spacing: Space.md) {
-                        Image(systemName: "person.2").font(.system(size: 17, weight: .medium)).foregroundStyle(Palette.ink)
+                        PoruchIcon(glyph: PoruchIcons.social, size: 20).foregroundStyle(Palette.ink)
                             .frame(width: 40, height: 40).background(Palette.surfaceMuted, in: RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
                         Text("Разом на: \(TitleRules.shared.display(title: parent.title))").font(PoruchFont.cardName).kerning(-0.2).foregroundStyle(Palette.ink)
                             .multilineTextAlignment(.leading).lineLimit(2)
                         Spacer(minLength: Space.sm)
-                        Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold)).foregroundStyle(Palette.inkTertiary)
+                        PoruchIcon(glyph: PoruchIcons.chevronRight, size: 16).foregroundStyle(Palette.inkTertiary)
                     }
                     .padding(Space.lg).contentShape(Rectangle())
                 }
@@ -517,7 +517,7 @@ extension EventDetailView {
                     if let caption { Text(caption).font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary) }
                 }
                 Spacer(minLength: 0)
-                Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold)).foregroundStyle(Palette.inkTertiary)
+                PoruchIcon(glyph: PoruchIcons.chevronRight, size: 16).foregroundStyle(Palette.inkTertiary)
             }
             .padding(.horizontal, Space.lg).padding(.vertical, Space.md).contentShape(Rectangle())
         }
@@ -529,17 +529,17 @@ extension EventDetailView {
     private func externalActions(_ event: Event, _ view: EventDetailPresentation) -> some View {
         HStack(spacing: Space.sm) {
             Button { actions.openCalendar() } label: {
-                RoundAction(title: "Календар", enabled: !view.cancelled) { Image(systemName: "calendar.badge.plus") }
+                RoundAction(title: "Календар", enabled: !view.cancelled) { PoruchIcon(glyph: PoruchIcons.calendar, size: 20) }
             }.buttonStyle(PressableStyle()).disabled(view.cancelled)
             Button { SystemActions.openInMaps(event) } label: {
-                RoundAction(title: "Маршрут") { Image(systemName: "arrow.turn.up.right") }
+                RoundAction(title: "Маршрут") { PoruchIcon(glyph: PoruchIcons.directions, size: 20) }
             }.buttonStyle(PressableStyle())
             ShareLink(item: SystemActions.shareText(for: event)) {
-                RoundAction(title: "Поділитися") { Image(systemName: "square.and.arrow.up") }
+                RoundAction(title: "Поділитися") { PoruchIcon(glyph: PoruchIcons.share, size: 20) }
             }.buttonStyle(PressableStyle())
             .simultaneousGesture(TapGesture().onEnded { model.app.eventShared() })
             Button { model.app.selectEvent(id: model.app.cardIdOf(id: event.id)); openMap() } label: {
-                RoundAction(title: "На мапі") { Image(systemName: "map") }
+                RoundAction(title: "На мапі") { PoruchIcon(glyph: PoruchIcons.map, size: 20) }
             }.buttonStyle(PressableStyle())
         }
     }
@@ -633,7 +633,7 @@ extension EventDetailView {
                                     }
                                 }
                                 Spacer(minLength: 0)
-                                Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundStyle(Palette.inkTertiary)
+                                PoruchIcon(glyph: PoruchIcons.chevronRight, size: 15).foregroundStyle(Palette.inkTertiary)
                             }
                             .padding(.horizontal, Space.lg).padding(.vertical, Space.md)
                             .contentShape(Rectangle())
@@ -673,13 +673,13 @@ extension EventDetailView {
     /// Згорнуто після опису: у великого закладу десятки подій, і розгорнутий список відсував би решту сторінки.
     private func othersHereSection(placeName: String?) -> some View {
         VStack(alignment: .leading, spacing: Space.sm) {
-            Button { withAnimation(.snappy) { showOthersHere.toggle() } } label: {
+            Button { withMotion { showOthersHere.toggle() } } label: {
                 HStack(spacing: Space.sm) {
                     Text(placeName.map { "Ще в «\($0)»" } ?? "Ще в цьому місці").font(PoruchFont.serifTitle2).kerning(-0.2)
                         .foregroundStyle(Palette.ink).multilineTextAlignment(.leading)
                     Spacer(minLength: Space.sm)
                     Text("\(othersHere.count)").font(PoruchFont.label).foregroundStyle(Palette.inkSecondary).monospacedDigit()
-                    Image(systemName: "chevron.down").font(.system(size: 13, weight: .semibold)).foregroundStyle(Palette.inkTertiary)
+                    PoruchIcon(glyph: PoruchIcons.chevronDown, size: 16).foregroundStyle(Palette.inkTertiary)
                         .rotationEffect(.degrees(showOthersHere ? 180 : 0))
                 }
                 .frame(minHeight: 44).contentShape(Rectangle())
@@ -703,7 +703,7 @@ extension EventDetailView {
                                     .multilineTextAlignment(.leading).lineLimit(2)
                             }
                             Spacer(minLength: 0)
-                            Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundStyle(Palette.inkTertiary)
+                            PoruchIcon(glyph: PoruchIcons.chevronRight, size: 15).foregroundStyle(Palette.inkTertiary)
                         }
                         .padding(.horizontal, Space.lg).padding(.vertical, Space.md)
                         .contentShape(Rectangle())
@@ -724,7 +724,7 @@ extension EventDetailView {
                 // Повний екран у стеку, а не шторка: чат читають довго.
                 NavigationLink(value: ChatRoute(id: view.event?.id ?? "")) {
                     HStack(spacing: Space.sm) {
-                        Image(systemName: "bubble.left.and.bubble.right").font(.system(size: 15, weight: .semibold))
+                        PoruchIcon(glyph: PoruchIcons.chat, size: 18)
                         Text("Чат учасників").font(PoruchFont.button).lineLimit(1)
                     }
                     .foregroundStyle(Palette.ink)
@@ -1274,7 +1274,7 @@ struct ReportSheet: View {
                             ZStack {
                                 Circle().fill(reason == option.value ? Palette.brand : Palette.surfaceMuted)
                                 if reason == option.value {
-                                    Image(systemName: "checkmark").font(.system(size: 11, weight: .bold))
+                                    PoruchIcon(glyph: PoruchIcons.check, size: 14)
                                         .foregroundStyle(Palette.onBrand)
                                 }
                             }.frame(width: 20, height: 20)

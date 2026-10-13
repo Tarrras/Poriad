@@ -78,7 +78,7 @@ struct ChatView: View {
     private var header: some View {
         HStack(spacing: Space.md) {
             Button { dismiss() } label: {
-                Image(systemName: "chevron.left").font(.system(size: 16, weight: .semibold)).foregroundStyle(Palette.ink)
+                PoruchIcon(glyph: PoruchIcons.chevronLeft, size: 19).foregroundStyle(Palette.ink)
                     .frame(width: 40, height: 40).background(Palette.surface, in: Circle())
             }.buttonStyle(PressableStyle()).accessibilityLabel("Назад")
             VStack(alignment: .leading, spacing: 2) {
@@ -86,7 +86,7 @@ struct ChatView: View {
                 Text(subtitle).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(1)
             }
             Spacer(minLength: 0)
-            Image(systemName: "bubble.left.and.bubble.right.fill").font(.system(size: 15, weight: .semibold))
+            PoruchIcon(glyph: PoruchIcons.chat, size: 18)
                 .foregroundStyle(Palette.inkSecondary).frame(width: 40, height: 40)
                 .background(Palette.surfaceMuted, in: Circle())
         }
@@ -235,7 +235,7 @@ struct ChatView: View {
 
     private var closedNote: some View {
         HStack(spacing: Space.sm) {
-            Image(systemName: "lock").font(.system(size: 14, weight: .medium)).foregroundStyle(Palette.inkSecondary)
+            PoruchIcon(glyph: PoruchIcons.lock, size: 17).foregroundStyle(Palette.inkSecondary)
             Text("Чат закрито: подію скасовано або вона давно минула.")
                 .font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
         }
@@ -262,14 +262,14 @@ struct ChatView: View {
             } label: {
                 Group {
                     if sending { ProgressView().tint(Palette.onBrand) }
-                    else { Image(systemName: "arrow.up").font(.system(size: 17, weight: .bold)) }
+                    else { PoruchIcon(glyph: PoruchIcons.arrowUp, size: 20) }
                 }
                 .foregroundStyle(Palette.onBrand).frame(width: 44, height: 44)
                 .background(canSend ? Palette.brand : Palette.inkTertiary, in: Circle())
             }
             .buttonStyle(PressableStyle())
             .disabled(!canSend)
-            .animation(.easeInOut(duration: 0.15), value: canSend)
+            .motion(value: canSend)
             .accessibilityLabel("Надіслати")
         }
         .padding(.horizontal, Space.page).padding(.top, Space.sm).padding(.bottom, Space.sm)

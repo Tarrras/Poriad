@@ -12,7 +12,7 @@ struct NoticeBanner: View {
             .allowsHitTesting(false)
             .overlay(alignment: .trailing) {
                 Button(action: dismiss) {
-                    Image(systemName: "xmark").font(.system(size: 13, weight: .semibold))
+                    PoruchIcon(glyph: PoruchIcons.close, size: 16)
                         .foregroundStyle(Palette.inkTertiary)
                         .frame(width: 44, height: 44)
                 }
@@ -69,7 +69,7 @@ struct NoticeOverlay: ViewModifier {
                         .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
                 }
             }
-            .animation(reduceMotion ? nil : .spring(response: 0.34, dampingFraction: 0.9), value: notice)
+            .motion(Motion.spring, value: notice)
             .task(id: notice) {
                 guard let notice else { return }
                 shown = notice
