@@ -172,8 +172,10 @@ fun Modifier.pressable(
  * Низ прокручуваного вмісту вкладки: під плаваючим таббаром (кнопка 56 dp і його відступ) і системною
  * смугою навігації, якої заввишки вона б не була.
  */
-fun Modifier.tabBarClearance(): Modifier =
-    navigationBarsPadding().padding(bottom = 56.dp + Spacing.md + Spacing.lg)
+fun Modifier.tabBarClearance(): Modifier = navigationBarsPadding().padding(bottom = TabBarClearance)
+
+/** Те саме число для `contentPadding` лінивих списків: смугу навігації вони додають самі. */
+val TabBarClearance = 56.dp + Spacing.md + Spacing.lg
 
 /** Те саме, що [tabBarClearance], для `contentPadding` лінивого списку: вміст доїжджає під таббар, а не обрізається над ним. */
 @Composable

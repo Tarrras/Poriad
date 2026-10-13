@@ -2,6 +2,8 @@ package app.poruch.android.feature.mine
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -109,22 +111,25 @@ fun MyEventsScreen(state: MyEventsState, onIntent: (MyEventsIntent) -> Unit) {
                     contentAlignment = Alignment.Center
                 ) { PoruchLoader() }
                 else Empty(state.tab, onIntent)
-            } else Column(
-                Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .tabBarClearance()
-                    .padding(start = Spacing.page, end = Spacing.page, top = Spacing.sm),
-                verticalArrangement = Arrangement.spacedBy(Spacing.xxl)
-            ) {
-                sections.forEach { Section(it, state, onIntent) }
-                if (state.tab == MyEventsTab.ORGANIZING) GroupedRows {
-                    LinkRow(
-                        PoruchIcons.sparkle,
-                        stringResource(R.string.create_banner_title),
-                        stringResource(R.string.create_banner_subtitle),
-                        { onIntent(MyEventsIntent.CreateEvent) }
-                    )
+            } else {
+                // Лінивий стовпець по секціях: зміна однієї (нове в чаті, запит) не перескладає решту.
+                val bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + TabBarClearance
+                LazyColumn(
+                    Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(start = Spacing.page, end = Spacing.page, top = Spacing.sm, bottom = bottom),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.xxl)
+                ) {
+                    items(sections, key = { it.group.name }) { Section(it, state, onIntent) }
+                    if (state.tab == MyEventsTab.ORGANIZING) item(key = "create") {
+                        GroupedRows {
+                            LinkRow(
+                                PoruchIcons.sparkle,
+                                stringResource(R.string.create_banner_title),
+                                stringResource(R.string.create_banner_subtitle),
+                                { onIntent(MyEventsIntent.CreateEvent) }
+                            )
+                        }
+                    }
                 }
             }
         }
