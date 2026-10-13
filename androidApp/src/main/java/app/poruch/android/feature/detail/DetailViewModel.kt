@@ -49,6 +49,8 @@ class DetailViewModel(
     private var nearbyFrom: PlaceEvents? = null
     /** На кого скарга з картки: картка вже закрита, коли людина обирає причину. */
     private var reportedUser: String? = null
+    /** «На мапі»: слот відкритої події переходить мапі як фокус, і при знятті екрана ми його не чистимо. */
+    private var handedOff = false
 
     init {
         // openEvent, а не selectEvent: лише цей екран показує місця й членство. Тут, а не з
@@ -90,7 +92,9 @@ class DetailViewModel(
                         event.hasStarted(now),
                 othersHere = nearby,
                 attendees = shared.detail.attendees,
-                loading = shared.detail.loading,
+                // Картку вже показували, а слот порожній: його забрав інший екран деталей, і на ON_RESUME ми
+                // попросимо його назад. Той кадр — завантаження, а не «подія недоступна».
+                loading = shared.detail.loading || (shown && event == null),
                 mutating = shared.mutating,
                 signedIn = shared.signedIn,
                 saved = shared.isSaved(eventId),
@@ -164,7 +168,7 @@ class DetailViewModel(
             DetailIntent.AddToCalendar -> event?.let { send(DetailEffect.OpenCalendar(it)) }
             DetailIntent.OpenInMaps -> event?.let { send(DetailEffect.OpenMaps(it)) }
             // Для другої дати прокату — картка представника: окремого піна в сеансу нема.
-            DetailIntent.OpenMap -> send(DetailEffect.OpenMap(app.cardIdOf(eventId)))
+            DetailIntent.OpenMap -> { handedOff = true; send(DetailEffect.OpenMap(app.cardIdOf(eventId))) }
             is DetailIntent.OpenEvent -> send(DetailEffect.OpenEvent(intent.id))
             is DetailIntent.OpenArtist -> {
                 app.openArtist(intent.artist.id, intent.artist.name, intent.artist.kind)
@@ -257,6 +261,9 @@ class DetailViewModel(
     override fun onCleared() {
         // Картка належить екрану: інший екран не має відкритись із чужою шторкою.
         app.closePerson()
+        // Слот відкритої події — теж: інакше `Reloader` перепитує її деталі на кожне повернення в застосунок,
+        // а мапа з вкладки підсвічує останню переглянуту. Лише якщо слот ще наш, а не екрана поверх.
+        if (!handedOff && app.state.value.detail.event?.id == eventId) app.dismissEvent()
         super.onCleared()
     }
 

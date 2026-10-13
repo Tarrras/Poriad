@@ -19,8 +19,9 @@ class Navigator(private val app: PoruchApp) {
         PoruchLog.d("nav") { "open ${key.label()} from ${describe()}" }
         // Подвійний тап не кладе той самий екран двічі.
         if (key !is Tab) { if (stack.last() != key) stack.add(key); return }
-        // Тап по вже відкритій вкладці — не перехід.
-        if (stack.size == 1 && stack.last() == key) return
+        // Тап по вже відкритій вкладці — не перехід. За класом, не за рівністю: `Explore(focusId)` і
+        // `Explore()` — та сама вкладка, інакше тап по «Мапа» після «На мапі» скидав екран і шторку.
+        if (stack.size == 1 && stack.last()::class == key::class) return
         // Стек чистимо, а не тримаємо корені всіх вкладок: NavDisplay не показує перенесений запис.
         reset(key)
     }

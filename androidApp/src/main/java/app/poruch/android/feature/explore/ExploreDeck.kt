@@ -39,6 +39,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -52,6 +53,7 @@ import app.poruch.android.ui.*
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 /** Висота картки каруселі, як у [EventMapCard]. */
 private val MapCardHeight = 112.dp
@@ -139,7 +141,8 @@ internal fun DiscoverySheet(
         Modifier.draggable(drag, Orientation.Vertical, onDragStopped = { settleFrom(it) })
     val expandedThreshold = peekPx + with(density) { Spacing.section.toPx() }
     // Від живої висоти, а не від положення: вміст стає списком, щойно палець відкрив місце.
-    val expanded = height > expandedThreshold
+    // Похідний стан: шторка перескладається на перетині порога, а не на кожен кадр жесту.
+    val expanded by remember(expandedThreshold) { derivedStateOf { height > expandedThreshold } }
     BackHandler(state.detent != SheetDetent.PEEK) { settleAt(SheetDetent.PEEK) }
 
     // Прокрутка списку тягне шторку: угору — доки не повна, униз — коли список уже на початку.
@@ -180,7 +183,6 @@ internal fun DiscoverySheet(
         }
     }
 
-    val heightDp = with(density) { height.toDp() }
     // Клавіатура пошуку лягає на шторку (вікно не стискається): згорнуту піднімаємо над нею.
     // Таббар під клавіатурою ховається, тож його смугу віднімаємо.
     // Запас Spacing.md: двоповерхова картка вища за слот, і її низ інакше ховається під клавіатурою.
@@ -203,7 +205,12 @@ internal fun DiscoverySheet(
         modifier
             .fillMaxWidth()
             .offset { IntOffset(0, -lift) }
-            .height(heightDp)
+            // Висота читається у фазі розмітки: жест рухає шторку без перескладання її вмісту.
+            .layout { measurable, constraints ->
+                val px = height.roundToInt().coerceIn(constraints.minHeight, constraints.maxHeight)
+                val placeable = measurable.measure(constraints.copy(minHeight = px, maxHeight = px))
+                layout(placeable.width, px) { placeable.place(0, 0) }
+            }
             .then(surface)
             .nestedScroll(listConnection)
             .navigationBarsPadding()

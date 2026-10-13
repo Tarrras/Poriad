@@ -1,14 +1,15 @@
 package app.poruch.android.ui
 
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.interaction.PressInteraction
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
@@ -109,6 +110,27 @@ fun Modifier.cardSurface(shape: Shape = Radius.lg, elevation: Dp = Elevation.car
 }
 
 /**
+ * Затемнення низу обкладинки під текстом — одне на велику картку головної й обкладинку деталей, щоб
+ * одна й та сама афіша не мінялась тоном між екранами. Кольори на фото від теми не залежать.
+ */
+val PhotoScrim: Brush = Brush.verticalGradient(
+    0.3f to Color.Transparent, 0.7f to Color.Black.copy(alpha = 0.55f), 1f to Color.Black.copy(alpha = 0.85f)
+)
+/** Чорнило й поверхня кнопки на скримі: завжди світла пігулка з темним гліфом, той самий hex, що й `ink` світлої теми. */
+private val ScrimInk = Color(0xFF1D1D1F)
+private val ScrimSurface = Color.White.copy(alpha = 0.92f)
+
+/** Кругла кнопка 40 dp на обкладинці («назад», «поділитися»): фото довільне, тож на власному світлому скримі. */
+@Composable
+fun ScrimButton(icon: ImageVector, description: String, onClick: () -> Unit) {
+    Box(
+        Modifier.minimumInteractiveComponentSize().size(40.dp).background(ScrimSurface, CircleShape)
+            .border(1.dp, Color.Black.copy(alpha = 0.06f), CircleShape).clip(CircleShape).clickable(role = Role.Button, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) { Icon(icon, description, Modifier.size(18.dp), tint = ScrimInk) }
+}
+
+/**
  * Відгук на тап: поверхня трохи просідає під пальцем і повертається. Разом із тінню це робить
  * картку об'єктом, тому всі натискні поверхні беруть його замість голого `clickable`.
  * Reduced motion лишає ripple і прибирає просідання.
@@ -121,17 +143,26 @@ fun Modifier.pressable(
     onClick: () -> Unit
 ): Modifier {
     val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (pressed && !Poruch.reducedMotion) pressedScale else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMediumLow
-        ),
-        label = "press"
-    )
+    val reducedMotion = Poruch.reducedMotion
+    // Натиск не читається в композиції: хост (картка з її форматуванням) не перескладається на кожен
+    // тап і відпускання. Масштаб іде з потоку взаємодій просто в шар малювання.
+    val scale = remember { Animatable(1f) }
+    LaunchedEffect(interaction, reducedMotion, pressedScale) {
+        var presses = 0
+        interaction.interactions.collect { event ->
+            when (event) {
+                is PressInteraction.Press -> presses++
+                is PressInteraction.Release, is PressInteraction.Cancel -> presses--
+                else -> return@collect
+            }
+            val target = if (presses > 0 && !reducedMotion) pressedScale else 1f
+            launch {
+                scale.animateTo(target, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow))
+            }
+        }
+    }
     return this
-        .graphicsLayer { scaleX = scale; scaleY = scale }
+        .graphicsLayer { scaleX = scale.value; scaleY = scale.value }
         .clickable(
             interactionSource = interaction,
             indication = LocalIndication.current,
@@ -1575,17 +1606,7 @@ fun EventHeroCard(
             .alpha(if (event.isCancelled) 0.6f else 1f)
     ) {
         EventArt(event, Modifier.fillMaxSize())
-        Box(
-            Modifier
-                .matchParentSize()
-                .background(
-                    Brush.verticalGradient(
-                        0.3f to Color.Transparent,
-                        0.7f to Color.Black.copy(alpha = 0.55f),
-                        1f to Color.Black.copy(alpha = 0.85f)
-                    )
-                )
-        )
+        Box(Modifier.matchParentSize().background(PhotoScrim))
         // Стан кімнати важливіший; без нього — підпис походження, пара до «Афіша · джерело».
         if (badge != null) Box(Modifier.padding(Spacing.lg)) { StatusBadge(badge.first, badge.second) }
         else if (event.gathering != null) Box(Modifier.padding(Spacing.lg)) {

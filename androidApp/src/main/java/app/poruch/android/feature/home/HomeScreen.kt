@@ -20,6 +20,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -236,7 +237,7 @@ private fun PeopleSection(state: HomeState, onIntent: (HomeIntent) -> Unit) {
         ) {
             state.people.forEach { entry ->
                 PosterCard(
-                    entry, entry.event.id in state.savedIds, entry.event.id in state.waitlistedIds,
+                    entry.event, entry.source, entry.event.id in state.savedIds, entry.event.id in state.waitlistedIds,
                     { onIntent(HomeIntent.ToggleSaved(entry.event.id)) }, Modifier.width(PeopleCardWidth), showOrigin = false
                 ) { onIntent(HomeIntent.OpenEvent(entry.event.id, "home_people")) }
             }
@@ -484,7 +485,7 @@ private fun LazyListScope.cityFeed(state: HomeState, onIntent: (HomeIntent) -> U
                         actionLabel = state.totalFound.takeIf { it > 0 }?.let { stringResource(R.string.home_all_count, it) },
                         onAction = { onIntent(HomeIntent.ShowEverythingOnMap) }
                     )
-                    HeroPager(picks, state, onIntent)
+                    HeroPager(picks, state.savedIds, onIntent)
                     if (state.chips.isNotEmpty()) FeedChips(state, onIntent)
                 }
             }
@@ -496,7 +497,7 @@ private fun LazyListScope.cityFeed(state: HomeState, onIntent: (HomeIntent) -> U
                 ) {
                     pair.forEach { entry ->
                         PosterCard(
-                            entry, entry.event.id in state.savedIds, entry.event.id in state.waitlistedIds,
+                            entry.event, entry.source, entry.event.id in state.savedIds, entry.event.id in state.waitlistedIds,
                             { onIntent(HomeIntent.ToggleSaved(entry.event.id)) }, Modifier.weight(1f)
                         ) { onIntent(HomeIntent.OpenEvent(entry.event.id, "home_poster")) }
                     }
@@ -549,7 +550,7 @@ private fun feedChipLabel(chip: FeedFilter): String = when (chip.kind) {
 
 /** Гортана стрічка великих карток: наступна визирає з-за краю, як у Moonly. */
 @Composable
-private fun HeroPager(picks: List<FeedEntry>, state: HomeState, onIntent: (HomeIntent) -> Unit) {
+private fun HeroPager(picks: List<FeedEntry>, savedIds: List<String>, onIntent: (HomeIntent) -> Unit) {
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val pageWidth = if (picks.size > 1) maxWidth * 0.86f else maxWidth - Spacing.page * 2
         HorizontalPager(
@@ -558,7 +559,7 @@ private fun HeroPager(picks: List<FeedEntry>, state: HomeState, onIntent: (HomeI
         ) { index ->
             val entry = picks[index]
             EventHeroCard(
-                entry.event, eyebrow = lane(entry.source), saved = entry.event.id in state.savedIds,
+                entry.event, eyebrow = lane(entry.source), saved = entry.event.id in savedIds,
                 onSave = { onIntent(HomeIntent.ToggleSaved(entry.event.id)) }
             ) { onIntent(HomeIntent.OpenEvent(entry.event.id, "home_hero")) }
         }
@@ -571,15 +572,16 @@ private fun HeroPager(picks: List<FeedEntry>, state: HomeState, onIntent: (HomeI
  */
 @Composable
 private fun PosterCard(
-    entry: FeedEntry, saved: Boolean, waitlisted: Boolean, onSave: () -> Unit, modifier: Modifier = Modifier,
+    // Подія й джерело окремо, а не `FeedEntry`: обгортка нова на кожну згортку стану, а екземпляр події
+    // спільний стор зберігає — картка пропускає перескладання, поки не змінилась сама подія чи її стан.
+    event: Event, source: FeedSource, saved: Boolean, waitlisted: Boolean, onSave: () -> Unit, modifier: Modifier = Modifier,
     /** Підпис «Від людей» на кімнаті без стану: у секції «Від людей» він зайвий. */
     showOrigin: Boolean = true, onClick: () -> Unit
 ) {
     val colors = Poruch.colors
-    val event = entry.event
     // Скасоване й знята афіша вже сказані підписом внизу, двічі не пишемо.
     val state = if (event.gathering == null || event.isCancelled) null else eventState(event, waitlisted)
-    val badge = state ?: lane(entry.source)?.let { it to BadgeTone.Neutral }
+    val badge = state ?: lane(source)?.let { it to BadgeTone.Neutral }
     // Ні стану, ні «Для вас»: кімнату однаково видно як зустріч від людей.
     val fromPeople = showOrigin && badge == null && event.gathering != null
     // «Від 390 ₴» лише коли джерело сказало ціну; для кімнати — «3/8» з гліфом людей, як на iOS, де бейдж капсом і «3 З 8» читалось б «3 3 8».
@@ -607,8 +609,9 @@ private fun PosterCard(
         }
         Column(Modifier.padding(horizontal = Spacing.xs), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
             // Коли — найважливіше в афіші, тож і найтемніше в підписі, а не найблідіше.
+            val words = dateWords()
             Text(
-                cardOverline(event, dateWords()), style = MaterialTheme.typography.labelSmall, color = colors.ink,
+                remember(event) { cardOverline(event, words) }, style = PoruchType.overline, color = colors.ink,
                 maxLines = 1, overflow = TextOverflow.Ellipsis
             )
             Text(

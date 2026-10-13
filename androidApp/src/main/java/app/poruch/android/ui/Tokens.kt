@@ -312,6 +312,26 @@ object PoruchType {
 
     val descriptor = TextStyle(fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.Medium)
     val lead = TextStyle(fontSize = 17.sp, lineHeight = 25.sp, fontWeight = FontWeight.Normal)
+
+    // Сансові ролі з таблиці дизайн-системи (docs/design-system.md, «Типографіка») — ті самі стилі, що й
+    // шкала Material вище, під іменами з документа, як `PoruchFont` на iOS. Екрани беруть роль, а не слот.
+    /** Цифри й значення: лічильники, «12 як організатор». Не заголовки. */
+    val title1 get() = PoruchTypography.headlineMedium
+    val title2 get() = PoruchTypography.titleLarge
+    /** Службові рядки й підписи: значення «Коли / Де», опції онбордингу. */
+    val title3 get() = PoruchTypography.titleMedium
+    val cardName get() = PoruchTypography.titleSmall
+    /** Текст у формах і листах. */
+    val body get() = PoruchTypography.bodyLarge
+    /** Підзаголовок шапки. */
+    val subhead get() = PoruchTypography.bodyMedium
+    /** Адреса, метадані, час у чаті. */
+    val caption get() = PoruchTypography.bodySmall
+    /** Чипи. */
+    val label get() = PoruchTypography.labelMedium
+    val button get() = PoruchTypography.labelLarge
+    /** Дата, бейджі, підписи полів: UPPERCASE з розрядкою. */
+    val overline get() = PoruchTypography.labelSmall
 }
 
 val LocalPoruchColors = staticCompositionLocalOf { LightPoruchColors }

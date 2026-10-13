@@ -145,12 +145,13 @@ class MainActivity : ComponentActivity(), AndroidScopeComponent {
         if (linked != null) app.eventLinkOpened()
         val eventId = linked ?: intent.getStringExtra(EXTRA_EVENT_ID) ?: return
         val navigator = scope.get<Navigator>()
+        val target = if (intent.getStringExtra(EXTRA_TARGET) == TARGET_CHAT) Chat(eventId) else Detail(eventId)
+        // Та сама подія вже зверху: запис стека й модель лишаються, тож деталі перепитуємо самі — пуш
+        // про зміну саме цієї події інакше показував би старі дату й стан.
+        val reopened = navigator.current == target
         navigator.reset(Home)
-        navigator.open(
-            if (intent.getStringExtra(EXTRA_TARGET) == TARGET_CHAT) Chat(eventId) else Detail(
-                eventId
-            )
-        )
+        navigator.open(target)
+        if (reopened && target is Detail) app.openEvent(eventId)
     }
 
     companion object {
@@ -318,13 +319,15 @@ fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
             if (state.needsOnboarding) OnboardingRoute() else {
                 // Кожен запис стека має власне сховище моделей: пушнуті екрани переживають поворот і
                 // чистяться при знятті. Вкладки беруть моделі зі сховища Activity, див. `activityStoreOwner`.
+                // Список декораторів — один на композицію: новий екземпляр на кожну емісію стану
+                // перескладав би `NavDisplay` з усім екраном під ним.
+                val saveable = rememberSaveableStateHolderNavEntryDecorator<NavKey>()
+                val stores = rememberViewModelStoreNavEntryDecorator<NavKey>()
+                val decorators = remember(saveable, stores) { listOf(saveable, stores) }
                 NavDisplay(
                     backStack = navigator.stack,
                     onBack = navigator::back,
-                    entryDecorators = listOf(
-                        rememberSaveableStateHolderNavEntryDecorator(),
-                        rememberViewModelStoreNavEntryDecorator()
-                    ),
+                    entryDecorators = decorators,
                     entryProvider = entryProvider
                 )
                 TabBar(

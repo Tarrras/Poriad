@@ -17,11 +17,19 @@ class ExploreViewModel(private val app: PoruchApp) :
     init {
         observe(app) { shared ->
             val stackPlace = shared.placeOfStack(stackIds)
+            val newIndex = shared.map.index
+            val newCategory = shared.map.category
+            val visible = when {
+                newIndex === index && newCategory == category -> visibleIndex
+                newCategory == null -> newIndex
+                else -> newIndex.filter { it.category == newCategory }
+            }
             // Мапа малює індекс, карусель і список — картки, яких може бути менше.
             copy(
                 // Свіжа відповідь означає, що мапа вже показує цю область: підказка зникає.
-                pendingArea = if (shared.map.index !== index) null else pendingArea,
-                index = shared.map.index,
+                pendingArea = if (newIndex !== index) null else pendingArea,
+                index = newIndex,
+                visibleIndex = visible,
                 totalFound = shared.map.totalFound,
                 events = shared.map.events,
                 cards = shared.cards,
@@ -36,7 +44,7 @@ class ExploreViewModel(private val app: PoruchApp) :
                 searchText = shared.map.searchText,
                 places = shared.map.places,
                 artists = shared.map.artists,
-                category = shared.map.category,
+                category = newCategory,
                 dateFilter = shared.map.dateFilter,
                 onlyAvailable = shared.map.onlyAvailable,
                 loading = shared.map.loading,

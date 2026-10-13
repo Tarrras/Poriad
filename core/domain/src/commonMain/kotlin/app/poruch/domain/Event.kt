@@ -93,8 +93,10 @@ data class Event(
 
     // ---- Час. Рахуємо тут, щоб Android та iOS відповідали однаково.
 
-    val startInstant: Instant? get() = runCatching { Instant.parse(startsAt) }.getOrNull()
-    val endInstant: Instant? get() = runCatching { Instant.parse(endsAt) }.getOrNull()
+    // Парсимо раз на екземпляр: `isListed`/`isUnderway`/`hasEnded` кличуть це по кілька разів на подію,
+    // а фолди екранів — на кожну емісію стану. Поза конструктором, тож `equals`/`copy` не зачіпає.
+    val startInstant: Instant? by lazy { runCatching { Instant.parse(startsAt) }.getOrNull() }
+    val endInstant: Instant? by lazy { runCatching { Instant.parse(endsAt) }.getOrNull() }
 
     /** Почалася і ще триває. */
     fun isUnderway(now: Instant): Boolean {

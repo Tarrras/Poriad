@@ -278,10 +278,13 @@ private fun ReportSheet(target: ReportTarget, onIntent: (DetailIntent) -> Unit) 
 private fun Hero(event: Event, state: DetailState, scroll: ScrollState, onIntent: (DetailIntent) -> Unit) {
     val room = state.room
     // Відлік лише для сьогоднішнього, як на картці плану головної.
-    val today = runCatching {
-        java.time.Instant.parse(event.startsAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate() == java.time.LocalDate.now()
-    }.getOrDefault(false)
-    val overline = if (today) countdownOverline(event) else cardOverline(event, dateWords())
+    val words = dateWords()
+    val today = remember(event) {
+        event.startInstant?.let {
+            java.time.Instant.ofEpochMilli(it.toEpochMilliseconds()).atZone(java.time.ZoneId.systemDefault()).toLocalDate() == java.time.LocalDate.now()
+        } == true
+    }
+    val overline = if (today) countdownOverline(event) else remember(event) { cardOverline(event, words) }
     Box(Modifier.fillMaxWidth()) {
         Box(Modifier.fillMaxWidth().height(HERO_HEIGHT)) {
             EventArt(event, Modifier.fillMaxSize(), glyph = 260.dp, glyphDrop = 120.dp)
@@ -291,11 +294,7 @@ private fun Hero(event: Event, state: DetailState, scroll: ScrollState, onIntent
                     .windowInsetsTopHeight(WindowInsets.statusBars.add(WindowInsets(top = Spacing.lg)))
                     .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.32f), Color.Transparent)))
             )
-            Box(
-                Modifier.matchParentSize().background(
-                    Brush.verticalGradient(0.35f to Color.Transparent, 0.75f to Color.Black.copy(alpha = 0.55f), 1f to Color.Black.copy(alpha = 0.82f))
-                )
-            )
+            Box(Modifier.matchParentSize().background(PhotoScrim))
         }
         Row(Modifier.fillMaxWidth().statusBarsPadding().padding(Spacing.md), verticalAlignment = Alignment.CenterVertically) {
             ScrimButton(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.back)) { onIntent(DetailIntent.Back) }
@@ -778,10 +777,12 @@ private fun Venue(event: Event, following: Boolean, onIntent: (DetailIntent) -> 
     // Мапу вбудовуємо після другого кадру: MapView і стиль — найдорожче на екрані, і перехід чекав на них.
     var mapReady by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { withFrameNanos {}; withFrameNanos {}; mapReady = true }
+    // Той самий список між перескладаннями: інакше міні-мапа регрупувала піни й переписувала GeoJSON на кожне.
+    val pins = remember(event) { listOf(event.asIndexEntry()) }
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         SectionHeader(stringResource(if (event.isCommunity) R.string.venue else R.string.venue_listing))
         Box(Modifier.fillMaxWidth().height(180.dp).cardSurface(Radius.md).padding(Spacing.xs).clip(Radius.sm)) {
-            if (mapReady) EventMap(listOf(event.asIndexEntry()), event.latitude, event.longitude, selectedId = event.id, interactive = false)
+            if (mapReady) EventMap(pins, event.latitude, event.longitude, selectedId = event.id, interactive = false)
             else Box(Modifier.fillMaxSize().background(Poruch.colors.surfaceMuted))
             Box(
                 Modifier.matchParentSize().pressable { onIntent(DetailIntent.OpenMap) },
@@ -1183,16 +1184,6 @@ private val DetailAction.label: Int
         DetailAction.TICKETS -> R.string.listing_tickets
         DetailAction.CANCELLED, DetailAction.NONE -> R.string.cancelled
     }
-
-@Composable
-private fun ScrimButton(icon: ImageVector, description: String, onClick: () -> Unit) {
-    // Фото довільне, тож кнопки на власному світлому скримі.
-    Box(
-        Modifier.minimumInteractiveComponentSize().size(40.dp).background(Color.White.copy(alpha = 0.92f), CircleShape)
-            .border(1.dp, Color.Black.copy(alpha = 0.06f), CircleShape).clip(CircleShape).clickable(role = Role.Button, onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) { Icon(icon, description, Modifier.size(18.dp), tint = Color(0xFF14130F)) }
-}
 
 /** Скільки учасників видно до «Показати всіх». */
 private const val ROSTER_COLLAPSED = 3

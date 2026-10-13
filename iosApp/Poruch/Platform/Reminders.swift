@@ -182,8 +182,10 @@ final class LocalReminderScheduler: NSObject, ReminderScheduler, RequestNotifier
             let eventId = info["eventId"] as? String, placeId = info["placeId"] as? String, artistId = info["artistId"] as? String
             let chat = info["kind"] as? String == "chat" || id.hasPrefix(chatPrefix)
             DispatchQueue.main.async {
+                // Метрика лише разом із переходом: пуш без цілі не «повернув людину».
+                guard eventId != nil || placeId != nil || artistId != nil else { return }
                 if let reason { PushDelegate.opened(reason: reason) }
-                if eventId != nil || placeId != nil || artistId != nil { PushDelegate.open(eventId: eventId, chat: chat, placeId: placeId, artistId: artistId) }
+                PushDelegate.open(eventId: eventId, chat: chat, placeId: placeId, artistId: artistId)
             }
         }
         completionHandler()

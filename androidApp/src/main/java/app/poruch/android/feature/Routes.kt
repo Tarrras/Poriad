@@ -13,6 +13,12 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -89,8 +95,12 @@ fun ExploreRoute(focusId: String, navigator: Navigator) {
     val context = LocalContext.current
     val nearbyLabel = stringResource(R.string.nearby)
     val model = koinViewModel<ExploreViewModel>(viewModelStoreOwner = activityStoreOwner())
-    // Мапу відкрили з деталей події: наводимось на неї.
-    LaunchedEffect(focusId) { if (focusId.isNotEmpty()) model.dispatch(ExploreIntent.FocusEvent(focusId)) }
+    // Мапу відкрили з деталей події: наводимось на неї — один раз на запис стека, а не на кожне повернення
+    // кореня в композицію (з деталей іншої події, під predictive back): інакше стос закривався і мапа стрибала назад.
+    var focusedOn by rememberSaveable { mutableStateOf("") }
+    LaunchedEffect(focusId) {
+        if (focusId.isNotEmpty() && focusedOn != focusId) { focusedOn = focusId; model.dispatch(ExploreIntent.FocusEvent(focusId)) }
+    }
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { results ->
         if (results.values.none { it }) {
             model.dispatch(ExploreIntent.LocationDenied)
@@ -162,8 +172,10 @@ fun DetailRoute(route: Detail, navigator: Navigator) {
             is DetailEffect.OpenArtist -> navigator.open(ArtistPage(effect.id))
         }
     }
-    // Після повернення з іншого екрана деталей слот відкритої події треба забрати назад.
-    LaunchedEffect(Unit) { model.dispatch(DetailIntent.Reopen) }
+    // Після повернення з іншого екрана деталей слот відкритої події треба забрати назад. На ON_RESUME, не на
+    // першу композицію: під час жесту predictive back попередній екран лише STARTED, і він не має красти слот
+    // у того, що ще під пальцем.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { model.dispatch(DetailIntent.Reopen) }
     DetailScreen(model.state.collectAsStateWithLifecycle().value, model::dispatch)
 }
 
@@ -177,8 +189,8 @@ fun ArtistRoute(route: ArtistPage, navigator: Navigator) {
             is ArtistEffect.OpenEvent -> navigator.open(Detail(effect.id))
         }
     }
-    // Після повернення з іншого екрана артиста слот стану треба забрати назад.
-    LaunchedEffect(Unit) { model.dispatch(ArtistIntent.Reopen) }
+    // Після повернення з іншого екрана артиста слот стану треба забрати назад (на ON_RESUME, як у деталях).
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { model.dispatch(ArtistIntent.Reopen) }
     ArtistScreen(model.state.collectAsStateWithLifecycle().value, model::dispatch)
 }
 

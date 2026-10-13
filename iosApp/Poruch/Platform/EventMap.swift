@@ -48,6 +48,17 @@ private func iconName(_ category: EventCategory, selected: Bool) -> String {
     "poruch-pin-\(category.key)" + (selected ? "-on" : "")
 }
 
+/// Пін мініатюри деталей: растеризуємо раз на категорію й тему, а не на кожен рендер екрана (той
+/// перемальовується на кожну емісію стану, а `UIGraphicsImageRenderer` з тінню — не безплатний).
+@MainActor private var snapshotPins: [String: UIImage] = [:]
+@MainActor private func snapshotPin(category: EventCategory, scheme: ColorScheme) -> UIImage {
+    let key = "\(category.key)|\(scheme == .dark ? "dark" : "light")"
+    if let cached = snapshotPins[key] { return cached }
+    let pin = pinImage(glyph: categoryGlyph(category), hue: categoryUIColor(category), surface: UIColor(Palette.surface), selected: true)
+    snapshotPins[key] = pin
+    return pin
+}
+
 /// Значок піна, один на категорію, кешується стилем: кільце на диску в спокої, інверсія у фокусі.
 private func pinImage(glyph: PoruchGlyph, hue: UIColor, surface: UIColor, selected: Bool) -> UIImage {
     let disc: CGFloat = selected ? 46 : 38
@@ -133,9 +144,7 @@ struct EventMapSnapshot: View {
     @State private var snapshotter: MLNMapSnapshotter?
 
     var body: some View {
-        let pin = pinImage(
-            glyph: categoryGlyph(category), hue: categoryUIColor(category), surface: UIColor(Palette.surface), selected: true
-        )
+        let pin = snapshotPin(category: category, scheme: scheme)
         GeometryReader { geometry in
             ZStack {
                 Palette.canvasTint

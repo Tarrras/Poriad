@@ -133,6 +133,9 @@ struct RootView: View {
     @State private var homePath = NavigationPath()
     @State private var minePath = NavigationPath()
     @State private var profilePath = NavigationPath()
+    /// Стек мапи (артист → подія) теж явний: «На мапі» з його деталей і пуш мають його скинути, інакше
+    /// деталі лишались зверху, а їхній `hidesTabBar()` ховав таббар.
+    @State private var mapPath = NavigationPath()
     /// Лічильник переходів на мапу: мапа по ньому закриває свої шторки, щоб показати вибрану подію.
     @State private var mapToken = 0
     /// Стартове місто — те, де людина зараз, а не Київ за замовчуванням. Відмову мовчки приймаємо.
@@ -186,6 +189,7 @@ struct RootView: View {
         homePath = NavigationPath()
         minePath = NavigationPath()
         profilePath = NavigationPath()
+        mapPath = NavigationPath()
         mapToken += 1
         tab = 1
     }
@@ -226,7 +230,7 @@ struct RootView: View {
                     .navigationDestination(for: ArtistRoute.self) { ArtistView(route: $0) }
                 }.tag(0)
                 // Артист з пошуку мапи відкривається стеком; його події, у свою чергу, — деталями.
-                NavigationStack {
+                NavigationStack(path: $mapPath) {
                     DiscoveryView(openToken: mapToken).toolbar(.hidden, for: .tabBar)
                         .navigationDestination(for: ArtistRoute.self) { ArtistView(route: $0) }
                         .navigationDestination(for: EventRoute.self) { EventDetailView(app: model.app, eventID: $0.id) }
@@ -271,6 +275,9 @@ struct RootView: View {
                 tab = 0
                 minePath = NavigationPath()
                 profilePath = NavigationPath()
+                mapPath = NavigationPath()
+                // Шторка деталей на мапі має свій SwiftUI-прапорець: мапа скидає його по токену, UIKit-закриття вище його не чіпає.
+                mapToken += 1
                 if id == nil, let placeId { showMap(); model.app.openPlace(placeId: placeId); return }
                 if id == nil, let artistId {
                     var path = NavigationPath()

@@ -44,7 +44,6 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import app.poruch.android.R
 import app.poruch.android.ui.*
 import app.poruch.domain.Attendee
@@ -262,7 +261,7 @@ private fun Bubble(message: ChatMessage, continued: Boolean, mine: Boolean, onIn
             Text(message.body, style = MaterialTheme.typography.bodyLarge, color = if (mine) colors.onBrand else colors.ink)
             // Час у правому нижньому куті, як у месенджерах.
             Text(
-                time, style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, lineHeight = 14.sp),
+                time, style = PoruchType.caption,
                 color = if (mine) colors.onBrand.copy(alpha = 0.65f) else colors.inkTertiary,
                 modifier = Modifier.align(Alignment.End)
             )

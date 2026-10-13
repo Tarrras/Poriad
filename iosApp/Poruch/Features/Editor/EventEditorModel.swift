@@ -136,7 +136,13 @@ enum EditorStep: Int, CaseIterable, Identifiable {
 
     private let app: PoruchApp
     private let event: Event?
-    private var storageKey: String { "poruch.draft.\(event?.id ?? "new")" }
+    private static let draftPrefix = "poruch.draft."
+    private var storageKey: String { Self.draftPrefix + (event?.id ?? "new") }
+    /// Вихід з акаунта: чернетки належать людині, а не телефону — і нової події, і редагувань її подій.
+    static func clearDrafts() {
+        let defaults = UserDefaults.standard
+        for key in defaults.dictionaryRepresentation().keys where key.hasPrefix(draftPrefix) { defaults.removeObject(forKey: key) }
+    }
     /// Один кодувальник на редактор: створення дорожче за кодування.
     private let encoder = JSONEncoder()
     private var pendingSave: Task<Void, Never>?

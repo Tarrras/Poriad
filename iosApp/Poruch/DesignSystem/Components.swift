@@ -1152,6 +1152,13 @@ struct CreateEventCard: View {
 }
 
 /// Велика картка-афіша: обкладинка на всю висоту, текст на затемненні внизу. Головний акцент екрана; на головній їх кілька, гортаються.
+/// Затемнення низу обкладинки під текстом — одне на велику картку головної й обкладинку деталей, щоб
+/// одна й та сама афіша не мінялась тоном між екранами. Кольори на фото від теми не залежать.
+let photoScrim = LinearGradient(
+    stops: [.init(color: .clear, location: 0.3), .init(color: .black.opacity(0.55), location: 0.7), .init(color: .black.opacity(0.85), location: 1)],
+    startPoint: .top, endPoint: .bottom
+)
+
 struct EventHeroCard: View {
     let event: Event
     var eyebrow: String?
@@ -1162,15 +1169,10 @@ struct EventHeroCard: View {
     private var place: String { event.placeLabel }
     var body: some View {
         Button(action: action) {
-            EventArt(event: event)
+            // Розмір картки, а не типовий 800: інакше три hero декодувались у 2400 px і витісняли з кеша постери.
+            EventArt(event: event, maxDimension: height)
                 .frame(height: height).frame(maxWidth: .infinity).clipped()
-                .overlay(
-                    LinearGradient(
-                        stops: [.init(color: .clear, location: 0.3), .init(color: .black.opacity(0.55), location: 0.7),
-                                .init(color: .black.opacity(0.85), location: 1)],
-                        startPoint: .top, endPoint: .bottom
-                    )
-                )
+                .overlay(photoScrim)
                 .overlay(alignment: .bottomLeading) {
                     VStack(alignment: .leading, spacing: Space.sm) {
                         if let eyebrow {

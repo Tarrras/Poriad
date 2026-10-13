@@ -23,7 +23,9 @@ struct ChatView: View {
     /// Подія з будь-якого списку стану: чат відкривають з деталей, з головної і з пушу.
     private var event: Event? {
         guard let state = model.state else { return nil }
-        return ([state.detail.event].compactMap { $0 } + state.library.myEvents + state.map.events).first { $0.id == eventID }
+        // Без конкатенації: два Kotlin-списки через міст на кожне читання (а читають з шапки, підзаголовка й кожної бульбашки).
+        if let event = state.detail.event, event.id == eventID { return event }
+        return state.library.myEvents.first { $0.id == eventID } ?? state.map.events.first { $0.id == eventID }
     }
     private var chat: ChatState? { model.state?.chat.flatMap { $0.eventId == eventID ? $0 : nil } }
     private var userId: String? { model.state?.session.userId }

@@ -79,8 +79,9 @@ struct EventDetailView: View {
         // знімок стану приходить асинхронно і в мить появи ще тримає попередню відкриту подію.
         .task { model.app.openEvent(id: eventID) }
         // Перша картка стає якорем; перебудова лише коли оновилась вона або прийшов новий індекс.
-        .onChange(of: view.event, initial: true) { _, event in
-            guard let event, anchor == nil || anchor?.id == event.id else { return }
+        // Ключ — ідентичність Kotlin-обʼєкта, а не `Equatable`: той порівнював data-клас з усіма сеансами й артистами на кожен рендер.
+        .onChange(of: view.event.map(ObjectIdentifier.init), initial: true) { _, _ in
+            guard let event = view.event, anchor == nil || anchor?.id == event.id else { return }
             anchor = event
             sessions = model.app.sessionsOf(event: event)
             othersHere = model.app.othersAt(event: event)
@@ -92,7 +93,7 @@ struct EventDetailView: View {
             }
         }
         // Події закладу з сервера приїхали: «Ще в цьому місці» бачить і те, чого нема в індексі мапи.
-        .onChange(of: model.state?.detail.placeEvents) {
+        .onChange(of: model.state?.detail.placeEvents.map(ObjectIdentifier.init)) {
             if let anchor { othersHere = model.app.othersAt(event: anchor) }
         }
         .task(id: photo) { if let event = view.event { await actions.upload(photo, to: event) } }
@@ -147,13 +148,7 @@ struct EventDetailView: View {
             .background(alignment: .top) {
                 EventArt(event: event, maxDimension: heroHeight, glyphSize: 260, glyphDrop: 120)
                     .frame(height: heroHeight + max(offset, 0)).frame(maxWidth: .infinity).clipped()
-                    .overlay(
-                        LinearGradient(
-                            stops: [.init(color: .clear, location: 0.35), .init(color: .black.opacity(0.55), location: 0.75),
-                                    .init(color: .black.opacity(0.82), location: 1)],
-                            startPoint: .top, endPoint: .bottom
-                        )
-                    )
+                    .overlay(photoScrim)
                     .offset(y: min(offset, 0) * heroParallax)
                     .ignoresSafeArea(edges: .top)
             }
