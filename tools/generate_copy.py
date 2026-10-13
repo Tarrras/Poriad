@@ -95,7 +95,7 @@ def write_swift() -> None:
     lines.append("    // ---- Множини: `one` / `few` / `many` за українським правилом, число підставляється замість %d.")
     for name, items in plurals:
         forms = [items.get(q, items.get("other", "")) for q in ("one", "few", "many")]
-        forms_swift = ", ".join(swift_literal(f.replace("%d", "\0")) .replace("\0", "\\(n)") for f in forms)
+        forms_swift = ", ".join(swift_literal(PLACEHOLDER.sub("\0", f)).replace("\0", "\\(n)") for f in forms)
         lines.append(f"    static func {ident(name)}(_ n: Int) -> String {{ ukrainianPlural(n, {forms_swift}) }}")
     lines.append("}")
     TARGET.write_text("\n".join(lines) + "\n")

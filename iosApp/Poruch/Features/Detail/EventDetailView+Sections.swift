@@ -373,7 +373,10 @@ extension EventDetailView {
     /// Окремий екран поверх, а не підміна: «назад» має повертати сюди; `.task` вище перечитає подію після повернення.
     /// Згорнуто після опису: у великого закладу десятки подій, і розгорнутий список відсував би решту сторінки.
     func othersHereSection(_ othersHere: [EventIndexEntry], placeName: String?) -> some View {
-        VStack(alignment: .leading, spacing: Space.sm) {
+        // Значенням, не через `self`: вигляд `Equatable` за id, тож замикання підпису кнопки, яке читає лише
+        // `self.showOthersHere`, SwiftUI вважає незмінним і шеврон не повертає.
+        let expanded = showOthersHere
+        return VStack(alignment: .leading, spacing: Space.sm) {
             Button { withMotion { showOthersHere.toggle() } } label: {
                 HStack(spacing: Space.sm) {
                     Text(placeName.map { Copy.others_here_at("\($0)") } ?? Copy.others_here).font(PoruchFont.serifTitle2).kerning(-0.2)
@@ -381,7 +384,7 @@ extension EventDetailView {
                     Spacer(minLength: Space.sm)
                     Text("\(othersHere.count)").font(PoruchFont.label).foregroundStyle(Palette.inkSecondary).monospacedDigit()
                     PoruchIcon(glyph: PoruchIcons.chevronDown, size: 16).foregroundStyle(Palette.inkTertiary)
-                        .rotationEffect(.degrees(showOthersHere ? 180 : 0))
+                        .rotationEffect(.degrees(expanded ? 180 : 0))
                 }
                 .frame(minHeight: 44).contentShape(Rectangle())
             }

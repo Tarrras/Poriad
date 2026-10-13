@@ -64,9 +64,12 @@ struct MyEventsView: View, Equatable {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, Space.page)
             if signedIn {
+                // Поточний розріз — значенням, не через `self`: вигляд `Equatable` без полів, тож замикання `ForEach`,
+                // яке читає лише `self.tab`, SwiftUI вважає незмінним і чипи не перемальовує.
+                let current = tab
                 HStack(spacing: Space.sm) {
                     ForEach(Self.tabs, id: \.self) { entry in
-                        Chip(label: title(entry), badge: badge(entry, board), selected: tab == entry) { tab = entry }
+                        Chip(label: title(entry), badge: badge(entry, board), selected: current == entry) { tab = entry }
                     }
                 }.padding(.horizontal, Space.page)
             }

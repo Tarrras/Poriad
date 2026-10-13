@@ -692,20 +692,20 @@ enum Copy {
     // ---- Множини: `one` / `few` / `many` за українським правилом, число підставляється замість %d.
     static func series_more_dates(_ n: Int) -> String { ukrainianPlural(n, "ще \(n) дата", "ще \(n) дати", "ще \(n) дат") }
     static func series_more_showings(_ n: Int) -> String { ukrainianPlural(n, "ще \(n) сеанс", "ще \(n) сеанси", "ще \(n) сеансів") }
-    static func place_upcoming(_ n: Int) -> String { ukrainianPlural(n, "%1$d подія", "%1$d події", "%1$d подій") }
-    static func seats_short(_ n: Int) -> String { ukrainianPlural(n, "%1$d місце", "%1$d місця", "%1$d місць") }
-    static func home_follows_events(_ n: Int) -> String { ukrainianPlural(n, "Підписки: %1$d подія", "Підписки: %1$d події", "Підписки: %1$d подій") }
-    static func chat_members(_ n: Int) -> String { ukrainianPlural(n, "%1$d учасник", "%1$d учасники", "%1$d учасників") }
-    static func chat_unread_count(_ n: Int) -> String { ukrainianPlural(n, "%1$d нове", "%1$d нових", "%1$d нових") }
-    static func requests_count(_ n: Int) -> String { ukrainianPlural(n, "%1$d запит", "%1$d запити", "%1$d запитів") }
-    static func digest_count(_ n: Int) -> String { ukrainianPlural(n, "%1$d подія", "%1$d події", "%1$d подій") }
-    static func request_notification_body(_ n: Int) -> String { ukrainianPlural(n, "%1$d новий запит на участь. Відкрийте подію, щоб відповісти.", "%1$d нові запити на участь. Відкрийте подію, щоб відповісти.", "%1$d нових запитів на участь. Відкрийте подію, щоб відповісти.") }
+    static func place_upcoming(_ n: Int) -> String { ukrainianPlural(n, "\(n) подія", "\(n) події", "\(n) подій") }
+    static func seats_short(_ n: Int) -> String { ukrainianPlural(n, "\(n) місце", "\(n) місця", "\(n) місць") }
+    static func home_follows_events(_ n: Int) -> String { ukrainianPlural(n, "Підписки: \(n) подія", "Підписки: \(n) події", "Підписки: \(n) подій") }
+    static func chat_members(_ n: Int) -> String { ukrainianPlural(n, "\(n) учасник", "\(n) учасники", "\(n) учасників") }
+    static func chat_unread_count(_ n: Int) -> String { ukrainianPlural(n, "\(n) нове", "\(n) нових", "\(n) нових") }
+    static func requests_count(_ n: Int) -> String { ukrainianPlural(n, "\(n) запит", "\(n) запити", "\(n) запитів") }
+    static func digest_count(_ n: Int) -> String { ukrainianPlural(n, "\(n) подія", "\(n) події", "\(n) подій") }
+    static func request_notification_body(_ n: Int) -> String { ukrainianPlural(n, "\(n) новий запит на участь. Відкрийте подію, щоб відповісти.", "\(n) нові запити на участь. Відкрийте подію, щоб відповісти.", "\(n) нових запитів на участь. Відкрийте подію, щоб відповісти.") }
     static func field_title(_ n: Int) -> String { ukrainianPlural(n, "Назва — щонайменше \(n) символ", "Назва — щонайменше \(n) символи", "Назва — щонайменше \(n) символів") }
     static func field_description(_ n: Int) -> String { ukrainianPlural(n, "Опис — щонайменше \(n) символ", "Опис — щонайменше \(n) символи", "Опис — щонайменше \(n) символів") }
-    static func going_ahead(_ n: Int) -> String { ukrainianPlural(n, "%1$d план попереду", "%1$d плани попереду", "%1$d планів попереду") }
-    static func awaiting_reply(_ n: Int) -> String { ukrainianPlural(n, "%1$d чекає відповіді", "%1$d чекають відповіді", "%1$d чекають відповіді") }
-    static func organizing_ahead(_ n: Int) -> String { ukrainianPlural(n, "%1$d подія попереду", "%1$d події попереду", "%1$d подій попереду") }
-    static func join_requests(_ n: Int) -> String { ukrainianPlural(n, "%1$d запит на участь", "%1$d запити на участь", "%1$d запитів на участь") }
-    static func saved_ahead(_ n: Int) -> String { ukrainianPlural(n, "%1$d збережена", "%1$d збережені", "%1$d збережених") }
-    static func chat_new_messages(_ n: Int) -> String { ukrainianPlural(n, "%1$d нове повідомлення", "%1$d нових повідомлення", "%1$d нових повідомлень") }
+    static func going_ahead(_ n: Int) -> String { ukrainianPlural(n, "\(n) план попереду", "\(n) плани попереду", "\(n) планів попереду") }
+    static func awaiting_reply(_ n: Int) -> String { ukrainianPlural(n, "\(n) чекає відповіді", "\(n) чекають відповіді", "\(n) чекають відповіді") }
+    static func organizing_ahead(_ n: Int) -> String { ukrainianPlural(n, "\(n) подія попереду", "\(n) події попереду", "\(n) подій попереду") }
+    static func join_requests(_ n: Int) -> String { ukrainianPlural(n, "\(n) запит на участь", "\(n) запити на участь", "\(n) запитів на участь") }
+    static func saved_ahead(_ n: Int) -> String { ukrainianPlural(n, "\(n) збережена", "\(n) збережені", "\(n) збережених") }
+    static func chat_new_messages(_ n: Int) -> String { ukrainianPlural(n, "\(n) нове повідомлення", "\(n) нових повідомлення", "\(n) нових повідомлень") }
 }

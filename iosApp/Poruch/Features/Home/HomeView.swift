@@ -122,8 +122,11 @@ struct HomeView: View, Equatable {
                         // Тап міняє місто тут же, без переходу на мапу. Шеврон — частина тексту: довга назва
                         // переноситься разом із ним. Колір темніший за `inkSecondary`: на сяйві той дає лише ≈4:1.
                         Button { citySearch = true } label: {
-                            Text("\(view.cityName) \(PoruchIcon(glyph: PoruchIcons.chevronDown, size: 20))")
-                                .font(PoruchFont.subhead).foregroundStyle(Palette.ink.opacity(0.7)).multilineTextAlignment(.leading)
+                            HStack(alignment: .firstTextBaseline, spacing: Space.xs) {
+                                Text(view.cityName).font(PoruchFont.subhead).multilineTextAlignment(.leading)
+                                PoruchIcon(glyph: PoruchIcons.chevronDown, size: 14)
+                            }
+                            .foregroundStyle(Palette.ink.opacity(0.7))
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel(Copy.a11y_city("\(view.cityName)"))
@@ -283,7 +286,7 @@ struct HomeView: View, Equatable {
         let more = count - 1
         return YourRow(
             overline: nil, title: Copy.home_follows_events(count),
-            subtitle: (events.first?.displayTitle ?? "") + (more > 0 ? Copy.and_more("\(more)") : ""), open: openFollows
+            subtitle: (events.first?.displayTitle ?? "") + (more > 0 ? " " + Copy.and_more("\(more)") : ""), open: openFollows
         ) {
             PoruchIcon(glyph: PoruchIcons.bell, size: 20).foregroundStyle(Palette.ink)
                 .frame(width: yourTile, height: yourTile)
