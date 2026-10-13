@@ -33,10 +33,10 @@ extension EventDetailView {
             }
             .overlay(alignment: .top) {
                 HStack(spacing: Space.sm) {
-                    ScrimButton(symbol: "chevron.left", label: Copy.back) { dismiss() }
+                    ScrimButton(glyph: PoruchIcons.chevronLeft, label: Copy.back) { dismiss() }
                     Spacer()
                     ScrimButton(
-                        symbol: view.saved ? "bookmark.fill" : "bookmark",
+                        glyph: view.saved ? PoruchIcons.bookmarkFilled : PoruchIcons.bookmark,
                         label: view.saved ? Copy.unsave : Copy.save
                     ) { if !actions.toggleSaved(event, signedIn: view.signedIn) { auth = true } }
                 }.padding(Space.page)
@@ -63,10 +63,10 @@ extension EventDetailView {
             }
             else if view.organizer { StatusBadge(text: Copy.you_organize, tone: .neutral, onPhoto: true) }
             // Після кінця лишається лише факт участі: черга й місця вже нічого не значать.
-            else if view.ended { if view.room?.joined == true { StatusBadge(text: Copy.went, tone: .neutral, symbol: "checkmark", onPhoto: true) } }
-            else if view.room?.joined == true { StatusBadge(text: Copy.going, tone: .success, symbol: "checkmark", onPhoto: true) }
-            else if view.waitlisted { StatusBadge(text: Copy.in_queue, tone: .accent, symbol: "hourglass", onPhoto: true) }
-            else if view.room?.awaitingApproval == true { StatusBadge(text: Copy.request_pending, tone: .accent, symbol: "hourglass", onPhoto: true) }
+            else if view.ended { if view.room?.joined == true { StatusBadge(text: Copy.went, tone: .neutral, glyph: PoruchIcons.check, onPhoto: true) } }
+            else if view.room?.joined == true { StatusBadge(text: Copy.going, tone: .success, glyph: PoruchIcons.check, onPhoto: true) }
+            else if view.waitlisted { StatusBadge(text: Copy.in_queue, tone: .accent, glyph: PoruchIcons.queue, onPhoto: true) }
+            else if view.room?.awaitingApproval == true { StatusBadge(text: Copy.request_pending, tone: .accent, glyph: PoruchIcons.queue, onPhoto: true) }
             else if eventScarce(event), let room = view.room { StatusBadge(text: Copy.seats_left("\(room.seatsLeft)"), tone: .accent, onPhoto: true) }
         }
     }
@@ -74,8 +74,8 @@ extension EventDetailView {
     /// Для кого подія, на картці, а не через відмову сервера.
     func restrictions(_ room: Gathering) -> some View {
         HStack(spacing: Space.sm) {
-            if let limit = ageLimitLabel(room) { StatusBadge(text: limit, tone: .brand, symbol: "person") }
-            if room.approvalRequired { StatusBadge(text: Copy.approval_badge, tone: .neutral, symbol: "lock") }
+            if let limit = ageLimitLabel(room) { StatusBadge(text: limit, tone: .brand, glyph: PoruchIcons.person) }
+            if room.approvalRequired { StatusBadge(text: Copy.approval_badge, tone: .neutral, glyph: PoruchIcons.lock) }
         }
     }
 
@@ -255,7 +255,7 @@ extension EventDetailView {
                 .frame(height: 180)
                 .clipShape(RoundedRectangle(cornerRadius: Corner.md, style: .continuous))
                 .allowsHitTesting(false)
-                StatusBadge(text: Copy.show_map, tone: .neutral, symbol: "map").padding(Space.sm)
+                StatusBadge(text: Copy.show_map, tone: .neutral, glyph: PoruchIcons.map).padding(Space.sm)
             }
             .contentShape(Rectangle())
             .onTapGesture {
@@ -307,7 +307,7 @@ extension EventDetailView {
                         // Година й менше до комендантської — уже привід планувати дорогу, тож колір попередження.
                         let tight = curfew.minutesLeft <= 60
                         HStack(spacing: Space.md) {
-                            Image(systemName: "moon.stars").font(.system(size: 16, weight: .semibold))
+                            PoruchIcon(glyph: PoruchIcons.moon, size: 19)
                             Text(curfew.minutesLeft == 0
                                  ? Copy.curfew_during("\(curfew.endsAt)", "\(curfew.curfew.starts)")
                                  : Copy.curfew_left("\(curfew.endsAt)", "\(curfew.curfew.starts)", "\(durationWords(Int(curfew.minutesLeft)))"))
@@ -321,7 +321,7 @@ extension EventDetailView {
                         if index > 0 || curfew != nil { Divider().overlay(Palette.hairline) }
                         Button { SystemActions.openInMaps(latitude: shelter.latitude, longitude: shelter.longitude, label: shelter.address) } label: {
                             HStack(spacing: Space.md) {
-                                Image(systemName: shelter.kind == .metro ? "tram.fill.tunnel" : "shield")
+                                PoruchIcon(glyph: shelter.kind == .metro ? PoruchIcons.subway : PoruchIcons.shield, size: 20)
                                     .font(.system(size: 16, weight: .semibold)).foregroundStyle(Palette.inkTertiary)
                                 VStack(alignment: .leading, spacing: Space.xs) {
                                     Text(Copy.shelter_kind_distance("\(shelterLabel(shelter.kind))", "\(shelter.distanceMeters)"))
@@ -437,7 +437,7 @@ extension EventDetailView {
                     .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
             }
             if view.contactURL != nil {
-                SecondaryButton(title: Copy.contact_open, symbol: "link") { openingContact = true }
+                SecondaryButton(title: Copy.contact_open, glyph: PoruchIcons.link) { openingContact = true }
                     .frame(maxWidth: .infinity)
                 Text(Copy.contact_members_hint)
                     .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
@@ -503,8 +503,8 @@ extension EventDetailView {
                 Text(error).font(PoruchFont.caption).foregroundStyle(Palette.danger)
             }
             HStack(spacing: Space.md) {
-                if view.companionOf == nil { SecondaryButton(title: Copy.edit, symbol: "pencil") { editing = true } }
-                SecondaryButton(title: Copy.delete_account_cancel, symbol: "xmark", tone: Palette.danger) { cancelling = true }
+                if view.companionOf == nil { SecondaryButton(title: Copy.edit, glyph: PoruchIcons.edit) { editing = true } }
+                SecondaryButton(title: Copy.delete_account_cancel, glyph: PoruchIcons.close, tone: Palette.danger) { cancelling = true }
             }
         }
     }
@@ -526,7 +526,7 @@ extension EventDetailView {
             }
             // «Шукаю компанію» під квитком на всю ширину: поруч із ціною й квитком не влазить.
             if view.canSeekCompany {
-                SecondaryButton(title: Copy.companion_seek, symbol: "person.2", enabled: !view.mutating) {
+                SecondaryButton(title: Copy.companion_seek, glyph: PoruchIcons.social, enabled: !view.mutating) {
                     if view.signedIn { seekingCompany = true } else { auth = true }
                 }
             }
@@ -573,8 +573,8 @@ extension EventDetailView {
                         .buttonStyle(PressableStyle(pressedScale: 1))
                         .accessibilityElement(children: .combine)
                         if card.mine { StatusBadge(text: Copy.companion_mine, tone: .brand) }
-                        else if card.membership == .approved { StatusBadge(text: Copy.going, tone: .success, symbol: "checkmark") }
-                        else if card.membership == .requested { StatusBadge(text: Copy.request_pending, tone: .accent, symbol: "hourglass") }
+                        else if card.membership == .approved { StatusBadge(text: Copy.going, tone: .success, glyph: PoruchIcons.check) }
+                        else if card.membership == .requested { StatusBadge(text: Copy.request_pending, tone: .accent, glyph: PoruchIcons.queue) }
                         else if card.isFull { StatusBadge(text: Copy.full) }
                         else {
                             SecondaryButton(title: Copy.companion_join, enabled: !view.mutating) {

@@ -1,5 +1,6 @@
 package app.poruch.android.feature.detail
 
+import app.poruch.android.ui.PoruchIcons
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -11,8 +12,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -61,7 +60,7 @@ fun PhotoPickerButton(busy: Boolean, onPicked: (ByteArray, String) -> Unit) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         SecondaryButton(
             stringResource(R.string.add_photo), picker.open,
-            Modifier.fillMaxWidth(), enabled = !busy && !picker.reading, icon = Icons.Outlined.PhotoCamera
+            Modifier.fillMaxWidth(), enabled = !busy && !picker.reading, icon = PoruchIcons.camera
         )
         if (picker.reading) LinearProgressIndicator(Modifier.fillMaxWidth(), color = colors.brand, trackColor = colors.brandContainer)
         if (picker.failed) Text(stringResource(R.string.photo_error), style = MaterialTheme.typography.bodySmall, color = colors.danger)

@@ -426,16 +426,13 @@ private struct StatusBarInsetReader: ViewModifier {
 
 // ---- Форматування подій
 
-/// Те, що людина може обрати, з підписом і SF Symbol. Порядок — як у домені.
-let categories: [(EventCategory, String, String)] = [
-    (.music, "Музика", "music.note"), (.sport, "Спорт", "figure.run"), (.art, "Мистецтво", "paintpalette"),
-    (.food, "Їжа", "fork.knife"), (.games, "Ігри", "dice"), (.outdoors, "Природа", "leaf"),
-    (.social, "Зустрічі", "person.2"), (.comedy, "Стендап", "mic"), (.kids, "Дітям", "balloon.2"),
-    (.tours, "Екскурсії", "building.columns"), (.conference, "Конференції", "display")
+/// Те, що людина може обрати, з підписом. Порядок — як у домені; гліф дає `categoryGlyph`.
+let categories: [(EventCategory, String)] = [
+    (.music, "Музика"), (.sport, "Спорт"), (.art, "Мистецтво"), (.food, "Їжа"), (.games, "Ігри"), (.outdoors, "Природа"),
+    (.social, "Зустрічі"), (.comedy, "Стендап"), (.kids, "Дітям"), (.tours, "Екскурсії"), (.conference, "Конференції")
 ]
 
 func categoryName(_ category: EventCategory) -> String { categories.first { $0.0 == category }?.1 ?? "Інше" }
-func categorySymbol(_ category: EventCategory) -> String { categories.first { $0.0 == category }?.2 ?? "mappin" }
 
 /// Гліф категорії, двійник `categoryIcon` на Android.
 func categoryGlyph(_ category: EventCategory) -> PoruchGlyph {

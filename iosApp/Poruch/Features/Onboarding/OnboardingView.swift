@@ -46,7 +46,7 @@ struct OnboardingView: View {
     private var topRow: some View {
         HStack(spacing: Space.md) {
             if step != .welcome {
-                IconPill(symbol: "chevron.left", label: Copy.back, size: 40) { step = step.previous }
+                IconPill(glyph: PoruchIcons.chevronLeft, label: Copy.back, size: 40) { step = step.previous }
                 HStack(spacing: Space.xs) {
                     ForEach(1..<OnboardingStep.allCases.count, id: \.self) { index in
                         Capsule().fill(index <= step.rawValue ? Palette.brand : Palette.brandContainer).frame(height: 4)

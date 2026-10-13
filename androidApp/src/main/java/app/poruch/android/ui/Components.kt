@@ -17,10 +17,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.automirrored.outlined.ArrowForward
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -694,7 +690,7 @@ fun PageHeader(
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                Icons.AutoMirrored.Outlined.ArrowBack,
+                PoruchIcons.arrowLeft,
                 stringResource(R.string.back),
                 Modifier.size(18.dp),
                 tint = colors.ink
@@ -808,7 +804,7 @@ fun BannerCard(
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                Icons.AutoMirrored.Outlined.ArrowForward,
+                PoruchIcons.arrowRight,
                 null,
                 Modifier.size(16.dp),
                 tint = colors.onBrand
@@ -937,7 +933,7 @@ fun LabelledField(
 @Composable
 fun PasswordRevealIcon(revealed: Boolean, onToggle: () -> Unit) {
     Icon(
-        if (revealed) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff,
+        if (revealed) PoruchIcons.eye else PoruchIcons.eyeOff,
         stringResource(if (revealed) R.string.hide_password else R.string.show_password),
         Modifier.minimumInteractiveComponentSize().size(20.dp).clip(CircleShape).clickable(onClick = onToggle),
         tint = Poruch.colors.inkSecondary
@@ -1068,7 +1064,7 @@ private fun EventMeta(event: Event, short: Boolean = false) {
             )
         )
 
-        listing != null -> MetaLine(Icons.Outlined.ConfirmationNumber, listingPrice(listing))
+        listing != null -> MetaLine(PoruchIcons.ticket, listingPrice(listing))
     }
 }
 
@@ -1586,7 +1582,7 @@ fun CreateEventCard(title: String, subtitle: String, onClick: () -> Unit, modifi
             Text(title, style = MaterialTheme.typography.titleSmall, color = colors.onBrand)
             Text(subtitle, style = MaterialTheme.typography.bodySmall, color = colors.onBrand.copy(alpha = 0.72f))
         }
-        Icon(Icons.AutoMirrored.Outlined.ArrowForward, null, Modifier.size(16.dp), tint = colors.onBrand)
+        Icon(PoruchIcons.arrowRight, null, Modifier.size(16.dp), tint = colors.onBrand)
     }
 }
 

@@ -16,12 +16,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.Block
-import androidx.compose.material.icons.outlined.ContentCopy
-import androidx.compose.material.icons.outlined.Flag
-import androidx.compose.material.icons.outlined.PanTool
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -128,7 +122,7 @@ private fun Header(state: ChatState, onIntent: (ChatIntent) -> Unit) {
                 Modifier.minimumInteractiveComponentSize().size(40.dp).cardSurface(CircleShape, Elevation.card)
                     .pressable(onClick = { onIntent(ChatIntent.Back) }),
                 contentAlignment = Alignment.Center
-            ) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.back), Modifier.size(18.dp), tint = colors.ink) }
+            ) { Icon(PoruchIcons.arrowLeft, stringResource(R.string.back), Modifier.size(18.dp), tint = colors.ink) }
             Column(Modifier.weight(1f)) {
                 Text(
                     state.title.takeIf { it.isNotBlank() }?.let(TitleRules::display) ?: stringResource(R.string.chat_title),
@@ -200,7 +194,7 @@ private class FeedRow(val message: ChatMessage, val day: LocalDate?, val continu
 private fun Rules() {
     val colors = Poruch.colors
     Row(Modifier.padding(vertical = Spacing.md), horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.Top) {
-        Icon(Icons.Outlined.PanTool, null, Modifier.size(14.dp).padding(top = 1.dp), tint = colors.inkTertiary)
+        Icon(PoruchIcons.hand, null, Modifier.size(14.dp).padding(top = 1.dp), tint = colors.inkTertiary)
         Text(stringResource(R.string.chat_disclaimer), style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary)
     }
 }
@@ -343,11 +337,11 @@ private fun MessageActions(state: ChatState, message: ChatMessage, onIntent: (Ch
                 message.body, style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary, maxLines = 3, overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(bottom = Spacing.md)
             )
-            ActionRow(Icons.Outlined.ContentCopy, stringResource(R.string.chat_copy)) { sheet.close { onIntent(ChatIntent.Copy(message)) } }
-            if (!state.isMine(message)) ActionRow(Icons.Outlined.Flag, stringResource(R.string.chat_report)) {
+            ActionRow(PoruchIcons.copy, stringResource(R.string.chat_copy)) { sheet.close { onIntent(ChatIntent.Copy(message)) } }
+            if (!state.isMine(message)) ActionRow(PoruchIcons.flag, stringResource(R.string.chat_report)) {
                 sheet.close { onIntent(ChatIntent.ShowReport(message)) }
             }
-            if (!state.isMine(message)) ActionRow(Icons.Outlined.Block, stringResource(R.string.chat_block)) {
+            if (!state.isMine(message)) ActionRow(PoruchIcons.block, stringResource(R.string.chat_block)) {
                 sheet.close { onIntent(ChatIntent.ConfirmBlock(message)) }
             }
             if (state.canDelete(message)) ActionRow(PoruchIcons.trash, stringResource(R.string.chat_delete), tone = colors.danger) {

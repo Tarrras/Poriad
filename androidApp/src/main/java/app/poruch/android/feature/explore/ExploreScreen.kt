@@ -6,8 +6,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -106,10 +104,10 @@ private fun AreaPrompts(state: ExploreState, modifier: Modifier, onIntent: (Expl
             enter = if (Poruch.reducedMotion) fadeIn() else fadeIn() + scaleIn(initialScale = 0.9f),
             exit = if (Poruch.reducedMotion) fadeOut() else fadeOut() + scaleOut(targetScale = 0.9f)
         ) {
-            PrimaryButton(stringResource(R.string.search_here), { onIntent(ExploreIntent.SearchHere) }, icon = Icons.Outlined.Refresh)
+            PrimaryButton(stringResource(R.string.search_here), { onIntent(ExploreIntent.SearchHere) }, icon = PoruchIcons.refresh)
         }
         if (state.mapFailed) SecondaryButton(
-            stringResource(R.string.map_error_short), { onIntent(ExploreIntent.Recenter) }, icon = Icons.Outlined.WifiOff
+            stringResource(R.string.map_error_short), { onIntent(ExploreIntent.Recenter) }, icon = PoruchIcons.wifiOff
         )
     }
 }

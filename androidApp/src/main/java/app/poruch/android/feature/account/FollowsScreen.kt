@@ -6,8 +6,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -42,7 +40,7 @@ fun FollowsScreen(state: FollowsState, onIntent: (FollowsIntent) -> Unit) {
                     Modifier.minimumInteractiveComponentSize().size(40.dp).cardSurface(CircleShape, Elevation.card)
                         .pressable(onClick = { onIntent(FollowsIntent.Back) }),
                     contentAlignment = Alignment.Center
-                ) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.back), Modifier.size(18.dp), tint = colors.ink) }
+                ) { Icon(PoruchIcons.arrowLeft, stringResource(R.string.back), Modifier.size(18.dp), tint = colors.ink) }
                 Column(Modifier.weight(1f)) {
                     Text(stringResource(R.string.follows_title), style = MaterialTheme.typography.titleMedium, color = colors.ink)
                     Text(stringResource(R.string.follows_subtitle), style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)

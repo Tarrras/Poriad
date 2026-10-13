@@ -68,7 +68,7 @@ struct EventEditor: View {
     /// Закрити, прогрес трьома сегментами і назва режиму. Той самий ряд, що в онбордингу.
     private var wizardHeader: some View {
         HStack(spacing: Space.md) {
-            IconPill(symbol: "xmark", label: Copy.close, size: 40) { editor.persist(); dismiss() }
+            IconPill(glyph: PoruchIcons.close, label: Copy.close, size: 40) { editor.persist(); dismiss() }
             HStack(spacing: Space.xs) {
                 ForEach(EditorStep.allCases) { entry in
                     Capsule().fill(entry.rawValue <= editor.step.rawValue ? Palette.brand : Palette.brandContainer).frame(height: 4)
@@ -202,7 +202,7 @@ private struct PlaceStep: View {
         .clipShape(RoundedRectangle(cornerRadius: Corner.md, style: .continuous))
         // Координат не показуємо: людина знає адресу, а не широту.
         MetaLine(
-            symbol: editor.pointChosen ? "checkmark.circle" : "mappin.and.ellipse",
+            glyph: editor.pointChosen ? PoruchIcons.checkCircle : PoruchIcons.pin,
             text: editor.pointChosen ? Copy.address_point_set : Copy.address_or_map
         )
         FieldIssue(text: editor.issue(.location)).id(DraftField.location)
@@ -288,8 +288,8 @@ private struct ScheduleStep: View {
             Text(categoryName(form.category).uppercased()).font(PoruchFont.overline)
                 .foregroundStyle(categoryInk(form.category))
             Text(form.title.trimmingCharacters(in: .whitespaces).isEmpty ? Copy.title : TitleRules.shared.display(title: form.title.trimmingCharacters(in: .whitespaces))).font(PoruchFont.serifTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
-            MetaLine(symbol: "mappin.and.ellipse", text: "\(form.city) · \(form.address)")
-            MetaLine(symbol: "person.2", text: "\(form.capacity) місць")
+            MetaLine(glyph: PoruchIcons.pin, text: "\(form.city) · \(form.address)")
+            MetaLine(glyph: PoruchIcons.social, text: "\(form.capacity) місць")
         }.padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()
         Text(Copy.photo_after_publish)
             .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
@@ -355,8 +355,8 @@ private struct PointPicker: View {
                 HStack {
                     Spacer(minLength: 0)
                     VStack(spacing: Space.sm) {
-                        ZoomButton(symbol: "plus", label: Copy.zoom_in) { controller.zoomIn() }
-                        ZoomButton(symbol: "minus", label: Copy.zoom_out) { controller.zoomOut() }
+                        ZoomButton(glyph: PoruchIcons.plus, label: Copy.zoom_in) { controller.zoomIn() }
+                        ZoomButton(glyph: PoruchIcons.minus, label: Copy.zoom_out) { controller.zoomOut() }
                     }
                 }
                 .padding(Space.lg)
@@ -392,13 +392,13 @@ private struct PointPicker: View {
 
 /// Кругла кнопка масштабу поверх мапи.
 private struct ZoomButton: View {
-    let symbol: String
+    let glyph: PoruchGlyph
     let label: String
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: symbol)
+            PoruchIcon(glyph: glyph, size: 20)
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(Palette.ink)
                 .frame(width: 44, height: 44)

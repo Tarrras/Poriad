@@ -933,6 +933,525 @@ object PoruchIcons {
             .build()
     }
 
+    /** Людина з плюсом: запит на участь. */
+    val personAdd: ImageVector by lazy {
+        builder("personAdd")
+            .stroke {
+                moveTo(5.7f, 8f)
+                curveTo(5.7f, 6.177f, 7.177f, 4.7f, 9f, 4.7f)
+                curveTo(10.823f, 4.7f, 12.3f, 6.177f, 12.3f, 8f)
+                curveTo(12.3f, 9.823f, 10.823f, 11.3f, 9f, 11.3f)
+                curveTo(7.177f, 11.3f, 5.7f, 9.823f, 5.7f, 8f)
+                close()
+                moveTo(3.5f, 20f)
+                curveTo(3.5f, 15.6f, 6f, 13.3f, 9f, 13.3f)
+                curveTo(12f, 13.3f, 14.5f, 15.6f, 14.5f, 20f)
+                moveTo(18.5f, 9f)
+                lineTo(18.5f, 15f)
+                moveTo(15.5f, 12f)
+                lineTo(21.5f, 12f)
+            }
+            .build()
+    }
+
+    /** Календар зі знаком оклику: подій нема або скасовано. */
+    val calendarAlert: ImageVector by lazy {
+        builder("calendarAlert")
+            .fill {
+                moveTo(10.9f, 18f)
+                curveTo(10.9f, 17.392f, 11.392f, 16.9f, 12f, 16.9f)
+                curveTo(12.608f, 16.9f, 13.1f, 17.392f, 13.1f, 18f)
+                curveTo(13.1f, 18.608f, 12.608f, 19.1f, 12f, 19.1f)
+                curveTo(11.392f, 19.1f, 10.9f, 18.608f, 10.9f, 18f)
+                close()
+            }
+            .stroke {
+                moveTo(6f, 5f)
+                lineTo(18f, 5f)
+                curveTo(19.381f, 5f, 20.5f, 6.119f, 20.5f, 7.5f)
+                lineTo(20.5f, 18f)
+                curveTo(20.5f, 19.381f, 19.381f, 20.5f, 18f, 20.5f)
+                lineTo(6f, 20.5f)
+                curveTo(4.619f, 20.5f, 3.5f, 19.381f, 3.5f, 18f)
+                lineTo(3.5f, 7.5f)
+                curveTo(3.5f, 6.119f, 4.619f, 5f, 6f, 5f)
+                close()
+                moveTo(3.5f, 9.5f)
+                lineTo(20.5f, 9.5f)
+                moveTo(8f, 3f)
+                lineTo(8f, 6.5f)
+                moveTo(16f, 3f)
+                lineTo(16f, 6.5f)
+                moveTo(12f, 12f)
+                lineTo(12f, 15.5f)
+            }
+            .build()
+    }
+
+    /** Квиток з вирізами й перфорацією. */
+    val ticket: ImageVector by lazy {
+        builder("ticket")
+            .stroke {
+                moveTo(3.5f, 9f)
+                lineTo(3.5f, 6.5f)
+                lineTo(20.5f, 6.5f)
+                lineTo(20.5f, 9f)
+                curveTo(18.8f, 9f, 17.5f, 10.3f, 17.5f, 12f)
+                curveTo(17.5f, 13.7f, 18.8f, 15f, 20.5f, 15f)
+                lineTo(20.5f, 17.5f)
+                lineTo(3.5f, 17.5f)
+                lineTo(3.5f, 15f)
+                curveTo(5.2f, 15f, 6.5f, 13.7f, 6.5f, 12f)
+                curveTo(6.5f, 10.3f, 5.2f, 9f, 3.5f, 9f)
+                close()
+                moveTo(12f, 6.5f)
+                lineTo(12f, 17.5f)
+            }
+            .build()
+    }
+
+    /** Вихід: стрілка з рамки. */
+    val signOut: ImageVector by lazy {
+        builder("signOut")
+            .stroke {
+                moveTo(13f, 4f)
+                lineTo(5f, 4f)
+                lineTo(5f, 20f)
+                lineTo(13f, 20f)
+                moveTo(9.5f, 12f)
+                lineTo(20f, 12f)
+                moveTo(16.5f, 8.5f)
+                lineTo(20f, 12f)
+                lineTo(16.5f, 15.5f)
+            }
+            .build()
+    }
+
+    /** Стрілка до лінії: перейти на джерело. */
+    val enter: ImageVector by lazy {
+        builder("enter")
+            .stroke {
+                moveTo(3.5f, 12f)
+                lineTo(14f, 12f)
+                moveTo(10.5f, 8.5f)
+                lineTo(14f, 12f)
+                lineTo(10.5f, 15.5f)
+                moveTo(18.5f, 5f)
+                lineTo(18.5f, 19f)
+            }
+            .build()
+    }
+
+    /** Дві ланки. */
+    val link: ImageVector by lazy {
+        builder("link")
+            .stroke {
+                moveTo(10f, 14f)
+                lineTo(14f, 10f)
+                moveTo(8.5f, 11f)
+                lineTo(6f, 13.5f)
+                curveTo(4f, 15.5f, 4f, 18f, 6f, 19.5f)
+                curveTo(7.5f, 21f, 10f, 21f, 12f, 19f)
+                lineTo(13.5f, 17.5f)
+                moveTo(15.5f, 13f)
+                lineTo(18f, 10.5f)
+                curveTo(20f, 8.5f, 20f, 6f, 18f, 4.5f)
+                curveTo(16.5f, 3f, 14f, 3f, 12f, 5f)
+                lineTo(10.5f, 6.5f)
+            }
+            .build()
+    }
+
+    /** Піднята долоня: модерація, скарга. */
+    val hand: ImageVector by lazy {
+        builder("hand")
+            .stroke {
+                moveTo(6.5f, 12.5f)
+                lineTo(6.5f, 6.5f)
+                curveTo(6.5f, 5.7f, 7.2f, 5f, 8f, 5f)
+                curveTo(8.8f, 5f, 9.5f, 5.7f, 9.5f, 6.5f)
+                lineTo(9.5f, 4.5f)
+                curveTo(9.5f, 3.7f, 10.2f, 3f, 11f, 3f)
+                curveTo(11.8f, 3f, 12.5f, 3.7f, 12.5f, 4.5f)
+                lineTo(12.5f, 5.5f)
+                curveTo(12.5f, 4.7f, 13.2f, 4f, 14f, 4f)
+                curveTo(14.8f, 4f, 15.5f, 4.7f, 15.5f, 5.5f)
+                lineTo(15.5f, 8f)
+                curveTo(15.5f, 7.2f, 16.2f, 6.5f, 17f, 6.5f)
+                curveTo(17.8f, 6.5f, 18.5f, 7.2f, 18.5f, 8f)
+                lineTo(18.5f, 14f)
+                curveTo(18.5f, 18f, 15.5f, 21f, 11.5f, 21f)
+                curveTo(8.5f, 21f, 6.5f, 19.5f, 5f, 16.5f)
+                lineTo(3.8f, 13.8f)
+                curveTo(3.4f, 13f, 3.8f, 12.2f, 4.6f, 12f)
+                curveTo(5.4f, 11.8f, 6.1f, 12.1f, 6.5f, 12.5f)
+                close()
+            }
+            .build()
+    }
+
+    /** Куля з меридіанами: усюди. */
+    val globe: ImageVector by lazy {
+        builder("globe")
+            .stroke {
+                moveTo(3.5f, 12f)
+                curveTo(3.5f, 7.306f, 7.306f, 3.5f, 12f, 3.5f)
+                curveTo(16.694f, 3.5f, 20.5f, 7.306f, 20.5f, 12f)
+                curveTo(20.5f, 16.694f, 16.694f, 20.5f, 12f, 20.5f)
+                curveTo(7.306f, 20.5f, 3.5f, 16.694f, 3.5f, 12f)
+                close()
+                moveTo(3.5f, 12f)
+                lineTo(20.5f, 12f)
+                moveTo(12f, 3.5f)
+                curveTo(8.5f, 7f, 8.5f, 17f, 12f, 20.5f)
+                moveTo(12f, 3.5f)
+                curveTo(15.5f, 7f, 15.5f, 17f, 12f, 20.5f)
+            }
+            .build()
+    }
+
+    /** Аркуш із загнутим кутом: документ. */
+    val doc: ImageVector by lazy {
+        builder("doc")
+            .stroke {
+                moveTo(6f, 3.5f)
+                lineTo(14f, 3.5f)
+                lineTo(19f, 8.5f)
+                lineTo(19f, 20.5f)
+                lineTo(6f, 20.5f)
+                close()
+                moveTo(14f, 3.5f)
+                lineTo(14f, 8.5f)
+                lineTo(19f, 8.5f)
+                moveTo(9f, 12.5f)
+                lineTo(16f, 12.5f)
+                moveTo(9f, 16f)
+                lineTo(16f, 16f)
+            }
+            .build()
+    }
+
+    /** Дві дуги зі стрілками. */
+    val refresh: ImageVector by lazy {
+        builder("refresh")
+            .stroke {
+                moveTo(19.5f, 12f)
+                curveTo(19.5f, 7.9f, 16.1f, 4.5f, 12f, 4.5f)
+                curveTo(9.3f, 4.5f, 6.9f, 5.9f, 5.6f, 8f)
+                moveTo(4.5f, 12f)
+                curveTo(4.5f, 16.1f, 7.9f, 19.5f, 12f, 19.5f)
+                curveTo(14.7f, 19.5f, 17.1f, 18.1f, 18.4f, 16f)
+                moveTo(5f, 3.5f)
+                lineTo(5.6f, 8f)
+                lineTo(10f, 7.5f)
+                moveTo(19f, 20.5f)
+                lineTo(18.4f, 16f)
+                lineTo(14f, 16.5f)
+            }
+            .build()
+    }
+
+    /** Хвилі, перекреслені: звʼязку нема. */
+    val wifiOff: ImageVector by lazy {
+        builder("wifiOff")
+            .fill {
+                moveTo(10.7f, 19.2f)
+                curveTo(10.7f, 18.482f, 11.282f, 17.9f, 12f, 17.9f)
+                curveTo(12.718f, 17.9f, 13.3f, 18.482f, 13.3f, 19.2f)
+                curveTo(13.3f, 19.918f, 12.718f, 20.5f, 12f, 20.5f)
+                curveTo(11.282f, 20.5f, 10.7f, 19.918f, 10.7f, 19.2f)
+                close()
+            }
+            .stroke {
+                moveTo(3f, 9f)
+                curveTo(5f, 7.2f, 7.5f, 6f, 10.3f, 5.6f)
+                moveTo(14.5f, 5.8f)
+                curveTo(17f, 6.3f, 19.2f, 7.4f, 21f, 9f)
+                moveTo(6f, 12.5f)
+                curveTo(7.3f, 11.4f, 8.9f, 10.6f, 10.7f, 10.3f)
+                moveTo(15f, 10.8f)
+                curveTo(16.1f, 11.2f, 17.1f, 11.8f, 18f, 12.5f)
+                moveTo(9f, 16f)
+                curveTo(9.8f, 15.3f, 10.9f, 14.9f, 12f, 14.9f)
+                curveTo(13.1f, 14.9f, 14.2f, 15.3f, 15f, 16f)
+                moveTo(4f, 4f)
+                lineTo(20f, 20f)
+            }
+            .build()
+    }
+
+    /** Показати пароль. */
+    val eye: ImageVector by lazy {
+        builder("eye")
+            .stroke {
+                moveTo(2.5f, 12f)
+                curveTo(5f, 7.5f, 8.3f, 5.5f, 12f, 5.5f)
+                curveTo(15.7f, 5.5f, 19f, 7.5f, 21.5f, 12f)
+                curveTo(19f, 16.5f, 15.7f, 18.5f, 12f, 18.5f)
+                curveTo(8.3f, 18.5f, 5f, 16.5f, 2.5f, 12f)
+                close()
+                moveTo(8.8f, 12f)
+                curveTo(8.8f, 10.233f, 10.233f, 8.8f, 12f, 8.8f)
+                curveTo(13.767f, 8.8f, 15.2f, 10.233f, 15.2f, 12f)
+                curveTo(15.2f, 13.767f, 13.767f, 15.2f, 12f, 15.2f)
+                curveTo(10.233f, 15.2f, 8.8f, 13.767f, 8.8f, 12f)
+                close()
+            }
+            .build()
+    }
+
+    /** Сховати пароль. */
+    val eyeOff: ImageVector by lazy {
+        builder("eyeOff")
+            .stroke {
+                moveTo(2.5f, 12f)
+                curveTo(5f, 7.5f, 8.3f, 5.5f, 12f, 5.5f)
+                curveTo(15.7f, 5.5f, 19f, 7.5f, 21.5f, 12f)
+                curveTo(19f, 16.5f, 15.7f, 18.5f, 12f, 18.5f)
+                curveTo(8.3f, 18.5f, 5f, 16.5f, 2.5f, 12f)
+                close()
+                moveTo(8.8f, 12f)
+                curveTo(8.8f, 10.233f, 10.233f, 8.8f, 12f, 8.8f)
+                curveTo(13.767f, 8.8f, 15.2f, 10.233f, 15.2f, 12f)
+                curveTo(15.2f, 13.767f, 13.767f, 15.2f, 12f, 15.2f)
+                curveTo(10.233f, 15.2f, 8.8f, 13.767f, 8.8f, 12f)
+                close()
+                moveTo(4f, 20f)
+                lineTo(20f, 4f)
+            }
+            .build()
+    }
+
+    /** Вагон метро: укриття в підземці. */
+    val subway: ImageVector by lazy {
+        builder("subway")
+            .fill {
+                moveTo(7.3f, 14f)
+                curveTo(7.3f, 13.337f, 7.837f, 12.8f, 8.5f, 12.8f)
+                curveTo(9.163f, 12.8f, 9.7f, 13.337f, 9.7f, 14f)
+                curveTo(9.7f, 14.663f, 9.163f, 15.2f, 8.5f, 15.2f)
+                curveTo(7.837f, 15.2f, 7.3f, 14.663f, 7.3f, 14f)
+                close()
+                moveTo(14.3f, 14f)
+                curveTo(14.3f, 13.337f, 14.837f, 12.8f, 15.5f, 12.8f)
+                curveTo(16.163f, 12.8f, 16.7f, 13.337f, 16.7f, 14f)
+                curveTo(16.7f, 14.663f, 16.163f, 15.2f, 15.5f, 15.2f)
+                curveTo(14.837f, 15.2f, 14.3f, 14.663f, 14.3f, 14f)
+                close()
+            }
+            .stroke {
+                moveTo(8f, 3.5f)
+                lineTo(16f, 3.5f)
+                curveTo(17.657f, 3.5f, 19f, 4.843f, 19f, 6.5f)
+                lineTo(19f, 14.5f)
+                curveTo(19f, 16.157f, 17.657f, 17.5f, 16f, 17.5f)
+                lineTo(8f, 17.5f)
+                curveTo(6.343f, 17.5f, 5f, 16.157f, 5f, 14.5f)
+                lineTo(5f, 6.5f)
+                curveTo(5f, 4.843f, 6.343f, 3.5f, 8f, 3.5f)
+                close()
+                moveTo(5f, 11f)
+                lineTo(19f, 11f)
+                moveTo(8.5f, 17.5f)
+                lineTo(6.5f, 20.5f)
+                moveTo(15.5f, 17.5f)
+                lineTo(17.5f, 20.5f)
+            }
+            .build()
+    }
+
+    /** Фотоапарат: обкладинка події. */
+    val camera: ImageVector by lazy {
+        builder("camera")
+            .stroke {
+                moveTo(3.5f, 8.5f)
+                lineTo(8f, 8.5f)
+                lineTo(9.5f, 5.5f)
+                lineTo(14.5f, 5.5f)
+                lineTo(16f, 8.5f)
+                lineTo(20.5f, 8.5f)
+                lineTo(20.5f, 19f)
+                lineTo(3.5f, 19f)
+                close()
+                moveTo(8.8f, 13.5f)
+                curveTo(8.8f, 11.733f, 10.233f, 10.3f, 12f, 10.3f)
+                curveTo(13.767f, 10.3f, 15.2f, 11.733f, 15.2f, 13.5f)
+                curveTo(15.2f, 15.267f, 13.767f, 16.7f, 12f, 16.7f)
+                curveTo(10.233f, 16.7f, 8.8f, 15.267f, 8.8f, 13.5f)
+                close()
+            }
+            .build()
+    }
+
+    /** Місяць із зірками: комендантська година. */
+    val moon: ImageVector by lazy {
+        builder("moon")
+            .fill {
+                moveTo(17.5f, 6.5f)
+                curveTo(17.5f, 5.948f, 17.948f, 5.5f, 18.5f, 5.5f)
+                curveTo(19.052f, 5.5f, 19.5f, 5.948f, 19.5f, 6.5f)
+                curveTo(19.5f, 7.052f, 19.052f, 7.5f, 18.5f, 7.5f)
+                curveTo(17.948f, 7.5f, 17.5f, 7.052f, 17.5f, 6.5f)
+                close()
+                moveTo(19.7f, 10.5f)
+                curveTo(19.7f, 10.058f, 20.058f, 9.7f, 20.5f, 9.7f)
+                curveTo(20.942f, 9.7f, 21.3f, 10.058f, 21.3f, 10.5f)
+                curveTo(21.3f, 10.942f, 20.942f, 11.3f, 20.5f, 11.3f)
+                curveTo(20.058f, 11.3f, 19.7f, 10.942f, 19.7f, 10.5f)
+                close()
+            }
+            .stroke {
+                moveTo(13.5f, 3.5f)
+                curveTo(9f, 4.5f, 6f, 8.5f, 6f, 12.5f)
+                curveTo(6f, 17.2f, 9.8f, 21f, 14.5f, 21f)
+                curveTo(17f, 21f, 19.2f, 19.9f, 20.8f, 18.2f)
+                curveTo(15f, 18f, 11f, 13f, 13.5f, 3.5f)
+                close()
+            }
+            .build()
+    }
+
+    /** Прапорець: поскаржитись. */
+    val flag: ImageVector by lazy {
+        builder("flag")
+            .stroke {
+                moveTo(5.5f, 21f)
+                lineTo(5.5f, 3.5f)
+                moveTo(5.5f, 4.5f)
+                lineTo(18.5f, 4.5f)
+                lineTo(15f, 9f)
+                lineTo(18.5f, 13.5f)
+                lineTo(5.5f, 13.5f)
+            }
+            .build()
+    }
+
+    /** Два аркуші: скопіювати. */
+    val copy: ImageVector by lazy {
+        builder("copy")
+            .stroke {
+                moveTo(10.5f, 8.5f)
+                lineTo(18.5f, 8.5f)
+                curveTo(19.605f, 8.5f, 20.5f, 9.395f, 20.5f, 10.5f)
+                lineTo(20.5f, 18.5f)
+                curveTo(20.5f, 19.605f, 19.605f, 20.5f, 18.5f, 20.5f)
+                lineTo(10.5f, 20.5f)
+                curveTo(9.395f, 20.5f, 8.5f, 19.605f, 8.5f, 18.5f)
+                lineTo(8.5f, 10.5f)
+                curveTo(8.5f, 9.395f, 9.395f, 8.5f, 10.5f, 8.5f)
+                close()
+                moveTo(5.5f, 15.5f)
+                curveTo(4.4f, 15.5f, 3.5f, 14.6f, 3.5f, 13.5f)
+                lineTo(3.5f, 5.5f)
+                curveTo(3.5f, 4.4f, 4.4f, 3.5f, 5.5f, 3.5f)
+                lineTo(13.5f, 3.5f)
+                curveTo(14.6f, 3.5f, 15.5f, 4.4f, 15.5f, 5.5f)
+            }
+            .build()
+    }
+
+    /** Хмара, перекреслена: сервер не відповів. */
+    val cloudOff: ImageVector by lazy {
+        builder("cloudOff")
+            .stroke {
+                moveTo(7f, 18.5f)
+                curveTo(4.5f, 18.5f, 3f, 16.8f, 3f, 14.7f)
+                curveTo(3f, 12.6f, 4.6f, 11f, 6.7f, 10.8f)
+                curveTo(7.3f, 7.9f, 9.8f, 6f, 12.5f, 6f)
+                curveTo(15f, 6f, 17.2f, 7.5f, 18.1f, 9.8f)
+                curveTo(19.9f, 10.3f, 21f, 11.9f, 21f, 13.8f)
+                curveTo(21f, 16.4f, 18.9f, 18.5f, 16.3f, 18.5f)
+                lineTo(7f, 18.5f)
+                moveTo(4f, 4f)
+                lineTo(20f, 20f)
+            }
+            .build()
+    }
+
+    /** Коло з рискою: заблокувати. */
+    val block: ImageVector by lazy {
+        builder("block")
+            .stroke {
+                moveTo(3.5f, 12f)
+                curveTo(3.5f, 7.306f, 7.306f, 3.5f, 12f, 3.5f)
+                curveTo(16.694f, 3.5f, 20.5f, 7.306f, 20.5f, 12f)
+                curveTo(20.5f, 16.694f, 16.694f, 20.5f, 12f, 20.5f)
+                curveTo(7.306f, 20.5f, 3.5f, 16.694f, 3.5f, 12f)
+                close()
+                moveTo(6f, 6f)
+                lineTo(18f, 18f)
+            }
+            .build()
+    }
+
+    /** Компас: знайти на мапі. */
+    val compass: ImageVector by lazy {
+        builder("compass")
+            .stroke {
+                moveTo(3.5f, 12f)
+                curveTo(3.5f, 7.306f, 7.306f, 3.5f, 12f, 3.5f)
+                curveTo(16.694f, 3.5f, 20.5f, 7.306f, 20.5f, 12f)
+                curveTo(20.5f, 16.694f, 16.694f, 20.5f, 12f, 20.5f)
+                curveTo(7.306f, 20.5f, 3.5f, 16.694f, 3.5f, 12f)
+                close()
+                moveTo(15.5f, 8.5f)
+                lineTo(13.5f, 13.5f)
+                lineTo(8.5f, 15.5f)
+                lineTo(10.5f, 10.5f)
+                close()
+            }
+            .build()
+    }
+
+    /** Оцінка, поставлена. */
+    val starFilled: ImageVector by lazy {
+        builder("starFilled")
+            .fill {
+                moveTo(12f, 4f)
+                lineTo(14.17f, 9.61f)
+                lineTo(20.18f, 9.94f)
+                lineTo(15.52f, 13.74f)
+                lineTo(17.05f, 19.56f)
+                lineTo(12f, 16.3f)
+                lineTo(6.95f, 19.56f)
+                lineTo(8.48f, 13.74f)
+                lineTo(3.82f, 9.94f)
+                lineTo(9.83f, 9.61f)
+                close()
+            }
+            .build()
+    }
+
+    /** «Назад» у шапці. */
+    val arrowLeft: ImageVector by lazy {
+        builder("arrowLeft")
+            .stroke {
+                moveTo(19.5f, 12f)
+                lineTo(4.5f, 12f)
+                moveTo(10.5f, 6f)
+                lineTo(4.5f, 12f)
+                lineTo(10.5f, 18f)
+            }
+            .build()
+    }
+
+    /** Вхід: стрілка в рамку. */
+    val signIn: ImageVector by lazy {
+        builder("signIn")
+            .stroke {
+                moveTo(11f, 4f)
+                lineTo(19f, 4f)
+                lineTo(19f, 20f)
+                lineTo(11f, 20f)
+                moveTo(3.5f, 12f)
+                lineTo(14f, 12f)
+                moveTo(10.5f, 8.5f)
+                lineTo(14f, 12f)
+                lineTo(10.5f, 15.5f)
+            }
+            .build()
+    }
+
     private fun builder(name: String) =
         ImageVector.Builder("Poruch.$name", SIZE.dp, SIZE.dp, SIZE, SIZE)
 

@@ -63,7 +63,7 @@ struct ProfileView: View {
                 if let bio = profile.bio {
                     Text(bio).font(PoruchFont.bodyText).foregroundStyle(Palette.ink).multilineTextAlignment(.center)
                 }
-                SecondaryButton(title: Copy.profile_edit, symbol: "pencil") { editingProfile = true }
+                SecondaryButton(title: Copy.profile_edit, glyph: PoruchIcons.edit) { editingProfile = true }
             }
             .padding(.horizontal, Space.page).padding(.top, Space.section).padding(.bottom, Space.sm)
             .frame(maxWidth: .infinity)
@@ -87,7 +87,7 @@ struct ProfileView: View {
     }
 
     private var signInPrompt: some View {
-        PrimaryButton(title: Copy.profile_guest_cta, symbol: "arrow.right.to.line") { showAuth = true }
+        PrimaryButton(title: Copy.profile_guest_cta, glyph: PoruchIcons.enter) { showAuth = true }
             .frame(maxWidth: .infinity)
     }
 
@@ -137,7 +137,7 @@ struct ProfileView: View {
     private var follows: some View {
         GroupedRows {
             LinkRow(
-                symbol: "bell", title: Copy.follows_title, subtitle: Copy.follows_hint,
+                glyph: PoruchIcons.bell, title: Copy.follows_title, subtitle: Copy.follows_hint,
                 value: "\(model.state?.library.follows.count ?? 0)", action: openFollows
             )
         }
@@ -152,7 +152,7 @@ struct ProfileView: View {
                 isSelected: { key in model.state?.interests.contains { $0.key == key } == true }
             ) { model.app.toggleInterest(category: EventCategory.companion.fromKey(key: $0)) }
             GroupedRows {
-                LinkRow(symbol: "sparkles", title: Copy.tune_recommendations, subtitle: Copy.tune_recommendations_hint) {
+                LinkRow(glyph: PoruchIcons.sparkle, title: Copy.tune_recommendations, subtitle: Copy.tune_recommendations_hint) {
                     model.app.restartOnboarding()
                 }
             }
@@ -170,11 +170,11 @@ struct ProfileView: View {
                     // Акаунт Google/Apple пароля не має — і міняти нічого.
                     if model.state?.session.passwordless != true {
                         Divider().overlay(Palette.hairline).padding(.leading, Space.lg)
-                        LinkRow(symbol: "lock", title: Copy.update_password) { changingPassword = true }
+                        LinkRow(glyph: PoruchIcons.lock, title: Copy.update_password) { changingPassword = true }
                     }
                 }
             }
-            SecondaryButton(title: Copy.logout, symbol: "rectangle.portrait.and.arrow.right", tone: Palette.danger) {
+            SecondaryButton(title: Copy.logout, glyph: PoruchIcons.signOut, tone: Palette.danger) {
                 model.app.signOut()
             }
             // Видалення — окрема, важча дія: без заливки, лише червоний текст, і завжди через пароль.
@@ -199,21 +199,21 @@ struct ProfileView: View {
             // Згода належить пристрою, як і нагадування: перемикач є і в гостя.
             GroupedRows { AnalyticsPreference() }
             GroupedRows {
-                LinkRow(symbol: "hand.raised", title: Copy.privacy_policy) { open(LegalLinks.shared.PRIVACY) }
+                LinkRow(glyph: PoruchIcons.hand, title: Copy.privacy_policy) { open(LegalLinks.shared.PRIVACY) }
                 Divider().overlay(Palette.hairline).padding(.leading, Space.lg + 40 + Space.md)
-                LinkRow(symbol: "doc.text", title: Copy.terms_of_use) { open(LegalLinks.shared.TERMS) }
+                LinkRow(glyph: PoruchIcons.doc, title: Copy.terms_of_use) { open(LegalLinks.shared.TERMS) }
                 Divider().overlay(Palette.hairline).padding(.leading, Space.lg + 40 + Space.md)
-                LinkRow(symbol: "envelope", title: Copy.contact_support, subtitle: LegalLinks.shared.SUPPORT_EMAIL) {
+                LinkRow(glyph: PoruchIcons.mail, title: Copy.contact_support, subtitle: LegalLinks.shared.SUPPORT_EMAIL) {
                     open("mailto:" + LegalLinks.shared.SUPPORT_EMAIL)
                 }
             }
             GroupedRows {
-                LinkRow(symbol: "square.and.arrow.up", title: Copy.share_app) {
+                LinkRow(glyph: PoruchIcons.share, title: Copy.share_app) {
                     model.app.appShared()
                     sharingApp = ShareText(text: Copy.share_app_text("\(StoreLinks.shared.SHARE)"))
                 }
                 Divider().overlay(Palette.hairline).padding(.leading, Space.lg + 40 + Space.md)
-                LinkRow(symbol: "star", title: Copy.rate_app, subtitle: "Відгук в App Store допомагає нам рости") {
+                LinkRow(glyph: PoruchIcons.star, title: Copy.rate_app, subtitle: "Відгук в App Store допомагає нам рости") {
                     model.app.rateAppOpened()
                     open(StoreLinks.shared.APP_STORE_REVIEW)
                 }
@@ -302,7 +302,7 @@ struct DeleteAccountSheet: View {
                     Text("Apple не підтвердив вхід. Спробуйте ще раз.").font(PoruchFont.caption).foregroundStyle(Palette.danger)
                 }
                 PrimaryButton(
-                    title: viaApple ? "Підтвердити через Apple і видалити" : Copy.delete_account_confirm, symbol: viaApple ? "apple.logo" : "trash",
+                    title: viaApple ? "Підтвердити через Apple і видалити" : Copy.delete_account_confirm, glyph: viaApple ? nil : PoruchIcons.trash, symbol: viaApple ? "apple.logo" : nil,
                     tone: Palette.danger, loading: mutating, enabled: passwordless || AccountRules.shared.isPassword(value: password)
                 ) { confirm() }
                 SecondaryButton(title: Copy.delete_account_cancel, enabled: !mutating) { dismiss() }

@@ -25,7 +25,7 @@ struct NoticeBanner: View {
 
     private var content: some View {
         HStack(spacing: Space.md) {
-            Image(systemName: error ? "exclamationmark.circle" : "checkmark.circle")
+            PoruchIcon(glyph: error ? PoruchIcons.alert : PoruchIcons.checkCircle, size: 20)
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundStyle(error ? Palette.danger : Palette.success)
                 .frame(width: 36, height: 36)

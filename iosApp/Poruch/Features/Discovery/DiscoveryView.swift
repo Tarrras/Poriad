@@ -156,7 +156,7 @@ struct DiscoveryView: View, Equatable {
                     }.buttonStyle(.plain)
                 }
                 if region != nil {
-                    PrimaryButton(title: Copy.search_here, symbol: "arrow.clockwise") {
+                    PrimaryButton(title: Copy.search_here, glyph: PoruchIcons.refresh) {
                         if let region { model.app.searchArea(south: region.south, west: region.west, north: region.north, east: region.east) }
                         region = nil
                     }
@@ -233,10 +233,10 @@ struct DiscoveryView: View, Equatable {
             // Один ряд замість двох: місто веде стрічку фільтрів. Керування мапою — над каруселлю, під пальцем.
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: Space.sm) {
-                    Chip(label: view.cityName, symbol: "mappin.and.ellipse", trailingSymbol: "chevron.down", selected: false) { citySearch = true }
+                    Chip(label: view.cityName, glyph: PoruchIcons.pin, trailingGlyph: PoruchIcons.chevronDown, selected: false) { citySearch = true }
                         .accessibilityLabel("Змінити місто")
                     // Одразу після міста, а не за датами: з «Усі N» головної мапа приходить із цим фільтром, і його має бути видно.
-                    Chip(label: Copy.from_people, symbol: "person.2", selected: view.onlyAvailable) {
+                    Chip(label: Copy.from_people, glyph: PoruchIcons.social, selected: view.onlyAvailable) {
                         model.app.setOnlyAvailable(available: !view.onlyAvailable)
                     }
                     ForEach(dateFilterKeys, id: \.self) { key in
@@ -332,16 +332,16 @@ struct DiscoveryView: View, Equatable {
     private var peekHeader: some View {
         HStack(spacing: Space.sm) {
             // Керування мапою в зоні великого пальця. Це кнопки, тож за них шторку не тягнуть — лише за решту ряду.
-            IconPill(symbol: "viewfinder", label: Copy.recenter, size: 40) {
+            IconPill(glyph: PoruchIcons.recenter, label: Copy.recenter, size: 40) {
                 model.app.dismissEvent(); centerToken += 1
             }
-            IconPill(symbol: "location", label: Copy.nearby, size: 40) { location.request() }
+            IconPill(glyph: PoruchIcons.myLocation, label: Copy.nearby, size: 40) { location.request() }
             Spacer(minLength: 0)
             // Не `Button`: кнопка забирає дотик, і протягнути шторку за неї не виходить.
             HStack(spacing: Space.sm) {
                 if view.loading { ProgressView().controlSize(.mini) }
                 else if view.offline {
-                    Image(systemName: "wifi.slash").font(.system(size: 12)).foregroundStyle(Palette.accent)
+                    PoruchIcon(glyph: PoruchIcons.wifiOff, size: 15).foregroundStyle(Palette.accent)
                 }
                 // Зі «Стежити» ряд на вузькому екрані тісний: лічильник стискається, а не переноситься.
                 Text(countLabel).font(PoruchFont.label).foregroundStyle(Palette.ink).lineLimit(1).minimumScaleFactor(0.75)
@@ -373,7 +373,7 @@ struct DiscoveryView: View, Equatable {
             }
             Spacer(minLength: Space.sm)
             if stackFocused { clearStackButton }
-            IconPill(symbol: "chevron.down", label: Copy.show_map) { open(.peek) }
+            IconPill(glyph: PoruchIcons.chevronDown, label: Copy.show_map) { open(.peek) }
         }
         .padding(.bottom, Space.md)
         .contentShape(Rectangle())
@@ -382,7 +382,7 @@ struct DiscoveryView: View, Equatable {
 
     /// Вихід із фокуса на піні знімає і підсвітку, інакше мапа й список розходились.
     private var clearStackButton: some View {
-        IconPill(symbol: "xmark", label: Copy.show_all_events) {
+        IconPill(glyph: PoruchIcons.close, label: Copy.show_all_events) {
             explore.clearStack()
         }
     }

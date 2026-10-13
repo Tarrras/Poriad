@@ -13,8 +13,6 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -89,7 +87,7 @@ private fun TopRow(state: OnboardingState, onIntent: (OnboardingIntent) -> Unit)
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)
     ) {
         if (state.step != OnboardingStep.WELCOME) {
-            IconPill(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.back), size = 40.dp) {
+            IconPill(PoruchIcons.arrowLeft, stringResource(R.string.back), size = 40.dp) {
                 onIntent(OnboardingIntent.Back)
             }
             Row(

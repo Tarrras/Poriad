@@ -841,6 +841,477 @@ enum PoruchIcons {
         }
     )
 
+    /// Людина з плюсом: запит на участь.
+    static let personAdd = PoruchGlyph(
+        stroke: { path, s in
+            path.move(to: point(5.7, 8, s))
+            path.addCurve(to: point(9, 4.7, s), control1: point(5.7, 6.177, s), control2: point(7.177, 4.7, s))
+            path.addCurve(to: point(12.3, 8, s), control1: point(10.823, 4.7, s), control2: point(12.3, 6.177, s))
+            path.addCurve(to: point(9, 11.3, s), control1: point(12.3, 9.823, s), control2: point(10.823, 11.3, s))
+            path.addCurve(to: point(5.7, 8, s), control1: point(7.177, 11.3, s), control2: point(5.7, 9.823, s))
+            path.closeSubpath()
+            path.move(to: point(3.5, 20, s))
+            path.addCurve(to: point(9, 13.3, s), control1: point(3.5, 15.6, s), control2: point(6, 13.3, s))
+            path.addCurve(to: point(14.5, 20, s), control1: point(12, 13.3, s), control2: point(14.5, 15.6, s))
+            path.move(to: point(18.5, 9, s))
+            path.addLine(to: point(18.5, 15, s))
+            path.move(to: point(15.5, 12, s))
+            path.addLine(to: point(21.5, 12, s))
+        }
+    )
+
+    /// Календар зі знаком оклику: подій нема або скасовано.
+    static let calendarAlert = PoruchGlyph(
+        stroke: { path, s in
+            path.move(to: point(6, 5, s))
+            path.addLine(to: point(18, 5, s))
+            path.addCurve(to: point(20.5, 7.5, s), control1: point(19.381, 5, s), control2: point(20.5, 6.119, s))
+            path.addLine(to: point(20.5, 18, s))
+            path.addCurve(to: point(18, 20.5, s), control1: point(20.5, 19.381, s), control2: point(19.381, 20.5, s))
+            path.addLine(to: point(6, 20.5, s))
+            path.addCurve(to: point(3.5, 18, s), control1: point(4.619, 20.5, s), control2: point(3.5, 19.381, s))
+            path.addLine(to: point(3.5, 7.5, s))
+            path.addCurve(to: point(6, 5, s), control1: point(3.5, 6.119, s), control2: point(4.619, 5, s))
+            path.closeSubpath()
+            path.move(to: point(3.5, 9.5, s))
+            path.addLine(to: point(20.5, 9.5, s))
+            path.move(to: point(8, 3, s))
+            path.addLine(to: point(8, 6.5, s))
+            path.move(to: point(16, 3, s))
+            path.addLine(to: point(16, 6.5, s))
+            path.move(to: point(12, 12, s))
+            path.addLine(to: point(12, 15.5, s))
+        },
+        fill: { path, s in
+            path.move(to: point(10.9, 18, s))
+            path.addCurve(to: point(12, 16.9, s), control1: point(10.9, 17.392, s), control2: point(11.392, 16.9, s))
+            path.addCurve(to: point(13.1, 18, s), control1: point(12.608, 16.9, s), control2: point(13.1, 17.392, s))
+            path.addCurve(to: point(12, 19.1, s), control1: point(13.1, 18.608, s), control2: point(12.608, 19.1, s))
+            path.addCurve(to: point(10.9, 18, s), control1: point(11.392, 19.1, s), control2: point(10.9, 18.608, s))
+            path.closeSubpath()
+        }
+    )
+
+    /// Квиток з вирізами й перфорацією.
+    static let ticket = PoruchGlyph(
+        stroke: { path, s in
+            path.move(to: point(3.5, 9, s))
+            path.addLine(to: point(3.5, 6.5, s))
+            path.addLine(to: point(20.5, 6.5, s))
+            path.addLine(to: point(20.5, 9, s))
+            path.addCurve(to: point(17.5, 12, s), control1: point(18.8, 9, s), control2: point(17.5, 10.3, s))
+            path.addCurve(to: point(20.5, 15, s), control1: point(17.5, 13.7, s), control2: point(18.8, 15, s))
+            path.addLine(to: point(20.5, 17.5, s))
+            path.addLine(to: point(3.5, 17.5, s))
+            path.addLine(to: point(3.5, 15, s))
+            path.addCurve(to: point(6.5, 12, s), control1: point(5.2, 15, s), control2: point(6.5, 13.7, s))
+            path.addCurve(to: point(3.5, 9, s), control1: point(6.5, 10.3, s), control2: point(5.2, 9, s))
+            path.closeSubpath()
+            path.move(to: point(12, 6.5, s))
+            path.addLine(to: point(12, 17.5, s))
+        }
+    )
+
+    /// Вихід: стрілка з рамки.
+    static let signOut = PoruchGlyph(
+        stroke: { path, s in
+            path.move(to: point(13, 4, s))
+            path.addLine(to: point(5, 4, s))
+            path.addLine(to: point(5, 20, s))
+            path.addLine(to: point(13, 20, s))
+            path.move(to: point(9.5, 12, s))
+            path.addLine(to: point(20, 12, s))
+            path.move(to: point(16.5, 8.5, s))
+            path.addLine(to: point(20, 12, s))
+            path.addLine(to: point(16.5, 15.5, s))
+        }
+    )
+
+    /// Стрілка до лінії: перейти на джерело.
+    static let enter = PoruchGlyph(
+        stroke: { path, s in
+            path.move(to: point(3.5, 12, s))
+            path.addLine(to: point(14, 12, s))
+            path.move(to: point(10.5, 8.5, s))
+            path.addLine(to: point(14, 12, s))
+            path.addLine(to: point(10.5, 15.5, s))
+            path.move(to: point(18.5, 5, s))
+            path.addLine(to: point(18.5, 19, s))
+        }
+    )
+
+    /// Дві ланки.
+    static let link = PoruchGlyph(
+        stroke: { path, s in
+            path.move(to: point(10, 14, s))
+            path.addLine(to: point(14, 10, s))
+            path.move(to: point(8.5, 11, s))
+            path.addLine(to: point(6, 13.5, s))
+            path.addCurve(to: point(6, 19.5, s), control1: point(4, 15.5, s), control2: point(4, 18, s))
+            path.addCurve(to: point(12, 19, s), control1: point(7.5, 21, s), control2: point(10, 21, s))
+            path.addLine(to: point(13.5, 17.5, s))
+            path.move(to: point(15.5, 13, s))
+            path.addLine(to: point(18, 10.5, s))
+            path.addCurve(to: point(18, 4.5, s), control1: point(20, 8.5, s), control2: point(20, 6, s))
+            path.addCurve(to: point(12, 5, s), control1: point(16.5, 3, s), control2: point(14, 3, s))
+            path.addLine(to: point(10.5, 6.5, s))
+        }
+    )
+
+    /// Піднята долоня: модерація, скарга.
+    static let hand = PoruchGlyph(
+        stroke: { path, s in
+            path.move(to: point(6.5, 12.5, s))
+            path.addLine(to: point(6.5, 6.5, s))
+            path.addCurve(to: point(8, 5, s), control1: point(6.5, 5.7, s), control2: point(7.2, 5, s))
+            path.addCurve(to: point(9.5, 6.5, s), control1: point(8.8, 5, s), control2: point(9.5, 5.7, s))
+            path.addLine(to: point(9.5, 4.5, s))
+            path.addCurve(to: point(11, 3, s), control1: point(9.5, 3.7, s), control2: point(10.2, 3, s))
+            path.addCurve(to: point(12.5, 4.5, s), control1: point(11.8, 3, s), control2: point(12.5, 3.7, s))
+            path.addLine(to: point(12.5, 5.5, s))
+            path.addCurve(to: point(14, 4, s), control1: point(12.5, 4.7, s), control2: point(13.2, 4, s))
+            path.addCurve(to: point(15.5, 5.5, s), control1: point(14.8, 4, s), control2: point(15.5, 4.7, s))
+            path.addLine(to: point(15.5, 8, s))
+            path.addCurve(to: point(17, 6.5, s), control1: point(15.5, 7.2, s), control2: point(16.2, 6.5, s))
+            path.addCurve(to: point(18.5, 8, s), control1: point(17.8, 6.5, s), control2: point(18.5, 7.2, s))
+            path.addLine(to: point(18.5, 14, s))
+            path.addCurve(to: point(11.5, 21, s), control1: point(18.5, 18, s), control2: point(15.5, 21, s))
+            path.addCurve(to: point(5, 16.5, s), control1: point(8.5, 21, s), control2: point(6.5, 19.5, s))
+            path.addLine(to: point(3.8, 13.8, s))
+            path.addCurve(to: point(4.6, 12, s), control1: point(3.4, 13, s), control2: point(3.8, 12.2, s))
+            path.addCurve(to: point(6.5, 12.5, s), control1: point(5.4, 11.8, s), control2: point(6.1, 12.1, s))
+            path.closeSubpath()
+        }
+    )
+
+    /// Куля з меридіанами: усюди.
+    static let globe = PoruchGlyph(
+        stroke: { path, s in
+            path.move(to: point(3.5, 12, s))
+            path.addCurve(to: point(12, 3.5, s), control1: point(3.5, 7.306, s), control2: point(7.306, 3.5, s))
+            path.addCurve(to: point(20.5, 12, s), control1: point(16.694, 3.5, s), control2: point(20.5, 7.306, s))
+            path.addCurve(to: point(12, 20.5, s), control1: point(20.5, 16.694, s), control2: point(16.694, 20.5, s))
+            path.addCurve(to: point(3.5, 12, s), control1: point(7.306, 20.5, s), control2: point(3.5, 16.694, s))
+            path.closeSubpath()
+            path.move(to: point(3.5, 12, s))
+            path.addLine(to: point(20.5, 12, s))
+            path.move(to: point(12, 3.5, s))
+            path.addCurve(to: point(12, 20.5, s), control1: point(8.5, 7, s), control2: point(8.5, 17, s))
+            path.move(to: point(12, 3.5, s))
+            path.addCurve(to: point(12, 20.5, s), control1: point(15.5, 7, s), control2: point(15.5, 17, s))
+        }
+    )
+
+    /// Аркуш із загнутим кутом: документ.
+    static let doc = PoruchGlyph(
+        stroke: { path, s in
+            path.move(to: point(6, 3.5, s))
+            path.addLine(to: point(14, 3.5, s))
+            path.addLine(to: point(19, 8.5, s))
+            path.addLine(to: point(19, 20.5, s))
+            path.addLine(to: point(6, 20.5, s))
+            path.closeSubpath()
+            path.move(to: point(14, 3.5, s))
+            path.addLine(to: point(14, 8.5, s))
+            path.addLine(to: point(19, 8.5, s))
+            path.move(to: point(9, 12.5, s))
+            path.addLine(to: point(16, 12.5, s))
+            path.move(to: point(9, 16, s))
+            path.addLine(to: point(16, 16, s))
+        }
+    )
+
+    /// Дві дуги зі стрілками.
+    static let refresh = PoruchGlyph(
+        stroke: { path, s in
+            path.move(to: point(19.5, 12, s))
+            path.addCurve(to: point(12, 4.5, s), control1: point(19.5, 7.9, s), control2: point(16.1, 4.5, s))
+            path.addCurve(to: point(5.6, 8, s), control1: point(9.3, 4.5, s), control2: point(6.9, 5.9, s))
+            path.move(to: point(4.5, 12, s))
+            path.addCurve(to: point(12, 19.5, s), control1: point(4.5, 16.1, s), control2: point(7.9, 19.5, s))
+            path.addCurve(to: point(18.4, 16, s), control1: point(14.7, 19.5, s), control2: point(17.1, 18.1, s))
+            path.move(to: point(5, 3.5, s))
+            path.addLine(to: point(5.6, 8, s))
+            path.addLine(to: point(10, 7.5, s))
+            path.move(to: point(19, 20.5, s))
+            path.addLine(to: point(18.4, 16, s))
+            path.addLine(to: point(14, 16.5, s))
+        }
+    )
+
+    /// Хвилі, перекреслені: звʼязку нема.
+    static let wifiOff = PoruchGlyph(
+        stroke: { path, s in
+            path.move(to: point(3, 9, s))
+            path.addCurve(to: point(10.3, 5.6, s), control1: point(5, 7.2, s), control2: point(7.5, 6, s))
+            path.move(to: point(14.5, 5.8, s))
+            path.addCurve(to: point(21, 9, s), control1: point(17, 6.3, s), control2: point(19.2, 7.4, s))
+            path.move(to: point(6, 12.5, s))
+            path.addCurve(to: point(10.7, 10.3, s), control1: point(7.3, 11.4, s), control2: point(8.9, 10.6, s))
+            path.move(to: point(15, 10.8, s))
+            path.addCurve(to: point(18, 12.5, s), control1: point(16.1, 11.2, s), control2: point(17.1, 11.8, s))
+            path.move(to: point(9, 16, s))
+            path.addCurve(to: point(12, 14.9, s), control1: point(9.8, 15.3, s), control2: point(10.9, 14.9, s))
+            path.addCurve(to: point(15, 16, s), control1: point(13.1, 14.9, s), control2: point(14.2, 15.3, s))
+            path.move(to: point(4, 4, s))
+            path.addLine(to: point(20, 20, s))
+        },
+        fill: { path, s in
+            path.move(to: point(10.7, 19.2, s))
+            path.addCurve(to: point(12, 17.9, s), control1: point(10.7, 18.482, s), control2: point(11.282, 17.9, s))
+            path.addCurve(to: point(13.3, 19.2, s), control1: point(12.718, 17.9, s), control2: point(13.3, 18.482, s))
+            path.addCurve(to: point(12, 20.5, s), control1: point(13.3, 19.918, s), control2: point(12.718, 20.5, s))
+            path.addCurve(to: point(10.7, 19.2, s), control1: point(11.282, 20.5, s), control2: point(10.7, 19.918, s))
+            path.closeSubpath()
+        }
+    )
+
+    /// Показати пароль.
+    static let eye = PoruchGlyph(
+        stroke: { path, s in
+            path.move(to: point(2.5, 12, s))
+            path.addCurve(to: point(12, 5.5, s), control1: point(5, 7.5, s), control2: point(8.3, 5.5, s))
+            path.addCurve(to: point(21.5, 12, s), control1: point(15.7, 5.5, s), control2: point(19, 7.5, s))
+            path.addCurve(to: point(12, 18.5, s), control1: point(19, 16.5, s), control2: point(15.7, 18.5, s))
+            path.addCurve(to: point(2.5, 12, s), control1: point(8.3, 18.5, s), control2: point(5, 16.5, s))
+            path.closeSubpath()
+            path.move(to: point(8.8, 12, s))
+            path.addCurve(to: point(12, 8.8, s), control1: point(8.8, 10.233, s), control2: point(10.233, 8.8, s))
+            path.addCurve(to: point(15.2, 12, s), control1: point(13.767, 8.8, s), control2: point(15.2, 10.233, s))
+            path.addCurve(to: point(12, 15.2, s), control1: point(15.2, 13.767, s), control2: point(13.767, 15.2, s))
+            path.addCurve(to: point(8.8, 12, s), control1: point(10.233, 15.2, s), control2: point(8.8, 13.767, s))
+            path.closeSubpath()
+        }
+    )
+
+    /// Сховати пароль.
+    static let eyeOff = PoruchGlyph(
+        stroke: { path, s in
+            path.move(to: point(2.5, 12, s))
+            path.addCurve(to: point(12, 5.5, s), control1: point(5, 7.5, s), control2: point(8.3, 5.5, s))
+            path.addCurve(to: point(21.5, 12, s), control1: point(15.7, 5.5, s), control2: point(19, 7.5, s))
+            path.addCurve(to: point(12, 18.5, s), control1: point(19, 16.5, s), control2: point(15.7, 18.5, s))
+            path.addCurve(to: point(2.5, 12, s), control1: point(8.3, 18.5, s), control2: point(5, 16.5, s))
+            path.closeSubpath()
+            path.move(to: point(8.8, 12, s))
+            path.addCurve(to: point(12, 8.8, s), control1: point(8.8, 10.233, s), control2: point(10.233, 8.8, s))
+            path.addCurve(to: point(15.2, 12, s), control1: point(13.767, 8.8, s), control2: point(15.2, 10.233, s))
+            path.addCurve(to: point(12, 15.2, s), control1: point(15.2, 13.767, s), control2: point(13.767, 15.2, s))
+            path.addCurve(to: point(8.8, 12, s), control1: point(10.233, 15.2, s), control2: point(8.8, 13.767, s))
+            path.closeSubpath()
+            path.move(to: point(4, 20, s))
+            path.addLine(to: point(20, 4, s))
+        }
+    )
+
+    /// Вагон метро: укриття в підземці.
+    static let subway = PoruchGlyph(
+        stroke: { path, s in
+            path.move(to: point(8, 3.5, s))
+            path.addLine(to: point(16, 3.5, s))
+            path.addCurve(to: point(19, 6.5, s), control1: point(17.657, 3.5, s), control2: point(19, 4.843, s))
+            path.addLine(to: point(19, 14.5, s))
+            path.addCurve(to: point(16, 17.5, s), control1: point(19, 16.157, s), control2: point(17.657, 17.5, s))
+            path.addLine(to: point(8, 17.5, s))
+            path.addCurve(to: point(5, 14.5, s), control1: point(6.343, 17.5, s), control2: point(5, 16.157, s))
+            path.addLine(to: point(5, 6.5, s))
+            path.addCurve(to: point(8, 3.5, s), control1: point(5, 4.843, s), control2: point(6.343, 3.5, s))
+            path.closeSubpath()
+            path.move(to: point(5, 11, s))
+            path.addLine(to: point(19, 11, s))
+            path.move(to: point(8.5, 17.5, s))
+            path.addLine(to: point(6.5, 20.5, s))
+            path.move(to: point(15.5, 17.5, s))
+            path.addLine(to: point(17.5, 20.5, s))
+        },
+        fill: { path, s in
+            path.move(to: point(7.3, 14, s))
+            path.addCurve(to: point(8.5, 12.8, s), control1: point(7.3, 13.337, s), control2: point(7.837, 12.8, s))
+            path.addCurve(to: point(9.7, 14, s), control1: point(9.163, 12.8, s), control2: point(9.7, 13.337, s))
+            path.addCurve(to: point(8.5, 15.2, s), control1: point(9.7, 14.663, s), control2: point(9.163, 15.2, s))
+            path.addCurve(to: point(7.3, 14, s), control1: point(7.837, 15.2, s), control2: point(7.3, 14.663, s))
+            path.closeSubpath()
+            path.move(to: point(14.3, 14, s))
+            path.addCurve(to: point(15.5, 12.8, s), control1: point(14.3, 13.337, s), control2: point(14.837, 12.8, s))
+            path.addCurve(to: point(16.7, 14, s), control1: point(16.163, 12.8, s), control2: point(16.7, 13.337, s))
+            path.addCurve(to: point(15.5, 15.2, s), control1: point(16.7, 14.663, s), control2: point(16.163, 15.2, s))
+            path.addCurve(to: point(14.3, 14, s), control1: point(14.837, 15.2, s), control2: point(14.3, 14.663, s))
+            path.closeSubpath()
+        }
+    )
+
+    /// Фотоапарат: обкладинка події.
+    static let camera = PoruchGlyph(
+        stroke: { path, s in
+            path.move(to: point(3.5, 8.5, s))
+            path.addLine(to: point(8, 8.5, s))
+            path.addLine(to: point(9.5, 5.5, s))
+            path.addLine(to: point(14.5, 5.5, s))
+            path.addLine(to: point(16, 8.5, s))
+            path.addLine(to: point(20.5, 8.5, s))
+            path.addLine(to: point(20.5, 19, s))
+            path.addLine(to: point(3.5, 19, s))
+            path.closeSubpath()
+            path.move(to: point(8.8, 13.5, s))
+            path.addCurve(to: point(12, 10.3, s), control1: point(8.8, 11.733, s), control2: point(10.233, 10.3, s))
+            path.addCurve(to: point(15.2, 13.5, s), control1: point(13.767, 10.3, s), control2: point(15.2, 11.733, s))
+            path.addCurve(to: point(12, 16.7, s), control1: point(15.2, 15.267, s), control2: point(13.767, 16.7, s))
+            path.addCurve(to: point(8.8, 13.5, s), control1: point(10.233, 16.7, s), control2: point(8.8, 15.267, s))
+            path.closeSubpath()
+        }
+    )
+
+    /// Місяць із зірками: комендантська година.
+    static let moon = PoruchGlyph(
+        stroke: { path, s in
+            path.move(to: point(13.5, 3.5, s))
+            path.addCurve(to: point(6, 12.5, s), control1: point(9, 4.5, s), control2: point(6, 8.5, s))
+            path.addCurve(to: point(14.5, 21, s), control1: point(6, 17.2, s), control2: point(9.8, 21, s))
+            path.addCurve(to: point(20.8, 18.2, s), control1: point(17, 21, s), control2: point(19.2, 19.9, s))
+            path.addCurve(to: point(13.5, 3.5, s), control1: point(15, 18, s), control2: point(11, 13, s))
+            path.closeSubpath()
+        },
+        fill: { path, s in
+            path.move(to: point(17.5, 6.5, s))
+            path.addCurve(to: point(18.5, 5.5, s), control1: point(17.5, 5.948, s), control2: point(17.948, 5.5, s))
+            path.addCurve(to: point(19.5, 6.5, s), control1: point(19.052, 5.5, s), control2: point(19.5, 5.948, s))
+            path.addCurve(to: point(18.5, 7.5, s), control1: point(19.5, 7.052, s), control2: point(19.052, 7.5, s))
+            path.addCurve(to: point(17.5, 6.5, s), control1: point(17.948, 7.5, s), control2: point(17.5, 7.052, s))
+            path.closeSubpath()
+            path.move(to: point(19.7, 10.5, s))
+            path.addCurve(to: point(20.5, 9.7, s), control1: point(19.7, 10.058, s), control2: point(20.058, 9.7, s))
+            path.addCurve(to: point(21.3, 10.5, s), control1: point(20.942, 9.7, s), control2: point(21.3, 10.058, s))
+            path.addCurve(to: point(20.5, 11.3, s), control1: point(21.3, 10.942, s), control2: point(20.942, 11.3, s))
+            path.addCurve(to: point(19.7, 10.5, s), control1: point(20.058, 11.3, s), control2: point(19.7, 10.942, s))
+            path.closeSubpath()
+        }
+    )
+
+    /// Прапорець: поскаржитись.
+    static let flag = PoruchGlyph(
+        stroke: { path, s in
+            path.move(to: point(5.5, 21, s))
+            path.addLine(to: point(5.5, 3.5, s))
+            path.move(to: point(5.5, 4.5, s))
+            path.addLine(to: point(18.5, 4.5, s))
+            path.addLine(to: point(15, 9, s))
+            path.addLine(to: point(18.5, 13.5, s))
+            path.addLine(to: point(5.5, 13.5, s))
+        }
+    )
+
+    /// Два аркуші: скопіювати.
+    static let copy = PoruchGlyph(
+        stroke: { path, s in
+            path.move(to: point(10.5, 8.5, s))
+            path.addLine(to: point(18.5, 8.5, s))
+            path.addCurve(to: point(20.5, 10.5, s), control1: point(19.605, 8.5, s), control2: point(20.5, 9.395, s))
+            path.addLine(to: point(20.5, 18.5, s))
+            path.addCurve(to: point(18.5, 20.5, s), control1: point(20.5, 19.605, s), control2: point(19.605, 20.5, s))
+            path.addLine(to: point(10.5, 20.5, s))
+            path.addCurve(to: point(8.5, 18.5, s), control1: point(9.395, 20.5, s), control2: point(8.5, 19.605, s))
+            path.addLine(to: point(8.5, 10.5, s))
+            path.addCurve(to: point(10.5, 8.5, s), control1: point(8.5, 9.395, s), control2: point(9.395, 8.5, s))
+            path.closeSubpath()
+            path.move(to: point(5.5, 15.5, s))
+            path.addCurve(to: point(3.5, 13.5, s), control1: point(4.4, 15.5, s), control2: point(3.5, 14.6, s))
+            path.addLine(to: point(3.5, 5.5, s))
+            path.addCurve(to: point(5.5, 3.5, s), control1: point(3.5, 4.4, s), control2: point(4.4, 3.5, s))
+            path.addLine(to: point(13.5, 3.5, s))
+            path.addCurve(to: point(15.5, 5.5, s), control1: point(14.6, 3.5, s), control2: point(15.5, 4.4, s))
+        }
+    )
+
+    /// Хмара, перекреслена: сервер не відповів.
+    static let cloudOff = PoruchGlyph(
+        stroke: { path, s in
+            path.move(to: point(7, 18.5, s))
+            path.addCurve(to: point(3, 14.7, s), control1: point(4.5, 18.5, s), control2: point(3, 16.8, s))
+            path.addCurve(to: point(6.7, 10.8, s), control1: point(3, 12.6, s), control2: point(4.6, 11, s))
+            path.addCurve(to: point(12.5, 6, s), control1: point(7.3, 7.9, s), control2: point(9.8, 6, s))
+            path.addCurve(to: point(18.1, 9.8, s), control1: point(15, 6, s), control2: point(17.2, 7.5, s))
+            path.addCurve(to: point(21, 13.8, s), control1: point(19.9, 10.3, s), control2: point(21, 11.9, s))
+            path.addCurve(to: point(16.3, 18.5, s), control1: point(21, 16.4, s), control2: point(18.9, 18.5, s))
+            path.addLine(to: point(7, 18.5, s))
+            path.move(to: point(4, 4, s))
+            path.addLine(to: point(20, 20, s))
+        }
+    )
+
+    /// Коло з рискою: заблокувати.
+    static let block = PoruchGlyph(
+        stroke: { path, s in
+            path.move(to: point(3.5, 12, s))
+            path.addCurve(to: point(12, 3.5, s), control1: point(3.5, 7.306, s), control2: point(7.306, 3.5, s))
+            path.addCurve(to: point(20.5, 12, s), control1: point(16.694, 3.5, s), control2: point(20.5, 7.306, s))
+            path.addCurve(to: point(12, 20.5, s), control1: point(20.5, 16.694, s), control2: point(16.694, 20.5, s))
+            path.addCurve(to: point(3.5, 12, s), control1: point(7.306, 20.5, s), control2: point(3.5, 16.694, s))
+            path.closeSubpath()
+            path.move(to: point(6, 6, s))
+            path.addLine(to: point(18, 18, s))
+        }
+    )
+
+    /// Компас: знайти на мапі.
+    static let compass = PoruchGlyph(
+        stroke: { path, s in
+            path.move(to: point(3.5, 12, s))
+            path.addCurve(to: point(12, 3.5, s), control1: point(3.5, 7.306, s), control2: point(7.306, 3.5, s))
+            path.addCurve(to: point(20.5, 12, s), control1: point(16.694, 3.5, s), control2: point(20.5, 7.306, s))
+            path.addCurve(to: point(12, 20.5, s), control1: point(20.5, 16.694, s), control2: point(16.694, 20.5, s))
+            path.addCurve(to: point(3.5, 12, s), control1: point(7.306, 20.5, s), control2: point(3.5, 16.694, s))
+            path.closeSubpath()
+            path.move(to: point(15.5, 8.5, s))
+            path.addLine(to: point(13.5, 13.5, s))
+            path.addLine(to: point(8.5, 15.5, s))
+            path.addLine(to: point(10.5, 10.5, s))
+            path.closeSubpath()
+        }
+    )
+
+    /// Оцінка, поставлена.
+    static let starFilled = PoruchGlyph(
+        fill: { path, s in
+            path.move(to: point(12, 4, s))
+            path.addLine(to: point(14.17, 9.61, s))
+            path.addLine(to: point(20.18, 9.94, s))
+            path.addLine(to: point(15.52, 13.74, s))
+            path.addLine(to: point(17.05, 19.56, s))
+            path.addLine(to: point(12, 16.3, s))
+            path.addLine(to: point(6.95, 19.56, s))
+            path.addLine(to: point(8.48, 13.74, s))
+            path.addLine(to: point(3.82, 9.94, s))
+            path.addLine(to: point(9.83, 9.61, s))
+            path.closeSubpath()
+        }
+    )
+
+    /// «Назад» у шапці.
+    static let arrowLeft = PoruchGlyph(
+        stroke: { path, s in
+            path.move(to: point(19.5, 12, s))
+            path.addLine(to: point(4.5, 12, s))
+            path.move(to: point(10.5, 6, s))
+            path.addLine(to: point(4.5, 12, s))
+            path.addLine(to: point(10.5, 18, s))
+        }
+    )
+
+    /// Вхід: стрілка в рамку.
+    static let signIn = PoruchGlyph(
+        stroke: { path, s in
+            path.move(to: point(11, 4, s))
+            path.addLine(to: point(19, 4, s))
+            path.addLine(to: point(19, 20, s))
+            path.addLine(to: point(11, 20, s))
+            path.move(to: point(3.5, 12, s))
+            path.addLine(to: point(14, 12, s))
+            path.move(to: point(10.5, 8.5, s))
+            path.addLine(to: point(14, 12, s))
+            path.addLine(to: point(10.5, 15.5, s))
+        }
+    )
+
 }
 
 private func point(_ x: CGFloat, _ y: CGFloat, _ s: CGFloat) -> CGPoint {

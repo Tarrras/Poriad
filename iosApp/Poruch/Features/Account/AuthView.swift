@@ -59,7 +59,7 @@ struct AuthView: View {
     /// Знак застосунку й назва по центру, як вхід в Apple ID; «назад» окремо в кутку.
     private var header: some View {
         VStack(spacing: Space.md) {
-            IconPill(symbol: "chevron.left", label: Copy.back, size: 40) { if resetting { resetting = false } else { dismiss() } }
+            IconPill(glyph: PoruchIcons.chevronLeft, label: Copy.back, size: 40) { if resetting { resetting = false } else { dismiss() } }
                 .frame(maxWidth: .infinity, alignment: .leading)
             PoruchIcon(glyph: confirming ? PoruchIcons.checkCircle : resetting ? PoruchIcons.lock : askingBirthDate ? PoruchIcons.calendar : PoruchIcons.pin, size: 32)
                 .foregroundStyle(Palette.onBrand)
@@ -103,7 +103,7 @@ struct AuthView: View {
             }
             .padding(Space.xl).frame(maxWidth: .infinity, alignment: .leading)
             .cardSurface(radius: Corner.md, elevation: Elevation.card)
-            PrimaryButton(title: Copy.auth_open_mail, symbol: "envelope") {
+            PrimaryButton(title: Copy.auth_open_mail, glyph: PoruchIcons.mail) {
                 if let url = URL(string: "message://") { UIApplication.shared.open(url) }
             }
             SecondaryButton(title: Copy.auth_confirmed_login) {
@@ -122,7 +122,7 @@ struct AuthView: View {
             LabelledField(label: Copy.email, text: $form.email, placeholder: "you@example.com")
                 .textContentType(.emailAddress).keyboardType(.emailAddress)
                 .textInputAutocapitalization(.never).autocorrectionDisabled()
-            PrimaryButton(title: Copy.auth_reset_send, symbol: "envelope", loading: model.state?.mutating == true, enabled: form.emailValid) {
+            PrimaryButton(title: Copy.auth_reset_send, glyph: PoruchIcons.mail, loading: model.state?.mutating == true, enabled: form.emailValid) {
                 model.app.requestPasswordReset(email: form.email)
             }
             SecondaryButton(title: Copy.auth_reset_back) { resetting = false }.frame(maxWidth: .infinity)
@@ -310,7 +310,7 @@ struct PasswordRevealToggle: View {
     @Binding var revealed: Bool
     var body: some View {
         Button { revealed.toggle() } label: {
-            Image(systemName: revealed ? "eye.slash" : "eye")
+            PoruchIcon(glyph: revealed ? PoruchIcons.eyeOff : PoruchIcons.eye, size: 20)
                 .font(.system(size: 15)).foregroundStyle(Palette.inkSecondary)
                 .frame(width: 44, height: 44).contentShape(Rectangle())
         }

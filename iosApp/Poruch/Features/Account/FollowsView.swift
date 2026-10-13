@@ -20,7 +20,7 @@ struct FollowsView: View {
             PageHeader(title: Copy.follows_title, back: { dismiss() })
             if follows.isEmpty {
                 EmptyState(
-                    symbol: "bell", title: Copy.follows_empty_title,
+                    glyph: PoruchIcons.bell, title: Copy.follows_empty_title,
                     message: Copy.follows_empty_hint
                 ).padding(.top, Space.section)
                 Spacer(minLength: 0)

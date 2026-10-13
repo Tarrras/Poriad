@@ -5,12 +5,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.Login
-import androidx.compose.material.icons.automirrored.outlined.Logout
-import androidx.compose.material.icons.outlined.DeleteForever
-import androidx.compose.material.icons.outlined.Description
-import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -71,7 +65,7 @@ fun ProfileScreen(state: ProfileState, onIntent: (ProfileIntent) -> Unit) {
             }
             if (!state.signedIn) PrimaryButton(
                 stringResource(R.string.profile_guest_cta), { onIntent(ProfileIntent.SignIn) },
-                Modifier.fillMaxWidth(), icon = Icons.AutoMirrored.Outlined.Login
+                Modifier.fillMaxWidth(), icon = PoruchIcons.signIn
             )
         }
         Column(Modifier.padding(horizontal = Spacing.page), verticalArrangement = Arrangement.spacedBy(Spacing.xxl)) {
@@ -146,7 +140,7 @@ fun ProfileScreen(state: ProfileState, onIntent: (ProfileIntent) -> Unit) {
                 }
                 SecondaryButton(
                     stringResource(R.string.logout), { onIntent(ProfileIntent.SignOut) }, Modifier.fillMaxWidth(),
-                    icon = Icons.AutoMirrored.Outlined.Logout, tone = colors.danger
+                    icon = PoruchIcons.signOut, tone = colors.danger
                 )
                 // Видалення тихіше за вихід: сюди не тягнуться випадково, а знаходять навмисно.
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -181,7 +175,7 @@ fun ProfileScreen(state: ProfileState, onIntent: (ProfileIntent) -> Unit) {
                 GroupedRows {
                     LinkRow(PoruchIcons.shield, stringResource(R.string.privacy_policy), onClick = { onIntent(ProfileIntent.OpenPrivacy) })
                     HairLine(Modifier.padding(start = Spacing.lg + 40.dp + Spacing.md))
-                    LinkRow(Icons.Outlined.Description, stringResource(R.string.terms_of_use), onClick = { onIntent(ProfileIntent.OpenTerms) })
+                    LinkRow(PoruchIcons.doc, stringResource(R.string.terms_of_use), onClick = { onIntent(ProfileIntent.OpenTerms) })
                     HairLine(Modifier.padding(start = Spacing.lg + 40.dp + Spacing.md))
                     LinkRow(PoruchIcons.mail, stringResource(R.string.contact_support), onClick = { onIntent(ProfileIntent.ContactSupport) })
                 }
@@ -322,7 +316,7 @@ private fun DeleteAccountSheet(state: ProfileState, onIntent: (ProfileIntent) ->
             PrimaryButton(
                 stringResource(R.string.delete_account_confirm), { onIntent(ProfileIntent.ConfirmDeleteAccount) },
                 Modifier.fillMaxWidth(), enabled = state.canDelete, loading = state.mutating,
-                icon = Icons.Outlined.DeleteForever, tone = colors.danger
+                icon = PoruchIcons.trash, tone = colors.danger
             )
             SecondaryButton(
                 stringResource(R.string.delete_account_cancel), { sheet.close() }, Modifier.fillMaxWidth(),

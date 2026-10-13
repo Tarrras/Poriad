@@ -27,7 +27,7 @@ struct SearchField: View {
             .background(Palette.surface, in: Capsule())
             .overlay(Capsule().strokeBorder(Palette.hairline, lineWidth: 1).opacity(darkStroke))
             if let onFilters {
-                IconPill(symbol: "slider.horizontal.3", label: Copy.filters, action: onFilters)
+                IconPill(glyph: PoruchIcons.filters, label: Copy.filters, action: onFilters)
                     .overlay(alignment: .topTrailing) {
                         if activeFilters > 0 {
                             Text("\(activeFilters)").font(PoruchFont.overline).foregroundStyle(Palette.onBrand)
@@ -86,14 +86,14 @@ private let searchSettle = 250
 
 struct IconPill: View {
     @Environment(\.colorScheme) private var scheme
-    let symbol: String
+    let glyph: PoruchGlyph
     let label: String
     var selected: Bool = false
     var size: CGFloat = 48
     let action: () -> Void
     var body: some View {
         Button(action: action) {
-            Image(systemName: symbol).font(.system(size: 17, weight: .medium))
+            PoruchIcon(glyph: glyph, size: 20)
                 .foregroundStyle(selected ? Palette.onBrand : Palette.ink)
                 .frame(width: size, height: size)
                 .background {
@@ -117,10 +117,10 @@ struct CategoryDot: View {
 struct Chip: View {
     @Environment(\.colorScheme) private var scheme
     let label: String
-    var symbol: String?
+    var glyph: PoruchGlyph?
     var dot: EventCategory?
     /// Гліф після підпису: шеврон каже, що чип відкриває вибір, а не перемикає фільтр.
-    var trailingSymbol: String?
+    var trailingGlyph: PoruchGlyph?
     /// Скільки непрочитаних чатів у цьому розрізі.
     var badge: Int = 0
     let selected: Bool
@@ -130,13 +130,13 @@ struct Chip: View {
             HStack(spacing: Space.sm) {
                 if let dot {
                     Circle().fill(selected ? Palette.onBrand : categoryInk(dot)).frame(width: 8, height: 8)
-                } else if let symbol {
-                    Image(systemName: symbol).font(.system(size: 12, weight: .semibold))
+                } else if let glyph {
+                    PoruchIcon(glyph: glyph, size: 15)
                         .foregroundStyle(selected ? Palette.onBrand : Palette.inkSecondary)
                 }
                 Text(label).font(PoruchFont.label)
-                if let trailingSymbol {
-                    Image(systemName: trailingSymbol).font(.system(size: 10, weight: .bold))
+                if let trailingGlyph {
+                    PoruchIcon(glyph: trailingGlyph, size: 13)
                         .foregroundStyle(selected ? Palette.onBrand : Palette.inkSecondary)
                 }
                 if badge > 0 { CountBadge(count: badge) }
@@ -163,13 +163,13 @@ struct FollowPill: View {
     var iconOnly = false
     let action: () -> Void
     private var label: String { following ? Copy.following : Copy.follow }
-    private var symbol: String { following ? "bell.fill" : "bell" }
+    private var glyph: PoruchGlyph { following ? PoruchIcons.bellActive : PoruchIcons.bell }
     var body: some View {
         if iconOnly {
-            IconPill(symbol: symbol, label: label, selected: following, size: 40, action: action)
+            IconPill(glyph: glyph, label: label, selected: following, size: 40, action: action)
                 .accessibilityAddTraits(following ? .isSelected : [])
         } else {
-            Chip(label: label, symbol: symbol, selected: following, action: action)
+            Chip(label: label, glyph: glyph, selected: following, action: action)
         }
     }
 }
@@ -272,7 +272,7 @@ enum BadgeTone { case brand, success, accent, danger, neutral }
 struct StatusBadge: View {
     let text: String
     var tone: BadgeTone = .neutral
-    var symbol: String?
+    var glyph: PoruchGlyph?
     /// Бейдж лежить на фото. Тонована напівпрозора пігулка на випадковому знімку не читалась:
     /// сірий текст на сірому. На фото — майже непрозора поверхня, чорнило й тінь, як у `SaveButton`.
     var onPhoto: Bool = false
@@ -287,7 +287,7 @@ struct StatusBadge: View {
     }
     var body: some View {
         HStack(spacing: Space.xs) {
-            if let symbol { Image(systemName: symbol).font(.system(size: 10, weight: .bold)) }
+            if let glyph { PoruchIcon(glyph: glyph, size: 13) }
             Text(text.uppercased()).font(PoruchFont.overline).kerning(1.0)
         }
         .foregroundStyle(onPhoto && (tone == .neutral || tone == .brand) ? Palette.ink : colors.1)
@@ -333,6 +333,8 @@ struct PromptSheet: View {
 
 struct PrimaryButton: View {
     let title: String
+    var glyph: PoruchGlyph?
+    /// SF Symbol лише для чужих знаків, яких у наборі бути не може (логотип Apple).
     var symbol: String?
     var tone: Color?
     var loading: Bool = false
@@ -342,6 +344,7 @@ struct PrimaryButton: View {
         Button(action: action) {
             HStack(spacing: Space.sm) {
                 if loading { ProgressView().tint(enabled ? Palette.onBrand : Palette.inkTertiary) }
+                else if let glyph { PoruchIcon(glyph: glyph, size: 18) }
                 else if let symbol { Image(systemName: symbol).font(.system(size: 15, weight: .semibold)) }
                 Text(title).font(PoruchFont.button).lineLimit(1)
             }
@@ -363,6 +366,8 @@ struct PrimaryButton: View {
 
 struct SecondaryButton: View {
     let title: String
+    var glyph: PoruchGlyph?
+    /// SF Symbol лише для чужих знаків, яких у наборі бути не може (логотип Apple).
     var symbol: String?
     var tone: Color?
     var enabled: Bool = true
@@ -370,7 +375,8 @@ struct SecondaryButton: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: Space.sm) {
-                if let symbol { Image(systemName: symbol).font(.system(size: 15, weight: .semibold)) }
+                if let glyph { PoruchIcon(glyph: glyph, size: 18) }
+                else if let symbol { Image(systemName: symbol).font(.system(size: 15, weight: .semibold)) }
                 Text(title).font(PoruchFont.button).lineLimit(1)
             }
             .foregroundStyle(enabled ? tone ?? Palette.ink : Palette.inkTertiary)
@@ -446,7 +452,7 @@ struct PoruchLoader: View {
 
 struct EmptyState: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    let symbol: String
+    let glyph: PoruchGlyph
     let title: String
     let message: String
     var compact: Bool = false
@@ -454,7 +460,7 @@ struct EmptyState: View {
     var action: (() -> Void)?
     var body: some View {
         VStack(spacing: compact ? Space.sm : Space.md) {
-            Image(systemName: symbol).font(.system(size: compact ? 20 : 26, weight: .medium)).foregroundStyle(Palette.inkSecondary)
+            PoruchIcon(glyph: glyph, size: 20).font(.system(size: compact ? 20 : 26, weight: .medium)).foregroundStyle(Palette.inkSecondary)
                 .frame(width: compact ? 52 : 64, height: compact ? 52 : 64)
                 .background(Palette.surface, in: RoundedRectangle(cornerRadius: Corner.md, style: .continuous))
                 // Кола й крапка «шукаємо поруч» довкола гліфа; тло не займає місця, відступ дає їм простір.
@@ -473,13 +479,13 @@ struct BannerCard: View {
     let title: String
     /// Без підпису банер тонкий: гліф, один рядок і стрілка.
     var subtitle: String?
-    var symbol: String = "sparkles"
+    var glyph: PoruchGlyph = PoruchIcons.sparkle
     let action: () -> Void
     private var slim: Bool { subtitle == nil }
     var body: some View {
         Button(action: action) {
             HStack(spacing: Space.md) {
-                Image(systemName: symbol).font(.system(size: 17, weight: .medium)).foregroundStyle(Palette.ink)
+                PoruchIcon(glyph: glyph, size: 20).foregroundStyle(Palette.ink)
                     .frame(width: slim ? 36 : 44, height: slim ? 36 : 44)
                     .background(Palette.surfaceMuted, in: RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
@@ -540,24 +546,24 @@ struct AvatarStack: View {
 }
 
 struct MetaLine: View {
-    let symbol: String
+    let glyph: PoruchGlyph
     let text: String
     var tone: Color?
     var body: some View {
         HStack(spacing: Space.sm) {
-            Image(systemName: symbol).font(.system(size: 12)).foregroundStyle(tone ?? Palette.inkTertiary).frame(width: 15)
+            PoruchIcon(glyph: glyph, size: 15).foregroundStyle(tone ?? Palette.inkTertiary).frame(width: 15)
             Text(text).font(PoruchFont.caption).foregroundStyle(tone ?? Palette.inkSecondary).lineLimit(1)
         }
     }
 }
 
 struct InfoRow: View {
-    let symbol: String
+    let glyph: PoruchGlyph
     let label: String
     let value: String
     var body: some View {
         HStack(alignment: .top, spacing: Space.md) {
-            Image(systemName: symbol).font(.system(size: 15, weight: .medium)).foregroundStyle(Palette.inkSecondary)
+            PoruchIcon(glyph: glyph, size: 18).foregroundStyle(Palette.inkSecondary)
                 .frame(width: 34, height: 34)
                 .background(Palette.surfaceMuted, in: RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
@@ -692,27 +698,27 @@ struct EventThumbnail: View {
 }
 
 /// Стан події словами: скасовано, знято, а для кімнати — «ви йдете», запит, черга, місця. Без підпису джерела афіші.
-func eventState(_ event: Event, waitlisted: Bool = false) -> (String, BadgeTone, String?)? {
+func eventState(_ event: Event, waitlisted: Bool = false) -> (String, BadgeTone, PoruchGlyph?)? {
     if event.isCancelled { return ("Скасовано", .danger, nil) }
     if let listing = event.listing { return listing.isWithdrawn ? (Copy.listing_withdrawn, .neutral, nil) : nil }
     guard let room = event.gathering else { return nil }
     // Місця й «ви йдете» після кінця нічого не кажуть: рядок покаже категорію.
     if event.hasEnded(now: nowInstant()) { return nil }
-    if room.joined { return (Copy.going, .success, "checkmark") }
-    if room.awaitingApproval { return (Copy.request_pending, .accent, "hourglass") }
-    if waitlisted { return (Copy.in_queue, .accent, "hourglass") }
+    if room.joined { return (Copy.going, .success, PoruchIcons.check) }
+    if room.awaitingApproval { return (Copy.request_pending, .accent, PoruchIcons.queue) }
+    if waitlisted { return (Copy.in_queue, .accent, PoruchIcons.queue) }
     if room.isFull { return (Copy.full, .neutral, nil) }
     if room.isScarce { return ("Лишилось \(room.seatsLeft)", .accent, nil) }
     return nil
 }
 
 /// Подія від людини, а не з афіші: підпис походження, пара до «Афіша · джерело». Стан кімнати («Ви йдете», «Лишилось 2») важливіший.
-func communityBadge(_ event: Event) -> (String, BadgeTone, String?)? {
-    event.gathering == nil ? nil : (Copy.from_people, .neutral, "person.2")
+func communityBadge(_ event: Event) -> (String, BadgeTone, PoruchGlyph?)? {
+    event.gathering == nil ? nil : (Copy.from_people, .neutral, PoruchIcons.social)
 }
 
 /// Рядок стану над карткою. Афіша завжди підписана джерелом (docs/event-ingestion.md §8); місця лише в кімнати.
-func eventBadge(_ event: Event, waitlisted: Bool = false) -> (String, BadgeTone, String?)? {
+func eventBadge(_ event: Event, waitlisted: Bool = false) -> (String, BadgeTone, PoruchGlyph?)? {
     if let state = eventState(event, waitlisted: waitlisted) { return state }
     guard let listing = event.listing else { return nil }
     return (Copy.listing_badge("\(listing.sourceName)"), .neutral, nil)
@@ -725,11 +731,11 @@ struct EventMeta: View {
     var body: some View {
         if let room = event.gathering {
             MetaLine(
-                symbol: "person.2",
+                glyph: PoruchIcons.social,
                 text: short ? Copy.attendees_short("\(room.attendeeCount)", "\(room.capacity)") : Copy.attendees("\(room.attendeeCount)", "\(room.capacity)")
             )
         } else if let listing = event.listing {
-            MetaLine(symbol: "ticket", text: listingPrice(listing))
+            MetaLine(glyph: PoruchIcons.ticket, text: listingPrice(listing))
         }
     }
 }
@@ -781,7 +787,7 @@ struct SaveButton: View {
     let action: () -> Void
     var body: some View {
         Button(action: action) {
-            Image(systemName: saved ? "bookmark.fill" : "bookmark")
+            PoruchIcon(glyph: saved ? PoruchIcons.bookmarkFilled : PoruchIcons.bookmark, size: 20)
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(saved ? Palette.ink : Palette.inkSecondary)
                 .frame(width: 34, height: 34)
@@ -813,7 +819,7 @@ struct EventCard: View {
                     .frame(height: event.imageUrl == nil ? 120 : 200).frame(maxWidth: .infinity).clipped()
                     .overlay(alignment: .topLeading) {
                         if let badge = eventBadge(event, waitlisted: waitlisted) {
-                            StatusBadge(text: badge.0, tone: badge.1, symbol: badge.2, onPhoto: true).padding(Space.sm)
+                            StatusBadge(text: badge.0, tone: badge.1, glyph: badge.2, onPhoto: true).padding(Space.sm)
                         }
                     }
                     .overlay(alignment: .topTrailing) {
@@ -824,7 +830,7 @@ struct EventCard: View {
                     Text(event.displayTitle).font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
                         .multilineTextAlignment(.leading).lineLimit(2)
                     EventDescriptor(event: event, withCity: withCity)
-                    if let artists = artistsLine(event) { MetaLine(symbol: "person", text: artists) }
+                    if let artists = artistsLine(event) { MetaLine(glyph: PoruchIcons.person, text: artists) }
                     EventMeta(event: event)
                 }.padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -860,7 +866,7 @@ struct EventRow: View {
     /// Без шеврона, коли праворуч стоїть власна дія рядка.
     var chevron = true
     /// Статус замість `eventBadge`: «2 запити на участь» у своїй події.
-    var status: (String, BadgeTone, String?)? = nil
+    var status: (String, BadgeTone, PoruchGlyph?)? = nil
     var body: some View {
         HStack(spacing: Space.md) {
             EventThumbnail(event: event, maxDimension: 60)
@@ -871,7 +877,7 @@ struct EventRow: View {
                 Text(event.displayTitle).font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
                     .multilineTextAlignment(.leading).lineLimit(2)
                 if let note { Text(note).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(1) }
-                else if let badge = status ?? eventBadge(event, waitlisted: waitlisted) { StatusBadge(text: badge.0, tone: badge.1, symbol: badge.2) }
+                else if let badge = status ?? eventBadge(event, waitlisted: waitlisted) { StatusBadge(text: badge.0, tone: badge.1, glyph: badge.2) }
                 else { EventDescriptor(event: event) }
             }
             Spacer(minLength: 0)
@@ -915,12 +921,12 @@ struct EventResultRow: View {
     }
 
     /// Лише те, що міняє рішення: скасування, зняття, стан кімнати. Джерело афіші — окремим рядком.
-    private var badge: (String, BadgeTone, String?)? {
+    private var badge: (String, BadgeTone, PoruchGlyph?)? {
         if event.isCancelled { return ("Скасовано", .danger, nil) }
         if event.listing?.isWithdrawn == true { return (Copy.listing_withdrawn, .neutral, nil) }
         guard let room = event.gathering, !event.hasEnded(now: nowInstant()) else { return nil }
-        if room.joined { return (Copy.going, .success, "checkmark") }
-        if waitlisted { return (Copy.in_queue, .accent, "hourglass") }
+        if room.joined { return (Copy.going, .success, PoruchIcons.check) }
+        if waitlisted { return (Copy.in_queue, .accent, PoruchIcons.queue) }
         if room.isFull { return (Copy.full, .neutral, nil) }
         let seats = Int(room.seatsLeft)
         if room.isScarce { return ("\(seats) \(ukrainianPlural(seats, "місце", "місця", "місць"))", .accent, nil) }
@@ -956,7 +962,7 @@ struct EventResultRow: View {
                 }
             }
             Spacer(minLength: 0)
-            if let badge { StatusBadge(text: badge.0, tone: badge.1, symbol: badge.2) }
+            if let badge { StatusBadge(text: badge.0, tone: badge.1, glyph: badge.2) }
         }
         .padding(.horizontal, Space.lg).padding(.vertical, Space.md)
         .opacity(event.isCancelled ? 0.6 : 1)
@@ -1123,9 +1129,9 @@ struct EventMapCard: View {
                     Text(cardOverline(event)).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
                     Text(event.displayTitle).font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
                         .multilineTextAlignment(.leading).lineLimit(2)
-                    if let badge = eventBadge(event) { StatusBadge(text: badge.0, tone: badge.1, symbol: badge.2) }
+                    if let badge = eventBadge(event) { StatusBadge(text: badge.0, tone: badge.1, glyph: badge.2) }
                     // Склад замість ціни: на слоті картки місця для обох нема, а хто виступає каже більше.
-                    else if let artists = artistsLine(event) { MetaLine(symbol: "person", text: artists) }
+                    else if let artists = artistsLine(event) { MetaLine(glyph: PoruchIcons.person, text: artists) }
                     else { EventMeta(event: event, short: true) }
                 }
                 Spacer(minLength: 0)
@@ -1225,7 +1231,7 @@ struct EventHeroCard: View {
                 }
                 .overlay(alignment: .topLeading) {
                     if let badge = eventBadge(event) ?? communityBadge(event) {
-                        StatusBadge(text: badge.0, tone: badge.1, symbol: badge.2, onPhoto: true).padding(Space.lg)
+                        StatusBadge(text: badge.0, tone: badge.1, glyph: badge.2, onPhoto: true).padding(Space.lg)
                     }
                 }
                 .clipShape(RoundedRectangle(cornerRadius: Corner.xl, style: .continuous))
@@ -1261,7 +1267,7 @@ struct EventArt: View {
 
 /// Рядок групового списку: гліф, назва, підпис, справа значення й шеврон. Кілька рядків збирає `GroupedRows`.
 struct LinkRow: View {
-    let symbol: String
+    let glyph: PoruchGlyph
     let title: String
     var subtitle: String? = nil
     var value: String?
@@ -1269,7 +1275,7 @@ struct LinkRow: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: Space.md) {
-                Image(systemName: symbol).font(.system(size: 17, weight: .medium)).foregroundStyle(Palette.ink)
+                PoruchIcon(glyph: glyph, size: 20).foregroundStyle(Palette.ink)
                     .frame(width: 40, height: 40).background(Palette.surfaceMuted, in: RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title).font(PoruchFont.cardName).kerning(-0.2).foregroundStyle(Palette.ink).multilineTextAlignment(.leading)

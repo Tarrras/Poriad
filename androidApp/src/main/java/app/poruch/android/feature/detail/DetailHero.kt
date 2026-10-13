@@ -13,10 +13,6 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -96,7 +92,7 @@ internal fun Hero(event: Event, state: DetailState, scroll: ScrollState, onInten
             Box(Modifier.matchParentSize().background(PhotoScrim))
         }
         Row(Modifier.fillMaxWidth().statusBarsPadding().padding(Spacing.md), verticalAlignment = Alignment.CenterVertically) {
-            ScrimButton(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.back)) { onIntent(DetailIntent.Back) }
+            ScrimButton(PoruchIcons.arrowLeft, stringResource(R.string.back)) { onIntent(DetailIntent.Back) }
             Spacer(Modifier.weight(1f))
             ScrimButton(
                 if (state.screen.saved) PoruchIcons.bookmarkFilled else PoruchIcons.bookmark,

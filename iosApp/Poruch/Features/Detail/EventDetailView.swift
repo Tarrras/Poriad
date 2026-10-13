@@ -63,7 +63,7 @@ struct EventDetailView: View, Equatable {
                 // Сервер відповів порожньо або з помилкою: не вічний спінер, а вихід.
                 VStack(spacing: Space.lg) {
                     EmptyState(
-                        symbol: "calendar.badge.exclamationmark", title: Copy.err_event_unavailable,
+                        glyph: PoruchIcons.calendarAlert, title: Copy.err_event_unavailable,
                         message: "Її могли скасувати, приховати або видалити.",
                         actionLabel: "Спробувати ще раз"
                     ) { model.app.openEvent(id: eventID) }

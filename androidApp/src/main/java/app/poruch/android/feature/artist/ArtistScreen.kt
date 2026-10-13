@@ -5,9 +5,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.EventBusy
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -33,7 +30,7 @@ fun ArtistScreen(state: ArtistUiState, onIntent: (ArtistIntent) -> Unit) {
                 Modifier.minimumInteractiveComponentSize().size(40.dp).cardSurface(CircleShape, Elevation.card)
                     .pressable(onClick = { onIntent(ArtistIntent.Back) }),
                 contentAlignment = Alignment.Center
-            ) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.back), Modifier.size(18.dp), tint = colors.ink) }
+            ) { Icon(PoruchIcons.arrowLeft, stringResource(R.string.back), Modifier.size(18.dp), tint = colors.ink) }
         }
         Column(
             Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).navigationBarsPadding()
@@ -49,7 +46,7 @@ fun ArtistScreen(state: ArtistUiState, onIntent: (ArtistIntent) -> Unit) {
             when {
                 state.loading && state.events.isEmpty() -> Box(Modifier.fillMaxWidth().padding(vertical = Spacing.section), Alignment.Center) { PoruchLoader() }
                 state.events.isEmpty() -> EmptyState(
-                    Icons.Outlined.EventBusy, stringResource(R.string.artist_empty_title), stringResource(R.string.artist_empty_hint)
+                    PoruchIcons.calendarAlert, stringResource(R.string.artist_empty_title), stringResource(R.string.artist_empty_hint)
                 )
                 else -> Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                     SectionHeader(stringResource(R.string.artist_events_title))

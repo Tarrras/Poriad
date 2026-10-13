@@ -65,7 +65,7 @@ struct CompanionSheet: View {
                 stepper(Copy.companion_capacity, value: "\(capacity)", caption: nil,
                         minus: (Copy.companion_fewer, capacity > Int(CompanionRules.shared.MIN_CAPACITY), { capacity -= 1 }),
                         plus: (Copy.companion_more, capacity < Int(CompanionRules.shared.MAX_CAPACITY), { capacity += 1 }))
-                PrimaryButton(title: Copy.companion_create, symbol: "square.and.arrow.up", loading: mutating,
+                PrimaryButton(title: Copy.companion_create, glyph: PoruchIcons.share, loading: mutating,
                               enabled: meetAt != nil && !mutating) {
                     guard let meetAt else { return }
                     model.app.createCompanion(parentId: event.id, meetAt: meetAt, note: note, capacity: Int32(capacity))
@@ -95,9 +95,9 @@ struct CompanionSheet: View {
                 if let caption { Text(caption).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary) }
             }
             Spacer(minLength: 0)
-            ForEach([(minus, "minus"), (plus, "plus")], id: \.1) { step, symbol in
+            ForEach([(minus, PoruchIcons.minus), (plus, PoruchIcons.plus)], id: \.0.0) { step, glyph in
                 Button(action: step.2) {
-                    Image(systemName: symbol).font(.system(size: 16, weight: .semibold))
+                    PoruchIcon(glyph: glyph, size: 19)
                         .foregroundStyle(step.1 ? Palette.ink : Palette.inkTertiary)
                         .frame(width: 44, height: 44).background(Palette.surfaceMuted, in: Circle())
                 }
@@ -122,22 +122,22 @@ struct CalendarSession: Identifiable {
 }
 
 struct ScrimGlyph: View {
-    let symbol: String
+    let glyph: PoruchGlyph
     var body: some View {
         // Коло завжди біле, бо лежить на довільному фото, тож і гліф завжди темний: `Palette.ink`
         // у темній темі майже білий, і кнопки «назад» та «зберегти» ставали порожніми колами.
-        Image(systemName: symbol).font(.system(size: 16, weight: .semibold)).foregroundStyle(Color(light: 0x1D1D1F, dark: 0x1D1D1F))
+        PoruchIcon(glyph: glyph, size: 19).foregroundStyle(Color(light: 0x1D1D1F, dark: 0x1D1D1F))
             .frame(width: 40, height: 40).background(.white.opacity(0.92), in: Circle())
             .overlay(Circle().strokeBorder(.black.opacity(0.06), lineWidth: 1))
     }
 }
 
 struct ScrimButton: View {
-    let symbol: String
+    let glyph: PoruchGlyph
     let label: String
     let action: () -> Void
     var body: some View {
-        Button(action: action) { ScrimGlyph(symbol: symbol) }
+        Button(action: action) { ScrimGlyph(glyph: glyph) }
             .buttonStyle(.plain)
             .accessibilityLabel(label)
     }
@@ -362,7 +362,7 @@ struct Stars: View {
     var body: some View {
         HStack(spacing: 2) {
             ForEach(1...5, id: \.self) { value in
-                Image(systemName: value <= score ? "star.fill" : "star")
+                PoruchIcon(glyph: value <= score ? PoruchIcons.starFilled : PoruchIcons.star, size: 20)
                     .font(.system(size: size)).foregroundStyle(value <= score ? Palette.brand : Palette.inkTertiary)
             }
         }

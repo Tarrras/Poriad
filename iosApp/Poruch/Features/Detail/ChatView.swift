@@ -107,7 +107,7 @@ struct ChatView: View {
     @ViewBuilder private var content: some View {
         let chat = self.chat
         if chat?.available == false {
-            EmptyState(symbol: "clock", title: Copy.chat_unavailable_title, message: Copy.chat_unavailable_hint)
+            EmptyState(glyph: PoruchIcons.clock, title: Copy.chat_unavailable_title, message: Copy.chat_unavailable_hint)
                 .frame(maxHeight: .infinity)
         } else if chat == nil || (chat!.loading && chat!.messages.isEmpty) {
             PoruchLoader().frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -122,7 +122,7 @@ struct ChatView: View {
                 LazyVStack(spacing: 0) {
                     rules
                     if messages.isEmpty {
-                        EmptyState(symbol: "bubble.left.and.bubble.right", title: Copy.chat_empty_title,
+                        EmptyState(glyph: PoruchIcons.chat, title: Copy.chat_empty_title,
                                    message: Copy.chat_empty_hint, compact: true)
                             .padding(.top, Space.section)
                     }
@@ -153,7 +153,7 @@ struct ChatView: View {
     /// Правило платформи, один раз угорі стрічки: сторонній чужий текст, а не наш.
     private var rules: some View {
         HStack(alignment: .top, spacing: Space.sm) {
-            Image(systemName: "hand.raised").font(.system(size: 13, weight: .medium)).foregroundStyle(Palette.inkTertiary).padding(.top, 1)
+            PoruchIcon(glyph: PoruchIcons.hand, size: 16).foregroundStyle(Palette.inkTertiary).padding(.top, 1)
             Text("Повідомлення пишуть учасники. «Поряд» їх не перевіряє. На образи чи спам можна поскаржитись або заблокувати автора, затиснувши повідомлення.")
                 .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
         }

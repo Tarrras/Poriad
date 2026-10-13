@@ -19,8 +19,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -281,7 +279,7 @@ private fun SheetHeader(
                         strokeWidth = 2.dp
                     )
                     else if (state.screen.offline) Icon(
-                        Icons.Outlined.CloudOff,
+                        PoruchIcons.cloudOff,
                         null,
                         Modifier.size(14.dp),
                         tint = colors.accent

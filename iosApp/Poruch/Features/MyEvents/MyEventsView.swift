@@ -117,7 +117,7 @@ struct MyEventsView: View, Equatable {
     @ViewBuilder private func content(_ board: MyEventsBoard?) -> some View {
         if !signedIn {
             EmptyState(
-                symbol: "lock", title: Copy.guest_empty,
+                glyph: PoruchIcons.lock, title: Copy.guest_empty,
                 message: "Зберігайте цікаве, приєднуйтесь і створюйте власні зустрічі."
             )
             Spacer()
@@ -129,7 +129,7 @@ struct MyEventsView: View, Equatable {
                     }
                     if tab == .organizing {
                         GroupedRows {
-                            LinkRow(symbol: "sparkles", title: Copy.create_banner_title, subtitle: Copy.create_banner_subtitle) { startCreating() }
+                            LinkRow(glyph: PoruchIcons.sparkle, title: Copy.create_banner_title, subtitle: Copy.create_banner_subtitle) { startCreating() }
                         }
                     }
                 }.padding(.horizontal, Space.page).padding(.vertical, Space.md)
@@ -143,14 +143,14 @@ struct MyEventsView: View, Equatable {
     @ViewBuilder private var emptyState: some View {
         switch tab {
         case .organizing:
-            EmptyState(symbol: "sparkles", title: Copy.organizing_empty_title,
+            EmptyState(glyph: PoruchIcons.sparkle, title: Copy.organizing_empty_title,
                        message: Copy.organizing_empty_text,
                        actionLabel: Copy.create) { startCreating() }
         case .saved:
-            EmptyState(symbol: "bookmark", title: Copy.saved_empty_title,
+            EmptyState(glyph: PoruchIcons.bookmark, title: Copy.saved_empty_title,
                        message: Copy.saved_empty_text)
         default:
-            EmptyState(symbol: "calendar", title: Copy.going_empty_title,
+            EmptyState(glyph: PoruchIcons.calendar, title: Copy.going_empty_title,
                        message: Copy.going_empty_text,
                        actionLabel: Copy.find_nearby) { openMap() }
         }
@@ -222,8 +222,8 @@ struct MyEventsView: View, Equatable {
         let bookmark = tab == .saved
         // Запит до не найближчої події інакше видно лише в бейджі чипа.
         let asks = tab == .organizing ? view.requestsFor(id: event.id).count : 0
-        let status: (String, BadgeTone, String?)? = asks > 0
-            ? ("\(asks) \(ukrainianPlural(asks, "запит", "запити", "запитів")) на участь", .accent, "person.badge.plus") : nil
+        let status: (String, BadgeTone, PoruchGlyph?)? = asks > 0
+            ? ("\(asks) \(ukrainianPlural(asks, "запит", "запити", "запитів")) на участь", .accent, PoruchIcons.personAdd) : nil
         return HStack(spacing: Space.sm) {
             Button { open(event.id) } label: {
                 EventRow(event: event, unread: unread, waitlisted: view.isWaitlisted(id: event.id),
@@ -259,12 +259,12 @@ func countdownOverline(_ event: Event) -> String {
 /// Кнопка картки: як `SecondaryButton`, але з вужчими полями, щоб у ряд вміщалось три дії з підписом.
 private struct CardButton: View {
     let title: String
-    let symbol: String
+    let glyph: PoruchGlyph
     let action: () -> Void
     var body: some View {
         Button(action: action) {
             HStack(spacing: Space.sm) {
-                Image(systemName: symbol).font(.system(size: 15, weight: .semibold))
+                PoruchIcon(glyph: glyph, size: 18)
                 Text(title).font(PoruchFont.button).lineLimit(1)
             }
             .foregroundStyle(Palette.ink)
@@ -294,17 +294,17 @@ private struct GoingHero: View {
                         Text(event.displayTitle).font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
                             .multilineTextAlignment(.leading).lineLimit(2)
                         if let badge = eventBadge(event), event.gathering?.joined != true {
-                            StatusBadge(text: badge.0, tone: badge.1, symbol: badge.2)
+                            StatusBadge(text: badge.0, tone: badge.1, glyph: badge.2)
                         } else { EventDescriptor(event: event) }
                     }
                     Spacer(minLength: 0)
                 }.contentShape(Rectangle())
             }.buttonStyle(PressableStyle(pressedScale: 1))
             HStack(spacing: Space.sm) {
-                CardButton(title: Copy.rate_tag_route, symbol: "location") { SystemActions.openInMaps(event) }
+                CardButton(title: Copy.rate_tag_route, glyph: PoruchIcons.myLocation) { SystemActions.openInMaps(event) }
                 // Чат бачать лише підтверджені: із запитом чи в черзі туди не пускає сервер.
                 if event.gathering?.joined == true {
-                    CardButton(title: unread > 0 ? Copy.chat_short_unread("\(unread)") : Copy.chat_short, symbol: "bubble.left.and.bubble.right") { chat(event.id) }
+                    CardButton(title: unread > 0 ? Copy.chat_short_unread("\(unread)") : Copy.chat_short, glyph: PoruchIcons.chat) { chat(event.id) }
                 }
             }
         }
@@ -351,8 +351,8 @@ private struct OrganizerPanel: View {
             }
             if let request = requests.first { requestRow(request) }
             HStack(spacing: Space.sm) {
-                CardButton(title: Copy.participants, symbol: "person.2") { open(event.id) }
-                CardButton(title: unread > 0 ? Copy.chat_short_unread("\(unread)") : Copy.chat_short, symbol: "bubble.left.and.bubble.right") { chat(event.id) }
+                CardButton(title: Copy.participants, glyph: PoruchIcons.social) { open(event.id) }
+                CardButton(title: unread > 0 ? Copy.chat_short_unread("\(unread)") : Copy.chat_short, glyph: PoruchIcons.chat) { chat(event.id) }
                 ShareLink(item: SystemActions.shareText(for: event)) {
                     PoruchIcon(glyph: PoruchIcons.share, size: 18).foregroundStyle(Palette.ink)
                         .frame(width: 48, height: 48).background(Palette.surfaceMuted, in: Circle())

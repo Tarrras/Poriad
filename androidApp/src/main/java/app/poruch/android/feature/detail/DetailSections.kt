@@ -13,10 +13,6 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -87,7 +83,7 @@ internal fun ContactSection(state: DetailState, event: Event, onIntent: (DetailI
         if (event.gathering?.hasContact == true) {
             SecondaryButton(
                 stringResource(R.string.contact_open), { onIntent(DetailIntent.ConfirmContact(true)) },
-                Modifier.fillMaxWidth(), icon = Icons.Outlined.Link
+                Modifier.fillMaxWidth(), icon = PoruchIcons.link
             )
             Text(stringResource(R.string.contact_members_hint), style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary)
         }
@@ -270,7 +266,7 @@ internal fun Stars(score: Int, size: androidx.compose.ui.unit.Dp) {
     Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
         (1..5).forEach { value ->
             Icon(
-                if (value <= score) Icons.Filled.Star else PoruchIcons.star, null, Modifier.size(size),
+                if (value <= score) PoruchIcons.starFilled else PoruchIcons.star, null, Modifier.size(size),
                 tint = if (value <= score) colors.brand else colors.inkTertiary
             )
         }
@@ -454,7 +450,7 @@ internal fun Safety(state: DetailState, onIntent: (DetailIntent) -> Unit) {
             ) {
                 // Година й менше до комендантської — уже привід планувати дорогу, тож колір попередження.
                 val tight = curfew.minutesLeft <= 60
-                Icon(Icons.Outlined.NightsStay, null, Modifier.size(20.dp), tint = if (tight) colors.danger else colors.inkTertiary)
+                Icon(PoruchIcons.moon, null, Modifier.size(20.dp), tint = if (tight) colors.danger else colors.inkTertiary)
                 Text(
                     if (curfew.minutesLeft == 0) stringResource(R.string.curfew_during, curfew.endsAt, curfew.curfew.starts)
                     else stringResource(R.string.curfew_left, curfew.endsAt, curfew.curfew.starts, durationWords(curfew.minutesLeft)),
@@ -469,7 +465,7 @@ internal fun Safety(state: DetailState, onIntent: (DetailIntent) -> Unit) {
                     horizontalArrangement = Arrangement.spacedBy(Spacing.md), verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        if (shelter.kind == ShelterKind.METRO) Icons.Outlined.Subway else PoruchIcons.shield,
+                        if (shelter.kind == ShelterKind.METRO) PoruchIcons.subway else PoruchIcons.shield,
                         null, Modifier.size(20.dp), tint = colors.inkTertiary
                     )
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {

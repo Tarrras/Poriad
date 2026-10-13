@@ -87,7 +87,7 @@ struct HomeView: View, Equatable {
                         searchResults(view)
                     } else if searchActive(view) {
                         EmptyState(
-                            symbol: "magnifyingglass", title: Copy.search_hint_title,
+                            glyph: PoruchIcons.search, title: Copy.search_hint_title,
                             message: "Шукаємо \(view.searchScope)"
                         ).padding(.horizontal, Space.page).padding(.top, Space.section)
                     } else {
@@ -122,7 +122,7 @@ struct HomeView: View, Equatable {
                         // Тап міняє місто тут же, без переходу на мапу. Шеврон — частина тексту: довга назва
                         // переноситься разом із ним. Колір темніший за `inkSecondary`: на сяйві той дає лише ≈4:1.
                         Button { citySearch = true } label: {
-                            Text("\(view.cityName) \(Image(systemName: "chevron.down"))")
+                            Text("\(view.cityName) \(PoruchIcon(glyph: PoruchIcons.chevronDown, size: 20))")
                                 .font(PoruchFont.subhead).foregroundStyle(Palette.ink.opacity(0.7)).multilineTextAlignment(.leading)
                         }
                         .buttonStyle(.plain)
@@ -131,8 +131,8 @@ struct HomeView: View, Equatable {
                     }
                     Spacer(minLength: Space.sm)
                     HStack(spacing: Space.sm) {
-                        IconPill(symbol: "magnifyingglass", label: "Пошук \(view.searchScope)", action: startSearch)
-                        IconPill(symbol: "person.crop.circle", label: Copy.profile, action: openProfile)
+                        IconPill(glyph: PoruchIcons.search, label: "Пошук \(view.searchScope)", action: startSearch)
+                        IconPill(glyph: PoruchIcons.person, label: Copy.profile, action: openProfile)
                     }
                 }
                 .padding(.horizontal, Space.page)
@@ -161,10 +161,10 @@ struct HomeView: View, Equatable {
         VStack(alignment: .leading, spacing: Space.sm) {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: Space.sm) {
-                    Chip(label: view.cityName, symbol: "mappin.and.ellipse", selected: !view.searchEverywhere) {
+                    Chip(label: view.cityName, glyph: PoruchIcons.pin, selected: !view.searchEverywhere) {
                         model.app.setHomeSearchEverywhere(everywhere: false)
                     }
-                    Chip(label: Copy.everywhere, symbol: "globe", selected: view.searchEverywhere) {
+                    Chip(label: Copy.everywhere, glyph: PoruchIcons.globe, selected: view.searchEverywhere) {
                         model.app.setHomeSearchEverywhere(everywhere: true)
                     }
                     Divider().frame(height: 24).overlay(Palette.hairline)
@@ -345,7 +345,7 @@ struct HomeView: View, Equatable {
                 PoruchLoader().frame(maxWidth: .infinity).padding(.vertical, Space.section)
             } else {
                 EmptyState(
-                    symbol: "safari", title: Copy.nothing_here,
+                    glyph: PoruchIcons.compass, title: Copy.nothing_here,
                     message: Copy.nothing_here_hint,
                     actionLabel: Copy.find_on_map, action: openMap
                 )
@@ -391,12 +391,12 @@ struct HomeView: View, Equatable {
             SectionHeader(title: Copy.next)
             GroupedRows {
                 LinkRow(
-                    symbol: "map", title: Copy.all_events_section,
+                    glyph: PoruchIcons.map, title: Copy.all_events_section,
                     subtitle: Copy.all_events_hint,
                     value: view.totalFound > 0 ? "\(view.totalFound)" : nil, action: showCity
                 )
                 Divider().overlay(Palette.hairline).padding(.leading, Space.lg + 40 + Space.md)
-                LinkRow(symbol: "sparkles", title: Copy.create_banner_title, subtitle: Copy.create_banner_subtitle) { createEvent("home_footer") }
+                LinkRow(glyph: PoruchIcons.sparkle, title: Copy.create_banner_title, subtitle: Copy.create_banner_subtitle) { createEvent("home_footer") }
             }
         }.padding(.horizontal, Space.page)
     }
@@ -415,7 +415,7 @@ struct HomeView: View, Equatable {
             BannerCard(
                 title: Copy.home_switch_city("\(city.city)"),
                 subtitle: Copy.home_switch_city_hint("\(view.cityName)"),
-                symbol: "mappin.and.ellipse"
+                glyph: PoruchIcons.pin
             ) {
                 // Спершу текст: інакше «Харків» лишився б фільтром і в новому місті.
                 model.app.setHomeSearchText(query: "")
@@ -427,12 +427,12 @@ struct HomeView: View, Equatable {
         } else if view.results.isEmpty && view.places.isEmpty && view.artists.isEmpty {
             if view.searchEverywhere {
                 EmptyState(
-                    symbol: "magnifyingglass", title: Copy.nothing_found,
+                    glyph: PoruchIcons.search, title: Copy.nothing_found,
                     message: "Спробуйте інше слово або зніміть фільтри дати й категорії."
                 )
             } else {
                 EmptyState(
-                    symbol: "magnifyingglass", title: Copy.nothing_found,
+                    glyph: PoruchIcons.search, title: Copy.nothing_found,
                     message: "У місті \(view.cityName) такого поки немає. Пошукайте в усіх містах або спробуйте інше слово.",
                     actionLabel: Copy.search_everywhere, action: { model.app.setHomeSearchEverywhere(everywhere: true) }
                 )
@@ -532,13 +532,13 @@ private struct YourRow<Tile: View, Trailing: View>: View {
 /// Кнопка-пігулка картки плану. Підсвічена (чорнилом), коли за нею є що робити: нове в чаті, запити.
 private struct PlanButton: View {
     let title: String
-    let symbol: String
+    let glyph: PoruchGlyph
     var highlight = false
     let action: () -> Void
     var body: some View {
         Button(action: action) {
             HStack(spacing: Space.xs) {
-                Image(systemName: symbol).font(.system(size: 14, weight: .semibold))
+                PoruchIcon(glyph: glyph, size: 17)
                 Text(title).font(PoruchFont.label).lineLimit(1).minimumScaleFactor(0.8)
             }
             .foregroundStyle(highlight ? Palette.onBrand : Palette.ink)
@@ -596,15 +596,15 @@ private struct NextPlanCard: View {
             HStack(spacing: Space.sm) {
                 // Маршрут — головна дія, поки подія сьогодні й ще не почалась; далі — звичайна.
                 PlanButton(
-                    title: Copy.rate_tag_route, symbol: "location",
+                    title: Copy.rate_tag_route, glyph: PoruchIcons.myLocation,
                     highlight: today && !event.hasStarted(now: nowInstant())
                 ) { SystemActions.openInMaps(event) }
                 PlanButton(
-                    title: row.chat.map { Copy.chat_short_unread("\($0.unread)") } ?? Copy.chat_short, symbol: "bubble.left.and.bubble.right",
+                    title: row.chat.map { Copy.chat_short_unread("\($0.unread)") } ?? Copy.chat_short, glyph: PoruchIcons.chat,
                     highlight: row.chat != nil, action: chat
                 )
                 if row.requests > 0 {
-                    PlanButton(title: Copy.home_requests_short("\(row.requests)"), symbol: "person.badge.plus", highlight: true, action: open)
+                    PlanButton(title: Copy.home_requests_short("\(row.requests)"), glyph: PoruchIcons.personAdd, highlight: true, action: open)
                 }
             }
         }
@@ -656,7 +656,7 @@ private struct PlanRow: View {
             if row.requests > 0 {
                 StatusBadge(
                     text: "\(row.requests) \(ukrainianPlural(Int(row.requests), "запит", "запити", "запитів"))",
-                    tone: .accent, symbol: "person.badge.plus"
+                    tone: .accent, glyph: PoruchIcons.personAdd
                 )
             } else if let role {
                 StatusBadge(text: role.0, tone: role.1)
@@ -706,14 +706,14 @@ private struct PosterCard: View {
 
     /// «Від 390 ₴» лише коли джерело сказало ціну; для кімнати — «3/8» з гліфом людей. Не «3 з 8»: бейдж набраний капсом,
     /// а кирилична «З» майже не відрізняється від цифри 3 («3 З 8» читалось як «3 3 8»).
-    private var chip: (text: String, symbol: String?)? {
-        if let room = event.gathering { return ("\(room.attendeeCount)/\(room.capacity)", "person.2") }
+    private var chip: (text: String, glyph: PoruchGlyph?)? {
+        if let room = event.gathering { return ("\(room.attendeeCount)/\(room.capacity)", PoruchIcons.social) }
         if let listing = event.listing, listing.isFree?.boolValue == true || listing.priceMin != nil { return (listingPrice(listing), nil) }
         return nil
     }
 
     /// Стан кімнати. Скасоване й знята афіша вже сказані підписом внизу, двічі не пишемо.
-    private var state: (String, BadgeTone, String?)? {
+    private var state: (String, BadgeTone, PoruchGlyph?)? {
         event.gathering == nil || event.isCancelled ? nil : eventState(event, waitlisted: waitlisted)
     }
 
@@ -731,16 +731,16 @@ private struct PosterCard: View {
                     .overlay { EventArt(event: event, maxDimension: 420, glyphSize: 130) }
                     .overlay(alignment: .topLeading) {
                         if let state {
-                            StatusBadge(text: state.0, tone: state.1, symbol: state.2, onPhoto: true).padding(Space.sm)
+                            StatusBadge(text: state.0, tone: state.1, glyph: state.2, onPhoto: true).padding(Space.sm)
                         } else if let label = lane(entry.source) {
                             StatusBadge(text: label, onPhoto: true).padding(Space.sm)
                         } else if showsOrigin, let community = communityBadge(event) {
-                            StatusBadge(text: community.0, symbol: community.2, onPhoto: true).padding(Space.sm)
+                            StatusBadge(text: community.0, glyph: community.2, onPhoto: true).padding(Space.sm)
                         }
                     }
                     .overlay(alignment: .topTrailing) { SaveButton(saved: saved, action: onSave).padding(Space.xs) }
                     .overlay(alignment: .bottomLeading) {
-                        if let chip { StatusBadge(text: chip.text, symbol: chip.symbol, onPhoto: true).padding(Space.sm) }
+                        if let chip { StatusBadge(text: chip.text, glyph: chip.glyph, onPhoto: true).padding(Space.sm) }
                     }
                     .clipShape(RoundedRectangle(cornerRadius: Corner.lg, style: .continuous))
                 VStack(alignment: .leading, spacing: Space.xs) {

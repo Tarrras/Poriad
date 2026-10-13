@@ -9,8 +9,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -54,7 +52,7 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
         ) {
             val confirming = state.awaitingConfirmation != null
             Box(Modifier.fillMaxWidth().padding(top = Spacing.md)) {
-                IconPill(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.back), size = 40.dp) { onIntent(AuthIntent.Back) }
+                IconPill(PoruchIcons.arrowLeft, stringResource(R.string.back), size = 40.dp) { onIntent(AuthIntent.Back) }
             }
             Box(Modifier.size(72.dp).background(colors.brand, CircleShape), contentAlignment = Alignment.Center) {
                 Icon(

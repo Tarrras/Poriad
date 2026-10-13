@@ -65,7 +65,7 @@ struct ArtistView: View {
         if let artist, !artist.loading || !artist.events.isEmpty {
             if artist.events.isEmpty {
                 EmptyState(
-                    symbol: "calendar.badge.exclamationmark", title: Copy.artist_empty_title,
+                    glyph: PoruchIcons.calendarAlert, title: Copy.artist_empty_title,
                     message: Copy.artist_empty_hint
                 )
             } else {

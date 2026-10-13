@@ -13,8 +13,6 @@ import androidx.compose.foundation.pager.PageSize
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -176,7 +174,7 @@ private fun SearchFilters(state: HomeState, onIntent: (HomeIntent) -> Unit) {
             )
             PoruchChip(
                 stringResource(R.string.everywhere), state.screen.searchEverywhere,
-                { onIntent(HomeIntent.SearchEverywhere(!state.screen.searchEverywhere)) }, Icons.Outlined.Public
+                { onIntent(HomeIntent.SearchEverywhere(!state.screen.searchEverywhere)) }, PoruchIcons.globe
             )
             dateFilters.forEach { (key, label) ->
                 // Повторний тап знімає вибір, як на мапі.
@@ -375,7 +373,7 @@ private fun PlanRow(row: PersonalRow, onIntent: (HomeIntent) -> Unit) {
     ) {
         when {
             row.requests > 0 -> StatusBadge(
-                pluralStringResource(R.plurals.requests_count, row.requests, row.requests), BadgeTone.Accent, Icons.Outlined.PersonAdd
+                pluralStringResource(R.plurals.requests_count, row.requests, row.requests), BadgeTone.Accent, PoruchIcons.personAdd
             )
             role != null -> StatusBadge(role.first, role.second)
         }
@@ -445,7 +443,7 @@ private fun NextPlanCard(row: PersonalRow, onIntent: (HomeIntent) -> Unit) {
                 PoruchIcons.chat, Modifier.weight(1f), highlight = chat != null
             ) { onIntent(HomeIntent.OpenChat(event.id)) }
             if (row.requests > 0) PlanButton(
-                stringResource(R.string.home_requests_short, row.requests), Icons.Outlined.PersonAdd, Modifier.weight(1f), highlight = true
+                stringResource(R.string.home_requests_short, row.requests), PoruchIcons.personAdd, Modifier.weight(1f), highlight = true
             ) { onIntent(HomeIntent.OpenEvent(event.id, "home_your")) }
         }
     }
@@ -518,7 +516,7 @@ private fun LazyListScope.cityFeed(state: HomeState, onIntent: (HomeIntent) -> U
         state.screen.isEmpty -> item(key = "empty") {
             Box(Modifier.padding(top = Spacing.xxl)) {
                 EmptyState(
-                    Icons.Outlined.Explore, stringResource(R.string.nothing_here), stringResource(R.string.nothing_here_hint),
+                    PoruchIcons.compass, stringResource(R.string.nothing_here), stringResource(R.string.nothing_here_hint),
                     actionLabel = stringResource(R.string.find_on_map), onAction = { onIntent(HomeIntent.OpenMap) }
                 )
             }
