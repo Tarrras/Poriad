@@ -227,6 +227,7 @@ struct RootView: View {
                         openChat: { homePath.append(ChatRoute(id: $0.id)) },
                         openFollows: { homePath.append(FollowsRoute()) }
                     )
+                    .equatable()
                     .safeAreaPadding(.bottom, 92)
                     .toolbar(.hidden, for: .tabBar)
                     // Пуш і посилання ставлять нову подію в той самий слот стосу (див. `PushDelegate.openEvent`):

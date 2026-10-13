@@ -2,7 +2,13 @@ import SwiftUI
 import Shared
 
 /// Головна з двох зон: «Ваше» (плани, чати, підписки) і «У місті» (одна стрічка з даних, які вже завантажила мапа).
-struct HomeView: View {
+///
+/// `Equatable` без полів: входи — лише замикання навігації від `RootView`, а той перемальовується на кожну
+/// емісію стору й дає нові замикання. Без `.equatable()` SwiftUI вважав би їх зміною і перераховував тіло
+/// головної на кожну емісію, хоч стан їй дає `HomeScreenModel` окремо.
+struct HomeView: View, Equatable {
+    static func == (lhs: HomeView, rhs: HomeView) -> Bool { true }
+
     /// Без підписки на весь `AppModel`: головна перемальовується зі своїм `HomeScreenState`, не з кожною емісією стору.
     @Environment(\.appModel) private var appModel
     private var model: AppModel { appModel! }
