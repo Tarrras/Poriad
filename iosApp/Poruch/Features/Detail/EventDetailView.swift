@@ -8,10 +8,16 @@ struct EventRoute: Hashable, Identifiable {
     let id: String
 }
 
-struct EventDetailView: View {
-    @EnvironmentObject var model: AppModel
+/// `Equatable` за id: стек створює view заново на кожну емісію кореня, а стан екрану дає `DetailScreenModel`.
+struct EventDetailView: View, Equatable {
+    static func == (lhs: EventDetailView, rhs: EventDetailView) -> Bool { lhs.eventID == rhs.eventID }
+    /// Без підписки на весь `AppModel`: деталі перемальовуються зі своїм `DetailScreenState`.
+    @Environment(\.appModel) var appModel
+    var model: AppModel { appModel! }
     @Environment(\.dismiss) var dismiss
     @StateObject var actions: EventActionsModel
+    /// Стан екрана зі спільного `DetailPresenter`.
+    @StateObject var screen: DetailScreenModel
     @State var editing = false
     @State var auth = false
     @State var cancelling = false
@@ -20,11 +26,6 @@ struct EventDetailView: View {
     /// Попередження перед виходом у чужий чат: спершу кажемо, куди й хто це додав.
     @State var openingContact = false
     @State var photo: PhotosPickerItem?
-    /// Картка, з якою відкрили екран. Карусель будується від неї: скасованого вечора в індексі нема.
-    @State var anchor: Event?
-    @State var sessions: [EventSession] = []
-    /// Інші події на цій же точці: «Ще в цьому місці».
-    @State var othersHere: [EventIndexEntry] = []
     /// Зміщення стрічки, за яким їде обкладинка. Див. `reportsScrollOffset`.
     @State var offset: CGFloat = 0
     /// Верхній відступ safe area саме цієї стрічки. У стосі це смуга статусу, у шторці — майже
@@ -32,8 +33,6 @@ struct EventDetailView: View {
     /// обкладинка стирчала з-під місця, відведеного їй у стрічці. Початкове значення — для
     /// першого кадру в стосі; далі уточнює `onGeometryChange`.
     @State var topInset: CGFloat = measuredStatusBarInset()
-    /// Запит деталей уже побачили в стані. До того порожня подія — ще не відповідь, а перший кадр.
-    @State var requested = false
     /// Ростер розгорнуто кнопкою «Показати всіх».
     @State var showAllPeople = false
     /// Картка людини відкрита з цього екрана. Див. `personSheet`.
@@ -52,14 +51,15 @@ struct EventDetailView: View {
     init(app: PoruchApp, eventID: String) {
         self.eventID = eventID
         _actions = StateObject(wrappedValue: EventActionsModel(app: app))
+        _screen = StateObject(wrappedValue: DetailScreenModel(app: app, eventID: eventID))
     }
 
     var body: some View {
-        let view = EventDetailPresentation(state: model.state, eventID: eventID, sessions: sessions)
+        let view = screen.state
         Group {
             if let event = view.event {
                 detail(event, view)
-            } else if requested && model.state?.detail.loading == false {
+            } else if !view.loading {
                 // Сервер відповів порожньо або з помилкою: не вічний спінер, а вихід.
                 VStack(spacing: Space.lg) {
                     EmptyState(
@@ -74,28 +74,8 @@ struct EventDetailView: View {
                 PoruchLoader().frame(maxWidth: .infinity, maxHeight: .infinity).background(Palette.canvas)
             }
         }
-        .onChange(of: model.state?.detail.loading) { _, loading in if loading == true { requested = true } }
-        // Єдине місце, де перепитуємо місця й членство. За переданим id, а не за `model.state`:
-        // знімок стану приходить асинхронно і в мить появи ще тримає попередню відкриту подію.
-        .task { model.app.openEvent(id: eventID) }
-        // Перша картка стає якорем; перебудова лише коли оновилась вона або прийшов новий індекс.
-        // Ключ — ідентичність Kotlin-обʼєкта, а не `Equatable`: той порівнював data-клас з усіма сеансами й артистами на кожен рендер.
-        .onChange(of: view.event.map(ObjectIdentifier.init), initial: true) { _, _ in
-            guard let event = view.event, anchor == nil || anchor?.id == event.id else { return }
-            anchor = event
-            sessions = model.app.sessionsOf(event: event)
-            othersHere = model.app.othersAt(event: event)
-        }
-        .onChange(of: model.eventsRevision) {
-            if let anchor {
-                sessions = model.app.sessionsOf(event: anchor)
-                othersHere = model.app.othersAt(event: anchor)
-            }
-        }
-        // Події закладу з сервера приїхали: «Ще в цьому місці» бачить і те, чого нема в індексі мапи.
-        .onChange(of: model.state?.detail.placeEvents.map(ObjectIdentifier.init)) {
-            if let anchor { othersHere = model.app.othersAt(event: anchor) }
-        }
+        // Повернення поверх іншого екрана деталей: той перебрав єдиний слот відкритої події, просимо назад.
+        .onAppear { screen.reopen() }
         .task(id: photo) { if let event = view.event { await actions.upload(photo, to: event) } }
         // У деталей власна нижня панель, таббар стояв би на ній.
         .hidesTabBar()
@@ -113,7 +93,7 @@ struct EventDetailView: View {
         })
         .onDisappear { model.app.closePerson() }
         // Супутник створено: «Поділитися» з посиланням на нього, бо без поширення компанію не знайти.
-        .onChange(of: model.state?.createdCompanion) { _, created in
+        .onChange(of: view.createdCompanion) { _, created in
             guard let created, let event = view.event else { return }
             model.app.clearCreatedCompanion()
             sharingCompanion = ShareText(text: "Шукаю компанію на \(event.title), \(eventDate(event))\n\(EventLinks.shared.url(eventId: created))")
@@ -123,7 +103,7 @@ struct EventDetailView: View {
     }
 
     @ViewBuilder
-    func detail(_ event: Event, _ view: EventDetailPresentation) -> some View {
+    func detail(_ event: Event, _ view: DetailScreenState) -> some View {
         ZStack(alignment: .bottom) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
@@ -138,7 +118,7 @@ struct EventDetailView: View {
                 .reportsScrollOffset(in: detailScrollSpace, to: $offset)
             }
             .coordinateSpace(name: detailScrollSpace)
-            .refreshable { await model.reloadEvent(id: eventID) }
+            .refreshable { await screen.refresh() }
             .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: { topInset = $0 }
             // Єдиний шар обкладинки: від краю екрана, під смугою статусу. При потягу вниз
             // розтягується, при прокрутці їде вгору вдвічі повільніше за стрічку (паралакс);
@@ -168,7 +148,7 @@ struct EventDetailView: View {
 
     /// Секції під обкладинкою. Окремою функцією: в одному виразі компілятор не встигав вивести тип.
     @ViewBuilder
-    func sections(_ event: Event, _ view: EventDetailPresentation) -> some View {
+    func sections(_ event: Event, _ view: DetailScreenState) -> some View {
         VStack(alignment: .leading, spacing: Space.lg) {
             if let room = view.room, room.hasAgeLimit || room.approvalRequired { restrictions(room) }
             if let parent = view.companionOf {
@@ -187,7 +167,7 @@ struct EventDetailView: View {
                 .accessibilityElement(children: .combine)
             }
             externalActions(event, view)
-            if sessions.count > 1 { sessionRail(event) }
+            if view.sessions.count > 1 { sessionRail(event, view.sessions) }
             if !event.artists.isEmpty { lineup(event) }
             facts(event)
             if !view.companions.isEmpty && !view.cancelled { companionsSection(view) }
@@ -195,7 +175,7 @@ struct EventDetailView: View {
             venue(event, view)
             if !view.cancelled && !view.ended { safety() }
             description(event)
-            if !othersHere.isEmpty { othersHereSection(placeName: event.placeName) }
+            if !view.othersHere.isEmpty { othersHereSection(view.othersHere, placeName: event.placeName) }
             if view.hasChat || view.contactURL != nil { contact(view) }
             if view.organizer && !view.requests.isEmpty { joinRequests(event, view) }
             if view.canRate { RateEventSection(event: event, mine: view.myRating) }
@@ -225,7 +205,7 @@ struct EventDetailView: View {
 struct DetailSheets: ViewModifier {
     @EnvironmentObject var model: AppModel
     let event: Event
-    let view: EventDetailPresentation
+    let view: DetailScreenState
     @Binding var editing: Bool
     @ObservedObject var actions: EventActionsModel
 
@@ -246,7 +226,7 @@ struct DetailDialogs: ViewModifier {
     @EnvironmentObject var model: AppModel
     @Environment(\.dismiss) var dismiss
     let event: Event
-    let view: EventDetailPresentation
+    let view: DetailScreenState
     @Binding var openingContact: Bool
     @Binding var cancelling: Bool
     @Binding var blocking: Bool

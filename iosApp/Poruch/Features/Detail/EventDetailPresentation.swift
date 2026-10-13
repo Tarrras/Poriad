@@ -1,14 +1,40 @@
 import Foundation
 import Shared
 
-/// Єдина дія нижньої панелі. Рахується в одному місці, щоб підпис, тап і доступність не розходились.
-enum DetailAction {
-    case join, request, requested, leave, joinWaitlist, leaveWaitlist, organizer, cancelled
-    /// Афіша: сторінка джерела.
-    case tickets
-    /// Кнопки нема: афіша без посилання, знята подія або зіпсований рядок.
-    case none
+/// Стан деталей складає спільний `DetailPresenter` — та сама згортка, що й на Android: сеанс каруселі,
+/// «якір» прокату, «Ще в цьому місці», дія нижньої панелі. Тут лише спостережувана обгортка на екран:
+/// один `@Published`, тож деталі перемальовуються зі своїм станом, а не з кожною емісією `AppModel`.
+final class DetailScreenModel: ObservableObject {
+    @Published private(set) var state = DetailScreenState.companion.Empty
+    private let presenter: DetailPresenter
+    private var subscription: Subscription?
 
+    init(app: PoruchApp, eventID: String) {
+        presenter = DetailPresenter(app: app, openedId: eventID)
+        subscription = presenter.observe { [weak self] state in self?.state = state }
+    }
+
+    /// Сеанс на екрані: усі дії (участь, збереження, скарга, мапа) ідуть на нього, не на картку, з якою відкрили.
+    var sessionID: String { presenter.sessionId }
+    /// Інша дата в каруселі прокату.
+    func pickSession(_ id: String) { presenter.pickSession(id: id) }
+    /// Екран знову зверху після іншого екрана деталей: той перебрав єдиний слот відкритої події.
+    func reopen() { presenter.reopen() }
+    /// Id картки для мапи: для другої дати прокату — представник.
+    func cardID() -> String { presenter.cardId() }
+    func refresh() async { try? await presenter.refresh() }
+
+    /// «На мапі»: слот відкритої події переходить мапі як фокус, і при знятті екрана ми його не чистимо.
+    var handedOff = false
+
+    // Зняття екрана — це звільнення `@StateObject`, а не `onDisappear`: той спрацьовує й коли зверху пушать інший екран.
+    deinit {
+        subscription?.close()
+        presenter.release(keepSlot: handedOff)
+    }
+}
+
+extension DetailAction {
     var title: String {
         switch self {
         case .join: Copy.join
@@ -19,102 +45,14 @@ enum DetailAction {
         case .leaveWaitlist: "Ви в черзі"
         case .organizer: Copy.you_organize
         case .tickets: Copy.listing_tickets
-        case .cancelled, .none: "Скасовано"
-        }
-    }
-
-    var isEnabled: Bool {
-        switch self {
-        case .join, .request, .leave, .joinWaitlist, .leaveWaitlist, .tickets: true
-        default: false
+        default: "Скасовано"
         }
     }
 }
 
-/// Проєкція спільного стану для однієї події: рахується раз на рендер і єдина вирішує, що екран пропонує.
-struct EventDetailPresentation {
-    let event: Event?
-    let attendees: [Attendee]
-    let mutating: Bool
-    let signedIn: Bool
-    let saved: Bool
-    let waitlisted: Bool
-    let organizer: Bool
-    /// Хто проситься. Непорожньо лише для організатора.
-    let requests: [Attendee]
-    /// Чат учасників. Сервер віддає його лише організатору й підтвердженим, тож є посилання — є кому показати.
-    var contactURL: URL? {
-        guard let raw = event?.gathering?.contactUrl, let url = URL(string: raw), url.scheme == "https" else { return nil }
-        return url
-    }
-    /// Сеанс прокату вже почався: показати можна, купити квиток — ні. Тижневої виставки не стосується.
-    let sessionStarted: Bool
-    /// Подія завершилась: участь уже нічого не змінює.
-    let ended: Bool
-    /// Учасник і вікно оцінки ще відкрите.
-    let canRate: Bool
-    /// Організаторові всі оцінки, учасникові — своя.
-    let ratings: [EventRating]
-    var myRating: EventRating? { ratings.first { $0.mine } }
-    /// Хто шукає компанію на цю афішу: картки супутників без імен.
-    let companions: [CompanionCard]
-    /// Кнопка «Шукаю компанію»: афіша ще попереду, мого пошуку на неї нема.
-    let canSeekCompany: Bool
-
-    /// `sessions` — карусель дат: від неї залежить лише, чи ховати кнопку квитка на сеансі, що почався.
-    init(state: AppState?, eventID: String, sessions: [EventSession] = []) {
-        // Лише відкрита подія або інша дата її прокату: знімок стану в першу мить ще тримає попередню.
-        let event = state?.detail.event.flatMap { selected in
-            selected.id == eventID || sessions.contains(where: { $0.id == selected.id }) ? selected : nil
-        }
-        self.event = event
-        attendees = state?.detail.attendees ?? []
-        mutating = state?.mutating == true
-        signedIn = state?.signedIn == true
-        // Від обраної картки: після перемикання дати зберігається той вечір, що на екрані.
-        saved = event.map { state?.isSaved(id: $0.id) == true } ?? false
-        waitlisted = event.map { state?.isWaitlisted(id: $0.id) == true } ?? false
-        organizer = event.flatMap { state?.organizes(event: $0) } ?? false
-        requests = state?.detail.joinRequests ?? []
-        sessionStarted = event.map { sessions.count > 1 && !$0.isMultiDay && $0.hasStarted(now: nowInstant()) } ?? false
-        ended = event?.hasEnded(now: nowInstant()) == true
-        canRate = event.map { RatingRules.shared.canRate(event: $0, now: nowInstant()) } ?? false
-        ratings = state?.detail.ratings ?? []
-        companions = event != nil ? state?.detail.companions ?? [] : []
-        canSeekCompany = event != nil && state?.detail.canSeekCompany(now: nowInstant()) == true
-    }
-
-    var cancelled: Bool { event?.isCancelled == true }
-
-    /// Кімната, якщо це кімната. Місця й участь лише в неї.
-    var room: Gathering? { event?.gathering }
-
-    /// Супутник «Йдемо разом»: час і місце тримає сервер, редагувати нема чого.
-    var companionOf: CompanionParent? { room?.companionOf }
-
-    /// Оголошення, якщо це афіша. Тоді дія одна: вийти на джерело.
-    var listing: Listing? { event?.listing }
-
-    var full: Bool { room?.isFull == true }
-
-    /// Чат є для своїх: організатора й підтверджених. Скасована подія лишає його для читання.
-    var hasChat: Bool { room != nil && (organizer || room?.joined == true) }
-
-    /// Афіша відгалужується першою: кнопка «приєднатися», яка гарантовано отримає відмову, гірша за відсутність кнопки.
-    var action: DetailAction {
-        guard event != nil else { return .none }
-        if cancelled { return .cancelled }
-        if let listing { return listing.isWithdrawn || !listing.hasSource || sessionStarted ? .none : .tickets }
-        if organizer { return .organizer }
-        if ended { return .none }
-        // Ні кімнати, ні оголошення — зіпсований рядок: без дій.
-        guard let room else { return .none }
-        if room.awaitingApproval { return .requested }
-        if room.joined { return .leave }
-        if waitlisted { return .leaveWaitlist }
-        if room.approvalRequired { return .request }
-        return room.isFull ? .joinWaitlist : .join
-    }
+extension DetailScreenState {
+    /// Чат учасників поза застосунком: лише https, інакше кнопки нема.
+    var contactURL: URL? { contactUrl.flatMap { URL(string: $0) } }
 
     /// Рядок під датою в нижній панелі: місця й черга для кімнати, ціна або причина відсутності кнопки для афіші.
     var seatsSummary: String {

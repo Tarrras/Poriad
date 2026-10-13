@@ -1,131 +1,28 @@
 package app.poruch.android.feature.detail
 
 import app.poruch.domain.Artist
-import app.poruch.domain.Attendee
-import app.poruch.domain.CompanionCard
-import app.poruch.domain.CurfewNote
-import app.poruch.domain.EventSafety
 import app.poruch.domain.Shelter
 import app.poruch.domain.Event
-import app.poruch.domain.EventIndexEntry
-import app.poruch.domain.EventRating
-import app.poruch.domain.EventSession
 import app.poruch.domain.RatingTag
 import app.poruch.domain.ReportReason
-import app.poruch.shared.PersonState
+import app.poruch.shared.DetailScreenState
 
+/**
+ * Стан деталей: [screen] згортає спільний стор [app.poruch.shared.DetailPresenter] — одна згортка на обидві
+ * платформи; тут лише листи й прапорці цього екрана на цьому пристрої.
+ */
 data class DetailState(
-    val event: Event? = null,
-    /** Сеанси прокату для каруселі. Менше двох — каруселі нема. */
-    val sessions: List<EventSession> = emptyList(),
-    /** Сеанс на екрані: з яким відкрили або обраний у каруселі. */
-    val sessionId: String = "",
-    /** Сеанс прокату вже почався: показати можна, купити квиток — ні. Тижневої виставки не стосується. */
-    val sessionStarted: Boolean = false,
-    /** Інші події на цій же точці: «Ще в цьому місці». */
-    val othersHere: List<EventIndexEntry> = emptyList(),
-    val attendees: List<Attendee> = emptyList(),
-    val loading: Boolean = false,
+    val screen: DetailScreenState = DetailScreenState.Empty,
     /** Потяг вниз у дорозі. */
     val refreshing: Boolean = false,
-    val mutating: Boolean = false,
-    val signedIn: Boolean = false,
-    val saved: Boolean = false,
-    val waitlisted: Boolean = false,
-    val organizer: Boolean = false,
     val confirmingCancel: Boolean = false,
-    /** Хто проситься. Непорожньо лише для організатора. */
-    val requests: List<Attendee> = emptyList(),
     val reporting: ReportTarget? = null,
     val confirmingBlock: Boolean = false,
     /** Попередження перед виходом у чужий чат: спершу кажемо, куди й хто це додав. */
     val confirmingContact: Boolean = false,
-    /** Подія завершилась: участь уже нічого не змінює. */
-    val ended: Boolean = false,
-    /** Учасник і вікно оцінки ще відкрите. */
-    val canRate: Boolean = false,
-    /** Організаторові всі оцінки, учасникові — своя. */
-    val ratings: List<EventRating> = emptyList(),
-    /** Відкрита картка людини: з ростеру, запиту чи рядка організатора. */
-    val person: PersonState? = null,
-    /** Хто дивиться: своя картка без скарги й блокування. */
-    val userId: String? = null,
-    /** Фото організатора для рядка в «Ідуть». */
-    val organizerAvatar: String? = null,
-    /** Укриття поруч і комендантська міста; null — не завантажилось або даних нема. */
-    val safety: EventSafety? = null,
-    /** Рядок «до комендантської»; null — не вечір або міста нема в довіднику. */
-    val curfew: CurfewNote? = null,
-    /** Хто шукає компанію на цю афішу: картки супутників без імен. */
-    val companions: List<CompanionCard> = emptyList(),
-    /** Кнопка «Шукаю компанію»: афіша ще попереду, мого пошуку на неї нема. */
-    val canSeekCompany: Boolean = false,
     /** Відкрита шторка створення супутника. */
-    val seekingCompany: Boolean = false,
-    /** Стежу за закладом цієї афіші. */
-    val followingPlace: Boolean = false,
-    /** Люди, за якими стежу: кнопка на картці людини й початковий стан перемикача в шторці оцінки. */
-    val followedOrganizers: Set<String> = emptySet()
-) {
-    /** Супутник «Йдемо разом»: час і місце тримає сервер, редагувати нема чого. */
-    val companionOf get() = room?.companionOf
-
-    val myRating get() = ratings.firstOrNull { it.mine }
-
-    val cancelled get() = event?.isCancelled == true
-
-    /** Кімната, якщо це кімната. Місця й участь лише в неї. */
-    val room get() = event?.gathering
-
-    /** Оголошення, якщо це афіша. Тоді дія одна: вийти на джерело. */
-    val listing get() = event?.listing
-
-    val full get() = room?.isFull == true
-
-    /** Чат є для своїх: організатора й підтверджених. Скасована подія лишає його для читання. */
-    val hasChat get() = room != null && (organizer || room!!.joined)
-
-    /**
-     * Єдина дія нижньої панелі. Рахується тут, щоб підпис, тап і доступність не розходились.
-     * Афіша відгалужується першою: кнопка «приєднатися», яка гарантовано отримає відмову, гірша за відсутність кнопки.
-     */
-    val action: DetailAction
-        get() = when {
-            event == null -> DetailAction.NONE
-            cancelled -> DetailAction.CANCELLED
-            listing != null ->
-                if (listing!!.isWithdrawn || !listing!!.hasSource || sessionStarted) DetailAction.NONE
-                else DetailAction.TICKETS
-            organizer -> DetailAction.ORGANIZER
-            ended -> DetailAction.NONE
-            // Ні кімнати, ні оголошення — зіпсований рядок: без дій.
-            room == null -> DetailAction.NONE
-            room!!.awaitingApproval -> DetailAction.REQUESTED
-            room!!.joined -> DetailAction.LEAVE
-            waitlisted -> DetailAction.LEAVE_WAITLIST
-            room!!.approvalRequired -> DetailAction.REQUEST
-            full -> DetailAction.JOIN_WAITLIST
-            else -> DetailAction.JOIN
-        }
-}
-
-enum class DetailAction {
-    /** Кнопки нема: афіша без посилання, знята подія або зіпсований рядок. */
-    NONE,
-    JOIN, LEAVE, JOIN_WAITLIST, LEAVE_WAITLIST,
-    /** Афіша: сторінка джерела. */
-    TICKETS,
-    /** Подія з підтвердженням: кнопка просить, а не бере місце. */
-    REQUEST,
-    /** Запит надіслано, чекаємо. */
-    REQUESTED,
-    /** Для організатора. */
-    ORGANIZER,
-    CANCELLED;
-
-    val isEnabled get() = this == JOIN || this == LEAVE || this == JOIN_WAITLIST ||
-        this == LEAVE_WAITLIST || this == REQUEST || this == TICKETS
-}
+    val seekingCompany: Boolean = false
+)
 
 /** На що скарга: на подію, на того, хто її опублікував, чи на людину з картки. */
 enum class ReportTarget { EVENT, ORGANIZER, PERSON }

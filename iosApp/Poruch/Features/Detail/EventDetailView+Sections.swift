@@ -11,7 +11,7 @@ extension EventDetailView {
     /// Місце обкладинки у стрічці: саму картинку малює тло під нею (див. `detail`). Стрічка
     /// починається під верхнім відступом, тож тут лише решта висоти. Кнопки згори, бейджі внизу,
     /// на фото, де вже темніє градієнт: тому вони в стилі «на фото».
-    func hero(_ event: Event, _ view: EventDetailPresentation) -> some View {
+    func hero(_ event: Event, _ view: DetailScreenState) -> some View {
         Color.clear
             // Низ обкладинки на `Corner.xl` ховається під аркушем секцій.
             .frame(height: max(heroHeight - topInset - Corner.xl, 0)).frame(maxWidth: .infinity)
@@ -53,7 +53,7 @@ extension EventDetailView {
     }
 
     /// Категорія і стан: на обкладинці, тому в стилі «на фото».
-    func badges(_ event: Event, _ view: EventDetailPresentation) -> some View {
+    func badges(_ event: Event, _ view: DetailScreenState) -> some View {
         HStack(spacing: Space.sm) {
             StatusBadge(text: categoryName(event.category), tone: .brand, onPhoto: true)
             if view.cancelled { StatusBadge(text: "Скасовано", tone: .danger, onPhoto: true) }
@@ -80,7 +80,7 @@ extension EventDetailView {
     }
 
     /// Дати прокату. Лише коли сеансів більше одного. Скасований лишається на місці, позначеним.
-    func sessionRail(_ event: Event) -> some View {
+    func sessionRail(_ event: Event, _ sessions: [EventSession]) -> some View {
         VStack(alignment: .leading, spacing: Space.sm) {
             SectionHeader(title: Copy.sessions_title)
             ScrollViewReader { proxy in
@@ -107,7 +107,7 @@ extension EventDetailView {
         let started = parseEventDate(session.startsAt).map { $0 <= Date() } ?? false
         let status = session.cancelled ? "Скасовано" : started ? Copy.session_started : nil
         return Button {
-            if !selected { model.app.openEvent(id: session.id) }
+            if !selected { screen.pickSession(session.id) }
         } label: {
             VStack(alignment: .leading, spacing: 2) {
                 Text(label.day).font(PoruchFont.caption).lineLimit(1)
@@ -177,8 +177,8 @@ extension EventDetailView {
 
     /// Люди події: організатор і ті, хто йде. Рядок відкриває картку людини — так організатор і
     /// учасники бачать одне одного. Ростер віддає лише своїм, решта бачить тільки організатора.
-    func people(_ room: Gathering, _ view: EventDetailPresentation) -> some View {
-        let organizerAvatar = model.state?.detail.organizerAvatar
+    func people(_ room: Gathering, _ view: DetailScreenState) -> some View {
+        let organizerAvatar = view.organizerAvatar
         let shown = showAllPeople ? view.attendees : Array(view.attendees.prefix(rosterCollapsed))
         return VStack(alignment: .leading, spacing: Space.sm) {
             SectionHeader(title: Copy.attendees_going)
@@ -209,7 +209,7 @@ extension EventDetailView {
         model.app.openPerson(userId: userId)
     }
 
-    func personRow(_ name: String, avatar: String?, caption: String?, userId: String, _ view: EventDetailPresentation) -> some View {
+    func personRow(_ name: String, avatar: String?, caption: String?, userId: String, _ view: DetailScreenState) -> some View {
         Button { if view.signedIn { openPerson(userId) } else { auth = true } } label: {
             HStack(spacing: Space.md) {
                 Avatar(name: name, url: avatar, size: 40)
@@ -227,7 +227,7 @@ extension EventDetailView {
     }
 
     /// Ряд круглих дій із підписами, як панель під картою дня в Moonly.
-    func externalActions(_ event: Event, _ view: EventDetailPresentation) -> some View {
+    func externalActions(_ event: Event, _ view: DetailScreenState) -> some View {
         HStack(spacing: Space.sm) {
             Button { actions.openCalendar() } label: {
                 RoundAction(title: Copy.calendar_short, enabled: !view.cancelled) { PoruchIcon(glyph: PoruchIcons.calendar, size: 20) }
@@ -239,14 +239,14 @@ extension EventDetailView {
                 RoundAction(title: Copy.share) { PoruchIcon(glyph: PoruchIcons.share, size: 20) }
             }.buttonStyle(PressableStyle())
             .simultaneousGesture(TapGesture().onEnded { model.app.eventShared() })
-            Button { model.app.selectEvent(id: model.app.cardIdOf(id: event.id)); openMap() } label: {
+            Button { screen.handedOff = true; model.app.selectEvent(id: screen.cardID()); openMap() } label: {
                 RoundAction(title: Copy.on_map) { PoruchIcon(glyph: PoruchIcons.map, size: 20) }
             }.buttonStyle(PressableStyle())
         }
     }
 
     /// Місце події. Мініатюра без жестів, тап веде на велику мапу.
-    func venue(_ event: Event, _ view: EventDetailPresentation) -> some View {
+    func venue(_ event: Event, _ view: DetailScreenState) -> some View {
         VStack(alignment: .leading, spacing: Space.sm) {
             // В афіші це адреса залу, а не «місце зустрічі».
             SectionHeader(title: event.isCommunity ? Copy.venue : Copy.rate_tag_place)
@@ -263,7 +263,7 @@ extension EventDetailView {
                 // Без `dismiss()`: деталі закриває `openMap` разом зі стеком. Pop лише верхніх деталей
                 // показував нижчі, і їхній `.task` знову обирав свою подію замість цієї.
                 model.app.selectEvent(id: model.app.cardIdOf(id: event.id))
-                openMap()
+                screen.handedOff = true; openMap()
             }
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(.isButton)
@@ -275,8 +275,8 @@ extension EventDetailView {
     }
 
     /// «Стежити» за закладом афіші: пуш, коли тут зʼявиться нове. Гостя — на вхід, пуш прив'язаний до акаунта.
-    func followPlace(_ event: Event, _ placeId: String, _ view: EventDetailPresentation) -> some View {
-        let following = model.state?.isFollowing(kind: .place, targetId: placeId) == true
+    func followPlace(_ event: Event, _ placeId: String, _ view: DetailScreenState) -> some View {
+        let following = view.followingPlace
         return HStack(spacing: Space.md) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(event.placeLabel).font(PoruchFont.cardName).kerning(-0.2).foregroundStyle(Palette.ink)
@@ -297,8 +297,8 @@ extension EventDetailView {
     /// вимагають заздалегідь казати учасникам про найближче укриття. Нема даних міста — нема секції.
     @ViewBuilder
     func safety() -> some View {
-        let shelters = model.state?.detail.safety?.shelters ?? []
-        let curfew = model.state?.detail.curfewNote(now: nowInstant())
+        let shelters = screen.state.safety?.shelters ?? []
+        let curfew = screen.state.curfew
         if !shelters.isEmpty || curfew != nil {
             VStack(alignment: .leading, spacing: Space.sm) {
                 SectionHeader(title: Copy.safety_title)
@@ -372,7 +372,7 @@ extension EventDetailView {
     /// Інші події на цій точці. Заголовок — місце (назва закладу, коли є), тому рядку досить дати й назви.
     /// Окремий екран поверх, а не підміна: «назад» має повертати сюди; `.task` вище перечитає подію після повернення.
     /// Згорнуто після опису: у великого закладу десятки подій, і розгорнутий список відсував би решту сторінки.
-    func othersHereSection(placeName: String?) -> some View {
+    func othersHereSection(_ othersHere: [EventIndexEntry], placeName: String?) -> some View {
         VStack(alignment: .leading, spacing: Space.sm) {
             Button { withMotion { showOthersHere.toggle() } } label: {
                 HStack(spacing: Space.sm) {
@@ -388,11 +388,11 @@ extension EventDetailView {
             .buttonStyle(.plain)
             .accessibilityValue(showOthersHere ? Copy.expanded : Copy.collapsed)
             .accessibilityHint("Подій: \(othersHere.count)")
-            if showOthersHere { othersHereList }
+            if showOthersHere { othersHereList(othersHere) }
         }
     }
 
-    var othersHereList: some View {
+    func othersHereList(_ othersHere: [EventIndexEntry]) -> some View {
             VStack(spacing: 0) {
                 ForEach(othersHere, id: \.id) { other in
                     let label = sessionLabel(EventSession(id: other.id, startsAt: other.startsAt, timeZone: other.timeZone, cancelled: false))
@@ -418,7 +418,7 @@ extension EventDetailView {
 
     /// Чат учасників. Кнопка веде не в браузер, а на попередження: посилання чуже, ми його не
     /// перевіряли, і людина має це знати до того, як вийде із застосунку.
-    func contact(_ view: EventDetailPresentation) -> some View {
+    func contact(_ view: DetailScreenState) -> some View {
         VStack(alignment: .leading, spacing: Space.sm) {
             SectionHeader(title: Copy.contact_section)
             if view.hasChat {
@@ -446,7 +446,7 @@ extension EventDetailView {
     }
 
     /// Запити на участь. На екрані деталей, бо організатор відповідає, дивлячись на свою подію.
-    func joinRequests(_ event: Event, _ view: EventDetailPresentation) -> some View {
+    func joinRequests(_ event: Event, _ view: DetailScreenState) -> some View {
         VStack(alignment: .leading, spacing: Space.md) {
             SectionHeader(title: Copy.request_notification_channel)
             ForEach(view.requests, id: \.userId) { person in
@@ -473,7 +473,7 @@ extension EventDetailView {
     }
 
     /// Скарга й блокування внизу сторінки, не в меню: важка скарга — неподана скарга.
-    func safetyActions(_ view: EventDetailPresentation) -> some View {
+    func safetyActions(_ view: DetailScreenState) -> some View {
         VStack(alignment: .leading, spacing: Space.md) {
             Divider().overlay(Palette.hairline)
             HStack(spacing: Space.lg) {
@@ -487,7 +487,7 @@ extension EventDetailView {
         }
     }
 
-    func organizerActions(_ view: EventDetailPresentation) -> some View {
+    func organizerActions(_ view: DetailScreenState) -> some View {
         VStack(alignment: .leading, spacing: Space.md) {
             Divider().overlay(Palette.hairline)
             // Час, місце й місткість супутника тримає сервер: лишається скасувати.
@@ -509,7 +509,7 @@ extension EventDetailView {
         }
     }
 
-    func stickyBar(_ event: Event, _ view: EventDetailPresentation) -> some View {
+    func stickyBar(_ event: Event, _ view: DetailScreenState) -> some View {
         VStack(spacing: Space.md) {
             HStack(spacing: Space.md) {
                 VStack(alignment: .leading, spacing: 2) {
@@ -540,7 +540,7 @@ extension EventDetailView {
 }
 
 extension EventDetailView {
-    func primaryAction(_ event: Event, _ view: EventDetailPresentation) -> some View {
+    func primaryAction(_ event: Event, _ view: DetailScreenState) -> some View {
         PrimaryButton(
             title: view.action.title,
             tone: view.action == .leave ? Palette.success : view.action == .leaveWaitlist ? Palette.accent : nil,
@@ -553,7 +553,7 @@ extension EventDetailView {
 
     /// Хто вже шукає компанію на цю афішу. Без імен: організатора видно на сторінці супутника, туди
     /// й веде рядок. «Долучитися» — запит організатору прямо звідси.
-    func companionsSection(_ view: EventDetailPresentation) -> some View {
+    func companionsSection(_ view: DetailScreenState) -> some View {
         VStack(alignment: .leading, spacing: Space.sm) {
             SectionHeader(title: Copy.companions_title)
             VStack(spacing: 0) {

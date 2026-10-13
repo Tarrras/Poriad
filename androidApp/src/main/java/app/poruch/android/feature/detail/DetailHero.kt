@@ -75,7 +75,7 @@ import app.poruch.domain.ShelterKind
  */
 @Composable
 internal fun Hero(event: Event, state: DetailState, scroll: ScrollState, onIntent: (DetailIntent) -> Unit) {
-    val room = state.room
+    val room = state.screen.room
     // Відлік лише для сьогоднішнього, як на картці плану головної.
     val words = dateWords()
     val today = remember(event) {
@@ -99,8 +99,8 @@ internal fun Hero(event: Event, state: DetailState, scroll: ScrollState, onInten
             ScrimButton(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.back)) { onIntent(DetailIntent.Back) }
             Spacer(Modifier.weight(1f))
             ScrimButton(
-                if (state.saved) PoruchIcons.bookmarkFilled else PoruchIcons.bookmark,
-                stringResource(if (state.saved) R.string.unsave else R.string.save)
+                if (state.screen.saved) PoruchIcons.bookmarkFilled else PoruchIcons.bookmark,
+                stringResource(if (state.screen.saved) R.string.unsave else R.string.save)
             ) { onIntent(DetailIntent.ToggleSaved) }
         }
         Column(
@@ -109,24 +109,24 @@ internal fun Hero(event: Event, state: DetailState, scroll: ScrollState, onInten
                 .graphicsLayer {
                     // Читання в шарі, а не в композиції: прокрутка не перескладає обкладинку.
                     val faded = 1f - (scroll.value - HERO_TEXT_FADE_FROM.toPx()) / HERO_TEXT_FADE.toPx()
-                    alpha = faded.coerceIn(0f, 1f) * if (state.cancelled) 0.7f else 1f
+                    alpha = faded.coerceIn(0f, 1f) * if (state.screen.cancelled) 0.7f else 1f
                 },
             verticalArrangement = Arrangement.spacedBy(Spacing.sm)
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
                 StatusBadge(stringResource(categoryLabel(event.category)), BadgeTone.Brand)
                 when {
-                    state.cancelled -> StatusBadge(stringResource(R.string.cancelled), BadgeTone.Danger)
+                    state.screen.cancelled -> StatusBadge(stringResource(R.string.cancelled), BadgeTone.Danger)
                     // Афіша завжди підписана джерелом: атрибуція обов'язкова.
-                    state.listing?.isWithdrawn == true -> StatusBadge(stringResource(R.string.listing_withdrawn), BadgeTone.Neutral)
-                    state.listing != null -> StatusBadge(stringResource(R.string.listing_badge, state.listing!!.sourceName), BadgeTone.Neutral)
-                    state.organizer -> StatusBadge(stringResource(R.string.you_organize), BadgeTone.Neutral, PoruchIcons.sparkle)
+                    state.screen.listing?.isWithdrawn == true -> StatusBadge(stringResource(R.string.listing_withdrawn), BadgeTone.Neutral)
+                    state.screen.listing != null -> StatusBadge(stringResource(R.string.listing_badge, state.screen.listing!!.sourceName), BadgeTone.Neutral)
+                    state.screen.organizer -> StatusBadge(stringResource(R.string.you_organize), BadgeTone.Neutral, PoruchIcons.sparkle)
                     // Після кінця лишається лише факт участі: черга й місця вже нічого не значать.
-                    state.ended -> if (room?.joined == true) StatusBadge(stringResource(R.string.went), BadgeTone.Neutral, PoruchIcons.check)
+                    state.screen.ended -> if (room?.joined == true) StatusBadge(stringResource(R.string.went), BadgeTone.Neutral, PoruchIcons.check)
                     room?.joined == true -> StatusBadge(stringResource(R.string.going), BadgeTone.Success, PoruchIcons.check)
-                    state.waitlisted -> StatusBadge(stringResource(R.string.in_queue), BadgeTone.Accent, PoruchIcons.queue)
+                    state.screen.waitlisted -> StatusBadge(stringResource(R.string.in_queue), BadgeTone.Accent, PoruchIcons.queue)
                     room?.awaitingApproval == true -> StatusBadge(stringResource(R.string.request_pending), BadgeTone.Accent, PoruchIcons.clock)
-                    room?.isScarce == true && !state.cancelled ->
+                    room?.isScarce == true && !state.screen.cancelled ->
                         StatusBadge(stringResource(R.string.seats_left, room.seatsLeft), BadgeTone.Accent)
                 }
             }

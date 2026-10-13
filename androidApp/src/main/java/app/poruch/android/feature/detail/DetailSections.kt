@@ -77,7 +77,7 @@ internal fun ContactSection(state: DetailState, event: Event, onIntent: (DetailI
     val colors = Poruch.colors
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         SectionHeader(stringResource(R.string.contact_section))
-        if (state.hasChat) {
+        if (state.screen.hasChat) {
             SecondaryButton(
                 stringResource(R.string.chat_open), { onIntent(DetailIntent.OpenChat) },
                 Modifier.fillMaxWidth(), icon = PoruchIcons.chat
@@ -114,7 +114,7 @@ internal fun Lineup(event: Event, onIntent: (DetailIntent) -> Unit) {
 /** Для кого подія, на картці, а не через відмову сервера. В афіші обмежень віку нема. */
 @Composable
 internal fun Restrictions(state: DetailState) {
-    val room = state.room ?: return
+    val room = state.screen.room ?: return
     if (!room.hasAgeLimit && !room.approvalRequired) return
     Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
         if (room.hasAgeLimit) StatusBadge(ageLimitLabel(room), BadgeTone.Brand, PoruchIcons.person)
@@ -130,7 +130,7 @@ internal fun Sessions(state: DetailState, onIntent: (DetailIntent) -> Unit, modi
     val rail = rememberLazyListState()
     // Обраний сеанс має бути видно одразу, навіть якщо він шостий.
     LaunchedEffect(Unit) {
-        val at = state.sessions.indexOfFirst { it.id == state.sessionId }
+        val at = state.screen.sessions.indexOfFirst { it.id == state.screen.sessionId }
         if (at > 0) rail.scrollToItem(at)
     }
     Column(modifier, verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
@@ -140,8 +140,8 @@ internal fun Sessions(state: DetailState, onIntent: (DetailIntent) -> Unit, modi
             contentPadding = PaddingValues(horizontal = Spacing.page),
             horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
         ) {
-            items(state.sessions, key = { it.id }) { session ->
-                val selected = session.id == state.sessionId
+            items(state.screen.sessions, key = { it.id }) { session ->
+                val selected = session.id == state.screen.sessionId
                 val (day, hour) = sessionLabel(session, words)
                 val started = session.startInstant?.let { it <= kotlin.time.Clock.System.now() } == true
                 val status = when {
@@ -192,7 +192,7 @@ internal fun JoinRequests(state: DetailState, onIntent: (DetailIntent) -> Unit) 
     val colors = Poruch.colors
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
         SectionHeader(stringResource(R.string.requests_section))
-        state.requests.forEach { person ->
+        state.screen.requests.forEach { person ->
             Row(
                 Modifier.fillMaxWidth().cardSurface().padding(Spacing.lg),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)
@@ -206,7 +206,7 @@ internal fun JoinRequests(state: DetailState, onIntent: (DetailIntent) -> Unit) 
                     Text(person.name, style = MaterialTheme.typography.titleSmall, color = colors.ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
                 GhostButton(stringResource(R.string.decline), { onIntent(DetailIntent.DeclineRequest(person.userId)) }, tone = colors.inkSecondary)
-                PrimaryButton(stringResource(R.string.approve), { onIntent(DetailIntent.ApproveRequest(person.userId)) }, enabled = !state.mutating)
+                PrimaryButton(stringResource(R.string.approve), { onIntent(DetailIntent.ApproveRequest(person.userId)) }, enabled = !state.screen.mutating)
             }
         }
     }
@@ -215,11 +215,11 @@ internal fun JoinRequests(state: DetailState, onIntent: (DetailIntent) -> Unit) 
 /** Кнопка замість форми: сама оцінка — у [RatingSheet], як у «Моїх подіях». */
 @Composable
 internal fun RateEvent(state: DetailState, onIntent: (DetailIntent) -> Unit) {
-    val event = state.event ?: return
+    val event = state.screen.event ?: return
     var open by remember { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
         SectionHeader(stringResource(R.string.rate_title))
-        val mine = state.myRating
+        val mine = state.screen.myRating
         if (mine == null) PrimaryButton(stringResource(R.string.rate_action), { open = true }, Modifier.fillMaxWidth())
         else SecondaryButton(
             stringResource(R.string.my_score, mine.score) + " · " + stringResource(R.string.rate_change),
@@ -227,9 +227,9 @@ internal fun RateEvent(state: DetailState, onIntent: (DetailIntent) -> Unit) {
         )
     }
     // Оцінюють учасники: організатор свою подію не оцінює, тож перемикач лише для тих, у кого є організатор.
-    val follow = event.organizerId?.takeIf { !state.organizer }
-        ?.let { FollowRules.followOnRating(it in state.followedOrganizers, state.myRating != null) }
-    if (open) RatingSheet(event, state.myRating, state.mutating, follow, { open = false }) { score, comment, tags, following ->
+    val follow = event.organizerId?.takeIf { !state.screen.organizer }
+        ?.let { FollowRules.followOnRating(it in state.screen.followedOrganizers, state.screen.myRating != null) }
+    if (open) RatingSheet(event, state.screen.myRating, state.screen.mutating, follow, { open = false }) { score, comment, tags, following ->
         onIntent(DetailIntent.Rate(score, comment, tags, following))
     }
 }
@@ -241,20 +241,20 @@ internal fun Ratings(state: DetailState) {
     val colors = Poruch.colors
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
         SectionHeader(stringResource(R.string.ratings_title))
-        val average = RatingRules.average(state.ratings)
+        val average = RatingRules.average(state.screen.ratings)
         if (average == null) {
             Text(stringResource(R.string.ratings_empty), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
             return@Column
         }
         Text(
-            stringResource(R.string.ratings_summary, average.toString().replace('.', ','), state.ratings.size),
+            stringResource(R.string.ratings_summary, average.toString().replace('.', ','), state.screen.ratings.size),
             style = MaterialTheme.typography.titleMedium, color = colors.ink
         )
-        val tags = RatingRules.tagCounts(state.ratings)
+        val tags = RatingRules.tagCounts(state.screen.ratings)
         if (tags.isNotEmpty()) FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
             tags.forEach { StatusBadge("${stringResource(it.tag.label)} · ${it.count}") }
         }
-        state.ratings.filter { !it.comment.isNullOrBlank() }.forEach { rating ->
+        state.screen.ratings.filter { !it.comment.isNullOrBlank() }.forEach { rating ->
             Column(Modifier.fillMaxWidth().cardSurface().padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                 Stars(rating.score, size = 16.dp)
                 Text(rating.comment.orEmpty(), style = MaterialTheme.typography.bodyMedium, color = colors.ink)
@@ -334,13 +334,13 @@ internal fun FactCell(label: String, value: String, modifier: Modifier) {
 internal fun People(state: DetailState, room: Gathering, onIntent: (DetailIntent) -> Unit) {
     val colors = Poruch.colors
     var expanded by remember { mutableStateOf(false) }
-    val shown = if (expanded) state.attendees else state.attendees.take(ROSTER_COLLAPSED)
+    val shown = if (expanded) state.screen.attendees else state.screen.attendees.take(ROSTER_COLLAPSED)
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         SectionHeader(stringResource(R.string.attendees_going))
         GroupedRows {
             PersonRow(
                 room.organizerName.ifBlank { stringResource(R.string.organizer_short) },
-                state.organizerAvatar,
+                state.screen.organizerAvatar,
                 stringResource(R.string.organizer_short)
             ) { onIntent(DetailIntent.OpenPerson(room.organizerId)) }
             shown.forEach { person ->
@@ -349,17 +349,17 @@ internal fun People(state: DetailState, room: Gathering, onIntent: (DetailIntent
                     onIntent(DetailIntent.OpenPerson(person.userId))
                 }
             }
-            if (!expanded && state.attendees.size > ROSTER_COLLAPSED) {
+            if (!expanded && state.screen.attendees.size > ROSTER_COLLAPSED) {
                 HairLine(Modifier.padding(start = Spacing.lg))
                 Text(
-                    stringResource(R.string.attendees_show_all) + " · " + state.attendees.size,
+                    stringResource(R.string.attendees_show_all) + " · " + state.screen.attendees.size,
                     style = MaterialTheme.typography.labelLarge, color = colors.ink,
                     modifier = Modifier.fillMaxWidth().clickable { expanded = true }.padding(Spacing.lg)
                 )
             }
         }
         // Гість і сторонній бачать лише число: імена — межа RLS.
-        if (state.attendees.isEmpty() && room.attendeeCount > 0) Text(
+        if (state.screen.attendees.isEmpty() && room.attendeeCount > 0) Text(
             stringResource(R.string.attendees_short, room.attendeeCount, room.capacity),
             style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary
         )
@@ -389,7 +389,7 @@ internal fun PersonRow(name: String, avatarUrl: String?, caption: String? = null
 @Composable
 internal fun ExternalActions(state: DetailState, onIntent: (DetailIntent) -> Unit) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-        RoundAction(PoruchIcons.calendar, stringResource(R.string.calendar_short), { onIntent(DetailIntent.AddToCalendar) }, Modifier.weight(1f), enabled = !state.cancelled)
+        RoundAction(PoruchIcons.calendar, stringResource(R.string.calendar_short), { onIntent(DetailIntent.AddToCalendar) }, Modifier.weight(1f), enabled = !state.screen.cancelled)
         RoundAction(PoruchIcons.directions, stringResource(R.string.open_in_maps), { onIntent(DetailIntent.OpenInMaps) }, Modifier.weight(1f))
         RoundAction(PoruchIcons.share, stringResource(R.string.share), { onIntent(DetailIntent.Share) }, Modifier.weight(1f))
         RoundAction(PoruchIcons.map, stringResource(R.string.on_map), { onIntent(DetailIntent.OpenMap) }, Modifier.weight(1f))
@@ -441,8 +441,8 @@ internal fun Venue(event: Event, following: Boolean, onIntent: (DetailIntent) ->
  */
 @Composable
 internal fun Safety(state: DetailState, onIntent: (DetailIntent) -> Unit) {
-    val shelters = state.safety?.shelters.orEmpty()
-    val curfew = state.curfew
+    val shelters = state.screen.safety?.shelters.orEmpty()
+    val curfew = state.screen.curfew
     if (shelters.isEmpty() && curfew == null) return
     val colors = Poruch.colors
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
@@ -577,13 +577,13 @@ internal fun OrganizerActions(state: DetailState, onIntent: (DetailIntent) -> Un
     val colors = Poruch.colors
     HairLine()
     // Час, місце й місткість супутника тримає сервер: лишається скасувати.
-    val companion = state.companionOf != null
-    if (!companion) PhotoPickerButton(state.mutating) { bytes, mime -> onIntent(DetailIntent.AttachPhoto(bytes, mime)) }
+    val companion = state.screen.companionOf != null
+    if (!companion) PhotoPickerButton(state.screen.mutating) { bytes, mime -> onIntent(DetailIntent.AttachPhoto(bytes, mime)) }
     Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
         if (!companion) SecondaryButton(stringResource(R.string.edit), { onIntent(DetailIntent.Edit) }, Modifier.weight(1f), icon = PoruchIcons.edit)
         SecondaryButton(
             stringResource(R.string.cancel_event), { onIntent(DetailIntent.ConfirmCancel(true)) },
-            Modifier.weight(1f), enabled = !state.mutating, tone = colors.danger
+            Modifier.weight(1f), enabled = !state.screen.mutating, tone = colors.danger
         )
     }
     if (state.confirmingCancel) PoruchConfirmSheet(
@@ -608,7 +608,7 @@ internal fun Companions(state: DetailState, onIntent: (DetailIntent) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         SectionHeader(stringResource(R.string.companions_title))
         Column(Modifier.cardSurface(Radius.md)) {
-            state.companions.forEachIndexed { index, card ->
+            state.screen.companions.forEachIndexed { index, card ->
                 if (index > 0) HairLine()
                 val (day, hour) = sessionLabel(EventSession(card.id, card.meetAt, card.timeZone), words)
                 Row(
@@ -634,7 +634,7 @@ internal fun Companions(state: DetailState, onIntent: (DetailIntent) -> Unit) {
                         card.isFull -> StatusBadge(stringResource(R.string.companion_full))
                         else -> SecondaryButton(
                             stringResource(R.string.companion_join), { onIntent(DetailIntent.JoinCompanion(card.id)) },
-                            enabled = !state.mutating
+                            enabled = !state.screen.mutating
                         )
                     }
                 }

@@ -232,7 +232,7 @@ struct RootView: View {
                     .toolbar(.hidden, for: .tabBar)
                     // Пуш і посилання ставлять нову подію в той самий слот стосу (див. `PushDelegate.openEvent`):
                     // без `.id` SwiftUI лишав екран попередньої з її станом — датами прокату, чатом, запитом деталей.
-                    .navigationDestination(for: EventRoute.self) { EventDetailView(app: model.app, eventID: $0.id).id($0.id) }
+                    .navigationDestination(for: EventRoute.self) { EventDetailView(app: model.app, eventID: $0.id).equatable().id($0.id) }
                     .navigationDestination(for: ChatRoute.self) { ChatView(eventID: $0.id).id($0.id) }
                     .navigationDestination(for: FollowsRoute.self) { _ in FollowsView() }
                     .navigationDestination(for: ArtistRoute.self) { ArtistView(route: $0) }
@@ -241,12 +241,12 @@ struct RootView: View {
                 NavigationStack(path: $mapPath) {
                     DiscoveryView(openToken: mapToken).toolbar(.hidden, for: .tabBar)
                         .navigationDestination(for: ArtistRoute.self) { ArtistView(route: $0) }
-                        .navigationDestination(for: EventRoute.self) { EventDetailView(app: model.app, eventID: $0.id) }
+                        .navigationDestination(for: EventRoute.self) { EventDetailView(app: model.app, eventID: $0.id).equatable() }
                 }.tag(1)
                 NavigationStack(path: $minePath) {
                     MyEventsView(openEvent: { minePath.append(EventRoute(id: $0)) }, openChat: { minePath.append(ChatRoute(id: $0)) })
                         .safeAreaPadding(.bottom, 92).toolbar(.hidden, for: .tabBar)
-                        .navigationDestination(for: EventRoute.self) { EventDetailView(app: model.app, eventID: $0.id) }
+                        .navigationDestination(for: EventRoute.self) { EventDetailView(app: model.app, eventID: $0.id).equatable() }
                         .navigationDestination(for: ChatRoute.self) { ChatView(eventID: $0.id) }
                         .navigationDestination(for: ArtistRoute.self) { ArtistView(route: $0) }
                 }.tag(2)
@@ -255,7 +255,7 @@ struct RootView: View {
                         .safeAreaPadding(.bottom, 92).toolbar(.hidden, for: .tabBar)
                         .navigationDestination(for: FollowsRoute.self) { _ in FollowsView() }
                         .navigationDestination(for: ArtistRoute.self) { ArtistView(route: $0) }
-                        .navigationDestination(for: EventRoute.self) { EventDetailView(app: model.app, eventID: $0.id) }
+                        .navigationDestination(for: EventRoute.self) { EventDetailView(app: model.app, eventID: $0.id).equatable() }
                 }.tag(3)
             }
             .toolbar(.hidden, for: .tabBar)

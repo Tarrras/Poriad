@@ -65,15 +65,16 @@ import app.poruch.domain.RatingRules
 import app.poruch.domain.RatingTag
 import app.poruch.domain.ReportReason
 import app.poruch.domain.ShelterKind
+import app.poruch.shared.DetailAction
 
 @Composable
 fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
     val colors = Poruch.colors
-    val event = state.event
+    val event = state.screen.event
     if (event == null) {
         Column(Modifier.fillMaxSize().background(colors.canvas).statusBarsPadding()) {
             PageHeader(stringResource(R.string.about_event), back = { onIntent(DetailIntent.Back) })
-            if (state.loading) Box(Modifier.fillMaxWidth().padding(Spacing.section), contentAlignment = Alignment.Center) {
+            if (state.screen.loading) Box(Modifier.fillMaxWidth().padding(Spacing.section), contentAlignment = Alignment.Center) {
                 PoruchLoader()
             } else EmptyState(PoruchIcons.search, stringResource(R.string.details), stringResource(R.string.event_unavailable))
         }
@@ -84,7 +85,7 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
         PullToRefresh(state.refreshing, { onIntent(DetailIntent.Refresh) }, Modifier.fillMaxSize(), underStatusBar = true) {
             // Під нижньою панеллю дії: її висота плюс системна смуга, якою б вона не була.
             // Дві кнопки в панелі («Шукаю компанію» і квиток) стоять другим рядом — панель вища.
-            val bottom = if (state.canSeekCompany) 168.dp else 104.dp
+            val bottom = if (state.screen.canSeekCompany) 168.dp else 104.dp
             Column(Modifier.fillMaxSize().verticalScroll(scroll).navigationBarsPadding().padding(bottom = bottom)) {
                 Hero(event, state, scroll, onIntent)
                 // Аркуш із заокругленим верхом наїжджає на обкладинку: сторінка лягає на афішу, а не продовжує її.
@@ -96,7 +97,7 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
                         verticalArrangement = Arrangement.spacedBy(Spacing.lg)
                     ) {
                         Restrictions(state)
-                        state.companionOf?.let { parent ->
+                        state.screen.companionOf?.let { parent ->
                             GroupedRows {
                                 LinkRow(PoruchIcons.social, stringResource(R.string.companion_parent, TitleRules.display(parent.title)), onClick = { onIntent(DetailIntent.OpenEvent(parent.id)) })
                             }
@@ -104,27 +105,27 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
                         ExternalActions(state, onIntent)
                     }
                     // Поза колонкою з полями: смуга дат іде від краю до краю.
-                    if (state.sessions.size > 1) Sessions(state, onIntent, Modifier.padding(top = Spacing.lg))
+                    if (state.screen.sessions.size > 1) Sessions(state, onIntent, Modifier.padding(top = Spacing.lg))
                     Column(
                         Modifier.padding(horizontal = Spacing.page).padding(top = Spacing.lg),
                         verticalArrangement = Arrangement.spacedBy(Spacing.lg)
                     ) {
                         if (event.artists.isNotEmpty()) Lineup(event, onIntent)
                         Facts(event)
-                        if (state.companions.isNotEmpty() && !state.cancelled) Companions(state, onIntent)
+                        if (state.screen.companions.isNotEmpty() && !state.screen.cancelled) Companions(state, onIntent)
                         event.gathering?.let { People(state, it, onIntent) }
-                        Venue(event, state.followingPlace, onIntent)
-                        if (!state.cancelled && !state.ended) Safety(state, onIntent)
+                        Venue(event, state.screen.followingPlace, onIntent)
+                        if (!state.screen.cancelled && !state.screen.ended) Safety(state, onIntent)
                         Description(event, onIntent)
-                        if (state.othersHere.isNotEmpty()) OthersHere(state.othersHere, event.placeName, onIntent)
+                        if (state.screen.othersHere.isNotEmpty()) OthersHere(state.screen.othersHere, event.placeName, onIntent)
                         // Чат і посилання — для своїх: сервер віддає посилання лише організатору й підтвердженим.
-                        if (state.hasChat || event.gathering?.hasContact == true) ContactSection(state, event, onIntent)
-                        if (state.organizer && state.requests.isNotEmpty()) JoinRequests(state, onIntent)
-                        if (state.canRate) RateEvent(state, onIntent)
-                        if (state.organizer && state.ended && !state.cancelled) Ratings(state)
+                        if (state.screen.hasChat || event.gathering?.hasContact == true) ContactSection(state, event, onIntent)
+                        if (state.screen.organizer && state.screen.requests.isNotEmpty()) JoinRequests(state, onIntent)
+                        if (state.screen.canRate) RateEvent(state, onIntent)
+                        if (state.screen.organizer && state.screen.ended && !state.screen.cancelled) Ratings(state)
                         // Після кінця редагувати й скасовувати нічого: лишаються відгуки.
-                        if (state.organizer && !state.cancelled && !state.ended) OrganizerActions(state, onIntent)
-                        if (!state.organizer) SafetyActions(event, onIntent)
+                        if (state.screen.organizer && !state.screen.cancelled && !state.screen.ended) OrganizerActions(state, onIntent)
+                        if (!state.screen.organizer) SafetyActions(event, onIntent)
                     }
                 }
             }
@@ -152,7 +153,7 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
         onDismiss = { onIntent(DetailIntent.ConfirmBlock(false)) },
         tone = colors.danger
     )
-    if (state.confirmingContact) event.gathering?.contactUrl?.let { url ->
+    if (state.confirmingContact) state.screen.contactUrl?.let { url ->
         PoruchConfirmSheet(
             title = stringResource(R.string.contact_confirm_title),
             message = stringResource(R.string.contact_confirm_body, ContactRules.host(url)),
@@ -163,15 +164,15 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
         )
     }
     state.reporting?.let { target -> ReportSheet(target, onIntent) }
-    if (state.seekingCompany) CompanionSheet(event, state.mutating, onIntent)
-    state.person?.let { person ->
-        val request = state.organizer && state.requests.any { it.userId == person.userId }
+    if (state.seekingCompany) CompanionSheet(event, state.screen.mutating, onIntent)
+    state.screen.person?.let { person ->
+        val request = state.screen.organizer && state.screen.requests.any { it.userId == person.userId }
         PersonSheet(
-            person, isMe = person.userId == state.userId,
+            person, isMe = person.userId == state.screen.userId,
             onDismiss = { onIntent(DetailIntent.ClosePerson) },
             onBlock = { onIntent(DetailIntent.BlockPerson(person.userId)) },
             onReport = { onIntent(DetailIntent.ReportPerson(person.userId)) },
-            follow = FollowAction(person.userId in state.followedOrganizers) {
+            follow = FollowAction(person.userId in state.screen.followedOrganizers) {
                 onIntent(DetailIntent.ToggleFollowPerson(person.userId, person.profile?.name.orEmpty()))
             }
         ) { sheet ->
@@ -180,11 +181,11 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
                 Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                     SecondaryButton(
                         stringResource(R.string.decline), { sheet.close { onIntent(DetailIntent.DeclineRequest(person.userId)) } },
-                        Modifier.weight(1f), enabled = !state.mutating
+                        Modifier.weight(1f), enabled = !state.screen.mutating
                     )
                     PrimaryButton(
                         stringResource(R.string.approve), { sheet.close { onIntent(DetailIntent.ApproveRequest(person.userId)) } },
-                        Modifier.weight(1f), enabled = !state.mutating
+                        Modifier.weight(1f), enabled = !state.screen.mutating
                     )
                 }
             }
@@ -210,17 +211,17 @@ internal fun StickyAction(state: DetailState, event: Event, modifier: Modifier, 
                 Text(
                     stickyHint(state),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = if (state.cancelled) colors.danger else colors.inkSecondary,
+                    color = if (state.screen.cancelled) colors.danger else colors.inkSecondary,
                     maxLines = 2, overflow = TextOverflow.Ellipsis
                 )
             }
             // Кнопки може не бути: у знятої афіші й афіші без посилання нема куди вести.
-            if (state.action != DetailAction.NONE) PrimaryAction(state, onIntent)
+            if (state.screen.action != DetailAction.NONE) PrimaryAction(state, onIntent)
         }
         // «Шукаю компанію» під квитком на всю ширину: поруч із ціною й квитком не влазить.
-        if (state.canSeekCompany) SecondaryButton(
+        if (state.screen.canSeekCompany) SecondaryButton(
             stringResource(R.string.companion_seek), { onIntent(DetailIntent.SeekCompany(true)) },
-            Modifier.fillMaxWidth(), enabled = !state.mutating, icon = PoruchIcons.social
+            Modifier.fillMaxWidth(), enabled = !state.screen.mutating, icon = PoruchIcons.social
         )
     }
 }
@@ -229,11 +230,11 @@ internal fun StickyAction(state: DetailState, event: Event, modifier: Modifier, 
 internal fun PrimaryAction(state: DetailState, onIntent: (DetailIntent) -> Unit, modifier: Modifier = Modifier) {
     val colors = Poruch.colors
     PrimaryButton(
-        stringResource(state.action.label),
+        stringResource(state.screen.action.label),
         { onIntent(DetailIntent.PrimaryAction) },
         modifier,
-        enabled = state.action.isEnabled && !state.mutating, loading = state.mutating,
-        tone = when (state.action) {
+        enabled = state.screen.action.isEnabled && !state.screen.mutating, loading = state.screen.mutating,
+        tone = when (state.screen.action) {
             DetailAction.LEAVE -> colors.success
             DetailAction.LEAVE_WAITLIST -> colors.accent
             else -> null
@@ -244,22 +245,22 @@ internal fun PrimaryAction(state: DetailState, onIntent: (DetailIntent) -> Unit,
 /** Рядок під датою в нижній панелі: місця й черга для кімнати, ціна або причина відсутності кнопки для афіші. */
 @Composable
 internal fun stickyHint(state: DetailState): String {
-    if (state.cancelled) return stringResource(R.string.cancelled)
-    state.listing?.let { listing ->
+    if (state.screen.cancelled) return stringResource(R.string.cancelled)
+    state.screen.listing?.let { listing ->
         return when {
             listing.isWithdrawn -> stringResource(R.string.listing_withdrawn_hint)
-            state.sessionStarted -> stringResource(R.string.session_started_hint)
+            state.screen.sessionStarted -> stringResource(R.string.session_started_hint)
             listing.hasSource -> listingPrice(listing)
             else -> stringResource(R.string.listing_hint_no_link)
         }
     }
-    val room = state.room ?: return ""
+    val room = state.screen.room ?: return ""
     return when {
-        state.ended -> stringResource(R.string.event_ended)
+        state.screen.ended -> stringResource(R.string.event_ended)
         room.awaitingApproval -> stringResource(R.string.request_pending_hint)
         // Гостю — що його чекає, не текст перемикача з редактора.
-        room.approvalRequired && !room.joined && !state.organizer -> stringResource(R.string.approval_guest_hint)
-        room.isFull && !room.joined && !state.organizer -> stringResource(R.string.waitlist_hint)
+        room.approvalRequired && !room.joined && !state.screen.organizer -> stringResource(R.string.approval_guest_hint)
+        room.isFull && !room.joined && !state.screen.organizer -> stringResource(R.string.waitlist_hint)
         else -> stringResource(R.string.seats, room.seatsLeft)
     }
 }

@@ -1815,6 +1815,28 @@ class PoruchAppTest {
         assertEquals(chip,filtered.feedFilter)
         app.close()
     }
+    /** Презентер деталей: сам просить деталі, дія панелі й сеанс каруселі — зі спільної згортки, зняття екрана звільняє слот. */
+    @Test fun detailPresenterDrivesTheScreen()=runTest {
+        val events=Events()
+        val soon=(Clock.System.now()+1.hours).toString()
+        val room=event("r1",EventCategory.SOCIAL,soon)
+        events.results=listOf(room); events.detailsById=mapOf("r1" to room)
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
+        val presenter=DetailPresenter(app,"r1",backgroundScope,StandardTestDispatcher(testScheduler))
+        runCurrent(); advanceTimeBy(200); runCurrent()
+        val shown=presenter.state.value
+        assertEquals("r1",shown.event?.id)
+        assertFalse(shown.loading)
+        assertEquals(DetailAction.JOIN,shown.action)
+        assertEquals("r1",shown.sessionId)
+        // Емісія без зміни входів екрана (прапорець пристрою) не перераховує стан.
+        app.setDigestEnabled(false); runCurrent()
+        assertSame(shown,presenter.state.value)
+        // Зняття екрана: слот відкритої події звільнено, бо він ще наш.
+        presenter.release(keepSlot=false); runCurrent()
+        assertNull(app.state.value.detail.event)
+        app.close()
+    }
 }
 
 /** Підробка віддає індекс і перші картки однією відповіддю, як сервер. */

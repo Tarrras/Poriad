@@ -239,8 +239,8 @@ struct DiscoveryView: View {
         .sheet(isPresented: $auth) { NavigationStack { AuthView() } }
         .sheet(item: $detail) { route in
             NavigationStack {
-                EventDetailView(app: model.app, eventID: route.id)
-                    .navigationDestination(for: EventRoute.self) { EventDetailView(app: model.app, eventID: $0.id) }
+                EventDetailView(app: model.app, eventID: route.id).equatable()
+                    .navigationDestination(for: EventRoute.self) { EventDetailView(app: model.app, eventID: $0.id).equatable() }
                     .navigationDestination(for: ChatRoute.self) { ChatView(eventID: $0.id) }
             }
                 .presentationDetents([.large]).presentationDragIndicator(.visible)
