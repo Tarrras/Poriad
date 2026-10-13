@@ -3,113 +3,26 @@ package app.poruch.android.feature.explore
 import app.poruch.domain.ArtistHit
 import app.poruch.domain.EventCategory
 import app.poruch.domain.CityResult
-import app.poruch.domain.Event
-import app.poruch.domain.EventIndexEntry
 import app.poruch.domain.Place
-import app.poruch.domain.asIndexEntry
 import app.poruch.shared.DateFilter
-import app.poruch.shared.PlaceRef
+import app.poruch.shared.ExploreScreenState
 
+/**
+ * Стан мапи: [screen] згортає спільний стор [app.poruch.shared.ExplorePresenter] — одна згортка на обидві
+ * платформи; тут лише те, що належить екрану на цьому пристрої: положення шторки, листи, камера, дозволи.
+ */
 data class ExploreState(
-    /** Усе, що є в області: мапа малює це, не чекаючи карток. */
-    val index: List<EventIndexEntry> = emptyList(),
-    /**
-     * Індекс, звужений до категорії. Фільтр тут, а не в запиті, щоб мапа й головна не ділили один фільтр.
-     * Поле, а не `lazy`: згортка рахує його лише коли змінились [index] чи [category], і між емісіями
-     * екземпляр той самий — мапа не переписує GeoJSON на крок каруселі чи тап «зберегти».
-     */
-    val visibleIndex: List<EventIndexEntry> = emptyList(),
-    /** Картки, які вже приїхали, у тому ж порядку. Може бути менше за [index]. */
-    val events: List<Event> = emptyList(),
-    /** Усі завантажені картки за id. [events] — лише суцільний початок стрічки, а стос майданчика розкиданий по індексу. */
-    val cards: Map<String, Event> = emptyMap(),
-    val totalFound: Int = 0,
-    val selectedId: String? = null,
-    val savedIds: List<String> = emptyList(),
-    val waitlistedIds: List<String> = emptyList(),
-    val cityName: String = "",
-    val cityLatitude: Double = 0.0,
-    val cityLongitude: Double = 0.0,
-    val cities: List<CityResult> = emptyList(),
-    val searchText: String = "",
-    /** Заклади за [searchText]: секція «Місця» у списку шторки. */
-    val places: List<Place> = emptyList(),
-    /** Артисти за [searchText]: секція «Артисти» під «Місцями». */
-    val artists: List<ArtistHit> = emptyList(),
-    val category: EventCategory? = null,
-    val dateFilter: DateFilter = DateFilter.ANY,
-    val onlyAvailable: Boolean = false,
-    val loading: Boolean = false,
-    val offline: Boolean = false,
-    /** Область поставили рукою через «Шукати тут». */
-    val customArea: Boolean = false,
-    // ---- Локальне для екрана
+    val screen: ExploreScreenState = ExploreScreenState.Empty,
     /** Положення шторки: згорнута — карусель, вище — список тієї ж видачі. */
     val detent: SheetDetent = SheetDetent.PEEK,
-    /** Категорія плиток у шторці. Звужує список і карусель, а не мапу: у мапи власна категорія у фільтрах. */
-    val listCategory: EventCategory? = null,
     val sheet: ExploreSheet = ExploreSheet.NONE,
     /** Камера посунулась: мапа тримає старі результати, поки не попросять «Шукати тут». */
     val pendingArea: Area? = null,
     val locationDenied: Boolean = false,
     val mapFailed: Boolean = false,
     /** Інкремент просить мапу повернутись до центру міста. */
-    val recenterToken: Int = 0,
-    /** Події на одній точці (всі події закладу): без стосу тап відкривав завжди ту саму. */
-    val stackIds: List<String> = emptyList(),
-    /** Подія, на яку навели з деталей. Може не бути в поточній видачі, тоді піна для неї нема. */
-    val focused: Event? = null,
-    val signedIn: Boolean = false,
-    /** Заклад за стосом: для кнопки «Стежити». Null — стосу нема, це спільнотні події або картки ще їдуть. */
-    val stackPlace: PlaceRef? = null,
-    val stackFollowing: Boolean = false
-) {
-    // Похідні рахуються раз на знімок стану, а не на кожне читання з композиції: `copy` дає новий
-    // екземпляр, і `lazy` з ним. У `equals` вони не входять — лише поля конструктора.
-
-    /**
-     * Що малює мапа: звужений індекс плюс [focused], якщо її там ще нема. Сеанс прокату «вже
-     * там» через представника, інакше пін майданчика рахував би прокат двічі.
-     */
-    val mapEvents: List<EventIndexEntry> by lazy {
-        val shown = visibleIndex
-        val present = focused == null || shown.any { entry ->
-            entry.id == focused.id || entry.sessions.any { it.id == focused.id }
-        }
-        if (present) shown else shown + focused!!.asIndexEntry()
-    }
-
-    /** Скільки подій показує мапа, з урахуванням фільтра. */
-    val shownCount get() = if (category == null) totalFound else visibleIndex.size
-
-    val activeFilters get() =
-        listOf(dateFilter != DateFilter.ANY, category != null, onlyAvailable).count { it }
-
-    val stackFocused: Boolean by lazy {
-        stackIds.isNotEmpty() && stackIds.toSet().let { ids -> visibleIndex.count { it.id in ids } > 1 }
-    }
-
-    /** Вміст шторки: стос обраного піна або вся видача, звужені категорією плиток. Порядок стосу — з індексу. */
-    val listEntries: List<EventIndexEntry> by lazy {
-        val base = if (stackFocused) stackIds.toSet().let { ids -> index.filter { it.id in ids } } else mapEvents
-        if (listCategory == null) base else base.filter { it.category == listCategory }
-    }
-
-    /**
-     * Завантажені картки шторки для каруселі й списку. З [cards], а не з [events]: під фільтром
-     * перші події категорії лежать за краєм вікна. [focused] без картки у видачі додається окремо.
-     */
-    val deckEvents: List<Event> by lazy {
-        listEntries.mapNotNull { entry -> cards[entry.id] ?: focused?.takeIf { it.id == entry.id } }
-    }
-
-    /** Чи є що довантажувати: індекс повний, картки — ні. */
-    val hasMoreCards get() = deckEvents.size < listEntries.size
-
-    /** Лічильник шторки: з індексу, а не з завантажених карток. */
-    val listCount get(): Int =
-        if (category == null && listCategory == null && !stackFocused) totalFound else listEntries.size
-}
+    val recenterToken: Int = 0
+)
 
 data class Area(val south: Double, val west: Double, val north: Double, val east: Double)
 

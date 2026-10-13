@@ -3,88 +3,47 @@ package app.poruch.android.feature.explore
 import androidx.lifecycle.viewModelScope
 import app.poruch.android.mvi.MviViewModel
 import app.poruch.domain.CityResult
-import app.poruch.domain.FollowKind
 import app.poruch.shared.DateFilter
+import app.poruch.shared.ExplorePresenter
 import app.poruch.shared.PoruchApp
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.drop
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
+/**
+ * Тонка обгортка над [ExplorePresenter]: індекс, шторку й фільтри згортає спільний код, тут — положення
+ * шторки, листи, камера, дозволи й переклад інтентів у дії стору та навігацію.
+ */
 class ExploreViewModel(private val app: PoruchApp) :
     MviViewModel<ExploreState, ExploreIntent, ExploreEffect>(ExploreState()) {
+    private val presenter = ExplorePresenter(app, viewModelScope)
+    private var arrivals = 0
 
     init {
-        observe(app) { shared ->
-            val stackPlace = shared.placeOfStack(stackIds)
-            val newIndex = shared.map.index
-            val newCategory = shared.map.category
-            val visible = when {
-                newIndex === index && newCategory == category -> visibleIndex
-                newCategory == null -> newIndex
-                else -> newIndex.filter { it.category == newCategory }
-            }
-            // Мапа малює індекс, карусель і список — картки, яких може бути менше.
-            copy(
-                // Свіжа відповідь означає, що мапа вже показує цю область: підказка зникає.
-                pendingArea = if (newIndex !== index) null else pendingArea,
-                index = newIndex,
-                visibleIndex = visible,
-                totalFound = shared.map.totalFound,
-                events = shared.map.events,
-                cards = shared.cards,
-                selectedId = shared.detail.event?.id,
-                focused = shared.detail.event,
-                savedIds = shared.library.savedIds,
-                waitlistedIds = shared.library.waitlistedIds,
-                cityName = shared.city.name,
-                cityLatitude = shared.city.latitude,
-                cityLongitude = shared.city.longitude,
-                cities = shared.city.suggestions,
-                searchText = shared.map.searchText,
-                places = shared.map.places,
-                artists = shared.map.artists,
-                category = newCategory,
-                dateFilter = shared.map.dateFilter,
-                onlyAvailable = shared.map.onlyAvailable,
-                loading = shared.map.loading,
-                offline = shared.map.offline,
-                customArea = shared.city.custom,
-                signedIn = shared.signedIn,
-                stackPlace = stackPlace,
-                stackFollowing = stackPlace != null && shared.isFollowing(FollowKind.PLACE, stackPlace.id)
-            )
-        }
-        // Тап по закладу в пошуку (тут чи на головній): стос відкриваємо, коли видача сказала, що на піні.
-        // Модель могла з'явитись уже після цього — тоді поточне значення прийде першим.
         viewModelScope.launch {
-            app.state.map { it.map.placeFocus }.distinctUntilChanged().collect { focus ->
-                val ids = focus?.eventIds ?: return@collect
-                showStack(ids)
-                app.placeFocusShown()
-            }
-        }
-        // «Усі N» з головної приносить мапу з чистими фільтрами й областю: камера, стос, шторки й «Шукати тут» — з чистого аркуша.
-        // Модель живе, поки жива активність: перше значення — те, що було до неї (свіжа модель уже чиста).
-        viewModelScope.launch {
-            app.state.map { it.map.arrivals }.distinctUntilChanged().drop(1).collect {
+            presenter.state.collect { screen ->
+                // Свіжа видача означає, що мапа вже показує цю область: підказка «Шукати тут» зникає.
+                val freshIndex = screen.indexVersion != state.value.screen.indexVersion
+                // «Усі N» з головної: камера, шторки й «Шукати тут» — з чистого аркуша. Стос і плитки скинув презентер.
+                // Перше значення — те, що було до моделі (свіжа модель уже чиста).
+                val arrived = arrivals != 0 && screen.arrivals != arrivals
+                arrivals = screen.arrivals
                 reduce {
-                    copy(
-                        stackIds = emptyList(), detent = SheetDetent.PEEK, sheet = ExploreSheet.NONE, listCategory = null,
+                    if (arrived) copy(
+                        screen = screen, detent = SheetDetent.PEEK, sheet = ExploreSheet.NONE,
                         pendingArea = null, recenterToken = recenterToken + 1
-                    )
+                    ) else copy(screen = screen, pendingArea = if (freshIndex) null else pendingArea)
                 }
             }
         }
     }
+
+    private val screen get() = state.value.screen
 
     override fun onIntent(intent: ExploreIntent) {
         // Зміна результату скидає фокус на точці: у ньому лишились би id подій, яких уже нема.
         when (intent) {
             is ExploreIntent.Search, is ExploreIntent.PickDate, is ExploreIntent.PickCategory,
             is ExploreIntent.OnlyAvailable, ExploreIntent.ResetFilters, ExploreIntent.SearchHere,
-            ExploreIntent.Recenter, is ExploreIntent.SelectCity ->
-                reduce { copy(stackIds = emptyList()) }
+            ExploreIntent.Recenter, is ExploreIntent.SelectCity -> presenter.resetStack()
             else -> Unit
         }
         when (intent) {
@@ -108,52 +67,35 @@ class ExploreViewModel(private val app: PoruchApp) :
             is ExploreIntent.MapFailed -> reduce { copy(mapFailed = intent.failed) }
 
             is ExploreIntent.SelectEvent -> app.selectEvent(intent.id)
-            // Мапу відкрили заради цієї події: шторки й стос закриваємо, щоб видно було пін і карусель
-            // на ній; плитки категорій теж скидаємо, інакше картки в каруселі могло не бути.
-            // Вибір наводить мапу (EventMap слухає selectedId).
+            // Мапу відкрили заради цієї події: шторки й стос закриваємо, щоб видно було пін і карусель на ній.
             is ExploreIntent.FocusEvent -> {
-                reduce {
-                    copy(stackIds = emptyList(), detent = SheetDetent.PEEK, sheet = ExploreSheet.NONE, listCategory = null)
-                }
-                app.selectEvent(intent.id)
+                reduce { copy(detent = SheetDetent.PEEK, sheet = ExploreSheet.NONE) }
+                presenter.focusEvent(intent.id)
             }
-            is ExploreIntent.SelectStack -> showStack(intent.ids)
-            // Шторку опускаємо: людина хоче бачити заклад на мапі. Плитки категорій скидаємо, як для FocusEvent.
+            is ExploreIntent.SelectStack -> presenter.showStack(intent.ids)
+            // Шторку опускаємо: людина хоче бачити заклад на мапі.
             is ExploreIntent.FocusPlace -> {
-                reduce {
-                    copy(stackIds = emptyList(), detent = SheetDetent.PEEK, sheet = ExploreSheet.NONE, listCategory = null)
-                }
-                app.focusPlace(intent.place)
+                reduce { copy(detent = SheetDetent.PEEK, sheet = ExploreSheet.NONE) }
+                presenter.focusPlace(intent.place)
             }
             is ExploreIntent.OpenArtist -> {
                 app.openArtist(intent.artist.id, intent.artist.name, intent.artist.kind)
                 send(ExploreEffect.OpenArtist(intent.artist.id))
             }
-            // Знімає і підсвітку піна, інакше мапа й список розходились.
-            ExploreIntent.ClearStack -> {
-                reduce { copy(stackIds = emptyList()) }
-                app.dismissEvent()
-            }
-            ExploreIntent.ToggleFollowStack -> state.value.stackPlace?.let { place ->
-                if (state.value.signedIn) app.setFollowing(FollowKind.PLACE, place.id, place.name, !state.value.stackFollowing)
-                else send(ExploreEffect.SignIn)
-            }
+            ExploreIntent.ClearStack -> presenter.clearStack()
+            ExploreIntent.ToggleFollowStack -> if (!presenter.toggleFollowStack()) send(ExploreEffect.SignIn)
             is ExploreIntent.OpenEvent -> {
                 app.selectEvent(intent.id)
                 send(ExploreEffect.OpenDetail(intent.id))
             }
             // Довантажуємо голову звуженого списку: `loadMore` по індексу під фільтром її не дістає.
-            is ExploreIntent.LoadMore -> loadHead(intent.upTo)
+            is ExploreIntent.LoadMore -> presenter.loadHead(intent.upTo)
             is ExploreIntent.ToggleSaved -> app.toggleSaved(intent.id)
             ExploreIntent.CreateEvent -> { app.createStarted("map"); send(ExploreEffect.CreateEvent) }
 
             is ExploreIntent.ShowSheet -> reduce { copy(sheet = intent.sheet) }
             is ExploreIntent.SetDetent -> reduce { copy(detent = intent.detent) }
-            is ExploreIntent.PickListCategory -> {
-                reduce { copy(listCategory = if (listCategory == intent.category) null else intent.category) }
-                // Голова нового списку майже напевно ще не завантажена.
-                loadHead(PAGE)
-            }
+            is ExploreIntent.PickListCategory -> presenter.toggleListCategory(intent.category)
 
             is ExploreIntent.SearchCity -> app.searchCity(intent.query)
             is ExploreIntent.SelectCity -> {
@@ -167,24 +109,5 @@ class ExploreViewModel(private val app: PoruchApp) :
             is ExploreIntent.LocatedAt -> app.followLocation(CityResult(intent.name, intent.latitude, intent.longitude))
             ExploreIntent.LocationDenied -> reduce { copy(locationDenied = true) }
         }
-    }
-
-    /** Одна подія — звичайний вибір; кілька — стос. Вибір наводить мапу на пін. */
-    private fun showStack(ids: List<String>) {
-        if (ids.size <= 1) {
-            reduce { copy(stackIds = emptyList()) }
-            ids.firstOrNull()?.let { app.selectEvent(it) }
-        } else {
-            reduce { copy(stackIds = ids) }
-            // Стос — не початок стрічки, вікно його не покриває.
-            app.loadCards(ids)
-            app.selectEvent(ids.first())
-        }
-    }
-
-    /** Картки початку того списку, який шторка зараз показує. */
-    private fun loadHead(count: Int) {
-        val ids = state.value.listEntries.take(count).map { it.id }
-        if (ids.isNotEmpty()) app.loadCards(ids)
     }
 }

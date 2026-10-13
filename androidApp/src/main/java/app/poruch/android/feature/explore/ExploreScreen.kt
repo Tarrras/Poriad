@@ -31,8 +31,8 @@ fun ExploreScreen(state: ExploreState, onIntent: (ExploreIntent) -> Unit) {
     val colors = Poruch.colors
     BoxWithConstraints(Modifier.fillMaxSize().background(colors.canvas)) {
         EventMap(
-            events = state.mapEvents, latitude = state.cityLatitude, longitude = state.cityLongitude,
-            selectedId = state.selectedId, topInset = TopControlsInset, bottomInset = CarouselInset,
+            events = state.screen.mapEvents, latitude = state.screen.cityLatitude, longitude = state.screen.cityLongitude,
+            selectedId = state.screen.selectedId, topInset = TopControlsInset, bottomInset = CarouselInset,
             centerToken = state.recenterToken,
             onSelect = { onIntent(ExploreIntent.SelectEvent(it)) },
             onSelectStack = { onIntent(ExploreIntent.SelectStack(it)) },
@@ -50,7 +50,7 @@ fun ExploreScreen(state: ExploreState, onIntent: (ExploreIntent) -> Unit) {
 
     when (state.sheet) {
         ExploreSheet.CITY -> CitySearchSheet(
-            state.cityName, state.cities, { onIntent(ExploreIntent.SearchCity(it)) },
+            state.screen.cityName, state.screen.cities, { onIntent(ExploreIntent.SearchCity(it)) },
             { onIntent(ExploreIntent.SelectCity(it)) }, { onIntent(ExploreIntent.ShowSheet(ExploreSheet.NONE)) }
         )
         ExploreSheet.FILTERS -> PoruchSheet({ onIntent(ExploreIntent.ShowSheet(ExploreSheet.NONE)) }) { sheet ->
@@ -65,24 +65,24 @@ private fun TopControls(state: ExploreState, onIntent: (ExploreIntent) -> Unit) 
     val colors = Poruch.colors
     Column(Modifier.statusBarsPadding().padding(Spacing.page), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
         PoruchSearchField(
-            state.searchText, { onIntent(ExploreIntent.Search(it)) }, stringResource(R.string.search_placeholder),
-            activeFilters = state.activeFilters, onFilters = { onIntent(ExploreIntent.ShowSheet(ExploreSheet.FILTERS)) }
+            state.screen.searchText, { onIntent(ExploreIntent.Search(it)) }, stringResource(R.string.search_placeholder),
+            activeFilters = state.screen.activeFilters, onFilters = { onIntent(ExploreIntent.ShowSheet(ExploreSheet.FILTERS)) }
         )
         // Один ряд замість двох: місто веде стрічку фільтрів. Керування мапою — над каруселлю, під пальцем.
         Row(
             Modifier.horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically
         ) {
-            PoruchChip(state.cityName, false, { onIntent(ExploreIntent.ShowSheet(ExploreSheet.CITY)) }, PoruchIcons.pin, trailingIcon = PoruchIcons.chevronDown)
+            PoruchChip(state.screen.cityName, false, { onIntent(ExploreIntent.ShowSheet(ExploreSheet.CITY)) }, PoruchIcons.pin, trailingIcon = PoruchIcons.chevronDown)
             // Одразу після міста, а не за датами: з «Усі N» головної мапа приходить із цим фільтром, і його має бути видно.
             PoruchChip(
-                stringResource(R.string.from_people), state.onlyAvailable,
-                { onIntent(ExploreIntent.OnlyAvailable(!state.onlyAvailable)) }, PoruchIcons.social
+                stringResource(R.string.from_people), state.screen.onlyAvailable,
+                { onIntent(ExploreIntent.OnlyAvailable(!state.screen.onlyAvailable)) }, PoruchIcons.social
             )
             dateFilters.forEach { (key, label) ->
                 // Повторний тап знімає вибір, щоб не шукати «Будь-коли» за краєм рядка.
-                PoruchChip(stringResource(label), state.dateFilter == key, {
-                    onIntent(ExploreIntent.PickDate(if (state.dateFilter == key) DateFilter.ANY else key))
+                PoruchChip(stringResource(label), state.screen.dateFilter == key, {
+                    onIntent(ExploreIntent.PickDate(if (state.screen.dateFilter == key) DateFilter.ANY else key))
                 })
             }
         }

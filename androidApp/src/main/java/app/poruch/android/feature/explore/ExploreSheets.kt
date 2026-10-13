@@ -27,13 +27,13 @@ import app.poruch.shared.DateFilter
 internal fun FilterSheet(state: ExploreState, onIntent: (ExploreIntent) -> Unit, onDone: () -> Unit) {
     val colors = Poruch.colors
     // Вибір накопичується і летить на сервер один раз по «Застосувати»: проміжних результатів за шторкою не видно.
-    var date by remember(state.dateFilter) { mutableStateOf(state.dateFilter) }
-    var category by remember(state.category) { mutableStateOf(state.category) }
-    var available by remember(state.onlyAvailable) { mutableStateOf(state.onlyAvailable) }
+    var date by remember(state.screen.dateFilter) { mutableStateOf(state.screen.dateFilter) }
+    var category by remember(state.screen.category) { mutableStateOf(state.screen.category) }
+    var available by remember(state.screen.onlyAvailable) { mutableStateOf(state.screen.onlyAvailable) }
     val apply = {
-        if (date != state.dateFilter) onIntent(ExploreIntent.PickDate(date))
-        if (category != state.category) onIntent(ExploreIntent.PickCategory(category))
-        if (available != state.onlyAvailable) onIntent(ExploreIntent.OnlyAvailable(available))
+        if (date != state.screen.dateFilter) onIntent(ExploreIntent.PickDate(date))
+        if (category != state.screen.category) onIntent(ExploreIntent.PickCategory(category))
+        if (available != state.screen.onlyAvailable) onIntent(ExploreIntent.OnlyAvailable(available))
         onDone()
     }
     Column(

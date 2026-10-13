@@ -78,10 +78,14 @@ private struct SheetFrame<Content: View>: View {
     }
 }
 
-struct DiscoveryView: View {
+struct DiscoveryView: View, Equatable {
+    static func == (lhs: DiscoveryView, rhs: DiscoveryView) -> Bool { lhs.openToken == rhs.openToken }
     /// Росте з кожним переходом на мапу (`openMap`): деталі й список закриваються, лишається пін і його картка.
     var openToken = 0
-    @EnvironmentObject var model: AppModel
+    /// Без підписки на весь `AppModel`: мапа перемальовується зі своїм `ExploreScreenState`.
+    @Environment(\.appModel) private var appModel
+    private var model: AppModel { appModel! }
+    private var explore: ExploreScreenModel { model.exploreScreen }
     @StateObject private var location = LocationFinder()
     @State private var citySearch = false
     /// Подія з відкритими деталями. Значення, а не прапорець, щоб не читати id з асинхронного стану.
@@ -93,8 +97,6 @@ struct DiscoveryView: View {
     @State private var retryToken = 0
     @State private var centerToken = 0
     @State private var region: MapRegion?
-    /// Події на одній точці (всі події закладу): без стосу решта недосяжна з мапи.
-    @State private var stackIDs: [String] = []
     /// Наскільки піднята шторка зі списком.
     @State private var detent: SheetDetent = .peek
     /// Зсув пальця по ручці шторки, вниз додатний, і прокрутка списку. Клас у `@State`, а не два `@State`-числа:
@@ -107,59 +109,29 @@ struct DiscoveryView: View {
     @State private var listDrag: CGFloat?
     /// Розмір екрана під контролами: з нього рахуються висоти шторки.
     @State private var screen: CGSize = .zero
-    /// Категорія, обрана плитками в шторці. Звужує список, а не мапу.
-    /// Плитки шторки. Nil — усі.
-    @State private var listCategory: EventCategory?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Стан екрана зі спільного `ExplorePresenter`: індекс для пінів, вміст шторки, фільтри, місто.
+    private var view: ExploreScreenState { explore.state }
     /// Категорія мапи. Головна має свою.
-    private var category: EventCategory? { model.state?.map.category }
-
-    /// Похідні списки, пораховані раз на зміну входів. Тіло перераховується на кожен кадр
-    /// протягування шторки, а кожен прохід по індексу — тисячі звертань через міст.
-    @State private var memo = DeckMemo()
-
-    private var derived: DeckMemo {
-        memo.update(DeckMemo.Key(
-            entries: model.entriesRevision, cards: model.cardsRevision,
-            category: category, listCategory: listCategory, stack: stackIDs
-        ), model: model)
-        return memo
-    }
-
-    /// Що малює мапа: індекс, звужений до категорії. Фільтр тут, а не в запиті, щоб не звужувати й головну.
-    var mapEntries: [EventIndexEntry] { derived.mapEntries }
-    private var selectedID: String? { model.state?.detail.event?.id }
-    private var savedIDs: Set<String> { model.savedIDs }
-
-    /// Стос обраного піна не порожній. Порожньо, якщо після нової видачі стосу не лишилось.
-    private var stackFocused: Bool { derived.stackFocused }
-    /// Заклад за стосом, для «Стежити». Nil — це спільнотні події або картки ще їдуть.
-    private var stackPlace: PlaceRef? { derived.stackPlace }
-
-    /// Вміст шторки: стос обраного піна або вся видача, звужені категорією плиток. Плитки звужують список, а не мапу.
-    private var listEntries: [EventIndexEntry] { derived.listEntries }
-    /// Завантажені картки списку. Може бути менше за `listEntries`: решту список просить сам.
-    private var shownEvents: [Event] { derived.shownEvents }
-    /// Заклади за текстом пошуку мапи. У стосі піна вони зайві: там уже одне місце.
-    private var places: [Place] { stackFocused ? [] : (model.state?.map.places ?? []) }
-    private var artists: [ArtistHit] { stackFocused ? [] : (model.state?.map.artists ?? []) }
-
-    /// Картки каруселі. Вибрана подія є завжди: вибір ззовні («На мапі» з деталей) буває за краєм
-    /// вікна карток, поза фільтром чи ще без індексу. Без неї карусель стояла на першій картці, а
-    /// за мить обирала її. Коли справжня картка доїде у своє місце списку, ця зникне.
-    private var deckEvents: [Event] {
-        guard let event = model.state?.detail.event, !derived.shownIDs.contains(event.id) else { return shownEvents }
-        return [event] + shownEvents
-    }
-    private var activeFilters: Int {
-        [model.state?.map.dateFilter != DateFilter.any, model.state?.map.category != nil, model.state?.map.onlyAvailable == true]
-            .filter { $0 }.count
-    }
+    private var category: EventCategory? { view.category }
+    /// Що малює мапа: індекс, звужений до категорії, плюс обрана подія, якщо її там нема.
+    var mapEntries: [EventIndexEntry] { view.mapEvents }
+    private var selectedID: String? { view.selectedId }
+    private var savedIDs: Set<String> { explore.savedIDs }
+    private var stackFocused: Bool { view.stackFocused }
+    private var stackPlace: PlaceRef? { view.stackPlace }
+    private var listEntries: [EventIndexEntry] { view.listEntries }
+    /// Завантажені картки шторки: для каруселі й списку. Може бути менше за `listEntries`: решту список просить сам.
+    private var shownEvents: [Event] { view.deckEvents }
+    private var deckEvents: [Event] { view.deckEvents }
+    private var places: [Place] { view.places }
+    private var artists: [ArtistHit] { view.artists }
+    private var activeFilters: Int { Int(view.activeFilters) }
     var body: some View {
         ZStack(alignment: .top) {
             EventMap(
-                events: mapEntries, latitude: model.state?.city.latitude ?? 50.45, longitude: model.state?.city.longitude ?? 30.52,
-                selectedID: selectedID, eventsRevision: model.eventsRevision, filterKey: category?.key ?? "",
+                events: mapEntries, latitude: view.cityLatitude, longitude: view.cityLongitude,
+                selectedID: selectedID, eventsRevision: Int(view.indexVersion), filterKey: category?.key ?? "",
                 retryToken: retryToken, centerToken: centerToken,
                 topInset: topControlsInset, bottomInset: carouselInset,
                 loadFailed: { mapFailed = $0 },
@@ -167,10 +139,7 @@ struct DiscoveryView: View {
                 selected: { model.app.selectEvent(id: $0.id); open(.peek) },
                 selectedStack: { ids in
                     // Пін — це місце: у фокус іде все, що на ньому стоїть.
-                    stackIDs = ids
-                    // Стос — не початок стрічки, вікно карток його не покриває.
-                    model.app.loadCards(ids: ids)
-                    if let first = ids.first { model.app.selectEvent(id: first); open(.peek) }
+                    explore.showStack(ids); open(.peek)
                 },
                 moved: { region = $0 }
             )
@@ -211,29 +180,26 @@ struct DiscoveryView: View {
         .motion(value: region == nil)
         .background(Palette.canvas)
         .toolbar(.hidden, for: .navigationBar)
-        .onChange(of: model.eventsRevision) { _, _ in region = nil }
+        .onChange(of: view.indexVersion) { _, _ in region = nil }
         // Вибір, зроблений до появи мапи (перший перехід на вкладку), `onChange` не бачить.
         .onAppear { reveal(selectedID) }
         .onChange(of: selectedID) { _, id in reveal(id) }
-        // Тап по закладу в пошуку (тут чи на головній): стос відкриваємо, коли видача сказала, що на піні.
-        // `initial`: з головної мапа могла з'явитись уже після цього.
-        .onChange(of: model.state?.map.placeFocus, initial: true) { _, focus in showPlace(focus) }
+        // Заклад з пошуку: презентер відкрив його стос — шторку опускаємо, щоб бачити пін.
+        .onChange(of: view.focusToken) { _, _ in open(.peek) }
         // Шторка деталей закривається разом зі своїм стеком, навіть коли «На мапі» натиснули в запушених деталях.
         .onChange(of: openToken) { _, _ in
             detail = nil
             open(.peek)
         }
         // «Усі N» з головної приносить мапу з чистими фільтрами й областю: камера, стос, плитки списку й «Шукати тут» — з чистого аркуша.
-        .onChange(of: model.state?.map.arrivals) { _, _ in
-            stackIDs = []
-            listCategory = nil
+        .onChange(of: view.arrivals) { _, _ in
             region = nil
             centerToken += 1
         }
         // Картки просимо під категорію, яку показуємо: під фільтром вони лежать за краєм вікна.
-        .onChange(of: listCategory) { _, _ in loadHead(cardPage) }
+        .onChange(of: view.listCategory) { _, _ in loadHead(cardPage) }
         .onChange(of: category) { _, _ in loadHead(cardPage) }
-        .onChange(of: model.eventsRevision) { _, _ in loadHead(cardPage) }
+        .onChange(of: view.indexVersion) { _, _ in loadHead(cardPage) }
         .sheet(isPresented: $citySearch) { CitySearchView().presentationDetents([.medium, .large]) }
         .sheet(isPresented: $filters) { FiltersView().presentationDetents([.medium, .large]) }
         .sheet(isPresented: $auth) { NavigationStack { AuthView() } }
@@ -260,23 +226,23 @@ struct DiscoveryView: View {
         VStack(spacing: Space.md) {
             SearchBar(
                 placeholder: Copy.search_placeholder,
-                initial: model.state?.map.searchText ?? "",
+                initial: view.searchText,
                 activeFilters: activeFilters,
                 onFilters: { filters = true }
             ) { model.app.setSearchText(query: $0) }
             // Один ряд замість двох: місто веде стрічку фільтрів. Керування мапою — над каруселлю, під пальцем.
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: Space.sm) {
-                    Chip(label: model.state?.city.name ?? "Київ", symbol: "mappin.and.ellipse", trailingSymbol: "chevron.down", selected: false) { citySearch = true }
+                    Chip(label: view.cityName, symbol: "mappin.and.ellipse", trailingSymbol: "chevron.down", selected: false) { citySearch = true }
                         .accessibilityLabel("Змінити місто")
                     // Одразу після міста, а не за датами: з «Усі N» головної мапа приходить із цим фільтром, і його має бути видно.
-                    Chip(label: Copy.from_people, symbol: "person.2", selected: model.state?.map.onlyAvailable == true) {
-                        model.app.setOnlyAvailable(available: !(model.state?.map.onlyAvailable ?? false))
+                    Chip(label: Copy.from_people, symbol: "person.2", selected: view.onlyAvailable) {
+                        model.app.setOnlyAvailable(available: !view.onlyAvailable)
                     }
                     ForEach(dateFilterKeys, id: \.self) { key in
                         // Повторний тап знімає вибір, щоб не шукати «Будь-коли» за краєм рядка.
-                        Chip(label: dateLabel(key), selected: model.state?.map.dateFilter == key) {
-                            model.app.setDateFilter(filter: model.state?.map.dateFilter == key ? DateFilter.any : key)
+                        Chip(label: dateLabel(key), selected: view.dateFilter == key) {
+                            model.app.setDateFilter(filter: view.dateFilter == key ? DateFilter.any : key)
                         }
                     }
                 }
@@ -296,7 +262,7 @@ struct DiscoveryView: View {
             sheetHandle
             if !expanded {
                 if deckEvents.isEmpty {
-                    if model.state?.map.loading != true { quietCard.padding(.horizontal, Space.page) }
+                    if !view.loading { quietCard.padding(.horizontal, Space.page) }
                 } else {
                     EventDeck(
                         events: deckEvents, selectedID: selectedID, savedIDs: savedIDs,
@@ -373,8 +339,8 @@ struct DiscoveryView: View {
             Spacer(minLength: 0)
             // Не `Button`: кнопка забирає дотик, і протягнути шторку за неї не виходить.
             HStack(spacing: Space.sm) {
-                if model.state?.map.loading == true { ProgressView().controlSize(.mini) }
-                else if model.state?.map.offline == true {
+                if view.loading { ProgressView().controlSize(.mini) }
+                else if view.offline {
                     Image(systemName: "wifi.slash").font(.system(size: 12)).foregroundStyle(Palette.accent)
                 }
                 // Зі «Стежити» ряд на вузькому екрані тісний: лічильник стискається, а не переноситься.
@@ -417,18 +383,16 @@ struct DiscoveryView: View {
     /// Вихід із фокуса на піні знімає і підсвітку, інакше мапа й список розходились.
     private var clearStackButton: some View {
         IconPill(symbol: "xmark", label: Copy.show_all_events) {
-            stackIDs = []
-            model.app.dismissEvent()
+            explore.clearStack()
         }
     }
 
     /// «Стежити» за закладом стосу. Гостя ведемо на вхід: пуш прив'язаний до акаунта.
     @ViewBuilder private func followButton(iconOnly: Bool) -> some View {
         if let place = stackPlace {
-            let following = model.state?.isFollowing(kind: .place, targetId: place.id) == true
-            FollowPill(following: following, iconOnly: iconOnly) {
-                guard model.state?.signedIn == true else { auth = true; return }
-                model.app.setFollowing(kind: .place, targetId: place.id, name: place.name, following: !following)
+            let _ = place
+            FollowPill(following: view.stackFollowing, iconOnly: iconOnly) {
+                if !explore.toggleFollowStack() { auth = true }
             }
         }
     }
@@ -438,14 +402,14 @@ struct DiscoveryView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: Space.xs) {
                     ForEach(categories, id: \.0) { entry in
-                        CategoryTile(category: entry.0, selected: listCategory == entry.0) {
-                            listCategory = listCategory == entry.0 ? nil : entry.0
+                        CategoryTile(category: entry.0, selected: view.listCategory == entry.0) {
+                            explore.toggleListCategory(entry.0)
                         }
                     }
                 }
             }.railContentPadding()
             if shownEvents.isEmpty && places.isEmpty && artists.isEmpty {
-                if model.state?.map.loading == true {
+                if view.loading {
                     PoruchLoader().frame(maxWidth: .infinity).padding(.vertical, Space.section)
                 } else {
                     quietCard.padding(Space.page)
@@ -462,7 +426,7 @@ struct DiscoveryView: View {
                         ForEach(Array(shownEvents.enumerated()), id: \.element.id) { position, event in
                             EventCard(
                                 event: event, saved: savedIDs.contains(event.id),
-                                waitlisted: model.waitlistedIDs.contains(event.id),
+                                waitlisted: explore.waitlistedIDs.contains(event.id),
                                 onSave: { model.app.toggleSaved(id: event.id) }
                             ) { model.app.selectEvent(id: event.id); detail = EventRoute(id: event.id) }
                             // Список довантажує картки сам, а не лише карусель.
@@ -494,19 +458,8 @@ struct DiscoveryView: View {
 
     /// Заклад з пошуку: шторку опускаємо, щоб бачити мапу, а стос відкриє `showPlace`, коли приїде видача.
     private func focusPlace(_ place: Place) {
-        stackIDs = []
-        listCategory = nil
         open(.peek)
-        model.app.focusPlace(place: place)
-    }
-
-    /// Одна подія — звичайний вибір; кілька — стос. Вибір наводить мапу на пін.
-    private func showPlace(_ focus: PlaceFocus?) {
-        guard let ids = focus?.eventIds else { return }
-        stackIDs = ids.count > 1 ? ids : []
-        if ids.count > 1 { model.app.loadCards(ids: ids) }
-        if let first = ids.first { model.app.selectEvent(id: first); open(.peek) }
-        model.app.placeFocusShown()
+        explore.focusPlace(place)
     }
 
     /// Прокрутка списку тягне шторку: угору — доки не повна, униз від верху списку — опускає її.
@@ -549,18 +502,14 @@ struct DiscoveryView: View {
 
     /// Лічильник шторки: з індексу, а не з `totalFound` чи завантажених карток.
     private var countLabel: String {
-        if model.state?.map.loading == true { return Copy.searching }
-        if stackFocused { return Copy.events_here("\(listEntries.count)") }
-        let whole = category == nil && listCategory == nil
-        return Copy.events_found("\(whole ? Int(model.state?.map.totalFound ?? 0) : listEntries.count)")
+        if view.loading { return Copy.searching }
+        return stackFocused ? Copy.events_here("\(view.listCount)") : Copy.events_found("\(view.listCount)")
     }
 
     /// Що показує екран: пін, область рукою чи ціле місто.
     private var areaLabel: String {
         if stackFocused { return Copy.area_stack }
-        return model.state?.city.custom == true
-            ? Copy.area_custom
-            : "Знайдіть, куди піти у місті \(model.state?.city.name ?? "Київ")"
+        return view.customArea ? Copy.area_custom : "Знайдіть, куди піти у місті \(view.cityName)"
     }
 
     /// Перевести шторку в положення.
@@ -590,7 +539,7 @@ struct DiscoveryView: View {
     /// картку за краєм вікна довантажуємо; біля краю завантаженого просимо наступне вікно.
     private func reveal(_ id: String?) {
         guard let id else { return }
-        if stackFocused, !stackIDs.contains(id) { stackIDs = [] }
+        if stackFocused, !view.stackIds.contains(id) { explore.resetStack() }
         guard !stackFocused, shownEvents.count < listEntries.count else { return }
         guard let position = shownEvents.firstIndex(where: { $0.id == id }) else {
             if listEntries.contains(where: { $0.id == id }) { model.app.loadCards(ids: [id]) }
@@ -607,11 +556,7 @@ struct DiscoveryView: View {
     }
 
     /// Картки початку показаного списку.
-    private func loadHead(_ count: Int) {
-        let ids = listEntries.prefix(count).map(\.id)
-        guard !ids.isEmpty else { return }
-        model.app.loadCards(ids: ids)
-    }
+    private func loadHead(_ count: Int) { explore.loadHead(count) }
 }
 
 /// Ключ чипа «Усі»: не категорія, тож окремо від словника.
@@ -813,36 +758,36 @@ private let cardPrefetchAhead = 8
 private let cardPage = 24
 
 /// Кеш похідних списків мапи. Клас, щоб оновлення в тілі не було зміною стану подання.
-private final class DeckMemo {
-    struct Key: Equatable {
-        let entries: Int
-        let cards: Int
-        let category: EventCategory?
-        let listCategory: EventCategory?
-        let stack: [String]
+/// Стан мапи складає спільний `ExplorePresenter` — та сама згортка, що й на Android. Тут лише спостережувана
+/// обгортка: `@Observable` стежить за `state` поштучно, тож `DiscoveryView` перемальовується зі своїм станом.
+@MainActor @Observable final class ExploreScreenModel {
+    private(set) var state = ExploreScreenState.companion.Empty
+    /// Набори, а не списки: кожна картка питає «я збережена?», і список був би лінійним пошуком через міст.
+    private(set) var savedIDs: Set<String> = []
+    private(set) var waitlistedIDs: Set<String> = []
+    private let presenter: ExplorePresenter
+    private var subscription: Subscription?
+
+    init(app: PoruchApp) {
+        presenter = ExplorePresenter(app: app)
+        subscription = presenter.observe { [weak self] state in
+            guard let self else { return }
+            self.state = state
+            let saved = Set(state.savedIds)
+            if saved != savedIDs { savedIDs = saved }
+            let waitlisted = Set(state.waitlistedIds)
+            if waitlisted != waitlistedIDs { waitlistedIDs = waitlisted }
+        }
     }
 
-    private var key: Key?
-    private(set) var mapEntries: [EventIndexEntry] = []
-    private(set) var stackFocused = false
-    private(set) var stackPlace: PlaceRef?
-    private(set) var listEntries: [EventIndexEntry] = []
-    private(set) var shownEvents: [Event] = []
-    /// Id показаних карток: перевірка «чи вибрана вже в каруселі» на кожен кадр без проходу через міст.
-    private(set) var shownIDs: Set<String> = []
-
-    @MainActor func update(_ next: Key, model: AppModel) {
-        guard next != key else { return }
-        key = next
-        mapEntries = next.category.map { chosen in model.mapEntries.filter { $0.category == chosen } } ?? model.mapEntries
-        let stack = Set(next.stack)
-        let stackEntries = stack.isEmpty ? [] : mapEntries.filter { stack.contains($0.id) }
-        stackFocused = !stackEntries.isEmpty
-        stackPlace = stackFocused ? model.state?.placeOfStack(ids: next.stack) : nil
-        let base = stackFocused ? stackEntries : mapEntries
-        listEntries = next.listCategory.map { chosen in base.filter { $0.category == chosen } } ?? base
-        let cards = model.cardsByID
-        shownEvents = listEntries.compactMap { cards[$0.id] }
-        shownIDs = Set(shownEvents.map(\.id))
-    }
+    func showStack(_ ids: [String]) { presenter.showStack(ids: ids) }
+    func resetStack() { presenter.resetStack() }
+    func clearStack() { presenter.clearStack() }
+    func focusEvent(_ id: String) { presenter.focusEvent(id: id) }
+    func focusPlace(_ place: Place) { presenter.focusPlace(place: place) }
+    func toggleListCategory(_ category: EventCategory) { presenter.toggleListCategory(category: category) }
+    func loadHead(_ count: Int) { presenter.loadHead(count: Int32(count)) }
+    /// False для гостя: його ведуть на вхід.
+    func toggleFollowStack() -> Bool { presenter.toggleFollowStack() }
+    // Без `deinit`: модель живе стільки, скільки `AppModel`.
 }

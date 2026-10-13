@@ -223,7 +223,7 @@ private fun SheetHeader(
     val label = countLabel(state)
     val showList = stringResource(R.string.show_list)
     // «Стежити» лише на стосі закладу: це одне з двох місць, де людина бачить заклад як окрему річ.
-    val stackPlace = state.stackPlace.takeIf { state.stackFocused }
+    val stackPlace = state.screen.stackPlace.takeIf { state.screen.stackFocused }
     Column(
         Modifier
             .fillMaxWidth()
@@ -256,7 +256,7 @@ private fun SheetHeader(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
-                if (stackPlace != null) FollowPill(state.stackFollowing, { onIntent(ExploreIntent.ToggleFollowStack) })
+                if (stackPlace != null) FollowPill(state.screen.stackFollowing, { onIntent(ExploreIntent.ToggleFollowStack) })
             } else {
                 // Керування мапою в зоні великого пальця, над каруселлю.
                 IconPill(PoruchIcons.recenter, stringResource(R.string.recenter), size = 40.dp) { onIntent(ExploreIntent.Recenter) }
@@ -275,12 +275,12 @@ private fun SheetHeader(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
                 ) {
-                    if (state.loading) CircularProgressIndicator(
+                    if (state.screen.loading) CircularProgressIndicator(
                         Modifier.size(14.dp),
                         color = colors.brand,
                         strokeWidth = 2.dp
                     )
-                    else if (state.offline) Icon(
+                    else if (state.screen.offline) Icon(
                         Icons.Outlined.CloudOff,
                         null,
                         Modifier.size(14.dp),
@@ -296,13 +296,13 @@ private fun SheetHeader(
                 }
                 // Згорнута шапка тісна: тут лише дзвінок, підпис читає доступність.
                 if (stackPlace != null) IconPill(
-                    if (state.stackFollowing) PoruchIcons.bellActive else PoruchIcons.bell,
-                    stringResource(if (state.stackFollowing) R.string.following else R.string.follow),
-                    selected = state.stackFollowing, size = 40.dp
+                    if (state.screen.stackFollowing) PoruchIcons.bellActive else PoruchIcons.bell,
+                    stringResource(if (state.screen.stackFollowing) R.string.following else R.string.follow),
+                    selected = state.screen.stackFollowing, size = 40.dp
                 ) { onIntent(ExploreIntent.ToggleFollowStack) }
             }
             // Вихід із фокуса на піні знімає і підсвітку, інакше мапа й список розходились.
-            if (state.stackFocused) IconPill(
+            if (state.screen.stackFocused) IconPill(
                 PoruchIcons.close,
                 stringResource(R.string.show_all_events)
             ) {
@@ -318,24 +318,24 @@ private fun SheetHeader(
 
 @Composable
 private fun countLabel(state: ExploreState): String = when {
-    state.loading -> stringResource(R.string.searching)
-    state.stackFocused -> stringResource(R.string.events_here, state.listCount)
-    else -> stringResource(R.string.events_found, state.listCount)
+    state.screen.loading -> stringResource(R.string.searching)
+    state.screen.stackFocused -> stringResource(R.string.events_here, state.screen.listCount)
+    else -> stringResource(R.string.events_found, state.screen.listCount)
 }
 
 /** Що показує екран: пін, область рукою чи ціле місто. */
 @Composable
 private fun areaLabel(state: ExploreState): String = when {
-    state.stackFocused -> stringResource(R.string.area_stack)
-    state.customArea -> stringResource(R.string.area_custom)
-    else -> stringResource(R.string.explore_subtitle, state.cityName)
+    state.screen.stackFocused -> stringResource(R.string.area_stack)
+    state.screen.customArea -> stringResource(R.string.area_custom)
+    else -> stringResource(R.string.explore_subtitle, state.screen.cityName)
 }
 
 /** Згорнута шторка: карусель або тиха картка, коли показувати нічого. */
 @Composable
 private fun PeekDeck(state: ExploreState, onIntent: (ExploreIntent) -> Unit) {
-    if (state.deckEvents.isEmpty()) {
-        if (!state.loading) QuietCard(Modifier.padding(horizontal = Spacing.page), onIntent)
+    if (state.screen.deckEvents.isEmpty()) {
+        if (!state.screen.loading) QuietCard(Modifier.padding(horizontal = Spacing.page), onIntent)
     } else EventCarousel(state, onIntent)
 }
 
@@ -363,16 +363,16 @@ private fun EventCarousel(state: ExploreState, onIntent: (ExploreIntent) -> Unit
     LaunchedEffect(centered, listState.isScrollInProgress) {
         if (listState.isScrollInProgress || !userDriven) return@LaunchedEffect
         userDriven = false
-        val event = centered?.let(state.deckEvents::getOrNull) ?: return@LaunchedEffect
-        if (event.id != state.selectedId) onIntent(ExploreIntent.SelectEvent(event.id))
+        val event = centered?.let(state.screen.deckEvents::getOrNull) ?: return@LaunchedEffect
+        if (event.id != state.screen.selectedId) onIntent(ExploreIntent.SelectEvent(event.id))
     }
     // Біля краю завантаженого просимо наступне вікно карток.
-    LaunchedEffect(centered, state.deckEvents.size, state.hasMoreCards) {
+    LaunchedEffect(centered, state.screen.deckEvents.size, state.screen.hasMoreCards) {
         val position = centered ?: return@LaunchedEffect
-        if (!state.hasMoreCards) return@LaunchedEffect
-        if (position >= state.deckEvents.size - PREFETCH_AHEAD) onIntent(
+        if (!state.screen.hasMoreCards) return@LaunchedEffect
+        if (position >= state.screen.deckEvents.size - PREFETCH_AHEAD) onIntent(
             ExploreIntent.LoadMore(
-                state.deckEvents.size + PAGE
+                state.screen.deckEvents.size + PAGE
             )
         )
     }
@@ -381,11 +381,11 @@ private fun EventCarousel(state: ExploreState, onIntent: (ExploreIntent) -> Unit
     // за ключ першої видимої картки: без цього він лишався б на ній.
     var atStart by remember { mutableStateOf(false) }
     LaunchedEffect(state.recenterToken) { atStart = true }
-    LaunchedEffect(dragged, state.selectedId) { if (dragged || state.selectedId != null) atStart = false }
-    LaunchedEffect(atStart, state.deckEvents) { if (atStart) listState.scrollToItem(0) }
-    LaunchedEffect(state.selectedId, state.deckEvents) {
-        val id = state.selectedId ?: return@LaunchedEffect
-        val index = state.deckEvents.indexOfFirst { it.id == id }
+    LaunchedEffect(dragged, state.screen.selectedId) { if (dragged || state.screen.selectedId != null) atStart = false }
+    LaunchedEffect(atStart, state.screen.deckEvents) { if (atStart) listState.scrollToItem(0) }
+    LaunchedEffect(state.screen.selectedId, state.screen.deckEvents) {
+        val id = state.screen.selectedId ?: return@LaunchedEffect
+        val index = state.screen.deckEvents.indexOfFirst { it.id == id }
         val from = centered
         if (index >= 0 && index != from) {
             userDriven = false
@@ -405,12 +405,12 @@ private fun EventCarousel(state: ExploreState, onIntent: (ExploreIntent) -> Unit
             contentPadding = PaddingValues(horizontal = Spacing.page),
             horizontalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
-            items(state.deckEvents, key = { it.id }) { event ->
+            items(state.screen.deckEvents, key = { it.id }) { event ->
                 EventMapCard(
                     event,
                     Modifier.width(cardWidth),
-                    focused = event.id == state.selectedId,
-                    saved = event.id in state.savedIds,
+                    focused = event.id == state.screen.selectedId,
+                    saved = event.id in state.screen.savedIds,
                     onSave = { onIntent(ExploreIntent.ToggleSaved(event.id)) }
                 ) { onIntent(ExploreIntent.OpenEvent(event.id)) }
             }
@@ -431,16 +431,16 @@ private fun SheetList(state: ExploreState, onIntent: (ExploreIntent) -> Unit) {
         categories.forEach { category ->
             CategoryTile(
                 category,
-                state.listCategory == category
+                state.screen.listCategory == category
             ) { onIntent(ExploreIntent.PickListCategory(category)) }
         }
     }
-    val rows = state.deckEvents
+    val rows = state.screen.deckEvents
     // Заклади пошуку — над подіями: список подій довгий, під ним їх ніхто б не побачив.
-    val places = if (state.stackFocused) emptyList() else state.places
-    val artists = if (state.stackFocused) emptyList() else state.artists
+    val places = if (state.screen.stackFocused) emptyList() else state.screen.places
+    val artists = if (state.screen.stackFocused) emptyList() else state.screen.artists
     if (rows.isEmpty() && places.isEmpty() && artists.isEmpty()) {
-        if (state.loading) Box(
+        if (state.screen.loading) Box(
             Modifier
                 .fillMaxWidth()
                 .padding(vertical = Spacing.section),
@@ -457,8 +457,8 @@ private fun SheetList(state: ExploreState, onIntent: (ExploreIntent) -> Unit) {
         }
     }
     // Список довантажує картки сам, а не лише карусель.
-    LaunchedEffect(lastVisible, rows.size, state.hasMoreCards) {
-        if (state.hasMoreCards && lastVisible >= rows.size - PREFETCH_AHEAD) onIntent(
+    LaunchedEffect(lastVisible, rows.size, state.screen.hasMoreCards) {
+        if (state.screen.hasMoreCards && lastVisible >= rows.size - PREFETCH_AHEAD) onIntent(
             ExploreIntent.LoadMore(
                 rows.size + PAGE
             )
@@ -483,12 +483,12 @@ private fun SheetList(state: ExploreState, onIntent: (ExploreIntent) -> Unit) {
         items(rows, key = { it.id }) { event ->
             EventCard(
                 event,
-                saved = event.id in state.savedIds,
-                waitlisted = event.id in state.waitlistedIds,
+                saved = event.id in state.screen.savedIds,
+                waitlisted = event.id in state.screen.waitlistedIds,
                 onSave = { onIntent(ExploreIntent.ToggleSaved(event.id)) }
             ) { onIntent(ExploreIntent.OpenEvent(event.id)) }
         }
-        if (state.hasMoreCards) item {
+        if (state.screen.hasMoreCards) item {
             Box(Modifier
                 .fillMaxWidth()
                 .padding(vertical = Spacing.lg), Alignment.Center) {

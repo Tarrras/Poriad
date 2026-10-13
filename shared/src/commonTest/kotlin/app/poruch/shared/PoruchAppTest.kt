@@ -1837,6 +1837,43 @@ class PoruchAppTest {
         assertNull(app.state.value.detail.event)
         app.close()
     }
+    /** Презентер мапи: піни з індексу, стос піна звужує шторку, плитка категорії — список, заклад з пошуку відкриває стос сам. */
+    @Test fun explorePresenterDrivesTheSheet()=runTest {
+        val events=Events()
+        val soon=(Clock.System.now()+1.hours).toString()
+        val atPlace=(1..3).map { listed("p$it",soon).copy(category=EventCategory.SPORT) }
+        val elsewhere=listed("m1",soon,placeId=null).copy(category=EventCategory.MUSIC,latitude=50.5,longitude=30.6)
+        events.results=atPlace+elsewhere; events.places=listOf(malevych)
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
+        val presenter=ExplorePresenter(app,backgroundScope,StandardTestDispatcher(testScheduler))
+        runCurrent()
+        val all=presenter.state.value
+        assertEquals(4,all.mapEvents.size)
+        assertEquals(4,all.listCount)
+        assertFalse(all.stackFocused)
+        // Тап у пін закладу: стос із трьох, шторка показує лише їх, перша стає обраною.
+        presenter.showStack(atPlace.map { it.id }); runCurrent()
+        val stacked=presenter.state.value
+        assertTrue(stacked.stackFocused)
+        assertEquals(atPlace.map { it.id }.toSet(),stacked.listEntries.map { it.id }.toSet())
+        assertEquals("p1",stacked.selectedId)
+        assertEquals("p1",stacked.stackPlace?.id)
+        // Плитка категорії звужує список, мапу — ні.
+        presenter.clearStack(); runCurrent()
+        presenter.toggleListCategory(EventCategory.MUSIC); runCurrent()
+        val narrowed=presenter.state.value
+        assertEquals(listOf("m1"),narrowed.listEntries.map { it.id })
+        assertEquals(4,narrowed.mapEvents.size)
+        presenter.toggleListCategory(EventCategory.MUSIC); runCurrent()
+        assertEquals(4,presenter.state.value.listEntries.size)
+        // Заклад з пошуку: презентер сам відкриває його стос і підносить токен для шторки.
+        val before=presenter.state.value.focusToken
+        app.focusPlace(malevych); runCurrent(); advanceTimeBy(200); runCurrent()
+        val focused=presenter.state.value
+        assertTrue(focused.stackFocused)
+        assertEquals(before+1,focused.focusToken)
+        app.close()
+    }
 }
 
 /** Підробка віддає індекс і перші картки однією відповіддю, як сервер. */
