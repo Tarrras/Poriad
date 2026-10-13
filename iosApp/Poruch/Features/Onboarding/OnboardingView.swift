@@ -46,18 +46,18 @@ struct OnboardingView: View {
     private var topRow: some View {
         HStack(spacing: Space.md) {
             if step != .welcome {
-                IconPill(symbol: "chevron.left", label: "Назад", size: 40) { step = step.previous }
+                IconPill(symbol: "chevron.left", label: Copy.back, size: 40) { step = step.previous }
                 HStack(spacing: Space.xs) {
                     ForEach(1..<OnboardingStep.allCases.count, id: \.self) { index in
                         Capsule().fill(index <= step.rawValue ? Palette.brand : Palette.brandContainer).frame(height: 4)
                     }
                 }
                 .accessibilityElement()
-                .accessibilityLabel("Крок \(step.rawValue) з \(OnboardingStep.allCases.count - 1)")
+                .accessibilityLabel(Copy.onboarding_step("\(step.rawValue)", "\(OnboardingStep.allCases.count - 1)"))
             } else {
                 Spacer(minLength: 0)
             }
-            Button("Пропустити") { model.app.skipOnboarding() }
+            Button(Copy.rate_skip) { model.app.skipOnboarding() }
                 .font(PoruchFont.button).foregroundStyle(Palette.inkSecondary)
                 .frame(minHeight: 44)
         }.frame(height: 56)
@@ -76,8 +76,8 @@ struct OnboardingView: View {
             .padding(.top, Space.section).padding(.bottom, Space.lg)
             .decorative()
             VStack(spacing: Space.md) {
-                Text("Знайомимось").font(PoruchFont.serifDisplay).kerning(-0.5).foregroundStyle(Palette.ink)
-                Text("Три питання — і «Поряд» показуватиме спершу те, що вам підходить. Відповіді лишаються на цьому пристрої, змінити їх можна будь-коли у профілі.")
+                Text(Copy.onboarding_welcome_title).font(PoruchFont.serifDisplay).kerning(-0.5).foregroundStyle(Palette.ink)
+                Text(Copy.onboarding_welcome_body)
                     .font(PoruchFont.lead).foregroundStyle(Palette.inkSecondary).multilineTextAlignment(.center)
             }
         }.frame(maxWidth: .infinity)
@@ -90,7 +90,7 @@ struct OnboardingView: View {
     }
 
     private var interestsStep: some View {
-        question("Що вам цікаво?", "Оберіть будь-скільки категорій — події з них будуть вище у списках.") {
+        question(Copy.onboarding_interests_title, Copy.onboarding_interests_hint) {
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: Space.sm), count: 3), spacing: Space.sm) {
                 ForEach(categories, id: \.0) { entry in
                     CategoryCard(category: entry.0, selected: interests.contains(entry.0)) {
@@ -102,7 +102,7 @@ struct OnboardingView: View {
     }
 
     private var timesStep: some View {
-        question("Коли вам зручно?", "Підіймемо вище те, на що ви встигаєте.") {
+        question(Copy.onboarding_times_title, Copy.onboarding_times_hint) {
             GroupedRows {
                 ForEach(Array(timeSlots.enumerated()), id: \.element.slot) { index, option in
                     ChoiceRow(title: option.title, hint: option.hint, selected: times.contains(option.slot), multiple: true) {
@@ -115,7 +115,7 @@ struct OnboardingView: View {
     }
 
     private var crowdStep: some View {
-        question("Яка компанія?", "Це про розмір події, а не про людей на ній.") {
+        question(Copy.onboarding_crowd_title, Copy.onboarding_crowd_hint) {
             GroupedRows {
                 ForEach(Array(crowdOptions.enumerated()), id: \.element.value) { index, option in
                     ChoiceRow(title: option.title, hint: option.hint, selected: crowd == option.value, multiple: false) {
@@ -156,9 +156,9 @@ private enum OnboardingStep: Int, CaseIterable {
     var previous: OnboardingStep { OnboardingStep(rawValue: rawValue - 1) ?? .welcome }
     var actionLabel: String {
         switch self {
-        case .welcome: "Почати"
-        case .crowd: "Готово"
-        default: "Далі"
+        case .welcome: Copy.onboarding_start
+        case .crowd: Copy.apply
+        default: Copy.next
         }
     }
 }
@@ -202,16 +202,16 @@ private struct ChoiceRow: View {
 
 /// Слоти зі спільного модуля з підписами, у порядку тижня.
 private let timeSlots: [(slot: TimeSlot, title: String, hint: String)] = [
-    (.weekdayEvening, "Будні, ввечері", "Після 17:00"),
-    (.weekendDay, "Вихідні, вдень", "Субота й неділя до 17:00"),
-    (.weekendEvening, "Вихідні, ввечері", "Субота й неділя після 17:00"),
-    (.weekdayDay, "Будні, вдень", "До 17:00")
+    (.weekdayEvening, Copy.slot_weekday_evening, Copy.slot_weekday_evening_hint),
+    (.weekendDay, Copy.slot_weekend_day, Copy.slot_weekend_day_hint),
+    (.weekendEvening, Copy.slot_weekend_evening, Copy.slot_weekend_evening_hint),
+    (.weekdayDay, Copy.slot_weekday_day, Copy.slot_weekday_day_hint)
 ]
 
 private let crowdOptions: [(value: Crowd, title: String, hint: String)] = [
-    (.intimate, "Камерна", "До 12 місць"),
-    (.medium, "Середня", "13–40 місць"),
-    (.any, "Будь-яка", "Розмір не має значення")
+    (.intimate, Copy.crowd_intimate, Copy.crowd_intimate_hint),
+    (.medium, Copy.crowd_medium, Copy.crowd_medium_hint),
+    (.any, Copy.crowd_any, Copy.crowd_any_hint)
 ]
 
 private extension Array where Element: Equatable {

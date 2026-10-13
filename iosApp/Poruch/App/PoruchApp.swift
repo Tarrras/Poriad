@@ -79,8 +79,8 @@ private struct SplashView: View {
                     // і виліт у місто йде з неї. Приходить, коли шпилька торкається землі.
                     .overlay(alignment: .bottom) {
                         VStack(spacing: Space.xs) {
-                            Text("Поряд").font(PoruchFont.serifDisplay).kerning(-0.5).foregroundStyle(Palette.ink)
-                            Text("Події поряд з вами").font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
+                            Text(Copy.brand_name).font(PoruchFont.serifDisplay).kerning(-0.5).foregroundStyle(Palette.ink)
+                            Text(Copy.tagline).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
                         }
                         .fixedSize()
                         .alignmentGuide(.bottom) { $0[.top] - Space.xs }
@@ -105,10 +105,10 @@ private struct SplashView: View {
 /// Чати з непрочитаним і запити на участь живуть у «Моїх подіях»: туди й бейдж, по одному на подію.
 private func tabItems(waiting: Int) -> [TabItem] {
     [
-        TabItem(id: 0, label: "Головна", glyph: PoruchIcons.home),
-        TabItem(id: 1, label: "Мапа", glyph: PoruchIcons.map),
-        TabItem(id: 2, label: "Мої події", glyph: PoruchIcons.calendar, badge: waiting),
-        TabItem(id: 3, label: "Профіль", glyph: PoruchIcons.person)
+        TabItem(id: 0, label: Copy.home, glyph: PoruchIcons.home),
+        TabItem(id: 1, label: Copy.map, glyph: PoruchIcons.map),
+        TabItem(id: 2, label: Copy.my_events, glyph: PoruchIcons.calendar, badge: waiting),
+        TabItem(id: 3, label: Copy.profile, glyph: PoruchIcons.person)
     ]
 }
 
@@ -168,9 +168,9 @@ struct RootView: View {
                     // Лист знизу, не `alert`: усі питання в застосунку ставляться листом (DS, «Нижні листи»).
                     .sheet(isPresented: $digestAsk, onDismiss: { if !digestAnswered { model.app.digestPromptAnswered(granted: false) } }) {
                         PromptSheet(
-                            title: "Що поруч на вихідних?",
-                            message: "Щопʼятниці ввечері коротко скажемо, скільки подій у вашому місті на вихідних. Одне сповіщення на тиждень, вимкнути можна в профілі.",
-                            primary: "Так, нагадувати", secondary: "Не зараз",
+                            title: Copy.digest_prompt_title,
+                            message: Copy.digest_prompt_body,
+                            primary: Copy.digest_prompt_yes, secondary: Copy.digest_prompt_no,
                             onPrimary: {
                                 digestAnswered = true
                                 NotificationPermission.request { granted in
@@ -304,7 +304,7 @@ struct RootView: View {
         .sheet(item: $authSheet, onDismiss: continueCreating) { sheet in
             NavigationStack {
                 AuthView(reason: sheet.reason)
-                    .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Готово") { authSheet = nil } } }
+                    .toolbar { ToolbarItem(placement: .topBarTrailing) { Button(Copy.apply) { authSheet = nil } } }
             }
         }
         .sheet(isPresented: Binding(get: { model.state?.session.passwordRecovery == true }, set: { _ in })) { NewPasswordView() }

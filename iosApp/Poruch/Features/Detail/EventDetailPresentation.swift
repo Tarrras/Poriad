@@ -11,14 +11,14 @@ enum DetailAction {
 
     var title: String {
         switch self {
-        case .join: "Приєднатися"
-        case .request: "Надіслати запит"
-        case .requested: "Запит надіслано"
-        case .leave: "Ви йдете"
-        case .joinWaitlist: "Стати в чергу"
+        case .join: Copy.join
+        case .request: Copy.request_join
+        case .requested: Copy.request_pending
+        case .leave: Copy.going
+        case .joinWaitlist: Copy.join_waitlist
         case .leaveWaitlist: "Ви в черзі"
-        case .organizer: "Ви організатор"
-        case .tickets: "Купити квиток"
+        case .organizer: Copy.you_organize
+        case .tickets: Copy.listing_tickets
         case .cancelled, .none: "Скасовано"
         }
     }
@@ -119,35 +119,35 @@ struct EventDetailPresentation {
     /// Рядок під датою в нижній панелі: місця й черга для кімнати, ціна або причина відсутності кнопки для афіші.
     var seatsSummary: String {
         guard event != nil else { return "" }
-        if cancelled { return "Подію скасовано" }
+        if cancelled { return Copy.cancelled }
         if let listing {
-            if listing.isWithdrawn { return "Джерело зняло цю подію. Запис лишається у вас як позначка." }
-            if sessionStarted { return "Сеанс уже почався, квитки на нього не продають. Оберіть іншу дату." }
-            return listing.hasSource ? listingPrice(listing) : "Подія з афіші. Ми лише показуємо її."
+            if listing.isWithdrawn { return Copy.listing_withdrawn_hint }
+            if sessionStarted { return Copy.session_started_hint }
+            return listing.hasSource ? listingPrice(listing) : Copy.listing_hint_no_link
         }
         guard let room else { return "" }
-        if ended { return "Подію завершено" }
-        if room.awaitingApproval { return "Організатор ще не відповів" }
+        if ended { return Copy.event_ended }
+        if room.awaitingApproval { return Copy.request_pending_hint }
         // Гостю — що його чекає, не текст перемикача з редактора.
-        if room.approvalRequired && !room.joined && !organizer { return "Організатор підтверджує кожного гостя." }
-        if room.isFull && !room.joined && !organizer { return "Місць немає. Додамо вас, щойно звільниться місце." }
-        return "Вільних місць: \(room.seatsLeft)"
+        if room.approvalRequired && !room.joined && !organizer { return Copy.approval_guest_hint }
+        if room.isFull && !room.joined && !organizer { return Copy.waitlist_hint }
+        return Copy.seats("\(room.seatsLeft)")
     }
 }
 
 /// Для кого подія, на картці, а не через відмову сервера.
 func ageLimitLabel(_ room: Gathering) -> String? {
     guard room.hasAgeLimit else { return nil }
-    if let maximum = room.maxAge { return "\(room.minAge)–\(maximum.intValue) років" }
+    if let maximum = room.maxAge { return Copy.age_badge_range("\(room.minAge)", "\(maximum.intValue)") }
     return "\(room.minAge)+"
 }
 
 /// Причини скарги в порядку шторки.
 let reportReasons: [(value: ReportReason, title: String)] = [
-    (.minors, "Небезпечно для неповнолітніх"),
-    (.safety, "Загроза безпеці"),
-    (.harassment, "Домагання або образи"),
-    (.scam, "Шахрайство"),
-    (.spam, "Спам"),
-    (.other, "Інше")
+    (.minors, Copy.reason_minors),
+    (.safety, Copy.reason_safety),
+    (.harassment, Copy.reason_harassment),
+    (.scam, Copy.reason_scam),
+    (.spam, Copy.reason_spam),
+    (.other, Copy.category_other)
 ]

@@ -47,25 +47,25 @@ struct CompanionSheet: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Space.lg) {
-                Text("Шукаю компанію").font(PoruchFont.serifTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
+                Text(Copy.companion_seek).font(PoruchFont.serifTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
                 Text(event.displayTitle).font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.inkSecondary).lineLimit(2)
-                Text("Зберіть невелику компанію й ідіть разом. Хто хоче долучитися, надсилає запит — ви вирішуєте, кого взяти. Лише 18+.")
+                Text(Copy.companion_sheet_body)
                     .font(PoruchFont.bodyText).foregroundStyle(Palette.inkSecondary)
                 if let meetAt {
                     let lead = (times.count - 1 - at) * Int(CompanionRules.shared.STEP_MINUTES)
-                    stepper("Час зустрічі", value: sessionLabel(EventSession(id: event.id, startsAt: meetAt, timeZone: event.timeZone, cancelled: false)).hour,
-                            caption: lead == 0 ? "На початку" : "За \(leadWords(lead)) до початку",
-                            minus: ("Раніше", at > 0, { at -= 1 }), plus: ("Пізніше", at < times.count - 1, { at += 1 }))
+                    stepper(Copy.companion_meet_time, value: sessionLabel(EventSession(id: event.id, startsAt: meetAt, timeZone: event.timeZone, cancelled: false)).hour,
+                            caption: lead == 0 ? Copy.companion_at_start : Copy.companion_lead("\(leadWords(lead))"),
+                            minus: (Copy.companion_earlier, at > 0, { at -= 1 }), plus: (Copy.companion_later, at < times.count - 1, { at += 1 }))
                 }
-                LabelledField(label: "Де зустрітись", text: $note, placeholder: "Біля головного входу")
+                LabelledField(label: Copy.companion_meet_note, text: $note, placeholder: Copy.companion_meet_note_hint)
                     .onChange(of: note) { _, value in
                         let limit = Int(CompanionRules.shared.NOTE_MAX)
                         if value.count > limit { note = String(value.prefix(limit)) }
                     }
-                stepper("Скільки людей шукаєте", value: "\(capacity)", caption: nil,
-                        minus: ("Менше", capacity > Int(CompanionRules.shared.MIN_CAPACITY), { capacity -= 1 }),
-                        plus: ("Більше", capacity < Int(CompanionRules.shared.MAX_CAPACITY), { capacity += 1 }))
-                PrimaryButton(title: "Опублікувати й поділитися", symbol: "square.and.arrow.up", loading: mutating,
+                stepper(Copy.companion_capacity, value: "\(capacity)", caption: nil,
+                        minus: (Copy.companion_fewer, capacity > Int(CompanionRules.shared.MIN_CAPACITY), { capacity -= 1 }),
+                        plus: (Copy.companion_more, capacity < Int(CompanionRules.shared.MAX_CAPACITY), { capacity += 1 }))
+                PrimaryButton(title: Copy.companion_create, symbol: "square.and.arrow.up", loading: mutating,
                               enabled: meetAt != nil && !mutating) {
                     guard let meetAt else { return }
                     model.app.createCompanion(parentId: event.id, meetAt: meetAt, note: note, capacity: Int32(capacity))
@@ -81,8 +81,8 @@ struct CompanionSheet: View {
 
     private func leadWords(_ minutes: Int) -> String {
         let hours = minutes / 60, rest = minutes % 60
-        if hours == 0 { return "\(rest) хв" }
-        return rest == 0 ? "\(hours) год" : "\(hours) год \(rest) хв"
+        if hours == 0 { return Copy.duration_minutes("\(rest)") }
+        return rest == 0 ? Copy.duration_hours("\(hours)") : Copy.duration_minutes("\(hours) год \(rest)")
     }
 
     /// Значення з кнопками «−» і «+». Підписи кнопок — для VoiceOver.
@@ -149,10 +149,10 @@ enum ReportTarget: String, Identifiable {
     var id: String { rawValue }
     var title: String {
         switch self {
-        case .event: "Поскаржитись на подію"
-        case .organizer: "Поскаржитись на організатора"
-        case .message: "Поскаржитись на повідомлення"
-        case .person: "Поскаржитись на людину"
+        case .event: Copy.report_event_title
+        case .organizer: Copy.report_user_title
+        case .message: Copy.chat_report_title
+        case .person: Copy.report_person_title
         }
     }
 }
@@ -165,11 +165,11 @@ struct RateEventSection: View {
     @State private var open = false
     var body: some View {
         VStack(alignment: .leading, spacing: Space.md) {
-            SectionHeader(title: "Як пройшло?")
+            SectionHeader(title: Copy.rate_title)
             if let mine {
                 SecondaryButton(title: "Ваша оцінка ★ \(mine.score) · змінити") { open = true }
             } else {
-                PrimaryButton(title: "Оцінити") { open = true }
+                PrimaryButton(title: Copy.rate_action) { open = true }
             }
         }
         .sheet(isPresented: $open) { RateSheet(event: event, mine: mine) }
@@ -221,7 +221,7 @@ struct RateSheet: View {
                             Text(event.displayTitle).font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.ink).lineLimit(2)
                         }
                     }
-                    Text("Як пройшло?").font(PoruchFont.serifTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
+                    Text(Copy.rate_title).font(PoruchFont.serifTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
                     VStack(spacing: Space.sm) {
                         HStack(spacing: Space.sm) {
                             ForEach(1...5, id: \.self) { value in
@@ -235,14 +235,14 @@ struct RateSheet: View {
                                         }
                                 }
                                 .buttonStyle(PressableStyle())
-                                .accessibilityLabel("\(value) з 5")
+                                .accessibilityLabel(Copy.rate_star("\(value)"))
                                 .accessibilityAddTraits(value == score ? .isSelected : [])
                             }
                         }
                         HStack {
-                            Text("Не моє")
+                            Text(Copy.rate_low)
                             Spacer()
-                            Text("Чудово")
+                            Text(Copy.rate_high)
                         }.font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
                     }
                     VStack(alignment: .leading, spacing: Space.sm) {
@@ -253,7 +253,7 @@ struct RateSheet: View {
                             action: { key in if tags.contains(key) { tags.remove(key) } else { tags.insert(key) } }
                         )
                     }
-                    LabelledField(label: "Кілька слів організатору", text: $comment, placeholder: "Необовʼязково", multiline: true)
+                    LabelledField(label: Copy.rate_comment, text: $comment, placeholder: "Необовʼязково", multiline: true)
                         .onChange(of: comment) { _, value in
                             let limit = Int(RatingRules.shared.COMMENT_MAX)
                             if value.count > limit { comment = String(value.prefix(limit)) }
@@ -261,10 +261,10 @@ struct RateSheet: View {
                     if organizerId != nil {
                         VStack(alignment: .leading, spacing: Space.sm) {
                             Toggle(isOn: Binding(get: { followOrganizer }, set: { follow = $0 })) {
-                                Text("Стежити за організатором").font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
+                                Text(Copy.rate_follow_title).font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
                             }
                             .tint(Palette.brand)
-                            Text("Скажемо, коли в нього зʼявиться нова подія").font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
+                            Text(Copy.follow_organizer_hint).font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
                         }.padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()
                     }
                 }
@@ -272,7 +272,7 @@ struct RateSheet: View {
             }
             Divider().overlay(Palette.hairline)
             VStack(spacing: Space.xs) {
-                PrimaryButton(title: mine == nil ? "Надіслати" : "Оновити оцінку", loading: mutating,
+                PrimaryButton(title: mine == nil ? Copy.rate_send : Copy.rate_update, loading: mutating,
                               enabled: score > 0 && !mutating) {
                     // Порядок шторки, не порядок тапів.
                     model.app.rateEvent(id: event.id, score: Int32(score), comment: comment,
@@ -280,7 +280,7 @@ struct RateSheet: View {
                                         followOrganizer: organizerId == nil ? nil : KotlinBoolean(bool: followOrganizer))
                     dismiss()
                 }
-                Button("Пропустити") { dismiss() }
+                Button(Copy.rate_skip) { dismiss() }
                     .font(PoruchFont.button).foregroundStyle(Palette.inkSecondary).frame(minHeight: 44)
             }
             .padding(.horizontal, Space.page).padding(.top, Space.lg)
@@ -293,33 +293,33 @@ struct RateSheet: View {
 
 func ratingTagTitle(_ tag: RatingTag) -> String {
     switch tag.key {
-    case "atmosphere": "Атмосфера"
-    case "organization": "Організація"
-    case "place": "Місце"
-    case "people": "Люди"
-    case "on_time": "Почали вчасно"
-    case "music": "Музика"
-    case "sound": "Звук"
-    case "humor": "Жарти"
-    case "host": "Ведучий"
-    case "program": "Програма"
-    case "coach": "Тренер"
-    case "workout": "Тренування"
-    case "route": "Маршрут"
-    case "views": "Краєвиди"
-    case "pace": "Темп"
-    case "guide": "Гід"
-    case "stories": "Історії"
-    case "food": "Їжа"
-    case "drinks": "Напої"
-    case "game_choice": "Вибір ігор"
-    case "rules": "Пояснили правила"
-    case "conversation": "Розмови"
-    case "kids_liked": "Дітям сподобалось"
-    case "safety": "Безпечно"
-    case "speakers": "Спікери"
-    case "useful": "Корисно"
-    case "networking": "Нетворкінг"
+    case "atmosphere": Copy.rate_tag_atmosphere
+    case "organization": Copy.rate_tag_organization
+    case "place": Copy.rate_tag_place
+    case "people": Copy.rate_tag_people
+    case "on_time": Copy.rate_tag_on_time
+    case "music": Copy.music
+    case "sound": Copy.rate_tag_sound
+    case "humor": Copy.rate_tag_humor
+    case "host": Copy.rate_tag_host
+    case "program": Copy.rate_tag_program
+    case "coach": Copy.rate_tag_coach
+    case "workout": Copy.rate_tag_workout
+    case "route": Copy.rate_tag_route
+    case "views": Copy.rate_tag_views
+    case "pace": Copy.rate_tag_pace
+    case "guide": Copy.rate_tag_guide
+    case "stories": Copy.rate_tag_stories
+    case "food": Copy.food
+    case "drinks": Copy.rate_tag_drinks
+    case "game_choice": Copy.rate_tag_game_choice
+    case "rules": Copy.rate_tag_rules
+    case "conversation": Copy.rate_tag_conversation
+    case "kids_liked": Copy.rate_tag_kids_liked
+    case "safety": Copy.rate_tag_safety
+    case "speakers": Copy.rate_tag_speakers
+    case "useful": Copy.rate_tag_useful
+    case "networking": Copy.rate_tag_networking
     default: tag.key
     }
 }
@@ -329,7 +329,7 @@ struct RatingsSummary: View {
     let ratings: [EventRating]
     var body: some View {
         VStack(alignment: .leading, spacing: Space.md) {
-            SectionHeader(title: "Відгуки учасників")
+            SectionHeader(title: Copy.ratings_title)
             if let average = RatingRules.shared.average(ratings: ratings)?.doubleValue {
                 Text("★ \(String(format: "%.1f", average).replacingOccurrences(of: ".", with: ",")) з 5 · оцінок: \(ratings.count)")
                     .font(PoruchFont.cardName).foregroundStyle(Palette.ink)
@@ -348,7 +348,7 @@ struct RatingsSummary: View {
                     }.padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()
                 }
             } else {
-                Text("Учасники ще не оцінили зустріч. Оцінити можна протягом 14 днів після завершення.")
+                Text(Copy.ratings_empty)
                     .font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
             }
         }
@@ -367,7 +367,7 @@ struct Stars: View {
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(score) з 5")
+        .accessibilityLabel(Copy.rate_star("\(score)"))
     }
 }
 
@@ -383,7 +383,7 @@ struct ReportSheet: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Space.md) {
                 Text(target.title).font(PoruchFont.serifTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
-                Text("Оберіть причину. Скаргу побачить лише модерація.")
+                Text(Copy.report_body)
                     .font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
                 ForEach(reportReasons, id: \.value) { option in
                     Button { reason = option.value } label: {
@@ -401,8 +401,8 @@ struct ReportSheet: View {
                     }.buttonStyle(.plain)
                     .accessibilityAddTraits(reason == option.value ? .isSelected : [])
                 }
-                LabelledField(label: "Що сталося (необовʼязково)", text: $details, multiline: true)
-                PrimaryButton(title: "Надіслати скаргу", enabled: reason != nil) {
+                LabelledField(label: Copy.report_details, text: $details, multiline: true)
+                PrimaryButton(title: Copy.report_send, enabled: reason != nil) {
                     if let reason { send(reason, details); dismiss() }
                 }
             }

@@ -17,17 +17,17 @@ struct FollowsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            PageHeader(title: "Підписки", back: { dismiss() })
+            PageHeader(title: Copy.follows_title, back: { dismiss() })
             if follows.isEmpty {
                 EmptyState(
-                    symbol: "bell", title: "Ви ні за ким не стежите",
-                    message: "Натисніть «Стежити» на закладі чи в організатора — і ми скажемо, коли в них зʼявиться щось нове."
+                    symbol: "bell", title: Copy.follows_empty_title,
+                    message: Copy.follows_empty_hint
                 ).padding(.top, Space.section)
                 Spacer(minLength: 0)
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: Space.md) {
-                        Text("Скажемо, коли в них зʼявиться щось нове").font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
+                        Text(Copy.follows_subtitle).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
                         GroupedRows {
                             ForEach(Array(follows.enumerated()), id: \.element.targetId) { position, follow in
                                 if position > 0 { Divider().overlay(Palette.hairline).padding(.leading, Space.lg + 40 + Space.md) }
@@ -89,7 +89,7 @@ struct FollowsView: View {
             Button {
                 model.app.setFollowing(kind: follow.kind, targetId: follow.targetId, name: follow.name, following: false)
             } label: {
-                Text("Не стежити").font(PoruchFont.button).foregroundStyle(Palette.ink)
+                Text(Copy.unfollow).font(PoruchFont.button).foregroundStyle(Palette.ink)
                     .frame(minHeight: 44).contentShape(Rectangle())
             }
             .buttonStyle(.plain).fixedSize()

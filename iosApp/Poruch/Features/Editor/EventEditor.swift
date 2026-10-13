@@ -68,15 +68,15 @@ struct EventEditor: View {
     /// Закрити, прогрес трьома сегментами і назва режиму. Той самий ряд, що в онбордингу.
     private var wizardHeader: some View {
         HStack(spacing: Space.md) {
-            IconPill(symbol: "xmark", label: "Закрити", size: 40) { editor.persist(); dismiss() }
+            IconPill(symbol: "xmark", label: Copy.close, size: 40) { editor.persist(); dismiss() }
             HStack(spacing: Space.xs) {
                 ForEach(EditorStep.allCases) { entry in
                     Capsule().fill(entry.rawValue <= editor.step.rawValue ? Palette.brand : Palette.brandContainer).frame(height: 4)
                 }
             }
             .accessibilityElement()
-            .accessibilityLabel("Крок \(editor.step.rawValue + 1) з \(EditorStep.allCases.count): \(editor.step.title)")
-            Text(editor.editing ? "Редагування" : "Нова подія").font(PoruchFont.button).foregroundStyle(Palette.inkSecondary)
+            .accessibilityLabel(Copy.onboarding_step("\(editor.step.rawValue + 1)", "\(EditorStep.allCases.count): \(editor.step.title)"))
+            Text(editor.editing ? Copy.editor_mode_edit : Copy.editor_mode_new).font(PoruchFont.button).foregroundStyle(Palette.inkSecondary)
         }
         .frame(height: 56).padding(.horizontal, Space.page).padding(.top, Space.sm)
         .motion(value: editor.step)
@@ -84,9 +84,9 @@ struct EventEditor: View {
 
     private var actions: some View {
         HStack(spacing: Space.md) {
-            if editor.step != .about { SecondaryButton(title: "Назад") { editor.retreat() } }
+            if editor.step != .about { SecondaryButton(title: Copy.back) { editor.retreat() } }
             PrimaryButton(
-                title: !editor.step.isLast ? "Далі" : editor.editing ? "Зберегти зміни" : "Опублікувати",
+                title: !editor.step.isLast ? Copy.next : editor.editing ? "Зберегти зміни" : Copy.publish,
                 loading: model.state?.mutating == true,
                 // Не вимкнена, поки крок не заповнено: натискання показує, що саме не так.
                 enabled: model.state?.mutating != true
@@ -115,13 +115,13 @@ private struct AboutStep: View {
     private var descriptionRange: KotlinIntRange { EventRules.shared.descriptionLength }
     var body: some View {
         VStack(alignment: .leading, spacing: Space.sm) {
-            LabelledField(label: "Назва події", text: $form.title, placeholder: "Наприклад: Вечір настільних ігор")
+            LabelledField(label: Copy.title, text: $form.title, placeholder: Copy.title_placeholder)
             FieldIssue(text: issue(.title))
         }.id(DraftField.title)
         VStack(alignment: .leading, spacing: Space.sm) {
             LabelledField(
-                label: "Опис", text: $form.description,
-                placeholder: "Кілька речень про подію",
+                label: Copy.description, text: $form.description,
+                placeholder: Copy.description_placeholder,
                 hint: "Щонайменше \(descriptionRange.first) символів · \(form.descriptionLength)/\(descriptionRange.last)",
                 multiline: true
             )
@@ -155,12 +155,12 @@ private struct PlaceStep: View {
     }
     private var form: Binding<EditorForm> { $editor.form }
     var body: some View {
-        LabelledField(label: "Місто", text: form.city, placeholder: "Київ")
+        LabelledField(label: Copy.city, text: form.city, placeholder: "Київ")
         VStack(alignment: .leading, spacing: Space.sm) {
             LabelledField(
                 label: "Адреса", text: form.address,
-                placeholder: "Вулиця, будинок або назва закладу",
-                hint: "Почніть набирати — знайдемо на мапі"
+                placeholder: Copy.address_placeholder,
+                hint: Copy.address_hint
             )
             FieldIssue(text: editor.issue(.address))
         }.id(DraftField.address)
@@ -203,10 +203,10 @@ private struct PlaceStep: View {
         // Координат не показуємо: людина знає адресу, а не широту.
         MetaLine(
             symbol: editor.pointChosen ? "checkmark.circle" : "mappin.and.ellipse",
-            text: editor.pointChosen ? "Точку зустрічі позначено" : "Знайдіть адресу або вкажіть точку на мапі"
+            text: editor.pointChosen ? Copy.address_point_set : Copy.address_or_map
         )
         FieldIssue(text: editor.issue(.location)).id(DraftField.location)
-        SecondaryButton(title: editor.pointChosen ? "Змінити точку" : "Обрати точку на мапі") {
+        SecondaryButton(title: editor.pointChosen ? Copy.change_point : Copy.choose_point) {
             picking = true
         }
         .frame(maxWidth: .infinity)
@@ -246,7 +246,7 @@ private struct ScheduleStep: View {
         FieldIssue(text: issue(.timeZone))
         // Хто може прийти — частина публікації, а не сховане налаштування.
         VStack(alignment: .leading, spacing: Space.md) {
-            SectionHeader(title: "Хто може прийти")
+            SectionHeader(title: Copy.who_can_come)
             VStack(spacing: Space.lg) {
                 Stepper("Вік від: \(form.minAge)", value: $form.minAge, in: ageRange)
                 Toggle("Верхня межа віку", isOn: Binding(
@@ -261,8 +261,8 @@ private struct ScheduleStep: View {
                 Divider().overlay(Palette.hairline)
                 Toggle(isOn: $form.approvalRequired) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Підтверджувати учасників").font(PoruchFont.title3).foregroundStyle(Palette.ink)
-                        Text("Ви вирішуєте, хто приєднається до події.")
+                        Text(Copy.approval_label).font(PoruchFont.title3).foregroundStyle(Palette.ink)
+                        Text(Copy.approval_hint)
                             .font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
                     }
                 }.tint(Palette.brand)
@@ -271,14 +271,14 @@ private struct ScheduleStep: View {
             .padding(Space.lg).cardSurface()
             .id(DraftField.ageLimits)
             FieldIssue(text: issue(.ageLimits))
-            Text("Мінімум \(Int(SafetyRules.shared.MIN_SIGNUP_AGE)) — молодших у застосунку немає.")
+            Text(Copy.age_limit_hint("\(Int(SafetyRules.shared.MIN_SIGNUP_AGE))"))
                 .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
             // Чат — єдиний канал до учасників. Лише https: решту відкидає і чернетка, і сервер.
             LabelledField(
-                label: "Чат учасників",
+                label: Copy.contact_label,
                 text: Binding(get: { form.contactUrl ?? "" }, set: { form.contactUrl = String($0.prefix(Int(ContactRules.shared.MAX_URL_LENGTH))) }),
                 placeholder: "https://t.me/…",
-                hint: "Посилання на Telegram, Instagram, Viber тощо. Його побачать лише ви та підтверджені учасники. За вміст чату відповідаєте ви."
+                hint: Copy.contact_editor_hint
             )
             .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
             .id(DraftField.contactUrl)
@@ -287,11 +287,11 @@ private struct ScheduleStep: View {
         VStack(alignment: .leading, spacing: Space.sm) {
             Text(categoryName(form.category).uppercased()).font(PoruchFont.overline)
                 .foregroundStyle(categoryInk(form.category))
-            Text(form.title.trimmingCharacters(in: .whitespaces).isEmpty ? "Назва події" : TitleRules.shared.display(title: form.title.trimmingCharacters(in: .whitespaces))).font(PoruchFont.serifTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
+            Text(form.title.trimmingCharacters(in: .whitespaces).isEmpty ? Copy.title : TitleRules.shared.display(title: form.title.trimmingCharacters(in: .whitespaces))).font(PoruchFont.serifTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
             MetaLine(symbol: "mappin.and.ellipse", text: "\(form.city) · \(form.address)")
             MetaLine(symbol: "person.2", text: "\(form.capacity) місць")
         }.padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()
-        Text("Фото можна додати на сторінці події після публікації.")
+        Text(Copy.photo_after_publish)
             .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
     }
 }
@@ -349,14 +349,14 @@ private struct PointPicker: View {
                 .offset(y: -18)
                 .allowsHitTesting(false)
             VStack(spacing: 0) {
-                PageHeader(title: "Точка зустрічі", back: { dismiss() })
+                PageHeader(title: Copy.choose_point_title, back: { dismiss() })
                     .background(Palette.canvas)
                 Spacer(minLength: 0)
                 HStack {
                     Spacer(minLength: 0)
                     VStack(spacing: Space.sm) {
-                        ZoomButton(symbol: "plus", label: "Наблизити") { controller.zoomIn() }
-                        ZoomButton(symbol: "minus", label: "Віддалити") { controller.zoomOut() }
+                        ZoomButton(symbol: "plus", label: Copy.zoom_in) { controller.zoomIn() }
+                        ZoomButton(symbol: "minus", label: Copy.zoom_out) { controller.zoomOut() }
                     }
                 }
                 .padding(Space.lg)
@@ -366,16 +366,16 @@ private struct PointPicker: View {
                     HStack(spacing: Space.md) {
                         PoruchIcon(glyph: PoruchIcons.pin, size: 18).foregroundStyle(Palette.inkSecondary)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(editor.aimAddress.isEmpty ? "Шукаємо адресу…" : editor.aimAddress)
+                            Text(editor.aimAddress.isEmpty ? Copy.point_searching : editor.aimAddress)
                                 .font(PoruchFont.bodyText)
                                 .foregroundStyle(editor.aimAddress.isEmpty ? Palette.inkTertiary : Palette.ink)
                                 .lineLimit(2)
-                            Text("Рухайте мапу — точка лишається в центрі")
+                            Text(Copy.choose_point_hint)
                                 .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
                         }
                         Spacer(minLength: 0)
                     }
-                    PrimaryButton(title: "Готово") {
+                    PrimaryButton(title: Copy.apply) {
                         editor.confirmAim(latitude: center.latitude, longitude: center.longitude)
                         onDone(center.latitude, center.longitude)
                         dismiss()

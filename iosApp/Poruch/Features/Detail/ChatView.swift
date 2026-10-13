@@ -51,14 +51,14 @@ struct ChatView: View {
         .task { model.app.openChat(eventId: eventID) }
         .onDisappear { model.app.closeChat(eventId: eventID); model.app.closePerson() }
         .personSheet(model, isPresented: $showingPerson)
-        .confirmationDialog("Видалити повідомлення?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible) {
-            Button("Видалити", role: .destructive) { if let message = deleting { model.app.deleteMessage(messageId: message.id) } }
-        } message: { Text("Його не побачить ніхто з учасників.") }
+        .confirmationDialog(Copy.chat_delete_title, isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible) {
+            Button(Copy.delete_account_confirm, role: .destructive) { if let message = deleting { model.app.deleteMessage(messageId: message.id) } }
+        } message: { Text(Copy.chat_delete_body) }
         .confirmationDialog(
             "Ви більше не побачите подій і повідомлень цієї людини, а вона — ваших. Скасувати можна у профілі.",
             isPresented: Binding(get: { blocking != nil }, set: { if !$0 { blocking = nil } }), titleVisibility: .visible
         ) {
-            Button("Заблокувати", role: .destructive) { if let message = blocking { model.app.blockUser(userId: message.authorId) } }
+            Button(Copy.block_confirm, role: .destructive) { if let message = blocking { model.app.blockUser(userId: message.authorId) } }
         }
         // Текст, що не пішов, повертається в поле, якщо людина ще не почала нового.
         .onChange(of: chat?.failedDraft) { _, failed in
@@ -80,9 +80,9 @@ struct ChatView: View {
             Button { dismiss() } label: {
                 PoruchIcon(glyph: PoruchIcons.chevronLeft, size: 19).foregroundStyle(Palette.ink)
                     .frame(width: 40, height: 40).background(Palette.surface, in: Circle())
-            }.buttonStyle(PressableStyle()).accessibilityLabel("Назад")
+            }.buttonStyle(PressableStyle()).accessibilityLabel(Copy.back)
             VStack(alignment: .leading, spacing: 2) {
-                Text(event?.displayTitle ?? "Чат").font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.ink).lineLimit(1)
+                Text(event?.displayTitle ?? Copy.chat_short).font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.ink).lineLimit(1)
                 Text(subtitle).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(1)
             }
             Spacer(minLength: 0)
@@ -96,7 +96,7 @@ struct ChatView: View {
     }
 
     private var subtitle: String {
-        guard let room = event?.gathering else { return "Чат учасників" }
+        guard let room = event?.gathering else { return Copy.contact_label }
         // Організатор і підтверджені: саме вони бачать цей екран.
         let people = Int(room.attendeeCount) + 1
         return "\(people) \(plural(people, "учасник", "учасники", "учасників")) · організатор і підтверджені"
@@ -107,7 +107,7 @@ struct ChatView: View {
     @ViewBuilder private var content: some View {
         let chat = self.chat
         if chat?.available == false {
-            EmptyState(symbol: "clock", title: "Чат ще недоступний", message: "Сервер ще не оновлено. Спробуйте пізніше.")
+            EmptyState(symbol: "clock", title: Copy.chat_unavailable_title, message: Copy.chat_unavailable_hint)
                 .frame(maxHeight: .infinity)
         } else if chat == nil || (chat!.loading && chat!.messages.isEmpty) {
             PoruchLoader().frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -122,8 +122,8 @@ struct ChatView: View {
                 LazyVStack(spacing: 0) {
                     rules
                     if messages.isEmpty {
-                        EmptyState(symbol: "bubble.left.and.bubble.right", title: "Поки тихо",
-                                   message: "Напишіть першим: де зустрітись, що взяти, як упізнати одне одного.", compact: true)
+                        EmptyState(symbol: "bubble.left.and.bubble.right", title: Copy.chat_empty_title,
+                                   message: Copy.chat_empty_hint, compact: true)
                             .padding(.top, Space.section)
                     }
                     ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
@@ -171,7 +171,7 @@ struct ChatView: View {
 
     private func bubble(_ message: ChatMessage, continued: Bool) -> some View {
         let mine = message.authorId == userId
-        let name = message.authorName.isEmpty ? "Учасник" : message.authorName
+        let name = message.authorName.isEmpty ? Copy.chat_member : message.authorName
         return HStack(alignment: .bottom, spacing: Space.sm) {
             if mine {
                 Spacer(minLength: 56)
@@ -180,7 +180,7 @@ struct ChatView: View {
             } else {
                 Button { showingPerson = true; model.app.openPerson(userId: message.authorId) } label: {
                     Avatar(name: name, url: message.avatarUrl, size: 28)
-                }.buttonStyle(.plain).accessibilityLabel("Відкрити профіль: \(name)")
+                }.buttonStyle(.plain).accessibilityLabel(Copy.person_open("\(name)"))
             }
             VStack(alignment: .leading, spacing: 3) {
                 if !mine && !continued {
@@ -206,13 +206,13 @@ struct ChatView: View {
             .frame(maxWidth: 300, alignment: mine ? .trailing : .leading)
             .layoutPriority(1)
             .contextMenu {
-                Button { UIPasteboard.general.string = message.body } label: { Label("Скопіювати", systemImage: "doc.on.doc") }
+                Button { UIPasteboard.general.string = message.body } label: { Label(Copy.chat_copy, systemImage: "doc.on.doc") }
                 if !mine {
-                    Button { reporting = message } label: { Label("Поскаржитись", systemImage: "flag") }
-                    Button(role: .destructive) { blocking = message } label: { Label("Заблокувати автора", systemImage: "hand.raised") }
+                    Button { reporting = message } label: { Label(Copy.chat_report, systemImage: "flag") }
+                    Button(role: .destructive) { blocking = message } label: { Label(Copy.chat_block, systemImage: "hand.raised") }
                 }
                 if organizer || mine {
-                    Button(role: .destructive) { deleting = message } label: { Label("Видалити", systemImage: "trash") }
+                    Button(role: .destructive) { deleting = message } label: { Label(Copy.delete_account_confirm, systemImage: "trash") }
                 }
             }
             if !mine { Spacer(minLength: 56) }
@@ -222,12 +222,12 @@ struct ChatView: View {
         .accessibilityLabel("\(mine ? "Ви" : name), \(clock(message.createdAt)): \(message.body)")
         // Контекстне меню VoiceOver не відкриває: ті самі дії — через ротор.
         .accessibilityActions {
-            Button("Скопіювати") { UIPasteboard.general.string = message.body }
+            Button(Copy.chat_copy) { UIPasteboard.general.string = message.body }
             if !mine {
-                Button("Поскаржитись") { reporting = message }
-                Button("Заблокувати автора") { blocking = message }
+                Button(Copy.chat_report) { reporting = message }
+                Button(Copy.chat_block) { blocking = message }
             }
-            if organizer || mine { Button("Видалити") { deleting = message } }
+            if organizer || mine { Button(Copy.delete_account_confirm) { deleting = message } }
         }
     }
 
@@ -236,7 +236,7 @@ struct ChatView: View {
     private var closedNote: some View {
         HStack(spacing: Space.sm) {
             PoruchIcon(glyph: PoruchIcons.lock, size: 17).foregroundStyle(Palette.inkSecondary)
-            Text("Чат закрито: подію скасовано або вона давно минула.")
+            Text(Copy.chat_read_only)
                 .font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
         }
         .frame(maxWidth: .infinity).padding(Space.lg)
@@ -248,7 +248,7 @@ struct ChatView: View {
         let sending = chat?.sending == true
         let canSend = ChatRules.shared.isBody(text: draft) && !sending
         return HStack(alignment: .bottom, spacing: Space.sm) {
-            TextField("Написати учасникам…", text: $draft, axis: .vertical)
+            TextField(Copy.chat_placeholder, text: $draft, axis: .vertical)
                 .lineLimit(1...5)
                 .focused($composing)
                 .font(PoruchFont.bodyText).foregroundStyle(Palette.ink).tint(Palette.ink)
@@ -270,7 +270,7 @@ struct ChatView: View {
             .buttonStyle(PressableStyle())
             .disabled(!canSend)
             .motion(value: canSend)
-            .accessibilityLabel("Надіслати")
+            .accessibilityLabel(Copy.rate_send)
         }
         .padding(.horizontal, Space.page).padding(.top, Space.sm).padding(.bottom, Space.sm)
         .background(Palette.surface)
@@ -328,8 +328,8 @@ private func clock(_ iso: String) -> String {
 private func dayTitle(_ iso: String) -> String {
     guard let date = parseEventDate(iso) else { return "" }
     let calendar = Calendar.current
-    if calendar.isDateInToday(date) { return "Сьогодні" }
-    if calendar.isDateInYesterday(date) { return "Вчора" }
+    if calendar.isDateInToday(date) { return Copy.today }
+    if calendar.isDateInYesterday(date) { return Copy.chat_yesterday }
     return dayFormatter.string(from: date)
 }
 

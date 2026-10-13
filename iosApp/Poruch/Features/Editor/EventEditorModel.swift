@@ -76,24 +76,24 @@ enum EditorStep: Int, CaseIterable, Identifiable {
     var id: Int { rawValue }
     var title: String {
         switch self {
-        case .about: "Про подію"
-        case .place: "Місце"
-        case .schedule: "Час і місця"
+        case .about: Copy.details
+        case .place: Copy.rate_tag_place
+        case .schedule: Copy.step_three
         }
     }
     /// Питання кроку великим заголовком.
     var headline: String {
         switch self {
-        case .about: "Що плануєте?"
-        case .place: "Де зустрічаємось?"
-        case .schedule: "Коли і для кого?"
+        case .about: Copy.editor_about_title
+        case .place: Copy.editor_place_title
+        case .schedule: Copy.editor_schedule_title
         }
     }
     var hint: String {
         switch self {
-        case .about: "Назва, кілька речень і категорія — за цим подію знайдуть."
-        case .place: "Адреса або точка на мапі. Її побачать усі, хто відкриє подію."
-        case .schedule: "Час, місткість і хто може приєднатись."
+        case .about: Copy.editor_about_hint
+        case .place: Copy.editor_place_hint
+        case .schedule: Copy.editor_schedule_hint
         }
     }
     var isLast: Bool { self == .schedule }

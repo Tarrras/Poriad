@@ -6,10 +6,10 @@ let dateFilterKeys: [DateFilter] = [.any, .today, .tomorrow, .weekend]
 
 func dateLabel(_ filter: DateFilter) -> String {
     switch filter {
-    case .today: "Сьогодні"
-    case .tomorrow: "Завтра"
-    case .weekend: "Вихідні"
-    default: "Будь-коли"
+    case .today: Copy.today
+    case .tomorrow: Copy.tomorrow
+    case .weekend: Copy.weekend
+    default: Copy.any_date
     }
 }
 
@@ -181,13 +181,13 @@ struct DiscoveryView: View {
                 topControls
                 if mapFailed {
                     Button { mapFailed = false; retryToken += 1 } label: {
-                        Label("Мапа недоступна · Повторити", systemImage: "arrow.clockwise")
+                        Label(Copy.map_error_short, systemImage: "arrow.clockwise")
                             .font(PoruchFont.label.weight(.semibold)).foregroundStyle(Palette.ink)
                             .padding(.horizontal, Space.lg).frame(minHeight: 44).cardSurface(radius: 22, elevation: 6)
                     }.buttonStyle(.plain)
                 }
                 if region != nil {
-                    PrimaryButton(title: "Шукати тут", symbol: "arrow.clockwise") {
+                    PrimaryButton(title: Copy.search_here, symbol: "arrow.clockwise") {
                         if let region { model.app.searchArea(south: region.south, west: region.west, north: region.north, east: region.east) }
                         region = nil
                     }
@@ -259,7 +259,7 @@ struct DiscoveryView: View {
     private var topControls: some View {
         VStack(spacing: Space.md) {
             SearchBar(
-                placeholder: "Подія, місце або тема",
+                placeholder: Copy.search_placeholder,
                 initial: model.state?.map.searchText ?? "",
                 activeFilters: activeFilters,
                 onFilters: { filters = true }
@@ -270,7 +270,7 @@ struct DiscoveryView: View {
                     Chip(label: model.state?.city.name ?? "Київ", symbol: "mappin.and.ellipse", trailingSymbol: "chevron.down", selected: false) { citySearch = true }
                         .accessibilityLabel("Змінити місто")
                     // Одразу після міста, а не за датами: з «Усі N» головної мапа приходить із цим фільтром, і його має бути видно.
-                    Chip(label: "Від людей", symbol: "person.2", selected: model.state?.map.onlyAvailable == true) {
+                    Chip(label: Copy.from_people, symbol: "person.2", selected: model.state?.map.onlyAvailable == true) {
                         model.app.setOnlyAvailable(available: !(model.state?.map.onlyAvailable ?? false))
                     }
                     ForEach(dateFilterKeys, id: \.self) { key in
@@ -366,10 +366,10 @@ struct DiscoveryView: View {
     private var peekHeader: some View {
         HStack(spacing: Space.sm) {
             // Керування мапою в зоні великого пальця. Це кнопки, тож за них шторку не тягнуть — лише за решту ряду.
-            IconPill(symbol: "viewfinder", label: "Повернутися до міста", size: 40) {
+            IconPill(symbol: "viewfinder", label: Copy.recenter, size: 40) {
                 model.app.dismissEvent(); centerToken += 1
             }
-            IconPill(symbol: "location", label: "Поруч зі мною", size: 40) { location.request() }
+            IconPill(symbol: "location", label: Copy.nearby, size: 40) { location.request() }
             Spacer(minLength: 0)
             // Не `Button`: кнопка забирає дотик, і протягнути шторку за неї не виходить.
             HStack(spacing: Space.sm) {
@@ -407,7 +407,7 @@ struct DiscoveryView: View {
             }
             Spacer(minLength: Space.sm)
             if stackFocused { clearStackButton }
-            IconPill(symbol: "chevron.down", label: "Показати на мапі") { open(.peek) }
+            IconPill(symbol: "chevron.down", label: Copy.show_map) { open(.peek) }
         }
         .padding(.bottom, Space.md)
         .contentShape(Rectangle())
@@ -416,7 +416,7 @@ struct DiscoveryView: View {
 
     /// Вихід із фокуса на піні знімає і підсвітку, інакше мапа й список розходились.
     private var clearStackButton: some View {
-        IconPill(symbol: "xmark", label: "Показати всі події") {
+        IconPill(symbol: "xmark", label: Copy.show_all_events) {
             stackIDs = []
             model.app.dismissEvent()
         }
@@ -540,8 +540,8 @@ struct DiscoveryView: View {
 
     private var quietCard: some View {
         VStack(alignment: .leading, spacing: Space.sm) {
-            Text("Тут поки тихо").font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
-            Text("Змініть область мапи, дату або категорію — і події знайдуться.")
+            Text(Copy.nothing_here).font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
+            Text(Copy.nothing_here_hint)
                 .font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
         }
         .padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()
@@ -549,17 +549,17 @@ struct DiscoveryView: View {
 
     /// Лічильник шторки: з індексу, а не з `totalFound` чи завантажених карток.
     private var countLabel: String {
-        if model.state?.map.loading == true { return "Шукаємо події…" }
-        if stackFocused { return "Тут подій: \(listEntries.count)" }
+        if model.state?.map.loading == true { return Copy.searching }
+        if stackFocused { return Copy.events_here("\(listEntries.count)") }
         let whole = category == nil && listCategory == nil
-        return "Знайдено подій: \(whole ? Int(model.state?.map.totalFound ?? 0) : listEntries.count)"
+        return Copy.events_found("\(whole ? Int(model.state?.map.totalFound ?? 0) : listEntries.count)")
     }
 
     /// Що показує екран: пін, область рукою чи ціле місто.
     private var areaLabel: String {
-        if stackFocused { return "Усе, що стоїть на обраному піні" }
+        if stackFocused { return Copy.area_stack }
         return model.state?.city.custom == true
-            ? "В області, яку ви обрали на мапі"
+            ? Copy.area_custom
             : "Знайдіть, куди піти у місті \(model.state?.city.name ?? "Київ")"
     }
 
@@ -643,7 +643,7 @@ struct FiltersView: View {
             header
             ScrollView {
                 VStack(alignment: .leading, spacing: Space.xl) {
-                    section("Коли") {
+                    section(Copy.date) {
                         FlowLayout(spacing: Space.sm) {
                             ForEach(dateFilterKeys, id: \.self) { key in
                                 Chip(label: dateLabel(key), selected: pickedDate == key) {
@@ -652,9 +652,9 @@ struct FiltersView: View {
                             }
                         }
                     }
-                    section("Категорії") {
+                    section(Copy.categories) {
                         FlexibleChips(
-                            items: [(allKey, "Усі", nil)] + categories.map { ($0.0.key, $0.1, $0.0) },
+                            items: [(allKey, Copy.all, nil)] + categories.map { ($0.0.key, $0.1, $0.0) },
                             isSelected: { $0 == (pickedCategory?.key ?? allKey) }
                         ) { key in
                             let tapped = key == allKey ? nil : EventCategory.companion.fromKey(key: key)
@@ -663,7 +663,7 @@ struct FiltersView: View {
                         }
                     }
                     Toggle(isOn: Binding(get: { pickedAvailable }, set: { available = $0 })) {
-                        Text("Лише зустрічі від людей із вільними місцями").font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
+                        Text(Copy.only_available).font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
                     }.tint(Palette.brand)
                 }
                 .padding(.horizontal, Space.page)
@@ -677,9 +677,9 @@ struct FiltersView: View {
     /// Заголовок шторки — заголовок, а не надрядок, інакше він менший за секції під ним.
     private var header: some View {
         HStack(alignment: .firstTextBaseline) {
-            Text("Фільтри").font(PoruchFont.serifTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
+            Text(Copy.filters).font(PoruchFont.serifTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
             Spacer(minLength: Space.sm)
-            Button("Скинути") {
+            Button(Copy.reset_filters) {
                 date = DateFilter.any
                 category = nil
                 categoryTouched = true
@@ -693,7 +693,7 @@ struct FiltersView: View {
 
     /// Прикріплена, не в скролі: у середньому положенні кнопка ховалась за згином.
     private var actions: some View {
-        PrimaryButton(title: "Готово") { apply() }
+        PrimaryButton(title: Copy.apply) { apply() }
             .frame(maxWidth: .infinity)
             .padding(Space.page)
             .background(Palette.surface.ignoresSafeArea(edges: .bottom))
@@ -800,7 +800,7 @@ struct CitySearchView: View {
             // Без автофокуса: `searchFocused` з iOS 18, мінімум проєкту — 17.
             .onSettled(query, after: .milliseconds(220)) { model.app.searchCity(query: $0) }
             .navigationTitle("Знайти місто")
-            .toolbar { Button("Готово") { dismiss() } }
+            .toolbar { Button(Copy.apply) { dismiss() } }
         }
     }
 }

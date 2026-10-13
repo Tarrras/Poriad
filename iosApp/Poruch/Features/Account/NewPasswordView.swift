@@ -17,25 +17,25 @@ struct NewPasswordView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Space.xxl) {
                 VStack(alignment: .leading, spacing: Space.md) {
-                    Text("Новий пароль").font(PoruchFont.serifTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
-                    Text("Придумайте новий пароль для входу — він збережеться для вашого профілю.")
+                    Text(Copy.new_password).font(PoruchFont.serifTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
+                    Text(Copy.new_password_subtitle)
                         .font(PoruchFont.bodyText).foregroundStyle(Palette.inkSecondary)
                 }
                 .padding(.horizontal, Space.page).padding(.vertical, Space.xxl)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(heroGradient)
                 VStack(alignment: .leading, spacing: Space.lg) {
-                    LabelledField(label: "Пароль", text: $password, hint: "Щонайменше 8 символів", secure: !revealed) {
+                    LabelledField(label: Copy.password_label, text: $password, hint: Copy.password_hint, secure: !revealed) {
                         PasswordRevealToggle(revealed: $revealed)
                     }
                     .textContentType(.newPassword)
                     // Один перемикач на обидва поля: показує або ховає пароль разом із повтором.
-                    LabelledField(label: "Повторіть пароль", text: $confirm, secure: !revealed)
+                    LabelledField(label: Copy.password_confirm_label, text: $confirm, secure: !revealed)
                         .textContentType(.newPassword)
                     if mismatch {
-                        Text("Паролі не збігаються").font(PoruchFont.caption).foregroundStyle(Palette.danger)
+                        Text(Copy.err_passwords_mismatch).font(PoruchFont.caption).foregroundStyle(Palette.danger)
                     }
-                    PrimaryButton(title: "Зберегти пароль", loading: model.state?.mutating == true, enabled: canSave) {
+                    PrimaryButton(title: Copy.save_password, loading: model.state?.mutating == true, enabled: canSave) {
                         model.app.updatePassword(password: password)
                     }
                 }.padding(.horizontal, Space.page)

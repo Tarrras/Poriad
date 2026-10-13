@@ -580,7 +580,7 @@ struct EventMap: UIViewRepresentable {
                 let locality = places?.first?.locality.flatMap { $0.isEmpty ? nil : $0 }
                 // Геокодер змовчав, а місто вже є: заглушка його не перебиває.
                 if locality == nil && self.announced != nil { return }
-                let name = locality ?? "Поруч зі мною"
+                let name = locality ?? Copy.nearby
                 guard name != self.announced else { return }
                 self.announced = name
                 self.city = CityResult(name: name, latitude: location.coordinate.latitude, longitude: location.coordinate.longitude)

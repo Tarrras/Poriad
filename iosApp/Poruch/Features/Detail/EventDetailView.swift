@@ -63,11 +63,11 @@ struct EventDetailView: View {
                 // Сервер відповів порожньо або з помилкою: не вічний спінер, а вихід.
                 VStack(spacing: Space.lg) {
                     EmptyState(
-                        symbol: "calendar.badge.exclamationmark", title: "Подія недоступна",
+                        symbol: "calendar.badge.exclamationmark", title: Copy.err_event_unavailable,
                         message: "Її могли скасувати, приховати або видалити.",
                         actionLabel: "Спробувати ще раз"
                     ) { model.app.openEvent(id: eventID) }
-                    SecondaryButton(title: "Назад") { dismiss() }
+                    SecondaryButton(title: Copy.back) { dismiss() }
                 }
                 .padding(Space.page).frame(maxWidth: .infinity, maxHeight: .infinity).background(Palette.canvas)
             } else {
@@ -176,7 +176,7 @@ struct EventDetailView: View {
                     HStack(spacing: Space.md) {
                         PoruchIcon(glyph: PoruchIcons.social, size: 20).foregroundStyle(Palette.ink)
                             .frame(width: 40, height: 40).background(Palette.surfaceMuted, in: RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
-                        Text("Разом на: \(TitleRules.shared.display(title: parent.title))").font(PoruchFont.cardName).kerning(-0.2).foregroundStyle(Palette.ink)
+                        Text(Copy.companion_parent("\(TitleRules.shared.display(title: parent.title))")).font(PoruchFont.cardName).kerning(-0.2).foregroundStyle(Palette.ink)
                             .multilineTextAlignment(.leading).lineLimit(2)
                         Spacer(minLength: Space.sm)
                         PoruchIcon(glyph: PoruchIcons.chevronRight, size: 16).foregroundStyle(Palette.inkTertiary)
@@ -211,11 +211,11 @@ struct EventDetailView: View {
     func description(_ event: Event) -> some View {
         // Більшість афіш без опису: заголовок над порожнечею гірший за відсутність секції.
         if !event.displayDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            SectionHeader(title: "Опис")
+            SectionHeader(title: Copy.description)
             Text(event.displayDescription).font(PoruchFont.lead).foregroundStyle(Palette.inkSecondary).lineSpacing(5)
         }
         if let url = sourceURL(event) {
-            Link("Читати повністю на джерелі", destination: url)
+            Link(Copy.listing_read_more, destination: url)
                 .font(PoruchFont.button).foregroundStyle(Palette.brand)
         }
     }
@@ -259,16 +259,16 @@ struct DetailDialogs: ViewModifier {
             "Ви переходите на \(view.contactURL.map { ContactRules.shared.host(url: $0.absoluteString) } ?? "сторонній сайт"). Це посилання додав організатор події. «Поряд» не перевіряє його і не відповідає за вміст сторінки чи чату за ним. Не переходьте, якщо не довіряєте організатору.",
             isPresented: $openingContact, titleVisibility: .visible
         ) {
-            Button("Перейти") { if let url = view.contactURL { UIApplication.shared.open(url) } }
+            Button(Copy.contact_confirm_open) { if let url = view.contactURL { UIApplication.shared.open(url) } }
         }
         .confirmationDialog("Скасувати цю подію? Учасники бачитимуть її скасованою.", isPresented: $cancelling, titleVisibility: .visible) {
-            Button("Скасувати подію", role: .destructive) { actions.cancel(event) }
+            Button(Copy.cancel_event, role: .destructive) { actions.cancel(event) }
         }
         .confirmationDialog(
             "Ви більше не побачите подій цієї людини, а вона — ваших. Скасувати можна у профілі.",
             isPresented: $blocking, titleVisibility: .visible
         ) {
-            Button("Заблокувати", role: .destructive) {
+            Button(Copy.block_confirm, role: .destructive) {
                 // В афіші організатора нема, блокувати нема кого.
                 if let organizerId = event.organizerId {
                     model.app.blockUser(userId: organizerId)

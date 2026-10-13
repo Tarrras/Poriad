@@ -77,7 +77,7 @@ final class LocalReminderScheduler: NSObject, ReminderScheduler, RequestNotifier
                 guard interval > 0 else { continue }
                 let content = UNMutableNotificationContent()
                 content.title = reminder.title
-                content.body = "Початок за годину · \(reminder.address)"
+                content.body = Copy.reminder_body("\(reminder.address)")
                 content.sound = .default
                 content.userInfo = ["eventId": reminder.eventId]
                 center.add(UNNotificationRequest(
@@ -98,7 +98,7 @@ final class LocalReminderScheduler: NSObject, ReminderScheduler, RequestNotifier
         content.title = "\(digest.city ?? "Поруч"): \(eventCount(Int(digest.count))) на вихідних"
         let titles = digest.titles.joined(separator: ", ")
         let more = Int(digest.count) - digest.titles.count
-        content.body = more > 0 ? "\(titles) та ще \(more)" : titles
+        content.body = more > 0 ? Copy.digest_more("\(titles)", "\(more)") : titles
         content.sound = .default
         center.add(UNNotificationRequest(
             identifier: digestID, content: content,
@@ -131,7 +131,7 @@ final class LocalReminderScheduler: NSObject, ReminderScheduler, RequestNotifier
         for alert in alerts {
             let content = UNMutableNotificationContent()
             content.title = alert.eventTitle
-            let author = alert.authorName.isEmpty ? "Учасник" : alert.authorName
+            let author = alert.authorName.isEmpty ? Copy.chat_member : alert.authorName
             content.body = "\(author): \(alert.preview)"
             content.subtitle = chatCount(Int(alert.count))
             content.sound = .default

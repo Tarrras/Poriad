@@ -27,7 +27,7 @@ struct ArtistView: View {
                 Button { dismiss() } label: {
                     PoruchIcon(glyph: PoruchIcons.chevronLeft, size: 19).foregroundStyle(Palette.ink)
                         .frame(width: 40, height: 40).background(Palette.surface, in: Circle())
-                }.buttonStyle(PressableStyle()).accessibilityLabel("Назад")
+                }.buttonStyle(PressableStyle()).accessibilityLabel(Copy.back)
                 Spacer(minLength: 0)
             }.padding(.horizontal, Space.page).padding(.vertical, Space.md)
             ScrollView {
@@ -42,7 +42,7 @@ struct ArtistView: View {
                             guard model.state?.signedIn == true else { auth = true; return }
                             model.app.setFollowing(kind: .artist, targetId: route.id, name: name, following: !following)
                         }
-                        Text("Скажемо, коли зʼявиться нова подія").font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
+                        Text(Copy.follow_artist_hint).font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
                     }
                     events
                 }
@@ -65,12 +65,12 @@ struct ArtistView: View {
         if let artist, !artist.loading || !artist.events.isEmpty {
             if artist.events.isEmpty {
                 EmptyState(
-                    symbol: "calendar.badge.exclamationmark", title: "Поки нічого не заплановано",
-                    message: "Натисніть «Стежити», і ми скажемо, коли зʼявиться нова подія."
+                    symbol: "calendar.badge.exclamationmark", title: Copy.artist_empty_title,
+                    message: Copy.artist_empty_hint
                 )
             } else {
                 VStack(alignment: .leading, spacing: Space.sm) {
-                    SectionHeader(title: "Найближчі події")
+                    SectionHeader(title: Copy.artist_events_title)
                     GroupedRows {
                         ForEach(Array(artist.events.enumerated()), id: \.element.id) { position, event in
                             if position > 0 { Divider().overlay(Palette.hairline).padding(.leading, Space.lg + 56 + Space.md) }

@@ -81,7 +81,7 @@ struct HomeView: View {
                         searchResults(view)
                     } else if searchActive(view) {
                         EmptyState(
-                            symbol: "magnifyingglass", title: "Шукайте за назвою, місцем чи виконавцем",
+                            symbol: "magnifyingglass", title: Copy.search_hint_title,
                             message: "Шукаємо \(view.searchScope)"
                         ).padding(.horizontal, Space.page).padding(.top, Space.section)
                     } else {
@@ -89,7 +89,7 @@ struct HomeView: View {
                         // Гостю під плашкою лише тихий рядок входу (без картки): дві картки поспіль товпились би.
                         VStack(alignment: .leading, spacing: Space.xs) {
                             CreateEventCard(
-                                title: "Організувати подію", subtitle: "Зберіть людей на настолки, пробіжку чи кіно",
+                                title: Copy.home_create_title, subtitle: Copy.home_create_subtitle,
                                 action: { createEvent("home_top") }
                             )
                             if !view.signedIn { guestLoginRow }
@@ -112,7 +112,7 @@ struct HomeView: View {
             if !searchActive {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: Space.xs) {
-                        Text("Що поруч").font(PoruchFont.serifDisplay).kerning(-0.5).foregroundStyle(Palette.ink)
+                        Text(Copy.home_title).font(PoruchFont.serifDisplay).kerning(-0.5).foregroundStyle(Palette.ink)
                         // Тап міняє місто тут же, без переходу на мапу. Шеврон — частина тексту: довга назва
                         // переноситься разом із ним. Колір темніший за `inkSecondary`: на сяйві той дає лише ≈4:1.
                         Button { citySearch = true } label: {
@@ -126,7 +126,7 @@ struct HomeView: View {
                     Spacer(minLength: Space.sm)
                     HStack(spacing: Space.sm) {
                         IconPill(symbol: "magnifyingglass", label: "Пошук \(view.searchScope)", action: startSearch)
-                        IconPill(symbol: "person.crop.circle", label: "Профіль", action: openProfile)
+                        IconPill(symbol: "person.crop.circle", label: Copy.profile, action: openProfile)
                     }
                 }
                 .padding(.horizontal, Space.page)
@@ -137,7 +137,7 @@ struct HomeView: View {
                     }
                     .id(searchEpoch)
                     .focused($searchFocused)
-                    Button("Скасувати", action: cancelSearch)
+                    Button(Copy.delete_account_cancel, action: cancelSearch)
                         .font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
                         .transition(.move(edge: .trailing).combined(with: .opacity))
                 }
@@ -158,7 +158,7 @@ struct HomeView: View {
                     Chip(label: view.cityName, symbol: "mappin.and.ellipse", selected: !view.searchEverywhere) {
                         model.app.setHomeSearchEverywhere(everywhere: false)
                     }
-                    Chip(label: "Усюди", symbol: "globe", selected: view.searchEverywhere) {
+                    Chip(label: Copy.everywhere, symbol: "globe", selected: view.searchEverywhere) {
                         model.app.setHomeSearchEverywhere(everywhere: true)
                     }
                     Divider().frame(height: 24).overlay(Palette.hairline)
@@ -190,7 +190,7 @@ struct HomeView: View {
         Button(action: openProfile) {
             HStack(spacing: Space.sm) {
                 PoruchIcon(glyph: PoruchIcons.lock, size: 16)
-                Text("Увійти й зберігати події").font(PoruchFont.label)
+                Text(Copy.guest_home_slim).font(PoruchFont.label)
                 Spacer(minLength: Space.sm)
                 PoruchIcon(glyph: PoruchIcons.chevronRight, size: 15)
             }
@@ -199,7 +199,7 @@ struct HomeView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(PressableStyle(pressedScale: 1))
-        .accessibilityLabel("Увійти й зберігати події")
+        .accessibilityLabel(Copy.guest_home_slim)
     }
 
     /// «Від людей»: зустрічі з вільним місцем окремою рейкою, коли їх набралось досить (`HomeRules.people`). Ті самі постери,
@@ -208,7 +208,7 @@ struct HomeView: View {
         if !view.people.isEmpty {
             VStack(alignment: .leading, spacing: Space.md) {
                 SectionHeader(
-                    title: "Від людей", actionLabel: view.openRooms > 0 ? "Усі \(view.openRooms)" : nil,
+                    title: Copy.from_people, actionLabel: view.openRooms > 0 ? Copy.home_all_count("\(view.openRooms)") : nil,
                     action: view.openRooms > 0 ? showPeople : nil
                 ).padding(.horizontal, Space.page)
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -250,7 +250,7 @@ struct HomeView: View {
         let grouped = items
         return VStack(alignment: .leading, spacing: Space.md) {
             SectionHeader(
-                title: "Ваше", actionLabel: view.personal.isEmpty ? nil : "Мої події",
+                title: Copy.home_yours, actionLabel: view.personal.isEmpty ? nil : Copy.my_events,
                 action: view.personal.isEmpty ? nil : openMyEvents
             )
             if let lead {
@@ -290,7 +290,7 @@ struct HomeView: View {
     /// Ті, що чекають відповіді, але в «Ваше» не влізли: їх видно лише в «Моїх подіях».
     private func waitingRow(_ count: Int) -> some View {
         YourRow(
-            overline: nil, title: "Чекають відповіді: ще \(count)", subtitle: "Чати й запити — у «Моїх подіях»", open: openMyEvents
+            overline: nil, title: Copy.home_waiting_more("\(count)"), subtitle: Copy.home_waiting_more_hint, open: openMyEvents
         ) {
             PoruchIcon(glyph: PoruchIcons.chat, size: 20).foregroundStyle(Palette.ink)
                 .frame(width: yourTile, height: yourTile)
@@ -310,7 +310,7 @@ struct HomeView: View {
                 ? rest : HomeRules.shared.apply(entries: rest, filter: filter, now: nowInstant(), zoneId: TimeZone.current.identifier)
             VStack(alignment: .leading, spacing: Space.md) {
                 SectionHeader(
-                    title: "У місті", actionLabel: view.totalFound > 0 ? "Усі \(view.totalFound)" : nil,
+                    title: Copy.home_in_city, actionLabel: view.totalFound > 0 ? Copy.home_all_count("\(view.totalFound)") : nil,
                     action: view.totalFound > 0 ? showCity : nil
                 ).padding(.horizontal, Space.page)
                 heroPager(picks, view)
@@ -331,7 +331,7 @@ struct HomeView: View {
                     }
                     .padding(.horizontal, Space.page).padding(.top, Space.md)
                     if shown.count > feedLimit {
-                        SecondaryButton(title: "Показати ще") { feedLimit += Int(HomeRules.shared.FEED_PAGE) }
+                        SecondaryButton(title: Copy.show_more) { feedLimit += Int(HomeRules.shared.FEED_PAGE) }
                             .padding(.horizontal, Space.page)
                     }
                 }
@@ -341,9 +341,9 @@ struct HomeView: View {
                 PoruchLoader().frame(maxWidth: .infinity).padding(.vertical, Space.section)
             } else {
                 EmptyState(
-                    symbol: "safari", title: "Тут поки тихо",
-                    message: "Змініть область мапи, дату або категорію — і події знайдуться.",
-                    actionLabel: "Знайти на мапі", action: openMap
+                    symbol: "safari", title: Copy.nothing_here,
+                    message: Copy.nothing_here_hint,
+                    actionLabel: Copy.find_on_map, action: openMap
                 )
             }
         }
@@ -384,15 +384,15 @@ struct HomeView: View {
     /// Куди далі, коли стрічку переглянуто: мапа з усім, що є, і створення власної події.
     private func moreRows(_ view: HomePresentation) -> some View {
         VStack(alignment: .leading, spacing: Space.md) {
-            SectionHeader(title: "Далі")
+            SectionHeader(title: Copy.next)
             GroupedRows {
                 LinkRow(
-                    symbol: "map", title: "Усі події поруч",
-                    subtitle: "На мапі можна змінити область, дату й категорію",
+                    symbol: "map", title: Copy.all_events_section,
+                    subtitle: Copy.all_events_hint,
                     value: view.totalFound > 0 ? "\(view.totalFound)" : nil, action: showCity
                 )
                 Divider().overlay(Palette.hairline).padding(.leading, Space.lg + 40 + Space.md)
-                LinkRow(symbol: "sparkles", title: "Маєте ідею зустрічі?", subtitle: "Опублікуйте подію за три кроки") { createEvent("home_footer") }
+                LinkRow(symbol: "sparkles", title: Copy.create_banner_title, subtitle: Copy.create_banner_subtitle) { createEvent("home_footer") }
             }
         }.padding(.horizontal, Space.page)
     }
@@ -409,8 +409,8 @@ struct HomeView: View {
     @ViewBuilder private func searchResults(_ view: HomePresentation) -> some View {
         if let city = view.cityMatch {
             BannerCard(
-                title: "Показати події в місті \(city.city)",
-                subtitle: "Пошук за словом іде лише в межах міста \(view.cityName).",
+                title: Copy.home_switch_city("\(city.city)"),
+                subtitle: Copy.home_switch_city_hint("\(view.cityName)"),
                 symbol: "mappin.and.ellipse"
             ) {
                 // Спершу текст: інакше «Харків» лишився б фільтром і в новому місті.
@@ -423,14 +423,14 @@ struct HomeView: View {
         } else if view.results.isEmpty && view.places.isEmpty && view.artists.isEmpty {
             if view.searchEverywhere {
                 EmptyState(
-                    symbol: "magnifyingglass", title: "Нічого не знайшлося",
+                    symbol: "magnifyingglass", title: Copy.nothing_found,
                     message: "Спробуйте інше слово або зніміть фільтри дати й категорії."
                 )
             } else {
                 EmptyState(
-                    symbol: "magnifyingglass", title: "Нічого не знайшлося",
+                    symbol: "magnifyingglass", title: Copy.nothing_found,
                     message: "У місті \(view.cityName) такого поки немає. Пошукайте в усіх містах або спробуйте інше слово.",
-                    actionLabel: "Шукати усюди", action: { model.app.setHomeSearchEverywhere(everywhere: true) }
+                    actionLabel: Copy.search_everywhere, action: { model.app.setHomeSearchEverywhere(everywhere: true) }
                 )
             }
         } else {
@@ -443,8 +443,8 @@ struct HomeView: View {
                         // «На мапі» несе запит на мапу явно: інакше пошуки екранів незалежні. Мапа — лише обране місто,
                         // тож для пошуку всюди вона показала б менше.
                         GroupLabel(
-                            title: "Події · \(total)",
-                            actionLabel: view.searchEverywhere ? nil : "На мапі",
+                            title: Copy.search_events_group("\(total)"),
+                            actionLabel: view.searchEverywhere ? nil : Copy.on_map,
                             action: { model.app.setSearchText(query: view.searchText); openMap() }
                         )
                         GroupedRows {
@@ -457,7 +457,7 @@ struct HomeView: View {
                         }
                         // Наступний шматок: картки, яких ще немає, довантажуються; решта приїде в `found`.
                         if view.resultIDs.count > resultsLimit {
-                            SecondaryButton(title: "Показати ще") {
+                            SecondaryButton(title: Copy.show_more) {
                                 resultsLimit += homeResultsLimit
                                 model.app.loadCards(ids: Array(view.resultIDs.prefix(resultsLimit)))
                             }
@@ -518,7 +518,7 @@ private struct YourRow<Tile: View, Trailing: View>: View {
                     CountBadge(count: chat.count).frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
                 }
                 .buttonStyle(PressableStyle())
-                .accessibilityLabel("Чат, нових повідомлень: \(chat.count)")
+                .accessibilityLabel(Copy.home_chat_a11y("\(chat.count)"))
             }
         }
         .padding(.horizontal, Space.lg).padding(.vertical, Space.md)
@@ -561,12 +561,12 @@ private struct NextPlanCard: View {
     /// Остання репліка чату, коли є нове; інакше моя роль і місце.
     private var chatPreview: String? {
         guard let unread = row.chat, !unread.lastBody.isEmpty else { return nil }
-        let author = unread.lastAuthorName.isEmpty ? "Учасник" : unread.lastAuthorName
+        let author = unread.lastAuthorName.isEmpty ? Copy.chat_member : unread.lastAuthorName
         return "\(author): «\(unread.lastBody.replacingOccurrences(of: "\n", with: " "))»"
     }
 
     private var subtitle: String {
-        chatPreview ?? [row.organizing ? "Ваша подія" : "Ви йдете", event.placeLabel].filter { !$0.isEmpty }.joined(separator: " · ")
+        chatPreview ?? [row.organizing ? Copy.home_role_organizer : Copy.going, event.placeLabel].filter { !$0.isEmpty }.joined(separator: " · ")
     }
 
     var body: some View {
@@ -592,15 +592,15 @@ private struct NextPlanCard: View {
             HStack(spacing: Space.sm) {
                 // Маршрут — головна дія, поки подія сьогодні й ще не почалась; далі — звичайна.
                 PlanButton(
-                    title: "Маршрут", symbol: "location",
+                    title: Copy.rate_tag_route, symbol: "location",
                     highlight: today && !event.hasStarted(now: nowInstant())
                 ) { SystemActions.openInMaps(event) }
                 PlanButton(
-                    title: row.chat.map { "Чат · \($0.unread)" } ?? "Чат", symbol: "bubble.left.and.bubble.right",
+                    title: row.chat.map { Copy.chat_short_unread("\($0.unread)") } ?? Copy.chat_short, symbol: "bubble.left.and.bubble.right",
                     highlight: row.chat != nil, action: chat
                 )
                 if row.requests > 0 {
-                    PlanButton(title: "Запити · \(row.requests)", symbol: "person.badge.plus", highlight: true, action: open)
+                    PlanButton(title: Copy.home_requests_short("\(row.requests)"), symbol: "person.badge.plus", highlight: true, action: open)
                 }
             }
         }
@@ -621,7 +621,7 @@ private struct PlanRow: View {
     private var role: (String, BadgeTone)? {
         if event.isCancelled { return ("Скасовано", .danger) }
         if event.hasEnded(now: nowInstant()) { return nil }
-        return row.organizing ? ("Ваша подія", .brand) : ("Ви йдете", .success)
+        return row.organizing ? (Copy.home_role_organizer, .brand) : (Copy.going, .success)
     }
 
     /// Праворуч зайнято лічильником чи запитами — роль переїжджає до дати.
@@ -632,7 +632,7 @@ private struct PlanRow: View {
 
     private var subtitle: String? {
         guard let chat = row.chat else { return event.placeLabel }
-        let author = chat.lastAuthorName.isEmpty ? "Учасник" : chat.lastAuthorName
+        let author = chat.lastAuthorName.isEmpty ? Copy.chat_member : chat.lastAuthorName
         let body = chat.lastBody.replacingOccurrences(of: "\n", with: " ")
         return body.isEmpty ? "Нових повідомлень: \(chat.unread)" : "\(author): «\(body)»"
     }
@@ -667,20 +667,20 @@ private let allFeed = FeedFilter(kind: .all, category: nil)
 
 private func feedChipLabel(_ chip: FeedFilter) -> String {
     switch chip.kind {
-    case .today: "Сьогодні"
-    case .tomorrow: "Завтра"
-    case .weekend: "Вихідні"
-    case .free: "Безкоштовно"
-    case .category: chip.category.map(categoryName) ?? "Усе"
-    default: "Усе"
+    case .today: Copy.today
+    case .tomorrow: Copy.tomorrow
+    case .weekend: Copy.weekend
+    case .free: Copy.listing_free
+    case .category: chip.category.map(categoryName) ?? Copy.feed_all
+    default: Copy.feed_all
     }
 }
 
 /// Підпис джерела в стрічці: «Для вас», «Підписки». Афіша міста без підпису.
 private func lane(_ source: FeedSource) -> String? {
     switch source {
-    case .forYou: "Для вас"
-    case .following: "Підписки"
+    case .forYou: Copy.picked_for_you
+    case .following: Copy.follows_title
     default: nil
     }
 }
@@ -718,7 +718,7 @@ private struct PosterCard: View {
     private var note: (String, Color)? {
         if event.isCancelled { return ("Скасовано", Palette.danger) }
         guard let listing = event.listing else { return nil }
-        return (listing.isWithdrawn ? "Більше не проводиться" : "Афіша · \(listing.sourceName)", Palette.inkTertiary)
+        return (listing.isWithdrawn ? Copy.listing_withdrawn : Copy.listing_badge("\(listing.sourceName)"), Palette.inkTertiary)
     }
 
     var body: some View {

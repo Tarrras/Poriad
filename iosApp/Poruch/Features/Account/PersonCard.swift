@@ -14,11 +14,11 @@ struct ProfileSummary: View {
                 Text(email).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
             }
             if let since = memberSince(profile.memberSince) {
-                Text("На «Поряд» з \(since)").font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
+                Text(Copy.profile_member_since("\(since)")).font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
             }
             HStack(spacing: Space.sm) {
-                stat(Int(profile.organized), "Як організатор")
-                stat(Int(profile.attended), "Як учасник")
+                stat(Int(profile.organized), Copy.profile_organized)
+                stat(Int(profile.attended), Copy.profile_attended)
             }.padding(.top, Space.xs)
         }.frame(maxWidth: .infinity)
     }
@@ -71,7 +71,7 @@ struct PersonSheet: View {
             FollowPill(following: following) {
                 model.app.setFollowing(kind: .organizer, targetId: profile.userId, name: profile.name, following: !following)
             }
-            Text("Скажемо, коли в нього зʼявиться нова подія").font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
+            Text(Copy.follow_organizer_hint).font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
         }.frame(maxWidth: .infinity)
     }
 
@@ -88,27 +88,27 @@ struct PersonSheet: View {
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                         if isMe {
-                            Text("Це ви").font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary).frame(maxWidth: .infinity)
+                            Text(Copy.person_you).font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary).frame(maxWidth: .infinity)
                         }
                         if FollowRules.shared.canFollowOrganizer(profile: profile, isMe: isMe) { follow(profile) }
                     } else {
                         VStack(spacing: Space.sm) {
-                            Text("Профіль недоступний").font(PoruchFont.serifTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
-                            Text("Людина приховала профіль від вас або його обмежила модерація.")
+                            Text(Copy.person_unavailable).font(PoruchFont.serifTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
+                            Text(Copy.person_unavailable_hint)
                                 .font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary).multilineTextAlignment(.center)
                         }.frame(maxWidth: .infinity)
                     }
                     if !person.loading, let request {
-                        Text("Хоче приєднатися до вашої події").font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
+                        Text(Copy.person_request).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
                         HStack(spacing: Space.sm) {
-                            SecondaryButton(title: "Відхилити", enabled: model.state?.mutating != true) { request.decline(); dismiss() }
-                            PrimaryButton(title: "Прийняти", enabled: model.state?.mutating != true) { request.approve(); dismiss() }
+                            SecondaryButton(title: Copy.decline, enabled: model.state?.mutating != true) { request.decline(); dismiss() }
+                            PrimaryButton(title: Copy.approve, enabled: model.state?.mutating != true) { request.approve(); dismiss() }
                         }
                     }
                     if !person.loading && !isMe {
                         HStack(spacing: Space.xl) {
-                            Button("Поскаржитись") { reporting = true }.foregroundStyle(Palette.inkSecondary)
-                            Button("Заблокувати") { blocking = true }.foregroundStyle(Palette.danger)
+                            Button(Copy.chat_report) { reporting = true }.foregroundStyle(Palette.inkSecondary)
+                            Button(Copy.block_confirm) { blocking = true }.foregroundStyle(Palette.danger)
                         }.font(PoruchFont.button).frame(maxWidth: .infinity).padding(.top, Space.sm)
                     }
                 }
@@ -120,7 +120,7 @@ struct PersonSheet: View {
             "Ви більше не побачите подій цієї людини, а вона — ваших. Скасувати можна у профілі.",
             isPresented: $blocking, titleVisibility: .visible
         ) {
-            Button("Заблокувати", role: .destructive) {
+            Button(Copy.block_confirm, role: .destructive) {
                 guard let id = person?.userId else { return }
                 model.app.blockUser(userId: id)
                 dismiss()
@@ -174,7 +174,7 @@ struct EditProfileSheet: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Space.lg) {
-                Text("Редагувати профіль").font(PoruchFont.serifTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
+                Text(Copy.profile_edit).font(PoruchFont.serifTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
                 HStack(spacing: Space.lg) {
                     ZStack {
                         Avatar(name: name, url: avatarUrl, size: 72)
@@ -182,33 +182,33 @@ struct EditProfileSheet: View {
                     }
                     VStack(alignment: .leading, spacing: Space.sm) {
                         PhotosPicker(selection: $photo, matching: .images) {
-                            Text(avatarUrl == nil ? "Додати фото" : "Змінити фото").font(PoruchFont.button).foregroundStyle(Palette.ink)
+                            Text(avatarUrl == nil ? Copy.profile_photo_add : Copy.profile_photo_change).font(PoruchFont.button).foregroundStyle(Palette.ink)
                         }.disabled(mutating || reading)
                         if avatarUrl != nil {
-                            Button("Видалити фото") { model.app.removeAvatar() }
+                            Button(Copy.profile_photo_remove) { model.app.removeAvatar() }
                                 .font(PoruchFont.button).foregroundStyle(Palette.danger).disabled(mutating)
                         }
                     }
                 }
                 if let photoError { Text(photoError).font(PoruchFont.caption).foregroundStyle(Palette.danger) }
-                Text("Фото й «Про себе» бачать організатори та учасники спільних подій.")
+                Text(Copy.profile_photo_hint)
                     .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
-                LabelledField(label: "Імʼя", text: $name)
+                LabelledField(label: Copy.profile_name, text: $name)
                     .textContentType(.name)
                     .onChange(of: name) { _, value in
                         let limit = Int(AccountRules.shared.nameLength.last)
                         if value.count > limit { name = String(value.prefix(limit)) }
                     }
-                LabelledField(label: "Про себе", text: $bio, hint: "Кілька слів для організаторів і учасників: чим займаєтесь, що любите. До 300 знаків.", multiline: true)
+                LabelledField(label: Copy.profile_bio, text: $bio, hint: Copy.profile_bio_hint, multiline: true)
                     .onChange(of: bio) { _, value in
                         let limit = Int(ProfileRules.shared.BIO_MAX)
                         if value.count > limit { bio = String(value.prefix(limit)) }
                     }
-                PrimaryButton(title: "Зберегти", loading: mutating,
+                PrimaryButton(title: Copy.profile_save, loading: mutating,
                               enabled: AccountRules.shared.isName(value: name) && !mutating) {
                     model.app.saveProfile(name: name, bio: bio)
                 }
-                SecondaryButton(title: "Скасувати", enabled: !mutating) { dismiss() }
+                SecondaryButton(title: Copy.delete_account_cancel, enabled: !mutating) { dismiss() }
             }
             .padding(Space.page).padding(.top, Space.sm)
         }

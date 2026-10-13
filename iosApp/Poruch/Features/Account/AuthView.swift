@@ -59,27 +59,27 @@ struct AuthView: View {
     /// Знак застосунку й назва по центру, як вхід в Apple ID; «назад» окремо в кутку.
     private var header: some View {
         VStack(spacing: Space.md) {
-            IconPill(symbol: "chevron.left", label: "Назад", size: 40) { if resetting { resetting = false } else { dismiss() } }
+            IconPill(symbol: "chevron.left", label: Copy.back, size: 40) { if resetting { resetting = false } else { dismiss() } }
                 .frame(maxWidth: .infinity, alignment: .leading)
             PoruchIcon(glyph: confirming ? PoruchIcons.checkCircle : resetting ? PoruchIcons.lock : askingBirthDate ? PoruchIcons.calendar : PoruchIcons.pin, size: 32)
                 .foregroundStyle(Palette.onBrand)
                 .frame(width: 72, height: 72).background(Palette.brand, in: Circle())
                 .decorative()
-            Text(confirming ? "Перевірте пошту" : resetting ? "Відновити пароль" : askingBirthDate ? "Ще один крок"
-                 : form.register ? "Створити профіль" : "З поверненням")
+            Text(confirming ? Copy.auth_check_email_title : resetting ? Copy.auth_reset_title : askingBirthDate ? Copy.auth_birth_date_title
+                 : form.register ? Copy.auth_create : Copy.auth_welcome)
                 .font(PoruchFont.serifTitle1).kerning(-0.4).foregroundStyle(Palette.ink).multilineTextAlignment(.center)
             Text(confirming
-                 ? "Лишився один крок — підтвердити адресу."
+                 ? Copy.auth_check_email_subtitle
                  : resetting
-                 ? "Вкажіть пошту профілю — надішлемо лист із посиланням для нового пароля."
+                 ? Copy.auth_reset_subtitle
                  : askingBirthDate
-                 ? "Вкажіть дату народження: «Поряд» — для повнолітніх. Її ніхто не побачить."
+                 ? Copy.auth_birth_date_subtitle
                  : reason == .create && form.register
-                 ? "Щоб організувати подію, потрібен профіль. Кілька секунд — і одразу перейдемо до створення."
+                 ? Copy.auth_subtitle_create_signup
                  : reason == .create
-                 ? "Увійдіть, щоб організувати подію — після входу одразу перейдемо до створення."
+                 ? Copy.auth_subtitle_create_signin
                  : form.register
-                 ? "Кілька секунд — і ви зможете приєднуватись до подій та створювати власні."
+                 ? Copy.auth_subtitle_signup
                  : "Події можна переглядати без входу. Для участі потрібен профіль.")
                 .font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary).multilineTextAlignment(.center)
                 .padding(.horizontal, Space.lg)
@@ -96,17 +96,17 @@ struct AuthView: View {
                 PoruchIcon(glyph: PoruchIcons.mail, size: 20)
                     .font(.system(size: 20, weight: .semibold)).foregroundStyle(Palette.onBrandContainer)
                     .frame(width: 48, height: 48).background(Palette.brandContainer, in: Circle())
-                Text("Ми надіслали лист на \(email). Відкрийте посилання в ньому — і профіль готовий, застосунок відкриється сам.")
+                Text(Copy.auth_check_email_body("\(email)"))
                     .font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
-                Text("Немає листа? Зачекайте хвилину й загляньте в «Спам».")
+                Text(Copy.auth_check_email_hint)
                     .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
             }
             .padding(Space.xl).frame(maxWidth: .infinity, alignment: .leading)
             .cardSurface(radius: Corner.md, elevation: Elevation.card)
-            PrimaryButton(title: "Відкрити пошту", symbol: "envelope") {
+            PrimaryButton(title: Copy.auth_open_mail, symbol: "envelope") {
                 if let url = URL(string: "message://") { UIApplication.shared.open(url) }
             }
-            SecondaryButton(title: "Уже підтвердили? Увійти") {
+            SecondaryButton(title: Copy.auth_confirmed_login) {
                 // Лист підтверджено: пошта вже в полі, лишається пароль.
                 model.app.dismissConfirmationStep()
                 form.register = false
@@ -119,13 +119,13 @@ struct AuthView: View {
     /// Скидання пароля: лише пошта, вже вписана переноситься з форми входу. Лист веде назад у застосунок.
     private var reset: some View {
         VStack(alignment: .leading, spacing: Space.lg) {
-            LabelledField(label: "Електронна пошта", text: $form.email, placeholder: "you@example.com")
+            LabelledField(label: Copy.email, text: $form.email, placeholder: "you@example.com")
                 .textContentType(.emailAddress).keyboardType(.emailAddress)
                 .textInputAutocapitalization(.never).autocorrectionDisabled()
-            PrimaryButton(title: "Надіслати лист", symbol: "envelope", loading: model.state?.mutating == true, enabled: form.emailValid) {
+            PrimaryButton(title: Copy.auth_reset_send, symbol: "envelope", loading: model.state?.mutating == true, enabled: form.emailValid) {
                 model.app.requestPasswordReset(email: form.email)
             }
-            SecondaryButton(title: "Назад до входу") { resetting = false }.frame(maxWidth: .infinity)
+            SecondaryButton(title: Copy.auth_reset_back) { resetting = false }.frame(maxWidth: .infinity)
         }.padding(.horizontal, Space.page)
     }
 
@@ -153,7 +153,7 @@ struct AuthView: View {
                 Button { signInWithGoogle() } label: {
                     HStack(spacing: Space.md) {
                         Image("GoogleG").resizable().frame(width: 20, height: 20).decorative()
-                        Text("Продовжити з Google").font(PoruchFont.button).foregroundStyle(Palette.ink)
+                        Text(Copy.continue_with_google).font(PoruchFont.button).foregroundStyle(Palette.ink)
                     }
                     .frame(maxWidth: .infinity).frame(height: 52)
                     .background(Palette.surface, in: Capsule())
@@ -168,7 +168,7 @@ struct AuthView: View {
             }
             HStack(spacing: Space.md) {
                 Rectangle().fill(Palette.hairline).frame(height: 1)
-                Text("або поштою").font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary).fixedSize()
+                Text(Copy.auth_or_email).font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary).fixedSize()
                 Rectangle().fill(Palette.hairline).frame(height: 1)
             }
         }
@@ -199,10 +199,10 @@ struct AuthView: View {
             VStack(alignment: .leading, spacing: Space.sm) {
                 Text("ДАТА НАРОДЖЕННЯ").font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
                 BirthDateField(date: $form.birthDate, range: form.earliestBirthDate...form.latestBirthDate)
-                Text("«Поряд» — застосунок для повнолітніх. Дату видно лише вам.")
+                Text(Copy.birth_date_hint)
                     .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
             }
-            PrimaryButton(title: "Продовжити", loading: model.state?.mutating == true, enabled: form.birthDate <= form.latestBirthDate) {
+            PrimaryButton(title: Copy.auth_birth_date_continue, loading: model.state?.mutating == true, enabled: form.birthDate <= form.latestBirthDate) {
                 model.app.declareBirthDate(birthDate: isoDay(form.birthDate))
             }
         }.padding(.horizontal, Space.page)
@@ -212,36 +212,36 @@ struct AuthView: View {
         VStack(alignment: .leading, spacing: Space.lg) {
             providers
             // Вхід і реєстрація — два рівноправні режими, тож перемикач угорі, а не кнопка під формою.
-            SegmentedPill(items: ["Вхід", "Реєстрація"], selection: form.register ? 1 : 0) { _ in form.toggleMode() }
+            SegmentedPill(items: [Copy.auth_tab_login, Copy.auth_tab_signup], selection: form.register ? 1 : 0) { _ in form.toggleMode() }
             if form.register {
-                LabelledField(label: "Ваше ім’я", text: $form.name, placeholder: "Як до вас звертатися")
+                LabelledField(label: Copy.name, text: $form.name, placeholder: Copy.name_placeholder)
                     .textContentType(.name)
                 // Питаємо раз, при реєстрації, і нікому не показуємо: на це спираються вікові межі й модерація.
                 VStack(alignment: .leading, spacing: Space.sm) {
                     Text("ДАТА НАРОДЖЕННЯ").font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
                     BirthDateField(date: $form.birthDate, range: form.earliestBirthDate...form.latestBirthDate)
-                    Text("«Поряд» — застосунок для повнолітніх. Дату видно лише вам.")
+                    Text(Copy.birth_date_hint)
                         .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
                 }
             }
-            LabelledField(label: "Електронна пошта", text: $form.email, placeholder: "you@example.com")
+            LabelledField(label: Copy.email, text: $form.email, placeholder: "you@example.com")
                 .textContentType(.emailAddress).keyboardType(.emailAddress)
                 .textInputAutocapitalization(.never).autocorrectionDisabled()
             // Вимогу до пароля кажемо лише тому, хто його вигадує.
-            LabelledField(label: "Пароль", text: $form.password, hint: form.register ? "Щонайменше 8 символів" : nil, secure: !form.revealed) {
+            LabelledField(label: Copy.password_label, text: $form.password, hint: form.register ? Copy.password_hint : nil, secure: !form.revealed) {
                 PasswordRevealToggle(revealed: $form.revealed)
             }
             .textContentType(form.register ? .newPassword : .password)
             // Під час запиту кнопка лишається кольоровою зі спінером: сама блокує дотик, поки `loading`.
             PrimaryButton(
-                title: form.register ? "Зареєструватися" : "Увійти",
+                title: form.register ? "Зареєструватися" : Copy.login,
                 loading: model.state?.mutating == true,
                 enabled: form.canSubmit
             ) { form.submit(with: model.app) }
             // Згода — і для реєстрації, і для Apple/Google над формою: натискання там теж створює профіль.
             consent
             if !form.register {
-                Button("Забули пароль?") { resetting = true }
+                Button(Copy.forgot_password) { resetting = true }
                     .font(PoruchFont.button).foregroundStyle(Palette.inkSecondary)
                     .frame(maxWidth: .infinity).frame(minHeight: 44)
                     .disabled(model.state?.mutating == true)
@@ -253,9 +253,9 @@ struct AuthView: View {
     /// системному синьому, щоб рядок лишався підписом, а не закликом. Адреси спільні з Android.
     private var consent: some View {
         var text = AttributedString("Продовжуючи, ви погоджуєтесь з ")
-        text.append(legalLink("Умовами користування", LegalLinks.shared.TERMS))
+        text.append(legalLink(Copy.auth_consent_terms, LegalLinks.shared.TERMS))
         text.append(AttributedString(" та "))
-        text.append(legalLink("Політикою конфіденційності", LegalLinks.shared.PRIVACY))
+        text.append(legalLink(Copy.auth_consent_privacy, LegalLinks.shared.PRIVACY))
         return Text(text)
             .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
             .tint(Palette.ink)
@@ -315,7 +315,7 @@ struct PasswordRevealToggle: View {
                 .frame(width: 44, height: 44).contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(revealed ? "Приховати пароль" : "Показати пароль")
+        .accessibilityLabel(revealed ? Copy.hide_password : Copy.show_password)
     }
 }
 

@@ -56,7 +56,7 @@ struct MyEventsView: View {
     private func header(_ board: MyEventsBoard?) -> some View {
         VStack(alignment: .leading, spacing: Space.lg) {
             VStack(alignment: .leading, spacing: Space.xs) {
-                Text("Мої події").font(PoruchFont.serifDisplay).kerning(-0.5).foregroundStyle(Palette.ink)
+                Text(Copy.my_events).font(PoruchFont.serifDisplay).kerning(-0.5).foregroundStyle(Palette.ink)
                 Text(signedIn ? subtitle(board) : "Увійдіть, щоб бачити свої плани")
                     .font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
             }
@@ -75,9 +75,9 @@ struct MyEventsView: View {
 
     private func title(_ tab: MyEventsTab) -> String {
         switch tab {
-        case .organizing: "Організовую"
-        case .saved: "Збережені"
-        default: "Іду"
+        case .organizing: Copy.organizing
+        case .saved: Copy.saved
+        default: Copy.tab_going
         }
     }
 
@@ -102,7 +102,7 @@ struct MyEventsView: View {
         case .saved:
             let ahead = Int(board.savedAhead), week = Int(board.savedThisWeek)
             if ahead > 0 { parts.append("\(ahead) \(ukrainianPlural(ahead, "збережена", "збережені", "збережених"))") }
-            if week > 0 { parts.append("\(week) цього тижня") }
+            if week > 0 { parts.append(Copy.saved_this_week("\(week)")) }
         default:
             let ahead = Int(board.goingAhead), awaiting = Int(board.awaiting)
             if ahead > 0 { parts.append("\(ahead) \(ukrainianPlural(ahead, "план", "плани", "планів")) попереду") }
@@ -116,7 +116,7 @@ struct MyEventsView: View {
     @ViewBuilder private func content(_ board: MyEventsBoard?) -> some View {
         if !signedIn {
             EmptyState(
-                symbol: "lock", title: "Увійдіть, щоб бачити свої події",
+                symbol: "lock", title: Copy.guest_empty,
                 message: "Зберігайте цікаве, приєднуйтесь і створюйте власні зустрічі."
             )
             Spacer()
@@ -128,7 +128,7 @@ struct MyEventsView: View {
                     }
                     if tab == .organizing {
                         GroupedRows {
-                            LinkRow(symbol: "sparkles", title: "Маєте ідею зустрічі?", subtitle: "Опублікуйте подію за три кроки") { startCreating() }
+                            LinkRow(symbol: "sparkles", title: Copy.create_banner_title, subtitle: Copy.create_banner_subtitle) { startCreating() }
                         }
                     }
                 }.padding(.horizontal, Space.page).padding(.vertical, Space.md)
@@ -142,16 +142,16 @@ struct MyEventsView: View {
     @ViewBuilder private var emptyState: some View {
         switch tab {
         case .organizing:
-            EmptyState(symbol: "sparkles", title: "Ви ще нічого не організували",
-                       message: "Зберіть людей на настолки, пробіжку чи кіно — це три кроки.",
-                       actionLabel: "Створити подію") { startCreating() }
+            EmptyState(symbol: "sparkles", title: Copy.organizing_empty_title,
+                       message: Copy.organizing_empty_text,
+                       actionLabel: Copy.create) { startCreating() }
         case .saved:
-            EmptyState(symbol: "bookmark", title: "Нічого не збережено",
-                       message: "Торкніться закладки на картці події, щоб повернутися до неї пізніше.")
+            EmptyState(symbol: "bookmark", title: Copy.saved_empty_title,
+                       message: Copy.saved_empty_text)
         default:
-            EmptyState(symbol: "calendar", title: "Поки жодних планів",
-                       message: "Приєднайтесь до зустрічі поруч — вона з’явиться тут із часом і маршрутом.",
-                       actionLabel: "Знайти подію поруч") { openMap() }
+            EmptyState(symbol: "calendar", title: Copy.going_empty_title,
+                       message: Copy.going_empty_text,
+                       actionLabel: Copy.find_nearby) { openMap() }
         }
     }
 
@@ -160,36 +160,36 @@ struct MyEventsView: View {
         switch section.group {
         case .today:
             // Перша сьогоднішня — картка з маршрутом і чатом, решта — рядками.
-            overline("Сьогодні")
+            overline(Copy.today)
             if let first = events.first { GoingHero(event: first, unread: unread[first.id] ?? 0, open: open, chat: openChat) }
             rows(Array(events.dropFirst()))
         case .upcoming where tab == .organizing:
-            overline("Найближча")
+            overline(Copy.section_nearest)
             if let first = events.first {
                 OrganizerPanel(event: first, unread: unread[first.id] ?? 0,
                                requests: (model.state?.library.pendingRequests ?? []).filter { $0.eventId == first.id },
                                open: open, chat: openChat)
             }
             if events.count > 1 {
-                overline("Далі")
+                overline(Copy.next)
                 rows(Array(events.dropFirst()))
             }
         case .past:
             let shown = allPast ? events : Array(events.prefix(Int(MyEventsRules.shared.PAST_PREVIEW)))
-            overline("Минулі")
+            overline(Copy.section_past)
             rows(shown)
             if events.count > shown.count {
-                Button("Показати всі · \(events.count)") { allPast = true }
+                Button(Copy.show_all_past("\(events.count)")) { allPast = true }
                     .font(PoruchFont.label).foregroundStyle(Palette.ink).frame(minHeight: 44)
             }
         case .thisWeek:
-            overline("Цього тижня")
+            overline(Copy.section_this_week)
             rows(events)
         case .later:
-            overline("Пізніше")
+            overline(Copy.companion_later)
             rows(events)
         default:
-            overline("Далі")
+            overline(Copy.next)
             rows(events)
         }
     }
@@ -226,19 +226,19 @@ struct MyEventsView: View {
         return HStack(spacing: Space.sm) {
             Button { open(event.id) } label: {
                 EventRow(event: event, unread: unread, waitlisted: model.state?.isWaitlisted(id: event.id) == true,
-                         note: score.map { "Ваша оцінка ★ \($0)" }, chevron: !rate && !bookmark, status: status)
+                         note: score.map { Copy.my_score("\($0)") }, chevron: !rate && !bookmark, status: status)
             }.buttonStyle(PressableStyle(pressedScale: 1))
             if rate {
                 Button { rating = EventRoute(id: event.id) } label: {
                     // Без гліфа: з ним кнопка забирала пів рядка, і назва з місцем обрізались.
-                    Text("Оцінити").font(PoruchFont.label).foregroundStyle(Palette.onBrand)
+                    Text(Copy.rate_action).font(PoruchFont.label).foregroundStyle(Palette.onBrand)
                         .padding(.horizontal, Space.md).frame(height: 36).background(Palette.brand, in: Capsule())
                         .frame(minHeight: 44)
                 }.buttonStyle(PressableStyle()).fixedSize()
             }
             if bookmark {
                 SaveButton(saved: true) { model.app.toggleSaved(id: event.id) }
-                    .accessibilityLabel("Прибрати зі збережених")
+                    .accessibilityLabel(Copy.unsave)
             }
         }.padding(.horizontal, Space.lg)
     }
@@ -251,7 +251,7 @@ func countdownOverline(_ event: Event) -> String {
     let base = cardOverline(event)
     guard !event.hasStarted(now: nowInstant()), let start = parseEventDate(event.startsAt) else { return base }
     let minutes = max(Int(start.timeIntervalSinceNow / 60), 1)
-    let left = minutes < 60 ? "через \(minutes) хв" : "через \(minutes / 60) год"
+    let left = minutes < 60 ? Copy.countdown_minutes("\(minutes)") : Copy.countdown_hours("\(minutes / 60)")
     return base + " · " + left.uppercased(with: Locale(identifier: "uk_UA"))
 }
 
@@ -300,10 +300,10 @@ private struct GoingHero: View {
                 }.contentShape(Rectangle())
             }.buttonStyle(PressableStyle(pressedScale: 1))
             HStack(spacing: Space.sm) {
-                CardButton(title: "Маршрут", symbol: "location") { SystemActions.openInMaps(event) }
+                CardButton(title: Copy.rate_tag_route, symbol: "location") { SystemActions.openInMaps(event) }
                 // Чат бачать лише підтверджені: із запитом чи в черзі туди не пускає сервер.
                 if event.gathering?.joined == true {
-                    CardButton(title: unread > 0 ? "Чат · \(unread)" : "Чат", symbol: "bubble.left.and.bubble.right") { chat(event.id) }
+                    CardButton(title: unread > 0 ? Copy.chat_short_unread("\(unread)") : Copy.chat_short, symbol: "bubble.left.and.bubble.right") { chat(event.id) }
                 }
             }
         }
@@ -341,7 +341,7 @@ private struct OrganizerPanel: View {
                 VStack(alignment: .leading, spacing: Space.sm) {
                     HStack(alignment: .firstTextBaseline, spacing: Space.xs) {
                         Text("\(room.attendeeCount)").font(PoruchFont.title2).foregroundStyle(Palette.ink).monospacedDigit()
-                        Text("з \(room.capacity) місць").font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
+                        Text(Copy.seats_of("\(room.capacity)")).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
                     }
                     ProgressView(value: Double(room.attendeeCount), total: Double(max(room.capacity, 1)))
                         .tint(Palette.success)
@@ -350,8 +350,8 @@ private struct OrganizerPanel: View {
             }
             if let request = requests.first { requestRow(request) }
             HStack(spacing: Space.sm) {
-                CardButton(title: "Учасники", symbol: "person.2") { open(event.id) }
-                CardButton(title: unread > 0 ? "Чат · \(unread)" : "Чат", symbol: "bubble.left.and.bubble.right") { chat(event.id) }
+                CardButton(title: Copy.participants, symbol: "person.2") { open(event.id) }
+                CardButton(title: unread > 0 ? Copy.chat_short_unread("\(unread)") : Copy.chat_short, symbol: "bubble.left.and.bubble.right") { chat(event.id) }
                 ShareLink(item: SystemActions.shareText(for: event)) {
                     PoruchIcon(glyph: PoruchIcons.share, size: 18).foregroundStyle(Palette.ink)
                         .frame(width: 48, height: 48).background(Palette.surfaceMuted, in: Circle())
@@ -366,16 +366,16 @@ private struct OrganizerPanel: View {
         HStack(spacing: Space.md) {
             Avatar(name: request.name, url: request.avatarUrl, size: 36)
             VStack(alignment: .leading, spacing: 2) {
-                Text(request.name.isEmpty ? "Учасник" : request.name).font(PoruchFont.cardName).foregroundStyle(Palette.ink).lineLimit(1)
-                Text(requests.count > 1 ? "Хоче приєднатись · ще \(requests.count - 1)" : "Хоче приєднатись")
+                Text(request.name.isEmpty ? Copy.chat_member : request.name).font(PoruchFont.cardName).foregroundStyle(Palette.ink).lineLimit(1)
+                Text(requests.count > 1 ? Copy.wants_to_join_more("\(requests.count - 1)") : Copy.wants_to_join)
                     .font(PoruchFont.caption).foregroundStyle(Palette.onAccentContainer).lineLimit(1)
             }
             Spacer(minLength: 0)
             Button { model.app.declineMember(eventId: event.id, userId: request.userId) } label: {
                 PoruchIcon(glyph: PoruchIcons.close, size: 16).foregroundStyle(Palette.ink)
                     .frame(width: 40, height: 40).background(Palette.surface, in: Circle())
-            }.buttonStyle(PressableStyle()).accessibilityLabel("Відхилити запит: \(request.name)")
-            Button("Прийняти") { model.app.approveMember(eventId: event.id, userId: request.userId) }
+            }.buttonStyle(PressableStyle()).accessibilityLabel(Copy.decline_request_a11y("\(request.name)"))
+            Button(Copy.approve) { model.app.approveMember(eventId: event.id, userId: request.userId) }
                 .font(PoruchFont.button).foregroundStyle(Palette.onBrand).lineLimit(1).fixedSize()
                 .padding(.horizontal, Space.lg).frame(height: 40)
                 .background(Palette.brand, in: Capsule())

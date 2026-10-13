@@ -63,7 +63,7 @@ struct ProfileView: View {
                 if let bio = profile.bio {
                     Text(bio).font(PoruchFont.bodyText).foregroundStyle(Palette.ink).multilineTextAlignment(.center)
                 }
-                SecondaryButton(title: "Редагувати профіль", symbol: "pencil") { editingProfile = true }
+                SecondaryButton(title: Copy.profile_edit, symbol: "pencil") { editingProfile = true }
             }
             .padding(.horizontal, Space.page).padding(.top, Space.section).padding(.bottom, Space.sm)
             .frame(maxWidth: .infinity)
@@ -76,10 +76,10 @@ struct ProfileView: View {
         VStack(spacing: Space.md) {
             PoruchIcon(glyph: PoruchIcons.person, size: 36).foregroundStyle(Palette.onBrandContainer)
                 .frame(width: 88, height: 88).background(Palette.brandContainer, in: Circle())
-            Text(signedIn ? "Ви з нами" : "Ваші люди — поруч").font(PoruchFont.serifTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
+            Text(signedIn ? Copy.account_title : Copy.guest_title).font(PoruchFont.serifTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
             Text(signedIn
                  ? "Ваші створені, збережені та заплановані події — у вкладці «Мої події»."
-                 : "Увійдіть, щоб зберігати цікаве, приєднуватись і створювати власні зустрічі.")
+                 : Copy.guest_description)
                 .font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary).multilineTextAlignment(.center)
         }
         .padding(.horizontal, Space.xxl).padding(.top, Space.section).padding(.bottom, Space.sm)
@@ -87,19 +87,19 @@ struct ProfileView: View {
     }
 
     private var signInPrompt: some View {
-        PrimaryButton(title: "Увійти або зареєструватися", symbol: "arrow.right.to.line") { showAuth = true }
+        PrimaryButton(title: Copy.profile_guest_cta, symbol: "arrow.right.to.line") { showAuth = true }
             .frame(maxWidth: .infinity)
     }
 
     private var recovery: some View {
         VStack(alignment: .leading, spacing: Space.lg) {
-            SectionHeader(title: "Новий пароль")
-            LabelledField(label: "Пароль", text: $newPassword, hint: "Щонайменше 8 символів", secure: !revealed) {
+            SectionHeader(title: Copy.new_password)
+            LabelledField(label: Copy.password_label, text: $newPassword, hint: Copy.password_hint, secure: !revealed) {
                 PasswordRevealToggle(revealed: $revealed)
             }
             .textContentType(.newPassword)
             PrimaryButton(
-                title: "Зберегти пароль",
+                title: Copy.save_password,
                 enabled: AccountRules.shared.isPassword(value: newPassword) && model.state?.mutating != true
             ) { model.app.updatePassword(password: newPassword) }
         }
@@ -108,11 +108,11 @@ struct ProfileView: View {
     /// Старий акаунт без віку питаємо тут, раз, і кажемо чому. Відмовляє база.
     private var ageDeclaration: some View {
         VStack(alignment: .leading, spacing: Space.md) {
-            Text("Підтвердьте вік").font(PoruchFont.cardName).foregroundStyle(Palette.ink)
-            Text("Ваш обліковий запис створено до того, як ми почали питати вік. Вкажіть дату народження — без неї не вийде приєднатись до події.")
+            Text(Copy.confirm_age_title).font(PoruchFont.cardName).foregroundStyle(Palette.ink)
+            Text(Copy.confirm_age_body)
                 .font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
             BirthDateField(date: $birthDate, range: earliestBirthDate...latestBirthDate)
-            PrimaryButton(title: "Вказати дату") { model.app.declareBirthDate(birthDate: isoDay(birthDate)) }
+            PrimaryButton(title: Copy.confirm_age_action) { model.app.declareBirthDate(birthDate: isoDay(birthDate)) }
         }
         .padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()
     }
@@ -120,13 +120,13 @@ struct ProfileView: View {
     /// Блок, який не можна скасувати, не використовуватимуть: список з іменами.
     private var blocked: some View {
         VStack(alignment: .leading, spacing: Space.md) {
-            SectionHeader(title: "Заблоковані")
+            SectionHeader(title: Copy.blocked_section)
             ForEach(model.state?.library.blocked ?? [], id: \.userId) { person in
                 HStack(spacing: Space.md) {
-                    Text(person.name.isEmpty ? "Учасник" : person.name)
+                    Text(person.name.isEmpty ? Copy.chat_member : person.name)
                         .font(PoruchFont.cardName).foregroundStyle(Palette.ink)
                     Spacer(minLength: 0)
-                    Button("Розблокувати") { model.app.unblockUser(userId: person.userId) }
+                    Button(Copy.unblock) { model.app.unblockUser(userId: person.userId) }
                         .font(PoruchFont.button).foregroundStyle(Palette.ink)
                 }.padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()
             }
@@ -137,7 +137,7 @@ struct ProfileView: View {
     private var follows: some View {
         GroupedRows {
             LinkRow(
-                symbol: "bell", title: "Підписки", subtitle: "Заклади й організатори",
+                symbol: "bell", title: Copy.follows_title, subtitle: Copy.follows_hint,
                 value: "\(model.state?.library.follows.count ?? 0)", action: openFollows
             )
         }
@@ -146,13 +146,13 @@ struct ProfileView: View {
     /// Відповіді онбордингу належать пристрою, тож секція є і в гостя.
     private var taste: some View {
         VStack(alignment: .leading, spacing: Space.md) {
-            SectionHeader(title: "Ваші інтереси")
+            SectionHeader(title: Copy.interests)
             FlexibleChips(
                 items: categories.map { ($0.0.key, $0.1, $0.0) },
                 isSelected: { key in model.state?.interests.contains { $0.key == key } == true }
             ) { model.app.toggleInterest(category: EventCategory.companion.fromKey(key: $0)) }
             GroupedRows {
-                LinkRow(symbol: "sparkles", title: "Налаштувати рекомендації", subtitle: "Пройти опитування ще раз") {
+                LinkRow(symbol: "sparkles", title: Copy.tune_recommendations, subtitle: Copy.tune_recommendations_hint) {
                     model.app.restartOnboarding()
                 }
             }
@@ -164,24 +164,24 @@ struct ProfileView: View {
     private var account: some View {
         VStack(alignment: .leading, spacing: Space.xxl) {
             VStack(alignment: .leading, spacing: Space.md) {
-                SectionHeader(title: "Налаштування")
+                SectionHeader(title: Copy.settings)
                 GroupedRows {
                     ReminderPreference()
                     // Акаунт Google/Apple пароля не має — і міняти нічого.
                     if model.state?.session.passwordless != true {
                         Divider().overlay(Palette.hairline).padding(.leading, Space.lg)
-                        LinkRow(symbol: "lock", title: "Змінити пароль") { changingPassword = true }
+                        LinkRow(symbol: "lock", title: Copy.update_password) { changingPassword = true }
                     }
                 }
             }
-            SecondaryButton(title: "Вийти з облікового запису", symbol: "rectangle.portrait.and.arrow.right", tone: Palette.danger) {
+            SecondaryButton(title: Copy.logout, symbol: "rectangle.portrait.and.arrow.right", tone: Palette.danger) {
                 model.app.signOut()
             }
             // Видалення — окрема, важча дія: без заливки, лише червоний текст, і завжди через пароль.
             Button { deleting = true } label: {
                 HStack(spacing: Space.sm) {
                     PoruchIcon(glyph: PoruchIcons.trash, size: 18)
-                    Text("Видалити обліковий запис").font(PoruchFont.button).lineLimit(1)
+                    Text(Copy.delete_account).font(PoruchFont.button).lineLimit(1)
                 }
                 .foregroundStyle(Palette.danger)
                 .padding(.horizontal, Space.xxl).frame(height: 52).frame(maxWidth: .infinity)
@@ -193,32 +193,32 @@ struct ProfileView: View {
 
     private var about: some View {
         VStack(alignment: .leading, spacing: Space.md) {
-            SectionHeader(title: "Про застосунок")
-            Text("«Поряд» — події та люди у вашому місті. Мапа: MapLibre та OpenFreeMap.")
+            SectionHeader(title: Copy.about_app)
+            Text(Copy.about_app_body)
                 .font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
             // Згода належить пристрою, як і нагадування: перемикач є і в гостя.
             GroupedRows { AnalyticsPreference() }
             GroupedRows {
-                LinkRow(symbol: "hand.raised", title: "Політика конфіденційності") { open(LegalLinks.shared.PRIVACY) }
+                LinkRow(symbol: "hand.raised", title: Copy.privacy_policy) { open(LegalLinks.shared.PRIVACY) }
                 Divider().overlay(Palette.hairline).padding(.leading, Space.lg + 40 + Space.md)
-                LinkRow(symbol: "doc.text", title: "Умови користування") { open(LegalLinks.shared.TERMS) }
+                LinkRow(symbol: "doc.text", title: Copy.terms_of_use) { open(LegalLinks.shared.TERMS) }
                 Divider().overlay(Palette.hairline).padding(.leading, Space.lg + 40 + Space.md)
-                LinkRow(symbol: "envelope", title: "Написати в підтримку", subtitle: LegalLinks.shared.SUPPORT_EMAIL) {
+                LinkRow(symbol: "envelope", title: Copy.contact_support, subtitle: LegalLinks.shared.SUPPORT_EMAIL) {
                     open("mailto:" + LegalLinks.shared.SUPPORT_EMAIL)
                 }
             }
             GroupedRows {
-                LinkRow(symbol: "square.and.arrow.up", title: "Поділитися застосунком") {
+                LinkRow(symbol: "square.and.arrow.up", title: Copy.share_app) {
                     model.app.appShared()
-                    sharingApp = ShareText(text: "Знаходжу концерти, настолки й зустрічі поруч у застосунку «Поряд». Спробуй: \(StoreLinks.shared.SHARE)")
+                    sharingApp = ShareText(text: Copy.share_app_text("\(StoreLinks.shared.SHARE)"))
                 }
                 Divider().overlay(Palette.hairline).padding(.leading, Space.lg + 40 + Space.md)
-                LinkRow(symbol: "star", title: "Оцінити застосунок", subtitle: "Відгук в App Store допомагає нам рости") {
+                LinkRow(symbol: "star", title: Copy.rate_app, subtitle: "Відгук в App Store допомагає нам рости") {
                     model.app.rateAppOpened()
                     open(StoreLinks.shared.APP_STORE_REVIEW)
                 }
             }
-            Text("Версія \(appVersion)")
+            Text(Copy.app_version("\(appVersion)"))
                 .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
         }
     }
@@ -247,18 +247,18 @@ struct ChangePasswordSheet: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Space.lg) {
-                Text("Змінити пароль").font(PoruchFont.serifTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
-                LabelledField(label: "Поточний пароль", text: $current, secure: !revealed) {
+                Text(Copy.update_password).font(PoruchFont.serifTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
+                LabelledField(label: Copy.current_password_label, text: $current, secure: !revealed) {
                     PasswordRevealToggle(revealed: $revealed)
                 }
                 .textContentType(.password)
-                LabelledField(label: "Новий пароль", text: $newPassword, hint: "Щонайменше 8 символів", secure: !revealed)
+                LabelledField(label: Copy.new_password, text: $newPassword, hint: Copy.password_hint, secure: !revealed)
                     .textContentType(.newPassword)
                 PrimaryButton(
-                    title: "Змінити пароль", loading: mutating,
+                    title: Copy.update_password, loading: mutating,
                     enabled: !current.isEmpty && AccountRules.shared.isPassword(value: newPassword)
                 ) { model.app.changePassword(current: current, password: newPassword) }
-                SecondaryButton(title: "Скасувати", enabled: !mutating) { dismiss() }
+                SecondaryButton(title: Copy.delete_account_cancel, enabled: !mutating) { dismiss() }
             }
             .padding(Space.page).padding(.top, Space.sm)
         }
@@ -286,14 +286,14 @@ struct DeleteAccountSheet: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Space.lg) {
-                Text("Видалити обліковий запис?").font(PoruchFont.serifTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
+                Text(Copy.delete_account_title).font(PoruchFont.serifTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
                 Text("Профіль, участь у подіях, повідомлення й фото буде видалено. Ваші опубліковані події скасуються. Скасувати це буде неможливо.")
                     .font(PoruchFont.bodyText).foregroundStyle(Palette.inkSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                 // Google чи Apple з тією ж поштою привʼязуються до наявного акаунта: людина має бачити, що видаляє саме його.
                 if let email = model.state?.library.profile?.email { who(email) }
                 if !passwordless {
-                    LabelledField(label: "Пароль", text: $password, hint: "Для підтвердження введіть пароль", secure: !revealed) {
+                    LabelledField(label: Copy.password_label, text: $password, hint: "Для підтвердження введіть пароль", secure: !revealed) {
                         PasswordRevealToggle(revealed: $revealed)
                     }
                     .textContentType(.password)
@@ -302,10 +302,10 @@ struct DeleteAccountSheet: View {
                     Text("Apple не підтвердив вхід. Спробуйте ще раз.").font(PoruchFont.caption).foregroundStyle(Palette.danger)
                 }
                 PrimaryButton(
-                    title: viaApple ? "Підтвердити через Apple і видалити" : "Видалити", symbol: viaApple ? "apple.logo" : "trash",
+                    title: viaApple ? "Підтвердити через Apple і видалити" : Copy.delete_account_confirm, symbol: viaApple ? "apple.logo" : "trash",
                     tone: Palette.danger, loading: mutating, enabled: passwordless || AccountRules.shared.isPassword(value: password)
                 ) { confirm() }
-                SecondaryButton(title: "Скасувати", enabled: !mutating) { dismiss() }
+                SecondaryButton(title: Copy.delete_account_cancel, enabled: !mutating) { dismiss() }
             }
             .padding(Space.page).padding(.top, Space.sm)
         }
@@ -317,10 +317,10 @@ struct DeleteAccountSheet: View {
     /// Який акаунт зникне: пошта й усі способи входу в нього.
     private func who(_ email: String) -> some View {
         let methods = (model.state?.session.providers ?? []).sorted().compactMap { provider -> String? in
-            switch provider { case "email": "пошта"; case "google": "Google"; case "apple": "Apple"; default: nil }
+            switch provider { case "email": Copy.sign_in_method_email; case "google": "Google"; case "apple": "Apple"; default: nil }
         }
         return VStack(alignment: .leading, spacing: Space.xs) {
-            Text("БУДЕ ВИДАЛЕНО АКАУНТ").font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
+            Text(Copy.delete_account_who).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
             Text(email).font(PoruchFont.cardName).foregroundStyle(Palette.ink)
             if methods.count > 1 {
                 Text("Входи в нього: \(methods.joined(separator: " · ")). Це один акаунт — зникне разом з усіма способами входу.")
@@ -371,7 +371,7 @@ struct ReminderPreference: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Space.sm) {
             Toggle(isOn: enabled) {
-                Text("Сповіщення про мої події").font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
+                Text(Copy.reminders).font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
             }
             .tint(Palette.brand)
             Text(denied ? "Дозвольте сповіщення в налаштуваннях iOS." : "Нагадування за годину до початку і нові запити на участь у ваших подіях.")
@@ -405,10 +405,10 @@ struct DigestPreference: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Space.sm) {
             Toggle(isOn: enabled) {
-                Text("Що поруч на вихідних").font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
+                Text(Copy.digest).font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
             }
             .tint(Palette.brand)
-            Text(denied ? "Дозвольте сповіщення в налаштуваннях iOS." : "Щопʼятниці о 17:00 — скільки подій у вашому місті на вихідних і що серед них.")
+            Text(denied ? "Дозвольте сповіщення в налаштуваннях iOS." : Copy.digest_note)
                 .font(PoruchFont.caption).foregroundStyle(denied ? Palette.danger : Palette.inkTertiary)
         }
         .padding(Space.lg)
@@ -430,7 +430,7 @@ struct AnalyticsPreference: View {
                 get: { model.state?.analyticsEnabled ?? true },
                 set: { model.app.setAnalyticsEnabled(enabled: $0) }
             )) {
-                Text("Аналітика").font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
+                Text(Copy.analytics).font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
             }
             .tint(Palette.brand)
             Text("Статистика використання й звіти про збої, без реклами.")

@@ -50,7 +50,7 @@ struct ScheduleFields: View {
             HStack(spacing: Space.xs) {
                 ForEach(commonDurations, id: \.self) { hours in
                     let seconds = TimeInterval(hours) * 3600
-                    Chip(label: "\(hours) год", selected: abs(duration - seconds) < 60) {
+                    Chip(label: Copy.duration_hours("\(hours)"), selected: abs(duration - seconds) < 60) {
                         ends = starts.addingTimeInterval(seconds)
                     }
                 }
@@ -65,8 +65,8 @@ struct ScheduleFields: View {
         let minutes = Int((duration / 60).rounded())
         let hours = minutes / 60
         let rest = minutes % 60
-        if hours == 0 { return "\(rest) хв" }
-        return rest == 0 ? "\(hours) год" : "\(hours) год \(rest) хв"
+        if hours == 0 { return Copy.duration_minutes("\(rest)") }
+        return rest == 0 ? Copy.duration_hours("\(hours)") : Copy.duration_minutes("\(hours) год \(rest)")
     }
 
     /// Кінець їде за початком, зберігаючи тривалість.
@@ -144,7 +144,7 @@ private struct DateTimeSheet: View {
                 .padding(Space.lg)
                 .cardSurface()
             }
-            PrimaryButton(title: "Готово") { onPick(value); dismiss() }
+            PrimaryButton(title: Copy.apply) { onPick(value); dismiss() }
                 .frame(maxWidth: .infinity)
         }
         .padding(Space.page)
@@ -179,7 +179,7 @@ struct TimeZoneNote: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("ЧАСОВИЙ ПОЯС").font(PoruchFont.overline).kerning(1.2).foregroundStyle(Palette.inkTertiary)
                 Text(readableZone).font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
-                Text(fromPlace ? "Визначено за місцем події" : "За вашим пристроєм")
+                Text(fromPlace ? Copy.timezone_from_place : "За вашим пристроєм")
                     .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
             }
             Spacer(minLength: 0)

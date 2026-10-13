@@ -20,14 +20,14 @@ struct SearchField: View {
                     .submitLabel(.search).accessibilityLabel("Пошук подій")
                 if !text.isEmpty {
                     Button { text = "" } label: { PoruchIcon(glyph: PoruchIcons.closeCircle, size: 20).foregroundStyle(Palette.inkTertiary) }
-                        .accessibilityLabel("Очистити пошук")
+                        .accessibilityLabel(Copy.clear_search)
                 }
             }
             .padding(.horizontal, Space.lg).frame(height: 50)
             .background(Palette.surface, in: Capsule())
             .overlay(Capsule().strokeBorder(Palette.hairline, lineWidth: 1).opacity(darkStroke))
             if let onFilters {
-                IconPill(symbol: "slider.horizontal.3", label: "Фільтри", action: onFilters)
+                IconPill(symbol: "slider.horizontal.3", label: Copy.filters, action: onFilters)
                     .overlay(alignment: .topTrailing) {
                         if activeFilters > 0 {
                             Text("\(activeFilters)").font(PoruchFont.overline).foregroundStyle(Palette.onBrand)
@@ -162,7 +162,7 @@ struct FollowPill: View {
     /// Лише дзвінок, для тісної шапки мапи; підпис читає VoiceOver.
     var iconOnly = false
     let action: () -> Void
-    private var label: String { following ? "Ви стежите" : "Стежити" }
+    private var label: String { following ? Copy.following : Copy.follow }
     private var symbol: String { following ? "bell.fill" : "bell" }
     var body: some View {
         if iconOnly {
@@ -410,7 +410,7 @@ struct PageHeader<Trailing: View>: View {
                 Button(action: back) {
                     PoruchIcon(glyph: PoruchIcons.chevronLeft, size: 19).foregroundStyle(Palette.ink)
                         .frame(width: 40, height: 40).background(Palette.surface, in: Circle())
-                }.buttonStyle(PressableStyle()).accessibilityLabel("Назад")
+                }.buttonStyle(PressableStyle()).accessibilityLabel(Copy.back)
             }
             Text(title).font(PoruchFont.serifTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
             Spacer(minLength: 0)
@@ -694,28 +694,28 @@ struct EventThumbnail: View {
 /// Стан події словами: скасовано, знято, а для кімнати — «ви йдете», запит, черга, місця. Без підпису джерела афіші.
 func eventState(_ event: Event, waitlisted: Bool = false) -> (String, BadgeTone, String?)? {
     if event.isCancelled { return ("Скасовано", .danger, nil) }
-    if let listing = event.listing { return listing.isWithdrawn ? ("Більше не проводиться", .neutral, nil) : nil }
+    if let listing = event.listing { return listing.isWithdrawn ? (Copy.listing_withdrawn, .neutral, nil) : nil }
     guard let room = event.gathering else { return nil }
     // Місця й «ви йдете» після кінця нічого не кажуть: рядок покаже категорію.
     if event.hasEnded(now: nowInstant()) { return nil }
-    if room.joined { return ("Ви йдете", .success, "checkmark") }
-    if room.awaitingApproval { return ("Запит надіслано", .accent, "hourglass") }
-    if waitlisted { return ("У черзі", .accent, "hourglass") }
-    if room.isFull { return ("Місць немає", .neutral, nil) }
+    if room.joined { return (Copy.going, .success, "checkmark") }
+    if room.awaitingApproval { return (Copy.request_pending, .accent, "hourglass") }
+    if waitlisted { return (Copy.in_queue, .accent, "hourglass") }
+    if room.isFull { return (Copy.full, .neutral, nil) }
     if room.isScarce { return ("Лишилось \(room.seatsLeft)", .accent, nil) }
     return nil
 }
 
 /// Подія від людини, а не з афіші: підпис походження, пара до «Афіша · джерело». Стан кімнати («Ви йдете», «Лишилось 2») важливіший.
 func communityBadge(_ event: Event) -> (String, BadgeTone, String?)? {
-    event.gathering == nil ? nil : ("Від людей", .neutral, "person.2")
+    event.gathering == nil ? nil : (Copy.from_people, .neutral, "person.2")
 }
 
 /// Рядок стану над карткою. Афіша завжди підписана джерелом (docs/event-ingestion.md §8); місця лише в кімнати.
 func eventBadge(_ event: Event, waitlisted: Bool = false) -> (String, BadgeTone, String?)? {
     if let state = eventState(event, waitlisted: waitlisted) { return state }
     guard let listing = event.listing else { return nil }
-    return ("Афіша · \(listing.sourceName)", .neutral, nil)
+    return (Copy.listing_badge("\(listing.sourceName)"), .neutral, nil)
 }
 
 /// Рядок під назвою: учасники для кімнати, ціна для афіші.
@@ -726,7 +726,7 @@ struct EventMeta: View {
         if let room = event.gathering {
             MetaLine(
                 symbol: "person.2",
-                text: short ? "\(room.attendeeCount) з \(room.capacity)" : "\(room.attendeeCount) з \(room.capacity) учасників"
+                text: short ? Copy.attendees_short("\(room.attendeeCount)", "\(room.capacity)") : Copy.attendees("\(room.attendeeCount)", "\(room.capacity)")
             )
         } else if let listing = event.listing {
             MetaLine(symbol: "ticket", text: listingPrice(listing))
@@ -793,7 +793,7 @@ struct SaveButton: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(PressableStyle())
-        .accessibilityLabel(saved ? "Прибрати зі збережених" : "Зберегти подію")
+        .accessibilityLabel(saved ? Copy.unsave : Copy.save)
     }
 }
 
@@ -884,7 +884,7 @@ struct EventRow: View {
         .opacity(event.isCancelled ? 0.6 : 1)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
-        .accessibilityValue(unread > 0 ? "нових повідомлень: \(unread)" : "")
+        .accessibilityValue(unread > 0 ? Copy.unread_messages_a11y("\(unread)") : "")
     }
 }
 
@@ -917,11 +917,11 @@ struct EventResultRow: View {
     /// Лише те, що міняє рішення: скасування, зняття, стан кімнати. Джерело афіші — окремим рядком.
     private var badge: (String, BadgeTone, String?)? {
         if event.isCancelled { return ("Скасовано", .danger, nil) }
-        if event.listing?.isWithdrawn == true { return ("Більше не проводиться", .neutral, nil) }
+        if event.listing?.isWithdrawn == true { return (Copy.listing_withdrawn, .neutral, nil) }
         guard let room = event.gathering, !event.hasEnded(now: nowInstant()) else { return nil }
-        if room.joined { return ("Ви йдете", .success, "checkmark") }
-        if waitlisted { return ("У черзі", .accent, "hourglass") }
-        if room.isFull { return ("Місць немає", .neutral, nil) }
+        if room.joined { return (Copy.going, .success, "checkmark") }
+        if waitlisted { return (Copy.in_queue, .accent, "hourglass") }
+        if room.isFull { return (Copy.full, .neutral, nil) }
         let seats = Int(room.seatsLeft)
         if room.isScarce { return ("\(seats) \(ukrainianPlural(seats, "місце", "місця", "місць"))", .accent, nil) }
         return nil
@@ -951,7 +951,7 @@ struct EventResultRow: View {
                     Text(artists).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(1)
                 }
                 if let listing = event.listing {
-                    let source = "Афіша · \(listing.sourceName)"
+                    let source = Copy.listing_badge("\(listing.sourceName)")
                     Text(source).font(PoruchFont.overline).foregroundStyle(Palette.inkTertiary).lineLimit(1)
                 }
             }
@@ -971,17 +971,17 @@ func artistsLine(_ event: Event) -> String? {
     guard !shown.isEmpty else { return nil }
     let performers = shown.filter { $0.role != .host }.map(\.name).joined(separator: ", ")
     let hosts = shown.filter { $0.role == .host }.map(\.name).joined(separator: ", ")
-    let line = [performers.isEmpty ? nil : performers, hosts.isEmpty ? nil : "ведучий \(hosts)"].compactMap { $0 }.joined(separator: " · ")
+    let line = [performers.isEmpty ? nil : performers, hosts.isEmpty ? nil : Copy.artist_line_host("\(hosts)")].compactMap { $0 }.joined(separator: " · ")
     let more = Int(event.moreArtists)
-    return more > 0 ? "\(line) та ще \(more)" : line
+    return more > 0 ? Copy.digest_more("\(line)", "\(more)") : line
 }
 
 /// Вид словом, лише коли він відомий і не людина: `person` без підпису.
 func artistKindLabel(_ kind: ArtistKind?) -> String? {
     switch kind {
-    case .group: return "Гурт"
-    case .show: return "Шоу"
-    case .company: return "Трупа"
+    case .group: return Copy.artist_kind_group
+    case .show: return Copy.artist_kind_show
+    case .company: return Copy.artist_kind_company
     default: return nil
     }
 }
@@ -1021,7 +1021,7 @@ struct ArtistsGroup: View {
     let artists: [ArtistHit]
     var body: some View {
         VStack(alignment: .leading, spacing: Space.sm) {
-            GroupLabel(title: "Артисти")
+            GroupLabel(title: Copy.search_artists_group)
             GroupedRows {
                 ForEach(Array(artists.prefix(Int(DiscoveryRules.shared.ARTISTS_LIMIT)).enumerated()), id: \.element.id) { position, artist in
                     if position > 0 { Divider().overlay(Palette.hairline).padding(.leading, Space.lg + 40 + Space.md) }
@@ -1092,7 +1092,7 @@ struct PlacesGroup: View {
     let open: (Place) -> Void
     var body: some View {
         VStack(alignment: .leading, spacing: Space.sm) {
-            GroupLabel(title: "Місця")
+            GroupLabel(title: Copy.search_places_group)
             GroupedRows {
                 ForEach(Array(places.enumerated()), id: \.element.id) { position, place in
                     if position > 0 { Divider().overlay(Palette.hairline).padding(.leading, Space.lg + 40 + Space.md) }
@@ -1376,7 +1376,7 @@ struct PoruchTabBar<Trailing: View>: View {
                         }
                     }
                     .buttonStyle(PressableStyle(pressedScale: 0.94))
-                    .accessibilityLabel(item.badge > 0 ? "\(item.label), непрочитаних чатів: \(item.badge)" : item.label)
+                    .accessibilityLabel(item.badge > 0 ? Copy.home_subtitle("\(item.label), непрочитаних чатів: \(item.badge)") : item.label)
                     .accessibilityAddTraits(selection == item.id ? .isSelected : [])
                 }
             }
@@ -1396,6 +1396,6 @@ struct CreateButton: View {
                 .lifted(Elevation.overlay)
         }
         .buttonStyle(PressableStyle(pressedScale: 0.94))
-        .accessibilityLabel("Створити подію")
+        .accessibilityLabel(Copy.create)
     }
 }
