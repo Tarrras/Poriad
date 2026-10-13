@@ -218,7 +218,7 @@ struct DiscoveryView: View, Equatable {
             }
         }
         .sheet(isPresented: Binding(get: { location.message != nil }, set: { if !$0 { location.message = nil } })) {
-            PromptSheet(title: "Геолокація", message: location.message ?? "", primary: "Добре", onPrimary: {})
+            PromptSheet(title: Copy.location_title, message: location.message ?? "", primary: Copy.ok, onPrimary: {})
         }
     }
 
@@ -234,7 +234,7 @@ struct DiscoveryView: View, Equatable {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: Space.sm) {
                     Chip(label: view.cityName, glyph: PoruchIcons.pin, trailingGlyph: PoruchIcons.chevronDown, selected: false) { citySearch = true }
-                        .accessibilityLabel("Змінити місто")
+                        .accessibilityLabel(Copy.a11y_change_city)
                     // Одразу після міста, а не за датами: з «Усі N» головної мапа приходить із цим фільтром, і його має бути видно.
                     Chip(label: Copy.from_people, glyph: PoruchIcons.social, selected: view.onlyAvailable) {
                         model.app.setOnlyAvailable(available: !view.onlyAvailable)
@@ -352,7 +352,7 @@ struct DiscoveryView: View, Equatable {
             .contentShape(Capsule())
             .onTapGesture { open(.half) }
             .accessibilityElement(children: .combine)
-            .accessibilityLabel("\(countLabel). Показати списком")
+            .accessibilityLabel(Copy.a11y_show_list("\(countLabel)"))
             .accessibilityAddTraits(.isButton)
             .accessibilityAction { open(.half) }
             if stackFocused {
@@ -509,7 +509,7 @@ struct DiscoveryView: View, Equatable {
     /// Що показує екран: пін, область рукою чи ціле місто.
     private var areaLabel: String {
         if stackFocused { return Copy.area_stack }
-        return view.customArea ? Copy.area_custom : "Знайдіть, куди піти у місті \(view.cityName)"
+        return view.customArea ? Copy.area_custom : Copy.area_city("\(view.cityName)")
     }
 
     /// Перевести шторку в положення.
@@ -717,7 +717,7 @@ struct CitySearchView: View {
         NavigationStack {
             List {
                 if query.isEmpty {
-                    Section("Міста з подіями") {
+                    Section(Copy.cities_with_events) {
                         ForEach(covered, id: \.city) { place in
                             Button {
                                 open(CityResult(name: place.city, latitude: place.latitude, longitude: place.longitude))
@@ -741,10 +741,10 @@ struct CitySearchView: View {
                 }
             }
             .listStyle(.plain)
-            .searchable(text: $query, prompt: "Місто у світі")
+            .searchable(text: $query, prompt: Text(Copy.city_search_prompt))
             // Без автофокуса: `searchFocused` з iOS 18, мінімум проєкту — 17.
             .onSettled(query, after: .milliseconds(220)) { model.app.searchCity(query: $0) }
-            .navigationTitle("Знайти місто")
+            .navigationTitle(Copy.find_city)
             .toolbar { Button(Copy.apply) { dismiss() } }
         }
     }

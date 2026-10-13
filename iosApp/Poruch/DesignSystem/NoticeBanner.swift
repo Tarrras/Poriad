@@ -17,7 +17,7 @@ struct NoticeBanner: View {
                         .frame(width: 44, height: 44)
                 }
                 .buttonStyle(PressableStyle())
-                .accessibilityLabel("Закрити сповіщення")
+                .accessibilityLabel(Copy.a11y_close_notice)
             }
             .accessibilityElement(children: .combine)
             .accessibilityLabel(text)

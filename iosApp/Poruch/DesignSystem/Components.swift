@@ -17,7 +17,7 @@ struct SearchField: View {
                 PoruchIcon(glyph: PoruchIcons.search, size: 18).foregroundStyle(Palette.inkSecondary)
                 TextField("", text: $text, prompt: Text(placeholder).foregroundStyle(Palette.inkTertiary))
                     .font(PoruchFont.bodyText).foregroundStyle(Palette.ink).tint(Palette.ink)
-                    .submitLabel(.search).accessibilityLabel("Пошук подій")
+                    .submitLabel(.search).accessibilityLabel(Copy.a11y_search_events)
                 if !text.isEmpty {
                     Button { text = "" } label: { PoruchIcon(glyph: PoruchIcons.closeCircle, size: 20).foregroundStyle(Palette.inkTertiary) }
                         .accessibilityLabel(Copy.clear_search)
@@ -541,7 +541,7 @@ struct AvatarStack: View {
                 Text("+\(total - shown.count)").font(PoruchFont.label).foregroundStyle(Palette.inkSecondary)
                     .offset(x: CGFloat(-shown.count * 10 + 4))
             }
-        }.accessibilityElement(children: .ignore).accessibilityLabel("Учасників: \(total)")
+        }.accessibilityElement(children: .ignore).accessibilityLabel(Copy.a11y_attendees_count("\(total)"))
     }
 }
 
@@ -635,7 +635,7 @@ struct BirthDateField: View {
                 .padding(.horizontal, Space.lg).frame(minHeight: 56).contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityHint(open ? "Згорнути вибір дати" : "Змінити дату")
+            .accessibilityHint(open ? Copy.a11y_collapse_dates : Copy.a11y_change_date)
             if open {
                 DatePicker("", selection: $date, in: range, displayedComponents: .date)
                     .datePickerStyle(.wheel).labelsHidden()
@@ -699,7 +699,7 @@ struct EventThumbnail: View {
 
 /// Стан події словами: скасовано, знято, а для кімнати — «ви йдете», запит, черга, місця. Без підпису джерела афіші.
 func eventState(_ event: Event, waitlisted: Bool = false) -> (String, BadgeTone, PoruchGlyph?)? {
-    if event.isCancelled { return ("Скасовано", .danger, nil) }
+    if event.isCancelled { return (Copy.cancelled_short, .danger, nil) }
     if let listing = event.listing { return listing.isWithdrawn ? (Copy.listing_withdrawn, .neutral, nil) : nil }
     guard let room = event.gathering else { return nil }
     // Місця й «ви йдете» після кінця нічого не кажуть: рядок покаже категорію.
@@ -708,7 +708,7 @@ func eventState(_ event: Event, waitlisted: Bool = false) -> (String, BadgeTone,
     if room.awaitingApproval { return (Copy.request_pending, .accent, PoruchIcons.queue) }
     if waitlisted { return (Copy.in_queue, .accent, PoruchIcons.queue) }
     if room.isFull { return (Copy.full, .neutral, nil) }
-    if room.isScarce { return ("Лишилось \(room.seatsLeft)", .accent, nil) }
+    if room.isScarce { return (Copy.seats_left_short("\(room.seatsLeft)"), .accent, nil) }
     return nil
 }
 
@@ -922,14 +922,14 @@ struct EventResultRow: View {
 
     /// Лише те, що міняє рішення: скасування, зняття, стан кімнати. Джерело афіші — окремим рядком.
     private var badge: (String, BadgeTone, PoruchGlyph?)? {
-        if event.isCancelled { return ("Скасовано", .danger, nil) }
+        if event.isCancelled { return (Copy.cancelled_short, .danger, nil) }
         if event.listing?.isWithdrawn == true { return (Copy.listing_withdrawn, .neutral, nil) }
         guard let room = event.gathering, !event.hasEnded(now: nowInstant()) else { return nil }
         if room.joined { return (Copy.going, .success, PoruchIcons.check) }
         if waitlisted { return (Copy.in_queue, .accent, PoruchIcons.queue) }
         if room.isFull { return (Copy.full, .neutral, nil) }
         let seats = Int(room.seatsLeft)
-        if room.isScarce { return ("\(seats) \(ukrainianPlural(seats, "місце", "місця", "місць"))", .accent, nil) }
+        if room.isScarce { return (Copy.seats_short(seats), .accent, nil) }
         return nil
     }
 
@@ -998,7 +998,7 @@ struct ArtistRow: View {
 
     private var subtitle: String {
         let upcoming = Int(artist.upcoming)
-        return [artistKindLabel(artist.kind), "\(upcoming) \(ukrainianPlural(upcoming, "подія", "події", "подій"))"]
+        return [artistKindLabel(artist.kind), Copy.place_upcoming(upcoming)]
             .compactMap { $0 }.joined(separator: " · ")
     }
 
@@ -1049,7 +1049,7 @@ struct PlaceRow: View {
             ? [place.city, place.address].filter { !$0.isEmpty }.joined(separator: ", ")
             : place.address
         let upcoming = Int(place.upcoming)
-        return [address, "\(upcoming) \(ukrainianPlural(upcoming, "подія", "події", "подій"))"]
+        return [address, Copy.place_upcoming(upcoming)]
             .filter { !$0.isEmpty }.joined(separator: " · ")
     }
 
@@ -1382,7 +1382,7 @@ struct PoruchTabBar<Trailing: View>: View {
                         }
                     }
                     .buttonStyle(PressableStyle(pressedScale: 0.94))
-                    .accessibilityLabel(item.badge > 0 ? Copy.home_subtitle("\(item.label), непрочитаних чатів: \(item.badge)") : item.label)
+                    .accessibilityLabel(item.badge > 0 ? Copy.a11y_unread_chats("\(item.label)", "\(item.badge)") : item.label)
                     .accessibilityAddTraits(selection == item.id ? .isSelected : [])
                 }
             }

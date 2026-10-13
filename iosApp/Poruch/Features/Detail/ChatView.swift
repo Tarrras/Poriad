@@ -55,7 +55,7 @@ struct ChatView: View {
             Button(Copy.delete_account_confirm, role: .destructive) { if let message = deleting { model.app.deleteMessage(messageId: message.id) } }
         } message: { Text(Copy.chat_delete_body) }
         .confirmationDialog(
-            "Ви більше не побачите подій і повідомлень цієї людини, а вона — ваших. Скасувати можна у профілі.",
+            Copy.block_user_body_chat,
             isPresented: Binding(get: { blocking != nil }, set: { if !$0 { blocking = nil } }), titleVisibility: .visible
         ) {
             Button(Copy.block_confirm, role: .destructive) { if let message = blocking { model.app.blockUser(userId: message.authorId) } }
@@ -99,7 +99,7 @@ struct ChatView: View {
         guard let room = event?.gathering else { return Copy.contact_label }
         // Організатор і підтверджені: саме вони бачать цей екран.
         let people = Int(room.attendeeCount) + 1
-        return "\(people) \(plural(people, "учасник", "учасники", "учасників")) · організатор і підтверджені"
+        return Copy.chat_members(people) + " · " + Copy.chat_members_hint
     }
 
     // ---- Стрічка
@@ -154,7 +154,7 @@ struct ChatView: View {
     private var rules: some View {
         HStack(alignment: .top, spacing: Space.sm) {
             PoruchIcon(glyph: PoruchIcons.hand, size: 16).foregroundStyle(Palette.inkTertiary).padding(.top, 1)
-            Text("Повідомлення пишуть учасники. «Поряд» їх не перевіряє. На образи чи спам можна поскаржитись або заблокувати автора, затиснувши повідомлення.")
+            Text(Copy.chat_disclaimer)
                 .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
         }
         .padding(.vertical, Space.md)
@@ -219,7 +219,7 @@ struct ChatView: View {
         }
         .frame(maxWidth: .infinity, alignment: mine ? .trailing : .leading)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(mine ? "Ви" : name), \(clock(message.createdAt)): \(message.body)")
+        .accessibilityLabel("\(mine ? Copy.you : name), \(clock(message.createdAt)): \(message.body)")
         // Контекстне меню VoiceOver не відкриває: ті самі дії — через ротор.
         .accessibilityActions {
             Button(Copy.chat_copy) { UIPasteboard.general.string = message.body }

@@ -541,7 +541,7 @@ struct EventMap: UIViewRepresentable {
         wanted = true
         switch manager.authorizationStatus {
         case .notDetermined: manager.requestWhenInUseAuthorization()
-        case .denied, .restricted: message = "Геолокація недоступна. Ви можете знайти місто вручну."
+        case .denied, .restricted: message = Copy.location_denied_hint
         default: locate()
         }
     }
@@ -559,7 +559,7 @@ struct EventMap: UIViewRepresentable {
     }
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         // Останній відомий уже спрацював: мовчимо.
-        if announced == nil { message = "Не вдалося визначити місце. Скористайтеся пошуком міста." }
+        if announced == nil { message = Copy.location_failed_hint }
     }
 
     private func resolve(_ location: CLLocation) {

@@ -56,7 +56,7 @@ extension EventDetailView {
     func badges(_ event: Event, _ view: DetailScreenState) -> some View {
         HStack(spacing: Space.sm) {
             StatusBadge(text: categoryName(event.category), tone: .brand, onPhoto: true)
-            if view.cancelled { StatusBadge(text: "Скасовано", tone: .danger, onPhoto: true) }
+            if view.cancelled { StatusBadge(text: Copy.cancelled_short, tone: .danger, onPhoto: true) }
             // Афіша завжди підписана джерелом: атрибуція обов'язкова.
             else if let listing = view.listing {
                 StatusBadge(text: listing.isWithdrawn ? Copy.listing_withdrawn : Copy.listing_badge("\(listing.sourceName)"), tone: .neutral, onPhoto: true)
@@ -105,7 +105,7 @@ extension EventDetailView {
     func sessionChip(_ session: EventSession, selected: Bool) -> some View {
         let label = sessionLabel(session)
         let started = parseEventDate(session.startsAt).map { $0 <= Date() } ?? false
-        let status = session.cancelled ? "Скасовано" : started ? Copy.session_started : nil
+        let status = session.cancelled ? Copy.cancelled_short : started ? Copy.session_started : nil
         return Button {
             if !selected { screen.pickSession(session.id) }
         } label: {
@@ -137,7 +137,7 @@ extension EventDetailView {
             FlowLayout(spacing: Space.sm) {
                 ForEach(event.artists, id: \.id) { artist in
                     NavigationLink(value: ArtistRoute(id: artist.id, name: artist.name, kind: artist.kind)) {
-                        Text(artist.role == .host ? "Ведучий \(artist.name)" : artist.name)
+                        Text(artist.role == .host ? Copy.artist_host("\(artist.name)") : artist.name)
                             .font(PoruchFont.label).foregroundStyle(Palette.ink)
                             .padding(.horizontal, Space.lg).frame(minHeight: 44)
                             .background(Palette.surface, in: Capsule())
@@ -192,14 +192,14 @@ extension EventDetailView {
                 if !showAllPeople && view.attendees.count > rosterCollapsed {
                     Divider().overlay(Palette.hairline).padding(.leading, Space.lg)
                     Button { showAllPeople = true } label: {
-                        Text("Показати всіх · \(view.attendees.count)").font(PoruchFont.button).foregroundStyle(Palette.ink)
+                        Text("\(Copy.attendees_show_all) · \(view.attendees.count)").font(PoruchFont.button).foregroundStyle(Palette.ink)
                             .frame(maxWidth: .infinity, alignment: .leading).padding(Space.lg).contentShape(Rectangle())
                     }.buttonStyle(.plain)
                 }
             }
             // Гість і сторонній бачать лише число: імена — межа RLS.
             if view.attendees.isEmpty && room.attendeeCount > 0 {
-                Text("Ідуть \(room.attendeeCount) з \(room.capacity)").font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
+                Text(Copy.going_of("\(room.attendeeCount)", "\(room.capacity)")).font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
             }
         }
     }
@@ -341,7 +341,7 @@ extension EventDetailView {
                         }
                         .buttonStyle(PressableStyle())
                         .accessibilityElement(children: .combine)
-                        .accessibilityHint("Маршрут до укриття")
+                        .accessibilityHint(Copy.a11y_route_shelter)
                     }
                 }
                 .cardSurface()
@@ -366,7 +366,7 @@ extension EventDetailView {
     func durationWords(_ minutes: Int) -> String {
         let hours = minutes / 60, rest = minutes % 60
         if hours == 0 { return Copy.duration_minutes("\(rest)") }
-        return rest == 0 ? Copy.duration_hours("\(hours)") : Copy.duration_minutes("\(hours) год \(rest)")
+        return rest == 0 ? Copy.duration_hours("\(hours)") : Copy.duration_hours("\(hours)") + " " + Copy.duration_minutes("\(rest)")
     }
 
     /// Інші події на цій точці. Заголовок — місце (назва закладу, коли є), тому рядку досить дати й назви.
@@ -387,7 +387,7 @@ extension EventDetailView {
             }
             .buttonStyle(.plain)
             .accessibilityValue(showOthersHere ? Copy.expanded : Copy.collapsed)
-            .accessibilityHint("Подій: \(othersHere.count)")
+            .accessibilityHint(Copy.a11y_events_count("\(othersHere.count)"))
             if showOthersHere { othersHereList(othersHere) }
         }
     }

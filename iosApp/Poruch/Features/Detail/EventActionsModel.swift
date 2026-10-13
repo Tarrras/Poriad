@@ -87,12 +87,12 @@ struct PhotoProblem: Error {
 /// Декодування й копіювання в Kotlin — поза головним потоком: це сотні мілісекунд.
 func pickedJPEG(_ item: PhotosPickerItem, maxPixel: CGFloat) async -> Result<KotlinByteArray, PhotoProblem> {
     do {
-        guard let data = try await item.loadTransferable(type: Data.self) else { return .failure(PhotoProblem(message: "Не вдалося прочитати фото")) }
+        guard let data = try await item.loadTransferable(type: Data.self) else { return .failure(PhotoProblem(message: Copy.photo_read_failed)) }
         let jpeg = await Task.detached(priority: .userInitiated) {
             ThumbnailCache.downsample(data, to: maxPixel)?.jpegData(compressionQuality: jpegQuality)
         }.value
-        guard let jpeg else { return .failure(PhotoProblem(message: "Не вдалося прочитати фото")) }
-        guard jpeg.count <= Int(ImageRules.shared.MAX_BYTES) else { return .failure(PhotoProblem(message: "Оберіть фото до 5 МБ")) }
+        guard let jpeg else { return .failure(PhotoProblem(message: Copy.photo_read_failed)) }
+        guard jpeg.count <= Int(ImageRules.shared.MAX_BYTES) else { return .failure(PhotoProblem(message: Copy.photo_too_large)) }
         // Мосту Data → ByteArray у shared нема: копіюємо побайтово, але у фоні.
         let bytes = await Task.detached(priority: .userInitiated) {
             let bytes = KotlinByteArray(size: Int32(jpeg.count))
@@ -101,7 +101,7 @@ func pickedJPEG(_ item: PhotosPickerItem, maxPixel: CGFloat) async -> Result<Kot
         }.value
         return .success(bytes)
     } catch {
-        return .failure(PhotoProblem(message: "Не вдалося завантажити фото"))
+        return .failure(PhotoProblem(message: Copy.photo_upload_failed))
     }
 }
 

@@ -42,10 +42,10 @@ extension DetailAction {
         case .requested: Copy.request_pending
         case .leave: Copy.going
         case .joinWaitlist: Copy.join_waitlist
-        case .leaveWaitlist: "Ви в черзі"
+        case .leaveWaitlist: Copy.leave_waitlist
         case .organizer: Copy.you_organize
         case .tickets: Copy.listing_tickets
-        default: "Скасовано"
+        default: Copy.cancelled_short
         }
     }
 }

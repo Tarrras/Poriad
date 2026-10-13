@@ -88,7 +88,7 @@ struct HomeView: View, Equatable {
                     } else if searchActive(view) {
                         EmptyState(
                             glyph: PoruchIcons.search, title: Copy.search_hint_title,
-                            message: "Шукаємо \(view.searchScope)"
+                            message: Copy.searching_scope("\(view.searchScope)")
                         ).padding(.horizontal, Space.page).padding(.top, Space.section)
                     } else {
                         // Головна одиниця застосунку — зустріч від людини: заклик створити її стоїть першим, як колись «Організувати».
@@ -126,19 +126,19 @@ struct HomeView: View, Equatable {
                                 .font(PoruchFont.subhead).foregroundStyle(Palette.ink.opacity(0.7)).multilineTextAlignment(.leading)
                         }
                         .buttonStyle(.plain)
-                        .accessibilityLabel("Місто \(view.cityName)")
-                        .accessibilityHint("Змінити місто")
+                        .accessibilityLabel(Copy.a11y_city("\(view.cityName)"))
+                        .accessibilityHint(Copy.a11y_change_city)
                     }
                     Spacer(minLength: Space.sm)
                     HStack(spacing: Space.sm) {
-                        IconPill(glyph: PoruchIcons.search, label: "Пошук \(view.searchScope)", action: startSearch)
+                        IconPill(glyph: PoruchIcons.search, label: Copy.search_scope("\(view.searchScope)"), action: startSearch)
                         IconPill(glyph: PoruchIcons.person, label: Copy.profile, action: openProfile)
                     }
                 }
                 .padding(.horizontal, Space.page)
             } else {
                 HStack(spacing: Space.md) {
-                    SearchBar(placeholder: "Пошук \(view.searchScope)", initial: view.searchText) {
+                    SearchBar(placeholder: Copy.search_scope("\(view.searchScope)"), initial: view.searchText) {
                         model.app.setHomeSearchText(query: $0)
                     }
                     .id(searchEpoch)
@@ -178,7 +178,7 @@ struct HomeView: View, Equatable {
             }.railContentPadding(spread: 0)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: Space.sm) {
-                    Chip(label: "Усі категорії", selected: view.searchCategory == nil) {
+                    Chip(label: Copy.all_categories, selected: view.searchCategory == nil) {
                         model.app.setHomeSearchCategory(category: nil)
                     }
                     ForEach(categories, id: \.0) { entry in
@@ -282,8 +282,8 @@ struct HomeView: View, Equatable {
         let count = events.count
         let more = count - 1
         return YourRow(
-            overline: nil, title: "Підписки: \(count) \(ukrainianPlural(count, "подія", "події", "подій"))",
-            subtitle: (events.first?.displayTitle ?? "") + (more > 0 ? " та ще \(more)" : ""), open: openFollows
+            overline: nil, title: Copy.home_follows_events(count),
+            subtitle: (events.first?.displayTitle ?? "") + (more > 0 ? Copy.and_more("\(more)") : ""), open: openFollows
         ) {
             PoruchIcon(glyph: PoruchIcons.bell, size: 20).foregroundStyle(Palette.ink)
                 .frame(width: yourTile, height: yourTile)
@@ -428,12 +428,12 @@ struct HomeView: View, Equatable {
             if view.searchEverywhere {
                 EmptyState(
                     glyph: PoruchIcons.search, title: Copy.nothing_found,
-                    message: "Спробуйте інше слово або зніміть фільтри дати й категорії."
+                    message: Copy.nothing_found_hint
                 )
             } else {
                 EmptyState(
                     glyph: PoruchIcons.search, title: Copy.nothing_found,
-                    message: "У місті \(view.cityName) такого поки немає. Пошукайте в усіх містах або спробуйте інше слово.",
+                    message: Copy.nothing_found_city("\(view.cityName)"),
                     actionLabel: Copy.search_everywhere, action: { model.app.setHomeSearchEverywhere(everywhere: true) }
                 )
             }
@@ -623,7 +623,7 @@ private struct PlanRow: View {
 
     /// Моя роль у події; після кінця вона нічого не каже.
     private var role: (String, BadgeTone)? {
-        if event.isCancelled { return ("Скасовано", .danger) }
+        if event.isCancelled { return (Copy.cancelled_short, .danger) }
         if event.hasEnded(now: nowInstant()) { return nil }
         return row.organizing ? (Copy.home_role_organizer, .brand) : (Copy.going, .success)
     }
@@ -638,7 +638,7 @@ private struct PlanRow: View {
         guard let chat = row.chat else { return event.placeLabel }
         let author = chat.lastAuthorName.isEmpty ? Copy.chat_member : chat.lastAuthorName
         let body = chat.lastBody.replacingOccurrences(of: "\n", with: " ")
-        return body.isEmpty ? "Нових повідомлень: \(chat.unread)" : "\(author): «\(body)»"
+        return body.isEmpty ? Copy.new_messages_count("\(chat.unread)") : "\(author): «\(body)»"
     }
 
     /// Лічильник — кнопка в чат, поки праворуч не зайняли запити: на них теж чекає людина, і вони важливіші.
@@ -655,7 +655,7 @@ private struct PlanRow: View {
         } trailing: {
             if row.requests > 0 {
                 StatusBadge(
-                    text: "\(row.requests) \(ukrainianPlural(Int(row.requests), "запит", "запити", "запитів"))",
+                    text: Copy.requests_count(Int(row.requests)),
                     tone: .accent, glyph: PoruchIcons.personAdd
                 )
             } else if let role {
@@ -719,7 +719,7 @@ private struct PosterCard: View {
 
     /// Афіша завжди підписана джерелом (docs/event-ingestion.md §8); скасоване — теж словами.
     private var note: (String, Color)? {
-        if event.isCancelled { return ("Скасовано", Palette.danger) }
+        if event.isCancelled { return (Copy.cancelled_short, Palette.danger) }
         guard let listing = event.listing else { return nil }
         return (listing.isWithdrawn ? Copy.listing_withdrawn : Copy.listing_badge("\(listing.sourceName)"), Palette.inkTertiary)
     }

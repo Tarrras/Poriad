@@ -64,8 +64,8 @@ struct EventDetailView: View, Equatable {
                 VStack(spacing: Space.lg) {
                     EmptyState(
                         glyph: PoruchIcons.calendarAlert, title: Copy.err_event_unavailable,
-                        message: "Її могли скасувати, приховати або видалити.",
-                        actionLabel: "Спробувати ще раз"
+                        message: Copy.event_unavailable_hint,
+                        actionLabel: Copy.try_again
                     ) { model.app.openEvent(id: eventID) }
                     SecondaryButton(title: Copy.back) { dismiss() }
                 }
@@ -96,7 +96,7 @@ struct EventDetailView: View, Equatable {
         .onChange(of: view.createdCompanion) { _, created in
             guard let created, let event = view.event else { return }
             model.app.clearCreatedCompanion()
-            sharingCompanion = ShareText(text: "Шукаю компанію на \(event.title), \(eventDate(event))\n\(EventLinks.shared.url(eventId: created))")
+            sharingCompanion = ShareText(text: Copy.companion_share_text("\(event.title)", "\(eventDate(event))", EventLinks.shared.url(eventId: created)))
         }
         .sheet(item: $sharingCompanion) { share in ActivitySheet(items: [share.text]).presentationDetents([.medium, .large]) }
         .sheet(isPresented: $seekingCompany) { if let event = view.event { CompanionSheet(event: event) } }
@@ -236,16 +236,16 @@ struct DetailDialogs: ViewModifier {
     func body(content: Content) -> some View {
         content
         .confirmationDialog(
-            "Ви переходите на \(view.contactURL.map { ContactRules.shared.host(url: $0.absoluteString) } ?? "сторонній сайт"). Це посилання додав організатор події. «Поряд» не перевіряє його і не відповідає за вміст сторінки чи чату за ним. Не переходьте, якщо не довіряєте організатору.",
+            Copy.contact_confirm_body(view.contactURL.map { ContactRules.shared.host(url: $0.absoluteString) } ?? Copy.contact_unknown_site),
             isPresented: $openingContact, titleVisibility: .visible
         ) {
             Button(Copy.contact_confirm_open) { if let url = view.contactURL { UIApplication.shared.open(url) } }
         }
-        .confirmationDialog("Скасувати цю подію? Учасники бачитимуть її скасованою.", isPresented: $cancelling, titleVisibility: .visible) {
+        .confirmationDialog(Copy.cancel_event_confirm, isPresented: $cancelling, titleVisibility: .visible) {
             Button(Copy.cancel_event, role: .destructive) { actions.cancel(event) }
         }
         .confirmationDialog(
-            "Ви більше не побачите подій цієї людини, а вона — ваших. Скасувати можна у профілі.",
+            Copy.block_user_body,
             isPresented: $blocking, titleVisibility: .visible
         ) {
             Button(Copy.block_confirm, role: .destructive) {

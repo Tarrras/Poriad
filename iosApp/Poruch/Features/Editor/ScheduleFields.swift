@@ -13,14 +13,14 @@ struct ScheduleFields: View {
     private enum Edge: Identifiable {
         case start, end
         var id: Int { self == .start ? 0 : 1 }
-        var title: String { self == .start ? "Коли починається" : "Коли закінчується" }
+        var title: String { self == .start ? Copy.when_starts : Copy.when_ends }
     }
 
     var body: some View {
         VStack(spacing: 0) {
-            DateTimeRow(label: "ПОЧАТОК", value: starts, zone: zone) { editing = .start }
+            DateTimeRow(label: Copy.starts.uppercased(), value: starts, zone: zone) { editing = .start }
             Divider().overlay(Palette.hairline).padding(.horizontal, Space.lg)
-            DateTimeRow(label: "ЗАКІНЧЕННЯ", value: ends, zone: zone) { editing = .end }
+            DateTimeRow(label: Copy.ends.uppercased(), value: ends, zone: zone) { editing = .end }
             Divider().overlay(Palette.hairline).padding(.horizontal, Space.lg)
             durationRow
         }
@@ -43,7 +43,7 @@ struct ScheduleFields: View {
     private var durationRow: some View {
         HStack(spacing: Space.sm) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("ТРИВАЛІСТЬ").font(PoruchFont.overline).kerning(1.2).foregroundStyle(Palette.inkTertiary)
+                Text(Copy.duration.uppercased()).font(PoruchFont.overline).kerning(1.2).foregroundStyle(Palette.inkTertiary)
                 Text(durationLabel).font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
             }
             Spacer(minLength: Space.sm)
@@ -66,7 +66,7 @@ struct ScheduleFields: View {
         let hours = minutes / 60
         let rest = minutes % 60
         if hours == 0 { return Copy.duration_minutes("\(rest)") }
-        return rest == 0 ? Copy.duration_hours("\(hours)") : Copy.duration_minutes("\(hours) год \(rest)")
+        return rest == 0 ? Copy.duration_hours("\(hours)") : Copy.duration_hours("\(hours)") + " " + Copy.duration_minutes("\(rest)")
     }
 
     /// Кінець їде за початком, зберігаючи тривалість.
@@ -134,7 +134,7 @@ private struct DateTimeSheet: View {
                         .labelsHidden()
                     Divider().overlay(Palette.hairline)
                     HStack {
-                        Text("Час").font(PoruchFont.bodyText).foregroundStyle(Palette.inkSecondary)
+                        Text(Copy.time).font(PoruchFont.bodyText).foregroundStyle(Palette.inkSecondary)
                         Spacer(minLength: 0)
                         DatePicker("", selection: $value, in: minimum..., displayedComponents: .hourAndMinute)
                             .labelsHidden()
@@ -177,9 +177,9 @@ struct TimeZoneNote: View {
             PoruchIcon(glyph: PoruchIcons.clock, size: 20)
                 .foregroundStyle(Palette.inkSecondary)
             VStack(alignment: .leading, spacing: 2) {
-                Text("ЧАСОВИЙ ПОЯС").font(PoruchFont.overline).kerning(1.2).foregroundStyle(Palette.inkTertiary)
+                Text(Copy.timezone.uppercased()).font(PoruchFont.overline).kerning(1.2).foregroundStyle(Palette.inkTertiary)
                 Text(readableZone).font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
-                Text(fromPlace ? Copy.timezone_from_place : "За вашим пристроєм")
+                Text(fromPlace ? Copy.timezone_from_place : Copy.timezone_device)
                     .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
             }
             Spacer(minLength: 0)

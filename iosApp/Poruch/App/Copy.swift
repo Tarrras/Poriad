@@ -624,6 +624,70 @@ enum Copy {
     static let artist_empty_hint = "Натисніть «Стежити», і ми скажемо, коли зʼявиться нова подія."
     static let artist_events_title = "Найближчі події"
     static let follow_notification_channel = "Нові події тих, за ким ви стежите"
+    static let cancelled_short = "Скасовано"
+    static let register = "Зареєструватися"
+    static let duration = "Тривалість"
+    static let time = "Час"
+    static let when_starts = "Коли починається"
+    static let when_ends = "Коли закінчується"
+    static let timezone_device = "За вашим пристроєм"
+    static let save_changes = "Зберегти зміни"
+    static let try_again = "Спробувати ще раз"
+    static let all_categories = "Усі категорії"
+    static let ok = "Добре"
+    static let city_example = "Київ"
+    static let age_max_toggle = "Верхня межа віку"
+    static func description_hint(_ a0: String, _ a1: String, _ a2: String) -> String { "Щонайменше \(a0) символів · \(a1)/\(a2)" }
+    static let event_unavailable_hint = "Її могли скасувати, приховати або видалити."
+    static let cancel_event_confirm = "Скасувати цю подію? Учасники бачитимуть її скасованою."
+    static let contact_unknown_site = "сторонній сайт"
+    static func artist_host(_ a0: String) -> String { "Ведучий \(a0)" }
+    static func going_of(_ a0: String, _ a1: String) -> String { "Ідуть \(a0) з \(a1)" }
+    static func my_score_change(_ a0: String) -> String { "Ваша оцінка ★ \(a0) · змінити" }
+    static func seats_left_short(_ a0: String) -> String { "Лишилось \(a0)" }
+    static let chat_members_hint = "організатор і підтверджені"
+    static let block_user_body_chat = "Ви більше не побачите подій і повідомлень цієї людини, а вона — ваших. Скасувати можна у профілі."
+    static func new_messages_count(_ a0: String) -> String { "Нових повідомлень: \(a0)" }
+    static func nothing_found_city(_ a0: String) -> String { "У місті \(a0) такого поки немає. Пошукайте в усіх містах або спробуйте інше слово." }
+    static func and_more(_ a0: String) -> String { "та ще \(a0)" }
+    static let scope_everywhere = "усюди"
+    static func scope_in_city(_ a0: String) -> String { "у місті \(a0)" }
+    static func searching_scope(_ a0: String) -> String { "Шукаємо \(a0)" }
+    static func search_scope(_ a0: String) -> String { "Пошук \(a0)" }
+    static func area_city(_ a0: String) -> String { "Знайдіть, куди піти у місті \(a0)" }
+    static let cities_with_events = "Міста з подіями"
+    static let city_search_prompt = "Місто у світі"
+    static let find_city = "Знайти місто"
+    static let location_title = "Геолокація"
+    static let location_denied_hint = "Геолокація недоступна. Ви можете знайти місто вручну."
+    static let location_failed_hint = "Не вдалося визначити місце. Скористайтеся пошуком міста."
+    static let reminders_note = "Нагадування за годину до початку і нові запити на участь у ваших подіях."
+    static let delete_account_password_hint = "Для підтвердження введіть пароль"
+    static let profile_events_hint = "Ваші створені, збережені та заплановані події — у вкладці «Мої події»."
+    static let auth_guest_note = "Події можна переглядати без входу. Для участі потрібен профіль."
+    static func provider_sign_in_failed(_ a0: String) -> String { "Не вдалося увійти через \(a0). Спробуйте ще раз або увійдіть поштою." }
+    static let photo_read_failed = "Не вдалося прочитати фото"
+    static let photo_too_large = "Оберіть фото до 5 МБ"
+    static let photo_upload_failed = "Не вдалося завантажити фото"
+    static let you = "Ви"
+    static let rate_app_subtitle_ios = "Відгук в App Store допомагає нам рости"
+    static let notifications_denied_ios = "Дозвольте сповіщення в налаштуваннях iOS."
+    static let apple_sign_in_failed = "Apple не підтвердив вхід. Спробуйте ще раз."
+    static let delete_account_apple = "Підтвердити через Apple і видалити"
+    static let a11y_search_events = "Пошук подій"
+    static func a11y_attendees_count(_ a0: String) -> String { "Учасників: \(a0)" }
+    static let a11y_collapse_dates = "Згорнути вибір дати"
+    static let a11y_change_date = "Змінити дату"
+    static let a11y_close_notice = "Закрити сповіщення"
+    static func a11y_unfollow_name(_ a0: String) -> String { "Не стежити: \(a0)" }
+    static let a11y_route_shelter = "Маршрут до укриття"
+    static func a11y_events_count(_ a0: String) -> String { "Подій: \(a0)" }
+    static let a11y_change_city = "Змінити місто"
+    static func a11y_show_list(_ a0: String) -> String { "\(a0). Показати списком" }
+    static func a11y_city(_ a0: String) -> String { "Місто \(a0)" }
+    static func a11y_unread_chats(_ a0: String, _ a1: String) -> String { "\(a0), непрочитаних чатів: \(a1)" }
+    static let auth_consent_prefix = "Продовжуючи, ви погоджуєтесь з"
+    static let auth_consent_and = "та"
 
     // ---- Множини: `one` / `few` / `many` за українським правилом, число підставляється замість %d.
     static func series_more_dates(_ n: Int) -> String { ukrainianPlural(n, "ще \(n) дата", "ще \(n) дати", "ще \(n) дат") }
@@ -643,4 +707,5 @@ enum Copy {
     static func organizing_ahead(_ n: Int) -> String { ukrainianPlural(n, "%1$d подія попереду", "%1$d події попереду", "%1$d подій попереду") }
     static func join_requests(_ n: Int) -> String { ukrainianPlural(n, "%1$d запит на участь", "%1$d запити на участь", "%1$d запитів на участь") }
     static func saved_ahead(_ n: Int) -> String { ukrainianPlural(n, "%1$d збережена", "%1$d збережені", "%1$d збережених") }
+    static func chat_new_messages(_ n: Int) -> String { ukrainianPlural(n, "%1$d нове повідомлення", "%1$d нових повідомлення", "%1$d нових повідомлень") }
 }

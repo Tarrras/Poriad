@@ -86,7 +86,7 @@ struct EventEditor: View {
         HStack(spacing: Space.md) {
             if editor.step != .about { SecondaryButton(title: Copy.back) { editor.retreat() } }
             PrimaryButton(
-                title: !editor.step.isLast ? Copy.next : editor.editing ? "Зберегти зміни" : Copy.publish,
+                title: !editor.step.isLast ? Copy.next : editor.editing ? Copy.save_changes : Copy.publish,
                 loading: model.state?.mutating == true,
                 // Не вимкнена, поки крок не заповнено: натискання показує, що саме не так.
                 enabled: model.state?.mutating != true
@@ -122,13 +122,13 @@ private struct AboutStep: View {
             LabelledField(
                 label: Copy.description, text: $form.description,
                 placeholder: Copy.description_placeholder,
-                hint: "Щонайменше \(descriptionRange.first) символів · \(form.descriptionLength)/\(descriptionRange.last)",
+                hint: Copy.description_hint("\(descriptionRange.first)", "\(form.descriptionLength)", "\(descriptionRange.last)"),
                 multiline: true
             )
             FieldIssue(text: issue(.description_))
         }.id(DraftField.description_)
         VStack(alignment: .leading, spacing: Space.sm) {
-            Text("КАТЕГОРІЯ").font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
+            Text(Copy.category_single.uppercased()).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
             // Сітка замість стрічки: всі одинадцять видно одразу, без прокрутки вбік.
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: Space.sm), count: 3), spacing: Space.sm) {
                 ForEach(categories, id: \.0) { category in
@@ -155,10 +155,10 @@ private struct PlaceStep: View {
     }
     private var form: Binding<EditorForm> { $editor.form }
     var body: some View {
-        LabelledField(label: Copy.city, text: form.city, placeholder: "Київ")
+        LabelledField(label: Copy.city, text: form.city, placeholder: Copy.city_example)
         VStack(alignment: .leading, spacing: Space.sm) {
             LabelledField(
-                label: "Адреса", text: form.address,
+                label: Copy.address, text: form.address,
                 placeholder: Copy.address_placeholder,
                 hint: Copy.address_hint
             )
@@ -237,7 +237,7 @@ private struct ScheduleStep: View {
     var body: some View {
         ScheduleFields(starts: $form.starts, ends: $form.ends, zone: zone).id(DraftField.startsAt)
         FieldIssue(text: issue(.startsAt) ?? issue(.endsAt)).id(DraftField.endsAt)
-        Stepper("Місткість: \(form.capacity)", value: $form.capacity, in: capacityRange)
+        Stepper("\(Copy.capacity_label): \(form.capacity)", value: $form.capacity, in: capacityRange)
             .font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
             .padding(Space.lg).cardSurface()
             .id(DraftField.capacity)
@@ -248,13 +248,13 @@ private struct ScheduleStep: View {
         VStack(alignment: .leading, spacing: Space.md) {
             SectionHeader(title: Copy.who_can_come)
             VStack(spacing: Space.lg) {
-                Stepper("Вік від: \(form.minAge)", value: $form.minAge, in: ageRange)
-                Toggle("Верхня межа віку", isOn: Binding(
+                Stepper("\(Copy.age_from): \(form.minAge)", value: $form.minAge, in: ageRange)
+                Toggle(Copy.age_max_toggle, isOn: Binding(
                     get: { form.maxAge != nil },
                     set: { form.maxAge = $0 ? max(form.minAge, form.minAge + 7) : nil }
                 )).tint(Palette.brand)
                 if let maximum = form.maxAge {
-                    Stepper("Вік до: \(maximum)", value: Binding(
+                    Stepper("\(Copy.age_to): \(maximum)", value: Binding(
                         get: { maximum }, set: { form.maxAge = $0 }
                     ), in: form.minAge...Int(SafetyRules.shared.MAX_AGE_LIMIT))
                 }
@@ -289,7 +289,7 @@ private struct ScheduleStep: View {
                 .foregroundStyle(categoryInk(form.category))
             Text(form.title.trimmingCharacters(in: .whitespaces).isEmpty ? Copy.title : TitleRules.shared.display(title: form.title.trimmingCharacters(in: .whitespaces))).font(PoruchFont.serifTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
             MetaLine(glyph: PoruchIcons.pin, text: "\(form.city) · \(form.address)")
-            MetaLine(glyph: PoruchIcons.social, text: "\(form.capacity) місць")
+            MetaLine(glyph: PoruchIcons.social, text: Copy.seats_short(form.capacity))
         }.padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()
         Text(Copy.photo_after_publish)
             .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)

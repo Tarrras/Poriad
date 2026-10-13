@@ -58,7 +58,7 @@ struct MyEventsView: View, Equatable {
         VStack(alignment: .leading, spacing: Space.lg) {
             VStack(alignment: .leading, spacing: Space.xs) {
                 Text(Copy.my_events).font(PoruchFont.serifDisplay).kerning(-0.5).foregroundStyle(Palette.ink)
-                Text(signedIn ? subtitle(board) : "Увійдіть, щоб бачити свої плани")
+                Text(signedIn ? subtitle(board) : Copy.guest_empty)
                     .font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -93,23 +93,23 @@ struct MyEventsView: View, Equatable {
 
     /// Лічильники замість опису. Нуль — частину не показуємо; усе нуль — загальний підпис.
     private func subtitle(_ board: MyEventsBoard?) -> String {
-        guard let board else { return "Плани, власні зустрічі й збережене" }
+        guard let board else { return Copy.my_events_subtitle }
         var parts: [String] = []
         switch tab {
         case .organizing:
             let ahead = Int(board.organizingAhead), requests = Int(board.requests)
-            if ahead > 0 { parts.append("\(ahead) \(ukrainianPlural(ahead, "подія", "події", "подій")) попереду") }
-            if requests > 0 { parts.append("\(requests) \(ukrainianPlural(requests, "запит", "запити", "запитів")) на участь") }
+            if ahead > 0 { parts.append(Copy.organizing_ahead(ahead)) }
+            if requests > 0 { parts.append(Copy.join_requests(requests)) }
         case .saved:
             let ahead = Int(board.savedAhead), week = Int(board.savedThisWeek)
-            if ahead > 0 { parts.append("\(ahead) \(ukrainianPlural(ahead, "збережена", "збережені", "збережених"))") }
+            if ahead > 0 { parts.append(Copy.saved_ahead(ahead)) }
             if week > 0 { parts.append(Copy.saved_this_week("\(week)")) }
         default:
             let ahead = Int(board.goingAhead), awaiting = Int(board.awaiting)
-            if ahead > 0 { parts.append("\(ahead) \(ukrainianPlural(ahead, "план", "плани", "планів")) попереду") }
-            if awaiting > 0 { parts.append("\(awaiting) \(ukrainianPlural(awaiting, "чекає", "чекають", "чекають")) відповіді") }
+            if ahead > 0 { parts.append(Copy.going_ahead(ahead)) }
+            if awaiting > 0 { parts.append(Copy.awaiting_reply(awaiting)) }
         }
-        return parts.isEmpty ? "Плани, власні зустрічі й збережене" : parts.joined(separator: " · ")
+        return parts.isEmpty ? Copy.my_events_subtitle : parts.joined(separator: " · ")
     }
 
     // ---- Вміст
@@ -118,7 +118,7 @@ struct MyEventsView: View, Equatable {
         if !signedIn {
             EmptyState(
                 glyph: PoruchIcons.lock, title: Copy.guest_empty,
-                message: "Зберігайте цікаве, приєднуйтесь і створюйте власні зустрічі."
+                message: Copy.guest_description
             )
             Spacer()
         } else if let board, !board.isEmpty(tab: tab) {
@@ -223,7 +223,7 @@ struct MyEventsView: View, Equatable {
         // Запит до не найближчої події інакше видно лише в бейджі чипа.
         let asks = tab == .organizing ? view.requestsFor(id: event.id).count : 0
         let status: (String, BadgeTone, PoruchGlyph?)? = asks > 0
-            ? ("\(asks) \(ukrainianPlural(asks, "запит", "запити", "запитів")) на участь", .accent, PoruchIcons.personAdd) : nil
+            ? (Copy.join_requests(asks), .accent, PoruchIcons.personAdd) : nil
         return HStack(spacing: Space.sm) {
             Button { open(event.id) } label: {
                 EventRow(event: event, unread: unread, waitlisted: view.isWaitlisted(id: event.id),
@@ -333,7 +333,7 @@ private struct OrganizerPanel: View {
                         Text(countdownOverline(event)).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.accent)
                         Text(event.displayTitle).font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
                             .multilineTextAlignment(.leading).lineLimit(2)
-                        if event.isCancelled { StatusBadge(text: "Скасовано", tone: .danger) } else { EventDescriptor(event: event) }
+                        if event.isCancelled { StatusBadge(text: Copy.cancelled_short, tone: .danger) } else { EventDescriptor(event: event) }
                     }
                     Spacer(minLength: 0)
                 }.contentShape(Rectangle())
@@ -356,7 +356,7 @@ private struct OrganizerPanel: View {
                 ShareLink(item: SystemActions.shareText(for: event)) {
                     PoruchIcon(glyph: PoruchIcons.share, size: 18).foregroundStyle(Palette.ink)
                         .frame(width: 48, height: 48).background(Palette.surfaceMuted, in: Circle())
-                }.accessibilityLabel("Поділитись")
+                }.accessibilityLabel(Copy.share)
                 .simultaneousGesture(TapGesture().onEnded { model.app.eventShared() })
             }
         }

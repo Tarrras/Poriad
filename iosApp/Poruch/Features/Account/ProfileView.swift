@@ -78,7 +78,7 @@ struct ProfileView: View {
                 .frame(width: 88, height: 88).background(Palette.brandContainer, in: Circle())
             Text(signedIn ? Copy.account_title : Copy.guest_title).font(PoruchFont.serifTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
             Text(signedIn
-                 ? "Ваші створені, збережені та заплановані події — у вкладці «Мої події»."
+                 ? Copy.profile_events_hint
                  : Copy.guest_description)
                 .font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary).multilineTextAlignment(.center)
         }
@@ -213,7 +213,7 @@ struct ProfileView: View {
                     sharingApp = ShareText(text: Copy.share_app_text("\(StoreLinks.shared.SHARE)"))
                 }
                 Divider().overlay(Palette.hairline).padding(.leading, Space.lg + 40 + Space.md)
-                LinkRow(glyph: PoruchIcons.star, title: Copy.rate_app, subtitle: "Відгук в App Store допомагає нам рости") {
+                LinkRow(glyph: PoruchIcons.star, title: Copy.rate_app, subtitle: Copy.rate_app_subtitle_ios) {
                     model.app.rateAppOpened()
                     open(StoreLinks.shared.APP_STORE_REVIEW)
                 }
@@ -287,22 +287,22 @@ struct DeleteAccountSheet: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Space.lg) {
                 Text(Copy.delete_account_title).font(PoruchFont.serifTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
-                Text("Профіль, участь у подіях, повідомлення й фото буде видалено. Ваші опубліковані події скасуються. Скасувати це буде неможливо.")
+                Text(Copy.delete_account_body)
                     .font(PoruchFont.bodyText).foregroundStyle(Palette.inkSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                 // Google чи Apple з тією ж поштою привʼязуються до наявного акаунта: людина має бачити, що видаляє саме його.
                 if let email = model.state?.library.profile?.email { who(email) }
                 if !passwordless {
-                    LabelledField(label: Copy.password_label, text: $password, hint: "Для підтвердження введіть пароль", secure: !revealed) {
+                    LabelledField(label: Copy.password_label, text: $password, hint: Copy.delete_account_password_hint, secure: !revealed) {
                         PasswordRevealToggle(revealed: $revealed)
                     }
                     .textContentType(.password)
                 }
                 if appleFailed {
-                    Text("Apple не підтвердив вхід. Спробуйте ще раз.").font(PoruchFont.caption).foregroundStyle(Palette.danger)
+                    Text(Copy.apple_sign_in_failed).font(PoruchFont.caption).foregroundStyle(Palette.danger)
                 }
                 PrimaryButton(
-                    title: viaApple ? "Підтвердити через Apple і видалити" : Copy.delete_account_confirm, glyph: viaApple ? nil : PoruchIcons.trash, symbol: viaApple ? "apple.logo" : nil,
+                    title: viaApple ? Copy.delete_account_apple : Copy.delete_account_confirm, glyph: viaApple ? nil : PoruchIcons.trash, symbol: viaApple ? "apple.logo" : nil,
                     tone: Palette.danger, loading: mutating, enabled: passwordless || AccountRules.shared.isPassword(value: password)
                 ) { confirm() }
                 SecondaryButton(title: Copy.delete_account_cancel, enabled: !mutating) { dismiss() }
@@ -323,7 +323,7 @@ struct DeleteAccountSheet: View {
             Text(Copy.delete_account_who).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
             Text(email).font(PoruchFont.cardName).foregroundStyle(Palette.ink)
             if methods.count > 1 {
-                Text("Входи в нього: \(methods.joined(separator: " · ")). Це один акаунт — зникне разом з усіма способами входу.")
+                Text(Copy.delete_account_methods(methods.joined(separator: " · ")))
                     .font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -374,7 +374,7 @@ struct ReminderPreference: View {
                 Text(Copy.reminders).font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
             }
             .tint(Palette.brand)
-            Text(denied ? "Дозвольте сповіщення в налаштуваннях iOS." : "Нагадування за годину до початку і нові запити на участь у ваших подіях.")
+            Text(denied ? Copy.notifications_denied_ios : Copy.reminders_note)
                 .font(PoruchFont.caption).foregroundStyle(denied ? Palette.danger : Palette.inkTertiary)
         }.padding(Space.lg)
     }
@@ -408,7 +408,7 @@ struct DigestPreference: View {
                 Text(Copy.digest).font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
             }
             .tint(Palette.brand)
-            Text(denied ? "Дозвольте сповіщення в налаштуваннях iOS." : Copy.digest_note)
+            Text(denied ? Copy.notifications_denied_ios : Copy.digest_note)
                 .font(PoruchFont.caption).foregroundStyle(denied ? Palette.danger : Palette.inkTertiary)
         }
         .padding(Space.lg)
@@ -433,7 +433,7 @@ struct AnalyticsPreference: View {
                 Text(Copy.analytics).font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
             }
             .tint(Palette.brand)
-            Text("Статистика використання й звіти про збої, без реклами.")
+            Text(Copy.analytics_note)
                 .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
         }.padding(Space.lg)
     }

@@ -82,7 +82,7 @@ struct CompanionSheet: View {
     private func leadWords(_ minutes: Int) -> String {
         let hours = minutes / 60, rest = minutes % 60
         if hours == 0 { return Copy.duration_minutes("\(rest)") }
-        return rest == 0 ? Copy.duration_hours("\(hours)") : Copy.duration_minutes("\(hours) год \(rest)")
+        return rest == 0 ? Copy.duration_hours("\(hours)") : Copy.duration_hours("\(hours)") + " " + Copy.duration_minutes("\(rest)")
     }
 
     /// Значення з кнопками «−» і «+». Підписи кнопок — для VoiceOver.
@@ -167,7 +167,7 @@ struct RateEventSection: View {
         VStack(alignment: .leading, spacing: Space.md) {
             SectionHeader(title: Copy.rate_title)
             if let mine {
-                SecondaryButton(title: "Ваша оцінка ★ \(mine.score) · змінити") { open = true }
+                SecondaryButton(title: Copy.my_score_change("\(mine.score)")) { open = true }
             } else {
                 PrimaryButton(title: Copy.rate_action) { open = true }
             }
@@ -246,14 +246,14 @@ struct RateSheet: View {
                         }.font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
                     }
                     VStack(alignment: .leading, spacing: Space.sm) {
-                        Text("ЩО СПОДОБАЛОСЬ").font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
+                        Text(Copy.rate_liked.uppercased()).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
                         FlexibleChips(
                             items: offered.map { ($0.key, ratingTagTitle($0), nil) },
                             isSelected: { tags.contains($0) },
                             action: { key in if tags.contains(key) { tags.remove(key) } else { tags.insert(key) } }
                         )
                     }
-                    LabelledField(label: Copy.rate_comment, text: $comment, placeholder: "Необовʼязково", multiline: true)
+                    LabelledField(label: Copy.rate_comment, text: $comment, placeholder: Copy.rate_optional, multiline: true)
                         .onChange(of: comment) { _, value in
                             let limit = Int(RatingRules.shared.COMMENT_MAX)
                             if value.count > limit { comment = String(value.prefix(limit)) }
@@ -331,7 +331,7 @@ struct RatingsSummary: View {
         VStack(alignment: .leading, spacing: Space.md) {
             SectionHeader(title: Copy.ratings_title)
             if let average = RatingRules.shared.average(ratings: ratings)?.doubleValue {
-                Text("★ \(String(format: "%.1f", average).replacingOccurrences(of: ".", with: ",")) з 5 · оцінок: \(ratings.count)")
+                Text(Copy.ratings_summary(String(format: "%.1f", average).replacingOccurrences(of: ".", with: ","), "\(ratings.count)"))
                     .font(PoruchFont.cardName).foregroundStyle(Palette.ink)
                 let tags = RatingRules.shared.tagCounts(ratings: ratings)
                 if !tags.isEmpty {

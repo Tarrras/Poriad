@@ -24,7 +24,7 @@ import Shared
 
 extension HomeScreenState {
     /// Де шукає поле: без цього неочевидно, що пошук іде лише в обраному місті.
-    var searchScope: String { searchEverywhere ? "усюди" : "у місті \(cityName)" }
+    var searchScope: String { searchEverywhere ? Copy.scope_everywhere : Copy.scope_in_city("\(cityName)") }
     /// Id усього знайденого, у порядку видачі: з нього довантажують картки наступного шматка.
     var resultIDs: [String] { resultIds }
     /// Перші `limit` знайдених, чиї картки вже приїхали, у порядку видачі.

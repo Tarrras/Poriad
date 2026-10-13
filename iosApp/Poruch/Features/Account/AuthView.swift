@@ -80,7 +80,7 @@ struct AuthView: View {
                  ? Copy.auth_subtitle_create_signin
                  : form.register
                  ? Copy.auth_subtitle_signup
-                 : "Події можна переглядати без входу. Для участі потрібен профіль.")
+                 : Copy.auth_guest_note)
                 .font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary).multilineTextAlignment(.center)
                 .padding(.horizontal, Space.lg)
         }
@@ -189,7 +189,7 @@ struct AuthView: View {
     }
 
     private func failed(_ provider: String) {
-        providerError = "Не вдалося увійти через \(provider). Спробуйте ще раз або увійдіть поштою."
+        providerError = Copy.provider_sign_in_failed("\(provider)")
     }
 
     /// Після входу через Google чи Apple: провайдер вік не каже, а «Поряд» — для повнолітніх. Та сама
@@ -197,7 +197,7 @@ struct AuthView: View {
     private var birthDateStep: some View {
         VStack(alignment: .leading, spacing: Space.lg) {
             VStack(alignment: .leading, spacing: Space.sm) {
-                Text("ДАТА НАРОДЖЕННЯ").font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
+                Text(Copy.birth_date.uppercased()).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
                 BirthDateField(date: $form.birthDate, range: form.earliestBirthDate...form.latestBirthDate)
                 Text(Copy.birth_date_hint)
                     .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
@@ -218,7 +218,7 @@ struct AuthView: View {
                     .textContentType(.name)
                 // Питаємо раз, при реєстрації, і нікому не показуємо: на це спираються вікові межі й модерація.
                 VStack(alignment: .leading, spacing: Space.sm) {
-                    Text("ДАТА НАРОДЖЕННЯ").font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
+                    Text(Copy.birth_date.uppercased()).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
                     BirthDateField(date: $form.birthDate, range: form.earliestBirthDate...form.latestBirthDate)
                     Text(Copy.birth_date_hint)
                         .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
@@ -234,7 +234,7 @@ struct AuthView: View {
             .textContentType(form.register ? .newPassword : .password)
             // Під час запиту кнопка лишається кольоровою зі спінером: сама блокує дотик, поки `loading`.
             PrimaryButton(
-                title: form.register ? "Зареєструватися" : Copy.login,
+                title: form.register ? Copy.register : Copy.login,
                 loading: model.state?.mutating == true,
                 enabled: form.canSubmit
             ) { form.submit(with: model.app) }
@@ -252,9 +252,9 @@ struct AuthView: View {
     /// Згода під кнопкою реєстрації: назви документів — посилання, але в чорнилі, а не в
     /// системному синьому, щоб рядок лишався підписом, а не закликом. Адреси спільні з Android.
     private var consent: some View {
-        var text = AttributedString("Продовжуючи, ви погоджуєтесь з ")
+        var text = AttributedString(Copy.auth_consent_prefix)
         text.append(legalLink(Copy.auth_consent_terms, LegalLinks.shared.TERMS))
-        text.append(AttributedString(" та "))
+        text.append(AttributedString(Copy.auth_consent_and))
         text.append(legalLink(Copy.auth_consent_privacy, LegalLinks.shared.PRIVACY))
         return Text(text)
             .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)

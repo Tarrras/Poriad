@@ -50,7 +50,7 @@ struct FollowsView: View {
         let organizer = follow.kind == .organizer
         let artist = follow.kind == .artist
         let upcoming = Int(follow.upcoming)
-        let caption = [organizer ? "Організатор" : artist ? "" : follow.city, "\(upcoming) \(ukrainianPlural(upcoming, "подія", "події", "подій"))"]
+        let caption = [organizer ? Copy.organizer_short : artist ? "" : follow.city, Copy.place_upcoming(upcoming)]
             .filter { !$0.isEmpty }.joined(separator: " · ")
         let label = HStack(spacing: Space.md) {
             if organizer {
@@ -93,7 +93,7 @@ struct FollowsView: View {
                     .frame(minHeight: 44).contentShape(Rectangle())
             }
             .buttonStyle(.plain).fixedSize()
-            .accessibilityLabel("Не стежити: \(follow.name)")
+            .accessibilityLabel(Copy.a11y_unfollow_name("\(follow.name)"))
         }
         .padding(.horizontal, Space.lg).padding(.vertical, Space.md)
     }

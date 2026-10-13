@@ -117,7 +117,7 @@ struct PersonSheet: View {
         }
         .background(Palette.canvas)
         .confirmationDialog(
-            "Ви більше не побачите подій цієї людини, а вона — ваших. Скасувати можна у профілі.",
+            Copy.block_user_body,
             isPresented: $blocking, titleVisibility: .visible
         ) {
             Button(Copy.block_confirm, role: .destructive) {
