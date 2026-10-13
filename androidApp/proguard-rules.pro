@@ -39,3 +39,6 @@
 
 # Coroutines: службові класи, які ProGuard не бачить.
 -dontwarn kotlinx.coroutines.**
+
+# Анотація з gms, на яку посилається play:review-ktx, але якої нема в залежностях: R8 без неї падає (13.10).
+-dontwarn com.google.android.gms.common.annotation.NoNullnessRewrite
