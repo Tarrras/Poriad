@@ -49,6 +49,35 @@ private extension View {
     }
 }
 
+/// Живий зсув шторки: міняється щокадру, тож живе поза `@State` кореня. Його читає лише `SheetFrame`,
+/// а мапа, карусель і фільтри над нею не перемальовуються на кожен кадр жесту.
+final class SheetDrag: ObservableObject {
+    @Published var value: CGFloat = 0
+    /// Прокрутка списку від початку; потрібна лише жесту, тож без публікації.
+    var listOffset: CGFloat = 0
+}
+
+/// Висота шторки йде за пальцем: перемальовується цей view, а не корінь мапи.
+private struct SheetFrame<Content: View>: View {
+    @ObservedObject var drag: SheetDrag
+    let detent: SheetDetent
+    let heights: (SheetDetent) -> CGFloat
+    /// Шторка вже більша за згорнуту. Від живої висоти, а не від положення: вміст стає списком, щойно є місце.
+    @Binding var expanded: Bool
+    @ViewBuilder let content: Content
+
+    private var height: CGFloat { min(max(heights(detent) - drag.value, heights(.peek)), heights(.full)) }
+
+    var body: some View {
+        content
+            .frame(height: height, alignment: .top)
+            .onChange(of: height, initial: true) { _, height in
+                let now = height > heights(.peek) + Space.section
+                if now != expanded { expanded = now }
+            }
+    }
+}
+
 struct DiscoveryView: View {
     /// Росте з кожним переходом на мапу (`openMap`): деталі й список закриваються, лишається пін і його картка.
     var openToken = 0
@@ -68,13 +97,14 @@ struct DiscoveryView: View {
     @State private var stackIDs: [String] = []
     /// Наскільки піднята шторка зі списком.
     @State private var detent: SheetDetent = .peek
-    /// Зсув пальця по ручці шторки, вниз додатний. Не `@GestureState`: той скидається окремим
-    /// оновленням, і шторка стрибала до старого положення перед новим.
-    @State private var sheetDrag: CGFloat = 0
+    /// Зсув пальця по ручці шторки, вниз додатний, і прокрутка списку. Клас у `@State`, а не два `@State`-числа:
+    /// корінь їх не спостерігає, тож кадр жесту перемальовує лише `SheetFrame`. Не `@GestureState`: той
+    /// скидається окремим оновленням, і шторка стрибала до старого положення перед новим.
+    @State private var drag = SheetDrag()
+    /// Шторка вже більша за згорнуту; ставить `SheetFrame` на перетині порога.
+    @State private var expanded = false
     /// Зсув пальця по списку в момент, коли протягування перейшло від списку до шторки. `nil` — список сам по собі.
     @State private var listDrag: CGFloat?
-    /// Прокрутка списку від його початку; від'ємна, коли список відтягнуто нижче верху.
-    @State private var listOffset: CGFloat = 0
     /// Розмір екрана під контролами: з нього рахуються висоти шторки.
     @State private var screen: CGSize = .zero
     /// Категорія, обрана плитками в шторці. Звужує список, а не мапу.
@@ -221,9 +251,9 @@ struct DiscoveryView: View {
                 region = nil
             }
         }
-        .alert("Геолокація", isPresented: Binding(get: { location.message != nil }, set: { if !$0 { location.message = nil } })) {
-            Button("Добре") { location.message = nil }
-        } message: { Text(location.message ?? "") }
+        .sheet(isPresented: Binding(get: { location.message != nil }, set: { if !$0 { location.message = nil } })) {
+            PromptSheet(title: "Геолокація", message: location.message ?? "", primary: "Добре", onPrimary: {})
+        }
     }
 
     private var topControls: some View {
@@ -261,6 +291,7 @@ struct DiscoveryView: View {
 
     /// Шторка над мапою: згорнута — карусель, піднята — список тієї ж видачі. Карусель і мапа ділять один вибір.
     private var sheet: some View {
+        SheetFrame(drag: drag, detent: detent, heights: height(of:), expanded: $expanded) {
         VStack(spacing: 0) {
             sheetHandle
             if !expanded {
@@ -282,8 +313,7 @@ struct DiscoveryView: View {
             Spacer(minLength: 0)
         }
         .padding(.bottom, tabBarInset)
-        // Висота йде за пальцем, а не за положенням, інакше під час жесту над вмістом порожнеча.
-        .frame(height: sheetHeight, alignment: .top)
+        }
         .background {
             // Згорнутій шторці підкладка не потрібна. Прозорий фон ловив би дотики замість мапи.
             if expanded {
@@ -295,14 +325,6 @@ struct DiscoveryView: View {
         }
         .motion(Motion.spring, value: detent)
     }
-
-    /// Поточна висота шторки: положення плюс зсув пальця.
-    private var sheetHeight: CGFloat {
-        min(max(height(of: detent) - sheetDrag, height(of: .peek)), height(of: .full))
-    }
-
-    /// Шторка вже більша за згорнуту. Від живої висоти, а не від положення: вміст стає списком, щойно є місце.
-    private var expanded: Bool { sheetHeight > height(of: .peek) + Space.section }
 
     private func height(of detent: SheetDetent) -> CGFloat {
         switch detent {
@@ -335,7 +357,7 @@ struct DiscoveryView: View {
     private var sheetDragGesture: some Gesture {
         // Екранні координати: у власних шапка їде разом зі шторкою, і відліки тремтять.
         DragGesture(minimumDistance: 2, coordinateSpace: .global)
-            .onChanged { value in sheetDrag = value.translation.height }
+            .onChanged { value in drag.value = value.translation.height }
             .onEnded { value in
                 settle(translation: value.translation.height, predicted: value.predictedEndTranslation.height)
             }
@@ -458,7 +480,7 @@ struct DiscoveryView: View {
                         }
                     }
                 }
-                .listOffset($listOffset)
+                .listOffset(Binding(get: { drag.listOffset }, set: { drag.listOffset = $0 }))
                 // Список гортається лише в повній шторці; нижче протягування піднімає її. Вимкнення
                 // під час жесту скасовує прокрутку UIKit, і шторка їде замість гумового краю.
                 .scrollDisabled(detent != .full || listDrag != nil)
@@ -496,18 +518,18 @@ struct DiscoveryView: View {
                     // Після сідання на згорнуту список зникає, а жест ще шле оновлення.
                     guard detent != .peek else { return }
                     // У повній шторці список гортається сам; беремо жест, лише коли він на початку і палець іде вниз.
-                    guard detent != .full || (listOffset <= 0.5 && dy > 0) else { return }
+                    guard detent != .full || (drag.listOffset <= 0.5 && dy > 0) else { return }
                     listDrag = dy
                 }
                 guard let origin = listDrag else { return }
-                let drag = dy - origin
+                let shift = dy - origin
                 // Нижче порога список зникає разом із жестом, тож сідаємо на згорнуту звідси.
-                if height(of: detent) - drag <= height(of: .peek) + Space.section {
+                if height(of: detent) - shift <= height(of: .peek) + Space.section {
                     listDrag = nil
                     open(.peek)
                     return
                 }
-                sheetDrag = drag
+                drag.value = shift
             }
             .onEnded { value in
                 guard let origin = listDrag else { return }
@@ -544,11 +566,11 @@ struct DiscoveryView: View {
     /// Перевести шторку в положення.
     private func open(_ target: SheetDetent) {
         if reduceMotion {
-            sheetDrag = 0
+            drag.value = 0
             detent = target
         } else {
             withMotion(Motion.spring) {
-                sheetDrag = 0
+                drag.value = 0
                 detent = target
             }
         }

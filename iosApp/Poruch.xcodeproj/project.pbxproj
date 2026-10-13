@@ -24,6 +24,9 @@
 		54B79975C47085C90F3626E4 /* EventActionsModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14CCD46204242AE4E715A09B /* EventActionsModel.swift */; };
 		79EA5B997F3C8BA4D1D833A6 /* EventDetailPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FEBDE6DB777033A65306F53 /* EventDetailPresentation.swift */; };
 		1E027063A472D0A13B6FA3D1 /* EventDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331698CB208B31630D4A20AE /* EventDetailView.swift */; };
+		9CF4BFB0288E1A11A0CE58F4 /* Copy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4026F7CB911F8C7E0669456C /* Copy.swift */; };
+		FAEA1A688CB3478B144A5872 /* DetailSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34EEBB12B9D5FF5D91362817 /* DetailSheets.swift */; };
+		7B640DC2129C2B405C070508 /* EventDetailView+Sections.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85CCE245A872DB63DDED54B3 /* EventDetailView+Sections.swift */; };
 		00DE124B302DBFA67177DF8F /* DiscoveryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 722D4830B32E9A87B9EC99D1 /* DiscoveryView.swift */; };
 		2691C808DB0B081FD159A6B5 /* EventDeck.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9105301F6177DD6D82AA446 /* EventDeck.swift */; };
 		FD20BB2CAE3C2D21066BDD34 /* EventEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = D06D7136B86EA238509F57DC /* EventEditor.swift */; };
@@ -70,6 +73,9 @@
 		389BE804E97C692901E47112 /* ChatView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ChatView.swift; path = Features/Detail/ChatView.swift; sourceTree = "<group>"; };
 		14CCD46204242AE4E715A09B /* EventActionsModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EventActionsModel.swift; path = Features/Detail/EventActionsModel.swift; sourceTree = "<group>"; };
 		0FEBDE6DB777033A65306F53 /* EventDetailPresentation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EventDetailPresentation.swift; path = Features/Detail/EventDetailPresentation.swift; sourceTree = "<group>"; };
+		85CCE245A872DB63DDED54B3 /* EventDetailView+Sections.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = "EventDetailView+Sections.swift"; path = "Features/Detail/EventDetailView+Sections.swift"; sourceTree = "<group>"; };
+		34EEBB12B9D5FF5D91362817 /* DetailSheets.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = DetailSheets.swift; path = Features/Detail/DetailSheets.swift; sourceTree = "<group>"; };
+		4026F7CB911F8C7E0669456C /* Copy.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = Copy.swift; path = App/Copy.swift; sourceTree = "<group>"; };
 		331698CB208B31630D4A20AE /* EventDetailView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EventDetailView.swift; path = Features/Detail/EventDetailView.swift; sourceTree = "<group>"; };
 		722D4830B32E9A87B9EC99D1 /* DiscoveryView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = DiscoveryView.swift; path = Features/Discovery/DiscoveryView.swift; sourceTree = "<group>"; };
 		C9105301F6177DD6D82AA446 /* EventDeck.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EventDeck.swift; path = Features/Discovery/EventDeck.swift; sourceTree = "<group>"; };
@@ -152,6 +158,9 @@
 				14CCD46204242AE4E715A09B /* EventActionsModel.swift */,
 				0FEBDE6DB777033A65306F53 /* EventDetailPresentation.swift */,
 				331698CB208B31630D4A20AE /* EventDetailView.swift */,
+				4026F7CB911F8C7E0669456C /* Copy.swift */,
+				34EEBB12B9D5FF5D91362817 /* DetailSheets.swift */,
+				85CCE245A872DB63DDED54B3 /* EventDetailView+Sections.swift */,
 				722D4830B32E9A87B9EC99D1 /* DiscoveryView.swift */,
 				C9105301F6177DD6D82AA446 /* EventDeck.swift */,
 				D06D7136B86EA238509F57DC /* EventEditor.swift */,
@@ -361,6 +370,9 @@
 				54B79975C47085C90F3626E4 /* EventActionsModel.swift in Sources */,
 				79EA5B997F3C8BA4D1D833A6 /* EventDetailPresentation.swift in Sources */,
 				1E027063A472D0A13B6FA3D1 /* EventDetailView.swift in Sources */,
+				9CF4BFB0288E1A11A0CE58F4 /* Copy.swift in Sources */,
+				FAEA1A688CB3478B144A5872 /* DetailSheets.swift in Sources */,
+				7B640DC2129C2B405C070508 /* EventDetailView+Sections.swift in Sources */,
 				00DE124B302DBFA67177DF8F /* DiscoveryView.swift in Sources */,
 				2691C808DB0B081FD159A6B5 /* EventDeck.swift in Sources */,
 				FD20BB2CAE3C2D21066BDD34 /* EventEditor.swift in Sources */,

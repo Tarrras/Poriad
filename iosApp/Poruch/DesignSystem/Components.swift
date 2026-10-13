@@ -304,6 +304,33 @@ struct StatusBadge: View {
     }
 }
 
+/// Питання знизу, як `PoruchSheet` на Android: заголовок із засічками, пояснення, головна й другорядна дія.
+/// Змах униз — те саме, що другорядна дія: `onDismiss` у `.sheet` викликає її, якщо кнопку не натиснули.
+struct PromptSheet: View {
+    let title: String
+    let message: String
+    let primary: String
+    var secondary: String?
+    let onPrimary: () -> Void
+    var onSecondary: () -> Void = {}
+    @Environment(\.dismiss) private var dismiss
+    @State private var height: CGFloat = 320
+    var body: some View {
+        VStack(alignment: .leading, spacing: Space.md) {
+            Text(title).font(PoruchFont.serifTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
+            Text(message).font(PoruchFont.bodyText).foregroundStyle(Palette.inkSecondary).padding(.bottom, Space.sm)
+            PrimaryButton(title: primary) { dismiss(); onPrimary() }
+            if let secondary { SecondaryButton(title: secondary) { dismiss(); onSecondary() } }
+        }
+        .padding(.horizontal, Space.page).padding(.top, Space.xl).padding(.bottom, Space.section)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
+        .presentationDetents([.height(height)])
+        .presentationDragIndicator(.visible)
+        .presentationBackground(Palette.canvas)
+    }
+}
+
 struct PrimaryButton: View {
     let title: String
     var symbol: String?

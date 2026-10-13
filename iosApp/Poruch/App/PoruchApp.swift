@@ -142,6 +142,8 @@ struct RootView: View {
     @StateObject private var location = LocationFinder()
     /// Мʼяке питання про дайджест вихідних, див. `DigestPrompt`.
     @State private var digestAsk = false
+    /// Людина натиснула кнопку в листі дайджесту; змах униз без відповіді рахуємо як «не зараз».
+    @State private var digestAnswered = false
     @Environment(\.requestReview) private var requestReview
     var body: some View {
         // Онбординг замінює застосунок, а не накриває: за ним на першому запуску ще нічого нема.
@@ -163,16 +165,21 @@ struct RootView: View {
                         // Шторка оцінки ще закривається: вікно поверх анімації iOS мовчки пропускає.
                         if due { Task { try? await Task.sleep(for: .seconds(1)); requestReview() } }
                     }
-                    .alert("Що поруч на вихідних?", isPresented: $digestAsk) {
-                        Button("Так, нагадувати") {
-                            NotificationPermission.request { granted in
-                                model.app.digestPromptAnswered(granted: granted)
-                                if granted { PushDelegate.registerIfAllowed() }
-                            }
-                        }
-                        Button("Не зараз", role: .cancel) { model.app.digestPromptAnswered(granted: false) }
-                    } message: {
-                        Text("Щопʼятниці ввечері коротко скажемо, скільки подій у вашому місті на вихідних. Одне сповіщення на тиждень, вимкнути можна в профілі.")
+                    // Лист знизу, не `alert`: усі питання в застосунку ставляться листом (DS, «Нижні листи»).
+                    .sheet(isPresented: $digestAsk, onDismiss: { if !digestAnswered { model.app.digestPromptAnswered(granted: false) } }) {
+                        PromptSheet(
+                            title: "Що поруч на вихідних?",
+                            message: "Щопʼятниці ввечері коротко скажемо, скільки подій у вашому місті на вихідних. Одне сповіщення на тиждень, вимкнути можна в профілі.",
+                            primary: "Так, нагадувати", secondary: "Не зараз",
+                            onPrimary: {
+                                digestAnswered = true
+                                NotificationPermission.request { granted in
+                                    model.app.digestPromptAnswered(granted: granted)
+                                    if granted { PushDelegate.registerIfAllowed() }
+                                }
+                            },
+                            onSecondary: { digestAnswered = true; model.app.digestPromptAnswered(granted: false) }
+                        )
                     }
                     .onReceive(location.$city) { city in
                         if let city { model.app.locatedCity(city: city) }
