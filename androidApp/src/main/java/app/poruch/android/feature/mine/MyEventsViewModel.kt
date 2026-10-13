@@ -1,28 +1,18 @@
 package app.poruch.android.feature.mine
 
+import androidx.lifecycle.viewModelScope
 import app.poruch.android.mvi.MviViewModel
-import app.poruch.domain.FollowKind
+import app.poruch.shared.MyEventsPresenter
 import app.poruch.shared.PoruchApp
-import kotlin.time.Clock
+import kotlinx.coroutines.launch
 
+/** Тонка обгортка над [MyEventsPresenter]: розклад збирає спільний код, тут — розріз, «Минулі», шторка оцінки й навігація. */
 class MyEventsViewModel(private val app: PoruchApp) :
     MviViewModel<MyEventsState, MyEventsIntent, MyEventsEffect>(MyEventsState()) {
+    private val presenter = MyEventsPresenter(app, viewModelScope)
 
     init {
-        observe(app) { latest ->
-            copy(
-                board = latest.myEventsBoard(Clock.System.now()),
-                waitlistedIds = latest.library.waitlistedIds,
-                myRatings = latest.library.myRatings,
-                requests = latest.library.pendingRequests,
-                signedIn = latest.signedIn,
-                loading = latest.library.loading,
-                mutating = latest.mutating,
-                unread = latest.chatUnread.associate { it.eventId to it.unread },
-                followedOrganizers = latest.library.follows.filter { it.kind == FollowKind.ORGANIZER }.mapTo(HashSet()) { it.targetId }
-            )
-        }
-        app.loadMyEvents()
+        viewModelScope.launch { presenter.state.collect { screen -> reduce { copy(screen = screen) } } }
     }
 
     override fun onIntent(intent: MyEventsIntent) {

@@ -1,33 +1,24 @@
 package app.poruch.android.feature.mine
 
 import app.poruch.domain.Event
-import app.poruch.domain.JoinRequest
-import app.poruch.domain.MyEventsBoard
 import app.poruch.domain.MyEventsTab
 import app.poruch.domain.RatingTag
+import app.poruch.shared.MyEventsScreenState
 
 /** «Мої події» — три розрізи з секціями за часом (docs/my-events.md). Розклад рахує `MyEventsRules`. */
+/**
+ * «Мої події»: [screen] згортає спільний стор [app.poruch.shared.MyEventsPresenter] — одна згортка на обидві
+ * платформи; тут лише розріз, «Минулі» й шторка оцінки цього екрана.
+ */
 data class MyEventsState(
+    val screen: MyEventsScreenState = MyEventsScreenState.Empty,
     val tab: MyEventsTab = MyEventsTab.GOING,
-    val board: MyEventsBoard = MyEventsBoard(),
-    val waitlistedIds: List<String> = emptyList(),
-    /** Мої бали за id події: «Оцінити» чи «Ваша оцінка ★ N». */
-    val myRatings: Map<String, Int> = emptyMap(),
-    /** Запити на участь до моїх подій: перший — на панелі найближчої. */
-    val requests: List<JoinRequest> = emptyList(),
-    val signedIn: Boolean = false,
-    val loading: Boolean = false,
-    val mutating: Boolean = false,
     /** Потяг униз у дорозі. */
     val refreshing: Boolean = false,
-    /** Непрочитані повідомлення за id події: бейдж на рядку. */
-    val unread: Map<String, Int> = emptyMap(),
     /** «Минулі» розгорнуто цілком. Скидається зі зміною розрізу. */
     val allPast: Boolean = false,
     /** Подія, яку оцінюють у шторці. */
-    val rating: Event? = null,
-    /** Люди, за якими стежу: початковий стан перемикача в шторці оцінки. */
-    val followedOrganizers: Set<String> = emptySet()
+    val rating: Event? = null
 )
 
 sealed interface MyEventsIntent {

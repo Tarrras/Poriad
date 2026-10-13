@@ -64,6 +64,7 @@ extension EnvironmentValues {
     /// окремо від `AppModel`, тож головна перемальовується лише зі своїм станом.
     lazy var homeScreen = HomeScreenModel(app: app)
     lazy var exploreScreen = ExploreScreenModel(app: app)
+    lazy var myEventsScreen = MyEventsScreenModel(app: app)
 
     private var subscription: Subscription?
     /// Версії зі спільного стану: порівнюємо числа, а не обходимо тисячі записів через міст на кожну емісію.

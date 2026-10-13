@@ -1874,6 +1874,25 @@ class PoruchAppTest {
         assertEquals(before+1,focused.focusToken)
         app.close()
     }
+    /** Презентер «Моїх подій»: сам просить мої події, розклад і непрочитане — зі спільної згортки, без зміни входів екземпляр той самий. */
+    @Test fun myEventsPresenterDrivesTheBoard()=runTest {
+        val events=Events()
+        val soon=(Clock.System.now()+1.hours).toString()
+        val mine=event("mine1",EventCategory.SOCIAL,soon).copy(gathering=Gathering("user","Я",20,1,false))
+        events.mine=listOf(mine); events.results=listOf(mine)
+        events.unreadChats=listOf(ChatUnread("mine1","mine1",3,"m1","Хтось","Привіт","2026-09-16T10:00:00Z"))
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
+        val presenter=MyEventsPresenter(app,backgroundScope,StandardTestDispatcher(testScheduler))
+        runCurrent(); advanceTimeBy(200); runCurrent()
+        val shown=presenter.state.value
+        assertTrue(shown.signedIn)
+        assertEquals(listOf("mine1"),shown.myEvents.map { it.id })
+        assertEquals(3,shown.unread["mine1"])
+        assertTrue(shown.board.organizing.isNotEmpty()||shown.board.going.isNotEmpty())
+        app.setDigestEnabled(false); runCurrent()
+        assertSame(shown,presenter.state.value)
+        app.close()
+    }
 }
 
 /** Підробка віддає індекс і перші картки однією відповіддю, як сервер. */

@@ -61,11 +61,11 @@ fun MyEventsScreen(state: MyEventsState, onIntent: (MyEventsIntent) -> Unit) {
                     color = colors.ink
                 )
                 Text(
-                    if (state.signedIn) subtitle(state) else stringResource(R.string.guest_empty),
+                    if (state.screen.signedIn) subtitle(state) else stringResource(R.string.guest_empty),
                     style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary
                 )
             }
-            if (state.signedIn) Row(
+            if (state.screen.signedIn) Row(
                 Modifier.padding(horizontal = Spacing.page),
                 horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
             ) {
@@ -75,15 +75,15 @@ fun MyEventsScreen(state: MyEventsState, onIntent: (MyEventsIntent) -> Unit) {
                         state.tab == tab,
                         { onIntent(MyEventsIntent.PickTab(tab)) },
                         badge = when (tab) {
-                            MyEventsTab.GOING -> state.board.goingBadge
-                            MyEventsTab.ORGANIZING -> state.board.organizingBadge
+                            MyEventsTab.GOING -> state.screen.board.goingBadge
+                            MyEventsTab.ORGANIZING -> state.screen.board.organizingBadge
                             MyEventsTab.SAVED -> 0
                         }
                     )
                 }
             }
         }
-        if (!state.signedIn) EmptyState(
+        if (!state.screen.signedIn) EmptyState(
             PoruchIcons.lock,
             stringResource(R.string.guest_empty),
             stringResource(R.string.guest_description),
@@ -95,14 +95,14 @@ fun MyEventsScreen(state: MyEventsState, onIntent: (MyEventsIntent) -> Unit) {
             { onIntent(MyEventsIntent.Refresh) },
             Modifier.fillMaxSize()
         ) {
-            val sections = state.board.sections(state.tab)
+            val sections = state.screen.board.sections(state.tab)
             // Порожній стан теж прокручується: інакше потяг не має за що зачепитись.
             if (sections.isEmpty()) Column(
                 Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
             ) {
-                if (state.loading) Box(
+                if (state.screen.loading) Box(
                     Modifier
                         .fillMaxWidth()
                         .padding(Spacing.section),
@@ -130,13 +130,13 @@ fun MyEventsScreen(state: MyEventsState, onIntent: (MyEventsIntent) -> Unit) {
         }
     }
     state.rating?.let { event ->
-        val mine = state.myRatings[event.id]?.let { EventRating(it, null, "", true) }
+        val mine = state.screen.myRatings[event.id]?.let { EventRating(it, null, "", true) }
         // Оцінюють лише те, куди ходили: організатор тут завжди хтось інший.
-        val follow = event.organizerId?.let { FollowRules.followOnRating(it in state.followedOrganizers, mine != null) }
+        val follow = event.organizerId?.let { FollowRules.followOnRating(it in state.screen.followedOrganizers, mine != null) }
         RatingSheet(
             event,
             mine,
-            state.mutating,
+            state.screen.mutating,
             follow,
             { onIntent(MyEventsIntent.DismissRating) }) { score, comment, tags, following ->
             onIntent(MyEventsIntent.Rate(event.id, score, comment, tags, following))
@@ -154,7 +154,7 @@ private val MyEventsTab.label: Int
 /** Лічильники замість опису. Нуль — частину не показуємо; усе нуль — загальний підпис. */
 @Composable
 private fun subtitle(state: MyEventsState): String {
-    val b = state.board
+    val b = state.screen.board
     val parts = buildList {
         when (state.tab) {
             MyEventsTab.GOING -> {
@@ -256,7 +256,7 @@ private fun Section(
             MyEventsGroup.TODAY -> {
                 // Перша сьогоднішня — картка з маршрутом і чатом, решта — рядками.
                 Overline(R.string.section_today)
-                GoingHero(events.first(), state.unread[events.first().id] ?: 0, onIntent)
+                GoingHero(events.first(), state.screen.unread[events.first().id] ?: 0, onIntent)
                 Rows(events.drop(1), state, onIntent)
             }
 
@@ -265,9 +265,9 @@ private fun Section(
                 val first = events.first()
                 OrganizerPanel(
                     first,
-                    state.unread[first.id] ?: 0,
-                    state.requests.filter { it.eventId == first.id },
-                    state.mutating,
+                    state.screen.unread[first.id] ?: 0,
+                    state.screen.requests.filter { it.eventId == first.id },
+                    state.screen.mutating,
                     onIntent
                 )
                 if (events.size > 1) {
@@ -316,16 +316,16 @@ private fun Rows(events: List<Event>, state: MyEventsState, onIntent: (MyEventsI
     val now = Clock.System.now()
     GroupedRows {
         events.forEachIndexed { index, event ->
-            val score = state.myRatings[event.id]
+            val score = state.screen.myRatings[event.id]
             val rate =
                 state.tab == MyEventsTab.GOING && score == null && RatingRules.canRate(event, now)
             // Запит до не найближчої події інакше видно лише в бейджі чипа.
             val asks =
-                if (state.tab == MyEventsTab.ORGANIZING) state.requests.count { it.eventId == event.id } else 0
+                if (state.tab == MyEventsTab.ORGANIZING) state.screen.requests.count { it.eventId == event.id } else 0
             EventRow(
                 event,
-                unread = state.unread[event.id] ?: 0,
-                waitlisted = event.id in state.waitlistedIds,
+                unread = state.screen.unread[event.id] ?: 0,
+                waitlisted = event.id in state.screen.waitlistedIds,
                 note = score?.let { stringResource(R.string.my_score, it) },
                 trailing = when {
                     // Своя дія рядка: «Оцінити» для минулої, закладка — у збережених.

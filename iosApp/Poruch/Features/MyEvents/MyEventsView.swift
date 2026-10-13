@@ -3,8 +3,12 @@ import Shared
 
 /// «Мої події» — три розрізи з секціями за часом (docs/my-events.md). Розклад рахує
 /// `MyEventsRules` у спільному коді; тут лише малюємо.
-struct MyEventsView: View {
-    @EnvironmentObject var model: AppModel
+struct MyEventsView: View, Equatable {
+    static func == (lhs: MyEventsView, rhs: MyEventsView) -> Bool { true }
+    /// Без підписки на весь `AppModel`: екран перемальовується зі своїм `MyEventsScreenState`.
+    @Environment(\.appModel) private var appModel
+    private var model: AppModel { appModel! }
+    private var view: MyEventsScreenState { model.myEventsScreen.state }
     @Environment(\.openMap) private var openMap
     /// Відкрити деталі. Шлях стосу тримає корінь (`RootView.minePath`).
     var openEvent: (String) -> Void
@@ -16,13 +20,11 @@ struct MyEventsView: View {
     @State private var rating: EventRoute?
 
     private static let tabs: [MyEventsTab] = [.going, .organizing, .saved]
-    private var signedIn: Bool { model.state?.signedIn == true }
-    private var board: MyEventsBoard? { model.state?.myEventsBoard(now: nowInstant()) }
+    private var signedIn: Bool { view.signedIn }
+    private var board: MyEventsBoard? { view.board }
 
     /// Непрочитане за id події, з тієї самої стрічки, що й бейдж вкладки.
-    private var unread: [String: Int] {
-        Dictionary((model.state?.chatUnread ?? []).map { ($0.eventId, Int($0.unread)) }, uniquingKeysWith: { a, _ in a })
-    }
+    private var unread: [String: Int] { view.unread.mapValues { $0.intValue } }
 
     /// Тап по «Створити» звідси: рахуємо, звідки він, і відкриваємо редактор.
     private func startCreating() {
@@ -39,12 +41,11 @@ struct MyEventsView: View {
         }
         .background(Palette.canvas)
         .toolbar(.hidden, for: .navigationBar)
-        .task { model.app.loadMyEvents() }
         .onChange(of: tab) { _, _ in allPast = false }
         .sheet(isPresented: $creating) { EventEditor(event: nil, app: model.app, home: model.state) }
         .sheet(item: $rating) { route in
-            if let event = model.state?.library.myEvents.first(where: { $0.id == route.id }) {
-                RateSheet(event: event, mine: model.state?.myScore(eventId: event.id).map {
+            if let event = view.myEvents.first(where: { $0.id == route.id }) {
+                RateSheet(event: event, mine: view.myScore(id: event.id).map {
                     EventRating(score: $0.int32Value, comment: nil, createdAt: "", mine: true, tags: [])
                 })
             }
@@ -167,7 +168,7 @@ struct MyEventsView: View {
             overline(Copy.section_nearest)
             if let first = events.first {
                 OrganizerPanel(event: first, unread: unread[first.id] ?? 0,
-                               requests: (model.state?.library.pendingRequests ?? []).filter { $0.eventId == first.id },
+                               requests: view.requestsFor(id: first.id),
                                open: open, chat: openChat)
             }
             if events.count > 1 {
@@ -216,16 +217,16 @@ struct MyEventsView: View {
     /// Рядок і, праворуч, його власна дія: «Оцінити» для минулої, закладка — у збережених.
     private func row(_ event: Event, unread: Int) -> some View {
         let now = nowInstant()
-        let score = model.state?.myScore(eventId: event.id)?.intValue
+        let score = view.myScore(id: event.id)?.intValue
         let rate = tab == .going && score == nil && RatingRules.shared.canRate(event: event, now: now)
         let bookmark = tab == .saved
         // Запит до не найближчої події інакше видно лише в бейджі чипа.
-        let asks = tab == .organizing ? (model.state?.library.pendingRequests ?? []).filter { $0.eventId == event.id }.count : 0
+        let asks = tab == .organizing ? view.requestsFor(id: event.id).count : 0
         let status: (String, BadgeTone, String?)? = asks > 0
             ? ("\(asks) \(ukrainianPlural(asks, "запит", "запити", "запитів")) на участь", .accent, "person.badge.plus") : nil
         return HStack(spacing: Space.sm) {
             Button { open(event.id) } label: {
-                EventRow(event: event, unread: unread, waitlisted: model.state?.isWaitlisted(id: event.id) == true,
+                EventRow(event: event, unread: unread, waitlisted: view.isWaitlisted(id: event.id),
                          note: score.map { Copy.my_score("\($0)") }, chevron: !rate && !bookmark, status: status)
             }.buttonStyle(PressableStyle(pressedScale: 1))
             if rate {
@@ -384,4 +385,18 @@ private struct OrganizerPanel: View {
         .padding(Space.md)
         .background(Palette.accentContainer, in: RoundedRectangle(cornerRadius: Corner.md, style: .continuous))
     }
+}
+
+/// Стан «Моїх подій» складає спільний `MyEventsPresenter` — та сама згортка, що й на Android. Тут лише
+/// спостережувана обгортка: `@Observable` стежить за `state` поштучно.
+@MainActor @Observable final class MyEventsScreenModel {
+    private(set) var state = MyEventsScreenState.companion.Empty
+    private let presenter: MyEventsPresenter
+    private var subscription: Subscription?
+
+    init(app: PoruchApp) {
+        presenter = MyEventsPresenter(app: app)
+        subscription = presenter.observe { [weak self] state in self?.state = state }
+    }
+    // Без `deinit`: модель живе стільки, скільки `AppModel`.
 }

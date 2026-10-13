@@ -245,6 +245,7 @@ struct RootView: View {
                 }.tag(1)
                 NavigationStack(path: $minePath) {
                     MyEventsView(openEvent: { minePath.append(EventRoute(id: $0)) }, openChat: { minePath.append(ChatRoute(id: $0)) })
+                        .equatable()
                         .safeAreaPadding(.bottom, 92).toolbar(.hidden, for: .tabBar)
                         .navigationDestination(for: EventRoute.self) { EventDetailView(app: model.app, eventID: $0.id).equatable() }
                         .navigationDestination(for: ChatRoute.self) { ChatView(eventID: $0.id) }
