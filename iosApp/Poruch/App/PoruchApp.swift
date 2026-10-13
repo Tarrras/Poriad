@@ -119,7 +119,10 @@ struct AuthSheet: Identifiable {
 }
 
 struct RootView: View {
-    @EnvironmentObject var model: AppModel
+    /// Без підписки на весь `AppModel`: корінь перераховується зі свого зрізу `RootScreenModel`.
+    @Environment(\.appModel) private var appModel
+    private var model: AppModel { appModel! }
+    private var root: RootScreenModel { model.root }
     @State private var tab = 0
     @State private var creating = false
     /// Шит входу. Причину віддаємо разом із ним, а не окремим станом: тоді екран входу отримує її в мить показу.
@@ -148,17 +151,17 @@ struct RootView: View {
     var body: some View {
         // Онбординг замінює застосунок, а не накриває: за ним на першому запуску ще нічого нема.
         // Поки стану нема, невідомо, чи потрібен онбординг: нейтральне полотно, без запиту геолокації.
-        if let state = model.state {
-            if state.needsOnboarding {
+        if root.ready {
+            if root.needsOnboarding {
                 OnboardingView()
             } else {
                 app
                     // Геолокацію питаємо, лише коли онбординг позаду: не поверх його першого екрана.
                     .onAppear { location.request() }
-                    .task { digestAsk = await DigestPrompt.due(digestEnabled: state.digestEnabled) }
+                    .task { digestAsk = await DigestPrompt.due(digestEnabled: root.digestEnabled) }
                     // Перша підписка за запуск: питаємо про сповіщення, без них пуші про нове не дійдуть.
-                    .onChange(of: state.library.followsMade) { _, made in if made > 0 { FollowPrompt.ask() } }
-                    .onChange(of: state.reviewMoment) { _, moment in
+                    .onChange(of: root.followsMade) { _, made in if made > 0 { FollowPrompt.ask() } }
+                    .onChange(of: root.reviewMoment) { _, moment in
                         guard moment else { return }
                         let due = ReviewPrompt.due()
                         model.app.reviewMomentHandled(prompted: due)
@@ -204,12 +207,12 @@ struct RootView: View {
     /// Тап по «Створити»: рахуємо його разом зі входом, з якого місця він був, — гостя далі чекає реєстрація.
     private func startCreating(from: String) {
         model.app.createStarted(from: from)
-        if model.state?.session.userId == nil { createAfterAuth = true; authSheet = AuthSheet(reason: .create) } else { creating = true }
+        if !root.signedIn { createAfterAuth = true; authSheet = AuthSheet(reason: .create) } else { creating = true }
     }
 
     /// Шит входу закрився: якщо людина тепер увійшла, її створення не губимо — відкриваємо редактор. Закрила без входу — нічого.
     private func continueCreating() {
-        let signedIn = model.state?.session.userId != nil
+        let signedIn = root.signedIn
         let go = createAfterAuth && signedIn
         createAfterAuth = false
         if go { creating = true }
@@ -262,7 +265,7 @@ struct RootView: View {
             .toolbar(.hidden, for: .tabBar)
             .onPreferenceChange(HidesTabBarKey.self) { hidden in tabBarHidden = hidden }
             if !tabBarHidden {
-                PoruchTabBar(items: tabItems(waiting: Int(model.state?.waitingEvents ?? 0)), selection: $tab) {
+                PoruchTabBar(items: tabItems(waiting: root.waitingEvents), selection: $tab) {
                     CreateButton { startCreating(from: "fab") }
                 }
                 // Як системний таббар: підписи не ростуть з Dynamic Type, інакше чотири вкладки не вміщаються.
@@ -309,8 +312,8 @@ struct RootView: View {
                     .toolbar { ToolbarItem(placement: .topBarTrailing) { Button(Copy.apply) { authSheet = nil } } }
             }
         }
-        .sheet(isPresented: Binding(get: { model.state?.session.passwordRecovery == true }, set: { _ in })) { NewPasswordView() }
-        .notice(model.state?.notice?.presented) { model.app.clearNotice() }
+        .sheet(isPresented: Binding(get: { root.passwordRecovery }, set: { _ in })) { NewPasswordView() }
+        .notice(root.notice?.presented) { model.app.clearNotice() }
     }
 }
 

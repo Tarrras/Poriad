@@ -38,6 +38,35 @@ extension EnvironmentValues {
     }
 }
 
+/// Вісім полів, яких треба кореню (онбординг, таббар, листи, банер): `@Observable` поштучно, тож `RootView`
+/// із таббаром і чотирма стеками перераховується лише коли змінилось одне з них, а не на кожну емісію стору.
+@MainActor @Observable final class RootScreenModel {
+    /// Стан уже є: до того невідомо, чи потрібен онбординг.
+    private(set) var ready = false
+    private(set) var needsOnboarding = false
+    private(set) var digestEnabled = true
+    private(set) var followsMade: Int32 = 0
+    private(set) var reviewMoment = false
+    private(set) var waitingEvents = 0
+    private(set) var signedIn = false
+    private(set) var passwordRecovery = false
+    private(set) var notice: AppNotice?
+
+    func apply(_ state: AppState) {
+        if !ready { ready = true }
+        if needsOnboarding != state.needsOnboarding { needsOnboarding = state.needsOnboarding }
+        if digestEnabled != state.digestEnabled { digestEnabled = state.digestEnabled }
+        if followsMade != state.library.followsMade { followsMade = state.library.followsMade }
+        if reviewMoment != state.reviewMoment { reviewMoment = state.reviewMoment }
+        let waiting = Int(state.waitingEvents)
+        if waitingEvents != waiting { waitingEvents = waiting }
+        if signedIn != state.signedIn { signedIn = state.signedIn }
+        if passwordRecovery != state.session.passwordRecovery { passwordRecovery = state.session.passwordRecovery }
+        // Kotlin-інтерфейс — протокол без `Equatable`: порівнюємо за посиланням, обʼєкт сповіщення один на емісію.
+        if (notice as AnyObject?) !== (state.notice as AnyObject?) { notice = state.notice }
+    }
+}
+
 @MainActor final class AppModel: ObservableObject {
     let graph: AppGraph
     var app: PoruchApp { graph.app }
@@ -62,6 +91,7 @@ extension EnvironmentValues {
 
     /// Головна: стан екрана зі спільного `HomePresenter`, той самий, що й на Android. Спостерігається
     /// окремо від `AppModel`, тож головна перемальовується лише зі своїм станом.
+    let root = RootScreenModel()
     lazy var homeScreen = HomeScreenModel(app: app)
     lazy var exploreScreen = ExploreScreenModel(app: app)
     lazy var myEventsScreen = MyEventsScreenModel(app: app)
@@ -106,6 +136,7 @@ extension EnvironmentValues {
         // Чернетка події належить людині, а не телефону: після виходу наступний акаунт її не бачить.
         if self.state?.session.userId != nil && state.session.userId == nil { EventEditorModel.clearDrafts() }
         self.state = state
+        root.apply(state)
         // Мапа малює індекс, картки приїжджають вікном; порядок один. Емісій багато (вибір у
         // каруселі, чат, прапорці завантаження), а індекс міняється рідко: перебудова лише за версією.
         let indexChanged = state.map.indexVersion != lastIndexVersion
