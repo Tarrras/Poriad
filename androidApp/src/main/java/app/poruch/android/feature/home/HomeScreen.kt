@@ -237,7 +237,8 @@ private fun PeopleSection(state: HomeState, onIntent: (HomeIntent) -> Unit) {
             state.screen.people.forEach { entry ->
                 PosterCard(
                     entry.event, entry.source, entry.event.id in state.screen.savedIds, entry.event.id in state.screen.waitlistedIds,
-                    { onIntent(HomeIntent.ToggleSaved(entry.event.id)) }, Modifier.width(PeopleCardWidth), showOrigin = false
+                    { onIntent(HomeIntent.ToggleSaved(entry.event.id)) }, Modifier.width(PeopleCardWidth), showOrigin = false,
+                    followName = entry.followName
                 ) { onIntent(HomeIntent.OpenEvent(entry.event.id, "home_people")) }
             }
         }
@@ -258,7 +259,7 @@ private fun PersonalSection(state: HomeState, onIntent: (HomeIntent) -> Unit) {
     val rows = buildList<@Composable () -> Unit> {
         state.screen.personal.filter { it !== lead }.forEach { row -> add { PlanRow(row, onIntent) } }
         if (state.screen.moreWaiting > 0) add { WaitingRow(state.screen.moreWaiting, onIntent) }
-        if (state.screen.followed.isNotEmpty()) add { FollowsRow(state.screen.followed) { onIntent(HomeIntent.OpenFollows) } }
+        if (state.screen.followed.isNotEmpty()) add { FollowsRow(state.screen.followNames, state.screen.followed) { onIntent(HomeIntent.OpenFollows) } }
     }
     Column(Modifier.padding(horizontal = Spacing.page), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
         SectionHeader(
@@ -449,25 +450,24 @@ private fun NextPlanCard(row: PersonalRow, onIntent: (HomeIntent) -> Unit) {
     }
 }
 
-/** «Підписки: 3 події» і, що саме, — першою назвою. Тап веде на екран підписок. */
+/** «Ви стежите» і за ким — двома першими іменами, як і веде тап: на екран «Ви стежите». Імен нема (список не доїхав) — назва події. */
 @Composable
-private fun FollowsRow(events: List<Event>, onClick: () -> Unit) {
+private fun FollowsRow(names: List<String>, events: List<Event>, onClick: () -> Unit) {
     val colors = Poruch.colors
-    val more = events.size - 1
-    val first = events.first().displayTitle
+    val shown = if (names.isEmpty()) events.first().displayTitle else names.take(2).joinToString(", ")
     YourRow(
-        overline = null, title = pluralStringResource(R.plurals.home_follows_events, events.size, events.size),
-        subtitle = if (more > 0) stringResource(R.string.home_follows_more, first, more) else first,
+        overline = null, title = stringResource(R.string.follows_title),
+        subtitle = if (names.size > 2) stringResource(R.string.home_follows_more, shown, names.size - 2) else shown,
         onClick = onClick,
         tile = { YourTileIcon(PoruchIcons.bellActive) }
     ) { Icon(PoruchIcons.chevronRight, null, Modifier.size(18.dp), tint = colors.inkTertiary) }
 }
 
-/** Підпис джерела в стрічці: «Для вас», «Підписки». Афіша міста без підпису. */
+/** Підпис джерела в стрічці: «Для вас», «Ви стежите · МУР». Афіша міста без підпису. */
 @Composable
-private fun lane(source: FeedSource): String? = when (source) {
+private fun lane(source: FeedSource, followName: String?): String? = when (source) {
     FeedSource.FOR_YOU -> stringResource(R.string.picked_for_you)
-    FeedSource.FOLLOWING -> stringResource(R.string.follows_title)
+    FeedSource.FOLLOWING -> followName?.let { stringResource(R.string.follow_via, it) } ?: stringResource(R.string.following)
     FeedSource.CITY -> null
 }
 
@@ -497,7 +497,7 @@ private fun LazyListScope.cityFeed(state: HomeState, onIntent: (HomeIntent) -> U
                     pair.forEach { entry ->
                         PosterCard(
                             entry.event, entry.source, entry.event.id in state.screen.savedIds, entry.event.id in state.screen.waitlistedIds,
-                            { onIntent(HomeIntent.ToggleSaved(entry.event.id)) }, Modifier.weight(1f)
+                            { onIntent(HomeIntent.ToggleSaved(entry.event.id)) }, Modifier.weight(1f), followName = entry.followName
                         ) { onIntent(HomeIntent.OpenEvent(entry.event.id, "home_poster")) }
                     }
                     if (pair.size == 1) Spacer(Modifier.weight(1f))
@@ -558,7 +558,7 @@ private fun HeroPager(picks: List<FeedEntry>, savedIds: List<String>, onIntent: 
         ) { index ->
             val entry = picks[index]
             EventHeroCard(
-                entry.event, eyebrow = lane(entry.source), saved = entry.event.id in savedIds,
+                entry.event, eyebrow = lane(entry.source, entry.followName), saved = entry.event.id in savedIds,
                 onSave = { onIntent(HomeIntent.ToggleSaved(entry.event.id)) }
             ) { onIntent(HomeIntent.OpenEvent(entry.event.id, "home_hero")) }
         }
@@ -575,12 +575,16 @@ private fun PosterCard(
     // спільний стор зберігає — картка пропускає перескладання, поки не змінилась сама подія чи її стан.
     event: Event, source: FeedSource, saved: Boolean, waitlisted: Boolean, onSave: () -> Unit, modifier: Modifier = Modifier,
     /** Підпис «Від людей» на кімнаті без стану: у секції «Від людей» він зайвий. */
-    showOrigin: Boolean = true, onClick: () -> Unit
+    showOrigin: Boolean = true,
+    /** За ким саме подія з підписок: ім'я на плашці з дзвіночком. */
+    followName: String? = null, onClick: () -> Unit
 ) {
     val colors = Poruch.colors
     // Скасоване й знята афіша вже сказані підписом внизу, двічі не пишемо.
     val state = if (event.gathering == null || event.isCancelled) null else eventState(event, waitlisted)
-    val badge = state ?: lane(source)?.let { it to BadgeTone.Neutral }
+    // Вузька плашка: дзвіночок замість «Ви стежите», лишається саме ім'я.
+    val following = state == null && source == FeedSource.FOLLOWING
+    val badge = state ?: (if (following) followName ?: stringResource(R.string.following) else lane(source, followName))?.let { it to BadgeTone.Neutral }
     // Ні стану, ні «Для вас»: кімнату однаково видно як зустріч від людей.
     val fromPeople = showOrigin && badge == null && event.gathering != null
     // «Від 390 ₴» лише коли джерело сказало ціну; для кімнати — «3/8» з гліфом людей, як на iOS, де бейдж капсом і «3 З 8» читалось б «3 3 8».
@@ -599,7 +603,9 @@ private fun PosterCard(
     ) {
         Box(Modifier.fillMaxWidth().aspectRatio(4f / 5f).clip(Radius.lg)) {
             EventArt(event, Modifier.fillMaxSize(), glyph = 130.dp)
-            badge?.let { (text, tone) -> Box(Modifier.align(Alignment.TopStart).padding(Spacing.sm)) { StatusBadge(text, tone) } }
+            badge?.let { (text, tone) ->
+                Box(Modifier.align(Alignment.TopStart).padding(Spacing.sm)) { StatusBadge(text, tone, PoruchIcons.bellActive.takeIf { following }) }
+            }
             if (fromPeople) Box(Modifier.align(Alignment.TopStart).padding(Spacing.sm)) {
                 StatusBadge(stringResource(R.string.from_people), BadgeTone.Neutral, PoruchIcons.social)
             }

@@ -1815,17 +1815,21 @@ class PoruchAppTest {
         assertEquals(chip,filtered.feedFilter)
         app.close()
     }
-    /** Тур артиста, за яким стежать: «Ваше» бачить усі міста, а «У місті» — лише обране. */
+    /** Підписки з усіх міст: «Ви стежите» бачить усі й каже, за ким; «У місті» — лише обране, з іменем на картці. */
     @Test fun followedEventsFromOtherCitiesStayOutOfTheCityFeed()=runTest {
         val soon=(Clock.System.now()+1.hours).toString()
-        val lviv=listed("lviv",soon).copy(city="Львів",latitude=49.84,longitude=24.03)
-        val follows=FollowsFake().apply { feed=listOf(listed("kyiv",soon),lviv) }
+        val lviv=listed("lviv",soon,placeId="p2").copy(city="Львів",latitude=49.84,longitude=24.03)
+        val follows=FollowsFake().apply {
+            list=listOf(Follow(FollowKind.PLACE,"p1","Малевич"),Follow(FollowKind.PLACE,"p2","Опера"))
+            feed=listOf(listed("kyiv",soon),lviv)
+        }
         val app=app(Events(),backgroundScope,follows=follows); runCurrent(); advanceTimeBy(101); runCurrent()
         val presenter=HomePresenter(app,backgroundScope,StandardTestDispatcher(testScheduler))
         runCurrent()
         val state=presenter.state.value
         assertEquals(listOf("kyiv","lviv"),state.followed.map { it.id })
-        assertEquals(listOf("kyiv"),state.feed.map { it.event.id })
+        assertEquals(listOf("Малевич","Опера"),state.followNames)
+        assertEquals(listOf("kyiv" to "Малевич"),state.feed.map { it.event.id to it.followName })
         app.close()
     }
 

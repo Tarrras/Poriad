@@ -88,6 +88,20 @@ object FollowRules {
     const val PUSH_EVENTS = 3
     const val PUSH_PLACES = 5
 
+    /**
+     * Через кого з [follows] подія потрапила в стрічку: ті самі зв'язки, що в `private.followed_events`. Збіглось
+     * кілька — найконкретніший: артист, потім організатор, потім заклад (МУР у Louder Hub — це «МУР»).
+     */
+    fun via(event: Event, follows: List<Follow>): Follow? = follows.filter {
+        when (it.kind) {
+            FollowKind.ARTIST -> event.artists.any { a -> a.id == it.targetId }
+            FollowKind.ORGANIZER -> event.gathering?.organizerId == it.targetId
+            FollowKind.PLACE -> event.listing?.placeId == it.targetId
+        }
+    }.minByOrNull { PRECEDENCE.indexOf(it.kind) }
+
+    private val PRECEDENCE = listOf(FollowKind.ARTIST, FollowKind.ORGANIZER, FollowKind.PLACE)
+
     /** Раз на добу: перший пуш вільний, далі — коли з попереднього минула доба. */
     fun mayPushPlaces(lastPush: Instant?, now: Instant) = lastPush == null || now - lastPush >= PLACE_PUSH_INTERVAL
 

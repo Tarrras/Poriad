@@ -19,6 +19,21 @@ class FollowRulesTest {
         createdAgo: kotlin.time.Duration = 1.hours, endsAfter: kotlin.time.Duration = 2.hours
     ) = PlaceListing(id, place, title, now + startsIn, now + startsIn + endsAfter, now - createdAgo)
 
+    /** Підпис картки в «У місті»: за ким саме подія. Артист конкретніший за заклад, де він грає. */
+    @Test fun viaNamesTheMostSpecificFollow() {
+        val show = Event(
+            "e1", "МУР", "", EventCategory.MUSIC, "Київ", "", "2026-10-19T17:00:00Z", "2026-10-19T19:00:00Z", "Europe/Kyiv",
+            EventStatus.PUBLISHED, 50.45, 30.52, listing = Listing("Concert.ua", placeId = "hub"), artists = listOf(Artist("mur", "МУР"))
+        )
+        val hub = Follow(FollowKind.PLACE, "hub", "Louder Hub")
+        val mur = Follow(FollowKind.ARTIST, "mur", "МУР")
+        assertEquals("МУР", FollowRules.via(show, listOf(hub, mur))?.name)
+        assertEquals("Louder Hub", FollowRules.via(show, listOf(hub))?.name)
+        assertNull(FollowRules.via(show, listOf(Follow(FollowKind.ORGANIZER, "hub", "Тезка"))), "same id, other kind")
+        val room = show.copy(listing = null, artists = emptyList(), gathering = Gathering("u1", "Олена", 8, 2, false))
+        assertEquals("Олена", FollowRules.via(room, listOf(hub, Follow(FollowKind.ORGANIZER, "u1", "Олена")))?.name)
+    }
+
     @Test fun oneAdayPerPerson() {
         assertTrue(FollowRules.mayPushPlaces(null, now), "the first push is free")
         assertFalse(FollowRules.mayPushPlaces(now - 23.hours - 59.minutes, now))

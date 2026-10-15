@@ -604,11 +604,12 @@ enum Copy {
     static let follow_organizer_hint = "Скажемо, коли в нього зʼявиться нова подія"
     static let rate_follow_title = "Стежити за організатором"
     static let rate_follow_hint = "Скажемо, коли в нього зʼявиться нова подія"
-    static let follows_title = "Підписки"
-    static let follows_hint = "Заклади й організатори"
+    static let follows_title = "Ви стежите"
+    static func follow_via(_ a0: String) -> String { "Ви стежите · \(a0)" }
+    static let follows_hint = "Заклади, організатори й артисти"
     static let follows_subtitle = "Скажемо, коли в них зʼявиться щось нове"
     static let follows_empty_title = "Ви ні за ким не стежите"
-    static let follows_empty_hint = "Натисніть «Стежити» на закладі чи в організатора — і ми скажемо, коли в них зʼявиться щось нове."
+    static let follows_empty_hint = "Натисніть «Стежити» на закладі, в організатора чи артиста — і ми скажемо, коли в них зʼявиться щось нове."
     static func follows_place_caption(_ a0: String, _ a1: String) -> String { "\(a0) · \(a1)" }
     static func follows_organizer_caption(_ a0: String) -> String { "Організатор · \(a0)" }
     static let unfollow = "Не стежити"
@@ -649,7 +650,6 @@ enum Copy {
     static let block_user_body_chat = "Ви більше не побачите подій і повідомлень цієї людини, а вона — ваших. Скасувати можна у профілі."
     static func new_messages_count(_ a0: String) -> String { "Нових повідомлень: \(a0)" }
     static func nothing_found_city(_ a0: String) -> String { "У місті \(a0) такого поки немає. Пошукайте в усіх містах або спробуйте інше слово." }
-    static func and_more(_ a0: String) -> String { "та ще \(a0)" }
     static let scope_everywhere = "усюди"
     static func scope_in_city(_ a0: String) -> String { "у місті \(a0)" }
     static func searching_scope(_ a0: String) -> String { "Шукаємо \(a0)" }
@@ -694,7 +694,6 @@ enum Copy {
     static func series_more_showings(_ n: Int) -> String { ukrainianPlural(n, "ще \(n) сеанс", "ще \(n) сеанси", "ще \(n) сеансів") }
     static func place_upcoming(_ n: Int) -> String { ukrainianPlural(n, "\(n) подія", "\(n) події", "\(n) подій") }
     static func seats_short(_ n: Int) -> String { ukrainianPlural(n, "\(n) місце", "\(n) місця", "\(n) місць") }
-    static func home_follows_events(_ n: Int) -> String { ukrainianPlural(n, "Підписки: \(n) подія", "Підписки: \(n) події", "Підписки: \(n) подій") }
     static func chat_members(_ n: Int) -> String { ukrainianPlural(n, "\(n) учасник", "\(n) учасники", "\(n) учасників") }
     static func chat_unread_count(_ n: Int) -> String { ukrainianPlural(n, "\(n) нове", "\(n) нових", "\(n) нових") }
     static func requests_count(_ n: Int) -> String { ukrainianPlural(n, "\(n) запит", "\(n) запити", "\(n) запитів") }

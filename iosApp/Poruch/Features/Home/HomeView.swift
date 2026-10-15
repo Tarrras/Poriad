@@ -255,7 +255,7 @@ struct HomeView: View, Equatable {
         var items: [AnyView] = []
         items += rows.map { row in AnyView(PlanRow(row: row, open: { open(row.event.id, from: "home_your") }, chat: { openChat(row.event) })) }
         if view.moreWaiting > 0 { items.append(AnyView(waitingRow(Int(view.moreWaiting)))) }
-        if !view.followed.isEmpty { items.append(AnyView(followsRow(view.followed))) }
+        if !view.followed.isEmpty { items.append(AnyView(followsRow(view))) }
         let grouped = items
         return VStack(alignment: .leading, spacing: Space.md) {
             SectionHeader(
@@ -280,13 +280,13 @@ struct HomeView: View, Equatable {
         Divider().overlay(Palette.hairline).padding(.leading, Space.lg + yourTile + Space.md)
     }
 
-    /// «Підписки: 3 події» і, що саме, — першою назвою. Тап веде на екран підписок.
-    private func followsRow(_ events: [Event]) -> some View {
-        let count = events.count
-        let more = count - 1
+    /// «Ви стежите» і за ким — двома першими іменами, як і веде тап: на екран «Ви стежите». Імен нема (список не доїхав) — назва події.
+    private func followsRow(_ view: HomeScreenState) -> some View {
+        let names = view.followNames
+        let shown = names.isEmpty ? (view.followed.first?.displayTitle ?? "") : names.prefix(2).joined(separator: ", ")
         return YourRow(
-            overline: nil, title: Copy.home_follows_events(count),
-            subtitle: (events.first?.displayTitle ?? "") + (more > 0 ? " " + Copy.and_more("\(more)") : ""), open: openFollows
+            overline: nil, title: Copy.follows_title,
+            subtitle: names.count > 2 ? Copy.home_follows_more(shown, "\(names.count - 2)") : shown, open: openFollows
         ) {
             PoruchIcon(glyph: PoruchIcons.bell, size: 20).foregroundStyle(Palette.ink)
                 .frame(width: yourTile, height: yourTile)
@@ -376,7 +376,7 @@ struct HomeView: View, Equatable {
             HStack(spacing: Space.md) {
                 ForEach(picks, id: \.event.id) { entry in
                     EventHeroCard(
-                        event: entry.event, eyebrow: lane(entry.source),
+                        event: entry.event, eyebrow: lane(entry),
                         saved: view.isSaved(entry.event), onSave: { model.app.toggleSaved(id: entry.event.id) }
                     ) { open(entry.event.id, from: "home_hero") }
                     .containerRelativeFrame(.horizontal) { width, _ in picks.count > 1 ? width * 0.86 : width - 2 * Space.page }
@@ -682,11 +682,11 @@ private func feedChipLabel(_ chip: FeedFilter) -> String {
     }
 }
 
-/// Підпис джерела в стрічці: «Для вас», «Підписки». Афіша міста без підпису.
-private func lane(_ source: FeedSource) -> String? {
-    switch source {
+/// Підпис джерела в стрічці: «Для вас», «Ви стежите · МУР». Афіша міста без підпису.
+private func lane(_ entry: FeedEntry) -> String? {
+    switch entry.source {
     case .forYou: Copy.picked_for_you
-    case .following: Copy.follows_title
+    case .following: entry.followName.map { Copy.follow_via($0) } ?? Copy.following
     default: nil
     }
 }
@@ -735,7 +735,10 @@ private struct PosterCard: View {
                     .overlay(alignment: .topLeading) {
                         if let state {
                             StatusBadge(text: state.0, tone: state.1, glyph: state.2, onPhoto: true).padding(Space.sm)
-                        } else if let label = lane(entry.source) {
+                        } else if entry.source == .following {
+                            // Вузька плашка: дзвіночок замість «Ви стежите», лишається саме ім'я.
+                            StatusBadge(text: entry.followName ?? Copy.following, glyph: PoruchIcons.bell, onPhoto: true).padding(Space.sm)
+                        } else if let label = lane(entry) {
                             StatusBadge(text: label, onPhoto: true).padding(Space.sm)
                         } else if showsOrigin, let community = communityBadge(event) {
                             StatusBadge(text: community.0, glyph: community.2, onPhoto: true).padding(Space.sm)

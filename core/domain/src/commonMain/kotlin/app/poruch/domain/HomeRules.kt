@@ -11,7 +11,8 @@ import kotlin.time.Instant
 /** Звідки подія в стрічці «У місті»: підпис над її назвою. */
 enum class FeedSource { FOR_YOU, FOLLOWING, CITY }
 
-data class FeedEntry(val event: Event, val source: FeedSource)
+/** [followName] — за ким саме подія з підписок ([FollowRules.via]): підпис картки замість безіменного «Ви стежите». */
+data class FeedEntry(val event: Event, val source: FeedSource, val followName: String? = null)
 
 /** Що вибрано в ряду чипів над сіткою «У місті»: усе, час, ціна чи категорія. Одне на раз. */
 enum class FeedFilterKind { ALL, TODAY, TOMORROW, WEEKEND, FREE, CATEGORY }

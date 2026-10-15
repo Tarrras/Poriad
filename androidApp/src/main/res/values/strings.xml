@@ -292,12 +292,6 @@
   <string name="home_requests_short">Запити · %1$d</string>
   <string name="home_chat_preview">%1$s: «%2$s»</string>
   <string name="home_chat_a11y">Чат, нових повідомлень: %1$d</string>
-  <plurals name="home_follows_events">
-    <item quantity="one">Підписки: %1$d подія</item>
-    <item quantity="few">Підписки: %1$d події</item>
-    <item quantity="many">Підписки: %1$d подій</item>
-    <item quantity="other">Підписки: %1$d подій</item>
-  </plurals>
   <string name="home_follows_more">%1$s та ще %2$d</string>
   <string name="picked_for_you">Для вас</string>
   <string name="on_map">На мапі</string>
@@ -736,18 +730,19 @@
     <item quantity="many">%1$d збережених</item>
     <item quantity="other">%1$d збережених</item>
   </plurals>
-  <!-- Підписки: «Стежити» на закладі й організаторі (docs/follows.md) -->
+  <!-- «Стежити» на закладі, організаторі й артисті (docs/follows.md). Одне дієслово скрізь: «Підписка» — для платного -->
   <string name="follow">Стежити</string>
   <string name="following">Ви стежите</string>
   <string name="follow_place_hint">Скажемо, коли тут зʼявиться щось нове</string>
   <string name="follow_organizer_hint">Скажемо, коли в нього зʼявиться нова подія</string>
   <string name="rate_follow_title">Стежити за організатором</string>
   <string name="rate_follow_hint">Скажемо, коли в нього зʼявиться нова подія</string>
-  <string name="follows_title">Підписки</string>
-  <string name="follows_hint">Заклади й організатори</string>
+  <string name="follows_title">Ви стежите</string>
+  <string name="follow_via">Ви стежите · %1$s</string>
+  <string name="follows_hint">Заклади, організатори й артисти</string>
   <string name="follows_subtitle">Скажемо, коли в них зʼявиться щось нове</string>
   <string name="follows_empty_title">Ви ні за ким не стежите</string>
-  <string name="follows_empty_hint">Натисніть «Стежити» на закладі чи в організатора — і ми скажемо, коли в них зʼявиться щось нове.</string>
+  <string name="follows_empty_hint">Натисніть «Стежити» на закладі, в організатора чи артиста — і ми скажемо, коли в них зʼявиться щось нове.</string>
   <string name="follows_place_caption">%1$s · %2$s</string>
   <string name="follows_organizer_caption">Організатор · %1$s</string>
   <string name="unfollow">Не стежити</string>
@@ -790,7 +785,6 @@
   <string name="block_user_body_chat">Ви більше не побачите подій і повідомлень цієї людини, а вона — ваших. Скасувати можна у профілі.</string>
   <string name="new_messages_count">Нових повідомлень: %1$d</string>
   <string name="nothing_found_city">У місті %1$s такого поки немає. Пошукайте в усіх містах або спробуйте інше слово.</string>
-  <string name="and_more">та ще %1$d</string>
   <string name="scope_everywhere">усюди</string>
   <string name="scope_in_city">у місті %1$s</string>
   <string name="searching_scope">Шукаємо %1$s</string>

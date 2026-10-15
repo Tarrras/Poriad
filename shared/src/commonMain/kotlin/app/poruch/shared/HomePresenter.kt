@@ -7,6 +7,8 @@ import app.poruch.domain.Event
 import app.poruch.domain.EventCategory
 import app.poruch.domain.FeedEntry
 import app.poruch.domain.FeedFilter
+import app.poruch.domain.FeedSource
+import app.poruch.domain.FollowRules
 import app.poruch.domain.HomeLocation
 import app.poruch.domain.HomeRules
 import app.poruch.domain.Place
@@ -50,8 +52,10 @@ data class HomeScreenState(
     val loading: Boolean = false,
     /** «Ваше»: до [HomeRules.PERSONAL_LIMIT] своїх подій, спершу ті, де хтось чекає відповіді. */
     val personal: List<PersonalRow> = emptyList(),
-    /** Майбутні події закладів і організаторів, за якими стежу, найближчі першими. Порожньо — рядка «Підписки» нема. */
+    /** Майбутні події тих, за ким стежу, з усіх міст, найближчі першими. Порожньо — рядка «Ви стежите» нема. */
     val followed: List<Event> = emptyList(),
+    /** Хто з підписок має щось попереду, у порядку найближчої події: підпис рядка «Ви стежите». */
+    val followNames: List<String> = emptyList(),
     /** Скільки подій, що чекають відповіді (чат, запит), у [personal] не влізло: рядок «Чекають відповіді: ще N». */
     val moreWaiting: Int = 0,
     /** «Від людей»: зустрічі з вільним місцем окремою рейкою, коли їх набралось досить ([HomeRules.people]); інакше порожньо. */
@@ -168,6 +172,7 @@ class HomePresenter(
         // Підписки сервер віддає з усіх міст (тур артиста). «Ваше» показує їх усі, а «У місті» й «Від людей» — лише свої.
         val area = HomeLocation(shared.city.name, shared.city.latitude, shared.city.longitude)
         val followedHere = followed.filter { area.contains(it.latitude, it.longitude) }
+        val via = followed.associate { it.id to FollowRules.via(it, shared.library.follows)?.name }
 
         // «Ваше»: чат із непрочитаним (навіть минулої події) і запити чекають на людину, тож вони першими.
         val mine = shared.library.myEvents.associateBy { it.id }
@@ -184,6 +189,7 @@ class HomePresenter(
         val people = HomeRules.people(suggested, city, followedHere, mineIds)
         // Кімнати, що дістали власну секцію, у стрічці не повторюємо й уперед їх більше не ставимо.
         val all = HomeRules.feed(suggested, city, followedHere, mineIds + people.map { it.event.id }, roomsFirst = people.isEmpty())
+            .map { if (it.source == FeedSource.FOLLOWING) it.copy(followName = via[it.event.id]) else it }
         val rest = all.drop(HomeRules.HERO_COUNT)
         val chips = HomeRules.chips(rest, now, zoneId)
         val filter = feedFilter.takeIf { it in chips } ?: FeedFilter()
@@ -194,6 +200,7 @@ class HomePresenter(
             loading = home.loading,
             personal = personal,
             followed = followed,
+            followNames = followed.mapNotNull { via[it.id] }.distinct(),
             moreWaiting = waiting.mapTo(HashSet()) { it.id }.count { it !in shown },
             people = people,
             feed = all.take(HomeRules.HERO_COUNT) + HomeRules.apply(rest, filter, now, zoneId),
