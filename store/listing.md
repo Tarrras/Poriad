@@ -94,11 +94,13 @@ iPad-скріншоти не потрібні: застосунок iPhone-only 
 | Повідомлення в застосунку (Other in-app messages) | ні | чат події | Google (FCM) для доставки пушів |
 | Історія пошуку в застосунку | ні | функціональність: пошук подій, міст і адрес, ефемерно | ні¹ |
 | Інший контент користувача | ні | «Про себе» в профілі, події, оцінки завершених подій (1–5 + коментар, бачить організатор), скарги, блокування | ні |
-| Device or other IDs (FCM token, Firebase Installation ID, Amplitude device ID) | ні | пуші, аналітика | Google, Amplitude |
-| App interactions (Analytics; записи сеансів Amplitude — дотики, прокрутка, екрани, текст і фото людей приховані) | ні — вимикається перемикачем «Аналітика» в профілі | аналітика | Google, Amplitude |
+| Device or other IDs (FCM token, Firebase Installation ID, Amplitude device ID) | ні | пуші, аналітика | Google, Amplitude² |
+| App interactions (Analytics; записи сеансів Amplitude — дотики, прокрутка, екрани, текст і фото людей приховані) | ні — вимикається перемикачем «Аналітика» в профілі | аналітика | Google, Amplitude² |
 | Crash logs, Diagnostics | ні — той самий перемикач | стабільність | Google |
 
 ¹ Набраний текст пошуку міста/адреси й координати для зворотного геокодування йдуть у Photon (komoot, Німеччина) за дією користувача — виняток «user-initiated» у визначенні sharing. Якщо рецензент заперечить — позначити «передається» для цих двох рядків.
+
+² Amplitude обробляє дані від нашого імені (постачальник послуг) і сам по собі «Data shared» не вимагає. У формі Play ці два рядки вже позначені «передаются» через Google, тож для Amplitude нічого міняти не треба (перевірено 15.10). В App Store Connect Device ID уже має мету Analytics, Product Interaction — Analytics, Not linked.
 
 Реклама, фінанси, контакти, здоров'я — не збираються. Advertising ID вимкнено в маніфесті, тож у Data safety його не вказувати.
 
@@ -176,7 +178,7 @@ UGC: так. Спілкування між користувачами: так (�
 
 ### App Privacy (Data linked to you)
 
-Contact Info: Email, Name. Identifiers: User ID, Device ID. Photos or Videos. User Content: Emails or Text Messages (чат події; push через APNs), Other User Content («Про себе» в профілі, події, оцінки 1–5 з коментарем, скарги). Other Data: дата народження. Мета для всіх — App Functionality.
+Contact Info: Email, Name. Identifiers: User ID, Device ID. Photos or Videos. User Content: Emails or Text Messages (чат події; push через APNs), Other User Content («Про себе» в профілі, події, оцінки 1–5 з коментарем, скарги). Other Data: дата народження. Мета для всіх — App Functionality; у Device ID ще й Analytics (Amplitude рахує пристрій за IDFV).
 
 **Not linked to you:** Location — Coarse Location (App Functionality; координати для назви міста йдуть у Photon). Search History (пошук подій, міст, адрес; App Functionality). Usage Data — Product Interaction (Analytics; Firebase і Amplitude, включно із записами сеансів, де текст і фото людей приховані). Diagnostics — Crash Data, Performance Data (App Functionality). Аналітику й звіти про збої користувач вимикає перемикачем «Аналітика» в профілі. Tracking: none (без IDFA).
 
