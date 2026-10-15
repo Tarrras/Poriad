@@ -165,6 +165,9 @@ class HomePresenter(
         val city = startingToday + runningToday + (later - runningToday.toSet())
         // Стрічка приїхала з сервера, а події за час у застосунку встигають скінчитись.
         val followed = shared.library.followEvents.filter { it.isPublished && it.isListed(now) }
+        // Підписки сервер віддає з усіх міст (тур артиста). «Ваше» показує їх усі, а «У місті» й «Від людей» — лише свої.
+        val area = HomeLocation(shared.city.name, shared.city.latitude, shared.city.longitude)
+        val followedHere = followed.filter { area.contains(it.latitude, it.longitude) }
 
         // «Ваше»: чат із непрочитаним (навіть минулої події) і запити чекають на людину, тож вони першими.
         val mine = shared.library.myEvents.associateBy { it.id }
@@ -178,9 +181,9 @@ class HomePresenter(
         val shown = personal.mapTo(HashSet()) { it.event.id }
         // Усі свої плани, а не лише три з «Ваше»: решта живе в «Моїх подіях», а в місті стояла б безіменним постером.
         val mineIds = mineFirst.mapTo(HashSet()) { it.id }
-        val people = HomeRules.people(suggested, city, followed, mineIds)
+        val people = HomeRules.people(suggested, city, followedHere, mineIds)
         // Кімнати, що дістали власну секцію, у стрічці не повторюємо й уперед їх більше не ставимо.
-        val all = HomeRules.feed(suggested, city, followed, mineIds + people.map { it.event.id }, roomsFirst = people.isEmpty())
+        val all = HomeRules.feed(suggested, city, followedHere, mineIds + people.map { it.event.id }, roomsFirst = people.isEmpty())
         val rest = all.drop(HomeRules.HERO_COUNT)
         val chips = HomeRules.chips(rest, now, zoneId)
         val filter = feedFilter.takeIf { it in chips } ?: FeedFilter()

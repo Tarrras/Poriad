@@ -160,6 +160,9 @@ data class HomeLocation(
     val west get() = longitude - spanLongitude
     val east get() = longitude + spanLongitude
 
+    /** Чи точка в тій самій області, що стрічка міста на сервері. */
+    fun contains(lat: Double, lon: Double) = lat in south..north && lon in west..east
+
     /** Відстань по великому колу. */
     private fun kmTo(lat: Double, lon: Double): Double {
         val dLat = (lat - latitude) * PI / 180

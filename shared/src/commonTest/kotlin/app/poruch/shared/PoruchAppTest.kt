@@ -1815,6 +1815,20 @@ class PoruchAppTest {
         assertEquals(chip,filtered.feedFilter)
         app.close()
     }
+    /** Тур артиста, за яким стежать: «Ваше» бачить усі міста, а «У місті» — лише обране. */
+    @Test fun followedEventsFromOtherCitiesStayOutOfTheCityFeed()=runTest {
+        val soon=(Clock.System.now()+1.hours).toString()
+        val lviv=listed("lviv",soon).copy(city="Львів",latitude=49.84,longitude=24.03)
+        val follows=FollowsFake().apply { feed=listOf(listed("kyiv",soon),lviv) }
+        val app=app(Events(),backgroundScope,follows=follows); runCurrent(); advanceTimeBy(101); runCurrent()
+        val presenter=HomePresenter(app,backgroundScope,StandardTestDispatcher(testScheduler))
+        runCurrent()
+        val state=presenter.state.value
+        assertEquals(listOf("kyiv","lviv"),state.followed.map { it.id })
+        assertEquals(listOf("kyiv"),state.feed.map { it.event.id })
+        app.close()
+    }
+
     /** Презентер деталей: сам просить деталі, дія панелі й сеанс каруселі — зі спільної згортки, зняття екрана звільняє слот. */
     @Test fun detailPresenterDrivesTheScreen()=runTest {
         val events=Events()
