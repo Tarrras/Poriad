@@ -49,8 +49,10 @@ data class ProfileState(
     val newPasswordConfirm: String = "",
     val newPasswordRevealed: Boolean = false,
     val version: String = "",
-    /** За кого й за чим стежу: рядок «Підписки» з лічильником. Порожньо — рядка нема. Сам список — окремий екран. */
-    val follows: List<Follow> = emptyList()
+    /** За кого й за чим стежу: рядок «Ви стежите» з лічильником. Порожньо — рядка нема. Сам список — окремий екран. */
+    val follows: List<Follow> = emptyList(),
+    /** Скільки нового в підписках ще не переглянуто: бейдж того ж рядка. */
+    val newFollows: Int = 0
 ) {
     val canSavePassword get() = !mutating && AccountRules.isPassword(newPassword)
     /** Помилку показуємо лише коли в повторі вже щось є: порожнє поле — ще не помилка. */

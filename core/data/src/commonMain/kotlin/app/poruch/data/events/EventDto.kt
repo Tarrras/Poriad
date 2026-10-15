@@ -205,11 +205,13 @@ internal data class FollowDto(
     val longitude: Double? = null,
     @SerialName("avatar_url") val avatarUrl: String? = null,
     @SerialName("artist_kind") val artistKind: String? = null,
-    val upcoming: Int = 0
+    val upcoming: Int = 0,
+    /** Нуль сервер не віддає. */
+    val fresh: Int = 0
 ) {
     /** Невідомий рід (сервер новіший за застосунок) — не рядок списку, а відсутня підписка. */
     fun domain() = FollowKind.fromKey(kind)?.let {
-        Follow(it, id, name, city.orEmpty(), address.orEmpty(), latitude, longitude, avatarUrl, upcoming, ArtistKind.fromKey(artistKind))
+        Follow(it, id, name, city.orEmpty(), address.orEmpty(), latitude, longitude, avatarUrl, upcoming, ArtistKind.fromKey(artistKind), fresh)
     }
 }
 

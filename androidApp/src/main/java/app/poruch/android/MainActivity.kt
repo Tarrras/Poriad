@@ -335,6 +335,7 @@ fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
                     navigator,
                     Modifier.align(Alignment.BottomCenter),
                     waiting = state.waitingEvents,
+                    newFollows = state.library.newFollowEvents > 0,
                     onCreate = {
                         app.createStarted("fab")
                         navigator.createEvent()
@@ -358,6 +359,8 @@ private fun TabBar(
     navigator: Navigator,
     modifier: Modifier,
     waiting: Int = 0,
+    /** Нове в підписках — крапкою на «Профілі»: звідти відкривається «Ви стежите». */
+    newFollows: Boolean = false,
     onCreate: () -> Unit
 ) {
     val reducedMotion = Poruch.reducedMotion
@@ -371,7 +374,7 @@ private fun TabBar(
             PoruchIcons.calendar,
             badge = waiting
         ),
-        TabItem(Profile.tabKey(), stringResource(R.string.profile), PoruchIcons.person)
+        TabItem(Profile.tabKey(), stringResource(R.string.profile), PoruchIcons.person, dot = newFollows)
     )
     AnimatedVisibility(
         visible = current is Tab,

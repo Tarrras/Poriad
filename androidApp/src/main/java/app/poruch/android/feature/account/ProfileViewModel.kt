@@ -25,6 +25,7 @@ class ProfileViewModel(private val app: PoruchApp, private val notifications: No
                 needsAge = shared.needsAgeDeclaration,
                 blocked = shared.library.blocked,
                 follows = shared.library.follows,
+                newFollows = shared.library.newFollowEvents,
                 mutating = shared.mutating,
                 passwordRecovery = shared.session.passwordRecovery,
                 passwordless = shared.session.passwordless,

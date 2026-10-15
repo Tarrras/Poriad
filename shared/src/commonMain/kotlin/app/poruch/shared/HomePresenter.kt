@@ -56,6 +56,8 @@ data class HomeScreenState(
     val followed: List<Event> = emptyList(),
     /** Хто з підписок має щось попереду, у порядку найближчої події: підпис рядка «Ви стежите». */
     val followNames: List<String> = emptyList(),
+    /** Скільки нового в підписках ще не переглянуто: бейдж рядка «Ви стежите». */
+    val newFollowEvents: Int = 0,
     /** Скільки подій, що чекають відповіді (чат, запит), у [personal] не влізло: рядок «Чекають відповіді: ще N». */
     val moreWaiting: Int = 0,
     /** «Від людей»: зустрічі з вільним місцем окремою рейкою, коли їх набралось досить ([HomeRules.people]); інакше порожньо. */
@@ -201,6 +203,7 @@ class HomePresenter(
             personal = personal,
             followed = followed,
             followNames = followed.mapNotNull { via[it.id] }.distinct(),
+            newFollowEvents = shared.library.newFollowEvents,
             moreWaiting = waiting.mapTo(HashSet()) { it.id }.count { it !in shown },
             people = people,
             feed = all.take(HomeRules.HERO_COUNT) + HomeRules.apply(rest, filter, now, zoneId),

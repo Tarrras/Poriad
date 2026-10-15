@@ -103,12 +103,13 @@ private struct SplashView: View {
 }
 
 /// Чати з непрочитаним і запити на участь живуть у «Моїх подіях»: туди й бейдж, по одному на подію.
-private func tabItems(waiting: Int) -> [TabItem] {
+/// Нове в підписках — крапкою на «Профілі»: звідти відкривається «Ви стежите».
+private func tabItems(waiting: Int, newFollows: Bool) -> [TabItem] {
     [
         TabItem(id: 0, label: Copy.home, glyph: PoruchIcons.home),
         TabItem(id: 1, label: Copy.map, glyph: PoruchIcons.map),
         TabItem(id: 2, label: Copy.my_events, glyph: PoruchIcons.calendar, badge: waiting),
-        TabItem(id: 3, label: Copy.profile, glyph: PoruchIcons.person)
+        TabItem(id: 3, label: Copy.profile, glyph: PoruchIcons.person, dot: newFollows)
     ]
 }
 
@@ -265,7 +266,7 @@ struct RootView: View {
             .toolbar(.hidden, for: .tabBar)
             .onPreferenceChange(HidesTabBarKey.self) { hidden in tabBarHidden = hidden }
             if !tabBarHidden {
-                PoruchTabBar(items: tabItems(waiting: root.waitingEvents), selection: $tab) {
+                PoruchTabBar(items: tabItems(waiting: root.waitingEvents, newFollows: root.newFollows), selection: $tab) {
                     CreateButton { startCreating(from: "fab") }
                 }
                 // Як системний таббар: підписи не ростуть з Dynamic Type, інакше чотири вкладки не вміщаються.

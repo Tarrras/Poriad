@@ -3,9 +3,11 @@ package app.poruch.android.feature.account
 import app.poruch.domain.Follow
 import app.poruch.shared.PersonState
 
-/** Підписки: заклади й організатори, за якими стежить людина, нові першими. */
+/** «Ви стежите»: заклади, організатори й артисти, нові першими. */
 data class FollowsState(
     val follows: List<Follow> = emptyList(),
+    /** Скільки нового було в кого, коли екран відкрили: `followsSeen` гасить лічильник, а тут він лишається до виходу. */
+    val fresh: Map<String, Int> = emptyMap(),
     /** Картка організатора з рядка підписки. */
     val person: PersonState? = null
 )

@@ -8,7 +8,10 @@ class FollowsViewModel(private val app: PoruchApp) :
     MviViewModel<FollowsState, FollowsIntent, FollowsEffect>(FollowsState()) {
 
     init {
-        observe(app) { shared -> copy(follows = shared.library.follows, person = shared.person) }
+        // Модель живе, поки екран у стеку: повернення з артиста — той самий візит, знімок не перезнімаємо.
+        val fresh = app.state.value.library.follows.associate { it.targetId to it.fresh }
+        observe(app) { shared -> copy(follows = shared.library.follows, person = shared.person, fresh = fresh) }
+        app.followsSeen()
     }
 
     override fun onIntent(intent: FollowsIntent) {

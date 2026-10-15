@@ -15,6 +15,7 @@ enum class FollowKind(val key: String) {
 /**
  * Підписка зі списку `my_follows`. Для закладу [city], [address] і координати — щоб відкрити його на мапі без
  * запиту; для організатора — [avatarUrl]; для артиста — [artistKind], якщо сервер його знає. [upcoming] — скільки подій попереду (прокат — одна).
+ * [fresh] — скільки з них з'явилось після підписки й ще не було на екрані «Ви стежите», коли його відкривали.
  */
 data class Follow(
     val kind: FollowKind,
@@ -26,7 +27,8 @@ data class Follow(
     val longitude: Double? = null,
     val avatarUrl: String? = null,
     val upcoming: Int = 0,
-    val artistKind: ArtistKind? = null
+    val artistKind: ArtistKind? = null,
+    val fresh: Int = 0
 ) {
     /** Заклад для мапи. Null — це організатор або сервер не віддав координат. */
     val place: Place?
@@ -46,6 +48,9 @@ interface Follows {
 
     /** Майбутні події з підписок для головної, найближчі першими, тими самими картками, що [EventDiscovery.cards]. */
     suspend fun upcoming(): List<Event>
+
+    /** Екран «Ви стежите» відкрито: усе, що зараз є в підписках, уже не нове ([Follow.fresh]). */
+    suspend fun seen()
 }
 
 /** Афіша закладу, за яким стежать: усе, що потрібно правилам пуша. Сюди потрапляє лише те, що видно в афіші (жива, якісна). */

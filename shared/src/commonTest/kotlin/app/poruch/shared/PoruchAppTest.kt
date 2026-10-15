@@ -138,6 +138,7 @@ class PoruchAppTest {
         var failFollow=false
         var failUnfollow=false
         var failMine=false
+        var failSeen=false
         override suspend fun mine():List<Follow> { if(failMine) fail(AppError.Network); return list }
         override suspend fun follow(kind:FollowKind,targetId:String) {
             delay(100); if(failFollow) fail(AppError.Network)
@@ -148,6 +149,10 @@ class PoruchAppTest {
             calls+="unfollow ${kind.key} $targetId"; list=list.filterNot { it.kind==kind&&it.targetId==targetId }
         }
         override suspend fun upcoming()=feed
+        override suspend fun seen() {
+            delay(100); if(failSeen) fail(AppError.Network)
+            calls+="seen"; list=list.map { it.copy(fresh=0) }
+        }
     }
 
     private fun app(events:Events,scope:CoroutineScope,auth:Auth=Auth(),cities:CityStore?=null,follows:Follows?=null):PoruchApp {
@@ -1523,6 +1528,35 @@ class PoruchAppTest {
         assertEquals(listOf("p1","u1"),app.state.value.library.follows.map { it.targetId })
         assertEquals(listOf("a"),app.state.value.library.followEvents.map { it.id })
         assertTrue(app.state.value.isFollowing(FollowKind.ORGANIZER,"u1"))
+        app.close()
+    }
+
+    /** «Ви стежите»: нове гасне, щойно екран відкрито; сервер не почув — після перечитування лишається новим. */
+    @Test fun openingFollowsClearsWhatIsNewUnlessTheServerMissedIt()=runTest {
+        val follows=FollowsFake().apply {
+            list=listOf(Follow(FollowKind.PLACE,"p1","Малевич",fresh=2),Follow(FollowKind.ARTIST,"a1","МУР",fresh=1),Follow(FollowKind.ORGANIZER,"u1","Олена"))
+        }
+        val app=app(Events(),backgroundScope,follows=follows); runCurrent(); advanceTimeBy(101); runCurrent()
+        assertEquals(3,app.state.value.library.newFollowEvents)
+        val presenter=HomePresenter(app,backgroundScope,StandardTestDispatcher(testScheduler))
+        runCurrent()
+        assertEquals(3,presenter.state.value.newFollowEvents)
+
+        follows.failSeen=true
+        app.followsSeen()
+        assertEquals(0,app.state.value.library.newFollowEvents,"gone at once")
+        advanceTimeBy(300); runCurrent()
+        assertEquals(3,app.state.value.library.newFollowEvents,"the server did not hear: still new")
+
+        follows.failSeen=false
+        app.followsSeen(); advanceTimeBy(300); runCurrent()
+        assertEquals(listOf("seen"),follows.calls)
+        assertEquals(0,app.state.value.library.newFollowEvents)
+        runCurrent()
+        assertEquals(0,presenter.state.value.newFollowEvents)
+        // Нового нема — на сервер не ходимо.
+        app.followsSeen(); advanceTimeBy(300); runCurrent()
+        assertEquals(listOf("seen"),follows.calls)
         app.close()
     }
 

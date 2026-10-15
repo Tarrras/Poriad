@@ -1668,7 +1668,9 @@ fun LinkRow(
     title: String,
     subtitle: String? = null,
     onClick: () -> Unit,
-    value: String? = null
+    value: String? = null,
+    /** Що нового за рядком («3 нові»): помітніше за [value]. */
+    badge: String? = null
 ) {
     val colors = Poruch.colors
     Row(
@@ -1696,6 +1698,7 @@ fun LinkRow(
                 color = colors.inkSecondary
             )
         }
+        if (badge != null) StatusBadge(badge, BadgeTone.Accent)
         if (value != null) Text(
             value,
             style = MaterialTheme.typography.titleLarge,
@@ -1796,7 +1799,9 @@ fun RoundAction(
 data class TabItem(
     val key: String, val label: String, val icon: ImageVector,
     /** Скільки справ чекає: 0 — без бейджа. */
-    val badge: Int = 0
+    val badge: Int = 0,
+    /** Є нове, але не справа, яку треба рахувати: крапка замість числа. */
+    val dot: Boolean = false
 )
 
 /** Плаваючий таббар-капсула; під активним пунктом тонова пігулка. */
@@ -1826,11 +1831,11 @@ fun PoruchTabBar(
             items.forEach { item ->
                 val active = item.key == selected
                 // Скрінрідер чує вкладку, її стан і бейдж одним рядком.
-                val description = if (item.badge > 0) stringResource(
-                    R.string.tab_badge_a11y,
-                    item.label,
-                    item.badge
-                ) else item.label
+                val description = when {
+                    item.badge > 0 -> stringResource(R.string.tab_badge_a11y, item.label, item.badge)
+                    item.dot -> stringResource(R.string.a11y_tab_new_follows, item.label)
+                    else -> item.label
+                }
                 // Бейдж живе поза капсулою пункту: її обрізає clip для ріплу, і кут числа зникав.
                 Box(Modifier.weight(1f)) {
                     Column(
@@ -1868,6 +1873,12 @@ fun PoruchTabBar(
                         Modifier
                             .align(Alignment.TopCenter)
                             .offset(x = 14.dp, y = (-4).dp)
+                    ) else if (item.dot) Box(
+                        Modifier
+                            .align(Alignment.TopCenter)
+                            .offset(x = 10.dp, y = 6.dp)
+                            .size(8.dp)
+                            .background(colors.accent, CircleShape)
                     )
                 }
             }

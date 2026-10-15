@@ -48,6 +48,8 @@ extension EnvironmentValues {
     private(set) var followsMade: Int32 = 0
     private(set) var reviewMoment = false
     private(set) var waitingEvents = 0
+    /// Нове в підписках: крапка на «Профілі».
+    private(set) var newFollows = false
     private(set) var signedIn = false
     private(set) var passwordRecovery = false
     private(set) var notice: AppNotice?
@@ -60,6 +62,8 @@ extension EnvironmentValues {
         if reviewMoment != state.reviewMoment { reviewMoment = state.reviewMoment }
         let waiting = Int(state.waitingEvents)
         if waitingEvents != waiting { waitingEvents = waiting }
+        let follows = state.library.newFollowEvents > 0
+        if newFollows != follows { newFollows = follows }
         if signedIn != state.signedIn { signedIn = state.signedIn }
         if passwordRecovery != state.session.passwordRecovery { passwordRecovery = state.session.passwordRecovery }
         // Kotlin-інтерфейс — протокол без `Equatable`: порівнюємо за посиланням, обʼєкт сповіщення один на емісію.

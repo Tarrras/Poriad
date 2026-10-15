@@ -292,7 +292,12 @@ struct HomeView: View, Equatable {
                 .frame(width: yourTile, height: yourTile)
                 .background(Palette.surfaceMuted, in: RoundedRectangle(cornerRadius: Corner.sm, style: .continuous))
         } trailing: {
-            PoruchIcon(glyph: PoruchIcons.chevronRight, size: 16).foregroundStyle(Palette.inkTertiary)
+            // Нове ще не переглянуте — бейдж замість шеврона: рядок тепер про те, що чекає.
+            if view.newFollowEvents > 0 {
+                StatusBadge(text: Copy.follows_new(Int(view.newFollowEvents)), tone: .accent)
+            } else {
+                PoruchIcon(glyph: PoruchIcons.chevronRight, size: 16).foregroundStyle(Palette.inkTertiary)
+            }
         }
     }
 

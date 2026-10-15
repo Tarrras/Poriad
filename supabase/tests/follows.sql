@@ -7,6 +7,7 @@ begin;
 delete from public.follows;
 delete from private.follow_pushes;
 delete from private.follow_announced;
+delete from private.follow_seen;
 
 -- Пуші ловимо в таблицю замість pg_net: заміна функції відкотиться разом з рештою. Адреса функції теж підроблена:
 -- без неї зведення нічого не робить (перевіряємо окремо).
@@ -94,6 +95,8 @@ do $$ begin
  exception when insufficient_privilege then null; end;
  begin perform public.follow_events(); raise exception 'anon read the feed';
  exception when insufficient_privilege then null; end;
+ begin perform public.follows_seen(); raise exception 'anon marked seen';
+ exception when insufficient_privilege then null; end;
  begin perform count(*) from public.follows; raise exception 'anon read the table';
  exception when insufficient_privilege then null; end;
 end $$;
@@ -126,6 +129,7 @@ do $$ begin
  assert not has_function_privilege('authenticated','private.notify_place_follows()','execute'),'clients cannot run the digest';
  assert not has_function_privilege('authenticated','private.follow(text,uuid)','execute') is null,'private wrappers are granted only for the invoker wrappers';
  assert not has_table_privilege('authenticated','private.follow_announced','select'),'the announced log is private';
+ assert not has_table_privilege('authenticated','private.follow_seen','select'),'so is what was seen';
  assert not has_table_privilege('authenticated','private.follow_pushes','select'),'so is the push log';
 end $$;
 
@@ -158,7 +162,29 @@ do $$ declare v jsonb; begin
   =array['Стендап А','Джем Б','Старий концерт','Зустріч','Зустріч'],'home feed: closest first, a run of an act is one card, the organizer''s evenings are not folded';
  assert jsonb_array_length(public.follow_events(1))=1,'limit';
 end $$;
+
+-- «Ви стежите»: нове — після підписки й ще не переглянуте. Відкрили екран — гасне; подія після того — знову нова.
+do $$ declare v jsonb; begin
+ v := public.my_follows();
+ assert (select (x->>'fresh')::int from jsonb_array_elements(v) x where x->>'kind'='place')=2,'two new runs: the old concert predates the follow';
+ assert (select (x->>'fresh')::int from jsonb_array_elements(v) x where x->>'kind'='organizer')=2,'both organizer evenings are new';
+ perform public.follows_seen();
+ assert not exists(select 1 from jsonb_array_elements(public.my_follows()) x where x ? 'fresh'),'seen: nothing new, zero is not sent';
+end $$;
 reset role;
+select pg_temp.imp('n4','Новий джем','Клуб Follow-1',interval '8 days',interval '0');
+set local role authenticated;
+select set_config('request.jwt.claim.sub',current_setting('test.a'),true);
+do $$ begin
+ assert (select (x->>'fresh')::int from jsonb_array_elements(public.my_follows()) x where x->>'kind'='place')=1,'an event after the visit is new';
+end $$;
+select set_config('request.jwt.claim.sub',current_setting('test.b'),true);
+do $$ begin
+ assert (select sum((x->>'fresh')::int) from jsonb_array_elements(public.my_follows()) x)=4,'another person''s visit does not touch b: 3 runs at one place, 1 at the other';
+end $$;
+reset role;
+-- Решта тесту рахує нове для пушів: зайва подія їм ні до чого.
+delete from public.events where id=current_setting('test.n4')::uuid;
 
 -- Пуш організатора з реального шляху створення події.
 set local role authenticated;

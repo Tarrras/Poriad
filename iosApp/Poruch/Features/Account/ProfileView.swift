@@ -138,7 +138,9 @@ struct ProfileView: View {
         GroupedRows {
             LinkRow(
                 glyph: PoruchIcons.bell, title: Copy.follows_title, subtitle: Copy.follows_hint,
-                value: "\(model.state?.library.follows.count ?? 0)", action: openFollows
+                value: "\(model.state?.library.follows.count ?? 0)",
+                badge: (model.state?.library.newFollowEvents).flatMap { $0 > 0 ? Copy.follows_new(Int($0)) : nil },
+                action: openFollows
             )
         }
     }

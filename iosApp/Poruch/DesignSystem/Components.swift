@@ -1271,6 +1271,8 @@ struct LinkRow: View {
     let title: String
     var subtitle: String? = nil
     var value: String?
+    /// Що нового за рядком («3 нові»): помітніше за [value].
+    var badge: String? = nil
     let action: () -> Void
     var body: some View {
         Button(action: action) {
@@ -1284,6 +1286,7 @@ struct LinkRow: View {
                     }
                 }
                 Spacer(minLength: Space.sm)
+                if let badge { StatusBadge(text: badge, tone: .accent) }
                 if let value {
                     Text(value).font(PoruchFont.title2).foregroundStyle(Palette.ink).monospacedDigit()
                 }
@@ -1327,6 +1330,8 @@ struct TabItem: Identifiable {
     let glyph: PoruchGlyph
     /// Скільки справ чекає: 0 — без бейджа.
     var badge: Int = 0
+    /// Є нове, але не справа, яку треба рахувати: крапка замість числа.
+    var dot = false
 }
 
 /// Таббар плаває поверх застосунку, тож екран із власною нижньою панеллю (деталі) має сам
@@ -1369,7 +1374,11 @@ struct PoruchTabBar<Trailing: View>: View {
                             PoruchIcon(glyph: item.glyph, size: 22)
                                 .overlay(alignment: .topTrailing) {
                                     // Бейдж поверх кута гліфа: число справ, не повідомлень.
-                                    if item.badge > 0 { CountBadge(count: item.badge).offset(x: 10, y: -6) }
+                                    if item.badge > 0 {
+                                        CountBadge(count: item.badge).offset(x: 10, y: -6)
+                                    } else if item.dot {
+                                        Circle().fill(Palette.accent).frame(width: 8, height: 8).offset(x: 4, y: -2)
+                                    }
                                 }
                             Text(item.label).font(PoruchFont.overline).lineLimit(1)
                         }
@@ -1382,7 +1391,10 @@ struct PoruchTabBar<Trailing: View>: View {
                         }
                     }
                     .buttonStyle(PressableStyle(pressedScale: 0.94))
-                    .accessibilityLabel(item.badge > 0 ? Copy.a11y_unread_chats("\(item.label)", "\(item.badge)") : item.label)
+                    .accessibilityLabel(
+                        item.badge > 0 ? Copy.a11y_unread_chats("\(item.label)", "\(item.badge)")
+                            : item.dot ? Copy.a11y_tab_new_follows("\(item.label)") : item.label
+                    )
                     .accessibilityAddTraits(selection == item.id ? .isSelected : [])
                 }
             }

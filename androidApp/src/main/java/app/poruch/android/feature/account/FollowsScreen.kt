@@ -58,7 +58,7 @@ fun FollowsScreen(state: FollowsState, onIntent: (FollowsIntent) -> Unit) {
             GroupedRows {
                 state.follows.forEachIndexed { index, follow ->
                     if (index > 0) HairLine(Modifier.padding(start = Spacing.lg + 40.dp + Spacing.md))
-                    FollowRow(follow, { onIntent(FollowsIntent.Open(follow)) }, { onIntent(FollowsIntent.Unfollow(follow)) })
+                    FollowRow(follow, state.fresh[follow.targetId] ?: 0, { onIntent(FollowsIntent.Open(follow)) }, { onIntent(FollowsIntent.Unfollow(follow)) })
                 }
             }
         }
@@ -75,7 +75,7 @@ fun FollowsScreen(state: FollowsState, onIntent: (FollowsIntent) -> Unit) {
 }
 
 @Composable
-private fun FollowRow(follow: Follow, onOpen: () -> Unit, onUnfollow: () -> Unit) {
+private fun FollowRow(follow: Follow, fresh: Int, onOpen: () -> Unit, onUnfollow: () -> Unit) {
     val colors = Poruch.colors
     val count = pluralStringResource(R.plurals.place_upcoming, follow.upcoming, follow.upcoming)
     val caption = when (follow.kind) {
@@ -100,6 +100,9 @@ private fun FollowRow(follow: Follow, onOpen: () -> Unit, onUnfollow: () -> Unit
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(follow.name, style = PoruchType.serifTitle3, color = colors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(caption, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (fresh > 0) Box(Modifier.padding(top = Spacing.xs)) {
+                StatusBadge(pluralStringResource(R.plurals.follows_new, fresh, fresh), BadgeTone.Accent)
+            }
         }
         GhostButton(stringResource(R.string.unfollow), onUnfollow, tone = colors.inkSecondary)
     }

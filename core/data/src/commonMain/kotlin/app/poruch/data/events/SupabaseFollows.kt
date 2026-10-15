@@ -8,7 +8,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.put
 
-/** Підписки через RPC `follow` / `unfollow` / `my_follows` / `follow_events`. Усе лише з акаунтом. */
+/** Підписки через RPC `follow` / `unfollow` / `my_follows` / `follow_events` / `follows_seen`. Усе лише з акаунтом. */
 internal class SupabaseFollows(private val rpc: EventRpc) : Follows {
     override suspend fun mine(): List<Follow> =
         rpc.json.decodeFromJsonElement<List<FollowDto>>(rpc.read("my_follows")).mapNotNull { it.domain() }
@@ -22,6 +22,10 @@ internal class SupabaseFollows(private val rpc: EventRpc) : Follows {
     }
 
     override suspend fun upcoming(): List<Event> = rpc.events("follow_events", buildJsonObject { put("p_limit", UPCOMING_LIMIT) })
+
+    override suspend fun seen() {
+        rpc.call("follows_seen")
+    }
 
     private companion object {
         /** Скільки карток підписок несе головна: секція — добірка, а не каталог. */

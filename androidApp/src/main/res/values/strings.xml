@@ -739,6 +739,14 @@
   <string name="rate_follow_hint">Скажемо, коли в нього зʼявиться нова подія</string>
   <string name="follows_title">Ви стежите</string>
   <string name="follow_via">Ви стежите · %1$s</string>
+  <!-- Нове в підписках, ще не переглянуте на екрані «Ви стежите». -->
+  <plurals name="follows_new">
+    <item quantity="one">%1$d нова</item>
+    <item quantity="few">%1$d нові</item>
+    <item quantity="many">%1$d нових</item>
+    <item quantity="other">%1$d нових</item>
+  </plurals>
+  <string name="a11y_tab_new_follows">%1$s, є нове в підписках</string>
   <string name="follows_hint">Заклади, організатори й артисти</string>
   <string name="follows_subtitle">Скажемо, коли в них зʼявиться щось нове</string>
   <string name="follows_empty_title">Ви ні за ким не стежите</string>

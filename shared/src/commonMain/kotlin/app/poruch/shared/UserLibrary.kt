@@ -287,6 +287,12 @@ internal class UserLibrary(
         }
     }
 
+    /** Екран «Ви стежите» відкрито: нове гасне одразу, і [load], що вже в дорозі, його не поверне. */
+    fun followsSeen() {
+        followEdits++
+        store.update { it.copy(library = it.library.copy(follows = it.library.follows.map { f -> f.copy(fresh = 0) })) }
+    }
+
     /** Підписка вдалась: платформа бачить це й питає про сповіщення, див. [LibraryState.followsMade]. */
     fun followMade() = store.update { it.copy(library = it.library.copy(followsMade = it.library.followsMade + 1)) }
 

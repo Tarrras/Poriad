@@ -67,6 +67,28 @@ internal class FollowUseCases(
         }
     }
 
+    /**
+     * Екран «Ви стежите» відкрито: лічильник нового гасне одразу, сервер дізнається окремо. Збій нічого не каже людині:
+     * [UserLibrary.followFinished] перечитає підписки, і непереглянуте лишиться новим до наступного разу.
+     */
+    fun seen() {
+        val repository = follows ?: return
+        if (!store.value.signedIn || store.value.library.newFollowEvents == 0) return
+        library.followsSeen()
+        library.followStarted()
+        store.scope.launch {
+            try {
+                serial.withLock { repository.seen() }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                PoruchLog.w("action") { "follows seen failed: ${e.asAppError()}" }
+            } finally {
+                library.followFinished()
+            }
+        }
+    }
+
     private suspend fun send(repository: Follows, kind: FollowKind, targetId: String, following: Boolean) {
         if (following) {
             repository.follow(kind, targetId)

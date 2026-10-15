@@ -12,6 +12,8 @@ struct FollowsView: View {
     @Environment(\.openMap) private var openMap
     /// Картка організатора з рядка підписки. Див. `personSheet`.
     @State private var showingPerson = false
+    /// Скільки нового було в кого, коли екран відкрили: `followsSeen` гасить лічильник, а тут він має лишитись до виходу.
+    @State private var fresh: [String: Int]?
 
     private var follows: [Follow] { model.state?.library.follows ?? [] }
 
@@ -44,6 +46,11 @@ struct FollowsView: View {
         .toolbar(.hidden, for: .navigationBar)
         .navigationBarBackButtonHidden()
         .personSheet(model, isPresented: $showingPerson)
+        .onAppear {
+            // Повернення з екрана артиста — той самий візит: знімок не перезнімаємо.
+            if fresh == nil { fresh = Dictionary(follows.map { ($0.targetId, Int($0.fresh)) }, uniquingKeysWith: { a, _ in a }) }
+            model.app.followsSeen()
+        }
     }
 
     private func followRow(_ follow: Follow) -> some View {
@@ -68,6 +75,9 @@ struct FollowsView: View {
                 Text(follow.name).font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
                     .multilineTextAlignment(.leading).lineLimit(2)
                 Text(caption).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(1)
+                if let new = fresh?[follow.targetId], new > 0 {
+                    StatusBadge(text: Copy.follows_new(new), tone: .accent).padding(.top, Space.xs)
+                }
             }
             Spacer(minLength: 0)
         }.contentShape(Rectangle())

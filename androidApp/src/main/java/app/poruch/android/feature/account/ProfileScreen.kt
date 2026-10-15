@@ -13,6 +13,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -98,7 +99,8 @@ fun ProfileScreen(state: ProfileState, onIntent: (ProfileIntent) -> Unit) {
             if (state.signedIn && state.follows.isNotEmpty()) GroupedRows {
                 LinkRow(
                     PoruchIcons.bellActive, stringResource(R.string.follows_title), stringResource(R.string.follows_hint),
-                    { onIntent(ProfileIntent.OpenFollows) }, value = state.follows.size.toString()
+                    { onIntent(ProfileIntent.OpenFollows) }, value = state.follows.size.toString(),
+                    badge = if (state.newFollows > 0) pluralStringResource(R.plurals.follows_new, state.newFollows, state.newFollows) else null
                 )
             }
             // Інтереси належать пристрою, тож гість теж їх редагує.

@@ -340,6 +340,12 @@ class PoruchApp internal constructor(
     fun setFollowing(kind: FollowKind, targetId: String, name: String, following: Boolean) =
         followUseCases.set(kind, targetId, name, following)
 
+    /**
+     * Екран «Ви стежите» відкрито: нове в підписках уже переглянуте. Платформа спершу запам'ятовує [Follow.fresh] для
+     * бейджів на самому екрані: цей виклик їх обнуляє.
+     */
+    fun followsSeen() = followUseCases.seen()
+
     /** Тап по пушу про кілька подій закладу: мапа переходить до нього й відкриває його стос. */
     fun openPlace(placeId: String) = followUseCases.openPlace(placeId)
 

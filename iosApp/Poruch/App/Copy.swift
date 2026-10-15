@@ -606,6 +606,7 @@ enum Copy {
     static let rate_follow_hint = "Скажемо, коли в нього зʼявиться нова подія"
     static let follows_title = "Ви стежите"
     static func follow_via(_ a0: String) -> String { "Ви стежите · \(a0)" }
+    static func a11y_tab_new_follows(_ a0: String) -> String { "\(a0), є нове в підписках" }
     static let follows_hint = "Заклади, організатори й артисти"
     static let follows_subtitle = "Скажемо, коли в них зʼявиться щось нове"
     static let follows_empty_title = "Ви ні за ким не стежите"
@@ -706,5 +707,6 @@ enum Copy {
     static func organizing_ahead(_ n: Int) -> String { ukrainianPlural(n, "\(n) подія попереду", "\(n) події попереду", "\(n) подій попереду") }
     static func join_requests(_ n: Int) -> String { ukrainianPlural(n, "\(n) запит на участь", "\(n) запити на участь", "\(n) запитів на участь") }
     static func saved_ahead(_ n: Int) -> String { ukrainianPlural(n, "\(n) збережена", "\(n) збережені", "\(n) збережених") }
+    static func follows_new(_ n: Int) -> String { ukrainianPlural(n, "\(n) нова", "\(n) нові", "\(n) нових") }
     static func chat_new_messages(_ n: Int) -> String { ukrainianPlural(n, "\(n) нове повідомлення", "\(n) нових повідомлення", "\(n) нових повідомлень") }
 }

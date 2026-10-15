@@ -259,7 +259,9 @@ private fun PersonalSection(state: HomeState, onIntent: (HomeIntent) -> Unit) {
     val rows = buildList<@Composable () -> Unit> {
         state.screen.personal.filter { it !== lead }.forEach { row -> add { PlanRow(row, onIntent) } }
         if (state.screen.moreWaiting > 0) add { WaitingRow(state.screen.moreWaiting, onIntent) }
-        if (state.screen.followed.isNotEmpty()) add { FollowsRow(state.screen.followNames, state.screen.followed) { onIntent(HomeIntent.OpenFollows) } }
+        if (state.screen.followed.isNotEmpty()) add {
+            FollowsRow(state.screen.followNames, state.screen.followed, state.screen.newFollowEvents) { onIntent(HomeIntent.OpenFollows) }
+        }
     }
     Column(Modifier.padding(horizontal = Spacing.page), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
         SectionHeader(
@@ -452,7 +454,7 @@ private fun NextPlanCard(row: PersonalRow, onIntent: (HomeIntent) -> Unit) {
 
 /** «Ви стежите» і за ким — двома першими іменами, як і веде тап: на екран «Ви стежите». Імен нема (список не доїхав) — назва події. */
 @Composable
-private fun FollowsRow(names: List<String>, events: List<Event>, onClick: () -> Unit) {
+private fun FollowsRow(names: List<String>, events: List<Event>, new: Int, onClick: () -> Unit) {
     val colors = Poruch.colors
     val shown = if (names.isEmpty()) events.first().displayTitle else names.take(2).joinToString(", ")
     YourRow(
@@ -460,7 +462,11 @@ private fun FollowsRow(names: List<String>, events: List<Event>, onClick: () -> 
         subtitle = if (names.size > 2) stringResource(R.string.home_follows_more, shown, names.size - 2) else shown,
         onClick = onClick,
         tile = { YourTileIcon(PoruchIcons.bellActive) }
-    ) { Icon(PoruchIcons.chevronRight, null, Modifier.size(18.dp), tint = colors.inkTertiary) }
+    ) {
+        // Нове ще не переглянуте — бейдж замість шеврона: рядок тепер про те, що чекає.
+        if (new > 0) StatusBadge(pluralStringResource(R.plurals.follows_new, new, new), BadgeTone.Accent)
+        else Icon(PoruchIcons.chevronRight, null, Modifier.size(18.dp), tint = colors.inkTertiary)
+    }
 }
 
 /** Підпис джерела в стрічці: «Для вас», «Ви стежите · МУР». Афіша міста без підпису. */
