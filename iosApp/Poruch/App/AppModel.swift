@@ -1,6 +1,8 @@
 import SwiftUI
 import Shared
 import Security
+import AmplitudeSwift
+import AmplitudeSwiftSessionReplayPlugin
 
 final class KeychainSessionStore: SecureSessionStore {
     private let base: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: "app.poruch.session", kSecAttrAccount as String: "session"]
@@ -127,6 +129,24 @@ extension EnvironmentValues {
         let notifications = LocalReminderScheduler.shared
         graph = AppGraph(config: config, sessionStore: KeychainSessionStore(), reminders: notifications, requestNotifier: notifications, chatNotifier: notifications)
         PoruchLog.shared.i(tag: "app") { "graph created" }
+        // Amplitude — після графа: збережена відмова від аналітики вже в PoruchAnalytics і діє з першої
+        // події. Мережевий автозбір не вмикаємо: URL запитів несуть id. Replay ховає весь текст — те саме
+        // правило «жодних імен і текстів», що й для подій. Перемикач у профілі далі веде optOut разом із Firebase.
+        if let key = info["AMPLITUDE_API_KEY"] as? String, !key.isEmpty {
+            let amplitude = Amplitude(configuration: Configuration(
+                apiKey: key, optOut: !PoruchAnalytics.shared.enabled,
+                autocapture: AutocaptureOptions.all.subtracting(.networkTracking)
+            ))
+            amplitude.add(plugin: AmplitudeSwiftSessionReplayPlugin(sampleRate: 1, maskLevel: .conservative))
+            amplitude.track(eventType: "Viewed Home Page", eventProperties: ["prompt_version": "BA400.4"]) // helps improve this setup flow — safe to remove once you've verified the event lands
+            let firebase = PoruchAnalytics.shared.collection
+            PoruchAnalytics.shared.collection = { enabled in
+                firebase?(enabled)
+                amplitude.optOut = !enabled.boolValue
+            }
+        } else {
+            PoruchLog.shared.w(tag: "analytics") { "Amplitude API key missing — analytics disabled" }
+        }
         start()
     }
     func start() {

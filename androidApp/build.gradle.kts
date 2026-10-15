@@ -50,6 +50,7 @@ android {
             manifestPlaceholders["authScheme"] = providers.gradleProperty("poriad.dev.authScheme").get()
             buildConfigField("String", "AUTH_SCHEME", "\"${providers.gradleProperty("poriad.dev.authScheme").get()}\"")
             buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"${providers.gradleProperty("poriad.dev.googleWebClientId").getOrElse("")}\"")
+            buildConfigField("String", "AMPLITUDE_API_KEY", "\"${providers.gradleProperty("poriad.dev.amplitudeKey").getOrElse("")}\"")
         }
         create("prod") {
             dimension = "env"
@@ -59,6 +60,7 @@ android {
             manifestPlaceholders["authScheme"] = providers.gradleProperty("poriad.prod.authScheme").get()
             buildConfigField("String", "AUTH_SCHEME", "\"${providers.gradleProperty("poriad.prod.authScheme").get()}\"")
             buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"${providers.gradleProperty("poriad.prod.googleWebClientId").getOrElse("")}\"")
+            buildConfigField("String", "AMPLITUDE_API_KEY", "\"${providers.gradleProperty("poriad.prod.amplitudeKey").getOrElse("")}\"")
         }
     }
     buildTypes {
@@ -107,4 +109,7 @@ dependencies {
     implementation("com.google.firebase:firebase-messaging")
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-crashlytics")
+    // Amplitude: події з автозбором і Session Replay. Лише prod має ключ (gradle.properties).
+    implementation("com.amplitude:analytics-android:1.34.0")
+    implementation("com.amplitude:plugin-session-replay-android:0.32.0")
 }

@@ -26,5 +26,8 @@ GOOGLE_REVERSED_CLIENT_ID[config=*-Dev] = com.googleusercontent.apps.79716996968
 GOOGLE_REVERSED_CLIENT_ID[config=*-Prod] = com.googleusercontent.apps.797169969688-uutjih9kh8i3eihfiat0bo68jbb547iu
 APP_FIREBASE_DIR[config=*-Dev] = dev
 APP_FIREBASE_DIR[config=*-Prod] = prod
+// Amplitude: ключ інжесту, публічний за задумом; той самий, що poriad.prod.amplitudeKey у gradle.properties.
+// Лише prod — dev-збірка без ключа мовчить і пише попередження в лог.
+AMPLITUDE_API_KEY[config=*-Prod] = 2783f40823e30dad1fb9ffc4807cdc04
 MAP_TILES_URL = https:/$()/tiles.openfreemap.org/planet
 MAP_GLYPHS_URL = https:/$()/tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf

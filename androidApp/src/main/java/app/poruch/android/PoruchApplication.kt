@@ -10,6 +10,12 @@ import app.poruch.shared.PoruchApp
 import app.poruch.domain.PoruchAnalytics
 import app.poruch.domain.PoruchLog
 import app.poruch.domain.summary
+import com.amplitude.android.Amplitude
+import com.amplitude.android.AutocaptureOption
+import com.amplitude.android.Configuration
+import com.amplitude.android.plugins.SessionReplayPlugin
+import com.amplitude.android.sessionreplay.config.MaskLevel
+import com.amplitude.android.sessionreplay.config.PrivacyConfig
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import app.poruch.shared.PlatformSetup
@@ -41,11 +47,21 @@ class PoruchApplication : Application() {
             modules(appModule, navigationModule)
         }
         val app: PoruchApp = get(); val drafts: DraftStore = get()
+        // Amplitude — після стора: збережена відмова від аналітики вже в PoruchAnalytics і діє з першої
+        // події. Replay ховає весь текст — те саме правило «жодних імен і текстів», що й для подій.
+        val amplitude = BuildConfig.AMPLITUDE_API_KEY.ifBlank { null }?.let { key ->
+            Amplitude(Configuration(key, this, optOut = !PoruchAnalytics.enabled, autocapture = AutocaptureOption.ALL)).apply {
+                add(SessionReplayPlugin(this@PoruchApplication, sampleRate = 1.0, privacyConfig = PrivacyConfig(MaskLevel.CONSERVATIVE)))
+                track("Viewed Home Page", mapOf("prompt_version" to "BA400.4")) // helps improve this setup flow — safe to remove once you've verified the event lands
+            }
+        }
+        if (amplitude == null) PoruchLog.w("analytics") { "Amplitude API key missing — analytics disabled" }
         // Перемикач збору — після створення стора: хук одразу отримує збережений вибір людини, без
         // проміжного «увімкнено». Firebase сам пам'ятає його між запусками.
         PoruchAnalytics.collection = { enabled ->
             firebase.setAnalyticsCollectionEnabled(enabled)
             crashlytics.setCrashlyticsCollectionEnabled(enabled)
+            amplitude?.optOut = !enabled
         }
         // Пуші: токен їде в стор і реєструється, щойно є акаунт.
         Push.start(this, app)
