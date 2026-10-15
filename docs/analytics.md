@@ -48,7 +48,7 @@
 З 2026-10-15, лише prod (ключ — `poriad.prod.amplitudeKey` / `AMPLITUDE_API_KEY` у `Config.xcconfig`; dev без ключа мовчить). Ставиться на платформі одразу після спільного графа, тож збережена відмова від аналітики діє з першої події, а перемикач у профілі веде `optOut` разом із Firebase через `PoruchAnalytics.collection`.
 
 - Автозбір: сесії, життєвий цикл, екрани, тапи, rage/dead clicks. Без мережевих запитів (iOS): їхні URL несуть id.
-- Session Replay: 100% сесій, маска `conservative` — увесь текст прихований.
+- Session Replay: 100% сесій, маска `conservative` — увесь текст прихований; `Avatar` заблокований (`amp_setBlocked` / `ampBlock`), тож обличчя людей теж. Зберігання — 30 днів. Розкрито в `site/privacy*.html` і `store/listing.md`.
 - Явна подія одна: `Viewed Home Page` на кожен запуск, з `prompt_version` від майстра налаштування — її можна прибрати, щойно подія дійшла. Словник вище в Amplitude не йде.
 
 ## Воронка у Firebase

@@ -1,6 +1,7 @@
 import SwiftUI
 import Shared
 import Lottie
+import AmplitudeSessionReplay
 
 // ---- Пошук і чипи
 
@@ -520,6 +521,8 @@ struct Avatar: View {
             }
         }
         .frame(width: size, height: size)
+        // Обличчя людей не йдуть у Session Replay: маска `conservative` ховає лише текст.
+        .amp_setBlocked(true)
     }
 }
 

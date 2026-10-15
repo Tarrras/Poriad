@@ -94,8 +94,8 @@ iPad-скріншоти не потрібні: застосунок iPhone-only 
 | Повідомлення в застосунку (Other in-app messages) | ні | чат події | Google (FCM) для доставки пушів |
 | Історія пошуку в застосунку | ні | функціональність: пошук подій, міст і адрес, ефемерно | ні¹ |
 | Інший контент користувача | ні | «Про себе» в профілі, події, оцінки завершених подій (1–5 + коментар, бачить організатор), скарги, блокування | ні |
-| Device or other IDs (FCM token, Firebase Installation ID) | ні | пуші, аналітика | Google |
-| App interactions (Analytics) | ні — вимикається перемикачем «Аналітика» в профілі | аналітика | Google |
+| Device or other IDs (FCM token, Firebase Installation ID, Amplitude device ID) | ні | пуші, аналітика | Google, Amplitude |
+| App interactions (Analytics; записи сеансів Amplitude — дотики, прокрутка, екрани, текст і фото людей приховані) | ні — вимикається перемикачем «Аналітика» в профілі | аналітика | Google, Amplitude |
 | Crash logs, Diagnostics | ні — той самий перемикач | стабільність | Google |
 
 ¹ Набраний текст пошуку міста/адреси й координати для зворотного геокодування йдуть у Photon (komoot, Німеччина) за дією користувача — виняток «user-initiated» у визначенні sharing. Якщо рецензент заперечить — позначити «передається» для цих двох рядків.
@@ -178,7 +178,7 @@ UGC: так. Спілкування між користувачами: так (�
 
 Contact Info: Email, Name. Identifiers: User ID, Device ID. Photos or Videos. User Content: Emails or Text Messages (чат події; push через APNs), Other User Content («Про себе» в профілі, події, оцінки 1–5 з коментарем, скарги). Other Data: дата народження. Мета для всіх — App Functionality.
 
-**Not linked to you:** Location — Coarse Location (App Functionality; координати для назви міста йдуть у Photon). Search History (пошук подій, міст, адрес; App Functionality). Usage Data — Product Interaction (Analytics). Diagnostics — Crash Data, Performance Data (App Functionality). Аналітику й звіти про збої користувач вимикає перемикачем «Аналітика» в профілі. Tracking: none (без IDFA).
+**Not linked to you:** Location — Coarse Location (App Functionality; координати для назви міста йдуть у Photon). Search History (пошук подій, міст, адрес; App Functionality). Usage Data — Product Interaction (Analytics; Firebase і Amplitude, включно із записами сеансів, де текст і фото людей приховані). Diagnostics — Crash Data, Performance Data (App Functionality). Аналітику й звіти про збої користувач вимикає перемикачем «Аналітика» в профілі. Tracking: none (без IDFA).
 
 Має збігатися з `iosApp/Poruch/PrivacyInfo.xcprivacy` (С28 аудиту 2026-09-23: там бракує ProductInteraction і EmailsOrTextMessages).
 

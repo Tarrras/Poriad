@@ -78,6 +78,7 @@ import app.poruch.domain.ArtistHit
 import app.poruch.domain.ArtistKind
 import app.poruch.domain.ArtistRole
 import app.poruch.domain.DiscoveryRules
+import com.amplitude.android.sessionreplay.compose.ampBlock
 import app.poruch.domain.Place
 import coil3.compose.AsyncImage
 
@@ -1492,7 +1493,9 @@ fun Avatar(name: String, url: String?, size: Dp, modifier: Modifier = Modifier) 
         modifier
             .size(size)
             .clip(CircleShape)
-            .background(colors.surfaceMuted),
+            .background(colors.surfaceMuted)
+            // Обличчя людей не йдуть у Session Replay: маска CONSERVATIVE ховає лише текст.
+            .ampBlock(),
         contentAlignment = Alignment.Center
     ) {
         Text(

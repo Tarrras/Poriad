@@ -19,7 +19,7 @@
     <a href="delete-account.html">Delete account</a>
     <a href="privacy.html">Українською</a>
   </nav>
-  <p class="meta" style="margin-top:32px">Effective 12 October 2026</p>
+  <p class="meta" style="margin-top:32px">Effective 15 October 2026</p>
   <h1>Privacy Policy</h1>
   <p class="lead">In short: we keep only what is needed for you to find events, host your own and talk to attendees. We do not sell data and show no ads.</p>
 </div></header>
@@ -47,12 +47,12 @@
 <tr><td>City and address search</td><td>Searching for a city or setting the place of your event</td><td>City and address suggestions, finding the address of a point on the map. The text you type and the point's coordinates are sent to Photon (see section 4) and are not stored by us separately; the address of an event you create is public with the event.</td></tr>
 <tr><td>Push token</td><td>When you allow notifications</td><td>Delivering notifications about new messages and join requests. Removed on sign-out.</td></tr>
 <tr><td>Interests and onboarding answers</td><td>First launch, profile</td><td>Ranking events for you. Answers stay on the device; chosen categories are stored in your server profile.</td></tr>
-<tr><td>Usage statistics and crash reports</td><td>Automatically while the app runs</td><td>Which steps people take (viewing, joining, creating an event) and where the app crashes, so we can fix bugs. Via Firebase Analytics and Crashlytics, without the advertising identifier. The data is pseudonymous: tied to a random app-instance identifier, not to your account, name or email. You can turn collection off with the <b>Profile → Analytics</b> switch.</td></tr>
+<tr><td>Usage statistics and crash reports</td><td>Automatically while the app runs</td><td>Which steps people take (viewing, joining, creating an event) and where the app crashes, so we can fix bugs. Via Firebase Analytics, Crashlytics and Amplitude, without the advertising identifier. Amplitude also records how you use the screens (session replay): taps, scrolling and navigation; all on-screen text and people's photos are hidden in the recording. The data is pseudonymous: tied to a random app-instance identifier, not to your account, name or email. You can turn collection off with the <b>Profile → Analytics</b> switch.</td></tr>
 <tr><td>Technical data</td><td>Automatically with each request</td><td>IP address and app version in server logs for security and diagnostics, kept for a limited time by our hosting provider.</td></tr>
 <tr><td>Website visit statistics</td><td>Automatically when you open poriad.app</td><td>Page views, the referring site, country, device and browser type, page load speed. Via Cloudflare Web Analytics: no cookies, no identifiers and no cross-site tracking; we see only aggregate numbers.</td></tr>
 </table>
 </div>
-<p>We do not collect contacts, movement history, background location, advertising identifiers or data from other apps. The app contains no advertising or advertising SDKs; the only analytics is Firebase in the app and Cloudflare Web Analytics on the website, both described above.</p>
+<p>We do not collect contacts, movement history, background location, advertising identifiers or data from other apps. The app contains no advertising or advertising SDKs; the only analytics is Firebase and Amplitude in the app and Cloudflare Web Analytics on the website, both described above.</p>
 
 <h2>3. Legal bases</h2>
 <ul>
@@ -70,6 +70,7 @@
 <tr><td>Supabase, Inc. (database, auth, file storage, functions)</td><td>All account data, events, messages, photos. Hosted in Ireland (AWS eu-west-1, European Union).</td></tr>
 <tr><td>Google LLC, Firebase Cloud Messaging (Android)</td><td>Device token and notification content for delivery.</td></tr>
 <tr><td>Google LLC, Firebase Analytics and Crashlytics (Android, iOS)</td><td>Pseudonymous usage statistics (with an app-instance identifier), crash reports, device model and OS version. Collection is turned off by the "Analytics" switch in your profile.</td></tr>
+<tr><td>Amplitude, Inc., analytics and session replay (Android, iOS)</td><td>Pseudonymous usage statistics and session recordings (taps, scrolling, screen transitions; text and people's photos hidden), device identifier, device model and OS version. Servers in the United States. Collection is turned off by the "Analytics" switch in your profile.</td></tr>
 <tr><td>Apple Inc., Apple Push Notification service (iOS)</td><td>Device token and notification content for delivery.</td></tr>
 <tr><td>OpenFreeMap (map tiles)</td><td>Device IP address and the map area you view while tiles load.</td></tr>
 <tr><td>unpkg (CDN for the website map library)</td><td>Device IP address when the event map opens on the website: the MapLibre library loads from there.</td></tr>
@@ -86,7 +87,8 @@
   <li>Account and profile: until you delete the account.</li>
   <li>Events, attendance, chat, ratings: while the event or account exists. Chat closes one week after the event ends.</li>
   <li>Reports: as long as needed for moderation. Reports you filed are deleted with your account; reports about you remain after account deletion without a link to it.</li>
-  <li>Usage statistics and crash reports: per Firebase retention settings, no longer than 14 months.</li>
+  <li>Usage statistics and crash reports: per Firebase and Amplitude retention settings, no longer than 14 months. <span class="todo">Amplitude: set the period in Settings → Data retention</span></li>
+  <li>Session recordings: 30 days.</li>
   <li>Push tokens: until sign-out or device change.</li>
   <li>Server logs: up to 30 days.</li>
   <li>Local cache and drafts on the device: until sign-out or app removal.</li>
