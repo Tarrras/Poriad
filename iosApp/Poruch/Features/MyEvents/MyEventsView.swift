@@ -14,6 +14,11 @@ struct MyEventsView: View, Equatable {
     var openEvent: (String) -> Void
     var openChat: (String) -> Void
     @State private var tab = MyEventsTab.going
+    /// Розріз уже обрано — людиною чи першою дошкою. Далі дошка його не перемикає.
+    @State private var tabChosen = false
+    /// Відхилений запит кілька секунд чекає: помилковий дотик повертають, а людині ще нічого не пішло.
+    @State private var declining: JoinRequest?
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var creating = false
     @State private var auth = false
     @State private var allPast = false
@@ -43,6 +48,20 @@ struct MyEventsView: View, Equatable {
         .background(Palette.canvas)
         .toolbar(.hidden, for: .navigationBar)
         .onChange(of: tab) { _, _ in allPast = false }
+        // Відкриваємося там, де щось попереду: організатор без власних планів не бачить порожнє «Іду».
+        // Рішення — з першою дошкою, де щось попереду: порожній знімок до завантаження інакше закріпив би «Іду».
+        .onChange(of: board?.openingTab, initial: true) { _, opening in
+            guard !tabChosen, let opening, let board, board.goingAhead + board.organizingAhead + board.savedAhead > 0 else { return }
+            tabChosen = true
+            tab = opening
+        }
+        .task(id: declining?.userId) {
+            guard declining != nil else { return }
+            try? await Task.sleep(for: .seconds(5))
+            guard !Task.isCancelled else { return }
+            commitDecline()
+        }
+        .onDisappear { commitDecline() }
         .sheet(isPresented: $creating) { EventEditor(event: nil, app: model.app, home: model.state) }
         .sheet(isPresented: $auth) { NavigationStack { AuthView() } }
         .sheet(item: $rating) { route in
@@ -71,11 +90,18 @@ struct MyEventsView: View, Equatable {
                 // Поточний розріз — значенням, не через `self`: вигляд `Equatable` без полів, тож замикання `ForEach`,
                 // яке читає лише `self.tab`, SwiftUI вважає незмінним і чипи не перемальовує.
                 let current = tab
-                HStack(spacing: Space.sm) {
-                    ForEach(Self.tabs, id: \.self) { entry in
-                        Chip(label: title(entry), badge: badge(entry, board), selected: current == entry) { tab = entry }
+                // Гортаються: на великому шрифті три чипи не вміщались і ставали «Орган…», «Збере…».
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: Space.sm) {
+                        ForEach(Self.tabs, id: \.self) { entry in
+                            Chip(label: title(entry), badge: badge(entry, board), selected: current == entry) {
+                                tabChosen = true
+                                tab = entry
+                            }
+                        }
                     }
-                }.padding(.horizontal, Space.page)
+                }
+                .railContentPadding()
             }
         }
         .padding(.top, Space.xl).padding(.bottom, Space.md)
@@ -131,19 +157,31 @@ struct MyEventsView: View, Equatable {
         } else if let board, !board.isEmpty(tab: tab) {
             ScrollView {
                 VStack(alignment: .leading, spacing: Space.xxl) {
+                    // Попереду нічого, а минулі є: першою йде дія, а не три сірі минулі.
+                    if board.nothingAhead(tab: tab) { aheadCard }
                     ForEach(board.sections(tab: tab), id: \.group) { section in
                         sectionView(section)
                     }
-                    if tab == .organizing {
-                        GroupedRows {
-                            LinkRow(glyph: PoruchIcons.sparkle, title: Copy.create_banner_title, subtitle: Copy.create_banner_subtitle) { startCreating() }
-                        }
+                    // Те саме, що порожній квиток на головній: свою зустріч друкуєш сам.
+                    if tab == .organizing, !board.nothingAhead(tab: tab) {
+                        CreateEventCard(title: Copy.home_create_title, subtitle: Copy.create_banner_subtitle) { startCreating() }
                     }
                 }.padding(.horizontal, Space.page).padding(.vertical, Space.md)
             }
         } else {
             // У стрічці, щоб потяг мав за що зачепитись.
             ScrollView { emptyState }
+        }
+    }
+
+    /// Порожній квиток з першою дією розрізу, над минулими.
+    @ViewBuilder private var aheadCard: some View {
+        if tab == .organizing {
+            CreateEventCard(title: Copy.home_create_title, subtitle: Copy.home_create_subtitle) { startCreating() }
+        } else {
+            CreateEventCard(
+                title: Copy.going_nothing_ahead_title, subtitle: Copy.going_nothing_ahead_text, glyph: PoruchIcons.map
+            ) { openMap() }
         }
     }
 
@@ -155,7 +193,8 @@ struct MyEventsView: View, Equatable {
                        actionLabel: Copy.create) { startCreating() }
         case .saved:
             EmptyState(glyph: PoruchIcons.bookmark, title: Copy.saved_empty_title,
-                       message: Copy.saved_empty_text)
+                       message: Copy.saved_empty_text,
+                       actionLabel: Copy.find_nearby) { openMap() }
         default:
             EmptyState(glyph: PoruchIcons.calendar, title: Copy.going_empty_title,
                        message: Copy.going_empty_text,
@@ -175,8 +214,10 @@ struct MyEventsView: View, Equatable {
             overline(Copy.section_nearest)
             if let first = events.first {
                 OrganizerPanel(event: first, unread: unread[first.id] ?? 0,
-                               requests: view.requestsFor(id: first.id),
-                               open: open, chat: openChat)
+                               requests: view.requestsFor(id: first.id).filter { !isDeclining($0) },
+                               declined: declining.flatMap { $0.eventId == first.id ? $0 : nil },
+                               open: open, chat: openChat,
+                               decline: startDecline, undo: { declining = nil })
             }
             if events.count > 1 {
                 overline(Copy.next)
@@ -231,18 +272,24 @@ struct MyEventsView: View, Equatable {
         let asks = tab == .organizing ? view.requestsFor(id: event.id).count : 0
         let status: (String, BadgeTone, PoruchGlyph?)? = asks > 0
             ? (Copy.join_requests(asks), .accent, PoruchIcons.personAdd) : nil
-        return HStack(spacing: Space.sm) {
+        // На великому шрифті «Оцінити» стає під рядок: поруч вона лишала назві «push j…».
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 0)) : AnyLayout(HStackLayout(spacing: Space.sm))
+        return layout {
             Button { open(event.id) } label: {
                 EventRow(event: event, unread: unread, waitlisted: view.isWaitlisted(id: event.id),
                          note: score.map { Copy.my_score("\($0)") }, chevron: !rate && !bookmark, status: status)
             }.buttonStyle(PressableStyle(pressedScale: 1))
             if rate {
                 Button { rating = EventRoute(id: event.id) } label: {
-                    // Без гліфа: з ним кнопка забирала пів рядка, і назва з місцем обрізались.
-                    Text(Copy.rate_action).font(PoruchFont.label).foregroundStyle(Palette.onBrand)
-                        .padding(.horizontal, Space.md).frame(height: 36).background(Palette.brand, in: buttonShape)
+                    // Тонова, а не чорнильна: три головні кнопки підряд сперечались за увагу. Без гліфа — інакше
+                    // кнопка забирала пів рядка.
+                    Text(Copy.rate_action).font(PoruchFont.label).foregroundStyle(Palette.ink)
+                        .padding(.horizontal, Space.md).frame(minHeight: 36).background(Palette.brandContainer, in: buttonShape)
                         .frame(minHeight: 44)
-                }.buttonStyle(PressableStyle()).fixedSize()
+                }
+                .buttonStyle(PressableStyle()).fixedSize()
+                .padding(.bottom, typeSize.isAccessibilitySize ? Space.md : 0)
             }
             if bookmark {
                 SaveButton(saved: true) { model.app.toggleSaved(id: event.id) }
@@ -252,6 +299,22 @@ struct MyEventsView: View, Equatable {
     }
 
     private func open(_ id: String) { model.app.selectEvent(id: id); openEvent(id) }
+
+    private func isDeclining(_ request: JoinRequest) -> Bool {
+        declining.map { $0.eventId == request.eventId && $0.userId == request.userId } ?? false
+    }
+
+    /// Попередній відхилений іде одразу: «Повернути» — лише для останнього.
+    private func startDecline(_ request: JoinRequest) {
+        commitDecline()
+        declining = request
+    }
+
+    private func commitDecline() {
+        guard let request = declining else { return }
+        declining = nil
+        model.app.declineMember(eventId: request.eventId, userId: request.userId)
+    }
 }
 
 /// Надрядок з відліком: «СЬОГОДНІ · 19:30 · ЧЕРЕЗ 3 ГОД». Після початку `cardOverline` сам каже «триває зараз».
@@ -259,8 +322,21 @@ func countdownOverline(_ event: Event) -> String {
     let base = cardOverline(event)
     guard !event.hasStarted(now: nowInstant()), let start = parseEventDate(event.startsAt) else { return base }
     let minutes = max(Int(start.timeIntervalSinceNow / 60), 1)
+    // Далі за добу дата в надрядку каже більше, ніж «через 644 год».
+    guard minutes < Int(MyEventsRules.shared.COUNTDOWN_MAX_MINUTES) else { return base }
     let left = minutes < 60 ? Copy.countdown_minutes("\(minutes)") : Copy.countdown_hours("\(minutes / 60)")
     return base + " · " + left.uppercased(with: Locale(identifier: "uk_UA"))
+}
+
+/// Відлік над назвою квитка панелі: «ТРИВАЄ ЗАРАЗ» чи «ЧЕРЕЗ 3 ГОД» у межах доби. День і час уже друкує корінець,
+/// тож надрядок «ЧТ, 12 ЛИСТ. · 19:30» лише повторював би його.
+private func panelCountdown(_ event: Event) -> String? {
+    let ukrainian = Locale(identifier: "uk_UA")
+    if event.isUnderway(now: nowInstant()) { return Copy.underway_now.uppercased(with: ukrainian) }
+    guard let start = parseEventDate(event.startsAt), start > Date() else { return nil }
+    let minutes = max(Int(start.timeIntervalSinceNow / 60), 1)
+    guard minutes < Int(MyEventsRules.shared.COUNTDOWN_MAX_MINUTES) else { return nil }
+    return (minutes < 60 ? Copy.countdown_minutes("\(minutes)") : Copy.countdown_hours("\(minutes / 60)")).uppercased(with: ukrainian)
 }
 
 /// Кнопка картки: як `SecondaryButton`, але з вужчими полями, щоб у ряд вміщалось три дії з підписом.
@@ -272,44 +348,70 @@ private struct CardButton: View {
         Button(action: action) {
             HStack(spacing: Space.sm) {
                 PoruchIcon(glyph: glyph, size: 18)
-                Text(title).font(PoruchFont.button).lineLimit(1)
+                Text(title).font(PoruchFont.button).lineLimit(2)
             }
             .foregroundStyle(Palette.ink)
-            .padding(.horizontal, Space.md).frame(height: 48).frame(maxWidth: .infinity)
+            .padding(.horizontal, Space.md).padding(.vertical, Space.sm).frame(minHeight: 48).frame(maxWidth: .infinity)
             .background(Palette.brandContainer, in: buttonShape)
         }
         .buttonStyle(PressableStyle())
     }
 }
 
-/// Сьогоднішній план: більша плитка, відлік і дві дії, по які сюди приходять перед виходом.
+/// Голова панелей «Сьогодні» й «Найближча»: квиток із корінцем, як у стрічці, — відлік, назва й опис на поверхні,
+/// жанр, час і місця «0/2» на корінці. Мініатюра 60 лише важчала сірим градієнтом і випадала зі світу квитків.
+private struct PanelTicket<Status: View>: View {
+    let event: Event
+    let open: (String) -> Void
+    @ViewBuilder let status: () -> Status
+    var body: some View {
+        Button { open(event.id) } label: {
+            Ticket(stubColor: ticketStub(event)) {
+                VStack(alignment: .leading, spacing: Space.xs) {
+                    if let countdown = panelCountdown(event) {
+                        Text(countdown).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.accentText)
+                    }
+                    Text(event.displayTitle).font(PoruchFont.brandTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
+                        .multilineTextAlignment(.leading).lineLimit(3)
+                    status()
+                }
+                .padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading)
+            } stub: {
+                StubTime(event: event)
+            }
+        }
+        .buttonStyle(PressableStyle())
+        .ticketAccessibility(event, state: event.isCancelled ? Copy.cancelled_short : nil)
+    }
+}
+
+/// Дії панелі в ряд; на великому шрифті — одна під одною, бо «Учасники» в третину ширини ставали «Уча…».
+private struct PanelActions<Content: View>: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @ViewBuilder let content: () -> Content
+    var body: some View {
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: Space.sm)) : AnyLayout(HStackLayout(spacing: Space.sm))
+        layout { content() }
+    }
+}
+
+/// Сьогоднішній план: квиток з відліком і дві дії, по які сюди приходять перед виходом.
 private struct GoingHero: View {
     let event: Event
     let unread: Int
     let open: (String) -> Void
     let chat: (String) -> Void
     var body: some View {
-        VStack(alignment: .leading, spacing: Space.md) {
-            Button { open(event.id) } label: {
-                HStack(spacing: Space.md) {
-                    // Розмір рядка: картку вирізняють відлік і дії, а велика плитка лише важчала сірим градієнтом.
-                    EventThumbnail(event: event, maxDimension: 60)
-                        .frame(width: 60, height: 60)
-                        .clipShape(RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
-                    VStack(alignment: .leading, spacing: Space.xs) {
-                        Text(countdownOverline(event)).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.accentText)
-                        Text(event.displayTitle).font(PoruchFont.brandTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
-                            .multilineTextAlignment(.leading).lineLimit(2)
-                        if event.isCancelled {
-                            TicketStamp(text: Copy.cancelled_short, tone: .danger)
-                        } else if let badge = eventBadge(event), event.gathering?.joined != true {
-                            StatusBadge(text: badge.0, tone: badge.1, glyph: badge.2)
-                        } else { EventDescriptor(event: event) }
-                    }
-                    Spacer(minLength: 0)
-                }.contentShape(Rectangle())
-            }.buttonStyle(PressableStyle(pressedScale: 1))
-            HStack(spacing: Space.sm) {
+        VStack(alignment: .leading, spacing: Space.sm) {
+            PanelTicket(event: event, open: open) {
+                if event.isCancelled {
+                    TicketStamp(text: Copy.cancelled_short, tone: .danger)
+                } else if let badge = eventBadge(event), event.gathering?.joined != true {
+                    StatusBadge(text: badge.0, tone: badge.1, glyph: badge.2)
+                } else { EventDescriptor(event: event) }
+            }
+            PanelActions {
                 CardButton(title: Copy.rate_tag_route, glyph: PoruchIcons.myLocation) { SystemActions.openInMaps(event) }
                 // Чат бачать лише підтверджені: із запитом чи в черзі туди не пускає сервер.
                 if event.gathering?.joined == true {
@@ -317,58 +419,38 @@ private struct GoingHero: View {
                 }
             }
         }
-        .padding(Space.lg).cardSurface()
     }
 }
 
-/// Найближча своя подія: заповненість, перший запит із відповіддю на місці й дії організатора.
+/// Найближча своя подія: квиток (місця — на корінці), перший запит із відповіддю на місці й дії організатора.
 private struct OrganizerPanel: View {
     @EnvironmentObject var model: AppModel
     let event: Event
     let unread: Int
     let requests: [JoinRequest]
+    /// Щойно відхилений запит: кілька секунд на його місці «Повернути».
+    let declined: JoinRequest?
     let open: (String) -> Void
     let chat: (String) -> Void
+    let decline: (JoinRequest) -> Void
+    let undo: () -> Void
     var body: some View {
-        VStack(alignment: .leading, spacing: Space.lg) {
-            Button { open(event.id) } label: {
-                HStack(spacing: Space.md) {
-                    // Розмір рядка: картку вирізняють відлік і дії, а велика плитка лише важчала сірим градієнтом.
-                    EventThumbnail(event: event, maxDimension: 60)
-                        .frame(width: 60, height: 60)
-                        .clipShape(RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
-                    VStack(alignment: .leading, spacing: Space.xs) {
-                        Text(countdownOverline(event)).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.accentText)
-                        Text(event.displayTitle).font(PoruchFont.brandTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
-                            .multilineTextAlignment(.leading).lineLimit(2)
-                        if event.isCancelled { TicketStamp(text: Copy.cancelled_short, tone: .danger) } else { EventDescriptor(event: event) }
-                    }
-                    Spacer(minLength: 0)
-                }.contentShape(Rectangle())
-            }.buttonStyle(PressableStyle(pressedScale: 1))
-            if let room = event.gathering, !event.isCancelled {
-                VStack(alignment: .leading, spacing: Space.sm) {
-                    HStack(alignment: .firstTextBaseline, spacing: Space.xs) {
-                        Text("\(room.attendeeCount)").font(PoruchFont.title2).foregroundStyle(Palette.ink).monospacedDigit()
-                        Text(Copy.seats_of("\(room.capacity)")).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
-                    }
-                    ProgressView(value: Double(room.attendeeCount), total: Double(max(room.capacity, 1)))
-                        .tint(Palette.success)
-                }
-                .accessibilityElement(children: .combine)
+        VStack(alignment: .leading, spacing: Space.sm) {
+            PanelTicket(event: event, open: open) {
+                if event.isCancelled { TicketStamp(text: Copy.cancelled_short, tone: .danger) } else { EventDescriptor(event: event) }
             }
-            if let request = requests.first { requestRow(request) }
-            HStack(spacing: Space.sm) {
+            if let declined { declinedRow(declined) }
+            else if let request = requests.first { requestRow(request) }
+            PanelActions {
                 CardButton(title: Copy.participants, glyph: PoruchIcons.social) { open(event.id) }
                 CardButton(title: unread > 0 ? Copy.chat_short_unread("\(unread)") : Copy.chat_short, glyph: PoruchIcons.chat) { chat(event.id) }
                 ShareLink(item: SystemActions.shareText(for: event)) {
                     PoruchIcon(glyph: PoruchIcons.share, size: 18).foregroundStyle(Palette.ink)
-                        .frame(width: 48, height: 48).background(Palette.surfaceMuted, in: Circle())
+                        .frame(width: 48, height: 48).background(Palette.brandContainer, in: Circle())
                 }.accessibilityLabel(Copy.share)
                 .simultaneousGesture(TapGesture().onEnded { model.app.eventShared() })
             }
         }
-        .padding(Space.lg).cardSurface()
     }
 
     private func requestRow(_ request: JoinRequest) -> some View {
@@ -380,7 +462,7 @@ private struct OrganizerPanel: View {
                     .font(PoruchFont.caption).foregroundStyle(Palette.onAccentContainer).lineLimit(1)
             }
             Spacer(minLength: 0)
-            Button { model.app.declineMember(eventId: event.id, userId: request.userId) } label: {
+            Button { decline(request) } label: {
                 PoruchIcon(glyph: PoruchIcons.close, size: 16).foregroundStyle(Palette.ink)
                     .frame(width: 40, height: 40).background(Palette.surface, in: Circle()).tapTarget()
             }.buttonStyle(PressableStyle()).accessibilityLabel(Copy.decline_request_a11y("\(request.name)"))
@@ -395,6 +477,21 @@ private struct OrganizerPanel: View {
         .disabled(model.state?.mutating == true)
         .padding(Space.md)
         .background(Palette.accentContainer, in: RoundedRectangle(cornerRadius: Corner.md, style: .continuous))
+    }
+
+    /// Відмова ще не пішла: тиха смужка з «Повернути» замість запиту. «Повернути» — зліва: справа в цьому рядку стоїть
+    /// «Прийняти» наступного запиту, і запізнілий дотик після відліку приймав чужу людину.
+    private func declinedRow(_ request: JoinRequest) -> some View {
+        HStack(spacing: Space.md) {
+            Button(Copy.undo, action: undo)
+                .font(PoruchFont.button).foregroundStyle(Palette.ink).tapTarget()
+            Text(Copy.request_declined(request.name.isEmpty ? Copy.chat_member : request.name))
+                .font(PoruchFont.label).foregroundStyle(Palette.inkSecondary).lineLimit(1)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, Space.md).frame(minHeight: 52)
+        .background(Palette.surfaceMuted, in: RoundedRectangle(cornerRadius: Corner.md, style: .continuous))
+        .accessibilityElement(children: .combine)
     }
 }
 

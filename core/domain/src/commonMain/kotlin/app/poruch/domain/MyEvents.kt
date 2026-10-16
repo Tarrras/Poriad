@@ -45,11 +45,33 @@ data class MyEventsBoard(
     }
 
     fun isEmpty(tab: MyEventsTab) = sections(tab).isEmpty()
+
+    /**
+     * Попереду в розрізі нічого, хоч минулі є: екран веде порожнім квитком з дією («Знайти подію поруч», «Організувати
+     * подію»), а не трьома сірими минулими. У «Збережених» минулих нема, тож там це звичайний порожній стан.
+     */
+    fun nothingAhead(tab: MyEventsTab) = when (tab) {
+        MyEventsTab.GOING -> goingAhead == 0
+        MyEventsTab.ORGANIZING -> organizingAhead == 0
+        MyEventsTab.SAVED -> savedAhead == 0
+    }
+
+    /** Розріз, на якому вкладка відкривається: де щось попереду. Організатор без власних планів не бачить порожнє «Іду». */
+    val openingTab: MyEventsTab
+        get() = when {
+            goingAhead > 0 -> MyEventsTab.GOING
+            organizingAhead > 0 -> MyEventsTab.ORGANIZING
+            savedAhead > 0 -> MyEventsTab.SAVED
+            else -> MyEventsTab.GOING
+        }
 }
 
 object MyEventsRules {
     /** Скільки минулих видно одразу; решта — за «Показати всі». */
     const val PAST_PREVIEW = 3
+
+    /** Відлік «через N год» — лише в межах доби. Далі дата в надрядку каже більше, ніж «через 644 год». */
+    const val COUNTDOWN_MAX_MINUTES = 24 * 60
 
     /**
      * Розкладає «мої» події з `my_events` по розрізах і секціях. Порядок усередині — як прийшов

@@ -1873,10 +1873,12 @@ fun StubTime(
  */
 @Composable
 fun StubTile(event: Event, size: Dp = 60.dp) {
+    // Росте з текстом до 1,5×, як корінець квитка: на великому шрифті «18:00» стискалось до «18…».
+    val side = size * LocalDensity.current.fontScale.coerceIn(1f, 1.5f)
     Box(
         Modifier
-            .size(size)
-            .clip(TicketShape(size / 2, vertical = true, radius = Corner.sm, notch = 4.dp))
+            .size(side)
+            .clip(TicketShape(side / 2, vertical = true, radius = Corner.sm, notch = 4.dp))
             .background(ticketStub(event)),
         contentAlignment = Alignment.Center
     ) {
@@ -2009,13 +2011,15 @@ fun CreateEventCard(
     title: String,
     subtitle: String,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /** Олівець — «друкуєш сам»; інший гліф — та сама порожня форма для іншої першої дії («Знайти подію поруч»). */
+    icon: ImageVector = PoruchIcons.edit
 ) {
     val colors = Poruch.colors
     Ticket(
         colors.brand,
         // Олівець, а не «+»: плюс уже є на кнопці створення біля таббара, а тут квиток заповнюють.
-        stub = { Icon(PoruchIcons.edit, null, Modifier.size(22.dp), tint = colors.onBrand) },
+        stub = { Icon(icon, null, Modifier.size(22.dp), tint = colors.onBrand) },
         modifier = modifier.fillMaxWidth(),
         stubLength = 64.dp, outline = colors.inkTertiary.copy(alpha = 0.7f), onClick = onClick
     ) {

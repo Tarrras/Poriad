@@ -1,6 +1,7 @@
 package app.poruch.android.feature.mine
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -8,8 +9,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -17,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -67,8 +69,9 @@ fun MyEventsScreen(state: MyEventsState, onIntent: (MyEventsIntent) -> Unit) {
                     subtitle(state), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary
                 )
             }
+            // Гортаються: на великому шрифті три чипи не вміщались і обрізались.
             if (state.screen.signedIn) Row(
-                Modifier.padding(horizontal = Spacing.page),
+                Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = Spacing.page),
                 horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
             ) {
                 MyEventsTab.entries.forEach { tab ->
@@ -119,16 +122,17 @@ fun MyEventsScreen(state: MyEventsState, onIntent: (MyEventsIntent) -> Unit) {
                     contentPadding = PaddingValues(start = Spacing.page, end = Spacing.page, top = Spacing.sm, bottom = bottom),
                     verticalArrangement = Arrangement.spacedBy(Spacing.xxl)
                 ) {
+                    val nothingAhead = state.screen.board.nothingAhead(state.tab)
+                    // Попереду нічого, а минулі є: першою йде дія, а не три сірі минулі.
+                    if (nothingAhead) item(key = "ahead") { AheadCard(state.tab, onIntent) }
                     items(sections, key = { it.group.name }) { Section(it, state, onIntent) }
-                    if (state.tab == MyEventsTab.ORGANIZING) item(key = "create") {
-                        GroupedRows {
-                            LinkRow(
-                                PoruchIcons.sparkle,
-                                stringResource(R.string.create_banner_title),
-                                stringResource(R.string.create_banner_subtitle),
-                                { onIntent(MyEventsIntent.CreateEvent) }
-                            )
-                        }
+                    // Те саме, що порожній квиток на головній: свою зустріч друкуєш сам.
+                    if (state.tab == MyEventsTab.ORGANIZING && !nothingAhead) item(key = "create") {
+                        CreateEventCard(
+                            stringResource(R.string.home_create_title),
+                            stringResource(R.string.create_banner_subtitle),
+                            { onIntent(MyEventsIntent.CreateEvent) }
+                        )
                     }
                 }
             }
@@ -218,6 +222,21 @@ private fun subtitle(state: MyEventsState): String {
     )
 }
 
+/** Порожній квиток з першою дією розрізу, над минулими. */
+@Composable
+private fun AheadCard(tab: MyEventsTab, onIntent: (MyEventsIntent) -> Unit) {
+    if (tab == MyEventsTab.ORGANIZING) CreateEventCard(
+        stringResource(R.string.home_create_title),
+        stringResource(R.string.home_create_subtitle),
+        { onIntent(MyEventsIntent.CreateEvent) }
+    ) else CreateEventCard(
+        stringResource(R.string.going_nothing_ahead_title),
+        stringResource(R.string.going_nothing_ahead_text),
+        { onIntent(MyEventsIntent.FindNearby) },
+        icon = PoruchIcons.map
+    )
+}
+
 @Composable
 private fun Empty(tab: MyEventsTab, onIntent: (MyEventsIntent) -> Unit) {
     val modifier = Modifier.padding(top = Spacing.section)
@@ -244,7 +263,9 @@ private fun Empty(tab: MyEventsTab, onIntent: (MyEventsIntent) -> Unit) {
             PoruchIcons.bookmark,
             stringResource(R.string.saved_empty_title),
             stringResource(R.string.saved_empty_text),
-            modifier
+            modifier,
+            stringResource(R.string.find_nearby),
+            { onIntent(MyEventsIntent.FindNearby) }
         )
     }
 }
@@ -268,10 +289,14 @@ private fun Section(
             MyEventsGroup.UPCOMING -> if (state.tab == MyEventsTab.ORGANIZING) {
                 Overline(R.string.section_nearest)
                 val first = events.first()
+                val declining = state.declining
                 OrganizerPanel(
                     first,
                     state.screen.unread[first.id] ?: 0,
-                    state.screen.requests.filter { it.eventId == first.id },
+                    state.screen.requests.filter {
+                        it.eventId == first.id && !(declining?.eventId == it.eventId && declining.userId == it.userId)
+                    },
+                    declining?.takeIf { it.eventId == first.id },
                     state.screen.mutating,
                     onIntent
                 )
@@ -319,6 +344,8 @@ private fun Overline(text: Int, modifier: Modifier = Modifier) = Text(
 private fun Rows(events: List<Event>, state: MyEventsState, onIntent: (MyEventsIntent) -> Unit) {
     if (events.isEmpty()) return
     val now = Clock.System.now()
+    // На великому шрифті «Оцінити» стає під рядок: поруч вона лишала назві кілька літер.
+    val stacked = LocalDensity.current.fontScale > STACK_FONT_SCALE
     GroupedRows {
         events.forEachIndexed { index, event ->
             val score = state.screen.myRatings[event.id]
@@ -334,7 +361,7 @@ private fun Rows(events: List<Event>, state: MyEventsState, onIntent: (MyEventsI
                 note = score?.let { stringResource(R.string.my_score, it) },
                 trailing = when {
                     // Своя дія рядка: «Оцінити» для минулої, закладка — у збережених.
-                    rate -> {
+                    rate && !stacked -> {
                         {
                             RateButton { onIntent(MyEventsIntent.StartRating(event)) }
                         }
@@ -352,23 +379,30 @@ private fun Rows(events: List<Event>, state: MyEventsState, onIntent: (MyEventsI
                     asks
                 ) to BadgeTone.Accent else null
             ) { onIntent(MyEventsIntent.OpenEvent(event.id)) }
+            if (rate && stacked) Box(Modifier.padding(start = Spacing.lg, bottom = Spacing.md)) {
+                RateButton { onIntent(MyEventsIntent.StartRating(event)) }
+            }
             if (index < events.lastIndex) HairLine(Modifier.padding(start = Spacing.lg + 60.dp + Spacing.md))
         }
     }
 }
 
-/** «Оцінити» в рядку минулої. Без гліфа: з ним кнопка забирала місце в назви й адреси. */
+/**
+ * «Оцінити» в рядку минулої. Тонова, а не чорнильна: три головні кнопки підряд сперечались за увагу. Без гліфа: з ним
+ * кнопка забирала місце в назви й адреси.
+ */
 @Composable
 private fun RateButton(onClick: () -> Unit) {
     val colors = Poruch.colors
     Text(
         stringResource(R.string.rate_action),
         style = MaterialTheme.typography.labelLarge,
-        color = colors.onBrand,
+        color = colors.ink,
         maxLines = 1,
         modifier = Modifier
-            .height(36.dp)
-            .background(colors.brand, ButtonShape)
+            .minimumInteractiveComponentSize()
+            .heightIn(min = 36.dp)
+            .background(colors.brandContainer, ButtonShape)
             .clip(ButtonShape)
             .pressable(onClick = onClick)
             .padding(horizontal = Spacing.md)
@@ -384,6 +418,8 @@ internal fun countdownOverline(event: Event): String {
     val start = event.startInstant
     if (start == null || event.hasStarted(now)) return base
     val minutes = (start - now).inWholeMinutes.toInt().coerceAtLeast(1)
+    // Далі за добу дата в надрядку каже більше, ніж «через 644 год».
+    if (minutes >= MyEventsRules.COUNTDOWN_MAX_MINUTES) return base
     val left = if (minutes < 60) stringResource(
         R.string.countdown_minutes,
         minutes
@@ -391,32 +427,46 @@ internal fun countdownOverline(event: Event): String {
     return "$base · ${left.uppercase()}"
 }
 
-/** Велика плитка, відлік, назва, опис — голова картки-героя і панелі організатора. */
+/**
+ * Відлік над назвою квитка панелі: «ТРИВАЄ ЗАРАЗ» чи «ЧЕРЕЗ 3 ГОД» у межах доби. День і час уже друкує корінець,
+ * тож надрядок «ЧТ, 12 ЛИСТ. · 19:30» лише повторював би його.
+ */
+@Composable
+private fun panelCountdown(event: Event): String? {
+    val now = Clock.System.now()
+    if (event.isUnderway(now)) return stringResource(R.string.underway_now).uppercase()
+    val start = event.startInstant ?: return null
+    if (start <= now) return null
+    val minutes = (start - now).inWholeMinutes.toInt().coerceAtLeast(1)
+    if (minutes >= MyEventsRules.COUNTDOWN_MAX_MINUTES) return null
+    return (if (minutes < 60) stringResource(R.string.countdown_minutes, minutes)
+    else stringResource(R.string.countdown_hours, minutes / 60)).uppercase()
+}
+
+/**
+ * Голова панелей «Сьогодні» й «Найближча»: квиток із корінцем, як у стрічці, — відлік, назва й опис на поверхні, жанр,
+ * час і місця «0/2» на корінці. Мініатюра 60 лише важчала сірим градієнтом і випадала зі світу квитків.
+ */
 @Composable
 private fun HeroHead(event: Event, status: @Composable () -> Unit, onClick: () -> Unit) {
     val colors = Poruch.colors
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .pressable(onClick = onClick),
-        horizontalArrangement = Arrangement.spacedBy(Spacing.md),
-        verticalAlignment = Alignment.CenterVertically
+    val cancelled = stringResource(R.string.cancelled_short)
+    Ticket(
+        ticketStub(event),
+        stub = { StubTime(event) },
+        modifier = Modifier.fillMaxWidth()
+            .ticketSemantics(ticketA11yLabel(event, if (event.isCancelled) cancelled else null), onClick),
+        onClick = onClick
     ) {
-        // Розмір рядка: картку вирізняють відлік і дії, а велика плитка лише важчала сірим градієнтом.
-        EventImage(event, Modifier
-            .size(60.dp)
-            .clip(Radius.xs))
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-            Text(
-                countdownOverline(event),
-                style = MaterialTheme.typography.labelSmall,
-                color = colors.accentText
-            )
+        Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+            panelCountdown(event)?.let {
+                Text(it, style = MaterialTheme.typography.labelSmall, color = colors.accentText)
+            }
             Text(
                 event.displayTitle,
                 style = PoruchType.brandTitle3,
                 color = colors.ink,
-                maxLines = 2,
+                maxLines = 3,
                 overflow = TextOverflow.Ellipsis
             )
             status()
@@ -428,21 +478,15 @@ private fun HeroHead(event: Event, status: @Composable () -> Unit, onClick: () -
 @Composable
 private fun GoingHero(event: Event, unread: Int, onIntent: (MyEventsIntent) -> Unit) {
     val context = LocalContext.current
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .cardSurface()
-            .padding(Spacing.lg),
-        verticalArrangement = Arrangement.spacedBy(Spacing.md)
-    ) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         HeroHead(event, {
             if (event.isCancelled) TicketStamp(stringResource(R.string.cancelled_short), BadgeTone.Danger) else EventDescriptor(event)
         }) { onIntent(MyEventsIntent.OpenEvent(event.id)) }
-        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        PanelActions { weight ->
             SecondaryButton(
                 stringResource(R.string.open_in_maps),
                 { context.openInMaps(event) },
-                Modifier.weight(1f),
+                weight,
                 icon = PoruchIcons.directions
             )
             // Чат бачать лише підтверджені: із запитом чи в черзі туди не пускає сервер.
@@ -452,79 +496,55 @@ private fun GoingHero(event: Event, unread: Int, onIntent: (MyEventsIntent) -> U
                     unread
                 ) else stringResource(R.string.chat_short),
                 { onIntent(MyEventsIntent.OpenChat(event.id)) },
-                Modifier.weight(1f),
+                weight,
                 icon = PoruchIcons.chat
             )
         }
     }
 }
 
-/** Найближча своя подія: заповненість, перший запит із відповіддю на місці й дії організатора. */
+/**
+ * Дії панелі в ряд; на великому шрифті — одна під одною, бо в третину ширини «Учасники» обрізались. [content] отримує
+ * модифікатор ширини кнопки: частка ряду або вся ширина.
+ */
+@Composable
+private fun PanelActions(content: @Composable (Modifier) -> Unit) {
+    if (LocalDensity.current.fontScale > STACK_FONT_SCALE) Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        content(Modifier.fillMaxWidth())
+    } else Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
+        content(Modifier.weight(1f))
+    }
+}
+
+/** Найближча своя подія: квиток (місця — на корінці), перший запит із відповіддю на місці й дії організатора. */
 @Composable
 private fun OrganizerPanel(
     event: Event,
     unread: Int,
     requests: List<JoinRequest>,
+    /** Щойно відхилений запит: кілька секунд на його місці «Повернути». */
+    declined: JoinRequest?,
     mutating: Boolean,
     onIntent: (MyEventsIntent) -> Unit
 ) {
     val colors = Poruch.colors
     val context = LocalContext.current
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .cardSurface()
-            .padding(Spacing.lg),
-        verticalArrangement = Arrangement.spacedBy(Spacing.lg)
-    ) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         HeroHead(event, {
             if (event.isCancelled) StatusBadge(
                 stringResource(R.string.cancelled),
                 BadgeTone.Danger
             ) else EventDescriptor(event)
         }) { onIntent(MyEventsIntent.OpenEvent(event.id)) }
-        val room = event.gathering
-        if (room != null && !event.isCancelled) Column(
-            Modifier.semantics(mergeDescendants = true) {},
-            verticalArrangement = Arrangement.spacedBy(Spacing.sm)
-        ) {
-            Row(
-                verticalAlignment = Alignment.Bottom,
-                horizontalArrangement = Arrangement.spacedBy(Spacing.xs)
-            ) {
-                Text(
-                    "${room.attendeeCount}",
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = colors.ink
-                )
-                Text(
-                    stringResource(R.string.seats_of, room.capacity),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = colors.inkSecondary
-                )
-            }
-            LinearProgressIndicator(
-                progress = { room.attendeeCount.toFloat() / room.capacity.coerceAtLeast(1) },
-                Modifier
-                    .fillMaxWidth()
-                    .height(6.dp)
-                    .clip(Radius.pill),
-                color = colors.success,
-                trackColor = colors.hairline,
-                drawStopIndicator = {}
-            )
-        }
-        requests.firstOrNull()?.let { request ->
+        if (declined != null) DeclinedRow(declined, onIntent)
+        else requests.firstOrNull()?.let { request ->
             RequestRow(event, request, requests.size - 1, mutating, onIntent)
         }
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        PanelActions { weight ->
             SecondaryButton(
                 stringResource(R.string.participants),
                 { onIntent(MyEventsIntent.OpenEvent(event.id)) },
-                Modifier.weight(1f),
+                weight,
                 icon = PoruchIcons.social
             )
             SecondaryButton(
@@ -533,7 +553,7 @@ private fun OrganizerPanel(
                     unread
                 ) else stringResource(R.string.chat_short),
                 { onIntent(MyEventsIntent.OpenChat(event.id)) },
-                Modifier.weight(1f),
+                weight,
                 icon = PoruchIcons.chat
             )
             val share = stringResource(R.string.share)
@@ -593,14 +613,7 @@ private fun RequestRow(
                 .background(colors.surface, CircleShape)
                 .clip(CircleShape)
                 .semantics { contentDescription = decline }
-                .pressable(enabled = !mutating) {
-                    onIntent(
-                        MyEventsIntent.Decline(
-                            event.id,
-                            request.userId
-                        )
-                    )
-                },
+                .pressable(enabled = !mutating) { onIntent(MyEventsIntent.Decline(request)) },
             contentAlignment = Alignment.Center
         ) { Icon(PoruchIcons.close, null, Modifier.size(16.dp), tint = colors.ink) }
         Text(
@@ -624,3 +637,35 @@ private fun RequestRow(
         )
     }
 }
+
+/**
+ * Відмова ще не пішла: тиха смужка з «Повернути» замість запиту. «Повернути» — зліва: справа в цьому рядку стоїть
+ * «Прийняти» наступного запиту, і запізнілий дотик після відліку приймав чужу людину.
+ */
+@Composable
+private fun DeclinedRow(request: JoinRequest, onIntent: (MyEventsIntent) -> Unit) {
+    val colors = Poruch.colors
+    val name = request.name.ifBlank { stringResource(R.string.chat_member) }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 52.dp)
+            .background(colors.surfaceMuted, Radius.md)
+            .padding(horizontal = Spacing.md),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.md),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        GhostButton(stringResource(R.string.undo), { onIntent(MyEventsIntent.UndoDecline) })
+        Text(
+            stringResource(R.string.request_declined, name),
+            Modifier.weight(1f),
+            style = MaterialTheme.typography.labelLarge,
+            color = colors.inkSecondary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+/** Звідки «Оцінити» стає під рядок: 1.3 — найбільший системний шрифт без «екстра». */
+private const val STACK_FONT_SCALE = 1.3f

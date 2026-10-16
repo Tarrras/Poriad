@@ -1,6 +1,7 @@
 package app.poruch.android.feature.mine
 
 import app.poruch.domain.Event
+import app.poruch.domain.JoinRequest
 import app.poruch.domain.MyEventsTab
 import app.poruch.domain.RatingTag
 import app.poruch.shared.MyEventsScreenState
@@ -18,7 +19,11 @@ data class MyEventsState(
     /** «Минулі» розгорнуто цілком. Скидається зі зміною розрізу. */
     val allPast: Boolean = false,
     /** Подія, яку оцінюють у шторці. */
-    val rating: Event? = null
+    val rating: Event? = null,
+    /** Розріз уже обрано — людиною чи першою дошкою. Далі дошка його не перемикає. */
+    val tabChosen: Boolean = false,
+    /** Відхилений запит кілька секунд чекає: помилковий дотик повертають, а людині ще нічого не пішло. */
+    val declining: JoinRequest? = null
 )
 
 sealed interface MyEventsIntent {
@@ -33,7 +38,8 @@ sealed interface MyEventsIntent {
     /** [follow] — що показував перемикач «Стежити за організатором»; null — перемикача не було. */
     data class Rate(val id: String, val score: Int, val comment: String, val tags: List<RatingTag>, val follow: Boolean?) : MyEventsIntent
     data class Approve(val eventId: String, val userId: String) : MyEventsIntent
-    data class Decline(val eventId: String, val userId: String) : MyEventsIntent
+    data class Decline(val request: JoinRequest) : MyEventsIntent
+    data object UndoDecline : MyEventsIntent
     data class Unsave(val id: String) : MyEventsIntent
     data object SignIn : MyEventsIntent
     data object CreateEvent : MyEventsIntent

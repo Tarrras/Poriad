@@ -203,7 +203,7 @@
   <string name="capacity_label">Місткість</string>
   <string name="description_title">Опис</string>
   <string name="create_banner_title">Маєте ідею зустрічі?</string>
-  <string name="create_banner_subtitle">Опублікуйте подію за три кроки</string>
+  <string name="create_banner_subtitle">Опублікуйте подію за чотири кроки</string>
   <string name="profile_guest_cta">Увійти або зареєструватися</string>
   <string name="settings">Налаштування</string>
   <string name="about_app">Про застосунок</string>
@@ -270,6 +270,9 @@
   <string name="nothing_for_query">За запитом «%1$s» подій нема. Спробуйте інше слово чи назву закладу.</string>
   <string name="reset_filters_action">Скинути фільтри</string>
   <string name="filters_reset">Фільтри скинуто</string>
+  <string name="request_declined">Відхилено: %1$s</string>
+  <string name="going_nothing_ahead_title">Попереду поки нічого</string>
+  <string name="going_nothing_ahead_text">Знайдіть, куди піти сьогодні чи на вихідних</string>
   <string name="undo">Повернути</string>
   <string name="show_nothing">Нічого не знайдено</string>
   <string name="from_people_hint">Лише зустрічі, де ще є вільні місця</string>
@@ -726,7 +729,7 @@
   <string name="going_empty_text">Приєднайтесь до зустрічі поруч — вона з’явиться тут із часом і маршрутом.</string>
   <string name="find_nearby">Знайти подію поруч</string>
   <string name="organizing_empty_title">Ви ще нічого не організували</string>
-  <string name="organizing_empty_text">Зберіть людей на настолки, пробіжку чи кіно — це три кроки.</string>
+  <string name="organizing_empty_text">Зберіть людей на настолки, пробіжку чи кіно — це чотири кроки.</string>
   <string name="saved_empty_title">Нічого не збережено</string>
   <string name="saved_empty_text">Торкніться закладки на картці події, щоб повернутися до неї пізніше.</string>
   <plurals name="going_ahead">
@@ -763,9 +766,9 @@
   <string name="follow">Стежити</string>
   <string name="following">Ви стежите</string>
   <string name="follow_place_hint">Скажемо, коли тут зʼявиться щось нове</string>
-  <string name="follow_organizer_hint">Скажемо, коли в нього зʼявиться нова подія</string>
+  <string name="follow_organizer_hint">Скажемо, коли організатор опублікує нову подію</string>
   <string name="rate_follow_title">Стежити за організатором</string>
-  <string name="rate_follow_hint">Скажемо, коли в нього зʼявиться нова подія</string>
+  <string name="rate_follow_hint">Скажемо, коли організатор опублікує нову подію</string>
   <string name="follows_title">Ви стежите</string>
   <string name="follow_via">Ви стежите · %1$s</string>
   <!-- Нове в підписках, ще не переглянуте на екрані «Ви стежите». -->

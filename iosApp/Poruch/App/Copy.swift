@@ -176,7 +176,7 @@ enum Copy {
     static let capacity_label = "Місткість"
     static let description_title = "Опис"
     static let create_banner_title = "Маєте ідею зустрічі?"
-    static let create_banner_subtitle = "Опублікуйте подію за три кроки"
+    static let create_banner_subtitle = "Опублікуйте подію за чотири кроки"
     static let profile_guest_cta = "Увійти або зареєструватися"
     static let settings = "Налаштування"
     static let about_app = "Про застосунок"
@@ -231,6 +231,9 @@ enum Copy {
     static func nothing_for_query(_ a0: String) -> String { "За запитом «\(a0)» подій нема. Спробуйте інше слово чи назву закладу." }
     static let reset_filters_action = "Скинути фільтри"
     static let filters_reset = "Фільтри скинуто"
+    static func request_declined(_ a0: String) -> String { "Відхилено: \(a0)" }
+    static let going_nothing_ahead_title = "Попереду поки нічого"
+    static let going_nothing_ahead_text = "Знайдіть, куди піти сьогодні чи на вихідних"
     static let undo = "Повернути"
     static let show_nothing = "Нічого не знайдено"
     static let from_people_hint = "Лише зустрічі, де ще є вільні місця"
@@ -623,15 +626,15 @@ enum Copy {
     static let going_empty_text = "Приєднайтесь до зустрічі поруч — вона з’явиться тут із часом і маршрутом."
     static let find_nearby = "Знайти подію поруч"
     static let organizing_empty_title = "Ви ще нічого не організували"
-    static let organizing_empty_text = "Зберіть людей на настолки, пробіжку чи кіно — це три кроки."
+    static let organizing_empty_text = "Зберіть людей на настолки, пробіжку чи кіно — це чотири кроки."
     static let saved_empty_title = "Нічого не збережено"
     static let saved_empty_text = "Торкніться закладки на картці події, щоб повернутися до неї пізніше."
     static let follow = "Стежити"
     static let following = "Ви стежите"
     static let follow_place_hint = "Скажемо, коли тут зʼявиться щось нове"
-    static let follow_organizer_hint = "Скажемо, коли в нього зʼявиться нова подія"
+    static let follow_organizer_hint = "Скажемо, коли організатор опублікує нову подію"
     static let rate_follow_title = "Стежити за організатором"
-    static let rate_follow_hint = "Скажемо, коли в нього зʼявиться нова подія"
+    static let rate_follow_hint = "Скажемо, коли організатор опублікує нову подію"
     static let follows_title = "Ви стежите"
     static func follow_via(_ a0: String) -> String { "Ви стежите · \(a0)" }
     static func a11y_tab_new_follows(_ a0: String) -> String { "\(a0), є нове в підписках" }

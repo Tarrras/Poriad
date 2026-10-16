@@ -1426,11 +1426,14 @@ struct StubTime: View {
 struct StubTile: View {
     let event: Event
     var size: CGFloat = 60
+    /// Росте з текстом до 1,5×, як корінець квитка: на великому шрифті «18:00» стискалось до «18…».
+    @ScaledMetric(relativeTo: .title) private var textScale: CGFloat = 1
+    private var side: CGFloat { size * min(max(textScale, 1), 1.5) }
     var body: some View {
         StubTime(event: event, compact: true, showsSeats: false, showsGenre: false)
-            .frame(width: size, height: size)
+            .frame(width: side, height: side)
             .background(ticketStub(event))
-            .clipShape(TicketShape(vertical: true, stub: size / 2, radius: Corner.sm, notch: 4))
+            .clipShape(TicketShape(vertical: true, stub: side / 2, radius: Corner.sm, notch: 4))
             // Минулу подію пробито: дірка в куті плитки, а не через цифри.
             .overlay(alignment: .topTrailing) {
                 if event.hasEnded(now: nowInstant()) { Circle().fill(Palette.canvas).frame(width: 9, height: 9).padding(6) }
@@ -1474,6 +1477,8 @@ struct TicketStamp: View {
 struct CreateEventCard: View {
     let title: String
     let subtitle: String
+    /// Олівець — «друкуєш сам»; інший гліф — та сама порожня форма для іншої першої дії («Знайти подію поруч»).
+    var glyph: PoruchGlyph = PoruchIcons.edit
     let action: () -> Void
     var body: some View {
         Button(action: action) {
@@ -1491,7 +1496,7 @@ struct CreateEventCard: View {
                 .frame(minHeight: 72, alignment: .leading)
             } stub: {
                 // Олівець, а не «+»: плюс уже є на кнопці створення біля таббара, а тут квиток заповнюють.
-                PoruchIcon(glyph: PoruchIcons.edit, size: 22).foregroundStyle(Palette.onBrand)
+                PoruchIcon(glyph: glyph, size: 22).foregroundStyle(Palette.onBrand)
             }
         }
         .buttonStyle(PressableStyle())

@@ -55,6 +55,18 @@ class MyEventsRulesTest {
         assertEquals(mapOf(MyEventsGroup.PAST to listOf("fresh", "old")), board(events).ids(MyEventsTab.GOING))
     }
 
+    /** Організатор без власних планів відкриває «Організовую»; лише минулі — «попереду нічого», а не порожній розріз. */
+    @Test fun opensWhereSomethingIsAhead() {
+        val mineAhead = room("mine", "2026-10-02T16:00:00Z", organizer = "me")
+        val wentBefore = room("went", "2026-09-20T16:00:00Z", joined = true)
+        val b = board(listOf(mineAhead, wentBefore))
+        assertEquals(MyEventsTab.ORGANIZING, b.openingTab)
+        assertTrue(b.nothingAhead(MyEventsTab.GOING))
+        assertFalse(b.isEmpty(MyEventsTab.GOING))
+        assertFalse(b.nothingAhead(MyEventsTab.ORGANIZING))
+        assertEquals(MyEventsTab.GOING, board(emptyList()).openingTab)
+    }
+
     @Test fun underwayCountsAsToday() {
         val events = listOf(room("now", "2026-09-25T08:00:00Z", hours = 3, joined = true))
         assertEquals(mapOf(MyEventsGroup.TODAY to listOf("now")), board(events).ids(MyEventsTab.GOING))
