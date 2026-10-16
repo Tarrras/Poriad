@@ -1,7 +1,7 @@
 // Лендинг: сторінка — квиток. Спершу зустрічі від людей (порожній квиток, який відвідувач друкує сам), далі «Шукаю
 // компанію» на справжній події з афіші, сама афіша жанрами — опорою. Активності не вигадуємо: лише справжні дані prod.
-import { discover, fold, soonFirst, CITIES, cityOf, CATEGORIES, displayTitle, overline, stubParts, httpsOrNull, esc } from "./poriad.js?v=5";
-import { ensureCards, remember, poster, bindCards, openEvent, openInstall, reveal, navLine, bindLocks, savedCity, qr, stubTile, photo } from "./ui.js?v=5";
+import { discover, fold, soonFirst, CITIES, cityOf, CATEGORIES, displayTitle, overline, stubParts, httpsOrNull, esc } from "./poriad.js?v=6";
+import { ensureCards, remember, poster, bindCards, openEvent, openInstall, reveal, navLine, bindLocks, savedCity, qr, stubTile, photo } from "./ui.js?v=6";
 
 navLine();
 bindLocks();

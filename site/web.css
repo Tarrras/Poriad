@@ -435,11 +435,12 @@ a.row:hover { background: var(--surface-muted); }
 .bar { position: absolute; left: 12px; right: 12px; bottom: 12px; z-index: 4; filter: drop-shadow(0 8px 24px rgba(0,0,0,.16)); }
 .bar > .ticket { --stub-w: 84px; --r: var(--r-xl); background: var(--surface-raised); }
 .bar .face { padding: 12px; gap: 10px; }
-.bar .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.bar .top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
 .bar .meta { display: flex; flex-direction: column; flex: none; max-width: 50%; padding-left: 6px; }
 .bar .meta small { font: 600 11px/14px var(--font); letter-spacing: 1px; text-transform: uppercase; color: var(--ink-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bar .meta span { font: 600 17px/22px var(--font); color: var(--ink); white-space: nowrap; }
-.bar .top .btn { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* Кнопка-флекс не вміє «…»: напис, що не вміщується поруч із ціною, переносить її окремим рядком на всю ширину. */
+.bar .top .btn { flex: 1 0 auto; }
 .bar .btn { height: 50px; }
 .bar .btn.secondary { width: 100%; }
 

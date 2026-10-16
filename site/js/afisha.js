@@ -1,7 +1,7 @@
 // Веб-афіша — режим перегляду: місто, дати, категорії, пошук, сітка з довантаженням і мапа.
 // Стан — у адресі (?city=&when=&cat=&q=&view=&e=), тож будь-який вигляд можна надіслати посиланням.
-import { discover, fold, soonFirst, inWhen, CITIES, cityOf, CATEGORIES, CATEGORY_COLORS, WHEN, plural, EVENTS, httpsOrNull, mapStyle, displayTitle, esc } from "./poriad.js?v=5";
-import { ensureCards, remember, poster, heroCard, skeletons, bindCards, openEvent, reveal, navLine, bindLocks, savedCity, icon, stubTile } from "./ui.js?v=5";
+import { discover, fold, soonFirst, inWhen, CITIES, cityOf, CATEGORIES, CATEGORY_COLORS, WHEN, plural, EVENTS, httpsOrNull, mapStyle, displayTitle, esc } from "./poriad.js?v=6";
+import { ensureCards, remember, poster, heroCard, skeletons, bindCards, openEvent, reveal, navLine, bindLocks, savedCity, icon, stubTile } from "./ui.js?v=6";
 
 navLine();
 bindLocks();
