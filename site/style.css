@@ -1,38 +1,44 @@
-/* Правові сторінки «Поряд». Шрифти й кольори — tokens.css (ті самі токени, що в застосунку й на лендингу). */
-:root { --radius: 24px; --max: 760px; }
+/* Правові сторінки «Поряд» у світі «Корінець». Шрифти й кольори — tokens.css (ті самі токени, що в застосунку й на лендингу).
+   Документ — аркуш на полотні: заголовки Sofia Sans Condensed, текст системним гротеском, кнопки з кутом квитка. */
+:root { --max: 760px; }
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
-body { margin: 0; background: var(--canvas); color: var(--ink); font: 400 17px/1.6 var(--font); }
+body { margin: 0; background: var(--canvas); color: var(--ink); font: 400 17px/1.6 var(--font); -webkit-font-smoothing: antialiased; }
 a { color: var(--ink); text-decoration-color: var(--ink-tertiary); text-underline-offset: 3px; }
-a:hover { color: var(--ink-secondary); }
-.hero { background: linear-gradient(var(--glow), var(--canvas)); padding: 40px 16px 24px; }
+a:hover { text-decoration-color: var(--ink); }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 6px; }
+.hero { padding: 28px 16px 8px; }
 .wrap { max-width: var(--max); margin: 0 auto; padding: 0 16px; }
-.brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
-.brand img { width: 36px; height: 36px; border-radius: 9px; }
-.brand b { font: 600 24px/28px var(--serif); }
-nav.top { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 20px; font-size: 15px; color: var(--ink-secondary); }
+.brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; }
+.brand img { width: 34px; height: 34px; border-radius: 8px; }
+.brand b { font: 800 26px/28px var(--cond); letter-spacing: -.2px; }
+nav.top { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 20px; font-size: 16px; color: var(--ink-secondary); }
 nav.top a { color: inherit; text-decoration: none; }
-nav.top a[aria-current] { color: var(--ink); font-weight: 500; }
-h1 { font: 600 clamp(34px, 6vw, 48px)/1.1 var(--serif); letter-spacing: -0.02em; margin: 24px 0 8px; text-wrap: balance; }
-h2 { font: 600 26px/1.2 var(--serif); margin: 40px 0 12px; letter-spacing: -0.01em; }
+nav.top a:hover, nav.top a[aria-current] { color: var(--ink); }
+nav.top a[aria-current] { font-weight: 600; }
+h1 { font: 800 clamp(40px, 8vw, 64px)/.95 var(--cond); letter-spacing: -.02em; margin: 28px 0 14px; text-wrap: balance; }
+h2 { font: 700 28px/1.1 var(--cond); margin: 44px 0 12px; letter-spacing: -.1px; text-wrap: balance; }
 h3 { font-size: 17px; margin: 24px 0 8px; }
-.lead { font-size: 19px; color: var(--ink-secondary); margin: 0 0 8px; }
-.meta { font: 600 12px/16px var(--font); letter-spacing: 1px; text-transform: uppercase; color: var(--ink-tertiary); }
-main { padding: 8px 0 64px; }
-.card { background: var(--surface); border-radius: var(--radius); padding: 20px; margin: 16px 0; }
-@media (prefers-color-scheme: dark) { .card { box-shadow: 0 0 0 1px var(--hairline); } }
-table { width: 100%; border-collapse: collapse; font-size: 15px; margin: 12px 0; }
+.lead { font-size: 19px; line-height: 1.5; color: var(--ink-secondary); margin: 0 0 8px; }
+.meta { font: 600 11px/14px var(--font); letter-spacing: 1px; text-transform: uppercase; color: var(--ink-tertiary); }
+main { padding: 8px 0 72px; }
+.card { background: var(--surface); border: 1px solid var(--edge); border-radius: var(--r-lg); padding: 20px; margin: 16px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 15px; line-height: 1.45; margin: 4px 0; }
 th, td { text-align: left; vertical-align: top; padding: 10px 8px; border-bottom: 1px solid var(--hairline); }
-th { font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: var(--ink-tertiary); }
+tr:last-child td { border-bottom: 0; }
+th { font: 600 11px/14px var(--font); letter-spacing: 1px; text-transform: uppercase; color: var(--ink-tertiary); }
 ul, ol { padding-left: 22px; } li { margin: 4px 0; }
-.pill { display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; border-radius: 999px;
-  background: var(--brand); color: var(--on-brand); text-decoration: none; font-weight: 600; }
+/* Кнопка — прямокутник із кутом квитка 14: чорнило вдень, папір уночі. */
+.pill { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 52px; padding: 0 24px; border-radius: var(--r-md);
+  background: var(--ink); color: var(--on-brand); text-decoration: none; font-weight: 600; font-size: 16px; transition: background .2s, transform .28s cubic-bezier(.3, 1.4, .5, 1); }
+.pill:hover { background: var(--ink-pressed); }
+.pill:active { transform: scale(.98); }
 .pill.ghost { background: var(--brand-container); color: var(--ink); }
 .row { display: flex; flex-wrap: wrap; gap: 12px; margin: 20px 0; }
 .todo { background: var(--accent-container); color: var(--on-accent-container); padding: 0 6px; border-radius: 6px; font-weight: 600; }
 .shots { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin: 24px 0; }
-.shots img { width: 100%; border-radius: 18px; background: var(--surface); box-shadow: 0 0 0 1px var(--hairline); }
-footer { border-top: 1px solid var(--hairline); padding: 24px 16px 40px; font-size: 14px; color: var(--ink-secondary); }
+.shots img { width: 100%; border-radius: var(--r-lg); background: var(--surface); }
+footer { background: var(--surface-muted); padding: 24px 16px 40px; font-size: 15px; color: var(--ink-secondary); }
 footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 20px; }
 footer a { color: inherit; }
 .note { font-size: 15px; color: var(--ink-secondary); }

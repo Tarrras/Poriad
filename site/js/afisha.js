@@ -1,9 +1,9 @@
 // Веб-афіша — режим перегляду: місто, дати, категорії, пошук, сітка з довантаженням і мапа.
 // Стан — у адресі (?city=&when=&cat=&q=&view=&e=), тож будь-який вигляд можна надіслати посиланням.
-import { discover, fold, soonFirst, inWhen, CITIES, cityOf, CATEGORIES, CATEGORY_COLORS, WHEN, plural, EVENTS, httpsOrNull, mapStyle, displayTitle, overline, esc } from "./poriad.js?v=4";
-import { ensureCards, remember, poster, heroCard, skeletons, bindCards, openEvent, reveal, navGlass, bindLocks, savedCity, icon, art } from "./ui.js?v=4";
+import { discover, fold, soonFirst, inWhen, CITIES, cityOf, CATEGORIES, CATEGORY_COLORS, WHEN, plural, EVENTS, httpsOrNull, mapStyle, displayTitle, esc } from "./poriad.js?v=5";
+import { ensureCards, remember, poster, heroCard, skeletons, bindCards, openEvent, reveal, navLine, bindLocks, savedCity, icon, stubTile } from "./ui.js?v=5";
 
-navGlass();
+navLine();
 bindLocks();
 
 const $ = (selector) => document.querySelector(selector);
@@ -96,7 +96,7 @@ async function render() {
   state.byId = new Map(state.list.map((e) => [e.id, e]));
 
   const total = fold(index).length;
-  $("[data-count]").textContent = state.q ? `Знайдено: ${plural(total, EVENTS)}` : `${plural(total, EVENTS)} з квиткових сервісів і від людей`;
+  $("[data-count]").textContent = state.q ? `Знайдено: ${plural(total, EVENTS)}` : `${plural(total, EVENTS)} з квиткових сервісів${index.some((e) => e.origin === "community") ? " і від людей" : " і майданчиків"}`;
 
   // Чипи: кількість дат — у вибраній категорії, кількість категорій — у вибраних датах.
   const dateCounts = Object.fromEntries(Object.keys(WHEN).map((w) => [w, fold(byCat.filter((e) => inWhen(e, w))).length]));
@@ -179,7 +179,7 @@ function loadMap() {
     const js = Object.assign(document.createElement("script"), { src: "https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js" });
     js.onload = () => {
       const city = cityOf(state.city);
-      const map = new maplibregl.Map({ container: $("[data-map]"), style: mapStyle(), center: [city.lng, city.lat], zoom: 11.3, attributionControl: { compact: true }, dragRotate: false });
+      const map = new maplibregl.Map({ container: $("[data-map]"), style: mapStyle(dark), center: [city.lng, city.lat], zoom: 11.3, attributionControl: { compact: true }, dragRotate: false });
       map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
       map.on("load", () => { setupLayers(map); resolve(map); });
       map.on("error", (e) => console.warn("map", e.error?.message));
@@ -189,17 +189,21 @@ function loadMap() {
   });
 }
 
+// Тема мапи — як у сторінки на момент відкриття: чорнильні кластери вдень, паперові вночі.
+const dark = document.documentElement.dataset.theme === "dark" || (document.documentElement.dataset.theme !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
+const ink = dark ? "#F3F3F0" : "#141417", ground = dark ? "#0F0F13" : "#FFFFFF";
+
 function setupLayers(map) {
   map.addSource("events", { type: "geojson", data: geojson(), cluster: true, clusterRadius: 40, clusterMaxZoom: 15 });
   map.addLayer({ id: "halo", type: "circle", source: "events", filter: ["has", "point_count"],
-    paint: { "circle-color": "#1D1D1F", "circle-opacity": 0.14, "circle-radius": ["interpolate", ["linear"], ["get", "point_count"], 2, 26, 60, 40] } });
+    paint: { "circle-color": ink, "circle-opacity": 0.14, "circle-radius": ["interpolate", ["linear"], ["get", "point_count"], 2, 26, 60, 40] } });
   map.addLayer({ id: "clusters", type: "circle", source: "events", filter: ["has", "point_count"],
-    paint: { "circle-color": "#1D1D1F", "circle-stroke-width": 3, "circle-stroke-color": "#FFFFFF", "circle-radius": ["interpolate", ["linear"], ["get", "point_count"], 2, 18, 60, 30] } });
+    paint: { "circle-color": ink, "circle-stroke-width": 3, "circle-stroke-color": ground, "circle-radius": ["interpolate", ["linear"], ["get", "point_count"], 2, 18, 60, 30] } });
   map.addLayer({ id: "cluster-count", type: "symbol", source: "events", filter: ["has", "point_count"],
-    layout: { "text-field": ["get", "point_count_abbreviated"], "text-font": ["Noto Sans Bold"], "text-size": 13 }, paint: { "text-color": "#FFFFFF" } });
+    layout: { "text-field": ["get", "point_count_abbreviated"], "text-font": ["Noto Sans Bold"], "text-size": 13 }, paint: { "text-color": ground } });
   map.addLayer({ id: "points", type: "circle", source: "events", filter: ["!", ["has", "point_count"]],
-    paint: { "circle-color": ["match", ["get", "category"], ...Object.entries(CATEGORY_COLORS).flat(), "#1D1D1F"],
-      "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 7, 16, 10], "circle-stroke-width": 3, "circle-stroke-color": "#FFFFFF" } });
+    paint: { "circle-color": ["match", ["get", "category"], ...Object.entries(CATEGORY_COLORS).flat(), ink],
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 7, 16, 10], "circle-stroke-width": 3, "circle-stroke-color": ground } });
 
   map.on("click", "clusters", async (event) => {
     const feature = event.features[0], source = map.getSource("events"), id = feature.properties.cluster_id;
@@ -251,8 +255,8 @@ async function showStack(ids) {
   $("[data-map]").append(panel);
   panel.querySelector("button").onclick = () => panel.remove();
   const got = (await ensureCards(ids.slice(0, 100))).sort((a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at));
-  panel.insertAdjacentHTML("beforeend", got.map((card) => `<div class="mini" data-id="${esc(card.id)}">${art(card)}
-    <div><small>${esc(overline(card))}</small><b>${esc(displayTitle(card.title))}</b><span>${esc(card.place_name || card.address || "")}</span></div></div>`).join(""));
+  panel.insertAdjacentHTML("beforeend", got.map((card) => `<div class="mini" data-id="${esc(card.id)}">${stubTile(card)}
+    <div><b>${esc(displayTitle(card.title))}</b><span>${esc(card.place_name || card.address || "")}</span></div></div>`).join(""));
 }
 
 // Подія за посиланням `?e=` відкривається поверх афіші.

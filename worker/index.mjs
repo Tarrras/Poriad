@@ -5,7 +5,7 @@
 
 // Назви, дати й ціна — ті самі правила, що на сайті (site/js/poriad.js, порт TitleRules і формату застосунку).
 // wrangler збирає цей імпорт у воркер; той самий файл сайт віддає браузеру.
-import { displayTitle, overline, price, httpsOrNull, esc, CATEGORIES } from "../site/js/poriad.js";
+import { displayTitle, overline, stubParts, price, httpsOrNull, esc, CATEGORIES } from "../site/js/poriad.js";
 export { esc };
 
 // Мітка ct=event: завантаження зі сторінок подій окремо від сайту (site/js/poriad.js).
@@ -74,6 +74,7 @@ export function eventPage(e, now, shelters = []) {
   const ticketUrl = imported ? httpsOrNull(e.canonical_url) : null;
   const category = CATEGORIES[e.category] ? e.category : "social";
   const when = overline(e, now);
+  const [stubTime, stubDay] = stubParts(e, now);
   const maps = `https://www.google.com/maps/dir/?api=1&destination=${Number(e.latitude)},${Number(e.longitude)}`;
   // Супутник «Йдемо разом»: посилання на афішу, на яку йдуть. UUID перевіряємо — рядок з бази йде в href.
   const parent = UUID.test(e.companion_of ?? "") ? { id: e.companion_of, title: displayTitle(e.companion_of_title || "подію") } : null;
@@ -122,9 +123,10 @@ ${ticketUrl ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""}`,
       <ul><li>${icon("bell")}Нагадування за годину до початку</li><li>${icon("people")}«Шукаю компанію» — знайдіть, з ким піти</li><li>${icon("map")}Що ще відбувається поряд — на мапі</li></ul>
       <div class="stores">${storeButtons()}</div></div>
   </div>
-  <div class="bar"><div class="top"><div class="meta"><small>${esc(when)}</small><span>${esc(cost || spots || "Вхід уточнюйте")}</span></div>
+  <div class="bar"><div class="ticket cat-${category}"><div class="face"><div class="top"><div class="meta">${spots ? "" : "<small>Ціна</small>"}<span>${esc(cost || spots || "Вхід уточнюйте")}</span></div>
     ${ticketUrl && live ? `<a class="btn primary" href="${esc(ticketUrl)}" rel="nofollow noopener">Квитки${e.source_name ? ` на ${esc(e.source_name)}` : ""}</a>`
       : `<a class="btn primary" href="/app?from=event">${imported ? "Завантажити «Поряд»" : "Приєднатися в застосунку"}</a>`}</div></div>
+    <div class="stub" role="img" aria-label="${esc(overline(e, now, true))}"><b class="t">${esc(stubTime)}</b><small>${esc(stubDay)}</small></div></div></div>
 </article>`,
   });
 }
@@ -164,7 +166,7 @@ const icon = (name, cls = "ico") => `<svg class="${cls}" aria-hidden="true"><use
 
 function layout({ title, description, image, url, head, body }) {
   return `<!doctype html>
-<html lang="uk" data-theme="light">
+<html lang="uk">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -177,11 +179,12 @@ function layout({ title, description, image, url, head, body }) {
 <meta property="og:image" content="${esc(image)}">
 <meta property="og:url" content="${esc(url)}">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="theme-color" content="#F5F5F7">
+<meta name="theme-color" content="#F2F2F4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0F0F13" media="(prefers-color-scheme: dark)">
 ${head}
-<link rel="preload" href="/fonts/source-serif-4-600.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/tokens.css">
-<link rel="stylesheet" href="/web.css">
+<link rel="preload" href="/fonts/sofia-sans-condensed-800.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/tokens.css?v=5">
+<link rel="stylesheet" href="/web.css?v=5">
 <link rel="icon" href="/icon.png">
 </head>
 <body class="event-page">

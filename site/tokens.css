@@ -1,29 +1,62 @@
-/* Шрифти й кольори «Поряд» — ті самі токени, що в застосунку (DesignSystem.swift / Tokens.kt). Спільне для всіх сторінок сайту. */
-@font-face { font-family: "Inter"; font-weight: 400; font-display: swap; src: url("fonts/inter-cyrillic-400-normal.woff2") format("woff2"); unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
-@font-face { font-family: "Inter"; font-weight: 500; font-display: swap; src: url("fonts/inter-cyrillic-500-normal.woff2") format("woff2"); unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
-@font-face { font-family: "Inter"; font-weight: 600; font-display: swap; src: url("fonts/inter-cyrillic-600-normal.woff2") format("woff2"); unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
-@font-face { font-family: "Inter"; font-weight: 400; font-display: swap; src: url("fonts/inter-latin-400-normal.woff2") format("woff2"); unicode-range: U+0000-00FF, U+2000-206F; }
-@font-face { font-family: "Inter"; font-weight: 500; font-display: swap; src: url("fonts/inter-latin-500-normal.woff2") format("woff2"); unicode-range: U+0000-00FF, U+2000-206F; }
-@font-face { font-family: "Inter"; font-weight: 600; font-display: swap; src: url("fonts/inter-latin-600-normal.woff2") format("woff2"); unicode-range: U+0000-00FF, U+2000-206F; }
-/* Source Serif 4 зі шрифту застосунку: зафіксовано вагу 600, лишено кирилицю й латиницю. */
-@font-face { font-family: "Source Serif 4"; font-weight: 600; font-display: swap; src: url("fonts/source-serif-4-600.woff2") format("woff2"); }
+/* Шрифти й кольори «Поряд», світ «Корінець» — ті самі токени, що в застосунку (DESIGN.md, DesignSystem.swift / Tokens.kt).
+   Спільне для всіх сторінок сайту й сторінок подій /e/ (worker/). Нічна тема рівноправна з денною: за системою або data-theme. */
+/* Sofia Sans зі шрифтів застосунку (iosApp/Poruch/Fonts): уже з вшитими українськими формами д, л, п
+   (tools/bake_cyrillic_forms.py), лишено латиницю й кирилицю. Не брати з Google Fonts — там болгарські форми. */
+@font-face { font-family: "Sofia Sans Condensed"; font-weight: 700; font-display: swap; src: url("fonts/sofia-sans-condensed-700.woff2") format("woff2"); }
+@font-face { font-family: "Sofia Sans Condensed"; font-weight: 800; font-display: swap; src: url("fonts/sofia-sans-condensed-800.woff2") format("woff2"); }
+@font-face { font-family: "Sofia Sans Extra Condensed"; font-weight: 800; font-display: swap; src: url("fonts/sofia-sans-extra-condensed-800.woff2") format("woff2"); }
 
 :root {
-  --canvas: #F5F5F7; --canvas-tint: #EBEBF0; --surface: #FFFFFF; --surface-muted: #F2F2F7; --glow: #E4E1F6;
-  --ink: #1D1D1F; --ink-secondary: #6E6E73; --ink-tertiary: #6E6E78; --hairline: #E5E5EA;
-  --brand: #1D1D1F; --brand-pressed: #3A3A3C; --on-brand: #FFFFFF; --brand-container: #E8E8ED;
-  --accent: #E0582F; --accent-container: #FDE7DF; --on-accent-container: #7A2E14;
-  --cat-music: #6D4AC9; --cat-games: #2F63C4;
-  --shadow-raised: 0 4px 16px rgba(0,0,0,.10), 0 1px 4px rgba(0,0,0,.06);
-  --shadow-overlay: 0 12px 40px rgba(0,0,0,.10), 0 2px 8px rgba(0,0,0,.06);
-  --font: "Inter", -apple-system, "Segoe UI", Roboto, sans-serif;
-  --serif: "Source Serif 4", Georgia, serif;
+  --canvas: #F2F2F4; --canvas-tint: #E8E8EC; --surface: #FFFFFF; --surface-raised: #FFFFFF; --surface-muted: #EDEDF0; --hairline: #E0E0E5;
+  --ink: #141417; --ink-pressed: #2E2E33; --ink-secondary: #5E5E66; --ink-tertiary: #6A6A73;
+  --on-brand: #FFFFFF; --brand-container: #E6E6EA;
+  --accent: #E0582F; --accent-text: #C2431F; --accent-container: #FDE7DF; --on-accent-container: #7A2E14;
+  --success: #2E7D4F; --success-container: #DFF3E6; --on-success-container: #1B4C2F;
+  --danger: #C0392B; --danger-container: #FBE3E0;
+  /* Край квитка: удень квиток відділяє тон, уночі — ще й волосина. */
+  --edge: transparent;
+  /* Корінці жанрів (`categoryStub`: відтінок на 12 % ближче до чорного, однаково в обох темах), сирі відтінки й пастелі. */
+  --cat-music: #6D4AC9; --cat-music-stub: #6041B1; --cat-music-wash: #EBE4FB;
+  --cat-sport: #0F7F73; --cat-sport-stub: #0D7065; --cat-sport-wash: #DDF0EC;
+  --cat-art: #C43B6B; --cat-art-stub: #AC345E; --cat-art-wash: #FBE1EA;
+  --cat-food: #C96A1E; --cat-food-stub: #B15D1A; --cat-food-wash: #FBEBD9;
+  --cat-games: #2F63C4; --cat-games-stub: #2957AC; --cat-games-wash: #E1EAFB;
+  --cat-outdoors: #3E7D3A; --cat-outdoors-stub: #376E33; --cat-outdoors-wash: #E4F1E2;
+  --cat-social: #B8562F; --cat-social-stub: #A24C29; --cat-social-wash: #FAE5DA;
+  --cat-comedy: #A07813; --cat-comedy-stub: #8D6A11; --cat-comedy-wash: #F7ECD2;
+  --cat-kids: #1F8A8A; --cat-kids-stub: #1B7979; --cat-kids-wash: #D9EFEF;
+  --cat-tours: #5F7F1F; --cat-tours-stub: #54701B; --cat-tours-wash: #ECF0E4;
+  --cat-conference: #933FA8; --cat-conference-stub: #813794; --cat-conference-wash: #F2E8F5;
+  --cat-unknown: #6B675E; --cat-unknown-stub: #5E5B53; --cat-unknown-wash: #EDEBE4;
+  /* Тінь одна — широка й бліда, лише на тому, що плаває. */
+  --shadow-raised: 0 3px 8px rgba(0,0,0,.08);
+  --shadow-overlay: 0 8px 24px rgba(0,0,0,.12);
+  --r-stamp: 5px; --r-xs: 10px; --r-sm: 12px; --r-md: 14px; --r-lg: 18px; --r-xl: 22px;
+  /* Два голоси квитка (назви, заголовки, час на корінці, штамп) і системний гротеск для даних. */
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --cond: "Sofia Sans Condensed", var(--font);
+  --xcond: "Sofia Sans Extra Condensed", var(--cond);
+  color-scheme: light;
 }
-/* Темна тема — для правових сторінок; лендинг завжди світлий (data-theme="light"). */
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  --canvas: #0B0B0F; --canvas-tint: #141419; --surface: #17171C; --surface-muted: #26262E; --glow: #1B1A36;
-  --ink: #F5F5F7; --ink-secondary: #A1A1A8; --ink-tertiary: #8E8E96; --hairline: #2A2A33;
-  --brand: #F5F5F7; --brand-pressed: #D1D1D6; --on-brand: #1D1D1F; --brand-container: #2C2C33;
-  --accent: #FF8A5B; --accent-container: #3F2419; --on-accent-container: #FFD9C8;
+  --canvas: #0F0F13; --canvas-tint: #16161B; --surface: #1C1B21; --surface-raised: #26252C; --surface-muted: #2A2930; --hairline: #2E2D35;
+  --ink: #F3F3F0; --ink-pressed: #D6D6D2; --ink-secondary: #A6A5AD; --ink-tertiary: #96959E;
+  --on-brand: #141417; --brand-container: #2A2930;
+  --accent: #FF8A5B; --accent-text: #FF8A5B; --accent-container: #3F2419; --on-accent-container: #FFD9C8;
+  --success: #5DC389; --success-container: #16311F; --on-success-container: #BFEBD0;
+  --danger: #FF6B5B; --danger-container: #3C1A16;
+  --edge: #2E2D35;
+  --shadow-raised: 0 3px 8px rgba(0,0,0,.4); --shadow-overlay: 0 8px 24px rgba(0,0,0,.5);
   color-scheme: dark;
 } }
+:root[data-theme="dark"] {
+  --canvas: #0F0F13; --canvas-tint: #16161B; --surface: #1C1B21; --surface-raised: #26252C; --surface-muted: #2A2930; --hairline: #2E2D35;
+  --ink: #F3F3F0; --ink-pressed: #D6D6D2; --ink-secondary: #A6A5AD; --ink-tertiary: #96959E;
+  --on-brand: #141417; --brand-container: #2A2930;
+  --accent: #FF8A5B; --accent-text: #FF8A5B; --accent-container: #3F2419; --on-accent-container: #FFD9C8;
+  --success: #5DC389; --success-container: #16311F; --on-success-container: #BFEBD0;
+  --danger: #FF6B5B; --danger-container: #3C1A16;
+  --edge: #2E2D35;
+  --shadow-raised: 0 3px 8px rgba(0,0,0,.4); --shadow-overlay: 0 8px 24px rgba(0,0,0,.5);
+  color-scheme: dark;
+}

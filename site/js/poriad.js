@@ -169,6 +169,20 @@ export function overline(card, now = new Date(), long = false) {
   return `${dayLabel(start, tz, now, long)} · ${timeOf(start, tz)}`;
 }
 
+/**
+ * Друк корінця квитка, порт `stubParts` (iOS DesignSystem.swift): [година, день]. Те, що йде, — «ЗАРАЗ / ТРИВАЄ»
+ * або «31.10 / ДО» для прокату; минуле — година й дата. `compact` — малий корінець рядка: дата числом.
+ */
+export function stubParts(card, now = new Date(), compact = false) {
+  const tz = card.time_zone || "Europe/Kyiv";
+  const start = new Date(card.starts_at);
+  const end = card.ends_at ? new Date(card.ends_at) : null;
+  const date = (d) => fmt(tz, { day: "2-digit", month: "2-digit" }).format(d);
+  if ((end ?? new Date(+start + 3 * 36e5)) < now) return [timeOf(start, tz), date(start)];
+  if (start <= now) return end && end - start > 864e5 ? [date(end), "ДО"] : ["ЗАРАЗ", "ТРИВАЄ"];
+  return [timeOf(start, tz), compact ? date(start) : dayLabel(start, tz, now).toUpperCase()];
+}
+
 /** Фільтр дат, як чипи головної (`HomeRules`): вихідні — з найближчої суботи (сьогодні, якщо вже) до понеділка. */
 export const WHEN = { today: "Сьогодні", tomorrow: "Завтра", weekend: "Вихідні" };
 export function inWhen(entry, when, now = new Date()) {
@@ -241,12 +255,17 @@ export function plural(n, [one, few, many]) {
 }
 export const EVENTS = ["подія", "події", "подій"];
 
-// ---- Стиль мапи. Порт `poruchMapStyle` (shared/MapStyle.kt), світлий: тло — папір екранів, дороги — поверхня карток.
+// ---- Стиль мапи. Порт `poruchMapStyle` (shared/MapStyle.kt) з токенами «Корінця»: удень тло — полотно, дороги — поверхня
+// квитків; уночі — графітове полотно й тихі дороги, як у застосунку.
 
-export function mapStyle() {
-  const c = { land: "#F5F5F7", landTint: "#EBEBF0", green: "#E3EBDD", water: "#CBD9DE", waterLine: "#B5C7CE", building: "#EBEBF0",
-    buildingLine: "#E5E5EA", road: "#FFFFFF", casing: "#E5E5EA", rail: "#DCD7C9", boundary: "#6E6E78",
-    label: "#1D1D1F", muted: "#6E6E73", faint: "#6E6E78", halo: "#F5F5F7", waterLabel: "#6E858F" };
+export function mapStyle(dark = false) {
+  const c = dark
+    ? { land: "#0F0F13", landTint: "#16161B", green: "#18211A", water: "#131C21", waterLine: "#1D272C", building: "#16161B",
+      buildingLine: "#2E2D35", road: "#2A2930", minor: "#1C1B21", casing: "#16161B", rail: "#2E2D35", boundary: "#96959E",
+      label: "#F3F3F0", muted: "#A6A5AD", faint: "#96959E", halo: "#0F0F13", waterLabel: "#6E8794" }
+    : { land: "#F2F2F4", landTint: "#E8E8EC", green: "#E3EBDD", water: "#CBD9DE", waterLine: "#B5C7CE", building: "#E8E8EC",
+      buildingLine: "#E0E0E5", road: "#FFFFFF", minor: "#FFFFFF", casing: "#E0E0E5", rail: "#DCD7C9", boundary: "#6A6A73",
+      label: "#141417", muted: "#5E5E66", faint: "#6A6A73", halo: "#F2F2F4", waterLabel: "#6E858F" };
   const zoom = (stops, base = 1) => ["interpolate", ["exponential", base], ["zoom"], ...stops.flat()];
   const NAME = ["coalesce", ["get", "name:uk"], ["get", "name"]];
   const POLY = ["match", ["geometry-type"], ["Polygon", "MultiPolygon"], true, false];
@@ -268,7 +287,7 @@ export function mapStyle() {
       { id: "water", type: "fill", ...src, "source-layer": "water", filter: ["all", POLY, ["!=", ["get", "brunnel"], "tunnel"]], paint: { "fill-color": c.water } },
       { id: "waterway", type: "line", ...src, "source-layer": "waterway", minzoom: 8, filter: LINE, paint: { "line-color": c.waterLine, "line-width": zoom([[9, 0.6], [16, 3.5]]) } },
       { id: "building", type: "fill", ...src, "source-layer": "building", minzoom: 13, paint: { "fill-color": c.building, "fill-outline-color": c.buildingLine, "fill-opacity": zoom([[13, 0], [14.5, 1]]) } },
-      { id: "road-minor", type: "line", ...src, "source-layer": "transportation", minzoom: 12, filter: ["all", LINE, cls("minor", "service", "track")], layout: round, paint: { "line-color": c.road, "line-opacity": zoom([[12, 0], [13.5, 1]]), "line-width": zoom([[13, 1.4], [20, 18]], 1.55) } },
+      { id: "road-minor", type: "line", ...src, "source-layer": "transportation", minzoom: 12, filter: ["all", LINE, cls("minor", "service", "track")], layout: round, paint: { "line-color": c.minor, "line-opacity": zoom([[12, 0], [13.5, 1]]), "line-width": zoom([[13, 1.4], [20, 18]], 1.55) } },
       { id: "road-major-casing", type: "line", ...src, "source-layer": "transportation", minzoom: 11, filter: ["all", LINE, major], layout: round, paint: { "line-color": c.casing, "line-width": zoom([[11, 3], [20, 24]], 1.3) } },
       { id: "road-major", type: "line", ...src, "source-layer": "transportation", filter: ["all", LINE, major], layout: round, paint: { "line-color": c.road, "line-opacity": zoom([[8, 0.5], [11, 1]]), "line-width": zoom([[8, 0.8], [11, 2], [20, 20]], 1.3) } },
       { id: "road-motorway-casing", type: "line", ...src, "source-layer": "transportation", minzoom: 7, filter: ["all", LINE, ["==", ["get", "class"], "motorway"]], layout: round, paint: { "line-color": c.casing, "line-width": zoom([[7, 3], [20, 28]], 1.3) } },

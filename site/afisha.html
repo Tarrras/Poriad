@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="uk" data-theme="light">
+<html lang="uk">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -11,16 +11,17 @@
 <meta property="og:url" content="https://poriad.app/afisha.html">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="apple-itunes-app" content="app-id=6813543772, affiliate-data=ct=banner&amp;pt=129478154">
-<meta name="theme-color" content="#F5F5F7">
+<meta name="theme-color" content="#F2F2F4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0F0F13" media="(prefers-color-scheme: dark)">
 <link rel="canonical" href="https://poriad.app/afisha.html">
 <link rel="preconnect" href="https://tzdogzdvctlumsqlqskr.supabase.co" crossorigin>
-<link rel="preload" href="fonts/source-serif-4-600.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="tokens.css?v=4">
-<link rel="stylesheet" href="web.css?v=4">
+<link rel="preload" href="fonts/sofia-sans-condensed-800.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="tokens.css?v=5">
+<link rel="stylesheet" href="web.css?v=5">
 <link rel="icon" href="icon.png">
 <link rel="apple-touch-icon" href="icon.png">
 <script>document.documentElement.classList.add("js");setTimeout(function(){if(!window.poriadReady)document.documentElement.classList.remove("js")},3000)</script>
-<script type="module" src="js/afisha.js?v=4"></script>
+<script type="module" src="js/afisha.js?v=5"></script>
 </head>
 <body>
 
@@ -29,7 +30,7 @@
     <a class="brand" href="./"><img src="icon.png" alt="">Поряд</a>
     <nav class="links" aria-label="Розділи">
       <a href="afisha.html" aria-current="page">Афіша</a>
-      <a href="./#features">Можливості</a>
+      <a href="./#people">Від людей</a>
       <a href="./#safety">Безпека</a>
       <a class="btn primary small" href="./#download" data-lock="app">Завантажити</a>
     </nav>
@@ -40,7 +41,7 @@
   <section class="afisha-head">
     <div class="wrap afisha-title">
       <h1 data-title>Афіша</h1>
-      <div class="meta"><span class="pulse"></span><span data-count>Завантажуємо…</span></div>
+      <div class="meta"><span data-count>Завантажуємо…</span></div>
     </div>
   </section>
 
@@ -75,12 +76,12 @@
   </div>
 </main>
 
-<aside class="app-bar gone" data-app-bar aria-label="Застосунок">
-  <img src="icon.png" alt="">
-  <div><b>Поряд у телефоні</b><span>Нагадування, компанія й мапа навколо вас</span></div>
-  <button class="btn primary" type="button" data-lock="app">Завантажити</button>
-  <button class="x" type="button" data-dismiss aria-label="Сховати"><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-close"/></svg></button>
-</aside>
+<aside class="app-bar gone" data-app-bar aria-label="Застосунок"><div class="ticket" data-ui>
+  <div class="face"><img src="icon.png" alt="">
+    <div class="txt"><b>Поряд у телефоні</b><span>Нагадування, компанія й мапа навколо вас</span></div>
+    <button class="btn primary" type="button" data-lock="app">Завантажити</button></div>
+  <div class="stub"><button class="x" type="button" data-dismiss aria-label="Сховати"><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-close"/></svg></button></div>
+</div></aside>
 
 <footer class="site">
   <div class="wrap">

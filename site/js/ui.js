@@ -1,14 +1,13 @@
-// Спільне для лендингу й афіші: картки, шторка події, шторка «У застосунку», поява під час прокрутки.
+// Спільне для лендингу й афіші: квитки подій, шторка події, шторка «У застосунку», поява під час прокрутки.
 // Сайт — режим перегляду: дивитися, ділитися й купувати квиток можна тут, а піти, зберегти, нагадати й знайти
 // компанію — у застосунку. Кожна така кнопка відкриває шторку з тим, що саме дасть застосунок.
 import {
-  APP_STORE_URL, PLAY_URL, CATEGORIES, cardsByIds, eventSafety, displayTitle, overline, dayLabel, timeOf,
+  APP_STORE_URL, CATEGORIES, cardsByIds, eventSafety, displayTitle, overline, dayLabel, timeOf, stubParts,
   price, sourceNote, httpsOrNull, esc, otherDays,
-} from "./poriad.js?v=4";
+} from "./poriad.js?v=5";
 
 const ua = navigator.userAgent;
 export const isIOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-export const isAndroid = /Android/.test(ua);
 
 export const icon = (name, cls = "ico") => `<svg class="${cls}" aria-hidden="true"><use href="img/icons.svg#i-${name}"/></svg>`;
 
@@ -21,40 +20,67 @@ export async function ensureCards(ids) {
 }
 export const remember = (list) => list.forEach((card) => cards.set(card.id, card));
 
-/** Обкладинка: фото з джерела або EventArt (градієнт категорії й знак). */
-export function art(card, extra = "") {
+/** Фото з джерела; не завантажилось — зникає, і квиток лишається друкованим. */
+export const photo = (card, lazy = true) => `<img src="${esc(card.image_url)}" alt="" ${lazy ? 'loading="lazy" ' : ""}decoding="async" referrerpolicy="no-referrer" onerror="this.remove()">`;
+
+/** Обкладинка шторки: фото врівень із краєм; без фото блок ховається, і назва друкується великим кеглем. */
+export function art(card) {
   const image = httpsOrNull(card.image_url);
-  return `<div class="art cat-${esc(card.category)} ${extra}">${icon(card.category, "glyph")}${image
-    ? `<img src="${esc(image)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" class="loading" onload="this.classList.remove('loading')" onerror="this.remove()">` : ""}</div>`;
+  return `<div class="art cat-${esc(card.category)}">${icon(card.category, "glyph")}${image ? photo(card, false) : ""}</div>`;
 }
 
 const placeOf = (card) => card.place_name || card.address || card.city || "";
 const href = (card) => `afisha.html?e=${encodeURIComponent(card.id)}`;
+const seatsOf = (card) => card.origin === "community" && card.capacity ? `${card.attendee_count ?? 0}/${card.capacity}` : null;
+const stamp = (text, cls = "", glyph = null) => `<span class="stamp ${cls}">${glyph ? icon(glyph) : ""}${esc(text)}</span>`;
 
-/** Постер (PosterCard): обкладинка 4:5, бейдж ціни або місць, надрядок дати, назва, місце, джерело. */
+/** Друк корінця: година табличними цифрами, день, а в зустрічі від людей — місця «3/8». */
+export function stubPrint(card, { row = false } = {}) {
+  const [time, day] = stubParts(card);
+  const seats = seatsOf(card);
+  const label = `${overline(card, new Date(), true)}${seats ? `, учасників ${seats}` : ""}`;
+  const small = `<small>${esc(day)}</small>${seats ? `<span class="seats">${icon("people")}${esc(seats)}</span>` : ""}`;
+  return `<div class="stub" role="img" aria-label="${esc(label)}"><b class="t">${esc(time)}</b>${row ? `<span class="side">${small}</span>` : small}</div>`;
+}
+
+/** Вертикальний квиток (PosterCard): обкладинка 4:5 зі штампом і ціною або друкована сторона; корінець 52 знизу. */
 export function poster(card, entry) {
+  const image = httpsOrNull(card.image_url);
   const more = otherDays(entry?.sessions);
-  const spots = card.origin === "community" && card.capacity ? `${card.attendee_count ?? 0}/${card.capacity}` : null;
-  const badge = price(card) || spots;
-  const when = overline(card) + (more ? ` · ще ${more} ${more === 1 ? "день" : more < 5 ? "дні" : "днів"}` : "");
-  return `<article class="poster cat-${esc(card.category)}" data-id="${esc(card.id)}">
-  <a class="cover" href="${href(card)}" tabindex="-1" aria-hidden="true">${art(card)}${card.origin === "community" ? `<span class="badge top">Від людей</span>` : ""}
-    ${badge ? `<span class="badge bottom">${esc(badge)}</span>` : ""}</a>
+  const cost = price(card);
+  const mark = card.status === "cancelled" ? ["Скасовано", "danger"] : card.origin === "community" ? ["Від людей", ""] : null;
+  return `<article class="ticket v poster cat-${esc(card.category)}${image ? "" : " bare"}" data-id="${esc(card.id)}" data-ui>
+  <a class="face" href="${href(card)}">
+    ${image ? `<div class="cover">${photo(card)}${mark ? stamp(mark[0], `photo ${mark[1]}`) : ""}${cost ? `<span class="price">${esc(cost)}</span>` : ""}</div>`
+      : `<div class="printed">${mark ? stamp(mark[0], mark[1]) : ""}</div>`}
+    <h3>${esc(displayTitle(card.title))}</h3>
+    <div class="where"><span class="dot"></span><span>${esc(placeOf(card))}</span></div>
+    ${!image && cost ? `<div class="note">${esc(cost)}</div>` : ""}
+    <div class="note">${more ? `Ще ${more} ${more === 1 ? "день" : more < 5 ? "дні" : "днів"} · ` : ""}${esc(sourceNote(card))}</div>
+  </a>
   <button class="save" type="button" data-lock="save" aria-label="Зберегти в застосунку">${icon("bookmark")}</button>
-  <a class="caption" href="${href(card)}"><div class="when">${esc(when)}</div><h3>${esc(displayTitle(card.title))}</h3>
-    <div class="where"><span class="dot"></span><span>${esc(placeOf(card))}</span></div><div class="note">${esc(sourceNote(card))}</div></a>
+  ${stubPrint(card, { row: true })}
 </article>`;
 }
 
 export const skeletons = (n) => Array.from({ length: n }, () =>
-  `<div class="poster skeleton" aria-hidden="true"><div class="cover"></div><div class="caption"><div class="bar short"></div><div class="bar wide"></div><div class="bar"></div></div></div>`).join("");
+  `<div class="ticket v poster skeleton" aria-hidden="true"><div class="face"><div class="cover"></div><div class="bar wide"></div><div class="bar"></div><div class="bar short"></div></div><div class="stub"></div></div>`).join("");
 
-/** Велика картка (EventHeroCard) для стрічки «Не пропустіть». */
-export const heroCard = (card) => `<a class="hero-card cat-${esc(card.category)}" href="${href(card)}" data-id="${esc(card.id)}">${art(card)}
-  <span class="badge">${esc(CATEGORIES[card.category] || "Подія")}</span>
-  <div class="text"><div class="when">${esc(overline(card))}</div><h3>${esc(displayTitle(card.title))}</h3><div class="where">${esc(placeOf(card))}</div></div></a>`;
+/** Великий горизонтальний квиток (EventHeroCard) для стрічки «Не пропустіть»: на корінці «зберегти» й час. */
+export const heroCard = (card) => `<article class="ticket hero-ticket cat-${esc(card.category)}" data-id="${esc(card.id)}" data-ui>
+  <a class="face" href="${href(card)}"><div class="cover">${photo(card)}${stamp(CATEGORIES[card.category] || "Подія", "photo")}${price(card) ? `<span class="price">${esc(price(card))}</span>` : ""}</div>
+    <h3>${esc(displayTitle(card.title))}</h3><div class="where"><span class="dot"></span><span>${esc(placeOf(card))}</span></div></a>
+  <div class="stub"><button class="save" type="button" data-lock="save" aria-label="Зберегти в застосунку">${icon("bookmark")}</button>
+    <div role="img" aria-label="${esc(overline(card, new Date(), true))}"><b class="t">${esc(stubParts(card)[0])}</b><small>${esc(stubParts(card)[1])}</small></div></div>
+</article>`;
 
-/** Клік по картці відкриває шторку, кнопка «зберегти» — шторку застосунку. Посилання лишається справжнім. */
+/** Малий корінець рядка (StubTile): година й дата числом на плитці кольору жанру. */
+export function stubTile(card) {
+  const [time, day] = stubParts(card, new Date(), true);
+  return `<div class="ticket v stub-tile cat-${esc(card.category)}" aria-hidden="true" data-ui><div class="face"><b class="t">${esc(time)}</b></div><div class="stub"><small>${esc(day)}</small></div></div>`;
+}
+
+/** Клік по квитку відкриває шторку, кнопка «зберегти» — шторку застосунку. Посилання лишається справжнім. */
 export function bindCards(root, entryOf = () => null) {
   root.addEventListener("click", (event) => {
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
@@ -85,13 +111,13 @@ let eventDialog, installDialog;
 export async function openEvent(id, entry = null) {
   eventDialog ??= setupEventDialog();
   const card = cards.get(id);
-  eventDialog.innerHTML = `<div class="sheet-box"><div class="sheet-scroll">${card ? "" : `<div class="cover-big art"></div>`}</div></div>`;
+  eventDialog.innerHTML = `<div class="sheet-box"><div class="sheet-scroll"></div></div>`;
   if (!eventDialog.open) eventDialog.showModal();
   const url = new URL(location.href);
   url.searchParams.set("e", id);
   if (history.state?.event) history.replaceState({ event: id }, "", url);
   else {
-    // Відкрито за посиланням `?e=`: під шторку кладемо афішу без події, щоб «Назад» лишав людину на сайті.
+    // Відкрито за посиланням `?e=`: під шторку кладемо сторінку без події, щоб «Назад» лишав людину на сайті.
     const under = new URL(location.href);
     under.searchParams.delete("e");
     history.replaceState(null, "", under);
@@ -102,7 +128,7 @@ export async function openEvent(id, entry = null) {
     if (!full) throw new Error("not found");
     renderEvent(full, entry);
   } catch {
-    eventDialog.querySelector(".sheet-scroll").innerHTML = `<div class="detail" style="margin:0;padding-top:72px"><div class="empty"><b>Подію не знайдено</b>
+    eventDialog.querySelector(".sheet-scroll").innerHTML = `<div class="detail" style="padding-top:72px"><div class="empty"><b>Подію не знайдено</b>
       <span>Її могли приховати, або вона вже минула.</span></div></div>`;
   }
 }
@@ -140,7 +166,7 @@ function renderEvent(card, entry) {
     <header class="cover-big cat-${esc(card.category)}">${art(card)}
       <div class="badges"><span class="badge">${esc(CATEGORIES[card.category] || "Подія")}</span><span class="badge">${esc(sourceNote(card))}</span>
         ${card.min_age ? `<span class="badge">${Number(card.min_age)}+</span>` : ""}</div>
-      <div class="when">${esc(overline(card))}</div><h2>${esc(title)}</h2>
+      <div class="when">${esc(overline(card, new Date(), true))}</div><h2>${esc(title)}</h2>
     </header>
     <div class="detail">
       <div class="actions">
@@ -168,18 +194,22 @@ function renderEvent(card, entry) {
           <button class="act" type="button" data-lock="follow">${icon("bell")}Стежити</button></div>` : ""}
       </div></div>
       <div class="block safety" hidden></div>
-      <div class="app-only"><b>У застосунку ця подія — не просто сторінка</b>
-        <ul><li>${icon("bell")}Нагадування за годину до початку</li><li>${icon("people")}«Шукаю компанію» — знайдіть, з ким піти</li>
-          <li>${icon("bookmark")}«Мої події» й експорт у календар</li><li>${icon("map")}Мапа: що ще відбувається поряд</li></ul>
-        <button class="btn" type="button" data-lock="app">Завантажити «Поряд»</button></div>
+      <div class="ticket app-only" data-ui>
+        <div class="face"><b>У застосунку ця подія — не просто сторінка</b>
+          <ul><li>${icon("bell")}Нагадування за годину до початку</li><li>${icon("people")}«Шукаю компанію» — знайдіть, з ким піти</li>
+            <li>${icon("bookmark")}«Мої події» й експорт у календар</li><li>${icon("map")}Мапа: що ще відбувається поряд</li></ul>
+          <button class="btn primary" type="button" data-lock="app">Завантажити «Поряд»</button></div>
+        <div class="stub">${icon("ticket")}</div>
+      </div>
     </div>
   </div>
-  <div class="bar">
-    <div class="top"><div class="meta"><small>${esc(overline(card))}</small><span>${esc(cost || spots && `Учасників: ${spots}` || "Вхід уточнюйте")}</span></div>
+  <div class="bar"><div class="ticket cat-${esc(card.category)}" data-ui>
+    <div class="face"><div class="top"><div class="meta"><small>${spots ? "Учасників" : "Ціна"}</small><span>${esc(spots || cost || "Уточнюйте")}</span></div>
       ${ticket ? `<a class="btn primary" href="${esc(ticket)}" target="_blank" rel="noopener nofollow">Купити квиток</a>`
         : `<button class="btn primary" type="button" data-lock="join">${card.approval_required ? "Подати заявку" : "Приєднатися"}</button>`}</div>
-    ${imported ? `<button class="btn secondary" type="button" data-lock="company">${icon("people")}Шукаю компанію</button>` : ""}
-  </div>
+      ${imported ? `<button class="btn secondary" type="button" data-lock="company">${icon("people")}Шукаю компанію</button>` : ""}</div>
+    ${stubPrint(card)}
+  </div></div>
 </div>`;
 
   const description = eventDialog.querySelector(".description");
@@ -242,12 +272,12 @@ export function toast(text) {
 const REASONS = {
   save: ["Збережіть на потім", "Подія чекатиме в «Моїх подіях», а за годину до початку прийде нагадування."],
   remind: ["Нагадаємо вчасно", "Застосунок нагадає за годину до початку й додасть подію в календар одним дотиком."],
-  company: ["Шукаєте, з ким піти?", "Зберіть невелику компанію на цю подію: хто хоче долучитися, надсилає запит — ви вирішуєте, кого взяти."],
-  join: ["Приєднатися — в застосунку", "Одна кнопка — і ви в списку. Немає місць — станете в чергу, і звільнене місце дістанеться першому."],
+  company: ["Шукаєте, з ким піти?", "Зберіть невелику компанію на цю подію: хто хоче долучитися, надсилає запит — ви вирішуєте, кого взяти."],
+  join: ["Приєднатися — в застосунку", "Одна кнопка — і ви в списку. Немає місць — станете в чергу, і звільнене місце дістанеться першому."],
   follow: ["Стежте за цим місцем", "Скажемо, щойно тут з’явиться нова подія. Так само — за артистами й організаторами."],
   artist: ["Стежте за артистом", "Дізнавайтеся про нові концерти першими — Поряд надішле сповіщення."],
   create: ["Зберіть своїх", "Три кроки: опис, точка на мапі, час і кількість місць. Учасники, черга й чат — уже всередині."],
-  app: ["Поряд у телефоні", "Афіша міста на мапі, нагадування, компанія для походу й свої зустрічі — завжди під рукою."],
+  app: ["Поряд у телефоні", "Афіша міста на мапі, нагадування, компанія для походу й свої зустрічі — завжди під рукою."],
 };
 
 export function openInstall(reason = "app", card = null, name = null) {
@@ -255,7 +285,6 @@ export function openInstall(reason = "app", card = null, name = null) {
   let [title, lead] = REASONS[reason] || REASONS.app;
   if (reason === "follow" && card?.place_name) title = `Стежте за «${card.place_name}»`;
   if (reason === "artist" && name) title = `Стежте за ${name}`;
-  const stores = isAndroid ? [storeLink("play"), storeLink("ios")] : [storeLink("ios"), storeLink("play")];
   installDialog.innerHTML = `<div class="install-box">
   <button class="round" type="button" data-close aria-label="Закрити">${icon("close")}</button>
   <img class="app-icon" src="icon.png" alt="">
@@ -263,20 +292,16 @@ export function openInstall(reason = "app", card = null, name = null) {
   <ul><li><i>${icon("bell")}</i>Нагадування й п’ятничний дайджест вихідних</li>
     <li><i>${icon("people")}</i>«Шукаю компанію» і чат учасників</li>
     <li><i>${icon("map")}</i>Мапа подій навколо вас і свої зустрічі</li></ul>
-  ${card && (isIOS || isAndroid) ? `<a class="btn secondary open-app" href="poriad://event/${esc(card.id)}">Уже є застосунок? Відкрити подію</a>` : ""}
-  <div class="get"><div class="stores">${stores.join("")}</div>${qr("Наведіть камеру телефону")}</div>
+  ${card && isIOS ? `<a class="btn secondary open-app" href="poriad://event/${esc(card.id)}">Уже є застосунок? Відкрити подію</a>` : ""}
+  <div class="get"><div class="stores">${storeLink()}</div>${qr("Наведіть камеру телефону")}</div>
 </div>`;
   installDialog.querySelector("[data-close]").onclick = () => installDialog.close();
   if (!installDialog.open) installDialog.showModal();
 }
 
-export function storeLink(kind) {
-  return kind === "play"
-    ? `<a class="store play" href="${PLAY_URL}" target="_blank" rel="noopener">${icon("play")}<span><small>Завантажити з</small>Google Play</span></a>`
-    : `<a class="store" href="${APP_STORE_URL}" target="_blank" rel="noopener">${icon("apple")}<span><small>Завантажити в</small>App Store</span></a>`;
-}
+export const storeLink = () => `<a class="store" href="${APP_STORE_URL}" target="_blank" rel="noopener">${icon("apple")}<span><small>Завантажити в</small>App Store</span></a>`;
 
-/** QR на poriad.app/app: сторінка сама веде в App Store чи Google Play. Згенеровано `npx qrcode`, рівень M. */
+/** QR на poriad.app/app: сторінка сама веде в потрібний стор. Згенеровано `npx qrcode`, рівень M. */
 export const qr = (caption) => `<div class="qr"><svg viewBox="0 0 25 25" shape-rendering="crispEdges" role="img" aria-label="QR-код: poriad.app/app"><path stroke="currentColor" d="${QR_PATH}"/></svg><small>${esc(caption)}</small></div>`;
 const QR_PATH = "M0 0.5h7m1 0h3m3 0h1m1 0h1m1 0h7M0 1.5h1m5 0h1m1 0h3m1 0h1m1 0h1m3 0h1m5 0h1M0 2.5h1m1 0h3m1 0h1m3 0h1m2 0h1m2 0h1m1 0h1m1 0h3m1 0h1M0 3.5h1m1 0h3m1 0h1m1 0h4m1 0h1m1 0h2m1 0h1m1 0h3m1 0h1M0 4.5h1m1 0h3m1 0h1m2 0h1m3 0h4m1 0h1m1 0h3m1 0h1M0 5.5h1m5 0h1m3 0h1m3 0h1m3 0h1m5 0h1M0 6.5h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7M8 7.5h5M0 8.5h1m1 0h2m1 0h3m4 0h1m1 0h1m1 0h1m1 0h1m2 0h1m1 0h2M0 9.5h2m2 0h2m2 0h2m1 0h2m3 0h1m2 0h1m3 0h1M0 10.5h1m1 0h1m3 0h1m2 0h1m1 0h2m1 0h1m3 0h1m1 0h1M1 11.5h1m1 0h1m3 0h1m2 0h1m2 0h3m1 0h3m1 0h2M0 12.5h3m1 0h4m5 0h2m2 0h4m1 0h3M2 13.5h1m2 0h1m2 0h1m1 0h2m3 0h1m2 0h3m3 0h1M1 14.5h1m1 0h1m2 0h1m2 0h1m2 0h2m2 0h1m3 0h1m1 0h2M0 15.5h1m3 0h1m2 0h3m2 0h1m2 0h2m2 0h2m3 0h1M2 16.5h1m2 0h7m1 0h1m2 0h9M8 17.5h1m1 0h1m1 0h3m1 0h1m3 0h1m1 0h1m1 0h1M0 18.5h7m1 0h1m1 0h3m3 0h1m1 0h1m1 0h1m1 0h3M0 19.5h1m5 0h1m1 0h1m1 0h1m1 0h1m1 0h3m3 0h1m2 0h2M0 20.5h1m1 0h3m1 0h1m2 0h1m1 0h3m2 0h6m1 0h1M0 21.5h1m1 0h3m1 0h1m1 0h3m1 0h2m3 0h2m1 0h5M0 22.5h1m1 0h3m1 0h1m1 0h1m2 0h3m3 0h2m1 0h1m1 0h2M0 23.5h1m5 0h1m2 0h1m8 0h1m1 0h1m1 0h1M0 24.5h7m1 0h2m2 0h1m1 0h1m2 0h8";
 
@@ -293,14 +318,10 @@ export function reveal(root = document) {
   items.forEach((el) => io.observe(el));
 }
 
-/** Скляна шапка після першого пікселя прокрутки; над темною героїнею — світлий текст. */
-export function navGlass() {
+/** Шапка — проста смуга кольору полотна; після першого пікселя прокрутки під нею з’являється волосина. */
+export function navLine() {
   const nav = document.querySelector(".nav");
-  const dark = document.querySelector(".hero.dark");
-  const update = () => {
-    nav.classList.toggle("scrolled", scrollY > 8);
-    if (dark) nav.classList.toggle("on-dark", scrollY < dark.offsetHeight - nav.offsetHeight);
-  };
+  const update = () => nav.classList.toggle("scrolled", scrollY > 8);
   addEventListener("scroll", update, { passive: true });
   update();
 }
@@ -310,20 +331,6 @@ export function bindLocks(root = document) {
   root.querySelectorAll("[data-lock]:not([data-id] [data-lock])").forEach((el) => {
     el.addEventListener("click", (event) => { event.preventDefault(); openInstall(el.dataset.lock); });
   });
-}
-
-/** Число, що набігає до значення. */
-export function countUp(el, to, duration = 1200) {
-  const from = Number(el.dataset.value || 0);
-  el.dataset.value = to;
-  if (matchMedia("(prefers-reduced-motion: reduce)").matches) { el.textContent = to.toLocaleString("uk-UA"); return; }
-  const start = performance.now();
-  const tick = (t) => {
-    const k = Math.min(1, (t - start) / duration);
-    el.textContent = Math.round(from + (to - from) * (1 - Math.pow(1 - k, 3))).toLocaleString("uk-UA");
-    if (k < 1) requestAnimationFrame(tick);
-  };
-  requestAnimationFrame(tick);
 }
 
 /** Місто, яке людина вибирала минулого разу. Сховище може бути недоступне — тоді Київ. */

@@ -1,20 +1,61 @@
-// Лендинг: спершу продукт — живий телефон зі справжньою афішею, вітрина функцій на живих екранах; афіша міста — бонусом нижче.
-import { discover, fold, soonFirst, inWhen, eventSafety, CITIES, cityOf, WHEN, plural, EVENTS, displayTitle, httpsOrNull } from "./poriad.js?v=4";
-import { ensureCards, remember, poster, skeletons, bindCards, reveal, navGlass, bindLocks, countUp, savedCity, qr } from "./ui.js?v=4";
-import { homeScreen, detailScreen, companionsScreen, bindCompanions, notifications, safetyCard, followRows, fitScreens } from "./screens.js?v=4";
+// Лендинг: сторінка — квиток. Спершу зустрічі від людей (порожній квиток, який відвідувач друкує сам), далі «Шукаю
+// компанію» на справжній події з афіші, сама афіша жанрами — опорою. Активності не вигадуємо: лише справжні дані prod.
+import { discover, fold, soonFirst, CITIES, cityOf, CATEGORIES, displayTitle, overline, stubParts, httpsOrNull, esc } from "./poriad.js?v=5";
+import { ensureCards, remember, poster, bindCards, openEvent, openInstall, reveal, navLine, bindLocks, savedCity, qr, stubTile, photo } from "./ui.js?v=5";
 
-navGlass();
+navLine();
 bindLocks();
 reveal();
-fitScreens();
-document.querySelector("[data-qr]").innerHTML = qr("Наведіть камеру телефону — відкриється потрібний стор");
+document.querySelector("[data-qr]").innerHTML = qr("Наведіть камеру телефону — відкриється App Store");
 
 const $ = (selector) => document.querySelector(selector);
 const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
-const state = { city: CITIES.some((c) => c.name === savedCity.get()) ? savedCity.get() : "Київ", when: null, folded: [] };
 const entries = new Map();
-bindCards(document.querySelector("main"), (id) => entries.get(id));
+bindCards($("main"), (id) => entries.get(id));
+const setCat = (el, category) => { el.className = el.className.replace(/\bcat-\w+/g, "").trim() + ` cat-${category}`; };
 
+// ---- Порожній квиток: відвідувач друкує свою зустріч — жанр фарбує корінець, місця рахуються на корінці й у квитанції.
+const GENRES = ["games", "sport", "music", "food", "outdoors", "social"];
+const blank = $("[data-blank]");
+let capacity = 6;
+$("[data-genres]").innerHTML = GENRES.map((g) =>
+  `<button class="chip cat-${g}" type="button" data-genre="${g}" aria-pressed="${g === "games"}"><span class="dot"></span>${CATEGORIES[g]}</button>`).join("");
+$("[data-genres]").addEventListener("click", (event) => {
+  const chip = event.target.closest("[data-genre]");
+  if (!chip) return;
+  document.querySelectorAll("[data-genre]").forEach((c) => c.setAttribute("aria-pressed", c === chip));
+  setCat(blank, chip.dataset.genre);
+  $("[data-genre-name]").textContent = CATEGORIES[chip.dataset.genre];
+});
+blank.addEventListener("click", (event) => {
+  const step = Number(event.target.closest("[data-seats]")?.dataset.seats);
+  if (!step) return;
+  capacity = Math.min(20, Math.max(2, capacity + step));
+  $("[data-seats-text]").textContent = $("[data-slip-seats]").textContent = `1/${capacity}`;
+});
+
+// ---- «Шукаю компанію» і сусідні вкладки: той самий квиток, інший штамп.
+const STORIES = {
+  company: ["Є квиток, нема з ким піти?", "На будь-якій події з афіші натисніть «Шукаю компанію» й зберіть невелику компанію. Хто хоче долучитися, надсилає запит — ви вирішуєте, кого взяти. Лише 18+.", "Шукаю компанію", "Знайти компанію в застосунку"],
+  follow: ["Улюблене не загубиться", "Стежте за закладом, артистом чи організатором — Поряд скаже, щойно в них з’явиться нова подія.", "Ви стежите", "Стежити в застосунку"],
+  remind: ["Нічого не проґавите", "Нагадування за годину до початку, дайджест вихідних щоп’ятниці й новини від тих, за ким стежите.", "Нагадаємо за годину", "Увімкнути нагадування"],
+};
+$("[data-story-tabs]").addEventListener("click", (event) => {
+  const tab = event.target.closest("[data-story]");
+  if (!tab) return;
+  document.querySelectorAll("[data-story]").forEach((t) => t.setAttribute("aria-pressed", t === tab));
+  const [title, text, stamp, action] = STORIES[tab.dataset.story];
+  $("[data-story-title]").textContent = title;
+  $("[data-story-text]").textContent = text;
+  $("[data-plate-stamp]").textContent = stamp;
+  $("[data-story-action]").textContent = action;
+  $("[data-story-action]").dataset.reason = tab.dataset.story;
+});
+$("[data-story-action]").addEventListener("click", (event) => { event.preventDefault(); openInstall(event.currentTarget.dataset.reason, plateCard()); });
+
+// ---- Дані міста
+const ahead = (startsAt) => Date.parse(startsAt) > Date.now();
+const withinDays = (startsAt, days) => Date.parse(startsAt) < Date.now() + days * 864e5;
 const indexes = new Map();
 async function cityIndex(name) {
   if (!indexes.has(name)) {
@@ -22,155 +63,109 @@ async function cityIndex(name) {
     remember(cards);
     const folded = soonFirst(fold(index));
     folded.forEach((e) => entries.set(e.id, e));
-    indexes.set(name, { index, folded });
+    indexes.set(name, folded);
   }
   return indexes.get(name);
 }
 
-const ahead = (startsAt, hours = 0) => Date.parse(startsAt) > Date.now() + hours * 36e5;
-const withinDays = (startsAt, days) => Date.parse(startsAt) < Date.now() + days * 864e5;
-const show = (selector, delay) => setTimeout(() => { $(selector).hidden = false; }, calm ? 0 : delay);
-
-// ---- Демо застосунку: завжди Київ — там є все, зокрема укриття.
-async function demo() {
-  const { index, folded } = await cityIndex("Київ");
-  const soon = folded.filter((e) => ahead(e.startsAt) && withinDays(e.startsAt, 7)).slice(0, 48);
-  const got = await ensureCards(soon.map((e) => e.id));
-  const vivid = got.filter((c) => httpsOrNull(c.image_url));
-  if (vivid.length < 6) return;
-
-  // Телефон у героїні: «Головна» з гортанням великих карток і сіткою постерів.
-  const home = $("[data-home]");
-  home.innerHTML = homeScreen({ city: "Київ", total: folded.length, heroes: vivid.slice(0, 6), posters: vivid.slice(6, 10) });
-  autoPager(home);
-
-  // Подія для вітрини: з афіші, з ціною, не раніше ніж за дві години — і з укриттями поруч.
-  let featured = null, safety = null;
-  const candidates = vivid.filter((c) => c.origin === "import" && (c.is_free || c.price_min > 0) && ahead(c.starts_at, 2)).slice(0, 5);
-  for (const card of candidates) {
-    const s = await eventSafety(card.id).catch(() => null);
-    if (s?.shelters?.length) { featured = card; safety = s; break; }
-  }
-  featured ??= candidates[0] ?? vivid[0];
-  $("[data-detail]").innerHTML = detailScreen(featured);
-  $("[data-companions]").innerHTML = companionsScreen(featured);
-  bindCompanions($("[data-companions]"), featured);
-  if (safety) $("[data-safety]").innerHTML = safetyCard(safety);
-
-  const weekend = folded.filter((e) => inWhen(e, "weekend"));
-  const next = got.find((c) => ahead(c.starts_at, 0.5));
-  const fresh = vivid.find((c) => c.place_name && c.place_name !== next?.place_name);
-  $("[data-push]").innerHTML = notifications({ next, fresh, city: "Києві", weekend: { count: weekend.length, titles: weekend.slice(0, 2).map((e) => e.title) } });
-
-  // «Стежити»: три заклади з найбільшою афішею серед найближчих подій; лічильник — по всьому індексу.
-  const at = (lat, lng) => `${Number(lat).toFixed(4)},${Number(lng).toFixed(4)}`;
-  const perPlace = new Map();
-  for (const e of index) perPlace.set(at(e.lat, e.lng), (perPlace.get(at(e.lat, e.lng)) ?? 0) + 1);
-  const places = [...new Map(got.filter((c) => c.place_name).map((c) =>
-    [c.place_name, { name: c.place_name, category: c.category, count: perPlace.get(at(c.latitude, c.longitude)) ?? 1 }])).values()]
-    .sort((a, b) => (a.name.length > 24) - (b.name.length > 24) || b.count - a.count).slice(0, 3);
-  $("[data-follow]").innerHTML = followRows(places);
-  $("[data-follow]").addEventListener("click", (event) => {
-    const bell = event.target.closest(".f-bell");
-    if (!bell) return;
-    const on = bell.getAttribute("aria-pressed") !== "true";
-    bell.setAttribute("aria-pressed", on);
-    bell.querySelector("span").textContent = on ? "Стежу" : "Стежити";
+// Пластина: справжні події найближчих днів із фото, повільно змінюють одна одну. Курсор на пластині — пауза.
+let plate = [], shown = 0, plateTimer = null;
+const plateCard = () => plate[shown] ?? null;
+function showPlate(i) {
+  shown = i;
+  const card = plate[i];
+  document.querySelectorAll("[data-plate-cover] img").forEach((img, k) => img.classList.toggle("on", k === i));
+  document.querySelectorAll("[data-plate-queue] button").forEach((b, k) => b.setAttribute("aria-pressed", k === i));
+  $("[data-plate-title]").textContent = displayTitle(card.title);
+  $("[data-plate-where]").textContent = [card.place_name, card.city].filter(Boolean).join(" · ");
+  const [time, day] = stubParts(card);
+  $("[data-plate-time]").textContent = time;
+  $("[data-plate-day]").textContent = day;
+  $("[data-plate-stub]").setAttribute("aria-label", overline(card, new Date(), true));
+  setCat($("[data-plate]"), card.category);
+  $("[data-plate]").dataset.id = card.id;
+  $("[data-plate-link]").href = `afisha.html?e=${encodeURIComponent(card.id)}`;
+}
+$("[data-plate-link]").addEventListener("click", (event) => {
+  if (!plateCard()) return;
+  event.preventDefault();
+  openEvent(plateCard().id, entries.get(plateCard().id));
+});
+async function loadPlate(folded) {
+  const soon = folded.filter((e) => e.origin === "import" && ahead(e.startsAt) && withinDays(e.startsAt, 7)).slice(0, 40);
+  plate = (await ensureCards(soon.map((e) => e.id))).filter((c) => httpsOrNull(c.image_url)).slice(0, 4);
+  if (!plate.length) return;
+  $("[data-plate-cover]").insertAdjacentHTML("afterbegin", plate.map((c, k) => photo(c, k > 0)).join(""));
+  // Черга під пластиною — ті самі події маленькими фото: видно, що далі, і можна вибрати самому.
+  $("[data-plate-queue]").innerHTML = plate.map((c, k) => `<button type="button" class="cat-${esc(c.category)}" aria-pressed="${k === 0}" aria-label="${esc(displayTitle(c.title))}">${photo(c)}</button>`).join("");
+  $("[data-plate-queue]").addEventListener("click", (event) => {
+    const button = event.target.closest("button");
+    if (button) showPlate([...button.parentNode.children].indexOf(button));
   });
-
-  // Скляні картки біля телефона — з тих самих даних.
-  if (next) {
-    $("[data-notif] p").textContent = `Через годину: «${displayTitle(next.title)}»${next.place_name ? ` · ${next.place_name}` : ""}`;
-    show("[data-notif]", 500);
-  }
-  $("[data-company] small").textContent = `на «${displayTitle(featured.title)}»`;
-  show("[data-company]", 1300);
-  if (safety) {
-    const s = safety.shelters[0];
-    $("[data-shelter] b").textContent = `Укриття · ${s.distance_m} м`;
-    $("[data-shelter] small").textContent = s.address;
-    show("[data-shelter]", 1700);
-  }
+  showPlate(0);
+  // Плитка фіналу — ще одна справжня афіша, інша, ніж на пластині.
+  const extra = plate[plate.length - 1];
+  $("[data-tile-photo]").innerHTML = photo(extra);
+  setCat($("[data-tile-color]"), plate[0].category === "music" ? "games" : "music");
+  clearInterval(plateTimer);
+  if (calm || plate.length < 2) return;
+  let paused = false;
+  $("[data-plate]").addEventListener("pointerenter", () => { paused = true; });
+  $("[data-plate]").addEventListener("pointerleave", () => { paused = false; });
+  plateTimer = setInterval(() => { if (!paused && !document.hidden) showPlate((shown + 1) % plate.length); }, 5600);
 }
 
-/** Великі картки гортаються самі; за телефоном світиться обкладинка поточної. Курсор на телефоні — пауза. */
-function autoPager(screen) {
-  const track = screen.querySelector(".pager-track");
-  const glows = [...document.querySelectorAll(".ambient i")];
-  let i = 0, layer = 0, paused = false;
-  const glow = () => {
-    const card = track.children[i];
-    const img = card.querySelector("img");
-    layer ^= 1;
-    glows[layer].style.backgroundImage = img ? `url("${img.src}")` : "";
-    glows[layer].style.backgroundColor = getComputedStyle(card).getPropertyValue("--hue");
-    glows.forEach((g, k) => g.classList.toggle("on", k === layer));
-  };
-  glow();
-  if (calm) return;
-  const phone = screen.closest(".iphone");
-  phone.addEventListener("pointerenter", () => { paused = true; phone.classList.add("paused"); });
-  phone.addEventListener("pointerleave", () => { paused = false; phone.classList.remove("paused"); });
-  setInterval(() => {
-    if (paused || document.hidden) return;
-    i = (i + 1) % track.children.length;
-    track.style.transform = `translateX(${-i * 330}px)`;
-    glow();
-  }, 3400);
+// «Уже збирають»: справжні зустрічі від людей у місті, якщо вони є. Нема — секцію веде порожній квиток вище.
+async function loadPeople(folded, city) {
+  const people = folded.filter((e) => e.origin === "community" && ahead(e.startsAt)).slice(0, 8);
+  $("[data-found]").hidden = !people.length;
+  if (!people.length) return;
+  $("[data-found-title]").textContent = `Уже збирають у ${city.in}`;
+  $("[data-found-rail]").innerHTML = (await ensureCards(people.map((e) => e.id))).map((card) => poster(card, entries.get(card.id))).join("");
 }
 
-// ---- Лічильник і бонус-афіша — у місті людини.
+// Афіша жанрами: найближчі події кожного жанру на тиждень уперед; рядок відкривається на місці, подія — шторкою.
+async function loadBoard(folded) {
+  const week = folded.filter((e) => ahead(e.startsAt) && withinDays(e.startsAt, 7));
+  const groups = new Map();
+  for (const e of week) if (CATEGORIES[e.category]) groups.set(e.category, [...(groups.get(e.category) ?? []), e]);
+  const top = [...groups.entries()].sort((a, b) => b[1].length - a[1].length).slice(0, 7);
+  const list = $("[data-genre-list]");
+  if (!top.length) { list.innerHTML = `<div class="empty"><b>Цього тижня подій поки нема</b><span>Подивіться всю афішу й мапу.</span></div>`; return; }
+  const firsts = await ensureCards(top.map(([, events]) => events[0].id));
+  list.innerHTML = top.map(([category, events], k) => {
+    const first = firsts.find((c) => c.id === events[0].id) ?? { ...events[0], starts_at: events[0].startsAt, time_zone: events[0].tz, category };
+    const at = (e) => overline({ starts_at: e.startsAt, time_zone: e.tz });
+    return `<details class="genre cat-${category}"${k === 0 ? " open" : ""}>
+      <summary>${stubTile(first)}<span>${esc(CATEGORIES[category])}</span><span class="when">найближча: ${esc(at(events[0]))}</span><span class="plus" aria-hidden="true"></span></summary>
+      <ul>${events.slice(0, 5).map((e) => `<li><button type="button" data-open="${esc(e.id)}"><span class="name">${esc(displayTitle(e.title))}</span><span class="at">${esc(at(e))}</span></button></li>`).join("")}</ul>
+    </details>`;
+  }).join("");
+}
+$("[data-genre-list]").addEventListener("click", (event) => {
+  const id = event.target.closest("[data-open]")?.dataset.open;
+  if (id) openEvent(id, entries.get(id));
+});
+
+// ---- Місто: з минулого візиту або Київ. Вкладки міняють афішу й «уже збирають»; пластина лишається київською.
+const state = { city: CITIES.some((c) => c.name === savedCity.get()) ? savedCity.get() : "Київ" };
 $("[data-cities]").innerHTML = CITIES.map((c) => `<button type="button" data-city="${c.name}">${c.name}</button>`).join("");
 $("[data-cities]").addEventListener("click", (event) => {
   const city = event.target.closest("[data-city]")?.dataset.city;
   if (city && city !== state.city) { state.city = city; savedCity.set(city); load(); }
 });
-$("[data-when]").addEventListener("click", (event) => {
-  const chip = event.target.closest("[data-w]");
-  if (chip) { state.when = chip.dataset.w || null; renderTeaser(); }
-});
 
 async function load() {
   const city = cityOf(state.city);
-  document.querySelectorAll("[data-city-in]").forEach((el) => { el.textContent = city.in; });
   document.querySelectorAll("[data-city]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.city === city.name));
-  $("[data-teaser]").innerHTML = skeletons(6);
+  document.querySelectorAll("[data-all]").forEach((a) => { a.href = `afisha.html${city.name === "Київ" ? "" : `?city=${encodeURIComponent(city.name)}`}`; });
   try {
-    state.folded = (await cityIndex(city.name)).folded;
+    const folded = await cityIndex(city.name);
+    await Promise.all([loadBoard(folded), loadPeople(folded, city)]);
   } catch {
-    $("[data-teaser]").innerHTML = `<div class="empty"><b>Афіша не завантажилась</b><span>Перевірте з’єднання й спробуйте ще раз.</span></div>`;
-    return;
+    $("[data-genre-list]").innerHTML = `<div class="empty"><b>Афіша не завантажилась</b><span>Перевірте з’єднання й спробуйте ще раз.</span></div>`;
   }
-  const all = state.folded;
-  countUp($("[data-total]"), all.length);
-  $("[data-total-word]").textContent = plural(all.length, EVENTS).split(" ").pop();
-  const link = `afisha.html?city=${encodeURIComponent(city.name)}`;
-  $("[data-live]").href = link;
-  $("[data-all]").href = link;
-  $("[data-all]").firstChild.textContent = `Уся афіша ${city.of} `;
-
-  const counts = Object.fromEntries(Object.keys(WHEN).map((w) => [w, all.filter((e) => inWhen(e, w)).length]));
-  if (state.when === null || !counts[state.when]) state.when = ["today", "weekend", "tomorrow"].find((w) => counts[w] >= 4) ?? "";
-  $("[data-when]").innerHTML = [...Object.entries(WHEN), ["", "Усе"]].map(([w, label]) =>
-    `<button class="chip" type="button" data-w="${w}">${label}${w ? ` <span class="count">${counts[w]}</span>` : ""}</button>`).join("");
-
-  const weekend = all.filter((e) => inWhen(e, "weekend"));
-  const box = $("[data-weekend]");
-  if (weekend.length) {
-    box.querySelector(".big").textContent = plural(weekend.length, EVENTS);
-    const faces = (await ensureCards(weekend.slice(0, 12).map((e) => e.id))).filter((c) => httpsOrNull(c.image_url)).slice(0, 4);
-    box.querySelector(".mini").innerHTML = faces.map((c) => `<span style="background-image:url('${encodeURI(c.image_url)}')"></span>`).join("");
-    show("[data-weekend]", 900);
-  } else box.hidden = true;
-  await renderTeaser();
 }
 
-async function renderTeaser() {
-  document.querySelectorAll("[data-w]").forEach((c) => c.setAttribute("aria-pressed", c.dataset.w === (state.when || "")));
-  const list = state.folded.filter((e) => inWhen(e, state.when)).slice(0, 10);
-  const rail = $("[data-teaser]");
-  if (!list.length) { rail.innerHTML = `<div class="empty"><b>На ці дні подій поки нема</b><span>Подивіться інші дні або всю афішу.</span></div>`; return; }
-  rail.innerHTML = (await ensureCards(list.map((e) => e.id))).map((card) => poster(card, entries.get(card.id))).join("");
-}
-
-load().then(demo).catch(() => { /* статичні скріни в рамках лишаються запасним варіантом */ });
+load();
+cityIndex("Київ").then(loadPlate).catch(() => { /* пластина лишається з підписом без фото */ });
