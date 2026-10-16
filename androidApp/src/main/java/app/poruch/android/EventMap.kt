@@ -71,8 +71,11 @@ private const val PinLayer = "poruch-pin"
 private const val PinCountLayer = "poruch-pin-count"
 private const val PointLayer = "poruch-point-pin"
 private const val ChosenPointIcon = "poruch-chosen"
-/** Радіус кластера в dp. Більший перетворював місто на кілька чорних бульбашок. */
-private const val ClusterRadius = 40
+/**
+ * Радіус кластера в dp, той самий, що на iOS: під ширину квитка-кластера (46 × до 1,3). З 40 сусідні квитки
+ * налазили й ховали числа; значно більший перетворював місто на кілька бульбашок.
+ */
+private const val ClusterRadius = 60
 /** Керування зумом з екрана: на виборі точки масштаб має бути й кнопкою, не лише щипком. */
 class MapController {
     internal var apply: ((Double) -> Unit)? = null

@@ -76,7 +76,6 @@
   <string name="weekend">Вихідні</string>
   <!-- Фільтр лишає самі події спільноти: у афіші кімнати немає, тож і місць у ній
        немає — «Є місця» обіцяло фільтр за наповненістю, а робить вибір за природою події. -->
-  <string name="only_available">Лише зустрічі від людей із вільними місцями</string>
   <string name="location_fallback">Місцеположення недоступне. Оберіть місто вручну через пошук.</string>
   <string name="create">Створити подію</string>
   <string name="city_search">Пошук міста</string>
@@ -140,7 +139,6 @@
   <string name="going">Ви йдете</string>
   <string name="seats_left">Лишилось %1$d місць</string>
   <string name="attendees">%1$d з %2$d учасників</string>
-  <string name="explore_subtitle">Знайдіть, куди піти сьогодні у місті %1$s</string>
   <string name="search_placeholder">Подія, місце або тема</string>
   <string name="show_list">Показати списком</string>
   <string name="show_map">Показати на мапі</string>
@@ -269,6 +267,13 @@
   <string name="area_stack">Усе, що стоїть на обраному піні</string>
   <string name="nothing_here">Тут поки тихо</string>
   <string name="nothing_here_hint">Змініть область мапи, дату або категорію — і події знайдуться.</string>
+  <string name="nothing_for_query">За запитом «%1$s» подій нема. Спробуйте інше слово чи назву закладу.</string>
+  <string name="reset_filters_action">Скинути фільтри</string>
+  <string name="filters_reset">Фільтри скинуто</string>
+  <string name="undo">Повернути</string>
+  <string name="show_nothing">Нічого не знайдено</string>
+  <string name="from_people_hint">Лише зустрічі, де ще є вільні місця</string>
+  <string name="offline_count">Без мережі · %1$s</string>
   <string name="searching">Шукаємо події…</string>
   <string name="recenter">Повернутися до міста</string>
   <string name="map_error_short">Мапа недоступна · Повторити</string>
@@ -350,6 +355,8 @@
   <string name="tip_create_title">Своя зустріч</string>
   <string name="tip_create_body">Не знайшли, що шукали? Запропонуйте свою зустріч — люди поруч побачать її й зможуть приєднатися.</string>
   <string name="tip_companion_title">Не хочете йти самі?</string>
+  <string name="tip_sheet_title">Список під мапою</string>
+  <string name="tip_sheet_body">Торкніться лічильника чи потягніть шторку вгору — там ті самі події списком. Пін із числом — кілька подій в одному місці.</string>
   <string name="tip_companion_body">Зберіть невелику компанію на цю подію. Хто захоче піти з вами, надішле запит — ви вирішите, кого взяти.</string>
   <string name="slot_weekday_day">Будні, вдень</string>
   <string name="slot_weekday_day_hint">До 17:00</string>
@@ -844,11 +851,19 @@
   <string name="a11y_change_date">Змінити дату</string>
   <string name="a11y_close_notice">Закрити сповіщення</string>
   <string name="a11y_unfollow_name">Не стежити: %1$s</string>
+  <string name="a11y_follow_name">Стежити: %1$s</string>
   <string name="a11y_route_shelter">Маршрут до укриття</string>
   <string name="a11y_events_count">Подій: %1$d</string>
   <string name="a11y_change_city">Змінити місто</string>
   <string name="a11y_show_list">%1$s. Показати списком</string>
+  <string name="a11y_clear_category">Категорія %1$s. Зняти фільтр</string>
   <string name="a11y_city">Місто %1$s</string>
+  <plurals name="show_events">
+    <item quantity="one">Показати %1$d подію</item>
+    <item quantity="few">Показати %1$d події</item>
+    <item quantity="many">Показати %1$d подій</item>
+    <item quantity="other">Показати %1$d події</item>
+  </plurals>
   <plurals name="chat_new_messages">
     <item quantity="one">%1$d нове повідомлення</item>
     <item quantity="few">%1$d нових повідомлення</item>

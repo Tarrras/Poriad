@@ -1910,14 +1910,24 @@ class PoruchAppTest {
         assertEquals(atPlace.map { it.id }.toSet(),stacked.listEntries.map { it.id }.toSet())
         assertEquals("p1",stacked.selectedId)
         assertEquals("p1",stacked.stackPlace?.id)
-        // Плитка категорії звужує список, мапу — ні.
-        presenter.clearStack(); runCurrent()
-        presenter.toggleListCategory(EventCategory.MUSIC); runCurrent()
+        // Плитка категорії — та сама категорія, що у «Фільтрах»: звужує і мапу, і список, рахується в лічильнику
+        // і скидає стос. Окрема категорія списку перетиналась із нею, і пін з подіями показував нуль.
+        presenter.toggleCategory(EventCategory.MUSIC); runCurrent()
         val narrowed=presenter.state.value
+        assertFalse(narrowed.stackFocused)
+        assertEquals(EventCategory.MUSIC,narrowed.category)
+        assertEquals(1,narrowed.activeFilters)
         assertEquals(listOf("m1"),narrowed.listEntries.map { it.id })
-        assertEquals(4,narrowed.mapEvents.size)
-        presenter.toggleListCategory(EventCategory.MUSIC); runCurrent()
+        assertEquals(listOf("m1"),narrowed.mapEvents.map { it.id })
+        presenter.toggleCategory(EventCategory.MUSIC); runCurrent()
+        assertEquals(null,presenter.state.value.category)
         assertEquals(4,presenter.state.value.listEntries.size)
+        // Фільтр дати теж скидає стос — на обох платформах однаково, а не лише з Android.
+        presenter.showStack(atPlace.map { it.id }); runCurrent()
+        assertTrue(presenter.state.value.stackFocused)
+        app.setDateFilter(DateFilter.TODAY); runCurrent()
+        assertFalse(presenter.state.value.stackFocused)
+        app.setDateFilter(DateFilter.ANY); runCurrent(); advanceTimeBy(200); runCurrent()
         // Заклад з пошуку: презентер сам відкриває його стос і підносить токен для шторки.
         val before=presenter.state.value.focusToken
         app.focusPlace(malevych); runCurrent(); advanceTimeBy(200); runCurrent()

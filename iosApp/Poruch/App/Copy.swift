@@ -50,7 +50,6 @@ enum Copy {
     static let session_started = "Уже почався"
     static let session_started_hint = "Сеанс уже почався, квитки на нього не продають. Оберіть іншу дату."
     static let weekend = "Вихідні"
-    static let only_available = "Лише зустрічі від людей із вільними місцями"
     static let location_fallback = "Місцеположення недоступне. Оберіть місто вручну через пошук."
     static let create = "Створити подію"
     static let city_search = "Пошук міста"
@@ -113,7 +112,6 @@ enum Copy {
     static let going = "Ви йдете"
     static func seats_left(_ a0: String) -> String { "Лишилось \(a0) місць" }
     static func attendees(_ a0: String, _ a1: String) -> String { "\(a0) з \(a1) учасників" }
-    static func explore_subtitle(_ a0: String) -> String { "Знайдіть, куди піти сьогодні у місті \(a0)" }
     static let search_placeholder = "Подія, місце або тема"
     static let show_list = "Показати списком"
     static let show_map = "Показати на мапі"
@@ -230,6 +228,13 @@ enum Copy {
     static let area_stack = "Усе, що стоїть на обраному піні"
     static let nothing_here = "Тут поки тихо"
     static let nothing_here_hint = "Змініть область мапи, дату або категорію — і події знайдуться."
+    static func nothing_for_query(_ a0: String) -> String { "За запитом «\(a0)» подій нема. Спробуйте інше слово чи назву закладу." }
+    static let reset_filters_action = "Скинути фільтри"
+    static let filters_reset = "Фільтри скинуто"
+    static let undo = "Повернути"
+    static let show_nothing = "Нічого не знайдено"
+    static let from_people_hint = "Лише зустрічі, де ще є вільні місця"
+    static func offline_count(_ a0: String) -> String { "Без мережі · \(a0)" }
     static let searching = "Шукаємо події…"
     static let recenter = "Повернутися до міста"
     static let map_error_short = "Мапа недоступна · Повторити"
@@ -309,6 +314,8 @@ enum Copy {
     static let tip_create_title = "Своя зустріч"
     static let tip_create_body = "Не знайшли, що шукали? Запропонуйте свою зустріч — люди поруч побачать її й зможуть приєднатися."
     static let tip_companion_title = "Не хочете йти самі?"
+    static let tip_sheet_title = "Список під мапою"
+    static let tip_sheet_body = "Торкніться лічильника чи потягніть шторку вгору — там ті самі події списком. Пін із числом — кілька подій в одному місці."
     static let tip_companion_body = "Зберіть невелику компанію на цю подію. Хто захоче піти з вами, надішле запит — ви вирішите, кого взяти."
     static let slot_weekday_day = "Будні, вдень"
     static let slot_weekday_day_hint = "До 17:00"
@@ -701,10 +708,12 @@ enum Copy {
     static let a11y_change_date = "Змінити дату"
     static let a11y_close_notice = "Закрити сповіщення"
     static func a11y_unfollow_name(_ a0: String) -> String { "Не стежити: \(a0)" }
+    static func a11y_follow_name(_ a0: String) -> String { "Стежити: \(a0)" }
     static let a11y_route_shelter = "Маршрут до укриття"
     static func a11y_events_count(_ a0: String) -> String { "Подій: \(a0)" }
     static let a11y_change_city = "Змінити місто"
     static func a11y_show_list(_ a0: String) -> String { "\(a0). Показати списком" }
+    static func a11y_clear_category(_ a0: String) -> String { "Категорія \(a0). Зняти фільтр" }
     static func a11y_city(_ a0: String) -> String { "Місто \(a0)" }
     static func a11y_unread_chats(_ a0: String, _ a1: String) -> String { "\(a0), непрочитаних чатів: \(a1)" }
     static let auth_consent_prefix = "Продовжуючи, ви погоджуєтесь з "
@@ -728,5 +737,6 @@ enum Copy {
     static func join_requests(_ n: Int) -> String { ukrainianPlural(n, "\(n) запит на участь", "\(n) запити на участь", "\(n) запитів на участь") }
     static func saved_ahead(_ n: Int) -> String { ukrainianPlural(n, "\(n) збережена", "\(n) збережені", "\(n) збережених") }
     static func follows_new(_ n: Int) -> String { ukrainianPlural(n, "\(n) нова", "\(n) нові", "\(n) нових") }
+    static func show_events(_ n: Int) -> String { ukrainianPlural(n, "Показати \(n) подію", "Показати \(n) події", "Показати \(n) подій") }
     static func chat_new_messages(_ n: Int) -> String { ukrainianPlural(n, "\(n) нове повідомлення", "\(n) нових повідомлення", "\(n) нових повідомлень") }
 }

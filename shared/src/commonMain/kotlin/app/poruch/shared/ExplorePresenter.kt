@@ -18,17 +18,17 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/** Що тримає екран мапи локально і що веде згортку: стос обраного піна й плитка категорії в шторці. */
+/** Що тримає екран мапи локально і що веде згортку: стос обраного піна. */
 private data class ExploreLocal(
     val stackIds: List<String> = emptyList(),
-    val listCategory: EventCategory? = null,
-    /** Росте, коли презентер сам закрив стос і плитки (заклад з пошуку, «Усі N» з головної): платформа опускає шторку. */
+    /** Росте, коли презентер сам відкрив стос (заклад з пошуку): платформа опускає шторку. */
     val focusToken: Int = 0
 )
 
@@ -36,7 +36,7 @@ private data class ExploreLocal(
 data class ExploreScreenState(
     /** Що малює мапа: індекс, звужений категорією, плюс [focused], якщо її там ще нема. */
     val mapEvents: List<EventIndexEntry> = emptyList(),
-    /** Вміст шторки: стос обраного піна або вся видача, звужені плиткою категорії. Порядок — з індексу. */
+    /** Вміст шторки: стос обраного піна або вся видача. Порядок — з індексу. */
     val listEntries: List<EventIndexEntry> = emptyList(),
     /** Завантажені картки шторки для каруселі й списку, у порядку [listEntries]. */
     val deckEvents: List<Event> = emptyList(),
@@ -70,20 +70,18 @@ data class ExploreScreenState(
     /** Заклад за стосом: для кнопки «Стежити». Null — стосу нема, це спільнотні події або картки ще їдуть. */
     val stackPlace: PlaceRef? = null,
     val stackFollowing: Boolean = false,
-    /** Категорія плиток у шторці. Звужує список і карусель, а не мапу. */
-    val listCategory: EventCategory? = null,
     /** Лічильник змін складу індексу: платформа за ним перебудовує піни й скидає область. */
     val indexVersion: Int = 0,
     /** Скільки разів на мапу переходили з головної з готовими фільтрами: платформа повертає камеру до міста. */
     val arrivals: Int = 0,
-    /** Росте, коли презентер сам закрив стос і плитки: платформа опускає шторку. */
+    /** Росте, коли презентер сам відкрив стос: платформа опускає шторку. */
     val focusToken: Int = 0
 ) {
     val activeFilters: Int get() = listOf(dateFilter != DateFilter.ANY, category != null, onlyAvailable).count { it }
     /** Чи є що довантажувати: індекс повний, картки — ні. */
     val hasMoreCards: Boolean get() = deckEvents.size < listEntries.size
     /** Лічильник шторки: з індексу, а не з завантажених карток. */
-    val listCount: Int get() = if (category == null && listCategory == null && !stackFocused) totalFound else listEntries.size
+    val listCount: Int get() = if (category == null && !stackFocused) totalFound else listEntries.size
 
     companion object {
         val Empty = ExploreScreenState()
@@ -91,9 +89,9 @@ data class ExploreScreenState(
 }
 
 /**
- * Згортає [PoruchApp.state] у [ExploreScreenState] — та сама логіка на Android та iOS. Тримає стос піна й
- * плитку категорії, бо від них залежить вміст шторки; сам відкриває стос закладу з пошуку і скидає його, коли
- * мапа приходить з головної з новими фільтрами. Платформа лишає собі положення шторки, камеру, листи й дозволи.
+ * Згортає [PoruchApp.state] у [ExploreScreenState] — та сама логіка на Android та iOS. Тримає стос піна, бо від
+ * нього залежить вміст шторки; сам відкриває стос закладу з пошуку і скидає його, коли змінились фільтри чи
+ * мапа приходить з головної. Платформа лишає собі положення шторки, камеру, листи й дозволи.
  */
 class ExplorePresenter(
     private val app: PoruchApp,
@@ -120,15 +118,22 @@ class ExplorePresenter(
             app.state.map { it.map.placeFocus }.distinctUntilChanged().collect { focus ->
                 val ids = focus?.eventIds ?: return@collect
                 showStack(ids)
-                local.update { it.copy(listCategory = null, focusToken = it.focusToken + 1) }
+                local.update { it.copy(focusToken = it.focusToken + 1) }
                 app.placeFocusShown()
             }
         }
-        // «Усі N» з головної: стос і плитки — з чистого аркуша. Решту (шторки, камера) скидає платформа за `arrivals`.
+        // «Усі N» з головної: стос — з чистого аркуша. Решту (шторки, камера) скидає платформа за `arrivals`.
         scope.launch {
             app.state.map { it.map.arrivals }.distinctUntilChanged().collect { arrivals ->
-                if (arrivals > 0) local.update { it.copy(stackIds = emptyList(), listCategory = null) }
+                if (arrivals > 0) resetStack()
             }
+        }
+        // Новий фільтр — нова видача, стос скидається тут, а не на кожній платформі: інакше iOS лишав стос, де
+        // вціліли дві події, і чипи над ним наче не діяли. Поточне значення пропускаємо: стос закладу з пошуку
+        // міг відкритись раніше за цю підписку. Текст пошуку не слухаємо: заклад з пошуку сам його стирає.
+        scope.launch {
+            app.state.map { Triple(it.map.dateFilter, it.map.category, it.map.onlyAvailable) }
+                .distinctUntilChanged().drop(1).collect { resetStack() }
         }
     }
 
@@ -154,23 +159,25 @@ class ExplorePresenter(
         app.dismissEvent()
     }
 
-    /** Мапу відкрили заради однієї події (міні-мапа деталей): стос і плитки геть, щоб картка точно була в каруселі. */
+    /** Мапу відкрили заради однієї події (міні-мапа деталей): стос геть. Картка й під фільтром у каруселі — див. [derive]. */
     fun focusEvent(id: String) {
-        local.update { it.copy(stackIds = emptyList(), listCategory = null) }
+        resetStack()
         app.selectEvent(id)
     }
 
     /** Заклад з пошуку: стос відкриє `placeFocus`, щойно приїде видача. */
     fun focusPlace(place: Place) {
-        local.update { it.copy(stackIds = emptyList(), listCategory = null) }
+        resetStack()
         app.focusPlace(place)
     }
 
-    /** Плитка категорії в шторці. Повторний тап знімає вибір. Голова нового списку майже напевно ще не завантажена. */
-    fun toggleListCategory(category: EventCategory) {
-        local.update { it.copy(listCategory = if (it.listCategory == category) null else category) }
-        loadHead(PAGE)
-    }
+    /**
+     * Плитка категорії в шторці — та сама категорія, що у «Фільтрах»: звужує мапу, список і карусель, рахується
+     * в лічильнику. Окрема категорія списку перетиналась із нею, і пін із десятьма подіями показував нуль.
+     * Повторний тап знімає вибір. Картки нового списку платформа просить сама, коли категорія змінилась.
+     */
+    fun toggleCategory(category: EventCategory) =
+        app.setCategory(if (app.state.value.map.category == category) null else category)
 
     /** Картки початку того списку, який шторка зараз показує. */
     fun loadHead(count: Int) {
@@ -214,8 +221,7 @@ class ExplorePresenter(
         val mapEvents = if (present) visible else visible + focused!!.asIndexEntry()
         val stackSet = local.stackIds.toSet()
         val stackFocused = stackSet.isNotEmpty() && visible.count { it.id in stackSet } > 1
-        val base = if (stackFocused) index.filter { it.id in stackSet } else mapEvents
-        val listEntries = if (local.listCategory == null) base else base.filter { it.category == local.listCategory }
+        val listEntries = if (stackFocused) index.filter { it.id in stackSet } else mapEvents
         val cards = shared.cards
         // [focused] без картки у видачі додається окремо.
         val deckEvents = listEntries.mapNotNull { entry -> cards[entry.id] ?: focused?.takeIf { it.id == entry.id } }
@@ -235,7 +241,7 @@ class ExplorePresenter(
             cities = shared.city.suggestions,
             searchText = shared.map.searchText,
             // У стосі піна заклади й артисти зайві: там уже одне місце.
-            places = if (stackFocused) emptyList() else shared.map.places,
+            places = if (stackFocused) emptyList() else shared.map.places.map { it.countedIn(shared.home.index) },
             artists = if (stackFocused) emptyList() else shared.map.artists,
             category = category,
             dateFilter = shared.map.dateFilter,
@@ -248,15 +254,9 @@ class ExplorePresenter(
             stackFocused = stackFocused,
             stackPlace = stackPlace,
             stackFollowing = stackPlace != null && shared.isFollowing(FollowKind.PLACE, stackPlace.id),
-            listCategory = local.listCategory,
             indexVersion = shared.map.indexVersion,
             arrivals = shared.map.arrivals,
             focusToken = local.focusToken
         )
-    }
-
-    companion object {
-        /** Вікно карток шторки: стільки просимо за раз. */
-        const val PAGE = 24
     }
 }

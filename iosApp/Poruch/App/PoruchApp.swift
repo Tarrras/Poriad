@@ -247,7 +247,7 @@ struct RootView: View {
                 }.tag(0)
                 // Артист з пошуку мапи відкривається стеком; його події, у свою чергу, — деталями.
                 NavigationStack(path: $mapPath) {
-                    DiscoveryView(openToken: mapToken).equatable().toolbar(.hidden, for: .tabBar)
+                    DiscoveryView(openToken: mapToken, createEvent: { startCreating(from: $0) }).equatable().toolbar(.hidden, for: .tabBar)
                         .navigationDestination(for: ArtistRoute.self) { ArtistView(route: $0) }
                         .navigationDestination(for: EventRoute.self) { EventDetailView(app: model.app, eventID: $0.id).equatable() }
                 }.tag(1)

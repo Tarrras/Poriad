@@ -6,6 +6,7 @@ import app.poruch.domain.CityResult
 import app.poruch.shared.DateFilter
 import app.poruch.shared.ExplorePresenter
 import app.poruch.shared.PoruchApp
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -52,7 +53,17 @@ class ExploreViewModel(private val app: PoruchApp) :
             is ExploreIntent.PickCategory -> app.setCategory(intent.category)
             is ExploreIntent.OnlyAvailable -> app.setOnlyAvailable(intent.value)
             ExploreIntent.ResetFilters -> {
-                app.setDateFilter(DateFilter.ANY); app.setCategory(null); app.setOnlyAvailable(false)
+                val before = FilterSnapshot(screen.dateFilter, screen.category, screen.onlyAvailable)
+                apply(FilterSnapshot(DateFilter.ANY, null, false))
+                reduce { copy(undoFilters = before) }
+                viewModelScope.launch {
+                    delay(UNDO_MS)
+                    reduce { if (undoFilters === before) copy(undoFilters = null) else this }
+                }
+            }
+            ExploreIntent.UndoReset -> state.value.undoFilters?.let { before ->
+                reduce { copy(undoFilters = null) }
+                apply(before)
             }
 
             is ExploreIntent.AreaMoved -> reduce { copy(pendingArea = intent.area) }
@@ -95,7 +106,7 @@ class ExploreViewModel(private val app: PoruchApp) :
 
             is ExploreIntent.ShowSheet -> reduce { copy(sheet = intent.sheet) }
             is ExploreIntent.SetDetent -> reduce { copy(detent = intent.detent) }
-            is ExploreIntent.PickListCategory -> presenter.toggleListCategory(intent.category)
+            is ExploreIntent.ToggleCategory -> presenter.toggleCategory(intent.category)
 
             is ExploreIntent.SearchCity -> app.searchCity(intent.query)
             is ExploreIntent.SelectCity -> {
@@ -109,5 +120,17 @@ class ExploreViewModel(private val app: PoruchApp) :
             is ExploreIntent.LocatedAt -> app.followLocation(CityResult(intent.name, intent.latitude, intent.longitude))
             ExploreIntent.LocationDenied -> reduce { copy(locationDenied = true) }
         }
+    }
+
+    /** Лише те, що відрізняється: кожен зайвий виклик — ще один запит до сервера. */
+    private fun apply(target: FilterSnapshot) {
+        if (screen.dateFilter != target.date) app.setDateFilter(target.date)
+        if (screen.category != target.category) app.setCategory(target.category)
+        if (screen.onlyAvailable != target.available) app.setOnlyAvailable(target.available)
+    }
+
+    private companion object {
+        /** Скільки висить «Фільтри скинуто · Повернути». */
+        const val UNDO_MS = 6_000L
     }
 }

@@ -217,7 +217,7 @@ class HomePresenter(
             results = inOrder(home),
             resultIds = home.results.map { it.id },
             resultsTotal = home.resultsTotal,
-            places = home.places,
+            places = home.places.map { it.countedIn(home.index) },
             artists = home.artists,
             searchLoading = home.searchLoading,
             searchEverywhere = home.searchEverywhere,

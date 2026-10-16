@@ -12,8 +12,9 @@ private let clusterIconName = "poruch-cluster-ticket"
 private let pinCountID = "poruch-pin-count"
 /// Максимум подій зі стосу для каруселі.
 private let clusterLeafLimit: UInt = 60
-/// Радіус кластера в pt, той самий, що на Android. Більший перетворював місто на кілька чорних бульбашок.
-private let clusterRadius = 40
+/// Радіус кластера в pt, той самий, що на Android: під ширину квитка-кластера (46 × до 1,3). З 40 сусідні квитки
+/// налазили й ховали числа; значно більший перетворював місто на кілька бульбашок.
+private let clusterRadius = 60
 private let pinLayerID = "poruch-pin"
 private let pointLayerID = "poruch-point-pin"
 private let chosenIconName = "poruch-chosen"
@@ -53,7 +54,7 @@ private func iconName(_ category: EventCategory, selected: Bool) -> String {
 @MainActor private func snapshotPin(category: EventCategory, scheme: ColorScheme) -> UIImage {
     let key = "\(category.key)|\(scheme == .dark ? "dark" : "light")"
     if let cached = snapshotPins[key] { return cached }
-    let pin = pinImage(glyph: categoryGlyph(category), hue: categoryUIColor(category), surface: UIColor(Palette.surface), selected: true)
+    let pin = pinImage(glyph: categoryGlyph(category), hue: categoryUIColor(category), surface: resolvedUIColor(Palette.surface, scheme), selected: true)
     snapshotPins[key] = pin
     return pin
 }
@@ -379,7 +380,7 @@ struct EventMap: UIViewRepresentable {
                 format: "mgl_interpolate:withCurveType:parameters:stops:(CAST(events, 'NSNumber'), 'linear', nil, %@)",
                 [2: 13, 60: 16]
             )
-            cluster.textColor = NSExpression(forConstantValue: UIColor(Palette.onBrand))
+            cluster.textColor = NSExpression(forConstantValue: resolvedUIColor(Palette.onBrand, scheme))
             cluster.textAllowsOverlap = NSExpression(forConstantValue: true)
             cluster.textIgnoresPlacement = NSExpression(forConstantValue: true)
             cluster.predicate = NSPredicate(format: "cluster == YES")
@@ -399,8 +400,8 @@ struct EventMap: UIViewRepresentable {
             perPin.text = NSExpression(format: "CAST(count, 'NSString')")
             perPin.textFontNames = NSExpression(forConstantValue: ["Noto Sans Bold"])
             perPin.textFontSize = NSExpression(forConstantValue: 11)
-            perPin.textColor = NSExpression(forConstantValue: UIColor(Palette.onBrand))
-            perPin.textHaloColor = NSExpression(forConstantValue: UIColor(Palette.brand))
+            perPin.textColor = NSExpression(forConstantValue: resolvedUIColor(Palette.onBrand, scheme))
+            perPin.textHaloColor = NSExpression(forConstantValue: resolvedUIColor(Palette.brand, scheme))
             perPin.textHaloWidth = NSExpression(forConstantValue: 9)
             perPin.textTranslation = NSExpression(forConstantValue: NSValue(cgVector: CGVector(dx: 12, dy: -22)))
             perPin.textAllowsOverlap = NSExpression(forConstantValue: true)
@@ -423,7 +424,9 @@ struct EventMap: UIViewRepresentable {
         }
 
         private func registerImages(_ style: MLNStyle) {
-            let surface = UIColor(Palette.surface)
+            // Під тему мапи, а не динамічним кольором: растр його не перечитує, і вночі брався денний.
+            let surface = resolvedUIColor(Palette.surface, scheme)
+            let brand = resolvedUIColor(Palette.brand, scheme)
             // З невідомою: пін події з новішою категорією бере нейтральний значок, а не зникає.
             for category in EventCategory.entries {
                 let hue = categoryUIColor(category)
@@ -437,10 +440,10 @@ struct EventMap: UIViewRepresentable {
                 )
             }
             style.setImage(
-                pinImage(glyph: PoruchIcons.pin, hue: UIColor(Palette.brand), surface: surface, selected: true),
+                pinImage(glyph: PoruchIcons.pin, hue: brand, surface: surface, selected: true),
                 forName: chosenIconName
             )
-            style.setImage(clusterTicketImage(fill: UIColor(Palette.brand), edge: surface), forName: clusterIconName)
+            style.setImage(clusterTicketImage(fill: brand, edge: surface), forName: clusterIconName)
         }
 
         /// Крапка зустрічі — окреме джерело: не подія, в кластери не рахується.

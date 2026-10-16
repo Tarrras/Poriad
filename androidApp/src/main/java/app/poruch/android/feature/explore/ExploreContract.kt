@@ -21,8 +21,13 @@ data class ExploreState(
     val locationDenied: Boolean = false,
     val mapFailed: Boolean = false,
     /** Інкремент просить мапу повернутись до центру міста. */
-    val recenterToken: Int = 0
+    val recenterToken: Int = 0,
+    /** Що скинула кнопка порожньої картки: кілька секунд їх можна повернути одним тапом. */
+    val undoFilters: FilterSnapshot? = null
 )
+
+/** Фільтри мапи на мить скидання. */
+data class FilterSnapshot(val date: DateFilter, val category: EventCategory?, val available: Boolean)
 
 data class Area(val south: Double, val west: Double, val north: Double, val east: Double)
 
@@ -36,7 +41,9 @@ sealed interface ExploreIntent {
     data class PickDate(val filter: DateFilter) : ExploreIntent
     data class PickCategory(val category: EventCategory?) : ExploreIntent
     data class OnlyAvailable(val value: Boolean) : ExploreIntent
+    /** Скинути все з порожньої картки; кілька секунд їх можна повернути через [UndoReset]. */
     data object ResetFilters : ExploreIntent
+    data object UndoReset : ExploreIntent
 
     data class AreaMoved(val area: Area?) : ExploreIntent
     data object SearchHere : ExploreIntent
@@ -63,8 +70,8 @@ sealed interface ExploreIntent {
 
     data class ShowSheet(val sheet: ExploreSheet) : ExploreIntent
     data class SetDetent(val detent: SheetDetent) : ExploreIntent
-    /** Плитка категорії в шторці. Повторний тап знімає вибір. */
-    data class PickListCategory(val category: EventCategory) : ExploreIntent
+    /** Плитка категорії в шторці — та сама категорія, що у «Фільтрах». Повторний тап знімає вибір. */
+    data class ToggleCategory(val category: EventCategory) : ExploreIntent
 
     data class SearchCity(val query: String) : ExploreIntent
     data class SelectCity(val city: CityResult) : ExploreIntent

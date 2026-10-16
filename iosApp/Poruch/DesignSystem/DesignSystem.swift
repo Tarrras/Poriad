@@ -132,6 +132,15 @@ func mapTokens(_ scheme: ColorScheme) -> MapTokens {
     )
 }
 
+/// Токен палітри знімком під тему — для растрів і шарів мапи, які кольору потім не перечитують. З `UIColor(Color)`
+/// растр брав денний варіант і вночі: кластер був чорним квитком з білим краєм замість паперового, піни — білими.
+func resolvedUIColor(_ color: Color, _ scheme: ColorScheme) -> UIColor {
+    var environment = EnvironmentValues()
+    environment.colorScheme = scheme
+    let resolved = color.resolve(in: environment)
+    return UIColor(red: CGFloat(resolved.red), green: CGFloat(resolved.green), blue: CGFloat(resolved.blue), alpha: CGFloat(resolved.opacity))
+}
+
 /// Заливка корінця квитка: відтінок категорії на 12 % ближче до чорного в обох темах. Сам відтінок у їжі, стендапу
 /// й дитячого дає білому дрібному тексту лише 3,7–4,2:1, а день під часом набраний 12 pt.
 func categoryStub(_ category: EventCategory) -> Color {

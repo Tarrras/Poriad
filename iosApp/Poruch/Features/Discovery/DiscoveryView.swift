@@ -82,6 +82,8 @@ struct DiscoveryView: View, Equatable {
     static func == (lhs: DiscoveryView, rhs: DiscoveryView) -> Bool { lhs.openToken == rhs.openToken }
     /// Росте з кожним переходом на мапу (`openMap`): деталі й список закриваються, лишається пін і його картка.
     var openToken = 0
+    /// «Створити» з порожньої шторки: той самий шлях, що в кнопки біля таббару (гостя — на вхід).
+    var createEvent: (String) -> Void = { _ in }
     /// Без підписки на весь `AppModel`: мапа перемальовується зі своїм `ExploreScreenState`.
     @Environment(\.appModel) private var appModel
     private var model: AppModel { appModel! }
@@ -94,6 +96,8 @@ struct DiscoveryView: View, Equatable {
     /// Вхід для гостя, що натиснув «Стежити».
     @State private var auth = false
     @State private var mapFailed = false
+    /// Що скинула кнопка порожньої картки: кілька секунд їх можна повернути одним тапом.
+    @State private var undoFilters: FilterSnapshot?
     @State private var retryToken = 0
     @State private var centerToken = 0
     @State private var region: MapRegion?
@@ -155,6 +159,22 @@ struct DiscoveryView: View, Equatable {
                             .padding(.horizontal, Space.lg).frame(minHeight: 44).cardSurface(radius: 22, elevation: 6)
                     }.buttonStyle(.plain)
                 }
+                if let undo = undoFilters {
+                    // Скидання з порожньої картки прибирає одразу кілька фільтрів: повернути їх — тим самим жестом, без пошуку.
+                    Button { restore(undo) } label: {
+                        HStack(spacing: Space.sm) {
+                            Text(Copy.filters_reset).font(PoruchFont.label).foregroundStyle(Palette.inkSecondary)
+                            Text(Copy.undo).font(PoruchFont.label.weight(.semibold)).foregroundStyle(Palette.ink)
+                        }
+                        .padding(.horizontal, Space.lg).frame(minHeight: 44).cardSurface(radius: 22, elevation: 6)
+                    }
+                    .buttonStyle(.plain)
+                    .transition(.opacity)
+                    .task(id: undo) {
+                        try? await Task.sleep(for: .seconds(6))
+                        if undoFilters == undo { undoFilters = nil }
+                    }
+                }
                 if region != nil {
                     PrimaryButton(title: Copy.search_here, glyph: PoruchIcons.refresh) {
                         if let region { model.app.searchArea(south: region.south, west: region.west, north: region.north, east: region.east) }
@@ -178,6 +198,10 @@ struct DiscoveryView: View, Equatable {
             }
         }
         .motion(value: region == nil)
+        .motion(value: undoFilters == nil)
+        // Підказка першого знайомства: де список і що таке пін із числом. Лише над згорнутою шторкою з картками,
+        // коли поверх мапи нічого не відкрито.
+        .coachMarks([.sheet], enabled: !expanded && !deckEvents.isEmpty && detail == nil && !filters && !citySearch && !auth)
         .background(Palette.canvas)
         .toolbar(.hidden, for: .navigationBar)
         .onChange(of: view.indexVersion) { _, _ in region = nil }
@@ -197,7 +221,6 @@ struct DiscoveryView: View, Equatable {
             centerToken += 1
         }
         // Картки просимо під категорію, яку показуємо: під фільтром вони лежать за краєм вікна.
-        .onChange(of: view.listCategory) { _, _ in loadHead(cardPage) }
         .onChange(of: category) { _, _ in loadHead(cardPage) }
         .onChange(of: view.indexVersion) { _, _ in loadHead(cardPage) }
         .sheet(isPresented: $citySearch) { CitySearchView().presentationDetents([.medium, .large]) }
@@ -231,25 +254,41 @@ struct DiscoveryView: View, Equatable {
                 onFilters: { filters = true }
             ) { model.app.setSearchText(query: $0) }
             // Один ряд замість двох: місто веде стрічку фільтрів. Керування мапою — над каруселлю, під пальцем.
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: Space.sm) {
-                    Chip(label: view.cityName, glyph: PoruchIcons.pin, trailingGlyph: PoruchIcons.chevronDown, selected: false) { citySearch = true }
-                        .accessibilityLabel(Copy.a11y_change_city)
-                    // Одразу після міста, а не за датами: з «Усі N» головної мапа приходить із цим фільтром, і його має бути видно.
-                    Chip(label: Copy.from_people, glyph: PoruchIcons.social, selected: view.onlyAvailable) {
-                        model.app.setOnlyAvailable(available: !view.onlyAvailable)
-                    }
-                    ForEach(dateFilterKeys, id: \.self) { key in
-                        // Повторний тап знімає вибір, щоб не шукати «Будь-коли» за краєм рядка.
-                        Chip(label: dateLabel(key), selected: view.dateFilter == key) {
-                            model.app.setDateFilter(filter: view.dateFilter == key ? DateFilter.any : key)
+            ScrollViewReader { proxy in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: Space.sm) {
+                        Chip(label: view.cityName, glyph: PoruchIcons.pin, trailingGlyph: PoruchIcons.chevronDown, selected: false) { citySearch = true }
+                            .accessibilityLabel(Copy.a11y_change_city)
+                        // Одразу після міста, а не за датами: з «Усі N» головної мапа приходить із цим фільтром, і його має бути видно.
+                        Chip(label: Copy.from_people, glyph: PoruchIcons.social, selected: view.onlyAvailable) {
+                            model.app.setOnlyAvailable(available: !view.onlyAvailable)
+                        }
+                        // Категорію з «Фільтрів» чи плиток видно тут, а не лише цифрою на кнопці фільтрів. Тап знімає її. Поруч із датами:
+                        // коли ряд доїжджає до обраної дати, категорія лишається видно.
+                        if let category {
+                            Chip(label: categoryName(category), dot: category, trailingGlyph: PoruchIcons.close, selected: true) {
+                                model.app.setCategory(category: nil)
+                            }
+                            .accessibilityLabel(Copy.a11y_clear_category(categoryName(category)))
+                        }
+                        // «Будь-коли» лише у «Фільтрах»: тут повторний тап і так знімає дату, а зайвий чип виштовхував обрану за край.
+                        ForEach(dateFilterKeys.filter { $0 != DateFilter.any }, id: \.self) { key in
+                            Chip(label: dateLabel(key), selected: view.dateFilter == key) {
+                                model.app.setDateFilter(filter: view.dateFilter == key ? DateFilter.any : key)
+                            }
+                            .id(key)
                         }
                     }
                 }
+                // Поля всередині смуги, тож смуга йде від краю до краю.
+                .railContentPadding()
+                .padding(.horizontal, -Space.page)
+                // Дата, обрана у «Фільтрах», лягала за край ряду, і видно було лише цифру на кнопці.
+                .onChange(of: view.dateFilter, initial: true) { _, key in
+                    guard key != DateFilter.any else { return }
+                    if reduceMotion { proxy.scrollTo(key) } else { withAnimation { proxy.scrollTo(key) } }
+                }
             }
-            // Поля всередині смуги, тож смуга йде від краю до краю.
-            .railContentPadding()
-            .padding(.horizontal, -Space.page)
         }
     }
 
@@ -333,8 +372,9 @@ struct DiscoveryView: View, Equatable {
     private var peekHeader: some View {
         HStack(spacing: Space.sm) {
             // Керування мапою в зоні великого пальця. Це кнопки, тож за них шторку не тягнуть — лише за решту ряду.
+            // До міста — без стосу піна: інакше мапа стояла на місті, а шторка далі казала «Тут подій: 10».
             IconPill(glyph: PoruchIcons.recenter, label: Copy.recenter, size: 40) {
-                model.app.dismissEvent(); centerToken += 1
+                explore.clearStack(); centerToken += 1
             }
             IconPill(glyph: PoruchIcons.myLocation, label: Copy.nearby, size: 40) { location.request() }
             Spacer(minLength: 0)
@@ -344,8 +384,14 @@ struct DiscoveryView: View, Equatable {
                 else if view.offline {
                     PoruchIcon(glyph: PoruchIcons.wifiOff, size: 15).foregroundStyle(Palette.accent)
                 }
-                // Зі «Стежити» ряд на вузькому екрані тісний: лічильник стискається, а не переноситься.
-                Text(countLabel).font(PoruchFont.label).foregroundStyle(Palette.ink).lineLimit(1).minimumScaleFactor(0.75)
+                // Зі «Стежити» чи на великому шрифті «Тут подій: 12» не влазить: лишається число, а не «Тут по…».
+                // Повний текст VoiceOver чує з підпису кнопки.
+                ViewThatFits(in: .horizontal) {
+                    Text(countLabel).lineLimit(1)
+                    Text(view.loading ? countLabel : view.offline ? Copy.offline_count("\(view.listCount)") : "\(view.listCount)")
+                        .lineLimit(1).minimumScaleFactor(0.75)
+                }
+                .font(PoruchFont.label).foregroundStyle(Palette.ink)
                 PoruchIcon(glyph: PoruchIcons.chevronUp, size: 14).foregroundStyle(Palette.inkSecondary)
             }
             .padding(.horizontal, Space.lg).frame(height: 40)
@@ -356,6 +402,7 @@ struct DiscoveryView: View, Equatable {
             .accessibilityLabel(Copy.a11y_show_list("\(countLabel)"))
             .accessibilityAddTraits(.isButton)
             .accessibilityAction { open(.half) }
+            .coachTarget(.sheet)
             if stackFocused {
                 followButton(iconOnly: true)
                 clearStackButton
@@ -367,8 +414,10 @@ struct DiscoveryView: View, Equatable {
     private var listHeader: some View {
         HStack(alignment: .firstTextBaseline, spacing: Space.sm) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(countLabel).font(PoruchFont.title2).foregroundStyle(Palette.ink)
-                Text(areaLabel).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(1)
+                // Стос закладу — це заклад: назва заголовком, а не «усе, що стоїть на обраному піні». Кондензом, як
+                // заголовки решти шторок.
+                Text(stackPlace?.name ?? countLabel).font(PoruchFont.brandTitle2).kerning(-0.2).foregroundStyle(Palette.ink).lineLimit(2)
+                Text(stackPlace != nil ? countLabel : areaLabel).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(1)
                 // Під підписом, а не в ряду: лічильник і дві кнопки праворуч не лишають йому місця.
                 if stackPlace != nil { followButton(iconOnly: false).padding(.top, Space.sm) }
             }
@@ -391,24 +440,29 @@ struct DiscoveryView: View, Equatable {
     /// «Стежити» за закладом стосу. Гостя ведемо на вхід: пуш прив'язаний до акаунта.
     @ViewBuilder private func followButton(iconOnly: Bool) -> some View {
         if let place = stackPlace {
-            let _ = place
             FollowPill(following: view.stackFollowing, iconOnly: iconOnly) {
                 if !explore.toggleFollowStack() { auth = true }
             }
+            // Дзвінок без підпису в згорнутій шапці: VoiceOver має чути, за чим стежити.
+            .accessibilityLabel(view.stackFollowing ? Copy.a11y_unfollow_name(place.name) : Copy.a11y_follow_name(place.name))
         }
     }
 
     private var sheetList: some View {
         VStack(spacing: 0) {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: Space.xs) {
-                    ForEach(categories, id: \.0) { entry in
-                        CategoryTile(category: entry.0, selected: view.listCategory == entry.0) {
-                            explore.toggleListCategory(entry.0)
+            // У стосі закладу плиток нема: категорія — фільтр міста, і тап по ній виводив із закладу в усе місто.
+            if !stackFocused {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: Space.xs) {
+                        ForEach(categories, id: \.0) { entry in
+                            // Та сама категорія, що у «Фільтрах»: звужує й мапу.
+                            CategoryTile(category: entry.0, selected: category == entry.0) {
+                                explore.toggleCategory(entry.0)
+                            }
                         }
                     }
-                }
-            }.railContentPadding()
+                }.railContentPadding()
+            }
             if shownEvents.isEmpty && places.isEmpty && artists.isEmpty {
                 if view.loading {
                     PoruchLoader().frame(maxWidth: .infinity).padding(.vertical, Space.section)
@@ -418,18 +472,19 @@ struct DiscoveryView: View, Equatable {
                 Spacer(minLength: 0)
             } else {
                 ScrollView {
-                    LazyVStack(spacing: Space.lg) {
+                    LazyVStack(spacing: Space.sm) {
                         // Заклади — над подіями: список подій довгий, під ним їх ніхто б не побачив.
                         if !places.isEmpty {
-                            PlacesGroup(places: places) { focusPlace($0) }
+                            PlacesGroup(places: places) { focusPlace($0) }.padding(.bottom, Space.md)
                         }
-                        if !artists.isEmpty { ArtistsGroup(artists: artists) }
+                        if !artists.isEmpty { ArtistsGroup(artists: artists).padding(.bottom, Space.md) }
+                        // Рядки з малим корінцем, як у пошуку головної: список відкривають, щоб зіставити варіанти, і
+                        // картка з фото 180 давала півтори події на екран. Фото й «Зберегти» — на картці каруселі й у деталях.
                         ForEach(Array(shownEvents.enumerated()), id: \.element.id) { position, event in
-                            EventCard(
-                                event: event, saved: savedIDs.contains(event.id),
-                                waitlisted: explore.waitlistedIDs.contains(event.id),
-                                onSave: { model.app.toggleSaved(id: event.id) }
-                            ) { model.app.selectEvent(id: event.id); detail = EventRoute(id: event.id) }
+                            EventResultRow(event: event, waitlisted: explore.waitlistedIDs.contains(event.id)) {
+                                model.app.selectEvent(id: event.id); detail = EventRoute(id: event.id)
+                            }
+                            .cardSurface()
                             // Список довантажує картки сам, а не лише карусель.
                             .onAppear { loadMore(reaching: position) }
                         }
@@ -492,19 +547,61 @@ struct DiscoveryView: View, Equatable {
             }
     }
 
+    /// Порожньо: називаємо те, що справді звужує видачу, і даємо одну дію — прибрати це або зібрати своїх.
     private var quietCard: some View {
-        VStack(alignment: .leading, spacing: Space.sm) {
-            Text(Copy.nothing_here).font(PoruchFont.brandTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
-            Text(Copy.nothing_here_hint)
+        let query = view.searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Дія — у рядку заголовка: у згорнутій шторці картка має висоту каруселі, і під текстом дія зрізала підказку.
+        return VStack(alignment: .leading, spacing: Space.xs) {
+            HStack(alignment: .firstTextBaseline, spacing: Space.sm) {
+                Text(Copy.nothing_here).font(PoruchFont.brandTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
+                Spacer(minLength: Space.sm)
+                if !query.isEmpty {
+                    quietAction(Copy.clear_search) { model.app.setSearchText(query: "") }
+                } else if activeFilters > 0 {
+                    quietAction(Copy.reset_filters_action) { resetFilters() }
+                } else {
+                    quietAction(Copy.create) { createEvent("map") }
+                }
+            }
+            Text(query.isEmpty ? Copy.nothing_here_hint : Copy.nothing_for_query(query))
                 .font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()
+        .padding(.horizontal, Space.lg).padding(.vertical, Space.md)
+        .frame(maxWidth: .infinity, alignment: .leading).cardSurface()
+    }
+
+    /// Текстова дія порожньої картки: картка лежить над мапою в згорнутій шторці, повна кнопка 52 її б не вмістила.
+    private func quietAction(_ title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title).font(PoruchFont.button).foregroundStyle(Palette.ink)
+        }
+        .tapTarget()
+    }
+
+    private func resetFilters() {
+        undoFilters = FilterSnapshot(date: view.dateFilter, category: category, available: view.onlyAvailable)
+        apply(FilterSnapshot(date: DateFilter.any, category: nil, available: false))
+    }
+
+    private func restore(_ snapshot: FilterSnapshot) {
+        undoFilters = nil
+        apply(snapshot)
+    }
+
+    /// Лише те, що відрізняється: кожен зайвий виклик — ще один запит до сервера.
+    private func apply(_ target: FilterSnapshot) {
+        if view.dateFilter != target.date { model.app.setDateFilter(filter: target.date) }
+        if category != target.category { model.app.setCategory(category: target.category) }
+        if view.onlyAvailable != target.available { model.app.setOnlyAvailable(available: target.available) }
     }
 
     /// Лічильник шторки: з індексу, а не з `totalFound` чи завантажених карток.
     private var countLabel: String {
         if view.loading { return Copy.searching }
-        return stackFocused ? Copy.events_here("\(view.listCount)") : Copy.events_found("\(view.listCount)")
+        let count = stackFocused ? Copy.events_here("\(view.listCount)") : Copy.events_found("\(view.listCount)")
+        // Офлайн словами, а не лише гліфом: видача — збережена, і це треба знати.
+        return view.offline ? Copy.offline_count(count) : count
     }
 
     /// Що показує екран: пін, область рукою чи ціле місто.
@@ -560,29 +657,12 @@ struct DiscoveryView: View, Equatable {
     private func loadHead(_ count: Int) { explore.loadHead(count) }
 }
 
-/// Ключ чипа «Усі»: не категорія, тож окремо від словника.
-private let allKey = "*"
-
+/// Кожен вибір діє одразу, як чипи над мапою: за шторкою видно, що змінилось, а кнопка каже, скільки знайдеться.
+/// Скасування не треба — вибір знімається тим самим тапом, «Скинути» прибирає все.
 struct FiltersView: View {
     @EnvironmentObject var model: AppModel
     @Environment(\.dismiss) var dismiss
-    /// Вибір накопичується і летить на сервер один раз по «Готово»: проміжних результатів за шторкою не видно.
-    @State private var date: DateFilter?
-    @State private var category: EventCategory?
-    /// Категорію чіпали: nil у [category] тоді — «усі», а не «як було».
-    @State private var categoryTouched = false
-    @State private var available: Bool?
-
-    private var pickedDate: DateFilter { date ?? model.state?.map.dateFilter ?? DateFilter.any }
-    private var pickedCategory: EventCategory? { categoryTouched ? category : model.state?.map.category }
-    private var pickedAvailable: Bool { available ?? model.state?.map.onlyAvailable ?? false }
-
-    private func apply() {
-        if pickedDate != model.state?.map.dateFilter { model.app.setDateFilter(filter: pickedDate) }
-        if pickedCategory != model.state?.map.category { model.app.setCategory(category: pickedCategory) }
-        if pickedAvailable != model.state?.map.onlyAvailable { model.app.setOnlyAvailable(available: pickedAvailable) }
-        dismiss()
-    }
+    private var explore: ExploreScreenState { model.exploreScreen.state }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -592,24 +672,28 @@ struct FiltersView: View {
                     section(Copy.date) {
                         FlowLayout(spacing: Space.sm) {
                             ForEach(dateFilterKeys, id: \.self) { key in
-                                Chip(label: dateLabel(key), selected: pickedDate == key) {
-                                    date = pickedDate == key ? DateFilter.any : key
+                                Chip(label: dateLabel(key), selected: explore.dateFilter == key) {
+                                    model.app.setDateFilter(filter: explore.dateFilter == key ? DateFilter.any : key)
                                 }
                             }
                         }
                     }
                     section(Copy.categories) {
-                        FlexibleChips(
-                            items: [(allKey, Copy.all, nil)] + categories.map { ($0.0.key, $0.1, $0.0) },
-                            isSelected: { $0 == (pickedCategory?.key ?? allKey) }
-                        ) { key in
-                            let tapped = key == allKey ? nil : EventCategory.companion.fromKey(key: key)
-                            category = pickedCategory == tapped ? nil : tapped
-                            categoryTouched = true
+                        // Ті самі плитки, що в шторці мапи й у редакторі: жанр обирають однаково скрізь. Повторний тап знімає вибір.
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 76), spacing: Space.sm)], spacing: Space.md) {
+                            ForEach(categories, id: \.0) { entry in
+                                CategoryTile(category: entry.0, selected: explore.category == entry.0) {
+                                    model.exploreScreen.toggleCategory(entry.0)
+                                }
+                            }
                         }
                     }
-                    Toggle(isOn: Binding(get: { pickedAvailable }, set: { available = $0 })) {
-                        Text(Copy.only_available).font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
+                    // Та сама назва, що в чипа над мапою: один фільтр — одне ім'я, а що він робить — підписом.
+                    Toggle(isOn: Binding(get: { explore.onlyAvailable }, set: { model.app.setOnlyAvailable(available: $0) })) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(Copy.from_people).font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
+                            Text(Copy.from_people_hint).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
+                        }
                     }.tint(Palette.brand)
                 }
                 .padding(.horizontal, Space.page)
@@ -625,25 +709,34 @@ struct FiltersView: View {
         HStack(alignment: .firstTextBaseline) {
             Text(Copy.filters).font(PoruchFont.brandTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
             Spacer(minLength: Space.sm)
-            Button(Copy.reset_filters) {
-                date = DateFilter.any
-                category = nil
-                categoryTouched = true
-                available = false
-            }
-            .font(PoruchFont.label).foregroundStyle(Palette.inkSecondary)
+            Button(Copy.reset_filters) { reset() }
+                .font(PoruchFont.label).foregroundStyle(Palette.inkSecondary)
+                .disabled(explore.activeFilters == 0)
         }
         .padding(.horizontal, Space.page)
         .padding(.top, Space.lg)
     }
 
-    /// Прикріплена, не в скролі: у середньому положенні кнопка ховалась за згином.
+    private func reset() {
+        if explore.dateFilter != DateFilter.any { model.app.setDateFilter(filter: DateFilter.any) }
+        if explore.category != nil { model.app.setCategory(category: nil) }
+        if explore.onlyAvailable { model.app.setOnlyAvailable(available: false) }
+    }
+
+    /// Кнопка каже, що вийде: «Показати 23 події», а не «Готово» навмання. Прикріплена, не в скролі: у середньому
+    /// положенні вона ховалась за згином.
     private var actions: some View {
-        PrimaryButton(title: Copy.apply) { apply() }
+        PrimaryButton(title: resultTitle, loading: explore.loading) { dismiss() }
             .frame(maxWidth: .infinity)
             .padding(Space.page)
             .background(Palette.surface.ignoresSafeArea(edges: .bottom))
             .overlay(alignment: .top) { Rectangle().fill(Palette.hairline).frame(height: 1) }
+    }
+
+    private var resultTitle: String {
+        if explore.loading { return Copy.searching }
+        let count = Int(explore.listCount)
+        return count == 0 ? Copy.show_nothing : Copy.show_events(count)
     }
 
     @ViewBuilder private func section<Content: View>(
@@ -751,6 +844,13 @@ struct CitySearchView: View {
     }
 }
 
+/// Фільтри мапи, які скинула порожня картка: щоб повернути їх одним тапом.
+private struct FilterSnapshot: Equatable {
+    let date: DateFilter
+    let category: EventCategory?
+    let available: Bool
+}
+
 /// Частка інерції пальця, що схиляє вибір положення шторки.
 private let coastShare: CGFloat = 0.25
 /// За скільки карток до кінця завантаженого просити наступні.
@@ -786,7 +886,7 @@ private let cardPage = 24
     func clearStack() { presenter.clearStack() }
     func focusEvent(_ id: String) { presenter.focusEvent(id: id) }
     func focusPlace(_ place: Place) { presenter.focusPlace(place: place) }
-    func toggleListCategory(_ category: EventCategory) { presenter.toggleListCategory(category: category) }
+    func toggleCategory(_ category: EventCategory) { presenter.toggleCategory(category: category) }
     func loadHead(_ count: Int) { presenter.loadHead(count: Int32(count)) }
     /// False для гостя: його ведуть на вхід.
     func toggleFollowStack() -> Bool { presenter.toggleFollowStack() }

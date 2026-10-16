@@ -36,6 +36,8 @@ import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
@@ -245,9 +247,14 @@ private fun SheetHeader(
         ) {
             if (expanded) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(label, style = MaterialTheme.typography.titleLarge, color = colors.ink)
+                    // Стос закладу — це заклад: назва заголовком, а не «усе, що стоїть на обраному піні». Кондензом, як
+                    // заголовки решти шторок.
                     Text(
-                        areaLabel(state),
+                        stackPlace?.name ?: label, style = PoruchType.brandTitle2, color = colors.ink,
+                        maxLines = 2, overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        if (stackPlace != null) label else areaLabel(state),
                         style = MaterialTheme.typography.bodySmall,
                         color = colors.inkSecondary,
                         maxLines = 1,
@@ -263,6 +270,7 @@ private fun SheetHeader(
                 // Тягнеться і натискається: тап по лічильнику пояснює жест.
                 Row(
                     Modifier
+                        .coachTarget(CoachTip.SHEET)
                         .height(40.dp)
                         .cardSurface(Radius.pill)
                         .clickable(
@@ -284,7 +292,14 @@ private fun SheetHeader(
                         Modifier.size(14.dp),
                         tint = colors.accent
                     )
-                    Text(label, style = MaterialTheme.typography.labelMedium, color = colors.ink)
+                    // На великому шрифті «Тут подій: 12» не влазить у пігулку 40: лишається число, повний текст чує TalkBack.
+                    Text(
+                        if (LocalDensity.current.fontScale > COUNT_FULL_MAX_SCALE && !state.screen.loading) {
+                            if (state.screen.offline) stringResource(R.string.offline_count, "${state.screen.listCount}") else "${state.screen.listCount}"
+                        } else label,
+                        Modifier.semantics { contentDescription = label },
+                        style = MaterialTheme.typography.labelMedium, color = colors.ink, maxLines = 1
+                    )
                     Icon(
                         PoruchIcons.chevronUp,
                         null,
@@ -293,9 +308,10 @@ private fun SheetHeader(
                     )
                 }
                 // Згорнута шапка тісна: тут лише дзвінок, підпис читає доступність.
+                // Дзвінок без підпису: TalkBack має чути, за чим стежити.
                 if (stackPlace != null) IconPill(
                     if (state.screen.stackFollowing) PoruchIcons.bellActive else PoruchIcons.bell,
-                    stringResource(if (state.screen.stackFollowing) R.string.following else R.string.follow),
+                    stringResource(if (state.screen.stackFollowing) R.string.a11y_unfollow_name else R.string.a11y_follow_name, stackPlace.name),
                     selected = state.screen.stackFollowing, size = 40.dp
                 ) { onIntent(ExploreIntent.ToggleFollowStack) }
             }
@@ -315,10 +331,12 @@ private fun SheetHeader(
 }
 
 @Composable
-private fun countLabel(state: ExploreState): String = when {
-    state.screen.loading -> stringResource(R.string.searching)
-    state.screen.stackFocused -> stringResource(R.string.events_here, state.screen.listCount)
-    else -> stringResource(R.string.events_found, state.screen.listCount)
+private fun countLabel(state: ExploreState): String {
+    if (state.screen.loading) return stringResource(R.string.searching)
+    val count = if (state.screen.stackFocused) stringResource(R.string.events_here, state.screen.listCount)
+    else stringResource(R.string.events_found, state.screen.listCount)
+    // Офлайн словами, а не лише гліфом: видача — збережена, і це треба знати.
+    return if (state.screen.offline) stringResource(R.string.offline_count, count) else count
 }
 
 /** Що показує екран: пін, область рукою чи ціле місто. */
@@ -326,14 +344,15 @@ private fun countLabel(state: ExploreState): String = when {
 private fun areaLabel(state: ExploreState): String = when {
     state.screen.stackFocused -> stringResource(R.string.area_stack)
     state.screen.customArea -> stringResource(R.string.area_custom)
-    else -> stringResource(R.string.explore_subtitle, state.screen.cityName)
+    // Без «сьогодні»: під фільтром «Вихідні» підпис казав неправду. Той самий рядок, що на iOS.
+    else -> stringResource(R.string.area_city, state.screen.cityName)
 }
 
 /** Згорнута шторка: карусель або тиха картка, коли показувати нічого. */
 @Composable
 private fun PeekDeck(state: ExploreState, onIntent: (ExploreIntent) -> Unit) {
     if (state.screen.deckEvents.isEmpty()) {
-        if (!state.screen.loading) QuietCard(Modifier.padding(horizontal = Spacing.page), onIntent)
+        if (!state.screen.loading) QuietCard(Modifier.padding(horizontal = Spacing.page), state, onIntent)
     } else EventCarousel(state, onIntent)
 }
 
@@ -420,7 +439,8 @@ private fun EventCarousel(state: ExploreState, onIntent: (ExploreIntent) -> Unit
 @Composable
 private fun SheetList(state: ExploreState, onIntent: (ExploreIntent) -> Unit) {
     val colors = Poruch.colors
-    Row(
+    // У стосі закладу плиток нема: категорія — фільтр міста, і тап по ній виводив із закладу в усе місто.
+    if (!state.screen.stackFocused) Row(
         Modifier
             .horizontalScroll(rememberScrollState())
             .padding(horizontal = Spacing.md),
@@ -429,8 +449,8 @@ private fun SheetList(state: ExploreState, onIntent: (ExploreIntent) -> Unit) {
         categories.forEach { category ->
             CategoryTile(
                 category,
-                state.screen.listCategory == category
-            ) { onIntent(ExploreIntent.PickListCategory(category)) }
+                state.screen.category == category
+            ) { onIntent(ExploreIntent.ToggleCategory(category)) }
         }
     }
     val rows = state.screen.deckEvents
@@ -445,7 +465,7 @@ private fun SheetList(state: ExploreState, onIntent: (ExploreIntent) -> Unit) {
             Alignment.Center
         ) {
             PoruchLoader()
-        } else QuietCard(Modifier.padding(Spacing.page), onIntent)
+        } else QuietCard(Modifier.padding(Spacing.page), state, onIntent)
         return
     }
     val listState = rememberLazyListState()
@@ -470,20 +490,20 @@ private fun SheetList(state: ExploreState, onIntent: (ExploreIntent) -> Unit) {
             top = Spacing.xs,
             bottom = Spacing.section
         ),
-        verticalArrangement = Arrangement.spacedBy(Spacing.lg)
+        verticalArrangement = Arrangement.spacedBy(Spacing.sm)
     ) {
         if (places.isNotEmpty()) item(key = "places") {
-            PlacesGroup(places, withCity = false) { onIntent(ExploreIntent.FocusPlace(it)) }
+            PlacesGroup(places, withCity = false, Modifier.padding(bottom = Spacing.md)) { onIntent(ExploreIntent.FocusPlace(it)) }
         }
         if (artists.isNotEmpty()) item(key = "artists") {
-            ArtistsGroup(artists) { onIntent(ExploreIntent.OpenArtist(it)) }
+            ArtistsGroup(artists, Modifier.padding(bottom = Spacing.md)) { onIntent(ExploreIntent.OpenArtist(it)) }
         }
+        // Рядки з малим корінцем, як у пошуку головної: список відкривають, щоб зіставити варіанти, і картка
+        // з фото 180 давала півтори події на екран. Фото й «Зберегти» — на картці каруселі й у деталях.
         items(rows, key = { it.id }) { event ->
-            EventCard(
-                event,
-                saved = event.id in state.screen.savedIds,
-                waitlisted = event.id in state.screen.waitlistedIds,
-                onSave = { onIntent(ExploreIntent.ToggleSaved(event.id)) }
+            EventResultRow(
+                event, Modifier.cardSurface(),
+                waitlisted = event.id in state.screen.waitlistedIds
             ) { onIntent(ExploreIntent.OpenEvent(event.id)) }
         }
         if (state.screen.hasMoreCards) item {
@@ -500,30 +520,37 @@ private fun SheetList(state: ExploreState, onIntent: (ExploreIntent) -> Unit) {
     }
 }
 
+/** Порожньо: називаємо те, що справді звужує видачу, і даємо одну дію — прибрати це або зібрати своїх. */
 @Composable
-private fun QuietCard(modifier: Modifier, onIntent: (ExploreIntent) -> Unit) {
+private fun QuietCard(modifier: Modifier, state: ExploreState, onIntent: (ExploreIntent) -> Unit) {
     val colors = Poruch.colors
+    val query = state.screen.searchText.trim()
+    val (action, intent) = when {
+        query.isNotEmpty() -> R.string.clear_search to ExploreIntent.Search("")
+        state.screen.activeFilters > 0 -> R.string.reset_filters_action to ExploreIntent.ResetFilters
+        else -> R.string.create to ExploreIntent.CreateEvent
+    }
+    // Дія — у рядку заголовка: у згорнутій шторці картка має висоту каруселі, і під текстом дію зрізало.
     Column(
         modifier
             .fillMaxWidth()
             .cardSurface()
-            .padding(Spacing.lg),
-        verticalArrangement = Arrangement.spacedBy(Spacing.sm)
+            .padding(horizontal = Spacing.lg, vertical = Spacing.md),
+        verticalArrangement = Arrangement.spacedBy(Spacing.xs)
     ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            Text(
+                stringResource(R.string.nothing_here),
+                style = PoruchType.brandTitle3,
+                color = colors.ink,
+                modifier = Modifier.weight(1f)
+            )
+            GhostButton(stringResource(action), { onIntent(intent) })
+        }
         Text(
-            stringResource(R.string.nothing_here),
-            style = PoruchType.brandTitle3,
-            color = colors.ink
-        )
-        Text(
-            stringResource(R.string.nothing_here_hint),
+            if (query.isEmpty()) stringResource(R.string.nothing_here_hint) else stringResource(R.string.nothing_for_query, query),
             style = MaterialTheme.typography.bodySmall,
             color = colors.inkSecondary
-        )
-        GhostButton(
-            stringResource(R.string.create),
-            { onIntent(ExploreIntent.CreateEvent) },
-            Modifier.padding(top = Spacing.xs)
         )
     }
 }
@@ -536,3 +563,6 @@ private const val NEAR_CARDS = 3
 
 /** Скільки карток додає одне довантаження. */
 internal const val PAGE = 24
+
+/** Найбільший `fontScale`, за якого лічильник згорнутої шторки ще пишеться словами. */
+private const val COUNT_FULL_MAX_SCALE = 1.3f

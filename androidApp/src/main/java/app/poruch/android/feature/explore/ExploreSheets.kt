@@ -12,6 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import app.poruch.domain.EventCategory
@@ -21,22 +22,19 @@ import app.poruch.domain.CityResult
 import app.poruch.domain.HomeLocation
 import app.poruch.shared.DateFilter
 
+/**
+ * Кожен вибір діє одразу, як чипи над мапою: за шторкою видно, що змінилось, а кнопка каже, скільки знайдеться.
+ * Скасування не треба — вибір знімається тим самим тапом, «Скинути» прибирає все.
+ */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun FilterSheet(state: ExploreState, onIntent: (ExploreIntent) -> Unit, onDone: () -> Unit) {
     val colors = Poruch.colors
-    // Вибір накопичується і летить на сервер один раз по «Застосувати»: проміжних результатів за шторкою не видно.
-    var date by remember(state.screen.dateFilter) { mutableStateOf(state.screen.dateFilter) }
-    var category by remember(state.screen.category) { mutableStateOf(state.screen.category) }
-    var available by remember(state.screen.onlyAvailable) { mutableStateOf(state.screen.onlyAvailable) }
-    val apply = {
-        if (date != state.screen.dateFilter) onIntent(ExploreIntent.PickDate(date))
-        if (category != state.screen.category) onIntent(ExploreIntent.PickCategory(category))
-        if (available != state.screen.onlyAvailable) onIntent(ExploreIntent.OnlyAvailable(available))
-        onDone()
-    }
+    val screen = state.screen
+    // «Показати» прикріплене під прокруткою, як на iOS: з плитками категорій вміст вищий за екран, і кнопка йшла за край.
+    Column(Modifier.padding(bottom = Spacing.section)) {
     Column(
-        Modifier.padding(horizontal = Spacing.page).padding(bottom = Spacing.section),
+        Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(horizontal = Spacing.page),
         verticalArrangement = Arrangement.spacedBy(Spacing.lg)
     ) {
         // Заголовок шторки — заголовок, а не надрядок: інакше він менший за секції під ним.
@@ -45,9 +43,13 @@ internal fun FilterSheet(state: ExploreState, onIntent: (ExploreIntent) -> Unit,
                 stringResource(R.string.filters), style = PoruchType.brandTitle2,
                 color = colors.ink, modifier = Modifier.weight(1f)
             )
-            GhostButton(
+            if (screen.activeFilters > 0) GhostButton(
                 stringResource(R.string.reset_filters),
-                { date = DateFilter.ANY; category = null; available = false },
+                {
+                    if (screen.dateFilter != DateFilter.ANY) onIntent(ExploreIntent.PickDate(DateFilter.ANY))
+                    if (screen.category != null) onIntent(ExploreIntent.PickCategory(null))
+                    if (screen.onlyAvailable) onIntent(ExploreIntent.OnlyAvailable(false))
+                },
                 tone = colors.inkSecondary
             )
         }
@@ -55,31 +57,41 @@ internal fun FilterSheet(state: ExploreState, onIntent: (ExploreIntent) -> Unit,
             SectionHeader(stringResource(R.string.date))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                 dateFilters.forEach { (key, label) ->
-                    PoruchChip(stringResource(label), date == key, { date = if (date == key) DateFilter.ANY else key })
+                    PoruchChip(stringResource(label), screen.dateFilter == key, {
+                        onIntent(ExploreIntent.PickDate(if (screen.dateFilter == key) DateFilter.ANY else key))
+                    })
                 }
             }
         }
         Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
             SectionHeader(stringResource(R.string.categories))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                PoruchChip(stringResource(R.string.all), category == null, { category = null })
+                // Ті самі плитки, що в шторці мапи й у редакторі: жанр обирають однаково скрізь. Повторний тап знімає вибір.
                 categories.forEach { value ->
-                    PoruchChip(
-                        stringResource(categoryLabel(value)), category == value,
-                        { category = if (category == value) null else value }, dot = value
-                    )
+                    CategoryTile(value, screen.category == value) { onIntent(ExploreIntent.ToggleCategory(value)) }
                 }
             }
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                // Перемикачу потрібне ціле речення, а не текст чипа.
-                stringResource(R.string.only_available), style = MaterialTheme.typography.bodyLarge,
-                color = colors.ink, modifier = Modifier.weight(1f)
-            )
-            PoruchSwitch(available, { available = it })
+        // Та сама назва, що в чипа над мапою: один фільтр — одне ім'я, а що він робить — підписом.
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(stringResource(R.string.from_people), style = MaterialTheme.typography.bodyLarge, color = colors.ink)
+                Text(stringResource(R.string.from_people_hint), style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
+            }
+            PoruchSwitch(screen.onlyAvailable, { onIntent(ExploreIntent.OnlyAvailable(it)) })
         }
-        PrimaryButton(stringResource(R.string.apply), apply, Modifier.fillMaxWidth())
+    }
+        // Кнопка каже, що вийде: «Показати 23 події», а не «Готово» навмання.
+        val result = when {
+            screen.loading -> stringResource(R.string.searching)
+            screen.listCount == 0 -> stringResource(R.string.show_nothing)
+            else -> pluralStringResource(R.plurals.show_events, screen.listCount, screen.listCount)
+        }
+        PrimaryButton(
+            result, onDone,
+            Modifier.fillMaxWidth().padding(horizontal = Spacing.page).padding(top = Spacing.lg),
+            loading = screen.loading
+        )
     }
 }
 
