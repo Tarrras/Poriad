@@ -139,6 +139,7 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
                 .background(colors.canvas)
         )
         StickyAction(state, event, Modifier.align(Alignment.BottomCenter), onIntent)
+        CoachMarks(listOf(CoachTip.COMPANION), enabled = state.screen.canSeekCompany)
     }
     if (state.confirmingBlock) PoruchConfirmSheet(
         title = stringResource(R.string.block_user_title),
@@ -217,7 +218,7 @@ internal fun StickyAction(state: DetailState, event: Event, modifier: Modifier, 
         // «Шукаю компанію» під квитком на всю ширину: поруч із ціною й квитком не влазить.
         if (state.screen.canSeekCompany) SecondaryButton(
             stringResource(R.string.companion_seek), { onIntent(DetailIntent.SeekCompany(true)) },
-            Modifier.fillMaxWidth(), enabled = !state.screen.mutating, icon = PoruchIcons.social
+            Modifier.fillMaxWidth().coachTarget(CoachTip.COMPANION), enabled = !state.screen.mutating, icon = PoruchIcons.social
         )
     }
 }

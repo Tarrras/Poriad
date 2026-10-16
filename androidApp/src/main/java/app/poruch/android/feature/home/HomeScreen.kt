@@ -121,7 +121,7 @@ private fun Header(state: HomeState, onIntent: (HomeIntent) -> Unit) {
                 // Що означає «поруч»: завжди ціле місто. «Шукати тут» на мапі головну не звужує.
                 // Тап міняє місто тут же, без переходу на мапу.
                 Row(
-                    Modifier.clickable(onClickLabel = stringResource(R.string.city_search), role = Role.Button) {
+                    Modifier.coachTarget(CoachTip.CITY).clickable(onClickLabel = stringResource(R.string.city_search), role = Role.Button) {
                         onIntent(HomeIntent.ShowCitySheet(true))
                     },
                     verticalAlignment = Alignment.CenterVertically

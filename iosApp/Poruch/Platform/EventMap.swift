@@ -536,6 +536,8 @@ struct EventMap: UIViewRepresentable {
     /// менеджера: без прапорця кожен екземпляр сам визначав місто, і воно перемикалось двічі.
     private var wanted = false
     override init() { super.init(); manager.delegate = self; manager.desiredAccuracy = kCLLocationAccuracyKilometer }
+    /// Людина ще не відповідала на системне питання.
+    var undecided: Bool { manager.authorizationStatus == .notDetermined }
     func request() {
         announced = nil
         wanted = true

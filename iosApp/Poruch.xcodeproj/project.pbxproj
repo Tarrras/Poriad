@@ -13,6 +13,7 @@
 		6C5C1D2C2CF4EACD4447B715 /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32DB8757A564D68121832D6B /* Components.swift */; };
 		4ED6CED2DE4009930425960C /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54681E52DDAFCCDAAD0DF8DB /* DesignSystem.swift */; };
 		E11AF06EA8B72262BD732FFA /* NoticeBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A7E9060FBE2DB312596EC8E /* NoticeBanner.swift */; };
+		C0AC4A7C5E0F4D2B9A1E0001 /* CoachMarks.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0AC4A7C5E0F4D2B9A1E0002 /* CoachMarks.swift */; };
 		EA98667D98580D7D5407297D /* PoruchIcons.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB5843C3340925213A666A6A /* PoruchIcons.swift */; };
 		DBF54E8F046803D6BCC49C2D /* AuthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C36120E9124B9DB9AD13320D /* AuthView.swift */; };
 		048AADADF625C1015062B7FD /* NewPasswordView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95C4EDDD2CA722B0F1057C93 /* NewPasswordView.swift */; };
@@ -65,6 +66,7 @@
 		32DB8757A564D68121832D6B /* Components.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = Components.swift; path = DesignSystem/Components.swift; sourceTree = "<group>"; };
 		54681E52DDAFCCDAAD0DF8DB /* DesignSystem.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = DesignSystem.swift; path = DesignSystem/DesignSystem.swift; sourceTree = "<group>"; };
 		8A7E9060FBE2DB312596EC8E /* NoticeBanner.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = NoticeBanner.swift; path = DesignSystem/NoticeBanner.swift; sourceTree = "<group>"; };
+		C0AC4A7C5E0F4D2B9A1E0002 /* CoachMarks.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CoachMarks.swift; path = DesignSystem/CoachMarks.swift; sourceTree = "<group>"; };
 		DB5843C3340925213A666A6A /* PoruchIcons.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = PoruchIcons.swift; path = DesignSystem/PoruchIcons.swift; sourceTree = "<group>"; };
 		C36120E9124B9DB9AD13320D /* AuthView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AuthView.swift; path = Features/Account/AuthView.swift; sourceTree = "<group>"; };
 		95C4EDDD2CA722B0F1057C93 /* NewPasswordView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = NewPasswordView.swift; path = Features/Account/NewPasswordView.swift; sourceTree = "<group>"; };
@@ -151,6 +153,7 @@
 				32DB8757A564D68121832D6B /* Components.swift */,
 				54681E52DDAFCCDAAD0DF8DB /* DesignSystem.swift */,
 				8A7E9060FBE2DB312596EC8E /* NoticeBanner.swift */,
+				C0AC4A7C5E0F4D2B9A1E0002 /* CoachMarks.swift */,
 				DB5843C3340925213A666A6A /* PoruchIcons.swift */,
 				C36120E9124B9DB9AD13320D /* AuthView.swift */,
 				95C4EDDD2CA722B0F1057C93 /* NewPasswordView.swift */,
@@ -367,6 +370,7 @@
 				6C5C1D2C2CF4EACD4447B715 /* Components.swift in Sources */,
 				4ED6CED2DE4009930425960C /* DesignSystem.swift in Sources */,
 				E11AF06EA8B72262BD732FFA /* NoticeBanner.swift in Sources */,
+				C0AC4A7C5E0F4D2B9A1E0001 /* CoachMarks.swift in Sources */,
 				EA98667D98580D7D5407297D /* PoruchIcons.swift in Sources */,
 				DBF54E8F046803D6BCC49C2D /* AuthView.swift in Sources */,
 				048AADADF625C1015062B7FD /* NewPasswordView.swift in Sources */,

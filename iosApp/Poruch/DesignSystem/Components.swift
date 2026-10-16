@@ -1335,6 +1335,8 @@ struct TabItem: Identifiable {
     var badge: Int = 0
     /// Є нове, але не справа, яку треба рахувати: крапка замість числа.
     var dot = false
+    /// Підказка першого знайомства, що вказує на цей пункт.
+    var tip: CoachTip?
 }
 
 /// Таббар плаває поверх застосунку, тож екран із власною нижньою панеллю (деталі) має сам
@@ -1399,6 +1401,7 @@ struct PoruchTabBar<Trailing: View>: View {
                             : item.dot ? Copy.a11y_tab_new_follows("\(item.label)") : item.label
                     )
                     .accessibilityAddTraits(selection == item.id ? .isSelected : [])
+                    .coachTarget(item.tip)
                 }
             }
             .padding(.horizontal, Space.xs).padding(.vertical, Space.sm)

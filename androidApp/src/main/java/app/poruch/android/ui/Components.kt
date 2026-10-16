@@ -1804,7 +1804,9 @@ data class TabItem(
     /** Скільки справ чекає: 0 — без бейджа. */
     val badge: Int = 0,
     /** Є нове, але не справа, яку треба рахувати: крапка замість числа. */
-    val dot: Boolean = false
+    val dot: Boolean = false,
+    /** Підказка першого знайомства, що вказує на цей пункт. */
+    val tip: CoachTip? = null
 )
 
 /** Плаваючий таббар-капсула; під активним пунктом тонова пігулка. */
@@ -1840,7 +1842,7 @@ fun PoruchTabBar(
                     else -> item.label
                 }
                 // Бейдж живе поза капсулою пункту: її обрізає clip для ріплу, і кут числа зникав.
-                Box(Modifier.weight(1f)) {
+                Box(Modifier.weight(1f).coachTarget(item.tip)) {
                     Column(
                         Modifier
                             .fillMaxWidth()

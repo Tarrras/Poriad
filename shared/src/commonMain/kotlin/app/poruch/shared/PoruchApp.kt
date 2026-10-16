@@ -395,6 +395,9 @@ class PoruchApp internal constructor(
         tasteUseCases.setRemindersEnabled(true)
     }
 
+    /** Підказка першого знайомства закрита: [action] — `next`, `done` чи `skip` (docs/coach-marks.md). */
+    fun tipAnswered(tip: String, action: String) = PoruchAnalytics.track("tip", "tip" to tip, "action" to action)
+
     /** Тап по дайджесту: єдиний спосіб дізнатися, чи він повертає людей. */
     fun digestOpened() = PoruchAnalytics.track("digest_open")
 

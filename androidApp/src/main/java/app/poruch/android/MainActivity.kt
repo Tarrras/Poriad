@@ -223,13 +223,24 @@ fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
     }
     val locationPermission =
         rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { if (it) locate() }
+    // Перший-другий запуск: лише новим показуємо, де що на головній (docs/coach-marks.md). Читаємо до того,
+    // як ефект дайджесту нижче порахує цей запуск, тож на першому тут 0.
+    val newcomer = remember { context.getSharedPreferences(PROMPTS, Context.MODE_PRIVATE).getInt(LAUNCHES, 0) < 2 }
+    // Нового спершу вітаємо туром по головній, а про геолокацію питаємо вже після нього.
+    var tourDone by rememberSaveable { mutableStateOf(!newcomer) }
     // Один раз на запуск, а не на кожен поворот. Обране руками місто спільний код не перебиває.
     var located by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(state.needsOnboarding) {
+    LaunchedEffect(state.needsOnboarding, tourDone) {
         if (state.needsOnboarding || located) return@LaunchedEffect
+        if (context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            located = true
+            return@LaunchedEffect locate()
+        }
+        if (!tourDone) return@LaunchedEffect
+        // Питаємо раз, після онбордингу й туру; далі — лише кнопкою «Поруч» на мапі. Пауза — щоб системне вікно
+        // не наклалось на згасання підказки.
+        delay(400)
         located = true
-        if (context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) return@LaunchedEffect locate()
-        // Питаємо раз, після онбордингу; далі — лише кнопкою «Поруч» на мапі.
         val prompts = context.getSharedPreferences(PROMPTS, Context.MODE_PRIVATE)
         if (prompts.getBoolean(LOCATION_ASKED, false)) return@LaunchedEffect
         prompts.edit { putBoolean(LOCATION_ASKED, true) }
@@ -341,6 +352,11 @@ fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
                         navigator.createEvent()
                     }
                 )
+                // Лише на головній й не разом з іншим питанням: пуш чи посилання, що відкрили подію, ставлять тур на
+                // паузу, а лист дайджесту (другий запуск) відкладає його, поки людина не відповість.
+                CoachMarks(listOf(CoachTip.CITY, CoachTip.MAP, CoachTip.CREATE), enabled = newcomer && current == Home && !digestAsk) {
+                    tourDone = true
+                }
             }
             NoticeHost(state.notice, app::clearNotice, Modifier.align(Alignment.TopCenter))
             if (state.mutating) LinearProgressIndicator(
@@ -366,7 +382,7 @@ private fun TabBar(
     val reducedMotion = Poruch.reducedMotion
     val tabs = listOf(
         TabItem(Home.tabKey(), stringResource(R.string.home), PoruchIcons.home),
-        TabItem(Explore().tabKey(), stringResource(R.string.map), PoruchIcons.map),
+        TabItem(Explore().tabKey(), stringResource(R.string.map), PoruchIcons.map, tip = CoachTip.MAP),
         // Чати з непрочитаним і запити на участь живуть у «Моїх подіях»: туди й бейдж, по одному на подію.
         TabItem(
             Mine.tabKey(),
@@ -388,7 +404,7 @@ private fun TabBar(
                 .padding(bottom = Spacing.md),
             onSelect = { key -> navigator.open(tabFor(key)) }
         ) {
-            CreateButton(onCreate)
+            CreateButton(onCreate, Modifier.coachTarget(CoachTip.CREATE))
         }
     }
 }

@@ -131,6 +131,7 @@ struct HomeView: View, Equatable {
                         .buttonStyle(.plain)
                         .accessibilityLabel(Copy.a11y_city("\(view.cityName)"))
                         .accessibilityHint(Copy.a11y_change_city)
+                        .coachTarget(.city)
                     }
                     Spacer(minLength: Space.sm)
                     HStack(spacing: Space.sm) {

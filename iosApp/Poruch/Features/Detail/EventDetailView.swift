@@ -142,6 +142,8 @@ struct EventDetailView: View, Equatable {
             stickyBar(event, view)
         }
         .background(Palette.canvas)
+        // Тут, а не в корені: з мапи деталі відкриваються шторкою, і корінь лежав би під нею.
+        .coachMarks([.companion], enabled: view.canSeekCompany)
         .modifier(DetailSheets(event: event, view: view, editing: $editing, actions: actions))
         .modifier(DetailDialogs(event: event, view: view, openingContact: $openingContact, cancelling: $cancelling, blocking: $blocking, reporting: $reporting, actions: actions))
     }

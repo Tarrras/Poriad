@@ -107,7 +107,7 @@ private struct SplashView: View {
 private func tabItems(waiting: Int, newFollows: Bool) -> [TabItem] {
     [
         TabItem(id: 0, label: Copy.home, glyph: PoruchIcons.home),
-        TabItem(id: 1, label: Copy.map, glyph: PoruchIcons.map),
+        TabItem(id: 1, label: Copy.map, glyph: PoruchIcons.map, tip: .map),
         TabItem(id: 2, label: Copy.my_events, glyph: PoruchIcons.calendar, badge: waiting),
         TabItem(id: 3, label: Copy.profile, glyph: PoruchIcons.person, dot: newFollows)
     ]
@@ -148,6 +148,9 @@ struct RootView: View {
     @State private var digestAsk = false
     /// Людина натиснула кнопку в листі дайджесту; змах униз без відповіді рахуємо як «не зараз».
     @State private var digestAnswered = false
+    /// Перший-другий запуск: лише новим показуємо, де що на головній (docs/coach-marks.md). Лічильник рахує
+    /// `DigestPrompt` уже після цього читання, тож на першому запуску тут 0.
+    @State private var newcomer = UserDefaults.standard.integer(forKey: "poruch.launches") < 2
     @Environment(\.requestReview) private var requestReview
     var body: some View {
         // Онбординг замінює застосунок, а не накриває: за ним на першому запуску ще нічого нема.
@@ -157,8 +160,9 @@ struct RootView: View {
                 OnboardingView()
             } else {
                 app
-                    // Геолокацію питаємо, лише коли онбординг позаду: не поверх його першого екрана.
-                    .onAppear { location.request() }
+                    // Геолокацію питаємо, лише коли онбординг позаду: не поверх його першого екрана. Нового ще й
+                    // спершу вітаємо туром по головній, а питаємо після нього (`.coachMarks`, `onFinish`).
+                    .onAppear { if !(newcomer && location.undecided) { location.request() } }
                     .task { digestAsk = await DigestPrompt.due(digestEnabled: root.digestEnabled) }
                     // Перша підписка за запуск: питаємо про сповіщення, без них пуші про нове не дійдуть.
                     .onChange(of: root.followsMade) { _, made in if made > 0 { FollowPrompt.ask() } }
@@ -267,7 +271,7 @@ struct RootView: View {
             .onPreferenceChange(HidesTabBarKey.self) { hidden in tabBarHidden = hidden }
             if !tabBarHidden {
                 PoruchTabBar(items: tabItems(waiting: root.waitingEvents, newFollows: root.newFollows), selection: $tab) {
-                    CreateButton { startCreating(from: "fab") }
+                    CreateButton { startCreating(from: "fab") }.coachTarget(.create)
                 }
                 // Як системний таббар: підписи не ростуть з Dynamic Type, інакше чотири вкладки не вміщаються.
                 .dynamicTypeSize(...DynamicTypeSize.large)
@@ -276,6 +280,16 @@ struct RootView: View {
             }
         }
         .motion(value: tabBarHidden)
+        // Лише на корені головної й не разом з іншим питанням: пуш чи посилання, що відкрили подію, ставлять тур
+        // на паузу, а лист дайджесту (другий запуск) чи вхід — відкладають, поки людина не відповість.
+        .coachMarks(
+            [.city, .map, .create],
+            enabled: newcomer && tab == 0 && homePath.isEmpty && !tabBarHidden && !digestAsk && authSheet == nil && !creating
+        ) {
+            // Тур пройдено чи пропущено: тепер питання про геолокацію. Пауза — щоб системне вікно не наклалось на згасання.
+            guard location.undecided else { return }
+            Task { try? await Task.sleep(for: .milliseconds(400)); location.request() }
+        }
         .onAppear {
             // Тап по сповіщенню веде на подію (або в її чат) зі стеку головної, поверх усього, що було відкрите.
             // Без події, але із закладом — пуш про кілька його нових подій: мапа на його стосі.

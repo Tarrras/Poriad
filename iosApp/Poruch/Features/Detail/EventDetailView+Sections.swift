@@ -532,6 +532,7 @@ extension EventDetailView {
                 SecondaryButton(title: Copy.companion_seek, glyph: PoruchIcons.social, enabled: !view.mutating) {
                     if view.signedIn { seekingCompany = true } else { auth = true }
                 }
+                .coachTarget(.companion)
             }
         }
         // Плаває над сторінкою: дія під пальцем, а не смуга на всю ширину. Суцільна картка, а не скло:
