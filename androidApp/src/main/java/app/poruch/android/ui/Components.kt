@@ -85,6 +85,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
@@ -530,6 +531,8 @@ fun CategoryTile(category: EventCategory, selected: Boolean, onClick: () -> Unit
             .width(76.dp)
             .clip(Radius.md)
             .pressable(onClick = onClick)
+            // Обрана плитка — стан для TalkBack, а не лише рамка.
+            .semantics { this.selected = selected }
             .padding(vertical = Spacing.sm),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(Spacing.sm)
@@ -541,12 +544,11 @@ fun CategoryTile(category: EventCategory, selected: Boolean, onClick: () -> Unit
                 .border(2.dp, if (selected) colors.ink else Color.Transparent, Radius.md),
             contentAlignment = Alignment.Center
         ) { Icon(categoryIcon(category), null, Modifier.size(24.dp), tint = categoryInk(category)) }
-        Text(
-            stringResource(categoryLabel(category)),
-            style = MaterialTheme.typography.labelMedium,
-            color = if (selected) colors.ink else colors.inkSecondary,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+        // «Конференції» в 76 dp стискаються, а не обрізаються.
+        val label = MaterialTheme.typography.labelMedium.copy(color = if (selected) colors.ink else colors.inkSecondary)
+        BasicText(
+            stringResource(categoryLabel(category)), style = label, maxLines = 1,
+            autoSize = TextAutoSize.StepBased(label.fontSize * 0.7f, label.fontSize)
         )
     }
 }
@@ -595,7 +597,8 @@ fun CategoryCard(
             stringResource(categoryLabel(category)),
             style = MaterialTheme.typography.labelMedium,
             color = colors.ink,
-            maxLines = 1,
+            // «Конференції» у вузькій плитці переносяться, а не обрізаються.
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(top = Spacing.md)
         )
@@ -651,11 +654,12 @@ fun PrimaryButton(
     val foreground = if (enabled) colors.onBrand else colors.inkTertiary
     Row(
         modifier
-            .height(52.dp)
+            // Великий шрифт переносить напис, а не обрізає: кнопка росте від 52 dp.
+            .heightIn(min = 52.dp)
             .background(background, ButtonShape)
             .clip(ButtonShape)
             .pressable(enabled = enabled && !loading, onClick = onClick)
-            .padding(horizontal = Spacing.xxl),
+            .padding(horizontal = Spacing.xxl, vertical = Spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Spacing.sm, Alignment.CenterHorizontally)
     ) {
@@ -665,7 +669,7 @@ fun PrimaryButton(
             strokeWidth = 2.dp
         )
         else icon?.let { Icon(it, null, Modifier.size(18.dp), tint = foreground) }
-        Text(text, style = MaterialTheme.typography.labelLarge, color = foreground, maxLines = 1)
+        Text(text, style = MaterialTheme.typography.labelLarge, color = foreground, maxLines = 2, textAlign = TextAlign.Center)
     }
 }
 
@@ -680,16 +684,16 @@ fun SecondaryButton(
     val foreground = if (enabled) tone ?: colors.ink else colors.inkTertiary
     Row(
         modifier
-            .height(52.dp)
+            .heightIn(min = 52.dp)
             .background(colors.brandContainer, ButtonShape)
             .clip(ButtonShape)
             .pressable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = if (compact) Spacing.lg else Spacing.xxl),
+            .padding(horizontal = if (compact) Spacing.lg else Spacing.xxl, vertical = Spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Spacing.sm, Alignment.CenterHorizontally)
     ) {
         icon?.let { Icon(it, null, Modifier.size(18.dp), tint = foreground) }
-        Text(text, style = MaterialTheme.typography.labelLarge, color = foreground, maxLines = 1)
+        Text(text, style = MaterialTheme.typography.labelLarge, color = foreground, maxLines = 2, textAlign = TextAlign.Center)
     }
 }
 
@@ -969,7 +973,8 @@ fun LabelledField(
                 singleLine = singleLine,
                 minLines = minLines,
                 modifier = Modifier.weight(1f)
-                    .semantics { contentDescription = label }
+                    // Помилка — стан поля: TalkBack каже її разом із назвою, а не як окремий текст нижче.
+                    .semantics { contentDescription = label; if (error != null) error(error) }
                     .let { if (focusRequester != null) it.focusRequester(focusRequester) else it },
                 textStyle = MaterialTheme.typography.bodyLarge.copy(color = colors.ink),
                 cursorBrush = SolidColor(colors.ink),
@@ -2553,7 +2558,8 @@ class BufferedText(val text: String, val onChange: (String) -> Unit)
 @Composable
 fun PoruchSwitch(
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
+    /** Null — перемикає весь рядок (`toggleable`), і TalkBack читає підпис рядка разом зі станом. */
+    onCheckedChange: ((Boolean) -> Unit)?,
     modifier: Modifier = Modifier
 ) {
     val colors = Poruch.colors

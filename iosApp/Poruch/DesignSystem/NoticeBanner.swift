@@ -73,6 +73,8 @@ struct NoticeOverlay: ViewModifier {
             .task(id: notice) {
                 guard let notice else { return }
                 shown = notice
+                // Банер згори VoiceOver не бачить, поки до нього не дійдуть: відмову чи успіх кажемо вголос.
+                AccessibilityNotification.Announcement(notice.text).post()
                 try? await Task.sleep(for: .seconds(notice.isError ? errorHold : infoHold))
                 dismiss()
             }

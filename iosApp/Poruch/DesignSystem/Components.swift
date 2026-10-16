@@ -229,7 +229,8 @@ struct CategoryTile: View {
                         RoundedRectangle(cornerRadius: Corner.md, style: .continuous)
                             .strokeBorder(Palette.ink, lineWidth: selected ? 2 : 0)
                     )
-                Text(categoryName(category)).font(PoruchFont.label).lineLimit(1)
+                // «Конференції» в 76 pt стискаються, а не обрізаються.
+                Text(categoryName(category)).font(PoruchFont.label).lineLimit(1).minimumScaleFactor(0.7)
                     .foregroundStyle(selected ? Palette.ink : Palette.inkSecondary)
             }.frame(width: 76)
         }
@@ -258,7 +259,7 @@ struct CategoryCard: View {
                     }.frame(width: 20, height: 20)
                 }
                 Spacer(minLength: Space.md)
-                Text(categoryName(category)).font(PoruchFont.label).foregroundStyle(Palette.ink).lineLimit(1).minimumScaleFactor(0.8)
+                Text(categoryName(category)).font(PoruchFont.label).foregroundStyle(Palette.ink).lineLimit(2).minimumScaleFactor(0.8)
             }
             .padding(Space.md).frame(maxWidth: .infinity, minHeight: 96, alignment: .leading)
             .background(categoryGradient(category), in: RoundedRectangle(cornerRadius: Corner.md, style: .continuous))
@@ -356,10 +357,11 @@ struct PrimaryButton: View {
                 if loading { ProgressView().tint(enabled ? Palette.onBrand : Palette.inkTertiary) }
                 else if let glyph { PoruchIcon(glyph: glyph, size: 18) }
                 else if let symbol { Image(systemName: symbol).font(.system(size: 15, weight: .semibold)) }
-                Text(title).font(PoruchFont.button).lineLimit(1)
+                // Великий шрифт переносить напис, а не обрізає: кнопка росте від 52 pt.
+                Text(title).font(PoruchFont.button).lineLimit(2).multilineTextAlignment(.center)
             }
             .foregroundStyle(enabled ? Palette.onBrand : Palette.inkTertiary)
-            .padding(.horizontal, Space.xxl).frame(height: 52).frame(maxWidth: .infinity)
+            .padding(.horizontal, Space.xxl).padding(.vertical, Space.sm).frame(minHeight: 52).frame(maxWidth: .infinity)
             .background {
                 switch (enabled, tone) {
                 // Блідіша за другорядну кнопку поруч: інакше «Назад» і неактивна «Далі» виглядали однаково.
@@ -387,10 +389,10 @@ struct SecondaryButton: View {
             HStack(spacing: Space.sm) {
                 if let glyph { PoruchIcon(glyph: glyph, size: 18) }
                 else if let symbol { Image(systemName: symbol).font(.system(size: 15, weight: .semibold)) }
-                Text(title).font(PoruchFont.button).lineLimit(1)
+                Text(title).font(PoruchFont.button).lineLimit(2).multilineTextAlignment(.center)
             }
             .foregroundStyle(enabled ? tone ?? Palette.ink : Palette.inkTertiary)
-            .padding(.horizontal, Space.xxl).frame(height: 52).frame(maxWidth: .infinity)
+            .padding(.horizontal, Space.xxl).padding(.vertical, Space.sm).frame(minHeight: 52).frame(maxWidth: .infinity)
             .background(Palette.brandContainer, in: buttonShape)
         }
         .buttonStyle(PressableStyle())
@@ -616,19 +618,23 @@ struct LabelledField<Trailing: View>: View {
     @ViewBuilder var trailing: Trailing
     var body: some View {
         VStack(alignment: .leading, spacing: Space.sm) {
+            // Підпис — назва самого поля для VoiceOver, а не окрема зупинка перед ним: з порожньою назвою
+            // заповнене поле озвучувало лише значення, без того, що це за поле.
             Text(label.uppercased()).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
+                .accessibilityHidden(true)
             HStack(spacing: Space.sm) {
                 Group {
                     if secure {
-                        SecureField("", text: $text, prompt: Text(placeholder).foregroundStyle(Palette.inkTertiary))
+                        SecureField(label, text: $text, prompt: Text(placeholder).foregroundStyle(Palette.inkTertiary))
                     } else if multiline {
-                        TextField("", text: $text, prompt: Text(placeholder).foregroundStyle(Palette.inkTertiary), axis: .vertical)
+                        TextField(label, text: $text, prompt: Text(placeholder).foregroundStyle(Palette.inkTertiary), axis: .vertical)
                             .lineLimit(4...10)
                     } else {
-                        TextField("", text: $text, prompt: Text(placeholder).foregroundStyle(Palette.inkTertiary))
+                        TextField(label, text: $text, prompt: Text(placeholder).foregroundStyle(Palette.inkTertiary))
                     }
                 }
                 .font(PoruchFont.bodyText).foregroundStyle(Palette.ink).tint(Palette.ink).textFieldStyle(.plain)
+                .accessibilityHint(hint ?? "")
                 trailing
             }
             // Висота вміщує 44 pt ціль кінцевого контролу, не переростаючи сусіднє поле.
@@ -638,7 +644,8 @@ struct LabelledField<Trailing: View>: View {
             // Біле поле на сірому полотні: `surfaceMuted` відрізнявся від полотна на два тони і поле зникало.
             .background(Palette.surface, in: RoundedRectangle(cornerRadius: Corner.sm, style: .continuous))
             if let hint {
-                Text(hint).font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
+                // Читається підказкою поля, а не окремою зупинкою.
+                Text(hint).font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary).accessibilityHidden(true)
             }
         }
     }

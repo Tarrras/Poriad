@@ -56,10 +56,12 @@ struct AuthView: View {
         return !state.mutating && !state.session.askBirthDate && !state.session.passwordRecovery
     }
 
-    /// Знак застосунку й назва по центру, як вхід в Apple ID; «назад» окремо в кутку.
+    /// Знак застосунку й назва по центру, як вхід в Apple ID. У кутку — закрити аркуш; «назад» лише зі скидання пароля.
     private var header: some View {
         VStack(spacing: Space.md) {
-            IconPill(glyph: PoruchIcons.chevronLeft, label: Copy.back, size: 40) { if resetting { resetting = false } else { dismiss() } }
+            IconPill(glyph: resetting ? PoruchIcons.chevronLeft : PoruchIcons.close, label: resetting ? Copy.back : Copy.close, size: 40) {
+                if resetting { resetting = false } else { dismiss() }
+            }
                 .frame(maxWidth: .infinity, alignment: .leading)
             PoruchIcon(glyph: confirming ? PoruchIcons.checkCircle : resetting ? PoruchIcons.lock : askingBirthDate ? PoruchIcons.calendar : PoruchIcons.pin, size: 32)
                 .foregroundStyle(Palette.onBrand)
