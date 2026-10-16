@@ -767,7 +767,8 @@ private struct PosterCard: View {
 
     var body: some View {
         Button(action: open) {
-            Ticket(vertical: true, stubColor: ticketStub(event), stubLength: 52) {
+            // 64: жанр над часом — два рядки, і в 52 вони впирались у перфорацію та нижній край.
+            Ticket(vertical: true, stubColor: ticketStub(event), stubLength: 64) {
                 VStack(alignment: .leading, spacing: 0) {
                     if event.imageUrl != nil {
                         // Пріоритет: у ряду однакової висоти фото бере свої 4:5 першим, а запас іде полю під назвою.

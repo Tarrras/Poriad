@@ -644,7 +644,9 @@ private fun PosterCard(
         ticketStub(event), stub = { StubTime(event, row = true) },
         modifier = modifier
             .ticketSemantics(ticketA11yLabel(event, listOfNotNull(stamp?.first, reason?.first, price, note?.first).joinToString(", ")), onClick, saved, onSave),
-        vertical = true, stubLength = 52.dp, onClick = onClick
+        vertical = true, onClick = onClick,
+        // 64: жанр над часом — два рядки, і в 52 вони впирались у перфорацію та нижній край.
+        stubLength = 64.dp
     ) {
         Column(Modifier.fillMaxHeight()) {
             if (!printed) Box(Modifier.fillMaxWidth().aspectRatio(4f / 5f).clipToBounds()) {

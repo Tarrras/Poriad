@@ -1387,7 +1387,7 @@ struct StubTime: View {
             if row {
                 ViewThatFits(in: .horizontal) {
                     HStack(alignment: .center, spacing: Space.sm) {
-                        VStack(alignment: .leading, spacing: 0) { genreLine; big.fixedSize() }
+                        VStack(alignment: .leading, spacing: 2) { genreLine; big.fixedSize() }
                         Spacer(minLength: 0)
                         VStack(alignment: .trailing, spacing: 2) { small.fixedSize(); seatsLine }
                     }

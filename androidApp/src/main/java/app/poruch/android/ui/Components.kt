@@ -1848,7 +1848,7 @@ fun StubTime(
         semantics.fillMaxWidth().padding(horizontal = Spacing.md),
         horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically
     ) {
-        Column { genre(); bigText() }
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) { genre(); bigText() }
         Column(Modifier.weight(1f), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
             smallText(); seats()
         }
