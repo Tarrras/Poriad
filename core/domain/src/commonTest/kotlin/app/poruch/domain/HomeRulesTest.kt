@@ -116,7 +116,7 @@ class HomeRulesTest {
 
     @Test fun peopleSectionLabelsEntriesByStrongestSignal() {
         val followed = room("f")
-        val result = HomeRules.people(forYou = listOf(room("y")), city = rooms(HomeRules.PEOPLE_SECTION_MIN - 2), following = listOf(followed))
+        val result = HomeRules.people(forYou = listOf(room("y")), city = rooms(3), following = listOf(followed))
         assertEquals(
             listOf("y" to FeedSource.FOR_YOU, "r1" to FeedSource.CITY, "r2" to FeedSource.CITY, "r3" to FeedSource.CITY, "f" to FeedSource.FOLLOWING),
             result.map { it.event.id to it.source }
