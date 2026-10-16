@@ -111,8 +111,11 @@ fun Modifier.cardSurface(shape: Shape = Radius.lg, elevation: Dp = Elevation.car
  * одна й та сама афіша не мінялась тоном між екранами. Кольори на фото від теми не залежать.
  */
 val PhotoScrim: Brush = Brush.verticalGradient(
-    0.3f to Color.Transparent, 0.7f to Color.Black.copy(alpha = 0.55f), 1f to Color.Black.copy(alpha = 0.85f)
+    0.3f to Color.Transparent,
+    0.7f to Color.Black.copy(alpha = 0.55f),
+    1f to Color.Black.copy(alpha = 0.85f)
 )
+
 /** Чорнило й поверхня кнопки на скримі: завжди світла пігулка з темним гліфом, той самий hex, що й `ink` світлої теми. */
 private val ScrimInk = Color(0xFF1D1D1F)
 private val ScrimSurface = Color.White.copy(alpha = 0.92f)
@@ -121,8 +124,13 @@ private val ScrimSurface = Color.White.copy(alpha = 0.92f)
 @Composable
 fun ScrimButton(icon: ImageVector, description: String, onClick: () -> Unit) {
     Box(
-        Modifier.minimumInteractiveComponentSize().size(40.dp).background(ScrimSurface, CircleShape)
-            .border(1.dp, Color.Black.copy(alpha = 0.06f), CircleShape).clip(CircleShape).clickable(role = Role.Button, onClick = onClick),
+        Modifier
+            .minimumInteractiveComponentSize()
+            .size(40.dp)
+            .background(ScrimSurface, CircleShape)
+            .border(1.dp, Color.Black.copy(alpha = 0.06f), CircleShape)
+            .clip(CircleShape)
+            .clickable(role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center
     ) { Icon(icon, description, Modifier.size(18.dp), tint = ScrimInk) }
 }
@@ -154,7 +162,13 @@ fun Modifier.pressable(
             }
             val target = if (presses > 0 && !reducedMotion) pressedScale else 1f
             launch {
-                scale.animateTo(target, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow))
+                scale.animateTo(
+                    target,
+                    spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessMediumLow
+                    )
+                )
             }
         }
     }
@@ -181,7 +195,11 @@ val TabBarClearance = 56.dp + Spacing.md + Spacing.lg
 /** Те саме, що [tabBarClearance], для `contentPadding` лінивого списку: вміст доїжджає під таббар, а не обрізається над ним. */
 @Composable
 fun tabBarClearancePadding(top: Dp = 0.dp): PaddingValues =
-    PaddingValues(top = top, bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 56.dp + Spacing.md + Spacing.lg)
+    PaddingValues(
+        top = top,
+        bottom = WindowInsets.navigationBars.asPaddingValues()
+            .calculateBottomPadding() + 56.dp + Spacing.md + Spacing.lg
+    )
 
 @Composable
 fun HairLine(modifier: Modifier = Modifier) =
@@ -232,7 +250,9 @@ fun PoruchSearchField(
                 value = value,
                 onValueChange = onValueChange,
                 singleLine = true,
-                modifier = Modifier.weight(1f).focusRequester(focus),
+                modifier = Modifier
+                    .weight(1f)
+                    .focusRequester(focus),
                 textStyle = MaterialTheme.typography.bodyLarge.copy(color = colors.ink),
                 cursorBrush = SolidColor(colors.ink),
                 decorationBox = { inner ->
@@ -357,7 +377,11 @@ fun PoruchChip(
         Modifier
             .minimumInteractiveComponentSize()
             .height(38.dp)
-            .background(if (selected) brandGradient() else SolidColor(LocalFieldSurface.current ?: colors.surface), Radius.pill)
+            .background(
+                if (selected) brandGradient() else SolidColor(
+                    LocalFieldSurface.current ?: colors.surface
+                ), Radius.pill
+            )
             .border(
                 1.dp,
                 if (selected || !colors.dark) Color.Transparent else colors.hairline,
@@ -405,12 +429,19 @@ fun PoruchChip(
  * і є суттю підписки. Стан приходить зі спільного шару, тап лише просить його змінити.
  */
 @Composable
-fun FollowPill(following: Boolean, onToggle: () -> Unit, modifier: Modifier = Modifier, onCard: Boolean = false) {
+fun FollowPill(
+    following: Boolean,
+    onToggle: () -> Unit,
+    modifier: Modifier = Modifier,
+    onCard: Boolean = false
+) {
     // На білій картці біла пігулка злилась би з нею: тоді підкладка приглушена, як у полях шторки.
     CompositionLocalProvider(LocalFieldSurface provides if (onCard) Poruch.colors.surfaceMuted else LocalFieldSurface.current) {
         Box(modifier) {
             PoruchChip(
-                stringResource(if (following) R.string.following else R.string.follow), following, onToggle,
+                stringResource(if (following) R.string.following else R.string.follow),
+                following,
+                onToggle,
                 if (following) PoruchIcons.bellActive else PoruchIcons.bell
             )
         }
@@ -798,7 +829,13 @@ fun BannerCard(
         ) { Icon(icon, null, Modifier.size(20.dp), tint = colors.ink) }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(title, style = MaterialTheme.typography.titleSmall, color = colors.ink)
-            subtitle?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary) }
+            subtitle?.let {
+                Text(
+                    it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.inkSecondary
+                )
+            }
         }
         Box(
             Modifier
@@ -938,7 +975,11 @@ fun PasswordRevealIcon(revealed: Boolean, onToggle: () -> Unit) {
     Icon(
         if (revealed) PoruchIcons.eye else PoruchIcons.eyeOff,
         stringResource(if (revealed) R.string.hide_password else R.string.show_password),
-        Modifier.minimumInteractiveComponentSize().size(20.dp).clip(CircleShape).clickable(onClick = onToggle),
+        Modifier
+            .minimumInteractiveComponentSize()
+            .size(20.dp)
+            .clip(CircleShape)
+            .clickable(onClick = onToggle),
         tint = Poruch.colors.inkSecondary
     )
 }
@@ -1050,7 +1091,12 @@ fun eventState(event: Event, waitlisted: Boolean = false): Pair<String, BadgeTon
 @Composable
 private fun eventStatus(event: Event, waitlisted: Boolean = false): Pair<String, BadgeTone>? =
     eventState(event, waitlisted)
-        ?: event.listing?.let { stringResource(R.string.listing_badge, it.sourceName) to BadgeTone.Neutral }
+        ?: event.listing?.let {
+            stringResource(
+                R.string.listing_badge,
+                it.sourceName
+            ) to BadgeTone.Neutral
+        }
 
 /** Рядок під назвою: учасники для кімнати, ціна для афіші. */
 @Composable
@@ -1076,24 +1122,40 @@ private fun EventMeta(event: Event, short: Boolean = false) {
  * на постері назва закладу важливіша за жанр, який і так каже афіша; жанр лишається для TalkBack.
  */
 @Composable
-fun EventDescriptor(event: Event, modifier: Modifier = Modifier, withCity: Boolean = false, placeFirst: Boolean = false) {
+fun EventDescriptor(
+    event: Event,
+    modifier: Modifier = Modifier,
+    withCity: Boolean = false,
+    placeFirst: Boolean = false
+) {
     val colors = Poruch.colors
     // Роздільник лише коли є текст праворуч. Назва закладу, коли є, замість адреси.
     // Місто першим: у видачі з різних міст воно важливіше за адресу й не зникає під трьома крапками.
     val place = if (withCity) placeWithCity(event) else event.placeLabel
     val category = stringResource(categoryLabel(event.category))
     Row(
-        if (placeFirst) modifier.semantics(mergeDescendants = true) { contentDescription = listOf(category, place).filter { it.isNotBlank() }.joinToString(", ") }
+        if (placeFirst) modifier.semantics(mergeDescendants = true) {
+            contentDescription =
+                listOf(category, place).filter { it.isNotBlank() }.joinToString(", ")
+        }
         else modifier,
         horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
         verticalAlignment = Alignment.CenterVertically
     ) {
         CategoryDot(event.category)
         if (placeFirst) Text(
-            place.ifBlank { category }, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary,
-            maxLines = 1, overflow = TextOverflow.Ellipsis
+            place.ifBlank { category },
+            style = MaterialTheme.typography.bodySmall,
+            color = colors.inkSecondary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         ) else {
-            Text(category, style = PoruchType.descriptor, color = categoryInk(event.category), maxLines = 1)
+            Text(
+                category,
+                style = PoruchType.descriptor,
+                color = categoryInk(event.category),
+                maxLines = 1
+            )
             place.takeIf { it.isNotBlank() }?.let { place ->
                 Text(
                     "· $place",
@@ -1244,7 +1306,13 @@ fun EventRow(
                 maxLines = 2, overflow = TextOverflow.Ellipsis
             )
             when {
-                note != null -> Text(note, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary, maxLines = 1)
+                note != null -> Text(
+                    note,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.inkSecondary,
+                    maxLines = 1
+                )
+
                 badge != null -> StatusBadge(badge.first, badge.second)
                 else -> EventDescriptor(event)
             }
@@ -1299,7 +1367,9 @@ fun EventResultRow(
         horizontalArrangement = Arrangement.spacedBy(Spacing.md),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        EventImage(event, Modifier.size(56.dp).clip(Radius.xs), glyphSize = 22.dp)
+        EventImage(event, Modifier
+            .size(56.dp)
+            .clip(Radius.xs), glyphSize = 22.dp)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
                 cardOverline(event, dateWords()), style = MaterialTheme.typography.labelSmall,
@@ -1314,12 +1384,21 @@ fun EventResultRow(
                 maxLines = 1, overflow = TextOverflow.Ellipsis
             )
             artistsLine(event)?.let {
-                Text(it, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.inkSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
             event.listing?.let { listing ->
                 Text(
-                    stringResource(R.string.listing_badge, listing.sourceName), style = MaterialTheme.typography.labelSmall,
-                    color = colors.inkTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis
+                    stringResource(R.string.listing_badge, listing.sourceName),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = colors.inkTertiary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
@@ -1338,7 +1417,12 @@ private fun resultBadge(event: Event, waitlisted: Boolean): Pair<String, BadgeTo
         room.joined -> stringResource(R.string.going) to BadgeTone.Success
         waitlisted -> stringResource(R.string.in_queue) to BadgeTone.Accent
         room.isFull -> stringResource(R.string.full) to BadgeTone.Neutral
-        room.isScarce -> pluralStringResource(R.plurals.seats_short, room.seatsLeft, room.seatsLeft) to BadgeTone.Accent
+        room.isScarce -> pluralStringResource(
+            R.plurals.seats_short,
+            room.seatsLeft,
+            room.seatsLeft
+        ) to BadgeTone.Accent
+
         else -> null
     }
 }
@@ -1355,7 +1439,11 @@ fun artistsLine(event: Event): String? {
     val hosts = shown.filter { it.role == ArtistRole.HOST }.joinToString(", ") { it.name }
     val host = if (hosts.isEmpty()) null else stringResource(R.string.artist_line_host, hosts)
     val line = listOfNotNull(performers.takeIf { it.isNotEmpty() }, host).joinToString(" · ")
-    return if (event.moreArtists > 0) stringResource(R.string.artist_line_more, line, event.moreArtists) else line
+    return if (event.moreArtists > 0) stringResource(
+        R.string.artist_line_more,
+        line,
+        event.moreArtists
+    ) else line
 }
 
 /** Вид словом, лише коли він відомий і не людина: `person` без підпису. */
@@ -1371,7 +1459,10 @@ fun artistKindLabel(kind: ArtistKind?): String? = when (kind) {
 @Composable
 fun ArtistRow(artist: ArtistHit, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val colors = Poruch.colors
-    val subtitle = listOfNotNull(artistKindLabel(artist.kind), pluralStringResource(R.plurals.place_upcoming, artist.upcoming, artist.upcoming))
+    val subtitle = listOfNotNull(
+        artistKindLabel(artist.kind),
+        pluralStringResource(R.plurals.place_upcoming, artist.upcoming, artist.upcoming)
+    )
         .joinToString(" · ")
     Row(
         modifier
@@ -1382,24 +1473,49 @@ fun ArtistRow(artist: ArtistHit, modifier: Modifier = Modifier, onClick: () -> U
         horizontalArrangement = Arrangement.spacedBy(Spacing.md),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(Modifier.size(40.dp).background(colors.surfaceMuted, Radius.xs), contentAlignment = Alignment.Center) {
+        Box(
+            Modifier
+                .size(40.dp)
+                .background(colors.surfaceMuted, Radius.xs),
+            contentAlignment = Alignment.Center
+        ) {
             Icon(PoruchIcons.person, null, Modifier.size(20.dp), tint = colors.ink)
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(artist.name, style = PoruchType.serifTitle3, color = colors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(
+                artist.name,
+                style = PoruchType.serifTitle3,
+                color = colors.ink,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.inkSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
 
 /** Рядок закладу в пошуку: піктограма місця, назва, адреса й скільки подій попереду. */
 @Composable
-fun PlaceRow(place: Place, modifier: Modifier = Modifier, withCity: Boolean = false, onClick: () -> Unit) {
+fun PlaceRow(
+    place: Place,
+    modifier: Modifier = Modifier,
+    withCity: Boolean = false,
+    onClick: () -> Unit
+) {
     val colors = Poruch.colors
     val address = if (withCity && place.city.isNotBlank() && !place.address.contains(place.city)) {
         listOf(place.city, place.address).filter { it.isNotBlank() }.joinToString(", ")
     } else place.address
-    val subtitle = listOf(address, pluralStringResource(R.plurals.place_upcoming, place.upcoming, place.upcoming))
+    val subtitle = listOf(
+        address,
+        pluralStringResource(R.plurals.place_upcoming, place.upcoming, place.upcoming)
+    )
         .filter { it.isNotBlank() }.joinToString(" · ")
     Row(
         modifier
@@ -1410,7 +1526,12 @@ fun PlaceRow(place: Place, modifier: Modifier = Modifier, withCity: Boolean = fa
         horizontalArrangement = Arrangement.spacedBy(Spacing.md),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(Modifier.size(40.dp).background(colors.surfaceMuted, Radius.xs), contentAlignment = Alignment.Center) {
+        Box(
+            Modifier
+                .size(40.dp)
+                .background(colors.surfaceMuted, Radius.xs),
+            contentAlignment = Alignment.Center
+        ) {
             Icon(PoruchIcons.pin, null, Modifier.size(20.dp), tint = colors.ink)
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -1472,8 +1593,12 @@ fun EventMapCard(
             )
             // Назва поступається чипу: слот картки фіксований, і довга назва інакше виштовхує чип за край.
             Text(
-                event.displayTitle, style = PoruchType.serifTitle3, color = colors.ink,
-                maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false)
+                event.displayTitle,
+                style = PoruchType.serifTitle3,
+                color = colors.ink,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false)
             )
             // Склад замість ціни: на слоті картки місця для обох нема, а хто виступає каже більше.
             val artists = artistsLine(event)
@@ -1569,7 +1694,12 @@ fun MetaLine(icon: ImageVector, text: String, modifier: Modifier = Modifier, ton
  * тож дорога до неї видна одразу, а не лише плюсом у таббарі й рядком унизу. Гостя тап веде до входу.
  */
 @Composable
-fun CreateEventCard(title: String, subtitle: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun CreateEventCard(
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     val colors = Poruch.colors
     Row(
         modifier
@@ -1580,12 +1710,21 @@ fun CreateEventCard(title: String, subtitle: String, onClick: () -> Unit, modifi
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Spacing.md)
     ) {
-        Box(Modifier.size(44.dp).background(colors.onBrand.copy(alpha = 0.14f), CircleShape), contentAlignment = Alignment.Center) {
+        Box(
+            Modifier
+                .size(44.dp)
+                .background(colors.onBrand.copy(alpha = 0.14f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
             Icon(PoruchIcons.plus, null, Modifier.size(20.dp), tint = colors.onBrand)
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(title, style = MaterialTheme.typography.titleSmall, color = colors.onBrand)
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = colors.onBrand.copy(alpha = 0.72f))
+            Text(
+                subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.onBrand.copy(alpha = 0.72f)
+            )
         }
         Icon(PoruchIcons.arrowRight, null, Modifier.size(16.dp), tint = colors.onBrand)
     }
@@ -1607,19 +1746,38 @@ fun EventHeroCard(
             .alpha(if (event.isCancelled) 0.6f else 1f)
     ) {
         EventArt(event, Modifier.fillMaxSize())
-        Box(Modifier.matchParentSize().background(PhotoScrim))
+        Box(Modifier
+            .matchParentSize()
+            .background(PhotoScrim))
         // Стан кімнати важливіший; без нього — підпис походження, пара до «Афіша · джерело».
-        if (badge != null) Box(Modifier.padding(Spacing.lg)) { StatusBadge(badge.first, badge.second) }
+        if (badge != null) Box(Modifier.padding(Spacing.lg)) {
+            StatusBadge(
+                badge.first,
+                badge.second
+            )
+        }
         else if (event.gathering != null) Box(Modifier.padding(Spacing.lg)) {
             StatusBadge(stringResource(R.string.from_people), BadgeTone.Neutral, PoruchIcons.social)
         }
-        if (onSave != null) SaveButton(saved, onSave, Modifier.align(Alignment.TopEnd).padding(Spacing.md))
+        if (onSave != null) SaveButton(
+            saved,
+            onSave,
+            Modifier
+                .align(Alignment.TopEnd)
+                .padding(Spacing.md)
+        )
         Column(
-            Modifier.align(Alignment.BottomStart).padding(Spacing.xl),
+            Modifier
+                .align(Alignment.BottomStart)
+                .padding(Spacing.xl),
             verticalArrangement = Arrangement.spacedBy(Spacing.sm)
         ) {
             eyebrow?.let {
-                Text(it.uppercase(), style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.75f))
+                Text(
+                    it.uppercase(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White.copy(alpha = 0.75f)
+                )
             }
             Text(
                 event.displayTitle, style = PoruchType.serifTitle1, color = Color.White,
@@ -1628,19 +1786,28 @@ fun EventHeroCard(
             // Дата й місце двома рядками: в одному рядку хвіст обрізався.
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
-                    cardOverline(event, dateWords()), style = MaterialTheme.typography.bodyMedium,
-                    color = Color.White.copy(alpha = 0.9f), maxLines = 1, overflow = TextOverflow.Ellipsis
+                    cardOverline(event, dateWords()),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.White.copy(alpha = 0.9f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 event.placeLabel.takeIf { it.isNotBlank() }?.let {
                     Text(
-                        it, style = MaterialTheme.typography.bodyMedium,
-                        color = Color.White.copy(alpha = 0.75f), maxLines = 1, overflow = TextOverflow.Ellipsis
+                        it,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White.copy(alpha = 0.75f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
                 artistsLine(event)?.let {
                     Text(
-                        it, style = MaterialTheme.typography.bodyMedium,
-                        color = Color.White.copy(alpha = 0.75f), maxLines = 1, overflow = TextOverflow.Ellipsis
+                        it,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White.copy(alpha = 0.75f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
@@ -1654,11 +1821,19 @@ fun EventHeroCard(
  * [glyphDrop] — наскільки його опустити (на деталях верх зайнятий смугою статусу й кнопками).
  */
 @Composable
-fun EventArt(event: Event, modifier: Modifier = Modifier, glyph: Dp = 220.dp, glyphDrop: Dp = 0.dp) {
+fun EventArt(
+    event: Event,
+    modifier: Modifier = Modifier,
+    glyph: Dp = 220.dp,
+    glyphDrop: Dp = 0.dp
+) {
     if (event.imageUrl == null) Box(modifier.background(categoryHeroGradient(event.category))) {
         Icon(
             categoryIcon(event.category), null,
-            Modifier.align(Alignment.TopEnd).offset(x = glyph * 0.25f, y = glyphDrop - glyph * 0.04f).size(glyph),
+            Modifier
+                .align(Alignment.TopEnd)
+                .offset(x = glyph * 0.25f, y = glyphDrop - glyph * 0.04f)
+                .size(glyph),
             tint = Color.White.copy(alpha = 0.18f)
         )
     } else EventImage(event, modifier, glyphSize = 72.dp)
@@ -1713,12 +1888,21 @@ fun LinkRow(
 
 /** Підпис над [GroupedRows] капітеллю: «Події · 7», «Місця». Праворуч — необов'язкова дія. */
 @Composable
-fun GroupLabel(text: String, modifier: Modifier = Modifier, actionLabel: String? = null, onAction: (() -> Unit)? = null) {
+fun GroupLabel(
+    text: String,
+    modifier: Modifier = Modifier,
+    actionLabel: String? = null,
+    onAction: (() -> Unit)? = null
+) {
     val colors = Poruch.colors
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(
-            text.uppercase(), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary,
-            modifier = Modifier.weight(1f).semantics { heading() }
+            text.uppercase(),
+            style = MaterialTheme.typography.labelSmall,
+            color = colors.inkTertiary,
+            modifier = Modifier
+                .weight(1f)
+                .semantics { heading() }
         )
         if (actionLabel != null && onAction != null) Text(
             actionLabel, style = MaterialTheme.typography.labelMedium, color = colors.ink,
@@ -1732,7 +1916,12 @@ fun GroupLabel(text: String, modifier: Modifier = Modifier, actionLabel: String?
 
 /** Секція «Місця» у видачі пошуку: заклади з тим самим словом. Тап — мапа на закладі. */
 @Composable
-fun PlacesGroup(places: List<Place>, withCity: Boolean, modifier: Modifier = Modifier, onOpen: (Place) -> Unit) {
+fun PlacesGroup(
+    places: List<Place>,
+    withCity: Boolean,
+    modifier: Modifier = Modifier,
+    onOpen: (Place) -> Unit
+) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         GroupLabel(stringResource(R.string.search_places_group))
         GroupedRows {
@@ -1746,7 +1935,11 @@ fun PlacesGroup(places: List<Place>, withCity: Boolean, modifier: Modifier = Mod
 
 /** Секція «Артисти» у видачі пошуку під «Місцями». Тап — екран артиста. */
 @Composable
-fun ArtistsGroup(artists: List<ArtistHit>, modifier: Modifier = Modifier, onOpen: (ArtistHit) -> Unit) {
+fun ArtistsGroup(
+    artists: List<ArtistHit>,
+    modifier: Modifier = Modifier,
+    onOpen: (ArtistHit) -> Unit
+) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         GroupLabel(stringResource(R.string.search_artists_group))
         GroupedRows {
@@ -1837,12 +2030,19 @@ fun PoruchTabBar(
                 val active = item.key == selected
                 // Скрінрідер чує вкладку, її стан і бейдж одним рядком.
                 val description = when {
-                    item.badge > 0 -> stringResource(R.string.tab_badge_a11y, item.label, item.badge)
+                    item.badge > 0 -> stringResource(
+                        R.string.tab_badge_a11y,
+                        item.label,
+                        item.badge
+                    )
+
                     item.dot -> stringResource(R.string.a11y_tab_new_follows, item.label)
                     else -> item.label
                 }
                 // Бейдж живе поза капсулою пункту: її обрізає clip для ріплу, і кут числа зникав.
-                Box(Modifier.weight(1f).coachTarget(item.tip)) {
+                Box(Modifier
+                    .weight(1f)
+                    .coachTarget(item.tip)) {
                     Column(
                         Modifier
                             .fillMaxWidth()

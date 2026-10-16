@@ -130,16 +130,24 @@ fun Modifier.coachTarget(tip: CoachTip?, cornerRadius: Dp? = null): Modifier {
         // Обрізана батьком (стрічка прокрутила шапку під край) — не ціла, підказка її пропустить.
         val bounds = it.boundsInWindow()
         frames[tip] = Placed(
-            owner, Rect(it.positionInWindow(), size), bounds.width >= size.width - 1 && bounds.height >= size.height - 1, cornerRadius
+            owner,
+            Rect(it.positionInWindow(), size),
+            bounds.width >= size.width - 1 && bounds.height >= size.height - 1,
+            cornerRadius
         )
     }
 }
 
 /** Той самий файл, що й питання застосунку в `MainActivity`: усе «показано раз» лежить разом. */
 private const val PREFS = "prompts"
-private fun Context.seen(tip: CoachTip) = getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("tip.${tip.key}", false)
+private fun Context.seen(tip: CoachTip) =
+    getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("tip.${tip.key}", false)
+
 private fun Context.markSeen(tips: List<CoachTip>) =
-    getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { tips.forEach { putBoolean("tip.${it.key}", true) } }
+    getSharedPreferences(
+        PREFS,
+        Context.MODE_PRIVATE
+    ).edit { tips.forEach { putBoolean("tip.${it.key}", true) } }
 
 /**
  * Показує [tips] по черзі над екраном, поки [enabled]: за 1,2 с після появи, лише коли застосунок на
@@ -159,11 +167,21 @@ fun CoachMarks(tips: List<CoachTip>, enabled: Boolean, onFinish: () -> Unit = {}
     // Раз, коли тур пройдено, пропущено чи нема що показати: після нього можна ставити наступне питання.
     var finished by remember { mutableStateOf(false) }
     val onFinished by rememberUpdatedState(onFinish)
-    val finish = { if (!finished) { finished = true; onFinished() } }
+    val finish = {
+        if (!finished) {
+            finished = true; onFinished()
+        }
+    }
     LaunchedEffect(active) {
         if (!active || tour.isNotEmpty() || finished) return@LaunchedEffect
         delay(1_200)
-        tour = tips.filter { !context.seen(it) && visible(it, view.rootView.width, view.rootView.height) }
+        tour = tips.filter {
+            !context.seen(it) && visible(
+                it,
+                view.rootView.width,
+                view.rootView.height
+            )
+        }
         if (tour.isEmpty()) finish()
     }
     val next = next@{
@@ -174,7 +192,12 @@ fun CoachMarks(tips: List<CoachTip>, enabled: Boolean, onFinish: () -> Unit = {}
         app.tipAnswered(tip.key, if (step == tour.lastIndex) "done" else "next")
         // Ціль наступної могла зникнути, поки читали цю: пропускаємо, а не вказуємо в порожнечу.
         var following = step + 1
-        while (following < tour.size && !visible(tour[following], view.rootView.width, view.rootView.height)) following++
+        while (following < tour.size && !visible(
+                tour[following],
+                view.rootView.width,
+                view.rootView.height
+            )
+        ) following++
         if (following < tour.size) view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK) else finish()
         step = following
     }
@@ -209,20 +232,39 @@ private fun CoachOverlay(tour: List<CoachTip>, step: Int, next: () -> Unit, skip
     // Виріз на 6 dp ширший за ціль, тож і кут на 6 dp більший: краї лишаються паралельні.
     val corner = placed?.corner?.let { with(density) { (it + 6.dp).toPx() } } ?: (hole.height / 2)
     val reach = with(density) { 56.dp.toPx() }
-    val motion = if (reducedMotion) tween<Float>(250) else spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessLow)
+    val motion = if (reducedMotion) tween<Float>(250) else spring(
+        dampingRatio = 0.8f,
+        stiffness = Spring.StiffnessLow
+    )
     val spot by animateRectAsState(
         if (focused) hole else hole.inflate(reach),
-        if (reducedMotion) tween(250) else spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessLow),
+        if (reducedMotion) tween(250) else spring(
+            dampingRatio = 0.8f,
+            stiffness = Spring.StiffnessLow
+        ),
         label = "spotlight"
     )
-    val spotCorner by animateFloatAsState(if (focused) corner else corner + reach, motion, label = "corner")
+    val spotCorner by animateFloatAsState(
+        if (focused) corner else corner + reach,
+        motion,
+        label = "corner"
+    )
     val pulse by rememberInfiniteTransition(label = "ring").animateFloat(
-        0f, 1f, infiniteRepeatable(tween(1_500, easing = FastOutSlowInEasing), RepeatMode.Restart), label = "pulse"
+        0f,
+        1f,
+        infiniteRepeatable(tween(1_500, easing = FastOutSlowInEasing), RepeatMode.Restart),
+        label = "pulse"
     )
     val dim = Color.Black.copy(alpha = if (colors.dark) 0.62f else 0.45f)
-    BoxWithConstraints(Modifier.fillMaxSize().onGloballyPositioned { origin = it.positionInWindow() }) {
+    BoxWithConstraints(
+        Modifier
+            .fillMaxSize()
+            .onGloballyPositioned { origin = it.positionInWindow() }) {
         Canvas(
-            Modifier.fillMaxSize().pointerInput(Unit) { detectTapGestures { onNext() } }.clearAndSetSemantics { }
+            Modifier
+                .fillMaxSize()
+                .pointerInput(Unit) { detectTapGestures { onNext() } }
+                .clearAndSetSemantics { }
         ) {
             val cutout = Path().apply {
                 fillType = PathFillType.EvenOdd
@@ -246,26 +288,45 @@ private fun CoachOverlay(tour: List<CoachTip>, step: Int, next: () -> Unit, skip
             step,
             Modifier.fillMaxSize(),
             transitionSpec = {
-                (fadeIn(tween(220, delayMillis = 90)) + scaleIn(tween(220, delayMillis = 90), initialScale = 0.94f)) togetherWith
-                    fadeOut(tween(120)) using SizeTransform(clip = false)
+                (fadeIn(tween(220, delayMillis = 90)) + scaleIn(
+                    tween(220, delayMillis = 90),
+                    initialScale = 0.94f
+                )) togetherWith
+                        fadeOut(tween(120)) using SizeTransform(clip = false)
             },
             label = "tip"
         ) { shownStep ->
-            val shownHole = (frames[tour[shownStep]]?.rect ?: Rect.Zero).translate(-origin).inflate(with(density) { 6.dp.toPx() })
+            val shownHole = (frames[tour[shownStep]]?.rect ?: Rect.Zero).translate(-origin)
+                .inflate(with(density) { 6.dp.toPx() })
             val below = shownHole.center.y < constraints.maxHeight / 2
-            val x = shownHole.center.x.minus(width / 2).coerceIn(page, max(page, constraints.maxWidth - page - width))
+            val x = shownHole.center.x.minus(width / 2)
+                .coerceIn(page, max(page, constraints.maxWidth - page - width))
             // Стрілка навпроти центру цілі, але на прямому краї, а не на заокругленні кута картки.
             val corner = with(density) { 31.dp.toPx() }
             val arrowX = (shownHole.center.x - x).coerceIn(corner, width - corner)
             val gap = with(density) { 10.dp.toPx() }
-            val appear by animateFloatAsState(if (focused) 1f else 0f, spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow), label = "appear")
+            val appear by animateFloatAsState(
+                if (focused) 1f else 0f,
+                spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow),
+                label = "appear"
+            )
             CoachBubble(
-                tour[shownStep], shownStep, tour.size, with(density) { arrowX.toDp() }, below, next, skip,
+                tour[shownStep],
+                shownStep,
+                tour.size,
+                with(density) { arrowX.toDp() },
+                below,
+                next,
+                skip,
                 Modifier
                     .layout { measurable, _ ->
                         val placeable = measurable.measure(Constraints.fixedWidth(width.toInt()))
-                        val y = if (below) shownHole.bottom + gap else shownHole.top - gap - placeable.height
-                        layout(constraints.maxWidth, constraints.maxHeight) { placeable.place(x.toInt(), y.toInt()) }
+                        val y =
+                            if (below) shownHole.bottom + gap else shownHole.top - gap - placeable.height
+                        layout(
+                            constraints.maxWidth,
+                            constraints.maxHeight
+                        ) { placeable.place(x.toInt(), y.toInt()) }
                     }
                     .graphicsLayer {
                         val scale = if (reducedMotion) 1f else 0.9f + 0.1f * appear
@@ -290,25 +351,53 @@ private fun CoachBubble(
         if (below) Arrow(up = true, arrowX)
         Column(
             Modifier
-                .shadow(Elevation.overlay, Radius.md, clip = false, ambientColor = colors.shadowAmbient, spotColor = colors.shadowSpot)
+                .shadow(
+                    Elevation.overlay,
+                    Radius.md,
+                    clip = false,
+                    ambientColor = colors.shadowAmbient,
+                    spotColor = colors.shadowSpot
+                )
                 .background(colors.surfaceRaised, Radius.md)
                 .padding(Spacing.lg),
             verticalArrangement = Arrangement.spacedBy(Spacing.lg)
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                Text(stringResource(tip.title), style = PoruchType.serifTitle3, color = colors.ink, modifier = Modifier.semantics { heading() })
-                Text(stringResource(tip.body), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
+                Text(
+                    stringResource(tip.title),
+                    style = PoruchType.serifTitle3,
+                    color = colors.ink,
+                    modifier = Modifier.semantics { heading() })
+                Text(
+                    stringResource(tip.body),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colors.inkSecondary
+                )
             }
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
+            ) {
                 if (count > 1) Steps(index, count)
                 Spacer(Modifier.weight(1f))
-                if (!last) GhostButton(stringResource(R.string.onboarding_skip), skip, tone = colors.inkSecondary)
+                if (!last) GhostButton(
+                    stringResource(R.string.onboarding_skip),
+                    skip,
+                    tone = colors.inkSecondary
+                )
                 Box(
-                    Modifier.heightIn(min = 40.dp).background(colors.brand, Radius.pill).pressable(pressedScale = 0.95f, onClick = next)
+                    Modifier
+                        .heightIn(min = 40.dp)
+                        .background(colors.brand, Radius.pill)
+                        .pressable(pressedScale = 0.95f, onClick = next)
                         .padding(horizontal = Spacing.xl, vertical = Spacing.sm),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(stringResource(if (last) R.string.tip_done else R.string.next), style = MaterialTheme.typography.labelLarge, color = colors.onBrand)
+                    Text(
+                        stringResource(if (last) R.string.tip_done else R.string.next),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = colors.onBrand
+                    )
                 }
             }
         }
@@ -327,8 +416,12 @@ private fun Steps(index: Int, count: Int) {
     ) {
         repeat(count) { position ->
             Box(
-                Modifier.size(width = if (position == index) 16.dp else 6.dp, height = 6.dp)
-                    .background(if (position == index) colors.brand else colors.brandContainer, Radius.pill)
+                Modifier
+                    .size(width = if (position == index) 16.dp else 6.dp, height = 6.dp)
+                    .background(
+                        if (position == index) colors.brand else colors.brandContainer,
+                        Radius.pill
+                    )
             )
         }
     }
@@ -339,8 +432,13 @@ private fun Steps(index: Int, count: Int) {
 private fun Arrow(up: Boolean, x: Dp) {
     val fill = Poruch.colors.surfaceRaised
     Canvas(
-        Modifier.padding(start = x - 9.dp).width(18.dp).height(9.dp)
-            .graphicsLayer { translationY = (if (up) 1 else -1).dp.toPx(); rotationZ = if (up) 180f else 0f }
+        Modifier
+            .padding(start = x - 9.dp)
+            .width(18.dp)
+            .height(9.dp)
+            .graphicsLayer {
+                translationY = (if (up) 1 else -1).dp.toPx(); rotationZ = if (up) 180f else 0f
+            }
     ) {
         val path = Path().apply {
             moveTo(0f, 0f)
