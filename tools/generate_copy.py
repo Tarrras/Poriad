@@ -33,9 +33,11 @@ def ident(name: str) -> str:
 
 
 def unescape_android(value: str) -> str:
-    value = html.unescape(value)
-    value = value.replace("\\'", "'").replace('\\"', '"').replace("\\n", "\n").replace("\\@", "@")
-    return value.strip()
+    value = html.unescape(value).strip()
+    # Пробіли на краях Android зберігає лише в лапках («"з "» друкується як «з »), а лапки не друкує: так само тут.
+    if len(value) >= 2 and value[0] == '"' and value[-1] == '"' and value[-2] != "\\":
+        value = value[1:-1]
+    return value.replace("\\'", "'").replace('\\"', '"').replace("\\n", "\n").replace("\\@", "@")
 
 
 def swift_literal(value: str) -> str:

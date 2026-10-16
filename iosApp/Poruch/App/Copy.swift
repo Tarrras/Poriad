@@ -172,6 +172,7 @@ enum Copy {
     static let guest_empty = "Увійдіть, щоб бачити свої події"
     static let about_event = "Про подію"
     static let organizer_short = "Організатор"
+    static func hosted_by(_ a0: String) -> String { "Збирає \(a0)" }
     static let when_label = "Коли"
     static let `where` = "Де"
     static let capacity_label = "Місткість"
@@ -697,8 +698,8 @@ enum Copy {
     static func a11y_show_list(_ a0: String) -> String { "\(a0). Показати списком" }
     static func a11y_city(_ a0: String) -> String { "Місто \(a0)" }
     static func a11y_unread_chats(_ a0: String, _ a1: String) -> String { "\(a0), непрочитаних чатів: \(a1)" }
-    static let auth_consent_prefix = "Продовжуючи, ви погоджуєтесь з"
-    static let auth_consent_and = "та"
+    static let auth_consent_prefix = "Продовжуючи, ви погоджуєтесь з "
+    static let auth_consent_and = " та "
 
     // ---- Множини: `one` / `few` / `many` за українським правилом, число підставляється замість %d.
     static func series_more_dates(_ n: Int) -> String { ukrainianPlural(n, "ще \(n) дата", "ще \(n) дати", "ще \(n) дат") }

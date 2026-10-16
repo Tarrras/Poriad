@@ -199,6 +199,7 @@
   <string name="guest_empty">Увійдіть, щоб бачити свої події</string>
   <string name="about_event">Про подію</string>
   <string name="organizer_short">Організатор</string>
+  <string name="hosted_by">Збирає %1$s</string>
   <string name="when_label">Коли</string>
   <string name="where">Де</string>
   <string name="capacity_label">Місткість</string>
@@ -846,6 +847,6 @@
     <item quantity="other">%1$d нових повідомлення</item>
   </plurals>
   <string name="a11y_unread_chats">%1$s, непрочитаних чатів: %2$d</string>
-  <string name="auth_consent_prefix">Продовжуючи, ви погоджуєтесь з </string>
-  <string name="auth_consent_and"> та </string>
+  <string name="auth_consent_prefix">"Продовжуючи, ви погоджуєтесь з "</string>
+  <string name="auth_consent_and">" та "</string>
 </resources>
