@@ -9,15 +9,19 @@ struct CachedImage: View {
     let url: URL
     /// Найбільша сторона показу в pt. Пікселі рахуються з масштабу екрана.
     let maxDimension: CGFloat
+    /// `scaledToFill` у велику рамку: `maxDimension` — найкоротша сторона, а не найдовша. Інакше горизонтальне фото
+    /// в обкладинці 480 pt заввишки розпаковувалось на 270 pt і розтягувалось у 1.8 раза.
+    var fill = false
 
     @Environment(\.displayScale) private var displayScale
     @State private var image: UIImage?
 
-    init(url: URL, maxDimension: CGFloat) {
+    init(url: URL, maxDimension: CGFloat, fill: Bool = false) {
         self.url = url
         self.maxDimension = maxDimension
+        self.fill = fill
         // Готове зображення беремо до першого кадру, щоб повернення до картки не блимало.
-        _image = State(initialValue: ThumbnailCache.shared.image(for: ThumbnailCache.key(url, maxDimension)))
+        _image = State(initialValue: ThumbnailCache.shared.image(for: ThumbnailCache.key(url, maxDimension, fill: fill)))
     }
 
     var body: some View {
@@ -33,7 +37,7 @@ struct CachedImage: View {
     }
 
     private func load() async {
-        let key = ThumbnailCache.key(url, maxDimension)
+        let key = ThumbnailCache.key(url, maxDimension, fill: fill)
         if let cached = ThumbnailCache.shared.image(for: key) {
             if image !== cached { image = cached }
             return
@@ -41,7 +45,8 @@ struct CachedImage: View {
         let pixels = maxDimension * displayScale
         guard let data = try? await URLSession.shared.data(from: url).0, !Task.isCancelled else { return }
         // Розпакування поза головним потоком: воно коштує кадри.
-        let rendered = await Task.detached(priority: .utility) { ThumbnailCache.downsample(data, to: pixels) }.value
+        let fill = fill
+        let rendered = await Task.detached(priority: .utility) { ThumbnailCache.downsample(data, to: pixels, fill: fill) }.value
         guard let rendered, !Task.isCancelled else { return }
         ThumbnailCache.shared.store(rendered, for: key)
         image = rendered
@@ -58,8 +63,8 @@ final class ThumbnailCache {
         memory.totalCostLimit = 64 * 1024 * 1024
     }
 
-    static func key(_ url: URL, _ maxDimension: CGFloat) -> NSString {
-        "\(url.absoluteString)|\(Int(maxDimension))" as NSString
+    static func key(_ url: URL, _ maxDimension: CGFloat, fill: Bool = false) -> NSString {
+        "\(url.absoluteString)|\(Int(maxDimension))\(fill ? "f" : "")" as NSString
     }
 
     func image(for key: NSString) -> UIImage? { memory.object(forKey: key) }
@@ -70,9 +75,16 @@ final class ThumbnailCache {
     }
 
     /// Читає одразу в потрібний розмір. `kCGImageSourceShouldCache: false` не дає ImageIO тримати повнорозмірну копію.
-    static func downsample(_ data: Data, to maxPixel: CGFloat) -> UIImage? {
+    /// `fill`: `maxPixel` — найкоротша сторона; найдовшу рахуємо з пропорцій, не більше за оригінал.
+    static func downsample(_ data: Data, to maxPixel: CGFloat, fill: Bool = false) -> UIImage? {
         let sourceOptions = [kCGImageSourceShouldCache: false] as CFDictionary
         guard let source = CGImageSourceCreateWithData(data as CFData, sourceOptions) else { return nil }
+        var maxPixel = maxPixel
+        if fill, let props = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+           let width = props[kCGImagePropertyPixelWidth] as? CGFloat, let height = props[kCGImagePropertyPixelHeight] as? CGFloat,
+           min(width, height) > 0 {
+            maxPixel = min(max(width, height), maxPixel * max(width, height) / min(width, height))
+        }
         let options = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
             kCGImageSourceCreateThumbnailWithTransform: true,

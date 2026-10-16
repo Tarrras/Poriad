@@ -301,7 +301,8 @@ struct DiscoveryView: View, Equatable {
     }
 
     /// Згорнута шторка: рядок лічильника, карусель і місце під таббар.
-    private var peekHeight: CGFloat { 44 + deckGap + Space.sm + mapCardHeight + tabBarInset }
+    @ScaledMetric(relativeTo: .body) private var cardHeight = mapCardHeight
+    private var peekHeight: CGFloat { 44 + deckGap + Space.sm + scaledMapCardHeight(cardHeight) + tabBarInset }
 
     /// Ручка шторки: тягнеться і натискається, тож список доступний і для VoiceOver.
     private var sheetHandle: some View {
@@ -493,7 +494,7 @@ struct DiscoveryView: View, Equatable {
 
     private var quietCard: some View {
         VStack(alignment: .leading, spacing: Space.sm) {
-            Text(Copy.nothing_here).font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
+            Text(Copy.nothing_here).font(PoruchFont.brandTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
             Text(Copy.nothing_here_hint)
                 .font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
         }
@@ -622,7 +623,7 @@ struct FiltersView: View {
     /// Заголовок шторки — заголовок, а не надрядок, інакше він менший за секції під ним.
     private var header: some View {
         HStack(alignment: .firstTextBaseline) {
-            Text(Copy.filters).font(PoruchFont.serifTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
+            Text(Copy.filters).font(PoruchFont.brandTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
             Spacer(minLength: Space.sm)
             Button(Copy.reset_filters) {
                 date = DateFilter.any

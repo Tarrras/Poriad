@@ -16,20 +16,22 @@ extension EventDetailView {
             // Низ обкладинки на `Corner.xl` ховається під аркушем секцій.
             .frame(height: max(heroHeight - topInset - Corner.xl, 0)).frame(maxWidth: .infinity)
             // Назва лежить на затемненні обкладинки, як на великій картці головної: одна сцена, а не фото з підписом.
+            // Текст їде зі стрічкою, а смуга статусу з'являється лише з аркушем: назва гасне, поки не дійшла до годинника.
             .overlay(alignment: .bottomLeading) {
-                VStack(alignment: .leading, spacing: Space.md) {
-                    badges(event, view)
-                    VStack(alignment: .leading, spacing: Space.sm) {
-                        // Відлік лише для сьогоднішнього, як на картці плану головної.
-                        Text(heroOverline(event)).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.accentOnPhoto)
-                            .lineLimit(2)
-                        Text(event.displayTitle).font(PoruchFont.serifDisplay).kerning(-0.5).foregroundStyle(.white)
-                            .fixedSize(horizontal: false, vertical: true)
+                HeroTextFade(scroll: scroll) {
+                    VStack(alignment: .leading, spacing: Space.md) {
+                        if let stamp = coverState(event, view) {
+                            TicketStamp(text: stamp.0, tone: stamp.1, glyph: stamp.2, onFill: true)
+                        }
+                        VStack(alignment: .leading, spacing: Space.sm) {
+                            // Дата й час — на корінці квитка внизу екрана, тож над назвою їх не повторюємо.
+                            Text(event.displayTitle).font(PoruchFont.brandDisplay).kerning(-0.5).foregroundStyle(.white)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Text(coverMeta(event, view)).font(PoruchFont.subhead).foregroundStyle(.white.opacity(0.8)).lineLimit(1)
+                        }
                     }
+                    .padding(.horizontal, Space.page).padding(.bottom, Space.xl)
                 }
-                .padding(.horizontal, Space.page).padding(.bottom, Space.xl)
-                // Текст їде зі стрічкою, а смуга статусу з'являється лише з аркушем: назва гасне, поки не дійшла до годинника.
-                .opacity(heroTextOpacity(cancelled: view.cancelled))
             }
             .overlay(alignment: .top) {
                 HStack(spacing: Space.sm) {
@@ -43,32 +45,28 @@ extension EventDetailView {
             }
     }
 
-    func heroTextOpacity(cancelled: Bool) -> Double {
-        let scrolled = min(max(1 - (-offset - heroTextFadeFrom) / heroTextFade, 0), 1)
-        return (cancelled ? 0.7 : 1) * scrolled
+    /// Стан квитка — штампом над назвою, лише коли з ним щось сталось (як на квитках стрічки). Жанр і джерело афіші —
+    /// тихим рядком під назвою (`coverMeta`): пігулки були окремою мовою міток, а жанр ще й надрукований на корінці панелі.
+    func coverState(_ event: Event, _ view: DetailScreenState) -> (String, BadgeTone, PoruchGlyph?)? {
+        if view.cancelled { return (Copy.cancelled_short, .danger, nil) }
+        if view.listing != nil { return nil }
+        if view.organizer { return (Copy.you_organize, .neutral, nil) }
+        // Після кінця лишається лише факт участі: черга й місця вже нічого не значать.
+        if view.ended { return view.room?.joined == true ? (Copy.went, .neutral, PoruchIcons.check) : nil }
+        if view.room?.joined == true { return (Copy.going, .success, PoruchIcons.check) }
+        if view.waitlisted { return (Copy.in_queue, .accent, PoruchIcons.queue) }
+        if view.room?.awaitingApproval == true { return (Copy.request_pending, .accent, PoruchIcons.queue) }
+        if eventScarce(event), let room = view.room { return (Copy.seats_left("\(room.seatsLeft)"), .accent, nil) }
+        return nil
     }
 
-    func heroOverline(_ event: Event) -> String {
-        parseEventDate(event.startsAt).map(Calendar.current.isDateInToday) == true ? countdownOverline(event) : cardOverline(event)
-    }
-
-    /// Категорія і стан: на обкладинці, тому в стилі «на фото».
-    func badges(_ event: Event, _ view: DetailScreenState) -> some View {
-        HStack(spacing: Space.sm) {
-            StatusBadge(text: categoryName(event.category), tone: .brand, onPhoto: true)
-            if view.cancelled { StatusBadge(text: Copy.cancelled_short, tone: .danger, onPhoto: true) }
-            // Афіша завжди підписана джерелом: атрибуція обов'язкова.
-            else if let listing = view.listing {
-                StatusBadge(text: listing.isWithdrawn ? Copy.listing_withdrawn : Copy.listing_badge("\(listing.sourceName)"), tone: .neutral, onPhoto: true)
-            }
-            else if view.organizer { StatusBadge(text: Copy.you_organize, tone: .neutral, onPhoto: true) }
-            // Після кінця лишається лише факт участі: черга й місця вже нічого не значать.
-            else if view.ended { if view.room?.joined == true { StatusBadge(text: Copy.went, tone: .neutral, glyph: PoruchIcons.check, onPhoto: true) } }
-            else if view.room?.joined == true { StatusBadge(text: Copy.going, tone: .success, glyph: PoruchIcons.check, onPhoto: true) }
-            else if view.waitlisted { StatusBadge(text: Copy.in_queue, tone: .accent, glyph: PoruchIcons.queue, onPhoto: true) }
-            else if view.room?.awaitingApproval == true { StatusBadge(text: Copy.request_pending, tone: .accent, glyph: PoruchIcons.queue, onPhoto: true) }
-            else if eventScarce(event), let room = view.room { StatusBadge(text: Copy.seats_left("\(room.seatsLeft)"), tone: .accent, onPhoto: true) }
+    /// «Стендап · Афіша · Badseller»: афіша завжди підписана джерелом — атрибуція обов'язкова.
+    func coverMeta(_ event: Event, _ view: DetailScreenState) -> String {
+        var parts = [categoryName(event.category)]
+        if let listing = view.listing {
+            parts.append(listing.isWithdrawn ? Copy.listing_withdrawn : Copy.listing_badge("\(listing.sourceName)"))
         }
+        return parts.filter { !$0.isEmpty }.joined(separator: " · ")
     }
 
     /// Для кого подія, на картці, а не через відмову сервера.
@@ -379,7 +377,7 @@ extension EventDetailView {
         return VStack(alignment: .leading, spacing: Space.sm) {
             Button { withMotion { showOthersHere.toggle() } } label: {
                 HStack(spacing: Space.sm) {
-                    Text(placeName.map { Copy.others_here_at("\($0)") } ?? Copy.others_here).font(PoruchFont.serifTitle2).kerning(-0.2)
+                    Text(placeName.map { Copy.others_here_at("\($0)") } ?? Copy.others_here).font(PoruchFont.brandTitle2).kerning(-0.2)
                         .foregroundStyle(Palette.ink).multilineTextAlignment(.leading)
                     Spacer(minLength: Space.sm)
                     Text("\(othersHere.count)").font(PoruchFont.label).foregroundStyle(Palette.inkSecondary).monospacedDigit()
@@ -403,7 +401,7 @@ extension EventDetailView {
                         HStack(spacing: Space.md) {
                             VStack(alignment: .leading, spacing: Space.xs) {
                                 Text("\(label.day) · \(label.hour)").font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
-                                Text(TitleRules.shared.display(title: other.title)).font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
+                                Text(TitleRules.shared.display(title: other.title)).font(PoruchFont.brandTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
                                     .multilineTextAlignment(.leading).lineLimit(2)
                             }
                             Spacer(minLength: 0)
@@ -433,7 +431,7 @@ extension EventDetailView {
                     }
                     .foregroundStyle(Palette.ink)
                     .padding(.horizontal, Space.xxl).frame(height: 52).frame(maxWidth: .infinity)
-                    .background(Palette.brandContainer, in: Capsule())
+                    .background(Palette.brandContainer, in: buttonShape)
                 }
                 .buttonStyle(PressableStyle())
                 Text(Copy.chat_open_hint)
@@ -464,12 +462,17 @@ extension EventDetailView {
                         }.contentShape(Rectangle())
                     }.buttonStyle(.plain).accessibilityLabel(Copy.person_open("\(person.name)"))
                     Spacer(minLength: 0)
-                    Button(Copy.decline) { model.app.declineMember(eventId: event.id, userId: person.userId) }
-                        .font(PoruchFont.button).foregroundStyle(Palette.inkSecondary).lineLimit(1).fixedSize()
-                    Button(Copy.approve) { model.app.approveMember(eventId: event.id, userId: person.userId) }
-                        .font(PoruchFont.button).foregroundStyle(Palette.onBrand).lineLimit(1).fixedSize()
-                        .padding(.horizontal, Space.lg).frame(height: 40)
-                        .background(Palette.brand, in: Capsule())
+                    // Поля й тло — у мітці: поза міткою SwiftUI зараховує до дотику лише саме слово.
+                    Button { model.app.declineMember(eventId: event.id, userId: person.userId) } label: {
+                        Text(Copy.decline).font(PoruchFont.button).foregroundStyle(Palette.inkSecondary).lineLimit(1).fixedSize()
+                            .tapTarget()
+                    }.buttonStyle(.plain)
+                    Button { model.app.approveMember(eventId: event.id, userId: person.userId) } label: {
+                        Text(Copy.approve).font(PoruchFont.button).foregroundStyle(Palette.onBrand).lineLimit(1).fixedSize()
+                            .padding(.horizontal, Space.lg).frame(height: 40)
+                            .background(Palette.brand, in: buttonShape)
+                            .tapTarget()
+                    }.buttonStyle(PressableStyle())
                 }.padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()
             }
         }
@@ -480,10 +483,10 @@ extension EventDetailView {
         VStack(alignment: .leading, spacing: Space.md) {
             Divider().overlay(Palette.hairline)
             HStack(spacing: Space.lg) {
-                Button(Copy.chat_report) { if view.signedIn { reporting = .event } else { auth = true } }
+                Button { if view.signedIn { reporting = .event } else { auth = true } } label: { Text(Copy.chat_report).tapTarget() }
                 // Блокувати нема кого без людини; скарга на афішу лишається.
                 if view.event?.organizerId != nil {
-                    Button(Copy.block_user) { if view.signedIn { blocking = true } else { auth = true } }
+                    Button { if view.signedIn { blocking = true } else { auth = true } } label: { Text(Copy.block_user).tapTarget() }
                 }
                 Spacer(minLength: 0)
             }.font(PoruchFont.button).foregroundStyle(Palette.inkSecondary)
@@ -499,7 +502,7 @@ extension EventDetailView {
                     Label(Copy.add_photo, systemImage: "camera")
                         .font(PoruchFont.subhead.weight(.semibold)).foregroundStyle(Palette.ink)
                         .frame(maxWidth: .infinity).frame(minHeight: 52)
-                        .background(Palette.brandContainer, in: Capsule())
+                        .background(Palette.brandContainer, in: buttonShape)
                 }.disabled(view.mutating)
             }
             if let error = actions.photoError {
@@ -512,33 +515,39 @@ extension EventDetailView {
         }
     }
 
+    /// Панель дії — квиток у руці: місця чи ціна й дії на поверхні, а корінець із часом, днем і кольором жанру — справа.
+    /// Дата на екрані одна, тут; обкладинка її не повторює.
     func stickyBar(_ event: Event, _ view: DetailScreenState) -> some View {
-        VStack(spacing: Space.md) {
-            HStack(spacing: Space.md) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(eventOverline(event)).font(PoruchFont.overline).kerning(1.2)
-                        .foregroundStyle(Palette.inkTertiary).lineLimit(1)
-                    Text(view.seatsSummary).font(PoruchFont.subhead)
-                        .foregroundStyle(view.cancelled ? Palette.danger : Palette.inkSecondary).lineLimit(2)
+        Ticket(stubColor: ticketStub(event), stubLength: 84, radius: Corner.xl, surface: Palette.surfaceRaised) {
+            VStack(alignment: .leading, spacing: Space.md) {
+                if view.canSeekCompany {
+                    // Афіша: ціна й квиток в один рядок — квиток купують на чужому сайті, тож він другорядний.
+                    HStack(spacing: Space.md) {
+                        summary(view)
+                        Spacer(minLength: 0)
+                        if view.action != .none { secondaryAction(event, view).fixedSize(horizontal: true, vertical: false) }
+                    }
+                } else {
+                    // Зустріч: пояснення («Організатор підтверджує кожного», «Лишилось 2 місця») — окремим рядком на всю
+                    // ширину, а дія під ним. Поруч із кнопкою воно обрізалось саме в момент рішення.
+                    summary(view)
+                    // Кнопки може не бути: у знятої афіші й афіші без посилання нема куди вести.
+                    if view.action != .none { primaryAction(event, view) }
                 }
-                Spacer(minLength: 0)
-                // Кнопки може не бути: у знятої афіші й афіші без посилання нема куди вести.
-                if view.action != .none {
-                    primaryAction(event, view).fixedSize(horizontal: true, vertical: false)
+                // Серце продукту — люди: на афіші головна дія — «Шукаю компанію», на всю ширину під ціною й квитком.
+                if view.canSeekCompany {
+                    PrimaryButton(title: Copy.companion_seek, glyph: PoruchIcons.social, enabled: !view.mutating) {
+                        if view.signedIn { seekingCompany = true } else { auth = true }
+                    }
+                    .coachTarget(.companion)
                 }
             }
-            // «Шукаю компанію» під квитком на всю ширину: поруч із ціною й квитком не влазить.
-            if view.canSeekCompany {
-                SecondaryButton(title: Copy.companion_seek, glyph: PoruchIcons.social, enabled: !view.mutating) {
-                    if view.signedIn { seekingCompany = true } else { auth = true }
-                }
-                .coachTarget(.companion)
-            }
+            .padding(.horizontal, Space.lg).padding(.vertical, Space.md)
+        } stub: {
+            StubTime(event: event)
         }
-        // Плаває над сторінкою: дія під пальцем, а не смуга на всю ширину. Суцільна картка, а не скло:
-        // скло над світлим полотном зливалось із ним, а «Шукаю компанію» всередині — зі склом.
-        .padding(.horizontal, Space.lg).padding(.vertical, Space.md)
-        .cardSurface(radius: Corner.xl, elevation: Elevation.overlay)
+        // Плаває над сторінкою: дія під пальцем, а не смуга на всю ширину.
+        .lifted(Elevation.overlay)
         .padding(.horizontal, Space.md)
     }
 }
@@ -547,10 +556,23 @@ extension EventDetailView {
     func primaryAction(_ event: Event, _ view: DetailScreenState) -> some View {
         PrimaryButton(
             title: view.action.title,
-            tone: view.action == .leave ? Palette.success : view.action == .leaveWaitlist ? Palette.accent : nil,
+            tone: view.action == .leave ? Palette.success : view.action == .leaveWaitlist ? Palette.accentText : nil,
             loading: view.mutating,
             enabled: view.action.isEnabled && !view.mutating
         ) {
+            if !actions.perform(view.action, on: event, signedIn: view.signedIn) { auth = true }
+        }
+    }
+
+    private func summary(_ view: DetailScreenState) -> some View {
+        Text(view.seatsSummary).font(PoruchFont.subhead)
+            .foregroundStyle(view.cancelled ? Palette.danger : Palette.inkSecondary)
+            .lineLimit(3).fixedSize(horizontal: false, vertical: true)
+    }
+
+    /// Та сама дія, що `primaryAction`, тихішою кнопкою: квиток поруч із «Шукаю компанію».
+    func secondaryAction(_ event: Event, _ view: DetailScreenState) -> some View {
+        SecondaryButton(title: view.action.title, enabled: view.action.isEnabled && !view.mutating) {
             if !actions.perform(view.action, on: event, signedIn: view.signedIn) { auth = true }
         }
     }

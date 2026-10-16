@@ -8,7 +8,7 @@ struct ProfileSummary: View {
     var body: some View {
         VStack(spacing: Space.sm) {
             Avatar(name: profile.name, url: profile.avatarUrl, size: 88)
-            Text(profile.name).font(PoruchFont.serifTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
+            Text(profile.name).font(PoruchFont.brandTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
                 .multilineTextAlignment(.center)
             if let email = profile.email {
                 Text(email).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
@@ -93,7 +93,7 @@ struct PersonSheet: View {
                         if FollowRules.shared.canFollowOrganizer(profile: profile, isMe: isMe) { follow(profile) }
                     } else {
                         VStack(spacing: Space.sm) {
-                            Text(Copy.person_unavailable).font(PoruchFont.serifTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
+                            Text(Copy.person_unavailable).font(PoruchFont.brandTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
                             Text(Copy.person_unavailable_hint)
                                 .font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary).multilineTextAlignment(.center)
                         }.frame(maxWidth: .infinity)
@@ -174,7 +174,7 @@ struct EditProfileSheet: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Space.lg) {
-                Text(Copy.profile_edit).font(PoruchFont.serifTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
+                Text(Copy.profile_edit).font(PoruchFont.brandTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
                 HStack(spacing: Space.lg) {
                     ZStack {
                         Avatar(name: name, url: avatarUrl, size: 72)

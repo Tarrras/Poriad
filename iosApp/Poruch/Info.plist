@@ -57,7 +57,9 @@
 	<string>$(SUPABASE_URL)</string>
 	<key>UIAppFonts</key>
 	<array>
-		<string>SourceSerif4.ttf</string>
+		<string>SofiaSansCondensed-Bold.ttf</string>
+		<string>SofiaSansCondensed-ExtraBold.ttf</string>
+		<string>SofiaSansExtraCondensed-ExtraBold.ttf</string>
 	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>

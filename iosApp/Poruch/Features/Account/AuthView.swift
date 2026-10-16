@@ -67,7 +67,7 @@ struct AuthView: View {
                 .decorative()
             Text(confirming ? Copy.auth_check_email_title : resetting ? Copy.auth_reset_title : askingBirthDate ? Copy.auth_birth_date_title
                  : form.register ? Copy.auth_create : Copy.auth_welcome)
-                .font(PoruchFont.serifTitle1).kerning(-0.4).foregroundStyle(Palette.ink).multilineTextAlignment(.center)
+                .font(PoruchFont.brandTitle1).kerning(-0.4).foregroundStyle(Palette.ink).multilineTextAlignment(.center)
             Text(confirming
                  ? Copy.auth_check_email_subtitle
                  : resetting
@@ -147,7 +147,7 @@ struct AuthView: View {
                 }
             }
             .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
-            .frame(height: 52).clipShape(Capsule())
+            .frame(height: 52).clipShape(buttonShape)
             .disabled(model.state?.mutating == true)
             if SocialSignIn.googleAvailable {
                 Button { signInWithGoogle() } label: {
@@ -156,8 +156,8 @@ struct AuthView: View {
                         Text(Copy.continue_with_google).font(PoruchFont.button).foregroundStyle(Palette.ink)
                     }
                     .frame(maxWidth: .infinity).frame(height: 52)
-                    .background(Palette.surface, in: Capsule())
-                    .overlay(Capsule().stroke(Palette.hairline, lineWidth: 1))
+                    .background(Palette.surface, in: buttonShape)
+                    .overlay(buttonShape.stroke(Palette.hairline, lineWidth: 1))
                 }
                 .buttonStyle(PressableStyle())
                 .disabled(model.state?.mutating == true)

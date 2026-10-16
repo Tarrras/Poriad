@@ -15,6 +15,7 @@ struct MyEventsView: View, Equatable {
     var openChat: (String) -> Void
     @State private var tab = MyEventsTab.going
     @State private var creating = false
+    @State private var auth = false
     @State private var allPast = false
     /// Подія, яку оцінюють у шторці. Маршрут, бо `sheet(item:)` потребує identity.
     @State private var rating: EventRoute?
@@ -43,6 +44,7 @@ struct MyEventsView: View, Equatable {
         .toolbar(.hidden, for: .navigationBar)
         .onChange(of: tab) { _, _ in allPast = false }
         .sheet(isPresented: $creating) { EventEditor(event: nil, app: model.app, home: model.state) }
+        .sheet(isPresented: $auth) { NavigationStack { AuthView() } }
         .sheet(item: $rating) { route in
             if let event = view.myEvents.first(where: { $0.id == route.id }) {
                 RateSheet(event: event, mine: view.myScore(id: event.id).map {
@@ -57,9 +59,11 @@ struct MyEventsView: View, Equatable {
     private func header(_ board: MyEventsBoard?) -> some View {
         VStack(alignment: .leading, spacing: Space.lg) {
             VStack(alignment: .leading, spacing: Space.xs) {
-                Text(Copy.my_events).font(PoruchFont.serifDisplay).kerning(-0.5).foregroundStyle(Palette.ink)
-                Text(signedIn ? subtitle(board) : Copy.guest_empty)
-                    .font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
+                Text(Copy.my_events).font(PoruchFont.brandDisplay).kerning(-0.5).foregroundStyle(Palette.ink)
+                // Гостю підзаголовка нема: те саме каже порожній стан нижче.
+                if signedIn {
+                    Text(subtitle(board)).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, Space.page)
@@ -120,8 +124,8 @@ struct MyEventsView: View, Equatable {
     @ViewBuilder private func content(_ board: MyEventsBoard?) -> some View {
         if !signedIn {
             EmptyState(
-                glyph: PoruchIcons.lock, title: Copy.guest_empty,
-                message: Copy.guest_description
+                glyph: PoruchIcons.ticket, title: Copy.guest_empty,
+                message: Copy.guest_description, actionLabel: Copy.login, action: { auth = true }
             )
             Spacer()
         } else if let board, !board.isEmpty(tab: tab) {
@@ -236,7 +240,7 @@ struct MyEventsView: View, Equatable {
                 Button { rating = EventRoute(id: event.id) } label: {
                     // Без гліфа: з ним кнопка забирала пів рядка, і назва з місцем обрізались.
                     Text(Copy.rate_action).font(PoruchFont.label).foregroundStyle(Palette.onBrand)
-                        .padding(.horizontal, Space.md).frame(height: 36).background(Palette.brand, in: Capsule())
+                        .padding(.horizontal, Space.md).frame(height: 36).background(Palette.brand, in: buttonShape)
                         .frame(minHeight: 44)
                 }.buttonStyle(PressableStyle()).fixedSize()
             }
@@ -272,7 +276,7 @@ private struct CardButton: View {
             }
             .foregroundStyle(Palette.ink)
             .padding(.horizontal, Space.md).frame(height: 48).frame(maxWidth: .infinity)
-            .background(Palette.brandContainer, in: Capsule())
+            .background(Palette.brandContainer, in: buttonShape)
         }
         .buttonStyle(PressableStyle())
     }
@@ -293,10 +297,12 @@ private struct GoingHero: View {
                         .frame(width: 60, height: 60)
                         .clipShape(RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
                     VStack(alignment: .leading, spacing: Space.xs) {
-                        Text(countdownOverline(event)).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.accent)
-                        Text(event.displayTitle).font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
+                        Text(countdownOverline(event)).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.accentText)
+                        Text(event.displayTitle).font(PoruchFont.brandTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
                             .multilineTextAlignment(.leading).lineLimit(2)
-                        if let badge = eventBadge(event), event.gathering?.joined != true {
+                        if event.isCancelled {
+                            TicketStamp(text: Copy.cancelled_short, tone: .danger)
+                        } else if let badge = eventBadge(event), event.gathering?.joined != true {
                             StatusBadge(text: badge.0, tone: badge.1, glyph: badge.2)
                         } else { EventDescriptor(event: event) }
                     }
@@ -312,7 +318,6 @@ private struct GoingHero: View {
             }
         }
         .padding(Space.lg).cardSurface()
-        .opacity(event.isCancelled ? 0.6 : 1)
     }
 }
 
@@ -333,10 +338,10 @@ private struct OrganizerPanel: View {
                         .frame(width: 60, height: 60)
                         .clipShape(RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
                     VStack(alignment: .leading, spacing: Space.xs) {
-                        Text(countdownOverline(event)).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.accent)
-                        Text(event.displayTitle).font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
+                        Text(countdownOverline(event)).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.accentText)
+                        Text(event.displayTitle).font(PoruchFont.brandTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
                             .multilineTextAlignment(.leading).lineLimit(2)
-                        if event.isCancelled { StatusBadge(text: Copy.cancelled_short, tone: .danger) } else { EventDescriptor(event: event) }
+                        if event.isCancelled { TicketStamp(text: Copy.cancelled_short, tone: .danger) } else { EventDescriptor(event: event) }
                     }
                     Spacer(minLength: 0)
                 }.contentShape(Rectangle())
@@ -377,12 +382,15 @@ private struct OrganizerPanel: View {
             Spacer(minLength: 0)
             Button { model.app.declineMember(eventId: event.id, userId: request.userId) } label: {
                 PoruchIcon(glyph: PoruchIcons.close, size: 16).foregroundStyle(Palette.ink)
-                    .frame(width: 40, height: 40).background(Palette.surface, in: Circle())
+                    .frame(width: 40, height: 40).background(Palette.surface, in: Circle()).tapTarget()
             }.buttonStyle(PressableStyle()).accessibilityLabel(Copy.decline_request_a11y("\(request.name)"))
-            Button(Copy.approve) { model.app.approveMember(eventId: event.id, userId: request.userId) }
-                .font(PoruchFont.button).foregroundStyle(Palette.onBrand).lineLimit(1).fixedSize()
-                .padding(.horizontal, Space.lg).frame(height: 40)
-                .background(Palette.brand, in: Capsule())
+            // Поля й тло — у мітці: поза міткою SwiftUI зараховує до дотику лише саме слово.
+            Button { model.app.approveMember(eventId: event.id, userId: request.userId) } label: {
+                Text(Copy.approve).font(PoruchFont.button).foregroundStyle(Palette.onBrand).lineLimit(1).fixedSize()
+                    .padding(.horizontal, Space.lg).frame(height: 40)
+                    .background(Palette.brand, in: buttonShape)
+                    .tapTarget()
+            }.buttonStyle(PressableStyle())
         }
         .disabled(model.state?.mutating == true)
         .padding(Space.md)

@@ -17,7 +17,7 @@ struct NewPasswordView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Space.xxl) {
                 VStack(alignment: .leading, spacing: Space.md) {
-                    Text(Copy.new_password).font(PoruchFont.serifTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
+                    Text(Copy.new_password).font(PoruchFont.brandTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
                     Text(Copy.new_password_subtitle)
                         .font(PoruchFont.bodyText).foregroundStyle(Palette.inkSecondary)
                 }

@@ -249,7 +249,7 @@ private struct CoachBubble: View {
     private var card: some View {
         VStack(alignment: .leading, spacing: Space.lg) {
             VStack(alignment: .leading, spacing: Space.xs) {
-                Text(tip.title).font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
+                Text(tip.title).font(PoruchFont.brandTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
                     .accessibilityAddTraits(.isHeader)
                 Text(tip.body).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
                     .fixedSize(horizontal: false, vertical: true)

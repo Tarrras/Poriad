@@ -23,7 +23,7 @@ struct EventEditor: View {
                     VStack(alignment: .leading, spacing: Space.lg) {
                         // Кожен крок — одне питання великим заголовком, як в онбордингу.
                         VStack(alignment: .leading, spacing: Space.xs) {
-                            Text(editor.step.headline).font(PoruchFont.serifDisplay).kerning(-0.5).foregroundStyle(Palette.ink)
+                            Text(editor.step.headline).font(PoruchFont.brandDisplay).kerning(-0.5).foregroundStyle(Palette.ink)
                             Text(editor.step.hint).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
                         }.padding(.bottom, Space.xs)
                         switch editor.step {
@@ -287,7 +287,7 @@ private struct ScheduleStep: View {
         VStack(alignment: .leading, spacing: Space.sm) {
             Text(categoryName(form.category).uppercased()).font(PoruchFont.overline)
                 .foregroundStyle(categoryInk(form.category))
-            Text(form.title.trimmingCharacters(in: .whitespaces).isEmpty ? Copy.title : TitleRules.shared.display(title: form.title.trimmingCharacters(in: .whitespaces))).font(PoruchFont.serifTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
+            Text(form.title.trimmingCharacters(in: .whitespaces).isEmpty ? Copy.title : TitleRules.shared.display(title: form.title.trimmingCharacters(in: .whitespaces))).font(PoruchFont.brandTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
             MetaLine(glyph: PoruchIcons.pin, text: "\(form.city) · \(form.address)")
             MetaLine(glyph: PoruchIcons.social, text: Copy.seats_short(form.capacity))
         }.padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()

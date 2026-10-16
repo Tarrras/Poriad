@@ -26,8 +26,9 @@ struct EventDetailView: View, Equatable {
     /// Попередження перед виходом у чужий чат: спершу кажемо, куди й хто це додав.
     @State var openingContact = false
     @State var photo: PhotosPickerItem?
-    /// Зміщення стрічки, за яким їде обкладинка. Див. `reportsScrollOffset`.
-    @State var offset: CGFloat = 0
+    /// Зміщення стрічки, за яким їде обкладинка. Див. `reportsScrollOffset`. Класом, а не `@State CGFloat`: його
+    /// читають лише обкладинка, смуга статусу й згасання назви, тож на кадр прокрутки перераховуються вони, а не весь екран.
+    @State var scroll = DetailScroll()
     /// Верхній відступ safe area саме цієї стрічки. У стосі це смуга статусу, у шторці — майже
     /// нуль; число з вікна (`measuredStatusBarInset`) у шторці завищене на висоту смуги, і
     /// обкладинка стирчала з-під місця, відведеного їй у стрічці. Початкове значення — для
@@ -115,7 +116,9 @@ struct EventDetailView: View, Equatable {
                         .background(Palette.canvas, in: UnevenRoundedRectangle(
                             topLeadingRadius: Corner.xl, topTrailingRadius: Corner.xl, style: .continuous))
                 }
-                .reportsScrollOffset(in: detailScrollSpace, to: $offset)
+                // Пише напряму в `scroll`, без `Binding(get:)`: геттер біндингу SwiftUI читав у тілі екрана, і кожен кадр
+                // прокрутки знову перераховував увесь екран.
+                .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named(detailScrollSpace)).minY } action: { scroll.offset = $0 }
             }
             .coordinateSpace(name: detailScrollSpace)
             .refreshable { await screen.refresh() }
@@ -125,20 +128,10 @@ struct EventDetailView: View, Equatable {
             // сама стрічка лишається в safe area, щоб індикатор потягу було видно. Та сама афіша,
             // що й велика картка головної (`EventArt`): без фото — насичений градієнт категорії,
             // а не бліда пастель; низ темніє під білу назву.
-            .background(alignment: .top) {
-                EventArt(event: event, maxDimension: heroHeight, glyphSize: 260, glyphDrop: 120)
-                    .frame(height: heroHeight + max(offset, 0)).frame(maxWidth: .infinity).clipped()
-                    .overlay(photoScrim)
-                    .offset(y: min(offset, 0) * heroParallax)
-                    .ignoresSafeArea(edges: .top)
-            }
+            .background(alignment: .top) { HeroBackdrop(event: event, scroll: scroll) }
             // Коли аркуш доїхав до годинника, текст інакше йде під нього: смуга статусу набирає колір полотна.
             // Не раніше: світла смуга над темною обкладинкою відрізала б її, а з-під смуги визирали б кути аркуша.
-            .overlay(alignment: .top) {
-                Palette.canvas.frame(height: topInset).ignoresSafeArea(edges: .top)
-                    .opacity(min(max((-offset - (heroHeight - topInset - Corner.xl - scrimFade)) / scrimFade, 0), 1))
-                    .allowsHitTesting(false)
-            }
+            .overlay(alignment: .top) { StatusStrip(scroll: scroll, topInset: topInset) }
             stickyBar(event, view)
         }
         .background(Palette.canvas)
@@ -287,3 +280,51 @@ let scrimFade: CGFloat = 40
 let heroParallax: CGFloat = 0.5
 /// Ім'я системи координат стрічки для `reportsScrollOffset`.
 let detailScrollSpace = "detail"
+
+/// Зміщення стрічки деталей. Його читають лише вигляди нижче, тож кадр прокрутки не перераховує секції й панель дії.
+@Observable final class DetailScroll {
+    var offset: CGFloat = 0
+}
+
+/// Єдиний шар обкладинки: від краю екрана, під смугою статусу. При потягу вниз розтягується, при прокрутці їде вгору
+/// вдвічі повільніше за стрічку (паралакс; зі «зменшити рух» — разом зі стрічкою). Сама стрічка лишається в safe area,
+/// щоб індикатор потягу було видно. Та сама афіша, що й велика картка головної (`EventArt`): без фото — насичений
+/// градієнт категорії, а не бліда пастель; низ темніє під білу назву.
+private struct HeroBackdrop: View {
+    let event: Event
+    let scroll: DetailScroll
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    var body: some View {
+        let offset = scroll.offset
+        // `fill`: горизонтальне фото на 480 pt заввишки розпаковується з запасом за шириною, а не розтягується.
+        EventArt(event: event, maxDimension: heroHeight, glyphSize: 260, glyphDrop: 120, fill: true)
+            .frame(height: heroHeight + max(offset, 0)).frame(maxWidth: .infinity).clipped()
+            .overlay(photoScrim)
+            .offset(y: min(offset, 0) * (reduceMotion ? 1 : heroParallax))
+            .ignoresSafeArea(edges: .top)
+    }
+}
+
+/// Коли аркуш доїхав до годинника, текст інакше йде під нього: смуга статусу набирає колір полотна.
+/// Не раніше: світла смуга над темною обкладинкою відрізала б її, а з-під смуги визирали б кути аркуша.
+private struct StatusStrip: View {
+    let scroll: DetailScroll
+    let topInset: CGFloat
+    var body: some View {
+        Palette.canvas.frame(height: topInset).ignoresSafeArea(edges: .top)
+            .opacity(min(max((-scroll.offset - (heroHeight - topInset - Corner.xl - scrimFade)) / scrimFade, 0), 1))
+            .allowsHitTesting(false)
+    }
+}
+
+/// Текст на обкладинці їде зі стрічкою й гасне, поки не дійшов до годинника. Окремим виглядом, а не модифікатором:
+/// тіло модифікатора SwiftUI рахує разом із батьком, і зміщення знову перераховувало б увесь екран.
+struct HeroTextFade<Content: View>: View {
+    let scroll: DetailScroll
+    @ViewBuilder let content: Content
+    var body: some View {
+        let scrolled = min(max(1 - (-scroll.offset - heroTextFadeFrom) / heroTextFade, 0), 1)
+        // Скасування каже штамп над назвою; приглушена до 70 % біла назва на затемненні втрачала контраст.
+        content.opacity(scrolled)
+    }
+}

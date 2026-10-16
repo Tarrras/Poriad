@@ -76,7 +76,7 @@ struct ProfileView: View {
         VStack(spacing: Space.md) {
             PoruchIcon(glyph: PoruchIcons.person, size: 36).foregroundStyle(Palette.onBrandContainer)
                 .frame(width: 88, height: 88).background(Palette.brandContainer, in: Circle())
-            Text(signedIn ? Copy.account_title : Copy.guest_title).font(PoruchFont.serifTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
+            Text(signedIn ? Copy.account_title : Copy.guest_title).font(PoruchFont.brandTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
             Text(signedIn
                  ? Copy.profile_events_hint
                  : Copy.guest_description)
@@ -249,7 +249,7 @@ struct ChangePasswordSheet: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Space.lg) {
-                Text(Copy.update_password).font(PoruchFont.serifTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
+                Text(Copy.update_password).font(PoruchFont.brandTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
                 LabelledField(label: Copy.current_password_label, text: $current, secure: !revealed) {
                     PasswordRevealToggle(revealed: $revealed)
                 }
@@ -288,7 +288,7 @@ struct DeleteAccountSheet: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Space.lg) {
-                Text(Copy.delete_account_title).font(PoruchFont.serifTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
+                Text(Copy.delete_account_title).font(PoruchFont.brandTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
                 Text(Copy.delete_account_body)
                     .font(PoruchFont.bodyText).foregroundStyle(Palette.inkSecondary)
                     .fixedSize(horizontal: false, vertical: true)

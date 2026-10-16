@@ -4,6 +4,7 @@ import Shared
 /// Карусель під мапою. Окреме подання, щоб `scrollPosition` перемальовував лише її, а не мапу з
 /// контролами. Карусель і мапа ділять один вибір; обидва напрямки виходять, коли id вже збігається.
 struct EventDeck: View {
+    @ScaledMetric(relativeTo: .body) private var cardHeight = mapCardHeight
     let events: [Event]
     let selectedID: String?
     let savedIDs: Set<String>
@@ -36,7 +37,7 @@ struct EventDeck: View {
             // Відступ несе вміст, смуга йде від краю до краю: звужена смуга не обрізала сусідні
             // картки, і вони висіли над мапою блідою плямою. Запас на тінь більший, ніж у решти стрічок.
             // Висота від картки: смуга прокрутки без власної висоти забирає все, що дадуть.
-            .frame(height: mapCardHeight + 2 * deckSpread)
+            .frame(height: scaledMapCardHeight(cardHeight) + 2 * deckSpread)
             .railContentPadding(spread: deckSpread)
             .scrollTargetBehavior(.viewAligned)
             .scrollPosition(id: $carouselID)

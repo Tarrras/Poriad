@@ -79,10 +79,10 @@ struct ChatView: View {
         HStack(spacing: Space.md) {
             Button { dismiss() } label: {
                 PoruchIcon(glyph: PoruchIcons.chevronLeft, size: 19).foregroundStyle(Palette.ink)
-                    .frame(width: 40, height: 40).background(Palette.surface, in: Circle())
+                    .frame(width: 40, height: 40).background(Palette.surface, in: Circle()).tapTarget()
             }.buttonStyle(PressableStyle()).accessibilityLabel(Copy.back)
             VStack(alignment: .leading, spacing: 2) {
-                Text(event?.displayTitle ?? Copy.chat_short).font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.ink).lineLimit(1)
+                Text(event?.displayTitle ?? Copy.chat_short).font(PoruchFont.brandTitle3).kerning(-0.1).foregroundStyle(Palette.ink).lineLimit(1)
                 Text(subtitle).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(1)
             }
             Spacer(minLength: 0)

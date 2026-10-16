@@ -26,14 +26,14 @@ struct ArtistView: View {
             HStack {
                 Button { dismiss() } label: {
                     PoruchIcon(glyph: PoruchIcons.chevronLeft, size: 19).foregroundStyle(Palette.ink)
-                        .frame(width: 40, height: 40).background(Palette.surface, in: Circle())
+                        .frame(width: 40, height: 40).background(Palette.surface, in: Circle()).tapTarget()
                 }.buttonStyle(PressableStyle()).accessibilityLabel(Copy.back)
                 Spacer(minLength: 0)
             }.padding(.horizontal, Space.page).padding(.vertical, Space.md)
             ScrollView {
                 VStack(alignment: .leading, spacing: Space.lg) {
                     VStack(alignment: .leading, spacing: Space.sm) {
-                        Text(name).font(PoruchFont.serifDisplay).kerning(-0.5).foregroundStyle(Palette.ink)
+                        Text(name).font(PoruchFont.brandDisplay).kerning(-0.5).foregroundStyle(Palette.ink)
                             .multilineTextAlignment(.leading)
                         if let kind = artistKindLabel(artist?.kind ?? route.kind) {
                             Text(kind).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)

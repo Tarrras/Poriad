@@ -11,11 +11,11 @@ import GoogleSignIn
     @StateObject private var model = AppModel()
     @Environment(\.scenePhase) private var scenePhase
     init() {
-        // Єдиний системний заголовок у застосунку — «Знайти місто» у шторці міст (`navigationTitle`): і він засічками,
-        // як решта заголовків. Кегль росте з Dynamic Type, як у `PoruchFont.serif*`.
-        if let serif = UIFont(name: "SourceSerif4Roman-SemiBold", size: 34) {
+        // Єдиний системний заголовок у застосунку — «Знайти місто» у шторці міст (`navigationTitle`): і він голосом квитка,
+        // як решта заголовків. Кегль росте з Dynamic Type, як у `PoruchFont.brand*`.
+        if let display = UIFont(name: "SofiaSansCondensed-ExtraBold", size: 38) {
             UINavigationBar.appearance().largeTitleTextAttributes = [
-                .font: UIFontMetrics(forTextStyle: .largeTitle).scaledFont(for: serif), .kern: -0.5
+                .font: UIFontMetrics(forTextStyle: .largeTitle).scaledFont(for: display), .kern: -0.4
             ]
         }
         // Analytics і Crashlytics. Без GoogleService-Info.plist (збірка без ключів) Firebase не піднімаємо.
@@ -79,7 +79,7 @@ private struct SplashView: View {
                     // і виліт у місто йде з неї. Приходить, коли шпилька торкається землі.
                     .overlay(alignment: .bottom) {
                         VStack(spacing: Space.xs) {
-                            Text(Copy.brand_name).font(PoruchFont.serifDisplay).kerning(-0.5).foregroundStyle(Palette.ink)
+                            Text(Copy.brand_name).font(PoruchFont.brandDisplay).kerning(-0.5).foregroundStyle(Palette.ink)
                             Text(Copy.tagline).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
                         }
                         .fixedSize()
@@ -276,6 +276,8 @@ struct RootView: View {
                 // Як системний таббар: підписи не ростуть з Dynamic Type, інакше чотири вкладки не вміщаються.
                 .dynamicTypeSize(...DynamicTypeSize.large)
                 .padding(.bottom, Space.sm)
+                // Як системний таббар: лишається під клавіатурою, а не спливає над нею й не закриває результати пошуку.
+                .ignoresSafeArea(.keyboard, edges: .bottom)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
@@ -337,4 +339,18 @@ struct RootView: View {
 @MainActor private func dismissPresentedSheets() {
     let root = UIApplication.shared.connectedScenes.compactMap { ($0 as? UIWindowScene)?.keyWindow }.first?.rootViewController
     root?.presentedViewController?.dismiss(animated: false)
+}
+
+/// Свайп «назад» від лівого краю живий і там, де системну панель сховано (`.toolbar(.hidden)`,
+/// `navigationBarBackButtonHidden`): UIKit вимикає жест разом із панеллю, а тоді з деталей, артиста, чату
+/// й «Ви стежите» можна вийти лише кнопкою. На корені стосу жест не починається.
+extension UINavigationController: @retroactive UIGestureRecognizerDelegate {
+    override open func viewDidLoad() {
+        super.viewDidLoad()
+        interactivePopGestureRecognizer?.delegate = self
+    }
+
+    public func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        viewControllers.count > 1
+    }
 }

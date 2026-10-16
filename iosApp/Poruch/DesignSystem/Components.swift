@@ -20,7 +20,7 @@ struct SearchField: View {
                     .font(PoruchFont.bodyText).foregroundStyle(Palette.ink).tint(Palette.ink)
                     .submitLabel(.search).accessibilityLabel(Copy.a11y_search_events)
                 if !text.isEmpty {
-                    Button { text = "" } label: { PoruchIcon(glyph: PoruchIcons.closeCircle, size: 20).foregroundStyle(Palette.inkTertiary) }
+                    Button { text = "" } label: { PoruchIcon(glyph: PoruchIcons.closeCircle, size: 20).foregroundStyle(Palette.inkTertiary).tapTarget() }
                         .accessibilityLabel(Copy.clear_search)
                 }
             }
@@ -32,7 +32,7 @@ struct SearchField: View {
                     .overlay(alignment: .topTrailing) {
                         if activeFilters > 0 {
                             Text("\(activeFilters)").font(PoruchFont.overline).foregroundStyle(Palette.onBrand)
-                                .frame(width: 18, height: 18).background(Palette.accent, in: Circle()).offset(x: 2, y: -2)
+                                .frame(width: 18, height: 18).background(Palette.accentText, in: Circle()).offset(x: 2, y: -2)
                         }
                     }
             }
@@ -101,6 +101,7 @@ struct IconPill: View {
                     if selected { Circle().fill(brandGradient) } else { Circle().fill(Palette.surface) }
                 }
                 .overlay(Circle().strokeBorder(Palette.hairline, lineWidth: selected || scheme == .light ? 0 : 1))
+                .tapTarget()
         }
         .buttonStyle(PressableStyle())
         .accessibilityLabel(label)
@@ -153,6 +154,7 @@ struct Chip: View {
         }
         .buttonStyle(PressableStyle())
         .accessibilityAddTraits(selected ? .isSelected : [])
+        .accessibilityValue(badge > 0 ? Copy.unread_messages_a11y("\(badge)") : "")
     }
 }
 
@@ -194,13 +196,15 @@ struct SegmentedPill: View {
                                 Capsule().fill(Palette.surface).matchedGeometryEffect(id: "thumb", in: thumb)
                             }
                         }
-                        .contentShape(Capsule())
+                        // Ціль 44: два пункти поля відступу контейнера належать кнопці, а не порожнечі.
+                        .padding(.vertical, 2)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(index == selection ? .isSelected : [])
             }
         }
-        .padding(4)
+        .padding(.horizontal, 4).padding(.vertical, 2)
         .background(Palette.brandContainer, in: Capsule())
         .motion(Motion.spring, value: selection)
     }
@@ -292,6 +296,8 @@ struct StatusBadge: View {
             Text(text.uppercased()).font(PoruchFont.overline).kerning(1.0)
         }
         .foregroundStyle(onPhoto && (tone == .neutral || tone == .brand) ? Palette.ink : colors.1)
+        // Росте з текстом, але не вище Accessibility 1: на фото плашка інакше закривала пів постера.
+        .dynamicTypeSize(...DynamicTypeSize.accessibility1)
         .padding(.horizontal, Space.md).padding(.vertical, 5)
         .background {
             if onPhoto {
@@ -318,7 +324,7 @@ struct PromptSheet: View {
     @State private var height: CGFloat = 320
     var body: some View {
         VStack(alignment: .leading, spacing: Space.md) {
-            Text(title).font(PoruchFont.serifTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
+            Text(title).font(PoruchFont.brandTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
             Text(message).font(PoruchFont.bodyText).foregroundStyle(Palette.inkSecondary).padding(.bottom, Space.sm)
             PrimaryButton(title: primary) { dismiss(); onPrimary() }
             if let secondary { SecondaryButton(title: secondary) { dismiss(); onSecondary() } }
@@ -331,6 +337,9 @@ struct PromptSheet: View {
         .presentationBackground(Palette.canvas)
     }
 }
+
+/// Кнопки — зібрані прямокутники з кутом квитка, а не пігулки: пігулками лишились чипи й бейджі.
+let buttonShape = RoundedRectangle(cornerRadius: Corner.md, style: .continuous)
 
 struct PrimaryButton: View {
     let title: String
@@ -354,9 +363,9 @@ struct PrimaryButton: View {
             .background {
                 switch (enabled, tone) {
                 // Блідіша за другорядну кнопку поруч: інакше «Назад» і неактивна «Далі» виглядали однаково.
-                case (false, _): Capsule().fill(Palette.brandContainer.opacity(0.55))
-                case (true, .some(let tone)): Capsule().fill(LinearGradient(colors: [tone.opacity(0.92), tone], startPoint: .top, endPoint: .bottom))
-                case (true, .none): Capsule().fill(brandGradient)
+                case (false, _): buttonShape.fill(Palette.brandContainer.opacity(0.55))
+                case (true, .some(let tone)): buttonShape.fill(tone)
+                case (true, .none): buttonShape.fill(brandGradient)
                 }
             }
         }
@@ -382,7 +391,7 @@ struct SecondaryButton: View {
             }
             .foregroundStyle(enabled ? tone ?? Palette.ink : Palette.inkTertiary)
             .padding(.horizontal, Space.xxl).frame(height: 52).frame(maxWidth: .infinity)
-            .background(Palette.brandContainer, in: Capsule())
+            .background(Palette.brandContainer, in: buttonShape)
         }
         .buttonStyle(PressableStyle())
         .disabled(!enabled)
@@ -398,7 +407,7 @@ struct SectionHeader: View {
     var action: (() -> Void)?
     var body: some View {
         HStack {
-            Text(title).font(PoruchFont.serifTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
+            Text(title).font(PoruchFont.brandTitle2).kerning(-0.2).foregroundStyle(Palette.ink).accessibilityAddTraits(.isHeader)
             Spacer(minLength: Space.sm)
             if let actionLabel, let action {
                 Button(actionLabel, action: action).font(PoruchFont.label).foregroundStyle(Palette.ink)
@@ -416,10 +425,10 @@ struct PageHeader<Trailing: View>: View {
             if let back {
                 Button(action: back) {
                     PoruchIcon(glyph: PoruchIcons.chevronLeft, size: 19).foregroundStyle(Palette.ink)
-                        .frame(width: 40, height: 40).background(Palette.surface, in: Circle())
+                        .frame(width: 40, height: 40).background(Palette.surface, in: Circle()).tapTarget()
                 }.buttonStyle(PressableStyle()).accessibilityLabel(Copy.back)
             }
-            Text(title).font(PoruchFont.serifTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
+            Text(title).font(PoruchFont.brandTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
             Spacer(minLength: 0)
             trailing
         }.padding(.horizontal, Space.page).padding(.vertical, Space.md)
@@ -452,7 +461,6 @@ struct PoruchLoader: View {
 }
 
 struct EmptyState: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let glyph: PoruchGlyph
     let title: String
     let message: String
@@ -461,18 +469,36 @@ struct EmptyState: View {
     var action: (() -> Void)?
     var body: some View {
         VStack(spacing: compact ? Space.sm : Space.md) {
-            PoruchIcon(glyph: glyph, size: 20).font(.system(size: compact ? 20 : 26, weight: .medium)).foregroundStyle(Palette.inkSecondary)
-                .frame(width: compact ? 52 : 64, height: compact ? 52 : 64)
-                .background(Palette.surface, in: RoundedRectangle(cornerRadius: Corner.md, style: .continuous))
-                // Кола й крапка «шукаємо поруч» довкола гліфа; тло не займає місця, відступ дає їм простір.
-                .background { if !compact && !reduceMotion { BrandAnimation(name: "Empty").frame(width: 160, height: 160) } }
-                .padding(compact || reduceMotion ? 0 : 28)
-            Text(title).font(compact ? PoruchFont.serifTitle3 : PoruchFont.serifTitle2).foregroundStyle(Palette.ink).multilineTextAlignment(.center)
+            BlankTicket(glyph: glyph, compact: compact).padding(.bottom, compact ? 0 : Space.sm)
+            Text(title).font(compact ? PoruchFont.brandTitle3 : PoruchFont.brandTitle2).foregroundStyle(Palette.ink).multilineTextAlignment(.center)
             Text(message).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary).multilineTextAlignment(.center)
             if let actionLabel, let action {
                 PrimaryButton(title: actionLabel, action: action).fixedSize(horizontal: true, vertical: false).padding(.top, Space.sm)
             }
         }.padding(compact ? Space.md : Space.xxl).frame(maxWidth: .infinity)
+    }
+}
+
+/// Порожній квиток над порожнім станом: пунктирний контур, два незадруковані рядки й гліф на сірому корінці.
+private struct BlankTicket: View {
+    let glyph: PoruchGlyph
+    var compact = false
+    var body: some View {
+        Ticket(
+            stubColor: Palette.surfaceMuted, stubLength: compact ? 44 : 56, radius: Corner.sm,
+            outline: (Palette.inkTertiary.opacity(0.6), StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
+        ) {
+            VStack(alignment: .leading, spacing: 6) {
+                Capsule().fill(Palette.hairline).frame(width: compact ? 48 : 72, height: 6)
+                Capsule().fill(Palette.hairline).frame(width: compact ? 32 : 44, height: 6)
+            }
+            .padding(.horizontal, Space.md)
+            .frame(maxWidth: .infinity, minHeight: compact ? 52 : 72, alignment: .leading)
+        } stub: {
+            PoruchIcon(glyph: glyph, size: compact ? 18 : 22).foregroundStyle(Palette.inkSecondary)
+        }
+        .frame(width: compact ? 132 : 184)
+        .decorative()
     }
 }
 
@@ -672,6 +698,8 @@ struct EventThumbnail: View {
     var glyphSize: CGFloat = 24
     /// Найбільша сторона показу в pt: `CachedImage` зменшує зображення ще при розпакуванні.
     var maxDimension: CGFloat = 200
+    /// Велика рамка `scaledToFill`: `maxDimension` — найкоротша сторона. Див. `CachedImage.fill`.
+    var fill = false
     var body: some View {
         ZStack {
             categoryGradient(event.category)
@@ -683,7 +711,7 @@ struct EventThumbnail: View {
         // отримує розмір основи й не впливає на розкладку.
         .overlay {
             if let source = event.imageUrl, let url = URL(string: source), url.scheme == "https" {
-                CachedImage(url: url, maxDimension: maxDimension)
+                CachedImage(url: url, maxDimension: maxDimension, fill: fill)
                     .overlay(
                         LinearGradient(
                             colors: [.black.opacity(0.28), .clear, .black.opacity(0.12)],
@@ -816,34 +844,40 @@ struct EventCard: View {
     let action: () -> Void
     var body: some View {
         Button(action: action) {
-            VStack(alignment: .leading, spacing: 0) {
-                // Без фото плейсхолдер нижчий: порожній 16:9 домінував би на картці.
-                EventThumbnail(event: event, maxDimension: 420)
-                    .frame(height: event.imageUrl == nil ? 120 : 200).frame(maxWidth: .infinity).clipped()
-                    .overlay(alignment: .topLeading) {
-                        if let badge = eventBadge(event, waitlisted: waitlisted) {
-                            StatusBadge(text: badge.0, tone: badge.1, glyph: badge.2, onPhoto: true).padding(Space.sm)
+            Ticket(stubColor: ticketStub(event), punched: event.hasEnded(now: nowInstant())) {
+                VStack(alignment: .leading, spacing: 0) {
+                    // Фото врівень із краєм квитка; без фото обкладинки нема — квиток і так кольоровий.
+                    if event.imageUrl != nil {
+                        EventThumbnail(event: event, maxDimension: 420)
+                            .frame(height: 180).frame(maxWidth: .infinity).clipped()
+                            .overlay(alignment: .topLeading) {
+                                if let badge = eventBadge(event, waitlisted: waitlisted) {
+                                    TicketStamp(text: badge.0, tone: badge.1, glyph: badge.2, onFill: true).padding(Space.md)
+                                }
+                            }
+                    }
+                    VStack(alignment: .leading, spacing: Space.sm) {
+                        if event.imageUrl == nil, let badge = eventBadge(event, waitlisted: waitlisted) {
+                            TicketStamp(text: badge.0, tone: badge.1, glyph: badge.2)
                         }
-                    }
-                    .overlay(alignment: .topTrailing) {
-                        if let onSave { SaveButton(saved: saved, action: onSave).padding(Space.sm) }
-                    }
-                VStack(alignment: .leading, spacing: Space.sm) {
-                    Text(cardOverline(event)).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
-                    Text(event.displayTitle).font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
-                        .multilineTextAlignment(.leading).lineLimit(2)
-                    EventDescriptor(event: event, withCity: withCity)
-                    if let artists = artistsLine(event) { MetaLine(glyph: PoruchIcons.person, text: artists) }
-                    EventMeta(event: event)
-                }.padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading)
+                        Text(event.displayTitle).font(PoruchFont.brandTitle3).foregroundStyle(Palette.ink)
+                            .multilineTextAlignment(.leading).lineLimit(2)
+                        EventDescriptor(event: event, withCity: withCity)
+                        if let artists = artistsLine(event) { MetaLine(glyph: PoruchIcons.person, text: artists) }
+                        if event.gathering == nil { EventMeta(event: event) }
+                    }.padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading)
+                }
+            } stub: {
+                VStack(spacing: 0) {
+                    if let onSave { SaveButton(saved: saved, action: onSave).padding(.top, Space.sm) }
+                    Spacer(minLength: Space.md)
+                    StubTime(event: event)
+                    Spacer(minLength: Space.md)
+                }
             }
-            // Фото врівень із краєм картки, тому обрізаємо всю картку за її ж радіусом.
-            .clipShape(RoundedRectangle(cornerRadius: Corner.lg, style: .continuous))
-            .cardSurface()
-            .opacity(event.isCancelled ? 0.6 : 1)
         }
         .buttonStyle(PressableStyle())
-        .accessibilityElement(children: .combine)
+        .ticketAccessibility(event, state: eventBadge(event, waitlisted: waitlisted)?.0, saved: saved, onSave: onSave)
     }
 }
 
@@ -854,7 +888,8 @@ struct CountBadge: View {
     var body: some View {
         Text("\(min(count, 99))").font(PoruchFont.overline).foregroundStyle(Palette.onBrand)
             .padding(.horizontal, 5).padding(.vertical, 1)
-            .background(Palette.accent, in: Capsule())
+            // Тло — `accentText`: білий дрібний текст на самому `accent` давав лише 3,75:1.
+            .background(Palette.accentText, in: Capsule())
             .accessibilityHidden(true)
     }
 }
@@ -872,16 +907,23 @@ struct EventRow: View {
     var status: (String, BadgeTone, PoruchGlyph?)? = nil
     var body: some View {
         HStack(spacing: Space.md) {
-            EventThumbnail(event: event, maxDimension: 60)
-                .frame(width: 60, height: 60)
-                .clipShape(RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
+            StubTile(event: event)
             VStack(alignment: .leading, spacing: Space.xs) {
-                Text(cardOverline(event)).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
-                Text(event.displayTitle).font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
+                Text(event.displayTitle).font(PoruchFont.brandTitle3).foregroundStyle(Palette.ink)
                     .multilineTextAlignment(.leading).lineLimit(2)
                 if let note { Text(note).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(1) }
-                else if let badge = status ?? eventBadge(event, waitlisted: waitlisted) { StatusBadge(text: badge.0, tone: badge.1, glyph: badge.2) }
-                else { EventDescriptor(event: event) }
+                else {
+                    // Жанр і місце — завжди; штамп — лише коли з квитком щось сталось. Джерело афіші — тихим підписом,
+                    // а не штампом: штамп «Афіша · Concert.ua» витісняв жанр і місце з усіх рядків афіші.
+                    if let badge = status ?? eventState(event, waitlisted: waitlisted) {
+                        TicketStamp(text: badge.0, tone: badge.1, glyph: badge.2).padding(.top, 2)
+                    }
+                    EventDescriptor(event: event)
+                    if let listing = event.listing, !listing.isWithdrawn {
+                        Text(Copy.listing_badge("\(listing.sourceName)")).font(PoruchFont.overline)
+                            .foregroundStyle(Palette.inkTertiary).lineLimit(1)
+                    }
+                }
             }
             Spacer(minLength: 0)
             if unread > 0 { CountBadge(count: unread) }
@@ -890,9 +932,8 @@ struct EventRow: View {
             }
         }
         .padding(.vertical, Space.md)
-        .opacity(event.isCancelled ? 0.6 : 1)
         .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .ignore).accessibilityLabel(ticketA11yLabel(event, state: note ?? (status ?? eventBadge(event, waitlisted: waitlisted))?.0))
         .accessibilityValue(unread > 0 ? Copy.unread_messages_a11y("\(unread)") : "")
     }
 }
@@ -940,20 +981,17 @@ struct EventResultRow: View {
         if let action {
             Button(action: action) { row }
                 .buttonStyle(PressableStyle(pressedScale: 1))
-                .accessibilityElement(children: .combine)
+                .accessibilityElement(children: .ignore).accessibilityLabel(ticketA11yLabel(event, state: badge?.0))
         } else {
-            row.accessibilityElement(children: .combine)
+            row.accessibilityElement(children: .ignore).accessibilityLabel(ticketA11yLabel(event, state: badge?.0))
         }
     }
 
     private var row: some View {
         HStack(spacing: Space.md) {
-            EventThumbnail(event: event, glyphSize: 22, maxDimension: 56)
-                .frame(width: 56, height: 56)
-                .clipShape(RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
+            StubTile(event: event, size: 56)
             VStack(alignment: .leading, spacing: 2) {
-                Text(cardOverline(event)).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary).lineLimit(1)
-                Text(event.displayTitle).font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
+                Text(event.displayTitle).font(PoruchFont.brandTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
                     .multilineTextAlignment(.leading).lineLimit(2)
                 Text(subtitle).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(1)
                 if let artists = artistsLine(event) {
@@ -965,10 +1003,9 @@ struct EventResultRow: View {
                 }
             }
             Spacer(minLength: 0)
-            if let badge { StatusBadge(text: badge.0, tone: badge.1, glyph: badge.2) }
+            if let badge { TicketStamp(text: badge.0, tone: badge.1, glyph: badge.2) }
         }
         .padding(.horizontal, Space.lg).padding(.vertical, Space.md)
-        .opacity(event.isCancelled ? 0.6 : 1)
         .contentShape(Rectangle())
     }
 }
@@ -1012,7 +1049,7 @@ struct ArtistRow: View {
                     .frame(width: 40, height: 40)
                     .background(Palette.surfaceMuted, in: RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(artist.name).font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.ink).lineLimit(1)
+                    Text(artist.name).font(PoruchFont.brandTitle3).kerning(-0.1).foregroundStyle(Palette.ink).lineLimit(1)
                     Text(subtitle).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(1)
                 }
                 Spacer(minLength: 0)
@@ -1063,7 +1100,7 @@ struct PlaceRow: View {
                     .frame(width: 40, height: 40)
                     .background(Palette.surfaceMuted, in: RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(place.name).font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.ink).lineLimit(1)
+                    Text(place.name).font(PoruchFont.brandTitle3).kerning(-0.1).foregroundStyle(Palette.ink).lineLimit(1)
                     Text(subtitle).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
                         .multilineTextAlignment(.leading).lineLimit(2)
                 }
@@ -1115,8 +1152,12 @@ struct PlacesGroup: View {
 /// Висота картки каруселі, потрібна і самій каруселі.
 let mapCardHeight: CGFloat = 112
 
+/// Висота квитка в каруселі мапи з Dynamic Type: росте разом із текстом, до 1.6 раза.
+func scaledMapCardHeight(_ scaled: CGFloat) -> CGFloat { min(max(scaled, mapCardHeight), mapCardHeight * 1.6) }
+
 /// Картка каруселі над мапою: досить широка для назви, досить низька, щоб мапу було видно.
 struct EventMapCard: View {
+    @ScaledMetric(relativeTo: .body) private var cardHeight = mapCardHeight
     let event: Event
     var focused: Bool = false
     var saved: Bool = false
@@ -1124,36 +1165,298 @@ struct EventMapCard: View {
     let action: () -> Void
     var body: some View {
         Button(action: action) {
-            HStack(spacing: Space.md) {
-                EventThumbnail(event: event, maxDimension: 84)
-                    .frame(width: 84, height: 84)
-                    .clipShape(RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
-                VStack(alignment: .leading, spacing: Space.xs) {
-                    Text(cardOverline(event)).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
-                    Text(event.displayTitle).font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
-                        .multilineTextAlignment(.leading).lineLimit(2)
-                    if let badge = eventBadge(event) { StatusBadge(text: badge.0, tone: badge.1, glyph: badge.2) }
-                    // Склад замість ціни: на слоті картки місця для обох нема, а хто виступає каже більше.
-                    else if let artists = artistsLine(event) { MetaLine(glyph: PoruchIcons.person, text: artists) }
-                    else { EventMeta(event: event, short: true) }
+            Ticket(
+                stubColor: ticketStub(event), stubLength: 80, radius: Corner.lg, surface: Palette.surfaceRaised,
+                outline: focused ? (Palette.ink, StrokeStyle(lineWidth: 2)) : nil
+            ) {
+                HStack(spacing: Space.md) {
+                    EventThumbnail(event: event, maxDimension: 76)
+                        .frame(width: 76, height: 76)
+                        .clipShape(RoundedRectangle(cornerRadius: Corner.sm, style: .continuous))
+                    VStack(alignment: .leading, spacing: Space.xs) {
+                        Text(event.displayTitle).font(PoruchFont.brandTitle3).foregroundStyle(Palette.ink)
+                            .multilineTextAlignment(.leading).lineLimit(2)
+                        if let badge = eventState(event) { TicketStamp(text: badge.0, tone: badge.1, glyph: badge.2) }
+                        // Склад замість місця: на слоті картки місця для обох нема, а хто виступає каже більше.
+                        else if let artists = artistsLine(event) { MetaLine(glyph: PoruchIcons.person, text: artists) }
+                        else { EventDescriptor(event: event) }
+                    }
+                    Spacer(minLength: 0)
                 }
-                Spacer(minLength: 0)
-                if let onSave { SaveButton(saved: saved, action: onSave) }
+                .padding(.leading, Space.md).padding(.trailing, Space.sm)
+                .frame(height: scaledMapCardHeight(cardHeight))
+            } stub: {
+                // «Зберегти» на корінці, як на великому квитку: у основній частині назва важливіша.
+                VStack(spacing: Space.xs) {
+                    if let onSave { SaveButton(saved: saved, action: onSave) }
+                    // Жанр словами — в основній частині: на корінці над «Зберегти» й часом йому не лишалось місця.
+                    StubTime(event: event, compact: onSave != nil, showsGenre: false)
+                }
             }
-            .padding(Space.md)
-            .frame(height: mapCardHeight)
-            // Скло без тіні: широка тінь просвічувала крізь напівпрозору картку, і карусель лежала
-            // на сірій плямі. Край картки тримає світла лінія.
-            .glassSurface(radius: Corner.lg, shadow: false)
-            .overlay(
-                RoundedRectangle(cornerRadius: Corner.lg, style: .continuous)
-                    .strokeBorder(Palette.ink, lineWidth: focused ? 2 : 0)
-            )
-            .opacity(event.isCancelled ? 0.6 : 1)
+            .lifted(Elevation.raised)
         }
         .buttonStyle(PressableStyle())
-        .accessibilityElement(children: .combine)
+        .ticketAccessibility(event, state: eventState(event)?.0, saved: saved, onSave: onSave)
         .accessibilityAddTraits(focused ? .isSelected : [])
+    }
+}
+
+/// Що читає VoiceOver на квитку: одне речення в незмінному порядку — назва, жанр, місце, коли, місця, стан.
+/// Порядок накладок (штамп, «Зберегти», ціна) на нього не впливає, а жанр звучить словом: колір корінця не озвучується.
+func ticketA11yLabel(_ event: Event, state: String? = nil) -> String {
+    var parts = [event.displayTitle, hostLine(event) ?? "", categoryName(event.category), eventPlace(event, withCity: false), eventDate(event)]
+    if let room = event.gathering, !event.hasEnded(now: nowInstant()) {
+        parts.append(Copy.attendees("\(room.attendeeCount)", "\(room.capacity)"))
+    }
+    if let state { parts.append(state) }
+    return parts.filter { !$0.isEmpty }.joined(separator: ", ")
+}
+
+extension View {
+    /// Квиток для VoiceOver — одна кнопка з `ticketA11yLabel`, а «Зберегти» — дія ротора, а не окрема зупинка між штампом і назвою.
+    func ticketAccessibility(_ event: Event, state: String? = nil, saved: Bool = false, onSave: (() -> Void)? = nil) -> some View {
+        accessibilityElement(children: .ignore)
+            .accessibilityLabel(ticketA11yLabel(event, state: state))
+            .accessibilityAddTraits(.isButton)
+            .accessibilityActions {
+                if let onSave { Button(saved ? Copy.unsave : Copy.save, action: onSave) }
+            }
+    }
+}
+
+/// «Збирає Тарас» — хто друкує квиток зустрічі. Нема імені (організатор без публічного профілю) — рядка нема.
+func hostLine(_ event: Event) -> String? {
+    guard let room = event.gathering, !room.organizerName.isEmpty else { return nil }
+    return Copy.hosted_by(room.organizerName)
+}
+
+/// Рядок «видавця» на квитку зустрічі: аватар і «Збирає Тарас». Від людей — отже, з людиною на квитку.
+struct HostLine: View {
+    let event: Event
+    /// Аватар росте разом із підписом, інакше літера з великим текстом упиралась у коло.
+    @ScaledMetric(relativeTo: .footnote) private var avatar: CGFloat = 20
+    var body: some View {
+        if let line = hostLine(event), let room = event.gathering {
+            HStack(spacing: 6) {
+                Avatar(name: room.organizerName, url: nil, size: min(avatar, 36))
+                Text(line).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(1)
+            }
+        }
+    }
+}
+
+/// Чому квиток тут — тихим рядком: «Для вас», за ким стежите, «Від людей». Штамп лишається лише для стану квитка.
+struct ReasonLine: View {
+    let text: String
+    let glyph: PoruchGlyph
+    var body: some View {
+        HStack(spacing: Space.xs) {
+            PoruchIcon(glyph: glyph, size: 12)
+            Text(text).font(PoruchFont.caption).lineLimit(1)
+        }
+        .foregroundStyle(Palette.inkTertiary)
+    }
+}
+
+// ---- Квиток («Корінець»)
+
+/// Форма квитка: скруглений прямокутник із двома півкруглими вирізами на лінії відриву. `stub` — довжина корінця від
+/// кінцевого краю: праворуч у горизонтального квитка, знизу у вертикального.
+struct TicketShape: Shape {
+    var vertical = false
+    var stub: CGFloat
+    var radius: CGFloat = Corner.md
+    var notch: CGFloat = 7
+    /// Пробитий корінець — подія минула: кругла дірка в корінці.
+    var punched = false
+    func path(in rect: CGRect) -> Path {
+        var cuts = Path()
+        func hole(_ x: CGFloat, _ y: CGFloat, _ r: CGFloat) { cuts.addEllipse(in: CGRect(x: x - r, y: y - r, width: 2 * r, height: 2 * r)) }
+        if vertical {
+            let y = rect.maxY - stub
+            hole(rect.minX, y, notch); hole(rect.maxX, y, notch)
+            if punched { hole(rect.maxX - 18, rect.maxY - stub / 2, 5) }
+        } else {
+            let x = rect.maxX - stub
+            hole(x, rect.minY, notch); hole(x, rect.maxY, notch)
+            if punched { hole(rect.maxX - stub / 2, rect.minY + 16, 5) }
+        }
+        return Path(roundedRect: rect, cornerRadius: radius, style: .continuous).subtracting(cuts)
+    }
+}
+
+/// Перфорація на лінії відриву: крапки кольору полотна, ніби дірочки наскрізь.
+private struct Perforation: Shape {
+    var vertical: Bool
+    var stub: CGFloat
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let inset: CGFloat = 11
+        if vertical {
+            let y = rect.maxY - stub
+            path.move(to: CGPoint(x: rect.minX + inset, y: y)); path.addLine(to: CGPoint(x: rect.maxX - inset, y: y))
+        } else {
+            let x = rect.maxX - stub
+            path.move(to: CGPoint(x: x, y: rect.minY + inset)); path.addLine(to: CGPoint(x: x, y: rect.maxY - inset))
+        }
+        return path
+    }
+}
+
+/// Квиток — головний предмет застосунку: основна частина на поверхні й корінець, залитий кольором жанру, за перфорацією.
+/// Афішна подія — надрукований квиток із часом на корінці, зустріч від людей — квиток ще й з місцями. Обидві частини
+/// тягнуться на висоту довшої, тож висоту задає вміст, а не місце виклику.
+struct Ticket<Main: View, Stub: View>: View {
+    var vertical = false
+    let stubColor: Color
+    /// Довжина корінця при стандартному тексті; з Dynamic Type росте разом із цифрами, до півтора раза.
+    var stubLength: CGFloat = 84
+    var radius: CGFloat = Corner.md
+    var punched = false
+    var surface: Color = Palette.surface
+    /// Контур поверх квитка тією ж формою: пунктир порожнього квитка, рамка вибраного на мапі.
+    var outline: (Color, StrokeStyle)? = nil
+    @ViewBuilder let main: () -> Main
+    @ViewBuilder let stub: () -> Stub
+    @Environment(\.colorScheme) private var scheme
+    @ScaledMetric(relativeTo: .title) private var textScale: CGFloat = 1
+    private var length: CGFloat { stubLength * min(max(textScale, 1), 1.5) }
+    var body: some View {
+        let shape = TicketShape(vertical: vertical, stub: length, radius: radius, punched: punched)
+        Group {
+            if vertical {
+                VStack(spacing: 0) {
+                    main().frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading).background(surface)
+                    stub().frame(maxWidth: .infinity).frame(height: length).background(stubColor)
+                }
+            } else {
+                HStack(spacing: 0) {
+                    main().frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading).background(surface)
+                    stub().frame(width: length).frame(maxHeight: .infinity).background(stubColor)
+                }
+                .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .overlay {
+            Perforation(vertical: vertical, stub: length)
+                .stroke(Palette.canvas, style: StrokeStyle(lineWidth: 2.5, lineCap: .round, dash: [0.1, 6]))
+        }
+        .clipShape(shape)
+        .overlay { shape.stroke(Palette.hairline, lineWidth: scheme == .dark ? 1 : 0) }
+        .overlay { if let outline { shape.stroke(outline.0, style: outline.1) } }
+        .contentShape(shape)
+    }
+}
+
+/// Друк корінця: велика година табличними цифрами, під нею день, а в зустрічі від людей — місця «3/8».
+/// `row` — розкладка нижнього корінця вертикального квитка: година ліворуч, день і місця праворуч.
+struct StubTime: View {
+    let event: Event
+    var compact = false
+    var row = false
+    var showsSeats = true
+    /// Жанр словами над часом: колір корінця сам по собі нічого не каже, поки не підписаний. Малий корінець рядка його
+    /// не друкує — там жанр стоїть текстом поруч.
+    var showsGenre = true
+    private var genre: String? {
+        let name = categoryName(event.category)
+        return showsGenre && !name.isEmpty ? name.uppercased() : nil
+    }
+    private var seats: String? {
+        guard showsSeats, let room = event.gathering, !event.hasEnded(now: nowInstant()) else { return nil }
+        return "\(room.attendeeCount)/\(room.capacity)"
+    }
+    private var label: String {
+        var parts = [eventDate(event)]
+        if let room = event.gathering, seats != nil { parts.append(Copy.attendees("\(room.attendeeCount)", "\(room.capacity)")) }
+        return parts.joined(separator: ", ")
+    }
+    var body: some View {
+        let parts = stubParts(event, compact: compact && !row, medium: row)
+        let big = Text(parts.big).font(compact ? PoruchFont.numeralSmall : PoruchFont.numeral).monospacedDigit()
+            .lineLimit(1).minimumScaleFactor(0.6)
+        let small = Text(parts.small).font(PoruchFont.overline).kerning(0.6).lineLimit(1).minimumScaleFactor(0.7)
+        let seatsLine = seats.map { seats in
+            HStack(spacing: 3) {
+                PoruchIcon(glyph: PoruchIcons.social, size: 12)
+                Text(seats).font(PoruchFont.overline).monospacedDigit()
+            }
+        }
+        let genreLine = genre.map { Text($0).font(row ? PoruchFont.overline : PoruchFont.stamp).kerning(0.6).lineLimit(1).minimumScaleFactor(0.6) }
+        Group {
+            if row {
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .center, spacing: Space.sm) {
+                        VStack(alignment: .leading, spacing: 0) { genreLine; big.fixedSize() }
+                        Spacer(minLength: 0)
+                        VStack(alignment: .trailing, spacing: 2) { small.fixedSize(); seatsLine }
+                    }
+                    HStack(alignment: .center, spacing: Space.sm) {
+                        VStack(alignment: .leading, spacing: 0) { genreLine; big; small }
+                        Spacer(minLength: 0)
+                        seatsLine
+                    }
+                }
+                .padding(.horizontal, Space.md)
+            } else {
+                VStack(spacing: 2) {
+                    genreLine?.padding(.bottom, Space.xs)
+                    big
+                    small
+                    seatsLine?.padding(.top, Space.xs)
+                }
+                .padding(.horizontal, Space.sm)
+            }
+        }
+        .foregroundStyle(.white)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(label)
+    }
+}
+
+/// Малий корінець у рядку списку: година й день на плитці кольору жанру з вирізами з боків. Стовпець корінців вирівнює
+/// рядки, як розклад. Минулу подію пробито.
+struct StubTile: View {
+    let event: Event
+    var size: CGFloat = 60
+    var body: some View {
+        StubTime(event: event, compact: true, showsSeats: false, showsGenre: false)
+            .frame(width: size, height: size)
+            .background(ticketStub(event))
+            .clipShape(TicketShape(vertical: true, stub: size / 2, radius: Corner.sm, notch: 4))
+            // Минулу подію пробито: дірка в куті плитки, а не через цифри.
+            .overlay(alignment: .topTrailing) {
+                if event.hasEnded(now: nowInstant()) { Circle().fill(Palette.canvas).frame(width: 9, height: 9).padding(6) }
+            }
+    }
+}
+
+/// Штамп стану на квитку: контур тоном і легкий нахил, як гумовий штамп на касі. На фото й корінці — білий по затемненню.
+struct TicketStamp: View {
+    let text: String
+    var tone: BadgeTone = .neutral
+    var glyph: PoruchGlyph?
+    var onFill = false
+    private var color: Color {
+        if onFill { return .white }
+        switch tone {
+        case .success: return Palette.success
+        case .accent: return Palette.accentText
+        case .danger: return Palette.danger
+        case .brand, .neutral: return Palette.inkSecondary
+        }
+    }
+    var body: some View {
+        HStack(spacing: 3) {
+            if let glyph { PoruchIcon(glyph: glyph, size: 12) }
+            Text(text.uppercased()).font(PoruchFont.stamp).kerning(0.8).lineLimit(1).minimumScaleFactor(0.7)
+        }
+        .foregroundStyle(color)
+        .padding(.horizontal, 7).padding(.vertical, 3)
+        .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+        .background { if onFill { RoundedRectangle(cornerRadius: 5, style: .continuous).fill(.black.opacity(0.42)) } }
+        .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous).strokeBorder(color, lineWidth: 1.5))
+        .rotationEffect(.degrees(-4))
     }
 }
 
@@ -1167,20 +1470,22 @@ struct CreateEventCard: View {
     let action: () -> Void
     var body: some View {
         Button(action: action) {
-            HStack(spacing: Space.md) {
-                PoruchIcon(glyph: PoruchIcons.plus, size: 20).foregroundStyle(Palette.onBrand)
-                    .frame(width: 44, height: 44).background(Palette.onBrand.opacity(0.14), in: Circle())
+            // Порожній квиток: свою зустріч друкуєш сам. Корінець чорнильний — це головна дія екрана.
+            Ticket(
+                stubColor: Palette.brand, stubLength: 64,
+                outline: (Palette.inkTertiary.opacity(0.7), StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
+            ) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(PoruchFont.cardName).kerning(-0.2).foregroundStyle(Palette.onBrand)
-                    Text(subtitle).font(PoruchFont.caption).foregroundStyle(Palette.onBrand.opacity(0.72))
+                    Text(title).font(PoruchFont.brandTitle3).foregroundStyle(Palette.ink)
+                    Text(subtitle).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
                         .multilineTextAlignment(.leading)
                 }
-                Spacer(minLength: Space.sm)
-                PoruchIcon(glyph: PoruchIcons.arrowRight, size: 16).foregroundStyle(Palette.onBrand)
+                .padding(.horizontal, Space.lg).padding(.vertical, Space.md)
+                .frame(minHeight: 72, alignment: .leading)
+            } stub: {
+                // Олівець, а не «+»: плюс уже є на кнопці створення біля таббара, а тут квиток заповнюють.
+                PoruchIcon(glyph: PoruchIcons.edit, size: 22).foregroundStyle(Palette.onBrand)
             }
-            .padding(.horizontal, Space.lg).padding(.vertical, Space.md)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(RoundedRectangle(cornerRadius: Corner.lg, style: .continuous).fill(Palette.brand))
         }
         .buttonStyle(PressableStyle())
         .accessibilityElement(children: .combine)
@@ -1196,6 +1501,7 @@ let photoScrim = LinearGradient(
 )
 
 struct EventHeroCard: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
     let event: Event
     var eyebrow: String?
     var height: CGFloat = 360
@@ -1203,45 +1509,57 @@ struct EventHeroCard: View {
     var onSave: (() -> Void)?
     let action: () -> Void
     private var place: String { event.placeLabel }
+    /// Стан кімнати чи скасування важливіші; інакше штамп каже, чому квиток тут: «Для вас», «Ви стежите».
+    /// Штамп — лише стан квитка. Чому квиток тут («Для вас», «Від людей») — тихим рядком під описом.
+    private var stamp: (String, BadgeTone, PoruchGlyph?)? { eventState(event) }
+    private var reason: (String, PoruchGlyph)? {
+        if let eyebrow { return (eyebrow, PoruchIcons.sparkle) }
+        return event.gathering == nil ? nil : (Copy.from_people, PoruchIcons.social)
+    }
     var body: some View {
         Button(action: action) {
-            // Розмір картки, а не типовий 800: інакше три hero декодувались у 2400 px і витісняли з кеша постери.
-            EventArt(event: event, maxDimension: height)
-                .frame(height: height).frame(maxWidth: .infinity).clipped()
-                .overlay(photoScrim)
-                .overlay(alignment: .bottomLeading) {
+            Ticket(stubColor: ticketStub(event), stubLength: 84, radius: Corner.lg) {
+                VStack(alignment: .leading, spacing: 0) {
+                    // Розмір картки, а не типовий 800: інакше три hero декодувались у 2400 px і витісняли з кеша постери.
+                    // Без фото обкладинки нема: квиток друкований — штамп і назва великим кеглем на самій поверхні.
+                    if event.imageUrl != nil {
+                        EventArt(event: event, maxDimension: height)
+                            .frame(height: height * 0.54).frame(maxWidth: .infinity).clipped()
+                            .overlay(alignment: .topLeading) {
+                                if let stamp { TicketStamp(text: stamp.0, tone: stamp.1, glyph: stamp.2, onFill: true).padding(Space.md) }
+                            }
+                    } else if let stamp {
+                        TicketStamp(text: stamp.0, tone: stamp.1, glyph: stamp.2).padding([.top, .horizontal], Space.lg)
+                    }
                     VStack(alignment: .leading, spacing: Space.sm) {
-                        if let eyebrow {
-                            Text(eyebrow.uppercased()).font(PoruchFont.overline).kerning(1.0).foregroundStyle(.white.opacity(0.75))
-                        }
-                        Text(event.displayTitle).font(PoruchFont.serifTitle1).kerning(-0.4).foregroundStyle(.white)
-                            .multilineTextAlignment(.leading).lineLimit(3).fixedSize(horizontal: false, vertical: true)
-                        // Дата й місце двома рядками: в одному рядку хвіст обрізався («Сте…»).
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(cardOverline(event)).font(PoruchFont.subhead).foregroundStyle(.white.opacity(0.9)).lineLimit(1)
-                            if !place.isEmpty {
-                                Text(place).font(PoruchFont.subhead).foregroundStyle(.white.opacity(0.75)).lineLimit(1)
-                            }
-                            if let artists = artistsLine(event) {
-                                Text(artists).font(PoruchFont.subhead).foregroundStyle(.white.opacity(0.75)).lineLimit(1)
-                            }
+                        Text(event.displayTitle).font(event.imageUrl == nil ? PoruchFont.brandDisplay : PoruchFont.brandTitle1)
+                            .foregroundStyle(Palette.ink)
+                            .multilineTextAlignment(.leading).lineLimit(event.imageUrl == nil ? 5 : (typeSize.isAccessibilitySize ? 4 : 2))
+                            .fixedSize(horizontal: false, vertical: true)
+                        HostLine(event: event)
+                        EventDescriptor(event: event)
+                        if let reason { ReasonLine(text: reason.0, glyph: reason.1) }
+                        if let artists = artistsLine(event) { MetaLine(glyph: PoruchIcons.person, text: artists) }
+                        if let listing = event.listing {
+                            Text(Copy.listing_badge("\(listing.sourceName)")).font(PoruchFont.overline).foregroundStyle(Palette.inkTertiary)
+                                .lineLimit(1)
                         }
                     }
-                    .padding(Space.xl)
+                    .padding(Space.lg)
+                    Spacer(minLength: 0)
                 }
-                .overlay(alignment: .topTrailing) {
-                    if let onSave { SaveButton(saved: saved, action: onSave).padding(Space.md) }
+                // Висота — найменша, а не стала: з великим текстом назва, місце й підпис джерела не обрізаються.
+                .frame(minHeight: height)
+            } stub: {
+                VStack(spacing: 0) {
+                    if let onSave { SaveButton(saved: saved, action: onSave).padding(.top, Space.md) }
+                    Spacer(minLength: 0)
+                    StubTime(event: event).padding(.bottom, Space.xl)
                 }
-                .overlay(alignment: .topLeading) {
-                    if let badge = eventBadge(event) ?? communityBadge(event) {
-                        StatusBadge(text: badge.0, tone: badge.1, glyph: badge.2, onPhoto: true).padding(Space.lg)
-                    }
-                }
-                .clipShape(RoundedRectangle(cornerRadius: Corner.xl, style: .continuous))
-                .opacity(event.isCancelled ? 0.6 : 1)
+            }
         }
         .buttonStyle(PressableStyle())
-        .accessibilityElement(children: .combine)
+        .ticketAccessibility(event, state: [stamp?.0, reason?.0].compactMap { $0 }.joined(separator: ", "), saved: saved, onSave: onSave)
     }
 }
 
@@ -1255,6 +1573,8 @@ struct EventArt: View {
     var glyphSize: CGFloat = 220
     /// Наскільки опустити гліф: на деталях верх обкладинки зайнятий смугою статусу й кнопками.
     var glyphDrop: CGFloat = 0
+    /// Див. `EventThumbnail.fill`.
+    var fill = false
     var body: some View {
         if event.imageUrl == nil {
             ZStack(alignment: .topTrailing) {
@@ -1263,7 +1583,7 @@ struct EventArt: View {
                     .foregroundStyle(.white.opacity(0.18)).offset(x: glyphSize * 0.25, y: glyphDrop - glyphSize * 0.04)
             }
         } else {
-            EventThumbnail(event: event, glyphSize: 72, maxDimension: maxDimension)
+            EventThumbnail(event: event, glyphSize: 72, maxDimension: maxDimension, fill: fill)
         }
     }
 }
@@ -1388,7 +1708,7 @@ struct PoruchTabBar<Trailing: View>: View {
                             Text(item.label).font(PoruchFont.overline).lineLimit(1)
                         }
                         .foregroundStyle(selection == item.id ? Palette.ink : Palette.inkTertiary)
-                        .frame(maxWidth: .infinity).frame(height: 42)
+                        .frame(maxWidth: .infinity).frame(height: 44)
                         .background {
                             // Тонова пігулка під активним гліфом: стан видно й на відстані руки. Від кольору
                             // тексту, а не brandContainer: той на склі (≈#F2F2F6) майже зливався з тлом.
@@ -1401,9 +1721,17 @@ struct PoruchTabBar<Trailing: View>: View {
                             : item.dot ? Copy.a11y_tab_new_follows("\(item.label)") : item.label
                     )
                     .accessibilityAddTraits(selection == item.id ? .isSelected : [])
+                    // Підписи не ростуть вище Large, тож із великим текстом довге натискання показує їх збільшено, як у системному таббарі.
+                    .accessibilityShowsLargeContentViewer {
+                        PoruchIcon(glyph: item.glyph, size: 22)
+                        Text(item.label)
+                    }
                     .coachTarget(item.tip)
                 }
             }
+            // Група вкладок для VoiceOver: «вкладка, 1 з 4», як у системного таббара.
+            .accessibilityElement(children: .contain)
+            .accessibilityAddTraits(.isTabBar)
             .padding(.horizontal, Space.xs).padding(.vertical, Space.sm)
             .glassSurface(radius: 32)
             trailing

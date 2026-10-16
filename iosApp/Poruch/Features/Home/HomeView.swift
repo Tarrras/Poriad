@@ -38,6 +38,8 @@ struct HomeView: View, Equatable {
     @State private var feedLimit = Int(HomeRules.shared.FEED_PAGE)
     /// Шторка вибору міста з шапки: та сама, що на мапі.
     @State private var citySearch = false
+    /// Шторка вибору категорії з пошуку.
+    @State private var categoryPicker = false
 
     var body: some View {
         let view = self.view
@@ -47,14 +49,9 @@ struct HomeView: View, Equatable {
             if searchActive(view) { headerView(view) }
             feed(view).refreshable { await model.reloadAll() }
         }
-        // Першим сяйво, потім полотно: пізніший `background` лягає позаду.
-        .background(alignment: .top) {
-            if !searchActive(view) {
-                LinearGradient(colors: [Palette.glow, Palette.canvas], startPoint: .top, endPoint: .bottom)
-                    .frame(height: 460).ignoresSafeArea()
-            }
-        }
         .background(Palette.canvas.ignoresSafeArea())
+        // Смуга кольору полотна під статус-баром: прокручена стрічка не лягає під годинник.
+        .safeAreaInset(edge: .top, spacing: 0) { Color.clear.frame(height: 0).background(Palette.canvas.opacity(0.94)) }
         .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $citySearch) { CitySearchView().presentationDetents([.medium, .large]) }
         .onChange(of: view.searchKey) { _, _ in resultsLimit = homeResultsLimit }
@@ -91,17 +88,10 @@ struct HomeView: View, Equatable {
                             message: Copy.searching_scope("\(view.searchScope)")
                         ).padding(.horizontal, Space.page).padding(.top, Space.section)
                     } else {
-                        // Головна одиниця застосунку — зустріч від людини: заклик створити її стоїть першим, як колись «Організувати».
-                        // Гостю під плашкою лише тихий рядок входу (без картки): дві картки поспіль товпились би.
-                        VStack(alignment: .leading, spacing: Space.xs) {
-                            CreateEventCard(
-                                title: Copy.home_create_title, subtitle: Copy.home_create_subtitle,
-                                action: { createEvent("home_top") }
-                            )
-                            if !view.signedIn { guestLoginRow }
-                        }.padding(.horizontal, Space.page)
-                        if view.signedIn { personalSection(view) }
+                        // Серце продукту — зустрічі від людей, тож вони й порожній квиток «Організувати подію» стоять першими.
+                        // Афіша нижче — опора. Активності не вигадуємо: коли зустрічей мало, секцію веде порожній квиток.
                         peopleSection(view)
+                        if view.signedIn { personalSection(view) }
                         cityFeed(view)
                         // Кінець стрічки не глухий кут: далі мапа чи власна подія.
                         if !view.feed.isEmpty { moreRows(view) }
@@ -118,7 +108,7 @@ struct HomeView: View, Equatable {
             if !searchActive {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: Space.xs) {
-                        Text(Copy.home_title).font(PoruchFont.serifDisplay).kerning(-0.5).foregroundStyle(Palette.ink)
+                        Text(Copy.home_title).font(PoruchFont.brandDisplay).kerning(-0.5).foregroundStyle(Palette.ink)
                         // Тап міняє місто тут же, без переходу на мапу. Шеврон — частина тексту: довга назва
                         // переноситься разом із ним. Колір темніший за `inkSecondary`: на сяйві той дає лише ≈4:1.
                         Button { citySearch = true } label: {
@@ -178,20 +168,20 @@ struct HomeView: View, Equatable {
                             model.app.setHomeSearchDate(filter: view.searchDate == key ? DateFilter.any : key)
                         }
                     }
+                    // Категорії — одним чипом зі шторкою: дванадцять чипів другим рядом були стіною вибору.
+                    Chip(
+                        label: view.searchCategory.map { categoryName($0) } ?? Copy.category_single,
+                        dot: view.searchCategory, trailingGlyph: PoruchIcons.chevronDown,
+                        selected: view.searchCategory != nil
+                    ) { categoryPicker = true }
                 }
             }.railContentPadding(spread: 0)
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: Space.sm) {
-                    Chip(label: Copy.all_categories, selected: view.searchCategory == nil) {
-                        model.app.setHomeSearchCategory(category: nil)
-                    }
-                    ForEach(categories, id: \.0) { entry in
-                        Chip(label: entry.1, dot: entry.0, selected: view.searchCategory == entry.0) {
-                            model.app.setHomeSearchCategory(category: view.searchCategory == entry.0 ? nil : entry.0)
-                        }
-                    }
-                }
-            }.railContentPadding(spread: 0)
+        }
+        .sheet(isPresented: $categoryPicker) {
+            CategoryPickerSheet(selected: view.searchCategory) { category in
+                categoryPicker = false
+                model.app.setHomeSearchCategory(category: category)
+            }
         }
     }
 
@@ -212,15 +202,16 @@ struct HomeView: View, Equatable {
         .accessibilityLabel(Copy.guest_home_slim)
     }
 
-    /// «Від людей»: зустрічі з вільним місцем окремою рейкою, коли їх набралось досить (`HomeRules.people`). Ті самі постери,
-    /// що в сітці міста, але без підпису походження: заголовок секції вже каже, що це люди.
-    @ViewBuilder private func peopleSection(_ view: HomeScreenState) -> some View {
-        if !view.people.isEmpty {
-            VStack(alignment: .leading, spacing: Space.md) {
-                SectionHeader(
-                    title: Copy.from_people, actionLabel: view.openRooms > 0 ? Copy.home_all_count("\(view.openRooms)") : nil,
-                    action: view.openRooms > 0 ? showPeople : nil
-                ).padding(.horizontal, Space.page)
+    /// «Від людей»: зустрічі з вільним місцем рейкою квитків (коли їх набралось досить, `HomeRules.people`) і під нею
+    /// порожній квиток «Організувати подію». Секція є завжди: навіть без зустрічей вона каже, що свою можна зібрати.
+    /// Гостю під квитком лише тихий рядок входу (без картки): дві картки поспіль товпились би.
+    private func peopleSection(_ view: HomeScreenState) -> some View {
+        VStack(alignment: .leading, spacing: Space.md) {
+            SectionHeader(
+                title: Copy.from_people, actionLabel: view.openRooms > 0 ? Copy.home_all_count("\(view.openRooms)") : nil,
+                action: view.openRooms > 0 ? showPeople : nil
+            ).padding(.horizontal, Space.page)
+            if !view.people.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(alignment: .top, spacing: Space.md) {
                         ForEach(view.people, id: \.event.id) { entry in
@@ -228,13 +219,22 @@ struct HomeView: View, Equatable {
                                 entry: entry, saved: view.isSaved(entry.event), waitlisted: view.isWaitlisted(entry.event),
                                 showsOrigin: false, onSave: { model.app.toggleSaved(id: entry.event.id) }
                             ) { open(entry.event.id, from: "home_people") }
-                            .frame(width: peopleCardWidth)
+                            .frame(width: peopleCardWidth).frame(maxHeight: .infinity)
                         }
                     }
+                    // Квитки рейки за найвищим: корінці на одній лінії.
+                    .fixedSize(horizontal: false, vertical: true)
                 }
                 .railContentPadding(spread: 0)
                 .zIndex(1)
             }
+            VStack(alignment: .leading, spacing: Space.xs) {
+                CreateEventCard(
+                    title: Copy.home_create_title, subtitle: Copy.home_create_subtitle,
+                    action: { createEvent("home_top") }
+                )
+                if !view.signedIn { guestLoginRow }
+            }.padding(.horizontal, Space.page)
         }
     }
 
@@ -329,17 +329,15 @@ struct HomeView: View, Equatable {
                 heroPager(picks, view)
                 if !view.chips.isEmpty { feedChips(view.chips, selected: view.feedFilter) }
                 if !shown.isEmpty {
-                    LazyVGrid(
-                        columns: [GridItem(.flexible(), spacing: Space.md, alignment: .top), GridItem(.flexible(), alignment: .top)],
-                        spacing: Space.xl
-                    ) {
-                        ForEach(shown.prefix(feedLimit), id: \.event.id) { entry in
-                            PosterCard(
-                                entry: entry, saved: view.isSaved(entry.event), waitlisted: view.isWaitlisted(entry.event),
-                                onSave: { model.app.toggleSaved(id: entry.event.id) }
-                            ) {
-                                open(entry.event.id, from: "home_poster")
+                    // Ряди по два квитки однакової висоти: корінці в ряду стоять на одній лінії, хоч би скільки рядків мав підпис.
+                    let visible = Array(shown.prefix(feedLimit))
+                    LazyVStack(spacing: Space.xl) {
+                        ForEach(Array(stride(from: 0, to: visible.count, by: 2)), id: \.self) { index in
+                            HStack(alignment: .top, spacing: Space.md) {
+                                cityPoster(visible[index], view)
+                                if index + 1 < visible.count { cityPoster(visible[index + 1], view) } else { Color.clear }
                             }
+                            .fixedSize(horizontal: false, vertical: true)
                         }
                     }
                     .padding(.horizontal, Space.page).padding(.top, Space.md)
@@ -360,6 +358,16 @@ struct HomeView: View, Equatable {
                 )
             }
         }
+    }
+
+    private func cityPoster(_ entry: FeedEntry, _ view: HomeScreenState) -> some View {
+        PosterCard(
+            entry: entry, saved: view.isSaved(entry.event), waitlisted: view.isWaitlisted(entry.event),
+            onSave: { model.app.toggleSaved(id: entry.event.id) }
+        ) {
+            open(entry.event.id, from: "home_poster")
+        }
+        .frame(maxHeight: .infinity)
     }
 
     /// Ряд чипів над сіткою: час, безкоштовне й найбільші категорії. Звужує лише сітку, великі картки стоять.
@@ -386,8 +394,12 @@ struct HomeView: View, Equatable {
                         saved: view.isSaved(entry.event), onSave: { model.app.toggleSaved(id: entry.event.id) }
                     ) { open(entry.event.id, from: "home_hero") }
                     .containerRelativeFrame(.horizontal) { width, _ in picks.count > 1 ? width * 0.86 : width - 2 * Space.page }
+                    .frame(maxHeight: .infinity)
                 }
-            }.scrollTargetLayout()
+            }
+            // Великі квитки за найвищим: з великим текстом корінці стоять на одній лінії.
+            .fixedSize(horizontal: false, vertical: true)
+            .scrollTargetLayout()
         }
         .scrollTargetBehavior(.viewAligned)
         .railContentPadding(spread: 0)
@@ -501,7 +513,7 @@ private struct YourRow<Tile: View, Trailing: View>: View {
     /// Непрочитане: кнопка праворуч, що веде просто в чат. Тоді `trailing` не малюється.
     var chat: (count: Int, open: () -> Void)?
     /// Назва події (а не службового рядка) — засічками, як у постері.
-    var serifTitle = false
+    var brandTitle = false
     @ViewBuilder let tile: Tile
     @ViewBuilder let trailing: Trailing
 
@@ -514,7 +526,7 @@ private struct YourRow<Tile: View, Trailing: View>: View {
                         if let overline {
                             Text(overline).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary).lineLimit(1)
                         }
-                        Text(title).font(serifTitle ? PoruchFont.serifTitle3 : PoruchFont.cardName).kerning(serifTitle ? -0.1 : -0.2)
+                        Text(title).font(brandTitle ? PoruchFont.brandTitle3 : PoruchFont.cardName).kerning(brandTitle ? -0.1 : -0.2)
                             .foregroundStyle(Palette.ink).multilineTextAlignment(.leading).lineLimit(2)
                         if let subtitle, !subtitle.isEmpty {
                             Text(subtitle).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(1)
@@ -552,7 +564,7 @@ private struct PlanButton: View {
             }
             .foregroundStyle(highlight ? Palette.onBrand : Palette.ink)
             .frame(maxWidth: .infinity).frame(height: 44)
-            .background(highlight ? Palette.brand : Palette.brandContainer, in: Capsule())
+            .background(highlight ? Palette.brand : Palette.brandContainer, in: buttonShape)
         }
         .buttonStyle(PressableStyle())
     }
@@ -588,7 +600,7 @@ private struct NextPlanCard: View {
                 HStack(alignment: .top, spacing: Space.lg) {
                     VStack(alignment: .leading, spacing: Space.xs) {
                         Text(overline).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.accentText).lineLimit(1)
-                        Text(event.displayTitle).font(PoruchFont.serifTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
+                        Text(event.displayTitle).font(PoruchFont.brandTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
                             .multilineTextAlignment(.leading).lineLimit(3)
                         // Місце в один рядок: повна адреса живе в «Маршруті», а не в підписі.
                         Text(subtitle).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
@@ -657,12 +669,14 @@ private struct PlanRow: View {
     }
 
     var body: some View {
-        YourRow(overline: overline, title: event.displayTitle, subtitle: subtitle, open: open, chat: chatButton, serifTitle: true) {
+        YourRow(overline: overline, title: event.displayTitle, subtitle: subtitle, open: open, chat: chatButton, brandTitle: true) {
             EventThumbnail(event: event, glyphSize: 24, maxDimension: 52)
                 .frame(width: yourTile, height: yourTile)
                 .clipShape(RoundedRectangle(cornerRadius: Corner.sm, style: .continuous))
         } trailing: {
-            if row.requests > 0 {
+            if event.isCancelled {
+                TicketStamp(text: Copy.cancelled_short, tone: .danger)
+            } else if row.requests > 0 {
                 StatusBadge(
                     text: Copy.requests_count(Int(row.requests)),
                     tone: .accent, glyph: PoruchIcons.personAdd
@@ -671,7 +685,6 @@ private struct PlanRow: View {
                 StatusBadge(text: role.0, tone: role.1)
             }
         }
-        .opacity(event.isCancelled ? 0.6 : 1)
     }
 }
 
@@ -700,8 +713,9 @@ private func lane(_ entry: FeedEntry) -> String? {
 /// Ширина постера в рейці «Від людей»: як в одній колонці сітки, щоб третій визирав із-за краю.
 private let peopleCardWidth: CGFloat = 176
 
-/// Постер у сітці «У місті»: обкладинка 4:5 без коробки, підпис просто на полотні. Ціна чи «3 з 8» — плашкою на фото,
-/// стан кімнати («Ви йдете», «Лишилось 2») — плашкою нагорі замість підпису «Для вас».
+/// Вертикальний квиток у сітці «У місті» й рейці «Від людей»: обкладинка 4:5 і назва вгорі, а за перфорацією корінець
+/// кольору жанру з годиною, днем і, для зустрічі, місцями «3/8». Ціна — плашкою на фото, стан кімнати («Ви йдете»,
+/// «Лишилось 2») — штампом нагорі замість підпису «Для вас».
 private struct PosterCard: View {
     let entry: FeedEntry
     let saved: Bool
@@ -713,61 +727,120 @@ private struct PosterCard: View {
 
     private var event: Event { entry.event }
 
-    /// «Від 390 ₴» лише коли джерело сказало ціну; для кімнати — «3/8» з гліфом людей. Не «3 з 8»: бейдж набраний капсом,
-    /// а кирилична «З» майже не відрізняється від цифри 3 («3 З 8» читалось як «3 3 8»).
-    private var chip: (text: String, glyph: PoruchGlyph?)? {
-        if let room = event.gathering { return ("\(room.attendeeCount)/\(room.capacity)", PoruchIcons.social) }
-        if let listing = event.listing, listing.isFree?.boolValue == true || listing.priceMin != nil { return (listingPrice(listing), nil) }
-        return nil
+    /// «Від 390 ₴» лише коли джерело сказало ціну. Місця зустрічі — на корінці.
+    private var price: String? {
+        guard event.gathering == nil, let listing = event.listing,
+              listing.isFree?.boolValue == true || listing.priceMin != nil else { return nil }
+        return listingPrice(listing)
     }
 
-    /// Стан кімнати. Скасоване й знята афіша вже сказані підписом внизу, двічі не пишемо.
+    /// Стан: скасоване — штампом (корінець тоді погашений), для кімнати — «Ви йдете», «Лишилось 2». Знята афіша сказана підписом.
     private var state: (String, BadgeTone, PoruchGlyph?)? {
-        event.gathering == nil || event.isCancelled ? nil : eventState(event, waitlisted: waitlisted)
+        if event.isCancelled { return (Copy.cancelled_short, .danger, nil) }
+        return event.gathering == nil ? nil : eventState(event, waitlisted: waitlisted)
     }
 
-    /// Афіша завжди підписана джерелом (docs/event-ingestion.md §8); скасоване — теж словами.
+    /// Афіша завжди підписана джерелом (docs/event-ingestion.md §8).
     private var note: (String, Color)? {
-        if event.isCancelled { return (Copy.cancelled_short, Palette.danger) }
         guard let listing = event.listing else { return nil }
         return (listing.isWithdrawn ? Copy.listing_withdrawn : Copy.listing_badge("\(listing.sourceName)"), Palette.inkTertiary)
     }
 
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    /// Друкована сторона без фото дає назві чотири рядки; з великим текстом — на рядок більше, щоб назва не тонула в «…».
+    private var titleLines: Int { (event.imageUrl == nil ? 4 : 2) + (typeSize.isAccessibilitySize ? 1 : 0) }
+
+    /// Штамп — лише стан квитка: скасовано, «Ви йдете», «Лишилось 2». Чому квиток тут — [reason], тихим рядком.
+    @ViewBuilder private func stampView(onFill: Bool) -> some View {
+        if let state { TicketStamp(text: state.0, tone: state.1, glyph: state.2, onFill: onFill) }
+    }
+
+    /// Чому квиток у стрічці: за ким стежите (дзвіночок і ім'я), «Для вас», «Від людей». Не штамп, бо нічого з
+    /// квитком не сталось — штамп поруч зі «Скасовано» й «Лишилось 2» мав би однакову вагу.
+    private var reason: (String, PoruchGlyph)? {
+        if entry.source == .following { return (entry.followName ?? Copy.following, PoruchIcons.bell) }
+        if let label = lane(entry) { return (label, PoruchIcons.sparkle) }
+        if showsOrigin, event.gathering != nil { return (Copy.from_people, PoruchIcons.social) }
+        return nil
+    }
+
     var body: some View {
         Button(action: open) {
-            VStack(alignment: .leading, spacing: Space.md) {
-                Color.clear.aspectRatio(4.0 / 5.0, contentMode: .fit)
-                    .overlay { EventArt(event: event, maxDimension: 420, glyphSize: 130) }
-                    .overlay(alignment: .topLeading) {
-                        if let state {
-                            StatusBadge(text: state.0, tone: state.1, glyph: state.2, onPhoto: true).padding(Space.sm)
-                        } else if entry.source == .following {
-                            // Вузька плашка: дзвіночок замість «Ви стежите», лишається саме ім'я.
-                            StatusBadge(text: entry.followName ?? Copy.following, glyph: PoruchIcons.bell, onPhoto: true).padding(Space.sm)
-                        } else if let label = lane(entry) {
-                            StatusBadge(text: label, onPhoto: true).padding(Space.sm)
-                        } else if showsOrigin, let community = communityBadge(event) {
-                            StatusBadge(text: community.0, glyph: community.2, onPhoto: true).padding(Space.sm)
+            Ticket(vertical: true, stubColor: ticketStub(event), stubLength: 52) {
+                VStack(alignment: .leading, spacing: 0) {
+                    if event.imageUrl != nil {
+                        // Пріоритет: у ряду однакової висоти фото бере свої 4:5 першим, а запас іде полю під назвою.
+                        Color.clear.aspectRatio(4.0 / 5.0, contentMode: .fit)
+                            .overlay { EventArt(event: event, maxDimension: 420) }
+                            .clipped()
+                            .layoutPriority(1)
+                            .overlay(alignment: .topLeading) {
+                                // Поле праворуч — під «Зберегти»: довгий штамп стискається, а не лягає на кнопку.
+                                stampView(onFill: true).padding(Space.sm).padding(.trailing, 40)
+                            }
+                            .overlay(alignment: .topTrailing) { SaveButton(saved: saved, action: onSave).padding(Space.xs) }
+                            .overlay(alignment: .bottomLeading) {
+                                if let price { StatusBadge(text: price, onPhoto: true).padding(Space.sm) }
+                            }
+                    } else {
+                        // Без фото — друкована сторона квитка: штамп і «Зберегти» вгорі, назва великим кеглем.
+                        HStack(alignment: .top) {
+                            stampView(onFill: false).padding(.top, Space.xs)
+                            Spacer(minLength: Space.xs)
+                            SaveButton(saved: saved, action: onSave)
                         }
+                        .padding([.top, .horizontal], Space.sm)
                     }
-                    .overlay(alignment: .topTrailing) { SaveButton(saved: saved, action: onSave).padding(Space.xs) }
-                    .overlay(alignment: .bottomLeading) {
-                        if let chip { StatusBadge(text: chip.text, glyph: chip.glyph, onPhoto: true).padding(Space.sm) }
+                    // Як на друкованому квитку: місце й підписи притиснуті до перфорації, вільне поле лишається під назвою.
+                    VStack(alignment: .leading, spacing: Space.xs) {
+                        Text(event.displayTitle)
+                            .font(event.imageUrl == nil ? PoruchFont.brandTitle2 : PoruchFont.brandTitle3).foregroundStyle(Palette.ink)
+                            .multilineTextAlignment(.leading)
+                            .lineLimit(titleLines)
+                        HostLine(event: event)
+                        Spacer(minLength: Space.sm)
+                        if let reason { ReasonLine(text: reason.0, glyph: reason.1) }
+                        EventDescriptor(event: event, placeFirst: true)
+                        if event.imageUrl == nil, let price {
+                            Text(price).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(1)
+                        }
+                        if let series = seriesNote(event) {
+                            Text(series).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(1)
+                        }
+                        if let note { Text(note.0).font(PoruchFont.overline).foregroundStyle(note.1).lineLimit(1) }
                     }
-                    .clipShape(RoundedRectangle(cornerRadius: Corner.lg, style: .continuous))
-                VStack(alignment: .leading, spacing: Space.xs) {
-                    // Коли — найважливіше в афіші, тож і найтемніше в підписі, а не найблідіше.
-                    Text(cardOverline(event)).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.ink).lineLimit(1)
-                        .minimumScaleFactor(0.85)
-                    Text(event.displayTitle).font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
-                        .multilineTextAlignment(.leading).lineLimit(2, reservesSpace: true)
-                    EventDescriptor(event: event, placeFirst: true)
-                    if let note { Text(note.0).font(PoruchFont.overline).foregroundStyle(note.1).lineLimit(1) }
-                }.padding(.horizontal, Space.xs)
+                    .padding(.horizontal, Space.md).padding(.top, Space.md).padding(.bottom, Space.lg)
+                    .frame(maxHeight: .infinity, alignment: .top)
+                }
+            } stub: {
+                StubTime(event: event, row: true)
             }
-            .opacity(event.isCancelled ? 0.6 : 1)
         }
         .buttonStyle(PressableStyle())
-        .accessibilityElement(children: .combine)
+        .ticketAccessibility(event, state: [state?.0, reason?.0, price, note?.0].compactMap { $0 }.joined(separator: ", "), saved: saved, onSave: onSave)
+    }
+}
+
+/// Шторка категорії для пошуку: плитки всіх категорій і «Усі категорії». Відповідь спершу закриває шторку, потім діє.
+private struct CategoryPickerSheet: View {
+    let selected: EventCategory?
+    let select: (EventCategory?) -> Void
+    var body: some View {
+        VStack(alignment: .leading, spacing: Space.lg) {
+            Text(Copy.categories).font(PoruchFont.brandTitle2).foregroundStyle(Palette.ink).accessibilityAddTraits(.isHeader)
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 76), spacing: Space.sm)], spacing: Space.lg) {
+                ForEach(categories, id: \.0) { entry in
+                    CategoryTile(category: entry.0, selected: selected == entry.0) {
+                        select(selected == entry.0 ? nil : entry.0)
+                    }
+                }
+            }
+            SecondaryButton(title: Copy.all_categories) { select(nil) }
+        }
+        .padding(.horizontal, Space.page).padding(.top, Space.xl).padding(.bottom, Space.lg)
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+        .presentationBackground(Palette.canvas)
     }
 }

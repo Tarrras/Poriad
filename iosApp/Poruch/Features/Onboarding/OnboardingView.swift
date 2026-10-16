@@ -76,7 +76,7 @@ struct OnboardingView: View {
             .padding(.top, Space.section).padding(.bottom, Space.lg)
             .decorative()
             VStack(spacing: Space.md) {
-                Text(Copy.onboarding_welcome_title).font(PoruchFont.serifDisplay).kerning(-0.5).foregroundStyle(Palette.ink)
+                Text(Copy.onboarding_welcome_title).font(PoruchFont.brandDisplay).kerning(-0.5).foregroundStyle(Palette.ink)
                 Text(Copy.onboarding_welcome_body)
                     .font(PoruchFont.lead).foregroundStyle(Palette.inkSecondary).multilineTextAlignment(.center)
             }
@@ -132,7 +132,7 @@ struct OnboardingView: View {
     ) -> some View {
         VStack(alignment: .leading, spacing: Space.lg) {
             VStack(alignment: .leading, spacing: Space.xs) {
-                Text(title).font(PoruchFont.serifDisplay).kerning(-0.5).foregroundStyle(Palette.ink)
+                Text(title).font(PoruchFont.brandDisplay).kerning(-0.5).foregroundStyle(Palette.ink)
                 Text(hint).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
             }
             content()

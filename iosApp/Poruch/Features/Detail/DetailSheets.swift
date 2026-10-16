@@ -47,8 +47,8 @@ struct CompanionSheet: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Space.lg) {
-                Text(Copy.companion_seek).font(PoruchFont.serifTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
-                Text(event.displayTitle).font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.inkSecondary).lineLimit(2)
+                Text(Copy.companion_seek).font(PoruchFont.brandTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
+                Text(event.displayTitle).font(PoruchFont.brandTitle3).kerning(-0.1).foregroundStyle(Palette.inkSecondary).lineLimit(2)
                 Text(Copy.companion_sheet_body)
                     .font(PoruchFont.bodyText).foregroundStyle(Palette.inkSecondary)
                 if let meetAt {
@@ -137,7 +137,7 @@ struct ScrimButton: View {
     let label: String
     let action: () -> Void
     var body: some View {
-        Button(action: action) { ScrimGlyph(glyph: glyph) }
+        Button(action: action) { ScrimGlyph(glyph: glyph).tapTarget() }
             .buttonStyle(.plain)
             .accessibilityLabel(label)
     }
@@ -218,10 +218,10 @@ struct RateSheet: View {
                             .clipShape(RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
                         VStack(alignment: .leading, spacing: 2) {
                             Text(cardOverline(event)).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
-                            Text(event.displayTitle).font(PoruchFont.serifTitle3).kerning(-0.1).foregroundStyle(Palette.ink).lineLimit(2)
+                            Text(event.displayTitle).font(PoruchFont.brandTitle3).kerning(-0.1).foregroundStyle(Palette.ink).lineLimit(2)
                         }
                     }
-                    Text(Copy.rate_title).font(PoruchFont.serifTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
+                    Text(Copy.rate_title).font(PoruchFont.brandTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
                     VStack(spacing: Space.sm) {
                         HStack(spacing: Space.sm) {
                             ForEach(1...5, id: \.self) { value in
@@ -382,7 +382,7 @@ struct ReportSheet: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Space.md) {
-                Text(target.title).font(PoruchFont.serifTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
+                Text(target.title).font(PoruchFont.brandTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
                 Text(Copy.report_body)
                     .font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
                 ForEach(reportReasons, id: \.value) { option in

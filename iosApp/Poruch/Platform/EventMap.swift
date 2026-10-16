@@ -7,9 +7,8 @@ struct MapRegion { var south: Double; var west: Double; var north: Double; var e
 
 private let eventSourceID = "poruch-events"
 private let pointSourceID = "poruch-point"
-private let clusterHaloID = "poruch-cluster-halo"
 private let clusterLayerID = "poruch-cluster"
-private let clusterCountID = "poruch-cluster-count"
+private let clusterIconName = "poruch-cluster-ticket"
 private let pinCountID = "poruch-pin-count"
 /// Максимум подій зі стосу для каруселі.
 private let clusterLeafLimit: UInt = 60
@@ -57,6 +56,31 @@ private func iconName(_ category: EventCategory, selected: Bool) -> String {
     let pin = pinImage(glyph: categoryGlyph(category), hue: categoryUIColor(category), surface: UIColor(Palette.surface), selected: true)
     snapshotPins[key] = pin
     return pin
+}
+
+/// Кластер — класичний квиток: скруглений прямокутник із півкруглими вирізами з боків, чорнилом (уночі папером)
+/// з краєм кольору картки. Число друкує шар поверх. 46×28 pt вміщують «999».
+private func clusterTicketImage(fill: UIColor, edge: UIColor) -> UIImage {
+    let ticket = CGSize(width: 46, height: 28)
+    let pad: CGFloat = 5
+    let size = CGSize(width: ticket.width + pad * 2, height: ticket.height + pad * 2)
+    return UIGraphicsImageRenderer(size: size).image { context in
+        let canvas = context.cgContext
+        let rect = CGRect(origin: CGPoint(x: pad, y: pad), size: ticket)
+        let notch: CGFloat = 4.5
+        let shape = Path(roundedRect: rect, cornerRadius: 7, style: .continuous)
+            .subtracting(Path(ellipseIn: CGRect(x: rect.minX - notch, y: rect.midY - notch, width: notch * 2, height: notch * 2)))
+            .subtracting(Path(ellipseIn: CGRect(x: rect.maxX - notch, y: rect.midY - notch, width: notch * 2, height: notch * 2)))
+        canvas.setShadow(offset: CGSize(width: 0, height: 2), blur: 5, color: UIColor.black.withAlphaComponent(0.25).cgColor)
+        canvas.addPath(shape.cgPath)
+        canvas.setFillColor(fill.cgColor)
+        canvas.fillPath()
+        canvas.setShadow(offset: .zero, blur: 0, color: nil)
+        canvas.addPath(shape.cgPath)
+        canvas.setStrokeColor(edge.cgColor)
+        canvas.setLineWidth(2)
+        canvas.strokePath()
+    }
 }
 
 /// Значок піна, один на категорію, кешується стилем: кільце на диску в спокої, інверсія у фокусі.
@@ -339,36 +363,27 @@ struct EventMap: UIViewRepresentable {
             style.addSource(events)
             style.addSource(point)
 
-            let halo = MLNCircleStyleLayer(identifier: clusterHaloID, source: events)
-            halo.circleColor = NSExpression(forConstantValue: UIColor(Palette.brand))
-            halo.circleOpacity = NSExpression(forConstantValue: scheme == .dark ? 0.28 : 0.16)
-            halo.circleRadius = NSExpression(
+            // Кластер — квиток із числом, у мові решти застосунку, а не чорне коло з ореолом. Більший кластер —
+            // трохи більший квиток.
+            let cluster = MLNSymbolStyleLayer(identifier: clusterLayerID, source: events)
+            cluster.iconImageName = NSExpression(forConstantValue: clusterIconName)
+            cluster.iconScale = NSExpression(
                 format: "mgl_interpolate:withCurveType:parameters:stops:(CAST(events, 'NSNumber'), 'linear', nil, %@)",
-                [2: 26, 60: 42]
+                [2: 1.0, 60: 1.3]
             )
-            halo.predicate = NSPredicate(format: "cluster == YES")
-            style.addLayer(halo)
-
-            let core = MLNCircleStyleLayer(identifier: clusterLayerID, source: events)
-            core.circleColor = NSExpression(forConstantValue: UIColor(Palette.brand))
-            core.circleStrokeWidth = NSExpression(forConstantValue: 3)
-            core.circleStrokeColor = NSExpression(forConstantValue: UIColor(Palette.surface))
-            core.circleRadius = NSExpression(
+            cluster.iconAllowsOverlap = NSExpression(forConstantValue: true)
+            cluster.iconIgnoresPlacement = NSExpression(forConstantValue: true)
+            cluster.text = NSExpression(format: "CAST(events, 'NSString')")
+            cluster.textFontNames = NSExpression(forConstantValue: ["Noto Sans Bold"])
+            cluster.textFontSize = NSExpression(
                 format: "mgl_interpolate:withCurveType:parameters:stops:(CAST(events, 'NSNumber'), 'linear', nil, %@)",
-                [2: 18, 60: 30]
+                [2: 13, 60: 16]
             )
-            core.predicate = NSPredicate(format: "cluster == YES")
-            style.addLayer(core)
-
-            let count = MLNSymbolStyleLayer(identifier: clusterCountID, source: events)
-            count.text = NSExpression(format: "CAST(events, 'NSString')")
-            count.textFontNames = NSExpression(forConstantValue: ["Noto Sans Bold"])
-            count.textFontSize = NSExpression(forConstantValue: 13)
-            count.textColor = NSExpression(forConstantValue: UIColor(Palette.onBrand))
-            count.textAllowsOverlap = NSExpression(forConstantValue: true)
-            count.textIgnoresPlacement = NSExpression(forConstantValue: true)
-            count.predicate = NSPredicate(format: "cluster == YES")
-            style.addLayer(count)
+            cluster.textColor = NSExpression(forConstantValue: UIColor(Palette.onBrand))
+            cluster.textAllowsOverlap = NSExpression(forConstantValue: true)
+            cluster.textIgnoresPlacement = NSExpression(forConstantValue: true)
+            cluster.predicate = NSPredicate(format: "cluster == YES")
+            style.addLayer(cluster)
 
             let pins = MLNSymbolStyleLayer(identifier: pinLayerID, source: events)
             pins.iconImageName = NSExpression(forKeyPath: "icon")
@@ -425,6 +440,7 @@ struct EventMap: UIViewRepresentable {
                 pinImage(glyph: PoruchIcons.pin, hue: UIColor(Palette.brand), surface: surface, selected: true),
                 forName: chosenIconName
             )
+            style.setImage(clusterTicketImage(fill: UIColor(Palette.brand), edge: surface), forName: clusterIconName)
         }
 
         /// Крапка зустрічі — окреме джерело: не подія, в кластери не рахується.

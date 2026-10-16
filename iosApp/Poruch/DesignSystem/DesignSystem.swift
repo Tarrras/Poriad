@@ -34,20 +34,20 @@ private func blend(_ a: UInt32, _ b: UInt32, _ t: CGFloat) -> UIColor {
     )
 }
 
-/// Світла тема — прохолодний сірий фон і білі картки без рамок (Apple Store); темна — майже
-/// чорне полотно й напівпрозорі картки з тонкою світлою лінією (Moonly). Дії майже чорні / білі.
+/// Оболонка «Корінця» — одна нейтральна шкала з холодним відтінком: денне полотно й білі квитки, нічне графітове
+/// полотно й трохи світліші квитки з волосиною по краю. Колір на екрані мають лише корінці квитків і стани.
+/// Головна дія — чорнило вдень, папір уночі.
 enum Palette {
-    static let brand = Color(light: 0x1D1D1F, dark: 0xF5F5F7)
-    static let brandPressed = Color(light: 0x3A3A3C, dark: 0xD1D1D6)
-    static let brandContainer = Color(light: 0xE8E8ED, dark: 0x2C2C33)
-    static let onBrandContainer = Color(light: 0x1D1D1F, dark: 0xF5F5F7)
-    static let onBrand = Color(light: 0xFFFFFF, dark: 0x1D1D1F)
+    static let brand = Color(light: 0x141417, dark: 0xF3F3F0)
+    static let brandPressed = Color(light: 0x2E2E33, dark: 0xD6D6D2)
+    static let brandContainer = Color(light: 0xE6E6EA, dark: 0x2A2930)
+    static let onBrandContainer = Color(light: 0x141417, dark: 0xF3F3F0)
+    static let onBrand = Color(light: 0xFFFFFF, dark: 0x141417)
 
+    /// Штампова фарба: терміновість, лічильник, «залишилось мало місць».
     static let accent = Color(light: 0xE0582F, dark: 0xFF8A5B)
     /// `accent` як колір дрібного тексту на білому: сам `accent` там дає 3,75:1, цей — 5,1:1. Заливкам і крапкам лишається `accent`.
     static let accentText = Color(light: 0xC2431F, dark: 0xFF8A5B)
-    /// Акцентний текст на темному затемненні обкладинки — в обох темах світлий варіант.
-    static let accentOnPhoto = Color(light: 0xFF8A5B, dark: 0xFF8A5B)
     static let accentContainer = Color(light: 0xFDE7DF, dark: 0x3F2419)
     static let onAccentContainer = Color(light: 0x7A2E14, dark: 0xFFD9C8)
 
@@ -58,30 +58,31 @@ enum Palette {
     static let danger = Color(light: 0xC0392B, dark: 0xFF6B5B)
     static let dangerContainer = Color(light: 0xFBE3E0, dark: 0x3C1A16)
 
-    static let ink = Color(light: 0x1D1D1F, dark: 0xF5F5F7)
-    static let inkSecondary = Color(light: 0x6E6E73, dark: 0xA1A1A8)
+    static let ink = Color(light: 0x141417, dark: 0xF3F3F0)
+    static let inkSecondary = Color(light: 0x5E5E66, dark: 0xA6A5AD)
     /// Контраст ≥ 4.5:1 на полотні, картці й `surfaceMuted` в обох темах: цим кольором пишуть підписи, не лише гліфи.
-    static let inkTertiary = Color(light: 0x6E6E78, dark: 0x8E8E96)
+    static let inkTertiary = Color(light: 0x6A6A73, dark: 0x96959E)
 
-    static let surface = Color(light: 0xFFFFFF, dark: 0x17171C)
-    /// Те, що плаває над темним полотном, світліше за картку в потоці.
-    static let surfaceRaised = Color(light: 0xFFFFFF, dark: 0x202027)
-    static let surfaceMuted = Color(light: 0xF2F2F7, dark: 0x26262E)
-    static let canvas = Color(light: 0xF5F5F7, dark: 0x0B0B0F)
-    static let canvasTint = Color(light: 0xEBEBF0, dark: 0x141419)
-    /// Сяйво за шапкою головної: холодний відтінок, що на висоті екрана тане в полотно.
-    static let glow = Color(light: 0xE4E1F6, dark: 0x1B1A36)
+    static let surface = Color(light: 0xFFFFFF, dark: 0x1C1B21)
+    /// Те, що плаває над темним полотном, світліше за квиток у потоці.
+    static let surfaceRaised = Color(light: 0xFFFFFF, dark: 0x26252C)
+    static let surfaceMuted = Color(light: 0xEDEDF0, dark: 0x2A2930)
+    static let canvas = Color(light: 0xF2F2F4, dark: 0x0F0F13)
+    static let canvasTint = Color(light: 0xE8E8EC, dark: 0x16161B)
 
-    /// Шапка тепер того ж тону, що й полотно: екран — один спокійний аркуш.
-    static let heroTop = Color(light: 0xF5F5F7, dark: 0x0B0B0F)
-    static let heroBottom = Color(light: 0xF5F5F7, dark: 0x0B0B0F)
+    static let heroTop = canvas
+    static let heroBottom = canvas
 
     /// Тінь є лише в того, що плаває (таббар, карусель): мʼяка, нейтральна, майже непомітна.
     static let shadowSpot = Color(light: 0x000000, dark: 0x000000, lightAlpha: 0.10, darkAlpha: 0.40)
     static let shadowAmbient = Color(light: 0x000000, dark: 0x000000, lightAlpha: 0.06, darkAlpha: 0.30)
 
-    /// Розділювачі у світлій темі; у темній — ще й край картки.
-    static let hairline = Color(light: 0xE5E5EA, dark: 0x2A2A33)
+    /// Корінець скасованої події — погашений, сірий в обох темах: білий друк на ньому тримає ≥ 5:1, а сама подія
+    /// не блідне прозорістю (та опускала текст нижче 3:1).
+    static let voidStub = Color(light: 0x5E5E66, dark: 0x4A4950)
+
+    /// Розділювачі у світлій темі; у темній — ще й край квитка.
+    static let hairline = Color(light: 0xE0E0E5, dark: 0x2E2D35)
 }
 
 /// Глибокий відтінок категорії для гліфів і тексту; пастель для плиток і пінів робиться з нього.
@@ -131,12 +132,22 @@ func mapTokens(_ scheme: ColorScheme) -> MapTokens {
     )
 }
 
-/// Відтінок категорії для тексту й гліфів. У темній темі освітлюється до контрасту 4.5:1.
+/// Заливка корінця квитка: відтінок категорії на 12 % ближче до чорного в обох темах. Сам відтінок у їжі, стендапу
+/// й дитячого дає білому дрібному тексту лише 3,7–4,2:1, а день під часом набраний 12 pt.
+func categoryStub(_ category: EventCategory) -> Color {
+    Color(blend(categoryHues[category.key] ?? 0x6B675E, 0x000000, 0.12))
+}
+
+/// Відтінок категорії для тексту й гліфів. Удень — на 16 % темніший за сирий: той давав їжі, стендапу й дитячому на білому
+/// лише 3,8–4,2:1, а з 16 % найслабша (їжа) тримає 4,55:1 навіть на полотні. Уночі освітлюється до 4.5:1.
 /// `categoryColor` лишається сирим відтінком для пінів і заливок.
 func categoryInk(_ category: EventCategory) -> Color {
     guard let hue = categoryHues[category.key] else { return Palette.inkSecondary }
-    return Color(UIColor { $0.userInterfaceStyle == .dark ? blend(hue, 0xFFFFFF, 0.45) : UIColor(rgb: hue) })
+    return Color(UIColor { $0.userInterfaceStyle == .dark ? blend(hue, 0xFFFFFF, 0.45) : blend(hue, 0x000000, 0.16) })
 }
+
+/// Корінець квитка: колір жанру, а в скасованої події — погашений сірий.
+func ticketStub(_ event: Event) -> Color { event.isCancelled ? Palette.voidStub : categoryStub(event.category) }
 
 /// Другий відтінок пари для градієнта обкладинки.
 private let categoryPartners: [String: UInt32] = [
@@ -187,12 +198,12 @@ func categoryWash(_ category: EventCategory) -> Color {
     return Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(rgb: hue).withAlphaComponent(0.22) : UIColor(rgb: wash) })
 }
 
-/// Інтерфейс — SF Pro: ієрархію несуть кегль і вага, а не зміна регістру. Заголовки й назви подій — Source Serif 4
-/// (`serifDisplay` і його брати нижче). Кожен токен — текстовий стиль системи з вагою: кегль росте з Dynamic Type.
+/// Інтерфейс — SF Pro: ієрархію несуть кегль і вага, а не зміна регістру. Заголовки й назви подій — Sofia Sans Condensed
+/// (`brandDisplay` і його брати нижче). Кожен токен — текстовий стиль системи з вагою: кегль росте з Dynamic Type.
 /// Базові розміри в дужках (стандартний розмір тексту); `label` на пункт більший за колишні 14.
 ///
 /// Sans-токени `title1`–`title3`, `cardName` лишились для цифр, значень і службових рядків (лічильники, «Сьогодні · 19:00»,
-/// підписи опцій), а не для заголовків і назв: ті — засічками.
+/// підписи опцій), а не для заголовків і назв: ті — голосом квитка.
 enum PoruchFont {
     static let title1 = Font.system(.title, weight: .bold)             // 28
     static let title2 = Font.system(.title2, weight: .bold)            // 22
@@ -211,22 +222,29 @@ enum PoruchFont {
     static let lead = Font.system(.body)                               // 17
 }
 
-/// Заголовки й назви подій з засічками: Source Serif 4 (змінний шрифт, SIL OFL, `Fonts/SourceSerif4.ttf`), вага 600.
-/// Правило за змістом: назва події (`Event.displayTitle`) чи заголовок екрана або секції — так; дата, місце, чипи, кнопки,
-/// цифри й службові рядки — системний шрифт. CoreText сам ставить оптичний розмір рівним кеглю, тож 34 pt — «Display»,
-/// 17 pt — «Text»; `relativeTo` тримає Dynamic Type.
+/// Голос квитка — Sofia Sans Condensed (SIL OFL, статичні накреслення в `Fonts/`): назви подій і заголовки екранів та
+/// секцій. Цифри корінця — Sofia Sans Extra Condensed, табличні. Правило за змістом: назва події (`Event.displayTitle`),
+/// заголовок, час на корінці й штамп — так; місце, чипи, кнопки, підписи й службові рядки — системний шрифт.
+/// Вужчий шрифт тримає довгі українські назви в двох рядках, тому кегль на щабель більший, ніж був у засічок.
+/// `relativeTo` тримає Dynamic Type.
 extension PoruchFont {
-    private static func serif(_ size: CGFloat, _ style: Font.TextStyle) -> Font {
-        .custom("SourceSerif4Roman-SemiBold", size: size, relativeTo: style)
+    private static func condensed(_ size: CGFloat, _ style: Font.TextStyle, heavy: Bool = false) -> Font {
+        .custom(heavy ? "SofiaSansCondensed-ExtraBold" : "SofiaSansCondensed-Bold", size: size, relativeTo: style)
     }
     /// «Що поруч».
-    static let serifDisplay = serif(34, .largeTitle)
-    /// Назва великої картки.
-    static let serifTitle1 = serif(28, .title)
+    static let brandDisplay = condensed(38, .largeTitle, heavy: true)
+    /// Назва великого квитка.
+    static let brandTitle1 = condensed(30, .title)
     /// Заголовок секції й назва плану.
-    static let serifTitle2 = serif(22, .title2)
-    /// Назва події в постері й рядку «Ваше»: 17 pt, оптичний розмір «Text».
-    static let serifTitle3 = serif(17, .headline)
+    static let brandTitle2 = condensed(24, .title2)
+    /// Назва події в квитку, постері й рядку.
+    static let brandTitle3 = condensed(20, .headline)
+    /// Час на корінці: «19:30». Табличні цифри дає `.monospacedDigit()` на місці виклику.
+    static let numeral = Font.custom("SofiaSansExtraCondensed-ExtraBold", size: 34, relativeTo: .title)
+    /// Час на малому корінці рядка.
+    static let numeralSmall = Font.custom("SofiaSansExtraCondensed-ExtraBold", size: 24, relativeTo: .title3)
+    /// Штамп стану: «ВИ ЙДЕТЕ», «СКАСОВАНО».
+    static let stamp = condensed(13, .caption, heavy: true)
 }
 
 /// Трекінг за розміром: великий текст стискається в одну форму.
@@ -244,12 +262,13 @@ enum Space {
     static let page: CGFloat = 16
 }
 
+/// Кути квитка: скруглені, але зібрані — предмет із картону, а не мʼяка подушка.
 enum Corner {
-    static let xs: CGFloat = 12
-    static let sm: CGFloat = 14
-    static let md: CGFloat = 18
-    static let lg: CGFloat = 24
-    static let xl: CGFloat = 28
+    static let xs: CGFloat = 10
+    static let sm: CGFloat = 12
+    static let md: CGFloat = 14
+    static let lg: CGFloat = 18
+    static let xl: CGFloat = 22
 }
 
 /// Два рівні: усе в потоці лежить пласко (`card` = 0, картку робить лише різниця тону
@@ -368,6 +387,12 @@ struct PressableStyle: ButtonStyle {
 }
 
 extension View {
+    /// Ціль дотику щонайменше 44 pt навколо меншого кола чи слова: вигляд той самий, а палець влучає (HIG).
+    /// Ставити всередині мітки кнопки: поле поза кнопкою SwiftUI до дотику не зараховує.
+    func tapTarget(_ side: CGFloat = 44) -> some View {
+        frame(minWidth: side, minHeight: side).contentShape(Rectangle())
+    }
+
     func cardSurface(radius: CGFloat = Corner.lg, elevation: CGFloat = Elevation.card) -> some View {
         modifier(CardSurface(radius: radius, elevation: elevation))
     }
@@ -584,6 +609,31 @@ func eventOverline(_ event: Event) -> String {
     }
     let hour = formatter(event, "HH:mm").string(from: date)
     return "\(dayLabel(event, date, short: true)) · \(hour)".uppercased(with: ukrainian)
+}
+
+/// Що друкується на корінці квитка: велике й мале. Сеанс — година й день («19:30», «СЬОГОДНІ»); те, що вже йде, —
+/// кінець прокату («30.11», «ДО») чи «ЗАРАЗ»; минуле — година й дата числом. `compact` — малий корінець рядка, де
+/// «СЬОГОДНІ» не влазить: там дата завжди числом («16.10»). `medium` — нижній корінець постера: день словом лише на
+/// найближчий тиждень, далі коротко «ЧТ 12.11» — «ЧТ, 12 ЛИСТ.» поруч із годиною й жанром не влазить. Слова ті самі, що
+/// в Android `Format.kt`.
+func stubParts(_ event: Event, compact: Bool = false, medium: Bool = false) -> (big: String, small: String) {
+    guard let date = parseEventDate(event.startsAt) else { return ("—", "") }
+    let now = nowInstant()
+    if event.hasEnded(now: now) {
+        return (formatter(event, "HH:mm").string(from: date), formatter(event, "dd.MM").string(from: date))
+    }
+    if event.isUnderway(now: now) {
+        if event.isMultiDay, let end = parseEventDate(event.endsAt) {
+            return (formatter(event, "dd.MM").string(from: end), "ДО")
+        }
+        return ("ЗАРАЗ", "ТРИВАЄ")
+    }
+    let calendar = calendar(event)
+    let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: Date()), to: calendar.startOfDay(for: date)).day ?? 0
+    let day = compact ? formatter(event, "dd.MM").string(from: date)
+        : medium && !(0...6).contains(days) ? formatter(event, "EEE dd.MM").string(from: date).uppercased(with: ukrainian)
+        : dayLabel(event, date, short: true).uppercased(with: ukrainian)
+    return (formatter(event, "HH:mm").string(from: date), day)
 }
 
 /// Довга форма для екрана деталей. Пояс називаємо лише коли він відрізняється від поясу читача.

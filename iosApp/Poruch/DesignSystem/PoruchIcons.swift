@@ -1318,10 +1318,15 @@ private func point(_ x: CGFloat, _ y: CGFloat, _ s: CGFloat) -> CGPoint {
     CGPoint(x: x * s, y: y * s)
 }
 
-/// Малює `PoruchGlyph` заданого розміру, масштабуючи сітку 24 разом зі штрихом.
+/// Малює `PoruchGlyph` заданого розміру, масштабуючи сітку 24 разом зі штрихом. Гліф поруч із текстом (до 32 pt)
+/// росте з Dynamic Type, як SF Symbol, але не більш ніж у півтора раза: він стоїть і в колах та плитках сталого розміру.
+/// Великі декоративні гліфи (обкладинки, порожні стани) лишаються своїм розміром.
 struct PoruchIcon: View {
     let glyph: PoruchGlyph
     var size: CGFloat = 20
+    @ScaledMetric(relativeTo: .body) private var textScale: CGFloat = 1
+
+    private var drawn: CGFloat { size < 32 ? size * min(max(textScale, 1), 1.5) : size }
 
     var body: some View {
         ZStack {
@@ -1338,10 +1343,10 @@ struct PoruchIcon: View {
                 ))
             }
         }
-        .frame(width: size, height: size)
+        .frame(width: drawn, height: drawn)
     }
 
-    private var scale: CGFloat { size / PoruchIconMetrics.grid }
+    private var scale: CGFloat { drawn / PoruchIconMetrics.grid }
 }
 
 private struct GlyphShape: Shape {
