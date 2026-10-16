@@ -221,7 +221,7 @@ fun EditorRoute(route: Editor, navigator: Navigator) {
             EditorEffect.AskNotificationPermission -> notifications.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
-    EditorScreen(model.state.collectAsStateWithLifecycle().value, model::dispatch, navigator::back)
+    EditorScreen(model.state.collectAsStateWithLifecycle().value, model::dispatch)
 }
 
 @Composable

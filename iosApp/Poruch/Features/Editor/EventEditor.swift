@@ -8,7 +8,10 @@ struct EventEditor: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.dynamicTypeSize) private var typeSize
     @StateObject private var editor: EventEditorModel
+    @State private var discardingChanges = false
+    @State private var startingOver = false
 
     init(event: Event?, app: PoruchApp, home: AppState?) {
         self.event = event
@@ -21,21 +24,36 @@ struct EventEditor: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     VStack(alignment: .leading, spacing: Space.lg) {
+                        // Квиток друкується згори, поки людина відповідає: той самий, що побачать у «Від людей».
+                        DraftTicket(
+                            form: editor.form, host: editor.host, taken: editor.taken,
+                            timed: editor.step.rawValue >= EditorStep.schedule.rawValue || editor.editing
+                        )
+                        .id(scrollTop)
                         // Кожен крок — одне питання великим заголовком, як в онбордингу.
                         VStack(alignment: .leading, spacing: Space.xs) {
+                            // Номер кроку словами: смужки згори кажуть «скільки», а не «котрий». Без капсу: «КРОК 1 З 4»
+                            // у цьому шрифті читалось як «1 3 4».
+                            Text(stepLabel(editor.step)).font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary).decorative()
                             Text(editor.step.headline).font(PoruchFont.brandDisplay).kerning(-0.5).foregroundStyle(Palette.ink)
+                                .accessibilityAddTraits(.isHeader)
                             Text(editor.step.hint).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
                         }.padding(.bottom, Space.xs)
                         switch editor.step {
-                        case .about: AboutStep(form: $editor.form, issue: editor.issue)
+                        case .about: AboutStep(form: $editor.form, issues: editor.issueTexts)
                         case .place: PlaceStep(editor: editor)
-                        case .schedule: ScheduleStep(form: $editor.form, timeZoneFromPlace: editor.timeZoneFromPlace, issue: editor.issue)
+                        case .schedule: ScheduleStep(form: $editor.form, issues: editor.issueTexts)
+                        case .people: PeopleStep(form: $editor.form, issues: editor.issueTexts)
                         }
                     }.padding(Space.page)
                 }
+                // Новий крок починається згори: інакше заголовок питання лишався за краєм, прокрученим ще на минулому.
+                .onChange(of: editor.step) { _, _ in proxy.scrollTo(scrollTop, anchor: .top) }
                 // Поле з порушенням — у видиму частину: інакше текст під ним лишався за краєм екрана.
                 .onChange(of: editor.jump) { _, _ in
                     guard let field = editor.focus else { return }
+                    // Червоний текст під полем VoiceOver не помітить сам.
+                    if let text = editor.issue(field) { AccessibilityNotification.Announcement(text).post() }
                     // Після зміни кроку поле зʼявляється лише в наступному проході розкладки.
                     DispatchQueue.main.async {
                         if reduceMotion { proxy.scrollTo(field, anchor: .center) }
@@ -49,6 +67,11 @@ struct EventEditor: View {
         // Редактор — аркуш над коренем, тож банер кореня з помилкою публікації лишався під ним.
         .notice(model.state?.notice?.presented) { model.app.clearNotice() }
         .onChange(of: editor.form) { _, _ in editor.scheduleSave() }
+        // Новий крок — нове питання; якщо крок змінила помилка, вголос каже вона.
+        .onChange(of: editor.step) { _, step in
+            guard !editor.revealed else { return }
+            AccessibilityNotification.Announcement("\(stepLabel(step)). \(step.headline)").post()
+        }
         // При згортанні застосунку аркуш не зникає, тож відкладений запис дожимаємо самі.
         .onChange(of: scenePhase) { _, phase in if phase != .active { editor.persist() } }
         .onDisappear { editor.persist() }
@@ -63,27 +86,61 @@ struct EventEditor: View {
             editor.finish()
             dismiss()
         }
+        // Під час публікації аркуш не закривається: інакше відповідь сервера нікому було б прийняти,
+        // чернетка лишалась би, і наступне «+» публікувало б ту саму подію вдруге.
+        .interactiveDismissDisabled(editor.submitted || editor.dirty)
+        .confirmationDialog(Copy.editor_discard_title, isPresented: $discardingChanges, titleVisibility: .visible) {
+            Button(Copy.editor_discard, role: .destructive) { dismiss() }
+            Button(Copy.editor_keep_editing, role: .cancel) {}
+        } message: { Text(Copy.editor_discard_explain) }
+        .confirmationDialog(Copy.editor_start_over_title, isPresented: $startingOver, titleVisibility: .visible) {
+            Button(Copy.editor_delete_draft, role: .destructive) { editor.startOver() }
+        } message: { Text(Copy.editor_start_over_explain) }
+    }
+
+    private func stepLabel(_ step: EditorStep) -> String {
+        Copy.onboarding_step("\(step.rawValue + 1)", "\(EditorStep.allCases.count)")
+    }
+
+    /// Нова подія зберігається в чернетку й закривається одразу; правки наявної — лише після підтвердження.
+    private func close() {
+        if editor.dirty { discardingChanges = true } else { editor.persist(); dismiss() }
     }
 
     /// Закрити, прогрес трьома сегментами і назва режиму. Той самий ряд, що в онбордингу.
     private var wizardHeader: some View {
         HStack(spacing: Space.md) {
-            IconPill(glyph: PoruchIcons.close, label: Copy.close, size: 40) { editor.persist(); dismiss() }
+            IconPill(glyph: PoruchIcons.close, label: Copy.close, size: 40) { close() }
+                .disabled(editor.submitted)
             HStack(spacing: Space.xs) {
                 ForEach(EditorStep.allCases) { entry in
                     Capsule().fill(entry.rawValue <= editor.step.rawValue ? Palette.brand : Palette.brandContainer).frame(height: 4)
                 }
             }
             .accessibilityElement()
-            .accessibilityLabel(Copy.onboarding_step("\(editor.step.rawValue + 1)", "\(EditorStep.allCases.count): \(editor.step.title)"))
-            Text(editor.editing ? Copy.editor_mode_edit : Copy.editor_mode_new).font(PoruchFont.button).foregroundStyle(Palette.inkSecondary)
+            .accessibilityLabel("\(stepLabel(editor.step)): \(editor.step.title)")
+            if editor.canStartOver {
+                Button { startingOver = true } label: {
+                    Text(Copy.editor_start_over).font(PoruchFont.button).foregroundStyle(Palette.inkSecondary)
+                        .fixedSize()
+                }
+                .tapTarget()
+                .disabled(editor.submitted)
+            } else {
+                Text(editor.editing ? Copy.editor_mode_edit : Copy.editor_mode_new).font(PoruchFont.button).foregroundStyle(Palette.inkSecondary)
+                    .fixedSize()
+            }
         }
         .frame(height: 56).padding(.horizontal, Space.page).padding(.top, Space.sm)
+        // Шапка — хром, як системна навігація: росте до xxLarge, далі напис справа витіснив би прогрес за край.
+        .dynamicTypeSize(...DynamicTypeSize.xxLarge)
         .motion(value: editor.step)
     }
 
     private var actions: some View {
-        HStack(spacing: Space.md) {
+        // На великому шрифті дві кнопки поруч не вміщають напис — ставимо одна під одною.
+        let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: Space.md)) : AnyLayout(HStackLayout(spacing: Space.md))
+        return layout {
             if editor.step != .about { SecondaryButton(title: Copy.back) { editor.retreat() } }
             PrimaryButton(
                 title: !editor.step.isLast ? Copy.next : editor.editing ? Copy.save_changes : Copy.publish,
@@ -98,6 +155,72 @@ struct EventEditor: View {
     }
 }
 
+/// Квиток «Від людей», що друкується з форми: незаповнене — сірі смуги, як на порожньому квитку, заповнене проступає
+/// текстом. Корінець одразу кольору жанру; година, день і місця — з кроку «Коли», бо до нього в полях лише типові значення.
+/// Для VoiceOver він повтор форми, тож прихований.
+private struct DraftTicket: View {
+    let form: EditorForm
+    let host: String?
+    let taken: Int
+    let timed: Bool
+
+    private var title: String { form.title.trimmingCharacters(in: .whitespacesAndNewlines) }
+    private var place: String { form.address.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+    var body: some View {
+        Ticket(vertical: true, stubColor: categoryStub(form.category), stubLength: 64) {
+            VStack(alignment: .leading, spacing: Space.xs) {
+                if title.isEmpty {
+                    blank(160, height: 12); blank(96, height: 12)
+                } else {
+                    Text(TitleRules.shared.display(title: title)).font(PoruchFont.brandTitle2).foregroundStyle(Palette.ink)
+                        .lineLimit(2).transition(.opacity)
+                }
+                if let host {
+                    HStack(spacing: 6) {
+                        Avatar(name: host, url: nil, size: 20)
+                        Text(Copy.hosted_by(host)).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(1)
+                    }
+                }
+                Spacer(minLength: Space.sm)
+                if place.isEmpty { blank(120, height: 6) } else { MetaLine(glyph: PoruchIcons.pin, text: place).transition(.opacity) }
+            }
+            .padding(.horizontal, Space.md).padding(.top, Space.md).padding(.bottom, Space.lg)
+        } stub: {
+            let parts: (big: String, small: String) = timed ? draftStubParts(at: form.starts, zone: form.timeZone) : ("––:––", "")
+            HStack(alignment: .center, spacing: Space.sm) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(categoryName(form.category).uppercased()).font(PoruchFont.overline).kerning(0.6).lineLimit(1)
+                    Text(parts.big).font(PoruchFont.numeral).monospacedDigit().lineLimit(1).fixedSize()
+                }
+                Spacer(minLength: 0)
+                if timed {
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text(parts.small).font(PoruchFont.overline).kerning(0.6).lineLimit(1)
+                        HStack(spacing: 3) {
+                            PoruchIcon(glyph: PoruchIcons.social, size: 12)
+                            Text("\(taken)/\(form.capacity)").font(PoruchFont.overline).monospacedDigit()
+                        }
+                    }
+                    .transition(.opacity)
+                }
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, Space.md)
+        }
+        .motion(value: [title.isEmpty, place.isEmpty, timed])
+        .decorative()
+    }
+
+    /// Ще не надрукований рядок.
+    private func blank(_ width: CGFloat, height: CGFloat) -> some View {
+        Capsule().fill(Palette.hairline).frame(width: width, height: height).padding(.vertical, 3)
+    }
+}
+
+/// Якір верху прокрутки: новий крок відкривається з квитка й питання.
+private let scrollTop = "top"
+
 /// Правило, яке порушує поле, одразу під ним.
 private struct FieldIssue: View {
     let text: String?
@@ -111,12 +234,16 @@ private struct FieldIssue: View {
 
 private struct AboutStep: View {
     @Binding var form: EditorForm
-    let issue: (DraftField) -> String?
+    /// Тексти під полями значенням, а не замиканням: замикання SwiftUI не порівнює, і крок не перемальовувався.
+    let issues: [DraftField: String]
+    @FocusState private var focus: DraftField?
     private var descriptionRange: KotlinIntRange { EventRules.shared.descriptionLength }
     var body: some View {
         VStack(alignment: .leading, spacing: Space.sm) {
             LabelledField(label: Copy.title, text: $form.title, placeholder: Copy.title_placeholder)
-            FieldIssue(text: issue(.title))
+                .focused($focus, equals: .title)
+                .submitLabel(.next).onSubmit { focus = .description_ }
+            FieldIssue(text: issues[.title])
         }.id(DraftField.title)
         VStack(alignment: .leading, spacing: Space.sm) {
             LabelledField(
@@ -125,19 +252,21 @@ private struct AboutStep: View {
                 hint: Copy.description_hint("\(descriptionRange.first)", "\(form.descriptionLength)", "\(descriptionRange.last)"),
                 multiline: true
             )
-            FieldIssue(text: issue(.description_))
+            .focused($focus, equals: .description_)
+            FieldIssue(text: issues[.description_])
         }.id(DraftField.description_)
         VStack(alignment: .leading, spacing: Space.sm) {
             Text(Copy.category_single.uppercased()).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
-            // Сітка замість стрічки: всі одинадцять видно одразу, без прокрутки вбік.
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: Space.sm), count: 3), spacing: Space.sm) {
+            // Ті самі плитки, що в шторці категорій пошуку: жанр обирають однаково скрізь. Усі одинадцять видно одразу.
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 76), spacing: Space.sm)], spacing: Space.md) {
                 ForEach(categories, id: \.0) { category in
-                    CategoryCard(category: category.0, selected: form.category == category.0) {
+                    CategoryTile(category: category.0, selected: form.category == category.0) {
                         form.category = category.0
                     }
                 }
             }
-        }
+            FieldIssue(text: issues[.category])
+        }.id(DraftField.category)
     }
 }
 
@@ -146,6 +275,7 @@ private struct PlaceStep: View {
     @State private var mapLatitude: Double
     @State private var mapLongitude: Double
     @State private var picking = false
+    @FocusState private var focus: DraftField?
 
     /// Центр мапи задаємо тут, а не в `onAppear`, інакше перший кадр малюється в (0, 0).
     init(editor: EventEditorModel) {
@@ -156,12 +286,15 @@ private struct PlaceStep: View {
     private var form: Binding<EditorForm> { $editor.form }
     var body: some View {
         LabelledField(label: Copy.city, text: form.city, placeholder: Copy.city_example)
+            .textInputAutocapitalization(.words)
+            .submitLabel(.next).onSubmit { focus = .address }
         VStack(alignment: .leading, spacing: Space.sm) {
             LabelledField(
                 label: Copy.address, text: form.address,
                 placeholder: Copy.address_placeholder,
                 hint: Copy.address_hint
             )
+            .focused($focus, equals: .address)
             FieldIssue(text: editor.issue(.address))
         }.id(DraftField.address)
         // Підказки одразу під полем, як продовження набору.
@@ -231,24 +364,45 @@ private struct PlaceStep: View {
 
 private struct ScheduleStep: View {
     @Binding var form: EditorForm
-    let timeZoneFromPlace: Bool
-    let issue: (DraftField) -> String?
+    /// Тексти під полями значенням, а не замиканням: замикання SwiftUI не порівнює, і крок не перемальовувався.
+    let issues: [DraftField: String]
     private var zone: TimeZone { TimeZone(identifier: form.timeZone) ?? .current }
     var body: some View {
         ScheduleFields(starts: $form.starts, ends: $form.ends, zone: zone).id(DraftField.startsAt)
-        FieldIssue(text: issue(.startsAt) ?? issue(.endsAt)).id(DraftField.endsAt)
-        Stepper("\(Copy.capacity_label): \(form.capacity)", value: $form.capacity, in: capacityRange)
-            .font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
-            .padding(Space.lg).cardSurface()
-            .id(DraftField.capacity)
-        FieldIssue(text: issue(.capacity))
-        TimeZoneNote(zone: form.timeZone, fromPlace: timeZoneFromPlace).id(DraftField.timeZone)
-        FieldIssue(text: issue(.timeZone))
-        // Хто може прийти — частина публікації, а не сховане налаштування.
+        FieldIssue(text: issues[.startsAt] ?? issues[.endsAt]).id(DraftField.endsAt)
+        TimeZoneNote(zone: form.timeZone, city: form.city, at: form.starts).id(DraftField.timeZone)
+        FieldIssue(text: issues[.timeZone])
+    }
+}
+
+/// Хто може прийти — окремий крок, а не хвіст «Коли»: місця, вік, погодження й чат — частина публікації, а не
+/// сховане налаштування.
+private struct PeopleStep: View {
+    @Binding var form: EditorForm
+    /// Тексти під полями значенням, а не замиканням: замикання SwiftUI не порівнює, і крок не перемальовувався.
+    let issues: [DraftField: String]
+    var body: some View {
+        // Число набирають, степер — для дрібних поправок: 1→200 стрілками — двісті дотиків.
+        VStack(alignment: .leading, spacing: Space.sm) {
+            LabelledField(
+                label: Copy.capacity,
+                text: Binding(
+                    get: { "\(form.capacity)" },
+                    set: { form.capacity = Int(String($0.filter(\.isNumber).prefix(5))) ?? 0 }
+                )
+            ) {
+                Stepper(Copy.capacity, value: $form.capacity, in: capacityRange).labelsHidden()
+            }
+            .keyboardType(.numberPad)
+            FieldIssue(text: issues[.capacity])
+        }.id(DraftField.capacity)
         VStack(alignment: .leading, spacing: Space.md) {
-            SectionHeader(title: Copy.who_can_come)
-            VStack(spacing: Space.lg) {
-                Stepper("\(Copy.age_from): \(form.minAge)", value: $form.minAge, in: ageRange)
+            VStack(alignment: .leading, spacing: Space.lg) {
+                VStack(alignment: .leading, spacing: Space.xs) {
+                    Stepper("\(Copy.age_from): \(form.minAge)", value: $form.minAge, in: ageRange)
+                    Text(Copy.age_limit_hint("\(Int(SafetyRules.shared.MIN_SIGNUP_AGE))"))
+                        .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
+                }
                 Toggle(Copy.age_max_toggle, isOn: Binding(
                     get: { form.maxAge != nil },
                     set: { form.maxAge = $0 ? max(form.minAge, form.minAge + 7) : nil }
@@ -270,9 +424,7 @@ private struct ScheduleStep: View {
             .font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
             .padding(Space.lg).cardSurface()
             .id(DraftField.ageLimits)
-            FieldIssue(text: issue(.ageLimits))
-            Text(Copy.age_limit_hint("\(Int(SafetyRules.shared.MIN_SIGNUP_AGE))"))
-                .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
+            FieldIssue(text: issues[.ageLimits])
             // Чат — єдиний канал до учасників. Лише https: решту відкидає і чернетка, і сервер.
             LabelledField(
                 label: Copy.contact_label,
@@ -282,15 +434,8 @@ private struct ScheduleStep: View {
             )
             .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
             .id(DraftField.contactUrl)
-            FieldIssue(text: issue(.contactUrl))
+            FieldIssue(text: issues[.contactUrl])
         }
-        VStack(alignment: .leading, spacing: Space.sm) {
-            Text(categoryName(form.category).uppercased()).font(PoruchFont.overline)
-                .foregroundStyle(categoryInk(form.category))
-            Text(form.title.trimmingCharacters(in: .whitespaces).isEmpty ? Copy.title : TitleRules.shared.display(title: form.title.trimmingCharacters(in: .whitespaces))).font(PoruchFont.brandTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
-            MetaLine(glyph: PoruchIcons.pin, text: "\(form.city) · \(form.address)")
-            MetaLine(glyph: PoruchIcons.social, text: Copy.seats_short(form.capacity))
-        }.padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()
         Text(Copy.photo_after_publish)
             .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
     }
@@ -349,7 +494,11 @@ private struct PointPicker: View {
                 .offset(y: -18)
                 .allowsHitTesting(false)
             VStack(spacing: 0) {
-                PageHeader(title: Copy.choose_point_title, back: { dismiss() })
+                // Модальний екран: «Скасувати» справа, як у системних аркушах, а не стрілка «назад».
+                PageHeader(title: Copy.choose_point_title) {
+                    Button(Copy.cancel) { dismiss() }
+                        .font(PoruchFont.button).foregroundStyle(Palette.inkSecondary).tapTarget()
+                }
                     .background(Palette.canvas)
                 Spacer(minLength: 0)
                 HStack {

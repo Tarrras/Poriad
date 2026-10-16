@@ -39,7 +39,11 @@ class EditorViewModel(
             val restored = event?.toForm() ?: drafts.load(shared.city.name)
             // Мапа відкривається на крапці, якщо вона вже є.
             val (latitude, longitude) = restored.point ?: (shared.city.latitude to shared.city.longitude)
-            copy(form = restored, mapLatitude = latitude, mapLongitude = longitude)
+            copy(
+                form = restored, mapLatitude = latitude, mapLongitude = longitude,
+                host = (event?.gathering?.organizerName ?: shared.library.profile?.name)?.takeIf { it.isNotBlank() },
+                taken = event?.gathering?.attendeeCount ?: 0
+            )
         }
         observe(app) { latest ->
             // Редагування з deep link: запис може приїхати після екрана.
@@ -47,7 +51,11 @@ class EditorViewModel(
             if (loaded != null && original == null) {
                 original = loaded
                 val form = loaded.toForm() ?: return@observe copy(mutating = latest.mutating)
-                return@observe copy(form = form, mapLatitude = loaded.latitude, mapLongitude = loaded.longitude, mutating = latest.mutating)
+                return@observe copy(
+                    form = form, mapLatitude = loaded.latitude, mapLongitude = loaded.longitude, mutating = latest.mutating,
+                    host = loaded.gathering?.organizerName?.takeIf { it.isNotBlank() } ?: host,
+                    taken = loaded.gathering?.attendeeCount ?: 0
+                )
             }
             // Відмову показуємо над кнопкою, де людина щойно натиснула, а не банером згори.
             val failed = (latest.notice as? AppNotice.Failed)?.error
@@ -58,7 +66,7 @@ class EditorViewModel(
             }
             if (submitted && latest.completedEventId != null) {
                 submitted = false
-                drafts.clear(); app.clearCompletedEvent()
+                unsaved = false; saveJob?.cancel(); drafts.clear(); app.clearCompletedEvent()
                 // Нова подія — момент спитати про сповіщення: без дозволу запити на участь не дзвонять.
                 // Закриваємось після відповіді, бо запит живе в маршруті редактора.
                 if (editingId == null && !latest.remindersEnabled && !notifications.granted()) send(EditorEffect.AskNotificationPermission)
@@ -139,6 +147,25 @@ class EditorViewModel(
                 persist()
             }
             EditorIntent.Submit -> submit()
+            EditorIntent.Close -> when {
+                // Під час публікації не закриваємось: відповідь сервера нікому було б прийняти,
+                // чернетка лишалась би, і наступне «+» публікувало б ту саму подію вдруге.
+                state.value.mutating -> Unit
+                editingId != null && original?.toForm() != state.value.form -> reduce { copy(discarding = Discard.CHANGES) }
+                else -> send(EditorEffect.Close)
+            }
+            is EditorIntent.AskDiscard -> reduce { copy(discarding = intent.what) }
+            EditorIntent.ConfirmDiscard -> when (state.value.discarding) {
+                Discard.CHANGES -> send(EditorEffect.Close)
+                Discard.DRAFT -> {
+                    unsaved = false; saveJob?.cancel(); drafts.clear()
+                    val city = app.state.value.city
+                    reduce {
+                        EditorState(form = drafts.load(city.name), mapLatitude = city.latitude, mapLongitude = city.longitude, host = host)
+                    }
+                }
+                null -> Unit
+            }
             is EditorIntent.NotificationPermissionAnswered -> {
                 if (intent.granted) app.setRemindersEnabled(true)
                 send(EditorEffect.Close)
@@ -147,7 +174,10 @@ class EditorViewModel(
     }
 
     private fun submit() {
-        if (state.value.stepProblems.isNotEmpty()) return reduce { copy(showProblems = true) }
+        // Уся форма, а не крок: поки людина дивилась на неї, початок міг стати минулим.
+        state.value.form.problems().firstOrNull()?.let { field ->
+            return reduce { copy(step = EditorStep.entries.first { field in it.fields }, showProblems = true) }
+        }
         val draft = state.value.form.toDraft(original?.imageUrl) ?: return
         reduce { copy(failure = null) }
         app.clearCompletedEvent()
@@ -156,8 +186,22 @@ class EditorViewModel(
         if (id != null) app.updateEvent(id, draft) else app.createEvent(draft)
     }
 
+    /** Запис чернетки після паузи в наборі: п'ятнадцять ключів на кожну літеру — зайве для диска. */
+    private var saveJob: Job? = null
+    /** Є правка, яку ще не записали. Не `saveJob.isActive`: `viewModelScope` скасовується раніше за [onCleared]. */
+    private var unsaved = false
+
     private fun persist() {
-        if (editingId == null) drafts.save(state.value.form)
+        if (editingId != null) return
+        unsaved = true
+        saveJob?.cancel()
+        saveJob = viewModelScope.launch { delay(SAVE_SETTLE_MS); drafts.save(state.value.form); unsaved = false }
+    }
+
+    /** Екран закрили посеред паузи: недописане зберігаємо зараз. Після публікації й «Стерти» прапорець уже знято. */
+    override fun onCleared() {
+        if (unsaved) drafts.save(state.value.form)
+        super.onCleared()
     }
 
     /** Пояс за місцем. Питаємо після зупинки руху: геокодер ходить у мережу. */
@@ -176,7 +220,7 @@ class EditorViewModel(
         addressJob = viewModelScope.launch {
             delay(ADDRESS_SETTLE_MS)
             val near = state.value
-            app.searchAddress(query, near.mapLatitude, near.mapLongitude) { found ->
+            app.searchAddress(query, near.mapLatitude, near.mapLongitude, near.form.city) { found ->
                 if (token != addressToken) return@searchAddress
                 reduce { copy(addressSuggestions = found) }
             }
@@ -223,7 +267,7 @@ class EditorViewModel(
             delay(ZONE_SETTLE_MS)
             app.resolveTimeZone(latitude, longitude) { zone ->
                 if (zone == null) return@resolveTimeZone
-                reduce { copy(form = form.copy(timeZone = zone), timeZoneFromPlace = true) }
+                reduce { copy(form = form.copy(timeZone = zone)) }
                 persist()
             }
         }
@@ -250,6 +294,8 @@ class EditorViewModel(
     private companion object {
         /** Пауза після руху мапи перед запитом поясу. */
         const val ZONE_SETTLE_MS = 500L
+        /** Пауза в наборі перед записом чернетки. */
+        const val SAVE_SETTLE_MS = 400L
         /** Пауза в наборі адреси. */
         const val ADDRESS_SETTLE_MS = 350L
         /** Коротший запит нічого не звужує. */

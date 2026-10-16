@@ -224,9 +224,11 @@ class PoruchApp internal constructor(
         query: String,
         latitude: Double,
         longitude: Double,
+        /** Місто з форми: його адреси йдуть першими. */
+        city: String,
         onFound: (List<PlaceResult>) -> Unit
     ) =
-        places.searchAddress(query, latitude, longitude, onFound)
+        places.searchAddress(query, latitude, longitude, city, onFound)
 
     /** Адреса поставленої крапки, зворотний бік [searchAddress]. Null — у полі лишається старе. */
     fun resolveAddress(latitude: Double, longitude: Double, onFound: (PlaceResult?) -> Unit) =

@@ -205,6 +205,13 @@ fun seriesNote(event: Event, words: DateWords): String? {
  * прокату («30.11», «ДО») чи «ЗАРАЗ»; минуле — година й дата числом. [compact] — малий корінець 56–60 dp: «СЬОГОДНІ» туди
  * не влазить, тож і майбутнє датою числом. Слова ті самі, що в iOS `stubParts`.
  */
+/** Корінець зустрічі, якої ще нема (редактор): година й день, як у нижньому корінці [stubParts] з `medium`. */
+fun draftStubParts(at: ZonedDateTime, words: DateWords, now: Instant = Instant.now()): Pair<String, String> {
+    val days = ChronoUnit.DAYS.between(now.atZone(at.zone).toLocalDate(), at.toLocalDate())
+    val day = if (days in 0L..6L) dayLabel(at, now.atZone(at.zone), words, short = true) else at.format(pattern("EE dd.MM"))
+    return at.format(pattern(HOUR)) to day.uppercase(ukrainian)
+}
+
 fun stubParts(
     event: Event, words: DateWords, compact: Boolean = false,
     /** Нижній корінець постера: день словом лише на найближчий тиждень, далі коротко «ЧТ 12.11». */

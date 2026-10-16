@@ -1,6 +1,8 @@
 package app.poruch.android.feature.editor
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,8 +25,9 @@ fun DateTimeSheet(initial: LocalDateTime, minimum: LocalDateTime?, onDismiss: ()
     // Одна шторка, два кроки: вибір дати міняє вміст, а не відкриває другий діалог.
     var date by remember { mutableStateOf<LocalDate?>(null) }
     PoruchSheet(onDismiss) { sheet ->
+        // Календар вищий за телефон у ландшафті й на великому шрифті: кнопки підтвердження мають бути досяжні.
         Column(
-            Modifier.padding(horizontal = Spacing.page).padding(bottom = Spacing.lg),
+            Modifier.verticalScroll(rememberScrollState()).padding(horizontal = Spacing.page).padding(bottom = Spacing.lg),
             verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
             val chosen = date
@@ -43,7 +46,8 @@ fun DateTimeSheet(initial: LocalDateTime, minimum: LocalDateTime?, onDismiss: ()
                     }
                 )
                 // Заголовок уже в шторці.
-                DatePicker(dateState, title = null, showModeToggle = false, colors = poruchDatePickerColors())
+                // Перемикач на введення цифрами: гортати календар до весни довше, ніж набрати дату.
+                DatePicker(dateState, title = null, showModeToggle = true, colors = poruchDatePickerColors())
                 SheetActions(
                     confirm = stringResource(R.string.next),
                     onConfirm = {
@@ -54,7 +58,9 @@ fun DateTimeSheet(initial: LocalDateTime, minimum: LocalDateTime?, onDismiss: ()
                     onDismiss = { sheet.close() }
                 )
             } else {
-                val timeState = rememberTimePickerState(initialHour = initial.hour, initialMinute = initial.minute, is24Hour = true)
+                // 12 чи 24 години — як на телефоні людини, а не як у нас.
+                val is24Hour = android.text.format.DateFormat.is24HourFormat(androidx.compose.ui.platform.LocalContext.current)
+                val timeState = rememberTimePickerState(initialHour = initial.hour, initialMinute = initial.minute, is24Hour = is24Hour)
                 Box(Modifier.fillMaxWidth().padding(vertical = Spacing.sm), contentAlignment = Alignment.Center) {
                     TimePicker(timeState, colors = poruchTimePickerColors())
                 }
@@ -125,8 +131,9 @@ fun BirthDateSheet(initial: LocalDate?, onDismiss: () -> Unit, onPicked: (LocalD
         }
     )
     PoruchSheet(onDismiss) { sheet ->
+        // Календар вищий за телефон у ландшафті й на великому шрифті: кнопки підтвердження мають бути досяжні.
         Column(
-            Modifier.padding(horizontal = Spacing.page).padding(bottom = Spacing.lg),
+            Modifier.verticalScroll(rememberScrollState()).padding(horizontal = Spacing.page).padding(bottom = Spacing.lg),
             verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
             Text(stringResource(R.string.birth_date), style = PoruchType.brandTitle2, color = colors.ink)

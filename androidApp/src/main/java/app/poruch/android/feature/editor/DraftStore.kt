@@ -9,23 +9,29 @@ class DraftStore(context: Context) {
     private val store = context.getSharedPreferences(NAME, Context.MODE_PRIVATE)
 
     /** Місто підставляємо, координати — ні: центр міста як крапка дозволяв опублікувати подію, не торкнувшись мапи. */
-    fun load(city: String) = EditorForm(
-        title = store.read(TITLE),
-        description = store.read(DESCRIPTION),
-        category = EventCategory.fromKey(store.read(CATEGORY)).takeIf { it != EventCategory.UNKNOWN } ?: EditorForm.DEFAULT_CATEGORY,
-        city = store.read(CITY).ifEmpty { city },
-        address = store.read(ADDRESS),
-        latitude = store.read(LATITUDE),
-        longitude = store.read(LONGITUDE),
-        timeZone = store.read(ZONE).ifEmpty { java.time.ZoneId.systemDefault().id },
-        starts = store.read(STARTS),
-        ends = store.read(ENDS),
-        capacity = store.read(CAPACITY).ifEmpty { EditorForm.DEFAULT_CAPACITY },
-        minAge = store.read(MIN_AGE).ifEmpty { EditorForm.DEFAULT_MIN_AGE },
-        maxAge = store.read(MAX_AGE),
-        approvalRequired = store.getBoolean(APPROVAL, false),
-        contactUrl = store.read(CONTACT)
-    )
+    fun load(city: String): EditorForm {
+        // Минулий початок у давній чернетці — не намір, а давність: дату обирають заново.
+        val stale = runCatching {
+            java.time.LocalDateTime.parse(store.read(STARTS), EditorForm.LOCAL_FORMAT) <= java.time.LocalDateTime.now()
+        }.getOrDefault(false)
+        return EditorForm(
+            title = store.read(TITLE),
+            description = store.read(DESCRIPTION),
+            category = EventCategory.fromKey(store.read(CATEGORY)).takeIf { it != EventCategory.UNKNOWN } ?: EditorForm.DEFAULT_CATEGORY,
+            city = store.read(CITY).ifEmpty { city },
+            address = store.read(ADDRESS),
+            latitude = store.read(LATITUDE),
+            longitude = store.read(LONGITUDE),
+            timeZone = store.read(ZONE).ifEmpty { java.time.ZoneId.systemDefault().id },
+            starts = if (stale) "" else store.read(STARTS),
+            ends = if (stale) "" else store.read(ENDS),
+            capacity = store.read(CAPACITY).ifEmpty { EditorForm.DEFAULT_CAPACITY },
+            minAge = store.read(MIN_AGE).ifEmpty { EditorForm.DEFAULT_MIN_AGE },
+            maxAge = store.read(MAX_AGE),
+            approvalRequired = store.getBoolean(APPROVAL, false),
+            contactUrl = store.read(CONTACT)
+        )
+    }
 
     fun save(form: EditorForm) = store.edit {
         putString(TITLE, form.title); putString(DESCRIPTION, form.description); putString(CATEGORY, form.category.key)

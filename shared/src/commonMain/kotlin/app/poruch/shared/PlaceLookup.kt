@@ -22,10 +22,14 @@ internal class PlaceLookup(
     private var zoneJob: Job? = null
 
     /** Порожній список — просто нічого не знайшли, і збій мережі теж. */
-    fun searchAddress(query: String, latitude: Double, longitude: Double, onFound: (List<PlaceResult>) -> Unit) {
+    fun searchAddress(query: String, latitude: Double, longitude: Double, city: String = "", onFound: (List<PlaceResult>) -> Unit) {
         val search = addresses ?: return onFound(emptyList())
         searchJob?.cancel()
-        searchJob = scope.launch { onFound(quietly { search.places(query, latitude, longitude) } ?: emptyList()) }
+        searchJob = scope.launch {
+            val found = quietly { search.places(query, latitude, longitude) } ?: emptyList()
+            // Місто форми — першим: геокодер за близькістю ставив Боярку над Хрещатиком. Решта — у його порядку.
+            onFound(found.sortedByDescending { city.isNotBlank() && it.city.equals(city.trim(), ignoreCase = true) })
+        }
     }
 
     /** Адреса поставленої крапки. Null — у полі лишається старе. */

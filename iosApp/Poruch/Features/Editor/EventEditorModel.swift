@@ -15,16 +15,16 @@ struct EditorForm: Codable, Equatable {
     var address = ""
     var latitude = 0.0
     var longitude = 0.0
-    /// Чи крапка вже обрана. На iOS координати є завжди (центр міста), тому окремий прапорець.
-    /// Optional, щоб старі чернетки читались далі.
+    /// Чи крапка вже обрана. Координати тримають центр міста для мапи й підказок, тож без прапорця
+    /// подія публікувалась би в центрі міста. Optional, щоб старі чернетки читались далі.
     var placed: Bool?
 
     /// Крапка зустрічі, якщо обрана. Мапа малює її, а не свій центр.
     var point: (latitude: Double, longitude: Double)? {
         placed == true ? (latitude, longitude) : nil
     }
-    var starts = Date().addingTimeInterval(defaultLead)
-    var ends = Date().addingTimeInterval(defaultLead + defaultDuration)
+    var starts = defaultStart()
+    var ends = defaultStart().addingTimeInterval(defaultDuration)
     var timeZone = TimeZone.current.identifier
     var capacity = defaultCapacity
     /// Вікові межі. `maxAge` nil — без верхньої межі.
@@ -49,21 +49,22 @@ struct EditorForm: Codable, Equatable {
     /// Порушені правила. Та сама `EventDraft.validate`, що на Android і в спільному шарі, тож межі
     /// з `EventRules` не дублюються тут числами.
     func issues(imageUrl: String?) -> [DraftField] {
-        build(imageUrl: imageUrl).validate(now: ISO8601DateFormatter().string(from: Date()))
+        build(imageUrl: imageUrl).validate(now: iso.string(from: Date()))
     }
 
     /// Nil, поки хоч одне поле порушує правило. Публікація дивиться сюди.
     func draft(imageUrl: String?) -> EventDraft? {
         let draft = build(imageUrl: imageUrl)
-        return draft.validate(now: ISO8601DateFormatter().string(from: Date())).isEmpty ? draft : nil
+        return draft.validate(now: iso.string(from: Date())).isEmpty ? draft : nil
     }
 
     private func build(imageUrl: String?) -> EventDraft {
-        let formatter = ISO8601DateFormatter()
-        return EventDraft(
+        EventDraft(
             title: title.trimmed, description: description.trimmed, category: category,
-            city: city.trimmed, address: address.trimmed, latitude: latitude, longitude: longitude,
-            startsAt: formatter.string(from: starts), endsAt: formatter.string(from: ends),
+            // Без обраної крапки — NaN: правило LOCATION не пропустить центр міста як місце зустрічі.
+            city: city.trimmed, address: address.trimmed,
+            latitude: placed == true ? latitude : .nan, longitude: placed == true ? longitude : .nan,
+            startsAt: iso.string(from: starts), endsAt: iso.string(from: ends),
             timeZone: timeZone, capacity: Int32(capacity), imageUrl: imageUrl,
             minAge: Int32(minAge), maxAge: maxAge.map { KotlinInt(int: Int32($0)) },
             approvalRequired: approvalRequired, contactUrl: contactLink
@@ -72,13 +73,14 @@ struct EditorForm: Codable, Equatable {
 }
 
 enum EditorStep: Int, CaseIterable, Identifiable {
-    case about, place, schedule
+    case about, place, schedule, people
     var id: Int { rawValue }
     var title: String {
         switch self {
-        case .about: Copy.details
-        case .place: Copy.rate_tag_place
+        case .about: Copy.step_one
+        case .place: Copy.step_two
         case .schedule: Copy.step_three
+        case .people: Copy.step_four
         }
     }
     /// Питання кроку великим заголовком.
@@ -87,6 +89,7 @@ enum EditorStep: Int, CaseIterable, Identifiable {
         case .about: Copy.editor_about_title
         case .place: Copy.editor_place_title
         case .schedule: Copy.editor_schedule_title
+        case .people: Copy.editor_people_title
         }
     }
     var hint: String {
@@ -94,16 +97,18 @@ enum EditorStep: Int, CaseIterable, Identifiable {
         case .about: Copy.editor_about_hint
         case .place: Copy.editor_place_hint
         case .schedule: Copy.editor_schedule_hint
+        case .people: Copy.editor_people_hint
         }
     }
-    var isLast: Bool { self == .schedule }
+    var isLast: Bool { self == .people }
 
     /// Крок, де поле вводять: там «Далі» не пускає далі, туди веде й відмова публікації.
     static func of(_ field: DraftField) -> EditorStep {
         switch field.name {
         case "TITLE", "DESCRIPTION", "CATEGORY": .about
         case "ADDRESS", "LOCATION": .place
-        default: .schedule
+        case "STARTS_AT", "ENDS_AT", "TIME_ZONE": .schedule
+        default: .people
         }
     }
 }
@@ -122,8 +127,6 @@ enum EditorStep: Int, CaseIterable, Identifiable {
     @Published private(set) var submitted = false
     /// Подію збережено, чернетку стерто: більше нічого не пишемо.
     private var finished = false
-    /// Пояс визначено за місцем події, а не взято з пристрою.
-    @Published private(set) var timeZoneFromPlace = false
     /// Підказки адрес: людина набирає вулицю й будинок, крапку ставить застосунок.
     @Published private(set) var addressSuggestions: [PlaceResult] = []
     /// Крапку поставлено з підказки: координати вже не здогад.
@@ -136,6 +139,9 @@ enum EditorStep: Int, CaseIterable, Identifiable {
 
     private let app: PoruchApp
     private let event: Event?
+    private let home: AppState?
+    /// Форма, як вона прийшла з сервера: з нею звіряємо, чи є що втратити.
+    private var original: EditorForm?
     private static let draftPrefix = "poruch.draft."
     private var storageKey: String { Self.draftPrefix + (event?.id ?? "new") }
     /// Вихід з акаунта: чернетки належать людині, а не телефону — і нової події, і редагувань її подій.
@@ -158,11 +164,41 @@ enum EditorStep: Int, CaseIterable, Identifiable {
     init(app: PoruchApp, event: Event?, home: AppState?) {
         self.app = app
         self.event = event
-        restore(home: home)
+        self.home = home
+        restore()
         issues = form.issues(imageUrl: event?.imageUrl)
     }
 
     var editing: Bool { event != nil }
+
+    /// Хто збирає — ім'я на квитку, як його побачать на головній.
+    var host: String? {
+        let name = event?.gathering?.organizerName ?? home?.library.profile?.name ?? ""
+        return name.isEmpty ? nil : name
+    }
+    /// Скільки вже йде: нова зустріч друкується «0/20».
+    var taken: Int { Int(event?.gathering?.attendeeCount ?? 0) }
+
+    /// Правки наявної події, яких сервер ще не бачив. Нова подія нічого не втрачає: вона в чернетці.
+    var dirty: Bool { editing && form != original }
+
+    /// Є що стерти: чернетка з текстом чи адресою.
+    var canStartOver: Bool {
+        !editing && !(form.title.isEmpty && form.description.isEmpty && form.address.isEmpty)
+    }
+
+    /// Стерти чернетку й почати з порожньої форми.
+    func startOver() {
+        UserDefaults.standard.removeObject(forKey: storageKey)
+        pendingSave?.cancel(); pendingSave = nil
+        form = EditorForm()
+        step = .about
+        revealed = false
+        pointChosen = false
+        accepted = nil
+        addressSuggestions = []
+        restore()
+    }
 
     /// Правило, яке порушує поле, для тексту під ним. До спроби йти далі — лише для того, що
     /// людина вже набрала, щоб порожня форма не червоніла з першого кадру.
@@ -170,10 +206,9 @@ enum EditorStep: Int, CaseIterable, Identifiable {
         guard issues.contains(field) else { return nil }
         let touched: Bool
         switch field.name {
-        case "TITLE": touched = !form.title.isEmpty
-        case "DESCRIPTION": touched = !form.description.isEmpty
         case "CONTACT_URL": touched = form.contactLink != nil
-        case "ADDRESS", "LOCATION", "CATEGORY": touched = false
+        // Назву й опис не червонимо посеред набору: межу вже каже лічильник під полем.
+        case "TITLE", "DESCRIPTION", "ADDRESS", "LOCATION", "CATEGORY": touched = false
         // Дати, місткість, вік і пояс мають значення завжди: їхню помилку видно одразу.
         default: touched = true
         }
@@ -185,7 +220,13 @@ enum EditorStep: Int, CaseIterable, Identifiable {
         }
     }
 
+    /// Усі тексти під полями разом — значення для кроків, які SwiftUI вміє порівняти.
+    var issueTexts: [DraftField: String] {
+        Dictionary(uniqueKeysWithValues: issues.compactMap { field in issue(field).map { (field, $0) } })
+    }
+
     /// Показати поле з порушенням: його крок, текст під ним і прокрутка до нього.
+    /// `revealed` тут означає й «крок змінила помилка»: тоді вголос кажемо її, а не назву кроку.
     private func show(_ field: DraftField) {
         step = EditorStep.of(field)
         revealed = true
@@ -204,7 +245,7 @@ enum EditorStep: Int, CaseIterable, Identifiable {
             return
         }
         app.searchAddress(
-            query: query, latitude: form.latitude, longitude: form.longitude
+            query: query, latitude: form.latitude, longitude: form.longitude, city: form.city
         ) { [weak self] found in
             self?.addressSuggestions = found
         }
@@ -288,7 +329,6 @@ enum EditorStep: Int, CaseIterable, Identifiable {
             // Пояс для крапки, яку вже пересунули, — чужий.
             guard let self, let zone, zone != form.timeZone, form.latitude == latitude, form.longitude == longitude else { return }
             form.timeZone = zone
-            timeZoneFromPlace = true
         }
     }
 
@@ -297,10 +337,11 @@ enum EditorStep: Int, CaseIterable, Identifiable {
         if let field = issues.first(where: { EditorStep.of($0) == step }) { return show(field) }
         if let next = EditorStep(rawValue: step.rawValue + 1) { step = next; revealed = false }
     }
-    func retreat() { if let previous = EditorStep(rawValue: step.rawValue - 1) { step = previous } }
+    func retreat() { if let previous = EditorStep(rawValue: step.rawValue - 1) { step = previous; revealed = false } }
 
     func submit() {
-        // Поле попереднього кроку могло зламатись після переходу (напр. початок став минулим).
+        // Свіжа перевірка: поки людина дивилась на форму, початок міг стати минулим.
+        issues = form.issues(imageUrl: event?.imageUrl)
         if let field = issues.first { return show(field) }
         guard let draft = form.draft(imageUrl: event?.imageUrl) else { return }
         persist()
@@ -345,10 +386,16 @@ enum EditorStep: Int, CaseIterable, Identifiable {
         UserDefaults.standard.set(data, forKey: storageKey)
     }
 
-    private func restore(home: AppState?) {
+    private func restore() {
         if event == nil, let data = UserDefaults.standard.data(forKey: storageKey),
            let saved = try? JSONDecoder().decode(EditorForm.self, from: data) {
             form = saved
+            // Минулий початок у давній чернетці — не намір, а давність: ставимо типовий.
+            if form.starts <= Date() {
+                let fresh = EditorForm()
+                form.starts = fresh.starts
+                form.ends = fresh.ends
+            }
             pointChosen = saved.placed ?? false
             accepted = saved.address.isEmpty ? nil : saved.address
             return
@@ -364,6 +411,7 @@ enum EditorStep: Int, CaseIterable, Identifiable {
                 approvalRequired: room.approvalRequired, contactUrl: room.contactUrl
             )
             form.placed = true
+            original = form
             pointChosen = true
             accepted = event.address
         } else if event == nil {
@@ -378,10 +426,19 @@ private extension String {
     var trimmed: String { trimmingCharacters(in: .whitespacesAndNewlines) }
 }
 
+/// Один форматер на редактор: правила перевіряються на кожну літеру, а створення форматера дороге.
+private let iso = ISO8601DateFormatter()
+
 /// Коротший запит нічого не звужує, а мережі коштує.
 private let minAddressQuery = 3
 
 private let defaultLead: TimeInterval = 3600
+
+/// Типовий початок — повна година, не раніше ніж за годину: «21:00», а не «20:43».
+private func defaultStart() -> Date {
+    let soon = Date().addingTimeInterval(defaultLead)
+    return Calendar.current.nextDate(after: soon, matching: DateComponents(minute: 0), matchingPolicy: .nextTime) ?? soon
+}
 private let defaultDuration: TimeInterval = 3600
 private let defaultCategory = EventCategory.social
 private let defaultCapacity = 20

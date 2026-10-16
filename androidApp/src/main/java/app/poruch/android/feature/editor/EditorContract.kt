@@ -87,15 +87,11 @@ enum class EditorStep(
 ) {
     ABOUT(setOf(DraftField.TITLE, DraftField.DESCRIPTION, DraftField.CATEGORY)),
     PLACE(setOf(DraftField.ADDRESS, DraftField.LOCATION)),
+    SCHEDULE(setOf(DraftField.STARTS_AT, DraftField.ENDS_AT, DraftField.TIME_ZONE)),
     // Фото додають після публікації, тож IMAGE_URL тут лише щоб кожне поле мало свій крок.
-    SCHEDULE(
-        setOf(
-            DraftField.STARTS_AT, DraftField.ENDS_AT, DraftField.TIME_ZONE, DraftField.CAPACITY,
-            DraftField.AGE_LIMITS, DraftField.CONTACT_URL, DraftField.IMAGE_URL
-        )
-    );
+    PEOPLE(setOf(DraftField.CAPACITY, DraftField.AGE_LIMITS, DraftField.CONTACT_URL, DraftField.IMAGE_URL));
 
-    val isLast get() = this == SCHEDULE
+    val isLast get() = this == PEOPLE
     fun next() = entries.getOrElse(ordinal + 1) { this }
     fun previous() = entries.getOrElse(ordinal - 1) { this }
 }
@@ -109,8 +105,6 @@ data class EditorState(
     val mapLatitude: Double = 0.0,
     val mapLongitude: Double = 0.0,
     val picker: PickerRequest? = null,
-    /** Пояс визначено за місцем події, а не взято з пристрою. */
-    val timeZoneFromPlace: Boolean = false,
     /** Підказки адрес: людина набирає вулицю й будинок, крапку ставить застосунок. */
     val addressSuggestions: List<PlaceResult> = emptyList(),
     /** Відкрито повноекранний вибір точки: на міні-мапі 260 dp обирати незручно. */
@@ -120,14 +114,26 @@ data class EditorState(
     /** «Далі» натиснули з помилками: тепер вони видні під полями, поки крок не зміниться. */
     val showProblems: Boolean = false,
     /** Публікацію відхилено: текст стоїть над кнопкою, а не зникає банером. */
-    val failure: AppError? = null
+    val failure: AppError? = null,
+    /** Відкрита шторка підтвердження: що саме зникне. */
+    val discarding: Discard? = null,
+    /** Хто збирає — ім'я на квитку, як його побачать на головній. */
+    val host: String? = null,
+    /** Скільки вже йде: нова зустріч друкується «0/20». */
+    val taken: Int = 0
 ) {
     val point get() = form.point
     val pointChosen get() = point != null
 
+    /** Є що стерти: чернетка з текстом чи адресою. */
+    val canStartOver get() = !editing && (form.title.isNotBlank() || form.description.isNotBlank() || form.address.isNotBlank())
+
     /** Кожен крок перевіряє лише свої поля, тож «Далі» не блокується наступним. */
     val stepProblems: List<DraftField> get() = form.problems().filter { it in step.fields }
 }
+
+/** Що зникне після підтвердження: правки наявної події чи чернетка нової. */
+enum class Discard { CHANGES, DRAFT }
 
 /** Яке поле дати зараз редагує пікер. */
 enum class PickerRequest { STARTS, ENDS }
@@ -146,6 +152,11 @@ sealed interface EditorIntent {
     data object Submit : EditorIntent
     data class ShowPicker(val request: PickerRequest?) : EditorIntent
     data class SetDateTime(val request: PickerRequest, val value: LocalDateTime) : EditorIntent
+    /** Хрестик чи системне «назад» з першого кроку. Правки наявної події спершу підтверджують. */
+    data object Close : EditorIntent
+    /** Відкрити чи сховати (null) шторку підтвердження. */
+    data class AskDiscard(val what: Discard?) : EditorIntent
+    data object ConfirmDiscard : EditorIntent
     /** Відповідь системи на [EditorEffect.AskNotificationPermission]. */
     data class NotificationPermissionAnswered(val granted: Boolean) : EditorIntent
 }

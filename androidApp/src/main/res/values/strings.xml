@@ -98,9 +98,9 @@
   <string name="starts">Початок</string>
   <string name="ends">Закінчення</string>
   <string name="timezone">Часовий пояс</string>
+  <string name="timezone_local">Місцевий час, %1$s · %2$s</string>
+  <string name="timezone_differs">Години вище — за цим часом, а не за вашим телефоном.</string>
   <!-- Звідки взявся пояс. Мовчазно підставлений неправильний гірший за видимий. -->
-  <string name="timezone_from_place">Визначено за місцем події</string>
-  <string name="timezone_from_device">За вашим пристроєм — місце не вдалося визначити</string>
   <string name="capacity">Кількість місць</string>
   <string name="date_help">Оберіть дату й час</string>
   <string name="next">Далі</string>
@@ -233,7 +233,8 @@
   <string name="about_app_body">«Поряд» — події та люди у вашому місті. Мапа: MapLibre та OpenFreeMap.</string>
   <string name="step_one">Про подію</string>
   <string name="step_two">Місце</string>
-  <string name="step_three">Час і місця</string>
+  <string name="step_three">Час</string>
+  <string name="step_four">Хто прийде</string>
   <string name="events_here">Тут подій: %1$d</string>
   <string name="show_all_events">Показати всі події</string>
   <string name="home_switch_city">Показати події в місті %1$s</string>
@@ -298,13 +299,23 @@
   <string name="on_map">На мапі</string>
   <string name="editor_mode_new">Нова подія</string>
   <string name="editor_mode_edit">Редагування</string>
+  <string name="editor_start_over">Почати заново</string>
+  <string name="editor_start_over_title">Стерти чернетку?</string>
+  <string name="editor_start_over_explain">Назва, опис, місце й час зникнуть, і ви почнете з порожньої форми.</string>
+  <string name="editor_delete_draft">Стерти чернетку</string>
+  <string name="editor_discard_title">Відкинути зміни?</string>
+  <string name="editor_discard_explain">Подія лишиться такою, як була до редагування.</string>
+  <string name="editor_discard">Відкинути зміни</string>
+  <string name="editor_keep_editing">Редагувати далі</string>
   <string name="category_single">Категорія</string>
   <string name="editor_about_title">Що плануєте?</string>
   <string name="editor_about_hint">Назва, кілька речень і категорія — за цим подію знайдуть.</string>
   <string name="editor_place_title">Де зустрічаємось?</string>
   <string name="editor_place_hint">Адреса або точка на мапі. Її побачать усі, хто відкриє подію.</string>
-  <string name="editor_schedule_title">Коли і для кого?</string>
-  <string name="editor_schedule_hint">Час, місткість і хто може приєднатись.</string>
+  <string name="editor_schedule_title">Коли?</string>
+  <string name="editor_schedule_hint">Початок і скільки триватиме.</string>
+  <string name="editor_people_title">Хто може прийти?</string>
+  <string name="editor_people_hint">Скільки місць, з якого віку й де учасники говоритимуть між собою.</string>
   <string name="auth_tab_login">Вхід</string>
   <string name="auth_tab_signup">Реєстрація</string>
   <string name="continue_with_google">Продовжити з Google</string>
@@ -364,7 +375,6 @@
   <string name="confirm_age_body">Ваш обліковий запис створено до того, як ми почали питати вік. Вкажіть дату народження — без неї не вийде приєднатись до події.</string>
   <string name="confirm_age_action">Вказати дату</string>
 
-  <string name="who_can_come">Хто може прийти</string>
   <string name="age_from">Вік від</string>
   <string name="age_to">Вік до</string>
   <string name="age_to_placeholder">Без обмеження</string>
@@ -786,7 +796,6 @@
   <string name="time">Час</string>
   <string name="when_starts">Коли починається</string>
   <string name="when_ends">Коли закінчується</string>
-  <string name="timezone_device">За вашим пристроєм</string>
   <string name="save_changes">Зберегти зміни</string>
   <string name="try_again">Спробувати ще раз</string>
   <string name="all_categories">Усі категорії</string>

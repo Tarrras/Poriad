@@ -636,6 +636,14 @@ func stubParts(_ event: Event, compact: Bool = false, medium: Bool = false) -> (
     return (formatter(event, "HH:mm").string(from: date), day)
 }
 
+/// Корінець зустрічі, якої ще нема (редактор): година й день, як у нижньому корінці `stubParts(medium:)`.
+func draftStubParts(at date: Date, zone: String) -> (big: String, small: String) {
+    let calendar = calendar(zone: zone)
+    let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: Date()), to: calendar.startOfDay(for: date)).day ?? 0
+    let day = (0...6).contains(days) ? dayLabel(zone: zone, date, short: true) : formatter(zone: zone, "EEE dd.MM").string(from: date)
+    return (formatter(zone: zone, "HH:mm").string(from: date), day.uppercased(with: ukrainian))
+}
+
 /// Довга форма для екрана деталей. Пояс називаємо лише коли він відрізняється від поясу читача.
 /// Сеанс: «Четвер, 16 липня · 18:00». Прокат: «16 липня – 30 вересня», без години.
 func eventDate(_ event: Event) -> String {

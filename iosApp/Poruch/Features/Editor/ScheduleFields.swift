@@ -167,32 +167,37 @@ private let minimumDuration: TimeInterval = 900
 /// Типові тривалості одним дотиком; решта в пікері.
 private let commonDurations = [1, 2, 3]
 
-/// Пояс визначає місце події, але показуємо його: мовчки підставлений неправильний гірший за видимий.
+/// Пояс події, коли година на телефоні була б іншою: тоді години вище йдуть за чужим годинником, і це треба сказати.
+/// Свій час — норма, про нього мовчимо. Порівнюємо зсув на дату події, а не назви: Kiev і Kyiv — один годинник,
+/// а літній і зимовий час різняться.
 struct TimeZoneNote: View {
     let zone: String
-    let fromPlace: Bool
+    let city: String
+    let at: Date
 
     var body: some View {
-        HStack(spacing: Space.md) {
-            PoruchIcon(glyph: PoruchIcons.clock, size: 20)
-                .foregroundStyle(Palette.inkSecondary)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(Copy.timezone.uppercased()).font(PoruchFont.overline).kerning(1.2).foregroundStyle(Palette.inkTertiary)
-                Text(readableZone).font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
-                Text(fromPlace ? Copy.timezone_from_place : Copy.timezone_device)
-                    .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
+        if let resolved = TimeZone(identifier: zone), resolved.secondsFromGMT(for: at) != TimeZone.current.secondsFromGMT(for: at) {
+            HStack(spacing: Space.md) {
+                PoruchIcon(glyph: PoruchIcons.clock, size: 20)
+                    .foregroundStyle(Palette.inkSecondary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(Copy.timezone.uppercased()).font(PoruchFont.overline).kerning(1.2).foregroundStyle(Palette.inkTertiary)
+                    Text(Copy.timezone_local(city.isEmpty ? zone : city, offset(resolved))).font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
+                    Text(Copy.timezone_differs).font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
+                }
+                Spacer(minLength: 0)
             }
-            Spacer(minLength: 0)
+            .padding(Space.lg)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .cardSurface()
+            .accessibilityElement(children: .combine)
         }
-        .padding(Space.lg)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .cardSurface()
     }
 
-    /// «Europe/Kyiv · GMT+3»: ідентифікатор їде на сервер, зсув звіряє людина.
-    private var readableZone: String {
-        guard let resolved = TimeZone(identifier: zone) else { return zone }
-        let hours = resolved.secondsFromGMT() / 3600
-        return "\(zone) · GMT\(hours >= 0 ? "+" : "")\(hours)"
+    /// «GMT+1», «GMT+5:30» — на дату події.
+    private func offset(_ zone: TimeZone) -> String {
+        let seconds = zone.secondsFromGMT(for: at)
+        let minutes = abs(seconds) % 3600 / 60
+        return "GMT\(seconds < 0 ? "−" : "+")\(abs(seconds) / 3600)" + (minutes > 0 ? String(format: ":%02d", minutes) : "")
     }
 }

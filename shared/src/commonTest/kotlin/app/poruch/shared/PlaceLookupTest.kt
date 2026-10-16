@@ -47,6 +47,15 @@ class PlaceLookupTest {
         assertEquals(listOf<Any?>(listOf(place), place, "Europe/Kyiv"), answers)
     }
 
+    @Test fun addressesInTheFormCityComeFirst() = runTest {
+        val boyarka = PlaceResult("вулиця Хрещатик, 1", "Боярка", "Боярка", 50.32, 30.29)
+        val answers = mutableListOf<List<PlaceResult>>()
+        PlaceLookup(Addresses(found = listOf(boyarka, place)), null, backgroundScope)
+            .searchAddress("Хрещатик", 50.0, 30.0, city = " київ") { answers.add(it) }
+        runCurrent()
+        assertEquals(listOf(listOf(place, boyarka)), answers)
+    }
+
     /** Пояс повільної старої крапки не перепише пояс нової: останній запит виграє. */
     @Test fun theLastTimeZoneRequestWins() = runTest {
         val zones = object : TimeZoneLocator {
