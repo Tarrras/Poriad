@@ -70,6 +70,8 @@ data class DetailScreenState(
     val requests: List<Attendee> = emptyList(),
     /** Подія завершилась: участь уже нічого не змінює. */
     val ended: Boolean = false,
+    /** Подія почалась: сервер не приймає правок із минулим початком, тож редагування й фото закриті. */
+    val started: Boolean = false,
     /** Учасник і вікно оцінки ще відкрите. */
     val canRate: Boolean = false,
     /** Організаторові всі оцінки, учасникові — своя. */
@@ -258,6 +260,7 @@ class DetailPresenter(
             organizer = event != null && shared.organizes(event),
             requests = shared.detail.joinRequests,
             ended = event?.hasEnded(now) == true,
+            started = event?.hasStarted(now) == true,
             canRate = event != null && RatingRules.canRate(event, now),
             ratings = shared.detail.ratings,
             person = shared.person,

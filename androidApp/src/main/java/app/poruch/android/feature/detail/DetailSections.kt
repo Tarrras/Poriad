@@ -572,11 +572,11 @@ internal fun Description(event: Event, onIntent: (DetailIntent) -> Unit) {
 internal fun OrganizerActions(state: DetailState, onIntent: (DetailIntent) -> Unit) {
     val colors = Poruch.colors
     HairLine()
-    // Час, місце й місткість супутника тримає сервер: лишається скасувати.
-    val companion = state.screen.companionOf != null
-    if (!companion) PhotoPickerButton(state.screen.mutating) { bytes, mime -> onIntent(DetailIntent.AttachPhoto(bytes, mime)) }
+    // Час, місце й місткість супутника тримає сервер; після початку сервер не приймає правок. Лишається скасувати.
+    val editable = state.screen.companionOf == null && !state.screen.started
+    if (editable) PhotoPickerButton(state.screen.mutating) { bytes, mime -> onIntent(DetailIntent.AttachPhoto(bytes, mime)) }
     Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
-        if (!companion) SecondaryButton(stringResource(R.string.edit), { onIntent(DetailIntent.Edit) }, Modifier.weight(1f), icon = PoruchIcons.edit)
+        if (editable) SecondaryButton(stringResource(R.string.edit), { onIntent(DetailIntent.Edit) }, Modifier.weight(1f), icon = PoruchIcons.edit)
         SecondaryButton(
             stringResource(R.string.cancel_event), { onIntent(DetailIntent.ConfirmCancel(true)) },
             Modifier.weight(1f), enabled = !state.screen.mutating, tone = colors.danger

@@ -496,8 +496,9 @@ extension EventDetailView {
     func organizerActions(_ view: DetailScreenState) -> some View {
         VStack(alignment: .leading, spacing: Space.md) {
             Divider().overlay(Palette.hairline)
-            // Час, місце й місткість супутника тримає сервер: лишається скасувати.
-            if view.companionOf == nil {
+            // Час, місце й місткість супутника тримає сервер; після початку сервер не приймає правок. Лишається скасувати.
+            let editable = view.companionOf == nil && !view.started
+            if editable {
                 PhotosPicker(selection: $photo, matching: .images) {
                     Label(Copy.add_photo, systemImage: "camera")
                         .font(PoruchFont.subhead.weight(.semibold)).foregroundStyle(Palette.ink)
@@ -509,7 +510,7 @@ extension EventDetailView {
                 Text(error).font(PoruchFont.caption).foregroundStyle(Palette.danger)
             }
             HStack(spacing: Space.md) {
-                if view.companionOf == nil { SecondaryButton(title: Copy.edit, glyph: PoruchIcons.edit) { editing = true } }
+                if editable { SecondaryButton(title: Copy.edit, glyph: PoruchIcons.edit) { editing = true } }
                 SecondaryButton(title: Copy.delete_account_cancel, glyph: PoruchIcons.close, tone: Palette.danger) { cancelling = true }
             }
         }
