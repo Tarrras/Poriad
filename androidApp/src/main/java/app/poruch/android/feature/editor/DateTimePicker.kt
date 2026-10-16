@@ -26,14 +26,15 @@ fun DateTimeSheet(initial: LocalDateTime, minimum: LocalDateTime?, onDismiss: ()
     var date by remember { mutableStateOf<LocalDate?>(null) }
     PoruchSheet(onDismiss) { sheet ->
         // Календар вищий за телефон у ландшафті й на великому шрифті: кнопки підтвердження мають бути досяжні.
+        // Поля — лише в заголовку й кнопок: календарю Material потрібні всі 360 dp, інакше неділю обрізало краєм.
         Column(
-            Modifier.verticalScroll(rememberScrollState()).padding(horizontal = Spacing.page).padding(bottom = Spacing.lg),
+            Modifier.verticalScroll(rememberScrollState()).padding(bottom = Spacing.lg),
             verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
             val chosen = date
             Text(
                 stringResource(if (chosen == null) R.string.pick_date else R.string.pick_time),
-                style = PoruchType.brandTitle2, color = colors.ink
+                style = PoruchType.brandTitle2, color = colors.ink, modifier = Gutter
             )
             if (chosen == null) {
                 val dateState = rememberDatePickerState(
@@ -77,7 +78,7 @@ fun DateTimeSheet(initial: LocalDateTime, minimum: LocalDateTime?, onDismiss: ()
 /** Підвал кроку: далі — кнопка, назад — тихий підпис поруч. */
 @Composable
 private fun SheetActions(confirm: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    Row(Gutter, verticalAlignment = Alignment.CenterVertically) {
         GhostButton(stringResource(R.string.close), onDismiss, tone = Poruch.colors.inkSecondary)
         Spacer(Modifier.weight(1f))
         PrimaryButton(confirm, onConfirm)
@@ -132,13 +133,14 @@ fun BirthDateSheet(initial: LocalDate?, onDismiss: () -> Unit, onPicked: (LocalD
     )
     PoruchSheet(onDismiss) { sheet ->
         // Календар вищий за телефон у ландшафті й на великому шрифті: кнопки підтвердження мають бути досяжні.
+        // Поля — лише в заголовку й кнопок: календарю Material потрібні всі 360 dp, інакше неділю обрізало краєм.
         Column(
-            Modifier.verticalScroll(rememberScrollState()).padding(horizontal = Spacing.page).padding(bottom = Spacing.lg),
+            Modifier.verticalScroll(rememberScrollState()).padding(bottom = Spacing.lg),
             verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
-            Text(stringResource(R.string.birth_date), style = PoruchType.brandTitle2, color = colors.ink)
+            Text(stringResource(R.string.birth_date), style = PoruchType.brandTitle2, color = colors.ink, modifier = Gutter)
             DatePicker(state, title = null, showModeToggle = false, colors = poruchDatePickerColors())
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(Gutter, verticalAlignment = Alignment.CenterVertically) {
                 GhostButton(stringResource(R.string.close), { sheet.close() }, tone = colors.inkSecondary)
                 Spacer(Modifier.weight(1f))
                 PrimaryButton(stringResource(R.string.apply), {
@@ -149,3 +151,6 @@ fun BirthDateSheet(initial: LocalDate?, onDismiss: () -> Unit, onPicked: (LocalD
         }
     }
 }
+
+/** Поля шторки для заголовка й кнопок; календар іде від краю до краю. */
+private val Gutter = Modifier.padding(horizontal = Spacing.page)

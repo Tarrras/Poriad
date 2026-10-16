@@ -156,7 +156,8 @@ sealed interface EditorIntent {
     data object Close : EditorIntent
     /** Відкрити чи сховати (null) шторку підтвердження. */
     data class AskDiscard(val what: Discard?) : EditorIntent
-    data object ConfirmDiscard : EditorIntent
+    /** Що саме відкинути — у самому намірі: шторка, закриваючись, спершу кличе `onDismiss`, і стан уже порожній. */
+    data class ConfirmDiscard(val what: Discard) : EditorIntent
     /** Відповідь системи на [EditorEffect.AskNotificationPermission]. */
     data class NotificationPermissionAnswered(val granted: Boolean) : EditorIntent
 }

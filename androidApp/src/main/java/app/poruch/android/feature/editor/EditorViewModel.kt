@@ -155,7 +155,7 @@ class EditorViewModel(
                 else -> send(EditorEffect.Close)
             }
             is EditorIntent.AskDiscard -> reduce { copy(discarding = intent.what) }
-            EditorIntent.ConfirmDiscard -> when (state.value.discarding) {
+            is EditorIntent.ConfirmDiscard -> when (intent.what) {
                 Discard.CHANGES -> send(EditorEffect.Close)
                 Discard.DRAFT -> {
                     unsaved = false; saveJob?.cancel(); drafts.clear()
@@ -164,7 +164,6 @@ class EditorViewModel(
                         EditorState(form = drafts.load(city.name), mapLatitude = city.latitude, mapLongitude = city.longitude, host = host)
                     }
                 }
-                null -> Unit
             }
             is EditorIntent.NotificationPermissionAnswered -> {
                 if (intent.granted) app.setRemindersEnabled(true)

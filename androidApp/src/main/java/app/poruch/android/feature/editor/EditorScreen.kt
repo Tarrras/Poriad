@@ -138,7 +138,7 @@ fun EditorScreen(state: EditorState, onIntent: (EditorIntent) -> Unit) {
             message = stringResource(if (changes) R.string.editor_discard_explain else R.string.editor_start_over_explain),
             confirmLabel = stringResource(if (changes) R.string.editor_discard else R.string.editor_delete_draft),
             dismissLabel = stringResource(R.string.editor_keep_editing),
-            onConfirm = { onIntent(EditorIntent.ConfirmDiscard) },
+            onConfirm = { onIntent(EditorIntent.ConfirmDiscard(what)) },
             onDismiss = { onIntent(EditorIntent.AskDiscard(null)) },
             tone = colors.danger
         )
@@ -165,6 +165,15 @@ private fun EditorForm.parse(value: String) =
 /** Закрити, прогрес трьома сегментами і назва режиму. Той самий ряд, що в онбордингу. */
 @Composable
 private fun WizardHeader(state: EditorState, onIntent: (EditorIntent) -> Unit) {
+    // Шапка — хром: шрифт росте до 1.3, далі напис справа витісняв смужки прогресу в нуль. Те саме, що xxLarge на iOS.
+    val density = LocalDensity.current
+    androidx.compose.runtime.CompositionLocalProvider(
+        LocalDensity provides androidx.compose.ui.unit.Density(density.density, density.fontScale.coerceAtMost(LARGE_FONT_SCALE))
+    ) { WizardHeaderRow(state, onIntent) }
+}
+
+@Composable
+private fun WizardHeaderRow(state: EditorState, onIntent: (EditorIntent) -> Unit) {
     val colors = Poruch.colors
     // «Крок 2 з 3: Місце» — і як назва індикатора, і як оголошення, коли крок змінився.
     val stepLabel = stringResource(R.string.onboarding_step, state.step.ordinal + 1, EditorStep.entries.size) +
@@ -566,7 +575,8 @@ private fun DraftTicket(state: EditorState) {
                 }
             }
         },
-        modifier = Modifier.fillMaxWidth().decorative(),
+        // Вертикальний квиток бере висоту від місця виклику: у прокрутці її нема, і без Min основа сплющувалась у нуль.
+        modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min).decorative(),
         vertical = true, stubLength = 64.dp
     ) {
         Column(

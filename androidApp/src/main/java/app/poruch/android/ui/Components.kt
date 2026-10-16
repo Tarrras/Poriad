@@ -1931,9 +1931,12 @@ fun Avatar(name: String, url: String?, size: Dp, modifier: Modifier = Modifier) 
             .ampBlock(),
         contentAlignment = Alignment.Center
     ) {
+        // Літера не більша за 60 % кола на будь-якому fontScale: коло фіксоване, і великий шрифт обрізав її краєм.
+        val base = if (size >= 56.dp) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.labelMedium
+        val cap = with(LocalDensity.current) { (size * 0.6f).toSp() }
         Text(
             name.trim().take(1).uppercase(),
-            style = if (size >= 56.dp) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.labelMedium,
+            style = if (base.fontSize.value > cap.value) base.copy(fontSize = cap, lineHeight = cap) else base,
             color = colors.inkSecondary
         )
         url?.let {
