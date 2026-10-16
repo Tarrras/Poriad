@@ -44,13 +44,14 @@ struct ScheduleFields: View {
         HStack(spacing: Space.sm) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(Copy.duration.uppercased()).font(PoruchFont.overline).kerning(1.2).foregroundStyle(Palette.inkTertiary)
-                Text(durationLabel).font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
+                // Значення лише тоді, коли його не каже вибраний чип: «1 год» двічі поруч — шум.
+                if !presetPicked { Text(durationLabel).font(PoruchFont.bodyText).foregroundStyle(Palette.ink) }
             }
             Spacer(minLength: Space.sm)
             HStack(spacing: Space.xs) {
                 ForEach(commonDurations, id: \.self) { hours in
                     let seconds = TimeInterval(hours) * 3600
-                    Chip(label: Copy.duration_hours("\(hours)"), selected: abs(duration - seconds) < 60) {
+                    Chip(label: Copy.duration_hours("\(hours)"), selected: matches(hours)) {
                         ends = starts.addingTimeInterval(seconds)
                     }
                 }
@@ -60,6 +61,8 @@ struct ScheduleFields: View {
     }
 
     private var duration: TimeInterval { max(minimumDuration, ends.timeIntervalSince(starts)) }
+    private func matches(_ hours: Int) -> Bool { abs(duration - TimeInterval(hours) * 3600) < 60 }
+    private var presetPicked: Bool { commonDurations.contains(where: matches) }
 
     private var durationLabel: String {
         let minutes = Int((duration / 60).rounded())

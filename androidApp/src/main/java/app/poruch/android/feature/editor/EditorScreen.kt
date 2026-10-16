@@ -539,8 +539,9 @@ private fun DateTimeField(label: String, value: String, error: String?, onOpen: 
 
 /**
  * Квиток «Від людей», що друкується з форми: незаповнене — сірі смуги, як на порожньому квитку, заповнене проступає
- * текстом. Корінець одразу кольору жанру; година, день і місця — коли обрано початок. Для TalkBack він повтор форми,
- * тож прихований. Те саме, що `DraftTicket` на iOS.
+ * текстом. Корінець одразу кольору жанру; година, день і місця — коли обрано початок. На «Де» і «Коли» — смужкою з
+ * корінцем часу праворуч: повний квиток забирав чверть екрана, і мапа з датами йшли за згин. Для TalkBack він повтор
+ * форми, тож прихований. Те саме, що `DraftTicket` на iOS.
  */
 @Composable
 private fun DraftTicket(state: EditorState) {
@@ -554,10 +555,29 @@ private fun DraftTicket(state: EditorState) {
     }
     val (big, small) = start?.let { draftStubParts(it, words) } ?: ("––:––" to "")
     val motion = Motion.quick<IntSize>(Poruch.reducedMotion)
+    val day = PoruchType.overline.copy(color = Color.White, letterSpacing = 0.6.sp)
+    if (state.step == EditorStep.PLACE || state.step == EditorStep.SCHEDULE) {
+        Ticket(
+            categoryStub(form.category),
+            stub = {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(big, style = PoruchType.numeralSmall.copy(color = Color.White, fontFeatureSettings = "tnum"), maxLines = 1)
+                    if (start != null) Text(small, style = day, maxLines = 1)
+                }
+            },
+            modifier = Modifier.fillMaxWidth().decorative()
+        ) {
+            Column(Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                if (title.isEmpty()) Blank(140.dp, 10.dp)
+                else Text(TitleRules.display(title), style = PoruchType.brandTitle3, color = colors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (place.isEmpty()) Blank(100.dp, 6.dp) else MetaLine(PoruchIcons.pin, place)
+            }
+        }
+        return
+    }
     Ticket(
         categoryStub(form.category),
         stub = {
-            val day = PoruchType.overline.copy(color = Color.White, letterSpacing = 0.6.sp)
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = Spacing.md),
                 horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically

@@ -25,11 +25,12 @@ struct EventEditor: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: Space.lg) {
                         // Квиток друкується згори, поки людина відповідає: той самий, що побачать у «Від людей».
+                        // На «Де» і «Коли» — смужкою: повний квиток забирав чверть екрана, і мапа з датами йшли за згин.
                         DraftTicket(
                             form: editor.form, host: editor.host, taken: editor.taken,
-                            timed: editor.step.rawValue >= EditorStep.schedule.rawValue || editor.editing
+                            timed: editor.step.rawValue >= EditorStep.schedule.rawValue || editor.editing,
+                            compact: editor.step == .place || editor.step == .schedule
                         )
-                        .id(scrollTop)
                         // Кожен крок — одне питання великим заголовком, як в онбордингу.
                         VStack(alignment: .leading, spacing: Space.xs) {
                             // Номер кроку словами: смужки згори кажуть «скільки», а не «котрий». Без капсу: «КРОК 1 З 4»
@@ -45,7 +46,10 @@ struct EventEditor: View {
                         case .schedule: ScheduleStep(form: $editor.form, issues: editor.issueTexts)
                         case .people: PeopleStep(form: $editor.form, issues: editor.issueTexts)
                         }
-                    }.padding(Space.page)
+                    }
+                    .padding(Space.page)
+                    // Якір на всьому вмісті з полями, а не на квитку: інакше прокрутка зрізала верхні 16 pt, і квиток упирався в шапку.
+                    .id(scrollTop)
                 }
                 // Новий крок починається згори: інакше заголовок питання лишався за краєм, прокрученим ще на минулому.
                 .onChange(of: editor.step) { _, _ in proxy.scrollTo(scrollTop, anchor: .top) }
@@ -157,17 +161,48 @@ struct EventEditor: View {
 
 /// Квиток «Від людей», що друкується з форми: незаповнене — сірі смуги, як на порожньому квитку, заповнене проступає
 /// текстом. Корінець одразу кольору жанру; година, день і місця — з кроку «Коли», бо до нього в полях лише типові значення.
-/// Для VoiceOver він повтор форми, тож прихований.
+/// `compact` — горизонтальна смужка з корінцем часу праворуч, як рядок «Моїх подій». Для VoiceOver він повтор форми, тож прихований.
 private struct DraftTicket: View {
     let form: EditorForm
     let host: String?
     let taken: Int
     let timed: Bool
+    var compact = false
 
     private var title: String { form.title.trimmingCharacters(in: .whitespacesAndNewlines) }
     private var place: String { form.address.trimmingCharacters(in: .whitespacesAndNewlines) }
 
     var body: some View {
+        Group { if compact { strip } else { full } }
+            .motion(value: [title.isEmpty, place.isEmpty, timed, compact])
+            .decorative()
+    }
+
+    private var parts: (big: String, small: String) {
+        timed ? draftStubParts(at: form.starts, zone: form.timeZone) : ("––:––", "")
+    }
+
+    /// Смужка на кроках, де людина дивиться на мапу й дати: назва, місце і час на корінці.
+    private var strip: some View {
+        Ticket(stubColor: categoryStub(form.category), stubLength: 84) {
+            VStack(alignment: .leading, spacing: Space.xs) {
+                if title.isEmpty { blank(140, height: 10) } else {
+                    Text(TitleRules.shared.display(title: title)).font(PoruchFont.brandTitle3).foregroundStyle(Palette.ink).lineLimit(1)
+                }
+                if place.isEmpty { blank(100, height: 6) } else { MetaLine(glyph: PoruchIcons.pin, text: place) }
+            }
+            .padding(.horizontal, Space.md).padding(.vertical, Space.md)
+        } stub: {
+            VStack(spacing: 2) {
+                Text(parts.big).font(PoruchFont.numeralSmall).monospacedDigit().lineLimit(1).minimumScaleFactor(0.6)
+                if timed { Text(parts.small).font(PoruchFont.overline).kerning(0.6).lineLimit(1).minimumScaleFactor(0.7) }
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, Space.xs)
+        }
+    }
+
+    private var full: some View {
         Ticket(vertical: true, stubColor: categoryStub(form.category), stubLength: 64) {
             VStack(alignment: .leading, spacing: Space.xs) {
                 if title.isEmpty {
@@ -187,7 +222,6 @@ private struct DraftTicket: View {
             }
             .padding(.horizontal, Space.md).padding(.top, Space.md).padding(.bottom, Space.lg)
         } stub: {
-            let parts: (big: String, small: String) = timed ? draftStubParts(at: form.starts, zone: form.timeZone) : ("––:––", "")
             HStack(alignment: .center, spacing: Space.sm) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(categoryName(form.category).uppercased()).font(PoruchFont.overline).kerning(0.6).lineLimit(1)
@@ -208,8 +242,6 @@ private struct DraftTicket: View {
             .foregroundStyle(.white)
             .padding(.horizontal, Space.md)
         }
-        .motion(value: [title.isEmpty, place.isEmpty, timed])
-        .decorative()
     }
 
     /// Ще не надрукований рядок.
@@ -387,7 +419,8 @@ private struct PeopleStep: View {
             LabelledField(
                 label: Copy.capacity,
                 text: Binding(
-                    get: { "\(form.capacity)" },
+                    // Стерте поле лишається порожнім, а не стрибає в «0» під курсором.
+                    get: { form.capacity == 0 ? "" : "\(form.capacity)" },
                     set: { form.capacity = Int(String($0.filter(\.isNumber).prefix(5))) ?? 0 }
                 )
             ) {
@@ -415,7 +448,8 @@ private struct PeopleStep: View {
                 Divider().overlay(Palette.hairline)
                 Toggle(isOn: $form.approvalRequired) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(Copy.approval_label).font(PoruchFont.title3).foregroundStyle(Palette.ink)
+                        // Тим самим кеглем, що й «Вік від» і «Верхня межа віку» в цій картці.
+                        Text(Copy.approval_label).font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
                         Text(Copy.approval_hint)
                             .font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
                     }
