@@ -1,0 +1,1186 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-16T12:54:44+00:00",
+  "title": "Design System: Поряд",
+  "extensions": {
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Заголовок екрана, назва події на деталях, «Поряд» на сплеші."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Назва на великій картці, заголовок аркуша, імʼя людини."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Заголовок секції, порожній стан, назва в картці плану."
+      },
+      "title-small": {
+        "displayName": "Title small",
+        "purpose": "Назва події на постері, в рядку й у списку."
+      },
+      "numeral": {
+        "displayName": "Numeral",
+        "purpose": "Цифри й значення; не заголовки."
+      },
+      "row-title": {
+        "displayName": "Row title",
+        "purpose": "Службові рядки й підписи, назва в CreateEventCard."
+      },
+      "lead": {
+        "displayName": "Lead",
+        "purpose": "Опис події на деталях."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Текст у формах і листах."
+      },
+      "subhead": {
+        "displayName": "Subhead",
+        "purpose": "Підзаголовок шапки."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Адреса, метадані, час у чаті."
+      },
+      "descriptor": {
+        "displayName": "Descriptor",
+        "purpose": "Назва категорії під назвою події, колір categoryInk."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Чипи."
+      },
+      "button": {
+        "displayName": "Button",
+        "purpose": "Кнопки."
+      },
+      "overline": {
+        "displayName": "Overline",
+        "purpose": "Дата, бейджі, підписи полів і таббару; ВЕРХНІЙ РЕГІСТР."
+      }
+    },
+    "shadows": [
+      {
+        "name": "raised",
+        "value": "0 4px 16px rgba(0,0,0,.10), 0 1px 4px rgba(0,0,0,.06)",
+        "purpose": "Висота 8: кругла «зберегти» поверх обкладинки. iOS: shadow(radius 8, y 2.7, black 10% / 40% вночі)."
+      },
+      {
+        "name": "overlay",
+        "value": "0 12px 40px rgba(0,0,0,.10), 0 2px 8px rgba(0,0,0,.06)",
+        "purpose": "Висота 24: таббар, карусель над мапою, NoticeBanner, панель дії. iOS: shadow(radius 24, y 8)."
+      },
+      {
+        "name": "sheet-scrim",
+        "value": "rgba(29,29,31,.32) / night rgba(11,11,15,.62)",
+        "purpose": "Затемнення під нижнім листом — теплий чорний, ніколи нейтральний сірий."
+      }
+    ],
+    "motion": [
+      {
+        "name": "quick",
+        "value": "200ms ease-in-out",
+        "purpose": "Єдиний швидкий крок для змін стану; зі зменшеним рухом — миттєво."
+      },
+      {
+        "name": "spring",
+        "value": "spring(response 0.32, damping 0.86)",
+        "purpose": "Єдина пружина для переміщень (Android: dampingRatio 0.86, StiffnessMediumLow)."
+      },
+      {
+        "name": "press",
+        "value": "scale 0.98, spring(response 0.28, damping 0.7)",
+        "purpose": "Поверхня під пальцем сідає й повертається; зі зменшеним рухом лише підсвітка."
+      }
+    ],
+    "breakpoints": [],
+    "colorMeta": {
+      "ink": {
+        "role": "primary",
+        "displayName": "Чорнило",
+        "canonical": "oklch(23.2% 0.004 286.1)",
+        "tonalRamp": [
+          "#0B0B0D",
+          "#242426",
+          "#3F3F42",
+          "#5D5D60",
+          "#808082",
+          "#A4A4A7",
+          "#CACACD",
+          "#EEEEF1"
+        ]
+      },
+      "ink-secondary": {
+        "role": "neutral",
+        "displayName": "Ink secondary",
+        "canonical": "oklch(54.0% 0.008 286.1)",
+        "tonalRamp": [
+          "#0B0B0E",
+          "#242428",
+          "#3F3F44",
+          "#5D5D62",
+          "#808085",
+          "#A4A4A9",
+          "#CACACF",
+          "#EEEEF4"
+        ]
+      },
+      "ink-tertiary": {
+        "role": "neutral",
+        "displayName": "Ink tertiary",
+        "canonical": "oklch(54.2% 0.015 285.9)",
+        "tonalRamp": [
+          "#0A0A11",
+          "#23232B",
+          "#3F3F48",
+          "#5D5C66",
+          "#7F7F89",
+          "#A3A3AE",
+          "#C9C9D4",
+          "#EDEDF9"
+        ]
+      },
+      "on-brand": {
+        "role": "primary",
+        "displayName": "On brand",
+        "canonical": "oklch(100.0% 0.000 89.9)",
+        "tonalRamp": [
+          "#0B0B0B",
+          "#242424",
+          "#404040",
+          "#5D5D5D",
+          "#808080",
+          "#A4A4A4",
+          "#CACACA",
+          "#EEEEEE"
+        ]
+      },
+      "brand-container": {
+        "role": "primary",
+        "displayName": "Brand container",
+        "canonical": "oklch(93.2% 0.007 286.3)",
+        "tonalRamp": [
+          "#0B0B0E",
+          "#242427",
+          "#3F3F43",
+          "#5D5D61",
+          "#808084",
+          "#A4A4A9",
+          "#CACACF",
+          "#EEEEF3"
+        ]
+      },
+      "evening-coral": {
+        "role": "secondary",
+        "displayName": "Вечірній корал",
+        "canonical": "oklch(63.2% 0.179 36.9)",
+        "tonalRamp": [
+          "#1C0200",
+          "#450E00",
+          "#712005",
+          "#A1320C",
+          "#D54D23",
+          "#FB7852",
+          "#FDB7A3",
+          "#FFE9E3"
+        ]
+      },
+      "evening-coral-text": {
+        "role": "secondary",
+        "displayName": "Evening coral text",
+        "canonical": "oklch(55.7% 0.169 35.9)",
+        "tonalRamp": [
+          "#1C0200",
+          "#450E01",
+          "#731D02",
+          "#A42E06",
+          "#D1512E",
+          "#FB7854",
+          "#FDB7A4",
+          "#FFE9E3"
+        ]
+      },
+      "evening-coral-on-photo": {
+        "role": "secondary",
+        "displayName": "Evening coral on photo",
+        "canonical": "oklch(75.3% 0.155 42.0)",
+        "tonalRamp": [
+          "#1A0400",
+          "#411401",
+          "#6C2603",
+          "#9B3B09",
+          "#CA5A29",
+          "#F37F51",
+          "#FDB89D",
+          "#FFE9E1"
+        ]
+      },
+      "evening-coral-container": {
+        "role": "secondary",
+        "displayName": "Evening coral container",
+        "canonical": "oklch(94.4% 0.026 41.1)",
+        "tonalRamp": [
+          "#140704",
+          "#2F201A",
+          "#4C3B35",
+          "#6B5952",
+          "#8F7B74",
+          "#B4A098",
+          "#DBC5BE",
+          "#FEE9E2"
+        ]
+      },
+      "on-evening-coral-container": {
+        "role": "secondary",
+        "displayName": "On evening coral container",
+        "canonical": "oklch(40.7% 0.113 38.4)",
+        "tonalRamp": [
+          "#1B0300",
+          "#431001",
+          "#6E2307",
+          "#91432A",
+          "#B9664C",
+          "#E18B70",
+          "#FDB7A1",
+          "#FFE9E2"
+        ]
+      },
+      "success": {
+        "role": "semantic",
+        "displayName": "Success",
+        "canonical": "oklch(52.9% 0.106 154.6)",
+        "tonalRamp": [
+          "#001005",
+          "#012D15",
+          "#024D29",
+          "#1C6F42",
+          "#459363",
+          "#6BB887",
+          "#91DFAC",
+          "#C6FFD8"
+        ]
+      },
+      "success-container": {
+        "role": "semantic",
+        "displayName": "Success container",
+        "canonical": "oklch(94.6% 0.027 157.4)",
+        "tonalRamp": [
+          "#020F07",
+          "#19281F",
+          "#34443A",
+          "#516258",
+          "#73857A",
+          "#97AA9E",
+          "#BDD0C4",
+          "#E0F4E7"
+        ]
+      },
+      "on-success-container": {
+        "role": "semantic",
+        "displayName": "On success container",
+        "canonical": "oklch(37.4% 0.073 154.6)",
+        "tonalRamp": [
+          "#001005",
+          "#022C16",
+          "#1A4B2E",
+          "#3A6A4B",
+          "#5C8D6D",
+          "#80B390",
+          "#A5D9B6",
+          "#C9FED9"
+        ]
+      },
+      "danger": {
+        "role": "semantic",
+        "displayName": "Danger",
+        "canonical": "oklch(54.3% 0.174 29.7)",
+        "tonalRamp": [
+          "#1F0000",
+          "#4B0200",
+          "#7C0400",
+          "#AA2116",
+          "#D44C3C",
+          "#FF7360",
+          "#FDB6AA",
+          "#FFE9E5"
+        ]
+      },
+      "danger-container": {
+        "role": "semantic",
+        "displayName": "Danger container",
+        "canonical": "oklch(93.4% 0.027 26.2)",
+        "tonalRamp": [
+          "#150706",
+          "#301F1D",
+          "#4D3A38",
+          "#6C5856",
+          "#907A78",
+          "#B59F9C",
+          "#DCC4C1",
+          "#FFE9E6"
+        ]
+      },
+      "canvas": {
+        "role": "neutral",
+        "displayName": "Прохолодний папір",
+        "canonical": "oklch(97.1% 0.003 286.4)",
+        "tonalRamp": [
+          "#0B0B0C",
+          "#242425",
+          "#3F3F41",
+          "#5D5D5F",
+          "#808082",
+          "#A4A4A6",
+          "#CACACC",
+          "#EEEEF0"
+        ]
+      },
+      "canvas-tint": {
+        "role": "neutral",
+        "displayName": "Canvas tint",
+        "canonical": "oklch(94.1% 0.007 286.3)",
+        "tonalRamp": [
+          "#0B0B0E",
+          "#242427",
+          "#3F3F43",
+          "#5D5D61",
+          "#808084",
+          "#A4A4A9",
+          "#CACACF",
+          "#EEEEF3"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Картка",
+        "canonical": "oklch(100.0% 0.000 89.9)",
+        "tonalRamp": [
+          "#0B0B0B",
+          "#242424",
+          "#404040",
+          "#5D5D5D",
+          "#808080",
+          "#A4A4A4",
+          "#CACACA",
+          "#EEEEEE"
+        ]
+      },
+      "surface-muted": {
+        "role": "neutral",
+        "displayName": "Surface muted",
+        "canonical": "oklch(96.3% 0.007 286.3)",
+        "tonalRamp": [
+          "#0B0B0E",
+          "#242427",
+          "#3F3F43",
+          "#5D5D61",
+          "#808084",
+          "#A4A4A9",
+          "#CACACF",
+          "#EEEEF3"
+        ]
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Волосина",
+        "canonical": "oklch(92.3% 0.007 286.3)",
+        "tonalRamp": [
+          "#0B0B0E",
+          "#242427",
+          "#3F3F43",
+          "#5D5D61",
+          "#808084",
+          "#A4A4A9",
+          "#CACACF",
+          "#EEEEF3"
+        ]
+      },
+      "glow": {
+        "role": "neutral",
+        "displayName": "Сяйво",
+        "canonical": "oklch(91.8% 0.028 292.4)",
+        "tonalRamp": [
+          "#0C0916",
+          "#242231",
+          "#403D4E",
+          "#5E5B6D",
+          "#807D90",
+          "#A5A2B5",
+          "#CAC8DC",
+          "#EEECFF"
+        ]
+      },
+      "night-canvas": {
+        "role": "neutral",
+        "displayName": "Нічне полотно",
+        "canonical": "oklch(15.2% 0.009 285.3)",
+        "tonalRamp": [
+          "#0B0B0F",
+          "#232328",
+          "#3F3F44",
+          "#5D5D62",
+          "#7F8085",
+          "#A4A4AA",
+          "#CACAD0",
+          "#EEEEF4"
+        ]
+      },
+      "night-canvas-tint": {
+        "role": "neutral",
+        "displayName": "Night canvas tint",
+        "canonical": "oklch(19.4% 0.010 285.4)",
+        "tonalRamp": [
+          "#0B0B0F",
+          "#232329",
+          "#3F3F45",
+          "#5D5D63",
+          "#7F7F86",
+          "#A4A4AB",
+          "#CACAD1",
+          "#EDEEF5"
+        ]
+      },
+      "night-surface": {
+        "role": "neutral",
+        "displayName": "Night surface",
+        "canonical": "oklch(20.7% 0.010 285.5)",
+        "tonalRamp": [
+          "#0B0B0F",
+          "#232329",
+          "#3F3F45",
+          "#5D5D63",
+          "#7F7F86",
+          "#A4A4AB",
+          "#CACAD1",
+          "#EEEEF5"
+        ]
+      },
+      "night-surface-raised": {
+        "role": "neutral",
+        "displayName": "Night surface raised",
+        "canonical": "oklch(24.7% 0.013 285.4)",
+        "tonalRamp": [
+          "#0A0A11",
+          "#23232A",
+          "#3F3F47",
+          "#5D5D65",
+          "#7F7F88",
+          "#A3A4AD",
+          "#C9C9D3",
+          "#EDEDF7"
+        ]
+      },
+      "night-surface-muted": {
+        "role": "neutral",
+        "displayName": "Night surface muted",
+        "canonical": "oklch(27.2% 0.015 285.4)",
+        "tonalRamp": [
+          "#0A0A11",
+          "#23232B",
+          "#3F3F47",
+          "#5C5D66",
+          "#7F7F89",
+          "#A3A3AE",
+          "#C9C9D4",
+          "#EDEDF8"
+        ]
+      },
+      "night-ink": {
+        "role": "primary",
+        "displayName": "Нічний папір",
+        "canonical": "oklch(97.1% 0.003 286.4)",
+        "tonalRamp": [
+          "#0B0B0C",
+          "#242425",
+          "#3F3F41",
+          "#5D5D5F",
+          "#808082",
+          "#A4A4A6",
+          "#CACACC",
+          "#EEEEF0"
+        ]
+      },
+      "night-ink-secondary": {
+        "role": "neutral",
+        "displayName": "Night ink secondary",
+        "canonical": "oklch(71.1% 0.010 286.1)",
+        "tonalRamp": [
+          "#0B0B0F",
+          "#232329",
+          "#3F3F45",
+          "#5D5D63",
+          "#7F7F86",
+          "#A4A4AB",
+          "#CACAD1",
+          "#EEEEF5"
+        ]
+      },
+      "night-ink-tertiary": {
+        "role": "neutral",
+        "displayName": "Night ink tertiary",
+        "canonical": "oklch(64.9% 0.012 286.1)",
+        "tonalRamp": [
+          "#0B0A10",
+          "#23232A",
+          "#3F3F46",
+          "#5D5D64",
+          "#7F7F87",
+          "#A4A4AC",
+          "#C9CAD2",
+          "#EDEDF6"
+        ]
+      },
+      "night-on-brand": {
+        "role": "primary",
+        "displayName": "Night on brand",
+        "canonical": "oklch(23.2% 0.004 286.1)",
+        "tonalRamp": [
+          "#0B0B0D",
+          "#242426",
+          "#3F3F42",
+          "#5D5D60",
+          "#808082",
+          "#A4A4A7",
+          "#CACACD",
+          "#EEEEF1"
+        ]
+      },
+      "night-brand-container": {
+        "role": "primary",
+        "displayName": "Night brand container",
+        "canonical": "oklch(29.6% 0.013 285.6)",
+        "tonalRamp": [
+          "#0B0A10",
+          "#23232A",
+          "#3F3F46",
+          "#5D5D65",
+          "#7F7F88",
+          "#A3A4AC",
+          "#C9C9D3",
+          "#EDEDF7"
+        ]
+      },
+      "night-hairline": {
+        "role": "neutral",
+        "displayName": "Волосина (ніч)",
+        "canonical": "oklch(28.9% 0.016 285.3)",
+        "tonalRamp": [
+          "#0A0A12",
+          "#23232C",
+          "#3F3F48",
+          "#5C5C67",
+          "#7F7F8A",
+          "#A3A3AF",
+          "#C9C9D5",
+          "#EDEDF9"
+        ]
+      },
+      "night-glow": {
+        "role": "neutral",
+        "displayName": "Сяйво (ніч)",
+        "canonical": "oklch(23.5% 0.053 283.2)",
+        "tonalRamp": [
+          "#090720",
+          "#21203D",
+          "#3C3C5B",
+          "#595A7B",
+          "#7B7D9F",
+          "#9FA1C5",
+          "#C5C7ED",
+          "#ECEDFE"
+        ]
+      },
+      "night-evening-coral": {
+        "role": "secondary",
+        "displayName": "Вечірній корал (ніч)",
+        "canonical": "oklch(75.3% 0.155 42.0)",
+        "tonalRamp": [
+          "#1A0400",
+          "#411401",
+          "#6C2603",
+          "#9B3B09",
+          "#CA5A29",
+          "#F37F51",
+          "#FDB89D",
+          "#FFE9E1"
+        ]
+      },
+      "night-evening-coral-container": {
+        "role": "secondary",
+        "displayName": "Night evening coral container",
+        "canonical": "oklch(29.2% 0.046 42.8)",
+        "tonalRamp": [
+          "#1A0400",
+          "#361C11",
+          "#54382C",
+          "#745549",
+          "#99786B",
+          "#BE9C8E",
+          "#E6C2B3",
+          "#FFE9E1"
+        ]
+      },
+      "night-success": {
+        "role": "semantic",
+        "displayName": "Night success",
+        "canonical": "oklch(74.1% 0.128 156.4)",
+        "tonalRamp": [
+          "#000F05",
+          "#002D17",
+          "#074D2C",
+          "#106F43",
+          "#2A965F",
+          "#56BC83",
+          "#7EE4A8",
+          "#C5FFDA"
+        ]
+      },
+      "night-success-container": {
+        "role": "semantic",
+        "displayName": "Night success container",
+        "canonical": "oklch(28.6% 0.047 153.2)",
+        "tonalRamp": [
+          "#001004",
+          "#0F2B19",
+          "#2C4734",
+          "#496651",
+          "#6B8973",
+          "#8FAE97",
+          "#B4D4BC",
+          "#D8F8E0"
+        ]
+      },
+      "night-danger": {
+        "role": "semantic",
+        "displayName": "Night danger",
+        "canonical": "oklch(70.9% 0.184 28.7)",
+        "tonalRamp": [
+          "#1F0000",
+          "#4B0101",
+          "#7C0303",
+          "#AE1712",
+          "#D8473A",
+          "#FF7362",
+          "#FDB6AB",
+          "#FFE9E5"
+        ]
+      },
+      "night-danger-container": {
+        "role": "semantic",
+        "displayName": "Night danger container",
+        "canonical": "oklch(26.6% 0.054 28.2)",
+        "tonalRamp": [
+          "#1D0101",
+          "#3A1815",
+          "#59342F",
+          "#7A524C",
+          "#9E746E",
+          "#C59892",
+          "#ECBEB7",
+          "#FEE9E6"
+        ]
+      },
+      "cat-music": {
+        "role": "tertiary",
+        "displayName": "Cat music",
+        "canonical": "oklch(51.7% 0.188 291.1)",
+        "tonalRamp": [
+          "#0E002A",
+          "#2A0162",
+          "#471698",
+          "#633EBC",
+          "#8464E5",
+          "#A691FC",
+          "#CAC2FD",
+          "#EEECFF"
+        ]
+      },
+      "cat-music-wash": {
+        "role": "tertiary",
+        "displayName": "Cat music wash",
+        "canonical": "oklch(93.1% 0.032 299.7)",
+        "tonalRamp": [
+          "#0D0816",
+          "#262131",
+          "#423C4E",
+          "#605A6D",
+          "#837C91",
+          "#A7A1B6",
+          "#CDC6DD",
+          "#F1EBFF"
+        ]
+      },
+      "cat-sport": {
+        "role": "tertiary",
+        "displayName": "Cat sport",
+        "canonical": "oklch(53.7% 0.092 183.2)",
+        "tonalRamp": [
+          "#000F0C",
+          "#012B26",
+          "#034B43",
+          "#086D62",
+          "#2E9285",
+          "#59B8AA",
+          "#81DFD0",
+          "#B8FFF3"
+        ]
+      },
+      "cat-sport-wash": {
+        "role": "tertiary",
+        "displayName": "Cat sport wash",
+        "canonical": "oklch(94.0% 0.021 181.9)",
+        "tonalRamp": [
+          "#020E0C",
+          "#192725",
+          "#344340",
+          "#51625E",
+          "#738481",
+          "#97A9A5",
+          "#BDCFCB",
+          "#E0F3EF"
+        ]
+      },
+      "cat-art": {
+        "role": "tertiary",
+        "displayName": "Cat art",
+        "canonical": "oklch(56.5% 0.176 3.4)",
+        "tonalRamp": [
+          "#1D0009",
+          "#47031F",
+          "#770738",
+          "#A61A53",
+          "#D04775",
+          "#FB6E99",
+          "#FEB2C4",
+          "#FEE8ED"
+        ]
+      },
+      "cat-art-wash": {
+        "role": "tertiary",
+        "displayName": "Cat art wash",
+        "canonical": "oklch(93.3% 0.031 354.7)",
+        "tonalRamp": [
+          "#15060C",
+          "#301E25",
+          "#4D3941",
+          "#6C575E",
+          "#907981",
+          "#B59DA6",
+          "#DCC3CB",
+          "#FFE7EF"
+        ]
+      },
+      "cat-food": {
+        "role": "tertiary",
+        "displayName": "Cat food",
+        "canonical": "oklch(62.3% 0.146 53.2)",
+        "tonalRamp": [
+          "#170600",
+          "#3B1901",
+          "#642F02",
+          "#8F4706",
+          "#C16312",
+          "#EA8843",
+          "#FDB98F",
+          "#FFEADD"
+        ]
+      },
+      "cat-food-wash": {
+        "role": "tertiary",
+        "displayName": "Cat food wash",
+        "canonical": "oklch(94.8% 0.030 70.7)",
+        "tonalRamp": [
+          "#130901",
+          "#2D2214",
+          "#4A3D2F",
+          "#695B4C",
+          "#8C7E6D",
+          "#B1A291",
+          "#D7C8B6",
+          "#FCECDA"
+        ]
+      },
+      "cat-games": {
+        "role": "tertiary",
+        "displayName": "Cat games",
+        "canonical": "oklch(51.9% 0.162 261.5)",
+        "tonalRamp": [
+          "#000827",
+          "#011E59",
+          "#023593",
+          "#2457B7",
+          "#467CDF",
+          "#73A3FB",
+          "#AECCFF",
+          "#E6EFFF"
+        ]
+      },
+      "cat-games-wash": {
+        "role": "tertiary",
+        "displayName": "Cat games wash",
+        "canonical": "oklch(93.5% 0.025 263.3)",
+        "tonalRamp": [
+          "#060B16",
+          "#1E2430",
+          "#39404D",
+          "#565E6C",
+          "#788090",
+          "#9CA5B5",
+          "#C2CBDB",
+          "#E7EFFE"
+        ]
+      },
+      "cat-outdoors": {
+        "role": "tertiary",
+        "displayName": "Cat outdoors",
+        "canonical": "oklch(53.1% 0.119 142.6)",
+        "tonalRamp": [
+          "#001000",
+          "#002E00",
+          "#084E07",
+          "#2F6E2B",
+          "#53924E",
+          "#77B872",
+          "#9CDF97",
+          "#CDFEC8"
+        ]
+      },
+      "cat-outdoors-wash": {
+        "role": "tertiary",
+        "displayName": "Cat outdoors wash",
+        "canonical": "oklch(94.4% 0.024 141.5)",
+        "tonalRamp": [
+          "#060E05",
+          "#1E271C",
+          "#394337",
+          "#566155",
+          "#788477",
+          "#9DA99B",
+          "#C2CFC0",
+          "#E6F3E4"
+        ]
+      },
+      "cat-social": {
+        "role": "tertiary",
+        "displayName": "Cat social",
+        "canonical": "oklch(56.8% 0.138 41.2)",
+        "tonalRamp": [
+          "#1A0400",
+          "#411301",
+          "#6E2401",
+          "#9B3B0F",
+          "#C36039",
+          "#EC855D",
+          "#FFB79D",
+          "#FEE9E2"
+        ]
+      },
+      "cat-social-wash": {
+        "role": "tertiary",
+        "displayName": "Cat social wash",
+        "canonical": "oklch(93.6% 0.027 49.6)",
+        "tonalRamp": [
+          "#140803",
+          "#2F2018",
+          "#4C3C33",
+          "#6B5950",
+          "#8E7C72",
+          "#B4A096",
+          "#DAC6BB",
+          "#FFEADF"
+        ]
+      },
+      "cat-comedy": {
+        "role": "tertiary",
+        "displayName": "Cat comedy",
+        "canonical": "oklch(59.7% 0.117 83.9)",
+        "tonalRamp": [
+          "#110A00",
+          "#302101",
+          "#523C03",
+          "#775808",
+          "#A17915",
+          "#C79E45",
+          "#EFC46C",
+          "#FEECCA"
+        ]
+      },
+      "cat-comedy-wash": {
+        "role": "tertiary",
+        "displayName": "Cat comedy wash",
+        "canonical": "oklch(94.5% 0.036 87.8)",
+        "tonalRamp": [
+          "#110A00",
+          "#2B230E",
+          "#483F29",
+          "#665D46",
+          "#897F68",
+          "#AEA48B",
+          "#D4CAB0",
+          "#F9EED4"
+        ]
+      },
+      "cat-kids": {
+        "role": "tertiary",
+        "displayName": "Cat kids",
+        "canonical": "oklch(57.7% 0.091 194.9)",
+        "tonalRamp": [
+          "#000E0E",
+          "#002B2B",
+          "#07494A",
+          "#0F6B6B",
+          "#299191",
+          "#56B7B6",
+          "#7EDDDD",
+          "#B3FFFE"
+        ]
+      },
+      "cat-kids-wash": {
+        "role": "tertiary",
+        "displayName": "Cat kids wash",
+        "canonical": "oklch(93.6% 0.023 196.8)",
+        "tonalRamp": [
+          "#010E0E",
+          "#162828",
+          "#314444",
+          "#4F6262",
+          "#718585",
+          "#95A9A9",
+          "#BAD0D0",
+          "#DEF4F4"
+        ]
+      },
+      "cat-tours": {
+        "role": "tertiary",
+        "displayName": "Cat tours",
+        "canonical": "oklch(55.3% 0.126 126.5)",
+        "tonalRamp": [
+          "#070E00",
+          "#1C2901",
+          "#334802",
+          "#4C6906",
+          "#6C8D30",
+          "#90B357",
+          "#B5DA7D",
+          "#D8FEA0"
+        ]
+      },
+      "cat-tours-wash": {
+        "role": "tertiary",
+        "displayName": "Cat tours wash",
+        "canonical": "oklch(94.9% 0.016 121.8)",
+        "tonalRamp": [
+          "#0A0C05",
+          "#23251D",
+          "#3E4138",
+          "#5C5F55",
+          "#7E8277",
+          "#A3A69B",
+          "#C8CCC1",
+          "#ECF0E4"
+        ]
+      },
+      "cat-conference": {
+        "role": "tertiary",
+        "displayName": "Cat conference",
+        "canonical": "oklch(52.3% 0.175 319.1)",
+        "tonalRamp": [
+          "#17001E",
+          "#3B0248",
+          "#640478",
+          "#86319A",
+          "#AB57C1",
+          "#D37CE9",
+          "#EDB1FD",
+          "#FAE7FF"
+        ]
+      },
+      "cat-conference-wash": {
+        "role": "tertiary",
+        "displayName": "Cat conference wash",
+        "canonical": "oklch(94.3% 0.020 318.4)",
+        "tonalRamp": [
+          "#0F0811",
+          "#28212A",
+          "#443C47",
+          "#635A65",
+          "#867D88",
+          "#AAA1AD",
+          "#D0C7D3",
+          "#F4EAF7"
+        ]
+      },
+      "cat-unknown": {
+        "role": "tertiary",
+        "displayName": "Cat unknown",
+        "canonical": "oklch(51.5% 0.015 86.9)",
+        "tonalRamp": [
+          "#0E0B05",
+          "#27241C",
+          "#433F37",
+          "#615D54",
+          "#848076",
+          "#A8A49A",
+          "#CFCAC0",
+          "#F3EEE4"
+        ]
+      },
+      "cat-unknown-wash": {
+        "role": "tertiary",
+        "displayName": "Cat unknown wash",
+        "canonical": "oklch(94.0% 0.010 93.6)",
+        "tonalRamp": [
+          "#0C0B07",
+          "#25241F",
+          "#41403A",
+          "#5F5E58",
+          "#82807A",
+          "#A6A59E",
+          "#CCCAC4",
+          "#F0EEE7"
+        ]
+      }
+    }
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Чорнильна пігулка 52 — одна головна дія екрана.",
+      "html": "<button class=\"ds-btn-primary\">Приєднатися</button>",
+      "css": ".ds-btn-primary { background: #1D1D1F; color: #FFFFFF; height: 52px; padding: 0 24px; min-width: 240px; border: none; border-radius: 9999px; font: 600 16px/20px -apple-system, 'SF Pro Text', Roboto, sans-serif; cursor: pointer; transition: transform .28s cubic-bezier(.34,1.56,.64,1), background .2s ease-in-out; } .ds-btn-primary:hover { background: #3A3A3C; } .ds-btn-primary:active { transform: scale(.98); } .ds-btn-primary:focus-visible { outline: 2px solid #1D1D1F; outline-offset: 3px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Тиха пігулка surface-muted без рамки поруч із головною.",
+      "html": "<button class=\"ds-btn-secondary\">Зберегти на потім</button>",
+      "css": ".ds-btn-secondary { background: #F2F2F7; color: #1D1D1F; height: 52px; padding: 0 24px; min-width: 240px; border: none; border-radius: 9999px; font: 600 16px/20px -apple-system, 'SF Pro Text', Roboto, sans-serif; cursor: pointer; transition: transform .28s cubic-bezier(.34,1.56,.64,1), background .2s ease-in-out; } .ds-btn-secondary:hover { background: #E8E8ED; } .ds-btn-secondary:active { transform: scale(.98); } .ds-btn-secondary:focus-visible { outline: 2px solid #1D1D1F; outline-offset: 3px; }"
+    },
+    {
+      "name": "Filter Chips",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Пігулки 38: невибрана біла, вибрана залита чорнилом; крапка категорії опційна.",
+      "html": "<div class=\"ds-chips\"><button class=\"ds-chip ds-chip-on\">Сьогодні</button><button class=\"ds-chip\">Вихідні</button><button class=\"ds-chip\"><span class=\"ds-dot\"></span>Музика</button></div>",
+      "css": ".ds-chips { display: flex; gap: 8px; padding: 16px; background: #F5F5F7; } .ds-chip { display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 16px; background: #FFFFFF; color: #1D1D1F; border: none; border-radius: 9999px; font: 500 14px/18px -apple-system, 'SF Pro Text', Roboto, sans-serif; cursor: pointer; transition: transform .28s cubic-bezier(.34,1.56,.64,1); } .ds-chip:active { transform: scale(.98); } .ds-chip:focus-visible { outline: 2px solid #1D1D1F; outline-offset: 2px; } .ds-chip-on { background: #1D1D1F; color: #FFFFFF; } .ds-dot { width: 8px; height: 8px; border-radius: 50%; background: #6D4AC9; }"
+    },
+    {
+      "name": "Search Field",
+      "kind": "input",
+      "refersTo": "search-field",
+      "description": "Пігулка пошуку 50 з лупою; кнопка фільтрів із кораловим лічильником.",
+      "html": "<div class=\"ds-search-wrap\"><label class=\"ds-search\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\"><circle cx=\"10.5\" cy=\"10.5\" r=\"6.5\"/><path d=\"M15.5 15.5 20 20\"/></svg><input placeholder=\"Подія, місце, артист\"></label><button class=\"ds-filters\" aria-label=\"Фільтри\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\"><path d=\"M4 7h16M4 12h16M4 17h16\"/></svg><span>2</span></button></div>",
+      "css": ".ds-search-wrap { display: flex; gap: 8px; padding: 16px; background: #F5F5F7; } .ds-search { flex: 1; display: flex; align-items: center; gap: 8px; height: 50px; padding: 0 16px; background: #FFFFFF; color: #6E6E73; border-radius: 9999px; } .ds-search input { flex: 1; border: none; outline: none; background: transparent; color: #1D1D1F; caret-color: #1D1D1F; font: 400 16px/22px -apple-system, 'SF Pro Text', Roboto, sans-serif; } .ds-search:focus-within { box-shadow: 0 0 0 2px #1D1D1F; } .ds-filters { position: relative; width: 50px; height: 50px; border: none; border-radius: 50%; background: #FFFFFF; color: #1D1D1F; cursor: pointer; } .ds-filters:focus-visible { outline: 2px solid #1D1D1F; outline-offset: 2px; } .ds-filters span { position: absolute; top: 4px; right: 4px; width: 18px; height: 18px; border-radius: 50%; background: #E0582F; color: #FFFFFF; font: 600 11px/18px -apple-system, Roboto, sans-serif; }"
+    },
+    {
+      "name": "Labelled Field",
+      "kind": "input",
+      "refersTo": "input-field",
+      "description": "Підпис overline над білим полем без рамки; підказка під ним.",
+      "html": "<div class=\"ds-field-wrap\"><label class=\"ds-field\"><span class=\"ds-field-label\">Назва події</span><input value=\"Настолки в суботу\"></label><span class=\"ds-field-hint\">Видно всім на мапі</span></div>",
+      "css": ".ds-field-wrap { padding: 16px; background: #F5F5F7; display: grid; gap: 6px; } .ds-field { display: grid; gap: 8px; } .ds-field-label { color: #6E6E78; font: 600 11px/14px -apple-system, Roboto, sans-serif; letter-spacing: 1px; text-transform: uppercase; } .ds-field input { height: 56px; padding: 0 16px; border: none; border-radius: 14px; background: #FFFFFF; color: #1D1D1F; caret-color: #1D1D1F; font: 400 16px/22px -apple-system, 'SF Pro Text', Roboto, sans-serif; outline: none; } .ds-field input:focus-visible { box-shadow: 0 0 0 2px #1D1D1F; } .ds-field-hint { color: #6E6E78; font: 400 13px/18px -apple-system, Roboto, sans-serif; }"
+    },
+    {
+      "name": "Tab Bar",
+      "kind": "nav",
+      "refersTo": "tab-bar",
+      "description": "Плаваюча скляна пігулка з тоновою підкладкою активного пункту й окремою кнопкою створення.",
+      "html": "<div class=\"ds-nav-wrap\"><nav class=\"ds-tabbar\"><a class=\"ds-tab ds-tab-on\" href=\"#\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linejoin=\"round\"><path d=\"M4 10.5 12 4l8 6.5V20h-5v-6h-6v6H4z\"/></svg>Головна</a><a class=\"ds-tab\" href=\"#\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linejoin=\"round\"><path d=\"M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z\"/><path d=\"M9 4v14M15 6v14\"/></svg>Мапа</a><a class=\"ds-tab\" href=\"#\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linejoin=\"round\"><rect x=\"4\" y=\"5\" width=\"16\" height=\"15\" rx=\"3\"/><path d=\"M8 3v4M16 3v4M4 10h16\"/></svg>Мої події<i></i></a><a class=\"ds-tab\" href=\"#\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\"><circle cx=\"12\" cy=\"8.5\" r=\"4\"/><path d=\"M4.5 20c1.2-3.6 4-5.5 7.5-5.5s6.3 1.9 7.5 5.5\"/></svg>Профіль</a></nav><button class=\"ds-create\" aria-label=\"Створити подію\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\"><path d=\"M12 5v14M5 12h14\"/></svg></button></div>",
+      "css": ".ds-nav-wrap { display: flex; gap: 10px; align-items: center; padding: 24px 16px; background: #F5F5F7; } .ds-tabbar { flex: 1; display: flex; padding: 8px 4px; border-radius: 28px; background: rgba(255,255,255,.6); backdrop-filter: blur(20px) saturate(1.6); -webkit-backdrop-filter: blur(20px) saturate(1.6); box-shadow: 0 12px 40px rgba(0,0,0,.10), 0 2px 8px rgba(0,0,0,.06); } .ds-tab { position: relative; flex: 1; height: 42px; display: grid; justify-items: center; align-content: center; gap: 2px; border-radius: 9999px; color: #6E6E73; text-decoration: none; font: 600 11px/14px -apple-system, Roboto, sans-serif; letter-spacing: .3px; transition: background .2s ease-in-out, color .2s ease-in-out; } .ds-tab:hover { color: #1D1D1F; } .ds-tab:focus-visible { outline: 2px solid #1D1D1F; outline-offset: 1px; } .ds-tab-on { color: #1D1D1F; background: rgba(29,29,31,.10); } .ds-tab i { position: absolute; top: 4px; left: calc(50% + 6px); width: 8px; height: 8px; border-radius: 50%; background: #E0582F; } .ds-create { width: 58px; height: 58px; flex: none; border: none; border-radius: 50%; background: #1D1D1F; color: #FFFFFF; cursor: pointer; box-shadow: 0 12px 40px rgba(0,0,0,.10), 0 2px 8px rgba(0,0,0,.06); transition: transform .28s cubic-bezier(.34,1.56,.64,1); } .ds-create:active { transform: scale(.98); } .ds-create:focus-visible { outline: 2px solid #1D1D1F; outline-offset: 3px; }"
+    },
+    {
+      "name": "Poster Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Постер 4:5 без коробки: EventArt з радіусом 24, підпис просто на полотні.",
+      "html": "<article class=\"ds-poster-wrap\"><a class=\"ds-poster\" href=\"#\"><div class=\"ds-art\"><span class=\"ds-art-badge\">Лишилось 2</span><span class=\"ds-art-price\">від 350 ₴</span></div><p class=\"ds-poster-date\">Сб, 18 жовт. · 19:00</p><h3 class=\"ds-poster-title\">Музика всесвіту Хаяо Міядзакі при свічках</h3><p class=\"ds-poster-place\"><i></i>Будинок актора</p><p class=\"ds-poster-src\">Афіша · Concert.ua</p></a></article>",
+      "css": ".ds-poster-wrap { padding: 16px; background: #F5F5F7; } .ds-poster { display: block; width: 176px; color: inherit; text-decoration: none; transition: transform .28s cubic-bezier(.34,1.56,.64,1); } .ds-poster:active { transform: scale(.98); } .ds-poster:focus-visible { outline: 2px solid #1D1D1F; outline-offset: 4px; border-radius: 24px; } .ds-art { position: relative; aspect-ratio: 4 / 5; border-radius: 24px; overflow: hidden; background: linear-gradient(135deg, #6D4AC9, #C43B6B); } .ds-art-badge { position: absolute; top: 10px; left: 10px; padding: 5px 12px; border-radius: 9999px; background: linear-gradient(#FDE7DF, #FDE7DF); color: #7A2E14; font: 600 11px/14px -apple-system, Roboto, sans-serif; letter-spacing: 1px; text-transform: uppercase; } .ds-art-price { position: absolute; bottom: 10px; left: 10px; padding: 5px 12px; border-radius: 9999px; background: rgba(255,255,255,.92); color: #1D1D1F; font: 600 11px/14px -apple-system, Roboto, sans-serif; letter-spacing: 1px; text-transform: uppercase; } .ds-poster-date { margin: 10px 0 2px; color: #1D1D1F; font: 600 11px/14px -apple-system, Roboto, sans-serif; letter-spacing: 1px; text-transform: uppercase; } .ds-poster-title { margin: 0; color: #1D1D1F; font: 600 17px/22px 'Source Serif 4', Georgia, serif; letter-spacing: -.1px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; } .ds-poster-place { display: flex; align-items: center; gap: 6px; margin: 4px 0 0; color: #6E6E73; font: 400 13px/18px -apple-system, Roboto, sans-serif; } .ds-poster-place i { width: 8px; height: 8px; border-radius: 50%; background: #6D4AC9; } .ds-poster-src { margin: 2px 0 0; color: #6E6E78; font: 400 13px/18px -apple-system, Roboto, sans-serif; }"
+    },
+    {
+      "name": "Create Event Card",
+      "kind": "custom",
+      "refersTo": "create-event-card",
+      "description": "Чорнильна плашка під шапкою головної — заклик зібрати своїх.",
+      "html": "<div class=\"ds-cec-wrap\"><a class=\"ds-cec\" href=\"#\"><span class=\"ds-cec-plus\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\"><path d=\"M12 5v14M5 12h14\"/></svg></span><span class=\"ds-cec-text\"><b>Організувати подію</b><small>Зберіть людей на настолки, пробіжку чи кіно</small></span><svg class=\"ds-cec-arrow\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M9 5l7 7-7 7\"/></svg></a></div>",
+      "css": ".ds-cec-wrap { padding: 16px; background: #F5F5F7; } .ds-cec { display: flex; align-items: center; gap: 12px; padding: 16px; border-radius: 24px; background: #1D1D1F; color: #FFFFFF; text-decoration: none; transition: transform .28s cubic-bezier(.34,1.56,.64,1); } .ds-cec:active { transform: scale(.98); } .ds-cec:focus-visible { outline: 2px solid #1D1D1F; outline-offset: 3px; } .ds-cec-plus { width: 44px; height: 44px; flex: none; display: grid; place-items: center; border-radius: 50%; background: rgba(255,255,255,.14); } .ds-cec-text { flex: 1; display: grid; gap: 2px; } .ds-cec-text b { font: 600 17px/22px -apple-system, 'SF Pro Text', Roboto, sans-serif; letter-spacing: -.2px; } .ds-cec-text small { color: rgba(255,255,255,.72); font: 400 13px/18px -apple-system, Roboto, sans-serif; } .ds-cec-arrow { flex: none; }"
+    },
+    {
+      "name": "Status Badges",
+      "kind": "chip",
+      "refersTo": "status-badge",
+      "description": "Пігулка overline: нейтральна, участь, терміновість, скасування.",
+      "html": "<div class=\"ds-badges\"><span class=\"ds-badge\">Для вас</span><span class=\"ds-badge ds-badge-ok\">Ви йдете</span><span class=\"ds-badge ds-badge-hot\">Лишилось 2</span><span class=\"ds-badge ds-badge-no\">Скасовано</span></div>",
+      "css": ".ds-badges { display: flex; gap: 8px; flex-wrap: wrap; padding: 16px; background: #F5F5F7; } .ds-badge { padding: 5px 12px; border-radius: 9999px; background: rgba(255,255,255,.92); box-shadow: inset 0 0 0 1px rgba(0,0,0,.06); color: #1D1D1F; font: 600 11px/14px -apple-system, Roboto, sans-serif; letter-spacing: 1px; text-transform: uppercase; } .ds-badge-ok { background: #DFF3E6; box-shadow: none; color: #1B4C2F; } .ds-badge-hot { background: #FDE7DF; box-shadow: none; color: #7A2E14; } .ds-badge-no { background: #FBE3E0; box-shadow: none; color: #C0392B; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Спокійний аркуш",
+    "overview": "Екран — один тихий аркуш, на якому оживає місто. Інтерфейс майже не має кольору: прохолодне полотно, білі (вночі — трохи світліші за тло) картки й одна чорнильна дія. Колір належить змістові: постерам, категоріям і станам. Обʼєкт на аркуші виникає з різниці тону, а не з рамки чи тіні. Тому стіна афіш читається як мудборд, а не як каталог.\n\nНастрій — преміальний, нічний, впевнений. Нічна тема тут не похідна від денної: майже чорне полотно зі сяйвом за шапкою — це місце, де бренд найбільше схожий на себе, і саме так він виглядає в роликах та на енд-картах. Денна тема — той самий аркуш у прохолодному папері, з тим самим контрастом. Впевненість іде від стриманості: одна дія на екрані має вагу, бренд не кричить хроматичним кольором, заголовки говорять засічками, як у виданні, а дані лишаються точним системним гротеском.\n\nЩільність середня. Відкриття на головній дихає великими картками з фото, а мапа, списки й форми щільні та сканувальні, бо це робочий інструмент. Свідомо **не** беремо продуктових фото на весь екран, соціальних стрічок, астрологічного декору Moonly, стандартних Material-компонентів (плаваючий підпис поля, `AlertDialog`, системний `DatePickerDialog`) і емодзі як іконок категорій.",
+    "keyCharacteristics": [
+      "Прохолодне полотно, картка без рамки й тіні; нічна картка має волосяний край.",
+      "Головна дія — чорнильна пігулка (вночі біла), хроматичного бренд-кольору нема.",
+      "Два голоси: Source Serif 4 600 для назв подій і заголовків, системний гротеск для даних.",
+      "Вечірній корал — рідкісна гаряча точка: терміновість, лічильник, крапка знака.",
+      "Кожна категорія має трійку кольорів: глибокий відтінок, пастель і відтінок-сусід для градієнта обкладинки.",
+      "Тінь є лише в того, що плаває над вмістом.",
+      "Власні тонколінійні гліфи (штрих 1.75) і знак-пін, спільний для іконки, мапи й Lottie."
+    ],
+    "rules": [
+      {
+        "name": "Правило безбарвної дії",
+        "body": "Головна дія завжди чорнильна (уночі паперова), ніколи не хроматична. Колір на екрані — це зміст, а не бренд.",
+        "section": "colors"
+      },
+      {
+        "name": "Правило рідкісного коралу",
+        "body": "Вечірній корал позначає лише терміновість, лічильник або знак. Він не буває тлом секції, кнопкою чи прикрасою.",
+        "section": "colors"
+      },
+      {
+        "name": "Правило готового до тла відтінку",
+        "body": "Текст і гліфи категорії фарбує `categoryInk`, а не сирий відтінок: уночі сирий дає лише ~2.5:1.",
+        "section": "colors"
+      },
+      {
+        "name": "Правило змісту, а не кегля",
+        "body": "Засічки отримує назва події (від hero до рядка 17 px) і заголовок екрана чи секції. Дата, місце, чипи, кнопки, цифри й службові рядки — завжди гротеск.",
+        "section": "typography"
+      },
+      {
+        "name": "Правило людської назви",
+        "body": "Екрани показують `Event.displayTitle`, а не сирий `title`: капс джерела стає звичайним регістром, лапки — «ялинками», `'` — `’`. Капс лишається лише там, де несе дані: overline, бейдж, підпис поля.",
+        "section": "typography"
+      },
+      {
+        "name": "Правило плаского потоку",
+        "body": "Тінь має лише те, що плаває над вмістом. Картка в стрічці не отримує ні тіні, ні рамки (рамка лише вночі, як волосина).",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** бери кольори, радіуси й відступи лише з токенів (`Poruch.colors`, `Palette`, `Spacing`/`Space`, `Radius`/`Corner`): екрани не задають значень напряму.",
+      "**Do** фарбуй головну дію чорнилом (`ink`, уночі `night-ink`) як пігулку 52.",
+      "**Do** ставь Source Serif 4 600 на назви подій і заголовки екранів та секцій, а все інше набирай системним гротеском.",
+      "**Do** показуй `Event.displayTitle`, а сиру назву віддавай лише календарю, «Маршруту», «Поділитися» й пушам.",
+      "**Do** фарбуй текст і гліфи категорії через `categoryInk` і тримай текст ≥ 4.5:1, а великий текст і гліфи ≥ 3:1.",
+      "**Do** став питання нижнім листом із закріпленою головною дією, а одноразові повідомлення показуй `NoticeBanner` згори.",
+      "**Do** перевіряй кожен екран в обох темах: нічна тема рівноправна, а не похідна.",
+      "**Do** поважай системне «зменшити рух»: крок миттєвий, переходи згасають."
+    ],
+    "donts": [
+      "**Don't** вводь хроматичний бренд-колір для дій чи тла: колір належить категоріям і станам.",
+      "**Don't** використовуй вечірній корал як тло, кнопку чи прикрасу.",
+      "**Don't** додавай рамку чи тінь картці в потоці у світлій темі.",
+      "**Don't** використовуй стандартні Material-компоненти з чужою мовою: плаваючий підпис поля, `AlertDialog`, системний `DatePickerDialog`, залиту ручку листа.",
+      "**Don't** показуй категорії емодзі й не бери системні SF Symbols / Material Icons там, де є власний гліф.",
+      "**Don't** набирай назви подій капсом і не ставь засічки на дати, місця, чипи, кнопки чи цифри.",
+      "**Don't** використовуй продуктові фото на весь екран, соціальні стрічки чи декоративний (астрологічний) орнамент.",
+      "**Don't** затемнюй нейтральним сірим: затемнення під листом — теплий чорний."
+    ]
+  }
+}
