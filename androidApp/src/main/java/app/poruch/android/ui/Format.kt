@@ -200,6 +200,32 @@ fun seriesNote(event: Event, words: DateWords): String? {
     return words.moreShowings(others)
 }
 
+/**
+ * Що друкується на корінці квитка: велике й мале. Сеанс — година й день («19:30», «СЬОГОДНІ»); те, що вже йде, — кінець
+ * прокату («30.11», «ДО») чи «ЗАРАЗ»; минуле — година й дата числом. [compact] — малий корінець 56–60 dp: «СЬОГОДНІ» туди
+ * не влазить, тож і майбутнє датою числом. Слова ті самі, що в iOS `stubParts`.
+ */
+fun stubParts(
+    event: Event, words: DateWords, compact: Boolean = false,
+    /** Нижній корінець постера: день словом лише на найближчий тиждень, далі коротко «ЧТ 12.11». */
+    medium: Boolean = false, now: Instant = Instant.now()
+): Pair<String, String> {
+    val at = zoned(event) ?: return "—" to ""
+    val instant = now.toKotlin()
+    if (event.hasEnded(instant)) return at.format(pattern(HOUR)) to at.format(pattern("dd.MM"))
+    if (event.isUnderway(instant)) {
+        val end = if (event.isMultiDay) zonedEnd(event) else null
+        return if (end != null) end.format(pattern("dd.MM")) to "ДО" else "ЗАРАЗ" to "ТРИВАЄ"
+    }
+    val days = ChronoUnit.DAYS.between(now.atZone(at.zone).toLocalDate(), at.toLocalDate())
+    val day = when {
+        compact -> at.format(pattern("dd.MM"))
+        medium && days !in 0L..6L -> at.format(pattern("EE dd.MM")).uppercase(ukrainian)
+        else -> dayLabel(at, now.atZone(at.zone), words, short = true).uppercase(ukrainian)
+    }
+    return at.format(pattern(HOUR)) to day
+}
+
 /** Сеанс у каруселі дат: день і година окремо, бо два сеанси одного вечора інакше були б однаковими кнопками. */
 fun sessionLabel(session: EventSession, words: DateWords, now: Instant = Instant.now()): Pair<String, String> {
     val at = zoned(session) ?: return session.startsAt to ""

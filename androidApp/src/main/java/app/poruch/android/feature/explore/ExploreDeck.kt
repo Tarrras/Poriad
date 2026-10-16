@@ -49,7 +49,6 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /** Висота картки каруселі, як у [EventMapCard]. */
-private val MapCardHeight = 112.dp
 
 /** Місце під плаваючий таббар у кожному положенні шторки. */
 private val TabBarInset = 84.dp
@@ -77,10 +76,11 @@ internal fun DiscoverySheet(
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
     val navBottom = WindowInsets.navigationBars.getBottom(density)
+    val cardHeight = mapCardHeight()
     val statusTop = WindowInsets.statusBars.getTop(density)
     // Згорнута шторка: рядок лічильника, карусель і місце під таббар.
     val peekPx =
-        with(density) { (44.dp + Spacing.sm + MapCardHeight + TabBarInset).toPx() } + navBottom
+        with(density) { (48.dp + Spacing.sm + cardHeight + TabBarInset).toPx() } + navBottom
     val screenPx = with(density) { screenHeight.toPx() }
     val fullPx = maxOf(screenPx - statusTop - with(density) { SheetTopInset.toPx() }, peekPx)
     val halfPx = maxOf(screenPx * 0.55f, peekPx).coerceAtMost(fullPx)
@@ -512,7 +512,7 @@ private fun QuietCard(modifier: Modifier, onIntent: (ExploreIntent) -> Unit) {
     ) {
         Text(
             stringResource(R.string.nothing_here),
-            style = PoruchType.serifTitle3,
+            style = PoruchType.brandTitle3,
             color = colors.ink
         )
         Text(

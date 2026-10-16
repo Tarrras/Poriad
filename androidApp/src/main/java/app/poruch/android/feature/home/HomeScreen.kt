@@ -1,5 +1,10 @@
 package app.poruch.android.feature.home
 
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import app.poruch.domain.EventCategory
+import androidx.compose.ui.semantics.heading
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -23,10 +28,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -57,11 +63,13 @@ import app.poruch.shared.PersonalRow
 @Composable
 fun HomeScreen(state: HomeState, onIntent: (HomeIntent) -> Unit) {
     val colors = Poruch.colors
+    val focus = LocalFocusManager.current
+    // «Назад» закриває пошук. На рівні екрана, а не в шапці: шапка — елемент лінивого списку, і після прокрутки
+    // результатів її обробник зникав разом із нею, а «Назад» закривав застосунок.
+    BackHandler(state.searchMode) { focus.clearFocus(); onIntent(HomeIntent.CancelSearch) }
+    // Широке вікно — три квитки в ряду: два на 720 dp розтягували постер до пів екрана.
+    val columns = if (LocalWideLayout.current) 3 else 2
     PullToRefresh(state.refreshing, { onIntent(HomeIntent.Refresh) }, Modifier.fillMaxSize().background(colors.canvas), underStatusBar = true) {
-        // Сяйво позаду прокрутки: картки їдуть по ньому, а воно стоїть.
-        if (!state.searchMode) Box(
-            Modifier.fillMaxWidth().height(460.dp).background(Brush.verticalGradient(listOf(colors.glow, colors.canvas)))
-        )
         // Лінивий список: «Показати ще» росте без меж, а постерів у композиції має бути стільки, скільки видно.
         // Проміжки між блоками — відступами самих блоків: вони різні всередині «У місті» й між зонами.
         LazyColumn(
@@ -80,27 +88,20 @@ fun HomeScreen(state: HomeState, onIntent: (HomeIntent) -> Unit) {
                     )
                 }
             } else {
-                // Головна одиниця застосунку — зустріч від людини: заклик створити її стоїть першим, як колись «Організувати».
-                // Гостю під плашкою лише тихий рядок входу (без картки): дві картки поспіль товпились би.
-                item(key = "create") {
-                    Column(Modifier.padding(top = Spacing.xxl), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                        CreateEventCard(
-                            stringResource(R.string.home_create_title), stringResource(R.string.home_create_subtitle),
-                            { onIntent(HomeIntent.CreateEvent("home_top")) }, Modifier.padding(horizontal = Spacing.page)
-                        )
-                        if (!state.screen.signedIn) GuestLoginRow(onIntent)
-                    }
-                }
-                // Людині без планів і підписок «Ваше» не потрібне: створити подію їй пропонує плашка вгорі.
+                // Серце продукту — зустрічі від людей, тож вони й порожній квиток «Організувати подію» стоять першими.
+                // Афіша нижче — опора. Активності не вигадуємо: коли зустрічей мало, секцію веде порожній квиток.
+                item(key = "people") { PeopleSection(state, onIntent) }
+                // Людині без планів і підписок «Ваше» не потрібне: створити подію їй пропонує порожній квиток вище.
                 if (state.screen.signedIn && (state.screen.personal.isNotEmpty() || state.screen.followed.isNotEmpty())) item(key = "yours") {
                     Box(Modifier.padding(top = Spacing.xxl)) { PersonalSection(state, onIntent) }
                 }
-                if (state.screen.people.isNotEmpty()) item(key = "people") { PeopleSection(state, onIntent) }
-                cityFeed(state, onIntent)
+                cityFeed(state, onIntent, columns)
                 // Кінець стрічки не глухий кут: далі мапа чи власна подія.
                 if (state.screen.feed.isNotEmpty()) item(key = "next") { MoreRows(state, onIntent) }
             }
         }
+        // Смуга під годинником кольору полотна: стрічка під нею не налазить на час і значки.
+        Box(Modifier.fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars).background(colors.canvas.copy(alpha = 0.94f)))
     }
     if (state.citySheet) CitySearchSheet(
         state.screen.cityName, state.screen.cities, { onIntent(HomeIntent.SearchCity(it)) },
@@ -117,7 +118,7 @@ private fun Header(state: HomeState, onIntent: (HomeIntent) -> Unit) {
     ) {
         if (!state.searchMode) Row(verticalAlignment = Alignment.Top) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                Text(stringResource(R.string.home_title), style = PoruchType.serifDisplay, color = colors.ink)
+                Text(stringResource(R.string.home_title), style = PoruchType.brandDisplay, color = colors.ink)
                 // Що означає «поруч»: завжди ціле місто. «Шукати тут» на мапі головну не звужує.
                 // Тап міняє місто тут же, без переходу на мапу.
                 Row(
@@ -128,7 +129,7 @@ private fun Header(state: HomeState, onIntent: (HomeIntent) -> Unit) {
                 ) {
                     Text(
                         stringResource(R.string.home_subtitle, state.screen.cityName),
-                        // Темніший за `inkSecondary`: на сяйві той дає лише ≈4:1.
+                        // Темніший за `inkSecondary`: місто — частина заголовка, а не підпис.
                         style = MaterialTheme.typography.bodyMedium, color = colors.ink.copy(alpha = 0.7f),
                         modifier = Modifier.weight(1f, fill = false)
                     )
@@ -142,7 +143,6 @@ private fun Header(state: HomeState, onIntent: (HomeIntent) -> Unit) {
         } else {
             val focus = LocalFocusManager.current
             val cancel = { focus.clearFocus(); onIntent(HomeIntent.CancelSearch) }
-            BackHandler(true, cancel)
             Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
                 // Плейсхолдер каже, де шукаємо: інакше пошук лише в місті ніхто не помічав.
                 PoruchSearchField(
@@ -164,6 +164,7 @@ private fun Header(state: HomeState, onIntent: (HomeIntent) -> Unit) {
 /** Фільтри пошуку тими ж чипами, що на мапі: область і дата в одному ряду, категорії — у другому. */
 @Composable
 private fun SearchFilters(state: HomeState, onIntent: (HomeIntent) -> Unit) {
+    var picking by remember { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         Row(
             Modifier.horizontalScroll(rememberScrollState()),
@@ -182,22 +183,38 @@ private fun SearchFilters(state: HomeState, onIntent: (HomeIntent) -> Unit) {
                     onIntent(HomeIntent.SearchDate(if (state.screen.searchDate == key) DateFilter.ANY else key))
                 })
             }
+            // Категорії — одним чипом зі шторкою: дванадцять чипів другим рядом були стіною вибору.
+            val category = state.screen.searchCategory
+            PoruchChip(
+                category?.let { stringResource(categoryLabel(it)) } ?: stringResource(R.string.category_single),
+                category != null, { picking = true }, dot = category, trailingIcon = PoruchIcons.chevronDown
+            )
         }
-        Row(
-            Modifier.horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically
+    }
+    if (picking) CategoryPickerSheet(state.screen.searchCategory, { picking = false }) { onIntent(HomeIntent.SearchCategory(it)) }
+}
+
+/** Шторка категорії для пошуку: плитки всіх категорій і «Усі категорії». Відповідь спершу закриває шторку, потім діє. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CategoryPickerSheet(selected: EventCategory?, onDismiss: () -> Unit, onSelect: (EventCategory?) -> Unit) {
+    PoruchSheet(onDismiss) { sheet ->
+        Column(
+            Modifier.padding(horizontal = Spacing.page).padding(bottom = Spacing.section),
+            verticalArrangement = Arrangement.spacedBy(Spacing.lg)
         ) {
-            PoruchChip(stringResource(R.string.all), state.screen.searchCategory == null, { onIntent(HomeIntent.SearchCategory(null)) })
-            categories.forEach { key ->
-                PoruchChip(stringResource(categoryLabel(key)), state.screen.searchCategory == key, {
-                    onIntent(HomeIntent.SearchCategory(if (state.screen.searchCategory == key) null else key))
-                }, dot = key)
+            Text(stringResource(R.string.categories), style = PoruchType.brandTitle2, color = Poruch.colors.ink, modifier = Modifier.semantics { heading() })
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.lg)) {
+                categories.forEach { key ->
+                    CategoryTile(key, selected == key) { sheet.close { onSelect(if (selected == key) null else key) } }
+                }
             }
+            SecondaryButton(stringResource(R.string.all_categories), { sheet.close { onSelect(null) } }, Modifier.fillMaxWidth())
         }
     }
 }
 
-/** Рядок входу для гостя: плашка вгорі — єдина головна дія, а вхід — для тих, хто вже має профіль, тож без картки й заливки. */
+/** Рядок входу для гостя: порожній квиток вгорі — єдина головна дія, а вхід — для тих, хто вже має профіль, тож без картки й заливки. */
 @Composable
 private fun GuestLoginRow(onIntent: (HomeIntent) -> Unit) {
     val colors = Poruch.colors
@@ -219,8 +236,10 @@ private fun GuestLoginRow(onIntent: (HomeIntent) -> Unit) {
 private val PeopleCardWidth = 176.dp
 
 /**
- * «Від людей»: зустрічі з вільним місцем окремою рейкою, коли їх набралось досить ([HomeRules.people]). Ті самі постери,
- * що в сітці міста, але без підпису походження: заголовок секції вже каже, що це люди.
+ * «Від людей»: зустрічі з вільним місцем рейкою квитків (коли їх набралось досить, [HomeRules.people]) і під нею порожній
+ * квиток «Організувати подію». Секція є завжди: навіть без зустрічей вона каже, що свою можна зібрати. Квитки ті самі,
+ * що в сітці міста, але без підпису походження: заголовок секції вже каже, що це люди. Гостю під порожнім квитком лише
+ * тихий рядок входу (без картки): дві картки поспіль товпились би.
  */
 @Composable
 private fun PeopleSection(state: HomeState, onIntent: (HomeIntent) -> Unit) {
@@ -230,17 +249,25 @@ private fun PeopleSection(state: HomeState, onIntent: (HomeIntent) -> Unit) {
             actionLabel = state.screen.openRooms.takeIf { it > 0 }?.let { stringResource(R.string.home_all_count, it) },
             onAction = { onIntent(HomeIntent.ShowPeopleOnMap) }
         )
-        Row(
-            Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = Spacing.page),
+        // Квитки рейки однакової висоти — за найвищим: корінці стоять в одну лінію.
+        if (state.screen.people.isNotEmpty()) Row(
+            Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = Spacing.page).height(IntrinsicSize.Min),
             horizontalArrangement = Arrangement.spacedBy(Spacing.md), verticalAlignment = Alignment.Top
         ) {
             state.screen.people.forEach { entry ->
                 PosterCard(
                     entry.event, entry.source, entry.event.id in state.screen.savedIds, entry.event.id in state.screen.waitlistedIds,
-                    { onIntent(HomeIntent.ToggleSaved(entry.event.id)) }, Modifier.width(PeopleCardWidth), showOrigin = false,
+                    { onIntent(HomeIntent.ToggleSaved(entry.event.id)) }, Modifier.width(PeopleCardWidth).fillMaxHeight(), showOrigin = false,
                     followName = entry.followName
                 ) { onIntent(HomeIntent.OpenEvent(entry.event.id, "home_people")) }
             }
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+            CreateEventCard(
+                stringResource(R.string.home_create_title), stringResource(R.string.home_create_subtitle),
+                { onIntent(HomeIntent.CreateEvent("home_top")) }, Modifier.padding(horizontal = Spacing.page)
+            )
+            if (!state.screen.signedIn) GuestLoginRow(onIntent)
         }
     }
 }
@@ -308,7 +335,7 @@ private fun YourRow(
     modifier: Modifier = Modifier,
     chat: Pair<Int, () -> Unit>? = null,
     /** Назва події (а не службового рядка) — засічками, як у постері. */
-    serifTitle: Boolean = false,
+    brandTitle: Boolean = false,
     trailing: @Composable () -> Unit = {}
 ) {
     val colors = Poruch.colors
@@ -326,7 +353,7 @@ private fun YourRow(
                     Text(it, style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 Text(
-                    title, style = if (serifTitle) PoruchType.serifTitle3 else MaterialTheme.typography.titleSmall,
+                    title, style = if (brandTitle) PoruchType.brandTitle3 else MaterialTheme.typography.titleSmall,
                     color = colors.ink, maxLines = 2, overflow = TextOverflow.Ellipsis
                 )
                 subtitle?.takeIf { it.isNotBlank() }?.let {
@@ -369,12 +396,12 @@ private fun PlanRow(row: PersonalRow, onIntent: (HomeIntent) -> Unit) {
     YourRow(
         overline, event.displayTitle, subtitle, onClick = { onIntent(HomeIntent.OpenEvent(event.id, "home_your")) },
         tile = { EventImage(event, Modifier.size(YourTile).clip(Radius.sm), glyphSize = 24.dp) },
-        modifier = Modifier.alpha(if (event.isCancelled) 0.6f else 1f),
         // Лічильник — кнопка в чат, поки праворуч не зайняли запити: на них теж чекає людина, і вони важливіші.
         chat = row.chat?.takeIf { row.requests == 0 }?.let { it.unread to { onIntent(HomeIntent.OpenChat(event.id)) } },
-        serifTitle = true
+        brandTitle = true
     ) {
         when {
+            event.isCancelled -> TicketStamp(stringResource(R.string.cancelled_short), BadgeTone.Danger)
             row.requests > 0 -> StatusBadge(
                 pluralStringResource(R.plurals.requests_count, row.requests, row.requests), BadgeTone.Accent, PoruchIcons.personAdd
             )
@@ -389,7 +416,7 @@ private fun PlanButton(text: String, icon: ImageVector, modifier: Modifier = Mod
     val colors = Poruch.colors
     val content = if (highlight) colors.onBrand else colors.ink
     Row(
-        modifier.height(44.dp).background(if (highlight) colors.brand else colors.brandContainer, Radius.pill).clip(Radius.pill)
+        modifier.height(44.dp).background(if (highlight) colors.brand else colors.brandContainer, ButtonShape).clip(ButtonShape)
             .pressable(onClick = onClick).padding(horizontal = Spacing.md),
         horizontalArrangement = Arrangement.spacedBy(Spacing.xs, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically
     ) {
@@ -427,7 +454,7 @@ private fun NextPlanCard(row: PersonalRow, onIntent: (HomeIntent) -> Unit) {
         ) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                 Text(overline, style = MaterialTheme.typography.labelSmall, color = colors.accentText, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(event.displayTitle, style = PoruchType.serifTitle2, color = colors.ink, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                Text(event.displayTitle, style = PoruchType.brandTitle2, color = colors.ink, maxLines = 3, overflow = TextOverflow.Ellipsis)
                 Text(
                     subtitle, style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary,
                     maxLines = if (preview == null) 1 else 2, overflow = TextOverflow.Ellipsis
@@ -478,7 +505,7 @@ private fun lane(source: FeedSource, followName: String?): String? = when (sourc
 }
 
 /** «У місті»: великі картки, що гортаються (сусідня визирає), чипи, далі сітка постерів у дві колонки. */
-private fun LazyListScope.cityFeed(state: HomeState, onIntent: (HomeIntent) -> Unit) {
+private fun LazyListScope.cityFeed(state: HomeState, onIntent: (HomeIntent) -> Unit, columns: Int) {
     when {
         state.screen.feed.isNotEmpty() -> {
             val picks = state.screen.feed.take(HomeRules.HERO_COUNT)
@@ -494,19 +521,21 @@ private fun LazyListScope.cityFeed(state: HomeState, onIntent: (HomeIntent) -> U
                     if (state.screen.chips.isNotEmpty()) FeedChips(state, onIntent)
                 }
             }
-            val rows = rest.take(state.feedLimit).chunked(2)
+            val rows = rest.take(state.feedLimit).chunked(columns)
             itemsIndexed(rows, key = { _, pair -> pair.first().event.id }) { index, pair ->
+                // Ряд квитків однакової висоти: корінці сусідів на одній лінії.
                 Row(
-                    Modifier.padding(horizontal = Spacing.page).padding(top = if (index == 0) Spacing.xxl else Spacing.xl),
+                    Modifier.padding(horizontal = Spacing.page).padding(top = if (index == 0) Spacing.xxl else Spacing.xl)
+                        .height(IntrinsicSize.Min),
                     horizontalArrangement = Arrangement.spacedBy(Spacing.md)
                 ) {
                     pair.forEach { entry ->
                         PosterCard(
                             entry.event, entry.source, entry.event.id in state.screen.savedIds, entry.event.id in state.screen.waitlistedIds,
-                            { onIntent(HomeIntent.ToggleSaved(entry.event.id)) }, Modifier.weight(1f), followName = entry.followName
+                            { onIntent(HomeIntent.ToggleSaved(entry.event.id)) }, Modifier.weight(1f).fillMaxHeight(), followName = entry.followName
                         ) { onIntent(HomeIntent.OpenEvent(entry.event.id, "home_poster")) }
                     }
-                    if (pair.size == 1) Spacer(Modifier.weight(1f))
+                    repeat(columns - pair.size) { Spacer(Modifier.weight(1f)) }
                 }
             }
             if (rest.size > state.feedLimit) item(key = "more-feed") {
@@ -572,8 +601,9 @@ private fun HeroPager(picks: List<FeedEntry>, savedIds: List<String>, onIntent: 
 }
 
 /**
- * Постер у сітці «У місті»: обкладинка 4:5 без коробки, підпис просто на полотні. Ціна чи «3 з 8» — плашкою на фото,
- * стан кімнати («Ви йдете», «Лишилось 2») — плашкою нагорі замість підпису «Для вас».
+ * Вертикальний квиток у сітці «У місті» й рейці «Від людей»: обкладинка 4:5 і назва вгорі, а за перфорацією корінець
+ * кольору жанру з годиною, днем і, для зустрічі, місцями «3/8». Ціна — плашкою на фото, стан кімнати («Ви йдете»,
+ * «Лишилось 2») — штампом нагорі замість підпису «Для вас».
  */
 @Composable
 private fun PosterCard(
@@ -582,56 +612,80 @@ private fun PosterCard(
     event: Event, source: FeedSource, saved: Boolean, waitlisted: Boolean, onSave: () -> Unit, modifier: Modifier = Modifier,
     /** Підпис «Від людей» на кімнаті без стану: у секції «Від людей» він зайвий. */
     showOrigin: Boolean = true,
-    /** За ким саме подія з підписок: ім'я на плашці з дзвіночком. */
+    /** За ким саме подія з підписок: ім'я на штампі з дзвіночком. */
     followName: String? = null, onClick: () -> Unit
 ) {
     val colors = Poruch.colors
-    // Скасоване й знята афіша вже сказані підписом внизу, двічі не пишемо.
-    val state = if (event.gathering == null || event.isCancelled) null else eventState(event, waitlisted)
-    // Вузька плашка: дзвіночок замість «Ви стежите», лишається саме ім'я.
-    val following = state == null && source == FeedSource.FOLLOWING
-    val badge = state ?: (if (following) followName ?: stringResource(R.string.following) else lane(source, followName))?.let { it to BadgeTone.Neutral }
-    // Ні стану, ні «Для вас»: кімнату однаково видно як зустріч від людей.
-    val fromPeople = showOrigin && badge == null && event.gathering != null
-    // «Від 390 ₴» лише коли джерело сказало ціну; для кімнати — «3/8» з гліфом людей, як на iOS, де бейдж капсом і «3 З 8» читалось б «3 3 8».
-    val chip: Pair<String, ImageVector?>? = event.gathering?.let { "${it.attendeeCount}/${it.capacity}" to PoruchIcons.social }
-        ?: event.listing?.takeIf { it.isFree == true || it.priceMin != null }?.let { listingPrice(it) to null }
-    // Афіша завжди підписана джерелом (docs/event-ingestion.md §8); скасоване — теж словами.
-    val note: Pair<String, Color>? = when {
-        event.isCancelled -> stringResource(R.string.cancelled) to colors.danger
-        else -> event.listing?.let {
-            (if (it.isWithdrawn) stringResource(R.string.listing_withdrawn) else stringResource(R.string.listing_badge, it.sourceName)) to colors.inkTertiary
-        }
+    // Скасоване — штампом (корінець тоді погашений); для кімнати — «Ви йдете», «Лишилось 2». Знята афіша сказана підписом.
+    val state = if (event.gathering == null && !event.isCancelled) null else eventState(event, waitlisted)
+    // Чому квиток у стрічці: за ким стежите (дзвіночок і ім'я), «Для вас», «Від людей». Не штамп, бо нічого з квитком
+    // не сталось — штамп поруч зі «Скасовано» й «Лишилось 2» мав би однакову вагу.
+    val laneLabel = lane(source, followName)
+    val reason: Pair<String, ImageVector>? = when {
+        source == FeedSource.FOLLOWING -> (followName ?: stringResource(R.string.following)) to PoruchIcons.bellActive
+        laneLabel != null -> laneLabel to PoruchIcons.sparkle
+        showOrigin && event.gathering != null -> stringResource(R.string.from_people) to PoruchIcons.social
+        else -> null
     }
-    Column(
-        modifier.semantics(mergeDescendants = true) {}.pressable(onClick = onClick).alpha(if (event.isCancelled) 0.6f else 1f),
-        verticalArrangement = Arrangement.spacedBy(Spacing.md)
+    // «Від 390 ₴» лише коли джерело сказало ціну. Місця зустрічі — на корінці.
+    val price = event.listing?.takeIf { event.gathering == null && (it.isFree == true || it.priceMin != null) }?.let { listingPrice(it) }
+    // Афіша завжди підписана джерелом (docs/event-ingestion.md §8).
+    val note: Pair<String, Color>? = event.listing?.let {
+        (if (it.isWithdrawn) stringResource(R.string.listing_withdrawn) else stringResource(R.string.listing_badge, it.sourceName)) to colors.inkTertiary
+    }
+    val words = dateWords()
+    val series = remember(event, words) { seriesNote(event, words) }
+    // Штамп — лише стан квитка.
+    val stamp: Triple<String, BadgeTone, ImageVector?>? = state?.let { Triple(it.first, it.second, null) }
+    val printed = event.imageUrl == null
+    // Друкована сторона без фото дає назві чотири рядки; з великим текстом — на рядок більше, щоб назва не тонула в «…».
+    val titleLines = (if (printed) 4 else 2) + if (LocalDensity.current.fontScale >= 1.3f) 1 else 0
+    Ticket(
+        ticketStub(event), stub = { StubTime(event, row = true) },
+        modifier = modifier
+            .ticketSemantics(ticketA11yLabel(event, listOfNotNull(stamp?.first, reason?.first, price, note?.first).joinToString(", ")), onClick, saved, onSave),
+        vertical = true, stubLength = 52.dp, onClick = onClick
     ) {
-        Box(Modifier.fillMaxWidth().aspectRatio(4f / 5f).clip(Radius.lg)) {
-            EventArt(event, Modifier.fillMaxSize(), glyph = 130.dp)
-            badge?.let { (text, tone) ->
-                Box(Modifier.align(Alignment.TopStart).padding(Spacing.sm)) { StatusBadge(text, tone, PoruchIcons.bellActive.takeIf { following }) }
+        Column(Modifier.fillMaxHeight()) {
+            if (!printed) Box(Modifier.fillMaxWidth().aspectRatio(4f / 5f).clipToBounds()) {
+                EventArt(event, Modifier.fillMaxSize(), glyph = 130.dp)
+                // Штамп не заходить під «Зберегти»: довге ім'я з підписок стискається трьома крапками.
+                stamp?.let { (text, tone, icon) ->
+                    TicketStamp(
+                        text, tone, icon, onFill = true,
+                        modifier = Modifier.align(Alignment.TopStart).padding(start = Spacing.sm, top = Spacing.sm, end = 52.dp)
+                    )
+                }
+                SaveButton(saved, onSave, Modifier.align(Alignment.TopEnd).padding(Spacing.xs))
+                price?.let { Box(Modifier.align(Alignment.BottomStart).padding(Spacing.sm)) { StatusBadge(it) } }
+            } else Row(Modifier.fillMaxWidth().padding(start = Spacing.sm, end = Spacing.sm, top = Spacing.sm), verticalAlignment = Alignment.Top) {
+                // Без фото — друкована сторона квитка: штамп і «Зберегти» вгорі, назва великим кеглем.
+                Box(Modifier.weight(1f).padding(top = Spacing.xs)) { stamp?.let { (text, tone, icon) -> TicketStamp(text, tone, icon) } }
+                SaveButton(saved, onSave)
             }
-            if (fromPeople) Box(Modifier.align(Alignment.TopStart).padding(Spacing.sm)) {
-                StatusBadge(stringResource(R.string.from_people), BadgeTone.Neutral, PoruchIcons.social)
-            }
-            SaveButton(saved, onSave, Modifier.align(Alignment.TopEnd).padding(Spacing.xs))
-            chip?.let { (text, icon) -> Box(Modifier.align(Alignment.BottomStart).padding(Spacing.sm)) { StatusBadge(text, BadgeTone.Neutral, icon) } }
-        }
-        Column(Modifier.padding(horizontal = Spacing.xs), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-            // Коли — найважливіше в афіші, тож і найтемніше в підписі, а не найблідіше.
-            val words = dateWords()
-            Text(
-                remember(event) { cardOverline(event, words) }, style = PoruchType.overline, color = colors.ink,
-                maxLines = 1, overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                event.displayTitle, style = PoruchType.serifTitle3, color = colors.ink,
-                minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis
-            )
-            EventDescriptor(event, placeFirst = true)
-            note?.let { (text, color) ->
-                Text(text, style = MaterialTheme.typography.labelSmall, color = color, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            // Як на друкованому квитку: місце й підписи притиснуті до перфорації, вільне поле лишається під назвою.
+            // Вага лише в розпірки: фото бере свої 4:5 першим.
+            Column(
+                Modifier.weight(1f).padding(horizontal = Spacing.md).padding(top = Spacing.md, bottom = Spacing.lg),
+                verticalArrangement = Arrangement.spacedBy(Spacing.xs)
+            ) {
+                Text(
+                    event.displayTitle, style = if (printed) PoruchType.brandTitle2 else PoruchType.brandTitle3, color = colors.ink,
+                    maxLines = titleLines, overflow = TextOverflow.Ellipsis
+                )
+                HostLine(event)
+                Spacer(Modifier.weight(1f))
+                reason?.let { (text, icon) -> ReasonLine(text, icon) }
+                EventDescriptor(event, placeFirst = true)
+                if (printed) price?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                series?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                note?.let { (text, color) ->
+                    Text(text, style = MaterialTheme.typography.labelSmall, color = color, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
             }
         }
     }

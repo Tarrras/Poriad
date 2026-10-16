@@ -59,12 +59,12 @@ fun MyEventsScreen(state: MyEventsState, onIntent: (MyEventsIntent) -> Unit) {
             ) {
                 Text(
                     stringResource(R.string.my_events),
-                    style = PoruchType.serifDisplay,
+                    style = PoruchType.brandDisplay,
                     color = colors.ink
                 )
-                Text(
-                    if (state.screen.signedIn) subtitle(state) else stringResource(R.string.guest_empty),
-                    style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary
+                // Гостю підзаголовка нема: те саме каже порожній стан нижче.
+                if (state.screen.signedIn) Text(
+                    subtitle(state), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary
                 )
             }
             if (state.screen.signedIn) Row(
@@ -86,7 +86,7 @@ fun MyEventsScreen(state: MyEventsState, onIntent: (MyEventsIntent) -> Unit) {
             }
         }
         if (!state.screen.signedIn) EmptyState(
-            PoruchIcons.lock,
+            PoruchIcons.ticket,
             stringResource(R.string.guest_empty),
             stringResource(R.string.guest_description),
             Modifier.padding(top = Spacing.section),
@@ -368,8 +368,8 @@ private fun RateButton(onClick: () -> Unit) {
         maxLines = 1,
         modifier = Modifier
             .height(36.dp)
-            .background(colors.brand, Radius.pill)
-            .clip(Radius.pill)
+            .background(colors.brand, ButtonShape)
+            .clip(ButtonShape)
             .pressable(onClick = onClick)
             .padding(horizontal = Spacing.md)
             .wrapContentHeight(Alignment.CenterVertically)
@@ -410,11 +410,11 @@ private fun HeroHead(event: Event, status: @Composable () -> Unit, onClick: () -
             Text(
                 countdownOverline(event),
                 style = MaterialTheme.typography.labelSmall,
-                color = colors.accent
+                color = colors.accentText
             )
             Text(
                 event.displayTitle,
-                style = PoruchType.serifTitle3,
+                style = PoruchType.brandTitle3,
                 color = colors.ink,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
@@ -432,11 +432,12 @@ private fun GoingHero(event: Event, unread: Int, onIntent: (MyEventsIntent) -> U
         Modifier
             .fillMaxWidth()
             .cardSurface()
-            .padding(Spacing.lg)
-            .alpha(if (event.isCancelled) 0.6f else 1f),
+            .padding(Spacing.lg),
         verticalArrangement = Arrangement.spacedBy(Spacing.md)
     ) {
-        HeroHead(event, { EventDescriptor(event) }) { onIntent(MyEventsIntent.OpenEvent(event.id)) }
+        HeroHead(event, {
+            if (event.isCancelled) TicketStamp(stringResource(R.string.cancelled_short), BadgeTone.Danger) else EventDescriptor(event)
+        }) { onIntent(MyEventsIntent.OpenEvent(event.id)) }
         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
             SecondaryButton(
                 stringResource(R.string.open_in_maps),
@@ -608,8 +609,8 @@ private fun RequestRow(
             color = colors.onBrand,
             modifier = Modifier
                 .height(40.dp)
-                .background(colors.brand, Radius.pill)
-                .clip(Radius.pill)
+                .background(colors.brand, ButtonShape)
+                .clip(ButtonShape)
                 .pressable(enabled = !mutating) {
                     onIntent(
                         MyEventsIntent.Approve(

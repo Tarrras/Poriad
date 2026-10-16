@@ -126,7 +126,7 @@ private fun Header(state: ChatState, onIntent: (ChatIntent) -> Unit) {
             Column(Modifier.weight(1f)) {
                 Text(
                     state.title.takeIf { it.isNotBlank() }?.let(TitleRules::display) ?: stringResource(R.string.chat_title),
-                    style = PoruchType.serifTitle3,
+                    style = PoruchType.brandTitle3,
                     color = colors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis
                 )
                 Text(subtitle, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -373,7 +373,7 @@ private fun ReportMessageSheet(message: ChatMessage, onIntent: (ChatIntent) -> U
             Modifier.padding(horizontal = Spacing.page).padding(bottom = Spacing.section).imePadding(),
             verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
-            Text(stringResource(R.string.chat_report_title), style = PoruchType.serifTitle2, color = colors.ink)
+            Text(stringResource(R.string.chat_report_title), style = PoruchType.brandTitle2, color = colors.ink)
             Text(stringResource(R.string.report_body), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
             Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                 reportReasons.forEach { (value, label) ->

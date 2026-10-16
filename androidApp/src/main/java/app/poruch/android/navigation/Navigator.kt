@@ -29,7 +29,15 @@ class Navigator(private val app: PoruchApp) {
     fun back() {
         PoruchLog.d("nav") { "back from ${describe()}" }
         if (stack.size > 1) stack.removeLastOrNull()
+        // Корінь іншої вкладки — не кінець застосунку: «Назад» веде на головну, а вже з неї — назовні.
+        else if (stack.last() !is Home) reset(Home)
     }
+
+    /**
+     * «Назад» з кореня не-головної вкладки належить застосунку. `NavDisplay` обробляє «Назад» лише коли під
+     * записом є попередній, а `open(Tab)` лишає вкладку єдиним записом — тож без цього система закривала застосунок.
+     */
+    val handlesRootBack: Boolean get() = stack.size == 1 && stack.last() !is Home
 
     /** Замінює весь стек одним записом, напр. лист відновлення пароля веде на профіль. */
     fun reset(key: NavKey) {

@@ -1,5 +1,8 @@
 package app.poruch.android.feature.detail
 
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -44,7 +47,6 @@ import androidx.compose.ui.unit.dp
 import app.poruch.android.EventMap
 import app.poruch.android.R
 import app.poruch.android.ui.*
-import app.poruch.android.feature.mine.countdownOverline
 import app.poruch.domain.ArtistRole
 import app.poruch.domain.ContactRules
 import app.poruch.domain.Event
@@ -72,16 +74,8 @@ import app.poruch.domain.ShelterKind
 @Composable
 internal fun Hero(event: Event, state: DetailState, scroll: ScrollState, onIntent: (DetailIntent) -> Unit) {
     val room = state.screen.room
-    // Відлік лише для сьогоднішнього, як на картці плану головної.
-    val words = dateWords()
-    val today = remember(event) {
-        event.startInstant?.let {
-            java.time.Instant.ofEpochMilli(it.toEpochMilliseconds()).atZone(java.time.ZoneId.systemDefault()).toLocalDate() == java.time.LocalDate.now()
-        } == true
-    }
-    val overline = if (today) countdownOverline(event) else remember(event) { cardOverline(event, words) }
     Box(Modifier.fillMaxWidth()) {
-        Box(Modifier.fillMaxWidth().height(HERO_HEIGHT)) {
+        Box(Modifier.fillMaxWidth().height(heroHeight())) {
             EventArt(event, Modifier.fillMaxSize(), glyph = 260.dp, glyphDrop = 120.dp)
             // Обкладинка довільна, тож тонка тінь зверху тримає смугу статусу читабельною.
             Box(
@@ -105,35 +99,49 @@ internal fun Hero(event: Event, state: DetailState, scroll: ScrollState, onInten
                 .graphicsLayer {
                     // Читання в шарі, а не в композиції: прокрутка не перескладає обкладинку.
                     val faded = 1f - (scroll.value - HERO_TEXT_FADE_FROM.toPx()) / HERO_TEXT_FADE.toPx()
-                    alpha = faded.coerceIn(0f, 1f) * if (state.screen.cancelled) 0.7f else 1f
+                    // Скасування каже штамп над назвою; приглушена до 70 % біла назва на затемненні втрачала контраст.
+                    alpha = faded.coerceIn(0f, 1f)
                 },
-            verticalArrangement = Arrangement.spacedBy(Spacing.sm)
+            verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
-                StatusBadge(stringResource(categoryLabel(event.category)), BadgeTone.Brand)
-                when {
-                    state.screen.cancelled -> StatusBadge(stringResource(R.string.cancelled), BadgeTone.Danger)
-                    // Афіша завжди підписана джерелом: атрибуція обов'язкова.
-                    state.screen.listing?.isWithdrawn == true -> StatusBadge(stringResource(R.string.listing_withdrawn), BadgeTone.Neutral)
-                    state.screen.listing != null -> StatusBadge(stringResource(R.string.listing_badge, state.screen.listing!!.sourceName), BadgeTone.Neutral)
-                    state.screen.organizer -> StatusBadge(stringResource(R.string.you_organize), BadgeTone.Neutral, PoruchIcons.sparkle)
-                    // Після кінця лишається лише факт участі: черга й місця вже нічого не значать.
-                    state.screen.ended -> if (room?.joined == true) StatusBadge(stringResource(R.string.went), BadgeTone.Neutral, PoruchIcons.check)
-                    room?.joined == true -> StatusBadge(stringResource(R.string.going), BadgeTone.Success, PoruchIcons.check)
-                    state.screen.waitlisted -> StatusBadge(stringResource(R.string.in_queue), BadgeTone.Accent, PoruchIcons.queue)
-                    room?.awaitingApproval == true -> StatusBadge(stringResource(R.string.request_pending), BadgeTone.Accent, PoruchIcons.clock)
-                    room?.isScarce == true && !state.screen.cancelled ->
-                        StatusBadge(stringResource(R.string.seats_left, room.seatsLeft), BadgeTone.Accent)
-                }
+            // Стан квитка — штампом над назвою, лише коли з ним щось сталось (як на квитках стрічки). Жанр і джерело
+            // афіші — тихим рядком під назвою: пігулки були окремою мовою міток, а жанр ще й надрукований на корінці панелі.
+            val stamp: Triple<String, BadgeTone, ImageVector?>? = when {
+                state.screen.cancelled -> Triple(stringResource(R.string.cancelled_short), BadgeTone.Danger, null)
+                state.screen.listing != null -> null
+                state.screen.organizer -> Triple(stringResource(R.string.you_organize), BadgeTone.Neutral, null)
+                // Після кінця лишається лише факт участі: черга й місця вже нічого не значать.
+                state.screen.ended -> if (room?.joined == true) Triple(stringResource(R.string.went), BadgeTone.Neutral, PoruchIcons.check) else null
+                room?.joined == true -> Triple(stringResource(R.string.going), BadgeTone.Success, PoruchIcons.check)
+                state.screen.waitlisted -> Triple(stringResource(R.string.in_queue), BadgeTone.Accent, PoruchIcons.queue)
+                room?.awaitingApproval == true -> Triple(stringResource(R.string.request_pending), BadgeTone.Accent, PoruchIcons.clock)
+                room?.isScarce == true -> Triple(stringResource(R.string.seats_left, room.seatsLeft), BadgeTone.Accent, null)
+                else -> null
             }
-            Text(overline, style = MaterialTheme.typography.labelSmall, color = Poruch.colors.accentOnPhoto, maxLines = 2)
-            Text(event.displayTitle, style = PoruchType.serifDisplay, color = Color.White)
+            stamp?.let { (text, tone, icon) -> TicketStamp(text, tone, icon, onFill = true) }
+            // «Стендап · Афіша · Badseller»: афіша завжди підписана джерелом — атрибуція обов'язкова.
+            val meta = listOfNotNull(
+                stringResource(categoryLabel(event.category)).takeIf { it.isNotBlank() },
+                state.screen.listing?.let {
+                    if (it.isWithdrawn) stringResource(R.string.listing_withdrawn) else stringResource(R.string.listing_badge, it.sourceName)
+                }
+            ).joinToString(" · ")
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                // Дата й час — на корінці квитка внизу екрана, тож над назвою їх не повторюємо.
+                Text(event.displayTitle, style = PoruchType.brandDisplay, color = Color.White)
+                Text(
+                    meta, style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.8f),
+                    maxLines = 1, overflow = TextOverflow.Ellipsis
+                )
+            }
         }
     }
 }
 
 /** Висота обкладинки й скільки її низу ховається під аркушем секцій. */
-internal val HERO_HEIGHT = 480.dp
+/** Висота обкладинки: 480 dp, але не більше 60 % вікна — у ландшафті вона інакше була вища за екран. */
+@Composable
+internal fun heroHeight(): Dp = minOf(480.dp, (LocalConfiguration.current.screenHeightDp * 0.6f).dp)
 internal val HERO_OVERLAP = 28.dp
 /** Звідки й за скільки гасне текст на обкладинці при прокрутці. */
 internal val HERO_TEXT_FADE_FROM = 100.dp

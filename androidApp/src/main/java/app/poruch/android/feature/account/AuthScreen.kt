@@ -44,7 +44,7 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
     val colors = Poruch.colors
     // Системний «назад» — як стрілка: з «Забули пароль?» до форми, з кроку листа — з його скиданням.
     BackHandler { onIntent(AuthIntent.Back) }
-    Column(Modifier.fillMaxSize().background(colors.canvas).verticalScroll(rememberScrollState()).imePadding()) {
+    Column(Modifier.fillMaxSize().background(colors.canvas).imePadding().verticalScroll(rememberScrollState())) {
         // Знак застосунку й назва по центру, як вхід в Apple ID; «назад» окремо в кутку.
         Column(
             Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = Spacing.page).padding(bottom = Spacing.sm),
@@ -73,7 +73,7 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
                         else -> R.string.auth_welcome
                     }
                 ),
-                style = PoruchType.serifTitle1, color = colors.ink, textAlign = TextAlign.Center
+                style = PoruchType.brandTitle1, color = colors.ink, textAlign = TextAlign.Center
             )
             Text(
                 stringResource(
@@ -177,8 +177,8 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
 private fun ProviderButton(logo: Painter, text: String, onClick: () -> Unit, enabled: Boolean) {
     val colors = Poruch.colors
     Row(
-        Modifier.fillMaxWidth().height(52.dp).background(colors.surface, Radius.pill).border(1.dp, colors.hairline, Radius.pill)
-            .clip(Radius.pill).pressable(enabled = enabled, onClick = onClick),
+        Modifier.fillMaxWidth().height(52.dp).background(colors.surface, ButtonShape).border(1.dp, colors.hairline, ButtonShape)
+            .clip(ButtonShape).pressable(enabled = enabled, onClick = onClick),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Spacing.md, Alignment.CenterHorizontally)
     ) {

@@ -26,13 +26,13 @@ fun NewPasswordScreen(state: ProfileState, onIntent: (ProfileIntent) -> Unit) {
     val colors = Poruch.colors
     val field = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { field.requestFocus() } }
-    Column(Modifier.fillMaxSize().background(colors.canvas).verticalScroll(rememberScrollState()).imePadding()) {
+    Column(Modifier.fillMaxSize().background(colors.canvas).imePadding().verticalScroll(rememberScrollState())) {
         Column(
             Modifier.fillMaxWidth().background(heroGradient()).statusBarsPadding()
                 .padding(horizontal = Spacing.page).padding(top = Spacing.xxl, bottom = Spacing.xl),
             verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
-            Text(stringResource(R.string.new_password), style = PoruchType.serifDisplay, color = colors.ink)
+            Text(stringResource(R.string.new_password), style = PoruchType.brandDisplay, color = colors.ink)
             Text(stringResource(R.string.new_password_subtitle), style = MaterialTheme.typography.bodyLarge, color = colors.inkSecondary)
         }
         // Один перемикач на обидва поля: показує або ховає пароль разом із повтором.

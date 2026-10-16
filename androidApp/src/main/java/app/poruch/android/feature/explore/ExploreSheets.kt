@@ -42,7 +42,7 @@ internal fun FilterSheet(state: ExploreState, onIntent: (ExploreIntent) -> Unit,
         // Заголовок шторки — заголовок, а не надрядок: інакше він менший за секції під ним.
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                stringResource(R.string.filters), style = PoruchType.serifTitle2,
+                stringResource(R.string.filters), style = PoruchType.brandTitle2,
                 color = colors.ink, modifier = Modifier.weight(1f)
             )
             GhostButton(
@@ -103,7 +103,7 @@ internal fun CitySearchSheet(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    stringResource(R.string.city_search), style = PoruchType.serifTitle2,
+                    stringResource(R.string.city_search), style = PoruchType.brandTitle2,
                     color = colors.ink, modifier = Modifier.weight(1f)
                 )
                 GhostButton(stringResource(R.string.close), { sheet.close() }, tone = colors.inkSecondary)

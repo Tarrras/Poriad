@@ -1,6 +1,7 @@
 package app.poruch.android.ui
 
 import app.poruch.android.R
+import app.poruch.domain.Event
 import app.poruch.domain.EventCategory
 import android.provider.Settings
 import androidx.compose.animation.core.FiniteAnimationSpec
@@ -29,11 +30,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.lerp
-import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
@@ -49,8 +48,6 @@ data class PoruchColors(
     val accent: Color,
     /** `accent` як колір дрібного тексту на білому: сам `accent` там дає 3,75:1, цей — 5,1:1. Заливкам і крапкам лишається `accent`. */
     val accentText: Color,
-    /** Акцентний текст на темному затемненні обкладинки — в обох темах світлий варіант. */
-    val accentOnPhoto: Color,
     val accentContainer: Color,
     val onAccentContainer: Color,
     val success: Color,
@@ -66,28 +63,31 @@ data class PoruchColors(
     val surfaceMuted: Color,
     val canvas: Color,
     val canvasTint: Color,
-    /** Сяйво за шапкою головної: холодний відтінок, що на висоті екрана тане в полотно. */
-    val glow: Color,
-    /** Тепла заливка вгорі шапки, згасає в `canvas`. */
+    /** Шапка того ж тону, що й полотно: екран — один аркуш. */
     val heroTop: Color,
     val heroBottom: Color,
-    /** Тіні коричнево-чорні, не нейтральні: сіра тінь на теплому папері виглядає як бруд. */
+    /** Тінь є лише в того, що плаває: мʼяка, нейтральна. */
     val shadowAmbient: Color,
     val shadowSpot: Color,
     val hairline: Color,
+    /** Корінець скасованої події — погашений сірий: білий друк на ньому тримає ≥ 5:1, а подія не блідне прозорістю. */
+    val voidStub: Color,
     val onBrand: Color,
     val dark: Boolean
 )
 
-/** Світла тема: прохолодний сірий фон і білі картки без рамок (Apple Store). Дії майже чорні. */
+/**
+ * Оболонка «Корінця» — одна нейтральна шкала з холодним відтінком: денне полотно й білі квитки, нічне графітове полотно
+ * й трохи світліші квитки з волосиною по краю. Колір на екрані мають лише корінці квитків і стани. Головна дія — чорнило
+ * вдень, папір уночі.
+ */
 val LightPoruchColors = PoruchColors(
-    brand = Color(0xFF1D1D1F),
-    brandPressed = Color(0xFF3A3A3C),
-    brandContainer = Color(0xFFE8E8ED),
-    onBrandContainer = Color(0xFF1D1D1F),
+    brand = Color(0xFF141417),
+    brandPressed = Color(0xFF2E2E33),
+    brandContainer = Color(0xFFE6E6EA),
+    onBrandContainer = Color(0xFF141417),
     accent = Color(0xFFE0582F),
     accentText = Color(0xFFC2431F),
-    accentOnPhoto = Color(0xFFFF8A5B),
     accentContainer = Color(0xFFFDE7DF),
     onAccentContainer = Color(0xFF7A2E14),
     success = Color(0xFF2E7D4F),
@@ -95,35 +95,31 @@ val LightPoruchColors = PoruchColors(
     onSuccessContainer = Color(0xFF1B4C2F),
     danger = Color(0xFFC0392B),
     dangerContainer = Color(0xFFFBE3E0),
-    ink = Color(0xFF1D1D1F),
-    inkSecondary = Color(0xFF6E6E73),
-    inkTertiary = Color(0xFF6E6E78),
+    ink = Color(0xFF141417),
+    inkSecondary = Color(0xFF5E5E66),
+    inkTertiary = Color(0xFF6A6A73),
     surface = Color(0xFFFFFFFF),
     surfaceRaised = Color(0xFFFFFFFF),
-    surfaceMuted = Color(0xFFF2F2F7),
-    canvas = Color(0xFFF5F5F7),
-    canvasTint = Color(0xFFEBEBF0),
-    glow = Color(0xFFE4E1F6),
-    // Шапка того ж тону, що й полотно: екран — один спокійний аркуш.
-    heroTop = Color(0xFFF5F5F7),
-    heroBottom = Color(0xFFF5F5F7),
-    // Тінь є лише в того, що плаває: мʼяка, нейтральна.
+    surfaceMuted = Color(0xFFEDEDF0),
+    canvas = Color(0xFFF2F2F4),
+    canvasTint = Color(0xFFE8E8EC),
+    heroTop = Color(0xFFF2F2F4),
+    heroBottom = Color(0xFFF2F2F4),
     shadowAmbient = Color(0x0F000000),
     shadowSpot = Color(0x1A000000),
-    hairline = Color(0xFFE5E5EA),
+    hairline = Color(0xFFE0E0E5),
+    voidStub = Color(0xFF5E5E66),
     onBrand = Color(0xFFFFFFFF),
     dark = false
 )
 
-/** Темна тема: майже чорне полотно й трохи світліші картки з тонкою лінією по краю (Moonly). */
 val DarkPoruchColors = PoruchColors(
-    brand = Color(0xFFF5F5F7),
-    brandPressed = Color(0xFFD1D1D6),
-    brandContainer = Color(0xFF2C2C33),
-    onBrandContainer = Color(0xFFF5F5F7),
+    brand = Color(0xFFF3F3F0),
+    brandPressed = Color(0xFFD6D6D2),
+    brandContainer = Color(0xFF2A2930),
+    onBrandContainer = Color(0xFFF3F3F0),
     accent = Color(0xFFFF8A5B),
     accentText = Color(0xFFFF8A5B),
-    accentOnPhoto = Color(0xFFFF8A5B),
     accentContainer = Color(0xFF3F2419),
     onAccentContainer = Color(0xFFFFD9C8),
     success = Color(0xFF5DC389),
@@ -131,21 +127,21 @@ val DarkPoruchColors = PoruchColors(
     onSuccessContainer = Color(0xFFBFEBD0),
     danger = Color(0xFFFF6B5B),
     dangerContainer = Color(0xFF3C1A16),
-    ink = Color(0xFFF5F5F7),
-    inkSecondary = Color(0xFFA1A1A8),
-    inkTertiary = Color(0xFF8E8E96),
-    surface = Color(0xFF17171C),
-    surfaceRaised = Color(0xFF202027),
-    surfaceMuted = Color(0xFF26262E),
-    canvas = Color(0xFF0B0B0F),
-    canvasTint = Color(0xFF141419),
-    glow = Color(0xFF1B1A36),
-    heroTop = Color(0xFF0B0B0F),
-    heroBottom = Color(0xFF0B0B0F),
+    ink = Color(0xFFF3F3F0),
+    inkSecondary = Color(0xFFA6A5AD),
+    inkTertiary = Color(0xFF96959E),
+    surface = Color(0xFF1C1B21),
+    surfaceRaised = Color(0xFF26252C),
+    surfaceMuted = Color(0xFF2A2930),
+    canvas = Color(0xFF0F0F13),
+    canvasTint = Color(0xFF16161B),
+    heroTop = Color(0xFF0F0F13),
+    heroBottom = Color(0xFF0F0F13),
     shadowAmbient = Color(0x4D000000),
     shadowSpot = Color(0x66000000),
-    hairline = Color(0xFF2A2A33),
-    onBrand = Color(0xFF1D1D1F),
+    hairline = Color(0xFF2E2D35),
+    voidStub = Color(0xFF4A4950),
+    onBrand = Color(0xFF141417),
     dark = true
 )
 
@@ -176,12 +172,26 @@ private fun palette(category: EventCategory) = when (category) {
 fun categoryColor(category: EventCategory): Color = palette(category).hue
 
 /**
+ * Заливка корінця квитка: відтінок категорії на 12 % ближче до чорного в обох темах. Сам відтінок у їжі, стендапу
+ * й дитячого дає білому дрібному тексту лише 3,7–4,2:1, а день під часом набраний 11 sp.
+ */
+fun categoryStub(category: EventCategory): Color =
+    palette(category).hue.let { Color(it.red * 0.88f, it.green * 0.88f, it.blue * 0.88f) }
+
+/**
  * Відтінок категорії для тексту й гліфів. У темній темі освітлюється до контрасту 4.5:1.
  * `categoryColor` лишається сирим відтінком для пінів і заливок.
  */
 @Composable
 fun categoryInk(category: EventCategory): Color =
-    if (Poruch.colors.dark) lerp(categoryColor(category), Color.White, 0.45f) else categoryColor(category)
+    // Удень — на 16 % темніший за сирий: той давав їжі, стендапу й дитячому на білому 3,8–4,2:1, а з 16 % найслабша
+    // (їжа) тримає 4,55:1 навіть на полотні.
+    if (Poruch.colors.dark) lerp(categoryColor(category), Color.White, 0.45f)
+    else palette(category).hue.let { Color(it.red * 0.84f, it.green * 0.84f, it.blue * 0.84f) }
+
+/** Корінець квитка: колір жанру, а в скасованої події — погашений сірий. */
+@Composable
+fun ticketStub(event: Event): Color = if (event.isCancelled) Poruch.colors.voidStub else categoryStub(event.category)
 
 @Composable
 fun categoryWash(category: EventCategory): Color =
@@ -224,12 +234,21 @@ object Spacing {
     val page = 16.dp
 }
 
+/** Кути квитка: скруглені, але зібрані — предмет із картону, а не мʼяка подушка. */
+object Corner {
+    val xs = 10.dp
+    val sm = 12.dp
+    val md = 14.dp
+    val lg = 18.dp
+    val xl = 22.dp
+}
+
 object Radius {
-    val xs = RoundedCornerShape(12.dp)
-    val sm = RoundedCornerShape(14.dp)
-    val md = RoundedCornerShape(18.dp)
-    val lg = RoundedCornerShape(24.dp)
-    val xl = RoundedCornerShape(28.dp)
+    val xs = RoundedCornerShape(Corner.xs)
+    val sm = RoundedCornerShape(Corner.sm)
+    val md = RoundedCornerShape(Corner.md)
+    val lg = RoundedCornerShape(Corner.lg)
+    val xl = RoundedCornerShape(Corner.xl)
     val sheet: Shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     val pill: Shape = CircleShape
 }
@@ -242,7 +261,7 @@ object Elevation {
     val overlay = 24.dp
 }
 
-/** Інтерфейс — системний гротеск: ієрархію несуть кегль і вага. Заголовки й назви подій — [PoruchType.serifDisplay] і його брати. */
+/** Інтерфейс — системний гротеск: ієрархію несуть кегль і вага. Заголовки й назви подій — [PoruchType.brandDisplay] і його брати. */
 private val PoruchTypography = Typography(
     headlineMedium = TextStyle(
         fontSize = 28.sp,
@@ -289,32 +308,44 @@ private val PoruchTypography = Typography(
 )
 
 /**
- * Заголовки й назви подій з засічками: Source Serif 4 (змінний шрифт, SIL OFL, `res/font/source_serif4.ttf`), вага 600.
- * Правило за змістом: назва події ([app.poruch.domain.Event.displayTitle]) чи заголовок екрана або секції — так; дата, місце,
- * чипи, кнопки, цифри й службові рядки — системний шрифт. Оптичний розмір шрифту — кегль стилю (`opticalSizing`):
- * 34 sp — «Display», 17 sp — «Text».
+ * Голос квитка — Sofia Sans Condensed (SIL OFL, статичні накреслення в `res/font/`): назви подій і заголовки екранів та
+ * секцій. Цифри корінця — Sofia Sans Extra Condensed, табличні. Правило за змістом: назва події
+ * ([app.poruch.domain.Event.displayTitle]), заголовок, час на корінці й штамп — так; місце, чипи, кнопки, підписи й службові
+ * рядки — системний шрифт. Вужчий шрифт тримає довгі українські назви в двох рядках, тому кегль на щабель більший, ніж був
+ * у засічок.
  */
-@OptIn(ExperimentalTextApi::class)
-private fun serifStyle(size: TextUnit, lineHeight: TextUnit, tracking: TextUnit) = TextStyle(
-    fontFamily = FontFamily(
-        Font(
-            R.font.source_serif4, FontWeight.SemiBold,
-            variationSettings = FontVariation.Settings(FontVariation.weight(600), FontVariation.opticalSizing(size))
-        )
-    ),
-    fontWeight = FontWeight.SemiBold, fontSize = size, lineHeight = lineHeight, letterSpacing = tracking
+private val SofiaCondensed = FontFamily(
+    Font(R.font.sofia_sans_condensed_bold, FontWeight.Bold),
+    Font(R.font.sofia_sans_condensed_extrabold, FontWeight.ExtraBold)
+)
+private val SofiaExtraCondensed = FontFamily(Font(R.font.sofia_sans_extra_condensed_extrabold, FontWeight.ExtraBold))
+
+private fun condensed(size: TextUnit, lineHeight: TextUnit, tracking: TextUnit = 0.sp, heavy: Boolean = false) = TextStyle(
+    fontFamily = SofiaCondensed, fontWeight = if (heavy) FontWeight.ExtraBold else FontWeight.Bold,
+    fontSize = size, lineHeight = lineHeight, letterSpacing = tracking
 )
 
-/** Стилі поза шкалою Material: великий заголовок секції, підпис категорії під назвою, лід деталей, заголовки з засічками. */
+private fun numeral(size: TextUnit, lineHeight: TextUnit) = TextStyle(
+    fontFamily = SofiaExtraCondensed, fontWeight = FontWeight.ExtraBold, fontSize = size, lineHeight = lineHeight,
+    fontFeatureSettings = "tnum"
+)
+
+/** Стилі поза шкалою Material: голос квитка, підпис категорії під назвою, лід деталей. */
 object PoruchType {
     /** «Що поруч». */
-    val serifDisplay = serifStyle(34.sp, 40.sp, (-0.5).sp)
-    /** Назва великої картки. */
-    val serifTitle1 = serifStyle(28.sp, 34.sp, (-0.4).sp)
+    val brandDisplay = condensed(38.sp, 42.sp, (-0.5).sp, heavy = true)
+    /** Назва великого квитка. */
+    val brandTitle1 = condensed(30.sp, 33.sp, (-0.2).sp)
     /** Заголовок секції й назва плану. */
-    val serifTitle2 = serifStyle(22.sp, 28.sp, (-0.2).sp)
-    /** Назва події в постері й рядку «Ваше»: 17 sp, оптичний розмір «Text». */
-    val serifTitle3 = serifStyle(17.sp, 22.sp, (-0.1).sp)
+    val brandTitle2 = condensed(24.sp, 28.sp, (-0.1).sp)
+    /** Назва події в квитку, постері й рядку. */
+    val brandTitle3 = condensed(20.sp, 23.sp)
+    /** Час на корінці: «19:30». */
+    val numeral = numeral(34.sp, 36.sp)
+    /** Час на малому корінці рядка. */
+    val numeralSmall = numeral(24.sp, 26.sp)
+    /** Штамп стану: «ВИ ЙДЕТЕ», «СКАСОВАНО». */
+    val stamp = condensed(13.sp, 15.sp, 0.8.sp, heavy = true)
 
     val descriptor = TextStyle(fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.Medium)
     val lead = TextStyle(fontSize = 17.sp, lineHeight = 25.sp, fontWeight = FontWeight.Normal)

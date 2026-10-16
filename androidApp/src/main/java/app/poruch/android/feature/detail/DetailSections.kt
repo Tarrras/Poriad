@@ -523,7 +523,7 @@ internal fun OthersHere(others: List<EventIndexEntry>, placeName: String?, onInt
         ) {
             Text(
                 if (placeName != null) stringResource(R.string.others_here_at, placeName) else stringResource(R.string.others_here),
-                style = PoruchType.serifTitle2, color = colors.ink, modifier = Modifier.weight(1f)
+                style = PoruchType.brandTitle2, color = colors.ink, modifier = Modifier.weight(1f)
             )
             Text("${others.size}", style = MaterialTheme.typography.labelLarge, color = colors.inkSecondary)
             Icon(PoruchIcons.chevronRight, null, Modifier.size(18.dp).rotate(if (expanded) 270f else 90f), tint = colors.inkTertiary)
@@ -539,7 +539,7 @@ internal fun OthersHere(others: List<EventIndexEntry>, placeName: String?, onInt
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                         Text("$day · $hour", style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
                         Text(
-                            TitleRules.display(other.title), style = PoruchType.serifTitle3, color = colors.ink,
+                            TitleRules.display(other.title), style = PoruchType.brandTitle3, color = colors.ink,
                             maxLines = 2, overflow = TextOverflow.Ellipsis
                         )
                     }

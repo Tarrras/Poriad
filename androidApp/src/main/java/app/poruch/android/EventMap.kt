@@ -52,7 +52,6 @@ import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
 import org.maplibre.android.style.expressions.Expression
-import org.maplibre.android.style.layers.CircleLayer
 import org.maplibre.android.style.layers.Property
 import org.maplibre.android.style.layers.PropertyFactory
 import org.maplibre.android.style.layers.SymbolLayer
@@ -66,9 +65,8 @@ data class MapBounds(val south: Double, val west: Double, val north: Double, val
 
 private const val EventSource = "poruch-events"
 private const val PointSource = "poruch-point"
-private const val ClusterHaloLayer = "poruch-cluster-halo"
 private const val ClusterLayer = "poruch-cluster"
-private const val ClusterCountLayer = "poruch-cluster-count"
+private const val ClusterIcon = "poruch-cluster-ticket"
 private const val PinLayer = "poruch-pin"
 private const val PinCountLayer = "poruch-pin-count"
 private const val PointLayer = "poruch-point-pin"
@@ -237,9 +235,7 @@ val LocalSharedMapView = staticCompositionLocalOf<SharedMapView?> { null }
                 )
             )
             style.addSource(GeoJsonSource(PointSource, FeatureCollection.fromFeatures(emptyList())))
-            style.addLayer(clusterHaloLayer(colors))
             style.addLayer(clusterLayer(colors))
-            style.addLayer(clusterCountLayer(colors))
             style.addLayer(pinLayer())
             style.addLayer(pinCountLayer(colors))
             style.addLayer(chosenPointLayer())
@@ -402,27 +398,19 @@ private fun PoruchColors.mapTokens() = MapTokens(
 
 private fun androidx.compose.ui.graphics.Color.hex() = "#%06X".format(toArgb() and 0xFFFFFF)
 
-private fun clusterHaloLayer(colors: PoruchColors) = CircleLayer(ClusterHaloLayer, EventSource).withProperties(
-    PropertyFactory.circleColor(colors.brand.toArgb()),
-    PropertyFactory.circleOpacity(if (colors.dark) 0.28f else 0.16f),
-    PropertyFactory.circleRadius(
-        Expression.interpolate(Expression.linear(), Expression.get("events"), Expression.stop(2, 26f), Expression.stop(60, 42f))
-    )
-).withFilter(Expression.has("point_count"))
-
-private fun clusterLayer(colors: PoruchColors) = CircleLayer(ClusterLayer, EventSource).withProperties(
-    PropertyFactory.circleColor(colors.brand.toArgb()),
-    PropertyFactory.circleStrokeWidth(3f),
-    PropertyFactory.circleStrokeColor(colors.surface.toArgb()),
-    PropertyFactory.circleRadius(
-        Expression.interpolate(Expression.linear(), Expression.get("events"), Expression.stop(2, 18f), Expression.stop(60, 30f))
-    )
-).withFilter(Expression.has("point_count"))
-
-private fun clusterCountLayer(colors: PoruchColors) = SymbolLayer(ClusterCountLayer, EventSource).withProperties(
+/** Кластер — квиток із числом, у мові решти застосунку, а не чорне коло з ореолом. Більший кластер — трохи більший квиток. */
+private fun clusterLayer(colors: PoruchColors) = SymbolLayer(ClusterLayer, EventSource).withProperties(
+    PropertyFactory.iconImage(ClusterIcon),
+    PropertyFactory.iconSize(
+        Expression.interpolate(Expression.linear(), Expression.get("events"), Expression.stop(2, 1f), Expression.stop(60, 1.3f))
+    ),
+    PropertyFactory.iconAllowOverlap(true),
+    PropertyFactory.iconIgnorePlacement(true),
     PropertyFactory.textField(Expression.toString(Expression.get("events"))),
     PropertyFactory.textFont(arrayOf("Noto Sans Bold")),
-    PropertyFactory.textSize(13f),
+    PropertyFactory.textSize(
+        Expression.interpolate(Expression.linear(), Expression.get("events"), Expression.stop(2, 13f), Expression.stop(60, 16f))
+    ),
     PropertyFactory.textColor(colors.onBrand.toArgb()),
     PropertyFactory.textAllowOverlap(true),
     PropertyFactory.textIgnorePlacement(true)
@@ -469,6 +457,36 @@ private fun registerImages(context: Context, style: Style, colors: PoruchColors,
         style.addImage(iconName(category, true), pinBitmap(context, glyph, hue, surface, true, density))
     }
     style.addImage(ChosenPointIcon, pinBitmap(context, categoryIcon(EventCategory.SOCIAL), colors.brand.toArgb(), surface, true, density))
+    style.addImage(ClusterIcon, clusterTicketBitmap(context, colors.brand.toArgb(), surface, density))
+}
+
+/**
+ * Кластер — класичний квиток: скруглений прямокутник із півкруглими вирізами з боків, чорнилом (уночі папером)
+ * з краєм кольору картки. Число друкує шар поверх. 46×28 dp вміщують «999».
+ */
+private fun clusterTicketBitmap(context: Context, fill: Int, edge: Int, density: Float): Bitmap {
+    val pad = 5f * density
+    val w = 46f * density
+    val h = 28f * density
+    val bitmap = Bitmap.createBitmap((w + pad * 2).toInt(), (h + pad * 2).toInt(), Bitmap.Config.ARGB_8888)
+    bitmap.density = context.resources.displayMetrics.densityDpi
+    val canvas = Canvas(bitmap)
+    val notch = 4.5f * density
+    val shape = Path().apply {
+        addRoundRect(RectF(pad, pad, pad + w, pad + h), 7f * density, 7f * density, Path.Direction.CW)
+        op(Path().apply {
+            addCircle(pad, pad + h / 2f, notch, Path.Direction.CW)
+            addCircle(pad + w, pad + h / 2f, notch, Path.Direction.CW)
+        }, Path.Op.DIFFERENCE)
+    }
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = fill; setShadowLayer(5f * density, 0f, 2f * density, 0x40000000) }
+    canvas.drawPath(shape, paint)
+    paint.clearShadowLayer()
+    paint.style = Paint.Style.STROKE
+    paint.strokeWidth = 2f * density
+    paint.color = edge
+    canvas.drawPath(shape, paint)
+    return bitmap
 }
 
 /** Значок піна, один на категорію, кешується стилем: кільце на диску в спокої, інверсія у фокусі. */

@@ -83,7 +83,7 @@ internal fun ReportSheet(target: ReportTarget, onIntent: (DetailIntent) -> Unit)
                         ReportTarget.PERSON -> R.string.report_person_title
                     }
                 ),
-                style = PoruchType.serifTitle2, color = colors.ink
+                style = PoruchType.brandTitle2, color = colors.ink
             )
             Text(stringResource(R.string.report_body), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
             Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
@@ -144,10 +144,10 @@ internal fun RatingSheet(
                 EventImage(event, Modifier.size(52.dp).clip(Radius.xs))
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(cardOverline(event, dateWords()), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
-                    Text(event.displayTitle, style = PoruchType.serifTitle3, color = colors.ink, maxLines = 2)
+                    Text(event.displayTitle, style = PoruchType.brandTitle3, color = colors.ink, maxLines = 2)
                 }
             }
-            Text(stringResource(R.string.rate_title), style = PoruchType.serifTitle2, color = colors.ink)
+            Text(stringResource(R.string.rate_title), style = PoruchType.brandTitle2, color = colors.ink)
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                 Row(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                     (1..5).forEach { value ->
@@ -263,8 +263,8 @@ internal fun CompanionSheet(event: Event, mutating: Boolean, onIntent: (DetailIn
             Modifier.padding(horizontal = Spacing.page).padding(bottom = Spacing.section).imePadding(),
             verticalArrangement = Arrangement.spacedBy(Spacing.lg)
         ) {
-            Text(stringResource(R.string.companion_seek), style = PoruchType.serifTitle2, color = colors.ink)
-            Text(event.displayTitle, style = PoruchType.serifTitle3, color = colors.inkSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(stringResource(R.string.companion_seek), style = PoruchType.brandTitle2, color = colors.ink)
+            Text(event.displayTitle, style = PoruchType.brandTitle3, color = colors.inkSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(stringResource(R.string.companion_sheet_body), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
             val meetAt = times.getOrNull(at)
             if (meetAt != null) {

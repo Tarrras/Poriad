@@ -34,7 +34,7 @@ import app.poruch.domain.ProfileRules
 fun ProfileScreen(state: ProfileState, onIntent: (ProfileIntent) -> Unit) {
     val colors = Poruch.colors
     Column(
-        Modifier.fillMaxSize().background(colors.canvas).verticalScroll(rememberScrollState()).imePadding()
+        Modifier.fillMaxSize().background(colors.canvas).imePadding().verticalScroll(rememberScrollState())
             .tabBarClearance()
     ) {
         // Аватар і назва по центру, як картка акаунта в Apple Store.
@@ -57,7 +57,7 @@ fun ProfileScreen(state: ProfileState, onIntent: (ProfileIntent) -> Unit) {
                 }
                 Text(
                     stringResource(if (state.signedIn) R.string.account_title else R.string.guest_title),
-                    style = PoruchType.serifTitle1, color = colors.ink, textAlign = TextAlign.Center
+                    style = PoruchType.brandTitle1, color = colors.ink, textAlign = TextAlign.Center
                 )
                 Text(
                     stringResource(if (state.signedIn) R.string.account_description else R.string.guest_description),
@@ -217,7 +217,7 @@ private fun EditProfileSheet(profile: Profile, state: ProfileState, onIntent: (P
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
-            Text(stringResource(R.string.profile_edit), style = PoruchType.serifTitle2, color = colors.ink)
+            Text(stringResource(R.string.profile_edit), style = PoruchType.brandTitle2, color = colors.ink)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.lg)) {
                 Box(contentAlignment = Alignment.Center) {
                     Avatar(name, profile.avatarUrl, 72.dp)
@@ -264,7 +264,7 @@ private fun ChangePasswordSheet(state: ProfileState, onIntent: (ProfileIntent) -
             Modifier.padding(horizontal = Spacing.page).padding(bottom = Spacing.section).imePadding(),
             verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
-            Text(stringResource(R.string.update_password), style = PoruchType.serifTitle2, color = colors.ink)
+            Text(stringResource(R.string.update_password), style = PoruchType.brandTitle2, color = colors.ink)
             LabelledField(
                 stringResource(R.string.current_password_label), state.currentPassword,
                 { onIntent(ProfileIntent.SetCurrentPassword(it)) },
@@ -303,7 +303,7 @@ private fun DeleteAccountSheet(state: ProfileState, onIntent: (ProfileIntent) ->
             Modifier.padding(horizontal = Spacing.page).padding(bottom = Spacing.section).imePadding(),
             verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
-            Text(stringResource(R.string.delete_account_title), style = PoruchType.serifTitle2, color = colors.ink)
+            Text(stringResource(R.string.delete_account_title), style = PoruchType.brandTitle2, color = colors.ink)
             Text(stringResource(R.string.delete_account_body), style = MaterialTheme.typography.bodyLarge, color = colors.inkSecondary)
             // Google чи Apple з тією ж поштою привʼязуються до наявного акаунта: людина має бачити, що видаляє саме його.
             DeleteAccountWho(state)

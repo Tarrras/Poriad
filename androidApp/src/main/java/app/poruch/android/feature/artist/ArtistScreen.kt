@@ -38,7 +38,7 @@ fun ArtistScreen(state: ArtistUiState, onIntent: (ArtistIntent) -> Unit) {
             verticalArrangement = Arrangement.spacedBy(Spacing.lg)
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                Text(state.name, style = PoruchType.serifDisplay, color = colors.ink)
+                Text(state.name, style = PoruchType.brandDisplay, color = colors.ink)
                 artistKindLabel(state.kind)?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary) }
                 FollowPill(state.following, { onIntent(ArtistIntent.ToggleFollow) })
                 Text(stringResource(R.string.follow_artist_hint), style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary)

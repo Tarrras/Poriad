@@ -10,6 +10,7 @@ import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import com.google.android.play.core.review.ReviewManagerFactory
@@ -268,7 +269,7 @@ fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
             Modifier.padding(horizontal = Spacing.page).padding(bottom = Spacing.section),
             verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
-            Text(stringResource(R.string.digest_prompt_title), style = PoruchType.serifTitle2, color = Poruch.colors.ink)
+            Text(stringResource(R.string.digest_prompt_title), style = PoruchType.brandTitle2, color = Poruch.colors.ink)
             Text(
                 stringResource(R.string.digest_prompt_body), style = MaterialTheme.typography.bodyLarge,
                 color = Poruch.colors.inkSecondary, modifier = Modifier.padding(bottom = Spacing.sm)
@@ -323,9 +324,13 @@ fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
 
     // Без провайдера вкладка «Мапа» будувала нову MapView на кожен вхід.
     CompositionLocalProvider(LocalSharedMapView provides sharedMap) {
-        Box(Modifier
+        // Клас ширини вікна, а не модель пристрою: від 600 dp (планшет, телефон у ландшафті, широке вікно поруч з іншим
+        // застосунком) вкладки стають рейкою зліва, а вміст — колонкою по центру. Виріз екрана збоку — поле.
+        BoxWithConstraints(Modifier
             .fillMaxSize()
-            .background(Poruch.colors.canvas)) {
+            .background(Poruch.colors.canvas)
+            .windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal))) {
+            val wide = maxWidth >= 600.dp
             // Онбординг замінює застосунок, а не накриває: за ним на першому запуску ще нічого нема.
             if (state.needsOnboarding) OnboardingRoute() else {
                 // Кожен запис стека має власне сховище моделей: пушнуті екрани переживають поворот і
@@ -335,16 +340,22 @@ fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
                 val saveable = rememberSaveableStateHolderNavEntryDecorator<NavKey>()
                 val stores = rememberViewModelStoreNavEntryDecorator<NavKey>()
                 val decorators = remember(saveable, stores) { listOf(saveable, stores) }
-                NavDisplay(
-                    backStack = navigator.stack,
-                    onBack = navigator::back,
-                    entryDecorators = decorators,
-                    entryProvider = entryProvider
-                )
+                BackHandler(navigator.handlesRootBack, navigator::back)
+                CompositionLocalProvider(LocalWideLayout provides wide) {
+                    NavDisplay(
+                        backStack = navigator.stack,
+                        // Рейка не накриває вміст вкладки: поле зліва лише поки вона видна.
+                        modifier = Modifier.padding(start = if (wide && current is Tab) NavRailClearance else 0.dp),
+                        onBack = navigator::back,
+                        entryDecorators = decorators,
+                        entryProvider = entryProvider
+                    )
+                }
                 TabBar(
                     current,
                     navigator,
-                    Modifier.align(Alignment.BottomCenter),
+                    Modifier.align(if (wide) Alignment.CenterStart else Alignment.BottomCenter),
+                    wide = wide,
                     waiting = state.waitingEvents,
                     newFollows = state.library.newFollowEvents > 0,
                     onCreate = {
@@ -374,6 +385,8 @@ private fun TabBar(
     current: NavKey,
     navigator: Navigator,
     modifier: Modifier,
+    /** Широке вікно: рейка зліва замість нижньої панелі. */
+    wide: Boolean = false,
     waiting: Int = 0,
     /** Нове в підписках — крапкою на «Профілі»: звідти відкривається «Ви стежите». */
     newFollows: Boolean = false,
@@ -394,15 +407,26 @@ private fun TabBar(
     )
     AnimatedVisibility(
         visible = current is Tab,
-        enter = if (reducedMotion) fadeIn() else fadeIn() + slideInVertically { it },
-        exit = if (reducedMotion) fadeOut() else fadeOut() + slideOutVertically { it },
+        enter = when {
+            reducedMotion -> fadeIn()
+            wide -> fadeIn() + slideInHorizontally { -it }
+            else -> fadeIn() + slideInVertically { it }
+        },
+        exit = when {
+            reducedMotion -> fadeOut()
+            wide -> fadeOut() + slideOutHorizontally { -it }
+            else -> fadeOut() + slideOutVertically { it }
+        },
         modifier = modifier
     ) {
-        PoruchTabBar(
+        val select = { key: String -> navigator.open(tabFor(key)) }
+        if (wide) PoruchNavRail(tabs, current.tabKey(), Modifier.navigationBarsPadding(), onSelect = select) {
+            CreateButton(onCreate, Modifier.coachTarget(CoachTip.CREATE))
+        } else PoruchTabBar(
             tabs, current.tabKey(), Modifier
                 .navigationBarsPadding()
                 .padding(bottom = Spacing.md),
-            onSelect = { key -> navigator.open(tabFor(key)) }
+            onSelect = select
         ) {
             CreateButton(onCreate, Modifier.coachTarget(CoachTip.CREATE))
         }
@@ -497,7 +521,7 @@ private fun Splash() {
             ) {
                 Text(
                     stringResource(R.string.brand_name),
-                    style = PoruchType.serifDisplay,
+                    style = PoruchType.brandDisplay,
                     color = colors.ink
                 )
                 Text(

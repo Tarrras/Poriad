@@ -1,5 +1,6 @@
 package app.poruch.android.feature.detail
 
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -77,12 +78,12 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
         return
     }
     val scroll = rememberScrollState()
+    var barHeight by remember { mutableStateOf(0.dp) }
     Box(Modifier.fillMaxSize().background(colors.canvas)) {
         PullToRefresh(state.refreshing, { onIntent(DetailIntent.Refresh) }, Modifier.fillMaxSize(), underStatusBar = true) {
-            // Під нижньою панеллю дії: її висота плюс системна смуга, якою б вона не була.
-            // Дві кнопки в панелі («Шукаю компанію» і квиток) стоять другим рядом — панель вища.
-            val bottom = if (state.screen.canSeekCompany) 168.dp else 104.dp
-            Column(Modifier.fillMaxSize().verticalScroll(scroll).navigationBarsPadding().padding(bottom = bottom)) {
+            // Під нижньою панеллю дії — її виміряна висота разом із системною смугою: з великим шрифтом і другим рядом
+            // («Шукаю компанію» під квитком) панель росте, і стала висота ховала під нею останню секцію.
+            Column(Modifier.fillMaxSize().verticalScroll(scroll).padding(bottom = barHeight + Spacing.md)) {
                 Hero(event, state, scroll, onIntent)
                 // Аркуш із заокругленим верхом наїжджає на обкладинку: сторінка лягає на афішу, а не продовжує її.
                 Column(
@@ -130,15 +131,20 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
         // Не раніше: світла смуга над темною обкладинкою відрізала б її.
         val density = LocalDensity.current
         val statusTop = WindowInsets.statusBars.getTop(density)
+        val hero = heroHeight()
         Box(
             Modifier.fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars)
                 .graphicsLayer {
-                    val from = (HERO_HEIGHT - HERO_OVERLAP - SCRIM_FADE).toPx() - statusTop
+                    val from = (hero - HERO_OVERLAP - SCRIM_FADE).toPx() - statusTop
                     alpha = ((scroll.value - from) / SCRIM_FADE.toPx()).coerceIn(0f, 1f)
                 }
                 .background(colors.canvas)
         )
-        StickyAction(state, event, Modifier.align(Alignment.BottomCenter), onIntent)
+        StickyAction(
+            state, event,
+            Modifier.align(Alignment.BottomCenter).onSizeChanged { barHeight = with(density) { it.height.toDp() } },
+            onIntent
+        )
         CoachMarks(listOf(CoachTip.COMPANION), enabled = state.screen.canSeekCompany)
     }
     if (state.confirmingBlock) PoruchConfirmSheet(
@@ -193,33 +199,47 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
 @Composable
 internal fun StickyAction(state: DetailState, event: Event, modifier: Modifier, onIntent: (DetailIntent) -> Unit) {
     val colors = Poruch.colors
-    // Плаває над сторінкою, як таббар головної: дія під пальцем, а не смуга на всю ширину.
-    Column(
-        modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = Spacing.md, vertical = Spacing.sm)
-            .cardSurface(Radius.xl, Elevation.overlay).padding(Spacing.lg),
-        verticalArrangement = Arrangement.spacedBy(Spacing.md)
+    // Панель дії — квиток у руці: місця чи ціна й дії на поверхні, а корінець із часом, днем і кольором жанру — справа.
+    // Дата на екрані одна, тут; обкладинка її не повторює. Плаває над сторінкою: дія під пальцем, а не смуга на всю ширину.
+    Ticket(
+        ticketStub(event), stub = { StubTime(event) },
+        modifier = modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = Spacing.md, vertical = Spacing.sm),
+        radius = Corner.xl, surface = colors.surfaceRaised, elevation = Elevation.overlay
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(
-                    eventOverline(event, dateWords()), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis
-                )
+        Column(
+            Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.md),
+            verticalArrangement = Arrangement.spacedBy(Spacing.md)
+        ) {
+            val hint = @Composable { modifier: Modifier ->
                 Text(
                     stickyHint(state),
                     style = MaterialTheme.typography.bodyMedium,
                     color = if (state.screen.cancelled) colors.danger else colors.inkSecondary,
-                    maxLines = 2, overflow = TextOverflow.Ellipsis
+                    maxLines = 3, overflow = TextOverflow.Ellipsis, modifier = modifier
                 )
             }
-            // Кнопки може не бути: у знятої афіші й афіші без посилання нема куди вести.
-            if (state.screen.action != DetailAction.NONE) PrimaryAction(state, onIntent)
+            if (state.screen.canSeekCompany) {
+                // Афіша: ціна й квиток в один рядок — квиток купують на чужому сайті, тож він другорядний.
+                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
+                    hint(Modifier.weight(1f))
+                    if (state.screen.action != DetailAction.NONE) SecondaryButton(
+                        stringResource(state.screen.action.label), { onIntent(DetailIntent.PrimaryAction) },
+                        enabled = state.screen.action.isEnabled && !state.screen.mutating, compact = true
+                    )
+                }
+            } else {
+                // Зустріч: пояснення («Організатор підтверджує кожного», «Лишилось 2 місця») — окремим рядком на всю
+                // ширину, а дія під ним. Поруч із кнопкою воно обрізалось саме в момент рішення.
+                hint(Modifier.fillMaxWidth())
+                // Кнопки може не бути: у знятої афіші й афіші без посилання нема куди вести.
+                if (state.screen.action != DetailAction.NONE) PrimaryAction(state, onIntent, Modifier.fillMaxWidth())
+            }
+            // Серце продукту — люди: на афіші головна дія — «Шукаю компанію», на всю ширину під ціною й квитком.
+            if (state.screen.canSeekCompany) PrimaryButton(
+                stringResource(R.string.companion_seek), { onIntent(DetailIntent.SeekCompany(true)) },
+                Modifier.fillMaxWidth().coachTarget(CoachTip.COMPANION), enabled = !state.screen.mutating, icon = PoruchIcons.social
+            )
         }
-        // «Шукаю компанію» під квитком на всю ширину: поруч із ціною й квитком не влазить.
-        if (state.screen.canSeekCompany) SecondaryButton(
-            stringResource(R.string.companion_seek), { onIntent(DetailIntent.SeekCompany(true)) },
-            Modifier.fillMaxWidth().coachTarget(CoachTip.COMPANION), enabled = !state.screen.mutating, icon = PoruchIcons.social
-        )
     }
 }
 
@@ -233,7 +253,7 @@ internal fun PrimaryAction(state: DetailState, onIntent: (DetailIntent) -> Unit,
         enabled = state.screen.action.isEnabled && !state.screen.mutating, loading = state.screen.mutating,
         tone = when (state.screen.action) {
             DetailAction.LEAVE -> colors.success
-            DetailAction.LEAVE_WAITLIST -> colors.accent
+            DetailAction.LEAVE_WAITLIST -> colors.accentText
             else -> null
         }
     )

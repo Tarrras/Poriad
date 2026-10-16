@@ -98,7 +98,7 @@ private fun FollowRow(follow: Follow, fresh: Int, onOpen: () -> Unit, onUnfollow
             }
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(follow.name, style = PoruchType.serifTitle3, color = colors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(follow.name, style = PoruchType.brandTitle3, color = colors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(caption, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
             if (fresh > 0) Box(Modifier.padding(top = Spacing.xs)) {
                 StatusBadge(pluralStringResource(R.plurals.follows_new, fresh, fresh), BadgeTone.Accent)

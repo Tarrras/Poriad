@@ -365,7 +365,7 @@ private fun CoachBubble(
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                 Text(
                     stringResource(tip.title),
-                    style = PoruchType.serifTitle3,
+                    style = PoruchType.brandTitle3,
                     color = colors.ink,
                     modifier = Modifier.semantics { heading() })
                 Text(

@@ -57,7 +57,7 @@ fun EditorScreen(state: EditorState, onIntent: (EditorIntent) -> Unit, onClose: 
         ) {
             // Кожен крок — одне питання великим заголовком, як в онбордингу.
             Column(Modifier.padding(bottom = Spacing.xs), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                Text(stringResource(state.step.headline), style = PoruchType.serifDisplay, color = colors.ink)
+                Text(stringResource(state.step.headline), style = PoruchType.brandDisplay, color = colors.ink)
                 Text(stringResource(state.step.hint), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
             }
             when (state.step) {
@@ -414,7 +414,7 @@ private fun ScheduleStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
             stringResource(categoryLabel(form.category)).uppercase(), style = MaterialTheme.typography.labelSmall,
             color = categoryInk(form.category)
         )
-        Text(form.title.trim().takeIf { it.isNotEmpty() }?.let(TitleRules::display) ?: stringResource(R.string.title), style = PoruchType.serifTitle2, color = colors.ink)
+        Text(form.title.trim().takeIf { it.isNotEmpty() }?.let(TitleRules::display) ?: stringResource(R.string.title), style = PoruchType.brandTitle2, color = colors.ink)
         MetaLine(PoruchIcons.pin, "${form.city} · ${form.address}")
         MetaLine(PoruchIcons.calendar, form.starts.ifBlank { stringResource(R.string.date_help) })
     }
