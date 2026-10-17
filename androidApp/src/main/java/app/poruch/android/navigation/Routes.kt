@@ -20,8 +20,11 @@ sealed interface Tab : NavKey
 @Serializable data class Editor(val editingId: String? = null) : NavKey
 /** Чат події. Лише для організатора й учасників: іншим сервер віддасть порожньо. */
 @Serializable data class Chat(val eventId: String) : NavKey
-/** Вхід і реєстрація. [creating] — гість тапнув «Створити»: реєстрація за замовчуванням, а після входу одразу редактор. */
-@Serializable data class Auth(val creating: Boolean = false) : NavKey
+/** Вхід і реєстрація. [reason] — з якою дією прийшов гість: від неї підзаголовок, а «Створити» відкриває реєстрацію й після входу редактор. */
+@Serializable data class Auth(val reason: AuthReason = AuthReason.GENERAL) : NavKey
+
+/** Навіщо гість опинився на вході: підзаголовок каже, навіщо профіль саме зараз. Двійник `AuthReason` на iOS. */
+@Serializable enum class AuthReason { GENERAL, CREATE, SAVE, JOIN, FOLLOW, COMPANY }
 /** Підписки: заклади й організатори, за якими стежить людина. З профілю й з головної. */
 @Serializable data object Follows : NavKey
 /** Лист відновлення відкрив застосунок: окремий екран для нового пароля, поверх стека. */

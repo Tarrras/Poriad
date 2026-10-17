@@ -1368,15 +1368,17 @@ class PoruchAppTest {
         app.close()
     }
 
-    /** Нове фото стає профілем, і лише тоді зникає старий файл; прибрати фото — теж прибрати файл. */
+    /** Нове фото стає профілем, і лише тоді зникає старий файл; прибрати фото — теж прибрати файл. Невалідне імʼя фото не чіпає. */
     @Test fun replacingTheAvatarRemovesTheOldFileAfterwards()=runTest {
         val app=app(Events(),backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
-        app.setAvatar(byteArrayOf(1),"image/jpeg"); runCurrent()
+        app.saveProfile(" ",null,byteArrayOf(9),"image/jpeg"); runCurrent()
+        assertEquals(0,profiles.uploads)
+        app.saveProfile("Оля",null,byteArrayOf(1),"image/jpeg"); runCurrent()
         assertEquals("https://test.invalid/avatar/1.jpg",app.state.value.library.profile?.avatarUrl)
         assertTrue(profiles.deleted.isEmpty())
-        app.setAvatar(byteArrayOf(2),"image/jpeg"); runCurrent()
+        app.saveProfile("Оля",null,byteArrayOf(2),"image/jpeg"); runCurrent()
         assertEquals(listOf("https://test.invalid/avatar/1.jpg"),profiles.deleted)
-        app.removeAvatar(); runCurrent()
+        app.saveProfile("Оля",null,removePhoto=true); runCurrent()
         assertNull(app.state.value.library.profile?.avatarUrl)
         assertEquals("https://test.invalid/avatar/2.jpg",profiles.deleted.last())
         app.close()

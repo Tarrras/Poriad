@@ -50,8 +50,7 @@ struct HomeView: View, Equatable {
             feed(view).refreshable { await model.reloadAll() }
         }
         .background(Palette.canvas.ignoresSafeArea())
-        // Смуга кольору полотна під статус-баром: прокручена стрічка не лягає під годинник.
-        .safeAreaInset(edge: .top, spacing: 0) { Color.clear.frame(height: 0).background(Palette.canvas.opacity(0.94)) }
+        .statusBarBand()
         .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $citySearch) { CitySearchView().presentationDetents([.medium, .large]) }
         .onChange(of: view.searchKey) { _, _ in resultsLimit = homeResultsLimit }

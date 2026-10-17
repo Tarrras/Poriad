@@ -1,5 +1,6 @@
 package app.poruch.android.platform
 
+import android.provider.Settings
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -74,6 +75,12 @@ fun Context.openLink(url: String): Boolean {
     val uri = runCatching { Uri.parse(url) }.getOrNull() ?: return false
     if (uri.scheme != "https") return false
     return runCatching { startActivity(Intent(Intent.ACTION_VIEW, uri)) }.isSuccess
+}
+
+/** Сповіщення застосунку в системних налаштуваннях: туди веде «Відкрити налаштування», коли дозвіл забрано. */
+fun Context.openNotificationSettings(): Boolean {
+    val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+    return runCatching { startActivity(intent) }.isSuccess
 }
 
 /** Лист у підтримку: адресу підставляємо, тему й текст пише людина. */

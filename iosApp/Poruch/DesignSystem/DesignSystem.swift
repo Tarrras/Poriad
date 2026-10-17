@@ -402,6 +402,11 @@ extension View {
         frame(minWidth: side, minHeight: side).contentShape(Rectangle())
     }
 
+    /// Смуга полотна на 94 % під статус-баром: прокручений вміст кореня вкладки не лягає під годинник і Dynamic Island.
+    func statusBarBand() -> some View {
+        safeAreaInset(edge: .top, spacing: 0) { Color.clear.frame(height: 0).background(Palette.canvas.opacity(0.94)) }
+    }
+
     func cardSurface(radius: CGFloat = Corner.lg, elevation: CGFloat = Elevation.card) -> some View {
         modifier(CardSurface(radius: radius, elevation: elevation))
     }
@@ -461,12 +466,13 @@ private struct StatusBarInsetReader: ViewModifier {
 // ---- Форматування подій
 
 /// Те, що людина може обрати, з підписом. Порядок — як у домені; гліф дає `categoryGlyph`.
+/// Назви — з `Copy`, як `categoryLabel` на Android: інакше платформи розходились («Природа» / «На природі»).
 let categories: [(EventCategory, String)] = [
-    (.music, "Музика"), (.sport, "Спорт"), (.art, "Мистецтво"), (.food, "Їжа"), (.games, "Ігри"), (.outdoors, "Природа"),
-    (.social, "Зустрічі"), (.comedy, "Стендап"), (.kids, "Дітям"), (.tours, "Екскурсії"), (.conference, "Конференції")
+    (.music, Copy.music), (.sport, Copy.sport), (.art, Copy.art), (.food, Copy.food), (.games, Copy.games), (.outdoors, Copy.outdoors),
+    (.social, Copy.social), (.comedy, Copy.comedy), (.kids, Copy.kids), (.tours, Copy.tours), (.conference, Copy.conference)
 ]
 
-func categoryName(_ category: EventCategory) -> String { categories.first { $0.0 == category }?.1 ?? "Інше" }
+func categoryName(_ category: EventCategory) -> String { categories.first { $0.0 == category }?.1 ?? Copy.category_other }
 
 /// Гліф категорії, двійник `categoryIcon` на Android.
 func categoryGlyph(_ category: EventCategory) -> PoruchGlyph {

@@ -1,5 +1,6 @@
 package app.poruch.android.feature.account
 
+import app.poruch.android.navigation.AuthReason
 import app.poruch.android.mvi.MviViewModel
 import app.poruch.android.platform.googleSignInAvailable
 import app.poruch.domain.IdProvider
@@ -8,10 +9,10 @@ import app.poruch.shared.AppMessage
 import app.poruch.shared.AppNotice
 import app.poruch.shared.PoruchApp
 
-/** [creating] — гість тапнув «Створити»: реєстрація за замовчуванням (найімовірніше новачок) і слова про подію. */
-class AuthViewModel(private val app: PoruchApp, creating: Boolean = false) :
+/** [reason] — з чим прийшов гість; «Створити» відкриває реєстрацію (найімовірніше новачок) і слова про подію. */
+class AuthViewModel(private val app: PoruchApp, reason: AuthReason = AuthReason.GENERAL) :
     MviViewModel<AuthState, AuthIntent, AuthEffect>(
-        AuthState(signup = creating, creating = creating, googleAvailable = googleSignInAvailable)
+        AuthState(signup = reason == AuthReason.CREATE, reason = reason, googleAvailable = googleSignInAvailable)
     ) {
     init {
         observe(app) { shared ->

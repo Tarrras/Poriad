@@ -1,5 +1,6 @@
 package app.poruch.android.feature.detail
 
+import app.poruch.android.navigation.AuthReason
 import androidx.lifecycle.viewModelScope
 import app.poruch.android.mvi.MviViewModel
 import app.poruch.android.platform.NotificationPermission
@@ -63,7 +64,7 @@ class DetailViewModel(
             // Квитки на афішу купують у джерела: акаунт не потрібен, тому до перевірки входу.
             DetailIntent.PrimaryAction -> if (screen.action == DetailAction.TICKETS) {
                 event?.listing?.canonicalUrl?.let { send(DetailEffect.OpenLink(it)) }
-            } else authenticated {
+            } else authenticated(AuthReason.JOIN) {
                 when (screen.action) {
                     DetailAction.JOIN, DetailAction.REQUEST -> { app.joinEvent(eventId); offerReminders() }
                     DetailAction.LEAVE -> app.leaveEvent(eventId)
@@ -74,7 +75,7 @@ class DetailViewModel(
             }
 
             DetailIntent.OpenSource -> event?.listing?.canonicalUrl?.let { send(DetailEffect.OpenLink(it)) }
-            DetailIntent.ToggleSaved -> authenticated { app.toggleSaved(eventId) }
+            DetailIntent.ToggleSaved -> authenticated(AuthReason.SAVE) { app.toggleSaved(eventId) }
             DetailIntent.Share -> event?.let { send(DetailEffect.ShareEvent(it)) }
             DetailIntent.AddToCalendar -> event?.let { send(DetailEffect.OpenCalendar(it)) }
             DetailIntent.OpenInMaps -> event?.let { send(DetailEffect.OpenMaps(it)) }
@@ -86,18 +87,18 @@ class DetailViewModel(
                 send(DetailEffect.OpenArtist(intent.artist.id))
             }
             is DetailIntent.OpenShelter -> send(DetailEffect.OpenShelter(intent.shelter))
-            is DetailIntent.SeekCompany -> if (intent.open) authenticated { reduce { copy(seekingCompany = true) } }
+            is DetailIntent.SeekCompany -> if (intent.open) authenticated(AuthReason.COMPANY) { reduce { copy(seekingCompany = true) } }
                 else reduce { copy(seekingCompany = false) }
             is DetailIntent.CreateCompanion -> {
                 reduce { copy(seekingCompany = false) }
                 app.createCompanion(eventId, intent.meetAt, intent.note, intent.capacity)
             }
-            is DetailIntent.JoinCompanion -> authenticated { app.joinEvent(intent.id); offerReminders() }
+            is DetailIntent.JoinCompanion -> authenticated(AuthReason.JOIN) { app.joinEvent(intent.id); offerReminders() }
             DetailIntent.Reopen -> presenter.reopen()
-            DetailIntent.ToggleFollowPlace -> authenticated {
+            DetailIntent.ToggleFollowPlace -> authenticated(AuthReason.FOLLOW) {
                 event?.let { e -> e.placeId?.let { app.setFollowing(FollowKind.PLACE, it, e.placeLabel, !screen.followingPlace) } }
             }
-            is DetailIntent.ToggleFollowPerson -> authenticated {
+            is DetailIntent.ToggleFollowPerson -> authenticated(AuthReason.FOLLOW) {
                 app.setFollowing(FollowKind.ORGANIZER, intent.userId, intent.name, intent.userId !in screen.followedOrganizers)
             }
             DetailIntent.Edit -> send(DetailEffect.Edit(eventId))
@@ -108,7 +109,7 @@ class DetailViewModel(
             }
             is DetailIntent.AttachPhoto -> app.uploadEventImage(eventId, intent.bytes, intent.contentType)
             is DetailIntent.ShowReport -> if (intent.target != null && !screen.signedIn) {
-                send(DetailEffect.RequireSignIn)
+                send(DetailEffect.RequireSignIn())
             } else reduce { copy(reporting = intent.target) }
 
             is DetailIntent.SendReport -> {
@@ -122,7 +123,7 @@ class DetailViewModel(
             }
 
             is DetailIntent.ConfirmBlock -> if (intent.open && !screen.signedIn) {
-                send(DetailEffect.RequireSignIn)
+                send(DetailEffect.RequireSignIn())
             } else reduce { copy(confirmingBlock = intent.open) }
 
             DetailIntent.BlockOrganizer -> {
@@ -162,7 +163,7 @@ class DetailViewModel(
     }
 
     /** Гостя ведемо на вхід, а не на дію, яку сервер відхилить. */
-    private inline fun authenticated(block: () -> Unit) {
-        if (screen.signedIn) block() else send(DetailEffect.RequireSignIn)
+    private inline fun authenticated(reason: AuthReason = AuthReason.GENERAL, block: () -> Unit) {
+        if (screen.signedIn) block() else send(DetailEffect.RequireSignIn(reason))
     }
 }

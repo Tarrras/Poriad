@@ -10,25 +10,32 @@ struct ProfileSummary: View {
             Avatar(name: profile.name, url: profile.avatarUrl, size: 88)
             Text(profile.name).font(PoruchFont.brandTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
                 .multilineTextAlignment(.center)
+            // Пошта — один рядок з обрізанням посередині: великий шрифт інакше ламав адресу по літері.
             if let email = profile.email {
-                Text(email).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
+                Text(email).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary).lineLimit(1).truncationMode(.middle)
             }
             if let since = memberSince(profile.memberSince) {
                 Text(Copy.profile_member_since("\(since)")).font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
             }
-            HStack(spacing: Space.sm) {
-                stat(Int(profile.organized), Copy.profile_organized)
-                stat(Int(profile.attended), Copy.profile_attended)
-            }.padding(.top, Space.xs)
+            // Лише ненульові: «0 / 0» під іменем новачка нічого не каже. Плитки однакової висоти, навіть коли підпис переноситься.
+            let stats = [(Int(profile.organized), Copy.profile_organized), (Int(profile.attended), Copy.profile_attended)]
+                .filter { $0.0 > 0 }
+            if !stats.isEmpty {
+                HStack(spacing: Space.sm) {
+                    ForEach(Array(stats.enumerated()), id: \.offset) { _, item in stat(item.0, item.1(item.0)) }
+                }
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, Space.xs)
+            }
         }.frame(maxWidth: .infinity)
     }
 
     private func stat(_ value: Int, _ label: String) -> some View {
         VStack(spacing: 2) {
             Text("\(value)").font(PoruchFont.title2).foregroundStyle(Palette.ink)
-            Text(label).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
+            Text(label).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).multilineTextAlignment(.center)
         }
-        .frame(maxWidth: .infinity).padding(Space.md).cardSurface()
+        .padding(Space.md).frame(maxWidth: .infinity, maxHeight: .infinity).cardSurface()
         .accessibilityElement(children: .combine)
     }
 }
@@ -107,8 +114,8 @@ struct PersonSheet: View {
                     }
                     if !person.loading && !isMe {
                         HStack(spacing: Space.xl) {
-                            Button(Copy.chat_report) { reporting = true }.foregroundStyle(Palette.inkSecondary)
-                            Button(Copy.block_confirm) { blocking = true }.foregroundStyle(Palette.danger)
+                            Button { reporting = true } label: { Text(Copy.chat_report).tapTarget() }.foregroundStyle(Palette.inkSecondary)
+                            Button { blocking = true } label: { Text(Copy.block_confirm).tapTarget() }.foregroundStyle(Palette.danger)
                         }.font(PoruchFont.button).frame(maxWidth: .infinity).padding(.top, Space.sm)
                     }
                 }
@@ -150,7 +157,8 @@ extension View {
     }
 }
 
-/// Редагування профілю: фото, імʼя, «Про себе». Фото йде одразу після вибору, текст — кнопкою.
+/// Редагування профілю: фото, імʼя, «Про себе» — все зберігається разом кнопкою. Нове фото й «Видалити фото»
+/// до «Зберегти» лише позначені, тож «Скасувати» справді нічого не міняє.
 struct EditProfileSheet: View {
     @EnvironmentObject var model: AppModel
     @Environment(\.dismiss) private var dismiss
@@ -160,6 +168,10 @@ struct EditProfileSheet: View {
     @State private var photo: PhotosPickerItem?
     @State private var photoError: String?
     @State private var reading = false
+    /// Обране, але ще не збережене фото: байти для сервера й зменшене для показу.
+    @State private var newPhoto: KotlinByteArray?
+    @State private var preview: UIImage?
+    @State private var removingPhoto = false
 
     init(profile: Profile) {
         self.profile = profile
@@ -168,8 +180,8 @@ struct EditProfileSheet: View {
     }
 
     private var mutating: Bool { model.state?.mutating == true }
-    /// Фото зі стану: після завантаження показуємо нове, не чекаючи закриття.
-    private var avatarUrl: String? { model.state?.library.profile?.avatarUrl ?? nil }
+    private var savedPhoto: String? { model.state?.library.profile?.avatarUrl ?? nil }
+    private var hasPhoto: Bool { preview != nil || (savedPhoto != nil && !removingPhoto) }
 
     var body: some View {
         ScrollView {
@@ -177,21 +189,33 @@ struct EditProfileSheet: View {
                 Text(Copy.profile_edit).font(PoruchFont.brandTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
                 HStack(spacing: Space.lg) {
                     ZStack {
-                        Avatar(name: name, url: avatarUrl, size: 72)
+                        if let preview {
+                            Image(uiImage: preview).resizable().scaledToFill().frame(width: 72, height: 72).clipShape(Circle())
+                        } else {
+                            Avatar(name: name, url: removingPhoto ? nil : savedPhoto, size: 72)
+                        }
                         if reading || mutating { ProgressView() }
                     }
-                    VStack(alignment: .leading, spacing: Space.sm) {
+                    VStack(alignment: .leading, spacing: 0) {
                         PhotosPicker(selection: $photo, matching: .images) {
-                            Text(avatarUrl == nil ? Copy.profile_photo_add : Copy.profile_photo_change).font(PoruchFont.button).foregroundStyle(Palette.ink)
+                            Text(hasPhoto ? Copy.profile_photo_change : Copy.profile_photo_add).font(PoruchFont.button).foregroundStyle(Palette.ink)
+                                .tapTarget()
                         }.disabled(mutating || reading)
-                        if avatarUrl != nil {
-                            Button(Copy.profile_photo_remove) { model.app.removeAvatar() }
-                                .font(PoruchFont.button).foregroundStyle(Palette.danger).disabled(mutating)
+                        if removingPhoto {
+                            Button { removingPhoto = false } label: {
+                                Text(Copy.undo).font(PoruchFont.button).foregroundStyle(Palette.ink).tapTarget()
+                            }.buttonStyle(.plain).disabled(mutating)
+                        } else if hasPhoto {
+                            Button {
+                                if preview != nil { newPhoto = nil; preview = nil; photo = nil } else { removingPhoto = true }
+                            } label: {
+                                Text(Copy.profile_photo_remove).font(PoruchFont.button).foregroundStyle(Palette.danger).tapTarget()
+                            }.buttonStyle(.plain).disabled(mutating)
                         }
                     }
                 }
                 if let photoError { Text(photoError).font(PoruchFont.caption).foregroundStyle(Palette.danger) }
-                Text(Copy.profile_photo_hint)
+                Text(removingPhoto ? Copy.remove_photo_undo : Copy.profile_photo_hint)
                     .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
                 LabelledField(label: Copy.profile_name, text: $name)
                     .textContentType(.name)
@@ -205,8 +229,11 @@ struct EditProfileSheet: View {
                         if value.count > limit { bio = String(value.prefix(limit)) }
                     }
                 PrimaryButton(title: Copy.profile_save, loading: mutating,
-                              enabled: AccountRules.shared.isName(value: name) && !mutating) {
-                    model.app.saveProfile(name: name, bio: bio)
+                              enabled: AccountRules.shared.isName(value: name) && !mutating && !reading) {
+                    model.app.saveProfile(
+                        name: name, bio: bio, photo: newPhoto, photoType: newPhoto == nil ? nil : "image/jpeg",
+                        removePhoto: removingPhoto
+                    )
                 }
                 SecondaryButton(title: Copy.delete_account_cancel, enabled: !mutating) { dismiss() }
             }
@@ -219,7 +246,11 @@ struct EditProfileSheet: View {
             guard let photo else { return }
             reading = true
             switch await pickedJPEG(photo, maxPixel: CGFloat(ProfileRules.shared.AVATAR_SIDE)) {
-            case .success(let bytes): photoError = nil; model.app.setAvatar(bytes: bytes, contentType: "image/jpeg")
+            case .success(let bytes):
+                photoError = nil
+                newPhoto = bytes
+                removingPhoto = false
+                if let data = try? await photo.loadTransferable(type: Data.self) { preview = ThumbnailCache.downsample(data, to: 216) }
             case .failure(let problem): photoError = problem.message
             }
             reading = false

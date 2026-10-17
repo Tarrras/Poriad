@@ -47,7 +47,7 @@ class Navigator(private val app: PoruchApp) {
 
     /** «Створити»: гість замість редактора бачить реєстрацію, після якої редактор відкриється сам. */
     fun createEvent() {
-        if (app.state.value.signedIn) open(Editor()) else open(Auth(creating = true))
+        if (app.state.value.signedIn) open(Editor()) else open(Auth(AuthReason.CREATE))
     }
 
     private fun describe() = stack.joinToString { it.label() }

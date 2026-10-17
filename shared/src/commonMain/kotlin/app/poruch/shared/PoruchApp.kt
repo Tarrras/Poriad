@@ -437,12 +437,12 @@ class PoruchApp internal constructor(
 
     // ---- Профіль
 
-    /** Імʼя й «Про себе». Перевіряє стоп-словник сервера: відмова — [AppError.ObjectionableContent]. */
-    fun saveProfile(name: String, bio: String?) = profileUseCases.save(name, bio)
-
-    /** Нове фото профілю: JPEG/PNG/WebP до 5 MiB, платформа вже перекодувала його без EXIF. */
-    fun setAvatar(bytes: ByteArray, contentType: String) = profileUseCases.setAvatar(bytes, contentType)
-    fun removeAvatar() = profileUseCases.removeAvatar()
+    /**
+     * Імʼя, «Про себе» й фото разом. Перевіряє стоп-словник сервера: відмова — [AppError.ObjectionableContent].
+     * [photo] — нове фото (JPEG/PNG/WebP до 5 MiB, платформа вже перекодувала його без EXIF); [removePhoto] — прибрати наявне.
+     */
+    fun saveProfile(name: String, bio: String?, photo: ByteArray? = null, photoType: String? = null, removePhoto: Boolean = false) =
+        profileUseCases.save(name, bio, photo, photoType, removePhoto)
 
     /** Картка людини в [AppState.person]. Видимість вирішує сервер. */
     fun openPerson(userId: String) = profileUseCases.open(userId)

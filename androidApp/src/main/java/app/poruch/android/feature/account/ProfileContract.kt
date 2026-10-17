@@ -65,12 +65,13 @@ data class ProfileState(
 sealed interface ProfileIntent {
     data object SignIn : ProfileIntent
     data class ShowEdit(val show: Boolean) : ProfileIntent
-    data class SaveProfile(val name: String, val bio: String) : ProfileIntent
-    class PickAvatar(val bytes: ByteArray, val contentType: String) : ProfileIntent
-    data object RemoveAvatar : ProfileIntent
+    /** Імʼя, «Про себе» й фото однією дією: до «Зберегти» нове фото чи його видалення лише позначені в шторці. */
+    class SaveProfile(val name: String, val bio: String, val photo: ByteArray?, val photoType: String?, val removePhoto: Boolean) : ProfileIntent
     data object SignOut : ProfileIntent
     data class ToggleInterest(val category: EventCategory) : ProfileIntent
     data object TuneRecommendations : ProfileIntent
+    /** Ні організованих, ні відвіданих: «Організувати подію» замість двох нулів. */
+    data object CreateEvent : ProfileIntent
     data class ShowBirthDatePicker(val show: Boolean) : ProfileIntent
     data class SetBirthDate(val value: LocalDate) : ProfileIntent
     data class Unblock(val userId: String) : ProfileIntent
@@ -84,6 +85,8 @@ sealed interface ProfileIntent {
     data object OpenFollows : ProfileIntent
     /** Відповідь системи на запит дозволу, який маршрут показав за [ProfileEffect.AskNotificationPermission]. */
     data class NotificationPermissionAnswered(val granted: Boolean) : ProfileIntent
+    /** Сповіщення заборонено: ведемо в системні налаштування застосунку. */
+    data object OpenNotificationSettings : ProfileIntent
     data object OpenPrivacy : ProfileIntent
     data object OpenTerms : ProfileIntent
     data object ContactSupport : ProfileIntent
@@ -100,7 +103,9 @@ sealed interface ProfileIntent {
 sealed interface ProfileEffect {
     data object SignIn : ProfileEffect
     data object AskNotificationPermission : ProfileEffect
+    data object OpenNotificationSettings : ProfileEffect
     data object OpenFollows : ProfileEffect
+    data object CreateEvent : ProfileEffect
     data class OpenLink(val url: String) : ProfileEffect
     data class WriteEmail(val address: String) : ProfileEffect
     data object ShareApp : ProfileEffect

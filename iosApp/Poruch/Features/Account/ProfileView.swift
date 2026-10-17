@@ -1,11 +1,14 @@
 import SwiftUI
 import Shared
 
-/// Екран акаунта: хто ви, що вам цікаво, як з вами зв'язатися.
+/// Екран профілю: хто ви, що вам цікаво, що й коли вам писати. Порядок — від людини до пристрою:
+/// шапка, підписки, інтереси, сповіщення, приватність, про застосунок; вихід і видалення — в самому низу.
 struct ProfileView: View {
     @EnvironmentObject var model: AppModel
     /// Список підписок — окремий екран у стосі вкладки (`RootView.profilePath`).
     var openFollows: () -> Void
+    /// Редактор нової події — той самий шлях, що й «+» біля таббару.
+    var createEvent: () -> Void
     @State private var newPassword = ""
     @State private var revealed = false
     @State private var showAuth = false
@@ -13,12 +16,13 @@ struct ProfileView: View {
     @State private var changingPassword = false
     @State private var editingProfile = false
     @State private var sharingApp: ShareText?
-    @State private var birthDate = Calendar.current.date(byAdding: .year, value: -Int(SafetyRules.shared.MIN_SIGNUP_AGE), to: Date()) ?? Date()
+    @State private var birthDate: Date?
     private let latestBirthDate = Calendar.current.date(byAdding: .year, value: -Int(SafetyRules.shared.MIN_SIGNUP_AGE), to: Date()) ?? Date()
     private let earliestBirthDate = Calendar.current.date(byAdding: .year, value: -100, to: Date()) ?? Date.distantPast
 
     private var signedIn: Bool { model.state?.signedIn == true }
     private var recovering: Bool { model.state?.session.passwordRecovery == true }
+    private var blocked: [Attendee] { model.state?.library.blocked ?? [] }
 
     var body: some View {
         // Як у HomeView: стрічка під смугу статусу, хедер додає відступ.
@@ -29,19 +33,29 @@ struct ProfileView: View {
                     if recovering { recovery }
                     if !signedIn && !recovering { signInPrompt }
                     if model.state?.needsAgeDeclaration == true { ageDeclaration }
+                    // Ні організованих, ні відвіданих: замість двох нулів у шапці — перша дія.
+                    if signedIn, let profile = model.state?.library.profile, profile.organized == 0, profile.attended == 0 {
+                        CreateEventCard(title: Copy.home_create_title, subtitle: Copy.home_create_subtitle, action: createEvent)
+                    }
                     if signedIn && !(model.state?.library.follows ?? []).isEmpty { follows }
                     taste
-                    if signedIn { account }
-                    if !(model.state?.library.blocked ?? []).isEmpty { blocked }
+                    notifications
+                    privacy
                     about
+                    if signedIn { exit }
+                    Text(Copy.app_version("\(appVersion)"))
+                        .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
+                        .frame(maxWidth: .infinity)
                 }.padding(.horizontal, Space.page)
             }.padding(.bottom, Space.section)
         }
         .background(Palette.canvas)
+        .statusBarBand()
         .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $showAuth) { NavigationStack { AuthView() } }
-        .sheet(isPresented: $deleting) { DeleteAccountSheet().presentationDetents([.medium, .large]) }
-        .sheet(isPresented: $changingPassword) { ChangePasswordSheet().presentationDetents([.medium, .large]) }
+        // На всю висоту: на `.medium` «Скасувати» лежало під згином, а з клавіатурою пароля ховалась і головна дія.
+        .sheet(isPresented: $deleting) { DeleteAccountSheet().presentationDetents([.large]) }
+        .sheet(isPresented: $changingPassword) { ChangePasswordSheet().presentationDetents([.large]) }
         .sheet(item: $sharingApp) { share in ActivitySheet(items: [share.text]).presentationDetents([.medium, .large]) }
         .sheet(isPresented: $editingProfile) {
             if let profile = model.state?.library.profile { EditProfileSheet(profile: profile).presentationDetents([.large]) }
@@ -77,6 +91,7 @@ struct ProfileView: View {
             PoruchIcon(glyph: PoruchIcons.person, size: 36).foregroundStyle(Palette.onBrandContainer)
                 .frame(width: 88, height: 88).background(Palette.brandContainer, in: Circle())
             Text(signedIn ? Copy.account_title : Copy.guest_title).font(PoruchFont.brandTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
+                .multilineTextAlignment(.center)
             Text(signedIn
                  ? Copy.profile_events_hint
                  : Copy.guest_description)
@@ -112,25 +127,11 @@ struct ProfileView: View {
             Text(Copy.confirm_age_body)
                 .font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
             BirthDateField(date: $birthDate, range: earliestBirthDate...latestBirthDate)
-            PrimaryButton(title: Copy.confirm_age_action) { model.app.declareBirthDate(birthDate: isoDay(birthDate)) }
-        }
-        .padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()
-    }
-
-    /// Блок, який не можна скасувати, не використовуватимуть: список з іменами.
-    private var blocked: some View {
-        VStack(alignment: .leading, spacing: Space.md) {
-            SectionHeader(title: Copy.blocked_section)
-            ForEach(model.state?.library.blocked ?? [], id: \.userId) { person in
-                HStack(spacing: Space.md) {
-                    Text(person.name.isEmpty ? Copy.chat_member : person.name)
-                        .font(PoruchFont.cardName).foregroundStyle(Palette.ink)
-                    Spacer(minLength: 0)
-                    Button(Copy.unblock) { model.app.unblockUser(userId: person.userId) }
-                        .font(PoruchFont.button).foregroundStyle(Palette.ink)
-                }.padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()
+            PrimaryButton(title: Copy.confirm_age_action, enabled: birthDate != nil) {
+                if let birthDate { model.app.declareBirthDate(birthDate: isoDay(birthDate)) }
             }
         }
+        .padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()
     }
 
     /// Список підписок — окремий екран: тут лише рядок, що каже, що вони є й де. Порожнім його не показуємо.
@@ -145,51 +146,62 @@ struct ProfileView: View {
         }
     }
 
-    /// Відповіді онбордингу належать пристрою, тож секція є і в гостя.
+    /// Відповіді онбордингу належать пристрою, тож секція є і в гостя. Опитування — дія заголовка, а не ще одна картка під чипами.
     private var taste: some View {
         VStack(alignment: .leading, spacing: Space.md) {
-            SectionHeader(title: Copy.interests)
+            SectionHeader(title: Copy.interests, actionLabel: Copy.retake_quiz) { model.app.restartOnboarding() }
             FlexibleChips(
                 items: categories.map { ($0.0.key, $0.1, $0.0) },
                 isSelected: { key in model.state?.interests.contains { $0.key == key } == true }
             ) { model.app.toggleInterest(category: EventCategory.companion.fromKey(key: $0)) }
-            GroupedRows {
-                LinkRow(glyph: PoruchIcons.sparkle, title: Copy.tune_recommendations, subtitle: Copy.tune_recommendations_hint) {
-                    model.app.restartOnboarding()
-                }
-            }
-            // Дайджест про місто, а не про акаунт: гість його теж отримує.
-            GroupedRows { DigestPreference() }
         }
     }
 
-    private var account: some View {
-        VStack(alignment: .leading, spacing: Space.xxl) {
-            VStack(alignment: .leading, spacing: Space.md) {
-                SectionHeader(title: Copy.settings)
-                GroupedRows {
+    /// Усе, що приходить пушем, в одному місці. Дайджест про місто, а не про акаунт: гість його теж отримує.
+    private var notifications: some View {
+        VStack(alignment: .leading, spacing: Space.md) {
+            SectionHeader(title: Copy.notifications_section)
+            GroupedRows {
+                DigestPreference()
+                if signedIn {
+                    Divider().overlay(Palette.hairline).padding(.leading, Space.lg)
                     ReminderPreference()
-                    // Акаунт Google/Apple пароля не має — і міняти нічого.
-                    if model.state?.session.passwordless != true {
-                        Divider().overlay(Palette.hairline).padding(.leading, Space.lg)
-                        LinkRow(glyph: PoruchIcons.lock, title: Copy.update_password) { changingPassword = true }
+                }
+            }
+        }
+    }
+
+    /// Згода належить пристрою, тож аналітика є і в гостя; пароль і заблоковані — лише з акаунтом.
+    private var privacy: some View {
+        VStack(alignment: .leading, spacing: Space.md) {
+            SectionHeader(title: Copy.privacy_section)
+            GroupedRows {
+                AnalyticsPreference()
+                // Акаунт Google/Apple пароля не має — і міняти нічого.
+                if signedIn && model.state?.session.passwordless != true {
+                    Divider().overlay(Palette.hairline).padding(.leading, Space.lg)
+                    LinkRow(glyph: PoruchIcons.lock, title: Copy.update_password) { changingPassword = true }
+                }
+            }
+            // Блок, який не можна скасувати, не використовуватимуть: список з іменами.
+            if !blocked.isEmpty {
+                Text(Copy.blocked_section).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary).padding(.top, Space.sm)
+                GroupedRows {
+                    ForEach(Array(blocked.enumerated()), id: \.element.userId) { position, person in
+                        if position > 0 { Divider().overlay(Palette.hairline).padding(.leading, Space.lg) }
+                        HStack(spacing: Space.md) {
+                            Text(person.name.isEmpty ? Copy.chat_member : person.name)
+                                .font(PoruchFont.cardName).foregroundStyle(Palette.ink)
+                            Spacer(minLength: 0)
+                            Button { model.app.unblockUser(userId: person.userId) } label: {
+                                Text(Copy.unblock).font(PoruchFont.button).foregroundStyle(Palette.ink).tapTarget()
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .padding(.horizontal, Space.lg).padding(.vertical, Space.sm)
                     }
                 }
             }
-            SecondaryButton(title: Copy.logout, glyph: PoruchIcons.signOut, tone: Palette.danger) {
-                model.app.signOut()
-            }
-            // Видалення — окрема, важча дія: без заливки, лише червоний текст, і завжди через пароль.
-            Button { deleting = true } label: {
-                HStack(spacing: Space.sm) {
-                    PoruchIcon(glyph: PoruchIcons.trash, size: 18)
-                    Text(Copy.delete_account).font(PoruchFont.button).lineLimit(1)
-                }
-                .foregroundStyle(Palette.danger)
-                .padding(.horizontal, Space.xxl).frame(height: 52).frame(maxWidth: .infinity)
-                .overlay(Capsule().strokeBorder(Palette.danger.opacity(0.35), lineWidth: 1))
-            }
-            .buttonStyle(PressableStyle())
         }
     }
 
@@ -198,8 +210,6 @@ struct ProfileView: View {
             SectionHeader(title: Copy.about_app)
             Text(Copy.about_app_body)
                 .font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
-            // Згода належить пристрою, як і нагадування: перемикач є і в гостя.
-            GroupedRows { AnalyticsPreference() }
             GroupedRows {
                 LinkRow(glyph: PoruchIcons.hand, title: Copy.privacy_policy) { open(LegalLinks.shared.PRIVACY) }
                 Divider().overlay(Palette.hairline).padding(.leading, Space.lg + 40 + Space.md)
@@ -220,9 +230,21 @@ struct ProfileView: View {
                     open(StoreLinks.shared.APP_STORE_REVIEW)
                 }
             }
-            Text(Copy.app_version("\(appVersion)"))
-                .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
         }
+    }
+
+    /// Вихід — звичайна дія, не небезпечна: нейтральна кнопка. Видалення тихіше й червоне, сюди не тягнуться
+    /// випадково, а знаходять навмисно; підтвердження — паролем чи Apple у шторці.
+    private var exit: some View {
+        VStack(spacing: Space.sm) {
+            SecondaryButton(title: Copy.logout, glyph: PoruchIcons.signOut) { model.app.signOut() }
+            Button { deleting = true } label: {
+                Text(Copy.delete_account).font(PoruchFont.button).foregroundStyle(Palette.danger)
+                    .multilineTextAlignment(.center).padding(.horizontal, Space.lg).tapTarget()
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.top, Space.lg)
     }
 
     private func open(_ url: String) { if let url = URL(string: url) { UIApplication.shared.open(url) } }
@@ -376,9 +398,12 @@ struct ReminderPreference: View {
                 Text(Copy.reminders).font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
             }
             .tint(Palette.brand)
-            Text(denied ? Copy.notifications_denied_ios : Copy.reminders_note)
-                .font(PoruchFont.caption).foregroundStyle(denied ? Palette.danger : Palette.inkTertiary)
-        }.padding(Space.lg)
+            if denied { NotificationsDenied() } else {
+                Text(Copy.reminders_note).font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
+            }
+        }
+        .padding(Space.lg)
+        .notificationsDenied($denied)
     }
 }
 
@@ -410,14 +435,40 @@ struct DigestPreference: View {
                 Text(Copy.digest).font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
             }
             .tint(Palette.brand)
-            Text(denied ? Copy.notifications_denied_ios : Copy.digest_note)
-                .font(PoruchFont.caption).foregroundStyle(denied ? Palette.danger : Palette.inkTertiary)
+            if denied { NotificationsDenied() } else {
+                Text(Copy.digest_note).font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
+            }
         }
         .padding(Space.lg)
-        .task {
-            let status = await NotificationPermission.status()
-            allowed = status == .authorized || status == .provisional
+        .notificationsDenied($denied, allowed: $allowed)
+    }
+}
+
+/// Сповіщення заборонено в системі: каже це одразу, без дотику до перемикача, і веде туди, де дозволяють.
+private struct NotificationsDenied: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: Space.xs) {
+            Text(Copy.notifications_denied_ios).font(PoruchFont.caption).foregroundStyle(Palette.danger)
+            Button {
+                if let url = URL(string: UIApplication.openNotificationSettingsURLString) { UIApplication.shared.open(url) }
+            } label: {
+                Text(Copy.open_settings).font(PoruchFont.button).foregroundStyle(Palette.ink).tapTarget()
+            }
+            .buttonStyle(.plain)
         }
+    }
+}
+
+private extension View {
+    /// Стан дозволу системи: при появі й після повернення з Налаштувань, де його могли змінити.
+    func notificationsDenied(_ denied: Binding<Bool>, allowed: Binding<Bool>? = nil) -> some View {
+        func refresh() async {
+            let status = await NotificationPermission.status()
+            denied.wrappedValue = status == .denied
+            allowed?.wrappedValue = status == .authorized || status == .provisional
+        }
+        return task { await refresh() }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in Task { await refresh() } }
     }
 }
 

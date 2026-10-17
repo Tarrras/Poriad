@@ -43,6 +43,12 @@
 	<string>$(GOOGLE_IOS_CLIENT_ID)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>message</string>
+		<string>googlegmail</string>
+		<string>ms-outlook</string>
+	</array>
 	<key>MAP_GLYPHS_URL</key>
 	<string>$(MAP_GLYPHS_URL)</string>
 	<key>MAP_TILES_URL</key>

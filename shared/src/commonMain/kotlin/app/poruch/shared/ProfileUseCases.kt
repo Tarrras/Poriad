@@ -21,30 +21,27 @@ internal class ProfileUseCases(
         if (!store.value.signedIn) fail(AppError.SessionRequired)
     }
 
-    fun save(name: String, bio: String?) = store.mutate {
+    /**
+     * Імʼя, «Про себе» й фото однією дією: «Скасувати» в шторці нічого не лишає напівзбереженим.
+     * Текст іде першим — стоп-словник сервера може відмовити, і тоді фото не міняється. Нове фото
+     * спершу стає профілем, потім зникає старий файл, інакше збій лишив би профіль без фото.
+     */
+    fun save(name: String, bio: String?, photo: ByteArray?, photoType: String?, removePhoto: Boolean) = store.mutate {
         val repository = repository()
         if (!AccountRules.isName(name)) fail(AppError.InvalidName)
         repository.update(name, bio)
         own { copy(name = name.trim(), bio = ProfileRules.normalizeBio(bio)) }
-        store.tell(AppMessage.CHANGES_SAVED)
-    }
-
-    /** Нове фото: спершу стає профілем, потім зникає старий файл, інакше збій лишив би профіль без фото. */
-    fun setAvatar(bytes: ByteArray, contentType: String) = store.mutate {
-        val repository = repository()
         val previous = store.value.library.profile?.avatarUrl
-        val url = repository.setAvatar(bytes, contentType)
-        own { copy(avatarUrl = url) }
-        previous?.let { forget(repository, it) }
-        store.tell(AppMessage.PHOTO_ADDED)
-    }
-
-    fun removeAvatar() = store.mutate {
-        val repository = repository()
-        val previous = store.value.library.profile?.avatarUrl ?: return@mutate
-        repository.removeAvatar()
-        own { copy(avatarUrl = null) }
-        forget(repository, previous)
+        if (photo != null) {
+            val url = repository.setAvatar(photo, photoType ?: "image/jpeg")
+            own { copy(avatarUrl = url) }
+            previous?.let { forget(repository, it) }
+        } else if (removePhoto && previous != null) {
+            repository.removeAvatar()
+            own { copy(avatarUrl = null) }
+            forget(repository, previous)
+        }
+        store.tell(AppMessage.CHANGES_SAVED)
     }
 
     /** Картка людини. Запізніла відповідь для іншої людини відкидається; невидима людина — порожня картка. */

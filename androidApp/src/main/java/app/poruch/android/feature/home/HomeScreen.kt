@@ -100,8 +100,7 @@ fun HomeScreen(state: HomeState, onIntent: (HomeIntent) -> Unit) {
                 if (state.screen.feed.isNotEmpty()) item(key = "next") { MoreRows(state, onIntent) }
             }
         }
-        // Смуга під годинником кольору полотна: стрічка під нею не налазить на час і значки.
-        Box(Modifier.fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars).background(colors.canvas.copy(alpha = 0.94f)))
+        StatusBarBand()
     }
     if (state.citySheet) CitySearchSheet(
         state.screen.cityName, state.screen.cities, { onIntent(HomeIntent.SearchCity(it)) },

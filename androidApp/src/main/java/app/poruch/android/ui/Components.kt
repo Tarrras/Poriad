@@ -238,6 +238,11 @@ fun tabBarClearancePadding(top: Dp = 0.dp): PaddingValues =
             .calculateBottomPadding() + 56.dp + Spacing.md + Spacing.lg
     )
 
+/** Смуга полотна на 94 % під статус-баром: прокручений вміст кореня вкладки не лягає під годинник. Ставити останньою в `Box`. */
+@Composable
+fun StatusBarBand() =
+    Box(Modifier.fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars).background(Poruch.colors.canvas.copy(alpha = 0.94f)))
+
 @Composable
 fun HairLine(modifier: Modifier = Modifier) =
     Box(
@@ -505,18 +510,16 @@ fun SegmentedPill(
             Box(
                 Modifier
                     .weight(1f)
-                    .height(40.dp)
+                    .heightIn(min = 40.dp)
                     .clip(Radius.pill)
                     .background(if (active) colors.surface else Color.Transparent, Radius.pill)
-                    .selectable(active, role = Role.Tab) { if (!active) onSelect(index) },
+                    .selectable(active, role = Role.Tab) { if (!active) onSelect(index) }
+                    .padding(horizontal = Spacing.sm, vertical = Spacing.xs),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    title,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = if (active) colors.ink else colors.inkSecondary,
-                    maxLines = 1
-                )
+                // Великий шрифт стискає напис до 70 %, а не обрізає «Реєстрац…».
+                val style = MaterialTheme.typography.labelLarge.copy(color = if (active) colors.ink else colors.inkSecondary)
+                BasicText(title, style = style, maxLines = 1, autoSize = TextAutoSize.StepBased(style.fontSize * 0.7f, style.fontSize))
             }
         }
     }
@@ -710,10 +713,13 @@ fun GhostButton(
         text,
         style = MaterialTheme.typography.labelLarge,
         color = if (enabled) tone ?: colors.ink else colors.inkTertiary,
+        // Ціль 48 dp при тексті на рядок: вирівнюємо по центру, а не добираємо полями.
         modifier = modifier
             .clip(Radius.pill)
             .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = Spacing.lg, vertical = Spacing.md)
+            .heightIn(min = 48.dp)
+            .padding(horizontal = Spacing.lg, vertical = Spacing.xs)
+            .wrapContentHeight(Alignment.CenterVertically)
     )
 }
 
@@ -2150,8 +2156,9 @@ fun LinkRow(
                 style = MaterialTheme.typography.bodySmall,
                 color = colors.inkSecondary
             )
+            // Під підписом, як у списку підписок: праворуч поруч із числом він стискав підпис у три рядки.
+            if (badge != null) Box(Modifier.padding(top = Spacing.xs)) { StatusBadge(badge, BadgeTone.Accent) }
         }
-        if (badge != null) StatusBadge(badge, BadgeTone.Accent)
         if (value != null) Text(
             value,
             style = MaterialTheme.typography.titleLarge,

@@ -1,5 +1,7 @@
 package app.poruch.android.ui
 
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -26,13 +28,20 @@ fun ProfileSummary(profile: Profile, modifier: Modifier = Modifier, avatarSize: 
     Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         Avatar(profile.name, profile.avatarUrl, avatarSize)
         Text(profile.name, style = PoruchType.brandTitle1, color = colors.ink, textAlign = TextAlign.Center)
-        profile.email?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary) }
+        // Пошта — один рядок з обрізанням посередині: великий шрифт інакше ламав адресу по літері.
+        profile.email?.let {
+            Text(it, style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary, maxLines = 1, overflow = TextOverflow.MiddleEllipsis)
+        }
         memberSince(profile.memberSince)?.let {
             Text(stringResource(R.string.profile_member_since, it), style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary)
         }
-        Row(Modifier.padding(top = Spacing.xs), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-            Stat(profile.organized, stringResource(R.string.profile_organized), Modifier.weight(1f))
-            Stat(profile.attended, stringResource(R.string.profile_attended), Modifier.weight(1f))
+        // Лише ненульові: «0 / 0» під іменем новачка нічого не каже. Плитки однакової висоти, навіть коли підпис переноситься.
+        val stats = listOf(profile.organized to R.plurals.profile_organized, profile.attended to R.plurals.profile_attended)
+            .filter { it.first > 0 }
+        if (stats.isNotEmpty()) Row(
+            Modifier.padding(top = Spacing.xs).height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
+        ) {
+            stats.forEach { (value, label) -> Stat(value, pluralStringResource(label, value), Modifier.weight(1f)) }
         }
     }
 }
@@ -40,9 +49,9 @@ fun ProfileSummary(profile: Profile, modifier: Modifier = Modifier, avatarSize: 
 @Composable
 private fun Stat(value: Int, label: String, modifier: Modifier) {
     val colors = Poruch.colors
-    Column(modifier.cardSurface().padding(Spacing.md), horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(modifier.fillMaxHeight().cardSurface().padding(Spacing.md), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(value.toString(), style = MaterialTheme.typography.titleLarge, color = colors.ink)
-        Text(label, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
+        Text(label, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary, textAlign = TextAlign.Center)
     }
 }
 

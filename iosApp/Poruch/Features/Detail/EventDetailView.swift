@@ -19,7 +19,8 @@ struct EventDetailView: View, Equatable {
     /// Стан екрана зі спільного `DetailPresenter`.
     @StateObject var screen: DetailScreenModel
     @State var editing = false
-    @State var auth = false
+    /// Шит входу з причиною: підзаголовок каже, навіщо профіль саме зараз.
+    @State var auth: AuthReason?
     @State var cancelling = false
     @State var reporting: ReportTarget?
     @State var blocking = false
@@ -81,7 +82,7 @@ struct EventDetailView: View, Equatable {
         // У деталей власна нижня панель, таббар стояв би на ній.
         .hidesTabBar()
         .toolbar(.hidden, for: .navigationBar)
-        .sheet(isPresented: $auth) { NavigationStack { AuthView() } }
+        .sheet(item: $auth) { reason in NavigationStack { AuthView(reason: reason) } }
         .personSheet(model, isPresented: $showingPerson, request: { userId in
             guard let event = view.event, view.organizer, view.requests.contains(where: { $0.userId == userId }) else { return nil }
             return PersonRequest(

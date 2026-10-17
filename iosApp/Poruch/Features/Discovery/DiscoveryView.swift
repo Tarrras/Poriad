@@ -225,7 +225,8 @@ struct DiscoveryView: View, Equatable {
         .onChange(of: view.indexVersion) { _, _ in loadHead(cardPage) }
         .sheet(isPresented: $citySearch) { CitySearchView().presentationDetents([.medium, .large]) }
         .sheet(isPresented: $filters) { FiltersView().presentationDetents([.medium, .large]) }
-        .sheet(isPresented: $auth) { NavigationStack { AuthView() } }
+        // Вхід тут питають лише за «Стежити» на стосі закладу.
+        .sheet(isPresented: $auth) { NavigationStack { AuthView(reason: .follow) } }
         .sheet(item: $detail) { route in
             NavigationStack {
                 EventDetailView(app: model.app, eventID: route.id).equatable()

@@ -3,9 +3,14 @@ import SwiftUI
 import Shared
 
 /// Навіщо гість опинився на екрані входу. Від цього залежать вкладка за замовчуванням і слова під заголовком.
-enum AuthReason {
+enum AuthReason: Identifiable {
+    /// Зайшов сам: з профілю, «Моїх подій», скарги.
+    case general
     /// Тап по «Організувати подію» чи «+»: гість найімовірніше новий, тож відкриваємо реєстрацію, а після неї — редактор.
     case create
+    case save, join, follow, company
+
+    var id: Self { self }
 }
 
 /// Вхід і реєстрація: один екран, два режими. Реєстрація — друга половина, а не примітка.
@@ -13,10 +18,13 @@ struct AuthView: View {
     @EnvironmentObject var model: AppModel
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
-    var reason: AuthReason?
+    /// Висота кнопок Apple і Google росте з Dynamic Type, але не вище 72.
+    @ScaledMetric(relativeTo: .body) private var scaledProviderHeight: CGFloat = 52
+    private var providerHeight: CGFloat { min(scaledProviderHeight, 72) }
+    var reason: AuthReason
     @StateObject private var form: AuthFormModel
 
-    init(reason: AuthReason? = nil) {
+    init(reason: AuthReason = .general) {
         self.reason = reason
         _form = StateObject(wrappedValue: AuthFormModel(register: reason == .create))
     }
@@ -24,6 +32,15 @@ struct AuthView: View {
     @State private var resetting = false
     /// Збій Google чи Apple до того, як справа дійшла до сервера: банера спільного шару тут не буде.
     @State private var providerError: String?
+    @State private var choosingMail = false
+
+    /// Встановлені поштовики; схеми перелічено в `LSApplicationQueriesSchemes`.
+    private var mailApps: [(name: String, url: URL)] {
+        [("Пошта", "message://"), ("Gmail", "googlegmail://"), ("Outlook", "ms-outlook://")].compactMap { name, link in
+            guard let url = URL(string: link), UIApplication.shared.canOpenURL(url) else { return nil }
+            return (name, url)
+        }
+    }
 
     var body: some View {
         ScrollView {
@@ -50,6 +67,17 @@ struct AuthView: View {
     }
 
     private var confirming: Bool { model.state?.session.awaitingConfirmation != nil }
+    /// Навіщо профіль саме зараз: гість прийшов з дією, і перший рядок під заголовком — про неї.
+    private var subtitle: String {
+        switch reason {
+        case .general: form.register ? Copy.auth_subtitle_signup : Copy.auth_guest_note
+        case .create: form.register ? Copy.auth_subtitle_create_signup : Copy.auth_subtitle_create_signin
+        case .save: Copy.auth_reason_save
+        case .join: Copy.auth_reason_join
+        case .follow: Copy.auth_reason_follow
+        case .company: Copy.auth_reason_company
+        }
+    }
     private var askingBirthDate: Bool { model.state?.session.askBirthDate == true }
     private var finished: Bool {
         guard let state = model.state, state.session.userId != nil else { return false }
@@ -70,19 +98,8 @@ struct AuthView: View {
             Text(confirming ? Copy.auth_check_email_title : resetting ? Copy.auth_reset_title : askingBirthDate ? Copy.auth_birth_date_title
                  : form.register ? Copy.auth_create : Copy.auth_welcome)
                 .font(PoruchFont.brandTitle1).kerning(-0.4).foregroundStyle(Palette.ink).multilineTextAlignment(.center)
-            Text(confirming
-                 ? Copy.auth_check_email_subtitle
-                 : resetting
-                 ? Copy.auth_reset_subtitle
-                 : askingBirthDate
-                 ? Copy.auth_birth_date_subtitle
-                 : reason == .create && form.register
-                 ? Copy.auth_subtitle_create_signup
-                 : reason == .create
-                 ? Copy.auth_subtitle_create_signin
-                 : form.register
-                 ? Copy.auth_subtitle_signup
-                 : Copy.auth_guest_note)
+            Text(confirming ? Copy.auth_check_email_subtitle : resetting ? Copy.auth_reset_subtitle
+                 : askingBirthDate ? Copy.auth_birth_date_subtitle : subtitle)
                 .font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary).multilineTextAlignment(.center)
                 .padding(.horizontal, Space.lg)
         }
@@ -105,8 +122,15 @@ struct AuthView: View {
             }
             .padding(Space.xl).frame(maxWidth: .infinity, alignment: .leading)
             .cardSurface(radius: Corner.md, elevation: Elevation.card)
-            PrimaryButton(title: Copy.auth_open_mail, glyph: PoruchIcons.mail) {
-                if let url = URL(string: "message://") { UIApplication.shared.open(url) }
+            // Не лише Apple Mail: хто читає пошту в Gmail чи Outlook, обирає свій. Нема жодного — нема й кнопки.
+            let apps = mailApps
+            if !apps.isEmpty {
+                PrimaryButton(title: Copy.auth_open_mail, glyph: PoruchIcons.mail) {
+                    if apps.count > 1 { choosingMail = true } else { UIApplication.shared.open(apps[0].url) }
+                }
+                .confirmationDialog(Copy.auth_open_mail, isPresented: $choosingMail) {
+                    ForEach(apps, id: \.name) { app in Button(app.name) { UIApplication.shared.open(app.url) } }
+                }
             }
             SecondaryButton(title: Copy.auth_confirmed_login) {
                 // Лист підтверджено: пошта вже в полі, лишається пароль.
@@ -149,15 +173,18 @@ struct AuthView: View {
                 }
             }
             .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
-            .frame(height: 52).clipShape(buttonShape)
+            // Напис Apple росте з висотою кнопки: без цього поруч із більшим Google він лишався дрібним.
+            .frame(height: providerHeight).clipShape(buttonShape)
             .disabled(model.state?.mutating == true)
             if SocialSignIn.googleAvailable {
                 Button { signInWithGoogle() } label: {
                     HStack(spacing: Space.md) {
                         Image("GoogleG").resizable().frame(width: 20, height: 20).decorative()
                         Text(Copy.continue_with_google).font(PoruchFont.button).foregroundStyle(Palette.ink)
+                            .lineLimit(2).multilineTextAlignment(.center)
                     }
-                    .frame(maxWidth: .infinity).frame(height: 52)
+                    .padding(.horizontal, Space.lg).padding(.vertical, Space.sm)
+                    .frame(maxWidth: .infinity).frame(minHeight: providerHeight)
                     .background(Palette.surface, in: buttonShape)
                     .overlay(buttonShape.stroke(Palette.hairline, lineWidth: 1))
                 }
@@ -168,6 +195,8 @@ struct AuthView: View {
                 Text(providerError).font(PoruchFont.caption).foregroundStyle(Palette.danger)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
+            // Згода одразу під Apple й Google: дотик до них уже створює профіль, а форма з кнопкою — нижче.
+            consent.frame(maxWidth: .infinity, alignment: .leading)
             HStack(spacing: Space.md) {
                 Rectangle().fill(Palette.hairline).frame(height: 1)
                 Text(Copy.auth_or_email).font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary).fixedSize()
@@ -204,8 +233,8 @@ struct AuthView: View {
                 Text(Copy.birth_date_hint)
                     .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
             }
-            PrimaryButton(title: Copy.auth_birth_date_continue, loading: model.state?.mutating == true, enabled: form.birthDate <= form.latestBirthDate) {
-                model.app.declareBirthDate(birthDate: isoDay(form.birthDate))
+            PrimaryButton(title: Copy.auth_birth_date_continue, loading: model.state?.mutating == true, enabled: form.birthDate != nil) {
+                if let date = form.birthDate { model.app.declareBirthDate(birthDate: isoDay(date)) }
             }
         }.padding(.horizontal, Space.page)
     }
@@ -240,8 +269,6 @@ struct AuthView: View {
                 loading: model.state?.mutating == true,
                 enabled: form.canSubmit
             ) { form.submit(with: model.app) }
-            // Згода — і для реєстрації, і для Apple/Google над формою: натискання там теж створює профіль.
-            consent
             if !form.register {
                 Button(Copy.forgot_password) { resetting = true }
                     .font(PoruchFont.button).foregroundStyle(Palette.inkSecondary)
@@ -280,31 +307,27 @@ struct AuthView: View {
     @Published var password = ""
     @Published var revealed = false
     @Published var register: Bool
-    /// Відкривається на дні народження того, кому щойно 18: найближча правдоподібна відповідь.
-    @Published var birthDate = AuthFormModel.defaultBirthDate
+    /// Порожня, доки людина не обере: дата за замовчуванням пропускала б правило 18+ без відповіді.
+    @Published var birthDate: Date?
 
     /// Мінімум задає сам контрол; база перевірить ще раз.
-    let latestBirthDate = AuthFormModel.defaultBirthDate
+    let latestBirthDate = Calendar.current.date(byAdding: .year, value: -Int(SafetyRules.shared.MIN_SIGNUP_AGE), to: Date()) ?? Date()
     let earliestBirthDate = Calendar.current.date(byAdding: .year, value: -100, to: Date()) ?? Date.distantPast
 
     init(register: Bool = false) { self.register = register }
 
-    private static var defaultBirthDate: Date {
-        Calendar.current.date(byAdding: .year, value: -Int(SafetyRules.shared.MIN_SIGNUP_AGE), to: Date()) ?? Date()
-    }
-
     var emailValid: Bool { AccountRules.shared.isEmail(value: email) }
     var canSubmit: Bool {
         emailValid && AccountRules.shared.isPassword(value: password) &&
-            (!register || (AccountRules.shared.isName(value: name) && birthDate <= latestBirthDate))
+            (!register || (AccountRules.shared.isName(value: name) && birthDate.map { $0 <= latestBirthDate } == true))
     }
 
     /// Пароль не переживає зміну режиму.
     func toggleMode() { register.toggle(); password = "" }
 
     func submit(with app: PoruchApp) {
-        if register { app.signUp(email: email, password: password, name: name, birthDate: isoDay(birthDate)) }
-        else { app.signIn(email: email, password: password) }
+        if register, let birthDate { app.signUp(email: email, password: password, name: name, birthDate: isoDay(birthDate)) }
+        else if !register { app.signIn(email: email, password: password) }
     }
 }
 

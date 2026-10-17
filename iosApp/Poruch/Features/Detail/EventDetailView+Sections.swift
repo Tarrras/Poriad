@@ -40,7 +40,7 @@ extension EventDetailView {
                     ScrimButton(
                         glyph: view.saved ? PoruchIcons.bookmarkFilled : PoruchIcons.bookmark,
                         label: view.saved ? Copy.unsave : Copy.save
-                    ) { if !actions.toggleSaved(event, signedIn: view.signedIn) { auth = true } }
+                    ) { if !actions.toggleSaved(event, signedIn: view.signedIn) { auth = .save } }
                 }.padding(Space.page)
             }
     }
@@ -208,7 +208,7 @@ extension EventDetailView {
     }
 
     func personRow(_ name: String, avatar: String?, caption: String?, userId: String, _ view: DetailScreenState) -> some View {
-        Button { if view.signedIn { openPerson(userId) } else { auth = true } } label: {
+        Button { if view.signedIn { openPerson(userId) } else { auth = .general } } label: {
             HStack(spacing: Space.md) {
                 Avatar(name: name, url: avatar, size: 40)
                 VStack(alignment: .leading, spacing: 2) {
@@ -283,7 +283,7 @@ extension EventDetailView {
             }
             Spacer(minLength: Space.sm)
             FollowPill(following: following) {
-                guard view.signedIn else { auth = true; return }
+                guard view.signedIn else { auth = .follow; return }
                 model.app.setFollowing(kind: .place, targetId: placeId, name: event.placeLabel, following: !following)
             }
         }
@@ -483,10 +483,10 @@ extension EventDetailView {
         VStack(alignment: .leading, spacing: Space.md) {
             Divider().overlay(Palette.hairline)
             HStack(spacing: Space.lg) {
-                Button { if view.signedIn { reporting = .event } else { auth = true } } label: { Text(Copy.chat_report).tapTarget() }
+                Button { if view.signedIn { reporting = .event } else { auth = .general } } label: { Text(Copy.chat_report).tapTarget() }
                 // Блокувати нема кого без людини; скарга на афішу лишається.
                 if view.event?.organizerId != nil {
-                    Button { if view.signedIn { blocking = true } else { auth = true } } label: { Text(Copy.block_user).tapTarget() }
+                    Button { if view.signedIn { blocking = true } else { auth = .general } } label: { Text(Copy.block_user).tapTarget() }
                 }
                 Spacer(minLength: 0)
             }.font(PoruchFont.button).foregroundStyle(Palette.inkSecondary)
@@ -538,7 +538,7 @@ extension EventDetailView {
                 // Серце продукту — люди: на афіші головна дія — «Шукаю компанію», на всю ширину під ціною й квитком.
                 if view.canSeekCompany {
                     PrimaryButton(title: Copy.companion_seek, glyph: PoruchIcons.social, enabled: !view.mutating) {
-                        if view.signedIn { seekingCompany = true } else { auth = true }
+                        if view.signedIn { seekingCompany = true } else { auth = .company }
                     }
                     .coachTarget(.companion)
                 }
@@ -561,7 +561,7 @@ extension EventDetailView {
             loading: view.mutating,
             enabled: view.action.isEnabled && !view.mutating
         ) {
-            if !actions.perform(view.action, on: event, signedIn: view.signedIn) { auth = true }
+            if !actions.perform(view.action, on: event, signedIn: view.signedIn) { auth = .join }
         }
     }
 
@@ -574,7 +574,7 @@ extension EventDetailView {
     /// Та сама дія, що `primaryAction`, тихішою кнопкою: квиток поруч із «Шукаю компанію».
     func secondaryAction(_ event: Event, _ view: DetailScreenState) -> some View {
         SecondaryButton(title: view.action.title, enabled: view.action.isEnabled && !view.mutating) {
-            if !actions.perform(view.action, on: event, signedIn: view.signedIn) { auth = true }
+            if !actions.perform(view.action, on: event, signedIn: view.signedIn) { auth = .join }
         }
     }
 
@@ -605,7 +605,7 @@ extension EventDetailView {
                         else if card.isFull { StatusBadge(text: Copy.full) }
                         else {
                             SecondaryButton(title: Copy.companion_join, enabled: !view.mutating) {
-                                if !actions.joinCompanion(id: card.id, signedIn: view.signedIn) { auth = true }
+                                if !actions.joinCompanion(id: card.id, signedIn: view.signedIn) { auth = .join }
                             }.fixedSize()
                         }
                     }

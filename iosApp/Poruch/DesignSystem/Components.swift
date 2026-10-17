@@ -188,9 +188,11 @@ struct SegmentedPill: View {
         HStack(spacing: 0) {
             ForEach(Array(items.enumerated()), id: \.offset) { index, title in
                 Button { if index != selection { select(index) } } label: {
-                    Text(title).font(PoruchFont.button)
+                    // Великий шрифт стискає напис до 70 % і робить пункт вищим, а не обрізає «Реєстрац…».
+                    Text(title).font(PoruchFont.button).lineLimit(1).minimumScaleFactor(0.7)
                         .foregroundStyle(index == selection ? Palette.ink : Palette.inkSecondary)
-                        .frame(maxWidth: .infinity).frame(height: 40)
+                        .padding(.horizontal, Space.sm)
+                        .frame(maxWidth: .infinity).frame(minHeight: 40)
                         .background {
                             if index == selection {
                                 Capsule().fill(Palette.surface).matchedGeometryEffect(id: "thumb", in: thumb)
@@ -408,12 +410,34 @@ struct SectionHeader: View {
     var actionLabel: String?
     var action: (() -> Void)?
     var body: some View {
-        HStack {
-            Text(title).font(PoruchFont.brandTitle2).kerning(-0.2).foregroundStyle(Palette.ink).accessibilityAddTraits(.isHeader)
-            Spacer(minLength: Space.sm)
-            if let actionLabel, let action {
-                Button(actionLabel, action: action).font(PoruchFont.label).foregroundStyle(Palette.ink)
+        // Заголовок і дія не влазять в один рядок (великий шрифт) — дія стає під заголовком, а не стискає обох у два вузькі стовпці.
+        ViewThatFits(in: .horizontal) {
+            HStack {
+                heading
+                Spacer(minLength: Space.sm)
+                actionButton(stacked: false)
             }
+            VStack(alignment: .leading, spacing: Space.xs) {
+                heading
+                actionButton(stacked: true)
+            }
+        }
+    }
+
+    private var heading: some View {
+        Text(title).font(PoruchFont.brandTitle2).kerning(-0.2).foregroundStyle(Palette.ink).accessibilityAddTraits(.isHeader)
+    }
+
+    /// Праворуч дію впізнають за місцем, як «Усі 246»; під заголовком вона читалась би як підзаголовок, тож бере шеврон.
+    @ViewBuilder private func actionButton(stacked: Bool) -> some View {
+        if let actionLabel, let action {
+            Button(action: action) {
+                HStack(spacing: Space.xs) {
+                    Text(actionLabel)
+                    if stacked { PoruchIcon(glyph: PoruchIcons.chevronRight, size: 13) }
+                }
+            }
+            .font(PoruchFont.label).foregroundStyle(Palette.ink)
         }
     }
 }
@@ -651,19 +675,23 @@ struct LabelledField<Trailing: View>: View {
     }
 }
 
-/// Дата народження в рамці поля: повна дата словами, тап розгортає барабан.
-/// Компактний `DatePicker` без мітки висів з порожнім відступом і писав рік двома цифрами.
+/// Дата народження в рамці поля: повна дата словами, тап розгортає барабан. Компактний `DatePicker`
+/// без мітки висів з порожнім відступом і писав рік двома цифрами. Без значення, доки людина дату не
+/// обере: правило 18+ не проходить саме. Барабан відкривається на найпізнішій дозволеній даті, як календар на Android.
 struct BirthDateField: View {
-    @Binding var date: Date
+    @Binding var date: Date?
     let range: ClosedRange<Date>
     @State private var open = false
 
     var body: some View {
         VStack(spacing: 0) {
-            Button { withMotion { open.toggle() } } label: {
+            Button {
+                if date == nil { date = range.upperBound }
+                withMotion { open.toggle() }
+            } label: {
                 HStack(spacing: Space.sm) {
-                    Text(date.formatted(.dateTime.day().month(.wide).year().locale(Locale(identifier: "uk_UA"))))
-                        .font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
+                    Text(date?.formatted(.dateTime.day().month(.wide).year().locale(Locale(identifier: "uk_UA"))) ?? Copy.birth_date_placeholder)
+                        .font(PoruchFont.bodyText).foregroundStyle(date == nil ? Palette.inkTertiary : Palette.ink)
                     Spacer(minLength: 0)
                     PoruchIcon(glyph: PoruchIcons.calendar, size: 18)
                         .foregroundStyle(open ? Palette.brand : Palette.inkSecondary)
@@ -673,7 +701,7 @@ struct BirthDateField: View {
             .buttonStyle(.plain)
             .accessibilityHint(open ? Copy.a11y_collapse_dates : Copy.a11y_change_date)
             if open {
-                DatePicker("", selection: $date, in: range, displayedComponents: .date)
+                DatePicker("", selection: Binding(get: { date ?? range.upperBound }, set: { date = $0 }), in: range, displayedComponents: .date)
                     .datePickerStyle(.wheel).labelsHidden()
                     .environment(\.locale, Locale(identifier: "uk_UA"))
                     .frame(maxWidth: .infinity)
@@ -1619,9 +1647,10 @@ struct LinkRow: View {
                     if let subtitle {
                         Text(subtitle).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).multilineTextAlignment(.leading)
                     }
+                    // Під підписом, як у списку підписок: праворуч поруч із числом він стискав підпис у три рядки.
+                    if let badge { StatusBadge(text: badge, tone: .accent).padding(.top, Space.xs) }
                 }
                 Spacer(minLength: Space.sm)
-                if let badge { StatusBadge(text: badge, tone: .accent) }
                 if let value {
                     Text(value).font(PoruchFont.title2).foregroundStyle(Palette.ink).monospacedDigit()
                 }

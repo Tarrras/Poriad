@@ -55,12 +55,11 @@ class ProfileViewModel(private val app: PoruchApp, private val notifications: No
                 if (!intent.show) app.clearNotice()
                 reduce { copy(editing = intent.show, editError = null) }
             }
-            is ProfileIntent.SaveProfile -> app.saveProfile(intent.name, intent.bio)
-            is ProfileIntent.PickAvatar -> app.setAvatar(intent.bytes, intent.contentType)
-            ProfileIntent.RemoveAvatar -> app.removeAvatar()
+            is ProfileIntent.SaveProfile -> app.saveProfile(intent.name, intent.bio, intent.photo, intent.photoType, intent.removePhoto)
             ProfileIntent.SignOut -> app.signOut()
             is ProfileIntent.ToggleInterest -> app.toggleInterest(intent.category)
             ProfileIntent.TuneRecommendations -> app.restartOnboarding()
+            ProfileIntent.CreateEvent -> { app.createStarted("profile"); send(ProfileEffect.CreateEvent) }
             is ProfileIntent.ShowBirthDatePicker -> reduce { copy(pickingBirthDate = intent.show) }
             is ProfileIntent.SetBirthDate -> {
                 reduce { copy(pickingBirthDate = false) }
@@ -88,6 +87,7 @@ class ProfileViewModel(private val app: PoruchApp, private val notifications: No
                 reduce { copy(remindersDenied = !intent.granted) }
                 app.setRemindersEnabled(intent.granted)
             }
+            ProfileIntent.OpenNotificationSettings -> send(ProfileEffect.OpenNotificationSettings)
             ProfileIntent.OpenPrivacy -> send(ProfileEffect.OpenLink(LegalLinks.PRIVACY))
             ProfileIntent.OpenTerms -> send(ProfileEffect.OpenLink(LegalLinks.TERMS))
             ProfileIntent.ContactSupport -> send(ProfileEffect.WriteEmail(LegalLinks.SUPPORT_EMAIL))

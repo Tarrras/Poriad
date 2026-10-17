@@ -1,5 +1,6 @@
 package app.poruch.android.feature.detail
 
+import app.poruch.android.navigation.AuthReason
 import app.poruch.domain.Artist
 import app.poruch.domain.Shelter
 import app.poruch.domain.Event
@@ -95,7 +96,8 @@ sealed interface DetailIntent {
 sealed interface DetailEffect {
     data object Back : DetailEffect
     data class Edit(val id: String) : DetailEffect
-    data object RequireSignIn : DetailEffect
+    /** Гість тапнув дію, що потребує профілю; [reason] каже екрану входу, яку саме. */
+    data class RequireSignIn(val reason: AuthReason = AuthReason.GENERAL) : DetailEffect
     /** Приєднались, а нагадування ще не ввімкнені: питаємо дозвіл системи, маршрут повертає відповідь у [DetailIntent.NotificationPermissionAnswered]. */
     data object AskNotificationPermission : DetailEffect
     data class ShareEvent(val event: Event) : DetailEffect

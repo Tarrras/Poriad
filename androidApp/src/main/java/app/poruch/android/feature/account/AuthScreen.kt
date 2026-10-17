@@ -1,5 +1,6 @@
 package app.poruch.android.feature.account
 
+import app.poruch.android.navigation.AuthReason
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -81,10 +82,15 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
                         confirming -> R.string.auth_check_email_subtitle
                         state.resetting -> R.string.auth_reset_subtitle
                         state.askBirthDate -> R.string.auth_birth_date_subtitle
-                        state.creating && state.signup -> R.string.auth_subtitle_create_signup
-                        state.creating -> R.string.auth_subtitle_create_signin
-                        state.signup -> R.string.auth_subtitle_signup
-                        else -> R.string.auth_description
+                        // Навіщо профіль саме зараз: гість прийшов з дією, і рядок під заголовком — про неї.
+                        else -> when (state.reason) {
+                            AuthReason.CREATE -> if (state.signup) R.string.auth_subtitle_create_signup else R.string.auth_subtitle_create_signin
+                            AuthReason.SAVE -> R.string.auth_reason_save
+                            AuthReason.JOIN -> R.string.auth_reason_join
+                            AuthReason.FOLLOW -> R.string.auth_reason_follow
+                            AuthReason.COMPANY -> R.string.auth_reason_company
+                            AuthReason.GENERAL -> if (state.signup) R.string.auth_subtitle_signup else R.string.auth_guest_note
+                        }
                     }
                 ),
                 style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary, textAlign = TextAlign.Center,
@@ -116,6 +122,8 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
                     painterResource(R.drawable.ic_google), stringResource(R.string.continue_with_google),
                     { onIntent(AuthIntent.SignInWithGoogle) }, enabled = !state.mutating
                 )
+                // Згода одразу під Google: дотик до нього вже створює профіль, а форма з кнопкою — нижче.
+                ConsentNote(onIntent)
                 OrDivider(stringResource(R.string.auth_or_email))
             }
             // Вхід і реєстрація — два рівноправні режими, тож перемикач угорі, а не кнопка під формою.
@@ -152,12 +160,12 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
                 trailing = { PasswordRevealIcon(state.passwordRevealed) { onIntent(AuthIntent.TogglePasswordReveal) } }
             )
             PrimaryButton(
-                stringResource(if (state.signup) R.string.signup else R.string.login),
+                stringResource(if (state.signup) R.string.register else R.string.login),
                 { onIntent(AuthIntent.Submit) },
                 Modifier.fillMaxWidth(), enabled = state.canSubmit, loading = state.mutating
             )
-            // Згода — під кнопкою, а не чекбокс: натискання на «Створити» чи «Продовжити з Google» і є згодою.
-            if (state.signup || state.googleAvailable) ConsentNote(onIntent)
+            // Згода — підписом, а не чекбоксом: натискання на «Зареєструватися» і є згодою. З Google вона вже стоїть над формою.
+            if (state.signup && !state.googleAvailable) ConsentNote(onIntent)
             // По центру, як «Видалити обліковий запис» у профілі: текстова кнопка з лівим відступом виглядала зсунутою.
             if (!state.signup) Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 GhostButton(
@@ -177,13 +185,18 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
 private fun ProviderButton(logo: Painter, text: String, onClick: () -> Unit, enabled: Boolean) {
     val colors = Poruch.colors
     Row(
-        Modifier.fillMaxWidth().height(52.dp).background(colors.surface, ButtonShape).border(1.dp, colors.hairline, ButtonShape)
-            .clip(ButtonShape).pressable(enabled = enabled, onClick = onClick),
+        // Великий шрифт переносить напис і робить кнопку вищою, а не обрізає «Продовжити з Goo…».
+        Modifier.fillMaxWidth().heightIn(min = 52.dp).background(colors.surface, ButtonShape).border(1.dp, colors.hairline, ButtonShape)
+            .clip(ButtonShape).pressable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Spacing.md, Alignment.CenterHorizontally)
     ) {
         Image(logo, null, Modifier.size(20.dp))
-        Text(text, style = MaterialTheme.typography.titleSmall, color = if (enabled) colors.ink else colors.inkTertiary)
+        Text(
+            text, style = MaterialTheme.typography.titleSmall, color = if (enabled) colors.ink else colors.inkTertiary,
+            maxLines = 2, textAlign = TextAlign.Center
+        )
     }
 }
 

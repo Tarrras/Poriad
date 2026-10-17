@@ -118,7 +118,7 @@ fun ExploreRoute(focusId: String, navigator: Navigator) {
             is ExploreEffect.OpenDetail -> navigator.open(Detail(effect.id))
             is ExploreEffect.OpenArtist -> navigator.open(ArtistPage(effect.id))
             ExploreEffect.CreateEvent -> navigator.createEvent()
-            ExploreEffect.SignIn -> navigator.open(Auth())
+            ExploreEffect.SignIn -> navigator.open(Auth(AuthReason.FOLLOW))
             ExploreEffect.AskLocationPermission -> permission.launch(
                 // Лише приблизна: «події поруч» — це кілометр, а не метр, і Play не питає, навіщо точна.
                 arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION)
@@ -157,7 +157,7 @@ fun DetailRoute(route: Detail, navigator: Navigator) {
             DetailEffect.Back -> navigator.back()
             DetailEffect.AskNotificationPermission -> notifications.launch(Manifest.permission.POST_NOTIFICATIONS)
             is DetailEffect.Edit -> navigator.open(Editor(effect.id))
-            DetailEffect.RequireSignIn -> navigator.open(Auth())
+            is DetailEffect.RequireSignIn -> navigator.open(Auth(effect.reason))
             is DetailEffect.ShareEvent -> context.shareEvent(effect.event)
             is DetailEffect.ShareCompanion -> context.shareCompanion(effect.parent, effect.companionId)
             is DetailEffect.OpenCalendar -> if (!context.addToCalendar(effect.event)) context.toast(R.string.calendar_unavailable)
@@ -185,7 +185,7 @@ fun ArtistRoute(route: ArtistPage, navigator: Navigator) {
     model.effects.handle { effect ->
         when (effect) {
             ArtistEffect.Back -> navigator.back()
-            ArtistEffect.SignIn -> navigator.open(Auth())
+            ArtistEffect.SignIn -> navigator.open(Auth(AuthReason.FOLLOW))
             is ArtistEffect.OpenEvent -> navigator.open(Detail(effect.id))
         }
     }
@@ -243,7 +243,7 @@ fun AuthRoute(route: Auth, navigator: Navigator) {
             }
             AuthEffect.Close -> navigator.back()
             // Увійшли: гість, що тапнув «Створити», не лишається на головній, а потрапляє в редактор.
-            AuthEffect.SignedIn -> { navigator.back(); if (route.creating) navigator.open(Editor()) }
+            AuthEffect.SignedIn -> { navigator.back(); if (route.reason == AuthReason.CREATE) navigator.open(Editor()) }
             AuthEffect.OpenMail -> context.openMailApp()
             is AuthEffect.OpenLink -> if (!context.openLink(effect.url)) context.toast(R.string.link_unavailable)
         }
@@ -264,7 +264,9 @@ fun ProfileRoute(navigator: Navigator) {
         when (effect) {
             ProfileEffect.SignIn -> navigator.open(Auth())
             ProfileEffect.AskNotificationPermission -> permission.launch(Manifest.permission.POST_NOTIFICATIONS)
+            ProfileEffect.OpenNotificationSettings -> if (!context.openNotificationSettings()) context.toast(R.string.link_unavailable)
             ProfileEffect.OpenFollows -> navigator.open(Follows)
+            ProfileEffect.CreateEvent -> navigator.createEvent()
             is ProfileEffect.OpenLink -> if (!context.openLink(effect.url)) context.toast(R.string.link_unavailable)
             is ProfileEffect.WriteEmail -> if (!context.writeEmail(effect.address)) context.toast(R.string.mail_unavailable)
             ProfileEffect.ShareApp -> context.shareApp()

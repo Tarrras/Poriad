@@ -113,10 +113,10 @@ private func tabItems(waiting: Int, newFollows: Bool) -> [TabItem] {
     ]
 }
 
-/// Що показує шит входу: причина (`nil` — людина зайшла сама, не зі «Створити»).
+/// Що показує шит входу: причина, з якою гість до нього прийшов.
 struct AuthSheet: Identifiable {
     let id = UUID()
-    let reason: AuthReason?
+    let reason: AuthReason
 }
 
 struct RootView: View {
@@ -260,7 +260,7 @@ struct RootView: View {
                         .navigationDestination(for: ArtistRoute.self) { ArtistView(route: $0) }
                 }.tag(2)
                 NavigationStack(path: $profilePath) {
-                    ProfileView(openFollows: { profilePath.append(FollowsRoute()) })
+                    ProfileView(openFollows: { profilePath.append(FollowsRoute()) }, createEvent: { startCreating(from: "profile") })
                         .safeAreaPadding(.bottom, 92).toolbar(.hidden, for: .tabBar)
                         .navigationDestination(for: FollowsRoute.self) { _ in FollowsView() }
                         .navigationDestination(for: ArtistRoute.self) { ArtistView(route: $0) }
@@ -324,10 +324,7 @@ struct RootView: View {
         .environment(\.openMap, showMap)
         .sheet(isPresented: $creating) { EventEditor(event: nil, app: model.app, home: model.state) }
         .sheet(item: $authSheet, onDismiss: continueCreating) { sheet in
-            NavigationStack {
-                AuthView(reason: sheet.reason)
-                    .toolbar { ToolbarItem(placement: .topBarTrailing) { Button(Copy.apply) { authSheet = nil } } }
-            }
+            NavigationStack { AuthView(reason: sheet.reason) }
         }
         .sheet(isPresented: Binding(get: { root.passwordRecovery }, set: { _ in })) { NewPasswordView() }
         .notice(root.notice?.presented) { model.app.clearNotice() }

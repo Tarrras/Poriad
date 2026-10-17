@@ -1,13 +1,14 @@
 package app.poruch.android.feature.account
 
+import app.poruch.android.navigation.AuthReason
 import app.poruch.domain.AccountRules
 import app.poruch.domain.SafetyRules
 import java.time.LocalDate
 
 data class AuthState(
     val signup: Boolean = false,
-    /** Гість прийшов зі «Створити»: підпис каже про подію, а не про участь. */
-    val creating: Boolean = false,
+    /** З якою дією прийшов гість: підзаголовок каже, навіщо профіль саме зараз. */
+    val reason: AuthReason = AuthReason.GENERAL,
     val email: String = "",
     val name: String = "",
     val password: String = "",
