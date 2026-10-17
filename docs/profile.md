@@ -52,7 +52,7 @@ PersonSheet (Detail, Chat)    ─▶ PoruchApp.openPerson/closePerson           
 
 - `core/domain`: `Profile`, `ProfileRules` (межі, нормалізація), інтерфейс `ProfileRepository`.
 - `core/data`: `SupabaseProfileRepository` — `profile_card`, PATCH `profiles`, завантаження/видалення фото через наявний `ImageStorage`.
-- `shared`: `ProfileUseCases` (зберегти, фото, прибрати фото; старий файл видаляється після успішної заміни), `LibraryState.profile` вантажиться разом із «моїми» і зникає з акаунтом, `AppState.person` — відкрита картка; запізніла відповідь для іншої людини відкидається.
+- `shared`: `ProfileUseCases.save` — імʼя, «Про себе» й фото однією дією (з 17.10: шторка не вантажить фото одразу, «Скасувати» нічого не лишає; старий файл видаляється після успішної заміни), `LibraryState.profile` вантажиться разом із «моїми» і зникає з акаунтом, `AppState.person` — відкрита картка; запізніла відповідь для іншої людини відкидається.
 
 **Платформи** — однаковий набір на обох:
 
