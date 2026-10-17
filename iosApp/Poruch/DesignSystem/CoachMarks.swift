@@ -206,7 +206,9 @@ private struct CoachOverlay: View {
 
     private func bubble(hole: CGRect, size: CGSize, below: Bool) -> some View {
         let width = min(340, size.width - 2 * Space.page)
-        let x = min(max(hole.midX - width / 2, Space.page), size.width - Space.page - width)
+        // Запасу менше за поле — картка стоїть по центру, а не з'їжджає на 3 pt від кроку до кроку.
+        let free = size.width - 2 * Space.page - width
+        let x = free < Space.page ? (size.width - width) / 2 : min(max(hole.midX - width / 2, Space.page), size.width - Space.page - width)
         // Стрілка навпроти центру цілі, але на прямому краї, а не на заокругленні кута картки.
         let inset = Corner.md + 13
         let arrowX = min(max(hole.midX - x, inset), width - inset)
@@ -227,7 +229,7 @@ private struct CoachOverlay: View {
     }
 }
 
-/// Картка підказки: назва засічками, одне речення, крапки кроків, «Пропустити» і «Далі». Одна підказка — лише «Зрозуміло».
+/// Картка підказки: назва кондензом, одне речення, крапки кроків, «Пропустити» і «Далі». Одна підказка — лише «Зрозуміло».
 private struct CoachBubble: View {
     let tip: CoachTip
     let index: Int
@@ -266,8 +268,9 @@ private struct CoachBubble: View {
                 Button(action: next) {
                     Text(last ? Copy.tip_done : Copy.next).font(PoruchFont.button).foregroundStyle(Palette.onBrand)
                         .padding(.horizontal, Space.xl).frame(minHeight: 40)
-                        .background(Palette.brand, in: Capsule())
-                        .contentShape(Capsule())
+                        // Кут квитка, як у кожної кнопки застосунку: пігулки — лише чипи, бейджі, пошук і таббар.
+                        .background(Palette.brand, in: RoundedRectangle(cornerRadius: Corner.md, style: .continuous))
+                        .contentShape(RoundedRectangle(cornerRadius: Corner.md, style: .continuous))
                 }
                 .buttonStyle(PressableStyle(pressedScale: 0.95))
             }
@@ -281,7 +284,8 @@ private struct CoachBubble: View {
     private var dots: some View {
         HStack(spacing: Space.xs) {
             ForEach(0..<count, id: \.self) { position in
-                Capsule().fill(position == index ? Palette.brand : Palette.brandContainer)
+                // Решта — притишеним третім чорнилом: тонова плашка на піднятій картці вночі зливалась.
+                Capsule().fill(position == index ? Palette.brand : Palette.inkTertiary.opacity(0.5))
                     .frame(width: position == index ? 16 : 6, height: 6)
             }
         }

@@ -338,6 +338,7 @@
   <string name="calendar_short">Календар</string>
 
   <string name="onboarding_welcome_title">Знайомимось</string>
+  <string name="onboarding_slogan">Є куди.\nБуде з ким.</string>
   <string name="onboarding_welcome_body">Три питання — і «Поряд» показуватиме спершу те, що вам підходить. Відповіді лишаються на цьому пристрої, змінити їх можна будь-коли у профілі.</string>
   <string name="onboarding_start">Почати</string>
   <string name="onboarding_skip">Пропустити</string>
@@ -346,8 +347,8 @@
   <string name="onboarding_interests_hint">Оберіть будь-скільки категорій — події з них будуть вище у списках.</string>
   <string name="onboarding_times_title">Коли вам зручно?</string>
   <string name="onboarding_times_hint">Підіймемо вище те, на що ви встигаєте.</string>
-  <string name="onboarding_crowd_title">Яка компанія?</string>
-  <string name="onboarding_crowd_hint">Це про розмір події, а не про людей на ній.</string>
+  <string name="onboarding_crowd_title">Який формат?</string>
+  <string name="onboarding_crowd_hint">Від кількох людей до повної зали.</string>
   <string name="onboarding_finish">Готово</string>
   <!-- Підказки першого знайомства (docs/coach-marks.md): що це і що буде після тапу, без закликів. -->
   <string name="tip_done">Зрозуміло</string>
@@ -370,11 +371,11 @@
   <string name="slot_weekend_day_hint">Субота й неділя до 17:00</string>
   <string name="slot_weekend_evening">Вихідні, ввечері</string>
   <string name="slot_weekend_evening_hint">Субота й неділя після 17:00</string>
-  <string name="crowd_intimate">Камерна</string>
+  <string name="crowd_intimate">Камерний</string>
   <string name="crowd_intimate_hint">До 12 місць</string>
-  <string name="crowd_medium">Середня</string>
+  <string name="crowd_medium">Середній</string>
   <string name="crowd_medium_hint">13–40 місць</string>
-  <string name="crowd_any">Будь-яка</string>
+  <string name="crowd_any">Будь-який</string>
   <string name="crowd_any_hint">Розмір не має значення</string>
 
   <string name="birth_date">Дата народження</string>

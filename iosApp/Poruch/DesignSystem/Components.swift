@@ -231,41 +231,12 @@ struct CategoryTile: View {
                         RoundedRectangle(cornerRadius: Corner.md, style: .continuous)
                             .strokeBorder(Palette.ink, lineWidth: selected ? 2 : 0)
                     )
-                // «Конференції» в 76 pt стискаються, а не обрізаються.
+                // «Конференції» в 76 pt стискаються, а не обрізаються. Вище xLarge стиснення вже не рятує («Конфере…»),
+                // тож підпис далі не росте, як у штампа; VoiceOver читає назву повністю.
                 Text(categoryName(category)).font(PoruchFont.label).lineLimit(1).minimumScaleFactor(0.7)
+                    .dynamicTypeSize(...DynamicTypeSize.xLarge)
                     .foregroundStyle(selected ? Palette.ink : Palette.inkSecondary)
             }.frame(width: 76)
-        }
-        .buttonStyle(PressableStyle())
-        .accessibilityLabel(categoryName(category))
-        .accessibilityAddTraits(selected ? .isSelected : [])
-    }
-}
-
-/// Картка категорії для сіток вибору (онбординг, редактор): пастель на всю картку, гліф угорі, назва внизу, позначка в кутку.
-struct CategoryCard: View {
-    let category: EventCategory
-    let selected: Bool
-    let action: () -> Void
-    var body: some View {
-        Button(action: action) {
-            VStack(alignment: .leading, spacing: 0) {
-                HStack(alignment: .top) {
-                    PoruchIcon(glyph: categoryGlyph(category), size: 24).foregroundStyle(categoryInk(category))
-                    Spacer(minLength: 0)
-                    ZStack {
-                        Circle().fill(selected ? Palette.brand : Palette.surface.opacity(0.7))
-                        if selected {
-                            PoruchIcon(glyph: PoruchIcons.check, size: 13).foregroundStyle(Palette.onBrand)
-                        }
-                    }.frame(width: 20, height: 20)
-                }
-                Spacer(minLength: Space.md)
-                Text(categoryName(category)).font(PoruchFont.label).foregroundStyle(Palette.ink).lineLimit(2).minimumScaleFactor(0.8)
-            }
-            .padding(Space.md).frame(maxWidth: .infinity, minHeight: 96, alignment: .leading)
-            .background(categoryGradient(category), in: RoundedRectangle(cornerRadius: Corner.md, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: Corner.md, style: .continuous).strokeBorder(Palette.ink, lineWidth: selected ? 2 : 0))
         }
         .buttonStyle(PressableStyle())
         .accessibilityLabel(categoryName(category))

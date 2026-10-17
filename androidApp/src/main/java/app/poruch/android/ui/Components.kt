@@ -556,58 +556,6 @@ fun CategoryTile(category: EventCategory, selected: Boolean, onClick: () -> Unit
     }
 }
 
-/** Картка категорії для сіток вибору (онбординг, редактор): пастель на всю картку, гліф угорі, назва внизу, позначка в кутку. */
-@Composable
-fun CategoryCard(
-    category: EventCategory,
-    selected: Boolean,
-    modifier: Modifier = Modifier,
-    role: Role = Role.Checkbox,
-    onClick: () -> Unit
-) {
-    val colors = Poruch.colors
-    Column(
-        modifier
-            .heightIn(min = 96.dp)
-            .clip(Radius.md)
-            .background(categoryGradient(category), Radius.md)
-            .border(2.dp, if (selected) colors.ink else Color.Transparent, Radius.md)
-            .selectable(selected, role = role, onClick = onClick)
-            .padding(Spacing.md),
-        verticalArrangement = Arrangement.SpaceBetween
-    ) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-            Icon(categoryIcon(category), null, Modifier.size(24.dp), tint = categoryInk(category))
-            Spacer(Modifier.weight(1f))
-            Box(
-                Modifier
-                    .size(20.dp)
-                    .background(
-                        if (selected) colors.brand else colors.surface.copy(alpha = 0.7f),
-                        CircleShape
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                if (selected) Icon(
-                    PoruchIcons.check,
-                    null,
-                    Modifier.size(12.dp),
-                    tint = colors.onBrand
-                )
-            }
-        }
-        Text(
-            stringResource(categoryLabel(category)),
-            style = MaterialTheme.typography.labelMedium,
-            color = colors.ink,
-            // «Конференції» у вузькій плитці переносяться, а не обрізаються.
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = Spacing.md)
-        )
-    }
-}
-
 // ---- Бейджі й кнопки
 
 /** Кнопки — зібрані прямокутники з кутом квитка, а не пігулки: пігулками лишились чипи й бейджі. */

@@ -300,8 +300,10 @@ private fun CoachOverlay(tour: List<CoachTip>, step: Int, next: () -> Unit, skip
             val shownHole = (frames[tour[shownStep]]?.rect ?: Rect.Zero).translate(-origin)
                 .inflate(with(density) { 6.dp.toPx() })
             val below = shownHole.center.y < constraints.maxHeight / 2
-            val x = shownHole.center.x.minus(width / 2)
-                .coerceIn(page, max(page, constraints.maxWidth - page - width))
+            // Запасу менше за поле — картка стоїть по центру, а не з'їжджає на кілька dp від кроку до кроку.
+            val free = constraints.maxWidth - 2 * page - width
+            val x = if (free < page) (constraints.maxWidth - width) / 2
+            else shownHole.center.x.minus(width / 2).coerceIn(page, max(page, constraints.maxWidth - page - width))
             // Стрілка навпроти центру цілі, але на прямому краї, а не на заокругленні кута картки.
             val corner = with(density) { 31.dp.toPx() }
             val arrowX = (shownHole.center.x - x).coerceIn(corner, width - corner)
@@ -340,7 +342,7 @@ private fun CoachOverlay(tour: List<CoachTip>, step: Int, next: () -> Unit, skip
     }
 }
 
-/** Картка підказки: назва засічками, одне речення, риски кроків, «Пропустити» і «Далі». Одна підказка — лише «Зрозуміло». */
+/** Картка підказки: назва кондензом, одне речення, риски кроків, «Пропустити» і «Далі». Одна підказка — лише «Зрозуміло». */
 @Composable
 private fun CoachBubble(
     tip: CoachTip, index: Int, count: Int, arrowX: Dp, below: Boolean,
@@ -389,8 +391,9 @@ private fun CoachBubble(
                 Box(
                     Modifier
                         .heightIn(min = 40.dp)
-                        .background(colors.brand, Radius.pill)
-                        .pressable(pressedScale = 0.95f, onClick = next)
+                        // Кут квитка, як у кожної кнопки застосунку: пігулки — лише чипи, бейджі, пошук і таббар.
+                        .background(colors.brand, ButtonShape)
+                        .pressable(shape = ButtonShape, pressedScale = 0.95f, onClick = next)
                         .padding(horizontal = Spacing.xl, vertical = Spacing.sm),
                     contentAlignment = Alignment.Center
                 ) {
@@ -420,7 +423,8 @@ private fun Steps(index: Int, count: Int) {
                 Modifier
                     .size(width = if (position == index) 16.dp else 6.dp, height = 6.dp)
                     .background(
-                        if (position == index) colors.brand else colors.brandContainer,
+                        // Решта — притишеним третім чорнилом: тонова плашка на піднятій картці вночі зливалась.
+                        if (position == index) colors.brand else colors.inkTertiary.copy(alpha = 0.5f),
                         Radius.pill
                     )
             )

@@ -1,6 +1,7 @@
 package app.poruch.android.feature.onboarding
 
 import app.poruch.android.mvi.MviViewModel
+import app.poruch.domain.Crowd
 import app.poruch.shared.PoruchApp
 
 /** Тримає відповіді до останнього кроку і пише в стор усе разом. Потік завершує стор, тому ефектів тут нема. */
@@ -8,9 +9,15 @@ class OnboardingViewModel(private val app: PoruchApp) :
     MviViewModel<OnboardingState, OnboardingIntent, Nothing>(OnboardingState()) {
 
     init {
-        // Відкрито з профілю: починаємо з минулих відповідей.
+        // Відкрито з профілю: починаємо з минулих відповідей і одразу з питань — знайомі вже знайомі.
         val taste = app.state.value.taste
-        reduce { copy(interests = taste.interests, times = taste.times, crowd = taste.crowd) }
+        val answered = taste.interests.isNotEmpty() || taste.times.isNotEmpty() || taste.crowd != Crowd.ANY
+        reduce {
+            copy(
+                step = if (answered) OnboardingStep.INTERESTS else step,
+                interests = taste.interests, times = taste.times, crowd = taste.crowd
+            )
+        }
     }
 
     override fun onIntent(intent: OnboardingIntent) {
