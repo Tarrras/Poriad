@@ -11,20 +11,21 @@
   var ua = navigator.userAgent, from = new URLSearchParams(location.search).get("from") || "";
   var ct = /^[a-z]{1,12}$/.test(from) ? from : "qr";
   if (/iPhone|iPad|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)) location.replace("https://apps.apple.com/app/apple-store/id6813543772?pt=129478154&mt=8&ct=" + ct);
-  else if (/Android/.test(ua)) location.replace("https://play.google.com/store/apps/details?id=app.poriad.android&referrer=" + encodeURIComponent("utm_source=poriad.app&utm_campaign=" + ct));
+  // Android-версія ще в закритому тесті: телефон без iOS бачить лендинг із «поки лише для iPhone», а не порожню сторінку Play.
   else location.replace("./#download");
 </script>
-<link rel="stylesheet" href="tokens.css?v=6">
-<link rel="stylesheet" href="style.css?v=6">
+<link rel="stylesheet" href="tokens.css?v=7">
+<link rel="stylesheet" href="style.css?v=7">
 <link rel="icon" href="icon.png">
 </head>
 <body>
 <header class="hero"><div class="wrap"><a class="brand" href="./"><img src="icon.png" alt=""><b>Поряд</b></a></div></header>
 <main><div class="wrap">
   <h1>Завантажити «Поряд»</h1>
+  <p>Поки лише для iPhone з iOS 17.</p>
   <div class="row">
     <a class="pill" href="https://apps.apple.com/app/apple-store/id6813543772?pt=129478154&amp;ct=qr&amp;mt=8">App Store</a>
-    <a class="pill ghost" href="https://play.google.com/store/apps/details?id=app.poriad.android&amp;referrer=utm_source%3Dporiad.app%26utm_campaign%3Dqr">Google Play</a>
+    <a class="pill ghost" href="./">Афіша на сайті</a>
   </div>
 </div></main>
 </body>

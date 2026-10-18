@@ -4,7 +4,7 @@
 import {
   APP_STORE_URL, CATEGORIES, cardsByIds, eventSafety, displayTitle, overline, dayLabel, timeOf, stubParts,
   price, sourceNote, httpsOrNull, esc, otherDays,
-} from "./poriad.js?v=6";
+} from "./poriad.js?v=7";
 
 const ua = navigator.userAgent;
 export const isIOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -68,8 +68,9 @@ export const skeletons = (n) => Array.from({ length: n }, () =>
 
 /** Великий горизонтальний квиток (EventHeroCard) для стрічки «Не пропустіть»: на корінці «зберегти» й час. */
 export const heroCard = (card) => `<article class="ticket hero-ticket cat-${esc(card.category)}" data-id="${esc(card.id)}" data-ui>
-  <a class="face" href="${href(card)}"><div class="cover">${photo(card)}${stamp(CATEGORIES[card.category] || "Подія", "photo")}${price(card) ? `<span class="price">${esc(price(card))}</span>` : ""}</div>
-    <h3>${esc(displayTitle(card.title))}</h3><div class="where"><span class="dot"></span><span>${esc(placeOf(card))}</span></div></a>
+  <a class="face" href="${href(card)}"><div class="cover">${photo(card)}${card.status === "cancelled" ? stamp("Скасовано", "photo danger") : ""}${price(card) ? `<span class="price">${esc(price(card))}</span>` : ""}</div>
+    <h3>${esc(displayTitle(card.title))}</h3><div class="where"><span class="dot"></span><span>${esc(placeOf(card))}</span></div>
+    <div class="note"><span class="genre-word">${esc(CATEGORIES[card.category] || "Подія")}</span> · ${esc(sourceNote(card))}</div></a>
   <div class="stub"><button class="save" type="button" data-lock="save" aria-label="Зберегти в застосунку">${icon("bookmark")}</button>
     <div role="img" aria-label="${esc(overline(card, new Date(), true))}"><b class="t">${esc(stubParts(card)[0])}</b><small>${esc(stubParts(card)[1])}</small></div></div>
 </article>`;
@@ -111,7 +112,8 @@ let eventDialog, installDialog;
 export async function openEvent(id, entry = null) {
   eventDialog ??= setupEventDialog();
   const card = cards.get(id);
-  eventDialog.innerHTML = `<div class="sheet-box"><div class="sheet-scroll"></div></div>`;
+  eventDialog.innerHTML = `<div class="sheet-box"><button class="round close" type="button" data-close aria-label="Закрити">${icon("close")}</button><div class="sheet-scroll"></div></div>`;
+  eventDialog.querySelector("[data-close]").onclick = closeEvent;
   if (!eventDialog.open) eventDialog.showModal();
   const url = new URL(location.href);
   url.searchParams.set("e", id);
@@ -129,7 +131,8 @@ export async function openEvent(id, entry = null) {
     renderEvent(full, entry);
   } catch {
     eventDialog.querySelector(".sheet-scroll").innerHTML = `<div class="detail" style="padding-top:72px"><div class="empty"><b>Подію не знайдено</b>
-      <span>Її могли приховати, або вона вже минула.</span></div></div>`;
+      <span>Її могли приховати, або вона вже минула.</span><button class="btn secondary" type="button" data-close>Повернутися до афіші</button></div></div>`;
+    eventDialog.querySelectorAll("[data-close]").forEach((b) => { b.onclick = closeEvent; });
   }
 }
 
@@ -164,28 +167,24 @@ function renderEvent(card, entry) {
   <button class="round bookmark" type="button" data-lock="save" aria-label="Зберегти">${icon("bookmark")}</button>
   <div class="sheet-scroll">
     <header class="cover-big cat-${esc(card.category)}">${art(card)}
-      <div class="badges"><span class="badge">${esc(CATEGORIES[card.category] || "Подія")}</span><span class="badge">${esc(sourceNote(card))}</span>
-        ${card.min_age ? `<span class="badge">${Number(card.min_age)}+</span>` : ""}</div>
-      <div class="when">${esc(overline(card, new Date(), true))}</div><h2>${esc(title)}</h2>
+      ${card.status === "cancelled" ? `<div class="state">${stamp("Скасовано", "danger")}</div>` : ""}
+      <p class="quiet"><span class="genre-word">${esc(CATEGORIES[card.category] || "Подія")}</span> · ${esc(sourceNote(card))}${card.min_age ? ` · ${Number(card.min_age)}+` : ""}</p><h2 id="sheet-title" tabindex="-1">${esc(title)}</h2>
     </header>
     <div class="detail">
       <div class="actions">
         <button type="button" data-lock="remind"><i>${icon("bell")}</i>Нагадати</button>
         <a href="${maps}" target="_blank" rel="noopener"><i>${icon("pin")}</i>Маршрут</a>
         <button type="button" data-share><i>${icon("share")}</i>Поділитися</button>
-        <button type="button" data-lock="company"><i>${icon("people")}</i>Компанія</button>
       </div>
       ${artists.length ? `<div class="block"><h3>Хто виступає</h3><div class="artist-chips">${artists.map((a) =>
         `<button type="button" data-lock="artist" data-name="${esc(a.name)}">${esc(a.name)}${icon("bell")}</button>`).join("")}</div></div>` : ""}
       <div class="facts">
         <div><span class="overline">Коли</span><b>${esc(overline(card, new Date(), true))}</b>${sessions ? `<small>Дат у прокаті: ${sessions.length}</small>` : ""}</div>
-        <div><span class="overline">Де</span><b>${esc(where[0] || card.city || "")}</b>${where[1] && where[1] !== where[0] ? `<small>${esc(where[1])}</small>` : ""}</div>
-        <div><span class="overline">${spots ? "Учасників" : "Ціна"}</span><b>${esc(spots || cost || "Уточнюйте")}</b></div>
-        <div><span class="overline">${imported ? "Джерело" : "Організовує"}</span><b>${esc(imported ? card.source_name || "Афіша" : card.organizer_name || "Організатор")}</b></div>
+        ${imported ? "" : `<div><span class="overline">Організовує</span><b>${esc(card.organizer_name || "Організатор")}</b></div>`}
       </div>
       ${sessions ? `<div class="block"><h3>Інші дати</h3><div class="sessions">${sessions.slice(0, 12).map((s) =>
-        `<span class="${s.id === card.id ? "on" : ""}">${esc(dayLabel(new Date(s.startsAt), s.tz))} · ${esc(timeOf(new Date(s.startsAt), s.tz))}</span>`).join("")}
-        ${sessions.length > 12 ? `<span>ще ${sessions.length - 12}</span>` : ""}</div></div>` : ""}
+        `<button type="button" data-session="${esc(s.id)}"${s.id === card.id ? ' aria-current="true"' : ""}>${esc(dayLabel(new Date(s.startsAt), s.tz))} · ${esc(timeOf(new Date(s.startsAt), s.tz))}</button>`).join("")}
+        ${sessions.length > 12 ? `<span>і ще ${sessions.length - 12}</span>` : ""}</div></div>` : ""}
       ${card.description ? `<div class="block"><h3>Опис</h3><p class="description clamped">${esc(card.description)}</p><button class="more" type="button" hidden>Читати далі</button></div>` : ""}
       <div class="block"><h3>Місце</h3><div class="rows">
         <a class="row" href="${maps}" target="_blank" rel="noopener"><i>${icon("pin")}</i><div class="txt"><b>${esc(where[0] || card.city || "На мапі")}</b>
@@ -219,7 +218,12 @@ function renderEvent(card, entry) {
     more.onclick = () => { description.classList.remove("clamped"); more.remove(); };
   });
   eventDialog.querySelector("[data-close]").onclick = closeEvent;
+  eventDialog.setAttribute("aria-labelledby", "sheet-title");
+  eventDialog.querySelector("#sheet-title").focus({ preventScroll: true });
   eventDialog.querySelector("[data-share]").onclick = () => share(card);
+  eventDialog.querySelectorAll("[data-session]").forEach((button) => {
+    button.onclick = () => { if (button.dataset.session !== card.id) openEvent(button.dataset.session, entry); };
+  });
   eventDialog.querySelectorAll("[data-lock]").forEach((button) => {
     button.onclick = () => openInstall(button.dataset.lock, card, button.dataset.name);
   });
@@ -272,12 +276,12 @@ export function toast(text) {
 const REASONS = {
   save: ["Збережіть на потім", "Подія чекатиме в «Моїх подіях», а за годину до початку прийде нагадування."],
   remind: ["Нагадаємо вчасно", "Застосунок нагадає за годину до початку й додасть подію в календар одним дотиком."],
-  company: ["Шукаєте, з ким піти?", "Зберіть невелику компанію на цю подію: хто хоче долучитися, надсилає запит — ви вирішуєте, кого взяти."],
-  join: ["Приєднатися — в застосунку", "Одна кнопка — і ви в списку. Немає місць — станете в чергу, і звільнене місце дістанеться першому."],
+  company: ["Шукаєте, з ким піти?", "Зберіть невелику компанію на цю подію: хто хоче долучитися, надсилає запит, а ви вирішуєте, кого взяти."],
+  join: ["Приєднатися — в застосунку", "Одна кнопка, і ви в списку. Немає місць — станете в чергу, і звільнене місце дістанеться першому."],
   follow: ["Стежте за цим місцем", "Скажемо, щойно тут з’явиться нова подія. Так само — за артистами й організаторами."],
-  artist: ["Стежте за артистом", "Дізнавайтеся про нові концерти першими — Поряд надішле сповіщення."],
-  create: ["Зберіть своїх", "Три кроки: опис, точка на мапі, час і кількість місць. Учасники, черга й чат — уже всередині."],
-  app: ["Поряд у телефоні", "Афіша міста на мапі, нагадування, компанія для походу й свої зустрічі — завжди під рукою."],
+  artist: ["Стежте за артистом", "Дізнавайтеся про нові концерти першими: Поряд надішле сповіщення."],
+  create: ["Зберіть своїх", "Три кроки: опис, точка на мапі, час і кількість місць. Учасники, черга й чат уже всередині."],
+  app: ["Поряд у телефоні", "Афіша міста на мапі, нагадування, компанія для походу й свої зустрічі завжди під рукою."],
 };
 
 export function openInstall(reason = "app", card = null, name = null) {
@@ -293,7 +297,7 @@ export function openInstall(reason = "app", card = null, name = null) {
     <li><i>${icon("people")}</i>«Шукаю компанію» і чат учасників</li>
     <li><i>${icon("map")}</i>Мапа подій навколо вас і свої зустрічі</li></ul>
   ${card && isIOS ? `<a class="btn secondary open-app" href="poriad://event/${esc(card.id)}">Уже є застосунок? Відкрити подію</a>` : ""}
-  <div class="get"><div class="stores">${storeLink()}</div>${qr("Наведіть камеру телефону")}</div>
+  <div class="get"><div class="stores">${storeLink()}<small>Поки лише для iPhone з iOS 17</small></div>${qr("Наведіть камеру iPhone")}</div>
 </div>`;
   installDialog.querySelector("[data-close]").onclick = () => installDialog.close();
   if (!installDialog.open) installDialog.showModal();
@@ -329,6 +333,7 @@ export function navLine() {
 /** Кнопки «Завантажити» з `data-lock` поза картками. */
 export function bindLocks(root = document) {
   root.querySelectorAll("[data-lock]:not([data-id] [data-lock])").forEach((el) => {
+    if (isIOS && el.dataset.lock === "app" && el.href) { el.href = APP_STORE_URL; return; }
     el.addEventListener("click", (event) => { event.preventDefault(); openInstall(el.dataset.lock); });
   });
 }

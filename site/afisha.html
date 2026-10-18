@@ -16,12 +16,12 @@
 <link rel="canonical" href="https://poriad.app/afisha.html">
 <link rel="preconnect" href="https://tzdogzdvctlumsqlqskr.supabase.co" crossorigin>
 <link rel="preload" href="fonts/sofia-sans-condensed-800.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="tokens.css?v=6">
-<link rel="stylesheet" href="web.css?v=6">
+<link rel="stylesheet" href="tokens.css?v=7">
+<link rel="stylesheet" href="web.css?v=7">
 <link rel="icon" href="icon.png">
 <link rel="apple-touch-icon" href="icon.png">
 <script>document.documentElement.classList.add("js");setTimeout(function(){if(!window.poriadReady)document.documentElement.classList.remove("js")},3000)</script>
-<script type="module" src="js/afisha.js?v=6"></script>
+<script type="module" src="js/afisha.js?v=7"></script>
 </head>
 <body>
 
@@ -32,7 +32,7 @@
       <a href="afisha.html" aria-current="page">Афіша</a>
       <a href="./#people">Від людей</a>
       <a href="./#safety">Безпека</a>
-      <a class="btn primary small" href="./#download" data-lock="app">Завантажити</a>
+      <a class="btn primary small" href="https://apps.apple.com/app/apple-store/id6813543772?pt=129478154&amp;ct=site&amp;mt=8" data-lock="app">Завантажити</a>
     </nav>
   </div>
 </header>
@@ -52,8 +52,8 @@
           <span class="sr">Пошук</span><input type="search" placeholder="Подія, місце або артист" autocomplete="off" enterkeyhint="search" data-q></label>
         <label class="city-select"><span class="sr">Місто</span><select data-city></select><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-chevron"/></svg></label>
         <div class="tabs" role="group" aria-label="Вигляд" data-view>
-          <button type="button" data-v="list"><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-list"/></svg><span class="label">Список</span></button>
-          <button type="button" data-v="map"><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-map"/></svg><span class="label">Мапа</span></button>
+          <button type="button" data-v="list" aria-label="Список"><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-list"/></svg><span class="label">Список</span></button>
+          <button type="button" data-v="map" aria-label="Мапа"><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-map"/></svg><span class="label">Мапа</span></button>
         </div>
       </div>
       <div class="line"><div class="chips" role="group" aria-label="Фільтри" data-filters></div></div>
@@ -71,7 +71,7 @@
       <div class="load-more"><button class="btn secondary" type="button" data-more hidden>Показати ще</button></div>
     </section>
     <section data-map-wrap hidden>
-      <div class="map-view" data-map><div class="hint">Натисніть на точку&nbsp;— відкриється подія</div></div>
+      <div class="map-view" data-map><button class="hint" type="button" data-here disabled>Шукаємо події на мапі…</button></div>
     </section>
   </div>
 </main>

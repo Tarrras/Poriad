@@ -6,6 +6,9 @@
 @font-face { font-family: "Sofia Sans Condensed"; font-weight: 800; font-display: swap; src: url("fonts/sofia-sans-condensed-800.woff2") format("woff2"); }
 @font-face { font-family: "Sofia Sans Extra Condensed"; font-weight: 800; font-display: swap; src: url("fonts/sofia-sans-extra-condensed-800.woff2") format("woff2"); }
 
+/* Атрибут hidden сильніший за будь-який display у компонентах (.btn, .empty …). */
+[hidden] { display: none !important; }
+
 :root {
   --canvas: #F2F2F4; --canvas-tint: #E8E8EC; --surface: #FFFFFF; --surface-raised: #FFFFFF; --surface-muted: #EDEDF0; --hairline: #E0E0E5;
   --ink: #141417; --ink-pressed: #2E2E33; --ink-secondary: #5E5E66; --ink-tertiary: #6A6A73;

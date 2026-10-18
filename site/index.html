@@ -17,12 +17,12 @@
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"Поряд","alternateName":"Poriad","url":"https://poriad.app/"}</script>
 <link rel="preconnect" href="https://tzdogzdvctlumsqlqskr.supabase.co" crossorigin>
 <link rel="preload" href="fonts/sofia-sans-condensed-800.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="tokens.css?v=6">
-<link rel="stylesheet" href="web.css?v=6">
+<link rel="stylesheet" href="tokens.css?v=7">
+<link rel="stylesheet" href="web.css?v=7">
 <link rel="icon" href="icon.png">
 <link rel="apple-touch-icon" href="icon.png">
 <script>document.documentElement.classList.add("js");setTimeout(function(){if(!window.poriadReady)document.documentElement.classList.remove("js")},3000)</script>
-<script type="module" src="js/home.js?v=6"></script>
+<script type="module" src="js/home.js?v=7"></script>
 </head>
 <body>
 
@@ -39,26 +39,30 @@
 </header>
 
 <main>
-<!-- Героїня — лицьова сторона квитка сторінки. Корінець чорнильний, як у порожнього квитка: свою зустріч друкуєте самі. -->
+<!-- Героїня — лицьова сторона квитка сторінки. На корінці — доказ: що справді йде сьогодні ввечері в місті, з афіші prod. -->
 <section class="hero">
   <div class="wrap">
     <div class="ticket page-ticket">
       <div class="face">
         <h1><span>Є куди.</span> <span>Буде з ким.</span></h1>
         <div>
-        <p class="lead">Афіша вашого міста на одній мапі&nbsp;— і&nbsp;зустрічі, які збирають самі люди. Знайдіть, куди піти сьогодні, або зберіть своїх.</p>
+        <p class="lead">Афіша вашого міста на одній мапі і&nbsp;зустрічі, які збирають самі люди. Знайдіть, куди піти сьогодні, або зберіть своїх.</p>
         <div class="actions-row">
           <a class="store" href="https://apps.apple.com/app/apple-store/id6813543772?pt=129478154&amp;ct=site&amp;mt=8"><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-apple"/></svg><span><small>Завантажити в</small>App Store</span></a>
           <a class="btn" href="afisha.html" data-all>Афіша на сайті</a>
-          <span class="cities">Київ · Львів · Одеса · Дніпро · Харків</span>
+          <span class="cities">Для iPhone · Київ, Львів, Одеса, Дніпро, Харків</span>
         </div>
         </div>
       </div>
-      <a class="stub" href="#people">
-        <svg class="ico big" aria-hidden="true"><use href="img/icons.svg#i-edit"/></svg>
-        <div><b>Свою зустріч друкуєте самі</b><p>Настолки, пробіжка чи кіно: що, де, коли й скільки місць.</p></div>
-        <span class="go"><span>Як це працює</span><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-arrow"/></svg></span>
-      </a>
+      <div class="stub tonight" data-tonight>
+        <h2 data-tonight-title>Сьогодні ввечері</h2>
+        <div class="tn-list" data-tonight-list aria-live="polite">
+          <div class="tn skel" aria-hidden="true"><i></i><div><b></b><span></span></div></div>
+          <div class="tn skel" aria-hidden="true"><i></i><div><b></b><span></span></div></div>
+          <div class="tn skel" aria-hidden="true"><i></i><div><b></b><span></span></div></div>
+        </div>
+        <a class="go" href="afisha.html" data-all><span data-tonight-all>Уся афіша</span><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-arrow"/></svg></a>
+      </div>
     </div>
   </div>
 </section>
@@ -68,7 +72,7 @@
   <div class="wrap people">
     <div>
       <h2 class="h2 reveal">Зберіть своїх</h2>
-      <p class="copy reveal" style="--d:.08s">Зустріч від людей&nbsp;— квиток, який друкуєте самі. Опишіть, що збираєте, поставте точку на мапі, виберіть час і скільки людей шукаєте. Хто хоче долучитися, натискає «Приєднатися», а коли місць нема&nbsp;— стає в чергу.</p>
+      <p class="copy reveal" style="--d:.08s">Зустріч від людей&nbsp;— квиток, який друкуєте самі. Опишіть, що збираєте, поставте точку на мапі, виберіть час і скільки людей шукаєте. Хто хоче долучитися, натискає «Приєднатися», а коли місць нема, стає в чергу.</p>
       <div class="slip reveal" style="--d:.16s">
         <div class="group"><h3>У застосунку</h3>
           <div class="ln"><span>Опис і жанр</span><span>хвилина</span></div>
@@ -121,14 +125,14 @@
     <div class="queue reveal" style="--d:.1s" role="group" aria-label="Інші події з афіші" data-plate-queue></div>
     </div>
     <div class="story">
-      <div class="tabs reveal" role="tablist" aria-label="Можливості" data-story-tabs>
-        <button type="button" role="tab" aria-pressed="true" data-story="company">Шукаю компанію</button>
-        <button type="button" role="tab" aria-pressed="false" data-story="follow">Стежити</button>
-        <button type="button" role="tab" aria-pressed="false" data-story="remind">Нагадування</button>
+      <div class="tabs reveal" role="group" aria-label="Можливості" data-story-tabs>
+        <button type="button" aria-pressed="true" data-story="company">Шукаю компанію</button>
+        <button type="button" aria-pressed="false" data-story="follow">Стежити</button>
+        <button type="button" aria-pressed="false" data-story="remind">Нагадування</button>
       </div>
       <div class="reveal" style="--d:.08s" aria-live="polite">
         <h2 class="h2" data-story-title>Є квиток, нема з ким піти?</h2>
-        <p class="copy" data-story-text>На будь-якій події з афіші натисніть «Шукаю компанію» й зберіть невелику компанію. Хто хоче долучитися, надсилає запит&nbsp;— ви вирішуєте, кого взяти. Лише 18+.</p>
+        <p class="copy" data-story-text>На будь-якій події з афіші натисніть «Шукаю компанію» й зберіть невелику компанію. Хто хоче долучитися, надсилає запит, а ви вирішуєте, кого взяти. Лише 18+.</p>
       </div>
       <div class="cells reveal" style="--d:.16s">
         <a class="btn primary" href="https://apps.apple.com/app/apple-store/id6813543772?pt=129478154&amp;ct=site&amp;mt=8" data-reason="company" data-story-action>Знайти компанію в застосунку</a>
@@ -142,11 +146,15 @@
 <section class="section" id="afisha">
   <div class="wrap">
     <div class="board">
-      <h2 class="word reveal">Афіша</h2>
-      <p class="copy reveal" style="--d:.06s">Сотні подій з квиткових сервісів і майданчиків міста&nbsp;— на одній мапі, з джерелом на кожній картці. Дивитися можна просто тут, без застосунку.</p>
-      <div class="controls reveal" style="--d:.12s"><div class="tabs" role="group" aria-label="Місто" data-cities></div></div>
+      <div class="board-head">
+        <h2 class="word reveal">Афіша</h2>
+        <div class="board-side">
+          <p class="copy reveal" style="--d:.06s">Сотні подій з квиткових сервісів і майданчиків міста на одній мапі, з джерелом на кожній картці. Дивитися можна просто тут, без застосунку.</p>
+          <div class="controls reveal" style="--d:.12s"><div class="tabs" role="group" aria-label="Місто" data-cities></div></div>
+        </div>
+      </div>
       <div class="genres" data-genre-list></div>
-      <a class="btn more" href="afisha.html" data-all>Відкрити афішу й мапу<svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-arrow"/></svg></a>
+      <a class="btn all" href="afisha.html" data-all>Відкрити афішу й мапу<svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-arrow"/></svg></a>
     </div>
   </div>
 </section>
@@ -157,15 +165,15 @@
     <div>
       <h2 class="h2 reveal">Спокійно, як удома</h2>
       <p class="copy reveal" style="--d:.06s">Тривоги й комендантська&nbsp;— частина вечора, а не тема для паніки. Правила тримає база, а не обіцянки.</p>
-      <p class="note reveal" style="--d:.12s">Укриття&nbsp;— за відкритими даними КМДА (CC BY), поки що лише для Києва.</p>
+      <p class="note reveal" style="--d:.12s">Укриття за відкритими даними КМДА (CC BY), поки що лише для Києва.</p>
     </div>
     <div class="menu reveal" style="--d:.1s">
       <div class="group"><h3>Безпека</h3>
         <div class="item"><div class="ln"><span>Укриття біля події</span><span>Київ</span></div><p>Найближчі укриття й метро на сторінці кожної київської події, з маршрутом пішки.</p></div>
-        <div class="item"><div class="ln"><span>До комендантської</span><span>усі міста</span></div><p>Скільки вечора лишається після події&nbsp;— одним рядком.</p></div></div>
+        <div class="item"><div class="ln"><span>До комендантської</span><span>усі міста</span></div><p>Скільки вечора лишається після події, одним рядком.</p></div></div>
       <div class="group"><h3>Люди</h3>
         <div class="item"><div class="ln"><span>Профіль</span><span>з 18 років</span></div><p>Вікові межі події й підтвердження учасників перевіряє база.</p></div>
-        <div class="item"><div class="ln"><span>Імена учасників</span><span>лише своїм</span></div><p>Організатор і учасники бачать одне одного, решта&nbsp;— лише лічильник.</p></div>
+        <div class="item"><div class="ln"><span>Імена учасників</span><span>лише своїм</span></div><p>Організатор і учасники бачать одне одного, решта бачить лише лічильник.</p></div>
         <div class="item"><div class="ln"><span>Скарга й блокування</span><span>з кожної події</span></div></div></div>
       <div class="group"><h3>Дані</h3>
         <div class="item"><div class="ln"><span>Реклама</span><span>нема</span></div><p>Жодної реклами й рекламних ідентифікаторів.</p></div>
@@ -175,18 +183,18 @@
   </div>
 </section>
 
-<!-- Фінал: ряд плиток, ніби обрізаний з довшого. -->
+<!-- Фінал: ряд плиток, ніби обрізаний з довшого: обабіч — справжні афіші міста. -->
 <section class="tiles" id="download" aria-label="Завантажити застосунок">
   <div class="side left" data-tile-photo aria-hidden="true"></div>
   <div class="main">
     <div>
       <h2 class="reveal">Поряд у телефоні</h2>
-      <p class="reveal" style="--d:.06s">Нагадування за годину до початку, «Шукаю компанію», свої зустрічі й мапа навколо вас. Для iPhone з iOS 17.</p>
+      <p class="reveal" style="--d:.06s">Нагадування за годину до початку, «Шукаю компанію», свої зустрічі й мапа навколо вас. Поки лише для iPhone з iOS&nbsp;17.</p>
       <a class="store reveal" style="--d:.12s" href="https://apps.apple.com/app/apple-store/id6813543772?pt=129478154&amp;ct=site&amp;mt=8"><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-apple"/></svg><span><small>Завантажити в</small>App Store</span></a>
     </div>
     <div data-qr></div>
   </div>
-  <div class="side right cat-music" data-tile-color aria-hidden="true"></div>
+  <div class="side right" data-tile-photo aria-hidden="true"></div>
 </section>
 </main>
 
@@ -194,7 +202,7 @@
 <footer class="tear" id="support">
   <div class="wrap">
     <div class="top">
-      <p>Поряд&nbsp;— афіша міста й зустрічі від людей. Питання, скарги й запити правовласників&nbsp;— на пошту, відповідаємо протягом 24 годин.</p>
+      <p>Поряд&nbsp;— афіша міста й зустрічі від людей. Питання, скарги й запити правовласників пишіть на пошту, відповідаємо протягом 24 годин.</p>
       <a href="#">Нагору ↑</a>
     </div>
     <a class="mail" href="mailto:hello@poriad.app">hello@poriad.app</a>

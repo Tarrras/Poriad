@@ -1,7 +1,7 @@
 // Веб-афіша — режим перегляду: місто, дати, категорії, пошук, сітка з довантаженням і мапа.
 // Стан — у адресі (?city=&when=&cat=&q=&view=&e=), тож будь-який вигляд можна надіслати посиланням.
-import { discover, fold, soonFirst, inWhen, CITIES, cityOf, CATEGORIES, CATEGORY_COLORS, WHEN, plural, EVENTS, httpsOrNull, mapStyle, displayTitle, esc } from "./poriad.js?v=6";
-import { ensureCards, remember, poster, heroCard, skeletons, bindCards, openEvent, reveal, navLine, bindLocks, savedCity, icon, stubTile } from "./ui.js?v=6";
+import { discover, fold, soonFirst, inWhen, CITIES, cityOf, CATEGORIES, CATEGORY_COLORS, WHEN, plural, EVENTS, httpsOrNull, mapStyle, displayTitle, timeOf, esc } from "./poriad.js?v=7";
+import { ensureCards, remember, poster, heroCard, skeletons, bindCards, openEvent, reveal, navLine, bindLocks, savedCity, icon, stubTile, isIOS } from "./ui.js?v=7";
 
 navLine();
 bindLocks();
@@ -17,7 +17,7 @@ const state = {
   view: params.get("view") === "map" ? "map" : "list",
   index: [], list: [], byId: new Map(), shown: PAGE,
 };
-let renderToken = 0, firstRender = true;
+let renderToken = 0;
 
 bindCards($("main"), (id) => state.byId.get(id));
 $("[data-city]").innerHTML = CITIES.map((c) => `<option value="${c.name}">${c.name}</option>`).join("");
@@ -52,11 +52,15 @@ new IntersectionObserver((entries) => {
 const toolbar = $("[data-toolbar]");
 addEventListener("scroll", () => toolbar.classList.toggle("stuck", toolbar.getBoundingClientRect().top <= 80), { passive: true });
 
-// Плашка застосунку: після першої прокрутки; хрестик ховає до кінця сеансу.
-const appBar = $("[data-app-bar]");
-const dismissed = () => { try { return sessionStorage.getItem("poriad.appbar") === "0"; } catch { return false; } };
-addEventListener("scroll", () => { if (scrollY > 500 && !dismissed()) appBar.classList.remove("gone"); }, { passive: true });
-$("[data-dismiss]").addEventListener("click", () => { appBar.classList.add("gone"); try { sessionStorage.setItem("poriad.appbar", "0"); } catch { /* приватне вікно */ } });
+// Плашка застосунку: після першої прокрутки; хрестик ховає до кінця сеансу. На iPhone її робота — системний банер Safari
+// (meta apple-itunes-app), тож двох запрошень не буде; над мапою плашка теж не висить.
+const appBar = isIOS ? null : $("[data-app-bar]");
+if (isIOS) $("[data-app-bar]").remove();
+else {
+  const dismissed = () => { try { return sessionStorage.getItem("poriad.appbar") === "0"; } catch { return false; } };
+  addEventListener("scroll", () => { if (scrollY > 500 && !dismissed() && state.view !== "map") appBar.classList.remove("gone"); }, { passive: true });
+  $("[data-dismiss]").addEventListener("click", () => { appBar.classList.add("gone"); try { sessionStorage.setItem("poriad.appbar", "0"); } catch { /* приватне вікно */ } });
+}
 
 // ---- Дані
 const indexCache = new Map();
@@ -104,17 +108,23 @@ async function render() {
   for (const e of fold(byDate)) catCounts[e.category] = (catCounts[e.category] ?? 0) + 1;
   const chip = (f, label, count, extra = "") =>
     `<button class="chip ${extra}" type="button" data-f="${f}" aria-pressed="${state[f.split(":")[0]] === f.split(":")[1]}">${label}${count != null ? ` <span class="count">${count}</span>` : ""}</button>`;
-  $("[data-filters]").innerHTML = Object.entries(WHEN).map(([w, label]) => chip(`when:${w}`, label, dateCounts[w])).join("") + `<span class="sep"></span>` +
-    Object.entries(CATEGORIES).filter(([k]) => catCounts[k] || k === cat)
-      .sort(([a], [b]) => (catCounts[b] ?? 0) - (catCounts[a] ?? 0))
-      .map(([k, label]) => chip(`cat:${k}`, `<span class="dot"></span>${label}`, catCounts[k] ?? 0, `cat-${k}`)).join("");
-
-  // Посилання на категорію: її чип може бути за краєм ряду — показуємо його один раз, при відкритті.
-  const active = firstRender && $('[data-f^="cat:"][aria-pressed="true"]');
-  if (active) $("[data-filters]").scrollLeft = active.offsetLeft - $("[data-filters]").offsetLeft - 16;
-  firstRender = false;
+  // Вибрані фільтри стоять на початку ряду (категорія, потім дата), як у застосунку: на вузькому екрані їх видно без гортання.
+  const dateChip = ([w, label]) => chip(`when:${w}`, label, dateCounts[w]);
+  const catChip = ([k, label]) => chip(`cat:${k}`, `<span class="dot"></span>${label}`, catCounts[k] ?? 0, `cat-${k}`);
+  const dates = Object.entries(WHEN), cats = Object.entries(CATEGORIES).filter(([k]) => catCounts[k] || k === cat)
+    .sort(([a], [b]) => (catCounts[b] ?? 0) - (catCounts[a] ?? 0));
+  $("[data-filters]").innerHTML = [
+    ...cats.filter(([k]) => k === cat).map(catChip),
+    ...dates.filter(([w]) => w === when).map(dateChip),
+    ...dates.filter(([w]) => w !== when).map(dateChip),
+    `<span class="sep"></span>`,
+    ...cats.filter(([k]) => k !== cat).map(catChip),
+  ].join("");
+  $("[data-filters]").scrollLeft = 0;
   document.querySelectorAll("[data-v]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.v === state.view));
   $("[data-map-wrap]").hidden = state.view !== "map";
+  document.body.classList.toggle("map-on", state.view === "map");
+  if (state.view === "map") appBar?.classList.add("gone");
   $("[data-list-wrap]").hidden = state.view === "map";
   const title = [when && WHEN[when], cat && CATEGORIES[cat]].filter(Boolean).join(" · ");
   $("[data-list-title]").textContent = state.q ? `«${state.q}»` : title || "Усі події";
@@ -128,7 +138,10 @@ async function render() {
 async function renderRail() {
   const wrap = $("[data-rail-wrap]");
   if (state.when || state.cat || state.q) { wrap.hidden = true; return; }
-  const soon = state.list.filter((e) => (inWhen(e, "today") || inWhen(e, "tomorrow")) && new Date(e.startsAt) > Date.now()).slice(0, 30);
+  // Вечір і дорослі події першими: сайт продає вечір, дитячі ранки — у категорії «Дітям».
+  const rank = (e) => (e.category === "kids" ? 2 : 0) + (Number(timeOf(new Date(e.startsAt), e.tz).slice(0, 2)) >= 17 ? 0 : 1);
+  const soon = state.list.filter((e) => (inWhen(e, "today") || inWhen(e, "tomorrow")) && new Date(e.startsAt) > Date.now())
+    .sort((a, b) => rank(a) - rank(b)).slice(0, 30);
   const got = (await ensureCards(soon.map((e) => e.id))).filter((c) => httpsOrNull(c.image_url)).slice(0, 10);
   wrap.hidden = got.length < 3;
   $("[data-rail]").innerHTML = got.map(heroCard).join("");
@@ -139,8 +152,8 @@ async function renderGrid(append = false) {
   const token = renderToken;
   const grid = $("[data-grid]"), more = $("[data-more]");
   if (!state.list.length) {
-    grid.innerHTML = `<div class="empty"><b>Нічого не знайшли</b><span>${state.q ? "Спробуйте інше слово або приберіть фільтри." : "На ці дні в цій категорії подій поки нема."}</span>
-      <button class="btn secondary" type="button" data-reset>Скинути фільтри</button></div>`;
+    grid.innerHTML = `<div class="empty"><b>${state.q ? `За запитом «${esc(state.q)}» подій нема` : "Тут поки тихо"}</b><span>${state.q ? "Спробуйте інше слово або назву місця." : "На ці дні в цій категорії подій поки нема."}</span>
+      <button class="btn secondary" type="button" data-reset>${state.q ? "Очистити пошук" : "Скинути фільтри"}</button></div>`;
     $("[data-reset]").onclick = () => { Object.assign(state, { when: null, cat: null, shown: PAGE }); if (state.q) { state.q = ""; $("[data-q]").value = ""; load(); } else render(); };
     more.hidden = true;
     return;
@@ -179,9 +192,11 @@ function loadMap() {
     const js = Object.assign(document.createElement("script"), { src: "https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js" });
     js.onload = () => {
       const city = cityOf(state.city);
+      // Мапа у своєму вигляді займає весь екран під фільтрами, тож пересувається одним пальцем, як у застосунку.
       const map = new maplibregl.Map({ container: $("[data-map]"), style: mapStyle(dark), center: [city.lng, city.lat], zoom: 11.3, attributionControl: { compact: true }, dragRotate: false });
-      map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
+      map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
       map.on("load", () => { setupLayers(map); resolve(map); });
+      map.on("moveend", () => updateHere(map));
       map.on("error", (e) => console.warn("map", e.error?.message));
     };
     js.onerror = () => { mapReady = null; reject(new Error("maplibre")); };
@@ -193,14 +208,33 @@ function loadMap() {
 const dark = document.documentElement.dataset.theme === "dark" || (document.documentElement.dataset.theme !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
 const ink = dark ? "#F3F3F0" : "#141417", ground = dark ? "#0F0F13" : "#FFFFFF";
 
+/** Кластер — теж квиток (DESIGN.md): 46×28, радіус 7, півкруглі вирізи 4,5 з боків, заливка чорнилом, край 2 кольором поверхні. */
+function ticketImage(fill, edge, s = 2) {
+  const w = 48, h = 30, r = 7, n = 4.5, x0 = 1, y0 = 1, x1 = w - 1, y1 = h - 1, cy = h / 2;
+  const canvas = Object.assign(document.createElement("canvas"), { width: w * s, height: h * s });
+  const g = canvas.getContext("2d");
+  g.scale(s, s);
+  g.beginPath();
+  g.moveTo(x0 + r, y0); g.lineTo(x1 - r, y0); g.arcTo(x1, y0, x1, y0 + r, r);
+  g.lineTo(x1, cy - n); g.arc(x1, cy, n, -Math.PI / 2, Math.PI / 2, true);
+  g.lineTo(x1, y1 - r); g.arcTo(x1, y1, x1 - r, y1, r);
+  g.lineTo(x0 + r, y1); g.arcTo(x0, y1, x0, y1 - r, r);
+  g.lineTo(x0, cy + n); g.arc(x0, cy, n, Math.PI / 2, -Math.PI / 2, true);
+  g.lineTo(x0, y0 + r); g.arcTo(x0, y0, x0 + r, y0, r);
+  g.closePath();
+  g.fillStyle = fill; g.fill();
+  g.lineWidth = 2; g.strokeStyle = edge; g.stroke();
+  return { width: w * s, height: h * s, data: g.getImageData(0, 0, w * s, h * s).data };
+}
+
 function setupLayers(map) {
-  map.addSource("events", { type: "geojson", data: geojson(), cluster: true, clusterRadius: 40, clusterMaxZoom: 15 });
-  map.addLayer({ id: "halo", type: "circle", source: "events", filter: ["has", "point_count"],
-    paint: { "circle-color": ink, "circle-opacity": 0.14, "circle-radius": ["interpolate", ["linear"], ["get", "point_count"], 2, 26, 60, 40] } });
-  map.addLayer({ id: "clusters", type: "circle", source: "events", filter: ["has", "point_count"],
-    paint: { "circle-color": ink, "circle-stroke-width": 3, "circle-stroke-color": ground, "circle-radius": ["interpolate", ["linear"], ["get", "point_count"], 2, 18, 60, 30] } });
-  map.addLayer({ id: "cluster-count", type: "symbol", source: "events", filter: ["has", "point_count"],
-    layout: { "text-field": ["get", "point_count_abbreviated"], "text-font": ["Noto Sans Bold"], "text-size": 13 }, paint: { "text-color": ground } });
+  map.addImage("ticket", ticketImage(ink, ground), { pixelRatio: 2 });
+  map.addSource("events", { type: "geojson", data: geojson(), cluster: true, clusterRadius: 60, clusterMaxZoom: 15 });
+  map.addLayer({ id: "clusters", type: "symbol", source: "events", filter: ["has", "point_count"],
+    layout: { "icon-image": "ticket", "icon-size": ["interpolate", ["linear"], ["get", "point_count"], 2, 1, 60, 1.3],
+      "icon-allow-overlap": true, "icon-ignore-placement": true, "text-allow-overlap": true,
+      "text-field": ["get", "point_count_abbreviated"], "text-font": ["Noto Sans Bold"], "text-size": ["interpolate", ["linear"], ["get", "point_count"], 2, 13, 60, 16] },
+    paint: { "text-color": ground } });
   map.addLayer({ id: "points", type: "circle", source: "events", filter: ["!", ["has", "point_count"]],
     paint: { "circle-color": ["match", ["get", "category"], ...Object.entries(CATEGORY_COLORS).flat(), ink],
       "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 7, 16, 10], "circle-stroke-width": 3, "circle-stroke-color": ground } });
@@ -236,6 +270,7 @@ async function renderMap() {
     const map = await loadMap();
     map.resize();
     map.getSource("events").setData(geojson());
+    updateHere(map);
     if (mapCity !== state.city) {
       const city = cityOf(state.city);
       if (mapCity) map.flyTo({ center: [city.lng, city.lat], zoom: 11.3, duration: 1200 });
@@ -246,17 +281,27 @@ async function renderMap() {
   }
 }
 
-/** Кілька подій в одній точці (заклад з афішею) — список поруч із мапою. */
+/** Список під мапою: скільки подій у видимій частині — одна кнопка, яка відкриває їх стосом. */
+function updateHere(map) {
+  const bounds = map.getBounds();
+  const ids = state.list.filter((e) => bounds.contains([e.lng, e.lat])).map((e) => e.id);
+  const here = $("[data-here]");
+  here.textContent = ids.length ? `${plural(ids.length, EVENTS)} тут · списком` : "Тут поки тихо. Віддаліть мапу";
+  here.disabled = !ids.length;
+  here.onclick = () => showStack(ids);
+}
+
+/** Кілька подій в одній точці (заклад з афішею) або видима частина мапи — список поруч із мапою. */
 async function showStack(ids) {
   $(".stack")?.remove();
   const panel = document.createElement("div");
   panel.className = "stack";
-  panel.innerHTML = `<header><span>Тут подій: ${ids.length}</span><button type="button" aria-label="Закрити">${icon("close")}</button></header>`;
+  panel.innerHTML = `<header><span>${ids.length > 100 ? `Тут ${plural(ids.length, EVENTS)}, найближчі 100` : `Тут подій: ${ids.length}`}</span><button type="button" aria-label="Закрити">${icon("close")}</button></header>`;
   $("[data-map]").append(panel);
   panel.querySelector("button").onclick = () => panel.remove();
   const got = (await ensureCards(ids.slice(0, 100))).sort((a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at));
-  panel.insertAdjacentHTML("beforeend", got.map((card) => `<div class="mini" data-id="${esc(card.id)}">${stubTile(card)}
-    <div><b>${esc(displayTitle(card.title))}</b><span>${esc(card.place_name || card.address || "")}</span></div></div>`).join(""));
+  panel.insertAdjacentHTML("beforeend", got.map((card) => `<a class="mini" href="afisha.html?e=${encodeURIComponent(card.id)}" data-id="${esc(card.id)}">${stubTile(card)}
+    <div><b>${esc(displayTitle(card.title))}</b><span>${esc(card.place_name || card.address || "")}</span></div></a>`).join(""));
 }
 
 // Подія за посиланням `?e=` відкривається поверх афіші.

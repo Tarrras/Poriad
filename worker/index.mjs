@@ -89,7 +89,6 @@ export function eventPage(e, now, shelters = []) {
     [spots ? "Учасники" : "Ціна", spots ? spots.replace("Учасників: ", "") : cost || "Уточнюйте", null],
     [imported ? "Джерело" : "Організовує", imported ? e.source_name || "Афіша" : e.organizer_name || "Організатор", null],
   ];
-  const extras = [e.min_age ? `${e.min_age}+` : null, !imported && e.approval_required ? "Участь за підтвердженням організатора" : null].filter(Boolean);
 
   return layout({
     title,
@@ -102,8 +101,7 @@ export function eventPage(e, now, shelters = []) {
 ${ticketUrl ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""}`,
     body: `<article class="sheet-box">
   <header class="cover-big cat-${category}"><div class="art cat-${category}">${icon(category, "glyph")}${image ? `<img src="${esc(image)}" alt="" referrerpolicy="no-referrer">` : ""}</div>
-    <div class="badges"><span class="badge">${esc(CATEGORIES[category])}</span><span class="badge">${esc(imported ? `Афіша${e.source_name ? ` · ${e.source_name}` : ""}` : "Від людей")}</span>${extras.length && e.min_age ? `<span class="badge">${Number(e.min_age)}+</span>` : ""}</div>
-    <div class="when">${esc(when)}</div><h1>${esc(title)}</h1>
+    <p class="quiet"><span class="genre-word">${esc(CATEGORIES[category])}</span> · ${esc(imported ? `Афіша${e.source_name ? ` · ${e.source_name}` : ""}` : "Від людей")}${e.min_age ? ` · ${Number(e.min_age)}+` : ""}</p><h1>${esc(title)}</h1>
   </header>
   <div class="detail">
     ${notice ? `<p class="notice">${notice}</p>` : ""}
@@ -183,8 +181,8 @@ function layout({ title, description, image, url, head, body }) {
 <meta name="theme-color" content="#0F0F13" media="(prefers-color-scheme: dark)">
 ${head}
 <link rel="preload" href="/fonts/sofia-sans-condensed-800.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/tokens.css?v=6">
-<link rel="stylesheet" href="/web.css?v=6">
+<link rel="stylesheet" href="/tokens.css?v=7">
+<link rel="stylesheet" href="/web.css?v=7">
 <link rel="icon" href="/icon.png">
 </head>
 <body class="event-page">
