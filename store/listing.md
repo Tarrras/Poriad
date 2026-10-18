@@ -11,7 +11,8 @@
 | `play/phone_01..05.png` | 1080×1920 | Play Console → Phone screenshots (порядок = нумерація) |
 | `appstore/iphone69_01..05.png` | 1320×2868 | App Store Connect → iPhone 6.9" |
 | `appstore/iphone67_01..05.png` | 1290×2796 | App Store Connect → iPhone 6.7" |
-| `appstore/iphone65_01..05.png` | 1242×2688 | App Store Connect → iPhone 6.5" |
+| `appstore/iphone65_01..05.png` | 1242×2688 | App Store Connect → Media Manager → «iPhone with Dynamic Island / Face ID (large display)» |
+| `appstore/iphone63_01..05.png` | 1206×2622 | App Store Connect → Media Manager → «iPhone with Dynamic Island (medium display)», обов'язковий з 2026 |
 | `../iosApp/Poruch/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png` | 1024×1024 | іконка App Store (уже в проєкті) |
 
 iPad-скріншоти не потрібні: застосунок iPhone-only (`TARGETED_DEVICE_FAMILY = 1`, рішення 2026-09-18). Додати iPad можна пізніше, прибрати після релізу — ні.

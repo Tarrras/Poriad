@@ -67,6 +67,7 @@ TARGETS = [
     ("appstore", "iphone69_", "ios", 1320, 2868),
     ("appstore", "iphone67_", "ios", 1290, 2796),
     ("appstore", "iphone65_", "ios", 1242, 2688),
+    ("appstore", "iphone63_", "ios", 1206, 2622),  # обов'язковий слот ASC «Dynamic Island, medium display»
     ("play", "phone_", "and", 1080, 1920),
 ]
 
