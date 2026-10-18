@@ -405,6 +405,10 @@ private fun ReminderSetting(state: ProfileState, onIntent: (ProfileIntent) -> Un
     }
     if (state.remindersDenied) NotificationsDenied(onIntent)
     else Text(stringResource(R.string.reminder_note), style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary)
+    if (state.reminders && !state.remindersExact) {
+        Text(stringResource(R.string.reminder_exact), style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
+        GhostButton(stringResource(R.string.reminder_exact_allow), { onIntent(ProfileIntent.OpenAlarmSettings) }, Modifier.offset(x = -Spacing.lg))
+    }
 }
 
 /** Перемикач дайджесту вихідних. Дозвіл системи запитує маршрут, як і для нагадувань. */

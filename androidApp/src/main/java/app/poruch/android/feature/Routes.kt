@@ -265,6 +265,7 @@ fun ProfileRoute(navigator: Navigator) {
             ProfileEffect.SignIn -> navigator.open(Auth())
             ProfileEffect.AskNotificationPermission -> permission.launch(Manifest.permission.POST_NOTIFICATIONS)
             ProfileEffect.OpenNotificationSettings -> if (!context.openNotificationSettings()) context.toast(R.string.link_unavailable)
+            ProfileEffect.OpenAlarmSettings -> if (!context.openAlarmSettings()) context.toast(R.string.link_unavailable)
             ProfileEffect.OpenFollows -> navigator.open(Follows)
             ProfileEffect.CreateEvent -> navigator.createEvent()
             is ProfileEffect.OpenLink -> if (!context.openLink(effect.url)) context.toast(R.string.link_unavailable)
@@ -273,6 +274,7 @@ fun ProfileRoute(navigator: Navigator) {
             ProfileEffect.OpenStorePage -> if (!context.openStorePage()) context.toast(R.string.link_unavailable)
         }
     }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { model.dispatch(ProfileIntent.Resumed) }
     ProfileScreen(model.state.collectAsStateWithLifecycle().value, model::dispatch)
 }
 

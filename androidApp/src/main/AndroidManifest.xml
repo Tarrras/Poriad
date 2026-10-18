@@ -3,6 +3,9 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Нагадування рівно за годину: з Android 12 точний будильник потребує дозволу, з 14 його дає людина.
+         USE_EXACT_ALARM не беремо: Play дозволяє його лише будильникам і календарям. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <!-- Точну геолокацію додає MapLibre, а просимо лише приблизну (Data safety: Coarse). -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" tools:node="remove"/>
     <!-- Analytics без рекламного ідентифікатора: політика обіцяє, що його не збираємо. -->
@@ -20,6 +23,6 @@
         <service android:name=".platform.PushService" android:exported="false">
             <intent-filter><action android:name="com.google.firebase.MESSAGING_EVENT"/></intent-filter>
         </service>
-        <receiver android:name=".platform.ReminderReceiver" android:exported="false"><intent-filter><action android:name="android.intent.action.BOOT_COMPLETED"/></intent-filter></receiver>
+        <receiver android:name=".platform.ReminderReceiver" android:exported="false"><intent-filter><action android:name="android.intent.action.BOOT_COMPLETED"/><action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED"/></intent-filter></receiver>
     </application>
 </manifest>

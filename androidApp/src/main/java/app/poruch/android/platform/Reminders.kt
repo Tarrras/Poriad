@@ -41,10 +41,16 @@ class NotificationPermission(private val context: Context) {
     val required get() = Build.VERSION.SDK_INT >= 33
     fun granted(): Boolean =
         !required || context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+
+    /** Нагадування прийде рівно за годину, а не до години пізніше. Див. [exactAllowed]. */
+    fun exactAlarms(): Boolean = context.getSystemService(AlarmManager::class.java).exactAllowed()
 }
 
+/** До Android 12 точний будильник дозволу не потребує; з 12 — SCHEDULE_EXACT_ALARM, який з 14 людина дає сама. */
+internal fun AlarmManager.exactAllowed(): Boolean = Build.VERSION.SDK_INT < Build.VERSION_CODES.S || canScheduleExactAlarms()
+
 /**
- * Нагадування без дозволу на точні будильники, див. [wake]. План приходить готовий
+ * Нагадування через точні будильники, де їх дозволено, див. [wake]. План приходить готовий
  * зі спільного шару, тут лише поставити, зняти й пережити перезавантаження: список лежить у
  * SharedPreferences, а приймач ставить його знову після `BOOT_COMPLETED`.
  */
@@ -79,12 +85,13 @@ class AlarmReminderScheduler(private val context: Context) : ReminderScheduler {
 
         /**
          * Неточний будильник може запізнитися на 75% часу до нього, з Android 12 — не більше ніж на годину: «за годину»
-         * про подію через два дні прийшло б наступного дня. До 12 точний дозволу не потребує, тож там ставимо точний.
+         * прийшло б на початок події, а до 12 — і після неї. Тож точний, де можна; без дозволу — неточний, а профіль
+         * підказує, де його дати. Дали — приймач ставить план знову, уже точно; забрали — система знімає точні й
+         * зупиняє застосунок, план поверне наступний запуск.
          */
-        // ponytail: з 12 запізнення до години лишається; точно — лише з SCHEDULE_EXACT_ALARM, який з 14 людина дає вручну.
         @SuppressLint("MissingPermission")
         private fun AlarmManager.wake(at: Long, intent: PendingIntent) =
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, intent)
+            if (exactAllowed()) setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, intent)
             else setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, intent)
 
         /** Будильник дайджесту спрацював: текст — з останнього збереженого плану. Тап веде на головну. */
@@ -340,10 +347,12 @@ class ChatNotificationCenter(context: Context) : ChatNotifier {
     }
 }
 
-/** Будильник спрацював або телефон перезавантажився. */
+/** Будильник спрацював, телефон перезавантажився або людина дозволила точні будильники. */
 class ReminderReceiver : BroadcastReceiver() {
+    @SuppressLint("InlinedApi") // Рядок дії до Android 12 просто не прийде.
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
+        val replan = intent.action == Intent.ACTION_BOOT_COMPLETED || intent.action == AlarmManager.ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED
+        if (replan) {
             AlarmReminderScheduler.restore(context)
             return
         }

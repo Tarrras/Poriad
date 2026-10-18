@@ -1,5 +1,6 @@
 package app.poruch.android.platform
 
+import android.annotation.SuppressLint
 import android.provider.Settings
 import android.content.Context
 import android.content.Intent
@@ -80,6 +81,13 @@ fun Context.openLink(url: String): Boolean {
 /** Сповіщення застосунку в системних налаштуваннях: туди веде «Відкрити налаштування», коли дозвіл забрано. */
 fun Context.openNotificationSettings(): Boolean {
     val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+    return runCatching { startActivity(intent) }.isSuccess
+}
+
+/** «Будильники й нагадування» застосунку: там дозволяють точні будильники (Android 12+). */
+@SuppressLint("InlinedApi")
+fun Context.openAlarmSettings(): Boolean {
+    val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:$packageName"))
     return runCatching { startActivity(intent) }.isSuccess
 }
 

@@ -6,6 +6,7 @@ import app.poruch.android.platform.NotificationPermission
 import app.poruch.domain.LegalLinks
 import app.poruch.shared.AppMessage
 import app.poruch.shared.AppNotice
+import app.poruch.shared.AppState
 import app.poruch.shared.PoruchApp
 
 class ProfileViewModel(private val app: PoruchApp, private val notifications: NotificationPermission) :
@@ -37,17 +38,22 @@ class ProfileViewModel(private val app: PoruchApp, private val notifications: No
                 changingPassword = changingPassword && shared.signedIn && shared.notice != AppNotice.Told(AppMessage.PASSWORD_CHANGED),
                 currentPassword = if (changingPassword && shared.signedIn) currentPassword else "",
                 changeError = (shared.notice as? AppNotice.Failed)?.error?.takeIf { changingPassword && shared.signedIn },
-                // Як і дайджест, за замовчуванням так: «увімкнено» лише разом із дозволом.
-                reminders = shared.remindersEnabled && notifications.granted(),
-                digest = shared.digestEnabled && notifications.granted(),
                 analytics = shared.analyticsEnabled,
                 // Акаунта більше нема — шторка видалення зникає разом із паролем.
                 deleting = deleting && shared.signedIn,
                 deletePassword = if (shared.signedIn) deletePassword else "",
                 deleteError = (shared.notice as? AppNotice.Failed)?.error?.takeIf { deleting && shared.signedIn }
-            )
+            ).permissions(shared)
         }
     }
+
+    /** Те, що залежить від дозволів системи: їх міняють у налаштуваннях, і стан застосунку про це не знає. */
+    private fun ProfileState.permissions(shared: AppState) = copy(
+        // Як і дайджест, за замовчуванням так: «увімкнено» лише разом із дозволом.
+        reminders = shared.remindersEnabled && notifications.granted(),
+        digest = shared.digestEnabled && notifications.granted(),
+        remindersExact = notifications.exactAlarms()
+    )
 
     override fun onIntent(intent: ProfileIntent) {
         when (intent) {
@@ -91,6 +97,8 @@ class ProfileViewModel(private val app: PoruchApp, private val notifications: No
                 if (intent.granted) app.setRemindersEnabled(true)
             }
             ProfileIntent.OpenNotificationSettings -> send(ProfileEffect.OpenNotificationSettings)
+            ProfileIntent.OpenAlarmSettings -> send(ProfileEffect.OpenAlarmSettings)
+            ProfileIntent.Resumed -> reduce { permissions(app.state.value) }
             ProfileIntent.OpenPrivacy -> send(ProfileEffect.OpenLink(LegalLinks.PRIVACY))
             ProfileIntent.OpenTerms -> send(ProfileEffect.OpenLink(LegalLinks.TERMS))
             ProfileIntent.ContactSupport -> send(ProfileEffect.WriteEmail(LegalLinks.SUPPORT_EMAIL))

@@ -27,6 +27,8 @@ data class ProfileState(
     val reminders: Boolean = false,
     /** Людина відмовила в дозволі на сповіщення: перемикач лишається вимкненим, підпис каже чому. */
     val remindersDenied: Boolean = false,
+    /** Точні будильники дозволено: нагадування прийде рівно за годину, а не до години пізніше. */
+    val remindersExact: Boolean = true,
     /** Перемикач дайджесту вихідних: прапорець пристрою, тож є і в гостя. */
     val digest: Boolean = true,
     val digestDenied: Boolean = false,
@@ -87,6 +89,10 @@ sealed interface ProfileIntent {
     data class NotificationPermissionAnswered(val granted: Boolean) : ProfileIntent
     /** Сповіщення заборонено: ведемо в системні налаштування застосунку. */
     data object OpenNotificationSettings : ProfileIntent
+    /** Точні будильники не дозволено (Android 14+): ведемо на «Будильники й нагадування». */
+    data object OpenAlarmSettings : ProfileIntent
+    /** Повернулись на екран, можливо з налаштувань: дозволи могли змінитися. */
+    data object Resumed : ProfileIntent
     data object OpenPrivacy : ProfileIntent
     data object OpenTerms : ProfileIntent
     data object ContactSupport : ProfileIntent
@@ -104,6 +110,7 @@ sealed interface ProfileEffect {
     data object SignIn : ProfileEffect
     data object AskNotificationPermission : ProfileEffect
     data object OpenNotificationSettings : ProfileEffect
+    data object OpenAlarmSettings : ProfileEffect
     data object OpenFollows : ProfileEffect
     data object CreateEvent : ProfileEffect
     data class OpenLink(val url: String) : ProfileEffect

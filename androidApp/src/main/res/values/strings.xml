@@ -129,6 +129,8 @@
   <string name="digest_prompt_body">Щопʼятниці ввечері коротко скажемо, скільки подій у вашому місті на вихідних. Одне сповіщення на тиждень, вимкнути можна в профілі.</string>
   <string name="digest_prompt_yes">Так, нагадувати</string>
   <string name="digest_prompt_no">Не зараз</string>
+  <string name="reminder_exact">Зараз нагадування може спізнитися до години. Щоб воно приходило рівно за годину, дозвольте «Будильники й нагадування».</string>
+  <string name="reminder_exact_allow">Дозволити</string>
   <string name="reminder_permission">Сповіщення вимкнено. Їх можна дозволити в налаштуваннях Android.</string>
   <string name="interests">Ваші інтереси</string>
   <string name="retake_quiz">Пройти опитування</string>
