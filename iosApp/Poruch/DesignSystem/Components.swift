@@ -1405,6 +1405,9 @@ struct StubTime: View {
                     }
                 }
                 .padding(.horizontal, Space.md)
+                // Під цифрами години лишається порожнє місце нижніх виносних, і центрований друк прилипав жанром до
+                // перфорації (4 зверху проти 12 знизу). Відступ зверху опускає його на 4 — видимі поля рівні.
+                .padding(.top, Space.sm)
             } else {
                 VStack(spacing: 2) {
                     genreLine?.padding(.bottom, Space.xs)

@@ -412,7 +412,9 @@ fun PoruchChip(
     /** Гліф після підпису: шеврон каже, що чип відкриває вибір, а не перемикає фільтр. */
     trailingIcon: ImageVector? = null,
     /** Скільки непрочитаних чатів у цьому розрізі. */
-    badge: Int = 0
+    badge: Int = 0,
+    /** Фільтр — один рядок; довге імʼя у складі переноситься, а не обрізається. */
+    maxLines: Int = 1
 ) {
     val colors = Poruch.colors
     Row(
@@ -455,7 +457,8 @@ fun PoruchChip(
             label,
             style = MaterialTheme.typography.labelMedium,
             color = if (selected) colors.onBrand else colors.ink,
-            maxLines = 1
+            maxLines = maxLines,
+            overflow = TextOverflow.Ellipsis
         )
         if (trailingIcon != null) Icon(
             trailingIcon,
@@ -1805,8 +1808,10 @@ fun StubTime(
         }
     }
     val semantics = modifier.clearAndSetSemantics { contentDescription = label }
+    // Під цифрами години лишається порожнє місце нижніх виносних, і центрований друк прилипав жанром до перфорації
+    // (4 зверху проти 12 знизу). Відступ зверху опускає його на 4 — видимі поля рівні.
     if (row) Row(
-        semantics.fillMaxWidth().padding(horizontal = Spacing.md),
+        semantics.fillMaxWidth().padding(horizontal = Spacing.md).padding(top = Spacing.sm),
         horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) { genre(); bigText() }

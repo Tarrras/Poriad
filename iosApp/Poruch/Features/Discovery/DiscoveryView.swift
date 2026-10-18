@@ -831,7 +831,13 @@ struct FlowLayout: Layout {
         var frames: [CGRect] = []
         var x: CGFloat = 0, y: CGFloat = 0, row: CGFloat = 0
         for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
+            var size = subview.sizeThatFits(.unspecified)
+            // Чип, довший за рядок («Національний академічний духовий оркестр України»), переноситься в межах
+            // ширини, а не розпирає контейнер — інакше весь екран деталей ширшав за дисплей.
+            if size.width > width {
+                size = subview.sizeThatFits(ProposedViewSize(width: width, height: nil))
+                size.width = min(size.width, width)
+            }
             if x > 0 && x + size.width > width { x = 0; y += row + spacing; row = 0 }
             frames.append(CGRect(origin: CGPoint(x: x, y: y), size: size))
             x += size.width + spacing

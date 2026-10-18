@@ -100,7 +100,7 @@ internal fun Lineup(event: Event, onIntent: (DetailIntent) -> Unit) {
                 val host = artist.role == ArtistRole.HOST
                 PoruchChip(
                     if (host) stringResource(R.string.artist_line_host, artist.name).replaceFirstChar { it.uppercase() } else artist.name,
-                    selected = false, onClick = { onIntent(DetailIntent.OpenArtist(artist)) }
+                    selected = false, onClick = { onIntent(DetailIntent.OpenArtist(artist)) }, maxLines = 2
                 )
             }
         }

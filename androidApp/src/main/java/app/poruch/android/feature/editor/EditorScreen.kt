@@ -579,7 +579,8 @@ private fun DraftTicket(state: EditorState) {
         categoryStub(form.category),
         stub = {
             Row(
-                Modifier.fillMaxWidth().padding(horizontal = Spacing.md),
+                // Як у StubTime(row): відступ зверху врівноважує порожнє місце під цифрами, жанр не липне до перфорації.
+                Modifier.fillMaxWidth().padding(horizontal = Spacing.md).padding(top = Spacing.sm),
                 horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {

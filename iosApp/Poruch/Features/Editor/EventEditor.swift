@@ -241,6 +241,8 @@ private struct DraftTicket: View {
             }
             .foregroundStyle(.white)
             .padding(.horizontal, Space.md)
+            // Як у StubTime(row:): відступ зверху врівноважує порожнє місце під цифрами, жанр не липне до перфорації.
+            .padding(.top, Space.sm)
         }
     }
 
