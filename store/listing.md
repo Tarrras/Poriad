@@ -1,6 +1,6 @@
 # Тексти й графіка для сторів
 
-Графіку в цій теці збирає `python3 tools/store_shots.py` (HTML + headless Chrome, шрифти з `site/fonts/`) із сирих екранів у `screens/`. Шість слайдів (мапа, подія, «Шукаю компанію», безпека, головна, створення події) перезняті 2026-10-05 з prod-збірок (iPhone 16 Pro Debug-Prod, Android-емулятор prodDebug 1.2.0), місто Київ, акаунт власника; подія на слайдах 2–4 — «Музика всесвіту Хаяо Міядзакі при свічках» (Будинок актора, є укриття). Тестова «Демо для перевірки застосунку» (для App Review) не має потрапляти в кадр. «Шукаю компанію» і форму створення не публікувати. На Android поля форми порожні: кирилицю в емулятор через adb не ввести. Статус-бар: iOS — `simctl status_bar override --time 9:41`, Android — demo mode; значки сповіщень на Android скрипт не прибирає, їх затирали при копіюванні в `screens/`. Після зміни UI треба перезняти `screens/*.png` з тими самими іменами, за потреби поправити координати винесених шматків у `SLIDES` і запустити скрипт.
+Графіку в цій теці збирає `python3 tools/store_shots.py` (HTML + headless Chrome, шрифти з `site/fonts/`) із сирих екранів у `screens/`. Світ «Корінець» (DESIGN.md): кожен слайд — квиток на нічному полотні, заголовок Sofia Sans Condensed, за перфорацією корінець кольору жанру з телефоном. П'ять слайдів (мапа зі слоганом, «Шукаю компанію» на деталях, створення зустрічі, «У місті» на головній, безпека) перезняті 2026-10-18 у нічній темі: iPhone 16 Pro Debug-Prod (гість) і Android-емулятор prodDebug 1.3.0 з `wm size 1080x2400`, місто Київ; подія на слайдах 2 і 5 — «Середземноморські мрії» (Національна філармонія, є укриття). Створення знято в dev-збірках без публікації: на iOS текст вставлено через `simctl pbcopy`, на Android чернетку записано в `shared_prefs/event_draft.xml` (кирилицю через adb не ввести); ім'я організатора в обох кадрах доведено до «Тарас» (на iOS акаунт підписаний латиницею). Тестова «Демо для перевірки застосунку» (для App Review) не має потрапляти в кадр. Статус-бар: iOS — `simctl status_bar override --time 09:41`, Android — demo mode (`clock 0941`, `notifications visible false`). Після зміни UI треба перезняти `screens/*.png` з тими самими іменами, за потреби поправити координати винесених шматків у `SLIDES` і запустити скрипт.
 
 ## Файли
 
@@ -8,10 +8,10 @@
 | --- | --- | --- |
 | `play/icon_512.png` | 512×512 | Play Console → Store listing → App icon |
 | `play/feature_graphic_1024x500.png` | 1024×500 | Play Console → Feature graphic |
-| `play/phone_01..06.png` | 1080×1920 | Play Console → Phone screenshots (порядок = нумерація) |
-| `appstore/iphone69_01..06.png` | 1320×2868 | App Store Connect → iPhone 6.9" |
-| `appstore/iphone67_01..06.png` | 1290×2796 | App Store Connect → iPhone 6.7" |
-| `appstore/iphone65_01..06.png` | 1242×2688 | App Store Connect → iPhone 6.5" |
+| `play/phone_01..05.png` | 1080×1920 | Play Console → Phone screenshots (порядок = нумерація) |
+| `appstore/iphone69_01..05.png` | 1320×2868 | App Store Connect → iPhone 6.9" |
+| `appstore/iphone67_01..05.png` | 1290×2796 | App Store Connect → iPhone 6.7" |
+| `appstore/iphone65_01..05.png` | 1242×2688 | App Store Connect → iPhone 6.5" |
 | `../iosApp/Poruch/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png` | 1024×1024 | іконка App Store (уже в проєкті) |
 
 iPad-скріншоти не потрібні: застосунок iPhone-only (`TARGETED_DEVICE_FAMILY = 1`, рішення 2026-09-18). Додати iPad можна пізніше, прибрати після релізу — ні.
