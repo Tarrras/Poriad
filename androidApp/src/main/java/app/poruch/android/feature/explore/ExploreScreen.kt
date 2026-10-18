@@ -45,6 +45,7 @@ fun ExploreScreen(state: ExploreState, onIntent: (ExploreIntent) -> Unit) {
             onSelect = { onIntent(ExploreIntent.SelectEvent(it)) },
             onSelectStack = { onIntent(ExploreIntent.SelectStack(it)) },
             onAreaChanged = { onIntent(ExploreIntent.AreaMoved(it?.let { b -> Area(b.south, b.west, b.north, b.east) })) },
+            onViewportChanged = { onIntent(ExploreIntent.Viewport(Area(it.south, it.west, it.north, it.east))) },
             onLoadFailed = { onIntent(ExploreIntent.MapFailed(it)) },
             shared = LocalSharedMapView.current
         )

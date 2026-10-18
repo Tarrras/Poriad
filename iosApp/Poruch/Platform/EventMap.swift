@@ -232,6 +232,8 @@ struct EventMap: UIViewRepresentable {
     var moved: (MapRegion) -> Void
     /// Центр камери, а не середина видимих меж: у Меркаторі це різні числа.
     var centerChanged: (Double, Double) -> Void = { _, _ in }
+    /// Видимі межі після кожної зупинки камери, хоч від жесту, хоч від вибору; `moved` — лише від жесту.
+    var visibleChanged: (MapRegion) -> Void = { _ in }
     /// Керування зумом кнопками.
     var controller: MapController?
 
@@ -533,10 +535,12 @@ struct EventMap: UIViewRepresentable {
         func mapView(_ mapView: MLNMapView, regionDidChangeWith reason: MLNCameraChangeReason, animated: Bool) {
             let center = mapView.centerCoordinate
             parent.centerChanged(center.latitude, center.longitude)
+            let bounds = mapView.visibleCoordinateBounds
+            let region = MapRegion(south: bounds.sw.latitude, west: bounds.sw.longitude, north: bounds.ne.latitude, east: bounds.ne.longitude)
+            parent.visibleChanged(region)
             let gestures: MLNCameraChangeReason = [.gesturePan, .gesturePinch, .gestureZoomIn, .gestureZoomOut, .gestureOneFingerZoom]
             guard !reason.intersection(gestures).isEmpty else { return }
-            let bounds = mapView.visibleCoordinateBounds
-            parent.moved(MapRegion(south: bounds.sw.latitude, west: bounds.sw.longitude, north: bounds.ne.latitude, east: bounds.ne.longitude))
+            parent.moved(region)
         }
     }
 }

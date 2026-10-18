@@ -67,6 +67,7 @@ class ExploreViewModel(private val app: PoruchApp) :
             }
 
             is ExploreIntent.AreaMoved -> reduce { copy(pendingArea = intent.area) }
+            is ExploreIntent.Viewport -> intent.area.let { presenter.viewport(it.south, it.west, it.north, it.east) }
             ExploreIntent.SearchHere -> {
                 state.value.pendingArea?.let { app.searchArea(it.south, it.west, it.north, it.east) }
                 reduce { copy(pendingArea = null) }

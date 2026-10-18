@@ -8,8 +8,6 @@ struct EventDeck: View {
     let events: [Event]
     let selectedID: String?
     let savedIDs: Set<String>
-    /// Змінюється, коли треба повернути карусель на початок (кнопка «до міста»).
-    let resetToken: Int
     let select: (String) -> Void
     let open: (String) -> Void
     let toggleSaved: (String) -> Void
@@ -64,7 +62,6 @@ struct EventDeck: View {
             }
             // Картка вибраної події доїхала пізніше за вибір або стала на інше місце у списку.
             .onChange(of: events.firstIndex { $0.id == selectedID }) { _, _ in align(proxy, animated: false) }
-            .onChange(of: resetToken) { _, _ in carouselID = nil }
             .onDisappear { settle?.cancel(); settle = nil }
         }
     }

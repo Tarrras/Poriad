@@ -7,6 +7,7 @@ import app.poruch.domain.EventCategory
 import app.poruch.domain.EventIndexEntry
 import app.poruch.domain.FollowKind
 import app.poruch.domain.Place
+import app.poruch.domain.PoruchLog
 import app.poruch.domain.asIndexEntry
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -16,14 +17,18 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.pow
 
 /** Що тримає екран мапи локально і що веде згортку: стос обраного піна. */
 private data class ExploreLocal(
@@ -74,6 +79,8 @@ data class ExploreScreenState(
     val indexVersion: Int = 0,
     /** Скільки разів на мапу переходили з головної з готовими фільтрами: платформа повертає камеру до міста. */
     val arrivals: Int = 0,
+    /** Скільки разів змінився запит мапи: платформа ставить карусель на першу картку. Див. [MapFeed.queries]. */
+    val queries: Int = 0,
     /** Росте, коли презентер сам відкрив стос: платформа опускає шторку. */
     val focusToken: Int = 0
 ) {
@@ -104,6 +111,8 @@ class ExplorePresenter(
     private val local = MutableStateFlow(ExploreLocal())
     private var visibleFrom: Pair<List<EventIndexEntry>, EventCategory?>? = null
     private var visible: List<EventIndexEntry> = emptyList()
+    /** Що видно на мапі зараз: південь, захід, північ, схід. Повідомляє платформа, коли камера зупинилась. */
+    private var viewport: DoubleArray? = null
 
     val state: StateFlow<ExploreScreenState> = combine(
         app.state.distinctUntilChanged { old, new -> sameInputs(old, new) }, local
@@ -131,9 +140,20 @@ class ExplorePresenter(
         // Новий фільтр — нова видача, стос скидається тут, а не на кожній платформі: інакше iOS лишав стос, де
         // вціліли дві події, і чипи над ним наче не діяли. Поточне значення пропускаємо: стос закладу з пошуку
         // міг відкритись раніше за цю підписку. Текст пошуку не слухаємо: заклад з пошуку сам його стирає.
+        // Коли видача під фільтр приїде, а на екрані з неї нічого, — до найближчої події, див. [revealNearest].
         scope.launch {
-            app.state.map { Triple(it.map.dateFilter, it.map.category, it.map.onlyAvailable) }
-                .distinctUntilChanged().drop(1).collect { resetStack() }
+            var before: Pair<Triple<DateFilter, EventCategory?, Boolean>, Int>? = null
+            app.state.map { Triple(it.map.dateFilter, it.map.category, it.map.onlyAvailable) to it.map.arrivals }
+                .distinctUntilChanged().collectLatest { now ->
+                    val previous = before
+                    before = now
+                    if (previous == null || previous.first == now.first) return@collectLatest
+                    resetStack()
+                    // «Усі N» з головної ставить фільтри разом із камерою на місто: там і лишаємось.
+                    if (previous.second != now.second) return@collectLatest
+                    app.state.first { it.map.answered == it.map.queries }
+                    revealNearest()
+                }
         }
     }
 
@@ -148,6 +168,32 @@ class ExplorePresenter(
             app.loadCards(ids)
             app.selectEvent(ids.first())
         }
+    }
+
+    /** Що видно на мапі. Платформа кличе, коли камера зупинилась, хоч від жесту, хоч від вибору. */
+    fun viewport(south: Double, west: Double, north: Double, east: Double) {
+        viewport = doubleArrayOf(south, west, north, east)
+    }
+
+    /**
+     * Фільтр лишив екран порожнім: видача є, а жодного її піна там, куди людина дивиться (часто — на місці колишнього
+     * вибору). Обираємо найближчу до центру екрана подію: мапа й карусель наводяться на неї, як після тапу. Піни на
+     * екрані є — нічого не чіпаємо, карусель лишається з першої картки.
+     */
+    private fun revealNearest() {
+        // ponytail: межі всього вікна, разом зі смугою під каруселлю; відступи врахувати, якщо пін під нею лишатиме екран «порожнім».
+        val (south, west, north, east) = viewport ?: return
+        val shared = app.state.value
+        val shown = visibleOf(shared.map.index, shared.map.category)
+        val onScreen = shown.count { it.latitude in south..north && it.longitude in west..east }
+        PoruchLog.d("map") { "filter settled: ${shown.size} shown, $onScreen on screen" }
+        if (shown.isEmpty() || onScreen > 0) return
+        val latitude = (south + north) / 2
+        val longitude = (west + east) / 2
+        // Градус довготи коротший за градус широти: без поправки «найближча» тягнулась би на схід чи захід.
+        val squeeze = cos(latitude * PI / 180)
+        val nearest = shown.minBy { (it.latitude - latitude).pow(2) + ((it.longitude - longitude) * squeeze).pow(2) }
+        app.selectEvent(nearest.id)
     }
 
     /** Зміна видачі (пошук, фільтр, місто, область) скидає стос: у ньому лишились би id подій, яких уже нема. */
@@ -202,6 +248,9 @@ class ExplorePresenter(
 
     fun close() = scope.cancel()
 
+    private fun visibleOf(index: List<EventIndexEntry>, category: EventCategory?) =
+        if (category == null) index else index.filter { it.category == category }
+
     private fun sameInputs(old: AppState, new: AppState): Boolean =
         old.map === new.map && old.cards === new.cards && old.detail === new.detail &&
             old.library === new.library && old.city === new.city && old.session === new.session
@@ -212,7 +261,7 @@ class ExplorePresenter(
         // Індекс, звужений категорією: той самий екземпляр, поки не змінились індекс чи категорія, — мапа не переписує GeoJSON.
         val from = visibleFrom
         if (from == null || from.first !== index || from.second != category) {
-            visible = if (category == null) index else index.filter { it.category == category }
+            visible = visibleOf(index, category)
             visibleFrom = index to category
         }
         val focused = shared.detail.event
@@ -256,6 +305,7 @@ class ExplorePresenter(
             stackFollowing = stackPlace != null && shared.isFollowing(FollowKind.PLACE, stackPlace.id),
             indexVersion = shared.map.indexVersion,
             arrivals = shared.map.arrivals,
+            queries = shared.map.queries,
             focusToken = local.focusToken
         )
     }

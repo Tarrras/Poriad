@@ -66,6 +66,12 @@ internal class DiscoveryEngine(
     /** Викликається, коли зміна запиту має закрити відкриту картку. */
     var onQueryChanged: () -> Unit = {}
 
+    /** Кожна зміна запиту мапи йде сюди, щоб жоден шлях не забув зняти вибір. Див. [MapFeed.queries]. */
+    private fun queryChanged() {
+        onQueryChanged()
+        store.update { it.copy(map = it.map.copy(queries = it.map.queries + 1)) }
+    }
+
     /**
      * Перечитує мапу, а з [home] і головну. Поки мапа без фільтрів, їхні запити однакові, тож
      * головна їде тим самим запитом. Зміна фільтра мапи ([home] = false) головну не чіпає.
@@ -99,6 +105,7 @@ internal class DiscoveryEngine(
                 PoruchLog.i("discovery") { "${page.total} events, ${page.cards.size} cards inline" }
                 reportEmptyCity(page.total)
                 publish(page, offline = false, failure = null, home = shared)
+                answer(snapshot)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -109,8 +116,17 @@ internal class DiscoveryEngine(
                     e
                 ) { "search failed, showing ${cached.index.size} cached events" }
                 publish(cached, offline = true, failure = e.asAppError(), home = shared)
+                answer(snapshot)
             }
         }
+    }
+
+    /**
+     * Видача приїхала. Якщо вона на поточний запит сервера, то відповідає на всі [MapFeed.queries]: категорію екран
+     * відбирає сам. Запізніла відповідь на старий запит (пошук, що вже змінився) — ні.
+     */
+    private fun answer(snapshot: EventQuery) {
+        if (snapshot == query) store.update { it.copy(map = it.map.copy(answered = it.map.queries)) }
     }
 
     /**
@@ -203,7 +219,7 @@ internal class DiscoveryEngine(
                 )
             ) store.update { it.copy(city = it.city.copy(custom = true)) }
         }
-        onQueryChanged(); refresh(home = false)
+        queryChanged(); refresh(home = false)
     }
 
     /** Платформа відкрила стос закладу: фокус виконано, повторне відкриття мапи його не повторить. */
@@ -588,7 +604,7 @@ internal class DiscoveryEngine(
     fun searchArea(south: Double, west: Double, north: Double, east: Double) {
         if (!moveTo(south, west, north, east)) return
         store.update { it.copy(city = it.city.copy(custom = true)) }
-        onQueryChanged(); refresh(home = false)
+        queryChanged(); refresh(home = false)
     }
 
     /** Ставить область запиту мапи. False — межі непридатні, нічого не змінено. */
@@ -619,7 +635,7 @@ internal class DiscoveryEngine(
             )
         }
         query = query.copy(text = trimmed.trim().takeIf { it.isNotEmpty() })
-        debounceJob?.cancel(); searchJob?.cancel(); placesJob?.cancel(); onQueryChanged()
+        debounceJob?.cancel(); searchJob?.cancel(); placesJob?.cancel(); queryChanged()
         debounceJob =
             scope.launch { delay(DiscoveryRules.SEARCH_DEBOUNCE_MS); refresh(home = false) }
     }
@@ -653,13 +669,17 @@ internal class DiscoveryEngine(
             )
         }
         query = target
-        onQueryChanged()
+        queryChanged()
         if (!same) refresh(home = false)
     }
 
+    // Фільтри: спершу [queryChanged], потім сам фільтр. Хто стежить за фільтром, може прокинутись ще всередині
+    // `store.update` (Main.immediate на Android) і має вже бачити новий номер запиту, щоб чекати відповіді саме на нього.
+
     fun setOnlyAvailable(available: Boolean) {
+        queryChanged()
         store.update { it.copy(map = it.map.copy(onlyAvailable = available)) }
-        query = query.copy(available = available); onQueryChanged(); refresh(home = false)
+        query = query.copy(available = available); refresh(home = false)
     }
 
     /**
@@ -667,12 +687,16 @@ internal class DiscoveryEngine(
      * звужував би й головну. Сервер віддає місто цілим, категорію відбирає екран.
      */
     fun setCategory(category: EventCategory?) {
+        queryChanged()
         store.update { it.copy(map = it.map.copy(category = category)) }
-        onQueryChanged()
+        // Категорію екран відбирає з того, що є: відповідь уже тут, якщо не їде видача під інший фільтр.
+        if (searchJob?.isActive != true) answer(query)
     }
 
     fun setDateFilter(filter: DateFilter) {
         val (start, end) = dateRange(filter)
+        // Як і решта фільтрів: без цього обрана подія 22.10 лишалась обраною під «Сьогодні».
+        queryChanged()
         store.update { it.copy(map = it.map.copy(dateFilter = filter)) }
         query = query.copy(from = start?.toString(), to = end?.toString())
         refresh(home = false)
@@ -769,6 +793,6 @@ internal class DiscoveryEngine(
         cityArea = EventQuery(query.south, query.west, query.north, query.east)
         store.update { it.copy(city = it.city.copy(custom = false)) }
         // Нове місто — і для мапи, і для головної.
-        onQueryChanged(); refresh()
+        queryChanged(); refresh()
     }
 }

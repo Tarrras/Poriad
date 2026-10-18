@@ -133,6 +133,8 @@ val LocalSharedMapView = staticCompositionLocalOf<SharedMapView?> { null }
     onAreaChanged: (MapBounds) -> Unit = {},
     /** Центр камери, а не середина видимих меж: у Меркаторі це різні числа. */
     onCenterChanged: (Double, Double) -> Unit = { _, _ -> },
+    /** Видимі межі після кожної зупинки камери, хоч від жесту, хоч від вибору; [onAreaChanged] — лише від жесту. */
+    onViewportChanged: (MapBounds) -> Unit = {},
     onLoadFailed: (Boolean) -> Unit = {},
     /** Спільна мапа вкладки або null для власної. Див. [SharedMapView]. */
     shared: SharedMapView? = null
@@ -150,6 +152,7 @@ val LocalSharedMapView = staticCompositionLocalOf<SharedMapView?> { null }
     val latestStack by rememberUpdatedState(onSelectStack)
     val latestArea by rememberUpdatedState(onAreaChanged)
     val latestCenter by rememberUpdatedState(onCenterChanged)
+    val latestViewport by rememberUpdatedState(onViewportChanged)
     val latestFailure by rememberUpdatedState(onLoadFailed)
 
     DisposableEffect(view, lifecycle) {
@@ -175,11 +178,13 @@ val LocalSharedMapView = staticCompositionLocalOf<SharedMapView?> { null }
         val idle = MapLibreMap.OnCameraIdleListener {
             val m = ready ?: return@OnCameraIdleListener
             m.cameraPosition.target?.let { latestCenter(it.latitude, it.longitude) }
+            val bounds = m.projection.visibleRegion.latLngBounds.let {
+                MapBounds(it.latitudeSouth, it.longitudeWest, it.latitudeNorth, it.longitudeEast)
+            }
+            latestViewport(bounds)
             if (!gestured) return@OnCameraIdleListener
             gestured = false
-            m.projection.visibleRegion.latLngBounds.let {
-                latestArea(MapBounds(it.latitudeSouth, it.longitudeWest, it.latitudeNorth, it.longitudeEast))
-            }
+            latestArea(bounds)
         }
         val click = MapLibreMap.OnMapClickListener { point -> ready?.let { tap(it, point, latestStack) } ?: false }
         view.getMapAsync { m ->

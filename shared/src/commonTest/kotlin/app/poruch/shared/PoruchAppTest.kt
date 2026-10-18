@@ -1927,8 +1927,14 @@ class PoruchAppTest {
         // Фільтр дати теж скидає стос — на обох платформах однаково, а не лише з Android.
         presenter.showStack(atPlace.map { it.id }); runCurrent()
         assertTrue(presenter.state.value.stackFocused)
+        assertEquals("p1",presenter.state.value.selectedId)
+        val queries=presenter.state.value.queries
         app.setDateFilter(DateFilter.TODAY); runCurrent()
+        assertEquals(queries+1,presenter.state.value.queries,"карусель платформи стає на першу картку")
         assertFalse(presenter.state.value.stackFocused)
+        // І вибір, як категорія: обрана подія 22.10 лишалась обраною (і на мапі) під «Сьогодні».
+        assertNull(presenter.state.value.selectedId)
+        assertNull(app.state.value.detail.event)
         app.setDateFilter(DateFilter.ANY); runCurrent(); advanceTimeBy(200); runCurrent()
         // Заклад з пошуку: презентер сам відкриває його стос і підносить токен для шторки.
         val before=presenter.state.value.focusToken
@@ -1936,6 +1942,33 @@ class PoruchAppTest {
         val focused=presenter.state.value
         assertTrue(focused.stackFocused)
         assertEquals(before+1,focused.focusToken)
+        app.close()
+    }
+    /** Фільтр лишив екран без жодного піна — до найближчої до центру події; піни на екрані є — камера й вибір не рухаються. */
+    @Test fun filterRevealsTheNearestEventWhenTheScreenIsEmpty()=runTest {
+        val events=Events()
+        val soon=(Clock.System.now()+1.hours).toString()
+        val here=listed("here",soon).copy(category=EventCategory.SPORT)
+        val near=listed("near",soon,placeId=null).copy(category=EventCategory.MUSIC,latitude=50.47,longitude=30.55)
+        val far=listed("far",soon,placeId=null).copy(category=EventCategory.MUSIC,latitude=50.6,longitude=30.9)
+        events.results=listOf(here,near,far)
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
+        // Як Main.immediate на Android: підписка прокидається ще всередині зміни фільтра.
+        val immediate=CoroutineScope(backgroundScope.coroutineContext+UnconfinedTestDispatcher(testScheduler))
+        val presenter=ExplorePresenter(app,immediate,StandardTestDispatcher(testScheduler))
+        runCurrent()
+        // Камера на «here»: під «Музикою» з нього на екрані нічого, найближча — «near», а не «far».
+        presenter.viewport(50.44,30.51,50.46,30.53)
+        presenter.toggleCategory(EventCategory.MUSIC); runCurrent()
+        assertEquals("near",presenter.state.value.selectedId)
+        // Піни на екрані є: фільтр знімає вибір, а нового не ставить.
+        presenter.viewport(50.4,30.4,50.7,31.0)
+        presenter.toggleCategory(EventCategory.MUSIC); runCurrent()
+        assertNull(presenter.state.value.selectedId)
+        // Дата: видача їде із сервера, тож найближчу шукаємо, коли вона приїхала.
+        presenter.viewport(50.0,29.0,50.1,29.1)
+        app.setDateFilter(DateFilter.TODAY); runCurrent(); advanceTimeBy(200); runCurrent()
+        assertEquals("here",presenter.state.value.selectedId)
         app.close()
     }
     /** Презентер «Моїх подій»: сам просить мої події, розклад і непрочитане — зі спільної згортки, без зміни входів екземпляр той самий. */

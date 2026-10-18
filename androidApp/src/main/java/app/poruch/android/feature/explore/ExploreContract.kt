@@ -46,6 +46,8 @@ sealed interface ExploreIntent {
     data object UndoReset : ExploreIntent
 
     data class AreaMoved(val area: Area?) : ExploreIntent
+    /** Що видно на мапі після зупинки камери: фільтр, що лишив екран порожнім, веде до найближчої події. */
+    data class Viewport(val area: Area) : ExploreIntent
     data object SearchHere : ExploreIntent
     data object Recenter : ExploreIntent
     data class MapFailed(val failed: Boolean) : ExploreIntent

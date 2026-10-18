@@ -145,7 +145,9 @@ struct DiscoveryView: View, Equatable {
                     // Пін — це місце: у фокус іде все, що на ньому стоїть.
                     explore.showStack(ids); open(.peek)
                 },
-                moved: { region = $0 }
+                moved: { region = $0 },
+                // Що видно: фільтр, що лишив екран порожнім, веде до найближчої події (`ExplorePresenter.revealNearest`).
+                visibleChanged: { explore.viewport($0) }
             )
             .ignoresSafeArea()
             LinearGradient(colors: [Palette.canvas.opacity(0.94), Palette.canvas.opacity(0)], startPoint: .top, endPoint: .bottom)
@@ -306,11 +308,13 @@ struct DiscoveryView: View, Equatable {
                 } else {
                     EventDeck(
                         events: deckEvents, selectedID: selectedID, savedIDs: savedIDs,
-                        resetToken: centerToken,
                         select: { model.app.selectEvent(id: $0) },
                         open: { model.app.selectEvent(id: $0); detail = EventRoute(id: $0) },
                         toggleSaved: { model.app.toggleSaved(id: $0) }
                     )
+                    // «До міста», перехід з головної і новий запит (фільтр, пошук, місто): карусель з чистого аркуша, з першої
+                    // картки. Інакше нова видача показувалась з позиції старої, посеред списку й зсунута на пів картки.
+                    .id("\(centerToken)/\(view.queries)")
                     .padding(.top, deckGap)
                 }
             } else {
@@ -884,6 +888,7 @@ private let cardPage = 24
 
     func showStack(_ ids: [String]) { presenter.showStack(ids: ids) }
     func resetStack() { presenter.resetStack() }
+    func viewport(_ area: MapRegion) { presenter.viewport(south: area.south, west: area.west, north: area.north, east: area.east) }
     func clearStack() { presenter.clearStack() }
     func focusEvent(_ id: String) { presenter.focusEvent(id: id) }
     func focusPlace(_ place: Place) { presenter.focusPlace(place: place) }
