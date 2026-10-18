@@ -42,11 +42,11 @@ class DetailViewModel(
     private val screen get() = state.value.screen
 
     /**
-     * Перше приєднання — природний момент увімкнути нагадування. Той, хто вимкнув їх у профілі, дозвіл
-     * системи вже має, і сюди не потрапляє: його вибір лишається.
+     * Перше приєднання — природний момент спитати про сповіщення: без них нагадування за годину не прийде.
+     * Хто вимкнув нагадування в профілі, того не питаємо: його вибір лишається.
      */
     private fun offerReminders() {
-        if (app.state.value.remindersEnabled || notifications.granted()) return
+        if (!app.state.value.remindersEnabled || notifications.granted()) return
         send(DetailEffect.AskNotificationPermission)
     }
 

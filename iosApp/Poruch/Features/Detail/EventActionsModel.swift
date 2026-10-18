@@ -1,7 +1,6 @@
 import EventKit
 import PhotosUI
 import SwiftUI
-import UserNotifications
 import Shared
 
 /// Побічні дії екрана деталей (фото, календар) та їхній прогрес. Переживають рендер, тому не в тілі view.
@@ -30,19 +29,7 @@ import Shared
         return true
     }
 
-    /// Перше приєднання — природний момент увімкнути нагадування. Той, хто вимкнув їх у профілі,
-    /// дозвіл системи вже дав, і система вдруге не питає: його вибір лишається.
-    private func offerReminders() {
-        guard (app.state.value as? AppState)?.remindersEnabled == false else { return }
-        UNUserNotificationCenter.current().getNotificationSettings { [app] settings in
-            guard settings.authorizationStatus == .notDetermined else { return }
-            NotificationPermission.request { granted in
-                guard granted else { return }
-                app.setRemindersEnabled(enabled: true)
-                PushDelegate.registerIfAllowed()
-            }
-        }
-    }
+    private func offerReminders() { ReminderPrompt.offer(app) }
 
     /// Запит у чужий супутник прямо з картки на сторінці афіші.
     func joinCompanion(id: String, signedIn: Bool) -> Bool {

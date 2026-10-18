@@ -373,20 +373,25 @@ struct DeleteAccountSheet: View {
 }
 
 /// Перемикач нагадувань. Стан живе у спільному сторі, дозвіл питає система; план рахує `shared`.
+/// Як і дайджест, за замовчуванням так, тож «увімкнено» показуємо лише разом із дозволом.
 struct ReminderPreference: View {
     @EnvironmentObject var model: AppModel
+    @State private var allowed = false
     @State private var denied = false
 
     private var enabled: Binding<Bool> {
         Binding(
-            get: { model.state?.remindersEnabled ?? false },
+            get: { allowed && (model.state?.remindersEnabled ?? true) },
             set: { isOn in
                 guard isOn else { model.app.setRemindersEnabled(enabled: false); return }
                 NotificationPermission.request { granted in
+                    allowed = granted
                     denied = !granted
-                    model.app.setRemindersEnabled(enabled: granted)
+                    // Відмова — це про систему, а не вибір людини: дозволить у Налаштуваннях, і нагадування підуть.
+                    guard granted else { return }
+                    model.app.setRemindersEnabled(enabled: true)
                     // Дозвіл є — можна просити токен APNs.
-                    if granted { PushDelegate.registerIfAllowed() }
+                    PushDelegate.registerIfAllowed()
                 }
             }
         )
@@ -403,7 +408,7 @@ struct ReminderPreference: View {
             }
         }
         .padding(Space.lg)
-        .notificationsDenied($denied)
+        .notificationsDenied($denied, allowed: $allowed)
     }
 }
 
@@ -460,7 +465,8 @@ private struct NotificationsDenied: View {
 }
 
 private extension View {
-    /// Стан дозволу системи: при появі й після повернення з Налаштувань, де його могли змінити.
+    /// Стан дозволу системи: при появі й після кожного повернення — з Налаштувань чи з системного вікна, яке
+    /// відкрив сусідній перемикач: дозвіл один на обидва.
     func notificationsDenied(_ denied: Binding<Bool>, allowed: Binding<Bool>? = nil) -> some View {
         func refresh() async {
             let status = await NotificationPermission.status()
@@ -468,7 +474,7 @@ private extension View {
             allowed?.wrappedValue = status == .authorized || status == .provisional
         }
         return task { await refresh() }
-            .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in Task { await refresh() } }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in Task { await refresh() } }
     }
 }
 

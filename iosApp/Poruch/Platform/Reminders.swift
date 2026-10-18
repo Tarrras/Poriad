@@ -6,7 +6,11 @@ import Shared
 enum NotificationPermission {
     static func request(_ completion: @escaping (Bool) -> Void) {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, _ in
-            DispatchQueue.main.async { completion(granted) }
+            DispatchQueue.main.async {
+                // План міг прийти, поки висіло системне вікно, а без дозволу iOS запити відкидає.
+                if granted { LocalReminderScheduler.shared.reschedule() }
+                completion(granted)
+            }
         }
     }
 
@@ -19,6 +23,20 @@ enum NotificationPermission {
 /// один раз і лише поки не питала, тож далі це нічого не робить. Дозвіл дає й реєстрацію в APNs.
 enum FollowPrompt {
     static func ask() {
+        Task {
+            guard await NotificationPermission.status() == .notDetermined else { return }
+            NotificationPermission.request { granted in
+                if granted { PushDelegate.registerIfAllowed() }
+            }
+        }
+    }
+}
+
+/// Приєднання чи своя нова подія — природний момент спитати про сповіщення: без них нагадування за годину
+/// не прийде. Хто вимкнув нагадування в профілі, того не питаємо; система й так питає лише раз.
+enum ReminderPrompt {
+    static func offer(_ app: PoruchApp) {
+        guard (app.state.value as? AppState)?.remindersEnabled == true else { return }
         Task {
             guard await NotificationPermission.status() == .notDetermined else { return }
             NotificationPermission.request { granted in
@@ -68,8 +86,26 @@ final class LocalReminderScheduler: NSObject, ReminderScheduler, RequestNotifier
     private let chatPrefix = "poruch.chat."
     private let requestPrefix = "poruch.request."
     private let digestID = "poruch.digest"
+    /// Останній план: `shared` шле лише зміни, а без дозволу iOS запити відкидає.
+    private var lastReminders: [EventReminder] = []
+    private var lastDigest: WeekendDigest?
+    private var planned = false
+
+    /// Сповіщення дозволили, вікном чи в Налаштуваннях: ставимо останній план знову, інакше він чекав би зміни.
+    func reschedule() {
+        center.getNotificationSettings { settings in
+            guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else { return }
+            DispatchQueue.main.async { [self] in
+                guard planned else { return }
+                replace(reminders: lastReminders)
+                replaceDigest(digest: lastDigest)
+            }
+        }
+    }
 
     func replace(reminders: [EventReminder]) {
+        lastReminders = reminders
+        planned = true
         center.getPendingNotificationRequests { [center, prefix] requests in
             center.removePendingNotificationRequests(withIdentifiers: requests.map(\.identifier).filter { $0.hasPrefix(prefix) })
             for reminder in reminders {
@@ -90,6 +126,7 @@ final class LocalReminderScheduler: NSObject, ReminderScheduler, RequestNotifier
 
     /// Дайджест вихідних: один запит під сталим id, новий план його замінює.
     func replaceDigest(digest: WeekendDigest?) {
+        lastDigest = digest
         center.removePendingNotificationRequests(withIdentifiers: [digestID])
         guard let digest else { return }
         let interval = Double(digest.fireAtEpochMillis) / 1000 - Date().timeIntervalSince1970

@@ -5,8 +5,12 @@ import app.poruch.domain.ReminderPreferenceStore
 
 /** Прапорець нагадувань під префіксом `device:`: як і смак, належить телефону, а не акаунту. */
 class LocalReminderPreference(private val database: PoruchDatabase) : ReminderPreferenceStore {
+    /**
+     * Увімкнено, поки людина не вимкнула, як і дайджест: справжній замок — дозвіл системи. Інакше дозвіл,
+     * даний не з приєднання (підписка, дайджест, Налаштування, Android до 13), лишав нагадування вимкненими.
+     */
     override fun enabled(): Boolean =
-        database.cacheQueries.readDevice(KEY).executeAsOneOrNull() == "true"
+        database.cacheQueries.readDevice(KEY).executeAsOneOrNull() != "false"
 
     override fun setEnabled(enabled: Boolean) {
         database.cacheQueries.writeDevice(KEY, enabled.toString())

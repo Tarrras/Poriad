@@ -37,7 +37,8 @@ class ProfileViewModel(private val app: PoruchApp, private val notifications: No
                 changingPassword = changingPassword && shared.signedIn && shared.notice != AppNotice.Told(AppMessage.PASSWORD_CHANGED),
                 currentPassword = if (changingPassword && shared.signedIn) currentPassword else "",
                 changeError = (shared.notice as? AppNotice.Failed)?.error?.takeIf { changingPassword && shared.signedIn },
-                reminders = shared.remindersEnabled,
+                // Як і дайджест, за замовчуванням так: «увімкнено» лише разом із дозволом.
+                reminders = shared.remindersEnabled && notifications.granted(),
                 digest = shared.digestEnabled && notifications.granted(),
                 analytics = shared.analyticsEnabled,
                 // Акаунта більше нема — шторка видалення зникає разом із паролем.
@@ -84,8 +85,10 @@ class ProfileViewModel(private val app: PoruchApp, private val notifications: No
                 reduce { copy(digestDenied = !intent.granted) }
                 app.setDigestEnabled(intent.granted)
             } else {
-                reduce { copy(remindersDenied = !intent.granted) }
-                app.setRemindersEnabled(intent.granted)
+                // Прапорець у сторі вже міг бути «так»: тоді стан не зміниться, і перемикач сам не оновився б.
+                reduce { copy(remindersDenied = !intent.granted, reminders = intent.granted) }
+                // Відмова — це про систему, а не вибір людини: дозволить у налаштуваннях, і нагадування підуть.
+                if (intent.granted) app.setRemindersEnabled(true)
             }
             ProfileIntent.OpenNotificationSettings -> send(ProfileEffect.OpenNotificationSettings)
             ProfileIntent.OpenPrivacy -> send(ProfileEffect.OpenLink(LegalLinks.PRIVACY))

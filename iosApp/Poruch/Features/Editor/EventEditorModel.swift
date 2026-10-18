@@ -365,6 +365,8 @@ enum EditorStep: Int, CaseIterable, Identifiable {
         finished = true
         submitted = false
         app.clearCompletedEvent()
+        // Нова подія — момент спитати про сповіщення: організатору теж нагадуємо за годину, а запити на участь дзвонять.
+        if event == nil { ReminderPrompt.offer(app) }
     }
 
     /// Запис чернетки після паузи в наборі: кодування на кожну літеру відчувалось як залипання.

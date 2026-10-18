@@ -1,6 +1,7 @@
 package app.poruch.android.platform
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.AlarmManager
 import android.app.Notification
 import android.app.NotificationChannel
@@ -43,7 +44,7 @@ class NotificationPermission(private val context: Context) {
 }
 
 /**
- * Нагадування через неточні будильники: навмисно без дозволу на точні. План приходить готовий
+ * Нагадування без дозволу на точні будильники, див. [wake]. План приходить готовий
  * зі спільного шару, тут лише поставити, зняти й пережити перезавантаження: список лежить у
  * SharedPreferences, а приймач ставить його знову після `BOOT_COMPLETED`.
  */
@@ -51,13 +52,7 @@ class AlarmReminderScheduler(private val context: Context) : ReminderScheduler {
     override fun replace(reminders: List<EventReminder>) {
         val alarms = context.getSystemService(AlarmManager::class.java)
         stored(context).forEach { alarms.cancel(pending(context, it)) }
-        reminders.forEach {
-            alarms.setAndAllowWhileIdle(
-                AlarmManager.RTC_WAKEUP,
-                it.fireAtEpochMillis,
-                pending(context, it)
-            )
-        }
+        reminders.forEach { alarms.wake(it.fireAtEpochMillis, pending(context, it)) }
         store(context, reminders)
     }
 
@@ -65,7 +60,7 @@ class AlarmReminderScheduler(private val context: Context) : ReminderScheduler {
         val alarms = context.getSystemService(AlarmManager::class.java)
         alarms.cancel(digestPending(context))
         storeDigest(context, digest)
-        if (digest != null) alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, digest.fireAtEpochMillis, digestPending(context))
+        if (digest != null) alarms.wake(digest.fireAtEpochMillis, digestPending(context))
     }
 
     internal companion object {
@@ -76,17 +71,21 @@ class AlarmReminderScheduler(private val context: Context) : ReminderScheduler {
         fun restore(context: Context) {
             val alarms = context.getSystemService(AlarmManager::class.java)
             stored(context).filter { it.fireAtEpochMillis > System.currentTimeMillis() }
-                .forEach {
-                    alarms.setAndAllowWhileIdle(
-                        AlarmManager.RTC_WAKEUP,
-                        it.fireAtEpochMillis,
-                        pending(context, it)
-                    )
-                }
+                .forEach { alarms.wake(it.fireAtEpochMillis, pending(context, it)) }
             storedDigest(context)?.takeIf { it.fireAtEpochMillis > System.currentTimeMillis() }?.let {
-                alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, it.fireAtEpochMillis, digestPending(context))
+                alarms.wake(it.fireAtEpochMillis, digestPending(context))
             }
         }
+
+        /**
+         * Неточний будильник може запізнитися на 75% часу до нього, з Android 12 — не більше ніж на годину: «за годину»
+         * про подію через два дні прийшло б наступного дня. До 12 точний дозволу не потребує, тож там ставимо точний.
+         */
+        // ponytail: з 12 запізнення до години лишається; точно — лише з SCHEDULE_EXACT_ALARM, який з 14 людина дає вручну.
+        @SuppressLint("MissingPermission")
+        private fun AlarmManager.wake(at: Long, intent: PendingIntent) =
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, intent)
+            else setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, intent)
 
         /** Будильник дайджесту спрацював: текст — з останнього збереженого плану. Тап веде на головну. */
         fun showDigest(system: Context) {

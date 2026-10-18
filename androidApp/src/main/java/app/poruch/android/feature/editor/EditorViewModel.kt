@@ -69,7 +69,7 @@ class EditorViewModel(
                 unsaved = false; saveJob?.cancel(); drafts.clear(); app.clearCompletedEvent()
                 // Нова подія — момент спитати про сповіщення: без дозволу запити на участь не дзвонять.
                 // Закриваємось після відповіді, бо запит живе в маршруті редактора.
-                if (editingId == null && !latest.remindersEnabled && !notifications.granted()) send(EditorEffect.AskNotificationPermission)
+                if (editingId == null && latest.remindersEnabled && !notifications.granted()) send(EditorEffect.AskNotificationPermission)
                 else send(EditorEffect.Close)
             }
             copy(mutating = latest.mutating)
