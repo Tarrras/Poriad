@@ -183,13 +183,18 @@ export function stubParts(card, now = new Date(), compact = false) {
   return [timeOf(start, tz), compact ? date(start) : dayLabel(start, tz, now).toUpperCase()];
 }
 
-/** Фільтр дат, як чипи головної (`HomeRules`): вихідні — з найближчої суботи (сьогодні, якщо вже) до понеділка. */
-export const WHEN = { today: "Сьогодні", tomorrow: "Завтра", weekend: "Вихідні" };
+/**
+ * Фільтр дат, як чипи головної (`HomeRules`): вихідні — з найближчої суботи (сьогодні, якщо вже) до понеділка.
+ * «Сьогодні ввечері» — лише сайт: сьогодні з початком о 17:00 і пізніше в поясі події.
+ */
+export const WHEN = { today: "Сьогодні", evening: "Сьогодні ввечері", tomorrow: "Завтра", weekend: "Вихідні" };
 export function inWhen(entry, when, now = new Date()) {
   if (!when) return true;
   const today = dayNumber(now, entry.tz);
-  const day = dayNumber(new Date(entry.startsAt), entry.tz) - today;
+  const start = new Date(entry.startsAt);
+  const day = dayNumber(start, entry.tz) - today;
   if (when === "today") return day === 0;
+  if (when === "evening") return day === 0 && Number(timeOf(start, entry.tz).slice(0, 2)) >= 17;
   if (when === "tomorrow") return day === 1;
   const iso = isoWeekday(today);
   return day >= Math.max(5 - iso, 0) && day < 7 - iso;
@@ -241,6 +246,43 @@ export const price = (card) => card.is_free ? "Безкоштовно" : card.pr
 /** «Афіша · Concert.ua» або «Від людей». */
 export const sourceNote = (card) => card.origin === "import" ? `Афіша${card.source_name ? ` · ${card.source_name}` : ""}` : "Від людей";
 
+// ---- Календар. Як «Додати в календар» у застосунку: кінець невідомий — година від початку; на сайті ще й нагадування за годину.
+
+export const eventUrl = (card) => `https://poriad.app/e/${card.id}`;
+const calendarEnd = (card) => card.ends_at ? new Date(card.ends_at) : new Date(Date.parse(card.starts_at) + 36e5);
+const calendarTime = (date) => date.toISOString().replace(/[-:]|\.\d{3}/g, "");
+/** Місце, адреса й місто — без частин, які вже є в іншій (адреса джерела часто сама містить заклад і місто). */
+function calendarPlace(card) {
+  const parts = [card.place_name, card.address, card.city].filter(Boolean);
+  const inside = (v, w) => w.toLowerCase().includes(v.toLowerCase());
+  return parts.filter((v, i) => !parts.some((w, j) => j !== i && inside(v, w) && (w.length > v.length || j < i))).join(", ");
+}
+
+/** Файл .ics (RFC 5545): рядки через CRLF, текст екрановано, рядки довші за 75 байтів згорнуто. */
+export function icsFile(card, now = new Date()) {
+  const text = (value) => value.replace(/[\\;,]/g, (c) => `\\${c}`).replace(/\r?\n/g, "\\n");
+  const title = text(displayTitle(card.title));
+  return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Poriad//poriad.app//UK", "METHOD:PUBLISH", "BEGIN:VEVENT",
+    `UID:${card.id}@poriad.app`, `DTSTAMP:${calendarTime(now)}`, `DTSTART:${calendarTime(new Date(card.starts_at))}`, `DTEND:${calendarTime(calendarEnd(card))}`,
+    `SUMMARY:${title}`, `LOCATION:${text(calendarPlace(card))}`, `URL:${eventUrl(card)}`, `DESCRIPTION:${eventUrl(card)}`,
+    "BEGIN:VALARM", "ACTION:DISPLAY", `DESCRIPTION:${title}`, "TRIGGER:-PT1H", "END:VALARM", "END:VEVENT", "END:VCALENDAR",
+  ].map(foldLine).join("\r\n") + "\r\n";
+}
+function foldLine(line) {
+  let out = "", bytes = 0;
+  for (const ch of line) {
+    const n = utf8.encode(ch).length;
+    if (bytes + n > 75) { out += "\r\n "; bytes = 1; }
+    out += ch;
+    bytes += n;
+  }
+  return out;
+}
+
+export const googleCalendarUrl = (card) => `https://calendar.google.com/calendar/render?${new URLSearchParams({
+  action: "TEMPLATE", text: displayTitle(card.title), dates: `${calendarTime(new Date(card.starts_at))}/${calendarTime(calendarEnd(card))}`,
+  location: calendarPlace(card), details: eventUrl(card) })}`;
+
 export const httpsOrNull = (value) => typeof value === "string" && value.startsWith("https://") ? value : null;
 
 export function esc(value) {
@@ -254,6 +296,131 @@ export function plural(n, [one, few, many]) {
   return `${n.toLocaleString("uk-UA")} ${word}`;
 }
 export const EVENTS = ["подія", "події", "подій"];
+
+// ---- QR-код (ISO 18004): байтовий режим, рівень M, версії 1–6 (до 106 байтів; посиланню на подію вистачає 4-ї).
+// Маску вибирає штраф, як у `npx qrcode`, тож poriad.app/app дає той самий знак, що друкувався раніше (site_test).
+
+/** Рівень M: кодових слів даних і корекції на блок, блоків — для версій 1–6. */
+const utf8 = new TextEncoder();
+const QR_M = [[16, 10, 1], [28, 16, 1], [44, 26, 1], [32, 18, 2], [43, 24, 2], [27, 16, 4]];
+const EXP = [], LOG = [];
+for (let i = 0, x = 1; i < 255; i++) { EXP[i] = x; LOG[x] = i; x = (x << 1) ^ (x & 128 ? 0x11d : 0); }
+const gmul = (a, b) => a && b ? EXP[(LOG[a] + LOG[b]) % 255] : 0;
+
+function reedSolomon(data, n) {
+  let gen = [1];
+  for (let i = 0; i < n; i++) gen = [...gen, 0].map((c, j) => c ^ (j ? gmul(gen[j - 1], EXP[i]) : 0));
+  const rem = new Array(n).fill(0);
+  for (const b of data) {
+    const f = b ^ rem.shift();
+    rem.push(0);
+    for (let i = 0; i < n; i++) rem[i] ^= gmul(gen[i + 1], f);
+  }
+  return rem;
+}
+
+const QR_MASKS = [(r, c) => (r + c) % 2, (r) => r % 2, (r, c) => c % 3, (r, c) => (r + c) % 3,
+  (r, c) => (Math.floor(r / 2) + Math.floor(c / 3)) % 2, (r, c) => (r * c) % 2 + (r * c) % 3,
+  (r, c) => ((r * c) % 2 + (r * c) % 3) % 2, (r, c) => ((r * c) % 3 + (r + c) % 2) % 2];
+
+/** `{ size, path }` для `<path stroke>` — по смузі на ряд темних модулів; null, якщо текст задовгий. */
+export function qrPath(text) {
+  const bytes = [...utf8.encode(text)];
+  const v = QR_M.findIndex(([d, , blocks]) => d * blocks - 2 >= bytes.length) + 1;
+  if (!v) return null;
+  const [d, ec, blocks] = QR_M[v - 1], size = 17 + 4 * v;
+
+  const bits = [];
+  const put = (value, n) => { for (let i = n - 1; i >= 0; i--) bits.push((value >>> i) & 1); };
+  put(4, 4); put(bytes.length, 8); bytes.forEach((b) => put(b, 8));
+  put(0, Math.min(4, d * blocks * 8 - bits.length));
+  while (bits.length % 8) bits.push(0);
+  const data = [];
+  for (let i = 0; i < bits.length; i += 8) data.push(parseInt(bits.slice(i, i + 8).join(""), 2));
+  for (let pad = 0xEC; data.length < d * blocks; pad ^= 0xEC ^ 0x11) data.push(pad);
+  const chunks = Array.from({ length: blocks }, (_, i) => data.slice(i * d, (i + 1) * d));
+  const ecc = chunks.map((chunk) => reedSolomon(chunk, ec));
+  const words = [];
+  for (let i = 0; i < d; i++) chunks.forEach((chunk) => words.push(chunk[i]));
+  for (let i = 0; i < ec; i++) ecc.forEach((chunk) => words.push(chunk[i]));
+
+  const m = Array.from({ length: size }, () => new Array(size).fill(0));
+  const fixed = Array.from({ length: size }, () => new Array(size).fill(false));
+  const set = (r, c, on) => { m[r][c] = on ? 1 : 0; fixed[r][c] = true; };
+  for (const [r0, c0] of [[0, 0], [size - 7, 0], [0, size - 7]]) {
+    for (let r = -1; r <= 7; r++) for (let c = -1; c <= 7; c++) {
+      if (r0 + r < 0 || r0 + r >= size || c0 + c < 0 || c0 + c >= size) continue;
+      const ring = Math.max(Math.abs(r - 3), Math.abs(c - 3));
+      set(r0 + r, c0 + c, ring !== 2 && ring < 4);
+    }
+  }
+  for (let i = 8; i < size - 8; i++) { set(i, 6, i % 2 === 0); set(6, i, i % 2 === 0); }
+  if (v > 1) for (let r = -2; r <= 2; r++) for (let c = -2; c <= 2; c++) set(size - 7 + r, size - 7 + c, Math.max(Math.abs(r), Math.abs(c)) !== 1);
+  const format = (mask) => {
+    let rem = mask << 10;
+    for (let i = 14; i >= 10; i--) if ((rem >> i) & 1) rem ^= 0x537 << (i - 10);
+    const info = ((mask << 10) | rem) ^ 0x5412;
+    for (let i = 0; i < 15; i++) {
+      const on = (info >> i) & 1;
+      set(i < 6 ? i : i < 8 ? i + 1 : size - 15 + i, 8, on);
+      set(8, i < 8 ? size - i - 1 : i === 8 ? 7 : 14 - i, on);
+    }
+    set(size - 8, 8, 1);
+  };
+  format(0);
+  let bit = 0;
+  for (let col = size - 1, up = true; col > 0; col -= 2, up = !up) {
+    if (col === 6) col--;
+    for (let k = 0; k < size; k++) {
+      const row = up ? size - 1 - k : k;
+      for (const c of [col, col - 1]) {
+        if (fixed[row][c]) continue;
+        m[row][c] = bit < words.length * 8 ? (words[bit >> 3] >> (7 - (bit & 7))) & 1 : 0;
+        bit++;
+      }
+    }
+  }
+
+  const apply = (p) => { for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) if (!fixed[r][c] && !QR_MASKS[p](r, c)) m[r][c] ^= 1; };
+  const penalty = () => {
+    let score = 0, dark = 0;
+    for (let a = 0; a < size; a++) {
+      let runR = 0, runC = 0, lastR = -1, lastC = -1, seqR = 0, seqC = 0;
+      for (let b = 0; b < size; b++) {
+        const x = m[a][b], y = m[b][a];
+        dark += x;
+        if (x === lastR) runR++; else { if (runR >= 5) score += runR - 2; lastR = x; runR = 1; }
+        if (y === lastC) runC++; else { if (runC >= 5) score += runC - 2; lastC = y; runC = 1; }
+        seqR = ((seqR << 1) & 0x7FF) | x; seqC = ((seqC << 1) & 0x7FF) | y;
+        if (b >= 10) score += 40 * ((seqR === 0x5D0 || seqR === 0x05D) + (seqC === 0x5D0 || seqC === 0x05D));
+        if (a < size - 1 && b < size - 1) { const s = x + m[a][b + 1] + m[a + 1][b] + m[a + 1][b + 1]; if (s === 0 || s === 4) score += 3; }
+      }
+      if (runR >= 5) score += runR - 2;
+      if (runC >= 5) score += runC - 2;
+    }
+    return score + 10 * Math.abs(Math.ceil(dark * 100 / (size * size) / 5) - 10);
+  };
+  let best = 0, lowest = Infinity;
+  for (let p = 0; p < 8; p++) {
+    format(p); apply(p);
+    const score = penalty();
+    apply(p);
+    if (score < lowest) { lowest = score; best = p; }
+  }
+  format(best); apply(best);
+
+  let path = "";
+  m.forEach((row, r) => {
+    for (let c = 0, x = -1; c < size;) {
+      if (!row[c]) { c++; continue; }
+      let e = c;
+      while (e < size && row[e]) e++;
+      path += x < 0 ? `M${c} ${r + 0.5}h${e - c}` : `m${c - x} 0h${e - c}`;
+      x = c = e;
+    }
+  });
+  return { size, path };
+}
 
 // ---- Стиль мапи. Порт `poruchMapStyle` (shared/MapStyle.kt) з токенами «Корінця»: удень тло — полотно, дороги — поверхня
 // квитків; уночі — графітове полотно й тихі дороги, як у застосунку.

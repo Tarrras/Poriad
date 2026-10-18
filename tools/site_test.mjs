@@ -1,6 +1,6 @@
 // Правила сайту, що мають збігатися із застосунком: node tools/site_test.mjs
 import assert from "node:assert/strict";
-import { displayTitle, overline, inWhen, fold, soonFirst, otherDays, plural, EVENTS, price } from "../site/js/poriad.js";
+import { displayTitle, overline, inWhen, fold, soonFirst, otherDays, plural, EVENTS, price, qrPath, icsFile, googleCalendarUrl } from "../site/js/poriad.js";
 
 // Ті самі випадки, що TitleRulesTest (core/domain).
 for (const [raw, shown] of [
@@ -31,6 +31,25 @@ assert.ok(inWhen(e("2026-10-09T10:00:00Z"), "tomorrow", now));
 assert.ok(inWhen(e("2026-10-10T10:00:00Z"), "weekend", now) && inWhen(e("2026-10-11T20:00:00Z"), "weekend", now));
 assert.ok(!inWhen(e("2026-10-12T08:00:00Z"), "weekend", now) && !inWhen(e("2026-10-09T10:00:00Z"), "weekend", now));
 assert.ok(inWhen(e("2026-10-11T10:00:00Z"), "weekend", new Date("2026-10-11T08:00:00Z")), "у неділю вихідні — сьогодні");
+assert.ok(inWhen(e("2026-10-08T14:00:00Z"), "evening", now), "17:00 за Києвом (14:00 UTC) — уже вечір");
+assert.ok(!inWhen(e("2026-10-08T13:59:00Z"), "evening", now) && !inWhen(e("2026-10-08T08:00:00Z"), "evening", now), "16:59 і ранок — ні");
+assert.ok(inWhen(e("2026-10-08T20:30:00Z"), "evening", now), "23:30 сьогодні — вечір");
+assert.ok(!inWhen(e("2026-10-08T21:30:00Z"), "evening", now) && !inWhen(e("2026-10-09T16:00:00Z"), "evening", now), "00:30 і завтрашній вечір — ні");
+
+// QR: той самий знак poriad.app/app, що друкувався раніше з `npx qrcode` (рівень M), і посилання на подію — версія 4.
+assert.equal(qrPath("https://poriad.app/app").path, "M0 0.5h7m1 0h3m3 0h1m1 0h1m1 0h7M0 1.5h1m5 0h1m1 0h3m1 0h1m1 0h1m3 0h1m5 0h1M0 2.5h1m1 0h3m1 0h1m3 0h1m2 0h1m2 0h1m1 0h1m1 0h3m1 0h1M0 3.5h1m1 0h3m1 0h1m1 0h4m1 0h1m1 0h2m1 0h1m1 0h3m1 0h1M0 4.5h1m1 0h3m1 0h1m2 0h1m3 0h4m1 0h1m1 0h3m1 0h1M0 5.5h1m5 0h1m3 0h1m3 0h1m3 0h1m5 0h1M0 6.5h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7M8 7.5h5M0 8.5h1m1 0h2m1 0h3m4 0h1m1 0h1m1 0h1m1 0h1m2 0h1m1 0h2M0 9.5h2m2 0h2m2 0h2m1 0h2m3 0h1m2 0h1m3 0h1M0 10.5h1m1 0h1m3 0h1m2 0h1m1 0h2m1 0h1m3 0h1m1 0h1M1 11.5h1m1 0h1m3 0h1m2 0h1m2 0h3m1 0h3m1 0h2M0 12.5h3m1 0h4m5 0h2m2 0h4m1 0h3M2 13.5h1m2 0h1m2 0h1m1 0h2m3 0h1m2 0h3m3 0h1M1 14.5h1m1 0h1m2 0h1m2 0h1m2 0h2m2 0h1m3 0h1m1 0h2M0 15.5h1m3 0h1m2 0h3m2 0h1m2 0h2m2 0h2m3 0h1M2 16.5h1m2 0h7m1 0h1m2 0h9M8 17.5h1m1 0h1m1 0h3m1 0h1m3 0h1m1 0h1m1 0h1M0 18.5h7m1 0h1m1 0h3m3 0h1m1 0h1m1 0h1m1 0h3M0 19.5h1m5 0h1m1 0h1m1 0h1m1 0h1m1 0h3m3 0h1m2 0h2M0 20.5h1m1 0h3m1 0h1m2 0h1m1 0h3m2 0h6m1 0h1M0 21.5h1m1 0h3m1 0h1m1 0h3m1 0h2m3 0h2m1 0h5M0 22.5h1m1 0h3m1 0h1m1 0h1m2 0h3m3 0h2m1 0h1m1 0h2M0 23.5h1m5 0h1m2 0h1m8 0h1m1 0h1m1 0h1M0 24.5h7m1 0h2m2 0h1m1 0h1m2 0h8");
+assert.equal(qrPath("https://poriad.app/e/3f2a9c1e-7b4d-4e8a-9c0f-1a2b3c4d5e6f").size, 33);
+assert.equal(qrPath("x".repeat(107)), null, "довше за версію 6 — без коду");
+
+// Календар: година від початку, якщо кінця нема (як у застосунку), нагадування за годину, коми екрановано, рядки ≤ 75 байтів.
+const gig = { id: "e1", title: "ГУРТ CRAZY TRAIN, ЖИВИЙ ЗВУК: ДОВГА НАЗВА КОНЦЕРТУ ДЛЯ ПЕРЕВІРКИ ЗГОРТАННЯ РЯДКА", starts_at: "2026-10-08T16:00:00Z", ends_at: null, place_name: "Атлас", address: "вул. Січових Стрільців, 37", city: "Київ" };
+const ics = icsFile(gig, now);
+assert.ok(ics.includes("DTSTART:20261008T160000Z\r\nDTEND:20261008T170000Z\r\n") && ics.includes("TRIGGER:-PT1H"));
+assert.ok(ics.replace(/\r\n /g, "").includes("LOCATION:Атлас\\, вул. Січових Стрільців\\, 37\\, Київ"));
+assert.ok(ics.split("\r\n").every((line) => new TextEncoder().encode(line).length <= 75));
+assert.match(icsFile({ ...gig, place_name: "Центральний будинок художника", address: "вул. Січових Стрільців, 1-5, Центральний Будинок Художника, Київ" }).replace(/\r\n /g, ""),
+  /LOCATION:вул. Січових Стрільців\\, 1-5\\, Центральний Будинок Художника\\, Київ\r\n/, "заклад і місто вже в адресі");
+assert.match(googleCalendarUrl(gig), /dates=20261008T160000Z%2F20261008T170000Z/);
 
 const folded = fold([
   e("2026-10-09T16:00:00Z", { id: "a" }), e("2026-10-10T16:00:00Z", { id: "b" }), e("2026-10-10T18:00:00Z", { id: "c" }),

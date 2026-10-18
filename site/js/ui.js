@@ -3,8 +3,8 @@
 // компанію — у застосунку. Кожна така кнопка відкриває шторку з тим, що саме дасть застосунок.
 import {
   APP_STORE_URL, CATEGORIES, cardsByIds, eventSafety, displayTitle, overline, dayLabel, timeOf, stubParts,
-  price, sourceNote, httpsOrNull, esc, otherDays,
-} from "./poriad.js?v=7";
+  price, sourceNote, httpsOrNull, esc, otherDays, qrPath, eventUrl, icsFile, googleCalendarUrl,
+} from "./poriad.js?v=8";
 
 const ua = navigator.userAgent;
 export const isIOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -34,13 +34,13 @@ const href = (card) => `afisha.html?e=${encodeURIComponent(card.id)}`;
 const seatsOf = (card) => card.origin === "community" && card.capacity ? `${card.attendee_count ?? 0}/${card.capacity}` : null;
 const stamp = (text, cls = "", glyph = null) => `<span class="stamp ${cls}">${glyph ? icon(glyph) : ""}${esc(text)}</span>`;
 
-/** Друк корінця: година табличними цифрами, день, а в зустрічі від людей — місця «3/8». */
-export function stubPrint(card, { row = false } = {}) {
+/** Друк корінця: година табличними цифрами, день, а в зустрічі від людей — місця «3/8». `qr` — знак над годиною. */
+export function stubPrint(card, { row = false, qr = "" } = {}) {
   const [time, day] = stubParts(card);
   const seats = seatsOf(card);
   const label = `${overline(card, new Date(), true)}${seats ? `, учасників ${seats}` : ""}`;
   const small = `<small>${esc(day)}</small>${seats ? `<span class="seats">${icon("people")}${esc(seats)}</span>` : ""}`;
-  return `<div class="stub" role="img" aria-label="${esc(label)}"><b class="t">${esc(time)}</b>${row ? `<span class="side">${small}</span>` : small}</div>`;
+  return `<div class="stub" role="img" aria-label="${esc(label)}">${qr}<b class="t">${esc(time)}</b>${row ? `<span class="side">${small}</span>` : small}</div>`;
 }
 
 /** Вертикальний квиток (PosterCard): обкладинка 4:5 зі штампом і ціною або друкована сторона; корінець 52 знизу. */
@@ -284,20 +284,52 @@ const REASONS = {
   app: ["Поряд у телефоні", "Афіша міста на мапі, нагадування, компанія для походу й свої зустрічі завжди під рукою."],
 };
 
+/** Штамп, який квиток отримав би в застосунку після цієї дії (`eventState`; DESIGN.md: штамп — лише стан). */
+function stateAfter(reason, card) {
+  if (card.status === "cancelled") return ["Скасовано", "danger"];
+  if (reason === "join") return card.approval_required ? ["Запит надіслано", "accent", "queue"] : ["Ви йдете", "success", "check"];
+  return { remind: ["Нагадаємо за годину", "", "bell"], company: ["Шукаю компанію", "", "people"], follow: ["Ви стежите", "", "check"], artist: ["Ви стежите", "", "check"] }[reason];
+}
+
+/** Квиток події в шторці: штамп стану, назва, місце; на корінці — QR на poriad.app/e/{id} (на телефоні — лише час). */
+function passTicket(card, reason) {
+  const state = stateAfter(reason, card);
+  return `<div class="ticket pass cat-${esc(card.category)}" data-ui>
+    <div class="face">${state ? stamp(...state) : ""}<b class="name">${esc(displayTitle(card.title))}</b>
+      <div class="where"><span class="dot"></span><span>${esc(placeOf(card))}</span></div>
+      <div class="note"><span class="genre-word">${esc(CATEGORIES[card.category] || "Подія")}</span> · ${esc(sourceNote(card))}</div></div>
+    ${stubPrint(card, { qr: qrSvg(eventUrl(card)) })}
+  </div>`;
+}
+
+let icsUrl;
+/** «Нагадати» на сайті теж працює: файл .ics із нагадуванням за годину або Google Календар. */
+function calendarLinks(card) {
+  if (icsUrl) URL.revokeObjectURL(icsUrl);
+  icsUrl = URL.createObjectURL(new Blob([icsFile(card)], { type: "text/calendar;charset=utf-8" }));
+  const file = displayTitle(card.title).replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 60) || "poriad";
+  return `<div class="cal"><a class="btn secondary" href="${icsUrl}" download="${esc(file)}.ics">${icon("calendar")}Додати в календар</a>
+    <a class="btn secondary" href="${esc(googleCalendarUrl(card))}" target="_blank" rel="noopener">Google Календар</a></div>`;
+}
+
 export function openInstall(reason = "app", card = null, name = null) {
   installDialog ??= dialog("install");
   let [title, lead] = REASONS[reason] || REASONS.app;
   if (reason === "follow" && card?.place_name) title = `Стежте за «${card.place_name}»`;
   if (reason === "artist" && name) title = `Стежте за ${name}`;
+  const calendar = reason === "remind" && card && card.status !== "cancelled";
+  if (calendar) lead = "Додайте подію у свій календар: нагадування спрацює за годину до початку. А застосунок нагадає сам.";
   installDialog.innerHTML = `<div class="install-box">
   <button class="round" type="button" data-close aria-label="Закрити">${icon("close")}</button>
-  <img class="app-icon" src="icon.png" alt="">
+  ${card ? "" : `<img class="app-icon" src="icon.png" alt="">`}
   <h2>${esc(title)}</h2><p class="lead">${esc(lead)}</p>
-  <ul><li><i>${icon("bell")}</i>Нагадування й п’ятничний дайджест вихідних</li>
+  ${card ? passTicket(card, reason) : `<ul><li><i>${icon("bell")}</i>Нагадування й п’ятничний дайджест вихідних</li>
     <li><i>${icon("people")}</i>«Шукаю компанію» і чат учасників</li>
-    <li><i>${icon("map")}</i>Мапа подій навколо вас і свої зустрічі</li></ul>
+    <li><i>${icon("map")}</i>Мапа подій навколо вас і свої зустрічі</li></ul>`}
+  ${calendar ? calendarLinks(card) : ""}
   ${card && isIOS ? `<a class="btn secondary open-app" href="poriad://event/${esc(card.id)}">Уже є застосунок? Відкрити подію</a>` : ""}
-  <div class="get"><div class="stores">${storeLink()}<small>Поки лише для iPhone з iOS 17</small></div>${qr("Наведіть камеру iPhone")}</div>
+  <div class="get"><div class="stores">${storeLink()}<small>Поки лише для iPhone з iOS 17</small></div>
+    ${card ? `<small class="scan">Наведіть камеру iPhone на корінець, і подія відкриється на телефоні</small>` : qr("Наведіть камеру iPhone")}</div>
 </div>`;
   installDialog.querySelector("[data-close]").onclick = () => installDialog.close();
   if (!installDialog.open) installDialog.showModal();
@@ -305,9 +337,13 @@ export function openInstall(reason = "app", card = null, name = null) {
 
 export const storeLink = () => `<a class="store" href="${APP_STORE_URL}" target="_blank" rel="noopener">${icon("apple")}<span><small>Завантажити в</small>App Store</span></a>`;
 
-/** QR на poriad.app/app: сторінка сама веде в потрібний стор. Згенеровано `npx qrcode`, рівень M. */
-export const qr = (caption) => `<div class="qr"><svg viewBox="0 0 25 25" shape-rendering="crispEdges" role="img" aria-label="QR-код: poriad.app/app"><path stroke="currentColor" d="${QR_PATH}"/></svg><small>${esc(caption)}</small></div>`;
-const QR_PATH = "M0 0.5h7m1 0h3m3 0h1m1 0h1m1 0h7M0 1.5h1m5 0h1m1 0h3m1 0h1m1 0h1m3 0h1m5 0h1M0 2.5h1m1 0h3m1 0h1m3 0h1m2 0h1m2 0h1m1 0h1m1 0h3m1 0h1M0 3.5h1m1 0h3m1 0h1m1 0h4m1 0h1m1 0h2m1 0h1m1 0h3m1 0h1M0 4.5h1m1 0h3m1 0h1m2 0h1m3 0h4m1 0h1m1 0h3m1 0h1M0 5.5h1m5 0h1m3 0h1m3 0h1m3 0h1m5 0h1M0 6.5h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7M8 7.5h5M0 8.5h1m1 0h2m1 0h3m4 0h1m1 0h1m1 0h1m1 0h1m2 0h1m1 0h2M0 9.5h2m2 0h2m2 0h2m1 0h2m3 0h1m2 0h1m3 0h1M0 10.5h1m1 0h1m3 0h1m2 0h1m1 0h2m1 0h1m3 0h1m1 0h1M1 11.5h1m1 0h1m3 0h1m2 0h1m2 0h3m1 0h3m1 0h2M0 12.5h3m1 0h4m5 0h2m2 0h4m1 0h3M2 13.5h1m2 0h1m2 0h1m1 0h2m3 0h1m2 0h3m3 0h1M1 14.5h1m1 0h1m2 0h1m2 0h1m2 0h2m2 0h1m3 0h1m1 0h2M0 15.5h1m3 0h1m2 0h3m2 0h1m2 0h2m2 0h2m3 0h1M2 16.5h1m2 0h7m1 0h1m2 0h9M8 17.5h1m1 0h1m1 0h3m1 0h1m3 0h1m1 0h1m1 0h1M0 18.5h7m1 0h1m1 0h3m3 0h1m1 0h1m1 0h1m1 0h3M0 19.5h1m5 0h1m1 0h1m1 0h1m1 0h1m1 0h3m3 0h1m2 0h2M0 20.5h1m1 0h3m1 0h1m2 0h1m1 0h3m2 0h6m1 0h1M0 21.5h1m1 0h3m1 0h1m1 0h3m1 0h2m3 0h2m1 0h5M0 22.5h1m1 0h3m1 0h1m1 0h1m2 0h3m3 0h2m1 0h1m1 0h2M0 23.5h1m5 0h1m2 0h1m8 0h1m1 0h1m1 0h1M0 24.5h7m1 0h2m2 0h1m1 0h1m2 0h8";
+/** QR-код посилання; без `label` він прихований від екранного читача, бо підпис стоїть поруч. */
+function qrSvg(url, label = null) {
+  const code = qrPath(url);
+  return code ? `<svg class="code" viewBox="0 0 ${code.size} ${code.size}" shape-rendering="crispEdges" ${label ? `role="img" aria-label="QR-код: ${esc(label)}"` : 'aria-hidden="true"'}><path stroke="currentColor" d="${code.path}"/></svg>` : "";
+}
+/** QR на poriad.app/app: сторінка сама веде в потрібний стор. */
+export const qr = (caption) => `<div class="qr">${qrSvg("https://poriad.app/app", "poriad.app/app")}<small>${esc(caption)}</small></div>`;
 
 // ---- Дрібне спільне
 

@@ -1,8 +1,8 @@
 // Лендинг: сторінка — квиток. Корінець героїні — доказ: що справді йде сьогодні ввечері в місті. Далі зустрічі від людей
 // (порожній квиток, який відвідувач друкує сам), «Шукаю компанію» на справжній події з афіші, сама афіша жанрами — опорою.
 // Активності не вигадуємо: лише справжні дані prod.
-import { discover, fold, soonFirst, inWhen, CITIES, cityOf, CATEGORIES, displayTitle, overline, stubParts, timeOf, httpsOrNull, esc } from "./poriad.js?v=7";
-import { ensureCards, remember, poster, bindCards, openEvent, openInstall, reveal, navLine, bindLocks, savedCity, qr, stubTile, photo } from "./ui.js?v=7";
+import { discover, fold, soonFirst, inWhen, CITIES, cityOf, CATEGORIES, displayTitle, overline, stubParts, timeOf, httpsOrNull, esc } from "./poriad.js?v=8";
+import { ensureCards, remember, poster, bindCards, openEvent, openInstall, reveal, navLine, bindLocks, savedCity, qr, stubTile, photo } from "./ui.js?v=8";
 
 navLine();
 bindLocks();

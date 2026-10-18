@@ -511,6 +511,22 @@ a.row:hover { background: var(--surface-muted); }
 .install-box .qr svg { width: 120px; height: 120px; padding: 10px; border: 1px solid var(--hairline); }
 .install-box .qr small { font-size: 13px; line-height: 17px; max-width: 140px; color: var(--ink-secondary); opacity: 1; }
 .install-box .open-app { align-self: stretch; }
+/* Другорядні кнопки на піднятій шторці — тон від чорнила, як на панелі дії: brand-container уночі зливався б із шторкою. */
+.install-box .btn.secondary { background: color-mix(in srgb, var(--ink) 9%, var(--surface-raised)); }
+.install-box .btn.secondary:hover { background: color-mix(in srgb, var(--ink) 14%, var(--surface-raised)); }
+.install-box .cal { display: flex; flex-wrap: wrap; gap: 10px; margin-top: -4px; }
+.install-box .cal .btn { flex: 1 1 auto; height: 48px; padding: 0 18px; font-size: 15px; }
+.install-box .cal ~ .get { padding-top: 18px; border-top: 1px solid var(--hairline); }
+.install-box .scan { max-width: 200px; font: 400 13px/17px var(--font); color: var(--ink-secondary); text-align: right; }
+/* Квиток події в шторці «У застосунку»: на сірому папері, перфорація й вирізи пробиті до шторки; на корінці над часом — QR події. */
+.pass { --stub-w: 152px; --r: var(--r-lg); --ground: var(--surface-raised); background: var(--canvas); flex: none; }
+.pass > .face { padding: 16px 18px; gap: 8px; }
+.pass .stamp { align-self: flex-start; margin-bottom: 2px; }
+.pass .name { font: 700 22px/25px var(--cond); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.pass .where { margin-top: auto; padding-top: 4px; display: flex; align-items: center; gap: 6px; font: 500 13px/18px var(--font); color: var(--ink-secondary); min-width: 0; }
+.pass .where span:last-child, .pass .note { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pass .note { font: 400 13px/18px var(--font); color: var(--ink-tertiary); }
+.pass > .stub .code { width: 128px; height: 128px; padding: 9px; margin-bottom: 8px; border-radius: var(--r-sm); background: #fff; color: #000; }
 .toast { position: fixed; left: 50%; bottom: 28px; z-index: 100; transform: translate(-50%, 20px); opacity: 0; padding: 12px 20px; border-radius: 999px; background: var(--ink); color: var(--on-brand);
   font: 500 15px/20px var(--font); pointer-events: none; transition: opacity .3s, transform .4s var(--ease); }
 .toast.on { opacity: 1; transform: translate(-50%, 0); }
@@ -637,7 +653,8 @@ a.row:hover { background: var(--surface-muted); }
   .install { margin: auto 0 0; width: 100%; }
   .install[open] { animation: up .5s var(--ease); }
   .install-box { border-radius: var(--r-xl) var(--r-xl) 0 0; padding-bottom: calc(24px + env(safe-area-inset-bottom)); }
-  .install-box .qr { display: none; }
+  .install-box .qr, .install-box .scan, .pass > .stub .code { display: none; }
+  .pass { --stub-w: 84px; }
   .toolbar .line.top { flex-wrap: wrap; }
   .search { max-width: none; }
   .stack { left: 12px; right: 12px; top: auto; width: auto; max-height: 55%; }

@@ -181,8 +181,8 @@ function layout({ title, description, image, url, head, body }) {
 <meta name="theme-color" content="#0F0F13" media="(prefers-color-scheme: dark)">
 ${head}
 <link rel="preload" href="/fonts/sofia-sans-condensed-800.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/tokens.css?v=7">
-<link rel="stylesheet" href="/web.css?v=7">
+<link rel="stylesheet" href="/tokens.css?v=8">
+<link rel="stylesheet" href="/web.css?v=8">
 <link rel="icon" href="/icon.png">
 </head>
 <body class="event-page">
