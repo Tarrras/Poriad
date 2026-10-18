@@ -74,10 +74,9 @@ iPad-скріншоти не потрібні: застосунок iPhone-only 
 Без цього Android відкриває `poriad.app/e/…` у браузері, а не в застосунку (App Links не підтверджено), а на веб-сторінці події нема кнопки Google Play.
 
 1. Play Console → Test and release → App integrity → App signing: скопіювати **SHA-256** ключа підпису застосунку (не upload key; можна обидва).
-2. `worker/index.mjs`: вписати його в `ANDROID_CERT_FINGERPRINTS`, а `PLAY_URL` = `https://play.google.com/store/apps/details?id=app.poriad.android`.
+2. `worker/index.mjs`: перевірити, що він є в `ANDROID_CERT_FINGERPRINTS`. `site/js/poriad.js`: `PLAY_LIVE = true` — значки Google Play на лендингу, у шторці й на `/e/`, «iPhone і Android» у текстах, QR на Android веде в Play. Підняти `?v=N` (рядок sed у `site/README.md`), запушити сайт.
 3. `cd worker && npx wrangler deploy`; перевірити `curl -s https://poriad.app/.well-known/assetlinks.json`.
 4. На телефоні з prod-збіркою з Play: `adb shell pm get-app-links app.poriad.android` → `poriad.app: verified`. Якщо `none` — `adb shell pm verify-app-links --re-verify app.poriad.android`.
-5. `site/index.html`: замінити «Google Play · скоро» на посилання (там само, де App Store).
 
 ### Data safety (як заповнювати)
 

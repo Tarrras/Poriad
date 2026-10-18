@@ -10,9 +10,13 @@
   // Мітка джерела для App Store Connect і Play Console (див. js/poriad.js): QR — qr, сторінка події — ?from=event.
   var ua = navigator.userAgent, from = new URLSearchParams(location.search).get("from") || "";
   var ct = /^[a-z]{1,12}$/.test(from) ? from : "qr";
-  if (/iPhone|iPad|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)) location.replace("https://apps.apple.com/app/apple-store/id6813543772?pt=129478154&mt=8&ct=" + ct);
-  // Android-версія ще в закритому тесті: телефон без iOS бачить лендинг із «поки лише для iPhone», а не порожню сторінку Play.
-  else location.replace("./#download");
+  var ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  if (ios) location.replace("https://apps.apple.com/app/apple-store/id6813543772?pt=129478154&mt=8&ct=" + ct);
+</script>
+<script type="module">
+  // Решта: Android — у Google Play, щойно його ввімкнено в js/poriad.js (PLAY_LIVE); поки ні, і на комп'ютері — лендинг.
+  import { playUrl } from "./js/poriad.js?v=8";
+  if (!ios) location.replace((/Android/.test(ua) && playUrl(ct)) || "./#download");
 </script>
 <link rel="stylesheet" href="tokens.css?v=8">
 <link rel="stylesheet" href="style.css?v=8">
@@ -22,7 +26,6 @@
 <header class="hero"><div class="wrap"><a class="brand" href="./"><img src="icon.png" alt=""><b>Поряд</b></a></div></header>
 <main><div class="wrap">
   <h1>Завантажити «Поряд»</h1>
-  <p>Поки лише для iPhone з iOS 17.</p>
   <div class="row">
     <a class="pill" href="https://apps.apple.com/app/apple-store/id6813543772?pt=129478154&amp;ct=qr&amp;mt=8">App Store</a>
     <a class="pill ghost" href="./">Афіша на сайті</a>

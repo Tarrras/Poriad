@@ -7,7 +7,11 @@ const SUPABASE_KEY = "sb_publishable_RoY0wFzTOcXlmOIYC0UE-w_fOt5rXPq";
 // Мітки джерела: ct — кампанія App Store Connect (Analytics → Campaigns, pt — наш акаунт), utm — звіт Play Console.
 // Сайт — ct=site, сторінки подій (worker/) — event, QR і /app — qr, банер Safari — banner.
 export const APP_STORE_URL = "https://apps.apple.com/app/apple-store/id6813543772?pt=129478154&ct=site&mt=8";
-export const PLAY_URL = "https://play.google.com/store/apps/details?id=app.poriad.android&referrer=utm_source%3Dporiad.app%26utm_campaign%3Dsite";
+// Google Play: вимкнено, доки застосунок не вийшов публічно (PRODUCT.md: до того Android не згадуємо). У день релізу —
+// PLAY_LIVE = true, підняти ?v=N і викласти сайт і worker: з'являться значки Google Play, «iPhone і Android» і QR для Android.
+const PLAY_LIVE = false;
+export const playUrl = (campaign) => PLAY_LIVE ? `https://play.google.com/store/apps/details?id=app.poriad.android&referrer=utm_source%3Dporiad.app%26utm_campaign%3D${campaign}` : "";
+export const PLAY_URL = playUrl("site");
 
 /** `HomeLocation.covered` (core/domain Rules.kt): центр міста; вікно — ±0.15° широти й ±0.25° довготи, як перша мапа. */
 export const CITIES = [

@@ -5,13 +5,13 @@
 
 // Назви, дати й ціна — ті самі правила, що на сайті (site/js/poriad.js, порт TitleRules і формату застосунку).
 // wrangler збирає цей імпорт у воркер; той самий файл сайт віддає браузеру.
-import { displayTitle, overline, stubParts, price, httpsOrNull, esc, CATEGORIES } from "../site/js/poriad.js";
+import { displayTitle, overline, stubParts, price, httpsOrNull, esc, CATEGORIES, playUrl } from "../site/js/poriad.js";
 export { esc };
 
 // Мітка ct=event: завантаження зі сторінок подій окремо від сайту (site/js/poriad.js).
 const APP_STORE_URL = "https://apps.apple.com/app/apple-store/id6813543772?pt=129478154&ct=event&mt=8";
-// Порожньо, доки застосунок не вийшов у Google Play: кнопку не показуємо.
-const PLAY_URL = "";
+// Порожньо, доки в site/js/poriad.js не ввімкнено PLAY_LIVE: кнопку Google Play не показуємо. Мітка utm — event.
+const PLAY_URL = playUrl("event");
 const IOS_APP_ID = "QTYQMJ94D2.app.poriad.ios";
 // Play Console → Test and release → App integrity → App signing: SHA-256 ключа підпису застосунку
 // (збірки з Play) і ключа завантаження (локальні prodRelease). Без них Android відкриває посилання в браузері.

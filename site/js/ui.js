@@ -2,12 +2,17 @@
 // Сайт — режим перегляду: дивитися, ділитися й купувати квиток можна тут, а піти, зберегти, нагадати й знайти
 // компанію — у застосунку. Кожна така кнопка відкриває шторку з тим, що саме дасть застосунок.
 import {
-  APP_STORE_URL, CATEGORIES, cardsByIds, eventSafety, displayTitle, overline, dayLabel, timeOf, stubParts,
+  APP_STORE_URL, PLAY_URL, CATEGORIES, cardsByIds, eventSafety, displayTitle, overline, dayLabel, timeOf, stubParts,
   price, sourceNote, httpsOrNull, esc, otherDays, qrPath, eventUrl, icsFile, googleCalendarUrl,
 } from "./poriad.js?v=8";
 
 const ua = navigator.userAgent;
 export const isIOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+export const isAndroid = /Android/.test(ua);
+/** Підписи платформ — за перемикачем Google Play у poriad.js. */
+export const PLATFORMS = PLAY_URL
+  ? { short: "iPhone і Android", long: "Для iPhone з iOS 17 і Android 8+.", camera: "телефону" }
+  : { short: "Для iPhone", long: "Поки лише для iPhone з iOS 17.", camera: "iPhone" };
 
 export const icon = (name, cls = "ico") => `<svg class="${cls}" aria-hidden="true"><use href="img/icons.svg#i-${name}"/></svg>`;
 
@@ -328,14 +333,24 @@ export function openInstall(reason = "app", card = null, name = null) {
     <li><i>${icon("map")}</i>Мапа подій навколо вас і свої зустрічі</li></ul>`}
   ${calendar ? calendarLinks(card) : ""}
   ${card && isIOS ? `<a class="btn secondary open-app" href="poriad://event/${esc(card.id)}">Уже є застосунок? Відкрити подію</a>` : ""}
-  <div class="get"><div class="stores">${storeLink()}<small>Поки лише для iPhone з iOS 17</small></div>
-    ${card ? `<small class="scan">Наведіть камеру iPhone на корінець, і подія відкриється на телефоні</small>` : qr("Наведіть камеру iPhone")}</div>
+  <div class="get"><div class="stores">${storeLink()}<small>${PLATFORMS.long.slice(0, -1)}</small></div>
+    ${card ? `<small class="scan">Наведіть камеру ${PLATFORMS.camera} на корінець, і подія відкриється на телефоні</small>` : qr(`Наведіть камеру ${PLATFORMS.camera}`)}</div>
 </div>`;
   installDialog.querySelector("[data-close]").onclick = () => installDialog.close();
   if (!installDialog.open) installDialog.showModal();
 }
 
-export const storeLink = () => `<a class="store" href="${APP_STORE_URL}" target="_blank" rel="noopener">${icon("apple")}<span><small>Завантажити в</small>App Store</span></a>`;
+const appStoreBadge = () => `<a class="store" href="${APP_STORE_URL}" target="_blank" rel="noopener">${icon("apple")}<span><small>Завантажити в</small>App Store</span></a>`;
+const playBadge = (cls = "store") => `<a class="${cls}" href="${PLAY_URL}" target="_blank" rel="noopener">${icon("play")}<span><small>Завантажити з</small>Google Play</span></a>`;
+/** Значки сторів: на Android Google Play першим; поки Play вимкнено — лише App Store. */
+export const storeLink = () => !PLAY_URL ? appStoreBadge() : isAndroid ? playBadge() + appStoreBadge() : appStoreBadge() + playBadge();
+
+/** Статична розмітка лендингу: значок Google Play поруч із кожним `[data-store]` і підписи `[data-platforms]`. */
+export function applyStores(root = document) {
+  if (!PLAY_URL) return;
+  root.querySelectorAll("[data-store]").forEach((a) => a.insertAdjacentHTML(isAndroid ? "beforebegin" : "afterend", playBadge(a.className)));
+  root.querySelectorAll("[data-platforms]").forEach((el) => { el.textContent = PLATFORMS[el.dataset.platforms]; });
+}
 
 /** QR-код посилання; без `label` він прихований від екранного читача, бо підпис стоїть поруч. */
 function qrSvg(url, label = null) {
@@ -369,7 +384,7 @@ export function navLine() {
 /** Кнопки «Завантажити» з `data-lock` поза картками. */
 export function bindLocks(root = document) {
   root.querySelectorAll("[data-lock]:not([data-id] [data-lock])").forEach((el) => {
-    if (isIOS && el.dataset.lock === "app" && el.href) { el.href = APP_STORE_URL; return; }
+    if (el.dataset.lock === "app" && el.href && (isIOS || (isAndroid && PLAY_URL))) { el.href = isIOS ? APP_STORE_URL : PLAY_URL; return; }
     el.addEventListener("click", (event) => { event.preventDefault(); openInstall(el.dataset.lock); });
   });
 }

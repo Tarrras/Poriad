@@ -10,7 +10,7 @@
 | `afisha.html`, `js/afisha.js` | Веб-афіша: місто, дати, категорії, пошук, сітка з довантаженням, мапа (MapLibre з unpkg, стиль — порт `shared/MapStyle.kt`, тайли OpenFreeMap). Стан у адресі: `?city=&when=&cat=&q=&view=map&e=` |
 | `js/poriad.js` | Дані й правила, спільні з застосунком: назви (`TitleRules`), дати («Сьогодні · 19:00», «до 31 жовтня»), згортання прокатів, фільтр «вихідні». Імпортує й `worker/` |
 | `js/ui.js` | Квитки (вертикальний, великий, малий корінець рядка), шторка події з панеллю-квитком, шторка «у застосунку», QR |
-| `app.html` | Посилання для QR: iPhone → App Store, решта → лендинг («поки лише для iPhone»; Google Play — коли Android стане публічним) |
+| `app.html` | Посилання для QR: iPhone → App Store, Android → Google Play (коли ввімкнено `PLAY_LIVE`), решта → лендинг |
 | `web.css`, `fonts/`, `img/icons.svg` | Стилі; Sofia Sans Condensed 700/800 і Extra Condensed 800 — ті самі файли, що в `iosApp/Poruch/Fonts` (з вшитими українськими д, л, п, `tools/bake_cyrillic_forms.py`), підмножина латиниці й кирилиці в woff2; текст — системний гротеск. Inter і Source Serif 4 лишились для `tools/store_shots.py` і старої розмітки `worker/`. Значки застосунку + системні й логотипи сторів |
 | `privacy.html`, `privacy-en.html` | Privacy Policy URL для Play Console / App Store Connect і посилання в застосунку |
 | `terms.html`, `terms-en.html` | Terms / EULA з правилами UGC (Apple 1.2, Play UGC policy) |
@@ -26,6 +26,10 @@ python3 -m http.server 8766 --directory site
 ```
 
 `tools/site_test.mjs` звіряє правила `js/poriad.js` із застосунком (назви, дати в поясі події, вихідні, згортання). Сервер — щоб відкрити `http://localhost:8766/` і `/afisha.html`: модулі з `file://` не завантажуються.
+
+## Google Play
+
+Один перемикач — `PLAY_LIVE` у `js/poriad.js`. Поки `false`, сайт каже «поки лише для iPhone» і Android не згадує (PRODUCT.md). У день публікації в Play: `PLAY_LIVE = true`, підняти `?v=N`, запушити сайт і `cd worker && npx wrangler deploy` — з'являться значки Google Play (лендинг, шторка «у застосунку», `/e/`), «iPhone і Android» у текстах, а QR на Android веде в Play. Решта кроків — `store/listing.md`, «Після публікації в Play».
 
 ## Кеш
 

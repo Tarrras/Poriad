@@ -372,7 +372,8 @@ details.genre .foot { padding: 0 18px 10px 82px; }
 .tiles .main { background: var(--ink); color: var(--on-brand); padding: 44px 48px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 32px; align-items: center; }
 .tiles .main h2 { font-size: clamp(40px, 3.9vw, 56px); line-height: .95; }
 .tiles .main p { margin-top: 16px; font: 400 18px/27px var(--font); opacity: .82; max-width: 30em; }
-.tiles .main .store { margin-top: 28px; background: var(--on-brand); color: var(--ink); }
+.tiles .main .stores { margin-top: 28px; }
+.tiles .main .store { background: var(--on-brand); color: var(--ink); }
 .tiles .main .store:hover { background: color-mix(in srgb, var(--on-brand), var(--ink) 10%); }
 .qr { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
 .qr svg { width: 156px; height: 156px; padding: 12px; border-radius: var(--r-md); background: #fff; color: #000; }
