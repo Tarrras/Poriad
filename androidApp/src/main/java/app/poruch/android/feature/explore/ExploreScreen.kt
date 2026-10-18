@@ -12,7 +12,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -28,6 +32,7 @@ import app.poruch.android.LocalSharedMapView
 import app.poruch.android.R
 import app.poruch.android.ui.*
 import app.poruch.shared.DateFilter
+import kotlinx.coroutines.delay
 
 /** Висота градієнта під верхніми контролами і відступ мапи під ними. */
 internal val TopControlsInset = 152.dp
@@ -37,24 +42,28 @@ internal val CarouselInset = 268.dp
 @Composable
 fun ExploreScreen(state: ExploreState, onIntent: (ExploreIntent) -> Unit) {
     val colors = Poruch.colors
+    // Повна шторка накриває мапу й верхні контроли: TalkBack не має ходити по невидимому.
+    val covered = state.detent == SheetDetent.FULL
     BoxWithConstraints(Modifier.fillMaxSize().background(colors.canvas)) {
         EventMap(
             events = state.screen.mapEvents, latitude = state.screen.cityLatitude, longitude = state.screen.cityLongitude,
             selectedId = state.screen.selectedId, topInset = TopControlsInset, bottomInset = CarouselInset,
-            centerToken = state.recenterToken,
+            centerToken = state.recenterToken, retryToken = state.retryToken,
             onSelect = { onIntent(ExploreIntent.SelectEvent(it)) },
             onSelectStack = { onIntent(ExploreIntent.SelectStack(it)) },
             onAreaChanged = { onIntent(ExploreIntent.AreaMoved(it?.let { b -> Area(b.south, b.west, b.north, b.east) })) },
             onViewportChanged = { onIntent(ExploreIntent.Viewport(Area(it.south, it.west, it.north, it.east))) },
             onLoadFailed = { onIntent(ExploreIntent.MapFailed(it)) },
-            shared = LocalSharedMapView.current
+            shared = LocalSharedMapView.current,
+            hiddenFromAccessibility = covered
         )
         Box(
             Modifier.fillMaxWidth().height(TopControlsInset)
                 .background(Brush.verticalGradient(listOf(colors.canvas.copy(alpha = 0.94f), colors.canvas.copy(alpha = 0f))))
         )
-        TopControls(state, onIntent)
-        DiscoverySheet(state, maxHeight, Modifier.align(Alignment.BottomCenter), onIntent)
+        Box(if (covered) Modifier.clearAndSetSemantics {} else Modifier) { TopControls(state, onIntent) }
+        // На широкому вікні шторка — колонкою по центру, як решта екранів, а не на всю ширину мапи.
+        DiscoverySheet(state, maxHeight, Modifier.align(Alignment.BottomCenter).widthIn(max = ContentMaxWidth), onIntent)
     }
 
     when (state.sheet) {
@@ -82,17 +91,39 @@ private fun TopControls(state: ExploreState, onIntent: (ExploreIntent) -> Unit) 
     // Дата, обрана у «Фільтрах», лягала за край ряду, і видно було лише цифру на кнопці.
     val pickedDate = remember { BringIntoViewRequester() }
     LaunchedEffect(state.screen.dateFilter) { if (state.screen.dateFilter != DateFilter.ANY) pickedDate.bringIntoView() }
-    Column(Modifier.statusBarsPadding().padding(Spacing.page), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+    // Поле тримає набране само, а нагору шле після паузи, як `SearchBar` на iOS: значення зі стану презентера (інший потік)
+    // приходило на кадр пізніше, і Compose повертав поле й IME на старий текст. Текст ззовні (заклад з пошуку) поле бере.
+    val shared = state.screen.searchText
+    var text by rememberSaveable { mutableStateOf(shared) }
+    var sent by rememberSaveable { mutableStateOf(shared) }
+    LaunchedEffect(shared) { if (shared != sent) { sent = shared; text = shared } }
+    LaunchedEffect(text) {
+        if (text == sent) return@LaunchedEffect
+        delay(SEARCH_SETTLE_MS)
+        sent = text
+        onIntent(ExploreIntent.Search(text))
+    }
+    val changeCity = stringResource(R.string.a11y_change_city)
+    Column(Modifier.statusBarsPadding().padding(vertical = Spacing.page), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
         PoruchSearchField(
-            state.screen.searchText, { onIntent(ExploreIntent.Search(it)) }, stringResource(R.string.search_placeholder),
+            text, { text = it }, stringResource(R.string.search_placeholder),
+            Modifier.padding(horizontal = Spacing.page),
             activeFilters = state.screen.activeFilters, onFilters = { onIntent(ExploreIntent.ShowSheet(ExploreSheet.FILTERS)) }
         )
-        // Один ряд замість двох: місто веде стрічку фільтрів. Керування мапою — над каруселлю, під пальцем.
+        // Один ряд замість двох: місто веде стрічку фільтрів. Керування мапою — над каруселлю, під пальцем. Від краю до
+        // краю, поля — всередині прокрутки, як на iOS.
         Row(
-            Modifier.horizontalScroll(rememberScrollState()),
+            Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = Spacing.page),
             horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically
         ) {
-            PoruchChip(state.screen.cityName, false, { onIntent(ExploreIntent.ShowSheet(ExploreSheet.CITY)) }, PoruchIcons.pin, trailingIcon = PoruchIcons.chevronDown)
+            // Назва — видимий текст («Київ»), а що робить — підписом дії, як підказка на iOS.
+            val openCity = { onIntent(ExploreIntent.ShowSheet(ExploreSheet.CITY)) }
+            Box(Modifier.clearAndSetSemantics {
+                contentDescription = state.screen.cityName; role = Role.Button
+                onClick(label = changeCity) { openCity(); true }
+            }) {
+                PoruchChip(state.screen.cityName, false, openCity, PoruchIcons.pin, trailingIcon = PoruchIcons.chevronDown)
+            }
             // Одразу після міста, а не за датами: з «Усі N» головної мапа приходить із цим фільтром, і його має бути видно.
             PoruchChip(
                 stringResource(R.string.from_people), state.screen.onlyAvailable,
@@ -120,7 +151,7 @@ private fun TopControls(state: ExploreState, onIntent: (ExploreIntent) -> Unit) 
         }
         if (state.locationDenied) Text(
             stringResource(R.string.location_fallback), style = MaterialTheme.typography.bodySmall, color = colors.ink,
-            modifier = Modifier.cardSurface(Radius.sm).padding(Spacing.md)
+            modifier = Modifier.padding(horizontal = Spacing.page).cardSurface(Radius.sm).padding(Spacing.md)
         )
         AreaPrompts(state, Modifier.align(Alignment.CenterHorizontally), onIntent)
     }
@@ -136,7 +167,7 @@ private fun AreaPrompts(state: ExploreState, modifier: Modifier, onIntent: (Expl
         // Скидання з порожньої картки прибирає одразу кілька фільтрів: повернути їх — тим самим жестом, без пошуку.
         AnimatedVisibility(state.undoFilters != null, enter = fadeIn(), exit = fadeOut()) {
             Row(
-                Modifier.heightIn(min = 44.dp).cardSurface(Radius.pill)
+                Modifier.heightIn(min = 48.dp).cardSurface(Radius.pill, Elevation.raised)
                     .clickable(role = Role.Button) { onIntent(ExploreIntent.UndoReset) }
                     .padding(horizontal = Spacing.lg),
                 horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically
@@ -152,11 +183,21 @@ private fun AreaPrompts(state: ExploreState, modifier: Modifier, onIntent: (Expl
         ) {
             PrimaryButton(stringResource(R.string.search_here), { onIntent(ExploreIntent.SearchHere) }, icon = PoruchIcons.refresh)
         }
-        if (state.mapFailed) SecondaryButton(
-            stringResource(R.string.map_error_short), { onIntent(ExploreIntent.Recenter) }, icon = PoruchIcons.wifiOff
-        )
+        // Пігулка з повтором, як на iOS: стиль завантажується знову, а не лише камера їде до міста.
+        if (state.mapFailed) Row(
+            Modifier.heightIn(min = 48.dp).cardSurface(Radius.pill, Elevation.raised)
+                .clickable(role = Role.Button) { onIntent(ExploreIntent.RetryMap) }
+                .padding(horizontal = Spacing.lg),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(PoruchIcons.refresh, null, Modifier.size(16.dp), tint = Poruch.colors.ink)
+            Text(stringResource(R.string.map_error_short), style = MaterialTheme.typography.labelLarge, color = Poruch.colors.ink)
+        }
     }
 }
+
+/** Пауза після набору перед пошуком: як `searchSettle` на iOS. */
+private const val SEARCH_SETTLE_MS = 250L
 
 internal val dateFilters = listOf(
     DateFilter.ANY to R.string.any_date,

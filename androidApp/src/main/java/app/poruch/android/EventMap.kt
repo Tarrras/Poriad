@@ -7,6 +7,7 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
 import android.os.Bundle
+import android.view.View
 import android.view.ViewGroup
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -126,6 +127,8 @@ val LocalSharedMapView = staticCompositionLocalOf<SharedMapView?> { null }
     topInset: Dp = 0.dp,
     bottomInset: Dp = 0.dp,
     centerToken: Int = 0,
+    /** Інкремент завантажує стиль знову: повтор після збою. */
+    retryToken: Int = 0,
     interactive: Boolean = true,
     onSelect: (String) -> Unit = {},
     /** Тап у місце з кількома подіями: усі id під пальцем. */
@@ -137,7 +140,9 @@ val LocalSharedMapView = staticCompositionLocalOf<SharedMapView?> { null }
     onViewportChanged: (MapBounds) -> Unit = {},
     onLoadFailed: (Boolean) -> Unit = {},
     /** Спільна мапа вкладки або null для власної. Див. [SharedMapView]. */
-    shared: SharedMapView? = null
+    shared: SharedMapView? = null,
+    /** Мапу накрито (повна шторка): TalkBack її не бачить, інакше фокус ішов на невидиме. */
+    hiddenFromAccessibility: Boolean = false
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current.density
@@ -145,6 +150,10 @@ val LocalSharedMapView = staticCompositionLocalOf<SharedMapView?> { null }
     val reducedMotion = Poruch.reducedMotion
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val view = shared?.view ?: remember { MapLibre.getInstance(context); MapView(context).apply { onCreate(Bundle()) } }
+    SideEffect {
+        view.importantForAccessibility =
+            if (hiddenFromAccessibility) View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS else View.IMPORTANT_FOR_ACCESSIBILITY_AUTO
+    }
     var map by remember { mutableStateOf<MapLibreMap?>(null) }
     var styleRevision by remember { mutableIntStateOf(0) }
     var gestured by remember { mutableStateOf(false) }
@@ -217,7 +226,7 @@ val LocalSharedMapView = staticCompositionLocalOf<SharedMapView?> { null }
     }
 
     // Зміна теми перезавантажує стиль з іконками й шарами, тому підіймає ревізію.
-    LaunchedEffect(map, colors.dark) {
+    LaunchedEffect(map, colors.dark, retryToken) {
         val ready = map ?: return@LaunchedEffect
         // Спільна мапа вже має стиль для цієї теми: лише повідомляємо ефекти нижче.
         if (shared != null) {

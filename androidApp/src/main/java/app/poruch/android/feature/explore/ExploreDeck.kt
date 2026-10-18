@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -35,8 +36,15 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -52,8 +60,14 @@ import kotlin.math.roundToInt
 
 /** Висота картки каруселі, як у [EventMapCard]. */
 
-/** Місце під плаваючий таббар у кожному положенні шторки. */
+/** Місце під плаваючий таббар у кожному положенні шторки. На широкому вікні таббару нема: вкладки — рейкою зліва. */
 private val TabBarInset = 84.dp
+
+/** Скільки списку має бути видно в половинному положенні понад поріг: шапка з плитками й рядок. */
+private val HalfListMin = 160.dp
+
+/** Картка каруселі на широкому вікні не тягнеться на всю шторку. */
+private val MapCardMaxWidth = 400.dp
 
 /** Скільки мапи лишаємо над повністю піднятою шторкою. Фільтри повертаються в половинному положенні. */
 private val SheetTopInset = Spacing.sm
@@ -80,12 +94,15 @@ internal fun DiscoverySheet(
     val navBottom = WindowInsets.navigationBars.getBottom(density)
     val cardHeight = mapCardHeight()
     val statusTop = WindowInsets.statusBars.getTop(density)
+    val tabBarInset = if (LocalWideLayout.current) 0.dp else TabBarInset
     // Згорнута шторка: рядок лічильника, карусель і місце під таббар.
     val peekPx =
-        with(density) { (48.dp + Spacing.sm + cardHeight + TabBarInset).toPx() } + navBottom
+        with(density) { (48.dp + Spacing.sm + cardHeight + tabBarInset).toPx() } + navBottom
     val screenPx = with(density) { screenHeight.toPx() }
     val fullPx = maxOf(screenPx - statusTop - with(density) { SheetTopInset.toPx() }, peekPx)
-    val halfPx = maxOf(screenPx * 0.55f, peekPx).coerceAtMost(fullPx)
+    // Не нижче за поріг списку з кількома рядками: на малому екрані з великим шрифтом і в ландшафті 55 % екрана були
+    // нижчими за поріг, і тап по лічильнику нічого не відкривав. Не вміщається — половина й є повна.
+    val halfPx = maxOf(screenPx * 0.55f, peekPx + with(density) { (Spacing.section + HalfListMin).toPx() }).coerceAtMost(fullPx)
     fun anchor(detent: SheetDetent) = when (detent) {
         SheetDetent.PEEK -> peekPx
         SheetDetent.HALF -> halfPx
@@ -177,7 +194,7 @@ internal fun DiscoverySheet(
     // Клавіатура пошуку лягає на шторку (вікно не стискається): згорнуту піднімаємо над нею.
     // Таббар під клавіатурою ховається, тож його смугу віднімаємо.
     // Запас Spacing.md: двоповерхова картка вища за слот, і її низ інакше ховається під клавіатурою.
-    val imeLift = WindowInsets.ime.getBottom(density) - navBottom - with(density) { TabBarInset.roundToPx() }
+    val imeLift = WindowInsets.ime.getBottom(density) - navBottom - with(density) { tabBarInset.roundToPx() }
     val lift = if (expanded || imeLift <= 0) 0 else imeLift + with(density) { Spacing.md.roundToPx() }
     // Згорнутій шторці підкладка не потрібна.
     val surface = if (expanded) {
@@ -205,7 +222,7 @@ internal fun DiscoverySheet(
             .then(surface)
             .nestedScroll(listConnection)
             .navigationBarsPadding()
-            .padding(bottom = TabBarInset),
+            .padding(bottom = tabBarInset),
         verticalArrangement = Arrangement.spacedBy(Spacing.sm)
     ) {
         SheetHeader(state, expanded, handleModifier, onIntent) { settleAt(it) }
@@ -236,7 +253,7 @@ private fun SheetHeader(
         // Ручка — складка на папері, а не пігулка Material.
         if (expanded) Box(
             Modifier
-                .width(32.dp)
+                .width(36.dp)
                 .height(4.dp)
                 .background(colors.inkTertiary, CircleShape)
         )
@@ -249,30 +266,48 @@ private fun SheetHeader(
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     // Стос закладу — це заклад: назва заголовком, а не «усе, що стоїть на обраному піні». Кондензом, як
                     // заголовки решти шторок.
+                    // Заголовок і для TalkBack; висоту шторки міняють і дії на ньому, як на iOS.
+                    val sheetAction = if (state.detent == SheetDetent.FULL) stringResource(R.string.a11y_sheet_half)
+                    else stringResource(R.string.a11y_sheet_full)
                     Text(
-                        stackPlace?.name ?: label, style = PoruchType.brandTitle2, color = colors.ink,
+                        stackPlace?.name ?: label,
+                        Modifier.semantics {
+                            heading()
+                            customActions = listOf(CustomAccessibilityAction(sheetAction) {
+                                open(if (state.detent == SheetDetent.FULL) SheetDetent.HALF else SheetDetent.FULL); true
+                            })
+                        },
+                        style = PoruchType.brandTitle2, color = colors.ink,
                         maxLines = 2, overflow = TextOverflow.Ellipsis
                     )
                     Text(
                         if (stackPlace != null) label else areaLabel(state),
                         style = MaterialTheme.typography.bodySmall,
                         color = colors.inkSecondary,
-                        maxLines = 1,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
+                    // Під підписом, а не в ряду, як на iOS: лічильник і дві кнопки праворуч на 360 dp лишали назві ~80 dp.
+                    if (stackPlace != null) FollowPill(
+                        state.screen.stackFollowing, { onIntent(ExploreIntent.ToggleFollowStack) },
+                        Modifier.padding(top = Spacing.sm).followSemantics(stackPlace.name, state.screen.stackFollowing) {
+                            onIntent(ExploreIntent.ToggleFollowStack)
+                        }
+                    )
                 }
-                if (stackPlace != null) FollowPill(state.screen.stackFollowing, { onIntent(ExploreIntent.ToggleFollowStack) })
             } else {
                 // Керування мапою в зоні великого пальця, над каруселлю.
                 IconPill(PoruchIcons.recenter, stringResource(R.string.recenter), size = 40.dp) { onIntent(ExploreIntent.Recenter) }
                 IconPill(PoruchIcons.myLocation, stringResource(R.string.nearby), size = 40.dp) { onIntent(ExploreIntent.RequestLocation) }
-                Spacer(Modifier.weight(1f))
+                // Лічильник бере лише вільне місце: без цього на 360 dp він витискав «×» до кількох dp.
+                Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
                 // Тягнеться і натискається: тап по лічильнику пояснює жест.
                 Row(
                     Modifier
                         .coachTarget(CoachTip.SHEET)
-                        .height(40.dp)
-                        .cardSurface(Radius.pill)
+                        .minimumInteractiveComponentSize()
+                        .heightIn(min = 40.dp)
+                        .cardSurface(Radius.pill, Elevation.raised)
                         .clickable(
                             role = Role.Button,
                             onClickLabel = showList
@@ -287,18 +322,21 @@ private fun SheetHeader(
                         strokeWidth = 2.dp
                     )
                     else if (state.screen.offline) Icon(
-                        PoruchIcons.cloudOff,
+                        PoruchIcons.wifiOff,
                         null,
                         Modifier.size(14.dp),
                         tint = colors.accent
                     )
-                    // На великому шрифті «Тут подій: 12» не влазить у пігулку 40: лишається число, повний текст чує TalkBack.
+                    // Не влазить «Тут подій: 12» (вузький екран, стос із дзвінком, великий шрифт) — лишається число, повний
+                    // текст чує TalkBack. За шириною, як `ViewThatFits` на iOS, а не за `fontScale`.
+                    val short = if (state.screen.offline) stringResource(R.string.offline_count, "${state.screen.listCount}")
+                    else "${state.screen.listCount}"
+                    var tight by remember(label) { mutableStateOf(false) }
                     Text(
-                        if (LocalDensity.current.fontScale > COUNT_FULL_MAX_SCALE && !state.screen.loading) {
-                            if (state.screen.offline) stringResource(R.string.offline_count, "${state.screen.listCount}") else "${state.screen.listCount}"
-                        } else label,
-                        Modifier.semantics { contentDescription = label },
-                        style = MaterialTheme.typography.labelMedium, color = colors.ink, maxLines = 1
+                        if (tight && !state.screen.loading) short else label,
+                        Modifier.weight(1f, fill = false).semantics { contentDescription = label },
+                        style = MaterialTheme.typography.labelMedium, color = colors.ink, maxLines = 1, softWrap = false,
+                        onTextLayout = { if (it.hasVisualOverflow && !tight) tight = true }
                     )
                     Icon(
                         PoruchIcons.chevronUp,
@@ -307,18 +345,20 @@ private fun SheetHeader(
                         tint = colors.inkSecondary
                     )
                 }
+                }
                 // Згорнута шапка тісна: тут лише дзвінок, підпис читає доступність.
-                // Дзвінок без підпису: TalkBack має чути, за чим стежити.
+                // Назва стала («Стежити: Atlas»), стан — «вибрано»: так само, як на iOS і в піднятій шапці.
                 if (stackPlace != null) IconPill(
                     if (state.screen.stackFollowing) PoruchIcons.bellActive else PoruchIcons.bell,
-                    stringResource(if (state.screen.stackFollowing) R.string.a11y_unfollow_name else R.string.a11y_follow_name, stackPlace.name),
+                    stringResource(R.string.a11y_follow_name, stackPlace.name),
                     selected = state.screen.stackFollowing, size = 40.dp
                 ) { onIntent(ExploreIntent.ToggleFollowStack) }
             }
-            // Вихід із фокуса на піні знімає і підсвітку, інакше мапа й список розходились.
+            // Вихід із фокуса на піні знімає і підсвітку, інакше мапа й список розходились. У згорнутій шапці — 40, як сусіди.
             if (state.screen.stackFocused) IconPill(
                 PoruchIcons.close,
-                stringResource(R.string.show_all_events)
+                stringResource(R.string.show_all_events),
+                size = if (expanded) 48.dp else 40.dp
             ) {
                 onIntent(ExploreIntent.ClearStack)
             }
@@ -327,6 +367,18 @@ private fun SheetHeader(
                 stringResource(R.string.show_map)
             ) { open(SheetDetent.PEEK) }
         }
+    }
+}
+
+/** «Стежити: Atlas» з будь-яким станом, а «вибрано» — станом: назва для TalkBack і голосу не міняється від тапу. */
+@Composable
+private fun Modifier.followSemantics(place: String, following: Boolean, toggle: () -> Unit): Modifier {
+    val name = stringResource(R.string.a11y_follow_name, place)
+    return clearAndSetSemantics {
+        contentDescription = name
+        selected = following
+        role = Role.Button
+        onClick { toggle(); true }
     }
 }
 
@@ -414,8 +466,8 @@ private fun EventCarousel(state: ExploreState, onIntent: (ExploreIntent) -> Unit
         if (index >= 0) aligned = true
     }
     BoxWithConstraints {
-        // Картка вужча за екран, щоб наступна визирала.
-        val cardWidth = maxWidth - 64.dp
+        // Картка вужча за екран, щоб наступна визирала; на широкому вікні — не ширша за телефонну.
+        val cardWidth = minOf(maxWidth - 64.dp, MapCardMaxWidth)
         LazyRow(
             state = listState,
             flingBehavior = rememberSnapFlingBehavior(listState),
@@ -443,7 +495,7 @@ private fun SheetList(state: ExploreState, onIntent: (ExploreIntent) -> Unit) {
     Row(
         Modifier
             .horizontalScroll(rememberScrollState())
-            .padding(horizontal = Spacing.md),
+            .padding(horizontal = Spacing.page),
         horizontalArrangement = Arrangement.spacedBy(Spacing.xs)
     ) {
         categories.forEach { category ->
@@ -569,5 +621,3 @@ private const val NEAR_CARDS = 3
 /** Скільки карток додає одне довантаження. */
 internal const val PAGE = 24
 
-/** Найбільший `fontScale`, за якого лічильник згорнутої шторки ще пишеться словами. */
-private const val COUNT_FULL_MAX_SCALE = 1.3f

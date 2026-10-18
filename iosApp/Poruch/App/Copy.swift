@@ -720,6 +720,8 @@ enum Copy {
     static let a11y_route_shelter = "Маршрут до укриття"
     static func a11y_events_count(_ a0: String) -> String { "Подій: \(a0)" }
     static let a11y_change_city = "Змінити місто"
+    static let a11y_sheet_full = "Розгорнути список на весь екран"
+    static let a11y_sheet_half = "Зменшити список до половини"
     static func a11y_show_list(_ a0: String) -> String { "\(a0). Показати списком" }
     static func a11y_clear_category(_ a0: String) -> String { "Категорія \(a0). Зняти фільтр" }
     static func a11y_city(_ a0: String) -> String { "Місто \(a0)" }

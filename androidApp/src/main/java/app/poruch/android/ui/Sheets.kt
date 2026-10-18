@@ -73,7 +73,8 @@ private fun SheetHandle() {
         Modifier.fillMaxWidth().padding(top = Spacing.md, bottom = Spacing.sm),
         contentAlignment = Alignment.Center
     ) {
-        Box(Modifier.width(32.dp).height(4.dp).background(Poruch.colors.hairline, Radius.pill))
+        // `inkTertiary`, а не волосина: на `surface` волосина давала ≈1,3:1, ручку не було видно. 36 — як на iOS.
+        Box(Modifier.width(36.dp).height(4.dp).background(Poruch.colors.inkTertiary, Radius.pill))
     }
 }
 

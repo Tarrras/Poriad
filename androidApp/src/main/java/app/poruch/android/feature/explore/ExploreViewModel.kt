@@ -76,6 +76,7 @@ class ExploreViewModel(private val app: PoruchApp) :
                 reduce { copy(recenterToken = recenterToken + 1) }
             }
             is ExploreIntent.MapFailed -> reduce { copy(mapFailed = intent.failed) }
+            ExploreIntent.RetryMap -> reduce { copy(mapFailed = false, retryToken = retryToken + 1) }
 
             is ExploreIntent.SelectEvent -> app.selectEvent(intent.id)
             // Мапу відкрили заради цієї події: шторки й стос закриваємо, щоб видно було пін і карусель на ній.

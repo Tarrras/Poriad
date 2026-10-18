@@ -877,6 +877,8 @@
   <string name="a11y_route_shelter">Маршрут до укриття</string>
   <string name="a11y_events_count">Подій: %1$d</string>
   <string name="a11y_change_city">Змінити місто</string>
+  <string name="a11y_sheet_full">Розгорнути список на весь екран</string>
+  <string name="a11y_sheet_half">Зменшити список до половини</string>
   <string name="a11y_show_list">%1$s. Показати списком</string>
   <string name="a11y_clear_category">Категорія %1$s. Зняти фільтр</string>
   <string name="a11y_city">Місто %1$s</string>

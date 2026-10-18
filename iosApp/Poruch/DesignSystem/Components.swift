@@ -144,7 +144,8 @@ struct Chip: View {
                 if badge > 0 { CountBadge(count: badge) }
             }
             .foregroundStyle(selected ? Palette.onBrand : Palette.ink)
-            .padding(.horizontal, Space.lg).frame(height: 38)
+            // Найменша висота, а не стала: з великим текстом чип росте, а не випускає підпис за капсулу.
+            .padding(.horizontal, Space.lg).padding(.vertical, Space.xs).frame(minHeight: 38)
             .background {
                 if selected { Capsule().fill(brandGradient) } else { Capsule().fill(Palette.surface) }
             }

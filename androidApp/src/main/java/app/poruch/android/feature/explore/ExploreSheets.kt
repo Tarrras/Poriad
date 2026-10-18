@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -14,6 +15,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import app.poruch.domain.EventCategory
 import app.poruch.android.R
@@ -33,15 +37,15 @@ internal fun FilterSheet(state: ExploreState, onIntent: (ExploreIntent) -> Unit,
     val screen = state.screen
     // «Показати» прикріплене під прокруткою, як на iOS: з плитками категорій вміст вищий за екран, і кнопка йшла за край.
     Column(Modifier.padding(bottom = Spacing.section)) {
-    Column(
-        Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(horizontal = Spacing.page),
-        verticalArrangement = Arrangement.spacedBy(Spacing.lg)
-    ) {
-        // Заголовок шторки — заголовок, а не надрядок: інакше він менший за секції під ним.
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        // Заголовок шторки — заголовок, а не надрядок: інакше він менший за секції під ним. Закріплений над прокруткою,
+        // як на iOS: «Скинути» лишається під рукою, коли плитки вже прокручено.
+        Row(
+            Modifier.padding(horizontal = Spacing.page).padding(bottom = Spacing.lg),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Text(
                 stringResource(R.string.filters), style = PoruchType.brandTitle2,
-                color = colors.ink, modifier = Modifier.weight(1f)
+                color = colors.ink, modifier = Modifier.weight(1f).semantics { heading() }
             )
             if (screen.activeFilters > 0) GhostButton(
                 stringResource(R.string.reset_filters),
@@ -53,6 +57,10 @@ internal fun FilterSheet(state: ExploreState, onIntent: (ExploreIntent) -> Unit,
                 tone = colors.inkSecondary
             )
         }
+    Column(
+        Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(horizontal = Spacing.page),
+        verticalArrangement = Arrangement.spacedBy(Spacing.lg)
+    ) {
         Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
             SectionHeader(stringResource(R.string.date))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
@@ -72,13 +80,17 @@ internal fun FilterSheet(state: ExploreState, onIntent: (ExploreIntent) -> Unit,
                 }
             }
         }
-        // Та сама назва, що в чипа над мапою: один фільтр — одне ім'я, а що він робить — підписом.
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
+        // Та сама назва, що в чипа над мапою: один фільтр — одне ім'я, а що він робить — підписом. Перемикає весь рядок:
+        // TalkBack читає назву разом зі станом, а не «Вимкнено, перемикач» окремо від підпису.
+        Row(
+            Modifier.toggleable(screen.onlyAvailable, role = Role.Switch) { onIntent(ExploreIntent.OnlyAvailable(it)) },
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)
+        ) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(stringResource(R.string.from_people), style = MaterialTheme.typography.bodyLarge, color = colors.ink)
                 Text(stringResource(R.string.from_people_hint), style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
             }
-            PoruchSwitch(screen.onlyAvailable, { onIntent(ExploreIntent.OnlyAvailable(it)) })
+            PoruchSwitch(screen.onlyAvailable, null)
         }
     }
         // Кнопка каже, що вийде: «Показати 23 події», а не «Готово» навмання.
@@ -87,10 +99,10 @@ internal fun FilterSheet(state: ExploreState, onIntent: (ExploreIntent) -> Unit,
             screen.listCount == 0 -> stringResource(R.string.show_nothing)
             else -> pluralStringResource(R.plurals.show_events, screen.listCount, screen.listCount)
         }
+        // Під час пошуку кнопка каже «Шукаємо…», але закриває: після кожного тапу у «Фільтрах» вона на мить глухла.
         PrimaryButton(
             result, onDone,
-            Modifier.fillMaxWidth().padding(horizontal = Spacing.page).padding(top = Spacing.lg),
-            loading = screen.loading
+            Modifier.fillMaxWidth().padding(horizontal = Spacing.page).padding(top = Spacing.lg)
         )
     }
 }
@@ -136,7 +148,7 @@ internal fun CitySearchSheet(
             Column(Modifier.heightIn(max = SUGGESTION_BAND).verticalScroll(rememberScrollState())) {
                 suggestions.take(CITY_SUGGESTIONS).forEach { city ->
                     Row(
-                        Modifier.fillMaxWidth().clip(Radius.sm)
+                        Modifier.fillMaxWidth().heightIn(min = 48.dp).clip(Radius.sm)
                             .clickable { sheet.close { onPick(city) } }
                             .padding(vertical = Spacing.md, horizontal = Spacing.sm),
                         horizontalArrangement = Arrangement.spacedBy(Spacing.md), verticalAlignment = Alignment.CenterVertically

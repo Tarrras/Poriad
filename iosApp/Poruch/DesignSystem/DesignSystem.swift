@@ -278,6 +278,9 @@ enum Corner {
     static let md: CGFloat = 14
     static let lg: CGFloat = 18
     static let xl: CGFloat = 22
+    /// Пігулка: чип, бейдж, плаваюча кнопка над мапою. `RoundedRectangle` сам обрізає радіус до половини висоти, тож
+    /// пігулка лишається пігулкою й тоді, коли росте з текстом.
+    static let pill: CGFloat = 999
 }
 
 /// Два рівні: усе в потоці лежить пласко (`card` = 0, картку робить лише різниця тону

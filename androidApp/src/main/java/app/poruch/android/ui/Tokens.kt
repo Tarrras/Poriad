@@ -249,7 +249,8 @@ object Radius {
     val md = RoundedCornerShape(Corner.md)
     val lg = RoundedCornerShape(Corner.lg)
     val xl = RoundedCornerShape(Corner.xl)
-    val sheet: Shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+    /** Верх шторки — `xl`, як шторка мапи на iOS; 28 лишилось від «Спокійного аркуша». */
+    val sheet: Shape = RoundedCornerShape(topStart = Corner.xl, topEnd = Corner.xl)
     val pill: Shape = CircleShape
 }
 
@@ -298,7 +299,8 @@ private val PoruchTypography = Typography(
     bodyMedium = TextStyle(fontSize = 15.sp, lineHeight = 21.sp, fontWeight = FontWeight.Normal),
     bodySmall = TextStyle(fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.Normal),
     labelLarge = TextStyle(fontSize = 16.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold),
-    labelMedium = TextStyle(fontSize = 14.sp, lineHeight = 18.sp, fontWeight = FontWeight.Medium),
+    // Label 15/20, як у DESIGN.md і на iOS: 14/18 лишалось від старого світу.
+    labelMedium = TextStyle(fontSize = 15.sp, lineHeight = 20.sp, fontWeight = FontWeight.Medium),
     labelSmall = TextStyle(
         fontSize = 11.sp,
         lineHeight = 14.sp,

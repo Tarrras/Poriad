@@ -20,6 +20,8 @@ private let tabBarInset: CGFloat = 92
 private let deckGap: CGFloat = Space.md
 /// Скільки мапи лишаємо над повністю піднятою шторкою. Фільтри повертаються в половинному положенні.
 private let sheetTopInset: CGFloat = Space.sm
+/// Скільки списку має бути видно в половинному положенні понад поріг: шапка з плитками й рядок.
+private let halfListMin: CGFloat = 160
 
 /// Положення шторки: згорнута (карусель), половина, повний екран. Окремого режиму списку нема.
 private enum SheetDetent {
@@ -114,6 +116,8 @@ struct DiscoveryView: View, Equatable {
     /// Розмір екрана під контролами: з нього рахуються висоти шторки.
     @State private var screen: CGSize = .zero
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// VoiceOver не тягне шторку жестом: з ним список гортається й у половинному положенні.
+    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOver
     /// Стан екрана зі спільного `ExplorePresenter`: індекс для пінів, вміст шторки, фільтри, місто.
     private var view: ExploreScreenState { explore.state }
     /// Категорія мапи. Головна має свою.
@@ -150,15 +154,21 @@ struct DiscoveryView: View, Equatable {
                 visibleChanged: { explore.viewport($0) }
             )
             .ignoresSafeArea()
+            // Під повною шторкою мапу не видно: VoiceOver не має ходити її пінами.
+            .accessibilityHidden(detent == .full)
             LinearGradient(colors: [Palette.canvas.opacity(0.94), Palette.canvas.opacity(0)], startPoint: .top, endPoint: .bottom)
                 .frame(height: 175).ignoresSafeArea(edges: .top).allowsHitTesting(false)
             VStack(spacing: Space.md) {
                 topControls
                 if mapFailed {
+                    // Свій гліф, а не SF Symbol (DESIGN.md: SF Symbol лише для знака Apple). Пігулка — як решта над мапою.
                     Button { mapFailed = false; retryToken += 1 } label: {
-                        Label(Copy.map_error_short, systemImage: "arrow.clockwise")
-                            .font(PoruchFont.label.weight(.semibold)).foregroundStyle(Palette.ink)
-                            .padding(.horizontal, Space.lg).frame(minHeight: 44).cardSurface(radius: 22, elevation: 6)
+                        HStack(spacing: Space.sm) {
+                            PoruchIcon(glyph: PoruchIcons.refresh, size: 16)
+                            Text(Copy.map_error_short).font(PoruchFont.label.weight(.semibold))
+                        }
+                        .foregroundStyle(Palette.ink)
+                        .padding(.horizontal, Space.lg).frame(minHeight: 44).cardSurface(radius: Corner.pill, elevation: Elevation.raised)
                     }.buttonStyle(.plain)
                 }
                 if let undo = undoFilters {
@@ -168,7 +178,7 @@ struct DiscoveryView: View, Equatable {
                             Text(Copy.filters_reset).font(PoruchFont.label).foregroundStyle(Palette.inkSecondary)
                             Text(Copy.undo).font(PoruchFont.label.weight(.semibold)).foregroundStyle(Palette.ink)
                         }
-                        .padding(.horizontal, Space.lg).frame(minHeight: 44).cardSurface(radius: 22, elevation: 6)
+                        .padding(.horizontal, Space.lg).frame(minHeight: 44).cardSurface(radius: Corner.pill, elevation: Elevation.raised)
                     }
                     .buttonStyle(.plain)
                     .transition(.opacity)
@@ -189,6 +199,8 @@ struct DiscoveryView: View, Equatable {
             .padding(.horizontal, Space.page)
             .padding(.top, Space.sm)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            // Пошук і чипи під повною шторкою невидимі: фокус VoiceOver їх оминає.
+            .accessibilityHidden(detent == .full)
             sheet.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
         }
         .background {
@@ -266,7 +278,8 @@ struct DiscoveryView: View, Equatable {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: Space.sm) {
                         Chip(label: view.cityName, glyph: PoruchIcons.pin, trailingGlyph: PoruchIcons.chevronDown, selected: false) { citySearch = true }
-                            .accessibilityLabel(Copy.a11y_change_city)
+                            // Назва — видимий текст (голосове «Натисни Київ»), а що робить — підказкою.
+                            .accessibilityHint(Copy.a11y_change_city)
                         // Одразу після міста, а не за датами: з «Усі N» головної мапа приходить із цим фільтром, і його має бути видно.
                         Chip(label: Copy.from_people, glyph: PoruchIcons.social, selected: view.onlyAvailable) {
                             model.app.setOnlyAvailable(available: !view.onlyAvailable)
@@ -319,6 +332,8 @@ struct DiscoveryView: View, Equatable {
                     )
                     // «До міста», перехід з головної і новий запит (фільтр, пошук, місто): карусель з чистого аркуша, з першої
                     // картки. Інакше нова видача показувалась з позиції старої, посеред списку й зсунута на пів картки.
+                    // Нова карусель, а не `scrollTo(first)`: `scrollPosition` тримається за id картки, і видача, що приїжджає
+                    // слідом, ставила карусель знову посередині. Перебудова дешева: `LazyHStack` має 2–3 видимі картки.
                     .id("\(centerToken)/\(view.queries)")
                     .padding(.top, deckGap)
                 }
@@ -344,7 +359,9 @@ struct DiscoveryView: View, Equatable {
     private func height(of detent: SheetDetent) -> CGFloat {
         switch detent {
         case .peek: return peekHeight
-        case .half: return max(screen.height * 0.55, peekHeight)
+        // Не нижче за поріг списку з кількома рядками: на SE з великим шрифтом 55 % екрана були нижчими за поріг, і
+        // «Показати списком» лише підкидав карусель. Не вміщається — половина й є повна.
+        case .half: return min(max(screen.height * 0.55, peekHeight + Space.section + halfListMin), height(of: .full))
         case .full: return max(screen.height - sheetTopInset, peekHeight)
         }
     }
@@ -404,9 +421,10 @@ struct DiscoveryView: View, Equatable {
                 .font(PoruchFont.label).foregroundStyle(Palette.ink)
                 PoruchIcon(glyph: PoruchIcons.chevronUp, size: 14).foregroundStyle(Palette.inkSecondary)
             }
-            .padding(.horizontal, Space.lg).frame(height: 40)
-            .cardSurface(radius: 20, elevation: 6)
-            .contentShape(Capsule())
+            .padding(.horizontal, Space.lg).frame(minHeight: 40)
+            .cardSurface(radius: Corner.pill, elevation: Elevation.raised)
+            // Пігулка 40 — головний вхід у список: ціль 44, як у решти кнопок.
+            .tapTarget()
             .onTapGesture { open(.half) }
             .accessibilityElement(children: .combine)
             .accessibilityLabel(Copy.a11y_show_list("\(countLabel)"))
@@ -415,7 +433,8 @@ struct DiscoveryView: View, Equatable {
             .coachTarget(.sheet)
             if stackFocused {
                 followButton(iconOnly: true)
-                clearStackButton
+                // 40, як дзвінок і кнопки ліворуч: 48 вилазила за рядок 44.
+                clearStackButton(size: 40)
             }
         }
         .frame(height: 44)
@@ -427,12 +446,17 @@ struct DiscoveryView: View, Equatable {
                 // Стос закладу — це заклад: назва заголовком, а не «усе, що стоїть на обраному піні». Кондензом, як
                 // заголовки решти шторок.
                 Text(stackPlace?.name ?? countLabel).font(PoruchFont.brandTitle2).kerning(-0.2).foregroundStyle(Palette.ink).lineLimit(2)
-                Text(stackPlace != nil ? countLabel : areaLabel).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(1)
+                    .accessibilityAddTraits(.isHeader)
+                    // VoiceOver не тягне шторку: висоту він міняє діями на заголовку.
+                    .accessibilityAction(named: detent == .full ? Copy.a11y_sheet_half : Copy.a11y_sheet_full) {
+                        open(detent == .full ? .half : .full)
+                    }
+                Text(stackPlace != nil ? countLabel : areaLabel).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(2)
                 // Під підписом, а не в ряду: лічильник і дві кнопки праворуч не лишають йому місця.
                 if stackPlace != nil { followButton(iconOnly: false).padding(.top, Space.sm) }
             }
             Spacer(minLength: Space.sm)
-            if stackFocused { clearStackButton }
+            if stackFocused { clearStackButton(size: 48) }
             IconPill(glyph: PoruchIcons.chevronDown, label: Copy.show_map) { open(.peek) }
         }
         .padding(.bottom, Space.md)
@@ -441,8 +465,8 @@ struct DiscoveryView: View, Equatable {
     }
 
     /// Вихід із фокуса на піні знімає і підсвітку, інакше мапа й список розходились.
-    private var clearStackButton: some View {
-        IconPill(glyph: PoruchIcons.close, label: Copy.show_all_events) {
+    private func clearStackButton(size: CGFloat) -> some View {
+        IconPill(glyph: PoruchIcons.close, label: Copy.show_all_events, size: size) {
             explore.clearStack()
         }
     }
@@ -454,7 +478,9 @@ struct DiscoveryView: View, Equatable {
                 if !explore.toggleFollowStack() { auth = true }
             }
             // Дзвінок без підпису в згорнутій шапці: VoiceOver має чути, за чим стежити.
-            .accessibilityLabel(view.stackFollowing ? Copy.a11y_unfollow_name(place.name) : Copy.a11y_follow_name(place.name))
+            // Назва стала, стан — трейтом «вибрано»: «Не стежити» разом із «вибрано» суперечили одне одному.
+            .accessibilityLabel(Copy.a11y_follow_name(place.name))
+            .accessibilityAddTraits(view.stackFollowing ? .isSelected : [])
         }
     }
 
@@ -514,7 +540,8 @@ struct DiscoveryView: View, Equatable {
                 .listOffset(Binding(get: { drag.listOffset }, set: { drag.listOffset = $0 }))
                 // Список гортається лише в повній шторці; нижче протягування піднімає її. Вимкнення
                 // під час жесту скасовує прокрутку UIKit, і шторка їде замість гумового краю.
-                .scrollDisabled(detent != .full || listDrag != nil)
+                // VoiceOver жестом шторку не підніме: з ним список гортається й у половинному положенні.
+                .scrollDisabled(!voiceOver && (detent != .full || listDrag != nil))
                 // Нижче повної список не гортається, і жест має перебити натискання картки, інакше
                 // протягування відкривало її. У повній він лише йде поруч із прокруткою UIKit.
                 .highPriorityGesture(listDragGesture, including: detent == .full ? .subviews : .all)
@@ -672,7 +699,9 @@ struct DiscoveryView: View, Equatable {
 /// Кожен вибір діє одразу, як чипи над мапою: за шторкою видно, що змінилось, а кнопка каже, скільки знайдеться.
 /// Скасування не треба — вибір знімається тим самим тапом, «Скинути» прибирає все.
 struct FiltersView: View {
-    @EnvironmentObject var model: AppModel
+    /// Без підписки на весь `AppModel`: шторка стежить лише за `ExploreScreenState`, як і мапа.
+    @Environment(\.appModel) private var appModel
+    private var model: AppModel { appModel! }
     @Environment(\.dismiss) var dismiss
     private var explore: ExploreScreenState { model.exploreScreen.state }
 
@@ -720,11 +749,17 @@ struct FiltersView: View {
     private var header: some View {
         HStack(alignment: .firstTextBaseline) {
             Text(Copy.filters).font(PoruchFont.brandTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
+                .accessibilityAddTraits(.isHeader)
             Spacer(minLength: Space.sm)
-            Button(Copy.reset_filters) { reset() }
-                .font(PoruchFont.label).foregroundStyle(Palette.inkSecondary)
-                .disabled(explore.activeFilters == 0)
+            // Лише коли є що скидати (DESIGN.md), як на Android; ціль 44, а не висота рядка тексту.
+            if explore.activeFilters > 0 {
+                Button(Copy.reset_filters) { reset() }
+                    .font(PoruchFont.label).foregroundStyle(Palette.inkSecondary)
+                    .tapTarget()
+            }
         }
+        // Висота цілі «Скинути» і без неї: інакше рядок підскакував, щойно з'являвся перший фільтр.
+        .frame(minHeight: 44)
         .padding(.horizontal, Space.page)
         .padding(.top, Space.lg)
     }
@@ -738,7 +773,8 @@ struct FiltersView: View {
     /// Кнопка каже, що вийде: «Показати 23 події», а не «Готово» навмання. Прикріплена, не в скролі: у середньому
     /// положенні вона ховалась за згином.
     private var actions: some View {
-        PrimaryButton(title: resultTitle, loading: explore.loading) { dismiss() }
+        // Під час пошуку кнопка каже «Шукаємо…», але закриває: після кожного тапу у «Фільтрах» вона на мить глухла.
+        PrimaryButton(title: resultTitle) { dismiss() }
             .frame(maxWidth: .infinity)
             .padding(Space.page)
             .background(Palette.surface.ignoresSafeArea(edges: .bottom))
@@ -806,7 +842,9 @@ struct FlowLayout: Layout {
 }
 
 struct CitySearchView: View {
-    @EnvironmentObject var model: AppModel
+    /// Без підписки на весь `AppModel`: підказки міст — з `ExploreScreenState`.
+    @Environment(\.appModel) private var appModel
+    private var model: AppModel { appModel! }
     @Environment(\.dismiss) var dismiss
     @State private var query = ""
 
@@ -836,7 +874,7 @@ struct CitySearchView: View {
                         }
                     }
                 } else {
-                    ForEach(model.state?.city.suggestions ?? [], id: \.name) { city in
+                    ForEach(model.exploreScreen.state.cities, id: \.name) { city in
                         Button { open(city) } label: {
                             HStack(spacing: Space.md) {
                                 PoruchIcon(glyph: PoruchIcons.pin, size: 18).foregroundStyle(Palette.brand)

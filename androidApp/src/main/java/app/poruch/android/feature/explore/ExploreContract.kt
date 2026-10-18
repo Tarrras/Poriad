@@ -20,6 +20,8 @@ data class ExploreState(
     val pendingArea: Area? = null,
     val locationDenied: Boolean = false,
     val mapFailed: Boolean = false,
+    /** Інкремент просить мапу завантажити стиль знову: повтор після збою. */
+    val retryToken: Int = 0,
     /** Інкремент просить мапу повернутись до центру міста. */
     val recenterToken: Int = 0,
     /** Що скинула кнопка порожньої картки: кілька секунд їх можна повернути одним тапом. */
@@ -51,6 +53,8 @@ sealed interface ExploreIntent {
     data object SearchHere : ExploreIntent
     data object Recenter : ExploreIntent
     data class MapFailed(val failed: Boolean) : ExploreIntent
+    /** Повтор після збою мапи: стиль завантажується знову, як на iOS, а не лише камера до міста. */
+    data object RetryMap : ExploreIntent
 
     data class SelectEvent(val id: String) : ExploreIntent
     /** Мапу відкрили заради однієї події з міні-мапи деталей. */

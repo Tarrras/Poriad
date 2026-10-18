@@ -418,7 +418,8 @@ fun PoruchChip(
     Row(
         Modifier
             .minimumInteractiveComponentSize()
-            .height(38.dp)
+            // Найменша висота, а не стала: з великим шрифтом чип росте, а не випускає підпис за пігулку.
+            .heightIn(min = 38.dp)
             .background(
                 if (selected) brandGradient() else SolidColor(
                     LocalFieldSurface.current ?: colors.surface
@@ -432,7 +433,7 @@ fun PoruchChip(
             .clip(Radius.pill)
             .semantics { this.selected = selected }
             .pressable(onClick = onClick)
-            .padding(horizontal = Spacing.lg),
+            .padding(horizontal = Spacing.lg, vertical = Spacing.xs),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
     ) {
@@ -687,7 +688,8 @@ fun SectionHeader(
             title,
             style = PoruchType.brandTitle2,
             color = colors.ink,
-            modifier = Modifier.weight(1f)
+            // Заголовок і для TalkBack: перехід заголовками, як `.isHeader` на iOS.
+            modifier = Modifier.weight(1f).semantics { heading() }
         )
         if (actionLabel != null && onAction != null) Text(
             actionLabel, style = MaterialTheme.typography.labelMedium, color = colors.ink,
