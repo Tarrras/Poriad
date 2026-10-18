@@ -102,6 +102,8 @@ enum Copy {
     static let digest_prompt_body = "Щопʼятниці ввечері коротко скажемо, скільки подій у вашому місті на вихідних. Одне сповіщення на тиждень, вимкнути можна в профілі."
     static let digest_prompt_yes = "Так, нагадувати"
     static let digest_prompt_no = "Не зараз"
+    static let reminder_exact = "Зараз нагадування може спізнитися до години. Щоб воно приходило рівно за годину, дозвольте «Будильники й нагадування»."
+    static let reminder_exact_allow = "Дозволити"
     static let reminder_permission = "Сповіщення вимкнено. Їх можна дозволити в налаштуваннях Android."
     static let interests = "Ваші інтереси"
     static let retake_quiz = "Пройти опитування"
@@ -229,6 +231,7 @@ enum Copy {
     static let area_stack = "Усе, що стоїть на обраному піні"
     static let nothing_here = "Тут поки тихо"
     static let nothing_here_hint = "Змініть область мапи, дату або категорію — і події знайдуться."
+    static let nothing_here_stack = "Під ці фільтри тут нічого нема. Скиньте їх — і побачите все, що тут є."
     static func nothing_for_query(_ a0: String) -> String { "За запитом «\(a0)» подій нема. Спробуйте інше слово чи назву закладу." }
     static let reset_filters_action = "Скинути фільтри"
     static let filters_reset = "Фільтри скинуто"

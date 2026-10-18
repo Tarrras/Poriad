@@ -439,8 +439,8 @@ private fun EventCarousel(state: ExploreState, onIntent: (ExploreIntent) -> Unit
 @Composable
 private fun SheetList(state: ExploreState, onIntent: (ExploreIntent) -> Unit) {
     val colors = Poruch.colors
-    // У стосі закладу плиток нема: категорія — фільтр міста, і тап по ній виводив із закладу в усе місто.
-    if (!state.screen.stackFocused) Row(
+    // І в стосі: категорія звужує події закладу, як дата й «Від людей» над мапою, а не виводить у місто.
+    Row(
         Modifier
             .horizontalScroll(rememberScrollState())
             .padding(horizontal = Spacing.md),
@@ -548,7 +548,12 @@ private fun QuietCard(modifier: Modifier, state: ExploreState, onIntent: (Explor
             GhostButton(stringResource(action), { onIntent(intent) })
         }
         Text(
-            if (query.isEmpty()) stringResource(R.string.nothing_here_hint) else stringResource(R.string.nothing_for_query, query),
+            when {
+                query.isNotEmpty() -> stringResource(R.string.nothing_for_query, query)
+                // У стосі область мапи не допоможе: тут звужують лише фільтри.
+                state.screen.stackFocused -> stringResource(R.string.nothing_here_stack)
+                else -> stringResource(R.string.nothing_here_hint)
+            },
             style = MaterialTheme.typography.bodySmall,
             color = colors.inkSecondary
         )

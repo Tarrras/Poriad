@@ -270,6 +270,7 @@
   <string name="area_stack">Усе, що стоїть на обраному піні</string>
   <string name="nothing_here">Тут поки тихо</string>
   <string name="nothing_here_hint">Змініть область мапи, дату або категорію — і події знайдуться.</string>
+  <string name="nothing_here_stack">Під ці фільтри тут нічого нема. Скиньте їх — і побачите все, що тут є.</string>
   <string name="nothing_for_query">За запитом «%1$s» подій нема. Спробуйте інше слово чи назву закладу.</string>
   <string name="reset_filters_action">Скинути фільтри</string>
   <string name="filters_reset">Фільтри скинуто</string>

@@ -32,7 +32,13 @@ import kotlin.math.pow
 
 /** Що тримає екран мапи локально і що веде згортку: стос обраного піна. */
 private data class ExploreLocal(
+    /** Події, з якими стос відкрили: за ними — назва закладу для «Стежити», навіть коли фільтр лишив тут нуль. */
     val stackIds: List<String> = emptyList(),
+    /**
+     * Точки стосу. Стос — це місце, а не список: фільтр звужує його події, а знятий фільтр повертає всі події цих точок,
+     * яких на момент тапу у видачі не було.
+     */
+    val stackPoints: Set<Pair<Double, Double>> = emptySet(),
     /** Росте, коли презентер сам відкрив стос (заклад з пошуку): платформа опускає шторку. */
     val focusToken: Int = 0
 )
@@ -68,9 +74,9 @@ data class ExploreScreenState(
     /** Область поставили рукою через «Шукати тут». */
     val customArea: Boolean = false,
     val signedIn: Boolean = false,
-    /** Події на одній точці (всі події закладу): без стосу тап відкривав завжди ту саму. */
+    /** Події стосу під поточними фільтрами (всі події закладу): без стосу тап відкривав завжди ту саму. */
     val stackIds: List<String> = emptyList(),
-    /** Стос обраного піна не порожній. Порожньо, якщо після нової видачі стосу не лишилось. */
+    /** Шторка показує заклад, а не місто. Фільтри звужують його події, і нуль під фільтром — теж стос, а не вихід із нього. */
     val stackFocused: Boolean = false,
     /** Заклад за стосом: для кнопки «Стежити». Null — стосу нема, це спільнотні події або картки ще їдуть. */
     val stackPlace: PlaceRef? = null,
@@ -137,10 +143,10 @@ class ExplorePresenter(
                 if (arrivals > 0) resetStack()
             }
         }
-        // Новий фільтр — нова видача, стос скидається тут, а не на кожній платформі: інакше iOS лишав стос, де
-        // вціліли дві події, і чипи над ним наче не діяли. Поточне значення пропускаємо: стос закладу з пошуку
-        // міг відкритись раніше за цю підписку. Текст пошуку не слухаємо: заклад з пошуку сам його стирає.
-        // Коли видача під фільтр приїде, а на екрані з неї нічого, — до найближчої події, див. [revealNearest].
+        // Фільтри в стосі звужують події закладу, а не виводять у місто: дата, «Від людей» і категорія діють і тут, як
+        // на будь-якій шторці. Поточне значення пропускаємо. Поза стосом: коли видача під фільтр приїде, а на екрані
+        // з неї нічого, — до найближчої події, див. [revealNearest]. У стосі заклад і так на екрані: нуль під фільтром
+        // показує його порожній стан.
         scope.launch {
             var before: Pair<Triple<DateFilter, EventCategory?, Boolean>, Int>? = null
             app.state.map { Triple(it.map.dateFilter, it.map.category, it.map.onlyAvailable) to it.map.arrivals }
@@ -148,11 +154,10 @@ class ExplorePresenter(
                     val previous = before
                     before = now
                     if (previous == null || previous.first == now.first) return@collectLatest
-                    resetStack()
                     // «Усі N» з головної ставить фільтри разом із камерою на місто: там і лишаємось.
                     if (previous.second != now.second) return@collectLatest
                     app.state.first { it.map.answered == it.map.queries }
-                    revealNearest()
+                    if (local.value.stackPoints.isEmpty()) revealNearest()
                 }
         }
     }
@@ -160,10 +165,12 @@ class ExplorePresenter(
     /** Тап у точку з кількома подіями. Одна — звичайний вибір; кілька — стос. Вибір наводить мапу на пін. */
     fun showStack(ids: List<String>) {
         if (ids.size <= 1) {
-            local.update { it.copy(stackIds = emptyList()) }
+            resetStack()
             ids.firstOrNull()?.let { app.selectEvent(it) }
         } else {
-            local.update { it.copy(stackIds = ids) }
+            val wanted = ids.toSet()
+            val points = app.state.value.map.index.filter { it.id in wanted }.mapTo(HashSet()) { it.latitude to it.longitude }
+            local.update { it.copy(stackIds = ids, stackPoints = points) }
             // Стос — не початок стрічки, вікно його не покриває.
             app.loadCards(ids)
             app.selectEvent(ids.first())
@@ -196,8 +203,8 @@ class ExplorePresenter(
         app.selectEvent(nearest.id)
     }
 
-    /** Зміна видачі (пошук, фільтр, місто, область) скидає стос: у ньому лишились би id подій, яких уже нема. */
-    fun resetStack() = local.update { it.copy(stackIds = emptyList()) }
+    /** Вихід із закладу в місто: пошук, інше місто чи область, «до міста», «Усі N». Фільтри стос не скидають — звужують. */
+    fun resetStack() = local.update { it.copy(stackIds = emptyList(), stackPoints = emptySet()) }
 
     /** Вихід із фокуса на піні знімає і підсвітку, інакше мапа й список розходились. */
     fun clearStack() {
@@ -268,9 +275,10 @@ class ExplorePresenter(
         // Сеанс прокату «вже там» через представника, інакше пін майданчика рахував би прокат двічі.
         val present = focused == null || visible.any { entry -> entry.id == focused.id || entry.sessions.any { it.id == focused.id } }
         val mapEvents = if (present) visible else visible + focused!!.asIndexEntry()
-        val stackSet = local.stackIds.toSet()
-        val stackFocused = stackSet.isNotEmpty() && visible.count { it.id in stackSet } > 1
-        val listEntries = if (stackFocused) index.filter { it.id in stackSet } else mapEvents
+        val stackFocused = local.stackPoints.isNotEmpty()
+        // Під тими самими фільтрами, що й мапа: категорія, дата й «Від людей» діють і в закладі.
+        val stack = if (stackFocused) visible.filter { (it.latitude to it.longitude) in local.stackPoints } else emptyList()
+        val listEntries = if (stackFocused) stack else mapEvents
         val cards = shared.cards
         // [focused] без картки у видачі додається окремо.
         val deckEvents = listEntries.mapNotNull { entry -> cards[entry.id] ?: focused?.takeIf { it.id == entry.id } }
@@ -299,7 +307,7 @@ class ExplorePresenter(
             offline = shared.map.offline,
             customArea = shared.city.custom,
             signedIn = shared.signedIn,
-            stackIds = local.stackIds,
+            stackIds = stack.map { it.id },
             stackFocused = stackFocused,
             stackPlace = stackPlace,
             stackFollowing = stackPlace != null && shared.isFollowing(FollowKind.PLACE, stackPlace.id),

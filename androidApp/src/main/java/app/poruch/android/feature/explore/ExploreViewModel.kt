@@ -40,10 +40,9 @@ class ExploreViewModel(private val app: PoruchApp) :
     private val screen get() = state.value.screen
 
     override fun onIntent(intent: ExploreIntent) {
-        // Зміна результату скидає фокус на точці: у ньому лишились би id подій, яких уже нема.
+        // Пошук, область і місто виводять із закладу в місто. Фільтри — ні: вони звужують його події (див. ExplorePresenter).
         when (intent) {
-            is ExploreIntent.Search, is ExploreIntent.PickDate, is ExploreIntent.PickCategory,
-            is ExploreIntent.OnlyAvailable, ExploreIntent.ResetFilters, ExploreIntent.SearchHere,
+            is ExploreIntent.Search, ExploreIntent.SearchHere,
             ExploreIntent.Recenter, is ExploreIntent.SelectCity -> presenter.resetStack()
             else -> Unit
         }

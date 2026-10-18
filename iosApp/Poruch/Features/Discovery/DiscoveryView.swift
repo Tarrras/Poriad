@@ -255,7 +255,12 @@ struct DiscoveryView: View, Equatable {
                 initial: view.searchText,
                 activeFilters: activeFilters,
                 onFilters: { filters = true }
-            ) { model.app.setSearchText(query: $0) }
+            ) { text in
+                // Набраний пошук виводить із закладу в місто, як на Android. Луна тексту, який стер сам застосунок
+                // (заклад з пошуку), — ні: інакше вона знімала б щойно відкритий стос цього закладу.
+                if text != view.searchText { explore.resetStack() }
+                model.app.setSearchText(query: text)
+            }
             // Один ряд замість двох: місто веде стрічку фільтрів. Керування мапою — над каруселлю, під пальцем.
             ScrollViewReader { proxy in
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -455,19 +460,20 @@ struct DiscoveryView: View, Equatable {
 
     private var sheetList: some View {
         VStack(spacing: 0) {
-            // У стосі закладу плиток нема: категорія — фільтр міста, і тап по ній виводив із закладу в усе місто.
-            if !stackFocused {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: Space.xs) {
-                        ForEach(categories, id: \.0) { entry in
-                            // Та сама категорія, що у «Фільтрах»: звужує й мапу.
-                            CategoryTile(category: entry.0, selected: category == entry.0) {
-                                explore.toggleCategory(entry.0)
-                            }
+            // І в стосі: категорія звужує події закладу, як дата й «Від людей» над мапою, а не виводить у місто.
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Space.xs) {
+                    ForEach(categories, id: \.0) { entry in
+                        // Та сама категорія, що у «Фільтрах»: звужує й мапу.
+                        CategoryTile(category: entry.0, selected: category == entry.0) {
+                            explore.toggleCategory(entry.0)
                         }
                     }
-                }.railContentPadding()
+                }
             }
+            .railContentPadding()
+            // Висота — за вмістом: над порожньою карткою шторка стискала ряд, і `minimumScaleFactor` дрібнив підписи плиток.
+            .fixedSize(horizontal: false, vertical: true)
             if shownEvents.isEmpty && places.isEmpty && artists.isEmpty {
                 if view.loading {
                     PoruchLoader().frame(maxWidth: .infinity).padding(.vertical, Space.section)
@@ -568,7 +574,8 @@ struct DiscoveryView: View, Equatable {
                     quietAction(Copy.create) { createEvent("map") }
                 }
             }
-            Text(query.isEmpty ? Copy.nothing_here_hint : Copy.nothing_for_query(query))
+            // У стосі область мапи не допоможе: тут звужують лише фільтри.
+            Text(!query.isEmpty ? Copy.nothing_for_query(query) : stackFocused ? Copy.nothing_here_stack : Copy.nothing_here_hint)
                 .font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
                 .fixedSize(horizontal: false, vertical: true)
         }

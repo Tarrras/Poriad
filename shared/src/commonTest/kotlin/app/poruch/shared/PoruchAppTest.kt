@@ -1891,7 +1891,7 @@ class PoruchAppTest {
         assertNull(app.state.value.detail.event)
         app.close()
     }
-    /** Презентер мапи: піни з індексу, стос піна звужує шторку, плитка категорії — список, заклад з пошуку відкриває стос сам. */
+    /** Презентер мапи: піни з індексу, стос піна звужує шторку, фільтри звужують і стос, заклад з пошуку відкриває стос сам. */
     @Test fun explorePresenterDrivesTheSheet()=runTest {
         val events=Events()
         val soon=(Clock.System.now()+1.hours).toString()
@@ -1912,36 +1912,63 @@ class PoruchAppTest {
         assertEquals(atPlace.map { it.id }.toSet(),stacked.listEntries.map { it.id }.toSet())
         assertEquals("p1",stacked.selectedId)
         assertEquals("p1",stacked.stackPlace?.id)
-        // Плитка категорії — та сама категорія, що у «Фільтрах»: звужує і мапу, і список, рахується в лічильнику
-        // і скидає стос. Окрема категорія списку перетиналась із нею, і пін з подіями показував нуль.
+        // Плитка категорії — та сама категорія, що у «Фільтрах»: звужує мапу й список і рахується в лічильнику. У стосі вона
+        // звужує події закладу, а не виводить у місто: нуль під «Музикою» — теж стос, із назвою закладу для «Стежити».
         presenter.toggleCategory(EventCategory.MUSIC); runCurrent()
         val narrowed=presenter.state.value
-        assertFalse(narrowed.stackFocused)
+        assertTrue(narrowed.stackFocused)
         assertEquals(EventCategory.MUSIC,narrowed.category)
         assertEquals(1,narrowed.activeFilters)
-        assertEquals(listOf("m1"),narrowed.listEntries.map { it.id })
+        assertEquals(emptyList(),narrowed.listEntries.map { it.id })
+        assertEquals(0,narrowed.listCount)
+        assertEquals("p1",narrowed.stackPlace?.id)
         assertEquals(listOf("m1"),narrowed.mapEvents.map { it.id })
         presenter.toggleCategory(EventCategory.MUSIC); runCurrent()
         assertEquals(null,presenter.state.value.category)
+        assertEquals(atPlace.map { it.id }.toSet(),presenter.state.value.listEntries.map { it.id }.toSet())
+        // Поза стосом та сама плитка звужує список міста.
+        presenter.clearStack(); runCurrent()
+        presenter.toggleCategory(EventCategory.MUSIC); runCurrent()
+        assertEquals(listOf("m1"),presenter.state.value.listEntries.map { it.id })
+        presenter.toggleCategory(EventCategory.MUSIC); runCurrent()
         assertEquals(4,presenter.state.value.listEntries.size)
-        // Фільтр дати теж скидає стос — на обох платформах однаково, а не лише з Android.
+        // Дата в стосі теж лишає заклад, а вибір знімає, як і решта фільтрів: обрана подія 22.10 лишалась обраною під «Сьогодні».
         presenter.showStack(atPlace.map { it.id }); runCurrent()
         assertTrue(presenter.state.value.stackFocused)
         assertEquals("p1",presenter.state.value.selectedId)
         val queries=presenter.state.value.queries
         app.setDateFilter(DateFilter.TODAY); runCurrent()
         assertEquals(queries+1,presenter.state.value.queries,"карусель платформи стає на першу картку")
-        assertFalse(presenter.state.value.stackFocused)
-        // І вибір, як категорія: обрана подія 22.10 лишалась обраною (і на мапі) під «Сьогодні».
+        assertTrue(presenter.state.value.stackFocused)
         assertNull(presenter.state.value.selectedId)
         assertNull(app.state.value.detail.event)
         app.setDateFilter(DateFilter.ANY); runCurrent(); advanceTimeBy(200); runCurrent()
+        presenter.clearStack(); runCurrent()
+        assertFalse(presenter.state.value.stackFocused)
         // Заклад з пошуку: презентер сам відкриває його стос і підносить токен для шторки.
         val before=presenter.state.value.focusToken
         app.focusPlace(malevych); runCurrent(); advanceTimeBy(200); runCurrent()
         val focused=presenter.state.value
         assertTrue(focused.stackFocused)
         assertEquals(before+1,focused.focusToken)
+        app.close()
+    }
+    /** Стос — місце, а не список id: відкритий під «Спортом», без фільтра він показує й концерт того ж закладу. */
+    @Test fun venueStackIsAPlace()=runTest {
+        val events=Events()
+        val soon=(Clock.System.now()+1.hours).toString()
+        val games=(1..2).map { listed("g$it",soon).copy(category=EventCategory.SPORT) }
+        val concert=listed("c1",soon).copy(category=EventCategory.MUSIC)
+        events.results=games+concert
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
+        val presenter=ExplorePresenter(app,backgroundScope,StandardTestDispatcher(testScheduler))
+        runCurrent()
+        presenter.toggleCategory(EventCategory.SPORT); runCurrent()
+        presenter.showStack(games.map { it.id }); runCurrent()
+        assertEquals(setOf("g1","g2"),presenter.state.value.listEntries.map { it.id }.toSet())
+        presenter.toggleCategory(EventCategory.SPORT); runCurrent()
+        assertTrue(presenter.state.value.stackFocused)
+        assertEquals(setOf("g1","g2","c1"),presenter.state.value.listEntries.map { it.id }.toSet())
         app.close()
     }
     /** Фільтр лишив екран без жодного піна — до найближчої до центру події; піни на екрані є — камера й вибір не рухаються. */
