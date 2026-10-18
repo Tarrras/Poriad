@@ -1,8 +1,8 @@
 """Збирає графіку для сторів із сирих екранів у store/screens/.
 
 Світ «Корінець» (DESIGN.md): кожен слайд — квиток на нічному полотні. Угорі, на квитку, штамп і заголовок
-Sofia Sans Condensed; за перфорацією — корінець кольору жанру, з якого виростає телефон, а над ним «винесений»
-шматок справжнього UI. Рендерить headless Chrome. Перезняти екрани після зміни UI (див. store/listing.md),
+Sofia Sans Condensed, підзаголовок системним гротеском платформи; за перфорацією — корінець кольору жанру показаної
+події, з якого виростає телефон, а над ним «винесений» шматок справжнього UI. Рендерить headless Chrome. Перезняти екрани після зміни UI (див. store/listing.md),
 оновити координати в SLIDES і запустити:
 
     python3 tools/store_shots.py
@@ -13,43 +13,49 @@ import tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SCREENS = ROOT / "store" / "screens"
-FONTS = ROOT / "site" / "fonts"  # Sofia Sans з вшитою українською кирилицею й Inter — ті самі, що на сайті
+FONTS = ROOT / "site" / "fonts"  # Sofia Sans з вшитою українською кирилицею — та сама, що на сайті й у застосунку
+# Решта тексту — системний гротеск платформи, як у застосунку: SF Pro з macOS для App Store, Roboto з Android SDK для Play.
+SYSTEM_FONT = {
+    "ios": pathlib.Path("/System/Library/Fonts/SFNS.ttf"),
+    "and": next(pathlib.Path.home().glob("Library/Android/sdk/platforms/*/data/fonts/Roboto-Regular.ttf"), None),
+}
 ZOOM = 1.12
 CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 
 # Сирі розміри екранів: iPhone 16 Pro і Android-емулятор з `wm size 1080x2400`.
 RAW = {"ios": (1206, 2622), "and": (1080, 2400)}
 
-# Перші три слайди видно в пошуку стору — на них головні гачки. stub — колір корінця (`cat-*-stub`), підібраний так,
-# щоб винесений шматок із власним корінцем не зливався з тлом. ios/android: (x0, y0, x1, y1, радіус, нахил) у пікселях
+# Перші три слайди видно в пошуку стору — на них головні гачки. stub — колір корінця (`cat-*-stub`), як у застосунку:
+# жанр події, яку показує слайд (рядок або {платформа: колір}, коли події різні); слайди про людей — «Зустрічі».
+# ios/android: (x0, y0, x1, y1, радіус, нахил) у пікселях
 # сирого екрана — шматок UI, збільшений у ZOOM разів; якщо його місце нижче краю слайда, він піднімається у видиму частину.
 SLIDES = [
     dict(
-        key="map", stub="#6041B1",
+        key="map", stub={"ios": "#8D6A11", "and": "#54701B"},  # стендап / екскурсія на картці
         stamp="Афіша на мапі", title="Є куди.<br>Буде з ким.",
         sub="Концерти, вистави й зустрічі Києва, Львова, Одеси, Дніпра й Харкова — на одній мапі",
         ios=(46, 1906, 1042, 2244, 54, -2), android=(41, 1821, 952, 2115, 47, -2),
     ),
     dict(
-        key="detail", stub="#AC345E",
+        key="detail", stub="#A24C29",
         stamp="Шукаю компанію", title="Не хочете йти самі?",
         sub="На будь-яку подію з афіші можна зібрати невелику компанію. Кого взяти, вирішуєте ви",
         ios=(34, 2098, 1166, 2521, 66, 2), android=(31, 1945, 1046, 2315, 58, 2),
     ),
     dict(
-        key="create", stub="#0D7065",
+        key="create", stub="#A24C29",
         stamp="Від людей", title="Зберіть своїх",
         sub="Настолки, пробіжка чи кіно: назва, точка на мапі й час — і квиток готовий",
         ios=(46, 454, 1158, 986, 42, -2), android=(41, 251, 1037, 716, 37, -2),
     ),
     dict(
-        key="home", stub="#2957AC",
+        key="home", stub="#AC345E",  # «Kyiv Modern-Ballet», мистецтво
         stamp="У місті", title="Куди піти — за хвилину",
         sub="Сотні подій із квиткових сервісів: концерти, стендап, вистави й виставки",
         ios=(46, 483, 1002, 1566, 54, 1.5), android=(41, 240, 970, 1185, 47, 1.5),
     ),
     dict(
-        key="safety", stub="#376E33",
+        key="safety", stub="#6041B1",  # концерт у філармонії
         stamp="Безпека", title="Укриття поруч&nbsp;— ще до виходу",
         sub="Найближчі укриття й час до комендантської біля кожної події. Укриття — поки що для Києва",
         ios=(47, 1297, 1157, 2048, 42, -1.5), android=(41, 1174, 1037, 1833, 37, -1.5),
@@ -65,15 +71,16 @@ TARGETS = [
 ]
 
 
-def _inter(weight, subset, rng):
-    src = (FONTS / f"inter-{subset}-{weight}-normal.woff2").as_uri()
-    return f"@font-face{{font-family:Inter;font-weight:{weight};src:url({src});unicode-range:{rng}}}"
+def system_font_css(plat):
+    font = SYSTEM_FONT[plat]
+    if not font or not font.exists():
+        raise SystemExit(f"Нема системного шрифту для {plat}: {font} (SF Pro — macOS, Roboto — Android SDK platforms/*/data/fonts)")
+    # SF змінний: opsz 17 — текстовий оптичний розмір, як у застосунку для підписів.
+    opsz = ';font-variation-settings:"opsz" 17' if plat == "ios" else ""
+    return f"@font-face{{font-family:Sys;src:url({font.as_uri()})}}p{{font-optical-sizing:none{opsz}}}"
 
 
-FONT_CSS = "".join(
-    _inter(w, sub, rng) for w in (400, 500)
-    for sub, rng in (("cyrillic", "U+0400-045F,U+0490-0491"), ("latin", "U+0000-00FF,U+2000-206F"))
-) + f"""
+FONT_CSS = f"""
 @font-face{{font-family:Cond;font-weight:800;src:url({(FONTS / 'sofia-sans-condensed-800.woff2').as_uri()})}}
 @font-face{{font-family:XCond;font-weight:800;src:url({(FONTS / 'sofia-sans-extra-condensed-800.woff2').as_uri()})}}
 """
@@ -84,7 +91,7 @@ CSS = FONT_CSS + """
 *{margin:0;box-sizing:border-box}
 html{font-size:calc(var(--w)/100)}
 body{width:var(--w);height:var(--h);overflow:hidden;position:relative;background:var(--canvas);
- font-family:Inter,sans-serif;-webkit-font-smoothing:antialiased;color:var(--paper)}
+ font-family:Sys,sans-serif;-webkit-font-smoothing:antialiased;color:var(--paper)}
 .ticket{position:absolute;left:4rem;right:4rem;top:4rem;bottom:-12rem;border-radius:5rem;overflow:hidden;
  background:var(--stub)}
 .main{position:absolute;left:0;right:0;top:0;height:calc(var(--perf) - 4rem);background:var(--surface);
@@ -96,8 +103,8 @@ body{width:var(--w);height:var(--h);overflow:hidden;position:relative;background
 .head{position:absolute;left:10rem;right:10rem;top:4rem;height:calc(var(--perf) - 4rem);display:flex;
  flex-direction:column;justify-content:center;align-items:flex-start}
 .stamp{display:inline-block;font:800 var(--stampsize)/1 Cond,sans-serif;letter-spacing:.09em;text-transform:uppercase;
- color:var(--paper);padding:.9rem 1.7rem .8rem;border:.32rem solid var(--paper);border-radius:1rem;
- transform:rotate(-4deg);transform-origin:left center;opacity:.92;margin-bottom:var(--gap1)}
+ color:var(--ink2);padding:.9rem 1.7rem .8rem;border:.32rem solid var(--ink2);border-radius:1rem;
+ transform:rotate(-4deg);transform-origin:left center;margin-bottom:var(--gap1)}
 h1{font:800 var(--h1)/.94 Cond,sans-serif;letter-spacing:-.012em;text-wrap:balance;max-width:80rem}
 p{font-size:var(--sub);line-height:1.36;margin-top:var(--gap2);color:var(--ink2);text-wrap:pretty;max-width:76rem}
 .phone{position:absolute;left:50%;top:var(--phonetop);width:var(--phonew);transform:translateX(-50%);
@@ -123,7 +130,7 @@ def slide_html(s, plat, w, h):
     bezel = 1.25
     scale = (phone_w - 2 * bezel) / rw  # rem на сирий піксель
     vars_ = {
-        "--w": f"{w}px", "--h": f"{h}px", "--stub": s["stub"], "--perf": f"{perf}rem",
+        "--w": f"{w}px", "--h": f"{h}px", "--stub": s["stub"] if isinstance(s["stub"], str) else s["stub"][plat], "--perf": f"{perf}rem",
         "--stampsize": "3.3rem" if tall else "3rem",
         "--h1": "12.6rem" if tall else "10.4rem",
         "--sub": "3.7rem" if tall else "3.3rem",
@@ -154,7 +161,7 @@ def slide_html(s, plat, w, h):
     )
     style = ";".join(f"{name}:{value}" for name, value in vars_.items())
     hole = '<div class="hole"></div>' if plat == "and" else ""
-    return f"""<!doctype html><html style="{style}"><head><meta charset="utf-8"><style>{CSS}</style></head><body>
+    return f"""<!doctype html><html style="{style}"><head><meta charset="utf-8"><style>{system_font_css(plat)}{CSS}</style></head><body>
 <div class="ticket"><div class="main"></div></div>
 <div class="perf"></div><div class="notch" style="left:1.4rem"></div><div class="notch" style="right:1.4rem"></div>
 <div class="head"><div class="stamp">{s['stamp']}</div><h1>{s['title']}</h1><p>{s['sub']}</p></div>
@@ -163,11 +170,11 @@ def slide_html(s, plat, w, h):
 
 
 # Банер Play — горизонтальний квиток: слоган на квитку, за вертикальною перфорацією корінець із двома телефонами.
-FEATURE = """<!doctype html><html><head><meta charset="utf-8"><style>""" + FONT_CSS + """
+FEATURE = """<!doctype html><html><head><meta charset="utf-8"><style>{sys}""" + FONT_CSS + """
 *{margin:0;box-sizing:border-box}
 body{width:1024px;height:500px;overflow:hidden;position:relative;background:#0F0F13;color:#F3F3F0;
- font-family:Inter,sans-serif;-webkit-font-smoothing:antialiased}
-.ticket{position:absolute;inset:28px;border-radius:26px;overflow:hidden;background:#6041B1}
+ font-family:Sys,sans-serif;-webkit-font-smoothing:antialiased}
+.ticket{position:absolute;inset:28px;border-radius:26px;overflow:hidden;background:#A24C29}
 .main{position:absolute;left:0;top:0;bottom:0;width:560px;background:#1C1B21;box-shadow:0 0 0 1.5px #2E2D35 inset}
 .perf{position:absolute;left:583px;top:62px;bottom:62px;width:9px;
  background:radial-gradient(circle at 4.5px 4.5px,#0F0F13 4px,transparent 4.6px) 0 0/9px 16px repeat-y}
@@ -210,7 +217,8 @@ def main():
         for i, s in enumerate(SLIDES, 1):
             render(slide_html(s, plat, w, h), ROOT / "store" / folder / f"{prefix}{i:02d}.png", w, h)
     feature = (
-        FEATURE.replace("{icon}", (ROOT / "store" / "play" / "icon_512.png").as_uri())
+        FEATURE.replace("{sys}", system_font_css("and"))
+        .replace("{icon}", (ROOT / "store" / "play" / "icon_512.png").as_uri())
         .replace("{a}", (SCREENS / "and_map.png").as_uri())
         .replace("{b}", (SCREENS / "and_home.png").as_uri())
     )
