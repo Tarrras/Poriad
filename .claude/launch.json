@@ -12,6 +12,12 @@
       "runtimeExecutable": "python3",
       "runtimeArgs": ["-m", "http.server", "8766", "--directory", "site"],
       "port": 8766
+    },
+    {
+      "name": "ua-dashboard",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "cd \"$HOME/.claude/plugins/cache/understand-anything/understand-anything/2.9.7/packages/dashboard\" && GRAPH_DIR=\"$OLDPWD\" exec node_modules/.bin/vite --host 127.0.0.1 --port 5173 --strictPort"],
+      "port": 5173
     }
   ]
 }
