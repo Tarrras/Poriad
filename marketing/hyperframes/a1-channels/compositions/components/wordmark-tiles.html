@@ -4,7 +4,7 @@
 
   Registry component, customised in place for A1 «noise → signal»:
     - the noise faces are ink and greys of the paper/ink film (no colour), with paper gaps;
-    - the resolved glyph is the coral «Поряд» (Unbounded 900, mixed case), the only coral in the film;
+    - the resolved glyph is the coral «Поряд» (Sofia Sans Condensed 800, mixed case), the only coral in the film;
     - the stage fills the host box and the wordmark is fitted to it at setup, capped at 128 px (the
       end-card grid size), so the host (index.html #wordmark-tiles, x 260–820) sets where the name sits;
     - rows derive from the host's aspect, so tiles stay near-square;
@@ -34,8 +34,8 @@
     <template>
       <div id="wt-root" data-composition-id="wordmark-tiles" data-start="0" data-duration="4" data-fps="30">
         <style>
-          @font-face { font-family: "Unbounded"; src: url("assets/fonts/unbounded-cyrillic.woff2") format("woff2"); font-weight: 200 900; font-display: block; unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
-          @font-face { font-family: "Unbounded"; src: url("assets/fonts/unbounded-latin.woff2") format("woff2"); font-weight: 200 900; font-display: block; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+          @font-face { font-family: "Sofia Sans Condensed"; src: url("assets/fonts/SofiaSansCondensed-Bold.ttf") format("truetype"); font-weight: 700; font-display: block; }
+          @font-face { font-family: "Sofia Sans Condensed"; src: url("assets/fonts/SofiaSansCondensed-ExtraBold.ttf") format("truetype"); font-weight: 800; font-display: block; }
 
           #wt-root {
             position: absolute;
@@ -76,11 +76,11 @@
             display: grid;
             place-items: center;
             color: var(--wt-name);
-            font-family: "Unbounded", system-ui, sans-serif;
+            font-family: "Sofia Sans Condensed", system-ui, sans-serif;
             font-size: var(--wt-font-size);
-            font-weight: 900;
+            font-weight: 800;
             line-height: 1;
-            letter-spacing: -0.045em;
+            letter-spacing: -0.005em;
             white-space: nowrap;
           }
         </style>
@@ -119,10 +119,10 @@
             var tileCount = columns * rows;
 
             // fit the wordmark to the box width once, at setup
-            await document.fonts.load('900 100px "Unbounded"', text);
+            await document.fonts.load('800 100px \"Sofia Sans Condensed\"', text);
             // fitted with canvas metrics: the mount is not laid out while the timeline is built
             var ctx = document.createElement("canvas").getContext("2d");
-            ctx.font = '900 100px "Unbounded", system-ui, sans-serif';
+            ctx.font = '800 100px "Sofia Sans Condensed", system-ui, sans-serif';
             ctx.letterSpacing = "-4.5px";
             var fontSize = Math.min(128, boxH * 0.9, (100 * boxW) / Math.max(1, ctx.measureText(text).width));
 

@@ -11,15 +11,15 @@
   <body>
     <template>
       <style>
-        @font-face { font-family: "Unbounded"; src: url("assets/fonts/unbounded-cyrillic.woff2") format("woff2"); font-weight: 200 900; font-display: block; unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
-        @font-face { font-family: "Unbounded"; src: url("assets/fonts/unbounded-latin.woff2") format("woff2"); font-weight: 200 900; font-display: block; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+        @font-face { font-family: "Sofia Sans Condensed"; src: url("assets/fonts/SofiaSansCondensed-Bold.ttf") format("truetype"); font-weight: 700; font-display: block; }
+        @font-face { font-family: "Sofia Sans Condensed"; src: url("assets/fonts/SofiaSansCondensed-ExtraBold.ttf") format("truetype"); font-weight: 800; font-display: block; }
         @font-face { font-family: "Inter"; src: url("assets/fonts/inter-cyrillic-400-normal.woff2") format("woff2"); font-weight: 400; font-display: block; unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
         @font-face { font-family: "Inter"; src: url("assets/fonts/inter-cyrillic-600-normal.woff2") format("woff2"); font-weight: 600; font-display: block; unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
         @font-face { font-family: "Inter"; src: url("assets/fonts/inter-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: block; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
         @font-face { font-family: "Inter"; src: url("assets/fonts/inter-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-display: block; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
 
         #end-root { position: absolute; inset: 0; overflow: hidden; background: #f5f5f7; color: #0b0b0f; font-family: "Inter", system-ui, sans-serif; }
-        .end-type { position: absolute; left: 160px; width: 760px; text-align: center; font-family: "Unbounded", system-ui, sans-serif; font-weight: 300; letter-spacing: -0.035em; white-space: pre; }
+        .end-type { position: absolute; left: 160px; width: 760px; text-align: center; font-family: "Sofia Sans Condensed", system-ui, sans-serif; font-weight: 700; letter-spacing: -0.005em; white-space: pre; }
         .end-type span { opacity: 0; }
         #end-bait { top: 300px; font-size: 52px; line-height: 59.8px; }
         #end-line, #end-slogan { top: 934px; font-size: 40px; line-height: 46px; color: #44444c; }
@@ -74,7 +74,7 @@
           // and types the slogan in its slot (still from 2.47, > 1 s before the static last 10 frames from 3.67);
           // then the bait, «безкоштовно» and the badges
           const T = { line: 0.6, erase: 1.7, slogan: 2.04, bait: 2.56, free: 2.95, store: 3.25 };
-          await document.fonts.load('300 52px "Unbounded"', COPY.line + COPY.slogan + COPY.bait.join(""));
+          await document.fonts.load('700 52px \"Sofia Sans Condensed\"', COPY.line + COPY.slogan + COPY.bait.join(""));
           $("#end-free").textContent = COPY.free;
 
           const tl = gsap.timeline({ paused: true });
@@ -85,7 +85,7 @@
           const setFont = (el) => {
             const cs = getComputedStyle(el);
             const fs = parseFloat(cs.fontSize), lh = parseFloat(cs.lineHeight);
-            ctx.font = "300 " + fs + 'px "Unbounded", system-ui, sans-serif';
+            ctx.font = "700 " + fs + 'px "Sofia Sans Condensed", system-ui, sans-serif';
             ctx.letterSpacing = (-0.035 * fs).toFixed(2) + "px";
             return { top: parseFloat(cs.top), lh, ch: Math.round(fs * 1.04) };
           };

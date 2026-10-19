@@ -184,27 +184,26 @@
         <filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7" /><feColorMatrix type="saturate" values="0" /></filter>
         <rect width="1080" height="1920" filter="url(#noise)" />
       </svg>
-
-      <!-- Audio. music: calm.m4a from 5.0 s, so its lift (8.0 s in the track) lands as the first line prints (3.0) -->
-      <audio id="music" src="assets/audio/music.m4a" data-start="0" data-media-start="5" data-duration="14" data-track-index="10" data-automation="{&quot;version&quot;:1,&quot;lanes&quot;:[{&quot;target&quot;:&quot;volume&quot;,&quot;points&quot;:[{&quot;t&quot;:0,&quot;v&quot;:0.9},{&quot;t&quot;:3.3,&quot;v&quot;:0.9},{&quot;t&quot;:3.5,&quot;v&quot;:0.62},{&quot;t&quot;:6.9,&quot;v&quot;:0.62},{&quot;t&quot;:7.3,&quot;v&quot;:0.8},{&quot;t&quot;:10.9,&quot;v&quot;:0.8},{&quot;t&quot;:11.1,&quot;v&quot;:0.62},{&quot;t&quot;:12.1,&quot;v&quot;:0.62},{&quot;t&quot;:12.4,&quot;v&quot;:0.8},{&quot;t&quot;:13.3,&quot;v&quot;:0.8},{&quot;t&quot;:14,&quot;v&quot;:0}]}]}"></audio>
+      <!-- music: the shared chill-hop bed (Pixabay, «Cozy Cafe Moments», 88 bpm) from 7.08 s, so its body comes in as the first line prints (3.0) -->
+      <audio id="music" src="assets/audio/music.m4a" data-start="0" data-media-start="7.08" data-duration="14" data-track-index="10" data-automation="{&quot;version&quot;:1,&quot;lanes&quot;:[{&quot;target&quot;:&quot;volume&quot;,&quot;points&quot;:[{&quot;t&quot;:0,&quot;v&quot;:0.675},{&quot;t&quot;:3.3,&quot;v&quot;:0.675},{&quot;t&quot;:3.5,&quot;v&quot;:0.465},{&quot;t&quot;:6.9,&quot;v&quot;:0.465},{&quot;t&quot;:7.3,&quot;v&quot;:0.6},{&quot;t&quot;:10.9,&quot;v&quot;:0.6},{&quot;t&quot;:11.1,&quot;v&quot;:0.465},{&quot;t&quot;:12.1,&quot;v&quot;:0.465},{&quot;t&quot;:12.4,&quot;v&quot;:0.6},{&quot;t&quot;:13.3,&quot;v&quot;:0.6},{&quot;t&quot;:14,&quot;v&quot;:0.0}]}]}"></audio>
       <!-- hook: one dry tick per printed line -->
       <audio id="sfx-line-1" src="assets/audio/ui_tick.wav" data-start="0.1" data-duration="0.1" data-track-index="11" data-volume="0.3"></audio>
       <audio id="sfx-line-2" src="assets/audio/ui_tick.wav" data-start="0.45" data-duration="0.1" data-track-index="11" data-volume="0.3"></audio>
       <audio id="sfx-line-3" src="assets/audio/ui_tick.wav" data-start="1.4" data-duration="0.1" data-track-index="11" data-volume="0.34"></audio>
-      <!-- the empty ticket is fed into the slit, then the printer runs twice and cuts -->
+      <!-- the empty ticket is fed into the slit, then the printer runs twice and the ticket is torn off -->
       <audio id="sfx-in" src="assets/audio/whoosh.wav" data-start="2.85" data-duration="0.27" data-track-index="12" data-volume="0.24"></audio>
       <audio id="sfx-head" src="assets/audio/ui_tick.wav" data-start="3.0" data-duration="0.1" data-track-index="11" data-volume="0.3"></audio>
-      <audio id="sfx-print-1" src="assets/audio/printer.wav" data-start="3.3" data-media-start="0.02" data-duration="1.6" data-track-index="13" data-volume="0.55"></audio>
-      <audio id="sfx-print-2" src="assets/audio/printer.wav" data-start="5.0" data-media-start="0.3" data-duration="1.6" data-track-index="14" data-volume="0.55"></audio>
-      <audio id="sfx-cut-1" src="assets/audio/printer.wav" data-start="6.82" data-media-start="1.63" data-duration="0.45" data-track-index="13" data-volume="0.6"></audio>
+      <audio id="sfx-print-1" src="assets/audio/printer.wav" data-start="3.3" data-media-start="0.02" data-duration="1.56" data-track-index="13" data-volume="0.5"></audio>
+      <audio id="sfx-print-2" src="assets/audio/printer.wav" data-start="5.0" data-media-start="0.05" data-duration="1.5" data-track-index="14" data-volume="0.5"></audio>
+      <audio id="sfx-cut-1" src="assets/audio/tear.wav" data-start="6.84" data-duration="0.2" data-track-index="15" data-volume="0.55"></audio>
       <!-- the ticket flies into the phone, the tap -->
       <audio id="sfx-fly" src="assets/audio/whoosh.wav" data-start="7.6" data-duration="0.27" data-track-index="12" data-volume="0.3"></audio>
       <audio id="sfx-land" src="assets/audio/stamp.wav" data-start="8.18" data-duration="0.4" data-track-index="15" data-volume="0.22"></audio>
       <audio id="sfx-tap" src="assets/audio/ui_tick.wav" data-start="9.05" data-duration="0.1" data-track-index="11" data-volume="0.45"></audio>
       <!-- the brand ticket prints and is cut -->
       <audio id="sfx-out" src="assets/audio/whoosh.wav" data-start="10.45" data-duration="0.27" data-track-index="12" data-volume="0.22"></audio>
-      <audio id="sfx-print-3" src="assets/audio/printer.wav" data-start="10.95" data-media-start="0.6" data-duration="0.95" data-track-index="13" data-volume="0.55"></audio>
-      <audio id="sfx-cut-2" src="assets/audio/printer.wav" data-start="11.92" data-media-start="1.63" data-duration="0.45" data-track-index="14" data-volume="0.6"></audio>
+      <audio id="sfx-print-3" src="assets/audio/printer.wav" data-start="10.95" data-media-start="0.5" data-duration="0.95" data-track-index="13" data-volume="0.5"></audio>
+      <audio id="sfx-cut-2" src="assets/audio/tear.wav" data-start="11.94" data-duration="0.2" data-track-index="15" data-volume="0.55"></audio>
       <audio id="sfx-bait" src="assets/audio/ui_tick.wav" data-start="12.45" data-duration="0.1" data-track-index="11" data-volume="0.3"></audio>
     </div>
 

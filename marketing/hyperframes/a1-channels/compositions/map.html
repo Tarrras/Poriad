@@ -1,6 +1,6 @@
-<!-- A1 proof: the real map-kyiv screen opens full-bleed from the pin as a circle iris (transitions-radial
-     «Circle Iris» recipe), the camera drifts back over the clusters, annotations with leader lines name what
-     is on screen, a tap on the gold stand-up pin, crossfade to map-kyiv-card, push onto the card.
+<!-- A1 proof: the real map-kyiv screen («Корінець», day theme, 1.3.0) opens full-bleed from the pin as a circle iris
+     (transitions-radial «Circle Iris» recipe), the camera drifts back over the ticket clusters, annotations with leader
+     lines name what is on screen, a tap on a single «Мистецтво» pin, crossfade to map-kyiv-card, push onto the card.
      Screens are untouched prod screenshots (1206×2622); camera = translate + scale only. -->
 <!doctype html>
 <html lang="uk">
@@ -36,9 +36,9 @@
             <img id="map-shot-card" src="assets/ui/map-kyiv-card.png" alt="" />
             <!-- marks live in screenshot space, so they ride the camera exactly -->
             <svg id="map-marks" viewBox="0 0 1206 2622" aria-hidden="true">
-              <circle id="map-m1" cx="616" cy="1106" r="74" fill="none" stroke="#0b0b0f" stroke-width="5" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1" transform="rotate(-100 616 1106)" />
-              <g id="map-m2"><circle cx="203" cy="514" r="11" fill="#0b0b0f" stroke="#f5f5f7" stroke-width="5" /></g>
-              <g id="map-m3"><circle cx="420" cy="1910" r="11" fill="#0b0b0f" stroke="#f5f5f7" stroke-width="5" /></g>
+              <circle id="map-m1" cx="521" cy="1179" r="108" fill="none" stroke="#0b0b0f" stroke-width="5" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1" transform="rotate(-100 521 1179)" />
+              <g id="map-m2"><circle cx="210" cy="514" r="11" fill="#0b0b0f" stroke="#f5f5f7" stroke-width="5" /></g>
+              <g id="map-m3"><circle cx="459" cy="1930" r="11" fill="#0b0b0f" stroke="#f5f5f7" stroke-width="5" /></g>
             </svg>
           </div>
         </div>
@@ -64,7 +64,7 @@
           ["#map-c1", "#map-c2", "#map-c3"].forEach((s, i) => ($(s + " span").textContent = COPY[i]));
           // camera keys: frame = (x, y) + screenshot point × s
           const IRIS = { x: 540, y: 860 }; // the pin's hole in the hook
-          const K0 = { s: 1.6, x: IRIS.x - 436 * 1.6, y: IRIS.y - 840 * 1.6 }; // the gold stand-up pin sits in the hole
+          const K0 = { s: 1.6, x: IRIS.x - 770 * 1.6, y: IRIS.y - 1310 * 1.6 }; // the single «Мистецтво» pin sits in the hole
           const K1 = { s: 0.92, x: (1080 - 1206 * 0.92) / 2, y: -145 }; // whole screen below the status bar
           const K2 = { s: 1.08, x: 540 - 545 * 1.08, y: 1920 - 2622 * 1.08 }; // pushed onto the card, bottom edge held
           const SEG = [
@@ -114,17 +114,17 @@
             if (tOut != null) tl.to(sel, { scale: 0, duration: 0.16, ease: "power2.in" }, tOut);
           };
           // 1 · events from ticket sites: the leader leaves the strip's top-right and the cluster gets circled
-          cap("#map-c1", "#map-l1", T.c1, T.c1out, () => [430, 1328], [616, 1106], (t) => {
+          cap("#map-c1", "#map-l1", T.c1, T.c1out, () => [430, 1328], [521, 1179 + 108], (t) => {
             tl.fromTo("#map-m1", { strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: 0.34, ease: "power2.inOut" }, t);
             tl.to("#map-m1", { strokeDashoffset: -1, duration: 0.2, ease: "power2.in" }, T.c1out);
           });
           // 2 · on one map: a short tick up to the city chip
-          cap("#map-c2", "#map-l2", T.c2, T.c2out, () => [172, 400], [203, 514], popIn("#map-m2", T.c2out));
+          cap("#map-c2", "#map-l2", T.c2, T.c2out, () => [172, 400], [210, 514], popIn("#map-m2", T.c2out));
           // 3 · tap, and the whole event: down to the selected card
-          cap("#map-c3", "#map-l3", T.c3, null, () => [160, 937], [420, 1910], popIn("#map-m3", null));
+          cap("#map-c3", "#map-l3", T.c3, null, () => [160, 937], [459, 1930], popIn("#map-m3", null));
 
-          // ---- tap on the gold pin (camera at rest on K1) ----
-          const [tx, ty] = at(K1, 436, 840);
+          // ---- tap on the «Мистецтво» pin (camera at rest on K1) ----
+          const [tx, ty] = at(K1, 770, 1310);
           tl.set(["#map-press", "#map-tap"], { attr: { cx: tx, cy: ty } }, 0);
           tl.fromTo("#map-press", { opacity: 0, scale: 0.6, transformOrigin: "50% 50%" }, { opacity: 0.22, scale: 1, duration: 0.08, ease: "power2.out", immediateRender: false }, T.tap);
           tl.to("#map-press", { opacity: 0, duration: 0.2, ease: "power2.in" }, T.tap + 0.12);

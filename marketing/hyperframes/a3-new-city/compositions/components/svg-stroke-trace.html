@@ -2,7 +2,7 @@
 <!--
   svg-stroke-trace: HyperFrames video primitive (intros and reveals), customised for A3.
 
-  The «Поряд» wordmark (Unbounded 900, coral #E0582F, the only coral in the film) is traced as a line,
+  The «Поряд» wordmark (Sofia Sans Condensed 800, coral #E0582F, the only coral in the film) is traced as a line,
   on the end-card v2 grid (baseline 884 = cap-top ≈ 790, centred on x 540),
   every glyph contour from its own start, then filled. No hold drift and no exit: the mark lands where the
   end-card lockup needs it and stays perfectly still to the last frame.
@@ -18,13 +18,9 @@
     <template>
       <div id="sst-root" data-composition-id="svg-stroke-trace" data-width="1080" data-height="1920">
         <style>
-          @font-face {
-            font-family: "Unbounded";
-            src: url("assets/fonts/unbounded-cyrillic.woff2") format("woff2");
-            font-weight: 200 900;
-            font-display: block;
-            unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
-          }
+          @font-face { font-family: "Sofia Sans Condensed"; src: url("assets/fonts/SofiaSansCondensed-Bold.ttf") format("truetype"); font-weight: 700; font-display: block; }
+          @font-face { font-family: "Sofia Sans Condensed"; src: url("assets/fonts/SofiaSansCondensed-ExtraBold.ttf") format("truetype"); font-weight: 800; font-display: block; }
+          
           #sst-root {
             --sst-accent: #e0582f;
             position: absolute;
@@ -46,10 +42,10 @@
             overflow: visible;
           }
           .sst-svg text {
-            font-family: "Unbounded", system-ui, sans-serif;
-            font-weight: 900;
+            font-family: "Sofia Sans Condensed", system-ui, sans-serif;
+            font-weight: 800;
             font-size: 128px;
-            letter-spacing: -0.045em;
+            letter-spacing: -0.005em;
           }
           .sst-fill {
             fill: var(--sst-accent);

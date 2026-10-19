@@ -6,8 +6,8 @@
   <body>
     <template>
       <style>
-        @font-face { font-family: "Unbounded"; src: url("assets/fonts/unbounded-cyrillic.woff2") format("woff2"); font-weight: 200 900; font-display: block; unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
-        @font-face { font-family: "Unbounded"; src: url("assets/fonts/unbounded-latin.woff2") format("woff2"); font-weight: 200 900; font-display: block; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+        @font-face { font-family: "Sofia Sans Condensed"; src: url("assets/fonts/SofiaSansCondensed-Bold.ttf") format("truetype"); font-weight: 700; font-display: block; }
+        @font-face { font-family: "Sofia Sans Condensed"; src: url("assets/fonts/SofiaSansCondensed-ExtraBold.ttf") format("truetype"); font-weight: 800; font-display: block; }
         @font-face { font-family: "Inter"; src: url("assets/fonts/inter-cyrillic-400-normal.woff2") format("woff2"); font-weight: 400; font-display: block; unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
         @font-face { font-family: "Inter"; src: url("assets/fonts/inter-cyrillic-600-normal.woff2") format("woff2"); font-weight: 600; font-display: block; unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
         @font-face { font-family: "Inter"; src: url("assets/fonts/inter-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: block; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
@@ -16,11 +16,11 @@
         #cta-root { position: absolute; inset: 0; overflow: hidden; color: #f4efe2; font-family: "Inter", sans-serif; }
         /* end-card grid v2 (_material/END-CARD.md), centred on x 540. The bait hangs at the top and drops in like a flap */
         #cta-bait-wrap { position: absolute; left: 160px; width: 760px; top: 300px; perspective: 900px; display: flex; justify-content: center; }
-        #cta-bait { display: block; transform-origin: 50% 0; font-family: "Unbounded", sans-serif; font-weight: 300; font-size: 52px; line-height: 1.15; letter-spacing: -0.045em; text-align: center; text-wrap: balance; color: #f4efe2; }
+        #cta-bait { display: block; transform-origin: 50% 0; font-family: "Sofia Sans Condensed", sans-serif; font-weight: 700; font-size: 52px; line-height: 1.15; letter-spacing: -0.005em; text-align: center; text-wrap: balance; color: #f4efe2; }
         /* the icon and the «Поряд» tile live in route.html (hairlines y 528 and 1012); the slogan flaps down under the
            tile like the bait, and settles with the same small overshoot as the tile's last flap; the stores sit under them */
         #cta-slogan-wrap { position: absolute; left: 160px; width: 760px; top: 937px; perspective: 900px; display: flex; justify-content: center; }
-        #cta-slogan { display: block; transform-origin: 50% 0; font-family: "Unbounded", sans-serif; font-weight: 300; font-size: 40px; line-height: 46px; letter-spacing: -0.035em; white-space: nowrap; color: #c9bfa6; }
+        #cta-slogan { display: block; transform-origin: 50% 0; font-family: "Sofia Sans Condensed", sans-serif; font-weight: 700; font-size: 40px; line-height: 46px; letter-spacing: -0.005em; white-space: nowrap; color: #c9bfa6; }
         #cta-free { position: absolute; left: 0; width: 1080px; top: 1110px; text-align: center; font-weight: 600; font-size: 34px; line-height: 40px; color: #f2b544; }
         #cta-store { position: absolute; left: 0; width: 1080px; top: 1176px; display: flex; flex-direction: column; align-items: center; opacity: 0; }
         #cta-badges { display: flex; gap: 32px; }

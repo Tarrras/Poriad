@@ -12,8 +12,8 @@
   <body>
     <template>
       <style>
-        @font-face { font-family: "Unbounded"; src: url("assets/fonts/unbounded-cyrillic.woff2") format("woff2"); font-weight: 200 900; font-display: block; unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
-        @font-face { font-family: "Unbounded"; src: url("assets/fonts/unbounded-latin.woff2") format("woff2"); font-weight: 200 900; font-display: block; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+        @font-face { font-family: "Sofia Sans Condensed"; src: url("assets/fonts/SofiaSansCondensed-Bold.ttf") format("truetype"); font-weight: 700; font-display: block; }
+        @font-face { font-family: "Sofia Sans Condensed"; src: url("assets/fonts/SofiaSansCondensed-ExtraBold.ttf") format("truetype"); font-weight: 800; font-display: block; }
         @font-face { font-family: "Inter"; src: url("assets/fonts/inter-cyrillic-400-normal.woff2") format("woff2"); font-weight: 400; font-display: block; unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
         @font-face { font-family: "Inter"; src: url("assets/fonts/inter-cyrillic-600-normal.woff2") format("woff2"); font-weight: 600; font-display: block; unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
         @font-face { font-family: "Inter"; src: url("assets/fonts/inter-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: block; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
@@ -26,7 +26,7 @@
         /* ---- lock screen, edge to edge, no bezel ---- */
         #nc-lock { position: absolute; inset: 0; }
         #nc-lockglyph { position: absolute; left: 524px; top: 250px; width: 32px; height: 42px; }
-        #nc-clock { position: absolute; left: 0; top: 312px; width: 1080px; text-align: center; font-family: "Unbounded", system-ui, sans-serif; font-weight: 300; font-size: 196px; line-height: 1; letter-spacing: -0.06em; }
+        #nc-clock { position: absolute; left: 0; top: 312px; width: 1080px; text-align: center; font-family: "Sofia Sans Condensed", system-ui, sans-serif; font-weight: 700; font-size: 196px; line-height: 1; letter-spacing: -0.06em; }
         .nc-round { position: absolute; top: 1712px; width: 104px; height: 104px; border-radius: 50%; background: rgba(11, 11, 15, 0.07); display: flex; align-items: center; justify-content: center; }
         #nc-torch { left: 116px; }
         #nc-camera { left: 860px; }
@@ -35,7 +35,7 @@
         /* ---- the pile (block geometry: banners that restack as each new one lands at the bottom) ---- */
         #nc-pile { position: absolute; inset: 0; z-index: 0; }
         .nc-banner { position: absolute; left: 80px; top: 0; width: 840px; height: 150px; border-radius: 34px; background: #ffffff; box-shadow: 0 0 0 1.5px rgba(11, 11, 15, 0.07), 0 18px 40px rgba(11, 11, 15, 0.11); overflow: hidden; opacity: 0; }
-        .nc-av { position: absolute; left: 24px; top: 27px; width: 96px; height: 96px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: "Unbounded", system-ui, sans-serif; font-weight: 900; font-size: 40px; line-height: 1; }
+        .nc-av { position: absolute; left: 24px; top: 27px; width: 96px; height: 96px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: "Sofia Sans Condensed", system-ui, sans-serif; font-weight: 800; font-size: 40px; line-height: 1; }
         .nc-av.ink { background: #0b0b0f; color: #f5f5f7; }
         .nc-av.grey { background: #d4d4db; color: #0b0b0f; }
         .nc-av.ring { box-shadow: inset 0 0 0 5px #0b0b0f; color: #0b0b0f; }
@@ -44,24 +44,24 @@
         .nc-sk { position: absolute; left: 144px; height: 14px; border-radius: 7px; background: #e1e1e6; }
         .nc-mute { position: absolute; inset: 0; background: #e3e3e8; opacity: 0; }
 
-        /* ---- verdict: two paper strips, Unbounded 900, through the pasted rgb-glitch-text component ---- */
+        /* ---- verdict: two paper strips, Sofia Sans Condensed 800, through the pasted rgb-glitch-text component ---- */
         #nc-verdict { position: absolute; z-index: 2; left: 60px; top: 600px; width: 860px; height: 340px; }
         .nc-strip { position: absolute; left: 0; padding: 8px 26px 20px 22px; background: #f5f5f7; box-shadow: 0 24px 60px rgba(11, 11, 15, 0.16); opacity: 0; }
         #nc-s1 { top: 0; }
         #nc-s2 { top: 170px; }
         /* rgb-glitch-text (registry component), pasted: one solid ink copy over a red and a cyan ghost */
-        .hf-catalog-rgb-glitch-text { position: relative; color: var(--hf-glitch-ink, #0b0b0f); font-family: "Unbounded", system-ui, sans-serif; font-weight: 900; font-size: 116px; line-height: 1.12; letter-spacing: -0.06em; white-space: nowrap; }
+        .hf-catalog-rgb-glitch-text { position: relative; color: var(--hf-glitch-ink, #0b0b0f); font-family: "Sofia Sans Condensed", system-ui, sans-serif; font-weight: 800; font-size: 116px; line-height: 1.12; letter-spacing: -0.06em; white-space: nowrap; }
         .hf-catalog-rgb-glitch-text span { position: absolute; left: 0; top: 0; }
         .hf-catalog-rgb-glitch-text span:first-child { color: #ff1f4b; transform: translateX(calc(var(--hf-glitch-red, 0px) * var(--hf-glitch-reach, 1))); }
         .hf-catalog-rgb-glitch-text span:nth-child(2) { color: #00c8ff; transform: translateX(calc(var(--hf-glitch-blue, 0px) * var(--hf-glitch-reach, 1))); }
-        .hf-catalog-rgb-glitch-text strong { position: relative; font-weight: 900; color: var(--hf-glitch-ink, #0b0b0f); }
+        .hf-catalog-rgb-glitch-text strong { position: relative; font-weight: 800; color: var(--hf-glitch-ink, #0b0b0f); }
 
         /* ---- signal: one pin, one typed line ---- */
         #nc-pin { position: absolute; left: 440px; top: 760px; width: 200px; height: 273px; }
         #nc-pin-body { position: absolute; inset: 0; }
         #nc-pin svg { display: block; width: 200px; height: 273px; overflow: visible; }
         #nc-type { position: absolute; left: 120px; top: 1090px; width: 800px; height: 180px; }
-        .nc-line { position: relative; font-family: "Unbounded", system-ui, sans-serif; font-weight: 300; font-size: 64px; line-height: 86px; letter-spacing: -0.035em; white-space: pre; }
+        .nc-line { position: relative; font-family: "Sofia Sans Condensed", system-ui, sans-serif; font-weight: 700; font-size: 64px; line-height: 86px; letter-spacing: -0.005em; white-space: pre; }
         .nc-line span { opacity: 0; }
         #nc-caret { position: absolute; left: 0; top: 0; width: 5px; height: 64px; margin-top: 12px; background: #0b0b0f; opacity: 0; }
         #nc-fx { position: absolute; left: 0; top: 0; width: 0; height: 0; }
@@ -158,8 +158,8 @@
           const T = { v1: 3.0, v2: 3.5, ramp: 4.0, cut: 134 / 30, collapse: 4.52, dot: 4.78, drop: 4.9, land: 5.0, l1: 5.12, l2: 5.7, dive: 6.22 };
 
           await Promise.all([
-            document.fonts.load('300 64px "Unbounded"', COPY.l1 + COPY.l2),
-            document.fonts.load('900 116px "Unbounded"', COPY.v1 + COPY.v2),
+            document.fonts.load('700 64px \"Sofia Sans Condensed\"', COPY.l1 + COPY.l2),
+            document.fonts.load('800 116px \"Sofia Sans Condensed\"', COPY.v1 + COPY.v2),
             document.fonts.load('600 34px "Inter"', "куди піти"),
           ]);
 

@@ -6,8 +6,8 @@
   <body>
     <template>
       <style>
-        @font-face { font-family: "Unbounded"; src: url("assets/fonts/unbounded-cyrillic.woff2") format("woff2"); font-weight: 200 900; font-display: block; unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
-        @font-face { font-family: "Unbounded"; src: url("assets/fonts/unbounded-latin.woff2") format("woff2"); font-weight: 200 900; font-display: block; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+        @font-face { font-family: "Sofia Sans Condensed"; src: url("assets/fonts/SofiaSansCondensed-Bold.ttf") format("truetype"); font-weight: 700; font-display: block; }
+        @font-face { font-family: "Sofia Sans Condensed"; src: url("assets/fonts/SofiaSansCondensed-ExtraBold.ttf") format("truetype"); font-weight: 800; font-display: block; }
         @font-face { font-family: "Inter"; src: url("assets/fonts/inter-cyrillic-600-normal.woff2") format("woff2"); font-weight: 600; font-display: block; unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
         @font-face { font-family: "Inter"; src: url("assets/fonts/inter-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-display: block; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
 
@@ -25,7 +25,7 @@
           mask: radial-gradient(circle 17px at 0 192px, transparent 16px, #000 17px) left / 51% 100% no-repeat, radial-gradient(circle 17px at 100% 192px, transparent 16px, #000 17px) right / 51% 100% no-repeat; }
         #rt-ticket .band { position: absolute; left: 0; top: 0; width: 14px; height: 192px; border-radius: 20px 0 0 0; background: #f2b544; }
         #rt-ticket .perf { position: absolute; left: 30px; right: 30px; top: 191px; height: 0; border-top: 3px dashed rgba(14, 22, 38, 0.35); }
-        #rt-ticket .line { position: absolute; left: 48px; top: 40px; width: 660px; font-family: "Unbounded", sans-serif; font-weight: 900; font-size: 50px; line-height: 1.12; letter-spacing: -0.03em; color: #0e1626; }
+        #rt-ticket .line { position: absolute; left: 48px; top: 40px; width: 660px; font-family: "Sofia Sans Condensed", sans-serif; font-weight: 800; font-size: 50px; line-height: 1.12; letter-spacing: -0.005em; color: #0e1626; }
         #rt-ticket .stub { position: absolute; left: 48px; top: 216px; width: 600px; font-weight: 600; font-size: 34px; line-height: 44px; color: #0e1626; white-space: nowrap; }
         #rt-ticket .stub-icon { position: absolute; right: 40px; top: 220px; }
 
@@ -38,11 +38,11 @@
         #rt-icon .top { clip-path: inset(0 0 50% 0); }
         #rt-icon .bot { clip-path: inset(50% 0 0 0); }
         /* «Поряд» 128 px, cap-top ≈ 790; the seam and the cut run through the middle of the caps */
-        #rt-tile { position: absolute; left: 220px; top: 763px; width: 640px; height: 156px; perspective: 1100px; }
+        #rt-tile { position: absolute; left: 320px; top: 763px; width: 440px; height: 156px; perspective: 1100px; }
         #rt-tile .half { position: absolute; inset: 0; border-radius: 22px; background: linear-gradient(180deg, #121c31 0%, #0b1222 50%, #101a2e 50%, #0c1424 100%); box-shadow: 0 30px 70px rgba(0, 0, 0, 0.45), inset 0 0 0 1.5px rgba(242, 181, 68, 0.3); display: flex; align-items: center; justify-content: center; transform-origin: 50% 50%; backface-visibility: hidden; }
         #rt-tile .top { clip-path: inset(0 0 50% 0); }
         #rt-tile .bot { clip-path: inset(50% 0 0 0); }
-        #rt-tile .word { font-family: "Unbounded", sans-serif; font-weight: 900; font-size: 128px; line-height: 1; letter-spacing: -0.04em; color: #e0582f; padding-bottom: 6px; }
+        #rt-tile .word { font-family: "Sofia Sans Condensed", sans-serif; font-weight: 800; font-size: 128px; line-height: 1; letter-spacing: -0.005em; color: #e0582f; padding-bottom: 6px; }
         #rt-tile .cut { position: absolute; left: 0; right: 0; top: 50%; height: 3px; margin-top: -1.5px; background: #04070d; z-index: 2; }
         .rt-hair { position: absolute; left: 160px; width: 760px; height: 1.5px; background: rgba(242, 181, 68, 0.55); transform-origin: 50% 50%; }
       </style>
