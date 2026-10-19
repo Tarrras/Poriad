@@ -110,45 +110,56 @@ def harvest(source: Source, city: str, index: VenueIndex,
             *, now: dt.datetime | None = None,
             geocoder: Geocoder | None = None,
             status_notices: list[dict] | None = None) -> tuple[list[Item], dict]:
-    """Обхід однієї сторінки-списку. Повертає (елементи, лічильники запуску)."""
+    """Обхід однієї сторінки-списку. Повертає (елементи, лічильники запуску).
+
+    Стадії: список за адаптером (`_LISTING`) -> каталоги й групові плитки -> картки перенесених сеансів
+    -> виконавці з карток -> розбір -> рятунок адрес і явні статуси -> злиття сеансів -> якість.
+    `status_notices` — явні скасування й переноси саме цього джерела (у Karabas — його таблиця статусів).
+    """
     now = now or dt.datetime.now(dt.timezone.utc)
-    url = source.listing_urls[city]
     counters = {"fetched": 0, "parsed": 0, "geocoded": 0,
                 "published": 0, "rejected": 0, "review": 0,
                 "withdrawals": [], "reasons": {}, "coverage": "listing"}
-
-    status_links, status_ok = [], True
     # Групові плитки (`source.group_path`) зі списку й каталогів: посилання -> жанр каталогу, де трапилась.
     groups: dict[str, str | None] = {}
+    raw_events = _LISTING[source.adapter.split(":", 1)[0]](source, city, now, counters, groups)
+    if raw_events is None:                    # джерело не прочиталось зовсім, причина — у counters["error"]
+        return [], counters
+    _crawl_catalogs(source, city, raw_events, counters, groups)
+    if groups:
+        _expand_groups(groups, source, raw_events, counters)
+    if status_notices:
+        _rescheduled_details(status_notices, source, city, raw_events, counters)
+    counters["parsed"] = len(raw_events)
+    if not raw_events:
+        if not counters.get("valid_empty"):
+            counters["error"] = "NO_EVENTS: порожня афіша або зміна розмітки"
+        return [], counters
 
-    def note_groups(body: str, page_url: str, category: str | None = None) -> None:
-        if source.group_path:
-            for link in extract.detail_links(body, page_url, source.group_path):
-                groups[link] = groups.get(link) or category
+    if source.performer_details:
+        _enrich_performers(raw_events, source, now, counters)
+    items = _build_items(raw_events, source, city, index, now, geocoder, counters)
+    # Тихий нуль: розмітка є, а придатних подій немає — майже завжди зміна верстки, не порожня афіша.
+    if not items and not counters["withdrawals"]:
+        counters["error"] = f"NO_USABLE_EVENTS: розібрано {counters['parsed']}, придатних 0"
+        return [], counters
 
-    if source.adapter in {"dou", "yoy"}:
-        try:
-            raw_events, adapter_report = community.collect(
-                source.adapter, url, city, get=get, delay=source.crawl_delay,
-                max_details=source.max_details)
-        except (PermissionError, OSError, ValueError) as exc:
-            return [], {**counters, "error": str(exc)}
-        counters.update({key: value for key, value in adapter_report.items() if key != "review"})
-        counters["adapter_review"] = adapter_report.get("review", [])
-    elif source.adapter.startswith("culture:"):
-        try:
-            raw_events, adapter_report = culture.collect(
-                source.adapter.split(":", 1)[1], url, city, get=get,
-                delay=source.crawl_delay, max_details=source.max_details)
-        except (PermissionError, OSError, ValueError) as exc:
-            return [], {**counters, "error": str(exc)}
-        counters.update({key: value for key, value in adapter_report.items()
-                         if key not in {"review", "errors"}})
-        counters["adapter_review"] = adapter_report.get("review", [])
-        counters["detail_errors"] = adapter_report.get("errors", [])
-        if adapter_report.get("errors"):
-            counters["error"] = "PARTIAL_DETAILS"
-    elif source.adapter == "jsonld" and source.sitemap_url:
+    _rescue_addresses(items, source, city, geocoder, counters)
+    if status_notices:
+        items, withdrawals = apply_status_notices(items, status_notices, city=city)
+        counters["withdrawals"].extend(withdrawals)
+    items = _merge_occurrences(items, source, counters)
+    _score(items, source, counters)
+    _fold_same_source_copies(items, counters)
+    return items, counters
+
+
+def _jsonld_listing(source: Source, city: str, now: dt.datetime, counters: dict,
+                    groups: dict) -> list[dict] | None:
+    """Загальний шлях: JSON-LD сторінки-списку, далі картки за `detail_path` або sitemap."""
+    url = source.listing_urls[city]
+    body, status_links, status_ok = "", [], True
+    if source.sitemap_url:
         # Список віддає 20 посилань, повний перелік — sitemap. Його збій (badseller віддавав 500
         # 2026-10-02) не має валити джерело, якому список нічого не додає.
         raw_events = []
@@ -157,147 +168,212 @@ def harvest(source: Source, city: str, index: VenueIndex,
         try:
             response = get(url, delay=source.crawl_delay)
         except (PermissionError, OSError) as exc:
-            return [], {**counters, "error": str(exc)}
+            counters["error"] = str(exc)
+            return None
         if response.status != 200 or not response.body:
-            return [], {**counters, "error": f"HTTP {response.status}"}
+            counters["error"] = f"HTTP {response.status}"
+            return None
         counters["fetched"] = 1
-        raw_events = extract.events_from_html(response.body)
-        note_groups(response.body, url)
-    if source.adapter == "jsonld" and (source.detail_path or source.sitemap_url):
-        links = (_sitemap_links(source, city, now, counters) if source.sitemap_url
-                 else extract.detail_links(response.body, url, source.detail_path))
-        # Скасовані й перенесені — першими, щоб межа max_details їх не відрізала, і завжди наживо.
-        links = list(dict.fromkeys(status_links + links))
-        counters["detail_links"] = len(links)
-        sitemap_errors = counters.get("detail_errors", [])        # `_sitemap_links` пише сюди збій sitemap
-        counters["detail_errors"] = list(sitemap_errors)
-        if sitemap_errors and not links:
-            return [], {**counters, "error": sitemap_errors[0]}
-        if len(links) > source.max_details:
-            counters["detail_errors"].append("DETAIL_LIMIT")
-        # Розділ статусів не прочитався — свіжість кешу нічим підтвердити: цього разу читаємо все наживо.
-        # Але кеш не скидаємо: він спільний для всіх міст джерела, і порожній словник, збережений нижче,
-        # стер би картки інших міст — наступні обходи читали б усі ~2400 карток badseller (~1 год).
-        details = _load_details(source, now)
-        live = set(status_links)
-        # lastmod зі sitemap — дата зміни картки. Вона раніша за день, коли ми картку зберегли, — картка
-        # з того часу не мінялась (дата, а не час: змінена в день збереження читається ще раз, це
-        # безпечний бік). Без lastmod у записі лишається лише вік (`detail_ttl_days`).
-        mods = extract.sitemap_lastmods(_sitemaps.get(source.sitemap_url, "")) if source.sitemap_url else {}
+        body = response.body
+        raw_events = extract.events_from_html(body)
+        _note_groups(groups, source, body, url)
+    if source.detail_path or source.sitemap_url:
+        details = _read_details(source, city, body, status_links, status_ok, now, counters)
+        if details is None:
+            return None
+        raw_events.extend(details)
+    return raw_events
 
-        today = now.astimezone(normalize.zone(source.time_zone)).date()
-        near_until = (today + dt.timedelta(days=source.detail_near_days)).isoformat()
-        near_after = (now - dt.timedelta(days=source.detail_near_ttl_days)).isoformat()
 
-        def cached(link):
-            if not status_ok:
-                return None
-            entry = details.get(link)
-            changed = mods.get(link)
-            if entry and link not in live and (changed is None or changed[:10] < entry["at"][:10]):
-                slug_date = extract._SLUG_DATE.search(link)
-                if slug_date and slug_date.group(1) <= near_until and entry["at"] < near_after:
-                    return None                        # близька подія: кеш старший за near_ttl
-                return entry
-        usable = [link for link in links[:source.max_details] if cached(link)]
-        audit = set(random.sample(usable, min(DETAIL_AUDIT, len(usable)))) if mods else set()
-        counters.update({"cached": 0, "audited": len(audit), "audit_stale": []})
-        for link in links[:source.max_details]:
-            entry = cached(link)
-            if entry and link not in audit:
-                raw_events.extend(entry["events"])
-                counters["cached"] += 1
-                continue
+def _read_details(source: Source, city: str, body: str, status_links: list[str], status_ok: bool,
+                  now: dt.datetime, counters: dict) -> list[dict] | None:
+    """Події з карток: посилання зі списку (`detail_path`) або sitemap, незмінені картки — з кешу на диску.
+    None — sitemap не прочитався й посилань нема: джерело впало цілком."""
+    url = source.listing_urls[city]
+    links = (_sitemap_links(source, city, now, counters) if source.sitemap_url
+             else extract.detail_links(body, url, source.detail_path))
+    # Скасовані й перенесені — першими, щоб межа max_details їх не відрізала, і завжди наживо.
+    links = list(dict.fromkeys(status_links + links))
+    counters["detail_links"] = len(links)
+    sitemap_errors = counters.get("detail_errors", [])        # `_sitemap_links` пише сюди збій sitemap
+    counters["detail_errors"] = list(sitemap_errors)
+    if sitemap_errors and not links:
+        counters["error"] = sitemap_errors[0]
+        return None
+    if len(links) > source.max_details:
+        counters["detail_errors"].append("DETAIL_LIMIT")
+    # Розділ статусів не прочитався — свіжість кешу нічим підтвердити: цього разу читаємо все наживо.
+    # Але кеш не скидаємо: він спільний для всіх міст джерела, і порожній словник, збережений нижче,
+    # стер би картки інших міст — наступні обходи читали б усі ~2400 карток badseller (~1 год).
+    details = _load_details(source, now)
+    live = set(status_links)
+    # lastmod зі sitemap — дата зміни картки. Вона раніша за день, коли ми картку зберегли, — картка
+    # з того часу не мінялась (дата, а не час: змінена в день збереження читається ще раз, це
+    # безпечний бік). Без lastmod у записі лишається лише вік (`detail_ttl_days`).
+    mods = extract.sitemap_lastmods(_sitemaps.get(source.sitemap_url, "")) if source.sitemap_url else {}
+
+    today = now.astimezone(normalize.zone(source.time_zone)).date()
+    near_until = (today + dt.timedelta(days=source.detail_near_days)).isoformat()
+    near_after = (now - dt.timedelta(days=source.detail_near_ttl_days)).isoformat()
+
+    def cached(link):
+        if not status_ok:
+            return None
+        entry = details.get(link)
+        changed = mods.get(link)
+        if entry and link not in live and (changed is None or changed[:10] < entry["at"][:10]):
+            slug_date = extract._SLUG_DATE.search(link)
+            if slug_date and slug_date.group(1) <= near_until and entry["at"] < near_after:
+                return None                        # близька подія: кеш старший за near_ttl
+            return entry
+    usable = [link for link in links[:source.max_details] if cached(link)]
+    audit = set(random.sample(usable, min(DETAIL_AUDIT, len(usable)))) if mods else set()
+    counters.update({"cached": 0, "audited": len(audit), "audit_stale": []})
+    raw_events: list[dict] = []
+    for link in links[:source.max_details]:
+        entry = cached(link)
+        if entry and link not in audit:
+            raw_events.extend(entry["events"])
+            counters["cached"] += 1
+            continue
+        try:
+            detail = get(link, delay=source.crawl_delay)
+            if detail.status != 200 or not detail.body:
+                raise ValueError(f"HTTP {detail.status}")
+            counters["fetched"] += 1
+            events = extract.events_from_html(detail.body)
+            if not events:
+                raise ValueError("NO_EVENTS")
+            raw_events.extend(events)
+            if entry and events != entry["events"]:
+                counters["audit_stale"].append(link)          # lastmod каже «не мінялась», а вона так
+            if source.detail_ttl_days:
+                details[link] = {"at": now.isoformat(), "events": events}
+                if counters["fetched"] % 100 == 0:      # обрив посеред 40 хвилин не губить зроблене
+                    _save_details(source, details)
+        except (PermissionError, OSError, ValueError) as exc:
+            counters["detail_errors"].append(f"{link}: {exc}")
+    _save_details(source, details)
+    if counters["detail_errors"]:
+        counters["error"] = "PARTIAL_DETAILS"
+    return raw_events
+
+
+def _community_listing(source: Source, city: str, now: dt.datetime, counters: dict,
+                       groups: dict) -> list[dict] | None:
+    """DOU і йой!: свій збирач карток (community.py). `review` його звіту — діагностика, а не лічильник."""
+    try:
+        raw_events, report = community.collect(
+            source.adapter, source.listing_urls[city], city, get=get, delay=source.crawl_delay,
+            max_details=source.max_details)
+    except (PermissionError, OSError, ValueError) as exc:
+        counters["error"] = str(exc)
+        return None
+    counters.update({key: value for key, value in report.items() if key != "review"})
+    counters["adapter_review"] = report.get("review", [])
+    return raw_events
+
+
+def _culture_listing(source: Source, city: str, now: dt.datetime, counters: dict,
+                     groups: dict) -> list[dict] | None:
+    """Культурні портали (`culture:<slug>`, culture.py): збої карток — `detail_errors` і часткове покриття."""
+    try:
+        raw_events, report = culture.collect(
+            source.adapter.split(":", 1)[1], source.listing_urls[city], city, get=get,
+            delay=source.crawl_delay, max_details=source.max_details)
+    except (PermissionError, OSError, ValueError) as exc:
+        counters["error"] = str(exc)
+        return None
+    counters.update({key: value for key, value in report.items()
+                     if key not in {"review", "errors"}})
+    counters["adapter_review"] = report.get("review", [])
+    counters["detail_errors"] = report.get("errors", [])
+    if report.get("errors"):
+        counters["error"] = "PARTIAL_DETAILS"
+    return raw_events
+
+
+# Збирач списку за адаптером джерела (`Source.adapter` до двокрапки): новий адаптер — рядок тут, а не гілка
+# в harvest. Кожен дописує свої лічильники й повертає сирі події або None, коли джерело не прочиталось зовсім.
+_LISTING = {"jsonld": _jsonld_listing, "dou": _community_listing, "yoy": _community_listing,
+            "culture": _culture_listing}
+
+
+def _note_groups(groups: dict, source: Source, body: str, page_url: str, category: str | None = None) -> None:
+    if source.group_path:
+        for link in extract.detail_links(body, page_url, source.group_path):
+            groups[link] = groups.get(link) or category
+
+
+def _crawl_catalogs(source: Source, city: str, raw_events: list[dict], counters: dict, groups: dict) -> None:
+    """Каталоги після головного списку: каталожна копія несе відповідь продавця про жанр."""
+    city_slug = (source.city_slugs or {}).get(city)
+    if not (source.catalogs and source.catalog_url and city_slug):
+        return
+    counters["catalogs"] = 0
+    counters["catalog_errors"] = []
+    for slug, category in source.catalogs.items():
+        base = source.catalog_url.format(city=city_slug, slug=slug)
+        seen: set = set()
+        for page_number in range(1, CATALOG_PAGES + 1):
+            link = base if page_number == 1 else f"{base}?page={page_number}"
             try:
-                detail = get(link, delay=source.crawl_delay)
-                if detail.status != 200 or not detail.body:
-                    raise ValueError(f"HTTP {detail.status}")
+                page = get(link, delay=source.crawl_delay)
+                if page.status != 200 or not page.body:
+                    raise ValueError(f"HTTP {page.status}")
                 counters["fetched"] += 1
-                events = extract.events_from_html(detail.body)
-                if not events:
-                    raise ValueError("NO_EVENTS")
-                raw_events.extend(events)
-                if entry and events != entry["events"]:
-                    counters["audit_stale"].append(link)          # lastmod каже «не мінялась», а вона так
-                if source.detail_ttl_days:
-                    details[link] = {"at": now.isoformat(), "events": events}
-                    if counters["fetched"] % 100 == 0:      # обрив посеред 40 хвилин не губить зроблене
-                        _save_details(source, details)
+                found = extract.events_from_html(page.body)
+                # Порожній каталог — звичайна сторінка без подій (так буває: спорт в Одесі); сторінка
+                # перевірки на бота з кодом 200 — ні: її «порожнеча» інакше обрізала б каталог мовчки,
+                # і зняття за відсутністю прибрало б його події.
+                if not found and _CHALLENGE.search(page.body[:20000]):
+                    raise ValueError("сторінка перевірки на бота")
             except (PermissionError, OSError, ValueError) as exc:
-                counters["detail_errors"].append(f"{link}: {exc}")
-        _save_details(source, details)
-        if counters["detail_errors"]:
-            counters["error"] = "PARTIAL_DETAILS"
-    # Каталоги після головного списку: каталожна копія несе відповідь продавця про жанр.
-    if source.catalogs and source.catalog_url and (source.city_slugs or {}).get(city):
-        counters["catalogs"] = 0
-        counters["catalog_errors"] = []
-        city_slug = source.city_slugs[city]
-        for slug, category in source.catalogs.items():
-            base = source.catalog_url.format(city=city_slug, slug=slug)
-            seen: set = set()
-            for page_number in range(1, CATALOG_PAGES + 1):
-                link = base if page_number == 1 else f"{base}?page={page_number}"
-                try:
-                    page = get(link, delay=source.crawl_delay)
-                    if page.status != 200 or not page.body:
-                        raise ValueError(f"HTTP {page.status}")
-                    counters["fetched"] += 1
-                    found = extract.events_from_html(page.body)
-                    # Порожній каталог — звичайна сторінка без подій (так буває: спорт в Одесі); сторінка
-                    # перевірки на бота з кодом 200 — ні: її «порожнеча» інакше обрізала б каталог мовчки,
-                    # і зняття за відсутністю прибрало б його події.
-                    if not found and _CHALLENGE.search(page.body[:20000]):
-                        raise ValueError("сторінка перевірки на бота")
-                except (PermissionError, OSError, ValueError) as exc:
-                    counters["catalog_errors"].append(f"{slug} с.{page_number}: {exc}")
-                    break
-                note_groups(page.body, link, category)
-                # Зупинка за відсутністю нового: після останньої сторінки джерело віддає першу заново.
-                fresh = [r for r in found
-                         if isinstance(r, dict) and str(r.get("url") or "") not in seen]
-                if not fresh:
-                    break
-                seen.update(str(r.get("url") or "") for r in fresh)
-                for raw in fresh:
-                    if category:                     # каталог-привід (None) жанру не каже
-                        raw["_poruch_category"] = category
-                counters["catalogs"] += len(fresh)
-                raw_events.extend(fresh)
-            else:
-                # Межа сторінок, а нове ще йшло: список обрізаний, зняття за відсутністю вимикаємо.
-                counters["catalog_capped"] = counters.get("catalog_capped", 0) + 1
-    if groups:
-        _expand_groups(groups, source, raw_events, counters)
+                counters["catalog_errors"].append(f"{slug} с.{page_number}: {exc}")
+                break
+            _note_groups(groups, source, page.body, link, category)
+            # Зупинка за відсутністю нового: після останньої сторінки джерело віддає першу заново.
+            fresh = [r for r in found
+                     if isinstance(r, dict) and str(r.get("url") or "") not in seen]
+            if not fresh:
+                break
+            seen.update(str(r.get("url") or "") for r in fresh)
+            for raw in fresh:
+                if category:                     # каталог-привід (None) жанру не каже
+                    raw["_poruch_category"] = category
+            counters["catalogs"] += len(fresh)
+            raw_events.extend(fresh)
+        else:
+            # Межа сторінок, а нове ще йшло: список обрізаний, зняття за відсутністю вимикаємо.
+            counters["catalog_capped"] = counters.get("catalog_capped", 0) + 1
 
-    if source.slug == "karabas" and status_notices:
-        counters["status_detail_errors"] = []
-        candidates = [notice for notice in status_notices
-                      if notice.get("city") == city
-                      and notice.get("status") == "EventRescheduled"
-                      and str(notice.get("canonical_url") or "").startswith("https://")]
-        for notice in candidates[:20]:
-            detail_url = notice["canonical_url"]
-            try:
-                detail = get(detail_url, delay=source.crawl_delay)
-                if detail.status != 200 or not detail.body:
-                    raise ValueError(f"HTTP {detail.status}")
-                events = extract.events_from_html(detail.body)
-                if not events:
-                    raise ValueError("NO_EVENTS")
-                raw_events.extend(events)
-                counters["fetched"] += 1
-            except (PermissionError, OSError, ValueError) as exc:
-                counters["status_detail_errors"].append(f"{detail_url}: {exc}")
-    counters["parsed"] = len(raw_events)
-    if not raw_events:
-        if counters.get("valid_empty"):
-            return [], counters
-        return [], {**counters, "error": "NO_EVENTS: порожня афіша або зміна розмітки"}
 
-    if source.performer_details:
-        _enrich_performers(raw_events, source, now, counters)
+def _rescheduled_details(notices: list[dict], source: Source, city: str, raw_events: list[dict],
+                         counters: dict) -> None:
+    """Картки перенесених сеансів міста наживо: нового сеансу може ще не бути в списку. До 20 за обхід."""
+    counters["status_detail_errors"] = []
+    candidates = [notice for notice in notices
+                  if notice.get("city") == city
+                  and notice.get("status") == "EventRescheduled"
+                  and str(notice.get("canonical_url") or "").startswith("https://")]
+    for notice in candidates[:20]:
+        detail_url = notice["canonical_url"]
+        try:
+            detail = get(detail_url, delay=source.crawl_delay)
+            if detail.status != 200 or not detail.body:
+                raise ValueError(f"HTTP {detail.status}")
+            events = extract.events_from_html(detail.body)
+            if not events:
+                raise ValueError("NO_EVENTS")
+            raw_events.extend(events)
+            counters["fetched"] += 1
+        except (PermissionError, OSError, ValueError) as exc:
+            counters["status_detail_errors"].append(f"{detail_url}: {exc}")
 
+
+def _build_items(raw_events: list[dict], source: Source, city: str, index: VenueIndex, now: dt.datetime,
+                 geocoder: Geocoder | None, counters: dict) -> list[Item]:
+    """Сирі події -> Item. Скасовані й відкладені йдуть у зняття, решта відсіву — у лічильники."""
     items: list[Item] = []
     for raw in raw_events:
         status = str(raw.get("eventStatus") or "EventScheduled").rsplit("/", 1)[-1]
@@ -327,19 +403,12 @@ def harvest(source: Source, city: str, index: VenueIndex,
             counters["reasons"]["PERMANENT_OFFER"] = counters["reasons"].get("PERMANENT_OFFER", 0) + 1
             continue
         items.append(item)
+    return items
 
-    # Тихий нуль: розмітка є, а придатних подій немає — майже завжди зміна верстки, не порожня афіша.
-    if not items and not counters["withdrawals"]:
-        return [], {**counters, "error": f"NO_USABLE_EVENTS: розібрано {counters['parsed']}, придатних 0"}
 
-    _rescue_addresses(items, source, city, geocoder, counters)
-
-    if status_notices:
-        items, withdrawals = apply_status_notices(items, status_notices, city=city)
-        counters["withdrawals"].extend(withdrawals)
-
-    # Сеанс може бути і в списку, і в кількох сторінках: зливаємо до INSERT, бо PostgreSQL
-    # не оновить той самий ключ конфлікту двічі в одній команді.
+def _merge_occurrences(items: list[Item], source: Source, counters: dict) -> list[Item]:
+    """Сеанс може бути і в списку, і в кількох сторінках: зливаємо до INSERT, бо PostgreSQL
+    не оновить той самий ключ конфлікту двічі в одній команді."""
     unique: dict[str, Item] = {}
     previous_dates: dict[str, set] = {}
     for item in items:
@@ -353,16 +422,19 @@ def harvest(source: Source, city: str, index: VenueIndex,
                 or _quality(item, source.weight, 1) >= _quality(previous, source.weight, 1)):
             unique[item.source_uid] = item
     counters["repeated_occurrences"] = len(items) - len(unique)
-    items = list(unique.values())
-    for item in items:
+    for item in unique.values():
         dates = previous_dates.get(item.source_uid, set())
         if len(dates) == 1:
             item.previous_start = next(iter(dates))
         elif len(dates) > 1:
             item.previous_start = None
             item.reject_reason = "CONFLICTING_PREVIOUS_START"
+    return list(unique.values())
 
-    # Серія — та сама назва на тому ж майданчику багато разів: знижує якість, бо заповнює мапу однаковим.
+
+def _score(items: list[Item], source: Source, counters: dict) -> None:
+    """Якість і стадія кожного сеансу. Серія — та сама назва на тому ж майданчику багато разів:
+    знижує якість, бо заповнює мапу однаковим."""
     series: dict[tuple[str, str], int] = {}
     for it in items:
         key = (normalize.normalize_name(it.title), normalize.normalize_name(it.venue_name))
@@ -381,8 +453,6 @@ def harvest(source: Source, city: str, index: VenueIndex,
             it.stage = "published"
             counters["published"] += 1
             counters["geocoded"] += 1
-    _fold_same_source_copies(items, counters)
-    return items, counters
 
 
 def _status_links(source: Source, url: str, counters: dict) -> tuple[list[str], bool]:
