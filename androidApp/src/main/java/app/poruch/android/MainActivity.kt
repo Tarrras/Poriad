@@ -54,6 +54,7 @@ import app.poruch.android.ui.*
 import app.poruch.domain.EventLinks
 import app.poruch.domain.PoruchLog
 import app.poruch.shared.AppNotice
+import app.poruch.shared.AppState
 import app.poruch.shared.PoruchApp
 import kotlinx.coroutines.delay
 import org.koin.android.ext.android.inject
@@ -197,20 +198,41 @@ class MainActivity : ComponentActivity(), AndroidScopeComponent {
     }
 }
 
-// POST_NOTIFICATIONS питаємо лише коли NotificationPermission.required (API 33+).
-@SuppressLint("InlinedApi")
 @Composable
 fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
     val context = LocalContext.current
     val app = koinInject<PoruchApp>()
-    val state by app.state.collectAsStateWithLifecycle()
-    val current = navigator.current
+    val appState = app.state.collectAsStateWithLifecycle()
     // Мапа вкладки живе стільки, скільки корінь. Див. [SharedMapView].
     val sharedMap = remember { SharedMapView(context) }
     DisposableEffect(sharedMap) { onDispose { sharedMap.destroy() } }
 
-    // Стартове місто — те, де людина зараз, а не Київ за замовчуванням. Приблизне положення, без
-    // підписки: відмову мовчки приймаємо, «Поруч» на мапі лишається ручним шляхом.
+    // Перший-другий запуск: лише новим показуємо, де що на головній (docs/coach-marks.md). Читаємо до того,
+    // як ефект дайджесту нижче порахує цей запуск, тож на першому тут 0.
+    val newcomer = remember { context.getSharedPreferences(PROMPTS, Context.MODE_PRIVATE).getInt(LAUNCHES, 0) < 2 }
+    // Нового спершу вітаємо туром по головній, а про геолокацію питаємо вже після нього.
+    var tourDone by rememberSaveable { mutableStateOf(!newcomer) }
+    LocationPrompt(app, appState, tourDone)
+    var digestAsk by remember { mutableStateOf(false) }
+    DigestPrompt(app, appState, digestAsk) { digestAsk = it }
+    FollowPrompt(appState)
+    ReviewPrompt(app, appState)
+    PasswordRecoveryEffect(navigator, appState)
+
+    // Без провайдера вкладка «Мапа» будувала нову MapView на кожен вхід.
+    CompositionLocalProvider(LocalSharedMapView provides sharedMap) {
+        RootLayout(navigator, entryProvider, app, appState, tourAllowed = newcomer && !digestAsk) { tourDone = true }
+    }
+}
+
+/**
+ * Стартове місто — те, де людина зараз, а не Київ за замовчуванням. Приблизне положення, без
+ * підписки: відмову мовчки приймаємо, «Поруч» на мапі лишається ручним шляхом.
+ */
+@Composable
+private fun LocationPrompt(app: PoruchApp, appState: State<AppState>, tourDone: Boolean) {
+    val context = LocalContext.current
+    val state by appState
     val nearby = stringResource(R.string.nearby)
     val locate = {
         context.lastKnownPosition({ lat, lon ->
@@ -224,11 +246,6 @@ fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
     }
     val locationPermission =
         rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { if (it) locate() }
-    // Перший-другий запуск: лише новим показуємо, де що на головній (docs/coach-marks.md). Читаємо до того,
-    // як ефект дайджесту нижче порахує цей запуск, тож на першому тут 0.
-    val newcomer = remember { context.getSharedPreferences(PROMPTS, Context.MODE_PRIVATE).getInt(LAUNCHES, 0) < 2 }
-    // Нового спершу вітаємо туром по головній, а про геолокацію питаємо вже після нього.
-    var tourDone by rememberSaveable { mutableStateOf(!newcomer) }
     // Один раз на запуск, а не на кожен поворот. Обране руками місто спільний код не перебиває.
     var located by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(state.needsOnboarding, tourDone) {
@@ -247,10 +264,17 @@ fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
         prompts.edit { putBoolean(LOCATION_ASKED, true) }
         locationPermission.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
     }
+}
 
-    // Дайджест вихідних: гостя без дозволу питаємо на другому запуску, раз, спершу своїми словами.
-    // Перший запуск належить онбордингу й геолокації. До Android 13 дозволу нема й питати нема про що.
-    var digestAsk by remember { mutableStateOf(false) }
+/**
+ * Дайджест вихідних: гостя без дозволу питаємо на другому запуску, раз, спершу своїми словами.
+ * Перший запуск належить онбордингу й геолокації. До Android 13 дозволу нема й питати нема про що.
+ */
+@SuppressLint("InlinedApi") // POST_NOTIFICATIONS питаємо лише коли NotificationPermission.required (API 33+).
+@Composable
+private fun DigestPrompt(app: PoruchApp, appState: State<AppState>, digestAsk: Boolean, onDigestAsk: (Boolean) -> Unit) {
+    val context = LocalContext.current
+    val state by appState
     val digestPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission(), app::digestPromptAnswered)
     var counted by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(state.needsOnboarding) {
@@ -262,9 +286,9 @@ fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
         val permission = NotificationPermission(context)
         if (launches < 2 || prompts.getBoolean(DIGEST_ASKED, false) || !state.digestEnabled || permission.granted()) return@LaunchedEffect
         prompts.edit { putBoolean(DIGEST_ASKED, true) }
-        digestAsk = true
+        onDigestAsk(true)
     }
-    if (digestAsk) PoruchSheet({ digestAsk = false }) { sheet ->
+    if (digestAsk) PoruchSheet({ onDigestAsk(false) }) { sheet ->
         Column(
             Modifier.padding(horizontal = Spacing.page).padding(bottom = Spacing.section),
             verticalArrangement = Arrangement.spacedBy(Spacing.md)
@@ -284,9 +308,17 @@ fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
             )
         }
     }
+}
 
-    // «Стежити» без дозволу на сповіщення марне: пуші про нове не дійдуть. Питаємо раз, одразу після першої підписки:
-    // людина щойно сама попросила, і причина зрозуміла. До Android 13 дозволу нема й питати нема про що.
+/**
+ * «Стежити» без дозволу на сповіщення марне: пуші про нове не дійдуть. Питаємо раз, одразу після першої підписки:
+ * людина щойно сама попросила, і причина зрозуміла. До Android 13 дозволу нема й питати нема про що.
+ */
+@SuppressLint("InlinedApi") // POST_NOTIFICATIONS питаємо лише коли NotificationPermission.required (API 33+).
+@Composable
+private fun FollowPrompt(appState: State<AppState>) {
+    val context = LocalContext.current
+    val state by appState
     val followPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
     LaunchedEffect(state.library.followsMade) {
         if (state.library.followsMade == 0) return@LaunchedEffect
@@ -295,9 +327,16 @@ fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
         prompts.edit { putBoolean(FOLLOW_ASKED, true) }
         followPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
+}
 
-    // Відгук у Play: після оцінки події 4–5, раз на версію. Чи показати вікно, вирішує сам Play (має свої ліміти),
-    // і чи людина відповіла, він не каже — тож жодних «дякуємо» після.
+/**
+ * Відгук у Play: після оцінки події 4–5, раз на версію. Чи показати вікно, вирішує сам Play (має свої ліміти),
+ * і чи людина відповіла, він не каже — тож жодних «дякуємо» після.
+ */
+@Composable
+private fun ReviewPrompt(app: PoruchApp, appState: State<AppState>) {
+    val context = LocalContext.current
+    val state by appState
     val activity = LocalActivity.current
     LaunchedEffect(state.reviewMoment) {
         if (!state.reviewMoment) return@LaunchedEffect
@@ -314,69 +353,83 @@ fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
         }
         app.reviewMomentHandled(prompted)
     }
+}
 
-    // Лист відновлення: окремий екран поверх того, де людина була. Профіль лишається запасним шляхом.
+/** Лист відновлення: окремий екран поверх того, де людина була. Профіль лишається запасним шляхом. */
+@Composable
+private fun PasswordRecoveryEffect(navigator: Navigator, appState: State<AppState>) {
+    val state by appState
     LaunchedEffect(state.session.passwordRecovery) {
         if (state.session.passwordRecovery && navigator.current != NewPassword) navigator.open(
             NewPassword
         )
     }
+}
 
-    // Без провайдера вкладка «Мапа» будувала нову MapView на кожен вхід.
-    CompositionLocalProvider(LocalSharedMapView provides sharedMap) {
-        // Клас ширини вікна, а не модель пристрою: від 600 dp (планшет, телефон у ландшафті, широке вікно поруч з іншим
-        // застосунком) вкладки стають рейкою зліва, а вміст — колонкою по центру. Виріз екрана збоку — поле.
-        BoxWithConstraints(Modifier
-            .fillMaxSize()
-            .background(Poruch.colors.canvas)
-            .windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal))) {
-            val wide = maxWidth >= 600.dp
-            // Онбординг замінює застосунок, а не накриває: за ним на першому запуску ще нічого нема.
-            if (state.needsOnboarding) OnboardingRoute() else {
-                // Кожен запис стека має власне сховище моделей: пушнуті екрани переживають поворот і
-                // чистяться при знятті. Вкладки беруть моделі зі сховища Activity, див. `activityStoreOwner`.
-                // Список декораторів — один на композицію: новий екземпляр на кожну емісію стану
-                // перескладав би `NavDisplay` з усім екраном під ним.
-                val saveable = rememberSaveableStateHolderNavEntryDecorator<NavKey>()
-                val stores = rememberViewModelStoreNavEntryDecorator<NavKey>()
-                val decorators = remember(saveable, stores) { listOf(saveable, stores) }
-                BackHandler(navigator.handlesRootBack, navigator::back)
-                CompositionLocalProvider(LocalWideLayout provides wide) {
-                    NavDisplay(
-                        backStack = navigator.stack,
-                        // Рейка не накриває вміст вкладки: поле зліва лише поки вона видна.
-                        modifier = Modifier.padding(start = if (wide && current is Tab) NavRailClearance else 0.dp),
-                        onBack = navigator::back,
-                        entryDecorators = decorators,
-                        entryProvider = entryProvider
-                    )
-                }
-                TabBar(
-                    current,
-                    navigator,
-                    Modifier.align(if (wide) Alignment.CenterStart else Alignment.BottomCenter),
-                    wide = wide,
-                    waiting = state.waitingEvents,
-                    newFollows = state.library.newFollowEvents > 0,
-                    onCreate = {
-                        app.createStarted("fab")
-                        navigator.createEvent()
-                    }
+/**
+ * Клас ширини вікна, а не модель пристрою: від 600 dp (планшет, телефон у ландшафті, широке вікно поруч з іншим
+ * застосунком) вкладки стають рейкою зліва, а вміст — колонкою по центру. Виріз екрана збоку — поле.
+ */
+@Composable
+private fun RootLayout(
+    navigator: Navigator,
+    entryProvider: EntryProvider<NavKey>,
+    app: PoruchApp,
+    appState: State<AppState>,
+    /** Тур першого знайомства можна показати: новачок, і лист дайджесту не відкритий. */
+    tourAllowed: Boolean,
+    onTourDone: () -> Unit
+) {
+    val state by appState
+    val current = navigator.current
+    BoxWithConstraints(Modifier
+        .fillMaxSize()
+        .background(Poruch.colors.canvas)
+        .windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal))) {
+        val wide = maxWidth >= 600.dp
+        // Онбординг замінює застосунок, а не накриває: за ним на першому запуску ще нічого нема.
+        if (state.needsOnboarding) OnboardingRoute() else {
+            // Кожен запис стека має власне сховище моделей: пушнуті екрани переживають поворот і
+            // чистяться при знятті. Вкладки беруть моделі зі сховища Activity, див. `activityStoreOwner`.
+            // Список декораторів — один на композицію: новий екземпляр на кожну емісію стану
+            // перескладав би `NavDisplay` з усім екраном під ним.
+            val saveable = rememberSaveableStateHolderNavEntryDecorator<NavKey>()
+            val stores = rememberViewModelStoreNavEntryDecorator<NavKey>()
+            val decorators = remember(saveable, stores) { listOf(saveable, stores) }
+            BackHandler(navigator.handlesRootBack, navigator::back)
+            CompositionLocalProvider(LocalWideLayout provides wide) {
+                NavDisplay(
+                    backStack = navigator.stack,
+                    // Рейка не накриває вміст вкладки: поле зліва лише поки вона видна.
+                    modifier = Modifier.padding(start = if (wide && current is Tab) NavRailClearance else 0.dp),
+                    onBack = navigator::back,
+                    entryDecorators = decorators,
+                    entryProvider = entryProvider
                 )
-                // Лише на головній й не разом з іншим питанням: пуш чи посилання, що відкрили подію, ставлять тур на
-                // паузу, а лист дайджесту (другий запуск) відкладає його, поки людина не відповість.
-                CoachMarks(listOf(CoachTip.CITY, CoachTip.MAP, CoachTip.CREATE), enabled = newcomer && current == Home && !digestAsk) {
-                    tourDone = true
-                }
             }
-            NoticeHost(state.notice, app::clearNotice, Modifier.align(Alignment.TopCenter))
-            if (state.mutating) LinearProgressIndicator(
-                Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.TopCenter),
-                color = Poruch.colors.brand, trackColor = Poruch.colors.brandContainer
+            TabBar(
+                current,
+                navigator,
+                Modifier.align(if (wide) Alignment.CenterStart else Alignment.BottomCenter),
+                wide = wide,
+                waiting = state.waitingEvents,
+                newFollows = state.library.newFollowEvents > 0,
+                onCreate = {
+                    app.createStarted("fab")
+                    navigator.createEvent()
+                }
             )
+            // Лише на головній й не разом з іншим питанням: пуш чи посилання, що відкрили подію, ставлять тур на
+            // паузу, а лист дайджесту (другий запуск) відкладає його, поки людина не відповість.
+            CoachMarks(listOf(CoachTip.CITY, CoachTip.MAP, CoachTip.CREATE), enabled = tourAllowed && current == Home, onFinish = onTourDone)
         }
+        NoticeHost(state.notice, app::clearNotice, Modifier.align(Alignment.TopCenter))
+        if (state.mutating) LinearProgressIndicator(
+            Modifier
+                .fillMaxWidth()
+                .align(Alignment.TopCenter),
+            color = Poruch.colors.brand, trackColor = Poruch.colors.brandContainer
+        )
     }
 }
 
