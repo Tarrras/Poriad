@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -25,6 +26,11 @@ def uid(seed: str) -> str:
     return hashlib.md5(seed.encode()).hexdigest()[:24].upper()
 
 
+def quoted(value: str) -> str:
+    """Без лапок pbxproj читає лише літери, цифри й `_$/:.-`: `EventDetailView+Sections.swift` ламав проєкт."""
+    return value if re.fullmatch(r"[A-Za-z0-9_$/:.-]+", value) else f'"{value}"'
+
+
 def replace_section(text: str, start: str, end: str, keep) -> str:
     a, b = text.index(start), text.index(end)
     return text[:a] + "\n".join(line for line in text[a:b].split("\n") if keep(line)) + text[b:]
@@ -33,7 +39,7 @@ def replace_section(text: str, start: str, end: str, keep) -> str:
 def replace_list(text: str, anchor: str, opener: str, keep, entries: list[str]) -> str:
     start = text.index(opener, text.index(anchor))
     end = text.index(");", start)
-    kept = [line for line in text[start:end].split("\n") if keep(line)]
+    kept = [line for line in text[start:end].split("\n") if keep(line) and line.strip()]
     return text[:start] + "\n".join(kept) + "\n".join([""] + entries) + "\n\t\t\t" + text[end:]
 
 
@@ -52,7 +58,7 @@ def main() -> None:
         build.append(f"\t\t{build_ref} /* {name} in Sources */ = {{isa = PBXBuildFile; fileRef = {file_ref} /* {name} */; }};")
         refs.append(
             f"\t\t{file_ref} /* {name} */ = {{isa = PBXFileReference; includeInIndex = 1; "
-            f'lastKnownFileType = sourcecode.swift; name = {name}; path = {path}; sourceTree = "<group>"; }};'
+            f'lastKnownFileType = sourcecode.swift; name = {quoted(name)}; path = {quoted(path)}; sourceTree = "<group>"; }};'
         )
         children.append(f"\t\t\t\t{file_ref} /* {name} */,")
         sources.append(f"\t\t\t\t{build_ref} /* {name} in Sources */,")
