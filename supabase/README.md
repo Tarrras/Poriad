@@ -2,6 +2,8 @@
 
 Applied to the explicitly selected hosted project `tzdogzdvctlumsqlqskr` (`EventOrganiztor`) on 2026-09-05. The initial migration was created with the Supabase CLI, applied using the Supabase MCP `apply_migration` operation, then its local timestamp was aligned with the server-returned migration version `20260905101755`.
 
+Поточна схема одним файлом, лише для читання (таблиці, політики, усі функції `public`/`private` і мапа «функція → міграція»): [schema/README.md](schema/README.md); джерело правди — міграції.
+
 The public RPC contract matches `../docs/implementation-plan.md`. `events_in_view` returns at most 300 future published events; category, dates and spatial filtering run before this bound. Longitude bounds with west > east cross the antimeridian. Times are `timestamptz`; date filters are `[from,to)`. `my_events` includes organized, joined and saved events, including cancelled history. Guests can read public event details and aggregates but cannot read member identities or mutate data.
 
 All five public tables have RLS and explicit grants. Clients cannot write events or memberships directly. Public mutation RPCs are invokers calling privileged implementations in unexposed `private`. Every mutation derives its user from `auth.uid()`. Search paths are empty and relations fully qualified. Do not add `private` or `gis` to the Data API exposed schemas. `private` schema usage and narrow execute grants are necessary for invoker wrappers and policies, and do not expose REST endpoints.
