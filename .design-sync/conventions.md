@@ -35,7 +35,7 @@ Dark theme follows `prefers-color-scheme`. To force a theme, put `data-theme="da
 ## Where the truth lives
 - `guidelines/screens/*.png` shows every screen of the current iOS build, 05.10.2026 (`-light`, some `-dark`). **Match them.** When the text and a screenshot disagree, the screenshot wins. Files marked `-sep25` (sign-in, sign-up, guest profile) are from the 25.09 build. Their layout is current, but their titles are still sans. Set titles in serif.
 - `guidelines/design-system.md` is the full design spec (Ukrainian): screen composition, states, sheets, forms and map rules. Some rows in its component table are older than the code (e.g. it says CAPS card titles; the app uses sentence case).
-- `guidelines/source/*.swift` is the real code: DesignSystem.swift (tokens), Components.swift (components), and the screen compositions HomeView, EventDetailView, MyEventsView, ProfileView, FollowsView and ArtistView. Read it for exact sizes, order and copy.
+- `guidelines/source/*.swift` is the real code: DesignSystem.swift (tokens), the component files split by family (BadgesAndButtons, EventSurfaces, Fields, HomeCards, Navigation, ResultRows, SearchAndChips, Structure, Ticket, NoticeBanner), and the screen compositions HomeView (with HomeFeed and HomeYours), EventDetailView, MyEventsView, ProfileView, FollowsView and ArtistView. Read it for exact sizes, order and copy.
 - `components/screens/Home/Home.html` is a verified rebuild of the home screen and its poster grid from these classes, next to the app screenshots. Start from it.
 
 ## App structure

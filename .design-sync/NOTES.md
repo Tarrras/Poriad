@@ -1,7 +1,7 @@
 # design-sync notes
 
 - The app is SwiftUI + Compose, not a JS package: the standard converter doesn't apply. The upload is tokens + CSS recipes
-  (`src/tokens/*.css`, mirrored from Tokens.kt / DesignSystem.swift / Components.swift) + icons generated from
+  (`src/tokens/*.css`, mirrored from Tokens.kt / DesignSystem.swift / the component files in `iosApp/Poruch/DesignSystem/`) + icons generated from
   `tools/generate_icons.py` + simulator screenshots in `screens/`. Rebuild with `python3 .design-sync/build.py`.
 - When tokens or components change in the app, update `src/tokens/poriad.css` / `components.css` by hand, then rebuild.
 - Designs only receive the `styles.css` @import closure, so icons ship as CSS masks (`tokens/icons.css`, generated).

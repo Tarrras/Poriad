@@ -59,7 +59,7 @@ Poruch/discovery  0 events
 
 ## Дизайн-система
 
-Функціональний орієнтир — Meetup, візуальна мова — Corner; обидва референси й причини вибору описані в [docs/design-system.md](docs/design-system.md) і реалізовані двічі з однаковим API: [Tokens.kt](androidApp/src/main/java/app/poruch/android/ui/Tokens.kt) + [Components.kt](androidApp/src/main/java/app/poruch/android/ui/Components.kt) для Compose та [DesignSystem.swift](iosApp/Poruch/DesignSystem.swift) + [Components.swift](iosApp/Poruch/Components.swift) для SwiftUI. Екрани не задають кольори, радіуси чи відступи напряму — лише через токени.
+Функціональний орієнтир — Meetup, візуальна мова — Corner; обидва референси й причини вибору описані в [docs/design-system.md](docs/design-system.md) і реалізовані двічі з однаковим API: [Tokens.kt](androidApp/src/main/java/app/poruch/android/ui/Tokens.kt) + компоненти в [ui/](androidApp/src/main/java/app/poruch/android/ui/) для Compose та [DesignSystem.swift](iosApp/Poruch/DesignSystem/DesignSystem.swift) + компоненти в [DesignSystem/](iosApp/Poruch/DesignSystem/) для SwiftUI. Екрани не задають кольори, радіуси чи відступи напряму — лише через токени.
 
 ## Що реалізовано
 

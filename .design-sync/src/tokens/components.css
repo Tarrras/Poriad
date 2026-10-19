@@ -1,5 +1,5 @@
-/* Поряд component recipes. Each class mirrors a SwiftUI component in guidelines/source/Components.swift
-   (same name in the comment); values are copied from it, not invented. Phone frame is 402×874 pt (iPhone 16 Pro). */
+/* Поряд component recipes. Each class mirrors a SwiftUI component in one of the guidelines/source component
+   files (Ticket.swift, EventSurfaces.swift, …; same name in the comment); values are copied from it, not invented. Phone frame is 402×874 pt (iPhone 16 Pro). */
 
 /* Screen: one calm sheet. 16 gutter, 24 between sections, 12 between cards. */
 .p-screen { background: var(--canvas); color: var(--ink); font-family: var(--font); min-height: 100%; padding: 0 var(--page-gutter) 120px; box-sizing: border-box; }
