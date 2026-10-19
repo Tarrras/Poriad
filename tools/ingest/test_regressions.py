@@ -186,6 +186,18 @@ class RegressionTests(unittest.TestCase):
         self.assertEqual(len(items), 1)
         self.assertEqual(counters["parsed"], 1)
 
+    def test_culture_collector_failed_cards_make_partial_details(self):
+        event = raw_event(location={"name": "Зал", "address": {"addressLocality": "Львів"}})
+        report = {"fetched": 2, "coverage": "partial",
+                  "errors": [{"url": "https://lviv.travel/x", "error": "HTTP 500"}],
+                  "review": [{"url": "https://lviv.travel/y", "reason": "no_verified_session"}]}
+        with patch("tools.ingest.pipeline.culture.collect", return_value=([event], report)):
+            items, counters = pipeline.harvest(by_slug("lviv_travel"), "Львів", self.index, now=NOW)
+        self.assertEqual(len(items), 1)
+        self.assertEqual(counters["error"], "PARTIAL_DETAILS")
+        self.assertEqual(counters["detail_errors"], report["errors"])
+        self.assertEqual(counters["adapter_review"], report["review"])
+
     def test_status_notice_rekeys_new_session_and_withdraws_old(self):
         old = dt.datetime(2026, 10, 17, 18, tzinfo=normalize.zone("Europe/Kyiv"))
         new = dt.datetime(2026, 10, 20, 18, tzinfo=normalize.zone("Europe/Kyiv"))
