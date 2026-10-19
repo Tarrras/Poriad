@@ -10,10 +10,9 @@ import kotlin.time.Clock
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * Тримає запит мапи: область, фільтри й один активний пошук. І стрічку головної ([HomeFeed]):
- * та сама область без фільтрів мапи і зі своїм пошуком. Винесено з [PoruchApp], бо це
- * єдиний стан, що змінюється на кожен рух мапи, і правило «стара відповідь не перекриває
- * свіжу» перевіряється в одному місці.
+ * Тримає запит мапи: область, фільтри й один активний пошук, а ще місто й довантаження карток. Головну ([HomeFeed])
+ * веде [homeFeed]: та сама область без фільтрів мапи і зі своїм пошуком. Винесено з [PoruchApp], бо це єдиний стан,
+ * що змінюється на кожен рух мапи, і правило «стара відповідь не перекриває свіжу» тримає [LatestJob].
  */
 internal class DiscoveryEngine(
     private val events: EventDiscovery,
@@ -31,25 +30,20 @@ internal class DiscoveryEngine(
 ) {
     private var query = EventQuery(home.south, home.west, home.north, home.east)
 
-    /** «Усюди» для пошуку головної: сервер приймає весь світ, ліміт видачі той самий. */
-    private val WORLD = EventQuery(-90.0, -180.0, 90.0, 180.0)
+    /** Стрічка й пошук головної. Межі обраного міста ([HomeDiscovery.area]) теж там: головна завжди дивиться туди. */
+    val homeFeed = HomeDiscovery(events, store, scope, compute, home, ::load)
 
-    /** Межі обраного міста. Головна завжди дивиться сюди; «Шукати тут» рухає лише мапу. */
-    private var cityArea = EventQuery(home.south, home.west, home.north, home.east)
-    private var searchJob: Job? = null
-    private var cardsJob: Job? = null
+    private val searchJob = LatestJob(scope)
+    private val cardsJob = LatestJob(scope)
+    private val debounceJob = LatestJob(scope)
+    private val cityJob = LatestJob(scope)
+
+    /** Пошук закладів мапи. Кожен новий скасовує попередній: останній запит виграє. */
+    private val placesJob = LatestJob(scope)
+
+    /** Не [LatestJob]: сеанси для інших id не скасовують попередні, див. [prefetch]. */
     private var sessionsJob: Job? = null
     private var sessionsWanted: Set<String> = emptySet()
-    private var debounceJob: Job? = null
-    private var cityJob: Job? = null
-    private var homeJob: Job? = null
-    private var homeCardsJob: Job? = null
-    private var homeSearchJob: Job? = null
-    private var homeDebounceJob: Job? = null
-
-    /** Пошук закладів мапи й головної. Кожен новий скасовує попередній: останній запит виграє. */
-    private var placesJob: Job? = null
-    private var homePlacesJob: Job? = null
 
     /** Коли мапа й головна востаннє отримали відповідь мережі. Null — ще ні або офлайн. */
     private var freshAt: kotlin.time.Instant? = null
@@ -78,17 +72,17 @@ internal class DiscoveryEngine(
      */
     fun refresh(home: Boolean = true) {
         // Скасовуємо запит, що ніс і головну: тоді вона мусить поїхати сама.
-        val needHome = home || (sharedPending && searchJob?.isActive == true)
-        searchJob?.cancel()
-        cardsJob?.cancel()
+        val needHome = home || (sharedPending && searchJob.active)
+        searchJob.cancel()
+        cardsJob.cancel()
         val shared = needHome && mapUnfiltered()
         sharedPending = shared
-        if (shared) homeJob?.cancel() else if (needHome) refreshHome()
+        if (shared) homeFeed.cancelRefresh() else if (needHome) homeFeed.refresh()
         // Нова область — нові результати пошуку головної.
-        if (home) searchHome()
+        if (home) homeFeed.search()
         val snapshot = query
         searchPlaces(snapshot)
-        searchJob = scope.launch {
+        searchJob.launch {
             store.update {
                 it.copy(
                     map = it.map.copy(loading = true),
@@ -134,7 +128,7 @@ internal class DiscoveryEngine(
      * порожньо. Збій — теж порожньо: місця доповнюють видачу, банер за них був би зайвим.
      */
     private fun searchPlaces(snapshot: EventQuery) {
-        placesJob?.cancel()
+        placesJob.cancel()
         val text = snapshot.text
         if (text == null) {
             if (store.value.map.places.isNotEmpty() || store.value.map.artists.isNotEmpty()) {
@@ -144,43 +138,16 @@ internal class DiscoveryEngine(
         }
         // Артисти не залежать від області: лише від міста, якщо воно обране, а не накреслене рукою.
         val city = store.value.city.takeIf { !it.custom }?.name
-        placesJob = scope.launch {
+        placesJob.launch {
             launch {
-                val found = places(text, snapshot)
+                val found = events.placesOrEmpty(text, snapshot)
                 store.update { it.copy(map = it.map.copy(places = found)) }
             }
             launch {
-                val found = artists(text, city)
+                val found = events.artistsOrEmpty(text, city)
                 store.update { it.copy(map = it.map.copy(artists = found)) }
             }
         }
-    }
-
-    /**
-     * Артисти за текстом або порожньо: до [DiscoveryRules.MIN_ARTIST_QUERY] символів не питаємо (одна літера дала б
-     * довільних п'ятьох). Збій теж порожньо, як у [places].
-     */
-    private suspend fun artists(text: String, city: String?): List<ArtistHit> {
-        if (text.trim().length < DiscoveryRules.MIN_ARTIST_QUERY) return emptyList()
-        return try {
-            events.searchArtists(text, city).also { PoruchLog.d("discovery") { "${it.size} artists" } }
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            PoruchLog.w("discovery") { "artists failed: ${e.asAppError()}" }
-            emptyList()
-        }
-    }
-
-    /** Заклади або порожньо. [bounds] null — усюди. */
-    private suspend fun places(text: String, bounds: EventQuery?): List<Place> = try {
-        events.searchPlaces(text, bounds = bounds)
-            .also { PoruchLog.d("discovery") { "${it.size} places" } }
-    } catch (e: CancellationException) {
-        throw e
-    } catch (e: Exception) {
-        PoruchLog.w("discovery") { "places failed: ${e.asAppError()}" }
-        emptyList()
     }
 
     /**
@@ -189,7 +156,7 @@ internal class DiscoveryEngine(
      * знімаємо, бо інакше в стосі лишились би лише події, що збіглися зі словом.
      */
     fun focusPlace(place: Place) {
-        debounceJob?.cancel(); placesJob?.cancel()
+        debounceJob.cancel(); placesJob.cancel()
         val version = (store.value.map.placeFocus?.version ?: 0) + 1
         PoruchLog.i("discovery") { "focus place ${place.id.shortId()}" }
         store.update {
@@ -235,7 +202,7 @@ internal class DiscoveryEngine(
      * безумовний [refresh] скасовував запит у дорозі та слав такий самий.
      */
     fun refreshIfStale() {
-        if (searchJob?.isActive == true) return
+        if (searchJob.active) return
         val fresh = freshAt
         if (fresh != null && Clock.System.now() - fresh < DiscoveryRules.RESUME_FRESH_MS.milliseconds) return
         refresh()
@@ -258,172 +225,12 @@ internal class DiscoveryEngine(
         if (emptyCities.add(city)) PoruchAnalytics.track("empty_map", "city" to city)
     }
 
-    /** Запит головної: ціле місто, без фільтрів мапи. */
-    private fun areaQuery() = cityArea
-
-    /** Стрічка головної окремим запитом, коли мапа звужена фільтрами. */
-    private fun refreshHome() {
-        homeJob?.cancel()
-        val snapshot = areaQuery()
-        homeJob = scope.launch {
-            store.update { it.copy(home = it.home.copy(loading = true)) }
-            val page = try {
-                events.discover(snapshot)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                // Про збій уже скаже мапа своїм банером; головна тихо бере кеш.
-                PoruchLog.w("discovery") { "home feed failed: ${e.asAppError()}" }
-                withContext(compute) { events.cached(snapshot) }
-            }
-            val ranked = rank(page)
-            store.update {
-                it.copy(
-                    cards = it.cards + page.cards.associateBy { card -> card.id },
-                    home = it.home.copy(
-                        index = ranked.index, suggestedIndex = ranked.suggested,
-                        totalFound = ranked.total, loading = false
-                    )
-                ).settled(ranked.taste)
-            }
-            materializeHome()
-        }
-    }
-
-    /** Пошук головної в тій самій області, без фільтрів мапи. */
-    fun setHomeSearchText(text: String) {
-        val trimmed = text.take(DiscoveryRules.SEARCH_TEXT_LIMIT)
-        if (trimmed == store.value.home.searchText) return
-        homeDebounceJob?.cancel(); homeSearchJob?.cancel()
-        val blank = trimmed.isBlank()
-        if (blank) homePlacesJob?.cancel()
-        store.update {
-            it.copy(
-                home = if (blank) it.home.copy(
-                    searchText = trimmed,
-                    results = emptyList(),
-                    found = emptyList(),
-                    resultsTotal = 0,
-                    places = emptyList(),
-                    artists = emptyList(),
-                    searchLoading = false
-                )
-                else it.home.copy(searchText = trimmed, searchLoading = true)
-            )
-        }
-        if (!blank) homeDebounceJob =
-            scope.launch { delay(DiscoveryRules.SEARCH_DEBOUNCE_MS); searchHome() }
-    }
-
-    /** Вихід з режиму пошуку головної: текст і фільтри назад до типових, стрічка як була. */
-    fun cancelHomeSearch() {
-        homeDebounceJob?.cancel(); homeSearchJob?.cancel(); homePlacesJob?.cancel()
-        store.update {
-            it.copy(
-                home = it.home.copy(
-                    searchText = "",
-                    results = emptyList(),
-                    found = emptyList(),
-                    resultsTotal = 0,
-                    places = emptyList(),
-                    artists = emptyList(),
-                    searchLoading = false,
-                    searchEverywhere = false,
-                    searchCategory = null,
-                    searchDate = DateFilter.ANY
-                )
-            )
-        }
-    }
-
-    /** Пошук головної по всіх містах чи лише в обраному. */
-    fun setHomeSearchEverywhere(everywhere: Boolean) =
-        updateHomeSearch { it.copy(searchEverywhere = everywhere) }
-
-    fun setHomeSearchCategory(category: EventCategory?) =
-        updateHomeSearch { it.copy(searchCategory = category) }
-
-    fun setHomeSearchDate(filter: DateFilter) =
-        updateHomeSearch { it.copy(searchDate = filter) }
-
-    private fun updateHomeSearch(change: (HomeFeed) -> HomeFeed) {
-        val before = store.value.home
-        val after = change(before)
-        if (after == before) return
-        store.update { it.copy(home = change(it.home)) }
-        if (after.searching) searchHome()
-    }
-
-    private fun searchHome() {
-        homeDebounceJob?.cancel(); homeSearchJob?.cancel()
-        val home = store.value.home
-        val text = home.searchText.trim()
-        if (text.isEmpty()) return
-        val (from, to) = dateRange(home.searchDate)
-        // Заклади не залежать від категорії й дати: ті звужують лише події.
-        homePlacesJob?.cancel()
-        val placesArea = if (home.searchEverywhere) null else areaQuery()
-        val artistsCity = if (home.searchEverywhere) null else store.value.city.takeIf { !it.custom }?.name
-        homePlacesJob = scope.launch {
-            launch {
-                val found = places(text, placesArea)
-                store.update { it.copy(home = it.home.copy(places = found)) }
-            }
-            launch {
-                val found = artists(text, artistsCity)
-                store.update { it.copy(home = it.home.copy(artists = found)) }
-            }
-        }
-        val snapshot = (if (home.searchEverywhere) WORLD else areaQuery()).copy(
-            text = text,
-            category = home.searchCategory,
-            from = from?.toString(), to = to?.toString()
-        )
-        homeSearchJob = scope.launch {
-            store.update { it.copy(home = it.home.copy(searchLoading = true)) }
-            try {
-                val page = events.discover(snapshot)
-                val ranked = rank(page)
-                store.update {
-                    it.copy(
-                        cards = it.cards + page.cards.associateBy { card -> card.id },
-                        home = it.home.copy(
-                            results = ranked.index,
-                            resultsTotal = ranked.total,
-                            searchLoading = false
-                        )
-                    ).settled(ranked.taste)
-                }
-                materializeHome()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                store.update { it.copy(home = it.home.copy(searchLoading = false)) }
-                store.failed(e.asAppError())
-            }
-        }
-    }
-
-    /**
-     * Картки, які головна показує першими: добірка, початок стрічки й пошуку, а ще кілька відкритих кімнат із будь-якого
-     * місця індексу ([DiscoveryRules.HOME_ROOM_CARDS]): вони йдуть у «Від людей» і перші великі картки, хоч би коли починались.
-     */
-    private fun materializeHome() {
-        val home = store.value.home
-        val rooms = home.index.filter { it.isCommunity && it.roomHasSeats }
-            .take(DiscoveryRules.HOME_ROOM_CARDS)
-        val ids =
-            (home.suggestedIndex.take(DiscoveryRules.FIRST_CARDS) + home.index.take(DiscoveryRules.FIRST_CARDS) + rooms +
-                    home.results.take(DiscoveryRules.FIRST_CARDS)).map { it.id }.distinct()
-        load(ids)?.let { homeCardsJob?.cancel(); homeCardsJob = it }
-    }
-
     /**
      * Зміна акаунта: картки в дорозі несуть членство попереднього, тож їх скасовуємо разом із
      * записами [inFlight]. Пошуки скасує наступний [refresh].
      */
     fun reset() {
-        cardsJob?.cancel(); homeCardsJob?.cancel(); sessionsJob?.cancel()
+        cardsJob.cancel(); homeFeed.reset(); sessionsJob?.cancel()
         inFlight.values.forEach { it.cancel() }
         inFlight.clear(); sessionsWanted = emptySet()
     }
@@ -453,13 +260,13 @@ internal class DiscoveryEngine(
 
     /** Чекає, поки доїдуть поточні пошуки. Без пошуку або скасований — повертається одразу. */
     suspend fun awaitSearch() {
-        searchJob?.join(); homeJob?.join(); homeSearchJob?.join()
+        searchJob.join(); homeFeed.await()
     }
 
     /** Довантажити картки до [count] перших у порядку показу. Не пагінація: індекс повний, id відомі. */
     fun materialize(count: Int) {
-        if (cardsJob?.isActive == true) return
-        load(store.value.map.index.take(count).map { it.id })?.let { cardsJob = it }
+        if (cardsJob.active) return
+        load(store.value.map.index.take(count).map { it.id })?.let(cardsJob::set)
     }
 
     /**
@@ -467,8 +274,8 @@ internal class DiscoveryEngine(
      * початок списку. Скасовує поточне довантаження вікна: людина дивиться сюди.
      */
     fun loadCards(ids: List<String>) {
-        cardsJob?.cancel()
-        load(ids)?.let { cardsJob = it }
+        cardsJob.cancel()
+        load(ids)?.let(cardsJob::set)
     }
 
     /**
@@ -511,42 +318,6 @@ internal class DiscoveryEngine(
         return job
     }
 
-    /** Видача після склейки й ранжування. [taste] — смак, яким рахували. */
-    private class Ranked(
-        val index: List<EventIndexEntry>,
-        val suggested: List<EventIndexEntry>,
-        val total: Int,
-        val taste: Taste
-    )
-
-    /** Склеює й ранжує видачу поза головним потоком. */
-    private suspend fun rank(page: DiscoveryPage): Ranked {
-        val taste = store.value.taste
-        // Склеюємо до ранжування, щоб дубль не отримав бали двічі. Порядок обов'язковий:
-        // спершу дублі між продавцями, потім прокат, інакше один вечір став би двома сеансами.
-        val folded = withContext(compute) { EventSeries.fold(DuplicateEvents.fold(page.index)) }
-        if (folded.size != page.index.size) {
-            val series = folded.count { it.isSeries }
-            PoruchLog.i("discovery") {
-                "${page.index.size - folded.size} rows folded away, $series runs"
-            }
-        }
-        return withContext(compute) {
-            val ordered = TasteRanking.rank(folded, taste, Clock.System.now())
-            // Склеєні дублікати не рахуємо двічі. Різниця з page.total — лише коли спрацював запобіжник.
-            Ranked(
-                ordered,
-                TasteRanking.matching(ordered, taste),
-                folded.size + (page.total - page.index.size),
-                taste
-            )
-        }
-    }
-
-    /** Смак міг змінитися, поки рахували: тоді перераховуємо. */
-    private fun AppState.settled(taste: Taste) =
-        if (this.taste == taste) materialized() else ranked()
-
     /**
      * Кладе видачу мапи в стан, з [home] — і в головну. Рахунок поза потоком, потім одне атомарне
      * `update`. Всередині `update` читаємо лише стан, а не `store.value` до `withContext`, інакше
@@ -558,7 +329,7 @@ internal class DiscoveryEngine(
         failure: AppError?,
         home: Boolean
     ) {
-        val ranked = rank(page)
+        val ranked = rank(page, store.value.taste, compute)
         store.update {
             // Картки старої області викидаємо: пам'ять і застарілі числа місць того не варті.
             // Крім тих, що показує головна: її видача від фільтрів мапи не залежить.
@@ -597,7 +368,7 @@ internal class DiscoveryEngine(
         freshAt = if (offline) null else if (home) Clock.System.now() else freshAt
         // Смак міг переставити порядок так, що перші картки з відповіді вже не перші.
         materialize(DiscoveryRules.FIRST_CARDS)
-        if (home) materializeHome()
+        if (home) homeFeed.materialize()
     }
 
     /** «Шукати тут»: область лише для мапи. Головна лишається на цілому місті й не перепитує. */
@@ -635,9 +406,8 @@ internal class DiscoveryEngine(
             )
         }
         query = query.copy(text = trimmed.trim().takeIf { it.isNotEmpty() })
-        debounceJob?.cancel(); searchJob?.cancel(); placesJob?.cancel(); queryChanged()
-        debounceJob =
-            scope.launch { delay(DiscoveryRules.SEARCH_DEBOUNCE_MS); refresh(home = false) }
+        debounceJob.cancel(); searchJob.cancel(); placesJob.cancel(); queryChanged()
+        debounceJob.launch { delay(DiscoveryRules.SEARCH_DEBOUNCE_MS); refresh(home = false) }
     }
 
     /**
@@ -648,8 +418,8 @@ internal class DiscoveryEngine(
      * але [MapFeed.arrivals] росте однаково: камеру й шторки платформа повертає за цим лічильником.
      */
     fun showOnMap(available: Boolean) {
-        debounceJob?.cancel(); placesJob?.cancel()
-        val target = cityArea.copy(available = available)
+        debounceJob.cancel(); placesJob.cancel()
+        val target = homeFeed.area.copy(available = available)
         val current = store.value
         val same =
             query == target && current.map.onlyAvailable == available && current.map.category == null &&
@@ -690,7 +460,7 @@ internal class DiscoveryEngine(
         queryChanged()
         store.update { it.copy(map = it.map.copy(category = category)) }
         // Категорію екран відбирає з того, що є: відповідь уже тут, якщо не їде видача під інший фільтр.
-        if (searchJob?.isActive != true) answer(query)
+        if (!searchJob.active) answer(query)
     }
 
     fun setDateFilter(filter: DateFilter) {
@@ -702,39 +472,13 @@ internal class DiscoveryEngine(
         refresh(home = false)
     }
 
-    /** Межі [DateFilter] від сьогодні в поясі пристрою; для «Усі» — без меж. */
-    private fun dateRange(filter: DateFilter): Pair<kotlin.time.Instant?, kotlin.time.Instant?> {
-        val zone = TimeZone.currentSystemDefault()
-        val now = Clock.System.now()
-        val today = now.toLocalDateTime(zone).date
-        // Вихідні — з суботи 00:00 до понеділка 00:00, найближчі.
-        val daysToSaturday = (6 - today.dayOfWeek.isoDayNumber).coerceAtLeast(0)
-        // «Усі» — без меж: сервер сам бере «від зараз» разом із тим, що вже триває. Застиглий
-        // `now` ховав виставки й фестивалі і щоразу давав новий ключ кешу.
-        val start = when (filter) {
-            DateFilter.TODAY -> today.atStartOfDayIn(zone)
-            DateFilter.TOMORROW -> today.plus(1, DateTimeUnit.DAY).atStartOfDayIn(zone)
-            DateFilter.WEEKEND -> today.plus(daysToSaturday, DateTimeUnit.DAY).atStartOfDayIn(zone)
-            DateFilter.ANY -> null
-        }
-        val end = when (filter) {
-            DateFilter.TODAY -> today.plus(1, DateTimeUnit.DAY).atStartOfDayIn(zone)
-            DateFilter.TOMORROW -> today.plus(2, DateTimeUnit.DAY).atStartOfDayIn(zone)
-            DateFilter.WEEKEND -> today.plus(8 - today.dayOfWeek.isoDayNumber, DateTimeUnit.DAY)
-                .atStartOfDayIn(zone)
-
-            DateFilter.ANY -> null
-        }
-        return start to end
-    }
-
     fun searchCity(text: String) {
-        cityJob?.cancel()
+        cityJob.cancel()
         if (text.trim().length < DiscoveryRules.MIN_CITY_QUERY) {
             store.update { it.copy(city = it.city.copy(suggestions = emptyList())) }
             return
         }
-        cityJob = scope.launch {
+        cityJob.launch {
             delay(DiscoveryRules.CITY_DEBOUNCE_MS)
             try {
                 val result = geo.search(text)
@@ -790,9 +534,111 @@ internal class DiscoveryEngine(
         }
         val view = HomeLocation(city.name, city.latitude, city.longitude)
         if (!moveTo(view.south, view.west, view.north, view.east)) return
-        cityArea = EventQuery(query.south, query.west, query.north, query.east)
+        homeFeed.area = EventQuery(query.south, query.west, query.north, query.east)
         store.update { it.copy(city = it.city.copy(custom = false)) }
         // Нове місто — і для мапи, і для головної.
         queryChanged(); refresh()
     }
+}
+
+/**
+ * Одне завдання на місце: нове скасовує попереднє, тож стара відповідь не перекриє свіжу. Скасоване чи завершене
+ * завдання неактивне, тож [cancel] і [join] безпечні будь-коли.
+ */
+internal class LatestJob(private val scope: CoroutineScope) {
+    private var job: Job? = null
+    val active get() = job?.isActive == true
+    fun cancel() { job?.cancel() }
+    suspend fun join() { job?.join() }
+    fun launch(block: suspend CoroutineScope.() -> Unit) { job?.cancel(); job = scope.launch(block = block) }
+    /** Тримає вже запущене [next] замість попереднього. */
+    fun set(next: Job) { job?.cancel(); job = next }
+}
+
+/** Видача після склейки й ранжування. [taste] — смак, яким рахували. */
+internal class Ranked(
+    val index: List<EventIndexEntry>,
+    val suggested: List<EventIndexEntry>,
+    val total: Int,
+    val taste: Taste
+)
+
+/** Склеює й ранжує видачу за смаком [taste] поза головним потоком, у [compute]. */
+internal suspend fun rank(page: DiscoveryPage, taste: Taste, compute: CoroutineContext): Ranked {
+    // Склеюємо до ранжування, щоб дубль не отримав бали двічі. Порядок обов'язковий:
+    // спершу дублі між продавцями, потім прокат, інакше один вечір став би двома сеансами.
+    val folded = withContext(compute) { EventSeries.fold(DuplicateEvents.fold(page.index)) }
+    if (folded.size != page.index.size) {
+        val series = folded.count { it.isSeries }
+        PoruchLog.i("discovery") {
+            "${page.index.size - folded.size} rows folded away, $series runs"
+        }
+    }
+    return withContext(compute) {
+        val ordered = TasteRanking.rank(folded, taste, Clock.System.now())
+        // Склеєні дублікати не рахуємо двічі. Різниця з page.total — лише коли спрацював запобіжник.
+        Ranked(
+            ordered,
+            TasteRanking.matching(ordered, taste),
+            folded.size + (page.total - page.index.size),
+            taste
+        )
+    }
+}
+
+/** Смак міг змінитися, поки рахували: тоді перераховуємо. */
+internal fun AppState.settled(taste: Taste) =
+    if (this.taste == taste) materialized() else ranked()
+
+/**
+ * Артисти за текстом або порожньо: до [DiscoveryRules.MIN_ARTIST_QUERY] символів не питаємо (одна літера дала б
+ * довільних п'ятьох). Збій теж порожньо, як у [placesOrEmpty].
+ */
+internal suspend fun EventDiscovery.artistsOrEmpty(text: String, city: String?): List<ArtistHit> {
+    if (text.trim().length < DiscoveryRules.MIN_ARTIST_QUERY) return emptyList()
+    return try {
+        searchArtists(text, city).also { PoruchLog.d("discovery") { "${it.size} artists" } }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        PoruchLog.w("discovery") { "artists failed: ${e.asAppError()}" }
+        emptyList()
+    }
+}
+
+/** Заклади або порожньо. [bounds] null — усюди. */
+internal suspend fun EventDiscovery.placesOrEmpty(text: String, bounds: EventQuery?): List<Place> = try {
+    searchPlaces(text, bounds = bounds)
+        .also { PoruchLog.d("discovery") { "${it.size} places" } }
+} catch (e: CancellationException) {
+    throw e
+} catch (e: Exception) {
+    PoruchLog.w("discovery") { "places failed: ${e.asAppError()}" }
+    emptyList()
+}
+
+/** Межі [DateFilter] від сьогодні в поясі пристрою; для «Усі» — без меж. */
+internal fun dateRange(filter: DateFilter): Pair<kotlin.time.Instant?, kotlin.time.Instant?> {
+    val zone = TimeZone.currentSystemDefault()
+    val now = Clock.System.now()
+    val today = now.toLocalDateTime(zone).date
+    // Вихідні — з суботи 00:00 до понеділка 00:00, найближчі.
+    val daysToSaturday = (6 - today.dayOfWeek.isoDayNumber).coerceAtLeast(0)
+    // «Усі» — без меж: сервер сам бере «від зараз» разом із тим, що вже триває. Застиглий
+    // `now` ховав виставки й фестивалі і щоразу давав новий ключ кешу.
+    val start = when (filter) {
+        DateFilter.TODAY -> today.atStartOfDayIn(zone)
+        DateFilter.TOMORROW -> today.plus(1, DateTimeUnit.DAY).atStartOfDayIn(zone)
+        DateFilter.WEEKEND -> today.plus(daysToSaturday, DateTimeUnit.DAY).atStartOfDayIn(zone)
+        DateFilter.ANY -> null
+    }
+    val end = when (filter) {
+        DateFilter.TODAY -> today.plus(1, DateTimeUnit.DAY).atStartOfDayIn(zone)
+        DateFilter.TOMORROW -> today.plus(2, DateTimeUnit.DAY).atStartOfDayIn(zone)
+        DateFilter.WEEKEND -> today.plus(8 - today.dayOfWeek.isoDayNumber, DateTimeUnit.DAY)
+            .atStartOfDayIn(zone)
+
+        DateFilter.ANY -> null
+    }
+    return start to end
 }

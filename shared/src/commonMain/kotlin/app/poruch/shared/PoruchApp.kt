@@ -195,13 +195,13 @@ class PoruchApp internal constructor(
     /** Платформа відкрила стос з [MapFeed.placeFocus]. */
     fun placeFocusShown() = discovery.placeFocusShown()
     /** Пошук головної: окремий від мапи, у тій самій області. */
-    fun setHomeSearchText(query: String) = discovery.setHomeSearchText(query)
+    fun setHomeSearchText(query: String) = discovery.homeFeed.setSearchText(query)
     /** Пошук головної: усі міста чи лише обране; категорія й дата звужують лише знайдене. */
-    fun setHomeSearchEverywhere(everywhere: Boolean) = discovery.setHomeSearchEverywhere(everywhere)
+    fun setHomeSearchEverywhere(everywhere: Boolean) = discovery.homeFeed.setSearchEverywhere(everywhere)
     /** «Скасувати» в режимі пошуку: текст і фільтри скидаються. */
-    fun cancelHomeSearch() = discovery.cancelHomeSearch()
-    fun setHomeSearchCategory(category: EventCategory?) = discovery.setHomeSearchCategory(category)
-    fun setHomeSearchDate(filter: DateFilter) = discovery.setHomeSearchDate(filter)
+    fun cancelHomeSearch() = discovery.homeFeed.cancelSearch()
+    fun setHomeSearchCategory(category: EventCategory?) = discovery.homeFeed.setSearchCategory(category)
+    fun setHomeSearchDate(filter: DateFilter) = discovery.homeFeed.setSearchDate(filter)
     fun setOnlyAvailable(available: Boolean) = discovery.setOnlyAvailable(available)
 
     /** «Усі N» біля «Від людей»: мапа лише зі зустрічами від людей з вільним місцем, без інших фільтрів. */
