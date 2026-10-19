@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <title>K3 · Касова стрічка — відірви вечір від тижня, 14 с, 9:16</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face { font-family: "Sofia Sans Condensed"; src: url("assets/fonts/SofiaSansCondensed-Bold.ttf") format("truetype"); font-weight: 700; font-display: block; }
+      @font-face { font-family: "Sofia Sans Condensed"; src: url("assets/fonts/SofiaSansCondensed-ExtraBold.ttf") format("truetype"); font-weight: 800; font-display: block; }
+      @font-face { font-family: "Sofia Sans Extra Condensed"; src: url("assets/fonts/SofiaSansExtraCondensed-ExtraBold.ttf") format("truetype"); font-weight: 800; font-display: block; }
+      @font-face { font-family: "Inter"; src: url("assets/fonts/inter-cyrillic-400-normal.woff2") format("woff2"); font-weight: 400; font-display: block; unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+      @font-face { font-family: "Inter"; src: url("assets/fonts/inter-cyrillic-600-normal.woff2") format("woff2"); font-weight: 600; font-display: block; unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+      @font-face { font-family: "Inter"; src: url("assets/fonts/inter-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: block; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+      @font-face { font-family: "Inter"; src: url("assets/fonts/inter-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-display: block; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+
+      /* «Корінець», two worlds: weekdays are a grey thermal receipt on a pale counter (#DAD8D2, paper #F7F6F2, ink #3A3A40);
+         tearing along the perforation flips the frame to night #0F0F13 where genre stubs carry the colour.
+         Coral #FF8A5B is the name «Поряд» only. Motion here is the long pan, the rip and the flip. */
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1080px; height: 1920px; overflow: hidden; background: #dad8d2; }
+      #root { position: relative; width: 100%; height: 100%; overflow: hidden; color: #141417; font-family: "Inter", sans-serif;
+        background: radial-gradient(80% 50% at 50% 45%, #e6e4df 0%, #d6d4ce 70%, #cbc9c2 100%); }
+
+      #hook { position: absolute; z-index: 3; left: 100px; top: 292px; width: 840px; font-family: "Sofia Sans Condensed", sans-serif; font-weight: 800; font-size: 96px; line-height: 100px; letter-spacing: -0.5px; white-space: nowrap; color: #141417; }
+      #turn { position: absolute; z-index: 3; left: 100px; top: 292px; width: 840px; font-family: "Sofia Sans Condensed", sans-serif; font-weight: 800; font-size: 96px; line-height: 100px; letter-spacing: -0.5px; white-space: nowrap; color: #141417; opacity: 0; }
+
+      /* the receipt: everything below the hook, the counter fades it out under the caption */
+      #win { position: absolute; z-index: 1; left: 0; top: 430px; width: 1080px; height: 1490px; overflow: hidden;
+        -webkit-mask: linear-gradient(180deg, transparent 0, #000 70px); }
+      #rc { position: absolute; left: 170px; top: 0; width: 740px; }
+      #week { position: relative; width: 740px; background: #f7f6f2; padding: 54px 46px 40px; color: #3a3a40;
+        box-shadow: 0 18px 40px rgba(60, 55, 45, 0.18);
+        clip-path: polygon(0 18px, 4% 0, 8% 18px, 12% 0, 16% 18px, 20% 0, 24% 18px, 28% 0, 32% 18px, 36% 0, 40% 18px, 44% 0, 48% 18px, 52% 0, 56% 18px, 60% 0, 64% 18px, 68% 0, 72% 18px, 76% 0, 80% 18px, 84% 0, 88% 18px, 92% 0, 96% 18px, 100% 0,
+          100% calc(100% - 14px), 97% 100%, 94% calc(100% - 12px), 91% 100%, 88% calc(100% - 10px), 85% 100%, 82% calc(100% - 14px), 79% 100%, 76% calc(100% - 9px), 73% 100%, 70% calc(100% - 13px), 67% 100%, 64% calc(100% - 10px), 61% 100%, 58% calc(100% - 14px), 55% 100%, 52% calc(100% - 11px), 49% 100%, 46% calc(100% - 13px), 43% 100%, 40% calc(100% - 9px), 37% 100%, 34% calc(100% - 14px), 31% 100%, 28% calc(100% - 10px), 25% 100%, 22% calc(100% - 13px), 19% 100%, 16% calc(100% - 11px), 13% 100%, 10% calc(100% - 14px), 7% 100%, 4% calc(100% - 10px), 0 100%); }
+      .hd { text-align: center; font-family: "Sofia Sans Condensed", sans-serif; font-weight: 800; font-size: 56px; line-height: 62px; letter-spacing: 3px; color: #141417; }
+      .sub { text-align: center; font-size: 26px; line-height: 34px; color: #6a6a73; margin-bottom: 26px; }
+      .rule { border-top: 3px dashed #9a9aa2; margin: 18px 0; }
+      .ln { display: flex; align-items: baseline; gap: 14px; font-family: "Sofia Sans Condensed", sans-serif; font-weight: 700; font-size: 50px; line-height: 78px; white-space: nowrap; }
+      .ln b { flex: 0 0 64px; font-family: "Sofia Sans Extra Condensed", sans-serif; font-weight: 800; font-size: 52px; color: #141417; }
+      .ln i { flex: 1 1 auto; font-style: normal; border-bottom: 4px dotted #a8a8ae; transform: translateY(-12px); }
+      .ln em { font-style: normal; font-family: "Sofia Sans Extra Condensed", sans-serif; font-weight: 800; font-size: 52px; color: #141417; font-variant-numeric: tabular-nums; }
+      .tot { display: flex; align-items: baseline; gap: 14px; margin-top: 6px; font-family: "Sofia Sans Condensed", sans-serif; font-weight: 800; font-size: 58px; line-height: 90px; color: #141417; white-space: nowrap; }
+      .tot i { flex: 1 1 auto; border-bottom: 4px dotted #a8a8ae; transform: translateY(-14px); }
+      #zero { display: inline-block; font-family: "Sofia Sans Extra Condensed", sans-serif; font-size: 96px; line-height: 90px; transform-origin: 50% 70%; }
+
+      /* the Friday stub, printed under the perforation; its colour flips through genres before it lands */
+      #fri { position: absolute; left: 0; top: 0; width: 740px; height: 190px; }
+      #fri .face { position: absolute; inset: 0; border-radius: 0 0 40px 40px; background: #ac345e; color: #fff; padding: 26px 40px; overflow: hidden;
+        -webkit-mask: radial-gradient(circle 18px at 0 0, transparent 17px, #000 18px) left / 51% 100% no-repeat,
+                      radial-gradient(circle 18px at 100% 0, transparent 17px, #000 18px) right / 51% 100% no-repeat; }
+      #fri .g { position: absolute; left: 40px; top: 26px; font-weight: 600; font-size: 30px; letter-spacing: 3px; opacity: 0; }
+      #fri .t { position: absolute; left: 36px; top: 62px; font-family: "Sofia Sans Extra Condensed", sans-serif; font-weight: 800; font-size: 112px; line-height: 104px; }
+      #fri .perf { position: absolute; left: 22px; right: 22px; top: -2px; border-top: 4px dotted rgba(58, 58, 64, 0.45); }
+
+      #night { position: absolute; z-index: 0; inset: 0; background: radial-gradient(90% 60% at 50% 55%, #17161c 0%, #0f0f13 70%); clip-path: circle(0px at 540px 1215px); }
+
+      /* the phone (night), 455-px screen, k = 455/1206 */
+      #phone { position: absolute; z-index: 4; left: 298px; top: 420px; width: 484px; height: 1018px; border-radius: 80px; background: #0a0a0c;
+        box-shadow: 0 0 0 2px #2b2a31, 0 50px 90px rgba(0, 0, 0, 0.6); }
+      #phone .screen { position: absolute; left: 14.5px; top: 14px; width: 455px; height: 989.2px; border-radius: 66px; overflow: hidden; background: #0f0f13; }
+      #phone .screen img { position: absolute; left: 0; top: 0; display: block; width: 455px; height: 989.2px; }
+      .ring { position: absolute; z-index: 5; left: 0; top: 0; width: 96px; height: 96px; margin: -48px 0 0 -48px; border-radius: 50%; border: 4px solid #f3f3f0; opacity: 0; }
+      .cap { position: absolute; z-index: 5; left: 100px; top: 252px; width: 840px; font-family: "Sofia Sans Condensed", sans-serif; font-weight: 800; font-size: 66px; line-height: 70px; white-space: nowrap; color: #f3f3f0; opacity: 0; }
+      .cap span { display: block; }
+      #fw { position: absolute; z-index: 6; left: 0; top: 0; width: 1px; height: 1px; }
+
+      /* end card (END-CARD.md grid) on night; a sheet of the same receipt paper covers it and is ripped away */
+      #icon { position: absolute; left: 452px; top: 560px; width: 176px; height: 176px; border-radius: 40px; opacity: 0; }
+      #name { position: absolute; left: 0; top: 774px; width: 1080px; text-align: center; font-family: "Sofia Sans Condensed", sans-serif; font-weight: 800; font-size: 128px; line-height: 136px; letter-spacing: -1px; color: #ff8a5b; opacity: 0; }
+      #slogan { position: absolute; left: 160px; top: 950px; width: 760px; text-align: center; font-family: "Sofia Sans Condensed", sans-serif; font-weight: 700; font-size: 44px; line-height: 50px; color: #a6a5ad; opacity: 0; }
+      .sheet { position: absolute; z-index: 7; left: 130px; width: 820px; background: #f7f6f2; box-shadow: 0 24px 50px rgba(0, 0, 0, 0.45); color: #3a3a40; opacity: 0; }
+      #sh-a { top: 500px; height: 300px; padding: 70px 56px 0;
+        clip-path: polygon(0 0, 100% 0, 100% 260px, 94% 300px, 88% 268px, 81% 296px, 74% 262px, 67% 292px, 60% 258px, 53% 300px, 46% 266px, 39% 294px, 32% 260px, 25% 298px, 18% 264px, 11% 292px, 5% 262px, 0 288px); }
+      #sh-b { top: 740px; height: 300px; padding: 70px 56px 0;
+        clip-path: polygon(0 28px, 5% 2px, 11% 32px, 18% 4px, 25% 38px, 32% 0, 39% 34px, 46% 6px, 53% 40px, 60% 0, 67% 32px, 74% 2px, 81% 36px, 88% 8px, 94% 40px, 100% 0, 100% 100%, 0 100%); }
+      .sheet .ln { color: #3a3a40; }
+      #bait { position: absolute; left: 160px; top: 290px; width: 760px; text-align: center; font-family: "Sofia Sans Condensed", sans-serif; font-weight: 700; font-size: 60px; line-height: 66px; color: #f3f3f0; opacity: 0; }
+      #free { position: absolute; left: 0; top: 1104px; width: 1080px; text-align: center; font-weight: 600; font-size: 34px; line-height: 40px; color: #f2a7c3; opacity: 0; }
+      #store { position: absolute; left: 0; top: 1176px; width: 1080px; display: flex; flex-direction: column; align-items: center; opacity: 0; }
+      #badges { display: flex; gap: 32px; }
+      /* official badges: untouched files, both 104 px tall, no transform/filter/shadow */
+      #badges img { display: block; height: 104px; width: auto; }
+      #store .tm { margin-top: 22px; text-align: center; font-weight: 400; font-size: 20px; line-height: 28px; color: #96959e; white-space: nowrap; }
+
+      #grain { position: absolute; z-index: 9; inset: 0; pointer-events: none; opacity: 0.08; mix-blend-mode: overlay; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="14" data-fps="30" data-width="1080" data-height="1920">
+      <div id="night"></div>
+      <div id="hook">твій тиждень на чеку:</div>
+      <div id="turn">відірви вечір від тижня.</div>
+
+      <div id="win">
+        <div id="rc" data-layout-allow-overflow>
+          <div id="week">
+            <div class="hd">БУДНІ</div>
+            <div class="sub">чек № 42 · каса «якось потім»</div>
+            <div class="ln"><b>ПН</b>робота<i></i><em>9:00–19:00</em></div>
+            <div class="ln"><b>ПН</b>пральня<i></i><em>21:00</em></div>
+            <div class="ln"><b>ПН</b>«ще одна серія»<i></i><em>01:30</em></div>
+            <div class="ln"><b>ВТ</b>робота<i></i><em>9:00–19:30</em></div>
+            <div class="ln"><b>ВТ</b>дзвінок «на 5 хв»<i></i><em>1 год</em></div>
+            <div class="ln"><b>ВТ</b>посуд<i></i><em>22:00</em></div>
+            <div class="ln"><b>СР</b>робота<i></i><em>9:00–20:00</em></div>
+            <div class="ln"><b>СР</b>дедлайн<i></i><em>23:59</em></div>
+            <div class="ln"><b>ЧТ</b>робота<i></i><em>9:00–19:00</em></div>
+            <div class="ln"><b>ЧТ</b>доставка<i></i><em>21:30</em></div>
+            <div class="ln"><b>ЧТ</b>спати<i></i><em>23:00</em></div>
+            <div class="rule"></div>
+            <div class="tot">ВЕЧОРІВ ДЛЯ СЕБЕ<i></i><span id="zero">0</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- the Friday stub lives outside the receipt window so it can fly into the phone -->
+      <div id="fw"><div id="fri">
+        <div class="face" id="fri-face">
+          <div class="g" id="g1" data-layout-allow-overlap>МУЗИКА</div><div class="g" id="g2" data-layout-allow-overlap>СТЕНДАП</div><div class="g" id="g3" data-layout-allow-overlap>ІГРИ</div><div class="g" id="g4" data-layout-allow-overlap>МИСТЕЦТВО</div>
+          <div class="t">ПТ 19:00</div>
+        </div>
+        <div class="perf"></div>
+      </div></div>
+
+      <div id="phone">
+        <div class="screen">
+          <img id="scr-home" src="assets/ui/home.jpg" alt="Головна «У місті»" />
+          <img id="scr-map" data-layout-allow-overflow src="assets/ui/map.jpg" alt="Мапа з подіями-квитками" />
+        </div>
+      </div>
+      <div class="ring" id="ring1"></div><div class="ring" id="ring2"></div><div class="ring" id="ring3"></div>
+      <div class="cap" id="cap1"><span>сотні подій у місті —</span><span>квитками</span></div>
+      <div class="cap" id="cap2"><span>і всі — на мапі</span><span>твого міста</span></div>
+
+      <img id="icon" src="assets/icon.png" alt="" />
+      <div id="name">Поряд</div>
+      <div id="slogan">Є куди. Буде з ким.</div>
+      <div class="sheet" id="sh-a" data-layout-ignore><div class="ln"><b>ПТ</b>знову нікуди<i></i><em>?</em></div></div>
+      <div class="sheet" id="sh-b" data-layout-ignore></div>
+      <div id="bait">що відірвеш цього тижня? 👇</div>
+      <div id="free">безкоштовно</div>
+      <div id="store">
+        <div id="badges">
+          <img src="assets/appstore-badge-uk.svg" alt="Завантажте в App Store" />
+          <img src="assets/googleplay-badge-uk.svg" alt="Завантажте з Google Play" />
+        </div>
+        <div class="tm">
+          <div>Apple, логотип Apple і App Store є торговельними марками Apple Inc.</div>
+          <div>Google Play і логотип Google Play є торговельними марками Google LLC.</div>
+        </div>
+      </div>
+
+      <svg id="grain" width="1080" height="1920" aria-hidden="true">
+        <filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="13" /><feColorMatrix type="saturate" values="0" /></filter>
+        <rect width="1080" height="1920" filter="url(#noise)" />
+      </svg>
+
+      <!-- Audio. music: brand.m4a from 12.0 s, so its drop (16.0 in the track) lands on the rip (4.0); ~7 dB hot, so it sits low -->
+      <audio id="music" src="assets/audio/music.m4a" data-start="0" data-media-start="12" data-duration="14" data-track-index="10" data-automation="{&quot;version&quot;:1,&quot;lanes&quot;:[{&quot;target&quot;:&quot;volume&quot;,&quot;points&quot;:[{&quot;t&quot;:0,&quot;v&quot;:0.32},{&quot;t&quot;:3.9,&quot;v&quot;:0.32},{&quot;t&quot;:4.05,&quot;v&quot;:0.42},{&quot;t&quot;:10.8,&quot;v&quot;:0.42},{&quot;t&quot;:11.2,&quot;v&quot;:0.3},{&quot;t&quot;:11.6,&quot;v&quot;:0.42},{&quot;t&quot;:13.3,&quot;v&quot;:0.42},{&quot;t&quot;:14,&quot;v&quot;:0}]}]}"></audio>
+      <!-- the receipt runs out of the till under the pan, then stops on the zero -->
+      <audio id="sfx-roll" src="assets/audio/printer.wav" data-start="0.25" data-media-start="0.02" data-duration="2.6" data-track-index="11" data-volume="0.22"></audio>
+      <audio id="sfx-zero" src="assets/audio/ui_tick.wav" data-start="3.12" data-duration="0.1" data-track-index="12" data-volume="0.45"></audio>
+      <audio id="sfx-turn" src="assets/audio/ui_tick.wav" data-start="3.42" data-duration="0.1" data-track-index="12" data-volume="0.3"></audio>
+      <audio id="sfx-rip" src="assets/audio/rip.wav" data-start="3.9" data-media-start="0.05" data-duration="0.7" data-track-index="13" data-volume="0.8"></audio>
+      <audio id="sfx-g1" src="assets/audio/ui_tick.wav" data-start="4.2" data-duration="0.1" data-track-index="12" data-volume="0.28"></audio>
+      <audio id="sfx-g2" src="assets/audio/ui_tick.wav" data-start="4.39" data-duration="0.1" data-track-index="12" data-volume="0.28"></audio>
+      <audio id="sfx-g3" src="assets/audio/ui_tick.wav" data-start="4.58" data-duration="0.1" data-track-index="12" data-volume="0.28"></audio>
+      <audio id="sfx-g4" src="assets/audio/ui_tick.wav" data-start="4.77" data-duration="0.1" data-track-index="12" data-volume="0.36"></audio>
+      <audio id="sfx-fly" src="assets/audio/whoosh.wav" data-start="5.1" data-duration="0.27" data-track-index="14" data-volume="0.3"></audio>
+      <audio id="sfx-map" src="assets/audio/whoosh.wav" data-start="7.6" data-duration="0.27" data-track-index="14" data-volume="0.22"></audio>
+      <audio id="sfx-r1" src="assets/audio/ui_tick.wav" data-start="8.5" data-duration="0.1" data-track-index="12" data-volume="0.32"></audio>
+      <audio id="sfx-r2" src="assets/audio/ui_tick.wav" data-start="8.88" data-duration="0.1" data-track-index="12" data-volume="0.32"></audio>
+      <audio id="sfx-r3" src="assets/audio/ui_tick.wav" data-start="9.26" data-duration="0.1" data-track-index="12" data-volume="0.32"></audio>
+      <audio id="sfx-out" src="assets/audio/whoosh.wav" data-start="10.4" data-duration="0.27" data-track-index="14" data-volume="0.22"></audio>
+      <audio id="sfx-sheet" src="assets/audio/whoosh.wav" data-start="10.72" data-duration="0.27" data-track-index="14" data-volume="0.2"></audio>
+      <audio id="sfx-rip-2" src="assets/audio/tear.wav" data-start="11.22" data-duration="0.2" data-track-index="13" data-volume="0.9"></audio>
+      <audio id="sfx-rip-3" src="assets/audio/rip.wav" data-start="11.26" data-media-start="0.5" data-duration="0.45" data-track-index="15" data-volume="0.5"></audio>
+      <audio id="sfx-bait" src="assets/audio/ui_tick.wav" data-start="12.35" data-duration="0.1" data-track-index="12" data-volume="0.3"></audio>
+    </div>
+
+    <script>
+      (function () {
+        var tl = gsap.timeline({ paused: true });
+        var week = document.getElementById("week");
+
+        // ---- 0–3.2: one long pan down the receipt (the paper moves up), slow to read the first lines, a blur of weekdays, a stop on the zero
+        // #rc top is relative to #win (top 430). Start: header at frame 600; end: the receipt's bottom edge at 690 (frame 1120).
+        var H = week.offsetHeight; // every row has a fixed px line-height and no wrapping, so this does not depend on font loading
+        var END = 690 - H;
+        tl.fromTo("#rc", { y: 170 }, { y: END, duration: 2.9, ease: "power2.inOut" }, 0.25);
+        tl.fromTo("#zero", { scale: 1 }, { scale: 1.45, duration: 0.1, ease: "power2.out", yoyo: true, repeat: 1 }, 3.12);
+
+        // ---- the Friday stub appears under the perforation as the pan settles (frame y 1120)
+        var FX = 170, FY = 1120;
+        tl.set("#fw", { x: FX, y: FY }, 0);
+        tl.fromTo("#fri", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.3, ease: "power3.out" }, 3.0);
+
+        // ---- 3.4 the turn line; 3.92 the rip: the week tears off and flies away, the counter flips to night
+        tl.to("#hook", { opacity: 0, y: -24, duration: 0.18, ease: "power2.in" }, 3.3);
+        tl.fromTo("#turn", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.25, ease: "power3.out" }, 3.42);
+        tl.to("#week", { y: -40, rotation: -2, duration: 0.08, ease: "power2.out" }, 3.92);   // the jolt of the rip
+        tl.to("#week", { y: -1500, x: -160, rotation: -9, duration: 0.45, ease: "power1.in" }, 4.0);
+        tl.fromTo("#fri", { rotation: 0 }, { rotation: 2.5, duration: 0.08, ease: "power2.out", yoyo: true, repeat: 1 }, 3.92);
+        tl.set("#night", { clipPath: "circle(90px at 540px 1215px)" }, 3.97);   // starts hidden behind the stub
+        tl.to("#night", { clipPath: "circle(2300px at 540px 1215px)", duration: 0.5, ease: "power2.out" }, 3.98);
+        tl.to("#turn", { color: "#f3f3f0", duration: 0.22, ease: "none" }, 3.98);
+
+        // ---- 4.2–4.85: the stub flips through genres on the beat and lands on «Мистецтво»
+        var G = [["#g1", "#6041b1"], ["#g2", "#8d6a11"], ["#g3", "#2957ac"], ["#g4", "#ac345e"]];
+        tl.set("#fri-face", { backgroundColor: "#5e5e66" }, 0);
+        G.forEach(function (g, i) {
+          var at = 4.2 + i * 0.19;
+          tl.set("#fri-face", { backgroundColor: g[1] }, at);
+          tl.set(g[0], { opacity: 1 }, at);
+          if (i < G.length - 1) tl.set(g[0], { opacity: 0 }, at + 0.19);
+        });
+
+        // ---- 5.0–6.1: the phone rises; the stub turns upright and lands on the «Мистецтво» stub of the big ticket on Home
+        tl.to("#turn", { opacity: 0, duration: 0.2, ease: "power1.in" }, 4.95);
+        tl.fromTo("#phone", { y: 1500 }, { y: 0, duration: 0.7, ease: "power3.out" }, 4.95);
+        var K = 455 / 1206, SX = 298 + 14.5 + 750 * K, SY = 434 + 488 * K, SW = 248 * K, SH = 1072 * K;
+        // the 740×190 stub turned -90° becomes 190 wide × 740 tall; scale it to the target's 404-px height
+        var sc = SH / 740;
+        tl.to("#fri", { rotation: -90, scale: sc, duration: 0.8, ease: "power3.inOut" }, 5.1);
+        tl.to("#fw", { x: SX + SW / 2 - 370, y: SY + SH / 2 - 95, duration: 0.8, ease: "power3.inOut" }, 5.1);
+        tl.to("#fri", { opacity: 0, duration: 0.28, ease: "power1.inOut" }, 5.86);
+        tl.fromTo("#cap1", { opacity: 0, y: 22 }, { opacity: 1, y: 0, duration: 0.3, ease: "power3.out" }, 5.55);
+        tl.to("#cap1", { opacity: 0, duration: 0.18, ease: "power1.in" }, 7.5);
+
+        // ---- 7.6: Home → Map inside the phone; three clusters ring on the beat
+        tl.fromTo("#scr-map", { yPercent: 100 }, { yPercent: 0, duration: 0.42, ease: "power3.inOut" }, 7.6);
+        tl.fromTo("#cap2", { opacity: 0, y: 22 }, { opacity: 1, y: 0, duration: 0.3, ease: "power3.out" }, 7.8);
+        tl.to("#cap2", { opacity: 0, duration: 0.18, ease: "power1.in" }, 10.3);
+        [[522, 750, 8.5], [633, 1035, 8.88], [531, 1191, 9.26]].forEach(function (c, i) {
+          var id = "#ring" + (i + 1);
+          tl.set(id, { x: 312.5 + c[0] * K, y: 434 + c[1] * K }, 0);
+          tl.fromTo(id, { scale: 0.4, opacity: 0 }, { scale: 0.8, opacity: 1, duration: 0.12, ease: "power2.out" }, c[2]);
+          tl.to(id, { scale: 1.5, opacity: 0, duration: 0.5, ease: "power2.out" }, c[2] + 0.12);
+        });
+        tl.to("#phone", { y: 1550, duration: 0.5, ease: "power3.in" }, 10.4);
+
+        // ---- 10.72–11.9: a sheet of receipt paper slides over the end card and rips in two, revealing the name
+        tl.set(["#icon", "#name", "#slogan"], { opacity: 1 }, 10.9);
+        tl.set(["#sh-a", "#sh-b"], { opacity: 1 }, 10.7);
+        tl.fromTo(["#sh-a", "#sh-b"], { y: 1500 }, { y: 0, duration: 0.45, ease: "power3.out" }, 10.72);
+        tl.to("#sh-a", { y: -1000, x: -220, rotation: -14, duration: 0.65, ease: "power2.in" }, 11.22);
+        tl.to("#sh-b", { y: 1500, x: 200, rotation: 10, duration: 0.65, ease: "power2.in" }, 11.24);
+
+        // ---- end card: «безкоштовно», the bait, both badges by one hard cut; static from 12.95
+        tl.fromTo("#free", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.35, ease: "power3.out" }, 12.15);
+        tl.fromTo("#bait", { opacity: 0, y: -22 }, { opacity: 1, y: 0, duration: 0.3, ease: "power3.out" }, 12.3);
+        tl.set("#store", { opacity: 1 }, 12.95);
+
+        window.__timelines["main"] = tl;
+      })();
+    </script>
+  </body>
+</html>

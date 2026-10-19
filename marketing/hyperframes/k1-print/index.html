@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <title>K1 · Друкарня — квиток, який друкуєш сам, 14 с, 9:16</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face { font-family: "Sofia Sans Condensed"; src: url("assets/fonts/SofiaSansCondensed-Bold.ttf") format("truetype"); font-weight: 700; font-display: block; }
+      @font-face { font-family: "Sofia Sans Condensed"; src: url("assets/fonts/SofiaSansCondensed-ExtraBold.ttf") format("truetype"); font-weight: 800; font-display: block; }
+      @font-face { font-family: "Sofia Sans Extra Condensed"; src: url("assets/fonts/SofiaSansExtraCondensed-ExtraBold.ttf") format("truetype"); font-weight: 800; font-display: block; }
+      @font-face { font-family: "Inter"; src: url("assets/fonts/inter-cyrillic-400-normal.woff2") format("woff2"); font-weight: 400; font-display: block; unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+      @font-face { font-family: "Inter"; src: url("assets/fonts/inter-cyrillic-600-normal.woff2") format("woff2"); font-weight: 600; font-display: block; unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+      @font-face { font-family: "Inter"; src: url("assets/fonts/inter-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: block; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+      @font-face { font-family: "Inter"; src: url("assets/fonts/inter-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-display: block; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+
+      /* «Корінець», night box office: ground #0B0D14 with the «Ігри» blue glow, paper #F3F3F0, stub #2957AC.
+         Coral #FF8A5B is stamp ink and the name «Поряд» — nothing else. Everything appears by being printed. */
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1080px; height: 1920px; overflow: hidden; background: #0b0d14; }
+      #root { position: relative; width: 100%; height: 100%; overflow: hidden; color: #f3f3f0; font-family: "Inter", sans-serif;
+        background: radial-gradient(120% 60% at 50% 78%, rgba(47, 99, 196, 0.2) 0%, rgba(47, 99, 196, 0) 60%), #0b0d14; }
+      .cond { font-family: "Sofia Sans Condensed", sans-serif; }
+
+      /* hook */
+      #hook { position: absolute; left: 100px; top: 290px; width: 820px; }
+      .big { display: block; font-family: "Sofia Sans Condensed", sans-serif; font-weight: 800; font-size: 116px; line-height: 112px; letter-spacing: -1px; white-space: nowrap; }
+      #hook-c { margin-top: 34px; color: #a9c1f5; }
+
+      /* the wall of other people's tickets */
+      #wall { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; }
+      .row { position: absolute; left: -120px; display: flex; gap: 22px; }
+      .mini { position: relative; flex: 0 0 auto; width: 214px; height: 88px; border-radius: 16px; background: #1c1b21; overflow: hidden;
+        box-shadow: inset 0 0 0 1px #2e2d35; }
+      .mini i { position: absolute; left: 18px; top: 22px; height: 12px; border-radius: 6px; background: #3a3941; }
+      .mini b { position: absolute; left: 18px; top: 50px; width: 70px; height: 10px; border-radius: 5px; background: #2e2d35; }
+      .mini s { position: absolute; right: 0; top: 0; width: 70px; height: 88px; text-decoration: none; display: flex; align-items: center; justify-content: center;
+        font-family: "Sofia Sans Extra Condensed", sans-serif; font-weight: 800; font-size: 30px; color: #fff; }
+
+      /* the empty ticket «Організувати подію», as on the home screen */
+      #empty { position: absolute; left: 220px; top: 990px; width: 640px; height: 210px; border-radius: 30px; border: 3px dashed rgba(243, 243, 240, 0.6);
+        display: flex; align-items: center; gap: 26px; padding-left: 40px; background: rgba(11, 13, 20, 0.88); }
+      #empty .plus { width: 76px; height: 76px; border-radius: 50%; border: 3px solid #f3f3f0; display: flex; align-items: center; justify-content: center;
+        font-family: "Inter", sans-serif; font-weight: 400; font-size: 54px; line-height: 1; }
+      #empty .lbl { font-family: "Sofia Sans Condensed", sans-serif; font-weight: 700; font-size: 52px; line-height: 56px; }
+      #empty .stubline { position: absolute; right: 150px; top: 14px; bottom: 14px; border-left: 3px dashed rgba(243, 243, 240, 0.35); }
+
+      /* the printer: paper comes UP out of the slit, like a receipt; #feed clips everything below the slit */
+      #feed { position: absolute; left: 0; top: 0; width: 1080px; height: 1200px; overflow: hidden; }
+      #printer { position: absolute; z-index: 1; left: 110px; top: 1200px; width: 860px; height: 136px; border-radius: 14px 14px 30px 30px;
+        background: linear-gradient(180deg, #2a2932 0%, #1b1a21 55%, #141319 100%); box-shadow: 0 30px 60px rgba(0, 0, 0, 0.55), inset 0 2px 0 rgba(255, 255, 255, 0.07); }
+      #printer .slit { position: absolute; left: 14px; right: 14px; top: -5px; height: 12px; border-radius: 6px; background: #050508; box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08); }
+      #printer .led { position: absolute; right: 44px; top: 56px; width: 14px; height: 14px; border-radius: 50%; background: #2f63c4; box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.35); }
+      #printer .grill { position: absolute; left: 44px; top: 54px; width: 220px; height: 18px;
+        background: repeating-linear-gradient(90deg, #0e0d12 0 6px, transparent 6px 14px); border-radius: 4px; opacity: 0.8; }
+
+      #head { position: absolute; left: 100px; top: 292px; width: 840px; font-weight: 800; font-size: 100px; line-height: 104px; letter-spacing: -1px; white-space: nowrap; }
+      #steps { position: absolute; left: 100px; top: 430px; width: 840px; height: 60px; }
+      .step { position: absolute; left: 0; top: 0; font-family: "Sofia Sans Condensed", sans-serif; font-weight: 700; font-size: 50px; line-height: 56px; color: #a9c1f5; white-space: nowrap; opacity: 0; }
+
+      /* the ticket from the editor, in the screenshot's own pixels (1206-px-wide iOS screen, ticket 1106×528) */
+      .tk { position: absolute; left: 0; top: 0; width: 1106px; height: 528px; transform-origin: 0 0;
+        -webkit-mask: radial-gradient(circle 17px at 0 334px, transparent 16px, #000 17px) left / 51% 100% no-repeat,
+                      radial-gradient(circle 17px at 100% 334px, transparent 16px, #000 17px) right / 51% 100% no-repeat; }
+      .tk .body { position: absolute; left: 0; top: 0; width: 1106px; height: 334px; border-radius: 54px 54px 0 0; background: #fff; }
+      .tk .stub { position: absolute; left: 0; top: 334px; width: 1106px; height: 194px; border-radius: 0 0 54px 54px; background: #2957ac; color: #fff; }
+      .tk .perf { position: absolute; left: 30px; right: 30px; top: 333px; border-top: 3px dotted rgba(20, 20, 23, 0.35); }
+      .tk .title { position: absolute; left: 36px; top: 44px; font-family: "Sofia Sans Condensed", sans-serif; font-weight: 700; font-size: 64px; line-height: 68px; color: #141417; white-space: nowrap; }
+      .tk .host { position: absolute; left: 34px; top: 134px; display: flex; align-items: center; gap: 22px; font-size: 44px; color: #5e5e66; white-space: nowrap; }
+      .tk .ava { width: 62px; height: 62px; border-radius: 50%; background: #ededf0; color: #5e5e66; display: flex; align-items: center; justify-content: center; font-size: 36px; font-weight: 600; }
+      .tk .place { position: absolute; left: 38px; top: 236px; display: flex; align-items: center; gap: 26px; font-size: 44px; color: #5e5e66; white-space: nowrap; }
+      .tk .genre { position: absolute; left: 36px; top: 30px; font-weight: 600; font-size: 34px; letter-spacing: 3px; }
+      .tk .time { position: absolute; left: 32px; top: 70px; font-family: "Sofia Sans Extra Condensed", sans-serif; font-weight: 800; font-size: 118px; line-height: 110px; font-variant-numeric: tabular-nums; }
+      .tk .day { position: absolute; right: 36px; top: 56px; font-weight: 600; font-size: 36px; letter-spacing: 3px; }
+      .tk .seats { position: absolute; right: 36px; top: 112px; display: flex; align-items: center; gap: 12px; font-weight: 600; font-size: 38px; }
+
+      /* the phone: 455-px screen (k = 455/1206), so the ticket lands at left 331.4, top 606 */
+      #phone { position: absolute; z-index: 2; left: 298px; top: 420px; width: 484px; height: 1018px; border-radius: 80px; background: #0a0a0c;
+        box-shadow: 0 0 0 2px #2b2a31, 0 50px 90px rgba(0, 0, 0, 0.6); }
+      #phone .screen { position: absolute; left: 14.5px; top: 14px; width: 455px; height: 989.2px; border-radius: 66px; overflow: hidden; background: #0f0f13; }
+      #phone .screen img { display: block; width: 455px; height: 989.2px; }
+      #tap { position: absolute; z-index: 4; left: 0; top: 0; width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%; border: 4px solid rgba(243, 243, 240, 0.9); opacity: 0; }
+
+      #cap { position: absolute; left: 100px; top: 252px; width: 840px; height: 150px; }
+      .cap { position: absolute; left: 0; top: 0; font-family: "Sofia Sans Condensed", sans-serif; font-weight: 800; font-size: 66px; line-height: 70px; white-space: nowrap; opacity: 0; }
+      .cap span { display: block; }
+
+      /* end card (END-CARD.md grid): the brand ticket body carries the icon and «Поряд», its paper stub the slogan */
+      #brand { position: absolute; left: 160px; top: 520px; width: 760px; height: 510px;
+        -webkit-mask: radial-gradient(circle 19px at 0 385px, transparent 18px, #000 19px) left / 51% 100% no-repeat,
+                      radial-gradient(circle 19px at 100% 385px, transparent 18px, #000 19px) right / 51% 100% no-repeat; }
+      #brand .body { position: absolute; left: 0; top: 0; width: 760px; height: 385px; border-radius: 36px 36px 0 0; background: #1c1b21; box-shadow: inset 0 0 0 2px #2e2d35; }
+      #brand .icon { position: absolute; left: 292px; top: 40px; width: 176px; height: 176px; border-radius: 40px; }
+      #brand .name { position: absolute; left: 0; top: 248px; width: 760px; text-align: center; font-family: "Sofia Sans Condensed", sans-serif; font-weight: 800; font-size: 128px; line-height: 128px; letter-spacing: -1px; color: #ff8a5b; }
+      #brand .stub { position: absolute; left: 0; top: 385px; width: 760px; height: 125px; border-radius: 0 0 36px 36px; background: #f3f3f0; color: #141417;
+        display: flex; align-items: center; justify-content: center; font-family: "Sofia Sans Condensed", sans-serif; font-weight: 700; font-size: 44px; }
+      #brand .perf { position: absolute; left: 26px; right: 26px; top: 384px; border-top: 3px dotted rgba(243, 243, 240, 0.45); }
+
+      #bait { position: absolute; left: 160px; top: 296px; width: 760px; text-align: center; font-family: "Sofia Sans Condensed", sans-serif; font-weight: 700; font-size: 60px; line-height: 66px; opacity: 0; }
+      #free { position: absolute; left: 0; top: 1104px; width: 1080px; text-align: center; font-weight: 600; font-size: 34px; line-height: 40px; color: #a9c1f5; opacity: 0; }
+      #store { position: absolute; left: 0; top: 1176px; width: 1080px; display: flex; flex-direction: column; align-items: center; opacity: 0; }
+      #badges { display: flex; gap: 32px; }
+      /* official badges: untouched files, both 104 px tall, no transform/filter/shadow */
+      #badges img { display: block; height: 104px; width: auto; }
+      #store .tm { margin-top: 22px; text-align: center; font-weight: 400; font-size: 20px; line-height: 28px; color: #96959e; white-space: nowrap; }
+
+      #grain { position: absolute; inset: 0; pointer-events: none; opacity: 0.08; mix-blend-mode: overlay; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="14" data-fps="30" data-width="1080" data-height="1920">
+      <div id="wall"></div>
+      <div id="hook">
+        <span id="hook-a" class="big">у місті —</span>
+        <span id="hook-b" class="big">сотні подій.</span>
+        <span id="hook-c" class="big">а твоєї — нема.</span>
+      </div>
+
+      <div id="feed">
+        <div id="empty"><div class="plus">+</div><div class="lbl">Організувати подію</div><div class="stubline"></div></div>
+        <!-- the printed ticket: wrapper positioned at the slit, inner .tk scaled from screenshot pixels -->
+        <div id="tkw" style="position: absolute; left: 0; top: 0; width: 1px; height: 1px">
+          <div class="tk" id="tk" data-layout-ignore>
+            <div class="body">
+              <div class="title">Настолки після роботи</div>
+              <div class="host"><div class="ava">Т</div>Збирає Тарас</div>
+              <div class="place">
+                <svg width="40" height="48" viewBox="0 0 20 24" fill="none" stroke="#5e5e66" stroke-width="2"><path d="M10 22s7-6.6 7-12a7 7 0 1 0-14 0c0 5.4 7 12 7 12z" /><circle cx="10" cy="10" r="2.6" /></svg>
+                Дерибасівська вулиця
+              </div>
+            </div>
+            <div class="stub">
+              <div class="genre">ІГРИ</div>
+              <div class="time">19:00</div>
+              <div class="day">У ПʼЯТНИЦЮ</div>
+              <div class="seats" id="seats">
+                <svg width="40" height="34" viewBox="0 0 24 20" fill="none" stroke="#fff" stroke-width="2"><circle cx="9" cy="6" r="3.5" /><path d="M2 18c0-3.6 3.1-6 7-6s7 2.4 7 6" /><path d="M16 2.8a3.5 3.5 0 0 1 0 6.4M19 12.5c1.8.9 3 2.6 3 5.5" /></svg>
+                0/6
+              </div>
+            </div>
+            <div class="perf"></div>
+          </div>
+        </div>
+        <div id="brand" data-layout-allow-overflow>
+          <div class="body"><img class="icon" src="assets/icon.png" alt="" /><div class="name">Поряд</div></div>
+          <div class="stub">Є куди. Буде з ким.</div>
+          <div class="perf"></div>
+        </div>
+      </div>
+      <div id="printer"><div class="slit"></div><div class="grill"></div><div class="led"></div></div>
+
+      <div id="head" class="cond">тоді друкуєш свою.</div>
+      <div id="steps">
+        <div class="step" id="st1">Що плануєте?</div>
+        <div class="step" id="st2">Де зустрічаємось?</div>
+        <div class="step" id="st3">Коли?</div>
+        <div class="step" id="st4">Хто може прийти?</div>
+      </div>
+
+      <div id="phone">
+        <div class="screen"><img src="assets/ui/create.png" alt="Редактор події, крок 4 з 4" /></div>
+      </div>
+      <div id="tap"></div>
+
+      <div id="cap">
+        <div class="cap" id="cap1"><span>квиток збирається,</span><span>поки заповнюєш</span></div>
+        <div class="cap" id="cap2"><span>публікуєш —</span><span>і до тебе можуть долучитися</span></div>
+      </div>
+
+      <div id="bait">що надрукуєш першим? 👇</div>
+      <div id="free">безкоштовно</div>
+      <div id="store">
+        <div id="badges">
+          <img src="assets/appstore-badge-uk.svg" alt="Завантажте в App Store" />
+          <img src="assets/googleplay-badge-uk.svg" alt="Завантажте з Google Play" />
+        </div>
+        <div class="tm">
+          <div>Apple, логотип Apple і App Store є торговельними марками Apple Inc.</div>
+          <div>Google Play і логотип Google Play є торговельними марками Google LLC.</div>
+        </div>
+      </div>
+
+      <svg id="grain" width="1080" height="1920" aria-hidden="true">
+        <filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7" /><feColorMatrix type="saturate" values="0" /></filter>
+        <rect width="1080" height="1920" filter="url(#noise)" />
+      </svg>
+
+      <!-- Audio. music: calm.m4a from 5.0 s, so its lift (8.0 s in the track) lands as the first line prints (3.0) -->
+      <audio id="music" src="assets/audio/music.m4a" data-start="0" data-media-start="5" data-duration="14" data-track-index="10" data-automation="{&quot;version&quot;:1,&quot;lanes&quot;:[{&quot;target&quot;:&quot;volume&quot;,&quot;points&quot;:[{&quot;t&quot;:0,&quot;v&quot;:0.9},{&quot;t&quot;:3.3,&quot;v&quot;:0.9},{&quot;t&quot;:3.5,&quot;v&quot;:0.62},{&quot;t&quot;:6.9,&quot;v&quot;:0.62},{&quot;t&quot;:7.3,&quot;v&quot;:0.8},{&quot;t&quot;:10.9,&quot;v&quot;:0.8},{&quot;t&quot;:11.1,&quot;v&quot;:0.62},{&quot;t&quot;:12.1,&quot;v&quot;:0.62},{&quot;t&quot;:12.4,&quot;v&quot;:0.8},{&quot;t&quot;:13.3,&quot;v&quot;:0.8},{&quot;t&quot;:14,&quot;v&quot;:0}]}]}"></audio>
+      <!-- hook: one dry tick per printed line -->
+      <audio id="sfx-line-1" src="assets/audio/ui_tick.wav" data-start="0.1" data-duration="0.1" data-track-index="11" data-volume="0.3"></audio>
+      <audio id="sfx-line-2" src="assets/audio/ui_tick.wav" data-start="0.45" data-duration="0.1" data-track-index="11" data-volume="0.3"></audio>
+      <audio id="sfx-line-3" src="assets/audio/ui_tick.wav" data-start="1.4" data-duration="0.1" data-track-index="11" data-volume="0.34"></audio>
+      <!-- the empty ticket is fed into the slit, then the printer runs twice and cuts -->
+      <audio id="sfx-in" src="assets/audio/whoosh.wav" data-start="2.85" data-duration="0.27" data-track-index="12" data-volume="0.24"></audio>
+      <audio id="sfx-head" src="assets/audio/ui_tick.wav" data-start="3.0" data-duration="0.1" data-track-index="11" data-volume="0.3"></audio>
+      <audio id="sfx-print-1" src="assets/audio/printer.wav" data-start="3.3" data-media-start="0.02" data-duration="1.6" data-track-index="13" data-volume="0.55"></audio>
+      <audio id="sfx-print-2" src="assets/audio/printer.wav" data-start="5.0" data-media-start="0.3" data-duration="1.6" data-track-index="14" data-volume="0.55"></audio>
+      <audio id="sfx-cut-1" src="assets/audio/printer.wav" data-start="6.82" data-media-start="1.63" data-duration="0.45" data-track-index="13" data-volume="0.6"></audio>
+      <!-- the ticket flies into the phone, the tap -->
+      <audio id="sfx-fly" src="assets/audio/whoosh.wav" data-start="7.6" data-duration="0.27" data-track-index="12" data-volume="0.3"></audio>
+      <audio id="sfx-land" src="assets/audio/stamp.wav" data-start="8.18" data-duration="0.4" data-track-index="15" data-volume="0.22"></audio>
+      <audio id="sfx-tap" src="assets/audio/ui_tick.wav" data-start="9.05" data-duration="0.1" data-track-index="11" data-volume="0.45"></audio>
+      <!-- the brand ticket prints and is cut -->
+      <audio id="sfx-out" src="assets/audio/whoosh.wav" data-start="10.45" data-duration="0.27" data-track-index="12" data-volume="0.22"></audio>
+      <audio id="sfx-print-3" src="assets/audio/printer.wav" data-start="10.95" data-media-start="0.6" data-duration="0.95" data-track-index="13" data-volume="0.55"></audio>
+      <audio id="sfx-cut-2" src="assets/audio/printer.wav" data-start="11.92" data-media-start="1.63" data-duration="0.45" data-track-index="14" data-volume="0.6"></audio>
+      <audio id="sfx-bait" src="assets/audio/ui_tick.wav" data-start="12.45" data-duration="0.1" data-track-index="11" data-volume="0.3"></audio>
+    </div>
+
+    <script>
+      (function () {
+        // ---- the wall: other people's tickets, deterministic (LCG), genre stub colours from DESIGN.md (cat-*-stub)
+        var STUBS = ["#6041B1", "#AC345E", "#8D6A11", "#1B7979", "#B15D1A", "#0D7065", "#2957AC", "#813794", "#A24C29", "#376E33"];
+        var TIMES = ["19:00", "20:30", "18:00", "21:00", "19:30", "17:00", "12:00", "20:00", "18:30", "16:00"];
+        var seed = 11;
+        function rnd() { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; }
+        var wall = document.getElementById("wall");
+        var ROWS = [790, 900, 1010, 1120, 1230, 1340];
+        ROWS.forEach(function (y, r) {
+          var row = document.createElement("div");
+          row.className = "row"; row.id = "row" + r; row.style.top = y + "px";
+          for (var i = 0; i < 6; i++) {
+            var m = document.createElement("div"); m.className = "mini";
+            var bar = document.createElement("i"); bar.style.width = Math.round(70 + rnd() * 50) + "px";
+            var s = document.createElement("s"); s.style.background = STUBS[Math.floor(rnd() * STUBS.length)];
+            s.textContent = TIMES[Math.floor(rnd() * TIMES.length)];
+            m.appendChild(bar); m.appendChild(document.createElement("b")); m.appendChild(s); row.appendChild(m);
+          }
+          wall.appendChild(row);
+        });
+
+        var tl = gsap.timeline({ paused: true });
+        var PRINT = "steps(9)";
+        function printIn(sel, at, dur) {
+          tl.fromTo(sel, { clipPath: "inset(0% 0% 100% 0%)", opacity: 1 }, { clipPath: "inset(0% 0% 0% 0%)", duration: dur || 0.32, ease: PRINT }, at);
+        }
+
+        // ---- hook 0–3.0: the wall drifts in, two printed lines, then the wall dims to the empty ticket
+        ROWS.forEach(function (_, r) {
+          var dir = r % 2 ? 1 : -1;
+          tl.fromTo("#row" + r, { x: dir * 40 }, { x: -dir * 50, duration: 3.0, ease: "none" }, 0);
+          tl.fromTo("#row" + r, { opacity: 0 }, { opacity: 0.7, duration: 0.5, ease: "power1.out" }, 0.05 + r * 0.06);
+          tl.to("#row" + r, { opacity: 0.16, duration: 0.5, ease: "power2.out" }, 1.4);
+          tl.to("#row" + r, { opacity: 0, duration: 0.35, ease: "power1.in" }, 2.55);
+        });
+        printIn("#hook-a", 0.1);
+        printIn("#hook-b", 0.45);
+        printIn("#hook-c", 1.4);
+        tl.fromTo("#empty", { opacity: 0, scale: 0.94 }, { opacity: 1, scale: 1, duration: 0.5, ease: "power3.out" }, 1.6);
+        tl.to("#hook", { opacity: 0, y: -30, duration: 0.3, ease: "power2.in" }, 2.7);
+
+        // ---- 2.6–3.3: the printer rises; the empty ticket is fed into the slit
+        tl.fromTo("#printer", { y: 760 }, { y: 0, duration: 0.45, ease: "power3.out" }, 2.55);
+        tl.to("#empty", { y: 380, duration: 0.42, ease: "power2.in" }, 2.88);
+        tl.set("#empty", { opacity: 0 }, 3.35);
+        printIn("#head", 3.0);
+
+        // ---- 3.3–6.9: the filled ticket comes up out of the slit, field by field (screen-pixel ticket scaled 0.74)
+        var S = 0.74, TKH = 528 * S, TKX = (1080 - 1106 * S) / 2, SLIT = 1200;
+        gsap.set("#tk", { scale: S });
+        tl.set("#tkw", { x: TKX, y: SLIT }, 0);
+        function feedTo(px, at, dur) { tl.to("#tkw", { y: SLIT - px * S, duration: dur, ease: "power1.inOut" }, at); }
+        function step(id, at, until) {
+          tl.fromTo(id, { opacity: 0, clipPath: "inset(0% 0% 100% 0%)" }, { opacity: 1, clipPath: "inset(0% 0% 0% 0%)", duration: 0.24, ease: "steps(6)" }, at);
+          if (until) tl.to(id, { opacity: 0, duration: 0.14, ease: "power1.in" }, until);
+        }
+        step("#st1", 3.3, 4.1);
+        feedTo(124, 3.32, 0.75);   // title
+        step("#st2", 4.15, 4.95);
+        feedTo(316, 4.18, 0.75);   // host + place
+        step("#st3", 5.0, 5.98);
+        feedTo(500, 5.02, 0.95);   // perforation + stub with 19:00
+        step("#st4", 6.03);
+        feedTo(528, 6.05, 0.5);    // the rest of the stub
+        tl.fromTo("#seats", { opacity: 0 }, { opacity: 1, duration: 0.2, ease: "steps(4)" }, 6.1);
+        tl.to("#printer .led", { opacity: 0.25, duration: 0.06, yoyo: true, repeat: 3, ease: "none" }, 6.82);
+        tl.to("#tkw", { y: "-=6", duration: 0.12, ease: "power2.out" }, 6.86);   // the knife cuts it free
+
+        // ---- 7.0–8.45: printer away, the ticket flies onto the live ticket of the editor and dissolves into it
+        tl.to(["#head", "#st4"], { opacity: 0, duration: 0.22, ease: "power1.in" }, 7.0);
+        tl.to("#printer", { y: 820, duration: 0.5, ease: "power3.in" }, 7.05);
+        tl.set("#feed", { height: 1920, zIndex: 3 }, 7.05);   // the flying ticket passes over the phone
+        tl.fromTo("#phone", { y: 1500 }, { y: 0, duration: 0.75, ease: "power3.out" }, 7.2);
+        var K = 455 / 1206, LX = 298 + 14.5 + 50 * K, LY = 420 + 14 + 456 * K;
+        tl.to("#tkw", { x: LX, y: LY, duration: 0.85, ease: "power3.inOut" }, 7.45);
+        tl.to("#tk", { scale: K, duration: 0.85, ease: "power3.inOut" }, 7.45);
+        tl.fromTo("#tk", { rotation: 0 }, { rotation: -3, duration: 0.42, ease: "power2.out", yoyo: true, repeat: 1 }, 7.45);
+        tl.to("#tk", { opacity: 0, duration: 0.32, ease: "power1.inOut" }, 8.22);
+
+        // ---- captions above the phone (each held ≥ 1.4 s), the tap on «Опублікувати»
+        tl.fromTo("#cap1", { opacity: 0, clipPath: "inset(0% 0% 100% 0%)" }, { opacity: 1, clipPath: "inset(0% 0% 0% 0%)", duration: 0.32, ease: PRINT }, 7.55);
+        tl.to("#cap1", { opacity: 0, duration: 0.18, ease: "power1.in" }, 9.05);
+        tl.fromTo("#cap2", { opacity: 0, clipPath: "inset(0% 0% 100% 0%)" }, { opacity: 1, clipPath: "inset(0% 0% 0% 0%)", duration: 0.32, ease: PRINT }, 9.22);
+        tl.to("#cap2", { opacity: 0, duration: 0.2, ease: "power1.in" }, 10.55);
+        var BX = 298 + 14.5 + 889 * K, BY = 420 + 14 + 2393 * K;
+        tl.set("#tap", { x: BX, y: BY }, 0);
+        tl.fromTo("#tap", { scale: 0.35, opacity: 0 }, { scale: 0.75, opacity: 1, duration: 0.12, ease: "power2.out" }, 8.95);
+        tl.to("#tap", { scale: 1.6, opacity: 0, duration: 0.45, ease: "power2.out" }, 9.07);
+        tl.to("#phone", { scale: 0.985, duration: 0.08, ease: "power1.out", yoyo: true, repeat: 1 }, 9.04);
+
+        // ---- 10.45–12.35: the phone goes, the printer comes back and prints the brand ticket; the knife; the printer leaves
+        tl.to("#phone", { y: 1550, duration: 0.55, ease: "power3.in" }, 10.45);
+        var BSLIT = 1030;
+        tl.set("#feed", { height: BSLIT, zIndex: 0 }, 10.9);
+        tl.set("#brand", { y: BSLIT - 520, opacity: 0 }, 0);
+        tl.set("#brand", { opacity: 1 }, 10.9);
+        tl.fromTo("#printer", { y: 820 }, { y: BSLIT - 1200, duration: 0.45, ease: "power3.out", immediateRender: false }, 10.5);
+        tl.to("#brand", { y: 0, duration: 0.95, ease: "power1.inOut" }, 10.95);
+        tl.to("#printer .led", { opacity: 0.25, duration: 0.06, yoyo: true, repeat: 3, ease: "none" }, 11.92);
+        tl.set("#feed", { height: 1920 }, 12.0);
+        tl.to("#printer", { y: 820, duration: 0.42, ease: "power3.in" }, 12.0);
+        tl.fromTo("#brand", { rotation: 0 }, { rotation: -1.2, duration: 0.18, ease: "power2.out", yoyo: true, repeat: 1 }, 11.95);
+
+        // ---- end card: «безкоштовно», the bait prints, both badges by one hard cut; static from 13.0
+        tl.fromTo("#free", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.35, ease: "power3.out" }, 12.3);
+        tl.fromTo("#bait", { opacity: 0, clipPath: "inset(0% 0% 100% 0%)" }, { opacity: 1, clipPath: "inset(0% 0% 0% 0%)", duration: 0.32, ease: PRINT }, 12.45);
+        tl.set("#store", { opacity: 1 }, 12.95);
+
+        window.__timelines["main"] = tl;
+      })();
+    </script>
+  </body>
+</html>

@@ -9,6 +9,8 @@
 | `a1-channels`, `a2-weekend-trip`, `a3-new-city` | три окремі фільми: «шум → сигнал», «нічний потяг», «місто в лініях» |
 | `c1-standup-chat` … `c4-anime-pov` | серія «Шукаю компанію» в одному стилі |
 | `poriad-10s-9x16` | 10-секундне промо |
+| `k1-print`, `k2-stamps`, `k3-receipt` | серія «Корінець» у новому дизайні: друкарня, штампи, касова стрічка |
+| `_material/korinets` | для серії «Корінець»: шрифти Sofia Sans і звуки принтера, штампів і розриву (CC0); скріни prod 1.3.0 з розмитими обличчями — в `assets/ui` проєктів |
 | `_material/library` | бренд-матеріали: музика (`calm`, `brand`, `zoomer`), звуки, шрифти Inter/Unbounded, `icon.png`, офіційний бейдж `appstore-badge-uk.svg` |
 | `_material/ui-prod/blur` | скріни prod-збірки з розмитими обличчями (сирі — лише локально, у `.gitignore`) |
 | `_material/BUILD.md`, `BUILD-A.md` | технічні брифи серій C і A: координати тапів на скрінах, правила, що де |
