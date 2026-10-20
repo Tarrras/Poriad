@@ -64,8 +64,46 @@ class EventFacetsTest {
     @Test fun aWithdrawnListingSaysSoAndAButtonWithoutAnAddressIsNotOffered() {
         assertFalse(afisha.isWithdrawn)
         assertTrue(afisha.hasSource)
-        assertTrue(afisha.copy(status = ImportStatus.WITHDRAWN).isWithdrawn)
+        // Стан рахується при створенні: `copy(status = …)` його не перераховує, тож знята — новим рядком.
+        assertTrue(Listing("Karabas", status = ImportStatus.WITHDRAWN).isWithdrawn)
+        assertEquals(ListingState.UNKNOWN, Listing("Karabas", status = ImportStatus.WITHDRAWN).state)
         assertFalse(afisha.copy(canonicalUrl = null).hasSource)
         assertFalse(afisha.copy(canonicalUrl = " ").hasSource)
+    }
+
+    @Test fun listingStatesDriveTheStubAndTheTicketButton() {
+        val cancelled = base(listing = afisha.copy(state = ListingState.CANCELLED))
+        val postponed = base(listing = afisha.copy(state = ListingState.POSTPONED))
+        val unknown = base(listing = afisha.copy(state = ListingState.UNKNOWN))
+        val moved = afisha.copy(previousStartsAt = "2030-09-05T16:00:00Z")
+        assertTrue(cancelled.isCancelled && cancelled.isCalledOff)
+        assertTrue(!postponed.isCancelled && postponed.isCalledOff, "postponed greys the stub but is not cancelled")
+        assertTrue(!unknown.isCalledOff && unknown.listing!!.isWithdrawn, "not found: no alarm, no ticket button")
+        assertTrue(moved.isMoved && !moved.isWithdrawn, "moved is alive")
+        assertFalse(afisha.copy(state = ListingState.POSTPONED, previousStartsAt = "2030-09-05T16:00:00Z").isMoved)
+    }
+
+    @Test fun sellersPutThePrimaryFirstAndNameEveryLiveOne() {
+        // Сервер без фази 4: продавець — лише основний з полів події.
+        assertEquals(listOf(Offer("Karabas", afisha.canonicalUrl, afisha.priceMin, afisha.isFree, true)), afisha.sellers)
+        assertEquals("Karabas", afisha.sellerNames)
+        val many = afisha.copy(offers = listOf(
+            Offer("Concert.ua", "https://concert.ua/1", 400.0), Offer("Karabas", "https://karabas.com/1", 450.0),
+            Offer("Badseller", "https://badseller.net/1", 300.0, live = false), Offer("Без посилання", null)
+        ))
+        assertEquals("Concert.ua, Karabas, Без посилання", many.sellerNames, "badge names every live seller, not the withdrawn one")
+        assertEquals(listOf("Concert.ua", "Karabas", "Badseller"), many.sellers.map { it.sourceName }, "no link, no button")
+    }
+
+    @Test fun checkedLabelSaysTodayYesterdayOrTheDate() {
+        val zone = kotlinx.datetime.TimeZone.of("Europe/Kyiv")
+        val now = kotlin.time.Instant.parse("2030-09-06T12:00:00Z")
+        assertEquals(CheckedLabel(CheckedDay.TODAY, "09:00", "06.09"), CheckedLabel.of("2030-09-06T06:00:00Z", now, zone))
+        assertEquals(CheckedDay.YESTERDAY, CheckedLabel.of("2030-09-05T20:30:00Z", now, zone)?.day)
+        // 22:30 UTC 5-го — уже 6-те за Києвом.
+        assertEquals(CheckedDay.TODAY, CheckedLabel.of("2030-09-05T22:30:00Z", now, zone)?.day)
+        assertEquals(CheckedLabel(CheckedDay.EARLIER, "12:00", "01.09"), CheckedLabel.of("2030-09-01T09:00:00Z", now, zone))
+        assertNull(CheckedLabel.of(null, now, zone))
+        assertNull(CheckedLabel.of("вчора", now, zone))
     }
 }

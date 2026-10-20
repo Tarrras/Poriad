@@ -2,7 +2,10 @@ package app.poruch.domain
 
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Instant
+import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.minus
+import kotlinx.datetime.toLocalDateTime
 
 /**
  * Модель події, незалежна від UI. Час — ISO-8601 в UTC.
@@ -32,7 +35,11 @@ data class Event(
     /** Хто виступає, у серверному порядку. Порожньо, коли сервер артистів не знає (старий сервер, prod без даних). */
     val artists: List<Artist> = emptyList()
 ) : Rankable {
-    override val isCancelled get() = status == EventStatus.CANCELLED || status == EventStatus.HIDDEN
+    override val isCancelled get() = status == EventStatus.CANCELLED || status == EventStatus.HIDDEN ||
+        listing?.state == ListingState.CANCELLED
+
+    /** Не відбудеться на цей час: скасовано чи відкладено без нової дати. Корінець гасне сірим (`ticketStub`). */
+    val isCalledOff get() = isCancelled || listing?.state == ListingState.POSTPONED
 
     // ---- Прокат
 
@@ -222,14 +229,81 @@ data class Listing(
     /** Id у `public.places`: одна точка на мапі, той самий ключ, що в [MapPins]. */
     val placeId: String? = null,
     /** Назва закладу («Малевич»), коротша й певніша за початок адреси. */
-    val placeName: String? = null
+    val placeName: String? = null,
+    /** Стан з усіх продавців (docs/event-offers.md R4, R8). Сервер без фази 4 його не знає — тоді каже [status]. */
+    val state: ListingState = ListingState.of(status),
+    /** Стара дата перенесеної події: «~~пт 21.11~~ → нд 23.11». Лише при [ListingState.SCHEDULED]. */
+    val previousStartsAt: String? = null,
+    /** Коли адресна перевірка востаннє читала сторінки продавців: «Перевірено сьогодні о 09:00». */
+    val checkedAt: String? = null,
+    /** Продавці, основний першим. Порожньо — сервер без фази 4, тоді [sellers] бере основного з полів вище. */
+    val offers: List<Offer> = emptyList()
 ) {
-    /** Джерело зняло подію. Збережений запис лишається як позначка, не як план. */
-    val isWithdrawn get() = status == ImportStatus.WITHDRAWN
+    /**
+     * Не відбудеться на цей час або ніде не продають: скасовано, відкладено, не знайшли в продажу. Кнопки квитків нема,
+     * збережений запис лишається як позначка, не як план.
+     */
+    val isWithdrawn get() = state != ListingState.SCHEDULED
+
+    /** Перенесена: стан «в силі», а стара дата відома. */
+    val isMoved get() = state == ListingState.SCHEDULED && previousStartsAt != null
 
     /** Є посилання на джерело — можна показувати кнопку. */
     val hasSource get() = !canonicalUrl.isNullOrBlank()
+
+    /** Хто продає, основний першим. Без даних фази 4 — лише основний. Лише ті, куди є посилання. */
+    val sellers: List<Offer>
+        get() = offers.ifEmpty { listOf(Offer(sourceName, canonicalUrl, priceMin, isFree, live = !isWithdrawn)) }
+            .filter { !it.url.isNullOrBlank() }
+
+    /** Підпис афіші: «Concert.ua, Karabas» — усі живі продавці (питання 5, рішення 20.10), інакше основний. */
+    val sellerNames: String
+        get() = offers.filter { it.live }.map { it.sourceName }.distinct().ifEmpty { listOf(sourceName) }.joinToString(", ")
 }
+
+/** Пропозиція одного продавця (`public.event_offers`). [live] — продає зараз; знятою повертають квиток. */
+data class Offer(
+    val sourceName: String,
+    val url: String?,
+    val priceMin: Double? = null,
+    val isFree: Boolean? = null,
+    val live: Boolean = true
+)
+
+/** Стан афіші з усіх продавців, як його називає `event_result.state`. Розпродаж — не стан (рішення 20.10). */
+enum class ListingState(val key: String) {
+    SCHEDULED("scheduled"), CANCELLED("cancelled"), POSTPONED("postponed"),
+    /** Жоден продавець не продає, а сильних свідчень нема: «Не знайшли в продажу», без тривоги. */
+    UNKNOWN("unknown");
+
+    companion object {
+        /** Невідоме значення (сервер новіший) — null: тоді вирішує `import_status`. */
+        fun fromKey(key: String?): ListingState? = entries.firstOrNull { it.key == key }
+
+        /** Сервер без стану: знята — «не знайшли», інакше «в силі». */
+        fun of(status: ImportStatus) = if (status == ImportStatus.WITHDRAWN) UNKNOWN else SCHEDULED
+    }
+}
+
+/** «Перевірено сьогодні о 09:00» / «вчора о 21:00» / «18.10». [time] — «09:00», [date] — «18.10», у поясі телефона. */
+data class CheckedLabel(val day: CheckedDay, val time: String, val date: String) {
+    companion object {
+        fun of(checkedAt: String?, now: Instant, zone: TimeZone): CheckedLabel? {
+            val at = checkedAt?.let { runCatching { Instant.parse(it) }.getOrNull() } ?: return null
+            val local = at.toLocalDateTime(zone)
+            val today = now.toLocalDateTime(zone).date
+            val day = when (local.date) {
+                today -> CheckedDay.TODAY
+                today.minus(DatePeriod(days = 1)) -> CheckedDay.YESTERDAY
+                else -> CheckedDay.EARLIER
+            }
+            fun two(n: Int) = n.toString().padStart(2, '0')
+            return CheckedLabel(day, "${two(local.hour)}:${two(local.minute)}", "${two(local.dayOfMonth)}.${two(local.monthNumber)}")
+        }
+    }
+}
+
+enum class CheckedDay { TODAY, YESTERDAY, EARLIER }
 
 /**
  * Статус участі. Запит не тримає місце: поки організатор не відповів, це «нічого».

@@ -15,6 +15,8 @@ import app.poruch.domain.FollowKind
 import app.poruch.domain.Gathering
 import app.poruch.domain.ImportStatus
 import app.poruch.domain.Listing
+import app.poruch.domain.ListingState
+import app.poruch.domain.Offer
 import app.poruch.domain.Membership
 import app.poruch.domain.Place
 import app.poruch.domain.Curfew
@@ -70,7 +72,12 @@ internal data class EventDto(
     @SerialName("companion_of") val companionOf: String? = null,
     @SerialName("companion_of_title") val companionOfTitle: String? = null,
     // Міграція 20261002120000. `jsonb_strip_nulls` прибирає поле, коли артистів нема, а старий сервер його не знає.
-    val artists: List<ArtistDto> = emptyList()
+    val artists: List<ArtistDto> = emptyList(),
+    // Лише афіша, міграція 20261026120000 (docs/event-offers.md, фаза 4). Старий сервер і кеш їх не несуть.
+    val state: String? = null,
+    @SerialName("previous_starts_at") val previousStartsAt: String? = null,
+    @SerialName("checked_at") val checkedAt: String? = null,
+    val offers: List<OfferDto> = emptyList()
 ) {
     fun domain() = Event(
         id = id, title = title, description = description, category = EventCategory.fromKey(category),
@@ -108,16 +115,34 @@ internal data class EventDto(
      */
     private fun listing(): Listing? {
         if (EventOrigin.fromKey(origin) == EventOrigin.COMMUNITY) return null
+        val status = ImportStatus.fromKey(importStatus)
+        val state = ListingState.fromKey(state) ?: ListingState.of(status)
         return Listing(
             sourceName = sourceName?.takeIf { it.isNotBlank() } ?: organizerName,
             canonicalUrl = canonicalUrl,
             priceMin = priceMin,
             isFree = isFree,
-            status = ImportStatus.fromKey(importStatus),
+            status = status,
             placeId = placeId,
-            placeName = placeName
+            placeName = placeName,
+            state = state,
+            previousStartsAt = previousStartsAt.takeIf { state == ListingState.SCHEDULED },
+            checkedAt = checkedAt,
+            offers = offers.mapNotNull { it.domain() }
         )
     }
+}
+
+/** Продавець з `offers`. Без назви — не показуємо: атрибуція обов'язкова (§8). */
+@Serializable
+internal data class OfferDto(
+    val source: String? = null,
+    val url: String? = null,
+    @SerialName("price_min") val priceMin: Double? = null,
+    @SerialName("is_free") val isFree: Boolean? = null,
+    val live: Boolean = true
+) {
+    fun domain() = source?.takeIf { it.isNotBlank() }?.let { Offer(it, url?.takeIf { u -> u.startsWith("https://") }, priceMin, isFree, live) }
 }
 
 /** Відповідь `event_safety`. */
