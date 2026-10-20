@@ -2,11 +2,12 @@
 
 Стадії з docs/event-ingestion.md, стиснуті до тих, що справді потрібні для джерел рівня B:
     S1 fetch -> S2 extract -> S3 normalize -> S4 venue -> S6 score -> S7 emit
-S0 discover читає listing_urls і, за потреби, картки подій. S5 dedupe обирає
-канонічні сеанси до SQL; SQL прибирає відомі дублікати лише після вставки заміни.
+S0 discover читає listing_urls і, за потреби, картки подій. S5 dedupe групує копії одного сеансу:
+у базі група — одна подія з пропозицією кожного продавця (docs/event-offers.md).
 """
 from __future__ import annotations
 
+import collections
 import dataclasses
 import datetime as dt
 import json
@@ -81,6 +82,9 @@ class Item:
     artists: list = dataclasses.field(default_factory=list)
     text: str = ""                # опис без обрізання до 200: джерело для щабля 4 артистів, у базу не йде
     llm_pending: bool = False     # модель мала відповісти про артистів, але не відповіла (збій транспорту)
+    members: list = dataclasses.field(default_factory=list)   # (джерело, uid) копій, якщо це переможець групи
+    linked: str = "rule"          # як копію зведено з переможцем: rule чи agent (event_offers.linked)
+    single_session: bool = False  # на сторінці продавця в цьому обході один сеанс: перенос часу — той самий сеанс
 
     @property
     def dedupe_key(self) -> str | None:
@@ -149,6 +153,10 @@ def harvest(source: Source, city: str, index: VenueIndex,
         items, withdrawals = apply_status_notices(items, status_notices, city=city)
         counters["withdrawals"].extend(withdrawals)
     items = _merge_occurrences(items, source, counters)
+    # Тихий перенос (R1): сторінка з одним сеансом показує інший час — це та сама пропозиція (emit._adopt_silent_moves).
+    pages = collections.Counter(i.canonical_url for i in items)
+    for item in items:
+        item.single_session = pages[item.canonical_url] == 1
     _score(items, source, counters)
     _fold_same_source_copies(items, counters)
     return items, counters
@@ -680,7 +688,7 @@ def _fold_same_source_copies(items: list[Item], counters: dict) -> None:
     Та сама хвилина, до `SAME_PLACE_METRES`, назва однієї вкладена в іншу (`_nested_titles`):
     «Bridal Forum» і «Bridal Forum. Offline», «ХХ Сімейна хроніка» кирилицею й латиницею. Різні
     вистави сусідніх залів у ту саму хвилину спільних слів не мають і не зливаються. Зайва копія
-    стає `duplicate` з посиланням на переможця, і `emit.duplicates_sql` зніме її рядок у базі.
+    стає `duplicate` з посиланням на переможця, і `emit.duplicates_sql` запише її пропозицією його події.
     """
     by_start: dict = {}
     for item in items:
@@ -1046,7 +1054,7 @@ def undecided_pairs(items: list[Item]) -> list[tuple[Item, Item]]:
 
 
 def drop_cross_source_duplicates(items: list[Item], weights: dict[str, float],
-                                 agent=None) -> list[Item]:
+                                 agent=None, linked: dict | None = None) -> list[Item]:
     """Лишає канонічну копію — з джерела з вищою вагою — і прибирає решту.
 
     Канонічність за вагою джерела, а не за порядком обходу: інакше результат залежав би від того,
@@ -1055,6 +1063,9 @@ def drop_cross_source_duplicates(items: list[Item], weights: dict[str, float],
     `agent` необовʼязковий. Якщо він є, після звичайного проходу в нього питають про пари, яких
     правило за словами не бере, — і тільки про них. Питати про решту немає сенсу: там відповідь
     уже відома й дешева.
+
+    `linked` — «джерело|uid» → подія з бази (`apply_sql.py run --links`): пару, чиї пропозиції вже в одній
+    події, зводимо без агента (R1: рішення агента зберігаються, вдруге не питаємо).
     """
     published = sorted((i for i in items if i.stage == "published"),
                        key=lambda i: (-weights.get(i.source_slug, 0), -i.quality,
@@ -1075,9 +1086,13 @@ def drop_cross_source_duplicates(items: list[Item], weights: dict[str, float],
             for field in ("latitude", "longitude", "venue_ref", "venue_how", "venue_display", "geo_confidence"):
                 setattr(winner, field, getattr(candidate, field))
 
-    if agent is not None:
+    if agent is not None or linked:
         pairs = undecided_pairs(items)
-        for (a, b), same in zip(pairs, agent.judge_pairs(pairs)):
+        event = lambda i: (linked or {}).get(f"{i.source_slug}|{i.source_uid}")
+        known = [event(a) is not None and event(a) == event(b) for a, b in pairs]
+        asked = [p for p, k in zip(pairs, known) if not k]
+        answers = iter(agent.judge_pairs(asked) if agent is not None else [False] * len(asked))
+        for (a, b), same in zip(pairs, (True if k else next(answers) for k in known)):
             if not same or a.stage != "published" or b.stage != "published":
                 continue
             # Переможець за правилом (вага джерела, якість), а не за моделлю: та лише каже, чи це одна подія.
@@ -1086,6 +1101,7 @@ def drop_cross_source_duplicates(items: list[Item], weights: dict[str, float],
             drop.stage = "duplicate"
             drop.duplicate_of = (keep.source_slug, keep.source_uid)
             drop.reject_reason = f"DUPLICATE_OF {keep.source_slug} (agent)"
+            drop.linked = "agent"
             _absorb(keep, drop)
     _resolve_duplicate_roots(items)
     return items
@@ -1114,10 +1130,13 @@ def _absorb(winner: Item, loser: Item) -> None:
 
 
 def _resolve_duplicate_roots(items: list[Item]) -> None:
-    """Дубль дубля посилається на кінцевого переможця: `emit.duplicates_sql` знімає старий рядок копії,
-    лише коли переможець записаний цим прогоном, а проміжний переможець — сам дубль і не записаний
-    (агент зливає вже зведену пару; переможець згортання одного продавця програє іншому джерелу)."""
+    """Дубль дубля посилається на кінцевого переможця: пропозиція копії йде в подію переможця, а проміжний
+    переможець — сам дубль і своєї події не має (агент зливає вже зведену пару; переможець згортання одного
+    продавця програє іншому джерелу). Переможець знає свої копії (`members`): якщо його пропозиції в базі ще
+    нема, група йде в подію, де вже є пропозиція копії (липка ідентичність, R1)."""
     by_key = {(i.source_slug, i.source_uid): i for i in items}
+    for item in items:
+        item.members = []
     for item in items:
         if item.stage != "duplicate" or not item.duplicate_of:
             continue
@@ -1127,3 +1146,4 @@ def _resolve_duplicate_roots(items: list[Item]) -> None:
             root = by_key.get(tuple(root.duplicate_of))
         if root is not None and root.stage == "published":
             item.duplicate_of = (root.source_slug, root.source_uid)
+            root.members.append((item.source_slug, item.source_uid))

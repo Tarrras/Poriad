@@ -3,6 +3,10 @@
 Нові джерела реєструються перед імпортом. source_id береться за slug, organizer_id
 може бути null для імпортованих подій (міграція 20260907130000). Сеанси мають
 окремі source_uid; перехід зі старих URL-ключів зберігає ID записів у базі.
+
+Ключ імпорту (джерело, source_uid) — у `public.event_offers` (20261021120000, docs/event-offers.md): подія одна,
+пропозицій продавців кілька. Подію й пропозиції пише функція бази `private.ingest_offers`; зняття, усиновлення
+нових ключів і артисти — теж на рівні пропозиції.
 """
 from __future__ import annotations
 
@@ -142,65 +146,36 @@ _PLACE_RANK = {"alias": 3, "exact": 2, "contains": 2}
 
 
 def _insert(publishable: list[Item], run_id: str, replace_llm: bool = False) -> str:
-    rows: list[str] = []
-    for it in publishable:
-        rows.append("  (" + ",".join([
-            _lit(str(it.event_id)), _lit(it.source_slug),
-            _lit(it.title), _lit(it.description), _lit(it.category),
-            _lit(it.city), _lit(it.address),
-            repr(it.latitude), repr(it.longitude),
-            _lit(it.starts_at.isoformat()), _lit(it.ends_at.isoformat()),
-            _lit(it.time_zone), _lit(it.image_url),
-            _lit(it.source_uid), _lit(it.canonical_url), _lit(it.dedupe_key),
-            repr(it.quality),
-            _lit(it.price_min) if it.price_min is not None else "null",
-            _lit(it.is_free)]) + ")")
+    """Переможці груп: нові ключі наявних пропозицій, місця, пропозиції й події (`private.ingest_offers`), артисти.
 
-    # Рядки через `select … join event_sources`: вимкнене джерело (opt-out, `enabled=false`) не
-    # вставляється й не оновлюється. Типи явно: у `values` без цільової таблиці літерали — текст.
-    # Ручне зняття (`withdrawn` з `ingest_run_id is null`, див. docs/event-ingestion.md) upsert
-    # не скасовує; автоматичні зняття несуть run_id, і повернута в афішу подія знову `live`.
-    return ("".join(_adopt_identity(it) for it in publishable) + _adopt_moved_urls(publishable) +
-        places_sql(publishable) +
-        "insert into public.events (\n"
-        "  id,organizer_id,title,description,category,city,address,latitude,longitude,place_id,\n"
-        "  starts_at,ends_at,time_zone,capacity,image_url,\n"
-        "  origin,source_id,source_uid,canonical_url,dedupe_key,quality,import_status,\n"
-        "  price_min,is_free,ingest_run_id)\n"
-        # Обчислений id може вже належати іншому рядку: перенесений сеанс лишає старий id (`_adopt_identity`),
-        # а його колишній ключ джерело може віддати знову. Тоді новий рядок отримує випадковий id, інакше
-        # `events_pkey` відкотив би весь дамп — і так щодня, поки дані не зміняться.
-        "select case when exists (select 1 from public.events x where x.id = v.id::uuid\n"
-        "    and (x.source_id is distinct from s.id or x.source_uid is distinct from v.source_uid))\n"
-        "  then gen_random_uuid() else v.id::uuid end,\n"
-        "  s.organizer_id, v.title, v.description, v.category, v.city, v.address,\n"
-        "  v.latitude::float8, v.longitude::float8,\n"
-        "  (select p.id from public.places p where p.latitude=v.latitude::float8 and p.longitude=v.longitude::float8),\n"
-        "  v.starts_at::timestamptz, v.ends_at::timestamptz,\n"
-        "  v.time_zone,\n"
-        "  null,                       -- місткості в афіші немає — і колонка може це сказати\n"
-        "                              -- (20260907150000): вигадана одиниця малювала «Лишилось 1 місце».\n"
-        "  v.image_url, 'import', s.id, v.source_uid, v.canonical_url, v.dedupe_key,\n"
-        f"  v.quality::numeric, 'live', v.price_min::numeric, v.is_free::boolean, {_lit(run_id)}::uuid\n"
-        "from (values\n"
-        + ",\n".join(rows)
-        + "\n) v(id,slug,title,description,category,city,address,latitude,longitude,starts_at,ends_at,\n"
-          "     time_zone,image_url,source_uid,canonical_url,dedupe_key,quality,price_min,is_free)\n"
-          "join public.event_sources s on s.slug=v.slug\n"
-          "where s.enabled\n"
-          "on conflict (source_id,source_uid) where source_id is not null do update set\n"
-          "  title=excluded.title, description=excluded.description, category=excluded.category,\n"
-          "  city=excluded.city, address=excluded.address,\n"
-          "  latitude=excluded.latitude, longitude=excluded.longitude, place_id=excluded.place_id,\n"
-          "  starts_at=excluded.starts_at, ends_at=excluded.ends_at, time_zone=excluded.time_zone,\n"
-          "  image_url=excluded.image_url, canonical_url=excluded.canonical_url,\n"
-          "  dedupe_key=excluded.dedupe_key, quality=excluded.quality,\n"
-          "  import_status=case when events.import_status='withdrawn' and events.ingest_run_id is null\n"
-          "                     then 'withdrawn' else 'live' end,\n"
-          "  price_min=excluded.price_min, is_free=excluded.is_free,\n"
-          "  ingest_run_id=case when events.import_status='withdrawn' and events.ingest_run_id is null\n"
-          "                     then null else excluded.ingest_run_id end,\n"
-          "  updated_at=now();\n" + artists_sql(publishable, replace_llm))
+    Вимкнене джерело (opt-out, `enabled=false`) функція не пише, ручне зняття пропозиції (`withdrawn` з
+    `ingest_run_id is null`, docs/event-ingestion.md) upsert не скасовує; автоматичні зняття несуть run_id, і
+    повернута в афішу пропозиція знову `live`."""
+    return (_adopt(publishable) + places_sql(publishable)
+            + _ingest_call(run_id, [_offer_row(it) for it in publishable])
+            + artists_sql(publishable, replace_llm))
+
+
+def _offer_row(it: Item, winner: tuple | None = None) -> dict:
+    """Рядок для `private.ingest_offers`. Копії (`winner`) досить ключа й своєї пропозиції: вміст події пише
+    переможець групи."""
+    row = {"slug": it.source_slug, "uid": it.source_uid, "url": it.canonical_url, "title": it.title,
+           "starts": it.starts_at.isoformat(), "price": it.price_min, "free": it.is_free}
+    if winner:
+        row.update(winner_slug=winner[0], winner_uid=winner[1], linked=it.linked)
+        return row
+    row.update(id=str(it.event_id), description=it.description, category=it.category, city=it.city,
+               address=it.address, lat=it.latitude, lon=it.longitude, ends=it.ends_at.isoformat(),
+               tz=it.time_zone, image=it.image_url, dedupe=it.dedupe_key, quality=it.quality,
+               members=[{"slug": slug, "uid": uid} for slug, uid in it.members] or None)
+    return row
+
+
+def _ingest_call(run_id: str, rows: list[dict]) -> str:
+    if not rows:
+        return ""
+    return (f"select private.ingest_offers({_lit(run_id)}::uuid,\n"
+            f"  {_lit(json.dumps(rows, ensure_ascii=False))}::jsonb);\n")
 
 
 # Звідки ім'я артиста: ручний словник > автоматика > модель. Як `place_source_rank` у БД.
@@ -214,9 +189,10 @@ def artists_sql(items: list[Item], replace_llm: bool = False) -> str:
     замінюється повністю, щоб зниклий з афіші виконавець не висів. Рядки моделі (`how='llm'`)
     чіпаємо лише в прогоні з моделлю: без неї вони б щоразу губились.
 
-    Подію шукаємо за (джерело, source_uid), а не за `event_id`: рядок, що пережив перенесення чи нове
-    посилання, лишає свій старий id (`_adopt_identity`), і зв'язок за обчисленим id тихо губився
-    (2026-10-08: 439 з 2621 подій prod без артистів, серед них МУР у Дніпрі).
+    Подію шукаємо за пропозицією (джерело, source_uid), а не за `event_id`: подія, що пережила перенесення чи
+    нове посилання, лишає свій старий id (`_adopt_identity`), і зв'язок за обчисленим id тихо губився
+    (2026-10-08: 439 з 2621 подій prod без артистів, серед них МУР у Дніпрі). Два переможці однієї події в
+    партії (рідко: пропозиції зведені раніше, а сьогодні правило їх не зводить) — один рядок на артиста.
     """
     if not items:
         return ""
@@ -245,11 +221,11 @@ def artists_sql(items: list[Item], replace_llm: bool = False) -> str:
                                            str(position), _lit(a.how), repr(round(a.confidence, 2))]) + ")")
     # Рядки моделі замінюємо лише там, де модель цього разу відповіла (чи відповідь є в кеші): збій
     # транспорту інакше стирав би знайдене минулими прогонами.
-    clear = ("delete from public.event_artists ea using public.events e, public.event_sources s, (values "
+    clear = ("delete from public.event_artists ea using public.event_offers o, public.event_sources s, (values "
              + ",".join(f"({_lit(it.source_slug)},{_lit(it.source_uid)},"
                         f"{_lit(replace_llm and not getattr(it, 'llm_pending', False))})" for it in items)
              + ") v(slug,uid,replace_llm)\n"
-             "where ea.event_id = e.id and e.source_id = s.id and s.slug = v.slug and e.source_uid = v.uid"
+             "where ea.event_id = o.event_id and o.source_id = s.id and s.slug = v.slug and o.source_uid = v.uid"
              " and (ea.how <> 'llm' or v.replace_llm);\n")
     if not links:
         return clear
@@ -264,32 +240,36 @@ def artists_sql(items: list[Item], replace_llm: bool = False) -> str:
         "              then excluded.source else artists.source end,\n"
         "  kind=coalesce(excluded.kind, artists.kind), updated_at=now();\n"
         "insert into public.event_artists (event_id,artist_id,role,position,how,confidence)\n"
-        "select e.id, a.id, v.role, v.position::smallint, v.how, v.confidence::numeric\n"
+        "select distinct on (o.event_id, a.id) o.event_id, a.id, v.role, v.position::smallint, v.how, v.confidence::numeric\n"
         "from (values\n" + ",\n".join(links) + "\n) v(slug,uid,key,role,position,how,confidence)\n"
         "join public.event_sources s on s.slug = v.slug\n"
-        "join public.events e on e.source_id = s.id and e.source_uid = v.uid\n"
+        "join public.event_offers o on o.source_id = s.id and o.source_uid = v.uid\n"
         "join public.artists a on a.key = v.key\n"
+        "order by o.event_id, a.id, v.position::smallint\n"
         "on conflict (event_id,artist_id) do update set\n"
         "  role=excluded.role, position=excluded.position, how=excluded.how, confidence=excluded.confidence;\n")
 
 
 def unwritable(it: Item, run_id: str) -> str | None:
     """Чому подію не можна записати, або None. Перевірка до дампу: одна погана подія інакше
-    валить або запис файлу (сурогат у UTF-8), або всю транзакцію (CHECK у events)."""
-    checks = [
-        (3 <= len(it.title.strip()) <= 120, "title"),
-        (len(it.description or "") <= 5000, "description"),
-        (1 <= len(it.city.strip()) <= 160, "city"),
-        (1 <= len((it.address or "").strip()) <= 300, "address"),
-        (it.canonical_url.startswith("https://") and len(it.canonical_url) <= 2048, "canonical_url"),
-        (it.image_url is None or (it.image_url.startswith("https://") and len(it.image_url) <= 2048),
-         "image_url"),
-    ]
+    валить або запис файлу (сурогат у UTF-8), або всю транзакцію (CHECK у events). Копія пише лише свою
+    пропозицію, тож її назва й адреса CHECK подій не проходять."""
+    copy = it.stage == "duplicate"
+    checks = [(it.canonical_url.startswith("https://") and len(it.canonical_url) <= 2048, "canonical_url")]
+    if not copy:
+        checks += [
+            (3 <= len(it.title.strip()) <= 120, "title"),
+            (len(it.description or "") <= 5000, "description"),
+            (1 <= len(it.city.strip()) <= 160, "city"),
+            (1 <= len((it.address or "").strip()) <= 300, "address"),
+            (it.image_url is None or (it.image_url.startswith("https://") and len(it.image_url) <= 2048),
+             "image_url"),
+        ]
     for ok, field in checks:
         if not ok:
             return field
     try:
-        _insert([it], run_id).encode("utf-8")
+        ("".join(duplicates_sql([it], run_id)) if copy else _insert([it], run_id)).encode("utf-8")
     except (UnicodeEncodeError, TypeError, ValueError, AttributeError) as exc:
         return f"{type(exc).__name__}: {exc}"[:200]
     return None
@@ -299,7 +279,7 @@ def drop_unwritable(items: list[Item], run_id: str) -> list[str]:
     """Незаписувані опубліковані події → черга перегляду. Повертає рядки для звіту."""
     bad = []
     for it in items:
-        if it.stage != "published":
+        if it.stage not in ("published", "duplicate"):
             continue
         why = unwritable(it, run_id)
         if why:
@@ -308,40 +288,47 @@ def drop_unwritable(items: list[Item], run_id: str) -> list[str]:
     return bad
 
 
+def _adopt(items: list[Item]) -> str:
+    """Нові ключі наявних пропозицій — до запису: інакше сеанс із новим ключем став би новою подією."""
+    return "".join(_adopt_identity(it) for it in items) + _adopt_moved_urls(items) + _adopt_silent_moves(items)
+
+
 def _adopt_identity(it: Item) -> str:
-    """Зберігає id подій у базі (і посилання збережених) при зміні UID."""
+    """Зберігає пропозицію (і подію з її збереженими) при зміні UID: старий URL-ключ і явний перенос Karabas."""
     old_uid = occurrence_uid(it.canonical_url, it.previous_start) if it.previous_start else it.canonical_url
     old_start = it.previous_start or it.starts_at
-    same_key = (
-        "update public.events e set source_uid=" + _lit(it.source_uid) + "\n"
-        # Лише ввімкнене джерело: вимкнене (opt-out) дамп не чіпає, як і в upsert.
-        f"where e.source_id=(select id from public.event_sources where slug={_lit(it.source_slug)} and enabled)\n"
-        f"  and e.source_uid in ({_lit(old_uid)},{_lit(it.canonical_url)})\n"
-        f"  and e.starts_at={_lit(old_start.isoformat())}::timestamptz\n"
-        "  and not exists (select 1 from public.events n where n.source_id=e.source_id\n"
+    return (
+        "update public.event_offers o set source_uid=" + _lit(it.source_uid) + ", updated_at=now()\n"
+        # Лише ввімкнене джерело: вимкнене (opt-out) дамп не чіпає, як і запис.
+        f"where o.source_id=(select id from public.event_sources where slug={_lit(it.source_slug)} and enabled)\n"
+        f"  and o.source_uid in ({_lit(old_uid)},{_lit(it.canonical_url)})\n"
+        f"  and o.starts_at={_lit(old_start.isoformat())}::timestamptz\n"
+        "  and not exists (select 1 from public.event_offers n where n.source_id=o.source_id\n"
         f"    and n.source_uid={_lit(it.source_uid)});\n")
-    return same_key
 
 
 def _title_key_sql(column: str) -> str:
-    """Назва для зіставлення переїздів у SQL: без хвоста в дужках («Гедда Габлер (Театр на Подолі)» —
-    badseller ~2026-10-06 прибрав зал із назв і посилань), лапок, розділових знаків і пробілів. Символи
-    перелічено явно, а не класом: класи залежать від локалі бази. Різні вистави одного театру в ту саму
-    хвилину (зали «Колеса», Театру на Подолі) так не зливаються: виміряно на prod, 31 пара з 245."""
-    return (f"regexp_replace(regexp_replace(lower({column}), '\\s*\\([^()]*\\)\\s*$', ''),"
-            " '[\\s«»\"“”„''`ʼ’‘!?.,:;…–—-]+', '', 'g')")
+    """Назва для зіставлення переїздів: `private.title_key` (20261021120000) — без хвоста в дужках («Гедда Габлер
+    (Театр на Подолі)» — badseller ~2026-10-06 прибрав зал із назв і посилань), лапок, розділових і пробілів.
+    Різні вистави одного театру в ту саму хвилину (зали «Колеса», Театру на Подолі) так не зливаються: виміряно
+    на prod, 31 пара з 245."""
+    return f"private.title_key({column})"
+
+
+# Найбільший зсув тихого переносу, який ще вважаємо тим самим сеансом (docs/event-offers.md, R1).
+SILENT_MOVE_DAYS = 90
 
 
 def _adopt_moved_urls(publishable: list[Item]) -> str:
-    """Сеанс, у якого джерело змінило посилання, лишається тим самим рядком: інакше старий
-    знімається як зниклий, і збережена людиною подія виглядає скасованою.
+    """Сеанс, у якого джерело змінило посилання, лишається тією самою пропозицією: інакше стара знімається як
+    зникла, а сеанс з новим посиланням став би новою подією.
 
-    Старий рядок переймає новий ключ за тим самим продавцем, містом, хвилиною, назвою (`_title_key_sql`)
-    й точкою до 30 м; `id` не змінюється. Старий рядок може бути й автоматично знятим: badseller кладе
-    дату в посилання, і після перенесення старе посилання випадає з вибірки раніше, ніж з'являється нове
-    («Allegretto» 2026-10: знято 04.10, новий рядок з новим id 06.10). Ручне зняття (без run_id) не
-    чіпаємо. Одна команда на пачку (окремий UPDATE на подію подвоював SQL). Обидва `distinct on`
-    обов'язкові, інакше два рядки отримають той самий ключ.
+    Стара пропозиція переймає новий ключ за тим самим продавцем, хвилиною, назвою продавця (`_title_key_sql`),
+    містом і точкою події до 30 м; подія та сама. Стара може бути й автоматично знятою: badseller кладе дату в
+    посилання, і після перенесення старе посилання випадає з вибірки раніше, ніж з'являється нове («Allegretto»
+    2026-10: знято 04.10, новий рядок з новим id 06.10). Ручне зняття (без run_id) не чіпаємо. Одна команда на
+    пачку (окремий UPDATE на подію подвоював SQL). Обидва `distinct on` обов'язкові, інакше дві пропозиції
+    отримають той самий ключ.
     """
     by_source: dict[str, list[Item]] = {}
     for it in publishable:
@@ -357,21 +344,55 @@ def _adopt_moved_urls(publishable: list[Item]) -> str:
             "with incoming(uid, url, city, title, starts, lat, lon) as (values\n" + rows + "\n"
             "), matched as (\n"
             "  select distinct on (i.uid) x.id, i.uid from incoming i\n"
-            "  join public.events x\n"
+            "  join public.event_offers x\n"
             f"    on x.source_id=(select id from public.event_sources where slug={_lit(slug)} and enabled)\n"
-            "   and x.origin='import'\n"
-            "   and (x.import_status='live' or (x.import_status='withdrawn' and x.ingest_run_id is not null))\n"
-            "   and x.city=i.city and x.starts_at=i.starts\n"
-            "   and x.canonical_url <> i.url\n"
+            "   and (x.status='live' or x.ingest_run_id is not null)\n"
+            "   and x.starts_at=i.starts and x.canonical_url <> i.url\n"
             f"   and {_title_key_sql('x.title')} = {_title_key_sql('i.title')}\n"
-            "   and abs(x.latitude - i.lat) < 0.0003 and abs(x.longitude - i.lon) < 0.0003\n"
-            "  where not exists (select 1 from public.events n\n"
+            "  join public.events e on e.id=x.event_id and e.city=i.city\n"
+            "   and abs(e.latitude - i.lat) < 0.0003 and abs(e.longitude - i.lon) < 0.0003\n"
+            "  where not exists (select 1 from public.event_offers n\n"
             "                    where n.source_id=x.source_id and n.source_uid=i.uid)\n"
-            "  order by i.uid, x.import_status='live' desc, x.updated_at desc, x.id\n"
+            "  order by i.uid, x.status='live' desc, x.updated_at desc, x.id\n"
             "), picked as (\n"
             "  select distinct on (id) id, uid from matched order by id, uid\n"
             ")\n"
-            "update public.events e set source_uid=p.uid from picked p where e.id=p.id;\n")
+            "update public.event_offers o set source_uid=p.uid, updated_at=now() from picked p where o.id=p.id;\n")
+    return "".join(parts)
+
+
+def _adopt_silent_moves(items: list[Item]) -> str:
+    """Тихий перенос (R1): продавець пересунув час сеансу на тій самій сторінці без жодної позначки (Іво Бобул,
+    Дніпро, 23.11: Concert.ua 19:00 → 18:00). Ключ — посилання + час, тож без цього з'являлась нова подія, а
+    збережена людиною показувала «Більше не проводиться».
+
+    Пропозиція переймає новий ключ, лише коли на сторінці в обході один сеанс (`single_session`), у базі в цього
+    посилання рівно одна майбутня пропозиція, назва продавця та сама, а зсув не більше `SILENT_MOVE_DAYS`. Сторінка
+    з кількома сеансами так не зливається: зниклий сеанс — не перенесений."""
+    by_source: dict[str, list[Item]] = {}
+    for it in items:
+        if it.single_session:
+            by_source.setdefault(it.source_slug, []).append(it)
+    parts = []
+    for slug, group in by_source.items():
+        rows = ",\n".join(f"  ({_lit(it.source_uid)}, {_lit(it.canonical_url)}, {_lit(it.title)},"
+                          f" {_lit(it.starts_at.isoformat())}::timestamptz)" for it in group)
+        alive = "(c.status='live' or c.ingest_run_id is not null)"
+        parts.append(
+            "with incoming(uid, url, title, starts) as (values\n" + rows + "\n"
+            "), matched as (\n"
+            "  select x.id, i.uid from incoming i\n"
+            "  join public.event_offers x\n"
+            f"    on x.source_id=(select id from public.event_sources where slug={_lit(slug)} and enabled)\n"
+            "   and x.canonical_url=i.url and x.starts_at <> i.starts and x.starts_at > now()\n"
+            f"   and abs(extract(epoch from x.starts_at - i.starts)) <= {SILENT_MOVE_DAYS} * 86400\n"
+            f"   and {alive.replace('c.', 'x.')}\n"
+            f"   and {_title_key_sql('x.title')} = {_title_key_sql('i.title')}\n"
+            "  where not exists (select 1 from public.event_offers n where n.source_id=x.source_id and n.source_uid=i.uid)\n"
+            "    and (select count(*) from public.event_offers c where c.source_id=x.source_id and c.canonical_url=i.url\n"
+            f"         and c.starts_at > now() and {alive}) = 1\n"
+            ")\n"
+            "update public.event_offers o set source_uid=m.uid, updated_at=now() from matched m where o.id=m.id;\n")
     return "".join(parts)
 
 
@@ -383,35 +404,23 @@ def withdrawals_sql(slug: str, notices: list[dict], run_id: str) -> list[str]:
         # Без дати сеансу чіпаємо лише старий ключ за URL: не можна скасувати всі сеанси сторінки.
         target = (f"canonical_url={_lit(url)} and starts_at={_lit(start)}::timestamptz"
                   if start else f"source_uid={_lit(url)}")
+        # Ручне зняття (без run_id) не перезаписуємо: з run_id воно стало б автоматичним, і дамп його повернув би.
         parts.append(
-            "update public.events set import_status='withdrawn', updated_at=now(),\n"
+            "update public.event_offers set status='withdrawn', updated_at=now(),\n"
             f"  ingest_run_id={_lit(run_id)}\n"
             f"where source_id=(select id from public.event_sources where slug={_lit(slug)})\n"
-            f"  and origin='import' and ({target});\n")
+            f"  and ({target}) and not (status='withdrawn' and ingest_run_id is null);\n")
     return parts
 
 
-def duplicates_sql(items: list[Item], run_id: str) -> list[str]:
-    """Знімає старий дублікат лише після вставки обраної заміни."""
-    parts = []
-    for it in items:
-        if not it.duplicate_of:
-            continue
-        slug, uid = it.duplicate_of
-        starts = [it.starts_at]
-        if it.previous_start:
-            starts.append(it.previous_start)
-        time_condition = " or ".join(f"e.starts_at={_lit(t.isoformat())}::timestamptz" for t in starts)
-        parts.append(
-            "update public.events e set import_status='withdrawn', updated_at=now(),\n"
-            f"  ingest_run_id={_lit(run_id)}\n"
-            f"where e.source_id=(select id from public.event_sources where slug={_lit(it.source_slug)})\n"
-            f"  and e.canonical_url={_lit(it.canonical_url)} and ({time_condition})\n"
-            "  and exists (select 1 from public.events w\n"
-            f"    where w.source_id=(select id from public.event_sources where slug={_lit(slug)})\n"
-            f"    and w.source_uid={_lit(uid)} and w.import_status='live'\n"
-            f"    and w.ingest_run_id={_lit(run_id)});\n")
-    return parts
+def duplicates_sql(items: list[Item], run_id: str, max_bytes: int = 0) -> list[str]:
+    """Копії (між джерелами й одного продавця) — пропозиції події переможця, а не зняті рядки (R1). Після
+    записів усіх переможців міста: переможець часто з іншого джерела. Копія, що досі жила окремою подією,
+    зливається в подію переможця разом зі збереженнями (`private.merge_event`)."""
+    copies = [i for i in items if i.stage == "duplicate" and i.duplicate_of]
+    render = lambda rows: _adopt(rows) + _ingest_call(run_id, [_offer_row(it, tuple(it.duplicate_of)) for it in rows])
+    return [part for start in range(0, len(copies), BATCH)
+            for part in bounded_sql(copies[start:start + BATCH], render, max_bytes)]
 
 
 # Скільки подій джерела в місті можна зняти за відсутністю за обхід. Звична плинність до 4%;
@@ -421,10 +430,10 @@ RETIRE_ALLOWANCE = 5
 
 
 def demote_sql(items: list[Item], run_id: str, published: set | frozenset = frozenset()) -> list[str]:
-    """Знімає живий рядок події, яку цей обхід бачив, але більше не публікує: пішла в чергу
-    перегляду (без координат, низька якість, конфлікт дат). Без цього старий рядок лишався
+    """Знімає живу пропозицію, яку цей обхід бачив, але більше не публікує: пішла в чергу
+    перегляду (без координат, низька якість, конфлікт дат). Без цього стара лишалась
     `live` зі старою точкою, доки подія не закінчиться. Зняття несе run_id, тож наступний обхід,
-    де подія знову проходить фільтри, повертає її в `live` (див. upsert у `_insert`).
+    де подія знову проходить фільтри, повертає її в `live` (`private.ingest_offers`).
 
     `published` — (джерело, uid), опубліковані в будь-якому місті прогону: Karabas показує дніпровську подію
     й на сторінці іншого міста, там вона йде в чергу як CITY_MISMATCH, і зняття за нею знімало б рядок,
@@ -435,17 +444,17 @@ def demote_sql(items: list[Item], run_id: str, published: set | frozenset = froz
         if it.stage != "review" or (it.source_slug, it.source_uid) in published:
             continue
         parts.append(
-            "update public.events e set import_status='withdrawn', updated_at=now(),\n"
+            "update public.event_offers o set status='withdrawn', updated_at=now(),\n"
             f"  ingest_run_id={_lit(run_id)}\n"
-            f"where e.source_id=(select id from public.event_sources where slug={_lit(it.source_slug)})\n"
-            f"  and e.source_uid={_lit(it.source_uid)} and e.origin='import' and e.import_status='live';\n")
+            f"where o.source_id=(select id from public.event_sources where slug={_lit(it.source_slug)})\n"
+            f"  and o.source_uid={_lit(it.source_uid)} and o.status='live';\n")
     return parts
 
 
 def retire_absent_sql(slug: str, city: str, seen_uids: list[str], run_id: str, until=None) -> str:
-    """Знімає живі майбутні події, яких цей обхід не бачив (ні опублікованих, ні на перевірці, ні
-    дублікатів). Команда після вставок міста: перехід на новий ключ уже перейменував рядки.
-    Знімається, а не видаляється: збережена подія лишається з позначкою.
+    """Знімає живі майбутні пропозиції, яких цей обхід не бачив (ні опублікованих, ні на перевірці, ні
+    дублікатів). Команда після вставок міста: перехід на новий ключ уже перейменував пропозиції.
+    Знімається, а не видаляється; подія знята, лише коли живих пропозицій не лишилось.
 
     Лише ще не початі: почату подію джерело зі списку прибирає саме (а конвеєр без кінця в даних
     її відкидає), і зняття посеред показу показувало б людям «скасовано». `until` — межа обходу
@@ -458,25 +467,25 @@ def retire_absent_sql(slug: str, city: str, seen_uids: list[str], run_id: str, u
     if not seen_uids:
         return ""
     seen = ",".join(_lit(uid) for uid in sorted(set(seen_uids)))
-    scope = (f"e.source_id=(select id from public.event_sources where slug={_lit(slug)})\n"
-             f"    and e.city={_lit(city)} and e.origin='import' and e.import_status='live'\n"
-             "    and e.starts_at > now()"
-             + (f" and e.starts_at < {_lit(until.isoformat())}::date" if until else ""))
+    scope = (f"o.source_id=(select id from public.event_sources where slug={_lit(slug)})\n"
+             f"    and e.id=o.event_id and e.city={_lit(city)} and o.status='live'\n"
+             "    and o.starts_at > now()"
+             + (f" and o.starts_at < {_lit(until.isoformat())}::date" if until else ""))
     return (
         "do $retire$\n"
         "declare\n"
         f"  v_seen text[] := array[{seen}]::text[];\n"
         "  v_scope integer; v_gone integer; v_done integer := 0; v_blocked boolean;\n"
         "begin\n"
-        "  select count(*), count(*) filter (where e.source_uid <> all (v_seen)) into v_scope, v_gone\n"
-        f"  from public.events e where {scope};\n"
+        "  select count(*), count(*) filter (where o.source_uid <> all (v_seen)) into v_scope, v_gone\n"
+        f"  from public.event_offers o, public.events e where {scope};\n"
         f"  v_blocked := v_gone > greatest({RETIRE_ALLOWANCE}, {RETIRE_MAX_SHARE} * v_scope);\n"
         "  if v_blocked then\n"
         f"    raise warning 'retire_absent %/%: зникло % з %, понад {round(RETIRE_MAX_SHARE * 100)}%% — нічого не знято',\n"
         f"      {_lit(slug)}, {_lit(city)}, v_gone, v_scope;\n"
         "  else\n"
-        f"    update public.events e set import_status='withdrawn', updated_at=now(), ingest_run_id={_lit(run_id)}\n"
-        f"    where {scope} and e.source_uid <> all (v_seen);\n"
+        f"    update public.event_offers o set status='withdrawn', updated_at=now(), ingest_run_id={_lit(run_id)}\n"
+        f"    from public.events e where {scope} and o.source_uid <> all (v_seen);\n"
         "    get diagnostics v_done = row_count;\n"
         "  end if;\n"
         "  if to_regclass('private.ingest_runs') is not null then\n"
@@ -499,11 +508,11 @@ def retire_replaced_sql(slug: str, items: list[Item], run_id: str) -> str:
     rows = ",".join(f"({_lit(url)},{_lit(uid)})" for url, uid in seen)
     return (
         f"with seen(url, uid) as (values {rows})\n"
-        f"update public.events e set import_status='withdrawn', updated_at=now(), ingest_run_id={_lit(run_id)}\n"
-        f"where e.source_id=(select id from public.event_sources where slug={_lit(slug)})\n"
-        "  and e.origin='import' and e.import_status='live' and e.starts_at > now()\n"
-        "  and e.canonical_url in (select url from seen)\n"
-        "  and not exists (select 1 from seen s where s.uid = e.source_uid);\n")
+        f"update public.event_offers o set status='withdrawn', updated_at=now(), ingest_run_id={_lit(run_id)}\n"
+        f"where o.source_id=(select id from public.event_sources where slug={_lit(slug)})\n"
+        "  and o.status='live' and o.starts_at > now()\n"
+        "  and o.canonical_url in (select url from seen)\n"
+        "  and not exists (select 1 from seen s where s.uid = o.source_uid);\n")
 
 
 # Скільки днів після кінця подія ще вважається живою: перенесення під тим самим ключем повертають
@@ -664,14 +673,14 @@ def stats_sql(reports: list[dict], items: list[Item], run_id: str, max_bytes: in
                 _lit(it.source_uid), _lit(it.canonical_url),
                 _lit(json.dumps(_item_dict(it), ensure_ascii=False, default=str)), _lit(it.stage),
                 _lit(it.reject_reason), _lit(w_slug), _lit(w_uid)]) + ")")
-        # Переможця — за ключем, а не за `event_id`: перенесений рядок лишає старий id (див. artists_sql).
+        # Переможця — за ключем його пропозиції, а не за `event_id`: подія лишає старий id (див. artists_sql).
         return ("insert into private.ingest_items (run_id,source_id,source_uid,url,raw,stage,reject_reason,"
                 "candidate_event_id)\nselect v.run_id::uuid, s.id, v.uid, v.url, v.raw::jsonb, v.stage, v.reason, "
                 "w.id\nfrom (values\n" + ",\n".join(values)
                 + "\n) v(run_id,slug,uid,url,raw,stage,reason,w_slug,w_uid)\n"
                 "join public.event_sources s on s.slug=v.slug\n"
-                "left join lateral (select e.id from public.events e join public.event_sources ws on ws.id=e.source_id\n"
-                "  where ws.slug=v.w_slug and e.source_uid=v.w_uid) w on true\n"
+                "left join lateral (select o.event_id as id from public.event_offers o join public.event_sources ws\n"
+                "  on ws.id=o.source_id where ws.slug=v.w_slug and o.source_uid=v.w_uid) w on true\n"
                 "where exists (select 1 from private.ingest_runs r where r.id=v.run_id::uuid);\n")
     for start in range(0, len(items), BATCH):
         parts += bounded_sql(items[start:start + BATCH], render, max_bytes)

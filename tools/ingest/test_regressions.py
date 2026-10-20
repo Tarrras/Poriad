@@ -59,10 +59,12 @@ class RegressionTests(unittest.TestCase):
         winner = (published[0].source_slug, published[0].source_uid)
         self.assertTrue(all(c.duplicate_of == winner for c in copies))
         self.assertEqual(counters["published"], 1)
-        # Зайва копія знімається і в базі.
+        # Зайва копія — пропозиція події переможця, а не знятий рядок.
         sql = "".join(emit.duplicates_sql(items, "RUN"))
         for copy in copies:
             self.assertIn(copy.canonical_url, sql)
+        self.assertIn('"winner_uid": ' + json.dumps(winner[1]), sql)
+        self.assertNotIn("withdrawn", sql)
 
     def test_same_source_winner_does_not_depend_on_page_order(self):
         names = [f"https://example.org/improv{n}" for n in (5, 3, 4)]
@@ -323,9 +325,10 @@ class RegressionTests(unittest.TestCase):
     def test_legacy_identity_is_adopted_without_changing_saved_event_id(self):
         items, _ = self.harvest([raw_event()])
         sql = "".join(emit.events_sql(items, "00000000-0000-0000-0000-000000000001"))
-        self.assertIn("update public.events", sql)
+        self.assertIn("update public.event_offers o set source_uid=", sql)
         self.assertIn("not exists", sql)
         self.assertNotIn("set id=", sql)
+        self.assertNotIn("event_id=", sql.split("select private.ingest_offers(")[0])
 
     def test_moved_url_adopts_the_old_row_so_saves_stay_attached(self):
         # Подія переїхала на нове посилання: без переходу за назвою, хвилиною й точкою збережена виглядала б скасованою.
@@ -335,8 +338,8 @@ class RegressionTests(unittest.TestCase):
         self.assertIn("x.canonical_url <> i.url", sql)
         # Назва без хвоста в дужках і розділових знаків: badseller прибрав зал із назв (2026-10-06).
         self.assertIn(f"{emit._title_key_sql('x.title')} = {emit._title_key_sql('i.title')}", sql)
-        # Автоматично знятий рядок теж переймається; вимкнене джерело — ні.
-        self.assertIn("x.import_status='withdrawn' and x.ingest_run_id is not null", sql)
+        # Автоматично знята пропозиція теж переймається, ручне зняття (без run_id) — ні; вимкнене джерело — ні.
+        self.assertIn("(x.status='live' or x.ingest_run_id is not null)", sql)
         self.assertIn("slug='concert_ua' and enabled)", sql)
         # Обидва `distinct on` обов'язкові: інакше дві старі копії отримали б той самий ключ.
         self.assertIn("select distinct on (i.uid)", sql)
@@ -374,17 +377,17 @@ class RegressionTests(unittest.TestCase):
         self.assertIn("e.city='Київ'", sql)
         self.assertIn("slug='karabas'", sql)
         self.assertIn("v_seen text[] := array['u1','u2']::text[]", sql)
-        self.assertIn("e.source_uid <> all (v_seen)", sql)
+        self.assertIn("o.source_uid <> all (v_seen)", sql)
         # Лише ще не початі: почата подія зі списку зникає сама, і «знято» посеред показу — неправда.
-        self.assertIn("e.starts_at > now()", sql)
+        self.assertIn("o.starts_at > now()", sql)
         self.assertNotIn("ends_at", sql)
         # Запобіжник не мовчить: результат — у звіт прогону й попередженням.
         self.assertIn("'retire_blocked', v_blocked", sql)
         self.assertIn(f"where id = '{emit.stats_run_id('run', 'karabas', 'Київ')}'::uuid", sql)
         self.assertIn("raise warning", sql)
         # За межею обходу (sitemap до horizon_days) відсутність нічого не доводить.
-        self.assertNotIn("e.starts_at <", sql)
-        self.assertIn("and e.starts_at < '2027-10-09'::date",
+        self.assertNotIn("o.starts_at <", sql)
+        self.assertIn("and o.starts_at < '2027-10-09'::date",
                       emit.retire_absent_sql("badseller", "Київ", ["u"], "run", until=dt.date(2027, 10, 9)))
         self.assertIn(f"greatest({emit.RETIRE_ALLOWANCE}, {emit.RETIRE_MAX_SHARE}", sql)
         self.assertNotIn("delete", sql.lower())
@@ -435,7 +438,7 @@ class RegressionTests(unittest.TestCase):
                                 use_photon=False, now=NOW)
         sql = "".join(parts)
         self.assertIn("do $retire$", sql)
-        self.assertGreater(sql.index("do $retire$"), sql.index("insert into public.events"))
+        self.assertGreater(sql.index("do $retire$"), sql.index("select private.ingest_offers("))
 
     def test_explicit_withdrawal_is_scoped_to_source_and_session(self):
         with patch("tools.ingest.__main__.build_index", return_value=self.index), \
@@ -444,10 +447,12 @@ class RegressionTests(unittest.TestCase):
              contextlib.redirect_stdout(io.StringIO()):
             _, parts = run_city("Київ", [self.source], "00000000-0000-0000-0000-000000000001", use_photon=False, now=NOW)
         sql = "".join(parts)
-        self.assertIn("import_status='withdrawn'", sql)
+        self.assertIn("update public.event_offers set status='withdrawn'", sql)
         self.assertIn("source_id=", sql)
         self.assertIn("starts_at=", sql)
         self.assertNotIn("ingest_run_id is distinct from", sql)
+        # Ручне зняття (без run_id) явне скасування не перетворює на автоматичне.
+        self.assertIn("and not (status='withdrawn' and ingest_run_id is null)", sql)
 
     def test_detail_source_ignores_other_hosts_and_reports_failed_detail(self):
         source = dataclasses.replace(self.source, detail_path="/event/", max_details=10)
@@ -516,7 +521,7 @@ class RegressionTests(unittest.TestCase):
         parts = emit.events_sql(items, "00000000-0000-0000-0000-000000000001", max_bytes=8000)
         self.assertGreater(len(parts), 1)
         self.assertTrue(all(len(s.encode()) <= 8000 for s in parts))
-        self.assertEqual(sum(s.count("insert into public.events") for s in parts), len(parts))
+        self.assertEqual(sum(s.count("select private.ingest_offers(") for s in parts), len(parts))
 
     def test_same_occurrence_across_listing_and_detail_only_publishes_once(self):
         source = dataclasses.replace(self.source, detail_path="/event/")
@@ -535,8 +540,11 @@ class RegressionTests(unittest.TestCase):
         item = _item("internet_bilet", "Концерт", start="2026-10-18T18:00:00+03:00")
         item.previous_start = dt.datetime.fromisoformat("2026-10-17T18:00:00+03:00")
         item.duplicate_of = ("concert_ua", "winner")
+        item.stage = "duplicate"
         sql = "".join(emit.duplicates_sql([item], "00000000-0000-0000-0000-000000000001"))
-        self.assertIn("2026-10-17T18:00:00+03:00", sql)
+        # Старий сеанс копії переймає новий ключ (`_adopt_identity`), а не лишається окремою подією.
+        self.assertIn("o.starts_at='2026-10-17T18:00:00+03:00'::timestamptz", sql)
+        self.assertIn("update public.event_offers o set source_uid=", sql)
 
     def test_listing_previous_date_survives_richer_detail(self):
         source = dataclasses.replace(self.source, detail_path="/event/")
@@ -555,11 +563,11 @@ class Demotion(unittest.TestCase):
         kept, demoted = _item("concert_ua", "Живий"), _item("concert_ua", "Без точки", lat=None, lon=None)
         demoted.stage, demoted.reject_reason = "review", "NO_GEO"
         sql = "".join(emit.demote_sql([kept, demoted], run))
-        self.assertEqual(sql.count("update public.events"), 1)
+        self.assertEqual(sql.count("update public.event_offers"), 1)
         self.assertIn(f"source_uid='{demoted.source_uid}'", sql)
-        self.assertIn("import_status='withdrawn'", sql)
+        self.assertIn("set status='withdrawn'", sql)
         self.assertIn(f"ingest_run_id='{run}'", sql)          # з run_id — наступний обхід поверне в live
-        self.assertIn("import_status='live'", sql)             # ручне зняття не перезаписується
+        self.assertIn("o.status='live'", sql)                  # ручне зняття не перезаписується
         self.assertEqual(emit.demote_sql([kept], run), [])
 
 
@@ -704,10 +712,13 @@ class Robustness(unittest.TestCase):
         self.assertIn("begin;\nset local standard_conforming_strings = on;\n", body)
 
     def test_upsert_respects_manual_withdrawal_and_disabled_source(self):
+        # Вимкнене джерело й ручне зняття пропозиції тримає `private.ingest_offers` (supabase/tests/event_offers.sql);
+        # тут — що дамп іде через неї, а нові ключі переймаються лише для ввімкненого джерела.
         from .test_ingest import _item
         sql = emit._insert([_item("concert_ua", "Концерт")], "00000000-0000-0000-0000-000000000001")
-        self.assertIn("join public.event_sources s on s.slug=v.slug\nwhere s.enabled", sql)
-        self.assertIn("events.import_status='withdrawn' and events.ingest_run_id is null", sql)
+        self.assertIn("select private.ingest_offers('00000000-0000-0000-0000-000000000001'::uuid,", sql)
+        self.assertNotIn("insert into public.events", sql)
+        self.assertIn("slug='concert_ua' and enabled)", sql)
 
     def test_demote_spares_what_another_city_published(self):
         # Karabas показує дніпровську подію й на сторінці Києва: там вона CITY_MISMATCH у черзі.
@@ -720,9 +731,9 @@ class Robustness(unittest.TestCase):
     def test_automatic_withdrawals_carry_run_id(self):
         from .test_ingest import _item
         loser = _item("internet_bilet", "Концерт")
-        loser.duplicate_of = ("concert_ua", "winner")
+        loser.stage, loser.duplicate_of = "duplicate", ("concert_ua", "winner")
         run = "00000000-0000-0000-0000-000000000009"
-        self.assertIn(f"ingest_run_id='{run}'", "".join(emit.duplicates_sql([loser], run)))
+        self.assertIn(f"select private.ingest_offers('{run}'::uuid", "".join(emit.duplicates_sql([loser], run)))
         self.assertIn(f"ingest_run_id='{run}'", emit.retire_absent_sql("karabas", "Київ", ["u"], run))
 
 
@@ -1259,6 +1270,77 @@ class PerformerDetails(unittest.TestCase):
             items, _ = pipeline.harvest(source, "Київ", VenueIndex([], "Київ"))
         self.assertIn("Богдан Боярин", items[0].text)
         self.assertEqual((items[0].description, items[0].description_len), ("", 0))
+
+
+class Offers(unittest.TestCase):
+    """Подія з кількома продавцями (docs/event-offers.md, R1): що конвеєр передає `private.ingest_offers`.
+    Саму поведінку в базі тримає supabase/tests/event_offers.sql."""
+
+    RUN = "00000000-0000-0000-0000-000000000001"
+
+    def setUp(self):
+        self.source = dataclasses.replace(by_slug("concert_ua"), catalogs=None)
+        self.index = VenueIndex([], "Київ", {"Зал": {"lat": 50.45, "lon": 30.53}})
+
+    def test_winner_knows_its_copies_across_sources_and_chains(self):
+        from .test_ingest import _item
+        top, mid, low = _item("concert_ua", "ДахаБраха"), _item("karabas", "ДахаБраха"), _item("karabas", "ДахаБраха наживо")
+        low.stage, low.duplicate_of = "duplicate", (mid.source_slug, mid.source_uid)
+        pipeline.drop_cross_source_duplicates([top, mid, low], {"concert_ua": 0.8, "karabas": 0.7})
+        self.assertEqual(sorted(top.members), sorted([(mid.source_slug, mid.source_uid), (low.source_slug, low.source_uid)]))
+        self.assertEqual(mid.members, [])
+        row = emit._offer_row(top)
+        self.assertEqual(len(row["members"]), 2)
+        self.assertEqual({"title", "city", "lat", "starts", "id"} - row.keys(), set())
+        copy = emit._offer_row(mid, mid.duplicate_of)
+        self.assertEqual((copy["winner_slug"], copy["winner_uid"], copy["linked"]), ("concert_ua", top.source_uid, "rule"))
+        self.assertNotIn("city", copy)                 # вміст події копія не пише
+
+    def test_known_link_merges_without_asking_the_agent(self):
+        from .test_ingest import _item
+        a, b = _item("dou", "Львів Стартап Сніданок"), _item("yoy", "Lviv Startup Breakfast")
+        asked = []
+        agent = types.SimpleNamespace(judge_pairs=lambda pairs: asked.extend(pairs) or [False] * len(pairs))
+        linked = {f"dou|{a.source_uid}": "e1", f"yoy|{b.source_uid}": "e1"}
+        pipeline.drop_cross_source_duplicates([a, b], {"dou": 0.6, "yoy": 0.5}, agent, linked)
+        self.assertEqual(asked, [])
+        self.assertEqual((b.stage, b.linked, b.duplicate_of), ("duplicate", "agent", (a.source_slug, a.source_uid)))
+        # Без збереженого зв'язку питаємо агента; його «так» пишеться як linked='agent'.
+        c, d = _item("dou", "Львів Стартап Сніданок"), _item("yoy", "Lviv Startup Breakfast")
+        yes = types.SimpleNamespace(judge_pairs=lambda pairs: [True] * len(pairs))
+        pipeline.drop_cross_source_duplicates([c, d], {"dou": 0.6, "yoy": 0.5}, yes, {})
+        self.assertEqual((d.stage, d.linked), ("duplicate", "agent"))
+        # Зв'язки є, агента нема: невідома пара лишається окремою.
+        e, f = _item("dou", "Львів Стартап Сніданок"), _item("yoy", "Lviv Startup Breakfast")
+        pipeline.drop_cross_source_duplicates([e, f], {"dou": 0.6, "yoy": 0.5}, None, {"dou|x": "e9"})
+        self.assertEqual((e.stage, f.stage), ("published", "published"))
+
+    def test_single_session_page_flags_only_lone_sessions(self):
+        events = [raw_event(name="Іво Бобул", url="https://example.org/bobul"),
+                  raw_event(name="Вистава", url="https://example.org/play"),
+                  raw_event(name="Вистава", url="https://example.org/play", startDate="2026-10-18T18:00:00+03:00")]
+        with patch("tools.ingest.pipeline.get", return_value=Response("https://example.org", 200, html(events))):
+            items, _ = pipeline.harvest(self.source, "Київ", self.index, now=NOW)
+        flags = {(i.canonical_url, i.starts_at.day): i.single_session for i in items}
+        self.assertEqual(flags, {("https://example.org/bobul", 17): True, ("https://example.org/play", 17): False,
+                                 ("https://example.org/play", 18): False})
+        sql = "".join(emit.events_sql(items, self.RUN))
+        silent = sql[sql.index("with incoming(uid, url, title, starts)"):]
+        silent = silent[:silent.index(";\n")]
+        self.assertIn("'https://example.org/bobul'", silent)
+        self.assertNotIn("'https://example.org/play'", silent)
+        # Запобіжники: стара дата в майбутньому, зсув до 90 днів, та сама назва, одна майбутня пропозиція посилання.
+        for guard in ("x.starts_at > now()", f"<= {emit.SILENT_MOVE_DAYS} * 86400",
+                      "private.title_key(x.title) = private.title_key(i.title)", "c.starts_at > now()", ") = 1"):
+            self.assertIn(guard, silent)
+
+    def test_copy_is_writable_with_a_title_events_would_refuse(self):
+        from .test_ingest import _item
+        copy = _item("badseller", "Ж" * 150)
+        copy.stage, copy.duplicate_of = "duplicate", ("concert_ua", "w")
+        self.assertIsNone(emit.unwritable(copy, self.RUN))
+        copy.canonical_url = "http://x"
+        self.assertEqual(emit.unwritable(copy, self.RUN), "canonical_url")
 
 
 if __name__ == "__main__":

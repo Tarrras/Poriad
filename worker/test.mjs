@@ -1,6 +1,6 @@
 // Перевірка рендеру без Cloudflare: node worker/test.mjs
 import assert from "node:assert/strict";
-import { eventPage, esc } from "./index.mjs";
+import { eventPage, eventResponse, esc } from "./index.mjs";
 
 const now = new Date("2026-09-28T12:00:00Z");
 const base = {
@@ -45,3 +45,12 @@ assert.ok(!withdrawn.includes("Квитки на"), "і без кнопки кв
 assert.ok(!withdrawn.includes("Укриття поруч"), "і без укриттів");
 assert.equal(esc(`"'<&>`), "&quot;&#39;&lt;&amp;&gt;");
 console.log("ok");
+
+// Старий id злитої події: 301 на живу, а не друга копія сторінки.
+const oldId = "c3000000-0000-4000-8000-000000000001";
+globalThis.fetch = async (url) => new Response(url.endsWith("/event_details") ? JSON.stringify([base]) : "{}", { status: 200 });
+const moved = await eventResponse(oldId, { SUPABASE_URL: "https://db.invalid", SUPABASE_KEY: "k" });
+assert.equal(moved.status, 301);
+assert.equal(moved.headers.get("location"), `https://poriad.app/e/${base.id}`);
+assert.equal((await eventResponse(base.id, { SUPABASE_URL: "https://db.invalid", SUPABASE_KEY: "k" })).status, 200, "живий id — сторінка");
+

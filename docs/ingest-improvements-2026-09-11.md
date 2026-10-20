@@ -96,6 +96,9 @@ RLS/auth чи PostGIS. Запуск із встановленим PGlite:
 node tools/ingest/test_sql.mjs /absolute/path/to/@electric-sql/pglite/dist/index.js
 ```
 
+> 2026-10-21: тест прибрано. Події й пропозиції тепер пише функція бази `private.ingest_offers`, якої зменшена схема
+> не має; ті самі сценарії — `python3 -m tools.ingest.sql_check` на dev у транзакції з відкатом.
+
 ## Межі поточної реалізації
 
 - Списки не вважаються повним реєстром. Без явного скасування зниклі події автоматично не

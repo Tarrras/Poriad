@@ -41,7 +41,7 @@ export default {
   },
 };
 
-async function eventResponse(id, env) {
+export async function eventResponse(id, env) {
   if (!UUID.test(id)) return html(notFoundPage(), 404);
   const rpc = (name) => fetch(`${env.SUPABASE_URL}/rest/v1/rpc/${name}`, {
     method: "POST",
@@ -53,6 +53,9 @@ async function eventResponse(id, env) {
   if (!upstream.ok) return html(notFoundPage("Не вдалося завантажити подію. Спробуйте ще раз за хвилину."), 503);
   const rows = await upstream.json();
   if (!Array.isArray(rows) || rows.length === 0) return html(notFoundPage(), 404);
+  // Злиту подію (docs/event-offers.md, R2) база віддає під живим id: стара адреса переїжджає назавжди.
+  const live = String(rows[0].id ?? "");
+  if (UUID.test(live) && live.toLowerCase() !== id.toLowerCase()) return Response.redirect(`https://poriad.app/e/${live}`, 301);
   // Укриття — доповнення: збій чи стара база без event_safety лише ховають секцію.
   const shelters = safety?.ok ? ((await safety.json().catch(() => null))?.shelters ?? []) : [];
   return html(eventPage(rows[0], new Date(), shelters), 200);
