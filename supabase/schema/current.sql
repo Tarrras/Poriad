@@ -5,7 +5,7 @@
 -- supabase/migrations/*.sql, а цей файл показує, що вийшло в базі після всіх міграцій.
 -- Опис, мапа «функція → міграція» і спосіб перегенерації — у supabase/schema/README.md.
 --
--- Знято: 2026-10-20; у реєстрі міграцій бази — 55, остання 20261020120000_push_quiet_hours.
+-- Знято: 2026-10-20; у реєстрі міграцій бази — 56, остання 20261021120000_event_offers.
 -- Лише SELECT-запити до каталогу (pg_get_functiondef, pg_get_constraintdef, pg_indexes,
 -- pg_policies, pg_get_triggerdef, ACL). Рядків даних і секретів тут немає.
 --
@@ -47,7 +47,7 @@ CREATE TYPE public.moderation_item AS (report_id uuid, created_at timestamp with
 CREATE TYPE public.profile_card_result AS (user_id uuid, display_name text, avatar_url text, bio text, member_since timestamp with time zone, organized integer, attended integer, email text);
 
 
--- ===== Таблиці схеми public (21) =============================================
+-- ===== Таблиці схеми public (22) =============================================
 -- Для кожної: стовпці, обмеження, індекси (крім тих, що стоять за обмеженнями), RLS,
 -- політики, тригери, GRANT.
 
@@ -179,6 +179,38 @@ CREATE POLICY messages_read ON public.event_messages AS PERMISSIVE FOR SELECT TO
 CREATE TRIGGER event_messages_push AFTER INSERT ON public.event_messages FOR EACH ROW EXECUTE FUNCTION private.on_message_inserted();
 GRANT SELECT ON public.event_messages TO authenticated;
 
+-- table: public.event_offers
+CREATE TABLE public.event_offers (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  event_id uuid NOT NULL,
+  source_id uuid NOT NULL,
+  source_uid text NOT NULL,
+  canonical_url text,
+  title text NOT NULL,
+  starts_at timestamp with time zone NOT NULL,
+  price_min numeric,
+  is_free boolean,
+  status text DEFAULT 'live'::text NOT NULL,
+  ingest_run_id uuid,
+  linked text DEFAULT 'rule'::text NOT NULL,
+  seen_at timestamp with time zone DEFAULT now() NOT NULL,
+  checked_at timestamp with time zone,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  CONSTRAINT event_offers_pkey PRIMARY KEY (id),
+  CONSTRAINT event_offers_source_id_source_uid_key UNIQUE (source_id, source_uid),
+  CONSTRAINT event_offers_event_id_fkey FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
+  CONSTRAINT event_offers_source_id_fkey FOREIGN KEY (source_id) REFERENCES event_sources(id) ON DELETE RESTRICT,
+  CONSTRAINT event_offers_canonical_url_check CHECK (((canonical_url IS NULL) OR ((canonical_url ~~ 'https://%'::text) AND (char_length(canonical_url) <= 2048)))),
+  CONSTRAINT event_offers_linked_check CHECK ((linked = ANY (ARRAY['rule'::text, 'agent'::text, 'manual'::text]))),
+  CONSTRAINT event_offers_price_min_check CHECK (((price_min IS NULL) OR (price_min >= (0)::numeric))),
+  CONSTRAINT event_offers_status_check CHECK ((status = ANY (ARRAY['live'::text, 'withdrawn'::text])))
+);
+CREATE INDEX event_offers_event_idx ON public.event_offers USING btree (event_id);
+CREATE INDEX event_offers_url_idx ON public.event_offers USING btree (source_id, canonical_url);
+ALTER TABLE public.event_offers ENABLE ROW LEVEL SECURITY;
+CREATE TRIGGER event_offers_sync AFTER INSERT OR DELETE OR UPDATE ON public.event_offers FOR EACH ROW EXECUTE FUNCTION private.on_offer_changed();
+
 -- table: public.event_ratings
 CREATE TABLE public.event_ratings (
   event_id uuid NOT NULL,
@@ -292,8 +324,10 @@ CREATE TABLE public.events (
   place_id uuid,
   companion_of uuid,
   meet_note text,
+  merged_into uuid,
   CONSTRAINT events_pkey PRIMARY KEY (id),
   CONSTRAINT events_companion_of_fkey FOREIGN KEY (companion_of) REFERENCES events(id) ON DELETE SET NULL,
+  CONSTRAINT events_merged_into_fkey FOREIGN KEY (merged_into) REFERENCES events(id) ON DELETE SET NULL,
   CONSTRAINT events_organizer_id_fkey FOREIGN KEY (organizer_id) REFERENCES profiles(id) ON DELETE CASCADE,
   CONSTRAINT events_place_id_fkey FOREIGN KEY (place_id) REFERENCES places(id) ON DELETE SET NULL,
   CONSTRAINT events_source_id_fkey FOREIGN KEY (source_id) REFERENCES event_sources(id) ON DELETE RESTRICT,
@@ -315,6 +349,7 @@ CREATE TABLE public.events (
   CONSTRAINT events_longitude_check CHECK (((longitude >= ('-180'::integer)::double precision) AND (longitude <= (180)::double precision))),
   CONSTRAINT events_max_age_check CHECK (((max_age IS NULL) OR ((max_age >= 0) AND (max_age <= 120)))),
   CONSTRAINT events_meet_note_ck CHECK (((meet_note IS NULL) OR (char_length(meet_note) <= 140))),
+  CONSTRAINT events_merged_into_ck CHECK (((merged_into IS NULL) OR ((merged_into <> id) AND (origin <> 'community'::text)))),
   CONSTRAINT events_min_age_check CHECK (((min_age >= 0) AND (min_age <= 100))),
   CONSTRAINT events_origin_check CHECK ((origin = ANY (ARRAY['community'::text, 'import'::text, 'partner'::text]))),
   CONSTRAINT events_origin_source_ck CHECK ((((origin = 'community'::text) AND (source_id IS NULL) AND (source_uid IS NULL) AND (import_status IS NULL)) OR ((origin <> 'community'::text) AND (source_id IS NOT NULL) AND (source_uid IS NOT NULL) AND (import_status IS NOT NULL)))),
@@ -327,10 +362,10 @@ CREATE INDEX events_category_starts_idx ON public.events USING btree (category, 
 CREATE UNIQUE INDEX events_companion_once_idx ON public.events USING btree (companion_of, organizer_id) WHERE ((companion_of IS NOT NULL) AND (status = 'published'::text));
 CREATE INDEX events_dedupe_idx ON public.events USING btree (dedupe_key) WHERE (dedupe_key IS NOT NULL);
 CREATE INDEX events_location_idx ON public.events USING gist (((location)::gis.geometry)) WHERE (status = 'published'::text);
+CREATE INDEX events_merged_into_idx ON public.events USING btree (merged_into) WHERE (merged_into IS NOT NULL);
 CREATE INDEX events_organizer_idx ON public.events USING btree (organizer_id);
 CREATE INDEX events_origin_starts_idx ON public.events USING btree (origin, starts_at) WHERE (status = 'published'::text);
 CREATE INDEX events_place_idx ON public.events USING btree (place_id) WHERE (status = 'published'::text);
-CREATE UNIQUE INDEX events_source_uid_uidx ON public.events USING btree (source_id, source_uid) WHERE (source_id IS NOT NULL);
 CREATE INDEX events_starts_idx ON public.events USING btree (starts_at, id) WHERE (status = 'published'::text);
 ALTER TABLE public.events ENABLE ROW LEVEL SECURITY;
 CREATE POLICY events_read ON public.events AS PERMISSIVE FOR SELECT TO anon, authenticated
@@ -557,7 +592,7 @@ CREATE INDEX venues_city_idx ON public.venues USING btree (city);
 ALTER TABLE public.venues ENABLE ROW LEVEL SECURITY;
 
 
--- ===== Таблиці схеми private (9) =============================================
+-- ===== Таблиці схеми private (10) =============================================
 -- Схема private не відкрита через Data API; доступ — з definer-функцій (власник postgres).
 
 -- table: private.banned_terms
@@ -575,6 +610,16 @@ CREATE TABLE private.deferred_pushes (
   created_at timestamp with time zone DEFAULT now() NOT NULL,
   CONSTRAINT deferred_pushes_pkey PRIMARY KEY (id)
 );
+
+-- table: private.event_merges
+CREATE TABLE private.event_merges (
+  from_id uuid NOT NULL,
+  into_id uuid NOT NULL,
+  reason text NOT NULL,
+  moved jsonb NOT NULL,
+  merged_at timestamp with time zone DEFAULT now() NOT NULL
+);
+CREATE INDEX event_merges_at_idx ON private.event_merges USING btree (merged_at DESC);
 
 -- table: private.follow_announced
 CREATE TABLE private.follow_announced (
@@ -730,7 +775,7 @@ CREATE POLICY poruch_image_owner_read ON storage.objects AS PERMISSIVE FOR SELEC
 
 
 -- ===== Функції (public, потім private; за назвою) ============================
--- 130 функцій: 56 у public (RPC для клієнтів і тонкі обгортки над private), 74 у private
+-- 138 функцій: 56 у public (RPC для клієнтів і тонкі обгортки над private), 82 у private
 -- (реалізації, перевірки, тригерні функції). Тексти — дослівно з pg_get_functiondef.
 
 -- execute: authenticated
@@ -874,7 +919,7 @@ AS $function$
 begin
  if p_ids is null then return '[]'::jsonb; end if;
  if array_length(p_ids, 1) > 100 then raise exception 'TOO_MANY_IDS' using errcode='22023'; end if;
- return private.event_cards(p_ids);
+ return private.event_cards(array(select private.live_event_id(x) from unnest(p_ids) x));
 end $function$;
 
 -- execute: anon, authenticated
@@ -884,7 +929,7 @@ CREATE OR REPLACE FUNCTION public.event_details(p_event_id uuid)
  STABLE
  SET search_path TO ''
 AS $function$
- select * from private.event_rows(array[p_event_id]);
+ select * from private.event_rows(array[private.live_event_id(p_event_id)]);
 $function$;
 
 -- execute: authenticated
@@ -1859,6 +1904,36 @@ begin
  delete from auth.users where id=v_user;
 end $function$;
 
+-- execute: -
+CREATE OR REPLACE FUNCTION private.detach_offer(p_offer uuid)
+ RETURNS uuid
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare v_offer public.event_offers; v_event public.events; v_id uuid := gen_random_uuid();
+begin
+ select * into v_offer from public.event_offers where id = p_offer for update;
+ if not found then raise exception 'OFFER_NOT_FOUND' using errcode = 'P0002'; end if;
+ select * into v_event from public.events where id = v_offer.event_id for update;
+ if (select count(*) from public.event_offers where event_id = v_event.id) < 2 then
+  raise exception 'OFFER_ALONE: у події одна пропозиція' using errcode = '22023';
+ end if;
+ insert into public.events (id, organizer_id, title, description, category, city, address, latitude, longitude, place_id,
+  starts_at, ends_at, time_zone, capacity, image_url, min_age, origin, source_id, source_uid, canonical_url, dedupe_key,
+  quality, import_status, price_min, is_free, ingest_run_id)
+ values (v_id, v_event.organizer_id, v_offer.title, v_event.description, v_event.category, v_event.city, v_event.address,
+  v_event.latitude, v_event.longitude, v_event.place_id, v_offer.starts_at,
+  v_offer.starts_at + (v_event.ends_at - v_event.starts_at), v_event.time_zone, null, v_event.image_url, v_event.min_age,
+  v_event.origin, v_offer.source_id, v_offer.source_uid, v_offer.canonical_url, v_event.dedupe_key, v_event.quality,
+  case when v_offer.status = 'live' then 'live' else 'withdrawn' end, v_offer.price_min, v_offer.is_free,
+  v_offer.ingest_run_id);
+ insert into public.event_artists (event_id, artist_id, role, position, how, confidence)
+ select v_id, artist_id, role, position, how, confidence from public.event_artists where event_id = v_event.id;
+ update public.event_offers set event_id = v_id, linked = 'manual', updated_at = now() where id = p_offer;
+ return v_id;
+end $function$;
+
 -- execute: anon, authenticated
 CREATE OR REPLACE FUNCTION private.discover_index(p_south double precision, p_west double precision, p_north double precision, p_east double precision, p_category text, p_from timestamp with time zone, p_to timestamp with time zone, p_text text, p_available boolean, p_limit integer, p_cards integer)
  RETURNS TABLE(index jsonb, total integer, truncated boolean, card_ids uuid[])
@@ -1942,6 +2017,16 @@ AS $function$
     and (e.organizer_id is null or e.organizer_id = auth.uid()
          or (private.account_active(e.organizer_id) and not private.blocked_between(auth.uid(), e.organizer_id)))
  ) t;
+$function$;
+
+-- execute: -
+CREATE OR REPLACE FUNCTION private.event_frozen(p_event uuid)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE
+ SET search_path TO ''
+AS $function$
+ select exists (select 1 from public.event_offers o where o.event_id = p_event and o.linked = 'manual');
 $function$;
 
 -- execute: anon, authenticated
@@ -2215,6 +2300,108 @@ AS $function$
   'https://[a-z0-9-]+\.supabase\.co') || '/storage/v1/object/public/event-images/';
 $function$;
 
+-- execute: -
+CREATE OR REPLACE FUNCTION private.ingest_offers(p_run uuid, p_rows jsonb)
+ RETURNS integer
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+ r record; v_source uuid; v_offer public.event_offers; v_target uuid; v_event uuid; v_new boolean; v_writer boolean;
+ n integer := 0;
+begin
+ for r in select * from jsonb_to_recordset(p_rows) as x(
+  id uuid, slug text, uid text, url text, title text, description text, category text, city text, address text,
+  lat float8, lon float8, starts timestamptz, ends timestamptz, tz text, image text, dedupe text, quality numeric,
+  price numeric, free boolean, members jsonb, winner_slug text, winner_uid text, linked text)
+ loop
+  v_source := (select s.id from public.event_sources s where s.slug = r.slug and s.enabled);
+  continue when v_source is null;
+  v_offer := null; v_target := null; v_event := null; v_new := false;
+  select * into v_offer from public.event_offers o where o.source_id = v_source and o.source_uid = r.uid;
+  if r.winner_slug is not null then
+   select o.event_id into v_target from public.event_offers o join public.event_sources s on s.id = o.source_id
+   where s.slug = r.winner_slug and o.source_uid = r.winner_uid;
+  end if;
+
+  if v_offer.id is not null then
+   v_event := v_offer.event_id;
+   if v_target is not null and v_target <> v_event and v_offer.linked <> 'manual'
+      and not private.event_frozen(v_target) then
+    if private.event_frozen(v_event) then
+     update public.event_offers set event_id = v_target, linked = coalesce(r.linked, 'rule'), updated_at = now()
+     where id = v_offer.id;
+    else
+     perform private.merge_event(v_event, v_target, 'ingest:' || coalesce(r.linked, 'rule'));
+     update public.event_offers set linked = coalesce(r.linked, 'rule') where id = v_offer.id;
+    end if;
+    v_event := v_target;
+   end if;
+  elsif v_target is not null then
+   v_event := v_target;
+  elsif r.winner_slug is not null then
+   continue;                       -- переможця не записано (вимкнене джерело): копія без нього події не заводить
+  elsif r.members is not null then
+   select o.event_id into v_event
+   from jsonb_to_recordset(r.members) m(slug text, uid text)
+   join public.event_sources s on s.slug = m.slug
+   join public.event_offers o on o.source_id = s.id and o.source_uid = m.uid
+   join public.events e on e.id = o.event_id
+   order by e.created_at, e.id limit 1;
+  end if;
+
+  if v_event is null then
+   v_event := r.id;
+   -- Обчислений id може носити інша подія: перенесений сеанс лишає старий id, а колишній ключ повертається.
+   if v_event is null or exists (select 1 from public.events where id = v_event) then v_event := gen_random_uuid(); end if;
+   insert into public.events (id, organizer_id, title, description, category, city, address, latitude, longitude,
+    place_id, starts_at, ends_at, time_zone, capacity, image_url, origin, source_id, source_uid, canonical_url,
+    dedupe_key, quality, import_status, price_min, is_free, ingest_run_id)
+   select v_event, s.organizer_id, r.title, coalesce(r.description, ''), r.category, r.city, r.address, r.lat, r.lon,
+    (select p.id from public.places p where p.latitude = r.lat and p.longitude = r.lon),
+    r.starts, r.ends, r.tz,
+    null,                          -- місткості в афіші немає (20260907150000)
+    r.image, 'import', v_source, r.uid, r.url, r.dedupe, r.quality, 'live', r.price, r.free, p_run
+   from public.event_sources s where s.id = v_source;
+   v_new := true;
+  end if;
+
+  insert into public.event_offers as o (event_id, source_id, source_uid, canonical_url, title, starts_at, price_min,
+   is_free, status, ingest_run_id, linked, seen_at)
+  values (v_event, v_source, r.uid, r.url, r.title, r.starts, r.price, r.free, 'live', p_run, coalesce(r.linked, 'rule'),
+   now())
+  on conflict (source_id, source_uid) do update set
+   canonical_url = excluded.canonical_url, title = excluded.title, starts_at = excluded.starts_at,
+   price_min = excluded.price_min, is_free = excluded.is_free,
+   status = case when o.status = 'withdrawn' and o.ingest_run_id is null then 'withdrawn' else 'live' end,
+   ingest_run_id = case when o.status = 'withdrawn' and o.ingest_run_id is null then null else excluded.ingest_run_id end,
+   seen_at = now(), updated_at = now();
+
+  if not v_new and r.winner_slug is null then
+   select (e.source_id = v_source and e.source_uid = r.uid)
+       or exists (select 1 from jsonb_to_recordset(coalesce(r.members, '[]')) m(slug text, uid text)
+                  join public.event_sources s on s.slug = m.slug where s.id = e.source_id and m.uid = e.source_uid)
+   into v_writer from public.events e where e.id = v_event;
+   if v_writer then
+    update public.events e set title = r.title, description = coalesce(nullif(r.description, ''), e.description),
+     category = r.category, city = r.city, address = r.address, latitude = r.lat, longitude = r.lon,
+     place_id = (select p.id from public.places p where p.latitude = r.lat and p.longitude = r.lon),
+     starts_at = r.starts, ends_at = r.ends, time_zone = r.tz, image_url = coalesce(r.image, e.image_url),
+     dedupe_key = r.dedupe, quality = r.quality, updated_at = now()
+    where e.id = v_event;
+    perform private.sync_event(v_event);        -- перенесена завершена подія знову live
+   else
+    update public.events e set description = r.description, updated_at = now()
+    where e.id = v_event and e.description = '' and coalesce(r.description, '') <> '';
+    update public.events e set image_url = r.image where e.id = v_event and e.image_url is null and r.image is not null;
+   end if;
+  end if;
+  n := n + 1;
+ end loop;
+ return n;
+end $function$;
+
 -- execute: anon, authenticated
 CREATE OR REPLACE FUNCTION private.is_discoverable(p_origin text, p_import_status text, p_quality numeric)
  RETURNS boolean
@@ -2317,6 +2504,16 @@ begin
  delete from public.event_waitlist where event_id=p_event_id and user_id=auth.uid();
 end $function$;
 
+-- execute: anon, authenticated
+CREATE OR REPLACE FUNCTION private.live_event_id(p_id uuid)
+ RETURNS uuid
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+ select coalesce((select e.merged_into from public.events e where e.id = p_id), p_id);
+$function$;
+
 -- execute: authenticated
 CREATE OR REPLACE FUNCTION private.mark_chat_read(p_event_id uuid)
  RETURNS void
@@ -2330,6 +2527,96 @@ begin
  if not private.can_view_members(p_event_id) then raise exception 'NOT_MEMBER' using errcode='42501'; end if;
  insert into public.chat_reads(user_id,event_id,read_at) values (v_user,p_event_id,now())
  on conflict (user_id,event_id) do update set read_at=excluded.read_at;
+end $function$;
+
+-- execute: -
+CREATE OR REPLACE FUNCTION private.merge_event(p_from uuid, p_into uuid, p_reason text DEFAULT 'pipeline'::text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare v_from public.events; v_into public.events; v jsonb := '{}'; n integer; d integer;
+begin
+ select * into v_from from public.events where id = p_from for update;
+ select * into v_into from public.events where id = p_into for update;
+ if v_from.id is null or v_into.id is null or p_from = p_into or v_from.origin = 'community'
+    or v_into.origin = 'community' or v_into.merged_into is not null then
+  raise exception 'MERGE_REFUSED % -> %', p_from, p_into using errcode = '22023';
+ end if;
+ if v_from.merged_into = p_into then return v; end if;
+ if v_from.merged_into is not null then
+  raise exception 'MERGE_REFUSED % already merged into %', p_from, v_from.merged_into using errcode = '22023';
+ end if;
+
+ update public.saved_events x set event_id = p_into where x.event_id = p_from
+  and not exists (select 1 from public.saved_events y where y.event_id = p_into and y.user_id = x.user_id);
+ get diagnostics n = row_count; delete from public.saved_events where event_id = p_from; get diagnostics d = row_count;
+ v := v || jsonb_build_object('saved_events', n, 'saved_events_dup', d);
+
+ update public.event_members x set event_id = p_into where x.event_id = p_from
+  and not exists (select 1 from public.event_members y where y.event_id = p_into and y.user_id = x.user_id);
+ get diagnostics n = row_count; delete from public.event_members where event_id = p_from; get diagnostics d = row_count;
+ v := v || jsonb_build_object('event_members', n, 'event_members_dup', d);
+
+ update public.event_waitlist x set event_id = p_into where x.event_id = p_from
+  and not exists (select 1 from public.event_waitlist y where y.event_id = p_into and y.user_id = x.user_id);
+ get diagnostics n = row_count; delete from public.event_waitlist where event_id = p_from; get diagnostics d = row_count;
+ v := v || jsonb_build_object('event_waitlist', n, 'event_waitlist_dup', d);
+
+ update public.event_ratings x set event_id = p_into where x.event_id = p_from
+  and not exists (select 1 from public.event_ratings y where y.event_id = p_into and y.user_id = x.user_id);
+ get diagnostics n = row_count; delete from public.event_ratings where event_id = p_from; get diagnostics d = row_count;
+ v := v || jsonb_build_object('event_ratings', n, 'event_ratings_dup', d);
+
+ update public.event_messages set event_id = p_into where event_id = p_from;
+ get diagnostics n = row_count;
+ v := v || jsonb_build_object('event_messages', n);
+
+ -- Прочитане — пізніша з двох позначок.
+ update public.chat_reads y set read_at = greatest(y.read_at, x.read_at) from public.chat_reads x
+ where y.event_id = p_into and x.event_id = p_from and x.user_id = y.user_id;
+ update public.chat_reads x set event_id = p_into where x.event_id = p_from
+  and not exists (select 1 from public.chat_reads y where y.event_id = p_into and y.user_id = x.user_id);
+ get diagnostics n = row_count; delete from public.chat_reads where event_id = p_from; get diagnostics d = row_count;
+ v := v || jsonb_build_object('chat_reads', n, 'chat_reads_dup', d);
+
+ update public.event_artists x set event_id = p_into where x.event_id = p_from
+  and not exists (select 1 from public.event_artists y where y.event_id = p_into and y.artist_id = x.artist_id);
+ get diagnostics n = row_count; delete from public.event_artists where event_id = p_from; get diagnostics d = row_count;
+ v := v || jsonb_build_object('event_artists', n, 'event_artists_dup', d);
+
+ update private.follow_announced x set event_id = p_into where x.event_id = p_from
+  and not exists (select 1 from private.follow_announced y where y.event_id = p_into and y.user_id = x.user_id);
+ get diagnostics n = row_count; delete from private.follow_announced where event_id = p_from; get diagnostics d = row_count;
+ v := v || jsonb_build_object('follow_announced', n, 'follow_announced_dup', d);
+
+ update private.follow_seen x set event_id = p_into where x.event_id = p_from
+  and not exists (select 1 from private.follow_seen y where y.event_id = p_into and y.user_id = x.user_id);
+ get diagnostics n = row_count; delete from private.follow_seen where event_id = p_from; get diagnostics d = row_count;
+ v := v || jsonb_build_object('follow_seen', n, 'follow_seen_dup', d);
+
+ -- Супутники йдуть за подією. Другий збір того самого організатора на ту саму подію заборонено
+ -- (events_companion_once_idx): такий лишається на надгробку й рахується окремо.
+ update public.events c set companion_of = p_into where c.companion_of = p_from
+  and not (c.status = 'published' and exists (select 1 from public.events o where o.companion_of = p_into
+           and o.organizer_id = c.organizer_id and o.status = 'published'));
+ get diagnostics n = row_count;
+ v := v || jsonb_build_object('companions', n,
+  'companions_kept', (select count(*) from public.events c where c.companion_of = p_from));
+
+ update public.event_offers set event_id = p_into where event_id = p_from;
+ get diagnostics n = row_count;
+ v := v || jsonb_build_object('offers', n);
+ update public.events set merged_into = p_into where merged_into = p_from;     -- без ланцюгів надгробків
+
+ update public.events set description = v_from.description, updated_at = now()
+ where id = p_into and description = '' and v_from.description <> '';
+ update public.events set image_url = v_from.image_url where id = p_into and image_url is null and v_from.image_url is not null;
+ update public.events set merged_into = p_into, import_status = 'withdrawn', updated_at = now() where id = p_from;
+ perform private.sync_event(p_into);
+ insert into private.event_merges (from_id, into_id, reason, moved) values (p_from, p_into, p_reason, v);
+ return v;
 end $function$;
 
 -- execute: -
@@ -2588,6 +2875,20 @@ CREATE OR REPLACE FUNCTION private.on_message_inserted()
 AS $function$
 begin
  perform private.notify_push(jsonb_build_object('type','message','message_id',new.id,'event_id',new.event_id));
+ return new;
+end $function$;
+
+-- execute: -
+CREATE OR REPLACE FUNCTION private.on_offer_changed()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+begin
+ if tg_op = 'DELETE' then perform private.sync_event(old.event_id); return old; end if;
+ perform private.sync_event(new.event_id);
+ if tg_op = 'UPDATE' and old.event_id <> new.event_id then perform private.sync_event(old.event_id); end if;
  return new;
 end $function$;
 
@@ -2880,6 +3181,46 @@ begin
  insert into public.account_facts(user_id,birth_date) values (v_user,p_birth)
  on conflict (user_id) do update set birth_date=excluded.birth_date,updated_at=now();
 end $function$;
+
+-- execute: -
+CREATE OR REPLACE FUNCTION private.sync_event(p_event uuid)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare v_event public.events; v_primary public.event_offers; v_live integer; v_price numeric; v_free boolean; v_status text;
+begin
+ select * into v_event from public.events where id = p_event;
+ if not found or v_event.merged_into is not null then return; end if;
+ select o.* into v_primary from public.event_offers o join public.event_sources s on s.id = o.source_id
+ where o.event_id = p_event
+ order by o.status = 'live' desc, (o.source_id = v_event.source_id and o.source_uid = v_event.source_uid) desc,
+          s.weight desc, o.created_at, o.id
+ limit 1;
+ if not found then return; end if;           -- подія без пропозицій (спільнотна чи тестова) — не наша справа
+ select count(*), min(o.price_min), bool_or(o.is_free) into v_live, v_price, v_free
+ from public.event_offers o where o.event_id = p_event and o.status = 'live';
+ v_status := case when v_live = 0 then 'withdrawn'
+                  when v_event.import_status = 'stale' and v_event.ends_at < now() then 'stale' else 'live' end;
+ if v_live = 0 then v_price := v_event.price_min; v_free := v_event.is_free; end if;
+ update public.events e set source_id = v_primary.source_id, source_uid = v_primary.source_uid,
+  canonical_url = v_primary.canonical_url, price_min = v_price, is_free = v_free, import_status = v_status,
+  ingest_run_id = v_primary.ingest_run_id, updated_at = now()
+ where e.id = p_event and (e.source_id, e.source_uid, e.canonical_url, e.price_min, e.is_free, e.import_status, e.ingest_run_id)
+  is distinct from (v_primary.source_id, v_primary.source_uid, v_primary.canonical_url, v_price, v_free, v_status,
+                    v_primary.ingest_run_id);
+end $function$;
+
+-- execute: -
+CREATE OR REPLACE FUNCTION private.title_key(p_title text)
+ RETURNS text
+ LANGUAGE sql
+ IMMUTABLE
+ SET search_path TO ''
+AS $function$
+ select regexp_replace(regexp_replace(lower(p_title), '\s*\([^()]*\)\s*$', ''), '[\s«»"“”„''`ʼ’‘!?.,:;…–—-]+', '', 'g');
+$function$;
 
 -- execute: authenticated
 CREATE OR REPLACE FUNCTION private.unfollow(p_kind text, p_target uuid)
