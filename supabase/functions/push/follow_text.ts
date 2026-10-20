@@ -76,3 +76,17 @@ export function artistText(total: number, artistCount: number, artists: ArtistLi
   const names = shown.map((a) => a.name).join(", ") + (more > 0 ? ` та ще ${more}` : "");
   return { title: `${newEvents(total)} в артистів, за якими ви стежите`, body: clip(names), artistId: lead.id };
 }
+
+/**
+ * Пуш повернення (docs/guest-channel.md): ті самі шаблони, що в локального дайджесту (`Copy.digest_title`,
+ * `digest_title_3`, `digest_more`; на Android — strings.xml), щоб людина чула один голос. Крок 1 — заголовок
+ * першої пʼятниці драбини, крок 2 — третьої. Назви сирі, як у решті пушів.
+ */
+export function winbackText(step: 1 | 2, city: string, total: number, titles: string[]): { title: string; body: string } {
+  const count = `${total} ${plural(total, "подія", "події", "подій")}`;
+  const rest = total - titles.length;
+  return {
+    title: step === 1 ? `${city}: ${count} на вихідних` : `Є куди на вихідних. ${city}: ${count}`,
+    body: clip(titles.join(", ") + (rest > 0 ? ` та ще ${rest}` : "")),
+  };
+}
