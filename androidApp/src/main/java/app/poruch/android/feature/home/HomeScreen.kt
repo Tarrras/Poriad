@@ -630,7 +630,7 @@ private fun PosterCard(
     val price = event.listing?.takeIf { event.gathering == null && (it.isFree == true || it.priceMin != null) }?.let { listingPrice(it) }
     // Афіша завжди підписана джерелом (docs/event-ingestion.md §8).
     val note: Pair<String, Color>? = event.listing?.let {
-        (if (it.isWithdrawn) stringResource(R.string.listing_withdrawn) else stringResource(R.string.listing_badge, it.sourceName)) to colors.inkTertiary
+        ((if (it.isWithdrawn) listingStamp(it)?.first else null) ?: stringResource(R.string.listing_badge, it.sellerNames)) to colors.inkTertiary
     }
     val words = dateWords()
     val series = remember(event, words) { seriesNote(event, words) }

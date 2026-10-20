@@ -640,7 +640,7 @@ extension EventDetailView {
             Button(Copy.bought_prompt_save) {
                 boughtPrompt = false
                 model.app.boughtPromptAnswered(saved: true)
-                if !actions.toggleSaved(event, signedIn: view.signedIn) { auth = .save }
+                if !view.saved, !actions.toggleSaved(event, signedIn: view.signedIn) { auth = .save }
             }
             .font(PoruchFont.button).foregroundStyle(Palette.onBrand)
             .padding(.horizontal, Space.lg).frame(minHeight: 40).background(Palette.ink, in: buttonShape)

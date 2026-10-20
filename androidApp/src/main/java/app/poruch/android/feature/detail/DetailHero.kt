@@ -108,7 +108,7 @@ internal fun Hero(event: Event, state: DetailState, scroll: ScrollState, onInten
             // афіші — тихим рядком під назвою: пігулки були окремою мовою міток, а жанр ще й надрукований на корінці панелі.
             val stamp: Triple<String, BadgeTone, ImageVector?>? = when {
                 state.screen.cancelled -> Triple(stringResource(R.string.cancelled_short), BadgeTone.Danger, null)
-                state.screen.listing != null -> null
+                state.screen.listing != null -> listingStamp(state.screen.listing!!)?.let { Triple(it.first, it.second, null) }
                 state.screen.organizer -> Triple(stringResource(R.string.you_organize), BadgeTone.Neutral, null)
                 // Після кінця лишається лише факт участі: черга й місця вже нічого не значать.
                 state.screen.ended -> if (room?.joined == true) Triple(stringResource(R.string.went), BadgeTone.Neutral, PoruchIcons.check) else null
@@ -123,7 +123,7 @@ internal fun Hero(event: Event, state: DetailState, scroll: ScrollState, onInten
             val meta = listOfNotNull(
                 stringResource(categoryLabel(event.category)).takeIf { it.isNotBlank() },
                 state.screen.listing?.let {
-                    if (it.isWithdrawn) stringResource(R.string.listing_withdrawn) else stringResource(R.string.listing_badge, it.sourceName)
+                    stringResource(R.string.listing_badge, it.sellerNames)
                 }
             ).joinToString(" · ")
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {

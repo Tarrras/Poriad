@@ -6,6 +6,7 @@ import app.poruch.domain.EventCategory
 import app.poruch.domain.Event
 import app.poruch.domain.EventSession
 import app.poruch.domain.Listing
+import app.poruch.domain.Offer
 import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -247,11 +248,39 @@ private fun Instant.toKotlin(): kotlin.time.Instant = kotlin.time.Instant.fromEp
 
 /** Ціна одним рядком: «безкоштовно», «від N» або «джерело не сказало». Останнє — не нуль. */
 @Composable
-fun listingPrice(listing: Listing): String = when {
-    listing.isFree == true -> stringResource(R.string.listing_free)
-    listing.priceMin != null -> stringResource(R.string.listing_price_from, hryvnia(listing.priceMin!!))
+fun listingPrice(listing: Listing): String = priceLabel(listing.isFree, listing.priceMin)
+
+/** Ціна одного продавця: «від 400 ₴» у рядку «Квитки». */
+@Composable
+fun offerPrice(offer: Offer): String = priceLabel(offer.isFree, offer.priceMin)
+
+@Composable
+private fun priceLabel(isFree: Boolean?, priceMin: Double?): String = when {
+    isFree == true -> stringResource(R.string.listing_free)
+    priceMin != null -> stringResource(R.string.listing_price_from, hryvnia(priceMin))
     else -> stringResource(R.string.listing_price_unknown)
 }
+
+/**
+ * Стара й нова дата перенесеної афіші, «пт 21.11, 19:00», у поясі події (питання 6, варіант Б: стара — на квитку,
+ * перекреслена; нова — та, що на корінці). Null — не перенесена.
+ */
+fun movedDates(event: Event): Pair<String, String>? {
+    val listing = event.listing?.takeIf { it.isMoved } ?: return null
+    val zone = runCatching { ZoneId.of(event.timeZone) }.getOrNull() ?: return null
+    val old = runCatching { Instant.parse(listing.previousStartsAt).atZone(zone) }.getOrNull() ?: return null
+    val new = zoned(event) ?: return null
+    return old.format(pattern(MOVED)) to new.format(pattern(MOVED))
+}
+
+/** Стара дата довгою формою для банера деталей: «пт, 21 листопада, 19:00». */
+fun previousDate(event: Event): String? {
+    val raw = event.listing?.previousStartsAt ?: return null
+    val zone = runCatching { ZoneId.of(event.timeZone) }.getOrNull() ?: return null
+    return runCatching { Instant.parse(raw).atZone(zone).format(pattern("EE, d MMMM, HH:mm")) }.getOrNull()
+}
+
+private const val MOVED = "EE dd.MM, HH:mm"
 
 /** Копійки в афішах нічого не додають. */
 private fun hryvnia(amount: Double): String =

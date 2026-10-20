@@ -191,7 +191,7 @@ fun categoryInk(category: EventCategory): Color =
 
 /** Корінець квитка: колір жанру, а в скасованої події — погашений сірий. */
 @Composable
-fun ticketStub(event: Event): Color = if (event.isCancelled) Poruch.colors.voidStub else categoryStub(event.category)
+fun ticketStub(event: Event): Color = if (event.isCalledOff) Poruch.colors.voidStub else categoryStub(event.category)
 
 @Composable
 fun categoryWash(category: EventCategory): Color =
