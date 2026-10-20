@@ -49,7 +49,7 @@ extension EventDetailView {
     /// тихим рядком під назвою (`coverMeta`): пігулки були окремою мовою міток, а жанр ще й надрукований на корінці панелі.
     func coverState(_ event: Event, _ view: DetailScreenState) -> (String, BadgeTone, PoruchGlyph?)? {
         if view.cancelled { return (Copy.cancelled_short, .danger, nil) }
-        if view.listing != nil { return nil }
+        if let listing = view.listing { return listingStamp(listing) }
         if view.organizer { return (Copy.you_organize, .neutral, nil) }
         // Після кінця лишається лише факт участі: черга й місця вже нічого не значать.
         if view.ended { return view.room?.joined == true ? (Copy.went, .neutral, PoruchIcons.check) : nil }
@@ -64,7 +64,7 @@ extension EventDetailView {
     func coverMeta(_ event: Event, _ view: DetailScreenState) -> String {
         var parts = [categoryName(event.category)]
         if let listing = view.listing {
-            parts.append(listing.isWithdrawn ? Copy.listing_withdrawn : Copy.listing_badge("\(listing.sourceName)"))
+            parts.append(Copy.listing_badge(listing.sellerNames))
         }
         return parts.filter { !$0.isEmpty }.joined(separator: " · ")
     }
@@ -156,10 +156,6 @@ extension EventDetailView {
         if let room = event.gathering {
             cells.append((Copy.organizer_short, room.organizerName.isEmpty ? Copy.organizer_short : room.organizerName))
             cells.append((Copy.capacity_label, Copy.attendees_short("\(room.attendeeCount)", "\(room.capacity)")))
-        }
-        if let listing = event.listing {
-            cells.append((Copy.listing_source_label, listing.sourceName))
-            cells.append((Copy.listing_price_label, listingPrice(listing)))
         }
         return LazyVGrid(columns: [GridItem(.flexible(), alignment: .topLeading), GridItem(.flexible(), alignment: .topLeading)], spacing: Space.xl) {
             ForEach(Array(cells.enumerated()), id: \.offset) { _, cell in
@@ -567,7 +563,7 @@ extension EventDetailView {
 
     private func summary(_ view: DetailScreenState) -> some View {
         Text(view.seatsSummary).font(PoruchFont.subhead)
-            .foregroundStyle(view.cancelled ? Palette.danger : Palette.inkSecondary)
+            .foregroundStyle(view.event?.isCalledOff == true ? Palette.danger : Palette.inkSecondary)
             .lineLimit(3).fixedSize(horizontal: false, vertical: true)
     }
 
@@ -576,6 +572,87 @@ extension EventDetailView {
         SecondaryButton(title: view.action.title, enabled: view.action.isEnabled && !view.mutating) {
             if !actions.perform(view.action, on: event, signedIn: view.signedIn) { auth = .join }
         }
+    }
+
+    /// Квитки афіші (R8–R10): стан, коли з подією щось сталось, і продавці — кожен своїм рядком з ціною й посиланням.
+    /// Не в силі — «Якщо купили квиток» з усіма продавцями, де могли купити. Під ними «Перевірено…» і обіцянка «Зберегти».
+    func tickets(_ event: Event, _ listing: Listing, _ view: DetailScreenState) -> some View {
+        let refund = listing.isWithdrawn
+        let sellers = refund ? listing.sellers : listing.sellers.filter { $0.live }
+        let stamp = view.cancelled ? (Copy.cancelled_short, BadgeTone.danger, nil) : listingStamp(listing)
+        return VStack(alignment: .leading, spacing: Space.md) {
+            if let stamp {
+                TicketStamp(text: stamp.0, tone: stamp.1)
+                if let hint = listing.stateHint(event) {
+                    Text(hint).font(PoruchFont.bodyText).foregroundStyle(Palette.ink).fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            if !sellers.isEmpty {
+                Text((refund ? Copy.sellers_refund_title : Copy.listing_price_label).uppercased())
+                    .font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
+                VStack(spacing: 0) {
+                    ForEach(Array(sellers.enumerated()), id: \.offset) { index, offer in
+                        if index > 0 { Divider().overlay(Palette.hairline) }
+                        Button { actions.openSeller(offer, of: event, from: refund ? "refund" : "sellers") } label: {
+                            HStack(spacing: Space.md) {
+                                Text(offer.sourceName).font(PoruchFont.cardName).foregroundStyle(Palette.ink)
+                                Spacer(minLength: Space.sm)
+                                if !refund { Text(offerPrice(offer)).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary) }
+                                PoruchIcon(glyph: PoruchIcons.chevronRight, size: 15).foregroundStyle(Palette.inkTertiary)
+                            }
+                            .frame(minHeight: 48).contentShape(Rectangle())
+                        }
+                        .buttonStyle(PressableStyle(pressedScale: 1))
+                        .accessibilityElement(children: .combine)
+                    }
+                }
+            }
+            if let checked = view.checked {
+                Text(checkedText(checked)).font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
+            }
+            // Обіцянка «Зберегти» (R9): зберегти = стежити за змінами, з квитком чи без.
+            if !refund && !view.ended {
+                Divider().overlay(Palette.hairline)
+                Button { if !actions.toggleSaved(event, signedIn: view.signedIn) { auth = .save } } label: {
+                    HStack(spacing: Space.md) {
+                        PoruchIcon(glyph: view.saved ? PoruchIcons.bookmarkFilled : PoruchIcons.bookmark, size: 20).foregroundStyle(Palette.ink)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(view.saved ? Copy.saved_short : Copy.save).font(PoruchFont.cardName).foregroundStyle(Palette.ink)
+                            Text(Copy.save_promise).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .frame(minHeight: 48).contentShape(Rectangle())
+                }
+                .buttonStyle(PressableStyle(pressedScale: 1))
+                .accessibilityElement(children: .combine)
+                .accessibilityAddTraits(view.saved ? .isSelected : [])
+            }
+        }
+        .padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()
+    }
+
+    /// «Купили? Стежитимемо за змінами» після повернення від продавця (R9): раз на подію, над панеллю дії.
+    func boughtCard(_ event: Event, _ view: DetailScreenState) -> some View {
+        HStack(spacing: Space.md) {
+            Text(Copy.bought_prompt).font(PoruchFont.subhead).foregroundStyle(Palette.ink).fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+            Button(Copy.bought_prompt_save) {
+                boughtPrompt = false
+                model.app.boughtPromptAnswered(saved: true)
+                if !actions.toggleSaved(event, signedIn: view.signedIn) { auth = .save }
+            }
+            .font(PoruchFont.button).foregroundStyle(Palette.onBrand)
+            .padding(.horizontal, Space.lg).frame(minHeight: 40).background(Palette.ink, in: buttonShape)
+            Button { boughtPrompt = false; model.app.boughtPromptAnswered(saved: false) } label: {
+                PoruchIcon(glyph: PoruchIcons.close, size: 16).foregroundStyle(Palette.inkSecondary).frame(width: 40, height: 40)
+            }.accessibilityLabel(Copy.close)
+        }
+        .padding(.leading, Space.lg).padding(.trailing, Space.sm).padding(.vertical, Space.sm)
+        .background(Palette.surfaceRaised, in: RoundedRectangle(cornerRadius: Corner.lg, style: .continuous))
+        .lifted(Elevation.overlay)
+        .padding(.horizontal, Space.md)
+        .transition(.move(edge: .bottom).combined(with: .opacity))
     }
 
     /// Хто вже шукає компанію на цю афішу. Без імен: організатора видно на сторінці супутника, туди

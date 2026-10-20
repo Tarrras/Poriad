@@ -224,7 +224,8 @@ private struct PosterCard: View {
     /// Афіша завжди підписана джерелом (docs/event-ingestion.md §8).
     private var note: (String, Color)? {
         guard let listing = event.listing else { return nil }
-        return (listing.isWithdrawn ? Copy.listing_withdrawn : Copy.listing_badge("\(listing.sourceName)"), Palette.inkTertiary)
+        if listing.isWithdrawn, let stamp = listingStamp(listing) { return (stamp.0, Palette.inkTertiary) }
+        return (Copy.listing_badge(listing.sellerNames), Palette.inkTertiary)
     }
 
     @Environment(\.dynamicTypeSize) private var typeSize

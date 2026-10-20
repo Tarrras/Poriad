@@ -565,8 +565,22 @@ enum Copy {
     static let listing_free = "Безкоштовно"
     static let listing_price_unknown = "Ціну вкаже джерело"
     static let listing_hint_no_link = "Подія з афіші. Ми лише показуємо її."
-    static let listing_withdrawn = "Більше не проводиться"
-    static let listing_withdrawn_hint = "Джерело зняло цю подію. Запис лишається у вас як позначка."
+    static let state_postponed = "Відкладено"
+    static let state_moved = "Перенесено"
+    static let state_unknown = "Не знайшли в продажу"
+    static let state_postponed_summary = "Відкладено, нової дати ще нема"
+    static let state_cancelled_hint = "Продавець позначив подію скасованою. Квиток повертають там, де купували."
+    static let state_postponed_hint = "Нової дати ще нема. Квиток повертають там, де купували, або тримають до нової дати."
+    static func state_moved_hint(_ a0: String) -> String { "Було \(a0). Якщо нова дата не підходить, квиток повертають там, де купували." }
+    static let state_unknown_hint = "Жоден продавець більше не продає квитки на цю дату. Можливо, подію скасували чи перенесли — перевірте у продавця."
+    static func checked_today(_ a0: String) -> String { "Перевірено сьогодні о \(a0)" }
+    static func checked_yesterday(_ a0: String) -> String { "Перевірено вчора о \(a0)" }
+    static func checked_date(_ a0: String) -> String { "Перевірено \(a0)" }
+    static let sellers_refund_title = "Якщо купили квиток"
+    static let save_promise = "Повідомимо, якщо скасують чи перенесуть"
+    static let saved_short = "Збережено"
+    static let bought_prompt = "Купили? Стежитимемо за змінами"
+    static let bought_prompt_save = "Зберегти"
     static let link_unavailable = "Немає застосунку, щоб відкрити посилання"
     static let nothing_found = "Нічого не знайшлося"
     static let nothing_found_hint = "Спробуйте інше слово або зніміть фільтри."

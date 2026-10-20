@@ -663,8 +663,24 @@
   <string name="listing_free">Безкоштовно</string>
   <string name="listing_price_unknown">Ціну вкаже джерело</string>
   <string name="listing_hint_no_link">Подія з афіші. Ми лише показуємо її.</string>
-  <string name="listing_withdrawn">Більше не проводиться</string>
-  <string name="listing_withdrawn_hint">Джерело зняло цю подію. Запис лишається у вас як позначка.</string>
+  <!-- Стан афіші з усіх продавців (docs/event-offers.md R8). «Скасовано» — cancelled_short. -->
+  <string name="state_postponed">Відкладено</string>
+  <string name="state_moved">Перенесено</string>
+  <string name="state_unknown">Не знайшли в продажу</string>
+  <string name="state_postponed_summary">Відкладено, нової дати ще нема</string>
+  <string name="state_cancelled_hint">Продавець позначив подію скасованою. Квиток повертають там, де купували.</string>
+  <string name="state_postponed_hint">Нової дати ще нема. Квиток повертають там, де купували, або тримають до нової дати.</string>
+  <string name="state_moved_hint">Було %1$s. Якщо нова дата не підходить, квиток повертають там, де купували.</string>
+  <string name="state_unknown_hint">Жоден продавець більше не продає квитки на цю дату. Можливо, подію скасували чи перенесли — перевірте у продавця.</string>
+  <string name="checked_today">Перевірено сьогодні о %1$s</string>
+  <string name="checked_yesterday">Перевірено вчора о %1$s</string>
+  <string name="checked_date">Перевірено %1$s</string>
+  <string name="sellers_refund_title">Якщо купили квиток</string>
+  <!-- Обіцянка «Зберегти» (R9): зберегти = стежити за змінами, з квитком чи без. -->
+  <string name="save_promise">Повідомимо, якщо скасують чи перенесуть</string>
+  <string name="saved_short">Збережено</string>
+  <string name="bought_prompt">Купили? Стежитимемо за змінами</string>
+  <string name="bought_prompt_save">Зберегти</string>
   <string name="link_unavailable">Немає застосунку, щоб відкрити посилання</string>
   <!-- Порожній пошук — не те саме, що порожня околиця: підказка має вести до іншої дії. -->
   <string name="nothing_found">Нічого не знайшлося</string>

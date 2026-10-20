@@ -59,7 +59,8 @@ extension DetailScreenState {
         guard event != nil else { return "" }
         if cancelled { return Copy.cancelled }
         if let listing {
-            if listing.isWithdrawn { return Copy.listing_withdrawn_hint }
+            if listing.state == .postponed { return Copy.state_postponed_summary }
+            if listing.isWithdrawn { return Copy.state_unknown }
             if sessionStarted { return Copy.session_started_hint }
             return listing.hasSource ? listingPrice(listing) : Copy.listing_hint_no_link
         }
@@ -70,6 +71,27 @@ extension DetailScreenState {
         if room.approvalRequired && !room.joined && !organizer { return Copy.approval_guest_hint }
         if room.isFull && !room.joined && !organizer { return Copy.waitlist_hint }
         return Copy.seats("\(room.seatsLeft)")
+    }
+}
+
+extension Listing {
+    /// Пояснення стану афіші над продавцями (R8). Null — «в силі» без переносу.
+    func stateHint(_ event: Event) -> String? {
+        if event.isCancelled { return Copy.state_cancelled_hint }
+        switch state {
+        case .postponed: return Copy.state_postponed_hint
+        case .unknown: return Copy.state_unknown_hint
+        default: return isMoved ? Copy.state_moved_hint(previousDate(event) ?? "") : nil
+        }
+    }
+}
+
+/// «Перевірено сьогодні о 09:00» — довіра до «в силі» (R8).
+func checkedText(_ checked: CheckedLabel) -> String {
+    switch checked.day {
+    case .today: return Copy.checked_today(checked.time)
+    case .yesterday: return Copy.checked_yesterday(checked.time)
+    default: return Copy.checked_date(checked.date)
     }
 }
 

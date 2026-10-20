@@ -40,10 +40,11 @@ struct EventThumbnail: View {
     }
 }
 
-/// Стан події словами: скасовано, знято, а для кімнати — «ви йдете», запит, черга, місця. Без підпису джерела афіші.
+/// Стан події словами: скасовано, відкладено, перенесено, а для кімнати — «ви йдете», запит, черга, місця. Без підпису
+/// джерела афіші.
 func eventState(_ event: Event, waitlisted: Bool = false) -> (String, BadgeTone, PoruchGlyph?)? {
     if event.isCancelled { return (Copy.cancelled_short, .danger, nil) }
-    if let listing = event.listing { return listing.isWithdrawn ? (Copy.listing_withdrawn, .neutral, nil) : nil }
+    if let listing = event.listing { return listingStamp(listing) }
     guard let room = event.gathering else { return nil }
     // Місця й «ви йдете» після кінця нічого не кажуть: рядок покаже категорію.
     if event.hasEnded(now: nowInstant()) { return nil }
@@ -55,6 +56,16 @@ func eventState(_ event: Event, waitlisted: Bool = false) -> (String, BadgeTone,
     return nil
 }
 
+/// Стан афіші з усіх продавців (docs/event-offers.md R8): відкладено — тривога, як скасування; перенесено — терміновість,
+/// подія жива; «не знайшли в продажу» — без тривоги, бо ми не знаємо, що сталось. Скасовану бере `eventState`.
+func listingStamp(_ listing: Listing) -> (String, BadgeTone, PoruchGlyph?)? {
+    switch listing.state {
+    case .postponed: return (Copy.state_postponed, .danger, nil)
+    case .unknown: return (Copy.state_unknown, .neutral, nil)
+    default: return listing.isMoved ? (Copy.state_moved, .accent, nil) : nil
+    }
+}
+
 /// Подія від людини, а не з афіші: підпис походження, пара до «Афіша · джерело». Стан кімнати («Ви йдете», «Лишилось 2») важливіший.
 func communityBadge(_ event: Event) -> (String, BadgeTone, PoruchGlyph?)? {
     event.gathering == nil ? nil : (Copy.from_people, .neutral, PoruchIcons.social)
@@ -64,7 +75,7 @@ func communityBadge(_ event: Event) -> (String, BadgeTone, PoruchGlyph?)? {
 func eventBadge(_ event: Event, waitlisted: Bool = false) -> (String, BadgeTone, PoruchGlyph?)? {
     if let state = eventState(event, waitlisted: waitlisted) { return state }
     guard let listing = event.listing else { return nil }
-    return (Copy.listing_badge("\(listing.sourceName)"), .neutral, nil)
+    return (Copy.listing_badge(listing.sellerNames), .neutral, nil)
 }
 
 /// Рядок під назвою: учасники для кімнати, ціна для афіші.
@@ -230,9 +241,13 @@ struct EventRow: View {
                     if let badge = status ?? eventState(event, waitlisted: waitlisted) {
                         TicketStamp(text: badge.0, tone: badge.1, glyph: badge.2).padding(.top, 2)
                     }
+                    // Перенесена: стара дата перекреслена, нова — та, що на корінці (питання 6, варіант Б).
+                    if let moved = movedLine(event) {
+                        moved.font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(1).minimumScaleFactor(0.8)
+                    }
                     EventDescriptor(event: event)
                     if let listing = event.listing, !listing.isWithdrawn {
-                        Text(Copy.listing_badge("\(listing.sourceName)")).font(PoruchFont.overline)
+                        Text(Copy.listing_badge(listing.sellerNames)).font(PoruchFont.overline)
                             .foregroundStyle(Palette.inkTertiary).lineLimit(1)
                     }
                 }

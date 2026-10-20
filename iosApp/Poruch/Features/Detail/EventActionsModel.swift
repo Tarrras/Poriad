@@ -15,7 +15,10 @@ import Shared
     func perform(_ action: DetailAction, on event: Event, signedIn: Bool) -> Bool {
         // Квитки на афішу купують у джерела: акаунт не потрібен, тому до перевірки входу.
         if action == .tickets {
-            if let url = sourceURL(event) { UIApplication.shared.open(url) }
+            if let url = sourceURL(event) {
+                app.ticketOpened(eventId: event.id, source: event.listing?.sourceName ?? "", from: "bar")
+                UIApplication.shared.open(url)
+            }
             return true
         }
         guard signedIn else { return false }
@@ -30,6 +33,13 @@ import Shared
     }
 
     private func offerReminders() { ReminderPrompt.offer(app) }
+
+    /// Сайт продавця з блоку «Квитки» чи «Якщо купили квиток». [from] — для `ticket_open`.
+    func openSeller(_ offer: Offer, of event: Event, from: String) {
+        guard let raw = offer.url, let url = URL(string: raw), url.scheme == "https" else { return }
+        app.ticketOpened(eventId: event.id, source: offer.sourceName, from: from)
+        UIApplication.shared.open(url)
+    }
 
     /// Запит у чужий супутник прямо з картки на сторінці афіші.
     func joinCompanion(id: String, signedIn: Bool) -> Bool {

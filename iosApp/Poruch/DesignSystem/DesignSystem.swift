@@ -156,7 +156,7 @@ func categoryInk(_ category: EventCategory) -> Color {
 }
 
 /// Корінець квитка: колір жанру, а в скасованої події — погашений сірий.
-func ticketStub(_ event: Event) -> Color { event.isCancelled ? Palette.voidStub : categoryStub(event.category) }
+func ticketStub(_ event: Event) -> Color { event.isCalledOff ? Palette.voidStub : categoryStub(event.category) }
 
 /// Другий відтінок пари для градієнта обкладинки.
 private let categoryPartners: [String: UInt32] = [
@@ -677,6 +677,20 @@ func eventDate(_ event: Event) -> String {
     return "\(prefix)\(dayLabel(event, date, short: false)) · \(hour)\(zoneSuffix)"
 }
 
+/// Стара й нова дата перенесеної афіші: «~~пт 21.11, 19:00~~ → нд 23.11, 18:00», у поясі події. Нова — та, що на корінці.
+func movedLine(_ event: Event) -> Text? {
+    guard let listing = event.listing, listing.isMoved, let raw = listing.previousStartsAt,
+          let old = parseEventDate(raw), let new = parseEventDate(event.startsAt) else { return nil }
+    let format = formatter(event, "EEE dd.MM, HH:mm")
+    return Text(format.string(from: old)).strikethrough() + Text(" → " + format.string(from: new))
+}
+
+/// Стара дата перенесеної афіші довгою формою для банера деталей: «пт, 21 листопада, 19:00».
+func previousDate(_ event: Event) -> String? {
+    guard let raw = event.listing?.previousStartsAt, let old = parseEventDate(raw) else { return nil }
+    return formatter(event, "EEE, d MMMM, HH:mm").string(from: old)
+}
+
 /// Надрядок картки: дата найближчого сеансу і, для прокату, згадка про решту. На деталях решту показує карусель.
 func cardOverline(_ event: Event) -> String {
     let base = eventOverline(event)
@@ -722,9 +736,14 @@ func eventScarce(_ event: Event) -> Bool {
 }
 
 /// Ціна одним рядком: «безкоштовно», «від N» або «джерело не сказало». Останнє — не нуль.
-func listingPrice(_ listing: Listing) -> String {
-    if listing.isFree?.boolValue == true { return "Безкоштовно" }
-    guard let price = listing.priceMin?.doubleValue else { return "Ціну вкаже джерело" }
+func listingPrice(_ listing: Listing) -> String { priceLabel(isFree: listing.isFree, price: listing.priceMin) }
+
+/// Ціна одного продавця: «від 400 ₴» у рядку «Квитки».
+func offerPrice(_ offer: Offer) -> String { priceLabel(isFree: offer.isFree, price: offer.priceMin) }
+
+private func priceLabel(isFree: KotlinBoolean?, price priceMin: KotlinDouble?) -> String {
+    if isFree?.boolValue == true { return "Безкоштовно" }
+    guard let price = priceMin?.doubleValue else { return "Ціну вкаже джерело" }
     let amount = price == price.rounded() ? String(Int(price)) : String(format: "%.2f", price)
     return "Від \(amount) ₴"
 }
