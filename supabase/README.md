@@ -367,6 +367,9 @@ pg_dump "$SUPABASE_DB_URL" -t public.events --data-only -Fc -f events-$(date +%F
   `record_offer_checks` зливає двійників за кінцевою адресою (`private.merge_url_twins`, причина `url_twin` у
   `event_merges`) і розбирає чергу від'єднання (`private.process_offer_detach_queue`, колонки `resolution`,
   `resolved_at`). `tests/offer_cleanup.sql` — **PASS** на dev, решта `tests/*.sql` без помилок.
+- `20261031120000_same_page_move.sql` (dev 2026-10-20): «зайнята ціль» не блокує переносу на ту саму сторінку продавця
+  (`private.offer_says`); прийнятий перенос з перемикачем зливає стару подію в ціль (`private.merge_page_moves`,
+  `same_page_move`); черга — `cleared` / `merged`. `tests/offer_cleanup.sql` (розділ 3) — **PASS** на dev.
 
 ## Пуші про зміну афіші й супутник за подією (за перемикачем)
 
