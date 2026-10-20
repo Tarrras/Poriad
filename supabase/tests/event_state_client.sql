@@ -1,6 +1,7 @@
 -- Запускати адміністратором бази. Усе відкочується. Стан події й продавці — клієнтам (docs/event-offers.md, фаза 4:
--- R8, R10, R11): поля 1.3.0 ті самі, стан береться з event_state лише на тому ж часі, перенос — лише застосований,
--- знята без стану — «не знайшли», продавці основним першим і без вимкненого джерела, у спільнотної — нічого.
+-- R8, R10, R11): поля 1.3.0 ті самі, стан береться з event_state лише за перемикачем фази 3 і на тому ж часі, перенос —
+-- лише застосований, знята без стану — «не знайшли», продавці основним першим і без вимкненого джерела, у спільнотної —
+-- нічого. Потребує міграцій 20261027120000 (перемикач) і 20261028120000.
 begin;
 
 create or replace function private.notify_push(p_payload jsonb) returns void language plpgsql security definer
@@ -62,8 +63,15 @@ do $$ declare d public.event_result := pg_temp.d('c1a'); begin
   'cards carry the same';
 end $$;
 
--- ── 2. Скасовано на тому ж часі — клієнт бачить; import_status не чіпаємо.
+-- ── 2. Скасовано на тому ж часі. Перемикач фази 3 вимкнено — клієнт стану тіні не бачить.
 select pg_temp.state('c1a','cancelled');
+update private.flags set enabled = false where name = 'event_changes';
+do $$ declare d public.event_result := pg_temp.d('c1a'); begin
+ assert d.state = 'scheduled' and d.checked_at is null, 'flag off: shadow state stays hidden';
+ assert pg_temp.card('c1a')->>'state' = 'scheduled' and not (pg_temp.card('c1a') ? 'checked_at'), 'card too';
+end $$;
+-- Увімкнено (лише прапорець, без перерахунку import_status: тут перевіряємо клієнтські поля).
+update private.flags set enabled = true where name = 'event_changes';
 do $$ declare d public.event_result := pg_temp.d('c1a'); begin
  assert d.state = 'cancelled' and d.checked_at is not null and d.import_status = 'live', 'cancelled, checked';
  assert pg_temp.card('c1a')->>'state' = 'cancelled' and pg_temp.card('c1a') ? 'checked_at', 'card too';
