@@ -370,6 +370,9 @@ pg_dump "$SUPABASE_DB_URL" -t public.events --data-only -Fc -f events-$(date +%F
 - `20261031120000_same_page_move.sql` (dev 2026-10-20): «зайнята ціль» не блокує переносу на ту саму сторінку продавця
   (`private.offer_says`); прийнятий перенос з перемикачем зливає стару подію в ціль (`private.merge_page_moves`,
   `same_page_move`); черга — `cleared` / `merged`. `tests/offer_cleanup.sql` (розділ 3) — **PASS** на dev.
+- `20261101120000_no_earlier_move.sql` (dev 2026-10-20): тихий перенос на раніше більш ніж на добу — не перенос
+  (`private.offer_says` → `gone`), уже прийняті відкликано тихо; той самий поріг у дампі (`emit._adopt_silent_moves`).
+  `tests/offer_cleanup.sql` (розділ 4) — **PASS** на dev.
 
 ## Пуші про зміну афіші й супутник за подією (за перемикачем)
 
