@@ -363,6 +363,10 @@ pg_dump "$SUPABASE_DB_URL" -t public.events --data-only -Fc -f events-$(date +%F
 - Звіт тіні — `private.shadow_report(days)`.
 - `20261024120000_event_state_guards.sql` (dev і prod 2026-10-20): тихий перенос не рахується з чужої сторінки (дата в slug адреси ≠ дата сеансу), на зайняту давнішою подією ціль чи всупереч свіжому іншому продавцю; відкликання переносу, на який більше ніщо не вказує; `refresh_event_state(event, reason)` — перерахунок через зміну правил без «б надіслали». Хибний перенос prod 20.10 — у `docs/event-offers.md`.
 - `tests/event_state.sql` — **PASS** на dev 2026-10-20, решта `tests/*.sql` без помилок. На dev для цього увімкнено `pg_cron` (інших задач там і далі нема).
+- `20261030120000_offer_cleanup.sql` (dev 2026-10-20; prod — план у `docs/event-offers.md`, «Борги фаз 1–2»):
+  `record_offer_checks` зливає двійників за кінцевою адресою (`private.merge_url_twins`, причина `url_twin` у
+  `event_merges`) і розбирає чергу від'єднання (`private.process_offer_detach_queue`, колонки `resolution`,
+  `resolved_at`). `tests/offer_cleanup.sql` — **PASS** на dev, решта `tests/*.sql` без помилок.
 
 ## Пуші про зміну афіші й супутник за подією (за перемикачем)
 
