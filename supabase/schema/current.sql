@@ -5,7 +5,7 @@
 -- supabase/migrations/*.sql, а цей файл показує, що вийшло в базі після всіх міграцій.
 -- Опис, мапа «функція → міграція» і спосіб перегенерації — у supabase/schema/README.md.
 --
--- Знято: 2026-10-20; у реєстрі міграцій бази — 62, остання 20261028120000_event_state_client_flag.
+-- Знято: 2026-10-20; у реєстрі міграцій бази — 64, остання 20261030120000_offer_cleanup.
 -- Лише SELECT-запити до каталогу (pg_get_functiondef, pg_get_constraintdef, pg_indexes,
 -- pg_policies, pg_get_triggerdef, ACL). Рядків даних і секретів тут немає.
 --
@@ -36,7 +36,7 @@ CREATE TYPE public.attendee_result AS (user_id uuid, display_name text, avatar_u
 
 CREATE TYPE public.chat_unread_result AS (event_id uuid, event_title text, unread integer, last_message_id uuid, last_author_name text, last_body text, last_at timestamp with time zone);
 
-CREATE TYPE public.event_result AS (id uuid, title text, description text, category text, city text, address text, organizer_id uuid, organizer_name text, starts_at timestamp with time zone, ends_at timestamp with time zone, time_zone text, status text, latitude double precision, longitude double precision, capacity integer, attendee_count integer, joined boolean, image_url text, min_age integer, max_age integer, approval_required boolean, membership text, origin text, source_name text, canonical_url text, import_status text, price_min numeric, is_free boolean, contact_url text, companion_of uuid, companion_of_title text, state text, previous_starts_at timestamp with time zone, checked_at timestamp with time zone, offers jsonb);
+CREATE TYPE public.event_result AS (id uuid, title text, description text, category text, city text, address text, organizer_id uuid, organizer_name text, starts_at timestamp with time zone, ends_at timestamp with time zone, time_zone text, status text, latitude double precision, longitude double precision, capacity integer, attendee_count integer, joined boolean, image_url text, min_age integer, max_age integer, approval_required boolean, membership text, origin text, source_name text, canonical_url text, import_status text, price_min numeric, is_free boolean, contact_url text, companion_of uuid, companion_of_title text, state text, previous_starts_at timestamp with time zone, checked_at timestamp with time zone, offers jsonb, meet_proposed timestamp with time zone, meet_decide_by timestamp with time zone, companion_of_starts_at timestamp with time zone);
 
 CREATE TYPE public.join_request_result AS (event_id uuid, user_id uuid, display_name text, avatar_url text, requested_at timestamp with time zone);
 
@@ -454,6 +454,7 @@ CREATE TABLE public.push_tokens (
   user_id uuid NOT NULL,
   platform text NOT NULL,
   updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  features text[] DEFAULT '{}'::text[] NOT NULL,
   CONSTRAINT push_tokens_pkey PRIMARY KEY (token),
   CONSTRAINT push_tokens_user_id_fkey FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE,
   CONSTRAINT push_tokens_platform_check CHECK ((platform = ANY (ARRAY['android'::text, 'ios'::text])))
@@ -593,7 +594,7 @@ CREATE INDEX venues_city_idx ON public.venues USING btree (city);
 ALTER TABLE public.venues ENABLE ROW LEVEL SECURITY;
 
 
--- ===== Таблиці схеми private (17) =============================================
+-- ===== Таблиці схеми private (18) =============================================
 -- Схема private не відкрита через Data API; доступ — з definer-функцій (власник postgres).
 
 -- table: private.banned_terms
@@ -613,6 +614,19 @@ CREATE TABLE private.companion_closures (
   CONSTRAINT companion_closures_companion_id_fkey FOREIGN KEY (companion_id) REFERENCES events(id) ON DELETE CASCADE,
   CONSTRAINT companion_closures_event_id_fkey FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
 );
+
+-- table: private.companion_decisions
+CREATE TABLE private.companion_decisions (
+  companion_id uuid NOT NULL,
+  event_id uuid NOT NULL,
+  proposed_at timestamp with time zone NOT NULL,
+  decide_by timestamp with time zone NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  CONSTRAINT companion_decisions_pkey PRIMARY KEY (companion_id),
+  CONSTRAINT companion_decisions_companion_id_fkey FOREIGN KEY (companion_id) REFERENCES events(id) ON DELETE CASCADE,
+  CONSTRAINT companion_decisions_event_id_fkey FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
+);
+CREATE INDEX companion_decisions_due_idx ON private.companion_decisions USING btree (decide_by);
 
 -- table: private.deferred_pushes
 CREATE TABLE private.deferred_pushes (
@@ -815,8 +829,11 @@ CREATE TABLE private.offer_detach_queue (
   event_id uuid NOT NULL,
   evidence jsonb NOT NULL,
   queued_at timestamp with time zone DEFAULT now() NOT NULL,
+  resolution text,
+  resolved_at timestamp with time zone,
   CONSTRAINT offer_detach_queue_pkey PRIMARY KEY (offer_id),
-  CONSTRAINT offer_detach_queue_offer_id_fkey FOREIGN KEY (offer_id) REFERENCES event_offers(id) ON DELETE CASCADE
+  CONSTRAINT offer_detach_queue_offer_id_fkey FOREIGN KEY (offer_id) REFERENCES event_offers(id) ON DELETE CASCADE,
+  CONSTRAINT offer_detach_queue_resolution_check CHECK ((resolution = ANY (ARRAY['detached'::text, 'kept'::text])))
 );
 
 
@@ -889,6 +906,7 @@ CREATE POLICY poruch_image_owner_read ON storage.objects AS PERMISSIVE FOR SELEC
 
 
 -- ===== Заплановані завдання (pg_cron) =========================================
+--   companion-decisions   */15 * * * *   select private.resolve_companion_decisions()
 --   event-change-pushes   5 * * * *   select private.flush_event_change_pushes()
 --   flush-deferred-pushes   5 * * * *   select private.flush_deferred_pushes()
 --   notify-artist-follows   2 * * * *   select private.notify_artist_follows()
@@ -897,7 +915,7 @@ CREATE POLICY poruch_image_owner_read ON storage.objects AS PERMISSIVE FOR SELEC
 
 
 -- ===== Функції (public, потім private; за назвою) ============================
--- 158 функцій: 56 у public (RPC для клієнтів і тонкі обгортки над private), 102 у private
+-- 167 функцій: 57 у public (RPC для клієнтів і тонкі обгортки над private), 110 у private
 -- (реалізації, перевірки, тригерні функції). Тексти — дослівно з pg_get_functiondef.
 
 -- execute: authenticated
@@ -1327,6 +1345,13 @@ begin
 end $function$;
 
 -- execute: authenticated
+CREATE OR REPLACE FUNCTION public.move_companion(p_companion uuid, p_meet_at timestamp with time zone)
+ RETURNS void
+ LANGUAGE sql
+ SET search_path TO ''
+AS $function$ select private.move_companion(p_companion, p_meet_at); $function$;
+
+-- execute: authenticated
 CREATE OR REPLACE FUNCTION public.my_chat_unread()
  RETURNS SETOF chat_unread_result
  LANGUAGE sql
@@ -1449,13 +1474,11 @@ CREATE OR REPLACE FUNCTION public.rate_event(p_event_id uuid, p_score integer, p
 AS $function$ select private.rate_event(p_event_id, p_score, p_comment, p_tags); $function$;
 
 -- execute: authenticated
-CREATE OR REPLACE FUNCTION public.register_push_token(p_token text, p_platform text)
+CREATE OR REPLACE FUNCTION public.register_push_token(p_token text, p_platform text, p_features text[] DEFAULT '{}'::text[])
  RETURNS void
  LANGUAGE sql
  SET search_path TO ''
-AS $function$
- select private.register_push_token(p_token,p_platform);
-$function$;
+AS $function$ select private.register_push_token(p_token,p_platform,p_features); $function$;
 
 -- execute: authenticated
 CREATE OR REPLACE FUNCTION public.report_event(p_event_id uuid, p_reason text, p_details text DEFAULT NULL::text)
@@ -1688,21 +1711,41 @@ CREATE OR REPLACE FUNCTION private.apply_event_change(p_log bigint, p_push boole
  SET search_path TO ''
 AS $function$
 declare l private.event_state_log; e public.events; v_delta interval; v_seller text; v_send timestamptz;
- v_since bigint; v_zone text; n integer := 0;
+ v_since bigint; v_zone text; v_strong boolean; n integer := 0;
 begin
  select * into l from private.event_state_log where id = p_log;
  select * into e from public.events where id = l.event_id;
  if l.id is null or e.id is null or l.change not in ('cancelled','postponed','moved','corrected') then return 0; end if;
  v_delta := l.to_starts_at - l.from_starts_at;
  v_zone := coalesce(e.time_zone, 'Europe/Kyiv');
+ -- Пуш лише з сильним свідченням (R4); виправлення спирається на сторінку чи список на попередньому часі.
+ v_strong := p_push and (l.change = 'corrected' or l.evidence->>'says' in ('cancelled','postponed','moved'));
+ -- До початку рахуємо від раніших з двох часів: людина могла планувати на старий.
+ v_send := private.change_send_after(least(l.from_starts_at, l.to_starts_at), v_zone);
  perform set_config('poruch.follow_parent', 'on', true);
 
- -- Час події за станом: клієнт показує те, що й пуш. Супутники — на ту саму різницю, якщо зустріч ще попереду.
+ -- Час події за станом: клієнт показує те, що й пуш.
  if v_delta <> interval '0' then
   update public.events set starts_at = l.to_starts_at, ends_at = ends_at + (l.to_starts_at - starts_at), updated_at = now()
   where id = l.event_id and starts_at <> l.to_starts_at;
+  -- R7а: відкрите питання накопичує різницю; нове — лише коли організатор відповість і пуш до нього піде, а строк ще
+  -- не минув. Решта зборів — на ту саму різницю одразу, як у фазі 3.
+  update private.companion_decisions d set proposed_at = d.proposed_at + v_delta,
+   decide_by = least(v_send + interval '12 hours', d.proposed_at + v_delta - interval '3 hours')
+  where d.event_id = l.event_id;
+  insert into private.companion_decisions (companion_id, event_id, proposed_at, decide_by)
+  select c.id, l.event_id, c.starts_at + v_delta, least(v_send + interval '12 hours', c.starts_at + v_delta - interval '3 hours')
+  from public.events c
+  where c.companion_of = l.event_id and c.status = 'published' and c.starts_at > now() and v_strong
+   and private.can_decide(c.organizer_id)
+   and least(v_send + interval '12 hours', c.starts_at + v_delta - interval '3 hours') > now()
+  on conflict (companion_id) do nothing;
   update public.events c set starts_at = c.starts_at + v_delta, ends_at = c.ends_at + v_delta, updated_at = now()
-  where c.companion_of = l.event_id and c.status = 'published' and c.starts_at > now();
+  where c.companion_of = l.event_id and c.status = 'published' and c.starts_at > now()
+   and not exists (select 1 from private.companion_decisions d where d.companion_id = c.id);
+  -- Перенос назад на час збору: питати нема про що. Після зсуву — інакше цей збір зсунувся б назад.
+  delete from private.companion_decisions d using public.events c
+  where d.event_id = l.event_id and c.id = d.companion_id and d.proposed_at = c.starts_at;
  end if;
  -- Виправлення скасування: закриті нами супутники знову відкриті, якщо зустріч попереду й організатор не зібрав новий.
  if l.change = 'corrected' and l.from_state in ('cancelled','postponed') then
@@ -1718,24 +1761,23 @@ begin
   -- Невідправлене про цю подію застаріло: новіша зміна його заміняє, виправлення — скасовує.
   update private.event_change_pushes set skipped = case when l.change = 'corrected' then 'corrected' else 'superseded' end
   where event_id = l.event_id and sent_at is null and skipped is null;
-  -- Пуш лише з сильним свідченням (R4); виправлення спирається на сторінку чи список на попередньому часі.
-  if l.change = 'corrected' or l.evidence->>'says' in ('cancelled','postponed','moved') then
+  if v_strong then
    select case when count(distinct o.source_id) = 1 then min(s.name) end into v_seller
    from public.event_offers o join public.event_sources s on s.id = o.source_id
    where o.event_id = l.event_id and not (o.status = 'withdrawn' and o.ingest_run_id is null);
-   -- До початку рахуємо від раніших з двох часів: людина могла планувати на старий.
-   v_send := private.change_send_after(least(l.from_starts_at, l.to_starts_at), v_zone);
    v_since := coalesce((select max(x.id) from private.event_state_log x where x.event_id = l.event_id
                         and x.change = 'corrected' and x.id < l.id), 0);
    insert into private.event_change_pushes (event_id, user_id, change, state_version, target_id, title, body, send_after)
    with roles as (
     -- Супутник людини: власний збір важить більше за чужий. Учасник, заблокований з організатором, — не тут.
     select distinct on (x.user_id) x.* from (
-     select c.organizer_id as user_id, c.id as companion_id, c.title, c.starts_at as meet, 0 as prio
-     from public.events c where c.companion_of = l.event_id and c.status = 'published'
+     select c.organizer_id as user_id, c.id as companion_id, c.title, c.starts_at as meet, 0 as prio, d.proposed_at
+     from public.events c left join private.companion_decisions d on d.companion_id = c.id
+     where c.companion_of = l.event_id and c.status = 'published'
      union all
-     select m.user_id, c.id, c.title, c.starts_at, 1 from public.events c
+     select m.user_id, c.id, c.title, c.starts_at, 1, d.proposed_at from public.events c
      join public.event_members m on m.event_id = c.id and m.status = 'approved'
+     left join private.companion_decisions d on d.companion_id = c.id
      where c.companion_of = l.event_id and c.status = 'published' and not private.blocked_between(m.user_id, c.organizer_id)) x
     order by x.user_id, x.prio),
    people as (
@@ -1745,8 +1787,11 @@ begin
     union select p.user_id from private.event_change_pushes p
      where l.change = 'corrected' and p.event_id = l.event_id and p.sent_at is not null and p.state_version > v_since)
    select l.event_id, u.user_id, l.change, l.id, coalesce(r.companion_id, l.event_id), coalesce(r.title, e.title),
-    private.event_change_body(l.change, private.when_uk(l.to_starts_at, v_zone), v_seller, r.companion_id is not null,
-     private.when_uk(r.meet, v_zone)),
+    case when r.proposed_at is not null then private.companion_decision_body(case r.prio when 0 then 'ask' else 'wait' end,
+      private.when_uk(l.to_starts_at, v_zone), 'о ' || to_char(r.meet at time zone v_zone, 'HH24:MI'),
+      private.meet_uk(r.proposed_at, r.meet, v_zone))
+     else private.event_change_body(l.change, private.when_uk(l.to_starts_at, v_zone), v_seller, r.companion_id is not null,
+      private.when_uk(r.meet, v_zone)) end,
     v_send
    from people u left join roles r on r.user_id = u.user_id
    on conflict do nothing;
@@ -1754,8 +1799,9 @@ begin
   end if;
  end if;
 
- -- Скасування чи відкладення закриває супутники — після того, як їхніх людей записали в чергу.
+ -- Скасування чи відкладення закриває супутники — після того, як їхніх людей записали в чергу. Питати вже нема про що.
  if l.change in ('cancelled','postponed') then
+  delete from private.companion_decisions where event_id = l.event_id;
   with closed as (update public.events c set status = 'cancelled', updated_at = now()
                   where c.companion_of = l.event_id and c.status = 'published' and c.ends_at > now() returning c.id)
   insert into private.companion_closures (companion_id, event_id) select id, l.event_id from closed on conflict do nothing;
@@ -1924,6 +1970,17 @@ AS $function$
   where (b.user_id=p_a and b.blocked_id=p_b) or (b.user_id=p_b and b.blocked_id=p_a));
 $function$;
 
+-- execute: -
+CREATE OR REPLACE FUNCTION private.can_decide(p_user uuid)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE
+ SET search_path TO ''
+AS $function$
+ select exists (select 1 from public.push_tokens t where t.user_id = p_user and 'companion_decision' = any(t.features)
+  and t.updated_at > now() - interval '30 days');
+$function$;
+
 -- execute: authenticated
 CREATE OR REPLACE FUNCTION private.can_see_profile(p_id uuid)
  RETURNS boolean
@@ -2001,6 +2058,20 @@ begin
  end if;
  return new;
 end $function$;
+
+-- execute: -
+CREATE OR REPLACE FUNCTION private.companion_decision_body(p_role text, p_when text, p_meet text DEFAULT NULL::text, p_proposed text DEFAULT NULL::text)
+ RETURNS text
+ LANGUAGE sql
+ IMMUTABLE
+ SET search_path TO ''
+AS $function$
+ select case p_role
+  when 'ask' then 'Подію перенесли на ' || p_when || '. Ваш збір ' || p_meet || ' — перенести на ' || p_proposed || '?'
+  when 'wait' then 'Подію перенесли на ' || p_when || '. Організатор вирішує, о котрій тепер збір'
+  when 'auto' then 'Ми пересунули збір на ' || p_proposed || '. Змінити можна тут'
+  when 'moved' then 'Збір перенесли на ' || p_proposed end;
+$function$;
 
 -- execute: authenticated
 CREATE OR REPLACE FUNCTION private.create_companion(p_parent_id uuid, p_meet_at timestamp with time zone, p_meet_note text DEFAULT NULL::text, p_capacity integer DEFAULT 4)
@@ -2354,12 +2425,18 @@ AS $function$
        or exists(select 1 from public.event_members m where m.event_id=e.id and m.user_id=auth.uid() and m.status='approved')
       then e.contact_url end,
  e.companion_of,
- (select pe.title from public.events pe where pe.id=e.companion_of),
+ pe.title,
  cs.state, cs.previous_starts_at, cs.checked_at,
- case when e.origin <> 'community' then private.event_offers_json(e.id, e.canonical_url) end
+ case when e.origin <> 'community' then private.event_offers_json(e.id, e.canonical_url) end,
+ -- R7а: питання до організатора збору бачать усі, кому видно збір (учасникам — «Організатор вирішує»).
+ case when e.status = 'published' then d.proposed_at end,
+ case when e.status = 'published' then d.decide_by end,
+ pe.starts_at
  from public.events e
  left join public.profiles p on p.id=e.organizer_id
  left join public.event_sources s on s.id=e.source_id
+ left join public.events pe on pe.id=e.companion_of
+ left join private.companion_decisions d on d.companion_id=e.id
  cross join lateral private.event_client_state(e.id, e.origin, e.starts_at, e.import_status) cs
  where e.id=any(p_ids) and private.has_event_access(e.id)
  and (e.organizer_id is null
@@ -2954,6 +3031,18 @@ begin
 end $function$;
 
 -- execute: -
+CREATE OR REPLACE FUNCTION private.meet_uk(p_at timestamp with time zone, p_ref timestamp with time zone, p_zone text)
+ RETURNS text
+ LANGUAGE sql
+ STABLE
+ SET search_path TO ''
+AS $function$
+ select case when (p_at at time zone z)::date = (p_ref at time zone z)::date then to_char(p_at at time zone z, 'HH24:MI')
+  else private.when_uk(p_at, z) end
+ from (select coalesce(p_zone, 'Europe/Kyiv') as z) x;
+$function$;
+
+-- execute: -
 CREATE OR REPLACE FUNCTION private.merge_event(p_from uuid, p_into uuid, p_reason text DEFAULT 'pipeline'::text)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -3049,12 +3138,87 @@ begin
 end $function$;
 
 -- execute: -
+CREATE OR REPLACE FUNCTION private.merge_url_twins(p_since timestamp with time zone DEFAULT now())
+ RETURNS integer
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare g record; v_ids uuid[]; v_into uuid; v_from uuid; n integer := 0;
+begin
+ for g in
+  with f as (
+   select o.event_id, o.source_id, o.starts_at, rtrim(coalesce(c.final_url, o.canonical_url), '/') as url
+   from public.event_offers o
+   join public.events e on e.id = o.event_id and e.merged_into is null and e.origin = 'import' and e.status = 'published'
+   left join lateral (select c.final_url from private.offer_checks c
+    where c.offer_id = o.id and c.why <> 'listing' and c.verdict not in ('gone','redirect_away','no_jsonld','error')
+    order by c.checked_at desc, c.id desc limit 1) c on true
+   where o.canonical_url is not null and o.starts_at > p_since and not private.event_frozen(o.event_id))
+  select f.source_id, f.url, array_agg(distinct f.event_id) as ids from f
+  group by f.source_id, f.starts_at, f.url having count(distinct f.event_id) > 1
+ loop
+  -- Подія може бути у двох групах (дві адреси): після першого злиття її id — надгробок.
+  v_ids := array(select distinct private.live_event_id(x) from unnest(g.ids) x);
+  continue when cardinality(v_ids) < 2;
+  select e.id into v_into from public.events e where e.id = any(v_ids)
+  order by e.import_status = 'live' desc,
+   exists (select 1 from public.event_offers o where o.event_id = e.id and o.source_id = g.source_id
+           and rtrim(o.canonical_url, '/') = g.url) desc,
+   e.created_at, e.id
+  limit 1;
+  foreach v_from in array v_ids loop
+   continue when v_from = v_into;
+   -- Збій одного злиття не зупиняє адресну перевірку (record_offer_checks пише пакет однією транзакцією).
+   begin
+    perform private.merge_event(v_from, v_into, 'url_twin');
+    n := n + 1;
+   exception when others then raise warning 'merge_url_twins % -> %: %', v_from, v_into, sqlerrm;
+   end;
+  end loop;
+ end loop;
+ return n;
+end $function$;
+
+-- execute: -
 CREATE OR REPLACE FUNCTION private.min_signup_age()
  RETURNS integer
  LANGUAGE sql
  IMMUTABLE
  SET search_path TO ''
 AS $function$ select 18 $function$;
+
+-- execute: authenticated
+CREATE OR REPLACE FUNCTION private.move_companion(p_companion uuid, p_meet_at timestamp with time zone)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare v_user uuid := auth.uid(); c public.events; p public.events;
+begin
+ if v_user is null then raise exception 'AUTH_REQUIRED' using errcode='28000'; end if;
+ select * into c from public.events where id = p_companion for update;
+ if not found or c.companion_of is null then raise exception 'EVENT_NOT_FOUND' using errcode='P0002'; end if;
+ if c.organizer_id <> v_user then raise exception 'NOT_ORGANIZER' using errcode='42501'; end if;
+ if c.status <> 'published' then raise exception 'EVENT_CANCELLED' using errcode='P0001'; end if;
+ if c.starts_at <= now() then raise exception 'EVENT_STARTED' using errcode='P0001'; end if;
+ select * into p from public.events where id = c.companion_of;
+ if p.status <> 'published' or p.starts_at <= now() then raise exception 'COMPANION_UNAVAILABLE' using errcode='P0001'; end if;
+ -- Ті самі межі, що в create_companion, і сітка 15 хв від початку, як у CompanionRules.meetTimes.
+ if p_meet_at is null or p_meet_at <= now() or p_meet_at > p.starts_at or p_meet_at < p.starts_at - interval '3 hours'
+    or mod(extract(epoch from p.starts_at - p_meet_at)::bigint, 900) <> 0 then
+  raise exception 'INVALID_MEET_TIME' using errcode='22023'; end if;
+ delete from private.companion_decisions where companion_id = c.id;
+ if p_meet_at = c.starts_at then return; end if;
+ -- Службова зміна: guard_companion пропускає, events_push мовчить — учасникам свій текст.
+ perform set_config('poruch.follow_parent', 'on', true);
+ update public.events set starts_at = p_meet_at, ends_at = greatest(p.ends_at, p_meet_at + interval '1 minute'), updated_at = now()
+ where id = c.id;
+ perform set_config('poruch.follow_parent', '', true);
+ perform private.notify_companion(c.id, 'members',
+  private.companion_decision_body('moved', null, null, private.when_uk(p_meet_at, c.time_zone)));
+end $function$;
 
 -- execute: authenticated
 CREATE OR REPLACE FUNCTION private.my_follows()
@@ -3167,6 +3331,27 @@ begin
   v_sent := v_sent + 1;
  end loop;
  return v_sent;
+end $function$;
+
+-- execute: -
+CREATE OR REPLACE FUNCTION private.notify_companion(p_companion uuid, p_who text, p_body text)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare c public.events; v_users jsonb;
+begin
+ select * into c from public.events where id = p_companion;
+ if c.id is null then return; end if;
+ if p_who = 'organizer' then v_users := jsonb_build_array(c.organizer_id);
+ else select jsonb_agg(m.user_id) into v_users from public.event_members m
+  where m.event_id = c.id and m.status = 'approved' and m.user_id <> c.organizer_id
+   and not private.blocked_between(m.user_id, c.organizer_id);
+ end if;
+ if v_users is null or jsonb_array_length(v_users) = 0 then return; end if;
+ perform private.notify_push(jsonb_build_object('type', 'change', 'kind', 'moved', 'change', 'moved',
+  'event_id', c.id, 'title', c.title, 'body', p_body, 'user_ids', v_users));
 end $function$;
 
 -- execute: -
@@ -3576,6 +3761,39 @@ AS $function$
  select case p_source when 'manual' then 3 when 'osm' then 2 else 1 end;
 $function$;
 
+-- execute: -
+CREATE OR REPLACE FUNCTION private.process_offer_detach_queue(p_since timestamp with time zone DEFAULT now())
+ RETURNS integer
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare v_offer uuid; n integer := 0;
+begin
+ update private.offer_detach_queue q set resolution = 'detached', resolved_at = now()
+ from public.event_offers o where o.id = q.offer_id and q.resolution is null and o.linked = 'manual';
+ for v_offer in
+  select q.offer_id from private.offer_detach_queue q
+  join public.event_offers o on o.id = q.offer_id
+  join public.events e on e.id = o.event_id and e.merged_into is null and e.ends_at > p_since
+  where q.resolution is null and o.status = 'withdrawn'
+   and exists (select 1 from public.event_offers x where x.event_id = o.event_id and x.id <> o.id and x.status = 'live')
+   -- Причина досі в силі: чужа сторінка й зайнята ціль — за свіжим свідченням (сторінка могла знову показати наш
+   -- сеанс); конфлікт у черзі вже двічі поспіль.
+   and (q.evidence->>'detach' is null or exists (
+        select 1 from jsonb_array_elements(private.offer_evidence(o.event_id)) x
+        where x->>'offer_id' = o.id::text and x->>'detach' is not null))
+ loop
+  begin
+   perform private.detach_offer(v_offer);
+   update private.offer_detach_queue set resolution = 'detached', resolved_at = now() where offer_id = v_offer;
+   n := n + 1;
+  exception when others then raise warning 'offer_detach_queue %: %', v_offer, sqlerrm;
+  end;
+ end loop;
+ return n;
+end $function$;
+
 -- execute: authenticated
 CREATE OR REPLACE FUNCTION private.profile_card(p_user_id uuid)
  RETURNS SETOF profile_card_result
@@ -3697,11 +3915,13 @@ begin
  from jsonb_to_recordset(p_rows) as x(offer_id uuid, why text, expected timestamptz, url text, http integer,
   final_url text, redirected boolean, verdict text, detail jsonb)
  where exists (select 1 from public.event_offers o where o.id = x.offer_id);
+ perform private.merge_url_twins();
  for v_event in select distinct o.event_id from jsonb_to_recordset(p_rows) as x(offer_id uuid)
   join public.event_offers o on o.id = x.offer_id
  loop
   if private.refresh_event_state(v_event) is not null then n := n + 1; end if;
  end loop;
+ perform private.process_offer_detach_queue();
  return n;
 end $function$;
 
@@ -3782,19 +4002,21 @@ begin
 end $function$;
 
 -- execute: authenticated
-CREATE OR REPLACE FUNCTION private.register_push_token(p_token text, p_platform text)
+CREATE OR REPLACE FUNCTION private.register_push_token(p_token text, p_platform text, p_features text[] DEFAULT '{}'::text[])
  RETURNS void
  LANGUAGE plpgsql
  SECURITY DEFINER
  SET search_path TO ''
 AS $function$
-declare v_user uuid := auth.uid();
+declare v_user uuid := auth.uid(); v_features text[] := coalesce(p_features, '{}');
 begin
  if v_user is null then raise exception 'AUTH_REQUIRED' using errcode='28000'; end if;
  if p_token is null or length(p_token) < 16 or length(p_token) > 4096 then raise exception 'INVALID_TOKEN' using errcode='22023'; end if;
  if p_platform not in ('android','ios') then raise exception 'INVALID_PLATFORM' using errcode='22023'; end if;
- insert into public.push_tokens(token,user_id,platform) values (p_token,v_user,p_platform)
- on conflict (token) do update set user_id=excluded.user_id,platform=excluded.platform,updated_at=now();
+ if cardinality(v_features) > 16 or exists (select 1 from unnest(v_features) f where f is null or length(f) > 40) then
+  raise exception 'INVALID_FEATURES' using errcode='22023'; end if;
+ insert into public.push_tokens(token,user_id,platform,features) values (p_token,v_user,p_platform,v_features)
+ on conflict (token) do update set user_id=excluded.user_id,platform=excluded.platform,features=excluded.features,updated_at=now();
  delete from public.push_tokens t where t.user_id=v_user and t.token not in
   (select token from public.push_tokens where user_id=v_user order by updated_at desc limit 10);
 end $function$;
@@ -3815,6 +4037,36 @@ begin
  if not found then raise exception 'RATING_NOT_FOUND' using errcode='P0002'; end if;
  return private.file_report('rating', p_event_id, v_rating.user_id, p_reason,
   left(concat_ws(E'\n', nullif(btrim(p_details),''), 'Коментар: '||v_rating.comment), 2000));
+end $function$;
+
+-- execute: -
+CREATE OR REPLACE FUNCTION private.resolve_companion_decisions(p_now timestamp with time zone DEFAULT now())
+ RETURNS integer
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare d record; n integer := 0;
+begin
+ for d in select x.*, c.status, c.starts_at as meet, c.time_zone from private.companion_decisions x
+  join public.events c on c.id = x.companion_id where x.decide_by <= p_now for update of x skip locked
+ loop
+  if d.status <> 'published' or d.meet <= p_now or d.proposed_at <= p_now then
+   delete from private.companion_decisions where companion_id = d.companion_id; continue;
+  end if;
+  if private.quiet_hours(p_now, d.time_zone) and d.proposed_at - p_now >= interval '12 hours' then continue; end if;
+  perform set_config('poruch.follow_parent', 'on', true);
+  update public.events set starts_at = d.proposed_at, ends_at = ends_at + (d.proposed_at - starts_at), updated_at = now()
+  where id = d.companion_id;
+  perform set_config('poruch.follow_parent', '', true);
+  delete from private.companion_decisions where companion_id = d.companion_id;
+  perform private.notify_companion(d.companion_id, 'organizer',
+   private.companion_decision_body('auto', null, null, private.meet_uk(d.proposed_at, d.meet, d.time_zone)));
+  perform private.notify_companion(d.companion_id, 'members',
+   private.companion_decision_body('moved', null, null, private.when_uk(d.proposed_at, d.time_zone)));
+  n := n + 1;
+ end loop;
+ return n;
 end $function$;
 
 -- execute: -
@@ -3944,7 +4196,14 @@ AS $function$
  where e.origin = 'import' and e.merged_into is null and e.starts_at > now()
  group by e.id, e.title having max(o.starts_at) - min(o.starts_at) >= interval '1 minute'
  union all
- select 'черга від''єднання', q.event_id::text, 1, q.evidence->>'url' from private.offer_detach_queue q
+ select 'черга від''єднання', case when o.status = 'live' then 'людині · ' else 'чекає · ' end || o.event_id::text, 1,
+  q.evidence->>'url'
+ from private.offer_detach_queue q join public.event_offers o on o.id = q.offer_id
+ join public.events e on e.id = o.event_id and e.ends_at > now()
+ where q.resolution is null
+ union all
+ select 'черга від''єднання', 'від''єднано за період', count(*), null from private.offer_detach_queue q
+ where q.resolution = 'detached' and q.resolved_at > now() - make_interval(days => p_days)
  union all
  -- Вибірка для ручного аудиту: відкрити посилання й звірити.
  select * from (select 'аудит', w.change || ' ' || e.title || ' ' || to_char(w.from_starts_at, 'DD.MM HH24:MI')
