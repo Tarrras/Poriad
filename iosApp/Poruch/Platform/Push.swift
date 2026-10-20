@@ -37,6 +37,8 @@ final class PushDelegate: NSObject, UIApplicationDelegate {
 
     static func digestOpened(week: Int32) { metric { $0.digestOpened(week: week) } }
 
+    static func winbackOpened(step: Int32) { metric { $0.winbackOpened(step: step) } }
+
     private static func metric(_ track: @escaping (PoruchApp) -> Void) {
         if let app { track(app) } else { pendingMetric = track }
     }
@@ -47,6 +49,15 @@ final class PushDelegate: NSObject, UIApplicationDelegate {
         NotificationPermission.provisional()
         PushDelegate.registerIfAllowed()
         return true
+    }
+
+    /// Канал повернення (docs/guest-channel.md): на кожне відкриття спільний шар чує, чи є дозвіл, і каже серверу,
+    /// що пристрій живий, або просить його забути.
+    static func reportPermission() {
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            let allowed = settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional
+            DispatchQueue.main.async { PushDelegate.app?.notificationsAllowed(allowed: allowed) }
+        }
     }
 
     /// Реєструємо лише з дозволом: без нього токен є, а сповіщень нема, і сервер даремно шле.

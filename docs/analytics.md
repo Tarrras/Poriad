@@ -20,7 +20,7 @@
 | `first_open`, `session_start`, `user_engagement` | автоматично (Firebase) | — | Acquisition |
 | `empty_map` | місто без фільтрів, 0 подій; раз на місто за запуск | `city` | ризик №1 |
 | `event_view` | відкрито картку події | `from`: `home_hero`, `home_poster`, `home_people` (рейка «Від людей»), `home_your`, `home_search`; нема — відкрито з іншого екрана (мапа, «Мої події», посилання) | Activation (крок) |
-| `auth_wall` | гість спробував дію, що потребує акаунта | — | Activation (втрата) |
+| `auth_wall` | гість спробував дію, що потребує акаунта, і застосунок повів його на вхід | `action`: `save`, `follow`, `join` (подія чи супутник), `create`, `companion` (тап «Шукаю компанію»); нема — дію вже відхилив сервер, бо сесія скінчилась | Activation (втрата); `save` / `follow` — дані для рішення про анонімні акаунти ([guest-channel.md](guest-channel.md), варіант Б) |
 | `sign_up` / `login` | успішна реєстрація / вхід | `confirmed` (сесія одразу чи чекає лист) | Activation (крок) |
 | `event_join` | успішне приєднання | `by_request` | **Activation** |
 | `waitlist_join` | місць нема, став у чергу | — | Activation (провал пропозиції) |
@@ -35,7 +35,7 @@
 | `companion_create` | створено супутник «Шукаю компанію» на афішу | `category`, `capacity` | **Activation** без організатора: чи бар'єр «нема з ким» знімається |
 | `companion_join` | запит у супутник (з картки на афіші чи з його сторінки); іде разом з `event_join` | — | **Activation**: чи на пошук хтось відгукується |
 | `follow` | успішна підписка «Стежити» (кнопка на закладі, організаторі чи артисті, перемикач у шторці оцінки) | `target`: `place` / `organizer` / `artist` | **Retention**: чи є на що повертати людей |
-| `push_open` | тап по сповіщенню (серверний пуш чи локальне); дайджест окремо — `digest_open` | `reason`: `chat`, `request`, `joined`, `moved`, `cancelled`, `place`, `artist`, `organizer`, `reminder` (за годину до своєї чи «йду»), `saved` (напередодні о 18:00 про збережену) | **Retention**: який тригер повертає людей, а який лише дратує |
+| `push_open` | тап по сповіщенню (серверний пуш чи локальне); дайджест окремо — `digest_open` | `reason`: `chat`, `request`, `joined`, `moved`, `cancelled`, `place`, `artist`, `organizer`, `reminder` (за годину до своєї чи «йду»), `saved` (напередодні о 18:00 про збережену), `winback` (пуш повернення після місяця тиші, [guest-channel.md](guest-channel.md)); `step`: 1 чи 2 — лише з `winback`, близько 30-го чи 60-го дня | **Retention**: який тригер повертає людей, а який лише дратує; `winback` — порівнювати з контрольною групою в `private.winback_sends`, а не лише тапами |
 | `tip` | закрито підказку першого знайомства ([coach-marks.md](coach-marks.md)) | `tip`: `city`, `map`, `create`, `companion`, `sheet`; `action`: `next` (далі чи тап повз), `done` (остання), `skip` | Activation: якщо більшість тисне `skip` на першій — тур задовгий; чи `companion` після `done` дає `companion_create` |
 
 `from` у `event_view` і `create_start` відповідає на два питання про головну: які її частини (велика картка, постер, «Ваше», пошук) справді ведуть до подій і яка з точок входу веде людей до створення: плашка вгорі (`home_top`), плюс у таббарі (`fab`) чи підвал (`home_footer`). Якщо `home_top` не б'є `fab` за кількістю тапів на сесію, плашка не виправдовує місця вгорі.

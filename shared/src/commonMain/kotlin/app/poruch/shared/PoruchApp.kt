@@ -51,6 +51,8 @@ class PoruchApp internal constructor(
     analyticsStore: AnalyticsPreferenceStore? = null,
     /** Пуш-токен, який не вдалося зняти при виході: повторюємо на старті й при поверненні. */
     pendingPush: PendingUnregisterStore? = null,
+    /** Що востаннє почув сервер каналу повернення. Null — канал вимкнено (тести, превʼю). */
+    deviceTouch: DeviceTouchStore? = null,
     config: AppConfig = AppConfig("", ""),
     /** Стан живе на головному потоці: звідси читають і Compose, і SwiftUI. */
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
@@ -92,7 +94,7 @@ class PoruchApp internal constructor(
     )
     private val chatEngine = ChatEngine(chat, store, scope)
     private val reloader = Reloader(discovery, library)
-    private val pushSync = PushSync(push, seenRequests, seenMessages, store, pendingPush)
+    private val pushSync = PushSync(push, seenRequests, seenMessages, store, pendingPush, deviceTouch)
     private val places = PlaceLookup(addresses, timeZones, scope)
     private val followUseCases = FollowUseCases(follows, events, store, library, discovery)
     private val eventUseCases = EventUseCases(
@@ -123,6 +125,7 @@ class PoruchApp internal constructor(
         discovery.onQueryChanged = library::dismiss
         identity.start()
         pushSync.retryPending()
+        pushSync.start()
         refresh()
         if (state.value.signedIn) loadMyEvents()
         if (reminders != null) ReminderSync(state, reminders, scope).start()
@@ -153,6 +156,14 @@ class PoruchApp internal constructor(
     /** Платформа отримала або оновила токен. Реєструється під кожним акаунтом, з яким входять. */
     fun pushTokenChanged(token: String, platform: PushPlatform) {
         scope.launch { pushSync.tokenChanged(token, platform) }
+    }
+
+    /**
+     * Застосунок на екрані: чи дозволено сповіщення (iOS — authorized чи provisional). Кличеться на кожне відкриття:
+     * так сервер знає, коли пристрій відкривали, і за місяць тиші надсилає пуш повернення (docs/guest-channel.md).
+     */
+    fun notificationsAllowed(allowed: Boolean) {
+        scope.launch { pushSync.notificationsAllowed(allowed) }
     }
 
     /** Пуш прийшов на цей пристрій: перечитуємо стан, щоб бейджі й списки відповідали. */
@@ -363,6 +374,15 @@ class PoruchApp internal constructor(
      * artist, organizer, reminder. Єдиний спосіб дізнатись, який тригер повертає людей, а який лише дратує.
      */
     fun pushOpened(reason: String) = PoruchAnalytics.track("push_open", "reason" to reason)
+
+    /** Тап по пушу повернення: [step] 1 — близько 30-го дня тиші, 2 — 60-го. Порівнюється з контрольною групою на сервері. */
+    fun winbackOpened(step: Int) = PoruchAnalytics.track("push_open", "reason" to "winback", "step" to step)
+
+    /**
+     * Гість спробував дію, що потребує акаунта, і платформа повела його на вхід. [action] — `save`, `follow`, `join`,
+     * `create` чи `companion`: скільки гостей вперлось саме в «Зберегти» чи «Стежити» (рішення про анонімні акаунти).
+     */
+    fun authWall(action: String) = PoruchAnalytics.track("auth_wall", "action" to action)
 
     // ---- Смак і нагадування
 

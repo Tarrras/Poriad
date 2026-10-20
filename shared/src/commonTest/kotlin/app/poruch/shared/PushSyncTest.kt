@@ -7,6 +7,8 @@ import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.test.*
+import kotlin.time.Duration.Companion.hours
+import kotlin.time.Instant
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PushSyncTest {
@@ -19,6 +21,16 @@ class PushSyncTest {
         var failUnregister: AppError? = null
         override suspend fun register(token: String, platform: PushPlatform) { delay(50); if (fail) fail(AppError.Network); registered += token to platform }
         override suspend fun unregister(token: String, accessToken: String?) { failUnregister?.let { fail(it) }; unregistered += token; keys += accessToken }
+        /** Канал повернення: (токен, місто, інтереси) кожного `touch_device` і токени `forget_device`. */
+        val touched = mutableListOf<Triple<String, String?, List<String>>>()
+        val forgotten = mutableListOf<String>()
+        override suspend fun touchDevice(token: String, platform: PushPlatform, city: String?, interests: List<String>) { touched += Triple(token, city, interests) }
+        override suspend fun forgetDevice(token: String) { forgotten += token }
+    }
+    private class Devices : DeviceTouchStore {
+        var value: DeviceTouch? = null
+        override fun last() = value
+        override fun save(touch: DeviceTouch?) { value = touch }
     }
     private class Pending : PendingUnregisterStore {
         var value: PendingUnregister? = null
@@ -26,6 +38,84 @@ class PushSyncTest {
         override fun write(value: PendingUnregister?) { this.value = value }
     }
     private val sessionA = UserSession("a", "access-a", "refresh-a", 9999999999)
+
+    /** Годинник тестів каналу повернення: `runTest` віртуалізує корутини, а не `Clock.System`. */
+    private var seconds = 1_800_000_000L
+    private fun device(tokens: Tokens, store: AppStore, devices: Devices = Devices()) =
+        PushSync(tokens, null, null, store, devices = devices, now = { Instant.fromEpochSeconds(seconds) })
+
+    /** Гість з дозволом і дайджестом: сервер чує пристрій, але не частіше разу на 12 годин. */
+    @Test fun aGuestDeviceIsTouchedAtMostEveryTwelveHours() = runTest {
+        val tokens = Tokens(); val store = AppStore(AppState(), backgroundScope)
+        val sync = device(tokens, store)
+        sync.tokenChanged("t1", PushPlatform.IOS); sync.notificationsAllowed(true); runCurrent()
+        assertEquals(listOf(Triple<String, String?, List<String>>("t1", "Київ", emptyList())), tokens.touched, "гість без акаунта — теж")
+
+        sync.notificationsAllowed(true); runCurrent()
+        seconds += 11.hours.inWholeSeconds; sync.notificationsAllowed(true); runCurrent()
+        assertEquals(1, tokens.touched.size, "друге відкриття за 11 годин — без запиту")
+        seconds += 1.hours.inWholeSeconds; sync.notificationsAllowed(true); runCurrent()
+        assertEquals(2, tokens.touched.size, "минуло 12 годин — знову")
+    }
+
+    /** Інше місто чи інтереси — одразу, без 12 годин. Своє місце на мапі й місто поза покриттям — без міста. */
+    @Test fun aCityOrInterestChangeIsSentAtOnce() = runTest {
+        val tokens = Tokens(); val store = AppStore(AppState(), backgroundScope)
+        val sync = device(tokens, store).also { it.start() }
+        sync.tokenChanged("t1", PushPlatform.ANDROID); sync.notificationsAllowed(true); runCurrent()
+
+        store.update { it.copy(taste = Taste(interests = listOf(EventCategory.MUSIC, EventCategory.COMEDY, EventCategory.UNKNOWN))) }; runCurrent()
+        assertEquals(Triple<String, String?, List<String>>("t1", "Київ", listOf("comedy", "music")), tokens.touched.last(), "інтереси — ключами, без невідомих")
+        store.update { it.copy(city = CityState("Львів", 49.8, 24.0)) }; runCurrent()
+        assertEquals("Львів", tokens.touched.last().second)
+        store.update { it.copy(city = CityState("Біла Церква", 49.8, 30.1)) }; runCurrent()
+        assertNull(tokens.touched.last().second, "місто поза п'ятьма сервер не прийме")
+        store.update { it.copy(city = CityState()) }; runCurrent()
+        store.update { it.copy(city = it.city.copy(custom = true)) }; runCurrent()
+        assertNull(tokens.touched.last().second, "«Шукати тут» — свого міста нема")
+        assertEquals(6, tokens.touched.size)
+        store.update { it.copy(city = it.city.copy(suggestions = listOf(CityResult("Київ", 50.4, 30.5)))) }; runCurrent()
+        assertEquals(6, tokens.touched.size, "підказки пошуку міста — не зміна")
+    }
+
+    /** Нема дозволу чи вимкнено дайджест — сервер забуває пристрій тим токеном, що знав, навіть без нового. */
+    @Test fun noPermissionOrDigestForgetsTheDevice() = runTest {
+        val tokens = Tokens(); val store = AppStore(AppState(), backgroundScope); val devices = Devices()
+        val sync = device(tokens, store, devices).also { it.start() }
+        sync.tokenChanged("t1", PushPlatform.IOS); sync.notificationsAllowed(true); runCurrent()
+
+        store.update { it.copy(digestEnabled = false) }; runCurrent()
+        assertEquals(listOf("t1"), tokens.forgotten, "дайджест вимкнено — забути")
+        assertNull(devices.value)
+        store.update { it.copy(digestEnabled = true) }; runCurrent()
+        assertEquals(2, tokens.touched.size, "увімкнено знову — одразу, хоч 12 годин не минуло")
+
+        // Наступний запуск iOS без дозволу: токена від APNs нема, але сервер знає старий.
+        val again = device(tokens, AppStore(AppState(), backgroundScope), devices)
+        again.notificationsAllowed(false); runCurrent()
+        assertEquals(listOf("t1", "t1"), tokens.forgotten)
+        assertNull(devices.value)
+        again.notificationsAllowed(false); runCurrent()
+        assertEquals(2, tokens.forgotten.size, "забувати вже нічого")
+    }
+
+    /** Фоновий процес (пуш, новий токен FCM) — не відкриття: без слова платформи про дозвіл сервер нічого не чує. */
+    @Test fun aBackgroundProcessDoesNotTouch() = runTest {
+        val tokens = Tokens(); val store = AppStore(AppState(), backgroundScope)
+        device(tokens, store).also { it.start() }.tokenChanged("t1", PushPlatform.ANDROID); runCurrent()
+        store.update { it.copy(city = CityState("Одеса", 46.5, 30.7)) }; runCurrent()
+        assertTrue(tokens.touched.isEmpty())
+    }
+
+    /** Новий токен на тому ж пристрої: старий сервер забуває, щоб пуш повернення не прийшов двічі. */
+    @Test fun aNewTokenReplacesTheOldDevice() = runTest {
+        val tokens = Tokens(); val store = AppStore(AppState(), backgroundScope)
+        val sync = device(tokens, store)
+        sync.tokenChanged("t1", PushPlatform.ANDROID); sync.notificationsAllowed(true); runCurrent()
+        sync.tokenChanged("t2", PushPlatform.ANDROID); runCurrent()
+        assertEquals(listOf("t1"), tokens.forgotten)
+        assertEquals("t2", tokens.touched.last().first)
+    }
 
     /** Токен приходить до входу: чекає акаунта, потім реєструється один раз. */
     @Test fun aTokenWaitsForAnAccountAndRegistersOnce() = runTest {

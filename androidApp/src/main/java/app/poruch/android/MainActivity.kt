@@ -4,6 +4,7 @@ package app.poruch.android
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -83,10 +84,14 @@ class MainActivity : ComponentActivity(), AndroidScopeComponent {
         super.attachBaseContext(base.createConfigurationContext(configuration))
     }
 
-    /** Повернення в застосунок: запити на участь і членство могли змінитися, поки його не було. */
+    /**
+     * Повернення в застосунок: запити на участь і членство могли змінитися, поки його не було. Дозвіл на сповіщення —
+     * для каналу повернення: сервер чує, що пристрій живий (docs/guest-channel.md).
+     */
     override fun onStart() {
         super.onStart()
         app.resume()
+        app.notificationsAllowed(getSystemService(NotificationManager::class.java).areNotificationsEnabled())
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -122,7 +127,8 @@ class MainActivity : ComponentActivity(), AndroidScopeComponent {
         // Дайджест вихідних веде на головну: там уся область, ранжована за смаком.
         if (intent.action == ACTION_DIGEST) {
             scope.get<Navigator>().reset(Home)
-            app.digestOpened(intent.getIntExtra(EXTRA_WEEK, 1))
+            if (intent.hasExtra(EXTRA_STEP)) app.winbackOpened(intent.getIntExtra(EXTRA_STEP, 1))
+            else app.digestOpened(intent.getIntExtra(EXTRA_WEEK, 1))
             return
         }
         // Тап по сповіщенню: що воно було — для метрики, яка повертає людей, а яка лише дратує.
@@ -165,6 +171,7 @@ class MainActivity : ComponentActivity(), AndroidScopeComponent {
         private const val EXTRA_REASON = "reason"
         private const val EXTRA_TARGET = "target"
         private const val EXTRA_WEEK = "week"
+        private const val EXTRA_STEP = "step"
         private const val TARGET_CHAT = "chat"
         private const val APP_LANGUAGE = "uk"
         private const val ACTION_DIGEST = "app.poruch.OPEN_DIGEST"
@@ -200,6 +207,11 @@ class MainActivity : ComponentActivity(), AndroidScopeComponent {
          */
         fun openDigest(context: Context, week: Int): Intent =
             Intent(context, MainActivity::class.java).setAction(ACTION_DIGEST).putExtra(EXTRA_WEEK, week)
+                .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+
+        /** Intent пуша повернення: та сама дія, що в дайджесту, а [step] замість тижня — для `push_open`. */
+        fun openWinback(context: Context, step: Int): Intent =
+            Intent(context, MainActivity::class.java).setAction(ACTION_DIGEST).putExtra(EXTRA_STEP, step)
                 .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
     }
 }

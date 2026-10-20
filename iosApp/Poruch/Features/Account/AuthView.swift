@@ -11,6 +11,18 @@ enum AuthReason: Identifiable {
     case save, join, follow, company
 
     var id: Self { self }
+
+    /// `action` для `auth_wall`: гість вперся саме в цю дію. Зайшов сам — не стіна.
+    var wall: String? {
+        switch self {
+        case .general: nil
+        case .create: "create"
+        case .save: "save"
+        case .join: "join"
+        case .follow: "follow"
+        case .company: "companion"
+        }
+    }
 }
 
 /// Вхід і реєстрація: один екран, два режими. Реєстрація — друга половина, а не примітка.
@@ -33,6 +45,8 @@ struct AuthView: View {
     /// Збій Google чи Apple до того, як справа дійшла до сервера: банера спільного шару тут не буде.
     @State private var providerError: String?
     @State private var choosingMail = false
+    /// `auth_wall` — раз на показ екрана, а не на кожну появу.
+    @State private var walled = false
 
     /// Встановлені поштовики; схеми перелічено в `LSApplicationQueriesSchemes`.
     private var mailApps: [(name: String, url: URL)] {
@@ -59,6 +73,11 @@ struct AuthView: View {
         // Закриваємось, коли вхід доїхав до кінця: після Google чи Apple спільний шар ще питає, чи є
         // дата народження, і без неї екран лишається на кроці дати. Лист відновлення веде на профіль.
         .onChange(of: finished) { _, finished in if finished { dismiss() } }
+        .onAppear {
+            guard !walled, let action = reason.wall else { return }
+            walled = true
+            model.app.authWall(action: action)
+        }
         .onDisappear { model.app.dismissConfirmationStep() }
         // Лист пішов — повертаємось до входу, банер скаже решту.
         .onChange(of: (model.state?.notice as? AppNoticeTold)?.message) { _, message in
