@@ -27,9 +27,11 @@ internal class ReminderSync(
             state.map {
                 ReminderRules.plan(
                     it.library.myEvents,
+                    it.library.savedIds,
                     it.session.userId,
                     it.remindersEnabled,
-                    Clock.System.now()
+                    Clock.System.now(),
+                    TimeZone.currentSystemDefault()
                 )
             }
                 .distinctUntilChanged()
@@ -39,7 +41,8 @@ internal class ReminderSync(
                 }
         }
         // Дайджест — з видачі головної: вся область без фільтрів мапи. Індекс міняється рідко, а
-        // стан — на кожен кадр, тож рахуємо лише на новий список, а не на кожну емісію.
+        // стан — на кожен кадр, тож рахуємо лише на новий список, а не на кожну емісію. Новий індекс
+        // приходить з кожним відкриттям (`refreshIfStale`), тож драбина на 4 пʼятниці щоразу стартує заново.
         scope.launch {
             state.distinctUntilChanged { a, b -> a.home.index === b.home.index && a.digestEnabled == b.digestEnabled }
                 .map {
@@ -52,9 +55,9 @@ internal class ReminderSync(
                     )
                 }
                 .distinctUntilChanged()
-                .collect { digest ->
-                    PoruchLog.i("digest") { digest?.let { "${it.count} events, fires ${it.fireAtEpochMillis}" } ?: "none" }
-                    scheduler.replaceDigest(digest)
+                .collect { digests ->
+                    PoruchLog.i("digest") { digests.joinToString { "week ${it.week}: ${it.count} events, fires ${it.fireAtEpochMillis}" }.ifEmpty { "none" } }
+                    scheduler.replaceDigests(digests)
                 }
         }
     }

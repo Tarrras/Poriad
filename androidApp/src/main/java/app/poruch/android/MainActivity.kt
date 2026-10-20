@@ -57,6 +57,8 @@ import app.poruch.shared.AppNotice
 import app.poruch.shared.AppState
 import app.poruch.shared.PoruchApp
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.dropWhile
+import kotlinx.coroutines.flow.first
 import org.koin.android.ext.android.inject
 import org.koin.androidx.compose.KoinAndroidContext
 import org.koin.androidx.compose.navigation3.getEntryProvider
@@ -120,7 +122,7 @@ class MainActivity : ComponentActivity(), AndroidScopeComponent {
         // Дайджест вихідних веде на головну: там уся область, ранжована за смаком.
         if (intent.action == ACTION_DIGEST) {
             scope.get<Navigator>().reset(Home)
-            app.digestOpened()
+            app.digestOpened(intent.getIntExtra(EXTRA_WEEK, 1))
             return
         }
         // Тап по сповіщенню: що воно було — для метрики, яка повертає людей, а яка лише дратує.
@@ -162,6 +164,7 @@ class MainActivity : ComponentActivity(), AndroidScopeComponent {
         private const val EXTRA_ARTIST_ID = "artistId"
         private const val EXTRA_REASON = "reason"
         private const val EXTRA_TARGET = "target"
+        private const val EXTRA_WEEK = "week"
         private const val TARGET_CHAT = "chat"
         private const val APP_LANGUAGE = "uk"
         private const val ACTION_DIGEST = "app.poruch.OPEN_DIGEST"
@@ -191,9 +194,12 @@ class MainActivity : ComponentActivity(), AndroidScopeComponent {
                 .putExtra(EXTRA_ARTIST_ID, artistId)
                 .putExtra(EXTRA_REASON, reason)
 
-        /** Intent дайджесту. Своя дія: PendingIntent не сплутається з intent-ом події, extras він не порівнює. */
-        fun openDigest(context: Context): Intent =
-            Intent(context, MainActivity::class.java).setAction(ACTION_DIGEST)
+        /**
+         * Intent [week]-го дайджесту драбини. Своя дія: PendingIntent не сплутається з intent-ом події, extras він не
+         * порівнює. Тиждень — для `digest_open`; новіший дайджест заміняє старий у шторці разом з його тижнем.
+         */
+        fun openDigest(context: Context, week: Int): Intent =
+            Intent(context, MainActivity::class.java).setAction(ACTION_DIGEST).putExtra(EXTRA_WEEK, week)
                 .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
     }
 }
@@ -214,7 +220,7 @@ fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
     var tourDone by rememberSaveable { mutableStateOf(!newcomer) }
     LocationPrompt(app, appState, tourDone)
     var digestAsk by remember { mutableStateOf(false) }
-    DigestPrompt(app, appState, digestAsk) { digestAsk = it }
+    DigestPrompt(app, appState, navigator, digestAsk) { digestAsk = it }
     FollowPrompt(appState)
     ReviewPrompt(app, appState)
     PasswordRecoveryEffect(navigator, appState)
@@ -267,26 +273,36 @@ private fun LocationPrompt(app: PoruchApp, appState: State<AppState>, tourDone: 
 }
 
 /**
- * Дайджест вихідних: гостя без дозволу питаємо на другому запуску, раз, спершу своїми словами.
- * Перший запуск належить онбордингу й геолокації. До Android 13 дозволу нема й питати нема про що.
+ * Дайджест вихідних: без дозволу питаємо раз, спершу своїми словами. Уже в першій сесії — щойно людина
+ * закрила першу картку події: побачила, що тут є, і «скажемо в пʼятницю» має сенс. Хто карток не відкривав,
+ * того — на другому запуску. Без дозволу Android 13+ мовчить, а до 13 дозволу нема й питати нема про що.
  */
 @SuppressLint("InlinedApi") // POST_NOTIFICATIONS питаємо лише коли NotificationPermission.required (API 33+).
 @Composable
-private fun DigestPrompt(app: PoruchApp, appState: State<AppState>, digestAsk: Boolean, onDigestAsk: (Boolean) -> Unit) {
+private fun DigestPrompt(app: PoruchApp, appState: State<AppState>, navigator: Navigator, digestAsk: Boolean, onDigestAsk: (Boolean) -> Unit) {
     val context = LocalContext.current
     val state by appState
     val digestPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission(), app::digestPromptAnswered)
+    val prompts = remember { context.getSharedPreferences(PROMPTS, Context.MODE_PRIVATE) }
+    fun ask() {
+        if (prompts.getBoolean(DIGEST_ASKED, false) || !appState.value.digestEnabled || NotificationPermission(context).granted()) return
+        prompts.edit { putBoolean(DIGEST_ASKED, true) }
+        onDigestAsk(true)
+    }
     var counted by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(state.needsOnboarding) {
         if (state.needsOnboarding || counted) return@LaunchedEffect
         counted = true
-        val prompts = context.getSharedPreferences(PROMPTS, Context.MODE_PRIVATE)
         val launches = prompts.getInt(LAUNCHES, 0) + 1
         prompts.edit { putInt(LAUNCHES, launches) }
-        val permission = NotificationPermission(context)
-        if (launches < 2 || prompts.getBoolean(DIGEST_ASKED, false) || !state.digestEnabled || permission.granted()) return@LaunchedEffect
-        prompts.edit { putBoolean(DIGEST_ASKED, true) }
-        onDigestAsk(true)
+        if (launches >= 2) ask()
+    }
+    // Картку закрито: у стеку була подія, а тепер нема. Чат з картки чи перехід на іншу подію — ще не закрито.
+    LaunchedEffect(Unit) {
+        snapshotFlow { navigator.stack.any { it is Detail } }.dropWhile { !it }.first { !it }
+        // Пауза — щоб лист не наклався на анімацію «назад».
+        delay(400)
+        ask()
     }
     if (digestAsk) PoruchSheet({ onDigestAsk(false) }) { sheet ->
         Column(
