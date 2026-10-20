@@ -368,7 +368,8 @@ def _adopt_silent_moves(items: list[Item]) -> str:
 
     Пропозиція переймає новий ключ, лише коли на сторінці в обході один сеанс (`single_session`), у базі в цього
     посилання рівно одна майбутня пропозиція, назва продавця та сама, а зсув не більше `SILENT_MOVE_DAYS`. Сторінка
-    з кількома сеансами так не зливається: зниклий сеанс — не перенесений."""
+    з кількома сеансами так не зливається: зниклий сеанс — не перенесений. Раніше більш ніж на добу — теж ні: це
+    наступний показ на сторінці театру чи шоу (internet_bilet), а не перенос; той самий поріг у R4 (offer_says)."""
     by_source: dict[str, list[Item]] = {}
     for it in items:
         if it.single_session:
@@ -386,6 +387,7 @@ def _adopt_silent_moves(items: list[Item]) -> str:
             f"    on x.source_id=(select id from public.event_sources where slug={_lit(slug)} and enabled)\n"
             "   and x.canonical_url=i.url and x.starts_at <> i.starts and x.starts_at > now()\n"
             f"   and abs(extract(epoch from x.starts_at - i.starts)) <= {SILENT_MOVE_DAYS} * 86400\n"
+            "   and i.starts >= x.starts_at - interval '1 day'\n"
             f"   and {alive.replace('c.', 'x.')}\n"
             f"   and {_title_key_sql('x.title')} = {_title_key_sql('i.title')}\n"
             "  where not exists (select 1 from public.event_offers n where n.source_id=x.source_id and n.source_uid=i.uid)\n"
