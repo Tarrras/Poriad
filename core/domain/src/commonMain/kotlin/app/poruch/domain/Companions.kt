@@ -26,7 +26,18 @@ data class CompanionCard(
 }
 
 /** Подія, на яку йдуть разом. Лише в супутника. */
-data class CompanionParent(val id: String, val title: String)
+data class CompanionParent(
+    val id: String,
+    val title: String,
+    /** Початок афіші зараз. Null — сервер без R7а: тоді час збору не міняють (R7б). */
+    val startsAt: String? = null
+)
+
+/**
+ * Афішу перенесли, а збір чекає рішення організатора (docs/event-offers.md R7а): [proposedAt] — та сама різниця,
+ * [decideBy] — коли сервер зсуне сам. Бачать організатор (з кнопками) і учасники («Організатор вирішує»).
+ */
+data class PendingMeet(val proposedAt: String, val decideBy: String)
 
 /** Правила супутника. Сервер (`create_companion`) тримає ті самі: число рухається — рухається й тут. */
 object CompanionRules {
@@ -47,6 +58,15 @@ object CompanionRules {
     fun canOffer(event: Event, now: Instant): Boolean {
         val listing = event.listing ?: return false
         return event.isPublished && !listing.isWithdrawn && event.startInstant?.let { it > now } == true
+    }
+
+    /**
+     * Новий час збору (R7б): один з [meetTimes] — сервер (`move_companion`) тримає ту саму сітку. Порівнюємо моменти, а
+     * не рядки: сервер пише «+00:00», а [meetTimes] — «Z».
+     */
+    fun canMoveTo(startsAt: String, meetAt: String, now: Instant): Boolean {
+        val meet = runCatching { Instant.parse(meetAt) }.getOrNull() ?: return false
+        return meetTimes(startsAt, now).any { Instant.parse(it) == meet }
     }
 
     /** Час зустрічі на вибір: кроком 15 хв від трьох годин до початку до самого початку, лише майбутній. */

@@ -153,6 +153,17 @@ internal class EventUseCases(
         store.update { it.copy(createdCompanion = id) }
     }
 
+    /** Новий час збору (R7б) чи відповідь на питання після переносу афіші (R7а). */
+    fun moveCompanion(id: String, meetAt: String) = store.mutate {
+        val parent = store.value.detail.event?.takeIf { it.id == id }?.gathering?.companionOf ?: fail(AppError.EventUnavailable)
+        val start = parent.startsAt ?: fail(AppError.EventUnavailable)
+        if (!CompanionRules.canMoveTo(start, meetAt, Clock.System.now())) fail(AppError.InvalidDraft(listOf(DraftField.STARTS_AT)))
+        PoruchLog.i("action") { "moveCompanion ${id.shortId()}" }
+        authoring.moveCompanion(id, meetAt)
+        reloader.changed(id, index = true); library.refreshCompanions()
+        store.update { it.copy(notice = AppNotice.Told(AppMessage.CHANGES_SAVED)) }
+    }
+
     fun update(id: String, draft: EventDraft) = store.mutate {
         PoruchLog.i("action") { "updateEvent ${id.shortId()} capacity=${draft.capacity}" }
         actions.update(id, draft); reloader.changed(id, index = true)

@@ -26,19 +26,33 @@ struct ActivitySheet: UIViewControllerRepresentable {
 struct CompanionSheet: View {
     @EnvironmentObject var model: AppModel
     @Environment(\.dismiss) private var dismiss
-    let event: Event
+    private let title: String
+    private let parentId: String
+    private let timeZone: String
+    /// Збір, час якого міняємо (R7б): тоді шторка — лише час.
+    private let moving: String?
     private let times: [String]
     @State private var at: Int
     @State private var note = ""
     @State private var capacity = Int(CompanionRules.shared.DEFAULT_CAPACITY)
 
     init(event: Event) {
-        self.event = event
+        title = event.displayTitle; parentId = event.id; timeZone = event.timeZone; moving = nil
         let now = nowInstant()
         let times = CompanionRules.shared.meetTimes(startsAt: event.startsAt, now: now)
         let fallback = CompanionRules.shared.defaultMeetAt(startsAt: event.startsAt, now: now)
         self.times = times
         _at = State(initialValue: fallback.flatMap { times.firstIndex(of: $0) } ?? 0)
+    }
+
+    /// Новий час збору [companion] на афішу [parent], спершу — [target] (пропозиція R7а чи поточний час).
+    init(moving companion: Event, parent: CompanionParent, startsAt: String, to target: String) {
+        title = TitleRules.shared.display(title: parent.title); parentId = parent.id; timeZone = companion.timeZone
+        moving = companion.id
+        let times = CompanionRules.shared.meetTimes(startsAt: startsAt, now: nowInstant())
+        self.times = times
+        let wanted = parseEventDate(target)
+        _at = State(initialValue: times.firstIndex { parseEventDate($0) == wanted } ?? max(times.count - 3, 0))
     }
 
     private var mutating: Bool { model.state?.mutating == true }
@@ -47,29 +61,37 @@ struct CompanionSheet: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Space.lg) {
-                Text(Copy.companion_seek).font(PoruchFont.brandTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
-                Text(event.displayTitle).font(PoruchFont.brandTitle3).kerning(-0.1).foregroundStyle(Palette.inkSecondary).lineLimit(2)
-                Text(Copy.companion_sheet_body)
+                Text(moving == nil ? Copy.companion_seek : Copy.meet_sheet_title).font(PoruchFont.brandTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
+                Text(title).font(PoruchFont.brandTitle3).kerning(-0.1).foregroundStyle(Palette.inkSecondary).lineLimit(2)
+                Text(moving == nil ? Copy.companion_sheet_body : Copy.meet_sheet_body)
                     .font(PoruchFont.bodyText).foregroundStyle(Palette.inkSecondary)
                 if let meetAt {
                     let lead = (times.count - 1 - at) * Int(CompanionRules.shared.STEP_MINUTES)
-                    stepper(Copy.companion_meet_time, value: sessionLabel(EventSession(id: event.id, startsAt: meetAt, timeZone: event.timeZone, cancelled: false)).hour,
+                    stepper(Copy.companion_meet_time, value: sessionLabel(EventSession(id: parentId, startsAt: meetAt, timeZone: timeZone, cancelled: false)).hour,
                             caption: lead == 0 ? Copy.companion_at_start : Copy.companion_lead("\(leadWords(lead))"),
                             minus: (Copy.companion_earlier, at > 0, { at -= 1 }), plus: (Copy.companion_later, at < times.count - 1, { at += 1 }))
                 }
-                LabelledField(label: Copy.companion_meet_note, text: $note, placeholder: Copy.companion_meet_note_hint)
-                    .onChange(of: note) { _, value in
-                        let limit = Int(CompanionRules.shared.NOTE_MAX)
-                        if value.count > limit { note = String(value.prefix(limit)) }
+                if let moving {
+                    PrimaryButton(title: Copy.meet_sheet_save, loading: mutating, enabled: meetAt != nil && !mutating) {
+                        guard let meetAt else { return }
+                        model.app.moveCompanion(id: moving, meetAt: meetAt)
+                        dismiss()
                     }
-                stepper(Copy.companion_capacity, value: "\(capacity)", caption: nil,
-                        minus: (Copy.companion_fewer, capacity > Int(CompanionRules.shared.MIN_CAPACITY), { capacity -= 1 }),
-                        plus: (Copy.companion_more, capacity < Int(CompanionRules.shared.MAX_CAPACITY), { capacity += 1 }))
-                PrimaryButton(title: Copy.companion_create, glyph: PoruchIcons.share, loading: mutating,
-                              enabled: meetAt != nil && !mutating) {
-                    guard let meetAt else { return }
-                    model.app.createCompanion(parentId: event.id, meetAt: meetAt, note: note, capacity: Int32(capacity))
-                    dismiss()
+                } else {
+                    LabelledField(label: Copy.companion_meet_note, text: $note, placeholder: Copy.companion_meet_note_hint)
+                        .onChange(of: note) { _, value in
+                            let limit = Int(CompanionRules.shared.NOTE_MAX)
+                            if value.count > limit { note = String(value.prefix(limit)) }
+                        }
+                    stepper(Copy.companion_capacity, value: "\(capacity)", caption: nil,
+                            minus: (Copy.companion_fewer, capacity > Int(CompanionRules.shared.MIN_CAPACITY), { capacity -= 1 }),
+                            plus: (Copy.companion_more, capacity < Int(CompanionRules.shared.MAX_CAPACITY), { capacity += 1 }))
+                    PrimaryButton(title: Copy.companion_create, glyph: PoruchIcons.share, loading: mutating,
+                                  enabled: meetAt != nil && !mutating) {
+                        guard let meetAt else { return }
+                        model.app.createCompanion(parentId: parentId, meetAt: meetAt, note: note, capacity: Int32(capacity))
+                        dismiss()
+                    }
                 }
             }
             .padding(Space.page)

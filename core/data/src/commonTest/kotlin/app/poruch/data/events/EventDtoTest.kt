@@ -63,6 +63,21 @@ class EventDtoTest {
         assertFalse(listing.offers[1].live)
     }
 
+    @Test fun aCompanionCarriesTheParentStartAndAPendingQuestion() {
+        val room = parse(
+            "organizer_id" to "\"u1\"", "organizer_name" to "\"Оля\"", "capacity" to "4",
+            "companion_of" to "\"p1\"", "companion_of_title" to "\"Концерт\"",
+            "companion_of_starts_at" to "\"2030-09-06T21:00:00Z\"",
+            "meet_proposed" to "\"2030-09-06T20:30:00Z\"", "meet_decide_by" to "\"2030-09-06T08:00:00Z\""
+        ).gathering!!
+        assertEquals("2030-09-06T21:00:00Z", room.companionOf?.startsAt)
+        assertEquals("2030-09-06T20:30:00Z", room.pendingMeet?.proposedAt)
+        assertEquals("2030-09-06T08:00:00Z", room.pendingMeet?.decideBy)
+        val old = parse("organizer_id" to "\"u1\"", "capacity" to "4", "companion_of" to "\"p1\"").gathering!!
+        assertNull(old.companionOf?.startsAt, "old server: no move")
+        assertNull(old.pendingMeet)
+    }
+
     @Test fun anOldServerOrAnUnknownStateFallsBackToImportStatus() {
         assertEquals(ListingState.UNKNOWN, parse("origin" to "\"import\"", "import_status" to "\"withdrawn\"").listing?.state)
         assertEquals(ListingState.SCHEDULED, parse("origin" to "\"import\"").listing?.state)

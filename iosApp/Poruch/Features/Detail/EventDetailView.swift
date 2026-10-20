@@ -8,6 +8,12 @@ struct EventRoute: Hashable, Identifiable {
     let id: String
 }
 
+/// З якого часу відкрити шторку часу збору.
+struct MeetTarget: Identifiable {
+    let at: String
+    var id: String { at }
+}
+
 /// `Equatable` за id: стек створює view заново на кожну емісію кореня, а стан екрану дає `DetailScreenModel`.
 struct EventDetailView: View, Equatable {
     static func == (lhs: EventDetailView, rhs: EventDetailView) -> Bool { lhs.eventID == rhs.eventID }
@@ -47,6 +53,8 @@ struct EventDetailView: View, Equatable {
     @State var sharingCompanion: ShareText?
     /// «Купили? Стежитимемо за змінами» — після повернення від продавця (R9).
     @State var boughtPrompt = false
+    /// Шторка часу збору (R7б): з якого часу почати — пропозиція R7а чи поточний.
+    @State var movingMeet: MeetTarget?
     @Environment(\.scenePhase) var scenePhase
     @Environment(\.openMap) var openMap
 
@@ -105,6 +113,11 @@ struct EventDetailView: View, Equatable {
         }
         .sheet(item: $sharingCompanion) { share in ActivitySheet(items: [share.text]).presentationDetents([.medium, .large]) }
         .sheet(isPresented: $seekingCompany) { if let event = view.event { CompanionSheet(event: event) } }
+        .sheet(item: $movingMeet) { target in
+            if let event = view.event, let parent = view.companionOf, let start = parent.startsAt {
+                CompanionSheet(moving: event, parent: parent, startsAt: start, to: target.at)
+            }
+        }
         // Повернулись від продавця: спільний шар каже, чи питати «Купили?» (раз на подію, лише незбереженій).
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active, model.app.takeBoughtPrompt(eventId: screen.sessionID) else { return }
@@ -165,6 +178,7 @@ struct EventDetailView: View, Equatable {
     @ViewBuilder
     func sections(_ event: Event, _ view: DetailScreenState) -> some View {
         VStack(alignment: .leading, spacing: Space.lg) {
+            if let pending = view.pendingMeet, let parent = view.companionOf { meetDecision(event, parent, pending, view) }
             if let room = view.room, room.hasAgeLimit || room.approvalRequired { restrictions(room) }
             if let parent = view.companionOf {
                 NavigationLink(value: EventRoute(id: parent.id)) {

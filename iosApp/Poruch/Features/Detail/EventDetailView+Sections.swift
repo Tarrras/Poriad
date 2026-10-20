@@ -505,6 +505,10 @@ extension EventDetailView {
             if let error = actions.photoError {
                 Text(error).font(PoruchFont.caption).foregroundStyle(Palette.danger)
             }
+            // Збір: організатор міняє лише час (R7б).
+            if view.canMoveMeet, let event = view.event {
+                SecondaryButton(title: Copy.meet_change, glyph: PoruchIcons.clock) { movingMeet = MeetTarget(at: event.startsAt) }
+            }
             HStack(spacing: Space.md) {
                 if editable { SecondaryButton(title: Copy.edit, glyph: PoruchIcons.edit) { editing = true } }
                 SecondaryButton(title: Copy.delete_account_cancel, glyph: PoruchIcons.close, tone: Palette.danger) { cancelling = true }
@@ -627,6 +631,41 @@ extension EventDetailView {
                 .buttonStyle(PressableStyle(pressedScale: 1))
                 .accessibilityElement(children: .combine)
                 .accessibilityAddTraits(view.saved ? .isSelected : [])
+            }
+        }
+        .padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()
+    }
+
+    /// Афішу перенесли, збір чекає рішення (R7а). Організатор — три відповіді; учасник — що рішення за організатором.
+    /// Інша дата — «Скасувати збір» помітніше: вільного вечора може не бути.
+    func meetDecision(_ event: Event, _ parent: CompanionParent, _ pending: PendingMeet, _ view: DetailScreenState) -> some View {
+        let zone = event.timeZone
+        let newStart = parent.startsAt.map { meetWhen($0, ref: nil, zone: zone) } ?? ""
+        let proposed = meetWhen(pending.proposedAt, ref: event.startsAt, zone: zone)
+        let otherDay = !sameDay(pending.proposedAt, event.startsAt, zone: zone)
+        return VStack(alignment: .leading, spacing: Space.md) {
+            TicketStamp(text: Copy.state_moved, tone: .accent)
+            if view.organizer {
+                Text(Copy.meet_decision_ask(newStart, meetWhen(event.startsAt, ref: event.startsAt, zone: zone), proposed))
+                    .font(PoruchFont.bodyText).foregroundStyle(Palette.ink).fixedSize(horizontal: false, vertical: true)
+                PrimaryButton(title: Copy.meet_move_to(proposed), loading: view.mutating, enabled: !view.mutating) {
+                    model.app.moveCompanion(id: event.id, meetAt: pending.proposedAt)
+                }
+                HStack(spacing: Space.md) {
+                    SecondaryButton(title: Copy.meet_other_time, enabled: !view.mutating) { movingMeet = MeetTarget(at: pending.proposedAt) }
+                    if otherDay {
+                        SecondaryButton(title: Copy.meet_cancel, tone: Palette.danger, enabled: !view.mutating) { cancelling = true }
+                    }
+                }
+                if !otherDay {
+                    Button(Copy.meet_cancel) { cancelling = true }
+                        .font(PoruchFont.button).foregroundStyle(Palette.danger).tapTarget()
+                }
+                Text(Copy.meet_decision_deadline(meetWhen(pending.decideBy, ref: nowInstant().description, zone: zone), proposed))
+                    .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
+            } else {
+                Text(Copy.meet_decision_wait(newStart))
+                    .font(PoruchFont.bodyText).foregroundStyle(Palette.ink).fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()
