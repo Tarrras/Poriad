@@ -1,6 +1,6 @@
 # Знімок поточної схеми Supabase
 
-[`current.sql`](current.sql) — зліпок бази **для читання**: композитні типи, 30 таблиць (стовпці, обмеження, індекси, RLS, політики, тригери, гранти), представлення та всі 130 функцій схем `public` і `private`. Навіщо: щоб знайти чинне визначення RPC, не перечитуючи 55 міграцій. Наприклад, `private.update_event` і `public.search_events_in_view` оголошені в 7 міграціях кожна, `private.event_rows` і `private.create_event` — у 6; тут — рівно та версія, що працює в базі.
+[`current.sql`](current.sql) — зліпок бази **для читання**: композитні типи, 32 таблиці (стовпці, обмеження, індекси, RLS, політики, тригери, гранти), представлення та всі 138 функцій схем `public` і `private`. Навіщо: щоб знайти чинне визначення RPC, не перечитуючи 56 міграцій. Наприклад, `private.update_event` і `public.search_events_in_view` оголошені в 7 міграціях кожна, `private.event_rows` і `private.create_event` — у 6; тут — рівно та версія, що працює в базі.
 
 **Це не міграція й не джерело правди.** Джерело правди — [`../migrations/`](../migrations/): схему змінюють лише новою міграцією, `current.sql` руками не редагують і не виконують. Знімок лише показує, що вийшло після всіх міграцій.
 
@@ -8,10 +8,10 @@
 
 | | |
 |---|---|
-| Знято | 2026-10-20 (перший знімок — 2026-10-19) |
+| Знято | 2026-10-20, після `20261021120000_event_offers` (перший знімок — 2026-10-19) |
 | Джерело | prod `tzdogzdvctlumsqlqskr` (`EventOrganiztor`), лише `SELECT` до каталогу Postgres (`pg_get_functiondef`, `pg_get_constraintdef`, `pg_indexes`, `pg_policies`, `pg_get_triggerdef`, ACL) через Supabase MCP. Жодного DDL/DML, рядків даних і секретів у файлі немає |
-| Міграції | у реєстрі prod 55, у `supabase/migrations` 55 файлів, назви збігаються; остання — `20261020120000_push_quiet_hours` |
-| Звірка з dev | 2026-10-20 dev теж має всі 55; звірку відбитків нижче не повторювали. Станом на 2026-10-19 dev `ojadoyxeahepycpmjuvf` мав усі 54. Таблиці, стовпці, обмеження, індекси, RLS, політики й тригери на dev і prod ідентичні (порівняно md5 відбитків), функцій по 128. Тіла чотирьох функцій різняться **лише коментарями**: на prod немає коментарів у `discover_events` і `private.decide_member`, на dev — у `event_safety` і `private.follow`. У файлах міграцій коментарі є в усіх чотирьох, тож у знімку з prod двох коментарів не буде |
+| Міграції | у реєстрі prod 56, у `supabase/migrations` 56 файлів, назви збігаються; остання — `20261021120000_event_offers` |
+| Звірка з dev | 2026-10-20 той самий `SELECT` виконано на dev `ojadoyxeahepycpmjuvf` і тексти порівняно `diff`: усе з `event_offers` (таблиці, `merged_into`, індекси, тригер, 8 нових функцій, `event_details` / `event_cards_by_ids`) на dev і prod однакове. Різниця лише така: на dev уже 57 міграцій — зайва `20261021140000_guest_winback` (поки лише на dev: таблиці `private.devices`, `private.winback_sends`, функції `touch_device` / `forget_device` у `public` і `private`, `private.send_winbacks`, `private.winback_due` — функцій на dev 144); на dev немає `pg_cron` (розділ 8 запиту там падає — його треба вимкнути); тіла чотирьох функцій різняться **лише коментарями**: на prod немає коментарів у `discover_events` і `private.decide_member`, на dev — у `event_safety` і `private.follow`. У файлах міграцій коментарі є в усіх чотирьох, тож у знімку з prod двох коментарів не буде |
 
 Знімок беремо з prod: це те, що бачать користувачі. Поки міграція застосована лише на dev, знімок відстає — це очікувано.
 
@@ -22,8 +22,8 @@
 1. Шапка з умовностями.
 2. Розширення (`pg_cron`, `pg_net`, `postgis` у схемі `gis`, `supabase_vault`, …) — коментарями.
 3. Композитні типи, якими RPC повертають результат (`event_result`, `message_result`, …).
-4. 21 таблиця `public`: стовпці, обмеження, індекси (крім тих, що стоять за обмеженнями), RLS, політики, тригери, гранти.
-5. 8 таблиць `private`.
+4. 22 таблиці `public`: стовпці, обмеження, індекси (крім тих, що стоять за обмеженнями), RLS, політики, тригери, гранти.
+5. 10 таблиць `private`.
 6. Представлення (`private.followed_events`).
 7. Створене проєктом у схемах Supabase: тригер на `auth.users` (`private.handle_new_user`), бакет `event-images` і політики на `storage.objects`. Решта `auth`, `storage`, `extensions`, `realtime` не знімалась.
 8. Заплановані завдання `pg_cron`.
@@ -57,11 +57,11 @@ python3 supabase/schema/function_map.py   # таблиця нижче; вста�
 git diff --stat supabase/schema           # у diff — лише те, що змінила схема, і дата в шапці
 ```
 
-Робити після того, як нова міграція застосована на prod, і класти в той самий коміт. Той самий `SELECT` можна виконати й через Supabase MCP `execute_sql`, але відповідь — понад 140 КБ, тож зручніше напряму.
+Робити після того, як нова міграція застосована на prod, і класти в той самий коміт. Той самий `SELECT` можна виконати й через Supabase MCP `execute_sql`, але відповідь — понад 170 КБ, тож зручніше напряму.
 
 ## Мапа «функція → міграція»
 
-Остання міграція, яка оголошує функцію з **чинною сигнатурою** (`create or replace function` / `create function` у `supabase/migrations`; пізніший файл перекриває ранішій). «Міграцій» — у скількох файлах оголошено функцію з такою назвою, включно зі старими сигнатурами, які вже замінені: `create_event` / `update_event` мали іншу сигнатуру до `p_min_age`, потім до `p_contact_url`, `rate_event` — до `p_tags`, `private.is_listed` — до `p_title`. Таких замінених сигнатур одинадцять, у базі їх немає. Чинні функції всі 128 знайшлись у міграціях. Перевантажених назв зараз немає, тому параметри в таблиці не показано.
+Остання міграція, яка оголошує функцію з **чинною сигнатурою** (`create or replace function` / `create function` у `supabase/migrations`; пізніший файл перекриває ранішій). «Міграцій» — у скількох файлах оголошено функцію з такою назвою, включно зі старими сигнатурами, які вже замінені: `create_event` / `update_event` мали іншу сигнатуру до `p_min_age`, потім до `p_contact_url`, `rate_event` — до `p_tags`, `private.is_listed` — до `p_title`. Таких замінених сигнатур одинадцять, у базі їх немає. Чинні функції всі 138 знайшлись у міграціях. Перевантажених назв зараз немає, тому параметри в таблиці не показано.
 
 Таблицю друкує `python3 supabase/schema/function_map.py`; станом на 2026-10-20:
 
@@ -80,8 +80,8 @@ git diff --stat supabase/schema           # у diff — лише те, що зм
 | `delete_my_account` | `20260917100100_delete_my_account.sql` | 1 | authenticated |
 | `discover_events` | `20260911070031_discovery_index_and_cards.sql` | 1 | anon, authenticated |
 | `event_attendees` | `20260906195750_safety_age_and_reports.sql` | 2 | authenticated |
-| `event_cards_by_ids` | `20260911070031_discovery_index_and_cards.sql` | 1 | anon, authenticated |
-| `event_details` | `20260907120000_event_ingestion.sql` | 3 | anon, authenticated |
+| `event_cards_by_ids` | `20261021120000_event_offers.sql` | 2 | anon, authenticated |
+| `event_details` | `20261021120000_event_offers.sql` | 4 | anon, authenticated |
 | `event_messages` | `20260915225504_event_chat.sql` | 1 | authenticated |
 | `event_ratings` | `20260926120000_rating_tags.sql` | 2 | authenticated |
 | `event_requests` | `20260906200401_event_requests_invoker.sql` | 2 | authenticated |
@@ -126,7 +126,7 @@ git diff --stat supabase/schema           # у diff — лише те, що зм
 | `unregister_push_token` | `20260916115335_push_notifications.sql` | 1 | authenticated |
 | `update_event` | `20260915223806_contact_link_and_request_feed.sql` | 3 | authenticated |
 
-### Схема `private` (74)
+### Схема `private` (82)
 
 | Функція | Остання міграція | Міграцій | EXECUTE |
 |---|---|---:|---|
@@ -154,8 +154,10 @@ git diff --stat supabase/schema           # у diff — лише те, що зм
 | `decide_member` | `20260917100000_organizer_null_guard.sql` | 2 | authenticated |
 | `delete_message` | `20260923100000_account_deletion.sql` | 3 | authenticated |
 | `delete_my_account` | `20260923100000_account_deletion.sql` | 2 | authenticated |
+| `detach_offer` | `20261021120000_event_offers.sql` | 1 | — |
 | `discover_index` | `20261006130000_drop_in_fairs.sql` | 4 | anon, authenticated |
 | `event_cards` | `20261002120000_artists.sql` | 3 | anon, authenticated |
+| `event_frozen` | `20261021120000_event_offers.sql` | 1 | — |
 | `event_has_space` | `20260911070031_discovery_index_and_cards.sql` | 3 | anon, authenticated |
 | `event_ratings` | `20260926120000_rating_tags.sql` | 3 | authenticated |
 | `event_rows` | `20260928140000_companions.sql` | 6 | anon, authenticated |
@@ -169,13 +171,16 @@ git diff --stat supabase/schema           # у diff — лише те, що зм
 | `handle_new_user` | `20261007120000_oauth_display_name.sql` | 3 | — |
 | `has_event_access` | `20260905101755_poruch_initial.sql` | 1 | anon, authenticated |
 | `image_url_prefix` | `20260923100200_read_exposure_hardening.sql` | 1 | — |
+| `ingest_offers` | `20261021120000_event_offers.sql` | 1 | — |
 | `is_discoverable` | `20260907120000_event_ingestion.sql` | 1 | anon, authenticated |
 | `is_listed` | `20261006130000_drop_in_fairs.sql` | 2 | anon, authenticated |
 | `join_event` | `20260917110000_abuse_limits.sql` | 4 | authenticated |
 | `join_waitlist` | `20260917110000_abuse_limits.sql` | 3 | authenticated |
 | `leave_event` | `20260905221357_event_waitlist.sql` | 2 | authenticated |
 | `leave_waitlist` | `20260905221357_event_waitlist.sql` | 1 | authenticated |
+| `live_event_id` | `20261021120000_event_offers.sql` | 1 | anon, authenticated |
 | `mark_chat_read` | `20260916092710_chat_unread.sql` | 1 | authenticated |
+| `merge_event` | `20261021120000_event_offers.sql` | 1 | — |
 | `min_signup_age` | `20260906195750_safety_age_and_reports.sql` | 1 | — |
 | `my_follows` | `20261015120000_follow_fresh.sql` | 4 | authenticated |
 | `my_ratings` | `20260926100000_my_events_waitlist_and_ratings.sql` | 1 | authenticated |
@@ -186,6 +191,7 @@ git diff --stat supabase/schema           # у diff — лише те, що зм
 | `on_event_published` | `20260928160000_follows.sql` | 1 | — |
 | `on_member_requested` | `20260923130000_push_on_join.sql` | 2 | — |
 | `on_message_inserted` | `20260916115335_push_notifications.sql` | 1 | — |
+| `on_offer_changed` | `20261021120000_event_offers.sql` | 1 | — |
 | `on_profile_write` | `20260924100000_profiles.sql` | 2 | — |
 | `on_report_filed` | `20260923100100_ugc_ratings_and_limits.sql` | 2 | — |
 | `on_user_blocked` | `20260923100200_read_exposure_hardening.sql` | 1 | — |
@@ -201,6 +207,8 @@ git diff --stat supabase/schema           # у diff — лише те, що зм
 | `retire_finished_imports` | `20260915120000_stale_finished_imports.sql` | 1 | — |
 | `send_message` | `20260923100100_ugc_ratings_and_limits.sql` | 3 | authenticated |
 | `set_birth_date` | `20260906195750_safety_age_and_reports.sql` | 1 | authenticated |
+| `sync_event` | `20261021120000_event_offers.sql` | 1 | — |
+| `title_key` | `20261021120000_event_offers.sql` | 1 | — |
 | `unfollow` | `20260928160000_follows.sql` | 1 | authenticated |
 | `unregister_push_token` | `20260916115335_push_notifications.sql` | 1 | authenticated |
 | `update_event` | `20260923100100_ugc_ratings_and_limits.sql` | 7 | authenticated |
