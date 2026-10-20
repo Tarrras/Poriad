@@ -273,6 +273,22 @@ fun movedDates(event: Event): Pair<String, String>? {
     return old.format(pattern(MOVED)) to new.format(pattern(MOVED))
 }
 
+/** Час збору для питання R7а: «21:30», коли день той самий, що [ref], інакше «пт, 7 листопада о 21:30». Пояс — події. */
+fun meetWhen(raw: String, ref: String?, zone: String): String {
+    val at = zonedAt(raw, zone) ?: return raw
+    return if (ref != null && sameDay(raw, ref, zone)) at.format(pattern(HOUR)) else at.format(pattern("EE, d MMMM 'о' HH:mm"))
+}
+
+/** Той самий календарний день у поясі [zone]. */
+fun sameDay(a: String, b: String, zone: String): Boolean {
+    val x = zonedAt(a, zone) ?: return false
+    val y = zonedAt(b, zone) ?: return false
+    return x.toLocalDate() == y.toLocalDate()
+}
+
+private fun zonedAt(raw: String, zone: String) =
+    runCatching { java.time.OffsetDateTime.parse(raw).toInstant().atZone(ZoneId.of(zone)) }.getOrNull()
+
 /** Стара дата довгою формою для банера деталей: «пт, 21 листопада, 19:00». */
 fun previousDate(event: Event): String? {
     val raw = event.listing?.previousStartsAt ?: return null

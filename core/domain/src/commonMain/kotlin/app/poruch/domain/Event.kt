@@ -192,7 +192,9 @@ data class Gathering(
      */
     val contactUrl: String? = null,
     /** Супутник «Йдемо разом»: на яку афішу йдуть. Null — звичайна подія. */
-    val companionOf: CompanionParent? = null
+    val companionOf: CompanionParent? = null,
+    /** Афішу перенесли, збір чекає рішення організатора (R7а). */
+    val pendingMeet: PendingMeet? = null
 ) {
     val seatsLeft get() = (capacity - attendeeCount).coerceAtLeast(0)
 

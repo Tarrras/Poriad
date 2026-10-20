@@ -25,7 +25,9 @@ data class DetailState(
     /** Відкрита шторка створення супутника. */
     val seekingCompany: Boolean = false,
     /** «Купили? Стежитимемо за змінами» — після повернення від продавця (R9). */
-    val boughtPrompt: Boolean = false
+    val boughtPrompt: Boolean = false,
+    /** Шторка часу збору (R7б): з якого часу почати — пропозиція R7а чи поточний. Null — закрита. */
+    val movingMeet: String? = null
 )
 
 /** На що скарга: на подію, на того, хто її опублікував, чи на людину з картки. */
@@ -70,6 +72,10 @@ sealed interface DetailIntent {
     data class OpenSeller(val offer: Offer, val from: String) : DetailIntent
     /** Відповідь на «Купили?»: [saved] — «Зберегти», інакше закрили чи час минув. */
     data class BoughtPromptAnswered(val saved: Boolean) : DetailIntent
+    /** Шторка часу збору з [from]; null — закрити. */
+    data class ShowMeetTime(val from: String?) : DetailIntent
+    /** Новий час збору (R7б) чи «Перенести на …» з питання R7а. */
+    data class MoveMeet(val meetAt: String) : DetailIntent
     data object Edit : DetailIntent
     data class ConfirmCancel(val open: Boolean) : DetailIntent
     data class ShowReport(val target: ReportTarget?) : DetailIntent

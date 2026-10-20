@@ -49,6 +49,8 @@ import app.poruch.domain.ArtistRole
 import app.poruch.domain.ContactRules
 import app.poruch.domain.CheckedDay
 import app.poruch.domain.CheckedLabel
+import app.poruch.domain.CompanionParent
+import app.poruch.domain.PendingMeet
 import app.poruch.domain.Event
 import app.poruch.domain.Listing
 import app.poruch.domain.ListingState
@@ -355,6 +357,48 @@ internal fun Tickets(state: DetailState, listing: Listing, onIntent: (DetailInte
                 }
             }
         }
+    }
+}
+
+/**
+ * Афішу перенесли, збір чекає рішення (R7а). Організатор — три відповіді; учасник — що рішення за організатором.
+ * Інша дата — «Скасувати збір» помітніше: вільного вечора може не бути.
+ */
+@Composable
+internal fun MeetDecision(state: DetailState, event: Event, parent: CompanionParent, pending: PendingMeet, onIntent: (DetailIntent) -> Unit) {
+    val colors = Poruch.colors
+    val zone = event.timeZone
+    val newStart = parent.startsAt?.let { meetWhen(it, null, zone) }.orEmpty()
+    val proposed = meetWhen(pending.proposedAt, event.startsAt, zone)
+    val otherDay = !sameDay(pending.proposedAt, event.startsAt, zone)
+    val mutating = state.screen.mutating
+    Column(Modifier.fillMaxWidth().cardSurface().padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+        TicketStamp(stringResource(R.string.state_moved), BadgeTone.Accent)
+        if (state.screen.organizer) {
+            Text(
+                stringResource(R.string.meet_decision_ask, newStart, meetWhen(event.startsAt, event.startsAt, zone), proposed),
+                style = MaterialTheme.typography.bodyLarge, color = colors.ink
+            )
+            PrimaryButton(
+                stringResource(R.string.meet_move_to, proposed), { onIntent(DetailIntent.MoveMeet(pending.proposedAt)) },
+                Modifier.fillMaxWidth(), enabled = !mutating, loading = mutating
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                SecondaryButton(
+                    stringResource(R.string.meet_other_time), { onIntent(DetailIntent.ShowMeetTime(pending.proposedAt)) },
+                    Modifier.weight(1f), enabled = !mutating
+                )
+                if (otherDay) SecondaryButton(
+                    stringResource(R.string.meet_cancel), { onIntent(DetailIntent.ConfirmCancel(true)) },
+                    Modifier.weight(1f), enabled = !mutating, tone = colors.danger
+                )
+            }
+            if (!otherDay) GhostButton(stringResource(R.string.meet_cancel), { onIntent(DetailIntent.ConfirmCancel(true)) }, tone = colors.danger)
+            Text(
+                stringResource(R.string.meet_decision_deadline, meetWhen(pending.decideBy, kotlin.time.Clock.System.now().toString(), zone), proposed),
+                style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary
+            )
+        } else Text(stringResource(R.string.meet_decision_wait, newStart), style = MaterialTheme.typography.bodyLarge, color = colors.ink)
     }
 }
 
@@ -679,6 +723,13 @@ internal fun OrganizerActions(state: DetailState, onIntent: (DetailIntent) -> Un
     // Час, місце й місткість супутника тримає сервер; після початку сервер не приймає правок. Лишається скасувати.
     val editable = state.screen.companionOf == null && !state.screen.started
     if (editable) PhotoPickerButton(state.screen.mutating) { bytes, mime -> onIntent(DetailIntent.AttachPhoto(bytes, mime)) }
+    // Збір: організатор міняє лише час (R7б).
+    state.screen.event?.takeIf { state.screen.canMoveMeet }?.let { event ->
+        SecondaryButton(
+            stringResource(R.string.meet_change), { onIntent(DetailIntent.ShowMeetTime(event.startsAt)) },
+            Modifier.fillMaxWidth(), enabled = !state.screen.mutating, icon = PoruchIcons.clock
+        )
+    }
     Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
         if (editable) SecondaryButton(stringResource(R.string.edit), { onIntent(DetailIntent.Edit) }, Modifier.weight(1f), icon = PoruchIcons.edit)
         SecondaryButton(

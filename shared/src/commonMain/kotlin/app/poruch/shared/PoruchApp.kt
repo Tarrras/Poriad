@@ -323,6 +323,9 @@ class PoruchApp internal constructor(
     fun createEvent(draft: EventDraft) = eventUseCases.create(draft)
 
     /** «Шукаю компанію» на відкриту афішу. [meetAt] — з [CompanionRules.meetTimes], ISO-8601. */
+    /** Новий час збору (R7б); «Перенести на …» і «Інший час» з питання R7а. «Скасувати збір» — [cancelEvent]. */
+    fun moveCompanion(id: String, meetAt: String) = eventUseCases.moveCompanion(id, meetAt)
+
     fun createCompanion(parentId: String, meetAt: String, note: String?, capacity: Int) =
         eventUseCases.createCompanion(parentId, meetAt, note, capacity)
     fun updateEvent(id: String, draft: EventDraft) = eventUseCases.update(id, draft)

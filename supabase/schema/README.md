@@ -1,6 +1,6 @@
 # Знімок поточної схеми Supabase
 
-[`current.sql`](current.sql) — зліпок бази **для читання**: композитні типи, 36 таблиць (стовпці, обмеження, індекси, RLS, політики, тригери, гранти), представлення та всі 149 функцій схем `public` і `private`. Навіщо: щоб знайти чинне визначення RPC, не перечитуючи 58 міграцій. Наприклад, `private.update_event` і `public.search_events_in_view` оголошені в 7 міграціях кожна, `private.event_rows` і `private.create_event` — у 6; тут — рівно та версія, що працює в базі.
+[`current.sql`](current.sql) — зліпок бази **для читання**: композитні типи, 39 таблиць (стовпці, обмеження, індекси, RLS, політики, тригери, гранти), представлення та всі 159 функцій схем `public` і `private`. Навіщо: щоб знайти чинне визначення RPC, не перечитуючи 62 міграцій. Наприклад, `private.update_event` і `public.search_events_in_view` оголошені в 7 міграціях кожна, `private.event_rows` і `private.create_event` — у 6; тут — рівно та версія, що працює в базі.
 
 **Це не міграція й не джерело правди.** Джерело правди — [`../migrations/`](../migrations/): схему змінюють лише новою міграцією, `current.sql` руками не редагують і не виконують. Знімок лише показує, що вийшло після всіх міграцій.
 
@@ -8,9 +8,9 @@
 
 | | |
 |---|---|
-| Знято | 2026-10-20, після `20261023120000_event_state` (перший знімок — 2026-10-19) |
+| Знято | 2026-10-20, після `20261028120000_event_state_client_flag` (перший знімок — 2026-10-19) |
 | Джерело | prod `tzdogzdvctlumsqlqskr` (`EventOrganiztor`), лише `SELECT` до каталогу Postgres (`pg_get_functiondef`, `pg_get_constraintdef`, `pg_indexes`, `pg_policies`, `pg_get_triggerdef`, ACL) через Supabase MCP. Жодного DDL/DML, рядків даних і секретів у файлі немає |
-| Міграції | у реєстрі prod 58, у `supabase/migrations` 58 файлів, назви збігаються; остання — `20261023120000_event_state` |
+| Міграції | у реєстрі prod 62, у `supabase/migrations` 62 файли, назви збігаються; остання — `20261028120000_event_state_client_flag` |
 
 Знімок беремо з prod: це те, що бачать користувачі. Поки міграція застосована лише на dev, знімок відстає — це очікувано.
 
@@ -22,7 +22,7 @@
 2. Розширення (`pg_cron`, `pg_net`, `postgis` у схемі `gis`, `supabase_vault`, …) — коментарями.
 3. Композитні типи, якими RPC повертають результат (`event_result`, `message_result`, …).
 4. 22 таблиці `public`: стовпці, обмеження, індекси (крім тих, що стоять за обмеженнями), RLS, політики, тригери, гранти.
-5. 14 таблиць `private`.
+5. 17 таблиць `private`.
 6. Представлення (`private.followed_events`, `private.would_send`).
 7. Створене проєктом у схемах Supabase: тригер на `auth.users` (`private.handle_new_user`), бакет `event-images` і політики на `storage.objects`. Решта `auth`, `storage`, `extensions`, `realtime` не знімалась.
 8. Заплановані завдання `pg_cron`.

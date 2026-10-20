@@ -685,6 +685,20 @@ func movedLine(_ event: Event) -> Text? {
     return Text(format.string(from: old)).strikethrough() + Text(" → " + format.string(from: new))
 }
 
+/// Час збору для питання R7а: «21:30», коли день той самий, що [ref], інакше «пт, 7 листопада о 21:30». Пояс — події.
+func meetWhen(_ raw: String, ref: String?, zone: String) -> String {
+    guard let at = parseEventDate(raw) else { return raw }
+    if let ref, sameDay(raw, ref, zone: zone) { return formatter(zone: zone, "HH:mm").string(from: at) }
+    return formatter(zone: zone, "EEE, d MMMM 'о' HH:mm").string(from: at)
+}
+
+/// Той самий календарний день у поясі [zone].
+func sameDay(_ a: String, _ b: String, zone: String) -> Bool {
+    guard let x = parseEventDate(a), let y = parseEventDate(b) else { return false }
+    let day = formatter(zone: zone, "yyyy-MM-dd")
+    return day.string(from: x) == day.string(from: y)
+}
+
 /// Стара дата перенесеної афіші довгою формою для банера деталей: «пт, 21 листопада, 19:00».
 func previousDate(_ event: Event) -> String? {
     guard let raw = event.listing?.previousStartsAt, let old = parseEventDate(raw) else { return nil }

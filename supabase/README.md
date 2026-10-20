@@ -344,6 +344,8 @@ pg_dump "$SUPABASE_DB_URL" -t public.events --data-only -Fc -f events-$(date +%F
 - `public.event_offers` — пропозиція одного продавця; ключ імпорту `(source_id, source_uid)` переїхав сюди з `events` (унікальний індекс `events_source_uid_uidx` знято). Свої `title`, `starts_at`, `canonical_url`, ціна, `status` (`live`/`withdrawn`; `withdrawn` без `ingest_run_id` — ручне зняття), `linked` (`rule`/`agent`/`manual`). RLS увімкнено, грантів клієнтам нема.
 - Колонки `events`, які читають випущені клієнти, — дзеркала, їх веде тригер `event_offers_sync` (`private.sync_event`): `source_id`/`source_uid`/`canonical_url` — основна пропозиція (поточна, поки жива; інакше жива з найбільшою вагою), `price_min`/`is_free` — мінімум живих, `import_status` — `live`, поки жива хоч одна (`stale` лишається за `retire_finished_imports`). Тому `event_rows`, `event_cards`, `discover_index` не змінювались. Події без пропозицій (спільнотні, тестові фікстури) тригер не чіпає.
 - `private.merge_event(from, into, reason)` переносить `saved_events`, `event_members`, `event_waitlist`, `event_ratings`, `event_messages`, `chat_reads` (пізніша позначка), `event_artists`, `private.follow_announced`/`follow_seen`, `companion_of` і пропозиції; дублі за ключем відкидаються, рядок не видаляється — `merged_into`, `withdrawn`. Журнал з лічильниками — `private.event_merges`. `public.event_details` і `public.event_cards_by_ids` за старим id віддають живу подію (`private.live_event_id`).
+- `20261022100000_merge_event_reports.sql` (dev і prod 2026-10-20): `merge_event` переносить і скарги (`reports.event_id`),
+  лічильник `reports` — у журналі `private.event_merges`.
 - Дамп пише події й пропозиції через `private.ingest_offers(run, jsonb)` (див. `tools/ingest/README.md`); `private.detach_offer(offer)` — ручне від'єднання.
 - Перенесення наявних даних — у самій міграції: знятий рядок-дубль з живою копією стає її пропозицією (рішення конвеєра з `ingest_items`, та сама хвилина + місто + назва, тихий перенос того самого посилання). На dev 2026-10-20: злито 480 (318 / 147 / 15), перенесено 26 артистів, відкинуто як дублі 154 артисти й 1 `follow_seen`, збережень і супутників на злитих рядках не було; на надгробках 0 зв'язків; знятих майбутніх подій 357 → 60.
 - Перший дамп на dev після міграції (2026-10-20, `apply_sql.py run --env dev --apply`, без `--agent`, 17 с застосування): 5146 пропозицій записано, 13 подій злито самим дампом (липкість: копія жила окремою подією), подій з кількома живими продавцями 1480 (35 з них лишили основним легшого продавця — не перемикається, поки живий), 0 пар живих подій з тією самою хвилиною, містом і назвою, 0 зв'язків на надгробках, 0 подій з живою пропозицією у `withdrawn`, основна пропозиція завжди жива, ціна — мінімум живих. Повтор того самого дампу (`tools/ingest/sql_check.py`) подій не додає.
@@ -353,13 +355,13 @@ pg_dump "$SUPABASE_DB_URL" -t public.events --data-only -Fc -f events-$(date +%F
 
 ## Стан події й адресна перевірка (тінь)
 
-`20261023120000_event_state.sql` (dev 2026-10-20; prod — ще ні, план у `docs/event-offers.md`), специфікація — там же, фаза 2 (R4–R5). Усе в `private`, клієнтам нічого не видно, пушів нема.
+`20261023120000_event_state.sql` (dev і prod 2026-10-20, тінь), специфікація — там же, фаза 2 (R4–R5). Усе в `private`, клієнтам нічого не видно, пушів нема.
 
 - `private.offer_checks` — що сказала сторінка пропозиції (Edge Function `offer-check`) або що дамп переніс сеанс (тригер `event_offers_moved` на `event_offers.starts_at`, `why='listing'`; збій тригера дамп не ламає — лише попередження).
 - `private.event_state_rule(state, starts_at, offers)` — правила R4 в одній чистій функції; `private.offer_evidence` зводить перевірки пропозиції в одне свідчення («скасовано» липке); `private.refresh_event_state` пише `private.event_state` і журнал `private.event_state_log` (`would_push`, `recipients` = `private.event_watchers`). `private.would_send` — подія, людина, зміна, свідчення. Конфлікт agent-пропозиції двічі поспіль — `private.offer_detach_queue`.
 - R5: задача pg_cron `offer-check` (`*/15`) → `private.kick_offer_check()` → pg_net на адресу `push_function_url` з `/offer-check` замість `/push` і з тим самим секретом → функція бере `private.offer_checks_due(limit, now)` і пише `private.record_offer_checks(jsonb)`. Без секретів у Vault або без pg_cron — мовчить.
 - Звіт тіні — `private.shadow_report(days)`.
-- `20261024120000_event_state_guards.sql` (dev 2026-10-20): тихий перенос не рахується з чужої сторінки (дата в slug адреси ≠ дата сеансу), на зайняту давнішою подією ціль чи всупереч свіжому іншому продавцю; відкликання переносу, на який більше ніщо не вказує; `refresh_event_state(event, reason)` — перерахунок через зміну правил без «б надіслали». Хибний перенос prod 20.10 — у `docs/event-offers.md`.
+- `20261024120000_event_state_guards.sql` (dev і prod 2026-10-20): тихий перенос не рахується з чужої сторінки (дата в slug адреси ≠ дата сеансу), на зайняту давнішою подією ціль чи всупереч свіжому іншому продавцю; відкликання переносу, на який більше ніщо не вказує; `refresh_event_state(event, reason)` — перерахунок через зміну правил без «б надіслали». Хибний перенос prod 20.10 — у `docs/event-offers.md`.
 - `tests/event_state.sql` — **PASS** на dev 2026-10-20, решта `tests/*.sql` без помилок. На dev для цього увімкнено `pg_cron` (інших задач там і далі нема).
 - `20261030120000_offer_cleanup.sql` (dev 2026-10-20; prod — план у `docs/event-offers.md`, «Борги фаз 1–2»):
   `record_offer_checks` зливає двійників за кінцевою адресою (`private.merge_url_twins`, причина `url_twin` у
@@ -368,7 +370,7 @@ pg_dump "$SUPABASE_DB_URL" -t public.events --data-only -Fc -f events-$(date +%F
 
 ## Пуші про зміну афіші й супутник за подією (за перемикачем)
 
-`20261027120000_event_changes.sql` (dev 2026-10-20, перемикач вимкнено; prod — план у `docs/event-offers.md`, фаза 3:
+`20261027120000_event_changes.sql` (dev і prod 2026-10-20, перемикач вимкнено до воріт ~27.10; план — `docs/event-offers.md`, фаза 3:
 R6–R7).
 
 - Перемикач — `private.flags.event_changes`. Вмикає й вимикає `select private.set_event_changes(true|false)`: ставить
@@ -383,5 +385,16 @@ R6–R7).
   - Розсилка — `private.flush_event_change_pushes()`, одразу й задачею pg_cron `event-change-pushes` (`5 * * * *`).
     Функція `push` отримує тип `change` з адресатами й текстом.
 - В обох режимах: після виправлення нова зміна чекає другого сильного свідчення поспіль (`event_state.unconfirmed`).
-- `tests/event_changes.sql` — **PASS** на dev 2026-10-20. Решта `tests/*.sql` без помилок, крім `tests/event_state.sql`:
-  його «клієнт бачить те саме» на dev ламає `20261026120000_event_state_client` фази 4, а не ця міграція.
+- `tests/event_changes.sql` — **PASS** на dev 2026-10-20; решта `tests/*.sql` теж (тест `event_state.sql` виправлено у
+  фазі 4 під нові поля `event_details`).
+
+## Стан події й продавці — клієнтам (фаза 4)
+
+`20261026120000_event_state_client.sql` і `20261028120000_event_state_client_flag.sql` (dev і prod 2026-10-20),
+специфікація — `docs/event-offers.md`, фаза 4 (R8–R11).
+
+- `public.event_result` і `private.event_cards` додатково віддають `state`, `previous_starts_at`, `checked_at`, `offers`
+  (продавці: назва, посилання, ціна від, `live`; основний першим). Поля, які читає 1.3.0, не змінились.
+- Стан з `private.event_state` клієнти бачать лише з увімкненим перемикачем фази 3 (`private.flag('event_changes')`);
+  вимкнено — стан за `import_status` (`withdrawn` → `unknown`), `checked_at` і стара дата не віддаються.
+- `tests/event_state_client.sql` — PASS на dev 2026-10-20.

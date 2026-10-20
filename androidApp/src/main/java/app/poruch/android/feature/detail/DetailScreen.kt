@@ -100,6 +100,9 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
                         Modifier.padding(horizontal = Spacing.page).padding(top = Spacing.xl),
                         verticalArrangement = Arrangement.spacedBy(Spacing.lg)
                     ) {
+                        state.screen.pendingMeet?.let { pending ->
+                            state.screen.companionOf?.let { parent -> MeetDecision(state, event, parent, pending, onIntent) }
+                        }
                         Restrictions(state)
                         state.screen.companionOf?.let { parent ->
                             GroupedRows {
@@ -184,6 +187,11 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
     }
     state.reporting?.let { target -> ReportSheet(target, onIntent) }
     if (state.seekingCompany) CompanionSheet(event, state.screen.mutating, onIntent)
+    state.movingMeet?.let { from ->
+        val parent = state.screen.companionOf
+        val start = parent?.startsAt
+        if (parent != null && start != null) MeetTimeSheet(event, parent, start, from, state.screen.mutating, onIntent)
+    }
     state.screen.person?.let { person ->
         val request = state.screen.organizer && state.screen.requests.any { it.userId == person.userId }
         PersonSheet(

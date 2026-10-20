@@ -94,6 +94,8 @@ class PoruchAppTest {
         var companionCards=emptyList<CompanionCard>()
         override suspend fun companions(parentId:String)=companionCards
         val companionsCreated=mutableListOf<List<Any?>>()
+        val companionsMoved=mutableListOf<Pair<String,String>>()
+        override suspend fun moveCompanion(id:String,meetAt:String) { companionsMoved+=id to meetAt }
         override suspend fun createCompanion(parentId:String,meetAt:String,note:String?,capacity:Int):String {
             companionsCreated+=listOf(parentId,meetAt,note,capacity)
             companionCards=companionCards+CompanionCard("c1",meetAt,"Europe/Kyiv",note,capacity,0,Membership.NONE,true)
@@ -1891,6 +1893,36 @@ class PoruchAppTest {
         assertNull(app.state.value.detail.event)
         app.close()
     }
+    /** R7а/R7б: збір з питанням — організатор бачить його й міняє час лише в межах сітки; учасник — ні. */
+    @Test fun anOrganizerMovesACompanionWithinTheGrid()=runTest {
+        val events=Events()
+        val parentStart=(Clock.System.now()+30.hours).toString()
+        val meet=(Clock.System.now()+30.hours-kotlin.time.Duration.parse("30m")).toString()
+        val companion=event("cb",EventCategory.MUSIC,meet).let {
+            it.copy(gathering=it.gathering!!.copy(organizerId="user",companionOf=CompanionParent("p","Концерт",parentStart),
+                pendingMeet=PendingMeet(parentStart,(Clock.System.now()+2.hours).toString())))
+        }
+        events.results=listOf(companion); events.detailsById=mapOf("cb" to companion)
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
+        val presenter=DetailPresenter(app,"cb",backgroundScope,StandardTestDispatcher(testScheduler))
+        runCurrent(); advanceTimeBy(200); runCurrent()
+        assertTrue(presenter.state.value.canMoveMeet)
+        assertEquals(parentStart,presenter.state.value.pendingMeet?.proposedAt)
+
+        app.moveCompanion("cb",(Clock.System.now()+30.hours-kotlin.time.Duration.parse("20m")).toString()); runCurrent()
+        assertTrue(events.companionsMoved.isEmpty(),"off the grid: refused before the network")
+        val grid=CompanionRules.meetTimes(parentStart,Clock.System.now()).first()
+        app.moveCompanion("cb",grid); advanceTimeBy(1000); runCurrent()
+        assertEquals(listOf("cb" to grid),events.companionsMoved)
+        assertEquals(AppNotice.Told(AppMessage.CHANGES_SAVED),app.state.value.notice)
+
+        val member=companion.copy(gathering=companion.gathering!!.copy(organizerId="other"))
+        events.detailsById=mapOf("cb" to member); app.reloadEvent("cb"); runCurrent(); advanceTimeBy(200); runCurrent()
+        assertFalse(presenter.state.value.canMoveMeet,"a member sees the question, not the buttons")
+        assertNotNull(presenter.state.value.pendingMeet)
+        app.close()
+    }
+
     /** Стан афіші на деталях (R8–R9): скасована без кнопки квитків, «Купили?» — раз і лише незбереженій, вихід рахується. */
     @Test fun listingStateAndTheBoughtPrompt()=runTest {
         val tracked=mutableListOf<Pair<String,Map<String,String>>>()
