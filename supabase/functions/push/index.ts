@@ -1,7 +1,8 @@
 // Edge Function `push`: тригери бази кличуть її на нове повідомлення в чаті, новий запит на
 // участь чи приєднання до відкритої події, на скасування й перенесення події (docs/event-change-push.md),
 // на нову подію організатора й зведення нових подій закладів та артистів (docs/follows.md), на зміну афіші, за
-// якою людина стежить (docs/event-offers.md, R6–R7: адресатів, текст і час уже вибрала база).
+// якою людина стежить (docs/event-offers.md, R6–R7: адресатів, текст і час уже вибрала база), а щопʼятниці —
+// пуш повернення на пристрій, з якого місяць не відкривали застосунок (docs/guest-channel.md).
 // Вона вирішує, кому слати, бере токени й шле у FCM (Android) і APNs (iOS). Тихі години для «Стежити»
 // (22:00–09:00 за Києвом) тримає база в `private.notify_push`, ще до виклику: сюди нічний пуш приходить уже вранці.
 //
@@ -15,7 +16,7 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import * as jose from "npm:jose@5";
-import { artistText, organizerText, placeText, type ArtistLine, type EventLine, type PlaceLine } from "./follow_text.ts";
+import { artistText, organizerText, placeText, winbackText, type ArtistLine, type EventLine, type PlaceLine } from "./follow_text.ts";
 
 type Payload =
   | { type: "message"; message_id: string; event_id: string }
@@ -27,7 +28,9 @@ type Payload =
   // Зведення `notify_place_follows`: одна людина, скільки нового, у скількох закладах і найближчі події.
   | { type: "follow"; kind: "place"; user_id: string; total: number; place_count: number; places: { id: string; n: number }[]; event_ids: string[] }
   // Те саме для артистів: `notify_artist_follows`.
-  | { type: "follow"; kind: "artist"; user_id: string; total: number; artist_count: number; artists: { id: string; n: number }[]; event_ids: string[] };
+  | { type: "follow"; kind: "artist"; user_id: string; total: number; artist_count: number; artists: { id: string; n: number }[]; event_ids: string[] }
+  // `send_winbacks`: пристрій без пошуку людини, місто й події його вихідних уже вибрала база.
+  | { type: "winback"; token: string; platform: Token["platform"]; step: 1 | 2; city: string; total: number; titles: string[] };
 
 type EventKind = "moved" | "cancelled";
 const EVENT_KINDS: readonly string[] = ["moved", "cancelled"];
@@ -35,7 +38,7 @@ const EVENT_KINDS: readonly string[] = ["moved", "cancelled"];
 type Change = "cancelled" | "postponed" | "moved" | "corrected";
 const CHANGES: readonly string[] = ["cancelled", "postponed", "moved", "corrected"];
 
-type Push = { kind: "chat" | "request" | "joined" | "organizer" | "place" | "artist" | EventKind; eventId?: string; placeId?: string; artistId?: string; change?: Change; title: string; body: string; key: string };
+type Push = { kind: "chat" | "request" | "joined" | "organizer" | "place" | "artist" | "winback" | EventKind; eventId?: string; placeId?: string; artistId?: string; change?: Change; step?: number; title: string; body: string; key: string };
 type Token = { token: string; platform: "android" | "ios" };
 
 const PREVIEW = 120;
@@ -56,18 +59,27 @@ Deno.serve(async (req) => {
   if (!isPayload(payload)) return json({ error: "bad payload" }, 400);
   const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-  const { push, recipients } = payload.type === "message" ? await forMessage(db, payload)
-    : payload.type === "event" ? await forEvent(db, payload)
-    : payload.type === "change" ? forChange(payload)
-    : payload.type === "follow" ? await forFollow(db, payload) : await forRequest(db, payload);
-  if (!push || recipients.length === 0) return json({ sent: 0, reason: "no recipients" });
-
+  let push: Push | null;
   const list: Token[] = [];
-  for (let i = 0; i < recipients.length; i += TOKEN_CHUNK) {
-    const { data: tokens } = await db.from("push_tokens").select("token,platform").in("user_id", recipients.slice(i, i + TOKEN_CHUNK));
-    list.push(...((tokens ?? []) as Token[]));
+  let recipients: string[] = [];
+  if (payload.type === "winback") {
+    // Повернення йде на пристрій, а не людині: токен і платформа вже в запиті.
+    const text = winbackText(payload.step, payload.city, payload.total, payload.titles);
+    push = { kind: "winback", step: payload.step, title: text.title, body: text.body, key: `winback:${payload.step}` };
+    list.push({ token: payload.token, platform: payload.platform });
+  } else {
+    ({ push, recipients } = payload.type === "message" ? await forMessage(db, payload)
+      : payload.type === "event" ? await forEvent(db, payload)
+      : payload.type === "change" ? forChange(payload)
+      : payload.type === "follow" ? await forFollow(db, payload) : await forRequest(db, payload));
+    if (!push || recipients.length === 0) return json({ sent: 0, reason: "no recipients" });
+    for (let i = 0; i < recipients.length; i += TOKEN_CHUNK) {
+      const { data: tokens } = await db.from("push_tokens").select("token,platform").in("user_id", recipients.slice(i, i + TOKEN_CHUNK));
+      list.push(...((tokens ?? []) as Token[]));
+    }
+    if (list.length === 0) return json({ sent: 0, reason: "no tokens" });
   }
-  if (list.length === 0) return json({ sent: 0, reason: "no tokens" });
+  const message = push;
 
   const stale: string[] = [];
   let sent = 0;
@@ -77,7 +89,7 @@ Deno.serve(async (req) => {
     while (next < list.length) {
       const t = list[next++];
       try {
-        const ok = t.platform === "android" ? await sendFcm(t.token, push) : await sendApns(t.token, push);
+        const ok = t.platform === "android" ? await sendFcm(t.token, message) : await sendApns(t.token, message);
         if (ok === "stale") stale.push(t.token);
         else if (ok) sent++;
       } catch (e) {
@@ -86,8 +98,12 @@ Deno.serve(async (req) => {
     }
   };
   await Promise.all(Array.from({ length: Math.min(CONCURRENCY, list.length) }, worker));
-  // Токени, які провайдер уже не знає, прибираємо: інакше вони лишаються назавжди.
-  if (stale.length > 0) await db.from("push_tokens").delete().in("token", stale);
+  // Токени, які провайдер уже не знає, прибираємо: інакше вони лишаються назавжди. Той самий токен може бути й
+  // пристроєм каналу повернення, а `private` PostgREST не відкриває — тож через RPC.
+  if (stale.length > 0) {
+    await db.from("push_tokens").delete().in("token", stale);
+    for (const token of stale) await db.rpc("forget_device", { p_token: token });
+  }
   return json({ sent, stale: stale.length, recipients: recipients.length });
 });
 
@@ -244,6 +260,9 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const isUuid = (v: unknown): v is string => typeof v === "string" && UUID.test(v);
 const isText = (v: unknown): v is string => typeof v === "string" && v.length >= 1 && v.length <= 300;
 const isCount = (v: unknown): v is number => Number.isInteger(v) && (v as number) >= 1 && (v as number) <= 100_000;
+// Ті самі перевірки, що в `touch_device`.
+const FCM_TOKEN = /^[A-Za-z0-9_:-]{100,4096}$/;
+const CITIES: readonly string[] = ["Київ", "Харків", "Одеса", "Дніпро", "Львів"];
 
 function isPayload(p: unknown): p is Payload {
   if (!p || typeof p !== "object") return false;
@@ -268,6 +287,13 @@ function isPayload(p: unknown): p is Payload {
       && Array.isArray(o.artists) && o.artists.length >= 1 && o.artists.length <= 5
       && o.artists.every((x) => !!x && typeof x === "object" && isUuid((x as Record<string, unknown>).id) && isCount((x as Record<string, unknown>).n))
       && Array.isArray(o.event_ids) && o.event_ids.length >= 1 && o.event_ids.length <= 3 && o.event_ids.every(isUuid);
+  }
+  if (o.type === "winback") {
+    return (o.platform === "ios" ? typeof o.token === "string" && /^[0-9a-f]{64}$/.test(o.token)
+      : o.platform === "android" && typeof o.token === "string" && FCM_TOKEN.test(o.token))
+      && (o.step === 1 || o.step === 2) && typeof o.city === "string" && CITIES.includes(o.city) && isCount(o.total)
+      && Array.isArray(o.titles) && o.titles.length >= 1 && o.titles.length <= 2
+      && o.titles.every((t) => typeof t === "string" && t.length >= 1 && t.length <= 200);
   }
   return false;
 }
@@ -316,6 +342,7 @@ async function sendFcm(token: string, push: Push): Promise<boolean | "stale"> {
           kind: push.kind, title: push.title, body: push.body, key: push.key,
           ...(push.eventId ? { eventId: push.eventId } : {}), ...(push.placeId ? { placeId: push.placeId } : {}),
           ...(push.artistId ? { artistId: push.artistId } : {}), ...(push.change ? { change: push.change } : {}),
+          ...(push.step ? { step: String(push.step) } : {}),
         },
         android: { priority: "high" },
       },
@@ -365,12 +392,12 @@ async function sendApns(token: string, push: Push): Promise<boolean | "stale"> {
       "apns-push-type": "alert",
       "apns-priority": "10",
       // Зміна події — окрема група: повідомлення чату не має витіснити «подію скасовано». Новіший пуш про
-      // ті самі заклади заміняє попередній.
-      "apns-collapse-id": push.kind === "place" ? `place:${push.placeId}` : push.kind === "artist" ? `artist:${push.artistId}` : EVENT_KINDS.includes(push.kind) ? `${push.eventId}:state` : push.eventId!,
+      // ті самі заклади заміняє попередній, крок 2 повернення — крок 1.
+      "apns-collapse-id": push.kind === "winback" ? "winback" : push.kind === "place" ? `place:${push.placeId}` : push.kind === "artist" ? `artist:${push.artistId}` : EVENT_KINDS.includes(push.kind) ? `${push.eventId}:state` : push.eventId!,
     },
     body: JSON.stringify({
-      aps: { alert: { title: push.title, body: push.body }, sound: "default", "thread-id": push.eventId ?? (push.artistId ? `artist:${push.artistId}` : `place:${push.placeId}`) },
-      kind: push.kind, eventId: push.eventId, placeId: push.placeId, artistId: push.artistId, change: push.change, key: push.key,
+      aps: { alert: { title: push.title, body: push.body }, sound: "default", "thread-id": push.kind === "winback" ? "digest" : push.eventId ?? (push.artistId ? `artist:${push.artistId}` : `place:${push.placeId}`) },
+      kind: push.kind, eventId: push.eventId, placeId: push.placeId, artistId: push.artistId, change: push.change, step: push.step, key: push.key,
     }),
   });
   if (res.ok) return true;

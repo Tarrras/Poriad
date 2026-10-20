@@ -57,7 +57,9 @@ import GoogleSignIn
                 .onAppear { PushDelegate.app = model.app }
                 .onChange(of: scenePhase) { _, phase in
                     // Повернення в застосунок: запити на участь і членство могли змінитися, поки його не було.
-                    if phase == .active { model.start(); model.app.resume(); LocalReminderScheduler.shared.reschedule() }
+                    if phase == .active {
+                        model.start(); model.app.resume(); LocalReminderScheduler.shared.reschedule(); PushDelegate.reportPermission()
+                    }
                     if phase == .background { model.stop() }
                 }
         }

@@ -15,6 +15,7 @@ class AuthViewModel(private val app: PoruchApp, reason: AuthReason = AuthReason.
         AuthState(signup = reason == AuthReason.CREATE, reason = reason, googleAvailable = googleSignInAvailable)
     ) {
     init {
+        reason.wall?.let(app::authWall)
         observe(app) { shared ->
             // Закриваємось, коли вхід доїхав до кінця: після Google спільний шар ще питає, чи є дата
             // народження, і без неї екран лишається на кроці дати. Лист відновлення веде на профіль.

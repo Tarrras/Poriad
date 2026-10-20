@@ -98,15 +98,6 @@ class AlarmReminderScheduler(private val context: Context) : ReminderScheduler {
         fun showDigest(system: Context, week: Int) {
             val context = system.inAppLanguage()
             val digest = storedDigests(context).firstOrNull { it.week == week } ?: return
-            if (!NotificationPermission(context).granted()) return
-            val manager = context.getSystemService(NotificationManager::class.java)
-            manager.createNotificationChannel(
-                NotificationChannel(DIGEST_CHANNEL, context.getString(R.string.digest), NotificationManager.IMPORTANCE_DEFAULT)
-            )
-            val open = PendingIntent.getActivity(
-                context, DIGEST_ID, MainActivity.openDigest(context, week),
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
             val count = context.resources.getQuantityString(R.plurals.digest_count, digest.count, digest.count)
             val titles = digest.titles.joinToString(", ")
             val more = digest.count - digest.titles.size
@@ -116,10 +107,32 @@ class AlarmReminderScheduler(private val context: Context) : ReminderScheduler {
                 4 -> R.string.digest_title_4
                 else -> R.string.digest_title
             }
+            notifyDigest(
+                context, MainActivity.openDigest(context, week),
+                context.getString(title, digest.city ?: context.getString(R.string.digest_nearby), count),
+                if (more > 0) context.getString(R.string.digest_more, titles, more) else titles
+            )
+        }
+
+        /**
+         * Пуш повернення (docs/guest-channel.md): текст за шаблонами дайджесту вже склав сервер, тут — той самий канал і
+         * місце в шторці, що в дайджесту. Тап веде на головну.
+         */
+        fun showWinback(system: Context, title: String, body: String, step: Int) {
+            val context = system.inAppLanguage()
+            notifyDigest(context, MainActivity.openWinback(context, step), title, body)
+        }
+
+        private fun notifyDigest(context: Context, intent: Intent, title: String, body: String) {
+            if (!NotificationPermission(context).granted()) return
+            val manager = context.getSystemService(NotificationManager::class.java)
+            manager.createNotificationChannel(
+                NotificationChannel(DIGEST_CHANNEL, context.getString(R.string.digest), NotificationManager.IMPORTANCE_DEFAULT)
+            )
+            val open = PendingIntent.getActivity(context, DIGEST_ID, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
             val notification = Notification.Builder(context, DIGEST_CHANNEL)
                 .setSmallIcon(R.drawable.ic_notification)
-                .setContentTitle(context.getString(title, digest.city ?: context.getString(R.string.digest_nearby), count))
-                .setContentText(if (more > 0) context.getString(R.string.digest_more, titles, more) else titles)
+                .setContentTitle(title).setContentText(body)
                 .setContentIntent(open).setAutoCancel(true).build()
             manager.notify(DIGEST_TAG, DIGEST_ID, notification)
         }

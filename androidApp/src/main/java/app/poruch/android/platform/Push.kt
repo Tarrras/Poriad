@@ -41,6 +41,11 @@ class PushService : FirebaseMessagingService() {
     override fun onMessageReceived(message: RemoteMessage) {
         val data = message.data
         val kind = data["kind"] ?: return
+        // Пуш повернення — про афішу міста, а не подію: як дайджест, на головну (docs/guest-channel.md).
+        if (kind == "winback") {
+            AlarmReminderScheduler.showWinback(this, data["title"].orEmpty(), data["body"].orEmpty(), data["step"]?.toIntOrNull() ?: 1)
+            return
+        }
         val eventId = data["eventId"]
         val placeId = data["placeId"]
         val artistId = data["artistId"]

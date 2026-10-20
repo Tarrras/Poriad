@@ -236,6 +236,13 @@ final class LocalReminderScheduler: NSObject, ReminderScheduler, RequestNotifier
                 PushDelegate.digestOpened(week: Int32(week))
                 PushDelegate.open(eventId: nil, chat: false)
             }
+        } else if info["kind"] as? String == "winback" {
+            // Пуш повернення з сервера — як дайджест: без події, на головну (docs/guest-channel.md).
+            let step = info["step"] as? Int ?? 1
+            DispatchQueue.main.async {
+                PushDelegate.winbackOpened(step: Int32(step))
+                PushDelegate.open(eventId: nil, chat: false)
+            }
         } else {
             // Пуш з сервера каже, що він, у `kind`; локальне сповіщення — префікс ідентифікатора. Дайджест — свій `digest_open`.
             let id = request.identifier

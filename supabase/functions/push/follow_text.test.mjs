@@ -1,6 +1,6 @@
 // Перевірка текстів пушів про підписки без Deno: node supabase/functions/push/follow_text.test.mjs
 import assert from "node:assert/strict";
-import { artistText, organizerText, placeText, plural } from "./follow_text.ts";
+import { artistText, organizerText, placeText, plural, winbackText } from "./follow_text.ts";
 
 const forms = (n) => plural(n, "подія", "події", "подій");
 assert.deepEqual([1, 2, 4, 5, 11, 12, 14, 21, 22, 25, 101, 111].map(forms),
@@ -57,5 +57,11 @@ assert.equal(across2.title, "3 нові події в артистів, за я�
 assert.equal(across2.body, "Jerry Heil, Beast");
 assert.equal(artistText(2, 1, [], [ev("e1", "А")]), null);
 assert.equal(artistText(0, 0, [jerry], []), null);
+
+// Повернення: шаблони дайджесту, «та ще» лише коли є решта.
+assert.deepEqual(winbackText(1, "Київ", 40, ["Імпровізаційне шоу «Королі Крінжу»", "Червона Шапочка"]),
+  { title: "Київ: 40 подій на вихідних", body: "Імпровізаційне шоу «Королі Крінжу», Червона Шапочка та ще 38" });
+assert.equal(winbackText(2, "Львів", 22, ["А", "Б"]).title, "Є куди на вихідних. Львів: 22 події");
+assert.equal(winbackText(1, "Одеса", 2, ["А", "Б"]).body, "А, Б");
 
 console.log("follow_text: ok");

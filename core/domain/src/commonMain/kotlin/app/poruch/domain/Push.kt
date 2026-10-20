@@ -11,6 +11,25 @@ interface PushTokens {
      * офлайн, відкликана сесія). Null — поточна сесія.
      */
     suspend fun unregister(token: String, accessToken: String? = null)
+
+    /**
+     * Канал повернення (docs/guest-channel.md): пристрій відкрили з дозволом і дайджестом — сервер знає `last_seen`,
+     * місто ([city] з [HomeLocation.covered], null — своє місце) і ключі [EventCategory] з інтересів. Без акаунта теж.
+     */
+    suspend fun touchDevice(token: String, platform: PushPlatform, city: String?, interests: List<String>)
+    suspend fun forgetDevice(token: String)
+}
+
+/** Що сервер востаннє почув про пристрій від [PushTokens.touchDevice] і коли ([at], epoch-секунди). */
+data class DeviceTouch(val token: String, val city: String?, val interests: List<String>, val at: Long)
+
+/**
+ * Останній [DeviceTouch]. Належить пристрою, як і дайджест: переживає вихід з акаунта. Назви методів свої, а не
+ * `read`/`write`: Kotlin/Native інакше перейменував би `write(value:)` у протоколах, які вже реалізує iOS.
+ */
+interface DeviceTouchStore {
+    fun last(): DeviceTouch?
+    fun save(touch: DeviceTouch?)
 }
 
 /**

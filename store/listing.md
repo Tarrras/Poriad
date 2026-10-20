@@ -104,6 +104,8 @@ iPad-скріншоти не потрібні: застосунок iPhone-only 
 
 Реклама, фінанси, контакти, здоров'я — не збираються. Advertising ID вимкнено в маніфесті, тож у Data safety його не вказувати.
 
+**Канал повернення ([guest-channel.md](../docs/guest-channel.md)) — звірити перед релізом збірки з `touch_device`, консолі ще не мінялись.** Новий запис на сервері без акаунта: FCM-токен, місто (одне з пʼяти), інтереси, час останнього відкриття; до 120 днів, видаляється перемикачем «Що поруч на вихідних». Токен уже покритий рядком Device or other IDs (мета — пуші). Відкрите питання — рядок «Приблизна геолокація»: досі «ефемерно», а місто тепер зберігається, і Google наводить місто як приклад approximate location. Якщо вважати так — зняти «ефемерно» й додати мету App functionality. Інтереси акаунтів і так лежать на сервері, а у формі їх нема — тут же вирішити, чи це App activity → Other actions.
+
 ### Content rating (IARC)
 
 UGC: так. Спілкування між користувачами: так (чат). Обмін контентом: так (фото, посилання). Поділ геолокації користувача: ні (публікується адреса події, не позиція людини). Цільова аудиторія: 18+, не Families.
@@ -193,6 +195,8 @@ UGC: так. Спілкування між користувачами: так (�
 Contact Info: Email, Name. Identifiers: User ID, Device ID. Photos or Videos. User Content: Emails or Text Messages (чат події; push через APNs), Other User Content («Про себе» в профілі, події, оцінки 1–5 з коментарем, скарги). Other Data: дата народження. Мета для всіх — App Functionality; у Device ID ще й Analytics (Amplitude рахує пристрій за IDFV).
 
 **Not linked to you:** Location — Coarse Location (App Functionality; координати для назви міста йдуть у Photon). Search History (пошук подій, міст, адрес; App Functionality). Usage Data — Product Interaction (Analytics; Firebase і Amplitude, включно із записами сеансів, де текст і фото людей приховані). Diagnostics — Crash Data, Performance Data (App Functionality). Аналітику й звіти про збої користувач вимикає перемикачем «Аналітика» в профілі. Tracking: none (без IDFA).
+
+Канал повернення ([guest-channel.md](../docs/guest-channel.md)): токен APNs без акаунта покриває вже задекларований Device ID (App Functionality), а збережене місто — Coarse Location (Not linked, App Functionality). Нових позицій, найімовірніше, не треба, але рішення за власником акаунта — звірити перед релізом збірки з `touch_device`.
 
 Має збігатися з `iosApp/Poruch/PrivacyInfo.xcprivacy` (С28 аудиту 2026-09-23: там бракує ProductInteraction і EmailsOrTextMessages).
 
