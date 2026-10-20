@@ -80,6 +80,11 @@ class DetailViewModel(
             is DetailIntent.OpenSeller -> intent.offer.url?.let {
                 app.ticketOpened(eventId, intent.offer.sourceName, intent.from); send(DetailEffect.OpenLink(it))
             }
+            is DetailIntent.ShowMeetTime -> reduce { copy(movingMeet = intent.from) }
+            is DetailIntent.MoveMeet -> {
+                reduce { copy(movingMeet = null) }
+                app.moveCompanion(eventId, intent.meetAt)
+            }
             is DetailIntent.BoughtPromptAnswered -> if (state.value.boughtPrompt) {
                 reduce { copy(boughtPrompt = false) }
                 app.boughtPromptAnswered(intent.saved)

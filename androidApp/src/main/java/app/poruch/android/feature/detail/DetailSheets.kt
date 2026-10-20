@@ -51,6 +51,7 @@ import app.poruch.domain.Event
 import app.poruch.domain.EventIndexEntry
 import app.poruch.domain.TitleRules
 import app.poruch.domain.FollowRules
+import app.poruch.domain.CompanionParent
 import app.poruch.domain.CompanionRules
 import app.poruch.domain.Membership
 import app.poruch.domain.EventSession
@@ -290,6 +291,44 @@ internal fun CompanionSheet(event: Event, mutating: Boolean, onIntent: (DetailIn
                 stringResource(R.string.companion_create),
                 { if (meetAt != null) sheet.close { onIntent(DetailIntent.CreateCompanion(meetAt, note, capacity)) } },
                 Modifier.fillMaxWidth(), enabled = meetAt != null && !mutating, loading = mutating, icon = PoruchIcons.share
+            )
+        }
+    }
+}
+
+/** Час збору (R7б): лише час, з [from] — пропозиції R7а чи поточного. Межі ті самі, що при створенні. */
+@Composable
+internal fun MeetTimeSheet(event: Event, parent: CompanionParent, startsAt: String, from: String, mutating: Boolean, onIntent: (DetailIntent) -> Unit) {
+    val colors = Poruch.colors
+    val times = remember(startsAt) { CompanionRules.meetTimes(startsAt, kotlin.time.Clock.System.now()) }
+    var at by remember(times, from) {
+        val wanted = runCatching { kotlin.time.Instant.parse(from) }.getOrNull()
+        mutableStateOf(times.indexOfFirst { kotlin.time.Instant.parse(it) == wanted }.takeIf { it >= 0 } ?: (times.size - 3).coerceAtLeast(0))
+    }
+    val words = dateWords()
+    PoruchSheet({ onIntent(DetailIntent.ShowMeetTime(null)) }) { sheet ->
+        Column(
+            Modifier.padding(horizontal = Spacing.page).padding(bottom = Spacing.section),
+            verticalArrangement = Arrangement.spacedBy(Spacing.lg)
+        ) {
+            Text(stringResource(R.string.meet_sheet_title), style = PoruchType.brandTitle2, color = colors.ink)
+            Text(TitleRules.display(parent.title), style = PoruchType.brandTitle3, color = colors.inkSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(stringResource(R.string.meet_sheet_body), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
+            val meetAt = times.getOrNull(at)
+            if (meetAt != null) {
+                val lead = (times.size - 1 - at) * CompanionRules.STEP_MINUTES
+                Stepper(
+                    stringResource(R.string.companion_meet_time),
+                    sessionLabel(EventSession(event.id, meetAt, event.timeZone), words).second,
+                    if (lead == 0) stringResource(R.string.companion_at_start) else stringResource(R.string.companion_lead, durationWords(lead)),
+                    stringResource(R.string.companion_earlier) to { at-- }, at > 0,
+                    stringResource(R.string.companion_later) to { at++ }, at < times.lastIndex
+                )
+            }
+            PrimaryButton(
+                stringResource(R.string.meet_sheet_save),
+                { if (meetAt != null) sheet.close { onIntent(DetailIntent.MoveMeet(meetAt)) } },
+                Modifier.fillMaxWidth(), enabled = meetAt != null && !mutating, loading = mutating
             )
         }
     }
