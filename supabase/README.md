@@ -361,3 +361,23 @@ pg_dump "$SUPABASE_DB_URL" -t public.events --data-only -Fc -f events-$(date +%F
 - Звіт тіні — `private.shadow_report(days)`.
 - `20261024120000_event_state_guards.sql` (dev 2026-10-20): тихий перенос не рахується з чужої сторінки (дата в slug адреси ≠ дата сеансу), на зайняту давнішою подією ціль чи всупереч свіжому іншому продавцю; відкликання переносу, на який більше ніщо не вказує; `refresh_event_state(event, reason)` — перерахунок через зміну правил без «б надіслали». Хибний перенос prod 20.10 — у `docs/event-offers.md`.
 - `tests/event_state.sql` — **PASS** на dev 2026-10-20, решта `tests/*.sql` без помилок. На dev для цього увімкнено `pg_cron` (інших задач там і далі нема).
+
+## Пуші про зміну афіші й супутник за подією (за перемикачем)
+
+`20261027120000_event_changes.sql` (dev 2026-10-20, перемикач вимкнено; prod — план у `docs/event-offers.md`, фаза 3:
+R6–R7).
+
+- Перемикач — `private.flags.event_changes`. Вмикає й вимикає `select private.set_event_changes(true|false)`: ставить
+  прапорець і перераховує `import_status` майбутніх подій афіші. Вимкнено — лише тінь фази 2.
+- Увімкнено: `refresh_event_state` → `private.apply_event_change(log, push)`.
+  - Час події й супутників іде за станом. Скасування закриває супутник, виправлення відкриває знову
+    (`private.companion_closures`). Прапорець транзакції `poruch.follow_parent` пропускає `guard_companion` і глушить
+    `events_push`.
+  - `sync_event`: `import_status` за станом (R3).
+  - Черга й журнал пушів — `private.event_change_pushes`: тексти (`private.event_change_body`, `private.when_uk`),
+    вікно (`private.change_send_after`, тихі години в поясі події — `private.quiet_hours(at, zone)`).
+  - Розсилка — `private.flush_event_change_pushes()`, одразу й задачею pg_cron `event-change-pushes` (`5 * * * *`).
+    Функція `push` отримує тип `change` з адресатами й текстом.
+- В обох режимах: після виправлення нова зміна чекає другого сильного свідчення поспіль (`event_state.unconfirmed`).
+- `tests/event_changes.sql` — **PASS** на dev 2026-10-20. Решта `tests/*.sql` без помилок, крім `tests/event_state.sql`:
+  його «клієнт бачить те саме» на dev ламає `20261026120000_event_state_client` фази 4, а не ця міграція.
