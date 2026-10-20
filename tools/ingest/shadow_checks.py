@@ -38,7 +38,8 @@ SELECT = f"""
 with fut as (
   select e.id, s.slug, e.canonical_url as url, e.starts_at, e.import_status, e.updated_at, e.title, e.city
   from public.events e join public.event_sources s on s.id = e.source_id
-  where e.origin = 'import' and e.starts_at > now() and e.canonical_url is not null),
+  -- Злитий рядок (merged_into, 20261021120000) — надгробок, а не знята подія: інакше сотні злиттів пішли б у «зняті».
+  where e.origin = 'import' and e.starts_at > now() and e.canonical_url is not null and e.merged_into is null),
 base as (
   select f.*, 'watched' as grp from fut f
    where exists (select 1 from public.saved_events v where v.event_id = f.id)
