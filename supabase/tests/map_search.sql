@@ -40,11 +40,12 @@ do $$ begin
  assert (public.discover_events(-41,-31,-40,-30,p_text=>'SearchFixture Ярмарок')->>'total')::int=1,'a one-day fair stays until it closes';
  -- «На вихідних» — про те, що почнеться: `p_from`/`p_to` на `starts_at`.
  assert (select count(*)=0 from public.search_events_in_view(-41,-31,-40,-30,p_from=>now(),p_text=>'SearchFixture Прокат')),'date window still asks about the start';
- -- Прокат змагається як «зараз»: попереду того, що почнеться завтра.
- assert (select title from public.search_events_in_view(-41,-31,-40,-30,p_text=>'SearchFixture') limit 1)='SearchFixture Прокат','what is already under way competes as now';
+ -- Прокат змагається як «зараз»: попереду того, що почнеться завтра. Ярмарок теж «зараз»,
+ -- тож між ними вирішує id — перевіряємо двійку лідерів, а не першого.
+ assert (select count(*)=2 from (select title from public.search_events_in_view(-41,-31,-40,-30,p_text=>'SearchFixture') limit 2) t where title in ('SearchFixture Прокат','SearchFixture Ярмарок')),'what is already under way competes as now';
  -- Те саме в клієнтській функції. Позиція 6 у кортежі — назва, як `Column.TITLE` у `DiscoveryDto.kt`.
  assert (public.discover_events(-41,-31,-40,-30,p_text=>'SearchFixture Прокат')->>'total')::int=1,'ongoing event reaches the index';
- assert public.discover_events(-41,-31,-40,-30,p_text=>'SearchFixture')->'index'->0->>6='SearchFixture Прокат','index leads with what is under way';
+ assert (select count(*)=2 from jsonb_array_elements(public.discover_events(-41,-31,-40,-30,p_text=>'SearchFixture')->'index') with ordinality e(r,n) where n<=2 and r->>6 in ('SearchFixture Прокат','SearchFixture Ярмарок')),'index leads with what is under way';
  begin perform public.search_events_in_view(91,0,92,1); raise exception 'invalid bounds accepted'; exception when sqlstate '22023' then assert sqlerrm='INVALID_BOUNDS'; end;
  begin perform public.search_events_in_view(-41,-31,-40,-30,p_text=>repeat('x',121)); raise exception 'long search accepted'; exception when sqlstate '22023' then assert sqlerrm='INVALID_SEARCH_TEXT'; end;
  begin perform 1 from public.event_members; raise exception 'guest roster access permitted'; exception when insufficient_privilege then null; end;
