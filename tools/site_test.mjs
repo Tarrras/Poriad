@@ -69,4 +69,20 @@ assert.equal(plural(21, EVENTS), "21 подія");
 assert.equal(plural(3, EVENTS), "3 події");
 assert.equal(price({ price_min: 449.6 }), "від 450 ₴");
 assert.equal(price({ is_free: true, price_min: 0 }), "Безкоштовно");
+
+// Telegram-пост (tools/telegram_post.mjs): «Від людей» першими, решта порівну на два дні, у дні — різні категорії.
+{
+  const { pick, format } = await import("./telegram_post.mjs");
+  const ev = (id, startsAt, category, origin = "import") => ({ id, startsAt, tz, category, origin, title: "ВЕЧІР У ТЕАТРІ" });
+  const sat = "2026-10-24T", sun = "2026-10-25T";
+  const weekend = [
+    ev("a", sat + "08:00:00Z", "music"), ev("b", sat + "09:00:00Z", "music"), ev("c", sat + "10:00:00Z", "art"),
+    ev("d", sun + "08:00:00Z", "music"), ev("e", sun + "09:00:00Z", "comedy"), ev("f", sun + "12:00:00Z", "social", "community"),
+  ];
+  assert.deepEqual(pick(weekend, 5).map((e) => e.id), ["f", "a", "c", "d", "e"], "людей першими, далі по дві на день різних категорій");
+  const text = format("Львів", pick(weekend, 5), new Map([["a", { place_name: "Опера", price_min: 300 }]]), 6);
+  assert.match(text, /^\*\*Вихідні у Львові\*\* · 24–25 жовтня/);
+  assert.match(text, /\*\*Вечір у Театрі\*\*\nОпера · від 300 ₴\nhttps:\/\/poriad\.app\/e\/a/);
+  assert.match(text, /Усього на вихідних — 6 подій: poriad\.app\/afisha\.html\?city=Львів&when=weekend$/m);
+}
 console.log("ok");
