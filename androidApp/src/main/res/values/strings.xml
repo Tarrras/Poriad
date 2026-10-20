@@ -117,12 +117,17 @@
   <string name="add_photo">Додати або замінити фото</string>
   <string name="reminders">Сповіщення про мої події</string>
   <string name="reminder_body">Початок за годину · %1$s</string>
-  <string name="reminder_note">Нагадування приблизно за годину до початку і нові запити на участь у ваших подіях. Запити перевіряються, коли застосунок відкрито.</string>
+  <string name="reminder_saved_body">Завтра о %1$s · %2$s</string>
+  <string name="reminder_note">Нагадування приблизно за годину до ваших подій і тих, куди йдете, напередодні о 18:00&#160;— про збережені, і нові запити на участь. Запити перевіряються, коли застосунок відкрито.</string>
   <string name="analytics">Аналітика</string>
   <string name="analytics_note">Псевдонімна статистика використання й звіти про збої. Без реклами.</string>
   <string name="digest">Що поруч на вихідних</string>
   <string name="digest_note">Щопʼятниці о 17:00&#160;— скільки подій у вашому місті на вихідних і що серед них.</string>
   <string name="digest_title">%1$s: %2$s на вихідних</string>
+  <!-- Драбина: 2–4-та пʼятниця після останнього відкриття. Той самий факт іншими словами, без «ми сумуємо». -->
+  <string name="digest_title_2">Що робити на вихідних? %1$s: %2$s</string>
+  <string name="digest_title_3">Є куди на вихідних. %1$s: %2$s</string>
+  <string name="digest_title_4">%1$s, субота й неділя: %2$s</string>
   <string name="digest_nearby">Поруч</string>
   <string name="digest_more">%1$s та ще %2$d</string>
   <string name="digest_prompt_title">Що поруч на вихідних?</string>
@@ -850,7 +855,7 @@
   <string name="location_title">Геолокація</string>
   <string name="location_denied_hint">Геолокація недоступна. Ви можете знайти місто вручну.</string>
   <string name="location_failed_hint">Не вдалося визначити місце. Скористайтеся пошуком міста.</string>
-  <string name="reminders_note">Нагадування за годину до початку і нові запити на участь у ваших подіях.</string>
+  <string name="reminders_note">Нагадування за годину до ваших подій і тих, куди йдете, напередодні о 18:00&#160;— про збережені, і нові запити на участь.</string>
   <string name="delete_account_password_hint">Для підтвердження введіть пароль</string>
   <string name="profile_events_hint">Ваші створені, збережені та заплановані події — у вкладці «Мої події».</string>
   <string name="auth_guest_note">Події можна переглядати без входу. Для участі потрібен профіль.</string>

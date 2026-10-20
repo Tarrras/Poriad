@@ -4,8 +4,11 @@ import Shared
 
 /// Дозвіл на сповіщення. Питає система, відповідь іде в спільний стор через перемикач у профілі.
 enum NotificationPermission {
-    static func request(_ completion: @escaping (Bool) -> Void) {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, _ in
+    /// З `provisional` система не питає: дозвіл тихий, сповіщення лягають у Центр сповіщень без банера й звуку,
+    /// з кнопками «Залишити» / «Вимкнути». Запит без нього з тихого дозволу показує звичайне системне вікно.
+    static func request(provisional: Bool = false, _ completion: @escaping (Bool) -> Void) {
+        let options: UNAuthorizationOptions = provisional ? [.alert, .sound, .provisional] : [.alert, .sound]
+        UNUserNotificationCenter.current().requestAuthorization(options: options) { granted, _ in
             DispatchQueue.main.async {
                 // План міг прийти, поки висіло системне вікно, а без дозволу iOS запити відкидає.
                 if granted { LocalReminderScheduler.shared.reschedule() }
@@ -17,6 +20,23 @@ enum NotificationPermission {
     static func status() async -> UNAuthorizationStatus {
         await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
     }
+
+    /// Чи є ще що спитати: система не питала або дала лише тихий дозвіл першого запуску.
+    static func askable() async -> Bool {
+        let status = await status()
+        return status == .notDetermined || status == .provisional
+    }
+
+    /// Перший запуск: тихий дозвіл без вікна, щоб дайджест вихідних дійшов і до того, хто відкрив раз і забув.
+    /// Справжнє питання лишається на другому запуску (`DigestPrompt`) чи першій підписці.
+    static func provisional() {
+        Task {
+            guard await status() == .notDetermined else { return }
+            request(provisional: true) { granted in
+                if granted { PushDelegate.registerIfAllowed() }
+            }
+        }
+    }
 }
 
 /// Питання про сповіщення після першої підписки: «Стежити» без них марне, пуші про нове не дійдуть. Система питає
@@ -24,7 +44,7 @@ enum NotificationPermission {
 enum FollowPrompt {
     static func ask() {
         Task {
-            guard await NotificationPermission.status() == .notDetermined else { return }
+            guard await NotificationPermission.askable() else { return }
             NotificationPermission.request { granted in
                 if granted { PushDelegate.registerIfAllowed() }
             }
@@ -38,7 +58,7 @@ enum ReminderPrompt {
     static func offer(_ app: PoruchApp) {
         guard (app.state.value as? AppState)?.remindersEnabled == true else { return }
         Task {
-            guard await NotificationPermission.status() == .notDetermined else { return }
+            guard await NotificationPermission.askable() else { return }
             NotificationPermission.request { granted in
                 if granted { PushDelegate.registerIfAllowed() }
             }
@@ -58,8 +78,8 @@ enum ReviewPrompt {
     }
 }
 
-/// Мʼяке питання про дайджест: на другому запуску, раз, лише поки система ще не питала.
-/// Перший запуск належить онбордингу й геолокації; системне питання iOS ставить лише раз.
+/// Мʼяке питання про дайджест: на другому запуску, раз, лише поки система ще не питала вікном
+/// (тихий дозвіл першого запуску — не відповідь). Перший запуск належить онбордингу й геолокації.
 enum DigestPrompt {
     private static var counted = false
 
@@ -70,7 +90,7 @@ enum DigestPrompt {
         let launches = defaults.integer(forKey: "poruch.launches") + 1
         defaults.set(launches, forKey: "poruch.launches")
         guard launches >= 2, digestEnabled, !defaults.bool(forKey: "poruch.digestAsked"),
-              await NotificationPermission.status() == .notDetermined else { return false }
+              await NotificationPermission.askable() else { return false }
         defaults.set(true, forKey: "poruch.digestAsked")
         return true
     }
@@ -85,10 +105,11 @@ final class LocalReminderScheduler: NSObject, ReminderScheduler, RequestNotifier
     private let prefix = "poruch.event."
     private let chatPrefix = "poruch.chat."
     private let requestPrefix = "poruch.request."
+    /// Префікс драбини дайджестів: `poruch.digest.1`…`4`; голий `poruch.digest` — єдиний дайджест старих версій.
     private let digestID = "poruch.digest"
     /// Останній план: `shared` шле лише зміни, а без дозволу iOS запити відкидає.
     private var lastReminders: [EventReminder] = []
-    private var lastDigest: WeekendDigest?
+    private var lastDigests: [WeekendDigest] = []
     private var planned = false
 
     /// Сповіщення дозволили, вікном чи в Налаштуваннях: ставимо останній план знову, інакше він чекав би зміни.
@@ -98,7 +119,7 @@ final class LocalReminderScheduler: NSObject, ReminderScheduler, RequestNotifier
             DispatchQueue.main.async { [self] in
                 guard planned else { return }
                 replace(reminders: lastReminders)
-                replaceDigest(digest: lastDigest)
+                replaceDigests(digests: lastDigests)
             }
         }
     }
@@ -113,9 +134,14 @@ final class LocalReminderScheduler: NSObject, ReminderScheduler, RequestNotifier
                 guard interval > 0 else { continue }
                 let content = UNMutableNotificationContent()
                 content.title = reminder.title
-                content.body = Copy.reminder_body("\(reminder.address)")
+                if let at = reminder.tomorrowAt {
+                    content.body = Copy.reminder_saved_body(at, reminder.address)
+                    content.userInfo = ["eventId": reminder.eventId, "saved": true]
+                } else {
+                    content.body = Copy.reminder_body("\(reminder.address)")
+                    content.userInfo = ["eventId": reminder.eventId]
+                }
                 content.sound = .default
-                content.userInfo = ["eventId": reminder.eventId]
                 center.add(UNNotificationRequest(
                     identifier: prefix + reminder.eventId, content: content,
                     trigger: UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false)
@@ -124,23 +150,33 @@ final class LocalReminderScheduler: NSObject, ReminderScheduler, RequestNotifier
         }
     }
 
-    /// Дайджест вихідних: один запит під сталим id, новий план його замінює.
-    func replaceDigest(digest: WeekendDigest?) {
-        lastDigest = digest
-        center.removePendingNotificationRequests(withIdentifiers: [digestID])
-        guard let digest else { return }
-        let interval = Double(digest.fireAtEpochMillis) / 1000 - Date().timeIntervalSince1970
-        guard interval > 0 else { return }
-        let content = UNMutableNotificationContent()
-        content.title = Copy.digest_title(digest.city ?? Copy.brand_name, Copy.digest_count(Int(digest.count)))
-        let titles = digest.titles.joined(separator: ", ")
-        let more = Int(digest.count) - digest.titles.count
-        content.body = more > 0 ? Copy.digest_more("\(titles)", "\(more)") : titles
-        content.sound = .default
-        center.add(UNNotificationRequest(
-            identifier: digestID, content: content,
-            trigger: UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false)
-        ))
+    /// Драбина дайджестів: запит на тиждень під `poruch.digest.N`, новий план знімає весь старий.
+    func replaceDigests(digests: [WeekendDigest]) {
+        lastDigests = digests
+        center.getPendingNotificationRequests { [center, digestID] requests in
+            center.removePendingNotificationRequests(withIdentifiers: requests.map(\.identifier).filter { $0.hasPrefix(digestID) })
+            for digest in digests {
+                let interval = Double(digest.fireAtEpochMillis) / 1000 - Date().timeIntervalSince1970
+                guard interval > 0 else { continue }
+                let content = UNMutableNotificationContent()
+                let city = digest.city ?? Copy.brand_name, count = Copy.digest_count(Int(digest.count))
+                content.title = switch digest.week {
+                case 2: Copy.digest_title_2(city, count)
+                case 3: Copy.digest_title_3(city, count)
+                case 4: Copy.digest_title_4(city, count)
+                default: Copy.digest_title(city, count)
+                }
+                let titles = digest.titles.joined(separator: ", ")
+                let more = Int(digest.count) - digest.titles.count
+                content.body = more > 0 ? Copy.digest_more("\(titles)", "\(more)") : titles
+                content.sound = .default
+                content.userInfo = ["week": Int(digest.week)]
+                center.add(UNNotificationRequest(
+                    identifier: "\(digestID).\(digest.week)", content: content,
+                    trigger: UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false)
+                ))
+            }
+        }
     }
 
     /// Нові запити на участь: негайно, без тригера. «Нове» вже вирішив спільний шар; тут лише показ.
@@ -194,13 +230,18 @@ final class LocalReminderScheduler: NSObject, ReminderScheduler, RequestNotifier
     ) {
         let request = response.notification.request
         let info = request.content.userInfo
-        if request.identifier == digestID {
-            DispatchQueue.main.async { PushDelegate.open(eventId: nil, chat: false) }
+        if request.identifier.hasPrefix(digestID) {
+            let week = info["week"] as? Int ?? 1
+            DispatchQueue.main.async {
+                PushDelegate.digestOpened(week: Int32(week))
+                PushDelegate.open(eventId: nil, chat: false)
+            }
         } else {
             // Пуш з сервера каже, що він, у `kind`; локальне сповіщення — префікс ідентифікатора. Дайджест — свій `digest_open`.
             let id = request.identifier
             let reason = info["kind"] as? String
-                ?? (id.hasPrefix(chatPrefix) ? "chat" : id.hasPrefix(requestPrefix) ? "request" : id.hasPrefix(prefix) ? "reminder" : nil)
+                ?? (id.hasPrefix(chatPrefix) ? "chat" : id.hasPrefix(requestPrefix) ? "request"
+                    : id.hasPrefix(prefix) ? (info["saved"] != nil ? "saved" : "reminder") : nil)
             let eventId = info["eventId"] as? String, placeId = info["placeId"] as? String, artistId = info["artistId"] as? String
             let chat = info["kind"] as? String == "chat" || id.hasPrefix(chatPrefix)
             DispatchQueue.main.async {

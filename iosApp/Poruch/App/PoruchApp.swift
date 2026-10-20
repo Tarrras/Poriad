@@ -314,7 +314,7 @@ struct RootView: View {
                     homePath = path
                     return
                 }
-                guard let id else { homePath = NavigationPath(); model.app.digestOpened(); return }
+                guard let id else { homePath = NavigationPath(); return }
                 model.app.selectEvent(id: id)
                 var path = NavigationPath()
                 if chat { path.append(ChatRoute(id: id)) } else { path.append(EventRoute(id: id)) }

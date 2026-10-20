@@ -90,12 +90,16 @@ enum Copy {
     static let add_photo = "Додати або замінити фото"
     static let reminders = "Сповіщення про мої події"
     static func reminder_body(_ a0: String) -> String { "Початок за годину · \(a0)" }
-    static let reminder_note = "Нагадування приблизно за годину до початку і нові запити на участь у ваших подіях. Запити перевіряються, коли застосунок відкрито."
+    static func reminder_saved_body(_ a0: String, _ a1: String) -> String { "Завтра о \(a0) · \(a1)" }
+    static let reminder_note = "Нагадування приблизно за годину до ваших подій і тих, куди йдете, напередодні о 18:00 — про збережені, і нові запити на участь. Запити перевіряються, коли застосунок відкрито."
     static let analytics = "Аналітика"
     static let analytics_note = "Псевдонімна статистика використання й звіти про збої. Без реклами."
     static let digest = "Що поруч на вихідних"
     static let digest_note = "Щопʼятниці о 17:00 — скільки подій у вашому місті на вихідних і що серед них."
     static func digest_title(_ a0: String, _ a1: String) -> String { "\(a0): \(a1) на вихідних" }
+    static func digest_title_2(_ a0: String, _ a1: String) -> String { "Що робити на вихідних? \(a0): \(a1)" }
+    static func digest_title_3(_ a0: String, _ a1: String) -> String { "Є куди на вихідних. \(a0): \(a1)" }
+    static func digest_title_4(_ a0: String, _ a1: String) -> String { "\(a0), субота й неділя: \(a1)" }
     static let digest_nearby = "Поруч"
     static func digest_more(_ a0: String, _ a1: String) -> String { "\(a0) та ще \(a1)" }
     static let digest_prompt_title = "Що поруч на вихідних?"
@@ -693,7 +697,7 @@ enum Copy {
     static let location_title = "Геолокація"
     static let location_denied_hint = "Геолокація недоступна. Ви можете знайти місто вручну."
     static let location_failed_hint = "Не вдалося визначити місце. Скористайтеся пошуком міста."
-    static let reminders_note = "Нагадування за годину до початку і нові запити на участь у ваших подіях."
+    static let reminders_note = "Нагадування за годину до ваших подій і тих, куди йдете, напередодні о 18:00 — про збережені, і нові запити на участь."
     static let delete_account_password_hint = "Для підтвердження введіть пароль"
     static let profile_events_hint = "Ваші створені, збережені та заплановані події — у вкладці «Мої події»."
     static let auth_guest_note = "Події можна переглядати без входу. Для участі потрібен профіль."

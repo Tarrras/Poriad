@@ -120,7 +120,7 @@ class MainActivity : ComponentActivity(), AndroidScopeComponent {
         // Дайджест вихідних веде на головну: там уся область, ранжована за смаком.
         if (intent.action == ACTION_DIGEST) {
             scope.get<Navigator>().reset(Home)
-            app.digestOpened()
+            app.digestOpened(intent.getIntExtra(EXTRA_WEEK, 1))
             return
         }
         // Тап по сповіщенню: що воно було — для метрики, яка повертає людей, а яка лише дратує.
@@ -162,6 +162,7 @@ class MainActivity : ComponentActivity(), AndroidScopeComponent {
         private const val EXTRA_ARTIST_ID = "artistId"
         private const val EXTRA_REASON = "reason"
         private const val EXTRA_TARGET = "target"
+        private const val EXTRA_WEEK = "week"
         private const val TARGET_CHAT = "chat"
         private const val APP_LANGUAGE = "uk"
         private const val ACTION_DIGEST = "app.poruch.OPEN_DIGEST"
@@ -191,9 +192,12 @@ class MainActivity : ComponentActivity(), AndroidScopeComponent {
                 .putExtra(EXTRA_ARTIST_ID, artistId)
                 .putExtra(EXTRA_REASON, reason)
 
-        /** Intent дайджесту. Своя дія: PendingIntent не сплутається з intent-ом події, extras він не порівнює. */
-        fun openDigest(context: Context): Intent =
-            Intent(context, MainActivity::class.java).setAction(ACTION_DIGEST)
+        /**
+         * Intent [week]-го дайджесту драбини. Своя дія: PendingIntent не сплутається з intent-ом події, extras він не
+         * порівнює. Тиждень — для `digest_open`; новіший дайджест заміняє старий у шторці разом з його тижнем.
+         */
+        fun openDigest(context: Context, week: Int): Intent =
+            Intent(context, MainActivity::class.java).setAction(ACTION_DIGEST).putExtra(EXTRA_WEEK, week)
                 .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
     }
 }

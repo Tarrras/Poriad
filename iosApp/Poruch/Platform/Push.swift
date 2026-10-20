@@ -11,7 +11,7 @@ final class PushDelegate: NSObject, UIApplicationDelegate {
         didSet {
             if let token = pendingToken { app?.pushTokenChanged(token: token, platform: PushPlatform.ios) }
             else { registerIfAllowed() }
-            if let app, let reason = pendingReason { pendingReason = nil; app.pushOpened(reason: reason) }
+            if let app, let metric = pendingMetric { pendingMetric = nil; metric(app) }
         }
     }
     private static var pendingToken: String?
@@ -30,16 +30,21 @@ final class PushDelegate: NSObject, UIApplicationDelegate {
         if let openEvent { openEvent(eventId, chat, placeId, artistId) } else { pendingOpen = (eventId, chat, placeId, artistId) }
     }
 
-    /// Що це було, для аналітики (`push_open`). Так само чекає на `app`: при холодному старті його ще нема.
-    private static var pendingReason: String?
+    /// Що це було, для аналітики (`push_open`, `digest_open`). Так само чекає на `app`: при холодному старті його ще нема.
+    private static var pendingMetric: ((PoruchApp) -> Void)?
 
-    static func opened(reason: String) {
-        if let app { app.pushOpened(reason: reason) } else { pendingReason = reason }
+    static func opened(reason: String) { metric { $0.pushOpened(reason: reason) } }
+
+    static func digestOpened(week: Int32) { metric { $0.digestOpened(week: week) } }
+
+    private static func metric(_ track: @escaping (PoruchApp) -> Void) {
+        if let app { track(app) } else { pendingMetric = track }
     }
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions options: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         // Делегат центру — до кінця запуску, інакше тап, що запустив застосунок, губиться.
         UNUserNotificationCenter.current().delegate = LocalReminderScheduler.shared
+        NotificationPermission.provisional()
         PushDelegate.registerIfAllowed()
         return true
     }
