@@ -172,8 +172,8 @@ do $$ declare k uuid := current_setting('test.k')::uuid; x uuid := pg_temp.offer
     and pg_temp.ev('n-'||current_setting('test.slug'))=current_setting('test.n')::uuid, 'live offer waits for a human';
  assert exists (select 1 from private.shadow_report(1) where section='черга від''єднання'
                 and label='людині · '||current_setting('test.n')), 'report asks a human about the live one';
- assert (select resolution from private.offer_detach_queue where offer_id=pg_temp.offer('p-'||current_setting('test.slug'))) is null
-    and pg_temp.ev('p-'||current_setting('test.slug'))=pg_temp.ev('p-live'), 'page shows our session again: kept';
+ assert (select resolution from private.offer_detach_queue where offer_id=pg_temp.offer('p-'||current_setting('test.slug')))='cleared'
+    and pg_temp.ev('p-'||current_setting('test.slug'))=pg_temp.ev('p-live'), 'page shows our session again: cleared, kept';
  assert (select resolution from private.offer_detach_queue where offer_id=pg_temp.offer('q-agent'))='detached'
     and pg_temp.ev('q-agent')<>pg_temp.ev('q-live'), 'conflict detached';
 end $$;
@@ -199,5 +199,57 @@ do $$ begin
                          or label like '%'||pg_temp.ev('k-'||current_setting('test.slug'))||'%')), 'resolved rows leave the report';
 end $$;
 
+-- ── 3. Перенос на тій самій сторінці продавця (20261031120000_same_page_move). Ціль давно жива в іншого продавця.
+-- Переїзд: пропозиція продавця А на сторінку нового часу з'явилась у цілі вже після зникнення старої → перенос, а з
+-- перемикачем — злиття. Сусід: та сама сторінка продавця А була в цілі й раніше → зайнята ціль, як і досі.
+select set_config('test.t3',(current_setting('test.t')::timestamptz+interval '20 days')::text,true);
+select pg_temp.ingest(jsonb_build_array(
+ pg_temp.w('test_clean_b','mv-other','Тест Переїзд',current_setting('test.t3')::timestamptz+interval '1 day'),
+ pg_temp.c('test_clean_a','mv-new','Тест Переїзд',current_setting('test.t3')::timestamptz+interval '1 day','test_clean_b','mv-other'),
+ pg_temp.w('test_clean_a','mv-old','Тест Переїзд',current_setting('test.t3')::timestamptz),
+ pg_temp.w('test_clean_b','nb-other','Тест Сусід',current_setting('test.t3')::timestamptz+interval '2 days'),
+ pg_temp.c('test_clean_a','nb-new','Тест Сусід',current_setting('test.t3')::timestamptz+interval '2 days','test_clean_b','nb-other'),
+ pg_temp.w('test_clean_a','nb-old','Тест Сусід',current_setting('test.t3')::timestamptz+interval '1 hour')));
+select pg_temp.vanish(u) from unnest(array['mv-old','nb-old']) u;
+update public.events set created_at=now()-interval '10 days' where id in (pg_temp.ev('mv-other'),pg_temp.ev('nb-other'));
+update public.event_offers set created_at=now()-interval '5 days' where id=pg_temp.offer('nb-new');
+select set_config('test.mv',pg_temp.ev('mv-old')::text,true), set_config('test.mv_to',pg_temp.ev('mv-other')::text,true),
+ set_config('test.nb',pg_temp.ev('nb-old')::text,true);
+insert into public.saved_events(user_id,event_id) values (current_setting('test.b')::uuid,current_setting('test.mv')::uuid);
+-- Раніше рядок потрапив у чергу як «зайнята ціль».
+insert into private.offer_detach_queue(offer_id,event_id,evidence) values
+ (pg_temp.offer('mv-old'),current_setting('test.mv')::uuid,jsonb_build_object('detach','taken'));
+select private.record_offer_checks(jsonb_build_array(
+ pg_temp.chk('mv-old','https://example.invalid/mv-new','moved_silent',
+  jsonb_build_object('new_start',current_setting('test.t3')::timestamptz+interval '1 day','name','Тест Переїзд')),
+ pg_temp.chk('nb-old','https://example.invalid/nb-new','moved_silent',
+  jsonb_build_object('new_start',current_setting('test.t3')::timestamptz+interval '2 days','name','Тест Сусід'))));
+
+do $$ declare e uuid := current_setting('test.mv')::uuid; b uuid := current_setting('test.b')::uuid; begin
+ assert not private.flag('event_changes'), 'switch is off for this part';
+ assert (select starts_at from private.event_state where event_id=e)=current_setting('test.t3')::timestamptz+interval '1 day'
+    and (select previous_starts_at from private.event_state where event_id=e)=current_setting('test.t3')::timestamptz,
+  'same page: moved';
+ assert exists (select 1 from private.would_send where event_id=e and user_id=b and change='moved'), 'would send to the saver';
+ assert (select merged_into from public.events where id=e) is null, 'no merge without the switch';
+ assert (select resolution from private.offer_detach_queue where offer_id=pg_temp.offer('mv-old'))='cleared', 'queue row cleared';
+ assert (select starts_at from private.event_state where event_id=current_setting('test.nb')::uuid)
+        =current_setting('test.t3')::timestamptz+interval '1 hour', 'neighbour session: not moved';
+ assert (select evidence->>'detach' from private.offer_detach_queue where offer_id=pg_temp.offer('nb-old'))='taken'
+    and (select resolution from private.offer_detach_queue where offer_id=pg_temp.offer('nb-old')) is null, 'neighbour: taken, waits';
+end $$;
+
+-- З перемикачем наступна перевірка зливає стару подію в ціль.
+update private.flags set enabled = true where name = 'event_changes';
+select private.record_offer_checks('[]'::jsonb);
+do $$ declare e uuid := current_setting('test.mv')::uuid; f uuid := current_setting('test.mv_to')::uuid;
+ b uuid := current_setting('test.b')::uuid; begin
+ assert (select merged_into from public.events where id=e)=f, 'merged into the target';
+ assert (select reason from private.event_merges where from_id=e and into_id=f)='same_page_move', 'merge logged';
+ assert exists (select 1 from public.saved_events where event_id=f and user_id=b), 'save moved';
+ assert (select resolution from private.offer_detach_queue where offer_id=pg_temp.offer('mv-old'))='merged', 'queue row merged';
+ assert (select merged_into from public.events where id=current_setting('test.nb')::uuid) is null, 'neighbour stays apart';
+end $$;
+
 rollback;
-select 'PASS: url twins merged (saves, sherlock, not list/minute/frozen), detach queue: misattached and conflict detached, alone/no-live/live/confirmed wait, manual resolves, report' as result;
+select 'PASS: url twins merged (saves, sherlock, not list/minute/frozen), detach queue: misattached and conflict detached, alone/no-live/live wait, stale cleared, manual resolves, report; same-page move: moved, merged with the switch, neighbour kept' as result;
