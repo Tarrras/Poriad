@@ -1,7 +1,13 @@
 import datetime as dt
+import json
+import pathlib
 import unittest
 
+from tools.ingest import extract
 from tools.ingest.shadow_checks import report, verdict
+
+# Ті самі кейси ганяє двійник на TS: node supabase/functions/offer-check/verdict.test.mjs
+CASES = json.loads((pathlib.Path(__file__).parent / "verdict_cases.json").read_text("utf-8"))
 
 AT = dt.datetime(2026, 11, 7, 19, 0, tzinfo=dt.timezone(dt.timedelta(hours=2)))
 
@@ -15,6 +21,14 @@ def judge(status=200, redirected=False, nodes=()):
 
 
 class VerdictTest(unittest.TestCase):
+    def test_shared_cases(self):
+        for case in CASES:
+            with self.subTest(case["name"]):
+                nodes = extract.events_from_html(case["html"]) if "html" in case else case["nodes"]
+                got = verdict(case.get("status", 200), case.get("redirected", False), nodes,
+                              dt.datetime.fromisoformat(case["expected"]), case.get("policy", "source"), "Europe/Kyiv")
+                self.assertEqual(got, (case["kind"], case["detail"]))
+
     def test_page_speaks_for_this_session(self):
         self.assertEqual(judge(nodes=[node()])[0], "scheduled")
         self.assertEqual(judge(nodes=[node(status="https://schema.org/EventCancelled")])[0], "cancelled")

@@ -350,3 +350,13 @@ pg_dump "$SUPABASE_DB_URL" -t public.events --data-only -Fc -f events-$(date +%F
 - `tests/event_offers.sql` — перенесення всіх зв'язків без втрат, старий id у деталях і картці, липкість, основний продавець, ручне зняття, opt-out, від'єднання, зв'язок агента. Разом з рештою `tests/*.sql` прогнано на dev після міграції: **PASS**; `tests/map_search.sql` нестабільний і без міграції (порядок «Прокату» й «Ярмарку» вирішує випадковий uuid).
 - Prod 2026-10-20 (10 с): злито 1103 (627 / 446 / 30), перенесено 43 артисти, 267 відкинуто як дублі; 4 збереження на злитих рядках не лежали; на надгробках 0 зв'язків; знятих майбутніх 776 → 115. Перед тим — пробний прогін з відкатом і копія таблиць у `~/.poruch/backups/2026-10-20-event-offers`. `tests/event_offers.sql` на prod (з відкатом): **PASS**.
 - **Старий код конвеєра з цією схемою не працює** (`on conflict (source_id, source_uid)` на `events` без унікального індексу): щоденний дамп потребує коду з цієї міграції. Знімок `schema/current.sql` ще не оновлено.
+
+## Стан події й адресна перевірка (тінь)
+
+`20261023120000_event_state.sql` (dev 2026-10-20; prod — ще ні, план у `docs/event-offers.md`), специфікація — там же, фаза 2 (R4–R5). Усе в `private`, клієнтам нічого не видно, пушів нема.
+
+- `private.offer_checks` — що сказала сторінка пропозиції (Edge Function `offer-check`) або що дамп переніс сеанс (тригер `event_offers_moved` на `event_offers.starts_at`, `why='listing'`; збій тригера дамп не ламає — лише попередження).
+- `private.event_state_rule(state, starts_at, offers)` — правила R4 в одній чистій функції; `private.offer_evidence` зводить перевірки пропозиції в одне свідчення («скасовано» липке); `private.refresh_event_state` пише `private.event_state` і журнал `private.event_state_log` (`would_push`, `recipients` = `private.event_watchers`). `private.would_send` — подія, людина, зміна, свідчення. Конфлікт agent-пропозиції двічі поспіль — `private.offer_detach_queue`.
+- R5: задача pg_cron `offer-check` (`*/15`) → `private.kick_offer_check()` → pg_net на адресу `push_function_url` з `/offer-check` замість `/push` і з тим самим секретом → функція бере `private.offer_checks_due(limit, now)` і пише `private.record_offer_checks(jsonb)`. Без секретів у Vault або без pg_cron — мовчить.
+- Звіт тіні — `private.shadow_report(days)`.
+- `tests/event_state.sql` — **PASS** на dev 2026-10-20, решта `tests/*.sql` без помилок. На dev для цього увімкнено `pg_cron` (інших задач там і далі нема).
