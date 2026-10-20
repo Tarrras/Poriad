@@ -65,14 +65,16 @@ def _bare(url: str) -> str:
 
 def verdict(status: int, redirected: bool, nodes: list[dict], expected: dt.datetime,
             policy: str, tz: str) -> tuple[str, dict]:
-    """Що сторінка каже про сеанс `expected`. Розпродаж — лише позначка: стан він не змінює (рішення 20.10)."""
+    """Що сторінка каже про сеанс `expected`. Розпродаж — лише позначка: стан він не змінює (рішення 20.10).
+
+    Двійник на TS — supabase/functions/offer-check/verdict.ts (фаза 2): спільні кейси verdict_cases.json."""
     if status in (404, 410):
         return "gone", {}
     if status != 200:
         return "error", {}
     if not nodes:
         return ("redirect_away" if redirected else "no_jsonld"), {}
-    dates, statuses = [], set()
+    dates, statuses, names = [], set(), {}
     for n in nodes:
         start = normalize.parse_datetime(n.get("startDate"), policy, tz)
         prev = normalize.parse_datetime(n.get("previousStartDate"), policy, tz)
@@ -87,8 +89,13 @@ def verdict(status: int, redirected: bool, nodes: list[dict], expected: dt.datet
             return kind, {"raw": raw, "sold_out": sold}
         if start:
             dates.append(start.isoformat())
+            names.setdefault(start.isoformat(), str(n.get("name") or ""))
+    if not dates:
+        # Дата без часу (dou: `startDate: "2026-10-24"`) про сеанс нічого не каже — це не «зник».
+        return "no_dates", {"statuses": sorted(statuses)}
     if len(set(dates)) == 1:
-        return SILENT_MOVE, {"new_start": dates[0], "statuses": sorted(statuses)}
+        # Назва — щоб відрізнити перенос від адреси, яку продавець віддав іншій події (R4).
+        return SILENT_MOVE, {"new_start": dates[0], "name": names[dates[0]], "statuses": sorted(statuses)}
     return "date_missing", {"dates": sorted(dates)[:5], "statuses": sorted(statuses)}
 
 
