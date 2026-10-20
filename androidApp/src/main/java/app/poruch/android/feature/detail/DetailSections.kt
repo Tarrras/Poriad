@@ -47,7 +47,11 @@ import app.poruch.android.ui.*
 import app.poruch.android.feature.mine.countdownOverline
 import app.poruch.domain.ArtistRole
 import app.poruch.domain.ContactRules
+import app.poruch.domain.CheckedDay
+import app.poruch.domain.CheckedLabel
 import app.poruch.domain.Event
+import app.poruch.domain.Listing
+import app.poruch.domain.ListingState
 import app.poruch.domain.EventIndexEntry
 import app.poruch.domain.TitleRules
 import app.poruch.domain.FollowRules
@@ -287,6 +291,110 @@ internal fun SafetyActions(event: Event, onIntent: (DetailIntent) -> Unit) {
     }
 }
 
+/**
+ * Квитки афіші (R8–R10): стан, коли з подією щось сталось, і продавці — кожен своїм рядком з ціною й посиланням.
+ * Не в силі — «Якщо купили квиток» з усіма продавцями, де могли купити. Під ними «Перевірено…» і обіцянка «Зберегти».
+ */
+@Composable
+internal fun Tickets(state: DetailState, listing: Listing, onIntent: (DetailIntent) -> Unit) {
+    val colors = Poruch.colors
+    val event = state.screen.event ?: return
+    val refund = listing.isWithdrawn
+    val sellers = if (refund) listing.sellers else listing.sellers.filter { it.live }
+    val stamp = if (state.screen.cancelled) stringResource(R.string.cancelled_short) to BadgeTone.Danger else listingStamp(listing)
+    Column(
+        Modifier.fillMaxWidth().cardSurface().padding(Spacing.lg),
+        verticalArrangement = Arrangement.spacedBy(Spacing.md)
+    ) {
+        stamp?.let { (text, tone) ->
+            TicketStamp(text, tone)
+            stateHint(event, listing)?.let { Text(it, style = MaterialTheme.typography.bodyLarge, color = colors.ink) }
+        }
+        if (sellers.isNotEmpty()) {
+            Text(
+                stringResource(if (refund) R.string.sellers_refund_title else R.string.listing_price_label).uppercase(),
+                style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary
+            )
+            Column {
+                sellers.forEachIndexed { index, offer ->
+                    if (index > 0) HairLine()
+                    Row(
+                        Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                            .pressable(pressedScale = 1f) { onIntent(DetailIntent.OpenSeller(offer, if (refund) "refund" else "sellers")) }
+                            .semantics(mergeDescendants = true) {},
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.md)
+                    ) {
+                        Text(offer.sourceName, style = MaterialTheme.typography.titleMedium, color = colors.ink, modifier = Modifier.weight(1f))
+                        if (!refund) Text(offerPrice(offer), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
+                        Icon(PoruchIcons.chevronRight, null, Modifier.size(18.dp), tint = colors.inkTertiary)
+                    }
+                }
+            }
+        }
+        state.screen.checked?.let {
+            Text(checkedText(it), style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary)
+        }
+        // Обіцянка «Зберегти» (R9): зберегти = стежити за змінами, з квитком чи без.
+        if (!refund && !state.screen.ended) {
+            HairLine()
+            Row(
+                Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                    .pressable(pressedScale = 1f) { onIntent(DetailIntent.ToggleSaved) }
+                    .semantics(mergeDescendants = true) {},
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Spacing.md)
+            ) {
+                Icon(if (state.screen.saved) PoruchIcons.bookmarkFilled else PoruchIcons.bookmark, null, Modifier.size(22.dp), tint = colors.ink)
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        stringResource(if (state.screen.saved) R.string.saved_short else R.string.save),
+                        style = MaterialTheme.typography.titleMedium, color = colors.ink
+                    )
+                    Text(stringResource(R.string.save_promise), style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
+                }
+            }
+        }
+    }
+}
+
+/** Пояснення стану афіші над продавцями (R8). Null — «в силі» без переносу. */
+@Composable
+private fun stateHint(event: Event, listing: Listing): String? = when {
+    event.isCancelled -> stringResource(R.string.state_cancelled_hint)
+    listing.state == ListingState.POSTPONED -> stringResource(R.string.state_postponed_hint)
+    listing.state == ListingState.UNKNOWN -> stringResource(R.string.state_unknown_hint)
+    listing.isMoved -> stringResource(R.string.state_moved_hint, previousDate(event).orEmpty())
+    else -> null
+}
+
+/** «Перевірено сьогодні о 09:00» — довіра до «в силі» (R8). */
+@Composable
+private fun checkedText(checked: CheckedLabel): String = when (checked.day) {
+    CheckedDay.TODAY -> stringResource(R.string.checked_today, checked.time)
+    CheckedDay.YESTERDAY -> stringResource(R.string.checked_yesterday, checked.time)
+    CheckedDay.EARLIER -> stringResource(R.string.checked_date, checked.date)
+}
+
+/** «Купили? Стежитимемо за змінами» після повернення від продавця (R9): раз на подію, над панеллю дії. */
+@Composable
+internal fun BoughtCard(onIntent: (DetailIntent) -> Unit, modifier: Modifier = Modifier) {
+    val colors = Poruch.colors
+    Row(
+        modifier.fillMaxWidth().padding(horizontal = Spacing.md)
+            .cardSurface(Radius.lg, Elevation.overlay)
+            .padding(start = Spacing.lg, end = Spacing.sm, top = Spacing.sm, bottom = Spacing.sm),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
+    ) {
+        Text(stringResource(R.string.bought_prompt), style = MaterialTheme.typography.bodyMedium, color = colors.ink, modifier = Modifier.weight(1f))
+        PrimaryButton(stringResource(R.string.bought_prompt_save), { onIntent(DetailIntent.BoughtPromptAnswered(true)) }, tone = colors.ink)
+        IconButton({ onIntent(DetailIntent.BoughtPromptAnswered(false)) }) {
+            Icon(PoruchIcons.close, stringResource(R.string.close), Modifier.size(18.dp), tint = colors.inkSecondary)
+        }
+    }
+}
+
 /** Факти про подію в чотирьох рядках. Останні два різні для кімнати й афіші. */
 /** Факти про подію сіткою два на два, як картка дня в Moonly: підпис над значенням, без гліфів. */
 @Composable
@@ -297,10 +405,6 @@ internal fun Facts(event: Event) {
         event.gathering?.let { room ->
             add(stringResource(R.string.organizer_short) to room.organizerName.ifBlank { stringResource(R.string.organizer_short) })
             add(stringResource(R.string.capacity_label) to stringResource(R.string.attendees_short, room.attendeeCount, room.capacity))
-        }
-        event.listing?.let { listing ->
-            add(stringResource(R.string.listing_source_label) to listing.sourceName)
-            add(stringResource(R.string.listing_price_label) to listingPrice(listing))
         }
     }
     Column(Modifier.fillMaxWidth().cardSurface().padding(Spacing.xl), verticalArrangement = Arrangement.spacedBy(Spacing.xl)) {

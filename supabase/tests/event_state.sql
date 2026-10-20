@@ -46,9 +46,10 @@ create function pg_temp.logs(p_uid text) returns bigint language sql as $$
  select count(*) from private.event_state_log where event_id=pg_temp.ev(p_uid) $$;
 create function pg_temp.due(p_uid text, p_now timestamptz default now()) returns text language sql as $$
  select d.why from private.offer_checks_due(100000, p_now) d where d.offer_id=(pg_temp.offer(p_uid)).id $$;
--- Що бачить клієнт: деталі (як 1.3.0) — до й після мають збігатися.
+-- Що бачить клієнт 1.3.0: деталі без полів фази 4 (стан і продавці) — до й після мають збігатися.
 create function pg_temp.seen(p_uid text) returns text language sql as $$
- select row(d.*)::text from public.event_details(pg_temp.ev(p_uid)) d $$;
+ select (to_jsonb(d) - 'state' - 'previous_starts_at' - 'checked_at' - 'offers')::text
+ from public.event_details(pg_temp.ev(p_uid)) d $$;
 
 -- ── 1. Таблиця R4 рядок за рядком: чиста функція правил.
 create function pg_temp.o(p_says text, p_linked text default 'rule', p_new timestamptz default null,

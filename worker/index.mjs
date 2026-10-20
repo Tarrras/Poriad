@@ -68,10 +68,13 @@ export function eventPage(e, now, shelters = []) {
   // Імпорт часто вже пише місто в адресі: «Київ, …, м. Київ» читається як помилка.
   const place = e.address && e.city && e.address.includes(e.city) ? e.address : [e.city, e.address].filter(Boolean).join(", ");
   const imported = e.origin === "import";
-  const cancelled = e.status === "cancelled";
-  // Знята з афіші джерела (скасована, дубль, зникла): застосунок пише «Більше не проводиться», і сторінка
-  // за посиланням не має показувати її живою з кнопкою «Квитки».
-  const withdrawn = imported && e.import_status === "withdrawn";
+  // Стан афіші з усіх продавців (docs/event-offers.md R4, R11). База без фази 4 його не віддає — тоді, як і
+  // застосунок, читаємо import_status: знята — «не знайшли в продажу».
+  const state = imported ? (STATES[e.state] ? e.state : e.import_status === "withdrawn" ? "unknown" : "scheduled") : null;
+  const cancelled = e.status === "cancelled" || state === "cancelled";
+  // Скасована, відкладена чи ніде не продається: сторінка не показує її живою з кнопкою «Квитки».
+  const withdrawn = state === "postponed" || state === "unknown";
+  const moved = state === "scheduled" && e.previous_starts_at ? longDate(e.previous_starts_at, e.time_zone) : null;
   const past = new Date(e.ends_at || e.starts_at) < now;
   const image = httpsOrNull(e.image_url);
   const ticketUrl = imported ? httpsOrNull(e.canonical_url) : null;
@@ -83,14 +86,23 @@ export function eventPage(e, now, shelters = []) {
   const parent = UUID.test(e.companion_of ?? "") ? { id: e.companion_of, title: displayTitle(e.companion_of_title || "подію") } : null;
   const cost = price(e);
   const spots = !imported && e.capacity ? `Учасників: ${e.attendee_count} з ${e.capacity}` : !imported && e.attendee_count > 0 ? `Учасників: ${e.attendee_count}` : null;
-  const notice = cancelled ? "Подію скасовано." : withdrawn ? "Більше не проводиться: джерело зняло цю подію."
-    : past ? "Ця подія вже минула." : null;
+  const notice = past ? "Ця подія вже минула." : cancelled ? (imported ? STATES.cancelled : "Подію скасовано.")
+    : withdrawn ? STATES[state] : moved ? `Перенесено: було ${moved}. Якщо нова дата не підходить, квиток повертають там, де купували.` : null;
   const live = !cancelled && !withdrawn && !past;
+  // «Не знайшли» — без тривоги: ми не знаємо, що сталось. Перенесена жива — теж не червоним.
+  const calm = !past && !cancelled && (state === "unknown" || Boolean(moved));
+  // Продавці: основний першим. Без даних фази 4 — лише основний з полів події.
+  const offers = (Array.isArray(e.offers) && e.offers.length ? e.offers
+    : [{ source: e.source_name, url: e.canonical_url, price_min: e.price_min, is_free: e.is_free, live: !withdrawn && !cancelled }])
+    .filter((o) => o && o.source && httpsOrNull(o.url));
+  const liveOffers = offers.filter((o) => o.live !== false);
+  // Підпис афіші — усі живі продавці через кому, як у застосунку (docs/event-offers.md, питання 5).
+  const sellers = [...new Set(liveOffers.map((o) => o.source))].join(", ") || e.source_name;
   const facts = [
     ["Коли", overline(e, now, true), null],
     ["Де", place.split(", ")[0] || e.city, place],
     [spots ? "Учасники" : "Ціна", spots ? spots.replace("Учасників: ", "") : cost || "Уточнюйте", null],
-    [imported ? "Джерело" : "Організовує", imported ? e.source_name || "Афіша" : e.organizer_name || "Організатор", null],
+    [imported ? "Джерело" : "Організовує", imported ? sellers || "Афіша" : e.organizer_name || "Організатор", null],
   ];
 
   return layout({
@@ -104,10 +116,10 @@ export function eventPage(e, now, shelters = []) {
 ${ticketUrl ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""}`,
     body: `<article class="sheet-box">
   <header class="cover-big cat-${category}"><div class="art cat-${category}">${icon(category, "glyph")}${image ? `<img src="${esc(image)}" alt="" referrerpolicy="no-referrer">` : ""}</div>
-    <p class="quiet"><span class="genre-word">${esc(CATEGORIES[category])}</span> · ${esc(imported ? `Афіша${e.source_name ? ` · ${e.source_name}` : ""}` : "Від людей")}${e.min_age ? ` · ${Number(e.min_age)}+` : ""}</p><h1>${esc(title)}</h1>
+    <p class="quiet"><span class="genre-word">${esc(CATEGORIES[category])}</span> · ${esc(imported ? `Афіша${sellers ? ` · ${sellers}` : ""}` : "Від людей")}${e.min_age ? ` · ${Number(e.min_age)}+` : ""}</p><h1>${esc(title)}</h1>
   </header>
   <div class="detail">
-    ${notice ? `<p class="notice">${notice}</p>` : ""}
+    ${notice ? `<p class="notice${calm ? " calm" : ""}">${notice}</p>` : ""}
     ${parent ? `<p class="note">Разом на: <a href="/e/${parent.id}">${esc(parent.title)}</a></p>` : ""}
     <div class="actions">
       <a href="${maps}" rel="noopener"><i>${icon("pin")}</i>Маршрут</a>
@@ -118,6 +130,7 @@ ${ticketUrl ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""}`,
     <div class="facts">${facts.map(([label, value, sub]) => `<div><span class="overline">${label}</span><b>${esc(value)}</b>${sub && sub !== value ? `<small>${esc(sub)}</small>` : ""}</div>`).join("")}</div>
     ${!imported && e.approval_required ? `<p class="fine">Участь за підтвердженням організатора.</p>` : ""}
     ${!imported && e.organizer_name ? `<p class="note">Організовує ${esc(e.organizer_name)}</p>` : ""}
+    ${imported && !past ? sellersSection(live ? liveOffers : offers, !live, e.checked_at, e.time_zone) : ""}
     ${e.description ? `<div class="block"><h2>Опис</h2><p class="description">${esc(e.description)}</p></div>` : ""}
     ${live ? sheltersSection(shelters) : ""}
     <div class="app-only"><b>${imported ? "Підете? Не забудьте" : "Приєднатися — в застосунку"}</b>
@@ -130,6 +143,37 @@ ${ticketUrl ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""}`,
     <div class="stub" role="img" aria-label="${esc(overline(e, now, true))}"><b class="t">${esc(stubTime)}</b><small>${esc(stubDay)}</small></div></div></div>
 </article>`,
   });
+}
+
+// Що сторінка каже про стан афіші — ті самі слова, що в застосунку (strings.xml, state_*_hint).
+const STATES = {
+  scheduled: null,
+  cancelled: "Подію скасовано: продавець позначив її скасованою. Квиток повертають там, де купували.",
+  postponed: "Подію відкладено, нової дати ще нема. Квиток повертають там, де купували, або тримають до нової дати.",
+  unknown: "Не знайшли в продажу: жоден продавець більше не продає квитки на цю дату. Можливо, подію скасували чи перенесли — перевірте у продавця.",
+};
+
+/** «чт, 22 жовтня о 19:30» у поясі події. */
+function longDate(iso, tz) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  const options = { weekday: "short", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" };
+  try { return new Intl.DateTimeFormat("uk-UA", { ...options, timeZone: tz || "Europe/Kyiv" }).format(date); }
+  catch { return new Intl.DateTimeFormat("uk-UA", { ...options, timeZone: "Europe/Kyiv" }).format(date); }
+}
+
+/**
+ * Квитки афіші (R10–R11): рядок на кожного продавця з ціною й посиланням — атрибуція кожного (§8). Не в силі —
+ * «Якщо купили квиток» з усіма, де могли купити, без цін. «Перевірено» — датою: сторінку кешують, «сьогодні» застаріло б.
+ */
+function sellersSection(offers, refund, checkedAt, tz) {
+  if (offers.length === 0) return "";
+  const rows = offers.map((o) => {
+    const cost = refund ? null : price(o);
+    return `<a class="row" href="${esc(httpsOrNull(o.url))}" rel="nofollow noopener"><i>${icon("ticket")}</i><div class="txt"><b>${esc(o.source)}</b>${cost ? `<small>${esc(cost)}</small>` : ""}</div></a>`;
+  }).join("");
+  const checked = checkedAt ? longDate(checkedAt, tz) : null;
+  return `<div class="block"><h2>${refund ? "Якщо купили квиток" : "Квитки"}</h2><div class="rows">${rows}</div>${checked ? `<p class="fine">Перевірено ${esc(checked)}.</p>` : ""}</div>`;
 }
 
 // Правила Мінкульту з 11.09.2026: про найближче укриття повідомляють заздалегідь, зокрема на сайті.
@@ -185,7 +229,7 @@ function layout({ title, description, image, url, head, body }) {
 ${head}
 <link rel="preload" href="/fonts/sofia-sans-condensed-800.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/tokens.css?v=8">
-<link rel="stylesheet" href="/web.css?v=8">
+<link rel="stylesheet" href="/web.css?v=9">
 <link rel="icon" href="/icon.png">
 </head>
 <body class="event-page">

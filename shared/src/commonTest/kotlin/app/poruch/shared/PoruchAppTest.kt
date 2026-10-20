@@ -155,10 +155,10 @@ class PoruchAppTest {
         }
     }
 
-    private fun app(events:Events,scope:CoroutineScope,auth:Auth=Auth(),cities:CityStore?=null,follows:Follows?=null):PoruchApp {
+    private fun app(events:Events,scope:CoroutineScope,auth:Auth=Auth(),cities:CityStore?=null,follows:Follows?=null,bought:SeenRequestStore?=null):PoruchApp {
         return PoruchApp(
             events=events, saved=events, authoring=events, participation=events, requests=events, chat=events,
-            auth=auth, cityStore=cities, follows=follows,
+            auth=auth, cityStore=cities, follows=follows, boughtAsked=bought,
             geo=object:GeoSearchRepository { override suspend fun search(query:String)=emptyList<CityResult>() },
             eventActions=EventActions(events,events,auth), accountActions=AccountActions(auth),
             safety=safety, profiles=profiles, tasteStore=taste, reminderStore=reminders, scope=scope
@@ -1891,6 +1891,51 @@ class PoruchAppTest {
         assertNull(app.state.value.detail.event)
         app.close()
     }
+    /** Стан афіші на деталях (R8–R9): скасована без кнопки квитків, «Купили?» — раз і лише незбереженій, вихід рахується. */
+    @Test fun listingStateAndTheBoughtPrompt()=runTest {
+        val tracked=mutableListOf<Pair<String,Map<String,String>>>()
+        PoruchAnalytics.sink={ name,params -> tracked+=name to params }
+        try {
+            val events=Events()
+            val soon=(Clock.System.now()+30.hours).toString()
+            fun afisha(id:String,state:ListingState)=listed(id,soon).let {
+                it.copy(listing=it.listing!!.copy(canonicalUrl="https://concert.ua/$id",state=state,checkedAt=Clock.System.now().toString()))
+            }
+            val concert=afisha("c",ListingState.SCHEDULED); val gone=afisha("x",ListingState.CANCELLED)
+            val other=afisha("d",ListingState.SCHEDULED)
+            events.results=listOf(concert,gone,other); events.detailsById=mapOf("c" to concert,"x" to gone,"d" to other)
+            val asked=object:SeenRequestStore { val keys=mutableSetOf<String>(); override fun seen()=keys.toSet(); override fun markSeen(keys:Set<String>) { this.keys+=keys } }
+            val app=app(events,backgroundScope,bought=asked); runCurrent(); advanceTimeBy(101); runCurrent()
+
+            val live=DetailPresenter(app,"c",backgroundScope,StandardTestDispatcher(testScheduler))
+            runCurrent(); advanceTimeBy(200); runCurrent()
+            assertEquals(DetailAction.TICKETS,live.state.value.action)
+            assertEquals(CheckedDay.TODAY,live.state.value.checked?.day)
+            val cancelled=DetailPresenter(app,"x",backgroundScope,StandardTestDispatcher(testScheduler))
+            runCurrent(); advanceTimeBy(200); runCurrent()
+            assertEquals("x",cancelled.state.value.event?.id)
+            assertEquals(DetailAction.NONE,cancelled.state.value.action,"no disabled «Скасовано»: sellers block leads to refunds")
+            assertTrue(cancelled.state.value.cancelled)
+
+            assertFalse(app.takeBoughtPrompt("c"),"nothing opened yet")
+            app.ticketOpened("c","Karabas","bar")
+            assertTrue(app.takeBoughtPrompt("c"))
+            assertFalse(app.takeBoughtPrompt("c"),"taken")
+            app.ticketOpened("c","Karabas","sellers")
+            assertFalse(app.takeBoughtPrompt("c"),"once per event")
+            app.ticketOpened("x","Karabas","refund")
+            assertFalse(app.takeBoughtPrompt("x"),"a refund is not a purchase")
+            app.toggleSaved("d"); advanceTimeBy(200); runCurrent()
+            app.ticketOpened("d","Karabas","bar")
+            assertFalse(app.takeBoughtPrompt("d"),"already saved: already watched")
+            app.ticketOpened("c","Karabas","bar")
+            assertFalse(app.takeBoughtPrompt("d"),"another event's return")
+            assertEquals(listOf("bar","sellers","refund","bar","bar"),tracked.filter { it.first=="ticket_open" }.map { it.second["from"] })
+            assertEquals("Karabas",tracked.first { it.first=="ticket_open" }.second["source"])
+            app.close()
+        } finally { PoruchAnalytics.sink=null }
+    }
+
     /** Презентер мапи: піни з індексу, стос піна звужує шторку, фільтри звужують і стос, заклад з пошуку відкриває стос сам. */
     @Test fun explorePresenterDrivesTheSheet()=runTest {
         val events=Events()

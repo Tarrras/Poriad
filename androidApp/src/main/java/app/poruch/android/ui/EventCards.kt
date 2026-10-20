@@ -21,11 +21,17 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.poruch.android.R
 import app.poruch.domain.Event
+import app.poruch.domain.Listing
+import app.poruch.domain.ListingState
 import app.poruch.domain.ArtistKind
 import app.poruch.domain.ArtistRole
 import coil3.compose.AsyncImage
@@ -67,13 +73,14 @@ fun EventImage(event: Event, modifier: Modifier, glyphSize: Dp = 26.dp) {
     }
 }
 
-/** Стан події словами: скасовано, знято, а для кімнати — «ви йдете», запит, черга, місця. Без підпису джерела афіші. */
+/**
+ * Стан події словами: скасовано, відкладено, перенесено, а для кімнати — «ви йдете», запит, черга, місця. Без підпису
+ * джерела афіші.
+ */
 @Composable
 fun eventState(event: Event, waitlisted: Boolean = false): Pair<String, BadgeTone>? {
     if (event.isCancelled) return stringResource(R.string.cancelled) to BadgeTone.Danger
-    event.listing?.let { listing ->
-        return if (listing.isWithdrawn) stringResource(R.string.listing_withdrawn) to BadgeTone.Neutral else null
-    }
+    event.listing?.let { return listingStamp(it) }
     val room = event.gathering ?: return null
     // Місця й «ви йдете» після кінця нічого не кажуть: рядок покаже категорію.
     if (event.hasEnded(kotlin.time.Clock.System.now())) return null
@@ -88,16 +95,37 @@ fun eventState(event: Event, waitlisted: Boolean = false): Pair<String, BadgeTon
     }
 }
 
+/**
+ * Стан афіші з усіх продавців (docs/event-offers.md R8): відкладено — тривога, як скасування; перенесено — терміновість,
+ * подія жива; «не знайшли в продажу» — без тривоги, бо ми не знаємо, що сталось. Скасовану бере [eventState].
+ */
+@Composable
+fun listingStamp(listing: Listing): Pair<String, BadgeTone>? = when {
+    listing.state == ListingState.POSTPONED -> stringResource(R.string.state_postponed) to BadgeTone.Danger
+    listing.state == ListingState.UNKNOWN -> stringResource(R.string.state_unknown) to BadgeTone.Neutral
+    listing.isMoved -> stringResource(R.string.state_moved) to BadgeTone.Accent
+    else -> null
+}
+
+/** «~~пт 21.11, 19:00~~ → нд 23.11, 18:00» під штампом перенесеної афіші. */
+@Composable
+fun MovedLine(event: Event) {
+    val (old, new) = movedDates(event) ?: return
+    Text(
+        buildAnnotatedString {
+            withStyle(SpanStyle(textDecoration = TextDecoration.LineThrough)) { append(old) }
+            append(" → $new")
+        },
+        style = MaterialTheme.typography.bodySmall, color = Poruch.colors.inkSecondary, maxLines = 1,
+        overflow = TextOverflow.Ellipsis
+    )
+}
+
 /** Рядок стану над карткою. Афіша завжди підписана джерелом (docs/event-ingestion.md §8); місця й черга лише в кімнати. */
 @Composable
 private fun eventStatus(event: Event, waitlisted: Boolean = false): Pair<String, BadgeTone>? =
     eventState(event, waitlisted)
-        ?: event.listing?.let {
-            stringResource(
-                R.string.listing_badge,
-                it.sourceName
-            ) to BadgeTone.Neutral
-        }
+        ?: event.listing?.let { stringResource(R.string.listing_badge, it.sellerNames) to BadgeTone.Neutral }
 
 /** Рядок під назвою: учасники для кімнати, ціна для афіші. */
 @Composable
@@ -235,7 +263,7 @@ fun EventRow(
 ) {
     val colors = Poruch.colors
     val badge = status ?: eventState(event, waitlisted)
-    val source = event.listing?.takeIf { !it.isWithdrawn }?.let { stringResource(R.string.listing_badge, it.sourceName) }
+    val source = event.listing?.takeIf { !it.isWithdrawn }?.let { stringResource(R.string.listing_badge, it.sellerNames) }
     val unreadLabel =
         if (unread > 0) stringResource(R.string.unread_messages_a11y, unread) else null
     Row(
@@ -265,6 +293,7 @@ fun EventRow(
                 // а не штампом: штамп «Афіша · Concert.ua» витісняв жанр і місце з усіх рядків афіші.
                 else -> {
                     badge?.let { TicketStamp(it.first, it.second, modifier = Modifier.padding(top = 2.dp)) }
+                    MovedLine(event)
                     EventDescriptor(event)
                     source?.let {
                         Text(it, style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -342,7 +371,7 @@ fun EventResultRow(
             }
             event.listing?.let { listing ->
                 Text(
-                    stringResource(R.string.listing_badge, listing.sourceName),
+                    stringResource(R.string.listing_badge, listing.sellerNames),
                     style = MaterialTheme.typography.labelSmall,
                     color = colors.inkTertiary,
                     maxLines = 1,
@@ -358,7 +387,7 @@ fun EventResultRow(
 @Composable
 private fun resultBadge(event: Event, waitlisted: Boolean): Pair<String, BadgeTone>? {
     if (event.isCancelled) return stringResource(R.string.cancelled) to BadgeTone.Danger
-    if (event.listing?.isWithdrawn == true) return stringResource(R.string.listing_withdrawn) to BadgeTone.Neutral
+    event.listing?.let { return listingStamp(it) }
     val room = event.gathering ?: return null
     if (event.hasEnded(kotlin.time.Clock.System.now())) return null
     return when {

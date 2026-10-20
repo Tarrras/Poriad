@@ -45,6 +45,9 @@ struct EventDetailView: View, Equatable {
     @State var seekingCompany = false
     /// «Поділитися» щойно створеним супутником.
     @State var sharingCompanion: ShareText?
+    /// «Купили? Стежитимемо за змінами» — після повернення від продавця (R9).
+    @State var boughtPrompt = false
+    @Environment(\.scenePhase) var scenePhase
     @Environment(\.openMap) var openMap
 
     /// Id відкритої події від того, хто відкриває, а не зі стану: див. `.task` нижче.
@@ -102,6 +105,19 @@ struct EventDetailView: View, Equatable {
         }
         .sheet(item: $sharingCompanion) { share in ActivitySheet(items: [share.text]).presentationDetents([.medium, .large]) }
         .sheet(isPresented: $seekingCompany) { if let event = view.event { CompanionSheet(event: event) } }
+        // Повернулись від продавця: спільний шар каже, чи питати «Купили?» (раз на подію, лише незбереженій).
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active, model.app.takeBoughtPrompt(eventId: screen.sessionID) else { return }
+            withAnimation(.snappy) { boughtPrompt = true }
+        }
+        // Без відповіді за 10 с картка зникає сама: це питання, а не перешкода.
+        .task(id: boughtPrompt) {
+            guard boughtPrompt else { return }
+            try? await Task.sleep(for: .seconds(10))
+            guard !Task.isCancelled, boughtPrompt else { return }
+            withAnimation(.snappy) { boughtPrompt = false }
+            model.app.boughtPromptAnswered(saved: false)
+        }
     }
 
     @ViewBuilder
@@ -133,7 +149,10 @@ struct EventDetailView: View, Equatable {
             // Коли аркуш доїхав до годинника, текст інакше йде під нього: смуга статусу набирає колір полотна.
             // Не раніше: світла смуга над темною обкладинкою відрізала б її, а з-під смуги визирали б кути аркуша.
             .overlay(alignment: .top) { StatusStrip(scroll: scroll, topInset: topInset) }
-            stickyBar(event, view)
+            VStack(spacing: Space.sm) {
+                if boughtPrompt { boughtCard(event, view) }
+                stickyBar(event, view)
+            }
         }
         .background(Palette.canvas)
         // Тут, а не в корені: з мапи деталі відкриваються шторкою, і корінь лежав би під нею.
@@ -162,10 +181,13 @@ struct EventDetailView: View, Equatable {
                 .buttonStyle(PressableStyle(pressedScale: 1)).cardSurface()
                 .accessibilityElement(children: .combine)
             }
+            // Щось сталось — стан і продавці першими: по них сюди й прийшли.
+            if let listing = view.listing, listing.isWithdrawn || listing.isMoved { tickets(event, listing, view) }
             externalActions(event, view)
             if view.sessions.count > 1 { sessionRail(event, view.sessions) }
             if !event.artists.isEmpty { lineup(event) }
             facts(event)
+            if let listing = view.listing, !listing.isWithdrawn && !listing.isMoved { tickets(event, listing, view) }
             if !view.companions.isEmpty && !view.cancelled { companionsSection(view) }
             if let room = view.room { people(room, view) }
             venue(event, view)

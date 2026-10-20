@@ -77,6 +77,7 @@ class AppGraph(
                     "chat-seen"
                 )
             }
+            single<SeenRequestStore>(named("bought")) { LocalSeenRequests(get(), get(), "bought-asked") }
             single<SafetyRepository> { SupabaseSafetyRepository(get(), get()) }
             single<ProfileRepository> { SupabaseProfileRepository(get(), get(), get()) }
             // Один клас, два питання: місто зміщує мапу, адреса ставить крапку.
@@ -117,6 +118,7 @@ class AppGraph(
                     chatNotifier = chatNotifier,
                     analyticsStore = get(),
                     pendingPush = get(),
+                    boughtAsked = get(named("bought")),
                     config = config,
                     // Обидва потоки названі явно: тут єдине місце, де видно, що вони різні.
                     scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),

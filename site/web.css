@@ -559,6 +559,7 @@ a.row:hover { background: var(--surface-muted); }
 .event-shell .cover-big { border-bottom: 24px solid var(--stub, var(--ink)); }
 .event-shell .cover-big::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: -1px; border-top: 3px dotted var(--canvas); }
 .notice { margin: 0; background: var(--danger-container); color: var(--danger); padding: 12px 16px; border-radius: var(--r-md); font-weight: 600; }
+.notice.calm { background: var(--surface-muted); color: var(--ink); font-weight: 500; }
 .note { font: 400 15px/21px var(--font); color: var(--ink-secondary); }
 .note a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 @media (max-width: 640px) {

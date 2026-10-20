@@ -2,6 +2,7 @@ package app.poruch.shared
 
 import app.poruch.domain.Attendee
 import app.poruch.domain.CompanionCard
+import app.poruch.domain.CheckedLabel
 import app.poruch.domain.CompanionParent
 import app.poruch.domain.CurfewNote
 import app.poruch.domain.Event
@@ -27,10 +28,11 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.datetime.TimeZone
 
 /** Єдина дія нижньої панелі деталей. Рахується в одному місці, щоб підпис, тап і доступність не розходились. */
 enum class DetailAction {
-    /** Кнопки нема: афіша без посилання, знята подія або зіпсований рядок. */
+    /** Кнопки нема: афіша без посилання, скасована, відкладена чи не в продажу, або зіпсований рядок. */
     NONE,
     JOIN, LEAVE, JOIN_WAITLIST, LEAVE_WAITLIST,
     /** Афіша: сторінка джерела. */
@@ -95,7 +97,9 @@ data class DetailScreenState(
     /** Люди, за якими стежу: кнопка на картці людини й початковий стан перемикача в шторці оцінки. */
     val followedOrganizers: Set<String> = emptySet(),
     /** Щойно створений супутник: платформа відкриває «Поділитися» і кличе [PoruchApp.clearCreatedCompanion]. */
-    val createdCompanion: String? = null
+    val createdCompanion: String? = null,
+    /** «Перевірено сьогодні о 09:00» для афіші: коли адресна перевірка читала продавців. Null — не перевіряли. */
+    val checked: CheckedLabel? = null
 ) {
     /** Супутник «Йдемо разом»: час і місце тримає сервер, редагувати нема чого. */
     val companionOf: CompanionParent? get() = room?.companionOf
@@ -111,14 +115,17 @@ data class DetailScreenState(
     /** Чат учасників поза застосунком. Сервер віддає посилання лише організатору й підтвердженим; лише https. */
     val contactUrl: String? get() = room?.contactUrl?.takeIf { it.startsWith("https://") }
 
-    /** Афіша відгалужується першою: кнопка «приєднатися», яка гарантовано отримає відмову, гірша за відсутність кнопки. */
+    /**
+     * Афіша відгалужується першою: кнопка «приєднатися», яка гарантовано отримає відмову, гірша за відсутність кнопки.
+     * У скасованої афіші кнопки нема зовсім: до продавців веде блок «Якщо купили квиток».
+     */
     val action: DetailAction
         get() = when {
             event == null -> DetailAction.NONE
-            cancelled -> DetailAction.CANCELLED
             listing != null ->
                 if (listing!!.isWithdrawn || !listing!!.hasSource || sessionStarted) DetailAction.NONE
                 else DetailAction.TICKETS
+            cancelled -> DetailAction.CANCELLED
             organizer -> DetailAction.ORGANIZER
             ended -> DetailAction.NONE
             // Ні кімнати, ні оголошення — зіпсований рядок: без дій.
@@ -272,7 +279,8 @@ class DetailPresenter(
             canSeekCompany = event != null && shared.detail.canSeekCompany(now),
             followingPlace = event?.placeId?.let { shared.isFollowing(FollowKind.PLACE, it) } == true,
             followedOrganizers = shared.library.follows.filter { it.kind == FollowKind.ORGANIZER }.mapTo(HashSet()) { it.targetId },
-            createdCompanion = shared.createdCompanion?.takeIf { event != null }
+            createdCompanion = shared.createdCompanion?.takeIf { event != null },
+            checked = CheckedLabel.of(event?.listing?.checkedAt, now, TimeZone.currentSystemDefault())
         )
     }
 }

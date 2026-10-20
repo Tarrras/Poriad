@@ -100,7 +100,7 @@ fun EventHeroCard(
                 artistsLine(event)?.let { MetaLine(PoruchIcons.person, it) }
                 event.listing?.let {
                     Text(
-                        stringResource(R.string.listing_badge, it.sourceName), style = MaterialTheme.typography.labelSmall,
+                        stringResource(R.string.listing_badge, it.sellerNames), style = MaterialTheme.typography.labelSmall,
                         color = colors.inkTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis
                     )
                 }

@@ -84,7 +84,7 @@ struct EventHeroCard: View {
                         if let reason { ReasonLine(text: reason.0, glyph: reason.1) }
                         if let artists = artistsLine(event) { MetaLine(glyph: PoruchIcons.person, text: artists) }
                         if let listing = event.listing {
-                            Text(Copy.listing_badge("\(listing.sourceName)")).font(PoruchFont.overline).foregroundStyle(Palette.inkTertiary)
+                            Text(Copy.listing_badge(listing.sellerNames)).font(PoruchFont.overline).foregroundStyle(Palette.inkTertiary)
                                 .lineLimit(1)
                         }
                     }

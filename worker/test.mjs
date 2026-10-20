@@ -39,10 +39,37 @@ assert.ok(!community.includes("Разом на"), "звичайна подія �
 assert.ok(eventPage({ ...base, title: "СТЕНДАП \"ПЕРЕВІРКА\"" }, now).includes("<h1>Стендап «Перевірка»</h1>"), "назва — як у застосунку");
 assert.ok(imported.includes("Квитки на Concert.ua"), "головна дія афіші — квитки в джерела");
 assert.ok(community.includes('href="/app?from=event">Приєднатися в застосунку'), "кімната людей — у застосунок");
+// База без фази 4: знята — «не знайшли в продажу», без тривоги й без кнопки квитків.
 const withdrawn = eventPage({ ...base, origin: "import", canonical_url: "https://concert.ua/x", source_name: "Concert.ua", import_status: "withdrawn" }, now, shelters);
-assert.ok(withdrawn.includes("Більше не проводиться"), "знята з афіші — так і сказано");
+assert.ok(withdrawn.includes('class="notice calm">Не знайшли в продажу'), "знята з афіші — нейтрально");
 assert.ok(!withdrawn.includes("Квитки на"), "і без кнопки квитків");
 assert.ok(!withdrawn.includes("Укриття поруч"), "і без укриттів");
+assert.ok(withdrawn.includes("<h2>Якщо купили квиток</h2>") && withdrawn.includes('href="https://concert.ua/x"'), "куди по повернення");
+
+// Фаза 4: стан і всі продавці (docs/event-offers.md R11).
+const afisha = { ...base, origin: "import", canonical_url: "https://concert.ua/x", source_name: "Concert.ua", price_min: 400, import_status: "live" };
+const offers = [
+  { source: "Concert.ua", url: "https://concert.ua/x", price_min: 400, live: true },
+  { source: "Karabas <b>", url: "https://karabas.com/y", price_min: 450, live: true },
+  { source: "Badseller", url: "https://badseller.net/z", price_min: 300, live: false },
+  { source: "Http", url: "http://evil.example/", live: true },
+];
+const many = eventPage({ ...afisha, state: "scheduled", offers, checked_at: "2026-09-28T06:00:00Z" }, now);
+assert.ok(many.includes("Афіша · Concert.ua, Karabas &lt;b&gt;"), "підпис — усі живі продавці, екрановано");
+assert.ok(many.includes("<h2>Квитки</h2>") && many.includes("від 450 ₴") && many.includes('href="https://karabas.com/y"'), "рядок і ціна кожного");
+assert.ok(!many.includes("badseller.net") && !many.includes("evil.example"), "знятий продавець і не-https — без рядка");
+assert.ok(many.includes("Перевірено пн, 28 вересня о 09:00."), "перевірено — датою в поясі події");
+assert.ok(many.includes("Квитки на Concert.ua"), "головна кнопка — основний продавець");
+const cancelledAfisha = eventPage({ ...afisha, state: "cancelled", offers }, now, shelters);
+assert.ok(cancelledAfisha.includes('class="notice">Подію скасовано: продавець'), "скасована — червоним, з поясненням");
+assert.ok(cancelledAfisha.includes("<h2>Якщо купили квиток</h2>") && cancelledAfisha.includes("badseller.net"), "повернення — у кожного, де могли купити");
+assert.ok(!cancelledAfisha.includes("Квитки на") && !cancelledAfisha.includes("від 450"), "без кнопки й цін");
+assert.ok(eventPage({ ...afisha, state: "postponed", offers }, now).includes("Подію відкладено, нової дати ще нема"));
+const movedAfisha = eventPage({ ...afisha, state: "scheduled", previous_starts_at: "2026-10-03T16:00:00Z", offers }, now);
+assert.ok(movedAfisha.includes('class="notice calm">Перенесено: було сб, 3 жовтня о 19:00.'), "перенесена — стара дата, без тривоги");
+assert.ok(movedAfisha.includes("Квитки на Concert.ua"), "перенесена жива — з квитками");
+assert.ok(!eventPage({ ...afisha, state: "cancelled" }, new Date("2026-10-05T00:00:00Z")).includes("Якщо купили"), "минула — без продавців");
+assert.ok(!community.includes("<h2>Квитки</h2>"), "кімната людей — без продавців");
 assert.equal(esc(`"'<&>`), "&quot;&#39;&lt;&amp;&gt;");
 console.log("ok");
 

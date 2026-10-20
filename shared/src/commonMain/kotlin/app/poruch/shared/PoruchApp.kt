@@ -51,6 +51,8 @@ class PoruchApp internal constructor(
     analyticsStore: AnalyticsPreferenceStore? = null,
     /** Пуш-токен, який не вдалося зняти при виході: повторюємо на старті й при поверненні. */
     pendingPush: PendingUnregisterStore? = null,
+    /** Події, де вже питали «Купили? Стежитимемо за змінами» (R9). Null — не питаємо. */
+    private val boughtAsked: SeenRequestStore? = null,
     config: AppConfig = AppConfig("", ""),
     /** Стан живе на головному потоці: звідси читають і Compose, і SwiftUI. */
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
@@ -405,6 +407,36 @@ class PoruchApp internal constructor(
 
     /** Відкрито системне «Поділитися» з посиланням на подію: чи працює петля запрошень. */
     fun eventShared() = PoruchAnalytics.track("share", "kind" to "event")
+
+    /** Подія, до продавця якої щойно вийшли: після повернення — «Купили? Стежитимемо за змінами» (R9). */
+    private var leftForTickets: String? = null
+
+    /**
+     * Вихід до продавця квитків (docs/event-offers.md R9) — єдиний облік того, що афіша довела до покупки. [source] —
+     * назва продавця, [from] — `bar` (кнопка панелі), `sellers` (рядок «Квитки»), `refund` («Якщо купили квиток»).
+     * Повернення по квиток скасованої — не покупка, тож «Купили?» після нього не питаємо.
+     */
+    fun ticketOpened(eventId: String, source: String, from: String) {
+        PoruchAnalytics.track("ticket_open", "source" to source, "from" to from)
+        leftForTickets = eventId.takeIf { from != "refund" }
+    }
+
+    /**
+     * Застосунок знову на екрані деталей [eventId] після продавця: чи спитати «Купили? Стежитимемо за змінами». Раз на
+     * подію і лише незбереженій. Поставленим питання вважається, щойно ми його віддали на показ.
+     */
+    fun takeBoughtPrompt(eventId: String): Boolean {
+        if (leftForTickets != eventId) return false
+        leftForTickets = null
+        val asked = boughtAsked ?: return false
+        if (state.value.isSaved(eventId) || eventId in asked.seen()) return false
+        asked.markSeen(setOf(eventId))
+        PoruchLog.i("action") { "boughtPrompt ${eventId.shortId()}" }
+        return true
+    }
+
+    /** Відповідь на «Купили?»: [saved] — зберегли, інакше закрили чи проігнорували. Метрика прийняття (≥ 30% «так»). */
+    fun boughtPromptAnswered(saved: Boolean) = PoruchAnalytics.track("bought_prompt", "saved" to saved)
 
     /** «Поділитися застосунком» з профілю. */
     fun appShared() = PoruchAnalytics.track("share", "kind" to "app")

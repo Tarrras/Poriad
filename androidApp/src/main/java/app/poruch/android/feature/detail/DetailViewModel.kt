@@ -63,7 +63,9 @@ class DetailViewModel(
 
             // Квитки на афішу купують у джерела: акаунт не потрібен, тому до перевірки входу.
             DetailIntent.PrimaryAction -> if (screen.action == DetailAction.TICKETS) {
-                event?.listing?.canonicalUrl?.let { send(DetailEffect.OpenLink(it)) }
+                event?.listing?.let { listing ->
+                    listing.canonicalUrl?.let { app.ticketOpened(eventId, listing.sourceName, "bar"); send(DetailEffect.OpenLink(it)) }
+                }
             } else authenticated(AuthReason.JOIN) {
                 when (screen.action) {
                     DetailAction.JOIN, DetailAction.REQUEST -> { app.joinEvent(eventId); offerReminders() }
@@ -75,6 +77,14 @@ class DetailViewModel(
             }
 
             DetailIntent.OpenSource -> event?.listing?.canonicalUrl?.let { send(DetailEffect.OpenLink(it)) }
+            is DetailIntent.OpenSeller -> intent.offer.url?.let {
+                app.ticketOpened(eventId, intent.offer.sourceName, intent.from); send(DetailEffect.OpenLink(it))
+            }
+            is DetailIntent.BoughtPromptAnswered -> if (state.value.boughtPrompt) {
+                reduce { copy(boughtPrompt = false) }
+                app.boughtPromptAnswered(intent.saved)
+                if (intent.saved) authenticated(AuthReason.SAVE) { if (!screen.saved) app.toggleSaved(eventId) }
+            }
             DetailIntent.ToggleSaved -> authenticated(AuthReason.SAVE) { app.toggleSaved(eventId) }
             DetailIntent.Share -> event?.let { send(DetailEffect.ShareEvent(it)) }
             DetailIntent.AddToCalendar -> event?.let { send(DetailEffect.OpenCalendar(it)) }
@@ -94,7 +104,11 @@ class DetailViewModel(
                 app.createCompanion(eventId, intent.meetAt, intent.note, intent.capacity)
             }
             is DetailIntent.JoinCompanion -> authenticated(AuthReason.JOIN) { app.joinEvent(intent.id); offerReminders() }
-            DetailIntent.Reopen -> presenter.reopen()
+            // ON_RESUME: і повернення з іншого екрана, і з сайту продавця — тоді, можливо, «Купили?» (раз на подію).
+            DetailIntent.Reopen -> {
+                presenter.reopen()
+                if (app.takeBoughtPrompt(eventId)) reduce { copy(boughtPrompt = true) }
+            }
             DetailIntent.ToggleFollowPlace -> authenticated(AuthReason.FOLLOW) {
                 event?.let { e -> e.placeId?.let { app.setFollowing(FollowKind.PLACE, it, e.placeLabel, !screen.followingPlace) } }
             }

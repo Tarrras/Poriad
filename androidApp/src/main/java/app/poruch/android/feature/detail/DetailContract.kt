@@ -4,6 +4,7 @@ import app.poruch.android.navigation.AuthReason
 import app.poruch.domain.Artist
 import app.poruch.domain.Shelter
 import app.poruch.domain.Event
+import app.poruch.domain.Offer
 import app.poruch.domain.RatingTag
 import app.poruch.domain.ReportReason
 import app.poruch.shared.DetailScreenState
@@ -22,7 +23,9 @@ data class DetailState(
     /** Попередження перед виходом у чужий чат: спершу кажемо, куди й хто це додав. */
     val confirmingContact: Boolean = false,
     /** Відкрита шторка створення супутника. */
-    val seekingCompany: Boolean = false
+    val seekingCompany: Boolean = false,
+    /** «Купили? Стежитимемо за змінами» — після повернення від продавця (R9). */
+    val boughtPrompt: Boolean = false
 )
 
 /** На що скарга: на подію, на того, хто її опублікував, чи на людину з картки. */
@@ -63,6 +66,10 @@ sealed interface DetailIntent {
     data object OpenMap : DetailIntent
     /** «Читати повністю на джерелі»: те саме посилання з-під опису. */
     data object OpenSource : DetailIntent
+    /** Рядок продавця в «Квитки» чи «Якщо купили квиток». [from] — для `ticket_open`: `sellers` / `refund`. */
+    data class OpenSeller(val offer: Offer, val from: String) : DetailIntent
+    /** Відповідь на «Купили?»: [saved] — «Зберегти», інакше закрили чи час минув. */
+    data class BoughtPromptAnswered(val saved: Boolean) : DetailIntent
     data object Edit : DetailIntent
     data class ConfirmCancel(val open: Boolean) : DetailIntent
     data class ShowReport(val target: ReportTarget?) : DetailIntent

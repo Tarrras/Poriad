@@ -62,7 +62,14 @@ import app.poruch.domain.RatingRules
 import app.poruch.domain.RatingTag
 import app.poruch.domain.ReportReason
 import app.poruch.domain.ShelterKind
+import app.poruch.domain.ListingState
 import app.poruch.shared.DetailAction
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import kotlinx.coroutines.delay
 
 @Composable
 fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
@@ -99,6 +106,8 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
                                 LinkRow(PoruchIcons.social, stringResource(R.string.companion_parent, TitleRules.display(parent.title)), onClick = { onIntent(DetailIntent.OpenEvent(parent.id)) })
                             }
                         }
+                        // Щось сталось — стан і продавці першими: по них сюди й прийшли.
+                        state.screen.listing?.takeIf { it.isWithdrawn || it.isMoved }?.let { Tickets(state, it, onIntent) }
                         ExternalActions(state, onIntent)
                     }
                     // Поза колонкою з полями: смуга дат іде від краю до краю.
@@ -109,6 +118,7 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
                     ) {
                         if (event.artists.isNotEmpty()) Lineup(event, onIntent)
                         Facts(event)
+                        state.screen.listing?.takeIf { !it.isWithdrawn && !it.isMoved }?.let { Tickets(state, it, onIntent) }
                         if (state.screen.companions.isNotEmpty() && !state.screen.cancelled) Companions(state, onIntent)
                         event.gathering?.let { People(state, it, onIntent) }
                         Venue(event, state.screen.followingPlace, onIntent)
@@ -145,6 +155,12 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
             Modifier.align(Alignment.BottomCenter).onSizeChanged { barHeight = with(density) { it.height.toDp() } },
             onIntent
         )
+        AnimatedVisibility(
+            state.boughtPrompt, Modifier.align(Alignment.BottomCenter).padding(bottom = barHeight),
+            enter = slideInVertically { it } + fadeIn(), exit = slideOutVertically { it } + fadeOut()
+        ) { BoughtCard(onIntent) }
+        // Без відповіді за 10 с картка зникає сама: це питання, а не перешкода.
+        if (state.boughtPrompt) LaunchedEffect(Unit) { delay(10_000); onIntent(DetailIntent.BoughtPromptAnswered(false)) }
         CoachMarks(listOf(CoachTip.COMPANION), enabled = state.screen.canSeekCompany)
     }
     if (state.confirmingBlock) PoruchConfirmSheet(
@@ -214,7 +230,7 @@ internal fun StickyAction(state: DetailState, event: Event, modifier: Modifier, 
                 Text(
                     stickyHint(state),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = if (state.screen.cancelled) colors.danger else colors.inkSecondary,
+                    color = if (event.isCalledOff) colors.danger else colors.inkSecondary,
                     maxLines = 3, overflow = TextOverflow.Ellipsis, modifier = modifier
                 )
             }
@@ -265,7 +281,8 @@ internal fun stickyHint(state: DetailState): String {
     if (state.screen.cancelled) return stringResource(R.string.cancelled)
     state.screen.listing?.let { listing ->
         return when {
-            listing.isWithdrawn -> stringResource(R.string.listing_withdrawn_hint)
+            listing.state == ListingState.POSTPONED -> stringResource(R.string.state_postponed_summary)
+            listing.isWithdrawn -> stringResource(R.string.state_unknown)
             state.screen.sessionStarted -> stringResource(R.string.session_started_hint)
             listing.hasSource -> listingPrice(listing)
             else -> stringResource(R.string.listing_hint_no_link)

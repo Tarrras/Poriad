@@ -5,6 +5,7 @@ import app.poruch.domain.ArtistRole
 import app.poruch.domain.EventStatus
 import app.poruch.domain.FollowKind
 import app.poruch.domain.ImportStatus
+import app.poruch.domain.ListingState
 import app.poruch.domain.Membership
 import kotlinx.serialization.json.Json
 import kotlin.test.*
@@ -42,6 +43,34 @@ class EventDtoTest {
         assertEquals("https://kyiv.karabas.com/e/1", event.listing?.canonicalUrl)
         assertEquals(350.0, event.listing?.priceMin)
         assertEquals(ImportStatus.LIVE, event.listing?.status)
+    }
+
+    @Test fun stateAndSellersArriveWithTheListing() {
+        val event = parse(
+            "origin" to "\"import\"", "source_name" to "\"Concert.ua\"", "import_status" to "\"live\"",
+            "state" to "\"scheduled\"", "previous_starts_at" to "\"2030-09-05T16:00:00Z\"",
+            "checked_at" to "\"2030-09-06T06:00:00Z\"",
+            "offers" to """[{"source":"Concert.ua","url":"https://concert.ua/1","price_min":400,"is_free":false,"live":true},
+                {"source":"Karabas","url":"https://karabas.com/1","price_min":450,"live":false},
+                {"source":"","url":"https://x.ua/1"},{"source":"Http","url":"http://x.ua/1"}]"""
+        )
+        val listing = event.listing!!
+        assertTrue(listing.isMoved)
+        assertEquals("2030-09-06T06:00:00Z", listing.checkedAt)
+        assertEquals(listOf("Concert.ua", "Karabas", "Http"), listing.offers.map { it.sourceName }, "no name, no seller")
+        assertNull(listing.offers[2].url, "only https")
+        assertEquals(450.0, listing.offers[1].priceMin)
+        assertFalse(listing.offers[1].live)
+    }
+
+    @Test fun anOldServerOrAnUnknownStateFallsBackToImportStatus() {
+        assertEquals(ListingState.UNKNOWN, parse("origin" to "\"import\"", "import_status" to "\"withdrawn\"").listing?.state)
+        assertEquals(ListingState.SCHEDULED, parse("origin" to "\"import\"").listing?.state)
+        assertEquals(ListingState.UNKNOWN,
+            parse("origin" to "\"import\"", "import_status" to "\"withdrawn\"", "state" to "\"sold_out\"").listing?.state)
+        val cancelled = parse("origin" to "\"import\"", "state" to "\"cancelled\"", "previous_starts_at" to "\"2030-09-05T16:00:00Z\"")
+        assertTrue(cancelled.isCancelled)
+        assertNull(cancelled.listing?.previousStartsAt, "an old date means nothing without a move")
     }
 
     @Test fun aCommunityRowBecomesARoomAndNothingElse() {

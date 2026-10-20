@@ -29,10 +29,10 @@ struct EventResultRow: View {
         return parts.joined(separator: " · ")
     }
 
-    /// Лише те, що міняє рішення: скасування, зняття, стан кімнати. Джерело афіші — окремим рядком.
+    /// Лише те, що міняє рішення: скасування, стан афіші, стан кімнати. Джерело афіші — окремим рядком.
     private var badge: (String, BadgeTone, PoruchGlyph?)? {
         if event.isCancelled { return (Copy.cancelled_short, .danger, nil) }
-        if event.listing?.isWithdrawn == true { return (Copy.listing_withdrawn, .neutral, nil) }
+        if let listing = event.listing { return listingStamp(listing) }
         guard let room = event.gathering, !event.hasEnded(now: nowInstant()) else { return nil }
         if room.joined { return (Copy.going, .success, PoruchIcons.check) }
         if waitlisted { return (Copy.in_queue, .accent, PoruchIcons.queue) }
@@ -63,7 +63,7 @@ struct EventResultRow: View {
                     Text(artists).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(1)
                 }
                 if let listing = event.listing {
-                    let source = Copy.listing_badge("\(listing.sourceName)")
+                    let source = Copy.listing_badge(listing.sellerNames)
                     Text(source).font(PoruchFont.overline).foregroundStyle(Palette.inkTertiary).lineLimit(1)
                 }
             }
