@@ -52,8 +52,10 @@ create function pg_temp.seen(p_uid text) returns text language sql as $$
 
 -- ── 1. Таблиця R4 рядок за рядком: чиста функція правил.
 create function pg_temp.o(p_says text, p_linked text default 'rule', p_new timestamptz default null,
- p_at timestamptz default now()) returns jsonb language sql as $$
- select jsonb_build_object('offer_id',gen_random_uuid(),'says',p_says,'linked',p_linked,'new_start',p_new,'at',p_at) $$;
+ p_at timestamptz default now(), p_verdict text default 'moved_silent', p_slug text default 'a',
+ p_starts timestamptz default null, p_fresh boolean default false) returns jsonb language sql as $$
+ select jsonb_build_object('offer_id',gen_random_uuid(),'says',p_says,'linked',p_linked,'new_start',p_new,'at',p_at,
+  'verdict',p_verdict,'slug',p_slug,'starts_at',coalesce(p_starts,current_setting('test.t')::timestamptz),'fresh',p_fresh) $$;
 do $$ declare t timestamptz := pg_temp.t(); r record; begin
  -- Сильне «скасовано», жодна інша пропозиція не каже сильно протилежне → cancelled, пуш.
  select * into r from private.event_state_rule('scheduled', t, jsonb_build_array(pg_temp.o('cancelled'), pg_temp.o('alive')));
@@ -103,6 +105,25 @@ do $$ declare t timestamptz := pg_temp.t(); r record; begin
  assert r.change is null, 'R4.11 listing alone does not correct';
  select * into r from private.event_state_rule('cancelled', t, jsonb_build_array(pg_temp.o('cancelled'), pg_temp.o('alive')));
  assert r.change is null, 'R4.11 still cancelled by one seller';
+ -- Тихий перенос від одного продавця, а інший свіжо бачить подію на старий час → конфлікт (prod 20.10).
+ select * into r from private.event_state_rule('scheduled', t, jsonb_build_array(
+  pg_temp.o('moved','rule',t+interval '14 days',now(),'moved_silent','b'), pg_temp.o('listed','rule',null,now(),null,'a',t,true)));
+ assert (r.state, r.starts_at, r.change, r.push) = ('scheduled', t, 'conflict', false), 'R4.5 silent move vs fresh seller';
+ select * into r from private.event_state_rule('scheduled', t, jsonb_build_array(
+  pg_temp.o('moved','rule',t+interval '14 days',now(),'moved_silent','b'), pg_temp.o('listed','rule',null,now(),null,'a',t,false)));
+ assert r.change = 'moved', 'R4.5 stale other seller does not block';
+ select * into r from private.event_state_rule('scheduled', t, jsonb_build_array(
+  pg_temp.o('moved','rule',t+interval '14 days',now(),'rescheduled_away','b'), pg_temp.o('alive','rule',null,now(),null,'a',t,true)));
+ assert r.change = 'moved', 'R4.4 explicit reschedule is not blocked';
+ -- Перенос, на який більше ніщо не вказує, а на попередньому часі подію бачать → відкликати (пуш-виправлення).
+ select * into r from private.event_state_rule('scheduled', t+interval '14 days', jsonb_build_array(
+  pg_temp.o('none'), pg_temp.o('listed','rule',null,now(),null,'a',t,true)), t);
+ assert (r.state, r.starts_at, r.change, r.push) = ('scheduled', t, 'corrected', true), 'move withdrawn';
+ select * into r from private.event_state_rule('scheduled', t+interval '14 days', jsonb_build_array(
+  pg_temp.o('moved','rule',t+interval '14 days'), pg_temp.o('listed','rule',null,now(),null,'a',t,true)), t);
+ assert r.change is null, 'move still stands';
+ select * into r from private.event_state_rule('scheduled', t+interval '14 days', jsonb_build_array(pg_temp.o('none')), t);
+ assert r.change is null, 'nothing at the old time either';
 end $$;
 
 -- ── 2. Скасування від сторінки: липке, ідемпотентне, у «б надіслали» — тим, хто стежить; клієнт не бачить.
@@ -262,13 +283,101 @@ do $$ declare t timestamptz := pg_temp.t(); morning timestamptz := ((t at time z
  assert pg_temp.due('s10a', t - interval '2 hours') = 'three_hours', 'next slot still due';
 end $$;
 
+-- ── 11. Захисти тихого переносу (prod 20.10, «Конотопська відьма»: badseller-пропозиція з адресою сеансу 04.11,
+-- прив'язана до 21.10; сторінка показала 04.11 — і R4 «переніс» подію на окрему живу подію 04.11).
+select set_config('test.k', to_char(pg_temp.t('14 days') at time zone 'Europe/Kyiv', 'YYYY-MM-DD'), true);
+create function pg_temp.k(p_uid text) returns text language sql as $$ select p_uid || '-' || current_setting('test.k') $$;
+create function pg_temp.gone(p_uid text) returns void language sql as $$
+ update public.event_offers set status = 'withdrawn', updated_at = now() where id = (pg_temp.offer(p_uid)).id $$;
+-- Ціль: окрема жива подія на 14 днів пізніше, давно в базі.
+select pg_temp.ingest(jsonb_build_array(pg_temp.w('test_state_a','k2a','Конотопська відьма',pg_temp.t('14 days')),
+ pg_temp.w('test_state_a','t2a','Сусідній сеанс',pg_temp.t('7 days')),
+ pg_temp.w('test_state_a','g2a','Справжній перенос',pg_temp.t('1 day'))));
+update public.events set created_at = now() - interval '10 days' where id in (pg_temp.ev('k2a'), pg_temp.ev('t2a'));
+-- 1) Дата в адресі пропозиції ≠ дата її сеансу: чужа сторінка, не перенос; у чергу від'єднання.
+select pg_temp.ingest(jsonb_build_array(pg_temp.w('test_state_a','k1a','Конотопська відьма',pg_temp.t())));
+select pg_temp.ingest(jsonb_build_array(pg_temp.c('test_state_b',pg_temp.k('k1b'),'Конотопська відьма',pg_temp.t(),'k1a')));
+select pg_temp.gone(pg_temp.k('k1b'));
+select pg_temp.chk(pg_temp.k('k1b'),'moved_silent',jsonb_build_object('new_start',pg_temp.t('14 days'),'name','Конотопська відьма'));
+-- 2) Ціль зайнята подією, що існувала раніше (адреса без дати): сусідній сеанс; у чергу.
+select pg_temp.ingest(jsonb_build_array(pg_temp.w('test_state_b','t1b','Сусідній сеанс',pg_temp.t())));
+select pg_temp.gone('t1b');
+select pg_temp.chk('t1b','moved_silent',jsonb_build_object('new_start',pg_temp.t('7 days'),'name','Сусідній сеанс'));
+-- …а ціль, яку завів той самий дамп, що зняв старий сеанс, — справжній перенос (badseller з новою адресою).
+select pg_temp.ingest(jsonb_build_array(pg_temp.w('test_state_b','g1b','Справжній перенос',pg_temp.t())));
+select pg_temp.gone('g1b');
+select pg_temp.chk('g1b','moved_silent',jsonb_build_object('new_start',pg_temp.t('1 day'),'name','Справжній перенос'));
+-- 3) Інший продавець свіжо бачить подію на старий час: тихий перенос — конфлікт; явний — перенос.
+select pg_temp.ingest(jsonb_build_array(pg_temp.w('test_state_a','f1a','Свіжий інший',pg_temp.t())));
+select pg_temp.ingest(jsonb_build_array(pg_temp.c('test_state_b','f1b','Свіжий інший',pg_temp.t(),'f1a')));
+select pg_temp.chk('f1b','moved_silent',jsonb_build_object('new_start',pg_temp.t('2 hours'),'name','Свіжий інший'));
+do $$ begin
+ assert (pg_temp.st('k1a')).starts_at = pg_temp.t() and pg_temp.logs('k1a') = 0
+   and (select evidence->>'detach' from private.offer_detach_queue where offer_id = (pg_temp.offer(pg_temp.k('k1b'))).id) = 'misattached',
+   'misattached page: no move, queued';
+ assert (pg_temp.st('t1b')).starts_at = pg_temp.t() and pg_temp.logs('t1b') = 0
+   and (select evidence->>'detach' from private.offer_detach_queue where offer_id = (pg_temp.offer('t1b')).id) = 'taken',
+   'taken target: no move, queued';
+ assert (pg_temp.st('g1b')).starts_at = pg_temp.t('1 day') and not exists (select 1 from private.offer_detach_queue
+   where offer_id = (pg_temp.offer('g1b')).id), 'new address from the same dump is a real move';
+ assert (pg_temp.st('f1a')).starts_at = pg_temp.t() and (pg_temp.st('f1a')).conflicts = 1
+   and pg_temp.due('f1a', now() + interval '2 hours') = 'conflict', 'fresh other seller: conflict, recheck';
+ assert not exists (select 1 from private.would_send w join public.event_offers o on o.event_id = w.event_id
+   where o.id in ((pg_temp.offer(pg_temp.k('k1b'))).id, (pg_temp.offer('t1b')).id, (pg_temp.offer('f1b')).id)), 'nothing would be sent';
+end $$;
+-- Явний перенос (previousStartDate) рахується й зі сторінки з чужою датою в адресі (dev 20.10, «Травіата»).
+select pg_temp.ingest(jsonb_build_array(pg_temp.w('test_state_b',pg_temp.k('x1b'),'Явний на чужій',pg_temp.t())));
+select pg_temp.chk(pg_temp.k('x1b'),'rescheduled_away',jsonb_build_object('new_start',pg_temp.t('20 days')));
+do $$ begin assert (pg_temp.st(pg_temp.k('x1b'))).starts_at = pg_temp.t('20 days'), 'explicit reschedule on a dated address'; end $$;
+select pg_temp.chk('f1b','rescheduled_away',jsonb_build_object('new_start',pg_temp.t('2 hours')));
+do $$ begin assert (pg_temp.st('f1a')).starts_at = pg_temp.t('2 hours'), 'explicit reschedule still moves'; end $$;
+
+-- Як c2b5b8cf на prod: стан уже «перенесли» за старими правилами. Перерахунок з причиною відкликає тихо.
+select pg_temp.ingest(jsonb_build_array(pg_temp.w('test_state_a','r1a','Відкликаний',pg_temp.t())));
+select pg_temp.ingest(jsonb_build_array(pg_temp.c('test_state_b',pg_temp.k('r1b'),'Відкликаний',pg_temp.t(),'r1a')));
+select pg_temp.gone(pg_temp.k('r1b'));
+insert into private.offer_checks(offer_id, why, expected, url, http, verdict, detail)
+select o.id, 'vanished', o.starts_at, o.canonical_url, 200, 'moved_silent',
+ jsonb_build_object('new_start', pg_temp.t('14 days'), 'name', 'Відкликаний') from pg_temp.offer(pg_temp.k('r1b')) o;
+insert into private.event_state(event_id, starts_at, previous_starts_at, state_changed_at)
+values (pg_temp.ev('r1a'), pg_temp.t('14 days'), pg_temp.t(), now());
+insert into private.event_state_log(event_id, from_state, to_state, from_starts_at, to_starts_at, change, evidence, would_push, recipients)
+values (pg_temp.ev('r1a'), 'scheduled', 'scheduled', pg_temp.t(), pg_temp.t('14 days'), 'moved', '{"kind":"jsonld","says":"moved"}', true,
+ array[current_setting('test.a')::uuid]);
+select private.refresh_event_state(pg_temp.ev('r1a'), 'правила R4 20.10');
+-- Ціль зайнята, а на старому часі подію ніхто не бачить (dev 20.10, FOREX): перерахунок за новими правилами все одно
+-- відкликає перенос — нові правила його б не зробили; живий пуш без свідчення на старому часі — ні.
+select pg_temp.ingest(jsonb_build_array(pg_temp.w('test_state_a','u2a','Зайнята без свідка',pg_temp.t('7 days'))));
+update public.events set created_at = now() - interval '10 days' where id = pg_temp.ev('u2a');
+select pg_temp.ingest(jsonb_build_array(pg_temp.w('test_state_b','u1b','Зайнята без свідка',pg_temp.t())));
+select pg_temp.gone('u1b');
+insert into private.offer_checks(offer_id, why, expected, url, http, verdict, detail)
+select o.id, 'vanished', o.starts_at, o.canonical_url, 200, 'moved_silent',
+ jsonb_build_object('new_start', pg_temp.t('7 days'), 'name', 'Зайнята без свідка') from pg_temp.offer('u1b') o;
+insert into private.event_state(event_id, starts_at, previous_starts_at, state_changed_at)
+values (pg_temp.ev('u1b'), pg_temp.t('7 days'), pg_temp.t(), now());
+do $$ begin
+ assert private.refresh_event_state(pg_temp.ev('u1b')) is null, 'live: no correction push without a witness';
+ assert private.refresh_event_state(pg_temp.ev('u1b'), 'правила R4 20.10') = 'corrected'
+   and (pg_temp.st('u1b')).starts_at = pg_temp.t(), 'recheck: the move is withdrawn';
+end $$;
+do $$ declare s private.event_state := pg_temp.st('r1a'); l private.event_state_log; begin
+ select * into l from private.event_state_log where event_id = pg_temp.ev('r1a') order by id desc limit 1;
+ assert s.starts_at = pg_temp.t() and s.previous_starts_at is null and s.state = 'scheduled', 'back to the real time';
+ assert l.change = 'corrected' and not l.would_push and l.recipients = '{}' and l.evidence->>'reason' = 'правила R4 20.10',
+   'withdrawn quietly: nobody got a push in the shadow';
+ assert exists (select 1 from private.offer_detach_queue where offer_id = (pg_temp.offer(pg_temp.k('r1b'))).id), 'r1b queued';
+ assert private.refresh_event_state(pg_temp.ev('r1a')) is null, 'stable after the fix';
+end $$;
+
 -- ── 10. Звіт тіні збирається; без сильного свідчення пуша б не було.
 do $$ begin
  assert (select count(*) from private.shadow_report(7) where section = 'точність') = 1, 'accuracy row';
  assert exists (select 1 from private.shadow_report(7) where section = 'аудит' and note like 'https://example.invalid/%'), 'audit sample';
  assert not exists (select 1 from private.event_state_log where would_push and event_id in (select event_id from public.event_offers o
    join public.event_sources s on s.id = o.source_id where s.slug like 'test_state_%')
-   and coalesce(evidence->>'says', '') not in ('cancelled','postponed','moved','alive')), 'push only on strong evidence';
+   -- Виправлення спирається на сторінку чи список, що знову бачать подію на старий час: так ми відкликаємо помилку.
+   and coalesce(evidence->>'says', '') not in ('cancelled','postponed','moved','alive','listed')), 'push only on strong evidence';
 end $$;
 
 rollback;
