@@ -57,6 +57,7 @@ do $$ declare l uuid := current_setting('test.live')::uuid; d uuid := current_se
  insert into public.event_artists(event_id,artist_id,how) select l,id,'source' from public.artists where key='тест ікс';
  insert into private.follow_announced(user_id,event_id) values (a,d),(a,l);
  insert into private.follow_seen(user_id,event_id) values (b,d);
+ insert into public.reports(reporter_id,subject_type,event_id,reason) values (b,'event',d,'scam');
  -- Супутники: збір a переходить; у b уже є збір на живій події, тож його другий лишається на надгробку.
  insert into public.events(id,organizer_id,title,description,category,city,address,latitude,longitude,starts_at,ends_at,time_zone,capacity,companion_of) values
   (gen_random_uuid(),a,'Йдемо разом: А','Test description','music','Ocean','Buoy, 1',-40.5,-30.5,now()+interval '9 days',now()+interval '10 days','UTC',4,d),
@@ -82,8 +83,10 @@ do $$ declare l uuid := current_setting('test.live')::uuid; d uuid := current_se
  assert not exists (select 1 from public.event_members where event_id=d) and not exists (select 1 from public.event_waitlist where event_id=d)
    and not exists (select 1 from public.event_ratings where event_id=d) and not exists (select 1 from public.event_messages where event_id=d)
    and not exists (select 1 from public.chat_reads where event_id=d) and not exists (select 1 from public.event_artists where event_id=d)
-   and not exists (select 1 from private.follow_announced where event_id=d) and not exists (select 1 from private.follow_seen where event_id=d),
+   and not exists (select 1 from private.follow_announced where event_id=d) and not exists (select 1 from private.follow_seen where event_id=d)
+   and not exists (select 1 from public.reports where event_id=d),
    'every link moved off the tombstone';
+ assert exists (select 1 from public.reports where event_id=l and reporter_id=b), 'report follows the event';
  -- Переїхало, дублі за ключем відкинуто, решта на місці.
  assert (select array_agg(user_id order by user_id) from public.saved_events where event_id=l)=(select array_agg(x order by x) from unnest(array[a,b]) x), 'both saves on the live event';
  assert (select count(*) from public.saved_events)=(select saved-1 from before_links), 'only the duplicate save dropped';
@@ -103,7 +106,7 @@ do $$ declare l uuid := current_setting('test.live')::uuid; d uuid := current_se
  assert (select description from public.events where id=l)='Опис лише в копії', 'empty description filled from the tombstone';
  select moved into m from private.event_merges where from_id=d and into_id=l and reason='ingest:rule';
  assert (m->>'saved_events')::int=1 and (m->>'saved_events_dup')::int=1 and (m->>'companions')::int=1 and (m->>'companions_kept')::int=1
-   and (m->>'offers')::int=1, 'merge journal';
+   and (m->>'offers')::int=1 and (m->>'reports')::int=1, 'merge journal';
  -- Основна — та, що була (А, жива): кнопка не перескакує.
  select * into e from public.events where id=l;
  assert e.import_status='live' and e.canonical_url='https://example.invalid/live-1' and e.source_uid='live-1', 'primary stays';
