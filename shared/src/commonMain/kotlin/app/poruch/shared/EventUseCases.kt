@@ -98,9 +98,15 @@ internal class EventUseCases(
      * збої повертаємо як було й показуємо помилку.
      */
     fun toggleSaved(id: String) {
-        if (!store.value.signedIn) return store.failed(AppError.SessionRequired, byPerson = true)
         val wasSaved = store.value.isSaved(id)
-        PoruchLog.i("action") { "toggleSaved ${id.shortId()} saved=${!wasSaved}" }
+        val guest = !store.value.signedIn
+        PoruchLog.i("action") { "toggleSaved ${id.shortId()} saved=${!wasSaved} guest=$guest" }
+        if (!wasSaved) {
+            PoruchAnalytics.track("save", "guest" to guest)
+            library.saveMade()
+        }
+        // Гість зберігає на телефоні, сервер дізнається після входу (docs/guest-saves.md).
+        if (guest) return library.setGuestSaved(id, !wasSaved)
         library.setSaved(id, !wasSaved)
         store.scope.launch {
             try {

@@ -84,7 +84,7 @@
   <string name="search_here">Шукати тут</string>
   <string name="guest_title">Ваші люди — поруч</string>
   <string name="account_title">Ви з нами</string>
-  <string name="guest_description">Увійдіть, щоб зберігати цікаве, приєднуватись і створювати власні зустрічі.</string>
+  <string name="guest_description">Увійдіть, щоб приєднуватись, стежити й створювати власні зустрічі.</string>
   <string name="logout">Вийти з профілю</string>
   <string name="name">Імʼя</string>
   <string name="email">Електронна пошта</string>
@@ -203,7 +203,9 @@
   <string name="ratings_summary">★ %1$s з 5 · оцінок: %2$d</string>
   <string name="ratings_empty">Учасники ще не оцінили зустріч. Оцінити можна протягом 14 днів після завершення.</string>
   <string name="msg_rating_sent">Дякуємо за оцінку</string>
-  <string name="guest_empty">Увійдіть, щоб бачити свої події</string>
+  <string name="guest_empty">Тут буде збережене</string>
+  <string name="guest_saved_hint">Збережіть подію — нагадаємо напередодні о 18:00</string>
+  <string name="guest_saved_note">Збережене живе на цьому телефоні. Увійдіть, щоб не загубити.</string>
   <string name="about_event">Про подію</string>
   <string name="organizer_short">Організатор</string>
   <string name="hosted_by">Збирає %1$s</string>
@@ -300,7 +302,7 @@
   <string name="from_people">Від людей</string>
   <string name="home_waiting_more">Чекають відповіді: ще %1$d</string>
   <string name="home_waiting_more_hint">Чати й запити — у «Моїх подіях»</string>
-  <string name="guest_home_slim">Увійти й зберігати події</string>
+  <string name="guest_home_slim">Увійти, щоб приєднуватись і стежити</string>
   <string name="feed_all">Усе</string>
   <string name="home_next">Далі</string>
   <string name="all_events_section">Усі події поруч</string>
@@ -886,7 +888,6 @@
   <string name="delete_account_password_hint">Для підтвердження введіть пароль</string>
   <string name="profile_events_hint">Ваші створені, збережені та заплановані події — у вкладці «Мої події».</string>
   <string name="auth_guest_note">Події можна переглядати без входу. Для участі потрібен профіль.</string>
-  <string name="auth_reason_save">Щоб зберегти подію, потрібен профіль: збережене чекатиме в «Моїх подіях».</string>
   <string name="auth_reason_join">Щоб приєднатися, потрібен профіль: організатор бачить, хто прийде.</string>
   <string name="auth_reason_follow">Щоб стежити, потрібен профіль: скажемо, коли зʼявиться нове.</string>
   <string name="auth_reason_company">Щоб шукати компанію, потрібен профіль: так інші бачать, з ким ідуть.</string>

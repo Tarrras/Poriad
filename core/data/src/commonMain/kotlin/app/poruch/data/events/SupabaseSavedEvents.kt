@@ -31,6 +31,19 @@ internal class SupabaseSavedEvents(
         )
     }
 
+    /** Один запит масивом: RLS перевіряє кожен рядок, а наявні пропускає `ignore-duplicates`. */
+    override suspend fun saveAll(ids: List<String>) {
+        if (ids.isEmpty()) return
+        val uid = userId()
+        api.request(
+            TABLE, HttpMethod.Post,
+            JsonArray(ids.map { id -> buildJsonObject { put("user_id", uid); put("event_id", id) } }),
+            auth.accessToken(),
+            query = mapOf("on_conflict" to "user_id,event_id"),
+            prefer = "resolution=ignore-duplicates,return=minimal"
+        )
+    }
+
     override suspend fun unsave(id: String) {
         api.request(
             TABLE, HttpMethod.Delete, token = auth.accessToken(),

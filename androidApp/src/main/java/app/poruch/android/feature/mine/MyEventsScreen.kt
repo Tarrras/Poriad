@@ -1,6 +1,7 @@
 package app.poruch.android.feature.mine
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -88,10 +89,10 @@ fun MyEventsScreen(state: MyEventsState, onIntent: (MyEventsIntent) -> Unit) {
                 }
             }
         }
-        if (!state.screen.signedIn) EmptyState(
+        if (!state.screen.signedIn && state.screen.board.savedAhead == 0) EmptyState(
             PoruchIcons.ticket,
             stringResource(R.string.guest_empty),
-            stringResource(R.string.guest_description),
+            stringResource(R.string.guest_saved_hint),
             Modifier.padding(top = Spacing.section),
             stringResource(R.string.login),
             { onIntent(MyEventsIntent.SignIn) }
@@ -123,6 +124,7 @@ fun MyEventsScreen(state: MyEventsState, onIntent: (MyEventsIntent) -> Unit) {
                     verticalArrangement = Arrangement.spacedBy(Spacing.xxl)
                 ) {
                     val nothingAhead = state.screen.board.nothingAhead(state.tab)
+                    if (!state.screen.signedIn) item(key = "guest") { GuestNote { onIntent(MyEventsIntent.SignIn) } }
                     // Попереду нічого, а минулі є: першою йде дія, а не три сірі минулі.
                     if (nothingAhead) item(key = "ahead") { AheadCard(state.tab, onIntent) }
                     items(sections, key = { it.group.name }) { Section(it, state, onIntent) }
@@ -150,6 +152,24 @@ fun MyEventsScreen(state: MyEventsState, onIntent: (MyEventsIntent) -> Unit) {
             { onIntent(MyEventsIntent.DismissRating) }) { score, comment, tags, following ->
             onIntent(MyEventsIntent.Rate(event.id, score, comment, tags, following))
         }
+    }
+}
+
+/** Закладки гостя живуть лише на телефоні: чесно кажемо, навіщо входити. */
+@Composable
+private fun GuestNote(onSignIn: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onSignIn),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.md),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            stringResource(R.string.guest_saved_note), Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyMedium, color = Poruch.colors.inkSecondary
+        )
+        Text(stringResource(R.string.login), style = MaterialTheme.typography.labelLarge, color = Poruch.colors.ink)
     }
 }
 

@@ -39,8 +39,8 @@ internal class IdentitySync(
         library.clear(); chat.close(); discovery.reset()
         store.update { it.forAccount(uid, auth.session.value?.takeIf { it.userId == uid }?.providers.orEmpty()) }
         discovery.refresh()
-        if (uid != null) {
-            library.load(); push.register()
-        }
+        // Гість теж: його закладки живуть на телефоні (docs/guest-saves.md).
+        library.load()
+        if (uid != null) push.register()
     }
 }

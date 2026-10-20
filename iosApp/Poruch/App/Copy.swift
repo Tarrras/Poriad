@@ -58,7 +58,7 @@ enum Copy {
     static let search_here = "Шукати тут"
     static let guest_title = "Ваші люди — поруч"
     static let account_title = "Ви з нами"
-    static let guest_description = "Увійдіть, щоб зберігати цікаве, приєднуватись і створювати власні зустрічі."
+    static let guest_description = "Увійдіть, щоб приєднуватись, стежити й створювати власні зустрічі."
     static let logout = "Вийти з профілю"
     static let name = "Імʼя"
     static let email = "Електронна пошта"
@@ -175,7 +175,9 @@ enum Copy {
     static func ratings_summary(_ a0: String, _ a1: String) -> String { "★ \(a0) з 5 · оцінок: \(a1)" }
     static let ratings_empty = "Учасники ще не оцінили зустріч. Оцінити можна протягом 14 днів після завершення."
     static let msg_rating_sent = "Дякуємо за оцінку"
-    static let guest_empty = "Увійдіть, щоб бачити свої події"
+    static let guest_empty = "Тут буде збережене"
+    static let guest_saved_hint = "Збережіть подію — нагадаємо напередодні о 18:00"
+    static let guest_saved_note = "Збережене живе на цьому телефоні. Увійдіть, щоб не загубити."
     static let about_event = "Про подію"
     static let organizer_short = "Організатор"
     static func hosted_by(_ a0: String) -> String { "Збирає \(a0)" }
@@ -260,7 +262,7 @@ enum Copy {
     static let from_people = "Від людей"
     static func home_waiting_more(_ a0: String) -> String { "Чекають відповіді: ще \(a0)" }
     static let home_waiting_more_hint = "Чати й запити — у «Моїх подіях»"
-    static let guest_home_slim = "Увійти й зберігати події"
+    static let guest_home_slim = "Увійти, щоб приєднуватись і стежити"
     static let feed_all = "Усе"
     static let home_next = "Далі"
     static let all_events_section = "Усі події поруч"
@@ -725,7 +727,6 @@ enum Copy {
     static let delete_account_password_hint = "Для підтвердження введіть пароль"
     static let profile_events_hint = "Ваші створені, збережені та заплановані події — у вкладці «Мої події»."
     static let auth_guest_note = "Події можна переглядати без входу. Для участі потрібен профіль."
-    static let auth_reason_save = "Щоб зберегти подію, потрібен профіль: збережене чекатиме в «Моїх подіях»."
     static let auth_reason_join = "Щоб приєднатися, потрібен профіль: організатор бачить, хто прийде."
     static let auth_reason_follow = "Щоб стежити, потрібен профіль: скажемо, коли зʼявиться нове."
     static let auth_reason_company = "Щоб шукати компанію, потрібен профіль: так інші бачать, з ким ідуть."

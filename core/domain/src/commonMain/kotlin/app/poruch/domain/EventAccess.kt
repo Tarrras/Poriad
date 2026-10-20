@@ -61,6 +61,18 @@ interface SavedEvents {
     suspend fun savedIds(): List<String>
     suspend fun save(id: String)
     suspend fun unsave(id: String)
+
+    /** Закладки гостя після входу (docs/guest-saves.md). Повтор уже збереженої — не помилка. */
+    suspend fun saveAll(ids: List<String>) = ids.forEach { save(it) }
+}
+
+/**
+ * Закладки гостя: лише на телефоні, доки людина не ввійде (docs/guest-saves.md). Після входу переходять в акаунт і
+ * стираються, тож закладки акаунта сюди ніколи не потрапляють.
+ */
+interface GuestSavedStore {
+    fun ids(): List<String>
+    fun write(ids: List<String>)
 }
 
 /** Свої події: створити, змінити, скасувати. Сервер віддає це лише організаторові. */

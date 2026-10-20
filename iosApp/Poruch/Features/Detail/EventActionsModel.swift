@@ -48,11 +48,8 @@ import Shared
         return true
     }
 
-    func toggleSaved(_ event: Event, signedIn: Bool) -> Bool {
-        guard signedIn else { return false }
-        app.toggleSaved(id: event.id)
-        return true
-    }
+    /// Гість теж: закладка лягає на телефон, а після входу переходить в акаунт (docs/guest-saves.md).
+    func toggleSaved(_ event: Event) { app.toggleSaved(id: event.id) }
 
     func cancel(_ event: Event) { app.cancelEvent(id: event.id) }
 

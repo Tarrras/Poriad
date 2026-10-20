@@ -8,7 +8,7 @@ enum AuthReason: Identifiable {
     case general
     /// Тап по «Організувати подію» чи «+»: гість найімовірніше новий, тож відкриваємо реєстрацію, а після неї — редактор.
     case create
-    case save, join, follow, company
+    case join, follow, company
 
     var id: Self { self }
 
@@ -17,7 +17,6 @@ enum AuthReason: Identifiable {
         switch self {
         case .general: nil
         case .create: "create"
-        case .save: "save"
         case .join: "join"
         case .follow: "follow"
         case .company: "companion"
@@ -91,7 +90,6 @@ struct AuthView: View {
         switch reason {
         case .general: form.register ? Copy.auth_subtitle_signup : Copy.auth_guest_note
         case .create: form.register ? Copy.auth_subtitle_create_signup : Copy.auth_subtitle_create_signin
-        case .save: Copy.auth_reason_save
         case .join: Copy.auth_reason_join
         case .follow: Copy.auth_reason_follow
         case .company: Copy.auth_reason_company

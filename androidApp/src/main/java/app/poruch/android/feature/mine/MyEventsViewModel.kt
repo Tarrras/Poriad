@@ -2,6 +2,7 @@ package app.poruch.android.feature.mine
 
 import androidx.lifecycle.viewModelScope
 import app.poruch.android.mvi.MviViewModel
+import app.poruch.domain.MyEventsTab
 import app.poruch.shared.MyEventsPresenter
 import app.poruch.shared.PoruchApp
 import kotlinx.coroutines.Job
@@ -23,7 +24,12 @@ class MyEventsViewModel(private val app: PoruchApp) :
                     // Рішення — з першою дошкою, де щось є; порожній знімок до завантаження інакше закріпив би «Іду».
                     val b = screen.board
                     val ready = !tabChosen && b.goingAhead + b.organizingAhead + b.savedAhead > 0
-                    if (ready) copy(screen = screen, tab = b.openingTab, tabChosen = true) else copy(screen = screen)
+                    when {
+                        // Гість лише зберігає (docs/guest-saves.md): розрізів у нього нема, рядки — закладки.
+                        !screen.signedIn -> copy(screen = screen, tab = MyEventsTab.SAVED)
+                        ready -> copy(screen = screen, tab = b.openingTab, tabChosen = true)
+                        else -> copy(screen = screen)
+                    }
                 }
             }
         }

@@ -48,6 +48,8 @@ struct MyEventsView: View, Equatable {
         .background(Palette.canvas)
         .toolbar(.hidden, for: .navigationBar)
         .onChange(of: tab) { _, _ in allPast = false }
+        // Гість лише зберігає (docs/guest-saves.md): розрізів у нього нема, рядки — закладки.
+        .onChange(of: signedIn, initial: true) { _, signed in if !signed { tab = .saved } }
         // Відкриваємося там, де щось попереду: організатор без власних планів не бачить порожнє «Іду».
         // Рішення — з першою дошкою, де щось попереду: порожній знімок до завантаження інакше закріпив би «Іду».
         .onChange(of: board?.openingTab, initial: true) { _, opening in
@@ -148,15 +150,16 @@ struct MyEventsView: View, Equatable {
     // ---- Вміст
 
     @ViewBuilder private func content(_ board: MyEventsBoard?) -> some View {
-        if !signedIn {
+        if !signedIn, (board?.savedAhead ?? 0) == 0 {
             EmptyState(
                 glyph: PoruchIcons.ticket, title: Copy.guest_empty,
-                message: Copy.guest_description, actionLabel: Copy.login, action: { auth = true }
+                message: Copy.guest_saved_hint, actionLabel: Copy.login, action: { auth = true }
             )
             Spacer()
         } else if let board, !board.isEmpty(tab: tab) {
             ScrollView {
                 VStack(alignment: .leading, spacing: Space.xxl) {
+                    if !signedIn { guestNote }
                     // Попереду нічого, а минулі є: першою йде дія, а не три сірі минулі.
                     if board.nothingAhead(tab: tab) { aheadCard }
                     ForEach(board.sections(tab: tab), id: \.group) { section in
@@ -175,6 +178,19 @@ struct MyEventsView: View, Equatable {
     }
 
     /// Порожній квиток з першою дією розрізу, над минулими.
+    /// Закладки гостя живуть лише на телефоні: чесно кажемо, навіщо входити.
+    private var guestNote: some View {
+        Button { auth = true } label: {
+            HStack(alignment: .firstTextBaseline, spacing: Space.md) {
+                Text(Copy.guest_saved_note).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
+                Text(Copy.login).font(PoruchFont.button).foregroundStyle(Palette.ink)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
     @ViewBuilder private var aheadCard: some View {
         if tab == .organizing {
             CreateEventCard(title: Copy.home_create_title, subtitle: Copy.home_create_subtitle) { startCreating() }

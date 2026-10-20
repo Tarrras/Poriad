@@ -21,7 +21,9 @@ internal class UserLibrary(
     private val follows: Follows?,
     private val taste: TasteStore?,
     private val store: AppStore,
-    private val scope: CoroutineScope
+    private val scope: CoroutineScope,
+    /** Закладки гостя на телефоні (docs/guest-saves.md). Null — лише в стані до перезапуску. */
+    private val guestSaves: GuestSavedStore? = null
 ) {
     private var detailJob: Job? = null
     private var listJob: Job? = null
@@ -187,17 +189,19 @@ internal class UserLibrary(
     }
 
     fun load() {
-        val uid = auth.session.value?.userId ?: return
+        val uid = auth.session.value?.userId ?: return loadGuest()
         listJob?.cancel()
         val edits = savedEdits
         val followsAtStart = followEdits
         listJob = scope.launch {
             store.update { it.copy(library = it.library.copy(loading = true)) }
             try {
+                // До `my_events`: інакше збережене гостем зʼявилось би в «Моїх подіях» лише з наступним читанням.
+                val unadopted = adoptGuestSaves()
                 // Запити незалежні: паралельно, а не десять поспіль. Перший обов'язковий збій скасовує решту.
                 coroutineScope {
                     val mine = async { events.myEvents() }
-                    val savedEvents = async { saved.savedIds() }
+                    val savedEvents = async { (saved.savedIds() + unadopted).distinct() }
                     val interests = async { adoptInterests(uid) }
                     // Черга вирішує, яку кнопку показати на деталях, тому не best-effort.
                     val queued = async { participation.waitlistIds() }
@@ -234,7 +238,8 @@ internal class UserLibrary(
                                 // «Стежити» натиснули, поки їхала відповідь, чи його запит ще в дорозі: сервер його не бачив.
                                 follows = if (followsAtStart == followEdits && followBusy == 0) result.follows ?: previous.follows else previous.follows,
                                 followEvents = result.followFeed ?: previous.followEvents,
-                                followsMade = previous.followsMade
+                                followsMade = previous.followsMade,
+                                savesMade = previous.savesMade
                             ),
                             // Відкритий чат уже прочитаний: сервер міг ще не знати.
                             chatUnread = result.unread?.filterNot { u -> u.eventId == it.chat?.eventId } ?: it.chatUnread,
@@ -260,6 +265,68 @@ internal class UserLibrary(
     /** Best-effort: збій (чи сервер без міграції) — null, і стан лишає попереднє. */
     private suspend fun <T> optional(block: suspend () -> T?): T? =
         try { block() } catch (e: CancellationException) { throw e } catch (e: Exception) { null }
+
+    /**
+     * Гість: закладки живуть на телефоні, а картки до них — з сервера, щоб нагадування й «Мої події» бачили свіже.
+     * `event_cards_by_ids` розгортає злиту подію в живу, тож надгробок замінюється живим id; зникла й минула випадають.
+     * Збій мережі — лишаємо що є.
+     */
+    private fun loadGuest() {
+        val stored = guestSaves ?: return
+        val ids = stored.ids()
+        listJob?.cancel()
+        if (ids.isEmpty()) return store.update { it.copy(library = it.library.copy(myEvents = emptyList(), savedIds = emptyList())) }
+        listJob = scope.launch {
+            try {
+                val cards = liveSaved(ids)
+                if (auth.session.value != null) return@launch
+                stored.write(cards.map { it.id })
+                store.update { it.copy(library = it.library.copy(myEvents = cards, savedIds = cards.map { e -> e.id })) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                PoruchLog.w("mine") { "guest saves not refreshed: ${e.asAppError()}" }
+            }
+        }
+    }
+
+    /** Картки закладок, що ще попереду; минулі гостю ні до чого, а в акаунт іти не мають. */
+    private suspend fun liveSaved(ids: List<String>): List<Event> {
+        val now = Clock.System.now()
+        return events.cards(ids).filterNot { it.hasEnded(now) }.distinctBy { it.id }
+    }
+
+    /**
+     * Закладки гостя переходять в акаунт, що ввійшов першим після гостя, як і інтереси ([adoptInterests]). Повертає
+     * ті, що лишились на телефоні: збій — повтор на наступному [load], а до того вони в стані разом із серверними.
+     */
+    private suspend fun adoptGuestSaves(): List<String> {
+        val stored = guestSaves ?: return emptyList()
+        val ids = stored.ids().ifEmpty { return emptyList() }
+        return try {
+            // Рядок із неіснуючою подією валить увесь масив, тож лише живі.
+            val live = liveSaved(ids).map { it.id }
+            saved.saveAll(live)
+            stored.write(emptyList())
+            PoruchLog.i("mine") { "${live.size} guest saves adopted" }
+            emptyList()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            PoruchLog.w("mine") { "guest saves not adopted: ${e.asAppError()}" }
+            ids
+        }
+    }
+
+    /** Закладка гостя: стан одразу, список на диску, а картки перечитуються — без них нема нагадування. */
+    fun setGuestSaved(id: String, saved: Boolean) {
+        setSaved(id, saved)
+        guestSaves?.write(store.value.library.savedIds)
+        loadGuest()
+    }
+
+    /** Закладку поставлено: платформа бачить першу й питає про сповіщення, див. [LibraryState.savesMade]. */
+    fun saveMade() = store.update { it.copy(library = it.library.copy(savesMade = it.library.savesMade + 1)) }
 
     /** Оптимістична закладка: стан одразу, і [load], що вже в дорозі, її не затре. */
     fun setSaved(id: String, saved: Boolean) {
