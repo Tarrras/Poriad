@@ -146,7 +146,8 @@ do $$ declare p jsonb := (select payload from pg_temp.sent); begin
    and p->>'body' = 'Збір перенесли на ' || pg_temp.w_uk(pg_temp.t('165 minutes')), 'members only, own text';
 end $$;
 
--- ── 7. Строк минув — зсув сам; уночі, коли до зустрічі ще 12 год і більше, чекаємо ранку.
+-- ── 7. Строк минув — зсув сам; уночі, коли до зустрічі ще 12 год і більше, чекаємо ранку. Перевіряємо лише свій збір:
+-- на dev у таблиці бувають справжні питання, і розв'язувач бере всю таблицю.
 select pg_temp.moved_to('pa', pg_temp.t('4 hours'));
 select pg_temp.done('pa');
 delete from pg_temp.sent;
@@ -154,10 +155,12 @@ do $$ declare night timestamptz := ((now() at time zone 'Europe/Kyiv')::date + t
  day timestamptz := ((now() at time zone 'Europe/Kyiv')::date + 1 + time '10:00') at time zone 'Europe/Kyiv'; begin
  assert (pg_temp.decision(pg_temp.u('cb'))).proposed_at = pg_temp.t('225 minutes'), 'new question after the answer';
  update private.companion_decisions set decide_by = night - interval '1 minute' where companion_id = pg_temp.u('cb');
- assert private.resolve_companion_decisions(night) = 0 and pg_temp.decision(pg_temp.u('cb')) is not null, 'night: wait';
- assert private.resolve_companion_decisions(day) = 1, 'morning: shift';
+ perform private.resolve_companion_decisions(night);
+ assert pg_temp.decision(pg_temp.u('cb')) is not null and pg_temp.meet(pg_temp.u('cb')) = pg_temp.t('165 minutes'), 'night: wait';
+ assert private.resolve_companion_decisions(day) >= 1, 'morning: shift';
  assert pg_temp.meet(pg_temp.u('cb')) = pg_temp.t('225 minutes') and pg_temp.decision(pg_temp.u('cb')) is null, 'shifted';
- assert (select array_agg(payload->>'body' order by payload->>'body') from pg_temp.sent) = array[
+ assert (select array_agg(payload->>'body' order by payload->>'body') from pg_temp.sent
+         where payload->>'event_id' = current_setting('test.cb')) = array[
    'Збір перенесли на ' || pg_temp.w_uk(pg_temp.t('225 minutes')),
    'Ми пересунули збір на 22:45. Змінити можна тут'], 'organizer: we moved it; members: moved';
 end $$;
