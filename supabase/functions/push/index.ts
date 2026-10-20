@@ -1,6 +1,7 @@
 // Edge Function `push`: тригери бази кличуть її на нове повідомлення в чаті, новий запит на
 // участь чи приєднання до відкритої події, на скасування й перенесення події (docs/event-change-push.md),
-// на нову подію організатора й зведення нових подій закладів та артистів (docs/follows.md).
+// на нову подію організатора й зведення нових подій закладів та артистів (docs/follows.md), на зміну афіші, за
+// якою людина стежить (docs/event-offers.md, R6–R7: адресатів, текст і час уже вибрала база).
 // Вона вирішує, кому слати, бере токени й шле у FCM (Android) і APNs (iOS). Тихі години для «Стежити»
 // (22:00–09:00 за Києвом) тримає база в `private.notify_push`, ще до виклику: сюди нічний пуш приходить уже вранці.
 //
@@ -20,6 +21,8 @@ type Payload =
   | { type: "message"; message_id: string; event_id: string }
   | { type: "request" | "joined"; event_id: string; user_id: string }
   | { type: "event"; kind: EventKind; event_id: string }
+  // Черга `private.event_change_pushes`: event_id — що відкриває тап (подія або супутник людини).
+  | { type: "change"; kind: EventKind; change: Change; event_id: string; title: string; body: string; user_ids: string[] }
   | { type: "follow"; kind: "organizer"; event_id: string }
   // Зведення `notify_place_follows`: одна людина, скільки нового, у скількох закладах і найближчі події.
   | { type: "follow"; kind: "place"; user_id: string; total: number; place_count: number; places: { id: string; n: number }[]; event_ids: string[] }
@@ -28,8 +31,11 @@ type Payload =
 
 type EventKind = "moved" | "cancelled";
 const EVENT_KINDS: readonly string[] = ["moved", "cancelled"];
+// Точна зміна афіші — окремим полем: випущені клієнти знають лише kind, нові рахують зміну в аналітиці.
+type Change = "cancelled" | "postponed" | "moved" | "corrected";
+const CHANGES: readonly string[] = ["cancelled", "postponed", "moved", "corrected"];
 
-type Push = { kind: "chat" | "request" | "joined" | "organizer" | "place" | "artist" | EventKind; eventId?: string; placeId?: string; artistId?: string; title: string; body: string; key: string };
+type Push = { kind: "chat" | "request" | "joined" | "organizer" | "place" | "artist" | EventKind; eventId?: string; placeId?: string; artistId?: string; change?: Change; title: string; body: string; key: string };
 type Token = { token: string; platform: "android" | "ios" };
 
 const PREVIEW = 120;
@@ -52,6 +58,7 @@ Deno.serve(async (req) => {
 
   const { push, recipients } = payload.type === "message" ? await forMessage(db, payload)
     : payload.type === "event" ? await forEvent(db, payload)
+    : payload.type === "change" ? forChange(payload)
     : payload.type === "follow" ? await forFollow(db, payload) : await forRequest(db, payload);
   if (!push || recipients.length === 0) return json({ sent: 0, reason: "no recipients" });
 
@@ -138,6 +145,14 @@ async function forEvent(db: ReturnType<typeof createClient>, p: Extract<Payload,
   }[p.kind];
   // Ключ з часом: друге перенесення — нове сповіщення, а не тиха заміна першого.
   return { push: { kind: p.kind, eventId: e.id as string, title: e.title as string, body, key: `${e.id}:${p.kind}:${Date.now()}` }, recipients };
+}
+
+// Зміна афіші: база вже прибрала заблокованих і вибрала текст (заголовок — назва події чи супутника).
+function forChange(p: Extract<Payload, { type: "change" }>) {
+  return {
+    push: { kind: p.kind, change: p.change, eventId: p.event_id, title: p.title, body: p.body, key: `${p.event_id}:${p.change}:${Date.now()}` },
+    recipients: p.user_ids,
+  };
 }
 
 // Підписки. Організатор: його підписники, крім заблокованих з ним у будь-який бік. Заклади: одна людина,
@@ -227,6 +242,7 @@ function sameSecret(given: string, expected: string): boolean {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const isUuid = (v: unknown): v is string => typeof v === "string" && UUID.test(v);
+const isText = (v: unknown): v is string => typeof v === "string" && v.length >= 1 && v.length <= 300;
 const isCount = (v: unknown): v is number => Number.isInteger(v) && (v as number) >= 1 && (v as number) <= 100_000;
 
 function isPayload(p: unknown): p is Payload {
@@ -235,6 +251,11 @@ function isPayload(p: unknown): p is Payload {
   if (o.type === "message") return typeof o.message_id === "string" && UUID.test(o.message_id) && typeof o.event_id === "string" && UUID.test(o.event_id);
   if (o.type === "request" || o.type === "joined") return typeof o.event_id === "string" && UUID.test(o.event_id) && typeof o.user_id === "string" && UUID.test(o.user_id);
   if (o.type === "event") return typeof o.kind === "string" && EVENT_KINDS.includes(o.kind) && typeof o.event_id === "string" && UUID.test(o.event_id);
+  if (o.type === "change") {
+    return typeof o.kind === "string" && EVENT_KINDS.includes(o.kind) && typeof o.change === "string" && CHANGES.includes(o.change)
+      && isUuid(o.event_id) && isText(o.title) && isText(o.body)
+      && Array.isArray(o.user_ids) && o.user_ids.length >= 1 && o.user_ids.length <= 10_000 && o.user_ids.every(isUuid);
+  }
   if (o.type === "follow" && o.kind === "organizer") return isUuid(o.event_id);
   if (o.type === "follow" && o.kind === "place") {
     return isUuid(o.user_id) && isCount(o.total) && isCount(o.place_count)
@@ -294,7 +315,7 @@ async function sendFcm(token: string, push: Push): Promise<boolean | "stale"> {
         data: {
           kind: push.kind, title: push.title, body: push.body, key: push.key,
           ...(push.eventId ? { eventId: push.eventId } : {}), ...(push.placeId ? { placeId: push.placeId } : {}),
-          ...(push.artistId ? { artistId: push.artistId } : {}),
+          ...(push.artistId ? { artistId: push.artistId } : {}), ...(push.change ? { change: push.change } : {}),
         },
         android: { priority: "high" },
       },
@@ -349,7 +370,7 @@ async function sendApns(token: string, push: Push): Promise<boolean | "stale"> {
     },
     body: JSON.stringify({
       aps: { alert: { title: push.title, body: push.body }, sound: "default", "thread-id": push.eventId ?? (push.artistId ? `artist:${push.artistId}` : `place:${push.placeId}`) },
-      kind: push.kind, eventId: push.eventId, placeId: push.placeId, artistId: push.artistId, key: push.key,
+      kind: push.kind, eventId: push.eventId, placeId: push.placeId, artistId: push.artistId, change: push.change, key: push.key,
     }),
   });
   if (res.ok) return true;
