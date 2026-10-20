@@ -581,6 +581,16 @@ enum Copy {
     static let saved_short = "Збережено"
     static let bought_prompt = "Купили? Стежитимемо за змінами"
     static let bought_prompt_save = "Зберегти"
+    static func meet_decision_ask(_ a0: String, _ a1: String, _ a2: String) -> String { "Подію перенесли на \(a0). Ваш збір о \(a1) — перенести на \(a2)?" }
+    static func meet_decision_wait(_ a0: String) -> String { "Подію перенесли на \(a0). Організатор вирішує, о котрій тепер збір." }
+    static func meet_decision_deadline(_ a0: String, _ a1: String) -> String { "Не вирішите до \(a0) — перенесемо на \(a1) самі." }
+    static func meet_move_to(_ a0: String) -> String { "Перенести на \(a0)" }
+    static let meet_other_time = "Інший час"
+    static let meet_cancel = "Скасувати збір"
+    static let meet_change = "Змінити час збору"
+    static let meet_sheet_title = "Час збору"
+    static let meet_sheet_body = "Не пізніше початку й не раніше ніж за 3 години до нього. Учасники отримають сповіщення."
+    static let meet_sheet_save = "Перенести збір"
     static let link_unavailable = "Немає застосунку, щоб відкрити посилання"
     static let nothing_found = "Нічого не знайшлося"
     static let nothing_found_hint = "Спробуйте інше слово або зніміть фільтри."

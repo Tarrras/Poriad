@@ -60,8 +60,14 @@ object CompanionRules {
         return event.isPublished && !listing.isWithdrawn && event.startInstant?.let { it > now } == true
     }
 
-    /** Новий час збору (R7б): один з [meetTimes] — сервер (`move_companion`) тримає ту саму сітку. */
-    fun canMoveTo(startsAt: String, meetAt: String, now: Instant): Boolean = meetAt in meetTimes(startsAt, now)
+    /**
+     * Новий час збору (R7б): один з [meetTimes] — сервер (`move_companion`) тримає ту саму сітку. Порівнюємо моменти, а
+     * не рядки: сервер пише «+00:00», а [meetTimes] — «Z».
+     */
+    fun canMoveTo(startsAt: String, meetAt: String, now: Instant): Boolean {
+        val meet = runCatching { Instant.parse(meetAt) }.getOrNull() ?: return false
+        return meetTimes(startsAt, now).any { Instant.parse(it) == meet }
+    }
 
     /** Час зустрічі на вибір: кроком 15 хв від трьох годин до початку до самого початку, лише майбутній. */
     fun meetTimes(startsAt: String, now: Instant): List<String> {

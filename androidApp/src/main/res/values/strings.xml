@@ -681,6 +681,17 @@
   <string name="saved_short">Збережено</string>
   <string name="bought_prompt">Купили? Стежитимемо за змінами</string>
   <string name="bought_prompt_save">Зберегти</string>
+  <!-- Збір після переносу афіші (R7а) і зміна його часу (R7б). -->
+  <string name="meet_decision_ask">Подію перенесли на %1$s. Ваш збір о %2$s — перенести на %3$s?</string>
+  <string name="meet_decision_wait">Подію перенесли на %1$s. Організатор вирішує, о котрій тепер збір.</string>
+  <string name="meet_decision_deadline">Не вирішите до %1$s — перенесемо на %2$s самі.</string>
+  <string name="meet_move_to">Перенести на %1$s</string>
+  <string name="meet_other_time">Інший час</string>
+  <string name="meet_cancel">Скасувати збір</string>
+  <string name="meet_change">Змінити час збору</string>
+  <string name="meet_sheet_title">Час збору</string>
+  <string name="meet_sheet_body">Не пізніше початку й не раніше ніж за 3 години до нього. Учасники отримають сповіщення.</string>
+  <string name="meet_sheet_save">Перенести збір</string>
   <string name="link_unavailable">Немає застосунку, щоб відкрити посилання</string>
   <!-- Порожній пошук — не те саме, що порожня околиця: підказка має вести до іншої дії. -->
   <string name="nothing_found">Нічого не знайшлося</string>
