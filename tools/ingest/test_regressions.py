@@ -735,6 +735,9 @@ class FetchLimits(unittest.TestCase):
         def read(self, n=-1):
             return self.data[:n] if n >= 0 else self.data
 
+        def geturl(self):
+            return "https://example.org"
+
         def __enter__(self):
             return self
 

@@ -34,6 +34,7 @@ class Response:
     error: str | None = None
     attempts: int = 1
     retry_after: str | None = None
+    final_url: str | None = None           # після переадресацій; None — відповіді не було
 
     @property
     def not_modified(self) -> bool:
@@ -132,7 +133,7 @@ def _get_once(url: str, *, delay: float = 2.0, etag: str | None = None,
                 # 413 не повторюється: та сама сторінка завтра буде такою ж великою.
                 return Response(url, 413, "", error=f"відповідь понад {MAX_BYTES} байтів")
             return Response(url, r.status, raw.decode("utf-8", "replace"),
-                            r.headers.get("ETag"), r.headers.get("Last-Modified"))
+                            r.headers.get("ETag"), r.headers.get("Last-Modified"), final_url=r.geturl())
     except PermissionError:
         raise
     except urllib.error.HTTPError as e:
