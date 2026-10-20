@@ -1329,9 +1329,11 @@ class Offers(unittest.TestCase):
         silent = silent[:silent.index(";\n")]
         self.assertIn("'https://example.org/bobul'", silent)
         self.assertNotIn("'https://example.org/play'", silent)
-        # Запобіжники: стара дата в майбутньому, зсув до 90 днів, та сама назва, одна майбутня пропозиція посилання.
+        # Запобіжники: стара дата в майбутньому, зсув до 90 днів, та сама назва, одна майбутня пропозиція посилання,
+        # не раніше ніж на добу.
         for guard in ("x.starts_at > now()", f"<= {emit.SILENT_MOVE_DAYS} * 86400",
-                      "private.title_key(x.title) = private.title_key(i.title)", "c.starts_at > now()", ") = 1"):
+                      "private.title_key(x.title) = private.title_key(i.title)", "c.starts_at > now()", ") = 1",
+                      "i.starts >= x.starts_at - interval '1 day'"):
             self.assertIn(guard, silent)
 
     def test_copy_is_writable_with_a_title_events_would_refuse(self):

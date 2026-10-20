@@ -83,6 +83,12 @@ def fixture() -> dict:
     bobul.single_session = True
     bobul_moved = _moved(bobul, starts_at=bobul.starts_at - dt.timedelta(hours=1),
                          ends_at=bobul.ends_at - dt.timedelta(hours=1))
+    # На три доби раніше — інший показ на сторінці шоу, не перенос: нова пропозиція, стара лишається своєю.
+    early = _build(CONCERT, name="Шоу Рано", url="https://example.org/early", startDate=future.isoformat(),
+                   endDate=(future + dt.timedelta(hours=2)).isoformat())
+    early.single_session = True
+    early_moved = _moved(early, starts_at=early.starts_at - dt.timedelta(days=3),
+                         ends_at=early.ends_at - dt.timedelta(days=3))
     # Група з двох продавців в одному дампі: одна подія, дві пропозиції.
     pair_w = _build(CONCERT, name="Гурт Пара", url="https://example.org/pair-w", startDate=future.isoformat(),
                     endDate=(future + dt.timedelta(hours=2)).isoformat())
@@ -125,6 +131,9 @@ def fixture() -> dict:
         "bobul": "".join(emit.events_sql([bobul], RUN)),
         "bobul_moved": "".join(emit.events_sql([bobul_moved], RUN)),
         "bobul_uids": [bobul.source_uid, bobul_moved.source_uid], "bobul_moved_start": bobul_moved.starts_at.isoformat(),
+        "early": "".join(emit.events_sql([early], RUN)),
+        "early_moved": "".join(emit.events_sql([early_moved], RUN)),
+        "early_uids": [early.source_uid, early_moved.source_uid],
         "pair": "".join(emit.events_sql([pair_w], RUN) + emit.events_sql([pair_c], RUN)
                         + emit.duplicates_sql([pair_w, pair_c], RUN)),
         "pair_uids": [pair_w.source_uid, pair_c.source_uid],
@@ -286,6 +295,9 @@ def check(paths: list[str]) -> None:
         assert event_of(f["bobul_uids"][1]) == bobul_event and event_of(f["bobul_uids"][0]) is None, "тихий перенос"
         assert one("select starts_at from public.events where id=%s", bobul_event) == \
             dt.datetime.fromisoformat(f["bobul_moved_start"]), "подія з новим часом"
+        run("early")
+        run("early_moved")
+        assert event_of(f["early_uids"][0]) not in (None, event_of(f["early_uids"][1])), "на раніше — не тихий перенос"
         # Двоє продавців в одному дампі: одна подія, основний — важчий.
         run("pair")
         assert event_of(f["pair_uids"][0]) == event_of(f["pair_uids"][1]) is not None

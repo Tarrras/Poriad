@@ -251,5 +251,31 @@ do $$ declare e uuid := current_setting('test.mv')::uuid; f uuid := current_sett
  assert (select merged_into from public.events where id=current_setting('test.nb')::uuid) is null, 'neighbour stays apart';
 end $$;
 
+-- ── 4. Тихий перенос на раніше більш ніж на добу — інший показ, не перенос (20261101120000_no_earlier_move).
+update private.flags set enabled = false where name = 'event_changes';
+select set_config('test.t4',(current_setting('test.t')::timestamptz+interval '30 days')::text,true);
+select pg_temp.ingest(jsonb_build_array(
+ pg_temp.w('test_clean_a','er-days','Тест Репертуар',current_setting('test.t4')::timestamptz),
+ pg_temp.w('test_clean_a','er-hour','Тест Година',current_setting('test.t4')::timestamptz+interval '5 hours'),
+ pg_temp.w('test_clean_a','er-told','Тест Сказали',current_setting('test.t4')::timestamptz+interval '10 hours')));
+select pg_temp.vanish(u) from unnest(array['er-days','er-hour','er-told']) u;
+select private.record_offer_checks(jsonb_build_array(
+ pg_temp.chk('er-days','https://example.invalid/er-other','moved_silent',
+  jsonb_build_object('new_start',current_setting('test.t4')::timestamptz-interval '3 days','name','Тест Репертуар')),
+ pg_temp.chk('er-hour',null,'moved_silent',
+  jsonb_build_object('new_start',current_setting('test.t4')::timestamptz+interval '3 hours','name','Тест Година')),
+ pg_temp.chk('er-told',null,'rescheduled_away',
+  jsonb_build_object('new_start',current_setting('test.t4')::timestamptz-interval '3 days'))));
+do $$ begin
+ assert (select state from private.event_state where event_id=pg_temp.ev('er-days'))='unknown'
+    and (select starts_at from private.event_state where event_id=pg_temp.ev('er-days'))=current_setting('test.t4')::timestamptz,
+  'earlier by days: another show, not a move';
+ assert not exists (select 1 from private.event_state_log where event_id=pg_temp.ev('er-days') and change='moved'), 'no moved';
+ assert (select starts_at from private.event_state where event_id=pg_temp.ev('er-hour'))
+        =current_setting('test.t4')::timestamptz+interval '3 hours', 'earlier within a day: moved';
+ assert (select starts_at from private.event_state where event_id=pg_temp.ev('er-told'))
+        =current_setting('test.t4')::timestamptz-interval '3 days', 'explicit reschedule earlier: moved';
+end $$;
+
 rollback;
-select 'PASS: url twins merged (saves, sherlock, not list/minute/frozen), detach queue: misattached and conflict detached, alone/no-live/live wait, stale cleared, manual resolves, report; same-page move: moved, merged with the switch, neighbour kept' as result;
+select 'PASS: url twins merged (saves, sherlock, not list/minute/frozen), detach queue: misattached and conflict detached, alone/no-live/live wait, stale cleared, manual resolves, report; same-page move: moved, merged with the switch, neighbour kept; earlier by days is not a move' as result;
