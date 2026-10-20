@@ -5,7 +5,7 @@
 -- supabase/migrations/*.sql, а цей файл показує, що вийшло в базі після всіх міграцій.
 -- Опис, мапа «функція → міграція» і спосіб перегенерації — у supabase/schema/README.md.
 --
--- Знято: 2026-10-19; у реєстрі міграцій бази — 54, остання 20261015120000_follow_fresh.
+-- Знято: 2026-10-20; у реєстрі міграцій бази — 55, остання 20261020120000_push_quiet_hours.
 -- Лише SELECT-запити до каталогу (pg_get_functiondef, pg_get_constraintdef, pg_indexes,
 -- pg_policies, pg_get_triggerdef, ACL). Рядків даних і секретів тут немає.
 --
@@ -557,7 +557,7 @@ CREATE INDEX venues_city_idx ON public.venues USING btree (city);
 ALTER TABLE public.venues ENABLE ROW LEVEL SECURITY;
 
 
--- ===== Таблиці схеми private (8) =============================================
+-- ===== Таблиці схеми private (9) =============================================
 -- Схема private не відкрита через Data API; доступ — з definer-функцій (власник postgres).
 
 -- table: private.banned_terms
@@ -566,6 +566,14 @@ CREATE TABLE private.banned_terms (
   note text,
   CONSTRAINT banned_terms_pkey PRIMARY KEY (term),
   CONSTRAINT banned_terms_term_check CHECK (((char_length(term) >= 2) AND (char_length(term) <= 60)))
+);
+
+-- table: private.deferred_pushes
+CREATE TABLE private.deferred_pushes (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  payload jsonb NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  CONSTRAINT deferred_pushes_pkey PRIMARY KEY (id)
 );
 
 -- table: private.follow_announced
@@ -716,12 +724,13 @@ CREATE POLICY poruch_image_owner_read ON storage.objects AS PERMISSIVE FOR SELEC
 
 
 -- ===== Заплановані завдання (pg_cron) =========================================
+--   flush-deferred-pushes   5 * * * *   select private.flush_deferred_pushes()
 --   notify-artist-follows   2 * * * *   select private.notify_artist_follows()
 --   notify-place-follows   7 * * * *   select private.notify_place_follows()
 
 
 -- ===== Функції (public, потім private; за назвою) ============================
--- 128 функцій: 56 у public (RPC для клієнтів і тонкі обгортки над private), 72 у private
+-- 130 функцій: 56 у public (RPC для клієнтів і тонкі обгортки над private), 74 у private
 -- (реалізації, перевірки, тригерні функції). Тексти — дослівно з pg_get_functiondef.
 
 -- execute: authenticated
@@ -2046,6 +2055,23 @@ begin
  return v_id;
 end $function$;
 
+-- execute: -
+CREATE OR REPLACE FUNCTION private.flush_deferred_pushes()
+ RETURNS integer
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare v_payload jsonb; v_sent integer := 0;
+begin
+ if private.quiet_hours() then return 0; end if;
+ for v_payload in delete from private.deferred_pushes returning payload loop
+  perform private.notify_push(v_payload);
+  v_sent := v_sent + 1;
+ end loop;
+ return v_sent;
+end $function$;
+
 -- execute: authenticated
 CREATE OR REPLACE FUNCTION private.follow(p_kind text, p_target uuid)
  RETURNS void
@@ -2488,6 +2514,12 @@ declare v_url text; v_secret text;
 begin
  select url,secret into v_url,v_secret from private.push_endpoint();
  if v_url is null or v_secret is null then return; end if;
+ -- «Стежити» вночі — у чергу до ранку: `flush_deferred_pushes` відправить, функція `push` ще раз перевірить,
+ -- що подія жива. Решта типів — транзакційні, їх не тримаємо.
+ if p_payload->>'type'='follow' and private.quiet_hours() then
+  insert into private.deferred_pushes(payload) values (p_payload);
+  return;
+ end if;
  -- Асинхронно: відповідь функції транзакцію не тримає.
  perform net.http_post(
   url:=v_url,
@@ -2707,6 +2739,16 @@ CREATE OR REPLACE FUNCTION private.push_endpoint(OUT url text, OUT secret text)
 AS $function$
  select (select decrypted_secret from vault.decrypted_secrets where name='push_function_url' limit 1),
         (select decrypted_secret from vault.decrypted_secrets where name='push_function_secret' limit 1);
+$function$;
+
+-- execute: -
+CREATE OR REPLACE FUNCTION private.quiet_hours(p_at timestamp with time zone DEFAULT now())
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE
+ SET search_path TO ''
+AS $function$
+ select extract(hour from p_at at time zone 'Europe/Kyiv') not between 9 and 21;
 $function$;
 
 -- execute: authenticated

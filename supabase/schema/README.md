@@ -1,6 +1,6 @@
 # Знімок поточної схеми Supabase
 
-[`current.sql`](current.sql) — зліпок бази **для читання**: композитні типи, 29 таблиць (стовпці, обмеження, індекси, RLS, політики, тригери, гранти), представлення та всі 128 функцій схем `public` і `private`. Навіщо: щоб знайти чинне визначення RPC, не перечитуючи 54 міграції. Наприклад, `private.update_event` і `public.search_events_in_view` оголошені в 7 міграціях кожна, `private.event_rows` і `private.create_event` — у 6; тут — рівно та версія, що працює в базі.
+[`current.sql`](current.sql) — зліпок бази **для читання**: композитні типи, 30 таблиць (стовпці, обмеження, індекси, RLS, політики, тригери, гранти), представлення та всі 130 функцій схем `public` і `private`. Навіщо: щоб знайти чинне визначення RPC, не перечитуючи 55 міграцій. Наприклад, `private.update_event` і `public.search_events_in_view` оголошені в 7 міграціях кожна, `private.event_rows` і `private.create_event` — у 6; тут — рівно та версія, що працює в базі.
 
 **Це не міграція й не джерело правди.** Джерело правди — [`../migrations/`](../migrations/): схему змінюють лише новою міграцією, `current.sql` руками не редагують і не виконують. Знімок лише показує, що вийшло після всіх міграцій.
 
@@ -8,10 +8,10 @@
 
 | | |
 |---|---|
-| Знято | 2026-10-19 |
+| Знято | 2026-10-20 (перший знімок — 2026-10-19) |
 | Джерело | prod `tzdogzdvctlumsqlqskr` (`EventOrganiztor`), лише `SELECT` до каталогу Postgres (`pg_get_functiondef`, `pg_get_constraintdef`, `pg_indexes`, `pg_policies`, `pg_get_triggerdef`, ACL) через Supabase MCP. Жодного DDL/DML, рядків даних і секретів у файлі немає |
-| Міграції | у реєстрі prod 54, у `supabase/migrations` 54 файли, назви збігаються; остання — `20261015120000_follow_fresh` |
-| Звірка з dev | dev `ojadoyxeahepycpmjuvf` теж має всі 54. Таблиці, стовпці, обмеження, індекси, RLS, політики й тригери на dev і prod ідентичні (порівняно md5 відбитків), функцій по 128. Тіла чотирьох функцій різняться **лише коментарями**: на prod немає коментарів у `discover_events` і `private.decide_member`, на dev — у `event_safety` і `private.follow`. У файлах міграцій коментарі є в усіх чотирьох, тож у знімку з prod двох коментарів не буде |
+| Міграції | у реєстрі prod 55, у `supabase/migrations` 55 файлів, назви збігаються; остання — `20261020120000_push_quiet_hours` |
+| Звірка з dev | 2026-10-20 dev теж має всі 55; звірку відбитків нижче не повторювали. Станом на 2026-10-19 dev `ojadoyxeahepycpmjuvf` мав усі 54. Таблиці, стовпці, обмеження, індекси, RLS, політики й тригери на dev і prod ідентичні (порівняно md5 відбитків), функцій по 128. Тіла чотирьох функцій різняться **лише коментарями**: на prod немає коментарів у `discover_events` і `private.decide_member`, на dev — у `event_safety` і `private.follow`. У файлах міграцій коментарі є в усіх чотирьох, тож у знімку з prod двох коментарів не буде |
 
 Знімок беремо з prod: це те, що бачать користувачі. Поки міграція застосована лише на dev, знімок відстає — це очікувано.
 
@@ -63,7 +63,7 @@ git diff --stat supabase/schema           # у diff — лише те, що зм
 
 Остання міграція, яка оголошує функцію з **чинною сигнатурою** (`create or replace function` / `create function` у `supabase/migrations`; пізніший файл перекриває ранішій). «Міграцій» — у скількох файлах оголошено функцію з такою назвою, включно зі старими сигнатурами, які вже замінені: `create_event` / `update_event` мали іншу сигнатуру до `p_min_age`, потім до `p_contact_url`, `rate_event` — до `p_tags`, `private.is_listed` — до `p_title`. Таких замінених сигнатур одинадцять, у базі їх немає. Чинні функції всі 128 знайшлись у міграціях. Перевантажених назв зараз немає, тому параметри в таблиці не показано.
 
-Таблицю друкує `python3 supabase/schema/function_map.py`; станом на 2026-10-19:
+Таблицю друкує `python3 supabase/schema/function_map.py`; станом на 2026-10-20:
 
 ### Схема `public` (56)
 
@@ -126,7 +126,7 @@ git diff --stat supabase/schema           # у diff — лише те, що зм
 | `unregister_push_token` | `20260916115335_push_notifications.sql` | 1 | authenticated |
 | `update_event` | `20260915223806_contact_link_and_request_feed.sql` | 3 | authenticated |
 
-### Схема `private` (72)
+### Схема `private` (74)
 
 | Функція | Остання міграція | Міграцій | EXECUTE |
 |---|---|---:|---|
@@ -161,6 +161,7 @@ git diff --stat supabase/schema           # у diff — лише те, що зм
 | `event_rows` | `20260928140000_companions.sql` | 6 | anon, authenticated |
 | `file_report` | `20260923100000_account_deletion.sql` | 2 | authenticated |
 | `file_report_message` | `20260923100000_account_deletion.sql` | 2 | authenticated |
+| `flush_deferred_pushes` | `20261020120000_push_quiet_hours.sql` | 1 | — |
 | `follow` | `20261002120000_artists.sql` | 2 | authenticated |
 | `follow_events` | `20261008120000_series_counts.sql` | 3 | authenticated |
 | `follows_seen` | `20261015120000_follow_fresh.sql` | 1 | authenticated |
@@ -180,7 +181,7 @@ git diff --stat supabase/schema           # у diff — лише те, що зм
 | `my_ratings` | `20260926100000_my_events_waitlist_and_ratings.sql` | 1 | authenticated |
 | `notify_artist_follows` | `20261008120000_series_counts.sql` | 2 | — |
 | `notify_place_follows` | `20260928160000_follows.sql` | 1 | — |
-| `notify_push` | `20260916115335_push_notifications.sql` | 1 | — |
+| `notify_push` | `20261020120000_push_quiet_hours.sql` | 2 | — |
 | `on_event_changed` | `20260928120000_event_change_push.sql` | 1 | — |
 | `on_event_published` | `20260928160000_follows.sql` | 1 | — |
 | `on_member_requested` | `20260923130000_push_on_join.sql` | 2 | — |
@@ -193,6 +194,7 @@ git diff --stat supabase/schema           # у diff — лише те, що зм
 | `profile_card` | `20260924100000_profiles.sql` | 1 | authenticated |
 | `promote_waitlist` | `20260907150000_listing_has_no_capacity.sql` | 3 | — |
 | `push_endpoint` | `20260916115335_push_notifications.sql` | 1 | — |
+| `quiet_hours` | `20261020120000_push_quiet_hours.sql` | 1 | — |
 | `rate_event` | `20260927100000_rating_tags_by_category.sql` | 4 | authenticated |
 | `register_push_token` | `20260917110000_abuse_limits.sql` | 2 | authenticated |
 | `report_rating` | `20260923100100_ugc_ratings_and_limits.sql` | 1 | authenticated |
