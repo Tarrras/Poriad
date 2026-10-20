@@ -168,6 +168,8 @@ struct RootView: View {
                     .task { digestAsk = await DigestPrompt.due(digestEnabled: root.digestEnabled) }
                     // Перша підписка за запуск: питаємо про сповіщення, без них пуші про нове не дійдуть.
                     .onChange(of: root.followsMade) { _, made in if made > 0 { FollowPrompt.ask() } }
+                    // Перша закладка, і гостя теж: нагадування напередодні без дозволу не прийде (docs/guest-saves.md).
+                    .onChange(of: root.savesMade) { _, made in if made > 0 { ReminderPrompt.offer(model.app) } }
                     .onChange(of: root.reviewMoment) { _, moment in
                         guard moment else { return }
                         let due = ReviewPrompt.due()

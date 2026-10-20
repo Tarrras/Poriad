@@ -88,9 +88,10 @@ class DetailViewModel(
             is DetailIntent.BoughtPromptAnswered -> if (state.value.boughtPrompt) {
                 reduce { copy(boughtPrompt = false) }
                 app.boughtPromptAnswered(intent.saved)
-                if (intent.saved) authenticated(AuthReason.SAVE) { if (!screen.saved) app.toggleSaved(eventId) }
+                // Гість теж: закладка лягає на телефон (docs/guest-saves.md).
+                if (intent.saved && !screen.saved) app.toggleSaved(eventId)
             }
-            DetailIntent.ToggleSaved -> authenticated(AuthReason.SAVE) { app.toggleSaved(eventId) }
+            DetailIntent.ToggleSaved -> app.toggleSaved(eventId)
             DetailIntent.Share -> event?.let { send(DetailEffect.ShareEvent(it)) }
             DetailIntent.AddToCalendar -> event?.let { send(DetailEffect.OpenCalendar(it)) }
             DetailIntent.OpenInMaps -> event?.let { send(DetailEffect.OpenMaps(it)) }

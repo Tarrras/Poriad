@@ -105,8 +105,15 @@ class MyEventsRulesTest {
         assertEquals(1, b.savedThisWeek)
     }
 
-    @Test fun guestHasNothing() {
-        val b = MyEventsRules.board(listOf(room("x", "2026-09-26T15:00:00Z", joined = true)), null, emptyList(), emptyList(), emptyList(), emptyList(), now, kyiv)
-        assertEquals(MyEventsBoard(), b)
+    /** Гість лише зберігає (docs/guest-saves.md): імпортовані без організатора не стають «своїми». */
+    @Test fun guestSeesOnlySaved() {
+        val listing = room("listing", "2026-09-26T15:00:00Z").copy(gathering = null, listing = Listing(sourceName = "Karabas"))
+        val events = listOf(room("x", "2026-09-26T15:00:00Z", joined = true), listing)
+        val b = MyEventsRules.board(events, null, listOf("listing"), emptyList(), emptyList(), emptyList(), now, kyiv)
+        assertTrue(b.going.isEmpty())
+        assertTrue(b.organizing.isEmpty())
+        assertEquals(mapOf(MyEventsGroup.THIS_WEEK to listOf("listing")), b.ids(MyEventsTab.SAVED))
+        assertEquals(MyEventsTab.SAVED, b.openingTab)
+        assertEquals(MyEventsBoard(), MyEventsRules.board(events, null, emptyList(), emptyList(), emptyList(), emptyList(), now, kyiv))
     }
 }

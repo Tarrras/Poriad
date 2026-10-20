@@ -55,6 +55,8 @@ class PoruchApp internal constructor(
     private val boughtAsked: SeenRequestStore? = null,
     /** Що востаннє почув сервер каналу повернення. Null — канал вимкнено (тести, превʼю). */
     deviceTouch: DeviceTouchStore? = null,
+    /** Закладки гостя на телефоні (docs/guest-saves.md). Null — гість зберігає лише до перезапуску (тести, превʼю). */
+    guestSaves: GuestSavedStore? = null,
     config: AppConfig = AppConfig("", ""),
     /** Стан живе на головному потоці: звідси читають і Compose, і SwiftUI. */
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
@@ -72,7 +74,9 @@ class PoruchApp internal constructor(
             remindersEnabled = reminderStore?.enabled() ?: false,
             digestEnabled = reminderStore?.digestEnabled() ?: true,
             analyticsEnabled = analyticsStore?.enabled() ?: true,
-            city = CityState(startCity.city, startCity.latitude, startCity.longitude)
+            city = CityState(startCity.city, startCity.latitude, startCity.longitude),
+            // Кнопки гостя знають свої закладки з першого кадру; картки до них доїдуть з `load()`.
+            library = LibraryState(savedIds = if (auth.session.value == null) guestSaves?.ids().orEmpty() else emptyList())
         ),
         scope
     )
@@ -92,7 +96,8 @@ class PoruchApp internal constructor(
         follows,
         tasteStore,
         store,
-        scope
+        scope,
+        guestSaves
     )
     private val chatEngine = ChatEngine(chat, store, scope)
     private val reloader = Reloader(discovery, library)
@@ -129,7 +134,7 @@ class PoruchApp internal constructor(
         pushSync.retryPending()
         pushSync.start()
         refresh()
-        if (state.value.signedIn) loadMyEvents()
+        loadMyEvents()
         if (reminders != null) ReminderSync(state, reminders, scope).start()
         if (requestNotifier != null && seenRequests != null) RequestAlertSync(
             state,
@@ -376,9 +381,11 @@ class PoruchApp internal constructor(
 
     /**
      * Сповіщення відкрито тапом. [reason] — що воно було: chat, request, joined, moved, cancelled, place,
-     * artist, organizer, reminder. Єдиний спосіб дізнатись, який тригер повертає людей, а який лише дратує.
+     * artist, organizer, reminder, saved. Єдиний спосіб дізнатись, який тригер повертає людей, а який лише дратує.
+     * `saved` несе й `guest`: чи нагадування повертає саме гостя (docs/guest-saves.md).
      */
-    fun pushOpened(reason: String) = PoruchAnalytics.track("push_open", "reason" to reason)
+    fun pushOpened(reason: String) =
+        PoruchAnalytics.track("push_open", "reason" to reason, "guest" to (!state.value.signedIn).takeIf { reason == "saved" })
 
     /** Тап по пушу повернення: [step] 1 — близько 30-го дня тиші, 2 — 60-го. Порівнюється з контрольною групою на сервері. */
     fun winbackOpened(step: Int) = PoruchAnalytics.track("push_open", "reason" to "winback", "step" to step)

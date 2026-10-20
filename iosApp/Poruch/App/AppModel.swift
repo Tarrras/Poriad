@@ -48,6 +48,7 @@ extension EnvironmentValues {
     private(set) var needsOnboarding = false
     private(set) var digestEnabled = true
     private(set) var followsMade: Int32 = 0
+    private(set) var savesMade: Int32 = 0
     private(set) var reviewMoment = false
     private(set) var waitingEvents = 0
     /// Нове в підписках: крапка на «Профілі».
@@ -61,6 +62,7 @@ extension EnvironmentValues {
         if needsOnboarding != state.needsOnboarding { needsOnboarding = state.needsOnboarding }
         if digestEnabled != state.digestEnabled { digestEnabled = state.digestEnabled }
         if followsMade != state.library.followsMade { followsMade = state.library.followsMade }
+        if savesMade != state.library.savesMade { savesMade = state.library.savesMade }
         if reviewMoment != state.reviewMoment { reviewMoment = state.reviewMoment }
         let waiting = Int(state.waitingEvents)
         if waitingEvents != waiting { waitingEvents = waiting }

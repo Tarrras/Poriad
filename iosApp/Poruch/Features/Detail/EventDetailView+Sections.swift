@@ -40,7 +40,7 @@ extension EventDetailView {
                     ScrimButton(
                         glyph: view.saved ? PoruchIcons.bookmarkFilled : PoruchIcons.bookmark,
                         label: view.saved ? Copy.unsave : Copy.save
-                    ) { if !actions.toggleSaved(event, signedIn: view.signedIn) { auth = .save } }
+                    ) { actions.toggleSaved(event) }
                 }.padding(Space.page)
             }
     }
@@ -617,7 +617,7 @@ extension EventDetailView {
             // Обіцянка «Зберегти» (R9): зберегти = стежити за змінами, з квитком чи без.
             if !refund && !view.ended {
                 Divider().overlay(Palette.hairline)
-                Button { if !actions.toggleSaved(event, signedIn: view.signedIn) { auth = .save } } label: {
+                Button { actions.toggleSaved(event) } label: {
                     HStack(spacing: Space.md) {
                         PoruchIcon(glyph: view.saved ? PoruchIcons.bookmarkFilled : PoruchIcons.bookmark, size: 20).foregroundStyle(Palette.ink)
                         VStack(alignment: .leading, spacing: 2) {
@@ -679,7 +679,7 @@ extension EventDetailView {
             Button(Copy.bought_prompt_save) {
                 boughtPrompt = false
                 model.app.boughtPromptAnswered(saved: true)
-                if !view.saved, !actions.toggleSaved(event, signedIn: view.signedIn) { auth = .save }
+                if !view.saved { actions.toggleSaved(event) }
             }
             .font(PoruchFont.button).foregroundStyle(Palette.onBrand)
             .padding(.horizontal, Space.lg).frame(minHeight: 40).background(Palette.ink, in: buttonShape)

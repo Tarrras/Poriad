@@ -85,7 +85,6 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
                         // Навіщо профіль саме зараз: гість прийшов з дією, і рядок під заголовком — про неї.
                         else -> when (state.reason) {
                             AuthReason.CREATE -> if (state.signup) R.string.auth_subtitle_create_signup else R.string.auth_subtitle_create_signin
-                            AuthReason.SAVE -> R.string.auth_reason_save
                             AuthReason.JOIN -> R.string.auth_reason_join
                             AuthReason.FOLLOW -> R.string.auth_reason_follow
                             AuthReason.COMPANY -> R.string.auth_reason_company

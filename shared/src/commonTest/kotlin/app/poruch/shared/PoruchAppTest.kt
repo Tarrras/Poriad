@@ -72,7 +72,9 @@ class PoruchAppTest {
         override fun cached(query:EventQuery)=DiscoveryPage.Empty
         /** Картки, яких нема у видачі, але сервер їх віддає за id: подія, відкрита посиланням. */
         var offFeedCards=emptyList<Event>()
-        override suspend fun cards(ids:List<String>):List<Event> { cardRequests+=ids; return (results+offFeedCards).filter { it.id in ids } }
+        /** Надгробок → жива подія, як `private.live_event_id` у `event_cards_by_ids`. */
+        var mergedInto=emptyMap<String,String>()
+        override suspend fun cards(ids:List<String>):List<Event> { cardRequests+=ids; val live=ids.map { mergedInto[it]?:it }; return (results+offFeedCards).filter { it.id in live } }
         var failPending=false
         var failFacts=false
         var detailsById=emptyMap<String,Event>()
@@ -157,10 +159,10 @@ class PoruchAppTest {
         }
     }
 
-    private fun app(events:Events,scope:CoroutineScope,auth:Auth=Auth(),cities:CityStore?=null,follows:Follows?=null,bought:SeenRequestStore?=null):PoruchApp {
+    private fun app(events:Events,scope:CoroutineScope,auth:Auth=Auth(),cities:CityStore?=null,follows:Follows?=null,bought:SeenRequestStore?=null,guestSaves:GuestSavedStore?=null):PoruchApp {
         return PoruchApp(
             events=events, saved=events, authoring=events, participation=events, requests=events, chat=events,
-            auth=auth, cityStore=cities, follows=follows, boughtAsked=bought,
+            auth=auth, cityStore=cities, follows=follows, boughtAsked=bought, guestSaves=guestSaves,
             geo=object:GeoSearchRepository { override suspend fun search(query:String)=emptyList<CityResult>() },
             eventActions=EventActions(events,events,auth), accountActions=AccountActions(auth),
             safety=safety, profiles=profiles, tasteStore=taste, reminderStore=reminders, scope=scope
@@ -1026,6 +1028,71 @@ class PoruchAppTest {
         assertFalse(app.state.value.isSaved("event-1"),"зняття теж миттєве")
         advanceTimeBy(200);runCurrent()
         assertEquals(listOf("event-1"),events.unsaves)
+        app.close()
+    }
+
+    /** Закладки гостя в пам'яті замість `device:saved`. */
+    private class GuestSaves(var stored:List<String> = emptyList()): GuestSavedStore {
+        override fun ids()=stored
+        override fun write(ids:List<String>) { stored=ids }
+    }
+    private val later="2030-01-10T18:00:00Z"
+
+    /** Гість зберігає без входу: на телефоні, без запиту й без стіни (docs/guest-saves.md). */
+    @Test fun aGuestSavesOnThePhone()=runTest {
+        val events=Events().apply { offFeedCards=listOf(event("e1",EventCategory.MUSIC,later)) }
+        val guest=GuestSaves(); val auth=Auth().apply { session.value=null }
+        val app=app(events,backgroundScope,auth,guestSaves=guest); runCurrent(); advanceTimeBy(1000); runCurrent()
+        app.toggleSaved("e1"); runCurrent()
+        assertTrue(app.state.value.isSaved("e1"))
+        assertNotEquals(AppNotice.Failed(AppError.SessionRequired),app.state.value.notice)
+        assertEquals(listOf("e1"),guest.stored)
+        assertEquals(listOf("e1"),app.state.value.library.myEvents.map { it.id },"картка — для нагадування й «Моїх подій»")
+        assertEquals(1,app.state.value.library.savesMade,"платформа питає про сповіщення")
+        advanceTimeBy(200); runCurrent()
+        assertTrue(events.saves.isEmpty(),"сервер нічого не знає до входу")
+        app.toggleSaved("e1"); runCurrent()
+        assertTrue(guest.stored.isEmpty())
+        assertEquals(1,app.state.value.library.savesMade,"зняття — не закладка")
+        app.close()
+    }
+
+    /** Злиту подію сервер розгортає в живу: на телефоні лишається живий id, і нагадування — про неї. */
+    @Test fun aMergedGuestSaveBecomesTheLiveEvent()=runTest {
+        val events=Events().apply { offFeedCards=listOf(event("live",EventCategory.MUSIC,later)); mergedInto=mapOf("twin" to "live") }
+        val guest=GuestSaves(listOf("twin","live")); val auth=Auth().apply { session.value=null }
+        val app=app(events,backgroundScope,auth,guestSaves=guest); runCurrent(); advanceTimeBy(1000); runCurrent()
+        assertEquals(listOf("live"),guest.stored)
+        assertTrue(app.state.value.isSaved("live"))
+        app.close()
+    }
+
+    /** Після входу закладки гостя переходять в акаунт і зникають з телефона; зникла подія випадає ще в гостя. */
+    @Test fun guestSavesMoveIntoTheAccountOnSignIn()=runTest {
+        val events=Events().apply { offFeedCards=listOf(event("e1",EventCategory.MUSIC,later)) }
+        val guest=GuestSaves(listOf("e1","gone")); val auth=Auth().apply { session.value=null }
+        val app=app(events,backgroundScope,auth,guestSaves=guest); runCurrent(); advanceTimeBy(1000); runCurrent()
+        assertEquals(listOf("e1"),guest.stored)
+        assertTrue(app.state.value.isSaved("e1"))
+        auth.session.value=UserSession("user","token","refresh",9999999999); runCurrent(); advanceTimeBy(1000); runCurrent()
+        assertEquals(listOf("e1"),events.saves)
+        assertTrue(guest.stored.isEmpty())
+        auth.session.value=null; runCurrent(); advanceTimeBy(1000); runCurrent()
+        assertFalse(app.state.value.isSaved("e1"),"після виходу гість починає з порожнього")
+        app.close()
+    }
+
+    /** Перенесення не вдалось: закладки лишаються на телефоні й видні разом із серверними, повтор — з наступним читанням. */
+    @Test fun aFailedAdoptionKeepsGuestSavesUntilTheNextLoad()=runTest {
+        val events=Events().apply { offFeedCards=listOf(event("e1",EventCategory.MUSIC,later)); failSave=true }
+        val guest=GuestSaves(listOf("e1","gone"))
+        val app=app(events,backgroundScope,guestSaves=guest); runCurrent(); advanceTimeBy(1000); runCurrent()
+        assertEquals(listOf("e1","gone"),guest.stored)
+        assertTrue(app.state.value.isSaved("e1"),"закладки не блимають")
+        events.failSave=false; events.saves.clear()
+        app.loadMyEvents(); runCurrent(); advanceTimeBy(1000); runCurrent()
+        assertEquals(listOf("e1"),events.saves,"зникла подія не йде: вона завалила б увесь масив")
+        assertTrue(guest.stored.isEmpty())
         app.close()
     }
 

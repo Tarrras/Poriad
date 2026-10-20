@@ -13,6 +13,7 @@ import app.poruch.data.geo.PlatformTimeZoneLocator
 import app.poruch.data.local.LocalAnalyticsPreference
 import app.poruch.data.local.LocalCityStore
 import app.poruch.data.local.LocalDeviceTouch
+import app.poruch.data.local.LocalGuestSaves
 import app.poruch.data.local.LocalPendingUnregister
 import app.poruch.data.local.LocalReminderPreference
 import app.poruch.data.local.LocalSeenRequests
@@ -70,6 +71,7 @@ class AppGraph(
             single<AnalyticsPreferenceStore> { LocalAnalyticsPreference(get()) }
             single<PendingUnregisterStore> { LocalPendingUnregister(get()) }
             single<DeviceTouchStore> { LocalDeviceTouch(get()) }
+            single<GuestSavedStore> { LocalGuestSaves(get()) }
             single<CityStore> { LocalCityStore(get()) }
             single<SeenRequestStore> { LocalSeenRequests(get(), get()) }
             single<SeenRequestStore>(named("messages")) {
@@ -122,6 +124,7 @@ class AppGraph(
                     pendingPush = get(),
                     boughtAsked = get(named("bought")),
                     deviceTouch = get(),
+                    guestSaves = get(),
                     config = config,
                     // Обидва потоки названі явно: тут єдине місце, де видно, що вони різні.
                     scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),

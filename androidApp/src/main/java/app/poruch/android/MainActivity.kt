@@ -233,7 +233,9 @@ fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
     LocationPrompt(app, appState, tourDone)
     var digestAsk by remember { mutableStateOf(false) }
     DigestPrompt(app, appState, navigator, digestAsk) { digestAsk = it }
-    FollowPrompt(appState)
+    NotificationPromptAfter(appState, FOLLOW_ASKED) { it.library.followsMade }
+    // Закладка, і гостя теж: нагадування напередодні без дозволу не прийде (docs/guest-saves.md).
+    NotificationPromptAfter(appState, SAVE_ASKED) { if (it.remindersEnabled) it.library.savesMade else 0 }
     ReviewPrompt(app, appState)
     PasswordRecoveryEffect(navigator, appState)
 
@@ -339,21 +341,22 @@ private fun DigestPrompt(app: PoruchApp, appState: State<AppState>, navigator: N
 }
 
 /**
- * «Стежити» без дозволу на сповіщення марне: пуші про нове не дійдуть. Питаємо раз, одразу після першої підписки:
- * людина щойно сама попросила, і причина зрозуміла. До Android 13 дозволу нема й питати нема про що.
+ * «Стежити» і закладка без дозволу на сповіщення марні: не дійдуть ні пуші про нове, ні нагадування напередодні.
+ * Питаємо раз на причину ([flag]), одразу після першої дії ([made] > 0): людина щойно сама попросила, і причина
+ * зрозуміла. До Android 13 дозволу нема й питати нема про що.
  */
 @SuppressLint("InlinedApi") // POST_NOTIFICATIONS питаємо лише коли NotificationPermission.required (API 33+).
 @Composable
-private fun FollowPrompt(appState: State<AppState>) {
+private fun NotificationPromptAfter(appState: State<AppState>, flag: String, made: (AppState) -> Int) {
     val context = LocalContext.current
-    val state by appState
-    val followPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
-    LaunchedEffect(state.library.followsMade) {
-        if (state.library.followsMade == 0) return@LaunchedEffect
+    val count = made(appState.value)
+    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
+    LaunchedEffect(count) {
+        if (count == 0) return@LaunchedEffect
         val prompts = context.getSharedPreferences(PROMPTS, Context.MODE_PRIVATE)
-        if (prompts.getBoolean(FOLLOW_ASKED, false) || NotificationPermission(context).granted()) return@LaunchedEffect
-        prompts.edit { putBoolean(FOLLOW_ASKED, true) }
-        followPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        if (prompts.getBoolean(flag, false) || NotificationPermission(context).granted()) return@LaunchedEffect
+        prompts.edit { putBoolean(flag, true) }
+        permission.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 }
 
@@ -620,6 +623,7 @@ private const val LOCATION_ASKED = "location_asked"
 private const val LAUNCHES = "launches"
 private const val DIGEST_ASKED = "digest_asked"
 private const val FOLLOW_ASKED = "follow_asked"
+private const val SAVE_ASKED = "save_asked"
 private const val REVIEW_ASKED_VERSION = "review_asked_version"
 private const val INFO_NOTICE_MS = 3_000L
 private const val ERROR_NOTICE_MS = 5_000L

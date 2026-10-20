@@ -109,9 +109,9 @@ object ReminderRules {
     const val MAX_SCHEDULED = 56
 
     /**
-     * Нагадування для [events] людини [userId] (усе з `my_events`). Опубліковані, де вона організатор
-     * або схвалений учасник, — за [LEAD]; збережені ([savedIds]) — напередодні о [SAVED_HOUR] за поясом
-     * телефона [zone]. Час, що вже минув, випадає. Гостю нічого: участь і закладки — лише з акаунтом.
+     * Нагадування для [events] людини [userId] (усе з `my_events`, у гостя — картки його закладок). Опубліковані,
+     * де вона організатор або схвалений учасник, — за [LEAD]; збережені ([savedIds]) — напередодні о [SAVED_HOUR] за
+     * поясом телефона [zone]. Час, що вже минув, випадає. Гостю — лише збережені: участь — з акаунтом.
      */
     fun plan(
         events: List<Event>,
@@ -121,7 +121,7 @@ object ReminderRules {
         now: Instant,
         zone: TimeZone
     ): List<EventReminder> {
-        if (!enabled || userId == null) return emptyList()
+        if (!enabled) return emptyList()
         val saved = savedIds.toSet()
         return events.asSequence()
             .filter { it.isPublished }
@@ -129,7 +129,7 @@ object ReminderRules {
                 val start = event.startInstant ?: return@mapNotNull null
                 // Одне нагадування на подію: «йду» сильніше за закладку, тож своя чи «йду» — за годину, навіть збережена.
                 val reminder = when {
-                    event.concerns(userId) -> EventReminder(event.id, event.title, event.address, (start - LEAD).toEpochMilliseconds())
+                    userId != null && event.concerns(userId) -> EventReminder(event.id, event.title, event.address, (start - LEAD).toEpochMilliseconds())
                     event.id in saved -> {
                         val local = start.toLocalDateTime(zone)
                         val fireAt = local.date.minus(1, DateTimeUnit.DAY).atTime(SAVED_HOUR, 0).toInstant(zone)

@@ -74,7 +74,7 @@ object MyEventsRules {
     const val COUNTDOWN_MAX_MINUTES = 24 * 60
 
     /**
-     * Розкладає «мої» події з `my_events` по розрізах і секціях. Порядок усередині — як прийшов
+     * Розкладає «мої» події з `my_events` (у гостя — картки закладок) по розрізах і секціях. Порядок усередині — як прийшов
      * (за початком), минулі — свіжіші першими. «Сьогодні» і «цього тижня» — за поясом телефона [zone]:
      * це про день людини, а не події.
      */
@@ -88,15 +88,15 @@ object MyEventsRules {
         now: Instant,
         zone: TimeZone
     ): MyEventsBoard {
-        if (userId == null) return MyEventsBoard()
         val saved = savedIds.toSet(); val queued = waitlistedIds.toSet(); val unread = unreadEventIds.toSet()
         val today = now.toLocalDateTime(zone).date
         val weekEnd = today.plus(DatePeriod(days = DayOfWeek.SUNDAY.ordinal - today.dayOfWeek.ordinal))
         fun startDate(event: Event): LocalDate? = event.startInstant?.toLocalDateTime(zone)?.date
         fun past(event: Event) = event.hasEnded(now)
 
-        val mine = events.filter { it.organizerId == userId }
-        val going = events.filter { event ->
+        // Гість лише зберігає: без перевірки `null == null` зібрав би в «Організую» всі імпортовані закладки.
+        val mine = if (userId == null) emptyList() else events.filter { it.organizerId == userId }
+        val going = if (userId == null) emptyList() else events.filter { event ->
             val room = event.gathering ?: return@filter false
             room.organizerId != userId && (room.joined || room.awaitingApproval || event.id in queued)
         }

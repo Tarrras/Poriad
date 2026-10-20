@@ -27,7 +27,7 @@ sealed interface Tab : NavKey
 @Serializable enum class AuthReason(
     /** `action` для `auth_wall`: гість вперся саме в цю дію. Зайшов сам — не стіна. */
     val wall: String?
-) { GENERAL(null), CREATE("create"), SAVE("save"), JOIN("join"), FOLLOW("follow"), COMPANY("companion") }
+) { GENERAL(null), CREATE("create"), JOIN("join"), FOLLOW("follow"), COMPANY("companion") }
 /** Підписки: заклади й організатори, за якими стежить людина. З профілю й з головної. */
 @Serializable data object Follows : NavKey
 /** Лист відновлення відкрив застосунок: окремий екран для нового пароля, поверх стека. */

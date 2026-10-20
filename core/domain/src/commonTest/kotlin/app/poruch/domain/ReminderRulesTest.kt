@@ -7,7 +7,7 @@ import kotlinx.datetime.TimeZone
 
 /**
  * Кому й коли нагадувати: власні події й схвалена участь — за годину, збережені — напередодні о 18:00,
- * лише майбутнє, лише за згодою, лише з акаунтом.
+ * лише майбутнє, лише за згодою; гостю — лише збережені.
  */
 class ReminderRulesTest {
     private val me = "me"
@@ -80,10 +80,19 @@ class ReminderRulesTest {
         assertEquals("s1", reminders.first().eventId)
     }
 
-    @Test fun guestsAndOptOutsGetNothing() {
+    @Test fun optOutsGetNothing() {
         val mine = event("own", "2026-09-15T18:00:00Z", organizer = me)
         val concert = event("concert", "2026-09-17T16:00:00Z", room = false)
         assertTrue(plan(listOf(mine, concert), saved = listOf("concert"), enabled = false).isEmpty())
-        assertTrue(plan(listOf(mine, concert), saved = listOf("concert"), user = null).isEmpty())
+    }
+
+    /** Гість зберігає на телефоні (docs/guest-saves.md): напередодні — так, «за годину» — лише з акаунтом. */
+    @Test fun guestsGetOnlyTheirSaves() {
+        val joined = event("joined", "2026-09-16T18:00:00Z", joined = true)
+        val concert = event("concert", "2026-09-17T16:00:00Z", room = false)
+        val reminder = plan(listOf(joined, concert), saved = listOf("concert"), user = null).single()
+        assertEquals("concert", reminder.eventId)
+        assertEquals("19:00", reminder.tomorrowAt)
+        assertTrue(plan(listOf(joined, concert), user = null).isEmpty())
     }
 }
