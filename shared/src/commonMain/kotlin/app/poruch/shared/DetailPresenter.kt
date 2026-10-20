@@ -13,6 +13,7 @@ import app.poruch.domain.EventSession
 import app.poruch.domain.FollowKind
 import app.poruch.domain.Gathering
 import app.poruch.domain.Listing
+import app.poruch.domain.PendingMeet
 import app.poruch.domain.RatingRules
 import kotlin.concurrent.Volatile
 import kotlin.time.Clock
@@ -101,8 +102,12 @@ data class DetailScreenState(
     /** «Перевірено сьогодні о 09:00» для афіші: коли адресна перевірка читала продавців. Null — не перевіряли. */
     val checked: CheckedLabel? = null
 ) {
-    /** Супутник «Йдемо разом»: час і місце тримає сервер, редагувати нема чого. */
+    /** Супутник «Йдемо разом»: місце й решту тримає сервер; організатор міняє лише час ([canMoveMeet]). */
     val companionOf: CompanionParent? get() = room?.companionOf
+    /** Афішу перенесли, збір чекає рішення організатора (R7а). Скасованому нема чого вирішувати. */
+    val pendingMeet: PendingMeet? get() = room?.pendingMeet?.takeIf { !cancelled }
+    /** Організатор збору може змінити його час (R7б): збір і афіша ще попереду, сервер знає її початок. */
+    val canMoveMeet: Boolean get() = organizer && companionOf?.startsAt != null && !cancelled && !started
     val myRating: EventRating? get() = ratings.firstOrNull { it.mine }
     val cancelled: Boolean get() = event?.isCancelled == true
     /** Кімната, якщо це кімната. Місця й участь лише в неї. */

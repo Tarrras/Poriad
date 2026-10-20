@@ -21,6 +21,10 @@ internal class SupabaseEventAuthoring(
 
     override suspend fun cancel(id: String) { rpc.call("cancel_event", rpc.eventParams(id)) }
 
+    override suspend fun moveCompanion(id: String, meetAt: String) {
+        rpc.call("move_companion", buildJsonObject { put("p_companion", id); put("p_meet_at", meetAt) })
+    }
+
     override suspend fun createCompanion(parentId: String, meetAt: String, note: String?, capacity: Int): String =
         rpc.call("create_companion", buildJsonObject {
             put("p_parent_id", parentId); put("p_meet_at", meetAt)

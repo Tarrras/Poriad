@@ -70,6 +70,8 @@ interface EventAuthoring {
     suspend fun cancel(id: String)
     /** Супутник «Йдемо разом» на афішу [parentId]. Повтор повертає вже створений. */
     suspend fun createCompanion(parentId: String, meetAt: String, note: String?, capacity: Int): String
+    /** Новий час збору [id] (R7б); відповідає й на питання після переносу афіші (R7а). */
+    suspend fun moveCompanion(id: String, meetAt: String)
     suspend fun uploadImage(eventId: String, bytes: ByteArray, contentType: String): String
     /** Прибирає завантажене фото, яке так і не стало фото події. За замовчуванням нічого. */
     suspend fun deleteImage(url: String) {}

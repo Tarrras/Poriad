@@ -56,4 +56,12 @@ class CompanionRulesTest {
         assertTrue(card.isFull)
         assertFalse(card.copy(attendeeCount = 3).isFull)
     }
+
+    @Test fun aMeetingMovesOnlyWithinTheSameGrid() {
+        assertTrue(CompanionRules.canMoveTo(start, "2026-10-04T15:30:00Z", now))
+        assertTrue(CompanionRules.canMoveTo(start, start, now), "at the start")
+        assertFalse(CompanionRules.canMoveTo(start, "2026-10-04T15:20:00Z", now), "off the 15-minute grid")
+        assertFalse(CompanionRules.canMoveTo(start, "2026-10-04T12:45:00Z", now), "earlier than 3 hours")
+        assertFalse(CompanionRules.canMoveTo(start, "2026-10-04T16:15:00Z", now), "after the start")
+    }
 }

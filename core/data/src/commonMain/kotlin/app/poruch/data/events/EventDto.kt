@@ -18,6 +18,7 @@ import app.poruch.domain.Listing
 import app.poruch.domain.ListingState
 import app.poruch.domain.Offer
 import app.poruch.domain.Membership
+import app.poruch.domain.PendingMeet
 import app.poruch.domain.Place
 import app.poruch.domain.Curfew
 import app.poruch.domain.EventSafety
@@ -71,6 +72,10 @@ internal data class EventDto(
     // Лише супутник (міграція 20260928140000). Картки з `discover_events` їх не несуть — лише `event_details`.
     @SerialName("companion_of") val companionOf: String? = null,
     @SerialName("companion_of_title") val companionOfTitle: String? = null,
+    // R7а, міграція 20261029120000: питання до організатора збору й час афіші. Старий сервер їх не знає.
+    @SerialName("companion_of_starts_at") val companionOfStartsAt: String? = null,
+    @SerialName("meet_proposed") val meetProposed: String? = null,
+    @SerialName("meet_decide_by") val meetDecideBy: String? = null,
     // Міграція 20261002120000. `jsonb_strip_nulls` прибирає поле, коли артистів нема, а старий сервер його не знає.
     val artists: List<ArtistDto> = emptyList(),
     // Лише афіша, міграція 20261026120000 (docs/event-offers.md, фаза 4). Старий сервер і кеш їх не несуть.
@@ -105,7 +110,8 @@ internal data class EventDto(
             minAge = minAge,
             maxAge = maxAge,
             contactUrl = contactUrl,
-            companionOf = companionOf?.let { CompanionParent(it, companionOfTitle.orEmpty()) }
+            companionOf = companionOf?.let { CompanionParent(it, companionOfTitle.orEmpty(), companionOfStartsAt) },
+            pendingMeet = meetProposed?.let { proposed -> meetDecideBy?.let { PendingMeet(proposed, it) } }
         )
     }
 
