@@ -303,7 +303,7 @@ class ArtistsSql(unittest.TestCase):
         self.assertIn("'арсен пучков'", out)
         self.assertIn("on conflict (key) do update", out)
         # За ключем, а не за id: перенесений рядок лишає старий id (МУР у Дніпрі 2026-10-08), і подія могла не вставитись.
-        self.assertIn("join public.events e on e.source_id = s.id and e.source_uid = v.uid", out)
+        self.assertIn("join public.event_offers o on o.source_id = s.id and o.source_uid = v.uid", out)
         self.assertNotIn("event_id::uuid", out)
         # Рядки моделі: без моделі не чіпаємо; з моделлю — лише де вона відповіла.
         self.assertIn("(ea.how <> 'llm' or v.replace_llm)", out)

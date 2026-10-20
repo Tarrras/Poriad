@@ -35,7 +35,7 @@ class StatsSql(unittest.TestCase):
         self.assertIn("on conflict (id) do nothing", stub)
         # Дубль посилається на переможця за ключем (slug, source_uid): перенесений рядок лишає старий id.
         self.assertIn(f"'concert_ua','{self.a.source_uid}')", parts[3])
-        self.assertIn("ws.slug=v.w_slug and e.source_uid=v.w_uid", parts[3])
+        self.assertIn("ws.slug=v.w_slug and o.source_uid=v.w_uid", parts[3])
         self.assertIn("'duplicate'", parts[3])
 
     def test_items_split_by_budget(self):

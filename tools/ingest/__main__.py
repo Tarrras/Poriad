@@ -117,7 +117,7 @@ def gather_city(city: str, sources: list, run_id: str, *, agent: Agent | None = 
                 refresh_osm: bool = False, use_photon: bool = True,
                 reports: list | None = None, now=None,
                 status_by_source: dict[str, list[dict]] | None = None,
-                crawl: Crawl | None = None) -> CityRun | None:
+                crawl: Crawl | None = None, linked: dict | None = None) -> CityRun | None:
     """Обхід одного міста всіма його джерелами до дедуплікації включно.
 
     З `crawl` обхід уже йде в потоках, і тут лишається чекати його результат."""
@@ -178,7 +178,7 @@ def gather_city(city: str, sources: list, run_id: str, *, agent: Agent | None = 
                   f"{', помилок ' + str(len(agent.errors)) if agent.errors else ''}")
 
     # Дедуплікація до генерації SQL: emit фільтрує за stage у момент виклику.
-    all_items = drop_cross_source_duplicates(all_items, {s.slug: s.weight for s in usable}, agent)
+    all_items = drop_cross_source_duplicates(all_items, {s.slug: s.weight for s in usable}, agent, linked)
     # Після дедуплікації: там агент відповідає про спірні пари.
     if agent is not None and agent.merges:
         merged = sum(1 for *_, same, _ in agent.merges if same)
@@ -230,7 +230,8 @@ def emit_city(run: CityRun, run_id: str, *, agent: Agent | None = None, statemen
                           + emit.events_sql(items, run_id, max_bytes=statement_bytes,
                                                   replace_llm=agent is not None))
         sql_parts += emit.withdrawals_sql(source.slug, counters.get("withdrawals", []), run_id)
-    sql_parts += emit.duplicates_sql(all_items, run_id)
+    # Копії — після переможців усіх джерел міста: їхні пропозиції йдуть у подію переможця.
+    sql_parts += emit.duplicates_sql(all_items, run_id, statement_bytes)
     # Опубліковане в будь-якому місті прогону не знімаємо за копією з черги іншого міста.
     published = published if published is not None else {(i.source_slug, i.source_uid) for i in all_items
                                                          if i.stage == "published"}
@@ -364,6 +365,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--limit", type=int, help="показати не більше N рядків у зведенні")
     ap.add_argument("--no-karabas-status", action="store_true",
                     help="не читати окрему таблицю скасувань/переносів Karabas")
+    ap.add_argument("--links", type=pathlib.Path,
+                    help="JSON «джерело|uid» → подія: пропозиції, що вже в одній події (apply_sql.py run його"
+                         " вивантажує); такі пари зводяться без агента")
     args = ap.parse_args(argv)
     if args.sql_max_bytes and args.sql_max_bytes < 8192:
         ap.error("--sql-max-bytes має бути 0 або не менше 8192: одна подія з обвʼязкою — ~5 КБ")
@@ -406,6 +410,13 @@ def main(argv: list[str] | None = None) -> int:
         except (OSError, ValueError, AttributeError):
             print(f"Минулий звіт {args.report} не прочитано: спад не перевіряється", file=sys.stderr)
 
+    linked: dict = {}
+    if args.links:
+        try:
+            linked = json.loads(args.links.read_text("utf-8"))
+        except (OSError, ValueError) as exc:
+            print(f"Зв'язки {args.links} не прочитано ({exc}): спірні пари питатимуть агента", file=sys.stderr)
+
     run_id = str(uuid.uuid4())
     print(f"Обхід: {', '.join(cities)}\nrun_id={run_id}")
 
@@ -429,7 +440,7 @@ def main(argv: list[str] | None = None) -> int:
     for city in cities:
         run = gather_city(city, sources, run_id, agent=agent,
                           refresh_osm=args.refresh_osm, use_photon=not args.no_photon,
-                          reports=reports, status_by_source=status_by_source, crawl=crawl)
+                          reports=reports, status_by_source=status_by_source, crawl=crawl, linked=linked)
         if run:
             runs.append(run)
             everything += run.items

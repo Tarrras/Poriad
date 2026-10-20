@@ -471,6 +471,23 @@ def seed_previous_report(conn, path: pathlib.Path) -> int:
     return len(rows)
 
 
+def seed_links(conn, path: pathlib.Path) -> int:
+    """Пропозиції, що вже в одній події (20261021120000) → `path`: «джерело|uid» → подія. Конвеєр зводить такі
+    пари без агента: його рішення збережене в базі, і вдруге його не питають (docs/event-offers.md, R1)."""
+    import psycopg
+    try:
+        rows = conn.execute(
+            "select s.slug || '|' || o.source_uid, o.event_id::text from public.event_offers o"
+            " join public.event_sources s on s.id = o.source_id"
+            " where o.starts_at > now() - interval '1 day'"
+            " and o.event_id in (select event_id from public.event_offers group by 1 having count(*) > 1)").fetchall()
+    except psycopg.Error as exc:            # до міграції 20261021120000 таблиці нема
+        print(f"⚠ Зв'язки пропозицій з бази не прочитано ({str(exc).strip()})")
+        return 0
+    path.write_text(json.dumps(dict(rows), ensure_ascii=False), "utf-8")
+    return len(rows)
+
+
 def cmd_run(args) -> int:
     """Створити файли → застосувати → прибрати. Тека лишається лише після збою, як доказ.
 
@@ -508,11 +525,15 @@ def cmd_run(args) -> int:
     # звіту, що вже лежить за шляхом --report.
     seeded = seed_previous_report(conn, workdir / "report.json")
     print(f"Минулий звіт для перевірки спаду: {seeded} записів з private.ingest_runs")
+    links = seed_links(conn, workdir / "links.json")
+    print(f"Пропозицій у спільних подіях (агента про них не питаємо): {links}")
 
     # 2. Дані — конвеєром. Один файл на обхід = одна транзакція; --split-bytes ріже на частини.
     data_file = workdir / "poruch-events.sql"
     cmd = [sys.executable, "-m", "tools.ingest", "--sql", str(data_file),
            "--report", str(workdir / "report.json")]
+    if links:
+        cmd += ["--links", str(workdir / "links.json")]
     if args.split_bytes:
         cmd += ["--sql-max-bytes", str(args.split_bytes)]
     cmd += args.ingest_args
