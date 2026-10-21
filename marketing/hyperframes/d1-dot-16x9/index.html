@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1920, height=1080">
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face { font-family: "Sofia Sans Condensed"; src: url("assets/fonts/SofiaSansCondensed-Bold.ttf") format("truetype"); font-weight: 700; font-display: block; }
+      @font-face { font-family: "Sofia Sans Condensed"; src: url("assets/fonts/SofiaSansCondensed-ExtraBold.ttf") format("truetype"); font-weight: 800; font-display: block; }
+      @font-face { font-family: "Sofia Sans Extra Condensed"; src: url("assets/fonts/SofiaSansExtraCondensed-ExtraBold.ttf") format("truetype"); font-weight: 800; font-display: block; }
+      @font-face { font-family: "Inter"; src: url("assets/fonts/inter-cyrillic-600-normal.woff2") format("woff2"); font-weight: 600; font-display: block; unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #f3f3f0; }
+      #root { position: relative; width: 100%; height: 100%; overflow: hidden; }
+      .layer { position: absolute; inset: 0; width: 100%; height: 100%; }
+      svg.layer { font-family: "Sofia Sans Condensed", sans-serif; }
+    </style>
+  </head>
+  <body>
+    <div data-hf-id="hf-ior7" id="root" data-composition-id="main" data-start="0" data-duration="16.364" data-fps="60" data-width="1920" data-height="1080">
+      <div data-hf-id="hf-qawk" id="bg" class="layer"></div>
+      <svg data-hf-id="hf-rcfu" id="under" class="layer" viewBox="0 0 1920 1080"><g data-hf-id="hf-j9q6" id="end" data-layout-allow-overlap="" /></svg>
+      <canvas data-hf-id="hf-ndx8" id="halftone" class="layer" data-layout-allow-overflow="" width="1920" height="1080"></canvas>
+      <svg data-hf-id="hf-44h6" id="stage" class="layer" viewBox="0 0 1920 1080">
+        <defs data-hf-id="hf-mh0t">
+          <clippath data-hf-id="hf-sckx" id="tclip"><rect data-hf-id="hf-hixv" x="660" y="240" width="600" height="518" rx="48" /></clippath>
+        </defs>
+        <g data-hf-id="hf-z0w1" id="row">
+          <rect data-hf-id="hf-v8kh" x="360" y="430" width="1200" height="220" rx="44" fill="#ffffff" stroke="#e0e0e5" stroke-width="2" />
+          <rect data-hf-id="hf-4fp1" x="1280" y="480" width="200" height="120" rx="60" fill="#e3e3e0" />
+          <rect data-hf-id="hf-ty5a" id="fill" fill="#e0582f" />
+          <circle data-hf-id="hf-7coo" id="knob" cy="540" r="52" fill="#ffffff" stroke="#14141714" stroke-width="2" />
+        </g>
+        <g data-hf-id="hf-0slb" id="label" data-layout-allow-overlap="" />
+        <circle data-hf-id="hf-oiqm" id="inkdot" fill="#141417" />
+        <!-- Vertical ticket from DESIGN.md at ×3.4: radius md 14, notches 7, stub 64 in ink (a plan you print yourself). -->
+        <g data-hf-id="hf-rvlj" id="ticket">
+          <g data-hf-id="hf-662n" clip-path="url(#tclip)">
+            <rect data-hf-id="hf-f1rt" x="660" y="240" width="600" height="518" fill="#ffffff" />
+            <rect data-hf-id="hf-a9nm" id="tbar1" y="326" height="34" rx="17" fill="#e0e0e5" />
+            <rect data-hf-id="hf-x9vd" id="tbar2" y="432" height="34" rx="17" fill="#e0e0e5" />
+            <rect data-hf-id="hf-h9ri" id="tstub" x="660" y="540" height="218" fill="#141417" />
+            <g data-hf-id="hf-i9zi" id="tholes" />
+            <circle data-hf-id="hf-mcfo" cx="660" cy="540" r="24" fill="#f3f3f0" />
+            <circle data-hf-id="hf-4yp1" cx="1260" cy="540" r="24" fill="#f3f3f0" />
+          </g>
+          <g data-hf-id="hf-gyi6" id="tprint" data-layout-allow-overlap="">
+            <!-- PoruchIcons.social (two figures, grid 24, stroke 1.75): the seat is for a person, «+1». -->
+            <g id="tglyph" fill="none" stroke="#ffffff" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="9" cy="8" r="3.3" />
+              <path d="M3.5 20C3.5 15.6 6 13.3 9 13.3C12 13.3 14.5 15.6 14.5 20M15 5.3C17 5.8 18.3 7.3 18.3 9C18.3 10.2 17.8 11.1 17 11.7M16.5 13.6C19 14.2 20.5 16.5 20.5 20" />
+            </g>
+            <text data-hf-id="hf-1v7g" id="tplus" font-family="Sofia Sans Extra Condensed" font-weight="800" font-size="116" fill="#ffffff">+1</text>
+            <text data-hf-id="hf-gh33" id="tday" font-family="Inter" font-weight="600" font-size="37" letter-spacing="2" fill="#ffffff" text-anchor="end">СЬОГОДНІ</text>
+          </g>
+        </g>
+        <g data-hf-id="hf-h2f5" id="ring" data-layout-allow-overlap="" />
+        <ellipse data-hf-id="hf-fdml" id="dot" data-layout-allow-overflow="" fill="#e0582f" />
+        <!-- The «+1»: a second dot that buds off the first and stays beside it until the loop folds it back. -->
+        <path id="neck" fill="#e0582f" />
+        <circle id="dot2" fill="#e0582f" />
+        <rect data-hf-id="hf-8cbt" id="slab" fill="#0f0f13" />
+        <g data-hf-id="hf-6g6l" id="cursor">
+          <path data-hf-id="hf-79rg" d="M0 0 L0 58 L14 44 L24 67 L35 62 L25 40 L44 40 Z" fill="#141417" stroke="#ffffff" stroke-width="4" stroke-linejoin="round" />
+        </g>
+      </svg>
+
+      <!-- Music starts on a beat (10.245 s in the file), so film beat N sits at N × 60/88 s. -->
+      <audio data-hf-id="hf-68fv" id="music" src="assets/audio/music.m4a" data-start="0" data-media-start="10.245" data-duration="16.364" data-track-index="10" data-automation="{&quot;version&quot;:1,&quot;lanes&quot;:[{&quot;target&quot;:&quot;volume&quot;,&quot;points&quot;:[{&quot;t&quot;:0,&quot;v&quot;:0},{&quot;t&quot;:0.03,&quot;v&quot;:0.6},{&quot;t&quot;:16.33,&quot;v&quot;:0.6},{&quot;t&quot;:16.364,&quot;v&quot;:0}]}]}"></audio>
+      <audio data-hf-id="hf-j7th" id="sfx-click" src="assets/audio/ui_tick.wav" data-start="0.682" data-duration="0.08" data-track-index="11" data-volume="0.5"></audio>
+      <audio data-hf-id="hf-mkml" id="sfx-land-i" src="assets/audio/pin_pop_1.wav" data-start="1.364" data-duration="0.24" data-track-index="12" data-volume="0.35"></audio>
+      <audio data-hf-id="hf-siu1" id="sfx-jump" src="assets/audio/whoosh.wav" data-start="2.73" data-duration="0.26" data-track-index="13" data-volume="0.18"></audio>
+      <audio data-hf-id="hf-nhzv" id="sfx-land-graph" src="assets/audio/pin_pop_2.wav" data-start="3.409" data-duration="0.35" data-track-index="12" data-volume="0.4"></audio>
+      <audio data-hf-id="hf-kn8p" id="sfx-print" src="assets/audio/ui_tick.wav" data-start="4.6" data-duration="0.08" data-track-index="11" data-volume="0.3"></audio>
+      <audio data-hf-id="hf-9r36" id="sfx-shoot" src="assets/audio/whoosh.wav" data-start="5.36" data-duration="0.26" data-track-index="13" data-volume="0.3"></audio>
+      <audio data-hf-id="hf-8hwg" id="sfx-circle" src="assets/audio/pin_pop_2.wav" data-start="6.136" data-duration="0.35" data-track-index="12" data-volume="0.3"></audio>
+      <audio data-hf-id="hf-oo12" id="sfx-square" src="assets/audio/ui_tick.wav" data-start="6.818" data-duration="0.08" data-track-index="11" data-volume="0.35"></audio>
+      <audio data-hf-id="hf-tdgw" id="sfx-pill" src="assets/audio/pin_pop_1.wav" data-start="7.5" data-duration="0.24" data-track-index="12" data-volume="0.3"></audio>
+      <audio data-hf-id="hf-gdha" id="sfx-contract" src="assets/audio/ui_tick.wav" data-start="8.182" data-duration="0.08" data-track-index="11" data-volume="0.3"></audio>
+      <audio id="sfx-split" src="assets/audio/pin_pop_1.wav" data-start="8.33" data-duration="0.24" data-track-index="14" data-volume="0.4"></audio>
+      <audio data-hf-id="hf-8y41" id="sfx-ring" src="assets/audio/whoosh.wav" data-start="8.5" data-duration="0.26" data-track-index="13" data-volume="0.22"></audio>
+      <audio data-hf-id="hf-b82h" id="sfx-step-1" src="assets/audio/ui_tick.wav" data-start="9.545" data-duration="0.08" data-track-index="11" data-volume="0.2"></audio>
+      <audio data-hf-id="hf-uiyb" id="sfx-step-2" src="assets/audio/ui_tick.wav" data-start="10.227" data-duration="0.08" data-track-index="11" data-volume="0.2"></audio>
+      <audio data-hf-id="hf-zp6x" id="sfx-scatter" src="assets/audio/whoosh.wav" data-start="10.75" data-duration="0.26" data-track-index="13" data-volume="0.22"></audio>
+      <audio data-hf-id="hf-y1on" id="sfx-title" src="assets/audio/pin_pop_2.wav" data-start="12.86" data-duration="0.35" data-track-index="12" data-volume="0.4"></audio>
+      <audio id="sfx-title-2" src="assets/audio/pin_pop_1.wav" data-start="13.1" data-duration="0.24" data-track-index="14" data-volume="0.35"></audio>
+      <audio data-hf-id="hf-ppq9" id="sfx-return" src="assets/audio/whoosh.wav" data-start="15.0" data-duration="0.26" data-track-index="13" data-volume="0.3"></audio>
+      <audio id="sfx-merge" src="assets/audio/ui_tick.wav" data-start="15.38" data-duration="0.08" data-track-index="11" data-volume="0.3"></audio>
+      <audio data-hf-id="hf-19t9" id="sfx-pour" src="assets/audio/pin_pop_1.wav" data-start="16.12" data-duration="0.24" data-track-index="12" data-volume="0.3"></audio>
+    </div>
+    <script>
+      // 88 BPM grid measured from the track (beats/…json): beat N at N × B seconds; the loop is 24 beats.
+      const B = 60 / 88, DUR = 24 * B, b = (n) => n * B;
+      const PAPER = "#f3f3f0", INK = "#141417", NIGHT = "#0f0f13", MUTED = "#a6a5ad";
+      const NS = "http://www.w3.org/2000/svg", FONT = '"Sofia Sans Condensed"';
+      const $ = (id) => document.getElementById(id);
+      const mctx = document.createElement("canvas").getContext("2d");
+      const measure = (s, size, w = 800, family = FONT) => ((mctx.font = `${w} ${size}px ${family}`), mctx.measureText(s));
+      const svg = (tag, attrs, parent) => {
+        const e = document.createElementNS(NS, tag);
+        for (const k in attrs) e.setAttribute(k, attrs[k]);
+        parent.appendChild(e);
+        return e;
+      };
+      const attr = (e, attrs) => { for (const k in attrs) e.setAttribute(k, attrs[k]); };
+      const show = (e, on) => (e.style.display = on ? "" : "none");
+
+      const clamp = (v, lo = 0, hi = 1) => Math.min(hi, Math.max(lo, v));
+      const prog = (t, a, z) => clamp((t - a) / (z - a));
+      const lerp = (a, z, p) => a + (z - a) * p;
+      const ein = (p) => p * p * p;
+      const eout = (p) => 1 - Math.pow(1 - p, 3);
+      const eio = (p) => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2);
+      const eioExpo = (p) => (p <= 0 ? 0 : p >= 1 ? 1 : p < 0.5 ? Math.pow(2, 20 * p - 10) / 2 : (2 - Math.pow(2, -20 * p + 10)) / 2);
+      const smooth = (p) => p * p * (3 - 2 * p);
+
+      // Closed-form underdamped spring 0 → 1. The first overshoot peaks `peak` seconds in.
+      function spring(s, zeta = 0.49, peak = B) {
+        if (s <= 0) return 0;
+        const wd = Math.PI / peak, a = (zeta * wd) / Math.sqrt(1 - zeta * zeta);
+        return 1 - Math.exp(-a * s) * (Math.cos(wd * s) + (a / wd) * Math.sin(wd * s));
+      }
+      // Impact wobble for squash and stretch: starts at 1, rings out in ~0.25 s.
+      const wobble = (s) => (s <= 0 ? 0 : Math.exp(-14 * s) * Math.cos(28 * s));
+
+      // One letter per <text>; x is the prefix width, so kerning survives the split.
+      function typeset(parent, str, size, weight, fill) {
+        const letters = [];
+        for (let i = 0; i < str.length; i++) {
+          if (str[i] === " ") continue;
+          const node = svg("text", { "font-size": size, "font-weight": weight, fill }, parent);
+          node.textContent = str[i];
+          letters.push({ node, ch: str[i], x: measure(str.slice(0, i), size, weight).width, w: measure(str[i], size, weight).width });
+        }
+        return { letters, width: measure(str, size, weight).width };
+      }
+      // Letter at baseline-left (x, y), rotated and scaled about its baseline centre.
+      const place = (l, x, y, rot = 0, s = 1, o = 1) =>
+        attr(l.node, { transform: `translate(${x + (l.w * s) / 2} ${y}) rotate(${rot}) scale(${s}) translate(${-l.w / 2} 0)`, opacity: o });
+      // Where a point of the unscaled glyph (px, py from its baseline-left) lands after place().
+      function letterPoint(l, x, y, rot, s, px, py) {
+        const a = (rot * Math.PI) / 180, lx = (px - l.w / 2) * s, ly = py * s;
+        return [x + (l.w * s) / 2 + lx * Math.cos(a) - ly * Math.sin(a), y + lx * Math.sin(a) + ly * Math.cos(a)];
+      }
+
+      // The «і» is set as dotless «ı»; its tittle is our dot. Offsets are from the glyph origin.
+      function tittle(size) {
+        const g = measure("і", size), d = g.actualBoundingBoxRight + g.actualBoundingBoxLeft;
+        return { dx: (g.actualBoundingBoxRight - g.actualBoundingBoxLeft) / 2, dy: -(g.actualBoundingBoxAscent - d / 2), r: d / 2 };
+      }
+
+      const L = {}; // layout, filled in build()
+
+      function build() {
+        // Scene 1: settings row «Нема куди піти»; the last four letters become the hero «піти».
+        L.label = typeset($("label"), "Нема куди пıти", 120, 800, INK);
+        L.labelBase = 540 + measure("Н", 120).actualBoundingBoxAscent / 2;
+        L.labelX = 440;
+        L.out = L.label.letters.slice(0, 8);
+        L.hero = L.label.letters.slice(8);
+        L.i = L.hero[1];
+        L.tit = tittle(120);
+        L.heroScale = 400 / 120;
+        L.heroBase = 540 + measure("і", 400).actualBoundingBoxAscent / 2;
+        const heroX = 960 - measure("пıти", 400).width / 2;
+        L.hero.forEach((l) => (l.hx = heroX + (l.x - L.hero[0].x) * L.heroScale));
+
+        // Ticket: x 660–1260, perforation (the tear line) on y=540 between the notches. The dot runs along it
+        // from the left notch to the right one; the overshoot peaks on b6 and settles into the notch by b7.5.
+        // Perforation dots: canvas colour, 2.5 wide, step 6, inset 11 — at ×3.4.
+        L.tk = { x0: 660, x1: 1260, w: 600, holes: [] };
+        for (let x = 705; x <= 1216; x += 20.4) L.tk.holes.push({ x, node: svg("circle", { cx: x, cy: 540, r: 4.25, fill: PAPER }, $("tholes")) });
+        L.title = [typeset($("tprint"), "план на", 100, 800, INK), typeset($("tprint"), "вечір", 100, 800, INK)];
+        L.titleBase = [366, 470];
+        attr($("tbar1"), { x: 714, width: L.title[0].width });
+        attr($("tbar2"), { x: 714, width: L.title[1].width });
+        L.plusBase = 649 + measure("1", 116, 800, '"Sofia Sans Extra Condensed"').actualBoundingBoxAscent / 2;
+        L.dayBase = 649 + measure("С", 37, 600, '"Inter"').actualBoundingBoxAscent / 2;
+
+        // Orbit: app categories on one circle, gaps stretched so the words close the ring.
+        L.ring = { R: 360, size: 72, track: 6, letters: [], seps: [] };
+        const words = ["МУЗИКА", "СТЕНДАП", "МИСТЕЦТВО", "ЕКСКУРСІЇ", "ЗУСТРІЧІ"];
+        let arcLetters = 0;
+        const sets = words.map((w) => {
+          const set = typeset($("ring"), w, L.ring.size, 800, PAPER);
+          arcLetters += set.width + L.ring.track * (w.length - 1);
+          return set;
+        });
+        const gap = (2 * Math.PI * L.ring.R - arcLetters) / words.length;
+        let arc = 0;
+        sets.forEach((set) => {
+          set.letters.forEach((l, i) => L.ring.letters.push({ ...l, a: (arc + l.x + i * L.ring.track + l.w / 2) / L.ring.R }));
+          arc += set.width + L.ring.track * (set.letters.length - 1) + gap;
+          L.ring.seps.push({ node: svg("circle", { r: 7, fill: PAPER }, $("ring")), a: (arc - gap / 2) / L.ring.R, n: L.ring.letters.length - 1 });
+        });
+
+        // End card. The two dots land as the slogan's full stops: yours after «Є куди», the «+1» after «Буде з ким».
+        L.word = typeset($("end"), "Поряд", 220, 800, PAPER);
+        L.wordX = 960 - L.word.width / 2;
+        L.slogan = typeset($("end"), "Є куди. Буде з ким.", 140, 800, PAPER);
+        L.sloganX = 960 - L.slogan.width / 2;
+        const stop = measure(".", 140);
+        L.endR = Math.max(14, ((stop.actualBoundingBoxRight + stop.actualBoundingBoxLeft) / 2) * 1.15);
+        L.stops = L.slogan.letters
+          .filter((l) => l.ch === ".")
+          .map((l) => (l.node.remove(), [L.sloganX + l.x + (stop.actualBoundingBoxRight - stop.actualBoundingBoxLeft) / 2, 640 - stop.actualBoundingBoxAscent / 2]));
+        L.slogan.letters = L.slogan.letters.filter((l) => l.ch !== ".");
+        L.platforms = typeset($("end"), "iPhone і Android", 46, 700, MUTED);
+
+        L.hctx = $("halftone").getContext("2d");
+      }
+
+      // ---- the dot's path through the film ----
+
+      // The ticket rises from below to catch the jumping dot on b5.
+      const ticketDy = (t) => 760 * (1 - spring(t - (b(4) + 0.1), 0.6, 0.3));
+      // Dot along the perforation: one spring drives the dot, the punched holes and the inked stub.
+      const perfX = (s) => L.tk.x0 + L.tk.w * spring(s);
+      const perfExtent = (s) => (s <= 0 ? 0 : s >= B ? 1 : clamp(spring(s))); // furthest point reached, within the ticket
+
+      // «Буде з ким»: right after the contraction the dot buds into two, PAIR apart, that orbit each other
+      // with a sprung step on each orbit beat. Returns [ax, ay, bx, by].
+      const SPLIT = b(12) + 0.02, PAIR = 140;
+      function pairAt(t) {
+        const a = 0.9 * (t - SPLIT) + 0.45 * [13, 14, 15].reduce((s, n) => s + spring(t - b(n), 0.45, 0.15), 0);
+        const h = (PAIR / 2) * spring(t - SPLIT, 0.55, 0.4), dx = h * Math.cos(a), dy = h * Math.sin(a);
+        return [960 - dx, 540 - dy, 960 + dx, 540 + dy];
+      }
+
+      // Label letter pose before the click and while it re-enters at the end of the loop (u = loop time).
+      function restLetter(l, i, u) {
+        const t0 = 15.86 + i * 0.016, p = spring(u - t0, 0.6, 0.13);
+        return [L.labelX + l.x, L.labelBase - 70 * (1 - p), 0, 1, clamp((u - t0) / 0.1)];
+      }
+      // «піти» from label size to hero size, then dropping out after the dot leaves.
+      function heroLetter(l, k, t) {
+        const p = spring(t - (b(2) + 0.3 + k * 0.035), 0.6, 0.3);
+        let x = lerp(L.labelX + l.x, l.hx, p), y = lerp(L.labelBase, L.heroBase, p);
+        let rot = -10 * Math.sin(Math.PI * clamp(p)), o = 1;
+        const q = prog(t, b(4) + 0.02 + k * 0.03, b(4) + 0.4 + k * 0.03);
+        y += 560 * ein(q);
+        rot += (k % 2 ? 14 : -14) * q;
+        o = 1 - prog(q, 0.5, 1);
+        return [x, y, rot, lerp(1, L.heroScale, p), o];
+      }
+      function iTittle(pose) {
+        const [x, y, rot, s] = pose;
+        const [cx, cy] = letterPoint(L.i, x, y, rot, s, L.tit.dx, L.tit.dy);
+        return [cx, cy, L.tit.r * s];
+      }
+
+      function dotState(t) {
+        const d = { x: 960, y: 540, r: 22, sx: 1, sy: 1, rot: 0, vis: true, b: null }; // b: the «+1» dot
+        const stretch = (k, ang) => ((d.sx = 1 + k), (d.sy = 1 - k * 0.45), (d.rot = ang));
+        if (t < b(1) + 0.22 || t >= 16.14) d.vis = false; // the toggle's orange is the dot here
+        else if (t < b(2)) {
+          // Hop from the toggle to the «і».
+          const u = prog(t, b(1) + 0.22, b(2)), e = eio(u);
+          const [tx, ty, tr] = iTittle(restLetter(L.i, 9, 99));
+          d.x = lerp(1420, tx, e);
+          d.y = lerp(540, ty, e) - 170 * Math.sin(Math.PI * u);
+          d.r = lerp(22, tr, e);
+          stretch(0.3 * Math.sin(Math.PI * u), u < 0.5 ? -60 : 60);
+        } else if (t < b(4)) {
+          // Riding the «і» while the word becomes the hero; squash on landing, crouch before the jump.
+          [d.x, d.y, d.r] = iTittle(heroLetter(L.i, 1, t));
+          const w = 0.4 * wobble(t - b(2)), c = 0.28 * Math.sin((Math.PI / 2) * prog(t, b(4) - 0.14, b(4)));
+          d.sx = 1 + w + c;
+          d.sy = 1 - w - c;
+          d.y += d.r * c;
+        } else if (t < b(5)) {
+          // Ballistic jump into the ticket's left notch.
+          const u = prog(t, b(4), b(5));
+          const [x0, y0, r0] = iTittle(heroLetter(L.i, 1, b(4)));
+          const x1 = L.tk.x0, y1 = 540 + ticketDy(b(5));
+          d.x = lerp(x0, x1, u);
+          d.y = lerp(y0, y1, u) - 4 * 300 * u * (1 - u);
+          d.r = lerp(r0, 22, eio(u));
+          const vx = x1 - x0, vy = y1 - y0 - 1200 * (1 - 2 * u);
+          stretch(0.35 * Math.sin(Math.PI * u), (Math.atan2(vy, vx) * 180) / Math.PI);
+        } else if (t < b(8) - 0.05) {
+          // Runs the perforation: past the right notch on b6, settles into it.
+          d.x = perfX(t - b(5));
+          d.y = 540 + ticketDy(t);
+          const w = 0.4 * wobble(t - b(5));
+          d.sx = 1 + w;
+          d.sy = 1 - w;
+        } else if (t < b(9) - 0.3) {
+          // Shoots back along the perforation to the centre.
+          const u = prog(t, b(8) - 0.05, b(8) + 0.25), gx = perfX(b(8) - 0.05 - b(5)), gy = 540 + ticketDy(b(8) - 0.05);
+          d.x = lerp(gx, 960, eioExpo(u));
+          d.y = lerp(gy, 540, eio(u));
+          stretch(1.1 * Math.sin(Math.PI * u), 0);
+          const w = 0.35 * wobble(t - b(8) - 0.25);
+          if (u >= 1) ((d.sx = 1 - w), (d.sy = 1 + w));
+        } else if (t < SPLIT) {
+          // The same shape grows past all four corners, holds, then contracts back to a dot.
+          const grow = eio(prog(t, b(9) - 0.3, b(9) + 0.02)), shrink = eio(prog(t, b(12) - 0.3, SPLIT));
+          d.r = lerp(22, lerp(1250, 22, shrink), grow);
+        } else if (t < 12.62) {
+          // The pair at the centre of the orbit and the halftone; both kick on the orbit beats.
+          const [ax, ay, bx, by] = pairAt(t);
+          d.r = 22 * (1 + 0.22 * [13, 14, 15].reduce((a, n) => a + (t > b(n) ? Math.exp(-12 * (t - b(n))) : 0), 0));
+          [d.x, d.y] = [ax, ay];
+          d.b = { x: bx, y: by, r: d.r };
+        } else if (t < 15.0) {
+          // Each becomes a full stop of the slogan: yours first, the «+1» a moment later.
+          const [ax, ay, bx, by] = pairAt(12.62), [[x1, y1], [x2, y2]] = L.stops;
+          const p = spring(t - 12.62, 0.55, 0.22), q = spring(t - 12.86, 0.55, 0.22);
+          d.x = lerp(ax, x1, p);
+          d.y = lerp(ay, y1, p);
+          d.r = lerp(22, L.endR, clamp(p));
+          stretch(0.3 * Math.sin(Math.PI * clamp((t - 12.62) / 0.3)), (Math.atan2(y1 - ay, x1 - ax) * 180) / Math.PI);
+          d.b = { x: lerp(bx, x2, q), y: lerp(by, y2, q), r: lerp(22, L.endR, clamp(q)) };
+        } else if (t < 15.42) {
+          // Return, 1: halftone grows out of the pair; both slide into the ticket's right notch and merge.
+          const e = eio(prog(t, 15.0, 15.4)), [[x1, y1], [x2, y2]] = L.stops;
+          d.x = lerp(x1, L.tk.x1, e);
+          d.y = lerp(y1, 540, e);
+          d.r = lerp(L.endR, 22, e);
+          d.b = { x: lerp(x2, L.tk.x1, e), y: lerp(y2, 540, e), r: d.r };
+        } else if (t < 15.9) {
+          // Return, 2: back along the perforation, un-inking the stub.
+          d.x = lerp(L.tk.x1, L.tk.x0, eio(prog(t, 15.42, 15.9)));
+        } else {
+          // Return, 3: into the toggle, where it pours into the track.
+          const u = prog(t, 15.9, 16.14), e = eio(u);
+          d.x = lerp(L.tk.x0, 1420, e);
+          d.y = 540 - 260 * Math.sin(Math.PI * u);
+          stretch(0.35 * Math.sin(Math.PI * u), u < 0.5 ? -40 : 30);
+        }
+        return d;
+      }
+
+      // ---- scenes ----
+
+      function drawRow(t) {
+        const u = t < b(2) ? t + DUR : t; // before the click the row is still settling from the loop's end
+        let o, s;
+        if (t >= b(2) && t < 15.0) ((o = 1 - prog(t, b(2) + 0.02, b(2) + 0.3)), (s = 1 - 0.03 * prog(t, b(2) + 0.02, b(2) + 0.3)));
+        else ((o = eout(prog(u, 15.86, 16.06))), (s = 0.94 + 0.06 * o));
+        show($("row"), o > 0);
+        attr($("row"), { opacity: o, transform: `translate(960 540) scale(${s}) translate(-960 -540)` });
+
+        // Knob: OFF on the click, back ON when the dot pours in at the end of the loop.
+        const on = (x) => 1340 + 80 * spring(x - 16.17, 0.45, 0.14);
+        attr($("knob"), { cx: t < b(1) ? on(t + DUR) : t < 15.0 ? 1420 - 80 * spring(t - b(1), 0.45, 0.14) : on(t) });
+
+        // Orange track: contracts into the dot on the click, grows out of it at the end.
+        let p = null;
+        if (t < b(1)) p = spring(t + DUR - 16.14, 0.6, 0.12);
+        else if (t < b(1) + 0.22) p = 1 - eio(prog(t, b(1), b(1) + 0.22));
+        else if (t >= 16.14) p = spring(t - 16.14, 0.6, 0.12);
+        show($("fill"), p !== null);
+        if (p !== null) {
+          const w = lerp(44, 200, p), h = lerp(44, 120, p), cx = lerp(1420, 1380, p);
+          attr($("fill"), { x: cx - w / 2, y: 540 - h / 2, width: w, height: h, rx: Math.min(w, h) / 2 });
+        }
+      }
+
+      function drawLabel(t) {
+        const resting = t < b(2) || t >= 15.86, u = t < b(2) ? t + DUR : t;
+        const live = resting || t < b(4) + 0.6;
+        show($("label"), live);
+        show($("inkdot"), resting);
+        if (!live) return;
+        L.out.forEach((l, i) => {
+          if (resting) return place(l, ...restLetter(l, i, u));
+          // «Нема куди» tip over and fall, one after another.
+          // Done before «піти» starts growing, so outgoing and incoming letters never share the frame.
+          const p = prog(t, b(2) + i * 0.018, b(2) + 0.32 + i * 0.018), dir = i % 2 ? 1 : -1;
+          place(l, L.labelX + l.x + dir * 30 * p, L.labelBase + 380 * p * p, dir * (28 + 5 * i) * eio(p), 1, 1 - prog(p, 0.25, 0.85));
+        });
+        L.hero.forEach((l, k) => place(l, ...(resting ? restLetter(l, 8 + k, u) : heroLetter(l, k, t))));
+        if (resting) {
+          const [cx, cy, r] = iTittle(restLetter(L.i, 9, u));
+          attr($("inkdot"), { cx, cy, r, opacity: clamp((u - 15.86 - 9 * 0.016) / 0.1) });
+        }
+      }
+
+      // Ticket: holes are punched and the stub is inked only where the dot has already run.
+      function drawTicket(t, dot) {
+        const fwd = t >= b(4) + 0.1 && t < b(9) + 0.25, back = t >= 15.38 && t < 15.96;
+        show($("ticket"), fwd || back);
+        if (!fwd && !back) return;
+        const dy = fwd ? ticketDy(t) : 40 * ein(prog(t, 15.8, 15.94));
+        const o = fwd ? 1 : eout(prog(t, 15.38, 15.5)) * (1 - prog(t, 15.8, 15.94));
+        attr($("ticket"), { transform: `translate(0 ${dy})`, opacity: o });
+        const ext = fwd ? perfExtent(t - b(5)) : clamp((dot.x - L.tk.x0) / L.tk.w);
+        attr($("tstub"), { width: L.tk.w * ext });
+        L.tk.holes.forEach((h) => show(h.node, h.x <= L.tk.x0 + L.tk.w * ext));
+
+        // Printed on b7: the title over the blank bars, «+1» and the day on the stub.
+        const print = fwd ? t - 4.6 : -1;
+        show($("tprint"), print > 0);
+        const bars = 1 - prog(print, 0, 0.15);
+        attr($("tbar1"), { opacity: bars });
+        attr($("tbar2"), { opacity: bars });
+        if (print <= 0) return;
+        let k = 0;
+        L.title.forEach((line, row) =>
+          line.letters.forEach((l) => {
+            const s = print - 0.04 - k++ * 0.018, p = spring(s, 0.6, 0.18);
+            place(l, 714 + l.x, L.titleBase[row] + 24 * (1 - p), 0, 1, clamp(s / 0.08));
+          }),
+        );
+        const p = spring(print, 0.5, 0.18), q = spring(print - 0.1, 0.6, 0.18);
+        const sp = 0.6 + 0.4 * p;
+        attr($("tglyph"), { transform: `translate(746 649) scale(${2.67 * sp}) translate(-12 -12)`, opacity: clamp(print / 0.06) });
+        attr($("tplus"), { transform: `translate(790 ${L.plusBase}) scale(${sp})`, opacity: clamp(print / 0.06) });
+        attr($("tday"), { transform: `translate(1206 ${L.dayBase + 16 * (1 - q)})`, opacity: clamp((print - 0.1) / 0.08) });
+      }
+
+      // Black rounded square → pill, inside the orange; shrinks with the orange back into the dot.
+      function drawSlab(t, dot) {
+        const live = t >= b(10) - 0.12 && t < b(12) + 0.02;
+        show($("slab"), live);
+        if (!live) return;
+        const k = dot.r / 1250;
+        const sq = spring(t - (b(10) - 0.12), 0.5, 0.2), p = spring(t - (b(11) - 0.1), 0.5, 0.2);
+        const rot = -180 * (1 - spring(t - (b(10) - 0.12), 0.42, 0.26));
+        const w = (360 * sq + 460 * p) * k, h = Math.max(0, 360 * sq - 80 * p) * k;
+        const rx = Math.min(h / 2, lerp(72 * sq, 140, clamp(p)) * k);
+        attr($("slab"), { x: 960 - w / 2, y: 540 - h / 2, width: w, height: h, rx, transform: `rotate(${rot} 960 540)`, opacity: clamp((k - 0.04) / 0.1) });
+      }
+
+      function drawRing(t) {
+        const live = t >= b(12) + 0.12 && t < b(16) + 0.75;
+        show($("ring"), live);
+        if (!live) return;
+        const R = L.ring.R;
+        // Slow drift plus a sprung step on each orbit beat.
+        const spin = -0.35 + 0.12 * (t - b(12)) + 0.3 * [13, 14, 15].reduce((a, n) => a + spring(t - b(n), 0.45, 0.15), 0);
+        const pose = (i) => {
+          const p = spring(t - (b(12) + 0.3 + i * 0.011), 0.55, 0.2); // after the split
+          const q = prog(t, b(16) - 0.2 + i * 0.006, b(16) + 0.35 + i * 0.006);
+          return { r: R * p + 1300 * ein(q), s: (0.3 + 0.7 * clamp(p)) * (1 - 0.7 * q), o: clamp(p * 4) * (1 - q) };
+        };
+        L.ring.letters.forEach((l, i) => {
+          const { r, s, o } = pose(i), a = ((l.a + spin) * 180) / Math.PI;
+          attr(l.node, { transform: `translate(960 540) rotate(${a}) translate(0 ${-r}) scale(${s}) translate(${-l.w / 2} 0)`, opacity: o });
+        });
+        L.ring.seps.forEach((sp) => {
+          const { r, o } = pose(sp.n), a = sp.a + spin, rr = r + 26 * (r / R);
+          attr(sp.node, { cx: 960 + rr * Math.sin(a), cy: 540 - rr * Math.cos(a), opacity: o });
+        });
+      }
+
+      // Halftone: a grid of paper dots whose sizes are a function of distance to the orange dot.
+      function drawHalftone(t, dot) {
+        const fwd = t >= b(16) - 0.1 && t < b(19) + 0.45, back = t >= 15.0 && t < 15.46;
+        show($("halftone"), fwd || back);
+        if (!fwd && !back) return;
+        const c = L.hctx, S = 36;
+        c.clearRect(0, 0, 1920, 1080);
+        c.fillStyle = PAPER;
+        c.beginPath();
+        for (let gy = 540 - 16 * S; gy <= 540 + 16 * S; gy += S) {
+          for (let gx = 960 - 27 * S; gx <= 960 + 27 * S; gx += S) {
+            // Waves come out of both dots; growth and the flip spread from the pair's centre.
+            const dA = Math.hypot(gx - dot.x, gy - dot.y), dB = dot.b ? Math.hypot(gx - dot.b.x, gy - dot.b.y) : dA;
+            const d = fwd ? Math.hypot(gx - 960, gy - 540) : Math.min(dA, dB);
+            let r, rx;
+            if (fwd) {
+              const emerge = smooth(clamp((1500 * eout(prog(t, b(16) - 0.1, b(17) + 0.1)) - d) / 140));
+              const ph = (t - b(16)) * 9; // the two ring systems interfere: where they meet, the dots swell
+              const ripple = 4.5 + 1.25 * (Math.sin(dA * 0.045 - ph) + Math.sin(dB * 0.045 - ph));
+              const g = smooth(clamp((1750 * ein(prog(t, b(17), b(18))) - d) / 380)); // grows past the edges
+              r = lerp(ripple * emerge, 27, g) * lerp(smooth(clamp((Math.min(dA, dB) - 36) / 50)), 1, g);
+              const f0 = b(18) + (d / 1150) * 0.42; // flips to black from the dot outwards
+              rx = r * Math.cos((prog(t, f0, f0 + 0.16) * Math.PI) / 2);
+            } else {
+              r = rx = 27 * smooth(clamp((1800 * eio(prog(t, 15.0, 15.42)) - d + 40) / 340));
+            }
+            if (rx > 0.3 && r > 0.3) {
+              c.moveTo(gx + rx, gy);
+              c.ellipse(gx, gy, rx, r, 0, 0, Math.PI * 2);
+            }
+          }
+        }
+        c.fill();
+      }
+
+      function drawEnd(t) {
+        const live = t >= b(18) && t < 15.3;
+        show($("end"), live);
+        if (!live) return;
+        const out = (k) => prog(t, 15.0 + k * 0.008, 15.2 + k * 0.008);
+        const rise = (l, k, x, y, t0, dy, z, s0) => {
+          const p = spring(t - t0, z, 0.22), q = out(k);
+          place(l, x + l.x, y + dy * (1 - p) + 70 * ein(q), 0, lerp(s0, 1, p), clamp((t - t0) / 0.12) * (1 - q));
+        };
+        L.word.letters.forEach((l, k) => rise(l, k, L.wordX, 450, 12.55 + k * 0.04, 90, 0.55, 0.85));
+        L.slogan.letters.forEach((l, k) => rise(l, 5 + k, L.sloganX, 640, 12.72 + k * 0.02, 40, 0.6, 1));
+        L.platforms.letters.forEach((l, k) => rise(l, 20 + k, 960 - L.platforms.width / 2, 740, 13.35 + k * 0.012, 30, 0.6, 1));
+      }
+
+      function drawCursor(t) {
+        const u = t < 1.5 ? t + DUR : t, live = u >= 15.95 && u < DUR + 1.4;
+        show($("cursor"), live);
+        if (!live) return;
+        const e = eout(prog(u, 15.95, DUR + B - 0.1));
+        let x = lerp(2010, 1418, e), y = lerp(1150, 546, e);
+        const press = t < 1.5 ? Math.min(prog(t, 0.6, 0.68), 1 - prog(t, 0.7, 0.82)) : 0;
+        if (t < 1.5) {
+          const v = ein(prog(t, 0.95, 1.38));
+          x += 260 * v;
+          y += 700 * v;
+        }
+        attr($("cursor"), { transform: `translate(${x} ${y}) scale(${1 - 0.14 * press})` });
+      }
+
+      function seek(t) {
+        t = clamp(t, 0, DUR - 1e-6);
+        const dot = dotState(t);
+        $("bg").style.background = t >= b(9) + 0.12 && t < 15.42 ? NIGHT : PAPER;
+        drawRow(t);
+        drawLabel(t);
+        drawTicket(t, dot);
+        drawSlab(t, dot);
+        drawRing(t);
+        drawHalftone(t, dot);
+        drawEnd(t);
+        drawCursor(t);
+        show($("dot"), dot.vis);
+        attr($("dot"), { cx: 0, cy: 0, rx: dot.r * dot.sx, ry: dot.r * dot.sy, transform: `translate(${dot.x} ${dot.y}) rotate(${dot.rot})` });
+        drawPartner(dot);
+      }
+
+      // The «+1» dot and the neck that joins it to the first while they are closer than three radii: the same
+      // function buds them apart at b12 and folds them back together on the way home.
+      function drawPartner(dot) {
+        const p = dot.b;
+        show($("dot2"), !!p);
+        const dd = p ? Math.hypot(p.x - dot.x, p.y - dot.y) : 0, r = p ? Math.min(dot.r, p.r) : 0;
+        const w = dd > 0.5 && dd < 3 * r ? r * Math.pow(1 - dd / (3 * r), 0.6) : 0;
+        show($("neck"), w > 0);
+        if (!p) return;
+        attr($("dot2"), { cx: p.x, cy: p.y, r: p.r });
+        if (w <= 0) return;
+        const nx = -(p.y - dot.y) / dd, ny = (p.x - dot.x) / dd, mx = (dot.x + p.x) / 2, my = (dot.y + p.y) / 2, k = 2 * w - r;
+        const pt = (x, y) => `${x.toFixed(1)} ${y.toFixed(1)}`;
+        attr($("neck"), {
+          d: `M${pt(dot.x + nx * r, dot.y + ny * r)} Q${pt(mx + nx * k, my + ny * k)} ${pt(p.x + nx * r, p.y + ny * r)} ` +
+            `L${pt(p.x - nx * r, p.y - ny * r)} Q${pt(mx - nx * k, my - ny * k)} ${pt(dot.x - nx * r, dot.y - ny * r)} Z`,
+        });
+      }
+
+      // Layout needs the fonts measured, so the runtime is told to wait for the build before seeking.
+      window.__hf = window.__hf || {};
+      window.__hf.buildReady = window.__hf.buildReady || {};
+      window.__hf.buildReady["poriad-dot"] = Promise.all([
+        document.fonts.load(`800 120px ${FONT}`),
+        document.fonts.load(`700 60px ${FONT}`),
+        document.fonts.load(`800 116px "Sofia Sans Extra Condensed"`, "+1"),
+        document.fonts.load(`600 37px "Inter"`, "СЬОГОДНІ"),
+      ]).then(() => {
+        build();
+        const clock = { t: 0 };
+        const tl = gsap.timeline({ paused: true });
+        tl.to(clock, { t: DUR, duration: DUR, ease: "none", onUpdate: () => seek(clock.t) });
+        seek(0);
+        window.__timelines["main"] = tl;
+      });
+    </script>
+  </body>
+</html>
