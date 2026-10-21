@@ -10,7 +10,7 @@ export { esc };
 
 // Мітка ct=event: завантаження зі сторінок подій окремо від сайту (site/js/poriad.js).
 const APP_STORE_URL = "https://apps.apple.com/app/apple-store/id6813543772?pt=129478154&ct=event&mt=8";
-// Порожньо, доки в site/js/poriad.js не ввімкнено PLAY_LIVE: кнопку Google Play не показуємо. Мітка utm — event.
+// Порожньо, коли в site/js/poriad.js вимкнено PLAY_LIVE: тоді кнопку Google Play не показуємо. Мітка utm — event.
 const PLAY_URL = playUrl("event");
 const IOS_APP_ID = "QTYQMJ94D2.app.poriad.ios";
 // Play Console → Test and release → App integrity → App signing: SHA-256 ключа підпису застосунку
@@ -228,7 +228,7 @@ function layout({ title, description, image, url, head, body }) {
 <meta name="theme-color" content="#0F0F13" media="(prefers-color-scheme: dark)">
 ${head}
 <link rel="preload" href="/fonts/sofia-sans-condensed-800.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/tokens.css?v=8">
+<link rel="stylesheet" href="/tokens.css?v=9">
 <link rel="stylesheet" href="/web.css?v=9">
 <link rel="icon" href="/icon.png">
 </head>

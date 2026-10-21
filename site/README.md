@@ -29,15 +29,15 @@ python3 -m http.server 8766 --directory site
 
 ## Google Play
 
-Один перемикач — `PLAY_LIVE` у `js/poriad.js`. Поки `false`, сайт каже «поки лише для iPhone» і Android не згадує (PRODUCT.md). У день публікації в Play: `PLAY_LIVE = true`, підняти `?v=N`, запушити сайт і `cd worker && npx wrangler deploy` — з'являться значки Google Play (лендинг, шторка «у застосунку», `/e/`), «iPhone і Android» у текстах, а QR на Android веде в Play. Решта кроків — `store/listing.md`, «Після публікації в Play».
+Один перемикач — `PLAY_LIVE` у `js/poriad.js`, з 21.10.2026 `true`: значки Google Play (лендинг, шторка «у застосунку», `/e/`), «iPhone і Android» у текстах, QR на Android веде в Play. `false` повертає «поки лише для iPhone» (після зміни — `?v=N`, сайт і `cd worker && npx wrangler deploy`). Решта кроків — `store/listing.md`, «Після публікації в Play».
 
 ## Кеш
 
-Cloudflare каже браузерам тримати файли 4 години. Тому CSS і JS підключені з версією (`web.css?v=8`, `import … from "./ui.js?v=8"`, на правових сторінках — `style.css?v=8`):
+Cloudflare каже браузерам тримати файли 4 години. Тому CSS і JS підключені з версією (`web.css?v=9`, `import … from "./ui.js?v=9"`, на правових сторінках — `style.css?v=9`):
 змінили CSS чи JS — підніміть номер усюди однаково, інакше людина побачить новий HTML зі старими стилями. Одним рядком:
 
 ```bash
-sed -i '' -E 's/\?v=8"/?v=9"/g' site/*.html site/js/*.js worker/index.mjs
+sed -i '' -E 's/\?v=9"/?v=10"/g' site/*.html site/js/*.js worker/index.mjs
 ```
 
 ## Перед публікацією
