@@ -23,14 +23,16 @@ const CACHE_SECONDS = 300;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // Хеш єдиного вбудованого скрипта (кнопка «Поділитися» внизу eventPage); worker/test.mjs звіряє його з текстом.
 export const SHARE_SCRIPT_HASH = "sha256-+OMlclOt3WjumM9V/xC1Thxi7720WWamOx2Q9R1RPO0=";
-// Обкладинки — з сайтів продавців, тож img-src https:; решта — лише свій домен.
+// Обкладинки — з сайтів продавців, тож img-src https:; маячок Cloudflare Web Analytics Cloudflare вставляє в сторінку
+// сам (скрипт зі static.cloudflareinsights.com, дані — на cloudflareinsights.com); решта — лише свій домен.
 const SECURITY_HEADERS = {
   "strict-transport-security": "max-age=31536000",
   "x-content-type-options": "nosniff",
   "x-frame-options": "DENY",
   "referrer-policy": "strict-origin-when-cross-origin",
-  "content-security-policy": `default-src 'self'; img-src 'self' https: data:; script-src '${SHARE_SCRIPT_HASH}'; `
-    + "style-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+  "content-security-policy": `default-src 'self'; img-src 'self' https: data:; script-src '${SHARE_SCRIPT_HASH}' `
+    + "https://static.cloudflareinsights.com; connect-src 'self' https://cloudflareinsights.com; style-src 'self'; "
+    + "font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
 };
 
 export default {
