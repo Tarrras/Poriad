@@ -1,6 +1,7 @@
 import SwiftUI
 import PhotosUI
 import Shared
+import AmplitudeSessionReplay
 
 /// Фото, імʼя, дата приходу й лічильники по центру. Спільне для власної шапки й картки людини.
 struct ProfileSummary: View {
@@ -190,7 +191,9 @@ struct EditProfileSheet: View {
                 HStack(spacing: Space.lg) {
                     ZStack {
                         if let preview {
+                            // Щойно вибране фото — повз `Avatar`, тож і з Session Replay ховаємо його тут.
                             Image(uiImage: preview).resizable().scaledToFill().frame(width: 72, height: 72).clipShape(Circle())
+                                .amp_setBlocked(true)
                         } else {
                             Avatar(name: name, url: removingPhoto ? nil : savedPhoto, size: 72)
                         }

@@ -20,6 +20,10 @@ internal class EventRpc(private val api: ApiClient, private val auth: AuthReposi
         if (token != null) api.request("/rest/v1/rpc/$name", HttpMethod.Post, params, token, reauthorizable = false)
         else api.request("/rest/v1/rpc/$name", HttpMethod.Post, params, auth.accessToken())
 
+    /** Запис без сесії: лише `apikey`, тобто роль anon. Для того, що сервер дозволяє й гостю. */
+    suspend fun anonymous(name: String, params: JsonObject): JsonElement =
+        api.request("/rest/v1/rpc/$name", HttpMethod.Post, params)
+
     /** Читання: повторюється після збою шлюзу. Транспорт POST від POST не відрізнить, тому окрема функція. */
     suspend fun read(name: String, params: JsonObject = noParams): JsonElement =
         api.request("/rest/v1/rpc/$name", HttpMethod.Post, params, auth.accessToken(), idempotent = true)

@@ -140,7 +140,6 @@ extension EnvironmentValues {
                 autocapture: AutocaptureOptions.all.subtracting(.networkTracking)
             ))
             amplitude.add(plugin: AmplitudeSwiftSessionReplayPlugin(sampleRate: 1, maskLevel: .conservative))
-            amplitude.track(eventType: "Viewed Home Page", eventProperties: ["prompt_version": "BA400.4"]) // helps improve this setup flow — safe to remove once you've verified the event lands
             let firebase = PoruchAnalytics.shared.collection
             PoruchAnalytics.shared.collection = { enabled in
                 firebase?(enabled)

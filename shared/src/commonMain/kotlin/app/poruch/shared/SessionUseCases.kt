@@ -85,20 +85,22 @@ internal class SessionUseCases(
     }
 
     /**
-     * Пароль підтверджує, що телефон у руках власника; сервер (Edge Function) видаляє все каскадом,
-     * далі — те саме прибирання, що при виході. Мережевий збій лишає людину в акаунті: вона ще
-     * існує на сервері, і видалення можна повторити. Акаунт без пароля (Google/Apple) підтверджує
-     * саме видалення; для Apple платформа ще дає свіжий код, щоб сервер відкликав токени Apple.
+     * Пароль підтверджує, що телефон у руках власника, — тут і ще раз на сервері: чужий токен без пароля
+     * акаунт не видалить. Сервер (Edge Function) видаляє все каскадом, далі — те саме прибирання, що при
+     * виході. Мережевий збій лишає людину в акаунті: вона ще існує на сервері, і видалення можна повторити.
+     * Акаунт без пароля (Google/Apple) підтверджує саме видалення; для Apple платформа ще дає свіжий код,
+     * щоб сервер відкликав токени Apple.
      */
     fun deleteAccount(password: String?, appleAuthorizationCode: String?) = store.mutate {
         PoruchLog.i("auth") { "account deletion requested" }
-        if (!store.value.session.passwordless) {
+        val passwordless = store.value.session.passwordless
+        if (!passwordless) {
             if (password == null || !AccountRules.isPassword(password)) fail(AppError.InvalidCredentials)
             auth.verifyPassword(password)
         }
         push.unregister(auth.session.value)
         try {
-            auth.deleteAccount(appleAuthorizationCode)
+            auth.deleteAccount(password.takeUnless { passwordless }, appleAuthorizationCode)
         } catch (e: Exception) {
             // 401 — сесії вже нема, акаунт вийшов разом з нею. Інакше повертаємо пуші, які щойно зняли.
             if (e.asAppError() == AppError.SessionRequired) identity.synchronize(null) else push.register()
@@ -121,11 +123,14 @@ internal class SessionUseCases(
         store.update { it.copy(session = it.session.copy(passwordRecovery = false), notice = AppNotice.Told(AppMessage.PASSWORD_CHANGED)) }
     }
 
-    /** Зміна пароля з профілю: поточний пароль доводить, що телефон у руках власника, як і при видаленні. */
+    /**
+     * Зміна пароля з профілю: поточний пароль доводить, що телефон у руках власника, як і при видаленні.
+     * Перевірка тут дає зрозумілу відмову до запиту, а сервер звіряє той самий пароль ще раз.
+     */
     fun changePassword(current: String, password: String) = store.mutate {
         if (!AccountRules.isPassword(password)) fail(AppError.WeakPassword)
         auth.verifyPassword(current)
-        auth.updatePassword(password)
+        auth.updatePassword(password, current)
         store.tell(AppMessage.PASSWORD_CHANGED)
     }
 

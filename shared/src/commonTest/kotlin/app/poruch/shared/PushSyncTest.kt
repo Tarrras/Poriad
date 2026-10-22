@@ -21,6 +21,9 @@ class PushSyncTest {
         var failUnregister: AppError? = null
         override suspend fun register(token: String, platform: PushPlatform) { delay(50); if (fail) fail(AppError.Network); registered += token to platform }
         override suspend fun unregister(token: String, accessToken: String?) { failUnregister?.let { fail(it) }; unregistered += token; keys += accessToken }
+        /** `release_push_token`: (токен, акаунт) — без сесії. */
+        val released = mutableListOf<Pair<String, String>>()
+        override suspend fun release(token: String, userId: String) { failUnregister?.let { fail(it) }; released += token to userId }
         /** Канал повернення: (токен, місто, інтереси) кожного `touch_device` і токени `forget_device`. */
         val touched = mutableListOf<Triple<String, String?, List<String>>>()
         val forgotten = mutableListOf<String>()
@@ -167,8 +170,8 @@ class PushSyncTest {
         assertEquals(setOf("r1"), requests.keys)
     }
 
-    /** Вихід офлайн: токен із ключем акаунта чекає і знімається при наступному поверненні. */
-    @Test fun anUnregisterThatFailedOfflineIsRetriedWithTheOldKey() = runTest {
+    /** Вихід офлайн: токен і id акаунта, без ключа доступу, чекають і знімаються без сесії при наступному поверненні. */
+    @Test fun anUnregisterThatFailedOfflineIsReleasedLaterWithoutAKey() = runTest {
         val tokens = Tokens(); val pending = Pending()
         val store = AppStore(AppState(session = SessionState(userId = "a")), backgroundScope)
         val sync = PushSync(tokens, null, null, store, pending)
@@ -176,25 +179,31 @@ class PushSyncTest {
 
         tokens.failUnregister = AppError.Network
         sync.unregister(sessionA)
-        assertEquals(PendingUnregister("t1", "a", "access-a", 9999999999), pending.value)
+        assertEquals(PendingUnregister("t1", "a"), pending.value)
         store.update { it.forAccount(null) }
 
         tokens.failUnregister = null
         sync.retryPending(); runCurrent()
-        assertEquals(listOf<String?>("access-a"), tokens.keys, "знімаємо ключем акаунта, що вийшов, а не поточним")
+        assertEquals(listOf("t1" to "a"), tokens.released, "знімаємо токен акаунта, що вийшов, а не поточного")
+        assertTrue(tokens.keys.isEmpty(), "жодного ключа доступу")
+        assertNull(pending.value)
+
+        // Сервер відмовив (401/Rejected): повтор нічого не дасть, запис прибираємо.
+        pending.value = PendingUnregister("t1", "a"); tokens.failUnregister = AppError.Rejected
+        sync.retryPending(); runCurrent()
         assertNull(pending.value)
     }
 
     /** Той самий акаунт повернувся: токен знову його, і повтор його не знімає. */
     @Test fun aPendingUnregisterIsDroppedWhenTheSameAccountIsBack() = runTest {
-        val tokens = Tokens(); val pending = Pending().apply { value = PendingUnregister("t1", "a", "access-a", 9999999999) }
+        val tokens = Tokens(); val pending = Pending().apply { value = PendingUnregister("t1", "a") }
         val sync = PushSync(tokens, null, null, AppStore(AppState(session = SessionState(userId = "a")), backgroundScope), pending)
         sync.retryPending(); runCurrent()
-        assertTrue(tokens.unregistered.isEmpty())
+        assertTrue(tokens.unregistered.isEmpty() && tokens.released.isEmpty())
         assertNull(pending.value)
     }
 
-    /** Сесію відкликав сервер (не вихід): токен знімаємо останнім ключем; 401 — повторювати нічого. */
+    /** Сесію відкликав сервер (не вихід): токен знімаємо останнім ключем; 401 — пізніше без ключа. */
     @Test fun aDroppedSessionReleasesItsTokenWithTheLastKey() = runTest {
         val tokens = Tokens(); val pending = Pending()
         val store = AppStore(AppState(session = SessionState(userId = "a")), backgroundScope)
@@ -206,6 +215,11 @@ class PushSyncTest {
         sync.tokenChanged("t2", PushPlatform.IOS); advanceTimeBy(100); runCurrent()
         tokens.failUnregister = AppError.SessionRequired
         sync.accountLeft(sessionA); runCurrent()
-        assertNull(pending.value, "мертвий ключ не зберігаємо")
+        assertEquals(PendingUnregister("t2", "a"), pending.value, "мертвий ключ не причина лишити токен акаунту")
+
+        store.update { it.forAccount(null) }; tokens.failUnregister = null
+        sync.retryPending(); runCurrent()
+        assertEquals(listOf("t2" to "a"), tokens.released)
+        assertNull(pending.value)
     }
 }

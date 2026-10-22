@@ -31,6 +31,10 @@ internal class SupabasePushTokens(private val rpc: EventRpc) : PushTokens {
         rpc.call("unregister_push_token", buildJsonObject { put("p_token", token) }, accessToken)
     }
 
+    override suspend fun release(token: String, userId: String) = quiet {
+        rpc.anonymous("release_push_token", buildJsonObject { put("p_token", token); put("p_user_id", userId) })
+    }
+
     override suspend fun touchDevice(token: String, platform: PushPlatform, city: String?, interests: List<String>) = quiet {
         rpc.call("touch_device", buildJsonObject {
             put("p_token", token); put("p_platform", platform.key); put("p_city", city)

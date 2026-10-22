@@ -49,10 +49,10 @@ class PoruchApplication : Application() {
         val app: PoruchApp = get(); val drafts: DraftStore = get()
         // Amplitude — після стора: збережена відмова від аналітики вже в PoruchAnalytics і діє з першої
         // події. Replay ховає весь текст — те саме правило «жодних імен і текстів», що й для подій.
+        // Без DEEP_LINKS: SDK пише `intent.data` цілком, а це й колбек входу з кодом чи токенами.
         val amplitude = BuildConfig.AMPLITUDE_API_KEY.ifBlank { null }?.let { key ->
-            Amplitude(Configuration(key, this, optOut = !PoruchAnalytics.enabled, autocapture = AutocaptureOption.ALL)).apply {
+            Amplitude(Configuration(key, this, optOut = !PoruchAnalytics.enabled, autocapture = AutocaptureOption.ALL - AutocaptureOption.DEEP_LINKS)).apply {
                 add(SessionReplayPlugin(this@PoruchApplication, sampleRate = 1.0, privacyConfig = PrivacyConfig(MaskLevel.CONSERVATIVE)))
-                track("Viewed Home Page", mapOf("prompt_version" to "BA400.4")) // helps improve this setup flow — safe to remove once you've verified the event lands
             }
         }
         if (amplitude == null) PoruchLog.w("analytics") { "Amplitude API key missing — analytics disabled" }

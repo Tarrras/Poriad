@@ -29,16 +29,21 @@ interface AuthRepository {
     suspend fun signOut()
     suspend fun accessToken(): String?
     suspend fun requestPasswordReset(email: String)
-    suspend fun updatePassword(password: String)
+    /**
+     * [current] — поточний пароль: з ним сервер сам перевіряє власника («Secure password change» у Supabase Auth),
+     * і чужий токен пароль не змінить. Null — новий пароль після відновлення з листа: там сервер його не питає.
+     */
+    suspend fun updatePassword(password: String, current: String? = null)
     suspend fun handleCallback(url: String): Boolean
     /** Повторно підтверджує пароль поточного акаунта; помилка — [AppError.InvalidCredentials]. */
     suspend fun verifyPassword(password: String)
     /**
-     * Видаляє акаунт на сервері (Edge Function `delete-account`). [appleAuthorizationCode] — свіжий код
+     * Видаляє акаунт на сервері (Edge Function `delete-account`). [password] — поточний пароль акаунта з паролем:
+     * сервер перевіряє його сам, хибний — [AppError.InvalidCredentials]. [appleAuthorizationCode] — свіжий код
      * Sign in with Apple: з ним сервер відкликає токени Apple (App Store 5.1.1(v)). Локальну сесію чистить лише
      * після успіху або 401; мережевий збій лишає людину в акаунті, щоб могла повторити.
      */
-    suspend fun deleteAccount(appleAuthorizationCode: String?)
+    suspend fun deleteAccount(password: String?, appleAuthorizationCode: String?)
 }
 // Доступ до подій — в EventAccess.kt.
 

@@ -160,18 +160,40 @@ class AuthRepositoryTest {
         val session="""{"user_id":"u1","access_token":"a1","refresh_token":"r1","expires_at":9999999999}"""
         val offline=ApiClient(HttpClient(MockEngine { error("offline") }),"https://test.invalid","public")
         val kept=SupabaseAuthRepository(offline,Store(session))
-        assertEquals(app.poruch.domain.AppError.Network,assertFailsWith<app.poruch.domain.AppFailure> { kept.deleteAccount(null) }.error)
+        assertEquals(app.poruch.domain.AppError.Network,assertFailsWith<app.poruch.domain.AppFailure> { kept.deleteAccount(null,null) }.error)
         assertEquals("u1",kept.session.value?.userId); offline.close()
+
+        // Хибний пароль сервер відхиляє сам: людина лишається в акаунті й бачить «невірний пароль».
+        val refused=ApiClient(HttpClient(MockEngine { respond("""{"error":"password"}""",HttpStatusCode.Forbidden) }),"https://test.invalid","public")
+        val wrong=SupabaseAuthRepository(refused,Store(session))
+        assertEquals(app.poruch.domain.AppError.InvalidCredentials,assertFailsWith<app.poruch.domain.AppFailure> { wrong.deleteAccount("wrong",null) }.error)
+        assertEquals("u1",wrong.session.value?.userId); refused.close()
 
         val api=ApiClient(HttpClient(MockEngine { request ->
             assertEquals("/functions/v1/delete-account",request.url.encodedPath)
             assertEquals("Bearer a1",request.headers["Authorization"]); assertEquals("public",request.headers["apikey"])
-            assertEquals("""{"apple_authorization_code":"apple-code"}""",request.body.toByteArray().decodeToString())
+            assertEquals("""{"password":"secret1","apple_authorization_code":"apple-code"}""",request.body.toByteArray().decodeToString())
             respond("""{"deleted":true}""",HttpStatusCode.OK)
         }),"https://test.invalid","public")
         val store=Store(session); val auth=SupabaseAuthRepository(api,store)
-        auth.deleteAccount("apple-code")
+        auth.deleteAccount("secret1","apple-code")
         assertNull(auth.session.value); assertNull(store.value); api.close()
+    }
+    /** Зміна пароля з профілю несе поточний — його звіряє сервер; відновлення з листа — без нього. */
+    @Test fun changingThePasswordSendsTheCurrentOne()=runTest {
+        val bodies=mutableListOf<String>()
+        val api=ApiClient(HttpClient(MockEngine { request ->
+            bodies+=request.body.toByteArray().decodeToString()
+            if ("current_password" in bodies.last() && "right1" !in bodies.last())
+                respond("""{"code":400,"error_code":"current_password_mismatch","msg":"Current password required"}""",HttpStatusCode.BadRequest)
+            else respond("""{"id":"u1"}""",HttpStatusCode.OK)
+        }),"https://test.invalid","public")
+        val auth=SupabaseAuthRepository(api,Store("""{"user_id":"u1","access_token":"a1","refresh_token":"r1","expires_at":9999999999}"""))
+        auth.updatePassword("new-pass1","right1")
+        auth.updatePassword("new-pass2")
+        assertEquals(listOf("""{"password":"new-pass1","current_password":"right1"}""","""{"password":"new-pass2"}"""),bodies)
+        assertEquals(app.poruch.domain.AppError.InvalidCredentials,assertFailsWith<app.poruch.domain.AppFailure> { auth.updatePassword("new-pass3","wrong") }.error)
+        api.close()
     }
     /** Перевірка пароля створює сесію на сервері — її одразу закриваємо, і лише її (`scope=local`). */
     @Test fun verifyingThePasswordClosesItsOwnSession()=runTest {

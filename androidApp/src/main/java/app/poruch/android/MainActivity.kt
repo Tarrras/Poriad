@@ -70,6 +70,7 @@ import org.koin.compose.navigation3.EntryProvider
 import org.koin.core.annotation.KoinExperimentalAPI
 import org.koin.core.scope.Scope
 import java.util.Locale
+import java.util.UUID
 
 class MainActivity : ComponentActivity(), AndroidScopeComponent {
     /** Retained-скоуп: [Navigator] і записи стека переживають поворот. */
@@ -124,17 +125,20 @@ class MainActivity : ComponentActivity(), AndroidScopeComponent {
         if (intent.action == Intent.ACTION_VIEW && data?.scheme == BuildConfig.AUTH_SCHEME && data.host == "auth") {
             app.handleAuthCallback(data.toString())
         }
+        // Extras читаємо лише з наших сповіщень: Activity експортована, і чужа апка інакше підкинула б
+        // причину в метрики чи змусила перехід. Посилання нижче публічні й так.
+        val ours = intent.takeIf { it.getStringExtra(EXTRA_KEY) == launchKey(this) }
         // Дайджест вихідних веде на головну: там уся область, ранжована за смаком.
-        if (intent.action == ACTION_DIGEST) {
+        if (ours?.action == ACTION_DIGEST) {
             scope.get<Navigator>().reset(Home)
             if (intent.hasExtra(EXTRA_STEP)) app.winbackOpened(intent.getIntExtra(EXTRA_STEP, 1))
             else app.digestOpened(intent.getIntExtra(EXTRA_WEEK, 1))
             return
         }
         // Тап по сповіщенню: що воно було — для метрики, яка повертає людей, а яка лише дратує.
-        intent.getStringExtra(EXTRA_REASON)?.let(app::pushOpened)
+        ours?.getStringExtra(EXTRA_REASON)?.let(app::pushOpened)
         // Пуш про кілька нових подій закладу: мапа на його стосі. Одна подія йде звичайним шляхом нижче.
-        intent.getStringExtra(EXTRA_PLACE_ID)?.let { placeId ->
+        ours?.getStringExtra(EXTRA_PLACE_ID)?.let { placeId ->
             val navigator = scope.get<Navigator>()
             navigator.reset(Home)
             app.openPlace(placeId)
@@ -142,7 +146,7 @@ class MainActivity : ComponentActivity(), AndroidScopeComponent {
             return
         }
         // Пуш про кілька нових подій артиста: екран артиста поверх головної. Одна подія йде звичайним шляхом нижче.
-        intent.getStringExtra(EXTRA_ARTIST_ID)?.let { artistId ->
+        ours?.getStringExtra(EXTRA_ARTIST_ID)?.let { artistId ->
             val navigator = scope.get<Navigator>()
             navigator.reset(Home)
             app.openArtist(artistId)
@@ -153,9 +157,9 @@ class MainActivity : ComponentActivity(), AndroidScopeComponent {
         // поверх головної, «назад» веде туди, а не з застосунку.
         val linked = data?.takeIf { intent.action == Intent.ACTION_VIEW }?.let { EventLinks.eventId(it.toString()) }
         if (linked != null) app.eventLinkOpened()
-        val eventId = linked ?: intent.getStringExtra(EXTRA_EVENT_ID) ?: return
+        val eventId = linked ?: ours?.getStringExtra(EXTRA_EVENT_ID) ?: return
         val navigator = scope.get<Navigator>()
-        val target = if (intent.getStringExtra(EXTRA_TARGET) == TARGET_CHAT) Chat(eventId) else Detail(eventId)
+        val target = if (ours?.getStringExtra(EXTRA_TARGET) == TARGET_CHAT) Chat(eventId) else Detail(eventId)
         // Та сама подія вже зверху: запис стека й модель лишаються, тож деталі перепитуємо самі — пуш
         // про зміну саме цієї події інакше показував би старі дату й стан.
         val reopened = navigator.current == target
@@ -172,14 +176,27 @@ class MainActivity : ComponentActivity(), AndroidScopeComponent {
         private const val EXTRA_TARGET = "target"
         private const val EXTRA_WEEK = "week"
         private const val EXTRA_STEP = "step"
+        private const val EXTRA_KEY = "key"
         private const val TARGET_CHAT = "chat"
         private const val APP_LANGUAGE = "uk"
         private const val ACTION_DIGEST = "app.poruch.OPEN_DIGEST"
+        private const val LAUNCH_PREFS = "launch"
+
+        /**
+         * Випадковий ключ цієї установки в extras наших сповіщень (аудит L15). Своя дія не захистила б: її видно з APK,
+         * а ключ лежить у приватних налаштуваннях. Сповіщення, показані до появи ключа, просто відкривають застосунок.
+         */
+        @Synchronized
+        private fun launchKey(context: Context): String {
+            val prefs = context.getSharedPreferences(LAUNCH_PREFS, Context.MODE_PRIVATE)
+            return prefs.getString(EXTRA_KEY, null) ?: UUID.randomUUID().toString().also { prefs.edit { putString(EXTRA_KEY, it) } }
+        }
 
         /** Intent сповіщення: відкрити подію або, з [chat], її чат. Наявний екземпляр отримує його в `onNewIntent`. */
         fun open(context: Context, eventId: String, chat: Boolean = false, reason: String? = null): Intent =
             Intent(context, MainActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                .putExtra(EXTRA_KEY, launchKey(context))
                 .putExtra(EXTRA_EVENT_ID, eventId)
                 .apply {
                     if (chat) putExtra(EXTRA_TARGET, TARGET_CHAT)
@@ -191,6 +208,7 @@ class MainActivity : ComponentActivity(), AndroidScopeComponent {
         fun openPlace(context: Context, placeId: String, reason: String): Intent =
             Intent(context, MainActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                .putExtra(EXTRA_KEY, launchKey(context))
                 .putExtra(EXTRA_PLACE_ID, placeId)
                 .putExtra(EXTRA_REASON, reason)
 
@@ -198,6 +216,7 @@ class MainActivity : ComponentActivity(), AndroidScopeComponent {
         fun openArtist(context: Context, artistId: String, reason: String): Intent =
             Intent(context, MainActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                .putExtra(EXTRA_KEY, launchKey(context))
                 .putExtra(EXTRA_ARTIST_ID, artistId)
                 .putExtra(EXTRA_REASON, reason)
 
@@ -207,11 +226,13 @@ class MainActivity : ComponentActivity(), AndroidScopeComponent {
          */
         fun openDigest(context: Context, week: Int): Intent =
             Intent(context, MainActivity::class.java).setAction(ACTION_DIGEST).putExtra(EXTRA_WEEK, week)
+                .putExtra(EXTRA_KEY, launchKey(context))
                 .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
 
         /** Intent пуша повернення: та сама дія, що в дайджесту, а [step] замість тижня — для `push_open`. */
         fun openWinback(context: Context, step: Int): Intent =
             Intent(context, MainActivity::class.java).setAction(ACTION_DIGEST).putExtra(EXTRA_STEP, step)
+                .putExtra(EXTRA_KEY, launchKey(context))
                 .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
     }
 }

@@ -7,10 +7,15 @@ enum class PushPlatform(val key: String) { ANDROID("android"), IOS("ios") }
 interface PushTokens {
     suspend fun register(token: String, platform: PushPlatform)
     /**
-     * [accessToken] — ключ акаунта, під яким токен реєстрували, коли його сесії вже нема (вихід
-     * офлайн, відкликана сесія). Null — поточна сесія.
+     * [accessToken] — ключ акаунта, під яким токен реєстрували, коли його сесії вже нема (сервер
+     * відкликав сесію). Null — поточна сесія.
      */
     suspend fun unregister(token: String, accessToken: String? = null)
+    /**
+     * Знімає [token] акаунта [userId] без сесії (`release_push_token`, роль anon): так для повтору після виходу
+     * офлайн не треба зберігати ключ доступу. Інший акаунт уже взяв токен собі — сервер нічого не чіпає.
+     */
+    suspend fun release(token: String, userId: String)
 
     /**
      * Канал повернення (docs/guest-channel.md): пристрій відкрили з дозволом і дайджестом — сервер знає `last_seen`,
@@ -33,10 +38,11 @@ interface DeviceTouchStore {
 }
 
 /**
- * Токен, який не вдалося зняти, коли акаунт пішов з телефона, і чим його знімати. Без цього
- * сповіщення чату акаунта A далі падають на екран блокування після його виходу.
+ * Токен, який не вдалося зняти, коли акаунт пішов з телефона, і чий він. Без цього
+ * сповіщення чату акаунта A далі падають на екран блокування після його виходу. Ключа доступу тут нема:
+ * запис лежить у звичайному кеші, а знімає [PushTokens.release] за токеном і акаунтом.
  */
-data class PendingUnregister(val token: String, val userId: String, val accessToken: String, val expiresAt: Long)
+data class PendingUnregister(val token: String, val userId: String)
 
 /** Незнятий токен. Належить пристрою: вихід з акаунта його не стирає. */
 interface PendingUnregisterStore {

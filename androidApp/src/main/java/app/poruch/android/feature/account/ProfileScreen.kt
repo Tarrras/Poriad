@@ -32,6 +32,7 @@ import app.poruch.android.feature.detail.rememberImagePicker
 import app.poruch.domain.AccountRules
 import app.poruch.domain.Profile
 import app.poruch.domain.ProfileRules
+import com.amplitude.android.sessionreplay.compose.ampBlock
 
 /**
  * Екран профілю: хто ви, що вам цікаво, що й коли вам писати. Порядок — від людини до пристрою:
@@ -256,7 +257,8 @@ private fun EditProfileSheet(profile: Profile, state: ProfileState, onIntent: (P
             Text(stringResource(R.string.profile_edit), style = PoruchType.brandTitle2, color = colors.ink)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.lg)) {
                 Box(contentAlignment = Alignment.Center) {
-                    if (preview != null) Image(preview, null, Modifier.size(72.dp).clip(CircleShape), contentScale = ContentScale.Crop)
+                    // Щойно вибране фото — повз Avatar, тож і з Session Replay ховаємо його тут.
+                    if (preview != null) Image(preview, null, Modifier.size(72.dp).clip(CircleShape).ampBlock(), contentScale = ContentScale.Crop)
                     else Avatar(name, profile.avatarUrl.takeUnless { removingPhoto }, 72.dp)
                     if (picker.reading || state.mutating) CircularProgressIndicator(Modifier.size(72.dp), color = colors.brand)
                 }

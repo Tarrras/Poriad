@@ -13,8 +13,8 @@ import kotlin.time.Instant
 /**
  * Реєстрація пристрою для пушів. Токен один на телефон, а людей на ньому може бути кілька,
  * тож реєструємо під кожним акаунтом, з яким входять, і знімаємо, коли акаунт іде. Зняти не
- * вдалося (офлайн, сесію відкликано) — токен із ключем того акаунта чекає в [pending] і
- * повторюється на старті й при поверненні в застосунок.
+ * вдалося (офлайн, сесію відкликано) — токен і id того акаунта чекають у [pending] і
+ * повторюються на старті й при поверненні в застосунок, уже без сесії ([PushTokens.release]).
  *
  * Окремо від акаунтів — канал повернення ([touch]): пристрій, а не людина, тож і для гостя.
  */
@@ -136,7 +136,7 @@ internal class PushSync(
 
     /**
      * Знімає токен до виходу поточної сесії: після нього RPC уже не знає, чий він. Збій виходу
-     * не зупиняє, але токен лишається в [pending] з ключем цього акаунта.
+     * не зупиняє, але токен лишається в [pending] з id цього акаунта.
      */
     suspend fun unregister(session: UserSession?) {
         val (token, _) = this.token ?: return
@@ -155,7 +155,7 @@ internal class PushSync(
 
     /**
      * Сесія зникла не через вихід (сервер відкликав refresh): пробуємо останнім ключем. Він живий
-     * ще хвилину після того, як ми вирішили оновлювати; далі — лише [pending].
+     * ще хвилину після того, як ми вирішили оновлювати; не вийшло — [pending] зніме без ключа.
      */
     fun accountLeft(session: UserSession) {
         val (token, _) = this.token ?: return
@@ -174,27 +174,23 @@ internal class PushSync(
         }
     }
 
+    /** Будь-який збій, і 401 теж: повтор іде без ключа сесії, тож мертвий ключ йому не заважає. */
     private fun remember(token: String, session: UserSession, e: Exception) {
-        val error = e.asAppError()
-        // 401 — ключ уже мертвий, повтор нічого не дасть.
-        if (error == AppError.SessionRequired) { PoruchLog.w("push") { "token not released: session already gone" }; return }
-        PoruchLog.w("push") { "unregister failed: $error, will retry" }
-        pending?.write(PendingUnregister(token, session.userId, session.accessToken, session.expiresAt))
+        PoruchLog.w("push") { "unregister failed: ${e.asAppError()}, will retry" }
+        pending?.write(PendingUnregister(token, session.userId))
     }
 
-    /** Старт і повернення в застосунок: повторює незняте, поки ключ того акаунта живий. */
+    /** Старт і повернення в застосунок: повторює незняте без ключа сесії, поки сервер не зніме чи не відмовить. */
     fun retryPending() {
         val stored = pending ?: return
         val left = stored.read() ?: return
         val tokens = push ?: return
         if (retrying?.isActive == true) return
         // Той самий акаунт знову тут — токен знову його, знімати не можна.
-        if (left.userId == store.value.session.userId || left.expiresAt <= Clock.System.now().epochSeconds) {
-            stored.write(null); return
-        }
+        if (left.userId == store.value.session.userId) { stored.write(null); return }
         retrying = store.scope.launch {
             try {
-                tokens.unregister(left.token, left.accessToken)
+                tokens.release(left.token, left.userId)
                 PoruchLog.i("push") { "pending token released" }
                 stored.write(null)
             } catch (e: CancellationException) {

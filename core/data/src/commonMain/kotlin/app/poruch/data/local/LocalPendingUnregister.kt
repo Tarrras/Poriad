@@ -7,24 +7,21 @@ import kotlinx.serialization.json.*
 
 /**
  * Незнятий пуш-токен під префіксом `device:`: вихід з акаунта чистить приватне, а цей запис має
- * пережити саме вихід. Access-токен тут живе до свого строку (година) — після нього запис марний.
+ * пережити саме вихід. Лише токен і акаунт: ключа доступу в звичайному SQLite не тримаємо, а
+ * `access_token` і `expires_at` у записі старої версії просто ігноруємо — наступний запис їх затре.
  */
 class LocalPendingUnregister(private val database: PoruchDatabase) : PendingUnregisterStore {
     override fun read(): PendingUnregister? {
         val stored = database.cacheQueries.readDevice(KEY).executeAsOneOrNull() ?: return null
         val json = runCatching { Json.parseToJsonElement(stored).jsonObject }.getOrNull() ?: return null
         fun field(name: String) = json[name]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
-        return PendingUnregister(
-            field("token") ?: return null, field("user_id") ?: return null,
-            field("access_token") ?: return null, json["expires_at"]?.jsonPrimitive?.longOrNull ?: return null
-        )
+        return PendingUnregister(field("token") ?: return null, field("user_id") ?: return null)
     }
 
     override fun write(value: PendingUnregister?) {
         val payload = value?.let {
             buildJsonObject {
                 put("token", it.token); put("user_id", it.userId)
-                put("access_token", it.accessToken); put("expires_at", it.expiresAt)
             }.toString()
         } ?: "{}"
         database.cacheQueries.writeDevice(KEY, payload)

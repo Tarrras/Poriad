@@ -56,6 +56,8 @@ private val SERVER_ERRORS: Map<String, AppError> = mapOf(
     "TOO_MANY_EVENTS" to AppError.TooManyEvents,
     "TOO_MANY_MESSAGES" to AppError.TooManyMessages,
     "TOO_MANY_JOINS" to AppError.TooManyAttempts,
+    // Організатор переніс початок події (чи збір супутника) понад 5 разів за добу.
+    "TOO_MANY_MOVES" to AppError.TooManyAttempts,
     "INVALID_MESSAGE" to AppError.InvalidMessage,
     "OBJECTIONABLE_CONTENT" to AppError.ObjectionableContent,
     "INVALID_IMAGE_URL" to AppError.ImageUploadFailed,
@@ -85,9 +87,14 @@ private val SERVER_ERRORS: Map<String, AppError> = mapOf(
     "TOO_MANY_FOLLOWS" to AppError.Rejected
 )
 
-/** `error_code` GoTrue. */
+/** `error_code` GoTrue і `error` наших Edge Functions. */
 private val AUTH_ERRORS: Map<String?, AppError> = mapOf(
     "invalid_credentials" to AppError.InvalidCredentials,
+    // Зміна пароля з «Require current password when updating»: поточний пароль хибний чи його нема.
+    "current_password_mismatch" to AppError.InvalidCredentials,
+    "current_password_required" to AppError.InvalidCredentials,
+    // `delete-account`: пароль акаунта не підійшов або його не передали.
+    "password" to AppError.InvalidCredentials,
     "email_not_confirmed" to AppError.EmailNotConfirmed,
     "same_password" to AppError.SamePassword,
     "over_request_rate_limit" to AppError.TooManyAttempts,

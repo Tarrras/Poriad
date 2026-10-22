@@ -13,10 +13,10 @@ class AccountActionsTest {
         override suspend fun signOut() {}
         override suspend fun accessToken():String? = null
         override suspend fun requestPasswordReset(email:String) {}
-        override suspend fun updatePassword(password:String) {}
+        override suspend fun updatePassword(password:String,current:String?) {}
         override suspend fun handleCallback(url:String) = false
         override suspend fun verifyPassword(password: String) {}
-        override suspend fun deleteAccount(appleAuthorizationCode: String?) { session.value = null }
+        override suspend fun deleteAccount(password: String?, appleAuthorizationCode: String?) { session.value = null }
         override fun idTokenNonce() = "hashed"
         override suspend fun signInWithIdToken(provider: IdProvider, idToken: String) {}
     }

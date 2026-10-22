@@ -156,8 +156,10 @@ class SupabaseAuthRepository(
         }, query=mapOf("redirect_to" to callback))
         rememberVerifier(verifier, FLOW_RECOVERY)
     }
-    override suspend fun updatePassword(password: String) {
-        api.request("/auth/v1/user", HttpMethod.Put, buildJsonObject { put("password",password) }, token=accessToken())
+    override suspend fun updatePassword(password: String, current: String?) {
+        api.request("/auth/v1/user", HttpMethod.Put, buildJsonObject {
+            put("password",password); current?.let { put("current_password", it) }
+        }, token=accessToken())
     }
     override suspend fun verifyPassword(password: String) {
         val token = accessToken() ?: fail(AppError.SessionRequired)
@@ -173,11 +175,13 @@ class SupabaseAuthRepository(
             api.request("/auth/v1/logout", HttpMethod.Post, token=proof, query=mapOf("scope" to "local"), reauthorizable=false)
         } catch (e: CancellationException) { throw e } catch (e: Exception) { PoruchLog.w("auth") { "verification session not closed: ${e.asAppError()}" } }
     }
-    override suspend fun deleteAccount(appleAuthorizationCode: String?) {
+    override suspend fun deleteAccount(password: String?, appleAuthorizationCode: String?) {
         val token = accessToken() ?: fail(AppError.SessionRequired)
         try {
             // Edge Function під service role: прибирає фото зі Storage і видаляє користувача. Відповідь — `{"deleted":true}`.
+            // Пароль функція перевіряє сама: хибний чи відсутній у акаунта з паролем — 403 `{"error":"password"}`.
             api.request("/functions/v1/delete-account", HttpMethod.Post, buildJsonObject {
+                password?.let { put("password", it) }
                 appleAuthorizationCode?.let { put("apple_authorization_code", it) }
             }, token=token)
         } catch (e: AppFailure) {

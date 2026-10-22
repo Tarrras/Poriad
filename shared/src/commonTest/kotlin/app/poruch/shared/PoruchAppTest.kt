@@ -32,13 +32,16 @@ class PoruchAppTest {
         override suspend fun accessToken()=session.value?.accessToken
         override suspend fun requestPasswordReset(email:String) {}
         var updated=false
-        override suspend fun updatePassword(password:String) { updated=true }
+        /** Поточний пароль, з яким пішла зміна: його звіряє й сервер. */
+        var updatedWithCurrent:String?=null
+        override suspend fun updatePassword(password:String,current:String?) { updated=true; updatedWithCurrent=current }
         override suspend fun handleCallback(url:String):Boolean { session.value=UserSession("recovered","new","refresh",9999999999); return true }
         /** Єдиний пароль, який підробка вважає правильним; null — приймає будь-який. */
         var currentPassword:String?=null
         override suspend fun verifyPassword(password: String) { if(currentPassword!=null&&password!=currentPassword) fail(AppError.InvalidCredentials) }
         var deletedWithAppleCode:String?=null
-        override suspend fun deleteAccount(appleAuthorizationCode:String?) { deletedWithAppleCode=appleAuthorizationCode; session.value = null }
+        var deletedWithPassword:String?=null
+        override suspend fun deleteAccount(password:String?,appleAuthorizationCode:String?) { deletedWithPassword=password; deletedWithAppleCode=appleAuthorizationCode; session.value = null }
         override fun idTokenNonce()="hashed-nonce"
         /** Сесія, яку дасть вхід ID-токеном: провайдер — з неї. */
         var idTokenUser="oauth-user"
@@ -571,6 +574,7 @@ class PoruchAppTest {
         assertEquals(AppNotice.Failed(AppError.InvalidCredentials),app.state.value.notice)
         app.changePassword("right-one","password1");runCurrent()
         assertTrue(auth.updated)
+        assertEquals("right-one",auth.updatedWithCurrent,"сервер теж звіряє поточний пароль")
         assertEquals(AppNotice.Told(AppMessage.PASSWORD_CHANGED),app.state.value.notice)
         app.close()
     }
@@ -1678,6 +1682,7 @@ class PoruchAppTest {
         app.deleteAccount(null,"apple-code"); advanceTimeBy(1000); runCurrent()
         assertNull(app.state.value.session.userId)
         assertEquals("apple-code",auth.deletedWithAppleCode)
+        assertNull(auth.deletedWithPassword)
         assertEquals(AppNotice.Told(AppMessage.ACCOUNT_DELETED),app.state.value.notice)
         app.close()
     }
@@ -1703,6 +1708,7 @@ class PoruchAppTest {
         assertEquals("user",app.state.value.session.userId)
         app.deleteAccount("password123",null); advanceTimeBy(1000); runCurrent()
         assertNull(app.state.value.session.userId)
+        assertEquals("password123",auth.deletedWithPassword,"сервер теж звіряє пароль")
         app.close()
     }
 
