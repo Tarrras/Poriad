@@ -15,6 +15,7 @@ const UA = "PoriadBot/0.1 (+https://poriad.app/bot; hello@poriad.app)";
 const BATCH = 60;
 const BUDGET_MS = 100_000;      // нових запитів не починаємо: решту візьме наступний запуск
 const MAX_BYTES = 10 * 1024 * 1024;
+const ROBOTS_MAX_BYTES = 512 * 1024;   // Google читає перші 500 КБ robots.txt
 const MAX_HOPS = 5;
 
 type Due = { offer_id: string; url: string; expected: Date; why: string; tz_policy: string; time_zone: string;
@@ -33,7 +34,8 @@ Deno.serve(async (req) => {
     for (const d of due) byUrl.set(d.url, [...(byUrl.get(d.url) ?? []), d]);
     const byHost = new Map<string, string[]>();
     for (const url of byUrl.keys()) {
-      const host = new URL(url).host;
+      // Зламана адреса не валить пакет: read() поверне їй помилку, як недоступній сторінці.
+      const host = URL.canParse(url) ? new URL(url).host : "";
       byHost.set(host, [...(byHost.get(host) ?? []), url]);
     }
 
@@ -69,6 +71,7 @@ Deno.serve(async (req) => {
 async function read(url: string): Promise<Page> {
   let current = url;
   for (let hop = 0; hop <= MAX_HOPS; hop++) {
+    if (!publicHttps(current)) return fail(0, `не публічна https-адреса: ${current.slice(0, 120)}`);
     if (!(await allowed(current))) return fail(-1, "robots.txt забороняє");
     let r: Response;
     try {
@@ -88,14 +91,35 @@ async function read(url: string): Promise<Page> {
       await r.body?.cancel();
       return fail(r.status);
     }
-    const body = await r.text();
-    if (body.length > MAX_BYTES) return fail(413, `відповідь понад ${MAX_BYTES} байтів`);
+    const body = await capped(r, MAX_BYTES);
+    if (body === null) return fail(413, `відповідь понад ${MAX_BYTES} байтів`);
     return { status: 200, finalUrl: current, redirected: bare(current) !== bare(url), nodes: eventsFromHtml(body) };
   }
   return fail(0, "забагато переадресацій");
 }
 
 const fail = (status: number, error?: string): Page => ({ status, finalUrl: null, redirected: false, nodes: [], error });
+
+// Лише https на доменне ім'я: переадресація не поведе функцію до внутрішніх адрес (IP-літерали, localhost).
+// ponytail: імені, що резолвиться в приватну IP, не ловить — для цього треба свій DNS-резолв перед fetch.
+function publicHttps(url: string): boolean {
+  if (!URL.canParse(url)) return false;
+  const u = new URL(url);
+  return u.protocol === "https:" && !/^\[|^[\d.]+$|^localhost$|\.(local|internal|localhost)$/i.test(u.hostname);
+}
+
+// Тіло не більше `limit` байтів: `r.text()` спершу прочитав би все, скільки б хост не віддав.
+async function capped(r: Response, limit: number): Promise<string | null> {
+  if (!r.body) return "";
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for await (const chunk of r.body) {
+    size += chunk.length;
+    if (size > limit) return null;    // вихід з for await скасовує потік
+    chunks.push(chunk);
+  }
+  return new Blob(chunks).text();
+}
 
 // Як _bare у shadow_checks.py: хост без www і шлях без кінцевого слеша.
 function bare(url: string): string {
@@ -110,7 +134,11 @@ function robotsFor(url: string): Promise<Robots> {
   const root = new URL(url).origin;
   if (!robots.has(root)) {
     robots.set(root, fetch(`${root}/robots.txt`, { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(20_000) })
-      .then(async (r) => (r.ok ? robotsParser(`${root}/robots.txt`, await r.text()) : null))
+      .then(async (r) => {
+        if (!r.ok) { await r.body?.cancel(); return null; }
+        const text = await capped(r, ROBOTS_MAX_BYTES);
+        return text === null ? null : robotsParser(`${root}/robots.txt`, text);
+      })
       // Недоступний robots.txt — не привід вважати, що все дозволено.
       .catch(() => null));
   }

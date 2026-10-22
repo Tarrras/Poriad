@@ -21,6 +21,17 @@ const ANDROID_CERT_FINGERPRINTS = [
 ];
 const CACHE_SECONDS = 300;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// Хеш єдиного вбудованого скрипта (кнопка «Поділитися» внизу eventPage); worker/test.mjs звіряє його з текстом.
+export const SHARE_SCRIPT_HASH = "sha256-+OMlclOt3WjumM9V/xC1Thxi7720WWamOx2Q9R1RPO0=";
+// Обкладинки — з сайтів продавців, тож img-src https:; решта — лише свій домен.
+const SECURITY_HEADERS = {
+  "strict-transport-security": "max-age=31536000",
+  "x-content-type-options": "nosniff",
+  "x-frame-options": "DENY",
+  "referrer-policy": "strict-origin-when-cross-origin",
+  "content-security-policy": `default-src 'self'; img-src 'self' https: data:; script-src '${SHARE_SCRIPT_HASH}'; `
+    + "style-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+};
 
 export default {
   async fetch(request, env, ctx) {
@@ -32,11 +43,12 @@ export default {
     if (request.method !== "GET" && request.method !== "HEAD") return new Response(null, { status: 405 });
 
     // Telegram, месенджери й люди відкривають одне посилання хвилями: кеш на краю, а не запит у базу щоразу.
-    const cacheKey = new Request(url.origin + url.pathname);
+    // Ключ у нижньому регістрі: UUID приймаємо без огляду на регістр, тож варіанти однієї адреси не оминають кеш.
+    const cacheKey = new Request(url.origin + url.pathname.toLowerCase());
     const cached = await caches.default.match(cacheKey);
     if (cached) return cached;
     const response = await eventResponse(match[1], env);
-    if (response.status === 200) ctx.waitUntil(caches.default.put(cacheKey, response.clone()));
+    if (response.status === 200 || response.status === 404) ctx.waitUntil(caches.default.put(cacheKey, response.clone()));
     return response;
   },
 };
@@ -262,12 +274,16 @@ function androidAssociation() {
 
 
 function html(body, status) {
+  // 404 — на хвилину: випадкові /e/<uuid> інакше щоразу ходили б у базу. 503 не кешуємо: збій бази мине.
+  const cache = status === 200 ? `public, max-age=${CACHE_SECONDS}` : status === 404 ? "public, max-age=60" : "no-store";
   return new Response(body, {
     status,
-    headers: { "content-type": "text/html; charset=utf-8", "cache-control": status === 200 ? `public, max-age=${CACHE_SECONDS}` : "no-store" },
+    headers: { "content-type": "text/html; charset=utf-8", "cache-control": cache, ...SECURITY_HEADERS },
   });
 }
 
 function json(body) {
-  return new Response(JSON.stringify(body), { headers: { "content-type": "application/json", "cache-control": "public, max-age=3600" } });
+  return new Response(JSON.stringify(body), {
+    headers: { "content-type": "application/json", "cache-control": "public, max-age=3600", ...SECURITY_HEADERS },
+  });
 }

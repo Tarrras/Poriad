@@ -32,6 +32,14 @@ def _lit(value) -> str:
     return "'" + str(value).replace("'", "''") + "'"
 
 
+def _do(body: str, tag: str) -> str:
+    """`do $tag$ … $tag$` з тегом, якого нема в тілі: всередині долар-лапок `_lit` не рятує, і `$retire$`
+    у зібраному рядку обірвав би блок — а з ним весь дамп, бо він одна транзакція."""
+    while f"${tag}$" in body:
+        tag += "_"
+    return f"do ${tag}$\n{body}end ${tag}$;\n"
+
+
 def sources_sql(sources: list) -> str:
     """Реєструє відсутні джерела, зберігаючи наявні налаштування адміністратора."""
     rows = []
@@ -473,8 +481,7 @@ def retire_absent_sql(slug: str, city: str, seen_uids: list[str], run_id: str, u
              f"    and e.id=o.event_id and e.city={_lit(city)} and o.status='live'\n"
              "    and o.starts_at > now()"
              + (f" and o.starts_at < {_lit(until.isoformat())}::date" if until else ""))
-    return (
-        "do $retire$\n"
+    return _do(
         "declare\n"
         f"  v_seen text[] := array[{seen}]::text[];\n"
         "  v_scope integer; v_gone integer; v_done integer := 0; v_blocked boolean;\n"
@@ -494,8 +501,7 @@ def retire_absent_sql(slug: str, city: str, seen_uids: list[str], run_id: str, u
         "    update private.ingest_runs set report = coalesce(report, '{}'::jsonb) || jsonb_build_object(\n"
         "      'retire_scope', v_scope, 'retire_gone', v_gone, 'retired', v_done, 'retire_blocked', v_blocked)\n"
         f"    where id = {_lit(stats_run_id(run_id, slug, city))}::uuid;\n"
-        "  end if;\n"
-        "end $retire$;\n")
+        "  end if;\n", "retire")
 
 
 def retire_replaced_sql(slug: str, items: list[Item], run_id: str) -> str:
@@ -539,7 +545,7 @@ def merge_artist_follows_sql(merges: list[tuple[str, str]]) -> str:
     if not pairs:
         return ""
     rows = ",".join(f"({_lit(a)},{_lit(c)})" for a, c in pairs)
-    return ("do $$ begin\n"
+    return _do("begin\n"
             "  if to_regclass('public.artists') is not null then\n"
             f"    with m(alias_key, canon_key) as (values {rows}),\n"
             "    pairs as (select a.id as old_id, c.id as new_id from m\n"
@@ -550,8 +556,7 @@ def merge_artist_follows_sql(merges: list[tuple[str, str]]) -> str:
             "              join pairs p on f.target_kind = 'artist' and f.target_id = p.old_id\n"
             "              on conflict do nothing returning 1)\n"
             "    delete from public.follows f using pairs p where f.target_kind = 'artist' and f.target_id = p.old_id;\n"
-            "  end if;\n"
-            "end $$;\n")
+            "  end if;\n", "")
 
 
 def prune_artists_sql() -> str:

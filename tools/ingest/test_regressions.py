@@ -393,6 +393,14 @@ class RegressionTests(unittest.TestCase):
         self.assertNotIn("delete", sql.lower())
         self.assertEqual(emit.retire_absent_sql("karabas", "Київ", [], "run"), "")
 
+    def test_dollar_tag_in_scraped_data_does_not_break_the_block(self):
+        # `$retire$` чи `$$` у зібраному рядку обірвав би долар-лапки й увесь дамп (аудит 2026-10-22, L7).
+        sql = emit.retire_absent_sql("karabas", "Київ", ["x$retire$y"], "run")
+        self.assertTrue(sql.startswith("do $retire_$\n") and sql.endswith("end $retire_$;\n"))
+        self.assertEqual(sql.count("$retire_$"), 2)
+        merge = emit.merge_artist_follows_sql([("a$$b", "c")])
+        self.assertTrue(merge.startswith("do $_$\n") and merge.endswith("end $_$;\n"))
+
     def test_finished_imports_go_stale_last_and_never_by_delete(self):
         sql = emit.retire_finished_sql()
         self.assertIn("private.retire_finished_imports(interval '7 days')", sql)

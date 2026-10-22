@@ -3,9 +3,9 @@
 // storage.objects напряму, а файли в S3 лишилися б сиротами. Тут — через Storage API.
 //
 // Контракт: POST /functions/v1/delete-account, Authorization: Bearer <access token користувача>,
-// apikey: <publishable>, тіло порожнє, {} або {"apple_authorization_code": "…"} — свіжий код Sign in
-// with Apple: з ним спершу відкликаємо токени Apple (5.1.1(v)), best effort — див. apple.ts.
-//   200 {"deleted":true} · 401 без/з недійсним токеном · 500 {"error":…}
+// apikey: <publishable>, тіло {"password": "…"} для акаунта з паролем і/або {"apple_authorization_code": "…"} —
+// свіжий код Sign in with Apple: з ним спершу відкликаємо токени Apple (5.1.1(v)), best effort — див. apple.ts.
+//   200 {"deleted":true} · 401 без/з недійсним токеном · 403 {"error":"password"} · 500 {"error":…}
 //
 // Порядок: спершу фото користувача в бакеті event-images (<uid>/…), потім auth.admin.deleteUser.
 // Каскади FK у базі прибирають решту (профіль, участь, власні події з чатом, оцінки, токени, скарги).
@@ -13,7 +13,7 @@
 // SUPABASE_URL і SUPABASE_SERVICE_ROLE_KEY середовище дає саме; верифікація JWT на шлюзі увімкнена,
 // а користувача все одно перевіряємо getUser — токен міг бути відкликаний.
 
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 import { revokeApple } from "./apple.ts";
 
 const BUCKET = "event-images";
@@ -32,6 +32,13 @@ Deno.serve(async (req) => {
   if (authError || !user) return json({ error: "unauthorized" }, 401);
   const body = await req.json().catch(() => null);
   const appleCode = typeof body?.apple_authorization_code === "string" ? body.apple_authorization_code : null;
+  // Пароль перевіряємо тут, а не лише в застосунку: інакше чужий токен доступу (викрадений, з бекапу) видаляє акаунт.
+  // Правило — як AppState.passwordless: є провайдери, і email серед них нема.
+  const providers: string[] = user.app_metadata?.providers ?? [];
+  if (providers.length === 0 || providers.includes("email")) {
+    const password = typeof body?.password === "string" ? body.password : "";
+    if (!user.email || !password || !(await passwordOk(user.email, password))) return json({ error: "password" }, 403);
+  }
 
   try {
     if (appleCode && user.app_metadata?.providers?.includes("apple")) await revokeAppleTokens(user.id, appleCode);
@@ -44,6 +51,17 @@ Deno.serve(async (req) => {
     return json({ error: "delete failed" }, 500);
   }
 });
+
+// Вхід паролем створює зайву сесію, але за мить її прибирає видалення користувача.
+async function passwordOk(email: string, password: string): Promise<boolean> {
+  const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/auth/v1/token?grant_type=password`, {
+    method: "POST",
+    headers: { apikey: Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  await res.body?.cancel();
+  return res.ok;
+}
 
 // Шляхи — <uid>/<event_id>/<file>: list не рекурсивний, тож обходимо папки подій.
 async function removeFiles(admin: ReturnType<typeof createClient>, uid: string) {

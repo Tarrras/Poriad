@@ -23,6 +23,13 @@ __pycache__/
 .env
 .env.*
 *.key
+# Ключі APNs/Apple, сертифікати, сервісні акаунти й секрети wrangler — лише в ~/.keys і ~/.poriad
+*.p8
+*.p12
+*.pem
+*service-account*.json
+.dev.vars
+.claude/settings.local.json
 
 # Журнал tools/apply_sql.py: локальний стан застосованих дампів
 .applied_sql.json

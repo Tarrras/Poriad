@@ -425,23 +425,23 @@ python3 tools/apply_sql.py run --env prod --apply
 а обхід без нього публікує копії з Karabas як окремі події й губить ~29% подій Concert.ua, яких
 немає ніде більше (2026-10-04). Поки Mac спить чи вимкнений, запуск чекає в черзі до доби.
 
-Реєстрація, один раз: GitHub → Settings → Actions → Runners → New self-hosted runner → macOS,
-виконати показані команди (`config.sh` з токеном; мітки за замовчуванням `self-hosted, macOS`
-підходять). Далі або `./run.sh` у терміналі, або `./svc.sh install && ./svc.sh start` — тоді runner
-стартує з входом у систему. Python — системний `/usr/bin/python3` з `psycopg[binary]`, як для
-ручного запуску. Секрети `SUPABASE_DB_URL` (prod) і `SUPABASE_DB_URL_DEV` (dev) — у Settings →
-Secrets → Actions. Розклад пише лише в prod; dev — вручну, Run workflow → env: dev.
+Runner живе в окремому користувачі macOS `poriad-runner` (аудит 2026-10-22, H1): репозиторій публічний, і job
+із PR форка, якщо його схвалити, не має бачити вашого дому. Ставить і переносить його `tools/ingest/runner_user.sh`
+(sudo, `gh` з правом адміністратора репозиторію): закриває ваш дім (`chmod 700 ~`), створює користувача, ставить
+йому `psycopg[binary]` і Claude Code, перереєстровує runner і запускає LaunchDaemon `app.poriad.runner` — без входу
+цього користувача в систему. PR від сторонніх однаково не схвалювати: секрети runner-а job бачить. Секрети
+`SUPABASE_DB_URL` (prod) і `SUPABASE_DB_URL_DEV` (dev) — у Settings → Secrets → Actions. Розклад пише лише в prod;
+dev — вручну, Run workflow → env: dev.
 
-Кеш (`tools/ingest/cache`) живе в теці runner-а (`actions-runner/_work/Poriad/Poriad/`) і між
-запусками не стирається (`checkout` з `clean: false`). Щоб перший обхід не читав badseller 43 хв,
-скопіюйте туди наявний кеш: `cp -R tools/ingest/cache ~/actions-runner/_work/Poriad/Poriad/tools/ingest/`
-(після першого checkout).
+Кеш (`tools/ingest/cache`) живе в теці runner-а (`~poriad-runner/actions-runner/_work/Poriad/Poriad/`) і між
+запусками не стирається (`checkout` з `clean: false`); скрипт переносить його разом із робочою текою.
 
 Аналіз обходу: останнім кроком воркфлоу (завжди, і після збою) `tools/ingest/analyze_run.sh` збирає
 зведення з бази (`tools/ingest/run_stats.py`, лише SELECT, `--env prod|dev`) і запускає на цьому ж Mac
 фонову сесію Claude Code з промптом `analyst_prompt.md` і цим зведенням. Сесія **без інструментів і без
 доступу до бази**: вона лише читає текст і відповідає вердиктом, відхиленнями й до трьох діями.
-Дивитись: `claude agents`, `claude attach <id>`, `claude logs <id>`. Потрібен `claude auth login` (чи
+Дивитись — від імені користувача runner-а: `sudo -u poriad-runner -H ~poriad-runner/.npm-global/bin/claude agents`
+(так само `attach <id>`, `logs <id>`). Потрібен `claude auth login` (чи
 секрет `CLAUDE_CODE_OAUTH_TOKEN`) і секрети `SUPABASE_DB_URL*` у кроці. Збій аналізу обхід не валить
 (`continue-on-error`). Вручну: `TARGET=dev tools/ingest/analyze_run.sh`.
 

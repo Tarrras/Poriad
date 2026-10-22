@@ -14,8 +14,8 @@
 //   APNS_SANDBOX          — "true" лише для dev-збірок з Xcode; будь-що інше — production
 // SUPABASE_URL і SUPABASE_SERVICE_ROLE_KEY середовище дає саме.
 
-import { createClient } from "npm:@supabase/supabase-js@2";
-import * as jose from "npm:jose@5";
+import { createClient } from "npm:@supabase/supabase-js@2.118.0";
+import * as jose from "npm:jose@5.10.0";
 import { artistText, organizerText, placeText, winbackText, type ArtistLine, type EventLine, type PlaceLine } from "./follow_text.ts";
 
 type Payload =
@@ -81,7 +81,7 @@ Deno.serve(async (req) => {
   }
   const message = push;
 
-  const stale: string[] = [];
+  const stale: string[] = [], forgotten: string[] = [];
   let sent = 0;
   // Пул з CONCURRENCY воркерів: беруть наступний токен зі спільного індексу.
   let next = 0;
@@ -91,6 +91,7 @@ Deno.serve(async (req) => {
       try {
         const ok = t.platform === "android" ? await sendFcm(t.token, message) : await sendApns(t.token, message);
         if (ok === "stale") stale.push(t.token);
+        else if (ok === "forget") forgotten.push(t.token);
         else if (ok) sent++;
       } catch (e) {
         console.error("push failed", t.platform, String(e));
@@ -104,7 +105,8 @@ Deno.serve(async (req) => {
     await db.from("push_tokens").delete().in("token", stale);
     for (const token of stale) await db.rpc("forget_device", { p_token: token });
   }
-  return json({ sent, stale: stale.length, recipients: recipients.length });
+  for (const token of forgotten) await db.rpc("forget_device", { p_token: token });
+  return json({ sent, stale: stale.length + forgotten.length, recipients: recipients.length });
 });
 
 // ---- Хто отримує
@@ -378,7 +380,7 @@ async function apnsAuth(): Promise<{ jwt: string; topic: string; host: string } 
   return { jwt: apnsJwt.value, topic, host: sandbox ? "https://api.sandbox.push.apple.com" : "https://api.push.apple.com" };
 }
 
-async function sendApns(token: string, push: Push): Promise<boolean | "stale"> {
+async function sendApns(token: string, push: Push): Promise<boolean | "stale" | "forget"> {
   const auth = await apnsAuth();
   if (!auth) { console.warn("APNS_* are not set; skipping ios"); return false; }
   // Токен іде в шлях URL: лише hex, інакше це не токен APNs, а спроба підмінити запит.
@@ -405,6 +407,9 @@ async function sendApns(token: string, push: Push): Promise<boolean | "stale"> {
   // Лише 410 / Unregistered — токен мертвий. BadDeviceToken означає розбіжність середовищ
   // (sandbox ↔ production): стерти токен тут — втратити справний пристрій через конфіг.
   if (res.status === 410 || text.includes("Unregistered")) return "stale";
+  // Пристрій каналу повернення записує будь-хто з публічним ключем, тож фальшивий токен інакше отримував би
+  // кожен крок. Забуваємо лише пристрій каналу: push_tokens людини тут не чіпаємо (див. вище про середовища).
+  if (push.kind === "winback" && text.includes("BadDeviceToken")) return "forget";
   throw new Error(`apns ${res.status}: ${text}`);
 }
 

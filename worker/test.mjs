@@ -1,6 +1,6 @@
 // Перевірка рендеру без Cloudflare: node worker/test.mjs
 import assert from "node:assert/strict";
-import { eventPage, eventResponse, esc } from "./index.mjs";
+import { eventPage, eventResponse, esc, SHARE_SCRIPT_HASH } from "./index.mjs";
 
 const now = new Date("2026-09-28T12:00:00Z");
 const base = {
@@ -81,3 +81,16 @@ assert.equal(moved.status, 301);
 assert.equal(moved.headers.get("location"), `https://poriad.app/e/${base.id}`);
 assert.equal((await eventResponse(base.id, { SUPABASE_URL: "https://db.invalid", SUPABASE_KEY: "k" })).status, 200, "живий id — сторінка");
 
+
+// CSP пропускає лише скрипт із цим хешем: правка тексту кнопки «Поділитися» без нового хеша її б вимкнула.
+const { createHash } = await import("node:crypto");
+const scripts = [...community.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+assert.equal(scripts.length, 1, "один вбудований скрипт");
+assert.equal(`sha256-${createHash("sha256").update(scripts[0]).digest("base64")}`, SHARE_SCRIPT_HASH, "хеш у CSP — від цього скрипта");
+assert.ok(!/<style|\sstyle=|\son[a-z]+=/i.test(movedAfisha + withShelters + community), "без вбудованих стилів і обробників — їх CSP теж не пустить");
+const page = await eventResponse(base.id, { SUPABASE_URL: "https://db.invalid", SUPABASE_KEY: "k" });
+assert.ok(page.headers.get("content-security-policy").includes(SHARE_SCRIPT_HASH) && page.headers.get("x-frame-options") === "DENY");
+assert.equal((await eventResponse("not-a-uuid", {})).headers.get("cache-control"), "public, max-age=60", "404 кешується на хвилину");
+globalThis.fetch = async () => new Response("{}", { status: 500 });
+assert.equal((await eventResponse(base.id, { SUPABASE_URL: "https://db.invalid", SUPABASE_KEY: "k" })).headers.get("cache-control"), "no-store", "збій бази — без кешу");
+console.log("headers ok");
