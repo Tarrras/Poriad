@@ -14,6 +14,7 @@
       #root { position: relative; width: 100%; height: 100%; overflow: hidden; }
       .layer { position: absolute; inset: 0; width: 100%; height: 100%; }
       svg.layer { font-family: "Sofia Sans Condensed", sans-serif; }
+      #stage { transform-origin: 960px 540px; }
     </style>
   </head>
   <body>
@@ -46,9 +47,9 @@
           </g>
           <g data-hf-id="hf-gyi6" id="tprint" data-layout-allow-overlap="">
             <!-- PoruchIcons.social (two figures, grid 24, stroke 1.75): the seat is for a person, «+1». -->
-            <g id="tglyph" fill="none" stroke="#ffffff" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="9" cy="8" r="3.3" />
-              <path d="M3.5 20C3.5 15.6 6 13.3 9 13.3C12 13.3 14.5 15.6 14.5 20M15 5.3C17 5.8 18.3 7.3 18.3 9C18.3 10.2 17.8 11.1 17 11.7M16.5 13.6C19 14.2 20.5 16.5 20.5 20" />
+            <g data-hf-id="hf-bks4" id="tglyph" fill="none" stroke="#ffffff" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <circle data-hf-id="hf-6949" cx="9" cy="8" r="3.3" />
+              <path data-hf-id="hf-cbzt" d="M3.5 20C3.5 15.6 6 13.3 9 13.3C12 13.3 14.5 15.6 14.5 20M15 5.3C17 5.8 18.3 7.3 18.3 9C18.3 10.2 17.8 11.1 17 11.7M16.5 13.6C19 14.2 20.5 16.5 20.5 20" />
             </g>
             <text data-hf-id="hf-1v7g" id="tplus" font-family="Sofia Sans Extra Condensed" font-weight="800" font-size="116" fill="#ffffff">+1</text>
             <text data-hf-id="hf-gh33" id="tday" font-family="Inter" font-weight="600" font-size="37" letter-spacing="2" fill="#ffffff" text-anchor="end">СЬОГОДНІ</text>
@@ -57,8 +58,8 @@
         <g data-hf-id="hf-h2f5" id="ring" data-layout-allow-overlap="" />
         <ellipse data-hf-id="hf-fdml" id="dot" data-layout-allow-overflow="" fill="#e0582f" />
         <!-- The «+1»: a second dot that buds off the first and stays beside it until the loop folds it back. -->
-        <path id="neck" fill="#e0582f" />
-        <circle id="dot2" fill="#e0582f" />
+        <path data-hf-id="hf-5kvx" id="neck" fill="#e0582f" />
+        <circle data-hf-id="hf-yp9a" id="dot2" fill="#e0582f" />
         <rect data-hf-id="hf-8cbt" id="slab" fill="#0f0f13" />
         <g data-hf-id="hf-6g6l" id="cursor">
           <path data-hf-id="hf-79rg" d="M0 0 L0 58 L14 44 L24 67 L35 62 L25 40 L44 40 Z" fill="#141417" stroke="#ffffff" stroke-width="4" stroke-linejoin="round" />
@@ -69,6 +70,7 @@
       <audio data-hf-id="hf-68fv" id="music" src="assets/audio/music.m4a" data-start="0" data-media-start="10.245" data-duration="16.364" data-track-index="10" data-automation="{&quot;version&quot;:1,&quot;lanes&quot;:[{&quot;target&quot;:&quot;volume&quot;,&quot;points&quot;:[{&quot;t&quot;:0,&quot;v&quot;:0},{&quot;t&quot;:0.03,&quot;v&quot;:0.6},{&quot;t&quot;:16.33,&quot;v&quot;:0.6},{&quot;t&quot;:16.364,&quot;v&quot;:0}]}]}"></audio>
       <audio data-hf-id="hf-j7th" id="sfx-click" src="assets/audio/ui_tick.wav" data-start="0.682" data-duration="0.08" data-track-index="11" data-volume="0.5"></audio>
       <audio data-hf-id="hf-mkml" id="sfx-land-i" src="assets/audio/pin_pop_1.wav" data-start="1.364" data-duration="0.24" data-track-index="12" data-volume="0.35"></audio>
+      <audio id="sfx-land-ye" src="assets/audio/pin_pop_2.wav" data-start="1.78" data-duration="0.35" data-track-index="14" data-volume="0.3"></audio>
       <audio data-hf-id="hf-siu1" id="sfx-jump" src="assets/audio/whoosh.wav" data-start="2.73" data-duration="0.26" data-track-index="13" data-volume="0.18"></audio>
       <audio data-hf-id="hf-nhzv" id="sfx-land-graph" src="assets/audio/pin_pop_2.wav" data-start="3.409" data-duration="0.35" data-track-index="12" data-volume="0.4"></audio>
       <audio data-hf-id="hf-kn8p" id="sfx-print" src="assets/audio/ui_tick.wav" data-start="4.6" data-duration="0.08" data-track-index="11" data-volume="0.3"></audio>
@@ -77,15 +79,15 @@
       <audio data-hf-id="hf-oo12" id="sfx-square" src="assets/audio/ui_tick.wav" data-start="6.818" data-duration="0.08" data-track-index="11" data-volume="0.35"></audio>
       <audio data-hf-id="hf-tdgw" id="sfx-pill" src="assets/audio/pin_pop_1.wav" data-start="7.5" data-duration="0.24" data-track-index="12" data-volume="0.3"></audio>
       <audio data-hf-id="hf-gdha" id="sfx-contract" src="assets/audio/ui_tick.wav" data-start="8.182" data-duration="0.08" data-track-index="11" data-volume="0.3"></audio>
-      <audio id="sfx-split" src="assets/audio/pin_pop_1.wav" data-start="8.33" data-duration="0.24" data-track-index="14" data-volume="0.4"></audio>
+      <audio data-hf-id="hf-98am" id="sfx-split" src="assets/audio/pin_pop_1.wav" data-start="8.33" data-duration="0.24" data-track-index="14" data-volume="0.4"></audio>
       <audio data-hf-id="hf-8y41" id="sfx-ring" src="assets/audio/whoosh.wav" data-start="8.5" data-duration="0.26" data-track-index="13" data-volume="0.22"></audio>
       <audio data-hf-id="hf-b82h" id="sfx-step-1" src="assets/audio/ui_tick.wav" data-start="9.545" data-duration="0.08" data-track-index="11" data-volume="0.2"></audio>
       <audio data-hf-id="hf-uiyb" id="sfx-step-2" src="assets/audio/ui_tick.wav" data-start="10.227" data-duration="0.08" data-track-index="11" data-volume="0.2"></audio>
       <audio data-hf-id="hf-zp6x" id="sfx-scatter" src="assets/audio/whoosh.wav" data-start="10.75" data-duration="0.26" data-track-index="13" data-volume="0.22"></audio>
       <audio data-hf-id="hf-y1on" id="sfx-title" src="assets/audio/pin_pop_2.wav" data-start="12.86" data-duration="0.35" data-track-index="12" data-volume="0.4"></audio>
-      <audio id="sfx-title-2" src="assets/audio/pin_pop_1.wav" data-start="13.1" data-duration="0.24" data-track-index="14" data-volume="0.35"></audio>
+      <audio data-hf-id="hf-likk" id="sfx-title-2" src="assets/audio/pin_pop_1.wav" data-start="13.1" data-duration="0.24" data-track-index="14" data-volume="0.35"></audio>
       <audio data-hf-id="hf-ppq9" id="sfx-return" src="assets/audio/whoosh.wav" data-start="15.0" data-duration="0.26" data-track-index="13" data-volume="0.3"></audio>
-      <audio id="sfx-merge" src="assets/audio/ui_tick.wav" data-start="15.38" data-duration="0.08" data-track-index="11" data-volume="0.3"></audio>
+      <audio data-hf-id="hf-b1mo" id="sfx-merge" src="assets/audio/ui_tick.wav" data-start="15.38" data-duration="0.08" data-track-index="11" data-volume="0.3"></audio>
       <audio data-hf-id="hf-19t9" id="sfx-pour" src="assets/audio/pin_pop_1.wav" data-start="16.12" data-duration="0.24" data-track-index="12" data-volume="0.3"></audio>
     </div>
     <script>
@@ -152,18 +154,26 @@
       const L = {}; // layout, filled in build()
 
       function build() {
-        // Scene 1: settings row «Нема куди піти»; the last four letters become the hero «піти».
+        // Scene 1: settings row «Нема куди піти». On the click «Нема» falls out, «Є» drops into its place and
+        // «Є куди піти» becomes the hero, the dot riding its «і».
         L.label = typeset($("label"), "Нема куди пıти", 120, 800, INK);
         L.labelBase = 540 + measure("Н", 120).actualBoundingBoxAscent / 2;
         L.labelX = 440;
-        L.out = L.label.letters.slice(0, 8);
-        L.hero = L.label.letters.slice(8);
-        L.i = L.hero[1];
+        L.out = L.label.letters.slice(0, 4);
+        L.ye = typeset($("label"), "Є", 120, 800, INK).letters[0];
+        L.ye.x = L.label.letters[4].x - measure("Є ", 120).width; // its slot in the row, left of «куди»
+        L.hero = [L.ye, ...L.label.letters.slice(4)];
+        L.i = L.label.letters[9];
+        L.iK = L.hero.indexOf(L.i);
         L.tit = tittle(120);
-        L.heroScale = 400 / 120;
-        L.heroBase = 540 + measure("і", 400).actualBoundingBoxAscent / 2;
-        const heroX = 960 - measure("пıти", 400).width / 2;
-        L.hero.forEach((l) => (l.hx = heroX + (l.x - L.hero[0].x) * L.heroScale));
+        const phrase = "Є куди пıти", heroW = 1300;
+        L.heroScale = heroW / measure(phrase, 120).width;
+        L.heroBase = 540 + measure("і", 120 * L.heroScale).actualBoundingBoxAscent / 2;
+        let j = 0;
+        L.hero.forEach((l) => {
+          while (phrase[j] === " ") j++;
+          l.hx = 960 - heroW / 2 + measure(phrase.slice(0, j++), 120).width * L.heroScale;
+        });
 
         // Ticket: x 660–1260, perforation (the tear line) on y=540 between the notches. The dot runs along it
         // from the left notch to the right one; the overshoot peaks on b6 and settles into the notch by b7.5.
@@ -232,16 +242,22 @@
         const t0 = 15.86 + i * 0.016, p = spring(u - t0, 0.6, 0.13);
         return [L.labelX + l.x, L.labelBase - 70 * (1 - p), 0, 1, clamp((u - t0) / 0.1)];
       }
-      // «піти» from label size to hero size, then dropping out after the dot leaves.
+      // «Є куди піти» from label size to hero size, then dropping out after the dot leaves.
+      // «Є» drops in from above into the slot «Нема» left, once those letters are already falling away.
       function heroLetter(l, k, t) {
-        const p = spring(t - (b(2) + 0.3 + k * 0.035), 0.6, 0.3);
+        const p = spring(t - (b(2) + 0.3 + k * 0.004), 0.6, 0.3), s = lerp(1, L.heroScale, p);
         let x = lerp(L.labelX + l.x, l.hx, p), y = lerp(L.labelBase, L.heroBase, p);
-        let rot = -10 * Math.sin(Math.PI * clamp(p)), o = 1;
+        let rot = -6 * Math.sin(Math.PI * clamp(p)), o = 1;
+        if (l === L.ye) {
+          const q = spring(t - (b(2) + 0.26), 0.5, 0.2);
+          y -= 160 * s * (1 - q);
+          o = clamp((t - (b(2) + 0.26)) / 0.08);
+        }
         const q = prog(t, b(4) + 0.02 + k * 0.03, b(4) + 0.4 + k * 0.03);
         y += 560 * ein(q);
         rot += (k % 2 ? 14 : -14) * q;
-        o = 1 - prog(q, 0.5, 1);
-        return [x, y, rot, lerp(1, L.heroScale, p), o];
+        o *= 1 - prog(q, 0.5, 1);
+        return [x, y, rot, s, o];
       }
       function iTittle(pose) {
         const [x, y, rot, s] = pose;
@@ -263,7 +279,7 @@
           stretch(0.3 * Math.sin(Math.PI * u), u < 0.5 ? -60 : 60);
         } else if (t < b(4)) {
           // Riding the «і» while the word becomes the hero; squash on landing, crouch before the jump.
-          [d.x, d.y, d.r] = iTittle(heroLetter(L.i, 1, t));
+          [d.x, d.y, d.r] = iTittle(heroLetter(L.i, L.iK, t));
           const w = 0.4 * wobble(t - b(2)), c = 0.28 * Math.sin((Math.PI / 2) * prog(t, b(4) - 0.14, b(4)));
           d.sx = 1 + w + c;
           d.sy = 1 - w - c;
@@ -271,7 +287,7 @@
         } else if (t < b(5)) {
           // Ballistic jump into the ticket's left notch.
           const u = prog(t, b(4), b(5));
-          const [x0, y0, r0] = iTittle(heroLetter(L.i, 1, b(4)));
+          const [x0, y0, r0] = iTittle(heroLetter(L.i, L.iK, b(4)));
           const x1 = L.tk.x0, y1 = 540 + ticketDy(b(5));
           d.x = lerp(x0, x1, u);
           d.y = lerp(y0, y1, u) - 4 * 300 * u * (1 - u);
@@ -360,18 +376,19 @@
 
       function drawLabel(t) {
         const resting = t < b(2) || t >= 15.86, u = t < b(2) ? t + DUR : t;
-        const live = resting || t < b(4) + 0.6;
+        const live = resting || t < b(4) + 0.7;
         show($("label"), live);
         show($("inkdot"), resting);
         if (!live) return;
         L.out.forEach((l, i) => {
           if (resting) return place(l, ...restLetter(l, i, u));
-          // «Нема куди» tip over and fall, one after another.
-          // Done before «піти» starts growing, so outgoing and incoming letters never share the frame.
+          // «Нема» tips over and falls, one letter after another.
+          // Mostly gone before «Є» drops in, so outgoing and incoming letters never share the frame.
           const p = prog(t, b(2) + i * 0.018, b(2) + 0.32 + i * 0.018), dir = i % 2 ? 1 : -1;
           place(l, L.labelX + l.x + dir * 30 * p, L.labelBase + 380 * p * p, dir * (28 + 5 * i) * eio(p), 1, 1 - prog(p, 0.25, 0.85));
         });
-        L.hero.forEach((l, k) => place(l, ...(resting ? restLetter(l, 8 + k, u) : heroLetter(l, k, t))));
+        if (resting) place(L.ye, L.labelX + L.ye.x, L.labelBase, 0, 1, 0); // «Є» is not in the row
+        L.hero.forEach((l, k) => l === L.ye ? resting || place(l, ...heroLetter(l, k, t)) : place(l, ...(resting ? restLetter(l, 3 + k, u) : heroLetter(l, k, t))));
         if (resting) {
           const [cx, cy, r] = iTittle(restLetter(L.i, 9, u));
           attr($("inkdot"), { cx, cy, r, opacity: clamp((u - 15.86 - 9 * 0.016) / 0.1) });
@@ -510,9 +527,14 @@
         attr($("cursor"), { transform: `translate(${x} ${y}) scale(${1 - 0.14 * press})` });
       }
 
+      // Hook: the loop opens tight on the toggle and «Нема куди піти», hard-cuts wide on the click, and
+      // cuts back in when the dot pours into the toggle, so the frames either side of the seam match.
+      const PUNCH = 1.6, PUNCH_OUT = b(1), PUNCH_IN = 16.14;
+
       function seek(t) {
         t = clamp(t, 0, DUR - 1e-6);
         const dot = dotState(t);
+        $("stage").style.transform = t < PUNCH_OUT || t >= PUNCH_IN ? `scale(${PUNCH})` : "";
         $("bg").style.background = t >= b(9) + 0.12 && t < 15.42 ? NIGHT : PAPER;
         drawRow(t);
         drawLabel(t);
