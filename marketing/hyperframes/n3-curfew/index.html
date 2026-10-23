@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <title>N3 · встигнути до комендантської — TikTok, 15 с, 9:16</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face { font-family: "Sofia Sans Condensed"; src: url("assets/fonts/SofiaSansCondensed-Bold.ttf") format("truetype"); font-weight: 700; font-display: block; }
+      @font-face { font-family: "Sofia Sans Condensed"; src: url("assets/fonts/SofiaSansCondensed-ExtraBold.ttf") format("truetype"); font-weight: 800; font-display: block; }
+      @font-face { font-family: "Sofia Sans Extra Condensed"; src: url("assets/fonts/SofiaSansExtraCondensed-ExtraBold.ttf") format("truetype"); font-weight: 800; font-display: block; }
+
+      /* Night clock: graphite #0D0E14, paper #F3F3F0, the event in its music stub #6041B1, curfew as grey hatching.
+         No red and no sirens — the danger is shown calmly. Coral #FF8A5B is the name «Поряд» only.
+         Captions are TikTok-native white plates. */
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1080px; height: 1920px; overflow: hidden; background: #0d0e14; }
+      #root { position: relative; width: 100%; height: 100%; overflow: hidden; color: #f3f3f0; font-family: "Sofia Sans Condensed", sans-serif;
+        background: radial-gradient(70% 45% at 50% 46%, #1a1a26 0%, #0d0e14 70%); }
+
+      /* captions: centred white plates (x 160–920) */
+      .cap { position: absolute; z-index: 4; left: 160px; width: 760px; display: flex; flex-direction: column; align-items: center; gap: 12px; opacity: 0; }
+      .cap span { display: block; background: #f3f3f0; color: #141417; border-radius: 16px; padding: 8px 24px 12px; font-weight: 800; font-size: 56px; line-height: 62px; text-align: center; white-space: nowrap; }
+      #capA, #capC, #capD, #capE, #capF, #capG { top: 280px; }
+      #capB { top: 372px; }
+      #capH { top: 1130px; }
+
+      /* the clock */
+      #clock { position: absolute; left: 290px; top: 630px; width: 500px; height: 500px; transform-origin: 250px 250px; }
+      #clock svg { width: 500px; height: 500px; overflow: visible; }
+
+      /* the evening as a line, 19:00 … 02:00, x = 100 + (h − 19) × 114.29 */
+      #line { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; opacity: 0; }
+      #line svg { width: 1080px; height: 1920px; }
+      .lbl { font-family: "Sofia Sans Condensed", sans-serif; font-weight: 700; font-size: 38px; fill: #c8c7d0; }
+      .time { font-family: "Sofia Sans Extra Condensed", sans-serif; font-weight: 800; font-size: 46px; fill: #f3f3f0; }
+
+      /* the phone: 600-px screen, s = 600 / 1206 */
+      #phone { position: absolute; z-index: 2; left: 226px; top: 470px; width: 628px; height: 1333px; border-radius: 86px; background: #0a0a0c;
+        box-shadow: 0 0 0 2px #2b2a31, 0 50px 90px rgba(0, 0, 0, 0.6); transform-origin: 314px 386px; }
+      #screen { position: absolute; left: 14px; top: 14px; width: 600px; height: 1304.5px; border-radius: 72px; overflow: hidden; background: #0f0f13; }
+      #shots { position: absolute; left: 0; top: 0; width: 1206px; height: 2622px; transform-origin: 0 0; }
+      #shots img { position: absolute; left: 0; top: 0; width: 1206px; height: 2622px; }
+      .hl { position: absolute; left: 50px; width: 1106px; border: 8px solid #f3f3f0; border-radius: 52px; opacity: 0; }
+      #hl-curfew { top: 377px; height: 190px; border-radius: 52px 52px 0 0; }
+      #hl-shelters { top: 566px; height: 556px; border-radius: 0 0 52px 52px; }
+
+      /* the name */
+      #brand { position: absolute; left: 0; top: 640px; width: 1080px; display: flex; flex-direction: column; align-items: center; gap: 26px; opacity: 0; }
+      #brand img { width: 176px; height: 176px; border-radius: 40px; }
+      #brand .name { font-weight: 800; font-size: 128px; line-height: 128px; letter-spacing: -1px; color: #ff8a5b; }
+
+      #grain { position: absolute; z-index: 5; inset: 0; pointer-events: none; opacity: 0.08; mix-blend-mode: overlay; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="15" data-fps="30" data-width="1080" data-height="1920">
+      <div id="clock">
+        <svg viewBox="-250 -250 500 500" aria-hidden="true">
+          <circle r="236" fill="#14141c" stroke="#3a3946" stroke-width="4" />
+          <g id="ticks" stroke="#8d8c98" stroke-linecap="round"></g>
+          <line id="hand-h" x1="0" y1="18" x2="0" y2="-120" stroke="#f3f3f0" stroke-width="14" stroke-linecap="round" />
+          <line id="hand-m" x1="0" y1="22" x2="0" y2="-186" stroke="#f3f3f0" stroke-width="9" stroke-linecap="round" />
+          <line id="hand-s" x1="0" y1="34" x2="0" y2="-206" stroke="#8b6fe0" stroke-width="4" stroke-linecap="round" />
+          <circle r="12" fill="#8b6fe0" />
+        </svg>
+      </div>
+
+      <div id="line">
+        <svg viewBox="0 0 1080 1920" aria-hidden="true">
+          <defs>
+            <pattern id="hatch" width="18" height="18" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+              <rect width="18" height="18" fill="#17171f" /><line x1="0" y1="0" x2="0" y2="18" stroke="#4a4950" stroke-width="7" />
+            </pattern>
+          </defs>
+          <rect id="curfew" x="786" y="790" width="134" height="180" rx="14" fill="url(#hatch)" stroke="#4a4950" stroke-width="3" />
+          <text class="lbl" x="920" y="736" text-anchor="end">комендантська</text>
+          <line id="base" x1="100" y1="880" x2="786" y2="880" stroke="#3a3946" stroke-width="5" stroke-linecap="round" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1" />
+          <rect id="event" x="100" y="868" width="457" height="24" rx="12" fill="#6041b1" />
+          <text id="ev-lbl" class="lbl" x="328" y="842" text-anchor="middle">концерт</text>
+          <line id="road" x1="557" y1="880" x2="643" y2="880" stroke="#f3f3f0" stroke-width="7" stroke-linecap="round" stroke-dasharray="2 14" />
+          <text id="road-lbl" class="lbl" x="600" y="790" text-anchor="middle">дорога додому</text>
+          <g id="house" transform="translate(643 880)">
+            <path d="M -22 6 L 0 -16 L 22 6 L 22 28 L -22 28 Z" fill="#0d0e14" stroke="#f3f3f0" stroke-width="5" stroke-linejoin="round" transform="translate(0 -52)" />
+            <rect id="window" x="-7" y="-41" width="14" height="14" rx="3" fill="#ffd27a" opacity="0" />
+          </g>
+          <text class="time" x="100" y="958" text-anchor="middle">19:00</text>
+          <text class="time" x="557" y="958" text-anchor="middle">23:00</text>
+          <text class="time" x="786" y="958" text-anchor="middle">01:00</text>
+          <circle id="head" cx="100" cy="880" r="16" fill="#f3f3f0" />
+        </svg>
+      </div>
+
+      <div id="phone" data-layout-allow-overflow>
+        <div id="screen">
+          <div id="shots" data-layout-ignore>
+            <img id="shot-safety" src="assets/ui/safety.jpg" alt="Блок «Безпека»: до комендантської 2 год, найближчі укриття" />
+            <img id="shot-top" src="assets/ui/top.jpg" alt="Подія: хор «Гомін», Національна філармонія" />
+            <div class="hl" id="hl-curfew"></div>
+            <div class="hl" id="hl-shelters"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cap" id="capA"><span>концерт до 23:00.</span></div>
+      <div class="cap" id="capB"><span>комендантська — з 01:00.</span></div>
+      <div class="cap" id="capC"><span>а ще ж дорога додому</span></div>
+      <div class="cap" id="capD"><span>встигнеш?</span></div>
+      <div class="cap" id="capE"><span>бачиш, скільки лишається</span><span>до комендантської</span></div>
+      <div class="cap" id="capF"><span>і найближчі укриття —</span><span>ще до виходу</span></div>
+      <div class="cap" id="capG"><span>плануєш вечір — і встигаєш</span></div>
+
+      <div id="brand"><img src="assets/icon.png" alt="" /><div class="name">Поряд</div></div>
+      <div class="cap" id="capH"><span>о котрій комендантська</span><span>у твоєму місті? 👇</span></div>
+
+      <svg id="grain" width="1080" height="1920" aria-hidden="true">
+        <filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="21" /><feColorMatrix type="saturate" values="0" /></filter>
+        <rect width="1080" height="1920" filter="url(#noise)" />
+      </svg>
+
+      <!-- music: «Lofi Coffee Shop» by alex-morgan (Pixabay) from 0.15 s, so its beat (5.65 s in the track) comes in with the phone (5.5);
+           quiet under the ticking clock, a touch louder under the phone -->
+      <audio id="music" src="assets/audio/music.m4a" data-start="0" data-media-start="0.15" data-duration="15" data-track-index="10" data-automation="{&quot;version&quot;:1,&quot;lanes&quot;:[{&quot;target&quot;:&quot;volume&quot;,&quot;points&quot;:[{&quot;t&quot;:0,&quot;v&quot;:0.3},{&quot;t&quot;:5.3,&quot;v&quot;:0.3},{&quot;t&quot;:5.6,&quot;v&quot;:0.48},{&quot;t&quot;:14.3,&quot;v&quot;:0.48},{&quot;t&quot;:15,&quot;v&quot;:0}]}]}"></audio>
+      <!-- the clock ticks once a second until it stops on «встигнеш?» -->
+      <audio id="tick-0" src="assets/audio/ui_tick.wav" data-start="0.05" data-duration="0.1" data-track-index="11" data-volume="0.5"></audio>
+      <audio id="tick-1" src="assets/audio/ui_tick.wav" data-start="1.05" data-duration="0.1" data-track-index="11" data-volume="0.5"></audio>
+      <audio id="tick-2" src="assets/audio/ui_tick.wav" data-start="2.05" data-duration="0.1" data-track-index="11" data-volume="0.45"></audio>
+      <audio id="tick-3" src="assets/audio/ui_tick.wav" data-start="3.05" data-duration="0.1" data-track-index="11" data-volume="0.45"></audio>
+      <audio id="tick-4" src="assets/audio/ui_tick.wav" data-start="4.5" data-duration="0.1" data-track-index="11" data-volume="0.55"></audio>
+      <audio id="sfx-phone" src="assets/audio/whoosh.wav" data-start="5.48" data-duration="0.27" data-track-index="12" data-volume="0.3"></audio>
+      <audio id="sfx-scroll" src="assets/audio/whoosh.wav" data-start="6.2" data-duration="0.27" data-track-index="12" data-volume="0.18"></audio>
+      <audio id="sfx-hl-1" src="assets/audio/ui_tick.wav" data-start="6.75" data-duration="0.1" data-track-index="11" data-volume="0.35"></audio>
+      <audio id="sfx-hl-2" src="assets/audio/ui_tick.wav" data-start="8.6" data-duration="0.1" data-track-index="11" data-volume="0.35"></audio>
+      <audio id="sfx-out" src="assets/audio/whoosh.wav" data-start="10.55" data-duration="0.27" data-track-index="12" data-volume="0.22"></audio>
+      <audio id="sfx-home" src="assets/audio/pin_pop_1.wav" data-start="11.45" data-duration="0.25" data-track-index="13" data-volume="0.3"></audio>
+      <audio id="sfx-name" src="assets/audio/pin_pop_1.wav" data-start="12.7" data-duration="0.25" data-track-index="13" data-volume="0.35"></audio>
+    </div>
+
+    <script>
+      (function () {
+        // ---- clock face ticks (deterministic DOM before the timeline)
+        var g = document.getElementById("ticks");
+        for (var i = 0; i < 60; i++) {
+          var a = i * 6 * Math.PI / 180, big = i % 5 === 0, r1 = big ? 196 : 212, r2 = 226;
+          var l = document.createElementNS("http://www.w3.org/2000/svg", "line");
+          l.setAttribute("x1", (Math.sin(a) * r1).toFixed(1)); l.setAttribute("y1", (-Math.cos(a) * r1).toFixed(1));
+          l.setAttribute("x2", (Math.sin(a) * r2).toFixed(1)); l.setAttribute("y2", (-Math.cos(a) * r2).toFixed(1));
+          l.setAttribute("stroke-width", big ? 6 : 2); g.appendChild(l);
+        }
+
+        var tl = gsap.timeline({ paused: true });
+        var X = function (h) { return 100 + (h - 19) * 114.29; };
+        function cap(id, at, out) {
+          tl.fromTo(id, { opacity: 0, y: 14, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.22, ease: "back.out(2)" }, at);
+          if (out != null) tl.to(id, { opacity: 0, duration: 0.15, ease: "power1.in" }, out);
+        }
+
+        // ---- 0–4.5: frame 0 already shows the clock at 22:47 and the first line (the thumbnail); the second hand jumps
+        // once a second; then the clock becomes the evening line
+        tl.set("#hand-h", { rotation: 323.5, svgOrigin: "0 0" }, 0);
+        tl.set("#hand-m", { rotation: 282, svgOrigin: "0 0" }, 0);
+        tl.set("#hand-s", { rotation: 0, svgOrigin: "0 0" }, 0);
+        for (var s = 0; s < 3; s++) tl.to("#hand-s", { rotation: (s + 1) * 6, duration: 0.12, ease: "back.out(3)" }, 0.05 + s);
+        tl.set("#capA", { opacity: 1 }, 0);
+        tl.to("#capA", { opacity: 0, duration: 0.15, ease: "power1.in" }, 2.35);
+        cap("#capB", 0.5, 2.35);
+        tl.to("#clock", { scale: 0.35, opacity: 0, duration: 0.45, ease: "power3.in" }, 2.35);
+        tl.set("#line", { opacity: 1 }, 2.45);
+        tl.fromTo("#base", { strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: 0.6, ease: "power2.out" }, 2.45);
+        tl.fromTo(["#event", "#ev-lbl"], { opacity: 0 }, { opacity: 1, duration: 0.3 }, 2.55);
+        tl.fromTo("#curfew", { opacity: 0, scaleY: 0.6, transformOrigin: "50% 50%" }, { opacity: 1, scaleY: 1, duration: 0.4, ease: "power3.out" }, 2.75);
+        tl.fromTo("#head", { attr: { cx: X(19) } }, { attr: { cx: X(23) }, duration: 0.7, ease: "power2.inOut" }, 2.6);
+        cap("#capC", 2.45, 4.45);
+        tl.fromTo(["#road", "#road-lbl"], { opacity: 0 }, { opacity: 1, duration: 0.25 }, 3.1);
+        tl.to("#road", { strokeDashoffset: -48, duration: 1.3, ease: "none" }, 3.1);
+        tl.to("#head", { attr: { cx: X(23.55) }, duration: 0.9, ease: "power1.inOut" }, 3.35);
+        cap("#capD", 4.5, 5.4);
+        tl.fromTo("#head", { scale: 1, transformOrigin: "50% 50%" }, { scale: 1.35, duration: 0.18, ease: "power2.out", yoyo: true, repeat: 1 }, 4.5);
+
+        // ---- 5.5–10.5: the phone; the event, a quick scroll, a push-in on «Безпека»
+        var S = 600 / 1206;
+        gsap.set("#shots", { scale: S });
+        tl.to("#line", { opacity: 0, duration: 0.2 }, 5.4);
+        tl.fromTo("#phone", { y: 1500 }, { y: 0, duration: 0.6, ease: "power3.out" }, 5.5);
+        tl.fromTo("#shot-top", { yPercent: 0, filter: "blur(0px)" }, { yPercent: -60, filter: "blur(6px)", duration: 0.35, ease: "power2.in" }, 6.2);
+        tl.to("#shot-top", { opacity: 0, duration: 0.12 }, 6.45);
+        tl.fromTo("#shot-safety", { yPercent: 40, filter: "blur(6px)" }, { yPercent: 0, filter: "blur(0px)", duration: 0.4, ease: "power3.out" }, 6.3);
+        tl.to("#phone", { scale: 1.28, duration: 0.6, ease: "power2.inOut" }, 6.7);
+        cap("#capE", 6.35, 8.35);
+        tl.fromTo("#hl-curfew", { opacity: 0 }, { opacity: 1, duration: 0.2 }, 6.75);
+        tl.to("#hl-curfew", { opacity: 0, duration: 0.2 }, 8.3);
+        cap("#capF", 8.5, 10.5);
+        tl.fromTo("#hl-shelters", { opacity: 0 }, { opacity: 1, duration: 0.2 }, 8.6);
+        tl.to("#hl-shelters", { opacity: 0, duration: 0.2 }, 10.3);
+        tl.to("#phone", { y: 1600, scale: 1.1, duration: 0.5, ease: "power3.in" }, 10.55);
+
+        // ---- 10.7–12.6: back on the line, calm: the dot reaches home well before the curfew
+        tl.to("#line", { opacity: 1, duration: 0.3 }, 10.7);
+        tl.to("#head", { attr: { cx: X(23.75) }, duration: 0.6, ease: "power2.out" }, 10.85);
+        tl.to("#window", { opacity: 1, duration: 0.2 }, 11.45);
+        cap("#capG", 10.8, 12.6);
+
+        // ---- 12.7–15: the name and the question, each held > 2 s; static from 13.2
+        tl.to("#line", { opacity: 0, duration: 0.25 }, 12.6);
+        tl.fromTo("#brand", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.35, ease: "power3.out" }, 12.7);
+        cap("#capH", 12.9);
+
+        window.__timelines["main"] = tl;
+      })();
+    </script>
+  </body>
+</html>

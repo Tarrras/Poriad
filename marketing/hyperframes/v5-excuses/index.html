@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <title>V5 · скинь тому, хто каже «може наступного разу» — TikTok, 13.4 с, 9:16</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face { font-family: "Sofia Sans Condensed"; src: url("assets/fonts/SofiaSansCondensed-Bold.ttf") format("truetype"); font-weight: 700; font-display: block; }
+      @font-face { font-family: "Sofia Sans Condensed"; src: url("assets/fonts/SofiaSansCondensed-ExtraBold.ttf") format("truetype"); font-weight: 800; font-display: block; }
+      @font-face { font-family: "Sofia Sans Extra Condensed"; src: url("assets/fonts/SofiaSansExtraCondensed-ExtraBold.ttf") format("truetype"); font-weight: 800; font-display: block; }
+
+      /* «Корінець» dossier on a friend: a ticket with a «Зустрічі» stub (#A24C29), body #1C1B21,
+         ticks stamped in grey ink #C9C7C0 (as in K2), the verdict stamp in danger #FF6B5B.
+         The card flips into the app (map → event page) and back. Coral #FF8A5B is «Поряд» only. */
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1080px; height: 1920px; overflow: hidden; background: #0f1017; }
+      #root { position: relative; width: 100%; height: 100%; overflow: hidden; color: #f3f3f0; font-family: "Sofia Sans Condensed", sans-serif;
+        background: radial-gradient(80% 42% at 50% 50%, #1b1b25 0%, #0f1017 70%); }
+
+      #hook { position: absolute; left: 60px; top: 200px; width: 960px; text-align: center; }
+      #hook span { display: block; font-weight: 800; font-size: 80px; line-height: 88px; letter-spacing: -0.5px; }
+
+      #stage { position: absolute; inset: 0; perspective: 1800px; }
+
+      /* the dossier ticket: stub on top, perforation, four rows */
+      #card { position: absolute; left: 100px; top: 500px; width: 880px; height: 830px; }
+      #card .stub { position: absolute; left: 0; top: 0; width: 880px; height: 180px; border-radius: 40px 40px 0 0; background: #a24c29; padding: 34px 56px 0; }
+      #card .who { font-family: "Sofia Sans Extra Condensed", sans-serif; font-weight: 800; font-size: 112px; line-height: 112px; color: #fff; }
+      #card .tag { position: absolute; right: 56px; top: 40px; font-weight: 800; font-size: 30px; letter-spacing: 3px; color: #fff; }
+      #card .body { position: absolute; left: 0; top: 180px; width: 880px; height: 650px; border-radius: 0 0 40px 40px; background: #1c1b21; box-shadow: inset 0 0 0 2px #2e2d35; }
+      #card .perf { position: absolute; left: 40px; right: 40px; top: 178px; border-top: 4px dotted rgba(15, 16, 23, 0.7); }
+      #card .n { position: absolute; top: 156px; width: 48px; height: 48px; border-radius: 50%; background: #0f1017; }
+      #card .n.l { left: -24px; } #card .n.r { right: -24px; }
+      .row { position: absolute; left: 56px; width: 700px; height: 140px; display: flex; align-items: center; gap: 36px; }
+      .box { flex: none; width: 64px; height: 64px; border: 5px solid #4a4950; border-radius: 14px; }
+      .txt { font-weight: 700; font-size: 54px; line-height: 58px; color: #f3f3f0; }
+      #r2 .txt, #r3 .txt, #r4 .txt { opacity: 0; }
+      .tick { position: absolute; left: -12px; top: 22px; width: 96px; height: 96px; opacity: 0; filter: url(#ink); }
+      .stk { position: absolute; left: 772px; font-size: 104px; line-height: 104px; opacity: 0; }
+
+      /* the phone: 532-px screen, k = 532/1206 */
+      #phone { position: absolute; left: 260px; top: 290px; width: 560px; height: 1185px; border-radius: 80px; background: #0a0a0c;
+        box-shadow: 0 0 0 2px #2b2a31, 0 50px 90px rgba(0, 0, 0, 0.6); opacity: 0; }
+      #screen { position: absolute; left: 14px; top: 14px; width: 532px; height: 1157px; border-radius: 66px; overflow: hidden; background: #0f0f13; }
+      #screen img { position: absolute; left: 0; top: 0; width: 532px; height: 1157px; }
+      #ring { position: absolute; left: 27px; top: 1017px; width: 367px; height: 88px; border: 6px solid #f3f3f0; border-radius: 28px; opacity: 0; }
+
+      /* white TikTok plates */
+      .plate { position: absolute; left: 60px; width: 960px; display: flex; justify-content: center; opacity: 0; z-index: 3; }
+      .plate span { display: block; background: #f3f3f0; color: #141417; border-radius: 16px; padding: 8px 24px 12px; font-weight: 800; font-size: 56px; line-height: 62px; white-space: nowrap; }
+      #pa, #pb, #pc { top: 180px; }
+      #pd { top: 300px; }
+
+      .stamp { position: absolute; left: 0; top: 0; display: flex; flex-direction: column; align-items: center; text-align: center; z-index: 2;
+        border: 10px solid currentColor; border-radius: 24px; padding: 14px 36px; font-weight: 800; font-size: 96px; line-height: 96px; letter-spacing: 4px;
+        white-space: nowrap; color: #ff6b5b; filter: url(#ink-soft); opacity: 0; }
+
+      #brand { position: absolute; left: 0; top: 1380px; width: 1080px; display: flex; justify-content: center; align-items: center; gap: 28px; opacity: 0; }
+      #brand img { width: 120px; height: 120px; border-radius: 28px; }
+      #brand .name { font-weight: 800; font-size: 120px; line-height: 120px; letter-spacing: -1px; color: #ff8a5b; }
+
+      #grain { position: absolute; z-index: 6; inset: 0; pointer-events: none; opacity: 0.08; mix-blend-mode: overlay; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="13.4" data-fps="30" data-width="1080" data-height="1920">
+      <svg width="0" height="0" aria-hidden="true" style="position: absolute">
+        <!-- rubber-stamp ink (as in K2): speckled holes and slightly ragged edges, fixed seed -->
+        <filter id="ink" x="-5%" y="-5%" width="110%" height="110%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.55" numOctaves="2" seed="3" result="n" />
+          <feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -2.2 1.55" result="holes" />
+          <feComposite in="SourceGraphic" in2="holes" operator="in" result="inked" />
+          <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="1" seed="9" result="w" />
+          <feDisplacementMap in="inked" in2="w" scale="5" />
+        </filter>
+        <!-- the verdict gets a cleaner impression so it reads at a glance -->
+        <filter id="ink-soft" x="-5%" y="-5%" width="110%" height="110%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.75" numOctaves="2" seed="4" result="n" />
+          <feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -9 6.1" result="holes" />
+          <feComposite in="SourceGraphic" in2="holes" operator="in" result="inked" />
+          <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="1" seed="2" result="w" />
+          <feDisplacementMap in="inked" in2="w" scale="4" />
+        </filter>
+      </svg>
+
+      <div id="hook" data-hold><span>скинь тому, хто каже</span><span>«може наступного разу» 👇</span></div>
+
+      <div id="stage">
+        <div id="card">
+          <div class="stub"><div class="who">друг, який…</div><div class="tag">ДОСЬЄ</div></div>
+          <div class="body"></div>
+          <div class="perf"></div><div class="n l"></div><div class="n r"></div>
+          <div class="row" id="r1" style="top: 220px"><div class="box"></div><div class="txt">обіцяв(-ла) стендап ще в травні</div></div>
+          <div class="row" id="r2" style="top: 365px"><div class="box"></div><div class="txt">знає всі концерти, але не ходить</div></div>
+          <div class="row" id="r3" style="top: 510px"><div class="box"></div><div class="txt">«а з ким?»</div></div>
+          <div class="row" id="r4" style="top: 655px"><div class="box"></div><div class="txt">«скинь потім» — і ніколи</div></div>
+        </div>
+        <div id="phone">
+          <div id="screen">
+            <img id="map" data-layout-allow-overflow src="assets/ui/map.jpg" alt="Мапа «Поряд», Київ" />
+            <img id="detail" data-layout-allow-overflow src="assets/ui/detail.jpg" alt="Сторінка події з кнопкою «Шукаю компанію»" />
+            <div id="ring"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="plate" id="pa"><span>а тепер покажи йому(їй) це:</span></div>
+      <div class="plate" id="pb"><span>куди — на мапі</span></div>
+      <div class="plate" id="pc"><span>з ким — можна зібрати на події</span></div>
+      <div class="stamp" id="verdict" data-layout-allow-overlap data-layout-allow-occlusion><span data-layout-allow-occlusion>БІЛЬШЕ БЕЗ</span><span data-layout-allow-occlusion>ВІДМАЗОК</span></div>
+      <div class="plate" id="pd"><span>скинь, не соромся 😏</span></div>
+      <div id="brand"><img src="assets/icon.png" alt="" /><div class="name">Поряд</div></div>
+
+      <svg id="grain" width="1080" height="1920" aria-hidden="true">
+        <filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="31" /><feColorMatrix type="saturate" values="0" /></filter>
+        <rect width="1080" height="1920" filter="url(#noise)" />
+      </svg>
+
+      <!-- music: «Happy Cooking (Food Music)» by BombinSound (Pixabay), 98 BPM, from 7.37 s — the drums come in on frame 0; ticks land on its beats (0.612 s) -->
+      <audio id="music" src="assets/audio/music.m4a" data-start="0" data-media-start="7.37" data-duration="13.4" data-track-index="10" data-automation="{&quot;version&quot;:1,&quot;lanes&quot;:[{&quot;target&quot;:&quot;volume&quot;,&quot;points&quot;:[{&quot;t&quot;:0,&quot;v&quot;:0.5},{&quot;t&quot;:10.95,&quot;v&quot;:0.5},{&quot;t&quot;:11.05,&quot;v&quot;:0.32},{&quot;t&quot;:11.7,&quot;v&quot;:0.5},{&quot;t&quot;:12.8,&quot;v&quot;:0.5},{&quot;t&quot;:13.4,&quot;v&quot;:0}]}]}"></audio>
+      <audio id="sfx-t1" src="assets/audio/stamp.wav" data-start="1.22" data-duration="0.5" data-track-index="11" data-volume="0.55"></audio>
+      <audio id="sfx-t2" src="assets/audio/stamp.wav" data-start="2.45" data-duration="0.5" data-track-index="11" data-volume="0.55"></audio>
+      <audio id="sfx-t3" src="assets/audio/stamp.wav" data-start="3.67" data-duration="0.5" data-track-index="11" data-volume="0.55"></audio>
+      <audio id="sfx-t4" src="assets/audio/stamp.wav" data-start="4.9" data-duration="0.5" data-track-index="11" data-volume="0.6"></audio>
+      <audio id="sfx-p1" src="assets/audio/pin_pop_1.wav" data-start="1.34" data-duration="0.25" data-track-index="12" data-volume="0.3"></audio>
+      <audio id="sfx-p2" src="assets/audio/pin_pop_1.wav" data-start="2.57" data-duration="0.25" data-track-index="12" data-volume="0.3"></audio>
+      <audio id="sfx-p3" src="assets/audio/pin_pop_1.wav" data-start="3.79" data-duration="0.25" data-track-index="12" data-volume="0.3"></audio>
+      <audio id="sfx-p4" src="assets/audio/pin_pop_1.wav" data-start="5.02" data-duration="0.25" data-track-index="12" data-volume="0.3"></audio>
+      <audio id="sfx-flip" src="assets/audio/whoosh.wav" data-start="5.92" data-duration="0.27" data-track-index="13" data-volume="0.3"></audio>
+      <audio id="sfx-push" src="assets/audio/whoosh.wav" data-start="8.5" data-duration="0.27" data-track-index="13" data-volume="0.18"></audio>
+      <audio id="sfx-back" src="assets/audio/whoosh.wav" data-start="10.6" data-duration="0.27" data-track-index="13" data-volume="0.3"></audio>
+      <audio id="sfx-slam" src="assets/audio/stamp.wav" data-start="11.02" data-duration="0.5" data-track-index="14" data-volume="0.9"></audio>
+      <audio id="sfx-slam-2" src="assets/audio/stamps.wav" data-start="11.02" data-media-start="2.22" data-duration="0.45" data-track-index="15" data-volume="0.8"></audio>
+      <audio id="sfx-name" src="assets/audio/pin_pop_1.wav" data-start="11.33" data-duration="0.25" data-track-index="12" data-volume="0.35"></audio>
+    </div>
+
+    <script>
+      (function () {
+        // ticks: an inked check, built once per row
+        ["#r1", "#r2", "#r3", "#r4"].forEach(function (r) {
+          var s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+          s.setAttribute("class", "tick"); s.setAttribute("viewBox", "0 0 96 96");
+          s.setAttribute("data-layout-allow-overlap", ""); s.setAttribute("data-layout-allow-occlusion", "");
+          s.innerHTML = '<path d="M16 50 L40 74 L84 18" fill="none" stroke="#c9c7c0" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" />';
+          document.querySelector(r).appendChild(s);
+        });
+        // reaction stickers next to each row
+        var STK = [["#r1", "🫠", -12], ["#r2", "🙄", 10], ["#r3", "🤨", -8], ["#r4", "💀", 12]];
+        STK.forEach(function (k, i) {
+          var e = document.createElement("div"); e.className = "stk"; e.id = "stk" + (i + 1); e.textContent = k[1];
+          e.setAttribute("data-layout-allow-overlap", ""); e.setAttribute("data-layout-allow-occlusion", "");
+          e.style.top = (parseFloat(document.querySelector(k[0]).style.top) + 18) + "px";
+          document.getElementById("card").appendChild(e);
+        });
+
+        var B = 60 / 98; // one beat of the track, 0.612 s
+        var tl = gsap.timeline({ paused: true });
+        function plate(id, at, out) {
+          tl.fromTo(id, { opacity: 0, y: 12, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.2, ease: "back.out(2)" }, at);
+          if (out != null) tl.to(id, { opacity: 0, duration: 0.15, ease: "power1.in" }, out);
+        }
+
+        // ---- 0–5.5: the dossier. Row 1 is there on frame 0 (the cover); rows 2–4 arrive on the off-beats, ticks land on the even beats
+        [1, 2, 3, 4].forEach(function (i) {
+          var land = 2 * i * B;
+          if (i > 1) tl.fromTo("#r" + i + " .txt", { opacity: 0, x: -16 }, { opacity: 1, x: 0, duration: 0.18, ease: "power3.out" }, land - B);
+          tl.fromTo("#r" + i + " .tick", { scale: 1.8, rotation: -14, opacity: 0 }, { scale: 1, rotation: -6, opacity: 1, duration: 0.12, ease: "power4.in" }, land - 0.12);
+          tl.fromTo("#card", { y: 0 }, { y: 6, duration: 0.05, ease: "power1.out", yoyo: true, repeat: 1, immediateRender: false }, land);
+          tl.fromTo("#stk" + i, { scale: 0, opacity: 0, rotation: STK[i - 1][2] }, { scale: 1, opacity: 1, rotation: STK[i - 1][2], duration: 0.3, ease: "back.out(3)" }, land + 0.1);
+        });
+
+        // ---- 5.51–10.6: «а тепер покажи йому(їй) це:» — the card turns over into the app
+        tl.to("#hook", { opacity: 0, duration: 0.15 }, 9 * B);
+        plate("#pa", 9 * B, 12 * B);
+        tl.to("#card", { rotationY: 90, duration: 0.2, ease: "power2.in" }, 10 * B - 0.2);
+        tl.set("#card", { opacity: 0 }, 10 * B);
+        tl.fromTo("#phone", { rotationY: -90, opacity: 1 }, { rotationY: 0, opacity: 1, duration: 0.28, ease: "power3.out", immediateRender: false }, 10 * B);
+        plate("#pb", 12 * B + 0.05, 14 * B);
+        // the event page pushes in from the right, as in the app
+        tl.set("#detail", { x: 532 }, 0);
+        tl.to("#map", { x: -160, duration: 0.32, ease: "power3.out" }, 14 * B);
+        tl.to("#detail", { x: 0, duration: 0.32, ease: "power3.out" }, 14 * B);
+        plate("#pc", 14 * B + 0.05, 10.6);
+        tl.fromTo("#ring", { opacity: 0, scale: 1.18 }, { opacity: 1, scale: 1, duration: 0.25, ease: "back.out(2)" }, 15 * B);
+
+        // ---- 10.6–11.02: back to the dossier; the verdict lands on beat 18
+        tl.to("#phone", { rotationY: 90, duration: 0.18, ease: "power2.in" }, 10.6);
+        tl.set("#phone", { opacity: 0 }, 10.78);
+        tl.fromTo("#card", { rotationY: -90 }, { rotationY: 0, opacity: 1, duration: 0.22, ease: "power3.out", immediateRender: false }, 10.78);
+        var SLAM = 18 * B; // 11.02
+        tl.set("#verdict", { left: 540, top: 1000, xPercent: -50, yPercent: -50 }, 0);
+        tl.fromTo("#verdict", { scale: 1.7, rotation: -15, opacity: 0 }, { scale: 1, rotation: -9, opacity: 1, duration: 0.13, ease: "power4.in" }, SLAM - 0.13);
+        tl.to(["#card .row", "#card .stk"], { opacity: 0.22, duration: 0.12, ease: "power1.out" }, SLAM - 0.06);
+        tl.fromTo("#stage", { x: 0 }, { x: -7, duration: 0.04, ease: "none", yoyo: true, repeat: 3, immediateRender: false }, SLAM);
+
+        // ---- 11.33–13.4: the ask and the name, held > 2 s; static from 11.7
+        plate("#pd", SLAM + 0.31);
+        tl.fromTo("#brand", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.3, ease: "power3.out" }, SLAM + 0.31);
+
+        window.__timelines = window.__timelines || {};
+        window.__timelines["main"] = tl;
+      })();
+    </script>
+  </body>
+</html>

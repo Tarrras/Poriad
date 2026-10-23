@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <title>V4 · обери емодзі — скажу, куди тобі в суботу — TikTok, 13.1 с, 9:16</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face { font-family: "Sofia Sans Condensed"; src: url("assets/fonts/SofiaSansCondensed-Bold.ttf") format("truetype"); font-weight: 700; font-display: block; }
+      @font-face { font-family: "Sofia Sans Condensed"; src: url("assets/fonts/SofiaSansCondensed-ExtraBold.ttf") format("truetype"); font-weight: 800; font-display: block; }
+      @font-face { font-family: "Sofia Sans Extra Condensed"; src: url("assets/fonts/SofiaSansExtraCondensed-ExtraBold.ttf") format("truetype"); font-weight: 800; font-display: block; }
+      @font-face { font-family: "Inter"; src: url("assets/fonts/inter-cyrillic-600-normal.woff2") format("woff2"); font-weight: 600; font-display: block; unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+      @font-face { font-family: "Inter"; src: url("assets/fonts/inter-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-display: block; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+
+      /* Four paper «door» tickets with an emoji each over four real weekend events («Корінець» tickets).
+         The doors count down 3-2-1 on their stubs, then tear along the perforation one by one on the beat.
+         Graphite ground, paper #F3F3F0 doors; coral only for «Поряд». */
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1080px; height: 1920px; overflow: hidden; background: #0f1017; }
+      #root { position: relative; width: 100%; height: 100%; overflow: hidden; color: #f3f3f0; font-family: "Sofia Sans Condensed", sans-serif;
+        background: radial-gradient(80% 45% at 50% 50%, #1b1b25 0%, #0f1017 70%); }
+
+      #hook { position: absolute; left: 80px; top: 190px; width: 840px; text-align: center; }
+      #hook .l1 { display: block; font-weight: 800; font-size: 120px; line-height: 120px; letter-spacing: -1px; }
+      #sub { position: absolute; left: 80px; top: 330px; width: 840px; text-align: center; font-weight: 700; font-size: 58px; line-height: 62px; color: #c8c7d0; }
+
+      /* rows: 820 × 250 tickets, body 590 + stub 230, perforation at x = 590 */
+      #stack { position: absolute; left: 80px; top: 440px; width: 820px; height: 1060px; }
+      .row { position: absolute; left: 0; width: 820px; height: 250px; }
+      .ev, .door { position: absolute; inset: 0; }
+      .ev { opacity: 0; }
+      .ev .body { position: absolute; left: 0; top: 0; width: 590px; height: 250px; border-radius: 30px 0 0 30px; background: #1c1b21; box-shadow: inset 0 0 0 2px #2e2d35; padding: 30px 28px 0 34px; }
+      .ev .title { font-weight: 800; font-size: 62px; line-height: 66px; letter-spacing: -0.5px; padding-bottom: 6px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+      .ev .venue { position: absolute; left: 34px; right: 28px; bottom: 28px; font-family: "Inter", sans-serif; font-weight: 600; font-size: 28px; line-height: 34px; color: #a6a5ad; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .ev .stub { position: absolute; left: 590px; top: 0; width: 230px; height: 250px; border-radius: 0 30px 30px 0; color: #fff;
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+      .ev .g, .ev .day, .ev .pre { font-weight: 800; font-size: 28px; line-height: 30px; letter-spacing: 2px; }
+      .ev .time { font-family: "Sofia Sans Extra Condensed", sans-serif; font-weight: 800; font-size: 104px; line-height: 98px; font-variant-numeric: tabular-nums; }
+      .perf { position: absolute; left: 588px; top: 18px; bottom: 18px; border-left: 4px dotted rgba(15, 16, 23, 0.55); }
+      .n { position: absolute; left: 574px; width: 32px; height: 32px; border-radius: 50%; background: #13131b; }
+      .n.t { top: -16px; } .n.b { bottom: -16px; }
+
+      .door .half { position: absolute; top: 0; height: 250px; background: #f3f3f0; color: #141417; display: flex; align-items: center; justify-content: center; }
+      .door .l { left: 0; width: 590px; border-radius: 30px 0 0 30px; font-size: 150px; line-height: 1; }
+      .door .r { left: 590px; width: 230px; border-radius: 0 30px 30px 0; }
+      .door .r span { position: absolute; font-family: "Sofia Sans Extra Condensed", sans-serif; font-weight: 800; font-size: 170px; line-height: 170px; }
+      .door .r .d2, .door .r .d1, .door .r .dq { opacity: 0; }
+      .door .perf { border-left-color: rgba(20, 20, 23, 0.35); }
+
+      .plate { position: absolute; left: 80px; width: 840px; display: flex; flex-direction: column; align-items: center; opacity: 0; }
+      .plate span { display: block; background: #f3f3f0; color: #141417; border-radius: 16px; padding: 8px 24px 12px; font-weight: 800; font-size: 58px; line-height: 64px; white-space: nowrap; }
+      .say { top: 318px; }
+      #all { top: 1462px; z-index: 3; }
+      #q { top: 1130px; z-index: 5; }
+
+      #map { position: absolute; left: 0; top: 0; width: 1080px; height: 2348px; opacity: 0; z-index: 2; }
+      #shade { position: absolute; inset: 0; background: rgba(13, 14, 20, 0.9); opacity: 0; z-index: 4; }
+      #brand { position: absolute; left: 0; top: 640px; width: 1080px; display: flex; flex-direction: column; align-items: center; gap: 26px; opacity: 0; z-index: 5; }
+      #brand img { width: 176px; height: 176px; border-radius: 40px; }
+      #brand .name { font-weight: 800; font-size: 128px; line-height: 128px; letter-spacing: -1px; color: #ff8a5b; }
+
+      #grain { position: absolute; z-index: 6; inset: 0; pointer-events: none; opacity: 0.08; mix-blend-mode: overlay; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="13.1" data-fps="30" data-width="1080" data-height="1920">
+      <div id="hook"><span class="l1">обери емодзі 👇</span></div>
+      <div id="sub">скажу, куди тобі в суботу</div>
+      <div id="stack"></div>
+      <div class="plate say" id="say0"><span>🎤 стендап о 19:00</span></div>
+      <div class="plate say" id="say1"><span>🎨 виставка — встигни до 19:00</span></div>
+      <div class="plate say" id="say2"><span>🎻 Бах у кірсі</span></div>
+      <div class="plate say" id="say3"><span>🕺 Хелловін-вечірка до 23:00 🎃</span></div>
+
+      <img id="map" src="assets/ui/map-weekend.jpg" alt="Мапа «Поряд» з фільтром «Вихідні»" />
+      <div class="plate" id="all"><span>і ще понад сотню — на мапі</span></div>
+      <div id="shade"></div>
+      <div id="brand"><img src="assets/icon.png" alt="" /><div class="name">Поряд</div></div>
+      <div class="plate" id="q"><span>яке емодзі твоє? 👇</span></div>
+
+      <svg id="grain" width="1080" height="1920" aria-hidden="true">
+        <filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="44" /><feColorMatrix type="saturate" values="0" /></filter>
+        <rect width="1080" height="1920" filter="url(#noise)" />
+      </svg>
+
+      <!-- music: «Surf» by madstock (Pixabay) from 98.1 s — the breakdown carries the countdown, the drums drop (100.1 s) on the first tear at 2.0 -->
+      <audio id="music" src="assets/audio/music.m4a" data-start="0" data-media-start="98.1" data-duration="13.1" data-track-index="10" data-automation="{&quot;version&quot;:1,&quot;lanes&quot;:[{&quot;target&quot;:&quot;volume&quot;,&quot;points&quot;:[{&quot;t&quot;:0,&quot;v&quot;:0.55},{&quot;t&quot;:12.5,&quot;v&quot;:0.55},{&quot;t&quot;:13.1,&quot;v&quot;:0}]}]}"></audio>
+      <audio id="sfx-tick2" src="assets/audio/ui_tick.wav" data-start="0.894" data-duration="0.08" data-track-index="11" data-volume="0.7"></audio>
+      <audio id="sfx-tick1" src="assets/audio/ui_tick.wav" data-start="1.447" data-duration="0.08" data-track-index="11" data-volume="0.7"></audio>
+      <audio id="sfx-tear0" src="assets/audio/tear.wav" data-start="2" data-duration="0.19" data-track-index="12" data-volume="0.8"></audio>
+      <audio id="sfx-tear1" src="assets/audio/tear.wav" data-start="3.659" data-duration="0.19" data-track-index="12" data-volume="0.8"></audio>
+      <audio id="sfx-tear2" src="assets/audio/tear.wav" data-start="5.318" data-duration="0.19" data-track-index="12" data-volume="0.8"></audio>
+      <audio id="sfx-tear3" src="assets/audio/tear.wav" data-start="6.977" data-duration="0.19" data-track-index="12" data-volume="0.8"></audio>
+      <audio id="sfx-map" src="assets/audio/whoosh.wav" data-start="8.636" data-duration="0.26" data-track-index="13" data-volume="0.25"></audio>
+      <audio id="sfx-name" src="assets/audio/pin_pop_1.wav" data-start="10.84" data-duration="0.25" data-track-index="13" data-volume="0.4"></audio>
+    </div>
+
+    <script>
+      (function () {
+        // Real live Kyiv events, Saturday 31.10.2026 (prod, 23.10); titles as the app shows them.
+        // [emoji, genre label, stub colour, title, venue, pre-time, time]
+        var E = [
+          ["🎤", "СТЕНДАП", "#8d6a11", "Підпільний стендап", "Underground Standup Club", "", "19:00"],
+          ["🎨", "МИСТЕЦТВО", "#ac345e", "Київ – тиша і ритм", "Музей історії Києва", "ДО", "19:00"],
+          ["🎻", "МУЗИКА", "#6041b1", "Bach & Bach", "Кірха Святої Катерини", "", "15:00"],
+          ["🕺", "МУЗИКА", "#6041b1", "KARNA. Party на Хелловін", "Stereo Plaza", "", "19:00"]
+        ];
+        var stack = document.getElementById("stack");
+        E.forEach(function (e, i) {
+          var row = document.createElement("div"); row.className = "row"; row.id = "row" + i; row.style.top = i * 270 + "px";
+          row.innerHTML =
+            '<div class="ev"><div class="body"><div class="title"></div><div class="venue"></div></div>' +
+            '<div class="stub"><div class="g"></div>' + (e[5] ? '<div class="pre">' + e[5] + '</div>' : '') + '<div class="time"></div><div class="day">СУБОТА</div></div>' +
+            '<div class="perf"></div><div class="n t"></div><div class="n b"></div></div>' +
+            '<div class="door" data-layout-allow-overlap><div class="half l"></div><div class="half r"><span class="d3">3</span><span class="d2">2</span><span class="d1">1</span><span class="dq">?</span></div>' +
+            '<div class="perf"></div><div class="n t"></div><div class="n b"></div></div>';
+          row.querySelector(".title").textContent = e[3];
+          row.querySelector(".venue").textContent = e[4];
+          row.querySelector(".g").textContent = e[1];
+          row.querySelector(".stub").style.background = e[2];
+          row.querySelector(".time").textContent = e[6];
+          row.querySelector(".half.l").textContent = e[0];
+          stack.appendChild(row);
+        });
+
+        var B = 0.553; // one beat of «Surf» (108.5 BPM)
+        var T = [2, 2 + 3 * B, 2 + 6 * B, 2 + 9 * B]; // tears: the drop, then every 3 beats
+        var MAP = 2 + 12 * B, BRAND = 2 + 16 * B; // 8.636, 10.848
+        var tl = gsap.timeline({ paused: true });
+        function plate(id, at, out) {
+          tl.fromTo(id, { opacity: 0, y: 12, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.2, ease: "back.out(2)" }, at);
+          if (out != null) tl.to(id, { opacity: 0, duration: 0.12, ease: "power1.in" }, out);
+        }
+
+        // ---- 0–2: the hook; the doors count down on their stubs, on the beat of the breakdown
+        tl.set(".d3", { opacity: 0 }, 0.894); tl.set(".d2", { opacity: 1 }, 0.894);
+        tl.set(".d2", { opacity: 0 }, 1.447); tl.set(".d1", { opacity: 1 }, 1.447);
+        tl.fromTo(".door .r span", { scale: 1.25 }, { scale: 1, duration: 0.2, ease: "power3.out" }, 0.894);
+        tl.fromTo(".door .r span", { scale: 1.25 }, { scale: 1, duration: 0.2, ease: "power3.out", immediateRender: false }, 1.447);
+        tl.to("#sub", { opacity: 0, duration: 0.12 }, T[0] - 0.05);
+        tl.set(".d1", { opacity: 0 }, T[0]); tl.set(".dq", { opacity: 1 }, T[0]); // the doors still shut keep a «?»
+
+        // ---- 2–8.6: each door tears along the perforation, the halves fly apart; the event pops
+        T.forEach(function (t, i) {
+          var r = "#row" + i;
+          tl.to(r + " .door .l", { x: -6, duration: 0.05, ease: "power1.out" }, t);
+          tl.to(r + " .door .r", { x: 6, duration: 0.05, ease: "power1.out" }, t);
+          tl.to(r + " .door .l", { x: -760, y: 140, rotation: -14, duration: 0.42, ease: "power2.in" }, t + 0.05);
+          tl.to(r + " .door .r", { x: 520, y: 180, rotation: 22, duration: 0.42, ease: "power2.in" }, t + 0.09);
+          tl.to(r + " .door .perf, " + r + " .door .n", { opacity: 0, duration: 0.05 }, t + 0.05);
+          tl.set(r + " .door", { opacity: 0 }, t + 0.52); // the halves are off-canvas by now
+          tl.set(r + " .ev", { opacity: 1 }, t);
+          tl.fromTo(r + " .ev", { scale: 0.96 }, { scale: 1, duration: 0.25, ease: "back.out(2.5)", immediateRender: false }, t + 0.08);
+          plate("#say" + i, t + 0.08, i < 3 ? T[i + 1] - 0.02 : MAP);
+        });
+
+        // ---- 8.6–10.8: the four tickets drop into the map: there's more
+        tl.to("#hook", { opacity: 0, duration: 0.15 }, MAP);
+        tl.to("#stack", { scale: 0.32, y: 300, opacity: 0, duration: 0.5, ease: "power3.in" }, MAP);
+        tl.fromTo("#map", { opacity: 0, scale: 1.08, transformOrigin: "50% 30%" }, { opacity: 1, scale: 1, duration: 0.6, ease: "power3.out" }, MAP + 0.05);
+        plate("#all", MAP + 0.12, BRAND - 0.05);
+
+        // ---- 10.8–13.1: the name and the question, held > 2 s
+        tl.to("#shade", { opacity: 1, duration: 0.3 }, BRAND - 0.05);
+        tl.fromTo("#brand", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.35, ease: "power3.out" }, BRAND);
+        plate("#q", BRAND + 0.12);
+
+        window.__timelines["main"] = tl;
+      })();
+    </script>
+  </body>
+</html>
