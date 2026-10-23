@@ -1,9 +1,16 @@
 # Музика
 
-| Файл | Що | Джерело й ліцензія |
-|---|---|---|
-| `indie-pop-madstock.m4a` | **спільний трек роликів з 23.10.** «Indie Pop» by madstock, 3:04, ≈150 BPM, енергійний інді-поп без вокалу. Барабани входять після пауз на 6.75 с (після вступу), 16.80 с (після брейку) і 60.45 с (після тихої середини) | [Pixabay](https://pixabay.com/music/indie-pop-indie-pop-335469/), Pixabay Content License: комерційно й у рекламі без атрибуції; без Content ID (перевірено 19.10) |
-| `cozy-cafe-chillhop.m4a` | архів: спільний трек 19–23.10, «Cozy Cafe Moments – Soft Chillhop» by DesiFreeMusic, 88 BPM, +3.7 дБ з лімітером | [Pixabay](https://pixabay.com/music/pop-cozy-cafe-moments-soft-chillhop-449126/), Pixabay Content License; без Content ID |
-| `calm.m4a`, `brand.m4a`, `zoomer.m4a` | архів: треки Sonilo (Higgsfield), до 19.10 | згенеровано на Higgsfield |
+З 23.10 кожен ролик має свій трек, щоб стрічка не звучала однаково. Усі треки з Pixabay: Pixabay Content License дозволяє комерційне використання й рекламу без атрибуції; Content ID у жодного немає (перевірено 19–22.10); автори не просять кредитів; без вокалу.
 
-Як ставити в ролик: старт треку вибирати так, щоб один із входів барабанів припав на ключову мить ролику (`data-media-start` = вхід − мить), а гучність рахувати від балансу з ефектами. Приклади — коментарі біля `<audio id="music">` у K1–K3 й A1–A3.
+| Файл | Ролик | Трек | Входи барабанів у файлі, с | Джерело |
+|---|---|---|---|---|
+| `indie-pop-madstock.m4a` | K1 «Друкарня» | «Indie Pop» by madstock, 3:04, ≈150 BPM | 6.75 · 16.80 · 60.45 | [pixabay](https://pixabay.com/music/indie-pop-indie-pop-335469/) |
+| `indie-rock-pulse-universfield.m4a` | K2 «Штампи» | «Positive Indie Rock Pulse» by Universfield, 1:04 | 3.10 · 8.40 · 15.75 · 21.75 | [pixabay](https://pixabay.com/music/indie-pop-positive-indie-rock-pulse-251702/) |
+| `indie-rock-bombinsound.m4a` | K3 «Касова стрічка» | «Indie Rock (Food Review)» by BombinSound, 1:22 | 4.70 · 8.60 · 43.80 · 48.10 | [pixabay](https://pixabay.com/music/rock-indie-rock-food-review-592192/) |
+| `energetic-indie-pop-danyvin.m4a` | A1 «шум → сигнал» | «Energetic Upbeat Indie Pop» by danyvin, 1:35 | 6.25 · 10.50 · 15.70 · 20.75 | [pixabay](https://pixabay.com/music/indie-pop-energetic-upbeat-indie-pop-573291/) |
+| `skyline-postcards-justcreate5.m4a` | A2 «нічний потяг» | «Skyline Postcards (1)» by justcreate5, 3:48 | 15.20 (довгий тихий розгін до нього) | [pixabay](https://pixabay.com/music/alternative-skyline-postcards-1-464782/) |
+| `upbeat-indie-pop-playsound.m4a` | A3 «місто в лініях» | «Upbeat Indie Pop» by Playsound, 1:07 | 1.55 · 6.85 | [pixabay](https://pixabay.com/music/indie-pop-upbeat-indie-pop-141685/) |
+| `cozy-cafe-chillhop.m4a` | архів | «Cozy Cafe Moments – Soft Chillhop» by DesiFreeMusic: спільний трек 19–23.10, +3.7 дБ з лімітером | — | [pixabay](https://pixabay.com/music/pop-cozy-cafe-moments-soft-chillhop-449126/) |
+| `calm.m4a`, `brand.m4a`, `zoomer.m4a` | архів | треки Sonilo (Higgsfield), до 19.10 | — | згенеровано на Higgsfield |
+
+Як ставити трек у ролик: `data-media-start` = вхід барабанів − ключова мить ролику (друк, телефон, розрив, пін, свисток, світло в домі); гучність рахувати від балансу з ефектами, а не на око. Приклади — коментарі біля `<audio id="music">` у K1–K3 й A1–A3. Новий ролик — новий трек: двічі один трек у роликах не ставимо.
