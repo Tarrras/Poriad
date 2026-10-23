@@ -140,6 +140,12 @@ extension EnvironmentValues {
                 autocapture: AutocaptureOptions.all.subtracting(.networkTracking)
             ))
             amplitude.add(plugin: AmplitudeSwiftSessionReplayPlugin(sampleRate: 1, maskLevel: .conservative))
+            // Словник подій (docs/analytics.md) — і сюди: воронки тут простіші, а replay фільтрується за подією.
+            let firebaseSink = PoruchAnalytics.shared.sink
+            PoruchAnalytics.shared.sink = { name, params in
+                firebaseSink?(name, params)
+                amplitude.track(eventType: name, eventProperties: params)
+            }
             let firebase = PoruchAnalytics.shared.collection
             PoruchAnalytics.shared.collection = { enabled in
                 firebase?(enabled)

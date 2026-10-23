@@ -128,7 +128,13 @@ internal class EventUseCases(
             ?: pendingCreation?.takeIf { it.first == draft }?.second
             ?: Uuid.random().toString().also { pendingCreation = draft to it }
         PoruchLog.i("action") { "createEvent ${id.shortId()} category=${draft.category?.key} capacity=${draft.capacity}" }
-        val created = actions.create(id, draft)
+        val created = try {
+            actions.create(id, draft)
+        } catch (e: Exception) {
+            // Останній крок воронки: без цього «дійшов до кінця й не опублікував» не відрізнити від «передумав».
+            if (e !is CancellationException) PoruchAnalytics.track("create_failed", "reason" to ((e as? AppFailure)?.error ?: AppError.ServiceUnavailable)::class.simpleName)
+            throw e
+        }
         pendingCreation = null; creationIdentity?.clear()
         PoruchAnalytics.track(
             "event_create",

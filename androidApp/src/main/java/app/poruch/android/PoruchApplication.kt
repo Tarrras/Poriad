@@ -56,6 +56,11 @@ class PoruchApplication : Application() {
             }
         }
         if (amplitude == null) PoruchLog.w("analytics") { "Amplitude API key missing — analytics disabled" }
+        else {
+            // Словник подій (docs/analytics.md) — і в Amplitude: воронки там простіші, а replay фільтрується за подією.
+            val firebaseSink = PoruchAnalytics.sink
+            PoruchAnalytics.sink = { name, params -> firebaseSink?.invoke(name, params); amplitude.track(name, params) }
+        }
         // Перемикач збору — після створення стора: хук одразу отримує збережений вибір людини, без
         // проміжного «увімкнено». Firebase сам пам'ятає його між запусками.
         PoruchAnalytics.collection = { enabled ->

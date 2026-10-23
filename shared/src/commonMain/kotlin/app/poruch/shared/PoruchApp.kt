@@ -272,6 +272,16 @@ class PoruchApp internal constructor(
     fun createStarted(from: String) = PoruchAnalytics.track("create_start", "from" to from, "guest" to !state.value.signedIn)
 
     /**
+     * Редактор нової події: відкрито (`about`) чи пройдено «Далі» на крок `place`, `schedule`, `people` — воронка між
+     * `create_start` і `event_create`, котрий крок губить людей. [draft] — форма з незакінченої чернетки: чи повертаються до неї.
+     */
+    fun createStep(step: String, draft: Boolean) = PoruchAnalytics.track("create_step", "step" to step, "draft" to draft)
+
+    /** «Далі» чи «Опублікувати» спинило правило: яке поле на якому кроці заважає найчастіше. */
+    fun createBlocked(step: String, field: DraftField) =
+        PoruchAnalytics.track("create_blocked", "step" to step, "field" to field.name.lowercase())
+
+    /**
      * Відкрити екран деталей: тут місця й членство вже варті запиту. Для прокату одразу
      * підтягує картки інших сеансів, щоб вибір дати в каруселі не показував порожній екран.
      */

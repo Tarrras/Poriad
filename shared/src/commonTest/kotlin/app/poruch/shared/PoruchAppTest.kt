@@ -512,16 +512,25 @@ class PoruchAppTest {
         app.close()
     }
 
+    /** Збій публікації рахується з причиною (`create_failed`): інакше кінець воронки не відрізнити від «передумав». */
     @Test fun retryCreationReusesIdAfterUncertainNetworkFailure()=runTest {
-        val events=Events(); val app=app(events,backgroundScope)
-        val draft=EventDraft("Прогулянка","Зустріч у центрі міста",EventCategory.OUTDOORS,"Київ","Поділ",50.45,30.5,"2090-01-01T10:00:00Z","2090-01-01T12:00:00Z","Europe/Kyiv",10)
-        events.failCreate=true;app.createEvent(draft);runCurrent()
-        assertNull(app.state.value.completedEventId)
-        events.failCreate=false;app.createEvent(draft);runCurrent()
-        assertEquals(2,events.createIds.size)
-        assertEquals(events.createIds.first(),events.createIds.last())
-        assertEquals(events.createIds.last(),app.state.value.completedEventId)
-        app.close()
+        val tracked=mutableListOf<Pair<String,Map<String,String>>>()
+        PoruchAnalytics.sink={ name,params -> tracked+=name to params }
+        try {
+            val events=Events(); val app=app(events,backgroundScope)
+            val draft=EventDraft("Прогулянка","Зустріч у центрі міста",EventCategory.OUTDOORS,"Київ","Поділ",50.45,30.5,"2090-01-01T10:00:00Z","2090-01-01T12:00:00Z","Europe/Kyiv",10)
+            events.failCreate=true;app.createEvent(draft);runCurrent()
+            assertNull(app.state.value.completedEventId)
+            events.failCreate=false;app.createEvent(draft);runCurrent()
+            assertEquals(2,events.createIds.size)
+            assertEquals(events.createIds.first(),events.createIds.last())
+            assertEquals(events.createIds.last(),app.state.value.completedEventId)
+            assertEquals(
+                listOf("create_failed" to mapOf("reason" to "Network"),"event_create" to mapOf("category" to "outdoors","approval" to "false")),
+                tracked.filter { it.first.startsWith("create_") || it.first=="event_create" }
+            )
+            app.close()
+        } finally { PoruchAnalytics.sink=null }
     }
     @Test fun invalidCreationNeverReachesRepository()=runTest {
         val events=Events(); val app=app(events,backgroundScope)

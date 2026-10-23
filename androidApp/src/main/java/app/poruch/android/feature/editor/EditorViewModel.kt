@@ -6,6 +6,7 @@ import app.poruch.android.platform.NotificationPermission
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import app.poruch.domain.DraftField
 import app.poruch.domain.Event
 import app.poruch.domain.PlaceResult
 import app.poruch.shared.AppNotice
@@ -23,6 +24,8 @@ class EditorViewModel(
 
     private var original: Event? = null
     private var submitted = false
+    /** Нову подію почали з незакінченої чернетки: параметр `draft` воронки створення. */
+    private var resumed = false
 
     /** Токен запиту адреси: пізня відповідь не має затирати те, що набрали після неї. */
     private var addressToken = 0
@@ -45,6 +48,8 @@ class EditorViewModel(
                 taken = event?.gathering?.attendeeCount ?: 0
             )
         }
+        resumed = state.value.canStartOver
+        track(EditorStep.ABOUT)
         observe(app) { latest ->
             // Редагування з deep link: запис може приїхати після екрана.
             val loaded = editingId?.let { id -> latest.detail.event?.takeIf { it.id == id } }
@@ -128,8 +133,10 @@ class EditorViewModel(
                 // Екран вибору вже спитав про цю крапку.
                 if (known == null) describePoint(intent.latitude, intent.longitude)
             }
-            EditorIntent.Next -> reduce {
-                if (stepProblems.isEmpty()) copy(step = step.next(), showProblems = false) else copy(showProblems = true)
+            EditorIntent.Next -> {
+                val problem = state.value.stepProblems.firstOrNull()
+                if (problem != null) { blocked(problem); reduce { copy(showProblems = true) } }
+                else { reduce { copy(step = step.next(), showProblems = false) }; track(state.value.step) }
             }
             EditorIntent.Back -> reduce { copy(step = step.previous(), showProblems = false, failure = null) }
             is EditorIntent.ShowPicker -> reduce { copy(picker = intent.request, pickerTime = intent.time) }
@@ -158,7 +165,7 @@ class EditorViewModel(
             is EditorIntent.ConfirmDiscard -> when (intent.what) {
                 Discard.CHANGES -> send(EditorEffect.Close)
                 Discard.DRAFT -> {
-                    unsaved = false; saveJob?.cancel(); drafts.clear()
+                    unsaved = false; saveJob?.cancel(); drafts.clear(); resumed = false
                     val city = app.state.value.city
                     reduce {
                         EditorState(form = drafts.load(city.name), mapLatitude = city.latitude, mapLongitude = city.longitude, host = host)
@@ -175,6 +182,7 @@ class EditorViewModel(
     private fun submit() {
         // Уся форма, а не крок: поки людина дивилась на неї, початок міг стати минулим.
         state.value.form.problems().firstOrNull()?.let { field ->
+            blocked(field)
             return reduce { copy(step = EditorStep.entries.first { field in it.fields }, showProblems = true) }
         }
         val draft = state.value.form.toDraft(original?.imageUrl) ?: return
@@ -183,6 +191,15 @@ class EditorViewModel(
         submitted = true
         val id = editingId
         if (id != null) app.updateEvent(id, draft) else app.createEvent(draft)
+    }
+
+    /** Воронка створення (docs/analytics.md): лише нова подія, правка наявної — інша історія. */
+    private fun track(reached: EditorStep) {
+        if (editingId == null) app.createStep(reached.name.lowercase(), resumed)
+    }
+
+    private fun blocked(field: DraftField) {
+        if (editingId == null) app.createBlocked(EditorStep.entries.first { field in it.fields }.name.lowercase(), field)
     }
 
     /** Запис чернетки після паузи в наборі: п'ятнадцять ключів на кожну літеру — зайве для диска. */

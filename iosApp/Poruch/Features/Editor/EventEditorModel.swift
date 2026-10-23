@@ -142,6 +142,8 @@ enum EditorStep: Int, CaseIterable, Identifiable {
     private let home: AppState?
     /// Форма, як вона прийшла з сервера: з нею звіряємо, чи є що втратити.
     private var original: EditorForm?
+    /// Нову подію почали з незакінченої чернетки: параметр `draft` воронки створення.
+    private var resumed = false
     private static let draftPrefix = "poruch.draft."
     private var storageKey: String { Self.draftPrefix + (event?.id ?? "new") }
     /// Вихід з акаунта: чернетки належать людині, а не телефону — і нової події, і редагувань її подій.
@@ -167,6 +169,16 @@ enum EditorStep: Int, CaseIterable, Identifiable {
         self.home = home
         restore()
         issues = form.issues(imageUrl: event?.imageUrl)
+        resumed = canStartOver
+        track(.about)
+    }
+
+    /// Воронка створення (docs/analytics.md): лише нова подія, правка наявної — інша історія.
+    private func track(_ reached: EditorStep) {
+        if !editing { app.createStep(step: String(describing: reached), draft: resumed) }
+    }
+    private func blocked(by field: DraftField) {
+        if !editing { app.createBlocked(step: String(describing: EditorStep.of(field)), field: field) }
     }
 
     var editing: Bool { event != nil }
@@ -198,6 +210,7 @@ enum EditorStep: Int, CaseIterable, Identifiable {
         accepted = nil
         addressSuggestions = []
         restore()
+        resumed = false
     }
 
     /// Правило, яке порушує поле, для тексту під ним. До спроби йти далі — лише для того, що
@@ -334,15 +347,15 @@ enum EditorStep: Int, CaseIterable, Identifiable {
 
     /// Кожен крок перевіряє лише свої поля, тож «Далі» не блокується наступним.
     func advance() {
-        if let field = issues.first(where: { EditorStep.of($0) == step }) { return show(field) }
-        if let next = EditorStep(rawValue: step.rawValue + 1) { step = next; revealed = false }
+        if let field = issues.first(where: { EditorStep.of($0) == step }) { blocked(by: field); return show(field) }
+        if let next = EditorStep(rawValue: step.rawValue + 1) { step = next; revealed = false; track(next) }
     }
     func retreat() { if let previous = EditorStep(rawValue: step.rawValue - 1) { step = previous; revealed = false } }
 
     func submit() {
         // Свіжа перевірка: поки людина дивилась на форму, початок міг стати минулим.
         issues = form.issues(imageUrl: event?.imageUrl)
-        if let field = issues.first { return show(field) }
+        if let field = issues.first { blocked(by: field); return show(field) }
         guard let draft = form.draft(imageUrl: event?.imageUrl) else { return }
         persist()
         app.clearCompletedEvent()
