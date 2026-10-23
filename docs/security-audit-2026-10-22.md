@@ -12,7 +12,7 @@ edge-функції, worker, CI, `tools/`; секрети в репо й іст�
 ## Стан виправлень (2026-10-22)
 
 Виправлено в коді. Сервер перевірено на dev; **на prod 22.10 викладено** міграцію `20261102120000`, `push` (v15),
-`offer-check` (v2) і worker (CSP пропускає Cloudflare Web Analytics — `062226f`). `delete-account` на prod — після релізу 1.4 (крок 5).
+`offer-check` (v2) і worker (CSP пропускає Cloudflare Web Analytics — `062226f`). `delete-account` на prod — після релізу 1.3.1 (крок 5).
 
 | # | Що зроблено | Де | dev |
 |---|---|---|---|
@@ -45,7 +45,7 @@ edge-функції, worker, CI, `tools/`; секрети в репо й іст�
 2. `push` і `offer-check` (`--no-verify-jwt --use-api`) — після міграції: `push` покладається на новий `USAGE`.
 3. Worker — `cd worker && npx wrangler deploy`, незалежно.
 4. Нові збірки iOS і Android — лише після міграції: без `release_push_token` незняті токени просто забудуться.
-5. **Після релізу 1.4**, коли люди оновились: `delete-account` на prod (стара версія клієнта не шле пароль — видалення
+5. **Після релізу 1.3.1**, коли люди оновились: `delete-account` на prod (стара версія клієнта не шле пароль — видалення
    акаунта з паролем у ній зламається) і **Auth → Require current password when updating** (стара не шле `current_password`).
    `supabase functions deploy delete-account --use-api --project-ref tzdogzdvctlumsqlqskr` — з перевіркою JWT, без `--no-verify-jwt`.
 
