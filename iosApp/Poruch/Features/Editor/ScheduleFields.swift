@@ -1,53 +1,62 @@
 import SwiftUI
 import Shared
 
-/// Початок і кінець події. Кінець їде за початком, зберігаючи тривалість; тривалість видно й
-/// можна поставити одним дотиком; пікер — такий самий аркуш знизу, як решта питань і як на Android.
+/// Початок і кінець події: день і година в одному полі через перфорацію. Кінець їде за початком, зберігаючи
+/// тривалість; тривалість видно й можна поставити одним дотиком.
 struct ScheduleFields: View {
     @Binding var starts: Date
     @Binding var ends: Date
-    let zone: TimeZone
+    let zone: String
 
-    @State private var editing: Edge?
+    @State private var picking: Picking?
 
-    private enum Edge: Identifiable {
-        case start, end
-        var id: Int { self == .start ? 0 : 1 }
-        var title: String { self == .start ? Copy.when_starts : Copy.when_ends }
+    /// Яке поле відкрило шторку і що в ньому міняють: день чи годину.
+    private struct Picking: Identifiable {
+        let start: Bool
+        let time: Bool
+        var id: Int { (start ? 0 : 2) + (time ? 1 : 0) }
+        var title: String {
+            switch (start, time) {
+            case (true, false): Copy.start_date
+            case (true, true): Copy.start_time
+            case (false, false): Copy.end_date
+            case (false, true): Copy.end_time
+            }
+        }
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            DateTimeRow(label: Copy.starts.uppercased(), value: starts, zone: zone) { editing = .start }
-            Divider().overlay(Palette.hairline).padding(.horizontal, Space.lg)
-            DateTimeRow(label: Copy.ends.uppercased(), value: ends, zone: zone) { editing = .end }
-            Divider().overlay(Palette.hairline).padding(.horizontal, Space.lg)
+        VStack(alignment: .leading, spacing: Space.lg) {
+            field(Copy.starts, starts, start: true)
+            field(Copy.ends, ends, start: false)
             durationRow
         }
-        .cardSurface()
-        .sheet(item: $editing) { edge in
-            DateTimeSheet(
-                title: edge.title,
-                initial: edge == .start ? starts : ends,
-                // Кінець не раніше початку, початок не в минулому.
-                minimum: edge == .start ? Date() : starts.addingTimeInterval(minimumDuration),
+        .sheet(item: $picking) { picking in
+            // Шторка міняє форму одразу: квиток згори передруковує корінець, поки крутиш барабан.
+            PickerSheet(
+                title: picking.title,
+                time: picking.time,
+                value: picking.start ? Binding(get: { starts }, set: moveStart(to:)) : $ends,
+                // Початок не в минулому, кінець не раніше початку.
+                minimum: picking.start ? Date() : starts.addingTimeInterval(minimumDuration),
                 zone: zone
-            ) { picked in
-                if edge == .start { moveStart(to: picked) } else { ends = picked }
-            }
-            .presentationDetents([.height(560), .large])
+            )
         }
+    }
+
+    private func field(_ label: String, _ date: Date, start: Bool) -> some View {
+        let parts = fieldDateParts(date, zone: zone)
+        return DateTimeField(
+            label: label, date: parts.day, time: parts.time,
+            onDate: { picking = Picking(start: start, time: false) },
+            onTime: { picking = Picking(start: start, time: true) }
+        )
     }
 
     /// Тривалість словами, змінна одним дотиком.
     private var durationRow: some View {
-        HStack(spacing: Space.sm) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(Copy.duration.uppercased()).font(PoruchFont.overline).kerning(1.2).foregroundStyle(Palette.inkTertiary)
-                // Значення лише тоді, коли його не каже вибраний чип: «1 год» двічі поруч — шум.
-                if !presetPicked { Text(durationLabel).font(PoruchFont.bodyText).foregroundStyle(Palette.ink) }
-            }
-            Spacer(minLength: Space.sm)
+        VStack(alignment: .leading, spacing: Space.sm) {
+            Text(Copy.duration.uppercased()).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
             HStack(spacing: Space.xs) {
                 ForEach(commonDurations, id: \.self) { hours in
                     let seconds = TimeInterval(hours) * 3600
@@ -55,9 +64,12 @@ struct ScheduleFields: View {
                         ends = starts.addingTimeInterval(seconds)
                     }
                 }
+                // Значення лише тоді, коли його не каже вибраний чип: «1 год» двічі поруч — шум.
+                if !presetPicked {
+                    Text(durationLabel).font(PoruchFont.bodyText).foregroundStyle(Palette.ink).padding(.leading, Space.sm)
+                }
             }
         }
-        .padding(Space.lg)
     }
 
     private var duration: TimeInterval { max(minimumDuration, ends.timeIntervalSince(starts)) }
@@ -80,89 +92,45 @@ struct ScheduleFields: View {
     }
 }
 
-/// Рядок «мітка — значення — стрілка», як поля в решті редактора.
-private struct DateTimeRow: View {
-    let label: String
-    let value: Date
-    let zone: TimeZone
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: Space.md) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(label).font(PoruchFont.overline).kerning(1.2).foregroundStyle(Palette.inkTertiary)
-                    Text(scheduleLabel(value, in: zone)).font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
-                }
-                Spacer(minLength: 0)
-                PoruchIcon(glyph: PoruchIcons.chevronRight, size: 15)
-                    .foregroundStyle(Palette.inkTertiary)
-            }
-            .padding(Space.lg)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("\(label.lowercased()): \(scheduleLabel(value, in: zone))")
-        .accessibilityAddTraits(.isButton)
-    }
-}
-
-/// Дата й час в одному аркуші, поруч: це одне рішення.
-private struct DateTimeSheet: View {
+/// День або година в шторці — що саме, вирішує частина поля, яку торкнули; заголовок називає поле, бо шторка його
+/// закриває. Один пікер на шторку: удвох із календарем година йшла за згин. День — `CalendarGrid` у мові «Корінця»,
+/// година — системний барабан. Висота — за вмістом, як у `PromptSheet`. Те саме, що `DateTimeSheet` на Android.
+private struct PickerSheet: View {
     let title: String
-    let initial: Date
+    let time: Bool
+    @Binding var value: Date
     let minimum: Date
-    let zone: TimeZone
-    let onPick: (Date) -> Void
+    let zone: String
 
     @Environment(\.dismiss) private var dismiss
-    @State private var value: Date
-
-    init(title: String, initial: Date, minimum: Date, zone: TimeZone, onPick: @escaping (Date) -> Void) {
-        self.title = title
-        self.initial = initial
-        self.minimum = minimum
-        self.zone = zone
-        self.onPick = onPick
-        _value = State(initialValue: max(initial, minimum))
-    }
+    @State private var height: CGFloat = 480
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.lg) {
-            Text(title).font(PoruchFont.brandTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
-            ScrollView {
-                VStack(spacing: Space.lg) {
-                    DatePicker("", selection: $value, in: minimum..., displayedComponents: .date)
-                        .datePickerStyle(.graphical)
-                        .labelsHidden()
-                    Divider().overlay(Palette.hairline)
-                    HStack {
-                        Text(Copy.time).font(PoruchFont.bodyText).foregroundStyle(Palette.inkSecondary)
-                        Spacer(minLength: 0)
-                        DatePicker("", selection: $value, in: minimum..., displayedComponents: .hourAndMinute)
-                            .labelsHidden()
-                    }
+            Text(title).font(PoruchFont.brandTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
+                .accessibilityAddTraits(.isHeader)
+            Group {
+                if time {
+                    DatePicker(title, selection: $value, in: minimum..., displayedComponents: .hourAndMinute)
+                        .datePickerStyle(.wheel).labelsHidden()
+                        .environment(\.timeZone, TimeZone(identifier: zone) ?? .current)
+                        .environment(\.locale, Locale(identifier: "uk_UA"))
+                        .frame(maxWidth: .infinity)
+                } else {
+                    CalendarGrid(selection: $value, minimum: minimum, zone: zone)
                 }
-                .environment(\.timeZone, zone)
-                .padding(Space.lg)
-                .cardSurface()
             }
-            PrimaryButton(title: Copy.apply) { onPick(value); dismiss() }
-                .frame(maxWidth: .infinity)
+            .padding(Space.md)
+            .cardSurface()
+            PrimaryButton(title: Copy.apply) { dismiss() }
         }
-        .padding(Space.page)
+        .padding(.horizontal, Space.page).padding(.top, Space.xl).padding(.bottom, Space.lg)
         .tint(Palette.brand)
-        .background(Palette.canvas)
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
+        .presentationDetents([.height(height)])
+        .presentationDragIndicator(.visible)
+        .presentationBackground(Palette.canvas)
     }
-}
-
-/// «Сб, 13 вер. · 19:00» у поясі події, як на картках.
-private func scheduleLabel(_ date: Date, in zone: TimeZone) -> String {
-    let formatter = DateFormatter()
-    formatter.locale = Locale(identifier: "uk_UA")
-    formatter.timeZone = zone
-    formatter.dateFormat = "EEE, d MMM · HH:mm"
-    return formatter.string(from: date)
 }
 
 /// Коротше за чверть години — радше помилка вводу.

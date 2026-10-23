@@ -153,6 +153,14 @@ fun EditorScreen(state: EditorState, onIntent: (EditorIntent) -> Unit) {
             },
             // Кінець не раніше початку.
             minimum = if (request == PickerRequest.ENDS) startsAt else null,
+            // Шторка закриває поля, тож заголовок каже, яке з них міняють.
+            title = stringResource(
+                when (request) {
+                    PickerRequest.STARTS -> if (state.pickerTime) R.string.start_time else R.string.start_date
+                    PickerRequest.ENDS -> if (state.pickerTime) R.string.end_time else R.string.end_date
+                }
+            ),
+            time = state.pickerTime,
             onDismiss = { onIntent(EditorIntent.ShowPicker(null)) },
             onPicked = { onIntent(EditorIntent.SetDateTime(request, it)) }
         )
@@ -434,16 +442,24 @@ private fun TimeZoneNote(zone: String, city: String, at: LocalDateTime?) {
 @Composable
 private fun ScheduleStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
     val form = state.form
-    // «Сб, 17 жовт. · 19:00», як на iOS; у чернетці лишається машинний формат. Година — як на телефоні.
+    // «Сб, 17 жовт.» і «19:00»; у чернетці лишається машинний формат. Година — як на телефоні.
     val hour = if (android.text.format.DateFormat.is24HourFormat(androidx.compose.ui.platform.LocalContext.current)) "HH:mm" else "h:mm a"
-    val words = remember(hour) { java.time.format.DateTimeFormatter.ofPattern("EEE, d MMM · $hour", java.util.Locale.forLanguageTag("uk")) }
-    fun shown(value: String) = form.parse(value)?.format(words)?.replaceFirstChar { it.uppercase() }.orEmpty()
-    DateTimeField(stringResource(R.string.starts), shown(form.starts), state.problem(DraftField.STARTS_AT)) {
-        onIntent(EditorIntent.ShowPicker(PickerRequest.STARTS))
-    }
-    DateTimeField(stringResource(R.string.ends), shown(form.ends), state.problem(DraftField.ENDS_AT)) {
-        onIntent(EditorIntent.ShowPicker(PickerRequest.ENDS))
-    }
+    val days = remember { java.time.format.DateTimeFormatter.ofPattern("EEE, d MMM", java.util.Locale.forLanguageTag("uk")) }
+    val hours = remember(hour) { java.time.format.DateTimeFormatter.ofPattern(hour, java.util.Locale.forLanguageTag("uk")) }
+    fun day(value: String) = form.parse(value)?.format(days)?.replaceFirstChar { it.uppercase() }.orEmpty()
+    fun time(value: String) = form.parse(value)?.format(hours).orEmpty()
+    DateTimeField(
+        stringResource(R.string.starts), day(form.starts), time(form.starts),
+        state.problem(DraftField.STARTS_AT),
+        onDate = { onIntent(EditorIntent.ShowPicker(PickerRequest.STARTS)) },
+        onTime = { onIntent(EditorIntent.ShowPicker(PickerRequest.STARTS, time = true)) }
+    )
+    DateTimeField(
+        stringResource(R.string.ends), day(form.ends), time(form.ends),
+        state.problem(DraftField.ENDS_AT),
+        onDate = { onIntent(EditorIntent.ShowPicker(PickerRequest.ENDS)) },
+        onTime = { onIntent(EditorIntent.ShowPicker(PickerRequest.ENDS, time = true)) }
+    )
     TimeZoneNote(form.timeZone, form.city, form.parse(form.starts))
     state.problem(DraftField.TIME_ZONE)?.let { FieldError(it) }
 }
@@ -502,39 +518,6 @@ private fun PeopleStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
         if (form.contactUrl.isNotBlank() && !ContactRules.isContactUrl(form.contactUrl)) FieldError(DraftField.CONTACT_URL.rule())
     }
     Text(stringResource(R.string.photo_after_publish), style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary)
-}
-
-/** Поле дати виглядає як решта полів, але відкриває пікер замість клавіатури. */
-@Composable
-private fun DateTimeField(label: String, value: String, error: String?, onOpen: () -> Unit) {
-    val colors = Poruch.colors
-    val shown = value.ifBlank { stringResource(R.string.date_help) }
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-        Text(
-            label.uppercase(), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary,
-            modifier = Modifier.clearAndSetSemantics { }
-        )
-        Row(
-            Modifier.fillMaxWidth().defaultMinSize(minHeight = 56.dp).background(colors.surface, Radius.sm)
-                .clip(Radius.sm).clickable(role = Role.Button, onClick = onOpen)
-                // Назва поля разом зі значенням і помилкою — одна зупинка TalkBack, як у текстових полів.
-                .clearAndSetSemantics {
-                    contentDescription = "$label: $shown"; role = Role.Button
-                    onClick { onOpen(); true }
-                    if (error != null) error(error)
-                }
-                .padding(horizontal = Spacing.lg),
-            horizontalArrangement = Arrangement.spacedBy(Spacing.md), verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(PoruchIcons.clock, null, Modifier.size(20.dp), tint = colors.inkSecondary)
-            Text(
-                shown, style = MaterialTheme.typography.bodyLarge,
-                color = if (value.isBlank()) colors.inkTertiary else colors.ink, modifier = Modifier.weight(1f)
-            )
-            Icon(PoruchIcons.chevronRight, null, Modifier.size(20.dp), tint = colors.inkTertiary)
-        }
-        error?.let { FieldError(it) }
-    }
 }
 
 /**

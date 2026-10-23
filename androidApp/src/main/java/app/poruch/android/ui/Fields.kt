@@ -34,6 +34,8 @@ import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.poruch.android.R
@@ -291,6 +293,69 @@ fun PickerField(
             )
         }
     }
+}
+
+/**
+ * «Коли» одним полем: день і година — дві цілі й дві шторки, між ними перфорація, як лінія відриву на квитку. Годину
+ * видно й міняють одним дотиком, а не шукають за «Далі» після календаря. Поле, а не квиток: корінець кольору жанру
+ * належить квитку події згори, і поле, вбране так само, з ним зливалось. Частина години сталої ширини, тож поля
+ * початку й кінця стоять колонками. Відгук на дотик — ripple у межах частини. Те саме, що `DateTimeField` на iOS.
+ */
+@Composable
+fun DateTimeField(label: String, date: String, time: String, error: String?, onDate: () -> Unit, onTime: () -> Unit) {
+    val colors = Poruch.colors
+    val pickDate = stringResource(R.string.pick_date)
+    val timeWord = stringResource(R.string.time)
+    val pickTime = stringResource(R.string.pick_time)
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        Text(
+            label.uppercase(), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary,
+            modifier = Modifier.clearAndSetSemantics { }
+        )
+        Row(
+            Modifier.fillMaxWidth().height(IntrinsicSize.Min)
+                // Біле поле на сірому полотні, у шторці — тихе: див. [LocalFieldSurface].
+                .background(LocalFieldSurface.current ?: colors.surface, Radius.sm).clip(Radius.sm)
+        ) {
+            FieldPart(
+                PoruchIcons.calendar, date.ifEmpty { pickDate }, date.isEmpty(), "$label: ${date.ifEmpty { pickDate }}",
+                error, Modifier.weight(1f), onDate
+            )
+            TearLine()
+            FieldPart(
+                PoruchIcons.clock, time.ifEmpty { timeWord }, time.isEmpty(),
+                "$label, ${timeWord.lowercase()}: ${time.ifEmpty { pickTime }}", error, Modifier.widthIn(min = 112.dp), onTime
+            )
+        }
+        error?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = colors.danger) }
+    }
+}
+
+/** Частина [DateTimeField]: гліф і значення, відкриває свою шторку. */
+@Composable
+private fun FieldPart(
+    icon: ImageVector, text: String, blank: Boolean, description: String, error: String?, modifier: Modifier, onClick: () -> Unit
+) {
+    val colors = Poruch.colors
+    Row(
+        modifier.fillMaxHeight().defaultMinSize(minHeight = 56.dp).pressable(pressedScale = 1f, onClick = onClick)
+            .partSemantics(description, error, onClick).padding(horizontal = Spacing.lg),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Spacing.md)
+    ) {
+        Icon(icon, null, Modifier.size(20.dp), tint = colors.inkSecondary)
+        Text(
+            text, style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
+            color = if (blank) colors.inkTertiary else colors.ink
+        )
+    }
+}
+
+/** Частина [DateTimeField] для TalkBack: кнопка з назвою поля й значенням, помилка — станом. */
+private fun Modifier.partSemantics(description: String, error: String?, onClick: () -> Unit) = clearAndSetSemantics {
+    contentDescription = description; role = Role.Button
+    onClick { onClick(); true }
+    if (error != null) error(error)
 }
 
 /**

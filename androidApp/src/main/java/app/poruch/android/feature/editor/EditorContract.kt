@@ -105,6 +105,8 @@ data class EditorState(
     val mapLatitude: Double = 0.0,
     val mapLongitude: Double = 0.0,
     val picker: PickerRequest? = null,
+    /** Пікер відкрито на годині, а не на дні. */
+    val pickerTime: Boolean = false,
     /** Підказки адрес: людина набирає вулицю й будинок, крапку ставить застосунок. */
     val addressSuggestions: List<PlaceResult> = emptyList(),
     /** Відкрито повноекранний вибір точки: на міні-мапі 260 dp обирати незручно. */
@@ -150,7 +152,7 @@ sealed interface EditorIntent {
     data object Next : EditorIntent
     data object Back : EditorIntent
     data object Submit : EditorIntent
-    data class ShowPicker(val request: PickerRequest?) : EditorIntent
+    data class ShowPicker(val request: PickerRequest?, val time: Boolean = false) : EditorIntent
     data class SetDateTime(val request: PickerRequest, val value: LocalDateTime) : EditorIntent
     /** Хрестик чи системне «назад» з першого кроку. Правки наявної події спершу підтверджують. */
     data object Close : EditorIntent

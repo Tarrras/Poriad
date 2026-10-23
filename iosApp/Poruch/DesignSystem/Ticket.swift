@@ -46,6 +46,17 @@ private struct Perforation: Shape {
     }
 }
 
+/// Штрих перфорації: крапки кольору полотна на кроці 6.
+private let perforation = StrokeStyle(lineWidth: 2.5, lineCap: .round, dash: [0.1, 6])
+
+/// Лінія відриву поза квитком: та сама перфорація ділить поле «Коли» на день і годину. Завширшки зі штрих, лінія
+/// посередині: вигляд нульової ширини SwiftUI не малює.
+struct TearLine: View {
+    var body: some View {
+        Perforation(vertical: false, stub: 1.25).stroke(Palette.canvas, style: perforation).frame(width: 2.5)
+    }
+}
+
 /// Квиток — головний предмет застосунку: основна частина на поверхні й корінець, залитий кольором жанру, за перфорацією.
 /// Афішна подія — надрукований квиток із часом на корінці, зустріч від людей — квиток ще й з місцями. Обидві частини
 /// тягнуться на висоту довшої, тож висоту задає вміст, а не місце виклику.
@@ -80,10 +91,7 @@ struct Ticket<Main: View, Stub: View>: View {
                 .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .overlay {
-            Perforation(vertical: vertical, stub: length)
-                .stroke(Palette.canvas, style: StrokeStyle(lineWidth: 2.5, lineCap: .round, dash: [0.1, 6]))
-        }
+        .overlay { Perforation(vertical: vertical, stub: length).stroke(Palette.canvas, style: perforation) }
         .clipShape(shape)
         .overlay { shape.stroke(Palette.hairline, lineWidth: scheme == .dark ? 1 : 0) }
         .overlay { if let outline { shape.stroke(outline.0, style: outline.1) } }

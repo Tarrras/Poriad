@@ -400,9 +400,8 @@ private struct ScheduleStep: View {
     @Binding var form: EditorForm
     /// Тексти під полями значенням, а не замиканням: замикання SwiftUI не порівнює, і крок не перемальовувався.
     let issues: [DraftField: String]
-    private var zone: TimeZone { TimeZone(identifier: form.timeZone) ?? .current }
     var body: some View {
-        ScheduleFields(starts: $form.starts, ends: $form.ends, zone: zone).id(DraftField.startsAt)
+        ScheduleFields(starts: $form.starts, ends: $form.ends, zone: form.timeZone).id(DraftField.startsAt)
         FieldIssue(text: issues[.startsAt] ?? issues[.endsAt]).id(DraftField.endsAt)
         TimeZoneNote(zone: form.timeZone, city: form.city, at: form.starts).id(DraftField.timeZone)
         FieldIssue(text: issues[.timeZone])

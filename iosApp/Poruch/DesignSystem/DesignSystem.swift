@@ -518,7 +518,7 @@ private func formatter(_ event: Event, _ pattern: String) -> DateFormatter {
 }
 
 /// Той самий кеш за поясом: у сеансу прокату є пояс, але нема `Event`.
-private func formatter(zone: String, _ pattern: String) -> DateFormatter {
+func formatter(zone: String, _ pattern: String) -> DateFormatter {
     let key = zone + "|" + pattern
     formatterLock.lock()
     defer { formatterLock.unlock() }
@@ -534,7 +534,7 @@ private func formatter(zone: String, _ pattern: String) -> DateFormatter {
 /// Календар теж кешується: `dayLabel` питає його по кілька разів на картку.
 private func calendar(_ event: Event) -> Calendar { calendar(zone: event.timeZone) }
 
-private func calendar(zone: String) -> Calendar {
+func calendar(zone: String) -> Calendar {
     formatterLock.lock()
     defer { formatterLock.unlock() }
     if let cached = calendars[zone] { return cached }
@@ -660,6 +660,12 @@ func draftStubParts(at date: Date, zone: String) -> (big: String, small: String)
     let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: Date()), to: calendar.startOfDay(for: date)).day ?? 0
     let day = (0...6).contains(days) ? dayLabel(zone: zone, date, short: true) : formatter(zone: zone, "EEE dd.MM").string(from: date)
     return (formatter(zone: zone, "HH:mm").string(from: date), day.uppercased(with: ukrainian))
+}
+
+/// Поле дати в редакторі: «Нд, 25 жовт.» і «19:00» у поясі події, як на Android.
+func fieldDateParts(_ date: Date, zone: String) -> (day: String, time: String) {
+    let day = formatter(zone: zone, "EEE, d MMM").string(from: date)
+    return (day.prefix(1).uppercased() + day.dropFirst(), formatter(zone: zone, "HH:mm").string(from: date))
 }
 
 /// Довга форма для екрана деталей. Пояс називаємо лише коли він відрізняється від поясу читача.

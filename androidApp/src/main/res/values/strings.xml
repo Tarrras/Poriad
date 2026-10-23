@@ -98,7 +98,6 @@
   <string name="timezone_differs">Години вище — за цим часом, а не за вашим телефоном.</string>
   <!-- Звідки взявся пояс. Мовчазно підставлений неправильний гірший за видимий. -->
   <string name="capacity">Кількість місць</string>
-  <string name="date_help">Оберіть дату й час</string>
   <string name="next">Далі</string>
   <string name="publish">Опублікувати</string>
   <string name="photo_after_publish">Фото можна додати на сторінці події після публікації.</string>
@@ -155,6 +154,13 @@
   <string name="date">Коли</string>
   <string name="pick_date">Оберіть дату</string>
   <string name="pick_time">Оберіть час</string>
+  <!-- Заголовки шторок дати й часу в редакторі: шторка закриває поля, тож каже, яке з них міняють. -->
+  <string name="start_date">Дата початку</string>
+  <string name="start_time">Час початку</string>
+  <string name="end_date">Дата закінчення</string>
+  <string name="end_time">Час закінчення</string>
+  <string name="previous_month">Попередній місяць</string>
+  <string name="next_month">Наступний місяць</string>
   <string name="reset_filters">Скинути</string>
   <string name="apply">Готово</string>
   <string name="organizing">Організовую</string>
@@ -853,8 +859,6 @@
   <string name="register">Зареєструватися</string>
   <string name="duration">Тривалість</string>
   <string name="time">Час</string>
-  <string name="when_starts">Коли починається</string>
-  <string name="when_ends">Коли закінчується</string>
   <string name="save_changes">Зберегти зміни</string>
   <string name="try_again">Спробувати ще раз</string>
   <string name="all_categories">Усі категорії</string>

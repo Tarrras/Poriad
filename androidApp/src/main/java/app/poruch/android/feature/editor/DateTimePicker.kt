@@ -8,6 +8,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import app.poruch.android.R
 import app.poruch.android.ui.*
 import app.poruch.domain.SafetyRules
@@ -17,13 +19,16 @@ import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneOffset
 
-/** Дата, потім час, в одній шторці на наших токенах. Системний `DatePickerDialog` був би зеленим і англійським. */
+/**
+ * День або година події в шторці на наших токенах — що саме, вирішує частина квитка, яку торкнули; [title] називає
+ * поле, бо шторка його закриває. Системний `DatePickerDialog` був би зеленим і англійським.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DateTimeSheet(initial: LocalDateTime, minimum: LocalDateTime?, onDismiss: () -> Unit, onPicked: (LocalDateTime) -> Unit) {
+fun DateTimeSheet(
+    initial: LocalDateTime, minimum: LocalDateTime?, title: String, time: Boolean, onDismiss: () -> Unit, onPicked: (LocalDateTime) -> Unit
+) {
     val colors = Poruch.colors
-    // Одна шторка, два кроки: вибір дати міняє вміст, а не відкриває другий діалог.
-    var date by remember { mutableStateOf<LocalDate?>(null) }
     PoruchSheet(onDismiss) { sheet ->
         // Календар вищий за телефон у ландшафті й на великому шрифті: кнопки підтвердження мають бути досяжні.
         // Поля — лише в заголовку й кнопок: календарю Material потрібні всі 360 dp, інакше неділю обрізало краєм.
@@ -31,12 +36,10 @@ fun DateTimeSheet(initial: LocalDateTime, minimum: LocalDateTime?, onDismiss: ()
             Modifier.verticalScroll(rememberScrollState()).padding(bottom = Spacing.lg),
             verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
-            val chosen = date
-            Text(
-                stringResource(if (chosen == null) R.string.pick_date else R.string.pick_time),
-                style = PoruchType.brandTitle2, color = colors.ink, modifier = Gutter
-            )
-            if (chosen == null) {
+            Text(title, style = PoruchType.brandTitle2, color = colors.ink, modifier = Gutter.semantics { heading() })
+            // Друга половина значення лишається як була: день не чіпає годину, і навпаки.
+            val keptTime = LocalTime.of(initial.hour, initial.minute)
+            if (!time) {
                 val dateState = rememberDatePickerState(
                     initialSelectedDateMillis = initial.toLocalDate().atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli(),
                     selectableDates = object : SelectableDates {
@@ -50,24 +53,25 @@ fun DateTimeSheet(initial: LocalDateTime, minimum: LocalDateTime?, onDismiss: ()
                 // Перемикач на введення цифрами: гортати календар до весни довше, ніж набрати дату.
                 DatePicker(dateState, title = null, showModeToggle = true, colors = poruchDatePickerColors())
                 SheetActions(
-                    confirm = stringResource(R.string.next),
+                    confirm = stringResource(R.string.apply),
                     onConfirm = {
-                        date = dateState.selectedDateMillis?.let {
+                        val date = dateState.selectedDateMillis?.let {
                             Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate()
                         } ?: initial.toLocalDate()
+                        sheet.close { onPicked(LocalDateTime.of(date, keptTime)) }
                     },
                     onDismiss = { sheet.close() }
                 )
             } else {
                 // 12 чи 24 години — як на телефоні людини, а не як у нас.
                 val is24Hour = android.text.format.DateFormat.is24HourFormat(androidx.compose.ui.platform.LocalContext.current)
-                val timeState = rememberTimePickerState(initialHour = initial.hour, initialMinute = initial.minute, is24Hour = is24Hour)
+                val timeState = rememberTimePickerState(initialHour = keptTime.hour, initialMinute = keptTime.minute, is24Hour = is24Hour)
                 Box(Modifier.fillMaxWidth().padding(vertical = Spacing.sm), contentAlignment = Alignment.Center) {
                     TimePicker(timeState, colors = poruchTimePickerColors())
                 }
                 SheetActions(
                     confirm = stringResource(R.string.apply),
-                    onConfirm = { sheet.close { onPicked(LocalDateTime.of(chosen, LocalTime.of(timeState.hour, timeState.minute))) } },
+                    onConfirm = { sheet.close { onPicked(LocalDateTime.of(initial.toLocalDate(), LocalTime.of(timeState.hour, timeState.minute))) } },
                     onDismiss = { sheet.close() }
                 )
             }

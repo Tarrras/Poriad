@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.CornerRadius
@@ -22,6 +23,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.PathOperation
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.platform.LocalDensity
@@ -132,12 +134,10 @@ fun Ticket(
             drawContent()
             val inset = 11.dp.toPx()
             val at = (if (vertical) size.height else size.width) - length.toPx()
-            drawLine(
+            perforation(
                 colors.canvas,
                 if (vertical) Offset(inset, at) else Offset(at, inset),
-                if (vertical) Offset(size.width - inset, at) else Offset(at, size.height - inset),
-                strokeWidth = 2.5.dp.toPx(), cap = StrokeCap.Round,
-                pathEffect = PathEffect.dashPathEffect(floatArrayOf(0.1.dp.toPx(), 6.dp.toPx()))
+                if (vertical) Offset(size.width - inset, at) else Offset(at, size.height - inset)
             )
             // Контур малюється під обрізкою, тож видно внутрішню половину: ширина подвоєна.
             if (outline != null) drawOutline(
@@ -156,6 +156,24 @@ fun Ticket(
         Box(Modifier.weight(1f).fillMaxHeight().background(surface)) { main() }
         Box(Modifier.width(length).fillMaxHeight().background(stubColor), contentAlignment = Alignment.Center) { stub() }
     }
+}
+
+/** Перфорація на лінії відриву: крапки кольору полотна на кроці 6, ніби дірочки наскрізь. */
+internal fun DrawScope.perforation(color: Color, start: Offset, end: Offset) = drawLine(
+    color, start, end, strokeWidth = 2.5.dp.toPx(), cap = StrokeCap.Round,
+    pathEffect = PathEffect.dashPathEffect(floatArrayOf(0.1.dp.toPx(), 6.dp.toPx()))
+)
+
+/** Лінія відриву поза квитком: та сама перфорація ділить поле «Коли» на день і годину. Нульової ширини — стоїть між частинами. */
+@Composable
+fun TearLine() {
+    val canvas = Poruch.colors.canvas
+    Spacer(
+        Modifier.fillMaxHeight().width(0.dp).drawBehind {
+            val inset = 11.dp.toPx()
+            perforation(canvas, Offset(0f, inset), Offset(0f, size.height - inset))
+        }
+    )
 }
 
 /** Чому квиток тут — тихим рядком: «Для вас», за ким стежите, «Від людей». Штамп лишається лише для стану квитка. */

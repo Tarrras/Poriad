@@ -132,7 +132,7 @@ class EditorViewModel(
                 if (stepProblems.isEmpty()) copy(step = step.next(), showProblems = false) else copy(showProblems = true)
             }
             EditorIntent.Back -> reduce { copy(step = step.previous(), showProblems = false, failure = null) }
-            is EditorIntent.ShowPicker -> reduce { copy(picker = intent.request) }
+            is EditorIntent.ShowPicker -> reduce { copy(picker = intent.request, pickerTime = intent.time) }
             is EditorIntent.SetDateTime -> {
                 val text = intent.value.format(EditorForm.LOCAL_FORMAT)
                 reduce {
