@@ -125,7 +125,7 @@ data class ExploreScreenState(
     /** Лічильник шторки: з індексу, а не з завантажених карток. */
     val listCount: Int get() = if (category == null && !stackFocused) totalFound else listEntries.size
 
-    /** Число плитки [category]: категорії без подій у [categoryCounts] нема, це нуль. Null — видача ще їде. */
+    /** Число плитки [category]: категорії без подій у [categoryCounts] нема, це нуль. Null — числа нема, див. [categoryCounts]. */
     fun countOf(category: EventCategory): Int? = categoryCounts?.let { it[category] ?: 0 }
 
     /**
