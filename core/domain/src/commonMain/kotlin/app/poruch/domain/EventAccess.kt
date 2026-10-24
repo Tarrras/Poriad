@@ -52,6 +52,9 @@ interface EventDiscovery {
     /** Хто шукає компанію на афішу [parentId]: картки супутників без імен, найближча зустріч першою. */
     suspend fun companions(parentId: String): List<CompanionCard>
 
+    /** Райони [city] з межами: пошук і фільтр мапи рахує клієнт. Сервер без міграції районів — порожньо. */
+    suspend fun districts(city: String): List<District>
+
     /** Скидає кеш попереднього акаунта. Викликати при зміні користувача. */
     fun clearPrivateCache()
 }

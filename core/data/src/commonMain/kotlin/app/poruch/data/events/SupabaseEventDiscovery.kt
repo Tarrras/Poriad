@@ -159,6 +159,18 @@ internal class SupabaseEventDiscovery(
             .map { it.domain() }
             .also { PoruchLog.d("detail") { "companions for ${parentId.shortId()}: ${it.size}" } }
 
+    /** Як [searchPlaces]: сервер без `city_districts` (prod до міграції) — районів просто нема. */
+    override suspend fun districts(city: String): List<District> {
+        val response = runCatching { rpc.read("city_districts", buildJsonObject { put("p_city", city) }) }
+            .getOrElse { failure ->
+                if (!failure.isMissingFunction()) throw failure
+                PoruchLog.w("discovery") { "server has no city_districts" }
+                return emptyList()
+            }
+        return withContext(compute) { rpc.json.decodeFromJsonElement<List<DistrictDto>>(response).map { it.domain(city) } }
+            .also { PoruchLog.d("discovery") { "${it.size} districts in $city" } }
+    }
+
     override fun clearPrivateCache() { cache.clearPrivate() }
 
     private fun EventQuery.indexParams() = buildJsonObject {

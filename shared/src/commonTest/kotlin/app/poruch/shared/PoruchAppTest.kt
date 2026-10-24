@@ -98,6 +98,8 @@ class PoruchAppTest {
         override suspend fun safety(id:String):EventSafety? = null
         var companionCards=emptyList<CompanionCard>()
         override suspend fun companions(parentId:String)=companionCards
+        var districts=emptyList<District>()
+        override suspend fun districts(city:String)=districts.filter { it.city==city }
         val companionsCreated=mutableListOf<List<Any?>>()
         val companionsMoved=mutableListOf<Pair<String,String>>()
         override suspend fun moveCompanion(id:String,meetAt:String) { companionsMoved+=id to meetAt }
