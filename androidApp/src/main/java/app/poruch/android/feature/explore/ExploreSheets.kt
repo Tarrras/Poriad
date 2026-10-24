@@ -101,6 +101,9 @@ internal fun FilterSheet(state: ExploreState, onIntent: (ExploreIntent) -> Unit,
             screen.loading -> stringResource(R.string.searching)
             screen.listCount == 0 -> stringResource(R.string.show_nothing)
             else -> pluralStringResource(R.plurals.show_events, screen.listCount, screen.listCount)
+        }.let {
+            // Без мережі — словами, як лічильник шторки: «Нічого не знайдено» з порожнього кешу не правда про місто.
+            if (screen.offline && !screen.loading) stringResource(R.string.offline_count, it) else it
         }
         // Під час пошуку кнопка каже «Шукаємо…», але закриває: після кожного тапу у «Фільтрах» вона на мить глухла.
         PrimaryButton(

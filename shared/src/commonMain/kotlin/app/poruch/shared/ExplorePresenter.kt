@@ -104,7 +104,7 @@ data class ExploreScreenState(
     val focusToken: Int = 0,
     /**
      * Скільки подій дасть кожна плитка категорії: у місті чи в стосі, під датою, «Від людей» і пошуком. Після вибору
-     * категорії збігається з [listCount]. Null — видача під новий запит ще їде, і старі числа брехали б.
+     * категорії збігається з [listCount]. Null — видача під новий запит ще їде чи мережі нема: числа брехали б.
      */
     val categoryCounts: Map<EventCategory, Int>? = null,
     /** Список і карусель — від найближчої до людини («Ближче до мене»). Піни на мапі не міняються. */
@@ -115,7 +115,9 @@ data class ExploreScreenState(
      * Похибка положення цілими км, щонайменше 1. Геолокація свідомо приблизна (iOS — зменшена точність, Android —
      * COARSE, до кількох км), тож ближче за цю межу чесно лише «до N км».
      */
-    val nearWithinKm: Int = 1
+    val nearWithinKm: Int = 1,
+    /** Та сама похибка в метрах. */
+    val nearAccuracy: Double = 0.0
 ) {
     val activeFilters: Int get() = listOf(dateFilter != DateFilter.ANY, category != null, onlyAvailable).count { it }
     /** Чи є що довантажувати: індекс повний, картки — ні. */
@@ -127,11 +129,14 @@ data class ExploreScreenState(
     fun countOf(category: EventCategory): Int? = categoryCounts?.let { it[category] ?: 0 }
 
     /**
-     * Відстань від людини цілими кілометрами для рядка списку, не менша за [nearWithinKm]: рівна їй — «до N км», бо
-     * ближче похибка положення більша за саму відстань. Null — «Ближче до мене» вимкнено.
+     * Відстань від людини цілими кілометрами для рядка списку. 0 — у межах похибки положення (чи ближче кілометра):
+     * точніше за «до [nearWithinKm] км» тут не скажеш. Null — «Ближче до мене» вимкнено.
      */
-    fun kmFromMe(event: Event): Int? = if (!nearMe) null
-    else (metersBetween(nearLatitude, nearLongitude, event.latitude, event.longitude) / 1000).roundToInt().coerceAtLeast(nearWithinKm)
+    fun kmFromMe(event: Event): Int? {
+        if (!nearMe) return null
+        val meters = metersBetween(nearLatitude, nearLongitude, event.latitude, event.longitude)
+        return if (meters <= maxOf(nearAccuracy, 1000.0)) 0 else (meters / 1000).roundToInt()
+    }
 
     companion object {
         val Empty = ExploreScreenState()
@@ -358,7 +363,8 @@ class ExplorePresenter(
             maxOf(metersBetween(near.latitude, near.longitude, it.latitude, it.longitude), near.accuracy)
         }
         // Числа плиток — з того, що звужує категорія: усе місто чи точки стосу. Дату, «Від людей» і пошук уже відібрав сервер.
-        val settled = !shared.map.loading && shared.map.answered == shared.map.queries
+        // Без мережі чисел нема: кеш міг застаріти чи бути порожнім, а «0» на плитці сказав би, що подій нема.
+        val settled = !shared.map.loading && !shared.map.offline && shared.map.answered == shared.map.queries
         val counted = if (stackFocused) index.filter { (it.latitude to it.longitude) in local.stackPoints } else index
         val cards = shared.cards
         // [focused] без картки у видачі додається окремо.
@@ -400,7 +406,8 @@ class ExplorePresenter(
             nearMe = near != null,
             nearLatitude = near?.latitude ?: 0.0,
             nearLongitude = near?.longitude ?: 0.0,
-            nearWithinKm = near?.withinKm ?: 1
+            nearWithinKm = near?.withinKm ?: 1,
+            nearAccuracy = near?.accuracy ?: 0.0
         )
     }
 }

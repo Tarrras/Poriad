@@ -19,6 +19,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -29,6 +30,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.poruch.android.R
@@ -237,18 +239,22 @@ fun CategoryTile(
         }
         // Назву й число читає опис плитки: окремо вони прозвучали б двічі.
         val quiet = if (description != null) Modifier.clearAndSetSemantics {} else Modifier
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            // «Конференції» в 76 dp стискаються, а не обрізаються.
-            val label = MaterialTheme.typography.labelMedium.copy(color = ink)
-            BasicText(
-                name, quiet, style = label, maxLines = 1,
-                autoSize = TextAutoSize.StepBased(label.fontSize * 0.7f, label.fontSize)
-            )
-            // Порожній рядок тієї ж висоти, поки числа нема: плитки не підскакують, коли воно приходить.
-            if (counted) Text(
-                count?.toString() ?: " ", quiet, style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"),
-                color = ink, maxLines = 1
-            )
+        // Підпис росте до 1,24, як xLarge на iOS: далі «Мистецтво» в 76 dp обрізалось, а число ставало більшим за назву.
+        val density = LocalDensity.current
+        CompositionLocalProvider(LocalDensity provides Density(density.density, density.fontScale.coerceAtMost(1.24f))) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                // «Конференції» в 76 dp стискаються, а не обрізаються.
+                val label = MaterialTheme.typography.labelMedium.copy(color = ink)
+                BasicText(
+                    name, quiet, style = label, maxLines = 1,
+                    autoSize = TextAutoSize.StepBased(label.fontSize * 0.7f, label.fontSize)
+                )
+                // Порожній рядок тієї ж висоти, поки числа нема: плитки не підскакують, коли воно приходить.
+                if (counted) Text(
+                    count?.toString() ?: " ", quiet, style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"),
+                    color = ink, maxLines = 1
+                )
+            }
         }
     }
 }

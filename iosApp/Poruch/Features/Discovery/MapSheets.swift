@@ -91,7 +91,9 @@ struct FiltersView: View {
     private var resultTitle: String {
         if explore.loading { return Copy.searching }
         let count = Int(explore.listCount)
-        return count == 0 ? Copy.show_nothing : Copy.show_events(count)
+        let title = count == 0 ? Copy.show_nothing : Copy.show_events(count)
+        // Без мережі — словами, як лічильник шторки: «Нічого не знайдено» з порожнього кешу не правда про місто.
+        return explore.offline ? Copy.offline_count(title) : title
     }
 
     @ViewBuilder private func section<Content: View>(

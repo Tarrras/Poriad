@@ -320,6 +320,8 @@ private struct PeekHeader: View {
                 else if view.offline {
                     PoruchIcon(glyph: PoruchIcons.wifiOff, size: 15).foregroundStyle(Palette.accent)
                 }
+                // Карусель — від найближчої: видно й без піднятої шторки, де живе сам перемикач.
+                if view.nearMe { PoruchIcon(glyph: PoruchIcons.myLocation, size: 15).foregroundStyle(Palette.inkSecondary) }
                 // Зі «Стежити» чи на великому шрифті «Тут подій: 12» не влазить: лишається число, а не «Тут по…».
                 // Повний текст VoiceOver чує з підпису кнопки.
                 ViewThatFits(in: .horizontal) {
@@ -336,7 +338,7 @@ private struct PeekHeader: View {
             .tapTarget()
             .onTapGesture { openList() }
             .accessibilityElement(children: .combine)
-            .accessibilityLabel(Copy.a11y_show_list("\(countLabel(view))"))
+            .accessibilityLabel(Copy.a11y_show_list(view.nearMe ? "\(countLabel(view)), \(Copy.nearer_me)" : countLabel(view)))
             .accessibilityAddTraits(.isButton)
             .accessibilityAction { openList() }
             .coachTarget(.sheet)
@@ -514,7 +516,7 @@ private func countLabel(_ view: ExploreScreenState) -> String {
 /// Відстань у рядку з «Ближче до мене»: цілими км, а в межах похибки положення — «до 3 км». Nil — перемикач вимкнено.
 private func distanceLabel(_ km: KotlinInt?, within: Int) -> String? {
     guard let km = km?.intValue else { return nil }
-    return km <= within ? Copy.distance_within("\(within)") : Copy.distance_km("\(km)")
+    return km == 0 ? Copy.distance_within("\(within)") : Copy.distance_km("\(km)")
 }
 
 /// Що показує екран: пін, область рукою чи ціле місто.

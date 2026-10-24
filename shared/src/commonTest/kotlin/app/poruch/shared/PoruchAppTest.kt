@@ -2178,7 +2178,7 @@ class PoruchAppTest {
             assertSame(before.mapEvents,sorted.mapEvents,"піни не перебудовуються")
             // Точне положення: у межах кілометра порядок за справжньою відстанню, а підпис — «до 1 км»; далі — цілими.
             assertEquals(1,sorted.nearWithinKm)
-            assertEquals(listOf(1,1,2,13),listOf(near,close,mid,far).map { sorted.kmFromMe(it) })
+            assertEquals(listOf(0,0,2,13),listOf(near,close,mid,far).map { sorted.kmFromMe(it) })
             // Фільтр порядок не скидає.
             presenter.toggleCategory(EventCategory.MUSIC); runCurrent()
             assertEquals(listOf("near","close","mid","far"),presenter.state.value.listEntries.map { it.id })
@@ -2186,7 +2186,7 @@ class PoruchAppTest {
             // Зменшена точність iOS чи COARSE: у межах похибки — «до 3 км» і порядок «для вас», далі — від найближчої.
             presenter.nearMe(50.45,30.52,accuracy=2600.0); runCurrent()
             assertEquals(3,presenter.state.value.nearWithinKm)
-            assertEquals(listOf(3,3,13),listOf(near,mid,far).map { presenter.state.value.kmFromMe(it) })
+            assertEquals(listOf(0,0,13),listOf(near,mid,far).map { presenter.state.value.kmFromMe(it) })
             assertEquals(taste.filter { it!="far" }+"far",presenter.state.value.listEntries.map { it.id })
             presenter.clearNearMe(); runCurrent()
             assertFalse(presenter.state.value.nearMe)

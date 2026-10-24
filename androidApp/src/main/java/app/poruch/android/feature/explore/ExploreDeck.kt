@@ -239,6 +239,7 @@ private fun SheetHeader(
     val colors = Poruch.colors
     val label = countLabel(state)
     val showList = stringResource(R.string.show_list)
+    val nearer = stringResource(R.string.nearer_me)
     // «Стежити» лише на стосі закладу: це одне з двох місць, де людина бачить заклад як окрему річ.
     val stackPlace = state.screen.stackPlace.takeIf { state.screen.stackFocused }
     Column(
@@ -259,7 +260,8 @@ private fun SheetHeader(
         )
         Row(
             Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
+            // Піднята шапка вища за кнопки («Стежити» чи «Ближче до мене» під підписом): кнопки — біля заголовка, як на iOS.
+            verticalAlignment = if (expanded) Alignment.Top else Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
         ) {
             if (expanded) {
@@ -335,6 +337,8 @@ private fun SheetHeader(
                         Modifier.size(14.dp),
                         tint = colors.accent
                     )
+                    // Карусель — від найближчої: видно й без піднятої шторки, де живе сам перемикач.
+                    if (state.screen.nearMe) Icon(PoruchIcons.myLocation, null, Modifier.size(14.dp), tint = colors.inkSecondary)
                     // Не влазить «Тут подій: 12» (вузький екран, стос із дзвінком, великий шрифт) — лишається число, повний
                     // текст чує TalkBack. За шириною, як `ViewThatFits` на iOS, а не за `fontScale`.
                     val short = if (state.screen.offline) stringResource(R.string.offline_count, "${state.screen.listCount}")
@@ -342,7 +346,7 @@ private fun SheetHeader(
                     var tight by remember(label) { mutableStateOf(false) }
                     Text(
                         if (tight && !state.screen.loading) short else label,
-                        Modifier.weight(1f, fill = false).semantics { contentDescription = label },
+                        Modifier.weight(1f, fill = false).semantics { contentDescription = if (state.screen.nearMe) "$label, $nearer" else label },
                         style = MaterialTheme.typography.labelMedium, color = colors.ink, maxLines = 1, softWrap = false,
                         onTextLayout = { if (it.hasVisualOverflow && !tight) tight = true }
                     )
@@ -411,7 +415,7 @@ private fun areaLabel(state: ExploreState): String = when {
 /** Відстань у рядку з «Ближче до мене»: цілими км, а в межах похибки положення — «до 3 км». */
 @Composable
 private fun distanceLabel(km: Int, within: Int): String =
-    if (km <= within) stringResource(R.string.distance_within, within) else stringResource(R.string.distance_km, km)
+    if (km == 0) stringResource(R.string.distance_within, within) else stringResource(R.string.distance_km, km)
 
 /** Згорнута шторка: карусель або тиха картка, коли показувати нічого. */
 @Composable
