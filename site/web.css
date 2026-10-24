@@ -437,7 +437,7 @@ dialog[open]::backdrop { animation: fade .3s ease; }
 .cover-big:not(:has(.art img)) h1, .cover-big:not(:has(.art img)) h2 { font-size: 38px; line-height: 42px; font-weight: 800; letter-spacing: -.5px; }
 .detail { position: relative; background: var(--canvas); padding: 22px 20px 150px; display: flex; flex-direction: column; gap: 26px; }
 .actions { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; }
-.actions a, .actions button { display: flex; flex-direction: column; align-items: center; gap: 8px; font: 400 14px/18px var(--font); color: var(--ink); }
+.actions a, .actions button { display: flex; flex-direction: column; align-items: center; gap: 8px; font: 400 14px/18px var(--font); color: var(--ink); text-align: center; text-wrap: balance; }
 .actions i { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: var(--surface); border: 1px solid var(--edge); transition: transform .28s var(--spring), background .2s; }
 .actions a:hover i, .actions button:hover i { transform: translateY(-2px); }
 .actions a:active i, .actions button:active i { transform: scale(.94); }
@@ -482,7 +482,9 @@ a.row:hover { background: var(--surface-muted); }
 .app-only > .stub .ico { width: 26px; height: 26px; color: var(--on-brand); }
 /* Панель дії — горизонтальний квиток, що плаває: підсумок і дія на поверхні, час — на корінці. */
 .bar { position: absolute; left: 12px; right: 12px; bottom: 12px; z-index: 4; filter: drop-shadow(0 8px 24px rgba(0,0,0,.16)); }
-.bar > .ticket { --stub-w: 84px; --r: var(--r-xl); background: var(--surface-raised); }
+/* Корінець ширший за плитковий: тут день словами («У ПОНЕДІЛОК», «ПН, 30 ЛИСТ.» — до ~90 px в 11 px), і в 84 він вилазив за край. */
+.bar > .ticket { --stub-w: 100px; --r: var(--r-xl); background: var(--surface-raised); }
+.bar .stub small { font-size: 10px; letter-spacing: .4px; }
 .bar .face { padding: 12px; gap: 10px; }
 .bar .top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
 .bar .meta { display: flex; flex-direction: column; flex: none; max-width: 50%; padding-left: 6px; }
@@ -490,6 +492,8 @@ a.row:hover { background: var(--surface-muted); }
 .bar .meta span { font: 600 17px/22px var(--font); color: var(--ink); white-space: nowrap; }
 /* Кнопка-флекс не вміє «…»: напис, що не вміщується поруч із ціною, переносить її окремим рядком на всю ширину. */
 .bar .top .btn { flex: 1 0 auto; }
+/* На 320 і рядок кнопки вужчий за «Квитки на Concert.ua»: тоді напис у два рядки, а не під корінець. */
+@media (max-width: 359px) { .bar .top .btn { flex-shrink: 1; min-width: 0; white-space: normal; } }
 .bar .btn { height: 50px; }
 /* Другорядна кнопка на піднятій поверхні панелі: тон від чорнила, а не brand-container — уночі той зливався з панеллю. */
 .bar .btn.secondary { width: 100%; background: color-mix(in srgb, var(--ink) 9%, var(--surface-raised)); }

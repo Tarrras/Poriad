@@ -138,7 +138,7 @@ ${ticketUrl ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""}`,
     <div class="actions">
       <a href="${maps}" rel="noopener"><i>${icon("pin")}</i>Маршрут</a>
       <button type="button" data-share><i>${icon("share")}</i>Поділитися</button>
-      <a href="poriad://event/${e.id}"><i>${icon("bookmark")}</i>У застосунку</a>
+      <a href="poriad://event/${e.id}"><i>${icon("bookmark")}</i>У «Поряд»</a>
       <a href="/afisha.html${e.city && e.city !== "Київ" ? `?city=${encodeURIComponent(e.city)}` : ""}"><i>${icon("map")}</i>Афіша</a>
     </div>
     <div class="facts">${facts.map(([label, value, sub]) => `<div><span class="overline">${label}</span><b>${esc(value)}</b>${sub && sub !== value ? `<small>${esc(sub)}</small>` : ""}</div>`).join("")}</div>
@@ -242,8 +242,8 @@ function layout({ title, description, image, url, head, body }) {
 <meta name="theme-color" content="#0F0F13" media="(prefers-color-scheme: dark)">
 ${head}
 <link rel="preload" href="/fonts/sofia-sans-condensed-800.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/tokens.css?v=9">
-<link rel="stylesheet" href="/web.css?v=9">
+<link rel="stylesheet" href="/tokens.css?v=10">
+<link rel="stylesheet" href="/web.css?v=10">
 <link rel="icon" href="/icon.png">
 </head>
 <body class="event-page">
