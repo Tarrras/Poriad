@@ -19,6 +19,10 @@ data class ExploreState(
     /** Камера посунулась: мапа тримає старі результати, поки не попросять «Шукати тут». */
     val pendingArea: Area? = null,
     val locationDenied: Boolean = false,
+    /** «Ближче до мене» натиснули, положення ще їде: чип уже вибраний, порядок — коли приїде. */
+    val locatingNear: Boolean = false,
+    /** «Ближче до мене» без геолокації: лист із поясненням і виходом у налаштування. */
+    val nearDenied: Boolean = false,
     val mapFailed: Boolean = false,
     /** Інкремент просить мапу завантажити стиль знову: повтор після збою. */
     val retryToken: Int = 0,
@@ -84,6 +88,14 @@ sealed interface ExploreIntent {
     data object RequestLocation : ExploreIntent
     data class LocatedAt(val name: String, val latitude: Double, val longitude: Double) : ExploreIntent
     data object LocationDenied : ExploreIntent
+    /** «Ближче до мене»: увімкнення питає положення, вимкнення повертає порядок «для вас». */
+    data object ToggleNear : ExploreIntent
+    /** [accuracy] — похибка виміру в метрах: COARSE дає кілометри. */
+    data class NearAt(val latitude: Double, val longitude: Double, val accuracy: Double) : ExploreIntent
+    /** Дозволу не дали чи положення не визначилось. */
+    data object NearUnavailable : ExploreIntent
+    data object DismissNearDenied : ExploreIntent
+    data object OpenLocationSettings : ExploreIntent
 }
 
 sealed interface ExploreEffect {
@@ -92,4 +104,7 @@ sealed interface ExploreEffect {
     data object CreateEvent : ExploreEffect
     data object SignIn : ExploreEffect
     data object AskLocationPermission : ExploreEffect
+    /** Положення для «Ближче до мене»: без міста, бо порядок списку не має перемикати місто на екрані. */
+    data object LocateNear : ExploreEffect
+    data object OpenLocationSettings : ExploreEffect
 }

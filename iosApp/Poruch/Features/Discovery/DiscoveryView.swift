@@ -1,5 +1,6 @@
 import SwiftUI
 import Shared
+import CoreLocation
 
 /// Фільтри дати в порядку показу. Читають і рядок чипів, і шторка фільтрів.
 let dateFilterKeys: [DateFilter] = [.any, .today, .tomorrow, .weekend]
@@ -29,6 +30,10 @@ struct DiscoveryView: View, Equatable {
     private var model: AppModel { appModel! }
     private var explore: ExploreScreenModel { model.exploreScreen }
     @StateObject private var location = LocationFinder()
+    /// Положення для «Ближче до мене»: без міста, бо порядок списку не має перемикати місто на екрані.
+    @StateObject private var position = LocationFinder(resolvesCity: false)
+    /// «Ближче до мене» натиснули, положення ще їде: чип уже вибраний, порядок — коли приїде.
+    @State private var locating = false
     @State private var citySearch = false
     /// Подія з відкритими деталями. Значення, а не прапорець, щоб не читати id з асинхронного стану.
     @State private var detail: EventRoute?
@@ -100,7 +105,8 @@ struct DiscoveryView: View, Equatable {
                 detent: detent, drag: drag, expanded: $expanded, screen: screen, centerToken: centerToken,
                 open: open, openDetail: { detail = EventRoute(id: $0) },
                 recenter: { explore.clearStack(); centerToken += 1 }, locate: { location.request() },
-                askAuth: { auth = true }, resetFilters: resetFilters, createEvent: createEvent
+                askAuth: { auth = true }, resetFilters: resetFilters, createEvent: createEvent,
+                locating: locating, toggleNear: toggleNear
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
         }
@@ -158,6 +164,35 @@ struct DiscoveryView: View, Equatable {
         }
         .sheet(isPresented: Binding(get: { location.message != nil }, set: { if !$0 { location.message = nil } })) {
             PromptSheet(title: Copy.location_title, message: location.message ?? "", primary: Copy.ok, onPrimary: {})
+        }
+        // Перше положення після тапу — і список від нього. Наступні виміри порядок не смикають.
+        .onReceive(position.$point) { point in
+            guard locating, let point else { return }
+            locating = false
+            explore.nearMe(point, accuracy: position.accuracy)
+        }
+        .onReceive(position.$message) { message in
+            guard locating, message != nil else { return }
+            locating = false
+            explore.nearMeUnavailable()
+        }
+        // Чесно: без геолокації «ближче» не порахувати, список лишився «для вас». Вихід — дозвіл у налаштуваннях.
+        .sheet(isPresented: Binding(get: { position.message != nil }, set: { if !$0 { position.message = nil } })) {
+            PromptSheet(
+                title: Copy.location_title, message: Copy.nearer_me_denied, primary: Copy.open_settings, secondary: Copy.close,
+                onPrimary: { if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) } }
+            )
+        }
+    }
+
+    /// «Ближче до мене»: увімкнення питає положення наявним потоком геолокації, вимкнення повертає порядок «для вас».
+    private func toggleNear() {
+        if view.nearMe || locating {
+            locating = false
+            explore.clearNearMe()
+        } else {
+            locating = true
+            position.request()
         }
     }
 
@@ -361,6 +396,11 @@ let cardPage = 24
     func focusEvent(_ id: String) { presenter.focusEvent(id: id) }
     func focusPlace(_ place: Place) { presenter.focusPlace(place: place) }
     func toggleCategory(_ category: EventCategory) { presenter.toggleCategory(category: category) }
+    func nearMe(_ point: CLLocationCoordinate2D, accuracy: Double) {
+        presenter.nearMe(latitude: point.latitude, longitude: point.longitude, accuracy: accuracy)
+    }
+    func nearMeUnavailable() { presenter.nearMeUnavailable() }
+    func clearNearMe() { presenter.clearNearMe() }
     func loadHead(_ count: Int) { presenter.loadHead(count: Int32(count)) }
     /// False для гостя: його ведуть на вхід.
     func toggleFollowStack() -> Bool { presenter.toggleFollowStack() }

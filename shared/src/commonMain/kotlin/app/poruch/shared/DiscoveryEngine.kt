@@ -440,7 +440,8 @@ internal class DiscoveryEngine(
         }
         query = target
         queryChanged()
-        if (!same) refresh(home = false)
+        // Мапа вже така: відповідь та сама, що є. Без цього номер запиту лишався без відповіді, і плитки чекали б чисел.
+        if (!same) refresh(home = false) else if (!searchJob.active) answer(query)
     }
 
     // Фільтри: спершу [queryChanged], потім сам фільтр. Хто стежить за фільтром, може прокинутись ще всередині

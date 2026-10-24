@@ -239,6 +239,7 @@ private fun SheetHeader(
     val colors = Poruch.colors
     val label = countLabel(state)
     val showList = stringResource(R.string.show_list)
+    val nearer = stringResource(R.string.nearer_me)
     // «Стежити» лише на стосі закладу: це одне з двох місць, де людина бачить заклад як окрему річ.
     val stackPlace = state.screen.stackPlace.takeIf { state.screen.stackFocused }
     Column(
@@ -259,7 +260,8 @@ private fun SheetHeader(
         )
         Row(
             Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
+            // Піднята шапка вища за кнопки («Стежити» чи «Ближче до мене» під підписом): кнопки — біля заголовка, як на iOS.
+            verticalAlignment = if (expanded) Alignment.Top else Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
         ) {
             if (expanded) {
@@ -294,6 +296,14 @@ private fun SheetHeader(
                             onIntent(ExploreIntent.ToggleFollowStack)
                         }
                     )
+                    // Те саме гніздо в місті: порядок — властивість списку, який піднімають, щоб зіставити. У стосі чипа нема:
+                    // одне місце — одна відстань.
+                    if (!state.screen.stackFocused) Box(Modifier.padding(top = Spacing.sm)) {
+                        PoruchChip(
+                            stringResource(R.string.nearer_me), state.screen.nearMe || state.locatingNear,
+                            { onIntent(ExploreIntent.ToggleNear) }, PoruchIcons.myLocation
+                        )
+                    }
                 }
             } else {
                 // Керування мапою в зоні великого пальця, над каруселлю.
@@ -327,6 +337,8 @@ private fun SheetHeader(
                         Modifier.size(14.dp),
                         tint = colors.accent
                     )
+                    // Карусель — від найближчої: видно й без піднятої шторки, де живе сам перемикач.
+                    if (state.screen.nearMe) Icon(PoruchIcons.myLocation, null, Modifier.size(14.dp), tint = colors.inkSecondary)
                     // Не влазить «Тут подій: 12» (вузький екран, стос із дзвінком, великий шрифт) — лишається число, повний
                     // текст чує TalkBack. За шириною, як `ViewThatFits` на iOS, а не за `fontScale`.
                     val short = if (state.screen.offline) stringResource(R.string.offline_count, "${state.screen.listCount}")
@@ -334,7 +346,7 @@ private fun SheetHeader(
                     var tight by remember(label) { mutableStateOf(false) }
                     Text(
                         if (tight && !state.screen.loading) short else label,
-                        Modifier.weight(1f, fill = false).semantics { contentDescription = label },
+                        Modifier.weight(1f, fill = false).semantics { contentDescription = if (state.screen.nearMe) "$label, $nearer" else label },
                         style = MaterialTheme.typography.labelMedium, color = colors.ink, maxLines = 1, softWrap = false,
                         onTextLayout = { if (it.hasVisualOverflow && !tight) tight = true }
                     )
@@ -400,6 +412,11 @@ private fun areaLabel(state: ExploreState): String = when {
     else -> stringResource(R.string.area_city, state.screen.cityName)
 }
 
+/** Відстань у рядку з «Ближче до мене»: цілими км, а в межах похибки положення — «до 3 км». */
+@Composable
+private fun distanceLabel(km: Int, within: Int): String =
+    if (km == 0) stringResource(R.string.distance_within, within) else stringResource(R.string.distance_km, km)
+
 /** Згорнута шторка: карусель або тиха картка, коли показувати нічого. */
 @Composable
 private fun PeekDeck(state: ExploreState, onIntent: (ExploreIntent) -> Unit) {
@@ -445,11 +462,11 @@ private fun EventCarousel(state: ExploreState, onIntent: (ExploreIntent) -> Unit
             )
         )
     }
-    // «Повернутися до міста», перехід з головної і новий запит (фільтр, пошук, місто): карусель з першої картки й лишається
+    // «Повернутися до міста», перехід з головної, новий запит (фільтр, пошук, місто) і «Ближче до мене»: карусель з першої картки й лишається
     // на ній, доки людина не гортала чи не обрала подію. Картки нової видачі приїжджають пізніше й вставляються перед
     // колишньою першою, а список тримається за ключ першої видимої картки: без цього він лишався б на ній.
     var atStart by remember { mutableStateOf(false) }
-    LaunchedEffect(state.recenterToken, state.screen.queries) { atStart = true }
+    LaunchedEffect(state.recenterToken, state.screen.queries, state.screen.nearMe) { atStart = true }
     LaunchedEffect(dragged, state.screen.selectedId) { if (dragged || state.screen.selectedId != null) atStart = false }
     LaunchedEffect(atStart, state.screen.deckEvents) { if (atStart) listState.scrollToItem(0) }
     LaunchedEffect(state.screen.selectedId, state.screen.deckEvents) {
@@ -498,10 +515,13 @@ private fun SheetList(state: ExploreState, onIntent: (ExploreIntent) -> Unit) {
             .padding(horizontal = Spacing.page),
         horizontalArrangement = Arrangement.spacedBy(Spacing.xs)
     ) {
+        // Число — серед міста чи закладу, як лічильник після тапу.
         categories.forEach { category ->
             CategoryTile(
                 category,
-                state.screen.category == category
+                state.screen.category == category,
+                counted = true,
+                count = state.screen.countOf(category)
             ) { onIntent(ExploreIntent.ToggleCategory(category)) }
         }
     }
@@ -555,7 +575,8 @@ private fun SheetList(state: ExploreState, onIntent: (ExploreIntent) -> Unit) {
         items(rows, key = { it.id }) { event ->
             EventResultRow(
                 event, Modifier.cardSurface(),
-                waitlisted = event.id in state.screen.waitlistedIds
+                waitlisted = event.id in state.screen.waitlistedIds,
+                distance = state.screen.kmFromMe(event)?.let { distanceLabel(it, state.screen.nearWithinKm) }
             ) { onIntent(ExploreIntent.OpenEvent(event.id)) }
         }
         if (state.screen.hasMoreCards) item {

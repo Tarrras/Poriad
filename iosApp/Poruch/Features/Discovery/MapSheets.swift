@@ -26,9 +26,11 @@ struct FiltersView: View {
                     }
                     section(Copy.categories) {
                         // Ті самі плитки, що в шторці мапи й у редакторі: жанр обирають однаково скрізь. Повторний тап знімає вибір.
+                        // Число під назвою — що дасть вибір під цю дату й «Від людей»: нуль видно до тапу.
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 76), spacing: Space.sm)], spacing: Space.md) {
                             ForEach(categories, id: \.0) { entry in
-                                CategoryTile(category: entry.0, selected: explore.category == entry.0) {
+                                CategoryTile(category: entry.0, selected: explore.category == entry.0, counted: true,
+                                             count: explore.countOf(category: entry.0)?.intValue) {
                                     model.exploreScreen.toggleCategory(entry.0)
                                 }
                             }
@@ -89,7 +91,9 @@ struct FiltersView: View {
     private var resultTitle: String {
         if explore.loading { return Copy.searching }
         let count = Int(explore.listCount)
-        return count == 0 ? Copy.show_nothing : Copy.show_events(count)
+        let title = count == 0 ? Copy.show_nothing : Copy.show_events(count)
+        // Без мережі — словами, як лічильник шторки: «Нічого не знайдено» з порожнього кешу не правда про місто.
+        return explore.offline ? Copy.offline_count(title) : title
     }
 
     @ViewBuilder private func section<Content: View>(
