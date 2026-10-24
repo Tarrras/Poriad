@@ -294,6 +294,13 @@ class RequestNotificationCenter(context: Context) : RequestNotifier {
         post(FOLLOW_TAG, key, title, text, FOLLOW_CHANNEL, R.string.follow_notification_channel, NotificationManager.IMPORTANCE_DEFAULT, reason, open)
     }
 
+    /**
+     * Хтось шукає компанію на збережену афішу ([eventId] — найближчий збір, тап веде туди). Свій канал: його можна
+     * вимкнути, не втрачаючи «Стежити». Одне на збір.
+     */
+    fun notifyCompanion(eventId: String, title: String, text: String) =
+        post(COMPANION_TAG, eventId, title, text, COMPANION_CHANNEL, R.string.companion_notification_channel, NotificationManager.IMPORTANCE_DEFAULT, "companion")
+
     private fun post(
         tag: String, eventId: String, title: String, text: String, channel: String = CHANNEL,
         channelName: Int = R.string.request_notification_channel, importance: Int = NotificationManager.IMPORTANCE_DEFAULT,
@@ -326,6 +333,8 @@ class RequestNotificationCenter(context: Context) : RequestNotifier {
         const val CHANGE_TAG = "change"
         const val FOLLOW_CHANNEL = "follows"
         const val FOLLOW_TAG = "follow"
+        const val COMPANION_CHANNEL = "companions"
+        const val COMPANION_TAG = "companion"
     }
 }
 
