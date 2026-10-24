@@ -1,6 +1,6 @@
 // Перевірка текстів пушів про підписки без Deno: node supabase/functions/push/follow_text.test.mjs
 import assert from "node:assert/strict";
-import { artistText, organizerText, placeText, plural, winbackText } from "./follow_text.ts";
+import { artistText, companionText, organizerText, placeText, plural, winbackText } from "./follow_text.ts";
 
 const forms = (n) => plural(n, "подія", "події", "подій");
 assert.deepEqual([1, 2, 4, 5, 11, 12, 14, 21, 22, 25, 101, 111].map(forms),
@@ -63,5 +63,12 @@ assert.deepEqual(winbackText(1, "Київ", 40, ["Імпровізаційне �
   { title: "Київ: 40 подій на вихідних", body: "Імпровізаційне шоу «Королі Крінжу», Червона Шапочка та ще 38" });
 assert.equal(winbackText(2, "Львів", 22, ["А", "Б"]).title, "Є куди на вихідних. Львів: 22 події");
 assert.equal(winbackText(1, "Одеса", 2, ["А", "Б"]).body, "А, Б");
+
+// Компанія на збережену подію: один збір — «Хтось», кілька — скільки людей і найближчий збір.
+assert.deepEqual(companionText("Океан Ельзи", 1, "сб, 8 листопада о 18:30"),
+  { title: "Океан Ельзи", body: "Хтось шукає компанію на цю подію · збір сб, 8 листопада о 18:30" });
+assert.equal(companionText("А", 2, "сб, 8 листопада о 18:30").body, "2 людини шукають компанію на цю подію · найближчий збір сб, 8 листопада о 18:30");
+assert.equal(companionText("А", 5, "т").body.startsWith("5 людей шукають"), true);
+assert.equal(companionText("А", 21, "т").body.startsWith("21 людина шукає"), true);
 
 console.log("follow_text: ok");
