@@ -98,6 +98,12 @@ class PoruchAppTest {
         override suspend fun safety(id:String):EventSafety? = null
         var companionCards=emptyList<CompanionCard>()
         override suspend fun companions(parentId:String)=companionCards
+        /** Запрошення: токен → (подія, хто кличе), як `invite_inviter`; [failInvite] — сервер відмовив створити. */
+        var invites=mapOf<String,Pair<String,Inviter>>()
+        var failInvite=false
+        val invited=mutableListOf<String>()
+        override suspend fun inviter(token:String,eventId:String)=invites[token]?.takeIf { it.first==eventId }?.second
+        override suspend fun invite(id:String):String { if(failInvite) fail(AppError.TooManyAttempts); invited+=id; return "Tok_${id}_0000000000000000".take(22) }
         val companionsCreated=mutableListOf<List<Any?>>()
         val companionsMoved=mutableListOf<Pair<String,String>>()
         override suspend fun moveCompanion(id:String,meetAt:String) { companionsMoved+=id to meetAt }
@@ -283,6 +289,46 @@ class PoruchAppTest {
             assertEquals(1,tracked.count { it=="companion_create" })
             assertEquals(1,tracked.count { it=="companion_join" })
             assertEquals(AppNotice.Told(AppMessage.REQUEST_SENT),app.state.value.notice,"companions are by request")
+            app.close()
+        } finally { PoruchAnalytics.sink=null }
+    }
+
+    /**
+     * «Покликати з собою» (docs/invites.md): посилання з токеном лише з входом, а збій чи гість — звичайне посилання, не
+     * помилка. Друг, що відкрив запрошення, бачить на деталях, хто кличе; звичайне посилання цього не показує.
+     */
+    @Test fun invitingAFriend()=runTest {
+        val tracked=mutableListOf<Pair<String,Map<String,String>>>()
+        PoruchAnalytics.sink={ name,params -> tracked+=name to params }
+        try {
+            val events=Events(); val auth=Auth(); val app=app(events,backgroundScope,auth)
+            val concert=listed("b","2090-12-23T18:00:00Z")
+            events.results=listOf(concert); events.detailsById=mapOf("b" to concert)
+            runCurrent(); advanceTimeBy(101); runCurrent()
+
+            val link=app.inviteLink("b")
+            assertEquals(EventLinks.url("b",events.invite("b")),link)
+            assertEquals("b",events.invited.first())
+            events.failInvite=true
+            assertEquals(EventLinks.url("b"),app.inviteLink("b"),"refused token still shares the event")
+            auth.session.value=null; runCurrent()
+            events.invited.clear()
+            assertEquals(EventLinks.url("b"),app.inviteLink("b"),"guest shares a plain link")
+            assertTrue(events.invited.isEmpty(),"guest does not ask the server")
+            assertEquals(listOf("invite","event","event"),tracked.filter { it.first=="share" }.map { it.second["kind"] })
+
+            val id="a1000000-0000-4000-8000-000000000005"
+            val friend=concert.copy(id=id)
+            events.detailsById=mapOf(id to friend)
+            events.invites=mapOf("AbCdEfGhIjKlMnOpQrSt_-" to (id to Inviter("Тарас",null)))
+            app.eventLinkOpened("poriad-dev://event/$id?by=AbCdEfGhIjKlMnOpQrSt_-")
+            app.openEvent(id); advanceTimeBy(1000); runCurrent()
+            assertEquals(Inviter("Тарас",null),app.state.value.detail.inviter)
+            app.dismissEvent()
+            app.eventLinkOpened("https://poriad.app/e/$id")
+            app.openEvent(id); advanceTimeBy(1000); runCurrent()
+            assertNull(app.state.value.detail.inviter,"a plain link drops the invite")
+            assertEquals(listOf("invite","event"),tracked.filter { it.first=="link_open" }.map { it.second["kind"] })
             app.close()
         } finally { PoruchAnalytics.sink=null }
     }

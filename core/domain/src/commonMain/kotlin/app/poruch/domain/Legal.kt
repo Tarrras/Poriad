@@ -30,9 +30,15 @@ object StoreLinks {
 object EventLinks {
     fun url(eventId: String) = "${LegalLinks.SITE}/e/$eventId"
 
+    /** З токеном «Покликати з собою» (docs/invites.md): та сама сторінка каже «… кличе тебе». Без токена — [url]. */
+    fun url(eventId: String, invite: String?) = url(eventId) + if (invite != null) "?by=$invite" else ""
+
     /** Id події з будь-якого з двох посилань; решта (auth-колбек, чужі адреси) — null. */
     fun eventId(link: String): String? = PATTERN.matchEntire(link)?.groupValues?.get(1)?.lowercase()
 
+    /** Токен запрошення з посилання на подію (`?by=`), з обох видів; токен не того формату — null. */
+    fun invite(link: String): String? = PATTERN.matchEntire(link)?.groupValues?.get(2)?.takeIf { it.isNotEmpty() }
+
     private val PATTERN =
-        Regex("""(?:https://(?:www\.)?poriad\.app/e/|[a-z][a-z0-9+.-]*://event/)([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/?(?:[?#].*)?""")
+        Regex("""(?:https://(?:www\.)?poriad\.app/e/|[a-z][a-z0-9+.-]*://event/)([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/?(?:\?(?:[^#]*&)?by=([A-Za-z0-9_-]{22})(?=[&#]|$))?(?:[?&#].*)?""")
 }

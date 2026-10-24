@@ -448,6 +448,12 @@ class PoruchApp internal constructor(
     /** Відкрито системне «Поділитися» з посиланням на подію: чи працює петля запрошень. */
     fun eventShared() = PoruchAnalytics.track("share", "kind" to "event")
 
+    /**
+     * Посилання для «Покликати» на деталях (docs/invites.md): з входом — особисте, з токеном, інакше звичайне. Сам рахує
+     * `share` (`kind=invite` чи `event`), тож платформа лише відкриває системне «Поділитися» з ним.
+     */
+    suspend fun inviteLink(eventId: String): String = library.inviteLink(eventId)
+
     /** Подія, до продавця якої щойно вийшли: після повернення — «Купили? Стежитимемо за змінами» (R9). */
     private var leftForTickets: String? = null
 
@@ -484,8 +490,15 @@ class PoruchApp internal constructor(
     /** «Оцінити застосунок» з профілю відкрив сторінку в сторі. */
     fun rateAppOpened() = PoruchAnalytics.track("rate_app")
 
-    /** Подію відкрито з посилання `poriad.app/e/…` — друга половина тієї ж петлі. */
-    fun eventLinkOpened() = PoruchAnalytics.track("link_open", "kind" to "event")
+    /**
+     * Подію відкрито з посилання `poriad.app/e/…` — друга половина тієї ж петлі. З `?by=` це запрошення: `kind=invite`, і
+     * деталі покажуть, хто кличе (docs/invites.md). Кликати до відкриття деталей.
+     */
+    fun eventLinkOpened(link: String) {
+        val invite = EventLinks.invite(link)
+        PoruchAnalytics.track("link_open", "kind" to if (invite != null) "invite" else "event")
+        EventLinks.eventId(link)?.let { library.openedFromLink(it, invite) }
+    }
 
     /**
      * Перемикач аналітики в профілі. Вимкнено — події не йдуть у сінк, а платформа отримує

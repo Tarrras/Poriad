@@ -156,6 +156,8 @@ data class DetailState(
     val safety: EventSafety? = null,
     /** Хто шукає компанію на відкриту афішу. Null — не афіша, не питали або збій. */
     val companions: List<CompanionCard>? = null,
+    /** Хто кличе на відкриту подію, коли її відкрили з посилання-запрошення (docs/invites.md). Null — не запрошення. */
+    val inviter: Inviter? = null,
     /**
      * Сама подія ще в дорозі. Поки так, порожній [event] — не «подія недоступна», а спінер.
      * Власний прапорець: `map.loading` про мапу, а не про деталі.

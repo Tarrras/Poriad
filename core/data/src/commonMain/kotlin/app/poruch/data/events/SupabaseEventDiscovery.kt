@@ -159,6 +159,10 @@ internal class SupabaseEventDiscovery(
             .map { it.domain() }
             .also { PoruchLog.d("detail") { "companions for ${parentId.shortId()}: ${it.size}" } }
 
+    override suspend fun inviter(token: String, eventId: String): Inviter? =
+        rpc.read("invite_inviter", buildJsonObject { put("p_token", token); put("p_event_id", eventId) }).jsonArray.firstOrNull()?.jsonObject
+            ?.let { row -> row["name"]?.jsonPrimitive?.contentOrNull?.let { Inviter(it, row["avatar_url"]?.jsonPrimitive?.contentOrNull) } }
+
     override fun clearPrivateCache() { cache.clearPrivate() }
 
     private fun EventQuery.indexParams() = buildJsonObject {

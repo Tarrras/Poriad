@@ -51,6 +51,31 @@ internal class UserLibrary(
     /** Подія й підпис, звідки її відкрито (`home_hero`, `home_poster`…): лише для `event_view`. */
     private var openedFrom: Pair<String, String>? = null
 
+    /** Подія й токен запрошення, з яким її відкрили з посилання: її деталі кажуть, хто кличе (docs/invites.md). */
+    private var invitedTo: Pair<String, String>? = null
+
+    /** Подію [eventId] відкрито з посилання з запрошенням [token] чи без нього: звичайне посилання знімає попереднє. */
+    fun openedFromLink(eventId: String, token: String?) {
+        invitedTo = token?.let { eventId to it }
+    }
+
+    /**
+     * Посилання для «Покликати» (docs/invites.md): з входом — особисте, з токеном. Гостю чи коли токен не вдався —
+     * звичайне: ділитися не можна блокувати. Метрика петлі — `share` з `kind=invite` проти `kind=event`.
+     */
+    suspend fun inviteLink(eventId: String): String {
+        val token = if (!store.value.signedIn) null else try {
+            participation.invite(eventId)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            PoruchLog.w("invite") { "plain link for ${eventId.shortId()}: ${e.asAppError()}" }
+            null
+        }
+        PoruchAnalytics.track("share", "kind" to if (token != null) "invite" else "event")
+        return EventLinks.url(eventId, token)
+    }
+
     /**
      * Наводить застосунок на подію. [full] — відкриття екрана деталей, інакше підсвітка.
      * Підсвітка на кожен крок каруселі, тож мережу чіпаємо лише коли є що дізнатися: рядка нема
@@ -83,7 +108,8 @@ internal class UserLibrary(
             val atPlace = it.detail.placeEvents?.takeIf { place -> shown?.placeId == place.placeId }
             // Перечитування тієї ж афіші (після запиту в супутник) не ховає секцію «Шукають компанію».
             val companions = it.detail.companions?.takeIf { _ -> it.detail.event?.id == id }
-            it.copy(detail = DetailState(event = shown, loading = willLoad, placeEvents = atPlace, companions = companions))
+            val inviter = it.detail.inviter?.takeIf { _ -> it.detail.event?.id == id }
+            it.copy(detail = DetailState(event = shown, loading = willLoad, placeEvents = atPlace, companions = companions, inviter = inviter))
         }
         if (!willLoad) {
             PoruchLog.d("detail") { "select ${id.shortId()} from memory, no request" }
@@ -109,6 +135,12 @@ internal class UserLibrary(
             } catch (e: Exception) {
                 if (openEventId == id) detail { copy(loading = false) }
                 store.failed(e.asAppError())
+            }
+            // Відкрили з запрошення: хто кличе — на обкладинці, тож одразу після події. Збій лише ховає рядок.
+            val invite = invitedTo?.takeIf { full && it.first == id && store.value.detail.event?.id == id }
+            if (invite != null) {
+                val inviter = optional { events.inviter(invite.second, id) }
+                if (openEventId == id) detail { copy(inviter = inviter) }
             }
             // Події закладу для «Ще в цьому місці». Збій лишає секцію на індексі мапи.
             val placeId = store.value.detail.event?.takeIf { it.id == id }?.placeId

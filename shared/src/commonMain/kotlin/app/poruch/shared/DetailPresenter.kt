@@ -12,6 +12,7 @@ import app.poruch.domain.EventSafety
 import app.poruch.domain.EventSession
 import app.poruch.domain.FollowKind
 import app.poruch.domain.Gathering
+import app.poruch.domain.Inviter
 import app.poruch.domain.Listing
 import app.poruch.domain.PendingMeet
 import app.poruch.domain.RatingRules
@@ -99,6 +100,8 @@ data class DetailScreenState(
     val followedOrganizers: Set<String> = emptySet(),
     /** Щойно створений супутник: платформа відкриває «Поділитися» і кличе [PoruchApp.clearCreatedCompanion]. */
     val createdCompanion: String? = null,
+    /** Хто кличе: подію відкрили з посилання-запрошення (docs/invites.md). Обкладинка каже «Тарас кличе тебе». */
+    val inviter: Inviter? = null,
     /** «Перевірено сьогодні о 09:00» для афіші: коли адресна перевірка читала продавців. Null — не перевіряли. */
     val checked: CheckedLabel? = null
 ) {
@@ -285,6 +288,7 @@ class DetailPresenter(
             followingPlace = event?.placeId?.let { shared.isFollowing(FollowKind.PLACE, it) } == true,
             followedOrganizers = shared.library.follows.filter { it.kind == FollowKind.ORGANIZER }.mapTo(HashSet()) { it.targetId },
             createdCompanion = shared.createdCompanion?.takeIf { event != null },
+            inviter = shared.detail.inviter?.takeIf { event != null },
             checked = CheckedLabel.of(event?.listing?.checkedAt, now, TimeZone.currentSystemDefault())
         )
     }
