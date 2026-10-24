@@ -50,6 +50,7 @@ import app.poruch.android.ui.*
 import app.poruch.domain.ArtistRole
 import app.poruch.domain.ContactRules
 import app.poruch.domain.Event
+import app.poruch.domain.Inviter
 import app.poruch.domain.EventIndexEntry
 import app.poruch.domain.TitleRules
 import app.poruch.domain.FollowRules
@@ -118,6 +119,7 @@ internal fun Hero(event: Event, state: DetailState, scroll: ScrollState, onInten
                 room?.isScarce == true -> Triple(stringResource(R.string.seats_left, room.seatsLeft), BadgeTone.Accent, null)
                 else -> null
             }
+            state.screen.inviter?.let { InviterLine(it) }
             stamp?.let { (text, tone, icon) -> TicketStamp(text, tone, icon, onFill = true) }
             // «Стендап · Афіша · Badseller»: афіша завжди підписана джерелом — атрибуція обов'язкова.
             val meta = listOfNotNull(
@@ -135,6 +137,23 @@ internal fun Hero(event: Event, state: DetailState, scroll: ScrollState, onInten
                 )
             }
         }
+    }
+}
+
+/**
+ * «Тарас кличе тебе» (docs/invites.md): подію відкрили з посилання-запрошення. Над усім іншим на обкладинці — це
+ * відповідь на «чому я тут», як рядок причини на квитках стрічки, лише голосом друга.
+ */
+@Composable
+private fun InviterLine(inviter: Inviter) {
+    Row(
+        Modifier.semantics(mergeDescendants = true) {},
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Аватар росте разом із підписом, до 1,5×.
+        val avatar = 28.dp * LocalDensity.current.fontScale.coerceIn(1f, 1.5f)
+        Avatar(inviter.name, inviter.avatarUrl, avatar, Modifier.border(1.5.dp, Color.White.copy(alpha = 0.85f), CircleShape))
+        Text(stringResource(R.string.invite_from, inviter.name), style = MaterialTheme.typography.labelLarge, color = Color.White, maxLines = 2)
     }
 }
 

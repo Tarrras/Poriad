@@ -49,8 +49,10 @@ struct EventDetailView: View, Equatable {
     @State var showOthersHere = false
     /// Шторка «Шукаю компанію».
     @State var seekingCompany = false
-    /// «Поділитися» щойно створеним супутником.
-    @State var sharingCompanion: ShareText?
+    /// Системне «Поділитися» з готовим текстом: щойно створений супутник чи «Покликати».
+    @State var sharing: ShareText?
+    /// «Покликати» чекає посилання від сервера: повторний тап нічого не робить.
+    @State var inviting = false
     /// «Купили? Стежитимемо за змінами» — після повернення від продавця (R9).
     @State var boughtPrompt = false
     /// Шторка часу збору (R7б): з якого часу почати — пропозиція R7а чи поточний.
@@ -109,9 +111,9 @@ struct EventDetailView: View, Equatable {
         .onChange(of: view.createdCompanion) { _, created in
             guard let created, let event = view.event else { return }
             model.app.clearCreatedCompanion()
-            sharingCompanion = ShareText(text: Copy.companion_share_text("\(event.title)", "\(eventDate(event))", EventLinks.shared.url(eventId: created)))
+            sharing = ShareText(text: Copy.companion_share_text("\(event.title)", "\(eventDate(event))", EventLinks.shared.url(eventId: created)))
         }
-        .sheet(item: $sharingCompanion) { share in ActivitySheet(items: [share.text]).presentationDetents([.medium, .large]) }
+        .sheet(item: $sharing) { share in ActivitySheet(items: [share.text]).presentationDetents([.medium, .large]) }
         .sheet(isPresented: $seekingCompany) { if let event = view.event { CompanionSheet(event: event) } }
         .sheet(item: $movingMeet) { target in
             if let event = view.event, let parent = view.companionOf, let start = parent.startsAt {

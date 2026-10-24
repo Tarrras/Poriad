@@ -533,6 +533,11 @@
   <string name="share">Поділитися</string>
   <string name="share_event_text">%1$s · %2$s · %3$s\n%4$s</string>
   <string name="share_chooser">Поділитися подією</string>
+  <!-- «Покликати з собою» (docs/invites.md): кругла дія на деталях, текст для месенджера й рядок на обкладинці в друга. -->
+  <string name="invite">Покликати</string>
+  <string name="invite_share_text">Ходімо зі мною? %1$s · %2$s · %3$s\n%4$s</string>
+  <string name="invite_chooser">Покликати з собою</string>
+  <string name="invite_from">%1$s кличе тебе</string>
   <string name="safety_title">Безпека</string>
   <string name="companion_seek">Шукаю компанію</string>
   <string name="companions_title">Шукають компанію</string>

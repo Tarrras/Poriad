@@ -455,6 +455,10 @@ enum Copy {
     static let share = "Поділитися"
     static func share_event_text(_ a0: String, _ a1: String, _ a2: String, _ a3: String) -> String { "\(a0) · \(a1) · \(a2)\n\(a3)" }
     static let share_chooser = "Поділитися подією"
+    static let invite = "Покликати"
+    static func invite_share_text(_ a0: String, _ a1: String, _ a2: String, _ a3: String) -> String { "Ходімо зі мною? \(a0) · \(a1) · \(a2)\n\(a3)" }
+    static let invite_chooser = "Покликати з собою"
+    static func invite_from(_ a0: String) -> String { "\(a0) кличе тебе" }
     static let safety_title = "Безпека"
     static let companion_seek = "Шукаю компанію"
     static let companions_title = "Шукають компанію"

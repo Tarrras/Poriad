@@ -32,6 +32,17 @@ fun Context.shareEvent(event: Event) {
     KoinJavaComponent.get<PoruchApp>(PoruchApp::class.java).eventShared()
 }
 
+/** «Покликати» (docs/invites.md): те саме, але голосом людини й з посиланням, яке дав спільний шар. `share` він уже порахував. */
+fun Context.inviteEvent(event: Event, link: String) {
+    val text = getString(R.string.invite_share_text, event.displayTitle, eventTime(event, dateWords()), "${event.city}, ${event.address}", link)
+    val intent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_SUBJECT, event.displayTitle)
+        putExtra(Intent.EXTRA_TEXT, text)
+    }
+    startActivity(Intent.createChooser(intent, getString(R.string.invite_chooser)))
+}
+
 /** Пошук компанії щойно створено: «Шукаю компанію на …» з посиланням на супутник, а не на афішу. */
 fun Context.shareCompanion(parent: Event, companionId: String) {
     val text = getString(R.string.companion_share_text, parent.title, eventTime(parent, dateWords()), EventLinks.url(companionId))

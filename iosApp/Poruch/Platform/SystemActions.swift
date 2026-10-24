@@ -11,6 +11,11 @@ enum SystemActions {
         "\(event.title) · \(eventDate(event)) · \(event.city), \(event.address)\n\(EventLinks.shared.url(eventId: event.id))"
     }
 
+    /// «Покликати» (docs/invites.md): те саме, але голосом людини й з посиланням, яке дав спільний шар.
+    static func inviteText(for event: Event, link: String) -> String {
+        Copy.invite_share_text(event.displayTitle, eventDate(event), "\(event.city), \(event.address)", link)
+    }
+
     /// Маршрут будує системна мапа.
     @MainActor static func openInMaps(_ event: Event) {
         openInMaps(latitude: event.latitude, longitude: event.longitude, label: event.title)
