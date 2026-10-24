@@ -339,6 +339,8 @@ enum Copy {
     static let tip_companion_title = "Не хочете йти самі?"
     static let tip_sheet_title = "Список під мапою"
     static let tip_sheet_body = "Торкніться лічильника чи потягніть шторку вгору — там ті самі події списком. Пін із числом — кілька подій в одному місці."
+    static let tip_invite_title = "Покликати з собою"
+    static let tip_invite_body = "Друг отримає посилання на подію й побачить, що кличете саме ви: ваше ім’я й фото з профілю."
     static let tip_companion_body = "Зберіть невелику компанію на цю подію. Хто захоче піти з вами, надішле запит — ви вирішите, кого взяти."
     static let slot_weekday_day = "Будні, вдень"
     static let slot_weekday_day_hint = "До 17:00"
@@ -459,6 +461,10 @@ enum Copy {
     static let share = "Поділитися"
     static func share_event_text(_ a0: String, _ a1: String, _ a2: String, _ a3: String) -> String { "\(a0) · \(a1) · \(a2)\n\(a3)" }
     static let share_chooser = "Поділитися подією"
+    static let invite = "Покликати"
+    static func invite_share_text(_ a0: String, _ a1: String, _ a2: String, _ a3: String) -> String { "Ходімо зі мною? \(a0) · \(a1) · \(a2)\n\(a3)" }
+    static let invite_chooser = "Покликати з собою"
+    static func invite_from(_ a0: String) -> String { "\(a0) кличе тебе" }
     static let safety_title = "Безпека"
     static let companion_seek = "Шукаю компанію"
     static let companions_title = "Шукають компанію"

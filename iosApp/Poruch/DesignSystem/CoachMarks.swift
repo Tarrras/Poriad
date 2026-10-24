@@ -3,7 +3,7 @@ import SwiftUI
 /// Підказки першого знайомства (docs/coach-marks.md): прожектор на справжньому елементі екрана й картка
 /// з одним реченням про нього. Ніяких закликів — лише що це і що станеться після тапу.
 enum CoachTip: String {
-    case city, map, create, companion, sheet
+    case city, map, create, companion, invite, sheet
 
     var title: String {
         switch self {
@@ -11,6 +11,7 @@ enum CoachTip: String {
         case .map: Copy.tip_map_title
         case .create: Copy.tip_create_title
         case .companion: Copy.tip_companion_title
+        case .invite: Copy.tip_invite_title
         case .sheet: Copy.tip_sheet_title
         }
     }
@@ -21,6 +22,7 @@ enum CoachTip: String {
         case .map: Copy.tip_map_body
         case .create: Copy.tip_create_body
         case .companion: Copy.tip_companion_body
+        case .invite: Copy.tip_invite_body
         case .sheet: Copy.tip_sheet_body
         }
     }

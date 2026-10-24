@@ -98,6 +98,7 @@ enum class CoachTip(val key: String, @StringRes val title: Int, @StringRes val b
     MAP("map", R.string.tip_map_title, R.string.tip_map_body),
     CREATE("create", R.string.tip_create_title, R.string.tip_create_body),
     COMPANION("companion", R.string.tip_companion_title, R.string.tip_companion_body),
+    INVITE("invite", R.string.tip_invite_title, R.string.tip_invite_body),
     SHEET("sheet", R.string.tip_sheet_title, R.string.tip_sheet_body)
 }
 

@@ -92,7 +92,16 @@ class DetailViewModel(
                 if (intent.saved && !screen.saved) app.toggleSaved(eventId)
             }
             DetailIntent.ToggleSaved -> app.toggleSaved(eventId)
-            DetailIntent.Share -> event?.let { send(DetailEffect.ShareEvent(it)) }
+            DetailIntent.Share -> event?.let {
+                if (!screen.canInvite) send(DetailEffect.ShareEvent(it))
+                else if (!state.value.inviting) viewModelScope.launch {
+                    // Посилання дає спільний шар — особисте з входом, звичайне гостю чи при збої — і сам рахує `share`.
+                    reduce { copy(inviting = true) }
+                    val link = app.inviteLink(it.id)
+                    reduce { copy(inviting = false) }
+                    send(DetailEffect.Invite(it, link))
+                }
+            }
             DetailIntent.AddToCalendar -> event?.let { send(DetailEffect.OpenCalendar(it)) }
             DetailIntent.OpenInMaps -> event?.let { send(DetailEffect.OpenMaps(it)) }
             // Для другої дати прокату — картка представника: окремого піна в сеансу нема.

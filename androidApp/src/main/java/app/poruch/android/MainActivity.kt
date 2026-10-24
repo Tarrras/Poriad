@@ -156,7 +156,7 @@ class MainActivity : ComponentActivity(), AndroidScopeComponent {
         // Посилання на подію (`poriad.app/e/…` чи `poriad://event/…`) і тап по сповіщенню: подія (або її чат)
         // поверх головної, «назад» веде туди, а не з застосунку.
         val linked = data?.takeIf { intent.action == Intent.ACTION_VIEW }?.let { EventLinks.eventId(it.toString()) }
-        if (linked != null) app.eventLinkOpened()
+        if (linked != null) app.eventLinkOpened(data.toString())
         val eventId = linked ?: ours?.getStringExtra(EXTRA_EVENT_ID) ?: return
         val navigator = scope.get<Navigator>()
         val target = if (ours?.getStringExtra(EXTRA_TARGET) == TARGET_CHAT) Chat(eventId) else Detail(eventId)

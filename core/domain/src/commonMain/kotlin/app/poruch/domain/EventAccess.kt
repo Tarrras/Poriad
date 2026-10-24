@@ -52,6 +52,9 @@ interface EventDiscovery {
     /** Хто шукає компанію на афішу [parentId]: картки супутників без імен, найближча зустріч першою. */
     suspend fun companions(parentId: String): List<CompanionCard>
 
+    /** Хто кличе на [eventId] за токеном з посилання. Null — токен чужий, протух чи подію вже не видно (docs/invites.md). */
+    suspend fun inviter(token: String, eventId: String): Inviter?
+
     /** Скидає кеш попереднього акаунта. Викликати при зміні користувача. */
     fun clearPrivateCache()
 }
@@ -98,6 +101,9 @@ interface EventParticipation {
     suspend fun waitlistIds(): List<String>
     suspend fun joinWaitlist(id: String)
     suspend fun leaveWaitlist(id: String)
+
+    /** Токен «Покликати з собою» на подію [id]: той самий для тієї ж людини й події (docs/invites.md). */
+    suspend fun invite(id: String): String
 
     /** Оцінки завершеної події: організаторові всі, учасникові — своя. */
     suspend fun ratings(id: String): List<EventRating>

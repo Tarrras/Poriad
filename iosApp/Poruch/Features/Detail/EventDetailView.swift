@@ -49,8 +49,10 @@ struct EventDetailView: View, Equatable {
     @State var showOthersHere = false
     /// Шторка «Шукаю компанію».
     @State var seekingCompany = false
-    /// «Поділитися» щойно створеним супутником.
-    @State var sharingCompanion: ShareText?
+    /// Системне «Поділитися» з готовим текстом: щойно створений супутник чи «Покликати».
+    @State var sharing: ShareText?
+    /// «Покликати» чекає посилання від сервера: повторний тап нічого не робить.
+    @State var inviting = false
     /// «Купили? Стежитимемо за змінами» — після повернення від продавця (R9).
     @State var boughtPrompt = false
     /// Шторка часу збору (R7б): з якого часу почати — пропозиція R7а чи поточний.
@@ -93,7 +95,8 @@ struct EventDetailView: View, Equatable {
         // У деталей власна нижня панель, таббар стояв би на ній.
         .hidesTabBar()
         .toolbar(.hidden, for: .navigationBar)
-        .sheet(item: $auth) { reason in NavigationStack { AuthView(reason: reason) } }
+        // Вхід міняє акаунт і чистить відкриту подію: після шторки просимо її знову, інакше лишався б лоадер.
+        .sheet(item: $auth, onDismiss: { screen.reopen() }) { reason in NavigationStack { AuthView(reason: reason) } }
         .personSheet(model, isPresented: $showingPerson, request: { userId in
             guard let event = view.event, view.organizer, view.requests.contains(where: { $0.userId == userId }) else { return nil }
             return PersonRequest(
@@ -109,9 +112,9 @@ struct EventDetailView: View, Equatable {
         .onChange(of: view.createdCompanion) { _, created in
             guard let created, let event = view.event else { return }
             model.app.clearCreatedCompanion()
-            sharingCompanion = ShareText(text: Copy.companion_share_text("\(event.title)", "\(eventDate(event))", EventLinks.shared.url(eventId: created)))
+            sharing = ShareText(text: Copy.companion_share_text("\(event.title)", "\(eventDate(event))", EventLinks.shared.url(eventId: created)))
         }
-        .sheet(item: $sharingCompanion) { share in ActivitySheet(items: [share.text]).presentationDetents([.medium, .large]) }
+        .sheet(item: $sharing) { share in ActivitySheet(items: [share.text]).presentationDetents([.medium, .large]) }
         .sheet(isPresented: $seekingCompany) { if let event = view.event { CompanionSheet(event: event) } }
         .sheet(item: $movingMeet) { target in
             if let event = view.event, let parent = view.companionOf, let start = parent.startsAt {
@@ -169,7 +172,7 @@ struct EventDetailView: View, Equatable {
         }
         .background(Palette.canvas)
         // Тут, а не в корені: з мапи деталі відкриваються шторкою, і корінь лежав би під нею.
-        .coachMarks([.companion], enabled: view.canSeekCompany)
+        .coachMarks([.companion, .invite], enabled: view.canSeekCompany || (view.canInvite && view.signedIn))
         .modifier(DetailSheets(event: event, view: view, editing: $editing, actions: actions))
         .modifier(DetailDialogs(event: event, view: view, openingContact: $openingContact, cancelling: $cancelling, blocking: $blocking, reporting: $reporting, actions: actions))
     }

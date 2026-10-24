@@ -20,6 +20,7 @@ extension EventDetailView {
             .overlay(alignment: .bottomLeading) {
                 HeroTextFade(scroll: scroll) {
                     VStack(alignment: .leading, spacing: Space.md) {
+                        if let inviter = view.inviter { InviterLine(inviter: inviter).transition(.opacity) }
                         if let stamp = coverState(event, view) {
                             TicketStamp(text: stamp.0, tone: stamp.1, glyph: stamp.2, onFill: true)
                         }
@@ -31,6 +32,8 @@ extension EventDetailView {
                         }
                     }
                     .padding(.horizontal, Space.page).padding(.bottom, Space.xl)
+                    // Хто кличе приходить окремою відповіддю: назва піднімається пружиною, а не стрибком.
+                    .motion(Motion.spring, value: view.inviter != nil)
                 }
             }
             .overlay(alignment: .top) {
@@ -229,13 +232,35 @@ extension EventDetailView {
             Button { SystemActions.openInMaps(event) } label: {
                 RoundAction(title: Copy.rate_tag_route) { PoruchIcon(glyph: PoruchIcons.directions, size: 20) }
             }.buttonStyle(PressableStyle())
-            ShareLink(item: SystemActions.shareText(for: event)) {
-                RoundAction(title: Copy.share) { PoruchIcon(glyph: PoruchIcons.share, size: 20) }
-            }.buttonStyle(PressableStyle())
-            .simultaneousGesture(TapGesture().onEnded { model.app.eventShared() })
+            // Поділитися подією — і є покликати (docs/invites.md). Скасовану чи минулу — просто поділитися.
+            if view.canInvite {
+                Button { invite(event) } label: {
+                    RoundAction(title: Copy.invite) {
+                        if inviting { ProgressView() } else { PoruchIcon(glyph: PoruchIcons.personAdd, size: 20) }
+                    }
+                }.buttonStyle(PressableStyle())
+                // Підказка лише з входом: посилання гостя не несе імені, і пояснювати нема що.
+                .coachTarget(view.signedIn ? .invite : nil)
+            } else {
+                ShareLink(item: SystemActions.shareText(for: event)) {
+                    RoundAction(title: Copy.share) { PoruchIcon(glyph: PoruchIcons.share, size: 20) }
+                }.buttonStyle(PressableStyle())
+                .simultaneousGesture(TapGesture().onEnded { model.app.eventShared() })
+            }
             Button { screen.handedOff = true; model.app.selectEvent(id: screen.cardID()); openMap() } label: {
                 RoundAction(title: Copy.on_map) { PoruchIcon(glyph: PoruchIcons.map, size: 20) }
             }.buttonStyle(PressableStyle())
+        }
+    }
+
+    /// Посилання дає спільний шар — особисте з входом, звичайне гостю чи при збої — і сам рахує `share`.
+    func invite(_ event: Event) {
+        guard !inviting else { return }
+        inviting = true
+        Task {
+            let link = (try? await model.app.inviteLink(eventId: event.id)) ?? EventLinks.shared.url(eventId: event.id)
+            inviting = false
+            sharing = ShareText(text: SystemActions.inviteText(for: event, link: link))
         }
     }
 
@@ -738,3 +763,20 @@ extension EventDetailView {
 }
 
 /// Текст для системного «Поділитися», відкритого не кнопкою, а подією стану.
+
+/// «Тарас кличе тебе» (docs/invites.md): подію відкрили з посилання-запрошення. Над усім іншим на обкладинці — це
+/// відповідь на «чому я тут», як рядок причини на квитках стрічки, лише голосом друга.
+private struct InviterLine: View {
+    let inviter: Inviter
+    /// Аватар росте разом із підписом, як у `HostLine`.
+    @ScaledMetric(relativeTo: .body) private var avatar: CGFloat = 28
+    var body: some View {
+        HStack(spacing: Space.sm) {
+            Avatar(name: inviter.name, url: inviter.avatarUrl, size: min(avatar, 42))
+                .overlay(Circle().stroke(.white.opacity(0.85), lineWidth: 1.5))
+            Text(Copy.invite_from(inviter.name)).font(PoruchFont.button).foregroundStyle(.white)
+                .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+        }
+        .accessibilityElement(children: .combine)
+    }
+}

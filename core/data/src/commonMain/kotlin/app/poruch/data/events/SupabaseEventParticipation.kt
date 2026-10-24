@@ -16,6 +16,8 @@ internal class SupabaseEventParticipation(private val rpc: EventRpc) : EventPart
     override suspend fun joinWaitlist(id: String) { rpc.call("join_waitlist", rpc.eventParams(id)) }
     override suspend fun leaveWaitlist(id: String) { rpc.call("leave_waitlist", rpc.eventParams(id)) }
 
+    override suspend fun invite(id: String): String = rpc.call("create_invite", rpc.eventParams(id)).jsonPrimitive.content
+
     override suspend fun ratings(id: String): List<EventRating> =
         rpc.read("event_ratings", rpc.eventParams(id)).jsonArray.map {
             val row = it.jsonObject

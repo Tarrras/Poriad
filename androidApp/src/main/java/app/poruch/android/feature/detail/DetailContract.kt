@@ -27,7 +27,9 @@ data class DetailState(
     /** «Купили? Стежитимемо за змінами» — після повернення від продавця (R9). */
     val boughtPrompt: Boolean = false,
     /** Шторка часу збору (R7б): з якого часу почати — пропозиція R7а чи поточний. Null — закрита. */
-    val movingMeet: String? = null
+    val movingMeet: String? = null,
+    /** «Покликати» чекає посилання від сервера. */
+    val inviting: Boolean = false
 )
 
 /** На що скарга: на подію, на того, хто її опублікував, чи на людину з картки. */
@@ -61,6 +63,7 @@ sealed interface DetailIntent {
     data class ToggleFollowPerson(val userId: String, val name: String) : DetailIntent
     data object PrimaryAction : DetailIntent
     data object ToggleSaved : DetailIntent
+    /** «Покликати» (docs/invites.md), а скасовану чи минулу — «Поділитися». */
     data object Share : DetailIntent
     data object AddToCalendar : DetailIntent
     data object OpenInMaps : DetailIntent
@@ -114,6 +117,8 @@ sealed interface DetailEffect {
     /** Приєднались, а нагадування ще не ввімкнені: питаємо дозвіл системи, маршрут повертає відповідь у [DetailIntent.NotificationPermissionAnswered]. */
     data object AskNotificationPermission : DetailEffect
     data class ShareEvent(val event: Event) : DetailEffect
+    /** «Покликати»: системне «Поділитися» з текстом «Ходімо зі мною?» і посиланням від спільного шару. */
+    data class Invite(val event: Event, val link: String) : DetailEffect
     data class OpenCalendar(val event: Event) : DetailEffect
     data class OpenMaps(val event: Event) : DetailEffect
     data class OpenShelter(val shelter: Shelter) : DetailEffect

@@ -366,6 +366,9 @@ enum class ImportStatus(val key: String) {
 }
 
 data class Attendee(val userId: String, val name: String, val avatarUrl: String?)
+
+/** Хто кличе на подію за посиланням-запрошенням (docs/invites.md): перше слово імені й фото, без id людини. */
+data class Inviter(val name: String, val avatarUrl: String?)
 data class CityResult(val name: String, val latitude: Double, val longitude: Double)
 
 /** Останнє обране місто на пристрої: наступний запуск одразу показує його, а не Київ за замовчуванням. */

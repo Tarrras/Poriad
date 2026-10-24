@@ -19,4 +19,24 @@ class EventLinksTest {
         assertNull(EventLinks.eventId("https://evil.example/e/$id"))
         assertNull(EventLinks.eventId("https://poriad.app/e/not-an-id"))
     }
+
+    @Test fun readsInviteTokenFromBothForms() {
+        val token = "AbCdEfGhIjKlMnOpQrSt_-"
+        assertEquals(token, EventLinks.invite(EventLinks.url(id, token)))
+        assertEquals(id, EventLinks.eventId(EventLinks.url(id, token)))
+        assertEquals(token, EventLinks.invite("poriad-dev://event/$id?by=$token"))
+        assertEquals(token, EventLinks.invite("https://poriad.app/e/$id/?utm_source=telegram&by=$token#top"))
+        assertEquals(id, EventLinks.eventId("poriad://event/$id?utm_source=x&by=$token"))
+    }
+
+    @Test fun ignoresMissingOrForeignTokens() {
+        assertNull(EventLinks.invite(EventLinks.url(id)))
+        assertNull(EventLinks.invite("https://poriad.app/e/$id?by=short"))
+        assertNull(EventLinks.invite("https://poriad.app/e/$id?by=AbCdEfGhIjKlMnOpQrSt_-x"))
+        assertNull(EventLinks.invite("https://poriad.app/e/$id?nearby=AbCdEfGhIjKlMnOpQrSt_-"))
+        assertNull(EventLinks.invite("https://poriad.app/e/$id#by=AbCdEfGhIjKlMnOpQrSt_-"))
+        assertNull(EventLinks.invite("https://evil.example/e/$id?by=AbCdEfGhIjKlMnOpQrSt_-"))
+        // Зіпсований токен не ламає саме посилання: подія відкривається звичайною.
+        assertEquals(id, EventLinks.eventId("https://poriad.app/e/$id?by=short"))
+    }
 }

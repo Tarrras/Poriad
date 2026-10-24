@@ -8,10 +8,9 @@
 import { displayTitle, overline, stubParts, price, httpsOrNull, esc, CATEGORIES, playUrl } from "../site/js/poriad.js";
 export { esc };
 
-// Мітка ct=event: завантаження зі сторінок подій окремо від сайту (site/js/poriad.js).
-const APP_STORE_URL = "https://apps.apple.com/app/apple-store/id6813543772?pt=129478154&ct=event&mt=8";
-// Порожньо, коли в site/js/poriad.js вимкнено PLAY_LIVE: тоді кнопку Google Play не показуємо. Мітка utm — event.
-const PLAY_URL = playUrl("event");
+// Мітка ct: завантаження зі сторінок подій (event) і з запрошень (invite) окремо від сайту (site/js/poriad.js).
+const appStoreUrl = (ct) => `https://apps.apple.com/app/apple-store/id6813543772?pt=129478154&ct=${ct}&mt=8`;
+// Порожньо, коли в site/js/poriad.js вимкнено PLAY_LIVE: тоді кнопку Google Play не показуємо. Мітка utm — та сама.
 const IOS_APP_ID = "QTYQMJ94D2.app.poriad.ios";
 // Play Console → Test and release → App integrity → App signing: SHA-256 ключа підпису застосунку
 // (збірки з Play) і ключа завантаження (локальні prodRelease). Без них Android відкриває посилання в браузері.
@@ -21,8 +20,11 @@ const ANDROID_CERT_FINGERPRINTS = [
 ];
 const CACHE_SECONDS = 300;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-// Хеш єдиного вбудованого скрипта (кнопка «Поділитися» внизу eventPage); worker/test.mjs звіряє його з текстом.
-export const SHARE_SCRIPT_HASH = "sha256-+OMlclOt3WjumM9V/xC1Thxi7720WWamOx2Q9R1RPO0=";
+// Токен «Покликати з собою» (docs/invites.md): 128 біт у base64url.
+const INVITE = /^[A-Za-z0-9_-]{22}$/;
+// Хеш єдиного вбудованого скрипта (кнопка «Поділитися» внизу eventPage: ділиться адресою без запрошення — хто ділиться
+// зі сторінки, той не кличе); worker/test.mjs звіряє його з текстом. Не експорт: workerd приймає з модуля лише обробники.
+const SHARE_SCRIPT_HASH = "sha256-jSzQzkOzijHE4QQonaYxQFjt59YF0NEivzZqmyVNC6g=";
 // Обкладинки — з сайтів продавців, тож img-src https:; маячок Cloudflare Web Analytics Cloudflare вставляє в сторінку
 // сам (скрипт зі static.cloudflareinsights.com, дані — на cloudflareinsights.com); решта — лише свій домен.
 const SECURITY_HEADERS = {
@@ -44,6 +46,12 @@ export default {
     if (!match) return fetch(request);
     if (request.method !== "GET" && request.method !== "HEAD") return new Response(null, { status: 405 });
 
+    // Запрошення: сторінка з ім'ям того, хто кличе, особиста — повз спільний кеш в обидва боки. Невідомий чи
+    // протухлий токен дає звичайну сторінку з кешу.
+    const by = url.searchParams.get("by");
+    const inviter = by && INVITE.test(by) ? await inviterOf(by, match[1], env) : null;
+    if (inviter) return eventResponse(match[1], env, { by, name: inviter });
+
     // Telegram, месенджери й люди відкривають одне посилання хвилями: кеш на краю, а не запит у базу щоразу.
     // Ключ у нижньому регістрі: UUID приймаємо без огляду на регістр, тож варіанти однієї адреси не оминають кеш.
     const cacheKey = new Request(url.origin + url.pathname.toLowerCase());
@@ -55,7 +63,24 @@ export default {
   },
 };
 
-export async function eventResponse(id, env) {
+/** Ім'я того, хто кличе, або null: збій бази тут не помилка, а звичайна сторінка. */
+async function inviterOf(token, id, env) {
+  if (!UUID.test(id)) return null;
+  try {
+    const response = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/invite_inviter`, {
+      method: "POST",
+      headers: { apikey: env.SUPABASE_KEY, "content-type": "application/json" },
+      body: JSON.stringify({ p_token: token, p_event_id: id }),
+    });
+    const name = response.ok ? (await response.json())?.[0]?.name : null;
+    return typeof name === "string" && name.trim() ? name.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
+/** [invite] — `{ by, name }` запрошення, що вже пройшло перевірку: сторінка особиста й не кешується спільно. */
+export async function eventResponse(id, env, invite = null) {
   if (!UUID.test(id)) return html(notFoundPage(), 404);
   const rpc = (name) => fetch(`${env.SUPABASE_URL}/rest/v1/rpc/${name}`, {
     method: "POST",
@@ -69,14 +94,19 @@ export async function eventResponse(id, env) {
   if (!Array.isArray(rows) || rows.length === 0) return html(notFoundPage(), 404);
   // Злиту подію (docs/event-offers.md, R2) база віддає під живим id: стара адреса переїжджає назавжди.
   const live = String(rows[0].id ?? "");
-  if (UUID.test(live) && live.toLowerCase() !== id.toLowerCase()) return Response.redirect(`https://poriad.app/e/${live}`, 301);
+  if (UUID.test(live) && live.toLowerCase() !== id.toLowerCase()) {
+    return Response.redirect(`https://poriad.app/e/${live}${invite ? `?by=${invite.by}` : ""}`, 301);
+  }
   // Укриття — доповнення: збій чи стара база без event_safety лише ховають секцію.
   const shelters = safety?.ok ? ((await safety.json().catch(() => null))?.shelters ?? []) : [];
-  return html(eventPage(rows[0], new Date(), shelters), 200);
+  return html(eventPage(rows[0], new Date(), shelters, invite), 200, Boolean(invite));
 }
 
-export function eventPage(e, now, shelters = []) {
+export function eventPage(e, now, shelters = [], invite = null) {
   const link = `https://poriad.app/e/${e.id}`;
+  // Запрошення несе токен далі: у застосунок кнопкою й банером Safari, у стори — міткою invite.
+  const by = invite ? `?by=${invite.by}` : "";
+  const ct = invite ? "invite" : "event";
   const title = displayTitle(e.title);
   const tz = e.time_zone || "Europe/Kyiv";
   // Імпорт часто вже пише місто в адресі: «Київ, …, м. Київ» читається як помилка.
@@ -120,17 +150,18 @@ export function eventPage(e, now, shelters = []) {
   ];
 
   return layout({
-    title,
+    // «Тарас кличе тебе: …» — і в прев'ю месенджера.
+    title: invite ? `${invite.name} кличе тебе: ${title}` : title,
     description: [when, place].filter(Boolean).join(" · "),
     image: image || "https://poriad.app/img/og.png",
     url: link,
     // Поки в політиці не сказано, що події індексуються пошуковиками, сторінки — лише за посиланням.
     head: `<meta name="robots" content="noindex">
-<meta name="apple-itunes-app" content="app-id=${APP_STORE_URL.match(/id(\d+)/)[1]}, affiliate-data=ct=event&amp;pt=129478154, app-argument=${link}">
+<meta name="apple-itunes-app" content="app-id=6813543772, affiliate-data=ct=${ct}&amp;pt=129478154, app-argument=${link}${by}">
 ${ticketUrl ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""}`,
     body: `<article class="sheet-box">
   <header class="cover-big cat-${category}"><div class="art cat-${category}">${icon(category, "glyph")}${image ? `<img src="${esc(image)}" alt="" referrerpolicy="no-referrer">` : ""}</div>
-    <p class="quiet"><span class="genre-word">${esc(CATEGORIES[category])}</span> · ${esc(imported ? `Афіша${sellers ? ` · ${sellers}` : ""}` : "Від людей")}${e.min_age ? ` · ${Number(e.min_age)}+` : ""}</p><h1>${esc(title)}</h1>
+    ${invite ? `<p class="quiet"><b>${esc(invite.name)}</b> кличе тебе</p>` : ""}<p class="quiet"><span class="genre-word">${esc(CATEGORIES[category])}</span> · ${esc(imported ? `Афіша${sellers ? ` · ${sellers}` : ""}` : "Від людей")}${e.min_age ? ` · ${Number(e.min_age)}+` : ""}</p><h1>${esc(title)}</h1>
   </header>
   <div class="detail">
     ${notice ? `<p class="notice${calm ? " calm" : ""}">${notice}</p>` : ""}
@@ -138,7 +169,7 @@ ${ticketUrl ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""}`,
     <div class="actions">
       <a href="${maps}" rel="noopener"><i>${icon("pin")}</i>Маршрут</a>
       <button type="button" data-share><i>${icon("share")}</i>Поділитися</button>
-      <a href="poriad://event/${e.id}"><i>${icon("bookmark")}</i>У «Поряд»</a>
+      <a href="poriad://event/${e.id}${by}"><i>${icon("bookmark")}</i>У «Поряд»</a>
       <a href="/afisha.html${e.city && e.city !== "Київ" ? `?city=${encodeURIComponent(e.city)}` : ""}"><i>${icon("map")}</i>Афіша</a>
     </div>
     <div class="facts">${facts.map(([label, value, sub]) => `<div><span class="overline">${label}</span><b>${esc(value)}</b>${sub && sub !== value ? `<small>${esc(sub)}</small>` : ""}</div>`).join("")}</div>
@@ -149,11 +180,11 @@ ${ticketUrl ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""}`,
     ${live ? sheltersSection(shelters) : ""}
     <div class="app-only"><b>${imported ? "Підете? Не забудьте" : "Приєднатися — в застосунку"}</b>
       <ul><li>${icon("bell")}Нагадування за годину до початку</li><li>${icon("people")}«Шукаю компанію» — знайдіть, з ким піти</li><li>${icon("map")}Що ще відбувається поряд — на мапі</li></ul>
-      <div class="stores">${storeButtons()}</div></div>
+      <div class="stores">${storeButtons(ct)}</div></div>
   </div>
   <div class="bar"><div class="ticket cat-${category}"><div class="face"><div class="top"><div class="meta">${spots ? "" : "<small>Ціна</small>"}<span>${esc(cost || spots || "Вхід уточнюйте")}</span></div>
     ${ticketUrl && live ? `<a class="btn primary" href="${esc(ticketUrl)}" rel="nofollow noopener">Квитки${e.source_name ? ` на ${esc(e.source_name)}` : ""}</a>`
-      : `<a class="btn primary" href="/app?from=event">${imported ? "Завантажити «Поряд»" : "Приєднатися в застосунку"}</a>`}</div></div>
+      : `<a class="btn primary" href="/app?from=${ct}">${imported ? "Завантажити «Поряд»" : "Приєднатися в застосунку"}</a>`}</div></div>
     <div class="stub" role="img" aria-label="${esc(overline(e, now, true))}"><b class="t">${esc(stubTime)}</b><small>${esc(stubDay)}</small></div></div></div>
 </article>`,
   });
@@ -216,9 +247,10 @@ export function notFoundPage(message = "Подію не знайдено: її �
   });
 }
 
-function storeButtons() {
-  return `<a class="store" href="${APP_STORE_URL}">${icon("apple")}<span><small>Завантажити в</small>App Store</span></a>
-    ${PLAY_URL ? `<a class="store play" href="${PLAY_URL}">${icon("play")}<span><small>Завантажити з</small>Google Play</span></a>` : ""}`;
+function storeButtons(ct = "event") {
+  const play = playUrl(ct);
+  return `<a class="store" href="${appStoreUrl(ct)}">${icon("apple")}<span><small>Завантажити в</small>App Store</span></a>
+    ${play ? `<a class="store play" href="${play}">${icon("play")}<span><small>Завантажити з</small>Google Play</span></a>` : ""}`;
 }
 
 const icon = (name, cls = "ico") => `<svg class="${cls}" aria-hidden="true"><use href="/img/icons.svg#i-${name}"/></svg>`;
@@ -254,9 +286,10 @@ ${head}
   <nav aria-label="Документи"><a href="/afisha.html">Афіша</a><a href="/privacy.html">Конфіденційність</a><a href="/terms.html">Умови</a></nav></div></footer>
 <script>
 document.querySelector("[data-share]")?.addEventListener("click", async () => {
-  const data = { title: document.title, url: location.href };
+  const url = location.origin + location.pathname;
+  const data = { title: document.querySelector("h1")?.textContent || document.title, url };
   if (navigator.share) { try { await navigator.share(data); } catch {} return; }
-  try { await navigator.clipboard.writeText(location.href); alert("Посилання скопійовано"); } catch { prompt("Посилання на подію", location.href); }
+  try { await navigator.clipboard.writeText(url); alert("Посилання скопійовано"); } catch { prompt("Посилання на подію", url); }
 });
 </script>
 </body>
@@ -275,9 +308,11 @@ function androidAssociation() {
 }
 
 
-function html(body, status) {
+function html(body, status, personal = false) {
   // 404 — на хвилину: випадкові /e/<uuid> інакше щоразу ходили б у базу. 503 не кешуємо: збій бази мине.
-  const cache = status === 200 ? `public, max-age=${CACHE_SECONDS}` : status === 404 ? "public, max-age=60" : "no-store";
+  // Сторінка запрошення — лише браузеру того, хто відкрив: проміжні кеші її не тримають.
+  const cache = personal ? `private, max-age=${CACHE_SECONDS}` : status === 200 ? `public, max-age=${CACHE_SECONDS}`
+    : status === 404 ? "public, max-age=60" : "no-store";
   return new Response(body, {
     status,
     headers: { "content-type": "text/html; charset=utf-8", "cache-control": cache, ...SECURITY_HEADERS },
