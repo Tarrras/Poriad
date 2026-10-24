@@ -29,8 +29,8 @@ class DistrictTest {
     /** «Київський», «київський р-н», «КИЇВ» — той самий район; кожне слово — початок слова назви. */
     @Test
     fun matchesWordPrefixes() {
-        val kyivskyi = district("Київський район", aliases = listOf("Киевский район"))
-        listOf("Київський", "київський район", "Київський р-н", "  КИЇВ ", "ки", "район київ", "Киевский").forEach {
+        val kyivskyi = district("Київський район")
+        listOf("Київський", "київський район", "Київський р-н", "  КИЇВ ", "ки", "район київ").forEach {
             assertTrue(kyivskyi.matches(it), it)
         }
         listOf("Приморський", "ський", "київська", "к", "", "   ").forEach {

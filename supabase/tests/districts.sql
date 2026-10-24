@@ -4,7 +4,7 @@ begin;
 insert into public.districts (id, city, name, former_name, aliases, boundary) values
  (-1, 'Ocean', 'Альфа район', null, '{}',
   gis.st_multi(gis.st_geomfromtext('POLYGON((0 0,1 0,1 1,0 1,0 0),(0.4 0.4,0.6 0.4,0.6 0.6,0.4 0.6,0.4 0.4))', 4326))),
- (-2, 'Ocean', 'Бета район', 'Гамма район', '{Бетка,Бэта район}',
+ (-2, 'Ocean', 'Бета район', 'Гамма район', '{Бетка,Стара Бета}',
   gis.st_multi(gis.st_geomfromtext('POLYGON((1 0,2 0,2 1,1 1,1 0))', 4326)));
 do $$ begin
  insert into public.districts (id, city, name, boundary)
@@ -18,7 +18,7 @@ do $$ declare d jsonb := public.city_districts('Ocean'); begin
  assert d->0->>'name' = 'Альфа район' and d->1->>'name' = 'Бета район', 'by name';
  assert jsonb_array_length(d->0->'rings') = 2, 'outer ring and the hole';
  assert d->0->'former' = 'null'::jsonb and d->0->'aliases' = '[]'::jsonb, 'nothing to remind';
- assert d->1->>'former' = 'Гамма район' and d->1->'aliases' = '["Бетка","Бэта район"]'::jsonb, 'former name and aliases';
+ assert d->1->>'former' = 'Гамма район' and d->1->'aliases' = '["Бетка","Стара Бета"]'::jsonb, 'former name and aliases';
  assert d->1->'rings'->0->0 = '[1, 0]'::jsonb, 'lon, lat';
  assert public.city_districts('Nowhere') = '[]'::jsonb, 'unknown city is empty';
  begin perform * from public.districts; raise exception 'anon reads districts'; exception when insufficient_privilege then null; end;

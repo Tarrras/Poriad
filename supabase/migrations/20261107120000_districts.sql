@@ -10,7 +10,7 @@ create table public.districts (
  name text not null check (length(name) between 1 and 100),
  -- Назва до нещодавнього перейменування (Малиновський → Хаджибейський): пошук нагадує «раніше …». Null — не перейменовували.
  former_name text check (length(former_name) between 1 and 100),
- -- Лише для пошуку, не показуємо: назви до 2016 року, звичні («Оболонь»), російські з OSM.
+ -- Лише для пошуку, не показуємо: назви до 2016 року і звичні («Оболонь»). Російських назв нема.
  aliases text[] not null default '{}',
  -- Спрощені межі (~10 м), без щілин між сусідами: спільний шлях OSM спрощується однаково.
  boundary gis.geometry(MultiPolygon,4326) not null check (gis.st_isvalid(boundary)),

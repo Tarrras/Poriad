@@ -124,9 +124,9 @@ def district(city: str, relation: dict) -> dict:
             if member["type"] == "way" and member.get("role", "") in ("outer", "inner", "") and member.get("geometry")]
     # Простий перебір: шляхів одного міста кілька сотень, а один шлях дає однакове спрощення в обох районах.
     shaped = [ring for ring in rings([simplify(way, TOLERANCE) for way in ways]) if len(ring) >= 4]
-    aliases = [*ALIASES.get((city, name), [])]
-    for key in ("old_name", "name:ru"):
-        aliases += [value.strip() for value in (tags.get(key) or "").split(";") if value.strip()]
+    # Російських назв (`name:ru`) не беремо: інтерфейс і пошук — українською.
+    aliases = [*ALIASES.get((city, name), []),
+               *(value.strip() for value in (tags.get("old_name") or "").split(";") if value.strip())]
     former = FORMER.get((city, name))
     return {
         "id": relation["id"], "city": city, "name": name, "former": former,
@@ -198,7 +198,7 @@ def _self_check() -> None:
                                                                           {"lat": 1, "lon": 1}]},
                             {"type": "way", "role": "outer", "geometry": [{"lat": 1, "lon": 1}, {"lat": 0, "lon": 0}]}]}
     d = district("Одеса", relation)
-    assert d["former"] == "Суворовський район" and d["aliases"] == ["Пересыпский район"] and len(d["rings"]) == 1, d
+    assert d["former"] == "Суворовський район" and d["aliases"] == [] and len(d["rings"]) == 1, d
     assert "'Солом''янка'" in sql([{**d, "aliases": ["Солом'янка"]}])
 
 

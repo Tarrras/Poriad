@@ -167,14 +167,14 @@ class EventDtoTest {
     /** `city_districts`: кільця `[[lon, lat], …]` стають пласкими, `former: null` — без колишньої назви. */
     @Test fun aDistrictRowParses() {
         val district = json.decodeFromString<List<DistrictDto>>(
-            """[{"id":2944314,"name":"Київський район","former":null,"aliases":["Киевский район"],
+            """[{"id":2944314,"name":"Оболонський район","former":null,"aliases":["Оболонь"],
                 "rings":[[[30.0,46.0],[31.0,46.0],[31.0,47.0],[30.0,47.0],[30.0,46.0]]]}]"""
-        ).single().domain("Одеса")
-        assertEquals("Одеса", district.city)
+        ).single().domain("Київ")
+        assertEquals("Київ", district.city)
         assertNull(district.formerName)
         assertEquals(listOf(30.0, 46.0, 31.0, 46.0), district.rings.single().take(4))
         assertTrue(district.contains(latitude = 46.5, longitude = 30.5))
-        assertTrue(district.matches("Киевский"))
+        assertTrue(district.matches("Оболонь"))
     }
 
     /** `my_follows`: `jsonb_strip_nulls` не шле порожнє, а невідомий рід (сервер новіший) — не рядок списку. */
