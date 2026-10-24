@@ -591,6 +591,10 @@ extension EventDetailView {
                     Text(hint).font(PoruchFont.bodyText).foregroundStyle(Palette.ink).fixedSize(horizontal: false, vertical: true)
                 }
             }
+            if let report = listing.sellerReport {
+                Text(report.reported == .postponed ? Copy.seller_reported_postponed(report.sourceName) : Copy.seller_reported_cancelled(report.sourceName))
+                    .font(PoruchFont.bodyText).foregroundStyle(Palette.ink).fixedSize(horizontal: false, vertical: true)
+            }
             if !sellers.isEmpty {
                 Text((refund ? Copy.sellers_refund_title : Copy.listing_price_label).uppercased())
                     .font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)

@@ -118,6 +118,8 @@ select pg_temp.ingest(jsonb_build_array(pg_temp.w('test_chg_a','one','Один �
  pg_temp.w('test_chg_a','pp','Відкладена',pg_temp.t()),
  pg_temp.w('test_chg_a','mv','Перенесена',pg_temp.t())));
 select pg_temp.ingest(jsonb_build_array(pg_temp.c('test_chg_b','two_b','Два продавці',pg_temp.t(),'two')));
+-- Другий продавець уже не продає: свіжий продаж проти «скасовано» — конфлікт (20261104130000_seller_report).
+update public.event_offers set status = 'withdrawn', updated_at = now() where id = (pg_temp.offer('two_b')).id;
 select pg_temp.save('a','one'), pg_temp.save('a','two'), pg_temp.save('a','pp'), pg_temp.save('a','mv');
 select pg_temp.chk('one','cancelled','{"raw":"EventCancelled"}');
 select pg_temp.chk('two','cancelled','{"raw":"EventCancelled"}');
@@ -275,6 +277,8 @@ end $$;
 select pg_temp.flush();
 
 -- Скасування закриває збір; виправлення (після двох поспіль — це вже друга зміна після виправлення) відкриває.
+-- Другий продавець уже не продає: свіжий продаж проти «скасовано» — конфлікт (20261104130000_seller_report).
+update public.event_offers set status = 'withdrawn', updated_at = now() where id = (pg_temp.offer('pa_b')).id;
 select pg_temp.chk('pa','cancelled','{"raw":"EventCancelled"}');
 select pg_temp.chk('pa','cancelled','{"raw":"EventCancelled"}');
 do $$ begin

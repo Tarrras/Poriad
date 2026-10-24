@@ -95,6 +95,15 @@ class EventFacetsTest {
         assertEquals(listOf("Concert.ua", "Karabas", "Badseller"), many.sellers.map { it.sourceName }, "no link, no button")
     }
 
+    @Test fun aSellerReportShowsOnlyWhileTheEventStands() {
+        val report = Offer("Badseller", "https://badseller.net/1", live = false, reported = ListingState.CANCELLED)
+        val disputed = afisha.copy(offers = listOf(Offer("Concert.ua", "https://concert.ua/1", 400.0), report))
+        assertEquals(report, disputed.sellerReport)
+        assertTrue(disputed.needsAttention && !disputed.isWithdrawn, "the event stands, the tickets block comes first")
+        assertNull(disputed.copy(state = ListingState.CANCELLED).sellerReport, "cancelled: the stamp already says it")
+        assertFalse(afisha.needsAttention)
+    }
+
     @Test fun checkedLabelSaysTodayYesterdayOrTheDate() {
         val zone = kotlinx.datetime.TimeZone.of("Europe/Kyiv")
         val now = kotlin.time.Instant.parse("2030-09-06T12:00:00Z")

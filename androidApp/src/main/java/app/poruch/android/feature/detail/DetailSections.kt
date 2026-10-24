@@ -312,6 +312,15 @@ internal fun Tickets(state: DetailState, listing: Listing, onIntent: (DetailInte
             TicketStamp(text, tone)
             stateHint(event, listing)?.let { Text(it, style = MaterialTheme.typography.bodyLarge, color = colors.ink) }
         }
+        listing.sellerReport?.let { report ->
+            Text(
+                stringResource(
+                    if (report.reported == ListingState.POSTPONED) R.string.seller_reported_postponed else R.string.seller_reported_cancelled,
+                    report.sourceName
+                ),
+                style = MaterialTheme.typography.bodyLarge, color = colors.ink
+            )
+        }
         if (sellers.isNotEmpty()) {
             Text(
                 stringResource(if (refund) R.string.sellers_refund_title else R.string.listing_price_label).uppercase(),

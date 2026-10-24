@@ -196,12 +196,12 @@ struct EventDetailView: View, Equatable {
                 .accessibilityElement(children: .combine)
             }
             // Щось сталось — стан і продавці першими: по них сюди й прийшли.
-            if let listing = view.listing, listing.isWithdrawn || listing.isMoved { tickets(event, listing, view) }
+            if let listing = view.listing, listing.needsAttention { tickets(event, listing, view) }
             externalActions(event, view)
             if view.sessions.count > 1 { sessionRail(event, view.sessions) }
             if !event.artists.isEmpty { lineup(event) }
             facts(event)
-            if let listing = view.listing, !listing.isWithdrawn && !listing.isMoved { tickets(event, listing, view) }
+            if let listing = view.listing, !listing.needsAttention { tickets(event, listing, view) }
             if !view.companions.isEmpty && !view.cancelled { companionsSection(view) }
             if let room = view.room { people(room, view) }
             venue(event, view)

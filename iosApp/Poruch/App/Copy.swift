@@ -580,6 +580,8 @@ enum Copy {
     static let state_postponed_hint = "Нової дати ще нема. Квиток повертають там, де купували, або тримають до нової дати."
     static func state_moved_hint(_ a0: String) -> String { "Було \(a0). Якщо нова дата не підходить, квиток повертають там, де купували." }
     static let state_unknown_hint = "Жоден продавець більше не продає квитки на цю дату. Можливо, подію скасували чи перенесли — перевірте у продавця."
+    static func seller_reported_cancelled(_ a0: String) -> String { "Один із продавців, \(a0), повідомив про скасування. Інші ще продають квитки — перевірте, перш ніж іти." }
+    static func seller_reported_postponed(_ a0: String) -> String { "Один із продавців, \(a0), повідомив про відкладення. Інші ще продають квитки — перевірте, перш ніж іти." }
     static func checked_today(_ a0: String) -> String { "Перевірено сьогодні о \(a0)" }
     static func checked_yesterday(_ a0: String) -> String { "Перевірено вчора о \(a0)" }
     static func checked_date(_ a0: String) -> String { "Перевірено \(a0)" }

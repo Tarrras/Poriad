@@ -131,9 +131,10 @@ end $$;
 select pg_temp.ingest(jsonb_build_array(pg_temp.w('test_state_a','s1a','Концерт Один',pg_temp.t())));
 select pg_temp.ingest(jsonb_build_array(pg_temp.c('test_state_b','s1b','Концерт Один',pg_temp.t(),'s1a')));
 insert into public.saved_events(user_id,event_id) values (current_setting('test.a')::uuid, pg_temp.ev('s1a'));
+-- Інший продавець зняв подію з продажу. Якби свіжо продавав — це конфлікт (розділ 12, рішення 24.10).
+update public.event_offers set status = 'withdrawn', updated_at = now() where id = (pg_temp.offer('s1b')).id;
 create temp table seen_before on commit drop as select pg_temp.seen('s1a') v;
 select pg_temp.chk('s1a','cancelled','{"raw":"EventCancelled","sold_out":false}');
-select pg_temp.chk('s1b','scheduled','{"raw":"EventScheduled","sold_out":true}');   -- інший продавець продає (слабке)
 select pg_temp.chk('s1a','cancelled','{"raw":"EventCancelled","sold_out":false}');  -- повтор
 select pg_temp.chk('s1a','gone','{}',404);                                           -- сторінку прибрали
 do $$ declare s private.event_state := pg_temp.st('s1a'); w record; begin
@@ -390,10 +391,17 @@ insert into private.event_state(event_id, state, starts_at, state_changed_at) va
 do $$ begin
  assert (pg_temp.st('l1a')).state = 'scheduled' and (pg_temp.st('l1a')).conflicts = 1
    and pg_temp.due('l1a', now() + interval '2 hours') = 'conflict', 'stale postponed vs a fresh seller: conflict, recheck';
- assert (pg_temp.st('l3a')).state = 'postponed', 'fresh postponed still wins';
+ -- 24.10 (20261104130000): і свіже «відкладено» проти свіжого продавця — конфлікт, а клієнт бачить, що каже Б.
+ assert (pg_temp.st('l3a')).state = 'scheduled' and (pg_temp.st('l3a')).conflicts = 1, 'fresh postponed vs a fresh seller: conflict';
+ assert (select o->>'says' from public.event_details(pg_temp.ev('l3a')) d, jsonb_array_elements(d.offers) o
+         where o->>'source' = 'Продавець Б') = 'postponed'
+   and (select count(*) from public.event_details(pg_temp.ev('l3a')) d, jsonb_array_elements(d.offers) o where o ? 'says') = 1,
+   'client sees which seller reported it';
+ assert (select r.change from private.event_state_rule('scheduled', pg_temp.t(), jsonb_build_array(
+   pg_temp.o('cancelled', p_slug => 'b'), pg_temp.o('listed', p_fresh => true))) r) = 'conflict', 'fresh cancel vs a fresh seller';
  assert private.refresh_event_state(pg_temp.ev('l2a'), 'правила R4 24.10') = 'corrected'
    and (pg_temp.st('l2a')).state = 'scheduled' and (pg_temp.st('l2a')).starts_at = pg_temp.t(), 'applied stale postponed withdrawn';
- assert not exists (select 1 from private.event_state_log where event_id in (pg_temp.ev('l1a'), pg_temp.ev('l2a')) and would_push),
+ assert not exists (select 1 from private.event_state_log where event_id in (pg_temp.ev('l1a'), pg_temp.ev('l2a'), pg_temp.ev('l3a')) and would_push),
    'nothing would be sent';
 end $$;
 
