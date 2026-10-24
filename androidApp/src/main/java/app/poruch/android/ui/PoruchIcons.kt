@@ -1384,6 +1384,30 @@ object PoruchIcons {
             .build()
     }
 
+    /** Район: нерівна межа з точкою всередині. Не пін: пін — одне місце, район — частина міста. */
+    val district: ImageVector by lazy {
+        builder("district")
+            .fill {
+                moveTo(10.1f, 12f)
+                curveTo(10.1f, 10.951f, 10.951f, 10.1f, 12f, 10.1f)
+                curveTo(13.049f, 10.1f, 13.9f, 10.951f, 13.9f, 12f)
+                curveTo(13.9f, 13.049f, 13.049f, 13.9f, 12f, 13.9f)
+                curveTo(10.951f, 13.9f, 10.1f, 13.049f, 10.1f, 12f)
+                close()
+            }
+            .stroke {
+                moveTo(5f, 7f)
+                lineTo(11f, 3.8f)
+                lineTo(17.5f, 5.5f)
+                lineTo(20.5f, 11f)
+                lineTo(18f, 19f)
+                lineTo(10.5f, 20.3f)
+                lineTo(4f, 15.5f)
+                close()
+            }
+            .build()
+    }
+
     /** Компас: знайти на мапі. */
     val compass: ImageVector by lazy {
         builder("compass")

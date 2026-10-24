@@ -41,6 +41,9 @@ internal class DiscoveryEngine(
     /** Пошук закладів мапи. Кожен новий скасовує попередній: останній запит виграє. */
     private val placesJob = LatestJob(scope)
 
+    /** Межі районів міста на екрані. Інше місто скасовує запит попереднього. */
+    private val districtsJob = LatestJob(scope)
+
     /** Не [LatestJob]: сеанси для інших id не скасовують попередні, див. [prefetch]. */
     private var sessionsJob: Job? = null
     private var sessionsWanted: Set<String> = emptySet()
@@ -82,6 +85,7 @@ internal class DiscoveryEngine(
         if (home) homeFeed.search()
         val snapshot = query
         searchPlaces(snapshot)
+        loadDistricts()
         searchJob.launch {
             store.update {
                 it.copy(
@@ -151,6 +155,67 @@ internal class DiscoveryEngine(
     }
 
     /**
+     * Райони міста на екрані, раз на місто: межі змінюються рідше за релізи. Збій — районів нема до наступного запиту
+     * мапи, решта пошуку працює: райони доповнюють видачу, банер за них був би зайвим.
+     */
+    private fun loadDistricts() {
+        val city = store.value.city.name
+        if (store.value.city.districtsOf == city || districtsJob.active) return
+        districtsJob.launch {
+            val found = try {
+                events.districts(city)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                PoruchLog.w("discovery") { "districts of $city failed: ${e.asAppError()}" }
+                return@launch
+            }
+            store.update {
+                if (it.city.name != city) it else it.copy(city = it.city.copy(districts = found, districtsOf = city))
+            }
+        }
+    }
+
+    /**
+     * Район з пошуку мапи чи головної ([from]: `map` / `home`): мапа, список і лічильники звужуються до нього фільтром
+     * екрана, як категорією. Текст пошуку знімаємо, як для закладу: інакше в районі лишились би лише події зі словом.
+     * Накреслена область («Шукати тут») повертається до міста: район — частина міста, а не тієї області. [shown] — число
+     * з рядка пошуку, для аналітики: чи не ведуть людей у порожні райони.
+     */
+    fun selectDistrict(district: District, from: String, shown: Int) {
+        debounceJob.cancel(); placesJob.cancel()
+        PoruchLog.i("discovery") { "district ${district.name} from $from" }
+        PoruchAnalytics.track("district_select", "city" to district.city, "district" to district.name, "from" to from, "events" to shown)
+        val reload = query.text != null || store.value.city.custom
+        val area = homeFeed.area
+        query = query.copy(south = area.south, west = area.west, north = area.north, east = area.east, text = null)
+        queryChanged()
+        store.update {
+            it.copy(
+                map = it.map.copy(searchText = "", places = emptyList(), artists = emptyList(), district = district),
+                city = it.city.copy(custom = false)
+            )
+        }
+        // Без тексту й власної області видача та сама: район екран відбирає з того, що є, як категорію.
+        if (reload) refresh(home = false) else if (!searchJob.active) answer(query)
+    }
+
+    /** Назад до всього міста: «✕» на чипі ([via] `chip`) чи «Усе місто» в порожньому районі (`empty`). */
+    fun clearDistrict(via: String) {
+        if (store.value.map.district == null) return
+        queryChanged()
+        dropDistrict(via)
+        if (!searchJob.active) answer(query)
+    }
+
+    /** Знімає район, коли людина обрала ширшу область: місто, заклад, «Шукати тут», «Усі N». Номер запиту росте в того, хто кличе. */
+    private fun dropDistrict(via: String) {
+        val district = store.value.map.district ?: return
+        PoruchAnalytics.track("district_clear", "city" to district.city, "via" to via)
+        store.update { it.copy(map = it.map.copy(district = null)) }
+    }
+
+    /**
      * Тап по закладу в пошуку мапи чи головної: мапа без тексту пошуку переходить до закладу,
      * а коли приїде видача, [PlaceFocus.eventIds] скаже платформі, який стос відкрити. Текст
      * знімаємо, бо інакше в стосі лишились би лише події, що збіглися зі словом.
@@ -159,6 +224,8 @@ internal class DiscoveryEngine(
         debounceJob.cancel(); placesJob.cancel()
         val version = (store.value.map.placeFocus?.version ?: 0) + 1
         PoruchLog.i("discovery") { "focus place ${place.id.shortId()}" }
+        // Заклади пошуку — з усього міста: у районі такий міг би й не показатись.
+        dropDistrict("place")
         store.update {
             it.copy(
                 map = it.map.copy(
@@ -374,6 +441,7 @@ internal class DiscoveryEngine(
     /** «Шукати тут»: область лише для мапи. Головна лишається на цілому місті й не перепитує. */
     fun searchArea(south: Double, west: Double, north: Double, east: Double) {
         if (!moveTo(south, west, north, east)) return
+        dropDistrict("area")
         store.update { it.copy(city = it.city.copy(custom = true)) }
         queryChanged(); refresh(home = false)
     }
@@ -421,6 +489,7 @@ internal class DiscoveryEngine(
         debounceJob.cancel(); placesJob.cancel()
         val target = homeFeed.area.copy(available = available)
         val current = store.value
+        dropDistrict("home")
         val same =
             query == target && current.map.onlyAvailable == available && current.map.category == null &&
                     current.map.dateFilter == DateFilter.ANY && current.map.searchText.isEmpty() && !current.city.custom
@@ -523,13 +592,18 @@ internal class DiscoveryEngine(
 
     /** Місто на екрані без запису: перегляд, наступний старт його не пам'ятає. */
     private fun showCity(city: CityResult) {
+        dropDistrict("city")
+        districtsJob.cancel()
         store.update {
             it.copy(
                 city = it.city.copy(
                     name = city.name,
                     latitude = city.latitude,
                     longitude = city.longitude,
-                    suggestions = emptyList()
+                    suggestions = emptyList(),
+                    // Райони попереднього міста в пошуку нового — чужі.
+                    districts = emptyList(),
+                    districtsOf = null
                 )
             )
         }

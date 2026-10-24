@@ -36,6 +36,7 @@ import app.poruch.android.ui.PoruchColors
 import app.poruch.android.ui.categories
 import app.poruch.android.ui.categoryColor
 import app.poruch.android.ui.categoryIcon
+import app.poruch.domain.District
 import app.poruch.domain.EventCategory
 import app.poruch.domain.EventIndexEntry
 import app.poruch.domain.MapPins
@@ -49,10 +50,12 @@ import org.maplibre.android.MapLibre
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
+import org.maplibre.android.geometry.LatLngBounds
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
 import org.maplibre.android.style.expressions.Expression
+import org.maplibre.android.style.layers.LineLayer
 import org.maplibre.android.style.layers.Property
 import org.maplibre.android.style.layers.PropertyFactory
 import org.maplibre.android.style.layers.SymbolLayer
@@ -60,6 +63,7 @@ import org.maplibre.android.style.sources.GeoJsonOptions
 import org.maplibre.android.style.sources.GeoJsonSource
 import org.maplibre.geojson.Feature
 import org.maplibre.geojson.FeatureCollection
+import org.maplibre.geojson.MultiLineString
 import org.maplibre.geojson.Point
 
 data class MapBounds(val south: Double, val west: Double, val north: Double, val east: Double)
@@ -72,6 +76,10 @@ private const val PinLayer = "poruch-pin"
 private const val PinCountLayer = "poruch-pin-count"
 private const val PointLayer = "poruch-point-pin"
 private const val ChosenPointIcon = "poruch-chosen"
+private const val DistrictSource = "poruch-district"
+private const val DistrictCasingLayer = "poruch-district-casing"
+private const val DistrictLayer = "poruch-district-line"
+private const val DistrictDotIcon = "poruch-district-dot"
 /**
  * Радіус кластера в dp, той самий, що на iOS: під ширину квитка-кластера (46 × до 1,3). З 40 сусідні квитки
  * налазили й ховали числа; значно більший перетворював місто на кілька бульбашок.
@@ -129,6 +137,8 @@ val LocalSharedMapView = staticCompositionLocalOf<SharedMapView?> { null }
     centerToken: Int = 0,
     /** Інкремент завантажує стиль знову: повтор після збою. */
     retryToken: Int = 0,
+    /** Район, до якого звужено мапу: межа перфорацією, і камера стає на неї замість центру міста. */
+    district: District? = null,
     interactive: Boolean = true,
     onSelect: (String) -> Unit = {},
     /** Тап у місце з кількома подіями: усі id під пальцем. */
@@ -252,6 +262,10 @@ val LocalSharedMapView = staticCompositionLocalOf<SharedMapView?> { null }
                 )
             )
             style.addSource(GeoJsonSource(PointSource, FeatureCollection.fromFeatures(emptyList())))
+            style.addSource(GeoJsonSource(DistrictSource, FeatureCollection.fromFeatures(emptyList())))
+            // Межа під пінами: піни району лишаються над нею.
+            style.addLayer(districtCasingLayer(colors))
+            style.addLayer(districtLayer())
             style.addLayer(clusterLayer(colors))
             style.addLayer(pinLayer())
             style.addLayer(pinCountLayer(colors))
@@ -302,6 +316,15 @@ val LocalSharedMapView = staticCompositionLocalOf<SharedMapView?> { null }
         )
     }
 
+    LaunchedEffect(map, styleRevision, district) {
+        val source = map?.style?.getSourceAs<GeoJsonSource>(DistrictSource) ?: return@LaunchedEffect
+        val rings = district?.rings.orEmpty().map { ring -> (ring.indices step 2).map { Point.fromLngLat(ring[it], ring[it + 1]) } }
+        source.setGeoJson(
+            if (rings.isEmpty()) FeatureCollection.fromFeatures(emptyList())
+            else FeatureCollection.fromFeature(Feature.fromGeometry(MultiLineString.fromLngLats(rings)))
+        )
+    }
+
     // Відступи тримають обраний пін над каруселлю і під пошуком.
     LaunchedEffect(map, topInset, bottomInset) {
         val ready = map ?: return@LaunchedEffect
@@ -316,9 +339,18 @@ val LocalSharedMapView = staticCompositionLocalOf<SharedMapView?> { null }
         }
     }
 
-    LaunchedEffect(map, latitude, longitude, centerToken) {
+    // Район — межі району з полями, і «до міста» в районі теж повертає до них; вихід із району — назад до міста.
+    LaunchedEffect(map, latitude, longitude, centerToken, district?.id) {
         val ready = map ?: return@LaunchedEffect
-        val update = CameraUpdateFactory.newLatLngZoom(LatLng(latitude, longitude), centerZoom)
+        val update = district?.let {
+            // Межі з одним відступом підміняють відступи мапи: район ставав посеред усього екрана, і низ ховався під
+            // каруселлю. Тому відступи — свої з кожного боку: під пошуком і над каруселлю.
+            val margin = (DistrictMargin * density).toInt()
+            CameraUpdateFactory.newLatLngBounds(
+                LatLngBounds.from(it.north, it.east, it.south, it.west),
+                margin, (topInset.value * density).toInt() + margin, margin, (bottomInset.value * density).toInt() + margin
+            )
+        } ?: CameraUpdateFactory.newLatLngZoom(LatLng(latitude, longitude), centerZoom)
         if (reducedMotion) ready.moveCamera(update) else ready.animateCamera(update, 450)
         gestured = false
     }
@@ -434,6 +466,33 @@ private fun clusterLayer(colors: PoruchColors) = SymbolLayer(ClusterLayer, Event
 ).withFilter(Expression.has("point_count"))
 
 /** Значок і порядок залежать від обраної події: їх ставить ефект вибору в [EventMap]. */
+/**
+ * Межа району — перфорацією, як лінія відриву квитка: круглі крапки чорнилом уздовж межі. Крапки — символами, а не
+ * `line-dasharray`: пунктирний шар на Android часом не малювався зовсім, і лишалась сама підкладка. Під ними — паперова
+ * підкладка, бо на вулицях і воді тонка лінія губилась.
+ */
+private fun districtLayer() = SymbolLayer(DistrictLayer, DistrictSource).withProperties(
+    PropertyFactory.symbolPlacement(Property.SYMBOL_PLACEMENT_LINE),
+    PropertyFactory.symbolSpacing(DistrictDotSpacing),
+    PropertyFactory.iconImage(DistrictDotIcon),
+    PropertyFactory.iconAllowOverlap(true),
+    PropertyFactory.iconIgnorePlacement(true)
+)
+
+private fun districtCasingLayer(colors: PoruchColors) = LineLayer(DistrictCasingLayer, DistrictSource).withProperties(
+    PropertyFactory.lineColor(colors.surface.toArgb()),
+    PropertyFactory.lineOpacity(0.7f),
+    PropertyFactory.lineWidth(7f),
+    PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND)
+)
+
+/** Крапка перфорації межі й крок між крапками, dp. */
+private const val DistrictDot = 3.5f
+private const val DistrictDotSpacing = 8f
+
+/** Поле між межею району й краєм видимої мапи, dp: межа не липне до пошуку й каруселі. */
+private const val DistrictMargin = 24
+
 private fun pinLayer() = SymbolLayer(PinLayer, EventSource).withProperties(
     PropertyFactory.iconAnchor(Property.ICON_ANCHOR_BOTTOM),
     PropertyFactory.iconAllowOverlap(true),
@@ -475,6 +534,15 @@ private fun registerImages(context: Context, style: Style, colors: PoruchColors,
     }
     style.addImage(ChosenPointIcon, pinBitmap(context, categoryIcon(EventCategory.SOCIAL), colors.brand.toArgb(), surface, true, density))
     style.addImage(ClusterIcon, clusterTicketBitmap(context, colors.brand.toArgb(), surface, density))
+    style.addImage(DistrictDotIcon, dotBitmap(colors.ink.toArgb(), density))
+}
+
+/** Крапка перфорації межі району. */
+private fun dotBitmap(color: Int, density: Float): Bitmap {
+    val size = (DistrictDot * density).toInt().coerceAtLeast(2)
+    return Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888).also { bitmap ->
+        Canvas(bitmap).drawCircle(size / 2f, size / 2f, size / 2f, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color })
+    }
 }
 
 /**

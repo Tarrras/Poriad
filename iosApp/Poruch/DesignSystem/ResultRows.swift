@@ -217,3 +217,55 @@ struct PlacesGroup: View {
         }
     }
 }
+
+/// Рядок району в пошуку: гліф межі, назва й скільки в ньому подій міста — те число, що покаже мапа. Порожній район теж
+/// рядок: «Поки без подій» чесно каже, що район є, а подій нема. Після нещодавнього перейменування — «раніше …».
+struct DistrictRow: View {
+    let hit: DistrictHit
+    let action: () -> Void
+
+    private var subtitle: String {
+        let upcoming = Int(hit.upcoming)
+        return [upcoming > 0 ? Copy.place_upcoming(upcoming) : Copy.district_no_events,
+                hit.district.formerShort.map { Copy.district_former($0) }]
+            .compactMap { $0 }.joined(separator: " · ")
+    }
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: Space.md) {
+                PoruchIcon(glyph: PoruchIcons.district, size: 20).foregroundStyle(Palette.ink)
+                    .frame(width: 40, height: 40)
+                    .background(Palette.surfaceMuted, in: RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(hit.district.name).font(PoruchFont.brandTitle3).kerning(-0.1).foregroundStyle(Palette.ink).lineLimit(1)
+                    // Два рядки: на великому шрифті «раніше Малиновський» — саме те, за чим людина шукала, — не обрізається.
+                    Text(subtitle).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
+                        .multilineTextAlignment(.leading).lineLimit(2)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, Space.lg).padding(.vertical, Space.md)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PressableStyle(pressedScale: 1))
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// Секція «Райони» над «Місцями»: райони міста за тим самим словом. Тап — мапа в районі.
+struct DistrictsGroup: View {
+    let districts: [DistrictHit]
+    let open: (DistrictHit) -> Void
+    var body: some View {
+        VStack(alignment: .leading, spacing: Space.sm) {
+            GroupLabel(title: Copy.search_districts_group)
+            GroupedRows {
+                ForEach(Array(districts.enumerated()), id: \.element.district.id) { position, hit in
+                    if position > 0 { Divider().overlay(Palette.hairline).padding(.leading, Space.lg + 40 + Space.md) }
+                    DistrictRow(hit: hit) { open(hit) }
+                }
+            }
+        }
+    }
+}

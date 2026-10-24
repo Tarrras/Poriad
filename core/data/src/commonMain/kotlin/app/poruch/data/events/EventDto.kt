@@ -7,6 +7,7 @@ import app.poruch.domain.ArtistRole
 import app.poruch.domain.EventCategory
 import app.poruch.domain.CompanionCard
 import app.poruch.domain.CompanionParent
+import app.poruch.domain.District
 import app.poruch.domain.Event
 import app.poruch.domain.EventOrigin
 import app.poruch.domain.EventStatus
@@ -215,6 +216,21 @@ internal data class ArtistHitDto(
     val upcoming: Int = 0
 ) {
     fun domain() = ArtistHit(id, name, ArtistKind.fromKey(kind), upcoming)
+}
+
+/** Елемент відповіді `city_districts`. Кільця — `[[lon, lat], …]`, у домені — пласкі `lon, lat…`. */
+@Serializable
+internal data class DistrictDto(
+    val id: Long,
+    val name: String,
+    val former: String? = null,
+    val aliases: List<String> = emptyList(),
+    val rings: List<List<List<Double>>> = emptyList()
+) {
+    fun domain(city: String) = District(
+        id, city, name, former, aliases,
+        rings.map { ring -> DoubleArray(ring.size * 2) { i -> ring[i / 2][i % 2] } }
+    )
 }
 
 /** Елемент відповіді `search_places`. */

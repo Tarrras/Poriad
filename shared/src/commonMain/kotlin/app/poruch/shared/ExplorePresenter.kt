@@ -3,6 +3,8 @@ package app.poruch.shared
 import app.poruch.domain.ArtistHit
 import app.poruch.domain.CityResult
 import app.poruch.domain.DiscoveryRules
+import app.poruch.domain.District
+import app.poruch.domain.DistrictHit
 import app.poruch.domain.Event
 import app.poruch.domain.EventCategory
 import app.poruch.domain.EventIndexEntry
@@ -58,7 +60,7 @@ private data class NearPoint(val latitude: Double, val longitude: Double, val ac
 
 /** Стан екрана мапи: індекс для пінів, вміст шторки, фільтри й місто — усе вже пораховане. Платформа додає положення шторки, листи й камеру. */
 data class ExploreScreenState(
-    /** Що малює мапа: індекс, звужений категорією, плюс [focused], якщо її там ще нема. */
+    /** Що малює мапа: індекс, звужений районом і категорією, плюс [focused], якщо її там ще нема. */
     val mapEvents: List<EventIndexEntry> = emptyList(),
     /** Вміст шторки: стос обраного піна або вся видача. Порядок — з індексу, а з [nearMe] — від найближчої. */
     val listEntries: List<EventIndexEntry> = emptyList(),
@@ -79,6 +81,13 @@ data class ExploreScreenState(
     val places: List<Place> = emptyList(),
     /** Артисти за [searchText]: секція «Артисти» під «Місцями». */
     val artists: List<ArtistHit> = emptyList(),
+    /** Райони міста за [searchText]: секція «Райони» над «Місцями». Порожньо у стосі піна, як і заклади. */
+    val districts: List<DistrictHit> = emptyList(),
+    /**
+     * Район, до якого звужено мапу: чип у ряду фільтрів і межа на мапі. Камеру на його межі платформа ставить, коли він
+     * змінився. Null — усе місто.
+     */
+    val district: District? = null,
     val category: EventCategory? = null,
     val dateFilter: DateFilter = DateFilter.ANY,
     val onlyAvailable: Boolean = false,
@@ -123,7 +132,7 @@ data class ExploreScreenState(
     /** Чи є що довантажувати: індекс повний, картки — ні. */
     val hasMoreCards: Boolean get() = deckEvents.size < listEntries.size
     /** Лічильник шторки: з індексу, а не з завантажених карток. */
-    val listCount: Int get() = if (category == null && !stackFocused) totalFound else listEntries.size
+    val listCount: Int get() = if (category == null && district == null && !stackFocused) totalFound else listEntries.size
 
     /** Число плитки [category]: категорії без подій у [categoryCounts] нема, це нуль. Null — числа нема, див. [categoryCounts]. */
     fun countOf(category: EventCategory): Int? = categoryCounts?.let { it[category] ?: 0 }
@@ -157,8 +166,12 @@ class ExplorePresenter(
     constructor(app: PoruchApp) : this(app, CoroutineScope(SupervisorJob() + Dispatchers.Main))
 
     private val local = MutableStateFlow(ExploreLocal())
+    private var areaFrom: Pair<List<EventIndexEntry>, District?>? = null
+    /** Індекс у межах району, або весь, коли району нема. З нього — і піни, і числа плиток. */
+    private var area: List<EventIndexEntry> = emptyList()
     private var visibleFrom: Pair<List<EventIndexEntry>, EventCategory?>? = null
     private var visible: List<EventIndexEntry> = emptyList()
+    private val districtSearch = DistrictSearch()
     /** Що видно на мапі зараз: південь, захід, північ, схід. Повідомляє платформа, коли камера зупинилась. */
     private var viewport: DoubleArray? = null
 
@@ -202,6 +215,18 @@ class ExplorePresenter(
                     if (local.value.stackPoints.isEmpty()) revealNearest()
                 }
         }
+        // Район — новий фільтр з чистого аркуша, і з головної теж: стос геть. Вихід із району стос лишає: заклад і далі той самий.
+        scope.launch {
+            app.state.map { it.map.district }.distinctUntilChanged().drop(1).collect { if (it != null) resetStack() }
+        }
+        // Район лишає в списку події, чиї картки часто за краєм вікна міста: їх просимо самі — і після вибору, і коли
+        // приїхала нова видача (вибір із пошуку знімає текст і перечитує місто). Інакше карусель була б порожня, а
+        // «Тут поки тихо» — неправдою.
+        scope.launch {
+            state.map { it.district?.id to it.indexVersion }.distinctUntilChanged().collect { (district, _) ->
+                if (district != null) loadHead(DiscoveryRules.FIRST_CARDS)
+            }
+        }
         // «Ближче до мене» міняє порядок шторки: картки її нового початку просимо самі, інакше список показував би вже
         // завантажені картки з пропусками там, де найближчі ще їдуть.
         scope.launch {
@@ -238,7 +263,7 @@ class ExplorePresenter(
         // ponytail: межі всього вікна, разом зі смугою під каруселлю; відступи врахувати, якщо пін під нею лишатиме екран «порожнім».
         val (south, west, north, east) = viewport ?: return
         val shared = app.state.value
-        val shown = visibleOf(shared.map.index, shared.map.category)
+        val shown = visibleOf(inDistrict(shared.map.index, shared.map.district), shared.map.category)
         val onScreen = shown.count { it.latitude in south..north && it.longitude in west..east }
         PoruchLog.d("map") { "filter settled: ${shown.size} shown, $onScreen on screen" }
         if (shown.isEmpty() || onScreen > 0) return
@@ -291,6 +316,15 @@ class ExplorePresenter(
         app.focusPlace(place)
     }
 
+    /** Район із секції «Райони»: мапа звужується до нього. Стос знімає [init], камеру й шторку ставить платформа. */
+    fun selectDistrict(hit: DistrictHit) = app.selectDistrict(hit, fromHome = false)
+
+    /** «✕» на чипі району: знову все місто. */
+    fun clearDistrict() = app.clearDistrict(fromEmpty = false)
+
+    /** «Усе місто» в порожньому районі. Окремо від [clearDistrict] лише для аналітики: чи не ведемо в порожнечу. */
+    fun showWholeCity() = app.clearDistrict(fromEmpty = true)
+
     /**
      * Плитка категорії в шторці — та сама категорія, що у «Фільтрах»: звужує мапу, список і карусель, рахується
      * в лічильнику. Окрема категорія списку перетиналась із нею, і пін із десятьма подіями показував нуль.
@@ -299,8 +333,8 @@ class ExplorePresenter(
     fun toggleCategory(category: EventCategory) {
         val picking = app.state.value.map.category != category
         val shown = state.value
-        // Нуль у місті, а не в закладі чи під пошуком: якого жанру людям бракує, тобто куди шукати нові джерела афіші.
-        if (picking && shown.countOf(category) == 0 && !shown.stackFocused && shown.searchText.isBlank()) {
+        // Нуль у місті, а не в закладі, районі чи під пошуком: якого жанру людям бракує, тобто куди шукати нові джерела афіші.
+        if (picking && shown.countOf(category) == 0 && !shown.stackFocused && shown.district == null && shown.searchText.isBlank()) {
             PoruchAnalytics.track(
                 "empty_category", "category" to category.key, "date" to shown.dateFilter.name.lowercase(),
                 "people" to shown.onlyAvailable
@@ -335,6 +369,9 @@ class ExplorePresenter(
     private fun visibleOf(index: List<EventIndexEntry>, category: EventCategory?) =
         if (category == null) index else index.filter { it.category == category }
 
+    private fun inDistrict(index: List<EventIndexEntry>, district: District?) =
+        if (district == null) index else index.filter { district.contains(it.latitude, it.longitude) }
+
     private fun sameInputs(old: AppState, new: AppState): Boolean =
         old.map === new.map && old.cards === new.cards && old.detail === new.detail &&
             old.library === new.library && old.city === new.city && old.session === new.session
@@ -342,11 +379,18 @@ class ExplorePresenter(
     private fun derive(shared: AppState, local: ExploreLocal): ExploreScreenState {
         val index = shared.map.index
         val category = shared.map.category
-        // Індекс, звужений категорією: той самий екземпляр, поки не змінились індекс чи категорія, — мапа не переписує GeoJSON.
+        val district = shared.map.district
+        // Індекс, звужений районом, потім категорією: ті самі екземпляри, поки не змінились індекс, район чи категорія, —
+        // мапа не переписує GeoJSON, а точка в полігоні не рахується на кожну картку.
+        val inArea = areaFrom
+        if (inArea == null || inArea.first !== index || inArea.second != district) {
+            area = inDistrict(index, district)
+            areaFrom = index to district
+        }
         val from = visibleFrom
-        if (from == null || from.first !== index || from.second != category) {
-            visible = visibleOf(index, category)
-            visibleFrom = index to category
+        if (from == null || from.first !== area || from.second != category) {
+            visible = visibleOf(area, category)
+            visibleFrom = area to category
         }
         val focused = shared.detail.event
         // Сеанс прокату «вже там» через представника, інакше пін майданчика рахував би прокат двічі.
@@ -362,10 +406,11 @@ class ExplorePresenter(
         val listEntries = if (near == null) shown else shown.sortedBy {
             maxOf(metersBetween(near.latitude, near.longitude, it.latitude, it.longitude), near.accuracy)
         }
-        // Числа плиток — з того, що звужує категорія: усе місто чи точки стосу. Дату, «Від людей» і пошук уже відібрав сервер.
+        // Числа плиток — з того, що звужує категорія: місто чи район, а в стосі — його точки. Дату, «Від людей» і пошук уже
+        // відібрав сервер.
         // Без мережі чисел нема: кеш міг застаріти чи бути порожнім, а «0» на плитці сказав би, що подій нема.
         val settled = !shared.map.loading && !shared.map.offline && shared.map.answered == shared.map.queries
-        val counted = if (stackFocused) index.filter { (it.latitude to it.longitude) in local.stackPoints } else index
+        val counted = if (stackFocused) area.filter { (it.latitude to it.longitude) in local.stackPoints } else area
         val cards = shared.cards
         // [focused] без картки у видачі додається окремо.
         val deckEvents = listEntries.mapNotNull { entry -> cards[entry.id] ?: focused?.takeIf { it.id == entry.id } }
@@ -387,6 +432,8 @@ class ExplorePresenter(
             // У стосі піна заклади й артисти зайві: там уже одне місце.
             places = if (stackFocused) emptyList() else shared.map.places.map { it.countedIn(shared.home.index) },
             artists = if (stackFocused) emptyList() else shared.map.artists,
+            districts = if (stackFocused) emptyList() else districtSearch.hits(shared.map.searchText, shared.city.districts, shared.home.index),
+            district = district,
             category = category,
             dateFilter = shared.map.dateFilter,
             onlyAvailable = shared.map.onlyAvailable,

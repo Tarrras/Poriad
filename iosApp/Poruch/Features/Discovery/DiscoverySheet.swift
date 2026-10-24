@@ -115,8 +115,9 @@ struct DiscoverySheet: View {
             VStack(spacing: 0) {
                 handle
                 if !expanded {
+                    // Подій нема — лише коли порожній сам список: картки району чи категорії часто ще їдуть.
                     if deckEvents.isEmpty {
-                        if !view.loading { quietCard.padding(.horizontal, Space.page) }
+                        if !view.loading && listEntries.isEmpty { quietCard.padding(.horizontal, Space.page) }
                     } else {
                         EventDeck(
                             events: deckEvents, selectedID: view.selectedId, savedIDs: explore.savedIDs,
@@ -214,8 +215,8 @@ struct DiscoverySheet: View {
             .railContentPadding()
             // Висота — за вмістом: над порожньою карткою шторка стискала ряд, і `minimumScaleFactor` дрібнив підписи плиток.
             .fixedSize(horizontal: false, vertical: true)
-            if shownEvents.isEmpty && view.places.isEmpty && view.artists.isEmpty {
-                if view.loading {
+            if shownEvents.isEmpty && view.districts.isEmpty && view.places.isEmpty && view.artists.isEmpty {
+                if view.loading || !listEntries.isEmpty {
                     PoruchLoader().frame(maxWidth: .infinity).padding(.vertical, Space.section)
                 } else {
                     quietCard.padding(Space.page)
@@ -223,7 +224,7 @@ struct DiscoverySheet: View {
                 Spacer(minLength: 0)
             } else {
                 ScrollView {
-                    SheetRows(open: openEvent, focusPlace: focusPlace, loadMore: loadMore(reaching:))
+                    SheetRows(open: openEvent, focusPlace: focusPlace, selectDistrict: { explore.selectDistrict($0) }, loadMore: loadMore(reaching:))
                 }
                 .listOffset(Binding(get: { drag.listOffset }, set: { drag.listOffset = $0 }))
                 // Список гортається лише в повній шторці; нижче протягування піднімає її. Вимкнення
@@ -427,6 +428,8 @@ private struct StackFollowButton: View {
 private struct SheetRows: View {
     let open: (String) -> Void
     let focusPlace: (Place) -> Void
+    /// Район з пошуку. Шторку опускає `DiscoveryView`, коли район змінився: так само й для району з головної.
+    let selectDistrict: (DistrictHit) -> Void
     /// Довантажити картки, коли рядок `position` з'явився біля краю завантаженого.
     let loadMore: (Int) -> Void
     @Environment(\.appModel) private var appModel
@@ -435,6 +438,10 @@ private struct SheetRows: View {
 
     var body: some View {
         LazyVStack(spacing: Space.sm) {
+            // Райони — першими: їх у місті до десяти, і запит «Київський» найчастіше саме про район.
+            if !view.districts.isEmpty {
+                DistrictsGroup(districts: view.districts) { selectDistrict($0) }.padding(.bottom, Space.md)
+            }
             // Заклади — над подіями: список подій довгий, під ним їх ніхто б не побачив.
             if !view.places.isEmpty {
                 PlacesGroup(places: view.places) { focusPlace($0) }.padding(.bottom, Space.md)
@@ -479,21 +486,35 @@ private struct QuietCard: View {
             HStack(alignment: .firstTextBaseline, spacing: Space.sm) {
                 Text(Copy.nothing_here).font(PoruchFont.brandTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
                 Spacer(minLength: Space.sm)
-                if !query.isEmpty {
+                if !query.isEmpty, let hit = view.districts.first {
+                    // Слово — назва району: подій із ним нема, а район є. Дія — туди, а не «очистити».
+                    quietAction(Copy.show_district) { model.exploreScreen.selectDistrict(hit) }
+                } else if !query.isEmpty {
                     quietAction(Copy.clear_search) { model.app.setSearchText(query: "") }
                 } else if view.activeFilters > 0 {
                     quietAction(Copy.reset_filters_action, action: resetFilters)
+                } else if view.district != nil {
+                    // Порожній район — звичайна справа: афіша в центрі, а спальні райони часто тихі. Вихід — усе місто.
+                    quietAction(Copy.whole_city) { model.exploreScreen.showWholeCity() }
                 } else {
                     quietAction(Copy.create) { createEvent("map") }
                 }
             }
             // У стосі область мапи не допоможе: тут звужують лише фільтри.
-            Text(!query.isEmpty ? Copy.nothing_for_query(query) : view.stackFocused ? Copy.nothing_here_stack : Copy.nothing_here_hint)
+            Text(hint(query))
                 .font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(.horizontal, Space.lg).padding(.vertical, Space.md)
         .frame(maxWidth: .infinity, alignment: .leading).cardSurface()
+    }
+
+    private func hint(_ query: String) -> String {
+        if !query.isEmpty, let hit = view.districts.first { return Copy.nothing_for_query_district(query, hit.district.name) }
+        if !query.isEmpty { return Copy.nothing_for_query(query) }
+        if view.stackFocused { return Copy.nothing_here_stack }
+        if let district = view.district, view.activeFilters == 0 { return Copy.nothing_in_district(district.locative) }
+        return Copy.nothing_here_hint
     }
 
     /// Текстова дія порожньої картки: картка лежить над мапою в згорнутій шторці, повна кнопка 52 її б не вмістила.
@@ -522,5 +543,6 @@ private func distanceLabel(_ km: KotlinInt?, within: Int) -> String? {
 /// Що показує екран: пін, область рукою чи ціле місто.
 private func areaLabel(_ view: ExploreScreenState) -> String {
     if view.stackFocused { return Copy.area_stack }
+    if let district = view.district, !view.customArea { return Copy.area_district(district.locative) }
     return view.customArea ? Copy.area_custom : Copy.area_city("\(view.cityName)")
 }

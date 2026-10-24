@@ -263,6 +263,9 @@
   <string name="everywhere">Усюди</string>
   <string name="search_everywhere">Шукати усюди</string>
   <string name="search_events_group">Події · %1$d</string>
+  <string name="search_districts_group">Райони</string>
+  <string name="district_no_events">Поки без подій</string>
+  <string name="district_former">раніше %1$s</string>
   <string name="search_places_group">Місця</string>
   <string name="search_artists_group">Артисти</string>
   <plurals name="place_upcoming">
@@ -288,6 +291,10 @@
   <string name="nothing_here">Тут поки тихо</string>
   <string name="nothing_here_hint">Змініть область мапи, дату або категорію — і події знайдуться.</string>
   <string name="nothing_here_stack">Під ці фільтри тут нічого нема. Скиньте їх — і побачите все, що тут є.</string>
+  <string name="nothing_in_district">У %1$s подій поки нема.</string>
+  <string name="whole_city">Усе місто</string>
+  <string name="nothing_for_query_district">Подій зі словом «%1$s» нема, а %2$s є.</string>
+  <string name="show_district">Показати район</string>
   <string name="nothing_for_query">За запитом «%1$s» подій нема. Спробуйте інше слово чи назву закладу.</string>
   <string name="reset_filters_action">Скинути фільтри</string>
   <string name="filters_reset">Фільтри скинуто</string>
@@ -897,6 +904,7 @@
   <string name="searching_scope">Шукаємо %1$s</string>
   <string name="search_scope">Пошук %1$s</string>
   <string name="area_city">Знайдіть, куди піти у місті %1$s</string>
+  <string name="area_district">Знайдіть, куди піти у %1$s</string>
   <string name="cities_with_events">Міста з подіями</string>
   <string name="city_search_prompt">Місто у світі</string>
   <string name="find_city">Знайти місто</string>
@@ -933,6 +941,8 @@
   <string name="a11y_sheet_half">Зменшити список до половини</string>
   <string name="a11y_show_list">%1$s. Показати списком</string>
   <string name="a11y_clear_category">Категорія %1$s. Зняти фільтр</string>
+  <string name="a11y_clear_district">%1$s. Показати все місто</string>
+  <string name="a11y_suggest_district">%1$s. Показати події району</string>
   <string name="a11y_city">Місто %1$s</string>
   <plurals name="show_events">
     <item quantity="one">Показати %1$d подію</item>

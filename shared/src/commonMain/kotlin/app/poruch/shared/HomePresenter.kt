@@ -3,6 +3,7 @@ package app.poruch.shared
 import app.poruch.domain.ArtistHit
 import app.poruch.domain.ChatUnread
 import app.poruch.domain.CityResult
+import app.poruch.domain.DistrictHit
 import app.poruch.domain.Event
 import app.poruch.domain.EventCategory
 import app.poruch.domain.FeedEntry
@@ -86,6 +87,8 @@ data class HomeScreenState(
     val places: List<Place> = emptyList(),
     /** Артисти за тим самим запитом: секція «Артисти» під «Місцями». */
     val artists: List<ArtistHit> = emptyList(),
+    /** Райони поточного міста за тим самим запитом: секція «Райони» над «Місцями». Тап — мапа в районі. */
+    val districts: List<DistrictHit> = emptyList(),
     val searchLoading: Boolean = false,
     /** Пошук по всіх містах, а не лише в [cityName]. Фільтри пошуку звужують лише знайдене, не стрічку. */
     val searchEverywhere: Boolean = false,
@@ -98,7 +101,7 @@ data class HomeScreenState(
     /** Скільки результатів прийшло в індексі: більше за ліміт показу — є що показати ще. */
     val resultsIndexed: Int get() = resultIds.size
     val isEmpty: Boolean get() =
-        if (searching) results.isEmpty() && places.isEmpty() && artists.isEmpty() else personal.isEmpty() && people.isEmpty() && feed.isEmpty()
+        if (searching) results.isEmpty() && districts.isEmpty() && places.isEmpty() && artists.isEmpty() else personal.isEmpty() && people.isEmpty() && feed.isEmpty()
     val busy: Boolean get() = if (searching) searchLoading else loading
     fun isSaved(id: String): Boolean = id in savedIds
     fun isWaitlisted(id: String): Boolean = id in waitlistedIds
@@ -129,6 +132,7 @@ class HomePresenter(
     constructor(app: PoruchApp) : this(app, CoroutineScope(SupervisorJob() + Dispatchers.Main))
 
     private val filter = MutableStateFlow(FeedFilter())
+    private val districtSearch = DistrictSearch()
     private val minutes = flow { while (true) { emit(Unit); delay(MINUTE_MS) } }
 
     val state: StateFlow<HomeScreenState> = combine(
@@ -219,6 +223,8 @@ class HomePresenter(
             resultsTotal = home.resultsTotal,
             places = home.places.map { it.countedIn(home.index) },
             artists = home.artists,
+            // Райони — лише поточного міста, і в пошуку «усюди» теж: межі інших міст не завантажено.
+            districts = districtSearch.hits(home.searchText, shared.city.districts, home.index),
             searchLoading = home.searchLoading,
             searchEverywhere = home.searchEverywhere,
             searchCategory = home.searchCategory,

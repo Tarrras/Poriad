@@ -55,6 +55,9 @@ interface EventDiscovery {
     /** Хто кличе на [eventId] за токеном з посилання. Null — токен чужий, протух чи подію вже не видно (docs/invites.md). */
     suspend fun inviter(token: String, eventId: String): Inviter?
 
+    /** Райони [city] з межами: пошук і фільтр мапи рахує клієнт. Сервер без міграції районів — порожньо. */
+    suspend fun districts(city: String): List<District>
+
     /** Скидає кеш попереднього акаунта. Викликати при зміні користувача. */
     fun clearPrivateCache()
 }

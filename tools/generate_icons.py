@@ -544,6 +544,12 @@ icon("flag", stroke=[[move(5.5, 21.0), line(5.5, 3.5)], [move(5.5, 4.5), line(18
 icon("copy", stroke=[rounded_rect(8.5, 8.5, 12.0, 12.0, 2.0), [move(5.5, 15.5), curve(4.4, 15.5, 3.5, 14.6, 3.5, 13.5), line(3.5, 5.5), curve(3.5, 4.4, 4.4, 3.5, 5.5, 3.5), line(13.5, 3.5), curve(14.6, 3.5, 15.5, 4.4, 15.5, 5.5)]], doc="Два аркуші: скопіювати.")
 icon("cloudOff", stroke=[[move(7.0, 18.5), curve(4.5, 18.5, 3.0, 16.8, 3.0, 14.7), curve(3.0, 12.6, 4.6, 11.0, 6.7, 10.8), curve(7.3, 7.9, 9.8, 6.0, 12.5, 6.0), curve(15.0, 6.0, 17.2, 7.5, 18.1, 9.8), curve(19.9, 10.3, 21.0, 11.9, 21.0, 13.8), curve(21.0, 16.4, 18.9, 18.5, 16.3, 18.5), line(7.0, 18.5)], [move(4.0, 4.0), line(20.0, 20.0)]], doc="Хмара, перекреслена: сервер не відповів.")
 icon("block", stroke=[circle(12, 12, 8.5), [move(6.0, 6.0), line(18.0, 18.0)]], doc="Коло з рискою: заблокувати.")
+icon(
+    "district",
+    stroke=[polyline(5.0, 7.0, 11.0, 3.8, 17.5, 5.5, 20.5, 11.0, 18.0, 19.0, 10.5, 20.3, 4.0, 15.5) + [close()]],
+    fill=[circle(12.0, 12.0, 1.9)],
+    doc="Район: нерівна межа з точкою всередині. Не пін: пін — одне місце, район — частина міста.",
+)
 icon("compass", stroke=[circle(12, 12, 8.5), [move(15.5, 8.5), line(13.5, 13.5), line(8.5, 15.5), line(10.5, 10.5), close()]], doc="Компас: знайти на мапі.")
 icon("starFilled", fill=[polyline(12.0, 4.0, 14.17, 9.61, 20.18, 9.94, 15.52, 13.74, 17.05, 19.56, 12.0, 16.3, 6.95, 19.56, 8.48, 13.74, 3.82, 9.94, 9.83, 9.61) + [close()]], doc="Оцінка, поставлена.")
 
@@ -716,10 +722,15 @@ def write_swift():
         "    CGPoint(x: x * s, y: y * s)",
         "}",
         "",
-        "/// Малює `PoruchGlyph` заданого розміру, масштабуючи сітку 24 разом зі штрихом.",
+        "/// Малює `PoruchGlyph` заданого розміру, масштабуючи сітку 24 разом зі штрихом. Гліф поруч із текстом (до 32 pt)",
+        "/// росте з Dynamic Type, як SF Symbol, але не більш ніж у півтора раза: він стоїть і в колах та плитках сталого розміру.",
+        "/// Великі декоративні гліфи (обкладинки, порожні стани) лишаються своїм розміром.",
         "struct PoruchIcon: View {",
         "    let glyph: PoruchGlyph",
         "    var size: CGFloat = 20",
+        "    @ScaledMetric(relativeTo: .body) private var textScale: CGFloat = 1",
+        "",
+        "    private var drawn: CGFloat { size < 32 ? size * min(max(textScale, 1), 1.5) : size }",
         "",
         "    var body: some View {",
         "        ZStack {",
@@ -736,10 +747,10 @@ def write_swift():
         "                ))",
         "            }",
         "        }",
-        "        .frame(width: size, height: size)",
+        "        .frame(width: drawn, height: drawn)",
         "    }",
         "",
-        "    private var scale: CGFloat { size / PoruchIconMetrics.grid }",
+        "    private var scale: CGFloat { drawn / PoruchIconMetrics.grid }",
         "}",
         "",
         "private struct GlyphShape: Shape {",
