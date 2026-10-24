@@ -371,6 +371,58 @@ do $$ declare s private.event_state := pg_temp.st('r1a'); l private.event_state_
  assert private.refresh_event_state(pg_temp.ev('r1a')) is null, 'stable after the fix';
 end $$;
 
+-- ── 12. Ворота 24.10 (міграція 20261104120000): несвіже «відкладено» проти свіжого продавця, годинний зсув поясу.
+-- Лобач: пропозиція Б зникла місяць тому, її сторінку вперше прочитали зараз — «відкладено»; А свіжо продає той сеанс.
+select pg_temp.ingest(jsonb_build_array(pg_temp.w('test_state_a','l1a','Лобач',pg_temp.t()),
+ pg_temp.w('test_state_a','l2a','Лобач вже',pg_temp.t()), pg_temp.w('test_state_a','l3a','Свіже відкладення',pg_temp.t())));
+select pg_temp.ingest(jsonb_build_array(pg_temp.c('test_state_b','l1b','Лобач',pg_temp.t(),'l1a'),
+ pg_temp.c('test_state_b','l2b','Лобач вже',pg_temp.t(),'l2a'),
+ pg_temp.c('test_state_b','l3b','Свіже відкладення',pg_temp.t(),'l3a')));
+update public.event_offers set status = 'withdrawn', seen_at = now() - interval '30 days'
+where id in ((pg_temp.offer('l1b')).id, (pg_temp.offer('l2b')).id);
+select pg_temp.gone('l3b');
+select pg_temp.chk('l1b','postponed','{"raw":"EventPostponed","sold_out":false}');
+select pg_temp.chk('l3b','postponed','{"raw":"EventPostponed","sold_out":false}');
+-- Як 61274d14 на prod: стан уже відклали за старими правилами; перерахунок з причиною відкликає тихо.
+insert into private.offer_checks(offer_id, why, expected, url, http, verdict, detail)
+select o.id, 'vanished', o.starts_at, o.canonical_url, 200, 'postponed', '{"raw":"EventPostponed"}' from pg_temp.offer('l2b') o;
+insert into private.event_state(event_id, state, starts_at, state_changed_at) values (pg_temp.ev('l2a'), 'postponed', pg_temp.t(), now());
+do $$ begin
+ assert (pg_temp.st('l1a')).state = 'scheduled' and (pg_temp.st('l1a')).conflicts = 1
+   and pg_temp.due('l1a', now() + interval '2 hours') = 'conflict', 'stale postponed vs a fresh seller: conflict, recheck';
+ assert (pg_temp.st('l3a')).state = 'postponed', 'fresh postponed still wins';
+ assert private.refresh_event_state(pg_temp.ev('l2a'), 'правила R4 24.10') = 'corrected'
+   and (pg_temp.st('l2a')).state = 'scheduled' and (pg_temp.st('l2a')).starts_at = pg_temp.t(), 'applied stale postponed withdrawn';
+ assert not exists (select 1 from private.event_state_log where event_id in (pg_temp.ev('l1a'), pg_temp.ev('l2a')) and would_push),
+   'nothing would be sent';
+end $$;
+
+-- Зимовий сеанс 19:00, сторінка показує 20:00 — це наш літній зсув у старій пропозиції, не перенос; на 18:00 — перенос.
+select set_config('test.w', ((make_date(extract(year from now())::int + 1, 1, 15) + time '19:00') at time zone 'Europe/Kyiv')::text, true);
+select pg_temp.ingest(jsonb_build_array(pg_temp.w('test_state_a','z1a','Пояс',current_setting('test.w')::timestamptz),
+ pg_temp.w('test_state_a','z2a','Справжня година',current_setting('test.w')::timestamptz)));
+select pg_temp.gone('z1a'), pg_temp.gone('z2a');
+select pg_temp.chk('z1a','moved_silent',jsonb_build_object('new_start',current_setting('test.w')::timestamptz + interval '1 hour','name','Пояс'));
+select pg_temp.chk('z2a','moved_silent',jsonb_build_object('new_start',current_setting('test.w')::timestamptz - interval '1 hour','name','Справжня година'));
+-- Як bdc29a3c на prod: «перенос» уже записано за старими правилами; перерахунок відкликає, а далі — unknown.
+select pg_temp.ingest(jsonb_build_array(pg_temp.w('test_state_a','z3a','Пояс записаний',current_setting('test.w')::timestamptz)));
+select pg_temp.gone('z3a');
+insert into private.offer_checks(offer_id, why, expected, url, http, verdict, detail)
+select o.id, 'vanished', o.starts_at, o.canonical_url, 200, 'moved_silent',
+ jsonb_build_object('new_start', o.starts_at + interval '1 hour', 'name', 'Пояс записаний') from pg_temp.offer('z3a') o;
+insert into private.event_state(event_id, starts_at, previous_starts_at, state_changed_at)
+values (pg_temp.ev('z3a'), current_setting('test.w')::timestamptz + interval '1 hour', current_setting('test.w')::timestamptz, now());
+do $$ begin
+ assert (pg_temp.st('z1a')).starts_at = current_setting('test.w')::timestamptz and (pg_temp.st('z1a')).state = 'unknown',
+   'an hour later in winter: our offset, not a move';
+ assert (pg_temp.st('z2a')).starts_at = current_setting('test.w')::timestamptz - interval '1 hour', 'an hour earlier: a move';
+ assert private.refresh_event_state(pg_temp.ev('z3a'), 'правила R4 24.10') = 'corrected'
+   and private.refresh_event_state(pg_temp.ev('z3a'), 'правила R4 24.10') = 'unknown'
+   and (pg_temp.st('z3a')).starts_at = current_setting('test.w')::timestamptz, 'recorded offset move withdrawn quietly';
+ assert not exists (select 1 from private.event_state_log where event_id in (pg_temp.ev('z1a'), pg_temp.ev('z3a')) and would_push),
+   'nothing would be sent';
+end $$;
+
 -- ── 10. Звіт тіні збирається; без сильного свідчення пуша б не було.
 do $$ begin
  assert (select count(*) from private.shadow_report(7) where section = 'точність') = 1, 'accuracy row';
@@ -382,4 +434,4 @@ do $$ begin
 end $$;
 
 rollback;
-select 'PASS: R4 table row by row, sticky cancel, correction, agent conflict, silent move guards, dump moves, R5 slots and hourly limit, would-send, clients see nothing' as result;
+select 'PASS: R4 table row by row, sticky cancel, correction, agent conflict, silent move guards, stale evidence, offset shift, dump moves, R5 slots and hourly limit, would-send, clients see nothing' as result;
