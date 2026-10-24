@@ -1252,6 +1252,28 @@ enum PoruchIcons {
         }
     )
 
+    /// Район: нерівна межа з точкою всередині. Не пін: пін — одне місце, район — частина міста.
+    static let district = PoruchGlyph(
+        stroke: { path, s in
+            path.move(to: point(5, 7, s))
+            path.addLine(to: point(11, 3.8, s))
+            path.addLine(to: point(17.5, 5.5, s))
+            path.addLine(to: point(20.5, 11, s))
+            path.addLine(to: point(18, 19, s))
+            path.addLine(to: point(10.5, 20.3, s))
+            path.addLine(to: point(4, 15.5, s))
+            path.closeSubpath()
+        },
+        fill: { path, s in
+            path.move(to: point(10.1, 12, s))
+            path.addCurve(to: point(12, 10.1, s), control1: point(10.1, 10.951, s), control2: point(10.951, 10.1, s))
+            path.addCurve(to: point(13.9, 12, s), control1: point(13.049, 10.1, s), control2: point(13.9, 10.951, s))
+            path.addCurve(to: point(12, 13.9, s), control1: point(13.9, 13.049, s), control2: point(13.049, 13.9, s))
+            path.addCurve(to: point(10.1, 12, s), control1: point(10.951, 13.9, s), control2: point(10.1, 13.049, s))
+            path.closeSubpath()
+        }
+    )
+
     /// Компас: знайти на мапі.
     static let compass = PoruchGlyph(
         stroke: { path, s in

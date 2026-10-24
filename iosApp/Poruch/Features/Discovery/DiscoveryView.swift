@@ -73,8 +73,9 @@ struct DiscoveryView: View, Equatable {
         ZStack(alignment: .top) {
             EventMap(
                 events: mapEntries, latitude: view.cityLatitude, longitude: view.cityLongitude,
-                selectedID: selectedID, eventsRevision: Int(view.indexVersion), filterKey: category?.key ?? "",
-                retryToken: retryToken, centerToken: centerToken,
+                // Район, як і категорія, — фільтр екрана: ревізія індексу про нього не знає.
+                selectedID: selectedID, eventsRevision: Int(view.indexVersion), filterKey: "\(category?.key ?? "")#\(view.district?.id ?? 0)",
+                retryToken: retryToken, centerToken: centerToken, district: view.district,
                 topInset: topControlsInset, bottomInset: carouselInset,
                 loadFailed: { mapFailed = $0 },
                 // Тап по піну: шторка згортається і показує картку цієї події.
@@ -140,6 +141,12 @@ struct DiscoveryView: View, Equatable {
         .onChange(of: view.arrivals) { _, _ in
             region = nil
             centerToken += 1
+        }
+        // Новий район — з пошуку мапи чи головної: шторку вниз, щоб видно було його межу; камеру ставить мапа.
+        .onChange(of: view.district?.id) { _, id in
+            guard id != nil else { return }
+            region = nil
+            open(.peek)
         }
         // Картки просимо під категорію, яку показуємо: під фільтром вони лежать за краєм вікна.
         .onChange(of: category) { _, _ in loadHead(cardPage) }
@@ -272,6 +279,21 @@ private struct TopControls: View {
                         Chip(label: view.cityName, glyph: PoruchIcons.pin, trailingGlyph: PoruchIcons.chevronDown, selected: false, action: openCitySearch)
                             // Назва — видимий текст (голосове «Натисни Київ»), а що робить — підказкою.
                             .accessibilityHint(Copy.a11y_change_city)
+                        // Район — одразу за містом: це його частина («Одеса», «Київський район»). Тап знімає, як категорію.
+                        if let district = view.district {
+                            Chip(label: district.shortName, glyph: PoruchIcons.district, trailingGlyph: PoruchIcons.close, selected: true) {
+                                model.exploreScreen.clearDistrict()
+                            }
+                            .accessibilityLabel(Copy.a11y_clear_district(district.name))
+                        }
+                        // Набране — назва району: підказка тут, під пальцем, а не лише в піднятій шторці. У згорнутій карусель
+                        // показувала б «подій нема» за словом «Київський», хоча район є. Тап — той самий вибір, що рядком.
+                        if let hit = view.districts.first, hit.district != view.district {
+                            Chip(label: hit.district.name, glyph: PoruchIcons.district, selected: false) {
+                                model.exploreScreen.selectDistrict(hit)
+                            }
+                            .accessibilityLabel(Copy.a11y_suggest_district(hit.district.name))
+                        }
                         // Одразу після міста, а не за датами: з «Усі N» головної мапа приходить із цим фільтром, і його має бути видно.
                         Chip(label: Copy.from_people, glyph: PoruchIcons.social, selected: view.onlyAvailable) {
                             model.app.setOnlyAvailable(available: !view.onlyAvailable)
@@ -395,6 +417,9 @@ let cardPage = 24
     func clearStack() { presenter.clearStack() }
     func focusEvent(_ id: String) { presenter.focusEvent(id: id) }
     func focusPlace(_ place: Place) { presenter.focusPlace(place: place) }
+    func selectDistrict(_ hit: DistrictHit) { presenter.selectDistrict(hit: hit) }
+    func clearDistrict() { presenter.clearDistrict() }
+    func showWholeCity() { presenter.showWholeCity() }
     func toggleCategory(_ category: EventCategory) { presenter.toggleCategory(category: category) }
     func nearMe(_ point: CLLocationCoordinate2D, accuracy: Double) {
         presenter.nearMe(latitude: point.latitude, longitude: point.longitude, accuracy: accuracy)

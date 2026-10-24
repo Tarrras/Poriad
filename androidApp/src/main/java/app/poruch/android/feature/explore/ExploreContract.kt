@@ -3,6 +3,7 @@ package app.poruch.android.feature.explore
 import app.poruch.domain.ArtistHit
 import app.poruch.domain.EventCategory
 import app.poruch.domain.CityResult
+import app.poruch.domain.DistrictHit
 import app.poruch.domain.Place
 import app.poruch.shared.DateFilter
 import app.poruch.shared.ExploreScreenState
@@ -67,6 +68,12 @@ sealed interface ExploreIntent {
     data class SelectStack(val ids: List<String>) : ExploreIntent
     /** Заклад з пошуку: мапа переходить до нього, а стос відкривається, щойно приїде видача. */
     data class FocusPlace(val place: Place) : ExploreIntent
+    /** Район з пошуку: мапа звужується до нього, камера — на його межі. */
+    data class SelectDistrict(val hit: DistrictHit) : ExploreIntent
+    /** «✕» на чипі району. */
+    data object ClearDistrict : ExploreIntent
+    /** «Усе місто» в порожньому районі. */
+    data object WholeCity : ExploreIntent
     /** Артист з пошуку: екран артиста поверх мапи. */
     data class OpenArtist(val artist: ArtistHit) : ExploreIntent
     data object ClearStack : ExploreIntent

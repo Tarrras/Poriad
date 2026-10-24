@@ -27,6 +27,10 @@ class HomeViewModel(private val app: PoruchApp) : MviViewModel<HomeState, HomeIn
             app.focusPlace(intent.place)
             send(HomeEffect.Navigate(HomeDestination.MAP))
         }
+        is HomeIntent.OpenDistrict -> {
+            app.selectDistrict(intent.hit, fromHome = true)
+            send(HomeEffect.Navigate(HomeDestination.MAP))
+        }
         is HomeIntent.OpenArtist -> {
             app.openArtist(intent.artist.id, intent.artist.name, intent.artist.kind)
             send(HomeEffect.Navigate(HomeDestination.ARTIST, intent.artist.id))

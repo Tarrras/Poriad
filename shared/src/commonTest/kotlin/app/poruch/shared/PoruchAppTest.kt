@@ -101,7 +101,8 @@ class PoruchAppTest {
         var companionCards=emptyList<CompanionCard>()
         override suspend fun companions(parentId:String)=companionCards
         var districts=emptyList<District>()
-        override suspend fun districts(city:String)=districts.filter { it.city==city }
+        val districtCalls=mutableListOf<String>()
+        override suspend fun districts(city:String):List<District> { districtCalls+=city; return districts.filter { it.city==city } }
         val companionsCreated=mutableListOf<List<Any?>>()
         val companionsMoved=mutableListOf<Pair<String,String>>()
         override suspend fun moveCompanion(id:String,meetAt:String) { companionsMoved+=id to meetAt }
@@ -2247,6 +2248,129 @@ class PoruchAppTest {
         presenter.viewport(50.0,29.0,50.1,29.1)
         app.setDateFilter(DateFilter.TODAY); runCurrent(); advanceTimeBy(200); runCurrent()
         assertEquals("here",presenter.state.value.selectedId)
+        app.close()
+    }
+    /** Квадрат Подолу навколо 50.45, 30.52: туди потрапляють події [event] і [listed]. */
+    private val podil=District(1,"Київ","Подільський район",rings=listOf(doubleArrayOf(30.50,50.44,30.54,50.44,30.54,50.46,30.50,50.46,30.50,50.44)))
+    private val odesaKyivskyi=District(2,"Одеса","Київський район",formerName=null,rings=listOf(doubleArrayOf(30.6,46.3,30.8,46.3,30.8,46.5,30.6,46.5,30.6,46.3)))
+
+    /** Район — фільтр екрана, як категорія: мапа, шторка, лічильник і числа плиток — лише в ньому; без запиту до сервера. */
+    @Test fun districtNarrowsTheMapLikeACategory()=runTest {
+        val tracked=mutableListOf<Pair<String,Map<String,String>>>()
+        PoruchAnalytics.sink={ name,params -> tracked+=name to params }
+        try {
+            val events=Events()
+            val soon=(Clock.System.now()+1.hours).toString()
+            val inside=(1..3).map { listed("in$it",soon,placeId=null).copy(latitude=50.45+it*0.001) } +
+                listed("sport",soon,placeId=null).copy(category=EventCategory.SPORT,latitude=50.455)
+            val outside=(1..2).map { listed("out$it",soon,placeId=null).copy(latitude=50.5,longitude=30.6+it*0.01) }
+            events.results=inside+outside
+            events.districts=listOf(podil,odesaKyivskyi)
+            val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
+            assertEquals(listOf(podil),app.state.value.city.districts,"лише райони міста на екрані")
+            val presenter=ExplorePresenter(app,backgroundScope,StandardTestDispatcher(testScheduler))
+            runCurrent()
+            // Секція «Райони»: число з індексу міста, а не з видачі під текст.
+            app.setSearchText("Поділ"); runCurrent()
+            val hit=presenter.state.value.districts.single()
+            assertEquals(podil to 4,hit.district to hit.upcoming)
+            val serverQueries=events.queries.size
+            presenter.selectDistrict(hit); runCurrent(); advanceTimeBy(200); runCurrent()
+            val shown=presenter.state.value
+            assertEquals(podil,shown.district)
+            assertEquals("",shown.searchText,"текст пошуку знято, як для закладу")
+            assertTrue(shown.districts.isEmpty())
+            assertEquals(inside.map { it.id }.toSet(),shown.mapEvents.map { it.id }.toSet())
+            assertEquals(4,shown.listCount)
+            assertEquals(mapOf(EventCategory.MUSIC to 3,EventCategory.SPORT to 1),shown.categoryCounts)
+            assertEquals(serverQueries+1,events.queries.size,"лише щоб зняти текст пошуку")
+            // Категорія в районі — перетин; число плитки — те, що скаже лічильник.
+            presenter.toggleCategory(EventCategory.SPORT); runCurrent()
+            assertEquals(listOf("sport"),presenter.state.value.listEntries.map { it.id })
+            assertEquals(1,presenter.state.value.listCount)
+            presenter.toggleCategory(EventCategory.SPORT); runCurrent()
+            // Без тексту район обирається без мережі.
+            presenter.clearDistrict(); runCurrent()
+            assertNull(presenter.state.value.district)
+            assertEquals(6,presenter.state.value.listCount)
+            presenter.selectDistrict(hit); runCurrent()
+            assertEquals(serverQueries+1,events.queries.size)
+            assertEquals(4,presenter.state.value.listCount)
+            presenter.showWholeCity(); runCurrent()
+            assertEquals(
+                listOf(
+                    "district_select" to mapOf("city" to "Київ","district" to "Подільський район","from" to "map","events" to "4"),
+                    "district_clear" to mapOf("city" to "Київ","via" to "chip"),
+                    "district_select" to mapOf("city" to "Київ","district" to "Подільський район","from" to "map","events" to "4"),
+                    "district_clear" to mapOf("city" to "Київ","via" to "empty")
+                ),
+                tracked.filter { it.first.startsWith("district_") }
+            )
+            app.close()
+        } finally { PoruchAnalytics.sink=null }
+    }
+
+    /** Ширша область виводить із району: заклад, «Шукати тут», «Усі N», інше місто. А з накресленої області район повертає місто. */
+    @Test fun widerAreasLeaveTheDistrict()=runTest {
+        val tracked=mutableListOf<Pair<String,Map<String,String>>>()
+        PoruchAnalytics.sink={ name,params -> tracked+=name to params }
+        try {
+            val events=Events()
+            val soon=(Clock.System.now()+1.hours).toString()
+            events.results=listOf(listed("a",soon))
+            events.districts=listOf(podil,odesaKyivskyi)
+            val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
+            val hit=DistrictHit(podil,1)
+            fun via()=tracked.last { it.first=="district_clear" }.second["via"]
+            app.selectDistrict(hit,fromHome=false); runCurrent()
+            app.focusPlace(malevych); runCurrent()
+            assertNull(app.state.value.map.district); assertEquals("place",via())
+            app.selectDistrict(hit,fromHome=false); runCurrent()
+            app.searchArea(50.0,30.0,50.1,30.1); runCurrent()
+            assertNull(app.state.value.map.district); assertEquals("area",via())
+            assertTrue(app.state.value.city.custom)
+            // З накресленої області — назад на місто: район — частина міста.
+            app.selectDistrict(hit,fromHome=true); runCurrent(); advanceTimeBy(200); runCurrent()
+            assertFalse(app.state.value.city.custom)
+            assertEquals(HomeLocation.Kyiv.south,events.queries.last().south,0.0001)
+            assertEquals("home",tracked.last { it.first=="district_select" }.second["from"])
+            app.showEverythingOnMap(); runCurrent()
+            assertNull(app.state.value.map.district); assertEquals("home",via())
+            app.selectDistrict(hit,fromHome=false); runCurrent()
+            app.selectCity(CityResult("Одеса",46.48,30.72)); runCurrent(); advanceTimeBy(200); runCurrent()
+            assertNull(app.state.value.map.district); assertEquals("city",via())
+            assertEquals(listOf(odesaKyivskyi),app.state.value.city.districts,"райони нового міста, не старого")
+            app.close()
+        } finally { PoruchAnalytics.sink=null }
+    }
+
+    /** Межі — раз на місто, і місто без районів не перепитує на кожен запит мапи. */
+    @Test fun districtsLoadOncePerCity()=runTest {
+        val events=Events()
+        val soon=(Clock.System.now()+1.hours).toString()
+        events.results=listOf(listed("a",soon))
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
+        app.setDateFilter(DateFilter.TODAY); runCurrent(); advanceTimeBy(200); runCurrent()
+        app.setOnlyAvailable(true); runCurrent(); advanceTimeBy(200); runCurrent()
+        assertEquals(listOf("Київ"),events.districtCalls)
+        assertTrue(app.state.value.city.districts.isEmpty())
+        app.close()
+    }
+
+    /** Пошук головної теж знаходить райони, а тап веде мапу в район. */
+    @Test fun homeSearchFindsDistricts()=runTest {
+        val events=Events()
+        val soon=(Clock.System.now()+1.hours).toString()
+        events.results=listOf(listed("a",soon),listed("b",soon,placeId=null).copy(latitude=50.6))
+        events.districts=listOf(podil)
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
+        val presenter=HomePresenter(app,backgroundScope,StandardTestDispatcher(testScheduler))
+        app.setHomeSearchText("podil"); runCurrent(); advanceTimeBy(1000); runCurrent()
+        val hit=presenter.state.value.districts.single()
+        assertEquals(1,hit.upcoming)
+        assertFalse(presenter.state.value.isEmpty,"район — теж знайдене")
+        app.selectDistrict(hit,fromHome=true); runCurrent()
+        assertEquals(podil,app.state.value.map.district)
         app.close()
     }
     /** Презентер «Моїх подій»: сам просить мої події, розклад і непрочитане — зі спільної згортки, без зміни входів екземпляр той самий. */

@@ -27,11 +27,15 @@ class ExploreViewModel(private val app: PoruchApp) :
                 // Перше значення — те, що було до моделі (свіжа модель уже чиста).
                 val arrived = arrivals != 0 && screen.arrivals != arrivals
                 arrivals = screen.arrivals
+                // Новий район — з пошуку мапи чи головної: шторку вниз, щоб видно було його межу. Камеру ставить мапа.
+                val district = screen.district
+                val newDistrict = district != null && district != state.value.screen.district
                 reduce {
                     if (arrived) copy(
                         screen = screen, detent = SheetDetent.PEEK, sheet = ExploreSheet.NONE,
                         pendingArea = null, recenterToken = recenterToken + 1
-                    ) else copy(screen = screen, pendingArea = if (freshIndex) null else pendingArea)
+                    ) else if (newDistrict) copy(screen = screen, detent = SheetDetent.PEEK, sheet = ExploreSheet.NONE, pendingArea = null)
+                    else copy(screen = screen, pendingArea = if (freshIndex) null else pendingArea)
                 }
             }
         }
@@ -90,6 +94,9 @@ class ExploreViewModel(private val app: PoruchApp) :
                 reduce { copy(detent = SheetDetent.PEEK, sheet = ExploreSheet.NONE) }
                 presenter.focusPlace(intent.place)
             }
+            is ExploreIntent.SelectDistrict -> presenter.selectDistrict(intent.hit)
+            ExploreIntent.ClearDistrict -> presenter.clearDistrict()
+            ExploreIntent.WholeCity -> presenter.showWholeCity()
             is ExploreIntent.OpenArtist -> {
                 app.openArtist(intent.artist.id, intent.artist.name, intent.artist.kind)
                 send(ExploreEffect.OpenArtist(intent.artist.id))

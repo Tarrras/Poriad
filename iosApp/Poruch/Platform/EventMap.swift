@@ -7,6 +7,11 @@ struct MapRegion { var south: Double; var west: Double; var north: Double; var e
 
 private let eventSourceID = "poruch-events"
 private let pointSourceID = "poruch-point"
+private let districtSourceID = "poruch-district"
+private let districtCasingID = "poruch-district-casing"
+private let districtLineID = "poruch-district-line"
+/// Поле між межею району й краєм видимої мапи: межа не липне до пошуку й каруселі.
+private let districtMargin: CGFloat = 24
 private let clusterLayerID = "poruch-cluster"
 private let clusterIconName = "poruch-cluster-ticket"
 private let pinCountID = "poruch-pin-count"
@@ -218,6 +223,8 @@ struct EventMap: UIViewRepresentable {
     var filterKey: String = ""
     var retryToken: Int = 0
     var centerToken: Int = 0
+    /// Район, до якого звужено мапу: межа перфорацією, і камера стає на неї замість центру міста.
+    var district: District? = nil
     /// Зум, коли центр змінився ззовні.
     var centerZoom: Double = MapZoom.city
     /// Поставлена крапка. Мапа лише малює її; ставлять довгим натиском, як на Android.
@@ -241,7 +248,8 @@ struct EventMap: UIViewRepresentable {
 
     func makeUIView(context: Context) -> MLNMapView {
         let map = MLNMapView(frame: .zero, styleJSON: styleJSON(context.environment.colorScheme))
-        context.coordinator.centerKey = "\(latitude),\(longitude),\(centerToken)"
+        // Без району: мапа, відкрита вже в районі (з головної), стане на його межі в першому `updateUIView`.
+        context.coordinator.centerKey = cameraKey(districtID: 0)
         context.coordinator.scheme = context.environment.colorScheme
         map.delegate = context.coordinator
         map.setCenter(CLLocationCoordinate2D(latitude: latitude, longitude: longitude), zoomLevel: centerZoom, animated: false)
@@ -286,12 +294,23 @@ struct EventMap: UIViewRepresentable {
         }
         controller?.map = map
         context.coordinator.installStyleIfReady(map)
-        let centerKey = "\(latitude),\(longitude),\(centerToken)"
+        // Район — межі району з полями, і «до міста» в районі теж повертає до них; вихід із району — назад до міста.
+        let centerKey = cameraKey(districtID: district?.id ?? 0)
         if context.coordinator.centerKey != centerKey {
             context.coordinator.centerKey = centerKey
-            map.setCenter(CLLocationCoordinate2D(latitude: latitude, longitude: longitude), zoomLevel: centerZoom, animated: animated)
+            if let district {
+                // Мапа щойно створена й ще без розміру: межі підганяємо, коли розкладка вже відбулась.
+                if map.bounds.isEmpty {
+                    DispatchQueue.main.async { [weak map] in if let map { fit(district, on: map, animated: false) } }
+                } else {
+                    fit(district, on: map, animated: animated)
+                }
+            } else {
+                map.setCenter(CLLocationCoordinate2D(latitude: latitude, longitude: longitude), zoomLevel: centerZoom, animated: animated)
+            }
         }
         context.coordinator.updateFeatures(map)
+        context.coordinator.updateDistrict(map)
         context.coordinator.updateChosen(map)
         // Вибір, якого ще нема серед подій (індекс у дорозі), не вважаємо наведеним: шукаємо знову,
         // щойно зміниться склад. Інакше мапа, відкрита з деталей до приходу індексу, лишалась на місті.
@@ -317,11 +336,23 @@ struct EventMap: UIViewRepresentable {
 
     private func styleJSON(_ scheme: ColorScheme) -> String { mapStyleJSON(scheme) }
 
+    private func cameraKey(districtID: Int64) -> String { "\(latitude),\(longitude),\(centerToken),\(districtID)" }
+
+    private func fit(_ district: District, on map: MLNMapView, animated: Bool) {
+        let bounds = MLNCoordinateBounds(
+            sw: CLLocationCoordinate2D(latitude: district.south, longitude: district.west),
+            ne: CLLocationCoordinate2D(latitude: district.north, longitude: district.east)
+        )
+        let margin = UIEdgeInsets(top: districtMargin, left: districtMargin, bottom: districtMargin, right: districtMargin)
+        map.setVisibleCoordinateBounds(bounds, edgePadding: margin, animated: animated, completionHandler: nil)
+    }
+
     final class Coordinator: NSObject, MLNMapViewDelegate {
         var parent: EventMap
         var centerKey = ""
         var featureKey = ""
         var chosenKey = ""
+        var districtKey = ""
         var focusedID: String?
         /// Вибір і склад, для яких уже шукали подію, щоб не ходити по індексу на кожен кадр.
         var focusKey = ""
@@ -349,7 +380,9 @@ struct EventMap: UIViewRepresentable {
             guard style.source(withIdentifier: eventSourceID) == nil else {
                 styleReady = true
                 featureKey = ""
+                districtKey = ""
                 updateFeatures(mapView)
+                updateDistrict(mapView)
                 return
             }
             registerImages(style)
@@ -365,6 +398,26 @@ struct EventMap: UIViewRepresentable {
             let point = MLNShapeSource(identifier: pointSourceID, shape: nil, options: nil)
             style.addSource(events)
             style.addSource(point)
+
+            // Межа району — перфорацією, як лінія відриву квитка: круглі крапки чорнилом. Під ними — паперова підкладка,
+            // бо на вулицях і воді тонка лінія губилась. Шари — під пінами.
+            let district = MLNShapeSource(identifier: districtSourceID, shape: nil, options: nil)
+            style.addSource(district)
+            let casing = MLNLineStyleLayer(identifier: districtCasingID, source: district)
+            casing.lineColor = NSExpression(forConstantValue: resolvedUIColor(Palette.surface, scheme))
+            casing.lineOpacity = NSExpression(forConstantValue: 0.7)
+            casing.lineWidth = NSExpression(forConstantValue: 7)
+            casing.lineJoin = NSExpression(forConstantValue: "round")
+            style.addLayer(casing)
+            let border = MLNLineStyleLayer(identifier: districtLineID, source: district)
+            border.lineColor = NSExpression(forConstantValue: resolvedUIColor(Palette.ink, scheme))
+            border.lineOpacity = NSExpression(forConstantValue: 0.8)
+            border.lineWidth = NSExpression(forConstantValue: 3)
+            border.lineCap = NSExpression(forConstantValue: "round")
+            border.lineJoin = NSExpression(forConstantValue: "round")
+            // Штрих не нульовий: з [0, 2] MapLibre часом малював суцільну лінію. З круглими кінцями 0,2 — та сама крапка.
+            border.lineDashPattern = NSExpression(forConstantValue: [0.2, 2.2])
+            style.addLayer(border)
 
             // Кластер — квиток із числом, у мові решти застосунку, а не чорне коло з ореолом. Більший кластер —
             // трохи більший квиток.
@@ -420,8 +473,10 @@ struct EventMap: UIViewRepresentable {
             styleReady = true
             featureKey = ""
             chosenKey = ""
+            districtKey = ""
             updateFeatures(mapView)
             updateChosen(mapView)
+            updateDistrict(mapView)
             DispatchQueue.main.async { self.parent.loadFailed(false) }
         }
 
@@ -446,6 +501,27 @@ struct EventMap: UIViewRepresentable {
                 forName: chosenIconName
             )
             style.setImage(clusterTicketImage(fill: brand, edge: surface), forName: clusterIconName)
+        }
+
+        /// Межа району: усі кільця лініями, зовнішні й дірки однаково. Перебудова — лише коли змінився район.
+        func updateDistrict(_ map: MLNMapView) {
+            guard styleReady, let source = map.style?.source(withIdentifier: districtSourceID) as? MLNShapeSource else { return }
+            let key = parent.district.map { "\($0.id)" } ?? ""
+            guard key != districtKey else { return }
+            districtKey = key
+            guard let district = parent.district else { return source.shape = nil }
+            var lines: [MLNPolylineFeature] = []
+            for ring in district.rings {
+                // Кільце — пласке `lon, lat, lon, lat…`.
+                var coordinates: [CLLocationCoordinate2D] = []
+                var i: Int32 = 0
+                while i + 1 < ring.size {
+                    coordinates.append(CLLocationCoordinate2D(latitude: ring.get(index: i + 1), longitude: ring.get(index: i)))
+                    i += 2
+                }
+                lines.append(MLNPolylineFeature(coordinates: &coordinates, count: UInt(coordinates.count)))
+            }
+            source.shape = MLNShapeCollectionFeature(shapes: lines)
         }
 
         /// Крапка зустрічі — окреме джерело: не подія, в кластери не рахується.

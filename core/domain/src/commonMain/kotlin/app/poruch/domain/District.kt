@@ -67,11 +67,36 @@ class District(
         return terms.any { term -> asked.all { word -> term.any { it.startsWith(word) } } }
     }
 
+    /**
+     * Назва в місцевому відмінку для «У … подій поки нема»: «Хаджибейському районі». Усі райони п'яти міст — прикметник
+     * на «-ий» і «район»; інша назва (нове місто) — «районі «…»», теж граматично.
+     */
+    val locative: String
+        get() = if (name.endsWith("ий район")) name.removeSuffix("ий район") + "ому районі" else "районі «$name»"
+
+    /** Назва без «район» для чипа над мапою: поруч гліф району, а довгий чип виштовхував фільтри за край. */
+    val shortName: String get() = name.removeSuffix(" район")
+
+    /** Колишня назва без «район» для підпису рядка: «раніше Малиновський». */
+    val formerShort: String? get() = formerName?.removeSuffix(" район")
+
+    /** Скільки подій [index] у районі: число рядка пошуку, те саме, що мапа покаже після тапу без інших фільтрів. */
+    fun countIn(index: List<EventIndexEntry>) = index.count { contains(it.latitude, it.longitude) }
+
     override fun equals(other: Any?) = other is District && other.id == id
     override fun hashCode() = id.hashCode()
     override fun toString() = "District($id, $city, $name)"
 
     companion object {
+        /**
+         * Секція «Райони» пошуку: райони міста за [query], найживіші першими, як заклади. Порожні теж: «Поки без подій» —
+         * чесна відповідь, що такий район є, а не «не знайшли».
+         */
+        fun search(districts: List<District>, query: String, index: List<EventIndexEntry>): List<DistrictHit> =
+            districts.filter { it.matches(query) }
+                .map { DistrictHit(it, it.countIn(index)) }
+                .sortedWith(compareByDescending<DistrictHit> { it.upcoming }.thenBy { it.district.name })
+
         /** Менше літер не шукаємо: одна літера дала б пів міста. */
         const val MIN_QUERY = 2
 
@@ -105,3 +130,6 @@ class District(
         }
     }
 }
+
+/** Рядок секції «Райони»: район і скільки в ньому подій міста. */
+data class DistrictHit(val district: District, val upcoming: Int)

@@ -234,6 +234,9 @@ enum Copy {
     static let everywhere = "Усюди"
     static let search_everywhere = "Шукати усюди"
     static func search_events_group(_ a0: String) -> String { "Події · \(a0)" }
+    static let search_districts_group = "Райони"
+    static let district_no_events = "Поки без подій"
+    static func district_former(_ a0: String) -> String { "раніше \(a0)" }
     static let search_places_group = "Місця"
     static let search_artists_group = "Артисти"
     static let show_more = "Показати ще"
@@ -247,6 +250,10 @@ enum Copy {
     static let nothing_here = "Тут поки тихо"
     static let nothing_here_hint = "Змініть область мапи, дату або категорію — і події знайдуться."
     static let nothing_here_stack = "Під ці фільтри тут нічого нема. Скиньте їх — і побачите все, що тут є."
+    static func nothing_in_district(_ a0: String) -> String { "У \(a0) подій поки нема." }
+    static let whole_city = "Усе місто"
+    static func nothing_for_query_district(_ a0: String, _ a1: String) -> String { "Подій зі словом «\(a0)» нема, а \(a1) є." }
+    static let show_district = "Показати район"
     static func nothing_for_query(_ a0: String) -> String { "За запитом «\(a0)» подій нема. Спробуйте інше слово чи назву закладу." }
     static let reset_filters_action = "Скинути фільтри"
     static let filters_reset = "Фільтри скинуто"
@@ -724,6 +731,7 @@ enum Copy {
     static func searching_scope(_ a0: String) -> String { "Шукаємо \(a0)" }
     static func search_scope(_ a0: String) -> String { "Пошук \(a0)" }
     static func area_city(_ a0: String) -> String { "Знайдіть, куди піти у місті \(a0)" }
+    static func area_district(_ a0: String) -> String { "Знайдіть, куди піти у \(a0)" }
     static let cities_with_events = "Міста з подіями"
     static let city_search_prompt = "Місто у світі"
     static let find_city = "Знайти місто"
@@ -760,6 +768,8 @@ enum Copy {
     static let a11y_sheet_half = "Зменшити список до половини"
     static func a11y_show_list(_ a0: String) -> String { "\(a0). Показати списком" }
     static func a11y_clear_category(_ a0: String) -> String { "Категорія \(a0). Зняти фільтр" }
+    static func a11y_clear_district(_ a0: String) -> String { "\(a0). Показати все місто" }
+    static func a11y_suggest_district(_ a0: String) -> String { "\(a0). Показати події району" }
     static func a11y_city(_ a0: String) -> String { "Місто \(a0)" }
     static func a11y_unread_chats(_ a0: String, _ a1: String) -> String { "\(a0), непрочитаних чатів: \(a1)" }
     static let auth_consent_prefix = "Продовжуючи, ви погоджуєтесь з "

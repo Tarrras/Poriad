@@ -3,6 +3,7 @@ package app.poruch.android.feature.home
 import app.poruch.domain.ArtistHit
 import app.poruch.domain.EventCategory
 import app.poruch.domain.CityResult
+import app.poruch.domain.DistrictHit
 import app.poruch.domain.FeedFilter
 import app.poruch.domain.HomeRules
 import app.poruch.domain.Place
@@ -53,6 +54,8 @@ sealed interface HomeIntent {
     data class OpenEvent(val id: String, val from: String) : HomeIntent
     /** Заклад з пошуку: мапа переходить до нього й відкриває його стос. */
     data class OpenPlace(val place: Place) : HomeIntent
+    /** Район із пошуку: мапа в районі. */
+    data class OpenDistrict(val hit: DistrictHit) : HomeIntent
     /** Артист з пошуку: екран артиста. */
     data class OpenArtist(val artist: ArtistHit) : HomeIntent
     /** Прямо в чат події, минаючи деталі. */

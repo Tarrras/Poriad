@@ -48,7 +48,7 @@ fun ExploreScreen(state: ExploreState, onIntent: (ExploreIntent) -> Unit) {
         EventMap(
             events = state.screen.mapEvents, latitude = state.screen.cityLatitude, longitude = state.screen.cityLongitude,
             selectedId = state.screen.selectedId, topInset = TopControlsInset, bottomInset = CarouselInset,
-            centerToken = state.recenterToken, retryToken = state.retryToken,
+            centerToken = state.recenterToken, retryToken = state.retryToken, district = state.screen.district,
             onSelect = { onIntent(ExploreIntent.SelectEvent(it)) },
             onSelectStack = { onIntent(ExploreIntent.SelectStack(it)) },
             onAreaChanged = { onIntent(ExploreIntent.AreaMoved(it?.let { b -> Area(b.south, b.west, b.north, b.east) })) },
@@ -141,6 +141,23 @@ private fun TopControls(state: ExploreState, onIntent: (ExploreIntent) -> Unit) 
                 onClick(label = changeCity) { openCity(); true }
             }) {
                 PoruchChip(state.screen.cityName, false, openCity, PoruchIcons.pin, trailingIcon = PoruchIcons.chevronDown)
+            }
+            // Район — одразу за містом: це його частина («Одеса», «Київський район»). Тап знімає, як категорію.
+            state.screen.district?.let { district ->
+                val description = stringResource(R.string.a11y_clear_district, district.name)
+                val clear = { onIntent(ExploreIntent.ClearDistrict) }
+                Box(Modifier.clearAndSetSemantics { contentDescription = description; role = Role.Button; onClick { clear(); true } }) {
+                    PoruchChip(district.shortName, true, clear, PoruchIcons.district, trailingIcon = PoruchIcons.close)
+                }
+            }
+            // Набране — назва району: підказка тут, під пальцем, а не лише в піднятій шторці. У згорнутій карусель
+            // показувала б «подій нема» за словом «Київський», хоча район є. Тап — той самий вибір, що рядком.
+            state.screen.districts.firstOrNull()?.takeIf { it.district != state.screen.district }?.let { hit ->
+                val description = stringResource(R.string.a11y_suggest_district, hit.district.name)
+                val pick = { onIntent(ExploreIntent.SelectDistrict(hit)) }
+                Box(Modifier.clearAndSetSemantics { contentDescription = description; role = Role.Button; onClick { pick(); true } }) {
+                    PoruchChip(hit.district.name, false, pick, PoruchIcons.district)
+                }
             }
             // Одразу після міста, а не за датами: з «Усі N» головної мапа приходить із цим фільтром, і його має бути видно.
             PoruchChip(

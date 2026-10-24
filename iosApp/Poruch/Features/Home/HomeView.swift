@@ -255,9 +255,9 @@ private struct SearchResults: View {
                 model.app.selectCity(city: CityResult(name: city.city, latitude: city.latitude, longitude: city.longitude))
             }.padding(.horizontal, Space.page)
         }
-        if view.searchLoading && view.results.isEmpty && view.places.isEmpty && view.artists.isEmpty {
+        if view.searchLoading && view.results.isEmpty && view.districts.isEmpty && view.places.isEmpty && view.artists.isEmpty {
             PoruchLoader().frame(maxWidth: .infinity).padding(.vertical, Space.section)
-        } else if view.results.isEmpty && view.places.isEmpty && view.artists.isEmpty {
+        } else if view.results.isEmpty && view.districts.isEmpty && view.places.isEmpty && view.artists.isEmpty {
             if view.searchEverywhere {
                 EmptyState(
                     glyph: PoruchIcons.search, title: Copy.nothing_found,
@@ -273,6 +273,13 @@ private struct SearchResults: View {
         } else {
             // Події, під ними — заклади з тим самим словом. Групові списки: видача пошуку — перелік, а не стрічка.
             VStack(alignment: .leading, spacing: Space.xl) {
+                // Район — першим, як на мапі: це рядок-два, і «Київський» найчастіше саме про нього.
+                if !view.districts.isEmpty {
+                    DistrictsGroup(districts: view.districts) { hit in
+                        model.app.selectDistrict(hit: hit, fromHome: true)
+                        openMap()
+                    }
+                }
                 if !view.results.isEmpty {
                     let total = max(Int(view.resultsTotal), view.results.count)
                     let shown = view.results(limit: resultsLimit)

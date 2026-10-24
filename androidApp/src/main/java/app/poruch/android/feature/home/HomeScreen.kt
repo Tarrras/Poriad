@@ -737,6 +737,8 @@ private fun SearchResults(state: HomeState, onIntent: (HomeIntent) -> Unit) {
         else -> Column(
             Modifier.padding(horizontal = Spacing.page).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.xl)
         ) {
+            // Район — першим, як на мапі: це рядок-два, і «Київський» найчастіше саме про нього.
+            if (state.screen.districts.isNotEmpty()) DistrictsGroup(state.screen.districts) { onIntent(HomeIntent.OpenDistrict(it)) }
             // Події, під ними — заклади з тим самим словом. Групові списки: видача пошуку — перелік, а не стрічка.
             if (state.screen.results.isNotEmpty()) Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                 GroupLabel(

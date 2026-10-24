@@ -49,6 +49,11 @@ data class MapFeed(
     val answered: Int = 0,
     /** Фільтр мапи. Null — усі категорії. */
     val category: EventCategory? = null,
+    /**
+     * Район, до якого звужено мапу: фільтр екрана, як [category], без запиту до сервера. Null — усе місто. Інше місто,
+     * «Шукати тут», заклад із пошуку й «Усі N» з головної його знімають, див. [DiscoveryEngine.selectDistrict].
+     */
+    val district: District? = null,
     val dateFilter: DateFilter = DateFilter.ANY,
     val loading: Boolean = false,
     /** Показано кеш: мережа не відповіла. */
@@ -74,7 +79,11 @@ data class CityState(
     /** Область поставлена рукою («Шукати тут»), а не обрана зі списку міст. Головна каже це вголос. */
     val custom: Boolean = false,
     /** Підказки пошуку міста. */
-    val suggestions: List<CityResult> = emptyList()
+    val suggestions: List<CityResult> = emptyList(),
+    /** Райони міста з межами: для секції «Райони» пошуку й фільтра мапи. Порожньо, поки не приїхали чи районів нема. */
+    val districts: List<District> = emptyList(),
+    /** Для якого міста [districts] уже питали: місто без районів не перепитує на кожен запит мапи. */
+    val districtsOf: String? = null
 )
 
 /**

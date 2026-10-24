@@ -403,13 +403,17 @@ private fun countLabel(state: ExploreState): String {
     return if (state.screen.offline) stringResource(R.string.offline_count, count) else count
 }
 
-/** Що показує екран: пін, область рукою чи ціле місто. */
+/** Що показує екран: пін, область рукою, район чи ціле місто. */
 @Composable
-private fun areaLabel(state: ExploreState): String = when {
-    state.screen.stackFocused -> stringResource(R.string.area_stack)
-    state.screen.customArea -> stringResource(R.string.area_custom)
-    // Без «сьогодні»: під фільтром «Вихідні» підпис казав неправду. Той самий рядок, що на iOS.
-    else -> stringResource(R.string.area_city, state.screen.cityName)
+private fun areaLabel(state: ExploreState): String {
+    val district = state.screen.district
+    return when {
+        state.screen.stackFocused -> stringResource(R.string.area_stack)
+        state.screen.customArea -> stringResource(R.string.area_custom)
+        district != null -> stringResource(R.string.area_district, district.locative)
+        // Без «сьогодні»: під фільтром «Вихідні» підпис казав неправду. Той самий рядок, що на iOS.
+        else -> stringResource(R.string.area_city, state.screen.cityName)
+    }
 }
 
 /** Відстань у рядку з «Ближче до мене»: цілими км, а в межах похибки положення — «до 3 км». */
@@ -420,8 +424,9 @@ private fun distanceLabel(km: Int, within: Int): String =
 /** Згорнута шторка: карусель або тиха картка, коли показувати нічого. */
 @Composable
 private fun PeekDeck(state: ExploreState, onIntent: (ExploreIntent) -> Unit) {
+    // Подій нема — лише коли порожній сам список: картки району чи категорії часто ще їдуть, і «тихо» було б неправдою.
     if (state.screen.deckEvents.isEmpty()) {
-        if (!state.screen.loading) QuietCard(Modifier.padding(horizontal = Spacing.page), state, onIntent)
+        if (!state.screen.loading && state.screen.listEntries.isEmpty()) QuietCard(Modifier.padding(horizontal = Spacing.page), state, onIntent)
     } else EventCarousel(state, onIntent)
 }
 
@@ -529,8 +534,9 @@ private fun SheetList(state: ExploreState, onIntent: (ExploreIntent) -> Unit) {
     // Заклади пошуку — над подіями: список подій довгий, під ним їх ніхто б не побачив.
     val places = if (state.screen.stackFocused) emptyList() else state.screen.places
     val artists = if (state.screen.stackFocused) emptyList() else state.screen.artists
-    if (rows.isEmpty() && places.isEmpty() && artists.isEmpty()) {
-        if (state.screen.loading) Box(
+    val districts = state.screen.districts
+    if (rows.isEmpty() && districts.isEmpty() && places.isEmpty() && artists.isEmpty()) {
+        if (state.screen.loading || state.screen.listEntries.isNotEmpty()) Box(
             Modifier
                 .fillMaxWidth()
                 .padding(vertical = Spacing.section),
@@ -564,6 +570,10 @@ private fun SheetList(state: ExploreState, onIntent: (ExploreIntent) -> Unit) {
         ),
         verticalArrangement = Arrangement.spacedBy(Spacing.sm)
     ) {
+        // Райони — першими: їх у місті до десяти, і запит «Київський» найчастіше саме про район.
+        if (districts.isNotEmpty()) item(key = "districts") {
+            DistrictsGroup(districts, Modifier.padding(bottom = Spacing.md)) { onIntent(ExploreIntent.SelectDistrict(it)) }
+        }
         if (places.isNotEmpty()) item(key = "places") {
             PlacesGroup(places, withCity = false, Modifier.padding(bottom = Spacing.md)) { onIntent(ExploreIntent.FocusPlace(it)) }
         }
@@ -598,9 +608,15 @@ private fun SheetList(state: ExploreState, onIntent: (ExploreIntent) -> Unit) {
 private fun QuietCard(modifier: Modifier, state: ExploreState, onIntent: (ExploreIntent) -> Unit) {
     val colors = Poruch.colors
     val query = state.screen.searchText.trim()
+    val district = state.screen.district
+    val suggested = state.screen.districts.firstOrNull()
     val (action, intent) = when {
+        // Слово — назва району: подій із ним нема, а район є. Дія — туди, а не «очистити».
+        query.isNotEmpty() && suggested != null -> R.string.show_district to ExploreIntent.SelectDistrict(suggested)
         query.isNotEmpty() -> R.string.clear_search to ExploreIntent.Search("")
         state.screen.activeFilters > 0 -> R.string.reset_filters_action to ExploreIntent.ResetFilters
+        // Порожній район — звичайна справа: афіша в центрі, а спальні райони часто тихі. Вихід — усе місто.
+        district != null -> R.string.whole_city to ExploreIntent.WholeCity
         else -> R.string.create to ExploreIntent.CreateEvent
     }
     // Дія — у рядку заголовка: у згорнутій шторці картка має висоту каруселі, і під текстом дію зрізало.
@@ -622,9 +638,12 @@ private fun QuietCard(modifier: Modifier, state: ExploreState, onIntent: (Explor
         }
         Text(
             when {
+                query.isNotEmpty() && suggested != null ->
+                    stringResource(R.string.nothing_for_query_district, query, suggested.district.name)
                 query.isNotEmpty() -> stringResource(R.string.nothing_for_query, query)
                 // У стосі область мапи не допоможе: тут звужують лише фільтри.
                 state.screen.stackFocused -> stringResource(R.string.nothing_here_stack)
+                district != null && state.screen.activeFilters == 0 -> stringResource(R.string.nothing_in_district, district.locative)
                 else -> stringResource(R.string.nothing_here_hint)
             },
             style = MaterialTheme.typography.bodySmall,

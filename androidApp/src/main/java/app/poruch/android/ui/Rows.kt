@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import app.poruch.android.R
 import app.poruch.domain.ArtistHit
 import app.poruch.domain.DiscoveryRules
+import app.poruch.domain.DistrictHit
 import app.poruch.domain.Place
 
 /** Рядок артиста в пошуку: піктограма людини, ім'я й скільки подій попереду. */
@@ -109,6 +110,49 @@ fun PlaceRow(
                 place.name, style = PoruchType.brandTitle3, color = colors.ink,
                 maxLines = 1, overflow = TextOverflow.Ellipsis
             )
+            Text(
+                subtitle, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary,
+                maxLines = 2, overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+/**
+ * Рядок району в пошуку: гліф межі, назва й скільки в ньому подій міста — те число, що покаже мапа. Порожній район теж
+ * рядок: «Поки без подій» чесно каже, що район є, а подій нема. Після нещодавнього перейменування — «раніше …».
+ */
+@Composable
+fun DistrictRow(hit: DistrictHit, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val colors = Poruch.colors
+    val subtitle = listOfNotNull(
+        if (hit.upcoming > 0) pluralStringResource(R.plurals.place_upcoming, hit.upcoming, hit.upcoming)
+        else stringResource(R.string.district_no_events),
+        hit.district.formerShort?.let { stringResource(R.string.district_former, it) }
+    ).joinToString(" · ")
+    Row(
+        modifier
+            .fillMaxWidth()
+            .semantics(mergeDescendants = true) {}
+            .pressable(onClick = onClick)
+            .padding(horizontal = Spacing.lg, vertical = Spacing.md),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.md),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            Modifier
+                .size(40.dp)
+                .background(colors.surfaceMuted, Radius.xs),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(PoruchIcons.district, null, Modifier.size(20.dp), tint = colors.ink)
+        }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                hit.district.name, style = PoruchType.brandTitle3, color = colors.ink,
+                maxLines = 1, overflow = TextOverflow.Ellipsis
+            )
+            // Два рядки: на великому шрифті «раніше Малиновський» — саме те, за чим людина шукала, — не обрізається.
             Text(
                 subtitle, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary,
                 maxLines = 2, overflow = TextOverflow.Ellipsis
@@ -207,6 +251,24 @@ fun PlacesGroup(
             places.forEachIndexed { position, place ->
                 if (position > 0) HairLine(Modifier.padding(start = Spacing.lg + 40.dp + Spacing.md))
                 PlaceRow(place, withCity = withCity) { onOpen(place) }
+            }
+        }
+    }
+}
+
+/** Секція «Райони» над «Місцями»: райони міста за тим самим словом. Тап — мапа в районі. */
+@Composable
+fun DistrictsGroup(
+    districts: List<DistrictHit>,
+    modifier: Modifier = Modifier,
+    onOpen: (DistrictHit) -> Unit
+) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        GroupLabel(stringResource(R.string.search_districts_group))
+        GroupedRows {
+            districts.forEachIndexed { position, hit ->
+                if (position > 0) HairLine(Modifier.padding(start = Spacing.lg + 40.dp + Spacing.md))
+                DistrictRow(hit) { onOpen(hit) }
             }
         }
     }
