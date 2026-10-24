@@ -536,7 +536,11 @@ internal fun ExternalActions(state: DetailState, onIntent: (DetailIntent) -> Uni
         RoundAction(PoruchIcons.calendar, stringResource(R.string.calendar_short), { onIntent(DetailIntent.AddToCalendar) }, Modifier.weight(1f), enabled = !state.screen.cancelled)
         RoundAction(PoruchIcons.directions, stringResource(R.string.open_in_maps), { onIntent(DetailIntent.OpenInMaps) }, Modifier.weight(1f))
         // Поділитися подією — і є покликати (docs/invites.md). Скасовану чи минулу — просто поділитися.
-        if (state.screen.canInvite) RoundAction(PoruchIcons.personAdd, stringResource(R.string.invite), { onIntent(DetailIntent.Share) }, Modifier.weight(1f), loading = state.inviting)
+        // Підказка лише з входом: посилання гостя не несе імені, і пояснювати нема що.
+        if (state.screen.canInvite) RoundAction(
+            PoruchIcons.personAdd, stringResource(R.string.invite), { onIntent(DetailIntent.Share) },
+            Modifier.weight(1f).coachTarget(CoachTip.INVITE.takeIf { state.screen.signedIn }), loading = state.inviting
+        )
         else RoundAction(PoruchIcons.share, stringResource(R.string.share), { onIntent(DetailIntent.Share) }, Modifier.weight(1f))
         RoundAction(PoruchIcons.map, stringResource(R.string.on_map), { onIntent(DetailIntent.OpenMap) }, Modifier.weight(1f))
     }

@@ -164,7 +164,10 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
         ) { BoughtCard(onIntent) }
         // Без відповіді за 10 с картка зникає сама: це питання, а не перешкода.
         if (state.boughtPrompt) LaunchedEffect(Unit) { delay(10_000); onIntent(DetailIntent.BoughtPromptAnswered(false)) }
-        CoachMarks(listOf(CoachTip.COMPANION), enabled = state.screen.canSeekCompany)
+        CoachMarks(
+            listOf(CoachTip.COMPANION, CoachTip.INVITE),
+            enabled = state.screen.canSeekCompany || (state.screen.canInvite && state.screen.signedIn)
+        )
     }
     if (state.confirmingBlock) PoruchConfirmSheet(
         title = stringResource(R.string.block_user_title),

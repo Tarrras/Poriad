@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.poruch.android.R
 
@@ -172,7 +173,8 @@ fun RoundAction(
             if (loading) CircularProgressIndicator(Modifier.size(20.dp), color = ink, strokeWidth = 2.dp)
             else Icon(icon, null, Modifier.size(22.dp), tint = ink)
         }
-        Text(title, style = MaterialTheme.typography.labelMedium, color = ink, maxLines = 1)
+        // На великому шрифті — трикрапка, а не підпис, обрізаний посеред слова.
+        Text(title, style = MaterialTheme.typography.labelMedium, color = ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 

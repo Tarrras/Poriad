@@ -378,6 +378,8 @@
   <string name="tip_companion_title">Не хочете йти самі?</string>
   <string name="tip_sheet_title">Список під мапою</string>
   <string name="tip_sheet_body">Торкніться лічильника чи потягніть шторку вгору — там ті самі події списком. Пін із числом — кілька подій в одному місці.</string>
+  <string name="tip_invite_title">Покликати з собою</string>
+  <string name="tip_invite_body">Друг отримає посилання на подію й побачить, що кличете саме ви: ваше ім’я й фото з профілю.</string>
   <string name="tip_companion_body">Зберіть невелику компанію на цю подію. Хто захоче піти з вами, надішле запит — ви вирішите, кого взяти.</string>
   <string name="slot_weekday_day">Будні, вдень</string>
   <string name="slot_weekday_day_hint">До 17:00</string>

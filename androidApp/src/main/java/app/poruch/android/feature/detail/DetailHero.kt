@@ -3,6 +3,12 @@ package app.poruch.android.feature.detail
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -119,7 +125,13 @@ internal fun Hero(event: Event, state: DetailState, scroll: ScrollState, onInten
                 room?.isScarce == true -> Triple(stringResource(R.string.seats_left, room.seatsLeft), BadgeTone.Accent, null)
                 else -> null
             }
-            state.screen.inviter?.let { InviterLine(it) }
+            // Хто кличе приходить окремою відповіддю: рядок проявляється, назва піднімається пружиною, а не стрибком.
+            val reduced = Poruch.reducedMotion
+            AnimatedVisibility(
+                state.screen.inviter != null,
+                enter = fadeIn(Motion.quick(reduced)) + expandVertically(if (reduced) snap() else Motion.spring()),
+                exit = fadeOut(Motion.quick(reduced)) + shrinkVertically(if (reduced) snap() else Motion.spring())
+            ) { state.screen.inviter?.let { InviterLine(it) } }
             stamp?.let { (text, tone, icon) -> TicketStamp(text, tone, icon, onFill = true) }
             // «Стендап · Афіша · Badseller»: афіша завжди підписана джерелом — атрибуція обов'язкова.
             val meta = listOfNotNull(

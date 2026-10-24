@@ -95,7 +95,8 @@ struct EventDetailView: View, Equatable {
         // У деталей власна нижня панель, таббар стояв би на ній.
         .hidesTabBar()
         .toolbar(.hidden, for: .navigationBar)
-        .sheet(item: $auth) { reason in NavigationStack { AuthView(reason: reason) } }
+        // Вхід міняє акаунт і чистить відкриту подію: після шторки просимо її знову, інакше лишався б лоадер.
+        .sheet(item: $auth, onDismiss: { screen.reopen() }) { reason in NavigationStack { AuthView(reason: reason) } }
         .personSheet(model, isPresented: $showingPerson, request: { userId in
             guard let event = view.event, view.organizer, view.requests.contains(where: { $0.userId == userId }) else { return nil }
             return PersonRequest(
@@ -171,7 +172,7 @@ struct EventDetailView: View, Equatable {
         }
         .background(Palette.canvas)
         // Тут, а не в корені: з мапи деталі відкриваються шторкою, і корінь лежав би під нею.
-        .coachMarks([.companion], enabled: view.canSeekCompany)
+        .coachMarks([.companion, .invite], enabled: view.canSeekCompany || (view.canInvite && view.signedIn))
         .modifier(DetailSheets(event: event, view: view, editing: $editing, actions: actions))
         .modifier(DetailDialogs(event: event, view: view, openingContact: $openingContact, cancelling: $cancelling, blocking: $blocking, reporting: $reporting, actions: actions))
     }

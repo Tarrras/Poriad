@@ -335,6 +335,8 @@ enum Copy {
     static let tip_companion_title = "Не хочете йти самі?"
     static let tip_sheet_title = "Список під мапою"
     static let tip_sheet_body = "Торкніться лічильника чи потягніть шторку вгору — там ті самі події списком. Пін із числом — кілька подій в одному місці."
+    static let tip_invite_title = "Покликати з собою"
+    static let tip_invite_body = "Друг отримає посилання на подію й побачить, що кличете саме ви: ваше ім’я й фото з профілю."
     static let tip_companion_body = "Зберіть невелику компанію на цю подію. Хто захоче піти з вами, надішле запит — ви вирішите, кого взяти."
     static let slot_weekday_day = "Будні, вдень"
     static let slot_weekday_day_hint = "До 17:00"

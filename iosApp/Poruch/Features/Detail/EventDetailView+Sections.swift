@@ -20,7 +20,7 @@ extension EventDetailView {
             .overlay(alignment: .bottomLeading) {
                 HeroTextFade(scroll: scroll) {
                     VStack(alignment: .leading, spacing: Space.md) {
-                        if let inviter = view.inviter { InviterLine(inviter: inviter) }
+                        if let inviter = view.inviter { InviterLine(inviter: inviter).transition(.opacity) }
                         if let stamp = coverState(event, view) {
                             TicketStamp(text: stamp.0, tone: stamp.1, glyph: stamp.2, onFill: true)
                         }
@@ -32,6 +32,8 @@ extension EventDetailView {
                         }
                     }
                     .padding(.horizontal, Space.page).padding(.bottom, Space.xl)
+                    // Хто кличе приходить окремою відповіддю: назва піднімається пружиною, а не стрибком.
+                    .motion(Motion.spring, value: view.inviter != nil)
                 }
             }
             .overlay(alignment: .top) {
@@ -237,6 +239,8 @@ extension EventDetailView {
                         if inviting { ProgressView() } else { PoruchIcon(glyph: PoruchIcons.personAdd, size: 20) }
                     }
                 }.buttonStyle(PressableStyle())
+                // Підказка лише з входом: посилання гостя не несе імені, і пояснювати нема що.
+                .coachTarget(view.signedIn ? .invite : nil)
             } else {
                 ShareLink(item: SystemActions.shareText(for: event)) {
                     RoundAction(title: Copy.share) { PoruchIcon(glyph: PoruchIcons.share, size: 20) }
