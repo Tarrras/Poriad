@@ -2161,32 +2161,39 @@ class PoruchAppTest {
             val soon=(Clock.System.now()+1.hours).toString()
             val far=listed("far",soon,placeId=null).copy(latitude=50.45,longitude=30.70)
             val mid=listed("mid",soon,placeId=null).copy(latitude=50.47,longitude=30.52)
+            val close=listed("close",soon,placeId=null).copy(latitude=50.454,longitude=30.52)
             val near=listed("near",soon,placeId=null).copy(latitude=50.4505,longitude=30.5205)
-            events.results=listOf(far,mid,near)
+            events.results=listOf(far,mid,close,near)
             val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
             val presenter=ExplorePresenter(app,backgroundScope,StandardTestDispatcher(testScheduler))
             runCurrent()
             val before=presenter.state.value
             val taste=before.listEntries.map { it.id }
             assertNull(before.kmFromMe(near))
-            presenter.nearMe(50.45,30.52); runCurrent()
+            presenter.nearMe(50.45,30.52,accuracy=30.0); runCurrent()
             val sorted=presenter.state.value
             assertTrue(sorted.nearMe)
-            assertEquals(listOf("near","mid","far"),sorted.listEntries.map { it.id })
-            assertEquals(listOf("near","mid","far"),sorted.deckEvents.map { it.id },"карусель — той самий порядок")
+            assertEquals(listOf("near","close","mid","far"),sorted.listEntries.map { it.id })
+            assertEquals(listOf("near","close","mid","far"),sorted.deckEvents.map { it.id },"карусель — той самий порядок")
             assertSame(before.mapEvents,sorted.mapEvents,"піни не перебудовуються")
-            // Геолокація приблизна: ближче за кілометр — «до 1 км», далі — цілими.
-            assertEquals(listOf(0,2,13),listOf(near,mid,far).map { sorted.kmFromMe(it) })
+            // Точне положення: у межах кілометра порядок за справжньою відстанню, а підпис — «до 1 км»; далі — цілими.
+            assertEquals(1,sorted.nearWithinKm)
+            assertEquals(listOf(1,1,2,13),listOf(near,close,mid,far).map { sorted.kmFromMe(it) })
             // Фільтр порядок не скидає.
             presenter.toggleCategory(EventCategory.MUSIC); runCurrent()
-            assertEquals(listOf("near","mid","far"),presenter.state.value.listEntries.map { it.id })
+            assertEquals(listOf("near","close","mid","far"),presenter.state.value.listEntries.map { it.id })
             presenter.toggleCategory(EventCategory.MUSIC); runCurrent()
+            // Зменшена точність iOS чи COARSE: у межах похибки — «до 3 км» і порядок «для вас», далі — від найближчої.
+            presenter.nearMe(50.45,30.52,accuracy=2600.0); runCurrent()
+            assertEquals(3,presenter.state.value.nearWithinKm)
+            assertEquals(listOf(3,3,13),listOf(near,mid,far).map { presenter.state.value.kmFromMe(it) })
+            assertEquals(taste.filter { it!="far" }+"far",presenter.state.value.listEntries.map { it.id })
             presenter.clearNearMe(); runCurrent()
             assertFalse(presenter.state.value.nearMe)
             assertEquals(taste,presenter.state.value.listEntries.map { it.id })
             presenter.nearMeUnavailable()
             assertEquals(
-                listOf(mapOf("on" to "true","located" to "true"),mapOf("on" to "false"),mapOf("on" to "true","located" to "false")),
+                listOf(mapOf("on" to "true","located" to "true","within_km" to "1"),mapOf("on" to "false"),mapOf("on" to "true","located" to "false")),
                 tracked.filter { it.first=="map_nearest" }.map { it.second }
             )
             // Нуль у місті — сигнал, якого жанру бракує.

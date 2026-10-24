@@ -30,6 +30,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.math.PI
+import kotlin.math.ceil
 import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.roundToInt
@@ -46,8 +47,14 @@ private data class ExploreLocal(
     /** Росте, коли презентер сам відкрив стос (заклад з пошуку): платформа опускає шторку. */
     val focusToken: Int = 0,
     /** «Ближче до мене»: де людина, коли шторку впорядкували від неї. Null — порядок «для вас», з індексу. */
-    val near: Pair<Double, Double>? = null
+    val near: NearPoint? = null
 )
+
+/** Положення людини для «Ближче до мене» і його похибка в метрах, як її дає система. */
+private data class NearPoint(val latitude: Double, val longitude: Double, val accuracy: Double) {
+    /** Похибка цілими км для підпису, щонайменше 1: рядок не пише метрів. */
+    val withinKm get() = ceil(accuracy / 1000).toInt().coerceAtLeast(1)
+}
 
 /** Стан екрана мапи: індекс для пінів, вміст шторки, фільтри й місто — усе вже пораховане. Платформа додає положення шторки, листи й камеру. */
 data class ExploreScreenState(
@@ -103,7 +110,12 @@ data class ExploreScreenState(
     /** Список і карусель — від найближчої до людини («Ближче до мене»). Піни на мапі не міняються. */
     val nearMe: Boolean = false,
     val nearLatitude: Double = 0.0,
-    val nearLongitude: Double = 0.0
+    val nearLongitude: Double = 0.0,
+    /**
+     * Похибка положення цілими км, щонайменше 1. Геолокація свідомо приблизна (iOS — зменшена точність, Android —
+     * COARSE, до кількох км), тож ближче за цю межу чесно лише «до N км».
+     */
+    val nearWithinKm: Int = 1
 ) {
     val activeFilters: Int get() = listOf(dateFilter != DateFilter.ANY, category != null, onlyAvailable).count { it }
     /** Чи є що довантажувати: індекс повний, картки — ні. */
@@ -115,13 +127,11 @@ data class ExploreScreenState(
     fun countOf(category: EventCategory): Int? = categoryCounts?.let { it[category] ?: 0 }
 
     /**
-     * Відстань від людини цілими кілометрами для рядка списку; 0 — ближче за кілометр («до 1 км»). Null — «Ближче до
-     * мене» вимкнено. Не метри: геолокація приблизна (кілометр на iOS, COARSE на Android), «350 м» було б неправдою.
+     * Відстань від людини цілими кілометрами для рядка списку, не менша за [nearWithinKm]: рівна їй — «до N км», бо
+     * ближче похибка положення більша за саму відстань. Null — «Ближче до мене» вимкнено.
      */
-    fun kmFromMe(event: Event): Int? =
-        if (!nearMe) null else (metersBetween(nearLatitude, nearLongitude, event.latitude, event.longitude) / 1000).let {
-            if (it < 1) 0 else it.roundToInt()
-        }
+    fun kmFromMe(event: Event): Int? = if (!nearMe) null
+    else (metersBetween(nearLatitude, nearLongitude, event.latitude, event.longitude) / 1000).roundToInt().coerceAtLeast(nearWithinKm)
 
     companion object {
         val Empty = ExploreScreenState()
@@ -234,12 +244,15 @@ class ExplorePresenter(
     }
 
     /**
-     * «Ближче до мене»: список і карусель — від найближчої до людини, піни на мапі як були. Тримається до кінця сесії:
-     * фільтри, місто й «Усі N» порядок не скидають. Повторний виклик лише посуває точку.
+     * «Ближче до мене»: список і карусель — від найближчої до людини, піни на мапі як були. [accuracy] — похибка виміру в
+     * метрах, як її дає система. Тримається до кінця сесії: фільтри, місто й «Усі N» порядок не скидають. Повторний
+     * виклик лише посуває точку.
      */
-    fun nearMe(latitude: Double, longitude: Double) {
-        if (local.value.near == null) PoruchAnalytics.track("map_nearest", "on" to true, "located" to true)
-        local.update { it.copy(near = latitude to longitude) }
+    fun nearMe(latitude: Double, longitude: Double, accuracy: Double) {
+        val near = NearPoint(latitude, longitude, accuracy.coerceAtLeast(0.0))
+        // Похибка — щоб вирішити на даних, чи вистачає приблизної геолокації, а не здогадом.
+        if (local.value.near == null) PoruchAnalytics.track("map_nearest", "on" to true, "located" to true, "within_km" to near.withinKm)
+        local.update { it.copy(near = near) }
     }
 
     /** «Ближче до мене» натиснули, а положення нема: дозвіл не дали чи система змовчала. Порядок лишається «для вас». */
@@ -339,7 +352,11 @@ class ExplorePresenter(
         val stack = if (stackFocused) visible.filter { (it.latitude to it.longitude) in local.stackPoints } else emptyList()
         val near = local.near
         val shown = if (stackFocused) stack else mapEvents
-        val listEntries = if (near == null) shown else shown.sortedBy { metersBetween(near.first, near.second, it.latitude, it.longitude) }
+        // У межах похибки положення порядок «ближче» був би вигадкою: там лишається порядок «для вас» (сортування стабільне),
+        // далі — від найближчої.
+        val listEntries = if (near == null) shown else shown.sortedBy {
+            maxOf(metersBetween(near.latitude, near.longitude, it.latitude, it.longitude), near.accuracy)
+        }
         // Числа плиток — з того, що звужує категорія: усе місто чи точки стосу. Дату, «Від людей» і пошук уже відібрав сервер.
         val settled = !shared.map.loading && shared.map.answered == shared.map.queries
         val counted = if (stackFocused) index.filter { (it.latitude to it.longitude) in local.stackPoints } else index
@@ -381,8 +398,9 @@ class ExplorePresenter(
             focusToken = local.focusToken,
             categoryCounts = if (settled) counted.groupingBy { it.category }.eachCount() else null,
             nearMe = near != null,
-            nearLatitude = near?.first ?: 0.0,
-            nearLongitude = near?.second ?: 0.0
+            nearLatitude = near?.latitude ?: 0.0,
+            nearLongitude = near?.longitude ?: 0.0,
+            nearWithinKm = near?.withinKm ?: 1
         )
     }
 }
