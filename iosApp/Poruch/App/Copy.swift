@@ -5,7 +5,7 @@ import Foundation
 /// як у Swift-інтерполяції. Множини рахує `ukrainianPlural`.
 enum Copy {
     static let brand_name = "Поряд"
-    static let tagline = "Події поряд з вами"
+    static let tagline = "Є куди. Буде з ким."
     static let map = "Мапа"
     static let my_events = "Мої події"
     static let profile = "Профіль"
