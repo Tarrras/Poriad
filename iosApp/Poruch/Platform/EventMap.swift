@@ -343,7 +343,8 @@ struct EventMap: UIViewRepresentable {
             sw: CLLocationCoordinate2D(latitude: district.south, longitude: district.west),
             ne: CLLocationCoordinate2D(latitude: district.north, longitude: district.east)
         )
-        let margin = UIEdgeInsets(top: districtMargin, left: districtMargin, bottom: districtMargin, right: districtMargin)
+        // Зверху вдвічі: ряд чипів сягає нижче за `topInset`, і межа впиралась у нього.
+        let margin = UIEdgeInsets(top: districtMargin * 2, left: districtMargin, bottom: districtMargin, right: districtMargin)
         map.setVisibleCoordinateBounds(bounds, edgePadding: margin, animated: animated, completionHandler: nil)
     }
 
