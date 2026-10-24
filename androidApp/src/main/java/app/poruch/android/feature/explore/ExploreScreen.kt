@@ -76,6 +76,24 @@ fun ExploreScreen(state: ExploreState, onIntent: (ExploreIntent) -> Unit) {
         }
         ExploreSheet.NONE -> Unit
     }
+    // Чесно: без геолокації «ближче» не порахувати, список лишився «для вас». Вихід — дозвіл у налаштуваннях.
+    if (state.nearDenied) PoruchSheet({ onIntent(ExploreIntent.DismissNearDenied) }) { sheet ->
+        Column(
+            Modifier.padding(horizontal = Spacing.page).padding(bottom = Spacing.section),
+            verticalArrangement = Arrangement.spacedBy(Spacing.md)
+        ) {
+            Text(stringResource(R.string.location_title), style = PoruchType.brandTitle2, color = colors.ink)
+            Text(
+                stringResource(R.string.nearer_me_denied), style = MaterialTheme.typography.bodyLarge,
+                color = colors.inkSecondary, modifier = Modifier.padding(bottom = Spacing.sm)
+            )
+            PrimaryButton(
+                stringResource(R.string.open_settings), { sheet.close { onIntent(ExploreIntent.OpenLocationSettings) } },
+                Modifier.fillMaxWidth()
+            )
+            SecondaryButton(stringResource(R.string.close), { sheet.close() }, Modifier.fillMaxWidth())
+        }
+    }
     // Підказка першого знайомства: де список і що таке пін із числом. Лише над згорнутою шторкою з картками,
     // коли поверх мапи нічого не відкрито.
     CoachMarks(

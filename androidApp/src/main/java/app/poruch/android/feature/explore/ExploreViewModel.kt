@@ -120,6 +120,27 @@ class ExploreViewModel(private val app: PoruchApp) :
             }
             is ExploreIntent.LocatedAt -> app.followLocation(CityResult(intent.name, intent.latitude, intent.longitude))
             ExploreIntent.LocationDenied -> reduce { copy(locationDenied = true) }
+            ExploreIntent.ToggleNear -> if (screen.nearMe || state.value.locatingNear) {
+                reduce { copy(locatingNear = false) }
+                presenter.clearNearMe()
+            } else {
+                reduce { copy(locatingNear = true) }
+                send(ExploreEffect.LocateNear)
+            }
+            // Перше положення після тапу — і список від нього. Пізніший вимір порядок не смикає.
+            is ExploreIntent.NearAt -> if (state.value.locatingNear) {
+                reduce { copy(locatingNear = false) }
+                presenter.nearMe(intent.latitude, intent.longitude, intent.accuracy)
+            }
+            ExploreIntent.NearUnavailable -> if (state.value.locatingNear) {
+                reduce { copy(locatingNear = false, nearDenied = true) }
+                presenter.nearMeUnavailable()
+            }
+            ExploreIntent.DismissNearDenied -> reduce { copy(nearDenied = false) }
+            ExploreIntent.OpenLocationSettings -> {
+                reduce { copy(nearDenied = false) }
+                send(ExploreEffect.OpenLocationSettings)
+            }
         }
     }
 

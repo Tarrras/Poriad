@@ -552,17 +552,27 @@ struct EventMap: UIViewRepresentable {
     private let manager = CLLocationManager()
     private let geocoder = CLGeocoder()
     @Published var city: CityResult?
+    /// Саме положення, до геокодера: від нього «Ближче до мене» міряє відстані.
+    @Published var point: CLLocationCoordinate2D?
+    /// Похибка [point] у метрах: зі зменшеною точністю (`NSLocationDefaultAccuracyReduced`) це кілометри.
+    private(set) var accuracy: CLLocationAccuracy = 0
     @Published var message: String?
+    /// False — лише положення, без міста: «Ближче до мене» не має перемикати місто на екрані.
+    private let resolvesCity: Bool
     /// Назва, вже віддана в межах поточного запиту.
     private var announced: String?
     /// Положення просили. Система кличе `locationManagerDidChangeAuthorization` і при створенні
     /// менеджера: без прапорця кожен екземпляр сам визначав місто, і воно перемикалось двічі.
     private var wanted = false
-    override init() { super.init(); manager.delegate = self; manager.desiredAccuracy = kCLLocationAccuracyKilometer }
+    init(resolvesCity: Bool = true) {
+        self.resolvesCity = resolvesCity
+        super.init(); manager.delegate = self; manager.desiredAccuracy = kCLLocationAccuracyKilometer
+    }
     /// Людина ще не відповідала на системне питання.
     var undecided: Bool { manager.authorizationStatus == .notDetermined }
     func request() {
         announced = nil
+        point = nil
         wanted = true
         switch manager.authorizationStatus {
         case .notDetermined: manager.requestWhenInUseAuthorization()
@@ -571,23 +581,32 @@ struct EventMap: UIViewRepresentable {
         }
     }
     private func locate() {
-        // Свіжий вимір буває за десять секунд; останній відомий майже завжди вже є.
-        if let known = manager.location { resolve(known) }
+        // Свіжий вимір буває за десять секунд; останній відомий майже завжди вже є. Для відстаней — лише недавній:
+        // «Ближче до мене» бере перший вимір, і годинний кеш поставив би людину туди, де її вже нема.
+        if let known = manager.location, resolvesCity || -known.timestamp.timeIntervalSinceNow < 120 { resolve(known) }
         manager.requestLocation()
     }
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        guard wanted, manager.authorizationStatus == .authorizedWhenInUse || manager.authorizationStatus == .authorizedAlways else { return }
-        locate()
+        guard wanted else { return }
+        switch manager.authorizationStatus {
+        case .authorizedWhenInUse, .authorizedAlways: locate()
+        // Відмову в системному питанні місто приймає мовчки, а «Ближче до мене» мусить зняти вибір і сказати чому.
+        case .denied, .restricted: if !resolvesCity { message = Copy.location_denied_hint }
+        default: break
+        }
     }
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         if let last = locations.last { resolve(last) }
     }
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         // Останній відомий уже спрацював: мовчимо.
-        if announced == nil { message = Copy.location_failed_hint }
+        if announced == nil && point == nil { message = Copy.location_failed_hint }
     }
 
     private func resolve(_ location: CLLocation) {
+        accuracy = location.horizontalAccuracy
+        point = location.coordinate
+        guard resolvesCity else { return }
         geocoder.cancelGeocode()
         // У місті з подіями назва — його, а не громади від геокодера.
         let point = location.coordinate

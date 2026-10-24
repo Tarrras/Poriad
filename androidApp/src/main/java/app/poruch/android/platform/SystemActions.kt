@@ -84,6 +84,12 @@ fun Context.openNotificationSettings(): Boolean {
     return runCatching { startActivity(intent) }.isSuccess
 }
 
+/** Сторінка застосунку в системних налаштуваннях: там вмикають геолокацію, коли дозвіл забрано. */
+fun Context.openAppSettings(): Boolean {
+    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))
+    return runCatching { startActivity(intent) }.isSuccess
+}
+
 /** «Будильники й нагадування» застосунку: там дозволяють точні будильники (Android 12+). */
 @SuppressLint("InlinedApi")
 fun Context.openAlarmSettings(): Boolean {

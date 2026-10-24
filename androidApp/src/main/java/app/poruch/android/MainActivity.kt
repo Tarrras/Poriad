@@ -276,7 +276,7 @@ private fun LocationPrompt(app: PoruchApp, appState: State<AppState>, tourDone: 
     val state by appState
     val nearby = stringResource(R.string.nearby)
     val locate = {
-        context.lastKnownPosition({ lat, lon ->
+        context.lastKnownPosition({ lat, lon, _ ->
             context.cityAt(
                 lat,
                 lon,

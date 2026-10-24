@@ -94,6 +94,9 @@ struct DiscoverySheet: View {
     /// Скинути фільтри з порожньої картки так, щоб їх можна було повернути.
     let resetFilters: () -> Void
     let createEvent: (String) -> Void
+    /// «Ближче до мене» чекає на положення.
+    let locating: Bool
+    let toggleNear: () -> Void
     @Environment(\.appModel) private var appModel
     private var model: AppModel { appModel! }
     private var explore: ExploreScreenModel { model.exploreScreen }
@@ -125,7 +128,8 @@ struct DiscoverySheet: View {
                         // картки. Інакше нова видача показувалась з позиції старої, посеред списку й зсунута на пів картки.
                         // Нова карусель, а не `scrollTo(first)`: `scrollPosition` тримається за id картки, і видача, що приїжджає
                         // слідом, ставила карусель знову посередині. Перебудова дешева: `LazyHStack` має 2–3 видимі картки.
-                        .id("\(centerToken)/\(view.queries)")
+                        // «Ближче до мене» теж: перша картка — найближча.
+                        .id("\(centerToken)/\(view.queries)/\(view.nearMe)")
                         .padding(.top, deckGap)
                     }
                 } else {
@@ -171,7 +175,7 @@ struct DiscoverySheet: View {
                 .opacity(expanded ? 1 : 0)
                 .padding(.top, expanded ? Space.sm : 0)
             if expanded {
-                ListHeader(detent: detent, open: open, askAuth: askAuth)
+                ListHeader(detent: detent, open: open, askAuth: askAuth, locating: locating, toggleNear: toggleNear)
                     .contentShape(Rectangle())
                     .gesture(dragGesture)
             } else {
@@ -199,8 +203,9 @@ struct DiscoverySheet: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: Space.xs) {
                     ForEach(categories, id: \.0) { entry in
-                        // Та сама категорія, що у «Фільтрах»: звужує й мапу.
-                        CategoryTile(category: entry.0, selected: view.category == entry.0) {
+                        // Та сама категорія, що у «Фільтрах»: звужує й мапу. Число — серед міста чи закладу, як лічильник після тапу.
+                        CategoryTile(category: entry.0, selected: view.category == entry.0, counted: true,
+                                     count: view.countOf(category: entry.0)?.intValue) {
                             explore.toggleCategory(entry.0)
                         }
                     }
@@ -350,6 +355,8 @@ private struct ListHeader: View {
     let detent: SheetDetent
     let open: (SheetDetent) -> Void
     let askAuth: () -> Void
+    let locating: Bool
+    let toggleNear: () -> Void
     @Environment(\.appModel) private var appModel
     private var view: ExploreScreenState { appModel!.exploreScreen.state }
 
@@ -367,6 +374,12 @@ private struct ListHeader: View {
                 Text(view.stackPlace != nil ? countLabel(view) : areaLabel(view)).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(2)
                 // Під підписом, а не в ряду: лічильник і дві кнопки праворуч не лишають йому місця.
                 if view.stackPlace != nil { StackFollowButton(iconOnly: false, askAuth: askAuth).padding(.top, Space.sm) }
+                // Те саме гніздо в місті: порядок — властивість списку, який піднімають, щоб зіставити. У стосі чипа нема:
+                // одне місце — одна відстань.
+                if !view.stackFocused {
+                    Chip(label: Copy.nearer_me, glyph: PoruchIcons.myLocation, selected: view.nearMe || locating, action: toggleNear)
+                        .padding(.top, Space.sm)
+                }
             }
             Spacer(minLength: Space.sm)
             if view.stackFocused { ClearStackButton(size: 48) }
@@ -428,7 +441,7 @@ private struct SheetRows: View {
             // Рядки з малим корінцем, як у пошуку головної: список відкривають, щоб зіставити варіанти, і
             // картка з фото 180 давала півтори події на екран. Фото й «Зберегти» — на картці каруселі й у деталях.
             ForEach(Array(view.deckEvents.enumerated()), id: \.element.id) { position, event in
-                EventResultRow(event: event, waitlisted: explore.waitlistedIDs.contains(event.id)) {
+                EventResultRow(event: event, waitlisted: explore.waitlistedIDs.contains(event.id), distance: distanceLabel(view.kmFromMe(event: event), within: Int(view.nearWithinKm))) {
                     open(event.id)
                 }
                 .cardSurface()
@@ -496,6 +509,12 @@ private func countLabel(_ view: ExploreScreenState) -> String {
     let count = view.stackFocused ? Copy.events_here("\(view.listCount)") : Copy.events_found("\(view.listCount)")
     // Офлайн словами, а не лише гліфом: видача — збережена, і це треба знати.
     return view.offline ? Copy.offline_count(count) : count
+}
+
+/// Відстань у рядку з «Ближче до мене»: цілими км, а в межах похибки положення — «до 3 км». Nil — перемикач вимкнено.
+private func distanceLabel(_ km: KotlinInt?, within: Int) -> String? {
+    guard let km = km?.intValue else { return nil }
+    return km <= within ? Copy.distance_within("\(within)") : Copy.distance_km("\(km)")
 }
 
 /// Що показує екран: пін, область рукою чи ціле місто.

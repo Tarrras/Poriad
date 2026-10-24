@@ -26,9 +26,11 @@ struct FiltersView: View {
                     }
                     section(Copy.categories) {
                         // Ті самі плитки, що в шторці мапи й у редакторі: жанр обирають однаково скрізь. Повторний тап знімає вибір.
+                        // Число під назвою — що дасть вибір під цю дату й «Від людей»: нуль видно до тапу.
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 76), spacing: Space.sm)], spacing: Space.md) {
                             ForEach(categories, id: \.0) { entry in
-                                CategoryTile(category: entry.0, selected: explore.category == entry.0) {
+                                CategoryTile(category: entry.0, selected: explore.category == entry.0, counted: true,
+                                             count: explore.countOf(category: entry.0)?.intValue) {
                                     model.exploreScreen.toggleCategory(entry.0)
                                 }
                             }

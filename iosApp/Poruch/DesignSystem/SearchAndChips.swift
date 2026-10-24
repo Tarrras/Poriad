@@ -211,34 +211,45 @@ struct SegmentedPill: View {
     }
 }
 
-/// Плитка категорії: скруглений квадрат у пастелі категорії.
+/// Плитка категорії: скруглений квадрат у пастелі категорії. На мапі (`counted`) під назвою — скільки подій вона дасть.
 struct CategoryTile: View {
     let category: EventCategory
     let selected: Bool
+    /// Плитка фільтра мапи: під назвою рядок числа. Без нього (головна, редактор, онбординг) рядка нема.
+    var counted = false
+    /// Скільки подій дасть вибір. Nil — видача ще їде: рядок лишається порожнім, а не бреше старим числом.
+    var count: Int?
     let action: () -> Void
+    /// Нуль — тиха плитка, але натискна: жанр обирають і до дати («музика — а коли?»), а вибрана мусить зніматись.
+    private var empty: Bool { count == 0 }
     var body: some View {
         Button(action: action) {
             VStack(spacing: Space.sm) {
                 PoruchIcon(glyph: categoryGlyph(category), size: 24)
-                    .foregroundStyle(categoryInk(category))
+                    .foregroundStyle(empty ? Palette.inkTertiary : categoryInk(category))
                     .frame(width: 60, height: 60)
-                    .background(
-                        categoryGradient(category),
-                        in: RoundedRectangle(cornerRadius: Corner.md, style: .continuous)
-                    )
+                    .background {
+                        // Нуль — тиха поверхня, як порожній квиток, а не пастель жанру.
+                        let shape = RoundedRectangle(cornerRadius: Corner.md, style: .continuous)
+                        if empty { shape.fill(Palette.surfaceMuted) } else { shape.fill(categoryGradient(category)) }
+                    }
                     .overlay(
                         RoundedRectangle(cornerRadius: Corner.md, style: .continuous)
                             .strokeBorder(Palette.ink, lineWidth: selected ? 2 : 0)
                     )
                 // «Конференції» в 76 pt стискаються, а не обрізаються. Вище xLarge стиснення вже не рятує («Конфере…»),
                 // тож підпис далі не росте, як у штампа; VoiceOver читає назву повністю.
-                Text(categoryName(category)).font(PoruchFont.label).lineLimit(1).minimumScaleFactor(0.7)
-                    .dynamicTypeSize(...DynamicTypeSize.xLarge)
-                    .foregroundStyle(selected ? Palette.ink : Palette.inkSecondary)
+                VStack(spacing: 0) {
+                    Text(categoryName(category)).font(PoruchFont.label).lineLimit(1).minimumScaleFactor(0.7)
+                    // Порожній рядок тієї ж висоти, поки числа нема: плитки не підскакують, коли воно приходить.
+                    if counted { Text(count.map { "\($0)" } ?? " ").font(PoruchFont.caption.monospacedDigit()).lineLimit(1) }
+                }
+                .dynamicTypeSize(...DynamicTypeSize.xLarge)
+                .foregroundStyle(selected ? Palette.ink : empty ? Palette.inkTertiary : Palette.inkSecondary)
             }.frame(width: 76)
         }
         .buttonStyle(PressableStyle())
-        .accessibilityLabel(categoryName(category))
+        .accessibilityLabel(count.map { "\(categoryName(category)), \(Copy.category_events($0))" } ?? categoryName(category))
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
