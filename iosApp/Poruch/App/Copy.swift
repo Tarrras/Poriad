@@ -476,6 +476,7 @@ enum Copy {
     static let companion_create = "Опублікувати й поділитися"
     static func companion_share_text(_ a0: String, _ a1: String, _ a2: String) -> String { "Шукаю компанію на \(a0), \(a1)\n\(a2)" }
     static let companion_share_chooser = "Поділитися пошуком компанії"
+    static let companion_notification_channel = "Пошук компанії на збережені події"
     static func curfew_left(_ a0: String, _ a1: String, _ a2: String) -> String { "Закінчиться о \(a0). Комендантська з \(a1) — до неї лишиться \(a2)" }
     static func curfew_during(_ a0: String, _ a1: String) -> String { "Закінчиться о \(a0), уже під час комендантської (з \(a1))" }
     static func duration_minutes(_ a0: String) -> String { "\(a0) хв" }
