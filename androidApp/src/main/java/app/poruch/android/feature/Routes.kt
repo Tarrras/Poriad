@@ -107,10 +107,18 @@ fun ExploreRoute(focusId: String, navigator: Navigator) {
             return@rememberLauncherForActivityResult
         }
         context.lastKnownPosition(
-            onFound = { latitude, longitude ->
+            onFound = { latitude, longitude, _ ->
                 context.cityAt(latitude, longitude, nearbyLabel) { model.dispatch(ExploreIntent.LocatedAt(it.name, it.latitude, it.longitude)) }
             },
             onUnavailable = { model.dispatch(ExploreIntent.LocationDenied) }
+        )
+    }
+    // «Ближче до мене»: той самий дозвіл, але лише положення — місто на екрані лишається.
+    val nearPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { results ->
+        if (results.values.none { it }) return@rememberLauncherForActivityResult model.dispatch(ExploreIntent.NearUnavailable)
+        context.lastKnownPosition(
+            onFound = { latitude, longitude, accuracy -> model.dispatch(ExploreIntent.NearAt(latitude, longitude, accuracy)) },
+            onUnavailable = { model.dispatch(ExploreIntent.NearUnavailable) }
         )
     }
     model.effects.handle { effect ->
@@ -123,6 +131,8 @@ fun ExploreRoute(focusId: String, navigator: Navigator) {
                 // Лише приблизна: «події поруч» — це кілометр, а не метр, і Play не питає, навіщо точна.
                 arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION)
             )
+            ExploreEffect.LocateNear -> nearPermission.launch(arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION))
+            ExploreEffect.OpenLocationSettings -> if (!context.openAppSettings()) context.toast(R.string.link_unavailable)
         }
     }
     ExploreScreen(model.state.collectAsStateWithLifecycle().value, model::dispatch)
@@ -335,20 +345,20 @@ internal fun Context.cityAt(latitude: Double, longitude: Double, fallback: Strin
 
 /** Грубе положення без підписки: останнього відомого досить, свіже просимо лише коли його нема. */
 @SuppressLint("MissingPermission")
-internal fun Context.lastKnownPosition(onFound: (Double, Double) -> Unit, onUnavailable: () -> Unit) {
+internal fun Context.lastKnownPosition(onFound: (latitude: Double, longitude: Double, accuracy: Double) -> Unit, onUnavailable: () -> Unit) {
     val manager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
     val known = manager.getProviders(true)
         .mapNotNull { runCatching { manager.getLastKnownLocation(it) }.getOrNull() }
         .maxByOrNull { it.time }
     if (known != null) {
-        onFound(known.latitude, known.longitude)
+        onFound(known.latitude, known.longitude, known.accuracy.toDouble())
         return
     }
     // Лише мережевий провайдер: GPS з одним COARSE на Android 11 кидає SecurityException.
     val provider = LocationManager.NETWORK_PROVIDER
     val asked = Build.VERSION.SDK_INT >= 30 && manager.isProviderEnabled(provider) && runCatching {
         manager.getCurrentLocation(provider, null, mainExecutor) { fresh ->
-            if (fresh != null) onFound(fresh.latitude, fresh.longitude) else onUnavailable()
+            if (fresh != null) onFound(fresh.latitude, fresh.longitude, fresh.accuracy.toDouble()) else onUnavailable()
         }
     }.isSuccess
     if (!asked) onUnavailable()

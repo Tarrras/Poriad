@@ -330,6 +330,8 @@ fun EventResultRow(
     waitlisted: Boolean = false,
     /** Назвати місто в підписі: видача з різних міст. */
     withCity: Boolean = false,
+    /** Відстань від людини («2 км»): першою в підписі, бо за нею впорядковано список. Null — без неї. */
+    distance: String? = null,
     onClick: () -> Unit
 ) {
     val colors = Poruch.colors
@@ -337,6 +339,7 @@ fun EventResultRow(
     val price = event.listing?.takeIf { it.isFree == true || it.priceMin != null }
         ?.let { listingPrice(it).replaceFirstChar { c -> c.lowercase() } }
     val subtitle = listOfNotNull(
+        distance,
         stringResource(categoryLabel(event.category)),
         (if (withCity) placeWithCity(event) else event.placeLabel).takeIf { it.isNotBlank() },
         price
@@ -344,7 +347,7 @@ fun EventResultRow(
     Row(
         modifier
             .fillMaxWidth()
-            .ticketSemantics(ticketA11yLabel(event, badge?.first), onClick)
+            .ticketSemantics(listOfNotNull(ticketA11yLabel(event, badge?.first), distance).joinToString(", "), onClick)
             .pressable(onClick = onClick)
             .padding(horizontal = Spacing.lg, vertical = Spacing.md),
         horizontalArrangement = Arrangement.spacedBy(Spacing.md),

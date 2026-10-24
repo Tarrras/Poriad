@@ -75,8 +75,11 @@ internal fun FilterSheet(state: ExploreState, onIntent: (ExploreIntent) -> Unit,
             SectionHeader(stringResource(R.string.categories))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                 // Ті самі плитки, що в шторці мапи й у редакторі: жанр обирають однаково скрізь. Повторний тап знімає вибір.
+                // Число під назвою — що дасть вибір під цю дату й «Від людей»: нуль видно до тапу.
                 categories.forEach { value ->
-                    CategoryTile(value, screen.category == value) { onIntent(ExploreIntent.ToggleCategory(value)) }
+                    CategoryTile(value, screen.category == value, counted = true, count = screen.countOf(value)) {
+                        onIntent(ExploreIntent.ToggleCategory(value))
+                    }
                 }
             }
         }
@@ -98,6 +101,9 @@ internal fun FilterSheet(state: ExploreState, onIntent: (ExploreIntent) -> Unit,
             screen.loading -> stringResource(R.string.searching)
             screen.listCount == 0 -> stringResource(R.string.show_nothing)
             else -> pluralStringResource(R.plurals.show_events, screen.listCount, screen.listCount)
+        }.let {
+            // Без мережі — словами, як лічильник шторки: «Нічого не знайдено» з порожнього кешу не правда про місто.
+            if (screen.offline && !screen.loading) stringResource(R.string.offline_count, it) else it
         }
         // Під час пошуку кнопка каже «Шукаємо…», але закриває: після кожного тапу у «Фільтрах» вона на мить глухла.
         PrimaryButton(

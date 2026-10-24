@@ -71,7 +71,9 @@ class PoruchAppTest {
         var results=emptyList<Event>()
         /** Скільки карток сервер кладе у відповідь одразу. Решта окремим запитом. */
         var inlineCards=Int.MAX_VALUE
-        override suspend fun discover(query:EventQuery):DiscoveryPage { queries+=query; delay(100); return page(results.filter { e -> query.text.let { it==null || it in e.title } },inlineCards) }
+        /** Що сервер відбирає за датою й «Від людей». За замовчуванням — нічого, як раніше. */
+        var serves:(EventQuery,Event)->Boolean={ _,_ -> true }
+        override suspend fun discover(query:EventQuery):DiscoveryPage { queries+=query; delay(100); return page(results.filter { e -> query.text.let { it==null || it in e.title } && serves(query,e) },inlineCards) }
         override fun cached(query:EventQuery)=DiscoveryPage.Empty
         /** Картки, яких нема у видачі, але сервер їх віддає за id: подія, відкрита посиланням. */
         var offFeedCards=emptyList<Event>()
@@ -2111,6 +2113,94 @@ class PoruchAppTest {
         assertTrue(focused.stackFocused)
         assertEquals(before+1,focused.focusToken)
         app.close()
+    }
+    /** Плитки кажуть, скільки дасть категорія: з індексу, під датою й «Від людей», у стосі — серед стосу; поки видача їде — нічого. */
+    @Test fun tileCountsMatchTheSheet()=runTest {
+        val events=Events()
+        val soon=(Clock.System.now()+1.hours).toString()
+        val atPlace=(1..3).map { listed("p$it",soon).copy(category=EventCategory.SPORT) }
+        val concert=listed("m1",soon,placeId=null).copy(category=EventCategory.MUSIC,latitude=50.5,longitude=30.6)
+        val room=event("r1",EventCategory.MUSIC,soon).copy(latitude=50.48,longitude=30.5)
+        events.results=atPlace+concert+room
+        // Сервер: під датою концерту нема, «Від людей» лишає кімнату з місцями.
+        events.serves={ q,e -> (q.from==null || e.id!="m1") && (!q.available || e.isCommunity) }
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
+        val presenter=ExplorePresenter(app,backgroundScope,StandardTestDispatcher(testScheduler))
+        runCurrent()
+        assertEquals(mapOf(EventCategory.SPORT to 3,EventCategory.MUSIC to 2),presenter.state.value.categoryCounts)
+        // Число плитки — те, що скаже лічильник шторки після тапу.
+        presenter.toggleCategory(EventCategory.MUSIC); runCurrent()
+        assertEquals(2,presenter.state.value.listCount)
+        assertEquals(2,presenter.state.value.categoryCounts?.get(EventCategory.MUSIC),"категорія свої числа не міняє")
+        presenter.toggleCategory(EventCategory.MUSIC); runCurrent()
+        // Дата: поки видача їде, старі числа брехали б.
+        app.setDateFilter(DateFilter.TODAY); runCurrent()
+        assertNull(presenter.state.value.categoryCounts)
+        advanceTimeBy(200); runCurrent()
+        assertEquals(mapOf(EventCategory.SPORT to 3,EventCategory.MUSIC to 1),presenter.state.value.categoryCounts)
+        app.setOnlyAvailable(true); runCurrent(); advanceTimeBy(200); runCurrent()
+        assertEquals(mapOf(EventCategory.MUSIC to 1),presenter.state.value.categoryCounts)
+        app.setOnlyAvailable(false); app.setDateFilter(DateFilter.ANY); runCurrent(); advanceTimeBy(200); runCurrent()
+        // Стос: серед подій закладу, і число «Спорту» — те, що покаже його шторка.
+        presenter.showStack(atPlace.map { it.id }); runCurrent()
+        assertEquals(mapOf(EventCategory.SPORT to 3),presenter.state.value.categoryCounts)
+        presenter.toggleCategory(EventCategory.SPORT); runCurrent()
+        assertEquals(3,presenter.state.value.listCount)
+        // «Усі N» на мапу, яка вже така: відповідь є, числа не зависають.
+        presenter.toggleCategory(EventCategory.SPORT); presenter.clearStack(); runCurrent()
+        app.showEverythingOnMap(); runCurrent()
+        assertNotNull(presenter.state.value.categoryCounts)
+        app.close()
+    }
+    /** «Ближче до мене»: шторка від найближчої до людини, відстань цілими кілометрами, піни як були; вимкнення повертає «для вас». */
+    @Test fun nearMeOrdersTheSheetByDistance()=runTest {
+        val tracked=mutableListOf<Pair<String,Map<String,String>>>()
+        PoruchAnalytics.sink={ name,params -> tracked+=name to params }
+        try {
+            val events=Events()
+            val soon=(Clock.System.now()+1.hours).toString()
+            val far=listed("far",soon,placeId=null).copy(latitude=50.45,longitude=30.70)
+            val mid=listed("mid",soon,placeId=null).copy(latitude=50.47,longitude=30.52)
+            val close=listed("close",soon,placeId=null).copy(latitude=50.454,longitude=30.52)
+            val near=listed("near",soon,placeId=null).copy(latitude=50.4505,longitude=30.5205)
+            events.results=listOf(far,mid,close,near)
+            val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
+            val presenter=ExplorePresenter(app,backgroundScope,StandardTestDispatcher(testScheduler))
+            runCurrent()
+            val before=presenter.state.value
+            val taste=before.listEntries.map { it.id }
+            assertNull(before.kmFromMe(near))
+            presenter.nearMe(50.45,30.52,accuracy=30.0); runCurrent()
+            val sorted=presenter.state.value
+            assertTrue(sorted.nearMe)
+            assertEquals(listOf("near","close","mid","far"),sorted.listEntries.map { it.id })
+            assertEquals(listOf("near","close","mid","far"),sorted.deckEvents.map { it.id },"карусель — той самий порядок")
+            assertSame(before.mapEvents,sorted.mapEvents,"піни не перебудовуються")
+            // Точне положення: у межах кілометра порядок за справжньою відстанню, а підпис — «до 1 км»; далі — цілими.
+            assertEquals(1,sorted.nearWithinKm)
+            assertEquals(listOf(0,0,2,13),listOf(near,close,mid,far).map { sorted.kmFromMe(it) })
+            // Фільтр порядок не скидає.
+            presenter.toggleCategory(EventCategory.MUSIC); runCurrent()
+            assertEquals(listOf("near","close","mid","far"),presenter.state.value.listEntries.map { it.id })
+            presenter.toggleCategory(EventCategory.MUSIC); runCurrent()
+            // Зменшена точність iOS чи COARSE: у межах похибки — «до 3 км» і порядок «для вас», далі — від найближчої.
+            presenter.nearMe(50.45,30.52,accuracy=2600.0); runCurrent()
+            assertEquals(3,presenter.state.value.nearWithinKm)
+            assertEquals(listOf(0,0,13),listOf(near,mid,far).map { presenter.state.value.kmFromMe(it) })
+            assertEquals(taste.filter { it!="far" }+"far",presenter.state.value.listEntries.map { it.id })
+            presenter.clearNearMe(); runCurrent()
+            assertFalse(presenter.state.value.nearMe)
+            assertEquals(taste,presenter.state.value.listEntries.map { it.id })
+            presenter.nearMeUnavailable()
+            assertEquals(
+                listOf(mapOf("on" to "true","located" to "true","within_km" to "1"),mapOf("on" to "false"),mapOf("on" to "true","located" to "false")),
+                tracked.filter { it.first=="map_nearest" }.map { it.second }
+            )
+            // Нуль у місті — сигнал, якого жанру бракує.
+            presenter.toggleCategory(EventCategory.FOOD); runCurrent()
+            assertEquals(mapOf("category" to "food","date" to "any","people" to "false"),tracked.single { it.first=="empty_category" }.second)
+            app.close()
+        } finally { PoruchAnalytics.sink=null }
     }
     /** Стос — місце, а не список id: відкритий під «Спортом», без фільтра він показує й концерт того ж закладу. */
     @Test fun venueStackIsAPlace()=runTest {

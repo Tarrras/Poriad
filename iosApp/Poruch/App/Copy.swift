@@ -240,6 +240,10 @@ enum Copy {
     static func nothing_found_city_hint(_ a0: String) -> String { "У місті \(a0) за цим запитом нічого. Пошукайте в усіх містах або спробуйте інше слово." }
     static let area_custom = "В області, яку ви обрали на мапі"
     static let area_stack = "Усе, що стоїть на обраному піні"
+    static let nearer_me = "Ближче до мене"
+    static let nearer_me_denied = "Без геолокації не знаємо, що ближче, тож список лишився за вашими інтересами. Її можна дозволити в налаштуваннях."
+    static func distance_within(_ a0: String) -> String { "до \(a0) км" }
+    static func distance_km(_ a0: String) -> String { "\(a0) км" }
     static let nothing_here = "Тут поки тихо"
     static let nothing_here_hint = "Змініть область мапи, дату або категорію — і події знайдуться."
     static let nothing_here_stack = "Під ці фільтри тут нічого нема. Скиньте їх — і побачите все, що тут є."
@@ -784,5 +788,6 @@ enum Copy {
     static func profile_attended(_ n: Int) -> String { ukrainianPlural(n, "подію відвідано", "події відвідано", "подій відвідано") }
     static func follows_new(_ n: Int) -> String { ukrainianPlural(n, "\(n) нова", "\(n) нові", "\(n) нових") }
     static func show_events(_ n: Int) -> String { ukrainianPlural(n, "Показати \(n) подію", "Показати \(n) події", "Показати \(n) подій") }
+    static func category_events(_ n: Int) -> String { ukrainianPlural(n, "\(n) подія", "\(n) події", "\(n) подій") }
     static func chat_new_messages(_ n: Int) -> String { ukrainianPlural(n, "\(n) нове повідомлення", "\(n) нових повідомлення", "\(n) нових повідомлень") }
 }

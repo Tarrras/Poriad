@@ -281,6 +281,10 @@
   <string name="nothing_found_city_hint">У місті %1$s за цим запитом нічого. Пошукайте в усіх містах або спробуйте інше слово.</string>
   <string name="area_custom">В області, яку ви обрали на мапі</string>
   <string name="area_stack">Усе, що стоїть на обраному піні</string>
+  <string name="nearer_me">Ближче до мене</string>
+  <string name="nearer_me_denied">Без геолокації не знаємо, що ближче, тож список лишився за вашими інтересами. Її можна дозволити в налаштуваннях.</string>
+  <string name="distance_within">до %1$d км</string>
+  <string name="distance_km">%1$d км</string>
   <string name="nothing_here">Тут поки тихо</string>
   <string name="nothing_here_hint">Змініть область мапи, дату або категорію — і події знайдуться.</string>
   <string name="nothing_here_stack">Під ці фільтри тут нічого нема. Скиньте їх — і побачите все, що тут є.</string>
@@ -927,6 +931,12 @@
     <item quantity="few">Показати %1$d події</item>
     <item quantity="many">Показати %1$d подій</item>
     <item quantity="other">Показати %1$d події</item>
+  </plurals>
+  <plurals name="category_events">
+    <item quantity="one">%1$d подія</item>
+    <item quantity="few">%1$d події</item>
+    <item quantity="many">%1$d подій</item>
+    <item quantity="other">%1$d події</item>
   </plurals>
   <plurals name="chat_new_messages">
     <item quantity="one">%1$d нове повідомлення</item>

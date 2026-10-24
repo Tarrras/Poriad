@@ -19,6 +19,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.onClick
@@ -28,6 +30,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.poruch.android.R
@@ -194,17 +197,29 @@ fun SegmentedPill(
     }
 }
 
-/** Плитка категорії: скруглений квадрат у пастелі категорії. */
+/**
+ * Плитка категорії: скруглений квадрат у пастелі категорії. На мапі ([counted]) під назвою — скільки подій вона дасть:
+ * [count] null — видача ще їде, рядок лишається порожнім, а не бреше старим числом. Нуль — тиха плитка, але натискна:
+ * жанр обирають і до дати («музика — а коли?»), а вибрана мусить зніматись.
+ */
 @Composable
-fun CategoryTile(category: EventCategory, selected: Boolean, onClick: () -> Unit) {
+fun CategoryTile(
+    category: EventCategory, selected: Boolean, counted: Boolean = false, count: Int? = null, onClick: () -> Unit
+) {
     val colors = Poruch.colors
+    val empty = count == 0
+    val name = stringResource(categoryLabel(category))
+    val description = count?.let { "$name, ${pluralStringResource(R.plurals.category_events, it, it)}" }
     Column(
         Modifier
             .width(76.dp)
             .clip(Radius.md)
             .pressable(onClick = onClick)
-            // Обрана плитка — стан для TalkBack, а не лише рамка.
-            .semantics { this.selected = selected }
+            // Обрана плитка — стан для TalkBack, а не лише рамка; число — у назві, як на iOS.
+            .semantics {
+                this.selected = selected
+                description?.let { contentDescription = it }
+            }
             .padding(vertical = Spacing.sm),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(Spacing.sm)
@@ -212,16 +227,35 @@ fun CategoryTile(category: EventCategory, selected: Boolean, onClick: () -> Unit
         Box(
             Modifier
                 .size(60.dp)
-                .background(categoryGradient(category), Radius.md)
+                // Нуль — тиха поверхня, як порожній квиток, а не пастель жанру.
+                .then(if (empty) Modifier.background(colors.surfaceMuted, Radius.md) else Modifier.background(categoryGradient(category), Radius.md))
                 .border(2.dp, if (selected) colors.ink else Color.Transparent, Radius.md),
             contentAlignment = Alignment.Center
-        ) { Icon(categoryIcon(category), null, Modifier.size(24.dp), tint = categoryInk(category)) }
-        // «Конференції» в 76 dp стискаються, а не обрізаються.
-        val label = MaterialTheme.typography.labelMedium.copy(color = if (selected) colors.ink else colors.inkSecondary)
-        BasicText(
-            stringResource(categoryLabel(category)), style = label, maxLines = 1,
-            autoSize = TextAutoSize.StepBased(label.fontSize * 0.7f, label.fontSize)
-        )
+        ) { Icon(categoryIcon(category), null, Modifier.size(24.dp), tint = if (empty) colors.inkTertiary else categoryInk(category)) }
+        val ink = when {
+            selected -> colors.ink
+            empty -> colors.inkTertiary
+            else -> colors.inkSecondary
+        }
+        // Назву й число читає опис плитки: окремо вони прозвучали б двічі.
+        val quiet = if (description != null) Modifier.clearAndSetSemantics {} else Modifier
+        // Підпис росте до 1,24, як xLarge на iOS: далі «Мистецтво» в 76 dp обрізалось, а число ставало більшим за назву.
+        val density = LocalDensity.current
+        CompositionLocalProvider(LocalDensity provides Density(density.density, density.fontScale.coerceAtMost(1.24f))) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                // «Конференції» в 76 dp стискаються, а не обрізаються.
+                val label = MaterialTheme.typography.labelMedium.copy(color = ink)
+                BasicText(
+                    name, quiet, style = label, maxLines = 1,
+                    autoSize = TextAutoSize.StepBased(label.fontSize * 0.7f, label.fontSize)
+                )
+                // Порожній рядок тієї ж висоти, поки числа нема: плитки не підскакують, коли воно приходить.
+                if (counted) Text(
+                    count?.toString() ?: " ", quiet, style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"),
+                    color = ink, maxLines = 1
+                )
+            }
+        }
     }
 }
 

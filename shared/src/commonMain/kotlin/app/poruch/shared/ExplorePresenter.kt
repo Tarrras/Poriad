@@ -2,11 +2,13 @@ package app.poruch.shared
 
 import app.poruch.domain.ArtistHit
 import app.poruch.domain.CityResult
+import app.poruch.domain.DiscoveryRules
 import app.poruch.domain.Event
 import app.poruch.domain.EventCategory
 import app.poruch.domain.EventIndexEntry
 import app.poruch.domain.FollowKind
 import app.poruch.domain.Place
+import app.poruch.domain.PoruchAnalytics
 import app.poruch.domain.PoruchLog
 import app.poruch.domain.asIndexEntry
 import kotlinx.coroutines.CoroutineDispatcher
@@ -20,6 +22,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -27,8 +30,10 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.math.PI
+import kotlin.math.ceil
 import kotlin.math.cos
-import kotlin.math.pow
+import kotlin.math.hypot
+import kotlin.math.roundToInt
 
 /** Що тримає екран мапи локально і що веде згортку: стос обраного піна. */
 private data class ExploreLocal(
@@ -40,14 +45,22 @@ private data class ExploreLocal(
      */
     val stackPoints: Set<Pair<Double, Double>> = emptySet(),
     /** Росте, коли презентер сам відкрив стос (заклад з пошуку): платформа опускає шторку. */
-    val focusToken: Int = 0
+    val focusToken: Int = 0,
+    /** «Ближче до мене»: де людина, коли шторку впорядкували від неї. Null — порядок «для вас», з індексу. */
+    val near: NearPoint? = null
 )
+
+/** Положення людини для «Ближче до мене» і його похибка в метрах, як її дає система. */
+private data class NearPoint(val latitude: Double, val longitude: Double, val accuracy: Double) {
+    /** Похибка цілими км для підпису, щонайменше 1: рядок не пише метрів. */
+    val withinKm get() = ceil(accuracy / 1000).toInt().coerceAtLeast(1)
+}
 
 /** Стан екрана мапи: індекс для пінів, вміст шторки, фільтри й місто — усе вже пораховане. Платформа додає положення шторки, листи й камеру. */
 data class ExploreScreenState(
     /** Що малює мапа: індекс, звужений категорією, плюс [focused], якщо її там ще нема. */
     val mapEvents: List<EventIndexEntry> = emptyList(),
-    /** Вміст шторки: стос обраного піна або вся видача. Порядок — з індексу. */
+    /** Вміст шторки: стос обраного піна або вся видача. Порядок — з індексу, а з [nearMe] — від найближчої. */
     val listEntries: List<EventIndexEntry> = emptyList(),
     /** Завантажені картки шторки для каруселі й списку, у порядку [listEntries]. */
     val deckEvents: List<Event> = emptyList(),
@@ -88,13 +101,42 @@ data class ExploreScreenState(
     /** Скільки разів змінився запит мапи: платформа ставить карусель на першу картку. Див. [MapFeed.queries]. */
     val queries: Int = 0,
     /** Росте, коли презентер сам відкрив стос: платформа опускає шторку. */
-    val focusToken: Int = 0
+    val focusToken: Int = 0,
+    /**
+     * Скільки подій дасть кожна плитка категорії: у місті чи в стосі, під датою, «Від людей» і пошуком. Після вибору
+     * категорії збігається з [listCount]. Null — видача під новий запит ще їде чи мережі нема: числа брехали б.
+     */
+    val categoryCounts: Map<EventCategory, Int>? = null,
+    /** Список і карусель — від найближчої до людини («Ближче до мене»). Піни на мапі не міняються. */
+    val nearMe: Boolean = false,
+    val nearLatitude: Double = 0.0,
+    val nearLongitude: Double = 0.0,
+    /**
+     * Похибка положення цілими км, щонайменше 1. Геолокація свідомо приблизна (iOS — зменшена точність, Android —
+     * COARSE, до кількох км), тож ближче за цю межу чесно лише «до N км».
+     */
+    val nearWithinKm: Int = 1,
+    /** Та сама похибка в метрах. */
+    val nearAccuracy: Double = 0.0
 ) {
     val activeFilters: Int get() = listOf(dateFilter != DateFilter.ANY, category != null, onlyAvailable).count { it }
     /** Чи є що довантажувати: індекс повний, картки — ні. */
     val hasMoreCards: Boolean get() = deckEvents.size < listEntries.size
     /** Лічильник шторки: з індексу, а не з завантажених карток. */
     val listCount: Int get() = if (category == null && !stackFocused) totalFound else listEntries.size
+
+    /** Число плитки [category]: категорії без подій у [categoryCounts] нема, це нуль. Null — числа нема, див. [categoryCounts]. */
+    fun countOf(category: EventCategory): Int? = categoryCounts?.let { it[category] ?: 0 }
+
+    /**
+     * Відстань від людини цілими кілометрами для рядка списку. 0 — у межах похибки положення (чи ближче кілометра):
+     * точніше за «до [nearWithinKm] км» тут не скажеш. Null — «Ближче до мене» вимкнено.
+     */
+    fun kmFromMe(event: Event): Int? {
+        if (!nearMe) return null
+        val meters = metersBetween(nearLatitude, nearLongitude, event.latitude, event.longitude)
+        return if (meters <= maxOf(nearAccuracy, 1000.0)) 0 else (meters / 1000).roundToInt()
+    }
 
     companion object {
         val Empty = ExploreScreenState()
@@ -160,6 +202,11 @@ class ExplorePresenter(
                     if (local.value.stackPoints.isEmpty()) revealNearest()
                 }
         }
+        // «Ближче до мене» міняє порядок шторки: картки її нового початку просимо самі, інакше список показував би вже
+        // завантажені картки з пропусками там, де найближчі ще їдуть.
+        scope.launch {
+            state.map { it.nearMe }.distinctUntilChanged().drop(1).collect { loadHead(DiscoveryRules.FIRST_CARDS) }
+        }
     }
 
     /** Тап у точку з кількома подіями. Одна — звичайний вибір; кілька — стос. Вибір наводить мапу на пін. */
@@ -197,10 +244,30 @@ class ExplorePresenter(
         if (shown.isEmpty() || onScreen > 0) return
         val latitude = (south + north) / 2
         val longitude = (west + east) / 2
-        // Градус довготи коротший за градус широти: без поправки «найближча» тягнулась би на схід чи захід.
-        val squeeze = cos(latitude * PI / 180)
-        val nearest = shown.minBy { (it.latitude - latitude).pow(2) + ((it.longitude - longitude) * squeeze).pow(2) }
+        val nearest = shown.minBy { metersBetween(latitude, longitude, it.latitude, it.longitude) }
         app.selectEvent(nearest.id)
+    }
+
+    /**
+     * «Ближче до мене»: список і карусель — від найближчої до людини, піни на мапі як були. [accuracy] — похибка виміру в
+     * метрах, як її дає система. Тримається до кінця сесії: фільтри, місто й «Усі N» порядок не скидають. Повторний
+     * виклик лише посуває точку.
+     */
+    fun nearMe(latitude: Double, longitude: Double, accuracy: Double) {
+        val near = NearPoint(latitude, longitude, accuracy.coerceAtLeast(0.0))
+        // Похибка — щоб вирішити на даних, чи вистачає приблизної геолокації, а не здогадом.
+        if (local.value.near == null) PoruchAnalytics.track("map_nearest", "on" to true, "located" to true, "within_km" to near.withinKm)
+        local.update { it.copy(near = near) }
+    }
+
+    /** «Ближче до мене» натиснули, а положення нема: дозвіл не дали чи система змовчала. Порядок лишається «для вас». */
+    fun nearMeUnavailable() = PoruchAnalytics.track("map_nearest", "on" to true, "located" to false)
+
+    /** Назад до порядку «для вас». */
+    fun clearNearMe() {
+        if (local.value.near == null) return
+        PoruchAnalytics.track("map_nearest", "on" to false)
+        local.update { it.copy(near = null) }
     }
 
     /** Вихід із закладу в місто: пошук, інше місто чи область, «до міста», «Усі N». Фільтри стос не скидають — звужують. */
@@ -229,8 +296,18 @@ class ExplorePresenter(
      * в лічильнику. Окрема категорія списку перетиналась із нею, і пін із десятьма подіями показував нуль.
      * Повторний тап знімає вибір. Картки нового списку платформа просить сама, коли категорія змінилась.
      */
-    fun toggleCategory(category: EventCategory) =
-        app.setCategory(if (app.state.value.map.category == category) null else category)
+    fun toggleCategory(category: EventCategory) {
+        val picking = app.state.value.map.category != category
+        val shown = state.value
+        // Нуль у місті, а не в закладі чи під пошуком: якого жанру людям бракує, тобто куди шукати нові джерела афіші.
+        if (picking && shown.countOf(category) == 0 && !shown.stackFocused && shown.searchText.isBlank()) {
+            PoruchAnalytics.track(
+                "empty_category", "category" to category.key, "date" to shown.dateFilter.name.lowercase(),
+                "people" to shown.onlyAvailable
+            )
+        }
+        app.setCategory(if (picking) category else null)
+    }
 
     /** Картки початку того списку, який шторка зараз показує. */
     fun loadHead(count: Int) {
@@ -278,7 +355,17 @@ class ExplorePresenter(
         val stackFocused = local.stackPoints.isNotEmpty()
         // Під тими самими фільтрами, що й мапа: категорія, дата й «Від людей» діють і в закладі.
         val stack = if (stackFocused) visible.filter { (it.latitude to it.longitude) in local.stackPoints } else emptyList()
-        val listEntries = if (stackFocused) stack else mapEvents
+        val near = local.near
+        val shown = if (stackFocused) stack else mapEvents
+        // У межах похибки положення порядок «ближче» був би вигадкою: там лишається порядок «для вас» (сортування стабільне),
+        // далі — від найближчої.
+        val listEntries = if (near == null) shown else shown.sortedBy {
+            maxOf(metersBetween(near.latitude, near.longitude, it.latitude, it.longitude), near.accuracy)
+        }
+        // Числа плиток — з того, що звужує категорія: усе місто чи точки стосу. Дату, «Від людей» і пошук уже відібрав сервер.
+        // Без мережі чисел нема: кеш міг застаріти чи бути порожнім, а «0» на плитці сказав би, що подій нема.
+        val settled = !shared.map.loading && !shared.map.offline && shared.map.answered == shared.map.queries
+        val counted = if (stackFocused) index.filter { (it.latitude to it.longitude) in local.stackPoints } else index
         val cards = shared.cards
         // [focused] без картки у видачі додається окремо.
         val deckEvents = listEntries.mapNotNull { entry -> cards[entry.id] ?: focused?.takeIf { it.id == entry.id } }
@@ -314,7 +401,25 @@ class ExplorePresenter(
             indexVersion = shared.map.indexVersion,
             arrivals = shared.map.arrivals,
             queries = shared.map.queries,
-            focusToken = local.focusToken
+            focusToken = local.focusToken,
+            categoryCounts = if (settled) counted.groupingBy { it.category }.eachCount() else null,
+            nearMe = near != null,
+            nearLatitude = near?.latitude ?: 0.0,
+            nearLongitude = near?.longitude ?: 0.0,
+            nearWithinKm = near?.withinKm ?: 1,
+            nearAccuracy = near?.accuracy ?: 0.0
         )
     }
 }
+
+/**
+ * Відстань у метрах на масштабі міста: плоска проєкція з поправкою на широту. Градус довготи коротший за градус широти,
+ * і без поправки «найближча» тягнулась би на схід чи захід. Ділять «найближча до центру екрана» й «Ближче до мене».
+ */
+internal fun metersBetween(fromLatitude: Double, fromLongitude: Double, toLatitude: Double, toLongitude: Double): Double {
+    val squeeze = cos((fromLatitude + toLatitude) / 2 * PI / 180)
+    return hypot(toLatitude - fromLatitude, (toLongitude - fromLongitude) * squeeze) * METERS_PER_DEGREE
+}
+
+/** Метрів в одному градусі широти: π/180 радіуса Землі. */
+private const val METERS_PER_DEGREE = 111_195.0
