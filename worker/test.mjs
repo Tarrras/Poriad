@@ -1,6 +1,6 @@
 // Перевірка рендеру без Cloudflare: node worker/test.mjs
 import assert from "node:assert/strict";
-import { eventPage, eventResponse, esc, SHARE_SCRIPT_HASH } from "./index.mjs";
+import worker, { eventPage, eventResponse, esc } from "./index.mjs";
 
 const now = new Date("2026-09-28T12:00:00Z");
 const base = {
@@ -86,11 +86,58 @@ assert.equal((await eventResponse(base.id, { SUPABASE_URL: "https://db.invalid",
 const { createHash } = await import("node:crypto");
 const scripts = [...community.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
 assert.equal(scripts.length, 1, "один вбудований скрипт");
-assert.equal(`sha256-${createHash("sha256").update(scripts[0]).digest("base64")}`, SHARE_SCRIPT_HASH, "хеш у CSP — від цього скрипта");
 assert.ok(!/<style|\sstyle=|\son[a-z]+=/i.test(movedAfisha + withShelters + community), "без вбудованих стилів і обробників — їх CSP теж не пустить");
 const page = await eventResponse(base.id, { SUPABASE_URL: "https://db.invalid", SUPABASE_KEY: "k" });
-assert.ok(page.headers.get("content-security-policy").includes(SHARE_SCRIPT_HASH) && page.headers.get("x-frame-options") === "DENY");
+assert.ok(page.headers.get("content-security-policy").includes(`'sha256-${createHash("sha256").update(scripts[0]).digest("base64")}'`), "хеш у CSP — від цього скрипта");
+assert.equal(page.headers.get("x-frame-options"), "DENY");
 assert.equal((await eventResponse("not-a-uuid", {})).headers.get("cache-control"), "public, max-age=60", "404 кешується на хвилину");
 globalThis.fetch = async () => new Response("{}", { status: 500 });
 assert.equal((await eventResponse(base.id, { SUPABASE_URL: "https://db.invalid", SUPABASE_KEY: "k" })).headers.get("cache-control"), "no-store", "збій бази — без кешу");
 console.log("headers ok");
+
+// «Покликати з собою» (docs/invites.md): ?by= персоналізує сторінку, але не спільний кеш.
+const token = "AbCdEfGhIjKlMnOpQrSt_-";
+const invited = eventPage(base, now, [], { by: token, name: "Тарас <b>" });
+assert.ok(invited.includes("<b>Тарас &lt;b&gt;</b> кличе тебе"), "хто кличе — над назвою, екрановано");
+assert.ok(invited.includes('property="og:title" content="Тарас &lt;b&gt; кличе тебе: Настолки'), "і в прев'ю месенджера");
+assert.ok(invited.includes(`poriad://event/${base.id}?by=${token}`), "«У застосунку» несе токен");
+assert.ok(invited.includes(`app-argument=https://poriad.app/e/${base.id}?by=${token}`), "банер Safari теж");
+assert.ok(invited.includes("ct=invite") && invited.includes("utm_campaign%3Dinvite") && invited.includes("/app?from=invite"), "завантаження з запрошень — своєю міткою");
+assert.ok(invited.includes(`property="og:url" content="https://poriad.app/e/${base.id}"`), "адреса прев'ю — без токена");
+assert.ok(!community.includes("кличе тебе") && community.includes("ct=event") && !community.includes("ct=invite"), "звичайна сторінка — як була");
+
+const env = { SUPABASE_URL: "https://db.invalid", SUPABASE_KEY: "k" };
+const puts = [];
+let calls = [];
+globalThis.caches = { default: { match: async () => undefined, put: async (key) => { puts.push(key.url); } } };
+const ctx = { waitUntil: (p) => p };
+const rpc = (inviter) => async (url, init) => {
+  calls.push(url.split("/").pop());
+  if (url.endsWith("/invite_inviter")) return new Response(JSON.stringify(inviter), { status: 200 });
+  return new Response(url.endsWith("/event_details") ? JSON.stringify([base]) : "{}", { status: 200 });
+};
+globalThis.fetch = rpc([{ name: "Тарас", avatar_url: null }]);
+const personal = await worker.fetch(new Request(`https://poriad.app/e/${base.id}?by=${token}`), env, ctx);
+assert.equal(personal.status, 200);
+assert.equal(personal.headers.get("cache-control"), "private, max-age=300", "особиста сторінка — не для проміжних кешів");
+assert.ok((await personal.text()).includes("кличе тебе"));
+assert.equal(puts.length, 0, "особиста сторінка не лягає в кеш краю");
+
+globalThis.fetch = rpc([]);
+calls = [];
+const stale = await worker.fetch(new Request(`https://poriad.app/e/${base.id}?by=${token}`), env, ctx);
+assert.ok(!(await stale.text()).includes("кличе тебе"), "невідомий токен — звичайна сторінка");
+assert.equal(stale.headers.get("cache-control"), "public, max-age=300");
+assert.deepEqual(puts, [`https://poriad.app/e/${base.id}`], "і вона кешується як звичайна, за шляхом");
+calls = [];
+await worker.fetch(new Request(`https://poriad.app/e/${base.id}?by=not-a-token`), env, ctx);
+assert.ok(!calls.includes("invite_inviter"), "токен не того формату в базу не ходить");
+globalThis.fetch = async () => { throw new Error("network"); };
+globalThis.caches.default.match = async () => new Response("cached", { status: 200 });
+assert.equal(await (await worker.fetch(new Request(`https://poriad.app/e/${base.id}?by=${token}`), env, ctx)).text(), "cached", "збій бази — звичайна сторінка з кешу");
+
+// Злита подія: стара адреса запрошення переїжджає разом з токеном.
+globalThis.fetch = rpc([{ name: "Тарас" }]);
+const movedInvite = await eventResponse(oldId, env, { by: token, name: "Тарас" });
+assert.equal(movedInvite.headers.get("location"), `https://poriad.app/e/${base.id}?by=${token}`);
+console.log("invites ok");
