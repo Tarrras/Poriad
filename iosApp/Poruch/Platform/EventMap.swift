@@ -10,6 +10,10 @@ private let pointSourceID = "poruch-point"
 private let districtSourceID = "poruch-district"
 private let districtCasingID = "poruch-district-casing"
 private let districtLineID = "poruch-district-line"
+private let districtDotName = "poruch-district-dot"
+/// Крапка перфорації межі й крок між крапками, pt.
+private let districtDot: CGFloat = 3.5
+private let districtDotSpacing: CGFloat = 8
 /// Поле між межею району й краєм видимої мапи: межа не липне до пошуку й каруселі.
 private let districtMargin: CGFloat = 24
 private let clusterLayerID = "poruch-cluster"
@@ -400,8 +404,9 @@ struct EventMap: UIViewRepresentable {
             style.addSource(events)
             style.addSource(point)
 
-            // Межа району — перфорацією, як лінія відриву квитка: круглі крапки чорнилом. Під ними — паперова підкладка,
-            // бо на вулицях і воді тонка лінія губилась. Шари — під пінами.
+            // Межа району — перфорацією, як лінія відриву квитка: круглі крапки чорнилом уздовж межі. Крапки — символами, а
+            // не пунктиром лінії: на Android пунктирний шар часом не малювався, а вигляд на обох платформах один. Під ними —
+            // паперова підкладка, бо на вулицях і воді тонка лінія губилась. Шари — під пінами.
             let district = MLNShapeSource(identifier: districtSourceID, shape: nil, options: nil)
             style.addSource(district)
             let casing = MLNLineStyleLayer(identifier: districtCasingID, source: district)
@@ -410,14 +415,12 @@ struct EventMap: UIViewRepresentable {
             casing.lineWidth = NSExpression(forConstantValue: 7)
             casing.lineJoin = NSExpression(forConstantValue: "round")
             style.addLayer(casing)
-            let border = MLNLineStyleLayer(identifier: districtLineID, source: district)
-            border.lineColor = NSExpression(forConstantValue: resolvedUIColor(Palette.ink, scheme))
-            border.lineOpacity = NSExpression(forConstantValue: 0.8)
-            border.lineWidth = NSExpression(forConstantValue: 3)
-            border.lineCap = NSExpression(forConstantValue: "round")
-            border.lineJoin = NSExpression(forConstantValue: "round")
-            // Штрих не нульовий: з [0, 2] MapLibre часом малював суцільну лінію. З круглими кінцями 0,2 — та сама крапка.
-            border.lineDashPattern = NSExpression(forConstantValue: [0.2, 2.2])
+            let border = MLNSymbolStyleLayer(identifier: districtLineID, source: district)
+            border.symbolPlacement = NSExpression(forConstantValue: "line")
+            border.symbolSpacing = NSExpression(forConstantValue: districtDotSpacing)
+            border.iconImageName = NSExpression(forConstantValue: districtDotName)
+            border.iconAllowsOverlap = NSExpression(forConstantValue: true)
+            border.iconIgnoresPlacement = NSExpression(forConstantValue: true)
             style.addLayer(border)
 
             // Кластер — квиток із числом, у мові решти застосунку, а не чорне коло з ореолом. Більший кластер —
@@ -502,6 +505,11 @@ struct EventMap: UIViewRepresentable {
                 forName: chosenIconName
             )
             style.setImage(clusterTicketImage(fill: brand, edge: surface), forName: clusterIconName)
+            let ink = resolvedUIColor(Palette.ink, scheme)
+            style.setImage(UIGraphicsImageRenderer(size: CGSize(width: districtDot, height: districtDot)).image { context in
+                ink.setFill()
+                context.cgContext.fillEllipse(in: CGRect(x: 0, y: 0, width: districtDot, height: districtDot))
+            }, forName: districtDotName)
         }
 
         /// Межа району: усі кільця лініями, зовнішні й дірки однаково. Перебудова — лише коли змінився район.

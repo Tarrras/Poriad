@@ -79,6 +79,7 @@ private const val ChosenPointIcon = "poruch-chosen"
 private const val DistrictSource = "poruch-district"
 private const val DistrictCasingLayer = "poruch-district-casing"
 private const val DistrictLayer = "poruch-district-line"
+private const val DistrictDotIcon = "poruch-district-dot"
 /**
  * Радіус кластера в dp, той самий, що на iOS: під ширину квитка-кластера (46 × до 1,3). З 40 сусідні квитки
  * налазили й ховали числа; значно більший перетворював місто на кілька бульбашок.
@@ -264,7 +265,7 @@ val LocalSharedMapView = staticCompositionLocalOf<SharedMapView?> { null }
             style.addSource(GeoJsonSource(DistrictSource, FeatureCollection.fromFeatures(emptyList())))
             // Межа під пінами: піни району лишаються над нею.
             style.addLayer(districtCasingLayer(colors))
-            style.addLayer(districtLayer(colors))
+            style.addLayer(districtLayer())
             style.addLayer(clusterLayer(colors))
             style.addLayer(pinLayer())
             style.addLayer(pinCountLayer(colors))
@@ -466,17 +467,16 @@ private fun clusterLayer(colors: PoruchColors) = SymbolLayer(ClusterLayer, Event
 
 /** Значок і порядок залежать від обраної події: їх ставить ефект вибору в [EventMap]. */
 /**
- * Межа району — перфорацією, як лінія відриву квитка: круглі крапки чорнилом. Під ними — паперова підкладка, бо на
- * вулицях і воді тонка лінія губилась.
+ * Межа району — перфорацією, як лінія відриву квитка: круглі крапки чорнилом уздовж межі. Крапки — символами, а не
+ * `line-dasharray`: пунктирний шар на Android часом не малювався зовсім, і лишалась сама підкладка. Під ними — паперова
+ * підкладка, бо на вулицях і воді тонка лінія губилась.
  */
-private fun districtLayer(colors: PoruchColors) = LineLayer(DistrictLayer, DistrictSource).withProperties(
-    PropertyFactory.lineColor(colors.ink.toArgb()),
-    PropertyFactory.lineOpacity(0.8f),
-    PropertyFactory.lineWidth(3f),
-    PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
-    PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND),
-    // Штрих не нульовий: з [0, 2] MapLibre часом малював суцільну лінію. З круглими кінцями 0,2 — та сама крапка.
-    PropertyFactory.lineDasharray(arrayOf(0.2f, 2.2f))
+private fun districtLayer() = SymbolLayer(DistrictLayer, DistrictSource).withProperties(
+    PropertyFactory.symbolPlacement(Property.SYMBOL_PLACEMENT_LINE),
+    PropertyFactory.symbolSpacing(DistrictDotSpacing),
+    PropertyFactory.iconImage(DistrictDotIcon),
+    PropertyFactory.iconAllowOverlap(true),
+    PropertyFactory.iconIgnorePlacement(true)
 )
 
 private fun districtCasingLayer(colors: PoruchColors) = LineLayer(DistrictCasingLayer, DistrictSource).withProperties(
@@ -485,6 +485,10 @@ private fun districtCasingLayer(colors: PoruchColors) = LineLayer(DistrictCasing
     PropertyFactory.lineWidth(7f),
     PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND)
 )
+
+/** Крапка перфорації межі й крок між крапками, dp. */
+private const val DistrictDot = 3.5f
+private const val DistrictDotSpacing = 8f
 
 /** Поле між межею району й краєм видимої мапи, dp: межа не липне до пошуку й каруселі. */
 private const val DistrictMargin = 24
@@ -530,6 +534,15 @@ private fun registerImages(context: Context, style: Style, colors: PoruchColors,
     }
     style.addImage(ChosenPointIcon, pinBitmap(context, categoryIcon(EventCategory.SOCIAL), colors.brand.toArgb(), surface, true, density))
     style.addImage(ClusterIcon, clusterTicketBitmap(context, colors.brand.toArgb(), surface, density))
+    style.addImage(DistrictDotIcon, dotBitmap(colors.ink.toArgb(), density))
+}
+
+/** Крапка перфорації межі району. */
+private fun dotBitmap(color: Int, density: Float): Bitmap {
+    val size = (DistrictDot * density).toInt().coerceAtLeast(2)
+    return Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888).also { bitmap ->
+        Canvas(bitmap).drawCircle(size / 2f, size / 2f, size / 2f, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color })
+    }
 }
 
 /**
