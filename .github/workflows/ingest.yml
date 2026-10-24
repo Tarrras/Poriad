@@ -61,15 +61,6 @@ jobs:
           TESTS: ${{ steps.tests.outcome }}
           DUMP: ${{ steps.dump.outcome }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-      # Фаза 0 docs/event-offers.md: що кажуть сторінки самих подій — продавці позначають скасування явно чи сторінка
-      # мовчки зникає. Лише читання; журнал ~/.poruch/shadow/checks.jsonl — поза текою runner-а. Збій обхід не валить.
-      # Прибрати разом із фазою 1.
-      - if: ${{ always() && (inputs.env || 'prod') == 'prod' }}
-        continue-on-error: true
-        timeout-minutes: 45
-        run: caffeinate -i python3 -m tools.ingest.shadow_checks --env prod
-        env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
       # Тека лишається лише після збою — тоді вона й потрібна як доказ.
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: failure()
