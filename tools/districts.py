@@ -43,6 +43,23 @@ LOCALITY_RADIUS = 1500
 # Вершин у колі місцевості: на масштабі міста коло, а не многокутник.
 CIRCLE_POINTS = 32
 METERS_PER_DEGREE = 111_195
+# Місцевості, яких в OSM нема як `place=suburb`: у Дніпрі розмітка інша, і Перемога, Тополя, Сокіл туди не потрапляли.
+# Точки — з Nominatim (OSM) 25.10: центр частин масиву (Тополя-1…3, Сокіл-1/2, Лівобережний-1…4, Перемога-3…6) або сама
+# позначка; Клочко — за зупинкою «ж/м Клочко-6», Мандриківка — за Мандриківською вулицею, Діївка — за станцією.
+# Лоцкам'янки, Кайдаків і Нових Кодаків Nominatim не знайшов — не вгадуємо. Порядок не міняти: від нього id.
+MANUAL_LOCALITIES = {
+    "Дніпро": [
+        ("Перемога", 48.41791, 35.06470), ("Тополя", 48.39794, 35.02948), ("Сокіл", 48.41088, 35.04835),
+        ("Парус", 48.47870, 34.90887), ("Лівобережний", 48.52434, 35.02408), ("Червоний Камінь", 48.48483, 34.93177),
+        ("Покровський", 48.48175, 34.91982), ("Сонячний", 48.48237, 35.07024), ("Західний", 48.46045, 34.93754),
+        ("Північний", 48.48683, 35.13177), ("Клочко", 48.52399, 35.04670), ("Березинка", 48.52887, 35.03961),
+        ("Ломівка", 48.51981, 35.00097), ("Самарівка", 48.53700, 35.11735), ("Ігрень", 48.47298, 35.19985),
+        ("Діївка", 48.46273, 34.91169), ("Таромське", 48.44629, 34.79182), ("Мандриківка", 48.44199, 35.06886),
+        ("Мирний", 48.38101, 34.98488),
+    ],
+}
+# Id ручних точок: окремий від'ємний діапазон, щоб не збігтися з -id вузлів OSM.
+MANUAL_ID_BASE = 10 ** 15
 # Центральний район Дніпра в OSM підписано просто «район».
 NAMES = {1209154: "Центральний район"}
 # Нещодавні перейменування (2022–2024): людина ще шукає за старою назвою, і рядок пошуку нагадує «раніше …».
@@ -161,6 +178,12 @@ def circle(lon: float, lat: float, radius: float) -> list[list[float]]:
     return ring + [ring[0]]
 
 
+def manual_nodes(city: str) -> list[dict]:
+    """Ручні точки [MANUAL_LOCALITIES] у вигляді вузлів Overpass: ідуть першими, тож перемагають тезку з OSM."""
+    return [{"id": MANUAL_ID_BASE + i, "lat": lat, "lon": lon, "tags": {"name": name}}
+            for i, (name, lat, lon) in enumerate(MANUAL_LOCALITIES.get(city, []))]
+
+
 def localities(city: str, nodes: list[dict], districts: list[dict]) -> list[dict]:
     """Місцевості міста: точки `place=suburb` усередині його районів, одна на назву."""
     found = {}
@@ -186,7 +209,7 @@ def fetch() -> int:
         if len(found) != expected:
             print(f"{city}: {len(found)} районів замість {expected}, файл не записано", file=sys.stderr)
             return 1
-        places = localities(city, [e for e in elements if e["type"] == "node"], found)
+        places = localities(city, manual_nodes(city) + [e for e in elements if e["type"] == "node"], found)
         print(f"{city}: {len(found)} районів, {len(places)} місцевостей", flush=True)
         districts += found + places
         time.sleep(2)  # Overpass просить не частити
@@ -259,6 +282,8 @@ def _self_check() -> None:
     places = localities("Одеса", nodes, [{"rings": square}])
     assert [(p["id"], p["name"], p["radius"]) for p in places] == [(-7, "Аркадія", LOCALITY_RADIUS)], places
     assert ",1500," in sql(places) and ",null," in sql([d])
+    manual = manual_nodes("Дніпро")
+    assert manual[0]["tags"]["name"] == "Перемога" and manual[0]["id"] == MANUAL_ID_BASE and manual_nodes("Одеса") == []
 
 
 if __name__ == "__main__":
