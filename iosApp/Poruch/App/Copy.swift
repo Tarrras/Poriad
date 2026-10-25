@@ -728,6 +728,8 @@ enum Copy {
     static let city_example = "Київ"
     static let age_max_toggle = "Верхня межа віку"
     static func description_hint(_ a0: String, _ a1: String, _ a2: String) -> String { "Щонайменше \(a0) символів · \(a1)/\(a2)" }
+    static let offline_title = "Немає звʼязку"
+    static let offline_event_hint = "Відкриємо подію, щойно повернеться мережа."
     static let event_unavailable_hint = "Її могли скасувати, приховати або видалити."
     static let cancel_event_confirm = "Скасувати цю подію? Учасники бачитимуть її скасованою."
     static let contact_unknown_site = "сторонній сайт"

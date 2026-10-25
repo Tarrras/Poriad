@@ -1,5 +1,6 @@
 package app.poruch.shared
 
+import app.poruch.domain.AppError
 import app.poruch.domain.Attendee
 import app.poruch.domain.CompanionCard
 import app.poruch.domain.CheckedLabel
@@ -66,6 +67,8 @@ data class DetailScreenState(
     val attendees: List<Attendee> = emptyList(),
     /** Сама подія ще в дорозі (або слот забрав інший екран деталей і ми ось-ось попросимо його назад). */
     val loading: Boolean = true,
+    /** Події нема, бо нема мережі: «Немає звʼязку», а не «Подія недоступна». Відкриється сама, щойно мережа повернеться. */
+    val offline: Boolean = false,
     val mutating: Boolean = false,
     val signedIn: Boolean = false,
     val saved: Boolean = false,
@@ -291,6 +294,7 @@ class DetailPresenter(
             // Картку вже показували, а слот порожній: його забрав інший екран деталей, і на повернення ми
             // попросимо його назад (`reopen`). Той кадр — завантаження, а не «подія недоступна».
             loading = shared.detail.loading || (shown && event == null),
+            offline = event == null && !shown && !shared.detail.loading && shared.detail.failure is AppError.Network,
             mutating = shared.mutating,
             signedIn = shared.signedIn,
             saved = shared.isSaved(eventId),

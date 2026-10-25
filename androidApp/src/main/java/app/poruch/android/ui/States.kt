@@ -25,6 +25,7 @@ import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import app.poruch.android.R
@@ -133,9 +134,10 @@ fun PageHeader(
 
 /** Фірмова Lottie-анімація в циклі; темний варіант лежить у raw-night. Малюнки — tools/generate_lottie.py. */
 @Composable
-fun BrandAnimation(@RawRes res: Int, modifier: Modifier = Modifier) {
+fun BrandAnimation(@RawRes res: Int, modifier: Modifier = Modifier, still: Boolean = false) {
     val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(res))
-    LottieAnimation(composition, modifier, iterations = LottieConstants.IterateForever)
+    // [still] — стоп-кадр першого кадру: «зменшити рух».
+    LottieAnimation(composition, modifier, isPlaying = !still, iterations = LottieConstants.IterateForever)
 }
 
 /** Лоадер екрана чи секції: шпилька з іконки підстрибує. Кнопки й дрібні підвантаження лишаються з системним. */
@@ -148,7 +150,9 @@ fun PoruchLoader(modifier: Modifier = Modifier) {
 @Composable
 fun EmptyState(
     icon: ImageVector, title: String, message: String, modifier: Modifier = Modifier,
-    actionLabel: String? = null, onAction: (() -> Unit)? = null
+    actionLabel: String? = null, onAction: (() -> Unit)? = null,
+    /** Lottie з генератора замість порожнього квитка (240×140): `R.raw.offline` — корінець на ниточці. */
+    @RawRes animation: Int? = null
 ) {
     val colors = Poruch.colors
     Column(
@@ -158,7 +162,8 @@ fun EmptyState(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(Spacing.md)
     ) {
-        BlankTicket(icon, Modifier.padding(bottom = Spacing.sm))
+        if (animation != null) BrandAnimation(animation, Modifier.size(240.dp, 140.dp).clearAndSetSemantics {}, still = Poruch.reducedMotion)
+        else BlankTicket(icon, Modifier.padding(bottom = Spacing.sm))
         // Довгі рядки переносяться: по центру, як і значок над ними.
         Text(
             title,

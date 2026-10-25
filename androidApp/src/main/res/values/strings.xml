@@ -892,6 +892,8 @@
   <string name="city_example">Київ</string>
   <string name="age_max_toggle">Верхня межа віку</string>
   <string name="description_hint">Щонайменше %1$d символів · %2$d/%3$d</string>
+  <string name="offline_title">Немає звʼязку</string>
+  <string name="offline_event_hint">Відкриємо подію, щойно повернеться мережа.</string>
   <string name="event_unavailable_hint">Її могли скасувати, приховати або видалити.</string>
   <string name="cancel_event_confirm">Скасувати цю подію? Учасники бачитимуть її скасованою.</string>
   <string name="contact_unknown_site">сторонній сайт</string>

@@ -244,7 +244,73 @@ def empty(theme):
     return compose("Poriad empty", 160, end, [orbit, ring(0), ring(end // 2)])
 
 
-ANIMATIONS = {"splash": splash, "loader": loader, "empty": empty}
+# ---------- нема зв'язку: корінець на ниточці ----------
+
+# «Корінець» (DESIGN.md): порожній квиток, як `BlankTicket`, — тема з Tokens.kt / DesignSystem.swift.
+KORINETS = {
+    "light": {"surface": "#FFFFFF", "muted": "#EDEDF0", "hairline": "#E0E0E5", "outline": "#6A6A73", "accent": "#E0582F"},
+    "dark": {"surface": "#1C1B21", "muted": "#2A2930", "hairline": "#2E2D35", "outline": "#96959E", "accent": "#FF8A5B"},
+}
+
+
+def dashed(hex_, width, opacity):
+    """Контур порожнього квитка: пунктир 5/4."""
+    return stroke(hex_, width) | {"o": static(opacity), "lc": 1, "lj": 1, "d": [
+        {"n": "d", "nm": "dash", "v": static(5)}, {"n": "g", "nm": "gap", "v": static(4)},
+        {"n": "o", "nm": "offset", "v": static(0)}]}
+
+
+def ticket_part(x0, x1, y0, y1, radius, cut, left):
+    """Половина квитка до лінії відриву: заокруглені кути з одного боку, півкруглі вирізи [cut] — з другого."""
+    k, c = radius * 0.5523, cut * 0.5523
+    tear, edge = (x1, x0) if left else (x0, x1)
+    s = -1 if left else 1  # куди від лінії відриву лежить ця половина
+    return bezier([
+        ("M", (tear, y0 + cut)),
+        ("C", (tear + s * c, y0 + cut, tear + s * cut, y0 + c, tear + s * cut, y0)),
+        ("L", (edge - s * radius, y0)),
+        ("C", (edge - s * (radius - k), y0, edge, y0 + radius - k, edge, y0 + radius)),
+        ("L", (edge, y1 - radius)),
+        ("C", (edge, y1 - radius + k, edge - s * (radius - k), y1, edge - s * radius, y1)),
+        ("L", (tear + s * cut, y1)),
+        ("C", (tear + s * cut, y1 - c, tear + s * c, y1 - cut, tear, y1 - cut)),
+        ("Z", ()),
+    ])
+
+
+def offline(theme):
+    """Нема зв'язку: корінець порожнього квитка надірваний і висить на верхній перфорації. Раз на цикл тягнеться
+    назад — крапки перфорації між ними спалахують згори вниз, як сигнал, що шукає мережу, — і відгойдується.
+    Цикл 2,4 с; 0-й і останній кадри однакові. Квиток 184×72 зі стубом 56, як `BlankTicket`."""
+    t = KORINETS["light" if theme is THEMES["light"] else "dark"]
+    end, x0, tear, x1, y0, y1 = 144, 28, 156, 212, 34, 106
+    body = layer("Body", [
+        group(path([(47, 64), (113, 64)]), stroke(t["hairline"], 6)),  # капсули 72 і 44, як у BlankTicket
+        group(path([(47, 76), (85, 76)]), stroke(t["hairline"], 6)),
+        group(ticket_part(x0, tear, y0, y1, 12, 7, left=True), dashed(t["outline"], 1.5, 65), fill(t["surface"])),
+    ], transform())
+    # Корінець висить на верхньому вирізі майже впритул і відгойдується низом: точка підвісу — верх лінії відриву.
+    hang, tilt = [tear + 3, y0], -9
+    stub = layer("Stub", [
+        glyph("wifiOff", t["accent"], at=((tear + x1) / 2, (y0 + y1) / 2), scale=92),
+        group(ticket_part(tear, x1, y0, y1, 12, 7, left=False), dashed(t["outline"], 1.5, 65), fill(t["muted"])),
+    ], transform(
+        a=(tear, y0),
+        p=anim((0, hang), (36, hang, SMOOTH), (60, [tear + 1, y0], EASE_IN), (78, [tear + 4, y0], EASE_OUT),
+               (96, hang), (end, hang)),
+        r=anim((0, tilt), (20, -8, SMOOTH), (36, tilt, SMOOTH), (60, -1, EASE_IN), (78, -12.5, EASE_OUT),
+               (96, tilt, SMOOTH), (118, -10.5, SMOOTH), (end, tilt))))
+    # П'ять крапок перфорації (3,5, як межа району) посеред щілини, що ширшає донизу: спалахують згори вниз,
+    # поки корінець тягнеться, і лягають на лінію відриву, коли він майже торкається квитка.
+    gap = lambda y: 3 + (y - y0) * math.tan(math.radians(-tilt))
+    dots = [layer(f"Dot {n}", [group(ellipse((3.5, 3.5)), fill(t["accent"]))],
+                  transform(p=(tear + gap(46 + n * 12) / 2, 46 + n * 12),
+                            o=anim((0, 35), (40 + n * 4, 35, SMOOTH), (52 + n * 4, 100, SMOOTH), (76 + n * 4, 35), (end, 35))))
+            for n in range(5)]
+    return compose("Poriad offline", 240, end, [*dots, stub, body]) | {"h": 140}
+
+
+ANIMATIONS = {"splash": splash, "loader": loader, "empty": empty, "offline": offline}
 
 if __name__ == "__main__":
     for name, build in ANIMATIONS.items():

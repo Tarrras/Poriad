@@ -70,12 +70,17 @@ extension PageHeader where Trailing == EmptyView {
 struct BrandAnimation: View {
     let name: String
     var loop = true
+    /// Стоп-кадр першого кадру: «зменшити рух».
+    var still = false
     var onFinish: (() -> Void)?
     @Environment(\.colorScheme) private var scheme
     var body: some View {
-        LottieView(animation: .asset(name + (scheme == .dark ? "Dark" : "Light")))
-            .playing(loopMode: loop ? .loop : .playOnce)
-            .animationDidFinish { _ in onFinish?() }
+        let lottie = LottieView(animation: .asset(name + (scheme == .dark ? "Dark" : "Light")))
+        if still {
+            lottie.paused(at: .frame(0))
+        } else {
+            lottie.playing(loopMode: loop ? .loop : .playOnce).animationDidFinish { _ in onFinish?() }
+        }
     }
 }
 
@@ -92,11 +97,18 @@ struct EmptyState: View {
     let title: String
     let message: String
     var compact: Bool = false
+    /// Lottie з генератора замість порожнього квитка (240×140): «Offline» — корінець на ниточці.
+    var animation: String?
     var actionLabel: String?
     var action: (() -> Void)?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
         VStack(spacing: compact ? Space.sm : Space.md) {
-            BlankTicket(glyph: glyph, compact: compact).padding(.bottom, compact ? 0 : Space.sm)
+            if let animation {
+                BrandAnimation(name: animation, still: reduceMotion).frame(width: 240, height: 140).decorative()
+            } else {
+                BlankTicket(glyph: glyph, compact: compact).padding(.bottom, compact ? 0 : Space.sm)
+            }
             Text(title).font(compact ? PoruchFont.brandTitle3 : PoruchFont.brandTitle2).foregroundStyle(Palette.ink).multilineTextAlignment(.center)
             Text(message).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary).multilineTextAlignment(.center)
             if let actionLabel, let action {

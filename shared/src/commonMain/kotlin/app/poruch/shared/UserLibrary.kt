@@ -33,9 +33,8 @@ internal class UserLibrary(
         private set
     /** Подія, чиї деталі вже порахували в `event_view`: перечитування й потяг униз — не новий перегляд. */
     private var viewedId: String? = null
-    /** Як відкрито [openEventId] і чи впали його деталі: для повтору, коли повернеться мережа ([retryDetail]). */
+    /** Як відкрито [openEventId]: для повтору, коли повернеться мережа ([retryDetail]). */
     private var openFull = false
-    private var detailFailed = false
     /**
      * Лічильник оптимістичних змін закладок. [load], що стартував до зміни, приносить список
      * з сервера без неї: тоді лишаємо закладки зі стану.
@@ -107,7 +106,7 @@ internal class UserLibrary(
         // Перегляд — відкриті деталі, а не крок каруселі: інакше метрика росла б від гортання.
         if (full && viewedId != id) PoruchAnalytics.track("event_view", "from" to openedFrom?.takeIf { it.first == id }?.second)
         if (full) viewedId = id
-        openEventId = id; openFull = full; detailFailed = false
+        openEventId = id; openFull = full
         detailJob?.cancel()
         // Показуємо те, що вже знаємо, поки їдуть деталі. `cards` теж: сеанс прокату, обраний
         // у каруселі дат, у стрічці згорнуто.
@@ -162,8 +161,10 @@ internal class UserLibrary(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                if (openEventId == current) { detailFailed = true; detail { copy(loading = false) } }
-                store.failed(e.asAppError())
+                val error = e.asAppError()
+                if (openEventId == current) detail { copy(loading = false, failure = error) }
+                // Без мережі й без картки екран деталей сам каже «Немає звʼязку» і чекає мережу: банер повторював би його.
+                if (!(error is AppError.Network && store.value.detail.event == null)) store.failed(error)
             }
             // Події закладу для «Ще в цьому місці». Збій лишає секцію на індексі мапи.
             val placeId = store.value.detail.event?.takeIf { it.id == current }?.placeId
@@ -243,7 +244,7 @@ internal class UserLibrary(
      */
     fun retryDetail() {
         val id = openEventId ?: return
-        if (store.value.detail.loading || detailFailed) select(id, full = openFull)
+        if (store.value.detail.loading || store.value.detail.failure != null) select(id, full = openFull)
     }
 
     fun dismiss() {

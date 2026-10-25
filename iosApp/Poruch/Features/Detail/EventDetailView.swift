@@ -75,13 +75,21 @@ struct EventDetailView: View, Equatable {
             if let event = view.event {
                 detail(event, view)
             } else if !view.loading {
-                // Сервер відповів порожньо або з помилкою: не вічний спінер, а вихід.
+                // Сервер відповів порожньо або з помилкою: не вічний спінер, а вихід. Без мережі — корінець на ниточці:
+                // подія відкриється сама, щойно мережа повернеться.
                 VStack(spacing: Space.lg) {
-                    EmptyState(
-                        glyph: PoruchIcons.calendarAlert, title: Copy.err_event_unavailable,
-                        message: Copy.event_unavailable_hint,
-                        actionLabel: Copy.try_again
-                    ) { model.app.openEvent(id: eventID) }
+                    if view.offline {
+                        EmptyState(
+                            glyph: PoruchIcons.wifiOff, title: Copy.offline_title, message: Copy.offline_event_hint,
+                            animation: "Offline", actionLabel: Copy.try_again
+                        ) { model.app.openEvent(id: eventID) }
+                    } else {
+                        EmptyState(
+                            glyph: PoruchIcons.calendarAlert, title: Copy.err_event_unavailable,
+                            message: Copy.event_unavailable_hint,
+                            actionLabel: Copy.try_again
+                        ) { model.app.openEvent(id: eventID) }
+                    }
                     SecondaryButton(title: Copy.back) { dismiss() }
                 }
                 .padding(Space.page).frame(maxWidth: .infinity, maxHeight: .infinity).background(Palette.canvas)

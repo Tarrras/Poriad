@@ -86,7 +86,8 @@ class PoruchAppTest {
         /** Запит на мертвому з'єднанні: висить, доки його не скасують. */
         var hangDetails=false
         var detailsCalls=0
-        override suspend fun details(id:String):Event? { detailsCalls++; if(hangDetails) awaitCancellation(); if(failDetails) fail(AppError.ServiceUnavailable); return detailsById[id] }
+        override suspend fun details(id:String):Event? { detailsCalls++; if(hangDetails) awaitCancellation(); if(failDetails) fail(detailsError); return detailsById[id] }
+        var detailsError:AppError=AppError.ServiceUnavailable
         var places=emptyList<Place>()
         val placeQueries=mutableListOf<Pair<String,EventQuery?>>()
         override suspend fun searchPlaces(text:String,city:String?,bounds:EventQuery?):List<Place> { placeQueries+=text to bounds; delay(50); return places.filter { it.name.lowercase().startsWith(text.lowercase()) } }
@@ -2076,6 +2077,28 @@ class PoruchAppTest {
         assertEquals("live",screen.sessionId,"actions go to the live event")
         screen.release(keepSlot=false); runCurrent()
         assertNull(app.state.value.detail.event,"releasing frees the live event's slot")
+        app.close()
+    }
+    /** Подію без картки відкрили без мережі: «Немає звʼязку» замість «Подія недоступна», без банера-дубля; мережа — і подія. */
+    @Test fun anEventOpenedOfflineWaitsForTheNetwork()=runTest {
+        val events=Events()
+        val room=event("r1",EventCategory.SOCIAL,(Clock.System.now()+1.hours).toString())
+        events.detailsById=mapOf("r1" to room)
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
+        app.networkChanged(false); events.failDetails=true; events.detailsError=AppError.Network
+        val screen=DetailPresenter(app,"r1",backgroundScope,StandardTestDispatcher(testScheduler))
+        runCurrent(); advanceTimeBy(1000); runCurrent()
+        assertTrue(screen.state.value.offline)
+        assertNull(app.state.value.notice,"the screen says it; no banner on top")
+        events.failDetails=false
+        app.networkChanged(true); advanceTimeBy(1000); runCurrent()
+        assertEquals("r1",screen.state.value.event?.id)
+        assertFalse(screen.state.value.offline)
+
+        events.failDetails=true; events.detailsError=AppError.ServiceUnavailable
+        app.dismissEvent(); val other=DetailPresenter(app,"r1",backgroundScope,StandardTestDispatcher(testScheduler))
+        runCurrent(); advanceTimeBy(1000); runCurrent()
+        assertFalse(other.state.value.offline,"a server failure is not «no connection»")
         app.close()
     }
     /** Мережа повернулась: деталі, що зависли чи впали без неї, перечитуються самі; уже завантажені — ні. */

@@ -150,6 +150,8 @@ data class DetailState(
     val event: Event? = null,
     /** Id, за яким відкрили [event], коли її злили в живу (docs/event-offers.md): екран деталей переходить на [event]. */
     val mergedFrom: String? = null,
+    /** Чим упали деталі. Скидає наступне відкриття; [AppError.Network] без картки — екран «Немає звʼязку». */
+    val failure: AppError? = null,
     val attendees: List<Attendee> = emptyList(),
     /** Оцінки відкритої завершеної події: організаторові всі, учасникові — своя. */
     val ratings: List<EventRating> = emptyList(),
