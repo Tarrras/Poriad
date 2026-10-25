@@ -1,6 +1,8 @@
 package app.poruch.android
 
 import android.app.Application
+import android.net.ConnectivityManager
+import android.net.Network
 import android.os.Bundle
 import app.poruch.android.di.appModule
 import app.poruch.android.navigation.navigationModule
@@ -70,6 +72,11 @@ class PoruchApplication : Application() {
         }
         // Пуші: токен їде в стор і реєструється, щойно є акаунт.
         Push.start(this, app)
+        // Мережа зникла й повернулась: спільний код перезапускає деталі, що зависли чи впали, і мапу з кешу.
+        getSystemService(ConnectivityManager::class.java).registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) { app.networkChanged(true) }
+            override fun onLost(network: Network) { app.networkChanged(false) }
+        })
         // Чернетка події належить людині, а не телефону: після виходу наступний акаунт її не бачить.
         // Нагадування чистить ReminderSync сам, бо план для гостя порожній.
         var lastUser: String? = app.state.value.session.userId

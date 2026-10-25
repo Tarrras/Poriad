@@ -33,6 +33,9 @@ internal class UserLibrary(
         private set
     /** Подія, чиї деталі вже порахували в `event_view`: перечитування й потяг униз — не новий перегляд. */
     private var viewedId: String? = null
+    /** Як відкрито [openEventId] і чи впали його деталі: для повтору, коли повернеться мережа ([retryDetail]). */
+    private var openFull = false
+    private var detailFailed = false
     /**
      * Лічильник оптимістичних змін закладок. [load], що стартував до зміни, приносить список
      * з сервера без неї: тоді лишаємо закладки зі стану.
@@ -104,7 +107,7 @@ internal class UserLibrary(
         // Перегляд — відкриті деталі, а не крок каруселі: інакше метрика росла б від гортання.
         if (full && viewedId != id) PoruchAnalytics.track("event_view", "from" to openedFrom?.takeIf { it.first == id }?.second)
         if (full) viewedId = id
-        openEventId = id
+        openEventId = id; openFull = full; detailFailed = false
         detailJob?.cancel()
         // Показуємо те, що вже знаємо, поки їдуть деталі. `cards` теж: сеанс прокату, обраний
         // у каруселі дат, у стрічці згорнуто.
@@ -131,69 +134,80 @@ internal class UserLibrary(
             return
         }
         detailJob = scope.launch {
+            // Відкрита подія: та, яку просили, або жива, у яку її злили (див. нижче).
+            var current = id
             try {
                 // `event_details` віддає старий композит без закладу: беремо його з картки.
-                val event = events.details(id)?.withPlaceOf(store.value.cards[id] ?: known)
-                PoruchLog.d("detail") { "loaded ${id.shortId()} kind=${if (event?.isCommunity == true) "community" else "listing"} joined=${event?.gathering?.joined} attendees=${event?.gathering?.attendeeCount}/${event?.gathering?.capacity} status=${event?.status?.key}" }
-                if (openEventId == id) {
+                val event = events.details(current)?.withPlaceOf(store.value.cards[current] ?: known)
+                PoruchLog.d("detail") { "loaded ${current.shortId()} kind=${if (event?.isCommunity == true) "community" else "listing"} joined=${event?.gathering?.joined} attendees=${event?.gathering?.attendeeCount}/${event?.gathering?.capacity} status=${event?.status?.key}" }
+                if (openEventId == current) {
+                    // Злиту подію (docs/event-offers.md) сервер віддає живою, під її id: старий id лишається в кеші видачі,
+                    // посиланнях і пушах. Відкритою стає жива, і екран деталей іде за нею ([DetailState.mergedFrom]) —
+                    // інакше він чекав свою і крутив завантаження без кінця.
+                    if (event != null && event.id != current) {
+                        PoruchLog.i("detail") { "${current.shortId()} merged into ${event.id.shortId()}" }
+                        openEventId = event.id
+                        detail { copy(mergedFrom = current) }
+                        current = event.id
+                    }
                     detail { copy(event = event, loading = false) }
                     if (event == null) store.failed(AppError.EventUnavailable)
                 }
                 // Афішу відкрили без картки (посилання, пуш): заклад і артисти є лише в картці, тож беремо її окремо. Без
                 // цього не було б ні «Стежити» на місці, ні «Ще в «…»» у деталях.
                 if (event?.listing != null && event.placeId == null) {
-                    val withPlace = event.withPlaceOf(optional { events.cards(listOf(id)).firstOrNull() })
-                    if (openEventId == id && withPlace != event) detail { copy(event = withPlace) }
+                    val withPlace = event.withPlaceOf(optional { events.cards(listOf(current)).firstOrNull() })
+                    if (openEventId == current && withPlace != event) detail { copy(event = withPlace) }
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                if (openEventId == id) detail { copy(loading = false) }
+                if (openEventId == current) { detailFailed = true; detail { copy(loading = false) } }
                 store.failed(e.asAppError())
             }
             // Події закладу для «Ще в цьому місці». Збій лишає секцію на індексі мапи.
-            val placeId = store.value.detail.event?.takeIf { it.id == id }?.placeId
+            val placeId = store.value.detail.event?.takeIf { it.id == current }?.placeId
             if (full && placeId != null) {
                 val atPlace = optional { events.placeEvents(placeId) }
-                if (openEventId == id && atPlace != null) detail { copy(placeEvents = PlaceEvents(placeId, atPlace)) }
+                if (openEventId == current && atPlace != null) detail { copy(placeEvents = PlaceEvents(placeId, atPlace)) }
             }
             // Хто шукає компанію на цю афішу. Одразу після події: секція вище за згином, а збій лише її ховає.
-            if (full && store.value.detail.event?.takeIf { it.id == id }?.let { CompanionRules.canOffer(it, Clock.System.now()) } == true) {
-                val companions = optional { events.companions(id) }
-                if (openEventId == id) detail { copy(companions = companions) }
+            if (full && store.value.detail.event?.takeIf { it.id == current }?.let { CompanionRules.canOffer(it, Clock.System.now()) } == true) {
+                val companions = optional { events.companions(current) }
+                if (openEventId == current) detail { copy(companions = companions) }
             }
             // Учасники — доповнення до лічильника, тож збій лишає лише число. Афішу не питаємо:
             // ростер бачать організатор і учасники (`can_view_members`), а в неї нема ні тих, ні тих.
             if (store.value.signedIn && store.value.detail.event?.isCommunity == true) {
-                val roster = try { events.attendees(id) } catch (e: CancellationException) { throw e } catch (e: Exception) { emptyList() }
-                PoruchLog.d("detail") { "roster for ${id.shortId()}: ${roster.size} visible" }
-                if (openEventId == id) detail { copy(attendees = roster) }
+                val roster = try { events.attendees(current) } catch (e: CancellationException) { throw e } catch (e: Exception) { emptyList() }
+                PoruchLog.d("detail") { "roster for ${current.shortId()}: ${roster.size} visible" }
+                if (openEventId == current) detail { copy(attendees = roster) }
             }
             // Фото організатора — з його картки. Best-effort, як ростер: без нього лишається літера.
-            val organizerId = store.value.detail.event?.takeIf { it.id == id && it.isCommunity }?.organizerId
+            val organizerId = store.value.detail.event?.takeIf { it.id == current && it.isCommunity }?.organizerId
             if (store.value.signedIn && organizerId != null) {
                 val avatar = optional { profiles?.profile(organizerId)?.avatarUrl }
-                if (openEventId == id) detail { copy(organizerAvatar = avatar) }
+                if (openEventId == current) detail { copy(organizerAvatar = avatar) }
             }
             // Запити є лише в організатора і лише для своєї події.
-            val mine = store.value.detail.event?.let { it.id == id && store.value.organizes(it) } == true
+            val mine = store.value.detail.event?.let { it.id == current && store.value.organizes(it) } == true
             val requests = if (mine) {
-                try { requests.joinRequests(id) } catch (e: CancellationException) { throw e } catch (e: Exception) { emptyList() }
+                try { requests.joinRequests(current) } catch (e: CancellationException) { throw e } catch (e: Exception) { emptyList() }
             } else emptyList()
-            if (openEventId == id) detail { copy(joinRequests = requests) }
+            if (openEventId == current) detail { copy(joinRequests = requests) }
             // Оцінки — лише завершеної кімнати і лише своїм: організатору й учасникам.
             val ended = store.value.detail.event?.takeIf {
-                it.id == id && it.isCommunity && it.hasEnded(Clock.System.now()) && store.value.concerns(it)
+                it.id == current && it.isCommunity && it.hasEnded(Clock.System.now()) && store.value.concerns(it)
             }
             val ratings = if (ended != null) {
-                try { participation.ratings(id) } catch (e: CancellationException) { throw e } catch (e: Exception) { emptyList() }
+                try { participation.ratings(current) } catch (e: CancellationException) { throw e } catch (e: Exception) { emptyList() }
             } else emptyList()
-            if (openEventId == id) detail { copy(ratings = ratings) }
+            if (openEventId == current) detail { copy(ratings = ratings) }
             // Укриття поруч і комендантська для блоку «Безпека». Останнім: він під згином екрана,
             // а збій лише ховає блок.
             if (full) {
-                val safety = optional { events.safety(id) }
-                if (openEventId == id) detail { copy(safety = safety) }
+                val safety = optional { events.safety(current) }
+                if (openEventId == current) detail { copy(safety = safety) }
             }
         }
     }
@@ -222,6 +236,15 @@ internal class UserLibrary(
 
     /** Чекає, поки доїдуть деталі відкритої події разом з учасниками й запитами. */
     suspend fun awaitDetail() { detailJob?.join() }
+
+    /**
+     * Мережа повернулась: деталі, що ще вантажаться чи впали, просимо знову. Запит, що завис на мертвому з'єднанні,
+     * інакше чекав би свого тайм-ауту (до 30 с і стільки ж на повтор), а впалий — дотику «Спробувати ще раз».
+     */
+    fun retryDetail() {
+        val id = openEventId ?: return
+        if (store.value.detail.loading || detailFailed) select(id, full = openFull)
+    }
 
     fun dismiss() {
         openEventId = null; viewedId = null

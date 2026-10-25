@@ -83,7 +83,10 @@ class PoruchAppTest {
         var failPending=false
         var failFacts=false
         var detailsById=emptyMap<String,Event>()
-        override suspend fun details(id:String):Event? { if(failDetails) fail(AppError.ServiceUnavailable); return detailsById[id] }
+        /** Запит на мертвому з'єднанні: висить, доки його не скасують. */
+        var hangDetails=false
+        var detailsCalls=0
+        override suspend fun details(id:String):Event? { detailsCalls++; if(hangDetails) awaitCancellation(); if(failDetails) fail(AppError.ServiceUnavailable); return detailsById[id] }
         var places=emptyList<Place>()
         val placeQueries=mutableListOf<Pair<String,EventQuery?>>()
         override suspend fun searchPlaces(text:String,city:String?,bounds:EventQuery?):List<Place> { placeQueries+=text to bounds; delay(50); return places.filter { it.name.lowercase().startsWith(text.lowercase()) } }
@@ -2032,6 +2035,92 @@ class PoruchAppTest {
         // Зняття екрана: слот відкритої події звільнено, бо він ще наш.
         presenter.release(keepSlot=false); runCurrent()
         assertNull(app.state.value.detail.event)
+        app.close()
+    }
+    /**
+     * Ту саму подію відкрили знову, а старий екран знято вже після цього (iOS — `deinit`, Android — `onCleared`). Раніше
+     * він звільняв слот нового, і той крутив завантаження без кінця: запиту ніхто не робив, `reopen` чекав появи екрана.
+     */
+    @Test fun aLateReleaseOfTheSameEventKeepsTheNewScreen()=runTest {
+        val events=Events()
+        val room=event("r1",EventCategory.SOCIAL,(Clock.System.now()+1.hours).toString())
+        events.results=listOf(room); events.detailsById=mapOf("r1" to room)
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
+        // Кожному екрану свій scope, як на платформах: `release` скасовує свій, і спільний зупинив би й новий екран.
+        fun screen()=DetailPresenter(app,"r1",CoroutineScope(backgroundScope.coroutineContext+Job(backgroundScope.coroutineContext[Job])),StandardTestDispatcher(testScheduler))
+        val old=screen()
+        runCurrent(); advanceTimeBy(200); runCurrent()
+        val again=screen()
+        runCurrent(); advanceTimeBy(200); runCurrent()
+        old.release(keepSlot=false); runCurrent()
+        assertEquals("r1",again.state.value.event?.id,"the new screen keeps its event")
+        assertFalse(again.state.value.loading)
+        again.release(keepSlot=false); runCurrent()
+        assertNull(app.state.value.detail.event,"the last screen frees the slot")
+        app.close()
+    }
+    /**
+     * Картку злитої події показали зі старої видачі (кеш без мережі, посилання, пуш), а сервер віддав живу під її id.
+     * Раніше екран чекав старий id і крутив завантаження без кінця; тепер іде за живою, і дії — на неї.
+     */
+    @Test fun aMergedEventOpensItsLiveTwin()=runTest {
+        val events=Events()
+        val start=(Clock.System.now()+30.hours).toString()
+        val stale=listed("old",start); val live=listed("live",start)
+        events.results=listOf(stale); events.detailsById=mapOf("old" to live)
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
+        val screen=DetailPresenter(app,"old",backgroundScope,StandardTestDispatcher(testScheduler))
+        runCurrent(); advanceTimeBy(1000); runCurrent()
+        assertEquals("live",screen.state.value.event?.id)
+        assertFalse(screen.state.value.loading)
+        assertEquals("live",screen.sessionId,"actions go to the live event")
+        screen.release(keepSlot=false); runCurrent()
+        assertNull(app.state.value.detail.event,"releasing frees the live event's slot")
+        app.close()
+    }
+    /** Мережа повернулась: деталі, що зависли чи впали без неї, перечитуються самі; уже завантажені — ні. */
+    @Test fun detailsComeBackWithTheNetwork()=runTest {
+        val events=Events()
+        val room=event("r1",EventCategory.SOCIAL,(Clock.System.now()+1.hours).toString())
+        events.results=listOf(room); events.detailsById=mapOf("r1" to room)
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
+        app.networkChanged(true); runCurrent()
+        app.openEvent("r1"); advanceTimeBy(1000); runCurrent()
+        assertEquals(1,events.detailsCalls,"the first word that the network is there asks nothing")
+
+        app.networkChanged(false); events.hangDetails=true
+        app.openEvent("r1"); advanceTimeBy(1000); runCurrent()
+        assertTrue(app.state.value.detail.loading,"stuck on a dead connection")
+        events.hangDetails=false
+        app.networkChanged(true); advanceTimeBy(1000); runCurrent()
+        assertEquals(3,events.detailsCalls,"the stuck request is replaced")
+        assertFalse(app.state.value.detail.loading)
+
+        app.networkChanged(false); events.failDetails=true
+        app.openEvent("r1"); advanceTimeBy(1000); runCurrent()
+        events.failDetails=false
+        app.networkChanged(true); advanceTimeBy(1000); runCurrent()
+        assertEquals(5,events.detailsCalls,"failed details are asked again")
+
+        app.networkChanged(false); app.networkChanged(true); advanceTimeBy(1000); runCurrent()
+        assertEquals(5,events.detailsCalls,"loaded details are not")
+        app.close()
+    }
+    /**
+     * Сесію скинуто, поки деталі на екрані (на слабкій мережі загублена відповідь refresh — і Supabase відмовляє старому
+     * токену). Зміна акаунта чистить слот; раніше екран після цього крутив завантаження без кінця.
+     */
+    @Test fun anOpenDetailReloadsAfterTheAccountChanges()=runTest {
+        val events=Events(); val auth=Auth()
+        val room=event("r1",EventCategory.SOCIAL,(Clock.System.now()+1.hours).toString())
+        events.results=listOf(room); events.detailsById=mapOf("r1" to room)
+        val app=app(events,backgroundScope,auth); runCurrent(); advanceTimeBy(101); runCurrent()
+        val screen=DetailPresenter(app,"r1",backgroundScope,StandardTestDispatcher(testScheduler))
+        runCurrent(); advanceTimeBy(200); runCurrent()
+        assertEquals("r1",screen.state.value.event?.id)
+        auth.session.value=null; runCurrent(); advanceTimeBy(200); runCurrent()
+        assertEquals("r1",screen.state.value.event?.id,"the screen asks for its event again")
+        assertFalse(screen.state.value.loading)
         app.close()
     }
     /** R7а/R7б: збір з питанням — організатор бачить його й міняє час лише в межах сітки; учасник — ні. */

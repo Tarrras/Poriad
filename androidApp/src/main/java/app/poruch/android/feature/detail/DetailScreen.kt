@@ -80,7 +80,11 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
             PageHeader(stringResource(R.string.about_event), back = { onIntent(DetailIntent.Back) })
             if (state.screen.loading) Box(Modifier.fillMaxWidth().padding(Spacing.section), contentAlignment = Alignment.Center) {
                 PoruchLoader()
-            } else EmptyState(PoruchIcons.search, stringResource(R.string.details), stringResource(R.string.event_unavailable))
+            // Сервер відповів порожньо або з помилкою (часто — мережа): не глухий кут, а повтор, як на iOS.
+            } else EmptyState(
+                PoruchIcons.calendarAlert, stringResource(R.string.err_event_unavailable), stringResource(R.string.event_unavailable_hint),
+                actionLabel = stringResource(R.string.try_again), onAction = { onIntent(DetailIntent.Refresh) }
+            )
         }
         return
     }

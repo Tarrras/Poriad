@@ -148,6 +148,8 @@ data class AppState(
 /** Відкрита подія з тим, що бачить лише вона. Порожньо — нічого не відкрито. */
 data class DetailState(
     val event: Event? = null,
+    /** Id, за яким відкрили [event], коли її злили в живу (docs/event-offers.md): екран деталей переходить на [event]. */
+    val mergedFrom: String? = null,
     val attendees: List<Attendee> = emptyList(),
     /** Оцінки відкритої завершеної події: організаторові всі, учасникові — своя. */
     val ratings: List<EventRating> = emptyList(),

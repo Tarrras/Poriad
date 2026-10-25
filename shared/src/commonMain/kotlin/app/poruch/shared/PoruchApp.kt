@@ -178,6 +178,22 @@ class PoruchApp internal constructor(
         scope.launch { pushSync.received(kind, key); resume() }
     }
 
+    /** Мережу втрачено, поки застосунок живий. Повернення після втрати — див. [networkChanged]. */
+    private var offline = false
+
+    /**
+     * Платформа бачить мережу ([available]) чи ні. Повернення після втрати: деталі, що вантажаться чи впали, просимо
+     * знову ([UserLibrary.retryDetail]), а мапу — якщо видача з кешу без мережі. Перша звістка «мережа є» на старті
+     * нічого не робить.
+     */
+    fun networkChanged(available: Boolean) {
+        scope.launch {
+            val restored = available && offline
+            offline = !available
+            if (restored) { discovery.refreshIfStale(); library.retryDetail() }
+        }
+    }
+
     // ---- Пошук
 
     fun refresh() = discovery.refresh()
@@ -298,6 +314,12 @@ class PoruchApp internal constructor(
     }
 
     fun dismissEvent() = library.dismiss()
+
+    /**
+     * Екран деталей, що останнім просив слот відкритої події: лише він його звільняє ([DetailPresenter.release]). Екран
+     * знімають запізно (iOS — `deinit`, Android — `onCleared`), коли ту саму подію вже відкрили знову.
+     */
+    internal var detailScreen: DetailPresenter? = null
     fun loadMyEvents() = library.load()
 
     /** Повернення на передній план: перечитує «мої» і відкриту подію, мапу — якщо видача не свіжа. */

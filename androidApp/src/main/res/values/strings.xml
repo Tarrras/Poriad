@@ -23,7 +23,6 @@
   <string name="seats">Вільних місць: %1$d</string>
   <string name="login">Увійти</string>
   <string name="details">Про подію</string>
-  <string name="event_unavailable">Подія недоступна. Поверніться до мапи й спробуйте ще раз.</string>
   <string name="leave">Ви берете участь · вийти</string>
   <string name="full">Місць немає</string>
   <string name="join">Приєднатися</string>

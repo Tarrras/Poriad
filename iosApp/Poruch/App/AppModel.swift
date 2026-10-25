@@ -1,6 +1,7 @@
 import SwiftUI
 import Shared
 import Security
+import Network
 import AmplitudeSwift
 import AmplitudeSwiftSessionReplayPlugin
 
@@ -105,6 +106,8 @@ extension EnvironmentValues {
     lazy var myEventsScreen = MyEventsScreenModel(app: app)
 
     private var subscription: Subscription?
+    /// Мережа зникла й повернулась: спільний код перезапускає деталі, що зависли чи впали, і мапу з кешу.
+    private let network = NWPathMonitor()
     /// Версії зі спільного стану: порівнюємо числа, а не обходимо тисячі записів через міст на кожну емісію.
     private var lastIndexVersion: Int32 = -1
     private var lastFeedVersion: Int32 = -1
@@ -154,6 +157,9 @@ extension EnvironmentValues {
         } else {
             PoruchLog.shared.w(tag: "analytics") { "Amplitude API key missing — analytics disabled" }
         }
+        // Раз на життя моделі, а не в `start`: монітор після `cancel` не перезапускається.
+        network.pathUpdateHandler = { [app] path in app.networkChanged(available: path.status == .satisfied) }
+        network.start(queue: .main)
         start()
     }
     func start() {
@@ -212,5 +218,5 @@ extension EnvironmentValues {
     func reloadAll() async { try? await app.reloadAll() }
     func reloadMyEvents() async { try? await app.reloadMyEvents() }
     func reloadEvent(id: String) async { try? await app.reloadEvent(id: id) }
-    deinit { subscription?.close(); graph.close() }
+    deinit { network.cancel(); subscription?.close(); graph.close() }
 }

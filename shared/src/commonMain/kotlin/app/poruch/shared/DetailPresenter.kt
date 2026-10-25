@@ -26,6 +26,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -190,7 +191,20 @@ class DetailPresenter(
 
     init {
         // Тут, а не з композиції чи `.task`: презентер переживає поворот і перестворення view, запит іде один раз.
-        app.openEvent(openedId)
+        claim(openedId)
+        // Зміна акаунта чистить слот відкритої події — і вхід, і скинута сесія (на слабкій мережі губиться відповідь
+        // refresh, а старий токен Supabase вже не приймає). Екран зверху просить свою подію знову, інакше крутив би
+        // завантаження без кінця: `reopen` чекає появи екрана, а він і так на екрані.
+        scope.launch {
+            app.state.map { it.session.userId }.distinctUntilChanged().drop(1).collect {
+                if (app.detailScreen === this@DetailPresenter && shown) claim(sessionId)
+            }
+        }
+    }
+
+    private fun claim(id: String) {
+        app.detailScreen = this
+        app.openEvent(id)
     }
 
     val state: StateFlow<DetailScreenState> = app.state
@@ -203,12 +217,12 @@ class DetailPresenter(
     fun pickSession(id: String) {
         if (id == sessionId) return
         pendingId = id
-        app.openEvent(id)
+        claim(id)
     }
 
     /** Екран знову зверху після іншого екрана деталей: той перебрав єдиний слот відкритої події. */
     fun reopen() {
-        if (shown && state.value.event == null) app.openEvent(sessionId)
+        if (shown && state.value.event == null) claim(sessionId)
     }
 
     /** Потяг вниз: перечитати місця, членство й запити. */
@@ -222,8 +236,12 @@ class DetailPresenter(
      * ([keepSlot]: «На мапі» бере його як фокус) і коли слот уже в екрана поверх.
      */
     fun release(keepSlot: Boolean = false) {
-        app.closePerson()
-        if (!keepSlot && app.state.value.detail.event?.id == sessionId) app.dismissEvent()
+        // Подію вже відкрив інший екран (і ту саму теж): слот і картка людини — його, інакше він крутив би завантаження.
+        if (app.detailScreen === this) {
+            app.detailScreen = null
+            app.closePerson()
+            if (!keepSlot && app.state.value.detail.event?.id == sessionId) app.dismissEvent()
+        }
         scope.cancel()
     }
 
@@ -242,9 +260,12 @@ class DetailPresenter(
         pendingId?.let { pending ->
             if (shared.detail.event?.id == pending) { sessionId = pending; pendingId = null }
         }
+        // Подію злили, поки ми тримали її старий id: сервер віддав живу, і дії йдуть уже на неї.
+        val merged = shared.detail.event?.takeIf { shared.detail.mergedFrom == sessionId }
+        if (merged != null) sessionId = merged.id
         val eventId = sessionId
         val event = shared.detail.event?.takeIf { it.id == eventId }
-        if (event != null && event.id == openedId) anchor = event
+        if (event != null && (event.id == openedId || event === merged)) anchor = event
         // Перебудова лише при зміні картки або індексу: пошук прокату проходить увесь індекс.
         val source = anchor
         val from = carouselFrom

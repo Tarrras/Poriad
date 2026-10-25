@@ -27,7 +27,6 @@ enum Copy {
     static func seats(_ a0: String) -> String { "Вільних місць: \(a0)" }
     static let login = "Увійти"
     static let details = "Про подію"
-    static let event_unavailable = "Подія недоступна. Поверніться до мапи й спробуйте ще раз."
     static let leave = "Ви берете участь · вийти"
     static let full = "Місць немає"
     static let join = "Приєднатися"
