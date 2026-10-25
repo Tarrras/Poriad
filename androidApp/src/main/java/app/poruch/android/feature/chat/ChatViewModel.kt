@@ -28,6 +28,7 @@ class ChatViewModel(private val app: PoruchApp, private val eventId: String) :
                 loading = chat?.loading ?: loading,
                 sending = chat?.sending ?: false,
                 available = chat?.available ?: available,
+                offline = chat?.offline ?: false,
                 userId = shared.session.userId,
                 organizer = event != null && shared.organizes(event),
                 // Той самий поріг, що на сервері: тиждень після кінця.

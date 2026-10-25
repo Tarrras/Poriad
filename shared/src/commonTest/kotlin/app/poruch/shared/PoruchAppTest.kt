@@ -51,7 +51,8 @@ class PoruchAppTest {
     private class Events: EventDiscovery, SavedEvents, EventAuthoring, EventParticipation, EventRequests, EventChat {
         val sent=mutableListOf<Pair<String,String>>()
         var chatMessages=emptyList<ChatMessage>()
-        override suspend fun messages(eventId:String,after:String?)=chatMessages.filter { after==null || it.createdAt>after }
+        var offlineChat=false
+        override suspend fun messages(eventId:String,after:String?):List<ChatMessage> { if(offlineChat) fail(AppError.Network); return chatMessages.filter { after==null || it.createdAt>after } }
         var failSend=false
         var slowSend=false
         override suspend fun send(eventId:String,body:String):String { if(slowSend) delay(100); if(failSend) fail(AppError.Network); sent+=eventId to body; val m=ChatMessage("m${sent.size}",eventId,"user","Я",null,body,"2026-09-16T10:0${sent.size}:00Z"); chatMessages=chatMessages+m; return m.id }
@@ -73,7 +74,9 @@ class PoruchAppTest {
         var inlineCards=Int.MAX_VALUE
         /** Що сервер відбирає за датою й «Від людей». За замовчуванням — нічого, як раніше. */
         var serves:(EventQuery,Event)->Boolean={ _,_ -> true }
-        override suspend fun discover(query:EventQuery):DiscoveryPage { queries+=query; delay(100); return page(results.filter { e -> query.text.let { it==null || it in e.title } && serves(query,e) },inlineCards) }
+        /** Чим падає видача; null — не падає. */
+        var discoverError:AppError?=null
+        override suspend fun discover(query:EventQuery):DiscoveryPage { queries+=query; delay(100); discoverError?.let { fail(it) }; return page(results.filter { e -> query.text.let { it==null || it in e.title } && serves(query,e) },inlineCards) }
         override fun cached(query:EventQuery)=DiscoveryPage.Empty
         /** Картки, яких нема у видачі, але сервер їх віддає за id: подія, відкрита посиланням. */
         var offFeedCards=emptyList<Event>()
@@ -122,7 +125,10 @@ class PoruchAppTest {
             return "c1"
         }
         var mine=emptyList<Event>()
-        override suspend fun myEvents()=mine
+        var offlineMine=false
+        var cachedMineValue:CachedMine?=null
+        override suspend fun myEvents():List<Event> { if(offlineMine) fail(AppError.Network); return mine }
+        override fun cachedMine()=cachedMineValue
         override suspend fun attendees(id:String)=emptyList<Attendee>()
         override fun clearPrivateCache() {}
         override suspend fun savedIds()=emptyList<String>()
@@ -2100,6 +2106,57 @@ class PoruchAppTest {
         runCurrent(); advanceTimeBy(1000); runCurrent()
         assertFalse(other.state.value.offline,"a server failure is not «no connection»")
         app.close()
+    }
+    /** «Мої події» без мережі: план з телефону, «без мережі» замість банера; мережа — і свіже з сервера. */
+    @Test fun myEventsShowTheCachedPlanOffline()=runTest {
+        val events=Events()
+        val soon=(Clock.System.now()+30.hours).toString()
+        val cached=event("c1",EventCategory.SOCIAL,soon); val fresh=event("f1",EventCategory.SOCIAL,soon)
+        events.cachedMineValue=CachedMine(listOf(cached),listOf("c1"),emptyList())
+        events.offlineMine=true; events.mine=listOf(fresh)
+        val app=app(events,backgroundScope); app.networkChanged(false); runCurrent(); advanceTimeBy(1000); runCurrent()
+        assertEquals(listOf("c1"),app.state.value.library.myEvents.map { it.id },"the plan from the phone")
+        assertTrue(app.state.value.library.offline)
+        assertEquals(1,app.state.value.myEventsBoard(Clock.System.now()).savedAhead,"cached saved ids keep the «Збережені» tab")
+        assertNull(app.state.value.notice,"the screen says it; no banner")
+        events.offlineMine=false
+        app.networkChanged(true); advanceTimeBy(1000); runCurrent()
+        assertEquals(listOf("f1"),app.state.value.library.myEvents.map { it.id })
+        assertFalse(app.state.value.library.offline)
+        app.close()
+    }
+    /** Видача без мережі: мапа й головна «без мережі», без банера; збій сервера — банер, а не «без мережі». */
+    @Test fun discoveryOfflineIsNotAServerFailure()=runTest {
+        val events=Events()
+        events.results=listOf(listed("a",(Clock.System.now()+30.hours).toString()))
+        events.discoverError=AppError.Network
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(1000); runCurrent()
+        assertTrue(app.state.value.map.offline); assertTrue(app.state.value.home.offline)
+        assertNull(app.state.value.notice)
+        events.discoverError=null
+        app.networkChanged(false); app.networkChanged(true); advanceTimeBy(1000); runCurrent()
+        assertFalse(app.state.value.map.offline); assertFalse(app.state.value.home.offline)
+        assertEquals(listOf("a"),app.state.value.home.index.map { it.id },"asked again when the network came back")
+        events.discoverError=AppError.ServiceUnavailable
+        app.refresh(); advanceTimeBy(1000); runCurrent()
+        assertFalse(app.state.value.map.offline)
+        assertEquals(AppNotice.Failed(AppError.ServiceUnavailable),app.state.value.notice)
+        app.close()
+    }
+    /** Чат без мережі: «Немає звʼязку» замість вічного спінера й без банера на кожне опитування; мережа — одразу читає. */
+    @Test fun chatOfflineWaitsForTheNetwork()=runTest {
+        val events=Events()
+        events.chatMessages=listOf(ChatMessage("m0","ev","host","Host",null,"Привіт","2026-09-16T09:00:00Z"))
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
+        events.offlineChat=true; app.networkChanged(false)
+        app.openChat("ev"); runCurrent(); advanceTimeBy(100); runCurrent()
+        assertTrue(app.state.value.chat!!.offline); assertFalse(app.state.value.chat!!.loading)
+        assertNull(app.state.value.notice)
+        events.offlineChat=false
+        app.networkChanged(true); advanceTimeBy(100); runCurrent()
+        assertEquals(listOf("m0"),app.state.value.chat!!.messages.map { it.id },"read at once, not on the next poll")
+        assertFalse(app.state.value.chat!!.offline)
+        app.closeChat("ev"); app.close()
     }
     /** Мережа повернулась: деталі, що зависли чи впали без неї, перечитуються самі; уже завантажені — ні. */
     @Test fun detailsComeBackWithTheNetwork()=runTest {

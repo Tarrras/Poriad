@@ -28,6 +28,9 @@ interface EventDiscovery {
     /** Свої: організовані, відвідувані та збережені. */
     suspend fun myEvents(): List<Event>
 
+    /** Останні «Мої події» з телефону, щоб план було видно без мережі. Null — ще не читали з цим акаунтом. */
+    fun cachedMine(): CachedMine? = null
+
     /** Учасники події. Бачать лише організатор і учасники, решта отримує порожній список. */
     suspend fun attendees(id: String): List<Attendee>
 
@@ -61,6 +64,9 @@ interface EventDiscovery {
     /** Скидає кеш попереднього акаунта. Викликати при зміні користувача. */
     fun clearPrivateCache()
 }
+
+/** Останні відповіді «Моїх подій» на телефоні: події, закладки й черга, з яких складаються розрізи. */
+data class CachedMine(val events: List<Event>, val savedIds: List<String>, val waitlistedIds: List<String>)
 
 /** Закладки. Приватний список, якого не бачить ніхто, крім власника. */
 interface SavedEvents {

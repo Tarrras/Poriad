@@ -159,6 +159,7 @@ struct MyEventsView: View, Equatable {
         } else if let board, !board.isEmpty(tab: tab) {
             ScrollView {
                 VStack(alignment: .leading, spacing: Space.xxl) {
+                    if view.offline { OfflineNote() }
                     if !signedIn { guestNote }
                     // Попереду нічого, а минулі є: першою йде дія, а не три сірі минулі.
                     if board.nothingAhead(tab: tab) { aheadCard }
@@ -171,6 +172,14 @@ struct MyEventsView: View, Equatable {
                     }
                 }.padding(.horizontal, Space.page).padding(.vertical, Space.md)
             }
+        } else if view.offline && view.myEvents.isEmpty {
+            // Плану на телефоні ще нема, а мережі нема: «нічого не заплановано» було б неправдою.
+            ScrollView {
+                EmptyState(glyph: PoruchIcons.wifiOff, title: Copy.offline_title, message: Copy.offline_mine_hint,
+                           animation: "Offline", actionLabel: Copy.try_again) { model.app.loadMyEvents() }
+            }
+        } else if view.loading && view.myEvents.isEmpty {
+            PoruchLoader().frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             // У стрічці, щоб потяг мав за що зачепитись.
             ScrollView { emptyState }

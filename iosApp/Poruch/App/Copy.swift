@@ -730,6 +730,11 @@ enum Copy {
     static func description_hint(_ a0: String, _ a1: String, _ a2: String) -> String { "Щонайменше \(a0) символів · \(a1)/\(a2)" }
     static let offline_title = "Немає звʼязку"
     static let offline_event_hint = "Відкриємо подію, щойно повернеться мережа."
+    static let offline_mine_hint = "Покажемо ваші плани, щойно повернеться мережа."
+    static let offline_home_hint = "Покажемо афішу міста, щойно повернеться мережа."
+    static let offline_map_hint = "Покажемо події поруч, щойно повернеться мережа."
+    static let offline_chat_hint = "Покажемо повідомлення, щойно повернеться мережа."
+    static let offline_cached = "Без мережі · показуємо збережене"
     static let event_unavailable_hint = "Її могли скасувати, приховати або видалити."
     static let cancel_event_confirm = "Скасувати цю подію? Учасники бачитимуть її скасованою."
     static let contact_unknown_site = "сторонній сайт"

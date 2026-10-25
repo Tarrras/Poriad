@@ -56,7 +56,7 @@ data class MapFeed(
     val district: District? = null,
     val dateFilter: DateFilter = DateFilter.ANY,
     val loading: Boolean = false,
-    /** Показано кеш: мережа не відповіла. */
+    /** Нема мережі: показано кеш (або нічого). Збій сервера — не це, а банер. */
     val offline: Boolean = false
 )
 
@@ -98,6 +98,8 @@ data class HomeFeed(
     val suggestedIndex: List<EventIndexEntry> = emptyList(),
     val totalFound: Int = 0,
     val loading: Boolean = false,
+    /** Стрічка без мережі: з кешу або порожня. Головна каже «Без мережі», а порожня — «Немає звʼязку». */
+    val offline: Boolean = false,
     val searchText: String = "",
     /** Знайдене пошуком головної в тій самій області, ранжоване. */
     val results: List<EventIndexEntry> = emptyList(),

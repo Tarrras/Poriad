@@ -15,6 +15,8 @@ data class ChatState(
     val sending: Boolean = false,
     /** Сервер без чату: показуємо пояснення замість порожнього списку. */
     val available: Boolean = true,
+    /** Без мережі: порожній чат — «Немає звʼязку», а не вічний спінер. */
+    val offline: Boolean = false,
     val userId: String? = null,
     /** Організатор може прибрати будь-яке повідомлення у своїй події. */
     val organizer: Boolean = false,

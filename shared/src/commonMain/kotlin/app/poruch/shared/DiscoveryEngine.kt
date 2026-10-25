@@ -102,7 +102,7 @@ internal class DiscoveryEngine(
                 val page = events.discover(snapshot)
                 PoruchLog.i("discovery") { "${page.total} events, ${page.cards.size} cards inline" }
                 reportEmptyCity(page.total)
-                publish(page, offline = false, failure = null, home = shared)
+                publish(page, failure = null, home = shared)
                 answer(snapshot)
             } catch (e: CancellationException) {
                 throw e
@@ -113,7 +113,7 @@ internal class DiscoveryEngine(
                     "discovery",
                     e
                 ) { "search failed, showing ${cached.index.size} cached events" }
-                publish(cached, offline = true, failure = e.asAppError(), home = shared)
+                publish(cached, failure = e.asAppError(), home = shared)
                 answer(snapshot)
             }
         }
@@ -271,6 +271,14 @@ internal class DiscoveryEngine(
      * Повернення в застосунок. На старті платформа кличе його одразу після першого пошуку, і
      * безумовний [refresh] скасовував запит у дорозі та слав такий самий.
      */
+    /**
+     * Мережа повернулась: видачу з кешу перепитуємо, а запит, що завис на мертвому з'єднанні, замінюємо — інакше
+     * [refreshIfStale] чекав би його тайм-ауту.
+     */
+    fun networkRestored() {
+        if (searchJob.active || freshAt == null) refresh()
+    }
+
     fun refreshIfStale() {
         if (searchJob.active) return
         val fresh = freshAt
@@ -395,10 +403,11 @@ internal class DiscoveryEngine(
      */
     private suspend fun publish(
         page: DiscoveryPage,
-        offline: Boolean,
         failure: AppError?,
         home: Boolean
     ) {
+        // Без мережі мапа й головна кажуть це самі й перечитаються, щойно вона повернеться: банер був би дублем.
+        val offline = failure is AppError.Network
         val ranked = rank(page, store.value.taste, compute)
         store.update {
             // Картки старої області викидаємо: пам'ять і застарілі числа місць того не варті.
@@ -421,7 +430,7 @@ internal class DiscoveryEngine(
                 ),
                 cards = it.cards.filterKeys { id -> id in keep } + page.cards.associateBy { card -> card.id },
                 notice = when {
-                    failure != null -> AppNotice.Failed(failure)
+                    failure != null && !offline -> AppNotice.Failed(failure)
                     page.truncated -> AppNotice.Told(AppMessage.ZOOM_IN_FOR_MORE)
                     else -> it.notice
                 },
@@ -429,13 +438,14 @@ internal class DiscoveryEngine(
                     index = ranked.index,
                     suggestedIndex = ranked.suggested,
                     totalFound = ranked.total,
-                    loading = false
+                    loading = false,
+                    offline = offline
                 ) else it.home
             ).settled(ranked.taste)
         }
         sharedPending = false
         // Свіжа лише повна відповідь мережі: після офлайну повернення в застосунок має перепитати.
-        freshAt = if (offline) null else if (home) Clock.System.now() else freshAt
+        freshAt = if (failure != null) null else if (home) Clock.System.now() else freshAt
         // Смак міг переставити порядок так, що перші картки з відповіді вже не перші.
         materialize(DiscoveryRules.FIRST_CARDS)
         if (home) homeFeed.materialize()

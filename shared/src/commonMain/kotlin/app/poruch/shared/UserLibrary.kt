@@ -259,7 +259,12 @@ internal class UserLibrary(
         val edits = savedEdits
         val followsAtStart = followEdits
         listJob = scope.launch {
-            store.update { it.copy(library = it.library.copy(loading = true)) }
+            // План має бути видно й без мережі: до відповіді — останнє з телефону.
+            val cached = if (store.value.library.myEvents.isEmpty()) events.cachedMine() else null
+            store.update {
+                val shown = cached?.let { c -> it.library.copy(myEvents = c.events, savedIds = c.savedIds, waitlistedIds = c.waitlistedIds) }
+                it.copy(library = (shown ?: it.library).copy(loading = true))
+            }
             try {
                 // До `my_events`: інакше збережене гостем зʼявилось би в «Моїх подіях» лише з наступним читанням.
                 val unadopted = adoptGuestSaves()
@@ -315,8 +320,10 @@ internal class UserLibrary(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                store.update { it.copy(library = it.library.copy(loading = false)) }
-                store.failed(e.asAppError())
+                val error = e.asAppError()
+                store.update { it.copy(library = it.library.copy(loading = false, offline = error is AppError.Network)) }
+                // Без мережі «Мої події» кажуть це самі й перечитаються, щойно вона повернеться: банер був би дублем.
+                if (error !is AppError.Network) store.failed(error)
             }
         }
     }

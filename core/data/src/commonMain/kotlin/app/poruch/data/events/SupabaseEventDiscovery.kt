@@ -17,6 +17,7 @@ internal class SupabaseEventDiscovery(
     private val rpc: EventRpc,
     private val auth: AuthRepository,
     database: PoruchDatabase,
+    private val mine: MineCache? = null,
     private val compute: CoroutineDispatcher = Dispatchers.Default
 ) : EventDiscovery {
 
@@ -82,7 +83,16 @@ internal class SupabaseEventDiscovery(
     override suspend fun details(id: String): Event? =
         rpc.events("event_details", rpc.eventParams(id)).firstOrNull()
 
-    override suspend fun myEvents(): List<Event> = rpc.events("my_events")
+    override suspend fun myEvents(): List<Event> {
+        val owner = auth.session.value?.userId
+        val response = rpc.read("my_events")
+        return withContext(compute) {
+            mine?.write(MineCache.EVENTS, owner, response.toString())
+            rpc.json.decodeFromJsonElement<List<EventDto>>(response).map { it.domain() }
+        }
+    }
+
+    override fun cachedMine(): CachedMine? = mine?.read()
 
     override suspend fun attendees(id: String): List<Attendee> =
         rpc.people("event_attendees", buildJsonObject { put("p_event_id", id); put("p_limit", ROSTER_LIMIT) })

@@ -16,11 +16,12 @@ class EventData(
     storage: ImageStorage
 ) {
     private val rpc = EventRpc(api, auth)
+    private val mine = MineCache(database, rpc.json, auth)
 
-    val discovery: EventDiscovery = SupabaseEventDiscovery(rpc, auth, database)
-    val saved: SavedEvents = SupabaseSavedEvents(api, auth)
+    val discovery: EventDiscovery = SupabaseEventDiscovery(rpc, auth, database, mine)
+    val saved: SavedEvents = SupabaseSavedEvents(api, auth, mine)
     val authoring: EventAuthoring = SupabaseEventAuthoring(rpc, auth, storage)
-    val participation: EventParticipation = SupabaseEventParticipation(rpc)
+    val participation: EventParticipation = SupabaseEventParticipation(rpc, auth, mine)
     val requests: EventRequests = SupabaseEventRequests(rpc)
     val chat: EventChat = SupabaseEventChat(rpc)
     val push: PushTokens = SupabasePushTokens(rpc)

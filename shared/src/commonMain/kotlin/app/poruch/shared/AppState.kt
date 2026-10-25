@@ -213,7 +213,9 @@ data class LibraryState(
      */
     val savesMade: Int = 0,
     /** «Мої події» перечитуються. Для спінера екрана «Мої», замість `map.loading`. */
-    val loading: Boolean = false
+    val loading: Boolean = false,
+    /** Останнє читання впало без мережі: списки — з телефону ([EventDiscovery.cachedMine]) або порожні. */
+    val offline: Boolean = false
 ) {
     /**
      * Скільки нового в підписках ще не переглянуто: «Ви стежите» в «Ваше», рядок профілю, крапка на вкладці.

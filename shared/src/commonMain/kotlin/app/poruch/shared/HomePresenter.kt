@@ -51,6 +51,8 @@ data class HomeScreenState(
     val cityName: String = "",
     val cities: List<CityResult> = emptyList(),
     val loading: Boolean = false,
+    /** Стрічка без мережі: з кешу (рядок «Без мережі») або порожня («Немає звʼязку»). */
+    val offline: Boolean = false,
     /** «Ваше»: до [HomeRules.PERSONAL_LIMIT] своїх подій, спершу ті, де хтось чекає відповіді. */
     val personal: List<PersonalRow> = emptyList(),
     /** Майбутні події тих, за ким стежу, з усіх міст, найближчі першими. Порожньо — рядка «Ви стежите» нема. */
@@ -204,6 +206,7 @@ class HomePresenter(
             cityName = shared.city.name,
             cities = shared.city.suggestions,
             loading = home.loading,
+            offline = home.offline,
             personal = personal,
             followed = followed,
             followNames = followed.mapNotNull { via[it.id] }.distinct(),

@@ -84,6 +84,7 @@ struct HomeCityFeed: View {
             // Сітку вже звузив презентер обраним чипом (`view.feedFilter`).
             let shown = Array(view.feed.dropFirst(homeHeroCount))
             VStack(alignment: .leading, spacing: Space.md) {
+                if view.offline { OfflineNote().padding(.horizontal, Space.page) }
                 SectionHeader(
                     title: Copy.home_in_city, actionLabel: view.totalFound > 0 ? Copy.home_all_count("\(view.totalFound)") : nil,
                     action: view.totalFound > 0 ? showCity : nil
@@ -112,6 +113,9 @@ struct HomeCityFeed: View {
         } else if view.isEmpty {
             if view.loading {
                 PoruchLoader().frame(maxWidth: .infinity).padding(.vertical, Space.section)
+            } else if view.offline {
+                // Без мережі «тихо» було б неправдою: афіша є, її не видно. Відкриється сама, щойно мережа повернеться.
+                EmptyState(glyph: PoruchIcons.wifiOff, title: Copy.offline_title, message: Copy.offline_home_hint, animation: "Offline")
             } else {
                 EmptyState(
                     glyph: PoruchIcons.compass, title: Copy.nothing_here,

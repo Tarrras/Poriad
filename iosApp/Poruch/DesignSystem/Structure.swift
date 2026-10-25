@@ -105,7 +105,8 @@ struct EmptyState: View {
     var body: some View {
         VStack(spacing: compact ? Space.sm : Space.md) {
             if let animation {
-                BrandAnimation(name: animation, still: reduceMotion).frame(width: 240, height: 140).decorative()
+                BrandAnimation(name: animation, still: reduceMotion)
+                    .frame(width: compact ? 168 : 240, height: compact ? 98 : 140).decorative()
             } else {
                 BlankTicket(glyph: glyph, compact: compact).padding(.bottom, compact ? 0 : Space.sm)
             }
@@ -119,6 +120,17 @@ struct EmptyState: View {
 }
 
 /// Порожній квиток над порожнім станом: пунктирний контур, два незадруковані рядки й гліф на сірому корінці.
+/// «Без мережі · показуємо збережене»: над тим, що показано з телефону. Гліф «нема мережі» — штампова фарба (DESIGN.md).
+struct OfflineNote: View {
+    var body: some View {
+        HStack(spacing: Space.sm) {
+            PoruchIcon(glyph: PoruchIcons.wifiOff, size: 15).foregroundStyle(Palette.accent)
+            Text(Copy.offline_cached).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
 private struct BlankTicket: View {
     let glyph: PoruchGlyph
     var compact = false

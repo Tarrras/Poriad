@@ -527,6 +527,7 @@ private fun LazyListScope.cityFeed(state: HomeState, onIntent: (HomeIntent) -> U
             val rest = state.screen.feed.drop(HomeRules.HERO_COUNT)
             item(key = "city") {
                 Column(Modifier.padding(top = Spacing.xxl), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                    if (state.screen.offline) OfflineNote(Modifier.padding(horizontal = Spacing.page))
                     SectionHeader(
                         stringResource(R.string.home_in_city), Modifier.padding(horizontal = Spacing.page),
                         actionLabel = state.screen.totalFound.takeIf { it > 0 }?.let { stringResource(R.string.home_all_count, it) },
@@ -562,6 +563,15 @@ private fun LazyListScope.cityFeed(state: HomeState, onIntent: (HomeIntent) -> U
         }
         state.screen.isEmpty && state.screen.loading -> item(key = "loading") {
             Box(Modifier.fillMaxWidth().padding(Spacing.section), contentAlignment = Alignment.Center) { PoruchLoader() }
+        }
+        // Без мережі «тихо» було б неправдою: афіша є, її не видно. Відкриється сама, щойно мережа повернеться.
+        state.screen.isEmpty && state.screen.offline -> item(key = "offline") {
+            Box(Modifier.padding(top = Spacing.xxl)) {
+                EmptyState(
+                    PoruchIcons.wifiOff, stringResource(R.string.offline_title), stringResource(R.string.offline_home_hint),
+                    animation = R.raw.offline
+                )
+            }
         }
         state.screen.isEmpty -> item(key = "empty") {
             Box(Modifier.padding(top = Spacing.xxl)) {

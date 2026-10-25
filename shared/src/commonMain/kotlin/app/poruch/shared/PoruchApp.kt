@@ -190,7 +190,10 @@ class PoruchApp internal constructor(
         scope.launch {
             val restored = available && offline
             offline = !available
-            if (restored) { discovery.refreshIfStale(); library.retryDetail() }
+            if (restored) {
+                discovery.networkRestored(); library.retryDetail(); chatEngine.pollNow()
+                if (state.value.library.offline) library.load()
+            }
         }
     }
 

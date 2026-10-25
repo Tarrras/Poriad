@@ -99,7 +99,7 @@ internal class ChatEngine(
         try {
             val fresh = chat.messages(eventId, after)
             update(eventId) {
-                copy(messages = if (full) ChatRules.merge(emptyList(), fresh) else ChatRules.merge(messages, fresh), loading = false, available = true)
+                copy(messages = if (full) ChatRules.merge(emptyList(), fresh) else ChatRules.merge(messages, fresh), loading = false, available = true, offline = false)
             }
             // Прочитано до зараз: при відкритті і щоразу, коли приїхало чуже нове.
             val me = store.value.session.userId
@@ -111,11 +111,21 @@ internal class ChatEngine(
         } catch (e: AppFailure) {
             // Сервер без міграції чату: екран каже про це один раз і не заливає банерами.
             if (e.serverCode == "PGRST202") update(eventId) { copy(loading = false, available = false) }
+            else if (e.error is AppError.Network) offline(eventId)
             else if (current.loading) store.failed(e.error)
             if (e.serverCode == "PGRST202") polling?.cancel()
         } catch (e: Exception) {
-            if (current.loading) store.failed(e.asAppError())
+            if (e.asAppError() is AppError.Network) offline(eventId) else if (current.loading) store.failed(e.asAppError())
         }
+    }
+
+    /** Без мережі екран каже «Немає звʼязку» сам, а опитування підхопить її: банер кожні 5 с був би шумом. */
+    private fun offline(eventId: String) = update(eventId) { copy(loading = false, offline = true) }
+
+    /** Мережа повернулась: читаємо одразу, не чекаючи наступного опитування. */
+    fun pollNow() {
+        val eventId = openEventId ?: return
+        scope.launch { poll(eventId) }
     }
 
     private companion object {
@@ -140,6 +150,8 @@ data class ChatState(
     val sending: Boolean = false,
     /** Сервер без міграції чату: екран каже про це замість порожнього списку. */
     val available: Boolean = true,
+    /** Останнє читання впало без мережі: порожній чат — «Немає звʼязку», а не спінер. */
+    val offline: Boolean = false,
     /**
      * Текст, який не вдалося надіслати: екран повертає його в поле вводу і кличе
      * `PoruchApp.consumeFailedDraft()`, щоб не повернути двічі.

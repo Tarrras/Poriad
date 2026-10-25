@@ -140,6 +140,16 @@ fun BrandAnimation(@RawRes res: Int, modifier: Modifier = Modifier, still: Boole
     LottieAnimation(composition, modifier, isPlaying = !still, iterations = LottieConstants.IterateForever)
 }
 
+/** «Без мережі · показуємо збережене»: над тим, що показано з телефону. Гліф «нема мережі» — штампова фарба (DESIGN.md). */
+@Composable
+fun OfflineNote(modifier: Modifier = Modifier) {
+    val colors = Poruch.colors
+    Row(modifier.semantics(mergeDescendants = true) {}, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        Icon(PoruchIcons.wifiOff, null, Modifier.size(15.dp), tint = colors.accent)
+        Text(stringResource(R.string.offline_cached), style = PoruchType.caption, color = colors.inkSecondary)
+    }
+}
+
 /** Лоадер екрана чи секції: шпилька з іконки підстрибує. Кнопки й дрібні підвантаження лишаються з системним. */
 @Composable
 fun PoruchLoader(modifier: Modifier = Modifier) {

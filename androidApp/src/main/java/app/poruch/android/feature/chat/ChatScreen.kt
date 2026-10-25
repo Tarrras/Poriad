@@ -61,6 +61,11 @@ fun ChatScreen(state: ChatState, onIntent: (ChatIntent) -> Unit) {
                 !state.available -> EmptyState(
                     PoruchIcons.clock, stringResource(R.string.chat_unavailable_title), stringResource(R.string.chat_unavailable_hint)
                 )
+                // Без мережі — не вічний спінер: опитування саме підхопить її, щойно вона повернеться.
+                state.offline && state.messages.isEmpty() -> EmptyState(
+                    PoruchIcons.wifiOff, stringResource(R.string.offline_title), stringResource(R.string.offline_chat_hint),
+                    animation = R.raw.offline
+                )
                 state.loading && state.messages.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     PoruchLoader()
                 }

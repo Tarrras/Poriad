@@ -32,6 +32,8 @@ data class MyEventsScreenState(
     val requests: List<JoinRequest> = emptyList(),
     val signedIn: Boolean = false,
     val loading: Boolean = false,
+    /** Останнє читання впало без мережі: розрізи — з телефону, а порожні — «Немає звʼязку». */
+    val offline: Boolean = false,
     val mutating: Boolean = false,
     /** Непрочитані повідомлення за id події: бейдж на рядку. */
     val unread: Map<String, Int> = emptyMap(),
@@ -92,6 +94,7 @@ class MyEventsPresenter(
         requests = shared.library.pendingRequests,
         signedIn = shared.signedIn,
         loading = shared.library.loading,
+        offline = shared.library.offline,
         mutating = shared.mutating,
         unread = shared.chatUnread.associate { it.eventId to it.unread },
         followedOrganizers = shared.library.follows.filter { it.kind == FollowKind.ORGANIZER }.mapTo(HashSet()) { it.targetId }

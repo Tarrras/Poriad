@@ -109,6 +109,10 @@ struct ChatView: View {
         if chat?.available == false {
             EmptyState(glyph: PoruchIcons.clock, title: Copy.chat_unavailable_title, message: Copy.chat_unavailable_hint)
                 .frame(maxHeight: .infinity)
+        } else if let chat, chat.offline && chat.messages.isEmpty {
+            // Без мережі — не вічний спінер: опитування саме підхопить її, щойно вона повернеться.
+            EmptyState(glyph: PoruchIcons.wifiOff, title: Copy.offline_title, message: Copy.offline_chat_hint, animation: "Offline")
+                .frame(maxHeight: .infinity)
         } else if chat == nil || (chat!.loading && chat!.messages.isEmpty) {
             PoruchLoader().frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {

@@ -117,7 +117,7 @@ struct DiscoverySheet: View {
                 if !expanded {
                     // Подій нема — лише коли порожній сам список: картки району чи категорії часто ще їдуть.
                     if deckEvents.isEmpty {
-                        if !view.loading && listEntries.isEmpty { quietCard.padding(.horizontal, Space.page) }
+                        if !view.loading && listEntries.isEmpty { quietCard(compact: true).padding(.horizontal, Space.page) }
                     } else {
                         EventDeck(
                             events: deckEvents, selectedID: view.selectedId, savedIDs: explore.savedIDs,
@@ -219,7 +219,7 @@ struct DiscoverySheet: View {
                 if view.loading || !listEntries.isEmpty {
                     PoruchLoader().frame(maxWidth: .infinity).padding(.vertical, Space.section)
                 } else {
-                    quietCard.padding(Space.page)
+                    quietCard(compact: false).padding(Space.page)
                 }
                 Spacer(minLength: 0)
             } else {
@@ -239,7 +239,15 @@ struct DiscoverySheet: View {
         }
     }
 
-    private var quietCard: some View { QuietCard(resetFilters: resetFilters, createEvent: createEvent) }
+    /// Без мережі «тут поки тихо» було б неправдою: «Немає звʼязку», у піднятій шторці — з корінцем на ниточці.
+    /// У згорнутій шторці картка має висоту каруселі — там офлайн каже сама `QuietCard`.
+    @ViewBuilder private func quietCard(compact: Bool) -> some View {
+        if view.offline && !compact {
+            EmptyState(glyph: PoruchIcons.wifiOff, title: Copy.offline_title, message: Copy.offline_map_hint, animation: "Offline")
+        } else {
+            QuietCard(resetFilters: resetFilters, createEvent: createEvent)
+        }
+    }
 
     private func openEvent(_ id: String) {
         model.app.selectEvent(id: id)
@@ -489,9 +497,13 @@ private struct QuietCard: View {
         // Дія — у рядку заголовка: у згорнутій шторці картка має висоту каруселі, і під текстом дія зрізала підказку.
         VStack(alignment: .leading, spacing: Space.xs) {
             HStack(alignment: .firstTextBaseline, spacing: Space.sm) {
-                Text(Copy.nothing_here).font(PoruchFont.brandTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
+                // Без мережі — не «тихо» і без дії: видача повернеться сама, щойно повернеться мережа.
+                if view.offline { PoruchIcon(glyph: PoruchIcons.wifiOff, size: 18).foregroundStyle(Palette.accent) }
+                Text(view.offline ? Copy.offline_title : Copy.nothing_here).font(PoruchFont.brandTitle3).kerning(-0.1).foregroundStyle(Palette.ink)
                 Spacer(minLength: Space.sm)
-                if !query.isEmpty, let hit = view.districts.first {
+                if view.offline {
+                    EmptyView()
+                } else if !query.isEmpty, let hit = view.districts.first {
                     // Слово — назва району: подій із ним нема, а район є. Дія — туди, а не «очистити».
                     quietAction(hit.district.isLocality ? Copy.show_locality : Copy.show_district) { model.exploreScreen.selectDistrict(hit) }
                 } else if !query.isEmpty {
@@ -515,6 +527,7 @@ private struct QuietCard: View {
     }
 
     private func hint(_ query: String) -> String {
+        if view.offline { return Copy.offline_map_hint }
         if !query.isEmpty, let hit = view.districts.first { return Copy.nothing_for_query_district(query, hit.district.name) }
         if !query.isEmpty { return Copy.nothing_for_query(query) }
         if view.stackFocused { return Copy.nothing_here_stack }

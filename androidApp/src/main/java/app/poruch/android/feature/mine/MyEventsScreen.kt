@@ -108,7 +108,13 @@ fun MyEventsScreen(state: MyEventsState, onIntent: (MyEventsIntent) -> Unit) {
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
             ) {
-                if (state.screen.loading) Box(
+                // Плану на телефоні ще нема, а мережі нема: «нічого не заплановано» було б неправдою.
+                if (state.screen.offline && state.screen.myEvents.isEmpty()) EmptyState(
+                    PoruchIcons.wifiOff, stringResource(R.string.offline_title), stringResource(R.string.offline_mine_hint),
+                    actionLabel = stringResource(R.string.try_again), onAction = { onIntent(MyEventsIntent.Refresh) },
+                    animation = R.raw.offline
+                )
+                else if (state.screen.loading) Box(
                     Modifier
                         .fillMaxWidth()
                         .padding(Spacing.section),
@@ -124,6 +130,7 @@ fun MyEventsScreen(state: MyEventsState, onIntent: (MyEventsIntent) -> Unit) {
                     verticalArrangement = Arrangement.spacedBy(Spacing.xxl)
                 ) {
                     val nothingAhead = state.screen.board.nothingAhead(state.tab)
+                    if (state.screen.offline) item(key = "offline") { OfflineNote() }
                     if (!state.screen.signedIn) item(key = "guest") { GuestNote { onIntent(MyEventsIntent.SignIn) } }
                     // Попереду нічого, а минулі є: першою йде дія, а не три сірі минулі.
                     if (nothingAhead) item(key = "ahead") { AheadCard(state.tab, onIntent) }

@@ -544,7 +544,10 @@ private fun SheetList(state: ExploreState, onIntent: (ExploreIntent) -> Unit) {
             Alignment.Center
         ) {
             PoruchLoader()
-        } else QuietCard(Modifier.padding(Spacing.page), state, onIntent)
+        } else if (state.screen.offline) EmptyState(
+            PoruchIcons.wifiOff, stringResource(R.string.offline_title), stringResource(R.string.offline_map_hint),
+            animation = R.raw.offline
+        ) else QuietCard(Modifier.padding(Spacing.page), state, onIntent)
         return
     }
     val listState = rememberLazyListState()
@@ -635,17 +638,21 @@ private fun QuietCard(modifier: Modifier, state: ExploreState, onIntent: (Explor
             .padding(horizontal = Spacing.lg, vertical = Spacing.md),
         verticalArrangement = Arrangement.spacedBy(Spacing.xs)
     ) {
+        val offline = state.screen.offline
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            // Без мережі — не «тихо» і без дії: видача повернеться сама, щойно повернеться мережа.
+            if (offline) Icon(PoruchIcons.wifiOff, null, Modifier.size(18.dp), tint = colors.accent)
             Text(
-                stringResource(R.string.nothing_here),
+                stringResource(if (offline) R.string.offline_title else R.string.nothing_here),
                 style = PoruchType.brandTitle3,
                 color = colors.ink,
                 modifier = Modifier.weight(1f)
             )
-            GhostButton(stringResource(action), { onIntent(intent) })
+            if (!offline) GhostButton(stringResource(action), { onIntent(intent) })
         }
         Text(
             when {
+                offline -> stringResource(R.string.offline_map_hint)
                 query.isNotEmpty() && suggested != null ->
                     stringResource(R.string.nothing_for_query_district, query, suggested.district.name)
                 query.isNotEmpty() -> stringResource(R.string.nothing_for_query, query)

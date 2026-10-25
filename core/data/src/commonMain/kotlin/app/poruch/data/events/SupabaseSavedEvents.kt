@@ -9,16 +9,20 @@ import kotlinx.serialization.json.*
 /** Закладки ходять у таблицю напряму, а не через RPC: єдине правило «рядок належить власнику» вже в RLS. */
 internal class SupabaseSavedEvents(
     private val api: ApiClient,
-    private val auth: AuthRepository
+    private val auth: AuthRepository,
+    private val mine: MineCache? = null
 ) : SavedEvents {
 
     private fun userId() = auth.session.value?.userId ?: fail(AppError.SessionRequired)
 
-    override suspend fun savedIds(): List<String> =
-        api.request(
+    override suspend fun savedIds(): List<String> {
+        val owner = userId()
+        return api.request(
             TABLE, token = auth.accessToken(),
-            query = mapOf("select" to "event_id", "user_id" to "eq.${userId()}")
+            query = mapOf("select" to "event_id", "user_id" to "eq.$owner")
         ).jsonArray.map { it.jsonObject.string("event_id") }
+            .also { ids -> mine?.write(MineCache.SAVED, owner, JsonArray(ids.map(::JsonPrimitive)).toString()) }
+    }
 
     override suspend fun save(id: String) {
         api.request(

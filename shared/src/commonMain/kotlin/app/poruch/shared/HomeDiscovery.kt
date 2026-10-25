@@ -34,13 +34,15 @@ internal class HomeDiscovery(
         val snapshot = area
         feedJob.launch {
             store.update { it.copy(home = it.home.copy(loading = true)) }
+            var offline = false
             val page = try {
                 events.discover(snapshot)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                // Про збій уже скаже мапа своїм банером; головна тихо бере кеш.
+                // Про збій сервера скаже мапа своїм банером; без мережі головна каже сама. Обидва раз беремо кеш.
                 PoruchLog.w("discovery") { "home feed failed: ${e.asAppError()}" }
+                offline = e.asAppError() is AppError.Network
                 withContext(compute) { events.cached(snapshot) }
             }
             val ranked = rank(page, store.value.taste, compute)
@@ -49,7 +51,7 @@ internal class HomeDiscovery(
                     cards = it.cards + page.cards.associateBy { card -> card.id },
                     home = it.home.copy(
                         index = ranked.index, suggestedIndex = ranked.suggested,
-                        totalFound = ranked.total, loading = false
+                        totalFound = ranked.total, loading = false, offline = offline
                     )
                 ).settled(ranked.taste)
             }

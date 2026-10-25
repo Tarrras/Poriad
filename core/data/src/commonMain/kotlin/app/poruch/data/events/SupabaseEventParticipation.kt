@@ -1,17 +1,26 @@
 package app.poruch.data.events
 
+import app.poruch.domain.AuthRepository
 import app.poruch.domain.EventParticipation
 import app.poruch.domain.EventRating
 import app.poruch.domain.RatingTag
 import kotlinx.serialization.json.*
 
 /** Участь і черга. Перевірок тут нема навмисно: усі на сервері в `assert_can_join`. */
-internal class SupabaseEventParticipation(private val rpc: EventRpc) : EventParticipation {
+internal class SupabaseEventParticipation(
+    private val rpc: EventRpc,
+    private val auth: AuthRepository? = null,
+    private val mine: MineCache? = null
+) : EventParticipation {
     override suspend fun join(id: String) { rpc.call("join_event", rpc.eventParams(id)) }
     override suspend fun leave(id: String) { rpc.call("leave_event", rpc.eventParams(id)) }
 
-    override suspend fun waitlistIds(): List<String> =
-        rpc.read("my_waitlist").jsonArray.map { it.jsonPrimitive.content }
+    override suspend fun waitlistIds(): List<String> {
+        val owner = auth?.session?.value?.userId
+        val response = rpc.read("my_waitlist")
+        mine?.write(MineCache.QUEUED, owner, response.toString())
+        return response.jsonArray.map { it.jsonPrimitive.content }
+    }
 
     override suspend fun joinWaitlist(id: String) { rpc.call("join_waitlist", rpc.eventParams(id)) }
     override suspend fun leaveWaitlist(id: String) { rpc.call("leave_waitlist", rpc.eventParams(id)) }
