@@ -300,11 +300,10 @@ def offline(theme):
                (96, hang), (end, hang)),
         r=anim((0, tilt), (20, -8, SMOOTH), (36, tilt, SMOOTH), (60, -1, EASE_IN), (78, -12.5, EASE_OUT),
                (96, tilt, SMOOTH), (118, -10.5, SMOOTH), (end, tilt))))
-    # П'ять крапок перфорації (3,5, як межа району) посеред щілини, що ширшає донизу: спалахують згори вниз,
-    # поки корінець тягнеться, і лягають на лінію відриву, коли він майже торкається квитка.
-    gap = lambda y: 3 + (y - y0) * math.tan(math.radians(-tilt))
+    # П'ять крапок перфорації (3,5, як межа району) — вертикально вздовж краю квитка: лінія відриву лишається на
+    # квитку, відгойдується лише корінець. Спалахують згори вниз, поки корінець тягнеться назад.
     dots = [layer(f"Dot {n}", [group(ellipse((3.5, 3.5)), fill(t["accent"]))],
-                  transform(p=(tear + gap(46 + n * 12) / 2, 46 + n * 12),
+                  transform(p=(tear + 2, 46 + n * 12),
                             o=anim((0, 35), (40 + n * 4, 35, SMOOTH), (52 + n * 4, 100, SMOOTH), (76 + n * 4, 35), (end, 35))))
             for n in range(5)]
     return compose("Poriad offline", 240, end, [*dots, stub, body]) | {"h": 140}
