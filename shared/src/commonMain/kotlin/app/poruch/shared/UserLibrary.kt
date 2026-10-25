@@ -51,6 +51,47 @@ internal class UserLibrary(
     /** Подія й підпис, звідки її відкрито (`home_hero`, `home_poster`…): лише для `event_view`. */
     private var openedFrom: Pair<String, String>? = null
 
+    /** Подія й токен запрошення, з яким її відкрили з посилання (docs/invites.md). */
+    private var invitedTo: Pair<String, String>? = null
+
+    /**
+     * Подію [eventId] відкрито з посилання з запрошенням [token] чи без нього: звичайне посилання знімає попереднє. Хто
+     * кличе, питаємо одразу, не чекаючи деталей.
+     */
+    fun openedFromLink(eventId: String, token: String?) {
+        invitedTo = token?.let { eventId to it }
+        resolveInvite()
+    }
+
+    /**
+     * Хто кличе — для того, хто зараз дивиться: себе не кличуть, блокування ховає рядок. Тож після входу чи виходу
+     * перепитуємо ([IdentitySync]). Збій чи протухлий токен — просто без рядка.
+     */
+    fun resolveInvite() {
+        val invite = invitedTo ?: return store.update { it.copy(invite = null) }
+        scope.launch {
+            val inviter = optional { events.inviter(invite.second, invite.first) }
+            if (invitedTo == invite) store.update { it.copy(invite = inviter?.let { found -> invite.first to found }) }
+        }
+    }
+
+    /**
+     * Посилання для «Покликати» (docs/invites.md): з входом — особисте, з токеном. Гостю чи коли токен не вдався —
+     * звичайне: ділитися не можна блокувати. Метрика петлі — `share` з `kind=invite` проти `kind=event`.
+     */
+    suspend fun inviteLink(eventId: String): String {
+        val token = if (!store.value.signedIn) null else try {
+            participation.invite(eventId)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            PoruchLog.w("invite") { "plain link for ${eventId.shortId()}: ${e.asAppError()}" }
+            null
+        }
+        PoruchAnalytics.track("share", "kind" to if (token != null) "invite" else "event")
+        return EventLinks.url(eventId, token)
+    }
+
     /**
      * Наводить застосунок на подію. [full] — відкриття екрана деталей, інакше підсвітка.
      * Підсвітка на кожен крок каруселі, тож мережу чіпаємо лише коли є що дізнатися: рядка нема

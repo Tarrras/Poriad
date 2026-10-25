@@ -110,7 +110,7 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
                             }
                         }
                         // Щось сталось — стан і продавці першими: по них сюди й прийшли.
-                        state.screen.listing?.takeIf { it.isWithdrawn || it.isMoved }?.let { Tickets(state, it, onIntent) }
+                        state.screen.listing?.takeIf { it.needsAttention }?.let { Tickets(state, it, onIntent) }
                         ExternalActions(state, onIntent)
                     }
                     // Поза колонкою з полями: смуга дат іде від краю до краю.
@@ -121,7 +121,7 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
                     ) {
                         if (event.artists.isNotEmpty()) Lineup(event, onIntent)
                         Facts(event)
-                        state.screen.listing?.takeIf { !it.isWithdrawn && !it.isMoved }?.let { Tickets(state, it, onIntent) }
+                        state.screen.listing?.takeIf { !it.needsAttention }?.let { Tickets(state, it, onIntent) }
                         if (state.screen.companions.isNotEmpty() && !state.screen.cancelled) Companions(state, onIntent)
                         event.gathering?.let { People(state, it, onIntent) }
                         Venue(event, state.screen.followingPlace, onIntent)
@@ -164,7 +164,10 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
         ) { BoughtCard(onIntent) }
         // Без відповіді за 10 с картка зникає сама: це питання, а не перешкода.
         if (state.boughtPrompt) LaunchedEffect(Unit) { delay(10_000); onIntent(DetailIntent.BoughtPromptAnswered(false)) }
-        CoachMarks(listOf(CoachTip.COMPANION), enabled = state.screen.canSeekCompany)
+        CoachMarks(
+            listOf(CoachTip.COMPANION, CoachTip.INVITE),
+            enabled = state.screen.canSeekCompany || (state.screen.canInvite && state.screen.signedIn)
+        )
     }
     if (state.confirmingBlock) PoruchConfirmSheet(
         title = stringResource(R.string.block_user_title),

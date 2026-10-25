@@ -245,7 +245,7 @@ private fun AreaPrompts(state: ExploreState, modifier: Modifier, onIntent: (Expl
 }
 
 /** Пауза після набору перед пошуком: як `searchSettle` на iOS. */
-private const val SEARCH_SETTLE_MS = 250L
+internal const val SEARCH_SETTLE_MS = 250L
 
 internal val dateFilters = listOf(
     DateFilter.ANY to R.string.any_date,

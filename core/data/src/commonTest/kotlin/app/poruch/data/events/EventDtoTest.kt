@@ -51,8 +51,8 @@ class EventDtoTest {
             "state" to "\"scheduled\"", "previous_starts_at" to "\"2030-09-05T16:00:00Z\"",
             "checked_at" to "\"2030-09-06T06:00:00Z\"",
             "offers" to """[{"source":"Concert.ua","url":"https://concert.ua/1","price_min":400,"is_free":false,"live":true},
-                {"source":"Karabas","url":"https://karabas.com/1","price_min":450,"live":false},
-                {"source":"","url":"https://x.ua/1"},{"source":"Http","url":"http://x.ua/1"}]"""
+                {"source":"Karabas","url":"https://karabas.com/1","price_min":450,"live":false,"says":"cancelled"},
+                {"source":"","url":"https://x.ua/1"},{"source":"Http","url":"http://x.ua/1","says":"moved"}]"""
         )
         val listing = event.listing!!
         assertTrue(listing.isMoved)
@@ -61,6 +61,8 @@ class EventDtoTest {
         assertNull(listing.offers[2].url, "only https")
         assertEquals(450.0, listing.offers[1].priceMin)
         assertFalse(listing.offers[1].live)
+        assertEquals(ListingState.CANCELLED, listing.offers[1].reported)
+        assertNull(listing.offers[2].reported, "only cancelled and postponed are reports")
     }
 
     @Test fun aCompanionCarriesTheParentStartAndAPendingQuestion() {

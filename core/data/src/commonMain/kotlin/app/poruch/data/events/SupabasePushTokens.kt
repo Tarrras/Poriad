@@ -12,14 +12,16 @@ import kotlinx.serialization.json.putJsonArray
 /** Токени через RPC. Сервер без міграції пушів — тиша: застосунок і так працює на локальних сповіщеннях. */
 internal class SupabasePushTokens(private val rpc: EventRpc) : PushTokens {
     /**
-     * З позначкою `companion_decision`: цей застосунок уміє показати питання про час збору (R7а), тож сервер питає
-     * організатора, а не зсуває збір одразу. Сервер без R7а третього параметра не знає — тоді реєструємо без нього.
+     * З позначками того, що цей застосунок уміє: `companion_decision` — питання про час збору (R7а), тож сервер питає
+     * організатора, а не зсуває збір одразу; `companion` — пуш «Хтось шукає компанію на вашу збережену подію»
+     * (docs/companions.md), якого Android 1.3.1 не показав би. Сервер без R7а третього параметра не знає — тоді
+     * реєструємо без нього.
      */
     override suspend fun register(token: String, platform: PushPlatform) = quiet {
         try {
             rpc.call("register_push_token", buildJsonObject {
                 put("p_token", token); put("p_platform", platform.key)
-                putJsonArray("p_features") { add(COMPANION_DECISION) }
+                putJsonArray("p_features") { add(COMPANION_DECISION); add(COMPANION) }
             })
         } catch (e: AppFailure) {
             if (!e.isMissingFunction()) throw e
@@ -48,6 +50,7 @@ internal class SupabasePushTokens(private val rpc: EventRpc) : PushTokens {
 
     private companion object {
         const val COMPANION_DECISION = "companion_decision"
+        const val COMPANION = "companion"
     }
 
     private suspend inline fun quiet(block: () -> Unit) {

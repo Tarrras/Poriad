@@ -78,6 +78,16 @@ export function artistText(total: number, artistCount: number, artists: ArtistLi
 }
 
 /**
+ * Хтось шукає компанію на афішу, яку людина зберегла (docs/companions.md). Заголовок — назва афіші: її людина
+ * впізнає. Імені організатора нема, як і в картках «Шукають компанію»: його видно на сторінці збору, куди веде тап.
+ * [count] — скільки живих зборів, [when] — зустріч найближчого.
+ */
+export function companionText(eventTitle: string, count: number, when: string): { title: string; body: string } {
+  const who = count === 1 ? "Хтось шукає" : `${count} ${plural(count, "людина шукає", "людини шукають", "людей шукають")}`;
+  return { title: eventTitle, body: clip(`${who} компанію на цю подію · ${count === 1 ? "збір" : "найближчий збір"} ${when}`) };
+}
+
+/**
  * Пуш повернення (docs/guest-channel.md): ті самі шаблони, що в локального дайджесту (`Copy.digest_title`,
  * `digest_title_3`, `digest_more`; на Android — strings.xml), щоб людина чула один голос. Крок 1 — заголовок
  * першої пʼятниці драбини, крок 2 — третьої. Назви сирі, як у решті пушів.

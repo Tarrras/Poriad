@@ -147,9 +147,16 @@ internal data class OfferDto(
     val url: String? = null,
     @SerialName("price_min") val priceMin: Double? = null,
     @SerialName("is_free") val isFree: Boolean? = null,
-    val live: Boolean = true
+    val live: Boolean = true,
+    /** Що сторінка продавця каже про цей сеанс: `cancelled` / `postponed`. Інше — не показуємо. */
+    val says: String? = null
 ) {
-    fun domain() = source?.takeIf { it.isNotBlank() }?.let { Offer(it, url?.takeIf { u -> u.startsWith("https://") }, priceMin, isFree, live) }
+    fun domain() = source?.takeIf { it.isNotBlank() }?.let {
+        Offer(
+            it, url?.takeIf { u -> u.startsWith("https://") }, priceMin, isFree, live,
+            ListingState.fromKey(says)?.takeIf { s -> s == ListingState.CANCELLED || s == ListingState.POSTPONED }
+        )
+    }
 }
 
 /** Відповідь `event_safety`. */

@@ -41,6 +41,7 @@ internal class IdentitySync(
         discovery.refresh()
         // Гість теж: його закладки живуть на телефоні (docs/guest-saves.md).
         library.load()
+        library.resolveInvite()
         if (uid != null) push.register()
     }
 }

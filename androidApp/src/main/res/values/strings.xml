@@ -394,6 +394,8 @@
   <string name="tip_companion_title">Не хочете йти самі?</string>
   <string name="tip_sheet_title">Список під мапою</string>
   <string name="tip_sheet_body">Торкніться лічильника чи потягніть шторку вгору — там ті самі події списком. Пін із числом — кілька подій в одному місці.</string>
+  <string name="tip_invite_title">Покликати з собою</string>
+  <string name="tip_invite_body">Друг отримає посилання на подію й побачить, що кличете саме ви: ваше ім’я й фото з профілю.</string>
   <string name="tip_companion_body">Зберіть невелику компанію на цю подію. Хто захоче піти з вами, надішле запит — ви вирішите, кого взяти.</string>
   <string name="slot_weekday_day">Будні, вдень</string>
   <string name="slot_weekday_day_hint">До 17:00</string>
@@ -549,6 +551,11 @@
   <string name="share">Поділитися</string>
   <string name="share_event_text">%1$s · %2$s · %3$s\n%4$s</string>
   <string name="share_chooser">Поділитися подією</string>
+  <!-- «Покликати з собою» (docs/invites.md): кругла дія на деталях, текст для месенджера й рядок на обкладинці в друга. -->
+  <string name="invite">Покликати</string>
+  <string name="invite_share_text">Ходімо зі мною? %1$s · %2$s · %3$s\n%4$s</string>
+  <string name="invite_chooser">Покликати з собою</string>
+  <string name="invite_from">%1$s кличе тебе</string>
   <string name="safety_title">Безпека</string>
   <string name="companion_seek">Шукаю компанію</string>
   <string name="companions_title">Шукають компанію</string>
@@ -571,6 +578,7 @@
   <string name="companion_share_text">Шукаю компанію на %1$s, %2$s
 %3$s</string>
   <string name="companion_share_chooser">Поділитися пошуком компанії</string>
+  <string name="companion_notification_channel">Пошук компанії на збережені події</string>
   <string name="curfew_left">Закінчиться о %1$s. Комендантська з %2$s — до неї лишиться %3$s</string>
   <string name="curfew_during">Закінчиться о %1$s, уже під час комендантської (з %2$s)</string>
   <string name="duration_minutes">%d хв</string>
@@ -696,6 +704,9 @@
   <string name="state_postponed_hint">Нової дати ще нема. Квиток повертають там, де купували, або тримають до нової дати.</string>
   <string name="state_moved_hint">Було %1$s. Якщо нова дата не підходить, квиток повертають там, де купували.</string>
   <string name="state_unknown_hint">Жоден продавець більше не продає квитки на цю дату. Можливо, подію скасували чи перенесли — перевірте у продавця.</string>
+  <!-- Один продавець пише «скасовано» чи «відкладено», а інший продає (рішення 24.10): подія в силі, але варто перевірити. -->
+  <string name="seller_reported_cancelled">Один із продавців, %1$s, повідомив про скасування. Інші ще продають квитки — перевірте, перш ніж іти.</string>
+  <string name="seller_reported_postponed">Один із продавців, %1$s, повідомив про відкладення. Інші ще продають квитки — перевірте, перш ніж іти.</string>
   <string name="checked_today">Перевірено сьогодні о %1$s</string>
   <string name="checked_yesterday">Перевірено вчора о %1$s</string>
   <string name="checked_date">Перевірено %1$s</string>

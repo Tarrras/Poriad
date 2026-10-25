@@ -12,6 +12,7 @@ import app.poruch.domain.EventSafety
 import app.poruch.domain.EventSession
 import app.poruch.domain.FollowKind
 import app.poruch.domain.Gathering
+import app.poruch.domain.Inviter
 import app.poruch.domain.Listing
 import app.poruch.domain.PendingMeet
 import app.poruch.domain.RatingRules
@@ -99,6 +100,8 @@ data class DetailScreenState(
     val followedOrganizers: Set<String> = emptySet(),
     /** Щойно створений супутник: платформа відкриває «Поділитися» і кличе [PoruchApp.clearCreatedCompanion]. */
     val createdCompanion: String? = null,
+    /** Хто кличе: подію відкрили з посилання-запрошення (docs/invites.md). Обкладинка каже «Тарас кличе тебе». */
+    val inviter: Inviter? = null,
     /** «Перевірено сьогодні о 09:00» для афіші: коли адресна перевірка читала продавців. Null — не перевіряли. */
     val checked: CheckedLabel? = null
 ) {
@@ -110,6 +113,8 @@ data class DetailScreenState(
     val canMoveMeet: Boolean get() = organizer && companionOf?.startsAt != null && !cancelled && !started
     val myRating: EventRating? get() = ratings.firstOrNull { it.mine }
     val cancelled: Boolean get() = event?.isCancelled == true
+    /** «Покликати» замість «Поділитися» (docs/invites.md): подія ще попереду й відбудеться. Скасованою чи минулою — ділимось. */
+    val canInvite: Boolean get() = event?.isCalledOff == false && !ended
     /** Кімната, якщо це кімната. Місця й участь лише в неї. */
     val room: Gathering? get() = event?.gathering
     /** Оголошення, якщо це афіша. Тоді дія одна: вийти на джерело. */
@@ -231,7 +236,7 @@ class DetailPresenter(
     private fun sameInputs(old: AppState, new: AppState): Boolean =
         old.detail === new.detail && old.library === new.library && old.session === new.session &&
             old.person === new.person && old.map.index === new.map.index && old.cards === new.cards &&
-            old.mutating == new.mutating && old.createdCompanion == new.createdCompanion
+            old.mutating == new.mutating && old.createdCompanion == new.createdCompanion && old.invite === new.invite
 
     private fun derive(shared: AppState): DetailScreenState {
         pendingId?.let { pending ->
@@ -285,6 +290,7 @@ class DetailPresenter(
             followingPlace = event?.placeId?.let { shared.isFollowing(FollowKind.PLACE, it) } == true,
             followedOrganizers = shared.library.follows.filter { it.kind == FollowKind.ORGANIZER }.mapTo(HashSet()) { it.targetId },
             createdCompanion = shared.createdCompanion?.takeIf { event != null },
+            inviter = shared.invite?.takeIf { event != null && it.first == eventId }?.second,
             checked = CheckedLabel.of(event?.listing?.checkedAt, now, TimeZone.currentSystemDefault())
         )
     }

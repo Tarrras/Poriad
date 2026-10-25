@@ -224,6 +224,7 @@ final class LocalReminderScheduler: NSObject, ReminderScheduler, RequestNotifier
 
     /// Тап по сповіщенню, локальному чи пушу: відкрити подію, про яку воно, а про повідомлення — її чат.
     /// Пуш про кілька нових подій закладу веде на мапу, до його стосу, а про артиста — на його екран.
+    /// «Хтось шукає компанію» (`companion`) несе найближчий збір як `eventId`: звичайний шлях на подію.
     func userNotificationCenter(
         _ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void

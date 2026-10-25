@@ -23,7 +23,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -43,6 +45,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.poruch.android.R
 import app.poruch.android.feature.explore.CitySearchSheet
+import app.poruch.android.feature.explore.SEARCH_SETTLE_MS
 import app.poruch.android.feature.explore.dateFilters
 import app.poruch.android.feature.mine.countdownOverline
 import app.poruch.android.platform.openInMaps
@@ -58,6 +61,7 @@ import java.time.LocalDate
 import java.time.ZoneId
 import app.poruch.shared.DateFilter
 import app.poruch.shared.PersonalRow
+import kotlinx.coroutines.delay
 
 /** Головна з двох зон: «Ваше» (плани, чати, підписки) і «У місті» (одна стрічка з даних, які вже завантажила мапа). Малює [HomeState], шле [HomeIntent]. */
 @Composable
@@ -142,10 +146,22 @@ private fun Header(state: HomeState, onIntent: (HomeIntent) -> Unit) {
         } else {
             val focus = LocalFocusManager.current
             val cancel = { focus.clearFocus(); onIntent(HomeIntent.CancelSearch) }
+            // Як поле мапи: набране тримаємо тут, нагору — після паузи. Текст зі стану презентера приходив на кадр пізніше,
+            // і швидкий набір губив і переставляв літери («peresyp» → «pyper»). «Скасувати» прибирає поле разом із паузою.
+            val shared = state.screen.searchText
+            var text by rememberSaveable { mutableStateOf(shared) }
+            var sent by rememberSaveable { mutableStateOf(shared) }
+            LaunchedEffect(shared) { if (shared != sent) { sent = shared; text = shared } }
+            LaunchedEffect(text) {
+                if (text == sent) return@LaunchedEffect
+                delay(SEARCH_SETTLE_MS)
+                sent = text
+                onIntent(HomeIntent.Search(text))
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
                 // Плейсхолдер каже, де шукаємо: інакше пошук лише в місті ніхто не помічав.
                 PoruchSearchField(
-                    state.screen.searchText, { onIntent(HomeIntent.Search(it)) },
+                    text, { text = it },
                     when {
                         state.screen.searchEverywhere -> stringResource(R.string.home_search_everywhere)
                         state.screen.cityName.isBlank() -> stringResource(R.string.search_placeholder)

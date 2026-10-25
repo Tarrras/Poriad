@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.poruch.android.R
 
@@ -150,14 +151,16 @@ fun RoundAction(
     title: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    /** Дія чекає мережі: замість гліфа — індикатор, повторний тап нічого не робить. */
+    loading: Boolean = false
 ) {
     val colors = Poruch.colors
     val ink = if (enabled) colors.ink else colors.inkTertiary
     Column(
         modifier
             .clip(Radius.md)
-            .pressable(enabled = enabled, onClick = onClick)
+            .pressable(enabled = enabled && !loading, onClick = onClick)
             .padding(Spacing.xs),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(Spacing.sm)
@@ -167,9 +170,11 @@ fun RoundAction(
                 .size(56.dp)
                 .cardSurface(CircleShape), contentAlignment = Alignment.Center
         ) {
-            Icon(icon, null, Modifier.size(22.dp), tint = ink)
+            if (loading) CircularProgressIndicator(Modifier.size(20.dp), color = ink, strokeWidth = 2.dp)
+            else Icon(icon, null, Modifier.size(22.dp), tint = ink)
         }
-        Text(title, style = MaterialTheme.typography.labelMedium, color = ink, maxLines = 1)
+        // На великому шрифті — трикрапка, а не підпис, обрізаний посеред слова.
+        Text(title, style = MaterialTheme.typography.labelMedium, color = ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 

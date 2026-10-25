@@ -48,7 +48,7 @@ import GoogleSignIn
                     // Повернення з вікна входу Google — його URL-схема, не наша.
                     if GIDSignIn.sharedInstance.handle(url) { return }
                     if let id = EventLinks.shared.eventId(link: url.absoluteString) {
-                        model.app.eventLinkOpened()
+                        model.app.eventLinkOpened(link: url.absoluteString)
                         PushDelegate.open(eventId: id, chat: false)
                     } else {
                         model.app.handleAuthCallback(url: url.absoluteString)

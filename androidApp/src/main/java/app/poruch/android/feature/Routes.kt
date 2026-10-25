@@ -169,6 +169,7 @@ fun DetailRoute(route: Detail, navigator: Navigator) {
             is DetailEffect.Edit -> navigator.open(Editor(effect.id))
             is DetailEffect.RequireSignIn -> navigator.open(Auth(effect.reason))
             is DetailEffect.ShareEvent -> context.shareEvent(effect.event)
+            is DetailEffect.Invite -> context.inviteEvent(effect.event, effect.link)
             is DetailEffect.ShareCompanion -> context.shareCompanion(effect.parent, effect.companionId)
             is DetailEffect.OpenCalendar -> if (!context.addToCalendar(effect.event)) context.toast(R.string.calendar_unavailable)
             is DetailEffect.OpenMaps -> if (!context.openInMaps(effect.event)) context.toast(R.string.maps_unavailable)

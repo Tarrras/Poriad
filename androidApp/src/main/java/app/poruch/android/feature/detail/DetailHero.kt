@@ -3,6 +3,12 @@ package app.poruch.android.feature.detail
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -50,6 +56,7 @@ import app.poruch.android.ui.*
 import app.poruch.domain.ArtistRole
 import app.poruch.domain.ContactRules
 import app.poruch.domain.Event
+import app.poruch.domain.Inviter
 import app.poruch.domain.EventIndexEntry
 import app.poruch.domain.TitleRules
 import app.poruch.domain.FollowRules
@@ -118,6 +125,13 @@ internal fun Hero(event: Event, state: DetailState, scroll: ScrollState, onInten
                 room?.isScarce == true -> Triple(stringResource(R.string.seats_left, room.seatsLeft), BadgeTone.Accent, null)
                 else -> null
             }
+            // Хто кличе приходить окремою відповіддю: рядок проявляється, назва піднімається пружиною, а не стрибком.
+            val reduced = Poruch.reducedMotion
+            AnimatedVisibility(
+                state.screen.inviter != null,
+                enter = fadeIn(Motion.quick(reduced)) + expandVertically(if (reduced) snap() else Motion.spring()),
+                exit = fadeOut(Motion.quick(reduced)) + shrinkVertically(if (reduced) snap() else Motion.spring())
+            ) { state.screen.inviter?.let { InviterLine(it) } }
             stamp?.let { (text, tone, icon) -> TicketStamp(text, tone, icon, onFill = true) }
             // «Стендап · Афіша · Badseller»: афіша завжди підписана джерелом — атрибуція обов'язкова.
             val meta = listOfNotNull(
@@ -135,6 +149,23 @@ internal fun Hero(event: Event, state: DetailState, scroll: ScrollState, onInten
                 )
             }
         }
+    }
+}
+
+/**
+ * «Тарас кличе тебе» (docs/invites.md): подію відкрили з посилання-запрошення. Над усім іншим на обкладинці — це
+ * відповідь на «чому я тут», як рядок причини на квитках стрічки, лише голосом друга.
+ */
+@Composable
+private fun InviterLine(inviter: Inviter) {
+    Row(
+        Modifier.semantics(mergeDescendants = true) {},
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Аватар росте разом із підписом, до 1,5×.
+        val avatar = 28.dp * LocalDensity.current.fontScale.coerceIn(1f, 1.5f)
+        Avatar(inviter.name, inviter.avatarUrl, avatar, Modifier.border(1.5.dp, Color.White.copy(alpha = 0.85f), CircleShape))
+        Text(stringResource(R.string.invite_from, inviter.name), style = MaterialTheme.typography.labelLarge, color = Color.White, maxLines = 2)
     }
 }
 

@@ -68,6 +68,8 @@ class PushService : FirebaseMessagingService() {
             "place" -> placeId?.let { alerts.notifyFollowed(kind, eventId, it, title, body) }
             // Нова подія артиста: одна веде на подію, кілька — на екран артиста.
             "artist" -> alerts.notifyFollowed(kind, eventId, null, title, body, artistId)
+            // Хтось шукає компанію на збережену афішу: eventId — найближчий збір.
+            "companion" -> eventId?.let { alerts.notifyCompanion(it, title, body) }
         }
         app.pushReceived(kind, data["key"].orEmpty())
     }

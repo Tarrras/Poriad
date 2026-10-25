@@ -312,6 +312,15 @@ internal fun Tickets(state: DetailState, listing: Listing, onIntent: (DetailInte
             TicketStamp(text, tone)
             stateHint(event, listing)?.let { Text(it, style = MaterialTheme.typography.bodyLarge, color = colors.ink) }
         }
+        listing.sellerReport?.let { report ->
+            Text(
+                stringResource(
+                    if (report.reported == ListingState.POSTPONED) R.string.seller_reported_postponed else R.string.seller_reported_cancelled,
+                    report.sourceName
+                ),
+                style = MaterialTheme.typography.bodyLarge, color = colors.ink
+            )
+        }
         if (sellers.isNotEmpty()) {
             Text(
                 stringResource(if (refund) R.string.sellers_refund_title else R.string.listing_price_label).uppercase(),
@@ -535,7 +544,13 @@ internal fun ExternalActions(state: DetailState, onIntent: (DetailIntent) -> Uni
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         RoundAction(PoruchIcons.calendar, stringResource(R.string.calendar_short), { onIntent(DetailIntent.AddToCalendar) }, Modifier.weight(1f), enabled = !state.screen.cancelled)
         RoundAction(PoruchIcons.directions, stringResource(R.string.open_in_maps), { onIntent(DetailIntent.OpenInMaps) }, Modifier.weight(1f))
-        RoundAction(PoruchIcons.share, stringResource(R.string.share), { onIntent(DetailIntent.Share) }, Modifier.weight(1f))
+        // Поділитися подією — і є покликати (docs/invites.md). Скасовану чи минулу — просто поділитися.
+        // Підказка лише з входом: посилання гостя не несе імені, і пояснювати нема що.
+        if (state.screen.canInvite) RoundAction(
+            PoruchIcons.personAdd, stringResource(R.string.invite), { onIntent(DetailIntent.Share) },
+            Modifier.weight(1f).coachTarget(CoachTip.INVITE.takeIf { state.screen.signedIn }), loading = state.inviting
+        )
+        else RoundAction(PoruchIcons.share, stringResource(R.string.share), { onIntent(DetailIntent.Share) }, Modifier.weight(1f))
         RoundAction(PoruchIcons.map, stringResource(R.string.on_map), { onIntent(DetailIntent.OpenMap) }, Modifier.weight(1f))
     }
 }

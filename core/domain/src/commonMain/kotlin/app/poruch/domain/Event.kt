@@ -258,18 +258,31 @@ data class Listing(
         get() = offers.ifEmpty { listOf(Offer(sourceName, canonicalUrl, priceMin, isFree, live = !isWithdrawn)) }
             .filter { !it.url.isNullOrBlank() }
 
+    /**
+     * Один продавець пише «скасовано» чи «відкладено», а подія в силі, бо інший її продає (рішення 24.10): показуємо, хто
+     * що повідомив, а не ховаємо подію.
+     */
+    val sellerReport: Offer? get() = if (isWithdrawn) null else offers.firstOrNull { it.reported != null }
+
+    /** З подією щось сталось чи продавці кажуть різне: квитки на деталях першим блоком. */
+    val needsAttention get() = isWithdrawn || isMoved || sellerReport != null
+
     /** Підпис афіші: «Concert.ua, Karabas» — усі живі продавці (питання 5, рішення 20.10), інакше основний. */
     val sellerNames: String
         get() = offers.filter { it.live }.map { it.sourceName }.distinct().ifEmpty { listOf(sourceName) }.joinToString(", ")
 }
 
-/** Пропозиція одного продавця (`public.event_offers`). [live] — продає зараз; знятою повертають квиток. */
+/**
+ * Пропозиція одного продавця (`public.event_offers`). [live] — продає зараз; знятою повертають квиток. [reported] —
+ * сторінка продавця прямо каже «скасовано» чи «відкладено» (лише ці два стани).
+ */
 data class Offer(
     val sourceName: String,
     val url: String?,
     val priceMin: Double? = null,
     val isFree: Boolean? = null,
-    val live: Boolean = true
+    val live: Boolean = true,
+    val reported: ListingState? = null
 )
 
 /** Стан афіші з усіх продавців, як його називає `event_result.state`. Розпродаж — не стан (рішення 20.10). */
@@ -353,6 +366,9 @@ enum class ImportStatus(val key: String) {
 }
 
 data class Attendee(val userId: String, val name: String, val avatarUrl: String?)
+
+/** Хто кличе на подію за посиланням-запрошенням (docs/invites.md): перше слово імені й фото, без id людини. */
+data class Inviter(val name: String, val avatarUrl: String?)
 data class CityResult(val name: String, val latitude: Double, val longitude: Double)
 
 /** Останнє обране місто на пристрої: наступний запуск одразу показує його, а не Київ за замовчуванням. */
