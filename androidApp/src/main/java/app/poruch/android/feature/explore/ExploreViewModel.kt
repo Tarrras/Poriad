@@ -95,6 +95,7 @@ class ExploreViewModel(private val app: PoruchApp) :
                 presenter.focusPlace(intent.place)
             }
             is ExploreIntent.SelectDistrict -> presenter.selectDistrict(intent.hit)
+            is ExploreIntent.PickDistrict -> presenter.pickDistrict(intent.hit)
             ExploreIntent.ClearDistrict -> presenter.clearDistrict()
             ExploreIntent.WholeCity -> presenter.showWholeCity()
             is ExploreIntent.OpenArtist -> {

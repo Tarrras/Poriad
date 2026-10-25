@@ -35,6 +35,8 @@ struct DiscoveryView: View, Equatable {
     /// «Ближче до мене» натиснули, положення ще їде: чип уже вибраний, порядок — коли приїде.
     @State private var locating = false
     @State private var citySearch = false
+    /// Список районів під чипом «Район».
+    @State private var districtList = false
     /// Подія з відкритими деталями. Значення, а не прапорець, щоб не читати id з асинхронного стану.
     @State private var detail: EventRoute?
     @State private var filters = false
@@ -94,7 +96,7 @@ struct DiscoveryView: View, Equatable {
             LinearGradient(colors: [Palette.canvas.opacity(0.94), Palette.canvas.opacity(0)], startPoint: .top, endPoint: .bottom)
                 .frame(height: 175).ignoresSafeArea(edges: .top).allowsHitTesting(false)
             VStack(spacing: Space.md) {
-                TopControls(openFilters: { filters = true }, openCitySearch: { citySearch = true })
+                TopControls(openFilters: { filters = true }, openCitySearch: { citySearch = true }, openDistricts: { districtList = true })
                 AreaPrompts(mapFailed: $mapFailed, retryToken: $retryToken, undoFilters: $undoFilters, region: $region, restore: restore)
             }
             .padding(.horizontal, Space.page)
@@ -153,6 +155,7 @@ struct DiscoveryView: View, Equatable {
         .onChange(of: view.indexVersion) { _, _ in loadHead(cardPage) }
         .sheet(isPresented: $citySearch) { CitySearchView().presentationDetents([.medium, .large]) }
         .sheet(isPresented: $filters) { FiltersView().presentationDetents([.medium, .large]) }
+        .sheet(isPresented: $districtList) { DistrictsView().presentationDetents([.medium, .large]) }
         // Вхід тут питають лише за «Стежити» на стосі закладу.
         .sheet(isPresented: $auth) { NavigationStack { AuthView(reason: .follow) } }
         .sheet(item: $detail) { route in
@@ -255,6 +258,7 @@ struct DiscoveryView: View, Equatable {
 private struct TopControls: View {
     let openFilters: () -> Void
     let openCitySearch: () -> Void
+    let openDistricts: () -> Void
     @Environment(\.appModel) private var appModel
     private var model: AppModel { appModel! }
     private var view: ExploreScreenState { model.exploreScreen.state }
@@ -288,11 +292,19 @@ private struct TopControls: View {
                         }
                         // Набране — назва району: підказка тут, під пальцем, а не лише в піднятій шторці. У згорнутій карусель
                         // показувала б «подій нема» за словом «Київський», хоча район є. Тап — той самий вибір, що рядком.
-                        if let hit = view.districts.first, hit.district != view.district {
+                        let suggested = view.districts.first.flatMap { $0.district != view.district ? $0 : nil }
+                        if let hit = suggested {
                             Chip(label: hit.district.name, glyph: PoruchIcons.district, selected: false) {
                                 model.exploreScreen.selectDistrict(hit)
                             }
                             .accessibilityLabel(Copy.a11y_suggest_district(hit.district.name))
+                        }
+                        // Без набору: «Район ⌄» відкриває райони міста, як «Категорія ⌄» — плитки. Є, поки район не обрано
+                        // й не підказано за словом.
+                        if view.district == nil, suggested == nil, !view.cityDistricts.isEmpty {
+                            Chip(label: Copy.district_chip, glyph: PoruchIcons.district, trailingGlyph: PoruchIcons.chevronDown,
+                                 selected: false, action: openDistricts)
+                                .accessibilityLabel(Copy.a11y_pick_district)
                         }
                         // Одразу після міста, а не за датами: з «Усі N» головної мапа приходить із цим фільтром, і його має бути видно.
                         Chip(label: Copy.from_people, glyph: PoruchIcons.social, selected: view.onlyAvailable) {
@@ -418,6 +430,7 @@ let cardPage = 24
     func focusEvent(_ id: String) { presenter.focusEvent(id: id) }
     func focusPlace(_ place: Place) { presenter.focusPlace(place: place) }
     func selectDistrict(_ hit: DistrictHit) { presenter.selectDistrict(hit: hit) }
+    func pickDistrict(_ hit: DistrictHit) { presenter.pickDistrict(hit: hit) }
     func clearDistrict() { presenter.clearDistrict() }
     func showWholeCity() { presenter.showWholeCity() }
     func toggleCategory(_ category: EventCategory) { presenter.toggleCategory(category: category) }

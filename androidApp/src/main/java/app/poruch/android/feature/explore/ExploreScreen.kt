@@ -74,6 +74,9 @@ fun ExploreScreen(state: ExploreState, onIntent: (ExploreIntent) -> Unit) {
         ExploreSheet.FILTERS -> PoruchSheet({ onIntent(ExploreIntent.ShowSheet(ExploreSheet.NONE)) }) { sheet ->
             FilterSheet(state, onIntent) { sheet.close() }
         }
+        ExploreSheet.DISTRICTS -> PoruchSheet({ onIntent(ExploreIntent.ShowSheet(ExploreSheet.NONE)) }) { sheet ->
+            DistrictSheet(state) { hit -> sheet.close { onIntent(ExploreIntent.PickDistrict(hit)) } }
+        }
         ExploreSheet.NONE -> Unit
     }
     // Чесно: без геолокації «ближче» не порахувати, список лишився «для вас». Вихід — дозвіл у налаштуваннях.
@@ -152,11 +155,21 @@ private fun TopControls(state: ExploreState, onIntent: (ExploreIntent) -> Unit) 
             }
             // Набране — назва району: підказка тут, під пальцем, а не лише в піднятій шторці. У згорнутій карусель
             // показувала б «подій нема» за словом «Київський», хоча район є. Тап — той самий вибір, що рядком.
-            state.screen.districts.firstOrNull()?.takeIf { it.district != state.screen.district }?.let { hit ->
+            val suggested = state.screen.districts.firstOrNull()?.takeIf { it.district != state.screen.district }
+            suggested?.let { hit ->
                 val description = stringResource(R.string.a11y_suggest_district, hit.district.name)
                 val pick = { onIntent(ExploreIntent.SelectDistrict(hit)) }
                 Box(Modifier.clearAndSetSemantics { contentDescription = description; role = Role.Button; onClick { pick(); true } }) {
                     PoruchChip(hit.district.name, false, pick, PoruchIcons.district)
+                }
+            }
+            // Без набору: «Район ⌄» відкриває райони міста, як «Категорія ⌄» — плитки. Є, поки район не обрано й не
+            // підказано за словом.
+            if (state.screen.district == null && suggested == null && state.screen.cityDistricts.isNotEmpty()) {
+                val description = stringResource(R.string.a11y_pick_district)
+                val open = { onIntent(ExploreIntent.ShowSheet(ExploreSheet.DISTRICTS)) }
+                Box(Modifier.clearAndSetSemantics { contentDescription = description; role = Role.Button; onClick { open(); true } }) {
+                    PoruchChip(stringResource(R.string.district_chip), false, open, PoruchIcons.district, trailingIcon = PoruchIcons.chevronDown)
                 }
             }
             // Одразу після міста, а не за датами: з «Усі N» головної мапа приходить із цим фільтром, і його має бути видно.

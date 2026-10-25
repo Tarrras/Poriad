@@ -235,6 +235,7 @@ enum Copy {
     static let search_everywhere = "Шукати усюди"
     static func search_events_group(_ a0: String) -> String { "Події · \(a0)" }
     static let search_districts_group = "Райони"
+    static let district_chip = "Район"
     static let district_no_events = "Поки без подій"
     static func district_former(_ a0: String) -> String { "раніше \(a0)" }
     static let search_places_group = "Місця"
@@ -779,6 +780,7 @@ enum Copy {
     static func a11y_clear_category(_ a0: String) -> String { "Категорія \(a0). Зняти фільтр" }
     static func a11y_clear_district(_ a0: String) -> String { "\(a0). Показати все місто" }
     static func a11y_suggest_district(_ a0: String) -> String { "\(a0). Показати події району" }
+    static let a11y_pick_district = "Район. Вибрати район міста"
     static func a11y_city(_ a0: String) -> String { "Місто \(a0)" }
     static func a11y_unread_chats(_ a0: String, _ a1: String) -> String { "\(a0), непрочитаних чатів: \(a1)" }
     static let auth_consent_prefix = "Продовжуючи, ви погоджуєтесь з "

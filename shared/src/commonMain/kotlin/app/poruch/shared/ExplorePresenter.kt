@@ -83,6 +83,8 @@ data class ExploreScreenState(
     val artists: List<ArtistHit> = emptyList(),
     /** Райони міста за [searchText]: секція «Райони» над «Місцями». Порожньо у стосі піна, як і заклади. */
     val districts: List<DistrictHit> = emptyList(),
+    /** Усі райони міста з числами, найживіші першими: список під чипом «Район». Порожньо — у міста районів нема. */
+    val cityDistricts: List<DistrictHit> = emptyList(),
     /**
      * Район, до якого звужено мапу: чип у ряду фільтрів і межа на мапі. Камеру на його межі платформа ставить, коли він
      * змінився. Null — усе місто.
@@ -172,6 +174,7 @@ class ExplorePresenter(
     private var visibleFrom: Pair<List<EventIndexEntry>, EventCategory?>? = null
     private var visible: List<EventIndexEntry> = emptyList()
     private val districtSearch = DistrictSearch()
+    private val cityDistricts = DistrictSearch()
     /** Що видно на мапі зараз: південь, захід, північ, схід. Повідомляє платформа, коли камера зупинилась. */
     private var viewport: DoubleArray? = null
 
@@ -319,6 +322,9 @@ class ExplorePresenter(
     /** Район із секції «Райони»: мапа звужується до нього. Стос знімає [init], камеру й шторку ставить платформа. */
     fun selectDistrict(hit: DistrictHit) = app.selectDistrict(hit, fromHome = false)
 
+    /** Район зі списку під чипом «Район»: без набору, просто з міста. */
+    fun pickDistrict(hit: DistrictHit) = app.pickDistrict(hit)
+
     /** «✕» на чипі району: знову все місто. */
     fun clearDistrict() = app.clearDistrict(fromEmpty = false)
 
@@ -433,6 +439,7 @@ class ExplorePresenter(
             places = if (stackFocused) emptyList() else shared.map.places.map { it.countedIn(shared.home.index) },
             artists = if (stackFocused) emptyList() else shared.map.artists,
             districts = if (stackFocused) emptyList() else districtSearch.hits(shared.map.searchText, shared.city.districts, shared.home.index),
+            cityDistricts = cityDistricts.all(shared.city.districts, shared.home.index),
             district = district,
             category = category,
             dateFilter = shared.map.dateFilter,

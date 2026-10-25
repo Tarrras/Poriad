@@ -208,3 +208,39 @@ struct CitySearchView: View {
         }
     }
 }
+
+/// Райони міста під чипом «Район»: вибір без набору, найживіші першими. Порожні теж — «Поки без подій» чесно каже, що
+/// район є, а подій нема. Рядки — ті самі, що в секції «Райони» пошуку.
+struct DistrictsView: View {
+    @Environment(\.appModel) private var appModel
+    private var model: AppModel { appModel! }
+    @Environment(\.dismiss) var dismiss
+    private var explore: ExploreScreenState { model.exploreScreen.state }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(Copy.search_districts_group).font(PoruchFont.brandTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
+                    .accessibilityAddTraits(.isHeader)
+                Text(explore.cityName).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
+            }
+            .padding(.horizontal, Space.page)
+            .padding(.top, Space.lg)
+            .padding(.bottom, Space.md)
+            ScrollView {
+                GroupedRows {
+                    ForEach(Array(explore.cityDistricts.enumerated()), id: \.element.district.id) { position, hit in
+                        if position > 0 { Divider().overlay(Palette.hairline).padding(.leading, Space.lg + 40 + Space.md) }
+                        DistrictRow(hit: hit) {
+                            model.exploreScreen.pickDistrict(hit)
+                            dismiss()
+                        }
+                    }
+                }
+                .padding(.horizontal, Space.page)
+                .padding(.bottom, Space.lg)
+            }
+        }
+        .background(Palette.canvas)
+    }
+}

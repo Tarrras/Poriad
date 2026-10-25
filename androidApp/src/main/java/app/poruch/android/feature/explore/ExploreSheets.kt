@@ -23,6 +23,7 @@ import app.poruch.domain.EventCategory
 import app.poruch.android.R
 import app.poruch.android.ui.*
 import app.poruch.domain.CityResult
+import app.poruch.domain.DistrictHit
 import app.poruch.domain.HomeLocation
 import app.poruch.shared.DateFilter
 
@@ -173,3 +174,29 @@ private const val CITY_SUGGESTIONS = 6
 
 /** Смуга підказок над клавіатурою; довший список гортається всередині. */
 private val SUGGESTION_BAND = 300.dp
+
+/**
+ * Райони міста під чипом «Район»: вибір без набору, найживіші першими. Порожні теж — «Поки без подій» чесно каже, що район
+ * є, а подій нема. Рядки — ті самі, що в секції «Райони» пошуку.
+ */
+@Composable
+internal fun DistrictSheet(state: ExploreState, onPick: (DistrictHit) -> Unit) {
+    val colors = Poruch.colors
+    Column(Modifier.padding(bottom = Spacing.section)) {
+        Column(Modifier.padding(horizontal = Spacing.page).padding(bottom = Spacing.lg)) {
+            Text(
+                stringResource(R.string.search_districts_group), style = PoruchType.brandTitle2, color = colors.ink,
+                modifier = Modifier.semantics { heading() }
+            )
+            Text(state.screen.cityName, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
+        }
+        Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(horizontal = Spacing.page)) {
+            GroupedRows {
+                state.screen.cityDistricts.forEachIndexed { position, hit ->
+                    if (position > 0) HairLine(Modifier.padding(start = Spacing.lg + 40.dp + Spacing.md))
+                    DistrictRow(hit) { onPick(hit) }
+                }
+            }
+        }
+    }
+}

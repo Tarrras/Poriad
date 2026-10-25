@@ -38,7 +38,7 @@ data class FilterSnapshot(val date: DateFilter, val category: EventCategory?, va
 
 data class Area(val south: Double, val west: Double, val north: Double, val east: Double)
 
-enum class ExploreSheet { NONE, FILTERS, CITY }
+enum class ExploreSheet { NONE, FILTERS, CITY, DISTRICTS }
 
 /** Положення шторки: згорнута (карусель), половина, повний екран. */
 enum class SheetDetent { PEEK, HALF, FULL }
@@ -70,6 +70,8 @@ sealed interface ExploreIntent {
     data class FocusPlace(val place: Place) : ExploreIntent
     /** Район з пошуку: мапа звужується до нього, камера — на його межі. */
     data class SelectDistrict(val hit: DistrictHit) : ExploreIntent
+    /** Район зі списку під чипом «Район». */
+    data class PickDistrict(val hit: DistrictHit) : ExploreIntent
     /** «✕» на чипі району. */
     data object ClearDistrict : ExploreIntent
     /** «Усе місто» в порожньому районі. */

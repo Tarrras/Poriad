@@ -215,6 +215,8 @@ class PoruchApp internal constructor(
     /** Район із секції «Райони» пошуку мапи чи головної ([fromHome]): мапа звужується до нього. Див. [MapFeed.district]. */
     fun selectDistrict(hit: DistrictHit, fromHome: Boolean) =
         discovery.selectDistrict(hit.district, if (fromHome) "home" else "map", hit.upcoming)
+    /** Район зі списку під чипом «Район» на мапі. */
+    fun pickDistrict(hit: DistrictHit) = discovery.selectDistrict(hit.district, "picker", hit.upcoming)
     /** Мапа знову на всьому місті: «✕» на чипі району ([fromEmpty] = false) чи «Усе місто» в порожньому районі. */
     fun clearDistrict(fromEmpty: Boolean) = discovery.clearDistrict(if (fromEmpty) "empty" else "chip")
     /** Пошук головної: окремий від мапи, у тій самій області. */
