@@ -209,7 +209,7 @@
   <string name="ratings_empty">Учасники ще не оцінили зустріч. Оцінити можна протягом 14 днів після завершення.</string>
   <string name="msg_rating_sent">Дякуємо за оцінку</string>
   <string name="guest_empty">Тут буде збережене</string>
-  <string name="guest_saved_hint">Збережіть подію — нагадаємо напередодні о 18:00</string>
+  <string name="guest_saved_hint">Збережіть подію — і ввечері напередодні ми про неї нагадаємо</string>
   <string name="guest_saved_note">Збережене живе на цьому телефоні. Увійдіть, щоб не загубити.</string>
   <string name="about_event">Про подію</string>
   <string name="organizer_short">Організатор</string>

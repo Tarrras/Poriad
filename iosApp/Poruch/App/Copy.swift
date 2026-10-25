@@ -180,7 +180,7 @@ enum Copy {
     static let ratings_empty = "Учасники ще не оцінили зустріч. Оцінити можна протягом 14 днів після завершення."
     static let msg_rating_sent = "Дякуємо за оцінку"
     static let guest_empty = "Тут буде збережене"
-    static let guest_saved_hint = "Збережіть подію — нагадаємо напередодні о 18:00"
+    static let guest_saved_hint = "Збережіть подію — і ввечері напередодні ми про неї нагадаємо"
     static let guest_saved_note = "Збережене живе на цьому телефоні. Увійдіть, щоб не загубити."
     static let about_event = "Про подію"
     static let organizer_short = "Організатор"
