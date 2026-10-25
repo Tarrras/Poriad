@@ -170,6 +170,21 @@ class RegressionTests(unittest.TestCase):
     def test_foreign_currency_is_not_reported_as_uah(self):
         self.assertEqual(normalize.parse_price({"offers": {"price": "100", "priceCurrency": "EUR"}}), (None, None))
 
+    def test_stub_zero_price_is_not_free(self):
+        # Фрагменти з concert.ua/uk/event/khto-koho-khoche і karabas.com, 2026-10-25.
+        concert_stub = {"@type": "Offer", "price": 0, "priceCurrency": "",
+                        "availability": "http://schema.org/InStock"}
+        karabas_sold_out = {"@type": "Offer", "price": 0, "priceCurrency": "UAH",
+                            "availability": "https://schema.org/OutOfStock"}
+        for offer in (concert_stub, karabas_sold_out):
+            with self.subTest(offer=offer):
+                self.assertEqual(normalize.parse_price({"offers": offer}), (None, None))
+        self.assertEqual(normalize.parse_price({"offers": [concert_stub, {"price": 420, "priceCurrency": "UAH"}]}),
+                         (420.0, False))
+        self.assertEqual(normalize.parse_price({"offers": {"price": "0.00", "priceCurrency": "UAH",
+                                                           "availability": "https://schema.org/InStock"}}),
+                         (0.0, True))                                   # йой!: справді безкоштовна
+
     def test_cancelled_and_postponed_never_publish(self):
         for status in ["EventCancelled", "https://schema.org/EventPostponed"]:
             with self.subTest(status=status):

@@ -302,13 +302,17 @@ def parse_price(event: dict) -> tuple[float | None, bool | None]:
     for offer in offers_of(event):
         if str(offer.get("priceCurrency") or "UAH").upper() != "UAH":
             continue
+        # Нуль — заглушка, а не «безкоштовно», коли валюта порожня (Concert.ua: сеанси й «схожі події» на
+        # картці, 2026-10-23 — 21 платна вистава стала безкоштовною) або квитків нема (Karabas: OutOfStock).
+        stub_zero = (offer.get("priceCurrency") == ""
+                     or str(offer.get("availability") or "").endswith(("OutOfStock", "SoldOut")))
         for key in ("price", "lowPrice", "minPrice"):
             raw = offer.get(key)
             if raw in (None, ""):
                 continue
             try:
                 value = float(str(raw).replace(",", ".").replace(" ", ""))
-                if math.isfinite(value) and value >= 0:
+                if math.isfinite(value) and (value > 0 or value == 0 and not stub_zero):
                     prices.append(value)
             except ValueError:
                 continue
