@@ -264,6 +264,7 @@
   <string name="search_everywhere">Шукати усюди</string>
   <string name="search_events_group">Події · %1$d</string>
   <string name="search_districts_group">Райони</string>
+  <string name="district_chip">Район</string>
   <string name="district_no_events">Поки без подій</string>
   <string name="district_former">раніше %1$s</string>
   <string name="search_places_group">Місця</string>
@@ -932,6 +933,7 @@
   <string name="a11y_clear_category">Категорія %1$s. Зняти фільтр</string>
   <string name="a11y_clear_district">%1$s. Показати все місто</string>
   <string name="a11y_suggest_district">%1$s. Показати події району</string>
+  <string name="a11y_pick_district">Район. Вибрати район міста</string>
   <string name="a11y_city">Місто %1$s</string>
   <plurals name="show_events">
     <item quantity="one">Показати %1$d подію</item>

@@ -2310,6 +2310,27 @@ class PoruchAppTest {
         } finally { PoruchAnalytics.sink=null }
     }
 
+    /** Район без набору: під чипом «Район» — усі райони міста з числами, найживіші першими; вибір пишеться як `picker`. */
+    @Test fun districtsListWithoutTyping()=runTest {
+        val tracked=mutableListOf<Pair<String,Map<String,String>>>()
+        PoruchAnalytics.sink={ name,params -> tracked+=name to params }
+        try {
+            val events=Events()
+            val soon=(Clock.System.now()+1.hours).toString()
+            events.results=listOf(listed("a",soon),listed("b",soon,placeId=null).copy(latitude=50.451))
+            val empty=District(3,"Київ","Голосіївський район",rings=listOf(doubleArrayOf(30.6,50.3,30.7,50.3,30.7,50.35,30.6,50.35,30.6,50.3)))
+            events.districts=listOf(empty,podil,odesaKyivskyi)
+            val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
+            val presenter=ExplorePresenter(app,backgroundScope,StandardTestDispatcher(testScheduler))
+            runCurrent()
+            assertEquals(listOf(podil to 2,empty to 0),presenter.state.value.cityDistricts.map { it.district to it.upcoming })
+            presenter.pickDistrict(presenter.state.value.cityDistricts.first()); runCurrent()
+            assertEquals(podil,presenter.state.value.district)
+            assertEquals("picker",tracked.single { it.first=="district_select" }.second["from"])
+            app.close()
+        } finally { PoruchAnalytics.sink=null }
+    }
+
     /** Ширша область виводить із району: заклад, «Шукати тут», «Усі N», інше місто. А з накресленої області район повертає місто. */
     @Test fun widerAreasLeaveTheDistrict()=runTest {
         val tracked=mutableListOf<Pair<String,Map<String,String>>>()

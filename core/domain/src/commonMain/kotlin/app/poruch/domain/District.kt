@@ -93,8 +93,11 @@ class District(
          * чесна відповідь, що такий район є, а не «не знайшли».
          */
         fun search(districts: List<District>, query: String, index: List<EventIndexEntry>): List<DistrictHit> =
-            districts.filter { it.matches(query) }
-                .map { DistrictHit(it, it.countIn(index)) }
+            ranked(districts.filter { it.matches(query) }, index)
+
+        /** Усі райони з числами з [index], найживіші першими: список під чипом «Район». */
+        fun ranked(districts: List<District>, index: List<EventIndexEntry>): List<DistrictHit> =
+            districts.map { DistrictHit(it, it.countIn(index)) }
                 .sortedWith(compareByDescending<DistrictHit> { it.upcoming }.thenBy { it.district.name })
 
         /** Менше літер не шукаємо: одна літера дала б пів міста. */
