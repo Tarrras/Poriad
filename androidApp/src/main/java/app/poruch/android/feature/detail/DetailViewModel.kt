@@ -23,6 +23,7 @@ class DetailViewModel(
 
     /** На кого скарга з картки: картка вже закрита, коли людина обирає причину. */
     private var reportedUser: String? = null
+
     /** «На мапі»: слот відкритої події переходить мапі як фокус, і при знятті екрана ми його не чистимо. */
     private var handedOff = false
 
@@ -32,7 +33,9 @@ class DetailViewModel(
                 // Супутник створено: «Поділитися» один раз, прапорець гасимо в сторі.
                 val created = screen.createdCompanion
                 val event = screen.event
-                if (created != null && event != null) { app.clearCreatedCompanion(); send(DetailEffect.ShareCompanion(event, created)) }
+                if (created != null && event != null) {
+                    app.clearCreatedCompanion(); send(DetailEffect.ShareCompanion(event, created))
+                }
                 reduce { copy(screen = screen) }
             }
         }
@@ -54,8 +57,14 @@ class DetailViewModel(
         val event = screen.event
         when (intent) {
             DetailIntent.Back -> send(DetailEffect.Back)
-            is DetailIntent.NotificationPermissionAnswered -> if (intent.granted) app.setRemindersEnabled(true)
-            DetailIntent.Refresh -> refresh({ refreshing }, { copy(refreshing = it) }) { presenter.refresh() }
+            is DetailIntent.NotificationPermissionAnswered -> if (intent.granted) app.setRemindersEnabled(
+                true
+            )
+
+            DetailIntent.Refresh -> refresh(
+                { refreshing },
+                { copy(refreshing = it) }) { presenter.refresh() }
+
             is DetailIntent.PickSession -> if (intent.id != eventId) {
                 reduce { copy(confirmingCancel = false, confirmingBlock = false, reporting = null) }
                 presenter.pickSession(intent.id)
@@ -64,33 +73,59 @@ class DetailViewModel(
             // Квитки на афішу купують у джерела: акаунт не потрібен, тому до перевірки входу.
             DetailIntent.PrimaryAction -> if (screen.action == DetailAction.TICKETS) {
                 event?.listing?.let { listing ->
-                    listing.canonicalUrl?.let { app.ticketOpened(eventId, listing.sourceName, "bar"); send(DetailEffect.OpenLink(it)) }
+                    listing.canonicalUrl?.let {
+                        app.ticketOpened(
+                            eventId,
+                            listing.sourceName,
+                            "bar"
+                        ); send(DetailEffect.OpenLink(it))
+                    }
                 }
             } else authenticated(AuthReason.JOIN) {
                 when (screen.action) {
-                    DetailAction.JOIN, DetailAction.REQUEST -> { app.joinEvent(eventId); offerReminders() }
+                    DetailAction.JOIN, DetailAction.REQUEST -> {
+                        app.joinEvent(eventId); offerReminders()
+                    }
+
                     DetailAction.LEAVE -> app.leaveEvent(eventId)
-                    DetailAction.JOIN_WAITLIST -> { app.joinWaitlist(eventId); offerReminders() }
+                    DetailAction.JOIN_WAITLIST -> {
+                        app.joinWaitlist(eventId); offerReminders()
+                    }
+
                     DetailAction.LEAVE_WAITLIST -> app.leaveWaitlist(eventId)
                     else -> Unit
                 }
             }
 
-            DetailIntent.OpenSource -> event?.listing?.canonicalUrl?.let { send(DetailEffect.OpenLink(it)) }
-            is DetailIntent.OpenSeller -> intent.offer.url?.let {
-                app.ticketOpened(eventId, intent.offer.sourceName, intent.from); send(DetailEffect.OpenLink(it))
+            DetailIntent.OpenSource -> event?.listing?.canonicalUrl?.let {
+                send(
+                    DetailEffect.OpenLink(
+                        it
+                    )
+                )
             }
+
+            is DetailIntent.OpenSeller -> intent.offer.url?.let {
+                app.ticketOpened(
+                    eventId,
+                    intent.offer.sourceName,
+                    intent.from
+                ); send(DetailEffect.OpenLink(it))
+            }
+
             is DetailIntent.ShowMeetTime -> reduce { copy(movingMeet = intent.from) }
             is DetailIntent.MoveMeet -> {
                 reduce { copy(movingMeet = null) }
                 app.moveCompanion(eventId, intent.meetAt)
             }
+
             is DetailIntent.BoughtPromptAnswered -> if (state.value.boughtPrompt) {
                 reduce { copy(boughtPrompt = false) }
                 app.boughtPromptAnswered(intent.saved)
                 // Гість теж: закладка лягає на телефон (docs/guest-saves.md).
                 if (intent.saved && !screen.saved) app.toggleSaved(eventId)
             }
+
             DetailIntent.ToggleSaved -> app.toggleSaved(eventId)
             DetailIntent.Share -> event?.let {
                 if (!screen.canInvite) send(DetailEffect.ShareEvent(it))
@@ -102,41 +137,77 @@ class DetailViewModel(
                     send(DetailEffect.Invite(it, link))
                 }
             }
+
             DetailIntent.AddToCalendar -> event?.let { send(DetailEffect.OpenCalendar(it)) }
             DetailIntent.OpenInMaps -> event?.let { send(DetailEffect.OpenMaps(it)) }
             // Для другої дати прокату — картка представника: окремого піна в сеансу нема.
-            DetailIntent.OpenMap -> { handedOff = true; send(DetailEffect.OpenMap(presenter.cardId())) }
+            DetailIntent.OpenMap -> {
+                handedOff = true; send(DetailEffect.OpenMap(presenter.cardId()))
+            }
+
             is DetailIntent.OpenEvent -> send(DetailEffect.OpenEvent(intent.id))
             is DetailIntent.OpenArtist -> {
                 app.openArtist(intent.artist.id, intent.artist.name, intent.artist.kind)
                 send(DetailEffect.OpenArtist(intent.artist.id))
             }
+
             is DetailIntent.OpenShelter -> send(DetailEffect.OpenShelter(intent.shelter))
-            is DetailIntent.SeekCompany -> if (intent.open) authenticated(AuthReason.COMPANY) { reduce { copy(seekingCompany = true) } }
-                else reduce { copy(seekingCompany = false) }
+            is DetailIntent.SeekCompany -> if (intent.open) authenticated(AuthReason.COMPANY) {
+                reduce {
+                    copy(
+                        seekingCompany = true
+                    )
+                }
+            }
+            else reduce { copy(seekingCompany = false) }
+
             is DetailIntent.CreateCompanion -> {
                 reduce { copy(seekingCompany = false) }
                 app.createCompanion(eventId, intent.meetAt, intent.note, intent.capacity)
             }
+
             is DetailIntent.JoinCompanion -> authenticated(AuthReason.JOIN) { app.joinEvent(intent.id); offerReminders() }
             // ON_RESUME: і повернення з іншого екрана, і з сайту продавця — тоді, можливо, «Купили?» (раз на подію).
             DetailIntent.Reopen -> {
                 presenter.reopen()
                 if (app.takeBoughtPrompt(eventId)) reduce { copy(boughtPrompt = true) }
             }
+
             DetailIntent.ToggleFollowPlace -> authenticated(AuthReason.FOLLOW) {
-                event?.let { e -> e.placeId?.let { app.setFollowing(FollowKind.PLACE, it, e.placeLabel, !screen.followingPlace) } }
+                event?.let { e ->
+                    e.placeId?.let {
+                        app.setFollowing(
+                            FollowKind.PLACE,
+                            it,
+                            e.placeLabel,
+                            !screen.followingPlace
+                        )
+                    }
+                }
             }
+
             is DetailIntent.ToggleFollowPerson -> authenticated(AuthReason.FOLLOW) {
-                app.setFollowing(FollowKind.ORGANIZER, intent.userId, intent.name, intent.userId !in screen.followedOrganizers)
+                app.setFollowing(
+                    FollowKind.ORGANIZER,
+                    intent.userId,
+                    intent.name,
+                    intent.userId !in screen.followedOrganizers
+                )
             }
+
             DetailIntent.Edit -> send(DetailEffect.Edit(eventId))
             is DetailIntent.ConfirmCancel -> reduce { copy(confirmingCancel = intent.open) }
             DetailIntent.CancelEvent -> {
                 reduce { copy(confirmingCancel = false) }
                 app.cancelEvent(eventId)
             }
-            is DetailIntent.AttachPhoto -> app.uploadEventImage(eventId, intent.bytes, intent.contentType)
+
+            is DetailIntent.AttachPhoto -> app.uploadEventImage(
+                eventId,
+                intent.bytes,
+                intent.contentType
+            )
+
             is DetailIntent.ShowReport -> if (intent.target != null && !screen.signedIn) {
                 send(DetailEffect.RequireSignIn())
             } else reduce { copy(reporting = intent.target) }
@@ -145,9 +216,21 @@ class DetailViewModel(
                 reduce { copy(reporting = null) }
                 when (intent.target) {
                     ReportTarget.EVENT -> app.reportEvent(eventId, intent.reason, intent.details)
-                    ReportTarget.PERSON -> reportedUser?.let { app.reportUser(it, intent.reason, intent.details) }
+                    ReportTarget.PERSON -> reportedUser?.let {
+                        app.reportUser(
+                            it,
+                            intent.reason,
+                            intent.details
+                        )
+                    }
                     // В афіші організатора нема; на саму подію скаржаться через ReportTarget.EVENT.
-                    ReportTarget.ORGANIZER -> event?.organizerId?.let { app.reportUser(it, intent.reason, intent.details) }
+                    ReportTarget.ORGANIZER -> event?.organizerId?.let {
+                        app.reportUser(
+                            it,
+                            intent.reason,
+                            intent.details
+                        )
+                    }
                 }
             }
 
@@ -176,13 +259,21 @@ class DetailViewModel(
                 app.blockUser(intent.userId)
                 if (organizer) send(DetailEffect.Back)
             }
+
             is DetailIntent.ReportPerson -> {
                 reportedUser = intent.userId
                 reduce { copy(reporting = ReportTarget.PERSON) }
             }
+
             is DetailIntent.ApproveRequest -> app.approveMember(eventId, intent.userId)
             is DetailIntent.DeclineRequest -> app.declineMember(eventId, intent.userId)
-            is DetailIntent.Rate -> app.rateEvent(eventId, intent.score, intent.comment, intent.tags, intent.follow)
+            is DetailIntent.Rate -> app.rateEvent(
+                eventId,
+                intent.score,
+                intent.comment,
+                intent.tags,
+                intent.follow
+            )
         }
     }
 
