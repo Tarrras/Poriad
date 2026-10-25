@@ -225,11 +225,14 @@ internal data class DistrictDto(
     val name: String,
     val former: String? = null,
     val aliases: List<String> = emptyList(),
+    /** Місцевість: радіус кола в метрах. Нема — район. */
+    val radius: Int? = null,
     val rings: List<List<List<Double>>> = emptyList()
 ) {
     fun domain(city: String) = District(
         id, city, name, former, aliases,
-        rings.map { ring -> DoubleArray(ring.size * 2) { i -> ring[i / 2][i % 2] } }
+        rings.map { ring -> DoubleArray(ring.size * 2) { i -> ring[i / 2][i % 2] } },
+        radiusM = radius
     )
 }
 

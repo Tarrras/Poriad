@@ -2353,9 +2353,9 @@ class PoruchAppTest {
             presenter.showWholeCity(); runCurrent()
             assertEquals(
                 listOf(
-                    "district_select" to mapOf("city" to "Київ","district" to "Подільський район","from" to "map","events" to "4"),
+                    "district_select" to mapOf("city" to "Київ","district" to "Подільський район","kind" to "district","from" to "map","events" to "4"),
                     "district_clear" to mapOf("city" to "Київ","via" to "chip"),
-                    "district_select" to mapOf("city" to "Київ","district" to "Подільський район","from" to "map","events" to "4"),
+                    "district_select" to mapOf("city" to "Київ","district" to "Подільський район","kind" to "district","from" to "map","events" to "4"),
                     "district_clear" to mapOf("city" to "Київ","via" to "empty")
                 ),
                 tracked.filter { it.first.startsWith("district_") }
@@ -2381,6 +2381,33 @@ class PoruchAppTest {
             presenter.pickDistrict(presenter.state.value.cityDistricts.first()); runCurrent()
             assertEquals(podil,presenter.state.value.district)
             assertEquals("picker",tracked.single { it.first=="district_select" }.second["from"])
+            app.close()
+        } finally { PoruchAnalytics.sink=null }
+    }
+
+    /** Місцевість — коло навколо точки: та сама механіка, що район; у списку під чипом — лише ті, де є події. */
+    @Test fun localitiesAreCirclesWithEvents()=runTest {
+        val tracked=mutableListOf<Pair<String,Map<String,String>>>()
+        PoruchAnalytics.sink={ name,params -> tracked+=name to params }
+        try {
+            val events=Events()
+            val soon=(Clock.System.now()+1.hours).toString()
+            events.results=listOf(listed("a",soon),listed("far",soon,placeId=null).copy(latitude=50.6))
+            val square=doubleArrayOf(30.51,50.445,30.53,50.445,30.53,50.455,30.51,50.455,30.51,50.445)
+            val kontraktova=District(-1,"Київ","Контрактова",rings=listOf(square),radiusM=1500)
+            val empty=District(-2,"Київ","Троєщина",rings=listOf(doubleArrayOf(30.6,50.5,30.62,50.5,30.62,50.52,30.6,50.52,30.6,50.5)),radiusM=1500)
+            events.districts=listOf(podil,kontraktova,empty)
+            val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
+            val presenter=ExplorePresenter(app,backgroundScope,StandardTestDispatcher(testScheduler))
+            runCurrent()
+            assertEquals(listOf(podil),presenter.state.value.cityDistricts.map { it.district })
+            assertEquals(listOf(kontraktova to 1),presenter.state.value.cityLocalities.map { it.district to it.upcoming })
+            // Пошуком — і порожня: це відповідь, що місцевість є.
+            app.setSearchText("троєщ"); runCurrent()
+            assertEquals(listOf(empty),presenter.state.value.districts.map { it.district })
+            presenter.pickDistrict(presenter.state.value.cityLocalities.single()); runCurrent()
+            assertEquals(1,presenter.state.value.listCount)
+            assertEquals("locality",tracked.single { it.first=="district_select" }.second["kind"])
             app.close()
         } finally { PoruchAnalytics.sink=null }
     }

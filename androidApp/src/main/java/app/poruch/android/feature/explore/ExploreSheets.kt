@@ -190,12 +190,19 @@ internal fun DistrictSheet(state: ExploreState, onPick: (DistrictHit) -> Unit) {
             )
             Text(state.screen.cityName, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
         }
-        Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(horizontal = Spacing.page)) {
+        Column(
+            Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(horizontal = Spacing.page),
+            verticalArrangement = Arrangement.spacedBy(Spacing.lg)
+        ) {
             GroupedRows {
                 state.screen.cityDistricts.forEachIndexed { position, hit ->
                     if (position > 0) HairLine(Modifier.padding(start = Spacing.lg + 40.dp + Spacing.md))
                     DistrictRow(hit) { onPick(hit) }
                 }
+            }
+            // Місцевості — точки OSM з колом навколо: лише ті, де є події, інакше десятки порожніх затуляли б живі.
+            if (state.screen.cityLocalities.isNotEmpty()) {
+                DistrictsGroup(state.screen.cityLocalities, title = stringResource(R.string.search_localities_group), onOpen = onPick)
             }
         }
     }

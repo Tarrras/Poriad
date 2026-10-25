@@ -20,8 +20,22 @@ class District(
      * Кільця межі, кожне — `lon, lat, lon, lat…`, перша точка повторена в кінці. Зовнішні кільця й дірки разом:
      * [contains] рахує парність перетинів, тож ні порядок, ні напрям не важать.
      */
-    val rings: List<DoubleArray>
+    val rings: List<DoubleArray>,
+    /**
+     * Місцевість (Аркадія, Великий Фонтан): в OSM це лише точка, тож [rings] — коло цього радіуса навколо неї, і про неї
+     * кажемо «1,5 км навколо», а не «в Аркадії». Null — адміністративний район зі справжньою межею.
+     */
+    val radiusM: Int? = null
 ) {
+    val isLocality: Boolean get() = radiusM != null
+
+    /** Радіус місцевості кілометрами для підпису: «1,5». Null — це район. */
+    val radiusKm: String?
+        get() = radiusM?.let { meters ->
+            val tenths = (meters + 50) / 100
+            if (tenths % 10 == 0) "${tenths / 10}" else "${tenths / 10},${tenths % 10}"
+        }
+
     val south: Double
     val west: Double
     val north: Double

@@ -226,8 +226,10 @@ struct DistrictRow: View {
 
     private var subtitle: String {
         let upcoming = Int(hit.upcoming)
+        // Місцевість — коло навколо точки OSM: кажемо, скільки охоплено, а не «в Аркадії».
         return [upcoming > 0 ? Copy.place_upcoming(upcoming) : Copy.district_no_events,
-                hit.district.formerShort.map { Copy.district_former($0) }]
+                hit.district.formerShort.map { Copy.district_former($0) },
+                hit.district.radiusKm.map { Copy.locality_radius($0) }]
             .compactMap { $0 }.joined(separator: " · ")
     }
 
@@ -256,10 +258,12 @@ struct DistrictRow: View {
 /// Секція «Райони» над «Місцями»: райони міста за тим самим словом. Тап — мапа в районі.
 struct DistrictsGroup: View {
     let districts: [DistrictHit]
+    /// «Райони» чи «Місцевості».
+    var title = Copy.search_districts_group
     let open: (DistrictHit) -> Void
     var body: some View {
         VStack(alignment: .leading, spacing: Space.sm) {
-            GroupLabel(title: Copy.search_districts_group)
+            GroupLabel(title: title)
             GroupedRows {
                 ForEach(Array(districts.enumerated()), id: \.element.district.id) { position, hit in
                     if position > 0 { Divider().overlay(Palette.hairline).padding(.leading, Space.lg + 40 + Space.md) }

@@ -128,7 +128,9 @@ fun DistrictRow(hit: DistrictHit, modifier: Modifier = Modifier, onClick: () -> 
     val subtitle = listOfNotNull(
         if (hit.upcoming > 0) pluralStringResource(R.plurals.place_upcoming, hit.upcoming, hit.upcoming)
         else stringResource(R.string.district_no_events),
-        hit.district.formerShort?.let { stringResource(R.string.district_former, it) }
+        hit.district.formerShort?.let { stringResource(R.string.district_former, it) },
+        // Місцевість — коло навколо точки OSM: кажемо, скільки охоплено, а не «в Аркадії».
+        hit.district.radiusKm?.let { stringResource(R.string.locality_radius, it) }
     ).joinToString(" · ")
     Row(
         modifier
@@ -261,10 +263,12 @@ fun PlacesGroup(
 fun DistrictsGroup(
     districts: List<DistrictHit>,
     modifier: Modifier = Modifier,
+    /** «Райони» чи «Місцевості». */
+    title: String = stringResource(R.string.search_districts_group),
     onOpen: (DistrictHit) -> Unit
 ) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-        GroupLabel(stringResource(R.string.search_districts_group))
+        GroupLabel(title)
         GroupedRows {
             districts.forEachIndexed { position, hit ->
                 if (position > 0) HairLine(Modifier.padding(start = Spacing.lg + 40.dp + Spacing.md))
