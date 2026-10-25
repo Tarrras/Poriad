@@ -185,7 +185,10 @@ internal class DiscoveryEngine(
     fun selectDistrict(district: District, from: String, shown: Int) {
         debounceJob.cancel(); placesJob.cancel()
         PoruchLog.i("discovery") { "district ${district.name} from $from" }
-        PoruchAnalytics.track("district_select", "city" to district.city, "district" to district.name, "from" to from, "events" to shown)
+        PoruchAnalytics.track(
+            "district_select", "city" to district.city, "district" to district.name,
+            "kind" to if (district.isLocality) "locality" else "district", "from" to from, "events" to shown
+        )
         val reload = query.text != null || store.value.city.custom
         val area = homeFeed.area
         query = query.copy(south = area.south, west = area.west, north = area.north, east = area.east, text = null)

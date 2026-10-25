@@ -439,8 +439,13 @@ private struct SheetRows: View {
     var body: some View {
         LazyVStack(spacing: Space.sm) {
             // Райони — першими: їх у місті до десяти, і запит «Київський» найчастіше саме про район.
-            if !view.districts.isEmpty {
-                DistrictsGroup(districts: view.districts) { selectDistrict($0) }.padding(.bottom, Space.md)
+            let localities = view.districts.filter { $0.district.isLocality }
+            let adminDistricts = view.districts.filter { !$0.district.isLocality }
+            if !adminDistricts.isEmpty {
+                DistrictsGroup(districts: adminDistricts) { selectDistrict($0) }.padding(.bottom, Space.md)
+            }
+            if !localities.isEmpty {
+                DistrictsGroup(districts: localities, title: Copy.search_localities_group) { selectDistrict($0) }.padding(.bottom, Space.md)
             }
             // Заклади — над подіями: список подій довгий, під ним їх ніхто б не побачив.
             if !view.places.isEmpty {
@@ -488,7 +493,7 @@ private struct QuietCard: View {
                 Spacer(minLength: Space.sm)
                 if !query.isEmpty, let hit = view.districts.first {
                     // Слово — назва району: подій із ним нема, а район є. Дія — туди, а не «очистити».
-                    quietAction(Copy.show_district) { model.exploreScreen.selectDistrict(hit) }
+                    quietAction(hit.district.isLocality ? Copy.show_locality : Copy.show_district) { model.exploreScreen.selectDistrict(hit) }
                 } else if !query.isEmpty {
                     quietAction(Copy.clear_search) { model.app.setSearchText(query: "") }
                 } else if view.activeFilters > 0 {
@@ -513,7 +518,9 @@ private struct QuietCard: View {
         if !query.isEmpty, let hit = view.districts.first { return Copy.nothing_for_query_district(query, hit.district.name) }
         if !query.isEmpty { return Copy.nothing_for_query(query) }
         if view.stackFocused { return Copy.nothing_here_stack }
-        if let district = view.district, view.activeFilters == 0 { return Copy.nothing_in_district(district.locative) }
+        if let district = view.district, view.activeFilters == 0 {
+            return district.isLocality ? Copy.nothing_near_locality(district.name) : Copy.nothing_in_district(district.locative)
+        }
         return Copy.nothing_here_hint
     }
 
@@ -543,6 +550,8 @@ private func distanceLabel(_ km: KotlinInt?, within: Int) -> String? {
 /// Що показує екран: пін, область рукою чи ціле місто.
 private func areaLabel(_ view: ExploreScreenState) -> String {
     if view.stackFocused { return Copy.area_stack }
-    if let district = view.district, !view.customArea { return Copy.area_district(district.locative) }
+    if let district = view.district, !view.customArea {
+        return district.isLocality ? Copy.area_locality(district.name, district.radiusKm ?? "") : Copy.area_district(district.locative)
+    }
     return view.customArea ? Copy.area_custom : Copy.area_city("\(view.cityName)")
 }

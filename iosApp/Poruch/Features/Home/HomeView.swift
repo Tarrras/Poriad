@@ -274,8 +274,16 @@ private struct SearchResults: View {
             // Події, під ними — заклади з тим самим словом. Групові списки: видача пошуку — перелік, а не стрічка.
             VStack(alignment: .leading, spacing: Space.xl) {
                 // Район — першим, як на мапі: це рядок-два, і «Київський» найчастіше саме про нього.
-                if !view.districts.isEmpty {
-                    DistrictsGroup(districts: view.districts) { hit in
+                let localities = view.districts.filter { $0.district.isLocality }
+                let adminDistricts = view.districts.filter { !$0.district.isLocality }
+                if !adminDistricts.isEmpty {
+                    DistrictsGroup(districts: adminDistricts) { hit in
+                        model.app.selectDistrict(hit: hit, fromHome: true)
+                        openMap()
+                    }
+                }
+                if !localities.isEmpty {
+                    DistrictsGroup(districts: localities, title: Copy.search_localities_group) { hit in
                         model.app.selectDistrict(hit: hit, fromHome: true)
                         openMap()
                     }

@@ -67,6 +67,15 @@ class DistrictTest {
         ).forEach { (cyrillic, latin) -> assertEquals(latin, District.latin(cyrillic)) }
     }
 
+    /** Місцевість — коло з радіусом: «1,5 км навколо», ціле — без коми; район — без радіуса. */
+    @Test
+    fun localityRadius() {
+        assertEquals(listOf("1,5", "1", "2,3"), listOf(1500, 1000, 2250).map { District(1, "Одеса", "Аркадія", rings = emptyList(), radiusM = it).radiusKm })
+        assertTrue(District(1, "Одеса", "Аркадія", rings = emptyList(), radiusM = 1500).isLocality)
+        assertFalse(district("Київський район").isLocality)
+        assertEquals(null, district("Київський район").radiusKm)
+    }
+
     @Test
     fun equalById() {
         assertEquals(district("Київський район"), District(1, "Одеса", "Інша назва", rings = emptyList()))

@@ -228,13 +228,16 @@ struct DistrictsView: View {
             .padding(.top, Space.lg)
             .padding(.bottom, Space.md)
             ScrollView {
-                GroupedRows {
-                    ForEach(Array(explore.cityDistricts.enumerated()), id: \.element.district.id) { position, hit in
-                        if position > 0 { Divider().overlay(Palette.hairline).padding(.leading, Space.lg + 40 + Space.md) }
-                        DistrictRow(hit: hit) {
-                            model.exploreScreen.pickDistrict(hit)
-                            dismiss()
+                VStack(alignment: .leading, spacing: Space.lg) {
+                    GroupedRows {
+                        ForEach(Array(explore.cityDistricts.enumerated()), id: \.element.district.id) { position, hit in
+                            if position > 0 { Divider().overlay(Palette.hairline).padding(.leading, Space.lg + 40 + Space.md) }
+                            DistrictRow(hit: hit) { pick(hit) }
                         }
+                    }
+                    // Місцевості — точки OSM з колом навколо: лише ті, де є події, інакше десятки порожніх затуляли б живі.
+                    if !explore.cityLocalities.isEmpty {
+                        DistrictsGroup(districts: explore.cityLocalities, title: Copy.search_localities_group) { pick($0) }
                     }
                 }
                 .padding(.horizontal, Space.page)
@@ -242,5 +245,10 @@ struct DistrictsView: View {
             }
         }
         .background(Palette.canvas)
+    }
+
+    private func pick(_ hit: DistrictHit) {
+        model.exploreScreen.pickDistrict(hit)
+        dismiss()
     }
 }

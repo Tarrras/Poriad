@@ -86,6 +86,11 @@ data class ExploreScreenState(
     /** Усі райони міста з числами, найживіші першими: список під чипом «Район». Порожньо — у міста районів нема. */
     val cityDistricts: List<DistrictHit> = emptyList(),
     /**
+     * Місцевості міста з подіями (Аркадія, Троєщина), найживіші першими: друга секція того самого списку. Без подій — лише
+     * пошуком: їх у місті десятки, і порожні затуляли б живі.
+     */
+    val cityLocalities: List<DistrictHit> = emptyList(),
+    /**
      * Район, до якого звужено мапу: чип у ряду фільтрів і межа на мапі. Камеру на його межі платформа ставить, коли він
      * змінився. Null — усе місто.
      */
@@ -421,6 +426,7 @@ class ExplorePresenter(
         // [focused] без картки у видачі додається окремо.
         val deckEvents = listEntries.mapNotNull { entry -> cards[entry.id] ?: focused?.takeIf { it.id == entry.id } }
         val stackPlace = if (stackFocused) shared.placeOfStack(local.stackIds) else null
+        val cityHits = cityDistricts.all(shared.city.districts, shared.home.index)
         return ExploreScreenState(
             mapEvents = mapEvents,
             listEntries = listEntries,
@@ -439,7 +445,8 @@ class ExplorePresenter(
             places = if (stackFocused) emptyList() else shared.map.places.map { it.countedIn(shared.home.index) },
             artists = if (stackFocused) emptyList() else shared.map.artists,
             districts = if (stackFocused) emptyList() else districtSearch.hits(shared.map.searchText, shared.city.districts, shared.home.index),
-            cityDistricts = cityDistricts.all(shared.city.districts, shared.home.index),
+            cityDistricts = cityHits.filter { !it.district.isLocality },
+            cityLocalities = cityHits.filter { it.district.isLocality && it.upcoming > 0 },
             district = district,
             category = category,
             dateFilter = shared.map.dateFilter,

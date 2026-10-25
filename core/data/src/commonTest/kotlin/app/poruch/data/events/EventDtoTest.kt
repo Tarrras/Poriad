@@ -175,6 +175,12 @@ class EventDtoTest {
         assertEquals(listOf(30.0, 46.0, 31.0, 46.0), district.rings.single().take(4))
         assertTrue(district.contains(latitude = 46.5, longitude = 30.5))
         assertTrue(district.matches("Оболонь"))
+        assertFalse(district.isLocality)
+        val arcadia = json.decodeFromString<List<DistrictDto>>(
+            """[{"id":-7,"name":"Аркадія","radius":1500,"rings":[[[30.0,46.0],[31.0,46.0],[31.0,47.0],[30.0,46.0]]]}]"""
+        ).single().domain("Одеса")
+        assertEquals(1500, arcadia.radiusM)
+        assertEquals("1,5", arcadia.radiusKm)
     }
 
     /** `my_follows`: `jsonb_strip_nulls` не шле порожнє, а невідомий рід (сервер новіший) — не рядок списку. */
