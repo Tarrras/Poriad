@@ -115,7 +115,7 @@ struct HomeCityFeed: View {
                 PoruchLoader().frame(maxWidth: .infinity).padding(.vertical, Space.section)
             } else if view.offline {
                 // Без мережі «тихо» було б неправдою: афіша є, її не видно. Відкриється сама, щойно мережа повернеться.
-                EmptyState(glyph: PoruchIcons.wifiOff, title: Copy.offline_title, message: Copy.offline_home_hint, animation: "Offline")
+                OfflineState(message: Copy.offline_home_hint)
             } else {
                 EmptyState(
                     glyph: PoruchIcons.compass, title: Copy.nothing_here,

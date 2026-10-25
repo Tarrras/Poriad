@@ -81,10 +81,9 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
             if (state.screen.loading) Box(Modifier.fillMaxWidth().padding(Spacing.section), contentAlignment = Alignment.Center) {
                 PoruchLoader()
             // Без мережі — корінець на ниточці: подія відкриється сама, щойно мережа повернеться.
-            } else if (state.screen.offline) EmptyState(
-                PoruchIcons.wifiOff, stringResource(R.string.offline_title), stringResource(R.string.offline_event_hint),
-                actionLabel = stringResource(R.string.try_again), onAction = { onIntent(DetailIntent.Refresh) },
-                animation = R.raw.offline
+            } else if (state.screen.offline) OfflineState(
+                stringResource(R.string.offline_event_hint),
+                actionLabel = stringResource(R.string.try_again), onAction = { onIntent(DetailIntent.Refresh) }
             )
             // Сервер відповів порожньо або з помилкою: не глухий кут, а повтор, як на iOS.
             else EmptyState(

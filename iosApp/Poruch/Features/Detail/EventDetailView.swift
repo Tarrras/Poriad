@@ -79,10 +79,7 @@ struct EventDetailView: View, Equatable {
                 // подія відкриється сама, щойно мережа повернеться.
                 VStack(spacing: Space.lg) {
                     if view.offline {
-                        EmptyState(
-                            glyph: PoruchIcons.wifiOff, title: Copy.offline_title, message: Copy.offline_event_hint,
-                            animation: "Offline", actionLabel: Copy.try_again
-                        ) { model.app.openEvent(id: eventID) }
+                        OfflineState(message: Copy.offline_event_hint, actionLabel: Copy.try_again) { model.app.openEvent(id: eventID) }
                     } else {
                         EmptyState(
                             glyph: PoruchIcons.calendarAlert, title: Copy.err_event_unavailable,

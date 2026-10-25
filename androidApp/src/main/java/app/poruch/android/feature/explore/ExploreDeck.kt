@@ -544,10 +544,8 @@ private fun SheetList(state: ExploreState, onIntent: (ExploreIntent) -> Unit) {
             Alignment.Center
         ) {
             PoruchLoader()
-        } else if (state.screen.offline) EmptyState(
-            PoruchIcons.wifiOff, stringResource(R.string.offline_title), stringResource(R.string.offline_map_hint),
-            animation = R.raw.offline
-        ) else QuietCard(Modifier.padding(Spacing.page), state, onIntent)
+        } else if (state.screen.offline) OfflineState(stringResource(R.string.offline_map_hint))
+        else QuietCard(Modifier.padding(Spacing.page), state, onIntent)
         return
     }
     val listState = rememberLazyListState()

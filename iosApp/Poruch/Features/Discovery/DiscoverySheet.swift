@@ -243,7 +243,7 @@ struct DiscoverySheet: View {
     /// У згорнутій шторці картка має висоту каруселі — там офлайн каже сама `QuietCard`.
     @ViewBuilder private func quietCard(compact: Bool) -> some View {
         if view.offline && !compact {
-            EmptyState(glyph: PoruchIcons.wifiOff, title: Copy.offline_title, message: Copy.offline_map_hint, animation: "Offline")
+            OfflineState(message: Copy.offline_map_hint)
         } else {
             QuietCard(resetFilters: resetFilters, createEvent: createEvent)
         }

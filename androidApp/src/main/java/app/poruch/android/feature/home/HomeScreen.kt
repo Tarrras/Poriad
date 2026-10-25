@@ -567,10 +567,7 @@ private fun LazyListScope.cityFeed(state: HomeState, onIntent: (HomeIntent) -> U
         // Без мережі «тихо» було б неправдою: афіша є, її не видно. Відкриється сама, щойно мережа повернеться.
         state.screen.isEmpty && state.screen.offline -> item(key = "offline") {
             Box(Modifier.padding(top = Spacing.xxl)) {
-                EmptyState(
-                    PoruchIcons.wifiOff, stringResource(R.string.offline_title), stringResource(R.string.offline_home_hint),
-                    animation = R.raw.offline
-                )
+                OfflineState(stringResource(R.string.offline_home_hint))
             }
         }
         state.screen.isEmpty -> item(key = "empty") {

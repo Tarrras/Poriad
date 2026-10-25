@@ -97,7 +97,7 @@ struct EmptyState: View {
     let title: String
     let message: String
     var compact: Bool = false
-    /// Lottie з генератора замість порожнього квитка (240×140): «Offline» — корінець на ниточці.
+    /// Lottie з генератора замість порожнього квитка (240×140). Зараз — лише «Offline», див. [OfflineState].
     var animation: String?
     var actionLabel: String?
     var action: (() -> Void)?
@@ -105,8 +105,7 @@ struct EmptyState: View {
     var body: some View {
         VStack(spacing: compact ? Space.sm : Space.md) {
             if let animation {
-                BrandAnimation(name: animation, still: reduceMotion)
-                    .frame(width: compact ? 168 : 240, height: compact ? 98 : 140).decorative()
+                BrandAnimation(name: animation, still: reduceMotion).frame(width: 240, height: 140).decorative()
             } else {
                 BlankTicket(glyph: glyph, compact: compact).padding(.bottom, compact ? 0 : Space.sm)
             }
@@ -119,7 +118,19 @@ struct EmptyState: View {
     }
 }
 
-/// Порожній квиток над порожнім станом: пунктирний контур, два незадруковані рядки й гліф на сірому корінці.
+/// «Немає звʼязку»: порожній стан без мережі — корінець порожнього квитка на ниточці (Lottie «Offline»). Заголовок і
+/// анімація свої, екран дає лише підказку «Покажемо …, щойно повернеться мережа.» і, де є що зробити, дію. Екран
+/// відкривається сам, щойно мережа повернеться (`PoruchApp.networkChanged`). Збій сервера — банер, а не це.
+struct OfflineState: View {
+    let message: String
+    var actionLabel: String?
+    var action: (() -> Void)?
+    var body: some View {
+        EmptyState(glyph: PoruchIcons.wifiOff, title: Copy.offline_title, message: message, animation: "Offline",
+                   actionLabel: actionLabel, action: action)
+    }
+}
+
 /// «Без мережі · показуємо збережене»: над тим, що показано з телефону. Гліф «нема мережі» — штампова фарба (DESIGN.md).
 struct OfflineNote: View {
     var body: some View {
@@ -131,6 +142,7 @@ struct OfflineNote: View {
     }
 }
 
+/// Порожній квиток над порожнім станом: пунктирний контур, два незадруковані рядки й гліф на сірому корінці.
 private struct BlankTicket: View {
     let glyph: PoruchGlyph
     var compact = false

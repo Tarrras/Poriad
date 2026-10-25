@@ -109,10 +109,9 @@ fun MyEventsScreen(state: MyEventsState, onIntent: (MyEventsIntent) -> Unit) {
                     .verticalScroll(rememberScrollState())
             ) {
                 // Плану на телефоні ще нема, а мережі нема: «нічого не заплановано» було б неправдою.
-                if (state.screen.offline && state.screen.myEvents.isEmpty()) EmptyState(
-                    PoruchIcons.wifiOff, stringResource(R.string.offline_title), stringResource(R.string.offline_mine_hint),
-                    actionLabel = stringResource(R.string.try_again), onAction = { onIntent(MyEventsIntent.Refresh) },
-                    animation = R.raw.offline
+                if (state.screen.offline && state.screen.myEvents.isEmpty()) OfflineState(
+                    stringResource(R.string.offline_mine_hint),
+                    actionLabel = stringResource(R.string.try_again), onAction = { onIntent(MyEventsIntent.Refresh) }
                 )
                 else if (state.screen.loading) Box(
                     Modifier

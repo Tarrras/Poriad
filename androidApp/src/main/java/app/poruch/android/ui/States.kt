@@ -140,16 +140,6 @@ fun BrandAnimation(@RawRes res: Int, modifier: Modifier = Modifier, still: Boole
     LottieAnimation(composition, modifier, isPlaying = !still, iterations = LottieConstants.IterateForever)
 }
 
-/** «Без мережі · показуємо збережене»: над тим, що показано з телефону. Гліф «нема мережі» — штампова фарба (DESIGN.md). */
-@Composable
-fun OfflineNote(modifier: Modifier = Modifier) {
-    val colors = Poruch.colors
-    Row(modifier.semantics(mergeDescendants = true) {}, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-        Icon(PoruchIcons.wifiOff, null, Modifier.size(15.dp), tint = colors.accent)
-        Text(stringResource(R.string.offline_cached), style = PoruchType.caption, color = colors.inkSecondary)
-    }
-}
-
 /** Лоадер екрана чи секції: шпилька з іконки підстрибує. Кнопки й дрібні підвантаження лишаються з системним. */
 @Composable
 fun PoruchLoader(modifier: Modifier = Modifier) {
@@ -161,7 +151,7 @@ fun PoruchLoader(modifier: Modifier = Modifier) {
 fun EmptyState(
     icon: ImageVector, title: String, message: String, modifier: Modifier = Modifier,
     actionLabel: String? = null, onAction: (() -> Unit)? = null,
-    /** Lottie з генератора замість порожнього квитка (240×140): `R.raw.offline` — корінець на ниточці. */
+    /** Lottie з генератора замість порожнього квитка (240×140). Зараз — лише `R.raw.offline`, див. [OfflineState]. */
     @RawRes animation: Int? = null
 ) {
     val colors = Poruch.colors
@@ -192,6 +182,25 @@ fun EmptyState(
             onAction,
             Modifier.padding(top = Spacing.sm)
         )
+    }
+}
+
+/**
+ * «Немає звʼязку»: порожній стан без мережі — корінець порожнього квитка на ниточці (Lottie `offline`). Заголовок і
+ * анімація свої, екран дає лише підказку «Покажемо …, щойно повернеться мережа.» і, де є що зробити, дію. Екран
+ * відкривається сам, щойно мережа повернеться (`PoruchApp.networkChanged`). Збій сервера — банер, а не це.
+ */
+@Composable
+fun OfflineState(message: String, modifier: Modifier = Modifier, actionLabel: String? = null, onAction: (() -> Unit)? = null) =
+    EmptyState(PoruchIcons.wifiOff, stringResource(R.string.offline_title), message, modifier, actionLabel, onAction, animation = R.raw.offline)
+
+/** «Без мережі · показуємо збережене»: над тим, що показано з телефону. Гліф «нема мережі» — штампова фарба (DESIGN.md). */
+@Composable
+fun OfflineNote(modifier: Modifier = Modifier) {
+    val colors = Poruch.colors
+    Row(modifier.semantics(mergeDescendants = true) {}, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        Icon(PoruchIcons.wifiOff, null, Modifier.size(15.dp), tint = colors.accent)
+        Text(stringResource(R.string.offline_cached), style = PoruchType.caption, color = colors.inkSecondary)
     }
 }
 

@@ -111,8 +111,7 @@ struct ChatView: View {
                 .frame(maxHeight: .infinity)
         } else if let chat, chat.offline && chat.messages.isEmpty {
             // Без мережі — не вічний спінер: опитування саме підхопить її, щойно вона повернеться.
-            EmptyState(glyph: PoruchIcons.wifiOff, title: Copy.offline_title, message: Copy.offline_chat_hint, animation: "Offline")
-                .frame(maxHeight: .infinity)
+            OfflineState(message: Copy.offline_chat_hint).frame(maxHeight: .infinity)
         } else if chat == nil || (chat!.loading && chat!.messages.isEmpty) {
             PoruchLoader().frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
