@@ -6,6 +6,7 @@ workers_dev = false
 
 routes = [
   { pattern = "poriad.app/e/*", zone_name = "poriad.app" },
+  { pattern = "poriad.app/afisha/*", zone_name = "poriad.app" },
   { pattern = "poriad.app/.well-known/apple-app-site-association", zone_name = "poriad.app" },
   { pattern = "poriad.app/.well-known/assetlinks.json", zone_name = "poriad.app" },
 ]

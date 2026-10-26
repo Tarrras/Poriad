@@ -82,6 +82,7 @@ class AppGraph(
                 )
             }
             single<SeenRequestStore>(named("bought")) { LocalSeenRequests(get(), get(), "bought-asked") }
+            single<SeenRequestStore>(named("good-days")) { LocalSeenRequests(get(), get(), "good-days") }
             single<SafetyRepository> { SupabaseSafetyRepository(get(), get()) }
             single<ProfileRepository> { SupabaseProfileRepository(get(), get(), get()) }
             // Один клас, два питання: місто зміщує мапу, адреса ставить крапку.
@@ -125,6 +126,7 @@ class AppGraph(
                     boughtAsked = get(named("bought")),
                     deviceTouch = get(),
                     guestSaves = get(),
+                    goodDays = get(named("good-days")),
                     config = config,
                     // Обидва потоки названі явно: тут єдине місце, де видно, що вони різні.
                     scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),

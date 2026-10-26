@@ -6,6 +6,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -26,7 +28,9 @@ internal class EventUseCases(
     private val store: AppStore,
     private val library: UserLibrary,
     private val reloader: Reloader,
-    private val follows: FollowUseCases? = null
+    private val follows: FollowUseCases? = null,
+    /** Дні з закладкою, приєднанням чи доброю оцінкою: чи пора просити відгук. Null — лише після оцінки. */
+    private val goodDays: SeenRequestStore? = null
 ) {
     /** Повтор непевного створення має взяти той самий id, інакше опублікує другу подію. */
     private var pendingCreation: Pair<EventDraft, String>? = null
@@ -49,6 +53,7 @@ internal class EventUseCases(
         PoruchAnalytics.track("event_join", "by_request" to byRequest)
         if (companion) PoruchAnalytics.track("companion_join")
         store.tell(if (byRequest) AppMessage.REQUEST_SENT else AppMessage.JOINED_EVENT)
+        goodMoment()
     }
 
     fun joinWaitlist(id: String) = store.mutate {
@@ -78,9 +83,18 @@ internal class EventUseCases(
         participation.rate(id, score, comment?.trim()?.take(RatingRules.COMMENT_MAX)?.ifEmpty { null }, tags)
         reloader.changed(id)
         store.tell(AppMessage.RATING_SENT)
-        if (score >= RatingRules.REVIEW_PROMPT_MIN) store.update { it.copy(reviewMoment = true) }
+        if (score >= RatingRules.REVIEW_PROMPT_MIN) goodMoment(sure = true)
         // Підписка окремо й після: запит на неї не тримає ні оцінку, ні шторку.
         if (room != null && follow != null) follows?.afterRating(room.organizerId, room.organizerName, follow)
+    }
+
+    /**
+     * Добра дія: запам'ятовуємо день і просимо відгук, коли таких днів уже [RatingRules.REVIEW_PROMPT_DAYS]. [sure] —
+     * оцінка 4–5: людина сходила й задоволена, днів не чекаємо. Чи справді питати, вирішує платформа (раз на версію).
+     */
+    private fun goodMoment(sure: Boolean = false) {
+        goodDays?.markSeen(setOf(Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date.toString()))
+        if (sure || (goodDays?.seen()?.size ?: 0) >= RatingRules.REVIEW_PROMPT_DAYS) store.update { it.copy(reviewMoment = true) }
     }
 
     /** Подія, яку оцінюють: відкрита, зі «Моїх подій» або з завантажених карток. */
@@ -104,6 +118,7 @@ internal class EventUseCases(
         if (!wasSaved) {
             PoruchAnalytics.track("save", "guest" to guest)
             library.saveMade()
+            goodMoment()
         }
         // Гість зберігає на телефоні, сервер дізнається після входу (docs/guest-saves.md).
         if (guest) return library.setGuestSaved(id, !wasSaved)

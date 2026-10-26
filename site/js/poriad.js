@@ -48,11 +48,11 @@ async function rpc(name, body) {
  * Афіша міста: індекс усіх майбутніх подій (дати й категорії фільтруємо на місці — миттєво) і перші картки.
  * Текст шукає сервер: він бачить ще опис і адресу, яких в індексі нема.
  */
-export async function discover(city, { text = null, cards = 24 } = {}) {
+export async function discover(city, { text = null, cards = 24, category = null, to = null } = {}) {
   const c = cityOf(city);
   const data = await rpc("discover_events", {
     p_south: c.lat - 0.15, p_west: c.lng - 0.25, p_north: c.lat + 0.15, p_east: c.lng + 0.25,
-    p_text: text || null, p_cards: cards,
+    p_text: text || null, p_cards: cards, p_category: category, p_to: to,
   });
   return { index: data.index.map(toEntry), cards: data.cards };
 }
