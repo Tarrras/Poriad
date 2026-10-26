@@ -6,20 +6,24 @@
   <body>
     <template>
       <style>
-      /* Fonts: local, variable Unbounded + Inter 400/600, split cyrillic/latin */
+      /* Fonts: local Sofia Sans Condensed 700/800 + Extra Condensed 800 (the app's own files, Ukrainian д, л, п baked in) and Inter 400/600, split cyrillic/latin */
       @font-face {
-        font-family: "Unbounded";
-        src: url("assets/fonts/unbounded-cyrillic.woff2") format("woff2");
-        font-weight: 200 900;
+        font-family: "Sofia Sans Condensed";
+        src: url("assets/fonts/SofiaSansCondensed-Bold.ttf") format("truetype");
+        font-weight: 700;
         font-display: block;
-        unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
       }
       @font-face {
-        font-family: "Unbounded";
-        src: url("assets/fonts/unbounded-latin.woff2") format("woff2");
-        font-weight: 200 900;
+        font-family: "Sofia Sans Condensed";
+        src: url("assets/fonts/SofiaSansCondensed-ExtraBold.ttf") format("truetype");
+        font-weight: 800;
         font-display: block;
-        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      @font-face {
+        font-family: "Sofia Sans Extra Condensed";
+        src: url("assets/fonts/SofiaSansExtraCondensed-ExtraBold.ttf") format("truetype");
+        font-weight: 800;
+        font-display: block;
       }
       @font-face {
         font-family: "Inter";
@@ -49,21 +53,19 @@
         font-display: block;
         unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
       }
-        #hook-root { position: absolute; inset: 0; overflow: hidden; color: #f5f5f7; font-family: "Inter", system-ui, sans-serif; }
+        #hook-root { position: absolute; inset: 0; overflow: hidden; color: #f3f3f0; font-family: "Inter", system-ui, sans-serif; }
         #hook-root .world { position: absolute; inset: 0; }
         #hook-defs { position: absolute; width: 0; height: 0; }
-        .display { font-family: "Unbounded", system-ui, sans-serif; font-weight: 300; letter-spacing: -0.045em; }
+        .display { font-family: "Sofia Sans Condensed", system-ui, sans-serif; font-weight: 800; letter-spacing: -0.005em; }
 
         /* 1 · the title: three rows of words that rise in, then rush at the camera */
         #hook-ask { transform-origin: 540px 800px; }
         #hook-ask-rows { position: absolute; left: 0; top: 650px; width: 1080px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
-        .ask-row { display: flex; gap: 0.26em; font-size: 88px; line-height: 1.08; white-space: nowrap; }
+        .ask-row { display: flex; gap: 0.22em; font-size: 118px; line-height: 1; white-space: nowrap; }
         .ask-word { display: block; }
 
         /* 2 · the checklist: four pills fanned around the verdict, zig-zagging about x 520 (safe zone x 60–920) */
         #hook-cloud-out, #hook-cloud-carry, #hook-cloud-scale, #hook-cloud-spin { position: absolute; inset: 0; transform-origin: 540px 900px; }
-        #hook-halo { position: absolute; left: 90px; top: 450px; width: 900px; height: 900px; border-radius: 50%; background: radial-gradient(circle closest-side, rgba(109, 74, 201, 0.34), rgba(109, 74, 201, 0)); }
-        .ring { position: absolute; border-radius: 50%; box-shadow: inset 0 0 0 2px rgba(132, 102, 224, 0.45); }
         /* a full-width row whose centre is the pill's centre (row left = cx − 540) */
         .pill-row { position: absolute; width: 1080px; display: flex; justify-content: center; }
         .pill {
@@ -73,21 +75,20 @@
           gap: 18px;
           height: 100px;
           padding: 0 34px 0 18px;
-          border-radius: 50px;
-          background: linear-gradient(90deg, #3a2a9a, #7a5ce6);
-          box-shadow: inset 2px 2px 0 rgba(214, 229, 255, 0.35), 0 24px 60px rgba(0, 0, 0, 0.45);
+          border-radius: 28px;
+          background: #1c1b21;
+          box-shadow: inset 0 0 0 2px #2e2d35, 0 24px 60px rgba(0, 0, 0, 0.45);
           font-weight: 600;
           font-size: 40px;
           line-height: 1;
-          color: #ffffff;
+          color: #f3f3f0;
           white-space: nowrap;
         }
-        .pill.rev { background: linear-gradient(270deg, #3a2a9a, #7a5ce6); }
-        /* an empty checklist box: nobody ticks it */
-        .pill .box { flex: 0 0 auto; display: block; width: 52px; height: 52px; margin-left: 6px; border-radius: 50%; box-shadow: inset 0 0 0 4px rgba(255, 255, 255, 0.78); }
-        /* the verdict «таких не буває?», two lines, Unbounded 900 */
-        #hook-claim-row { position: absolute; left: 0; width: 1080px; top: 770px; height: 260px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        #hook-claim { display: flex; flex-direction: column; align-items: center; font-weight: 900; font-size: 112px; line-height: 1; white-space: nowrap; text-shadow: 0 0 40px rgba(189, 222, 255, 0.25); }
+        /* an empty checklist box (the app's multi-choice mark: a square, radius 7 of 24): nobody ticks it */
+        .pill .box { flex: 0 0 auto; display: block; width: 52px; height: 52px; margin-left: 6px; border-radius: 15px; box-shadow: inset 0 0 0 4px #96959e; }
+        /* the verdict «таких не буває?», two lines */
+        #hook-claim-row { position: absolute; left: 0; width: 1080px; top: 740px; height: 320px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        #hook-claim { display: flex; flex-direction: column; align-items: center; font-weight: 800; font-size: 136px; line-height: 1; letter-spacing: -0.01em; white-space: nowrap; }
         .claim-line { display: block; }
         .g { opacity: 0; }
 
@@ -95,31 +96,40 @@
               (company + stand-up mic), the words fade as the badges grow, and in one frame the badges become
               the event chip and the real «Шукаю компанію» button; the camera lurches onto the button and cuts */
         #hook-head { position: absolute; left: 0; width: 1080px; top: 780px; height: 240px; }
-        .head-line { position: absolute; left: 0; width: 1080px; height: 120px; display: flex; justify-content: center; align-items: center; gap: 0.26em; font-size: 74px; line-height: 1; white-space: nowrap; }
+        .head-line { position: absolute; left: 0; width: 1080px; height: 120px; display: flex; justify-content: center; align-items: center; gap: 0.26em; font-size: 100px; line-height: 1; white-space: nowrap; }
         #hook-l1 { top: 0; }
         #hook-l2 { top: 120px; }
         .hw { display: block; }
         #hook-badges { position: absolute; inset: 0; transform-origin: 540px 900px; }
-        .badge { position: absolute; left: 470px; top: 830px; width: 140px; height: 140px; border-radius: 38px; display: flex; align-items: center; justify-content: center; }
-        #hook-badge-a { background: linear-gradient(140deg, #8466e0, #5536b0); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 0 50px rgba(109, 74, 201, 0.55); z-index: 2; }
+        .badge { position: absolute; left: 470px; top: 830px; width: 140px; height: 140px; border-radius: 30px; display: flex; align-items: center; justify-content: center; }
+        #hook-badge-a { background: #1c1b21; box-shadow: inset 0 0 0 2px #2e2d35, 0 20px 50px rgba(0, 0, 0, 0.5); z-index: 2; }
         #hook-badge-a svg { display: block; width: 76px; height: 76px; }
-        /* the app's stand-up tint (category «Комедія»), the same as the event chip's icon */
-        #hook-badge-b { background: #a07813; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 20px 50px rgba(0, 0, 0, 0.5); z-index: 1; }
+        /* the stand-up stub colour (cat-comedy-stub), the same as the event ticket's stub; the company badge is a ticket face */
+        #hook-badge-b { background: #8d6a11; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5); z-index: 1; }
         #hook-badge-b svg { display: block; width: 80px; height: 80px; }
-        #hook-link { position: absolute; left: 510px; top: 893px; width: 60px; height: 14px; border-radius: 7px; background: #6d4ac9; transform-origin: 0 50%; }
+        /* the link between them is a tear line: perforation dots */
+        #hook-link { position: absolute; left: 510px; top: 893px; width: 60px; height: 14px; background: radial-gradient(circle at 7px 7px, #a6a5ad 3.5px, transparent 4px) 0 0 / 15px 14px repeat-x; transform-origin: 0 50%; }
         /* the cluster: crops of the real screens (natural-size crop, scaled), each a card on the ground */
         #hook-cl-drift, #hook-cl-lurch { position: absolute; inset: 0; transform-origin: 540px 880px; }
-        .ui-card { position: absolute; overflow: hidden; background: #ffffff; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08); }
+        .ui-card { position: absolute; overflow: hidden; background: transparent; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08); }
         .ui-card img { position: absolute; left: 0; top: 0; display: block; object-fit: none; transform-origin: 0 0; }
         .ui-flash { position: absolute; inset: 0; background: #ffffff; opacity: 0; }
-        /* glass chips in the style of poriad.app (its hero chip cards, scaled for the frame) */
+        /* «Корінець» tickets (DESIGN.md): a neutral face and, past the perforation, a stub in the genre's colour with the time */
         .chip-row { position: absolute; left: 0; width: 1080px; display: flex; justify-content: center; }
-        .chip { position: relative; display: flex; align-items: center; gap: 30px; padding: 28px 44px 28px 28px; border-radius: 56px; overflow: hidden; color: #ffffff; background: rgba(30, 30, 38, 0.72); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.12), 0 50px 120px -30px rgba(0, 0, 0, 0.7); }
-        .chip-ico { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; width: 104px; height: 104px; border-radius: 30px; }
-        .chip-ico svg { display: block; width: 58px; height: 58px; }
-        .chip-ico.num { background: #2a2a33; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14); font-family: "Unbounded", system-ui, sans-serif; font-weight: 300; font-size: 70px; line-height: 1; color: #f5f5f7; }
-        .chip b { display: block; font-weight: 600; font-size: 40px; line-height: 1.25; white-space: nowrap; }
-        .chip small { display: block; margin-top: 4px; font-weight: 400; font-size: 32px; line-height: 1.25; color: rgba(255, 255, 255, 0.66); white-space: nowrap; }
+        .chip { position: relative; display: flex; align-items: stretch; border-radius: 30px; overflow: hidden; color: #f3f3f0; box-shadow: 0 50px 120px -30px rgba(0, 0, 0, 0.7); }
+        .chip-face { display: flex; flex-direction: column; justify-content: center; padding: 30px 40px; border-radius: 30px 0 0 30px; background: #1c1b21; box-shadow: inset 0 0 0 2px #2e2d35; }
+        .chip-face b { display: block; font-family: "Sofia Sans Condensed", system-ui, sans-serif; font-weight: 700; font-size: 50px; line-height: 1.05; white-space: nowrap; }
+        .chip-face small { display: block; margin-top: 8px; font-weight: 400; font-size: 30px; line-height: 1.25; color: #a6a5ad; white-space: nowrap; }
+        .chip-stub { position: relative; flex: 0 0 auto; min-width: 176px; padding: 24px 22px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: #ffffff; }
+        .chip-stub .genre { font-family: "Sofia Sans Condensed", system-ui, sans-serif; font-weight: 800; font-size: 28px; line-height: 1; letter-spacing: 1.4px; text-transform: uppercase; }
+        .chip-stub .time { font-family: "Sofia Sans Extra Condensed", system-ui, sans-serif; font-weight: 800; font-size: 76px; line-height: 0.95; font-variant-numeric: tabular-nums; }
+        .chip-stub .day { font-weight: 600; font-size: 28px; line-height: 1; letter-spacing: 1.4px; text-transform: uppercase; }
+        .chip-stub svg { display: block; width: 52px; height: 52px; }
+        /* the tear line: canvas-coloured dots punched through, and two half-round notches */
+        .chip-perf { position: absolute; left: -7px; top: 26px; bottom: 26px; width: 14px; background: radial-gradient(circle at 7px 7px, #0f0f13 3.4px, transparent 3.9px) 0 0 / 14px 18px repeat-y; }
+        .chip-notch { position: absolute; left: -15px; width: 30px; height: 30px; border-radius: 50%; background: #0f0f13; }
+        .chip-notch.t { top: -15px; }
+        .chip-notch.b { bottom: -15px; }
         .chip .ui-flash { background: rgba(255, 255, 255, 0.35); }
       </style>
 
@@ -134,10 +144,6 @@
           <div data-hf-id="hf-7uhj" id="hook-cloud-out">
             <div data-hf-id="hf-qere" id="hook-cloud-carry">
               <div data-hf-id="hf-nsux" id="hook-cloud-scale">
-                <div data-hf-id="hf-82t3" id="hook-halo"></div>
-                <div data-hf-id="hf-22bh" class="ring" style="left: 230px; top: 590px; width: 620px; height: 620px"></div>
-                <div data-hf-id="hf-epfz" class="ring" style="left: 170px; top: 530px; width: 740px; height: 740px"></div>
-                <div data-hf-id="hf-ufxn" class="ring" style="left: 110px; top: 470px; width: 860px; height: 860px"></div>
                 <div data-hf-id="hf-9pfh" id="hook-cloud-spin"></div>
                 <div data-hf-id="hf-rjvs" id="hook-claim-row"><div data-hf-id="hf-9vbr" id="hook-claim" class="display"></div></div>
               </div>
@@ -172,15 +178,15 @@
               { text: "сміється з тих самих жартів", cx: 480, top: 545 },
               { text: "не питає «а це смішно?»", cx: 560, top: 660, rev: true },
               { text: "не сидить у телефоні", cx: 480, top: 1045 },
-              { text: "може в пт о 19:00", cx: 560, top: 1160, rev: true },
+              { text: "може в чт о 19:00", cx: 560, top: 1160, rev: true },
             ],
             claim: [["таких"], ["не", "буває?"]],
             turn: [["буває.", "ви", "просто"], ["ще", "не", "знайомі"]],
             // what the badges become: the event (where, when) and the real «Шукаю компанію» button (the match cut into the phone).
             // Crops are screenshot px [x, y, w, h]
             ui: [
-              { chip: true, top: 610, icon: "comedy", tint: "#a07813", title: "СТЕНДАП у П’ЯТНИЦЮ", sub: "пт · 19:00" },
-              { src: "assets/ui/c2-1-detail.png", crop: [84, 2332, 1036, 150], r: 75, left: 140, top: 822, w: 800 },
+              { chip: true, top: 590, title: "Підпільний Стендап в Central Hall", sub: "CENTRAL HALL", stub: "#8d6a11", genre: "стендап", time: "19:00", day: "у четвер" },
+              { src: "assets/ui/c2-1-detail.png", crop: [84, 2328, 786, 156], r: 42, left: 140, top: 801, w: 800 },
             ],
           };
           const T = {
@@ -271,8 +277,8 @@
             const w = $(li ? "#hook-l2" : "#hook-l1").appendChild(el("span", "hw", word));
             const at = T.words[k++];
             // each word lands whole, tinted violet, and settles to ink
-            tl.fromTo(w, { opacity: 0, y: 50, color: "#a58cff" }, { opacity: 1, y: 0, duration: 0.35, ease: "power3.out" }, at);
-            tl.to(w, { color: "#f5f5f7", duration: 0.12, ease: "none" }, at + 0.17);
+            tl.fromTo(w, { opacity: 0, y: 50, color: "#a6a5ad" }, { opacity: 1, y: 0, duration: 0.35, ease: "power3.out" }, at);
+            tl.to(w, { color: "#f3f3f0", duration: 0.12, ease: "none" }, at + 0.17);
             smear(w, [0, 10], at, 0.18);
           }));
           // split 1: the lines part and the company badge grows in the gap
@@ -300,14 +306,19 @@
             const row = $("#hook-cl-lurch").appendChild(el("div", "chip-row"));
             row.style.top = `${u.top}px`;
             const c = row.appendChild(el("div", "chip"));
-            const ico = c.appendChild(el("div", u.num ? "chip-ico num" : "chip-ico", u.num ?? null));
-            if (u.icon) {
-              ico.style.background = u.tint;
-              ico.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${ICONS[u.icon]}" fill="none" stroke="#ffffff" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-            }
-            const txt = c.appendChild(el("div"));
-            txt.appendChild(el("b", "", u.title));
-            txt.appendChild(el("small", "", u.sub));
+            const face = c.appendChild(el("div", "chip-face"));
+            face.appendChild(el("b", "", u.title));
+            face.appendChild(el("small", "", u.sub));
+            const stub = c.appendChild(el("div", "chip-stub"));
+            stub.style.background = u.stub;
+            if (u.ink) stub.style.color = u.ink;
+            stub.appendChild(el("div", "chip-perf"));
+            stub.appendChild(el("div", "chip-notch t"));
+            stub.appendChild(el("div", "chip-notch b"));
+            if (u.icon) stub.appendChild(el("div")).innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${ICONS[u.icon]}" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+            if (u.genre) stub.appendChild(el("span", "genre", u.genre));
+            stub.appendChild(el("span", "time", u.time));
+            if (u.day) stub.appendChild(el("span", "day", u.day));
             return c;
           };
           COPY.ui.forEach((u, i) => {

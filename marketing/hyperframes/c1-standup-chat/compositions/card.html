@@ -7,18 +7,18 @@
     <template>
       <style>
         #card-root { position: absolute; inset: 0; pointer-events: none; }
-        /* the «Ваш пошук» card, cut from the same screenshot the phone shows (x 20–1186, y 1075–1475 px, 0.65180 px per px) */
-        #card-move { position: absolute; left: 160px; top: 800px; width: 760px; height: 261px; transform-origin: 0 0; }
-        #card-shadow { position: absolute; inset: 0; border-radius: 34px; box-shadow: 0 50px 120px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.08); opacity: 0; }
-        #card-face { position: absolute; inset: 0; border-radius: 34px; overflow: hidden; background: #f5f5f7; }
+        /* the «Шукають компанію» band with the «Ваш пошук» card, cut from the same screenshot the phone shows (x 24–1182, y 1550–1950 px, 0.65630 px per px) */
+        #card-move { position: absolute; left: 160px; top: 800px; width: 760px; height: 262.5px; transform-origin: 0 0; }
+        #card-shadow { position: absolute; inset: 0; border-radius: 26px; box-shadow: 0 50px 120px rgba(0, 0, 0, 0.6); opacity: 0; }
+        #card-face { position: absolute; inset: 0; border-radius: 26px; overflow: hidden; background: #0f0f13; box-shadow: inset 0 0 0 2px #2e2d35; }
         /* natural-size crop scaled down, so the picture's box is exactly the card */
-        #card-face img { position: absolute; left: 0; top: 0; width: 1166px; height: 400px; object-fit: none; object-position: -20px -1075px; transform: scale(0.6518); transform-origin: 0 0; display: block; }
+        #card-face img { position: absolute; left: 0; top: 0; width: 1158px; height: 400px; object-fit: none; object-position: -24px -1550px; transform: scale(0.656304); transform-origin: 0 0; display: block; }
       </style>
 
       <div data-hf-id="hf-d7kc" id="card-root" data-composition-id="card" data-width="1080" data-height="1920">
         <div data-hf-id="hf-o1uz" id="card-move">
           <div data-hf-id="hf-i8q8" id="card-shadow"></div>
-          <div data-hf-id="hf-4r0v" id="card-face"><img data-hf-id="hf-608p" src="assets/ui/c1-5-mine.png" alt="Шукають компанію: Місце зустрічі, 0 з 3, ваш пошук"></div>
+          <div data-hf-id="hf-4r0v" id="card-face"><img data-hf-id="hf-608p" src="assets/ui/c1-4-after.png" alt="Шукають компанію: Місце зустрічі, 0 з 3, ваш пошук"></div>
         </div>
       </div>
 
@@ -27,8 +27,8 @@
           // Carrier proof → turn (local s; the section starts at 8.5 = the proof's last camera has landed).
           // The lift is centred on the seam (9.3 root = 0.8 local), so the card crosses it at full speed.
           const T = { lift: 0.25, liftEnd: 1.35, out: 2.31, end: 2.64 };
-          // = the card's rect inside the phone at the proof's last camera (s 1.95 → 0.75995 canvas px per screenshot px)
-          const MATCH = { x: -93.05, y: -134.27, scale: 1.16592 };
+          // = the band's rect inside the phone at the proof's last camera (s 1.95 → 0.75995 canvas px per screenshot px)
+          const MATCH = { x: -90.01, y: -131.99, scale: 1.15792 };
           const tl = gsap.timeline({ paused: true });
           // lifts out of the phone while the phone falls away, lands in the turn
           tl.fromTo("#card-move", { ...MATCH }, { x: 0, y: 0, scale: 1, duration: T.liftEnd - T.lift, ease: "expo.inOut", immediateRender: true }, T.lift);

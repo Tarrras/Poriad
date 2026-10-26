@@ -213,5 +213,18 @@
     "audio": "Music unchanged (brand.m4a from 16.0 s, volume lane to 0 at 10 s). SFX: remove the old 0.48 s pin_pop; pin_pop_1 at 2.98 s (hero pin impact, volume 0.35); whoosh at 5.35 s (0.3); whoosh at 7.4 s (0.25); pin_pop_2 at 7.95 s (0.35).",
     "lockup_base": "Corner lockup positions stay as now (16:9: x=96 y=76, icon 72, name 48px; 9:16: left 66 top 258, icon 64, name 42px). It is visible from 0.0 s (pop 0–0.3) and NEVER fades out any more — it is one persistent object: corner → headline (3.0) → corner (5.05) → end card (7.5).",
     "supersedes": "Where v2 conflicts with the v1 fields above (copy, timings, colours, lockup, audio), v2 wins."
+  },
+  "korinets_2026_10_26": {
+    "supersedes": [
+      "style",
+      "palette",
+      "font",
+      "the drawn event card"
+    ],
+    "world": "«Корінець» (DESIGN.md, marketing/scripts/README.md → Бренд-біблія): night canvas #0F0F13, day canvas #F2F2F4 for the paper scene, paper #F3F3F0, ink #141417, second ink #A6A5AD, hairline #2E2D35; no glow, no brand gradient",
+    "font": "Sofia Sans Condensed 700/800 for lines and the name, Sofia Sans Extra Condensed 800 tabular for «3»; Inter for small print (assets/fonts, Ukrainian д, л, п baked in)",
+    "name": "«Поряд» paper on night, ink on the paper scene — never coral; coral stays only as the dot of the brand pin (the app icon's own mark)",
+    "pins": "raw category hues cat-* (music, games, food, outdoors, art, sport)",
+    "card": "a real ticket from the app instead of the drawn «Котики Фест»: assets/ui/home.png (home → «У місті», «Kyiv Modern-Ballet», art stub «15.11 до»), crop x 46–1004, y 483–1567"
   }
 }

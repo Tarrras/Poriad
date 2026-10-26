@@ -7,7 +7,7 @@ User feedback on v1:
 
 This grid is a **brand constant**, the same in all videos. Each film styles it in its own language (ground, colour, entrance motion), but the positions, order, alignment and sizes below are fixed.
 
-Type and colour follow the «Корінець» world ([DESIGN.md](../../../DESIGN.md), updated here 26.10): Sofia Sans from `korinets/fonts/` (baked Ukrainian д, л, п), Inter for small print, no coral on the wordmark — the same as the app splash. All finished 9:16 films were re-rendered with this on 26.10. Only the old-UI projects C1–C4 and `poriad-10s-9x16` (Unbounded, coral name, no renders) still follow the previous version.
+Type and colour follow the «Корінець» world ([DESIGN.md](../../../DESIGN.md), updated here 26.10): Sofia Sans from `korinets/fonts/` (baked Ukrainian д, л, п), Inter for small print, no coral on the wordmark — the same as the app splash. All finished 9:16 films were re-rendered with this on 26.10, and C1–C4 and `poriad-10s-9x16` were rebuilt in «Корінець» the same day: no film follows the previous version any more.
 
 ## Grid (1080×1920, centred column, axis x = 540)
 

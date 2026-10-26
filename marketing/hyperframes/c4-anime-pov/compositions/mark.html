@@ -6,20 +6,24 @@
   <body>
     <template>
       <style>
-      /* Fonts: local, variable Unbounded + Inter 400/600, split cyrillic/latin */
+      /* Fonts: local Sofia Sans Condensed 700/800 + Extra Condensed 800 (the app's own files, Ukrainian д, л, п baked in) and Inter 400/600, split cyrillic/latin */
       @font-face {
-        font-family: "Unbounded";
-        src: url("assets/fonts/unbounded-cyrillic.woff2") format("woff2");
-        font-weight: 200 900;
+        font-family: "Sofia Sans Condensed";
+        src: url("assets/fonts/SofiaSansCondensed-Bold.ttf") format("truetype");
+        font-weight: 700;
         font-display: block;
-        unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
       }
       @font-face {
-        font-family: "Unbounded";
-        src: url("assets/fonts/unbounded-latin.woff2") format("woff2");
-        font-weight: 200 900;
+        font-family: "Sofia Sans Condensed";
+        src: url("assets/fonts/SofiaSansCondensed-ExtraBold.ttf") format("truetype");
+        font-weight: 800;
         font-display: block;
-        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      @font-face {
+        font-family: "Sofia Sans Extra Condensed";
+        src: url("assets/fonts/SofiaSansExtraCondensed-ExtraBold.ttf") format("truetype");
+        font-weight: 800;
+        font-display: block;
       }
       @font-face {
         font-family: "Inter";
@@ -50,13 +54,13 @@
         unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
       }
         #mark-root { position: absolute; inset: 0; pointer-events: none; }
-        /* the «Поряд» lockup, as in the brand end card: icon over the name in coral (the only coral in the film).
+        /* the «Поряд» lockup, as in the brand end card: icon over the name in paper #F3F3F0, as on the app splash (never coral).
            Revealed once in the turn under the card, then travels into the end card and lands in the v2 grid: icon 560–736, name cap-top 790 (_material/END-CARD.md) */
         #mark-row { position: absolute; left: 0; width: 1080px; top: 560px; height: 342px; display: flex; justify-content: center; align-items: flex-start; }
         #mark-move, #mark-in { display: block; transform-origin: 50% 50%; }
         #mark-grow { display: flex; flex-direction: column; align-items: center; }
         #mark-icon { display: block; width: 176px; height: 176px; border-radius: 40px; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 30px 110px rgba(0, 0, 0, 0.5); }
-        #mark-name { display: block; margin-top: 38px; font-family: "Unbounded", system-ui, sans-serif; font-weight: 900; font-size: 128px; line-height: 1; letter-spacing: -0.045em; color: #E0582F; white-space: nowrap; }
+        #mark-name { display: block; margin-top: 38px; font-family: "Sofia Sans Condensed", system-ui, sans-serif; font-weight: 800; font-size: 128px; line-height: 1; letter-spacing: -1px; color: #F3F3F0; white-space: nowrap; }
       </style>
 
       <div data-hf-id="hf-njki" id="mark-root" data-composition-id="mark" data-width="1080" data-height="1920">

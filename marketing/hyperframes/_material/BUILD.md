@@ -3,6 +3,8 @@
 Scripts with copy and timing: `marketing/scripts/companions-tiktok.md` (Ukrainian, binding — copy text exactly).
 Projects: `marketing/hyperframes/{c1-standup-chat,c2-standup-list,c3-anime-multiki,c4-anime-pov}/` (each already `hyperframes init`-ed; assets copied into its `assets/`).
 
+> 26.10: the series was rebuilt in the «Корінець» world (`marketing/scripts/README.md` → Бренд-біблія; `companions-tiktok.md` → 26.10). Read the look, fonts, coral, chips and end card below as history: night `#0F0F13` without glow, Sofia Sans instead of Unbounded, ticket-face pills with stub-tile avatars, «Корінець» tickets instead of glass chips, «Поряд» in paper, the end card from `END-CARD.md`. The UI is the new app (screens from 26.10, dev); its points are in each `compositions/proof.html`.
+
 ## Canvas and safe zones
 - 1080×1920, 30 fps, ~11 s (C3 11.5 s). Root composition id `main`.
 - TikTok/Reels UI covers: top 0–250 and bottom 1450–1920 → background only there; right 940–1080 → no text. All text and the key UI moments live inside x 60–920, y 250–1450.
