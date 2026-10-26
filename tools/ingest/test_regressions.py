@@ -185,6 +185,17 @@ class RegressionTests(unittest.TestCase):
                                                            "availability": "https://schema.org/InStock"}}),
                          (0.0, True))                                   # йой!: справді безкоштовна
 
+    def test_concert_ua_paused_sale_zero_is_not_free(self):
+        # concert.ua/uk/event/vistava-skljanii-zvirinec-teatr-gart-01 і …/dk-energetik-kharkiv, 2026-10-26: кнопка
+        # «Продаж призупинено», а Badseller продає ГАРТ 13.11 за 550 ₴.
+        paused = {"@type": "Offer", "category": "primary", "price": 0, "priceCurrency": "UAH",
+                  "availability": "http://schema.org/InStock",
+                  "seller": {"@type": "Organization", "name": "Квитковий оператор Concert.ua"}}
+        self.assertEqual(normalize.parse_price({"offers": paused}), (None, None))
+        self.assertEqual(normalize.parse_price({"offers": {**paused, "price": 550}}), (550.0, False))
+        perk = "🪖 Для учасників бойових дій (УБД) надається безкоштовний вхід, зверніться, до служби турботи."
+        self.assertEqual(normalize.parse_price({"offers": paused, "description": perk}), (None, None))
+
     def test_cancelled_and_postponed_never_publish(self):
         for status in ["EventCancelled", "https://schema.org/EventPostponed"]:
             with self.subTest(status=status):
