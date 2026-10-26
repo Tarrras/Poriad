@@ -7,17 +7,19 @@ User feedback on v1:
 
 This grid is a **brand constant**, the same in all videos. Each film styles it in its own language (ground, colour, entrance motion), but the positions, order, alignment and sizes below are fixed.
 
+Type and colour follow the «Корінець» world ([DESIGN.md](../../../DESIGN.md), updated here 26.10): Sofia Sans from `korinets/fonts/` (baked Ukrainian д, л, п), Inter for small print, no coral on the wordmark — the same as the app splash. Films made before 26.10 (Unbounded, or a coral «Поряд» as in K1–K3) stay as they are.
+
 ## Grid (1080×1920, centred column, axis x = 540)
 
 Safe zone: text only inside x 160–920 (centred, max width 760) and y 250–1450. The right edge 940–1080 and the bottom 1450–1920 belong to TikTok/Reels UI and stay empty (ground only).
 
 | Group | Element | Position | Type |
 |---|---|---|---|
-| 1. Question | the bait from the script (e.g. «скільки ти вже в новому місті? 👇») | **centred**, top of text y ≈ 300, max 2 lines, max width 760 | Unbounded 300, 52 px, line-height 1.15 |
+| 1. Question | the bait from the script (e.g. «скільки ти вже в новому місті? 👇») | **centred**, top of text y ≈ 300, max 2 lines, max width 760 | Sofia Sans Condensed 700, 58–60 px, line-height 1.1 |
 | ↓ air ≥ 120 px | | | |
 | 2. Brand | app icon | centred, 176×176, radius 40, top y ≈ 560 | official `icon.png` |
-| | «Поряд» wordmark | centred, cap-top y ≈ 790 | Unbounded 900, 128 px, coral `#E0582F` (the only coral) |
-| | **brand slogan «Є куди. Буде з ким.»** (every video, verbatim) | centred, y ≈ 950 | Unbounded 300, 40 px, muted (never coral) |
+| | «Поряд» wordmark | centred, cap-top y ≈ 790 | Sofia Sans Condensed 800, 128 px, tracking −1 px, paper `#F3F3F0` on night (ink `#141417` on day). Never coral: coral is urgency stamp ink only |
+| | **brand slogan «Є куди. Буде з ким.»** (every video, verbatim) | centred, y ≈ 950 | Sofia Sans Condensed 700, 44 px, second ink `#A6A5AD` night / `#5E5E66` day (never coral) |
 | ↓ air ≥ 140 px | | | |
 | 3. Stores | «безкоштовно» | centred, y ≈ 1110 | Inter 600, 34 px |
 | | **two official badges side by side**: App Store on the left, Google Play on the right | row top y = 1176, both **height 104 px** (Google Play is never smaller than App Store), gap 32 px, centred as a pair (≈ x 196–884) | `appstore-badge-uk.svg` (≈306×104), `googleplay-badge-uk.svg` (≈351×104) |
