@@ -74,7 +74,10 @@ function dateRange(picks) {
 const listing = (words) => words.length < 2 ? words.join("") : `${words.slice(0, -1).join(", ")} і ${words.at(-1)}`;
 const isPeople = (e) => e.origin === "community";
 
-/** Рядок події: емодзі, час (з днем, коли блок не по днях), назва-посилання; під ним хто збирає, заклад і ціна. */
+/**
+ * Рядок події: емодзі, час (з днем, коли блок не по днях), назва-посилання; під ним речення «що це» (events.blurb від
+ * агента імпорту, коли є: назва продавця часто не каже, що це за подія) і хто збирає, заклад, ціна.
+ */
 function eventLines(e, cards, withDay) {
   const start = new Date(e.startsAt);
   const card = cards.get(e.id) ?? {};
@@ -83,7 +86,7 @@ function eventLines(e, cards, withDay) {
   const host = isPeople(e) && card.organizer_name ? `Збирає ${card.organizer_name}` : null;
   const meta = [host, card.place_name, price(free ? card : { ...card, is_free: false })].filter(Boolean).join(" · ");
   const time = `${withDay ? `${upper(weekday(start, e.tz, "short"))} ` : ""}${timeOf(start, e.tz)}`;
-  return [`${EMOJI[e.category] ?? "📍"} <b>${time}</b> <a href="${eventUrl(e)}">${esc(displayTitle(e.title))}</a>`, ...(meta ? [esc(meta)] : [])];
+  return [`${EMOJI[e.category] ?? "📍"} <b>${time}</b> <a href="${eventUrl(e)}">${esc(displayTitle(e.title))}</a>`, card.blurb, meta].filter(Boolean).map((line, i) => i ? esc(line) : line);
 }
 
 /**
