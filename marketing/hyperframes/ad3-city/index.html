@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <title>AD3 · місто з квитків — TikTok-реклама, 14 с, 9:16</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face { font-family: "Sofia Sans Condensed"; src: url("assets/fonts/SofiaSansCondensed-Bold.ttf") format("truetype"); font-weight: 700; font-display: block; }
+      @font-face { font-family: "Sofia Sans Condensed"; src: url("assets/fonts/SofiaSansCondensed-ExtraBold.ttf") format("truetype"); font-weight: 800; font-display: block; }
+      @font-face { font-family: "Sofia Sans Extra Condensed"; src: url("assets/fonts/SofiaSansExtraCondensed-ExtraBold.ttf") format("truetype"); font-weight: 800; font-display: block; }
+      @font-face { font-family: "Inter"; src: url("assets/fonts/inter-cyrillic-400-normal.woff2") format("woff2"); font-weight: 400; font-display: block; unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+      @font-face { font-family: "Inter"; src: url("assets/fonts/inter-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: block; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+      @font-face { font-family: "Inter"; src: url("assets/fonts/inter-cyrillic-600-normal.woff2") format("woff2"); font-weight: 600; font-display: block; unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+      @font-face { font-family: "Inter"; src: url("assets/fonts/inter-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-display: block; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+
+      /* The night city from the app's map tilts into 3D; «Корінець» tickets of real events shoot up
+         from the pins like fireworks; the camera flies through them, whips into the phone (real map →
+         real event page), and the slogan lands in two halves. «Поряд» is paper #F3F3F0, never coral. */
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1080px; height: 1920px; overflow: hidden; background: #0f1017; }
+      #root { position: relative; width: 100%; height: 100%; overflow: hidden; color: #f3f3f0; font-family: "Sofia Sans Condensed", sans-serif; background: #0f1017; }
+      #shake { position: absolute; inset: 0; }
+
+      /* ---- the 3D city */
+      #stage { position: absolute; inset: 0; perspective: 1000px; perspective-origin: 50% 25%; overflow: hidden;
+        background: radial-gradient(90% 45% at 50% 30%, #241d3c 0%, #14131f 45%, #0f1017 75%); }
+      #world { position: absolute; left: 540px; top: 1200px; width: 0; height: 0; transform-style: preserve-3d; }
+      #plane { position: absolute; left: -784px; top: -760px; width: 1568px; height: 1521px; transform-style: preserve-3d; }
+      #plane img { display: block; width: 1568px; height: 1521px; filter: brightness(1.35) saturate(1.25);
+        -webkit-mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, #000 50%, transparent 100%); }
+      #plane .glow { position: absolute; inset: 0;
+        background: radial-gradient(40% 32% at 50% 48%, rgba(255, 196, 120, 0.22), transparent 70%), radial-gradient(30% 22% at 30% 70%, rgba(96, 65, 177, 0.35), transparent 70%); }
+      .ring { position: absolute; width: 90px; height: 90px; margin: -45px 0 0 -45px; border-radius: 50%; border: 6px solid #fff; opacity: 0; }
+
+      /* a ticket standing on its pin (hinged at its bottom edge) */
+      .tk { position: absolute; width: 300px; height: 112px; margin: -112px 0 0 -150px; transform-origin: 50% 100%; opacity: 0;
+        filter: drop-shadow(0 18px 24px rgba(0, 0, 0, 0.55)); }
+      .tk .body { position: absolute; left: 0; top: 0; width: 214px; height: 112px; border-radius: 18px 0 0 18px; background: #1c1b21; box-shadow: inset 0 0 0 2px #34333b;
+        padding: 14px 12px 0 18px; font-weight: 800; font-size: 29px; line-height: 31px; color: #f3f3f0; overflow: hidden; }
+      .tk .stub { position: absolute; left: 214px; top: 0; width: 86px; height: 112px; border-radius: 0 18px 18px 0; color: #fff;
+        display: flex; flex-direction: column; align-items: center; justify-content: center; }
+      .tk .g { font-weight: 800; font-size: 12px; letter-spacing: 1.5px; }
+      .tk .t { font-family: "Sofia Sans Extra Condensed", sans-serif; font-weight: 800; font-size: 44px; line-height: 44px; }
+      .tk .n { position: absolute; left: 203px; width: 22px; height: 22px; border-radius: 50%; background: #0f1017; }
+      .tk .n.a { top: -11px; } .tk .n.b { bottom: -11px; }
+
+      #sweep { position: absolute; top: 0; left: 0; width: 900px; height: 1920px; pointer-events: none; mix-blend-mode: screen; opacity: 0;
+        background: linear-gradient(100deg, transparent 30%, rgba(255, 236, 210, 0.22) 50%, transparent 70%); }
+
+      /* ---- type */
+      #hook { position: absolute; left: 100px; top: 260px; width: 880px; text-align: center; z-index: 4; }
+      #hook span { display: block; font-weight: 800; font-size: 104px; line-height: 104px; letter-spacing: -1px; text-shadow: 0 6px 30px rgba(0, 0, 0, 0.6); }
+      #hook .b { font-size: 92px; line-height: 100px; }
+      #words { position: absolute; left: 0; top: 300px; width: 1080px; height: 260px; z-index: 4; }
+      .w { position: absolute; left: 0; top: 0; width: 1080px; display: flex; justify-content: center; opacity: 0; }
+      .w span { display: block; padding: 4px 44px 18px; border-radius: 28px; color: #fff; font-family: "Sofia Sans Extra Condensed", sans-serif; font-weight: 800;
+        font-size: 190px; line-height: 190px; letter-spacing: 1px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45); }
+
+      /* ---- the phone: 490-px screen (k = 490/1206) */
+      #phone { position: absolute; z-index: 5; left: 280px; top: 560px; width: 520px; height: 1095px; border-radius: 84px; background: #0a0a0c; opacity: 0;
+        box-shadow: 0 0 0 2px #2b2a31, 0 60px 120px rgba(0, 0, 0, 0.7); }
+      #phone .screen { position: absolute; left: 15px; top: 15px; width: 490px; height: 1065px; border-radius: 70px; overflow: hidden; background: #0f0f13; }
+      #phone .screen img { position: absolute; left: 0; top: 0; display: block; width: 490px; height: 1065px; }
+      #ring { position: absolute; left: 39px; top: 951px; width: 339px; height: 83px; border-radius: 30px; border: 6px solid #f3f3f0; opacity: 0;
+        box-shadow: 0 0 30px rgba(243, 243, 240, 0.6); }
+
+      .plate { position: absolute; left: 120px; width: 840px; display: flex; justify-content: center; opacity: 0; z-index: 6; }
+      .plate span { display: block; background: #f3f3f0; color: #141417; border-radius: 22px; padding: 8px 34px 18px; font-weight: 800; font-size: 120px; line-height: 124px; letter-spacing: -1px; white-space: nowrap;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5); }
+      #s1 { top: 300px; }
+      #s2 { top: 960px; }
+
+      /* ---- end card (END-CARD.md grid, «Корінець» type like k1-print): the brand ticket body carries icon and «Поряд», its paper stub the slogan */
+      #endbg { position: absolute; inset: 0; z-index: 7; background: radial-gradient(80% 40% at 50% 42%, #1b1b25 0%, #0f1017 70%); opacity: 0; }
+      #brand { position: absolute; z-index: 8; left: 160px; top: 520px; width: 760px; height: 510px; opacity: 0;
+        -webkit-mask: radial-gradient(circle 19px at 0 385px, transparent 18px, #000 19px) left / 51% 100% no-repeat,
+                      radial-gradient(circle 19px at 100% 385px, transparent 18px, #000 19px) right / 51% 100% no-repeat; }
+      #brand .body { position: absolute; left: 0; top: 0; width: 760px; height: 385px; border-radius: 36px 36px 0 0; background: #1c1b21; box-shadow: inset 0 0 0 2px #2e2d35; }
+      #brand .icon { position: absolute; left: 292px; top: 40px; width: 176px; height: 176px; border-radius: 40px; }
+      #brand .name { position: absolute; left: 0; top: 248px; width: 760px; text-align: center; font-weight: 800; font-size: 128px; line-height: 128px; letter-spacing: -1px; color: #f3f3f0; }
+      #brand .stub { position: absolute; left: 0; top: 385px; width: 760px; height: 125px; border-radius: 0 0 36px 36px; background: #f3f3f0; color: #141417;
+        display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 44px; }
+      #brand .perf { position: absolute; left: 26px; right: 26px; top: 384px; border-top: 3px dotted rgba(243, 243, 240, 0.45); }
+      #bait { position: absolute; z-index: 8; left: 160px; top: 296px; width: 760px; text-align: center; font-weight: 700; font-size: 60px; line-height: 66px; opacity: 0; }
+      #free { position: absolute; z-index: 8; left: 0; top: 1104px; width: 1080px; text-align: center; font-family: "Inter", sans-serif; font-weight: 600; font-size: 34px; line-height: 40px; color: #c8c7d0; opacity: 0; }
+      #store { position: absolute; z-index: 8; left: 0; top: 1176px; width: 1080px; display: flex; flex-direction: column; align-items: center; opacity: 0; }
+      #badges { display: flex; gap: 32px; }
+      /* official badges: untouched files, both 104 px tall, no transform/filter/shadow */
+      #badges img { display: block; height: 104px; width: auto; }
+      #store .tm { margin-top: 22px; text-align: center; font-family: "Inter", sans-serif; font-weight: 400; font-size: 20px; line-height: 28px; color: #96959e; white-space: nowrap; }
+
+      #flash { position: absolute; inset: 0; z-index: 9; background: #fff; opacity: 0; pointer-events: none; }
+      #grain { position: absolute; z-index: 10; inset: 0; pointer-events: none; opacity: 0.08; mix-blend-mode: overlay; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="14" data-fps="30" data-width="1080" data-height="1920">
+      <div id="shake">
+        <!-- the fireworks are a flourish, not reading material: tickets pass in 3D and are exempt from layout/readability -->
+        <div id="stage" data-layout-ignore>
+          <div id="world">
+            <div id="plane"><img src="assets/ui/city.jpg" alt="Мапа Києва в «Поряд»" /><div class="glow"></div></div>
+          </div>
+          <div id="sweep"></div>
+        </div>
+
+        <div id="hook"><span>де сьогодні</span><span class="b">щось відбувається? 👀</span></div>
+        <div id="words">
+          <div class="w" id="w0"><span style="background:#8d6a11">стендап</span></div>
+          <div class="w" id="w1"><span style="background:#6041b1">концерти</span></div>
+          <div class="w" id="w2"><span style="background:#ac345e">театр</span></div>
+          <div class="w" id="w3"><span style="background:#a24c29">вечірки</span></div>
+          <div class="w" id="w4"><span style="background:#1b7979">дітям</span></div>
+        </div>
+
+        <div id="phone">
+          <div class="screen">
+            <img id="scr-map" src="assets/ui/map.jpg" alt="Мапа «Поряд», Київ" />
+            <img id="scr-detail" src="assets/ui/detail.jpg" alt="Сторінка події з кнопкою «Шукаю компанію»" />
+          </div>
+          <div id="ring"></div>
+        </div>
+        <div class="plate" id="s1"><span>Є куди.</span></div>
+        <div class="plate" id="s2"><span>Буде з ким.</span></div>
+
+        <div id="endbg"></div>
+        <div id="brand" data-layout-allow-overflow>
+          <div class="body"><img class="icon" src="assets/icon.png" alt="" /><div class="name">Поряд</div></div>
+          <div class="stub">Є куди. Буде з ким.</div>
+          <div class="perf"></div>
+        </div>
+        <div id="bait">куди підеш цього тижня? 👇</div>
+        <div id="free">безкоштовно</div>
+        <div id="store">
+          <div id="badges">
+            <img src="assets/appstore-badge-uk.svg" alt="Завантажте в App Store" />
+            <img src="assets/googleplay-badge-uk.svg" alt="Завантажте з Google Play" />
+          </div>
+          <div class="tm" data-layout-ignore>
+            <div>Apple, логотип Apple і App Store є торговельними марками Apple Inc.</div>
+            <div>Google Play і логотип Google Play є торговельними марками Google LLC.</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="flash"></div>
+      <svg id="grain" width="1080" height="1920" aria-hidden="true">
+        <filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="41" /><feColorMatrix type="saturate" values="0" /></filter>
+        <rect width="1080" height="1920" filter="url(#noise)" />
+      </svg>
+
+      <!-- music: «Lofi Upbeat» by kulakovka (Pixabay) from 8.8 s: its drum entry 10.80 lands on the fireworks (2.0), 15.70 on «Є куди.» (6.9); beat 0.49 s -->
+      <audio id="music" src="assets/audio/music.m4a" data-start="0" data-media-start="8.8" data-duration="14" data-track-index="10" data-automation="{&quot;version&quot;:1,&quot;lanes&quot;:[{&quot;target&quot;:&quot;volume&quot;,&quot;points&quot;:[{&quot;t&quot;:0,&quot;v&quot;:0.55},{&quot;t&quot;:13.3,&quot;v&quot;:0.55},{&quot;t&quot;:14,&quot;v&quot;:0}]}]}"></audio>
+      <audio id="sfx-w0" src="assets/audio/pin_pop_1.wav" data-start="2.0" data-duration="0.25" data-track-index="11" data-volume="0.4"></audio>
+      <audio id="sfx-w1" src="assets/audio/pin_pop_2.wav" data-start="2.98" data-duration="0.25" data-track-index="12" data-volume="0.4"></audio>
+      <audio id="sfx-w2" src="assets/audio/pin_pop_1.wav" data-start="3.96" data-duration="0.25" data-track-index="11" data-volume="0.4"></audio>
+      <audio id="sfx-w3" src="assets/audio/pin_pop_2.wav" data-start="4.94" data-duration="0.25" data-track-index="12" data-volume="0.4"></audio>
+      <audio id="sfx-w4" src="assets/audio/pin_pop_1.wav" data-start="5.43" data-duration="0.25" data-track-index="11" data-volume="0.4"></audio>
+      <audio id="sfx-whip" src="assets/audio/whoosh.wav" data-start="5.9" data-duration="0.27" data-track-index="13" data-volume="0.5"></audio>
+      <audio id="sfx-s1" src="assets/audio/stamp.wav" data-start="6.9" data-duration="0.5" data-track-index="14" data-volume="0.6"></audio>
+      <audio id="sfx-swipe" src="assets/audio/ui_tick.wav" data-start="8.37" data-duration="0.08" data-track-index="15" data-volume="0.5"></audio>
+      <audio id="sfx-s2" src="assets/audio/stamp.wav" data-start="8.86" data-duration="0.5" data-track-index="14" data-volume="0.6"></audio>
+      <audio id="sfx-end" src="assets/audio/pin_pop_2.wav" data-start="11.3" data-duration="0.25" data-track-index="12" data-volume="0.35"></audio>
+    </div>
+
+    <script>
+      (function () {
+        // Real live Kyiv events of the coming weeks (prod, 25.10), titles as the app shows them; genre + time only, no dates.
+        var G = { c: ["СТЕНДАП", "#8d6a11"], m: ["МУЗИКА", "#6041b1"], a: ["МИСТЕЦТВО", "#ac345e"], k: ["ДІТЯМ", "#1b7979"], s: ["ЗУСТРІЧІ", "#a24c29"] };
+        // pins of the map in plane coordinates (city.jpg × 1.3, centred)
+        var P = { p158: [-109, -446], p51a: [-313, -129], p51b: [-596, -26], p137: [78, -79], p189: [-109, 98], p4: [398, 31],
+                  p82: [376, 244], p102: [-98, 482], p18: [229, 640], pu: [-518, 241], pk: [-273, 276], pk2: [220, 266] };
+        // [genre, title, time, pin, dx, height above the map, launch time]
+        var T = [
+          ["m", "Легенди Данії", "17:00", "p158", 0, 300, -1.2],
+          ["a", "Летюча миша", "18:00", "p137", 20, 340, -0.9],
+          ["k", "Вінні-Пух", "11:00", "p51a", -10, 260, -0.6],
+          ["m", "Віталій Лобач", "18:00", "pu", 0, 240, -1.0],
+          ["s", "Саундхілінг", "17:00", "p102", 0, 200, -0.8],
+          ["c", "Василь Байдак", "19:00", "p189", 0, 440, 2.0],
+          ["c", "Підпільний стендап", "19:00", "p82", -30, 340, 2.06],
+          ["c", "Настя Зухвала. Стендап тур", "18:00", "p51b", 40, 560, 2.12],
+          ["c", "Стендап в Дороті Паб", "18:00", "p18", 0, 300, 2.18],
+          ["m", "Магія Мішеля Леграна", "18:00", "p4", -20, 600, 2.98],
+          ["m", "Очі в очі. Solo", "19:00", "pk2", 0, 380, 3.04],
+          ["m", "Трибʼют Queen — гурт Beast", "19:00", "p102", 30, 460, 3.1],
+          ["a", "Наталка Полтавка", "18:00", "pk", 0, 520, 3.96],
+          ["a", "Чикаго", "17:00", "p158", 60, 300, 4.02],
+          ["a", "Маленький принц", "17:00", "p18", -40, 620, 4.08],
+          ["a", "Конотопська відьма", "17:00", "p82", 40, 700, 4.14],
+          ["m", "Caribbean Club Disco Party", "18:30", "p137", -60, 680, 4.94],
+          ["m", "LAMA", "19:00", "p189", 50, 760, 5.0],
+          ["m", "OTOY", "19:00", "p51a", 30, 640, 5.06],
+          ["k", "Мері Поппінс", "17:00", "p102", -40, 720, 5.43],
+          ["k", "Лікар Айболить", "11:00", "pk2", 40, 640, 5.49],
+          ["k", "Івасик-Телесик", "12:00", "p4", 30, 780, 5.55]
+        ];
+        var plane = document.getElementById("plane");
+        var tl = gsap.timeline({ paused: true });
+        var TILT = 55;
+        tl.set("#world", { rotationX: TILT, z: -260, y: 0 }, 0);
+        tl.to("#world", { z: -200, duration: 2.0, ease: "none" }, 0);
+
+        T.forEach(function (t, i) {
+          var p = P[t[3]], x = 784 + p[0] + t[4], y = 760 + p[1]; // plane coords are centre-relative; #plane origin is its top-left
+          var ring = document.createElement("div"); ring.className = "ring"; ring.style.left = x + "px"; ring.style.top = y + "px"; ring.style.borderColor = G[t[0]][1];
+          var el = document.createElement("div"); el.className = "tk"; el.style.left = x + "px"; el.style.top = y + "px";
+          el.innerHTML = '<div class="body"></div><div class="stub"><div class="g"></div><div class="t"></div></div><div class="n a"></div><div class="n b"></div>';
+          el.querySelector(".body").textContent = t[1];
+          el.querySelector(".stub").style.background = G[t[0]][1];
+          el.querySelector(".g").textContent = G[t[0]][0];
+          el.querySelector(".t").textContent = t[2];
+          plane.appendChild(ring); plane.appendChild(el);
+          // launch: the ticket shoots up out of its pin along the map's normal, then stands facing the camera
+          var at = t[6], h = t[5];
+          if (at < 0) {
+            // already in the air on frame 0 (the cover), still drifting up
+            var k0 = -at / 1.4;
+            tl.fromTo(el, { opacity: 1, z: h * (0.7 + 0.2 * k0), rotationX: -TILT, scale: 1 }, { opacity: 1, z: h * (0.95 + 0.2 * k0), duration: 2.0, ease: "none" }, 0);
+          } else {
+            tl.fromTo(ring, { opacity: 1, scale: 0.2 }, { opacity: 0, scale: 3.2, duration: 0.6, ease: "power2.out", immediateRender: false }, at);
+            tl.fromTo(el, { opacity: 0, z: 0, rotationX: -TILT + 40, scale: 0.4 }, { opacity: 1, z: h, rotationX: -TILT, scale: 1, duration: 0.7, ease: "expo.out", immediateRender: false }, at);
+          }
+        });
+
+        // ---- 0–2.0: the hook over the glowing city
+        tl.fromTo("#hook", { scale: 1 }, { scale: 1.04, duration: 1.9, ease: "none" }, 0);
+        tl.to("#hook", { opacity: 0, y: -80, duration: 0.18, ease: "power2.in" }, 1.88);
+
+        // ---- 2.0–5.9: fireworks on the beat (0.49 s) while the camera flies into the city
+        tl.to("#world", { z: 380, rotationX: TILT - 15, y: -60, duration: 3.9, ease: "power1.in" }, 2.0);
+        tl.fromTo("#sweep", { x: -900, opacity: 1 }, { x: 1080, opacity: 1, duration: 0.7, ease: "power1.inOut" }, 2.0);
+        tl.fromTo("#sweep", { x: -900 }, { x: 1080, duration: 0.7, ease: "power1.inOut", immediateRender: false }, 3.96);
+        var W = [[2.0, 2.98], [2.98, 3.96], [3.96, 4.94], [4.94, 5.43], [5.43, 5.92]];
+        W.forEach(function (w, i) {
+          tl.fromTo("#w" + i, { opacity: 1, scale: 1.6, rotation: i % 2 ? 3 : -3 }, { opacity: 1, scale: 1, rotation: i % 2 ? 1.5 : -1.5, duration: 0.14, ease: "power4.in", immediateRender: false }, w[0]);
+          tl.set("#w" + i, { opacity: 0 }, w[1]);
+          tl.fromTo("#shake", { y: 0 }, { y: 8, duration: 0.04, yoyo: true, repeat: 1, ease: "none", immediateRender: false }, w[0] + 0.14);
+        });
+
+        // ---- 5.9–6.41: whip into the phone (one flash frame at the seam)
+        tl.to("#stage", { x: -760, scaleX: 1.25, filter: "blur(26px)", duration: 0.28, ease: "power2.in" }, 5.9);
+        tl.set("#flash", { opacity: 0.8 }, 6.17);
+        tl.set("#flash", { opacity: 0 }, 6.2);
+        tl.set("#stage", { opacity: 0 }, 6.2);
+        tl.fromTo("#phone", { opacity: 1, x: 820, rotation: 6, filter: "blur(26px)" }, { opacity: 1, x: 0, rotation: 0, filter: "blur(0px)", duration: 0.24, ease: "power3.out", immediateRender: false }, 6.17);
+        tl.fromTo("#shake", { x: 0 }, { x: -12, duration: 0.04, yoyo: true, repeat: 3, ease: "none", immediateRender: false }, 6.41);
+
+        // ---- 6.9: «Є куди.» slams on the drum entry, the phone punches in
+        tl.fromTo("#s1", { opacity: 1, scale: 1.9, rotation: -4 }, { opacity: 1, scale: 1, rotation: -2, duration: 0.14, ease: "power4.in", immediateRender: false }, 6.9);
+        tl.fromTo("#phone", { scale: 1 }, { scale: 1.05, duration: 0.12, yoyo: true, repeat: 1, ease: "power2.out", immediateRender: false }, 7.04);
+        tl.fromTo("#shake", { y: 0 }, { y: 10, duration: 0.04, yoyo: true, repeat: 1, ease: "none", immediateRender: false }, 7.04);
+
+        // ---- 8.37: the map pushes to the event page; 8.86 zoom to «Шукаю компанію», «Буде з ким.»
+        tl.fromTo("#scr-detail", { x: 490 }, { x: 0, duration: 0.36, ease: "power3.out" }, 8.37);
+        tl.to("#scr-map", { x: -150, opacity: 0.4, duration: 0.36, ease: "power3.out" }, 8.37);
+        tl.set("#phone", { transformOrigin: "208.4px 992.6px" }, 8.8);
+        tl.to("#phone", { scale: 1.45, x: 52, y: -373, duration: 0.42, ease: "power3.inOut" }, 8.6);
+        tl.to("#s1", { y: -50, scale: 0.85, transformOrigin: "50% 0%", duration: 0.42, ease: "power3.inOut" }, 8.6);
+        tl.fromTo("#ring", { opacity: 1, scale: 1.4 }, { opacity: 1, scale: 1, duration: 0.2, ease: "power3.out", immediateRender: false }, 8.95);
+        tl.to("#ring", { boxShadow: "0 0 60px rgba(243,243,240,0.9)", duration: 0.3, yoyo: true, repeat: 3, ease: "sine.inOut" }, 9.15);
+        tl.fromTo("#s2", { opacity: 1, scale: 1.9, rotation: 4 }, { opacity: 1, scale: 1, rotation: 2, duration: 0.14, ease: "power4.in", immediateRender: false }, 8.86);
+        tl.fromTo("#shake", { y: 0 }, { y: 10, duration: 0.04, yoyo: true, repeat: 1, ease: "none", immediateRender: false }, 9.0);
+
+        // ---- 10.8–14: end card; badges by one hard cut; static from 12.0
+        tl.to(["#s1", "#s2"], { opacity: 0, duration: 0.15 }, 10.8);
+        tl.to("#phone", { y: 1700, duration: 0.45, ease: "power3.in" }, 10.8);
+        tl.set("#phone", { opacity: 0 }, 11.26);
+        tl.to("#endbg", { opacity: 1, duration: 0.3 }, 10.9);
+        tl.fromTo("#brand", { opacity: 1, y: 900 }, { opacity: 1, y: 0, duration: 0.45, ease: "back.out(1.4)", immediateRender: false }, 10.95);
+        tl.fromTo("#bait", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.3, ease: "power3.out" }, 11.3);
+        tl.fromTo("#free", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.3, ease: "power3.out" }, 11.4);
+        tl.set("#store", { opacity: 1 }, 11.8);
+
+        window.__timelines["main"] = tl;
+      })();
+    </script>
+  </body>
+</html>

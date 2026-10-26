@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <title>Реклама · speedrun: план на вечір — TikTok, 14 с, 9:16</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face { font-family: "Sofia Sans Condensed"; src: url("assets/fonts/SofiaSansCondensed-Bold.ttf") format("truetype"); font-weight: 700; font-display: block; }
+      @font-face { font-family: "Sofia Sans Condensed"; src: url("assets/fonts/SofiaSansCondensed-ExtraBold.ttf") format("truetype"); font-weight: 800; font-display: block; }
+      @font-face { font-family: "Sofia Sans Extra Condensed"; src: url("assets/fonts/SofiaSansExtraCondensed-ExtraBold.ttf") format("truetype"); font-weight: 800; font-display: block; }
+      @font-face { font-family: "Inter"; src: url("assets/fonts/inter-cyrillic-400-normal.woff2") format("woff2"); font-weight: 400; font-display: block; unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+      @font-face { font-family: "Inter"; src: url("assets/fonts/inter-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: block; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+      @font-face { font-family: "Inter"; src: url("assets/fonts/inter-cyrillic-600-normal.woff2") format("woff2"); font-weight: 600; font-display: block; unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+      @font-face { font-family: "Inter"; src: url("assets/fonts/inter-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-display: block; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+
+      /* A speedrun of the real app: a run timer on top, a Screen-Studio camera that flies to every tap,
+         cuts on the beat. The run ends on a «Корінець» ticket with the record, then the store end card.
+         Gold is the speedrun's «personal best»; «Поряд» is paper, never coral. */
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1080px; height: 1920px; overflow: hidden; background: #0f1017; }
+      #root { position: relative; width: 100%; height: 100%; overflow: hidden; color: #f3f3f0; font-family: "Sofia Sans Condensed", sans-serif;
+        background: radial-gradient(70% 45% at 50% 55%, #1d1c27 0%, #0f1017 72%); }
+
+      /* camera: #cam takes punches and shakes around the focus point, #phone pans and zooms */
+      #cam { position: absolute; inset: 0; transform-origin: 540px 1000px; }
+      #phone { position: absolute; left: 0; top: 0; width: 1080px; height: 2348px; border-radius: 120px; overflow: hidden; transform-origin: 0 0;
+        box-shadow: 0 0 0 12px #2e2d35, 0 70px 160px rgba(0, 0, 0, 0.75); background: #121218; }
+      #phone img { position: absolute; left: 0; top: 0; width: 1080px; height: 2348px; opacity: 0; }
+      #phone img.first { opacity: 1; }
+
+      .ripple { position: absolute; left: 470px; top: 930px; width: 140px; height: 140px; border-radius: 50%; border: 8px solid #f3f3f0; opacity: 0; z-index: 3; }
+      .dot { position: absolute; left: 512px; top: 972px; width: 56px; height: 56px; border-radius: 50%; background: rgba(243, 243, 240, 0.85); opacity: 0; z-index: 3; }
+
+      /* the run timer */
+      #timer { position: absolute; left: 290px; top: 118px; width: 500px; height: 132px; border-radius: 30px; background: rgba(15, 16, 23, 0.92);
+        box-shadow: inset 0 0 0 3px #2e2d35; display: flex; align-items: center; justify-content: center; gap: 20px; z-index: 6; }
+      #timer .rec { width: 22px; height: 22px; border-radius: 50%; background: #f3f3f0; }
+      #time { font-family: "Sofia Sans Extra Condensed", sans-serif; font-weight: 800; font-size: 116px; line-height: 116px; font-variant-numeric: tabular-nums; letter-spacing: 1px; color: #f3f3f0; }
+      #timer.pb { box-shadow: inset 0 0 0 4px #f2c14e; }
+      #timer.pb #time { color: #f2c14e; }
+      #timer.pb .rec { background: #f2c14e; }
+
+      .plate { position: absolute; left: 120px; width: 840px; display: flex; flex-direction: column; align-items: center; gap: 10px; opacity: 0; z-index: 7; }
+      .plate span { display: block; background: #f3f3f0; color: #141417; border-radius: 16px; padding: 8px 24px 12px; font-weight: 800; font-size: 60px; line-height: 64px; white-space: nowrap; }
+      #hook { top: 276px; opacity: 1; }
+      #hook span.big { font-size: 92px; line-height: 96px; padding: 10px 30px 16px; }
+      .step { top: 280px; }
+      .step span { font-size: 58px; }
+      #go { left: 290px; width: 500px; top: 880px; }
+      #go span { background: #f2c14e; font-size: 120px; line-height: 124px; padding: 10px 40px 18px; }
+
+      #record { position: absolute; left: 170px; top: 290px; width: 740px; text-align: center; opacity: 0; z-index: 8; }
+      #record span { display: inline-block; padding: 8px 30px 14px; border: 8px solid #f2c14e; border-radius: 20px; color: #f2c14e; background: rgba(15, 16, 23, 0.88);
+        font-weight: 800; font-size: 76px; line-height: 80px; letter-spacing: 2px; transform: rotate(-5deg); }
+
+      /* the result as a «Корінець» ticket */
+      #result { position: absolute; left: 110px; top: 1090px; width: 860px; height: 330px; opacity: 0; z-index: 8; }
+      #result .body { position: absolute; left: 0; top: 0; width: 620px; height: 330px; border-radius: 36px 0 0 36px; background: #1c1b21; box-shadow: inset 0 0 0 2px #2e2d35, 0 30px 80px rgba(0, 0, 0, 0.6); padding: 34px 40px; }
+      #result .lbl { font-family: "Inter", sans-serif; font-weight: 600; font-size: 28px; line-height: 34px; color: #a6a5ad; letter-spacing: 1px; }
+      #result .t { font-family: "Sofia Sans Extra Condensed", sans-serif; font-weight: 800; font-size: 150px; line-height: 150px; color: #f2c14e; font-variant-numeric: tabular-nums; }
+      #result .ev { font-family: "Inter", sans-serif; font-weight: 600; font-size: 30px; line-height: 36px; color: #f3f3f0; white-space: nowrap; }
+      #result .stub { position: absolute; left: 620px; top: 0; width: 240px; height: 330px; border-radius: 0 36px 36px 0; background: #6041b1; color: #fff;
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
+      #result .g { font-weight: 800; font-size: 30px; letter-spacing: 2px; }
+      #result .h { font-family: "Sofia Sans Extra Condensed", sans-serif; font-weight: 800; font-size: 112px; line-height: 108px; }
+      #result .perf { position: absolute; left: 618px; top: 24px; bottom: 24px; border-left: 4px dotted rgba(15, 16, 23, 0.6); }
+      .n { position: absolute; width: 40px; height: 40px; border-radius: 50%; background: #15151d; }
+
+      /* end card (END-CARD.md grid, «Корінець» type like k1-print) */
+      #end { position: absolute; inset: 0; opacity: 0; z-index: 9; background: radial-gradient(70% 45% at 50% 45%, #1d1c27 0%, #0f1017 72%); }
+      #bait { position: absolute; left: 160px; top: 296px; width: 760px; text-align: center; font-weight: 700; font-size: 60px; line-height: 66px; opacity: 0; }
+      #brand { position: absolute; left: 160px; top: 520px; width: 760px; height: 510px; opacity: 0; }
+      #brand .body { position: absolute; left: 0; top: 0; width: 760px; height: 385px; border-radius: 36px 36px 0 0; background: #1c1b21; box-shadow: inset 0 0 0 2px #2e2d35; }
+      #brand .icon { position: absolute; left: 292px; top: 40px; width: 176px; height: 176px; border-radius: 40px; }
+      #brand .name { position: absolute; left: 0; top: 248px; width: 760px; text-align: center; font-weight: 800; font-size: 128px; line-height: 128px; letter-spacing: -1px; color: #f3f3f0; }
+      #brand .stub { position: absolute; left: 0; top: 385px; width: 760px; height: 125px; border-radius: 0 0 36px 36px; background: #f3f3f0; color: #141417;
+        display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 44px; }
+      #brand .perf { position: absolute; left: 30px; right: 30px; top: 384px; border-top: 3px dotted rgba(243, 243, 240, 0.45); }
+      #brand .n { background: #15151d; top: 365px; }
+      #free { position: absolute; left: 0; top: 1104px; width: 1080px; text-align: center; font-family: "Inter", sans-serif; font-weight: 600; font-size: 34px; line-height: 40px; color: #f2c14e; opacity: 0; }
+      #store { position: absolute; left: 0; top: 1176px; width: 1080px; display: flex; flex-direction: column; align-items: center; opacity: 0; }
+      #badges { display: flex; gap: 32px; }
+      /* official badges: untouched files, both 104 px tall, no transform/filter/shadow */
+      #badges img { display: block; height: 104px; width: auto; }
+      #store .tm { margin-top: 22px; text-align: center; font-family: "Inter", sans-serif; font-weight: 400; font-size: 20px; line-height: 28px; color: #96959e; white-space: nowrap; }
+
+      #grain { position: absolute; inset: 0; z-index: 10; pointer-events: none; opacity: 0.07; mix-blend-mode: overlay; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="14" data-fps="30" data-width="1080" data-height="1920">
+      <div id="cam">
+        <div id="phone" data-layout-allow-overflow>
+          <img class="first" id="s0" src="assets/ui/01-home.jpg" alt="Головна «Поряд»" />
+          <img id="s1" src="assets/ui/02-map.jpg" alt="Мапа" />
+          <img id="s2" src="assets/ui/03-filters.jpg" alt="Фільтри" />
+          <img id="s3" src="assets/ui/04-music.jpg" alt="Фільтр «Музика»" />
+          <img id="s4" src="assets/ui/05-musicmap.jpg" alt="Мапа концертів" />
+          <img id="s5" src="assets/ui/06-detail.jpg" alt="Сторінка концерту" />
+          <img id="s6" src="assets/ui/07-calendar.jpg" alt="Додати в календар" />
+          <img id="s7" src="assets/ui/08-done.jpg" alt="Сторінка концерту після додавання" />
+        </div>
+        <div class="ripple" id="rip"></div>
+        <div class="dot" id="dot"></div>
+      </div>
+
+      <div id="timer"><div class="rec"></div><div id="time">0:00.00</div></div>
+
+      <div class="plate" id="hook"><span class="big">speedrun:</span><span>план на вечір ⏱️</span></div>
+      <div class="plate" id="go"><span>GO!</span></div>
+      <div class="plate step" id="st0"><span>мапа</span></div>
+      <div class="plate step" id="st1"><span>фільтри</span></div>
+      <div class="plate step" id="st2"><span>музика</span></div>
+      <div class="plate step" id="st3"><span>показати</span></div>
+      <div class="plate step" id="st4"><span>концерт</span></div>
+      <div class="plate step" id="st5"><span>у календар</span></div>
+      <div class="plate step" id="st6"><span>додати ✓</span></div>
+
+      <div id="record"><span>НОВИЙ РЕКОРД 🏆</span></div>
+      <div id="result">
+        <div class="body">
+          <div class="lbl">СПІДРАН · ПЛАН НА ВЕЧІР</div>
+          <div class="t">0:05.63</div>
+          <div class="ev">Хор «Гомін» · Філармонія</div>
+        </div>
+        <div class="stub"><div class="g">МУЗИКА</div><div class="h">19:00</div></div>
+        <div class="perf"></div>
+        <div class="n" style="left:600px;top:-20px"></div><div class="n" style="left:600px;bottom:-20px"></div>
+      </div>
+
+      <div id="end">
+        <div id="bait">побʼєш рекорд? 👇</div>
+        <div id="brand">
+          <div class="body"></div>
+          <img class="icon" src="assets/icon.png" alt="" />
+          <div class="name">Поряд</div>
+          <div class="stub">Є куди. Буде з ким.</div>
+          <div class="perf"></div>
+          <div class="n" style="left:-20px"></div><div class="n" style="left:740px"></div>
+        </div>
+        <div id="free">безкоштовно</div>
+        <div id="store">
+          <div id="badges">
+            <img src="assets/appstore-badge-uk.svg" alt="Завантажте в App Store" />
+            <img src="assets/googleplay-badge-uk.svg" alt="Завантажте з Google Play" />
+          </div>
+          <div class="tm" data-layout-ignore>
+            <div>Apple, логотип Apple і App Store є торговельними марками Apple Inc.</div>
+            <div>Google Play і логотип Google Play є торговельними марками Google LLC.</div>
+          </div>
+        </div>
+      </div>
+
+      <svg id="grain" width="1080" height="1920" aria-hidden="true">
+        <filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="41" /><feColorMatrix type="saturate" values="0" /></filter>
+        <rect width="1080" height="1920" filter="url(#noise)" />
+      </svg>
+
+      <!-- music: «Surf» by madstock (Pixabay); its full beat (100.1 s in the file) drops on the timer start at 1.2 -->
+      <audio id="music" src="assets/audio/music.m4a" data-start="0" data-media-start="98.9" data-duration="14" data-track-index="10" data-automation="{&quot;version&quot;:1,&quot;lanes&quot;:[{&quot;target&quot;:&quot;volume&quot;,&quot;points&quot;:[{&quot;t&quot;:0,&quot;v&quot;:0.5},{&quot;t&quot;:13.3,&quot;v&quot;:0.5},{&quot;t&quot;:14,&quot;v&quot;:0}]}]}"></audio>
+      <audio id="sfx-go" src="assets/audio/whoosh.wav" data-start="1.0" data-duration="0.27" data-track-index="11" data-volume="0.35"></audio>
+      <audio id="sfx-t0" src="assets/audio/ui_tick.wav" data-start="1.75" data-duration="0.08" data-track-index="12" data-volume="0.7"></audio>
+      <audio id="sfx-t1" src="assets/audio/ui_tick.wav" data-start="2.583" data-duration="0.08" data-track-index="13" data-volume="0.7"></audio>
+      <audio id="sfx-t2" src="assets/audio/ui_tick.wav" data-start="3.417" data-duration="0.08" data-track-index="12" data-volume="0.7"></audio>
+      <audio id="sfx-t3" src="assets/audio/ui_tick.wav" data-start="4.25" data-duration="0.08" data-track-index="13" data-volume="0.7"></audio>
+      <audio id="sfx-t4" src="assets/audio/ui_tick.wav" data-start="5.083" data-duration="0.08" data-track-index="12" data-volume="0.7"></audio>
+      <audio id="sfx-t5" src="assets/audio/ui_tick.wav" data-start="5.917" data-duration="0.08" data-track-index="13" data-volume="0.7"></audio>
+      <audio id="sfx-t6" src="assets/audio/ui_tick.wav" data-start="6.75" data-duration="0.08" data-track-index="12" data-volume="0.7"></audio>
+      <audio id="sfx-rec" src="assets/audio/stamp.wav" data-start="7.05" data-duration="0.5" data-track-index="14" data-volume="0.75"></audio>
+      <audio id="sfx-res" src="assets/audio/pin_pop_1.wav" data-start="7.6" data-duration="0.25" data-track-index="11" data-volume="0.45"></audio>
+      <audio id="sfx-end" src="assets/audio/pin_pop_1.wav" data-start="10.05" data-duration="0.25" data-track-index="11" data-volume="0.4"></audio>
+    </div>
+
+    <script>
+      (function () {
+        // tap targets in screen-image pixels (1080 × 2348): simulator points × 2.6866
+        var TARGETS = [[352, 2147], [970, 255], [156, 1910], [540, 2139], [403, 1843], [159, 1558], [951, 269]];
+        var FOCUS = [540, 1000], ZOOM = 1.18;
+        var T0 = 1.2, STEP = 0.8333, TAP0 = 1.75, TEND = 6.83;   // run 5.63 s, as printed on the ticket
+        function view(p, s) { return { x: FOCUS[0] - s * p[0], y: FOCUS[1] - s * p[1], scale: s }; }
+        var BASE = { x: 238, y: 560, scale: 0.56 }, RESULT = { x: 216, y: 330, scale: 0.6 };
+
+        var timeEl = document.getElementById("time");
+        function paint(t) {
+          var r = Math.min(Math.max(t - T0, 0), TEND - T0);
+          var cs = Math.round(r * 100), s = Math.floor(cs / 100), c = cs % 100;
+          timeEl.textContent = "0:" + (s < 10 ? "0" : "") + s + "." + (c < 10 ? "0" : "") + c;
+        }
+        var tl = gsap.timeline({ paused: true, onUpdate: function () { paint(tl.time()); } });
+        function plate(id, at, out) {
+          tl.fromTo(id, { opacity: 0, y: 12, scale: 0.94 }, { opacity: 1, y: 0, scale: 1, duration: 0.16, ease: "back.out(2.4)" }, at);
+          if (out != null) tl.set(id, { opacity: 0 }, out);
+        }
+
+        // ---- 0–1.2: the cover — the timer at zero, the title, the home screen
+        tl.set("#phone", BASE, 0);
+        tl.fromTo("#hook span", { scale: 1 }, { scale: 1.06, duration: 0.18, yoyo: true, repeat: 1, ease: "power2.out", stagger: 0.12 }, 0.35);
+        tl.to("#hook", { y: -260, opacity: 0, duration: 0.22, ease: "power3.in" }, 1.0);
+        tl.to("#phone", Object.assign(view(TARGETS[0], ZOOM), { duration: 0.45, ease: "power3.inOut" }), 1.1);
+        plate("#go", 1.2, 1.64);
+        tl.fromTo("#timer", { scale: 1 }, { scale: 1.12, duration: 0.1, yoyo: true, repeat: 1, ease: "power2.out" }, 1.2);
+
+        // ---- 1.75–6.83: seven taps on the beat; each cuts to the next screen, the camera flies to the next target
+        for (var i = 0; i < TARGETS.length; i++) {
+          var tap = TAP0 + i * STEP;
+          plate("#st" + i, i === 0 ? 1.3 : tap - STEP + 0.12, tap + 0.1);
+          tl.fromTo("#rip", { opacity: 0.95, scale: 0.4 }, { opacity: 0, scale: 1.5, duration: 0.32, ease: "power2.out", immediateRender: false }, tap);
+          tl.fromTo("#dot", { opacity: 0.9, scale: 1 }, { opacity: 0, scale: 0.6, duration: 0.18, ease: "power1.in", immediateRender: false }, tap);
+          tl.fromTo("#cam", { scale: 1 }, { scale: 1.05, duration: 0.07, yoyo: true, repeat: 1, ease: "power2.out", immediateRender: false }, tap);
+          tl.set("#s" + i, { opacity: 0 }, tap + 0.08);
+          tl.set("#s" + (i + 1), { opacity: 1 }, tap + 0.08);
+          if (i < TARGETS.length - 1) tl.to("#phone", Object.assign(view(TARGETS[i + 1], ZOOM), { duration: 0.36, ease: "power3.inOut" }), tap + 0.12);
+        }
+
+        // ---- 6.83–9.8: stop — personal best, the result prints as a ticket
+        tl.to("#phone", Object.assign({}, RESULT, { duration: 0.45, ease: "power3.inOut" }), TEND + 0.05);
+        tl.set("#timer", { className: "pb" }, TEND + 0.15);
+        tl.fromTo("#record", { opacity: 0, scale: 2.2 }, { opacity: 1, scale: 1, duration: 0.14, ease: "power4.in" }, 7.05);
+        [[8, -6], [-7, 5], [5, 4], [-3, -2], [0, 0]].forEach(function (d, k) { tl.to("#root", { x: d[0], y: d[1], duration: 0.035, ease: "none" }, 7.19 + k * 0.035); });
+        tl.fromTo("#result", { opacity: 0, y: 260, rotation: 4 }, { opacity: 1, y: 0, rotation: -1.5, duration: 0.42, ease: "back.out(1.6)" }, 7.55);
+
+        // ---- 9.8–14: the end card; static from 11.0
+        tl.to(["#cam", "#timer", "#record", "#result"], { opacity: 0, y: -80, duration: 0.25, ease: "power2.in" }, 9.75);
+        tl.set("#end", { opacity: 1 }, 9.95);
+        tl.fromTo("#brand", { opacity: 0, y: 160, rotation: -3 }, { opacity: 1, y: 0, rotation: 0, duration: 0.4, ease: "back.out(1.5)" }, 10.0);
+        tl.fromTo("#bait", { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.2, ease: "back.out(2)" }, 10.3);
+        tl.fromTo("#free", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.25, ease: "power3.out" }, 10.55);
+        tl.set("#store", { opacity: 1 }, 10.9);
+
+        paint(0);
+        window.__timelines["main"] = tl;
+      })();
+    </script>
+  </body>
+</html>

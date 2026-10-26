@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <title>W2 · листопад у києві за 10 секунд — TikTok, 15 с, 9:16, без звуку</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face { font-family: "Sofia Sans Condensed"; src: url("assets/fonts/SofiaSansCondensed-Bold.ttf") format("truetype"); font-weight: 700; font-display: block; }
+      @font-face { font-family: "Sofia Sans Condensed"; src: url("assets/fonts/SofiaSansCondensed-ExtraBold.ttf") format("truetype"); font-weight: 800; font-display: block; }
+      @font-face { font-family: "Sofia Sans Extra Condensed"; src: url("assets/fonts/SofiaSansExtraCondensed-ExtraBold.ttf") format("truetype"); font-weight: 800; font-display: block; }
+      @font-face { font-family: "Inter"; src: url("assets/fonts/inter-cyrillic-400-normal.woff2") format("woff2"); font-weight: 400; font-display: block; unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+      @font-face { font-family: "Inter"; src: url("assets/fonts/inter-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: block; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+      @font-face { font-family: "Inter"; src: url("assets/fonts/inter-cyrillic-600-normal.woff2") format("woff2"); font-weight: 600; font-display: block; unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+      @font-face { font-family: "Inter"; src: url("assets/fonts/inter-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-display: block; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+
+      /* November as a sheet of «Корінець» stubs: each day is a little stub, weekends tinted.
+         On a 110 BPM grid (beat 0.5455 s) six real events light their day and fly out as full tickets;
+         then every day gets a stub, the app's map lands, the end card closes. Silent: the user adds
+         a trending sound in TikTok, so the cuts carry the rhythm. «Поряд» is paper, never coral. */
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1080px; height: 1920px; overflow: hidden; background: #0f1017; }
+      #root { position: relative; width: 100%; height: 100%; overflow: hidden; color: #f3f3f0; font-family: "Sofia Sans Condensed", sans-serif;
+        background: radial-gradient(75% 45% at 50% 40%, #1d1c27 0%, #0f1017 72%); }
+
+      #stage { position: absolute; inset: 0; transform-origin: 540px 800px; }
+
+      /* the date readout */
+      #date { position: absolute; left: 190px; top: 150px; width: 700px; height: 112px; border-radius: 28px; background: rgba(15, 16, 23, 0.92);
+        box-shadow: inset 0 0 0 3px #2e2d35; overflow: hidden; z-index: 4; }
+      #date span { position: absolute; left: 0; top: 0; width: 700px; height: 112px; display: flex; align-items: center; justify-content: center;
+        font-family: "Sofia Sans Extra Condensed", sans-serif; font-weight: 800; font-size: 76px; letter-spacing: 3px; opacity: 0; }
+      #date span.first { opacity: 1; }
+
+      /* the month */
+      #cal { position: absolute; left: 60px; top: 300px; width: 960px; height: 770px; transform-origin: 480px 400px; }
+      .wd { position: absolute; top: 0; width: 132px; text-align: center; font-family: "Inter", sans-serif; font-weight: 600; font-size: 32px; line-height: 38px; color: #a6a5ad; }
+      .wd.we { color: #f3f3f0; }
+      .day { position: absolute; width: 132px; height: 112px; border-radius: 18px; background: #1c1b21; box-shadow: inset 0 0 0 2px #2e2d35; }
+      .day.we { background: #29233a; }
+      .day .perf { position: absolute; left: 14px; right: 14px; top: 30px; border-top: 3px dotted rgba(243, 243, 240, 0.18); }
+      .day .num { position: absolute; left: 14px; bottom: 6px; font-family: "Sofia Sans Extra Condensed", sans-serif; font-weight: 800; font-size: 60px; line-height: 60px; color: #a6a5ad; }
+      .day.we .num { color: #f3f3f0; }
+      .day .pip { position: absolute; right: 12px; top: 8px; width: 34px; height: 16px; border-radius: 5px; opacity: 0; }
+
+      /* the hero ticket */
+      .tk { position: absolute; left: 110px; top: 1130px; width: 860px; height: 300px; opacity: 0; z-index: 5; }
+      .tk .body { position: absolute; left: 0; top: 0; width: 620px; height: 300px; border-radius: 36px 0 0 36px; background: #1c1b21;
+        box-shadow: inset 0 0 0 2px #2e2d35, 0 30px 80px rgba(0, 0, 0, 0.6); padding: 36px 36px 0 42px; }
+      .tk .title { font-weight: 800; font-size: 66px; line-height: 70px; letter-spacing: -0.5px; }
+      .tk .venue { position: absolute; left: 42px; right: 30px; bottom: 34px; font-family: "Inter", sans-serif; font-weight: 600; font-size: 30px; line-height: 36px; color: #a6a5ad; white-space: nowrap; }
+      .tk .stub { position: absolute; left: 620px; top: 0; width: 240px; height: 300px; border-radius: 0 36px 36px 0; color: #fff;
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+      .tk .g { font-weight: 800; font-size: 28px; letter-spacing: 2px; }
+      .tk .h { font-family: "Sofia Sans Extra Condensed", sans-serif; font-weight: 800; font-size: 108px; line-height: 104px; font-variant-numeric: tabular-nums; }
+      .tk .perf { position: absolute; left: 618px; top: 22px; bottom: 22px; border-left: 4px dotted rgba(15, 16, 23, 0.6); }
+      .n { position: absolute; width: 40px; height: 40px; border-radius: 50%; background: #13131a; }
+
+      .plate { position: absolute; left: 90px; width: 900px; display: flex; flex-direction: column; align-items: center; gap: 12px; opacity: 0; z-index: 6; }
+      .plate span { display: block; background: #f3f3f0; color: #141417; border-radius: 18px; padding: 8px 26px 14px; font-weight: 800; font-size: 62px; line-height: 66px; white-space: nowrap; }
+      #hook { top: 1130px; opacity: 1; }
+      #hook span.big { font-size: 118px; line-height: 122px; padding: 10px 34px 18px; }
+      #hook span:last-child { font-size: 76px; line-height: 80px; }
+      #more { top: 1340px; z-index: 7; }
+
+      #map { position: absolute; left: 60px; top: 300px; width: 960px; height: 1027px; border-radius: 48px; overflow: hidden; opacity: 0; z-index: 6;
+        box-shadow: 0 0 0 4px #2e2d35, 0 50px 120px rgba(0, 0, 0, 0.7); }
+      #map img { display: block; width: 960px; height: 1027px; }
+
+      /* end card (END-CARD.md grid, «Корінець» type like ad1-speedrun) */
+      #end { position: absolute; inset: 0; opacity: 0; z-index: 9; background: radial-gradient(70% 45% at 50% 45%, #1d1c27 0%, #0f1017 72%); }
+      #bait { position: absolute; left: 160px; top: 296px; width: 760px; text-align: center; font-weight: 700; font-size: 60px; line-height: 66px; opacity: 0; }
+      #brand { position: absolute; left: 160px; top: 520px; width: 760px; height: 510px; opacity: 0; }
+      #brand .body { position: absolute; left: 0; top: 0; width: 760px; height: 385px; border-radius: 36px 36px 0 0; background: #1c1b21; box-shadow: inset 0 0 0 2px #2e2d35; }
+      #brand .icon { position: absolute; left: 292px; top: 40px; width: 176px; height: 176px; border-radius: 40px; }
+      #brand .name { position: absolute; left: 0; top: 248px; width: 760px; text-align: center; font-weight: 800; font-size: 128px; line-height: 128px; letter-spacing: -1px; color: #f3f3f0; }
+      #brand .stub { position: absolute; left: 0; top: 385px; width: 760px; height: 125px; border-radius: 0 0 36px 36px; background: #f3f3f0; color: #141417;
+        display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 44px; }
+      #brand .perf { position: absolute; left: 30px; right: 30px; top: 384px; border-top: 3px dotted rgba(243, 243, 240, 0.45); }
+      #brand .n { background: #15151d; top: 365px; }
+      #free { position: absolute; left: 0; top: 1104px; width: 1080px; text-align: center; font-family: "Inter", sans-serif; font-weight: 600; font-size: 34px; line-height: 40px; color: #cbb8ff; opacity: 0; }
+      #store { position: absolute; left: 0; top: 1176px; width: 1080px; display: flex; flex-direction: column; align-items: center; opacity: 0; }
+      #badges { display: flex; gap: 32px; }
+      /* official badges: untouched files, both 104 px tall, no transform/filter/shadow */
+      #badges img { display: block; height: 104px; width: auto; }
+      #store .tm { margin-top: 22px; text-align: center; font-family: "Inter", sans-serif; font-weight: 400; font-size: 20px; line-height: 28px; color: #96959e; white-space: nowrap; }
+
+      #grain { position: absolute; inset: 0; z-index: 10; pointer-events: none; opacity: 0.07; mix-blend-mode: overlay; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="15" data-fps="30" data-width="1080" data-height="1920">
+      <div id="stage">
+        <div id="date"><span class="first" id="d0">ЛИСТОПАД 2026</span></div>
+        <div id="cal"></div>
+      </div>
+
+      <div class="plate" id="hook"><span class="big">листопад у києві</span><span>за 10 секунд 🍂</span></div>
+
+      <div id="map"><img src="assets/ui/map.jpg" alt="Мапа «Поряд», Київ" /></div>
+      <div class="plate" id="more"><span>і ще сотні — на мапі</span></div>
+
+      <div id="end">
+        <div id="bait">що обереш у листопаді? 👇</div>
+        <div id="brand">
+          <div class="body"></div>
+          <img class="icon" src="assets/icon.png" alt="" />
+          <div class="name">Поряд</div>
+          <div class="stub">Є куди. Буде з ким.</div>
+          <div class="perf"></div>
+          <div class="n" style="left:-20px"></div><div class="n" style="left:740px"></div>
+        </div>
+        <div id="free">безкоштовно</div>
+        <div id="store">
+          <div id="badges">
+            <img src="assets/appstore-badge-uk.svg" alt="Завантажте в App Store" />
+            <img src="assets/googleplay-badge-uk.svg" alt="Завантажте з Google Play" />
+          </div>
+          <div class="tm" data-layout-ignore>
+            <div>Apple, логотип Apple і App Store є торговельними марками Apple Inc.</div>
+            <div>Google Play і логотип Google Play є торговельними марками Google LLC.</div>
+          </div>
+        </div>
+      </div>
+
+      <svg id="grain" width="1080" height="1920" aria-hidden="true">
+        <filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="43" /><feColorMatrix type="saturate" values="0" /></filter>
+        <rect width="1080" height="1920" filter="url(#noise)" />
+      </svg>
+    </div>
+
+    <script>
+      (function () {
+        // Real live Kyiv events (prod, 25.10), titles as the app shows them (shortened, never reworded).
+        // [day, genre, title, venue, time, readout]
+        var EV = [
+          [5, "a", "Ромео і Джульєтта. Опера", "Музичний театр", "18:00", "ЧТ · 5 ЛИСТОПАДА"],
+          [7, "k", "Вінні-Пух", "Муніципальний театр ляльок", "11:00", "СБ · 7 ЛИСТОПАДА"],
+          [13, "c", "Великий стендап на Подолі", "F-bar", "19:30", "ПТ · 13 ЛИСТОПАДА"],
+          [17, "m", "Queen у виконанні Pentagon", "Pepper's Club", "19:00", "ВТ · 17 ЛИСТОПАДА"],
+          [25, "m", "Symphony of Anime", "ЦКМ КПІ", "19:00", "СР · 25 ЛИСТОПАДА"],
+          [29, "c", "Антон Тимошенко. Сольний стендап", "Палац «Україна»", "18:00", "НД · 29 ЛИСТОПАДА"]
+        ];
+        var G = { c: ["СТЕНДАП", "#8d6a11"], a: ["МИСТЕЦТВО", "#ac345e"], m: ["МУЗИКА", "#6041b1"], k: ["ДІТЯМ", "#1b7979"] };
+        var PIPS = ["#6041b1", "#ac345e", "#8d6a11", "#1b7979", "#a24c29", "#2957ac", "#376e33", "#b15d1a"];
+        var CELL = 132, GAP = 6, ROWH = 118, TOP = 48;
+
+        // November 2026 starts on a Sunday: day d sits at index d + 5 of a Monday-first grid
+        var cal = document.getElementById("cal");
+        ["ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "НД"].forEach(function (w, c) {
+          var el = document.createElement("div"); el.className = "wd" + (c > 4 ? " we" : ""); el.textContent = w;
+          el.style.left = c * (CELL + GAP) + "px"; cal.appendChild(el);
+        });
+        function pos(d) { var i = d + 5; return { c: i % 7, r: Math.floor(i / 7) }; }
+        for (var d = 1; d <= 30; d++) {
+          var p = pos(d), el = document.createElement("div");
+          el.className = "day" + (p.c > 4 ? " we" : ""); el.id = "day" + d;
+          el.style.left = p.c * (CELL + GAP) + "px"; el.style.top = TOP + p.r * ROWH + "px";
+          el.innerHTML = '<div class="perf"></div><div class="num">' + d + '</div><div class="pip"></div>';
+          el.querySelector(".pip").style.background = PIPS[(d * 5) % PIPS.length];
+          cal.appendChild(el);
+        }
+        var dateEl = document.getElementById("date"), stage = document.getElementById("stage");
+        EV.forEach(function (e, i) {
+          dateEl.insertAdjacentHTML("beforeend", '<span id="d' + (i + 1) + '">' + e[5] + "</span>");
+          var t = document.createElement("div"); t.className = "tk"; t.id = "tk" + i;
+          t.innerHTML = '<div class="body"><div class="title"></div><div class="venue"></div></div>' +
+            '<div class="stub" style="background:' + G[e[1]][1] + '"><div class="g">' + G[e[1]][0] + '</div><div class="h">' + e[4] + "</div></div>" +
+            '<div class="perf"></div><div class="n" style="left:600px;top:-20px"></div><div class="n" style="left:600px;bottom:-20px"></div>';
+          t.querySelector(".title").textContent = e[2];
+          t.querySelector(".venue").textContent = e[3];
+          stage.appendChild(t);
+        });
+
+        var B = 60 / 110;                     // one beat
+        var tl = gsap.timeline({ paused: true });
+        function punch(at, k) { tl.fromTo("#stage", { scale: 1 }, { scale: k || 1.035, duration: 0.07, yoyo: true, repeat: 1, ease: "power2.out", immediateRender: false }, at); }
+        function shake(at) { [[9, -6], [-8, 5], [5, 4], [-3, -2], [0, 0]].forEach(function (s, k) { tl.to("#root", { x: s[0], y: s[1], duration: 0.033, ease: "none" }, at + k * 0.033); }); }
+
+        // ---- 0–1.64 (3 beats): the cover — the month tilted back under the hook, then it slams flat
+        tl.set("#cal", { transformPerspective: 1600, rotationX: 16, scale: 0.9, y: 30 }, 0);
+        tl.fromTo("#hook span", { scale: 1 }, { scale: 1.06, duration: 0.12, yoyo: true, repeat: 1, ease: "power2.out", stagger: B }, B * 0.5);
+        tl.to("#hook", { y: 260, opacity: 0, duration: 0.2, ease: "power3.in" }, B * 3 - 0.24);
+        tl.to("#cal", { rotationX: 0, scale: 1, y: 0, duration: 0.24, ease: "power4.in" }, B * 3 - 0.24);
+        shake(B * 3);
+
+        // ---- 1.64–9.82: six events, 2.5 beats each — the day lights, the ticket flies out of it
+        var CAL = { x: 60, y: 300 }, HERO = { x: 540, y: 1280 }, SLOT = B * 2.5, E0 = B * 3;
+        EV.forEach(function (e, i) {
+          var at = E0 + i * SLOT, p = pos(e[0]);
+          var cx = CAL.x + p.c * (CELL + GAP) + CELL / 2, cy = CAL.y + TOP + p.r * ROWH + 56;
+          tl.set("#d" + i, { opacity: 0 }, at);
+          tl.set("#d" + (i + 1), { opacity: 1 }, at);
+          tl.fromTo("#d" + (i + 1), { y: 40 }, { y: 0, duration: 0.16, ease: "power3.out", immediateRender: false }, at);
+          tl.to("#day" + e[0], { backgroundColor: G[e[1]][1], boxShadow: "inset 0 0 0 2px " + G[e[1]][1], duration: 0.08 }, at);
+          tl.to("#day" + e[0] + " .num", { color: "#ffffff", duration: 0.08 }, at);
+          tl.fromTo("#day" + e[0], { scale: 1 }, { scale: 1.32, duration: 0.12, yoyo: true, repeat: 1, ease: "power2.out", immediateRender: false }, at);
+          tl.fromTo("#tk" + i, { opacity: 1, x: cx - HERO.x, y: cy - HERO.y, scale: 0.15, rotation: i % 2 ? 10 : -10 },
+            { x: 0, y: 0, scale: 1, rotation: i % 2 ? 1.5 : -1.5, duration: 0.34, ease: "back.out(1.3)", immediateRender: false }, at + 0.04);
+          punch(at + 0.38);
+          if (i > 0) { tl.to("#tk" + (i - 1), { x: i % 2 ? 1150 : -1150, rotation: i % 2 ? 14 : -14, duration: 0.26, ease: "power3.in" }, at); tl.set("#tk" + (i - 1), { opacity: 0 }, at + 0.27); }
+        });
+
+        // ---- 9.82–10.3: every day gets a stub (events every day of the month), the last ticket goes
+        var FILL = E0 + EV.length * SLOT;
+        tl.to("#tk" + (EV.length - 1), { y: 700, rotation: 8, duration: 0.26, ease: "power3.in" }, FILL);
+        tl.set("#tk" + (EV.length - 1), { opacity: 0 }, FILL + 0.27);
+        tl.set("#d" + EV.length, { opacity: 0 }, FILL);
+        tl.set("#d0", { opacity: 1 }, FILL);
+        for (var k = 1; k <= 30; k++) tl.fromTo("#day" + k + " .pip", { opacity: 0, scale: 0 }, { opacity: 1, scale: 1, duration: 0.14, ease: "back.out(3)", immediateRender: false }, FILL + 0.05 + k * 0.012);
+        punch(FILL + 0.45, 1.05);
+
+        // ---- 10.24–12.0: the app's map slams in over the month
+        var MAP = FILL + 0.42;
+        tl.fromTo("#map", { opacity: 0, y: 900, rotation: 6, scale: 0.9 }, { opacity: 1, y: 0, rotation: -1, scale: 1, duration: 0.32, ease: "back.out(1.2)" }, MAP);
+        tl.to("#stage", { opacity: 0, duration: 0.3 }, MAP);
+        shake(MAP + 0.32);
+        tl.fromTo("#more", { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 0.18, ease: "back.out(2.4)" }, MAP + 0.12);
+
+        // ---- 12.0–15: the end card; static from 12.65
+        var END = 12.0;
+        tl.set("#end", { opacity: 1 }, END);
+        tl.set(["#map", "#more"], { opacity: 0 }, END);
+        tl.fromTo("#brand", { opacity: 0, y: 160, rotation: -3 }, { opacity: 1, y: 0, rotation: 0, duration: 0.36, ease: "back.out(1.5)" }, END);
+        tl.fromTo("#bait", { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.18, ease: "back.out(2)" }, END + 0.22);
+        tl.fromTo("#free", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.2, ease: "power3.out" }, END + 0.4);
+        tl.set("#store", { opacity: 1 }, END + 0.6);
+
+        window.__timelines["main"] = tl;
+      })();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <title>AD2 · ти vs ти з «Поряд» — TikTok-реклама, 14 с, 9:16</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face { font-family: "Sofia Sans Condensed"; src: url("assets/fonts/SofiaSansCondensed-Bold.ttf") format("truetype"); font-weight: 700; font-display: block; }
+      @font-face { font-family: "Sofia Sans Condensed"; src: url("assets/fonts/SofiaSansCondensed-ExtraBold.ttf") format("truetype"); font-weight: 800; font-display: block; }
+      @font-face { font-family: "Sofia Sans Extra Condensed"; src: url("assets/fonts/SofiaSansExtraCondensed-ExtraBold.ttf") format("truetype"); font-weight: 800; font-display: block; }
+      @font-face { font-family: "Inter"; src: url("assets/fonts/inter-cyrillic-400-normal.woff2") format("woff2"); font-weight: 400; font-display: block; unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+      @font-face { font-family: "Inter"; src: url("assets/fonts/inter-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: block; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+      @font-face { font-family: "Inter"; src: url("assets/fonts/inter-cyrillic-600-normal.woff2") format("woff2"); font-weight: 600; font-display: block; unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+      @font-face { font-family: "Inter"; src: url("assets/fonts/inter-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-display: block; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+
+      /* Split screen, one evening, two of you. Left: an invented wall of feeds (no real app chrome or logos)
+         scrolls, notifies and loses the clock. Right: the real «Поряд» — map, event page, «Календар», done.
+         Then the right half takes the whole screen. «Корінець» night, «Поряд» in paper, never coral. */
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1080px; height: 1920px; overflow: hidden; background: #0f1017; }
+      #root { position: relative; width: 100%; height: 100%; overflow: hidden; color: #f3f3f0; font-family: "Sofia Sans Condensed", sans-serif; background: #0f1017; }
+      #world { position: absolute; inset: 0; }
+      #halfR { position: absolute; left: 540px; top: 0; width: 540px; height: 1920px; background: radial-gradient(90% 50% at 50% 45%, #1b1b25 0%, #0f1017 75%); }
+      #divider { position: absolute; left: 538px; top: 600px; width: 4px; height: 1000px; background: #2e2d35; }
+
+      /* hook = the labels (frame 0 is the cover) */
+      #lblL { position: absolute; left: 160px; top: 244px; width: 320px; text-align: center; font-weight: 800; font-size: 150px; line-height: 150px; letter-spacing: -2px; }
+      #lblR { position: absolute; left: 612px; top: 256px; width: 320px; text-align: center; font-weight: 800; }
+      #lblR .a { display: block; font-size: 72px; line-height: 74px; }
+      #lblR .b { display: block; font-size: 100px; line-height: 100px; letter-spacing: -1px; color: #f3f3f0; }
+      #vs { position: absolute; left: 462px; top: 262px; width: 132px; height: 132px; border-radius: 50%; background: #f3f3f0; color: #141417;
+        display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 64px; line-height: 64px; padding-bottom: 8px; transform: rotate(-8deg); z-index: 3; }
+      #eyes { position: absolute; left: 490px; top: 402px; width: 100px; text-align: center; font-size: 64px; line-height: 70px; z-index: 3; }
+      .clk { position: absolute; top: 470px; width: 320px; height: 100px; }
+      #clkL { left: 160px; } #clkR { left: 600px; }
+      .clk span { position: absolute; left: 0; top: 0; width: 320px; text-align: center; font-family: "Sofia Sans Extra Condensed", sans-serif; font-weight: 800; font-size: 100px; line-height: 100px; font-variant-numeric: tabular-nums; opacity: 0; }
+
+      /* phones */
+      .phone { position: absolute; top: 620px; width: 440px; height: 957px; border-radius: 54px; overflow: hidden; background: #141419; box-shadow: 0 0 0 6px #2e2d35, 0 30px 80px rgba(0, 0, 0, 0.55); }
+      #phL { left: 50px; } #phR { left: 590px; }
+      .scr { position: absolute; inset: 0; }
+      .scr img { display: block; width: 440px; height: 957px; }
+      #rDetail { transform: translateX(440px); }
+
+      /* the invented feed (left) */
+      #feedHead { position: absolute; left: 0; top: 0; width: 440px; height: 178px; background: #141419; z-index: 2; padding: 34px 26px 0; }
+      #feedHead .t { font-weight: 800; font-size: 44px; line-height: 48px; }
+      #feedHead .bad { position: absolute; left: 154px; top: 40px; padding: 2px 12px 4px; border-radius: 20px; background: #ac345e; color: #fff; font-weight: 800; font-size: 28px; line-height: 32px; }
+      #rings { position: absolute; left: 22px; top: 96px; display: flex; gap: 14px; }
+      #rings i { display: block; width: 66px; height: 66px; border-radius: 50%; border: 5px solid; padding: 5px; }
+      #rings i b { display: block; width: 100%; height: 100%; border-radius: 50%; background: #2a2a33; }
+      #feed { position: absolute; left: 0; top: 178px; width: 440px; }
+      .row { position: relative; height: 92px; padding: 14px 18px 0 96px; border-bottom: 1px solid #22222a; }
+      .row .av { position: absolute; left: 20px; top: 14px; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 30px; color: #fff; }
+      .row .nm { width: 150px; height: 16px; border-radius: 8px; background: #3a3a44; margin-top: 4px; }
+      .row .tx { margin-top: 12px; font-family: "Inter", sans-serif; font-weight: 600; font-size: 22px; line-height: 26px; color: #b7b6be; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 250px; }
+      .row .cnt { position: absolute; right: 18px; top: 34px; padding: 1px 10px 3px; border-radius: 16px; background: #ac345e; color: #fff; font-weight: 800; font-size: 22px; line-height: 26px; }
+      .post { margin: 12px 14px; border-radius: 22px; background: #1e1e25; padding: 16px 18px 18px; }
+      .post .pt { font-weight: 800; font-size: 30px; line-height: 34px; }
+      .post .img { height: 150px; border-radius: 14px; background: linear-gradient(135deg, #2a2a34, #23232b); margin-bottom: 12px; }
+      .post .ln { height: 14px; border-radius: 7px; background: #33333c; margin-top: 10px; }
+      .ban { position: absolute; left: 14px; top: 14px; width: 412px; height: 80px; border-radius: 22px; background: #2e2d35; z-index: 3; opacity: 0;
+        padding: 0 18px; display: flex; align-items: center; font-family: "Inter", sans-serif; font-weight: 600; font-size: 23px; line-height: 28px; white-space: nowrap; overflow: hidden; }
+
+      /* the right phone: taps, punch-ins, the done mark */
+      .ripple { position: absolute; width: 110px; height: 110px; margin: -55px 0 0 -55px; border-radius: 50%; border: 6px solid #f3f3f0; opacity: 0; z-index: 4; }
+      #done { position: absolute; left: 30px; top: 470px; width: 120px; height: 120px; border-radius: 50%; background: #376e33; color: #fff; z-index: 5; opacity: 0;
+        display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 76px; line-height: 76px; box-shadow: 0 0 0 6px #f3f3f0; }
+
+      .plate { position: absolute; display: flex; flex-direction: column; align-items: center; gap: 10px; z-index: 6; }
+      .plate span { display: block; background: #f3f3f0; color: #141417; border-radius: 16px; padding: 8px 22px 12px; font-weight: 800; font-size: 56px; line-height: 62px; white-space: nowrap; }
+      .plate span i { display: inline-block; font-style: normal; }
+      #capL { left: 160px; top: 1250px; width: 320px; }
+      #capL span, #capR span { font-size: 50px; line-height: 56px; padding: 8px 20px 12px; }
+      #capR { left: 600px; top: 1250px; width: 320px; }
+      #capF { left: 160px; top: 830px; width: 760px; }
+      #capF span { font-size: 84px; line-height: 92px; }
+
+      /* the takeover: the right side's map, full bleed */
+      #full { position: absolute; inset: 0; z-index: 8; clip-path: inset(0 0 0 100%); overflow: hidden; }
+      #full img { position: absolute; left: 0; top: -60px; width: 1080px; height: 2348px; }
+      #flash { position: absolute; inset: 0; background: #f3f3f0; opacity: 0; z-index: 9; pointer-events: none; }
+
+      /* end card (END-CARD.md grid, as in k1-print): brand ticket with the slogan on its paper stub */
+      #shade { position: absolute; inset: 0; background: #0f1017; opacity: 0; z-index: 10; }
+      #brand { position: absolute; left: 160px; top: 520px; width: 760px; height: 510px; z-index: 11; opacity: 0;
+        -webkit-mask: radial-gradient(circle 19px at 0 385px, transparent 18px, #000 19px) left / 51% 100% no-repeat,
+                      radial-gradient(circle 19px at 100% 385px, transparent 18px, #000 19px) right / 51% 100% no-repeat; }
+      #brand .body { position: absolute; left: 0; top: 0; width: 760px; height: 385px; border-radius: 36px 36px 0 0; background: #1c1b21; box-shadow: inset 0 0 0 2px #2e2d35; }
+      #brand .icon { position: absolute; left: 292px; top: 40px; width: 176px; height: 176px; border-radius: 40px; }
+      #brand .name { position: absolute; left: 0; top: 248px; width: 760px; text-align: center; font-weight: 800; font-size: 128px; line-height: 128px; letter-spacing: -1px; color: #f3f3f0; }
+      #brand .stub { position: absolute; left: 0; top: 385px; width: 760px; height: 125px; border-radius: 0 0 36px 36px; background: #f3f3f0; color: #141417;
+        display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 44px; }
+      #brand .perf { position: absolute; left: 26px; right: 26px; top: 384px; border-top: 3px dotted rgba(243, 243, 240, 0.45); }
+      #bait { position: absolute; left: 160px; top: 296px; width: 760px; text-align: center; font-weight: 700; font-size: 60px; line-height: 66px; z-index: 11; opacity: 0; }
+      #free { position: absolute; left: 0; top: 1104px; width: 1080px; text-align: center; font-family: "Inter", sans-serif; font-weight: 600; font-size: 34px; line-height: 40px; color: #a9c1f5; z-index: 11; opacity: 0; }
+      #store { position: absolute; left: 0; top: 1176px; width: 1080px; display: flex; flex-direction: column; align-items: center; z-index: 11; opacity: 0; }
+      #badges { display: flex; gap: 32px; }
+      /* official badges: untouched files, both 104 px tall, no transform/filter/shadow */
+      #badges img { display: block; height: 104px; width: auto; }
+      #store .tm { margin-top: 22px; text-align: center; font-family: "Inter", sans-serif; font-weight: 400; font-size: 20px; line-height: 28px; color: #96959e; white-space: nowrap; }
+
+      #grain { position: absolute; z-index: 12; inset: 0; pointer-events: none; opacity: 0.07; mix-blend-mode: overlay; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="14" data-fps="30" data-width="1080" data-height="1920">
+      <div id="world">
+        <div id="halfR"></div>
+        <div id="divider"></div>
+
+        <div id="phL" class="phone" data-layout-ignore>
+          <div class="scr" id="lScr">
+            <div id="feed"></div>
+            <div id="feedHead">
+              <div class="t">Канали</div><div class="bad">+99</div>
+              <div id="rings"></div>
+            </div>
+          </div>
+        </div>
+        <div id="phR" class="phone">
+          <div class="scr" id="rScr">
+            <div class="scr" id="rMap" data-layout-allow-overflow><img src="assets/ui/map.jpg" alt="Мапа «Поряд», Київ" /></div>
+            <div class="scr" id="rDetail"><img src="assets/ui/detail.jpg" alt="Сторінка події в «Поряд»" /></div>
+            <div class="ripple" id="rip1" style="left: 189px; top: 430px"></div>
+            <div class="ripple" id="rip2" style="left: 65px; top: 553px"></div>
+            <div id="done">✓</div>
+          </div>
+        </div>
+
+        <div id="lblL">ти</div>
+        <div id="lblR"><span class="a">ти з</span><span class="b">«Поряд»</span></div>
+        <div id="vs">vs</div>
+        <div id="eyes">👀</div>
+        <div class="clk" id="clkL"></div>
+        <div class="clk" id="clkR"></div>
+
+        <div class="plate" id="capL"><span>ще гортаю 🫠</span></div>
+        <div class="plate" id="capR"><span>є план ✅</span></div>
+      </div>
+
+      <div id="full"><img src="assets/ui/map-full.jpg" alt="Мапа «Поряд», Київ" /></div>
+      <div class="plate" id="capF" style="z-index: 9"><span><i>сотні</i> <i>подій</i> <i>міста</i></span><span><i>—</i> <i>на</i> <i>одній</i> <i>мапі</i></span></div>
+      <div id="flash"></div>
+
+      <div id="shade"></div>
+      <div id="brand" data-layout-allow-overflow>
+        <div class="body"><img class="icon" src="assets/icon.png" alt="" /><div class="name">Поряд</div></div>
+        <div class="stub">Є куди. Буде з ким.</div>
+        <div class="perf"></div>
+      </div>
+      <div id="bait">а ти — зліва чи справа? 👇</div>
+      <div id="free">безкоштовно</div>
+      <div id="store">
+        <div id="badges">
+          <img src="assets/appstore-badge-uk.svg" alt="Завантажте в App Store" />
+          <img src="assets/googleplay-badge-uk.svg" alt="Завантажте з Google Play" />
+        </div>
+        <div class="tm" data-layout-ignore>
+          <div>Apple, логотип Apple і App Store є торговельними марками Apple Inc.</div>
+          <div>Google Play і логотип Google Play є торговельними марками Google LLC.</div>
+        </div>
+      </div>
+
+      <svg id="grain" width="1080" height="1920" aria-hidden="true">
+        <filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="41" /><feColorMatrix type="saturate" values="0" /></filter>
+        <rect width="1080" height="1920" filter="url(#noise)" />
+      </svg>
+
+      <!-- music: «Cozy Cafe Moments» (DesiFreeMusic) from 2.85 s, so its full-beat entry (10.25 in the file) lands on the takeover at 7.4 -->
+      <audio id="music" src="assets/audio/music.m4a" data-start="0" data-media-start="2.85" data-duration="14" data-track-index="10" data-automation="{&quot;version&quot;:1,&quot;lanes&quot;:[{&quot;target&quot;:&quot;volume&quot;,&quot;points&quot;:[{&quot;t&quot;:0,&quot;v&quot;:0.75},{&quot;t&quot;:13.3,&quot;v&quot;:0.75},{&quot;t&quot;:14,&quot;v&quot;:0}]}]}"></audio>
+      <audio id="sfx-n1" src="assets/audio/ui_tick.wav" data-start="2.0" data-duration="0.08" data-track-index="11" data-volume="0.5"></audio>
+      <audio id="sfx-n2" src="assets/audio/ui_tick.wav" data-start="2.8" data-duration="0.08" data-track-index="11" data-volume="0.5"></audio>
+      <audio id="sfx-n3" src="assets/audio/ui_tick.wav" data-start="3.9" data-duration="0.08" data-track-index="11" data-volume="0.5"></audio>
+      <audio id="sfx-n4" src="assets/audio/ui_tick.wav" data-start="4.6" data-duration="0.08" data-track-index="11" data-volume="0.5"></audio>
+      <audio id="sfx-n5" src="assets/audio/ui_tick.wav" data-start="5.6" data-duration="0.08" data-track-index="11" data-volume="0.5"></audio>
+      <audio id="sfx-n6" src="assets/audio/ui_tick.wav" data-start="6.5" data-duration="0.08" data-track-index="11" data-volume="0.5"></audio>
+      <audio id="sfx-race1" src="assets/audio/counter_tick.wav" data-start="1.6" data-duration="1.0" data-track-index="12" data-volume="0.35"></audio>
+      <audio id="sfx-race2" src="assets/audio/counter_tick.wav" data-start="3.9" data-duration="1.0" data-track-index="12" data-volume="0.35"></audio>
+      <audio id="sfx-tap1" src="assets/audio/pin_pop_1.wav" data-start="2.45" data-duration="0.25" data-track-index="13" data-volume="0.5"></audio>
+      <audio id="sfx-whip" src="assets/audio/whoosh.wav" data-start="2.78" data-duration="0.26" data-track-index="14" data-volume="0.4"></audio>
+      <audio id="sfx-tap2" src="assets/audio/pin_pop_1.wav" data-start="3.85" data-duration="0.25" data-track-index="13" data-volume="0.5"></audio>
+      <audio id="sfx-done" src="assets/audio/stamp.wav" data-start="4.05" data-duration="0.56" data-track-index="15" data-volume="0.6"></audio>
+      <audio id="sfx-take" src="assets/audio/whoosh.wav" data-start="7.3" data-duration="0.26" data-track-index="14" data-volume="0.55"></audio>
+      <audio id="sfx-brand" src="assets/audio/stamp.wav" data-start="10.32" data-duration="0.56" data-track-index="15" data-volume="0.55"></audio>
+    </div>
+
+    <script>
+      (function () {
+        var C = ["#6041b1", "#8d6a11", "#ac345e", "#1b7979", "#a24c29", "#2957ac", "#376e33", "#b15d1a"];
+
+        // ---- the invented feed: channel rows and posts, no real names or logos
+        var rings = document.getElementById("rings");
+        for (var r = 0; r < 5; r++) { var i = document.createElement("i"); i.style.borderColor = C[(r * 3) % 8]; i.appendChild(document.createElement("b")); rings.appendChild(i); }
+        var TX = ["афіша тижня (1/7)", "хто знає, що сьогодні?", "📌 розклад на листопад", "переслано: «куди піти?»", "дивись сторіз ↑", "квитки ще є?",
+          "а хто йде?", "оновлено: перенесли 😬", "голосування: куди підемо", "афіша тижня (2/7)", "посилання в коментарях", "хтось був там?"];
+        var LET = "АКЩПДМЛСВТОН";
+        var feed = document.getElementById("feed");
+        for (var k = 0; k < 44; k++) {
+          var el;
+          if (k % 6 === 3) {
+            el = document.createElement("div"); el.className = "post";
+            el.innerHTML = (k % 12 === 3 ? '<div class="img"></div>' : "") + '<div class="pt"></div><div class="ln" style="width:90%"></div><div class="ln" style="width:64%"></div>';
+            el.querySelector(".pt").textContent = ["афіша тижня (3/7)", "хто знає, що сьогодні?", "📌 закріплене", "куди піти в пʼятницю?"][(k / 6 | 0) % 4];
+          } else {
+            el = document.createElement("div"); el.className = "row";
+            el.innerHTML = '<div class="av"></div><div class="nm"></div><div class="tx"></div>' + (k % 3 ? '<div class="cnt"></div>' : "");
+            el.querySelector(".av").textContent = LET[k % LET.length];
+            el.querySelector(".av").style.background = C[(k * 5) % 8];
+            el.querySelector(".nm").style.width = 110 + ((k * 37) % 90) + "px";
+            el.querySelector(".tx").textContent = TX[k % TX.length];
+            if (k % 3) el.querySelector(".cnt").textContent = "+" + (3 + ((k * 29) % 96));
+          }
+          feed.appendChild(el);
+        }
+        var BAN = ["📣 афіша тижня (4/7)", "💬 «хто знає, що сьогодні?»", "📌 закріплене повідомлення", "🔗 переслано з іншого каналу", "💬 «а хто йде?» +23", "🔔 +99 непрочитаних"];
+        var lScr = document.getElementById("lScr");
+        BAN.forEach(function (t, j) { var b = document.createElement("div"); b.className = "ban"; b.id = "ban" + j; b.textContent = t; lScr.appendChild(b); });
+
+        // ---- the clocks: one span per value, shown by hard cuts
+        function clock(id, steps) {
+          var box = document.getElementById(id);
+          steps.forEach(function (s, j) { var sp = document.createElement("span"); sp.id = id + j; sp.textContent = s[1]; if (s[2]) sp.setAttribute("data-layout-ignore", ""); box.appendChild(sp); });
+          return steps;
+        }
+        // [time, value, racing?] — racing values flick past on purpose; the held ones are read
+        var L = [[0, "19:00"]];
+        ["19:02", "19:05", "19:08", "19:12", "19:15", "19:19", "19:23", "19:27", "19:31", "19:35", "19:38"].forEach(function (v, j) { L.push([1.6 + j * 0.13, v, 1]); });
+        L.push([3.03, "19:40"]);
+        ["19:44", "19:49", "19:53", "19:58", "20:02", "20:07", "20:11", "20:16", "20:20", "20:24", "20:28"].forEach(function (v, j) { L.push([3.7 + j * 0.115, v, 1]); });
+        L.push([4.97, "20:30"]);
+        var R = [[0, "19:00"], [2.9, "19:01"], [4.05, "19:02"]];
+        clock("clkL", L); clock("clkR", R);
+
+        var tl = gsap.timeline({ paused: true });
+        function steps(id, list, end) {
+          list.forEach(function (s, j) {
+            tl.set("#" + id + j, { opacity: 1 }, s[0]);
+            tl.set("#" + id + j, { opacity: 0 }, j + 1 < list.length ? list[j + 1][0] : end);
+          });
+        }
+        steps("clkL", L, 7.9); steps("clkR", R, 7.9);
+        function shake(at, amp) { tl.fromTo("#world", { x: 0, y: 0 }, { x: amp, y: -amp * 0.6, duration: 0.035, ease: "none", yoyo: true, repeat: 5, immediateRender: false }, at); }
+        function pop(sel, at) { tl.fromTo(sel, { scale: 1 }, { scale: 1.14, duration: 0.09, ease: "power2.out", yoyo: true, repeat: 1, immediateRender: false }, at); }
+        function plate(sel, at, out) {
+          tl.fromTo(sel, { opacity: 0, scale: 0.7 }, { opacity: 1, scale: 1, duration: 0.22, ease: "back.out(2.6)" }, at);
+          if (out != null) tl.to(sel, { opacity: 0, duration: 0.12 }, out);
+        }
+
+        // ---- 0–1.6: the hook — everything on screen from frame 0, then each label punches on the beat
+        pop("#lblL", 0.15); pop("#vs", 0.4); pop("#lblR", 0.65);
+        tl.fromTo("#eyes", { rotation: 0 }, { rotation: 14, duration: 0.12, ease: "power1.inOut", yoyo: true, repeat: 3, immediateRender: false }, 0.9);
+
+        // ---- left: the feed never stops, notifications stack up, the clock runs away
+        tl.fromTo("#feed", { y: 0 }, { y: -3300, duration: 7.0, ease: "power1.in" }, 0.4);
+        var BT = [2.0, 2.8, 3.9, 4.6, 5.6, 6.5];
+        BT.forEach(function (t, j) {
+          tl.fromTo("#ban" + j, { opacity: 0, y: -110 }, { opacity: 1, y: 0, duration: 0.18, ease: "back.out(1.6)" }, t);
+          for (var i = 0; i < j; i++) {
+            var d = j - i;
+            tl.to("#ban" + i, { y: d * 90, scale: 1 - d * 0.04, opacity: d > 2 ? 0 : 1, duration: 0.18, ease: "power2.out" }, t);
+          }
+        });
+        pop("#clkL", 3.03); shake(3.03, 6);
+        pop("#clkL", 4.97); shake(4.97, 8);
+        plate("#capL", 5.2);
+        tl.fromTo("#lblL", { rotation: 0 }, { rotation: -4, duration: 0.08, ease: "none", yoyo: true, repeat: 5, immediateRender: false }, 6.3);
+
+        // ---- right: tap the map, whip to the event, tap «Календар», done
+        tl.fromTo("#rip1", { opacity: 1, scale: 0.3 }, { opacity: 0, scale: 1.7, duration: 0.4, ease: "power2.out", immediateRender: false }, 2.45);
+        tl.to("#rMap", { scale: 1.16, transformOrigin: "43% 45%", duration: 0.25, ease: "power3.out" }, 2.5);
+        tl.to("#rMap", { x: -440, filter: "blur(14px)", duration: 0.2, ease: "power3.in" }, 2.78);
+        tl.fromTo("#rDetail", { x: 440, filter: "blur(14px)" }, { x: 0, filter: "blur(0px)", duration: 0.24, ease: "power3.out", immediateRender: false }, 2.84);
+        pop("#clkR", 2.9);
+        tl.to("#rDetail", { scale: 1.28, transformOrigin: "15% 58%", duration: 0.3, ease: "power3.inOut" }, 3.5);
+        tl.fromTo("#rip2", { opacity: 1, scale: 0.3 }, { opacity: 0, scale: 1.7, duration: 0.4, ease: "power2.out", immediateRender: false }, 3.85);
+        tl.fromTo("#done", { opacity: 0, scale: 2.2, rotation: -20 }, { opacity: 1, scale: 1, rotation: 0, duration: 0.16, ease: "power4.in" }, 4.0);
+        pop("#clkR", 4.05); shake(4.08, 6);
+        plate("#capR", 4.2);
+        tl.to("#rDetail", { scale: 1, duration: 0.4, ease: "power3.inOut" }, 4.55);
+
+        // ---- 7.3–9.9: the right side takes the whole screen (beat drop), one flash, the map
+        tl.fromTo("#full", { clipPath: "inset(0 0 0 50%)" }, { clipPath: "inset(0 0 0 0%)", duration: 0.32, ease: "power4.inOut", immediateRender: false }, 7.3);
+        tl.fromTo("#full img", { x: 140, filter: "blur(12px)" }, { x: 0, filter: "blur(0px)", duration: 0.4, ease: "power3.out", immediateRender: false }, 7.3);
+        tl.fromTo("#flash", { opacity: 0 }, { opacity: 0.75, duration: 0.033, yoyo: true, repeat: 1, ease: "none", immediateRender: false }, 7.58);
+        shake(7.6, 10);
+        tl.fromTo("#full img", { scale: 1 }, { scale: 1.07, transformOrigin: "50% 40%", duration: 2.4, ease: "none", immediateRender: false }, 7.7);
+        tl.set("#world", { opacity: 0 }, 7.7);
+        tl.set("#capF", { opacity: 1 }, 7.8);
+        tl.fromTo("#capF i", { opacity: 0, scale: 0.4, y: 20 }, { opacity: 1, scale: 1, y: 0, duration: 0.18, ease: "back.out(3)", stagger: 0.09 }, 7.8);
+        tl.fromTo("#capF span", { opacity: 0 }, { opacity: 1, duration: 0.05, stagger: 0.36 }, 7.8);
+        tl.to("#capF", { opacity: 0, duration: 0.12 }, 9.85);
+
+        // ---- 9.9–14: end card; badges by one hard cut, static from 11.2
+        tl.to("#shade", { opacity: 1, duration: 0.25 }, 9.9);
+        tl.fromTo("#brand", { opacity: 0, y: 260 }, { opacity: 1, y: 0, duration: 0.42, ease: "power4.out" }, 9.95);
+        tl.fromTo("#brand", { rotation: 0 }, { rotation: -1.4, duration: 0.14, ease: "power2.out", yoyo: true, repeat: 1, immediateRender: false }, 10.32);
+        tl.fromTo("#bait", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.3, ease: "back.out(2)" }, 10.35);
+        tl.fromTo("#free", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.3, ease: "power3.out" }, 10.6);
+        tl.set("#store", { opacity: 1 }, 10.95);
+
+        window.__timelines["main"] = tl;
+      })();
+    </script>
+  </body>
+</html>
