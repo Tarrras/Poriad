@@ -2103,6 +2103,21 @@ class PoruchAppTest {
         assertNull(app.state.value.detail.event,"releasing frees the live event's slot")
         app.close()
     }
+    /** Запрошення на подію, яку злили вже після того, як нею поділились: деталі йдуть на живу, а хто кличе — лишається. */
+    @Test fun anInviteToAMergedEventStillNamesTheInviter()=runTest {
+        val events=Events()
+        val start=(Clock.System.now()+30.hours).toString()
+        val old="a1000000-0000-4000-8000-0000000000a1"; val live=listed("a1000000-0000-4000-8000-0000000000a2",start)
+        events.results=listOf(listed(old,start)); events.detailsById=mapOf(old to live)
+        events.invites=mapOf("AbCdEfGhIjKlMnOpQrSt_-" to (old to Inviter("Тарас",null)))
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
+        app.eventLinkOpened("poriad-dev://event/$old?by=AbCdEfGhIjKlMnOpQrSt_-"); runCurrent()
+        val screen=DetailPresenter(app,old,backgroundScope,StandardTestDispatcher(testScheduler))
+        runCurrent(); advanceTimeBy(1000); runCurrent()
+        assertEquals(live.id,screen.state.value.event?.id)
+        assertEquals(Inviter("Тарас",null),screen.state.value.inviter)
+        app.close()
+    }
     /** Подію без картки відкрили без мережі: «Немає звʼязку» замість «Подія недоступна», без банера-дубля; мережа — і подія. */
     @Test fun anEventOpenedOfflineWaitsForTheNetwork()=runTest {
         val events=Events()

@@ -315,7 +315,8 @@ class DetailPresenter(
             followingPlace = event?.placeId?.let { shared.isFollowing(FollowKind.PLACE, it) } == true,
             followedOrganizers = shared.library.follows.filter { it.kind == FollowKind.ORGANIZER }.mapTo(HashSet()) { it.targetId },
             createdCompanion = shared.createdCompanion?.takeIf { event != null },
-            inviter = shared.invite?.takeIf { event != null && it.first == eventId }?.second,
+            // Посилання могло вести на подію, яку потім злили: запрошення лишилось під старим id.
+            inviter = shared.invite?.takeIf { event != null && (it.first == eventId || it.first == shared.detail.mergedFrom) }?.second,
             checked = CheckedLabel.of(event?.listing?.checkedAt, now, TimeZone.currentSystemDefault())
         )
     }
