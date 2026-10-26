@@ -133,11 +133,11 @@ UGC: так. Спілкування між користувачами: так (�
 Тексти iOS оновлено 2026-10-08 разом з Play (ASO) і внесено в App Store Connect: версія 1.2.0 (Prepare for Submission) — опис, keywords, What's New, promo, App Review notes; App Information — name, subtitle (підуть разом з 1.2.0). Збірку й «Add for Review» робить власник. Назва, subtitle, keywords, опис і What's New редагуються лише в новій версії (1.2.0, збірка 11); promotional text — будь-коли. В описі для App Store не згадуємо інші платформи (Android) — правило 2.3.10.
 
 **Name (30):** Поряд: афіша й події поруч
-**Subtitle (30):** Афіша, зустрічі й куди піти
+**Subtitle (30):** Куди піти: концерти й вистави (29; з наступної версії, зараз у сторі «Афіша, зустрічі й куди піти» — повторює «афіша» з назви)
 **Promotional text (170):** Є куди. Буде з ким. Концерти, вистави й зустрічі поруч на одній мапі. Нове: «Покликати» — особисте посилання для друга, і фільтр «Район» на мапі. (з 2026-10-26; до того з 1.3.2: «Є куди. Буде з ким. Концерти, вистави й зустрічі поруч на одній мапі. Кличте друзів з собою або шукайте компанію на будь-яку подію.»; ще раніше: «Концерти, настолки, пробіжки й зустрічі поруч з вами. Шукайте компанію, стежте за улюбленими артистами й закладами. Тепер — вхід через Apple і Google.»)
-**Keywords (100):** концерти,настолки,компанія,вихідні,київ,львів,одеса,дніпро,харків,квитки,стендап,пробіжка,meetup
+**Keywords (100):** компанія,вихідні,настолки,стендап,театр,виставки,фестивалі,розваги,київ,львів,одеса,дніпро,харків (97; з наступної версії, зараз у сторі «концерти,настолки,компанія,вихідні,київ,львів,одеса,дніпро,харків,квитки,стендап,пробіжка,meetup»)
 
-Слова з назви й subtitle у keywords не повторюємо: App Store індексує їх разом, повтор — змарноване місце. Попередні: name «Поряд», subtitle «Мапа подій і зустрічей міста», keywords «події,афіша,мапа,зустрічі,концерти,настолки,пробіжка,київ,львів,meetup,events,куди піти».
+Слова з назви й subtitle у keywords не повторюємо: App Store індексує їх разом, повтор — змарноване місце. Те саме між локалізаціями: вітрина UA індексує українську разом з English (U.K.) і Russian (таблиця MobileAction), тож слово з англійських полів в українських keywords теж змарноване. Заміни 2026-10-26 ([ASO-аудит](../docs/aso-audit-2026-10-26.md)): прибрано «квитки» (у пошуку — квитки на потяги й автобуси, ми поза топ-50) і «meetup» (Meetup і дейтинг, поза топ-50), «концерти» переїхали в subtitle, «пробіжка» й «poriad» — в англійську локалізацію; додано «театр», «виставки», «фестивалі», «розваги». Попередні: name «Поряд», subtitle «Мапа подій і зустрічей міста», keywords «події,афіша,мапа,зустрічі,концерти,настолки,пробіжка,київ,львів,meetup,events,куди піти».
 
 **What's New (1.3.2):**
 
@@ -189,17 +189,24 @@ UGC: так. Спілкування між користувачами: так (�
 
 **Description (iOS):**
 
+Оновлено 2026-10-26 для наступної версії (у сторі до неї — попередній текст із «Три кроки», див. git): чотири кроки створення, «Покликати», «Район» і «Ближче до мене», пошук латиницею, «Мої події» без мережі.
+
 Поряд — афіша вашого міста на мапі. Відкрийте застосунок і за хвилину знайдете, куди піти сьогодні ввечері чи на вихідних: концерти, вистави, стендап, виставки, лекції, настільні ігри, ранкові пробіжки, розмовні клуби й зустрічі, які створюють такі самі люди, як ви. Київ, Львів, Одеса, Дніпро, Харків та інші міста України.
 
 ДЛЯ ЧОГО ПОРЯД
 • Вільний вечір і хочеться кудись вийти — фільтр «сьогодні» покаже, що відбувається за кілька кварталів.
 • Є квиток на концерт, але нема з ким піти — відкрийте «Шукаю компанію» і йдіть разом.
+• Хочете піти з другом — натисніть «Покликати»: він отримає особисте посилання й побачить, що кличете саме ви.
 • Переїхали в нове місто — знайдіть настолки, пробіжки чи мовний клуб і познайомтеся з людьми поруч.
 • Хочете зібрати своїх — створіть зустріч за хвилину, а Поряд допоможе з місцями й нагадуваннями.
 
+АФІША МІСТА
+Афіша Києва, Львова, Одеси, Дніпра й Харкова в одному місці: концерти й фестивалі, театр і вистави, стендап, виставки, лекції, екскурсії, ярмарки. Події з квиткових сервісів і зустрічі від людей на одній мапі — видно, що відбувається у вашому районі.
+
 АФІША НА МАПІ
-• Події з афіш і від людей в одному місці, з категоріями: музика, спорт, мистецтво, їжа, ігри, природа, стендап, екскурсії, конференції, зустрічі.
-• Фільтри «сьогодні», «вихідні», «є вільні місця», пошук за назвою, місцем, артистом чи темою.
+• Категорії: музика, спорт, мистецтво, їжа, ігри, природа, стендап, екскурсії, конференції, зустрічі.
+• Фільтри «сьогодні», «вихідні», «є вільні місця» й «Район»; «Ближче до мене» впорядкує список від найближчої події.
+• Пошук за назвою, місцем, артистом чи темою, і латиницею теж: «Атлас» знайде й Atlas.
 • Головна збирає план тижня: ваші події, підбірка за інтересами, що нового в місті.
 • Стежте за улюбленими закладами, артистами й організаторами — скажемо, коли з'явиться нове.
 
@@ -208,9 +215,10 @@ UGC: так. Спілкування між користувачами: так (�
 • Чат події для організатора й учасників.
 • Нагадування за годину до початку, експорт у календар, маршрут у мапах, найближче укриття поруч із місцем події.
 • Квитки на афішні події купуються на сайті організатора — посилання прямо в картці.
+• «Мої події» видно й без мережі.
 
 СТВОРЮЙТЕ СВОЇ ЗУСТРІЧІ
-• Три кроки: опис, точка на мапі, час і кількість місць.
+• Чотири короткі кроки: що, де, коли й хто може прийти. Квиток друкується просто під час заповнення.
 • Підтвердження учасників, вікові межі, обкладинка, посилання на чат.
 • Учасників бачите ви; сторонні — лише їхню кількість.
 
@@ -226,8 +234,53 @@ UGC: так. Спілкування між користувачами: так (�
 Подобається Поряд? Поділіться ним з друзями прямо з профілю — разом цікавіше.
 
 Афішні події беруться з відкритих джерел із зазначенням джерела. Мапа: MapLibre, дані © учасники OpenStreetMap, тайли OpenFreeMap.
+
 **Primary language:** Ukrainian. **Category:** Entertainment (secondary: Lifestyle) — так стоїть в App Store Connect. **Age rating:** 18+ (UGC, повідомлення між користувачами, чат зі стоп-словником і модерацією; «unrestricted web access» — ні, WebView немає).
 **Support URL:** https://poriad.app. **Privacy Policy URL:** https://poriad.app/privacy-en.html (українська: privacy.html). **Account deletion URL для Play:** https://poriad.app/delete-account.html.
+
+### English (U.K.) — нова локалізація з наступною версією
+
+Навіщо: вітрина UA індексує English (U.K.) поруч з українською, тож це ще 160 знаків для пошуку. Крім того, людям з англійською мовою системи App Store зараз показує українську сторінку без subtitle і promo text. Сам застосунок не перекладаємо, а перший рядок опису чесно каже, що він українською. Слова англійських полів не повторюють українських (див. вище). В англійських keywords можна писати й кирилицею: індексуються вони у вітрині UA.
+
+App Store Connect → наступна версія → мова сторінки → «+» → English (U.K.). Скріни можна не вантажити: без своїх локалізація бере скріни основної мови. What's New англійською пишемо щоразу разом з українським.
+
+**Name (30):** Poriad: Events & Things to Do (29)
+**Subtitle (30):** Kyiv concerts, gigs & meetups (29)
+**Keywords (100):** дозвілля,пробіжка,лекції,екскурсії,однодумці,ярмарки,theatre,standup,lviv,odesa,dnipro,kharkiv (94)
+**Promotional text (170):** Somewhere to go, someone to go with. Concerts, theatre and meetups in Kyiv, Lviv, Odesa, Dnipro and Kharkiv on one map. The app is in Ukrainian. (144)
+**Support URL:** https://poriad.app. **Privacy Policy URL** (App Information, English (U.K.)): https://poriad.app/privacy-en.html.
+
+**Description:**
+
+The app is in Ukrainian.
+
+Poriad is your city's events guide on a map. Open it and in a minute you'll know where to go tonight or this weekend: concerts, theatre, stand-up, exhibitions, talks, board games, morning runs, language clubs and meetups organised by people like you. Kyiv, Lviv, Odesa, Dnipro, Kharkiv and other Ukrainian cities.
+
+WHY PORIAD
+• A free evening and you want to go out — the "today" filter shows what's on a few blocks away.
+• Got a concert ticket but no one to go with — start a small group for any listed event and go together.
+• Want a friend to come along — send a personal invite link, and they'll see it's you who's asking.
+• New in town — find board games, runs or a language club and meet people nearby.
+• Want to gather your own crowd — create a meetup in four short steps.
+
+THE CITY ON ONE MAP
+• Listings from ticket services and meetups from people, by category: music, sport, art, food, games, nature, stand-up, tours, conferences, meetups.
+• Filters for today, the weekend, free spots and your district; sort the list by distance.
+• Search by name, venue, artist or topic — in Cyrillic or Latin letters.
+• Follow venues, artists and organisers — we'll tell you when something new appears.
+
+JOIN IN
+• One tap to join, get on the waitlist or save for later.
+• Event chat for the organiser and guests.
+• A reminder an hour before, calendar export, directions, and in Kyiv the nearest shelter next to each event.
+• Tickets for listed events are bought on the organiser's site — the link is right on the event.
+
+SAFETY AND PRIVACY
+• Adults only: profiles from 18.
+• Report and block from every event screen.
+• No ads and no advertising identifiers. Approximate location only, to pick your city — you can say no. Analytics can be turned off in your profile.
+
+Listings come from open sources with attribution. Map: MapLibre, data © OpenStreetMap contributors, tiles OpenFreeMap.
 
 ### App Privacy (Data linked to you)
 
