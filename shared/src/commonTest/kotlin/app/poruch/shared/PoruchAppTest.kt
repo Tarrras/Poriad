@@ -183,10 +183,10 @@ class PoruchAppTest {
         }
     }
 
-    private fun app(events:Events,scope:CoroutineScope,auth:Auth=Auth(),cities:CityStore?=null,follows:Follows?=null,bought:SeenRequestStore?=null,guestSaves:GuestSavedStore?=null):PoruchApp {
+    private fun app(events:Events,scope:CoroutineScope,auth:Auth=Auth(),cities:CityStore?=null,follows:Follows?=null,bought:SeenRequestStore?=null,guestSaves:GuestSavedStore?=null,goodDays:SeenRequestStore?=null):PoruchApp {
         return PoruchApp(
             events=events, saved=events, authoring=events, participation=events, requests=events, chat=events,
-            auth=auth, cityStore=cities, follows=follows, boughtAsked=bought, guestSaves=guestSaves,
+            auth=auth, cityStore=cities, follows=follows, boughtAsked=bought, guestSaves=guestSaves, goodDays=goodDays,
             geo=object:GeoSearchRepository { override suspend fun search(query:String)=emptyList<CityResult>() },
             eventActions=EventActions(events,events,auth), accountActions=AccountActions(auth),
             safety=safety, profiles=profiles, tasteStore=taste, reminderStore=reminders, scope=scope
@@ -1800,6 +1800,24 @@ class PoruchAppTest {
         assertTrue(app.state.value.reviewMoment)
         app.reviewMomentHandled(prompted = false)
         assertFalse(app.state.value.reviewMoment)
+        app.close()
+    }
+
+    /** Закладка чи приєднання просять відгук лише в другий такий день: перший належить питанню про сповіщення. */
+    @Test fun saveOrJoinOnASecondDayIsAMomentToAskForAStoreReview()=runTest {
+        val events=Events(); events.results=listOf(event("e",EventCategory.GAMES,"2090-01-05T19:00:00Z"),event("f",EventCategory.MUSIC,"2090-01-06T19:00:00Z"),event("g",EventCategory.MUSIC,"2090-01-07T19:00:00Z"))
+        val days=object:SeenRequestStore { val keys=mutableSetOf<String>(); override fun seen()=keys.toSet(); override fun markSeen(keys:Set<String>) { this.keys+=keys } }
+        val app=app(events,backgroundScope,goodDays=days); runCurrent(); advanceTimeBy(1000); runCurrent()
+        app.toggleSaved("e"); runCurrent()
+        app.joinEvent("f"); runCurrent(); advanceTimeBy(1000); runCurrent()
+        assertFalse(app.state.value.reviewMoment,"the first day is not the moment, however busy")
+        assertEquals(1,days.keys.size)
+        days.keys+="2000-01-01"
+        app.toggleSaved("g"); runCurrent()
+        assertTrue(app.state.value.reviewMoment)
+        app.reviewMomentHandled(prompted = false)
+        app.joinEvent("f"); runCurrent(); advanceTimeBy(1000); runCurrent()
+        assertTrue(app.state.value.reviewMoment,"each later moment goes to the platform, which asks once per version")
         app.close()
     }
 

@@ -57,6 +57,8 @@ class PoruchApp internal constructor(
     deviceTouch: DeviceTouchStore? = null,
     /** Закладки гостя на телефоні (docs/guest-saves.md). Null — гість зберігає лише до перезапуску (тести, превʼю). */
     guestSaves: GuestSavedStore? = null,
+    /** Дні з добрими діями для питання про відгук у сторі. Null — питаємо лише після оцінки події. */
+    goodDays: SeenRequestStore? = null,
     config: AppConfig = AppConfig("", ""),
     /** Стан живе на головному потоці: звідси читають і Compose, і SwiftUI. */
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
@@ -116,7 +118,8 @@ class PoruchApp internal constructor(
         store,
         library,
         reloader,
-        followUseCases
+        followUseCases,
+        goodDays
     )
     private val identity =
         IdentitySync(auth, store, discovery, library, chatEngine, pushSync, eventUseCases)
