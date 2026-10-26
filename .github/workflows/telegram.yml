@@ -20,6 +20,11 @@ on:
         description: "Лише надрукувати пости в лог"
         type: boolean
         default: true
+      # Одне місто — щоб повторити пост там, де запуск упав, не дублюючи решту каналів.
+      city:
+        type: choice
+        options: [усі, Київ, Львів, Одеса, Дніпро, Харків]
+        default: усі
 permissions:
   contents: read
 concurrency:
@@ -34,10 +39,11 @@ jobs:
       - run: node tools/site_test.mjs
       # Розклад не має inputs: п'ятничний cron — вихідні, щоденний — сьогодні, і обидва надсилають.
       # Вхід — через env, а не підстановкою в shell (як в ingest.yml).
-      - run: node tools/telegram_post.mjs "$MODE" $DRY_RUN
+      - run: node tools/telegram_post.mjs "$MODE" $DRY_RUN ${CITY:+--city "$CITY"}
         env:
           MODE: ${{ inputs.mode || (github.event.schedule == '23 5 * * 5' && 'weekend' || 'today') }}
           DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
+          CITY: ${{ inputs.city != 'усі' && inputs.city || '' }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHANNEL_KYIV: ${{ secrets.TELEGRAM_CHANNEL_KYIV }}
           TELEGRAM_CHANNEL_LVIV: ${{ secrets.TELEGRAM_CHANNEL_LVIV }}

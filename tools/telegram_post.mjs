@@ -15,14 +15,14 @@ const LIMIT = { today: [5, 7], weekend: [8, 10] };
 /** Емодзі категорії замість сірого підпису: око чіпляється за рядок. */
 const EMOJI = { music: "🎵", art: "🎭", comedy: "🎤", kids: "🧸", social: "🤝", games: "🎲", sport: "🏃", food: "🍷", outdoors: "🌿", tours: "🧭", conference: "💡" };
 /** Що є в пості, для вступу: «вистави, концерти і стендап». */
-const WHAT = { music: "концерти", art: "вистави", comedy: "стендап", kids: "щось для дітей", social: "зустрічі", games: "ігри", sport: "спорт", food: "дегустації", outdoors: "прогулянки", tours: "екскурсії", conference: "лекції" };
+const WHAT = { music: "концерти", art: "мистецтво", comedy: "стендап", kids: "щось для дітей", social: "зустрічі", games: "ігри", sport: "спорт", food: "дегустації", outdoors: "прогулянки", tours: "екскурсії", conference: "лекції" };
 /**
  * «Безкоштовно» — лише від людей і з джерел, де нуль-заглушка вже не стає is_free (88e1047: Concert.ua без валюти,
  * Karabas OutOfStock). Решта is_free — без ціни: краще не сказати, ніж пообіцяти вхід вільний на платне.
  */
 const FREE_TRUSTED = new Set(["concert_ua", "karabas"]);
 
-const weekday = (date, tz) => new Intl.DateTimeFormat("uk-UA", { weekday: "long", timeZone: tz }).format(date);
+const weekday = (date, tz, style = "long") => new Intl.DateTimeFormat("uk-UA", { weekday: style, timeZone: tz }).format(date);
 const dayMonth = (date, tz) => new Intl.DateTimeFormat("uk-UA", { day: "numeric", month: "long", timeZone: tz }).format(date);
 const upper = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 const dayOf = (e) => dayMonth(new Date(e.startsAt), e.tz);
@@ -70,10 +70,26 @@ function dateRange(picks) {
   return month(first) === month(last) ? `${first.split(" ")[0]} і ${last}` : `${first} і ${last}`;
 }
 
-/** «вистави, концерти і стендап». */
+/** «мистецтво, концерти і стендап». */
 const listing = (words) => words.length < 2 ? words.join("") : `${words.slice(0, -1).join(", ")} і ${words.at(-1)}`;
+const isPeople = (e) => e.origin === "community";
 
-/** Текст поста в HTML-розмітці Bot API. `cards` — за id: заклад, ціна (в індексі їх нема). Події — за часом, вихідні — по днях. */
+/** Рядок події: емодзі, час (з днем, коли блок не по днях), назва-посилання; під ним хто збирає, заклад і ціна. */
+function eventLines(e, cards, withDay) {
+  const start = new Date(e.startsAt);
+  const card = cards.get(e.id) ?? {};
+  // Ще й жоден продавець не просить грошей: Concert.ua досі буває 0 ₴ поряд із 550 ₴ у Badseller (26.10.2026).
+  const free = (isPeople(e) || FREE_TRUSTED.has(e.source)) && !(card.offers ?? []).some((o) => o.price_min > 0);
+  const host = isPeople(e) && card.organizer_name ? `Збирає ${card.organizer_name}` : null;
+  const meta = [host, card.place_name, price(free ? card : { ...card, is_free: false })].filter(Boolean).join(" · ");
+  const time = `${withDay ? `${upper(weekday(start, e.tz, "short"))} ` : ""}${timeOf(start, e.tz)}`;
+  return [`${EMOJI[e.category] ?? "📍"} <b>${time}</b> <a href="${eventUrl(e)}">${esc(displayTitle(e.title))}</a>`, ...(meta ? [esc(meta)] : [])];
+}
+
+/**
+ * Текст поста в HTML-розмітці Bot API. `cards` — за id: заклад, ціна, хто збирає (в індексі їх нема). Спершу блок
+ * «Від людей», як на головній (DESIGN.md, правило людей першими), далі афіша за часом, у вихідних — по днях.
+ */
 export function format(city, mode, picks, cards) {
   const c = cityOf(city);
   const sorted = [...picks].sort(byStart);
@@ -84,37 +100,50 @@ export function format(city, mode, picks, cards) {
     ? `Сьогодні ${/^(в|ф|льв|св|тв)/i.test(c.in) ? "у" : "в"} ${c.in}`
     : `На вихідних ${/^[аеєиіїоуюя]/i.test(c.in) ? "в" : "у"} ${c.in}`;
   const head = mode === "today" ? `${upper(weekday(new Date(sorted[0].startsAt), sorted[0].tz))}, ${dayOf(sorted[0])}` : `Вихідні, ${dateRange(picks)}`;
-  const lines = [`<b>${head}</b>`, `${where} є куди піти${what ? `: ${what}` : ""} 👇`];
-  let day = null;
-  for (const e of sorted) {
-    const start = new Date(e.startsAt);
-    lines.push("");
-    if (mode === "weekend" && dayOf(e) !== day) lines.push(`<b>${upper(weekday(start, e.tz))}</b>`);
-    day = dayOf(e);
-    const card = cards.get(e.id) ?? {};
-    // Ще й жоден продавець не просить грошей: Concert.ua досі буває 0 ₴ поряд із 550 ₴ у Badseller (26.10.2026).
-    const free = (e.origin === "community" || FREE_TRUSTED.has(e.source)) && !(card.offers ?? []).some((o) => o.price_min > 0);
-    const meta = [e.origin === "community" ? "Від людей" : null, card.place_name, price(free ? card : { ...card, is_free: false })].filter(Boolean).join(" · ");
-    lines.push(`${EMOJI[e.category] ?? "📍"} <b>${timeOf(start, e.tz)}</b> <a href="${eventUrl(e)}">${esc(displayTitle(e.title))}</a>`);
-    if (meta) lines.push(esc(meta));
+  const people = sorted.filter(isPeople), rest = sorted.filter((e) => !isPeople(e));
+  const sections = [{ title: "Від людей", events: people, withDay: mode === "weekend" }];
+  if (mode === "today") sections.push({ title: people.length ? "Афіша" : null, events: rest });
+  else for (const day of new Set(rest.map(dayOf))) {
+    const events = rest.filter((e) => dayOf(e) === day);
+    sections.push({ title: upper(weekday(new Date(events[0].startsAt), events[0].tz)), events });
   }
-  lines.push("", `Решта афіші міста на мапі в «Поряд», там же знайдеш компанію, якщо нема з ким піти: <a href="https://poriad.app/app?from=${CHANNELS[c.name][1]}">poriad.app/app</a>`);
+  const lines = [`<b>${head}</b>`, `${where} є куди піти${what ? `: ${what}` : ""} 👇`];
+  for (const { title, events, withDay } of sections.filter((section) => section.events.length)) {
+    if (title) lines.push("", `<b>${title}</b>`);
+    events.forEach((e, i) => lines.push(...(i || !title ? [""] : []), ...eventLines(e, cards, withDay)));
+  }
+  lines.push("", `Більше подій на мапі в <a href="https://poriad.app/app?from=${CHANNELS[c.name][1]}">«Поряд»</a>. Нема з ким піти? На кожній події є «Шукаю компанію».`);
   return lines.join("\n");
 }
 
+/** Скільки символів Telegram порахує: текст без тегів, сутність — один символ. */
+const visible = (html) => html.replace(/<[^>]+>/g, "").replace(/&(?:amp|lt|gt|quot|#39);/g, "&").length;
+
+/** Bot API приймає до 4096 символів: зайве знімаємо з кінця афіші, «Від людей» (на початку `picks`) лишаються. */
+export function fit(city, mode, picks, cards, limit = 4096) {
+  while (picks.length > 1 && visible(format(city, mode, picks, cards)) > limit) picks = picks.slice(0, -1);
+  return picks;
+}
+
+/** Один повтор через 5 с: prod зрідка відповідає 500 (discover_events, 26.10.2026), і місто пропустило б день. */
+async function retry(call) {
+  try { return await call(); } catch { await new Promise((resolve) => setTimeout(resolve, 5000)); return call(); }
+}
+
 /**
- * Пост міста ({ text, cover }) або null, якщо радити нічого. Обкладинка — сторінка першої події з картинкою: Telegram
- * бере її og:image (worker/) і ставить великим прев'ю над текстом.
+ * Пост міста ({ text, cover }) або null, якщо радити нічого. Обкладинка — сторінка події з картинкою (Telegram бере її
+ * og:image з worker/ і ставить великим прев'ю над текстом): спершу «Від людей», далі вечір, далі будь-яка.
  */
 async function postFor(city, mode, now) {
-  const { index } = await discover(city, { cards: 0 });
+  const { index } = await retry(() => discover(city, { cards: 0 }));
   const upcoming = fold(index.filter((e) => inWhen(e, mode, now) && Date.parse(e.startsAt) > now));
-  const cards = new Map((await cardsByIds(upcoming.map((e) => e.id))).map((card) => [card.id, card]));
+  const cards = new Map((await retry(() => cardsByIds(upcoming.map((e) => e.id)))).map((card) => [card.id, card]));
   // Скасоване чи зняте з продажу (state не scheduled) не радимо; у подій від людей стану нема.
   const live = upcoming.filter((e) => cards.has(e.id) && (cards.get(e.id).state ?? "scheduled") === "scheduled");
   if (!live.length) return null;
-  const picks = pick(live, LIMIT[mode]);
-  const cover = picks.find((e) => cards.get(e.id).image_url);
+  const picks = fit(city, mode, pick(live, LIMIT[mode]), cards);
+  const photos = picks.filter((e) => cards.get(e.id).image_url);
+  const cover = photos.find(isPeople) ?? photos.find((e) => Number(timeOf(new Date(e.startsAt), e.tz).slice(0, 2)) >= 17) ?? photos[0];
   return { text: format(city, mode, picks, cards), cover: cover && eventUrl(cover) };
 }
 
