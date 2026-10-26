@@ -199,6 +199,17 @@ def settle_artists(items: list, agent: Agent | None = None) -> None:
           f"{sum(settled['dropped_as_venue'].values())}")
 
 
+def settle_blurbs(items: list, agent: Agent | None = None) -> None:
+    """Речення «що це» для опублікованих подій. Без `--agent` базу не чіпаємо: `item.blurb` лишається None."""
+    if agent is None:
+        return
+    s = agent.describe(items)
+    print(f"  Речення «що це»: є {s['written']} з {s['targets']}, порожніх {s['empty']}, з кешу {s['cached']}, "
+          f"запитів {s['asked']}, на наступні прогони {s['left']}, відкинуто запобіжником {len(agent.blurb_refused)}")
+    for title, text, why in agent.blurb_refused[:5]:
+        print(f"      {why}: «{title[:40]}» → {text[:90]}")
+
+
 def emit_city(run: CityRun, run_id: str, *, agent: Agent | None = None, statement_bytes: int = 0,
               now=None, published: set | None = None) -> tuple[list[str], list[str]]:
     """SQL міста: (дані, зняття зниклих). Зняття окремо: у дампі воно йде після статистики прогону,
@@ -280,6 +291,7 @@ def run_city(city: str, sources: list, run_id: str, *, agent: Agent | None = Non
     if run is None:
         return [], []
     settle_artists(run.items, agent)
+    settle_blurbs(run.items, agent)
     parts, retire = emit_city(run, run_id, agent=agent, statement_bytes=statement_bytes, now=now)
     return run.items, parts + retire
 
@@ -454,6 +466,7 @@ def main(argv: list[str] | None = None) -> int:
     # містах губився в кожному).
     print("\n" + "═" * 62)
     settle_artists(everything, agent)
+    settle_blurbs(everything, agent)
     published_anywhere = {(i.source_slug, i.source_uid) for i in everything if i.stage == "published"}
     for run in runs:
         parts, retire = emit_city(run, run_id, agent=agent, statement_bytes=max(0, args.sql_max_bytes - 1024),

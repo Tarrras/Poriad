@@ -16,9 +16,11 @@
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import pathlib
+import re
 import shutil
 import subprocess
 import tempfile
@@ -192,6 +194,7 @@ class Agent:
         self.decisions: list = []
         self.refused: list = []               # вигадані категорії, які запобіжник відхилив
         self.merges: list = []                # рішення про пари: (назва, назва, чи одна, чому)
+        self.blurb_refused: list = []         # речення, що не пройшли _blurb_ok: (назва, речення, чому)
 
     # ---- Публічне
 
@@ -262,6 +265,73 @@ class Agent:
                     self.merges.append((chunk[position - 1][0].title,
                                         chunk[position - 1][1].title, same, why))
         return verdicts
+
+    def describe(self, items, cache_path=None) -> dict:
+        """Речення «що це» (`item.blurb`, у базі `events.blurb`) для опублікованих подій, найближчі першими.
+
+        Кеш за вмістом (підказка, назва, текст, склад): щоденний обхід питає лише нове. `""` — модель не
+        зрозуміла з тексту, що це, або речення не пройшло `_blurb_ok`: у базі тоді порожньо, а не вигадка.
+        `None` — не питали чи збій транспорту: базу не чіпаємо. Нічого не піднімає назовні.
+        """
+        path = pathlib.Path(BLURB_CACHE if cache_path is None else cache_path)
+        try:
+            cache = json.loads(path.read_text("utf-8"))
+        except (OSError, ValueError):
+            cache = {}
+        targets = sorted((i for i in items if i.stage == "published"), key=lambda i: i.starts_at)
+        todo: dict[str, list] = {}
+        for it in targets:
+            h = _blurb_key(it)
+            if h in cache:
+                it.blurb = self._blurb_ok(cache[h], it)
+            else:
+                todo.setdefault(h, []).append(it)
+        fresh = list(todo.items())[:BLURB_NEW] if self.ready else []
+        stats = {"targets": len(targets), "cached": len(targets) - sum(map(len, todo.values())),
+                 "asked": 0, "left": len(todo) - len(fresh)}
+        for start in range(0, len(fresh), BLURB_BATCH):
+            batch = fresh[start:start + BLURB_BATCH]
+            try:
+                answers = _parse_blurbs(self._call(_blurb_prompt([group[0] for _, group in batch])))
+            except Exception as exc:                      # noqa: BLE001 — див. докстрінг
+                self.errors.append(f"blurb {type(exc).__name__}: {str(exc)[:100]}")
+                continue
+            stats["asked"] += 1
+            for n, (h, group) in enumerate(batch, 1):
+                if n in answers:                          # пропущену подію спитаємо наступного разу
+                    cache[h] = answers[n]
+                    for it in group:
+                        it.blurb = self._blurb_ok(answers[n], it)
+        if stats["asked"]:
+            try:
+                path.parent.mkdir(exist_ok=True)
+                path.write_text(json.dumps(cache, ensure_ascii=False), "utf-8")
+            except OSError:
+                pass
+        stats["written"] = sum(1 for i in targets if i.blurb)
+        stats["empty"] = sum(1 for i in targets if i.blurb == "")
+        return stats
+
+    def _blurb_ok(self, text, item) -> str:
+        """Речення або `""`. Запобіжник поверх підказки: модель іноді все ж повторює назву чи пише формулу."""
+        text = " ".join(str(text or "").split()).replace("'", "’").replace("ʼ", "’")
+        if len(text) > 1 and text[0] + text[-1] in ("«»", '""', "“”"):     # усе речення в лапках
+            text = text[1:-1].strip()
+        if not text:
+            return ""
+        letters = [c for c in text if c.isalpha()]
+        # Назва з одного слова («Стендап», «Енеїда») може стояти в реченні як жанр чи твір; з двох і більше — це повтор.
+        title = " ".join(re.sub(r"\W+", " ", item.title.lower()).split())
+        why = ("довге" if len(text) > BLURB_MAX_CHARS
+               else "тире чи знак" if re.search(r"[—–?!]", text)
+               else "ціна" if re.search(r"₴|\bгрн", text)
+               else "капс" if sum(c.isupper() for c in letters) > len(letters) / 3
+               else "повтор назви" if " " in title and f" {title} " in " " + re.sub(r"\W+", " ", text.lower()) + " "
+               else "формула" if _BLURB_FORMULAS.search(text) else None)
+        if why:
+            self.blurb_refused.append((item.title, text, why))
+            return ""
+        return text
 
     def ask(self, prompt: str) -> str:
         """Один запит, сира відповідь. Для того, що не є класифікацією — наприклад рецензії.
@@ -376,3 +446,85 @@ def _parse(text: str) -> dict[int, str]:
         if category:
             answers[number] = (category, str(row.get("why") or "").strip()[:80])
     return answers
+
+
+# ---- Речення «що це» (events.blurb): рядок під назвою в Telegram, згодом на сайті й у застосунку
+
+BLURB_CACHE = pathlib.Path(__file__).resolve().parent / "cache" / "blurbs.json"
+BLURB_BATCH = 20
+BLURB_TEXT = 1200                 # символів тексту картки: далі шаблон продавця, правила залу й юридичне
+BLURB_MAX_CHARS = 120             # просимо до 90, відкидаємо довше за це
+# ponytail: нових подій за прогін не більше BLURB_NEW (~30 с на пачку з 20), найближчі першими. Перший прогін —
+# ~2300 подій (dev, 26.10), це година понад звичні 30–70 хв обходу при timeout 120; решта доходить за кілька днів.
+# Ручний прогін може підняти межу змінною INGEST_BLURB_NEW. Швидше — паралельні виклики.
+BLURB_NEW = int(os.environ.get("INGEST_BLURB_NEW") or 400)
+# Формули продавця й логістика: «перенесено з вересня» в тексті картки застаріває раніше за подію.
+_BLURB_FORMULAS = re.compile(r"чому варто|не пропуст|запрошу|незабутн|унікальн|справжн\w* свят|перенес|скасов", re.I)
+
+_BLURB_RULES = """Ти пишеш для афіші застосунку «Поряд» одне речення «що це» під назвою події.
+Назву, жанр, дату, час, заклад і ціну читач бачить поруч. Твоє речення каже те, чого назва не каже:
+що там відбувається, хто виступає, про що це.
+
+Правила:
+- одне речення українською, до 90 символів, з крапкою в кінці;
+- лише з того, що є в назві, тексті й складі нижче. Нічого від себе: ні фактів, ні оцінок
+  («найкращий», «унікальний», «легендарний»), ні того, чого текст не каже;
+- не повторюй назву події, місто, дату, час, заклад і ціну;
+- без тире, знаків оклику й питання, без емодзі й капсу;
+- без формул продавця: «Чому варто відвідати», «не пропустіть», «запрошуємо», «незабутні емоції»,
+  «справжнє свято»;
+- склад вистави не переписуй. Імʼя виконавця, гурту чи оркестру можна, якщо його нема в назві;
+- голос теплий, упевнений, трохи іронічний, як у друга, що знає, куди піти. Іронія лише там, де текст
+  дає привід, і ніколи про війну, памʼять, утрату чи хворобу;
+- якщо з тексту не зрозуміло, що це за подія (лише назва, дата й заклад, або сама реклама без суті),
+  blurb порожній. Порожньо краще за вигадку.
+
+Як це виглядає:
+- текст «…історія двох сімей, які живуть в одному з подільських двориків повоєнного Києва…»
+  → «Комедія про дві сімʼї з одного подільського дворика повоєнних років.»
+- текст «…стендап-хепенінг про людей… Тих, кому можеш розповісти все, крім того, де ти живеш…»
+  → «Стендап про друзів, яким розповідаєш усе, крім своєї адреси.»
+- текст «Чому варто відвідати? Яскраве шоу! Незабутні емоції для всієї родини!» → «»
+
+Відповідай ЛИШЕ JSON виду
+{"events": [{"n": 1, "blurb": "..."}]}
+Кожна подія з переліку має бути у відповіді, навіть з порожнім "blurb"."""
+
+
+def _blurb_source(it) -> tuple[str, str]:
+    """(текст, склад) події, як їх бачить модель. Одне місце і для підказки, і для ключа кешу."""
+    text = " ".join((getattr(it, "text", "") or it.description or "").split())[:BLURB_TEXT]
+    cast = ", ".join(a.name for a in getattr(it, "artists", []) or [])
+    return text, cast
+
+
+def _blurb_key(it) -> str:
+    # У ключ входить і підказка: змінили правила — старі речення не годяться.
+    text, cast = _blurb_source(it)
+    return hashlib.sha1(f"{_BLURB_RULES}\n{it.title}\n{it.category}\n{cast}\n{text}".encode()).hexdigest()
+
+
+def _blurb_prompt(batch: list) -> str:
+    lines = []
+    for n, it in enumerate(batch, 1):
+        text, cast = _blurb_source(it)
+        lines.append(f"{n}. Назва: «{it.title}» · Категорія: {it.category}"
+                     + (f" · Склад: {cast}" if cast else "") + f"\nТекст: {text or '—'}")
+    return _BLURB_RULES + "\n\n" + "\n\n".join(lines)
+
+
+def _parse_blurbs(text: str) -> dict[int, str]:
+    start, end = text.find("{"), text.rfind("}")
+    try:
+        rows = json.loads(text[start:end + 1]).get("events")
+    except (ValueError, AttributeError):
+        return {}
+    out = {}
+    for row in rows if isinstance(rows, list) else []:
+        try:
+            n = int(row.get("n"))
+        except (TypeError, ValueError, AttributeError):
+            continue
+        if isinstance(row.get("blurb"), str):
+            out[n] = row["blurb"]
+    return out

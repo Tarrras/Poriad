@@ -82,6 +82,7 @@ class Item:
     artists: list = dataclasses.field(default_factory=list)
     text: str = ""                # опис без обрізання до 200: джерело для щабля 4 артистів, у базу не йде
     llm_pending: bool = False     # модель мала відповісти про артистів, але не відповіла (збій транспорту)
+    blurb: str | None = None      # речення «що це» від агента (events.blurb); None — не питали, базу не чіпаємо
     members: list = dataclasses.field(default_factory=list)   # (джерело, uid) копій, якщо це переможець групи
     linked: str = "rule"          # як копію зведено з переможцем: rule чи agent (event_offers.linked)
     single_session: bool = False  # на сторінці продавця в цьому обході один сеанс: перенос часу — той самий сеанс

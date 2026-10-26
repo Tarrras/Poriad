@@ -110,6 +110,64 @@ class AgentGuards(unittest.TestCase):
         self.assertFalse(hasattr(item, "latitude"))
 
 
+class BlurbWriting(unittest.TestCase):
+    """Речення «що це»: кеш за вмістом, порожньо замість вигадки, запобіжник поверх підказки."""
+
+    class _E:
+        def __init__(self, title, starts, stage="published", text="Текст картки."):
+            self.title, self.starts_at, self.stage, self.text = title, starts, stage, text
+            self.description, self.category, self.artists, self.blurb = "", "art", [], None
+
+    def test_cache_guards_and_nearest_first(self):
+        import tempfile
+        from . import agent as agent_module
+        items = [self._E("Пізня", 3), self._E("Хор «Гомін»", 1), self._E("Порожня", 2),
+                 self._E("Хор «Гомін»", 4), self._E("Чернетка", 0, stage="review")]
+        prompts = []
+        reply = ('{"events":[{"n":1,"blurb":"Хор «Гомін» співає колядки."},{"n":2,"blurb":""},'
+                 '{"n":3,"blurb":"Комедія про сусідів — без гальм."}]}')
+        with tempfile.TemporaryDirectory() as tmp:
+            cache = pathlib.Path(tmp) / "blurbs.json"
+            agent = Agent(call=lambda p: prompts.append(p) or reply, api_key="test")
+            stats = agent.describe(items, cache_path=cache)
+            # Однаковий вміст — один рядок у запиті; найближча подія першою; черга перегляду не питається.
+            self.assertEqual(len(prompts), 1)
+            self.assertLess(prompts[0].index("Хор"), prompts[0].index("Порожня"))
+            self.assertNotIn("Чернетка", prompts[0])
+            # Повтор назви й тире відкинуто, порожня відповідь — "", непитана — None.
+            self.assertEqual([i.blurb for i in items], ["", "", "", "", None])
+            self.assertEqual([why for *_, why in agent.blurb_refused], ["повтор назви", "повтор назви", "тире чи знак"])
+            self.assertEqual((stats["targets"], stats["asked"], stats["written"]), (4, 1, 0))
+
+            items[0].blurb = None
+            again = Agent(call=lambda p: self.fail("кеш мав відповісти"), api_key="test")
+            self.assertEqual(again.describe(items[:1], cache_path=cache)["cached"], 1)
+
+            old_cap, agent_module.BLURB_NEW = agent_module.BLURB_NEW, 0
+            try:
+                fresh = self._E("Нова", 5)
+                stats = Agent(call=lambda p: self.fail("понад ліміт"), api_key="test").describe([fresh], cache_path=cache)
+                self.assertEqual((stats["left"], fresh.blurb), (1, None))
+            finally:
+                agent_module.BLURB_NEW = old_cap
+
+    def test_sentence_passes_and_reaches_sql(self):
+        from .emit import blurbs_sql
+        item = self._E("Енеїда", 1)
+        item.source_slug, item.source_uid = "karabas", "42"
+        Agent(call=lambda p: '{"events":[{"n":1,"blurb":" Травестія Котляревського, де троянці ходять у шароварах. "}]}',
+              api_key="test").describe([item], cache_path=pathlib.Path("/nonexistent/blurbs.json"))
+        self.assertEqual(item.blurb, "Травестія Котляревського, де троянці ходять у шароварах.")
+        sql = blurbs_sql([item])
+        self.assertIn("('karabas','42','Травестія Котляревського, де троянці ходять у шароварах.')", sql)
+        self.assertIn("e.blurb is distinct from v.blurb", sql)
+        self.assertEqual(Agent(api_key="test")._blurb_ok("Перенесений з вересня концерт, квитки дійсні.", item), "")
+        item.blurb = ""
+        self.assertIn("('karabas','42',null)", blurbs_sql([item]), "порожньо в базі, а не вигадка")
+        item.blurb = None
+        self.assertEqual(blurbs_sql([item]), "", "без агента базу не чіпаємо")
+
+
 class PairJudging(unittest.TestCase):
     """Другий обовʼязок агента: пари, яких правило за словами не бере."""
 
