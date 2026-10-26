@@ -72,17 +72,27 @@ assert.equal(price({ is_free: true, price_min: 0 }), "Безкоштовно");
 
 // Telegram-пост (tools/telegram_post.mjs): «Від людей» першими, решта порівну на два дні, у дні — різні категорії.
 {
-  const { pick, format } = await import("./telegram_post.mjs");
-  const ev = (id, startsAt, category, origin = "import") => ({ id, startsAt, tz, category, origin, title: "ВЕЧІР У ТЕАТРІ" });
+  const { pick, format, CHANNELS } = await import("./telegram_post.mjs");
+  const ev = (id, startsAt, category, origin = "import", source = "concert_ua") =>
+    ({ id, startsAt, tz, category, origin, source, lat: 50 + id.charCodeAt(0) / 1000, lng: 30.52, title: "ВЕЧІР У ТЕАТРІ" });
   const sat = "2026-10-24T", sun = "2026-10-25T";
   const weekend = [
-    ev("a", sat + "08:00:00Z", "music"), ev("b", sat + "09:00:00Z", "music"), ev("c", sat + "10:00:00Z", "art"),
-    ev("d", sun + "08:00:00Z", "music"), ev("e", sun + "09:00:00Z", "comedy"), ev("f", sun + "12:00:00Z", "social", "community"),
+    ev("a", sat + "08:00:00Z", "music"), { ...ev("g", sat + "08:30:00Z", "comedy"), lat: 50.097 }, ev("b", sat + "09:00:00Z", "music"),
+    ev("c", sat + "10:00:00Z", "art", "import", "badseller"), ev("d", sun + "08:00:00Z", "music"), ev("e", sun + "09:00:00Z", "comedy"),
+    ev("f", sun + "12:00:00Z", "social", "community", null),
   ];
-  assert.deepEqual(pick(weekend, 5).map((e) => e.id), ["f", "a", "c", "d", "e"], "людей першими, далі по дві на день різних категорій");
-  const text = format("Львів", pick(weekend, 5), new Map([["a", { place_name: "Опера", price_min: 300 }]]), 6);
-  assert.match(text, /^\*\*Вихідні у Львові\*\* · 24–25 жовтня/);
-  assert.match(text, /\*\*Вечір у Театрі\*\*\nОпера · від 300 ₴\nhttps:\/\/poriad\.app\/e\/a/);
-  assert.match(text, /Усього на вихідних — 6 подій: poriad\.app\/afisha\.html\?city=Львів&when=weekend$/m);
+  assert.deepEqual(pick(weekend, 5).map((e) => e.id), ["f", "a", "c", "d", "e"], "людей першими, далі по дві на день різних категорій і закладів");
+  const cards = new Map([["a", { place_name: 'Клуб "Х" & Co', price_min: 300 }], ["c", { is_free: true, price_min: 0 }], ["d", { is_free: true, price_min: 0 }],
+    ["e", { is_free: true, price_min: 0, offers: [{ is_free: true, price_min: 0 }, { is_free: false, price_min: 550 }] }]]);
+  const text = format("Львів", "weekend", pick(weekend, 5), cards);
+  assert.match(text, /^<b>Вихідні у Львові<\/b>, 24 і 25 жовтня\n/);
+  assert.match(text, /Музика · Сб 11:00\n<a href="https:\/\/poriad\.app\/e\/a"><b>Вечір у Театрі<\/b><\/a>\nКлуб &quot;Х&quot; &amp; Co · від 300 ₴\n/);
+  assert.match(text, /\/e\/d"><b>Вечір у Театрі<\/b><\/a>\nБезкоштовно\n/, "Concert.ua: нуль-заглушки виправлено");
+  assert.match(text, /\/e\/c"><b>Вечір у Театрі<\/b><\/a>\n\n/, "is_free з інших джерел — без «Безкоштовно»");
+  assert.match(text, /\/e\/e"><b>Вечір у Театрі<\/b><\/a>\n\n/, "нуль Concert.ua поряд із платним продавцем — не безкоштовно");
+  assert.match(text, /<a href="https:\/\/poriad\.app\/app\?from=tgl">poriad\.app\/app<\/a>$/);
+  assert.doesNotMatch(text, /[—–]/, "без тире");
+  assert.match(format("Київ", "today", [ev("a", sat + "16:00:00Z", "music")], new Map()), /^<b>Сьогодні в Києві<\/b>, 24 жовтня\n\nМузика · 19:00\n/);
+  for (const [, tag] of Object.values(CHANNELS)) assert.match(tag, /^[a-z]{1,12}$/, "site/app.html відкидає іншу мітку");
 }
 console.log("ok");

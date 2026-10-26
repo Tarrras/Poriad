@@ -1,0 +1,46 @@
+# Пости Telegram-каналів міст (tools/telegram_post.mjs): щодня «сьогодні», щоп'ятниці ще й «вихідні».
+# Runner хостований, а не self-hosted Mac з ingest.yml: Mac потрібен лише заради домашньої адреси для Concert.ua,
+# а тут афіша — з публічного RPC (publishable-ключ), пости — через Bot API. До того ж Mac спить і зайнятий обходом.
+# Канали, бот і secrets — tools/telegram.md.
+name: telegram
+on:
+  schedule:
+    # GitHub створює запуски за розкладом цього репозиторію на ~5 год пізніше (ingest: cron 03:07 UTC, старт
+    # 08:00–08:47 UTC за 16–26.10.2026), тому 05:xx UTC: пост лягає близько 12:00 за Києвом узимку (UTC+2), влітку
+    # близько 13:00. Не на :00 — там GitHub пропускає запуски (ingest.yml).
+    - cron: "13 5 * * *"
+    - cron: "23 5 * * 5"
+  workflow_dispatch:
+    inputs:
+      mode:
+        type: choice
+        options: [today, weekend]
+        default: today
+      dry_run:
+        description: "Лише надрукувати пости в лог"
+        type: boolean
+        default: true
+permissions:
+  contents: read
+concurrency:
+  group: telegram
+  cancel-in-progress: false
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - run: node tools/site_test.mjs
+      # Розклад не має inputs: п'ятничний cron — вихідні, щоденний — сьогодні, і обидва надсилають.
+      # Вхід — через env, а не підстановкою в shell (як в ingest.yml).
+      - run: node tools/telegram_post.mjs "$MODE" $DRY_RUN
+        env:
+          MODE: ${{ inputs.mode || (github.event.schedule == '23 5 * * 5' && 'weekend' || 'today') }}
+          DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHANNEL_KYIV: ${{ secrets.TELEGRAM_CHANNEL_KYIV }}
+          TELEGRAM_CHANNEL_LVIV: ${{ secrets.TELEGRAM_CHANNEL_LVIV }}
+          TELEGRAM_CHANNEL_ODESA: ${{ secrets.TELEGRAM_CHANNEL_ODESA }}
+          TELEGRAM_CHANNEL_DNIPRO: ${{ secrets.TELEGRAM_CHANNEL_DNIPRO }}
+          TELEGRAM_CHANNEL_KHARKIV: ${{ secrets.TELEGRAM_CHANNEL_KHARKIV }}
