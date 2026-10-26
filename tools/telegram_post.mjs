@@ -6,19 +6,23 @@
 // TELEGRAM_CHANNEL_<KYIV|LVIV|ODESA|DNIPRO|KHARKIV> з env (у CI — secrets); місто без каналу пропускається.
 // Канали, бот і розклад — tools/telegram.md.
 import { pathToFileURL } from "node:url";
-import { discover, cardsByIds, inWhen, fold, displayTitle, timeOf, price, esc, CATEGORIES, CITIES, cityOf, eventUrl } from "../site/js/poriad.js";
+import { discover, cardsByIds, inWhen, fold, displayTitle, timeOf, price, esc, CITIES, cityOf, eventUrl } from "../site/js/poriad.js";
 
 /** Латиницею: суфікс змінної з id каналу й мітка ?from= для /app (site/app.html приймає лише ^[a-z]{1,12}$). */
 export const CHANNELS = { Київ: ["KYIV", "tgk"], Львів: ["LVIV", "tgl"], Одеса: ["ODESA", "tgo"], Дніпро: ["DNIPRO", "tgd"], Харків: ["KHARKIV", "tgh"] };
-/** Скільки подій у пості. */
-const LIMIT = { today: 7, weekend: 10 };
+/** Скільки подій у пості, [мінімум, максимум]: понад мінімум — лише якщо є різні категорії, а не четверта вистава. */
+const LIMIT = { today: [5, 7], weekend: [8, 10] };
+/** Емодзі категорії замість сірого підпису: око чіпляється за рядок. */
+const EMOJI = { music: "🎵", art: "🎭", comedy: "🎤", kids: "🧸", social: "🤝", games: "🎲", sport: "🏃", food: "🍷", outdoors: "🌿", tours: "🧭", conference: "💡" };
+/** Що є в пості, для вступу: «вистави, концерти і стендап». */
+const WHAT = { music: "концерти", art: "вистави", comedy: "стендап", kids: "щось для дітей", social: "зустрічі", games: "ігри", sport: "спорт", food: "дегустації", outdoors: "прогулянки", tours: "екскурсії", conference: "лекції" };
 /**
  * «Безкоштовно» — лише від людей і з джерел, де нуль-заглушка вже не стає is_free (88e1047: Concert.ua без валюти,
  * Karabas OutOfStock). Решта is_free — без ціни: краще не сказати, ніж пообіцяти вхід вільний на платне.
  */
 const FREE_TRUSTED = new Set(["concert_ua", "karabas"]);
 
-const weekday = (date, tz) => new Intl.DateTimeFormat("uk-UA", { weekday: "short", timeZone: tz }).format(date);
+const weekday = (date, tz) => new Intl.DateTimeFormat("uk-UA", { weekday: "long", timeZone: tz }).format(date);
 const dayMonth = (date, tz) => new Intl.DateTimeFormat("uk-UA", { day: "numeric", month: "long", timeZone: tz }).format(date);
 const upper = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 const dayOf = (e) => dayMonth(new Date(e.startsAt), e.tz);
@@ -26,9 +30,10 @@ const byStart = (a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt);
 
 /**
  * До `n` подій, по одній з кожної категорії по колу — щоб день не був п'ятьма концертами, — і один заклад на день
- * (планетарій із шоу щогодини інакше займе пів поста). ponytail: заклад — точка на мапі; place_id, якщо точки злипнуться.
+ * (планетарій із шоу щогодини інакше займе пів поста). Третє коло — лише поки не набралось `min`: з трьох категорій
+ * краще п'ять подій, ніж сім із чотирма виставами поспіль. ponytail: заклад — точка на мапі; place_id, якщо злипнуться.
  */
-function roundRobin(list, n) {
+function roundRobin(list, n, min) {
   const places = new Set(), byCategory = new Map();
   for (const e of list) {
     const place = `${e.lat.toFixed(4)},${e.lng.toFixed(4)}`;
@@ -37,7 +42,7 @@ function roundRobin(list, n) {
     byCategory.set(e.category, [...(byCategory.get(e.category) ?? []), e]);
   }
   const out = [];
-  for (let round = 0; out.length < n; round++) {
+  for (let round = 0; out.length < n && (round < 2 || out.length < min); round++) {
     const next = [...byCategory.values()].map((events) => events[round]).filter(Boolean);
     if (!next.length) break;
     out.push(...next.slice(0, n - out.length));
@@ -45,14 +50,14 @@ function roundRobin(list, n) {
   return out;
 }
 
-/** Спершу «Від людей» (до двох), решта ліміту — порівну на кожен день, за часом. */
-export function pick(entries, limit) {
+/** Спершу «Від людей» (до двох), решта — порівну на кожен день. */
+export function pick(entries, [min, max]) {
   const people = entries.filter((e) => e.origin === "community").slice(0, 2);
   const rest = entries.filter((e) => e.origin !== "community");
   const days = [...new Set(rest.map(dayOf))];
-  const perDay = Math.ceil((limit - people.length) / Math.max(days.length, 1));
+  const share = (n) => Math.ceil((n - people.length) / Math.max(days.length, 1));
   const picked = [];
-  for (const day of days) picked.push(...roundRobin(rest.filter((e) => dayOf(e) === day), Math.min(perDay, limit - people.length - picked.length)));
+  for (const day of days) picked.push(...roundRobin(rest.filter((e) => dayOf(e) === day), Math.min(share(max), max - people.length - picked.length), share(min)));
   return [...people, ...picked.sort(byStart)];
 }
 
@@ -65,44 +70,62 @@ function dateRange(picks) {
   return month(first) === month(last) ? `${first.split(" ")[0]} і ${last}` : `${first} і ${last}`;
 }
 
-/** Текст поста в HTML-розмітці Bot API. `cards` — за id: заклад і ціна (в індексі їх нема). */
+/** «вистави, концерти і стендап». */
+const listing = (words) => words.length < 2 ? words.join("") : `${words.slice(0, -1).join(", ")} і ${words.at(-1)}`;
+
+/** Текст поста в HTML-розмітці Bot API. `cards` — за id: заклад, ціна (в індексі їх нема). Події — за часом, вихідні — по днях. */
 export function format(city, mode, picks, cards) {
   const c = cityOf(city);
-  // Милозвучність: «у Львові» (перед в-, ф-, льв-, св-, тв-), «в Києві».
-  const prep = /^(в|ф|льв|св|тв)/i.test(c.in) ? "у" : "в";
-  const lines = [`<b>${mode === "today" ? "Сьогодні" : "Вихідні"} ${prep} ${c.in}</b>, ${dateRange(picks)}`, ""];
-  for (const e of picks) {
+  const sorted = [...picks].sort(byStart);
+  const what = listing([...new Set(sorted.map((e) => WHAT[e.category]).filter(Boolean))].slice(0, 4));
+  // Милозвучність: після голосного «в», крім в-, ф-, льв-, св-, тв- («Сьогодні в Києві», «Сьогодні у Львові»); після
+  // приголосного «у», крім голосного далі («На вихідних у Києві», «На вихідних в Одесі»).
+  const where = mode === "today"
+    ? `Сьогодні ${/^(в|ф|льв|св|тв)/i.test(c.in) ? "у" : "в"} ${c.in}`
+    : `На вихідних ${/^[аеєиіїоуюя]/i.test(c.in) ? "в" : "у"} ${c.in}`;
+  const head = mode === "today" ? `${upper(weekday(new Date(sorted[0].startsAt), sorted[0].tz))}, ${dayOf(sorted[0])}` : `Вихідні, ${dateRange(picks)}`;
+  const lines = [`<b>${head}</b>`, `${where} є куди піти${what ? `: ${what}` : ""} 👇`];
+  let day = null;
+  for (const e of sorted) {
     const start = new Date(e.startsAt);
+    lines.push("");
+    if (mode === "weekend" && dayOf(e) !== day) lines.push(`<b>${upper(weekday(start, e.tz))}</b>`);
+    day = dayOf(e);
     const card = cards.get(e.id) ?? {};
-    const label = e.origin === "community" ? "Від людей" : CATEGORIES[e.category] ?? "Подія";
-    const time = mode === "today" ? timeOf(start, e.tz) : `${upper(weekday(start, e.tz))} ${timeOf(start, e.tz)}`;
     // Ще й жоден продавець не просить грошей: Concert.ua досі буває 0 ₴ поряд із 550 ₴ у Badseller (26.10.2026).
     const free = (e.origin === "community" || FREE_TRUSTED.has(e.source)) && !(card.offers ?? []).some((o) => o.price_min > 0);
-    const meta = [card.place_name, price(free ? card : { ...card, is_free: false })].filter(Boolean).join(" · ");
-    lines.push(`${label} · ${time}`, `<a href="${eventUrl(e)}"><b>${esc(displayTitle(e.title))}</b></a>`);
+    const meta = [e.origin === "community" ? "Від людей" : null, card.place_name, price(free ? card : { ...card, is_free: false })].filter(Boolean).join(" · ");
+    lines.push(`${EMOJI[e.category] ?? "📍"} <b>${timeOf(start, e.tz)}</b> <a href="${eventUrl(e)}">${esc(displayTitle(e.title))}</a>`);
     if (meta) lines.push(esc(meta));
-    lines.push("");
   }
-  lines.push(`Решта афіші міста на мапі в «Поряд», там же знайдеш компанію, якщо нема з ким піти: <a href="https://poriad.app/app?from=${CHANNELS[c.name][1]}">poriad.app/app</a>`);
+  lines.push("", `Решта афіші міста на мапі в «Поряд», там же знайдеш компанію, якщо нема з ким піти: <a href="https://poriad.app/app?from=${CHANNELS[c.name][1]}">poriad.app/app</a>`);
   return lines.join("\n");
 }
 
-/** Пост міста або null, якщо радити нічого. */
+/**
+ * Пост міста ({ text, cover }) або null, якщо радити нічого. Обкладинка — сторінка першої події з картинкою: Telegram
+ * бере її og:image (worker/) і ставить великим прев'ю над текстом.
+ */
 async function postFor(city, mode, now) {
   const { index } = await discover(city, { cards: 0 });
   const upcoming = fold(index.filter((e) => inWhen(e, mode, now) && Date.parse(e.startsAt) > now));
   const cards = new Map((await cardsByIds(upcoming.map((e) => e.id))).map((card) => [card.id, card]));
   // Скасоване чи зняте з продажу (state не scheduled) не радимо; у подій від людей стану нема.
   const live = upcoming.filter((e) => cards.has(e.id) && (cards.get(e.id).state ?? "scheduled") === "scheduled");
-  return live.length ? format(city, mode, pick(live, LIMIT[mode]), cards) : null;
+  if (!live.length) return null;
+  const picks = pick(live, LIMIT[mode]);
+  const cover = picks.find((e) => cards.get(e.id).image_url);
+  return { text: format(city, mode, picks, cards), cover: cover && eventUrl(cover) };
 }
 
-async function send(chat, text) {
+async function send(chat, { text, cover }) {
   const response = await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    // Без прев'ю: інакше Telegram розгортає першу подію, і дайджест виглядає постом про неї одну.
-    body: JSON.stringify({ chat_id: chat, text, parse_mode: "HTML", link_preview_options: { is_disabled: true } }),
+    body: JSON.stringify({
+      chat_id: chat, text, parse_mode: "HTML",
+      link_preview_options: cover ? { url: cover, prefer_large_media: true, show_above_text: true } : { is_disabled: true },
+    }),
   });
   const body = await response.json().catch(() => ({}));
   if (!body.ok) throw new Error(`Bot API ${response.status}: ${body.description ?? "без відповіді"}`);
@@ -125,7 +148,7 @@ async function main() {
     try {
       const post = await postFor(name, mode, now);
       if (!post) console.error(`${name}: подій нема, пропускаю.`);
-      else if (dryRun) console.log(`==== ${name} → ${chat ?? variable}\n${post}\n`);
+      else if (dryRun) console.log(`==== ${name} → ${chat ?? variable}\nобкладинка: ${post.cover ?? "нема"}\n${post.text}\n`);
       else { await send(chat, post); console.error(`${name}: надіслано.`); }
     } catch (error) {
       failed++;
