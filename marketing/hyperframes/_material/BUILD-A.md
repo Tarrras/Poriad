@@ -2,6 +2,8 @@
 
 Scripts (Ukrainian copy, binding): `marketing/scripts/aggregation-cities.md`.
 
+> 26.10: the wordmark is no longer coral. «Поряд» is paper `#F3F3F0` in A2–A3 and ink `#141417` in A1 (the «Корінець» world, `marketing/scripts/README.md`). Read every «coral» below as that.
+
 Template to clone: `marketing/hyperframes/c2-standup-list/` — the approved premium film:
 - `index.html` plus `compositions/{hook,proof,turn,card,mark,cta}.html` and `film.json`;
 - night ground with violet glow;
