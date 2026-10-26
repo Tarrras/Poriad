@@ -11,7 +11,7 @@
       @font-face { font-family: "Sofia Sans Extra Condensed"; src: url("assets/fonts/SofiaSansExtraCondensed-ExtraBold.ttf") format("truetype"); font-weight: 800; font-display: block; }
 
       /* Night clock: graphite #0D0E14, paper #F3F3F0, the event in its music stub #6041B1, curfew as grey hatching.
-         No red and no sirens — the danger is shown calmly. Coral #FF8A5B is the name «Поряд» only.
+         No red and no sirens — the danger is shown calmly. «Поряд» is paper #F3F3F0, never coral.
          Captions are TikTok-native white plates. */
       * { margin: 0; padding: 0; box-sizing: border-box; }
       html, body { width: 1080px; height: 1920px; overflow: hidden; background: #0d0e14; }
@@ -48,7 +48,7 @@
       /* the name */
       #brand { position: absolute; left: 0; top: 640px; width: 1080px; display: flex; flex-direction: column; align-items: center; gap: 26px; opacity: 0; }
       #brand img { width: 176px; height: 176px; border-radius: 40px; }
-      #brand .name { font-weight: 800; font-size: 128px; line-height: 128px; letter-spacing: -1px; color: #ff8a5b; }
+      #brand .name { font-weight: 800; font-size: 128px; line-height: 128px; letter-spacing: -1px; color: #f3f3f0; }
 
       #grain { position: absolute; z-index: 5; inset: 0; pointer-events: none; opacity: 0.08; mix-blend-mode: overlay; }
     </style>

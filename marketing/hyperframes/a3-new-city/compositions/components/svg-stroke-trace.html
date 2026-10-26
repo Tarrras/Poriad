@@ -2,7 +2,7 @@
 <!--
   svg-stroke-trace: HyperFrames video primitive (intros and reveals), customised for A3.
 
-  The «Поряд» wordmark (Sofia Sans Condensed 800, coral #E0582F, the only coral in the film) is traced as a line,
+  The «Поряд» wordmark (Sofia Sans Condensed 800, paper #F3F3F0, never coral) is traced as a line,
   on the end-card v2 grid (baseline 884 = cap-top ≈ 790, centred on x 540),
   every glyph contour from its own start, then filled. No hold drift and no exit: the mark lands where the
   end-card lockup needs it and stays perfectly still to the last frame.
@@ -22,7 +22,7 @@
           @font-face { font-family: "Sofia Sans Condensed"; src: url("assets/fonts/SofiaSansCondensed-ExtraBold.ttf") format("truetype"); font-weight: 800; font-display: block; }
           
           #sst-root {
-            --sst-accent: #e0582f;
+            --sst-accent: #f3f3f0;
             position: absolute;
             inset: 0;
             overflow: hidden;
@@ -60,7 +60,7 @@
             stroke-linejoin: round;
             stroke-dasharray: 1200 1200;
             stroke-dashoffset: 1200;
-            filter: drop-shadow(0 0 10px rgba(224, 88, 47, 0.45));
+            filter: drop-shadow(0 0 10px rgba(243, 243, 240, 0.45));
           }
         </style>
 
@@ -88,7 +88,7 @@
             tl.to(stage, { opacity: 1, duration: 0.2, ease: "power2.out" }, 0);
             tl.to(stroke, { strokeDashoffset: 0, duration: 0.75, ease: "sine.inOut" }, 0.05);
             tl.to(fill, { opacity: 1, duration: 0.33, ease: "power2.out" }, 0.62);
-            tl.to(stroke, { filter: "drop-shadow(0 0 0px rgba(224, 88, 47, 0))", duration: 0.33, ease: "power2.out" }, 0.62);
+            tl.to(stroke, { filter: "drop-shadow(0 0 0px rgba(243, 243, 240, 0))", duration: 0.33, ease: "power2.out" }, 0.62);
             window.__timelines["svg-stroke-trace"] = tl;
           })();
         </script>
