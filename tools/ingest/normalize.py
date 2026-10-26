@@ -299,13 +299,17 @@ def classify(event: dict, title: str, venue: str, type_policy: str = "trust") ->
 
 def parse_price(event: dict) -> tuple[float | None, bool | None]:
     prices: list[float] = []
+    hidden = False
     for offer in offers_of(event):
         if str(offer.get("priceCurrency") or "UAH").upper() != "UAH":
             continue
         # Нуль — заглушка, а не «безкоштовно», коли валюта порожня (Concert.ua: сеанси й «схожі події» на
         # картці, 2026-10-23 — 21 платна вистава стала безкоштовною) або квитків нема (Karabas: OutOfStock).
+        # Concert.ua безкоштовно не продає: з 2026-10-26 і власна подія картки з «Продаж призупинено» віддає
+        # 0 UAH InStock (ГАРТ 13.11, ДК Енергетик у Харкові), а всі 19 його нулів на prod були платними.
         stub_zero = (offer.get("priceCurrency") == ""
-                     or str(offer.get("availability") or "").endswith(("OutOfStock", "SoldOut")))
+                     or str(offer.get("availability") or "").endswith(("OutOfStock", "SoldOut"))
+                     or "concert.ua" in str(offer.get("seller") or "").lower())
         for key in ("price", "lowPrice", "minPrice"):
             raw = offer.get(key)
             if raw in (None, ""):
@@ -314,11 +318,15 @@ def parse_price(event: dict) -> tuple[float | None, bool | None]:
                 value = float(str(raw).replace(",", ".").replace(" ", ""))
                 if math.isfinite(value) and (value > 0 or value == 0 and not stub_zero):
                     prices.append(value)
+                hidden = hidden or value == 0 and stub_zero
             except ValueError:
                 continue
     if prices:
         low = min(prices)
         return low, low == 0
+    # Ціну сховано заглушкою — опис її не підміняє: «для УБД безкоштовний вхід» (ДК Енергетик) — пільга.
+    if hidden:
+        return None, None
     text = clean_text(event.get("description")).lower()
     if re.search(r"безкоштовн|вхід вільний|free entry|бесплатн", text):
         return 0.0, True
