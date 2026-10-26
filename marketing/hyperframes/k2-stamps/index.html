@@ -16,7 +16,7 @@
 
       /* «Корінець», the stamping desk: warm graphite #141210 under a desk lamp, tickets #1C1B21, grey stamp ink #C9C7C0,
          «СКАСОВАНО» in danger #FF6B5B, a cancelled stub drains to void-stub #4A4950 (as in the app).
-         Coral #FF8A5B is the name «Поряд» only. Motion here is the slam: hard in, a shake, then still. */
+         «Поряд» is paper #F3F3F0, never coral. Motion here is the slam: hard in, a shake, then still. */
       * { margin: 0; padding: 0; box-sizing: border-box; }
       html, body { width: 1080px; height: 1920px; overflow: hidden; background: #141210; }
       #root { position: relative; width: 100%; height: 100%; overflow: hidden; color: #f3f3f0; font-family: "Inter", sans-serif;
@@ -59,10 +59,10 @@
       .cap { position: absolute; left: 100px; top: 252px; width: 840px; font-family: "Sofia Sans Condensed", sans-serif; font-weight: 800; font-size: 66px; line-height: 70px; white-space: nowrap; opacity: 0; }
       .cap span { display: block; }
 
-      /* end card (END-CARD.md grid): the coral stamp IS the wordmark */
+      /* end card (END-CARD.md grid): the paper stamp IS the wordmark */
       #icon { position: absolute; left: 452px; top: 560px; width: 176px; height: 176px; border-radius: 40px; opacity: 0; }
       #name { position: absolute; left: 0; top: 768px; width: 1080px; display: flex; justify-content: center; }
-      #name .stamp { position: relative; color: #ff8a5b; font-size: 128px; line-height: 132px; letter-spacing: 0; padding: 4px 40px 10px; border-width: 10px; border-radius: 26px; filter: url(#ink-soft); }
+      #name .stamp { position: relative; color: #f3f3f0; font-size: 128px; line-height: 132px; letter-spacing: 0; padding: 4px 40px 10px; border-width: 10px; border-radius: 26px; filter: url(#ink-soft); }
       #slogan { position: absolute; left: 160px; top: 966px; width: 760px; text-align: center; font-family: "Sofia Sans Condensed", sans-serif; font-weight: 700; font-size: 44px; line-height: 50px; color: #c9c7c0; opacity: 0; }
       #bait { position: absolute; left: 160px; top: 290px; width: 760px; text-align: center; font-family: "Sofia Sans Condensed", sans-serif; font-weight: 700; font-size: 58px; line-height: 64px; text-wrap: balance; opacity: 0; }
       #free { position: absolute; left: 0; top: 1104px; width: 1080px; text-align: center; font-weight: 600; font-size: 34px; line-height: 40px; color: #e3c27a; opacity: 0; }
@@ -86,7 +86,7 @@
           <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="1" seed="9" result="w" />
           <feDisplacementMap in="inked" in2="w" scale="5" />
         </filter>
-        <!-- the name gets a cleaner impression: few holes, so the coral stays coral -->
+        <!-- the name gets a cleaner impression: few holes, so the paper stays clean -->
         <filter id="ink-soft" x="-5%" y="-5%" width="110%" height="110%">
           <feTurbulence type="fractalNoise" baseFrequency="0.75" numOctaves="2" seed="4" result="n" />
           <feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -9 6.1" result="holes" />
@@ -237,7 +237,7 @@
         tl.to("#cap2", { opacity: 0, duration: 0.18, ease: "power1.in" }, 10.62);
         tl.to("#phone", { y: 1550, duration: 0.5, ease: "power3.in" }, 10.6);
 
-        // ---- 10.93: the coral stamp «Поряд»; the icon, the slogan, the end card; static from 12.95
+        // ---- 10.93: the paper stamp «Поряд»; the icon, the slogan, the end card; static from 12.95
         tl.fromTo("#sname", { scale: 1.8, rotation: -10, opacity: 0 }, { scale: 1, rotation: -4, opacity: 1, duration: 0.14, ease: "power4.in" }, 10.8);
         tl.fromTo("#name", { y: 0 }, { y: 8, duration: 0.05, ease: "power1.out", yoyo: true, repeat: 1 }, 10.94);
         tl.fromTo("#icon", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 11.25);

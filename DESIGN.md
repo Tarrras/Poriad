@@ -324,7 +324,7 @@ components:
 
 Платформа — нативні iOS (SwiftUI) і Android (Compose) з однаковим API токенів і компонентів. Розміри тут записано в `px`: це 1 pt на iOS і 1 dp/sp на Android, і всі кеглі масштабуються Dynamic Type / `fontScale`. Джерело значень — код: [DesignSystem.swift](iosApp/Poruch/DesignSystem/DesignSystem.swift) і компоненти в [DesignSystem/](iosApp/Poruch/DesignSystem/) (по файлу на родину: `Ticket.swift`, `EventSurfaces.swift`, `BadgesAndButtons.swift`…), [Tokens.kt](androidApp/src/main/java/app/poruch/android/ui/Tokens.kt) і компоненти в [ui/](androidApp/src/main/java/app/poruch/android/ui/) (`Ticket.kt`, `EventCards.kt`, `Buttons.kt`…). Якщо цей файл і код розходяться, правий код.
 
-**Чинний світ — цей файл («Корінець»).** [docs/design-system.md](docs/design-system.md) і [site/tokens.css](site/tokens.css) досі описують попередній світ «Спокійний аркуш» (засічки Source Serif 4, пігулки-кнопки, радіуси 24/28) і для застосунку застаріли. Коментарі в коді, що називають `docs/design-system.md` джерелом правди, теж лишились від нього.
+**Чинний світ — цей файл («Корінець»).** [docs/design-system.md](docs/design-system.md) досі описує попередній світ «Спокійний аркуш» (засічки Source Serif 4, пігулки-кнопки, радіуси 24/28) і для застосунку застарів. [site/tokens.css](site/tokens.css) уже на «Корінці»: ті самі токени для сайту й сторінок подій. Коментарі в коді, що називають `docs/design-system.md` джерелом правди, теж лишились від нього.
 
 ## Overview
 

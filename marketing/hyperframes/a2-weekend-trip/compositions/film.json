@@ -3,14 +3,14 @@
   "duration": 14,
   "brand": "Поряд",
   "ground": "#0E1626",
-  "palette": { "navy": "#0E1626", "amber": "#F2B544", "paper": "#F4EFE2", "coral (only «Поряд»)": "#E0582F" },
+  "palette": { "navy": "#0E1626", "amber": "#F2B544", "paper": "#F4EFE2", "name «Поряд»": "#F3F3F0" },
   "music": "assets/audio/music.m4a from media offset 16.0 s at 0.45 (0.38 under the phone, fade 13.4 → 14): hits 0 · 1.25 · 2.5 · 4 · 5.25 · 6.5 · 8 · 9.25 · 10.5 · 11.25 · 12 · 13.25",
   "registry": ["split-flap-board (block, engine moved to assets/flap.js)", "whip-pan-cut (component, pasted into index.html)", "tilt-card (component, pasted into compositions/phone.html)"],
   "beats": [
     { "id": "hook", "scene": "split-flap-board", "start": 0, "end": 4.3, "picture": "a Solari departure board hung from two rods: «КВИТКИ НА ПОТЯГ ✓» · «ЖИТЛО ✓» · «ПАВЕРБАНК ✓» · «ПЛАН НА СУБОТУ» whose status cell spins and falls on «—»; on the 2.5 hit «А ЩО ТАМ / РОБИТИ?» flaps in on big amber tiles" },
     { "id": "bridge", "scene": "route", "start": 3.75, "end": 5.6, "picture": "whip-pan (mid on the 4.0 hit) to an amber line map of Ukraine; the train dot rides the rail Київ → Львів, the ticket «давай подивимось» / «Львів · вихідні» rides in after it" },
     { "id": "proof", "scene": "phone + signs", "start": 5.5, "end": 10.6, "picture": "the ticket goes back into the pocket and a 3D-tilted phone comes out of it (rotateY 18° → −6°); map-kyiv → tap «Київ ⌄» → picker sheet → tap «Львів» (the board row flips КИЇВ → ЛЬВІВ) → map-lviv → tap «Будь-коли» → map-lviv-weekend → push onto «Вечір джазу»; amber flap captions «ПЕРЕМИКАЄШ МІСТО» · «ОБИРАЄШ «ВИХІДНІ»» · «І ВИХІДНІ ВЖЕ З ПЛАНОМ»" },
-    { "id": "name", "scene": "route + signs", "start": 10.2, "end": 12.6, "picture": "«5 МІСТ — ОДИН ЗАСТОСУНОК» on the board, the city row rolls ЛЬВІВ → КИЇВ → ОДЕСА → ДНІПРО → ХАРКІВ while the five map dots light up; they converge into an amber seam that opens into the coral «Поряд» like the last flap settling" },
+    { "id": "name", "scene": "route + signs", "start": 10.2, "end": 12.6, "picture": "«5 МІСТ — ОДИН ЗАСТОСУНОК» on the board, the city row rolls ЛЬВІВ → КИЇВ → ОДЕСА → ДНІПРО → ХАРКІВ while the five map dots light up; they converge into an amber seam that opens into the paper «Поряд» like the last flap settling" },
     { "id": "cta", "scene": "cta", "start": 11.9, "end": 14, "picture": "navy end card on the v2 grid (_material/END-CARD.md), centred: «куди їдеш наступними вихідними? 👇» at the top, the icon and the «Поряд» tile flap-settle, the slogan «Є куди. Буде з ким.» flaps down under them (settled 12.62), all between amber hairlines, «безкоштовно», the App Store and Google Play badges together by one hard cut on 13.25 with the Apple and Google trademark lines; static from 13.25 to 14.0 (the track ends at 14.0)" }
   ]
 }

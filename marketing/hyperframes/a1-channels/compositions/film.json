@@ -4,7 +4,7 @@
   "version": "v2 — noise → signal (own visual language, not the C-series)",
   "ground": "#F5F5F7",
   "ink": "#0B0B0F",
-  "coral": "#E0582F — «Поряд» only",
+  "name": "#141417 — «Поряд» in ink, never coral (26.10)",
   "music": {
     "src": "assets/audio/music-electronic.wav",
     "mediaStart": 3.0,
@@ -53,7 +53,7 @@
       "start": 10.5,
       "end": 12.4,
       "file": "compositions/components/wordmark-tiles.html + compositions/end.html",
-      "picture": "a field of ink/grey noise tiles resolves into the coral «Поряд»; the rest of the sentence types under it, holds, and the caret backspaces it and types the slogan «Є куди. Буде з ким.» in its slot",
+      "picture": "a field of ink/grey noise tiles resolves into «Поряд» in ink; the rest of the sentence types under it, holds, and the caret backspaces it and types the slogan «Є куди. Буде з ким.» in its slot",
       "line": "Поряд збирає їх на одну мапу."
     },
     {
