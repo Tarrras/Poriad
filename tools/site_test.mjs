@@ -84,10 +84,10 @@ assert.equal(price({ is_free: true, price_min: 0 }), "Безкоштовно");
   assert.deepEqual(pick(weekend, [5, 5]).map((e) => e.id), ["f", "a", "c", "d", "e"], "людей першими, далі по дві на день різних категорій і закладів");
   const evening = ["a", "b", "c", "d"].map((id) => ev(id, sat + "15:00:00Z", "art")).concat(ev("m", sat + "16:00:00Z", "music"), ev("n", sat + "16:00:00Z", "music"), ev("s", sat + "16:30:00Z", "comedy"));
   assert.deepEqual(pick(evening, [5, 7]).map((e) => e.category).sort(), ["art", "art", "comedy", "music", "music"], "третє коло лише до мінімуму");
-  const cards = new Map([["a", { place_name: 'Клуб "Х" & Co', price_min: 300 }], ["c", { is_free: true, price_min: 0 }], ["d", { is_free: true, price_min: 0 }],
+  const cards = new Map([["a", { place_name: 'Клуб "Х" & Co', price_min: 300, blurb: 'Бах "наживо" & свічки' }], ["c", { is_free: true, price_min: 0 }], ["d", { is_free: true, price_min: 0 }],
     ["e", { is_free: true, price_min: 0, offers: [{ is_free: true, price_min: 0 }, { is_free: false, price_min: 550 }] }], ["f", { organizer_name: "Марта" }]]);
   const text = format("Львів", "weekend", pick(weekend, [5, 5]), cards);
-  assert.match(text, /^<b>Вихідні, 24 і 25 жовтня<\/b>\nНа вихідних у Львові є куди піти: концерти, мистецтво, стендап і зустрічі 👇\n\n<b>Від людей<\/b>\n🤝 <b>Нд 14:00<\/b> <a href="https:\/\/poriad\.app\/e\/f">Вечір у Театрі<\/a>\nЗбирає Марта\n\n<b>Субота<\/b>\n🎵 <b>11:00<\/b> <a href="https:\/\/poriad\.app\/e\/a">Вечір у Театрі<\/a>\nКлуб &quot;Х&quot; &amp; Co · від 300 ₴\n\n/, "люди першими, далі афіша по днях");
+  assert.match(text, /^<b>Вихідні, 24 і 25 жовтня<\/b>\nНа вихідних у Львові є куди піти: концерти, мистецтво, стендап і зустрічі 👇\n\n<b>Від людей<\/b>\n🤝 <b>Нд 14:00<\/b> <a href="https:\/\/poriad\.app\/e\/f">Вечір у Театрі<\/a>\nЗбирає Марта\n\n<b>Субота<\/b>\n🎵 <b>11:00<\/b> <a href="https:\/\/poriad\.app\/e\/a">Вечір у Театрі<\/a>\nБах &quot;наживо&quot; &amp; свічки\nКлуб &quot;Х&quot; &amp; Co · від 300 ₴\n\n/, "люди першими, далі афіша по днях; речення «що це» під назвою");
   assert.match(text, /\n\n<b>Неділя<\/b>\n🎵 <b>10:00<\/b> <a href="https:\/\/poriad\.app\/e\/d">Вечір у Театрі<\/a>\nБезкоштовно\n/, "Concert.ua: нуль-заглушки виправлено");
   assert.match(text, /\/e\/c">Вечір у Театрі<\/a>\n\n/, "is_free з інших джерел — без «Безкоштовно»");
   assert.match(text, /\/e\/e">Вечір у Театрі<\/a>\n\n/, "нуль Concert.ua поряд із платним продавцем — не безкоштовно");
