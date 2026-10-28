@@ -148,6 +148,9 @@ struct RootView: View {
     @StateObject private var location = LocationFinder()
     /// Мʼяке питання про дайджест вихідних, див. `DigestPrompt`.
     @State private var digestAsk = false
+    /// Стос «Ваш тиждень» (docs/return-hooks.md): раз, у першій сесії після онбордингу, до туру.
+    @AppStorage("poruch.deckDone") private var deckDone = false
+    @State private var deck: DeckCards?
     /// Людина натиснула кнопку в листі дайджесту; змах униз без відповіді рахуємо як «не зараз».
     @State private var digestAnswered = false
     /// Перший-другий запуск: лише новим показуємо, де що на головній (docs/coach-marks.md). Лічильник рахує
@@ -166,10 +169,23 @@ struct RootView: View {
                     // спершу вітаємо туром по головній, а питаємо після нього (`.coachMarks`, `onFinish`).
                     .onAppear { if !(newcomer && location.undecided) { location.request() } }
                     .task { digestAsk = await DigestPrompt.due(digestEnabled: root.digestEnabled) }
+                    // Видача їде паралельно з онбордингом; за секунду її вже досить. Не встигла — стосу нема, лишається
+                    // рядок на головній. ponytail: одна перевірка, а не очікування видачі.
+                    .task {
+                        guard newcomer, !deckDone else { return }
+                        try? await Task.sleep(for: .seconds(1))
+                        deckDone = true
+                        let cards = model.app.deckCards()
+                        guard cards.count >= Int(DeckRules.shared.MIN) else { return }
+                        UserDefaults.standard.set(model.app.deckWeek(), forKey: "poruch.deckWeek")
+                        deck = DeckCards(events: cards)
+                    }
+                    .fullScreenCover(item: $deck) { DeckView(cards: $0.events) { deck = nil } }
                     // Перша підписка за запуск: питаємо про сповіщення, без них пуші про нове не дійдуть.
                     .onChange(of: root.followsMade) { _, made in if made > 0 { FollowPrompt.ask() } }
                     // Перша закладка, і гостя теж: нагадування напередодні без дозволу не прийде (docs/guest-saves.md).
-                    .onChange(of: root.savesMade) { _, made in if made > 0 { ReminderPrompt.offer(model.app) } }
+                    // У стосі «Ваш тиждень» про сповіщення питає його кінець, а не перша закладка.
+                    .onChange(of: root.savesMade) { _, made in if made > 0 && deck == nil { ReminderPrompt.offer(model.app) } }
                     .onChange(of: root.reviewMoment) { _, moment in
                         guard moment else { return }
                         let due = ReviewPrompt.due()
@@ -178,7 +194,7 @@ struct RootView: View {
                         if due { Task { try? await Task.sleep(for: .seconds(1)); requestReview() } }
                     }
                     // Лист знизу, не `alert`: усі питання в застосунку ставляться листом (DS, «Нижні листи»).
-                    .sheet(isPresented: $digestAsk, onDismiss: { if !digestAnswered { model.app.digestPromptAnswered(granted: false) } }) {
+                    .sheet(isPresented: $digestAsk, onDismiss: { if !digestAnswered { model.app.digestPromptAnswered(granted: false, from: nil) } }) {
                         PromptSheet(
                             title: Copy.digest_prompt_title,
                             message: Copy.digest_prompt_body,
@@ -186,11 +202,11 @@ struct RootView: View {
                             onPrimary: {
                                 digestAnswered = true
                                 NotificationPermission.request { granted in
-                                    model.app.digestPromptAnswered(granted: granted)
+                                    model.app.digestPromptAnswered(granted: granted, from: nil)
                                     if granted { PushDelegate.registerIfAllowed() }
                                 }
                             },
-                            onSecondary: { digestAnswered = true; model.app.digestPromptAnswered(granted: false) }
+                            onSecondary: { digestAnswered = true; model.app.digestPromptAnswered(granted: false, from: nil) }
                         )
                     }
                     .onReceive(location.$city) { city in
@@ -290,7 +306,7 @@ struct RootView: View {
         // на паузу, а лист дайджесту (другий запуск) чи вхід — відкладають, поки людина не відповість.
         .coachMarks(
             [.city, .map, .create],
-            enabled: newcomer && tab == 0 && homePath.isEmpty && !tabBarHidden && !digestAsk && authSheet == nil && !creating
+            enabled: newcomer && tab == 0 && homePath.isEmpty && !tabBarHidden && !digestAsk && deck == nil && authSheet == nil && !creating
         ) {
             // Тур пройдено чи пропущено: тепер питання про геолокацію. Пауза — щоб системне вікно не наклалось на згасання.
             guard location.undecided else { return }

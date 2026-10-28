@@ -52,6 +52,9 @@ import app.poruch.android.feature.lastKnownPosition
 import app.poruch.android.navigation.*
 import app.poruch.android.platform.NotificationPermission
 import app.poruch.android.ui.*
+import app.poruch.android.feature.home.DeckScreen
+import app.poruch.domain.DeckRules
+import app.poruch.domain.Event
 import app.poruch.domain.EventLinks
 import app.poruch.domain.PoruchLog
 import app.poruch.shared.AppNotice
@@ -259,10 +262,28 @@ fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
     NotificationPromptAfter(appState, SAVE_ASKED) { if (it.remindersEnabled) it.library.savesMade else 0 }
     ReviewPrompt(app, appState)
     PasswordRecoveryEffect(navigator, appState)
+    // Стос «Ваш тиждень»: раз, у першій сесії після онбордингу, до туру. Видача їде паралельно з онбордингом; за секунду
+    // її вже досить, не встигла — стосу нема, лишається рядок на головній. ponytail: одна перевірка, а не очікування.
+    var deck by remember { mutableStateOf<List<Event>?>(null) }
+    val onboarding = appState.value.needsOnboarding
+    LaunchedEffect(onboarding) {
+        val prompts = context.getSharedPreferences(PROMPTS, Context.MODE_PRIVATE)
+        if (!newcomer || onboarding || prompts.getBoolean(DECK_DONE, false)) return@LaunchedEffect
+        delay(1000)
+        prompts.edit { putBoolean(DECK_DONE, true) }
+        val cards = app.deckCards()
+        if (cards.size < DeckRules.MIN) return@LaunchedEffect
+        // Про сповіщення питає кінець стосу, а не перша закладка в ньому.
+        prompts.edit { putString(DECK_WEEK, app.deckWeek()); putBoolean(SAVE_ASKED, true) }
+        deck = cards
+    }
 
     // Без провайдера вкладка «Мапа» будувала нову MapView на кожен вхід.
     CompositionLocalProvider(LocalSharedMapView provides sharedMap) {
-        RootLayout(navigator, entryProvider, app, appState, tourAllowed = newcomer && !digestAsk) { tourDone = true }
+        Box(Modifier.fillMaxSize()) {
+            RootLayout(navigator, entryProvider, app, appState, tourAllowed = newcomer && !digestAsk && deck == null) { tourDone = true }
+            deck?.let { DeckScreen(app, it) { deck = null } }
+        }
     }
 }
 
@@ -640,12 +661,15 @@ private fun Splash() {
     }
 }
 
-private const val PROMPTS = "prompts"
+internal const val PROMPTS = "prompts"
 private const val LOCATION_ASKED = "location_asked"
 private const val LAUNCHES = "launches"
-private const val DIGEST_ASKED = "digest_asked"
+internal const val DIGEST_ASKED = "digest_asked"
 private const val FOLLOW_ASKED = "follow_asked"
 private const val SAVE_ASKED = "save_asked"
+/** Стос «Ваш тиждень» уже показували в першій сесії; тиждень, коли його відкривали з головної (docs/return-hooks.md). */
+private const val DECK_DONE = "deck_done"
+internal const val DECK_WEEK = "deck_week"
 private const val REVIEW_ASKED_VERSION = "review_asked_version"
 private const val INFO_NOTICE_MS = 3_000L
 private const val ERROR_NOTICE_MS = 5_000L

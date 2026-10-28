@@ -92,16 +92,35 @@ enum Copy {
     static let reminder_note = "Нагадування приблизно за годину до ваших подій і тих, куди йдете, напередодні о 18:00 — про збережені, і нові запити на участь. Запити перевіряються, коли застосунок відкрито."
     static let analytics = "Аналітика"
     static let analytics_note = "Псевдонімна статистика використання й звіти про збої. Без реклами."
-    static let digest = "Що поруч на вихідних"
-    static let digest_note = "Щопʼятниці о 17:00 — скільки подій у вашому місті на вихідних і що серед них."
+    static let digest = "Що поруч цього тижня"
+    static let digest_note = "У четвер увечері — про вихідні, а якщо ви вільні в будні, то й у понеділок. Одна подія, варта уваги, і скільки ще поруч."
     static func digest_title(_ a0: String, _ a1: String) -> String { "\(a0): \(a1) на вихідних" }
     static func digest_title_2(_ a0: String, _ a1: String) -> String { "Що робити на вихідних? \(a0): \(a1)" }
     static func digest_title_3(_ a0: String, _ a1: String) -> String { "Є куди на вихідних. \(a0): \(a1)" }
     static func digest_title_4(_ a0: String, _ a1: String) -> String { "\(a0), субота й неділя: \(a1)" }
     static let digest_nearby = "Поруч"
     static func digest_more(_ a0: String, _ a1: String) -> String { "\(a0) та ще \(a1)" }
+    static func digest_weekdays_title(_ a0: String, _ a1: String) -> String { "\(a0) цього тижня: \(a1)" }
+    static func digest_lead(_ a0: String, _ a1: String) -> String { "\(a0) — \(a1)" }
+    static func digest_lead_more(_ a0: String, _ a1: String, _ a2: String) -> String { "\(a0) — \(a1) · і ще \(a2)" }
+    static func digest_reason_followed(_ a0: String) -> String { "від \(a0)" }
+    static let digest_reason_company = "на неї шукають компанію"
+    static let digest_reason_one_night = "один вечір у місті"
+    static let digest_reason_for_you = "під ваші інтереси"
+    static let deck_title = "Ваш тиждень"
+    static let deck_subtitle = "«Так» — збережемо й нагадаємо ввечері напередодні"
+    static func deck_progress(_ a0: String, _ a1: String) -> String { "\(a0) з \(a1)" }
+    static let deck_yes = "Так"
+    static let deck_no = "Ні"
+    static let deck_done_title = "Ваш тиждень зібрано"
+    static let deck_done_body = "Нагадаємо ввечері напередодні й скажемо, коли зʼявиться щось схоже."
+    static let deck_empty_title = "Нічого не зачепило?"
+    static let deck_empty_body = "На мапі — усе місто, а «Для вас» підлаштується під те, що ви відкриваєте."
+    static let deck_remind = "Нагадати мені"
+    static let deck_finish = "Готово"
+    static let deck_row_subtitle = "Кілька подій під вас: «так» чи «ні»"
     static let digest_prompt_title = "Що поруч на вихідних?"
-    static let digest_prompt_body = "Щопʼятниці ввечері коротко скажемо, скільки подій у вашому місті на вихідних. Одне сповіщення на тиждень, вимкнути можна в профілі."
+    static let digest_prompt_body = "Перед вихідними коротко скажемо, що варте уваги у вашому місті. Одне-два сповіщення на тиждень, вимкнути можна в профілі."
     static let digest_prompt_yes = "Так, нагадувати"
     static let digest_prompt_no = "Не зараз"
     static let reminder_exact = "Зараз нагадування може спізнитися до години. Щоб воно приходило рівно за годину, дозвольте «Будильники й нагадування»."

@@ -7,6 +7,8 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.StateFlow
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
+import kotlin.time.Clock
+import kotlinx.datetime.TimeZone
 
 /**
  * Єдиний стор, за яким стежать обидві платформи: фасад із дієсловами екранів над [AppState].
@@ -474,18 +476,41 @@ class PoruchApp internal constructor(
      * Відповідь на мʼяке питання про дайджест. Дозвіл дано — вмикаємо й нагадування про свої
      * події: людина погодилась на сповіщення, а інакше Android більше б про них не спитав.
      */
-    fun digestPromptAnswered(granted: Boolean) {
-        PoruchAnalytics.track("digest_prompt", "granted" to granted)
+    /** [from] — `deck`, коли питали наприкінці стосу «Ваш тиждень»; null — мʼяке питання другого запуску. */
+    fun digestPromptAnswered(granted: Boolean, from: String? = null) {
+        PoruchAnalytics.track("digest_prompt", "granted" to granted, "from" to from)
         if (!granted) return
         tasteUseCases.setDigestEnabled(true)
         tasteUseCases.setRemindersEnabled(true)
     }
 
+    // ---- Стос «Ваш тиждень» (docs/return-hooks.md, хвиля 2)
+
+    /** До [DeckRules.MAX] подій «Для вас» на тиждень. Порожньо — стосу не показувати. */
+    fun deckCards(): List<Event> = store.value.home.let { DeckRules.pick(it.suggested.ifEmpty { it.events }, Clock.System.now()) }
+
+    /** Тиждень, у який стос відкрито: платформа пам'ятає його, щоб рядок на головній не кликав двічі за тиждень. */
+    fun deckWeek(): String = DeckRules.week(Clock.System.now(), TimeZone.currentSystemDefault())
+
+    /** Відповідь у стосі: «так» — закладка, і гостя теж; уже збережене не знімаємо. */
+    fun deckAnswered(id: String, yes: Boolean, position: Int) {
+        PoruchAnalytics.track("deck_answer", "yes" to yes, "position" to position)
+        if (yes && !store.value.isSaved(id)) toggleSaved(id)
+    }
+
+    /** Стос закрито: [shown] — скільки карток людина побачила, [skipped] — «Пропустити» до кінця. */
+    fun deckDone(yesCount: Int, shown: Int, skipped: Boolean) =
+        PoruchAnalytics.track("deck_done", "yes_count" to yesCount, "shown" to shown, "skipped" to skipped)
+
     /** Підказка першого знайомства закрита: [action] — `next`, `done` чи `skip` (docs/coach-marks.md). */
     fun tipAnswered(tip: String, action: String) = PoruchAnalytics.track("tip", "tip" to tip, "action" to action)
 
-    /** Тап по дайджесту: єдиний спосіб дізнатися, чи він повертає людей. [week] — котра пʼятниця драбини (1–4). */
-    fun digestOpened(week: Int) = PoruchAnalytics.track("digest_open", "week" to week)
+    /**
+     * Тап по дайджесту: єдиний спосіб дізнатися, чи він повертає людей. [id] — [WeekendDigest.id]: вид (будні, вихідні)
+     * і котрий тиждень драбини (1–4).
+     */
+    fun digestOpened(id: Int) =
+        PoruchAnalytics.track("digest_open", "week" to WeekendDigest.weekOf(id), "kind" to WeekendDigest.kindOf(id).key)
 
     /** Відкрито системне «Поділитися» з посиланням на подію: чи працює петля запрошень. */
     fun eventShared() = PoruchAnalytics.track("share", "kind" to "event")

@@ -15,6 +15,8 @@ import android.content.res.Configuration
 import android.os.Build
 import app.poruch.android.MainActivity
 import app.poruch.android.R
+import app.poruch.domain.DigestKind
+import app.poruch.domain.DigestReason
 import app.poruch.domain.DigestRules
 import app.poruch.domain.EventReminder
 import app.poruch.domain.ReminderScheduler
@@ -65,9 +67,9 @@ class AlarmReminderScheduler(private val context: Context) : ReminderScheduler {
 
     override fun replaceDigests(digests: List<WeekendDigest>) {
         val alarms = context.getSystemService(AlarmManager::class.java)
-        (1..DigestRules.WEEKS).forEach { alarms.cancel(digestPending(context, it)) }
+        (1..DigestRules.WEEKS).flatMap { listOf(it, it + WeekendDigest.WEEKDAYS_OFFSET) }.forEach { alarms.cancel(digestPending(context, it)) }
         storeDigests(context, digests)
-        digests.forEach { alarms.wake(it.fireAtEpochMillis, digestPending(context, it.week)) }
+        digests.forEach { alarms.wake(it.fireAtEpochMillis, digestPending(context, it.id)) }
     }
 
     internal companion object {
@@ -80,7 +82,7 @@ class AlarmReminderScheduler(private val context: Context) : ReminderScheduler {
             stored(context).filter { it.fireAtEpochMillis > System.currentTimeMillis() }
                 .forEach { alarms.wake(it.fireAtEpochMillis, pending(context, it)) }
             storedDigests(context).filter { it.fireAtEpochMillis > System.currentTimeMillis() }
-                .forEach { alarms.wake(it.fireAtEpochMillis, digestPending(context, it.week)) }
+                .forEach { alarms.wake(it.fireAtEpochMillis, digestPending(context, it.id)) }
         }
 
         /**
@@ -94,24 +96,46 @@ class AlarmReminderScheduler(private val context: Context) : ReminderScheduler {
             if (exactAllowed()) setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, intent)
             else setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, intent)
 
-        /** Будильник [week]-го дайджесту спрацював: текст — з останнього збереженого плану. Тап веде на головну. */
-        fun showDigest(system: Context, week: Int) {
+        /** Будильник дайджесту [id] ([WeekendDigest.id]) спрацював: текст — з останнього збереженого плану. Тап веде на головну. */
+        fun showDigest(system: Context, id: Int) {
             val context = system.inAppLanguage()
-            val digest = storedDigests(context).firstOrNull { it.week == week } ?: return
+            val digest = storedDigests(context).firstOrNull { it.id == id } ?: return
             val count = context.resources.getQuantityString(R.plurals.digest_count, digest.count, digest.count)
-            val titles = digest.titles.joinToString(", ")
-            val more = digest.count - digest.titles.size
-            val title = when (week) {
-                2 -> R.string.digest_title_2
-                3 -> R.string.digest_title_3
-                4 -> R.string.digest_title_4
+            val title = when {
+                digest.kind == DigestKind.WEEKDAYS -> R.string.digest_weekdays_title
+                digest.week == 2 -> R.string.digest_title_2
+                digest.week == 3 -> R.string.digest_title_3
+                digest.week == 4 -> R.string.digest_title_4
                 else -> R.string.digest_title
             }
             notifyDigest(
-                context, MainActivity.openDigest(context, week),
+                context, MainActivity.openDigest(context, id),
                 context.getString(title, digest.city ?: context.getString(R.string.digest_nearby), count),
-                if (more > 0) context.getString(R.string.digest_more, titles, more) else titles
+                digestBody(context, digest)
             )
+        }
+
+        /** Вирізнена подія з причинами («Стендап — один вечір у місті · і ще 6»), інакше назви й «та ще N». */
+        private fun digestBody(context: Context, digest: WeekendDigest): String {
+            val lead = digest.lead
+            val more = digest.count - if (lead == null) digest.titles.size else 1
+            if (lead == null) {
+                val titles = digest.titles.joinToString(", ")
+                return if (more > 0) context.getString(R.string.digest_more, titles, more) else titles
+            }
+            val reasons = digest.reasons.mapNotNull {
+                when (it) {
+                    DigestReason.FOLLOWED -> digest.followName?.let { name -> context.getString(R.string.digest_reason_followed, name) }
+                    DigestReason.COMPANY -> context.getString(R.string.digest_reason_company)
+                    DigestReason.ONE_NIGHT -> context.getString(R.string.digest_reason_one_night)
+                    DigestReason.FOR_YOU -> context.getString(R.string.digest_reason_for_you)
+                }
+            }.joinToString(" · ")
+            return when {
+                reasons.isEmpty() -> if (more > 0) context.getString(R.string.digest_more, lead, more) else lead
+                more > 0 -> context.getString(R.string.digest_lead_more, lead, reasons, more)
+                else -> context.getString(R.string.digest_lead, lead, reasons)
+            }
         }
 
         /**
@@ -138,13 +162,13 @@ class AlarmReminderScheduler(private val context: Context) : ReminderScheduler {
         }
 
         /**
-         * Будильник [week]-го дайджесту: свій requestCode на тиждень, інакше AlarmManager бачив би один будильник.
-         * Тиждень 1 збігається з єдиним дайджестом старих версій, тож новий план знімає й його.
+         * Будильник дайджесту [id] ([WeekendDigest.id]): свій requestCode на кожен, інакше AlarmManager бачив би один
+         * будильник. Id 1 збігається з єдиним дайджестом старих версій, тож новий план знімає й його.
          */
-        private fun digestPending(context: Context, week: Int): PendingIntent =
+        private fun digestPending(context: Context, id: Int): PendingIntent =
             PendingIntent.getBroadcast(
-                context, week,
-                Intent(context, ReminderReceiver::class.java).setAction(DIGEST_ACTION).putExtra(EXTRA_WEEK, week),
+                context, id,
+                Intent(context, ReminderReceiver::class.java).setAction(DIGEST_ACTION).putExtra(EXTRA_WEEK, id),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
 
@@ -153,9 +177,14 @@ class AlarmReminderScheduler(private val context: Context) : ReminderScheduler {
             (0 until array.length()).map { i ->
                 val it = array.getJSONObject(i)
                 val titles = it.getJSONArray("titles")
+                val reasons = it.optJSONArray("reasons") ?: JSONArray()
                 WeekendDigest(
                     if (it.isNull("city")) null else it.getString("city"), it.getInt("count"),
-                    (0 until titles.length()).map(titles::getString), it.getLong("time"), it.getInt("week")
+                    (0 until titles.length()).map(titles::getString), it.getLong("time"), it.getInt("week"),
+                    DigestKind.entries.firstOrNull { k -> k.key == it.optString("kind") } ?: DigestKind.WEEKEND,
+                    it.optString("lead").ifEmpty { null },
+                    (0 until reasons.length()).mapNotNull { r -> DigestReason.entries.firstOrNull { e -> e.name == reasons.getString(r) } },
+                    it.optString("follow").ifEmpty { null }
                 )
             }
         }.getOrDefault(emptyList())
@@ -166,6 +195,8 @@ class AlarmReminderScheduler(private val context: Context) : ReminderScheduler {
                 array.put(
                     JSONObject().put("city", it.city ?: JSONObject.NULL).put("count", it.count)
                         .put("titles", JSONArray(it.titles)).put("time", it.fireAtEpochMillis).put("week", it.week)
+                        .put("kind", it.kind.key).put("lead", it.lead.orEmpty()).put("follow", it.followName.orEmpty())
+                        .put("reasons", JSONArray(it.reasons.map { r -> r.name }))
                 )
             }
             prefs(context).edit().putString(DIGESTS_KEY, array.toString()).remove(LEGACY_DIGEST_KEY).apply()

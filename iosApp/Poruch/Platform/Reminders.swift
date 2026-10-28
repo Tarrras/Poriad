@@ -151,7 +151,7 @@ final class LocalReminderScheduler: NSObject, ReminderScheduler, RequestNotifier
         }
     }
 
-    /// Драбина дайджестів: запит на тиждень під `poruch.digest.N`, новий план знімає весь старий.
+    /// Драбина дайджестів: запит на тиждень під `poruch.digest.<id>` (вихідні 1–4, будні 11–14), новий план знімає весь старий.
     func replaceDigests(digests: [WeekendDigest]) {
         lastDigests = digests
         center.getPendingNotificationRequests { [center, digestID] requests in
@@ -161,19 +161,20 @@ final class LocalReminderScheduler: NSObject, ReminderScheduler, RequestNotifier
                 guard interval > 0 else { continue }
                 let content = UNMutableNotificationContent()
                 let city = digest.city ?? Copy.brand_name, count = Copy.digest_count(Int(digest.count))
-                content.title = switch digest.week {
-                case 2: Copy.digest_title_2(city, count)
-                case 3: Copy.digest_title_3(city, count)
-                case 4: Copy.digest_title_4(city, count)
-                default: Copy.digest_title(city, count)
+                content.title = if digest.kind == .weekdays { Copy.digest_weekdays_title(city, count) } else {
+                    switch digest.week {
+                    case 2: Copy.digest_title_2(city, count)
+                    case 3: Copy.digest_title_3(city, count)
+                    case 4: Copy.digest_title_4(city, count)
+                    default: Copy.digest_title(city, count)
+                    }
                 }
-                let titles = digest.titles.joined(separator: ", ")
-                let more = Int(digest.count) - digest.titles.count
-                content.body = more > 0 ? Copy.digest_more("\(titles)", "\(more)") : titles
+                content.body = digestBody(digest)
                 content.sound = .default
-                content.userInfo = ["week": Int(digest.week)]
+                // Під ключем `week` — id дайджесту: старі запити (1–4) так і читаються як вихідні.
+                content.userInfo = ["week": Int(digest.id)]
                 center.add(UNNotificationRequest(
-                    identifier: "\(digestID).\(digest.week)", content: content,
+                    identifier: "\(digestID).\(digest.id)", content: content,
                     trigger: UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false)
                 ))
             }
@@ -262,4 +263,22 @@ final class LocalReminderScheduler: NSObject, ReminderScheduler, RequestNotifier
         }
         completionHandler()
     }
+}
+
+/// Тіло дайджесту: вирізнена подія з причинами («Стендап — один вечір у місті · і ще 6»), інакше назви й «та ще N».
+private func digestBody(_ digest: WeekendDigest) -> String {
+    let more = Int(digest.count) - (digest.lead == nil ? digest.titles.count : 1)
+    guard let lead = digest.lead else {
+        let titles = digest.titles.joined(separator: ", ")
+        return more > 0 ? Copy.digest_more(titles, "\(more)") : titles
+    }
+    let reasons = digest.reasons.compactMap { reason -> String? in
+        if reason == .followed { return digest.followName.map { Copy.digest_reason_followed($0) } }
+        if reason == .company { return Copy.digest_reason_company }
+        if reason == .oneNight { return Copy.digest_reason_one_night }
+        if reason == .forYou { return Copy.digest_reason_for_you }
+        return nil
+    }.joined(separator: " · ")
+    if reasons.isEmpty { return more > 0 ? Copy.digest_more(lead, "\(more)") : lead }
+    return more > 0 ? Copy.digest_lead_more(lead, reasons, "\(more)") : Copy.digest_lead(lead, reasons)
 }

@@ -35,7 +35,7 @@ final class PushDelegate: NSObject, UIApplicationDelegate {
 
     static func opened(reason: String) { metric { $0.pushOpened(reason: reason) } }
 
-    static func digestOpened(week: Int32) { metric { $0.digestOpened(week: week) } }
+    static func digestOpened(week: Int32) { metric { $0.digestOpened(id: week) } }
 
     static func winbackOpened(step: Int32) { metric { $0.winbackOpened(step: step) } }
 

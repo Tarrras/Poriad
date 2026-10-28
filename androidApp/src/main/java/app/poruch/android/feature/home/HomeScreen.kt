@@ -43,7 +43,15 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import android.content.Context
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.core.content.edit
+import app.poruch.android.DECK_WEEK
+import app.poruch.android.PROMPTS
 import app.poruch.android.R
+import app.poruch.shared.PoruchApp
+import org.koin.compose.koinInject
 import app.poruch.android.feature.explore.CitySearchSheet
 import app.poruch.android.feature.explore.SEARCH_SETTLE_MS
 import app.poruch.android.feature.explore.dateFilters
@@ -110,6 +118,7 @@ fun HomeScreen(state: HomeState, onIntent: (HomeIntent) -> Unit) {
                 // Афіша нижче — опора. Активності не вигадуємо: коли зустрічей мало, секцію веде порожній квиток.
                 item(key = "people") { PeopleSection(state, onIntent) }
                 if (state.screen.company.isNotEmpty()) item(key = "company") { CompanySection(state, onIntent) }
+                item(key = "deck") { DeckRow() }
                 // Людині без планів і підписок «Ваше» не потрібне: створити подію їй пропонує порожній квиток вище.
                 if (state.screen.signedIn && (state.screen.personal.isNotEmpty() || state.screen.followed.isNotEmpty())) item(
                     key = "yours"
@@ -345,6 +354,32 @@ private val PeopleCardWidth = 176.dp
  * що в сітці міста, але без підпису походження: заголовок секції вже каже, що це люди. Гостю під порожнім квитком лише
  * тихий рядок входу (без картки): дві картки поспіль товпились би.
  */
+/** «Ваш тиждень» з головної: раз на тиждень, якщо цього тижня стос не відкривали (docs/return-hooks.md). */
+@Composable
+private fun DeckRow() {
+    val app = koinInject<PoruchApp>()
+    val context = LocalContext.current
+    val prompts = remember { context.getSharedPreferences(PROMPTS, Context.MODE_PRIVATE) }
+    var opened by remember { mutableStateOf(prompts.getString(DECK_WEEK, null)) }
+    var deck by remember { mutableStateOf<List<Event>?>(null) }
+    val week = app.deckWeek()
+    if (opened != week) {
+        val cards = app.deckCards()
+        if (cards.isNotEmpty()) Box(Modifier.padding(horizontal = Spacing.page).padding(top = Spacing.xxl).cardSurface(Radius.md)) {
+            LinkRow(PoruchIcons.sparkle, stringResource(R.string.deck_title), stringResource(R.string.deck_row_subtitle), onClick = {
+                prompts.edit { putString(DECK_WEEK, week) }
+                opened = week
+                deck = cards
+            })
+        }
+    }
+    deck?.let { cards ->
+        Dialog({ deck = null }, DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+            DeckScreen(app, cards) { deck = null }
+        }
+    }
+}
+
 /** «Шукають компанію» (docs/return-hooks.md): афіші, на які хтось уже хоче піти з компанією. Без жодної рейки нема. */
 @Composable
 private fun CompanySection(state: HomeState, onIntent: (HomeIntent) -> Unit) {

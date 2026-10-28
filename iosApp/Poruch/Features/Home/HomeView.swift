@@ -38,6 +38,9 @@ struct HomeView: View, Equatable {
     @State private var feedLimit = Int(HomeRules.shared.FEED_PAGE)
     /// Шторка вибору міста з шапки: та сама, що на мапі.
     @State private var citySearch = false
+    /// Стос «Ваш тиждень» з головної: раз на тиждень, якщо цього тижня його не відкривали (docs/return-hooks.md).
+    @AppStorage("poruch.deckWeek") private var deckWeek = ""
+    @State private var deck: DeckCards?
 
     var body: some View {
         let view = self.view
@@ -51,6 +54,7 @@ struct HomeView: View, Equatable {
         .statusBarBand()
         .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $citySearch) { CitySearchView().presentationDetents([.medium, .large]) }
+        .fullScreenCover(item: $deck) { DeckView(cards: $0.events) { deck = nil } }
         .onChange(of: view.searchKey) { _, _ in resultsLimit = homeResultsLimit }
     }
 
@@ -96,6 +100,16 @@ struct HomeView: View, Equatable {
                         // Афіша нижче — опора. Активності не вигадуємо: коли зустрічей мало, секцію веде порожній квиток.
                         HomePeopleSection(view: view, open: open, showPeople: showPeople, createEvent: createEvent, openProfile: openProfile)
                         if !view.company.isEmpty { HomeCompanySection(view: view, open: open) }
+                        if deckWeek != model.app.deckWeek() {
+                            let cards = model.app.deckCards()
+                            if !cards.isEmpty {
+                                LinkRow(glyph: PoruchIcons.sparkle, title: Copy.deck_title, subtitle: Copy.deck_row_subtitle) {
+                                    deckWeek = model.app.deckWeek()
+                                    deck = DeckCards(events: cards)
+                                }
+                                .cardSurface().padding(.horizontal, Space.page)
+                            }
+                        }
                         if view.signedIn {
                             HomePersonalSection(view: view, open: open, openChat: openChat, openMyEvents: openMyEvents, openFollows: openFollows)
                         }

@@ -119,8 +119,8 @@
   <string name="reminder_note">Нагадування приблизно за годину до ваших подій і тих, куди йдете, напередодні о 18:00&#160;— про збережені, і нові запити на участь. Запити перевіряються, коли застосунок відкрито.</string>
   <string name="analytics">Аналітика</string>
   <string name="analytics_note">Псевдонімна статистика використання й звіти про збої. Без реклами.</string>
-  <string name="digest">Що поруч на вихідних</string>
-  <string name="digest_note">Щопʼятниці о 17:00&#160;— скільки подій у вашому місті на вихідних і що серед них.</string>
+  <string name="digest">Що поруч цього тижня</string>
+  <string name="digest_note">У четвер увечері&#160;— про вихідні, а якщо ви вільні в будні, то й у понеділок. Одна подія, варта уваги, і скільки ще поруч.</string>
   <string name="digest_title">%1$s: %2$s на вихідних</string>
   <!-- Драбина: 2–4-та пʼятниця після останнього відкриття. Той самий факт іншими словами, без «ми сумуємо». -->
   <string name="digest_title_2">Що робити на вихідних? %1$s: %2$s</string>
@@ -128,8 +128,29 @@
   <string name="digest_title_4">%1$s, субота й неділя: %2$s</string>
   <string name="digest_nearby">Поруч</string>
   <string name="digest_more">%1$s та ще %2$d</string>
+  <!-- Дайджест у вільний час (docs/return-hooks.md, хвиля 2): про будні й одна вирізнена подія з причинами. -->
+  <string name="digest_weekdays_title">%1$s цього тижня: %2$s</string>
+  <string name="digest_lead">%1$s — %2$s</string>
+  <string name="digest_lead_more">%1$s — %2$s · і ще %3$d</string>
+  <string name="digest_reason_followed">від %1$s</string>
+  <string name="digest_reason_company">на неї шукають компанію</string>
+  <string name="digest_reason_one_night">один вечір у місті</string>
+  <string name="digest_reason_for_you">під ваші інтереси</string>
+  <!-- Стос «Ваш тиждень» (docs/return-hooks.md, хвиля 2): після онбордингу й раз на тиждень з головної. -->
+  <string name="deck_title">Ваш тиждень</string>
+  <string name="deck_subtitle">«Так»&#160;— збережемо й нагадаємо ввечері напередодні</string>
+  <string name="deck_progress">%1$d з %2$d</string>
+  <string name="deck_yes">Так</string>
+  <string name="deck_no">Ні</string>
+  <string name="deck_done_title">Ваш тиждень зібрано</string>
+  <string name="deck_done_body">Нагадаємо ввечері напередодні й скажемо, коли зʼявиться щось схоже.</string>
+  <string name="deck_empty_title">Нічого не зачепило?</string>
+  <string name="deck_empty_body">На мапі&#160;— усе місто, а «Для вас» підлаштується під те, що ви відкриваєте.</string>
+  <string name="deck_remind">Нагадати мені</string>
+  <string name="deck_finish">Готово</string>
+  <string name="deck_row_subtitle">Кілька подій під вас: «так» чи «ні»</string>
   <string name="digest_prompt_title">Що поруч на вихідних?</string>
-  <string name="digest_prompt_body">Щопʼятниці ввечері коротко скажемо, скільки подій у вашому місті на вихідних. Одне сповіщення на тиждень, вимкнути можна в профілі.</string>
+  <string name="digest_prompt_body">Перед вихідними коротко скажемо, що варте уваги у вашому місті. Одне-два сповіщення на тиждень, вимкнути можна в профілі.</string>
   <string name="digest_prompt_yes">Так, нагадувати</string>
   <string name="digest_prompt_no">Не зараз</string>
   <string name="reminder_exact">Зараз нагадування може спізнитися до години. Щоб воно приходило рівно за годину, дозвольте «Будильники й нагадування».</string>

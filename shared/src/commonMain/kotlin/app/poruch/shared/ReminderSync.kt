@@ -1,6 +1,7 @@
 package app.poruch.shared
 
 import app.poruch.domain.DigestRules
+import app.poruch.domain.FollowRules
 import app.poruch.domain.PoruchLog
 import app.poruch.domain.ReminderRules
 import app.poruch.domain.ReminderScheduler
@@ -41,17 +42,26 @@ internal class ReminderSync(
                 }
         }
         // Дайджест — з видачі головної: вся область без фільтрів мапи. Індекс міняється рідко, а
-        // стан — на кожен кадр, тож рахуємо лише на новий список, а не на кожну емісію. Новий індекс
-        // приходить з кожним відкриттям (`refreshIfStale`), тож драбина на 4 пʼятниці щоразу стартує заново.
+        // стан — на кожен кадр, тож рахуємо лише на новий список, смак чи підписки, а не на кожну емісію. Новий індекс
+        // приходить з кожним відкриттям (`refreshIfStale`), тож драбина на 4 тижні щоразу стартує заново.
         scope.launch {
-            state.distinctUntilChanged { a, b -> a.home.index === b.home.index && a.digestEnabled == b.digestEnabled }
+            state.distinctUntilChanged { a, b ->
+                a.home.index === b.home.index && a.digestEnabled == b.digestEnabled && a.taste === b.taste &&
+                    a.library.followEvents === b.library.followEvents
+            }
                 .map {
+                    // За ким стежу, по подіях: «Від Атласу» в дайджесті (docs/return-hooks.md).
+                    val followed = it.library.followEvents.mapNotNull { event ->
+                        FollowRules.via(event, it.library.follows)?.let { follow -> event.id to follow.name }
+                    }.toMap()
                     DigestRules.plan(
                         it.home.index,
                         if (it.city.custom) null else it.city.name,
                         it.digestEnabled,
                         Clock.System.now(),
-                        TimeZone.currentSystemDefault()
+                        TimeZone.currentSystemDefault(),
+                        it.taste,
+                        followed
                     )
                 }
                 .distinctUntilChanged()

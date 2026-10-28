@@ -153,9 +153,16 @@ object TasteRanking {
     /** Слот події в її часовому поясі. */
     fun slotOf(event: Rankable): TimeSlot? = slotOf(event, Zones())
 
+    /** Слот моменту [at] у поясі [zoneId]: дайджест дивиться на кожен сеанс, а не лише на перший. */
+    fun slotAt(at: Instant, zoneId: String): TimeSlot = slotOf(at.toLocalDateTime(Zones().of(zoneId)))
+
     private fun slotOf(event: Rankable, zones: Zones): TimeSlot? {
         val zone = zones.of(event.timeZone)
         val local = runCatching { Instant.parse(event.startsAt).toLocalDateTime(zone) }.getOrNull() ?: return null
+        return slotOf(local)
+    }
+
+    private fun slotOf(local: kotlinx.datetime.LocalDateTime): TimeSlot {
         val weekend = local.dayOfWeek.isoDayNumber >= 6
         val evening = local.hour >= TimeSlot.EVENING_FROM_HOUR
         return when {
