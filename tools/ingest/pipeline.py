@@ -17,7 +17,7 @@ import re
 import threading
 import uuid
 
-from . import artists, community, culture, extract, normalize
+from . import artists, cinema, community, culture, extract, normalize
 from .fetch import get
 from .sources import Source
 from .geocode import Geocoder
@@ -303,10 +303,21 @@ def _culture_listing(source: Source, city: str, now: dt.datetime, counters: dict
     return raw_events
 
 
+def _cinema_listing(source: Source, city: str, now: dt.datetime, counters: dict,
+                    groups: dict) -> list[dict] | None:
+    """Розклад кінотеатрів (`cinema:<мережа>`, cinema.py): збій сторінки — `detail_errors` і часткове покриття."""
+    raw_events, report = cinema.collect(source.adapter.split(":", 1)[1], source, city, get=get, now=now)
+    counters.update({key: value for key, value in report.items() if key != "errors"})
+    counters["detail_errors"] = report["errors"]
+    if report["errors"]:
+        counters["error"] = "PARTIAL_DETAILS" if raw_events else report["errors"][0]
+    return raw_events
+
+
 # Збирач списку за адаптером джерела (`Source.adapter` до двокрапки): новий адаптер — рядок тут, а не гілка
 # в harvest. Кожен дописує свої лічильники й повертає сирі події або None, коли джерело не прочиталось зовсім.
 _LISTING = {"jsonld": _jsonld_listing, "dou": _community_listing, "yoy": _community_listing,
-            "culture": _culture_listing}
+            "culture": _culture_listing, "cinema": _cinema_listing}
 
 
 def _note_groups(groups: dict, source: Source, body: str, page_url: str, category: str | None = None) -> None:
@@ -819,6 +830,9 @@ def _build(raw: dict, source: Source, city: str, index: VenueIndex,
         first_segment = ""
     hit = (index.match(venue_name) or (index.match(first_segment) if first_segment else None)) \
         if city_matches and not online else None
+    # Мережа кінотеатрів (`Source.venues`): її назва в OSM збігається за входженням не з тим залом — лише псевдонім.
+    if hit and getattr(source, "venues", None) and hit["how"] != "alias":
+        hit = None
     if hit is None and city_matches and not online:
         geo = place.get("geo")
         if isinstance(geo, dict):
@@ -991,6 +1005,10 @@ def same_event(a: Item, b: Item) -> bool:
     # «сольний стендап» о 19:00 є і в Одесі, і в Харкові.
     if _metres(a, b) > SAME_PLACE_METRES and \
             normalize.normalize_name(a.city) != normalize.normalize_name(b.city):
+        return False
+    # Кіно — лише в одній будівлі: мережі показують той самий фільм у ту саму хвилину в різних залах міста
+    # (Multiplex Lavina і Планета Кіно Блокбастер, 20 км; сухий обхід 2026-10-28 зливав 27 таких пар).
+    if "cinema" in (a.category, b.category) and _metres(a, b) > SAME_PLACE_METRES:
         return False
     return _titles_agree(_tokens(a.title), _tokens(b.title))
 

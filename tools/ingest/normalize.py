@@ -21,7 +21,7 @@ TITLE_MIN, TITLE_MAX = 3, 120          # CHECK на public.events.title
 
 # Дзеркало CHECK на events.category і Rules.categories: конвеєр не має тихо писати вигадану категорію.
 CATEGORIES = ("music", "sport", "art", "food", "games", "outdoors", "social", "comedy", "kids",
-              "tours", "conference")
+              "tours", "conference", "cinema")
 DESCRIPTION_LIMIT = 200                # межа з docs/event-ingestion.md, розділ 8, пункт 2
 
 try:
@@ -230,6 +230,7 @@ def parse_datetime(raw, tz_policy: str, tz_name: str) -> dt.datetime | None:
 DEFAULT_HOURS = {"music": 3.0, "art": 2.0, "sport": 1.5, "games": 3.0,
                  "food": 2.0, "outdoors": 2.0, "social": 2.0,
                  "comedy": 2.0,          # сет зазвичай година-півтори плюс антракт
+                 "cinema": 2.0,          # без тривалості з картки фільму
                  "kids": 1.5}            # дитяча вистава коротша за дорослу
 
 
@@ -247,7 +248,9 @@ _BY_TYPE = {
     "MusicEvent": "music", "Festival": "music",
     # Стендап — окрема категорія: у скриньці з театром він губиться.
     "ComedyEvent": "comedy",
-    "TheaterEvent": "art", "ExhibitionEvent": "art", "ScreeningEvent": "art",
+    "TheaterEvent": "art", "ExhibitionEvent": "art",
+    # Кіно — своя категорія (docs/cinema-import.md): розклад кінотеатрів удесятеро більший за театр.
+    "ScreeningEvent": "cinema",
     "LiteraryEvent": "art", "DanceEvent": "art",
     "VisualArtsEvent": "art",
     "SportsEvent": "sport", "FoodEvent": "food",
@@ -270,6 +273,8 @@ _LEXICON = [
     ("games", r"настолк|настільн|квіз|мафі[яї]|покер|турнір з|кіберспорт|гейм"),
     ("food", r"дегустац|кулінарн|винн|гастро|вечер[яі]|сніданок|пікнік|фудкорт"),
     ("comedy", r"стендап|стенд-ап|stand.?up|імпровіз|импровиз|комік|гуморист|відкритий мікрофон|open ?mic"),
+    # Лише явний показ: «кіно» й «фільм» є і в «Будинку кіно», і в «музиці з фільмів», тож вони лишаються в art.
+    ("cinema", r"кінопоказ|кіноперегляд|показ фільм|прем.?єр[аи] фільм"),
     ("art", r"вистав|театр|галере|вернісаж|виставк|кіно|фільм|поез|лекц|музе"),
     # «рок» і «реп» з межами слова, інакше «1939 року» стає музикою. Дефіс лишаємо: «рок-опера».
     ("music", r"концерт|музичн|джаз|\bрок\b|рок-|\bреп\b|реп-|діджей|dj\b|акустичн|сольник|"
