@@ -44,6 +44,7 @@ import androidx.compose.ui.window.DialogProperties
 import com.airbnb.lottie.compose.*
 import androidx.core.content.edit
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
@@ -55,6 +56,12 @@ import app.poruch.android.navigation.*
 import app.poruch.android.platform.NotificationPermission
 import app.poruch.android.ui.*
 import app.poruch.android.feature.home.DeckScreen
+import app.poruch.android.feature.wallet.TicketImportSheet
+import app.poruch.android.feature.wallet.TicketViewer
+import app.poruch.android.feature.wallet.WalletUi
+import app.poruch.android.platform.TicketFiles
+import app.poruch.android.platform.toast
+import app.poruch.domain.ReminderRules
 import app.poruch.domain.DeckRules
 import app.poruch.domain.Event
 import app.poruch.domain.EventLinks
@@ -62,6 +69,7 @@ import app.poruch.domain.PoruchLog
 import app.poruch.shared.AppNotice
 import app.poruch.shared.AppState
 import app.poruch.shared.PoruchApp
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.dropWhile
 import kotlinx.coroutines.flow.first
@@ -126,6 +134,13 @@ class MainActivity : ComponentActivity(), AndroidScopeComponent {
     private fun handle(intent: Intent) {
         // Запуск з «Недавніх» несе старий intent: колбек уже використано, сповіщення вже відкривали.
         if (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0) return
+        // Квиток з «Поділитися» чи «Відкрити за допомогою» (docs/ticket-wallet.md): копіюємо, читаємо, питаємо.
+        TicketFiles.uriOf(intent)?.let { uri ->
+            lifecycleScope.launch {
+                TicketFiles.load(this@MainActivity, uri, app, "share")?.let { WalletUi.importing = it } ?: toast(R.string.wallet_failed)
+            }
+            return
+        }
         val data = intent.data
         if (intent.action == Intent.ACTION_VIEW && data?.scheme == BuildConfig.AUTH_SCHEME && data.host == "auth") {
             app.handleAuthCallback(data.toString())
@@ -163,6 +178,11 @@ class MainActivity : ComponentActivity(), AndroidScopeComponent {
         val linked = data?.takeIf { intent.action == Intent.ACTION_VIEW }?.let { EventLinks.eventId(it.toString()) }
         if (linked != null) app.eventLinkOpened(data.toString())
         val eventId = linked ?: ours?.getStringExtra(EXTRA_EVENT_ID) ?: return
+        // Нагадування про квиток за годину: сам квиток на весь екран, а не подія.
+        if (eventId.startsWith(ReminderRules.TICKET_PREFIX)) {
+            WalletUi.shown = eventId.removePrefix(ReminderRules.TICKET_PREFIX)
+            return
+        }
         val navigator = scope.get<Navigator>()
         val target = if (ours?.getStringExtra(EXTRA_TARGET) == TARGET_CHAT) Chat(eventId) else Detail(eventId)
         // Та сама подія вже зверху: запис стека й модель лишаються, тож деталі перепитуємо самі — пуш
@@ -290,6 +310,9 @@ fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
                     DeckScreen(app, cards) { deck = null }
                 }
             }
+            // Квиток, що прийшов файлом, і квиток на весь екран — поверх будь-якої вкладки (docs/ticket-wallet.md).
+            WalletUi.importing?.let { TicketImportSheet(app, it) { WalletUi.importing = null } }
+            WalletUi.shown?.let { TicketViewer(app, it) { WalletUi.shown = null } }
         }
     }
 }

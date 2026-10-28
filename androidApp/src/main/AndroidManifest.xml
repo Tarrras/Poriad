@@ -20,6 +20,10 @@
             <intent-filter><action android:name="android.intent.action.VIEW"/><category android:name="android.intent.category.DEFAULT"/><category android:name="android.intent.category.BROWSABLE"/><data android:scheme="${authScheme}" android:host="auth"/></intent-filter>
             <!-- Кнопка «Відкрити в застосунку» на веб-сторінці події. poriad.app/e/* — лише prod, див. src/prod. -->
             <intent-filter><action android:name="android.intent.action.VIEW"/><category android:name="android.intent.category.DEFAULT"/><category android:name="android.intent.category.BROWSABLE"/><data android:scheme="${authScheme}" android:host="event"/></intent-filter>
+            <!-- Квиток з Telegram чи файлів: «Поділитися» / «Відкрити за допомогою» → «Поряд» (docs/ticket-wallet.md). -->
+            <intent-filter><action android:name="android.intent.action.SEND"/><category android:name="android.intent.category.DEFAULT"/><data android:mimeType="application/pdf"/></intent-filter>
+            <intent-filter><action android:name="android.intent.action.SEND"/><category android:name="android.intent.category.DEFAULT"/><data android:mimeType="image/*"/></intent-filter>
+            <intent-filter><action android:name="android.intent.action.VIEW"/><category android:name="android.intent.category.DEFAULT"/><data android:scheme="content"/><data android:mimeType="application/pdf"/></intent-filter>
         </activity>
         <service android:name=".platform.PushService" android:exported="false">
             <intent-filter><action android:name="com.google.firebase.MESSAGING_EVENT"/></intent-filter>

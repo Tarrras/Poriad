@@ -27,6 +27,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.poruch.android.R
+import app.poruch.android.feature.wallet.TicketsSection
 import app.poruch.android.feature.detail.RatingSheet
 import app.poruch.android.platform.openInMaps
 import app.poruch.android.platform.shareEvent
@@ -89,14 +90,19 @@ fun MyEventsScreen(state: MyEventsState, onIntent: (MyEventsIntent) -> Unit) {
                 }
             }
         }
-        if (!state.screen.signedIn && state.screen.board.savedAhead == 0) EmptyState(
-            PoruchIcons.ticket,
-            stringResource(R.string.guest_empty),
-            stringResource(R.string.guest_saved_hint),
-            Modifier.padding(top = Spacing.section),
-            stringResource(R.string.login),
-            { onIntent(MyEventsIntent.SignIn) }
-        ) else PullToRefresh(
+        // Квитки з телефона (docs/ticket-wallet.md) — там, де «йду»: у «Іду», а в гостя, у якого розріз один, — у ньому.
+        val showsTickets = !state.screen.signedIn || state.tab == MyEventsTab.GOING
+        if (!state.screen.signedIn && state.screen.board.savedAhead == 0) Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+            TicketsSection(state.screen.tickets, Modifier.padding(horizontal = Spacing.page, vertical = Spacing.md))
+            EmptyState(
+                PoruchIcons.ticket,
+                stringResource(R.string.guest_empty),
+                stringResource(R.string.guest_saved_hint),
+                Modifier.padding(top = Spacing.section),
+                stringResource(R.string.login),
+                { onIntent(MyEventsIntent.SignIn) }
+            )
+        } else PullToRefresh(
             state.refreshing,
             { onIntent(MyEventsIntent.Refresh) },
             Modifier.fillMaxSize()
@@ -108,6 +114,7 @@ fun MyEventsScreen(state: MyEventsState, onIntent: (MyEventsIntent) -> Unit) {
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
             ) {
+                if (showsTickets) TicketsSection(state.screen.tickets, Modifier.padding(horizontal = Spacing.page, vertical = Spacing.md))
                 // Плану на телефоні ще нема, а мережі нема: «нічого не заплановано» було б неправдою.
                 if (state.screen.offline && state.screen.myEvents.isEmpty()) OfflineState(
                     stringResource(R.string.offline_mine_hint),
@@ -131,6 +138,7 @@ fun MyEventsScreen(state: MyEventsState, onIntent: (MyEventsIntent) -> Unit) {
                     val nothingAhead = state.screen.board.nothingAhead(state.tab)
                     if (state.screen.offline) item(key = "offline") { OfflineNote() }
                     if (!state.screen.signedIn) item(key = "guest") { GuestNote { onIntent(MyEventsIntent.SignIn) } }
+                    if (showsTickets) item(key = "tickets") { TicketsSection(state.screen.tickets) }
                     // Попереду нічого, а минулі є: першою йде дія, а не три сірі минулі.
                     if (nothingAhead) item(key = "ahead") { AheadCard(state.tab, onIntent) }
                     items(sections, key = { it.group.name }) { Section(it, state, onIntent) }
