@@ -98,6 +98,8 @@ dependencies {
     implementation("com.airbnb.android:lottie-compose:6.7.1")
     // Орієнтація фото на API 26–27: системний ExifInterface там має відомі вразливості.
     implementation("androidx.exifinterface:exifinterface:1.4.2")
+    // Текст квитка з PDF на Android 8–14 (docs/ticket-wallet.md): `PdfRenderer` читає текст лише з Android 15.
+    implementation("com.tom-roush:pdfbox-android:2.0.27.0")
     // Системне вікно відгуку Google Play (після доброї оцінки події).
     implementation("com.google.android.play:review-ktx:2.0.2")
     // Вхід через Google: Credential Manager дає ID-токен, далі — Supabase Auth.

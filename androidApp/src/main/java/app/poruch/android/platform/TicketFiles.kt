@@ -17,6 +17,9 @@ import app.poruch.domain.TicketKind
 import app.poruch.domain.WalletTicket
 import app.poruch.shared.PoruchApp
 import androidx.core.content.FileProvider
+import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
+import com.tom_roush.pdfbox.pdmodel.PDDocument
+import com.tom_roush.pdfbox.text.PDFTextStripper
 import java.io.File
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
@@ -73,7 +76,7 @@ object TicketFiles {
             PoruchLog.report("wallet", "copy failed", it)
             return@withContext null
         }
-        val read = runCatching { if (pdf) readPdf(target) else Triple("", 1, BitmapFactory.decodeFile(target.path)) }
+        val read = runCatching { if (pdf) readPdf(context, target) else Triple("", 1, BitmapFactory.decodeFile(target.path)) }
             .onFailure { PoruchLog.report("wallet", "read failed", it) }.getOrNull()
         if (read == null || read.second == 0 || read.third == null) {
             target.delete()
@@ -85,18 +88,27 @@ object TicketFiles {
         TicketImport(id, name, if (pdf) TicketKind.PDF else TicketKind.IMAGE, draft, maxOf(if (pdf) pages else 1, draft.seats.size), preview, source)
     }
 
-    private fun readPdf(file: File): Triple<String, Int, Bitmap?> =
+    private fun readPdf(context: Context, file: File): Triple<String, Int, Bitmap?> =
         ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { descriptor ->
             PdfRenderer(descriptor).use { renderer ->
                 val text = if (Build.VERSION.SDK_INT >= 35) {
                     (0 until renderer.pageCount).joinToString("\n") { index ->
                         renderer.openPage(index).use { page -> page.textContents.joinToString("\n") { it.text } }
                     }
-                } else ""
+                } else legacyText(context, file)
                 val preview = if (renderer.pageCount > 0) renderer.openPage(0).use { render(it, 900) } else null
                 Triple(text, renderer.pageCount, preview)
             }
         }
+
+    /**
+     * Текст PDF на Android 8–14: `PdfRenderer` читає його лише з 15, тож тут pdfbox. Не вийшло — порожньо, і людина
+     * заповнює поля сама, як зі знімком.
+     */
+    private fun legacyText(context: Context, file: File): String = runCatching {
+        PDFBoxResourceLoader.init(context.applicationContext)
+        PDDocument.load(file).use { PDFTextStripper().getText(it) }
+    }.onFailure { PoruchLog.report("wallet", "pdfbox failed", it) }.getOrDefault("")
 
     /** Сторінки квитка для показу на весь екран: PDF — кожна сторінка, знімок — він сам. */
     suspend fun pages(context: Context, ticket: WalletTicket, width: Int): List<Bitmap> = withContext(Dispatchers.IO) {

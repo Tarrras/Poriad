@@ -42,3 +42,7 @@
 
 # Анотація з gms, на яку посилається play:review-ktx, але якої нема в залежностях: R8 без неї падає (13.10).
 -dontwarn com.google.android.gms.common.annotation.NoNullnessRewrite
+
+# pdfbox-android (текст квитків на Android 8–14): JPEG 2000-декодер — необовʼязковий модуль, його в залежностях нема.
+-dontwarn com.gemalto.jp2.JP2Decoder
+-dontwarn com.gemalto.jp2.JP2Encoder
