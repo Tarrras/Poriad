@@ -7,8 +7,10 @@ from __future__ import annotations
 
 import gzip
 import datetime as dt
+import functools
 import io
 from email.utils import parsedate_to_datetime
+import re
 import time
 import urllib.error
 import urllib.parse
@@ -41,11 +43,44 @@ class Response:
         return self.status == 304
 
 
+@functools.lru_cache(maxsize=None)
+def _rule_regex(path: str) -> re.Pattern:
+    """Шлях правила robots.txt як регулярний вираз: `*` — будь-що, `$` у кінці — кінець адреси."""
+    anchored = path.endswith("$")
+    body = ".*".join(re.escape(part) for part in (path[:-1] if anchored else path).split("*"))
+    return re.compile(body + (r"\Z" if anchored else ""))
+
+
+class _Robots(urllib.robotparser.RobotFileParser):
+    """Розбір зі stdlib, а рішення — за правилами Google: `*` і `$` у шляху, виграє найдовше правило, на рівних — Allow.
+    Stdlib порівнює лише префікси й бере перше правило, тож `Disallow: /*?page` (lviv.travel) для нього нічого не
+    забороняв, а `Allow: /*.jpg` після `Disallow: /` нічого не дозволяв."""
+
+    def can_fetch(self, useragent, url):
+        if self.disallow_all:
+            return False
+        if self.allow_all:
+            return True
+        if not self.last_checked:
+            return False
+        entry = next((e for e in self.entries if e.applies_to(useragent)), self.default_entry)
+        if entry is None:
+            return True
+        parts = urllib.parse.urlsplit(url)
+        target = urllib.parse.unquote(parts.path or "/") + (f"?{urllib.parse.unquote(parts.query)}" if parts.query else "")
+        best = (-1, True)                    # (довжина правила, дозволено); без жодного збігу — дозволено
+        for rule in entry.rulelines:
+            path = urllib.parse.unquote(rule.path)
+            if _rule_regex(path).match(target):
+                best = max(best, (len(path), rule.allowance))
+        return best[1]
+
+
 def _robots_for(url: str) -> urllib.robotparser.RobotFileParser | None:
     root = "{0.scheme}://{0.netloc}".format(urllib.parse.urlsplit(url))
     if root in _robots_cache:
         return _robots_cache[root]
-    rp = urllib.robotparser.RobotFileParser()
+    rp = _Robots()
     rp.set_url(root + "/robots.txt")
     try:
         req = urllib.request.Request(root + "/robots.txt", headers={"User-Agent": USER_AGENT})

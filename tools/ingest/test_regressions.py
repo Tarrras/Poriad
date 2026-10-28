@@ -817,6 +817,26 @@ class FetchLimits(unittest.TestCase):
         with patch("tools.ingest.fetch.allowed", return_value=False):
             self.assertIsNotNone(handler.redirect_request(req, None, 302, "Found", {}, "https://other.net/"))
 
+    def test_robots_wildcards_and_longest_rule(self):
+        def robots(*lines):
+            rp = fetch._Robots()
+            rp.parse(lines)
+            return lambda url: rp.can_fetch(fetch.USER_AGENT, url)
+        lviv = robots("User-agent: *", "Disallow: /*?page", "Disallow: /*?date")   # lviv.travel 2026-10-28
+        self.assertTrue(lviv("https://lviv.travel/ua/events"))
+        self.assertFalse(lviv("https://lviv.travel/ua/events?page=2"))
+        concert = robots("User-agent: *", "Disallow: /", "Allow: /*.jpg")          # storage.concert.ua
+        self.assertTrue(concert("https://storage.concert.ua/a/poster.jpg"))
+        self.assertFalse(concert("https://storage.concert.ua/a/index.html"))
+        search = robots("User-agent: *", "Disallow: */search*", "Disallow: /*.pdf$")
+        self.assertFalse(search("https://kyiv.internet-bilet.ua/uk/search?q=x"))
+        self.assertFalse(search("https://example.org/Cooperation.pdf"))
+        self.assertTrue(search("https://example.org/Cooperation.pdf?v=2"))
+        tie = robots("User-agent: *", "Disallow: /events", "Allow: /events")
+        self.assertTrue(tie("https://example.org/events/1"))
+        ours = robots("User-agent: PoriadBot", "Disallow: /", "", "User-agent: *", "Allow: /")
+        self.assertFalse(ours("https://example.org/afisha"))
+
     def test_bot_page_and_contact_in_every_user_agent(self):
         from . import geocode, venues
         self.assertIn("https://poriad.app/bot", fetch.USER_AGENT)

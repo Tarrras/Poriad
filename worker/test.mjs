@@ -156,7 +156,7 @@ const cityIndex = [
   entry(cityIds[4], "art", "2026-11-01T15:00:00Z", "Вистава"),
 ];
 const cityCards = Object.fromEntries(cityIndex.map(([id, , , category, starts_at, , title, origin]) => [id,
-  { id, title, category, starts_at, time_zone: "Europe/Kyiv", city: "Київ", address: "Хрещатик, 1", place_name: "Палац", price_min: 300, canonical_url: "https://concert.ua/x", origin }]));
+  { id, title, category, starts_at, time_zone: "Europe/Kyiv", city: "Київ", address: "Хрещатик, 1", place_name: "Палац", price_min: 300, canonical_url: "https://concert.ua/x", image_url: "https://storage.concert.ua/p.jpg", origin }]));
 let discoverBody = null;
 globalThis.fetch = async (url, init) => {
   if (url.endsWith("/discover_events")) { discoverBody = JSON.parse(init.body); return new Response(JSON.stringify({ index: cityIndex, cards: [] }), { status: 200 }); }
@@ -176,6 +176,7 @@ assert.ok(weekHtml.includes(`href="/e/${cityIds[1]}"`), "рядок веде н�
 const ld = JSON.parse(weekHtml.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1]);
 assert.equal(ld.itemListElement.length, 3);
 assert.equal(ld.itemListElement[0].item.offers.price, 300);
+assert.ok(!ld.itemListElement.some(({ item }) => "image" in item), "постер продавця в розмітку для Google не віддаємо");
 assert.ok(!weekHtml.includes("</script><b>"), "назва в розмітці не закриває скрипт");
 assert.equal(discoverBody.p_cards, 0, "індекс без карток: картки — лише для показаних");
 

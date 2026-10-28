@@ -72,6 +72,9 @@ SOURCES: list[Source] = [
                       "Одеса": "https://dou.ua/calendar/city/Odesa/",
                       "Дніпро": "https://dou.ua/calendar/city/Dnipro/"},
         weight=0.72, crawl_delay=2.0, adapter="dou", max_details=60,
+        # Правила DOU (dou.ua/legal, п. 2.5) забороняють автоматизований збір без згоди адміністрації
+        # (docs/legal-audit-afisha-2026-10-28.md). Вмикати лише з письмовою згодою.
+        enabled=False,
         note="2026-09-11: картки мають JSON-LD; date-only початок доповнюється iCal. "
              "Онлайн та події іншого міста не імпортуються.",
     ),

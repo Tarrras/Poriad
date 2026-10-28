@@ -78,7 +78,7 @@ struct DeckView: View {
             // Квиток і під ним — що це за подія: людина має розуміти, що їй пропонують, а не вгадувати з назви.
             VStack(alignment: .leading, spacing: Space.md) {
                 // Тут квиток — не кнопка: VoiceOver читає його текстом, а відповідь — «Так» і «Ні».
-                EventHeroCard(event: cards[index], height: 300, showsSource: false) {}
+                EventHeroCard(event: cards[index], height: 300) {}
                     .allowsHitTesting(false)
                     .accessibilityRemoveTraits(.isButton)
                     // «Так» штампує квиток, як касир, — стан мовою «Корінця»; посередині обкладинки, а не корінця.

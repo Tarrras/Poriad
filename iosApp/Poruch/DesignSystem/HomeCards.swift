@@ -50,8 +50,6 @@ struct EventHeroCard: View {
     var height: CGFloat = 360
     var saved: Bool = false
     var onSave: (() -> Void)?
-    /// Рядок «Афіша · джерело». У стосі «Ваш тиждень» його нема: там під квитком і так опис і ціна.
-    var showsSource = true
     let action: () -> Void
     private var place: String { event.placeLabel }
     /// Стан кімнати чи скасування важливіші; інакше штамп каже, чому квиток тут: «Для вас», «Ви стежите».
@@ -85,7 +83,8 @@ struct EventHeroCard: View {
                         EventDescriptor(event: event)
                         if let reason { ReasonLine(text: reason.0, glyph: reason.1) }
                         if let artists = artistsLine(event) { MetaLine(glyph: PoruchIcons.person, text: artists) }
-                        if showsSource, let listing = event.listing {
+                        // Афіша підписана джерелом скрізь, і в стосі «Ваш тиждень» теж: так обіцяють Умови, розділ 7.
+                        if let listing = event.listing {
                             Text(Copy.listing_badge(listing.sellerNames)).font(PoruchFont.overline).foregroundStyle(Palette.inkTertiary)
                                 .lineLimit(1)
                         }

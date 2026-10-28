@@ -148,7 +148,7 @@ fun DeckScreen(app: PoruchApp, cards: List<Event>, onDone: () -> Unit) {
                             Box {
                                 EventHeroCard(
                                     cards[index], Modifier.fillMaxWidth().clearAndSetSemantics { contentDescription = label },
-                                    height = 300.dp, showSource = false
+                                    height = 300.dp
                                 ) {}
                                 // «Так» штампує квиток, як касир, — стан мовою «Корінця»; посередині обкладинки, а не корінця.
                                 if (stamp.value > 0f) TicketStamp(

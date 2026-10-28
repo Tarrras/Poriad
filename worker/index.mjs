@@ -162,7 +162,7 @@ export function eventPage(e, now, shelters = [], invite = null) {
 <meta name="apple-itunes-app" content="app-id=6813543772, affiliate-data=ct=${ct}&amp;pt=129478154, app-argument=${link}${by}">
 ${ticketUrl ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""}`,
     body: `<article class="sheet-box">
-  <header class="cover-big cat-${category}"><div class="art cat-${category}">${icon(category, "glyph")}${image ? `<img src="${esc(image)}" alt="" referrerpolicy="no-referrer">` : ""}</div>
+  <header class="cover-big cat-${category}"><div class="art cat-${category}">${icon(category, "glyph")}${image ? `<img src="${esc(image)}" alt="">` : ""}</div>
     ${invite ? `<p class="quiet"><b>${esc(invite.name)}</b> кличе тебе</p>` : ""}<p class="quiet"><span class="genre-word">${esc(CATEGORIES[category])}</span> · ${esc(imported ? `Афіша${sellers ? ` · ${sellers}` : ""}` : "Від людей")}${e.min_age ? ` · ${Number(e.min_age)}+` : ""}</p><h1>${esc(title)}</h1>
   </header>
   <div class="detail">
@@ -361,7 +361,10 @@ function cityRow(card, now) {
     <div class="txt"><small>${esc(meta)}</small><b>${esc(displayTitle(card.title))}</b></div></a>`;
 }
 
-/** schema.org/Event для рядка списку: квиток — у продавця, ціна — лише коли відома. */
+/**
+ * schema.org/Event для рядка списку: квиток — у продавця, ціна — лише коли відома. Без `image`: постер продавця в нашій
+ * розмітці Google показав би у видачі під poriad.app (docs/legal-audit-afisha-2026-10-28.md).
+ */
 function eventLd(card) {
   const ticket = httpsOrNull(card.canonical_url);
   const cost = card.is_free ? 0 : card.price_min > 0 ? Number(card.price_min) : null;
@@ -371,7 +374,6 @@ function eventLd(card) {
     eventStatus: "https://schema.org/EventScheduled", eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
     location: { "@type": "Place", name: card.place_name || card.address || card.city,
       address: { "@type": "PostalAddress", ...(card.address ? { streetAddress: card.address } : {}), addressLocality: card.city, addressCountry: "UA" } },
-    ...(httpsOrNull(card.image_url) ? { image: card.image_url } : {}),
     ...(ticket && cost !== null ? { offers: { "@type": "Offer", url: ticket, price: cost, priceCurrency: "UAH" } } : {}),
   };
 }

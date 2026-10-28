@@ -25,8 +25,11 @@ export async function ensureCards(ids) {
 }
 export const remember = (list) => list.forEach((card) => cards.set(card.id, card));
 
-/** Фото з джерела; не завантажилось — зникає, і квиток лишається друкованим. */
-export const photo = (card, lazy = true) => `<img src="${esc(card.image_url)}" alt="" ${lazy ? 'loading="lazy" ' : ""}decoding="async" referrerpolicy="no-referrer" onerror="this.remove()">`;
+/**
+ * Фото з джерела; не завантажилось — зникає, і квиток лишається друкованим. Referer не ховаємо: джерело має бачити, що
+ * обкладинку показує poriad.app, і мати змогу це закрити (docs/legal-audit-afisha-2026-10-28.md).
+ */
+export const photo = (card, lazy = true) => `<img src="${esc(card.image_url)}" alt="" ${lazy ? 'loading="lazy" ' : ""}decoding="async" onerror="this.remove()">`;
 
 /** Обкладинка шторки: фото врівень із краєм; без фото блок ховається, і назва друкується великим кеглем. */
 export function art(card) {
