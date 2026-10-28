@@ -205,6 +205,9 @@ object TicketMatch {
     /** Частка слів кінотеатру без слів мережі, що мають бути на квитку: «Respublika Park» з «Multiplex Respublika». */
     private const val PLACE_FIT = 0.5
 
+    /** Зал звіряється основами слів: «City Center Котовський» на квитку, «Котовського» в назві. */
+    private const val STEM = 5
+
     private class Hit(val id: String, val score: Double, val gap: Duration, val place: String?, val source: String?)
 
     /**
@@ -236,7 +239,9 @@ object TicketMatch {
             val all = words(hall)
             val own = all - brands[hits.first { it.place == hall }.source].orEmpty()
             // Один зал мережі у видачі: усі його слова — «слова мережі», тож звіряємо назву цілком.
-            if (own.isEmpty()) (if (ticket.containsAll(all)) 1.0 else 0.0) else own.count { it in ticket }.toDouble() / own.size
+            val heard = ticket.mapTo(HashSet()) { it.take(STEM) }
+            fun on(word: String) = word.take(STEM) in heard
+            if (own.isEmpty()) (if (all.all(::on)) 1.0 else 0.0) else own.count(::on).toDouble() / own.size
         }
         val best = fit.values.maxOrNull()?.takeIf { it >= PLACE_FIT } ?: return emptyList()
         val chosen = fit.filterValues { it == best }.keys.singleOrNull() ?: return emptyList()

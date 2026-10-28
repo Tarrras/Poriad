@@ -120,6 +120,16 @@ class WalletTest {
             "слова мережі «планета кіно» зал не розрізняють")
     }
 
+    @Test fun hallWordsMatchByStem() {
+        val odesa = listOf(
+            screening("tairova", "Планета Кіно City Center Таїрова", "2026-10-30T17:40:00Z"),
+            screening("kotovsky", "Планета Кіно City Center Котовський", "2026-10-30T17:40:00Z"),
+        )
+        val draft = TicketDraft(title = "Дюна: Частина друга", place = "Планета Кіно City Center Котовського, зал 2",
+            start = LocalDateTime(2026, 10, 30, 19, 40))
+        assertEquals("kotovsky", TicketMatch.match(draft, odesa, kyiv), "спільне «City Center» зал не розрізняє, відмінок — теж ні")
+    }
+
     @Test fun cinemaTicketWithoutAHallIsNotGuessed() {
         val draft = TicketReader.read(multiplex, today)
         assertNull(TicketMatch.match(draft.copy(place = null), halls, kyiv), "п'ять залів і нічим їх розрізнити")

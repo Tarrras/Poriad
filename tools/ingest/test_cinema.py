@@ -154,6 +154,24 @@ class CollectTests(unittest.TestCase):
                          "переадресація — не збій сторінки")
 
 
+class VenueTests(unittest.TestCase):
+    def test_every_cinema_has_a_verified_point_in_its_city(self):
+        """Без псевдоніма зал іде в чергу, а псевдонім спільний для всіх міст: «Дафі» є і в Харкові, і в Дніпрі."""
+        from tools.ingest.geocode import CITY_BBOX
+        from tools.ingest.venues import load_aliases
+        from tools.ingest.normalize import normalize_name
+        aliases = {normalize_name(k): v for k, v in load_aliases().items() if not k.startswith("_")}
+        names = [(city, name) for slug in ("multiplex", "planeta_kino")
+                 for city, venues in by_slug(slug).venues.items() for name in venues.values()]
+        self.assertEqual(len(names), len({normalize_name(n) for _, n in names}), "одна назва — один зал")
+        for city, name in names:
+            point = aliases.get(normalize_name(name))
+            self.assertIsInstance(point, dict, name)
+            south, west, north, east = CITY_BBOX[city]
+            self.assertTrue(south <= point["lat"] <= north and west <= point["lon"] <= east, f"{name} поза {city}")
+        self.assertEqual(set(by_slug("multiplex").listing_urls), set(by_slug("multiplex").venues))
+
+
 class BuildTests(unittest.TestCase):
     """Сеанс проходить звичайний `_build`: категорія від адаптера, точка — лише псевдонім."""
     source = by_slug("multiplex")
