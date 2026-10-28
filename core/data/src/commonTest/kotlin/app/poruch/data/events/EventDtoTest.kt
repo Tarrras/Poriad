@@ -176,6 +176,17 @@ class EventDtoTest {
         assertEquals(EventCategory.CINEMA, page.index.first().category)
     }
 
+    /** 14-та позиція — сеанси кінопрокату, які сервер уже зібрав; один сеанс — прокату нема. */
+    @Test fun aCinemaRunCarriesItsSessions() {
+        val stored = """{"total":2,"truncated":false,"index":[
+            ["s1",50.4968,30.3578,"cinema","2030-09-06T16:40:00Z","Europe/Kyiv","Дюна","import","multiplex",null,0,0,"Multiplex Lavina",[["s1","2030-09-06T16:40:00Z"],["s2","2030-09-07T18:00:00Z"]]],
+            ["s3",50.4968,30.3578,"cinema","2030-09-06T19:00:00Z","Europe/Kyiv","Веріті","import","multiplex",null,0,0,"Multiplex Lavina",[["s3","2030-09-06T19:00:00Z"]]]],"cards":[]}"""
+        val (run, single) = json.decodeFromString<DiscoveryEnvelope>(stored).domain().index
+        assertEquals(listOf("s1", "s2"), run.sessions.map { it.id })
+        assertEquals("Europe/Kyiv", run.sessions.last().timeZone)
+        assertTrue(single.sessions.isEmpty())
+    }
+
     @Test fun aPlaceRowParses() {
         val place = json.decodeFromString<List<PlaceDto>>(
             """[{"id":"p1","name":"Малевич","city":"Львів","address":"пр-т В'ячеслава Чорновола, 2, Львів","latitude":49.8475,"longitude":24.0263,"upcoming":26}]"""

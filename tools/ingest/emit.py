@@ -674,6 +674,9 @@ def stats_sql(reports: list[dict], items: list[Item], run_id: str, max_bytes: in
     # заглушкою міг застосуватись раніше, і справжній звіт губився (`do nothing`), а з ним база SHARP_DROP.
     for it in items:
         runs.setdefault((it.source_slug, it.city), {"source": it.source_slug, "city": it.city})
+    # Опублікований кіносеанс — ~1,2 КБ щодня на кожен із ~4 200 сеансів тижня, ~30 МБ за ITEMS_KEEP_DAYS, і нічого
+    # нового для аналітика: лічильники є в ingest_runs. Лишаються ті, що пішли на перевірку чи злились (docs/cinema-import.md).
+    items = [it for it in items if not (it.category == "cinema" and it.stage == "published")]
 
     def row(source, city, r) -> str:
         slug = "karabas" if source == "karabas_status" else source

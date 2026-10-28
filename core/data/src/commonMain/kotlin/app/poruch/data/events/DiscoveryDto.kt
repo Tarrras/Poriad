@@ -4,6 +4,7 @@ import app.poruch.domain.EventCategory
 import app.poruch.domain.DiscoveryPage
 import app.poruch.domain.EventIndexEntry
 import app.poruch.domain.EventOrigin
+import app.poruch.domain.EventSession
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonNull
@@ -50,6 +51,8 @@ private object Column {
     const val COMPANY_COUNT = 11
     /** З 20261112120000: назва кінотеатру кіносеансу, решті null. */
     const val PLACE = 12
+    /** З 20261112120000: сеанси кінопрокату `[[id, starts_at], …]` за часом, включно з власним; решті null. */
+    const val SESSIONS = 13
     const val WIDTH = 11
 }
 
@@ -71,8 +74,20 @@ private fun JsonArray.indexEntry(): EventIndexEntry? {
         capacity = int(Column.CAPACITY),
         attendeeCount = int(Column.ATTENDEE_COUNT) ?: 0,
         companyCount = int(Column.COMPANY_COUNT) ?: 0,
-        place = text(Column.PLACE)
+        place = text(Column.PLACE),
+        sessions = sessions(text(Column.TIME_ZONE).orEmpty())
     )
+}
+
+/** Сеанси прокату, які сервер уже зібрав (кіно). Один сеанс — прокату нема, як після `EventSeries.fold`. */
+private fun JsonArray.sessions(timeZone: String): List<EventSession> {
+    val runs = getOrNull(Column.SESSIONS) as? JsonArray ?: return emptyList()
+    val sessions = runs.mapNotNull { pair ->
+        val session = pair as? JsonArray ?: return@mapNotNull null
+        val id = session.text(0) ?: return@mapNotNull null
+        EventSession(id, session.text(1) ?: return@mapNotNull null, timeZone)
+    }
+    return sessions.takeIf { it.size > 1 }.orEmpty()
 }
 
 private fun JsonArray.at(position: Int) =

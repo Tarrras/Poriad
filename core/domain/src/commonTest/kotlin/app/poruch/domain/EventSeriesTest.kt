@@ -41,6 +41,16 @@ class EventSeriesTest {
     }
 
     @Test
+    fun `a run the server already gathered keeps its sessions`() {
+        // Кінопрокат приходить одним рядком з усіма сеансами; ще один рядок тієї ж назви на точці доливає свої.
+        val server = entry("a", "Праймтайм", "2026-10-30T10:30:00Z").copy(sessions = listOf(
+            EventSession("a", "2026-10-30T10:30:00Z", "Europe/Kyiv"), EventSession("c", "2026-10-30T17:20:00Z", "Europe/Kyiv")))
+        val folded = EventSeries.fold(listOf(server, entry("b", "Праймтайм", "2026-10-30T12:20:00Z")))
+        assertEquals(listOf("a", "b", "c"), folded.single().sessions.map { it.id }, "серверні сеанси не губляться")
+        assertEquals(listOf("a", "c"), EventSeries.fold(listOf(server)).single().sessions.map { it.id }, "сам — як є")
+    }
+
+    @Test
     fun `two showings on one day are a run too`() {
         val folded = EventSeries.fold(
             listOf(

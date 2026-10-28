@@ -61,9 +61,11 @@ drop function private.discover_index(double precision,double precision,double pr
 -- Тіло — з 20261110120000_company_intents; фільтр кіно, черга й 13-та позиція: назва місця кіносеансу (`places.name`),
 -- решті null. У 47% сеансів Multiplex Києва той самий фільм у ту саму хвилину йде в іншому залі мережі (28.10), і без
 -- назви `TicketMatch` обирав би не той. Клієнти до 1.4 читають перші 12 позицій.
--- Кіно — у кінці черги: тиждень сеансів Києва — ~2 200 рядків, і на стелі `p_limit` (5 000) відрізатись мають далекі
--- сеанси, а не концерти грудня. Заодно перші картки (`p_cards`) — не кіно. Клієнт ранжує індекс сам, тож порядок
--- сервера важить лише тут.
+-- Кіно — рядок на прокат (фільм у кінотеатрі), а сеанси — у 14-й позиції масивом [id, starts_at] за часом, включно з
+-- власним: тиждень Києва — ~1 960 сеансів і ~250 прокатів (28.10), відповідь міста легша, а клієнту менше згортати.
+-- Представник — найраніший сеанс, як у `EventSeries.fold`. Решта — рядок на подію, як і була, 14-та позиція — null.
+-- І кіно — у кінці черги: на стелі `p_limit` (5 000) відрізатись мають далекі прокати, а не концерти грудня; заодно перші
+-- картки (`p_cards`) — не кіно. Клієнт ранжує індекс сам, тож порядок сервера важить лише тут.
 create function private.discover_index(
  p_south double precision, p_west double precision, p_north double precision, p_east double precision,
  p_category text, p_from timestamptz, p_to timestamptz, p_text text, p_available boolean,
@@ -91,10 +93,21 @@ language sql stable security definer set search_path='' as $$
     and ((p_west <= p_east and e.location::gis.geometry operator(gis.&&) gis.st_makeenvelope(p_west,p_south,p_east,p_north,4326))
       or (p_west > p_east and (e.location::gis.geometry operator(gis.&&) gis.st_makeenvelope(p_west,p_south,180,p_north,4326)
        or e.location::gis.geometry operator(gis.&&) gis.st_makeenvelope(-180,p_south,p_east,p_north,4326)))))
- , ranked as (
-  select m.*, row_number() over (order by m.category = 'cinema', greatest(m.starts_at, now()), m.id) as rank,
-         count(*) over () as total
+ , runs as (
+  select m.*,
+         case when m.category = 'cinema' then row_number() over w end as nth,
+         case when m.category = 'cinema' then
+           jsonb_agg(jsonb_build_array(m.id, m.starts_at)) over (w rows between unbounded preceding and unbounded following)
+         end as sessions
   from matched m
+  -- Без місця кіносеанс — сам собі прокат: інакше злиплись би всі сеанси фільму без точки.
+  window w as (partition by m.category = 'cinema', coalesce(m.place_id::text, m.id::text), lower(btrim(m.title))
+               order by m.starts_at, m.id)
+ )
+ , ranked as (
+  select r.*, row_number() over (order by r.category = 'cinema', greatest(r.starts_at, now()), r.id) as rank,
+         count(*) over () as total
+  from runs r where r.nth is null or r.nth = 1
  )
  , page as (select r.* from ranked r where r.rank <= p_limit)
  select
@@ -109,7 +122,8 @@ language sql stable security definer set search_path='' as $$
      case when p.origin='import' then
        (select count(*)::integer from private.company_intents ci where ci.event_id=p.id)
      else 0 end,
-     case when p.category='cinema' then pl.name end
+     case when p.category='cinema' then pl.name end,
+     p.sessions
    ) order by p.rank) from page p left join public.event_sources s on s.id=p.source_id
      left join public.places pl on pl.id=p.place_id), '[]'::jsonb),
   coalesce((select max(r.total)::integer from ranked r), 0),
