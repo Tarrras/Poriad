@@ -37,6 +37,8 @@ struct SectionHeader: View {
                     Text(actionLabel)
                     if stacked { PoruchIcon(glyph: PoruchIcons.chevronRight, size: 13) }
                 }
+                // «Усі 6», «Додати» — ключові переходи: ціль 44, а не висота рядка тексту.
+                .tapTarget()
             }
             .font(PoruchFont.label).foregroundStyle(Palette.ink)
         }

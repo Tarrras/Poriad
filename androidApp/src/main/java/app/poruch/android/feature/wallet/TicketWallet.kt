@@ -124,6 +124,9 @@ sealed interface TicketIntake {
 }
 
 private val UKRAINIAN = Locale.forLanguageTag("uk")
+/** Корінець квитка дня: форматери раз на процес, а не на кожне перескладання. */
+private val STUB_HOUR = DateTimeFormatter.ofPattern("HH:mm")
+private val STUB_DAY = DateTimeFormatter.ofPattern("EE d.MM", UKRAINIAN)
 
 private fun WalletTicket.start(): java.time.ZonedDateTime? =
     runCatching { Instant.parse(startsAt).atZone(ZoneId.of(timeZone)) }.getOrNull()
@@ -518,9 +521,9 @@ fun WalletTicketCard(ticket: WalletTicket, punched: Boolean = false, onClick: ()
                 start?.let {
                     val numeral = PoruchType.numeral.copy(color = colors.onBrand)
                     val day = MaterialTheme.typography.labelSmall.copy(color = colors.onBrand)
-                    BasicText(it.format(DateTimeFormatter.ofPattern("HH:mm")), style = numeral, maxLines = 1,
+                    BasicText(it.format(STUB_HOUR), style = numeral, maxLines = 1,
                         autoSize = TextAutoSize.StepBased(numeral.fontSize * 0.6f, numeral.fontSize))
-                    BasicText(it.format(DateTimeFormatter.ofPattern("EE d.MM", UKRAINIAN)).uppercase(), style = day, maxLines = 1,
+                    BasicText(it.format(STUB_DAY).uppercase(), style = day, maxLines = 1,
                         autoSize = TextAutoSize.StepBased(day.fontSize * 0.7f, day.fontSize))
                 }
             }

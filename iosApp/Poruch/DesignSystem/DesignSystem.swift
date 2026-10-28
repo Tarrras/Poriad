@@ -642,7 +642,8 @@ func stubParts(_ event: Event, compact: Bool = false, medium: Bool = false) -> (
     }
     if event.isUnderway(now: now) {
         if event.isMultiDay, let end = parseEventDate(event.endsAt) {
-            return (formatter(event, "dd.MM").string(from: end), "ДО")
+            // «ДО 30.11» великим, як «ЗАРАЗ»: малим словом після дати корінець читався задом наперед — «30.11 до».
+            return ("ДО " + formatter(event, "dd.MM").string(from: end), "ТРИВАЄ")
         }
         return ("ЗАРАЗ", "ТРИВАЄ")
     }

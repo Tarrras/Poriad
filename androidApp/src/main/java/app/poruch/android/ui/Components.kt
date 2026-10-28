@@ -155,8 +155,9 @@ val TabBarClearance = 56.dp + Spacing.md + Spacing.lg
 fun tabBarClearancePadding(top: Dp = 0.dp): PaddingValues =
     PaddingValues(
         top = top,
-        bottom = WindowInsets.navigationBars.asPaddingValues()
-            .calculateBottomPadding() + 56.dp + Spacing.md + Spacing.lg
+        // Широке вікно: таббар — рейка зліва, знизу під нього місця не треба.
+        bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() +
+            if (LocalWideLayout.current) Spacing.lg else 56.dp + Spacing.md + Spacing.lg
     )
 
 /** Смуга полотна на 94 % під статус-баром: прокручений вміст кореня вкладки не лягає під годинник. Ставити останньою в `Box`. */

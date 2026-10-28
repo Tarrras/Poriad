@@ -302,6 +302,7 @@ enum Copy {
     static let home_create_title = "Організувати подію"
     static let home_create_subtitle = "Зберіть людей на настолки, пробіжку чи кіно"
     static let from_people = "Від людей"
+    static let home_with_whom = "З ким піти"
     static func home_waiting_more(_ a0: String) -> String { "Чекають відповіді: ще \(a0)" }
     static let home_waiting_more_hint = "Чати й запити — у «Моїх подіях»"
     static let guest_home_slim = "Увійти, щоб приєднуватись до зустрічей"
@@ -786,7 +787,7 @@ enum Copy {
     static let radar_picker_hint = "Хто скоро виступає у вашому місті. Оберіть кількох — скажемо, коли будуть нові дати"
     static func radar_picker_follow(_ a0: String) -> String { "Стежити за \(a0)" }
     static let radar_picker_empty = "Поки в місті нема анонсів артистів"
-    static func radar_more(_ a0: String) -> String { "Усі \(a0)" }
+    static func radar_more(_ a0: String) -> String { "Ще \(a0)" }
     static let radar_pick = "Обрати артистів"
     static func a11y_tab_new_follows(_ a0: String) -> String { "\(a0), є нове в підписках" }
     static let follows_hint = "Заклади, організатори й артисти"

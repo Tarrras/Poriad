@@ -101,29 +101,28 @@ struct HomeView: View, Equatable {
                     } else {
                         // День події: квиток — перше, що відкривають на вході.
                         if !view.todayTickets.isEmpty { TodayTickets(tickets: view.todayTickets) }
-                        // Серце продукту — зустрічі від людей, тож вони й порожній квиток «Організувати подію» стоять першими.
-                        // Афіша нижче — опора. Активності не вигадуємо: коли зустрічей мало, секцію веде порожній квиток.
+                        // Серце продукту — з ким піти: зустрічі від людей і афіші, на які шукають компанію, однією рейкою,
+                        // під нею порожній квиток «Організувати подію». Активності не вигадуємо: коли зустрічей мало, секцію
+                        // веде порожній квиток.
                         HomePeopleSection(view: view, open: open, showPeople: showPeople, createEvent: createEvent, openProfile: openProfile)
-                        if !view.company.isEmpty { HomeCompanySection(view: view, open: open) }
-                        if deckWeek != model.app.deckWeek() {
-                            let cards = model.app.deckCards()
-                            if !cards.isEmpty {
-                                LinkRow(glyph: PoruchIcons.sparkle, title: Copy.deck_title, subtitle: Copy.deck_row_subtitle) {
-                                    deckWeek = model.app.deckWeek()
-                                    deck = DeckCards(events: cards)
-                                }
-                                .cardSurface().padding(.horizontal, Space.page)
-                            }
-                        }
-                        // Радар артистів: хто їде в місто з тих, за ким стежать. Без них секції нема: питати з
-                        // головної «за ким стежити» — зайве, вибір живе в порожньому «Ви стежите».
-                        if !view.radar.isEmpty {
-                            HomeRadarSection(rows: view.radar, open: { open($0, from: "radar") }, add: { radarPicker = true })
-                        }
+                        // «Ваше» одразу після: непрочитаний чат і запит на участь не мають губитися під афішею.
                         if view.signedIn {
                             HomePersonalSection(view: view, open: open, openChat: openChat, openMyEvents: openMyEvents, openFollows: openFollows)
                         }
-                        HomeCityFeed(view: view, feedLimit: $feedLimit, open: open, showCity: showCity, openMap: openMap)
+                        if deckWeek != view.deckWeek && !view.deck.isEmpty {
+                            LinkRow(glyph: PoruchIcons.sparkle, title: Copy.deck_title, subtitle: Copy.deck_row_subtitle) {
+                                deckWeek = view.deckWeek
+                                deck = DeckCards(events: view.deck)
+                            }
+                            .cardSurface().padding(.horizontal, Space.page)
+                        }
+                        HomeCityFeed(view: view, feedLimit: $feedLimit, open: open, showCity: showCity, openMap: openMap) {
+                            // Радар артистів — під великими квитками міста: опора, а не перше, що бачить гість.
+                            if !view.radar.isEmpty {
+                                HomeRadarSection(rows: view.radar, open: { open($0, from: "radar") }, add: { radarPicker = true })
+                                    .padding(.vertical, Space.lg)
+                            }
+                        }
                         // Кінець стрічки не глухий кут: далі мапа чи власна подія.
                         if !view.feed.isEmpty { moreRows(view) }
                     }
@@ -189,6 +188,9 @@ private struct HomeHeader: View {
                                 PoruchIcon(glyph: PoruchIcons.chevronDown, size: 14)
                             }
                             .foregroundStyle(Palette.ink.opacity(0.7))
+                            // Ціль 44 без зсуву шапки: зона натиску ширша за рядок, місце в макеті те саме.
+                            .padding(.vertical, Space.md).padding(.trailing, Space.md).contentShape(Rectangle())
+                            .padding(.vertical, -Space.md).padding(.trailing, -Space.md)
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel(Copy.a11y_city("\(view.cityName)"))
@@ -209,7 +211,7 @@ private struct HomeHeader: View {
                     }
                     .id(searchEpoch)
                     .focused(focus)
-                    Button(Copy.delete_account_cancel, action: cancelSearch)
+                    Button(action: cancelSearch) { Text(Copy.delete_account_cancel).tapTarget() }
                         .font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
                         .transition(.move(edge: .trailing).combined(with: .opacity))
                 }

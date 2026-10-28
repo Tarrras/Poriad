@@ -347,6 +347,7 @@
   <string name="home_create_title">Організувати подію</string>
   <string name="home_create_subtitle">Зберіть людей на настолки, пробіжку чи кіно</string>
   <string name="from_people">Від людей</string>
+  <string name="home_with_whom">З ким піти</string>
   <string name="home_waiting_more">Чекають відповіді: ще %1$d</string>
   <string name="home_waiting_more_hint">Чати й запити — у «Моїх подіях»</string>
   <string name="guest_home_slim">Увійти, щоб приєднуватись до зустрічей</string>
@@ -959,7 +960,7 @@
   <string name="radar_picker_hint">Хто скоро виступає у вашому місті. Оберіть кількох — скажемо, коли будуть нові дати</string>
   <string name="radar_picker_follow">Стежити за %1$s</string>
   <string name="radar_picker_empty">Поки в місті нема анонсів артистів</string>
-  <string name="radar_more">Усі %1$s</string>
+  <string name="radar_more">Ще %1$s</string>
   <string name="radar_pick">Обрати артистів</string>
   <!-- Нове в підписках, ще не переглянуте на екрані «Ви стежите». -->
   <!-- Підпис під числом у шапці профілю: число стоїть окремо, тож у множині лише відмінок іменника. -->

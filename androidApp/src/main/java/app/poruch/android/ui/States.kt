@@ -84,10 +84,13 @@ fun SectionHeader(
         )
         if (actionLabel != null && onAction != null) Text(
             actionLabel, style = MaterialTheme.typography.labelMedium, color = colors.ink,
+            // «Усі 6», «Додати» — ключові переходи: ціль 48 dp, текст по центру, як у GhostButton.
             modifier = Modifier
                 .clip(Radius.pill)
                 .clickable(onClick = onAction)
-                .padding(horizontal = Spacing.sm, vertical = Spacing.xs)
+                .heightIn(min = 48.dp)
+                .padding(horizontal = Spacing.sm)
+                .wrapContentHeight(Alignment.CenterVertically)
         )
     }
 }

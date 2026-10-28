@@ -60,7 +60,7 @@ struct HomePersonalSection: View {
             overline: nil, title: Copy.follows_title,
             subtitle: names.count > 2 ? Copy.home_follows_more(shown, "\(names.count - 2)") : shown, open: openFollows
         ) {
-            PoruchIcon(glyph: PoruchIcons.bell, size: 20).foregroundStyle(Palette.ink)
+            PoruchIcon(glyph: PoruchIcons.bellActive, size: 20).foregroundStyle(Palette.ink)
                 .frame(width: yourTile, height: yourTile)
                 .background(Palette.surfaceMuted, in: RoundedRectangle(cornerRadius: Corner.sm, style: .continuous))
         } trailing: {
@@ -149,7 +149,7 @@ private struct PlanButton: View {
                 Text(title).font(PoruchFont.label).lineLimit(1).minimumScaleFactor(0.8)
             }
             .foregroundStyle(highlight ? Palette.onBrand : Palette.ink)
-            .frame(maxWidth: .infinity).frame(height: 44)
+            .frame(maxWidth: .infinity).frame(minHeight: 44).padding(.vertical, 2)
             .background(highlight ? Palette.brand : Palette.brandContainer, in: buttonShape)
         }
         .buttonStyle(PressableStyle())
@@ -161,6 +161,7 @@ private struct NextPlanCard: View {
     let row: PersonalRow
     let open: () -> Void
     let chat: () -> Void
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     private var event: Event { row.event }
 
@@ -200,10 +201,12 @@ private struct NextPlanCard: View {
             }
             .buttonStyle(PressableStyle(pressedScale: 1))
             .accessibilityElement(children: .combine)
-            HStack(spacing: Space.sm) {
+            // Великий шрифт: дії одна під одною, як у «Моїх подіях», — три в ряд обрізали б «Маршрут» до «Ма…».
+            let actions = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: Space.sm)) : AnyLayout(HStackLayout(spacing: Space.sm))
+            actions {
                 // Маршрут — головна дія, поки подія сьогодні й ще не почалась; далі — звичайна.
                 PlanButton(
-                    title: Copy.rate_tag_route, glyph: PoruchIcons.myLocation,
+                    title: Copy.open_in_maps, glyph: PoruchIcons.directions,
                     highlight: today && !event.hasStarted(now: nowInstant())
                 ) { SystemActions.openInMaps(event) }
                 PlanButton(

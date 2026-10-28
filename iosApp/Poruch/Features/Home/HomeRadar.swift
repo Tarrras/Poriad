@@ -43,7 +43,7 @@ struct HomeRadarSection: View {
             }
             if !all && rows.count > shown.count {
                 Button { withMotion { all = true } } label: {
-                    Text(Copy.radar_more("\(rows.count)")).font(PoruchFont.button).foregroundStyle(Palette.ink).tapTarget()
+                    Text(Copy.radar_more("\(rows.count - shown.count)")).font(PoruchFont.button).foregroundStyle(Palette.ink).tapTarget()
                 }
                 .buttonStyle(.plain).frame(maxWidth: .infinity)
             }

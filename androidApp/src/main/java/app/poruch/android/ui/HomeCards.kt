@@ -91,7 +91,7 @@ fun EventHeroCard(
             }
             Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                 Text(
-                    event.displayTitle, style = if (printed) PoruchType.brandDisplay else PoruchType.brandTitle1, color = colors.ink,
+                    event.cardTitle, style = if (printed) PoruchType.brandDisplay else PoruchType.brandTitle1, color = colors.ink,
                     maxLines = if (printed) 5 else 2, overflow = TextOverflow.Ellipsis
                 )
                 HostLine(event)

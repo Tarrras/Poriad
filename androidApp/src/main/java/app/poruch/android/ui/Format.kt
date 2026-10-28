@@ -203,7 +203,7 @@ fun seriesNote(event: Event, words: DateWords): String? {
 
 /**
  * Що друкується на корінці квитка: велике й мале. Сеанс — година й день («19:30», «СЬОГОДНІ»); те, що вже йде, — кінець
- * прокату («30.11», «ДО») чи «ЗАРАЗ»; минуле — година й дата числом. [compact] — малий корінець 56–60 dp: «СЬОГОДНІ» туди
+ * прокату («ДО 30.11», «ТРИВАЄ») чи «ЗАРАЗ»; минуле — година й дата числом. [compact] — малий корінець 56–60 dp: «СЬОГОДНІ» туди
  * не влазить, тож і майбутнє датою числом. Слова ті самі, що в iOS `stubParts`.
  */
 /** Корінець зустрічі, якої ще нема (редактор): година й день, як у нижньому корінці [stubParts] з `medium`. */
@@ -223,7 +223,8 @@ fun stubParts(
     if (event.hasEnded(instant)) return at.format(pattern(HOUR)) to at.format(pattern("dd.MM"))
     if (event.isUnderway(instant)) {
         val end = if (event.isMultiDay) zonedEnd(event) else null
-        return if (end != null) end.format(pattern("dd.MM")) to "ДО" else "ЗАРАЗ" to "ТРИВАЄ"
+        // «ДО 30.11» великим, як «ЗАРАЗ»: малим словом після дати корінець читався задом наперед — «30.11 до».
+        return if (end != null) "ДО ${end.format(pattern("dd.MM"))}" to "ТРИВАЄ" else "ЗАРАЗ" to "ТРИВАЄ"
     }
     val days = ChronoUnit.DAYS.between(now.atZone(at.zone).toLocalDate(), at.toLocalDate())
     val day = when {

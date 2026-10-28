@@ -93,13 +93,16 @@ fun HomeScreen(state: HomeState, onIntent: (HomeIntent) -> Unit) {
     ) {
         // Лінивий список: «Показати ще» росте без меж, а постерів у композиції має бути стільки, скільки видно.
         // Проміжки між блоками — відступами самих блоків: вони різні всередині «У місті» й між зонами.
+        Column(Modifier.fillMaxSize()) {
+        // Пошук: поле закріплене над видачею, як на iOS, — змінити запит можна, не гортаючи вгору.
+        if (state.searchMode) Box(Modifier.statusBarsPadding()) { Header(state, onIntent) }
         LazyColumn(
-            Modifier.fillMaxSize(),
+            Modifier.weight(1f).fillMaxWidth(),
             contentPadding = tabBarClearancePadding(
-                top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+                top = if (state.searchMode) 0.dp else WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
             )
         ) {
-            item(key = "header") { Header(state, onIntent) }
+            if (!state.searchMode) item(key = "header") { Header(state, onIntent) }
             // Стрічка й фільтри пошуку ніколи разом: у режимі пошуку — видача або підказка.
             if (state.searchMode) item(key = "search") {
                 Column(
@@ -116,27 +119,27 @@ fun HomeScreen(state: HomeState, onIntent: (HomeIntent) -> Unit) {
                     )
                 }
             } else {
-                // Серце продукту — зустрічі від людей, тож вони й порожній квиток «Організувати подію» стоять першими.
-                // Афіша нижче — опора. Активності не вигадуємо: коли зустрічей мало, секцію веде порожній квиток.
                 // День події: квиток — перше, що відкривають на вході.
                 if (state.screen.todayTickets.isNotEmpty()) item(key = "today-tickets") {
                     TodayTickets(state.screen.todayTickets, Modifier.padding(horizontal = Spacing.page).padding(top = Spacing.xxl))
                 }
+                // Серце продукту — з ким піти: зустрічі від людей і афіші, на які шукають компанію, однією рейкою, під нею
+                // порожній квиток «Організувати подію». Активності не вигадуємо: коли зустрічей мало, секцію веде він.
                 item(key = "people") { PeopleSection(state, onIntent) }
-                if (state.screen.company.isNotEmpty()) item(key = "company") { CompanySection(state, onIntent) }
-                item(key = "deck") { DeckRow() }
-                // Радар артистів: хто їде в місто з тих, за ким стежать; без них секції нема.
-                item(key = "radar") { RadarSection(state, onIntent) }
-                // Людині без планів і підписок «Ваше» не потрібне: створити подію їй пропонує порожній квиток вище.
+                // «Ваше» одразу після: непрочитаний чат і запит на участь не мають губитися під афішею. Людині без планів
+                // і підписок блоку нема: створити подію їй пропонує порожній квиток вище.
                 if (state.screen.signedIn && (state.screen.personal.isNotEmpty() || state.screen.followed.isNotEmpty())) item(
                     key = "yours"
                 ) {
                     Box(Modifier.padding(top = Spacing.xxl)) { PersonalSection(state, onIntent) }
                 }
-                cityFeed(state, onIntent, columns)
+                item(key = "deck") { DeckRow(state.screen.deck, state.screen.deckWeek) }
+                // Радар артистів — під великими квитками міста: опора, а не перше, що бачить гість.
+                cityFeed(state, onIntent, columns) { item(key = "radar") { RadarSection(state, onIntent) } }
                 // Кінець стрічки не глухий кут: далі мапа чи власна подія.
                 if (state.screen.feed.isNotEmpty()) item(key = "next") { MoreRows(state, onIntent) }
             }
+        }
         }
         StatusBarBand()
     }
@@ -165,6 +168,7 @@ private fun Header(state: HomeState, onIntent: (HomeIntent) -> Unit) {
                 )
                 // Що означає «поруч»: завжди ціле місто. «Шукати тут» на мапі головну не звужує.
                 // Тап міняє місто тут же, без переходу на мапу.
+                // Ціль 48 dp: рядок міста — головний перемикач екрана, а текст у ньому 20 dp заввишки.
                 Row(
                     Modifier
                         .coachTarget(CoachTip.CITY)
@@ -173,7 +177,8 @@ private fun Header(state: HomeState, onIntent: (HomeIntent) -> Unit) {
                             role = Role.Button
                         ) {
                             onIntent(HomeIntent.ShowCitySheet(true))
-                        },
+                        }
+                        .heightIn(min = 48.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
@@ -364,50 +369,23 @@ private val PeopleCardWidth = 176.dp
  */
 /** «Ваш тиждень» з головної: раз на тиждень, якщо цього тижня стос не відкривали (docs/return-hooks.md). */
 @Composable
-private fun DeckRow() {
+private fun DeckRow(cards: List<Event>, week: String) {
     val app = koinInject<PoruchApp>()
     val context = LocalContext.current
     val prompts = remember { context.getSharedPreferences(PROMPTS, Context.MODE_PRIVATE) }
     var opened by remember { mutableStateOf(prompts.getString(DECK_WEEK, null)) }
-    var deck by remember { mutableStateOf<List<Event>?>(null) }
-    val week = app.deckWeek()
-    if (opened != week) {
-        val cards = app.deckCards()
-        if (cards.isNotEmpty()) Box(Modifier.padding(horizontal = Spacing.page).padding(top = Spacing.xxl).cardSurface()) {
-            LinkRow(PoruchIcons.sparkle, stringResource(R.string.deck_title), stringResource(R.string.deck_row_subtitle), onClick = {
-                // Про сповіщення питає кінець стосу, а не перша закладка в ньому — як у стосі після онбордингу.
-                prompts.edit { putString(DECK_WEEK, week); putBoolean(SAVE_ASKED, true) }
-                opened = week
-                deck = cards
-            })
-        }
+    // Відкритий стос переживає поворот: картки — зі стану головної, тут лише прапорець.
+    var open by rememberSaveable { mutableStateOf(false) }
+    if (opened != week && cards.isNotEmpty()) Box(Modifier.padding(horizontal = Spacing.page).padding(top = Spacing.xxl).cardSurface()) {
+        LinkRow(PoruchIcons.sparkle, stringResource(R.string.deck_title), stringResource(R.string.deck_row_subtitle), onClick = {
+            // Про сповіщення питає кінець стосу, а не перша закладка в ньому — як у стосі після онбордингу.
+            prompts.edit { putString(DECK_WEEK, week); putBoolean(SAVE_ASKED, true) }
+            opened = week
+            open = true
+        })
     }
-    deck?.let { cards ->
-        Dialog({ deck = null }, DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
-            DeckScreen(app, cards) { deck = null }
-        }
-    }
-}
-
-/** «Шукають компанію» (docs/return-hooks.md): афіші, на які хтось уже хоче піти з компанією. Без жодної рейки нема. */
-@Composable
-private fun CompanySection(state: HomeState, onIntent: (HomeIntent) -> Unit) {
-    Column(Modifier.padding(top = Spacing.xxl), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
-        SectionHeader(stringResource(R.string.company_rail), Modifier.padding(horizontal = Spacing.page))
-        Row(
-            Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = Spacing.page).height(IntrinsicSize.Min),
-            horizontalArrangement = Arrangement.spacedBy(Spacing.md), verticalAlignment = Alignment.Top
-        ) {
-            state.screen.company.forEach { entry ->
-                PosterCard(
-                    entry.event, FeedSource.CITY,
-                    entry.event.id in state.screen.savedIds, entry.event.id in state.screen.waitlistedIds,
-                    { onIntent(HomeIntent.ToggleSaved(entry.event.id)) },
-                    Modifier.width(PeopleCardWidth).fillMaxHeight(),
-                    because = pluralStringResource(R.plurals.company_reason, entry.count, entry.count)
-                ) { onIntent(HomeIntent.OpenEvent(entry.event.id, "home_company")) }
-            }
-        }
+    if (open && cards.isNotEmpty()) Dialog({ open = false }, DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+        DeckScreen(app, cards) { open = false }
     }
 }
 
@@ -418,13 +396,14 @@ private fun PeopleSection(state: HomeState, onIntent: (HomeIntent) -> Unit) {
         verticalArrangement = Arrangement.spacedBy(Spacing.md)
     ) {
         SectionHeader(
-            stringResource(R.string.from_people), Modifier.padding(horizontal = Spacing.page),
+            stringResource(R.string.home_with_whom), Modifier.padding(horizontal = Spacing.page),
             actionLabel = state.screen.openRooms.takeIf { it > 0 }
                 ?.let { stringResource(R.string.home_all_count, it) },
             onAction = { onIntent(HomeIntent.ShowPeopleOnMap) }
         )
-        // Квитки рейки однакової висоти — за найвищим: корінці стоять в одну лінію.
-        if (state.screen.people.isNotEmpty()) Row(
+        // Одна рейка: спершу зустрічі з вільним місцем, далі афіші, на які хтось шукає компанію. Дві секції поруч про
+        // одне питання плутали. Квитки однакової висоти — за найвищим: корінці стоять в одну лінію.
+        if (state.screen.people.isNotEmpty() || state.screen.company.isNotEmpty()) Row(
             Modifier
                 .horizontalScroll(rememberScrollState())
                 .padding(horizontal = Spacing.page)
@@ -433,18 +412,30 @@ private fun PeopleSection(state: HomeState, onIntent: (HomeIntent) -> Unit) {
             verticalAlignment = Alignment.Top
         ) {
             state.screen.people.forEach { entry ->
+                val id = entry.event.id
                 PosterCard(
                     entry.event,
                     entry.source,
-                    entry.event.id in state.screen.savedIds,
-                    entry.event.id in state.screen.waitlistedIds,
-                    { onIntent(HomeIntent.ToggleSaved(entry.event.id)) },
+                    id in state.screen.savedIds,
+                    id in state.screen.waitlistedIds,
+                    { onIntent(HomeIntent.ToggleSaved(id)) },
                     Modifier
                         .width(PeopleCardWidth)
                         .fillMaxHeight(),
                     showOrigin = false,
                     followName = entry.followName
-                ) { onIntent(HomeIntent.OpenEvent(entry.event.id, "home_people")) }
+                ) { onIntent(HomeIntent.OpenEvent(id, "home_people")) }
+            }
+            state.screen.company.forEach { entry ->
+                val id = entry.event.id
+                PosterCard(
+                    entry.event, FeedSource.CITY,
+                    id in state.screen.savedIds, id in state.screen.waitlistedIds,
+                    { onIntent(HomeIntent.ToggleSaved(id)) },
+                    Modifier.width(PeopleCardWidth).fillMaxHeight(),
+                    because = pluralStringResource(R.plurals.company_reason, entry.count, entry.count),
+                    printedOnly = true
+                ) { onIntent(HomeIntent.OpenEvent(id, "home_company")) }
             }
         }
         Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
@@ -621,7 +612,7 @@ private fun PlanRow(row: PersonalRow, onIntent: (HomeIntent) -> Unit) {
     val event = row.event
     // Моя роль в події; після кінця вона нічого не каже.
     val role: Pair<String, BadgeTone>? = when {
-        event.isCancelled -> stringResource(R.string.cancelled) to BadgeTone.Danger
+        event.isCancelled -> stringResource(R.string.cancelled_short) to BadgeTone.Danger
         event.hasEnded(kotlin.time.Clock.System.now()) -> null
         row.organizing -> stringResource(R.string.home_role_organizer) to BadgeTone.Brand
         else -> stringResource(R.string.going) to BadgeTone.Success
@@ -686,7 +677,7 @@ private fun PlanButton(
     val content = if (highlight) colors.onBrand else colors.ink
     Row(
         modifier
-            .height(44.dp)
+            .heightIn(min = 48.dp)
             .background(if (highlight) colors.brand else colors.brandContainer, ButtonShape)
             .clip(ButtonShape)
             .pressable(onClick = onClick)
@@ -778,10 +769,10 @@ private fun NextPlanCard(row: PersonalRow, onIntent: (HomeIntent) -> Unit) {
                 .size(88.dp)
                 .clip(Radius.md), glyphSize = 30.dp)
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        val buttons = @Composable { width: Modifier ->
             // Маршрут — головна дія, поки подія сьогодні й ще не почалась; далі — звичайна.
             PlanButton(
-                stringResource(R.string.open_in_maps), PoruchIcons.directions, Modifier.weight(1f),
+                stringResource(R.string.open_in_maps), PoruchIcons.directions, width,
                 highlight = today && !event.hasStarted(kotlin.time.Clock.System.now())
             ) { context.openInMaps(event) }
             PlanButton(
@@ -789,15 +780,19 @@ private fun NextPlanCard(row: PersonalRow, onIntent: (HomeIntent) -> Unit) {
                     R.string.chat_short_unread,
                     chat.unread
                 ) else stringResource(R.string.chat_short),
-                PoruchIcons.chat, Modifier.weight(1f), highlight = chat != null
+                PoruchIcons.chat, width, highlight = chat != null
             ) { onIntent(HomeIntent.OpenChat(event.id)) }
             if (row.requests > 0) PlanButton(
                 stringResource(R.string.home_requests_short, row.requests),
                 PoruchIcons.personAdd,
-                Modifier.weight(1f),
+                width,
                 highlight = true
             ) { onIntent(HomeIntent.OpenEvent(event.id, "home_your")) }
         }
+        // Великий шрифт: дії одна під одною, як у «Моїх подіях», — три в ряд обрізали б «Маршрут» до «Ма…».
+        if (LocalDensity.current.fontScale >= 1.3f) Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            buttons(Modifier.fillMaxWidth())
+        } else Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) { buttons(Modifier.weight(1f)) }
     }
 }
 
@@ -837,7 +832,11 @@ private fun lane(source: FeedSource, followName: String?): String? = when (sourc
 }
 
 /** «У місті»: великі картки, що гортаються (сусідня визирає), чипи, далі сітка постерів у дві колонки. */
-private fun LazyListScope.cityFeed(state: HomeState, onIntent: (HomeIntent) -> Unit, columns: Int) {
+private fun LazyListScope.cityFeed(
+    state: HomeState, onIntent: (HomeIntent) -> Unit, columns: Int,
+    /** Між великими квитками й чипами (радар артистів): чипи звужують лише сітку, тож стоять над нею. */
+    middle: LazyListScope.() -> Unit
+) {
     when {
         state.screen.feed.isNotEmpty() -> {
             val picks = state.screen.feed.take(HomeRules.HERO_COUNT)
@@ -856,11 +855,15 @@ private fun LazyListScope.cityFeed(state: HomeState, onIntent: (HomeIntent) -> U
                         onAction = { onIntent(HomeIntent.ShowEverythingOnMap) }
                     )
                     HeroPager(picks, state.screen.savedIds, onIntent)
-                    if (state.screen.chips.isNotEmpty()) FeedChips(state, onIntent)
                 }
             }
+            middle()
+            if (state.screen.chips.isNotEmpty()) item(key = "chips") {
+                // Під великими квитками — щільно, як було; після радару — відступом секції.
+                Box(Modifier.padding(top = if (state.screen.radar.isEmpty()) Spacing.md else Spacing.xxl)) { FeedChips(state, onIntent) }
+            }
             val rows = rest.take(state.feedLimit).chunked(columns)
-            itemsIndexed(rows, key = { _, pair -> pair.first().event.id }) { index, pair ->
+            itemsIndexed(rows, key = { _, pair -> pair.first().event.id }, contentType = { _, _ -> "poster-row" }) { index, pair ->
                 // Ряд квитків однакової висоти: корінці сусідів на одній лінії.
                 Row(
                     Modifier
@@ -870,17 +873,18 @@ private fun LazyListScope.cityFeed(state: HomeState, onIntent: (HomeIntent) -> U
                     horizontalArrangement = Arrangement.spacedBy(Spacing.md)
                 ) {
                     pair.forEach { entry ->
+                        val id = entry.event.id
                         PosterCard(
                             entry.event,
                             entry.source,
-                            entry.event.id in state.screen.savedIds,
-                            entry.event.id in state.screen.waitlistedIds,
-                            { onIntent(HomeIntent.ToggleSaved(entry.event.id)) },
+                            id in state.screen.savedIds,
+                            id in state.screen.waitlistedIds,
+                            { onIntent(HomeIntent.ToggleSaved(id)) },
                             Modifier
                                 .weight(1f)
                                 .fillMaxHeight(),
                             followName = entry.followName
-                        ) { onIntent(HomeIntent.OpenEvent(entry.event.id, "home_poster")) }
+                        ) { onIntent(HomeIntent.OpenEvent(id, "home_poster")) }
                     }
                     repeat(columns - pair.size) { Spacer(Modifier.weight(1f)) }
                 }
@@ -896,7 +900,8 @@ private fun LazyListScope.cityFeed(state: HomeState, onIntent: (HomeIntent) -> U
             }
         }
 
-        state.screen.isEmpty && state.screen.loading -> item(key = "loading") {
+        // Стрічка ще їде: лоадер і тоді, коли вище вже є плани чи «З ким піти», — інакше «У місті» просто нема.
+        state.screen.loading -> item(key = "loading") {
             Box(
                 Modifier
                     .fillMaxWidth()
@@ -905,7 +910,7 @@ private fun LazyListScope.cityFeed(state: HomeState, onIntent: (HomeIntent) -> U
             ) { PoruchLoader() }
         }
         // Без мережі «тихо» було б неправдою: афіша є, її не видно. Відкриється сама, щойно мережа повернеться.
-        state.screen.isEmpty && state.screen.offline -> item(key = "offline") {
+        state.screen.offline -> item(key = "offline") {
             Box(Modifier.padding(top = Spacing.xxl)) {
                 OfflineState(stringResource(R.string.offline_home_hint))
             }
@@ -1005,6 +1010,8 @@ private fun PosterCard(
     followName: String? = null,
     /** Причина від рейки, а не від джерела: «2 хочуть піти з компанією». */
     because: String? = null,
+    /** Друкований квиток без фото й з афіші: у рейці «З ким піти» всі квитки однієї висоти, без порожнього поля. */
+    printedOnly: Boolean = false,
     onClick: () -> Unit
 ) {
     val colors = Poruch.colors
@@ -1037,7 +1044,7 @@ private fun PosterCard(
     // Штамп — лише стан квитка.
     val stamp: Triple<String, BadgeTone, ImageVector?>? =
         state?.let { Triple(it.first, it.second, null) }
-    val printed = event.imageUrl == null
+    val printed = printedOnly || event.imageUrl == null
     // Друкована сторона без фото дає назві чотири рядки; з великим текстом — на рядок більше, щоб назва не тонула в «…».
     val titleLines = (if (printed) 4 else 2) + if (LocalDensity.current.fontScale >= 1.3f) 1 else 0
     Ticket(
@@ -1107,7 +1114,7 @@ private fun PosterCard(
                 verticalArrangement = Arrangement.spacedBy(Spacing.xs)
             ) {
                 Text(
-                    event.displayTitle,
+                    event.cardTitle,
                     style = if (printed) PoruchType.brandTitle2 else PoruchType.brandTitle3,
                     color = colors.ink,
                     maxLines = titleLines,

@@ -13,6 +13,7 @@ import app.poruch.domain.EventCategory
 import app.poruch.domain.FeedEntry
 import app.poruch.domain.FeedFilter
 import app.poruch.domain.FeedSource
+import app.poruch.domain.DeckRules
 import app.poruch.domain.FollowRules
 import app.poruch.domain.HomeLocation
 import app.poruch.domain.HomeRules
@@ -82,6 +83,13 @@ data class HomeScreenState(
      * збій — рядок з іменем без дат.
      */
     val radar: List<ArtistRadar> = emptyList(),
+    /**
+     * «Ваш тиждень» (стос): картки з того, що вже приїхало на головну. Стан, а не виклик платформи: рядок з'являється,
+     * щойно стрічка приїде, і після зміни міста стос відкривається з новими картками.
+     */
+    val deck: List<Event> = emptyList(),
+    /** Тиждень стосу: платформа пам'ятає, у який тиждень його відкривали, щоб рядок не кликав двічі. */
+    val deckWeek: String = "",
     /** «Шукають компанію»: афіші, на які хтось хоче піти з компанією ([HomeRules.company]). Порожньо — рейки нема. */
     val company: List<CompanyEntry> = emptyList(),
     /** «У місті»: [HomeRules.HERO_COUNT] великих карток, далі сітка, вже звужена [feedFilter]. */
@@ -251,6 +259,8 @@ class HomePresenter(
             company = company,
             todayTickets = shared.tickets.filter { it.isToday(now, zone) },
             radar = radarRows(shared),
+            deck = DeckRules.pick(home.suggested.ifEmpty { home.events }, now),
+            deckWeek = DeckRules.week(now, zone),
             feed = all.take(HomeRules.HERO_COUNT) + HomeRules.apply(rest, filter, now, zoneId),
             chips = chips,
             feedFilter = filter,

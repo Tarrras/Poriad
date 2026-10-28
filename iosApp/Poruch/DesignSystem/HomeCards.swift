@@ -75,7 +75,7 @@ struct EventHeroCard: View {
                         TicketStamp(text: stamp.0, tone: stamp.1, glyph: stamp.2).padding([.top, .horizontal], Space.lg)
                     }
                     VStack(alignment: .leading, spacing: Space.sm) {
-                        Text(event.displayTitle).font(event.imageUrl == nil ? PoruchFont.brandDisplay : PoruchFont.brandTitle1)
+                        Text(event.cardTitle).font(event.imageUrl == nil ? PoruchFont.brandDisplay : PoruchFont.brandTitle1)
                             .foregroundStyle(Palette.ink)
                             .multilineTextAlignment(.leading).lineLimit(event.imageUrl == nil ? 5 : (typeSize.isAccessibilitySize ? 4 : 2))
                             .fixedSize(horizontal: false, vertical: true)

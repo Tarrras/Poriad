@@ -29,20 +29,26 @@ import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import org.koin.compose.koinInject
 
 private val UKRAINIAN = Locale.forLanguageTag("uk")
 
-private fun date(iso: String, zone: String, pattern: String): String? = runCatching {
-    OffsetDateTime.parse(iso).atZoneSameInstant(ZoneId.of(zone)).format(DateTimeFormatter.ofPattern(pattern, UKRAINIAN))
+/** Форматери — раз на процес, а не на кожне перескладання рядка. */
+private val DAY = DateTimeFormatter.ofPattern("d.MM", UKRAINIAN)
+private val WEEKDAY_DAY = DateTimeFormatter.ofPattern("EE d.MM", UKRAINIAN)
+
+private fun date(iso: String, zone: String, format: DateTimeFormatter): String? = runCatching {
+    OffsetDateTime.parse(iso).atZoneSameInstant(ZoneId.of(zone)).format(format)
 }.getOrNull()
 
 /** Рядок «Ваших артистів»: є подія в місті — «сб 14.12 · назва»; нема — тур іншими містами; нема ніде — без анонсів. */
 @Composable
 private fun radarLine(row: ArtistRadar): String {
-    row.next?.let { next -> date(next.startsAt, next.timeZone, "EE d.MM")?.let { return "$it · ${next.displayTitle}" } }
+    row.next?.let { next -> date(next.startsAt, next.timeZone, WEEKDAY_DAY)?.let { return "$it · ${next.displayTitle}" } }
     if (row.elsewhere.isNotEmpty()) {
-        val cities = row.elsewhere.joinToString(", ") { city -> date(city.startsAt, "Europe/Kyiv", "d.MM")?.let { "${city.city} $it" } ?: city.city }
+        val cities = row.elsewhere.joinToString(", ") { city -> date(city.startsAt, "Europe/Kyiv", DAY)?.let { "${city.city} $it" } ?: city.city }
         return stringResource(R.string.radar_elsewhere, cities)
     }
     return stringResource(R.string.radar_quiet)
@@ -82,7 +88,7 @@ internal fun RadarSection(state: HomeState, onIntent: (HomeIntent) -> Unit) {
             }
         }
         if (!all && rows.size > RadarRules.HOME_ROWS) {
-            GhostButton(stringResource(R.string.radar_more, rows.size.toString()), { all = true }, Modifier.align(Alignment.CenterHorizontally))
+            GhostButton(stringResource(R.string.radar_more, (rows.size - RadarRules.HOME_ROWS).toString()), { all = true }, Modifier.align(Alignment.CenterHorizontally))
         }
     }
     if (picking) RadarPickerSheet(koinInject()) { picking = false }
@@ -96,8 +102,11 @@ internal fun RadarSection(state: HomeState, onIntent: (HomeIntent) -> Unit) {
 @Composable
 internal fun RadarPickerSheet(app: PoruchApp, onDone: () -> Unit) {
     val colors = Poruch.colors
-    val state by app.state.collectAsState()
-    val artists = state.popularArtists
+    // Лише артисти й підписки на них: шторці нема діла до чатів і мапи.
+    val artists by remember { app.state.map { it.popularArtists }.distinctUntilChanged() }.collectAsState(app.state.value.popularArtists)
+    val followed by remember {
+        app.state.map { s -> s.library.follows.filter { it.kind == FollowKind.ARTIST }.map { it.targetId }.toSet() }.distinctUntilChanged()
+    }.collectAsState(emptySet())
     var picked by remember { mutableStateOf(emptySet<String>()) }
     LaunchedEffect(Unit) { app.loadPopularArtists(false) }
     val close = { app.radarPickerClosed(artists?.size ?: 0, picked.size, "picker"); onDone() }
@@ -108,7 +117,7 @@ internal fun RadarPickerSheet(app: PoruchApp, onDone: () -> Unit) {
                 Text(stringResource(R.string.radar_picker_hint), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
             }
             PopularArtistChips(
-                artists, { state.isFollowing(FollowKind.ARTIST, it) }, picked, dates = true,
+                artists, { it in followed }, picked, dates = true,
                 Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())
             ) { id -> picked = if (id in picked) picked - id else picked + id }
             if (picked.isNotEmpty()) PrimaryButton(stringResource(R.string.radar_picker_follow, picked.size.toString()), {
@@ -139,7 +148,7 @@ internal fun PopularArtistChips(
             artists.forEach { artist ->
                 val already = followed(artist.artistId)
                 val on = already || artist.artistId in picked
-                val first = if (dates) artist.firstAt?.let { date(it, "Europe/Kyiv", "d.MM") } else null
+                val first = if (dates) artist.firstAt?.let { date(it, "Europe/Kyiv", DAY) } else null
                 PoruchChip(first?.let { "${artist.name} · $it" } ?: artist.name, on, {
                     if (!already) onToggle(artist.artistId)
                 }, icon = if (on) PoruchIcons.check else null, maxLines = 2)

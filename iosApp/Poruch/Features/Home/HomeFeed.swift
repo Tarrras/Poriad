@@ -17,17 +17,29 @@ struct HomePeopleSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Space.md) {
             SectionHeader(
-                title: Copy.from_people, actionLabel: view.openRooms > 0 ? Copy.home_all_count("\(view.openRooms)") : nil,
+                title: Copy.home_with_whom, actionLabel: view.openRooms > 0 ? Copy.home_all_count("\(view.openRooms)") : nil,
                 action: view.openRooms > 0 ? showPeople : nil
             ).padding(.horizontal, Space.page)
-            if !view.people.isEmpty {
+            // Одна рейка «З ким піти»: спершу зустрічі з вільним місцем, далі афіші, на які хтось шукає компанію.
+            // Дві секції поруч про одне питання плутали: чим «Йдемо разом» відрізняється від «Шукають компанію».
+            if !view.people.isEmpty || !view.company.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(alignment: .top, spacing: Space.md) {
                         ForEach(view.people, id: \.event.id) { entry in
+                            let id = entry.event.id
                             PosterCard(
                                 entry: entry, saved: view.isSaved(entry.event), waitlisted: view.isWaitlisted(entry.event),
-                                showsOrigin: false, onSave: { model.app.toggleSaved(id: entry.event.id) }
-                            ) { open(entry.event.id, "home_people") }
+                                showsOrigin: false, onSave: { model.app.toggleSaved(id: id) }
+                            ) { open(id, "home_people") }
+                            .frame(width: peopleCardWidth).frame(maxHeight: .infinity)
+                        }
+                        ForEach(view.company, id: \.event.id) { entry in
+                            let id = entry.event.id
+                            PosterCard(
+                                entry: FeedEntry(event: entry.event, source: .city, followName: nil),
+                                saved: view.isSaved(entry.event), waitlisted: view.isWaitlisted(entry.event),
+                                because: Copy.company_reason(Int(entry.count)), printedOnly: true, onSave: { model.app.toggleSaved(id: id) }
+                            ) { open(id, "home_company") }
                             .frame(width: peopleCardWidth).frame(maxHeight: .infinity)
                         }
                     }
@@ -65,37 +77,9 @@ struct HomePeopleSection: View {
     }
 }
 
-/// «Шукають компанію» (docs/return-hooks.md): афіші, на які хтось уже хоче піти з компанією, рейкою квитків. Без жодної
-/// рейки нема — активність не вигадуємо.
-struct HomeCompanySection: View {
-    let view: HomeScreenState
-    let open: (String, String) -> Void
-    @Environment(\.appModel) private var appModel
-    private var model: AppModel { appModel! }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: Space.md) {
-            SectionHeader(title: Copy.company_rail).padding(.horizontal, Space.page)
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(alignment: .top, spacing: Space.md) {
-                    ForEach(view.company, id: \.event.id) { entry in
-                        PosterCard(
-                            entry: FeedEntry(event: entry.event, source: .city, followName: nil),
-                            saved: view.isSaved(entry.event), waitlisted: view.isWaitlisted(entry.event),
-                            because: Copy.company_reason(Int(entry.count)), onSave: { model.app.toggleSaved(id: entry.event.id) }
-                        ) { open(entry.event.id, "home_company") }
-                        .frame(width: peopleCardWidth).frame(maxHeight: .infinity)
-                    }
-                }
-                .fixedSize(horizontal: false, vertical: true)
-            }
-            .railContentPadding(spread: 0)
-        }
-    }
-}
-
-/// «У місті»: три великі картки, що гортаються (сусідня визирає), чипи, далі сітка постерів у дві колонки.
-struct HomeCityFeed: View {
+/// «У місті»: три великі картки, що гортаються (сусідня визирає), [middle] (радар артистів), чипи, далі сітка постерів у
+/// дві колонки. Чипи звужують лише сітку, тож стоять над нею, а не під великими картками.
+struct HomeCityFeed<Middle: View>: View {
     let view: HomeScreenState
     /// Скільки рядків показано (`HomeView.feedLimit`): чип скидає, «Показати ще» додає.
     @Binding var feedLimit: Int
@@ -104,6 +88,7 @@ struct HomeCityFeed: View {
     /// «Усі N»: мапа з усім містом.
     let showCity: () -> Void
     let openMap: () -> Void
+    @ViewBuilder let middle: () -> Middle
     @Environment(\.appModel) private var appModel
     private var model: AppModel { appModel! }
 
@@ -119,15 +104,18 @@ struct HomeCityFeed: View {
                     action: view.totalFound > 0 ? showCity : nil
                 ).padding(.horizontal, Space.page)
                 heroPager(picks)
+                middle()
                 if !view.chips.isEmpty { feedChips(view.chips, selected: view.feedFilter) }
                 if !shown.isEmpty {
                     // Ряди по два квитки однакової висоти: корінці в ряду стоять на одній лінії, хоч би скільки рядків мав підпис.
                     let visible = Array(shown.prefix(feedLimit))
                     LazyVStack(spacing: Space.xl) {
-                        ForEach(Array(stride(from: 0, to: visible.count, by: 2)), id: \.self) { index in
+                        // Ряд за першою подією, а не за номером: після «Зберегти» чи чипа ряди не перебудовуються з нуля.
+                        let rows = stride(from: 0, to: visible.count, by: 2).map { Array(visible[$0..<min($0 + 2, visible.count)]) }
+                        ForEach(rows, id: \.[0].event.id) { pair in
                             HStack(alignment: .top, spacing: Space.md) {
-                                cityPoster(visible[index])
-                                if index + 1 < visible.count { cityPoster(visible[index + 1]) } else { Color.clear }
+                                cityPoster(pair[0])
+                                if pair.count > 1 { cityPoster(pair[1]) } else { Color.clear }
                             }
                             .fixedSize(horizontal: false, vertical: true)
                         }
@@ -139,19 +127,18 @@ struct HomeCityFeed: View {
                     }
                 }
             }
+        } else if view.loading {
+            // Стрічка ще їде: лоадер і тоді, коли вище вже є плани чи «З ким піти», — інакше «У місті» просто нема.
+            PoruchLoader().frame(maxWidth: .infinity).padding(.vertical, Space.section)
+        } else if view.offline {
+            // Без мережі «тихо» було б неправдою: афіша є, її не видно. Відкриється сама, щойно мережа повернеться.
+            OfflineState(message: Copy.offline_home_hint)
         } else if view.isEmpty {
-            if view.loading {
-                PoruchLoader().frame(maxWidth: .infinity).padding(.vertical, Space.section)
-            } else if view.offline {
-                // Без мережі «тихо» було б неправдою: афіша є, її не видно. Відкриється сама, щойно мережа повернеться.
-                OfflineState(message: Copy.offline_home_hint)
-            } else {
-                EmptyState(
-                    glyph: PoruchIcons.compass, title: Copy.nothing_here,
-                    message: Copy.nothing_here_hint,
-                    actionLabel: Copy.find_on_map, action: openMap
-                )
-            }
+            EmptyState(
+                glyph: PoruchIcons.compass, title: Copy.nothing_here,
+                message: Copy.nothing_here_hint,
+                actionLabel: Copy.find_on_map, action: openMap
+            )
         }
     }
 
@@ -238,10 +225,13 @@ private struct PosterCard: View {
     var showsOrigin = true
     /// Причина від рейки, а не від джерела: «2 хочуть піти з компанією».
     var because: String? = nil
+    /// Друкований квиток без фото й з афіші: у рейці «З ким піти» всі квитки однієї висоти, без порожнього поля.
+    var printedOnly = false
     let onSave: () -> Void
     let open: () -> Void
 
     private var event: Event { entry.event }
+    private var printed: Bool { printedOnly || event.imageUrl == nil }
 
     /// «Від 390 ₴» лише коли джерело сказало ціну. Місця зустрічі — на корінці.
     private var price: String? {
@@ -266,7 +256,7 @@ private struct PosterCard: View {
     @Environment(\.dynamicTypeSize) private var typeSize
 
     /// Друкована сторона без фото дає назві чотири рядки; з великим текстом — на рядок більше, щоб назва не тонула в «…».
-    private var titleLines: Int { (event.imageUrl == nil ? 4 : 2) + (typeSize.isAccessibilitySize ? 1 : 0) }
+    private var titleLines: Int { (printed ? 4 : 2) + (typeSize.isAccessibilitySize ? 1 : 0) }
 
     /// Штамп — лише стан квитка: скасовано, «Ви йдете», «Лишилось 2». Чому квиток тут — [reason], тихим рядком.
     @ViewBuilder private func stampView(onFill: Bool) -> some View {
@@ -288,7 +278,7 @@ private struct PosterCard: View {
             // 64: жанр над часом — два рядки, і в 52 вони впирались у перфорацію та нижній край.
             Ticket(vertical: true, stubColor: ticketStub(event), stubLength: 64) {
                 VStack(alignment: .leading, spacing: 0) {
-                    if event.imageUrl != nil {
+                    if !printed {
                         // Пріоритет: у ряду однакової висоти фото бере свої 4:5 першим, а запас іде полю під назвою.
                         Color.clear.aspectRatio(4.0 / 5.0, contentMode: .fit)
                             .overlay { EventArt(event: event, maxDimension: 420) }
@@ -313,15 +303,15 @@ private struct PosterCard: View {
                     }
                     // Як на друкованому квитку: місце й підписи притиснуті до перфорації, вільне поле лишається під назвою.
                     VStack(alignment: .leading, spacing: Space.xs) {
-                        Text(event.displayTitle)
-                            .font(event.imageUrl == nil ? PoruchFont.brandTitle2 : PoruchFont.brandTitle3).foregroundStyle(Palette.ink)
+                        Text(event.cardTitle)
+                            .font(printed ? PoruchFont.brandTitle2 : PoruchFont.brandTitle3).foregroundStyle(Palette.ink)
                             .multilineTextAlignment(.leading)
                             .lineLimit(titleLines)
                         HostLine(event: event)
                         Spacer(minLength: Space.sm)
                         if let reason { ReasonLine(text: reason.0, glyph: reason.1) }
                         EventDescriptor(event: event, placeFirst: true)
-                        if event.imageUrl == nil, let price {
+                        if printed, let price {
                             Text(price).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(1)
                         }
                         if let series = seriesNote(event) {
