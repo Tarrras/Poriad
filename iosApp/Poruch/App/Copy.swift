@@ -522,7 +522,7 @@ enum Copy {
     static let wallet_title = "Квитки"
     static let wallet_add = "Додати"
     static let wallet_add_title = "Додати квиток"
-    static let wallet_add_hint = "У Telegram: «Поділитися» → «Поряд». Або PDF чи знімок з телефона"
+    static let wallet_add_hint = "З Telegram: «Поділитися» → «Поряд»"
     static let wallet_from_files = "З файлів"
     static let wallet_from_photos = "З фото"
     static let wallet_import_title = "Квиток"
@@ -534,7 +534,12 @@ enum Copy {
     static let wallet_when = "Коли"
     static let wallet_match = "Квиток на цю подію"
     static let wallet_save = "Додати квиток"
-    static let wallet_failed = "Не вдалося відкрити файл"
+    static let wallet_failed = "Не вдалося відкрити файл. Підійде PDF або знімок квитка."
+    static let wallet_reading = "Читаємо квиток…"
+    static let wallet_duplicate_title = "Цей квиток уже є"
+    static let wallet_show = "Показати квиток"
+    static func wallet_past(_ a0: String) -> String { "Минулі квитки · \(a0)" }
+    static let wallet_today = "Квитки на сьогодні"
     static func wallet_seat(_ a0: String, _ a1: String) -> String { "Ряд \(a0), місце \(a1)" }
     static func wallet_seat_only(_ a0: String) -> String { "Місце \(a0)" }
     static let wallet_delete = "Видалити квиток"

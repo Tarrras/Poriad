@@ -57,6 +57,7 @@ import app.poruch.android.feature.explore.CitySearchSheet
 import app.poruch.android.feature.explore.SEARCH_SETTLE_MS
 import app.poruch.android.feature.explore.dateFilters
 import app.poruch.android.feature.mine.countdownOverline
+import app.poruch.android.feature.wallet.TodayTickets
 import app.poruch.android.platform.openInMaps
 import app.poruch.android.ui.*
 import app.poruch.domain.CityResult
@@ -117,6 +118,10 @@ fun HomeScreen(state: HomeState, onIntent: (HomeIntent) -> Unit) {
             } else {
                 // Серце продукту — зустрічі від людей, тож вони й порожній квиток «Організувати подію» стоять першими.
                 // Афіша нижче — опора. Активності не вигадуємо: коли зустрічей мало, секцію веде порожній квиток.
+                // День події: квиток — перше, що відкривають на вході.
+                if (state.screen.todayTickets.isNotEmpty()) item(key = "today-tickets") {
+                    TodayTickets(state.screen.todayTickets, Modifier.padding(horizontal = Spacing.page).padding(top = Spacing.xxl))
+                }
                 item(key = "people") { PeopleSection(state, onIntent) }
                 if (state.screen.company.isNotEmpty()) item(key = "company") { CompanySection(state, onIntent) }
                 item(key = "deck") { DeckRow() }

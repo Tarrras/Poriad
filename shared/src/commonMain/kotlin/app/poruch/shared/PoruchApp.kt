@@ -548,13 +548,14 @@ class PoruchApp internal constructor(
      */
     fun addTicket(
         id: String, file: String, kind: TicketKind, title: String, place: String?, startMillis: Long,
-        count: Int, seats: List<TicketSeat>, eventId: String?, source: String, parsed: String
+        count: Int, seats: List<TicketSeat>, eventId: String?, source: String, parsed: String, fingerprint: String?
     ) {
         val zone = TimeZone.currentSystemDefault()
         val ticket = WalletTicket(
             id = id, file = file, kind = kind, title = title.trim(), place = place?.trim()?.takeIf { it.isNotEmpty() },
             startsAt = Instant.fromEpochMilliseconds(startMillis).toString(), timeZone = zone.id,
-            count = count.coerceAtLeast(1), seats = seats, eventId = eventId, addedAt = Clock.System.now().toString()
+            count = count.coerceAtLeast(1), seats = seats, eventId = eventId, addedAt = Clock.System.now().toString(),
+            fingerprint = fingerprint
         )
         writeTickets(store.value.tickets.filterNot { it.id == id } + ticket)
         PoruchAnalytics.track(
@@ -563,6 +564,9 @@ class PoruchApp internal constructor(
         )
         if (eventId != null && !store.value.isSaved(eventId)) toggleSaved(eventId)
     }
+
+    /** Квиток з тим самим файлом, якщо його вже додано: шторка каже «Цей квиток уже є» замість форми. */
+    fun ticketWithFingerprint(fingerprint: String): WalletTicket? = store.value.tickets.firstOrNull { it.fingerprint == fingerprint }
 
     /** Квиток прибрано з телефона; файл стирає платформа. Закладка на подію лишається. */
     fun removeTicket(id: String) = writeTickets(store.value.tickets.filterNot { it.id == id })

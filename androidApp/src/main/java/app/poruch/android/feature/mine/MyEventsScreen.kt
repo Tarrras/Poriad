@@ -93,7 +93,7 @@ fun MyEventsScreen(state: MyEventsState, onIntent: (MyEventsIntent) -> Unit) {
         // Квитки з телефона (docs/ticket-wallet.md) — там, де «йду»: у «Іду», а в гостя, у якого розріз один, — у ньому.
         val showsTickets = !state.screen.signedIn || state.tab == MyEventsTab.GOING
         if (!state.screen.signedIn && state.screen.board.savedAhead == 0) Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-            TicketsSection(state.screen.tickets, Modifier.padding(horizontal = Spacing.page, vertical = Spacing.md))
+            TicketsSection(state.screen.tickets, state.screen.pastTickets, Modifier.padding(horizontal = Spacing.page, vertical = Spacing.md))
             EmptyState(
                 PoruchIcons.ticket,
                 stringResource(R.string.guest_empty),
@@ -114,7 +114,7 @@ fun MyEventsScreen(state: MyEventsState, onIntent: (MyEventsIntent) -> Unit) {
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
             ) {
-                if (showsTickets) TicketsSection(state.screen.tickets, Modifier.padding(horizontal = Spacing.page, vertical = Spacing.md))
+                if (showsTickets) TicketsSection(state.screen.tickets, state.screen.pastTickets, Modifier.padding(horizontal = Spacing.page, vertical = Spacing.md))
                 // Плану на телефоні ще нема, а мережі нема: «нічого не заплановано» було б неправдою.
                 if (state.screen.offline && state.screen.myEvents.isEmpty()) OfflineState(
                     stringResource(R.string.offline_mine_hint),
@@ -138,7 +138,7 @@ fun MyEventsScreen(state: MyEventsState, onIntent: (MyEventsIntent) -> Unit) {
                     val nothingAhead = state.screen.board.nothingAhead(state.tab)
                     if (state.screen.offline) item(key = "offline") { OfflineNote() }
                     if (!state.screen.signedIn) item(key = "guest") { GuestNote { onIntent(MyEventsIntent.SignIn) } }
-                    if (showsTickets) item(key = "tickets") { TicketsSection(state.screen.tickets) }
+                    if (showsTickets) item(key = "tickets") { TicketsSection(state.screen.tickets, state.screen.pastTickets) }
                     // Попереду нічого, а минулі є: першою йде дія, а не три сірі минулі.
                     if (nothingAhead) item(key = "ahead") { AheadCard(state.tab, onIntent) }
                     items(sections, key = { it.group.name }) { Section(it, state, onIntent) }

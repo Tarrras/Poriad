@@ -608,7 +608,7 @@
   <string name="wallet_title">Квитки</string>
   <string name="wallet_add">Додати</string>
   <string name="wallet_add_title">Додати квиток</string>
-  <string name="wallet_add_hint">У Telegram: «Поділитися» → «Поряд». Або PDF чи знімок з телефона</string>
+  <string name="wallet_add_hint">З Telegram: «Поділитися» → «Поряд»</string>
   <string name="wallet_from_files">З файлів</string>
   <string name="wallet_from_photos">З фото</string>
   <string name="wallet_import_title">Квиток</string>
@@ -620,7 +620,12 @@
   <string name="wallet_when">Коли</string>
   <string name="wallet_match">Квиток на цю подію</string>
   <string name="wallet_save">Додати квиток</string>
-  <string name="wallet_failed">Не вдалося відкрити файл</string>
+  <string name="wallet_failed">Не вдалося відкрити файл. Підійде PDF або знімок квитка.</string>
+  <string name="wallet_reading">Читаємо квиток…</string>
+  <string name="wallet_duplicate_title">Цей квиток уже є</string>
+  <string name="wallet_show">Показати квиток</string>
+  <string name="wallet_past">Минулі квитки · %1$s</string>
+  <string name="wallet_today">Квитки на сьогодні</string>
   <plurals name="wallet_count">
     <item quantity="one">%d квиток</item>
     <item quantity="few">%d квитки</item>

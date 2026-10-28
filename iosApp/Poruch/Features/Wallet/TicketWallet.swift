@@ -4,6 +4,7 @@ import PDFKit
 import Vision
 import PhotosUI
 import UniformTypeIdentifiers
+import CryptoKit
 
 /// Квиток, що прийшов файлом і чекає підтвердження (docs/ticket-wallet.md). Файл уже скопійовано до себе.
 struct TicketImport: Identifiable {
@@ -15,6 +16,15 @@ struct TicketImport: Identifiable {
     let preview: UIImage?
     /// `share` — прийшов з «Поділитися», `picker` — обрано в «Моїх подіях».
     let source: String
+    /// SHA-256 файлу: той самий квиток удруге не додається.
+    let fingerprint: String
+}
+
+/// Шторка квитка від файлу до «Додати»: відкривається одразу з «Читаємо квиток…», далі — розібраний, дубль чи помилка.
+struct TicketIntake: Identifiable {
+    enum Stage { case reading, ready(TicketImport), duplicate(String), failed }
+    let id = UUID()
+    var stage = Stage.reading
 }
 
 /// Маршрут до квитка для `sheet(item:)`: у Kotlin-класу нема `Identifiable`.
@@ -32,6 +42,27 @@ enum TicketFiles {
     static func url(_ file: String) -> URL { folder.appendingPathComponent(file) }
 
     static func remove(_ file: String) { try? FileManager.default.removeItem(at: url(file)) }
+
+    /**
+     * Шторка — одразу, ще до розбору: людина бачить, що файл дійшов. Далі `load` скаже, що це: квиток, той самий
+     * квиток удруге чи не квиток.
+     */
+    @MainActor static func intake(_ model: AppModel, _ load: @escaping () async -> TicketImport?) {
+        let intake = TicketIntake()
+        model.root.ticketIntake = intake
+        Task {
+            let ticket = await load()
+            // Шторку закрили, поки читали: копія нікому не потрібна.
+            guard model.root.ticketIntake?.id == intake.id else { if let ticket { remove(ticket.file) }; return }
+            guard let ticket else { model.root.ticketIntake?.stage = .failed; return }
+            if let existing = model.app.ticketWithFingerprint(fingerprint: ticket.fingerprint) {
+                remove(ticket.file)
+                model.root.ticketIntake?.stage = .duplicate(existing.id)
+            } else {
+                model.root.ticketIntake?.stage = .ready(ticket)
+            }
+        }
+    }
 
     /// Файл з «Поділитися» чи з вибору: копія до себе, потім читання. Nil — не PDF і не знімок або не відкрився.
     static func load(_ source: URL, app: PoruchApp, origin: String) async -> TicketImport? {
@@ -55,10 +86,11 @@ enum TicketFiles {
 
     private static func read(id: String, file: String, pdf: Bool, app: PoruchApp, origin: String) async -> TicketImport? {
         let target = url(file)
+        let fingerprint = (try? Data(contentsOf: target)).map { SHA256.hash(data: $0).map { String(format: "%02x", $0) }.joined() } ?? id
         let (text, pages, preview) = await Task.detached(priority: .userInitiated) { () async -> (String, Int, UIImage?) in
             if pdf {
                 guard let document = PDFDocument(url: target), document.pageCount > 0 else { return ("", 0, nil) }
-                let first = document.page(at: 0).map { image($0, width: 900) }
+                let first = document.page(at: 0).map { trimmed(image($0, width: 900)) }
                 var text = document.string ?? ""
                 // Скан без текстового шару: читаємо першу сторінку, як знімок.
                 if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, let cg = first?.cgImage { text = await recognize(cg) }
@@ -71,17 +103,22 @@ enum TicketFiles {
         let draft = app.readTicket(text: text)
         // Сторінка на квиток (Multiplex), а на одній сторінці буває кілька місць.
         let count = max(pdf ? pages : 1, draft.seats.count)
-        return TicketImport(id: id, file: file, kind: pdf ? .pdf : .image, draft: draft, count: count, preview: preview, source: origin)
+        return TicketImport(
+            id: id, file: file, kind: pdf ? .pdf : .image, draft: draft, count: count, preview: preview, source: origin,
+            fingerprint: fingerprint
+        )
     }
 
-    /// Сторінки квитка для показу на весь екран: PDF — кожна сторінка, знімок — він сам.
-    static func pages(_ ticket: WalletTicket) -> [UIImage] {
+    /// Скільки сторінок показати на весь екран: PDF — кожна сторінка, знімок — він сам.
+    static func pageCount(_ ticket: WalletTicket) -> Int {
+        ticket.kind == .pdf ? PDFDocument(url: url(ticket.file))?.pageCount ?? 0 : 1
+    }
+
+    /// Одна сторінка на весь екран — коли до неї догорнули, а не всі десять разом.
+    static func page(_ ticket: WalletTicket, _ index: Int) -> UIImage? {
         let target = url(ticket.file)
-        if ticket.kind == .pdf {
-            guard let document = PDFDocument(url: target) else { return [] }
-            return (0..<document.pageCount).compactMap { document.page(at: $0).map { image($0, width: 1400) } }
-        }
-        return UIImage(contentsOfFile: target.path).map { [$0] } ?? []
+        if ticket.kind == .pdf { return PDFDocument(url: target)?.page(at: index).map { image($0, width: 1400) } }
+        return UIImage(contentsOfFile: target.path)
     }
 
     /**
@@ -108,6 +145,38 @@ enum TicketFiles {
         return page.thumbnail(of: CGSize(width: width, height: width * box.height / max(box.width, 1)), for: .mediaBox)
     }
 
+    /// Прев'ю без білих полів: квиток часто — смужка на аркуші A4, і в шторці інакше видно лише папір.
+    private static func trimmed(_ image: UIImage) -> UIImage {
+        guard let cg = image.cgImage else { return image }
+        let width = cg.width, height = cg.height
+        var pixels = [UInt8](repeating: 0, count: width * height * 4)
+        let drawn: Bool = pixels.withUnsafeMutableBytes { buffer in
+            guard let context = CGContext(
+                data: buffer.baseAddress, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4,
+                space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+            ) else { return false }
+            context.setFillColor(UIColor.white.cgColor)
+            context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+            context.draw(cg, in: CGRect(x: 0, y: 0, width: width, height: height))
+            return true
+        }
+        guard drawn else { return image }
+        var minX = width, minY = height, maxX = -1, maxY = -1
+        for y in stride(from: 0, to: height, by: 2) {
+            for x in stride(from: 0, to: width, by: 2) {
+                let i = (y * width + x) * 4
+                if pixels[i] < 235 || pixels[i + 1] < 235 || pixels[i + 2] < 235 {
+                    minX = min(minX, x); maxX = max(maxX, x); minY = min(minY, y); maxY = max(maxY, y)
+                }
+            }
+        }
+        guard maxX >= 0 else { return image }
+        let pad = width / 30
+        let x0 = max(minX - pad, 0), y0 = max(minY - pad, 0)
+        let rect = CGRect(x: x0, y: y0, width: min(maxX + pad, width) - x0, height: min(maxY + pad, height) - y0)
+        return cg.cropping(to: rect).map { UIImage(cgImage: $0, scale: image.scale, orientation: image.imageOrientation) } ?? image
+    }
+
     /// Текст зі знімка: Vision читає українську з iOS 16.
     private static func recognize(_ image: CGImage) async -> String {
         await withCheckedContinuation { continuation in
@@ -125,7 +194,8 @@ enum TicketFiles {
 /// Що йде разом із файлом: що, коли й де, а для афіші — посилання на подію.
 func ticketShareText(_ ticket: WalletTicket) -> String {
     let when = [ticketWhen(ticket), ticket.place].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
-    let link = ticket.eventId.map { "\n" + EventLinks.shared.url(eventId: $0) } ?? ""
+    // Кіно без афіші — посилання на сайт: той, кому квиток, дізнається, звідки він.
+    let link = "\n" + (ticket.eventId.map { EventLinks.shared.url(eventId: $0) } ?? StoreLinks.shared.SHARE)
     return Copy.wallet_send_text(ticket.title, when) + link
 }
 
@@ -147,6 +217,46 @@ func ticketSeats(_ ticket: WalletTicket) -> String? {
 }
 
 // MARK: - Підтвердження
+
+/// Шторка від файлу до квитка: поки читаємо — так і кажемо; той самий квиток удруге — показуємо той, що вже є.
+struct TicketIntakeSheet: View {
+    @EnvironmentObject private var model: AppModel
+    let intake: TicketIntake
+
+    var body: some View {
+        switch intake.stage {
+        case .ready(let ticket): TicketImportSheet(ticket: ticket)
+        case .reading: note(Copy.wallet_import_title, short: false) { ProgressView(Copy.wallet_reading).tint(Palette.ink).frame(maxWidth: .infinity) }
+        case .failed:
+            note(Copy.wallet_import_title) {
+                Text(Copy.wallet_failed).font(PoruchFont.bodyText).foregroundStyle(Palette.inkSecondary).fixedSize(horizontal: false, vertical: true)
+                SecondaryButton(title: Copy.close) { model.root.ticketIntake = nil }
+            }
+        case .duplicate(let id):
+            // Повноекранний квиток — коли шторка вже закрилась: два показу разом SwiftUI не тримає.
+            let show = { model.root.ticketNext = TicketRoute(id: id); model.root.ticketIntake = nil }
+            note(Copy.wallet_duplicate_title) {
+                if let ticket = model.state?.tickets.first(where: { $0.id == id }) {
+                    Button(action: show) { WalletTicketCard(ticket: ticket) }.buttonStyle(PressableStyle())
+                }
+                PrimaryButton(title: Copy.wallet_show, glyph: PoruchIcons.ticket, action: show)
+            }
+        }
+    }
+
+    /// `short` — помилка й дубль: два рядки, пів екрана. Читання — на всю висоту, як шторка, що за ним відкриється.
+    private func note(_ title: String, short: Bool = true, @ViewBuilder content: () -> some View) -> some View {
+        VStack(alignment: .leading, spacing: Space.lg) {
+            Text(title).font(PoruchFont.brandTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
+            content()
+        }
+        .padding(.horizontal, Space.page).padding(.top, Space.xl).padding(.bottom, Space.section)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(Palette.canvas)
+        .presentationDetents(short ? [.medium] : [.large])
+        .presentationDragIndicator(.visible)
+    }
+}
 
 /// Шторка «Квиток»: прев'ю, знайдена подія афіші або поля, заповнені розбором. Одна дія — «Додати квиток».
 /// Закрили без «Додати» — файл стирається: квиток не потрапив до людини.
@@ -230,9 +340,12 @@ struct TicketImportSheet: View {
             id: ticket.id, file: ticket.file, kind: ticket.kind,
             title: event?.displayTitle ?? title, place: event?.placeLabel ?? place,
             startMillis: Int64(startDate.timeIntervalSince1970 * 1000), count: Int32(ticket.count),
-            seats: ticket.draft.seats, eventId: event?.id, source: ticket.source, parsed: ticket.draft.parsed
+            seats: ticket.draft.seats, eventId: event?.id, source: ticket.source, parsed: ticket.draft.parsed,
+            fingerprint: ticket.fingerprint
         )
         added = true
+        // Квиток — у «Моїх подіях»: туди й ведемо, щоб людина бачила, де він тепер.
+        model.root.ticketAdded = true
         dismiss()
     }
 }
@@ -244,7 +357,8 @@ struct TicketViewer: View {
     @EnvironmentObject private var model: AppModel
     @Environment(\.dismiss) private var dismiss
     let ticketID: String
-    @State private var pages: [UIImage] = []
+    @State private var count = 0
+    @State private var pages: [Int: UIImage] = [:]
     @State private var brightness: CGFloat?
     @State private var deleting = false
     @State private var page = 0
@@ -273,16 +387,27 @@ struct TicketViewer: View {
                 .buttonStyle(.plain).accessibilityLabel(Copy.close)
             }
             TabView(selection: $page) {
-                ForEach(Array(pages.enumerated()), id: \.offset) { index, image in
-                    // Квиток — папір: білий під ним і вночі, інакше QR на темному тлі сканер не бере.
-                    Image(uiImage: image).resizable().scaledToFit()
-                        .background(Color.white)
-                        .clipShape(RoundedRectangle(cornerRadius: Corner.md, style: .continuous))
-                        .padding(.bottom, Space.xl)
-                        .tag(index)
+                ForEach(0..<count, id: \.self) { index in
+                    Group {
+                        if let image = pages[index] {
+                            // Квиток — папір: білий під ним і вночі, інакше QR на темному тлі сканер не бере.
+                            Image(uiImage: image).resizable().scaledToFit()
+                                .background(Color.white)
+                                .clipShape(RoundedRectangle(cornerRadius: Corner.md, style: .continuous))
+                        } else {
+                            ProgressView().tint(Palette.ink).frame(maxWidth: .infinity, maxHeight: .infinity)
+                        }
+                    }
+                    .padding(.bottom, Space.xl)
+                    .tag(index)
+                    // Сторінка малюється, коли до неї догорнули: PDF на десять квитків не тримає десять растрів.
+                    .task {
+                        guard pages[index] == nil, let ticket else { return }
+                        pages[index] = await Task.detached { TicketFiles.page(ticket, index) }.value
+                    }
                 }
             }
-            .tabViewStyle(.page(indexDisplayMode: pages.count > 1 ? .always : .never))
+            .tabViewStyle(.page(indexDisplayMode: count > 1 ? .always : .never))
             .accessibilityLabel(ticket.map { Copy.wallet_count(Int($0.count)) } ?? "")
             // Квиток тому, з ким ідеш: лише сторінка, яку видно, і що-коли-де з посиланням (docs/ticket-wallet.md, хвиля 2).
             if let ticket {
@@ -301,7 +426,7 @@ struct TicketViewer: View {
         .background(Palette.canvas.ignoresSafeArea())
         .task {
             guard let ticket else { return }
-            pages = await Task.detached { TicketFiles.pages(ticket) }.value
+            count = await Task.detached { TicketFiles.pageCount(ticket) }.value
             model.app.ticketShown(id: ticket.id)
         }
         .onAppear {
@@ -330,6 +455,25 @@ struct TicketViewer: View {
     }
 }
 
+// MARK: - Головна
+
+/// День події: квиток першим на головній — його відкривають на вході. І в гостя, і в кіно без афіші.
+struct TodayTickets: View {
+    @Environment(\.appModel) private var appModel
+    let tickets: [WalletTicket]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Space.md) {
+            SectionHeader(title: Copy.wallet_today)
+            ForEach(tickets, id: \.id) { ticket in
+                Button { appModel?.root.shownTicket = TicketRoute(id: ticket.id) } label: { WalletTicketCard(ticket: ticket) }
+                    .buttonStyle(PressableStyle())
+            }
+        }
+        .padding(.horizontal, Space.page)
+    }
+}
+
 // MARK: - «Мої події»
 
 /// Секція «Квитки» згори «Моїх подій»: що попереду, з датою й місцем. Нема — один рядок, що вчить «Поділитися».
@@ -337,11 +481,13 @@ struct TicketsSection: View {
     @Environment(\.appModel) private var appModel
     private var model: AppModel { appModel! }
     let tickets: [WalletTicket]
+    /// Минулі — пробиті й згорнуті під рядком: квиток на згадку, а не в черзі з тими, що попереду.
+    var past: [WalletTicket] = []
     @State private var choosing = false
     @State private var files = false
     @State private var photos = false
     @State private var photo: PhotosPickerItem?
-    @State private var failed = false
+    @State private var showsPast = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.md) {
@@ -355,6 +501,25 @@ struct TicketsSection: View {
                         .buttonStyle(PressableStyle())
                 }
             }
+            if !past.isEmpty {
+                Button { withMotion { showsPast.toggle() } } label: {
+                    HStack(spacing: Space.sm) {
+                        Text(Copy.wallet_past("\(past.count)")).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
+                        Spacer(minLength: 0)
+                        PoruchIcon(glyph: PoruchIcons.chevronDown, size: 16).foregroundStyle(Palette.inkTertiary)
+                            .rotationEffect(.degrees(showsPast ? 180 : 0))
+                    }
+                    .tapTarget()
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(showsPast ? .isSelected : [])
+                if showsPast {
+                    ForEach(past, id: \.id) { ticket in
+                        Button { model.root.shownTicket = TicketRoute(id: ticket.id) } label: { WalletTicketCard(ticket: ticket, punched: true) }
+                            .buttonStyle(PressableStyle())
+                    }
+                }
+            }
         }
         .confirmationDialog(Copy.wallet_add_title, isPresented: $choosing) {
             Button(Copy.wallet_from_files) { files = true }
@@ -362,21 +527,17 @@ struct TicketsSection: View {
         }
         .fileImporter(isPresented: $files, allowedContentTypes: [.pdf, .image]) { result in
             guard case .success(let url) = result else { return }
-            Task {
-                if let ticket = await TicketFiles.load(url, app: model.app, origin: "picker") { model.root.ticketImport = ticket } else { failed = true }
-            }
+            TicketFiles.intake(model) { await TicketFiles.load(url, app: model.app, origin: "picker") }
         }
         .photosPicker(isPresented: $photos, selection: $photo, matching: .images)
         .onChange(of: photo) { _, item in
             guard let item else { return }
             photo = nil
-            Task {
-                guard let data = try? await item.loadTransferable(type: Data.self),
-                      let ticket = await TicketFiles.load(image: data, app: model.app) else { failed = true; return }
-                model.root.ticketImport = ticket
+            TicketFiles.intake(model) {
+                guard let data = try? await item.loadTransferable(type: Data.self) else { return nil }
+                return await TicketFiles.load(image: data, app: model.app)
             }
         }
-        .alert(Copy.wallet_failed, isPresented: $failed) { Button(Copy.close, role: .cancel) {} }
     }
 }
 
@@ -384,10 +545,12 @@ struct TicketsSection: View {
 /// Чорнило, а не колір жанру: це вже не афіша, а квиток у руці, і в кіно жанру нема.
 struct WalletTicketCard: View {
     let ticket: WalletTicket
+    /// Минулий: пробитий, як минулі події афіші.
+    var punched = false
 
     var body: some View {
         let date = parseEventDate(ticket.startsAt)
-        Ticket(stubColor: Palette.ink, stubLength: 84) {
+        Ticket(stubColor: Palette.ink, stubLength: 84, punched: punched) {
             VStack(alignment: .leading, spacing: Space.xs) {
                 Text(ticket.title).font(PoruchFont.brandTitle3).foregroundStyle(Palette.ink).lineLimit(2)
                     .multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)

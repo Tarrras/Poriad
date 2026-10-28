@@ -21,6 +21,7 @@ import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 import com.tom_roush.pdfbox.pdmodel.PDDocument
 import com.tom_roush.pdfbox.text.PDFTextStripper
 import java.io.File
+import java.security.MessageDigest
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -35,6 +36,8 @@ data class TicketImport(
     val preview: Bitmap?,
     /** `share` — «Поділитися» чи «Відкрити за допомогою», `picker` — вибір у «Моїх подіях». */
     val source: String,
+    /** SHA-256 файлу: той самий квиток удруге не додається. */
+    val fingerprint: String,
 )
 
 /**
@@ -84,8 +87,12 @@ object TicketFiles {
         }
         val (text, pages, preview) = read
         val draft = app.readTicket(text)
+        val fingerprint = MessageDigest.getInstance("SHA-256").digest(target.readBytes()).joinToString("") { "%02x".format(it) }
         // Сторінка на квиток (Multiplex), а на одній сторінці буває кілька місць.
-        TicketImport(id, name, if (pdf) TicketKind.PDF else TicketKind.IMAGE, draft, maxOf(if (pdf) pages else 1, draft.seats.size), preview, source)
+        TicketImport(
+            id, name, if (pdf) TicketKind.PDF else TicketKind.IMAGE, draft, maxOf(if (pdf) pages else 1, draft.seats.size), preview, source,
+            fingerprint
+        )
     }
 
     private fun readPdf(context: Context, file: File): Triple<String, Int, Bitmap?> =
@@ -96,7 +103,7 @@ object TicketFiles {
                         renderer.openPage(index).use { page -> page.textContents.joinToString("\n") { it.text } }
                     }
                 } else legacyText(context, file)
-                val preview = if (renderer.pageCount > 0) renderer.openPage(0).use { render(it, 900) } else null
+                val preview = if (renderer.pageCount > 0) renderer.openPage(0).use { trimmed(render(it, 900)) } else null
                 Triple(text, renderer.pageCount, preview)
             }
         }
@@ -110,16 +117,24 @@ object TicketFiles {
         PDDocument.load(file).use { PDFTextStripper().getText(it) }
     }.onFailure { PoruchLog.report("wallet", "pdfbox failed", it) }.getOrDefault("")
 
-    /** Сторінки квитка для показу на весь екран: PDF — кожна сторінка, знімок — він сам. */
-    suspend fun pages(context: Context, ticket: WalletTicket, width: Int): List<Bitmap> = withContext(Dispatchers.IO) {
+    /** Скільки сторінок показати на весь екран: PDF — кожна сторінка, знімок — він сам. */
+    suspend fun pageCount(context: Context, ticket: WalletTicket): Int = withContext(Dispatchers.IO) {
+        if (ticket.kind != TicketKind.PDF) return@withContext 1
+        runCatching {
+            ParcelFileDescriptor.open(file(context, ticket.file), ParcelFileDescriptor.MODE_READ_ONLY).use { PdfRenderer(it).use { r -> r.pageCount } }
+        }.getOrDefault(0)
+    }
+
+    /** Одна сторінка на весь екран — коли до неї догорнули, а не всі десять разом. */
+    suspend fun page(context: Context, ticket: WalletTicket, index: Int, width: Int): Bitmap? = withContext(Dispatchers.IO) {
         val target = file(context, ticket.file)
         runCatching {
             if (ticket.kind == TicketKind.PDF) {
                 ParcelFileDescriptor.open(target, ParcelFileDescriptor.MODE_READ_ONLY).use { descriptor ->
-                    PdfRenderer(descriptor).use { renderer -> (0 until renderer.pageCount).map { i -> renderer.openPage(i).use { render(it, width) } } }
+                    PdfRenderer(descriptor).use { renderer -> renderer.openPage(index).use { render(it, width) } }
                 }
-            } else listOfNotNull(BitmapFactory.decodeFile(target.path))
-        }.getOrDefault(emptyList())
+            } else BitmapFactory.decodeFile(target.path)
+        }.getOrNull()
     }
 
     /**
@@ -132,7 +147,7 @@ object TicketFiles {
                 val folder = File(context.cacheDir, "send").apply { mkdirs() }
                 val source = file(context, ticket.file)
                 if (ticket.kind == TicketKind.PDF) {
-                    val bitmap = pages(context, ticket, 1400).getOrNull(page) ?: return@runCatching null
+                    val bitmap = TicketFiles.page(context, ticket, page, 1400) ?: return@runCatching null
                     val out = File(folder, "Квиток ${page + 1}.pdf")
                     // Растр тексту не має: унизу — справжній текст, і отримувач бачить квиток розібраним, а не порожнім.
                     val footer = footer(ticket, page)
@@ -172,6 +187,25 @@ object TicketFiles {
         }.getOrNull()
         val seat = ticket.seats.getOrNull(page)?.let { seat -> seat.row?.let { "Ряд $it Місце ${seat.seat}" } ?: "Місце ${seat.seat}" }
         return listOfNotNull("Назва: ${ticket.title}", start?.let { "Початок: $it" }, ticket.place?.let { "Майданчик: $it" }, seat)
+    }
+
+    /** Прев'ю без білих полів: квиток часто — смужка на аркуші A4, і в шторці інакше видно лише папір. */
+    private fun trimmed(bitmap: Bitmap): Bitmap {
+        val w = bitmap.width
+        val h = bitmap.height
+        val pixels = IntArray(w * h).also { bitmap.getPixels(it, 0, w, 0, 0, w, h) }
+        var minX = w; var minY = h; var maxX = -1; var maxY = -1
+        for (y in 0 until h step 2) for (x in 0 until w step 2) {
+            val c = pixels[y * w + x]
+            if (Color.red(c) < 235 || Color.green(c) < 235 || Color.blue(c) < 235) {
+                minX = minOf(minX, x); maxX = maxOf(maxX, x); minY = minOf(minY, y); maxY = maxOf(maxY, y)
+            }
+        }
+        if (maxX < 0) return bitmap
+        val pad = w / 30
+        val x0 = (minX - pad).coerceAtLeast(0)
+        val y0 = (minY - pad).coerceAtLeast(0)
+        return Bitmap.createBitmap(bitmap, x0, y0, (maxX + pad).coerceAtMost(w) - x0, (maxY + pad).coerceAtMost(h) - y0)
     }
 
     /** Квиток — папір: білий під сторінкою, інакше прозорий PDF лягає на темне тло, і QR не читається. */

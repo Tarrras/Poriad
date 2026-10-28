@@ -47,7 +47,7 @@ import GoogleSignIn
                 .onOpenURL { url in
                     // Файл квитка з «Поділитися» чи «Відкрити в…» (docs/ticket-wallet.md): копіюємо, читаємо, питаємо.
                     if url.isFileURL {
-                        Task { if let ticket = await TicketFiles.load(url, app: model.app, origin: "share") { model.root.ticketImport = ticket } }
+                        TicketFiles.intake(model) { await TicketFiles.load(url, app: model.app, origin: "share") }
                         return
                     }
                     // Повернення з вікна входу Google — його URL-схема, не наша.
@@ -357,7 +357,15 @@ struct RootView: View {
             NavigationStack { AuthView(reason: sheet.reason) }
         }
         .sheet(isPresented: Binding(get: { root.passwordRecovery }, set: { _ in })) { NewPasswordView() }
-        .sheet(item: Binding(get: { root.ticketImport }, set: { root.ticketImport = $0 })) { TicketImportSheet(ticket: $0) }
+        .sheet(
+            item: Binding(get: { root.ticketIntake }, set: { root.ticketIntake = $0 }),
+            onDismiss: { if let next = root.ticketNext { root.ticketNext = nil; root.shownTicket = next } }
+        ) { TicketIntakeSheet(intake: $0) }
+        .onChange(of: root.ticketAdded) { _, added in
+            guard added else { return }
+            tab = 2
+            minePath = NavigationPath()
+        }
         .fullScreenCover(item: Binding(get: { root.shownTicket }, set: { root.shownTicket = $0 })) { TicketViewer(ticketID: $0.id) }
         .notice(root.notice?.presented) { model.app.clearNotice() }
     }

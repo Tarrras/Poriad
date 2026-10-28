@@ -42,8 +42,11 @@
 
 ### Підтвердження
 
-Шторка «Квиток»: першою сторінкою прев'ю, під ним знайдена подія («Це вона?» — квиток афіші з корінцем) або поля
-«Назва», «Місце», «Коли», заповнені розбором. Одна дія — «Додати». Не розібрали нічого — порожні поля, а не помилка.
+Шторка «Квиток» відкривається одразу з «Читаємо квиток…»: pdfbox на старому Android читає кілька секунд. Далі — першою
+сторінкою прев'ю, обрізане до квитка, під ним знайдена подія (рядок «Квиток на цю подію» з перемикачем) або поля
+«Назва», «Місце», «Коли», заповнені розбором. Одна дія — «Додати», після неї — «Мої події» → «Іду». Не розібрали
+нічого — порожні поля, а не помилка. Той самий файл удруге (`WalletTicket.fingerprint`, SHA-256) — «Цей квиток уже є» з
+«Показати квиток». Не PDF і не знімок — «Не вдалося відкрити файл. Підійде PDF або знімок квитка.»
 
 ### Де живе
 
@@ -54,16 +57,17 @@
 
 ### Показ
 
-- «Мої події» → «Іду»: квиток із гліфом квитка й «2 квитки». Минулий — пробитий, як решта минулих.
+- «Мої події» → «Іду»: квиток із гліфом квитка й «2 квитки». Минулий (через 3 год після початку) лишається на згадку:
+  пробитий, під згорнутим рядком «Минулі квитки · N».
 - Деталі події афіші та екран квитка без афіші: «Ваші квитки» — сторінки на весь екран, яскравість угору на час
   показу QR, гортання між квитками.
-- День події: план на головній у «Ваше», як будь-який план.
+- День події: «Квитки на сьогодні» першою секцією головної — і в гостя, і для кіно без афіші (`HomeScreenState.todayTickets`).
 - «Видалити квиток» — файл і запис зникають з телефона; закладка лишається.
 
 ## Хвиля 2. Квиток на двох
 
 - Квитків більше одного → біля кожного «Надіслати». Іде окремий PDF однієї сторінки (Android — растр сторінки, QR
-  читається) і текст: що, де, коли й посилання — `poriad.app/e/{id}` для афіші, для кіно — лише текст.
+  читається) і текст: що, де, коли й посилання — `poriad.app/e/{id}` для афіші, для кіно — `poriad.app`.
 - Після додавання квитка на кількох — «Ви йдете не самі: надіслати квиток?» з тими самими кнопками.
 - Отриманий файл — звичайний вхідний квиток: людина відкриває його в «Поряд» тим самим «Поділитися».
 
@@ -96,13 +100,16 @@ safety це не збір (дані не залишають пристрій); �
 - core/domain `Wallet.kt`: `WalletTicket`, `TicketReader`, `TicketMatch`, `TicketStore`; тест `WalletTest` (Multiplex,
   Concert.ua, Karabas, дата покупки, «Шоу …», рік, сеанс серії, надіслана сторінка). `ReminderRules.tickets` — `ticket:…`.
 - core/data `LocalTicketStore` (`device:tickets`). shared: `AppState.tickets`, `PoruchApp.readTicket` / `ticketMatch` /
-  `ticketStartMillis` / `addTicket` / `removeTicket` / `ticketShown` / `ticketSent`, `MyEventsScreenState.tickets`;
-  тест `PoruchAppTest.aTicketLivesOnThePhone`.
-- iOS `Features/Wallet/TicketWallet.swift` (`TicketFiles`, `TicketImportSheet`, `TicketViewer`, `TicketsSection`,
-  `WalletTicketCard`); `Info.plist` — `CFBundleDocumentTypes`; `onOpenURL` з файлом; `RootScreenModel.ticketImport` /
+  `ticketStartMillis` / `addTicket` / `ticketWithFingerprint` / `removeTicket` / `ticketShown` / `ticketSent`,
+  `MyEventsScreenState.tickets` і `pastTickets`, `HomeScreenState.todayTickets`; тест `PoruchAppTest.aTicketLivesOnThePhone`.
+- iOS `Features/Wallet/TicketWallet.swift` (`TicketFiles.intake`, `TicketIntake`, `TicketIntakeSheet`,
+  `TicketImportSheet`, `TicketViewer`, `TicketsSection`, `TodayTickets`, `WalletTicketCard`); `Info.plist` —
+  `CFBundleDocumentTypes`; `onOpenURL` з файлом; `RootScreenModel.ticketIntake` / `ticketNext` / `ticketAdded` /
   `shownTicket`.
-- Android `platform/TicketFiles.kt`, `feature/wallet/TicketWallet.kt`; маніфест — `SEND` / `VIEW` і `FileProvider`
-  (`res/xml/shared_files.xml`); `MainActivity.handle`.
+- Android `platform/TicketFiles.kt`, `feature/wallet/TicketWallet.kt` (`WalletUi.intake`, `TicketIntakeSheet`,
+  `TodayTickets`); маніфест — `SEND` / `VIEW` і `FileProvider` (`res/xml/shared_files.xml`); `MainActivity.handle`.
+  pdfbox везе таблиці CJK-кодувань (1,2 МБ стиснених) — `androidResources.ignoreAssetsPatterns` у
+  `androidApp/build.gradle.kts` лишає лише Identity-H/V.
 
 Обмеження першої версії:
 - Знімок на Android — без тексту (поля заповнює людина). PDF, надісланий з Android, — растр сторінки з

@@ -7,6 +7,7 @@ import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
+import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.Serializable
 
 /**
@@ -29,11 +30,17 @@ data class WalletTicket(
     val seats: List<TicketSeat> = emptyList(),
     val eventId: String? = null,
     val addedAt: String,
+    /** SHA-256 файлу: той самий квиток удруге — «Цей квиток уже є», а не два однакові. */
+    val fingerprint: String? = null,
 ) {
     val startInstant: Instant? get() = runCatching { Instant.parse(startsAt) }.getOrNull()
 
     /** Подія вже минула: квиток лишається пробитим, як інші минулі плани. */
     fun isPast(now: Instant): Boolean = startInstant?.let { it + PAST_AFTER < now } ?: false
+
+    /** Квиток на сьогодні, що ще не минув: головна ставить його першим (docs/ticket-wallet.md). */
+    fun isToday(now: Instant, zone: TimeZone): Boolean =
+        !isPast(now) && startInstant?.toLocalDateTime(zone)?.date == now.toLocalDateTime(zone).date
 
     companion object {
         /** Квиток «минулий» через 3 години після початку: кіно й концерт ще йдуть, а людина вже всередині. */

@@ -41,7 +41,9 @@ data class MyEventsScreenState(
     /** Люди, за якими стежу: початковий стан перемикача в шторці оцінки. */
     val followedOrganizers: Set<String> = emptySet(),
     /** Квитки з телефона, що попереду (docs/ticket-wallet.md): секція «Квитки» згори, і в гостя теж. */
-    val tickets: List<WalletTicket> = emptyList()
+    val tickets: List<WalletTicket> = emptyList(),
+    /** Минулі квитки, свіжі першими: пробиті під «Минулі квитки», нічого не зникає. */
+    val pastTickets: List<WalletTicket> = emptyList()
 ) {
     fun isWaitlisted(id: String): Boolean = id in waitlistedIds
     fun myScore(id: String): Int? = myRatings[id]
@@ -101,7 +103,8 @@ class MyEventsPresenter(
         mutating = shared.mutating,
         unread = shared.chatUnread.associate { it.eventId to it.unread },
         followedOrganizers = shared.library.follows.filter { it.kind == FollowKind.ORGANIZER }.mapTo(HashSet()) { it.targetId },
-        tickets = shared.tickets.filterNot { it.isPast(clock.now()) }
+        tickets = shared.tickets.filterNot { it.isPast(clock.now()) },
+        pastTickets = shared.tickets.filter { it.isPast(clock.now()) }.reversed()
     )
 
     private companion object {

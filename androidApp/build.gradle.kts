@@ -73,6 +73,15 @@ android {
         debug { }
     }
     buildFeatures { compose = true; buildConfig = true; resValues = true }
+    // pdfbox (текст PDF на Android 8–14) везе 3,3 МБ таблиць CJK-кодувань; квитки українські — лишаємо Identity-H/V.
+    // Шаблони — за іменем файлу, а не шляхом: інших assets з такими іменами нема. Перші десять — типові aapt.
+    androidResources {
+        ignoreAssetsPatterns += listOf(
+            "!.svn", "!.git", "!.ds_store", "!*.scc", ".*", "<dir>_*", "!CVS", "!thumbs.db", "!picasa.ini", "!*~",
+            "83pv-*", "90*", "Add-RKSJ-*", "Adobe-*", "B5pc-*", "CNS-EUC-*", "ETen*", "EUC-*", "Ext-RKSJ-*", "GB*",
+            "HKscs-*", "KSC*", "Uni*", "<file>H", "<file>V"
+        )
+    }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
 }
 dependencies {

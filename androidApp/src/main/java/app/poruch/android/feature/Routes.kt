@@ -31,12 +31,14 @@ import app.poruch.android.feature.editor.*
 import app.poruch.android.feature.explore.*
 import app.poruch.android.feature.home.*
 import app.poruch.android.feature.mine.*
+import app.poruch.android.feature.wallet.WalletUi
 import app.poruch.android.feature.onboarding.*
 import app.poruch.android.mvi.activityStoreOwner
 import app.poruch.android.navigation.*
 import app.poruch.android.platform.*
 import app.poruch.domain.CityResult
 import app.poruch.domain.HomeLocation
+import app.poruch.domain.MyEventsTab
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
@@ -149,6 +151,12 @@ fun MyEventsRoute(navigator: Navigator) {
             MyEventsEffect.SignIn -> navigator.open(Auth())
             MyEventsEffect.CreateEvent -> navigator.createEvent()
         }
+    }
+    // Щойно доданий квиток лежить у «Іду» — туди й перемикаємо, навіть якщо людина стояла в іншому розрізі.
+    LaunchedEffect(WalletUi.added) {
+        if (!WalletUi.added) return@LaunchedEffect
+        WalletUi.added = false
+        if (model.state.value.screen.signedIn) model.dispatch(MyEventsIntent.PickTab(MyEventsTab.GOING))
     }
     MyEventsScreen(model.state.collectAsStateWithLifecycle().value, model::dispatch)
 }

@@ -95,6 +95,11 @@ class PoruchSheetScope internal constructor(
             if (!state.isVisible) { onDismiss(); then() }
         }
     }
+
+    /** Вміст виріс уже відкритої шторки (читання → розібраний квиток): шторка сама лишається на старій висоті. */
+    fun expand() {
+        scope.launch { state.expand() }
+    }
 }
 
 /** Питання з двома відповідями. Деструктивна — кнопка, вихід — тихіша під нею. */

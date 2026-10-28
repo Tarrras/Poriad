@@ -48,6 +48,14 @@ struct MyEventsView: View, Equatable {
         .background(Palette.canvas)
         .toolbar(.hidden, for: .navigationBar)
         .onChange(of: tab) { _, _ in allPast = false }
+        // Щойно доданий квиток лежить у «Іду» — туди й перемикаємо, навіть якщо людина стояла в іншому розрізі.
+        .onChange(of: model.root.ticketAdded, initial: true) { _, added in
+            guard added else { return }
+            tabChosen = true
+            if signedIn { tab = .going }
+            // Скидаємо після цього оновлення: корінь у тому самому мусить ще побачити `true` і перемкнути вкладку.
+            Task { model.root.ticketAdded = false }
+        }
         // Гість лише зберігає (docs/guest-saves.md): розрізів у нього нема, рядки — закладки.
         .onChange(of: signedIn, initial: true) { _, signed in if !signed { tab = .saved } }
         // Відкриваємося там, де щось попереду: організатор без власних планів не бачить порожнє «Іду».
@@ -153,7 +161,7 @@ struct MyEventsView: View, Equatable {
     private var showsTickets: Bool { !signedIn || tab == .going }
 
     @ViewBuilder private var tickets: some View {
-        if showsTickets { TicketsSection(tickets: view.tickets) }
+        if showsTickets { TicketsSection(tickets: view.tickets, past: view.pastTickets) }
     }
 
     @ViewBuilder private func content(_ board: MyEventsBoard?) -> some View {

@@ -56,7 +56,7 @@ import app.poruch.android.navigation.*
 import app.poruch.android.platform.NotificationPermission
 import app.poruch.android.ui.*
 import app.poruch.android.feature.home.DeckScreen
-import app.poruch.android.feature.wallet.TicketImportSheet
+import app.poruch.android.feature.wallet.TicketIntakeSheet
 import app.poruch.android.feature.wallet.TicketViewer
 import app.poruch.android.feature.wallet.WalletUi
 import app.poruch.android.platform.TicketFiles
@@ -136,9 +136,7 @@ class MainActivity : ComponentActivity(), AndroidScopeComponent {
         if (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0) return
         // Квиток з «Поділитися» чи «Відкрити за допомогою» (docs/ticket-wallet.md): копіюємо, читаємо, питаємо.
         TicketFiles.uriOf(intent)?.let { uri ->
-            lifecycleScope.launch {
-                TicketFiles.load(this@MainActivity, uri, app, "share")?.let { WalletUi.importing = it } ?: toast(R.string.wallet_failed)
-            }
+            WalletUi.intake(this, app, lifecycleScope) { TicketFiles.load(this@MainActivity, uri, app, "share") }
             return
         }
         val data = intent.data
@@ -311,7 +309,7 @@ fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
                 }
             }
             // Квиток, що прийшов файлом, і квиток на весь екран — поверх будь-якої вкладки (docs/ticket-wallet.md).
-            WalletUi.importing?.let { TicketImportSheet(app, it) { WalletUi.importing = null } }
+            WalletUi.intake?.let { TicketIntakeSheet(app, it, onAdded = { navigator.reset(Mine) }) { WalletUi.intake = null } }
             WalletUi.shown?.let { TicketViewer(app, it) { WalletUi.shown = null } }
         }
     }

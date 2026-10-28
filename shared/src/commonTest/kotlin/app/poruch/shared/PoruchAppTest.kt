@@ -1190,8 +1190,9 @@ class PoruchAppTest {
         val guest=GuestSaves(); val store=Tickets(); val auth=Auth().apply { session.value=null }
         val app=app(events,backgroundScope,auth,guestSaves=guest,tickets=store); runCurrent(); advanceTimeBy(1000); runCurrent()
         val start=kotlin.time.Instant.parse(later).toEpochMilliseconds()
-        app.addTicket("t1","t1.pdf",TicketKind.PDF,"Концерт",null,start,2,listOf(TicketSeat("7","12"),TicketSeat("7","13")),"e1","share","full"); runCurrent()
-        app.addTicket("t2","t2.pdf",TicketKind.PDF," Дюна ","Multiplex",start-3_600_000,1,emptyList(),null,"picker","partial"); runCurrent()
+        app.addTicket("t1","t1.pdf",TicketKind.PDF,"Концерт",null,start,2,listOf(TicketSeat("7","12"),TicketSeat("7","13")),"e1","share","full","abc"); runCurrent()
+        app.addTicket("t2","t2.pdf",TicketKind.PDF," Дюна ","Multiplex",start-3_600_000,1,emptyList(),null,"picker","partial",null); runCurrent()
+        assertEquals("t1",app.ticketWithFingerprint("abc")?.id,"той самий файл впізнається")
         assertEquals(listOf("t2","t1"),app.state.value.tickets.map { it.id },"за часом початку")
         assertEquals("Дюна",store.stored.first().title)
         assertTrue(app.state.value.isSaved("e1"),"квиток на афішу ставить закладку")

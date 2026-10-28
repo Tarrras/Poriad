@@ -58,7 +58,11 @@ extension EnvironmentValues {
     private(set) var passwordRecovery = false
     private(set) var notice: AppNotice?
     /// Квиток, що прийшов файлом, — шторка підтвердження поверх будь-якої вкладки (docs/ticket-wallet.md).
-    var ticketImport: TicketImport?
+    var ticketIntake: TicketIntake?
+    /// Квиток на весь екран, коли шторка закриється: «Показати квиток» з дубля.
+    var ticketNext: TicketRoute?
+    /// Квиток щойно додано: корінь веде в «Мої події», а ті — у «Іду», де він лежить. «Мої події» скидають.
+    var ticketAdded = false
     /// Квиток на весь екран: з нагадування «за годину» чи з «Моїх подій».
     var shownTicket: TicketRoute?
 

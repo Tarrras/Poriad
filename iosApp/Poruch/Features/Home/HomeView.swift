@@ -96,6 +96,8 @@ struct HomeView: View, Equatable {
                             message: Copy.searching_scope("\(view.searchScope)")
                         ).padding(.horizontal, Space.page).padding(.top, Space.section)
                     } else {
+                        // День події: квиток — перше, що відкривають на вході.
+                        if !view.todayTickets.isEmpty { TodayTickets(tickets: view.todayTickets) }
                         // Серце продукту — зустрічі від людей, тож вони й порожній квиток «Організувати подію» стоять першими.
                         // Афіша нижче — опора. Активності не вигадуємо: коли зустрічей мало, секцію веде порожній квиток.
                         HomePeopleSection(view: view, open: open, showPeople: showPeople, createEvent: createEvent, openProfile: openProfile)

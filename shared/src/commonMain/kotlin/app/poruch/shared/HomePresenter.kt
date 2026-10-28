@@ -1,6 +1,7 @@
 package app.poruch.shared
 
 import app.poruch.domain.ArtistHit
+import app.poruch.domain.WalletTicket
 import app.poruch.domain.ChatUnread
 import app.poruch.domain.CityResult
 import app.poruch.domain.DistrictHit
@@ -68,6 +69,8 @@ data class HomeScreenState(
     val moreWaiting: Int = 0,
     /** «Від людей»: зустрічі з вільним місцем окремою рейкою, коли їх набралось досить ([HomeRules.people]); інакше порожньо. */
     val people: List<FeedEntry> = emptyList(),
+    /** Квитки з телефона на сьогодні (docs/ticket-wallet.md): першими на головній, і кіно, і в гостя. */
+    val todayTickets: List<WalletTicket> = emptyList(),
     /** «Шукають компанію»: афіші, на які хтось хоче піти з компанією ([HomeRules.company]). Порожньо — рейки нема. */
     val company: List<CompanyEntry> = emptyList(),
     /** «У місті»: [HomeRules.HERO_COUNT] великих карток, далі сітка, вже звужена [feedFilter]. */
@@ -161,7 +164,7 @@ class HomePresenter(
 
     private fun sameInputs(old: AppState, new: AppState): Boolean =
         old.home === new.home && old.library === new.library && old.chatUnread === new.chatUnread &&
-            old.city === new.city && old.session === new.session
+            old.city === new.city && old.session === new.session && old.tickets === new.tickets
 
     internal fun derive(shared: AppState, feedFilter: FeedFilter, now: Instant, zone: TimeZone): HomeScreenState {
         val zoneId = zone.id
@@ -224,6 +227,7 @@ class HomePresenter(
             moreWaiting = waiting.mapTo(HashSet()) { it.id }.count { it !in shown },
             people = people,
             company = company,
+            todayTickets = shared.tickets.filter { it.isToday(now, zone) },
             feed = all.take(HomeRules.HERO_COUNT) + HomeRules.apply(rest, filter, now, zoneId),
             chips = chips,
             feedFilter = filter,
