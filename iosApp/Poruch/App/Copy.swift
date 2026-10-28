@@ -119,6 +119,7 @@ enum Copy {
     static let deck_empty_body = "На мапі — усе місто, а «Для вас» підлаштується під те, що ви відкриваєте."
     static let deck_remind = "Нагадати мені"
     static let deck_finish = "Готово"
+    static let deck_more = "Детальніше"
     static let deck_row_subtitle = "Кілька подій під вас: «так» чи «ні»"
     static let digest_prompt_title = "Що поруч на вихідних?"
     static let digest_prompt_body = "Перед вихідними коротко скажемо, що варте уваги у вашому місті. Одне-два сповіщення на тиждень, вимкнути можна в профілі."

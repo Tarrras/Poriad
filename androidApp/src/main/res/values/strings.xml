@@ -150,6 +150,8 @@
   <string name="deck_empty_body">На мапі&#160;— усе місто, а «Для вас» підлаштується під те, що ви відкриваєте.</string>
   <string name="deck_remind">Нагадати мені</string>
   <string name="deck_finish">Готово</string>
+  <!-- Під описом картки стосу: шторка з повним описом, а стос лишається на тій самій картці. -->
+  <string name="deck_more">Детальніше</string>
   <string name="deck_row_subtitle">Кілька подій під вас: «так» чи «ні»</string>
   <string name="digest_prompt_title">Що поруч на вихідних?</string>
   <string name="digest_prompt_body">Перед вихідними коротко скажемо, що варте уваги у вашому місті. Одне-два сповіщення на тиждень, вимкнути можна в профілі.</string>

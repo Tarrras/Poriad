@@ -13,6 +13,7 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -31,6 +32,8 @@ import app.poruch.android.DIGEST_ASKED
 import app.poruch.android.PROMPTS
 import app.poruch.android.R
 import app.poruch.android.platform.NotificationPermission
+import app.poruch.android.platform.openLink
+import app.poruch.android.platform.toast
 import app.poruch.android.ui.*
 import app.poruch.domain.Event
 import app.poruch.shared.PoruchApp
@@ -57,6 +60,8 @@ fun DeckScreen(app: PoruchApp, cards: List<Event>, onDone: () -> Unit) {
     var flying by remember { mutableStateOf(false) }
     // Штамп «ЗБЕРЕЖЕНО» на квитку: 0 — нема, 1 — поставлено. Пружина дає штампу «удар» з легким відскоком.
     val stamp = remember { Animatable(0f) }
+    // Шторка з повним описом поточної картки: стос під нею чекає на тій самій картці.
+    var reading by remember { mutableStateOf(false) }
     val finished = index >= cards.size
     // Систему вже питали або дозволено (чи Android до 13, де питати нема про що): тоді наприкінці лише «Готово».
     val askable = remember { NotificationPermission(context).let { it.required && !it.granted() } }
@@ -90,6 +95,7 @@ fun DeckScreen(app: PoruchApp, cards: List<Event>, onDone: () -> Unit) {
         close(skipped = false)
     }
     BackHandler { close(skipped = !finished) }
+    if (reading && !finished) DeckDescriptionSheet(cards[index]) { reading = false }
 
     // На широкому вікні — колонка по центру, як решта екранів (ContentColumn): квиток на всю ширину планшета розтягувався.
     Box(Modifier.fillMaxSize().background(colors.canvas), contentAlignment = Alignment.TopCenter) { Column(
@@ -155,7 +161,7 @@ fun DeckScreen(app: PoruchApp, cards: List<Event>, onDone: () -> Unit) {
                                         }
                                 )
                             }
-                            About(cards[index])
+                            About(cards[index]) { reading = true }
                         }
                     }
                     Spacer(Modifier.weight(1f))
@@ -209,7 +215,7 @@ fun DeckScreen(app: PoruchApp, cards: List<Event>, onDone: () -> Unit) {
 
 /** Що це за подія: речення «що це», уривок опису й ціна — щоб «так» було рішенням, а не вгадуванням з назви. */
 @Composable
-private fun About(event: Event) {
+private fun About(event: Event, onMore: () -> Unit) {
     val colors = Poruch.colors
     val about = event.about
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
@@ -221,6 +227,39 @@ private fun About(event: Event) {
         }
         event.listing?.takeIf { it.isFree == true || it.priceMin != null }?.let {
             Text(listingPrice(it), style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary)
+        }
+        // Уривок обрізаний, а опис агента ховає опис продавця — повністю їх видно в шторці.
+        if (event.displayDescription.isNotBlank()) Row(
+            Modifier.heightIn(min = 44.dp).pressable(onClick = onMore),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.xs), verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(stringResource(R.string.deck_more), style = MaterialTheme.typography.labelLarge, color = colors.ink)
+            Icon(PoruchIcons.chevronRight, null, Modifier.size(14.dp), tint = colors.ink)
+        }
+    }
+}
+
+/** Повний опис картки стосу: «що це», опис агента й дозволений опис продавця з посиланням на джерело — як на деталях. */
+@Composable
+private fun DeckDescriptionSheet(event: Event, onDismiss: () -> Unit) {
+    val colors = Poruch.colors
+    val context = LocalContext.current
+    val pitch = event.pitch?.trim().orEmpty()
+    val description = event.displayDescription.trim()
+    PoruchSheet(onDismiss) {
+        Column(
+            Modifier.verticalScroll(rememberScrollState()).padding(horizontal = Spacing.page).padding(bottom = Spacing.section),
+            verticalArrangement = Arrangement.spacedBy(Spacing.md)
+        ) {
+            Text(event.displayTitle, style = PoruchType.brandTitle2, color = colors.ink)
+            event.about.line?.let { Text(it, style = MaterialTheme.typography.titleSmall, color = colors.ink) }
+            if (pitch.isNotEmpty()) Text(pitch, style = MaterialTheme.typography.bodyLarge, color = colors.ink)
+            if (description.isNotEmpty()) Text(description, style = PoruchType.lead, color = colors.inkSecondary)
+            event.listing?.canonicalUrl?.takeIf { it.startsWith("https://") }?.let { url ->
+                GhostButton(stringResource(R.string.listing_read_more), {
+                    if (!context.openLink(url)) context.toast(R.string.link_unavailable)
+                }, tone = colors.brand)
+            }
         }
     }
 }

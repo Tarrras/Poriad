@@ -25,6 +25,8 @@ struct DeckView: View {
     @State private var stamp: CGFloat = 0
     /// Систему вже питали або дозволено: тоді наприкінці лише «Готово».
     @State private var askable = false
+    /// Шторка з повним описом поточної картки: стос під нею чекає на тій самій картці.
+    @State private var reading = false
 
     private var finished: Bool { index >= cards.count }
 
@@ -46,6 +48,7 @@ struct DeckView: View {
         .padding(.horizontal, Space.page).padding(.top, Space.md).padding(.bottom, Space.lg)
         .background(Palette.canvas.ignoresSafeArea())
         .task { askable = await NotificationPermission.askable() }
+        .sheet(isPresented: $reading) { if index < cards.count { DeckDescription(event: cards[index]) } }
         // Стос із головної теж: інакше перше «Так» відкривало системне питання посеред стосу.
         .onAppear { ReminderPrompt.paused = true }
         .onDisappear { ReminderPrompt.paused = false }
@@ -120,6 +123,17 @@ struct DeckView: View {
             if let listing = event.listing, listing.isFree?.boolValue == true || listing.priceMin != nil {
                 Text(listingPrice(listing)).font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
             }
+            // Уривок обрізаний, а опис агента ховає опис продавця — повністю їх видно в шторці.
+            if !event.displayDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Button { reading = true } label: {
+                    HStack(spacing: Space.xs) {
+                        Text(Copy.deck_more).font(PoruchFont.button)
+                        PoruchIcon(glyph: PoruchIcons.chevronRight, size: 14)
+                    }
+                    .foregroundStyle(Palette.ink).tapTarget()
+                }
+                .buttonStyle(.plain)
+            }
         }
     }
 
@@ -190,5 +204,32 @@ struct DeckView: View {
     private func close(skipped: Bool) {
         model.app.deckDone(yesCount: Int32(kept.count), shown: Int32(min(index + (skipped ? 1 : 0), cards.count)), skipped: skipped)
         onDone()
+    }
+}
+
+/// Повний опис картки стосу: «що це», опис агента й дозволений опис продавця з посиланням на джерело — як на деталях.
+private struct DeckDescription: View {
+    let event: Event
+    var body: some View {
+        let pitch = event.pitch?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let description = event.displayDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+        ScrollView {
+            VStack(alignment: .leading, spacing: Space.md) {
+                Text(event.displayTitle).font(PoruchFont.brandTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
+                if let line = event.about.line { Text(line).font(PoruchFont.cardName).foregroundStyle(Palette.ink) }
+                if !pitch.isEmpty { Text(pitch).font(PoruchFont.bodyText).foregroundStyle(Palette.ink) }
+                if !description.isEmpty {
+                    Text(description).font(PoruchFont.lead).foregroundStyle(Palette.inkSecondary).lineSpacing(5)
+                }
+                if let url = sourceURL(event) {
+                    Link(Copy.listing_read_more, destination: url).font(PoruchFont.button).foregroundStyle(Palette.brand)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, Space.page).padding(.top, Space.xl).padding(.bottom, Space.section)
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+        .presentationBackground(Palette.canvas)
     }
 }
