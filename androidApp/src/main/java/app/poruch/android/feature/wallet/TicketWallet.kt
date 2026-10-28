@@ -24,7 +24,18 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
@@ -53,6 +64,8 @@ import app.poruch.android.TICKET_ASKED
 import app.poruch.android.platform.NotificationPermission
 import app.poruch.android.platform.TicketFiles
 import app.poruch.android.platform.TicketImport
+import app.poruch.android.platform.TicketSlide
+import app.poruch.domain.TicketKind
 import app.poruch.android.platform.toast
 import app.poruch.android.ui.*
 import app.poruch.domain.EventLinks
@@ -287,15 +300,20 @@ fun TicketViewer(app: PoruchApp, ticketId: String, invite: Boolean, onClose: () 
     val state by app.state.collectAsState()
     val ticket = state.tickets.firstOrNull { it.id == ticketId } ?: return
     val width = with(LocalDensity.current) { LocalConfiguration.current.screenWidthDp.dp.roundToPx() }
-    var count by remember { mutableIntStateOf(0) }
+    var slides by remember { mutableStateOf<List<TicketSlide>>(emptyList()) }
+    val count = slides.size
+    /** «Весь квиток» замість коду — коли касир хоче бачити місце й зал. */
+    var whole by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf(false) }
-    /** «Ви йдете не самі» — до першого «Надіслати». */
+    /** Підказка про кілька квитків — до першого «Надіслати». */
     var sent by remember { mutableStateOf(false) }
     LaunchedEffect(ticketId) {
-        count = TicketFiles.pageCount(context, ticket)
+        slides = TicketFiles.slides(context, ticket)
         app.ticketShown(ticketId)
     }
+    /** Місце слайда — лише коли код на сторінці один: «Надіслати місце 13» віддає всю сторінку. */
+    fun alone(index: Int) = index < count && slides.count { it.page == slides[index].page } == 1
     Dialog(onClose, DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         // Яскравість — вікну шторки: поки квиток на екрані, сканер на вході читає QR і на мінімальній яскравості.
         val window = (LocalView.current.parent as? DialogWindowProvider)?.window
@@ -308,8 +326,6 @@ fun TicketViewer(app: PoruchApp, ticketId: String, invite: Boolean, onClose: () 
             verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
             val pager = rememberPagerState { count }
-            // Перший квиток зазвичай того, хто купував: «Надіслати» стоїть на другому.
-            LaunchedEffect(count) { if (invite && count > 1) pager.scrollToPage(1) }
             Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(ticket.title, style = PoruchType.brandTitle2, color = colors.ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -326,16 +342,24 @@ fun TicketViewer(app: PoruchApp, ticketId: String, invite: Boolean, onClose: () 
                 ) { Icon(PoruchIcons.close, null, Modifier.size(20.dp), tint = colors.ink) }
             }
             HorizontalPager(pager, Modifier.weight(1f).fillMaxWidth(), pageSpacing = Spacing.md) { index ->
-                // Сторінка малюється, коли до неї догорнули: PDF на десять квитків не тримає десять растрів.
-                var bitmap by remember(index) { mutableStateOf<Bitmap?>(null) }
-                LaunchedEffect(index) { bitmap = TicketFiles.page(context, ticket, index, width) }
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                // Слайд малюється, коли до нього догорнули: PDF на десять квитків не тримає десять растрів.
+                val slide = slides[index]
+                var bitmap by remember(index, whole) { mutableStateOf<Bitmap?>(null) }
+                LaunchedEffect(index, whole) { bitmap = TicketFiles.slideImage(context, ticket, slide, whole, (width * 2).coerceAtMost(2560)) }
+                Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
                     bitmap?.let {
-                        Image(
-                            it.asImageBitmap(), pageLabel(ticket, index, count),
-                            Modifier.fillMaxWidth().clip(RoundedCornerShape(Corner.md)).background(Color.White),
-                            contentScale = ContentScale.Fit
-                        )
+                        // Квиток — папір: білий під ним і вночі, інакше QR на темному тлі сканер не бере. Вирізку зі знімка
+                        // збільшуємо без згладжування: модулі коду лишаються чіткими квадратами.
+                        val crisp = slide.code != null && !whole && ticket.kind == TicketKind.IMAGE
+                        Zoomable(Modifier.weight(1f, fill = false)) {
+                            Image(
+                                it.asImageBitmap(), pageLabel(ticket, index, count),
+                                Modifier.fillMaxWidth().clip(RoundedCornerShape(Corner.md)).background(Color.White),
+                                contentScale = ContentScale.Fit, filterQuality = if (crisp) FilterQuality.None else FilterQuality.Low
+                            )
+                        }
+                        // Під карткою, а не на ній: на коді кнопка закрила б модулі.
+                        if (slide.code != null) GhostButton(stringResource(if (whole) R.string.wallet_code else R.string.wallet_whole), { whole = !whole })
                     } ?: CircularProgressIndicator(Modifier.size(24.dp), color = colors.ink, strokeWidth = 2.dp)
                 }
             }
@@ -353,10 +377,11 @@ fun TicketViewer(app: PoruchApp, ticketId: String, invite: Boolean, onClose: () 
             if (invite && !sent && count > 1) {
                 Text(stringResource(R.string.wallet_together), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
             }
-            val seat = pageSeat(ticket, pager.currentPage, count)
+            val seat = pageSeat(ticket, pager.currentPage, count)?.takeIf { alone(pager.currentPage) }
             SecondaryButton(seat?.let { stringResource(R.string.wallet_send_seat, it.seat) } ?: stringResource(R.string.wallet_send), {
+                val page = slides.getOrNull(pager.currentPage)?.page ?: return@SecondaryButton
                 scope.launch {
-                    if (TicketFiles.share(context, ticket, pager.currentPage, sendText)) { app.ticketSent(ticket.id); sent = true }
+                    if (TicketFiles.share(context, ticket, page, sendText)) { app.ticketSent(ticket.id); sent = true }
                     else context.toast(R.string.wallet_failed)
                 }
             }, Modifier.fillMaxWidth(), icon = PoruchIcons.share)
@@ -388,6 +413,35 @@ fun TicketViewer(app: PoruchApp, ticketId: String, invite: Boolean, onClose: () 
             onDismiss = { deleting = false }, tone = colors.danger
         )
     }
+}
+
+/**
+ * Наближення двома пальцями й подвійним дотиком: на касі QR можна ще збільшити. Одним пальцем без наближення жест не
+ * береться — сторінки гортаються як раніше. ponytail: без меж зсуву, квиток можна відвести за край; додати, якщо заважатиме.
+ */
+@Composable
+private fun Zoomable(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    var scale by remember { mutableFloatStateOf(1f) }
+    var offset by remember { mutableStateOf(Offset.Zero) }
+    Box(
+        modifier.clipToBounds()
+            .pointerInput(Unit) { detectTapGestures(onDoubleTap = { scale = if (scale > 1f) 1f else 2.5f; offset = Offset.Zero }) }
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false)
+                    do {
+                        val event = awaitPointerEvent()
+                        if (event.changes.size > 1 || scale > 1f) {
+                            scale = (scale * event.calculateZoom()).coerceIn(1f, 5f)
+                            offset = if (scale > 1f) offset + event.calculatePan() else Offset.Zero
+                            event.changes.forEach { if (it.positionChanged()) it.consume() }
+                        }
+                    } while (event.changes.any { it.pressed })
+                }
+            }
+            .graphicsLayer { scaleX = scale; scaleY = scale; translationX = offset.x; translationY = offset.y },
+        contentAlignment = Alignment.Center
+    ) { content() }
 }
 
 // ---- «Мої події»

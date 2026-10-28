@@ -543,7 +543,9 @@ enum Copy {
     static let wallet_today = "Квитки на сьогодні"
     static func wallet_page(_ a0: String, _ a1: String) -> String { "Квиток \(a0) з \(a1)" }
     static func wallet_send_seat(_ a0: String) -> String { "Надіслати місце \(a0)" }
-    static let wallet_together = "Ви йдете не самі: надішліть квиток тому, з ким ідете"
+    static let wallet_together = "Квитків кілька: на вході гортайте від коду до коду або надішліть квиток тому, з ким ідете"
+    static let wallet_whole = "Весь квиток"
+    static let wallet_code = "Лише код"
     static let wallet_update = "Зберегти"
     static let wallet_remind_hint = "Перед початком нагадаємо й покажемо квиток"
     static func wallet_seat(_ a0: String, _ a1: String) -> String { "Ряд \(a0), місце \(a1)" }

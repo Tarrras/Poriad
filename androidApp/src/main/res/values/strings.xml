@@ -629,7 +629,9 @@
   <string name="wallet_today">Квитки на сьогодні</string>
   <string name="wallet_page">Квиток %1$s з %2$s</string>
   <string name="wallet_send_seat">Надіслати місце %1$s</string>
-  <string name="wallet_together">Ви йдете не самі: надішліть квиток тому, з ким ідете</string>
+  <string name="wallet_together">Квитків кілька: на вході гортайте від коду до коду або надішліть квиток тому, з ким ідете</string>
+  <string name="wallet_whole">Весь квиток</string>
+  <string name="wallet_code">Лише код</string>
   <string name="wallet_update">Зберегти</string>
   <string name="wallet_remind_hint">Перед початком нагадаємо й покажемо квиток</string>
   <plurals name="wallet_count">

@@ -6,6 +6,8 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
+import android.graphics.Matrix
+import android.graphics.RectF
 import android.graphics.pdf.PdfDocument
 import android.graphics.pdf.PdfRenderer
 import android.net.Uri
@@ -17,6 +19,15 @@ import app.poruch.domain.TicketKind
 import app.poruch.domain.WalletTicket
 import app.poruch.shared.PoruchApp
 import androidx.core.content.FileProvider
+import androidx.exifinterface.media.ExifInterface
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.BinaryBitmap
+import com.google.zxing.DecodeHintType
+import com.google.zxing.MultiFormatReader
+import com.google.zxing.RGBLuminanceSource
+import com.google.zxing.common.HybridBinarizer
+import com.google.zxing.multi.GenericMultipleBarcodeReader
+import com.google.zxing.qrcode.detector.FinderPattern
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 import com.tom_roush.pdfbox.pdmodel.PDDocument
 import com.tom_roush.pdfbox.text.PDFTextStripper
@@ -38,6 +49,13 @@ data class TicketImport(
     val source: String,
     /** SHA-256 файлу: той самий квиток удруге не додається. */
     val fingerprint: String,
+)
+
+/** Що показати на весь екран: код квитка великим або сторінку, де коду не знайшли. */
+data class TicketSlide(
+    val page: Int,
+    /** Код у частках сторінки (0…1, згори зліва), щільно; null — показуємо сторінку. */
+    val code: RectF?,
 )
 
 /**
@@ -79,7 +97,7 @@ object TicketFiles {
             PoruchLog.report("wallet", "copy failed", it)
             return@withContext null
         }
-        val read = runCatching { if (pdf) readPdf(context, target) else Triple("", 1, BitmapFactory.decodeFile(target.path)) }
+        val read = runCatching { if (pdf) readPdf(context, target) else Triple("", 1, decodeUpright(target)) }
             .onFailure { PoruchLog.report("wallet", "read failed", it) }.getOrNull()
         if (read == null || read.second == 0 || read.third == null) {
             target.delete()
@@ -117,24 +135,138 @@ object TicketFiles {
         PDDocument.load(file).use { PDFTextStripper().getText(it) }
     }.onFailure { PoruchLog.report("wallet", "pdfbox failed", it) }.getOrDefault("")
 
-    /** Скільки сторінок показати на весь екран: PDF — кожна сторінка, знімок — він сам. */
-    suspend fun pageCount(context: Context, ticket: WalletTicket): Int = withContext(Dispatchers.IO) {
-        if (ticket.kind != TicketKind.PDF) return@withContext 1
+    /**
+     * Що гортати на вході: кожен код квитка окремо й великим (на аркуші їх буває кілька — по одному на людину), а
+     * сторінку без коду — цілою. Квиток часто — кут аркуша A4 з умовами й рекламою, і цілою сторінкою QR на екрані
+     * виходив міліметрів сім. Коди шукає ZXing на растрі 1600: QR у кутку A4 там ще читається.
+     */
+    suspend fun slides(context: Context, ticket: WalletTicket): List<TicketSlide> = withContext(Dispatchers.IO) {
+        fun slides(page: Int, bitmap: Bitmap?): List<TicketSlide> =
+            bitmap?.let(::codeBoxes).orEmpty().map { TicketSlide(page, it) }.ifEmpty { listOf(TicketSlide(page, null)) }
+        val target = file(context, ticket.file)
         runCatching {
-            ParcelFileDescriptor.open(file(context, ticket.file), ParcelFileDescriptor.MODE_READ_ONLY).use { PdfRenderer(it).use { r -> r.pageCount } }
-        }.getOrDefault(0)
+            if (ticket.kind != TicketKind.PDF) return@runCatching slides(0, decodeUpright(target))
+            ParcelFileDescriptor.open(target, ParcelFileDescriptor.MODE_READ_ONLY).use { descriptor ->
+                PdfRenderer(descriptor).use { renderer ->
+                    (0 until renderer.pageCount).flatMap { index -> slides(index, renderer.openPage(index).use { render(it, 1600) }) }
+                }
+            }
+        }.onFailure { PoruchLog.report("wallet", "slides failed", it) }.getOrDefault(emptyList())
     }
 
-    /** Одна сторінка на весь екран — коли до неї догорнули, а не всі десять разом. */
-    suspend fun page(context: Context, ticket: WalletTicket, index: Int, width: Int): Bitmap? = withContext(Dispatchers.IO) {
+    /**
+     * Слайд на весь екран — коли до нього догорнули, а не всі разом. Код — наново з PDF (вектор, різкий) чи вирізкою
+     * зі знімка; [whole] чи коду нема — сторінка без білих полів.
+     */
+    suspend fun slideImage(context: Context, ticket: WalletTicket, slide: TicketSlide, whole: Boolean, width: Int): Bitmap? =
+        withContext(Dispatchers.IO) {
+            val target = file(context, ticket.file)
+            runCatching {
+                if (ticket.kind != TicketKind.PDF) {
+                    val bitmap = decodeUpright(target) ?: return@runCatching null
+                    val code = slide.code?.takeIf { !whole } ?: return@runCatching bitmap
+                    val x = (code.left * bitmap.width).toInt()
+                    val y = (code.top * bitmap.height).toInt()
+                    return@runCatching quiet(
+                        Bitmap.createBitmap(bitmap, x, y, (code.width() * bitmap.width).toInt().coerceAtMost(bitmap.width - x),
+                            (code.height() * bitmap.height).toInt().coerceAtMost(bitmap.height - y))
+                    )
+                }
+                ParcelFileDescriptor.open(target, ParcelFileDescriptor.MODE_READ_ONLY).use { descriptor ->
+                    PdfRenderer(descriptor).use { renderer ->
+                        renderer.openPage(slide.page).use { page ->
+                            slide.code?.takeIf { !whole }?.let { return@runCatching quiet(render(page, it, width)) }
+                            contentBox(render(page, 600))?.let { render(page, it, width) } ?: render(page, width)
+                        }
+                    }
+                }
+            }.onFailure { PoruchLog.report("wallet", "slide failed", it) }.getOrNull()
+        }
+
+    /** Ціла сторінка: її й надсилаємо — з місцем, залом і умовами. */
+    private suspend fun page(context: Context, ticket: WalletTicket, index: Int, width: Int): Bitmap? = withContext(Dispatchers.IO) {
         val target = file(context, ticket.file)
         runCatching {
             if (ticket.kind == TicketKind.PDF) {
                 ParcelFileDescriptor.open(target, ParcelFileDescriptor.MODE_READ_ONLY).use { descriptor ->
                     PdfRenderer(descriptor).use { renderer -> renderer.openPage(index).use { render(it, width) } }
                 }
-            } else BitmapFactory.decodeFile(target.path)
+            } else decodeUpright(target)
         }.getOrNull()
+    }
+
+    /**
+     * Знімок прямо й не більший за 2560: камера пише повернуті пікселі з позначкою EXIF, і без неї квиток лежав би
+     * на боці; повний кадр 12 Мп — 48 МБ на екран, якому стільки не треба.
+     */
+    private fun decodeUpright(file: File): Bitmap? {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }.also { BitmapFactory.decodeFile(file.path, it) }
+        var sample = 1
+        while (maxOf(bounds.outWidth, bounds.outHeight) / sample > 2560) sample *= 2
+        val bitmap = BitmapFactory.decodeFile(file.path, BitmapFactory.Options().apply { inSampleSize = sample }) ?: return null
+        val degrees = when (runCatching { ExifInterface(file).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL) }
+            .getOrDefault(ExifInterface.ORIENTATION_NORMAL)) {
+            ExifInterface.ORIENTATION_ROTATE_90 -> 90f
+            ExifInterface.ORIENTATION_ROTATE_180 -> 180f
+            ExifInterface.ORIENTATION_ROTATE_270 -> 270f
+            else -> return bitmap
+        }
+        return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, Matrix().apply { postRotate(degrees) }, true)
+    }
+
+    /**
+     * Коди квитка у частках (0…1, згори зліва), згори вниз і зліва направо. ZXing віддає центри шукачів QR; до краю
+     * коду від них — 3,5 модуля, тож рамку розширюємо на стільки (інші формати — на п'яту частину).
+     */
+    private fun codeBoxes(bitmap: Bitmap): List<RectF> {
+        val w = bitmap.width
+        val h = bitmap.height
+        val pixels = IntArray(w * h).also { bitmap.getPixels(it, 0, w, 0, 0, w, h) }
+        val hints = mapOf(
+            DecodeHintType.POSSIBLE_FORMATS to listOf(BarcodeFormat.QR_CODE, BarcodeFormat.AZTEC, BarcodeFormat.DATA_MATRIX, BarcodeFormat.PDF_417),
+            DecodeHintType.TRY_HARDER to true,
+        )
+        val results = runCatching {
+            GenericMultipleBarcodeReader(MultiFormatReader()).decodeMultiple(BinaryBitmap(HybridBinarizer(RGBLuminanceSource(w, h, pixels))), hints)
+        }.getOrDefault(emptyArray())
+        val boxes = mutableListOf<RectF>()
+        for (result in results) {
+            val points = result.resultPoints?.filterNotNull().orEmpty()
+            if (points.size < 2) continue
+            val left = points.minOf { it.x }; val right = points.maxOf { it.x }
+            val top = points.minOf { it.y }; val bottom = points.maxOf { it.y }
+            val module = points.filterIsInstance<FinderPattern>().map { it.estimatedModuleSize }.average().toFloat()
+            val pad = if (module.isNaN()) maxOf(right - left, bottom - top) * 0.2f else module * 3.6f
+            val box = RectF(
+                ((left - pad) / w).coerceAtLeast(0f), ((top - pad) / h).coerceAtLeast(0f),
+                ((right + pad) / w).coerceAtMost(1f), ((bottom + pad) / h).coerceAtMost(1f)
+            )
+            if (boxes.none { it.contains(box.centerX(), box.centerY()) }) boxes += box
+        }
+        return boxes.sortedWith(compareBy({ (it.top * 20).toInt() }, { it.left }))
+    }
+
+    /** Код на білому з тихою зоною в 12% ширини: вирізка щільна, тож сусідній текст у поле коду не лізе. */
+    private fun quiet(code: Bitmap): Bitmap {
+        val margin = (code.width * 0.12f).toInt()
+        return Bitmap.createBitmap(code.width + margin * 2, code.height + margin * 2, Bitmap.Config.ARGB_8888).apply {
+            eraseColor(Color.WHITE)
+            android.graphics.Canvas(this).drawBitmap(code, margin.toFloat(), margin.toFloat(), null)
+        }
+    }
+
+    /** Частина сторінки [box] (0…1, згори зліва) завширшки [width]: вектор PDF, а не збільшений растр, тож QR різкий. */
+    private fun render(page: PdfRenderer.Page, box: RectF, width: Int): Bitmap {
+        val scale = width / (box.width() * page.width).coerceAtLeast(1f)
+        val height = (box.height() * page.height * scale).toInt().coerceAtLeast(1)
+        return Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888).apply {
+            eraseColor(Color.WHITE)
+            val transform = Matrix().apply {
+                setScale(scale, scale)
+                postTranslate(-box.left * page.width * scale, -box.top * page.height * scale)
+            }
+            page.render(this, null, transform, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+        }
     }
 
     /**
@@ -191,6 +323,14 @@ object TicketFiles {
 
     /** Прев'ю без білих полів: квиток часто — смужка на аркуші A4, і в шторці інакше видно лише папір. */
     private fun trimmed(bitmap: Bitmap): Bitmap {
+        val box = contentBox(bitmap) ?: return bitmap
+        val x0 = (box.left * bitmap.width).toInt()
+        val y0 = (box.top * bitmap.height).toInt()
+        return Bitmap.createBitmap(bitmap, x0, y0, (box.right * bitmap.width).toInt() - x0, (box.bottom * bitmap.height).toInt() - y0)
+    }
+
+    /** Де на сторінці вміст: частки (0…1, згори зліва) з полем 1/30 ширини. Null — сторінка біла. */
+    private fun contentBox(bitmap: Bitmap): RectF? {
         val w = bitmap.width
         val h = bitmap.height
         val pixels = IntArray(w * h).also { bitmap.getPixels(it, 0, w, 0, 0, w, h) }
@@ -201,11 +341,12 @@ object TicketFiles {
                 minX = minOf(minX, x); maxX = maxOf(maxX, x); minY = minOf(minY, y); maxY = maxOf(maxY, y)
             }
         }
-        if (maxX < 0) return bitmap
+        if (maxX < 0) return null
         val pad = w / 30
-        val x0 = (minX - pad).coerceAtLeast(0)
-        val y0 = (minY - pad).coerceAtLeast(0)
-        return Bitmap.createBitmap(bitmap, x0, y0, (maxX + pad).coerceAtMost(w) - x0, (maxY + pad).coerceAtMost(h) - y0)
+        return RectF(
+            (minX - pad).coerceAtLeast(0).toFloat() / w, (minY - pad).coerceAtLeast(0).toFloat() / h,
+            (maxX + pad).coerceAtMost(w).toFloat() / w, (maxY + pad).coerceAtMost(h).toFloat() / h
+        )
     }
 
     /** Квиток — папір: білий під сторінкою, інакше прозорий PDF лягає на темне тло, і QR не читається. */

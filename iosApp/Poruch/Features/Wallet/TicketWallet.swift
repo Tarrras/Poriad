@@ -38,8 +38,15 @@ struct TicketIntake: Identifiable {
     var stage = Stage.reading
 }
 
+/// Що показати на весь екран: код квитка великим або сторінку, де коду не знайшли.
+struct TicketSlide: Hashable {
+    let page: Int
+    /// Код у частках сторінки (0…1, згори зліва); nil — показуємо сторінку.
+    let code: CGRect?
+}
+
 /// Маршрут до квитка для `sheet(item:)`: у Kotlin-класу нема `Identifiable`. `invite` — щойно додано квиток на кількох:
-/// перегляд відкривається на другому з «Ви йдете не самі».
+/// перегляд підказує гортати на вході або надіслати.
 struct TicketRoute: Identifiable, Hashable {
     let id: String
     var invite = false
@@ -124,16 +131,111 @@ enum TicketFiles {
         )
     }
 
-    /// Скільки сторінок показати на весь екран: PDF — кожна сторінка, знімок — він сам.
-    static func pageCount(_ ticket: WalletTicket) -> Int {
-        ticket.kind == .pdf ? PDFDocument(url: url(ticket.file))?.pageCount ?? 0 : 1
+    /**
+     * Що гортати на вході: кожен код квитка окремо й великим (на аркуші їх буває кілька — по одному на людину), а
+     * сторінку без коду — цілою. Квиток часто — кут аркуша A4 з умовами й рекламою, і цілою сторінкою QR на екрані
+     * виходив міліметрів сім. Коди шукає Vision на растрі 1600: QR у кутку A4 там ще читається.
+     */
+    static func slides(_ ticket: WalletTicket) -> [TicketSlide] {
+        func slides(_ page: Int, _ cg: CGImage?) -> [TicketSlide] {
+            let codes = cg.map(codeBoxes) ?? []
+            return codes.isEmpty ? [TicketSlide(page: page, code: nil)] : codes.map { TicketSlide(page: page, code: $0) }
+        }
+        guard ticket.kind == .pdf else { return slides(0, upright(ticket)) }
+        guard let document = PDFDocument(url: url(ticket.file)) else { return [] }
+        return (0..<document.pageCount).flatMap { index in
+            // Повернута сторінка — без вирізок: так менше шансів помилитися з координатами, а таких квитків майже нема.
+            let page = document.page(at: index).flatMap { $0.rotation == 0 ? $0 : nil }
+            return slides(index, page.flatMap { image($0, width: 1600).cgImage })
+        }
     }
 
-    /// Одна сторінка на весь екран — коли до неї догорнули, а не всі десять разом.
-    static func page(_ ticket: WalletTicket, _ index: Int) -> UIImage? {
-        let target = url(ticket.file)
-        if ticket.kind == .pdf { return PDFDocument(url: target)?.page(at: index).map { image($0, width: 1400) } }
-        return UIImage(contentsOfFile: target.path)
+    /**
+     * Слайд на весь екран — коли до нього догорнули, а не всі разом. Код — вектором PDF чи вирізкою зі знімка;
+     * [whole] чи коду нема — сторінка без білих полів, намальована наново.
+     */
+    static func slideImage(_ ticket: WalletTicket, _ slide: TicketSlide, whole: Bool) -> UIImage? {
+        guard ticket.kind == .pdf else {
+            guard let cg = upright(ticket) else { return nil }
+            guard let code = slide.code, !whole else { return UIImage(cgImage: cg) }
+            let width = CGFloat(cg.width), height = CGFloat(cg.height)
+            let rect = CGRect(x: code.minX * width, y: code.minY * height, width: code.width * width, height: code.height * height)
+            return cg.cropping(to: rect.integral).map { quiet(UIImage(cgImage: $0)) }
+        }
+        guard let page = PDFDocument(url: url(ticket.file))?.page(at: slide.page) else { return nil }
+        if let code = slide.code, !whole { return quiet(render(page, box: code, width: 1000)) }
+        guard page.rotation == 0, let cg = image(page, width: 600).cgImage, let box = contentBox(cg) else { return image(page, width: 1600) }
+        return render(page, box: box, width: 1600)
+    }
+
+    /// Код на білому з тихою зоною в 12% ширини: вирізка щільна, тож сусідній текст у поле коду не лізе.
+    private static func quiet(_ code: UIImage) -> UIImage {
+        let margin = code.size.width * 0.12
+        let size = CGSize(width: code.size.width + margin * 2, height: code.size.height + margin * 2)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = code.scale
+        return UIGraphicsImageRenderer(size: size, format: format).image { context in
+            UIColor.white.setFill()
+            context.fill(CGRect(origin: .zero, size: size))
+            context.cgContext.interpolationQuality = .none
+            code.draw(at: CGPoint(x: margin, y: margin))
+        }
+    }
+
+    /// Знімок прямо, як його бачить людина: Vision і вирізка рахують у пікселях без орієнтації з камери.
+    private static func upright(_ ticket: WalletTicket) -> CGImage? {
+        guard let image = UIImage(contentsOfFile: url(ticket.file).path) else { return nil }
+        if image.imageOrientation == .up { return image.cgImage }
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        return UIGraphicsImageRenderer(size: image.size, format: format).image { _ in image.draw(at: .zero) }.cgImage
+    }
+
+    /// Коди квитка (QR, Aztec, DataMatrix, PDF417) у частках (0…1, згори зліва), щільно, згори вниз і зліва направо.
+    private static func codeBoxes(_ cg: CGImage) -> [CGRect] {
+        let request = VNDetectBarcodesRequest()
+        request.symbologies = [.qr, .aztec, .dataMatrix, .pdf417]
+        #if targetEnvironment(simulator)
+        // Новіші ревізії йдуть через нейроядро, якого симулятор не має: там вони падають і не знаходять нічого.
+        request.revision = VNDetectBarcodesRequestRevision1
+        #endif
+        do { try VNImageRequestHandler(cgImage: cg).perform([request]) } catch {
+            PoruchLog.shared.w(tag: "wallet") { "barcodes failed: \(error)" }
+        }
+        var boxes: [CGRect] = []
+        for result in request.results ?? [] {
+            let b = result.boundingBox
+            // 2% — запас на неточну рамку Vision, щоб не зрізати крайні модулі; тиху зону додає `quiet`.
+            let box = CGRect(
+                x: b.minX - b.width * 0.02, y: 1 - b.maxY - b.height * 0.02, width: b.width * 1.04, height: b.height * 1.04
+            ).intersection(CGRect(x: 0, y: 0, width: 1, height: 1))
+            // Той самий код Vision часом віддає двічі.
+            if !boxes.contains(where: { $0.contains(CGPoint(x: box.midX, y: box.midY)) }) { boxes.append(box) }
+        }
+        return boxes.sorted { abs($0.minY - $1.minY) > 0.05 ? $0.minY < $1.minY : $0.minX < $1.minX }
+    }
+
+    /// Частина сторінки [box] (0…1, згори зліва) з ширини [width]: вектор PDF, а не збільшений растр, тож QR різкий.
+    private static func render(_ page: PDFPage, box: CGRect, width: CGFloat) -> UIImage {
+        let media = page.bounds(for: .mediaBox)
+        // PDF рахує знизу, `box` — згори.
+        let crop = CGRect(
+            x: media.minX + box.minX * media.width, y: media.maxY - box.maxY * media.height,
+            width: box.width * media.width, height: box.height * media.height
+        )
+        let scale = width / max(crop.width, 1)
+        let size = CGSize(width: width, height: crop.height * scale)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        return UIGraphicsImageRenderer(size: size, format: format).image { context in
+            UIColor.white.setFill()
+            context.fill(CGRect(origin: .zero, size: size))
+            let cg = context.cgContext
+            cg.translateBy(x: 0, y: size.height)
+            cg.scaleBy(x: scale, y: -scale)
+            cg.translateBy(x: -crop.minX, y: -crop.minY)
+            page.draw(with: .mediaBox, to: cg)
+        }
     }
 
     /**
@@ -162,7 +264,16 @@ enum TicketFiles {
 
     /// Прев'ю без білих полів: квиток часто — смужка на аркуші A4, і в шторці інакше видно лише папір.
     private static func trimmed(_ image: UIImage) -> UIImage {
-        guard let cg = image.cgImage else { return image }
+        guard let cg = image.cgImage, let box = contentBox(cg) else { return image }
+        let rect = CGRect(
+            x: box.minX * CGFloat(cg.width), y: box.minY * CGFloat(cg.height),
+            width: box.width * CGFloat(cg.width), height: box.height * CGFloat(cg.height)
+        ).integral
+        return cg.cropping(to: rect).map { UIImage(cgImage: $0, scale: image.scale, orientation: image.imageOrientation) } ?? image
+    }
+
+    /// Де на сторінці вміст: прямокутник у частках (0…1, згори зліва) з полем 1/30 ширини. Nil — сторінка біла.
+    private static func contentBox(_ cg: CGImage) -> CGRect? {
         let width = cg.width, height = cg.height
         var pixels = [UInt8](repeating: 0, count: width * height * 4)
         let drawn: Bool = pixels.withUnsafeMutableBytes { buffer in
@@ -175,7 +286,7 @@ enum TicketFiles {
             context.draw(cg, in: CGRect(x: 0, y: 0, width: width, height: height))
             return true
         }
-        guard drawn else { return image }
+        guard drawn else { return nil }
         var minX = width, minY = height, maxX = -1, maxY = -1
         for y in stride(from: 0, to: height, by: 2) {
             for x in stride(from: 0, to: width, by: 2) {
@@ -185,11 +296,12 @@ enum TicketFiles {
                 }
             }
         }
-        guard maxX >= 0 else { return image }
+        guard maxX >= 0 else { return nil }
         let pad = width / 30
         let x0 = max(minX - pad, 0), y0 = max(minY - pad, 0)
-        let rect = CGRect(x: x0, y: y0, width: min(maxX + pad, width) - x0, height: min(maxY + pad, height) - y0)
-        return cg.cropping(to: rect).map { UIImage(cgImage: $0, scale: image.scale, orientation: image.imageOrientation) } ?? image
+        let x1 = min(maxX + pad, width), y1 = min(maxY + pad, height)
+        let w = CGFloat(width), h = CGFloat(height)
+        return CGRect(x: CGFloat(x0) / w, y: CGFloat(y0) / h, width: CGFloat(x1 - x0) / w, height: CGFloat(y1 - y0) / h)
     }
 
     /// Текст зі знімка: Vision читає українську з iOS 16.
@@ -411,8 +523,11 @@ struct TicketViewer: View {
     @Environment(\.dismiss) private var dismiss
     let ticketID: String
     var invite = false
-    @State private var count = 0
-    @State private var pages: [Int: UIImage] = [:]
+    @State private var slides: [TicketSlide] = []
+    /// Намальоване: «номер слайда/весь квиток».
+    @State private var images: [String: UIImage] = [:]
+    /// «Весь квиток» замість коду — коли касир хоче бачити місце й зал.
+    @State private var whole = false
     @State private var brightness: CGFloat?
     @State private var deleting = false
     @State private var page = 0
@@ -422,6 +537,12 @@ struct TicketViewer: View {
     @State private var sent = false
 
     private var ticket: WalletTicket? { model.state?.tickets.first { $0.id == ticketID } }
+    private var count: Int { slides.count }
+
+    /// Місце слайда — лише коли код на сторінці один: «Надіслати місце 13» віддає всю сторінку.
+    private func alone(_ index: Int) -> Bool {
+        index < count && slides.filter { $0.page == slides[index].page }.count == 1
+    }
 
     /// «Квиток 2 з 2 · Ряд 7, місце 13»: у PDF на двох видно, яка сторінка чия.
     private func pageLabel(_ ticket: WalletTicket, _ index: Int) -> String {
@@ -453,24 +574,36 @@ struct TicketViewer: View {
             }
             TabView(selection: $page) {
                 ForEach(0..<count, id: \.self) { index in
+                    let code = slides[index].code != nil
                     Group {
-                        if let image = pages[index] {
-                            // Квиток — папір: білий під ним і вночі, інакше QR на темному тлі сканер не бере.
-                            Image(uiImage: image).resizable().scaledToFit()
-                                .background(Color.white)
-                                .clipShape(RoundedRectangle(cornerRadius: Corner.md, style: .continuous))
+                        if let image = images["\(index)/\(whole)"] {
+                            VStack(spacing: Space.sm) {
+                                // Квиток — папір: білий під ним і вночі, інакше QR на темному тлі сканер не бере. Вирізку
+                                // зі знімка збільшуємо без згладжування: модулі коду лишаються чіткими квадратами.
+                                ZoomableImage(image: image, crisp: code && ticket?.kind == .image).aspectRatio(image.size, contentMode: .fit)
+                                    .clipShape(RoundedRectangle(cornerRadius: Corner.md, style: .continuous))
+                                // Під карткою, а не на ній: на коді кнопка закрила б модулі.
+                                if code {
+                                    Button { whole.toggle() } label: {
+                                        Text(whole ? Copy.wallet_code : Copy.wallet_whole).font(PoruchFont.button).foregroundStyle(Palette.ink).tapTarget()
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
                         } else {
                             ProgressView().tint(Palette.ink).frame(maxWidth: .infinity, maxHeight: .infinity)
                         }
                     }
                     .padding(.bottom, Space.xl)
-                    .accessibilityElement(children: .ignore)
+                    .accessibilityElement(children: .contain)
                     .accessibilityLabel(ticket.map { pageLabel($0, index) } ?? "")
                     .tag(index)
-                    // Сторінка малюється, коли до неї догорнули: PDF на десять квитків не тримає десять растрів.
-                    .task {
-                        guard pages[index] == nil, let ticket else { return }
-                        pages[index] = await Task.detached { TicketFiles.page(ticket, index) }.value
+                    // Слайд малюється, коли до нього догорнули: PDF на десять квитків не тримає десять растрів.
+                    .task(id: whole) {
+                        let key = "\(index)/\(whole)"
+                        guard images[key] == nil, let ticket else { return }
+                        let slide = slides[index], whole = whole
+                        images[key] = await Task.detached { TicketFiles.slideImage(ticket, slide, whole: whole) }.value
                     }
                 }
             }
@@ -481,9 +614,9 @@ struct TicketViewer: View {
                     Text(Copy.wallet_together).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                let seat = pageSeat(ticket, page: page, pages: count)
+                let seat = alone(page) ? pageSeat(ticket, page: page, pages: count) : nil
                 SecondaryButton(title: seat.map { Copy.wallet_send_seat($0.seat) } ?? Copy.wallet_send, glyph: PoruchIcons.share) {
-                    guard let file = TicketFiles.single(ticket, page: page) else { return }
+                    guard page < count, let file = TicketFiles.single(ticket, page: slides[page].page) else { return }
                     model.app.ticketSent(id: ticket.id)
                     sent = true
                     sharing = TicketShare(items: [ticketShareText(ticket), file])
@@ -503,9 +636,7 @@ struct TicketViewer: View {
         .background(Palette.canvas.ignoresSafeArea())
         .task {
             guard let ticket else { return }
-            count = await Task.detached { TicketFiles.pageCount(ticket) }.value
-            // Перший квиток зазвичай того, хто купував: «Надіслати» стоїть на другому.
-            if invite && count > 1 { page = 1 }
+            slides = await Task.detached { TicketFiles.slides(ticket) }.value
             model.app.ticketShown(id: ticket.id)
         }
         .onAppear {
@@ -534,6 +665,60 @@ struct TicketViewer: View {
 
     private func keyScreen() -> UIScreen? {
         UIApplication.shared.connectedScenes.compactMap { ($0 as? UIWindowScene)?.screen }.first
+    }
+}
+
+/**
+ * Квиток із наближенням двома пальцями й подвійним дотиком, як у «Фото»: на касі QR можна ще збільшити. Без
+ * наближення внутрішній скрол не гортає, і сторінки перемикаються як раніше.
+ */
+private struct ZoomableImage: UIViewRepresentable {
+    let image: UIImage
+    /// Вирізка коду зі знімка: збільшення без згладжування.
+    var crisp = false
+
+    func makeUIView(context: Context) -> UIScrollView {
+        let scroll = UIScrollView()
+        scroll.minimumZoomScale = 1
+        scroll.maximumZoomScale = 5
+        scroll.showsHorizontalScrollIndicator = false
+        scroll.showsVerticalScrollIndicator = false
+        scroll.delegate = context.coordinator
+        let view = UIImageView(image: image)
+        view.backgroundColor = .white
+        view.contentMode = .scaleAspectFit
+        view.frame = scroll.bounds
+        view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        view.isAccessibilityElement = false
+        view.layer.magnificationFilter = crisp ? .nearest : .linear
+        scroll.addSubview(view)
+        context.coordinator.view = view
+        let tap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.doubleTap(_:)))
+        tap.numberOfTapsRequired = 2
+        scroll.addGestureRecognizer(tap)
+        return scroll
+    }
+
+    func updateUIView(_ scroll: UIScrollView, context: Context) {
+        if context.coordinator.view?.image !== image { context.coordinator.view?.image = image }
+        context.coordinator.view?.layer.magnificationFilter = crisp ? .nearest : .linear
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    final class Coordinator: NSObject, UIScrollViewDelegate {
+        weak var view: UIImageView?
+
+        func viewForZooming(in scrollView: UIScrollView) -> UIView? { view }
+
+        /// Подвійний дотик: удвічі з половиною туди, куди торкнулись; ще раз — назад.
+        @objc func doubleTap(_ gesture: UITapGestureRecognizer) {
+            guard let scroll = gesture.view as? UIScrollView, let view else { return }
+            if scroll.zoomScale > 1 { return scroll.setZoomScale(1, animated: true) }
+            let point = gesture.location(in: view)
+            let size = CGSize(width: scroll.bounds.width / 2.5, height: scroll.bounds.height / 2.5)
+            scroll.zoom(to: CGRect(origin: CGPoint(x: point.x - size.width / 2, y: point.y - size.height / 2), size: size), animated: true)
+        }
     }
 }
 
