@@ -149,8 +149,16 @@ struct MyEventsView: View, Equatable {
 
     // ---- Вміст
 
+    /// Квитки з телефона (docs/ticket-wallet.md) — там, де «йду»: у «Іду», а в гостя, у якого розріз один, — у ньому.
+    private var showsTickets: Bool { !signedIn || tab == .going }
+
+    @ViewBuilder private var tickets: some View {
+        if showsTickets { TicketsSection(tickets: view.tickets) }
+    }
+
     @ViewBuilder private func content(_ board: MyEventsBoard?) -> some View {
         if !signedIn, (board?.savedAhead ?? 0) == 0 {
+            tickets.padding(.horizontal, Space.page).padding(.top, Space.md)
             EmptyState(
                 glyph: PoruchIcons.ticket, title: Copy.guest_empty,
                 message: Copy.guest_saved_hint, actionLabel: Copy.login, action: { auth = true }
@@ -161,6 +169,7 @@ struct MyEventsView: View, Equatable {
                 VStack(alignment: .leading, spacing: Space.xxl) {
                     if view.offline { OfflineNote() }
                     if !signedIn { guestNote }
+                    tickets
                     // Попереду нічого, а минулі є: першою йде дія, а не три сірі минулі.
                     if board.nothingAhead(tab: tab) { aheadCard }
                     ForEach(board.sections(tab: tab), id: \.group) { section in
@@ -181,7 +190,12 @@ struct MyEventsView: View, Equatable {
             PoruchLoader().frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             // У стрічці, щоб потяг мав за що зачепитись.
-            ScrollView { emptyState }
+            ScrollView {
+                VStack(spacing: Space.xxl) {
+                    tickets.padding(.horizontal, Space.page).padding(.top, Space.md)
+                    emptyState
+                }
+            }
         }
     }
 

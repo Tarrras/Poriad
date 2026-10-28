@@ -45,6 +45,11 @@ import GoogleSignIn
                 // Сюди приходять і auth-колбек, і посилання на подію: Universal Link `poriad.app/e/…` та
                 // `poriad://event/…` з кнопки веб-сторінки. Подію відкриваємо тим самим шляхом, що й тап по пушу.
                 .onOpenURL { url in
+                    // Файл квитка з «Поділитися» чи «Відкрити в…» (docs/ticket-wallet.md): копіюємо, читаємо, питаємо.
+                    if url.isFileURL {
+                        Task { if let ticket = await TicketFiles.load(url, app: model.app, origin: "share") { model.root.ticketImport = ticket } }
+                        return
+                    }
                     // Повернення з вікна входу Google — його URL-схема, не наша.
                     if GIDSignIn.sharedInstance.handle(url) { return }
                     if let id = EventLinks.shared.eventId(link: url.absoluteString) {
@@ -328,6 +333,11 @@ struct RootView: View {
                 // Шторка деталей на мапі має свій SwiftUI-прапорець: мапа скидає його по токену, UIKit-закриття вище його не чіпає.
                 mapToken += 1
                 if id == nil, let placeId { showMap(); model.app.openPlace(placeId: placeId); return }
+                // Нагадування про квиток за годину: сам квиток на весь екран, а не подія.
+                if let id, id.hasPrefix(ReminderRules.shared.TICKET_PREFIX) {
+                    root.shownTicket = TicketRoute(id: String(id.dropFirst(ReminderRules.shared.TICKET_PREFIX.count)))
+                    return
+                }
                 if id == nil, let artistId {
                     var path = NavigationPath()
                     path.append(ArtistRoute(id: artistId))
@@ -347,6 +357,8 @@ struct RootView: View {
             NavigationStack { AuthView(reason: sheet.reason) }
         }
         .sheet(isPresented: Binding(get: { root.passwordRecovery }, set: { _ in })) { NewPasswordView() }
+        .sheet(item: Binding(get: { root.ticketImport }, set: { root.ticketImport = $0 })) { TicketImportSheet(ticket: $0) }
+        .fullScreenCover(item: Binding(get: { root.shownTicket }, set: { root.shownTicket = $0 })) { TicketViewer(ticketID: $0.id) }
         .notice(root.notice?.presented) { model.app.clearNotice() }
     }
 }

@@ -57,6 +57,10 @@ extension EnvironmentValues {
     private(set) var signedIn = false
     private(set) var passwordRecovery = false
     private(set) var notice: AppNotice?
+    /// Квиток, що прийшов файлом, — шторка підтвердження поверх будь-якої вкладки (docs/ticket-wallet.md).
+    var ticketImport: TicketImport?
+    /// Квиток на весь екран: з нагадування «за годину» чи з «Моїх подій».
+    var shownTicket: TicketRoute?
 
     func apply(_ state: AppState) {
         if !ready { ready = true }

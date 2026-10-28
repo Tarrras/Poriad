@@ -604,6 +604,35 @@
   <string name="companion_share_chooser">Поділитися пошуком компанії</string>
   <string name="companion_notification_channel">Пошук компанії на збережені події</string>
   <!-- «Хочу піти з компанією» (docs/return-hooks.md, хвиля 1). Безродово: «Пішов би» — чоловічий рід. -->
+  <!-- Квиток у «Поряд» (docs/ticket-wallet.md): файл квитка лежить лише на телефоні. -->
+  <string name="wallet_title">Квитки</string>
+  <string name="wallet_add">Додати</string>
+  <string name="wallet_add_title">Додати квиток</string>
+  <string name="wallet_add_hint">У Telegram: «Поділитися» → «Поряд». Або PDF чи знімок з телефона</string>
+  <string name="wallet_from_files">З файлів</string>
+  <string name="wallet_from_photos">З фото</string>
+  <string name="wallet_import_title">Квиток</string>
+  <string name="wallet_unreadable">Не вдалося прочитати квиток&#160;— напишіть, що це й коли</string>
+  <string name="wallet_name">Назва</string>
+  <string name="wallet_name_hint">Наприклад, «Дюна»</string>
+  <string name="wallet_place">Місце</string>
+  <string name="wallet_place_hint">Кінотеатр, зал, клуб</string>
+  <string name="wallet_when">Коли</string>
+  <string name="wallet_match">Квиток на цю подію</string>
+  <string name="wallet_save">Додати квиток</string>
+  <string name="wallet_failed">Не вдалося відкрити файл</string>
+  <plurals name="wallet_count">
+    <item quantity="one">%d квиток</item>
+    <item quantity="few">%d квитки</item>
+    <item quantity="many">%d квитків</item>
+    <item quantity="other">%d квитка</item>
+  </plurals>
+  <string name="wallet_seat">Ряд %1$s, місце %2$s</string>
+  <string name="wallet_seat_only">Місце %1$s</string>
+  <string name="wallet_delete">Видалити квиток</string>
+  <string name="wallet_delete_title">Видалити квиток?</string>
+  <string name="wallet_delete_body">Файл зникне з телефона. Подія лишиться в збережених.</string>
+  <string name="wallet_yours">Ваші квитки</string>
   <string name="company_want">Хочу піти з компанією</string>
   <string name="company_privacy">Інші побачать спільні з вами інтереси. Ім\'я та фото — лише ті, хто теж хоче піти.</string>
   <string name="company_searching">Ви шукаєте компанію</string>

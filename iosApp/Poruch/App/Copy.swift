@@ -519,6 +519,28 @@ enum Copy {
     static func companion_share_text(_ a0: String, _ a1: String, _ a2: String) -> String { "Шукаю компанію на \(a0), \(a1)\n\(a2)" }
     static let companion_share_chooser = "Поділитися пошуком компанії"
     static let companion_notification_channel = "Пошук компанії на збережені події"
+    static let wallet_title = "Квитки"
+    static let wallet_add = "Додати"
+    static let wallet_add_title = "Додати квиток"
+    static let wallet_add_hint = "У Telegram: «Поділитися» → «Поряд». Або PDF чи знімок з телефона"
+    static let wallet_from_files = "З файлів"
+    static let wallet_from_photos = "З фото"
+    static let wallet_import_title = "Квиток"
+    static let wallet_unreadable = "Не вдалося прочитати квиток — напишіть, що це й коли"
+    static let wallet_name = "Назва"
+    static let wallet_name_hint = "Наприклад, «Дюна»"
+    static let wallet_place = "Місце"
+    static let wallet_place_hint = "Кінотеатр, зал, клуб"
+    static let wallet_when = "Коли"
+    static let wallet_match = "Квиток на цю подію"
+    static let wallet_save = "Додати квиток"
+    static let wallet_failed = "Не вдалося відкрити файл"
+    static func wallet_seat(_ a0: String, _ a1: String) -> String { "Ряд \(a0), місце \(a1)" }
+    static func wallet_seat_only(_ a0: String) -> String { "Місце \(a0)" }
+    static let wallet_delete = "Видалити квиток"
+    static let wallet_delete_title = "Видалити квиток?"
+    static let wallet_delete_body = "Файл зникне з телефона. Подія лишиться в збережених."
+    static let wallet_yours = "Ваші квитки"
     static let company_want = "Хочу піти з компанією"
     static let company_privacy = "Інші побачать спільні з вами інтереси. Ім'я та фото — лише ті, хто теж хоче піти."
     static let company_searching = "Ви шукаєте компанію"
@@ -849,6 +871,7 @@ enum Copy {
     static func requests_count(_ n: Int) -> String { ukrainianPlural(n, "\(n) запит", "\(n) запити", "\(n) запитів") }
     static func digest_count(_ n: Int) -> String { ukrainianPlural(n, "\(n) подія", "\(n) події", "\(n) подій") }
     static func request_notification_body(_ n: Int) -> String { ukrainianPlural(n, "\(n) новий запит на участь. Відкрийте подію, щоб відповісти.", "\(n) нові запити на участь. Відкрийте подію, щоб відповісти.", "\(n) нових запитів на участь. Відкрийте подію, щоб відповісти.") }
+    static func wallet_count(_ n: Int) -> String { ukrainianPlural(n, "\(n) квиток", "\(n) квитки", "\(n) квитків") }
     static func company_count(_ n: Int) -> String { ukrainianPlural(n, "\(n) людина хоче піти з компанією", "\(n) людини хочуть піти з компанією", "\(n) людей хочуть піти з компанією") }
     static func company_reason(_ n: Int) -> String { ukrainianPlural(n, "\(n) людина", "\(n) людини", "\(n) людей") }
     static func company_attended(_ n: Int) -> String { ukrainianPlural(n, "\(n) подія відвідана", "\(n) події відвідано", "\(n) подій відвідано") }
