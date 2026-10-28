@@ -55,8 +55,11 @@ enum FollowPrompt {
 /// Приєднання чи своя нова подія — природний момент спитати про сповіщення: без них нагадування за годину
 /// не прийде. Хто вимкнув нагадування в профілі, того не питаємо; система й так питає лише раз.
 enum ReminderPrompt {
+    /// Відкрито стос «Ваш тиждень»: про сповіщення питає його кінець, а не перша закладка в ньому.
+    static var paused = false
+
     static func offer(_ app: PoruchApp) {
-        guard (app.state.value as? AppState)?.remindersEnabled == true else { return }
+        guard !paused, (app.state.value as? AppState)?.remindersEnabled == true else { return }
         Task {
             guard await NotificationPermission.askable() else { return }
             NotificationPermission.request { granted in

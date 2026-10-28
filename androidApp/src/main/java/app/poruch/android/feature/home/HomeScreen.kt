@@ -48,6 +48,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.edit
 import app.poruch.android.DECK_WEEK
+import app.poruch.android.SAVE_ASKED
 import app.poruch.android.PROMPTS
 import app.poruch.android.R
 import app.poruch.shared.PoruchApp
@@ -365,9 +366,10 @@ private fun DeckRow() {
     val week = app.deckWeek()
     if (opened != week) {
         val cards = app.deckCards()
-        if (cards.isNotEmpty()) Box(Modifier.padding(horizontal = Spacing.page).padding(top = Spacing.xxl).cardSurface(Radius.md)) {
+        if (cards.isNotEmpty()) Box(Modifier.padding(horizontal = Spacing.page).padding(top = Spacing.xxl).cardSurface()) {
             LinkRow(PoruchIcons.sparkle, stringResource(R.string.deck_title), stringResource(R.string.deck_row_subtitle), onClick = {
-                prompts.edit { putString(DECK_WEEK, week) }
+                // Про сповіщення питає кінець стосу, а не перша закладка в ньому — як у стосі після онбордингу.
+                prompts.edit { putString(DECK_WEEK, week); putBoolean(SAVE_ASKED, true) }
                 opened = week
                 deck = cards
             })

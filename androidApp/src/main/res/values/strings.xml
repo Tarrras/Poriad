@@ -142,6 +142,8 @@
   <string name="deck_progress">%1$d з %2$d</string>
   <string name="deck_yes">Так</string>
   <string name="deck_no">Ні</string>
+  <!-- Штамп, яким «Так» позначає квиток перед тим, як картка піде. -->
+  <string name="deck_saved">Збережено</string>
   <string name="deck_done_title">Ваш тиждень зібрано</string>
   <string name="deck_done_body">Нагадаємо ввечері напередодні й скажемо, коли зʼявиться щось схоже.</string>
   <string name="deck_empty_title">Нічого не зачепило?</string>
@@ -610,11 +612,12 @@
     <item quantity="many">%d людей хочуть піти з компанією</item>
     <item quantity="other">%d людини хочуть піти з компанією</item>
   </plurals>
+  <!-- Рейка «Шукають компанію»: заголовок уже каже що, тут лише хто. Довше «2 хочуть піти з компанією» обрізалось. -->
   <plurals name="company_reason">
-    <item quantity="one">%d хоче піти з компанією</item>
-    <item quantity="few">%d хочуть піти з компанією</item>
-    <item quantity="many">%d хочуть піти з компанією</item>
-    <item quantity="other">%d хочуть піти з компанією</item>
+    <item quantity="one">%d людина</item>
+    <item quantity="few">%d людини</item>
+    <item quantity="many">%d людей</item>
+    <item quantity="other">%d людини</item>
   </plurals>
   <string name="company_shared">спільне з вами: %1$s</string>
   <plurals name="company_attended">
@@ -629,7 +632,10 @@
   <string name="company_ask_in">Попроситися</string>
   <string name="company_together">Ви йдете разом</string>
   <string name="company_photo_hint">Додайте фото в профілі — побачите фото інших</string>
-  <string name="company_by_yourself">Або зібрати компанію самому: час і місце</string>
+  <string name="company_by_yourself">Зібрати компанію самому</string>
+  <string name="company_by_yourself_note">Оберіть час і місце зустрічі</string>
+  <string name="company_none">Поки ніхто не шукає</string>
+  <string name="company_none_note">Будьте першими&#160;— скажемо, щойно хтось долучиться</string>
   <string name="company_rail">Шукають компанію</string>
   <string name="company_notification_channel">Компанія на події</string>
   <string name="instagram">Instagram</string>

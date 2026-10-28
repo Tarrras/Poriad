@@ -59,7 +59,9 @@ fun CreateEventCard(
 @Composable
 fun EventHeroCard(
     event: Event, modifier: Modifier = Modifier, eyebrow: String? = null, height: Dp = 360.dp,
-    saved: Boolean = false, onSave: (() -> Unit)? = null, onClick: () -> Unit
+    saved: Boolean = false, onSave: (() -> Unit)? = null,
+    /** Рядок «Афіша · джерело». У стосі «Ваш тиждень» його нема: там під квитком і так опис і ціна. */
+    showSource: Boolean = true, onClick: () -> Unit
 ) {
     val colors = Poruch.colors
     // Штамп — лише стан квитка. Чому квиток тут («Для вас», «Від людей») — тихим рядком під описом.
@@ -98,7 +100,7 @@ fun EventHeroCard(
                 EventDescriptor(event)
                 reason?.let { (text, icon) -> ReasonLine(text, icon) }
                 artistsLine(event)?.let { MetaLine(PoruchIcons.person, it) }
-                event.listing?.let {
+                if (showSource) event.listing?.let {
                     Text(
                         stringResource(R.string.listing_badge, it.sellerNames), style = MaterialTheme.typography.labelSmall,
                         color = colors.inkTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis

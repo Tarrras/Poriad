@@ -108,10 +108,13 @@ data class Event(
      * («Шість жінок і досвід…»), а опис продавця починається з SEO-вступу.
      */
     val about: EventAbout
-        // Абзаци опису — в один рядок: у кількох рядках стосу «…» інакше стояло окремим рядком.
+        // Абзаци опису — в один рядок: у кількох рядках стосу «…» інакше стояло окремим рядком. Гачок продавця на
+        // початку («Чому варто відвідати…?», «Яскраве шоу!») відрізаємо: першим під квитком стояв саме він.
         get() = EventAbout(
             blurb?.trim()?.takeIf { it.isNotEmpty() },
-            pitch?.trim()?.takeIf { it.isNotEmpty() } ?: displayDescription.replace(WHITESPACE, " ").trim().takeIf { it.isNotEmpty() }
+            pitch?.trim()?.takeIf { it.isNotEmpty() }
+                ?: displayDescription.replace(WHITESPACE, " ").trim().let { var s = it; while (SELLER_HOOK.containsMatchIn(s)) s = SELLER_HOOK.replaceFirst(s, ""); s }
+                    .takeIf { it.isNotEmpty() && it != "…" }
         )
 
     /** Опис обрізано, тож посилання «читати повністю» має сенс. */
@@ -164,6 +167,8 @@ data class Event(
         /** Скільки символів чужого опису показуємо, перш ніж відіслати до джерела. */
         const val LISTING_DESCRIPTION_PREVIEW = 200
         private val WHITESPACE = Regex("\\s+")
+        /** Перше речення-питання чи оклик. «?» усередині назви («Що Нового?») не рахується: за ним не пробіл, а «»». */
+        private val SELLER_HOOK = Regex("^[^.?!…]*[?!]+(?=\\s|$)\\s*")
 
         /** Довше за добу — це вже не сеанс, а прокат. */
         private val RUN_FROM = 24.hours

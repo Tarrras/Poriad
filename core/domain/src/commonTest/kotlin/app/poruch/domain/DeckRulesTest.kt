@@ -50,4 +50,12 @@ class DeckRulesTest {
             event("a").copy(description = "Довгий опис", blurb = "Стендап про стосунки", pitch = "Проти коментарів у них одна зброя: аргументи.").about,
             "опис агента замість уривку продавця")
     }
+
+    @Test fun aboutDropsTheSellersHook() {
+        fun excerpt(description: String) = event("a").copy(description = description, blurb = "Вистава").about.excerpt
+        assertEquals("Гостра сатирична комедія.", excerpt("Чому варто відвідати виставу «Еклери на мільйон»? Гостра сатирична комедія."))
+        assertEquals(null, excerpt("Чому варто відвідати? Яскраве шоу! Незабутні емоції для всієї родини!"))
+        assertEquals("Шоу «Що Нового?» повертається.", excerpt("Шоу «Що Нового?» повертається."), "питання в назві — не гачок")
+        assertEquals("Квартирник у майстерні. Хто прийде?", excerpt("Квартирник у майстерні. Хто прийде?"), "питання не на початку лишається")
+    }
 }

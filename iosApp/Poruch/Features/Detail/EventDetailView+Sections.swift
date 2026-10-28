@@ -548,10 +548,17 @@ extension EventDetailView {
             VStack(alignment: .leading, spacing: Space.md) {
                 if view.canWantCompany || view.canSeekCompany {
                     // Афіша: ціна й квиток в один рядок — квиток купують на чужому сайті, тож він другорядний.
-                    HStack(spacing: Space.md) {
+                    // На великому шрифті — одне під одним: кнопка з fixedSize розпирала панель, і вся сторінка
+                    // ставала ширшою за екран («назад» і назва йшли за край).
+                    if typeSize.isAccessibilitySize {
                         summary(view)
-                        Spacer(minLength: 0)
-                        if view.action != .none { secondaryAction(event, view).fixedSize(horizontal: true, vertical: false) }
+                        if view.action != .none { secondaryAction(event, view) }
+                    } else {
+                        HStack(spacing: Space.md) {
+                            summary(view)
+                            Spacer(minLength: 0)
+                            if view.action != .none { secondaryAction(event, view).fixedSize(horizontal: true, vertical: false) }
+                        }
                     }
                 } else {
                     // Зустріч: пояснення («Організатор підтверджує кожного», «Лишилось 2 місця») — окремим рядком на всю
@@ -563,7 +570,8 @@ extension EventDetailView {
                 // Серце продукту — люди: на афіші головна дія — «Хочу піти з компанією», на всю ширину під ціною й квитком.
                 // Після наміру панель її ховає: стан і люди — у секції «Шукають компанію» (docs/return-hooks.md).
                 if view.canWantCompany && view.companyTeaser?.mine != true {
-                    PrimaryButton(title: Copy.company_want, glyph: PoruchIcons.social, enabled: !view.mutating) {
+                    // На великому шрифті без гліфа: поруч із корінцем він лишав від напису «Хочу піти з к…».
+                    PrimaryButton(title: Copy.company_want, glyph: typeSize.isAccessibilitySize ? nil : PoruchIcons.social, enabled: !view.mutating) {
                         // Гість спершу входить: намір поставить спільний шар, щойно вхід відбудеться.
                         model.app.wantCompany()
                         if !view.signedIn { auth = .company }
@@ -744,6 +752,8 @@ extension EventDetailView {
             SectionHeader(title: Copy.companions_title)
             VStack(alignment: .leading, spacing: Space.md) {
                 if let teaser, teaser.count > 0 { companyTeaserLine(teaser) }
+                // Нікого — стан словами, а не самий дисклеймер: дія поруч, у панелі внизу.
+                else if !mine { companyLine(Copy.company_none, Copy.company_none_note) }
                 if mine {
                     HStack(alignment: .center, spacing: Space.md) {
                         VStack(alignment: .leading, spacing: 2) {
@@ -776,25 +786,29 @@ extension EventDetailView {
             }
             if !view.companions.isEmpty { companionRows(view) }
             if view.canSeekCompany {
-                Button { if view.signedIn { seekingCompany = true } else { auth = .company } } label: {
-                    Text(Copy.company_by_yourself).font(PoruchFont.button).foregroundStyle(Palette.ink)
-                        .multilineTextAlignment(.leading).tapTarget()
-                }.buttonStyle(.plain)
+                // Рядком із шевроном, як інші переходи: голий жирний текст читався підписом, а не дією.
+                LinkRow(glyph: PoruchIcons.edit, title: Copy.company_by_yourself, subtitle: Copy.company_by_yourself_note) {
+                    if view.signedIn { seekingCompany = true } else { auth = .company }
+                }
+                .cardSurface()
             }
         }
     }
 
     private func companyTeaserLine(_ teaser: CompanyTeaser) -> some View {
-        var details: [String] = []
-        if !teaser.shared.isEmpty { details.append(Copy.company_shared(teaser.shared.map { categoryName($0).lowercased() }.joined(separator: ", "))) }
-        return HStack(alignment: .center, spacing: Space.md) {
+        companyLine(Copy.company_count(Int(teaser.count)),
+                    teaser.shared.isEmpty ? nil : Copy.company_shared(teaser.shared.map { categoryName($0).lowercased() }.joined(separator: ", ")))
+    }
+
+    private func companyLine(_ title: String, _ detail: String?) -> some View {
+        HStack(alignment: .center, spacing: Space.md) {
             PoruchIcon(glyph: PoruchIcons.social, size: 20).foregroundStyle(Palette.ink)
                 .frame(width: 40, height: 40).background(Palette.surfaceMuted, in: RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
-                Text(Copy.company_count(Int(teaser.count))).font(PoruchFont.cardName).kerning(-0.2).foregroundStyle(Palette.ink)
+                Text(title).font(PoruchFont.cardName).kerning(-0.2).foregroundStyle(Palette.ink)
                     .fixedSize(horizontal: false, vertical: true)
-                if !details.isEmpty {
-                    Text(details.joined(separator: " · ")).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
+                if let detail {
+                    Text(detail).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -809,7 +823,10 @@ extension EventDetailView {
         let asked = person.theySaidYes && !joined
         var traits: [String] = []
         if !person.shared.isEmpty { traits.append(Copy.company_shared(person.shared.map { categoryName($0).lowercased() }.joined(separator: ", "))) }
-        return HStack(alignment: .center, spacing: Space.md) {
+        // На великому шрифті дія стає під рядок: поруч вона стискала імʼя й «спільне з вами» у вузький стовпець.
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: Space.sm)) : AnyLayout(HStackLayout(alignment: .center, spacing: Space.md))
+        return layout {
             Button { openPerson(person.userId) } label: {
                 HStack(alignment: .top, spacing: Space.md) {
                     Avatar(name: person.name, url: person.avatarUrl, size: 44)

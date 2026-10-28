@@ -39,6 +39,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.airbnb.lottie.compose.*
 import androidx.core.content.edit
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -282,7 +284,12 @@ fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
     CompositionLocalProvider(LocalSharedMapView provides sharedMap) {
         Box(Modifier.fillMaxSize()) {
             RootLayout(navigator, entryProvider, app, appState, tourAllowed = newcomer && !digestAsk && deck == null) { tourDone = true }
-            deck?.let { DeckScreen(app, it) { deck = null } }
+            // Окреме вікно, як стос із головної: шаром у Box TalkBack гортав головну під ним.
+            deck?.let { cards ->
+                Dialog({ deck = null }, DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+                    DeckScreen(app, cards) { deck = null }
+                }
+            }
         }
     }
 }
@@ -666,7 +673,7 @@ private const val LOCATION_ASKED = "location_asked"
 private const val LAUNCHES = "launches"
 internal const val DIGEST_ASKED = "digest_asked"
 private const val FOLLOW_ASKED = "follow_asked"
-private const val SAVE_ASKED = "save_asked"
+internal const val SAVE_ASKED = "save_asked"
 /** Стос «Ваш тиждень» уже показували в першій сесії; тиждень, коли його відкривали з головної (docs/return-hooks.md). */
 private const val DECK_DONE = "deck_done"
 internal const val DECK_WEEK = "deck_week"

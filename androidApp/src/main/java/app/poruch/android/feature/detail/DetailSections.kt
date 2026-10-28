@@ -796,6 +796,8 @@ internal fun CompanySection(state: DetailState, onIntent: (DetailIntent) -> Unit
         SectionHeader(stringResource(R.string.companions_title))
         Column(Modifier.fillMaxWidth().cardSurface(Radius.md).padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
             if (teaser != null && teaser.count > 0) CompanyTeaserLine(teaser)
+            // Нікого — стан словами, а не самий дисклеймер: дія поруч, у панелі внизу.
+            else if (!mine) CompanyLine(stringResource(R.string.company_none), stringResource(R.string.company_none_note))
             if (mine) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -824,10 +826,13 @@ internal fun CompanySection(state: DetailState, onIntent: (DetailIntent) -> Unit
             }
         }
         if (screen.companions.isNotEmpty()) CompanionRows(state, onIntent)
-        if (screen.canSeekCompany) Text(
-            stringResource(R.string.company_by_yourself), style = MaterialTheme.typography.labelLarge, color = colors.ink,
-            modifier = Modifier.fillMaxWidth().pressable { onIntent(DetailIntent.SeekCompany(true)) }.heightIn(min = 44.dp).wrapContentHeight()
-        )
+        // Рядком із шевроном, як інші переходи: голий жирний текст читався підписом, а не дією.
+        if (screen.canSeekCompany) Box(Modifier.cardSurface(Radius.md)) {
+            LinkRow(
+                PoruchIcons.edit, stringResource(R.string.company_by_yourself), stringResource(R.string.company_by_yourself_note),
+                onClick = { onIntent(DetailIntent.SeekCompany(true)) }
+            )
+        }
     }
 }
 
@@ -837,17 +842,20 @@ private fun sharedLine(shared: List<EventCategory>): String? =
     else stringResource(R.string.company_shared, shared.map { stringResource(categoryLabel(it)).lowercase() }.joinToString(", "))
 
 @Composable
-private fun CompanyTeaserLine(teaser: CompanyTeaser) {
+private fun CompanyTeaserLine(teaser: CompanyTeaser) =
+    CompanyLine(pluralStringResource(R.plurals.company_count, teaser.count, teaser.count), sharedLine(teaser.shared))
+
+@Composable
+private fun CompanyLine(title: String, detail: String?) {
     val colors = Poruch.colors
-    val details = sharedLine(teaser.shared).orEmpty()
     Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md), verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.semantics(mergeDescendants = true) {}) {
         Box(Modifier.size(40.dp).background(colors.surfaceMuted, RoundedCornerShape(Corner.xs)), contentAlignment = Alignment.Center) {
             Icon(PoruchIcons.social, null, Modifier.size(20.dp), tint = colors.ink)
         }
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(pluralStringResource(R.plurals.company_count, teaser.count, teaser.count), style = MaterialTheme.typography.titleSmall, color = colors.ink)
-            if (details.isNotEmpty()) Text(details, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
+            Text(title, style = MaterialTheme.typography.titleSmall, color = colors.ink)
+            detail?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary) }
         }
     }
 }
@@ -861,27 +869,38 @@ private fun CompanyPersonRow(person: CompanyPerson, state: DetailState, onIntent
     val joined = together != null && (together.mine || together.membership == Membership.APPROVED)
     val asked = person.theySaidYes && !joined
     val traits = sharedLine(person.shared).orEmpty()
-    Row(
-        Modifier.fillMaxWidth().background(if (asked) colors.accentContainer else Color.Transparent)
-            .padding(horizontal = Spacing.lg, vertical = Spacing.md),
-        horizontalArrangement = Arrangement.spacedBy(Spacing.md), verticalAlignment = Alignment.CenterVertically
-    ) {
-        Row(
-            Modifier.weight(1f).pressable { onIntent(DetailIntent.OpenPerson(person.userId)) }.semantics(mergeDescendants = true) {},
-            horizontalArrangement = Arrangement.spacedBy(Spacing.md)
-        ) {
-            Avatar(person.name, person.avatarUrl, 44.dp)
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(person.name, style = MaterialTheme.typography.titleSmall, color = colors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                if (asked) Text(stringResource(R.string.company_wants_you), style = MaterialTheme.typography.bodySmall, color = colors.accentText)
-                if (traits.isNotEmpty()) Text(traits, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
-                person.bio?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis) }
-                person.instagram?.let { Text("@$it", style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary) }
-            }
-        }
+    val row = Modifier.fillMaxWidth().background(if (asked) colors.accentContainer else Color.Transparent)
+        .padding(horizontal = Spacing.lg, vertical = Spacing.md)
+    // На великому шрифті дія стає під рядок: поруч вона стискала імʼя й «спільне з вами» у вузький стовпець.
+    if (LocalDensity.current.fontScale > STACK_FONT_SCALE) Column(row, verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        CompanyPersonInfo(person, asked, traits, Modifier.fillMaxWidth(), onIntent)
+        CompanyAction(person, together, joined, state, onIntent)
+    } else Row(row, horizontalArrangement = Arrangement.spacedBy(Spacing.md), verticalAlignment = Alignment.CenterVertically) {
+        CompanyPersonInfo(person, asked, traits, Modifier.weight(1f), onIntent)
         CompanyAction(person, together, joined, state, onIntent)
     }
 }
+
+@Composable
+private fun CompanyPersonInfo(person: CompanyPerson, asked: Boolean, traits: String, modifier: Modifier, onIntent: (DetailIntent) -> Unit) {
+    val colors = Poruch.colors
+    Row(
+        modifier.pressable { onIntent(DetailIntent.OpenPerson(person.userId)) }.semantics(mergeDescendants = true) {},
+        horizontalArrangement = Arrangement.spacedBy(Spacing.md)
+    ) {
+        Avatar(person.name, person.avatarUrl, 44.dp)
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(person.name, style = MaterialTheme.typography.titleSmall, color = colors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (asked) Text(stringResource(R.string.company_wants_you), style = MaterialTheme.typography.bodySmall, color = colors.accentText)
+            if (traits.isNotEmpty()) Text(traits, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
+            person.bio?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+            person.instagram?.let { Text("@$it", style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary) }
+        }
+    }
+}
+
+/** Від якого `fontScale` дія рядка стає під текст — як у «Моїх подіях». */
+private const val STACK_FONT_SCALE = 1.3f
 
 @Composable
 private fun CompanyAction(person: CompanyPerson, together: CompanionCard?, joined: Boolean, state: DetailState, onIntent: (DetailIntent) -> Unit) {

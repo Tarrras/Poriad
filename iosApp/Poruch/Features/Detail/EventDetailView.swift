@@ -60,6 +60,7 @@ struct EventDetailView: View, Equatable {
     /// Шторка часу збору (R7б): з якого часу почати — пропозиція R7а чи поточний.
     @State var movingMeet: MeetTarget?
     @Environment(\.scenePhase) var scenePhase
+    @Environment(\.dynamicTypeSize) var typeSize
     @Environment(\.openMap) var openMap
 
     /// Id відкритої події від того, хто відкриває, а не зі стану: див. `.task` нижче.

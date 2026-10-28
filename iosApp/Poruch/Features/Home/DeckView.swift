@@ -21,6 +21,8 @@ struct DeckView: View {
     @State private var drag: CGFloat = 0
     /// Картка ще летить: другий тап у цей час — подвійний тап, а не відповідь на наступну.
     @State private var flying = false
+    /// Штамп «ЗБЕРЕЖЕНО» на квитку: 0 — нема, 1 — поставлено. Пружина дає штампу «удар» з легким відскоком.
+    @State private var stamp: CGFloat = 0
     /// Систему вже питали або дозволено: тоді наприкінці лише «Готово».
     @State private var askable = false
 
@@ -44,9 +46,26 @@ struct DeckView: View {
         .padding(.horizontal, Space.page).padding(.top, Space.md).padding(.bottom, Space.lg)
         .background(Palette.canvas.ignoresSafeArea())
         .task { askable = await NotificationPermission.askable() }
+        // Стос із головної теж: інакше перше «Так» відкривало системне питання посеред стосу.
+        .onAppear { ReminderPrompt.paused = true }
+        .onDisappear { ReminderPrompt.paused = false }
     }
 
     private var stack: some View {
+        VStack(alignment: .leading, spacing: Space.lg) {
+            // Не вміщається (великий шрифт) — прокрутка над кнопками, а не «Так» і «Ні» за краєм екрана.
+            ViewThatFits(in: .vertical) {
+                question
+                ScrollView { question }
+            }
+            HStack(spacing: Space.md) {
+                SecondaryButton(title: Copy.deck_no) { answer(false) }
+                PrimaryButton(title: Copy.deck_yes, glyph: PoruchIcons.bookmark) { answer(true) }
+            }
+        }
+    }
+
+    private var question: some View {
         VStack(alignment: .leading, spacing: Space.lg) {
             VStack(alignment: .leading, spacing: Space.xs) {
                 Text(Copy.deck_title).font(PoruchFont.brandTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
@@ -55,8 +74,17 @@ struct DeckView: View {
             Spacer(minLength: 0)
             // Квиток і під ним — що це за подія: людина має розуміти, що їй пропонують, а не вгадувати з назви.
             VStack(alignment: .leading, spacing: Space.md) {
-                EventHeroCard(event: cards[index], height: 300) {}
+                // Тут квиток — не кнопка: VoiceOver читає його текстом, а відповідь — «Так» і «Ні».
+                EventHeroCard(event: cards[index], height: 300, showsSource: false) {}
                     .allowsHitTesting(false)
+                    .accessibilityRemoveTraits(.isButton)
+                    // «Так» штампує квиток, як касир, — стан мовою «Корінця»; посередині обкладинки, а не корінця.
+                    .overlay(alignment: .top) {
+                        TicketStamp(text: Copy.deck_saved, tone: .success, glyph: PoruchIcons.bookmarkFilled, onFill: cards[index].imageUrl != nil)
+                            .scaleEffect(2.4 - 0.9 * stamp).opacity(min(stamp, 1))
+                            .offset(x: -42).padding(.top, 64)
+                            .accessibilityHidden(true)
+                    }
                 about(cards[index])
             }
                 .contentShape(Rectangle())
@@ -73,10 +101,6 @@ struct DeckView: View {
                 .id(cards[index].id)
                 .transition(.opacity)
             Spacer(minLength: 0)
-            HStack(spacing: Space.md) {
-                SecondaryButton(title: Copy.deck_no) { answer(false) }
-                PrimaryButton(title: Copy.deck_yes, glyph: PoruchIcons.bookmark) { answer(true) }
-            }
         }
     }
 
@@ -129,7 +153,11 @@ struct DeckView: View {
                         close(skipped: false)
                     }
                 }
-                Button { model.app.digestPromptAnswered(granted: false, from: "deck"); close(skipped: false) } label: {
+                // «Не зараз» — теж відповідь: без позначки наступний запуск питав про дайджест удруге.
+                Button {
+                    UserDefaults.standard.set(true, forKey: "poruch.digestAsked")
+                    model.app.digestPromptAnswered(granted: false, from: "deck"); close(skipped: false)
+                } label: {
                     Text(Copy.digest_prompt_no).font(PoruchFont.button).foregroundStyle(Palette.inkSecondary).tapTarget()
                 }.buttonStyle(.plain).frame(maxWidth: .infinity)
             } else {
@@ -143,18 +171,19 @@ struct DeckView: View {
         let event = cards[index]
         model.app.deckAnswered(id: event.id, yes: yes, position: Int32(index))
         if yes { kept.append(event) }
-        let away: CGFloat = yes ? 600 : -600
-        if reduceMotion {
-            drag = 0; index += 1
-        } else {
-            flying = true
-            withAnimation(.easeIn(duration: 0.18)) { drag = away }
-            Task {
-                try? await Task.sleep(for: .milliseconds(180))
-                drag = 0
-                withAnimation(.easeOut(duration: 0.2)) { index += 1 }
-                flying = false
+        flying = true
+        Task {
+            if yes {
+                withAnimation(reduceMotion ? .easeOut(duration: 0.15) : .spring(response: 0.22, dampingFraction: 0.55)) { stamp = 1 }
+                try? await Task.sleep(for: .milliseconds(reduceMotion ? 350 : 280))
             }
+            if !reduceMotion {
+                withAnimation(.easeIn(duration: 0.18)) { drag = yes ? 600 : -600 }
+                try? await Task.sleep(for: .milliseconds(180))
+            }
+            drag = 0; stamp = 0
+            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) { index += 1 }
+            flying = false
         }
     }
 

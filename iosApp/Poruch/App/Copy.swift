@@ -112,6 +112,7 @@ enum Copy {
     static func deck_progress(_ a0: String, _ a1: String) -> String { "\(a0) з \(a1)" }
     static let deck_yes = "Так"
     static let deck_no = "Ні"
+    static let deck_saved = "Збережено"
     static let deck_done_title = "Ваш тиждень зібрано"
     static let deck_done_body = "Нагадаємо ввечері напередодні й скажемо, коли зʼявиться щось схоже."
     static let deck_empty_title = "Нічого не зачепило?"
@@ -528,7 +529,10 @@ enum Copy {
     static let company_ask_in = "Попроситися"
     static let company_together = "Ви йдете разом"
     static let company_photo_hint = "Додайте фото в профілі — побачите фото інших"
-    static let company_by_yourself = "Або зібрати компанію самому: час і місце"
+    static let company_by_yourself = "Зібрати компанію самому"
+    static let company_by_yourself_note = "Оберіть час і місце зустрічі"
+    static let company_none = "Поки ніхто не шукає"
+    static let company_none_note = "Будьте першими — скажемо, щойно хтось долучиться"
     static let company_rail = "Шукають компанію"
     static let company_notification_channel = "Компанія на події"
     static let instagram = "Instagram"
@@ -845,7 +849,7 @@ enum Copy {
     static func digest_count(_ n: Int) -> String { ukrainianPlural(n, "\(n) подія", "\(n) події", "\(n) подій") }
     static func request_notification_body(_ n: Int) -> String { ukrainianPlural(n, "\(n) новий запит на участь. Відкрийте подію, щоб відповісти.", "\(n) нові запити на участь. Відкрийте подію, щоб відповісти.", "\(n) нових запитів на участь. Відкрийте подію, щоб відповісти.") }
     static func company_count(_ n: Int) -> String { ukrainianPlural(n, "\(n) людина хоче піти з компанією", "\(n) людини хочуть піти з компанією", "\(n) людей хочуть піти з компанією") }
-    static func company_reason(_ n: Int) -> String { ukrainianPlural(n, "\(n) хоче піти з компанією", "\(n) хочуть піти з компанією", "\(n) хочуть піти з компанією") }
+    static func company_reason(_ n: Int) -> String { ukrainianPlural(n, "\(n) людина", "\(n) людини", "\(n) людей") }
     static func company_attended(_ n: Int) -> String { ukrainianPlural(n, "\(n) подія відвідана", "\(n) події відвідано", "\(n) подій відвідано") }
     static func field_title(_ n: Int) -> String { ukrainianPlural(n, "Назва — щонайменше \(n) символ", "Назва — щонайменше \(n) символи", "Назва — щонайменше \(n) символів") }
     static func field_description(_ n: Int) -> String { ukrainianPlural(n, "Опис — щонайменше \(n) символ", "Опис — щонайменше \(n) символи", "Опис — щонайменше \(n) символів") }
