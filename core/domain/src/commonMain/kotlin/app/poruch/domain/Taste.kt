@@ -74,6 +74,8 @@ interface Rankable {
     val roomCapacity: Int?
     /** Кімната є і в ній лишилось місце. */
     val roomHasSeats: Boolean
+    /** Скільки людей хочуть піти на подію з компанією (docs/return-hooks.md). Картці без індексу — 0. */
+    val companyCount: Int get() = 0
 }
 
 /**
@@ -92,6 +94,11 @@ object TasteRanking {
      * не отримує: кімнати нема. Так імпорт лишається тлом (docs/event-discovery.md §4.2).
      */
     const val SEATS = 10
+    /**
+     * На подію вже шукають компанію: збіги можливі, лише коли наміри збираються на кількох подіях, а не
+     * розмазані по сотнях (docs/return-hooks.md, роадмап 1.4 п. 6). Як місця в кімнаті: інтерес не переважує.
+     */
+    const val COMPANY = 10
     /** Згасає за три дні: «цього тижня» — план, «наступного місяця» — може бути. */
     const val SOON = 10
     const val SOON_HOURS = 72
@@ -106,6 +113,7 @@ object TasteRanking {
         if (slotOf(event, zones) in taste.times) total += TIME
         if (fitsCrowd(event, taste.crowd)) total += CROWD
         if (event.roomHasSeats) total += SEATS
+        if (event.companyCount > 0) total += COMPANY
         total += soonness(event, now)
         return total
     }

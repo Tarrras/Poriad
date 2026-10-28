@@ -46,6 +46,19 @@ class TasteRankingTest {
         assertEquals("art", ranked.first().id)
     }
 
+    @Test fun wantedCompanyLiftsAmongEqualsButNotOverInterest() {
+        fun entry(id: String, category: EventCategory, company: Int) = EventIndexEntry(
+            id, 50.45, 30.52, category, fridayEvening, "Europe/Kyiv", id, EventOrigin.IMPORT, companyCount = company
+        )
+        val taste = Taste(interests = listOf(EventCategory.ART), answered = true)
+        val ranked = TasteRanking.rank(
+            listOf(entry("music", EventCategory.MUSIC, 0), entry("art", EventCategory.ART, 0),
+                   entry("art-company", EventCategory.ART, 2), entry("music-company", EventCategory.MUSIC, 3)),
+            taste, now
+        )
+        assertEquals(listOf("art-company", "art", "music-company", "music"), ranked.map { it.id })
+    }
+
     @Test fun nothingIsEverDropped() {
         val taste = Taste(interests = listOf(EventCategory.ART), times = listOf(TimeSlot.WEEKEND_DAY), answered = true)
         val all = listOf(event("a"), event("b", category = EventCategory.FOOD), event("c", category = EventCategory.SPORT))
