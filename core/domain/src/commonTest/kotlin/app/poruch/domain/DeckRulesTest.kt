@@ -40,10 +40,11 @@ class DeckRulesTest {
         assertEquals("2026-09-28", DeckRules.week(Instant.parse("2026-09-28T06:00:00Z"), kyiv))
     }
 
-    /** Що це за подія в стосі: речення агента імпорту, інакше початок опису, інакше нічого. */
-    @Test fun aboutPrefersTheBlurb() {
-        assertEquals("Стендап про стосунки", event("a").copy(description = "Довгий опис", blurb = " Стендап про стосунки ").about)
-        assertEquals("Довгий опис", event("a").copy(description = "Довгий опис", blurb = "  ").about)
-        assertNull(event("a").about)
+    /** Що це за подія в стосі: речення агента імпорту й уривок опису разом, порожнє — null. */
+    @Test fun aboutKeepsBothTheLineAndTheExcerpt() {
+        assertEquals(EventAbout("Стендап про стосунки", "Довгий опис"),
+            event("a").copy(description = "Довгий опис", blurb = " Стендап про стосунки ").about)
+        assertEquals(EventAbout(null, "Довгий опис."), event("a").copy(description = "Довгий\n\n опис.", blurb = "  ").about)
+        assertEquals(EventAbout(null, null), event("a").about)
     }
 }

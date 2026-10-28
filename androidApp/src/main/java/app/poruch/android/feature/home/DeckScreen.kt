@@ -117,10 +117,8 @@ fun DeckScreen(app: PoruchApp, cards: List<Event>, onDone: () -> Unit) {
                         },
                     verticalArrangement = Arrangement.spacedBy(Spacing.md)
                 ) {
-                    EventHeroCard(cards[index], Modifier.fillMaxWidth(), height = 380.dp) {}
-                    cards[index].about?.let {
-                        Text(it, style = MaterialTheme.typography.bodyLarge, color = colors.inkSecondary, maxLines = 4, overflow = TextOverflow.Ellipsis)
-                    }
+                    EventHeroCard(cards[index], Modifier.fillMaxWidth(), height = 300.dp) {}
+                    About(cards[index])
                 }
             }
             Spacer(Modifier.weight(1f))
@@ -164,6 +162,24 @@ fun DeckScreen(app: PoruchApp, cards: List<Event>, onDone: () -> Unit) {
             } else {
                 PrimaryButton(stringResource(R.string.deck_finish), { close(skipped = false) }, Modifier.fillMaxWidth())
             }
+        }
+    }
+}
+
+/** Що це за подія: речення «що це», уривок опису й ціна — щоб «так» було рішенням, а не вгадуванням з назви. */
+@Composable
+private fun About(event: Event) {
+    val colors = Poruch.colors
+    val about = event.about
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+        about.line?.let {
+            Text(it, style = MaterialTheme.typography.titleSmall, color = colors.ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        }
+        about.excerpt?.let {
+            Text(it, style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary, maxLines = 3, overflow = TextOverflow.Ellipsis)
+        }
+        event.listing?.takeIf { it.isFree == true || it.priceMin != null }?.let {
+            Text(listingPrice(it), style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary)
         }
     }
 }

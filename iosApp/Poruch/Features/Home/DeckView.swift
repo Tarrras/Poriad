@@ -55,12 +55,9 @@ struct DeckView: View {
             Spacer(minLength: 0)
             // Квиток і під ним — що це за подія: людина має розуміти, що їй пропонують, а не вгадувати з назви.
             VStack(alignment: .leading, spacing: Space.md) {
-                EventHeroCard(event: cards[index], height: 380) {}
+                EventHeroCard(event: cards[index], height: 300) {}
                     .allowsHitTesting(false)
-                if let about = cards[index].about {
-                    Text(about).font(PoruchFont.bodyText).foregroundStyle(Palette.inkSecondary)
-                        .lineLimit(4).fixedSize(horizontal: false, vertical: true)
-                }
+                about(cards[index])
             }
                 .contentShape(Rectangle())
                 .offset(x: drag)
@@ -79,6 +76,25 @@ struct DeckView: View {
             HStack(spacing: Space.md) {
                 SecondaryButton(title: Copy.deck_no) { answer(false) }
                 PrimaryButton(title: Copy.deck_yes, glyph: PoruchIcons.bookmark) { answer(true) }
+            }
+        }
+    }
+
+    /// Що це за подія: речення «що це», уривок опису й ціна — щоб «так» було рішенням, а не вгадуванням з назви.
+    @ViewBuilder
+    private func about(_ event: Event) -> some View {
+        let about = event.about
+        VStack(alignment: .leading, spacing: Space.xs) {
+            if let line = about.line {
+                Text(line).font(PoruchFont.cardName).kerning(-0.2).foregroundStyle(Palette.ink)
+                    .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+            }
+            if let excerpt = about.excerpt {
+                Text(excerpt).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
+                    .lineLimit(3).fixedSize(horizontal: false, vertical: true)
+            }
+            if let listing = event.listing, listing.isFree?.boolValue == true || listing.priceMin != nil {
+                Text(listingPrice(listing)).font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
             }
         }
     }

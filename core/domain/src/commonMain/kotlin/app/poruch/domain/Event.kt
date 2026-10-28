@@ -7,6 +7,9 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.minus
 import kotlinx.datetime.toLocalDateTime
 
+/** [line] — речення «що це», [excerpt] — уривок опису. Обидва null — сказати нічого. */
+data class EventAbout(val line: String?, val excerpt: String?)
+
 /**
  * Модель події, незалежна від UI. Час — ISO-8601 в UTC.
  *
@@ -98,11 +101,13 @@ data class Event(
         else description.take(LISTING_DESCRIPTION_PREVIEW).trimEnd().trimEnd(',', ';', '—', '-', '.') + "…"
 
     /**
-     * Що це за подія — тому, хто бачить її вперше (стос «Ваш тиждень», docs/return-hooks.md): [blurb], інакше початок
-     * дозволеного опису. Null — сказати нічого.
+     * Що це за подія — тому, хто бачить її вперше (стос «Ваш тиждень», docs/return-hooks.md): речення «що це» й
+     * уривок дозволеного опису, разом. Одне речення агента часто загадкове («Шість жінок і досвід…»), а опис без нього
+     * починається з SEO-вступу; разом вони кажуть, що це і про що.
      */
-    val about: String?
-        get() = blurb?.trim()?.takeIf { it.isNotEmpty() } ?: displayDescription.trim().takeIf { it.isNotEmpty() }
+    val about: EventAbout
+        // Абзаци опису — в один рядок: у трьох рядках стосу «…» інакше стояло окремим рядком.
+        get() = EventAbout(blurb?.trim()?.takeIf { it.isNotEmpty() }, displayDescription.replace(WHITESPACE, " ").trim().takeIf { it.isNotEmpty() })
 
     /** Опис обрізано, тож посилання «читати повністю» має сенс. */
     val descriptionTruncated get() = displayDescription.length < description.length
@@ -153,6 +158,7 @@ data class Event(
     companion object {
         /** Скільки символів чужого опису показуємо, перш ніж відіслати до джерела. */
         const val LISTING_DESCRIPTION_PREVIEW = 200
+        private val WHITESPACE = Regex("\\s+")
 
         /** Довше за добу — це вже не сеанс, а прокат. */
         private val RUN_FROM = 24.hours
