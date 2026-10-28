@@ -77,9 +77,8 @@ struct HomePeopleSection: View {
     }
 }
 
-/// «У місті»: три великі картки, що гортаються (сусідня визирає), [middle] (радар артистів), чипи, далі сітка постерів у
-/// дві колонки. Чипи звужують лише сітку, тож стоять над нею, а не під великими картками.
-struct HomeCityFeed<Middle: View>: View {
+/// «У місті»: три великі картки, що гортаються (сусідня визирає), чипи, далі сітка постерів у дві колонки.
+struct HomeCityFeed: View {
     let view: HomeScreenState
     /// Скільки рядків показано (`HomeView.feedLimit`): чип скидає, «Показати ще» додає.
     @Binding var feedLimit: Int
@@ -88,7 +87,6 @@ struct HomeCityFeed<Middle: View>: View {
     /// «Усі N»: мапа з усім містом.
     let showCity: () -> Void
     let openMap: () -> Void
-    @ViewBuilder let middle: () -> Middle
     @Environment(\.appModel) private var appModel
     private var model: AppModel { appModel! }
 
@@ -104,7 +102,6 @@ struct HomeCityFeed<Middle: View>: View {
                     action: view.totalFound > 0 ? showCity : nil
                 ).padding(.horizontal, Space.page)
                 heroPager(picks)
-                middle()
                 if !view.chips.isEmpty { feedChips(view.chips, selected: view.feedFilter) }
                 if !shown.isEmpty {
                     // Ряди по два квитки однакової висоти: корінці в ряду стоять на одній лінії, хоч би скільки рядків мав підпис.

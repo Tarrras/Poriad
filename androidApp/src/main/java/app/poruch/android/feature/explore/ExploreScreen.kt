@@ -174,7 +174,7 @@ private fun TopControls(state: ExploreState, onIntent: (ExploreIntent) -> Unit) 
             }
             // Одразу після міста, а не за датами: з «Усі N» головної мапа приходить із цим фільтром, і його має бути видно.
             PoruchChip(
-                stringResource(R.string.from_people), state.screen.onlyAvailable,
+                stringResource(R.string.home_with_whom), state.screen.onlyAvailable,
                 { onIntent(ExploreIntent.OnlyAvailable(!state.screen.onlyAvailable)) }, PoruchIcons.social
             )
             // Категорію з «Фільтрів» чи плиток видно тут, а не лише цифрою на кнопці фільтрів. Тап знімає її. Поруч із датами:

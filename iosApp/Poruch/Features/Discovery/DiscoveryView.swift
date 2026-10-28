@@ -307,7 +307,7 @@ private struct TopControls: View {
                                 .accessibilityLabel(Copy.a11y_pick_district)
                         }
                         // Одразу після міста, а не за датами: з «Усі N» головної мапа приходить із цим фільтром, і його має бути видно.
-                        Chip(label: Copy.from_people, glyph: PoruchIcons.social, selected: view.onlyAvailable) {
+                        Chip(label: Copy.home_with_whom, glyph: PoruchIcons.social, selected: view.onlyAvailable) {
                             model.app.setOnlyAvailable(available: !view.onlyAvailable)
                         }
                         // Категорію з «Фільтрів» чи плиток видно тут, а не лише цифрою на кнопці фільтрів. Тап знімає її. Поруч із датами:

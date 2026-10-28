@@ -333,7 +333,7 @@
   <string name="going_nothing_ahead_text">Знайдіть, куди піти сьогодні чи на вихідних</string>
   <string name="undo">Повернути</string>
   <string name="show_nothing">Нічого не знайдено</string>
-  <string name="from_people_hint">Лише зустрічі, де ще є вільні місця</string>
+  <string name="from_people_hint">Зустрічі з вільним місцем і афіші, на які шукають компанію</string>
   <string name="offline_count">Без мережі · %1$s</string>
   <string name="searching">Шукаємо події…</string>
   <string name="recenter">Повернутися до міста</string>
@@ -662,10 +662,10 @@
   </plurals>
   <!-- Рейка «Шукають компанію»: заголовок уже каже що, тут лише хто. Довше «2 хочуть піти з компанією» обрізалось. -->
   <plurals name="company_reason">
-    <item quantity="one">%d людина</item>
-    <item quantity="few">%d людини</item>
-    <item quantity="many">%d людей</item>
-    <item quantity="other">%d людини</item>
+    <item quantity="one">%d шукає компанію</item>
+    <item quantity="few">%d шукають компанію</item>
+    <item quantity="many">%d шукають компанію</item>
+    <item quantity="other">%d шукають компанію</item>
   </plurals>
   <string name="company_shared">спільне з вами: %1$s</string>
   <plurals name="company_attended">

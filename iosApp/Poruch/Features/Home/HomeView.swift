@@ -116,13 +116,12 @@ struct HomeView: View, Equatable {
                             }
                             .cardSurface().padding(.horizontal, Space.page)
                         }
-                        HomeCityFeed(view: view, feedLimit: $feedLimit, open: open, showCity: showCity, openMap: openMap) {
-                            // Радар артистів — під великими квитками міста: опора, а не перше, що бачить гість.
-                            if !view.radar.isEmpty {
-                                HomeRadarSection(rows: view.radar, open: { open($0, from: "radar") }, add: { radarPicker = true })
-                                    .padding(.vertical, Space.lg)
-                            }
+                        // Радар артистів — перед «У місті»: великі квитки, чипи й сітка лишаються одним блоком, і чипи не
+                        // читаються фільтром артистів (повторна критика 28.10).
+                        if !view.radar.isEmpty {
+                            HomeRadarSection(rows: view.radar, open: { open($0, from: "radar") }, add: { radarPicker = true })
                         }
+                        HomeCityFeed(view: view, feedLimit: $feedLimit, open: open, showCity: showCity, openMap: openMap)
                         // Кінець стрічки не глухий кут: далі мапа чи власна подія.
                         if !view.feed.isEmpty { moreRows(view) }
                     }

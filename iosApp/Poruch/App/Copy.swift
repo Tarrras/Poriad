@@ -288,7 +288,7 @@ enum Copy {
     static let going_nothing_ahead_text = "Знайдіть, куди піти сьогодні чи на вихідних"
     static let undo = "Повернути"
     static let show_nothing = "Нічого не знайдено"
-    static let from_people_hint = "Лише зустрічі, де ще є вільні місця"
+    static let from_people_hint = "Зустрічі з вільним місцем і афіші, на які шукають компанію"
     static func offline_count(_ a0: String) -> String { "Без мережі · \(a0)" }
     static let searching = "Шукаємо події…"
     static let recenter = "Повернутися до міста"
@@ -901,7 +901,7 @@ enum Copy {
     static func request_notification_body(_ n: Int) -> String { ukrainianPlural(n, "\(n) новий запит на участь. Відкрийте подію, щоб відповісти.", "\(n) нові запити на участь. Відкрийте подію, щоб відповісти.", "\(n) нових запитів на участь. Відкрийте подію, щоб відповісти.") }
     static func wallet_count(_ n: Int) -> String { ukrainianPlural(n, "\(n) квиток", "\(n) квитки", "\(n) квитків") }
     static func company_count(_ n: Int) -> String { ukrainianPlural(n, "\(n) людина хоче піти з компанією", "\(n) людини хочуть піти з компанією", "\(n) людей хочуть піти з компанією") }
-    static func company_reason(_ n: Int) -> String { ukrainianPlural(n, "\(n) людина", "\(n) людини", "\(n) людей") }
+    static func company_reason(_ n: Int) -> String { ukrainianPlural(n, "\(n) шукає компанію", "\(n) шукають компанію", "\(n) шукають компанію") }
     static func company_attended(_ n: Int) -> String { ukrainianPlural(n, "\(n) подія відвідана", "\(n) події відвідано", "\(n) подій відвідано") }
     static func field_title(_ n: Int) -> String { ukrainianPlural(n, "Назва — щонайменше \(n) символ", "Назва — щонайменше \(n) символи", "Назва — щонайменше \(n) символів") }
     static func field_description(_ n: Int) -> String { ukrainianPlural(n, "Опис — щонайменше \(n) символ", "Опис — щонайменше \(n) символи", "Опис — щонайменше \(n) символів") }

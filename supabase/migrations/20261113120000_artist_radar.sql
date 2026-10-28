@@ -287,3 +287,75 @@ do $$ begin
   execute $cron$select cron.schedule('notify-radar-devices', '3 * * * *', 'select private.notify_radar_devices()')$cron$;
  end if;
 end $$;
+
+-- ---- «З ким піти» на мапі (аудит головної 28.10)
+
+-- На головній «Від людей» і «Шукають компанію» стали однією рейкою «З ким піти», і її «Усі N» веде на мапу з тим самим
+-- фільтром. Тож p_available тепер — зустріч із вільним місцем АБО афіша, на яку хтось шукає компанію.
+-- Тіло — з 20261112120000_cinema_category.sql (кіно, гілка cinema-import), змінено лише умову p_available. Тому ця
+-- міграція йде після кіно: інакше кіно перезапише функцію старим тілом.
+create or replace function private.discover_index(
+ p_south double precision, p_west double precision, p_north double precision, p_east double precision,
+ p_category text, p_from timestamptz, p_to timestamptz, p_text text, p_available boolean,
+ p_limit integer, p_cards integer, p_cinema boolean)
+returns table(index jsonb, total integer, truncated boolean, card_ids uuid[])
+language sql stable security definer set search_path='' as $$
+ with matched as (
+  select e.id, e.starts_at, e.latitude, e.longitude, e.category, e.time_zone, e.title,
+         e.origin, e.capacity, e.source_id, e.place_id
+  from public.events e
+  where e.status='published' and private.is_listed(e.starts_at, e.ends_at, e.title)
+    and private.is_discoverable(e.origin, e.import_status, e.quality)
+    and (coalesce(p_cinema,false) or e.category <> 'cinema')
+    -- Варіант у підзапиті: рахується раз на виклик, а не на кожен рядок.
+    and (nullif(btrim(p_text),'') is null
+         or strpos(lower(concat_ws(' ', e.title, e.description, e.city, e.address)), lower(btrim(p_text))) > 0
+         or strpos(lower(concat_ws(' ', e.title, e.description, e.city, e.address)), (select private.search_translit(p_text))) > 0)
+    -- `case` замість `and`: порядок обчислення кон'юнкції не гарантований.
+    and (not coalesce(p_available,false)
+         or case when e.capacity is null then exists (select 1 from private.company_intents ci where ci.event_id = e.id)
+                 else private.event_has_space(e.id) end)
+    and (p_category is null or e.category = p_category)
+    and (p_from is null or e.starts_at >= p_from) and (p_to is null or e.starts_at < p_to)
+    and (e.organizer_id is null or e.organizer_id = auth.uid()
+         or (private.account_active(e.organizer_id) and not private.blocked_between(auth.uid(), e.organizer_id)))
+    and ((p_west <= p_east and e.location::gis.geometry operator(gis.&&) gis.st_makeenvelope(p_west,p_south,p_east,p_north,4326))
+      or (p_west > p_east and (e.location::gis.geometry operator(gis.&&) gis.st_makeenvelope(p_west,p_south,180,p_north,4326)
+       or e.location::gis.geometry operator(gis.&&) gis.st_makeenvelope(-180,p_south,p_east,p_north,4326)))))
+ , runs as (
+  select m.*,
+         case when m.category = 'cinema' then row_number() over w end as nth,
+         case when m.category = 'cinema' then
+           jsonb_agg(jsonb_build_array(m.id, m.starts_at)) over (w rows between unbounded preceding and unbounded following)
+         end as sessions
+  from matched m
+  -- Без місця кіносеанс — сам собі прокат: інакше злиплись би всі сеанси фільму без точки.
+  window w as (partition by m.category = 'cinema', coalesce(m.place_id::text, m.id::text), lower(btrim(m.title))
+               order by m.starts_at, m.id)
+ )
+ , ranked as (
+  select r.*, row_number() over (order by r.category = 'cinema', greatest(r.starts_at, now()), r.id) as rank,
+         count(*) over () as total
+  from runs r where r.nth is null or r.nth = 1
+ )
+ , page as (select r.* from ranked r where r.rank <= p_limit)
+ select
+  coalesce((select jsonb_agg(jsonb_build_array(
+     p.id, p.latitude, p.longitude, p.category, p.starts_at, p.time_zone, p.title, p.origin,
+     s.slug,
+     p.capacity,
+     case when p.origin='community' then
+       (select count(*)::integer from public.event_members mm where mm.event_id=p.id and mm.status='approved')
+     else 0 end,
+     -- ponytail: рахуємо всіх, без блоків і неактивних — точне число дає `company_teaser` на деталях.
+     case when p.origin='import' then
+       (select count(*)::integer from private.company_intents ci where ci.event_id=p.id)
+     else 0 end,
+     case when p.category='cinema' then pl.name end,
+     p.sessions
+   ) order by p.rank) from page p left join public.event_sources s on s.id=p.source_id
+     left join public.places pl on pl.id=p.place_id), '[]'::jsonb),
+  coalesce((select max(r.total)::integer from ranked r), 0),
+  coalesce((select max(r.total) from ranked r), 0) > p_limit,
+  coalesce((select array_agg(p.id order by p.rank) from page p where p.rank <= p_cards), '{}'::uuid[]);
+$$;

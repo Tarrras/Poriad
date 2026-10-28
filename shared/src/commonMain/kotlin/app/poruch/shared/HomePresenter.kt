@@ -100,7 +100,7 @@ data class HomeScreenState(
     val feedFilter: FeedFilter = FeedFilter(),
     /** Скільки подій в області, без фільтрів мапи. */
     val totalFound: Int = 0,
-    /** Скільки відкритих зустрічей від людей у місті всього: число в «Усі N» біля «Від людей», рейка показує лише перші. */
+    /** Скільки всього в «З ким піти» по місту: зустрічі з місцем і афіші з наміром — число «Усі N», рейка показує лише перші. */
     val openRooms: Int = 0,
     val savedIds: List<String> = emptyList(),
     val waitlistedIds: List<String> = emptyList(),
@@ -265,7 +265,9 @@ class HomePresenter(
             chips = chips,
             feedFilter = filter,
             totalFound = home.totalFound,
-            openRooms = home.openRooms,
+            // «Усі N» над «З ким піти»: зустрічі з місцем і афіші, на які шукають компанію, — те саме, що покаже мапа з
+            // фільтром «З ким піти» (`discover_index`, p_available).
+            openRooms = home.openRooms + home.index.count { it.companyCount > 0 },
             savedIds = shared.library.savedIds,
             waitlistedIds = shared.library.waitlistedIds,
             searchText = home.searchText,

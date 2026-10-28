@@ -134,8 +134,10 @@ fun HomeScreen(state: HomeState, onIntent: (HomeIntent) -> Unit) {
                     Box(Modifier.padding(top = Spacing.xxl)) { PersonalSection(state, onIntent) }
                 }
                 item(key = "deck") { DeckRow(state.screen.deck, state.screen.deckWeek) }
-                // Радар артистів — під великими квитками міста: опора, а не перше, що бачить гість.
-                cityFeed(state, onIntent, columns) { item(key = "radar") { RadarSection(state, onIntent) } }
+                // Радар артистів — перед «У місті»: великі квитки, чипи й сітка лишаються одним блоком, і чипи не
+                // читаються фільтром артистів (повторна критика 28.10).
+                item(key = "radar") { RadarSection(state, onIntent) }
+                cityFeed(state, onIntent, columns)
                 // Кінець стрічки не глухий кут: далі мапа чи власна подія.
                 if (state.screen.feed.isNotEmpty()) item(key = "next") { MoreRows(state, onIntent) }
             }
@@ -832,11 +834,7 @@ private fun lane(source: FeedSource, followName: String?): String? = when (sourc
 }
 
 /** «У місті»: великі картки, що гортаються (сусідня визирає), чипи, далі сітка постерів у дві колонки. */
-private fun LazyListScope.cityFeed(
-    state: HomeState, onIntent: (HomeIntent) -> Unit, columns: Int,
-    /** Між великими квитками й чипами (радар артистів): чипи звужують лише сітку, тож стоять над нею. */
-    middle: LazyListScope.() -> Unit
-) {
+private fun LazyListScope.cityFeed(state: HomeState, onIntent: (HomeIntent) -> Unit, columns: Int) {
     when {
         state.screen.feed.isNotEmpty() -> {
             val picks = state.screen.feed.take(HomeRules.HERO_COUNT)
@@ -855,12 +853,8 @@ private fun LazyListScope.cityFeed(
                         onAction = { onIntent(HomeIntent.ShowEverythingOnMap) }
                     )
                     HeroPager(picks, state.screen.savedIds, onIntent)
+                    if (state.screen.chips.isNotEmpty()) FeedChips(state, onIntent)
                 }
-            }
-            middle()
-            if (state.screen.chips.isNotEmpty()) item(key = "chips") {
-                // Під великими квитками — щільно, як було; після радару — відступом секції.
-                Box(Modifier.padding(top = if (state.screen.radar.isEmpty()) Spacing.md else Spacing.xxl)) { FeedChips(state, onIntent) }
             }
             val rows = rest.take(state.feedLimit).chunked(columns)
             itemsIndexed(rows, key = { _, pair -> pair.first().event.id }, contentType = { _, _ -> "poster-row" }) { index, pair ->

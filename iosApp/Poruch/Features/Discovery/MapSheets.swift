@@ -39,7 +39,7 @@ struct FiltersView: View {
                     // Та сама назва, що в чипа над мапою: один фільтр — одне ім'я, а що він робить — підписом.
                     Toggle(isOn: Binding(get: { explore.onlyAvailable }, set: { model.app.setOnlyAvailable(available: $0) })) {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(Copy.from_people).font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
+                            Text(Copy.home_with_whom).font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
                             Text(Copy.from_people_hint).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
                         }
                     }.tint(Palette.brand)

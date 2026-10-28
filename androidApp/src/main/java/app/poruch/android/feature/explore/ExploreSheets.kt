@@ -91,7 +91,7 @@ internal fun FilterSheet(state: ExploreState, onIntent: (ExploreIntent) -> Unit,
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(stringResource(R.string.from_people), style = MaterialTheme.typography.bodyLarge, color = colors.ink)
+                Text(stringResource(R.string.home_with_whom), style = MaterialTheme.typography.bodyLarge, color = colors.ink)
                 Text(stringResource(R.string.from_people_hint), style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
             }
             PoruchSwitch(screen.onlyAvailable, null)
