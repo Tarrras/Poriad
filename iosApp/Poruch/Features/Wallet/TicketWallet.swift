@@ -84,6 +84,25 @@ enum TicketFiles {
         return UIImage(contentsOfFile: target.path).map { [$0] } ?? []
     }
 
+    /**
+     * Одна сторінка як окремий файл (хвиля 2): з PDF на кількох той, з ким ідеш, отримує лише свій квиток. Знімок
+     * іде як є.
+     */
+    static func single(_ ticket: WalletTicket, page: Int) -> URL? {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("send", isDirectory: true)
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let source = url(ticket.file)
+        let out = folder.appendingPathComponent("Квиток \(page + 1)." + (ticket.kind == .pdf ? "pdf" : source.pathExtension))
+        try? FileManager.default.removeItem(at: out)
+        if ticket.kind == .pdf {
+            guard let document = PDFDocument(url: source), let copy = document.page(at: page)?.copy() as? PDFPage else { return nil }
+            let single = PDFDocument()
+            single.insert(copy, at: 0)
+            return single.write(to: out) ? out : nil
+        }
+        return (try? FileManager.default.copyItem(at: source, to: out)) != nil ? out : nil
+    }
+
     private static func image(_ page: PDFPage, width: CGFloat) -> UIImage {
         let box = page.bounds(for: .mediaBox)
         return page.thumbnail(of: CGSize(width: width, height: width * box.height / max(box.width, 1)), for: .mediaBox)
@@ -101,6 +120,19 @@ enum TicketFiles {
             do { try VNImageRequestHandler(cgImage: image).perform([request]) } catch { continuation.resume(returning: "") }
         }
     }
+}
+
+/// Що йде разом із файлом: що, коли й де, а для афіші — посилання на подію.
+func ticketShareText(_ ticket: WalletTicket) -> String {
+    let when = [ticketWhen(ticket), ticket.place].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
+    let link = ticket.eventId.map { "\n" + EventLinks.shared.url(eventId: $0) } ?? ""
+    return Copy.wallet_send_text(ticket.title, when) + link
+}
+
+/// Аркуш «Поділитися» з файлом квитка: `sheet(item:)` потребує identity.
+struct TicketShare: Identifiable {
+    let id = UUID()
+    let items: [Any]
 }
 
 /// «пт 30.10, 19:40» у поясі квитка.
@@ -215,6 +247,8 @@ struct TicketViewer: View {
     @State private var pages: [UIImage] = []
     @State private var brightness: CGFloat?
     @State private var deleting = false
+    @State private var page = 0
+    @State private var sharing: TicketShare?
 
     private var ticket: WalletTicket? { model.state?.tickets.first { $0.id == ticketID } }
 
@@ -238,17 +272,26 @@ struct TicketViewer: View {
                 }
                 .buttonStyle(.plain).accessibilityLabel(Copy.close)
             }
-            TabView {
-                ForEach(Array(pages.enumerated()), id: \.offset) { _, page in
+            TabView(selection: $page) {
+                ForEach(Array(pages.enumerated()), id: \.offset) { index, image in
                     // Квиток — папір: білий під ним і вночі, інакше QR на темному тлі сканер не бере.
-                    Image(uiImage: page).resizable().scaledToFit()
+                    Image(uiImage: image).resizable().scaledToFit()
                         .background(Color.white)
                         .clipShape(RoundedRectangle(cornerRadius: Corner.md, style: .continuous))
                         .padding(.bottom, Space.xl)
+                        .tag(index)
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: pages.count > 1 ? .always : .never))
             .accessibilityLabel(ticket.map { Copy.wallet_count(Int($0.count)) } ?? "")
+            // Квиток тому, з ким ідеш: лише сторінка, яку видно, і що-коли-де з посиланням (docs/ticket-wallet.md, хвиля 2).
+            if let ticket {
+                SecondaryButton(title: Copy.wallet_send, glyph: PoruchIcons.share) {
+                    guard let file = TicketFiles.single(ticket, page: page) else { return }
+                    model.app.ticketSent(id: ticket.id)
+                    sharing = TicketShare(items: [ticketShareText(ticket), file])
+                }
+            }
             Button { deleting = true } label: {
                 Text(Copy.wallet_delete).font(PoruchFont.button).foregroundStyle(Palette.danger).tapTarget()
             }
@@ -267,6 +310,7 @@ struct TicketViewer: View {
             screen.brightness = 1
         }
         .onDisappear { if let brightness { keyScreen()?.brightness = brightness } }
+        .sheet(item: $sharing) { ActivitySheet(items: $0.items).presentationDetents([.medium, .large]) }
         .alert(Copy.wallet_delete_title, isPresented: $deleting) {
             Button(Copy.cancel, role: .cancel) {}
             Button(Copy.wallet_delete, role: .destructive) {

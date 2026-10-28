@@ -93,4 +93,19 @@ safety це не збір (дані не залишають пристрій); �
 
 ## Код
 
-Заповнюється з хвилями.
+- core/domain `Wallet.kt`: `WalletTicket`, `TicketReader`, `TicketMatch`, `TicketStore`; тест `WalletTest` (Multiplex,
+  Concert.ua, Karabas, дата покупки, «Шоу …», рік, сеанс серії, надіслана сторінка). `ReminderRules.tickets` — `ticket:…`.
+- core/data `LocalTicketStore` (`device:tickets`). shared: `AppState.tickets`, `PoruchApp.readTicket` / `ticketMatch` /
+  `ticketStartMillis` / `addTicket` / `removeTicket` / `ticketShown` / `ticketSent`, `MyEventsScreenState.tickets`;
+  тест `PoruchAppTest.aTicketLivesOnThePhone`.
+- iOS `Features/Wallet/TicketWallet.swift` (`TicketFiles`, `TicketImportSheet`, `TicketViewer`, `TicketsSection`,
+  `WalletTicketCard`); `Info.plist` — `CFBundleDocumentTypes`; `onOpenURL` з файлом; `RootScreenModel.ticketImport` /
+  `shownTicket`.
+- Android `platform/TicketFiles.kt`, `feature/wallet/TicketWallet.kt`; маніфест — `SEND` / `VIEW` і `FileProvider`
+  (`res/xml/shared_files.xml`); `MainActivity.handle`.
+
+Обмеження першої версії:
+- Android до 15 і знімок на Android — без тексту (поля заповнює людина). PDF, надісланий з Android, — растр сторінки з
+  рядками «Назва / Початок / Майданчик / Ряд» унизу: отримувач бачить його розібраним.
+- «Ваші квитки» на деталях події й підказка «Ви йдете не самі: надіслати квиток?» після додавання — ще ні.
+- Зразки квитків — штучні (Multiplex, Concert.ua, Karabas за структурою); справжні PDF уточнять правила розбору.

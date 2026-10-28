@@ -633,6 +633,8 @@
   <string name="wallet_delete_title">Видалити квиток?</string>
   <string name="wallet_delete_body">Файл зникне з телефона. Подія лишиться в збережених.</string>
   <string name="wallet_yours">Ваші квитки</string>
+  <string name="wallet_send">Надіслати квиток</string>
+  <string name="wallet_send_text">Тримай квиток: %1$s · %2$s</string>
   <string name="company_want">Хочу піти з компанією</string>
   <string name="company_privacy">Інші побачать спільні з вами інтереси. Ім\'я та фото — лише ті, хто теж хоче піти.</string>
   <string name="company_searching">Ви шукаєте компанію</string>

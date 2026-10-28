@@ -1,10 +1,12 @@
 package app.poruch.android.platform
 
+import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
+import android.graphics.pdf.PdfDocument
 import android.graphics.pdf.PdfRenderer
 import android.net.Uri
 import android.os.Build
@@ -14,6 +16,7 @@ import app.poruch.domain.TicketDraft
 import app.poruch.domain.TicketKind
 import app.poruch.domain.WalletTicket
 import app.poruch.shared.PoruchApp
+import androidx.core.content.FileProvider
 import java.io.File
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
@@ -105,6 +108,58 @@ object TicketFiles {
                 }
             } else listOfNotNull(BitmapFactory.decodeFile(target.path))
         }.getOrDefault(emptyList())
+    }
+
+    /**
+     * Одна сторінка окремим файлом (хвиля 2): з PDF на кількох той, з ким ідеш, отримує лише свій квиток. PDF — растр
+     * сторінки (QR читається), знімок — як є. Null — не вийшло.
+     */
+    suspend fun share(context: Context, ticket: WalletTicket, page: Int, text: String): Boolean {
+        val file = withContext(Dispatchers.IO) {
+            runCatching {
+                val folder = File(context.cacheDir, "send").apply { mkdirs() }
+                val source = file(context, ticket.file)
+                if (ticket.kind == TicketKind.PDF) {
+                    val bitmap = pages(context, ticket, 1400).getOrNull(page) ?: return@runCatching null
+                    val out = File(folder, "Квиток ${page + 1}.pdf")
+                    // Растр тексту не має: унизу — справжній текст, і отримувач бачить квиток розібраним, а не порожнім.
+                    val footer = footer(ticket, page)
+                    val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { textSize = 26f; color = Color.DKGRAY }
+                    val lineHeight = 36
+                    val document = PdfDocument()
+                    val info = PdfDocument.PageInfo.Builder(bitmap.width, bitmap.height + lineHeight * footer.size + 40, 1).create()
+                    document.startPage(info).also { sheet ->
+                        sheet.canvas.drawColor(Color.WHITE)
+                        sheet.canvas.drawBitmap(bitmap, 0f, 0f, null)
+                        footer.forEachIndexed { i, line -> sheet.canvas.drawText(line, 40f, bitmap.height + 20f + lineHeight * (i + 1), paint) }
+                        document.finishPage(sheet)
+                    }
+                    out.outputStream().use { document.writeTo(it) }
+                    document.close()
+                    out
+                } else File(folder, "Квиток ${page + 1}.jpg").also { source.copyTo(it, overwrite = true) }
+            }.onFailure { PoruchLog.report("wallet", "share failed", it) }.getOrNull()
+        } ?: return false
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", file)
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = if (ticket.kind == TicketKind.PDF) "application/pdf" else "image/jpeg"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            putExtra(Intent.EXTRA_TEXT, text)
+            clipData = ClipData.newRawUri(file.name, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(Intent.createChooser(intent, null))
+        return true
+    }
+
+    /** Рядки з підписами, які читає `TicketReader`: назва, початок, майданчик, місце цієї сторінки. */
+    private fun footer(ticket: WalletTicket, page: Int): List<String> {
+        val start = runCatching {
+            java.time.Instant.parse(ticket.startsAt).atZone(java.time.ZoneId.of(ticket.timeZone))
+                .format(java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm"))
+        }.getOrNull()
+        val seat = ticket.seats.getOrNull(page)?.let { seat -> seat.row?.let { "Ряд $it Місце ${seat.seat}" } ?: "Місце ${seat.seat}" }
+        return listOfNotNull("Назва: ${ticket.title}", start?.let { "Початок: $it" }, ticket.place?.let { "Майданчик: $it" }, seat)
     }
 
     /** Квиток — папір: білий під сторінкою, інакше прозорий PDF лягає на темне тло, і QR не читається. */

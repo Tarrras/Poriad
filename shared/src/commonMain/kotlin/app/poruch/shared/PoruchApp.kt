@@ -575,6 +575,12 @@ class PoruchApp internal constructor(
         PoruchAnalytics.track("wallet_open", "day_of" to dayOf)
     }
 
+    /** Квиток віддали з «Поряд» (хвиля 2): окремий файл сторінки й посилання — тому, з ким ідуть. */
+    fun ticketSent(id: String) {
+        val ticket = store.value.tickets.firstOrNull { it.id == id } ?: return
+        PoruchAnalytics.track("wallet_send", "count" to ticket.count)
+    }
+
     /** Квитки на подію афіші [eventId]: деталі показують «Ваші квитки». */
     fun ticketsFor(eventId: String): List<WalletTicket> = store.value.tickets.filter { it.eventId == eventId }
 

@@ -541,6 +541,8 @@ enum Copy {
     static let wallet_delete_title = "Видалити квиток?"
     static let wallet_delete_body = "Файл зникне з телефона. Подія лишиться в збережених."
     static let wallet_yours = "Ваші квитки"
+    static let wallet_send = "Надіслати квиток"
+    static func wallet_send_text(_ a0: String, _ a1: String) -> String { "Тримай квиток: \(a0) · \(a1)" }
     static let company_want = "Хочу піти з компанією"
     static let company_privacy = "Інші побачать спільні з вами інтереси. Ім'я та фото — лише ті, хто теж хоче піти."
     static let company_searching = "Ви шукаєте компанію"

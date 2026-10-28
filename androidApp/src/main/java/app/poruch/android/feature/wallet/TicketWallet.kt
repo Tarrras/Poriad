@@ -44,6 +44,7 @@ import app.poruch.android.platform.TicketFiles
 import app.poruch.android.platform.TicketImport
 import app.poruch.android.platform.toast
 import app.poruch.android.ui.*
+import app.poruch.domain.EventLinks
 import app.poruch.domain.WalletTicket
 import app.poruch.shared.PoruchApp
 import android.graphics.Bitmap
@@ -224,6 +225,17 @@ fun TicketViewer(app: PoruchApp, ticketId: String, onClose: () -> Unit) {
                     Box(Modifier.size(8.dp).clip(CircleShape).background(if (i == pager.currentPage) colors.ink else colors.inkTertiary.copy(alpha = 0.5f)))
                 }
             }
+            // Квиток тому, з ким ідеш: лише сторінка, яку видно, і що-коли-де з посиланням (docs/ticket-wallet.md, хвиля 2).
+            val sendText = stringResource(
+                R.string.wallet_send_text, ticket.title, listOfNotNull(ticketWhen(ticket), ticket.place).filter { it.isNotBlank() }.joinToString(" · ")
+            ) + (ticket.eventId?.let { "\n" + EventLinks.url(it) } ?: "")
+            val scope = rememberCoroutineScope()
+            SecondaryButton(stringResource(R.string.wallet_send), {
+                scope.launch {
+                    if (TicketFiles.share(context, ticket, pager.currentPage, sendText)) app.ticketSent(ticket.id)
+                    else context.toast(R.string.wallet_failed)
+                }
+            }, Modifier.fillMaxWidth(), icon = PoruchIcons.share)
             GhostButton(stringResource(R.string.wallet_delete), { deleting = true }, Modifier.align(Alignment.CenterHorizontally), tone = colors.danger)
         }
         if (deleting) PoruchConfirmSheet(

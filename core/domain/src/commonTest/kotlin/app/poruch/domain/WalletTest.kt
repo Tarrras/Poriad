@@ -75,6 +75,20 @@ class WalletTest {
         assertEquals("Частина друга", TicketReader.read("Квиток\nЧастина друга\n1 листопада 20:00", today).title, "«Частина» — не «час»")
     }
 
+    /** Надіслана з Android сторінка — растр, тож розбір бере рядки з підписами, які дописує TicketFiles.share. */
+    @Test fun aSentPageReadsBack() {
+        val draft = TicketReader.read("""
+            Назва: Дюна: Частина друга
+            Початок: 31.10.2026 19:40
+            Майданчик: Multiplex Respublika Park, зал 5 (LASER)
+            Ряд 7 Місце 13
+        """.trimIndent(), today)
+        assertEquals("Дюна: Частина друга", draft.title)
+        assertEquals("Multiplex Respublika Park, зал 5 (LASER)", draft.place)
+        assertEquals(LocalDateTime(2026, 10, 31, 19, 40), draft.start)
+        assertEquals(listOf(TicketSeat("7", "13")), draft.seats)
+    }
+
     @Test fun nothingReadableIsAnEmptyDraft() {
         val draft = TicketReader.read("", today)
         assertNull(draft.title); assertNull(draft.start)

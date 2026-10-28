@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Що віддаємо іншим застосункам: лише копії квитків для «Надіслати квиток» (docs/ticket-wallet.md, хвиля 2). -->
+<paths>
+    <cache-path name="send" path="send/" />
+</paths>
