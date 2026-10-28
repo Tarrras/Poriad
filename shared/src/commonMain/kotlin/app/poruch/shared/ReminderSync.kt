@@ -34,7 +34,7 @@ internal class ReminderSync(
                     it.remindersEnabled,
                     now,
                     TimeZone.currentSystemDefault()
-                ) + ReminderRules.tickets(it.tickets, it.remindersEnabled, now))
+                ) + ReminderRules.tickets(it.tickets, it.remindersEnabled, now, TimeZone.currentSystemDefault()))
                     .sortedBy { reminder -> reminder.fireAtEpochMillis }.take(ReminderRules.MAX_SCHEDULED)
             }
                 .distinctUntilChanged()

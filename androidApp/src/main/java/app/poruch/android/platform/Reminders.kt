@@ -61,7 +61,7 @@ class AlarmReminderScheduler(private val context: Context) : ReminderScheduler {
     override fun replace(reminders: List<EventReminder>) {
         val alarms = context.getSystemService(AlarmManager::class.java)
         stored(context).forEach { alarms.cancel(pending(context, it)) }
-        reminders.forEach { alarms.wake(it.fireAtEpochMillis, pending(context, it)) }
+        reminders.forEach { alarms.wake(alarms.alarmAt(it), pending(context, it)) }
         store(context, reminders)
     }
 
@@ -80,7 +80,7 @@ class AlarmReminderScheduler(private val context: Context) : ReminderScheduler {
         fun restore(context: Context) {
             val alarms = context.getSystemService(AlarmManager::class.java)
             stored(context).filter { it.fireAtEpochMillis > System.currentTimeMillis() }
-                .forEach { alarms.wake(it.fireAtEpochMillis, pending(context, it)) }
+                .forEach { alarms.wake(alarms.alarmAt(it), pending(context, it)) }
             storedDigests(context).filter { it.fireAtEpochMillis > System.currentTimeMillis() }
                 .forEach { alarms.wake(it.fireAtEpochMillis, digestPending(context, it.id)) }
         }
@@ -91,6 +91,19 @@ class AlarmReminderScheduler(private val context: Context) : ReminderScheduler {
          * підказує, де його дати. Дали — приймач ставить план знову, уже точно; забрали — система знімає точні й
          * зупиняє застосунок, план поверне наступний запуск.
          */
+        /**
+         * Квиток без точних будильників — на годину раніше: неточний спізнюється до години, і «за годину» прийшло б на
+         * початок сеансу. Текст тоді каже годину початку ([EventReminder.startsAt]). Уже пізно для зсуву — як є.
+         */
+        private fun AlarmManager.alarmAt(reminder: EventReminder): Long {
+            if (reminder.startsAt == null || exactAllowed()) return reminder.fireAtEpochMillis
+            val early = reminder.fireAtEpochMillis - INEXACT_DELAY
+            return if (early > System.currentTimeMillis()) early else reminder.fireAtEpochMillis
+        }
+
+        /** Скільки з Android 12 може спізнитися неточний будильник (у `dumpsys alarm` — `window=+1h`). */
+        private const val INEXACT_DELAY = 60 * 60 * 1000L
+
         @SuppressLint("MissingPermission")
         private fun AlarmManager.wake(at: Long, intent: PendingIntent) =
             if (exactAllowed()) setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, intent)
@@ -218,7 +231,8 @@ class AlarmReminderScheduler(private val context: Context) : ReminderScheduler {
                 MainActivity.open(context, reminder.eventId, reason = if (reminder.tomorrowAt != null) "saved" else "reminder"),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
-            val text = reminder.tomorrowAt?.let { context.getString(R.string.reminder_saved_body, it, reminder.address) }
+            val text = reminder.startsAt?.let { listOf(context.getString(R.string.reminder_ticket_start, it), reminder.address).filter(String::isNotBlank).joinToString(" · ") }
+                ?: reminder.tomorrowAt?.let { context.getString(R.string.reminder_saved_body, it, reminder.address) }
                 ?: context.getString(R.string.reminder_body, reminder.address)
             val notification = Notification.Builder(context, CHANNEL)
                 .setSmallIcon(R.drawable.ic_notification)
@@ -237,7 +251,8 @@ class AlarmReminderScheduler(private val context: Context) : ReminderScheduler {
                     ReminderReceiver::class.java
                 ).setAction("app.poruch.REMIND.${reminder.eventId}")
                     .putExtra(EXTRA_ID, reminder.eventId).putExtra(EXTRA_TITLE, reminder.title)
-                    .putExtra(EXTRA_ADDRESS, reminder.address).putExtra(EXTRA_TOMORROW, reminder.tomorrowAt),
+                    .putExtra(EXTRA_ADDRESS, reminder.address).putExtra(EXTRA_TOMORROW, reminder.tomorrowAt)
+                    .putExtra(EXTRA_START, reminder.startsAt),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
 
@@ -254,7 +269,8 @@ class AlarmReminderScheduler(private val context: Context) : ReminderScheduler {
                     it.getString("title"),
                     it.optString("address"),
                     it.getLong("time"),
-                    if (it.isNull("tomorrow")) null else it.getString("tomorrow")
+                    if (it.isNull("tomorrow")) null else it.getString("tomorrow"),
+                    if (it.isNull("start")) null else it.getString("start")
                 )
             }
         }
@@ -265,6 +281,7 @@ class AlarmReminderScheduler(private val context: Context) : ReminderScheduler {
                 array.put(
                     JSONObject().put("id", it.eventId).put("title", it.title)
                         .put("address", it.address).put("time", it.fireAtEpochMillis).put("tomorrow", it.tomorrowAt ?: JSONObject.NULL)
+                        .put("start", it.startsAt ?: JSONObject.NULL)
                 )
             }
             prefs(context).edit().putString(KEY, array.toString()).apply()
@@ -274,6 +291,7 @@ class AlarmReminderScheduler(private val context: Context) : ReminderScheduler {
         const val EXTRA_TITLE = "title"
         const val EXTRA_ADDRESS = "address"
         const val EXTRA_TOMORROW = "tomorrow"
+        const val EXTRA_START = "start"
         const val EXTRA_WEEK = "week"
         const val DIGEST_ACTION = "app.poruch.DIGEST"
         private const val DIGESTS_KEY = "digests"
@@ -445,7 +463,8 @@ class ReminderReceiver : BroadcastReceiver() {
                 intent.getStringExtra(AlarmReminderScheduler.EXTRA_TITLE).orEmpty(),
                 intent.getStringExtra(AlarmReminderScheduler.EXTRA_ADDRESS).orEmpty(),
                 0,
-                intent.getStringExtra(AlarmReminderScheduler.EXTRA_TOMORROW)
+                intent.getStringExtra(AlarmReminderScheduler.EXTRA_TOMORROW),
+                intent.getStringExtra(AlarmReminderScheduler.EXTRA_START)
             )
         )
     }

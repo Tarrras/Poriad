@@ -23,7 +23,12 @@ data class EventReminder(
     val title: String,
     val address: String,
     val fireAtEpochMillis: Long,
-    val tomorrowAt: String? = null
+    val tomorrowAt: String? = null,
+    /**
+     * Квиток: година початку «19:40». Текст — «Початок о 19:40», а не «за годину»: без точних будильників Android
+     * ставить нагадування про квиток раніше, щоб неточне не прийшло вже на початок.
+     */
+    val startsAt: String? = null
 )
 
 /**
@@ -243,11 +248,15 @@ object ReminderRules {
      * Квиток — це «йду»: нагадування за [LEAD], як про свою подію, з назвою й місцем із квитка (docs/ticket-wallet.md).
      * Id — `ticket:…`: окремо від нагадування про збережену афішу (напередодні), і тап відкриває сам квиток.
      */
-    fun tickets(tickets: List<WalletTicket>, enabled: Boolean, now: Instant): List<EventReminder> {
+    fun tickets(
+        tickets: List<WalletTicket>, enabled: Boolean, now: Instant, zone: TimeZone = TimeZone.currentSystemDefault()
+    ): List<EventReminder> {
         if (!enabled) return emptyList()
         return tickets.mapNotNull { ticket ->
             val start = ticket.startInstant ?: return@mapNotNull null
-            EventReminder(TICKET_PREFIX + ticket.id, ticket.title, ticket.place.orEmpty(), (start - LEAD).toEpochMilliseconds())
+            val local = start.toLocalDateTime(zone)
+            val at = "${local.hour.toString().padStart(2, '0')}:${local.minute.toString().padStart(2, '0')}"
+            EventReminder(TICKET_PREFIX + ticket.id, ticket.title, ticket.place.orEmpty(), (start - LEAD).toEpochMilliseconds(), startsAt = at)
                 .takeIf { it.fireAtEpochMillis > now.toEpochMilliseconds() }
         }
     }

@@ -10,6 +10,17 @@ class WalletTest {
     private val today = LocalDate(2026, 10, 28)
     private val kyiv = TimeZone.of("Europe/Kyiv")
 
+    @Test fun aTicketReminderSaysWhenItStarts() {
+        val ticket = WalletTicket(
+            id = "t", file = "t.pdf", kind = TicketKind.PDF, title = "Дюна", place = "Multiplex",
+            startsAt = "2026-10-31T17:40:00Z", timeZone = "Europe/Kyiv", addedAt = "2026-10-28T10:00:00Z"
+        )
+        val reminder = ReminderRules.tickets(listOf(ticket), true, kotlin.time.Instant.parse("2026-10-30T00:00:00Z"), kyiv).single()
+        assertEquals("19:40", reminder.startsAt, "текст каже годину початку за поясом телефона")
+        assertEquals(kotlin.time.Instant.parse("2026-10-31T16:40:00Z").toEpochMilliseconds(), reminder.fireAtEpochMillis)
+        assertNull(reminder.tomorrowAt)
+    }
+
     private val multiplex = """
         MULTIPLEX
         Електронний квиток

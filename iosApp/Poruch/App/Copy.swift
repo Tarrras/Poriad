@@ -89,6 +89,7 @@ enum Copy {
     static let reminders = "Сповіщення про мої події"
     static func reminder_body(_ a0: String) -> String { "Початок за годину · \(a0)" }
     static func reminder_saved_body(_ a0: String, _ a1: String) -> String { "Завтра о \(a0) · \(a1)" }
+    static func reminder_ticket_start(_ a0: String) -> String { "Початок о \(a0)" }
     static let reminder_note = "Нагадування приблизно за годину до ваших подій і тих, куди йдете, напередодні о 18:00 — про збережені, і нові запити на участь. Запити перевіряються, коли застосунок відкрито."
     static let analytics = "Аналітика"
     static let analytics_note = "Псевдонімна статистика використання й звіти про збої. Без реклами."
@@ -544,6 +545,7 @@ enum Copy {
     static func wallet_send_seat(_ a0: String) -> String { "Надіслати місце \(a0)" }
     static let wallet_together = "Ви йдете не самі: надішліть квиток тому, з ким ідете"
     static let wallet_update = "Зберегти"
+    static let wallet_remind_hint = "Перед початком нагадаємо й покажемо квиток"
     static func wallet_seat(_ a0: String, _ a1: String) -> String { "Ряд \(a0), місце \(a1)" }
     static func wallet_seat_only(_ a0: String) -> String { "Місце \(a0)" }
     static let wallet_delete = "Видалити квиток"

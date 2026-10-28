@@ -116,6 +116,7 @@
   <string name="reminders">Сповіщення про мої події</string>
   <string name="reminder_body">Початок за годину · %1$s</string>
   <string name="reminder_saved_body">Завтра о %1$s · %2$s</string>
+  <string name="reminder_ticket_start">Початок о %1$s</string>
   <string name="reminder_note">Нагадування приблизно за годину до ваших подій і тих, куди йдете, напередодні о 18:00&#160;— про збережені, і нові запити на участь. Запити перевіряються, коли застосунок відкрито.</string>
   <string name="analytics">Аналітика</string>
   <string name="analytics_note">Псевдонімна статистика використання й звіти про збої. Без реклами.</string>
@@ -630,6 +631,7 @@
   <string name="wallet_send_seat">Надіслати місце %1$s</string>
   <string name="wallet_together">Ви йдете не самі: надішліть квиток тому, з ким ідете</string>
   <string name="wallet_update">Зберегти</string>
+  <string name="wallet_remind_hint">Перед початком нагадаємо й покажемо квиток</string>
   <plurals name="wallet_count">
     <item quantity="one">%d квиток</item>
     <item quantity="few">%d квитки</item>

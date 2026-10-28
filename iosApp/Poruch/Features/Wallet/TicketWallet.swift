@@ -295,6 +295,8 @@ struct TicketImportSheet: View {
     @State private var matchID: String?
     @State private var linked = true
     @State private var added = false
+    /// Сповіщення не заборонено: інакше «нагадаємо» — порожня обіцянка, а iOS удруге не питає.
+    @State private var remindable = true
 
     private var matched: Event? { matchID.flatMap { model.cardsByID[$0] } }
     private var onListing: Bool { linked && matched != nil }
@@ -336,12 +338,18 @@ struct TicketImportSheet: View {
                     }
                 }
                 PrimaryButton(title: editing == nil ? Copy.wallet_save : Copy.wallet_update, glyph: PoruchIcons.ticket, enabled: canSave) { add() }
+                // Що буде далі: нагадування перед сеансом. Одразу за ним система спитає дозвіл, тож причина вже ясна.
+                if editing == nil, remindable, model.state?.remindersEnabled == true {
+                    Text(Copy.wallet_remind_hint).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
+                        .multilineTextAlignment(.center).frame(maxWidth: .infinity)
+                }
             }
             .padding(.horizontal, Space.page).padding(.top, Space.xl).padding(.bottom, Space.section)
         }
         .background(Palette.canvas)
         .presentationDragIndicator(.visible)
         .onAppear(perform: prefill)
+        .task { remindable = await NotificationPermission.status() != .denied }
         .onDisappear { if !added && editing == nil { TicketFiles.remove(ticket.file) } }
     }
 
@@ -387,6 +395,8 @@ struct TicketImportSheet: View {
         added = true
         // Квиток — у «Моїх подіях»: туди й ведемо, щоб людина бачила, де він тепер.
         model.root.ticketAdded = true
+        // Кіно без афіші закладки не ставить, тож питання після першої закладки могло й не прозвучати.
+        ReminderPrompt.offer(model.app)
         // Квитків кілька — людина йде не сама: одразу квиток на весь екран, на другому, з «Надіслати».
         if ticket.count > 1 { model.root.ticketNext = TicketRoute(id: ticket.id, invite: true) }
         dismiss()

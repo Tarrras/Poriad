@@ -280,6 +280,8 @@ fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
     NotificationPromptAfter(appState, FOLLOW_ASKED) { it.library.followsMade }
     // Закладка, і гостя теж: нагадування напередодні без дозволу не прийде (docs/guest-saves.md).
     NotificationPromptAfter(appState, SAVE_ASKED) { if (it.remindersEnabled) it.library.savesMade else 0 }
+    // Квиток, і кіно без афіші теж: закладки він не ставить, а нагадування перед сеансом без дозволу не прийде.
+    NotificationPromptAfter(appState, TICKET_ASKED) { if (it.remindersEnabled) it.tickets.size else 0 }
     ReviewPrompt(app, appState)
     PasswordRecoveryEffect(navigator, appState)
     // Стос «Ваш тиждень»: раз, у першій сесії після онбордингу, до туру. Видача їде паралельно з онбордингом; за секунду
@@ -695,6 +697,7 @@ private const val LAUNCHES = "launches"
 internal const val DIGEST_ASKED = "digest_asked"
 private const val FOLLOW_ASKED = "follow_asked"
 internal const val SAVE_ASKED = "save_asked"
+internal const val TICKET_ASKED = "ticket_asked"
 /** Стос «Ваш тиждень» уже показували в першій сесії; тиждень, коли його відкривали з головної (docs/return-hooks.md). */
 private const val DECK_DONE = "deck_done"
 internal const val DECK_WEEK = "deck_week"

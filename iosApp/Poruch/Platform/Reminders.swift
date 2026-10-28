@@ -138,7 +138,10 @@ final class LocalReminderScheduler: NSObject, ReminderScheduler, RequestNotifier
                 guard interval > 0 else { continue }
                 let content = UNMutableNotificationContent()
                 content.title = reminder.title
-                if let at = reminder.tomorrowAt {
+                if let start = reminder.startsAt {
+                    content.body = [Copy.reminder_ticket_start(start), reminder.address].filter { !$0.isEmpty }.joined(separator: " · ")
+                    content.userInfo = ["eventId": reminder.eventId]
+                } else if let at = reminder.tomorrowAt {
                     content.body = Copy.reminder_saved_body(at, reminder.address)
                     content.userInfo = ["eventId": reminder.eventId, "saved": true]
                 } else {

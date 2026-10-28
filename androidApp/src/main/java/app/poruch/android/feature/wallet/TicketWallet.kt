@@ -40,6 +40,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -47,6 +48,9 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
 import app.poruch.android.R
 import app.poruch.android.feature.editor.DateTimeSheet
+import app.poruch.android.PROMPTS
+import app.poruch.android.TICKET_ASKED
+import app.poruch.android.platform.NotificationPermission
 import app.poruch.android.platform.TicketFiles
 import app.poruch.android.platform.TicketImport
 import app.poruch.android.platform.toast
@@ -255,6 +259,16 @@ private fun TicketImportContent(app: PoruchApp, ticket: TicketImport, editing: W
         )
         onAdded()
     }, Modifier.fillMaxWidth(), enabled = canSave, icon = PoruchIcons.ticket)
+    // Що буде далі: нагадування перед сеансом. Одразу за ним система спитає дозвіл на сповіщення, тож причина вже ясна.
+    // Уже спитали й не дозволили — не обіцяємо.
+    val context = LocalContext.current
+    val remindable = remember {
+        NotificationPermission(context).granted() || !context.getSharedPreferences(PROMPTS, Context.MODE_PRIVATE).getBoolean(TICKET_ASKED, false)
+    }
+    if (editing == null && state.remindersEnabled && remindable) Text(
+        stringResource(R.string.wallet_remind_hint), Modifier.fillMaxWidth(), style = MaterialTheme.typography.bodySmall,
+        color = colors.inkSecondary, textAlign = TextAlign.Center
+    )
     picking?.let { time ->
         DateTimeSheet(
             start ?: LocalDateTime.now().withHour(19).withMinute(0), null,
