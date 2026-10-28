@@ -133,12 +133,16 @@ begin
  assert jsonb_array_length(r->'elsewhere')=2 and r->'elsewhere'->0->>'city'='Львів','elsewhere, nearest first: '||r::text;
  assert public.artist_radar('{}','Київ')='[]'::jsonb,'empty list';
 
- -- «Кого слухаєте?»: Зет — перший у Києві, і там рахуються вечори, а не сеанси; у Харкові його нема.
+ -- «За ким стежити?»: Зет — перший у Києві, і там рахуються вечори, а не сеанси; у Харкові його нема.
  r := public.popular_artists('Київ',60);
  assert r->0->>'id'=current_setting('test.z') and (r->0->>'upcoming')::int=40,'most active first: '||(r->0)::text;
  assert not exists (select 1 from jsonb_array_elements(public.popular_artists('Харків',60)) x
    where x->>'id'=current_setting('test.z')),'not in Kharkiv';
- assert public.popular_artists(null)='[]'::jsonb,'no city';
+ -- Без міста (онбординг) — по країні: Ікс у трьох містах вище за Зета з сорока вечорами в одному.
+ r := public.popular_artists(null,60);
+ assert exists (select 1 from jsonb_array_elements(r) x where x->>'id'=current_setting('test.x')),'touring artist listed: '||r::text;
+ assert coalesce((select o from jsonb_array_elements(r) with ordinality e(x,o) where x->>'id'=current_setting('test.z')), 1000)
+      > (select o from jsonb_array_elements(r) with ordinality e(x,o) where x->>'id'=current_setting('test.x')),'cities before evenings';
 
  -- Забуття й чистка.
  perform public.forget_radar(current_setting('test.g'));

@@ -22,6 +22,7 @@ import app.poruch.android.ui.*
 import app.poruch.domain.ArtistHit
 import app.poruch.domain.ArtistRadar
 import app.poruch.domain.FollowKind
+import app.poruch.domain.PopularArtist
 import app.poruch.domain.RadarRules
 import app.poruch.shared.PoruchApp
 import java.time.OffsetDateTime
@@ -98,37 +99,51 @@ internal fun RadarPickerSheet(app: PoruchApp, onDone: () -> Unit) {
     val state by app.state.collectAsState()
     val artists = state.popularArtists
     var picked by remember { mutableStateOf(emptySet<String>()) }
-    LaunchedEffect(Unit) { app.loadPopularArtists() }
-    val close = { app.radarPickerClosed(artists?.size ?: 0, picked.size); onDone() }
+    LaunchedEffect(Unit) { app.loadPopularArtists(false) }
+    val close = { app.radarPickerClosed(artists?.size ?: 0, picked.size, "picker"); onDone() }
     PoruchSheet(close) { sheet ->
         Column(Modifier.padding(horizontal = Spacing.page).padding(bottom = Spacing.section), verticalArrangement = Arrangement.spacedBy(Spacing.lg)) {
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                 Text(stringResource(R.string.radar_ask_title), style = PoruchType.brandTitle1, color = colors.ink, modifier = Modifier.semantics { heading() })
                 Text(stringResource(R.string.radar_picker_hint), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
             }
-            when {
-                artists == null -> Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(Modifier.size(24.dp), color = colors.ink, strokeWidth = 2.dp)
-                }
-                artists.isEmpty() -> Text(stringResource(R.string.radar_picker_empty), style = MaterialTheme.typography.bodyLarge, color = colors.inkSecondary)
-                else -> FlowRow(
-                    Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.sm)
-                ) {
-                    artists.forEach { artist ->
-                        val followed = state.isFollowing(FollowKind.ARTIST, artist.artistId)
-                        val on = followed || artist.artistId in picked
-                        val first = artist.firstAt?.let { date(it, "Europe/Kyiv", "d.MM") }
-                        PoruchChip(first?.let { "${artist.name} · $it" } ?: artist.name, on, {
-                            if (!followed) picked = if (artist.artistId in picked) picked - artist.artistId else picked + artist.artistId
-                        }, icon = if (on) PoruchIcons.check else null, maxLines = 2)
-                    }
-                }
-            }
+            PopularArtistChips(
+                artists, { state.isFollowing(FollowKind.ARTIST, it) }, picked, dates = true,
+                Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())
+            ) { id -> picked = if (id in picked) picked - id else picked + id }
             if (picked.isNotEmpty()) PrimaryButton(stringResource(R.string.radar_picker_follow, picked.size.toString()), {
-                app.followArtists(artists.orEmpty().filter { it.artistId in picked })
+                app.followArtists(artists.orEmpty().filter { it.artistId in picked }, "picker")
                 sheet.close()
             }, Modifier.fillMaxWidth(), icon = PoruchIcons.bell)
+        }
+    }
+}
+
+/**
+ * Хто виступає ([artists]) чипами: обрані — у [picked]; за ким уже стежать ([followed]) — позначені й тут не знімаються.
+ * [dates] — найближча дата в місті; в онбордингу список по країні, і дата з іншого міста збивала б. Null — ще їде.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun PopularArtistChips(
+    artists: List<PopularArtist>?, followed: (String) -> Boolean, picked: Set<String>, dates: Boolean,
+    modifier: Modifier = Modifier, onToggle: (String) -> Unit
+) {
+    val colors = Poruch.colors
+    when {
+        artists == null -> Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(Modifier.size(24.dp), color = colors.ink, strokeWidth = 2.dp)
+        }
+        artists.isEmpty() -> Text(stringResource(R.string.radar_picker_empty), style = MaterialTheme.typography.bodyLarge, color = colors.inkSecondary)
+        else -> FlowRow(modifier, horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            artists.forEach { artist ->
+                val already = followed(artist.artistId)
+                val on = already || artist.artistId in picked
+                val first = if (dates) artist.firstAt?.let { date(it, "Europe/Kyiv", "d.MM") } else null
+                PoruchChip(first?.let { "${artist.name} · $it" } ?: artist.name, on, {
+                    if (!already) onToggle(artist.artistId)
+                }, icon = if (on) PoruchIcons.check else null, maxLines = 2)
+            }
         }
     }
 }

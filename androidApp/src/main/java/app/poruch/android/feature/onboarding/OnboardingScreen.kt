@@ -33,6 +33,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import app.poruch.domain.EventCategory
 import app.poruch.android.R
+import app.poruch.android.feature.home.PopularArtistChips
 import app.poruch.android.ui.*
 import app.poruch.domain.Crowd
 import app.poruch.domain.TimeSlot
@@ -66,25 +67,26 @@ fun OnboardingScreen(state: OnboardingState, onIntent: (OnboardingIntent) -> Uni
                         OnboardingStep.INTERESTS -> Interests(state, onIntent)
                         OnboardingStep.TIMES -> Times(state, onIntent)
                         OnboardingStep.CROWD -> CrowdStep(state, onIntent)
+                        OnboardingStep.ARTISTS -> ArtistsStep(state, onIntent)
                     }
                 }
             }
         }
         // Одна дія внизу: «Пропустити» живе вгорі праворуч і не сперечається з нею.
         PrimaryButton(
-            stringResource(
-                when {
-                    state.step == OnboardingStep.WELCOME -> R.string.onboarding_start
-                    state.isLast -> R.string.onboarding_finish
-                    else -> R.string.next
-                }
-            ),
+            when {
+                state.step == OnboardingStep.WELCOME -> stringResource(R.string.onboarding_start)
+                state.step == OnboardingStep.ARTISTS && state.picked.isNotEmpty() ->
+                    stringResource(R.string.radar_picker_follow, state.picked.size.toString())
+                state.isLast -> stringResource(R.string.onboarding_finish)
+                else -> stringResource(R.string.next)
+            },
             { onIntent(OnboardingIntent.Next) }, Modifier.fillMaxWidth().padding(vertical = Spacing.lg)
         )
     }
 }
 
-/** Назад, прогрес трьома сегментами і «Пропустити». На вітанні прогресу ще нема чого показувати. */
+/** Назад, прогрес сегментом на кожне питання і «Пропустити». На вітанні прогресу ще нема чого показувати. */
 @Composable
 private fun TopRow(state: OnboardingState, onIntent: (OnboardingIntent) -> Unit) {
     val colors = Poruch.colors
@@ -232,6 +234,16 @@ private fun CrowdStep(state: OnboardingState, onIntent: (OnboardingIntent) -> Un
                 ) { onIntent(OnboardingIntent.PickCrowd(crowd)) }
                 if (index < crowds.lastIndex) HairLine(Modifier.padding(start = Spacing.lg))
             }
+        }
+    }
+}
+
+/** Артисти, що їдуть найбільшою кількістю міст: підписка тут — привід повернутись, коли в них з'являться дати. */
+@Composable
+private fun ArtistsStep(state: OnboardingState, onIntent: (OnboardingIntent) -> Unit) {
+    Question(stringResource(R.string.radar_ask_title), stringResource(R.string.onboarding_artists_hint)) {
+        PopularArtistChips(state.artists, { it in state.followed }, state.picked, dates = false) {
+            onIntent(OnboardingIntent.ToggleArtist(it))
         }
     }
 }

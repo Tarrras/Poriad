@@ -163,7 +163,7 @@ internal class SupabaseEventDiscovery(
         return withContext(compute) { rpc.json.decodeFromJsonElement<List<ArtistRadarDto>>(response).map { it.domain() } }
     }
 
-    override suspend fun popularArtists(city: String): List<PopularArtist> {
+    override suspend fun popularArtists(city: String?): List<PopularArtist> {
         val response = runCatching {
             rpc.read("popular_artists", buildJsonObject { put("p_city", city); put("p_limit", RadarRules.PICKER) })
         }.getOrElse { failure ->

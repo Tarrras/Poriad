@@ -128,29 +128,30 @@ begin
   from public.artists a where a.id = any(v_ids)), '[]'::jsonb);
 end $$;
 
--- Хто їде в місто: найбільше подій попереду першими (прокат з кількох сеансів — одна), до [p_limit].
+-- Хто їде в місто: найбільше подій попереду першими (прокат з кількох сеансів — одна), до [p_limit]. Без міста
+-- (онбординг: геолокацію ще не питали) — по всій країні, спершу ті, хто виступає в найбільшій кількості міст.
 create function public.popular_artists(p_city text, p_limit integer default 24)
 returns jsonb language plpgsql stable security definer set search_path='' as $$
 declare v_limit integer := least(greatest(coalesce(p_limit, 24), 1), 60);
 begin
- if p_city is null then return '[]'::jsonb; end if;
  return coalesce((
   select jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
    'id', t.id, 'name', t.name, 'kind', t.kind, 'upcoming', t.upcoming, 'first_at', t.first_at, 'category', t.category))
-   order by t.upcoming desc, t.first_at, t.name)
+   order by t.cities desc, t.upcoming desc, t.first_at, t.name)
   from (
    select a.id, a.name, a.kind,
+    case when p_city is null then count(distinct e.city)::integer else 1 end as cities,
     count(distinct lower(btrim(e.title)) || '|' || coalesce(e.place_id::text, ''))::integer as upcoming,
     min(greatest(e.starts_at, now())) as first_at,
     (array_agg(e.category order by e.starts_at))[1] as category
    from public.artists a
    join public.event_artists ea on ea.artist_id = a.id
    join public.events e on e.id = ea.event_id
-   where e.city = p_city and e.status = 'published' and e.companion_of is null
+   where (p_city is null or e.city = p_city) and e.status = 'published' and e.companion_of is null
     and private.is_listed(e.starts_at, e.ends_at, e.title)
     and private.is_discoverable(e.origin, e.import_status, e.quality)
    group by a.id, a.name, a.kind
-   order by upcoming desc, first_at, a.name
+   order by cities desc, upcoming desc, first_at, a.name
    limit v_limit) t), '[]'::jsonb);
 end $$;
 revoke all on function public.artist_radar(uuid[], text), public.popular_artists(text, integer) from public;

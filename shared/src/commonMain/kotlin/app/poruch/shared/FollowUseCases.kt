@@ -145,9 +145,14 @@ internal class FollowUseCases(
         }
     }
 
-    /** «За ким стежити?»: хто їде в місто людини. Своє місце на мапі чи збій — порожньо, шторка скаже, що анонсів нема. */
-    fun loadPopular() {
-        val city = radarCity(store.value) ?: return store.update { it.copy(popularArtists = emptyList()) }
+    /**
+     * «За ким стежити?»: хто їде в місто людини; [everywhere] — по країні, хто виступає в найбільшій кількості міст
+     * (онбординг: геолокацію ще не питали, місто — Київ за замовчуванням). Своє місце на мапі чи збій — порожньо.
+     */
+    fun loadPopular(everywhere: Boolean) {
+        val city = if (everywhere) null else radarCity(store.value) ?: return store.update { it.copy(popularArtists = emptyList()) }
+        // Країна й місто — різні списки: поки їде новий, старий не показуємо.
+        store.update { it.copy(popularArtists = null) }
         store.scope.launch {
             val list = try {
                 events.popularArtists(city)

@@ -396,7 +396,7 @@
 
   <string name="onboarding_welcome_title">Знайомимось</string>
   <string name="onboarding_slogan">Є куди.\nБуде з ким.</string>
-  <string name="onboarding_welcome_body">Три питання — і «Поряд» показуватиме спершу те, що вам підходить. Відповіді лишаються на цьому пристрої, змінити їх можна будь-коли у профілі.</string>
+  <string name="onboarding_welcome_body">Чотири питання — і «Поряд» показуватиме спершу те, що вам підходить. Відповіді лишаються на цьому пристрої, змінити їх можна будь-коли у профілі.</string>
   <string name="onboarding_start">Почати</string>
   <string name="onboarding_skip">Пропустити</string>
   <string name="onboarding_step">Крок %1$d з %2$d</string>
@@ -406,6 +406,7 @@
   <string name="onboarding_times_hint">Підіймемо вище те, на що ви встигаєте.</string>
   <string name="onboarding_crowd_title">Який формат?</string>
   <string name="onboarding_crowd_hint">Від кількох людей до повної зали.</string>
+  <string name="onboarding_artists_hint">Ті, хто зараз гастролює. Скажемо, коли в них будуть нові дати у вашому місті.</string>
   <string name="onboarding_finish">Готово</string>
   <!-- Підказки першого знайомства (docs/coach-marks.md): що це і що буде після тапу, без закликів. -->
   <string name="tip_done">Зрозуміло</string>

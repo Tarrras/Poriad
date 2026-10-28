@@ -1,14 +1,16 @@
 import SwiftUI
 import Shared
 
-/// Онбординг: три питання, кожне одним рішенням без скролу, «Пропустити» на кожному кроці.
-/// Відповіді пишуться в стор усі разом наприкінці; потік завершує стор.
+/// Онбординг: чотири питання, «Пропустити» на кожному кроці. Відповіді пишуться в стор усі разом наприкінці, артисти —
+/// підписками там же; потік завершує стор.
 struct OnboardingView: View {
     @EnvironmentObject var model: AppModel
     @State private var step = OnboardingStep.welcome
     @State private var interests: [EventCategory] = []
     @State private var times: [TimeSlot] = []
     @State private var crowd = Crowd.any
+    /// Обрані на кроці «За ким стежити?»: підписки ставимо разом з рештою відповідей, на «Готово».
+    @State private var artists: Set<String> = []
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -22,6 +24,7 @@ struct OnboardingView: View {
                         case .interests: interestsStep
                         case .times: timesStep
                         case .crowd: crowdStep
+                        case .artists: artistsStep
                         }
                     }
                     .padding(.top, Space.lg)
@@ -33,12 +36,14 @@ struct OnboardingView: View {
                 .scrollIndicatorsFlash(trigger: step)
             }
             // Одна дія внизу: «Пропустити» живе вгорі праворуч і не сперечається з нею.
-            PrimaryButton(title: step.actionLabel) { advance() }.padding(.vertical, Space.lg)
+            PrimaryButton(title: actionLabel) { advance() }.padding(.vertical, Space.lg)
         }
         .padding(.horizontal, Space.page)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Palette.canvas.ignoresSafeArea())
         .motion(value: step)
+        // Місто ще не відоме (геолокацію питаємо після туру), тож артисти — ті, хто гастролює країною.
+        .task { model.app.loadPopularArtists(everywhere: true) }
         .onAppear {
             // Відкрито з профілю: починаємо з минулих відповідей і одразу з питань — знайомі вже знайомі.
             guard let taste = model.state?.taste else { return }
@@ -124,6 +129,19 @@ struct OnboardingView: View {
         }
     }
 
+    /// Артисти, що їдуть найбільшою кількістю міст: підписка тут — привід повернутись, коли в них з'являться дати.
+    private var artistsStep: some View {
+        question(Copy.radar_ask_title, Copy.onboarding_artists_hint) {
+            PopularArtistChips(picked: $artists, dates: false)
+        }
+    }
+
+    private var actionLabel: String {
+        if step == .artists && !artists.isEmpty { return Copy.radar_picker_follow("\(artists.count)") }
+        if step == .crowd && model.state?.popularArtists?.isEmpty == true { return Copy.onboarding_finish }
+        return step.actionLabel
+    }
+
     @ViewBuilder private func question<Content: View>(
         _ title: String, _ hint: String, @ViewBuilder content: () -> Content
     ) -> some View {
@@ -137,24 +155,31 @@ struct OnboardingView: View {
     }
 
     private func advance() {
-        guard step == .crowd else {
+        // Артистів нема (збій, порожньо) — крок «За ким стежити?» нічого не дасть, закінчуємо на «Який формат?».
+        let noArtists = model.state?.popularArtists?.isEmpty == true
+        guard step == .artists || (step == .crowd && noArtists) else {
             step = step.next
             return
+        }
+        if step == .artists {
+            let shown = model.state?.popularArtists ?? []
+            model.app.followArtists(picked: shown.filter { artists.contains($0.artistId) }, from: "onboarding")
+            model.app.radarPickerClosed(shown: Int32(shown.count), picked: Int32(artists.count), from: "onboarding")
         }
         model.app.saveTaste(interests: interests, times: times, crowd: crowd)
     }
 }
 
-/// Кроки онбордингу. Лише те, що читає ранжування: кожен зайвий екран — привід піти.
+/// Кроки онбордингу: те, що читає ранжування, і артисти — привід повернутись. Кожен зайвий екран — привід піти.
 private enum OnboardingStep: Int, CaseIterable {
-    case welcome, interests, times, crowd
+    case welcome, interests, times, crowd, artists
 
-    var next: OnboardingStep { OnboardingStep(rawValue: rawValue + 1) ?? .crowd }
+    var next: OnboardingStep { OnboardingStep(rawValue: rawValue + 1) ?? .artists }
     var previous: OnboardingStep { OnboardingStep(rawValue: rawValue - 1) ?? .welcome }
     var actionLabel: String {
         switch self {
         case .welcome: Copy.onboarding_start
-        case .crowd: Copy.onboarding_finish
+        case .artists: Copy.onboarding_finish
         default: Copy.next
         }
     }

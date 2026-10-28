@@ -350,7 +350,7 @@ enum Copy {
     static let calendar_short = "Календар"
     static let onboarding_welcome_title = "Знайомимось"
     static let onboarding_slogan = "Є куди.\nБуде з ким."
-    static let onboarding_welcome_body = "Три питання — і «Поряд» показуватиме спершу те, що вам підходить. Відповіді лишаються на цьому пристрої, змінити їх можна будь-коли у профілі."
+    static let onboarding_welcome_body = "Чотири питання — і «Поряд» показуватиме спершу те, що вам підходить. Відповіді лишаються на цьому пристрої, змінити їх можна будь-коли у профілі."
     static let onboarding_start = "Почати"
     static let onboarding_skip = "Пропустити"
     static func onboarding_step(_ a0: String, _ a1: String) -> String { "Крок \(a0) з \(a1)" }
@@ -360,6 +360,7 @@ enum Copy {
     static let onboarding_times_hint = "Підіймемо вище те, на що ви встигаєте."
     static let onboarding_crowd_title = "Який формат?"
     static let onboarding_crowd_hint = "Від кількох людей до повної зали."
+    static let onboarding_artists_hint = "Ті, хто зараз гастролює. Скажемо, коли в них будуть нові дати у вашому місті."
     static let onboarding_finish = "Готово"
     static let tip_done = "Зрозуміло"
     static func tip_step(_ a0: String, _ a1: String) -> String { "Підказка \(a0) з \(a1)" }

@@ -452,14 +452,15 @@ class PoruchApp internal constructor(
     fun followArtist(artistId: String, name: String, from: String) =
         followUseCases.set(FollowKind.ARTIST, artistId, name, true, from)
 
-    /** «Стежити за 3» у шторці «За ким стежити?». */
-    fun followArtists(picked: List<PopularArtist>) = picked.forEach { followArtist(it.artistId, it.name, "picker") }
+    /** «Стежити за 3» у шторці «За ким стежити?» ([from] = `picker`) чи на кроці онбордингу (`onboarding`). */
+    fun followArtists(picked: List<PopularArtist>, from: String) = picked.forEach { followArtist(it.artistId, it.name, from) }
 
-    /** Шторку «За ким стежити?» відкрито: хто їде в місто. */
-    fun loadPopularArtists() = followUseCases.loadPopular()
+    /** «За ким стежити?» відкрито: хто їде в місто, а в онбордингу ([everywhere]) — хто гастролює країною. */
+    fun loadPopularArtists(everywhere: Boolean) = followUseCases.loadPopular(everywhere)
 
-    /** Шторку закрито: скільки показали й скільки обрали. */
-    fun radarPickerClosed(shown: Int, picked: Int) = PoruchAnalytics.track("radar_picker", "shown" to shown, "picked" to picked)
+    /** Шторку чи крок закрито: скільки показали й скільки обрали; [from] — `picker` чи `onboarding`. */
+    fun radarPickerClosed(shown: Int, picked: Int, from: String) =
+        PoruchAnalytics.track("radar_picker", "shown" to shown, "picked" to picked, "from" to from)
 
     /**
      * Сповіщення відкрито тапом. [reason] — що воно було: chat, request, joined, moved, cancelled, place,
