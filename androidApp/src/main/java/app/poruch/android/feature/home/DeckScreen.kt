@@ -176,7 +176,7 @@ private fun About(event: Event) {
             Text(it, style = MaterialTheme.typography.titleSmall, color = colors.ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
         about.excerpt?.let {
-            Text(it, style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary, maxLines = 3, overflow = TextOverflow.Ellipsis)
+            Text(it, style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary, maxLines = 4, overflow = TextOverflow.Ellipsis)
         }
         event.listing?.takeIf { it.isFree == true || it.priceMin != null }?.let {
             Text(listingPrice(it), style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary)

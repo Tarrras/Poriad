@@ -200,13 +200,20 @@ def settle_artists(items: list, agent: Agent | None = None) -> None:
 
 
 def settle_blurbs(items: list, agent: Agent | None = None) -> None:
-    """Речення «що це» для опублікованих подій. Без `--agent` базу не чіпаємо: `item.blurb` лишається None."""
+    """Речення «що це» й опис, що чіпляє, для опублікованих подій. Без `--agent` базу не чіпаємо: `item.blurb` і
+    `item.pitch` лишаються None."""
     if agent is None:
         return
     s = agent.describe(items)
     print(f"  Речення «що це»: є {s['written']} з {s['targets']}, порожніх {s['empty']}, з кешу {s['cached']}, "
           f"запитів {s['asked']}, на наступні прогони {s['left']}, відкинуто запобіжником {len(agent.blurb_refused)}")
     for title, text, why in agent.blurb_refused[:5]:
+        print(f"      {why}: «{title[:40]}» → {text[:90]}")
+    # Опис — після речення: модель бачить «що це» й не переказує його (docs/return-hooks.md).
+    p = agent.pitch(items)
+    print(f"  Опис, що чіпляє: є {p['written']} з {p['targets']}, порожніх {p['empty']}, з кешу {p['cached']}, "
+          f"запитів {p['asked']}, на наступні прогони {p['left']}, відкинуто запобіжником {len(agent.pitch_refused)}")
+    for title, text, why in agent.pitch_refused[:5]:
         print(f"      {why}: «{title[:40]}» → {text[:90]}")
 
 

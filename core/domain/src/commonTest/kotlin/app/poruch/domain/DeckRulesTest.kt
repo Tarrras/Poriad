@@ -46,5 +46,8 @@ class DeckRulesTest {
             event("a").copy(description = "Довгий опис", blurb = " Стендап про стосунки ").about)
         assertEquals(EventAbout(null, "Довгий опис."), event("a").copy(description = "Довгий\n\n опис.", blurb = "  ").about)
         assertEquals(EventAbout(null, null), event("a").about)
+        assertEquals(EventAbout("Стендап про стосунки", "Проти коментарів у них одна зброя: аргументи."),
+            event("a").copy(description = "Довгий опис", blurb = "Стендап про стосунки", pitch = "Проти коментарів у них одна зброя: аргументи.").about,
+            "опис агента замість уривку продавця")
     }
 }

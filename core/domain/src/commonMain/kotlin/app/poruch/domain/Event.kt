@@ -38,7 +38,9 @@ data class Event(
     /** Хто виступає, у серверному порядку. Порожньо, коли сервер артистів не знає (старий сервер, prod без даних). */
     val artists: List<Artist> = emptyList(),
     /** Одне речення «що це» від агента імпорту (`events.blurb`). Null — ще не написано чи подія від людей. */
-    val blurb: String? = null
+    val blurb: String? = null,
+    /** Опис, що чіпляє, від того самого агента (`events.pitch`, docs/return-hooks.md): наш текст, тож показуємо повністю. */
+    val pitch: String? = null
 ) : Rankable {
     override val isCancelled get() = status == EventStatus.CANCELLED || status == EventStatus.HIDDEN ||
         listing?.state == ListingState.CANCELLED
@@ -101,13 +103,16 @@ data class Event(
         else description.take(LISTING_DESCRIPTION_PREVIEW).trimEnd().trimEnd(',', ';', '—', '-', '.') + "…"
 
     /**
-     * Що це за подія — тому, хто бачить її вперше (стос «Ваш тиждень», docs/return-hooks.md): речення «що це» й
-     * уривок дозволеного опису, разом. Одне речення агента часто загадкове («Шість жінок і досвід…»), а опис без нього
-     * починається з SEO-вступу; разом вони кажуть, що це і про що.
+     * Що це за подія — тому, хто бачить її вперше (стос «Ваш тиждень», docs/return-hooks.md): речення «що це» і під ним
+     * опис агента ([pitch]), а поки його нема — уривок дозволеного опису продавця. Одне речення часто загадкове
+     * («Шість жінок і досвід…»), а опис продавця починається з SEO-вступу.
      */
     val about: EventAbout
-        // Абзаци опису — в один рядок: у трьох рядках стосу «…» інакше стояло окремим рядком.
-        get() = EventAbout(blurb?.trim()?.takeIf { it.isNotEmpty() }, displayDescription.replace(WHITESPACE, " ").trim().takeIf { it.isNotEmpty() })
+        // Абзаци опису — в один рядок: у кількох рядках стосу «…» інакше стояло окремим рядком.
+        get() = EventAbout(
+            blurb?.trim()?.takeIf { it.isNotEmpty() },
+            pitch?.trim()?.takeIf { it.isNotEmpty() } ?: displayDescription.replace(WHITESPACE, " ").trim().takeIf { it.isNotEmpty() }
+        )
 
     /** Опис обрізано, тож посилання «читати повністю» має сенс. */
     val descriptionTruncated get() = displayDescription.length < description.length

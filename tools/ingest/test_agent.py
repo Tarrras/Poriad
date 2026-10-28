@@ -110,6 +110,37 @@ class AgentGuards(unittest.TestCase):
         self.assertFalse(hasattr(item, "latitude"))
 
 
+class PitchWriting(unittest.TestCase):
+    """Опис, що чіпляє (docs/return-hooks.md): лише після речення «що це», запобіжник проби v1–v4, рядок у дампі."""
+
+    class _E:
+        def __init__(self, title, starts, blurb="Що це за подія."):
+            self.title, self.starts_at, self.stage, self.text = title, starts, "published", "Текст картки."
+            self.description, self.category, self.artists, self.blurb, self.pitch = "", "art", [], blurb, None
+            self.source_slug, self.source_uid = "karabas", title
+
+    def test_after_blurb_guards_and_sql(self):
+        from .emit import pitches_sql
+        items = [self._E("Перша", 1), self._E("Друга", 2), self._E("Третя", 3), self._E("Без речення", 0, blurb=None)]
+        prompts = []
+        reply = ('{"events":[{"n":1,"pitch":"Коміки виходять на бій з диванними експертами. Проти коментарів у них одна зброя: аргументи."},'
+                 '{"n":2,"pitch":"Сеанс має назву «Ніч». Організатори обіцяють атмосферу."},'
+                 '{"n":3,"pitch":"До них приєднуються ще двоє коміків."}]}')
+        agent = Agent(call=lambda p: prompts.append(p) or reply, api_key="test")
+        stats = agent.pitch(items, cache_path=pathlib.Path("/nonexistent/pitches.json"))
+        self.assertEqual(len(prompts), 1)
+        self.assertIn("Що це: Що це за подія.", prompts[0])
+        self.assertNotIn("Без речення", prompts[0], "опис — лише після речення «що це»")
+        self.assertEqual(items[0].pitch, "Коміки виходять на бій з диванними експертами. Проти коментарів у них одна зброя: аргументи.")
+        self.assertEqual([i.pitch for i in items[1:]], ["", "", None])
+        self.assertEqual([why for *_, why in agent.pitch_refused], ["формула", "формула"])
+        self.assertEqual((stats["targets"], stats["written"], stats["empty"]), (3, 1, 2))
+        sql = pitches_sql(items)
+        self.assertIn("('karabas','Перша','Коміки виходять на бій з диванними експертами.", sql)
+        self.assertIn("('karabas','Друга',null)", sql, "порожньо в базі, а не вигадка")
+        self.assertNotIn("Без речення", sql, "непитаний опис базу не чіпає")
+
+
 class BlurbWriting(unittest.TestCase):
     """Речення «що це»: кеш за вмістом, порожньо замість вигадки, запобіжник поверх підказки."""
 

@@ -161,7 +161,7 @@ def _insert(publishable: list[Item], run_id: str, replace_llm: bool = False) -> 
     повернута в афішу пропозиція знову `live`."""
     return (_adopt(publishable) + places_sql(publishable)
             + _ingest_call(run_id, [_offer_row(it) for it in publishable])
-            + artists_sql(publishable, replace_llm) + blurbs_sql(publishable))
+            + artists_sql(publishable, replace_llm) + blurbs_sql(publishable) + pitches_sql(publishable))
 
 
 def blurbs_sql(items: list[Item]) -> str:
@@ -176,6 +176,19 @@ def blurbs_sql(items: list[Item]) -> str:
             "join public.event_sources s on s.slug = v.slug\n"
             "join public.event_offers o on o.source_id = s.id and o.source_uid = v.uid\n"
             "where e.id = o.event_id and e.blurb is distinct from v.blurb;\n")
+
+
+def pitches_sql(items: list[Item]) -> str:
+    """Опис, що чіпляє (`events.pitch`, 20261111120000), тим самим окремим оновленням, що й `blurbs_sql`."""
+    rows = [it for it in items if getattr(it, "pitch", None) is not None]
+    if not rows:
+        return ""
+    values = ",\n".join(f"({_lit(it.source_slug)},{_lit(it.source_uid)},{_lit(it.pitch or None)})" for it in rows)
+    return ("update public.events e set pitch = v.pitch\n"
+            f"from (values\n{values}\n) v(slug,uid,pitch)\n"
+            "join public.event_sources s on s.slug = v.slug\n"
+            "join public.event_offers o on o.source_id = s.id and o.source_uid = v.uid\n"
+            "where e.id = o.event_id and e.pitch is distinct from v.pitch;\n")
 
 
 def _offer_row(it: Item, winner: tuple | None = None) -> dict:

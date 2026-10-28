@@ -42,6 +42,8 @@ internal data class EventDto(
     val description: String = "",
     /** Речення «що це» (20261109120000); лише в картках афіші. */
     val blurb: String? = null,
+    /** Опис, що чіпляє (20261111120000); лише в картках афіші. */
+    val pitch: String? = null,
     val category: String,
     val city: String, val address: String,
     // Null для афіші. Не-nullable поле валило розбір усієї відповіді через один рядок.
@@ -95,7 +97,7 @@ internal data class EventDto(
         startsAt = startsAt, endsAt = endsAt, timeZone = timeZone, status = EventStatus.fromKey(status),
         latitude = latitude, longitude = longitude, imageUrl = imageUrl,
         gathering = gathering(), listing = listing(),
-        artists = artists.map { it.domain() }, blurb = blurb
+        artists = artists.map { it.domain() }, blurb = blurb, pitch = pitch
     )
 
     /**

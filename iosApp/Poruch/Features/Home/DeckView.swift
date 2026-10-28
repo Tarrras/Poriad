@@ -91,7 +91,7 @@ struct DeckView: View {
             }
             if let excerpt = about.excerpt {
                 Text(excerpt).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
-                    .lineLimit(3).fixedSize(horizontal: false, vertical: true)
+                    .lineLimit(4).fixedSize(horizontal: false, vertical: true)
             }
             if let listing = event.listing, listing.isFree?.boolValue == true || listing.priceMin != nil {
                 Text(listingPrice(listing)).font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)

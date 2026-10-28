@@ -195,6 +195,7 @@ class Agent:
         self.refused: list = []               # вигадані категорії, які запобіжник відхилив
         self.merges: list = []                # рішення про пари: (назва, назва, чи одна, чому)
         self.blurb_refused: list = []         # речення, що не пройшли _blurb_ok: (назва, речення, чому)
+        self.pitch_refused: list = []         # описи, що не пройшли _pitch_ok: (назва, опис, чому)
 
     # ---- Публічне
 
@@ -273,43 +274,57 @@ class Agent:
         зрозуміла з тексту, що це, або речення не пройшло `_blurb_ok`: у базі тоді порожньо, а не вигадка.
         `None` — не питали чи збій транспорту: базу не чіпаємо. Нічого не піднімає назовні.
         """
-        path = pathlib.Path(BLURB_CACHE if cache_path is None else cache_path)
+        return self._fill(items, attr="blurb", cache_path=BLURB_CACHE if cache_path is None else cache_path,
+                          key=_blurb_key, prompt=_blurb_prompt, ok=self._blurb_ok, new=BLURB_NEW, batch=BLURB_BATCH)
+
+    def pitch(self, items, cache_path=None) -> dict:
+        """Опис, що чіпляє (`item.pitch`, у базі `events.pitch`, docs/return-hooks.md): два речення під «що це» для
+        стосу «Ваш тиждень». Після `describe`: модель бачить речення «що це» й не переказує його, тож питаємо лише
+        тих, кому речення вже вирішене. Той самий кеш за вмістом і ті самі значення `""` і `None`, що в `describe`.
+        """
+        return self._fill(items, attr="pitch", cache_path=PITCH_CACHE if cache_path is None else cache_path,
+                          key=_pitch_key, prompt=_pitch_prompt, ok=self._pitch_ok, new=PITCH_NEW, batch=PITCH_BATCH,
+                          eligible=lambda i: getattr(i, "blurb", None) is not None)
+
+    def _fill(self, items, *, attr, cache_path, key, prompt, ok, new, batch, eligible=lambda i: True) -> dict:
+        """Спільне для `describe` і `pitch`: кеш, ліміт нових за прогін, пачки, запобіжник `ok`."""
+        path = pathlib.Path(cache_path)
         try:
             cache = json.loads(path.read_text("utf-8"))
         except (OSError, ValueError):
             cache = {}
-        targets = sorted((i for i in items if i.stage == "published"), key=lambda i: i.starts_at)
+        targets = sorted((i for i in items if i.stage == "published" and eligible(i)), key=lambda i: i.starts_at)
         todo: dict[str, list] = {}
         for it in targets:
-            h = _blurb_key(it)
+            h = key(it)
             if h in cache:
-                it.blurb = self._blurb_ok(cache[h], it)
+                setattr(it, attr, ok(cache[h], it))
             else:
                 todo.setdefault(h, []).append(it)
-        fresh = list(todo.items())[:BLURB_NEW] if self.ready else []
+        fresh = list(todo.items())[:new] if self.ready else []
         stats = {"targets": len(targets), "cached": len(targets) - sum(map(len, todo.values())),
                  "asked": 0, "left": len(todo) - len(fresh)}
-        for start in range(0, len(fresh), BLURB_BATCH):
-            batch = fresh[start:start + BLURB_BATCH]
+        for start in range(0, len(fresh), batch):
+            chunk = fresh[start:start + batch]
             try:
-                answers = _parse_blurbs(self._call(_blurb_prompt([group[0] for _, group in batch])))
-            except Exception as exc:                      # noqa: BLE001 — див. докстрінг
-                self.errors.append(f"blurb {type(exc).__name__}: {str(exc)[:100]}")
+                answers = _parse_field(self._call(prompt([group[0] for _, group in chunk])), attr)
+            except Exception as exc:                      # noqa: BLE001 — див. докстрінг describe
+                self.errors.append(f"{attr} {type(exc).__name__}: {str(exc)[:100]}")
                 continue
             stats["asked"] += 1
-            for n, (h, group) in enumerate(batch, 1):
+            for n, (h, group) in enumerate(chunk, 1):
                 if n in answers:                          # пропущену подію спитаємо наступного разу
                     cache[h] = answers[n]
                     for it in group:
-                        it.blurb = self._blurb_ok(answers[n], it)
+                        setattr(it, attr, ok(answers[n], it))
         if stats["asked"]:
             try:
                 path.parent.mkdir(exist_ok=True)
                 path.write_text(json.dumps(cache, ensure_ascii=False), "utf-8")
             except OSError:
                 pass
-        stats["written"] = sum(1 for i in targets if i.blurb)
-        stats["empty"] = sum(1 for i in targets if i.blurb == "")
+        stats["written"] = sum(1 for i in targets if getattr(i, attr))
+        stats["empty"] = sum(1 for i in targets if getattr(i, attr) == "")
         return stats
 
     def _blurb_ok(self, text, item) -> str:
@@ -330,6 +345,27 @@ class Agent:
                else "формула" if _BLURB_FORMULAS.search(text) else None)
         if why:
             self.blurb_refused.append((item.title, text, why))
+            return ""
+        return text
+
+    def _pitch_ok(self, text, item) -> str:
+        """Опис або `""`. Поверх підказки: модель іноді пише про назву й організаторів, переносить оцінки продавця
+        чи дописує речення «що це» займенником."""
+        text = " ".join(str(text or "").split()).replace("'", "’").replace("ʼ", "’")
+        if len(text) > 1 and text[0] + text[-1] in ("«»", '""', "“”"):
+            text = text[1:-1].strip()
+        if not text:
+            return ""
+        letters = [c for c in text if c.isalpha()]
+        title = " ".join(re.sub(r"\W+", " ", item.title.lower()).split())
+        why = ("довге" if len(text) > PITCH_MAX_CHARS
+               else "тире чи знак" if re.search(r"[—–?!]", text)
+               else "ціна" if re.search(r"₴|\bгрн", text)
+               else "капс" if sum(c.isupper() for c in letters) > len(letters) / 3
+               else "повтор назви" if " " in title and f" {title} " in " " + re.sub(r"\W+", " ", text.lower()) + " "
+               else "формула" if _BLURB_FORMULAS.search(text) or _PITCH_FORMULAS.search(text) else None)
+        if why:
+            self.pitch_refused.append((item.title, text, why))
             return ""
         return text
 
@@ -513,7 +549,87 @@ def _blurb_prompt(batch: list) -> str:
     return _BLURB_RULES + "\n\n" + "\n\n".join(lines)
 
 
-def _parse_blurbs(text: str) -> dict[int, str]:
+# ---- Опис, що чіпляє (events.pitch): два речення під «що це» у стосі «Ваш тиждень» (docs/return-hooks.md)
+
+PITCH_CACHE = pathlib.Path(__file__).resolve().parent / "cache" / "pitches.json"
+PITCH_BATCH = 20
+PITCH_MAX_CHARS = 200             # просимо до 180, відкидаємо довше за це
+# ponytail: як BLURB_NEW — найближчі першими, решта доходить за кілька днів; INGEST_PITCH_NEW піднімає межу.
+PITCH_NEW = int(os.environ.get("INGEST_PITCH_NEW") or 400)
+# Проба v1–v4 (28.10): мова про текст чи організаторів замість події, оцінки продавця, продовження «що це» займенником.
+_PITCH_FORMULAS = re.compile(r"\bназв[аиуоі]\b|підзаголов|організатор|обіця|натяка|вражаюч|яскрав\w* представник|"
+                             r"найкращ|неймовірн|^(вона|вони|до них|поруч із ними|окрім|до компанії)\b", re.I)
+
+_PITCH_RULES = """Ти пишеш для афіші застосунку «Поряд» короткий опис події — два речення, які чіпляють.
+Людина бачить його в стосі «так/ні» і за кілька секунд вирішує, чи їй це цікаво. Над описом стоїть речення
+«що це» (дано нижче як «Що це»), поруч — назва, жанр, заклад, дата й ціна.
+
+Мета — щоб людина побачила подію зсередини і захотіла туди. Для цього в описі має бути хоча б одна картинка
+чи дія: що там відбувається, що людина побачить, почує чи робитиме руками, який конфлікт чи поворот у сюжеті,
+чим цей формат незвичний. Конкретна деталь з тексту завжди сильніша за прикметник.
+
+Правила:
+- два речення українською, разом до 180 символів, крапка в кінці кожного;
+- опис має читатися й сам по собі, без «Що це» поруч: не починай з «вона», «вони», «до них», «поруч із ними»,
+  «до компанії», «окрім»;
+- не переказуй «Що це» іншими словами й не повторюй назву; можна розвинути його деталлю, якої там нема.
+  Місто, дату, час, заклад і ціну не називай;
+- пиши про саму подію, а не про текст чи організаторів. Не можна: «назва», «підзаголовок», «сеанс має назву»,
+  «організатори обіцяють», «автори натякають», «як кажуть організатори»;
+- оцінок продавця не переносиш навіть як переказ чи цитату: «смішно, гостро, провокативно», «вражаюча історія»,
+  «яскравий представник», «найкращий», «унікальний», «незабутній», «неймовірний», «справжній»;
+- опис не може бути переліком імен. Імʼя — лише з роллю й не більше двох-трьох;
+- лише факти з назви, тексту й складу нижче: нічого від себе, жодних подробиць і чисел, яких текст не каже.
+  Без висновків і наслідків від себе: що людина забере додому, що там можна зробити чи відчути, якщо текст
+  цього прямо не каже;
+- назв сеансів, рубрик і програм у лапках не цитуй;
+- без тире, знаків оклику й питання, без емодзі й капсу;
+- без закликів і формул продавця: «приходьте», «бронюйте», «не пропустіть», «запрошуємо», «чому варто
+  відвідати», «незабутні емоції», «справжнє свято», «чудова нагода», «для всієї родини»;
+- голос спокійний, теплий і впевнений, як у друга, що знає, куди піти. Можна на «ви», без заклику. Іронія лише
+  там, де текст дає привід, і ніколи про війну, памʼять, утрату чи хворобу;
+- якщо в тексті нема суті (лише реклама, дата й заклад) — pitch порожній. Порожньо краще за вигадку.
+
+Як це виглядає:
+- текст «Нічна екскурсія музеєм: після закриття гості обходять зали з ліхтариками, екскурсовод розповідає
+  історії, які не входять у денні екскурсії»
+  погано: «Сеанс має назву "Ніч у музеї". Організатори обіцяють незабутню атмосферу.»
+  добре: «Музей відкривають після закриття, і зали обходять з ліхтариками. Екскурсовод розповідає те, чого не
+  почуєте на денній екскурсії.»
+- текст «Стендап-вечір: Петро Іванов, Ольга Коваль, Ігор Мельник і ще двоє коміків пробують новий матеріал,
+  частина жартів може не дожити до спешлу»
+  погано: «До них приєднуються Ігор Мельник і ще двоє коміків.»
+  добре: «Коміки пробують новий матеріал, і частина жартів може не дожити до спешлу. Ви почуєте їх раніше
+  за всіх.»
+- текст «Чому варто відвідати? Яскраве шоу! Незабутні емоції для всієї родини!» → «»
+
+Перед відповіддю перечитай кожен опис: чи є тут факт чи висновок, якого нема в тексті, і чи не переказує
+він «Що це». Якщо є — перепиши. Порожньо — лише коли в тексті справді нема нічого понад «Що це».
+
+Відповідай ЛИШЕ JSON виду
+{"events": [{"n": 1, "pitch": "..."}]}
+Кожна подія з переліку має бути у відповіді, навіть з порожнім "pitch"."""
+
+
+def _pitch_key(it) -> str:
+    # У ключ входять підказка й речення «що це»: опис його продовжує і не має переказувати.
+    text, cast = _blurb_source(it)
+    blurb = getattr(it, "blurb", None) or ""
+    return hashlib.sha1(f"{_PITCH_RULES}\n{it.title}\n{it.category}\n{cast}\n{blurb}\n{text}".encode()).hexdigest()
+
+
+def _pitch_prompt(batch: list) -> str:
+    lines = []
+    for n, it in enumerate(batch, 1):
+        text, cast = _blurb_source(it)
+        lines.append(f"{n}. Назва: «{it.title}» · Категорія: {it.category}"
+                     + (f" · Склад: {cast}" if cast else "")
+                     + f"\nЩо це: {getattr(it, 'blurb', None) or '—'}\nТекст: {text or '—'}")
+    return _PITCH_RULES + "\n\n" + "\n\n".join(lines)
+
+
+def _parse_field(text: str, field: str) -> dict[int, str]:
+    """`{"events": [{"n": 1, "<field>": "..."}]}` → {1: "..."}; зіпсоване — порожньо."""
     start, end = text.find("{"), text.rfind("}")
     try:
         rows = json.loads(text[start:end + 1]).get("events")
@@ -525,6 +641,6 @@ def _parse_blurbs(text: str) -> dict[int, str]:
             n = int(row.get("n"))
         except (TypeError, ValueError, AttributeError):
             continue
-        if isinstance(row.get("blurb"), str):
-            out[n] = row["blurb"]
+        if isinstance(row.get(field), str):
+            out[n] = row[field]
     return out
