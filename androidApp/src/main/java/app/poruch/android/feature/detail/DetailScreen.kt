@@ -129,6 +129,7 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
                         verticalArrangement = Arrangement.spacedBy(Spacing.lg)
                     ) {
                         if (event.artists.isNotEmpty()) Lineup(event, onIntent)
+                        RadarHint(state, onIntent)
                         Facts(event)
                         state.screen.listing?.takeIf { !it.needsAttention }?.let { Tickets(state, it, onIntent) }
                         if (state.screen.canWantCompany && !state.screen.cancelled) CompanySection(state, onIntent)

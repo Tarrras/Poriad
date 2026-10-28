@@ -3,30 +3,53 @@ package app.poruch.shared
 import app.poruch.domain.*
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 /**
  * «Стежити» на закладі, організаторі й артисті (docs/follows.md). Кнопка перемикається одразу, а запит іде
- * окремо, як у закладки: при збої повертаємо як було й кажемо про помилку. Лише з акаунтом: гостя ведемо
- * на вхід, як у `join`.
+ * окремо, як у закладки: при збої повертаємо як було й кажемо про помилку. Заклад і організатор — лише з акаунтом:
+ * гостя ведемо на вхід, як у `join`. За артистом гість стежить без акаунта — радар (docs/artist-radar.md).
  */
 internal class FollowUseCases(
     private val follows: Follows?,
     private val events: EventDiscovery,
     private val store: AppStore,
     private val library: UserLibrary,
-    private val discovery: DiscoveryEngine
+    private val discovery: DiscoveryEngine,
+    private val guestArtists: GuestArtistStore? = null
 ) {
     /** Запити на сервер — по черзі: швидкі «Стежити» і «Не стежити» не мають розминутись на дорозі. */
     private val serial = Mutex()
 
-    fun set(kind: FollowKind, targetId: String, name: String, following: Boolean) {
-        if (!store.value.signedIn) return store.failed(AppError.SessionRequired, byPerson = true)
+    /** [from] — звідки «Стежити» для аналітики: `hint`, `picker`; null — кнопка на екрані. */
+    fun set(kind: FollowKind, targetId: String, name: String, following: Boolean, from: String? = null) {
+        if (!store.value.signedIn) {
+            if (kind == FollowKind.ARTIST) return setGuestArtist(targetId, name, following, from)
+            return store.failed(AppError.SessionRequired, byPerson = true)
+        }
         val repository = follows ?: return store.failed(AppError.ServiceUnavailable, byPerson = true)
         if (store.value.isFollowing(kind, targetId) == following) return
-        change(repository, kind, targetId, name, following, report = true)
+        change(repository, kind, targetId, name, following, report = true, from = from)
+    }
+
+    /**
+     * Артист гостя: стан одразу, список на телефоні. Сервер дізнається від [PushSync] разом із токеном пуша, а після входу
+     * артисти переїжджають в акаунт ([UserLibrary.load]).
+     */
+    private fun setGuestArtist(artistId: String, name: String, following: Boolean, from: String?) {
+        if (store.value.isFollowing(FollowKind.ARTIST, artistId) == following) return
+        PoruchLog.i("action") { "guest follow artist ${artistId.shortId()} on=$following" }
+        library.setFollow(FollowKind.ARTIST, artistId, name, following)
+        guestArtists?.saveArtists(store.value.library.follows.filter { it.kind == FollowKind.ARTIST }.map { GuestArtist(it.targetId, it.name) })
+        if (!following) return
+        // Платформа бачить першу підписку й питає дозвіл на сповіщення: радар без пушів марний.
+        library.followMade()
+        PoruchAnalytics.track("follow", "target" to FollowKind.ARTIST.key, "from" to (from ?: "artist"), "guest" to true)
     }
 
     /**
@@ -39,7 +62,9 @@ internal class FollowUseCases(
         change(repository, FollowKind.ORGANIZER, organizerId, name, following, report = false)
     }
 
-    private fun change(repository: Follows, kind: FollowKind, targetId: String, name: String, following: Boolean, report: Boolean) {
+    private fun change(
+        repository: Follows, kind: FollowKind, targetId: String, name: String, following: Boolean, report: Boolean, from: String? = null
+    ) {
         PoruchLog.i("action") { "follow ${kind.key} ${targetId.shortId()} on=$following" }
         val uid = store.value.session.userId
         // Що було: відкат відписки повертає підписку з її даними (місто, координати, фото), а не голе ім'я.
@@ -48,7 +73,7 @@ internal class FollowUseCases(
         library.followStarted()
         store.scope.launch {
             try {
-                serial.withLock { send(repository, kind, targetId, following) }
+                serial.withLock { send(repository, kind, targetId, following, from) }
                 if (following && store.value.session.userId == uid) library.followMade()
             } catch (e: CancellationException) {
                 throw e
@@ -89,12 +114,51 @@ internal class FollowUseCases(
         }
     }
 
-    private suspend fun send(repository: Follows, kind: FollowKind, targetId: String, following: Boolean) {
+    private suspend fun send(repository: Follows, kind: FollowKind, targetId: String, following: Boolean, from: String?) {
         if (following) {
             repository.follow(kind, targetId)
             // Метрика лише про успішну підписку: чи є на що повертати людей (docs/analytics.md).
-            PoruchAnalytics.track("follow", "target" to kind.key)
+            if (from != null) PoruchAnalytics.track("follow", "target" to kind.key, "from" to from)
+            else PoruchAnalytics.track("follow", "target" to kind.key)
         } else repository.unfollow(kind, targetId)
+    }
+
+    /**
+     * «Ваші артисти» (docs/artist-radar.md): перечитуємо, коли змінився список артистів чи місто. Збій лишає що було:
+     * секція тоді покаже імена з підписок без дат.
+     */
+    fun startRadar() {
+        store.scope.launch {
+            store.state.map { s -> s.library.follows.filter { it.kind == FollowKind.ARTIST }.map { it.targetId }.sorted() to radarCity(s) }
+                .distinctUntilChanged()
+                .collectLatest { (ids, city) ->
+                    if (ids.isEmpty()) return@collectLatest store.update { it.copy(radar = emptyList()) }
+                    try {
+                        val rows = events.artistRadar(ids, city)
+                        store.update { it.copy(radar = rows) }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        PoruchLog.w("follows") { "radar not loaded: ${e.asAppError()}" }
+                    }
+                }
+        }
+    }
+
+    /** «Кого слухаєте?»: хто їде в місто людини. Своє місце на мапі чи збій — порожньо, шторка скаже, що анонсів нема. */
+    fun loadPopular() {
+        val city = radarCity(store.value) ?: return store.update { it.copy(popularArtists = emptyList()) }
+        store.scope.launch {
+            val list = try {
+                events.popularArtists(city)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                PoruchLog.w("follows") { "popular artists not loaded: ${e.asAppError()}" }
+                emptyList()
+            }
+            store.update { it.copy(popularArtists = list) }
+        }
     }
 
     /**
@@ -172,3 +236,7 @@ internal class FollowUseCases(
             Place(placeId, it.placeName ?: it.placeLabel, it.city, it.address, it.latitude, it.longitude, cards.size)
         }
 }
+
+/** Місто радару: обране з п'яти міст афіші; своє місце на мапі — null (сервер тоді не фільтрує за містом). */
+internal fun radarCity(state: AppState): String? =
+    state.city.name.takeIf { name -> !state.city.custom && HomeLocation.covered.any { it.city == name } }

@@ -23,7 +23,9 @@ internal class UserLibrary(
     private val store: AppStore,
     private val scope: CoroutineScope,
     /** Закладки гостя на телефоні (docs/guest-saves.md). Null — лише в стані до перезапуску. */
-    private val guestSaves: GuestSavedStore? = null
+    private val guestSaves: GuestSavedStore? = null,
+    /** Артисти гостя на телефоні (docs/artist-radar.md). */
+    private val guestArtists: GuestArtistStore? = null
 ) {
     private var detailJob: Job? = null
     private var listJob: Job? = null
@@ -311,6 +313,8 @@ internal class UserLibrary(
             try {
                 // До `my_events`: інакше збережене гостем зʼявилось би в «Моїх подіях» лише з наступним читанням.
                 val unadopted = adoptGuestSaves()
+                // До `my_follows`: інакше артисти гостя зникли б з радару до наступного читання.
+                adoptGuestArtists()
                 // Запити незалежні: паралельно, а не десять поспіль. Перший обов'язковий збій скасовує решту.
                 coroutineScope {
                     val mine = async { events.myEvents() }
@@ -389,6 +393,9 @@ internal class UserLibrary(
      * Збій мережі — лишаємо що є.
      */
     private fun loadGuest() {
+        // Вийшли з акаунта: його підписки пішли разом із ним, а артисти, яких гість набрав до входу й не переніс, — на місці.
+        val artists = guestArtists?.artists().orEmpty().map { Follow(FollowKind.ARTIST, it.id, it.name) }
+        if (store.value.library.follows != artists) store.update { it.copy(library = it.library.copy(follows = artists)) }
         val stored = guestSaves ?: return
         val ids = stored.ids()
         listJob?.cancel()
@@ -432,6 +439,33 @@ internal class UserLibrary(
         } catch (e: Exception) {
             PoruchLog.w("mine") { "guest saves not adopted: ${e.asAppError()}" }
             ids
+        }
+    }
+
+    /**
+     * Артисти гостя переходять в акаунт, що ввійшов першим після гостя, як і закладки. Зник артист (злили, прибрали) —
+     * мовчки пропускаємо; без мережі — лишаються на телефоні й переїдуть на наступному [load].
+     */
+    private suspend fun adoptGuestArtists() {
+        val stored = guestArtists ?: return
+        val repository = follows ?: return
+        val artists = stored.artists().ifEmpty { return }
+        try {
+            for (artist in artists) {
+                try {
+                    repository.follow(FollowKind.ARTIST, artist.id)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    if (e.asAppError() is AppError.Network) throw e
+                }
+            }
+            stored.saveArtists(emptyList())
+            PoruchLog.i("follows") { "${artists.size} guest artists adopted" }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            PoruchLog.w("follows") { "guest artists not adopted: ${e.asAppError()}" }
         }
     }
 

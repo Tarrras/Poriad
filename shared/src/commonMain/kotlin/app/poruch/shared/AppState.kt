@@ -25,6 +25,10 @@ data class AppState(
     val library: LibraryState = LibraryState(),
     /** Квитки з телефона за часом початку (docs/ticket-wallet.md). Пристрою, а не акаунта: вихід їх не стирає. */
     val tickets: List<WalletTicket> = emptyList(),
+    /** «Ваші артисти» (docs/artist-radar.md): що в місті людини і де ще. Пише [FollowUseCases]. */
+    val radar: List<ArtistRadar> = emptyList(),
+    /** «Кого слухаєте?»: хто їде в місто. Null — ще не читали. */
+    val popularArtists: List<PopularArtist>? = null,
     /** Хто увійшов і на якому кроці входу. Пишуть [IdentitySync], [SessionUseCases], [PushSync]. */
     val session: SessionState = SessionState(),
     val taste: Taste = Taste(),

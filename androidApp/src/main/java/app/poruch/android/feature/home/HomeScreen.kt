@@ -125,6 +125,8 @@ fun HomeScreen(state: HomeState, onIntent: (HomeIntent) -> Unit) {
                 item(key = "people") { PeopleSection(state, onIntent) }
                 if (state.screen.company.isNotEmpty()) item(key = "company") { CompanySection(state, onIntent) }
                 item(key = "deck") { DeckRow() }
+                // Радар артистів: хто їде в місто з тих, за ким стежать; без них — питання «Кого слухаєте?».
+                item(key = "radar") { RadarSection(state, onIntent) }
                 // Людині без планів і підписок «Ваше» не потрібне: створити подію їй пропонує порожній квиток вище.
                 if (state.screen.signedIn && (state.screen.personal.isNotEmpty() || state.screen.followed.isNotEmpty())) item(
                     key = "yours"

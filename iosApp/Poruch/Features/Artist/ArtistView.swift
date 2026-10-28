@@ -15,7 +15,6 @@ struct ArtistView: View {
     let route: ArtistRoute
     @EnvironmentObject var model: AppModel
     @Environment(\.dismiss) private var dismiss
-    @State private var auth: AuthReason?
 
     private var artist: ArtistState? { model.state?.artist.flatMap { $0.id == route.id ? $0 : nil } }
     private var name: String { artist.map(\.name).flatMap { $0.isEmpty ? nil : $0 } ?? route.name ?? "" }
@@ -39,7 +38,7 @@ struct ArtistView: View {
                             Text(kind).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
                         }
                         FollowPill(following: following) {
-                            guard model.state?.signedIn == true else { auth = .follow; return }
+                            // Радар (docs/artist-radar.md): за артистом гість стежить без входу.
                             model.app.setFollowing(kind: .artist, targetId: route.id, name: name, following: !following)
                         }
                         Text(Copy.follow_artist_hint).font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
@@ -58,7 +57,6 @@ struct ArtistView: View {
         .task(id: route.id) {
             if model.state?.artist?.id != route.id { model.app.openArtist(artistId: route.id, name: route.name, kind: route.kind) }
         }
-        .sheet(item: $auth) { reason in NavigationStack { AuthView(reason: reason) } }
     }
 
     @ViewBuilder private var events: some View {

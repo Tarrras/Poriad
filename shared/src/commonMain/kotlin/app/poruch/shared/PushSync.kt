@@ -46,12 +46,51 @@ internal class PushSync(
         store.scope.launch {
             store.state.map { listOf(it.city.name, it.city.custom, it.taste.interests, it.digestEnabled) }.distinctUntilChanged().collect { touch() }
         }
+        // Радар: місто й артисти гостя.
+        store.scope.launch { store.state.map { radarCity(it) to radarArtists(it) }.distinctUntilChanged().collect { radar() } }
+    }
+
+    /** Що сервер радару почув у цьому процесі. Пам'ять, а не диск: на старті шлемо знову, і так `updated_at` живий. */
+    private var radarSent: Triple<String, String?, List<String>>? = null
+    private var radaring: Job? = null
+
+    /** Артисти гостя для сервера; в акаунта — порожньо: його артисти в підписках. */
+    private fun radarArtists(state: AppState): List<String> =
+        if (state.signedIn) emptyList() else state.library.follows.filter { it.kind == FollowKind.ARTIST }.map { it.targetId }.sorted()
+
+    /**
+     * Радар артистів (docs/artist-radar.md): з дозволом і токеном — `set_radar` (місто пристрою й артисти гостя), гостю й
+     * акаунту, незалежно від дайджесту. Дозвіл забрали — `forget_radar`.
+     */
+    fun radar() {
+        val allowed = allowed ?: return
+        val tokens = push ?: return
+        val (token, platform) = this.token ?: return
+        if (radaring?.isActive == true) return
+        if (!allowed) {
+            if (radarSent == null) return
+            radaring = store.scope.launch {
+                if (attempt("radar forget") { tokens.forgetRadar(token) }) radarSent = null
+                radaring = null
+            }
+            return
+        }
+        val state = store.value
+        val next = Triple(token, radarCity(state), radarArtists(state))
+        if (next == radarSent) return
+        radaring = store.scope.launch {
+            val done = attempt("radar") { tokens.setRadar(token, platform, next.second, next.third); radarSent = next }
+            radaring = null
+            // Поки йшов запит, могли змінити місто чи список.
+            if (done) radar()
+        }
     }
 
     /** Платформа на передньому плані: є дозвіл (authorized чи provisional) чи нема. Кожне відкриття. */
     fun notificationsAllowed(allowed: Boolean) {
         this.allowed = allowed
         touch()
+        radar()
     }
 
     /**
@@ -107,6 +146,7 @@ internal class PushSync(
         this.token = token to platform
         register()
         touch()
+        radar()
     }
 
     /** Реєструє поточний токен під поточним акаунтом. Без токена, сховища чи акаунта — нічого. */

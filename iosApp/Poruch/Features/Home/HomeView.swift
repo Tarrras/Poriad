@@ -41,6 +41,9 @@ struct HomeView: View, Equatable {
     /// Стос «Ваш тиждень» з головної: раз на тиждень, якщо цього тижня його не відкривали (docs/return-hooks.md).
     @AppStorage("poruch.deckWeek") private var deckWeek = ""
     @State private var deck: DeckCards?
+    /// «Кого слухаєте?» (docs/artist-radar.md): шторку закрили — рядок зникає до наступного тижня.
+    @AppStorage("poruch.radarWeek") private var radarWeek = ""
+    @State private var radarPicker = false
 
     var body: some View {
         let view = self.view
@@ -55,6 +58,7 @@ struct HomeView: View, Equatable {
         .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $citySearch) { CitySearchView().presentationDetents([.medium, .large]) }
         .fullScreenCover(item: $deck) { DeckView(cards: $0.events) { deck = nil } }
+        .sheet(isPresented: $radarPicker, onDismiss: { radarWeek = model.app.deckWeek() }) { RadarPickerSheet() }
         .onChange(of: view.searchKey) { _, _ in resultsLimit = homeResultsLimit }
     }
 
@@ -111,6 +115,13 @@ struct HomeView: View, Equatable {
                                 }
                                 .cardSurface().padding(.horizontal, Space.page)
                             }
+                        }
+                        // Радар артистів: хто їде в місто з тих, за ким стежать; без них — питання «Кого слухаєте?».
+                        if !view.radar.isEmpty {
+                            HomeRadarSection(rows: view.radar, open: { open($0, from: "radar") }, add: { radarPicker = true })
+                        } else if radarWeek != model.app.deckWeek() {
+                            LinkRow(glyph: PoruchIcons.music, title: Copy.radar_ask_title, subtitle: Copy.radar_ask_subtitle) { radarPicker = true }
+                                .cardSurface().padding(.horizontal, Space.page)
                         }
                         if view.signedIn {
                             HomePersonalSection(view: view, open: open, openChat: openChat, openMyEvents: openMyEvents, openFollows: openFollows)

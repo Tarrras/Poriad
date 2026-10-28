@@ -150,6 +150,33 @@ extension EventDetailView {
         }
     }
 
+    /**
+     * Радар (docs/artist-radar.md): збережена афіша з артистом, за яким ще не стежать, — «Скажемо, коли ТІК знову приїде».
+     * Гостю теж, без входу. Натиснули — рядок лишається з «Ви стежите», поки екран відкритий.
+     */
+    @ViewBuilder
+    func radarRow(_ view: DetailScreenState) -> some View {
+        if let artist = radarFollowed ?? view.radarHint {
+            let following = radarFollowed?.id == artist.id
+            HStack(spacing: Space.md) {
+                Text(Copy.radar_hint(artist.name)).font(PoruchFont.subhead).foregroundStyle(Palette.ink)
+                    .multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: Space.sm)
+                FollowPill(following: following) {
+                    if following {
+                        model.app.setFollowing(kind: .artist, targetId: artist.id, name: artist.name, following: false)
+                        radarFollowed = nil
+                    } else {
+                        model.app.followArtist(artistId: artist.id, name: artist.name, from: "hint")
+                        radarFollowed = artist
+                    }
+                }
+            }
+            .padding(.horizontal, Space.lg).padding(.vertical, Space.md).frame(maxWidth: .infinity, alignment: .leading)
+            .cardSurface()
+        }
+    }
+
     /// Факти про подію сіткою два на два, як картка дня в Moonly: підпис над значенням, без гліфів.
     func facts(_ event: Event) -> some View {
         var cells: [(String, String)] = [

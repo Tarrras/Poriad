@@ -179,6 +179,11 @@ class DetailViewModel(
                 if (app.takeBoughtPrompt(eventId)) reduce { copy(boughtPrompt = true) }
             }
 
+            is DetailIntent.FollowArtist -> intent.artist.let {
+                if (intent.following) app.followArtist(it.id, it.name, "hint")
+                else app.setFollowing(FollowKind.ARTIST, it.id, it.name, false)
+            }
+
             DetailIntent.ToggleFollowPlace -> authenticated(AuthReason.FOLLOW) {
                 event?.let { e ->
                     e.placeId?.let {

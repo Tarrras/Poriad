@@ -65,6 +65,8 @@ sealed interface DetailIntent {
     data object Reopen : DetailIntent
     /** «Стежити» / «Ви стежите» на закладі афіші. Гостя веде на вхід. */
     data object ToggleFollowPlace : DetailIntent
+    /** «Стежити» в підказці радару під складом: без входу, гість стежить на телефоні. */
+    data class FollowArtist(val artist: Artist, val following: Boolean) : DetailIntent
     /** Те саме на картці людини: [name] — для списку підписок, поки сервер не віддав повні дані. */
     data class ToggleFollowPerson(val userId: String, val name: String) : DetailIntent
     data object PrimaryAction : DetailIntent

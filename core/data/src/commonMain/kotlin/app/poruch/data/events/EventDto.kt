@@ -2,6 +2,10 @@ package app.poruch.data.events
 
 import app.poruch.domain.Artist
 import app.poruch.domain.ArtistHit
+import app.poruch.domain.ArtistRadar
+import app.poruch.domain.PopularArtist
+import app.poruch.domain.RadarCity
+import app.poruch.domain.RadarEvent
 import app.poruch.domain.ArtistKind
 import app.poruch.domain.ArtistRole
 import app.poruch.domain.EventCategory
@@ -242,6 +246,46 @@ internal data class ArtistDto(
     val role: String? = null
 ) {
     fun domain() = Artist(id, name, ArtistKind.fromKey(kind), ArtistRole.fromKey(role))
+}
+
+/** Елемент відповіді `artist_radar` (docs/artist-radar.md). */
+@Serializable
+internal data class ArtistRadarDto(
+    val id: String,
+    val name: String = "",
+    val kind: String? = null,
+    val next: RadarEventDto? = null,
+    @SerialName("in_city") val inCity: Int = 0,
+    val elsewhere: List<RadarCityDto> = emptyList()
+) {
+    fun domain() = ArtistRadar(id, name, ArtistKind.fromKey(kind), next?.domain(), inCity, elsewhere.map { it.domain() })
+}
+
+@Serializable
+internal data class RadarEventDto(
+    val id: String,
+    val title: String = "",
+    @SerialName("starts_at") val startsAt: String,
+    @SerialName("time_zone") val timeZone: String = "Europe/Kyiv"
+) {
+    fun domain() = RadarEvent(id, title, startsAt, timeZone)
+}
+
+@Serializable
+internal data class RadarCityDto(val city: String, @SerialName("starts_at") val startsAt: String) {
+    fun domain() = RadarCity(city, startsAt)
+}
+
+/** Елемент відповіді `popular_artists`. */
+@Serializable
+internal data class PopularArtistDto(
+    val id: String,
+    val name: String = "",
+    val kind: String? = null,
+    val upcoming: Int = 0,
+    @SerialName("first_at") val firstAt: String? = null
+) {
+    fun domain() = PopularArtist(id, name, ArtistKind.fromKey(kind), upcoming, firstAt)
 }
 
 /** Елемент відповіді `search_artists`. */

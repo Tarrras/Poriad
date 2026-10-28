@@ -204,7 +204,6 @@ fun ArtistRoute(route: ArtistPage, navigator: Navigator) {
     model.effects.handle { effect ->
         when (effect) {
             ArtistEffect.Back -> navigator.back()
-            ArtistEffect.SignIn -> navigator.open(Auth(AuthReason.FOLLOW))
             is ArtistEffect.OpenEvent -> navigator.open(Detail(effect.id))
         }
     }

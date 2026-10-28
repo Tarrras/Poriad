@@ -24,9 +24,8 @@ class ArtistViewModel(private val app: PoruchApp, private val artistId: String) 
     override fun onIntent(intent: ArtistIntent) {
         when (intent) {
             ArtistIntent.Back -> send(ArtistEffect.Back)
-            ArtistIntent.ToggleFollow ->
-                if (app.state.value.signedIn) app.setFollowing(FollowKind.ARTIST, artistId, state.value.name, !state.value.following)
-                else send(ArtistEffect.SignIn)
+            // Гість теж: артисти лежать на телефоні й після входу переїжджають в акаунт (docs/artist-radar.md).
+            ArtistIntent.ToggleFollow -> app.setFollowing(FollowKind.ARTIST, artistId, state.value.name, !state.value.following)
             is ArtistIntent.OpenEvent -> {
                 app.selectEvent(intent.id, "artist")
                 send(ArtistEffect.OpenEvent(intent.id))

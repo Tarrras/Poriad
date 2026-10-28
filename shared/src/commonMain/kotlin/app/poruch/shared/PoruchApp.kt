@@ -64,6 +64,8 @@ class PoruchApp internal constructor(
     guestSaves: GuestSavedStore? = null,
     /** Квитки на телефоні (docs/ticket-wallet.md). Null — квитки живуть до перезапуску (тести, превʼю). */
     private val tickets: TicketStore? = null,
+    /** Артисти, за якими гість стежить без акаунта (docs/artist-radar.md). Null — лише до перезапуску. */
+    guestArtists: GuestArtistStore? = null,
     /** Дні з добрими діями для питання про відгук у сторі. Null — питаємо лише після оцінки події. */
     goodDays: SeenRequestStore? = null,
     config: AppConfig = AppConfig("", ""),
@@ -85,7 +87,10 @@ class PoruchApp internal constructor(
             analyticsEnabled = analyticsStore?.enabled() ?: true,
             city = CityState(startCity.city, startCity.latitude, startCity.longitude),
             // Кнопки гостя знають свої закладки з першого кадру; картки до них доїдуть з `load()`.
-            library = LibraryState(savedIds = if (auth.session.value == null) guestSaves?.ids().orEmpty() else emptyList()),
+            library = if (auth.session.value == null) LibraryState(
+                savedIds = guestSaves?.ids().orEmpty(),
+                follows = guestArtists?.artists().orEmpty().map { Follow(FollowKind.ARTIST, it.id, it.name) }
+            ) else LibraryState(),
             tickets = tickets?.all().orEmpty()
         ),
         scope
@@ -107,13 +112,14 @@ class PoruchApp internal constructor(
         tasteStore,
         store,
         scope,
-        guestSaves
+        guestSaves,
+        guestArtists
     )
     private val chatEngine = ChatEngine(chat, store, scope)
     private val reloader = Reloader(discovery, library)
     private val pushSync = PushSync(push, seenRequests, seenMessages, store, pendingPush, deviceTouch)
     private val places = PlaceLookup(addresses, timeZones, scope)
-    private val followUseCases = FollowUseCases(follows, events, store, library, discovery)
+    private val followUseCases = FollowUseCases(follows, events, store, library, discovery, guestArtists)
     private val eventUseCases = EventUseCases(
         events,
         saved,
@@ -144,6 +150,7 @@ class PoruchApp internal constructor(
         identity.start()
         pushSync.retryPending()
         pushSync.start()
+        followUseCases.startRadar()
         refresh()
         loadMyEvents()
         if (reminders != null) ReminderSync(state, reminders, scope).start()
@@ -438,6 +445,21 @@ class PoruchApp internal constructor(
      */
     fun openArtist(artistId: String, name: String? = null, kind: ArtistKind? = null) = followUseCases.openArtist(artistId, name, kind)
     fun closeArtist() = followUseCases.closeArtist()
+
+    // ---- Радар артистів (docs/artist-radar.md)
+
+    /** «Скажемо, коли ТІК знову приїде» на деталях ([from] = `hint`) чи шторка «Кого слухаєте?» (`picker`). Гостю теж. */
+    fun followArtist(artistId: String, name: String, from: String) =
+        followUseCases.set(FollowKind.ARTIST, artistId, name, true, from)
+
+    /** «Стежити за 3» у шторці «Кого слухаєте?». */
+    fun followArtists(picked: List<PopularArtist>) = picked.forEach { followArtist(it.artistId, it.name, "picker") }
+
+    /** Шторку «Кого слухаєте?» відкрито: хто їде в місто. */
+    fun loadPopularArtists() = followUseCases.loadPopular()
+
+    /** Шторку закрито: скільки показали й скільки обрали. */
+    fun radarPickerClosed(shown: Int, picked: Int) = PoruchAnalytics.track("radar_picker", "shown" to shown, "picked" to picked)
 
     /**
      * Сповіщення відкрито тапом. [reason] — що воно було: chat, request, joined, moved, cancelled, place,

@@ -1,6 +1,8 @@
 package app.poruch.shared
 
 import app.poruch.domain.AppError
+import app.poruch.domain.Artist
+import app.poruch.domain.ArtistRole
 import app.poruch.domain.Attendee
 import app.poruch.domain.CompanionCard
 import app.poruch.domain.CheckedLabel
@@ -120,7 +122,12 @@ data class DetailScreenState(
     /** Хто кличе: подію відкрили з посилання-запрошення (docs/invites.md). Обкладинка каже «Тарас кличе тебе». */
     val inviter: Inviter? = null,
     /** «Перевірено сьогодні о 09:00» для афіші: коли адресна перевірка читала продавців. Null — не перевіряли. */
-    val checked: CheckedLabel? = null
+    val checked: CheckedLabel? = null,
+    /**
+     * Радар (docs/artist-radar.md): перший артист складу, за яким ще не стежать, — коли афіша попереду й збережена чи на
+     * неї є квиток. Null — рядка «Скажемо, коли ТІК знову приїде» нема.
+     */
+    val radarHint: Artist? = null
 ) {
     /** Супутник «Йдемо разом»: місце й решту тримає сервер; організатор міняє лише час ([canMoveMeet]). */
     val companionOf: CompanionParent? get() = room?.companionOf
@@ -271,7 +278,7 @@ class DetailPresenter(
         old.detail === new.detail && old.library === new.library && old.session === new.session &&
             old.person === new.person && old.map.index === new.map.index && old.cards === new.cards &&
             old.mutating == new.mutating && old.createdCompanion == new.createdCompanion && old.invite === new.invite &&
-            old.matchedCompanion == new.matchedCompanion
+            old.matchedCompanion == new.matchedCompanion && old.tickets === new.tickets
 
     private fun derive(shared: AppState): DetailScreenState {
         pendingId?.let { pending ->
@@ -336,7 +343,11 @@ class DetailPresenter(
             createdCompanion = shared.createdCompanion?.takeIf { event != null },
             // Посилання могло вести на подію, яку потім злили: запрошення лишилось під старим id.
             inviter = shared.invite?.takeIf { event != null && (it.first == eventId || it.first == shared.detail.mergedFrom) }?.second,
-            checked = CheckedLabel.of(event?.listing?.checkedAt, now, TimeZone.currentSystemDefault())
+            checked = CheckedLabel.of(event?.listing?.checkedAt, now, TimeZone.currentSystemDefault()),
+            radarHint = event?.takeIf { e -> !e.hasEnded(now) && (shared.isSaved(eventId) || shared.tickets.any { it.eventId == eventId }) }
+                ?.artists?.filterNot { shared.isFollowing(FollowKind.ARTIST, it.id) }
+                // Ведучий — останнім: «Скажемо, коли знову приїде» — про того, заради кого йдуть.
+                ?.sortedBy { it.role == ArtistRole.HOST }?.firstOrNull()
         )
     }
 }

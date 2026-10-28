@@ -948,6 +948,18 @@
   <string name="rate_follow_hint">Скажемо, коли організатор опублікує нову подію</string>
   <string name="follows_title">Ви стежите</string>
   <string name="follow_via">Ви стежите · %1$s</string>
+  <!-- Радар артистів (docs/artist-radar.md) -->
+  <string name="radar_hint">Скажемо, коли %1$s знову приїде</string>
+  <string name="radar_title">Ваші артисти</string>
+  <string name="radar_add">Додати</string>
+  <string name="radar_ask_title">Кого слухаєте?</string>
+  <string name="radar_ask_subtitle">Скажемо, коли вони приїдуть у ваше місто</string>
+  <string name="radar_elsewhere">Поки не у вашому місті · %1$s</string>
+  <string name="radar_quiet">Поки нових анонсів нема</string>
+  <string name="radar_picker_hint">Оберіть кількох — скажемо, коли вони приїдуть у ваше місто</string>
+  <string name="radar_picker_follow">Стежити за %1$s</string>
+  <string name="radar_picker_empty">Поки в місті нема анонсів артистів</string>
+  <string name="radar_more">Усі %1$s</string>
   <!-- Нове в підписках, ще не переглянуте на екрані «Ви стежите». -->
   <!-- Підпис під числом у шапці профілю: число стоїть окремо, тож у множині лише відмінок іменника. -->
   <plurals name="profile_organized">

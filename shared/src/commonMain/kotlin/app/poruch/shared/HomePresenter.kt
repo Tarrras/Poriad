@@ -1,6 +1,9 @@
 package app.poruch.shared
 
 import app.poruch.domain.ArtistHit
+import app.poruch.domain.ArtistRadar
+import app.poruch.domain.FollowKind
+import app.poruch.domain.RadarRules
 import app.poruch.domain.WalletTicket
 import app.poruch.domain.ChatUnread
 import app.poruch.domain.CityResult
@@ -71,6 +74,11 @@ data class HomeScreenState(
     val people: List<FeedEntry> = emptyList(),
     /** Квитки з телефона на сьогодні (docs/ticket-wallet.md): першими на головній, і кіно, і в гостя. */
     val todayTickets: List<WalletTicket> = emptyList(),
+    /**
+     * «Ваші артисти» (docs/artist-radar.md): кожен, за ким стежать, у порядку [RadarRules.order]. Сервер без радару чи
+     * збій — рядок з іменем без дат.
+     */
+    val radar: List<ArtistRadar> = emptyList(),
     /** «Шукають компанію»: афіші, на які хтось хоче піти з компанією ([HomeRules.company]). Порожньо — рейки нема. */
     val company: List<CompanyEntry> = emptyList(),
     /** «У місті»: [HomeRules.HERO_COUNT] великих карток, далі сітка, вже звужена [feedFilter]. */
@@ -164,7 +172,15 @@ class HomePresenter(
 
     private fun sameInputs(old: AppState, new: AppState): Boolean =
         old.home === new.home && old.library === new.library && old.chatUnread === new.chatUnread &&
-            old.city === new.city && old.session === new.session && old.tickets === new.tickets
+            old.city === new.city && old.session === new.session && old.tickets === new.tickets && old.radar === new.radar
+
+    /** Кожен артист із підписок: з сервера — з датами, поки не доїхало — лише ім'я. */
+    private fun radarRows(shared: AppState): List<ArtistRadar> {
+        val known = shared.radar.associateBy { it.artistId }
+        return RadarRules.order(shared.library.follows.filter { it.kind == FollowKind.ARTIST }.map { follow ->
+            known[follow.targetId] ?: ArtistRadar(follow.targetId, follow.name, follow.artistKind, null, 0, emptyList())
+        })
+    }
 
     internal fun derive(shared: AppState, feedFilter: FeedFilter, now: Instant, zone: TimeZone): HomeScreenState {
         val zoneId = zone.id
@@ -228,6 +244,7 @@ class HomePresenter(
             people = people,
             company = company,
             todayTickets = shared.tickets.filter { it.isToday(now, zone) },
+            radar = radarRows(shared),
             feed = all.take(HomeRules.HERO_COUNT) + HomeRules.apply(rest, filter, now, zoneId),
             chips = chips,
             feedFilter = filter,

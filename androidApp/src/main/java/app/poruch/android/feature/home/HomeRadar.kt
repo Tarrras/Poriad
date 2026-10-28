@@ -1,0 +1,154 @@
+package app.poruch.android.feature.home
+
+import android.content.Context
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.dp
+import androidx.core.content.edit
+import app.poruch.android.PROMPTS
+import app.poruch.android.R
+import app.poruch.android.ui.*
+import app.poruch.domain.ArtistHit
+import app.poruch.domain.ArtistRadar
+import app.poruch.domain.FollowKind
+import app.poruch.domain.RadarRules
+import app.poruch.shared.PoruchApp
+import java.time.OffsetDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
+import org.koin.compose.koinInject
+
+private val UKRAINIAN = Locale.forLanguageTag("uk")
+private const val RADAR_WEEK = "radar_week"
+
+private fun date(iso: String, zone: String, pattern: String): String? = runCatching {
+    OffsetDateTime.parse(iso).atZoneSameInstant(ZoneId.of(zone)).format(DateTimeFormatter.ofPattern(pattern, UKRAINIAN))
+}.getOrNull()
+
+/** Рядок «Ваших артистів»: є подія в місті — «сб 14.12 · назва»; нема — тур іншими містами; нема ніде — без анонсів. */
+@Composable
+private fun radarLine(row: ArtistRadar): String {
+    row.next?.let { next -> date(next.startsAt, next.timeZone, "EE d.MM")?.let { return "$it · ${next.displayTitle}" } }
+    if (row.elsewhere.isNotEmpty()) {
+        val cities = row.elsewhere.joinToString(", ") { city -> date(city.startsAt, "Europe/Kyiv", "d.MM")?.let { "${city.city} $it" } ?: city.city }
+        return stringResource(R.string.radar_elsewhere, cities)
+    }
+    return stringResource(R.string.radar_quiet)
+}
+
+/**
+ * Радар артистів на головній (docs/artist-radar.md): «Ваші артисти», а без них — рядок «Кого слухаєте?». Хто їде в місто —
+ * з датою, тап веде на подію; решта — тур чи «Поки нових анонсів нема», тап веде на артиста. До п'яти рядків, решта
+ * розгортається тут же. Гість теж: стежить без входу.
+ */
+@Composable
+internal fun RadarSection(state: HomeState, onIntent: (HomeIntent) -> Unit) {
+    val app = koinInject<PoruchApp>()
+    val context = LocalContext.current
+    val prompts = remember { context.getSharedPreferences(PROMPTS, Context.MODE_PRIVATE) }
+    var closedWeek by remember { mutableStateOf(prompts.getString(RADAR_WEEK, null)) }
+    var picking by remember { mutableStateOf(false) }
+    val rows = state.screen.radar
+    val week = app.deckWeek()
+    if (rows.isNotEmpty()) {
+        var all by remember { mutableStateOf(false) }
+        val colors = Poruch.colors
+        Column(Modifier.padding(horizontal = Spacing.page).padding(top = Spacing.xxl), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+            SectionHeader(stringResource(R.string.radar_title), actionLabel = stringResource(R.string.radar_add), onAction = { picking = true })
+            GroupedRows {
+                (if (all) rows else rows.take(RadarRules.HOME_ROWS)).forEachIndexed { index, row ->
+                    if (index > 0) HairLine(Modifier.padding(start = Spacing.lg))
+                    Row(
+                        Modifier.fillMaxWidth().semantics(mergeDescendants = true) { role = Role.Button }.clickable {
+                            val next = row.next
+                            if (next != null) onIntent(HomeIntent.OpenEvent(next.eventId, "radar"))
+                            else onIntent(HomeIntent.OpenArtist(ArtistHit(row.artistId, row.name, row.kind, 0)))
+                        }.padding(horizontal = Spacing.lg, vertical = Spacing.md),
+                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)
+                    ) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(row.name, style = MaterialTheme.typography.titleSmall, color = colors.ink)
+                            Text(radarLine(row), style = MaterialTheme.typography.bodySmall, color = if (row.next != null) colors.ink else colors.inkSecondary, maxLines = 2)
+                        }
+                        Icon(PoruchIcons.chevronRight, null, Modifier.size(16.dp), tint = colors.inkTertiary)
+                    }
+                }
+            }
+            if (!all && rows.size > RadarRules.HOME_ROWS) {
+                GhostButton(stringResource(R.string.radar_more, rows.size.toString()), { all = true }, Modifier.align(Alignment.CenterHorizontally))
+            }
+        }
+    } else if (closedWeek != week) {
+        Box(Modifier.padding(horizontal = Spacing.page).padding(top = Spacing.xxl).cardSurface()) {
+            LinkRow(PoruchIcons.music, stringResource(R.string.radar_ask_title), stringResource(R.string.radar_ask_subtitle), onClick = { picking = true })
+        }
+    }
+    if (picking) RadarPickerSheet(app) {
+        picking = false
+        // Закрили — рядок «Кого слухаєте?» зникає до наступного тижня.
+        prompts.edit { putString(RADAR_WEEK, week) }
+        closedWeek = week
+    }
+}
+
+/**
+ * «Кого слухаєте?» (docs/artist-radar.md): хто їде в місто людини, найбільше вечорів першими. Вибір кількох, «Стежити за 3».
+ * Хто вже в підписках — позначений і тут не знімається.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun RadarPickerSheet(app: PoruchApp, onDone: () -> Unit) {
+    val colors = Poruch.colors
+    val state by app.state.collectAsState()
+    val artists = state.popularArtists
+    var picked by remember { mutableStateOf(emptySet<String>()) }
+    LaunchedEffect(Unit) { app.loadPopularArtists() }
+    val close = { app.radarPickerClosed(artists?.size ?: 0, picked.size); onDone() }
+    PoruchSheet(close) { sheet ->
+        Column(Modifier.padding(horizontal = Spacing.page).padding(bottom = Spacing.section), verticalArrangement = Arrangement.spacedBy(Spacing.lg)) {
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                Text(stringResource(R.string.radar_ask_title), style = PoruchType.brandTitle1, color = colors.ink, modifier = Modifier.semantics { heading() })
+                Text(stringResource(R.string.radar_picker_hint), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
+            }
+            when {
+                artists == null -> Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(Modifier.size(24.dp), color = colors.ink, strokeWidth = 2.dp)
+                }
+                artists.isEmpty() -> Text(stringResource(R.string.radar_picker_empty), style = MaterialTheme.typography.bodyLarge, color = colors.inkSecondary)
+                else -> FlowRow(
+                    Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.sm)
+                ) {
+                    artists.forEach { artist ->
+                        val followed = state.isFollowing(FollowKind.ARTIST, artist.artistId)
+                        val on = followed || artist.artistId in picked
+                        val first = artist.firstAt?.let { date(it, "Europe/Kyiv", "d.MM") }
+                        PoruchChip(first?.let { "${artist.name} · $it" } ?: artist.name, on, {
+                            if (!followed) picked = if (artist.artistId in picked) picked - artist.artistId else picked + artist.artistId
+                        }, icon = if (on) PoruchIcons.check else null, maxLines = 2)
+                    }
+                }
+            }
+            if (picked.isNotEmpty()) PrimaryButton(stringResource(R.string.radar_picker_follow, picked.size.toString()), {
+                app.followArtists(artists.orEmpty().filter { it.artistId in picked })
+                sheet.close()
+            }, Modifier.fillMaxWidth(), icon = PoruchIcons.bell)
+        }
+    }
+}

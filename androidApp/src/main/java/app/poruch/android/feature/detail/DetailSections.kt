@@ -46,6 +46,7 @@ import app.poruch.android.EventMap
 import app.poruch.android.R
 import app.poruch.android.ui.*
 import app.poruch.android.feature.mine.countdownOverline
+import app.poruch.domain.Artist
 import app.poruch.domain.ArtistRole
 import app.poruch.domain.ContactRules
 import app.poruch.domain.CheckedDay
@@ -117,6 +118,27 @@ internal fun Lineup(event: Event, onIntent: (DetailIntent) -> Unit) {
                 )
             }
         }
+    }
+}
+
+/**
+ * Радар артистів (docs/artist-radar.md): збережена подія чи квиток — «Скажемо, коли N знову приїде». Після «Стежити»
+ * рядок лишається з «Ви стежите», поки екран відкритий: людина бачить, що вийшло, і може передумати.
+ */
+@Composable
+internal fun RadarHint(state: DetailState, onIntent: (DetailIntent) -> Unit) {
+    var followed by remember(state.screen.sessionId) { mutableStateOf<Artist?>(null) }
+    val artist = followed ?: state.screen.radarHint ?: return
+    val following = followed?.id == artist.id
+    Row(
+        Modifier.fillMaxWidth().cardSurface(Radius.md).padding(horizontal = Spacing.lg, vertical = Spacing.md),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)
+    ) {
+        Text(stringResource(R.string.radar_hint, artist.name), Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = Poruch.colors.ink)
+        FollowPill(following, {
+            onIntent(DetailIntent.FollowArtist(artist, !following))
+            followed = if (following) null else artist
+        }, onCard = true)
     }
 }
 

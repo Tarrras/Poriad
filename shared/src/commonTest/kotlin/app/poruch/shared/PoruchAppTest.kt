@@ -100,6 +100,8 @@ class PoruchAppTest {
         var ofArtist=emptyMap<String,List<Event>>()
         var failArtistEvents=false
         override suspend fun artistEvents(artistId:String):List<Event> { delay(50); if(failArtistEvents) fail(AppError.Network); return ofArtist[artistId].orEmpty() }
+        var radar=emptyList<ArtistRadar>()
+        override suspend fun artistRadar(ids:List<String>,city:String?):List<ArtistRadar> { delay(50); return radar.filter { it.artistId in ids } }
         var atPlace=emptyMap<String,List<Event>>()
         var failPlaceEvents=false
         var placeEventCalls=0
@@ -193,10 +195,10 @@ class PoruchAppTest {
         }
     }
 
-    private fun app(events:Events,scope:CoroutineScope,auth:Auth=Auth(),cities:CityStore?=null,follows:Follows?=null,bought:SeenRequestStore?=null,guestSaves:GuestSavedStore?=null,goodDays:SeenRequestStore?=null,tickets:TicketStore?=null):PoruchApp {
+    private fun app(events:Events,scope:CoroutineScope,auth:Auth=Auth(),cities:CityStore?=null,follows:Follows?=null,bought:SeenRequestStore?=null,guestSaves:GuestSavedStore?=null,goodDays:SeenRequestStore?=null,tickets:TicketStore?=null,guestArtists:GuestArtistStore?=null):PoruchApp {
         return PoruchApp(
             events=events, saved=events, authoring=events, participation=events, requests=events, chat=events,
-            auth=auth, cityStore=cities, follows=follows, boughtAsked=bought, guestSaves=guestSaves, goodDays=goodDays, tickets=tickets,
+            auth=auth, cityStore=cities, follows=follows, boughtAsked=bought, guestSaves=guestSaves, goodDays=goodDays, tickets=tickets, guestArtists=guestArtists,
             geo=object:GeoSearchRepository { override suspend fun search(query:String)=emptyList<CityResult>() },
             eventActions=EventActions(events,events,auth), accountActions=AccountActions(auth),
             safety=safety, profiles=profiles, tasteStore=taste, reminderStore=reminders, scope=scope
@@ -1175,6 +1177,32 @@ class PoruchAppTest {
         override fun write(ids:List<String>) { stored=ids }
     }
     private val later="2030-01-10T18:00:00Z"
+
+    private class GuestArtists(var stored:List<GuestArtist> = emptyList()): GuestArtistStore {
+        override fun artists()=stored
+        override fun saveArtists(artists:List<GuestArtist>) { stored=artists }
+    }
+
+    /** Радар (docs/artist-radar.md): гість стежить за артистом без входу; після входу артисти переїжджають в акаунт. */
+    @Test fun aGuestFollowsArtistsAndTheyMoveIntoTheAccount()=runTest {
+        val events=Events().apply { radar=listOf(ArtistRadar("a1","ТІК",ArtistKind.GROUP,RadarEvent("e1","ТІК у Києві",later,"Europe/Kyiv"),1,emptyList())) }
+        val guest=GuestArtists(); val follows=FollowsFake(); val auth=Auth().apply { session.value=null }
+        val app=app(events,backgroundScope,auth,follows=follows,guestArtists=guest); runCurrent(); advanceTimeBy(1000); runCurrent()
+        app.followArtist("a1","ТІК","hint"); runCurrent(); advanceTimeBy(200); runCurrent()
+        assertTrue(app.state.value.isFollowing(FollowKind.ARTIST,"a1"),"гість стежить без входу")
+        assertNotEquals(AppNotice.Failed(AppError.SessionRequired),app.state.value.notice)
+        assertEquals(listOf(GuestArtist("a1","ТІК")),guest.stored)
+        assertEquals(1,app.state.value.library.followsMade,"платформа питає про сповіщення")
+        assertTrue(follows.calls.isEmpty(),"сервер підписок нічого не знає до входу")
+        assertEquals("e1",app.state.value.radar.single().next?.eventId,"«Ваші артисти» з датою в місті")
+        app.setFollowing(FollowKind.PLACE,"p1","Клуб",true); runCurrent()
+        assertEquals(AppNotice.Failed(AppError.SessionRequired),app.state.value.notice,"заклад — лише з акаунтом")
+        auth.session.value=UserSession("user","token","refresh",9999999999); runCurrent(); advanceTimeBy(1000); runCurrent()
+        assertEquals(listOf("follow artist a1"),follows.calls)
+        assertTrue(guest.stored.isEmpty(),"переїхали в акаунт")
+        assertTrue(app.state.value.isFollowing(FollowKind.ARTIST,"a1"),"після входу — з акаунта")
+        app.close()
+    }
 
     private class Tickets(var stored:List<WalletTicket> = emptyList()): TicketStore {
         override fun all()=stored

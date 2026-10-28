@@ -147,6 +147,33 @@ internal class SupabaseEventDiscovery(
         }.also { PoruchLog.d("discovery") { "${it.size} events of artist ${artistId.shortId()}" } }
     }
 
+    /** Сервер без радару (prod до міграції) — порожньо: секція «Ваші артисти» просто показує імена. */
+    override suspend fun artistRadar(ids: List<String>, city: String?): List<ArtistRadar> {
+        if (ids.isEmpty()) return emptyList()
+        val response = runCatching {
+            rpc.read("artist_radar", buildJsonObject {
+                putJsonArray("p_ids") { ids.forEach { add(it) } }
+                put("p_city", city?.let(::JsonPrimitive) ?: JsonNull)
+            })
+        }.getOrElse { failure ->
+            if (!failure.isMissingFunction()) throw failure
+            PoruchLog.w("discovery") { "server has no artist_radar" }
+            return emptyList()
+        }
+        return withContext(compute) { rpc.json.decodeFromJsonElement<List<ArtistRadarDto>>(response).map { it.domain() } }
+    }
+
+    override suspend fun popularArtists(city: String): List<PopularArtist> {
+        val response = runCatching {
+            rpc.read("popular_artists", buildJsonObject { put("p_city", city); put("p_limit", RadarRules.PICKER) })
+        }.getOrElse { failure ->
+            if (!failure.isMissingFunction()) throw failure
+            PoruchLog.w("discovery") { "server has no popular_artists" }
+            return emptyList()
+        }
+        return withContext(compute) { rpc.json.decodeFromJsonElement<List<PopularArtistDto>>(response).map { it.domain() } }
+    }
+
     override suspend fun placeEvents(placeId: String): List<Event> {
         val response = rpc.read("place_events", buildJsonObject {
             put("p_place_id", placeId)

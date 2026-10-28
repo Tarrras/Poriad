@@ -25,6 +25,5 @@ sealed interface ArtistIntent {
 
 sealed interface ArtistEffect {
     data object Back : ArtistEffect
-    data object SignIn : ArtistEffect
     data class OpenEvent(val id: String) : ArtistEffect
 }

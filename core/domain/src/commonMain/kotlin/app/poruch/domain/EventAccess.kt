@@ -49,6 +49,12 @@ interface EventDiscovery {
     /** Майбутні події артиста від найближчої, тими самими картками, що [cards]. */
     suspend fun artistEvents(artistId: String): List<Event>
 
+    /** «Ваші артисти» (docs/artist-radar.md): що в місті [city] і де ще. Сервер без радару — порожньо. */
+    suspend fun artistRadar(ids: List<String>, city: String?): List<ArtistRadar> = emptyList()
+
+    /** «Кого слухаєте?»: хто їде в [city], найбільше вечорів попереду першими. */
+    suspend fun popularArtists(city: String): List<PopularArtist> = emptyList()
+
     /** Укриття поруч і комендантська міста для блоку «Безпека». Null — подію не видно. */
     suspend fun safety(id: String): EventSafety?
 

@@ -23,6 +23,13 @@ interface PushTokens {
      */
     suspend fun touchDevice(token: String, platform: PushPlatform, city: String?, interests: List<String>)
     suspend fun forgetDevice(token: String)
+
+    /**
+     * Радар артистів (docs/artist-radar.md): місто пристрою з дозволом і артисти гостя ([artists] — id; в акаунта
+     * порожньо, його артисти в підписках). Від дайджесту не залежить, на відміну від [touchDevice].
+     */
+    suspend fun setRadar(token: String, platform: PushPlatform, city: String?, artists: List<String>) {}
+    suspend fun forgetRadar(token: String) {}
 }
 
 /** Що сервер востаннє почув про пристрій від [PushTokens.touchDevice] і коли ([at], epoch-секунди). */

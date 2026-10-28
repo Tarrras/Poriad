@@ -28,8 +28,9 @@ type Payload =
   | { type: "follow"; kind: "organizer"; event_id: string }
   // Зведення `notify_place_follows`: одна людина, скільки нового, у скількох закладах і найближчі події.
   | { type: "follow"; kind: "place"; user_id: string; total: number; place_count: number; places: { id: string; n: number }[]; event_ids: string[] }
-  // Те саме для артистів: `notify_artist_follows`.
-  | { type: "follow"; kind: "artist"; user_id: string; total: number; artist_count: number; artists: { id: string; n: number }[]; event_ids: string[] }
+  // Те саме для артистів: `notify_artist_follows` — людині; `notify_radar_devices` — пристрою гостя (токен замість людини).
+  | ({ type: "follow"; kind: "artist"; total: number; artist_count: number; artists: { id: string; n: number }[]; event_ids: string[] }
+    & ({ user_id: string } | { token: string; platform: Token["platform"] }))
   // `notify_saved_companions`: збори афіші event_id, найближчий першим, і хто її зберіг — їх уже вибрала база.
   | { type: "companion"; event_id: string; companion_ids: string[]; user_ids: string[] }
   // «Хочу піти з компанією»: адресатів і текст уже вибрала база (`push_company`); event_id — що відкриває тап.
@@ -75,6 +76,11 @@ Deno.serve(async (req) => {
     const text = winbackText(payload.step, payload.city, payload.total, payload.titles);
     push = { kind: "winback", step: payload.step, title: text.title, body: text.body, key: `winback:${payload.step}` };
     list.push({ token: payload.token, platform: payload.platform });
+  } else if (payload.type === "follow" && payload.kind === "artist" && "token" in payload) {
+    // Радар гостя (docs/artist-radar.md): артисти пристрою без акаунта, токен уже в запиті.
+    ({ push } = await forArtists(db, payload));
+    if (!push) return json({ sent: 0, reason: "no recipients" });
+    list.push({ token: payload.token, platform: payload.platform });
   } else {
     ({ push, recipients } = payload.type === "message" ? await forMessage(db, payload)
       : payload.type === "event" ? await forEvent(db, payload)
@@ -115,9 +121,9 @@ Deno.serve(async (req) => {
   // пристроєм каналу повернення, а `private` PostgREST не відкриває — тож через RPC.
   if (stale.length > 0) {
     await db.from("push_tokens").delete().in("token", stale);
-    for (const token of stale) await db.rpc("forget_device", { p_token: token });
+    for (const token of stale) { await db.rpc("forget_device", { p_token: token }); await db.rpc("forget_radar", { p_token: token }); }
   }
-  for (const token of forgotten) await db.rpc("forget_device", { p_token: token });
+  for (const token of forgotten) { await db.rpc("forget_device", { p_token: token }); await db.rpc("forget_radar", { p_token: token }); }
   return json({ sent, stale: stale.length + forgotten.length, recipients: recipients.length });
 });
 
@@ -238,7 +244,7 @@ async function forArtists(db: ReturnType<typeof createClient>, p: Extract<Payloa
   if (!text) return { push: null, recipients: [] };
   return {
     push: { kind: "artist" as const, eventId: text.eventId, artistId: text.artistId, title: text.title, body: text.body, key: `artist:${text.artistId}:${Date.now()}` },
-    recipients: [p.user_id],
+    recipients: "user_id" in p ? [p.user_id] : [],
   };
 }
 
@@ -303,6 +309,11 @@ const isText = (v: unknown): v is string => typeof v === "string" && v.length >=
 const isCount = (v: unknown): v is number => Number.isInteger(v) && (v as number) >= 1 && (v as number) <= 100_000;
 // Ті самі перевірки, що в `touch_device`.
 const FCM_TOKEN = /^[A-Za-z0-9_:-]{100,4096}$/;
+// Токен пристрою без людини (канал повернення, радар гостя): формат — як у `touch_device` і `set_radar`.
+function isDevice(token: unknown, platform: unknown): boolean {
+  return platform === "ios" ? typeof token === "string" && /^[0-9a-f]{64}$/.test(token)
+    : platform === "android" && typeof token === "string" && FCM_TOKEN.test(token);
+}
 const CITIES: readonly string[] = ["Київ", "Харків", "Одеса", "Дніпро", "Львів"];
 
 function isPayload(p: unknown): p is Payload {
@@ -333,14 +344,13 @@ function isPayload(p: unknown): p is Payload {
       && Array.isArray(o.event_ids) && o.event_ids.length >= 1 && o.event_ids.length <= 3 && o.event_ids.every(isUuid);
   }
   if (o.type === "follow" && o.kind === "artist") {
-    return isUuid(o.user_id) && isCount(o.total) && isCount(o.artist_count)
+    return (isUuid(o.user_id) || isDevice(o.token, o.platform)) && isCount(o.total) && isCount(o.artist_count)
       && Array.isArray(o.artists) && o.artists.length >= 1 && o.artists.length <= 5
       && o.artists.every((x) => !!x && typeof x === "object" && isUuid((x as Record<string, unknown>).id) && isCount((x as Record<string, unknown>).n))
       && Array.isArray(o.event_ids) && o.event_ids.length >= 1 && o.event_ids.length <= 3 && o.event_ids.every(isUuid);
   }
   if (o.type === "winback") {
-    return (o.platform === "ios" ? typeof o.token === "string" && /^[0-9a-f]{64}$/.test(o.token)
-      : o.platform === "android" && typeof o.token === "string" && FCM_TOKEN.test(o.token))
+    return isDevice(o.token, o.platform)
       && (o.step === 1 || o.step === 2) && typeof o.city === "string" && CITIES.includes(o.city) && isCount(o.total)
       && Array.isArray(o.titles) && o.titles.length >= 1 && o.titles.length <= 2
       && o.titles.every((t) => typeof t === "string" && t.length >= 1 && t.length <= 200);

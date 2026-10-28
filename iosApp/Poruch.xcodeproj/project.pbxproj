@@ -46,6 +46,7 @@
 		73394C43F0108E271225D96C /* DeckView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E80E22B135CF7A98B33AD7BC /* DeckView.swift */; };
 		9BC60559391110D75C2A46E4 /* HomeFeed.swift in Sources */ = {isa = PBXBuildFile; fileRef = D725E491238932BD1AE0461D /* HomeFeed.swift */; };
 		3CC1A8EC49C91C997EF34BA5 /* HomePresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E9C907316C7B582B4CD44F /* HomePresentation.swift */; };
+		4D0993EC3F0EAC5899607C8C /* HomeRadar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A689C4870144D7CB82ACF83 /* HomeRadar.swift */; };
 		0A174502FBD8AA659F92DC67 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F18A547F44E536F8A458AA57 /* HomeView.swift */; };
 		8EAF545E372E38099A6A0A6C /* HomeYours.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99418B9CD3DAE0102F22312C /* HomeYours.swift */; };
 		8CC7C8A5EA1DB04241C97BCD /* MyEventsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7770E1E082C0714204979180 /* MyEventsView.swift */; };
@@ -115,6 +116,7 @@
 		E80E22B135CF7A98B33AD7BC /* DeckView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = DeckView.swift; path = Features/Home/DeckView.swift; sourceTree = "<group>"; };
 		D725E491238932BD1AE0461D /* HomeFeed.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HomeFeed.swift; path = Features/Home/HomeFeed.swift; sourceTree = "<group>"; };
 		D3E9C907316C7B582B4CD44F /* HomePresentation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HomePresentation.swift; path = Features/Home/HomePresentation.swift; sourceTree = "<group>"; };
+		3A689C4870144D7CB82ACF83 /* HomeRadar.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HomeRadar.swift; path = Features/Home/HomeRadar.swift; sourceTree = "<group>"; };
 		F18A547F44E536F8A458AA57 /* HomeView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HomeView.swift; path = Features/Home/HomeView.swift; sourceTree = "<group>"; };
 		99418B9CD3DAE0102F22312C /* HomeYours.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HomeYours.swift; path = Features/Home/HomeYours.swift; sourceTree = "<group>"; };
 		7770E1E082C0714204979180 /* MyEventsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MyEventsView.swift; path = Features/MyEvents/MyEventsView.swift; sourceTree = "<group>"; };
@@ -219,6 +221,7 @@
 				E80E22B135CF7A98B33AD7BC /* DeckView.swift */,
 				D725E491238932BD1AE0461D /* HomeFeed.swift */,
 				D3E9C907316C7B582B4CD44F /* HomePresentation.swift */,
+				3A689C4870144D7CB82ACF83 /* HomeRadar.swift */,
 				F18A547F44E536F8A458AA57 /* HomeView.swift */,
 				99418B9CD3DAE0102F22312C /* HomeYours.swift */,
 				7770E1E082C0714204979180 /* MyEventsView.swift */,
@@ -451,6 +454,7 @@
 				73394C43F0108E271225D96C /* DeckView.swift in Sources */,
 				9BC60559391110D75C2A46E4 /* HomeFeed.swift in Sources */,
 				3CC1A8EC49C91C997EF34BA5 /* HomePresentation.swift in Sources */,
+				4D0993EC3F0EAC5899607C8C /* HomeRadar.swift in Sources */,
 				0A174502FBD8AA659F92DC67 /* HomeView.swift in Sources */,
 				8EAF545E372E38099A6A0A6C /* HomeYours.swift in Sources */,
 				8CC7C8A5EA1DB04241C97BCD /* MyEventsView.swift in Sources */,

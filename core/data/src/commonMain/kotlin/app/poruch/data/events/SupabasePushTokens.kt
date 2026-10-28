@@ -49,6 +49,17 @@ internal class SupabasePushTokens(private val rpc: EventRpc) : PushTokens {
         rpc.call("forget_device", buildJsonObject { put("p_token", token) })
     }
 
+    override suspend fun setRadar(token: String, platform: PushPlatform, city: String?, artists: List<String>) = quiet {
+        rpc.call("set_radar", buildJsonObject {
+            put("p_token", token); put("p_platform", platform.key); put("p_city", city)
+            putJsonArray("p_artists") { artists.forEach { add(it) } }
+        })
+    }
+
+    override suspend fun forgetRadar(token: String) = quiet {
+        rpc.call("forget_radar", buildJsonObject { put("p_token", token) })
+    }
+
     private companion object {
         const val COMPANION_DECISION = "companion_decision"
         const val COMPANION = "companion"
