@@ -68,7 +68,7 @@ sealed interface ProfileIntent {
     data object SignIn : ProfileIntent
     data class ShowEdit(val show: Boolean) : ProfileIntent
     /** Імʼя, «Про себе» й фото однією дією: до «Зберегти» нове фото чи його видалення лише позначені в шторці. */
-    class SaveProfile(val name: String, val bio: String, val photo: ByteArray?, val photoType: String?, val removePhoto: Boolean) : ProfileIntent
+    class SaveProfile(val name: String, val bio: String, val photo: ByteArray?, val photoType: String?, val removePhoto: Boolean, val instagram: String) : ProfileIntent
     data object SignOut : ProfileIntent
     data class ToggleInterest(val category: EventCategory) : ProfileIntent
     data object TuneRecommendations : ProfileIntent

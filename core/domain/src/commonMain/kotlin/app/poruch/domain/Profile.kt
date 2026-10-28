@@ -12,7 +12,9 @@ data class Profile(
     val memberSince: String?,
     val organized: Int,
     val attended: Int,
-    val email: String? = null
+    val email: String? = null,
+    /** Нікнейм без «@». Свій — завжди; чужий — лише з наміром на ту саму подію і зі своїм (docs/return-hooks.md). */
+    val instagram: String? = null
 ) {
     val asAttendee get() = Attendee(userId, name, avatarUrl)
 }
@@ -40,6 +42,9 @@ interface ProfileRepository {
     /** Завантажує фото в теку `avatar` і ставить його в профіль. Повертає нову адресу. */
     suspend fun setAvatar(bytes: ByteArray, contentType: String): String
     suspend fun removeAvatar()
+
+    /** Instagram без «@», порожнє — прибрати ([CompanyRules.normalizeInstagram]). */
+    suspend fun setInstagram(handle: String) {}
 
     /** Прибирає файл колишнього фото. Best-effort: сирота зникне з видаленням акаунта. */
     suspend fun deleteImage(url: String)

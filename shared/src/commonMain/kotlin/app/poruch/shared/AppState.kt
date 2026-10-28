@@ -37,6 +37,13 @@ data class AppState(
     val completedEventId: String? = null,
     /** Щойно створений супутник «Йдемо разом»: платформа відкриває «Поділитися» і кличе [PoruchApp.clearCreatedCompanion]. */
     val createdCompanion: String? = null,
+    /** Збіг «Піти разом»: супутник, куди сервер записав обох. Платформа відкриває його і кличе [PoruchApp.clearMatchedCompanion]. */
+    val matchedCompanion: String? = null,
+    /**
+     * Гість натиснув «Хочу піти з компанією» на цю афішу: намір ставиться сам після входу (docs/return-hooks.md).
+     * Переживає зміну акаунта, бо вхід — саме вона.
+     */
+    val pendingCompany: String? = null,
     /**
      * Подія й хто на неї кличе, якщо її відкрили з посилання-запрошення (docs/invites.md). Окремо від [detail]: деталі
      * тієї ж події перевідкриваються по-різному (новий екран, той самий, вхід), а «… кличе тебе» має лишатись.
@@ -166,6 +173,10 @@ data class DetailState(
     val safety: EventSafety? = null,
     /** Хто шукає компанію на відкриту афішу. Null — не афіша, не питали або збій. */
     val companions: List<CompanionCard>? = null,
+    /** «Хочу піти з компанією» на відкриту афішу (docs/return-hooks.md). Null — не афіша, не питали або збій. */
+    val company: CompanyTeaser? = null,
+    /** Люди з наміром на відкриту афішу. Порожньо, поки свого наміру нема. */
+    val companyPeople: List<CompanyPerson> = emptyList(),
     /**
      * Сама подія ще в дорозі. Поки так, порожній [event] — не «подія недоступна», а спінер.
      * Власний прапорець: `map.loading` про мапу, а не про деталі.
@@ -286,5 +297,6 @@ internal fun AppState.forAccount(uid: String?, providers: Set<String> = emptySet
     chatUnread = emptyList(),
     person = null,
     completedEventId = null,
-    createdCompanion = null
+    createdCompanion = null,
+    matchedCompanion = null
 ).materialized()

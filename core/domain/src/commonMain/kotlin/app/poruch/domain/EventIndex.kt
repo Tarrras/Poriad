@@ -34,7 +34,9 @@ data class EventIndexEntry(
      * вистава на тому самому майданчику кілька разів. На відміну від [mergedWith], це не
      * дублікати — на кожен сеанс окремий квиток. Картка показує найближчий, деталі — вибір дати.
      */
-    val sessions: List<EventSession> = emptyList()
+    val sessions: List<EventSession> = emptyList(),
+    /** Скільки людей хочуть піти з компанією (лише афіша, docs/return-hooks.md). */
+    val companyCount: Int = 0
 ) : Rankable {
     /** За карткою стоїть більше одного рядка бази. */
     val isMerged get() = mergedWith.isNotEmpty()

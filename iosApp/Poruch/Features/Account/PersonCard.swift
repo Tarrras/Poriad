@@ -95,6 +95,12 @@ struct PersonSheet: View {
                             Text(bio).font(PoruchFont.bodyText).foregroundStyle(Palette.ink)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
+                        // Свій — завжди, чужий — лише людям з наміром на ту саму подію і зі своїм (docs/return-hooks.md).
+                        if let handle = profile.instagram, let url = URL(string: "https://instagram.com/\(handle)") {
+                            Link(destination: url) {
+                                Text(verbatim: "@\(handle)").font(PoruchFont.button).foregroundStyle(Palette.brand).tapTarget()
+                            }
+                        }
                         if isMe {
                             Text(Copy.person_you).font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary).frame(maxWidth: .infinity)
                         }
@@ -166,6 +172,8 @@ struct EditProfileSheet: View {
     let profile: Profile
     @State private var name: String
     @State private var bio: String
+    /// Instagram для «Хочу піти з компанією»: бачать лише ті, хто має намір на ту саму подію і вказав свій.
+    @State private var instagram: String
     @State private var photo: PhotosPickerItem?
     @State private var photoError: String?
     @State private var reading = false
@@ -178,6 +186,11 @@ struct EditProfileSheet: View {
         self.profile = profile
         _name = State(initialValue: profile.name)
         _bio = State(initialValue: profile.bio ?? "")
+        _instagram = State(initialValue: profile.instagram ?? "")
+    }
+
+    private var instagramValid: Bool {
+        CompanyRules.shared.isValidInstagram(handle: CompanyRules.shared.normalizeInstagram(raw: instagram))
     }
 
     private var mutating: Bool { model.state?.mutating == true }
@@ -231,11 +244,15 @@ struct EditProfileSheet: View {
                         let limit = Int(ProfileRules.shared.BIO_MAX)
                         if value.count > limit { bio = String(value.prefix(limit)) }
                     }
+                LabelledField(label: Copy.instagram, text: $instagram, hint: Copy.instagram_hint)
+                    .textInputAutocapitalization(.never).autocorrectionDisabled().keyboardType(.asciiCapable)
+                Text(instagramValid ? Copy.instagram_note : Copy.instagram_invalid)
+                    .font(PoruchFont.caption).foregroundStyle(instagramValid ? Palette.inkTertiary : Palette.danger)
                 PrimaryButton(title: Copy.profile_save, loading: mutating,
-                              enabled: AccountRules.shared.isName(value: name) && !mutating && !reading) {
+                              enabled: AccountRules.shared.isName(value: name) && instagramValid && !mutating && !reading) {
                     model.app.saveProfile(
                         name: name, bio: bio, photo: newPhoto, photoType: newPhoto == nil ? nil : "image/jpeg",
-                        removePhoto: removingPhoto
+                        removePhoto: removingPhoto, instagram: instagram
                     )
                 }
                 SecondaryButton(title: Copy.delete_account_cancel, enabled: !mutating) { dismiss() }

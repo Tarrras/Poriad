@@ -352,7 +352,7 @@ enum Copy {
     static let tip_sheet_body = "Торкніться лічильника чи потягніть шторку вгору — там ті самі події списком. Пін із числом — кілька подій в одному місці."
     static let tip_invite_title = "Покликати з собою"
     static let tip_invite_body = "Друг отримає посилання на подію й побачить, що кличете саме ви: ваше ім’я й фото з профілю."
-    static let tip_companion_body = "Зберіть невелику компанію на цю подію. Хто захоче піти з вами, надішле запит — ви вирішите, кого взяти."
+    static let tip_companion_body = "Натисніть — і побачите, хто ще хоче піти на цю подію. Ім'я та фото відкриваються лише тим, хто теж шукає компанію."
     static let slot_weekday_day = "Будні, вдень"
     static let slot_weekday_day_hint = "До 17:00"
     static let slot_weekday_evening = "Будні, ввечері"
@@ -498,6 +498,24 @@ enum Copy {
     static func companion_share_text(_ a0: String, _ a1: String, _ a2: String) -> String { "Шукаю компанію на \(a0), \(a1)\n\(a2)" }
     static let companion_share_chooser = "Поділитися пошуком компанії"
     static let companion_notification_channel = "Пошук компанії на збережені події"
+    static let company_want = "Хочу піти з компанією"
+    static let company_privacy = "Інші побачать спільні з вами інтереси. Ім'я та фото — лише ті, хто теж хоче піти."
+    static let company_searching = "Ви шукаєте компанію"
+    static let company_searching_note = "Скажемо, коли хтось знайдеться"
+    static func company_shared(_ a0: String) -> String { "спільне з вами: \(a0)" }
+    static let company_go_together = "Піти разом"
+    static let company_waiting = "Чекаємо відповіді"
+    static let company_wants_you = "Хоче піти з вами"
+    static let company_ask_in = "Попроситися"
+    static let company_together = "Ви йдете разом"
+    static let company_photo_hint = "Додайте фото в профілі — побачите фото інших"
+    static let company_by_yourself = "Або зібрати компанію самому: час і місце"
+    static let company_rail = "Шукають компанію"
+    static let company_notification_channel = "Компанія на події"
+    static let instagram = "Instagram"
+    static let instagram_hint = "нікнейм"
+    static let instagram_note = "Бачать лише ті, хто теж хоче піти з вами на подію і вказав свій."
+    static let instagram_invalid = "Лише латиниця, цифри, крапка й підкреслення"
     static func curfew_left(_ a0: String, _ a1: String, _ a2: String) -> String { "Закінчиться о \(a0). Комендантська з \(a1) — до неї лишиться \(a2)" }
     static func curfew_during(_ a0: String, _ a1: String) -> String { "Закінчиться о \(a0), уже під час комендантської (з \(a1))" }
     static func duration_minutes(_ a0: String) -> String { "\(a0) хв" }
@@ -807,6 +825,9 @@ enum Copy {
     static func requests_count(_ n: Int) -> String { ukrainianPlural(n, "\(n) запит", "\(n) запити", "\(n) запитів") }
     static func digest_count(_ n: Int) -> String { ukrainianPlural(n, "\(n) подія", "\(n) події", "\(n) подій") }
     static func request_notification_body(_ n: Int) -> String { ukrainianPlural(n, "\(n) новий запит на участь. Відкрийте подію, щоб відповісти.", "\(n) нові запити на участь. Відкрийте подію, щоб відповісти.", "\(n) нових запитів на участь. Відкрийте подію, щоб відповісти.") }
+    static func company_count(_ n: Int) -> String { ukrainianPlural(n, "\(n) людина хоче піти з компанією", "\(n) людини хочуть піти з компанією", "\(n) людей хочуть піти з компанією") }
+    static func company_reason(_ n: Int) -> String { ukrainianPlural(n, "\(n) хоче піти з компанією", "\(n) хочуть піти з компанією", "\(n) хочуть піти з компанією") }
+    static func company_attended(_ n: Int) -> String { ukrainianPlural(n, "\(n) подія відвідана", "\(n) події відвідано", "\(n) подій відвідано") }
     static func field_title(_ n: Int) -> String { ukrainianPlural(n, "Назва — щонайменше \(n) символ", "Назва — щонайменше \(n) символи", "Назва — щонайменше \(n) символів") }
     static func field_description(_ n: Int) -> String { ukrainianPlural(n, "Опис — щонайменше \(n) символ", "Опис — щонайменше \(n) символи", "Опис — щонайменше \(n) символів") }
     static func going_ahead(_ n: Int) -> String { ukrainianPlural(n, "\(n) план попереду", "\(n) плани попереду", "\(n) планів попереду") }

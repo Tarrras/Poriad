@@ -169,6 +169,21 @@ internal class SupabaseEventDiscovery(
             .map { it.domain() }
             .also { PoruchLog.d("detail") { "companions for ${parentId.shortId()}: ${it.size}" } }
 
+    /** Як [districts]: сервер без міграції намірів (prod до 1.4) — тизера просто нема. */
+    override suspend fun companyTeaser(eventId: String): CompanyTeaser? {
+        val response = runCatching { rpc.read("company_teaser", rpc.eventParams(eventId)) }.getOrElse { failure ->
+            if (!failure.isMissingFunction()) throw failure
+            return null
+        }
+        return response.jsonArray.firstOrNull()?.let { rpc.json.decodeFromJsonElement<CompanyTeaserDto>(it).domain() }
+    }
+
+    override suspend fun companyPeople(eventId: String): List<CompanyPerson> {
+        if (auth.session.value == null) return emptyList()
+        return rpc.json.decodeFromJsonElement<List<CompanyPersonDto>>(rpc.read("company_people", rpc.eventParams(eventId))).map { it.domain() }
+            .also { PoruchLog.d("detail") { "company people for ${eventId.shortId()}: ${it.size}" } }
+    }
+
     override suspend fun inviter(token: String, eventId: String): Inviter? =
         rpc.read("invite_inviter", buildJsonObject { put("p_token", token); put("p_event_id", eventId) }).jsonArray.firstOrNull()?.jsonObject
             ?.let { row -> row["name"]?.jsonPrimitive?.contentOrNull?.let { Inviter(it, row["avatar_url"]?.jsonPrimitive?.contentOrNull) } }

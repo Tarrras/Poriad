@@ -95,6 +95,7 @@ struct HomeView: View, Equatable {
                         // Серце продукту — зустрічі від людей, тож вони й порожній квиток «Організувати подію» стоять першими.
                         // Афіша нижче — опора. Активності не вигадуємо: коли зустрічей мало, секцію веде порожній квиток.
                         HomePeopleSection(view: view, open: open, showPeople: showPeople, createEvent: createEvent, openProfile: openProfile)
+                        if !view.company.isEmpty { HomeCompanySection(view: view, open: open) }
                         if view.signedIn {
                             HomePersonalSection(view: view, open: open, openChat: openChat, openMyEvents: openMyEvents, openFollows: openFollows)
                         }

@@ -30,6 +30,7 @@ import app.poruch.android.ui.*
 import app.poruch.android.feature.editor.BirthDateSheet
 import app.poruch.android.feature.detail.rememberImagePicker
 import app.poruch.domain.AccountRules
+import app.poruch.domain.CompanyRules
 import app.poruch.domain.Profile
 import app.poruch.domain.ProfileRules
 import com.amplitude.android.sessionreplay.compose.ampBlock
@@ -243,6 +244,9 @@ private fun EditProfileSheet(profile: Profile, state: ProfileState, onIntent: (P
     val colors = Poruch.colors
     var name by remember { mutableStateOf(profile.name) }
     var bio by remember { mutableStateOf(profile.bio.orEmpty()) }
+    // Instagram для «Хочу піти з компанією»: бачать лише ті, хто має намір на ту саму подію і вказав свій.
+    var instagram by remember { mutableStateOf(profile.instagram.orEmpty()) }
+    val instagramValid = CompanyRules.isValidInstagram(CompanyRules.normalizeInstagram(instagram))
     var newPhoto by remember { mutableStateOf<Pair<ByteArray, String>?>(null) }
     var removingPhoto by remember { mutableStateOf(false) }
     val preview = remember(newPhoto) { newPhoto?.first?.let { BitmapFactory.decodeByteArray(it, 0, it.size)?.asImageBitmap() } }
@@ -289,11 +293,20 @@ private fun EditProfileSheet(profile: Profile, state: ProfileState, onIntent: (P
                 hint = stringResource(R.string.profile_bio_hint), singleLine = false, minLines = 3,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
             )
+            LabelledField(
+                stringResource(R.string.instagram), instagram, { instagram = it.take(CompanyRules.INSTAGRAM_MAX + 40) },
+                hint = stringResource(R.string.instagram_hint),
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, autoCorrectEnabled = false, keyboardType = KeyboardType.Uri)
+            )
+            Text(
+                stringResource(if (instagramValid) R.string.instagram_note else R.string.instagram_invalid),
+                style = MaterialTheme.typography.bodySmall, color = if (instagramValid) colors.inkTertiary else colors.danger
+            )
             state.editError?.let { Text(it.text(), style = MaterialTheme.typography.bodySmall, color = colors.danger) }
             PrimaryButton(
                 stringResource(R.string.profile_save),
-                { onIntent(ProfileIntent.SaveProfile(name, bio, newPhoto?.first, newPhoto?.second, removingPhoto)) },
-                Modifier.fillMaxWidth(), enabled = AccountRules.isName(name) && !state.mutating && !picker.reading, loading = state.mutating
+                { onIntent(ProfileIntent.SaveProfile(name, bio, newPhoto?.first, newPhoto?.second, removingPhoto, instagram)) },
+                Modifier.fillMaxWidth(), enabled = AccountRules.isName(name) && instagramValid && !state.mutating && !picker.reading, loading = state.mutating
             )
             SecondaryButton(stringResource(R.string.delete_account_cancel), { sheet.close() }, Modifier.fillMaxWidth(), enabled = !state.mutating)
         }

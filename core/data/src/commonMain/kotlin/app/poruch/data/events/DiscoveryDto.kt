@@ -46,6 +46,8 @@ private object Column {
     const val SOURCE = 8
     const val CAPACITY = 9
     const val ATTENDEE_COUNT = 10
+    /** З 20261110120000; старий сервер її не шле — тоді нуль. */
+    const val COMPANY_COUNT = 11
     const val WIDTH = 11
 }
 
@@ -65,7 +67,8 @@ private fun JsonArray.indexEntry(): EventIndexEntry? {
         origin = EventOrigin.fromKey(text(Column.ORIGIN)),
         source = text(Column.SOURCE),
         capacity = int(Column.CAPACITY),
-        attendeeCount = int(Column.ATTENDEE_COUNT) ?: 0
+        attendeeCount = int(Column.ATTENDEE_COUNT) ?: 0,
+        companyCount = int(Column.COMPANY_COUNT) ?: 0
     )
 }
 

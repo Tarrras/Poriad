@@ -124,9 +124,12 @@ internal class UserLibrary(
             val shown = known ?: it.detail.event?.takeIf { open -> open.id == id || stay }
             // Інша дата того ж закладу: «Ще в цьому місці» не блимає, поки події закладу перечитуються.
             val atPlace = it.detail.placeEvents?.takeIf { place -> shown?.placeId == place.placeId }
-            // Перечитування тієї ж афіші (після запиту в супутник) не ховає секцію «Шукають компанію».
-            val companions = it.detail.companions?.takeIf { _ -> it.detail.event?.id == id }
-            it.copy(detail = DetailState(event = shown, loading = willLoad, placeEvents = atPlace, companions = companions))
+            // Перечитування тієї ж афіші (після запиту в супутник, повернення на екран) не ховає секцію «Шукають компанію».
+            val same = it.detail.event?.id == id
+            it.copy(detail = DetailState(
+                event = shown, loading = willLoad, placeEvents = atPlace, companions = it.detail.companions?.takeIf { same },
+                company = it.detail.company?.takeIf { same }, companyPeople = if (same) it.detail.companyPeople else emptyList()
+            ))
         }
         if (!willLoad) {
             PoruchLog.d("detail") { "select ${id.shortId()} from memory, no request" }
@@ -176,6 +179,7 @@ internal class UserLibrary(
             if (full && store.value.detail.event?.takeIf { it.id == current }?.let { CompanionRules.canOffer(it, Clock.System.now()) } == true) {
                 val companions = optional { events.companions(current) }
                 if (openEventId == current) detail { copy(companions = companions) }
+                loadCompany(current)
             }
             // Учасники — доповнення до лічильника, тож збій лишає лише число. Афішу не питаємо:
             // ростер бачать організатор і учасники (`can_view_members`), а в неї нема ні тих, ні тих.
@@ -220,6 +224,45 @@ internal class UserLibrary(
         scope.launch {
             val companions = optional { events.companions(id) } ?: return@launch
             if (openEventId == id) detail { copy(companions = companions) }
+        }
+    }
+
+    /** Перечитує «Хочу піти з компанією» відкритої афіші: після наміру, «Піти разом» чи пуша. */
+    fun refreshCompany() {
+        val id = openEventId ?: return
+        if (store.value.detail.event?.takeIf { it.id == id }?.listing == null) return
+        scope.launch { loadCompany(id) }
+    }
+
+    /** Тизер — усім, люди — лише з власним наміром. Збій ховає блок, а не деталі. */
+    private suspend fun loadCompany(id: String) {
+        val teaser = optional { events.companyTeaser(id) }
+        val people = if (teaser?.mine == true) optional { events.companyPeople(id) }.orEmpty() else emptyList()
+        if (openEventId == id) detail { copy(company = teaser, companyPeople = people) }
+    }
+
+    /**
+     * Намір, який гість поставив до входу ([AppState.pendingCompany]). Без дати народження чекає на неї: кличе ще й
+     * [SafetyUseCases.declareBirthDate].
+     */
+    fun consumePendingCompany() {
+        val id = store.value.pendingCompany ?: return
+        if (!store.value.signedIn) return
+        scope.launch {
+            try {
+                val others = participation.setCompanyIntent(id, true)
+                PoruchAnalytics.track("company_intent", "on" to true, "others" to others)
+                store.update { it.copy(pendingCompany = null) }
+                if (openEventId == id) loadCompany(id)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                val error = e.asAppError()
+                if (error != AppError.AgeRequired) {
+                    store.update { it.copy(pendingCompany = null) }
+                    store.failed(error)
+                }
+            }
         }
     }
 
@@ -317,6 +360,8 @@ internal class UserLibrary(
                         ).rankedIfTasteChanged(it.taste)
                     }
                 }
+                // Гість натиснув «Хочу піти з компанією» і через це ввійшов: намір — тепер.
+                consumePendingCompany()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

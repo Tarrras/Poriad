@@ -78,6 +78,10 @@ private val SERVER_ERRORS: Map<String, AppError> = mapOf(
     // Супутник «Йдемо разом»: афіша вже почалась чи знята, форма поза правилами CompanionRules.
     "COMPANION_UNAVAILABLE" to AppError.EventUnavailable,
     "COMPANION_LOCKED" to AppError.Rejected,
+    // «Хочу піти з компанією»: людина зняла намір, поки на неї дивились; частота; клієнт пропустив нікнейм.
+    "NOT_IN_COMPANY" to AppError.EventUnavailable,
+    "TOO_MANY_INTENTS" to AppError.TooManyAttempts,
+    "INVALID_INSTAGRAM" to AppError.Rejected,
     "INVALID_MEET_TIME" to AppError.InvalidDraft(listOf(DraftField.STARTS_AT)),
     "INVALID_CAPACITY" to AppError.InvalidDraft(listOf(DraftField.CAPACITY)),
     "INVALID_MEET_NOTE" to AppError.InvalidDraft(listOf(DraftField.DESCRIPTION)),

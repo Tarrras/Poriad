@@ -49,6 +49,16 @@ object HomeRules {
     /** Скільки постерів у рейці «Від людей»: решта кімнат ідуть у стрічку «У місті» звичайним порядком. */
     const val PEOPLE_SECTION_MAX = 8
 
+    /** Скільки афіш у рейці «Шукають компанію». */
+    const val COMPANY_MAX = 8
+
+    /**
+     * «Шукають компанію» (docs/return-hooks.md): афіші, на які хтось уже хоче піти з компанією, — найбільше бажаючих
+     * першими, далі порядок [index] (ранг і час). Жодної — порожньо: активність не вигадуємо. [skip] — свої плани.
+     */
+    fun company(index: List<EventIndexEntry>, skip: Set<String> = emptySet()): List<EventIndexEntry> =
+        index.filter { it.companyCount > 0 && it.id !in skip }.sortedByDescending { it.companyCount }.take(COMPANY_MAX)
+
     /** Зустрічі від людей з вільним місцем у порядку списків: «Для вас», місто, підписки. Не більш як раз, без [skip]. */
     private fun openRooms(forYou: List<Event>, city: List<Event>, following: List<Event>, skip: Set<String>): List<Event> {
         val seen = skip.toHashSet()

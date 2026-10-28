@@ -1,6 +1,7 @@
 package app.poruch.data.events
 
 import app.poruch.domain.AuthRepository
+import app.poruch.domain.CompanyMatch
 import app.poruch.domain.EventParticipation
 import app.poruch.domain.EventRating
 import app.poruch.domain.RatingTag
@@ -24,6 +25,14 @@ internal class SupabaseEventParticipation(
 
     override suspend fun joinWaitlist(id: String) { rpc.call("join_waitlist", rpc.eventParams(id)) }
     override suspend fun leaveWaitlist(id: String) { rpc.call("leave_waitlist", rpc.eventParams(id)) }
+
+    override suspend fun setCompanyIntent(id: String, on: Boolean): Int =
+        rpc.call("set_company_intent", buildJsonObject { put("p_event_id", id); put("p_on", on) }).jsonPrimitive.int
+
+    override suspend fun companyYes(id: String, userId: String): CompanyMatch {
+        val row = rpc.call("company_yes", buildJsonObject { put("p_event_id", id); put("p_user_id", userId) }).jsonObject
+        return CompanyMatch(row["matched"]?.jsonPrimitive?.boolean == true, row["companion_id"]?.jsonPrimitive?.contentOrNull)
+    }
 
     override suspend fun invite(id: String): String = rpc.call("create_invite", rpc.eventParams(id)).jsonPrimitive.content
 

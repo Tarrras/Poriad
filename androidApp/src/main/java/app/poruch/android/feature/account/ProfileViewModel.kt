@@ -62,7 +62,7 @@ class ProfileViewModel(private val app: PoruchApp, private val notifications: No
                 if (!intent.show) app.clearNotice()
                 reduce { copy(editing = intent.show, editError = null) }
             }
-            is ProfileIntent.SaveProfile -> app.saveProfile(intent.name, intent.bio, intent.photo, intent.photoType, intent.removePhoto)
+            is ProfileIntent.SaveProfile -> app.saveProfile(intent.name, intent.bio, intent.photo, intent.photoType, intent.removePhoto, intent.instagram)
             ProfileIntent.SignOut -> app.signOut()
             is ProfileIntent.ToggleInterest -> app.toggleInterest(intent.category)
             ProfileIntent.TuneRecommendations -> app.restartOnboarding()

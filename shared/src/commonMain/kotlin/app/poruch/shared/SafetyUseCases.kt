@@ -30,6 +30,8 @@ internal class SafetyUseCases(
             )
         }
         store.tell(AppMessage.AGE_CONFIRMED)
+        // Намір «Хочу піти з компанією» чекав саме на вік.
+        library.consumePendingCompany()
     }
 
     fun reportEvent(eventId: String, reason: ReportReason, details: String?) = store.mutate {

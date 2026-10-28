@@ -156,6 +156,15 @@ class EventDtoTest {
         assertEquals("Karabas", page.cards.single().listing?.sourceName)
     }
 
+    /** 12-та позиція — скільки хочуть піти з компанією (20261110120000); старий сервер її не шле — нуль. */
+    @Test fun theIndexCarriesTheCompanyCount() {
+        val stored = """{"total":2,"truncated":false,"index":[
+            ["e1",50.45,30.52,"music","2030-09-06T19:00:00Z","Europe/Kyiv","Подія","import","karabas",null,0,3],
+            ["e2",50.45,30.52,"music","2030-09-06T19:00:00Z","Europe/Kyiv","Подія","import","karabas",null,0]],"cards":[]}"""
+        val page = json.decodeFromString<DiscoveryEnvelope>(stored).domain()
+        assertEquals(listOf(3, 0), page.index.map { it.companyCount })
+    }
+
     @Test fun aPlaceRowParses() {
         val place = json.decodeFromString<List<PlaceDto>>(
             """[{"id":"p1","name":"Малевич","city":"Львів","address":"пр-т В'ячеслава Чорновола, 2, Львів","latitude":49.8475,"longitude":24.0263,"upcoming":26}]"""

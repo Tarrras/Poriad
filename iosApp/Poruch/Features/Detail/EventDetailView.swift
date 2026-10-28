@@ -49,6 +49,8 @@ struct EventDetailView: View, Equatable {
     @State var showOthersHere = false
     /// Шторка «Шукаю компанію».
     @State var seekingCompany = false
+    /// Збіг «Піти разом»: супутник, куди сервер записав обох, — відкриваємо його, там чат.
+    @State var matched: EventRoute?
     /// Системне «Поділитися» з готовим текстом: щойно створений супутник чи «Покликати».
     @State var sharing: ShareText?
     /// «Покликати» чекає посилання від сервера: повторний тап нічого не робить.
@@ -120,6 +122,12 @@ struct EventDetailView: View, Equatable {
             sharing = ShareText(text: Copy.companion_share_text("\(event.title)", "\(eventDate(event))", EventLinks.shared.url(eventId: created)))
         }
         .sheet(item: $sharing) { share in ActivitySheet(items: [share.text]).presentationDetents([.medium, .large]) }
+        .onChange(of: view.matchedCompanion) { _, id in
+            guard let id else { return }
+            model.app.clearMatchedCompanion()
+            matched = EventRoute(id: id)
+        }
+        .navigationDestination(item: $matched) { EventDetailView(app: model.app, eventID: $0.id).equatable().id($0.id) }
         .sheet(isPresented: $seekingCompany) { if let event = view.event { CompanionSheet(event: event) } }
         .sheet(item: $movingMeet) { target in
             if let event = view.event, let parent = view.companionOf, let start = parent.startsAt {
@@ -210,7 +218,8 @@ struct EventDetailView: View, Equatable {
             if !event.artists.isEmpty { lineup(event) }
             facts(event)
             if let listing = view.listing, !listing.needsAttention { tickets(event, listing, view) }
-            if !view.companions.isEmpty && !view.cancelled { companionsSection(view) }
+            if view.canWantCompany && !view.cancelled { companySection(view) }
+            else if !view.companions.isEmpty && !view.cancelled { companionsSection(view) }
             if let room = view.room { people(room, view) }
             venue(event, view)
             if !view.cancelled && !view.ended { safety() }

@@ -395,7 +395,7 @@
   <string name="tip_sheet_body">Торкніться лічильника чи потягніть шторку вгору — там ті самі події списком. Пін із числом — кілька подій в одному місці.</string>
   <string name="tip_invite_title">Покликати з собою</string>
   <string name="tip_invite_body">Друг отримає посилання на подію й побачить, що кличете саме ви: ваше ім’я й фото з профілю.</string>
-  <string name="tip_companion_body">Зберіть невелику компанію на цю подію. Хто захоче піти з вами, надішле запит — ви вирішите, кого взяти.</string>
+  <string name="tip_companion_body">Натисніть — і побачите, хто ще хоче піти на цю подію. Ім\'я та фото відкриваються лише тим, хто теж шукає компанію.</string>
   <string name="slot_weekday_day">Будні, вдень</string>
   <string name="slot_weekday_day_hint">До 17:00</string>
   <string name="slot_weekday_evening">Будні, ввечері</string>
@@ -578,6 +578,43 @@
 %3$s</string>
   <string name="companion_share_chooser">Поділитися пошуком компанії</string>
   <string name="companion_notification_channel">Пошук компанії на збережені події</string>
+  <!-- «Хочу піти з компанією» (docs/return-hooks.md, хвиля 1). Безродово: «Пішов би» — чоловічий рід. -->
+  <string name="company_want">Хочу піти з компанією</string>
+  <string name="company_privacy">Інші побачать спільні з вами інтереси. Ім\'я та фото — лише ті, хто теж хоче піти.</string>
+  <string name="company_searching">Ви шукаєте компанію</string>
+  <string name="company_searching_note">Скажемо, коли хтось знайдеться</string>
+  <plurals name="company_count">
+    <item quantity="one">%d людина хоче піти з компанією</item>
+    <item quantity="few">%d людини хочуть піти з компанією</item>
+    <item quantity="many">%d людей хочуть піти з компанією</item>
+    <item quantity="other">%d людини хочуть піти з компанією</item>
+  </plurals>
+  <plurals name="company_reason">
+    <item quantity="one">%d хоче піти з компанією</item>
+    <item quantity="few">%d хочуть піти з компанією</item>
+    <item quantity="many">%d хочуть піти з компанією</item>
+    <item quantity="other">%d хочуть піти з компанією</item>
+  </plurals>
+  <string name="company_shared">спільне з вами: %1$s</string>
+  <plurals name="company_attended">
+    <item quantity="one">%d подія відвідана</item>
+    <item quantity="few">%d події відвідано</item>
+    <item quantity="many">%d подій відвідано</item>
+    <item quantity="other">%d події відвідано</item>
+  </plurals>
+  <string name="company_go_together">Піти разом</string>
+  <string name="company_waiting">Чекаємо відповіді</string>
+  <string name="company_wants_you">Хоче піти з вами</string>
+  <string name="company_ask_in">Попроситися</string>
+  <string name="company_together">Ви йдете разом</string>
+  <string name="company_photo_hint">Додайте фото в профілі — побачите фото інших</string>
+  <string name="company_by_yourself">Або зібрати компанію самому: час і місце</string>
+  <string name="company_rail">Шукають компанію</string>
+  <string name="company_notification_channel">Компанія на події</string>
+  <string name="instagram">Instagram</string>
+  <string name="instagram_hint">нікнейм</string>
+  <string name="instagram_note">Бачать лише ті, хто теж хоче піти з вами на подію і вказав свій.</string>
+  <string name="instagram_invalid">Лише латиниця, цифри, крапка й підкреслення</string>
   <string name="curfew_left">Закінчиться о %1$s. Комендантська з %2$s — до неї лишиться %3$s</string>
   <string name="curfew_during">Закінчиться о %1$s, уже під час комендантської (з %2$s)</string>
   <string name="duration_minutes">%d хв</string>

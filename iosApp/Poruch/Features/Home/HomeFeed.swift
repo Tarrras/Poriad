@@ -65,6 +65,35 @@ struct HomePeopleSection: View {
     }
 }
 
+/// «Шукають компанію» (docs/return-hooks.md): афіші, на які хтось уже хоче піти з компанією, рейкою квитків. Без жодної
+/// рейки нема — активність не вигадуємо.
+struct HomeCompanySection: View {
+    let view: HomeScreenState
+    let open: (String, String) -> Void
+    @Environment(\.appModel) private var appModel
+    private var model: AppModel { appModel! }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Space.md) {
+            SectionHeader(title: Copy.company_rail).padding(.horizontal, Space.page)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(alignment: .top, spacing: Space.md) {
+                    ForEach(view.company, id: \.event.id) { entry in
+                        PosterCard(
+                            entry: FeedEntry(event: entry.event, source: .city, followName: nil),
+                            saved: view.isSaved(entry.event), waitlisted: view.isWaitlisted(entry.event),
+                            because: Copy.company_reason(Int(entry.count)), onSave: { model.app.toggleSaved(id: entry.event.id) }
+                        ) { open(entry.event.id, "home_company") }
+                        .frame(width: peopleCardWidth).frame(maxHeight: .infinity)
+                    }
+                }
+                .fixedSize(horizontal: false, vertical: true)
+            }
+            .railContentPadding(spread: 0)
+        }
+    }
+}
+
 /// «У місті»: три великі картки, що гортаються (сусідня визирає), чипи, далі сітка постерів у дві колонки.
 struct HomeCityFeed: View {
     let view: HomeScreenState
@@ -207,6 +236,8 @@ private struct PosterCard: View {
     let waitlisted: Bool
     /// Підпис «Від людей» на кімнаті без стану: у секції «Від людей» він зайвий.
     var showsOrigin = true
+    /// Причина від рейки, а не від джерела: «2 хочуть піти з компанією».
+    var because: String? = nil
     let onSave: () -> Void
     let open: () -> Void
 
@@ -245,6 +276,7 @@ private struct PosterCard: View {
     /// Чому квиток у стрічці: за ким стежите (дзвіночок і ім'я), «Для вас», «Від людей». Не штамп, бо нічого з
     /// квитком не сталось — штамп поруч зі «Скасовано» й «Лишилось 2» мав би однакову вагу.
     private var reason: (String, PoruchGlyph)? {
+        if let because { return (because, PoruchIcons.social) }
         if entry.source == .following { return (entry.followName ?? Copy.following, PoruchIcons.bell) }
         if let label = lane(entry) { return (label, PoruchIcons.sparkle) }
         if showsOrigin, event.gathering != nil { return (Copy.from_people, PoruchIcons.social) }

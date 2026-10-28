@@ -131,7 +131,8 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
                         if (event.artists.isNotEmpty()) Lineup(event, onIntent)
                         Facts(event)
                         state.screen.listing?.takeIf { !it.needsAttention }?.let { Tickets(state, it, onIntent) }
-                        if (state.screen.companions.isNotEmpty() && !state.screen.cancelled) Companions(state, onIntent)
+                        if (state.screen.canWantCompany && !state.screen.cancelled) CompanySection(state, onIntent)
+                        else if (state.screen.companions.isNotEmpty() && !state.screen.cancelled) Companions(state, onIntent)
                         event.gathering?.let { People(state, it, onIntent) }
                         Venue(event, state.screen.followingPlace, onIntent)
                         if (!state.screen.cancelled && !state.screen.ended) Safety(state, onIntent)
@@ -254,7 +255,7 @@ internal fun StickyAction(state: DetailState, event: Event, modifier: Modifier, 
                     maxLines = 3, overflow = TextOverflow.Ellipsis, modifier = modifier
                 )
             }
-            if (state.screen.canSeekCompany) {
+            if (state.screen.canWantCompany || state.screen.canSeekCompany) {
                 // Афіша: ціна й квиток в один рядок — квиток купують на чужому сайті, тож він другорядний.
                 Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
                     hint(Modifier.weight(1f))
@@ -270,9 +271,10 @@ internal fun StickyAction(state: DetailState, event: Event, modifier: Modifier, 
                 // Кнопки може не бути: у знятої афіші й афіші без посилання нема куди вести.
                 if (state.screen.action != DetailAction.NONE) PrimaryAction(state, onIntent, Modifier.fillMaxWidth())
             }
-            // Серце продукту — люди: на афіші головна дія — «Шукаю компанію», на всю ширину під ціною й квитком.
-            if (state.screen.canSeekCompany) PrimaryButton(
-                stringResource(R.string.companion_seek), { onIntent(DetailIntent.SeekCompany(true)) },
+            // Серце продукту — люди: на афіші головна дія — «Хочу піти з компанією», на всю ширину під ціною й квитком.
+            // Після наміру панель її ховає: стан і люди — у секції «Шукають компанію» (docs/return-hooks.md).
+            if (state.screen.canWantCompany && state.screen.companyTeaser?.mine != true) PrimaryButton(
+                stringResource(R.string.company_want), { onIntent(DetailIntent.WantCompany) },
                 Modifier.fillMaxWidth().coachTarget(CoachTip.COMPANION), enabled = !state.screen.mutating, icon = PoruchIcons.social
             )
         }

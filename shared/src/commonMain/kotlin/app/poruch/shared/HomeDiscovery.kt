@@ -185,7 +185,7 @@ internal class HomeDiscovery(
             .take(DiscoveryRules.HOME_ROOM_CARDS)
         val ids =
             (home.suggestedIndex.take(DiscoveryRules.FIRST_CARDS) + home.index.take(DiscoveryRules.FIRST_CARDS) + rooms +
-                    home.results.take(DiscoveryRules.FIRST_CARDS)).map { it.id }.distinct()
+                    HomeRules.company(home.index) + home.results.take(DiscoveryRules.FIRST_CARDS)).map { it.id }.distinct()
         load(ids)?.let(cardsJob::set)
     }
 

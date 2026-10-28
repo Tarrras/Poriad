@@ -12,6 +12,7 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -58,6 +59,12 @@ import app.poruch.domain.EventIndexEntry
 import app.poruch.domain.TitleRules
 import app.poruch.domain.FollowRules
 import app.poruch.domain.CompanionRules
+import app.poruch.domain.CompanionCard
+import app.poruch.domain.CompanyPerson
+import app.poruch.domain.CompanyTeaser
+import app.poruch.domain.EventCategory
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import app.poruch.domain.Membership
 import app.poruch.domain.EventSession
 import app.poruch.domain.asIndexEntry
@@ -769,10 +776,142 @@ internal fun OrganizerActions(state: DetailState, onIntent: (DetailIntent) -> Un
  */
 @Composable
 internal fun Companions(state: DetailState, onIntent: (DetailIntent) -> Unit) {
-    val colors = Poruch.colors
-    val words = dateWords()
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         SectionHeader(stringResource(R.string.companions_title))
+        CompanionRows(state, onIntent)
+    }
+}
+
+/**
+ * «Хочу піти з компанією» (docs/return-hooks.md): тизер без імен, мій стан, люди з наміром — лише з власним, нижче —
+ * повний режим: супутники й «Або зібрати компанію самому».
+ */
+@Composable
+internal fun CompanySection(state: DetailState, onIntent: (DetailIntent) -> Unit) {
+    val colors = Poruch.colors
+    val screen = state.screen
+    val teaser = screen.companyTeaser
+    val mine = teaser?.mine == true
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        SectionHeader(stringResource(R.string.companions_title))
+        Column(Modifier.fillMaxWidth().cardSurface(Radius.md).padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+            if (teaser != null && teaser.count > 0) CompanyTeaserLine(teaser)
+            if (mine) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(stringResource(R.string.company_searching), style = MaterialTheme.typography.titleSmall, color = colors.ink)
+                        Text(stringResource(R.string.company_searching_note), style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
+                    }
+                    Text(
+                        stringResource(R.string.cancel), style = MaterialTheme.typography.labelLarge, color = colors.ink,
+                        modifier = Modifier.pressable(enabled = !screen.mutating) { onIntent(DetailIntent.DropCompany) }
+                            .heightIn(min = 44.dp).wrapContentHeight()
+                    )
+                }
+                if (screen.companyPhotoHint && screen.companyPeople.isNotEmpty()) {
+                    Text(stringResource(R.string.company_photo_hint), style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
+                }
+            } else {
+                Text(stringResource(R.string.company_privacy), style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary)
+            }
+        }
+        if (screen.companyPeople.isNotEmpty()) {
+            Column(Modifier.cardSurface(Radius.md)) {
+                screen.companyPeople.forEachIndexed { index, person ->
+                    if (index > 0) HairLine()
+                    CompanyPersonRow(person, state, onIntent)
+                }
+            }
+        }
+        if (screen.companions.isNotEmpty()) CompanionRows(state, onIntent)
+        if (screen.canSeekCompany) Text(
+            stringResource(R.string.company_by_yourself), style = MaterialTheme.typography.labelLarge, color = colors.ink,
+            modifier = Modifier.fillMaxWidth().pressable { onIntent(DetailIntent.SeekCompany(true)) }.heightIn(min = 44.dp).wrapContentHeight()
+        )
+    }
+}
+
+@Composable
+private fun sharedLine(shared: List<EventCategory>): String? =
+    if (shared.isEmpty()) null
+    else stringResource(R.string.company_shared, shared.map { stringResource(categoryLabel(it)).lowercase() }.joinToString(", "))
+
+@Composable
+private fun CompanyTeaserLine(teaser: CompanyTeaser) {
+    val colors = Poruch.colors
+    val details = sharedLine(teaser.shared).orEmpty()
+    Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md), verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.semantics(mergeDescendants = true) {}) {
+        Box(Modifier.size(40.dp).background(colors.surfaceMuted, RoundedCornerShape(Corner.xs)), contentAlignment = Alignment.Center) {
+            Icon(PoruchIcons.social, null, Modifier.size(20.dp), tint = colors.ink)
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(pluralStringResource(R.plurals.company_count, teaser.count, teaser.count), style = MaterialTheme.typography.titleSmall, color = colors.ink)
+            if (details.isNotEmpty()) Text(details, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
+        }
+    }
+}
+
+/** Людина з наміром: тап — картка (Instagram, скарга, блок), справа — «Піти разом» чи стан. */
+@Composable
+private fun CompanyPersonRow(person: CompanyPerson, state: DetailState, onIntent: (DetailIntent) -> Unit) {
+    val colors = Poruch.colors
+    val screen = state.screen
+    val together = person.companionId?.let { id -> screen.companions.firstOrNull { it.id == id } }
+    val joined = together != null && (together.mine || together.membership == Membership.APPROVED)
+    val asked = person.theySaidYes && !joined
+    val traits = sharedLine(person.shared).orEmpty()
+    Row(
+        Modifier.fillMaxWidth().background(if (asked) colors.accentContainer else Color.Transparent)
+            .padding(horizontal = Spacing.lg, vertical = Spacing.md),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.md), verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            Modifier.weight(1f).pressable { onIntent(DetailIntent.OpenPerson(person.userId)) }.semantics(mergeDescendants = true) {},
+            horizontalArrangement = Arrangement.spacedBy(Spacing.md)
+        ) {
+            Avatar(person.name, person.avatarUrl, 44.dp)
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(person.name, style = MaterialTheme.typography.titleSmall, color = colors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (asked) Text(stringResource(R.string.company_wants_you), style = MaterialTheme.typography.bodySmall, color = colors.accentText)
+                if (traits.isNotEmpty()) Text(traits, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
+                person.bio?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                person.instagram?.let { Text("@$it", style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary) }
+            }
+        }
+        CompanyAction(person, together, joined, state, onIntent)
+    }
+}
+
+@Composable
+private fun CompanyAction(person: CompanyPerson, together: CompanionCard?, joined: Boolean, state: DetailState, onIntent: (DetailIntent) -> Unit) {
+    val companionId = person.companionId
+    when {
+        joined && together != null -> Box(Modifier.pressable { onIntent(DetailIntent.OpenEvent(together.id)) }) {
+            StatusBadge(stringResource(R.string.company_together), BadgeTone.Success, PoruchIcons.check)
+        }
+        // Людина вже в компанії на цю подію: проситися туди, а не збирати другу.
+        companionId != null && together?.membership == Membership.REQUESTED ->
+            StatusBadge(stringResource(R.string.request_pending), BadgeTone.Accent, PoruchIcons.clock)
+        companionId != null && together?.isFull == true -> StatusBadge(stringResource(R.string.companion_full))
+        companionId != null -> SecondaryButton(
+            stringResource(R.string.company_ask_in), { onIntent(DetailIntent.JoinCompanion(companionId)) },
+            enabled = !state.screen.mutating, compact = true
+        )
+        person.saidYes -> StatusBadge(stringResource(R.string.company_waiting))
+        else -> SecondaryButton(
+            stringResource(R.string.company_go_together), { onIntent(DetailIntent.SayCompanyYes(person.userId)) },
+            enabled = !state.screen.mutating, compact = true
+        )
+    }
+}
+
+/** Супутники афіші без імен; «Долучитися» — запит організатору прямо звідси. */
+@Composable
+private fun CompanionRows(state: DetailState, onIntent: (DetailIntent) -> Unit) {
+    val colors = Poruch.colors
+    val words = dateWords()
+    run {
         Column(Modifier.cardSurface(Radius.md)) {
             state.screen.companions.forEachIndexed { index, card ->
                 if (index > 0) HairLine()

@@ -36,6 +36,8 @@ class DetailViewModel(
                 if (created != null && event != null) {
                     app.clearCreatedCompanion(); send(DetailEffect.ShareCompanion(event, created))
                 }
+                // Збіг «Піти разом»: сервер уже записав обох у супутник — відкриваємо його, там чат.
+                screen.matchedCompanion?.let { app.clearMatchedCompanion(); send(DetailEffect.OpenEvent(it)) }
                 reduce { copy(screen = screen) }
             }
         }
@@ -167,6 +169,10 @@ class DetailViewModel(
             }
 
             is DetailIntent.JoinCompanion -> authenticated(AuthReason.JOIN) { app.joinEvent(intent.id); offerReminders() }
+            // Гостю намір ставить спільний шар після входу, тож спершу кажемо йому, а тоді ведемо на вхід.
+            DetailIntent.WantCompany -> { app.wantCompany(); authenticated(AuthReason.COMPANY) { offerReminders() } }
+            DetailIntent.DropCompany -> app.dropCompany()
+            is DetailIntent.SayCompanyYes -> authenticated { app.sayCompanyYes(intent.userId) }
             // ON_RESUME: і повернення з іншого екрана, і з сайту продавця — тоді, можливо, «Купили?» (раз на подію).
             DetailIntent.Reopen -> {
                 presenter.reopen()

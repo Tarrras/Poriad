@@ -26,11 +26,18 @@ internal class ProfileUseCases(
      * Текст іде першим — стоп-словник сервера може відмовити, і тоді фото не міняється. Нове фото
      * спершу стає профілем, потім зникає старий файл, інакше збій лишив би профіль без фото.
      */
-    fun save(name: String, bio: String?, photo: ByteArray?, photoType: String?, removePhoto: Boolean) = store.mutate {
+    fun save(name: String, bio: String?, photo: ByteArray?, photoType: String?, removePhoto: Boolean, instagram: String? = null) = store.mutate {
         val repository = repository()
         if (!AccountRules.isName(name)) fail(AppError.InvalidName)
+        // Instagram — до всього: зіпсований нікнейм не має лишити ім'я збереженим, а поле — ні.
+        val handle = instagram?.let(CompanyRules::normalizeInstagram)
+        if (handle != null && !CompanyRules.isValidInstagram(handle)) fail(AppError.Rejected)
         repository.update(name, bio)
         own { copy(name = name.trim(), bio = ProfileRules.normalizeBio(bio)) }
+        if (handle != null && handle != store.value.library.profile?.instagram.orEmpty()) {
+            repository.setInstagram(handle)
+            own { copy(instagram = handle.ifEmpty { null }) }
+        }
         val previous = store.value.library.profile?.avatarUrl
         if (photo != null) {
             val url = repository.setAvatar(photo, photoType ?: "image/jpeg")

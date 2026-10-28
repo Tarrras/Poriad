@@ -7,6 +7,8 @@ import app.poruch.domain.ArtistRole
 import app.poruch.domain.EventCategory
 import app.poruch.domain.CompanionCard
 import app.poruch.domain.CompanionParent
+import app.poruch.domain.CompanyPerson
+import app.poruch.domain.CompanyTeaser
 import app.poruch.domain.District
 import app.poruch.domain.Event
 import app.poruch.domain.EventOrigin
@@ -195,6 +197,37 @@ internal data class CompanionDto(
 ) {
     fun domain() = CompanionCard(id, startsAt, timeZone, meetNote, capacity, attendeeCount, Membership.fromKey(membership), mine)
 }
+
+/** Рядок `company_teaser`: тизер «Хочу піти з компанією» без імен. */
+@Serializable
+internal data class CompanyTeaserDto(
+    val count: Int = 0,
+    val shared: List<String> = emptyList(),
+    val mine: Boolean = false
+) {
+    fun domain() = CompanyTeaser(count, shared.categories(), mine)
+}
+
+/** Рядок `company_people`: людина з наміром на ту саму афішу. */
+@Serializable
+internal data class CompanyPersonDto(
+    @SerialName("user_id") val userId: String,
+    val name: String = "",
+    @SerialName("avatar_url") val avatarUrl: String? = null,
+    val bio: String? = null,
+    val instagram: String? = null,
+    val shared: List<String> = emptyList(),
+    val attended: Int = 0,
+    @SerialName("said_yes") val saidYes: Boolean = false,
+    @SerialName("they_said_yes") val theySaidYes: Boolean = false,
+    @SerialName("companion_id") val companionId: String? = null
+) {
+    fun domain() = CompanyPerson(userId, name, avatarUrl, bio, instagram, shared.categories(), attended,
+        saidYes, theySaidYes, companionId)
+}
+
+/** Ключі категорій з сервера; невідомі (новіший сервер) — мимо. */
+private fun List<String>.categories() = map { EventCategory.fromKey(it) }.filter { it != EventCategory.UNKNOWN }
 
 /** Артист у картці події. `kind` буває відсутній: сервер не завжди знає вид. */
 @Serializable

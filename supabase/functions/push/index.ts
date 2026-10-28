@@ -2,7 +2,7 @@
 // участь чи приєднання до відкритої події, на скасування й перенесення події (docs/event-change-push.md),
 // на нову подію організатора й зведення нових подій закладів та артистів (docs/follows.md), на зміну афіші, за
 // якою людина стежить (docs/event-offers.md, R6–R7: адресатів, текст і час уже вибрала база), на новий збір «Йдемо
-// разом» тим, хто зберіг афішу (docs/companions.md), а щопʼятниці — пуш повернення на пристрій, з якого місяць не
+// разом» тим, хто зберіг афішу (docs/companions.md), на «Хочу піти з компанією» (docs/return-hooks.md), а щопʼятниці — пуш повернення на пристрій, з якого місяць не
 // відкривали застосунок (docs/guest-channel.md).
 // Вона вирішує, кому слати, бере токени й шле у FCM (Android) і APNs (iOS). Тихі години для «Стежити»
 // (22:00–09:00 за Києвом) тримає база в `private.notify_push`, ще до виклику: сюди нічний пуш приходить уже вранці.
@@ -32,6 +32,8 @@ type Payload =
   | { type: "follow"; kind: "artist"; user_id: string; total: number; artist_count: number; artists: { id: string; n: number }[]; event_ids: string[] }
   // `notify_saved_companions`: збори афіші event_id, найближчий першим, і хто її зберіг — їх уже вибрала база.
   | { type: "companion"; event_id: string; companion_ids: string[]; user_ids: string[] }
+  // «Хочу піти з компанією»: адресатів і текст уже вибрала база (`push_company`); event_id — що відкриває тап.
+  | { type: "company"; event_id: string; title: string; body: string; user_ids: string[] }
   // `send_winbacks`: пристрій без пошуку людини, місто й події його вихідних уже вибрала база.
   | { type: "winback"; token: string; platform: Token["platform"]; step: 1 | 2; city: string; total: number; titles: string[] };
 
@@ -41,7 +43,7 @@ const EVENT_KINDS: readonly string[] = ["moved", "cancelled"];
 type Change = "cancelled" | "postponed" | "moved" | "corrected";
 const CHANGES: readonly string[] = ["cancelled", "postponed", "moved", "corrected"];
 
-type Push = { kind: "chat" | "request" | "joined" | "organizer" | "place" | "artist" | "companion" | "winback" | EventKind; eventId?: string; placeId?: string; artistId?: string; change?: Change; step?: number; title: string; body: string; key: string };
+type Push = { kind: "chat" | "request" | "joined" | "organizer" | "place" | "artist" | "companion" | "company" | "winback" | EventKind; eventId?: string; placeId?: string; artistId?: string; change?: Change; step?: number; title: string; body: string; key: string };
 type Token = { token: string; platform: "android" | "ios" };
 
 const PREVIEW = 120;
@@ -53,7 +55,7 @@ const TIMEOUT_MS = 10_000;
 const TOKEN_CHUNK = 100;
 // Пуші, які випущені клієнти не покажуть (Android невідомий kind мовчки відкидає): лише на токени з прапорцем
 // `push_tokens.features`, який реєструє застосунок, що їх знає.
-const FEATURE: Partial<Record<Push["kind"], string>> = { companion: "companion" };
+const FEATURE: Partial<Record<Push["kind"], string>> = { companion: "companion", company: "company" };
 
 Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "method" }, 405);
@@ -78,6 +80,7 @@ Deno.serve(async (req) => {
       : payload.type === "event" ? await forEvent(db, payload)
       : payload.type === "change" ? forChange(payload)
       : payload.type === "companion" ? await forCompanion(db, payload)
+      : payload.type === "company" ? await forCompany(db, payload)
       : payload.type === "follow" ? await forFollow(db, payload) : await forRequest(db, payload));
     if (!push || recipients.length === 0) return json({ sent: 0, reason: "no recipients" });
     const feature = FEATURE[push.kind];
@@ -258,6 +261,14 @@ async function forCompanion(db: ReturnType<typeof createClient>, p: Extract<Payl
   return { push: { kind: "companion" as const, eventId: first.id as string, title: text.title, body: text.body, key: `companion:${p.event_id}` }, recipients: p.user_ids };
 }
 
+// Намір, «хоче піти з вами» чи збіг: текст від бази. Між викликом і доставкою (тихі години) подія могла початись чи
+// зникнути — тоді мовчимо.
+async function forCompany(db: ReturnType<typeof createClient>, p: Extract<Payload, { type: "company" }>) {
+  const { data: e } = await db.from("events").select("id,status,starts_at").eq("id", p.event_id).maybeSingle();
+  if (!e || e.status !== "published" || new Date(e.starts_at as string).getTime() <= Date.now()) return { push: null, recipients: [] };
+  return { push: { kind: "company" as const, eventId: p.event_id, title: p.title, body: p.body, key: `company:${p.event_id}` }, recipients: p.user_ids };
+}
+
 function when(iso: string, zone: string): string {
   const opts: Intl.DateTimeFormatOptions = { weekday: "short", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" };
   try { return new Date(iso).toLocaleString("uk-UA", { ...opts, timeZone: zone }); } catch { return new Date(iso).toLocaleString("uk-UA", opts); }
@@ -309,6 +320,10 @@ function isPayload(p: unknown): p is Payload {
   if (o.type === "companion") {
     return isUuid(o.event_id) && Array.isArray(o.companion_ids) && o.companion_ids.length >= 1 && o.companion_ids.length <= 20
       && o.companion_ids.every(isUuid)
+      && Array.isArray(o.user_ids) && o.user_ids.length >= 1 && o.user_ids.length <= 10_000 && o.user_ids.every(isUuid);
+  }
+  if (o.type === "company") {
+    return isUuid(o.event_id) && isText(o.title) && isText(o.body)
       && Array.isArray(o.user_ids) && o.user_ids.length >= 1 && o.user_ids.length <= 10_000 && o.user_ids.every(isUuid);
   }
   if (o.type === "follow" && o.kind === "place") {

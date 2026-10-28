@@ -389,6 +389,13 @@ class PoruchApp internal constructor(
 
     fun createCompanion(parentId: String, meetAt: String, note: String?, capacity: Int) =
         eventUseCases.createCompanion(parentId, meetAt, note, capacity)
+
+    /** «Хочу піти з компанією» на відкриту афішу. Гість — спершу вхід, намір після нього (docs/return-hooks.md). */
+    fun wantCompany() = eventUseCases.wantCompany()
+    /** «Скасувати» пошук компанії: прибирає й мої «Піти разом». */
+    fun dropCompany() = eventUseCases.setCompanyIntent(false)
+    /** «Піти разом» з людиною з наміром на відкриту афішу. */
+    fun sayCompanyYes(userId: String) = eventUseCases.sayCompanyYes(userId)
     fun updateEvent(id: String, draft: EventDraft) = eventUseCases.update(id, draft)
     fun uploadEventImage(eventId: String, bytes: ByteArray, contentType: String) =
         eventUseCases.uploadImage(eventId, bytes, contentType)
@@ -561,8 +568,8 @@ class PoruchApp internal constructor(
      * Імʼя, «Про себе» й фото разом. Перевіряє стоп-словник сервера: відмова — [AppError.ObjectionableContent].
      * [photo] — нове фото (JPEG/PNG/WebP до 5 MiB, платформа вже перекодувала його без EXIF); [removePhoto] — прибрати наявне.
      */
-    fun saveProfile(name: String, bio: String?, photo: ByteArray? = null, photoType: String? = null, removePhoto: Boolean = false) =
-        profileUseCases.save(name, bio, photo, photoType, removePhoto)
+    fun saveProfile(name: String, bio: String?, photo: ByteArray? = null, photoType: String? = null, removePhoto: Boolean = false, instagram: String? = null) =
+        profileUseCases.save(name, bio, photo, photoType, removePhoto, instagram)
 
     /** Картка людини в [AppState.person]. Видимість вирішує сервер. */
     fun openPerson(userId: String) = profileUseCases.open(userId)
@@ -612,6 +619,11 @@ class PoruchApp internal constructor(
     /** «Поділитися» для щойно створеного супутника вже відкрито. */
     fun clearCreatedCompanion() {
         store.update { it.copy(createdCompanion = null) }
+    }
+
+    /** Супутник зі збігу «Піти разом» уже відкрито. */
+    fun clearMatchedCompanion() {
+        store.update { it.copy(matchedCompanion = null) }
     }
 
     /** [AppState.reviewMoment] оброблено; [prompted] — платформа справді показала системне питання. */

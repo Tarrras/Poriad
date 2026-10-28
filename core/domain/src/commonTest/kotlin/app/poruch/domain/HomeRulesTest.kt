@@ -249,4 +249,14 @@ class HomeRulesTest {
         val hits = HomeRules.apply(entries(freeListing, unknownPrice, paid, meetup, companion), FeedFilter(FeedFilterKind.FREE), now, zone)
         assertEquals(listOf("free", "meetup"), hits.map { it.event.id })
     }
+
+    /** «Шукають компанію»: лише афіші з наміром, найбільше бажаючих першими, рівні — у порядку видачі, без своїх. */
+    @Test fun theCompanyRailTakesListingsPeopleWantToJoin() {
+        fun entry(id: String, count: Int) = EventIndexEntry(id, 0.0, 0.0, EventCategory.MUSIC, "2026-09-30T16:00:00Z", zone, id,
+            EventOrigin.IMPORT, companyCount = count)
+        val index = listOf(entry("a", 0), entry("b", 1), entry("c", 3), entry("d", 1), entry("mine", 5))
+        assertEquals(listOf("c", "b", "d"), HomeRules.company(index, skip = setOf("mine")).map { it.id })
+        assertTrue(HomeRules.company(listOf(entry("a", 0))).isEmpty(), "nobody — no rail")
+        assertEquals(HomeRules.COMPANY_MAX, HomeRules.company((1..20).map { entry("e$it", 1) }).size)
+    }
 }

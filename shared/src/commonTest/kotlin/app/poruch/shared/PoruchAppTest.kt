@@ -107,6 +107,16 @@ class PoruchAppTest {
         override suspend fun safety(id:String):EventSafety? = null
         var companionCards=emptyList<CompanionCard>()
         override suspend fun companions(parentId:String)=companionCards
+        /** «Хочу піти з компанією»: тизер, мої наміри по черзі, [mutual] — друга сторона вже сказала «Піти разом». */
+        var teaser:CompanyTeaser?=null
+        val intents=mutableListOf<Pair<String,Boolean>>()
+        var mutual=false
+        private fun intends(id:String)=intents.lastOrNull { it.first==id }?.second==true
+        override suspend fun companyTeaser(eventId:String)=teaser?.copy(mine=intends(eventId))
+        override suspend fun companyPeople(eventId:String)=
+            if(intends(eventId)) listOf(CompanyPerson("anna","Анна",null,null,null,emptyList(),0,false,mutual,null)) else emptyList()
+        override suspend fun setCompanyIntent(id:String,on:Boolean):Int { intents+=id to on; return teaser?.count?:0 }
+        override suspend fun companyYes(id:String,userId:String)=CompanyMatch(mutual,if(mutual) "c9" else null)
         /** Запрошення: токен → (подія, хто кличе), як `invite_inviter`; [failInvite] — сервер відмовив створити. */
         var invites=mapOf<String,Pair<String,Inviter>>()
         var failInvite=false
@@ -304,6 +314,52 @@ class PoruchAppTest {
             assertEquals(1,tracked.count { it=="companion_create" })
             assertEquals(1,tracked.count { it=="companion_join" })
             assertEquals(AppNotice.Told(AppMessage.REQUEST_SENT),app.state.value.notice,"companions are by request")
+            app.close()
+        } finally { PoruchAnalytics.sink=null }
+    }
+
+    /**
+     * «Хочу піти з компанією» (docs/return-hooks.md): тизер бачить і гість; гість іде на вхід, а намір ставиться сам після
+     * нього; люди — лише з власним наміром; взаємне «Піти разом» відкриває супутник; зняття прибирає людей.
+     */
+    @Test fun wantingCompanyOnAListing()=runTest {
+        val tracked=mutableListOf<String>()
+        PoruchAnalytics.sink={ name,_ -> tracked+=name }
+        try {
+            val events=Events(); val auth=Auth(); auth.session.value=null
+            val app=app(events,backgroundScope,auth)
+            val concert=listed("b","2090-12-23T18:00:00Z")
+            events.results=listOf(concert); events.detailsById=mapOf("b" to concert)
+            events.teaser=CompanyTeaser(2,emptyList(),false)
+            runCurrent(); advanceTimeBy(101); runCurrent()
+            app.openEvent("b"); advanceTimeBy(1000); runCurrent()
+            assertEquals(2,app.state.value.detail.company?.count,"a guest sees the teaser")
+            assertTrue(app.state.value.detail.companyPeople.isEmpty())
+
+            app.wantCompany(); runCurrent()
+            assertEquals("b",app.state.value.pendingCompany,"a guest signs in first")
+            assertTrue(events.intents.isEmpty())
+
+            auth.session.value=UserSession("user","token","refresh",9999999999); advanceTimeBy(1000); runCurrent()
+            assertEquals(listOf("b" to true),events.intents,"the intent follows the sign-in")
+            assertNull(app.state.value.pendingCompany)
+            app.openEvent("b"); advanceTimeBy(1000); runCurrent()
+            assertEquals(listOf("anna"),app.state.value.detail.companyPeople.map { it.userId },"with my intent I see people")
+
+            app.sayCompanyYes("anna"); advanceTimeBy(1000); runCurrent()
+            assertNull(app.state.value.matchedCompanion,"not mutual yet")
+            events.mutual=true
+            app.sayCompanyYes("anna"); advanceTimeBy(1000); runCurrent()
+            assertEquals("c9",app.state.value.matchedCompanion,"a match opens the companion")
+            app.clearMatchedCompanion()
+            assertNull(app.state.value.matchedCompanion)
+
+            app.dropCompany(); advanceTimeBy(1000); runCurrent()
+            assertEquals("b" to false,events.intents.last())
+            assertTrue(app.state.value.detail.companyPeople.isEmpty(),"no intent — no people")
+            assertEquals(2,tracked.count { it=="company_intent" })
+            assertEquals(2,tracked.count { it=="company_yes" })
+            assertEquals(1,tracked.count { it=="company_match" })
             app.close()
         } finally { PoruchAnalytics.sink=null }
     }

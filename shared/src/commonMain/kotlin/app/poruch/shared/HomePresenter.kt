@@ -45,6 +45,9 @@ import kotlinx.datetime.toLocalDateTime
 /** Рядок «Ваше»: своя подія, її непрочитаний чат і скільки людей просяться. */
 data class PersonalRow(val event: Event, val chat: ChatUnread?, val requests: Int, val organizing: Boolean)
 
+/** Афіша в рейці «Шукають компанію» і скільки людей хочуть піти з компанією (docs/return-hooks.md). */
+data class CompanyEntry(val event: Event, val count: Int)
+
 /** Стан головної: усе вже відфільтроване й посортоване для рендеру. Платформа додає лише своє локальне (режим пошуку, ліміти, листи). */
 data class HomeScreenState(
     val signedIn: Boolean = false,
@@ -65,6 +68,8 @@ data class HomeScreenState(
     val moreWaiting: Int = 0,
     /** «Від людей»: зустрічі з вільним місцем окремою рейкою, коли їх набралось досить ([HomeRules.people]); інакше порожньо. */
     val people: List<FeedEntry> = emptyList(),
+    /** «Шукають компанію»: афіші, на які хтось хоче піти з компанією ([HomeRules.company]). Порожньо — рейки нема. */
+    val company: List<CompanyEntry> = emptyList(),
     /** «У місті»: [HomeRules.HERO_COUNT] великих карток, далі сітка, вже звужена [feedFilter]. */
     val feed: List<FeedEntry> = emptyList(),
     /** Чипи над сіткою: що з неї можна відфільтрувати. Порожньо — рядка нема. */
@@ -195,8 +200,13 @@ class HomePresenter(
         // Усі свої плани, а не лише три з «Ваше»: решта живе в «Моїх подіях», а в місті стояла б безіменним постером.
         val mineIds = mineFirst.mapTo(HashSet()) { it.id }
         val people = HomeRules.people(suggested, city, followedHere, mineIds)
-        // Кімнати, що дістали власну секцію, у стрічці не повторюємо й уперед їх більше не ставимо.
-        val all = HomeRules.feed(suggested, city, followedHere, mineIds + people.map { it.event.id }, roomsFirst = people.isEmpty())
+        // Картки — лише завантажені: решту докладе HomeDiscovery.materialize, і рейка доросте.
+        val cards = home.events.associateBy { it.id }
+        val company = HomeRules.company(home.index, mineIds)
+            .mapNotNull { entry -> cards[entry.id]?.takeIf { it.isListed(now) }?.let { CompanyEntry(it, entry.companyCount) } }
+        // Кімнати, що дістали власну секцію, у стрічці не повторюємо й уперед їх більше не ставимо. Так само афіші рейки компанії.
+        val all = HomeRules.feed(suggested, city, followedHere, mineIds + people.map { it.event.id } + company.map { it.event.id },
+            roomsFirst = people.isEmpty())
             .map { if (it.source == FeedSource.FOLLOWING) it.copy(followName = via[it.event.id]) else it }
         val rest = all.drop(HomeRules.HERO_COUNT)
         val chips = HomeRules.chips(rest, now, zoneId)
@@ -213,6 +223,7 @@ class HomePresenter(
             newFollowEvents = shared.library.newFollowEvents,
             moreWaiting = waiting.mapTo(HashSet()) { it.id }.count { it !in shown },
             people = people,
+            company = company,
             feed = all.take(HomeRules.HERO_COUNT) + HomeRules.apply(rest, filter, now, zoneId),
             chips = chips,
             feedFilter = filter,

@@ -13,6 +13,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import app.poruch.android.R
+import androidx.compose.ui.platform.LocalUriHandler
 import app.poruch.domain.FollowRules
 import app.poruch.domain.Profile
 import app.poruch.shared.PersonState
@@ -99,6 +100,14 @@ fun PersonSheet(
                 else -> {
                     ProfileSummary(profile)
                     profile.bio?.let { Text(it, style = MaterialTheme.typography.bodyLarge, color = colors.ink, modifier = Modifier.fillMaxWidth()) }
+                    // Свій — завжди, чужий — лише людям з наміром на ту саму подію і зі своїм (docs/return-hooks.md).
+                    profile.instagram?.let { handle ->
+                        val uri = LocalUriHandler.current
+                        Text(
+                            "@$handle", style = MaterialTheme.typography.labelLarge, color = colors.ink,
+                            modifier = Modifier.pressable { runCatching { uri.openUri("https://instagram.com/$handle") } }.heightIn(min = 44.dp).wrapContentHeight()
+                        )
+                    }
                     if (isMe) Text(
                         stringResource(R.string.person_you), style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary,
                         modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center

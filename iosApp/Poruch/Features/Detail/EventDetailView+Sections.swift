@@ -546,7 +546,7 @@ extension EventDetailView {
     func stickyBar(_ event: Event, _ view: DetailScreenState) -> some View {
         Ticket(stubColor: ticketStub(event), stubLength: 84, radius: Corner.xl, surface: Palette.surfaceRaised) {
             VStack(alignment: .leading, spacing: Space.md) {
-                if view.canSeekCompany {
+                if view.canWantCompany || view.canSeekCompany {
                     // Афіша: ціна й квиток в один рядок — квиток купують на чужому сайті, тож він другорядний.
                     HStack(spacing: Space.md) {
                         summary(view)
@@ -560,10 +560,13 @@ extension EventDetailView {
                     // Кнопки може не бути: у знятої афіші й афіші без посилання нема куди вести.
                     if view.action != .none { primaryAction(event, view) }
                 }
-                // Серце продукту — люди: на афіші головна дія — «Шукаю компанію», на всю ширину під ціною й квитком.
-                if view.canSeekCompany {
-                    PrimaryButton(title: Copy.companion_seek, glyph: PoruchIcons.social, enabled: !view.mutating) {
-                        if view.signedIn { seekingCompany = true } else { auth = .company }
+                // Серце продукту — люди: на афіші головна дія — «Хочу піти з компанією», на всю ширину під ціною й квитком.
+                // Після наміру панель її ховає: стан і люди — у секції «Шукають компанію» (docs/return-hooks.md).
+                if view.canWantCompany && view.companyTeaser?.mine != true {
+                    PrimaryButton(title: Copy.company_want, glyph: PoruchIcons.social, enabled: !view.mutating) {
+                        // Гість спершу входить: намір поставить спільний шар, щойно вхід відбудеться.
+                        model.app.wantCompany()
+                        if !view.signedIn { auth = .company }
                     }
                     .coachTarget(.companion)
                 }
@@ -728,6 +731,134 @@ extension EventDetailView {
     func companionsSection(_ view: DetailScreenState) -> some View {
         VStack(alignment: .leading, spacing: Space.sm) {
             SectionHeader(title: Copy.companions_title)
+            companionRows(view)
+        }
+    }
+
+    /// «Хочу піти з компанією» (docs/return-hooks.md): тизер без імен, мій стан, люди з наміром — лише з власним, нижче —
+    /// повний режим: супутники й «Або зібрати компанію самому».
+    func companySection(_ view: DetailScreenState) -> some View {
+        let teaser = view.companyTeaser
+        let mine = teaser?.mine == true
+        return VStack(alignment: .leading, spacing: Space.sm) {
+            SectionHeader(title: Copy.companions_title)
+            VStack(alignment: .leading, spacing: Space.md) {
+                if let teaser, teaser.count > 0 { companyTeaserLine(teaser) }
+                if mine {
+                    HStack(alignment: .center, spacing: Space.md) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(Copy.company_searching).font(PoruchFont.cardName).kerning(-0.2).foregroundStyle(Palette.ink)
+                            Text(Copy.company_searching_note).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
+                        }
+                        Spacer(minLength: Space.sm)
+                        Button { model.app.dropCompany() } label: {
+                            Text(Copy.cancel).font(PoruchFont.button).foregroundStyle(Palette.ink).tapTarget()
+                        }.buttonStyle(.plain).disabled(view.mutating)
+                    }
+                    if view.companyPhotoHint && !view.companyPeople.isEmpty {
+                        Text(Copy.company_photo_hint).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                } else {
+                    Text(Copy.company_privacy).font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()
+            if !view.companyPeople.isEmpty {
+                VStack(spacing: 0) {
+                    ForEach(Array(view.companyPeople.enumerated()), id: \.element.userId) { index, person in
+                        if index > 0 { Divider().overlay(Palette.hairline) }
+                        companyPersonRow(person, view)
+                    }
+                }
+                .cardSurface()
+            }
+            if !view.companions.isEmpty { companionRows(view) }
+            if view.canSeekCompany {
+                Button { if view.signedIn { seekingCompany = true } else { auth = .company } } label: {
+                    Text(Copy.company_by_yourself).font(PoruchFont.button).foregroundStyle(Palette.ink)
+                        .multilineTextAlignment(.leading).tapTarget()
+                }.buttonStyle(.plain)
+            }
+        }
+    }
+
+    private func companyTeaserLine(_ teaser: CompanyTeaser) -> some View {
+        var details: [String] = []
+        if !teaser.shared.isEmpty { details.append(Copy.company_shared(teaser.shared.map { categoryName($0).lowercased() }.joined(separator: ", "))) }
+        return HStack(alignment: .center, spacing: Space.md) {
+            PoruchIcon(glyph: PoruchIcons.social, size: 20).foregroundStyle(Palette.ink)
+                .frame(width: 40, height: 40).background(Palette.surfaceMuted, in: RoundedRectangle(cornerRadius: Corner.xs, style: .continuous))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(Copy.company_count(Int(teaser.count))).font(PoruchFont.cardName).kerning(-0.2).foregroundStyle(Palette.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                if !details.isEmpty {
+                    Text(details.joined(separator: " · ")).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    /// Людина з наміром: тап — картка (там Instagram, скарга, блок), справа — «Піти разом» чи стан.
+    private func companyPersonRow(_ person: CompanyPerson, _ view: DetailScreenState) -> some View {
+        let together = person.companionId.flatMap { id in view.companions.first { $0.id == id } }
+        let joined = together.map { $0.mine || $0.membership == .approved } ?? false
+        let asked = person.theySaidYes && !joined
+        var traits: [String] = []
+        if !person.shared.isEmpty { traits.append(Copy.company_shared(person.shared.map { categoryName($0).lowercased() }.joined(separator: ", "))) }
+        return HStack(alignment: .center, spacing: Space.md) {
+            Button { openPerson(person.userId) } label: {
+                HStack(alignment: .top, spacing: Space.md) {
+                    Avatar(name: person.name, url: person.avatarUrl, size: 44)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(person.name).font(PoruchFont.cardName).kerning(-0.2).foregroundStyle(Palette.ink).lineLimit(1)
+                        if asked { Text(Copy.company_wants_you).font(PoruchFont.caption).foregroundStyle(Palette.accentText) }
+                        if !traits.isEmpty {
+                            Text(traits.joined(separator: " · ")).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
+                        }
+                        if let bio = person.bio { Text(bio).font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary).lineLimit(1) }
+                        if let handle = person.instagram { Text(verbatim: "@\(handle)").font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary) }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
+            }
+            .buttonStyle(PressableStyle(pressedScale: 1))
+            .accessibilityElement(children: .combine)
+            companyAction(person, together, joined, view)
+        }
+        .padding(.horizontal, Space.lg).padding(.vertical, Space.md)
+        .background(asked ? Palette.accentContainer : Color.clear)
+    }
+
+    @ViewBuilder
+    private func companyAction(_ person: CompanyPerson, _ together: CompanionCard?, _ joined: Bool, _ view: DetailScreenState) -> some View {
+        if joined, let together {
+            NavigationLink(value: EventRoute(id: together.id)) {
+                StatusBadge(text: Copy.company_together, tone: .success, glyph: PoruchIcons.check)
+            }.buttonStyle(.plain)
+        } else if let id = person.companionId {
+            // Людина вже в компанії на цю подію: проситися туди, а не збирати другу.
+            if together?.membership == .requested { StatusBadge(text: Copy.request_pending, tone: .accent, glyph: PoruchIcons.queue) }
+            else if together?.isFull == true { StatusBadge(text: Copy.full) }
+            else {
+                SecondaryButton(title: Copy.company_ask_in, enabled: !view.mutating) {
+                    if !actions.joinCompanion(id: id, signedIn: view.signedIn) { auth = .join }
+                }.fixedSize()
+            }
+        } else if person.saidYes {
+            StatusBadge(text: Copy.company_waiting)
+        } else {
+            SecondaryButton(title: Copy.company_go_together, enabled: !view.mutating) {
+                model.app.sayCompanyYes(userId: person.userId)
+            }.fixedSize()
+        }
+    }
+
+    /// Супутники афіші без імен; «Долучитися» — запит організатору прямо звідси.
+    func companionRows(_ view: DetailScreenState) -> some View {
             VStack(spacing: 0) {
                 ForEach(Array(view.companions.enumerated()), id: \.element.id) { index, card in
                     if index > 0 { Divider().overlay(Palette.hairline) }
@@ -758,7 +889,6 @@ extension EventDetailView {
                 }
             }
             .cardSurface()
-        }
     }
 }
 

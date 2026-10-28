@@ -5,6 +5,9 @@ import app.poruch.domain.Attendee
 import app.poruch.domain.CompanionCard
 import app.poruch.domain.CheckedLabel
 import app.poruch.domain.CompanionParent
+import app.poruch.domain.CompanyPerson
+import app.poruch.domain.CompanyRules
+import app.poruch.domain.CompanyTeaser
 import app.poruch.domain.CurfewNote
 import app.poruch.domain.Event
 import app.poruch.domain.EventIndexEntry
@@ -96,8 +99,18 @@ data class DetailScreenState(
     val curfew: CurfewNote? = null,
     /** Хто шукає компанію на цю афішу: картки супутників без імен. */
     val companions: List<CompanionCard> = emptyList(),
-    /** Кнопка «Шукаю компанію»: афіша ще попереду, мого пошуку на неї нема. */
+    /** «Або зібрати компанію самому»: афіша ще попереду, мого супутника на неї нема. */
     val canSeekCompany: Boolean = false,
+    /** «Хочу піти з компанією» (docs/return-hooks.md): афіша ще попереду й не знята. */
+    val canWantCompany: Boolean = false,
+    /** Тизер рівня 1. Null — сервер без намірів чи збій: тоді лишається тільки кнопка. */
+    val companyTeaser: CompanyTeaser? = null,
+    /** Люди з наміром — лише коли маю свій. */
+    val companyPeople: List<CompanyPerson> = emptyList(),
+    /** «Додайте фото — побачите фото інших»: свій намір є, а фото в профілі нема. */
+    val companyPhotoHint: Boolean = false,
+    /** Збіг «Піти разом»: платформа відкриває цей супутник і кличе [PoruchApp.clearMatchedCompanion]. */
+    val matchedCompanion: String? = null,
     /** Стежу за закладом цієї афіші. */
     val followingPlace: Boolean = false,
     /** Люди, за якими стежу: кнопка на картці людини й початковий стан перемикача в шторці оцінки. */
@@ -257,7 +270,8 @@ class DetailPresenter(
     private fun sameInputs(old: AppState, new: AppState): Boolean =
         old.detail === new.detail && old.library === new.library && old.session === new.session &&
             old.person === new.person && old.map.index === new.map.index && old.cards === new.cards &&
-            old.mutating == new.mutating && old.createdCompanion == new.createdCompanion && old.invite === new.invite
+            old.mutating == new.mutating && old.createdCompanion == new.createdCompanion && old.invite === new.invite &&
+            old.matchedCompanion == new.matchedCompanion
 
     private fun derive(shared: AppState): DetailScreenState {
         pendingId?.let { pending ->
@@ -312,6 +326,11 @@ class DetailPresenter(
             curfew = shared.detail.curfewNote(now),
             companions = if (event != null) shared.detail.companions.orEmpty() else emptyList(),
             canSeekCompany = event != null && shared.detail.canSeekCompany(now),
+            canWantCompany = event != null && CompanyRules.canIntend(event, now),
+            companyTeaser = shared.detail.company?.takeIf { event != null },
+            companyPeople = if (event != null) shared.detail.companyPeople else emptyList(),
+            companyPhotoHint = shared.detail.company?.mine == true && shared.library.profile?.let { it.avatarUrl == null } == true,
+            matchedCompanion = shared.matchedCompanion?.takeIf { event != null },
             followingPlace = event?.placeId?.let { shared.isFollowing(FollowKind.PLACE, it) } == true,
             followedOrganizers = shared.library.follows.filter { it.kind == FollowKind.ORGANIZER }.mapTo(HashSet()) { it.targetId },
             createdCompanion = shared.createdCompanion?.takeIf { event != null },

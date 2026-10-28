@@ -55,6 +55,12 @@ sealed interface DetailIntent {
     data class CreateCompanion(val meetAt: String, val note: String, val capacity: Int) : DetailIntent
     /** Запит у чужий супутник прямо з картки. */
     data class JoinCompanion(val id: String) : DetailIntent
+    /** «Хочу піти з компанією» (docs/return-hooks.md). Гість — на вхід, намір після нього. */
+    data object WantCompany : DetailIntent
+    /** «Скасувати» пошук компанії. */
+    data object DropCompany : DetailIntent
+    /** «Піти разом» з людиною з наміром на цю афішу. */
+    data class SayCompanyYes(val userId: String) : DetailIntent
     /** Екран знову зверху після іншого екрана деталей: той перебрав єдиний слот відкритої події. */
     data object Reopen : DetailIntent
     /** «Стежити» / «Ви стежите» на закладі афіші. Гостя веде на вхід. */

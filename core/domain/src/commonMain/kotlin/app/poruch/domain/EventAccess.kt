@@ -55,6 +55,15 @@ interface EventDiscovery {
     /** Хто шукає компанію на афішу [parentId]: картки супутників без імен, найближча зустріч першою. */
     suspend fun companions(parentId: String): List<CompanionCard>
 
+    /**
+     * Тизер «Хочу піти з компанією» на афішу [eventId]: скільки, вік кошиками, спільне (docs/return-hooks.md).
+     * Сервер без міграції — null.
+     */
+    suspend fun companyTeaser(eventId: String): CompanyTeaser? = null
+
+    /** Люди з наміром на [eventId]. Порожньо, поки в мене самого наміру нема. */
+    suspend fun companyPeople(eventId: String): List<CompanyPerson> = emptyList()
+
     /** Хто кличе на [eventId] за токеном з посилання. Null — токен чужий, протух чи подію вже не видно (docs/invites.md). */
     suspend fun inviter(token: String, eventId: String): Inviter?
 
@@ -113,6 +122,12 @@ interface EventParticipation {
 
     /** Токен «Покликати з собою» на подію [id]: той самий для тієї ж людини й події (docs/invites.md). */
     suspend fun invite(id: String): String
+
+    /** Намір «Хочу піти з компанією» на афішу [id]. Повертає, скільки інших уже хоче піти. */
+    suspend fun setCompanyIntent(id: String, on: Boolean): Int = 0
+
+    /** «Піти разом» з [userId] на афішу [id]. */
+    suspend fun companyYes(id: String, userId: String): CompanyMatch = CompanyMatch(matched = false, companionId = null)
 
     /** Оцінки завершеної події: організаторові всі, учасникові — своя. */
     suspend fun ratings(id: String): List<EventRating>

@@ -180,6 +180,38 @@ internal class EventUseCases(
         store.update { it.copy(createdCompanion = id) }
     }
 
+    /**
+     * «Хочу піти з компанією» на відкриту афішу (docs/return-hooks.md). Гість — спершу вхід: платформа відкриває його з
+     * причиною «компанія», а намір ставить [UserLibrary.consumePendingCompany] після входу.
+     */
+    fun wantCompany() {
+        val event = store.value.detail.event ?: return
+        if (!store.value.signedIn) return store.update { it.copy(pendingCompany = event.id) }
+        setCompanyIntent(true)
+    }
+
+    fun setCompanyIntent(on: Boolean) = store.mutate {
+        val event = store.value.detail.event ?: fail(AppError.EventUnavailable)
+        if (on && !CompanyRules.canIntend(event, Clock.System.now())) fail(AppError.EventUnavailable)
+        PoruchLog.i("action") { "companyIntent ${event.id.shortId()} on=$on" }
+        val others = participation.setCompanyIntent(event.id, on)
+        PoruchAnalytics.track("company_intent", "on" to on, "others" to others)
+        library.refreshCompany()
+    }
+
+    /** «Піти разом» з [userId]. Збіг — сервер уже зібрав супутник: [AppState.matchedCompanion], там чат. */
+    fun sayCompanyYes(userId: String) = store.mutate {
+        val event = store.value.detail.event ?: fail(AppError.EventUnavailable)
+        PoruchLog.i("action") { "companyYes ${event.id.shortId()}" }
+        val match = participation.companyYes(event.id, userId)
+        PoruchAnalytics.track("company_yes", "matched" to match.matched)
+        library.refreshCompany()
+        val companion = match.companionId?.takeIf { match.matched } ?: return@mutate
+        PoruchAnalytics.track("company_match")
+        reloader.changed(companion, index = true); library.refreshCompanions()
+        store.update { it.copy(matchedCompanion = companion) }
+    }
+
     /** Новий час збору (R7б) чи відповідь на питання після переносу афіші (R7а). */
     fun moveCompanion(id: String, meetAt: String) = store.mutate {
         val parent = store.value.detail.event?.takeIf { it.id == id }?.gathering?.companionOf ?: fail(AppError.EventUnavailable)

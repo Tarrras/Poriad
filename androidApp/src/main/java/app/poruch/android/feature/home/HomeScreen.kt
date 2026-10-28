@@ -109,6 +109,7 @@ fun HomeScreen(state: HomeState, onIntent: (HomeIntent) -> Unit) {
                 // Серце продукту — зустрічі від людей, тож вони й порожній квиток «Організувати подію» стоять першими.
                 // Афіша нижче — опора. Активності не вигадуємо: коли зустрічей мало, секцію веде порожній квиток.
                 item(key = "people") { PeopleSection(state, onIntent) }
+                if (state.screen.company.isNotEmpty()) item(key = "company") { CompanySection(state, onIntent) }
                 // Людині без планів і підписок «Ваше» не потрібне: створити подію їй пропонує порожній квиток вище.
                 if (state.screen.signedIn && (state.screen.personal.isNotEmpty() || state.screen.followed.isNotEmpty())) item(
                     key = "yours"
@@ -344,6 +345,28 @@ private val PeopleCardWidth = 176.dp
  * що в сітці міста, але без підпису походження: заголовок секції вже каже, що це люди. Гостю під порожнім квитком лише
  * тихий рядок входу (без картки): дві картки поспіль товпились би.
  */
+/** «Шукають компанію» (docs/return-hooks.md): афіші, на які хтось уже хоче піти з компанією. Без жодної рейки нема. */
+@Composable
+private fun CompanySection(state: HomeState, onIntent: (HomeIntent) -> Unit) {
+    Column(Modifier.padding(top = Spacing.xxl), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+        SectionHeader(stringResource(R.string.company_rail), Modifier.padding(horizontal = Spacing.page))
+        Row(
+            Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = Spacing.page).height(IntrinsicSize.Min),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.md), verticalAlignment = Alignment.Top
+        ) {
+            state.screen.company.forEach { entry ->
+                PosterCard(
+                    entry.event, FeedSource.CITY,
+                    entry.event.id in state.screen.savedIds, entry.event.id in state.screen.waitlistedIds,
+                    { onIntent(HomeIntent.ToggleSaved(entry.event.id)) },
+                    Modifier.width(PeopleCardWidth).fillMaxHeight(),
+                    because = pluralStringResource(R.plurals.company_reason, entry.count, entry.count)
+                ) { onIntent(HomeIntent.OpenEvent(entry.event.id, "home_company")) }
+            }
+        }
+    }
+}
+
 @Composable
 private fun PeopleSection(state: HomeState, onIntent: (HomeIntent) -> Unit) {
     Column(
@@ -936,6 +959,8 @@ private fun PosterCard(
     showOrigin: Boolean = true,
     /** За ким саме подія з підписок: ім'я на штампі з дзвіночком. */
     followName: String? = null,
+    /** Причина від рейки, а не від джерела: «2 хочуть піти з компанією». */
+    because: String? = null,
     onClick: () -> Unit
 ) {
     val colors = Poruch.colors
@@ -946,6 +971,7 @@ private fun PosterCard(
     // не сталось — штамп поруч зі «Скасовано» й «Лишилось 2» мав би однакову вагу.
     val laneLabel = lane(source, followName)
     val reason: Pair<String, ImageVector>? = when {
+        because != null -> because to PoruchIcons.social
         source == FeedSource.FOLLOWING -> (followName
             ?: stringResource(R.string.following)) to PoruchIcons.bellActive
 

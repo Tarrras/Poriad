@@ -29,7 +29,8 @@ class SupabaseProfileRepository(
             memberSince = row.optional("member_since"),
             organized = row["organized"]?.jsonPrimitive?.intOrNull ?: 0,
             attended = row["attended"]?.jsonPrimitive?.intOrNull ?: 0,
-            email = row.optional("email")
+            email = row.optional("email"),
+            instagram = row.optional("instagram")
         )
     }
 
@@ -39,6 +40,11 @@ class SupabaseProfileRepository(
             put("display_name", name.trim())
             put("bio", ProfileRules.normalizeBio(bio)?.let(::JsonPrimitive) ?: JsonNull)
         })
+    }
+
+    override suspend fun setInstagram(handle: String) {
+        if (!CompanyRules.isValidInstagram(handle)) fail(AppError.Rejected)
+        api.request("/rest/v1/rpc/set_instagram", HttpMethod.Post, buildJsonObject { put("p_handle", handle) }, auth.accessToken())
     }
 
     override suspend fun rename(name: String) {
