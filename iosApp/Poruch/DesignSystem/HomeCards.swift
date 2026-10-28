@@ -10,20 +10,24 @@ struct CreateEventCard: View {
     let subtitle: String
     /// Олівець — «друкуєш сам»; інший гліф — та сама порожня форма для іншої першої дії («Знайти подію поруч»).
     var glyph: PoruchGlyph = PoruchIcons.edit
+    /// Останнім квитком рейки «З ким піти»: вертикальний, корінець знизу, висота — за сусідами.
+    var vertical = false
     let action: () -> Void
     var body: some View {
         Button(action: action) {
             // Порожній квиток: свою зустріч друкуєш сам. Корінець чорнильний — це головна дія екрана.
             Ticket(
-                stubColor: Palette.brand, stubLength: 64,
+                vertical: vertical, stubColor: Palette.brand, stubLength: 64,
                 outline: (Palette.inkTertiary.opacity(0.7), StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
             ) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(PoruchFont.brandTitle3).foregroundStyle(Palette.ink)
+                VStack(alignment: .leading, spacing: vertical ? Space.xs : 2) {
+                    // У рейці висоту рахує `fixedSize`: без нього назва лишалась в один рядок і обрізалась.
+                    Text(title).font(vertical ? PoruchFont.brandTitle2 : PoruchFont.brandTitle3).foregroundStyle(Palette.ink)
+                        .fixedSize(horizontal: false, vertical: true)
                     Text(subtitle).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
                         .multilineTextAlignment(.leading)
                 }
-                .padding(.horizontal, Space.lg).padding(.vertical, Space.md)
+                .padding(.horizontal, Space.lg).padding(.vertical, vertical ? Space.lg : Space.md)
                 .frame(minHeight: 72, alignment: .leading)
             } stub: {
                 // Олівець, а не «+»: плюс уже є на кнопці створення біля таббара, а тут квиток заповнюють.

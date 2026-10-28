@@ -1,9 +1,9 @@
 import SwiftUI
 import Shared
 
-/// «Від людей»: зустрічі з вільним місцем рейкою квитків (коли їх набралось досить, `HomeRules.people`) і під нею
-/// порожній квиток «Організувати подію». Секція є завжди: навіть без зустрічей вона каже, що свою можна зібрати.
-/// Гостю під квитком лише тихий рядок входу (без картки): дві картки поспіль товпились би.
+/// «З ким піти»: зустрічі з вільним місцем і афіші, на які шукають компанію, однією рейкою квитків; останній квиток —
+/// порожній «Організувати подію». Рейки нема — він на всю ширину: секція є завжди й каже, що свою можна зібрати.
+/// Гостю під рейкою лише тихий рядок входу (без картки): дві картки поспіль товпились би.
 struct HomePeopleSection: View {
     let view: HomeScreenState
     /// Деталі події; другий аргумент — звідки тап, для аналітики.
@@ -42,6 +42,8 @@ struct HomePeopleSection: View {
                             ) { open(id, "home_company") }
                             .frame(width: peopleCardWidth).frame(maxHeight: .infinity)
                         }
+                        // Кінцем рейки, а не окремим блоком під нею: менше гортати до афіші (критика довжини 28.10).
+                        createCard(vertical: true).frame(width: peopleCardWidth).frame(maxHeight: .infinity)
                     }
                     // Квитки рейки за найвищим: корінці на одній лінії.
                     .fixedSize(horizontal: false, vertical: true)
@@ -49,14 +51,20 @@ struct HomePeopleSection: View {
                 .railContentPadding(spread: 0)
                 .zIndex(1)
             }
-            VStack(alignment: .leading, spacing: Space.xs) {
-                CreateEventCard(
-                    title: Copy.home_create_title, subtitle: Copy.home_create_subtitle,
-                    action: { createEvent("home_top") }
-                )
-                if !view.signedIn { guestLoginRow }
-            }.padding(.horizontal, Space.page)
+            if view.people.isEmpty && view.company.isEmpty || !view.signedIn {
+                VStack(alignment: .leading, spacing: Space.xs) {
+                    if view.people.isEmpty && view.company.isEmpty { createCard(vertical: false) }
+                    if !view.signedIn { guestLoginRow }
+                }.padding(.horizontal, Space.page)
+            }
         }
+    }
+
+    private func createCard(vertical: Bool) -> some View {
+        CreateEventCard(
+            title: Copy.home_create_title, subtitle: Copy.home_create_subtitle, vertical: vertical,
+            action: { createEvent("home_top") }
+        )
     }
 
     /// Рядок входу для гостя: плашка вгорі — єдина головна дія, а вхід — для тих, хто вже має профіль, тож без картки й заливки.

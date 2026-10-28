@@ -24,6 +24,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.poruch.android.R
 import app.poruch.android.feature.home.RadarPickerSheet
+import app.poruch.android.feature.home.radarLine
+import app.poruch.domain.ArtistRadar
 import app.poruch.android.ui.*
 import app.poruch.domain.Follow
 import app.poruch.domain.FollowKind
@@ -67,9 +69,14 @@ fun FollowsScreen(state: FollowsState, onIntent: (FollowsIntent) -> Unit) {
             GroupedRows {
                 state.follows.forEachIndexed { index, follow ->
                     if (index > 0) HairLine(Modifier.padding(start = Spacing.lg + 40.dp + Spacing.md))
-                    FollowRow(follow, state.fresh[follow.targetId] ?: 0, { onIntent(FollowsIntent.Open(follow)) }, { onIntent(FollowsIntent.Unfollow(follow)) })
+                    FollowRow(
+                        follow, state.fresh[follow.targetId] ?: 0, state.radar[follow.targetId],
+                        { onIntent(FollowsIntent.Open(follow)) }, { onIntent(FollowsIntent.Unfollow(follow)) }
+                    )
                 }
             }
+            // Головна більше не має «Додати» біля артистів: вибір — тут, під списком.
+            SecondaryButton(stringResource(R.string.radar_pick), { picking = true }, Modifier.fillMaxWidth().padding(top = Spacing.lg), icon = PoruchIcons.person)
         }
     }
     // Картка організатора з підписки: лише «Стежити», решту дій дає картка в самій події.
@@ -84,13 +91,14 @@ fun FollowsScreen(state: FollowsState, onIntent: (FollowsIntent) -> Unit) {
 }
 
 @Composable
-private fun FollowRow(follow: Follow, fresh: Int, onOpen: () -> Unit, onUnfollow: () -> Unit) {
+private fun FollowRow(follow: Follow, fresh: Int, radar: ArtistRadar?, onOpen: () -> Unit, onUnfollow: () -> Unit) {
     val colors = Poruch.colors
     val count = pluralStringResource(R.plurals.place_upcoming, follow.upcoming, follow.upcoming)
     val caption = when (follow.kind) {
         FollowKind.PLACE -> if (follow.city.isBlank()) count else stringResource(R.string.follows_place_caption, follow.city, count)
         FollowKind.ORGANIZER -> stringResource(R.string.follows_organizer_caption, count)
-        FollowKind.ARTIST -> stringResource(R.string.follows_artist_caption, count)
+        // Артист — з радару: дата в місті, тур чи «без анонсів».
+        FollowKind.ARTIST -> radar?.let { radarLine(it) } ?: stringResource(R.string.follows_artist_caption, count)
     }
     Row(
         Modifier.fillMaxWidth().clickable(onClick = onOpen)

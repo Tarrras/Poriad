@@ -1,5 +1,6 @@
 package app.poruch.android.feature.account
 
+import app.poruch.domain.ArtistRadar
 import app.poruch.domain.Follow
 import app.poruch.shared.PersonState
 
@@ -9,7 +10,9 @@ data class FollowsState(
     /** Скільки нового було в кого, коли екран відкрили: `followsSeen` гасить лічильник, а тут він лишається до виходу. */
     val fresh: Map<String, Int> = emptyMap(),
     /** Картка організатора з рядка підписки. */
-    val person: PersonState? = null
+    val person: PersonState? = null,
+    /** Радар артистів: підпис артиста — дата в місті, тур чи «без анонсів». Головна показує лише кілька дат, решта — тут. */
+    val radar: Map<String, ArtistRadar> = emptyMap()
 )
 
 sealed interface FollowsIntent {

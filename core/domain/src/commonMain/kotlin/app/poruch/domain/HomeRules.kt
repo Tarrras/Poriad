@@ -19,10 +19,36 @@ enum class FeedFilterKind { ALL, TODAY, TOMORROW, WEEKEND, FREE, CATEGORY }
 
 data class FeedFilter(val kind: FeedFilterKind = FeedFilterKind.ALL, val category: EventCategory? = null)
 
+/** Що з особистого влізло в «Ваше» ([HomeRules.yours]): скільки планів і дат артистів, чи є рядки стосу й «Ви стежите». */
+data class YoursSlots(val plans: Int, val waiting: Boolean, val deck: Boolean, val dates: Int, val follows: Boolean) {
+    val isEmpty: Boolean get() = plans == 0 && !waiting && !deck && dates == 0 && !follows
+}
+
 /** Головна: як з кількох списків скласти одну стрічку. Чисте правило, однакове на обох платформах. */
 object HomeRules {
     /** Скільки своїх подій показує блок «Ваше»: решта — у «Моїх подіях». */
     const val PERSONAL_LIMIT = 3
+
+    /**
+     * Скільки рядків «Ваше» на все особисте: плани, «Ваш тиждень», дати артистів, «Ви стежите». Велика картка плану —
+     * теж рядок. Кожен новий гачок дістає рядок тут, а не власну секцію над афішею (критика довжини 28.10).
+     */
+    const val YOURS_ROWS = 4
+
+    /**
+     * Розклад «Ваше» за пріоритетом: плани й «чекають ще», стос, дати артистів, «Ви стежите». Дати, що не влізли, видно
+     * на екрані «Ви стежите», тож його рядок з'являється й без власних підписок [follows], і місце під нього тримаємо
+     * заздалегідь. Стос знає лише платформа (тиждень відкриття — на телефоні), тому розклад рахує вона цим правилом.
+     */
+    fun yours(plans: Int, waiting: Boolean, deck: Boolean, dates: Int, follows: Boolean): YoursSlots {
+        var left = YOURS_ROWS
+        val shownPlans = minOf(plans, left).also { left -= it }
+        val showsWaiting = (waiting && left > 0).also { if (it) left-- }
+        val showsDeck = (deck && left > 0).also { if (it) left-- }
+        val tail = follows || dates > minOf(left, RadarRules.HOME_ROWS)
+        val shownDates = minOf(dates, RadarRules.HOME_ROWS, left - if (tail) 1 else 0).coerceAtLeast(0).also { left -= it }
+        return YoursSlots(shownPlans, showsWaiting, showsDeck, shownDates, tail && left > 0)
+    }
 
     /** Скільки рядків «У місті» видно одразу; «Показати ще» додає стільки ж. */
     const val FEED_PAGE = 10

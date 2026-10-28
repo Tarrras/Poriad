@@ -19,6 +19,9 @@ data class ArtistRadar(
     val elsewhere: List<RadarCity>
 )
 
+/** Вечір у місті людини і хто з її артистів на ньому: рядок «Ваше» на подію, а не на кожного артиста. */
+data class RadarDate(val event: RadarEvent, val artists: List<String>)
+
 /** Хто їде в місто — для «Кого слухаєте?»: [upcoming] вечорів попереду (прокат — один), [firstAt] — найближчий. */
 data class PopularArtist(val artistId: String, val name: String, val kind: ArtistKind?, val upcoming: Int, val firstAt: String?)
 
@@ -35,21 +38,19 @@ interface GuestArtistStore {
 }
 
 object RadarRules {
-    /** Скільки рядків «Ваші артисти» на головній; решта — «Усі N». */
-    const val HOME_ROWS = 5
+    /** Скільки дат артистів «Ваше» показує щонайбільше; решта — на екрані «Ви стежите». */
+    const val HOME_ROWS = 3
+
+    /**
+     * Дати в місті людини по одній на подію, найближчі першими: троє артистів одного стендапу — один рядок з усіма
+     * іменами, а не три рядки з тією самою назвою (критика довжини 28.10).
+     */
+    fun dates(rows: List<ArtistRadar>): List<RadarDate> =
+        rows.mapNotNull { row -> row.next?.let { it to row.name } }
+            .groupBy { it.first.eventId }
+            .map { (_, pairs) -> RadarDate(pairs.first().first, pairs.map { it.second }.distinct()) }
+            .sortedBy { it.event.startsAt }
 
     /** Скільки артистів у шторці «Кого слухаєте?». */
     const val PICKER = 24
-
-    /**
-     * Порядок «Ваші артисти»: ті, хто їде в місто, найближчі першими; далі тур іншими містами за найближчою датою;
-     * далі без анонсів — за іменем.
-     */
-    fun order(rows: List<ArtistRadar>): List<ArtistRadar> = rows.sortedWith(
-        compareBy<ArtistRadar>(
-            { if (it.next != null) 0 else if (it.elsewhere.isNotEmpty()) 1 else 2 },
-            { it.next?.startsAt ?: it.elsewhere.firstOrNull()?.startsAt.orEmpty() },
-            { it.name.lowercase() }
-        )
-    )
 }

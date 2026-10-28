@@ -234,6 +234,12 @@ struct RootView: View {
         tab = 1
     }
 
+    /// Повторний тап «Головна»: з деталей — на корінь, на корені — вгору стрічки.
+    private func reselectTab(_ tab: Int) {
+        guard tab == 0 else { return }
+        if homePath.isEmpty { NotificationCenter.default.post(name: .homeScrollToTop, object: nil) } else { homePath = NavigationPath() }
+    }
+
     /// Тап по «Створити»: рахуємо його разом зі входом, з якого місця він був, — гостя далі чекає реєстрація.
     private func startCreating(from: String) {
         model.app.createStarted(from: from)
@@ -295,7 +301,7 @@ struct RootView: View {
             .toolbar(.hidden, for: .tabBar)
             .onPreferenceChange(HidesTabBarKey.self) { hidden in tabBarHidden = hidden }
             if !tabBarHidden {
-                PoruchTabBar(items: tabItems(waiting: root.waitingEvents, newFollows: root.newFollows), selection: $tab) {
+                PoruchTabBar(items: tabItems(waiting: root.waitingEvents, newFollows: root.newFollows), selection: $tab, reselect: reselectTab) {
                     CreateButton { startCreating(from: "fab") }.coachTarget(.create)
                 }
                 // Як системний таббар: підписи не ростуть з Dynamic Type, інакше чотири вкладки не вміщаються.

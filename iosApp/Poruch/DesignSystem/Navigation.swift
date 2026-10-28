@@ -44,12 +44,14 @@ extension View {
 struct PoruchTabBar<Trailing: View>: View {
     let items: [TabItem]
     @Binding var selection: Int
+    /// Тап по вже вибраній вкладці: як у системного таббара — на корінь стосу, далі вгору.
+    var reselect: (Int) -> Void = { _ in }
     @ViewBuilder var trailing: Trailing
     var body: some View {
         HStack(spacing: Space.sm) {
             HStack(spacing: 0) {
                 ForEach(items) { item in
-                    Button { selection = item.id } label: {
+                    Button { if selection == item.id { reselect(item.id) } else { selection = item.id } } label: {
                         VStack(spacing: 3) {
                             // Активна вкладка заливається, а не товщає: інакше рядок смикається.
                             PoruchIcon(glyph: item.glyph, size: 22)

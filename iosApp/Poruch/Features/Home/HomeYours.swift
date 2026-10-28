@@ -1,33 +1,41 @@
 import SwiftUI
 import Shared
 
-/// «Ваше»: найближчий план карткою з діями, решта планів і підписки — рядками під нею. Гостю блоку нема, як і людині без
-/// планів і підписок: створити подію їй пропонує плашка вгорі, а порожній рядок «Планів нема» лише дублював би її.
+/// «Ваше»: усе особисте одним блоком у [HomeRules.YOURS_ROWS] рядки — найближчий план карткою з діями, решта планів,
+/// «Ваш тиждень», дати артистів у місті й «Ви стежите». Кожен новий гачок дістає рядок тут, а не секцію над афішею.
+/// Гостю — те, що в нього є без входу: стос і артисти на телефоні. Порожньо — блоку нема: створити подію пропонує рейка вище.
 struct HomePersonalSection: View {
     let view: HomeScreenState
+    /// «Ваш тиждень» цього тижня ще не відкривали (тиждень відкриття — на телефоні).
+    let deckDue: Bool
     /// Деталі події; другий аргумент — звідки тап, для аналітики.
     let open: (String, String) -> Void
     let openChat: (Event) -> Void
     let openMyEvents: () -> Void
     let openFollows: () -> Void
+    let openDeck: () -> Void
 
     var body: some View {
-        if !view.personal.isEmpty || !view.followed.isEmpty { block }
+        let slots = view.yours(deckDue: deckDue)
+        if !slots.isEmpty { block(slots) }
     }
 
-    private var block: some View {
+    private func block(_ slots: YoursSlots) -> some View {
         // Велика картка — першому плану, що скоро чи чекає на людину; минула чи далека подія лишається рядком.
         let now = nowInstant()
         let zone = TimeZone.current.identifier
-        let leadIndex = view.personal.firstIndex {
+        let personal = Array(view.personal.prefix(Int(slots.plans)))
+        let leadIndex = personal.firstIndex {
             HomeRules.shared.isLead(event: $0.event, waiting: $0.chat != nil || $0.requests > 0, now: now, zoneId: zone)
         }
-        let lead = leadIndex.map { view.personal[$0] }
-        let rows = view.personal.enumerated().filter { $0.offset != leadIndex }.map(\.element)
+        let lead = leadIndex.map { personal[$0] }
+        let rows = personal.enumerated().filter { $0.offset != leadIndex }.map(\.element)
         var items: [AnyView] = []
         items += rows.map { row in AnyView(PlanRow(row: row, open: { open(row.event.id, "home_your") }, chat: { openChat(row.event) })) }
-        if view.moreWaiting > 0 { items.append(AnyView(waitingRow(Int(view.moreWaiting)))) }
-        if !view.followed.isEmpty { items.append(AnyView(followsRow)) }
+        if slots.waiting { items.append(AnyView(waitingRow(Int(view.moreWaiting)))) }
+        if slots.deck { items.append(AnyView(deckRow)) }
+        items += view.radarDates.prefix(Int(slots.dates)).map { AnyView(dateRow($0)) }
+        if slots.follows { items.append(AnyView(followsRow(view.followLine(shownDates: slots.dates)))) }
         let grouped = items
         return VStack(alignment: .leading, spacing: Space.md) {
             SectionHeader(
@@ -52,23 +60,45 @@ struct HomePersonalSection: View {
         Divider().overlay(Palette.hairline).padding(.leading, Space.lg + yourTile + Space.md)
     }
 
-    /// «Ви стежите» і за ким — двома першими іменами, як і веде тап: на екран «Ви стежите». Імен нема (список не доїхав) — назва події.
-    private var followsRow: some View {
-        let names = view.followNames
+    private var chevron: some View {
+        PoruchIcon(glyph: PoruchIcons.chevronRight, size: 16).foregroundStyle(Palette.inkTertiary)
+    }
+
+    /// «Ваш тиждень» (docs/return-hooks.md): раз на тиждень, поки стос цього тижня не відкривали.
+    private var deckRow: some View {
+        YourRow(overline: nil, title: Copy.deck_title, subtitle: Copy.deck_row_subtitle, open: openDeck) {
+            YourGlyphTile(glyph: PoruchIcons.sparkle)
+        } trailing: { chevron }
+    }
+
+    /// Вечір «Ваших артистів» у місті (docs/artist-radar.md): дата, назва події, хто з артистів — усі, а не рядок на кожного.
+    private func dateRow(_ date: RadarDate) -> some View {
+        let day = parseEventDate(date.event.startsAt).map {
+            formatter(zone: date.event.timeZone, "EE d.MM").string(from: $0).uppercased(with: Locale(identifier: "uk_UA"))
+        }
+        return YourRow(
+            overline: day, title: date.event.displayTitle, subtitle: date.artists.joined(separator: ", "),
+            open: { open(date.event.eventId, "radar") }, brandTitle: true
+        ) {
+            YourGlyphTile(glyph: PoruchIcons.person)
+        } trailing: { chevron }
+    }
+
+    /// «Ви стежите» і за ким — двома першими іменами, як і веде тап: на екран «Ви стежите». Спершу артисти дат, що не
+    /// влізли вище, далі заклади й організатори. Імен нема (список не доїхав) — назва події.
+    private func followsRow(_ names: [String]) -> some View {
         let shown = names.isEmpty ? (view.followed.first?.displayTitle ?? "") : names.prefix(2).joined(separator: ", ")
         return YourRow(
             overline: nil, title: Copy.follows_title,
             subtitle: names.count > 2 ? Copy.home_follows_more(shown, "\(names.count - 2)") : shown, open: openFollows
         ) {
-            PoruchIcon(glyph: PoruchIcons.bellActive, size: 20).foregroundStyle(Palette.ink)
-                .frame(width: yourTile, height: yourTile)
-                .background(Palette.surfaceMuted, in: RoundedRectangle(cornerRadius: Corner.sm, style: .continuous))
+            YourGlyphTile(glyph: PoruchIcons.bellActive)
         } trailing: {
             // Нове ще не переглянуте — бейдж замість шеврона: рядок тепер про те, що чекає.
             if view.newFollowEvents > 0 {
                 StatusBadge(text: Copy.follows_new(Int(view.newFollowEvents)), tone: .accent)
             } else {
-                PoruchIcon(glyph: PoruchIcons.chevronRight, size: 16).foregroundStyle(Palette.inkTertiary)
+                chevron
             }
         }
     }
@@ -78,12 +108,18 @@ struct HomePersonalSection: View {
         YourRow(
             overline: nil, title: Copy.home_waiting_more("\(count)"), subtitle: Copy.home_waiting_more_hint, open: openMyEvents
         ) {
-            PoruchIcon(glyph: PoruchIcons.chat, size: 20).foregroundStyle(Palette.ink)
-                .frame(width: yourTile, height: yourTile)
-                .background(Palette.surfaceMuted, in: RoundedRectangle(cornerRadius: Corner.sm, style: .continuous))
-        } trailing: {
-            PoruchIcon(glyph: PoruchIcons.chevronRight, size: 16).foregroundStyle(Palette.inkTertiary)
-        }
+            YourGlyphTile(glyph: PoruchIcons.chat)
+        } trailing: { chevron }
+    }
+}
+
+/// Гліф у плитці службового рядка «Ваше»: тиждень, артисти, підписки, «чекають ще».
+private struct YourGlyphTile: View {
+    let glyph: PoruchGlyph
+    var body: some View {
+        PoruchIcon(glyph: glyph, size: 20).foregroundStyle(Palette.ink)
+            .frame(width: yourTile, height: yourTile)
+            .background(Palette.surfaceMuted, in: RoundedRectangle(cornerRadius: Corner.sm, style: .continuous))
     }
 }
 
@@ -187,7 +223,7 @@ private struct NextPlanCard: View {
                 HStack(alignment: .top, spacing: Space.lg) {
                     VStack(alignment: .leading, spacing: Space.xs) {
                         Text(overline).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.accentText).lineLimit(1)
-                        Text(event.displayTitle).font(PoruchFont.brandTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
+                        Text(event.cardTitle).font(PoruchFont.brandTitle2).kerning(-0.2).foregroundStyle(Palette.ink)
                             .multilineTextAlignment(.leading).lineLimit(3)
                         // Місце в один рядок: повна адреса живе в «Маршруті», а не в підписі.
                         Text(subtitle).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
@@ -258,7 +294,7 @@ private struct PlanRow: View {
     }
 
     var body: some View {
-        YourRow(overline: overline, title: event.displayTitle, subtitle: subtitle, open: open, chat: chatButton, brandTitle: true) {
+        YourRow(overline: overline, title: event.cardTitle, subtitle: subtitle, open: open, chat: chatButton, brandTitle: true) {
             EventThumbnail(event: event, glyphSize: 24, maxDimension: 52)
                 .frame(width: yourTile, height: yourTile)
                 .clipShape(RoundedRectangle(cornerRadius: Corner.sm, style: .continuous))

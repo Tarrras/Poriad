@@ -12,6 +12,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PageSize
@@ -67,6 +68,7 @@ import app.poruch.domain.FeedFilter
 import app.poruch.domain.FeedFilterKind
 import app.poruch.domain.FeedSource
 import app.poruch.domain.HomeRules
+import app.poruch.domain.RadarDate
 import java.time.LocalDate
 import java.time.ZoneId
 import app.poruch.shared.DateFilter
@@ -96,8 +98,11 @@ fun HomeScreen(state: HomeState, onIntent: (HomeIntent) -> Unit) {
         Column(Modifier.fillMaxSize()) {
         // Пошук: поле закріплене над видачею, як на iOS, — змінити запит можна, не гортаючи вгору.
         if (state.searchMode) Box(Modifier.statusBarsPadding()) { Header(state, onIntent) }
+        val list = rememberLazyListState()
+        LaunchedEffect(list) { HomeScrollToTop.requests.collect { list.animateScrollToItem(0) } }
         LazyColumn(
             Modifier.weight(1f).fillMaxWidth(),
+            state = list,
             contentPadding = tabBarClearancePadding(
                 top = if (state.searchMode) 0.dp else WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
             )
@@ -126,17 +131,9 @@ fun HomeScreen(state: HomeState, onIntent: (HomeIntent) -> Unit) {
                 // Серце продукту — з ким піти: зустрічі від людей і афіші, на які шукають компанію, однією рейкою, під нею
                 // порожній квиток «Організувати подію». Активності не вигадуємо: коли зустрічей мало, секцію веде він.
                 item(key = "people") { PeopleSection(state, onIntent) }
-                // «Ваше» одразу після: непрочитаний чат і запит на участь не мають губитися під афішею. Людині без планів
-                // і підписок блоку нема: створити подію їй пропонує порожній квиток вище.
-                if (state.screen.signedIn && (state.screen.personal.isNotEmpty() || state.screen.followed.isNotEmpty())) item(
-                    key = "yours"
-                ) {
-                    Box(Modifier.padding(top = Spacing.xxl)) { PersonalSection(state, onIntent) }
-                }
-                item(key = "deck") { DeckRow(state.screen.deck, state.screen.deckWeek) }
-                // Радар артистів — перед «У місті»: великі квитки, чипи й сітка лишаються одним блоком, і чипи не
-                // читаються фільтром артистів (повторна критика 28.10).
-                item(key = "radar") { RadarSection(state, onIntent) }
+                // «Ваше» одразу після: непрочитаний чат і запит на участь не мають губитися під афішею. Усе особисте —
+                // плани, «Ваш тиждень», дати артистів, підписки — одним блоком у чотири рядки (критика довжини 28.10).
+                item(key = "yours") { PersonalSection(state, onIntent) }
                 cityFeed(state, onIntent, columns)
                 // Кінець стрічки не глухий кут: далі мапа чи власна подія.
                 if (state.screen.feed.isNotEmpty()) item(key = "next") { MoreRows(state, onIntent) }
@@ -364,33 +361,10 @@ private fun GuestLoginRow(onIntent: (HomeIntent) -> Unit) {
 private val PeopleCardWidth = 176.dp
 
 /**
- * «Від людей»: зустрічі з вільним місцем рейкою квитків (коли їх набралось досить, [HomeRules.people]) і під нею порожній
- * квиток «Організувати подію». Секція є завжди: навіть без зустрічей вона каже, що свою можна зібрати. Квитки ті самі,
- * що в сітці міста, але без підпису походження: заголовок секції вже каже, що це люди. Гостю під порожнім квитком лише
- * тихий рядок входу (без картки): дві картки поспіль товпились би.
+ * «З ким піти»: зустрічі з вільним місцем і афіші, на які шукають компанію, однією рейкою квитків; останній квиток —
+ * порожній «Організувати подію». Рейки нема — він на всю ширину: секція є завжди й каже, що свою можна зібрати. Гостю під
+ * рейкою лише тихий рядок входу (без картки): дві картки поспіль товпились би.
  */
-/** «Ваш тиждень» з головної: раз на тиждень, якщо цього тижня стос не відкривали (docs/return-hooks.md). */
-@Composable
-private fun DeckRow(cards: List<Event>, week: String) {
-    val app = koinInject<PoruchApp>()
-    val context = LocalContext.current
-    val prompts = remember { context.getSharedPreferences(PROMPTS, Context.MODE_PRIVATE) }
-    var opened by remember { mutableStateOf(prompts.getString(DECK_WEEK, null)) }
-    // Відкритий стос переживає поворот: картки — зі стану головної, тут лише прапорець.
-    var open by rememberSaveable { mutableStateOf(false) }
-    if (opened != week && cards.isNotEmpty()) Box(Modifier.padding(horizontal = Spacing.page).padding(top = Spacing.xxl).cardSurface()) {
-        LinkRow(PoruchIcons.sparkle, stringResource(R.string.deck_title), stringResource(R.string.deck_row_subtitle), onClick = {
-            // Про сповіщення питає кінець стосу, а не перша закладка в ньому — як у стосі після онбордингу.
-            prompts.edit { putString(DECK_WEEK, week); putBoolean(SAVE_ASKED, true) }
-            opened = week
-            open = true
-        })
-    }
-    if (open && cards.isNotEmpty()) Dialog({ open = false }, DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
-        DeckScreen(app, cards) { open = false }
-    }
-}
-
 @Composable
 private fun PeopleSection(state: HomeState, onIntent: (HomeIntent) -> Unit) {
     Column(
@@ -439,56 +413,79 @@ private fun PeopleSection(state: HomeState, onIntent: (HomeIntent) -> Unit) {
                     printedOnly = true
                 ) { onIntent(HomeIntent.OpenEvent(id, "home_company")) }
             }
+            // Кінцем рейки, а не окремим блоком під нею: менше гортати до афіші (критика довжини 28.10).
+            CreateCard(onIntent, Modifier.width(PeopleCardWidth).fillMaxHeight(), vertical = true)
         }
-        Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-            CreateEventCard(
-                stringResource(R.string.home_create_title),
-                stringResource(R.string.home_create_subtitle),
-                { onIntent(HomeIntent.CreateEvent("home_top")) },
-                Modifier.padding(horizontal = Spacing.page)
-            )
+        val railless = state.screen.people.isEmpty() && state.screen.company.isEmpty()
+        if (railless || !state.screen.signedIn) Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+            if (railless) CreateCard(onIntent, Modifier.padding(horizontal = Spacing.page), vertical = false)
             if (!state.screen.signedIn) GuestLoginRow(onIntent)
         }
     }
 }
 
+@Composable
+private fun CreateCard(onIntent: (HomeIntent) -> Unit, modifier: Modifier, vertical: Boolean) = CreateEventCard(
+    stringResource(R.string.home_create_title), stringResource(R.string.home_create_subtitle),
+    { onIntent(HomeIntent.CreateEvent("home_top")) }, modifier, vertical = vertical
+)
+
 /** Обкладинка-плитка блоку «Ваше». */
 private val YourTile = 52.dp
 
-/** «Ваше»: найближчий план карткою з діями, решта планів і підписки — рядками під нею. Гостю блоку нема, як і людині без планів і підписок. */
+/**
+ * «Ваше»: усе особисте одним блоком у [HomeRules.YOURS_ROWS] рядки — найближчий план карткою з діями, решта планів,
+ * «Ваш тиждень», дати артистів у місті й «Ви стежите». Кожен новий гачок дістає рядок тут, а не секцію над афішею. Гостю —
+ * те, що в нього є без входу: стос і артисти на телефоні. Порожньо — блоку нема: створити подію пропонує рейка вище.
+ */
 @Composable
 private fun PersonalSection(state: HomeState, onIntent: (HomeIntent) -> Unit) {
+    val app = koinInject<PoruchApp>()
+    val context = LocalContext.current
+    val prompts = remember { context.getSharedPreferences(PROMPTS, Context.MODE_PRIVATE) }
+    // «Ваш тиждень» — раз на тиждень, поки стос цього тижня не відкривали (docs/return-hooks.md).
+    var opened by remember { mutableStateOf(prompts.getString(DECK_WEEK, null)) }
+    // Відкритий стос переживає поворот: картки — зі стану головної, тут лише прапорець.
+    var deckOpen by rememberSaveable { mutableStateOf(false) }
+    val screen = state.screen
+    val slots = screen.yours(opened != screen.deckWeek)
+    if (deckOpen && screen.deck.isNotEmpty()) Dialog({ deckOpen = false }, DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+        DeckScreen(app, screen.deck) { deckOpen = false }
+    }
+    if (slots.isEmpty) return
     val now = kotlin.time.Clock.System.now()
     val zoneId = ZoneId.systemDefault().id
+    val personal = screen.personal.take(slots.plans)
     // Велика картка — першому плану, що скоро чи чекає на людину; минула чи далека подія лишається рядком.
-    val lead = state.screen.personal.firstOrNull {
-        HomeRules.isLead(
-            it.event,
-            it.chat != null || it.requests > 0,
-            now,
-            zoneId
-        )
-    }
+    val lead = personal.firstOrNull { HomeRules.isLead(it.event, it.chat != null || it.requests > 0, now, zoneId) }
     val inset = Modifier.padding(start = Spacing.lg + YourTile + Spacing.md)
     val rows = buildList<@Composable () -> Unit> {
-        state.screen.personal.filter { it !== lead }
-            .forEach { row -> add { PlanRow(row, onIntent) } }
-        if (state.screen.moreWaiting > 0) add { WaitingRow(state.screen.moreWaiting, onIntent) }
-        if (state.screen.followed.isNotEmpty()) add {
-            FollowsRow(
-                state.screen.followNames,
-                state.screen.followed,
-                state.screen.newFollowEvents
-            ) { onIntent(HomeIntent.OpenFollows) }
+        personal.filter { it !== lead }.forEach { row -> add { PlanRow(row, onIntent) } }
+        if (slots.waiting) add { WaitingRow(screen.moreWaiting, onIntent) }
+        if (slots.deck) add {
+            YourRow(
+                null, stringResource(R.string.deck_title), stringResource(R.string.deck_row_subtitle),
+                onClick = {
+                    // Про сповіщення питає кінець стосу, а не перша закладка в ньому — як у стосі після онбордингу.
+                    prompts.edit { putString(DECK_WEEK, screen.deckWeek); putBoolean(SAVE_ASKED, true) }
+                    opened = screen.deckWeek
+                    deckOpen = true
+                },
+                tile = { YourTileIcon(PoruchIcons.sparkle) }
+            ) { Chevron() }
+        }
+        screen.radarDates.take(slots.dates).forEach { date -> add { DateRow(date, onIntent) } }
+        if (slots.follows) add {
+            FollowsRow(screen.followLine(slots.dates), screen.followed, screen.newFollowEvents) { onIntent(HomeIntent.OpenFollows) }
         }
     }
     Column(
-        Modifier.padding(horizontal = Spacing.page),
+        Modifier.padding(horizontal = Spacing.page).padding(top = Spacing.xxl),
         verticalArrangement = Arrangement.spacedBy(Spacing.md)
     ) {
         SectionHeader(
             stringResource(R.string.home_yours),
-            actionLabel = if (state.screen.personal.isEmpty()) null else stringResource(R.string.my_events),
+            actionLabel = if (screen.personal.isEmpty()) null else stringResource(R.string.my_events),
             onAction = { onIntent(HomeIntent.OpenMyEvents) }
         )
         lead?.let { NextPlanCard(it, onIntent) }
@@ -499,6 +496,25 @@ private fun PersonalSection(state: HomeState, onIntent: (HomeIntent) -> Unit) {
             }
         }
     }
+}
+
+@Composable
+private fun Chevron() = Icon(PoruchIcons.chevronRight, null, Modifier.size(18.dp), tint = Poruch.colors.inkTertiary)
+
+private val RADAR_DAY = java.time.format.DateTimeFormatter.ofPattern("EE d.MM", java.util.Locale.forLanguageTag("uk"))
+
+/** Вечір «Ваших артистів» у місті (docs/artist-radar.md): дата, назва події, хто з артистів — усі, а не рядок на кожного. */
+@Composable
+private fun DateRow(date: RadarDate, onIntent: (HomeIntent) -> Unit) {
+    val day = runCatching {
+        java.time.OffsetDateTime.parse(date.event.startsAt).atZoneSameInstant(ZoneId.of(date.event.timeZone)).format(RADAR_DAY).uppercase()
+    }.getOrNull()
+    YourRow(
+        day, date.event.displayTitle, date.artists.joinToString(", "),
+        onClick = { onIntent(HomeIntent.OpenEvent(date.event.eventId, "radar")) },
+        tile = { YourTileIcon(PoruchIcons.person) },
+        brandTitle = true
+    ) { Chevron() }
 }
 
 /** Гліф у плитці рядка «Ваше» (підписки, порожній стан, «чекають відповіді»). */
@@ -638,7 +654,7 @@ private fun PlanRow(row: PersonalRow, onIntent: (HomeIntent) -> Unit) {
     } ?: event.placeLabel
     YourRow(
         overline,
-        event.displayTitle,
+        event.cardTitle,
         subtitle,
         onClick = { onIntent(HomeIntent.OpenEvent(event.id, "home_your")) },
         tile = { EventImage(event, Modifier
@@ -753,7 +769,7 @@ private fun NextPlanCard(row: PersonalRow, onIntent: (HomeIntent) -> Unit) {
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    event.displayTitle,
+                    event.cardTitle,
                     style = PoruchType.brandTitle2,
                     color = colors.ink,
                     maxLines = 3,
@@ -798,12 +814,15 @@ private fun NextPlanCard(row: PersonalRow, onIntent: (HomeIntent) -> Unit) {
     }
 }
 
-/** «Ви стежите» і за ким — двома першими іменами, як і веде тап: на екран «Ви стежите». Імен нема (список не доїхав) — назва події. */
+/**
+ * «Ви стежите» і за ким — двома першими іменами, як і веде тап: на екран «Ви стежите». Спершу артисти дат, що не влізли
+ * вище, далі заклади й організатори. Імен нема (список не доїхав) — назва події.
+ */
 @Composable
 private fun FollowsRow(names: List<String>, events: List<Event>, new: Int, onClick: () -> Unit) {
     val colors = Poruch.colors
     val shown =
-        if (names.isEmpty()) events.first().displayTitle else names.take(2).joinToString(", ")
+        if (names.isEmpty()) events.firstOrNull()?.displayTitle.orEmpty() else names.take(2).joinToString(", ")
     YourRow(
         overline = null, title = stringResource(R.string.follows_title),
         subtitle = if (names.size > 2) stringResource(
@@ -1286,4 +1305,11 @@ private fun SearchResults(state: HomeState, onIntent: (HomeIntent) -> Unit) {
             }
         }
     }
+}
+
+/** Повторний тап «Головна» в таббарі (`MainActivity`): головна гортає вгору. */
+object HomeScrollToTop {
+    private val flow = kotlinx.coroutines.flow.MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val requests: kotlinx.coroutines.flow.Flow<Unit> = flow
+    fun request() { flow.tryEmit(Unit) }
 }

@@ -19,7 +19,7 @@
 |---|---|---|---|
 | `first_open`, `session_start`, `user_engagement` | автоматично (Firebase) | — | Acquisition |
 | `empty_map` | місто без фільтрів, 0 подій; раз на місто за запуск | `city` | ризик №1 |
-| `event_view` | відкрито картку події | `from`: `home_hero`, `home_poster`, `home_people` (рейка «Від людей»), `home_company` (рейка «Шукають компанію»), `home_your`, `home_search`, `radar` (рядок «Ваші артисти»); нема — відкрито з іншого екрана (мапа, «Мої події», посилання) | Activation (крок) |
+| `event_view` | відкрито картку події | `from`: `home_hero`, `home_poster`, `home_people` (рейка «Від людей»), `home_company` (рейка «Шукають компанію»), `home_your`, `home_search`, `radar` (рядок дати артиста в «Ваше»); нема — відкрито з іншого екрана (мапа, «Мої події», посилання) | Activation (крок) |
 | `auth_wall` | гість спробував дію, що потребує акаунта, і застосунок повів його на вхід | `action`: `follow`, `join` (подія чи супутник), `create`, `companion` (тап «Шукаю компанію»); нема — дію вже відхилив сервер, бо сесія скінчилась. `save` — до збірок із закладками гостя ([guest-saves.md](guest-saves.md)): тепер гість зберігає без входу | Activation (втрата); `follow` — дані для рішення про анонімні акаунти ([guest-channel.md](guest-channel.md), варіант Б) |
 | `sign_up` / `login` | успішна реєстрація / вхід | `confirmed` (сесія одразу чи чекає лист) | Activation (крок) |
 | `event_join` | успішне приєднання | `by_request` | **Activation** |

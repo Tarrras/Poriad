@@ -55,6 +55,7 @@ import app.poruch.android.feature.lastKnownPosition
 import app.poruch.android.navigation.*
 import app.poruch.android.platform.NotificationPermission
 import app.poruch.android.ui.*
+import app.poruch.android.feature.home.HomeScrollToTop
 import app.poruch.android.feature.home.DeckScreen
 import app.poruch.android.feature.wallet.TicketIntakeSheet
 import app.poruch.android.feature.wallet.TicketViewer
@@ -576,7 +577,8 @@ private fun TabBar(
         },
         modifier = modifier
     ) {
-        val select = { key: String -> navigator.open(tabFor(key)) }
+        // Повторний тап «Головна»: сторінка на кілька екранів, а свій таббар системного «вгору» не має.
+        val select = { key: String -> if (key == current.tabKey() && current == Home) HomeScrollToTop.request() else navigator.open(tabFor(key)) }
         if (wide) PoruchNavRail(tabs, current.tabKey(), Modifier.navigationBarsPadding(), onSelect = select) {
             CreateButton(onCreate, Modifier.coachTarget(CoachTip.CREATE))
         } else PoruchTabBar(

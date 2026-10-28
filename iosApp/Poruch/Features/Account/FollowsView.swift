@@ -38,6 +38,8 @@ struct FollowsView: View {
                                 followRow(follow)
                             }
                         }
+                        // Головна більше не має «Додати» біля артистів: вибір — тут, під списком.
+                        SecondaryButton(title: Copy.radar_pick, glyph: PoruchIcons.person) { radarPicker = true }
                     }
                     .padding(.horizontal, Space.page).padding(.bottom, Space.section)
                 }
@@ -60,7 +62,9 @@ struct FollowsView: View {
         let organizer = follow.kind == .organizer
         let artist = follow.kind == .artist
         let upcoming = Int(follow.upcoming)
-        let caption = [organizer ? Copy.organizer_short : artist ? "" : follow.city, Copy.place_upcoming(upcoming)]
+        // Артист — з радару: дата в місті, тур чи «без анонсів». Головна показує лише кілька дат, решта — тут.
+        let radar = artist ? model.state?.radar.first { $0.artistId == follow.targetId } : nil
+        let caption = radar.map(radarLine) ?? [organizer ? Copy.organizer_short : artist ? "" : follow.city, Copy.place_upcoming(upcoming)]
             .filter { !$0.isEmpty }.joined(separator: " · ")
         let label = HStack(spacing: Space.md) {
             if organizer {

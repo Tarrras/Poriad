@@ -1,8 +1,9 @@
 import SwiftUI
 import Shared
 
-/// Рядок «Ваших артистів»: є подія в місті — «сб 14.12 · назва»; нема — тур іншими містами; нема ніде — без анонсів.
-private func radarLine(_ row: ArtistRadar) -> String {
+/// Підпис артиста на екрані «Ви стежите»: є подія в місті — «сб 14.12 · назва»; нема — тур іншими містами; нема ніде —
+/// без анонсів. Дати в місті на головній — рядками «Ваше» (`HomePersonalSection`), решта видно тут.
+func radarLine(_ row: ArtistRadar) -> String {
     if let next = row.next, let date = parseEventDate(next.startsAt) {
         return formatter(zone: next.timeZone, "EE d.MM").string(from: date) + " · " + next.displayTitle
     }
@@ -13,57 +14,6 @@ private func radarLine(_ row: ArtistRadar) -> String {
         return Copy.radar_elsewhere(cities.joined(separator: ", "))
     }
     return Copy.radar_quiet
-}
-
-/**
- * «Ваші артисти» на головній (docs/artist-radar.md): хто їде в місто — з датою, тап веде на подію; решта — тур чи «Поки
- * нових анонсів нема», тап веде на артиста. До п'яти рядків, решта розгортається тут же. Гість теж: стежить без входу.
- */
-struct HomeRadarSection: View {
-    let rows: [ArtistRadar]
-    let open: (String) -> Void
-    let add: () -> Void
-    @State private var all = false
-
-    private var shown: [ArtistRadar] { all ? rows : Array(rows.prefix(Int(RadarRules.shared.HOME_ROWS))) }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: Space.md) {
-            SectionHeader(title: Copy.radar_title, actionLabel: Copy.radar_add, action: add)
-            GroupedRows {
-                ForEach(Array(shown.enumerated()), id: \.element.artistId) { index, row in
-                    if index > 0 { Divider().overlay(Palette.hairline).padding(.leading, Space.lg) }
-                    if let next = row.next {
-                        Button { open(next.eventId) } label: { line(row) }.buttonStyle(PressableStyle(pressedScale: 1))
-                    } else {
-                        NavigationLink(value: ArtistRoute(id: row.artistId, name: row.name, kind: row.kind)) { line(row) }
-                            .buttonStyle(PressableStyle(pressedScale: 1))
-                    }
-                }
-            }
-            if !all && rows.count > shown.count {
-                Button { withMotion { all = true } } label: {
-                    Text(Copy.radar_more("\(rows.count - shown.count)")).font(PoruchFont.button).foregroundStyle(Palette.ink).tapTarget()
-                }
-                .buttonStyle(.plain).frame(maxWidth: .infinity)
-            }
-        }
-        .padding(.horizontal, Space.page)
-    }
-
-    private func line(_ row: ArtistRadar) -> some View {
-        HStack(spacing: Space.md) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(row.name).font(PoruchFont.cardName).foregroundStyle(Palette.ink).multilineTextAlignment(.leading)
-                Text(radarLine(row)).font(PoruchFont.caption).foregroundStyle(row.next != nil ? Palette.ink : Palette.inkSecondary)
-                    .multilineTextAlignment(.leading).lineLimit(2)
-            }
-            Spacer(minLength: Space.sm)
-            PoruchIcon(glyph: PoruchIcons.chevronRight, size: 16).foregroundStyle(Palette.inkTertiary)
-        }
-        .padding(.horizontal, Space.lg).padding(.vertical, Space.md).contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
-    }
 }
 
 /**

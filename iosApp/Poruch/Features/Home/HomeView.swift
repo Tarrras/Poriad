@@ -41,8 +41,6 @@ struct HomeView: View, Equatable {
     /// Стос «Ваш тиждень» з головної: раз на тиждень, якщо цього тижня його не відкривали (docs/return-hooks.md).
     @AppStorage("poruch.deckWeek") private var deckWeek = ""
     @State private var deck: DeckCards?
-    /// «За ким стежити?» (docs/artist-radar.md) з дії «Додати» у «Ваших артистах».
-    @State private var radarPicker = false
 
     var body: some View {
         let view = self.view
@@ -57,7 +55,6 @@ struct HomeView: View, Equatable {
         .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $citySearch) { CitySearchView().presentationDetents([.medium, .large]) }
         .fullScreenCover(item: $deck) { DeckView(cards: $0.events) { deck = nil } }
-        .sheet(isPresented: $radarPicker) { RadarPickerSheet() }
         .onChange(of: view.searchKey) { _, _ in resultsLimit = homeResultsLimit }
     }
 
@@ -86,8 +83,9 @@ struct HomeView: View, Equatable {
     }
 
     private func feed(_ view: HomeScreenState) -> some View {
-        ScrollView {
+        ScrollViewReader { proxy in ScrollView {
             VStack(spacing: 0) {
+                Color.clear.frame(height: 0).id(homeTop)
                 // Поза пошуком шапка — перший рядок стрічки і прокручується разом з нею.
                 if !searchActive(view) { header(view) }
                 VStack(alignment: .leading, spacing: Space.xxl) {
@@ -105,28 +103,27 @@ struct HomeView: View, Equatable {
                         // під нею порожній квиток «Організувати подію». Активності не вигадуємо: коли зустрічей мало, секцію
                         // веде порожній квиток.
                         HomePeopleSection(view: view, open: open, showPeople: showPeople, createEvent: createEvent, openProfile: openProfile)
-                        // «Ваше» одразу після: непрочитаний чат і запит на участь не мають губитися під афішею.
-                        if view.signedIn {
-                            HomePersonalSection(view: view, open: open, openChat: openChat, openMyEvents: openMyEvents, openFollows: openFollows)
-                        }
-                        if deckWeek != view.deckWeek && !view.deck.isEmpty {
-                            LinkRow(glyph: PoruchIcons.sparkle, title: Copy.deck_title, subtitle: Copy.deck_row_subtitle) {
+                        // «Ваше» одразу після: непрочитаний чат і запит на участь не мають губитися під афішею. Усе особисте —
+                        // плани, «Ваш тиждень», дати артистів, підписки — одним блоком у чотири рядки (критика довжини 28.10).
+                        HomePersonalSection(
+                            view: view, deckDue: deckWeek != view.deckWeek, open: open, openChat: openChat,
+                            openMyEvents: openMyEvents, openFollows: openFollows,
+                            openDeck: {
                                 deckWeek = view.deckWeek
                                 deck = DeckCards(events: view.deck)
                             }
-                            .cardSurface().padding(.horizontal, Space.page)
-                        }
-                        // Радар артистів — перед «У місті»: великі квитки, чипи й сітка лишаються одним блоком, і чипи не
-                        // читаються фільтром артистів (повторна критика 28.10).
-                        if !view.radar.isEmpty {
-                            HomeRadarSection(rows: view.radar, open: { open($0, from: "radar") }, add: { radarPicker = true })
-                        }
+                        )
                         HomeCityFeed(view: view, feedLimit: $feedLimit, open: open, showCity: showCity, openMap: openMap)
                         // Кінець стрічки не глухий кут: далі мапа чи власна подія.
                         if !view.feed.isEmpty { moreRows(view) }
                     }
                 }.padding(.top, Space.md).padding(.bottom, Space.section)
             }
+        }
+        // Повторний тап «Головна» в таббарі: сторінка на кілька екранів, а свій таббар системного «вгору» не має.
+        .onReceive(NotificationCenter.default.publisher(for: .homeScrollToTop)) { _ in
+            withMotion { proxy.scrollTo(homeTop, anchor: .top) }
+        }
         }
     }
 
@@ -375,4 +372,12 @@ private struct CategoryPickerSheet: View {
         .presentationDragIndicator(.visible)
         .presentationBackground(Palette.canvas)
     }
+}
+
+/// Мітка початку стрічки головної: туди веде повторний тап «Головна».
+private let homeTop = "home-top"
+
+extension Notification.Name {
+    /// Повторний тап «Головна» в таббарі, коли стос уже на корені: головна гортає вгору.
+    static let homeScrollToTop = Notification.Name("poruch.homeScrollToTop")
 }

@@ -1,7 +1,7 @@
 package app.poruch.shared
 
 import app.poruch.domain.ArtistHit
-import app.poruch.domain.ArtistRadar
+import app.poruch.domain.RadarDate
 import app.poruch.domain.FollowKind
 import app.poruch.domain.RadarRules
 import app.poruch.domain.WalletTicket
@@ -19,6 +19,7 @@ import app.poruch.domain.HomeLocation
 import app.poruch.domain.HomeRules
 import app.poruch.domain.Place
 import app.poruch.domain.RequestRules
+import app.poruch.domain.YoursSlots
 import kotlin.time.Clock
 import kotlin.time.Instant
 import kotlinx.coroutines.CoroutineDispatcher
@@ -79,10 +80,10 @@ data class HomeScreenState(
     /** Квитки з телефона на сьогодні (docs/ticket-wallet.md): першими на головній, і кіно, і в гостя. */
     val todayTickets: List<WalletTicket> = emptyList(),
     /**
-     * «Ваші артисти» (docs/artist-radar.md): кожен, за ким стежать, у порядку [RadarRules.order]. Сервер без радару чи
-     * збій — рядок з іменем без дат.
+     * Дати «Ваших артистів» у місті (docs/artist-radar.md) по одній на подію ([RadarRules.dates]): рядки «Ваше», скільки
+     * влізе в [HomeRules.yours]. Артисти без дат у місті — лише на екрані «Ви стежите».
      */
-    val radar: List<ArtistRadar> = emptyList(),
+    val radarDates: List<RadarDate> = emptyList(),
     /**
      * «Ваш тиждень» (стос): картки з того, що вже приїхало на головну. Стан, а не виклик платформи: рядок з'являється,
      * щойно стрічка приїде, і після зміни міста стос відкривається з новими картками.
@@ -133,6 +134,15 @@ data class HomeScreenState(
         if (searching) results.isEmpty() && districts.isEmpty() && places.isEmpty() && artists.isEmpty() else personal.isEmpty() && people.isEmpty() && feed.isEmpty()
     val busy: Boolean get() = if (searching) searchLoading else loading
     fun isSaved(id: String): Boolean = id in savedIds
+
+    /** Розклад «Ваше» ([HomeRules.yours]); [deckDue] — рядок «Ваш тиждень» цього тижня ще не відкривали. */
+    fun yours(deckDue: Boolean): YoursSlots = HomeRules.yours(
+        personal.size, moreWaiting > 0, deckDue && deck.isNotEmpty(), radarDates.size, followed.isNotEmpty()
+    )
+
+    /** Підпис «Ви стежите»: артисти дат, що не влізли в «Ваше» ([shownDates]), далі заклади й організатори з подіями. */
+    fun followLine(shownDates: Int): List<String> =
+        (radarDates.drop(shownDates).flatMap { it.artists } + followNames).distinct()
     fun isWaitlisted(id: String): Boolean = id in waitlistedIds
     /** Перші [limit] результатів: «Показати ще» росте на місці. */
     fun results(limit: Int): List<Event> = results.take(limit)
@@ -185,12 +195,10 @@ class HomePresenter(
         old.home === new.home && old.library === new.library && old.chatUnread === new.chatUnread &&
             old.city === new.city && old.session === new.session && old.tickets === new.tickets && old.radar === new.radar
 
-    /** Кожен артист із підписок: з сервера — з датами, поки не доїхало — лише ім'я. */
-    private fun radarRows(shared: AppState): List<ArtistRadar> {
-        val known = shared.radar.associateBy { it.artistId }
-        return RadarRules.order(shared.library.follows.filter { it.kind == FollowKind.ARTIST }.map { follow ->
-            known[follow.targetId] ?: ArtistRadar(follow.targetId, follow.name, follow.artistKind, null, 0, emptyList())
-        })
+    /** Дати лише тих, за ким стежать зараз: радар із сервера може відставати від щойно знятої підписки. */
+    private fun radarDates(shared: AppState): List<RadarDate> {
+        val following = shared.library.follows.filter { it.kind == FollowKind.ARTIST }.mapTo(HashSet()) { it.targetId }
+        return RadarRules.dates(shared.radar.filter { it.artistId in following })
     }
 
     internal fun derive(shared: AppState, feedFilter: FeedFilter, now: Instant, zone: TimeZone): HomeScreenState {
@@ -258,7 +266,7 @@ class HomePresenter(
             people = people,
             company = company,
             todayTickets = shared.tickets.filter { it.isToday(now, zone) },
-            radar = radarRows(shared),
+            radarDates = radarDates(shared),
             deck = DeckRules.pick(home.suggested.ifEmpty { home.events }, now),
             deckWeek = DeckRules.week(now, zone),
             feed = all.take(HomeRules.HERO_COUNT) + HomeRules.apply(rest, filter, now, zoneId),

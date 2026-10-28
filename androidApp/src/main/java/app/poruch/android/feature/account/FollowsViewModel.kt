@@ -10,7 +10,7 @@ class FollowsViewModel(private val app: PoruchApp) :
     init {
         // Модель живе, поки екран у стеку: повернення з артиста — той самий візит, знімок не перезнімаємо.
         val fresh = app.state.value.library.follows.associate { it.targetId to it.fresh }
-        observe(app) { shared -> copy(follows = shared.library.follows, person = shared.person, fresh = fresh) }
+        observe(app) { shared -> copy(follows = shared.library.follows, person = shared.person, fresh = fresh, radar = shared.radar.associateBy { it.artistId }) }
         app.followsSeen()
     }
 

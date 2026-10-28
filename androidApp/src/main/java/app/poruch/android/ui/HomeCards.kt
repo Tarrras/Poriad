@@ -32,21 +32,24 @@ fun CreateEventCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     /** Олівець — «друкуєш сам»; інший гліф — та сама порожня форма для іншої першої дії («Знайти подію поруч»). */
-    icon: ImageVector = PoruchIcons.edit
+    icon: ImageVector = PoruchIcons.edit,
+    /** Останнім квитком рейки «З ким піти»: вертикальний, корінець знизу, висоту й ширину задає рейка. */
+    vertical: Boolean = false
 ) {
     val colors = Poruch.colors
     Ticket(
         colors.brand,
         // Олівець, а не «+»: плюс уже є на кнопці створення біля таббара, а тут квиток заповнюють.
         stub = { Icon(icon, null, Modifier.size(22.dp), tint = colors.onBrand) },
-        modifier = modifier.fillMaxWidth(),
+        modifier = if (vertical) modifier else modifier.fillMaxWidth(),
+        vertical = vertical,
         stubLength = 64.dp, outline = colors.inkTertiary.copy(alpha = 0.7f), onClick = onClick
     ) {
         Column(
-            Modifier.heightIn(min = 72.dp).padding(horizontal = Spacing.lg, vertical = Spacing.md),
-            verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically)
+            Modifier.heightIn(min = 72.dp).padding(horizontal = Spacing.lg, vertical = if (vertical) Spacing.lg else Spacing.md),
+            verticalArrangement = if (vertical) Arrangement.spacedBy(Spacing.xs) else Arrangement.spacedBy(2.dp, Alignment.CenterVertically)
         ) {
-            Text(title, style = PoruchType.brandTitle3, color = colors.ink)
+            Text(title, style = if (vertical) PoruchType.brandTitle2 else PoruchType.brandTitle3, color = colors.ink)
             Text(subtitle, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
         }
     }

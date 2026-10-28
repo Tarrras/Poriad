@@ -779,15 +779,12 @@ enum Copy {
     static let follows_title = "Ви стежите"
     static func follow_via(_ a0: String) -> String { "Ви стежите · \(a0)" }
     static let radar_hint = "Скажемо, коли будуть нові дати у вашому місті"
-    static let radar_title = "Ваші артисти"
-    static let radar_add = "Додати"
     static let radar_ask_title = "За ким стежити?"
     static func radar_elsewhere(_ a0: String) -> String { "Поки не у вашому місті · \(a0)" }
     static let radar_quiet = "Поки нових анонсів нема"
     static let radar_picker_hint = "Хто скоро виступає у вашому місті. Оберіть кількох — скажемо, коли будуть нові дати"
     static func radar_picker_follow(_ a0: String) -> String { "Стежити за \(a0)" }
     static let radar_picker_empty = "Поки в місті нема анонсів артистів"
-    static func radar_more(_ a0: String) -> String { "Ще \(a0)" }
     static let radar_pick = "Обрати артистів"
     static func a11y_tab_new_follows(_ a0: String) -> String { "\(a0), є нове в підписках" }
     static let follows_hint = "Заклади, організатори й артисти"
