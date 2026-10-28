@@ -805,7 +805,7 @@ def _build(raw: dict, source: Source, city: str, index: VenueIndex,
     if end <= now or (start <= now and not end_declared):
         return None
 
-    full_description = normalize.clean_text(raw.get("description"))
+    full_description = normalize.unglue(normalize.clean_text(raw.get("description")))
     price_min, is_free = normalize.parse_price(raw)
 
     # Порядок за надійністю: звірене людиною -> дамп OSM -> Photon; confidence це відображає.

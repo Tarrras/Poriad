@@ -106,7 +106,28 @@ def clean_text(value) -> str:
     s = unicodedata.normalize("NFC", s)
     s = _visible(s)
     s = re.sub(r"[ \t ]+", " ", s)
+    s = re.sub(r" ?\n ?", "\n", s)                 # «абзац \n \n \n Наступний»: рядки з пробілів не тримали \n{3,}
     return re.sub(r"\n{3,}", "\n\n", s).strip()
+
+
+# Badseller віддає опис, з якого абзаци вирізано без пробілу: «Комедія на одну діюЗустрічайте…»,
+# «дію.Тривалість», «АКАДЕМІЯ СМІХУКомедія». Справжній розрив не відновити — ставимо крапку з пробілом.
+# Після великої — справжня мала, без апострофа: «ПРЕМ'ЄРА» — одне слово.
+_UPPER, _LOWER = "А-ЯІЇЄҐ", "а-яіїєґ'’"
+_GLUED_WORD = re.compile(rf"\b([{_UPPER}]?[{_LOWER}]+)(?=[{_UPPER}][а-яіїєґ]|[{_UPPER}]{{3}})")
+_GLUED_CAPS = re.compile(rf"\b([{_UPPER}]{{3,}})(?=[{_UPPER}][а-яіїєґ])")
+_GLUED_DOT = re.compile(rf"(?<=[{_LOWER}])\.(?=[{_UPPER}])")
+
+
+def unglue(text: str) -> str:
+    """Розклеює речення опису на межі абзацу. Слово з великої літери коротше за 5 літер не чіпаємо:
+    так пишуть назви («МакДонах», «ВиноГрай», «ТікТок»), а склеєні імена й слова довші («РезніковичОрганізація»)."""
+    def word(m):
+        w = m.group(1)
+        return w + ". " if w[0].islower() or len(w) >= 5 else w
+    text = _GLUED_WORD.sub(word, text)
+    text = _GLUED_CAPS.sub(r"\1. ", text)
+    return _GLUED_DOT.sub(". ", text)
 
 
 def clip(text: str, limit: int) -> str:
