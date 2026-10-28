@@ -57,7 +57,7 @@ enum Copy {
     static let search_here = "Шукати тут"
     static let guest_title = "Ваші люди — поруч"
     static let account_title = "Ви з нами"
-    static let guest_description = "Увійдіть, щоб приєднуватись, стежити й створювати власні зустрічі."
+    static let guest_description = "Увійдіть, щоб приєднуватись, створювати власні зустрічі й стежити за закладами та організаторами."
     static let logout = "Вийти з профілю"
     static let name = "Імʼя"
     static let email = "Електронна пошта"
@@ -304,7 +304,7 @@ enum Copy {
     static let from_people = "Від людей"
     static func home_waiting_more(_ a0: String) -> String { "Чекають відповіді: ще \(a0)" }
     static let home_waiting_more_hint = "Чати й запити — у «Моїх подіях»"
-    static let guest_home_slim = "Увійти, щоб приєднуватись і стежити"
+    static let guest_home_slim = "Увійти, щоб приєднуватись до зустрічей"
     static let feed_all = "Усе"
     static let home_next = "Далі"
     static let all_events_section = "Усі події поруч"

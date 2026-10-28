@@ -83,7 +83,7 @@
   <string name="search_here">Шукати тут</string>
   <string name="guest_title">Ваші люди — поруч</string>
   <string name="account_title">Ви з нами</string>
-  <string name="guest_description">Увійдіть, щоб приєднуватись, стежити й створювати власні зустрічі.</string>
+  <string name="guest_description">Увійдіть, щоб приєднуватись, створювати власні зустрічі й стежити за закладами та організаторами.</string>
   <string name="logout">Вийти з профілю</string>
   <string name="name">Імʼя</string>
   <string name="email">Електронна пошта</string>
@@ -349,7 +349,7 @@
   <string name="from_people">Від людей</string>
   <string name="home_waiting_more">Чекають відповіді: ще %1$d</string>
   <string name="home_waiting_more_hint">Чати й запити — у «Моїх подіях»</string>
-  <string name="guest_home_slim">Увійти, щоб приєднуватись і стежити</string>
+  <string name="guest_home_slim">Увійти, щоб приєднуватись до зустрічей</string>
   <string name="feed_all">Усе</string>
   <string name="home_next">Далі</string>
   <string name="all_events_section">Усі події поруч</string>
