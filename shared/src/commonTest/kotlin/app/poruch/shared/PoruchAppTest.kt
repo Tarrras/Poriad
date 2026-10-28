@@ -193,10 +193,10 @@ class PoruchAppTest {
         }
     }
 
-    private fun app(events:Events,scope:CoroutineScope,auth:Auth=Auth(),cities:CityStore?=null,follows:Follows?=null,bought:SeenRequestStore?=null,guestSaves:GuestSavedStore?=null,goodDays:SeenRequestStore?=null):PoruchApp {
+    private fun app(events:Events,scope:CoroutineScope,auth:Auth=Auth(),cities:CityStore?=null,follows:Follows?=null,bought:SeenRequestStore?=null,guestSaves:GuestSavedStore?=null,goodDays:SeenRequestStore?=null,tickets:TicketStore?=null):PoruchApp {
         return PoruchApp(
             events=events, saved=events, authoring=events, participation=events, requests=events, chat=events,
-            auth=auth, cityStore=cities, follows=follows, boughtAsked=bought, guestSaves=guestSaves, goodDays=goodDays,
+            auth=auth, cityStore=cities, follows=follows, boughtAsked=bought, guestSaves=guestSaves, goodDays=goodDays, tickets=tickets,
             geo=object:GeoSearchRepository { override suspend fun search(query:String)=emptyList<CityResult>() },
             eventActions=EventActions(events,events,auth), accountActions=AccountActions(auth),
             safety=safety, profiles=profiles, tasteStore=taste, reminderStore=reminders, scope=scope
@@ -1175,6 +1175,39 @@ class PoruchAppTest {
         override fun write(ids:List<String>) { stored=ids }
     }
     private val later="2030-01-10T18:00:00Z"
+
+    private class Tickets(var stored:List<WalletTicket> = emptyList()): TicketStore {
+        override fun all()=stored
+        override fun write(tickets:List<WalletTicket>) { stored=tickets }
+    }
+
+    /**
+     * Квиток з телефона (docs/ticket-wallet.md): на афішу — ще й закладка, без афіші — свій план; обидва переживають
+     * вихід з акаунта, а нагадування за годину бере назву з квитка.
+     */
+    @Test fun aTicketLivesOnThePhone()=runTest {
+        val events=Events().apply { offFeedCards=listOf(event("e1",EventCategory.MUSIC,later)) }
+        val guest=GuestSaves(); val store=Tickets(); val auth=Auth().apply { session.value=null }
+        val app=app(events,backgroundScope,auth,guestSaves=guest,tickets=store); runCurrent(); advanceTimeBy(1000); runCurrent()
+        val start=kotlin.time.Instant.parse(later).toEpochMilliseconds()
+        app.addTicket("t1","t1.pdf",TicketKind.PDF,"Концерт",null,start,2,listOf(TicketSeat("7","12"),TicketSeat("7","13")),"e1","share","full"); runCurrent()
+        app.addTicket("t2","t2.pdf",TicketKind.PDF," Дюна ","Multiplex",start-3_600_000,1,emptyList(),null,"picker","partial"); runCurrent()
+        assertEquals(listOf("t2","t1"),app.state.value.tickets.map { it.id },"за часом початку")
+        assertEquals("Дюна",store.stored.first().title)
+        assertTrue(app.state.value.isSaved("e1"),"квиток на афішу ставить закладку")
+        assertEquals(listOf("e1"),guest.stored)
+        assertEquals(listOf("t1"),app.ticketsFor("e1").map { it.id })
+        val reminders=ReminderRules.tickets(app.state.value.tickets,true,kotlin.time.Instant.parse("2030-01-01T00:00:00Z"))
+        assertEquals(listOf("ticket:t2","ticket:t1"),reminders.map { it.eventId })
+        assertEquals("Multiplex",reminders.first().address)
+        app.removeTicket("t1"); runCurrent()
+        assertEquals(listOf("t2"),store.stored.map { it.id })
+        assertTrue(app.state.value.isSaved("e1"),"закладка лишається")
+        app.close()
+        val reopened=app(events,backgroundScope,auth,guestSaves=guest,tickets=store)
+        assertEquals(listOf("t2"),reopened.state.value.tickets.map { it.id },"з першого кадру")
+        reopened.close()
+    }
 
     /** Гість зберігає без входу: на телефоні, без запиту й без стіни (docs/guest-saves.md). */
     @Test fun aGuestSavesOnThePhone()=runTest {

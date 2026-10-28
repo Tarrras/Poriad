@@ -9,6 +9,9 @@ import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.time.Clock
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toInstant
+import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Instant
 
 /**
  * Єдиний стор, за яким стежать обидві платформи: фасад із дієсловами екранів над [AppState].
@@ -59,6 +62,8 @@ class PoruchApp internal constructor(
     deviceTouch: DeviceTouchStore? = null,
     /** Закладки гостя на телефоні (docs/guest-saves.md). Null — гість зберігає лише до перезапуску (тести, превʼю). */
     guestSaves: GuestSavedStore? = null,
+    /** Квитки на телефоні (docs/ticket-wallet.md). Null — квитки живуть до перезапуску (тести, превʼю). */
+    private val tickets: TicketStore? = null,
     /** Дні з добрими діями для питання про відгук у сторі. Null — питаємо лише після оцінки події. */
     goodDays: SeenRequestStore? = null,
     config: AppConfig = AppConfig("", ""),
@@ -80,7 +85,8 @@ class PoruchApp internal constructor(
             analyticsEnabled = analyticsStore?.enabled() ?: true,
             city = CityState(startCity.city, startCity.latitude, startCity.longitude),
             // Кнопки гостя знають свої закладки з першого кадру; картки до них доїдуть з `load()`.
-            library = LibraryState(savedIds = if (auth.session.value == null) guestSaves?.ids().orEmpty() else emptyList())
+            library = LibraryState(savedIds = if (auth.session.value == null) guestSaves?.ids().orEmpty() else emptyList()),
+            tickets = tickets?.all().orEmpty()
         ),
         scope
     )
@@ -520,6 +526,63 @@ class PoruchApp internal constructor(
      * `share` (`kind=invite` чи `event`), тож платформа лише відкриває системне «Поділитися» з ним.
      */
     suspend fun inviteLink(eventId: String): String = library.inviteLink(eventId)
+
+    // ---- Квитки з телефона (docs/ticket-wallet.md). Файл тримає платформа, тут — що з нього прочитано й підтверджено.
+
+    /** Чернетка з тексту квитка: платформа витягла текст з PDF чи знімка, тут — назва, місце, початок, місця. */
+    fun readTicket(text: String): TicketDraft =
+        TicketReader.read(text, Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date)
+
+    /** Подія афіші, на яку квиток, серед видачі міста. Null — квиток без афіші (кіно). Картку платформа бере з [loadCards]. */
+    fun ticketMatch(draft: TicketDraft): String? =
+        TicketMatch.match(draft, store.value.home.index, TimeZone.currentSystemDefault())
+
+    /** Початок чернетки в мілісекундах за поясом телефона: так його бере вибір дати й часу платформи. */
+    fun ticketStartMillis(draft: TicketDraft): Long? =
+        draft.start?.toInstant(TimeZone.currentSystemDefault())?.toEpochMilliseconds()
+
+    /**
+     * Квиток підтверджено. [id] і [file] — від платформи: файл уже скопійовано в сховище застосунку. Квиток на афішу
+     * ставить і закладку: нагадування напередодні й пуш про перенесення — як у збереженої. [source] — `share` чи
+     * `picker`, [parsed] — [TicketDraft.parsed] до правок людини.
+     */
+    fun addTicket(
+        id: String, file: String, kind: TicketKind, title: String, place: String?, startMillis: Long,
+        count: Int, seats: List<TicketSeat>, eventId: String?, source: String, parsed: String
+    ) {
+        val zone = TimeZone.currentSystemDefault()
+        val ticket = WalletTicket(
+            id = id, file = file, kind = kind, title = title.trim(), place = place?.trim()?.takeIf { it.isNotEmpty() },
+            startsAt = Instant.fromEpochMilliseconds(startMillis).toString(), timeZone = zone.id,
+            count = count.coerceAtLeast(1), seats = seats, eventId = eventId, addedAt = Clock.System.now().toString()
+        )
+        writeTickets(store.value.tickets.filterNot { it.id == id } + ticket)
+        PoruchAnalytics.track(
+            "wallet_import", "source" to source, "kind" to kind.name.lowercase(), "parsed" to parsed,
+            "matched" to (eventId != null), "count" to ticket.count
+        )
+        if (eventId != null && !store.value.isSaved(eventId)) toggleSaved(eventId)
+    }
+
+    /** Квиток прибрано з телефона; файл стирає платформа. Закладка на подію лишається. */
+    fun removeTicket(id: String) = writeTickets(store.value.tickets.filterNot { it.id == id })
+
+    /** Квиток показано на весь екран: [dayOf] — у день події, на вході. */
+    fun ticketShown(id: String) {
+        val ticket = store.value.tickets.firstOrNull { it.id == id } ?: return
+        val zone = TimeZone.currentSystemDefault()
+        val dayOf = ticket.startInstant?.toLocalDateTime(zone)?.date == Clock.System.now().toLocalDateTime(zone).date
+        PoruchAnalytics.track("wallet_open", "day_of" to dayOf)
+    }
+
+    /** Квитки на подію афіші [eventId]: деталі показують «Ваші квитки». */
+    fun ticketsFor(eventId: String): List<WalletTicket> = store.value.tickets.filter { it.eventId == eventId }
+
+    private fun writeTickets(all: List<WalletTicket>) {
+        val sorted = all.sortedBy { it.startsAt }
+        tickets?.write(sorted)
+        store.update { it.copy(tickets = sorted) }
+    }
 
     /** Подія, до продавця якої щойно вийшли: після повернення — «Купили? Стежитимемо за змінами» (R9). */
     private var leftForTickets: String? = null

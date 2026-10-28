@@ -239,6 +239,22 @@ object ReminderRules {
             .toList()
     }
 
+    /**
+     * Квиток — це «йду»: нагадування за [LEAD], як про свою подію, з назвою й місцем із квитка (docs/ticket-wallet.md).
+     * Id — `ticket:…`: окремо від нагадування про збережену афішу (напередодні), і тап відкриває сам квиток.
+     */
+    fun tickets(tickets: List<WalletTicket>, enabled: Boolean, now: Instant): List<EventReminder> {
+        if (!enabled) return emptyList()
+        return tickets.mapNotNull { ticket ->
+            val start = ticket.startInstant ?: return@mapNotNull null
+            EventReminder(TICKET_PREFIX + ticket.id, ticket.title, ticket.place.orEmpty(), (start - LEAD).toEpochMilliseconds())
+                .takeIf { it.fireAtEpochMillis > now.toEpochMilliseconds() }
+        }
+    }
+
+    /** Нагадування про квиток, а не про подію: платформа відкриває квиток. */
+    const val TICKET_PREFIX = "ticket:"
+
     private fun Event.concerns(userId: String): Boolean {
         val room = gathering ?: return false
         return room.joined || room.organizerId == userId

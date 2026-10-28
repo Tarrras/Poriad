@@ -2,6 +2,7 @@ package app.poruch.shared
 
 import app.poruch.domain.Event
 import app.poruch.domain.FollowKind
+import app.poruch.domain.WalletTicket
 import app.poruch.domain.JoinRequest
 import app.poruch.domain.MyEventsBoard
 import kotlin.time.Clock
@@ -38,7 +39,9 @@ data class MyEventsScreenState(
     /** Непрочитані повідомлення за id події: бейдж на рядку. */
     val unread: Map<String, Int> = emptyMap(),
     /** Люди, за якими стежу: початковий стан перемикача в шторці оцінки. */
-    val followedOrganizers: Set<String> = emptySet()
+    val followedOrganizers: Set<String> = emptySet(),
+    /** Квитки з телефона, що попереду (docs/ticket-wallet.md): секція «Квитки» згори, і в гостя теж. */
+    val tickets: List<WalletTicket> = emptyList()
 ) {
     fun isWaitlisted(id: String): Boolean = id in waitlistedIds
     fun myScore(id: String): Int? = myRatings[id]
@@ -84,7 +87,7 @@ class MyEventsPresenter(
 
     private fun sameInputs(old: AppState, new: AppState): Boolean =
         old.library === new.library && old.session === new.session && old.chatUnread === new.chatUnread &&
-            old.mutating == new.mutating
+            old.mutating == new.mutating && old.tickets === new.tickets
 
     private fun derive(shared: AppState): MyEventsScreenState = MyEventsScreenState(
         board = shared.myEventsBoard(clock.now()),
@@ -97,7 +100,8 @@ class MyEventsPresenter(
         offline = shared.library.offline,
         mutating = shared.mutating,
         unread = shared.chatUnread.associate { it.eventId to it.unread },
-        followedOrganizers = shared.library.follows.filter { it.kind == FollowKind.ORGANIZER }.mapTo(HashSet()) { it.targetId }
+        followedOrganizers = shared.library.follows.filter { it.kind == FollowKind.ORGANIZER }.mapTo(HashSet()) { it.targetId },
+        tickets = shared.tickets.filterNot { it.isPast(clock.now()) }
     )
 
     private companion object {

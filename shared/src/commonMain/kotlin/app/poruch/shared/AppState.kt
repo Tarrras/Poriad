@@ -23,6 +23,8 @@ data class AppState(
     val detail: DetailState = DetailState(),
     /** Усе, що належить акаунту і зникає з ним. Пише [UserLibrary]. */
     val library: LibraryState = LibraryState(),
+    /** Квитки з телефона за часом початку (docs/ticket-wallet.md). Пристрою, а не акаунта: вихід їх не стирає. */
+    val tickets: List<WalletTicket> = emptyList(),
     /** Хто увійшов і на якому кроці входу. Пишуть [IdentitySync], [SessionUseCases], [PushSync]. */
     val session: SessionState = SessionState(),
     val taste: Taste = Taste(),

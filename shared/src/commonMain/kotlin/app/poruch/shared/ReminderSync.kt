@@ -26,14 +26,16 @@ internal class ReminderSync(
     fun start() {
         scope.launch {
             state.map {
-                ReminderRules.plan(
+                val now = Clock.System.now()
+                (ReminderRules.plan(
                     it.library.myEvents,
                     it.library.savedIds,
                     it.session.userId,
                     it.remindersEnabled,
-                    Clock.System.now(),
+                    now,
                     TimeZone.currentSystemDefault()
-                )
+                ) + ReminderRules.tickets(it.tickets, it.remindersEnabled, now))
+                    .sortedBy { reminder -> reminder.fireAtEpochMillis }.take(ReminderRules.MAX_SCHEDULED)
             }
                 .distinctUntilChanged()
                 .collect { plan ->

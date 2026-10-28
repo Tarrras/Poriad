@@ -14,6 +14,7 @@ import app.poruch.data.local.LocalAnalyticsPreference
 import app.poruch.data.local.LocalCityStore
 import app.poruch.data.local.LocalDeviceTouch
 import app.poruch.data.local.LocalGuestSaves
+import app.poruch.data.local.LocalTicketStore
 import app.poruch.data.local.LocalPendingUnregister
 import app.poruch.data.local.LocalReminderPreference
 import app.poruch.data.local.LocalSeenRequests
@@ -72,6 +73,7 @@ class AppGraph(
             single<PendingUnregisterStore> { LocalPendingUnregister(get()) }
             single<DeviceTouchStore> { LocalDeviceTouch(get()) }
             single<GuestSavedStore> { LocalGuestSaves(get()) }
+            single<TicketStore> { LocalTicketStore(get()) }
             single<CityStore> { LocalCityStore(get()) }
             single<SeenRequestStore> { LocalSeenRequests(get(), get()) }
             single<SeenRequestStore>(named("messages")) {
@@ -126,6 +128,7 @@ class AppGraph(
                     boughtAsked = get(named("bought")),
                     deviceTouch = get(),
                     guestSaves = get(),
+                    tickets = get(),
                     goodDays = get(named("good-days")),
                     config = config,
                     // Обидва потоки названі явно: тут єдине місце, де видно, що вони різні.
