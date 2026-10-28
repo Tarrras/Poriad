@@ -67,7 +67,7 @@ struct HomeRadarSection: View {
 }
 
 /**
- * «Кого слухаєте?» (docs/artist-radar.md): хто їде в місто людини, найбільше вечорів першими. Вибір кількох, «Стежити за 3».
+ * «За ким стежити?» (docs/artist-radar.md): хто їде в місто людини, найбільше вечорів першими. Вибір кількох, «Стежити за 3».
  * Хто вже в підписках — позначений і тут не знімається.
  */
 struct RadarPickerSheet: View {
@@ -113,28 +113,42 @@ struct RadarPickerSheet: View {
 
     private func chip(_ artist: PopularArtist) -> some View {
         let followed = model.state?.isFollowing(kind: .artist, targetId: artist.artistId) == true
-        let on = followed || picked.contains(artist.artistId)
         let date = artist.firstAt.flatMap(parseEventDate).map { formatter(zone: "Europe/Kyiv", "d.MM").string(from: $0) }
-        return Button {
+        return RadarChip(name: artist.name, date: date, on: followed || picked.contains(artist.artistId)) {
             if picked.contains(artist.artistId) { picked.remove(artist.artistId) } else { picked.insert(artist.artistId) }
-        } label: {
-            HStack(spacing: Space.xs) {
-                if on { PoruchIcon(glyph: PoruchIcons.check, size: 14) }
-                Text(artist.name).font(PoruchFont.label)
-                if let date { Text(date).font(PoruchFont.caption).opacity(0.7) }
-            }
-            .foregroundStyle(on ? Palette.onBrand : Palette.ink)
-            .padding(.horizontal, Space.lg).frame(minHeight: 44)
-            .background(on ? Palette.ink : Palette.surface, in: Capsule())
-            .contentShape(Capsule())
         }
-        .buttonStyle(PressableStyle())
         .disabled(followed)
-        .accessibilityAddTraits(on ? .isSelected : [])
     }
 
     private func follow() {
         model.app.followArtists(picked: (artists ?? []).filter { picked.contains($0.artistId) })
         dismiss()
+    }
+}
+
+/// Чип артиста радару: обраний (чи той, за ким стежать) — чорнилом із галочкою; ні — з гліфом [off], якщо він є.
+struct RadarChip: View {
+    let name: String
+    var date: String?
+    let on: Bool
+    /// Тло невибраного: у шторці — картка, на картці деталей — `surfaceMuted`, як «Стежити» на закладі.
+    var offFill: Color = Palette.surface
+    var off: PoruchGlyph?
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: Space.xs) {
+                if on { PoruchIcon(glyph: PoruchIcons.check, size: 14) } else if let off { PoruchIcon(glyph: off, size: 14) }
+                Text(name).font(PoruchFont.label).multilineTextAlignment(.leading)
+                if let date { Text(date).font(PoruchFont.caption).opacity(0.7) }
+            }
+            .foregroundStyle(on ? Palette.onBrand : Palette.ink)
+            .padding(.horizontal, Space.lg).frame(minHeight: 44)
+            .background(on ? Palette.ink : offFill, in: Capsule())
+            .contentShape(Capsule())
+        }
+        .buttonStyle(PressableStyle())
+        .accessibilityAddTraits(on ? .isSelected : [])
     }
 }

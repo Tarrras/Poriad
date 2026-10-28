@@ -14,6 +14,7 @@ struct FollowsView: View {
     @State private var showingPerson = false
     /// Скільки нового було в кого, коли екран відкрили: `followsSeen` гасить лічильник, а тут він має лишитись до виходу.
     @State private var fresh: [String: Int]?
+    @State private var radarPicker = false
 
     private var follows: [Follow] { model.state?.library.follows ?? [] }
 
@@ -21,9 +22,10 @@ struct FollowsView: View {
         VStack(spacing: 0) {
             PageHeader(title: Copy.follows_title, back: { dismiss() })
             if follows.isEmpty {
+                // Підписок нема — вибір артистів з тих, хто скоро виступає в місті (docs/artist-radar.md).
                 EmptyState(
                     glyph: PoruchIcons.bell, title: Copy.follows_empty_title,
-                    message: Copy.follows_empty_hint
+                    message: Copy.follows_empty_hint, actionLabel: Copy.radar_pick, action: { radarPicker = true }
                 ).padding(.top, Space.section)
                 Spacer(minLength: 0)
             } else {
@@ -44,6 +46,7 @@ struct FollowsView: View {
         .background(Palette.canvas)
         .hidesTabBar()
         .toolbar(.hidden, for: .navigationBar)
+        .sheet(isPresented: $radarPicker) { RadarPickerSheet() }
         .navigationBarBackButtonHidden()
         .personSheet(model, isPresented: $showingPerson)
         .onAppear {

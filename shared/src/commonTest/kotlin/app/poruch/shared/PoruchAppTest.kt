@@ -1815,7 +1815,8 @@ class PoruchAppTest {
         assertEquals(3,app.state.value.library.newFollowEvents)
         val presenter=HomePresenter(app,backgroundScope,StandardTestDispatcher(testScheduler))
         runCurrent()
-        assertEquals(3,presenter.state.value.newFollowEvents)
+        // Рядок «Ви стежите» на головній — про заклади й організаторів: нове в артиста МУР тут не рахується.
+        assertEquals(2,presenter.state.value.newFollowEvents)
 
         follows.failSeen=true
         app.followsSeen()

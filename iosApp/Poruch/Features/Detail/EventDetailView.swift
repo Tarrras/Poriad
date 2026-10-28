@@ -27,8 +27,6 @@ struct EventDetailView: View, Equatable {
     @State var editing = false
     /// Шит входу з причиною: підзаголовок каже, навіщо профіль саме зараз.
     @State var auth: AuthReason?
-    /// Радар: за кого щойно натиснули «Стежити» в підказці — рядок лишається з «Ви стежите», поки екран відкритий.
-    @State var radarFollowed: Artist?
     @State var cancelling = false
     @State var reporting: ReportTarget?
     @State var blocking = false

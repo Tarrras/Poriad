@@ -145,7 +145,7 @@ internal class FollowUseCases(
         }
     }
 
-    /** «Кого слухаєте?»: хто їде в місто людини. Своє місце на мапі чи збій — порожньо, шторка скаже, що анонсів нема. */
+    /** «За ким стежити?»: хто їде в місто людини. Своє місце на мапі чи збій — порожньо, шторка скаже, що анонсів нема. */
     fun loadPopular() {
         val city = radarCity(store.value) ?: return store.update { it.copy(popularArtists = emptyList()) }
         store.scope.launch {

@@ -12,6 +12,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
@@ -19,9 +23,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.poruch.android.R
+import app.poruch.android.feature.home.RadarPickerSheet
 import app.poruch.android.ui.*
 import app.poruch.domain.Follow
 import app.poruch.domain.FollowKind
+import org.koin.compose.koinInject
 
 /**
  * Підписки окремим екраном: список може бути довгим, і в профілі йому не місце. Рядок відкриває заклад на мапі чи
@@ -30,6 +36,8 @@ import app.poruch.domain.FollowKind
 @Composable
 fun FollowsScreen(state: FollowsState, onIntent: (FollowsIntent) -> Unit) {
     val colors = Poruch.colors
+    var picking by remember { mutableStateOf(false) }
+    if (picking) RadarPickerSheet(koinInject()) { picking = false }
     Column(Modifier.fillMaxSize().background(colors.canvas).statusBarsPadding()) {
         Column {
             Row(
@@ -48,9 +56,10 @@ fun FollowsScreen(state: FollowsState, onIntent: (FollowsIntent) -> Unit) {
             }
             HorizontalDivider(color = colors.hairline)
         }
+        // Підписок нема — вибір артистів з тих, хто скоро виступає в місті (docs/artist-radar.md).
         if (state.follows.isEmpty()) EmptyState(
             PoruchIcons.bell, stringResource(R.string.follows_empty_title), stringResource(R.string.follows_empty_hint),
-            Modifier.padding(top = Spacing.section)
+            Modifier.padding(top = Spacing.section), actionLabel = stringResource(R.string.radar_pick), onAction = { picking = true }
         ) else Column(
             Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).navigationBarsPadding()
                 .padding(horizontal = Spacing.page, vertical = Spacing.lg)

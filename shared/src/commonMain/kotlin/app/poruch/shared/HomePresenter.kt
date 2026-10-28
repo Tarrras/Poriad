@@ -62,11 +62,14 @@ data class HomeScreenState(
     val offline: Boolean = false,
     /** «Ваше»: до [HomeRules.PERSONAL_LIMIT] своїх подій, спершу ті, де хтось чекає відповіді. */
     val personal: List<PersonalRow> = emptyList(),
-    /** Майбутні події тих, за ким стежу, з усіх міст, найближчі першими. Порожньо — рядка «Ви стежите» нема. */
+    /**
+     * Майбутні події закладів і організаторів, за якими стежу, з усіх міст, найближчі першими. Артисти — у [radar], не
+     * тут. Порожньо — рядка «Ви стежите» нема.
+     */
     val followed: List<Event> = emptyList(),
-    /** Хто з підписок має щось попереду, у порядку найближчої події: підпис рядка «Ви стежите». */
+    /** Хто з цих підписок має щось попереду, у порядку найближчої події: підпис рядка «Ви стежите». */
     val followNames: List<String> = emptyList(),
-    /** Скільки нового в підписках ще не переглянуто: бейдж рядка «Ви стежите». */
+    /** Скільки нового в цих підписках ще не переглянуто: бейдж рядка «Ви стежите». */
     val newFollowEvents: Int = 0,
     /** Скільки подій, що чекають відповіді (чат, запит), у [personal] не влізло: рядок «Чекають відповіді: ще N». */
     val moreWaiting: Int = 0,
@@ -205,6 +208,9 @@ class HomePresenter(
         val area = HomeLocation(shared.city.name, shared.city.latitude, shared.city.longitude)
         val followedHere = followed.filter { area.contains(it.latitude, it.longitude) }
         val via = followed.associate { it.id to FollowRules.via(it, shared.library.follows)?.name }
+        // Рядок «Ви стежите» — про заклади й організаторів: артисти мають свою секцію з датами в місті.
+        val rowFollows = shared.library.follows.filter { it.kind != FollowKind.ARTIST }
+        val rowEvents = followed.filter { FollowRules.via(it, rowFollows) != null }
 
         // «Ваше»: чат із непрочитаним (навіть минулої події) і запити чекають на людину, тож вони першими.
         val mine = shared.library.myEvents.associateBy { it.id }
@@ -237,9 +243,9 @@ class HomePresenter(
             loading = home.loading,
             offline = home.offline,
             personal = personal,
-            followed = followed,
-            followNames = followed.mapNotNull { via[it.id] }.distinct(),
-            newFollowEvents = shared.library.newFollowEvents,
+            followed = rowEvents,
+            followNames = rowEvents.mapNotNull { FollowRules.via(it, rowFollows)?.name }.distinct(),
+            newFollowEvents = rowFollows.sumOf { it.fresh },
             moreWaiting = waiting.mapTo(HashSet()) { it.id }.count { it !in shown },
             people = people,
             company = company,

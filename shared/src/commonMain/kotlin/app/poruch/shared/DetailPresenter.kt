@@ -58,6 +58,9 @@ enum class DetailAction {
         this == LEAVE_WAITLIST || this == REQUEST || this == TICKETS
 }
 
+/** Артист у картці радару на деталях: чи вже стежать. */
+data class LineupFollow(val artist: Artist, val following: Boolean)
+
 /** Стан екрана деталей однієї події: усе, що екран малює, вже порахованe. Платформа додає лише свої листи й прапорці. */
 data class DetailScreenState(
     val event: Event? = null,
@@ -124,10 +127,10 @@ data class DetailScreenState(
     /** «Перевірено сьогодні о 09:00» для афіші: коли адресна перевірка читала продавців. Null — не перевіряли. */
     val checked: CheckedLabel? = null,
     /**
-     * Радар (docs/artist-radar.md): перший артист складу, за яким ще не стежать, — коли афіша попереду й збережена чи на
-     * неї є квиток. Null — рядка «Скажемо, коли ТІК знову приїде» нема.
+     * Радар (docs/artist-radar.md): склад афіші, що попереду й збережена (чи з квитком), кожен зі своїм «Стежити»;
+     * ведучий — останнім. Порожньо — картки «Скажемо, коли будуть нові дати» нема.
      */
-    val radarHint: Artist? = null
+    val radarLineup: List<LineupFollow> = emptyList()
 ) {
     /** Супутник «Йдемо разом»: місце й решту тримає сервер; організатор міняє лише час ([canMoveMeet]). */
     val companionOf: CompanionParent? get() = room?.companionOf
@@ -344,10 +347,11 @@ class DetailPresenter(
             // Посилання могло вести на подію, яку потім злили: запрошення лишилось під старим id.
             inviter = shared.invite?.takeIf { event != null && (it.first == eventId || it.first == shared.detail.mergedFrom) }?.second,
             checked = CheckedLabel.of(event?.listing?.checkedAt, now, TimeZone.currentSystemDefault()),
-            radarHint = event?.takeIf { e -> !e.hasEnded(now) && (shared.isSaved(eventId) || shared.tickets.any { it.eventId == eventId }) }
-                ?.artists?.filterNot { shared.isFollowing(FollowKind.ARTIST, it.id) }
-                // Ведучий — останнім: «Скажемо, коли знову приїде» — про того, заради кого йдуть.
-                ?.sortedBy { it.role == ArtistRole.HOST }?.firstOrNull()
+            radarLineup = event?.takeIf { e -> !e.hasEnded(now) && (shared.isSaved(eventId) || shared.tickets.any { it.eventId == eventId }) }
+                ?.artists?.distinctBy { it.id }
+                // Ведучий — останнім: першими ті, заради кого йдуть.
+                ?.sortedBy { it.role == ArtistRole.HOST }
+                ?.map { LineupFollow(it, shared.isFollowing(FollowKind.ARTIST, it.id)) }.orEmpty()
         )
     }
 }

@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -122,23 +123,30 @@ internal fun Lineup(event: Event, onIntent: (DetailIntent) -> Unit) {
 }
 
 /**
- * Радар артистів (docs/artist-radar.md): збережена подія чи квиток — «Скажемо, коли N знову приїде». Після «Стежити»
- * рядок лишається з «Ви стежите», поки екран відкритий: людина бачить, що вийшло, і може передумати.
+ * Радар артистів (docs/artist-radar.md): на збереженій афіші (чи з квитком) — склад чипами, кожен зі своїм «Стежити», гостю
+ * теж. Дотик стежить одразу, повторний — знімає; картка лишається й тоді, коли стежать за всіма: видно, за ким.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun RadarHint(state: DetailState, onIntent: (DetailIntent) -> Unit) {
-    var followed by remember(state.screen.sessionId) { mutableStateOf<Artist?>(null) }
-    val artist = followed ?: state.screen.radarHint ?: return
-    val following = followed?.id == artist.id
-    Row(
+    val lineup = state.screen.radarLineup
+    if (lineup.isEmpty()) return
+    Column(
         Modifier.fillMaxWidth().cardSurface(Radius.md).padding(horizontal = Spacing.lg, vertical = Spacing.md),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)
+        verticalArrangement = Arrangement.spacedBy(Spacing.md)
     ) {
-        Text(stringResource(R.string.radar_hint, artist.name), Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = Poruch.colors.ink)
-        FollowPill(following, {
-            onIntent(DetailIntent.FollowArtist(artist, !following))
-            followed = if (following) null else artist
-        }, onCard = true)
+        Text(stringResource(R.string.radar_hint), style = MaterialTheme.typography.bodyMedium, color = Poruch.colors.ink)
+        // На картці чип тихою заливкою, як «Стежити» на закладі: білий на білому зник би.
+        CompositionLocalProvider(LocalFieldSurface provides Poruch.colors.surfaceMuted) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                lineup.forEach { row ->
+                    PoruchChip(
+                        row.artist.name, row.following, { onIntent(DetailIntent.FollowArtist(row.artist, !row.following)) },
+                        icon = if (row.following) PoruchIcons.check else PoruchIcons.bell, maxLines = 2
+                    )
+                }
+            }
+        }
     }
 }
 

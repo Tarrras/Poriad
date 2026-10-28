@@ -27,7 +27,7 @@ data class AppState(
     val tickets: List<WalletTicket> = emptyList(),
     /** «Ваші артисти» (docs/artist-radar.md): що в місті людини і де ще. Пише [FollowUseCases]. */
     val radar: List<ArtistRadar> = emptyList(),
-    /** «Кого слухаєте?»: хто їде в місто. Null — ще не читали. */
+    /** «За ким стежити?»: хто їде в місто. Null — ще не читали. */
     val popularArtists: List<PopularArtist>? = null,
     /** Хто увійшов і на якому кроці входу. Пишуть [IdentitySync], [SessionUseCases], [PushSync]. */
     val session: SessionState = SessionState(),

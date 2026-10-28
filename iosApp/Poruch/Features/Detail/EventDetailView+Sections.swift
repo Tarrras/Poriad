@@ -151,24 +151,24 @@ extension EventDetailView {
     }
 
     /**
-     * Радар (docs/artist-radar.md): збережена афіша з артистом, за яким ще не стежать, — «Скажемо, коли ТІК знову приїде».
-     * Гостю теж, без входу. Натиснули — рядок лишається з «Ви стежите», поки екран відкритий.
+     * Радар (docs/artist-radar.md): на збереженій афіші (чи з квитком) — склад чипами, кожен зі своїм «Стежити», гостю
+     * теж. Дотик стежить одразу, повторний — знімає; картка лишається й тоді, коли стежать за всіма: видно, за ким.
      */
     @ViewBuilder
     func radarRow(_ view: DetailScreenState) -> some View {
-        if let artist = radarFollowed ?? view.radarHint {
-            let following = radarFollowed?.id == artist.id
-            HStack(spacing: Space.md) {
-                Text(Copy.radar_hint(artist.name)).font(PoruchFont.subhead).foregroundStyle(Palette.ink)
-                    .multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: Space.sm)
-                FollowPill(following: following) {
-                    if following {
-                        model.app.setFollowing(kind: .artist, targetId: artist.id, name: artist.name, following: false)
-                        radarFollowed = nil
-                    } else {
-                        model.app.followArtist(artistId: artist.id, name: artist.name, from: "hint")
-                        radarFollowed = artist
+        if !view.radarLineup.isEmpty {
+            VStack(alignment: .leading, spacing: Space.md) {
+                Text(Copy.radar_hint).font(PoruchFont.subhead).foregroundStyle(Palette.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                FlowLayout(spacing: Space.sm) {
+                    ForEach(view.radarLineup, id: \.artist.id) { row in
+                        RadarChip(name: row.artist.name, on: row.following, offFill: Palette.surfaceMuted, off: PoruchIcons.bell) {
+                            if row.following {
+                                model.app.setFollowing(kind: .artist, targetId: row.artist.id, name: row.artist.name, following: false)
+                            } else {
+                                model.app.followArtist(artistId: row.artist.id, name: row.artist.name, from: "hint")
+                            }
+                        }
                     }
                 }
             }

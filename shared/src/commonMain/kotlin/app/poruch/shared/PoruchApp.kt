@@ -448,14 +448,14 @@ class PoruchApp internal constructor(
 
     // ---- Радар артистів (docs/artist-radar.md)
 
-    /** «Скажемо, коли ТІК знову приїде» на деталях ([from] = `hint`) чи шторка «Кого слухаєте?» (`picker`). Гостю теж. */
+    /** Чип складу на деталях ([from] = `hint`) чи шторка «За ким стежити?» (`picker`). Гостю теж. */
     fun followArtist(artistId: String, name: String, from: String) =
         followUseCases.set(FollowKind.ARTIST, artistId, name, true, from)
 
-    /** «Стежити за 3» у шторці «Кого слухаєте?». */
+    /** «Стежити за 3» у шторці «За ким стежити?». */
     fun followArtists(picked: List<PopularArtist>) = picked.forEach { followArtist(it.artistId, it.name, "picker") }
 
-    /** Шторку «Кого слухаєте?» відкрито: хто їде в місто. */
+    /** Шторку «За ким стежити?» відкрито: хто їде в місто. */
     fun loadPopularArtists() = followUseCases.loadPopular()
 
     /** Шторку закрито: скільки показали й скільки обрали. */
