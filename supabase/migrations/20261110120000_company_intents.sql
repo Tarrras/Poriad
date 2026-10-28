@@ -456,3 +456,35 @@ language sql stable security definer set search_path='' as $$
   coalesce((select max(r.total) from ranked r), 0) > p_limit,
   coalesce((select array_agg(p.id order by p.rank) from page p where p.rank <= p_cards), '{}'::uuid[]);
 $$;
+
+-- ───────────────────────────────────────────── копія даних
+-- Тіло — з 20260928160000; політика обіцяє в копії й наміри, «Піти разом» та Instagram.
+create or replace function public.export_my_data() returns jsonb
+language sql stable security definer set search_path='' as $$
+ select jsonb_build_object(
+  'exported_at', now(),
+  'email', (select u.email from auth.users u where u.id=auth.uid()),
+  'profile', (select to_jsonb(p) from public.profiles p where p.id=auth.uid()),
+  'instagram', (select l.instagram from private.profile_links l where l.user_id=auth.uid()),
+  'account', (select to_jsonb(a) - 'status_note' from public.account_facts a where a.user_id=auth.uid()),
+  'preferences', (select to_jsonb(u) from public.user_preferences u where u.user_id=auth.uid()),
+  'events', (select coalesce(jsonb_agg(to_jsonb(e)), '[]') from public.events e where e.organizer_id=auth.uid()),
+  'memberships', (select coalesce(jsonb_agg(to_jsonb(m)), '[]') from public.event_members m where m.user_id=auth.uid()),
+  'saved', (select coalesce(jsonb_agg(to_jsonb(s)), '[]') from public.saved_events s where s.user_id=auth.uid()),
+  'waitlist', (select coalesce(jsonb_agg(to_jsonb(w)), '[]') from public.event_waitlist w where w.user_id=auth.uid()),
+  'follows', (select coalesce(jsonb_agg(to_jsonb(f)), '[]') from public.follows f where f.user_id=auth.uid()),
+  'company_intents', (select coalesce(jsonb_agg(jsonb_build_object('event_id', i.event_id, 'created_at', i.created_at)), '[]')
+                      from private.company_intents i where i.user_id=auth.uid()),
+  'company_yes', (select coalesce(jsonb_agg(jsonb_build_object('event_id', y.event_id, 'to_id', y.to_id, 'created_at', y.created_at)), '[]')
+                  from private.company_yes y where y.from_id=auth.uid()),
+  'blocks', (select coalesce(jsonb_agg(to_jsonb(b)), '[]') from public.user_blocks b where b.user_id=auth.uid()),
+  'reports', (select coalesce(jsonb_agg(to_jsonb(r)), '[]') from public.reports r where r.reporter_id=auth.uid()),
+  'messages', (select coalesce(jsonb_agg(to_jsonb(x)), '[]') from public.event_messages x where x.author_id=auth.uid()),
+  'ratings', (select coalesce(jsonb_agg(to_jsonb(g)), '[]') from public.event_ratings g where g.user_id=auth.uid()),
+  'chat_reads', (select coalesce(jsonb_agg(to_jsonb(c)), '[]') from public.chat_reads c where c.user_id=auth.uid()),
+  'push_devices', (select coalesce(jsonb_agg(jsonb_build_object('platform',t.platform,'updated_at',t.updated_at)), '[]')
+                   from public.push_tokens t where t.user_id=auth.uid())
+ );
+$$;
+revoke all on function public.export_my_data() from public, anon, authenticated;
+grant execute on function public.export_my_data() to authenticated;
