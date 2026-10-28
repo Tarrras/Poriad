@@ -25,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -100,12 +101,23 @@ fun HomeScreen(state: HomeState, onIntent: (HomeIntent) -> Unit) {
         if (state.searchMode) Box(Modifier.statusBarsPadding()) { Header(state, onIntent) }
         val list = rememberLazyListState()
         LaunchedEffect(list) { HomeScrollToTop.requests.collect { list.animateScrollToItem(0) } }
+        // Ряд чипів «У місті» липне вгорі, поки гортається сітка; волосина під ним — лише коли він уже над сіткою.
+        val chipsStuck by remember {
+            derivedStateOf {
+                list.layoutInfo.visibleItemsInfo.firstOrNull { it.key == FEED_CHIPS }
+                    ?.let { list.firstVisibleItemIndex > it.index || (list.firstVisibleItemIndex == it.index && list.firstVisibleItemScrollOffset > 0) } == true
+            }
+        }
+        // Чип із закріпленого ряду міняє сітку: на її початок, а не посеред іншого списку.
+        LaunchedEffect(state.screen.feedFilter) {
+            val chips = list.layoutInfo.visibleItemsInfo.firstOrNull { it.key == FEED_CHIPS }?.index ?: return@LaunchedEffect
+            if (list.firstVisibleItemIndex > chips) list.animateScrollToItem(chips)
+        }
+        // Список — під статус-баром, а не під ним з відступом: липкий ряд чипів інакше прилипав би під годинник.
         LazyColumn(
-            Modifier.weight(1f).fillMaxWidth(),
+            Modifier.weight(1f).fillMaxWidth().then(if (state.searchMode) Modifier else Modifier.statusBarsPadding()),
             state = list,
-            contentPadding = tabBarClearancePadding(
-                top = if (state.searchMode) 0.dp else WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-            )
+            contentPadding = tabBarClearancePadding(top = 0.dp)
         ) {
             if (!state.searchMode) item(key = "header") { Header(state, onIntent) }
             // Стрічка й фільтри пошуку ніколи разом: у режимі пошуку — видача або підказка.
@@ -134,7 +146,7 @@ fun HomeScreen(state: HomeState, onIntent: (HomeIntent) -> Unit) {
                 // «Ваше» одразу після: непрочитаний чат і запит на участь не мають губитися під афішею. Усе особисте —
                 // плани, «Ваш тиждень», дати артистів, підписки — одним блоком у чотири рядки (критика довжини 28.10).
                 item(key = "yours") { PersonalSection(state, onIntent) }
-                cityFeed(state, onIntent, columns)
+                cityFeed(state, onIntent, columns, chipsStuck)
                 // Кінець стрічки не глухий кут: далі мапа чи власна подія.
                 if (state.screen.feed.isNotEmpty()) item(key = "next") { MoreRows(state, onIntent) }
             }
@@ -476,7 +488,9 @@ private fun PersonalSection(state: HomeState, onIntent: (HomeIntent) -> Unit) {
         }
         screen.radarDates.take(slots.dates).forEach { date -> add { DateRow(date, onIntent) } }
         if (slots.follows) add {
-            FollowsRow(screen.followLine(slots.dates), screen.followed, screen.newFollowEvents) { onIntent(HomeIntent.OpenFollows) }
+            FollowsRow(screen.followLine(slots.dates), screen.followed, screen.newFollowEvents, screen.followNames.isEmpty()) {
+                onIntent(HomeIntent.OpenFollows)
+            }
         }
     }
     Column(
@@ -512,7 +526,13 @@ private fun DateRow(date: RadarDate, onIntent: (HomeIntent) -> Unit) {
     YourRow(
         day, date.event.displayTitle, date.artists.joinToString(", "),
         onClick = { onIntent(HomeIntent.OpenEvent(date.event.eventId, "radar")) },
-        tile = { YourTileIcon(PoruchIcons.person) },
+        // Плитка кольору й гліфа жанру, як корінець квитка: три дати поспіль не зливаються в однакові рядки.
+        tile = {
+            Box(
+                Modifier.size(YourTile).clip(Radius.sm).background(categoryGradient(date.event.category)),
+                contentAlignment = Alignment.Center
+            ) { Icon(categoryIcon(date.event.category), null, Modifier.size(24.dp), tint = categoryInk(date.event.category)) }
+        },
         brandTitle = true
     ) { Chevron() }
 }
@@ -819,17 +839,19 @@ private fun NextPlanCard(row: PersonalRow, onIntent: (HomeIntent) -> Unit) {
  * вище, далі заклади й організатори. Імен нема (список не доїхав) — назва події.
  */
 @Composable
-private fun FollowsRow(names: List<String>, events: List<Event>, new: Int, onClick: () -> Unit) {
+private fun FollowsRow(names: List<String>, events: List<Event>, new: Int, artistsOnly: Boolean, onClick: () -> Unit) {
     val colors = Poruch.colors
+    // Лише артисти дат, що не влізли: одне ім'я й «та ще 5 артистів» — число не читається подіями й влазить у рядок.
+    val lead = if (artistsOnly) 1 else 2
     val shown =
-        if (names.isEmpty()) events.firstOrNull()?.displayTitle.orEmpty() else names.take(2).joinToString(", ")
+        if (names.isEmpty()) events.firstOrNull()?.displayTitle.orEmpty() else names.take(lead).joinToString(", ")
     YourRow(
         overline = null, title = stringResource(R.string.follows_title),
-        subtitle = if (names.size > 2) stringResource(
-            R.string.home_follows_more,
-            shown,
-            names.size - 2
-        ) else shown,
+        subtitle = when {
+            names.size <= lead -> shown
+            artistsOnly -> "$shown " + pluralStringResource(R.plurals.home_follows_more_artists, names.size - lead, names.size - lead)
+            else -> stringResource(R.string.home_follows_more, shown, names.size - lead)
+        },
         onClick = onClick,
         tile = { YourTileIcon(PoruchIcons.bellActive) }
     ) {
@@ -853,7 +875,9 @@ private fun lane(source: FeedSource, followName: String?): String? = when (sourc
 }
 
 /** «У місті»: великі картки, що гортаються (сусідня визирає), чипи, далі сітка постерів у дві колонки. */
-private fun LazyListScope.cityFeed(state: HomeState, onIntent: (HomeIntent) -> Unit, columns: Int) {
+private const val FEED_CHIPS = "feed-chips"
+
+private fun LazyListScope.cityFeed(state: HomeState, onIntent: (HomeIntent) -> Unit, columns: Int, chipsStuck: Boolean) {
     when {
         state.screen.feed.isNotEmpty() -> {
             val picks = state.screen.feed.take(HomeRules.HERO_COUNT)
@@ -872,7 +896,13 @@ private fun LazyListScope.cityFeed(state: HomeState, onIntent: (HomeIntent) -> U
                         onAction = { onIntent(HomeIntent.ShowEverythingOnMap) }
                     )
                     HeroPager(picks, state.screen.savedIds, onIntent)
-                    if (state.screen.chips.isNotEmpty()) FeedChips(state, onIntent)
+                }
+            }
+            // Чипи «Сьогодні / Вихідні» під рукою, поки гортається сітка: п'ятничний вибір не за два екрани вгору.
+            if (state.screen.chips.isNotEmpty()) stickyHeader(key = FEED_CHIPS) {
+                Box(Modifier.fillMaxWidth().background(Poruch.colors.canvas).padding(top = Spacing.md, bottom = Spacing.sm)) {
+                    FeedChips(state, onIntent)
+                    if (chipsStuck) HairLine(Modifier.align(Alignment.BottomCenter).offset(y = Spacing.sm))
                 }
             }
             val rows = rest.take(state.feedLimit).chunked(columns)
@@ -881,7 +911,7 @@ private fun LazyListScope.cityFeed(state: HomeState, onIntent: (HomeIntent) -> U
                 Row(
                     Modifier
                         .padding(horizontal = Spacing.page)
-                        .padding(top = if (index == 0) Spacing.xxl else Spacing.xl)
+                        .padding(top = if (index == 0 && state.screen.chips.isEmpty()) Spacing.xxl else Spacing.xl)
                         .height(IntrinsicSize.Min),
                     horizontalArrangement = Arrangement.spacedBy(Spacing.md)
                 ) {

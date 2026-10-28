@@ -891,6 +891,7 @@ enum Copy {
     static func series_more_showings(_ n: Int) -> String { ukrainianPlural(n, "ще \(n) сеанс", "ще \(n) сеанси", "ще \(n) сеансів") }
     static func place_upcoming(_ n: Int) -> String { ukrainianPlural(n, "\(n) подія", "\(n) події", "\(n) подій") }
     static func seats_short(_ n: Int) -> String { ukrainianPlural(n, "\(n) місце", "\(n) місця", "\(n) місць") }
+    static func home_follows_more_artists(_ n: Int) -> String { ukrainianPlural(n, "та ще \(n) артист", "та ще \(n) артисти", "та ще \(n) артистів") }
     static func chat_members(_ n: Int) -> String { ukrainianPlural(n, "\(n) учасник", "\(n) учасники", "\(n) учасників") }
     static func chat_unread_count(_ n: Int) -> String { ukrainianPlural(n, "\(n) нове", "\(n) нових", "\(n) нових") }
     static func requests_count(_ n: Int) -> String { ukrainianPlural(n, "\(n) запит", "\(n) запити", "\(n) запитів") }

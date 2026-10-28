@@ -362,6 +362,13 @@
   <string name="home_chat_preview">%1$s: «%2$s»</string>
   <string name="home_chat_a11y">Чат, нових повідомлень: %1$d</string>
   <string name="home_follows_more">%1$s та ще %2$d</string>
+  <!-- Підпис «Ви стежите», коли там лише артисти дат, що не влізли в «Ваше»: число — артисти, а не події. -->
+  <plurals name="home_follows_more_artists">
+    <item quantity="one">та ще %d артист</item>
+    <item quantity="few">та ще %d артисти</item>
+    <item quantity="many">та ще %d артистів</item>
+    <item quantity="other">та ще %d артиста</item>
+  </plurals>
   <string name="picked_for_you">Для вас</string>
   <string name="on_map">На мапі</string>
   <string name="editor_mode_new">Нова подія</string>

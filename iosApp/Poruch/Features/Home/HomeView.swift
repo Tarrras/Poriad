@@ -41,6 +41,8 @@ struct HomeView: View, Equatable {
     /// Стос «Ваш тиждень» з головної: раз на тиждень, якщо цього тижня його не відкривали (docs/return-hooks.md).
     @AppStorage("poruch.deckWeek") private var deckWeek = ""
     @State private var deck: DeckCards?
+    /// Ряд чипів «У місті» за верхом екрана, а сітка ще видна: він закріплений угорі.
+    @State private var chipsPinned = false
 
     var body: some View {
         let view = self.view
@@ -113,11 +115,24 @@ struct HomeView: View, Equatable {
                                 deck = DeckCards(events: view.deck)
                             }
                         )
-                        HomeCityFeed(view: view, feedLimit: $feedLimit, open: open, showCity: showCity, openMap: openMap)
+                        HomeCityFeed(
+                            view: view, feedLimit: $feedLimit, open: open, showCity: showCity, openMap: openMap,
+                            chipsPinned: $chipsPinned, selectChip: { selectChip($0, proxy: proxy) }
+                        )
                         // Кінець стрічки не глухий кут: далі мапа чи власна подія.
                         if !view.feed.isEmpty { moreRows(view) }
                     }
                 }.padding(.top, Space.md).padding(.bottom, Space.section)
+            }
+        }
+        // Чипи «Сьогодні / Вихідні» під рукою, поки гортається сітка: п'ятничний вибір не за два екрани вгору.
+        .overlay(alignment: .top) {
+            if chipsPinned && !searchActive(view) {
+                FeedChipsRow(chips: view.chips, selected: view.feedFilter) { selectChip($0, proxy: proxy) }
+                    .padding(.vertical, Space.sm)
+                    .background(Palette.canvas)
+                    .overlay(alignment: .bottom) { Divider().overlay(Palette.hairline) }
+                    .transition(.opacity)
             }
         }
         // Повторний тап «Головна» в таббарі: сторінка на кілька екранів, а свій таббар системного «вгору» не має.
@@ -125,6 +140,14 @@ struct HomeView: View, Equatable {
             withMotion { proxy.scrollTo(homeTop, anchor: .top) }
         }
         }
+    }
+
+    /// Чип «У місті»: звузити сітку з першої сторінки; з закріпленого ряду — ще й на початок сітки, бо вона змінилась.
+    private func selectChip(_ chip: FeedFilter, proxy: ScrollViewProxy) {
+        let pinned = chipsPinned
+        withMotion { model.homeScreen.selectFeedFilter(chip) }
+        feedLimit = Int(HomeRules.shared.FEED_PAGE)
+        if pinned { withMotion { proxy.scrollTo(homeFeedChips, anchor: .top) } }
     }
 
     /// Куди далі, коли стрічку переглянуто: мапа з усім, що є, і створення власної події.

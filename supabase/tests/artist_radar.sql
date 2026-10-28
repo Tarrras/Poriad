@@ -130,6 +130,7 @@ begin
  assert jsonb_array_length(r)=2,'two artists';
  r := (select x from jsonb_array_elements(r) x where x->>'id'=current_setting('test.x'));
  assert r->'next'->>'id'=current_setting('test.kyiv1') and (r->>'in_city')::int=1,'next in Kyiv, one run: '||r::text;
+ assert r->'next'->>'category'='music','next carries the category for the tile: '||r::text;
  assert jsonb_array_length(r->'elsewhere')=2 and r->'elsewhere'->0->>'city'='Львів','elsewhere, nearest first: '||r::text;
  assert public.artist_radar('{}','Київ')='[]'::jsonb,'empty list';
 

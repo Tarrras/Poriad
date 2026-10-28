@@ -266,9 +266,10 @@ internal data class RadarEventDto(
     val id: String,
     val title: String = "",
     @SerialName("starts_at") val startsAt: String,
-    @SerialName("time_zone") val timeZone: String = "Europe/Kyiv"
+    @SerialName("time_zone") val timeZone: String = "Europe/Kyiv",
+    val category: String? = null
 ) {
-    fun domain() = RadarEvent(id, title, startsAt, timeZone)
+    fun domain() = RadarEvent(id, title, startsAt, timeZone, EventCategory.fromKey(category))
 }
 
 @Serializable

@@ -80,17 +80,32 @@ struct HomePersonalSection: View {
             overline: day, title: date.event.displayTitle, subtitle: date.artists.joined(separator: ", "),
             open: { open(date.event.eventId, "radar") }, brandTitle: true
         ) {
-            YourGlyphTile(glyph: PoruchIcons.person)
+            categoryTile(date.event.category)
         } trailing: { chevron }
+    }
+
+    /// Плитка дати — кольору й гліфа жанру, як корінець квитка: три дати поспіль не зливаються в однакові рядки.
+    private func categoryTile(_ category: EventCategory) -> some View {
+        ZStack {
+            categoryGradient(category)
+            PoruchIcon(glyph: categoryGlyph(category), size: 24).foregroundStyle(categoryInk(category))
+        }
+        .frame(width: yourTile, height: yourTile)
+        .clipShape(RoundedRectangle(cornerRadius: Corner.sm, style: .continuous))
     }
 
     /// «Ви стежите» і за ким — двома першими іменами, як і веде тап: на екран «Ви стежите». Спершу артисти дат, що не
     /// влізли вище, далі заклади й організатори. Імен нема (список не доїхав) — назва події.
     private func followsRow(_ names: [String]) -> some View {
-        let shown = names.isEmpty ? (view.followed.first?.displayTitle ?? "") : names.prefix(2).joined(separator: ", ")
+        // Лише артисти дат, що не влізли: одне ім'я й «та ще 5 артистів» — число не читається подіями й влазить у рядок.
+        let artistsOnly = view.followNames.isEmpty
+        let lead = artistsOnly ? 1 : 2
+        let shown = names.isEmpty ? (view.followed.first?.displayTitle ?? "") : names.prefix(lead).joined(separator: ", ")
+        let more = names.count - lead
+        let subtitle = more <= 0 ? shown
+            : artistsOnly ? shown + " " + Copy.home_follows_more_artists(more) : Copy.home_follows_more(shown, "\(more)")
         return YourRow(
-            overline: nil, title: Copy.follows_title,
-            subtitle: names.count > 2 ? Copy.home_follows_more(shown, "\(names.count - 2)") : shown, open: openFollows
+            overline: nil, title: Copy.follows_title, subtitle: subtitle, open: openFollows
         ) {
             YourGlyphTile(glyph: PoruchIcons.bellActive)
         } trailing: {

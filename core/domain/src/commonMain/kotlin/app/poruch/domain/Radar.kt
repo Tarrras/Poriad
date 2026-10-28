@@ -1,7 +1,13 @@
 package app.poruch.domain
 
-/** Найближча подія артиста в місті людини (docs/artist-radar.md). [startsAt] — ISO-8601, як у картці. */
-data class RadarEvent(val eventId: String, val title: String, val startsAt: String, val timeZone: String) {
+/** Найближча подія артиста в місті людини (docs/artist-radar.md). [startsAt] — ISO-8601, як у картці; [category] — плитка рядка. */
+data class RadarEvent(
+    val eventId: String,
+    val title: String,
+    val startsAt: String,
+    val timeZone: String,
+    val category: EventCategory = EventCategory.UNKNOWN
+) {
     /** Як у картці: капс і лапки причесані ([TitleRules]). */
     val displayTitle: String by lazy { TitleRules.display(title) }
 }

@@ -95,6 +95,10 @@ struct HomeCityFeed: View {
     /// «Усі N»: мапа з усім містом.
     let showCity: () -> Void
     let openMap: () -> Void
+    /// Ряд чипів пішов за верх, а сітка ще на екрані: `HomeView` показує його закріпленим угорі.
+    @Binding var chipsPinned: Bool
+    /// Тап по чипу: звузити сітку (і, коли ряд закріплений, повернутись до її початку).
+    let selectChip: (FeedFilter) -> Void
     @Environment(\.appModel) private var appModel
     private var model: AppModel { appModel! }
 
@@ -110,27 +114,38 @@ struct HomeCityFeed: View {
                     action: view.totalFound > 0 ? showCity : nil
                 ).padding(.horizontal, Space.page)
                 heroPager(picks)
-                if !view.chips.isEmpty { feedChips(view.chips, selected: view.feedFilter) }
-                if !shown.isEmpty {
-                    // Ряди по два квитки однакової висоти: корінці в ряду стоять на одній лінії, хоч би скільки рядків мав підпис.
-                    let visible = Array(shown.prefix(feedLimit))
-                    LazyVStack(spacing: Space.xl) {
-                        // Ряд за першою подією, а не за номером: після «Зберегти» чи чипа ряди не перебудовуються з нуля.
-                        let rows = stride(from: 0, to: visible.count, by: 2).map { Array(visible[$0..<min($0 + 2, visible.count)]) }
-                        ForEach(rows, id: \.[0].event.id) { pair in
-                            HStack(alignment: .top, spacing: Space.md) {
-                                cityPoster(pair[0])
-                                if pair.count > 1 { cityPoster(pair[1]) } else { Color.clear }
+                // Чипи й сітка — один блок: поки він під верхом екрана, ряд чипів закріплений угорі (критика довжини 28.10).
+                VStack(alignment: .leading, spacing: Space.md) {
+                    if !view.chips.isEmpty {
+                        FeedChipsRow(chips: view.chips, selected: view.feedFilter, select: selectChip)
+                            .opacity(chipsPinned ? 0 : 1).accessibilityHidden(chipsPinned)
+                    }
+                    if !shown.isEmpty {
+                        // Ряди по два квитки однакової висоти: корінці в ряду стоять на одній лінії, хоч би скільки рядків мав підпис.
+                        let visible = Array(shown.prefix(feedLimit))
+                        LazyVStack(spacing: Space.xl) {
+                            // Ряд за першою подією, а не за номером: після «Зберегти» чи чипа ряди не перебудовуються з нуля.
+                            let rows = stride(from: 0, to: visible.count, by: 2).map { Array(visible[$0..<min($0 + 2, visible.count)]) }
+                            ForEach(rows, id: \.[0].event.id) { pair in
+                                HStack(alignment: .top, spacing: Space.md) {
+                                    cityPoster(pair[0])
+                                    if pair.count > 1 { cityPoster(pair[1]) } else { Color.clear }
+                                }
+                                .fixedSize(horizontal: false, vertical: true)
                             }
-                            .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .padding(.horizontal, Space.page).padding(.top, Space.md)
+                        if shown.count > feedLimit {
+                            SecondaryButton(title: Copy.show_more) { feedLimit += Int(HomeRules.shared.FEED_PAGE) }
+                                .padding(.horizontal, Space.page)
                         }
                     }
-                    .padding(.horizontal, Space.page).padding(.top, Space.md)
-                    if shown.count > feedLimit {
-                        SecondaryButton(title: Copy.show_more) { feedLimit += Int(HomeRules.shared.FEED_PAGE) }
-                            .padding(.horizontal, Space.page)
-                    }
                 }
+                .id(homeFeedChips)
+                .onGeometryChange(for: Bool.self) { proxy in
+                    let frame = proxy.frame(in: .scrollView)
+                    return !view.chips.isEmpty && frame.minY < 0 && frame.maxY > 160
+                } action: { chipsPinned = $0 }
             }
         } else if view.loading {
             // Стрічка ще їде: лоадер і тоді, коли вище вже є плани чи «З ким піти», — інакше «У місті» просто нема.
@@ -157,20 +172,6 @@ struct HomeCityFeed: View {
         .frame(maxHeight: .infinity)
     }
 
-    /// Ряд чипів над сіткою: час, безкоштовне й найбільші категорії. Звужує лише сітку, великі картки стоять.
-    private func feedChips(_ chips: [FeedFilter], selected: FeedFilter) -> some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: Space.sm) {
-                ForEach(chips, id: \.self) { chip in
-                    Chip(label: feedChipLabel(chip), dot: chip.category, selected: chip == selected) {
-                        withMotion { model.homeScreen.selectFeedFilter(chip) }
-                        feedLimit = Int(HomeRules.shared.FEED_PAGE)
-                    }
-                }
-            }
-        }.railContentPadding(spread: 0)
-    }
-
     /// Гортана стрічка великих карток: наступна визирає з-за краю, як у Moonly.
     private func heroPager(_ picks: [FeedEntry]) -> some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -191,6 +192,26 @@ struct HomeCityFeed: View {
         .scrollTargetBehavior(.viewAligned)
         .railContentPadding(spread: 0)
         .zIndex(1)
+    }
+}
+
+/// Мітка блоку чипів і сітки «У місті»: туди повертає тап по закріпленому чипу.
+let homeFeedChips = "home-feed-chips"
+
+/// Ряд чипів над сіткою «У місті»: час, безкоштовне й найбільші категорії. Звужує лише сітку, великі картки стоять.
+/// Той самий ряд липне вгорі, поки гортається сітка (`HomeView`).
+struct FeedChipsRow: View {
+    let chips: [FeedFilter]
+    let selected: FeedFilter
+    let select: (FeedFilter) -> Void
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: Space.sm) {
+                ForEach(chips, id: \.self) { chip in
+                    Chip(label: feedChipLabel(chip), dot: chip.category, selected: chip == selected) { select(chip) }
+                }
+            }
+        }.railContentPadding(spread: 0)
     }
 }
 

@@ -92,9 +92,9 @@ grant execute on function private.forget_radar(text), public.forget_radar(text) 
 
 -- Видимі майбутні події артистів: одне правило для обох читань і зведення гостя.
 create function private.radar_events(p_ids uuid[])
-returns table(artist_id uuid, event_id uuid, title text, starts_at timestamptz, time_zone text, city text, place_id uuid)
+returns table(artist_id uuid, event_id uuid, title text, starts_at timestamptz, time_zone text, city text, place_id uuid, category text)
 language sql stable security definer set search_path='' as $$
- select ea.artist_id, e.id, e.title, e.starts_at, e.time_zone, e.city, e.place_id
+ select ea.artist_id, e.id, e.title, e.starts_at, e.time_zone, e.city, e.place_id, e.category
  from public.event_artists ea
  join public.events e on e.id = ea.event_id
  where ea.artist_id = any(p_ids) and e.status = 'published' and e.companion_of is null
@@ -103,7 +103,8 @@ language sql stable security definer set search_path='' as $$
 $$;
 revoke all on function private.radar_events(uuid[]) from public, anon, authenticated;
 
--- На артиста: найближча подія в місті, скільки їх там (прокат — одна), і до трьох інших міст із найближчою датою.
+-- На артиста: найближча подія в місті (з категорією — плитка рядка «Ваше» кольору жанру), скільки їх там (прокат —
+-- одна), і до трьох інших міст із найближчою датою.
 -- Порядок рядків — у клієнті (`RadarRules`): там же текст «Поки не в Києві · Львів 20.12». Прокат, що вже йде, —
 -- з сьогоднішньою датою, а не з днем прем'єри: піти можна вже зараз.
 create function public.artist_radar(p_ids uuid[], p_city text)
@@ -116,7 +117,7 @@ begin
   with ev as (select * from private.radar_events(v_ids))
   select jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
    'id', a.id, 'name', a.name, 'kind', a.kind,
-   'next', (select jsonb_build_object('id', x.event_id, 'title', x.title, 'starts_at', greatest(x.starts_at, now()), 'time_zone', x.time_zone)
+   'next', (select jsonb_build_object('id', x.event_id, 'title', x.title, 'starts_at', greatest(x.starts_at, now()), 'time_zone', x.time_zone, 'category', x.category)
             from ev x where x.artist_id = a.id and x.city = p_city order by x.starts_at, x.event_id limit 1),
    'in_city', (select count(distinct lower(btrim(x.title)) || '|' || coalesce(x.place_id::text, ''))
                from ev x where x.artist_id = a.id and x.city = p_city),
