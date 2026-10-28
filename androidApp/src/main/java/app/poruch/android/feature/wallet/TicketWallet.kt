@@ -185,12 +185,12 @@ private fun TicketImportContent(app: PoruchApp, ticket: TicketImport, onAdded: (
 
     Text(pluralStringResource(R.plurals.wallet_count, ticket.count, ticket.count), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
     ticket.preview?.let {
-        // Пропорція растру: обрізаний квиток — смужка, і без неї `Image` брав би висоту з пікселів, а не з ширини екрана.
-        Image(
-            it.asImageBitmap(), null,
-            Modifier.fillMaxWidth().heightIn(max = 220.dp).aspectRatio(it.width.toFloat() / it.height.coerceAtLeast(1)).clip(Radius.md),
-            contentScale = ContentScale.Fit
-        )
+        // Висота — з пропорції растру, не більше 220: інакше `Image` брав би висоту з пікселів (смужка дрібнішала),
+        // а `aspectRatio` при повній ширині вилазив за межу й наїжджав на поля (квиток A6 з QR).
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val height = minOf(maxWidth * it.height.toFloat() / it.width.coerceAtLeast(1), 220.dp)
+            Image(it.asImageBitmap(), null, Modifier.fillMaxWidth().height(height).clip(Radius.md), contentScale = ContentScale.Fit)
+        }
     }
     if (ticket.draft.parsed == "none") {
         Text(stringResource(R.string.wallet_unreadable), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
