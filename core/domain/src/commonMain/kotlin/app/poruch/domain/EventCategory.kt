@@ -10,6 +10,8 @@ enum class EventCategory(val key: String) {
     SOCIAL("social"), COMEDY("comedy"), KIDS("kids"),
     // Додані за звітом про прогалини: екскурсії тонули в «природі», конференції — у «зустрічах».
     TOURS("tours"), CONFERENCE("conference"),
+    // Сеанси кінотеатрів з імпорту (docs/cinema-import.md): сотні на день, тож у добірки — лише за інтересом ([Taste.curates]).
+    CINEMA("cinema"),
 
     /**
      * Сервер новіший за застосунок і вже знає категорію, якої тут нема. Подію показуємо загальним

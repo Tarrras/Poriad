@@ -252,6 +252,33 @@ object PoruchIcons {
             .build()
     }
 
+    /** Відкрита хлопавка: корпус і піднята планка з двома смугами. */
+    val cinema: ImageVector by lazy {
+        builder("cinema")
+            .stroke {
+                moveTo(5.5f, 10f)
+                lineTo(18.5f, 10f)
+                curveTo(19.605f, 10f, 20.5f, 10.895f, 20.5f, 12f)
+                lineTo(20.5f, 18f)
+                curveTo(20.5f, 19.105f, 19.605f, 20f, 18.5f, 20f)
+                lineTo(5.5f, 20f)
+                curveTo(4.395f, 20f, 3.5f, 19.105f, 3.5f, 18f)
+                lineTo(3.5f, 12f)
+                curveTo(3.5f, 10.895f, 4.395f, 10f, 5.5f, 10f)
+                close()
+                moveTo(3.5f, 10f)
+                lineTo(3f, 6.6f)
+                lineTo(19.6f, 3.6f)
+                lineTo(20.2f, 7f)
+                close()
+                moveTo(8f, 5.7f)
+                lineTo(9.8f, 8.9f)
+                moveTo(13.3f, 4.7f)
+                lineTo(15.1f, 7.9f)
+            }
+            .build()
+    }
+
     /** Дах, стіни й двері трьома лініями. */
     val home: ImageVector by lazy {
         builder("home")

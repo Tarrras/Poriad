@@ -22,6 +22,12 @@ data class Taste(
 ) {
     /** Відповіли, але нема за чим ранжувати: свідоме «покажи все». */
     val isBlank get() = interests.isEmpty() && times.isEmpty() && crowd == Crowd.ANY
+
+    /**
+     * Чи йде категорія в добірки («Для вас», «У місті», дайджест). Кіно — лише тим, хто його обрав: у Києві ~300 сеансів
+     * на день проти ~45 інших подій (docs/cinema-import.md). Мапа, фільтр «Кіно» й пошук показують його всім.
+     */
+    fun curates(category: EventCategory) = category != EventCategory.CINEMA || category in interests
 }
 
 /**
@@ -151,12 +157,14 @@ object TasteRanking {
     /** Події, що відповідають хоч чомусь із відповідей. Приймає список, щоб кешувати пояси. */
     fun <T : Rankable> matching(events: List<T>, taste: Taste): List<T> {
         val zones = Zones()
-        return events.filter { !it.isCancelled && (it.category in taste.interests || slotOf(it, zones) in taste.times) }
+        return events.filter { matches(it, taste) { slotOf(it, zones) } }
     }
 
     /** Подія відповідає хоч чомусь із відповідей. Лише такі потрапляють у «Для вас». */
-    fun matches(event: Rankable, taste: Taste): Boolean =
-        !event.isCancelled && (event.category in taste.interests || slotOf(event) in taste.times)
+    fun matches(event: Rankable, taste: Taste): Boolean = matches(event, taste) { slotOf(event) }
+
+    private inline fun matches(event: Rankable, taste: Taste, slot: () -> TimeSlot?): Boolean =
+        !event.isCancelled && taste.curates(event.category) && (event.category in taste.interests || slot() in taste.times)
 
     /** Слот події в її часовому поясі. */
     fun slotOf(event: Rankable): TimeSlot? = slotOf(event, Zones())

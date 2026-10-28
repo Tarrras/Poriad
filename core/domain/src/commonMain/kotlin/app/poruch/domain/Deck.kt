@@ -30,7 +30,9 @@ object DeckRules {
     fun pick(events: List<Event>, now: Instant): List<Event> {
         val until = now + HORIZON
         val rest = events.distinctBy { it.id }.filter { event ->
-            event.isPublished && !event.isCalledOff && event.isListed(now) && event.startInstant?.let { it in now..until } == true
+            // Кіно в стос не йде навіть за інтересом: «так» на сеанс о 19:40 — не план тижня (docs/cinema-import.md).
+            event.isPublished && !event.isCalledOff && event.category != EventCategory.CINEMA && event.isListed(now) &&
+                event.startInstant?.let { it in now..until } == true
         }.toMutableList()
         val deck = ArrayList<Event>()
         while (deck.size < MAX && rest.isNotEmpty()) {

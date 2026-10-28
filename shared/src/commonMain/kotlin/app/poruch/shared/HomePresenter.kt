@@ -176,8 +176,8 @@ class HomePresenter(
         // Сервер не віддає сеанси, що почались, але за час у застосунку вони починаються (Event.isListed).
         val ranked = home.events.filter { it.isListed(now) }
         val suggested = home.suggested.filter { it.isListed(now) }.take(SUGGESTED_LIMIT)
-        // Те, що вже в «Для вас», у списку міста не повторюємо.
-        val remaining = ranked - suggested.toSet()
+        // Те, що вже в «Для вас», у списку міста не повторюємо. Кіно — лише тим, хто його обрав (Taste.curates).
+        val remaining = ranked.filter { shared.taste.curates(it.category) } - suggested.toSet()
         // Місто: куди можна піти сьогодні, включно з прокатами, далі решта за рангом. Але те, що сьогодні
         // починається, йде першим: прокат буде відкритий і завтра, а концерт можна пропустити.
         val (startingToday, later) = remaining.partition { it.startsOn(today, zone) }

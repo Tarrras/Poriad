@@ -126,7 +126,7 @@ object DigestRules {
     ): List<WeekendDigest> {
         if (!enabled) return emptyList()
         // Прокат рахуємо, якщо хоч один сеанс у вікні: картка стоїть під найближчим, а він може бути раніше.
-        val starts = index.map { entry ->
+        val starts = index.filter { taste.curates(it.category) }.map { entry ->
             entry to entry.sessions.map { it.startsAt }.ifEmpty { listOf(entry.startsAt) }
                 .mapNotNull { runCatching { Instant.parse(it) }.getOrNull() }
         }

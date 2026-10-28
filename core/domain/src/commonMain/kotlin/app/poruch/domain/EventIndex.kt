@@ -36,7 +36,12 @@ data class EventIndexEntry(
      */
     val sessions: List<EventSession> = emptyList(),
     /** Скільки людей хочуть піти з компанією (лише афіша, docs/return-hooks.md). */
-    override val companyCount: Int = 0
+    override val companyCount: Int = 0,
+    /**
+     * Назва кінотеатру — лише в кіносеансу (docs/cinema-import.md), решті null: той самий фільм у ту саму хвилину йде в
+     * кількох залах мережі, і [TicketMatch] звіряє зал із квитком.
+     */
+    val place: String? = null
 ) : Rankable {
     /** За карткою стоїть більше одного рядка бази. */
     val isMerged get() = mergedWith.isNotEmpty()

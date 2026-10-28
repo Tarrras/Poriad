@@ -207,6 +207,8 @@ internal class SupabaseEventDiscovery(
         putFilters(this@indexParams)
         put("p_limit", DiscoveryRules.INDEX_CAP)
         put("p_cards", DiscoveryRules.FIRST_CARDS)
+        // Кіно (з 20261112120000): старі збірки його не просять і не отримують.
+        put("p_cinema", true)
     }
 
     private fun EventQuery.legacyParams() = buildJsonObject {

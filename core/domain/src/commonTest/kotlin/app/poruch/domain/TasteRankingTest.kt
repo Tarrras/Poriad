@@ -46,6 +46,15 @@ class TasteRankingTest {
         assertEquals("art", ranked.first().id)
     }
 
+    /** Кіно в «Для вас» — лише за інтересом: сотні сеансів на вільний вечір витіснили б усе (docs/cinema-import.md). */
+    @Test fun cinemaIsCuratedOnlyByInterest() {
+        val evenings = Taste(times = listOf(TimeSlot.WEEKDAY_EVENING), answered = true)
+        val film = listing("film", EventCategory.CINEMA, fridayEvening)
+        assertEquals(listOf("concert"), TasteRanking.matching(listOf(film, listing("concert", startsAt = fridayEvening)), evenings).map { it.id })
+        assertFalse(TasteRanking.matches(film, evenings))
+        assertTrue(TasteRanking.matches(film, evenings.copy(interests = listOf(EventCategory.CINEMA))))
+    }
+
     @Test fun wantedCompanyLiftsAmongEqualsButNotOverInterest() {
         fun entry(id: String, category: EventCategory, company: Int) = EventIndexEntry(
             id, 50.45, 30.52, category, fridayEvening, "Europe/Kyiv", id, EventOrigin.IMPORT, companyCount = company

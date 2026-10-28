@@ -183,8 +183,10 @@ internal class HomeDiscovery(
         val home = store.value.home
         val rooms = home.index.filter { it.isCommunity && it.roomHasSeats }
             .take(DiscoveryRules.HOME_ROOM_CARDS)
+        // Кіносеанси, які «У місті» однаково не покаже (Taste.curates), не з'їдають вікно карток.
+        val city = home.index.filter { store.value.taste.curates(it.category) }
         val ids =
-            (home.suggestedIndex.take(DiscoveryRules.FIRST_CARDS) + home.index.take(DiscoveryRules.FIRST_CARDS) + rooms +
+            (home.suggestedIndex.take(DiscoveryRules.FIRST_CARDS) + city.take(DiscoveryRules.FIRST_CARDS) + rooms +
                     HomeRules.company(home.index) + home.results.take(DiscoveryRules.FIRST_CARDS)).map { it.id }.distinct()
         load(ids)?.let(cardsJob::set)
     }
