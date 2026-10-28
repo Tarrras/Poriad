@@ -1201,6 +1201,10 @@ class PoruchAppTest {
         val reminders=ReminderRules.tickets(app.state.value.tickets,true,kotlin.time.Instant.parse("2030-01-01T00:00:00Z"))
         assertEquals(listOf("ticket:t2","ticket:t1"),reminders.map { it.eventId })
         assertEquals("Multiplex",reminders.first().address)
+        app.updateTicket("t2"," Дюна: Частина друга ","Multiplex Lavina",start-7_200_000,null); runCurrent()
+        val edited=store.stored.first { it.id=="t2" }
+        assertEquals("Дюна: Частина друга" to "Multiplex Lavina",edited.title to edited.place,"«Змінити» правит назву й місце")
+        assertEquals("t2.pdf",edited.file,"файл лишається")
         app.removeTicket("t1"); runCurrent()
         assertEquals(listOf("t2"),store.stored.map { it.id })
         assertTrue(app.state.value.isSaved("e1"),"закладка лишається")

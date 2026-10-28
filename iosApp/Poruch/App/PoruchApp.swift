@@ -366,7 +366,7 @@ struct RootView: View {
             tab = 2
             minePath = NavigationPath()
         }
-        .fullScreenCover(item: Binding(get: { root.shownTicket }, set: { root.shownTicket = $0 })) { TicketViewer(ticketID: $0.id) }
+        .fullScreenCover(item: Binding(get: { root.shownTicket }, set: { root.shownTicket = $0 })) { TicketViewer(ticketID: $0.id, invite: $0.invite) }
         .notice(root.notice?.presented) { model.app.clearNotice() }
     }
 }

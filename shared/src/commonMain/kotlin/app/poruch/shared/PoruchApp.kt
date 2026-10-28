@@ -565,6 +565,22 @@ class PoruchApp internal constructor(
         if (eventId != null && !store.value.isSaved(eventId)) toggleSaved(eventId)
     }
 
+    /**
+     * «Змінити»: назва, місце, час і прив'язка до події афіші, коли розбір чи збіг помилились. Файл, місця й відбиток
+     * лишаються; нова подія афіші, як і при додаванні, ставить закладку.
+     */
+    fun updateTicket(id: String, title: String, place: String?, startMillis: Long, eventId: String?) {
+        val old = store.value.tickets.firstOrNull { it.id == id } ?: return
+        val ticket = old.copy(
+            title = title.trim(), place = place?.trim()?.takeIf { it.isNotEmpty() },
+            startsAt = Instant.fromEpochMilliseconds(startMillis).toString(), timeZone = TimeZone.currentSystemDefault().id,
+            eventId = eventId
+        )
+        writeTickets(store.value.tickets.filterNot { it.id == id } + ticket)
+        PoruchAnalytics.track("wallet_edit", "matched" to (eventId != null), "relinked" to (eventId != old.eventId))
+        if (eventId != null && !store.value.isSaved(eventId)) toggleSaved(eventId)
+    }
+
     /** Квиток з тим самим файлом, якщо його вже додано: шторка каже «Цей квиток уже є» замість форми. */
     fun ticketWithFingerprint(fingerprint: String): WalletTicket? = store.value.tickets.firstOrNull { it.fingerprint == fingerprint }
 

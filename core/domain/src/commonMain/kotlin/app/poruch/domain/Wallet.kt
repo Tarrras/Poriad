@@ -35,6 +35,9 @@ data class WalletTicket(
 ) {
     val startInstant: Instant? get() = runCatching { Instant.parse(startsAt) }.getOrNull()
 
+    /** Чернетка для «Редагувати»: що збережено, без розбору й без часу (його бере платформа з [startsAt]). */
+    fun draft(): TicketDraft = TicketDraft(title, place, null, seats)
+
     /** Подія вже минула: квиток лишається пробитим, як інші минулі плани. */
     fun isPast(now: Instant): Boolean = startInstant?.let { it + PAST_AFTER < now } ?: false
 

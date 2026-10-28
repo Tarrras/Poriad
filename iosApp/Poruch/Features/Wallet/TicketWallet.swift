@@ -20,6 +20,17 @@ struct TicketImport: Identifiable {
     let fingerprint: String
 }
 
+extension TicketImport {
+    /// «Редагувати»: квиток з телефона в тій самій шторці. Без прев'ю й без розбору — поля з того, що збережено.
+    init(editing ticket: WalletTicket) {
+        self.init(
+            id: ticket.id, file: ticket.file, kind: ticket.kind,
+            draft: ticket.draft(),
+            count: Int(ticket.count), preview: nil, source: "edit", fingerprint: ticket.fingerprint ?? ""
+        )
+    }
+}
+
 /// Шторка квитка від файлу до «Додати»: відкривається одразу з «Читаємо квиток…», далі — розібраний, дубль чи помилка.
 struct TicketIntake: Identifiable {
     enum Stage { case reading, ready(TicketImport), duplicate(String), failed }
@@ -27,8 +38,12 @@ struct TicketIntake: Identifiable {
     var stage = Stage.reading
 }
 
-/// Маршрут до квитка для `sheet(item:)`: у Kotlin-класу нема `Identifiable`.
-struct TicketRoute: Identifiable, Hashable { let id: String }
+/// Маршрут до квитка для `sheet(item:)`: у Kotlin-класу нема `Identifiable`. `invite` — щойно додано квиток на кількох:
+/// перегляд відкривається на другому з «Ви йдете не самі».
+struct TicketRoute: Identifiable, Hashable {
+    let id: String
+    var invite = false
+}
 
 /// Файли квитків — лише на телефоні: копія в Application Support, текст — PDFKit чи Vision. Сервер їх не бачить.
 enum TicketFiles {
@@ -211,9 +226,16 @@ func ticketWhen(_ ticket: WalletTicket) -> String {
     return formatter(zone: ticket.timeZone, "EE d.MM, HH:mm").string(from: date)
 }
 
+func ticketSeat(_ seat: TicketSeat) -> String { seat.row.map { Copy.wallet_seat($0, seat.seat) } ?? Copy.wallet_seat_only(seat.seat) }
+
 func ticketSeats(_ ticket: WalletTicket) -> String? {
-    let seats = ticket.seats.map { seat in seat.row.map { Copy.wallet_seat($0, seat.seat) } ?? Copy.wallet_seat_only(seat.seat) }
-    return seats.isEmpty ? nil : seats.joined(separator: " · ")
+    ticket.seats.isEmpty ? nil : ticket.seats.map(ticketSeat).joined(separator: " · ")
+}
+
+/// Місце на сторінці [page], коли сторінок стільки ж, скільки місць (Multiplex: сторінка — квиток). Інакше — nil:
+/// на одній сторінці кілька місць.
+func pageSeat(_ ticket: WalletTicket, page: Int, pages: Int) -> TicketSeat? {
+    ticket.seats.count == pages && page < pages ? ticket.seats[page] : nil
 }
 
 // MARK: - Підтвердження
@@ -264,6 +286,8 @@ struct TicketImportSheet: View {
     @EnvironmentObject private var model: AppModel
     @Environment(\.dismiss) private var dismiss
     let ticket: TicketImport
+    /// «Редагувати» з перегляду: поля з квитка, «Зберегти» замість «Додати», файл після закриття лишається.
+    var editing: WalletTicket?
     @State private var title = ""
     @State private var place = ""
     @State private var start = Date()
@@ -311,17 +335,25 @@ struct TicketImportSheet: View {
                             .labelsHidden().datePickerStyle(.compact).tint(Palette.ink)
                     }
                 }
-                PrimaryButton(title: Copy.wallet_save, glyph: PoruchIcons.ticket, enabled: canSave) { add() }
+                PrimaryButton(title: editing == nil ? Copy.wallet_save : Copy.wallet_update, glyph: PoruchIcons.ticket, enabled: canSave) { add() }
             }
             .padding(.horizontal, Space.page).padding(.top, Space.xl).padding(.bottom, Space.section)
         }
         .background(Palette.canvas)
         .presentationDragIndicator(.visible)
         .onAppear(perform: prefill)
-        .onDisappear { if !added { TicketFiles.remove(ticket.file) } }
+        .onDisappear { if !added && editing == nil { TicketFiles.remove(ticket.file) } }
     }
 
     private func prefill() {
+        if let editing {
+            title = editing.title
+            place = editing.place ?? ""
+            if let date = parseEventDate(editing.startsAt) { start = date; hasStart = true }
+            matchID = editing.eventId
+            if let matchID, model.cardsByID[matchID] == nil { model.app.loadCards(ids: [matchID]) }
+            return
+        }
         title = ticket.draft.title ?? ""
         place = ticket.draft.place ?? ""
         if let millis = model.app.ticketStartMillis(draft: ticket.draft) {
@@ -336,6 +368,15 @@ struct TicketImportSheet: View {
     private func add() {
         let event = onListing ? matched : nil
         let startDate = event.flatMap { parseEventDate($0.startsAt) } ?? start
+        if editing != nil {
+            model.app.updateTicket(
+                id: ticket.id, title: event?.displayTitle ?? title, place: event?.placeLabel ?? place,
+                startMillis: Int64(startDate.timeIntervalSince1970 * 1000), eventId: event?.id
+            )
+            added = true
+            dismiss()
+            return
+        }
         model.app.addTicket(
             id: ticket.id, file: ticket.file, kind: ticket.kind,
             title: event?.displayTitle ?? title, place: event?.placeLabel ?? place,
@@ -346,6 +387,8 @@ struct TicketImportSheet: View {
         added = true
         // Квиток — у «Моїх подіях»: туди й ведемо, щоб людина бачила, де він тепер.
         model.root.ticketAdded = true
+        // Квитків кілька — людина йде не сама: одразу квиток на весь екран, на другому, з «Надіслати».
+        if ticket.count > 1 { model.root.ticketNext = TicketRoute(id: ticket.id, invite: true) }
         dismiss()
     }
 }
@@ -357,14 +400,24 @@ struct TicketViewer: View {
     @EnvironmentObject private var model: AppModel
     @Environment(\.dismiss) private var dismiss
     let ticketID: String
+    var invite = false
     @State private var count = 0
     @State private var pages: [Int: UIImage] = [:]
     @State private var brightness: CGFloat?
     @State private var deleting = false
     @State private var page = 0
     @State private var sharing: TicketShare?
+    @State private var editing = false
+    /// «Ви йдете не самі» — до першого «Надіслати».
+    @State private var sent = false
 
     private var ticket: WalletTicket? { model.state?.tickets.first { $0.id == ticketID } }
+
+    /// «Квиток 2 з 2 · Ряд 7, місце 13»: у PDF на двох видно, яка сторінка чия.
+    private func pageLabel(_ ticket: WalletTicket, _ index: Int) -> String {
+        let seat = pageSeat(ticket, page: index, pages: count).map { " · " + ticketSeat($0) } ?? ""
+        return Copy.wallet_page("\(index + 1)", "\(count)") + seat
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.md) {
@@ -374,7 +427,9 @@ struct TicketViewer: View {
                         Text(ticket.title).font(PoruchFont.brandTitle2).kerning(-0.2).foregroundStyle(Palette.ink).lineLimit(2)
                         Text([ticketWhen(ticket), ticket.place].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · "))
                             .font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
-                        if let seats = ticketSeats(ticket) {
+                        if count > 1 {
+                            Text(pageLabel(ticket, page)).font(PoruchFont.caption.weight(.semibold)).foregroundStyle(Palette.ink)
+                        } else if let seats = ticketSeats(ticket) {
                             Text(seats).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
                         }
                     }
@@ -399,6 +454,8 @@ struct TicketViewer: View {
                         }
                     }
                     .padding(.bottom, Space.xl)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(ticket.map { pageLabel($0, index) } ?? "")
                     .tag(index)
                     // Сторінка малюється, коли до неї догорнули: PDF на десять квитків не тримає десять растрів.
                     .task {
@@ -408,17 +465,27 @@ struct TicketViewer: View {
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: count > 1 ? .always : .never))
-            .accessibilityLabel(ticket.map { Copy.wallet_count(Int($0.count)) } ?? "")
             // Квиток тому, з ким ідеш: лише сторінка, яку видно, і що-коли-де з посиланням (docs/ticket-wallet.md, хвиля 2).
             if let ticket {
-                SecondaryButton(title: Copy.wallet_send, glyph: PoruchIcons.share) {
+                if invite && !sent && count > 1 {
+                    Text(Copy.wallet_together).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                let seat = pageSeat(ticket, page: page, pages: count)
+                SecondaryButton(title: seat.map { Copy.wallet_send_seat($0.seat) } ?? Copy.wallet_send, glyph: PoruchIcons.share) {
                     guard let file = TicketFiles.single(ticket, page: page) else { return }
                     model.app.ticketSent(id: ticket.id)
+                    sent = true
                     sharing = TicketShare(items: [ticketShareText(ticket), file])
                 }
             }
-            Button { deleting = true } label: {
-                Text(Copy.wallet_delete).font(PoruchFont.button).foregroundStyle(Palette.danger).tapTarget()
+            HStack(spacing: Space.xl) {
+                Button { editing = true } label: {
+                    Text(Copy.edit).font(PoruchFont.button).foregroundStyle(Palette.ink).tapTarget()
+                }
+                Button { deleting = true } label: {
+                    Text(Copy.wallet_delete).font(PoruchFont.button).foregroundStyle(Palette.danger).tapTarget()
+                }
             }
             .buttonStyle(.plain).frame(maxWidth: .infinity)
         }
@@ -427,6 +494,8 @@ struct TicketViewer: View {
         .task {
             guard let ticket else { return }
             count = await Task.detached { TicketFiles.pageCount(ticket) }.value
+            // Перший квиток зазвичай того, хто купував: «Надіслати» стоїть на другому.
+            if invite && count > 1 { page = 1 }
             model.app.ticketShown(id: ticket.id)
         }
         .onAppear {
@@ -436,6 +505,9 @@ struct TicketViewer: View {
         }
         .onDisappear { if let brightness { keyScreen()?.brightness = brightness } }
         .sheet(item: $sharing) { ActivitySheet(items: $0.items).presentationDetents([.medium, .large]) }
+        .sheet(isPresented: $editing) {
+            if let ticket { TicketImportSheet(ticket: TicketImport(editing: ticket), editing: ticket) }
+        }
         .alert(Copy.wallet_delete_title, isPresented: $deleting) {
             Button(Copy.cancel, role: .cancel) {}
             Button(Copy.wallet_delete, role: .destructive) {
@@ -512,7 +584,7 @@ struct TicketsSection: View {
                     .tapTarget()
                 }
                 .buttonStyle(.plain)
-                .accessibilityAddTraits(showsPast ? .isSelected : [])
+                .accessibilityValue(showsPast ? Copy.expanded : Copy.collapsed)
                 if showsPast {
                     ForEach(past, id: \.id) { ticket in
                         Button { model.root.shownTicket = TicketRoute(id: ticket.id) } label: { WalletTicketCard(ticket: ticket, punched: true) }
@@ -547,18 +619,21 @@ struct WalletTicketCard: View {
     let ticket: WalletTicket
     /// Минулий: пробитий, як минулі події афіші.
     var punched = false
+    @Environment(\.dynamicTypeSize) private var typeSize
+    /// На великому шрифті корінець ширшає в півтора раза: два рядки обрізали б назву й місце на «Частина др…».
+    private var lines: Int? { typeSize.isAccessibilitySize ? nil : 2 }
 
     var body: some View {
         let date = parseEventDate(ticket.startsAt)
         Ticket(stubColor: Palette.ink, stubLength: 84, punched: punched) {
             VStack(alignment: .leading, spacing: Space.xs) {
-                Text(ticket.title).font(PoruchFont.brandTitle3).foregroundStyle(Palette.ink).lineLimit(2)
+                Text(ticket.title).font(PoruchFont.brandTitle3).foregroundStyle(Palette.ink).lineLimit(lines)
                     .multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
                 if let place = ticket.place, !place.isEmpty {
-                    Text(place).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(2)
+                    Text(place).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(lines)
                 }
                 Text(ticketSeats(ticket) ?? Copy.wallet_count(Int(ticket.count)))
-                    .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary).lineLimit(2)
+                    .font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary).lineLimit(lines)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(Space.lg)

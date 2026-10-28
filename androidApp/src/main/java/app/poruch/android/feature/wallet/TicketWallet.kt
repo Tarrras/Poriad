@@ -38,6 +38,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -52,6 +53,7 @@ import app.poruch.android.platform.toast
 import app.poruch.android.ui.*
 import app.poruch.domain.EventLinks
 import app.poruch.domain.StoreLinks
+import app.poruch.domain.TicketSeat
 import app.poruch.domain.WalletTicket
 import app.poruch.shared.PoruchApp
 import android.graphics.Bitmap
@@ -71,6 +73,8 @@ import org.koin.compose.koinInject
 object WalletUi {
     var intake by mutableStateOf<TicketIntake?>(null)
     var shown by mutableStateOf<String?>(null)
+    /** Щойно додано квиток на кількох: перегляд відкривається на другому з «Ви йдете не самі». */
+    var inviting by mutableStateOf(false)
     /** Квиток щойно додано: «Мої події» відкриваються на «Іду», де він лежить, і скидають прапорець. */
     var added by mutableStateOf(false)
 
@@ -112,12 +116,22 @@ fun ticketWhen(ticket: WalletTicket): String =
     ticket.start()?.format(DateTimeFormatter.ofPattern("EE d.MM, HH:mm", UKRAINIAN)).orEmpty()
 
 @Composable
-private fun ticketSeats(ticket: WalletTicket): String? {
-    val row = stringResource(R.string.wallet_seat, "%1\$s", "%2\$s")
-    val only = stringResource(R.string.wallet_seat_only, "%1\$s")
-    return ticket.seats.map { seat -> seat.row?.let { row.format(it, seat.seat) } ?: only.format(seat.seat) }
-        .takeIf { it.isNotEmpty() }?.joinToString(" · ")
-}
+private fun ticketSeat(seat: TicketSeat): String =
+    seat.row?.let { stringResource(R.string.wallet_seat, it, seat.seat) } ?: stringResource(R.string.wallet_seat_only, seat.seat)
+
+@Composable
+private fun ticketSeats(ticket: WalletTicket): String? =
+    ticket.seats.takeIf { it.isNotEmpty() }?.map { ticketSeat(it) }?.joinToString(" · ")
+
+/** Місце на сторінці [page], коли сторінок стільки ж, скільки місць (Multiplex: сторінка — квиток); інакше null. */
+private fun pageSeat(ticket: WalletTicket, page: Int, pages: Int): TicketSeat? =
+    ticket.seats.takeIf { it.size == pages }?.getOrNull(page)
+
+/** «Квиток 2 з 2 · Ряд 7, місце 13»: у PDF на двох видно, яка сторінка чия. */
+@Composable
+private fun pageLabel(ticket: WalletTicket, page: Int, pages: Int): String =
+    stringResource(R.string.wallet_page, (page + 1).toString(), pages.toString()) +
+        (pageSeat(ticket, page, pages)?.let { " · " + ticketSeat(it) } ?: "")
 
 // ---- Підтвердження
 
@@ -156,27 +170,35 @@ fun TicketIntakeSheet(app: PoruchApp, intake: TicketIntake, onAdded: () -> Unit,
                 is TicketIntake.Ready -> TicketImportContent(app, intake.ticket) {
                     added = true
                     WalletUi.added = true
-                    // Квиток — у «Моїх подіях»: туди й ведемо, щоб людина бачила, де він тепер.
-                    sheet.close { onDone(); onAdded() }
+                    // Квиток — у «Моїх подіях»: туди й ведемо, щоб людина бачила, де він тепер. Квитків кілька — людина
+                    // йде не сама: одразу квиток на весь екран, на другому, з «Надіслати».
+                    sheet.close {
+                        onDone(); onAdded()
+                        if (intake.ticket.count > 1) { WalletUi.inviting = true; WalletUi.shown = intake.ticket.id }
+                    }
                 }
             }
         }
     }
 }
 
-/** Розібраний квиток: прев'ю, знайдена подія афіші або назва, місце й коли, заповнені розбором. Одна дія — «Додати квиток». */
+/**
+ * Розібраний квиток: прев'ю, знайдена подія афіші або назва, місце й коли, заповнені розбором. Одна дія — «Додати квиток».
+ * [editing] — «Редагувати» з перегляду: поля з квитка й «Зберегти».
+ */
 @Composable
-private fun TicketImportContent(app: PoruchApp, ticket: TicketImport, onAdded: () -> Unit) {
+private fun TicketImportContent(app: PoruchApp, ticket: TicketImport, editing: WalletTicket? = null, onAdded: () -> Unit) {
     val colors = Poruch.colors
     val state by app.state.collectAsState()
     val zone = ZoneId.systemDefault()
-    var title by remember { mutableStateOf(ticket.draft.title.orEmpty()) }
-    var place by remember { mutableStateOf(ticket.draft.place.orEmpty()) }
+    var title by remember { mutableStateOf(editing?.title ?: ticket.draft.title.orEmpty()) }
+    var place by remember { mutableStateOf(editing?.place ?: ticket.draft.place.orEmpty()) }
     var start by remember {
-        mutableStateOf(app.ticketStartMillis(ticket.draft)?.let { LocalDateTime.ofInstant(Instant.ofEpochMilli(it), zone) })
+        val millis = editing?.startInstant?.toEpochMilliseconds() ?: app.ticketStartMillis(ticket.draft)
+        mutableStateOf(millis?.let { LocalDateTime.ofInstant(Instant.ofEpochMilli(it), zone) })
     }
     var picking by remember { mutableStateOf<Boolean?>(null) }
-    val matchId = remember { app.ticketMatch(ticket.draft) }
+    val matchId = remember { if (editing != null) editing.eventId else app.ticketMatch(ticket.draft) }
     LaunchedEffect(matchId) { if (matchId != null && state.cards[matchId] == null) app.loadCards(listOf(matchId)) }
     val matched = matchId?.let { state.cards[it] }
     var linked by remember { mutableStateOf(true) }
@@ -219,9 +241,14 @@ private fun TicketImportContent(app: PoruchApp, ticket: TicketImport, onAdded: (
             null, onDate = { picking = false }, onTime = { picking = true }
         )
     }
-    PrimaryButton(stringResource(R.string.wallet_save), {
+    PrimaryButton(stringResource(if (editing == null) R.string.wallet_save else R.string.wallet_update), {
         val event = matched?.takeIf { onListing }
         val millis = event?.startInstant?.toEpochMilliseconds() ?: start?.atZone(zone)?.toInstant()?.toEpochMilli() ?: return@PrimaryButton
+        if (editing != null) {
+            app.updateTicket(ticket.id, event?.displayTitle ?: title, event?.placeLabel ?: place, millis, event?.id)
+            onAdded()
+            return@PrimaryButton
+        }
         app.addTicket(
             ticket.id, ticket.file, ticket.kind, event?.displayTitle ?: title, event?.placeLabel ?: place, millis,
             ticket.count, ticket.draft.seats, event?.id, ticket.source, ticket.draft.parsed, ticket.fingerprint
@@ -240,7 +267,7 @@ private fun TicketImportContent(app: PoruchApp, ticket: TicketImport, onAdded: (
 
 /** Квиток на весь екран: сторінки гортаються, яскравість угору, поки на екрані QR. */
 @Composable
-fun TicketViewer(app: PoruchApp, ticketId: String, onClose: () -> Unit) {
+fun TicketViewer(app: PoruchApp, ticketId: String, invite: Boolean, onClose: () -> Unit) {
     val colors = Poruch.colors
     val context = LocalContext.current
     val state by app.state.collectAsState()
@@ -248,6 +275,9 @@ fun TicketViewer(app: PoruchApp, ticketId: String, onClose: () -> Unit) {
     val width = with(LocalDensity.current) { LocalConfiguration.current.screenWidthDp.dp.roundToPx() }
     var count by remember { mutableIntStateOf(0) }
     var deleting by remember { mutableStateOf(false) }
+    var editing by remember { mutableStateOf(false) }
+    /** «Ви йдете не самі» — до першого «Надіслати». */
+    var sent by remember { mutableStateOf(false) }
     LaunchedEffect(ticketId) {
         count = TicketFiles.pageCount(context, ticket)
         app.ticketShown(ticketId)
@@ -263,12 +293,16 @@ fun TicketViewer(app: PoruchApp, ticketId: String, onClose: () -> Unit) {
             Modifier.fillMaxSize().background(colors.canvas).systemBarsPadding().padding(horizontal = Spacing.page, vertical = Spacing.md),
             verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
+            val pager = rememberPagerState { count }
+            // Перший квиток зазвичай того, хто купував: «Надіслати» стоїть на другому.
+            LaunchedEffect(count) { if (invite && count > 1) pager.scrollToPage(1) }
             Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(ticket.title, style = PoruchType.brandTitle2, color = colors.ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     Text(listOfNotNull(ticketWhen(ticket), ticket.place).filter { it.isNotBlank() }.joinToString(" · "),
                         style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
-                    ticketSeats(ticket)?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary) }
+                    if (count > 1) Text(pageLabel(ticket, pager.currentPage, count), style = MaterialTheme.typography.labelLarge, color = colors.ink)
+                    else ticketSeats(ticket)?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary) }
                 }
                 val close = stringResource(R.string.close)
                 Box(
@@ -277,7 +311,6 @@ fun TicketViewer(app: PoruchApp, ticketId: String, onClose: () -> Unit) {
                     contentAlignment = Alignment.Center
                 ) { Icon(PoruchIcons.close, null, Modifier.size(20.dp), tint = colors.ink) }
             }
-            val pager = rememberPagerState { count }
             HorizontalPager(pager, Modifier.weight(1f).fillMaxWidth(), pageSpacing = Spacing.md) { index ->
                 // Сторінка малюється, коли до неї догорнули: PDF на десять квитків не тримає десять растрів.
                 var bitmap by remember(index) { mutableStateOf<Bitmap?>(null) }
@@ -285,7 +318,7 @@ fun TicketViewer(app: PoruchApp, ticketId: String, onClose: () -> Unit) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     bitmap?.let {
                         Image(
-                            it.asImageBitmap(), pluralStringResource(R.plurals.wallet_count, ticket.count, ticket.count),
+                            it.asImageBitmap(), pageLabel(ticket, index, count),
                             Modifier.fillMaxWidth().clip(RoundedCornerShape(Corner.md)).background(Color.White),
                             contentScale = ContentScale.Fit
                         )
@@ -303,13 +336,31 @@ fun TicketViewer(app: PoruchApp, ticketId: String, onClose: () -> Unit) {
             // Кіно без афіші — посилання на сайт: той, кому квиток, дізнається, звідки він.
             ) + "\n" + (ticket.eventId?.let { EventLinks.url(it) } ?: StoreLinks.SHARE)
             val scope = rememberCoroutineScope()
-            SecondaryButton(stringResource(R.string.wallet_send), {
+            if (invite && !sent && count > 1) {
+                Text(stringResource(R.string.wallet_together), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
+            }
+            val seat = pageSeat(ticket, pager.currentPage, count)
+            SecondaryButton(seat?.let { stringResource(R.string.wallet_send_seat, it.seat) } ?: stringResource(R.string.wallet_send), {
                 scope.launch {
-                    if (TicketFiles.share(context, ticket, pager.currentPage, sendText)) app.ticketSent(ticket.id)
+                    if (TicketFiles.share(context, ticket, pager.currentPage, sendText)) { app.ticketSent(ticket.id); sent = true }
                     else context.toast(R.string.wallet_failed)
                 }
             }, Modifier.fillMaxWidth(), icon = PoruchIcons.share)
-            GhostButton(stringResource(R.string.wallet_delete), { deleting = true }, Modifier.align(Alignment.CenterHorizontally), tone = colors.danger)
+            Row(Modifier.align(Alignment.CenterHorizontally), horizontalArrangement = Arrangement.spacedBy(Spacing.xl)) {
+                GhostButton(stringResource(R.string.edit), { editing = true })
+                GhostButton(stringResource(R.string.wallet_delete), { deleting = true }, tone = colors.danger)
+            }
+        }
+        if (editing) PoruchSheet({ editing = false }) { sheet ->
+            Column(
+                Modifier.verticalScroll(rememberScrollState()).padding(horizontal = Spacing.page).padding(bottom = Spacing.section),
+                verticalArrangement = Arrangement.spacedBy(Spacing.lg)
+            ) {
+                Text(stringResource(R.string.wallet_import_title), style = PoruchType.brandTitle1, color = colors.ink, modifier = Modifier.semantics { heading() })
+                TicketImportContent(
+                    app, TicketImport(ticket.id, ticket.file, ticket.kind, ticket.draft(), ticket.count, null, "edit", ticket.fingerprint.orEmpty()), ticket
+                ) { sheet.close { editing = false } }
+            }
         }
         if (deleting) PoruchConfirmSheet(
             stringResource(R.string.wallet_delete_title), stringResource(R.string.wallet_delete_body),
@@ -342,6 +393,8 @@ fun TicketsSection(tickets: List<WalletTicket>, past: List<WalletTicket>, modifi
         WalletUi.intake(context, app, scope) { TicketFiles.load(context, uri, app, "picker") }
     }
     var showsPast by rememberSaveable { mutableStateOf(false) }
+    val expanded = stringResource(R.string.expanded)
+    val collapsed = stringResource(R.string.collapsed)
     val add = { pick.launch(arrayOf("application/pdf", "image/*")) }
     Column(modifier, verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
         if (tickets.isEmpty()) {
@@ -354,7 +407,8 @@ fun TicketsSection(tickets: List<WalletTicket>, past: List<WalletTicket>, modifi
         }
         if (past.isNotEmpty()) {
             Row(
-                Modifier.fillMaxWidth().heightIn(min = 48.dp).toggleable(showsPast, role = Role.Switch) { showsPast = it },
+                Modifier.fillMaxWidth().heightIn(min = 48.dp).pressable(role = Role.Button, pressedScale = 1f) { showsPast = !showsPast }
+                    .semantics { stateDescription = if (showsPast) expanded else collapsed },
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(stringResource(R.string.wallet_past, past.size.toString()), Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
@@ -383,6 +437,8 @@ fun TodayTickets(tickets: List<WalletTicket>, modifier: Modifier = Modifier) {
 @Composable
 fun WalletTicketCard(ticket: WalletTicket, punched: Boolean = false, onClick: () -> Unit) {
     val colors = Poruch.colors
+    // На великому шрифті корінець ширшає в півтора раза: два рядки обрізали б назву й місце на «Частина др…».
+    val lines = if (LocalDensity.current.fontScale >= 1.5f) Int.MAX_VALUE else 2
     val start = ticket.start()
     val label = listOfNotNull(ticket.title, ticketWhen(ticket), ticket.place, pluralStringResource(R.plurals.wallet_count, ticket.count, ticket.count))
         .filter { it.isNotBlank() }.joinToString(", ")
@@ -409,10 +465,10 @@ fun WalletTicketCard(ticket: WalletTicket, punched: Boolean = false, onClick: ()
         onClick = onClick
     ) {
         Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-            Text(ticket.title, style = PoruchType.brandTitle3, color = colors.ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            ticket.place?.takeIf { it.isNotBlank() }?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary, maxLines = 2) }
+            Text(ticket.title, style = PoruchType.brandTitle3, color = colors.ink, maxLines = lines, overflow = TextOverflow.Ellipsis)
+            ticket.place?.takeIf { it.isNotBlank() }?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary, maxLines = lines) }
             Text(ticketSeats(ticket) ?: pluralStringResource(R.plurals.wallet_count, ticket.count, ticket.count),
-                style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary, maxLines = 2)
+                style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary, maxLines = lines)
         }
     }
 }

@@ -310,7 +310,7 @@ fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
             }
             // Квиток, що прийшов файлом, і квиток на весь екран — поверх будь-якої вкладки (docs/ticket-wallet.md).
             WalletUi.intake?.let { TicketIntakeSheet(app, it, onAdded = { navigator.reset(Mine) }) { WalletUi.intake = null } }
-            WalletUi.shown?.let { TicketViewer(app, it) { WalletUi.shown = null } }
+            WalletUi.shown?.let { TicketViewer(app, it, WalletUi.inviting) { WalletUi.shown = null; WalletUi.inviting = false } }
         }
     }
 }

@@ -626,6 +626,10 @@
   <string name="wallet_show">Показати квиток</string>
   <string name="wallet_past">Минулі квитки · %1$s</string>
   <string name="wallet_today">Квитки на сьогодні</string>
+  <string name="wallet_page">Квиток %1$s з %2$s</string>
+  <string name="wallet_send_seat">Надіслати місце %1$s</string>
+  <string name="wallet_together">Ви йдете не самі: надішліть квиток тому, з ким ідете</string>
+  <string name="wallet_update">Зберегти</string>
   <plurals name="wallet_count">
     <item quantity="one">%d квиток</item>
     <item quantity="few">%d квитки</item>
