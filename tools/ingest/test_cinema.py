@@ -109,10 +109,11 @@ class PlanetaTests(unittest.TestCase):
         self.assertEqual(movie["image"], "https://cdn.planetakino.ua/p.webp")
 
 
-def fake_get(pages):
+def fake_get(pages, redirects=None):
     def get(url, **kw):
-        body = pages.get(url)
-        return Response(url, 200 if body else 404, body or "")
+        target = (redirects or {}).get(url, url)
+        body = pages.get(target)
+        return Response(url, 200 if body else 404, body or "", final_url=target)
     return get
 
 
@@ -138,6 +139,19 @@ class CollectTests(unittest.TestCase):
         self.assertEqual(events[0]["location"]["address"]["streetAddress"], "проспект Степана Бандери, 34В, РЦ «Блокбастер»")
         self.assertEqual(events[0]["endDate"], "2026-10-29T19:49:00+02:00")
         self.assertTrue(report["errors"], "інші дні й кінотеатри не відкрились")
+
+    def test_planeta_day_without_sessions_redirects_to_today(self):
+        """Planeta віддає 302 на сьогоднішню дату, коли дня в розкладі нема: це порожній день, а не сеанси того дня."""
+        source = by_slug("planeta_kino")
+        day = "https://planetakino.ua/schedule/?cinema=blokbaster&date="
+        pages = {"https://planetakino.ua/cinemas/": PK_CINEMAS, day + "2026-10-29": PK_DAY,
+                 "https://planetakino.ua/movie/forgotten-island/": PK_MOVIE}
+        events, report = cinema.collect("planeta", source, "Київ", now=NOW,
+                                        get=fake_get(pages, {day + "2026-11-03": day + "2026-10-29"}))
+        self.assertEqual({e["startDate"][:10] for e in events}, {"2026-10-29"})
+        self.assertEqual(report["empty_days"], 1)
+        self.assertFalse([e for e in report["errors"] if "blokbaster" in e and "2026-11-03" in e],
+                         "переадресація — не збій сторінки")
 
 
 class BuildTests(unittest.TestCase):

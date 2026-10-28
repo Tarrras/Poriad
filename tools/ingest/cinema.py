@@ -181,16 +181,18 @@ def _ld(html: str) -> list[dict]:
 def collect(chain: str, source, city: str, *, get, now: dt.datetime) -> tuple[list[dict], dict]:
     """Усі кінотеатри міста з `source.venues[city]` на дні від сьогодні до `horizon_days`. Повний, якщо `errors`
     порожній: тоді відсутній сеанс справді зник із розкладу (`__main__._may_retire`)."""
-    report = {"fetched": 0, "errors": [], "venues": 0, "sessions": 0, "movies": 0}
+    report = {"fetched": 0, "errors": [], "venues": 0, "sessions": 0, "movies": 0, "empty_days": 0}
     venues = (source.venues or {}).get(city) or {}
     days = _days(now, source.horizon_days, source.time_zone)
 
-    def fetch(url):
+    def fetch(url, *, landed=None):
         try:
             response = get(url, delay=source.crawl_delay)
             if response.status != 200 or not response.body:
                 raise ValueError(response.error or f"HTTP {response.status}")
             report["fetched"] += 1
+            if landed and landed not in (response.final_url or url):
+                return ""                      # переадресовано деінде: тут нічого нема, і це не збій
             return response.body
         except (PermissionError, OSError, ValueError) as exc:
             report["errors"].append(f"{url}: {exc}")
@@ -207,9 +209,13 @@ def collect(chain: str, source, city: str, *, get, now: dt.datetime) -> tuple[li
     elif chain == "planeta":
         addresses = planeta_cinemas(fetch(f"{source.base_url}/cinemas/") or "")
         for slug, venue in venues.items():
-            pages = [(day, fetch(f"{source.listing_urls[city]}?cinema={slug}&date={day.isoformat()}")) for day in days]
+            # День без сеансів Planeta переадресовує на сьогодні (302 → `date=<сьогодні>`, Dream Yellow 03.11.2026):
+            # прочитаний як свій, він поставив би сьогоднішні сеанси на інший день.
+            pages = [(day, fetch(f"{source.listing_urls[city]}?cinema={slug}&date={day.isoformat()}",
+                                 landed=f"date={day.isoformat()}")) for day in days]
             for day, body in pages:
-                if body is None:
+                if not body:
+                    report["empty_days"] += body == ""
                     continue
                 try:
                     events += planeta_sessions(body, city, venue, addresses.get(venue, ""), slug, day, source.time_zone)

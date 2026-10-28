@@ -216,7 +216,8 @@ SOURCES: list[Source] = [
     ),
     # Кіно (docs/cinema-import.md). Вимкнено, доки на prod немає категорії `cinema` (CHECK на events.category) і
     # клієнта, що її знає: розклад обходу пише в prod, а сеанс з невідомою категорією зламав би весь дамп міста.
-    # Горизонт — сьогодні й два дні: Київ ≈ 290–370 сеансів на день проти ~45 інших подій.
+    # Горизонт — тиждень (рішення власника 28.10): Київ ≈ 2 200 сеансів проти ~1 300 інших подій у видачі міста, стеля
+    # індексу 5 000 — кіно на ній відрізається першим (discover_index, 20261112120000).
     Source(
         slug="multiplex", name="Multiplex", base_url="https://multiplex.ua",
         listing_urls={"Київ": "https://multiplex.ua/cinema/kyiv/",
@@ -226,7 +227,7 @@ SOURCES: list[Source] = [
                          "atmosphera": "Multiplex Атмосфера", "komod": "Multiplex Komod",
                          "karavan": "Multiplex Караван", "tsum": "Multiplex ЦУМ"},
                 "Львів": {"victoriagardens": "Multiplex Victoria Gardens", "spartak": "Multiplex Spartak"}},
-        weight=0.8, crawl_delay=1.5, adapter="cinema:multiplex", horizon_days=2, enabled=False,
+        weight=0.8, crawl_delay=1.5, adapter="cinema:multiplex", horizon_days=6, enabled=False,
         note="2026-10-28: сторінка кінотеатру — усі дні продажу (до ~2 міс.), сеанс із посиланням на вибір місць, "
              "вік і формат (LUX, IMAX, SDH). Ціни й залу нема. robots.txt: Allow /.",
     ),
@@ -240,7 +241,7 @@ SOURCES: list[Source] = [
                 "Львів": {"forum-lviv": "Планета Кіно Forum Lviv",
                           "king-cross-leopolis": "Планета Кіно King Cross Leopolis",
                           "leoland": "Планета Кіно Leolend"}},
-        weight=0.8, crawl_delay=2.0, adapter="cinema:planeta", horizon_days=2, enabled=False,
+        weight=0.8, crawl_delay=2.0, adapter="cinema:planeta", horizon_days=6, enabled=False,
         note="2026-10-28: сторінка кінотеатру на день (SSR), час звіряється зі станом сторінки; назва фільму на ній "
              "капсом — беремо з <title> сторінки фільму. Ціни в HTML порожні. Приватний GraphQL не використовуємо.",
     ),

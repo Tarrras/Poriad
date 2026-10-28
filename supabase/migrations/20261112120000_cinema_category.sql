@@ -58,9 +58,12 @@ end $$;
 drop function public.discover_events(double precision,double precision,double precision,double precision,text,timestamptz,timestamptz,text,boolean,integer,integer);
 drop function private.discover_index(double precision,double precision,double precision,double precision,text,timestamptz,timestamptz,text,boolean,integer,integer);
 
--- Тіло — з 20261110120000_company_intents; фільтр кіно і 13-та позиція: назва місця кіносеансу (`places.name`), решті
--- null. У 47% сеансів Multiplex Києва той самий фільм у ту саму хвилину йде в іншому залі мережі (28.10), і без
+-- Тіло — з 20261110120000_company_intents; фільтр кіно, черга й 13-та позиція: назва місця кіносеансу (`places.name`),
+-- решті null. У 47% сеансів Multiplex Києва той самий фільм у ту саму хвилину йде в іншому залі мережі (28.10), і без
 -- назви `TicketMatch` обирав би не той. Клієнти до 1.4 читають перші 12 позицій.
+-- Кіно — у кінці черги: тиждень сеансів Києва — ~2 200 рядків, і на стелі `p_limit` (5 000) відрізатись мають далекі
+-- сеанси, а не концерти грудня. Заодно перші картки (`p_cards`) — не кіно. Клієнт ранжує індекс сам, тож порядок
+-- сервера важить лише тут.
 create function private.discover_index(
  p_south double precision, p_west double precision, p_north double precision, p_east double precision,
  p_category text, p_from timestamptz, p_to timestamptz, p_text text, p_available boolean,
@@ -89,7 +92,7 @@ language sql stable security definer set search_path='' as $$
       or (p_west > p_east and (e.location::gis.geometry operator(gis.&&) gis.st_makeenvelope(p_west,p_south,180,p_north,4326)
        or e.location::gis.geometry operator(gis.&&) gis.st_makeenvelope(-180,p_south,p_east,p_north,4326)))))
  , ranked as (
-  select m.*, row_number() over (order by greatest(m.starts_at, now()), m.id) as rank,
+  select m.*, row_number() over (order by m.category = 'cinema', greatest(m.starts_at, now()), m.id) as rank,
          count(*) over () as total
   from matched m
  )
