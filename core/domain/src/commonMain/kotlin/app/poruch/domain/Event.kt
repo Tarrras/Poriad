@@ -33,7 +33,9 @@ data class Event(
      */
     val sessions: List<EventSession> = emptyList(),
     /** Хто виступає, у серверному порядку. Порожньо, коли сервер артистів не знає (старий сервер, prod без даних). */
-    val artists: List<Artist> = emptyList()
+    val artists: List<Artist> = emptyList(),
+    /** Одне речення «що це» від агента імпорту (`events.blurb`). Null — ще не написано чи подія від людей. */
+    val blurb: String? = null
 ) : Rankable {
     override val isCancelled get() = status == EventStatus.CANCELLED || status == EventStatus.HIDDEN ||
         listing?.state == ListingState.CANCELLED
@@ -94,6 +96,13 @@ data class Event(
     val displayDescription: String
         get() = if (listing == null || description.length <= LISTING_DESCRIPTION_PREVIEW) description
         else description.take(LISTING_DESCRIPTION_PREVIEW).trimEnd().trimEnd(',', ';', '—', '-', '.') + "…"
+
+    /**
+     * Що це за подія — тому, хто бачить її вперше (стос «Ваш тиждень», docs/return-hooks.md): [blurb], інакше початок
+     * дозволеного опису. Null — сказати нічого.
+     */
+    val about: String?
+        get() = blurb?.trim()?.takeIf { it.isNotEmpty() } ?: displayDescription.trim().takeIf { it.isNotEmpty() }
 
     /** Опис обрізано, тож посилання «читати повністю» має сенс. */
     val descriptionTruncated get() = displayDescription.length < description.length

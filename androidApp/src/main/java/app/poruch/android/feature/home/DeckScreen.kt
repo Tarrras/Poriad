@@ -102,9 +102,9 @@ fun DeckScreen(app: PoruchApp, cards: List<Event>, onDone: () -> Unit) {
                 Text(stringResource(R.string.deck_subtitle), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
             }
             Spacer(Modifier.weight(1f))
+            // Квиток і під ним — що це за подія: людина має розуміти, що їй пропонують, а не вгадувати з назви.
             key(cards[index].id) {
-                EventHeroCard(
-                    cards[index],
+                Column(
                     Modifier.fillMaxWidth()
                         .graphicsLayer { translationX = drag.value; rotationZ = if (reducedMotion) 0f else drag.value / 60f }
                         .pointerInput(index) {
@@ -115,8 +115,13 @@ fun DeckScreen(app: PoruchApp, cards: List<Event>, onDone: () -> Unit) {
                                 onHorizontalDrag = { _, delta -> scope.launch { drag.snapTo(drag.value + delta) } }
                             )
                         },
-                    height = 420.dp
-                ) {}
+                    verticalArrangement = Arrangement.spacedBy(Spacing.md)
+                ) {
+                    EventHeroCard(cards[index], Modifier.fillMaxWidth(), height = 380.dp) {}
+                    cards[index].about?.let {
+                        Text(it, style = MaterialTheme.typography.bodyLarge, color = colors.inkSecondary, maxLines = 4, overflow = TextOverflow.Ellipsis)
+                    }
+                }
             }
             Spacer(Modifier.weight(1f))
             Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {

@@ -39,4 +39,11 @@ class DeckRulesTest {
         assertEquals("2026-09-21", DeckRules.week(now, kyiv))
         assertEquals("2026-09-28", DeckRules.week(Instant.parse("2026-09-28T06:00:00Z"), kyiv))
     }
+
+    /** Що це за подія в стосі: речення агента імпорту, інакше початок опису, інакше нічого. */
+    @Test fun aboutPrefersTheBlurb() {
+        assertEquals("Стендап про стосунки", event("a").copy(description = "Довгий опис", blurb = " Стендап про стосунки ").about)
+        assertEquals("Довгий опис", event("a").copy(description = "Довгий опис", blurb = "  ").about)
+        assertNull(event("a").about)
+    }
 }

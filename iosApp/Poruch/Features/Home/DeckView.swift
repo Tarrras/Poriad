@@ -53,8 +53,16 @@ struct DeckView: View {
                 Text(Copy.deck_subtitle).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
             }
             Spacer(minLength: 0)
-            EventHeroCard(event: cards[index], height: 420) {}
-                .allowsHitTesting(false)
+            // Квиток і під ним — що це за подія: людина має розуміти, що їй пропонують, а не вгадувати з назви.
+            VStack(alignment: .leading, spacing: Space.md) {
+                EventHeroCard(event: cards[index], height: 380) {}
+                    .allowsHitTesting(false)
+                if let about = cards[index].about {
+                    Text(about).font(PoruchFont.bodyText).foregroundStyle(Palette.inkSecondary)
+                        .lineLimit(4).fixedSize(horizontal: false, vertical: true)
+                }
+            }
+                .contentShape(Rectangle())
                 .offset(x: drag)
                 .rotationEffect(.degrees(reduceMotion ? 0 : Double(drag / 30)))
                 .gesture(
