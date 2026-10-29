@@ -2,7 +2,16 @@ package app.poruch.android.feature.wallet
 
 import android.content.Context
 import android.view.WindowManager
+import androidx.activity.compose.LocalActivity
+import androidx.activity.compose.PredictiveBackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -43,10 +52,11 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.stateDescription
@@ -54,9 +64,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
-import androidx.compose.ui.window.DialogWindowProvider
 import app.poruch.android.R
 import app.poruch.android.feature.editor.DateTimeSheet
 import app.poruch.android.PROMPTS
@@ -79,7 +86,12 @@ import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
@@ -95,15 +107,30 @@ object WalletUi {
     /** Квиток щойно додано: «Мої події» відкриваються на «Іду», де він лежить, і скидають прапорець. */
     var added by mutableStateOf(false)
 
+    /** Квиток закрили: і екран, і підказку «Квитків кілька». */
+    fun close() {
+        shown = null
+        inviting = false
+    }
+
+    /** Закрити, як «Назад» чи хрестик: квиток складається в список, з якого виріс, а без нього екран просто згасає. */
+    fun fold() {
+        shown?.let { id -> if (!Unfold.fold(id, ::close)) close() }
+    }
+
+    /** Читання файлу живе стільки, скільки процес: поворот під час «Читаємо квиток…» не лишає шторку в ньому назавжди. */
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
     /**
      * Шторка — одразу, ще до розбору: людина бачить, що файл дійшов. Далі [load] скаже, що це: квиток, той самий квиток
      * удруге чи не квиток.
      */
-    fun intake(context: Context, app: PoruchApp, scope: CoroutineScope, load: suspend () -> TicketImport?) {
+    fun intake(context: Context, app: PoruchApp, load: suspend (Context) -> TicketImport?) {
         val reading = TicketIntake.Reading()
         intake = reading
+        val context = context.applicationContext
         scope.launch {
-            val ticket = load()
+            val ticket = load(context)
             // Шторку закрили, поки читали: копія нікому не потрібна.
             if (intake !== reading) { ticket?.let { TicketFiles.remove(context, it.file) }; return@launch }
             intake = when (val existing = ticket?.let { app.ticketWithFingerprint(it.fingerprint) }) {
@@ -173,18 +200,24 @@ fun TicketIntakeSheet(app: PoruchApp, intake: TicketIntake, onAdded: () -> Unit,
         ) {
             Text(stringResource(title), style = PoruchType.brandTitle1, color = colors.ink, modifier = Modifier.semantics { heading() })
             when (intake) {
-                is TicketIntake.Reading -> Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md), verticalAlignment = Alignment.CenterVertically) {
+                // Стан — живий регіон: «Читаємо квиток…» змінюється на квиток чи помилку, і TalkBack це каже.
+                is TicketIntake.Reading -> Row(
+                    Modifier.semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.md), verticalAlignment = Alignment.CenterVertically
+                ) {
                     CircularProgressIndicator(Modifier.size(20.dp), color = colors.ink, strokeWidth = 2.dp)
                     Text(stringResource(R.string.wallet_reading), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
                 }
                 TicketIntake.Failed -> {
-                    Text(stringResource(R.string.wallet_failed), style = MaterialTheme.typography.bodyLarge, color = colors.inkSecondary)
+                    Text(
+                        stringResource(R.string.wallet_failed), style = MaterialTheme.typography.bodyLarge, color = colors.inkSecondary,
+                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }
+                    )
                     SecondaryButton(stringResource(R.string.close), { sheet.close(onDone) }, Modifier.fillMaxWidth())
                 }
                 is TicketIntake.Duplicate -> {
-                    val state by app.state.collectAsState()
                     val show = { sheet.close { onDone(); WalletUi.shown = intake.id } }
-                    state.tickets.firstOrNull { it.id == intake.id }?.let { WalletTicketCard(it, onClick = show) }
+                    walletTicket(app, intake.id)?.let { Box(Modifier.semantics { liveRegion = LiveRegionMode.Polite }) { WalletTicketCard(it, onClick = show) } }
                     PrimaryButton(stringResource(R.string.wallet_show), show, Modifier.fillMaxWidth(), icon = PoruchIcons.ticket)
                 }
                 is TicketIntake.Ready -> TicketImportContent(app, intake.ticket) {
@@ -224,6 +257,7 @@ private fun TicketImportContent(app: PoruchApp, ticket: TicketImport, editing: W
     var linked by remember { mutableStateOf(true) }
     val onListing = linked && matched != null
     val canSave = onListing || (title.isNotBlank() && start != null)
+    val context = LocalContext.current
 
     Text(pluralStringResource(R.plurals.wallet_count, ticket.count, ticket.count), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
     ticket.preview?.let {
@@ -273,11 +307,12 @@ private fun TicketImportContent(app: PoruchApp, ticket: TicketImport, editing: W
             ticket.id, ticket.file, ticket.kind, event?.displayTitle ?: title, event?.placeLabel ?: place, millis,
             ticket.count, ticket.draft.seats, event?.id, ticket.source, ticket.draft.parsed, ticket.fingerprint
         )
+        // Коди шукаємо одразу, поки людина ще вдома: на вході квиток відкриється без секунд розбору.
+        TicketFiles.warm(context, ticket.file, ticket.kind)
         onAdded()
     }, Modifier.fillMaxWidth(), enabled = canSave, icon = PoruchIcons.ticket)
     // Що буде далі: нагадування перед сеансом. Одразу за ним система спитає дозвіл на сповіщення, тож причина вже ясна.
     // Уже спитали й не дозволили — не обіцяємо.
-    val context = LocalContext.current
     val remindable = remember {
         NotificationPermission(context).granted() || !context.getSharedPreferences(PROMPTS, Context.MODE_PRIVATE).getBoolean(TICKET_ASKED, false)
     }
@@ -295,16 +330,72 @@ private fun TicketImportContent(app: PoruchApp, ticket: TicketImport, editing: W
 
 // ---- Показ
 
-/** Квиток на весь екран: сторінки гортаються, яскравість угору, поки на екрані QR. */
+/** Квиток з гаманця за id — зрізом стану: оновлення чату чи мапи не перескладають квиток на весь екран. */
 @Composable
-fun TicketViewer(app: PoruchApp, ticketId: String, invite: Boolean, onClose: () -> Unit) {
+private fun walletTicket(app: PoruchApp, id: String): WalletTicket? {
+    val flow = remember(app, id) { app.state.map { state -> state.tickets.firstOrNull { it.id == id } }.distinctUntilChanged() }
+    return flow.collectAsState(remember(app, id) { app.state.value.tickets.firstOrNull { it.id == id } }).value
+}
+
+/**
+ * Квиток на весь екран — шаром поверх застосунку в тому самому вікні, а не окремим `Dialog`: квиток зі списку
+ * розгортається в нього й складається назад (Morph.kt), а шар з квитком живе в цьому вікні. «Назад» жестом складає
+ * квиток за пальцем. Поки квиток на екрані, яскравість вікна на максимумі.
+ */
+@Composable
+fun TicketOverlay(app: PoruchApp) {
+    val shown = WalletUi.shown
+    val scope = rememberCoroutineScope()
+    val close = WalletUi::fold
+    if (shown != null) {
+        // Сканер на вході читає QR і на мінімальній яскравості телефона — лише поки квиток на екрані.
+        val window = LocalActivity.current?.window
+        DisposableEffect(window) {
+            fun bright(level: Float) { window?.let { it.attributes = it.attributes.apply { screenBrightness = level } } }
+            bright(WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_FULL)
+            onDispose { bright(WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE) }
+        }
+    }
+    // Обробник «Назад» — разом із квитком, а не з коренем: зареєстрований останнім, він перший, і «Назад» не дістається
+    // навігації під квитком.
+    if (shown != null) key(shown) {
+        PredictiveBackHandler { events ->
+            val folds = Unfold.canFold(shown)
+            try {
+                events.collect { if (folds) Unfold.preview(it.progress) }
+                close()
+            } catch (cancelled: CancellationException) {
+                // Жест скасували: квиток лишається на весь екран.
+                if (folds) scope.launch { Unfold.cancelPreview() }
+                throw cancelled
+            }
+        }
+    }
+    val reduced = Poruch.reducedMotion
+    AnimatedContent(
+        shown, Modifier.fillMaxSize(),
+        // Квиток зі списку вже накрив екран — під ним заміна миттєва; без нього (нагадування, шторка) — коротке згасання.
+        transitionSpec = {
+            val instant = (targetState ?: initialState)?.let(Unfold::covers) == true || reduced
+            if (instant) EnterTransition.None togetherWith ExitTransition.None
+            else fadeIn(tween(Motion.QUICK_MS)) togetherWith fadeOut(tween(Motion.QUICK_MS))
+        },
+        label = "ticket"
+    ) { id ->
+        if (id != null) TicketViewer(app, id, WalletUi.inviting, close)
+    }
+}
+
+/** Квиток на весь екран: сторінки гортаються, коди великим, «Надіслати», «Редагувати» й «Видалити». */
+@Composable
+private fun TicketViewer(app: PoruchApp, ticketId: String, invite: Boolean, onClose: () -> Unit) {
     val colors = Poruch.colors
     val context = LocalContext.current
-    val state by app.state.collectAsState()
-    val ticket = state.tickets.firstOrNull { it.id == ticketId } ?: return
+    val ticket = walletTicket(app, ticketId) ?: return
     val width = with(LocalDensity.current) { LocalConfiguration.current.screenWidthDp.dp.roundToPx() }
-    var slides by remember { mutableStateOf<List<TicketSlide>>(emptyList()) }
-    val count = slides.size
+    /** Що гортати: null — ще шукаємо коди, порожньо — файл не відкрився. */
+    var slides by remember(ticketId) { mutableStateOf<List<TicketSlide>?>(null) }
+    val count = slides?.size ?: 0
     /** «Весь квиток» замість коду — коли касир хоче бачити місце й зал. */
     var whole by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf(false) }
@@ -316,106 +407,150 @@ fun TicketViewer(app: PoruchApp, ticketId: String, invite: Boolean, onClose: () 
         app.ticketShown(ticketId)
     }
     /** Місце слайда — лише коли код на сторінці один: «Надіслати місце 13» віддає всю сторінку. */
-    fun alone(index: Int) = index < count && slides.count { it.page == slides[index].page } == 1
-    Dialog(onClose, DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
-        // Яскравість — вікну шторки: поки квиток на екрані, сканер на вході читає QR і на мінімальній яскравості.
-        val window = (LocalView.current.parent as? DialogWindowProvider)?.window
-        DisposableEffect(window) {
-            window?.attributes = window?.attributes?.apply { screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_FULL }
-            onDispose { }
+    fun alone(index: Int) = slides?.let { all -> index < all.size && all.count { it.page == all[index].page } == 1 } == true
+    val pager = rememberPagerState { count }
+    val scope = rememberCoroutineScope()
+    val failed = slides?.isEmpty() == true
+
+    val header = @Composable {
+        Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(ticket.title, style = PoruchType.brandTitle2, color = colors.ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(listOfNotNull(ticketWhen(ticket), ticket.place).filter { it.isNotBlank() }.joinToString(" · "),
+                    style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
+                if (count > 1) Text(pageLabel(ticket, pager.currentPage, count), style = MaterialTheme.typography.labelLarge, color = colors.ink)
+                else ticketSeats(ticket)?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary) }
+            }
+            val close = stringResource(R.string.close)
+            Box(
+                Modifier.size(48.dp).clip(CircleShape).background(colors.surface).pressable(onClick = onClose)
+                    .semantics { contentDescription = close },
+                contentAlignment = Alignment.Center
+            ) { Icon(PoruchIcons.close, null, Modifier.size(20.dp), tint = colors.ink) }
         }
-        Column(
-            Modifier.fillMaxSize().background(colors.canvas).systemBarsPadding().padding(horizontal = Spacing.page, vertical = Spacing.md),
-            verticalArrangement = Arrangement.spacedBy(Spacing.md)
-        ) {
-            val pager = rememberPagerState { count }
-            Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(ticket.title, style = PoruchType.brandTitle2, color = colors.ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    Text(listOfNotNull(ticketWhen(ticket), ticket.place).filter { it.isNotBlank() }.joinToString(" · "),
-                        style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
-                    if (count > 1) Text(pageLabel(ticket, pager.currentPage, count), style = MaterialTheme.typography.labelLarge, color = colors.ink)
-                    else ticketSeats(ticket)?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary) }
+    }
+    val code = @Composable { modifier: Modifier ->
+        // Код проявляється останнім, коли квиток уже розгорнувся: спершу папір, потім те, що читає сканер.
+        Box(modifier, contentAlignment = Alignment.Center) {
+            val all = slides
+            when {
+                // Розбір — секунди на сторінку, лише першого разу (далі рамки з кешу): кажемо, що відбувається.
+                all == null -> Column(
+                    Modifier.semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
+                    horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.md)
+                ) {
+                    CircularProgressIndicator(Modifier.size(28.dp), color = colors.ink, strokeWidth = 2.dp)
+                    Text(stringResource(R.string.wallet_finding_code), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary, textAlign = TextAlign.Center)
                 }
-                val close = stringResource(R.string.close)
-                Box(
-                    Modifier.size(48.dp).clip(CircleShape).background(colors.surface).pressable(onClick = onClose)
-                        .semantics { contentDescription = close },
-                    contentAlignment = Alignment.Center
-                ) { Icon(PoruchIcons.close, null, Modifier.size(20.dp), tint = colors.ink) }
-            }
-            HorizontalPager(pager, Modifier.weight(1f).fillMaxWidth(), pageSpacing = Spacing.md) { index ->
-                // Слайд малюється, коли до нього догорнули: PDF на десять квитків не тримає десять растрів.
-                val slide = slides[index]
-                var bitmap by remember(index, whole) { mutableStateOf<Bitmap?>(null) }
-                LaunchedEffect(index, whole) { bitmap = TicketFiles.slideImage(context, ticket, slide, whole, (width * 2).coerceAtMost(2560)) }
-                Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-                    bitmap?.let {
-                        // Квиток — папір: білий під ним і вночі, інакше QR на темному тлі сканер не бере. Вирізку зі знімка
-                        // збільшуємо без згладжування: модулі коду лишаються чіткими квадратами.
-                        val crisp = slide.code != null && !whole && ticket.kind == TicketKind.IMAGE
-                        Zoomable(Modifier.weight(1f, fill = false)) {
-                            Image(
-                                it.asImageBitmap(), pageLabel(ticket, index, count),
-                                Modifier.fillMaxWidth().clip(RoundedCornerShape(Corner.md)).background(Color.White),
-                                contentScale = ContentScale.Fit, filterQuality = if (crisp) FilterQuality.None else FilterQuality.Low
-                            )
-                        }
-                        // Під карткою, а не на ній: на коді кнопка закрила б модулі.
-                        if (slide.code != null) GhostButton(stringResource(if (whole) R.string.wallet_code else R.string.wallet_whole), { whole = !whole })
-                    } ?: CircularProgressIndicator(Modifier.size(24.dp), color = colors.ink, strokeWidth = 2.dp)
+                all.isEmpty() -> Column(
+                    Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                    horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.lg)
+                ) {
+                    Text(stringResource(R.string.wallet_failed), style = MaterialTheme.typography.bodyLarge, color = colors.inkSecondary, textAlign = TextAlign.Center)
+                    SecondaryButton(stringResource(R.string.edit), { editing = true }, icon = PoruchIcons.edit)
+                }
+                else -> HorizontalPager(pager, Modifier.fillMaxSize(), pageSpacing = Spacing.md) { index ->
+                    // Слайд малюється, коли до нього догорнули: PDF на десять квитків не тримає десять растрів.
+                    val slide = all[index]
+                    var bitmap by remember(index, whole) { mutableStateOf<Bitmap?>(null) }
+                    LaunchedEffect(index, whole) { bitmap = TicketFiles.slideImage(context, ticket, slide, whole, (width * 2).coerceAtMost(2560)) }
+                    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+                        bitmap?.let {
+                            // Квиток — папір: білий під ним і вночі, інакше QR на темному тлі сканер не бере. Вирізку зі знімка
+                            // збільшуємо без згладжування: модулі коду лишаються чіткими квадратами.
+                            val crisp = slide.code != null && !whole && ticket.kind == TicketKind.IMAGE
+                            Zoomable(Modifier.weight(1f, fill = false)) {
+                                Image(
+                                    it.asImageBitmap(), pageLabel(ticket, index, count),
+                                    Modifier.fillMaxWidth().clip(RoundedCornerShape(Corner.md)).background(Color.White),
+                                    contentScale = ContentScale.Fit, filterQuality = if (crisp) FilterQuality.None else FilterQuality.Low
+                                )
+                            }
+                            // Під карткою, а не на ній: на коді кнопка закрила б модулі.
+                            if (slide.code != null) GhostButton(stringResource(if (whole) R.string.wallet_code else R.string.wallet_whole), { whole = !whole })
+                        } ?: CircularProgressIndicator(Modifier.size(24.dp), color = colors.ink, strokeWidth = 2.dp)
+                    }
                 }
             }
+        }
+    }
+    // Квиток тому, з ким ідеш: лише сторінка, яку видно, і що-коли-де з посиланням (docs/ticket-wallet.md, хвиля 2).
+    val sendText = stringResource(
+        R.string.wallet_send_text, ticket.title, listOfNotNull(ticketWhen(ticket), ticket.place).filter { it.isNotBlank() }.joinToString(" · ")
+    // Кіно без афіші — посилання на сайт: той, кому квиток, дізнається, звідки він.
+    ) + "\n" + (ticket.eventId?.let { EventLinks.url(it) } ?: StoreLinks.SHARE)
+    val footer = @Composable { modifier: Modifier ->
+        Column(modifier, verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
             if (count > 1) Row(Modifier.align(Alignment.CenterHorizontally), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                 repeat(count) { i ->
                     Box(Modifier.size(8.dp).clip(CircleShape).background(if (i == pager.currentPage) colors.ink else colors.inkTertiary.copy(alpha = 0.5f)))
                 }
             }
-            // Квиток тому, з ким ідеш: лише сторінка, яку видно, і що-коли-де з посиланням (docs/ticket-wallet.md, хвиля 2).
-            val sendText = stringResource(
-                R.string.wallet_send_text, ticket.title, listOfNotNull(ticketWhen(ticket), ticket.place).filter { it.isNotBlank() }.joinToString(" · ")
-            // Кіно без афіші — посилання на сайт: той, кому квиток, дізнається, звідки він.
-            ) + "\n" + (ticket.eventId?.let { EventLinks.url(it) } ?: StoreLinks.SHARE)
-            val scope = rememberCoroutineScope()
             if (invite && !sent && count > 1) {
                 Text(stringResource(R.string.wallet_together), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
             }
             val seat = pageSeat(ticket, pager.currentPage, count)?.takeIf { alone(pager.currentPage) }
+            // Без слайдів надсилати нічого: кнопка вимкнена, а не мовчить на дотик.
             SecondaryButton(seat?.let { stringResource(R.string.wallet_send_seat, it.seat) } ?: stringResource(R.string.wallet_send), {
-                val page = slides.getOrNull(pager.currentPage)?.page ?: return@SecondaryButton
+                val page = slides?.getOrNull(pager.currentPage)?.page ?: return@SecondaryButton
                 scope.launch {
                     if (TicketFiles.share(context, ticket, page, sendText)) { app.ticketSent(ticket.id); sent = true }
                     else context.toast(R.string.wallet_failed)
                 }
-            }, Modifier.fillMaxWidth(), icon = PoruchIcons.share)
+            }, Modifier.fillMaxWidth(), enabled = count > 0, icon = PoruchIcons.share)
             Row(Modifier.align(Alignment.CenterHorizontally), horizontalArrangement = Arrangement.spacedBy(Spacing.xl)) {
-                GhostButton(stringResource(R.string.edit), { editing = true })
+                // Файл не відкрився — «Редагувати» вже стоїть біля помилки.
+                if (!failed) GhostButton(stringResource(R.string.edit), { editing = true })
                 GhostButton(stringResource(R.string.wallet_delete), { deleting = true }, tone = colors.danger)
             }
         }
-        if (editing) PoruchSheet({ editing = false }) { sheet ->
-            Column(
-                Modifier.verticalScroll(rememberScrollState()).padding(horizontal = Spacing.page).padding(bottom = Spacing.section),
-                verticalArrangement = Arrangement.spacedBy(Spacing.lg)
-            ) {
-                Text(stringResource(R.string.wallet_import_title), style = PoruchType.brandTitle1, color = colors.ink, modifier = Modifier.semantics { heading() })
-                TicketImportContent(
-                    app, TicketImport(ticket.id, ticket.file, ticket.kind, ticket.draft(), ticket.count, null, "edit", ticket.fingerprint.orEmpty()), ticket
-                ) { sheet.close { editing = false } }
-            }
-        }
-        if (deleting) PoruchConfirmSheet(
-            stringResource(R.string.wallet_delete_title), stringResource(R.string.wallet_delete_body),
-            stringResource(R.string.wallet_delete), stringResource(R.string.cancel),
-            onConfirm = {
-                app.removeTicket(ticket.id)
-                TicketFiles.remove(context, ticket.file)
-                deleting = false
-                onClose()
-            },
-            onDismiss = { deleting = false }, tone = colors.danger
-        )
     }
+    BoxWithConstraints(
+        Modifier.fillMaxSize()
+            .background(colors.canvas)
+            // Шар, а не вікно: дотики під квиток не проходять.
+            .pointerInput(Unit) { awaitPointerEventScope { while (true) awaitPointerEvent() } }
+            .systemBarsPadding().padding(horizontal = Spacing.page, vertical = Spacing.md)
+    ) {
+        // Альбомна чи великий шрифт: код лишається великим, а шапка й дії — поруч у прокрутці, не забираючи його висоту.
+        if (maxHeight < 480.dp) Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(Spacing.xl)) {
+            code(Modifier.weight(1f).fillMaxHeight())
+            Column(
+                Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(Spacing.md)
+            ) {
+                header()
+                footer(Modifier.fillMaxWidth())
+            }
+        } else Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+            header()
+            code(Modifier.weight(1f).fillMaxWidth())
+            footer(Modifier.fillMaxWidth())
+        }
+    }
+    if (editing) PoruchSheet({ editing = false }) { sheet ->
+        Column(
+            Modifier.verticalScroll(rememberScrollState()).padding(horizontal = Spacing.page).padding(bottom = Spacing.section),
+            verticalArrangement = Arrangement.spacedBy(Spacing.lg)
+        ) {
+            Text(stringResource(R.string.wallet_import_title), style = PoruchType.brandTitle1, color = colors.ink, modifier = Modifier.semantics { heading() })
+            TicketImportContent(
+                app, TicketImport(ticket.id, ticket.file, ticket.kind, ticket.draft(), ticket.count, null, "edit", ticket.fingerprint.orEmpty()), ticket
+            ) { sheet.close { editing = false } }
+        }
+    }
+    if (deleting) PoruchConfirmSheet(
+        stringResource(R.string.wallet_delete_title), stringResource(R.string.wallet_delete_body),
+        stringResource(R.string.wallet_delete), stringResource(R.string.cancel),
+        onConfirm = {
+            app.removeTicket(ticket.id)
+            TicketFiles.remove(context, ticket.file)
+            deleting = false
+            // Квитка в списку вже нема — складатись нікуди.
+            WalletUi.close()
+        },
+        onDismiss = { deleting = false }, tone = colors.danger
+    )
 }
 
 /**
@@ -458,10 +593,9 @@ fun TicketsSection(tickets: List<WalletTicket>, past: List<WalletTicket>, modifi
     val colors = Poruch.colors
     val app = koinInject<PoruchApp>()
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri ?: return@rememberLauncherForActivityResult
-        WalletUi.intake(context, app, scope) { TicketFiles.load(context, uri, app, "picker") }
+        WalletUi.intake(context, app) { TicketFiles.load(it, uri, app, "picker") }
     }
     var showsPast by rememberSaveable { mutableStateOf(false) }
     val expanded = stringResource(R.string.expanded)
@@ -474,7 +608,7 @@ fun TicketsSection(tickets: List<WalletTicket>, past: List<WalletTicket>, modifi
             }
         } else {
             SectionHeader(stringResource(R.string.wallet_title), actionLabel = stringResource(R.string.wallet_add), onAction = add)
-            tickets.forEach { ticket -> WalletTicketCard(ticket) { WalletUi.shown = ticket.id } }
+            tickets.forEach { ticket -> WalletTicketCard(ticket, morph = true) { WalletUi.shown = ticket.id } }
         }
         if (past.isNotEmpty()) {
             Row(
@@ -485,7 +619,7 @@ fun TicketsSection(tickets: List<WalletTicket>, past: List<WalletTicket>, modifi
                 Text(stringResource(R.string.wallet_past, past.size.toString()), Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
                 Icon(PoruchIcons.chevronDown, null, Modifier.size(16.dp).rotate(if (showsPast) 180f else 0f), tint = colors.inkTertiary)
             }
-            if (showsPast) past.forEach { ticket -> WalletTicketCard(ticket, punched = true) { WalletUi.shown = ticket.id } }
+            if (showsPast) past.forEach { ticket -> WalletTicketCard(ticket, punched = true, morph = true) { WalletUi.shown = ticket.id } }
         }
     }
 }
@@ -497,7 +631,7 @@ fun TicketsSection(tickets: List<WalletTicket>, past: List<WalletTicket>, modifi
 fun TodayTickets(tickets: List<WalletTicket>, modifier: Modifier = Modifier) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
         SectionHeader(stringResource(R.string.wallet_today))
-        tickets.forEach { ticket -> WalletTicketCard(ticket) { WalletUi.shown = ticket.id } }
+        tickets.forEach { ticket -> WalletTicketCard(ticket, morph = true) { WalletUi.shown = ticket.id } }
     }
 }
 
@@ -506,8 +640,16 @@ fun TodayTickets(tickets: List<WalletTicket>, modifier: Modifier = Modifier) {
  * колір жанру: це вже не афіша, а квиток у руці, і в кіно жанру нема.
  */
 @Composable
-fun WalletTicketCard(ticket: WalletTicket, punched: Boolean = false, onClick: () -> Unit) {
+fun WalletTicketCard(
+    ticket: WalletTicket, punched: Boolean = false,
+    /** Квиток у списку розгортається в квиток на весь екран: «Мої події» й «Квитки на сьогодні», не шторка дубля. */
+    morph: Boolean = false,
+    onClick: () -> Unit
+) {
     val colors = Poruch.colors
+    // Звідки розгорнеться квиток на весь екран: межі в корені, без перескладань.
+    val bounds = remember { Bounds() }
+    val open = if (!morph) onClick else ({ Unfold.open(TicketFlight(ticket.id, bounds.rect) { WalletTicketCard(ticket, punched) {} }, onClick) })
     // На великому шрифті корінець ширшає в півтора раза: два рядки обрізали б назву й місце на «Частина др…».
     val lines = if (LocalDensity.current.fontScale >= 1.5f) Int.MAX_VALUE else 2
     val start = ticket.start()
@@ -528,12 +670,12 @@ fun WalletTicketCard(ticket: WalletTicket, punched: Boolean = false, onClick: ()
                 }
             }
         },
-        modifier = Modifier.fillMaxWidth().semantics(mergeDescendants = true) { contentDescription = label },
+        modifier = (if (morph) Modifier.trackBounds(bounds) else Modifier).fillMaxWidth().semantics(mergeDescendants = true) { contentDescription = label },
         // Минулий: пробитий, як минулі події афіші.
         punched = punched,
         // На шторці (дубль) — тло її полів, інакше поверхня квитка зливається з шторкою.
         surface = LocalFieldSurface.current ?: colors.surface,
-        onClick = onClick
+        onClick = open
     ) {
         Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
             Text(ticket.title, style = PoruchType.brandTitle3, color = colors.ink, maxLines = lines, overflow = TextOverflow.Ellipsis)

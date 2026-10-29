@@ -62,7 +62,10 @@ fun CreateEventCard(
 @Composable
 fun EventHeroCard(
     event: Event, modifier: Modifier = Modifier, eyebrow: String? = null, height: Dp = 360.dp,
-    saved: Boolean = false, onSave: (() -> Unit)? = null, onClick: () -> Unit
+    saved: Boolean = false, onSave: (() -> Unit)? = null,
+    /** Що ще надруковано на поверхні під підписом джерела: у стосі без фото — «що це», опис і ціна. */
+    body: (@Composable ColumnScope.() -> Unit)? = null,
+    onClick: () -> Unit
 ) {
     val colors = Poruch.colors
     // Штамп — лише стан квитка. Чому квиток тут («Для вас», «Від людей») — тихим рядком під описом.
@@ -108,6 +111,7 @@ fun EventHeroCard(
                         color = colors.inkTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis
                     )
                 }
+                body?.let { Column(Modifier.padding(top = Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.xs), content = it) }
             }
         }
     }

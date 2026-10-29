@@ -33,6 +33,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.Brush
@@ -817,14 +820,31 @@ internal fun Companions(state: DetailState, onIntent: (DetailIntent) -> Unit) {
  * повний режим: супутники й «Або зібрати компанію самому».
  */
 @Composable
-internal fun CompanySection(state: DetailState, onIntent: (DetailIntent) -> Unit) {
+internal fun CompanySection(
+    state: DetailState, onIntent: (DetailIntent) -> Unit,
+    /** Коротка підсвітка стану після «Хочу піти з компанією»: 0 — нема. Читається в малюванні, не в композиції. */
+    highlight: () -> Float = { 0f },
+    modifier: Modifier = Modifier
+) {
     val colors = Poruch.colors
     val screen = state.screen
     val teaser = screen.companyTeaser
     val mine = teaser?.mine == true
-    Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         SectionHeader(stringResource(R.string.companions_title))
-        Column(Modifier.fillMaxWidth().cardSurface(Radius.md).padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+        val ring = colors.success
+        Column(
+            Modifier.fillMaxWidth().cardSurface(Radius.md)
+                .drawWithContent {
+                    drawContent()
+                    val alpha = highlight()
+                    if (alpha > 0f) drawRoundRect(
+                        ring.copy(alpha = alpha), cornerRadius = CornerRadius(Corner.md.toPx()), style = Stroke(2.dp.toPx() * 2)
+                    )
+                }
+                .padding(Spacing.lg),
+            verticalArrangement = Arrangement.spacedBy(Spacing.md)
+        ) {
             if (teaser != null && teaser.count > 0) CompanyTeaserLine(teaser)
             // Нікого — стан словами, а не самий дисклеймер: дія поруч, у панелі внизу.
             else if (!mine) CompanyLine(stringResource(R.string.company_none), stringResource(R.string.company_none_note))
@@ -834,10 +854,10 @@ internal fun CompanySection(state: DetailState, onIntent: (DetailIntent) -> Unit
                         Text(stringResource(R.string.company_searching), style = MaterialTheme.typography.titleSmall, color = colors.ink)
                         Text(stringResource(R.string.company_searching_note), style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
                     }
-                    Text(
-                        stringResource(R.string.cancel), style = MaterialTheme.typography.labelLarge, color = colors.ink,
-                        modifier = Modifier.pressable(enabled = !screen.mutating) { onIntent(DetailIntent.DropCompany) }
-                            .heightIn(min = 44.dp).wrapContentHeight()
+                    // «Скасувати» без об'єкта TalkBack не пояснює: що саме скасовуємо — у підписі дії.
+                    GhostButton(
+                        stringResource(R.string.cancel), { onIntent(DetailIntent.DropCompany) }, enabled = !screen.mutating,
+                        onClickLabel = stringResource(R.string.company_cancel_a11y)
                     )
                 }
                 if (screen.companyPhotoHint && screen.companyPeople.isNotEmpty()) {
@@ -921,7 +941,8 @@ private fun CompanyPersonInfo(person: CompanyPerson, asked: Boolean, traits: Str
         Avatar(person.name, person.avatarUrl, 44.dp)
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(person.name, style = MaterialTheme.typography.titleSmall, color = colors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            if (asked) Text(stringResource(R.string.company_wants_you), style = MaterialTheme.typography.bodySmall, color = colors.accentText)
+            // На підкладці терміновості — її власний колір тексту: `accentText` на `accentContainer` удень давав 4,29:1.
+            if (asked) Text(stringResource(R.string.company_wants_you), style = MaterialTheme.typography.bodySmall, color = colors.onAccentContainer)
             if (traits.isNotEmpty()) Text(traits, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
             person.bio?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis) }
             person.instagram?.let { Text("@$it", style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary) }
@@ -936,7 +957,12 @@ private const val STACK_FONT_SCALE = 1.3f
 private fun CompanyAction(person: CompanyPerson, together: CompanionCard?, joined: Boolean, state: DetailState, onIntent: (DetailIntent) -> Unit) {
     val companionId = person.companionId
     when {
-        joined && together != null -> Box(Modifier.pressable { onIntent(DetailIntent.OpenEvent(together.id)) }) {
+        // Бейдж — і перехід до компанії: ціль 48 dp навколо пігулки й підпис дії для TalkBack.
+        joined && together != null -> Box(
+            Modifier.minimumInteractiveComponentSize().clip(Radius.pill)
+                .clickable(onClickLabel = stringResource(R.string.company_open_a11y), role = Role.Button) { onIntent(DetailIntent.OpenEvent(together.id)) },
+            contentAlignment = Alignment.Center
+        ) {
             StatusBadge(stringResource(R.string.company_together), BadgeTone.Success, PoruchIcons.check)
         }
         // Людина вже в компанії на цю подію: проситися туди, а не збирати другу.

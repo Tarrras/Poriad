@@ -411,7 +411,8 @@ private fun PeopleSection(state: HomeState, onIntent: (HomeIntent) -> Unit) {
                         .width(PeopleCardWidth)
                         .fillMaxHeight(),
                     showOrigin = false,
-                    followName = entry.followName
+                    followName = entry.followName,
+                    morph = true
                 ) { onIntent(HomeIntent.OpenEvent(id, "home_people")) }
             }
             state.screen.company.forEach { entry ->
@@ -422,7 +423,8 @@ private fun PeopleSection(state: HomeState, onIntent: (HomeIntent) -> Unit) {
                     { onIntent(HomeIntent.ToggleSaved(id)) },
                     Modifier.width(PeopleCardWidth).fillMaxHeight(),
                     because = pluralStringResource(R.plurals.company_reason, entry.count, entry.count),
-                    printedOnly = true
+                    printedOnly = true,
+                    morph = true
                 ) { onIntent(HomeIntent.OpenEvent(id, "home_company")) }
             }
             // Кінцем рейки, а не окремим блоком під нею: менше гортати до афіші (критика довжини 28.10).
@@ -926,7 +928,8 @@ private fun LazyListScope.cityFeed(state: HomeState, onIntent: (HomeIntent) -> U
                             Modifier
                                 .weight(1f)
                                 .fillMaxHeight(),
-                            followName = entry.followName
+                            followName = entry.followName,
+                            morph = true
                         ) { onIntent(HomeIntent.OpenEvent(id, "home_poster")) }
                     }
                     repeat(columns - pair.size) { Spacer(Modifier.weight(1f)) }
@@ -1055,9 +1058,20 @@ private fun PosterCard(
     because: String? = null,
     /** Друкований квиток без фото й з афіші: у рейці «З ким піти» всі квитки однієї висоти, без порожнього поля. */
     printedOnly: Boolean = false,
+    /** Квиток розгортається в деталі (Morph.kt): з рейки «З ким піти» й сітки «У місті». */
+    morph: Boolean = false,
     onClick: () -> Unit
 ) {
     val colors = Poruch.colors
+    // Звідки розгорнеться квиток: межі в корені, без перескладань.
+    val bounds = remember { Bounds() }
+    val open = if (!morph) onClick else ({
+        // Деталі відкриває модель; квиток розгорнеться, щойно вона скаже (HomeRoute).
+        Unfold.pending = TicketFlight(event.id, bounds.rect) {
+            PosterCard(event, source, saved, waitlisted, {}, Modifier, showOrigin, followName, because, printedOnly) {}
+        }
+        onClick()
+    })
     // Скасоване — штампом (корінець тоді погашений); для кімнати — «Ви йдете», «Лишилось 2». Знята афіша сказана підписом.
     val state =
         if (event.gathering == null && !event.isCancelled) null else eventState(event, waitlisted)
@@ -1093,6 +1107,7 @@ private fun PosterCard(
     Ticket(
         ticketStub(event), stub = { StubTime(event, row = true) },
         modifier = modifier
+            .then(if (morph) Modifier.trackBounds(bounds) else Modifier)
             .ticketSemantics(
                 ticketA11yLabel(
                     event,
@@ -1102,9 +1117,9 @@ private fun PosterCard(
                         price,
                         note?.first
                     ).joinToString(", ")
-                ), onClick, saved, onSave
+                ), open, saved, onSave
             ),
-        vertical = true, onClick = onClick,
+        vertical = true, onClick = open,
         // 64: жанр над часом — два рядки, і в 52 вони впирались у перфорацію та нижній край.
         stubLength = 64.dp
     ) {

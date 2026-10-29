@@ -2,6 +2,7 @@ package app.poruch.android.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
@@ -178,21 +179,19 @@ fun DistrictRow(
 
 /**
  * Дзвінок «Моїх місць» (docs/my-places.md): не стежать — контур на тихій підкладці (біла на білій картці зникла б),
- * стежать — чорнилом, як обраний чип артиста. Ціль 48 dp, озвучення каже, що зробить тап.
+ * стежать — чорнилом, як обраний чип артиста. Ціль 48 dp. Для TalkBack — перемикач зі сталим підписом «Стежити за X»
+ * і станом увімкнено/вимкнено: «Вибрано, Не стежити за…» казав стан і дію разом, і вони суперечили одне одному.
  */
 @Composable
 fun ZoneBell(following: Boolean, name: String, onToggle: () -> Unit, modifier: Modifier = Modifier) {
     val colors = Poruch.colors
-    val description = stringResource(if (following) R.string.places_unfollow_a11y else R.string.places_follow_a11y, name)
+    val description = stringResource(R.string.places_follow_a11y, name)
     Box(
         modifier
             .size(48.dp)
             .clip(CircleShape)
-            .pressable(onClick = onToggle)
-            .semantics {
-                contentDescription = description
-                selected = following
-            },
+            .toggleable(following, role = Role.Switch) { onToggle() }
+            .semantics { contentDescription = description },
         contentAlignment = Alignment.Center
     ) {
         Box(

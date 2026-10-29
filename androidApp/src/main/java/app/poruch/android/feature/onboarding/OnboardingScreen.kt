@@ -29,7 +29,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import app.poruch.domain.EventCategory
@@ -69,8 +68,7 @@ fun OnboardingScreen(state: OnboardingState, onIntent: (OnboardingIntent) -> Uni
                         OnboardingStep.INTERESTS -> Interests(state, onIntent)
                         OnboardingStep.TIMES -> Times(state, onIntent)
                         OnboardingStep.CROWD -> CrowdStep(state, onIntent)
-                        OnboardingStep.ARTISTS -> ArtistsStep(state, onIntent)
-                        OnboardingStep.PLACES -> PlacesStep(state, onIntent)
+                        OnboardingStep.FOLLOW -> FollowStep(state, onIntent)
                     }
                 }
             }
@@ -79,10 +77,9 @@ fun OnboardingScreen(state: OnboardingState, onIntent: (OnboardingIntent) -> Uni
         PrimaryButton(
             when {
                 state.step == OnboardingStep.WELCOME -> stringResource(R.string.onboarding_start)
-                state.step == OnboardingStep.ARTISTS && state.picked.isNotEmpty() ->
-                    stringResource(R.string.radar_picker_follow, state.picked.size.toString())
-                state.step == OnboardingStep.PLACES && state.pickedDistricts.isNotEmpty() ->
-                    pluralStringResource(R.plurals.onboarding_places_follow, state.pickedDistricts.size, state.pickedDistricts.size)
+                // Артисти й райони — одна підписка на кроці: «Стежити за 3», як у шторці радару.
+                state.step == OnboardingStep.FOLLOW && state.followCount > 0 ->
+                    stringResource(R.string.radar_picker_follow, state.followCount.toString())
                 state.isLast -> stringResource(R.string.onboarding_finish)
                 else -> stringResource(R.string.next)
             },
@@ -243,34 +240,39 @@ private fun CrowdStep(state: OnboardingState, onIntent: (OnboardingIntent) -> Un
     }
 }
 
-/** Артисти, що їдуть найбільшою кількістю міст: підписка тут — привід повернутись, коли в них з'являться дати. */
-@Composable
-private fun ArtistsStep(state: OnboardingState, onIntent: (OnboardingIntent) -> Unit) {
-    Question(stringResource(R.string.radar_ask_title), stringResource(R.string.onboarding_artists_hint)) {
-        PoruchSearchField(
-            state.query, { onIntent(OnboardingIntent.SearchArtists(it)) }, stringResource(R.string.radar_search), Modifier.fillMaxWidth()
-        )
-        PopularArtistChips(state.artists, state.matches, state.query, { it in state.followed }, state.picked, dates = false) {
-            onIntent(OnboardingIntent.ToggleArtist(it))
-        }
-    }
-}
-
 /**
- * «Де ви буваєте?»: райони міста чипами, кілька разом, як артисти. Пуш «Біля вас» скаже про нову зустріч у них
- * (docs/my-places.md). Місцевості й коло — у «Моїх місцях» профілю.
+ * «Про що сказати?»: за ким стежити й де ви буваєте — один крок з двома секціями, а не два прохання поспіль (критика 29.10).
+ * Артисти — ті, хто гастролює країною (місто ще не відоме); райони — міста, що відкрите зараз, з його назвою над чипами.
+ * Секції без даних нема. Уже в підписках — позначені й неактивні.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun PlacesStep(state: OnboardingState, onIntent: (OnboardingIntent) -> Unit) {
-    Question(stringResource(R.string.onboarding_places_title), stringResource(R.string.onboarding_places_hint)) {
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-            state.districts.forEach { district ->
-                val already = district.id in state.followedDistricts
-                val on = already || district.id in state.pickedDistricts
-                PoruchChip(district.shortName, on, {
-                    if (!already) onIntent(OnboardingIntent.ToggleDistrict(district.id))
-                }, icon = if (on) PoruchIcons.check else null)
+private fun FollowStep(state: OnboardingState, onIntent: (OnboardingIntent) -> Unit) {
+    Question(stringResource(R.string.onboarding_follow_title), stringResource(R.string.onboarding_follow_hint)) {
+        // Над підписом секції простору більше, ніж під ним: секція відходить від пояснення кроку.
+        if (state.hasArtists) Column(Modifier.padding(top = Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+            GroupLabel(stringResource(R.string.onboarding_follow_artists))
+            PoruchSearchField(
+                state.query, { onIntent(OnboardingIntent.SearchArtists(it)) }, stringResource(R.string.radar_search), Modifier.fillMaxWidth()
+            )
+            PopularArtistChips(state.artists, state.matches, state.query, { it in state.followed }, state.picked, dates = false) {
+                onIntent(OnboardingIntent.ToggleArtist(it))
+            }
+        }
+        if (state.districts.isNotEmpty()) Column(
+            Modifier.padding(top = if (state.hasArtists) Spacing.lg else Spacing.sm),
+            verticalArrangement = Arrangement.spacedBy(Spacing.md)
+        ) {
+            GroupLabel(listOf(stringResource(R.string.onboarding_follow_places), state.city).filter { it.isNotBlank() }.joinToString(" · "))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                state.districts.forEach { district ->
+                    val already = district.id in state.followedDistricts
+                    val on = already || district.id in state.pickedDistricts
+                    PoruchChip(
+                        district.shortName, on, { onIntent(OnboardingIntent.ToggleDistrict(district.id)) },
+                        icon = if (on) PoruchIcons.check else null, enabled = !already
+                    )
+                }
             }
         }
     }

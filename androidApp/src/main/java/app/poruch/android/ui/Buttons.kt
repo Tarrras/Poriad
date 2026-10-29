@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -93,27 +94,35 @@ fun SecondaryButton(
     }
 }
 
+/**
+ * Текстова дія — завжди ця кнопка, а не `Text().pressable()`: ціль 48 dp на Android. [onClickLabel] — що саме зробить
+ * дотик, коли напис сам не каже («Скасувати» → «Скасувати пошук компанії»). [trailingIcon] — шеврон «Детальніше ›».
+ */
 @Composable
 fun GhostButton(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     tone: Color? = null,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    onClickLabel: String? = null,
+    trailingIcon: ImageVector? = null
 ) {
     val colors = Poruch.colors
-    Text(
-        text,
-        style = MaterialTheme.typography.labelLarge,
-        color = if (enabled) tone ?: colors.ink else colors.inkTertiary,
+    val color = if (enabled) tone ?: colors.ink else colors.inkTertiary
+    Row(
         // Ціль 48 dp при тексті на рядок: вирівнюємо по центру, а не добираємо полями.
-        modifier = modifier
+        modifier
             .clip(Radius.pill)
-            .clickable(enabled = enabled, onClick = onClick)
+            .clickable(enabled = enabled, onClickLabel = onClickLabel, role = Role.Button, onClick = onClick)
             .heightIn(min = 48.dp)
-            .padding(horizontal = Spacing.lg, vertical = Spacing.xs)
-            .wrapContentHeight(Alignment.CenterVertically)
-    )
+            .padding(horizontal = Spacing.lg, vertical = Spacing.xs),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(text, style = MaterialTheme.typography.labelLarge, color = color)
+        trailingIcon?.let { Icon(it, null, Modifier.size(14.dp), tint = color) }
+    }
 }
 
 @Composable

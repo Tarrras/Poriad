@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.layout.layout
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -44,7 +45,6 @@ import androidx.compose.ui.window.DialogProperties
 import com.airbnb.lottie.compose.*
 import androidx.core.content.edit
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
@@ -58,7 +58,7 @@ import app.poruch.android.ui.*
 import app.poruch.android.feature.home.HomeScrollToTop
 import app.poruch.android.feature.home.DeckScreen
 import app.poruch.android.feature.wallet.TicketIntakeSheet
-import app.poruch.android.feature.wallet.TicketViewer
+import app.poruch.android.feature.wallet.TicketOverlay
 import app.poruch.android.feature.wallet.WalletUi
 import app.poruch.android.platform.TicketFiles
 import app.poruch.android.platform.toast
@@ -137,7 +137,7 @@ class MainActivity : ComponentActivity(), AndroidScopeComponent {
         if (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0) return
         // Квиток з «Поділитися» чи «Відкрити за допомогою» (docs/ticket-wallet.md): копіюємо, читаємо, питаємо.
         TicketFiles.uriOf(intent)?.let { uri ->
-            WalletUi.intake(this, app, lifecycleScope) { TicketFiles.load(this@MainActivity, uri, app, "share") }
+            WalletUi.intake(this, app) { TicketFiles.load(it, uri, app, "share") }
             return
         }
         val data = intent.data
@@ -261,6 +261,11 @@ class MainActivity : ComponentActivity(), AndroidScopeComponent {
     }
 }
 
+/** Стос першої сесії: на процес, а не на активність — поворот і зміна вікна його не гублять. */
+private object FirstDeck {
+    var cards by mutableStateOf<List<Event>?>(null)
+}
+
 @Composable
 fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
     val context = LocalContext.current
@@ -287,33 +292,44 @@ fun PoruchRoot(navigator: Navigator, entryProvider: EntryProvider<NavKey>) {
     PasswordRecoveryEffect(navigator, appState)
     // Стос «Ваш тиждень»: раз, у першій сесії після онбордингу, до туру. Видача їде паралельно з онбордингом; за секунду
     // її вже досить, не встигла — стосу нема, лишається рядок на головній. ponytail: одна перевірка, а не очікування.
-    var deck by remember { mutableStateOf<List<Event>?>(null) }
-    val onboarding = appState.value.needsOnboarding
+    // Картки живуть у [FirstDeck], а не в `remember`: поворот перестворює активність, і стос не зникає. «Показано»
+    // пишемо, коли стос справді закрили.
+    val deck = FirstDeck.cards
+    val onboarding by remember { derivedStateOf { appState.value.needsOnboarding } }
     LaunchedEffect(onboarding) {
         val prompts = context.getSharedPreferences(PROMPTS, Context.MODE_PRIVATE)
-        if (!newcomer || onboarding || prompts.getBoolean(DECK_DONE, false)) return@LaunchedEffect
+        if (!newcomer || onboarding || prompts.getBoolean(DECK_DONE, false) || FirstDeck.cards != null) return@LaunchedEffect
         delay(1000)
-        prompts.edit { putBoolean(DECK_DONE, true) }
         val cards = app.deckCards()
-        if (cards.size < DeckRules.MIN) return@LaunchedEffect
+        if (cards.size < DeckRules.MIN) return@LaunchedEffect prompts.edit { putBoolean(DECK_DONE, true) }
         // Про сповіщення питає кінець стосу, а не перша закладка в ньому.
         prompts.edit { putString(DECK_WEEK, app.deckWeek()); putBoolean(SAVE_ASKED, true) }
-        deck = cards
+        FirstDeck.cards = cards
+    }
+    val closeDeck = {
+        context.getSharedPreferences(PROMPTS, Context.MODE_PRIVATE).edit { putBoolean(DECK_DONE, true) }
+        FirstDeck.cards = null
     }
 
     // Без провайдера вкладка «Мапа» будувала нову MapView на кожен вхід.
     CompositionLocalProvider(LocalSharedMapView provides sharedMap) {
         Box(Modifier.fillMaxSize()) {
-            RootLayout(navigator, entryProvider, app, appState, tourAllowed = newcomer && !digestAsk && deck == null) { tourDone = true }
+            // Під квитком на весь екран застосунок для TalkBack мовчить, як було під окремим вікном.
+            val covered = WalletUi.shown != null
+            Box(Modifier.fillMaxSize().then(if (covered) Modifier.clearAndSetSemantics { } else Modifier)) {
+                RootLayout(navigator, entryProvider, app, appState, tourAllowed = newcomer && !digestAsk && deck == null && !covered) { tourDone = true }
+            }
             // Окреме вікно, як стос із головної: шаром у Box TalkBack гортав головну під ним.
             deck?.let { cards ->
-                Dialog({ deck = null }, DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
-                    DeckScreen(app, cards) { deck = null }
+                Dialog(closeDeck, DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+                    DeckScreen(app, cards, closeDeck)
                 }
             }
-            // Квиток, що прийшов файлом, і квиток на весь екран — поверх будь-якої вкладки (docs/ticket-wallet.md).
+            // Квиток на весь екран і квиток, що прийшов файлом, — поверх будь-якої вкладки (docs/ticket-wallet.md).
+            TicketOverlay(app)
+            // Квиток, що розгортається в екран і складається назад, — над усім (Morph.kt).
+            UnfoldLayer()
             WalletUi.intake?.let { TicketIntakeSheet(app, it, onAdded = { navigator.reset(Mine) }) { WalletUi.intake = null } }
-            WalletUi.shown?.let { TicketViewer(app, it, WalletUi.inviting) { WalletUi.shown = null; WalletUi.inviting = false } }
         }
     }
 }
@@ -501,13 +517,16 @@ private fun RootLayout(
             val saveable = rememberSaveableStateHolderNavEntryDecorator<NavKey>()
             val stores = rememberViewModelStoreNavEntryDecorator<NavKey>()
             val decorators = remember(saveable, stores) { listOf(saveable, stores) }
-            BackHandler(navigator.handlesRootBack, navigator::back)
+            // Квиток на весь екран — над навігацією: «Назад» закриває його, а не вкладку під ним. Обробник самого квитка
+            // зазвичай перший, але після перестворення активності порядок реєстрації не гарантований.
+            val back = { if (WalletUi.shown != null) WalletUi.fold() else navigator.back() }
+            BackHandler(navigator.handlesRootBack || WalletUi.shown != null, back)
             CompositionLocalProvider(LocalWideLayout provides wide) {
                 NavDisplay(
                     backStack = navigator.stack,
                     // Рейка не накриває вміст вкладки: поле зліва лише поки вона видна.
                     modifier = Modifier.padding(start = if (wide && current is Tab) NavRailClearance else 0.dp),
-                    onBack = navigator::back,
+                    onBack = back,
                     entryDecorators = decorators,
                     entryProvider = entryProvider
                 )

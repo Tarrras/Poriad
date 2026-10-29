@@ -17,6 +17,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -188,7 +190,8 @@ private fun CirclePicker(state: MyPlacesState, onIntent: (MyPlacesIntent) -> Uni
     var metersPerDp by remember { mutableDoubleStateOf(0.0) }
     val controller = remember { MapController() }
     val close = { onIntent(MyPlacesIntent.ShowCircle(false)) }
-    Dialog(onDismissRequest = close, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    // Від краю до краю, як стос і квиток: мапа йде під системні смуги, а не стоїть вікном у сірій рамці.
+    Dialog(onDismissRequest = close, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         Box(Modifier.fillMaxSize().background(colors.canvas)) {
             EventMap(
                 emptyList(), state.latitude, state.longitude,
@@ -196,13 +199,21 @@ private fun CirclePicker(state: MyPlacesState, onIntent: (MyPlacesIntent) -> Uni
                 onCenterChanged = { latitude, longitude -> center = latitude to longitude },
                 onScaleChanged = { metersPerDp = it }
             )
-            // Коло й шпилька не приймають дотиків: мапа під ними має тягтися.
+            // Коло й шпилька не приймають дотиків: мапа під ними має тягтися. Межа — перфорацією, як межа району на мапі
+            // (EventMap: крапки 3,5 чорнилом через 8 на паперовій підкладці): зона — лінія відриву, а не суцільний контур.
             val fill = colors.brand.copy(alpha = 0.12f)
-            val edge = colors.brand.copy(alpha = 0.7f)
+            val casing = colors.surface.copy(alpha = 0.7f)
+            val dots = colors.ink
             if (metersPerDp > 0) Canvas(Modifier.fillMaxSize().clearAndSetSemantics { }) {
                 val r = (radius / metersPerDp).dp.toPx()
                 drawCircle(fill, r)
-                drawCircle(edge, r, style = Stroke(2.dp.toPx()))
+                drawCircle(casing, r, style = Stroke(7.dp.toPx()))
+                drawCircle(
+                    dots, r, style = Stroke(
+                        3.5.dp.toPx(), cap = StrokeCap.Round,
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(0.1f, 8.dp.toPx()))
+                    )
+                )
             }
             Icon(
                 PoruchIcons.pin, null,

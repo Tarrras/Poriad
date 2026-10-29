@@ -103,10 +103,7 @@ fun PersonSheet(
                     // Свій — завжди, чужий — лише людям з наміром на ту саму подію і зі своїм (docs/return-hooks.md).
                     profile.instagram?.let { handle ->
                         val uri = LocalUriHandler.current
-                        Text(
-                            "@$handle", style = MaterialTheme.typography.labelLarge, color = colors.ink,
-                            modifier = Modifier.pressable { runCatching { uri.openUri("https://instagram.com/$handle") } }.heightIn(min = 44.dp).wrapContentHeight()
-                        )
+                        GhostButton("@$handle", { runCatching { uri.openUri("https://instagram.com/$handle") } })
                     }
                     if (isMe) Text(
                         stringResource(R.string.person_you), style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary,

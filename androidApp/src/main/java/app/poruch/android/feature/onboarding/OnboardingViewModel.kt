@@ -34,12 +34,12 @@ class OnboardingViewModel(private val app: PoruchApp) :
                 reduce { copy(artists = artists, matches = matches, followed = followed) }
             }
         }
-        // «Де ви буваєте?»: райони міста, що відкрите зараз; місцевості — у «Моїх місцях» профілю, тут їх забагато.
+        // Секція «Райони»: райони міста, що відкрите зараз; місцевості — у «Моїх місцях» профілю, тут їх забагато.
         viewModelScope.launch {
             app.state.map { shared ->
-                shared.city.districts.filter { !it.isLocality } to shared.zones.mapNotNullTo(HashSet()) { (it as? Zone.Area)?.districtId }
-            }.distinctUntilChanged().collect { (districts, followed) ->
-                reduce { copy(districts = districts, followedDistricts = followed) }
+                Triple(shared.city.districts.filter { !it.isLocality }, shared.zones.mapNotNullTo(HashSet()) { (it as? Zone.Area)?.districtId }, shared.city.name)
+            }.distinctUntilChanged().collect { (districts, followed, city) ->
+                reduce { copy(districts = districts, followedDistricts = followed, city = city) }
             }
         }
     }
@@ -68,8 +68,8 @@ class OnboardingViewModel(private val app: PoruchApp) :
     }
 
     private fun finish(current: OnboardingState) {
-        // Останній крок — артисти чи райони після них: обидва вже пройдено.
-        if (current.step >= OnboardingStep.ARTISTS && OnboardingStep.ARTISTS in current.steps) {
+        // Останній крок — «Про що сказати?»: артисти й райони з нього стежимо разом.
+        if (current.step == OnboardingStep.FOLLOW && current.artists?.isNotEmpty() == true) {
             app.followArtists(current.picked.values.toList(), "onboarding")
             app.radarPickerClosed(current.artists.orEmpty().size, current.picked.size, "onboarding")
         }

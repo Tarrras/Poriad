@@ -125,9 +125,8 @@ internal fun PopularArtistChips(
                 val already = followed(artist.artistId)
                 val on = already || artist.artistId in picked
                 val first = if (dates) artist.firstAt?.let { date(it, "Europe/Kyiv", DAY) } else null
-                PoruchChip(first?.let { "${artist.name} · $it" } ?: artist.name, on, {
-                    if (!already) onToggle(artist)
-                }, icon = if (on) PoruchIcons.check else null, maxLines = 2)
+                PoruchChip(first?.let { "${artist.name} · $it" } ?: artist.name, on, { onToggle(artist) },
+                    icon = if (on) PoruchIcons.check else null, maxLines = 2, enabled = !already)
             }
         }
     }

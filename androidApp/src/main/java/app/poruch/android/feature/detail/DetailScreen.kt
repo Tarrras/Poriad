@@ -1,6 +1,13 @@
 package app.poruch.android.feature.detail
 
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -95,6 +102,29 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
     }
     val scroll = rememberScrollState()
     var barHeight by remember { mutableStateOf(0.dp) }
+    val density = LocalDensity.current
+    // «Хочу піти з компанією»: результат — у секції «Шукають компанію», нижче краю екрана. Після дотику сторінка
+    // сама їде до неї й коротко підсвічує стан, а панель дії каже «Ви шукаєте компанію» з переходом до людей.
+    val companyMine = state.screen.companyTeaser?.mine == true
+    var companyTop by remember { mutableFloatStateOf(0f) }
+    val highlight = remember { Animatable(0f) }
+    val scope = rememberCoroutineScope()
+    val reduced = Poruch.reducedMotion
+    val statusTop = WindowInsets.statusBars.getTop(density)
+    val toCompany: () -> Unit = {
+        scope.launch {
+            val target = (scroll.value + companyTop - statusTop - with(density) { Spacing.lg.toPx() }).toInt().coerceIn(0, scroll.maxValue)
+            if (reduced) scroll.scrollTo(target) else scroll.animateScrollTo(target, Motion.spring())
+            highlight.snapTo(1f)
+            delay(if (reduced) 1_500 else 700)
+            if (reduced) highlight.snapTo(0f) else highlight.animateTo(0f, tween(600))
+        }
+    }
+    var wasMine by remember { mutableStateOf(companyMine) }
+    LaunchedEffect(companyMine) {
+        if (companyMine && !wasMine) toCompany()
+        wasMine = companyMine
+    }
     Box(Modifier.fillMaxSize().background(colors.canvas)) {
         PullToRefresh(state.refreshing, { onIntent(DetailIntent.Refresh) }, Modifier.fillMaxSize(), underStatusBar = true) {
             // Під нижньою панеллю дії — її виміряна висота разом із системною смугою: з великим шрифтом і другим рядом
@@ -132,7 +162,10 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
                         RadarHint(state, onIntent)
                         Facts(event)
                         state.screen.listing?.takeIf { !it.needsAttention }?.let { Tickets(state, it, onIntent) }
-                        if (state.screen.canWantCompany && !state.screen.cancelled) CompanySection(state, onIntent)
+                        if (state.screen.canWantCompany && !state.screen.cancelled) CompanySection(
+                            state, onIntent, { highlight.value },
+                            Modifier.onGloballyPositioned { companyTop = it.positionInRoot().y }
+                        )
                         else if (state.screen.companions.isNotEmpty() && !state.screen.cancelled) Companions(state, onIntent)
                         event.gathering?.let { People(state, it, onIntent) }
                         Venue(event, state.screen.followingPlace, onIntent)
@@ -153,8 +186,6 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
         }
         // Коли аркуш доїхав до годинника, текст інакше йде під нього: смуга статусу набирає колір полотна.
         // Не раніше: світла смуга над темною обкладинкою відрізала б її.
-        val density = LocalDensity.current
-        val statusTop = WindowInsets.statusBars.getTop(density)
         val hero = heroHeight()
         Box(
             Modifier.fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars)
@@ -167,7 +198,7 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
         StickyAction(
             state, event,
             Modifier.align(Alignment.BottomCenter).onSizeChanged { barHeight = with(density) { it.height.toDp() } },
-            onIntent
+            onIntent, toCompany
         )
         AnimatedVisibility(
             state.boughtPrompt, Modifier.align(Alignment.BottomCenter).padding(bottom = barHeight),
@@ -235,8 +266,15 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
 }
 
 @Composable
-internal fun StickyAction(state: DetailState, event: Event, modifier: Modifier, onIntent: (DetailIntent) -> Unit) {
+internal fun StickyAction(
+    state: DetailState, event: Event, modifier: Modifier, onIntent: (DetailIntent) -> Unit,
+    /** Перехід до «Шукають компанію» з рядка «Ви шукаєте компанію». */
+    onShowCompany: () -> Unit = {}
+) {
     val colors = Poruch.colors
+    // Від 1,3 ціна й «Купити квиток» — одне під одним, як на iOS і в `NextPlanCard`: поруч кнопка забирала ширину,
+    // і «від 550 ₴» ставало стовпчиком літер саме в момент рішення.
+    val stacked = LocalDensity.current.fontScale >= 1.3f
     // Панель дії — квиток у руці: місця чи ціна й дії на поверхні, а корінець із часом, днем і кольором жанру — справа.
     // Дата на екрані одна, тут; обкладинка її не повторює. Плаває над сторінкою: дія під пальцем, а не смуга на всю ширину.
     Ticket(
@@ -258,12 +296,18 @@ internal fun StickyAction(state: DetailState, event: Event, modifier: Modifier, 
             }
             if (state.screen.canWantCompany || state.screen.canSeekCompany) {
                 // Афіша: ціна й квиток в один рядок — квиток купують на чужому сайті, тож він другорядний.
-                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
-                    hint(Modifier.weight(1f))
+                val buy = @Composable { modifier: Modifier ->
                     if (state.screen.action != DetailAction.NONE) SecondaryButton(
-                        stringResource(state.screen.action.label), { onIntent(DetailIntent.PrimaryAction) },
-                        enabled = state.screen.action.isEnabled && !state.screen.mutating, compact = true
+                        stringResource(state.screen.action.label), { onIntent(DetailIntent.PrimaryAction) }, modifier,
+                        enabled = state.screen.action.isEnabled && !state.screen.mutating, compact = !stacked
                     )
+                }
+                if (stacked) Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                    hint(Modifier.fillMaxWidth())
+                    buy(Modifier.fillMaxWidth())
+                } else Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
+                    hint(Modifier.weight(1f))
+                    buy(Modifier)
                 }
             } else {
                 // Зустріч: пояснення («Організатор підтверджує кожного», «Лишилось 2 місця») — окремим рядком на всю
@@ -273,12 +317,39 @@ internal fun StickyAction(state: DetailState, event: Event, modifier: Modifier, 
                 if (state.screen.action != DetailAction.NONE) PrimaryAction(state, onIntent, Modifier.fillMaxWidth())
             }
             // Серце продукту — люди: на афіші головна дія — «Хочу піти з компанією», на всю ширину під ціною й квитком.
-            // Після наміру панель її ховає: стан і люди — у секції «Шукають компанію» (docs/return-hooks.md).
-            if (state.screen.canWantCompany && state.screen.companyTeaser?.mine != true) PrimaryButton(
-                stringResource(R.string.company_want), { onIntent(DetailIntent.WantCompany) },
-                Modifier.fillMaxWidth().coachTarget(CoachTip.COMPANION), enabled = !state.screen.mutating, icon = PoruchIcons.social
-            )
+            // Після наміру кнопка не зникає мовчки: на її місці стан «Ви шукаєте компанію» з переходом до людей.
+            if (state.screen.canWantCompany) {
+                if (state.screen.companyTeaser?.mine == true) CompanySearchingRow(onShowCompany)
+                else PrimaryButton(
+                    stringResource(R.string.company_want), { onIntent(DetailIntent.WantCompany) },
+                    Modifier.fillMaxWidth().coachTarget(CoachTip.COMPANION), enabled = !state.screen.mutating,
+                    icon = if (stacked) null else PoruchIcons.social
+                )
+            }
         }
+    }
+}
+
+/** Стан замість кнопки, що зникла: «Ви шукаєте компанію» і перехід до тих, хто теж шукає. Тап — сторінка їде до них. */
+@Composable
+private fun CompanySearchingRow(onClick: () -> Unit) {
+    val colors = Poruch.colors
+    val action = stringResource(R.string.company_bar_people)
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = 52.dp).clip(Radius.md)
+            .clickable(onClickLabel = action, role = Role.Button, onClick = onClick)
+            .semantics(mergeDescendants = true) { }
+            .padding(vertical = Spacing.xs),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.md), verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(Modifier.size(36.dp).background(colors.successContainer, CircleShape), contentAlignment = Alignment.Center) {
+            Icon(PoruchIcons.check, null, Modifier.size(18.dp), tint = colors.onSuccessContainer)
+        }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(stringResource(R.string.company_searching), style = MaterialTheme.typography.titleSmall, color = colors.ink)
+            Text(action, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
+        }
+        Icon(PoruchIcons.chevronDown, null, Modifier.size(18.dp), tint = colors.inkTertiary)
     }
 }
 

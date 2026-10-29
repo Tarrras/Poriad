@@ -11,7 +11,9 @@ import android.os.Handler
 import android.os.Looper
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.runtime.Composable
+import app.poruch.android.ui.Unfold
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -77,7 +79,10 @@ fun HomeRoute(navigator: Navigator) {
     model.effects.handle { effect ->
         when (effect) {
             is HomeEffect.Navigate -> when (effect.destination) {
-                HomeDestination.DETAIL -> navigator.open(Detail(effect.id))
+                // Натиснутий квиток розгортається в деталі (Morph.kt); інші шляхи до деталей — звичайний перехід.
+                HomeDestination.DETAIL -> Unfold.pending?.takeIf { it.key == effect.id }
+                    ?.let { Unfold.open(it) { navigator.open(Detail(effect.id)) } }
+                    ?: run { Unfold.forget(); navigator.open(Detail(effect.id)) }
                 HomeDestination.CHAT -> navigator.open(Chat(effect.id))
                 HomeDestination.MAP -> navigator.open(Explore())
                 HomeDestination.PROFILE -> navigator.open(Profile)
@@ -170,9 +175,22 @@ fun DetailRoute(route: Detail, navigator: Navigator) {
     val notifications = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         model.dispatch(DetailIntent.NotificationPermissionAnswered(granted))
     }
+    // Деталі, що виросли з квитка головної, складаються в нього назад: і «Назад» жестом (квиток за пальцем), і стрілкою.
+    val folds = Unfold.canFold(route.eventId) && navigator.stack.size == 2 && navigator.stack.first() == Home && navigator.current == route
+    val back = { if (!(folds && Unfold.fold(route.eventId, navigator::back))) navigator.back() }
+    val scope = rememberCoroutineScope()
+    PredictiveBackHandler(enabled = folds) { events ->
+        try {
+            events.collect { Unfold.preview(it.progress) }
+            back()
+        } catch (cancelled: kotlin.coroutines.cancellation.CancellationException) {
+            scope.launch { Unfold.cancelPreview() }
+            throw cancelled
+        }
+    }
     model.effects.handle { effect ->
         when (effect) {
-            DetailEffect.Back -> navigator.back()
+            DetailEffect.Back -> back()
             DetailEffect.AskNotificationPermission -> notifications.launch(Manifest.permission.POST_NOTIFICATIONS)
             is DetailEffect.Edit -> navigator.open(Editor(effect.id))
             is DetailEffect.RequireSignIn -> navigator.open(Auth(effect.reason))

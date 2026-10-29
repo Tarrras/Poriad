@@ -33,6 +33,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -269,7 +270,10 @@ fun StubTime(
         room?.let {
             Row(horizontalArrangement = Arrangement.spacedBy(3.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(PoruchIcons.social, null, Modifier.size(12.dp), tint = Color.White)
-                Text("${it.attendeeCount}/${it.capacity}", style = day.copy(fontFeatureSettings = "tnum"))
+                // Один рядок, що стискається, а не переноситься по символу: «0/» і «3» на двох рядках не читались.
+                val seatStyle = day.copy(fontFeatureSettings = "tnum")
+                BasicText("${it.attendeeCount}/${it.capacity}", style = seatStyle, maxLines = 1,
+                    autoSize = TextAutoSize.StepBased(seatStyle.fontSize * 0.7f, seatStyle.fontSize))
             }
         }
     }
@@ -281,23 +285,28 @@ fun StubTime(
         }
     }
     val semantics = modifier.clearAndSetSemantics { contentDescription = label }
-    // Під цифрами години лишається порожнє місце нижніх виносних, і центрований друк прилипав жанром до перфорації
-    // (4 зверху проти 12 знизу). Відступ зверху опускає його на 4 — видимі поля рівні.
-    if (row) Row(
-        semantics.fillMaxWidth().padding(horizontal = Spacing.md).padding(top = Spacing.sm),
-        horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) { genre(); bigText() }
-        Column(Modifier.weight(1f), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            smallText(); seats()
+    // Друк корінця росте з кеглем не більше ніж у півтора раза, як і сам корінець: при 2.0 година забирала ширину, і день
+    // обрізався до «С», а місця «0/3» переносились по символу. TalkBack читає повний [label] і так.
+    val density = LocalDensity.current
+    CompositionLocalProvider(LocalDensity provides Density(density.density, density.fontScale.coerceAtMost(1.5f))) {
+        // Під цифрами години лишається порожнє місце нижніх виносних, і центрований друк прилипав жанром до перфорації
+        // (4 зверху проти 12 знизу). Відступ зверху опускає його на 4 — видимі поля рівні.
+        if (row) Row(
+            semantics.fillMaxWidth().padding(horizontal = Spacing.md).padding(top = Spacing.sm),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) { genre(); bigText() }
+            Column(Modifier.weight(1f), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                smallText(); seats()
+            }
+        } else Column(
+            semantics.padding(horizontal = Spacing.sm),
+            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            if (genreName != null) Box(Modifier.padding(bottom = Spacing.xs)) { genre() }
+            bigText(); smallText()
+            Box(Modifier.padding(top = Spacing.xs)) { seats() }
         }
-    } else Column(
-        semantics.padding(horizontal = Spacing.sm),
-        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)
-    ) {
-        if (genreName != null) Box(Modifier.padding(bottom = Spacing.xs)) { genre() }
-        bigText(); smallText()
-        Box(Modifier.padding(top = Spacing.xs)) { seats() }
     }
 }
 
@@ -350,7 +359,18 @@ fun TicketStamp(
         verticalAlignment = Alignment.CenterVertically
     ) {
         icon?.let { Icon(it, null, Modifier.size(12.dp), tint = color) }
-        Text(text.uppercase(), style = PoruchType.stamp, color = color, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        // Довгий текст стискається до 70 %, а не обрізається («ЛИШИЛ…»): штамп — стан, його читають цілим. Росте з
+        // кеглем до 1,5×, як друк корінця; трикрапка — лише крайній випадок на найвужчому квитку.
+        val fontScale = LocalDensity.current.fontScale
+        val shrink = fontScale.coerceAtMost(1.5f) / fontScale
+        val base = PoruchType.stamp
+        val style = base.copy(
+            color = color, fontSize = base.fontSize * shrink, lineHeight = if (base.lineHeight.isSp) base.lineHeight * shrink else base.lineHeight
+        )
+        BasicText(
+            text.uppercase(), style = style, maxLines = 1, overflow = TextOverflow.Ellipsis,
+            autoSize = TextAutoSize.StepBased(style.fontSize * 0.7f, style.fontSize)
+        )
     }
 }
 

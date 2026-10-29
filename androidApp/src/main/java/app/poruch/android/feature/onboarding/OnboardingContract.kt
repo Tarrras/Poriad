@@ -7,10 +7,10 @@ import app.poruch.domain.PopularArtist
 import app.poruch.domain.TimeSlot
 
 /**
- * Кроки онбордингу: те, що читає ранжування, артисти й райони — привід повернутись. Кожен зайвий екран — привід піти.
- * [PLACES] — «Мої місця» (docs/my-places.md).
+ * Кроки онбордингу: те, що читає ранжування, і [FOLLOW] — привід повернутись. Кожен зайвий екран — привід піти, тож
+ * артисти й райони («Мої місця», docs/my-places.md) — один крок «Про що сказати?» з двома секціями, а не два прохання поспіль.
  */
-enum class OnboardingStep { WELCOME, INTERESTS, TIMES, CROWD, ARTISTS, PLACES }
+enum class OnboardingStep { WELCOME, INTERESTS, TIMES, CROWD, FOLLOW }
 
 data class OnboardingState(
     val step: OnboardingStep = OnboardingStep.WELCOME,
@@ -26,22 +26,22 @@ data class OnboardingState(
     val matches: List<PopularArtist>? = null,
     /** Обрані на кроці, з пошуку теж: підписки ставимо разом з рештою відповідей, на «Готово». */
     val picked: Map<String, PopularArtist> = emptyMap(),
-    /** Адміністративні райони міста (без місцевостей) для «Де ви буваєте?». Порожньо — кроку нема. */
+    /** Адміністративні райони міста (без місцевостей) для секції «Райони». Порожньо — секції нема. */
     val districts: List<District> = emptyList(),
+    /** Місто цих районів: підписом над чипами — людина зі Львова бачить, що це не Київ. */
+    val city: String = "",
     /** Райони, що вже в «Моїх місцях» (повторне проходження): позначені й не знімаються. */
     val followedDistricts: Set<Long> = emptySet(),
     /** Обрані райони: стежимо разом з рештою відповідей, на «Готово». */
     val pickedDistricts: Set<Long> = emptySet()
 ) {
-    /** Кроки, що є: артистів нема (збій, порожньо) чи місто без районів — їх пропускаємо. */
+    /** Секція артистів є: ще їдуть (null — індикатор) чи прийшли непорожні. Збій чи порожньо — секції нема. */
+    val hasArtists get() = artists?.isEmpty() != true
+    /** Кроки, що є: ні артистів, ні районів — «Про що сказати?» пропускаємо. */
     val steps: List<OnboardingStep>
-        get() = OnboardingStep.entries.filter {
-            when (it) {
-                OnboardingStep.ARTISTS -> artists?.isEmpty() != true
-                OnboardingStep.PLACES -> districts.isNotEmpty()
-                else -> true
-            }
-        }
+        get() = OnboardingStep.entries.filter { it != OnboardingStep.FOLLOW || hasArtists || districts.isNotEmpty() }
+    /** Скільки підписок поставить «Готово»: артисти й райони разом. */
+    val followCount get() = picked.size + pickedDistricts.count { it !in followedDistricts }
     /** Вітання — не питання, тому не рахується. */
     val questionNumber get() = steps.count { it < step }
     val questionCount get() = steps.size - 1

@@ -34,7 +34,12 @@ import com.tom_roush.pdfbox.text.PDFTextStripper
 import java.io.File
 import java.security.MessageDigest
 import java.util.UUID
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.withContext
 
 /** Квиток, що прийшов файлом і чекає підтвердження (docs/ticket-wallet.md). Файл уже скопійовано до себе. */
@@ -69,6 +74,8 @@ object TicketFiles {
 
     fun remove(context: Context, name: String) {
         file(context, name).delete()
+        codesFile(context, name).delete()
+        synchronized(slideJobs) { slideJobs.remove(name) }
     }
 
     /** Файл квитка з вхідного інтенту: «Поділитися» (`SEND`) чи «Відкрити за допомогою» (`VIEW`). Null — не квиток. */
@@ -139,19 +146,61 @@ object TicketFiles {
      * Що гортати на вході: кожен код квитка окремо й великим (на аркуші їх буває кілька — по одному на людину), а
      * сторінку без коду — цілою. Квиток часто — кут аркуша A4 з умовами й рекламою, і цілою сторінкою QR на екрані
      * виходив міліметрів сім. Коди шукає ZXing на растрі 1600: QR у кутку A4 там ще читається.
+     *
+     * Розбір — секунди на сторінку, тож він один на файл: рамки лягають поруч із квитком (`.codes`) і в пам'ять, а
+     * паралельні виклики (прогрів після «Додати» й відкриття квитка) чекають той самий розбір. Порожньо — файл не відкрився.
      */
-    suspend fun slides(context: Context, ticket: WalletTicket): List<TicketSlide> = withContext(Dispatchers.IO) {
+    suspend fun slides(context: Context, ticket: WalletTicket): List<TicketSlide> = slidesAsync(context, ticket.file, ticket.kind).await()
+
+    /** Прогрів після «Додати квиток»: на вході квиток відкривається одразу, а не через секунди розбору. */
+    fun warm(context: Context, file: String, kind: TicketKind) {
+        slidesAsync(context, file, kind)
+    }
+
+    private val io = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val slideJobs = HashMap<String, Deferred<List<TicketSlide>>>()
+
+    private fun slidesAsync(context: Context, file: String, kind: TicketKind): Deferred<List<TicketSlide>> {
+        val app = context.applicationContext
+        return synchronized(slideJobs) {
+            slideJobs.getOrPut(file) {
+                io.async(start = CoroutineStart.LAZY) {
+                    (readCodes(app, file) ?: findSlides(app, file, kind).also { if (it.isNotEmpty()) writeCodes(app, file, it) })
+                        // Збій не кешуємо: наступне відкриття спробує ще раз.
+                        .also { if (it.isEmpty()) synchronized(slideJobs) { slideJobs.remove(file) } }
+                }
+            }
+        }.also { it.start() }
+    }
+
+    private fun findSlides(context: Context, name: String, kind: TicketKind): List<TicketSlide> {
         fun slides(page: Int, bitmap: Bitmap?): List<TicketSlide> =
             bitmap?.let(::codeBoxes).orEmpty().map { TicketSlide(page, it) }.ifEmpty { listOf(TicketSlide(page, null)) }
-        val target = file(context, ticket.file)
-        runCatching {
-            if (ticket.kind != TicketKind.PDF) return@runCatching slides(0, decodeUpright(target))
+        val target = file(context, name)
+        return runCatching {
+            if (kind != TicketKind.PDF) return@runCatching slides(0, decodeUpright(target))
             ParcelFileDescriptor.open(target, ParcelFileDescriptor.MODE_READ_ONLY).use { descriptor ->
                 PdfRenderer(descriptor).use { renderer ->
                     (0 until renderer.pageCount).flatMap { index -> slides(index, renderer.openPage(index).use { render(it, 1600) }) }
                 }
             }
         }.onFailure { PoruchLog.report("wallet", "slides failed", it) }.getOrDefault(emptyList())
+    }
+
+    /** Рамки поруч із квитком: рядок на слайд — «сторінка» чи «сторінка ліво верх право низ». */
+    private fun codesFile(context: Context, name: String) = File(folder(context), "$name.codes")
+
+    private fun readCodes(context: Context, name: String): List<TicketSlide>? = runCatching {
+        codesFile(context, name).takeIf { it.exists() }?.readLines()?.filter { it.isNotBlank() }?.map { line ->
+            val parts = line.split(' ')
+            TicketSlide(parts[0].toInt(), if (parts.size == 5) RectF(parts[1].toFloat(), parts[2].toFloat(), parts[3].toFloat(), parts[4].toFloat()) else null)
+        }?.takeIf { it.isNotEmpty() }
+    }.getOrNull()
+
+    private fun writeCodes(context: Context, name: String, slides: List<TicketSlide>) = runCatching {
+        codesFile(context, name).writeText(slides.joinToString("\n") { slide ->
+            listOfNotNull(slide.page.toString(), slide.code?.let { "${it.left} ${it.top} ${it.right} ${it.bottom}" }).joinToString(" ")
+        })
     }
 
     /**

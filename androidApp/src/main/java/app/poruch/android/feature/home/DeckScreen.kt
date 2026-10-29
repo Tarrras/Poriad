@@ -13,10 +13,10 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
@@ -25,6 +25,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import android.content.Context
@@ -53,15 +56,17 @@ fun DeckScreen(app: PoruchApp, cards: List<Event>, onDone: () -> Unit) {
     val context = LocalContext.current
     val reducedMotion = LocalReducedMotion.current
     val scope = rememberCoroutineScope()
-    var index by remember { mutableIntStateOf(0) }
-    val kept = remember { mutableStateListOf<Event>() }
+    // Поворот і зміна вікна перестворюють активність: місце в стосі й закладки — у збереженому стані, а не з картки 1.
+    var index by rememberSaveable { mutableIntStateOf(0) }
+    var keptIds by rememberSaveable { mutableStateOf(emptyList<String>()) }
+    val kept = remember(cards, keptIds) { cards.filter { it.id in keptIds } }
     val drag = remember { Animatable(0f) }
     // Картка ще летить: другий тап у цей час — подвійний тап, а не відповідь на наступну.
     var flying by remember { mutableStateOf(false) }
     // Штамп «ЗБЕРЕЖЕНО» на квитку: 0 — нема, 1 — поставлено. Пружина дає штампу «удар» з легким відскоком.
     val stamp = remember { Animatable(0f) }
     // Шторка з повним описом поточної картки: стос під нею чекає на тій самій картці.
-    var reading by remember { mutableStateOf(false) }
+    var reading by rememberSaveable { mutableStateOf(false) }
     val finished = index >= cards.size
     // Систему вже питали або дозволено (чи Android до 13, де питати нема про що): тоді наприкінці лише «Готово».
     val askable = remember { NotificationPermission(context).let { it.required && !it.granted() } }
@@ -75,7 +80,7 @@ fun DeckScreen(app: PoruchApp, cards: List<Event>, onDone: () -> Unit) {
         if (flying || index >= cards.size) return
         val event = cards[index]
         app.deckAnswered(event.id, yes, index)
-        if (yes) kept += event
+        if (yes) keptIds = keptIds + event.id
         flying = true
         scope.launch {
             if (yes) {
@@ -103,16 +108,19 @@ fun DeckScreen(app: PoruchApp, cards: List<Event>, onDone: () -> Unit) {
             .padding(horizontal = Spacing.page, vertical = Spacing.md),
         verticalArrangement = Arrangement.spacedBy(Spacing.lg)
     ) {
-        Row(Modifier.fillMaxWidth().heightIn(min = 44.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (!finished) Text(
-                stringResource(R.string.deck_progress, index + 1, cards.size),
-                style = MaterialTheme.typography.bodyMedium, color = colors.inkTertiary
+        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
+            // Лічильник — живий регіон: після «Так» чи «Ні» фокус лишається на кнопці, і TalkBack без нього не чув, що
+            // під нею вже інша картка. Наприкінці той самий вузол каже, що тиждень переглянуто.
+            val announce = if (finished) stringResource(R.string.deck_a11y_done)
+            else stringResource(R.string.deck_a11y_card, index + 1, cards.size, cards[index].displayTitle)
+            // Наприкінці лічильник лишається («10 з 10»): вузол без тексту TalkBack не бачить і не озвучує.
+            Text(
+                stringResource(R.string.deck_progress, minOf(index + 1, cards.size), cards.size),
+                style = MaterialTheme.typography.bodyMedium, color = colors.inkTertiary,
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite; contentDescription = announce }
             )
             Spacer(Modifier.weight(1f))
-            if (!finished) Text(
-                stringResource(R.string.onboarding_skip), style = MaterialTheme.typography.labelLarge, color = colors.inkSecondary,
-                modifier = Modifier.pressable { close(skipped = true) }.heightIn(min = 44.dp).wrapContentHeight()
-            )
+            if (!finished) GhostButton(stringResource(R.string.onboarding_skip), { close(skipped = true) }, tone = colors.inkSecondary)
         }
         if (!finished) {
             // Квиток по центру вільної висоти, а коли не вміщається (великий шрифт, альбомна) — прокрутка над кнопками:
@@ -143,12 +151,19 @@ fun DeckScreen(app: PoruchApp, cards: List<Event>, onDone: () -> Unit) {
                                 },
                             verticalArrangement = Arrangement.spacedBy(Spacing.md)
                         ) {
-                            // Тут квиток — не кнопка: TalkBack читає його текстом, а відповідь — «Так» і «Ні».
-                            val label = ticketA11yLabel(cards[index])
+                            // Тут квиток — не кнопка: TalkBack читає його текстом, а відповідь — «Так» і «Ні». Без фото
+                            // «що це», опис і ціна надруковані на квитку — у підписі вони теж, бо квиток читається одним вузлом.
+                            val event = cards[index]
+                            val printed = event.imageUrl == null
+                            val label = ticketA11yLabel(event).let { base ->
+                                if (!printed) base else listOfNotNull(base, event.about.line, event.about.excerpt, deckPrice(event)).joinToString(". ")
+                            }
                             Box {
+                                // Без фото квиток — за вмістом, а не 300 з порожньою половиною: опис друкується на ньому.
                                 EventHeroCard(
-                                    cards[index], Modifier.fillMaxWidth().clearAndSetSemantics { contentDescription = label },
-                                    height = 300.dp
+                                    event, Modifier.fillMaxWidth().clearAndSetSemantics { contentDescription = label },
+                                    height = if (printed) 0.dp else 300.dp,
+                                    body = if (printed) ({ AboutText(event) }) else null
                                 ) {}
                                 // «Так» штампує квиток, як касир, — стан мовою «Корінця»; посередині обкладинки, а не корінця.
                                 if (stamp.value > 0f) TicketStamp(
@@ -161,7 +176,8 @@ fun DeckScreen(app: PoruchApp, cards: List<Event>, onDone: () -> Unit) {
                                         }
                                 )
                             }
-                            About(cards[index]) { reading = true }
+                            if (!printed) AboutText(event)
+                            MoreButton(event) { reading = true }
                         }
                     }
                     Spacer(Modifier.weight(1f))
@@ -200,11 +216,9 @@ fun DeckScreen(app: PoruchApp, cards: List<Event>, onDone: () -> Unit) {
                     permission.launch(Manifest.permission.POST_NOTIFICATIONS)
                 }, Modifier.fillMaxWidth(), icon = PoruchIcons.bell)
                 // «Не зараз» — теж відповідь: без позначки наступний запуск питав про дайджест удруге.
-                Text(
-                    stringResource(R.string.digest_prompt_no), style = MaterialTheme.typography.labelLarge, color = colors.inkSecondary,
-                    modifier = Modifier.align(Alignment.CenterHorizontally)
-                        .pressable { asked(); app.digestPromptAnswered(false, "deck"); close(skipped = false) }
-                        .heightIn(min = 44.dp).wrapContentHeight()
+                GhostButton(
+                    stringResource(R.string.digest_prompt_no), { asked(); app.digestPromptAnswered(false, "deck"); close(skipped = false) },
+                    Modifier.align(Alignment.CenterHorizontally), tone = colors.inkSecondary
                 )
             } else {
                 PrimaryButton(stringResource(R.string.deck_finish), { close(skipped = false) }, Modifier.fillMaxWidth())
@@ -215,7 +229,7 @@ fun DeckScreen(app: PoruchApp, cards: List<Event>, onDone: () -> Unit) {
 
 /** Що це за подія: речення «що це», уривок опису й ціна — щоб «так» було рішенням, а не вгадуванням з назви. */
 @Composable
-private fun About(event: Event, onMore: () -> Unit) {
+private fun AboutText(event: Event) {
     val colors = Poruch.colors
     val about = event.about
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
@@ -225,17 +239,19 @@ private fun About(event: Event, onMore: () -> Unit) {
         about.excerpt?.let {
             Text(it, style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary, maxLines = 4, overflow = TextOverflow.Ellipsis)
         }
-        event.listing?.takeIf { it.isFree == true || it.priceMin != null }?.let {
-            Text(listingPrice(it), style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary)
-        }
-        // Уривок обрізаний, а опис агента ховає опис продавця — повністю їх видно в шторці.
-        if (event.displayDescription.isNotBlank()) Row(
-            Modifier.heightIn(min = 44.dp).pressable(onClick = onMore),
-            horizontalArrangement = Arrangement.spacedBy(Spacing.xs), verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(stringResource(R.string.deck_more), style = MaterialTheme.typography.labelLarge, color = colors.ink)
-            Icon(PoruchIcons.chevronRight, null, Modifier.size(14.dp), tint = colors.ink)
-        }
+        deckPrice(event)?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary) }
+    }
+}
+
+@Composable
+private fun deckPrice(event: Event): String? =
+    event.listing?.takeIf { it.isFree == true || it.priceMin != null }?.let { listingPrice(it) }
+
+/** «Детальніше ›»: уривок обрізаний, а опис агента ховає опис продавця — повністю їх видно в шторці. */
+@Composable
+private fun MoreButton(event: Event, onMore: () -> Unit) {
+    if (event.displayDescription.isNotBlank()) {
+        GhostButton(stringResource(R.string.deck_more), onMore, Modifier.offset(x = -Spacing.lg), trailingIcon = PoruchIcons.chevronRight)
     }
 }
 

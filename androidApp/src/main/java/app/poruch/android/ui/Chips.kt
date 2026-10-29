@@ -82,7 +82,9 @@ fun PoruchChip(
     /** Скільки непрочитаних чатів у цьому розрізі. */
     badge: Int = 0,
     /** Фільтр — один рядок; довге імʼя у складі переноситься, а не обрізається. */
-    maxLines: Int = 1
+    maxLines: Int = 1,
+    /** Вже обраний і не знімається тут (артист у підписках, район у «Моїх місцях»): позначений і неактивний. */
+    enabled: Boolean = true
 ) {
     val colors = Poruch.colors
     Row(
@@ -102,7 +104,7 @@ fun PoruchChip(
             )
             .clip(Radius.pill)
             .semantics { this.selected = selected }
-            .pressable(onClick = onClick)
+            .pressable(enabled = enabled, onClick = onClick)
             .padding(horizontal = Spacing.lg, vertical = Spacing.xs),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
@@ -124,7 +126,11 @@ fun PoruchChip(
         Text(
             label,
             style = MaterialTheme.typography.labelMedium,
-            color = if (selected) colors.onBrand else colors.ink,
+            color = when {
+                selected -> colors.onBrand
+                enabled -> colors.ink
+                else -> colors.inkTertiary
+            },
             maxLines = maxLines,
             overflow = TextOverflow.Ellipsis
         )
