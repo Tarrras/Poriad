@@ -29,6 +29,12 @@ class DeckRulesTest {
         assertEquals(listOf("m1", "m2", "m3", "c1", "m4", "m5"), DeckRules.pick(music + comedy, now).map { it.id })
     }
 
+    @Test fun noFilmSessionsInTheDeck() {
+        val events = listOf(EventCategory.MUSIC, EventCategory.COMEDY, EventCategory.FOOD, EventCategory.ART)
+            .mapIndexed { i, category -> event("e${i + 1}", category = category) } + event("film", category = EventCategory.CINEMA)
+        assertEquals(listOf("e1", "e2", "e3", "e4"), DeckRules.pick(events, now).map { it.id })
+    }
+
     @Test fun tooFewMeansNoDeck() {
         assertTrue(DeckRules.pick(listOf(event("a"), event("b"), event("c")), now).isEmpty())
         assertEquals(DeckRules.MAX, DeckRules.pick((1..20).map { event("e$it", category = EventCategory.entries[it % 5]) }, now).size)

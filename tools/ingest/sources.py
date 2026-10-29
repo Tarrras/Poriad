@@ -61,6 +61,9 @@ class Source:
     group_path: str | None = None
     # jsonld — загальний шлях список/сторінка; іменовані адаптери можуть доповнити метадані до нормалізації.
     adapter: str = "jsonld"
+    # Кінотеатри (`cinema:*`): місто -> {сегмент URL кінотеатру: назва майданчика}. Назва — ключ у aliases.json
+    # (`_кіно`): без псевдоніма кінотеатр іде в чергу перегляду, а не на збіг назви мережі в OSM.
+    venues: dict | None = None
 
 
 SOURCES: list[Source] = [
@@ -190,7 +193,7 @@ SOURCES: list[Source] = [
         # 2026-10-08: 5 з 14 на першій сторінці Києва). `gifts` — сертифікати, не події.
         catalogs={"concerts": "music", "electronic": "music",
                   "humor": "comedy", "kids": "kids", "sport": "sport",
-                  "theater": "art", "cinema": "art", "dance": "art", "circus": "art",
+                  "theater": "art", "cinema": "cinema", "dance": "art", "circus": "art",
                   "show": "art", "tvorchii-vechir": "art",
                   "business": "conference", "excursions": "tours",
                   "festivals": None, "other": None, "new-year": None},
@@ -213,6 +216,51 @@ SOURCES: list[Source] = [
         tz_policy="source",
         note="270 подій за один запит у Києві; endDate/offers/image/streetAddress по 100%. "
              "244 із 270 відсутні в karabas і concert.ua. Головне джерело стендапу.",
+    ),
+    # Кіно (docs/cinema-import.md). Вимкнено, доки на prod немає категорії `cinema` (CHECK на events.category) і
+    # клієнта, що її знає: розклад обходу пише в prod, а сеанс з невідомою категорією зламав би весь дамп міста.
+    # Горизонт — тиждень (рішення власника 28.10): Київ ≈ 2 200 сеансів проти ~1 300 інших подій у видачі міста, стеля
+    # індексу 5 000 — кіно на ній відрізається першим (discover_index, 20261112120000).
+    Source(
+        slug="multiplex", name="Multiplex", base_url="https://multiplex.ua",
+        listing_urls={"Київ": "https://multiplex.ua/cinema/kyiv/",
+                      "Львів": "https://multiplex.ua/cinema/lviv/",
+                      "Харків": "https://multiplex.ua/cinema/kharkiv/",
+                      "Одеса": "https://multiplex.ua/cinema/odesa/",
+                      "Дніпро": "https://multiplex.ua/cinema/dnipro/"},
+        # Караван у Дніпрі (`karavandnepr`) 28.10 без жодного сеансу — не обходимо, поки не повернеться в розклад.
+        venues={"Київ": {"lavina": "Multiplex Lavina", "respublika": "Multiplex Respublika Park",
+                         "retroville": "Multiplex Retroville", "prospect": "Multiplex Проспект",
+                         "atmosphera": "Multiplex Атмосфера", "komod": "Multiplex Komod",
+                         "karavan": "Multiplex Караван", "tsum": "Multiplex ЦУМ"},
+                "Львів": {"victoriagardens": "Multiplex Victoria Gardens", "spartak": "Multiplex Spartak"},
+                "Харків": {"nikolsky": "Multiplex Nikolsky", "dafi": "Multiplex Дафі"},
+                "Одеса": {"gagarinn_plaza": "Multiplex Gagarinn Plaza", "riviera": "Multiplex Riviera"},
+                "Дніпро": {"dafi_imax": "Multiplex Дафі IMAX"}},
+        weight=0.8, crawl_delay=1.5, adapter="cinema:multiplex", horizon_days=6, enabled=False,
+        note="2026-10-28: сторінка кінотеатру — усі дні продажу (до ~2 міс.), сеанс із посиланням на вибір місць, "
+             "вік і формат (LUX, IMAX, SDH). Ціни й залу нема. robots.txt: Allow /.",
+    ),
+    Source(
+        slug="planeta_kino", name="Планета Кіно", base_url="https://planetakino.ua",
+        listing_urls={"Київ": "https://planetakino.ua/schedule/",
+                      "Львів": "https://planetakino.ua/schedule/",
+                      "Харків": "https://planetakino.ua/schedule/",
+                      "Одеса": "https://planetakino.ua/schedule/",
+                      "Дніпро": "https://planetakino.ua/schedule/"},
+        # Назви — як у `MovieTheater.department` сторінки /cinemas/ (звідти адреса), зокрема їхнє «Leolend».
+        venues={"Київ": {"blokbaster": "Планета Кіно Блокбастер", "river-mall": "Планета Кіно River Mall",
+                         "dream-yellow": "Планета Кіно Dream Yellow"},
+                "Львів": {"forum-lviv": "Планета Кіно Forum Lviv",
+                          "king-cross-leopolis": "Планета Кіно King Cross Leopolis",
+                          "leoland": "Планета Кіно Leolend"},
+                "Харків": {"frantsuzkyi-bulvar": "Планета Кіно Французький Бульвар"},
+                "Одеса": {"city-center-tairova": "Планета Кіно City Center Таїрова",
+                          "city-center-kotovskyi": "Планета Кіно City Center Котовського"},
+                "Дніпро": {"appolo": "Планета Кіно Appolo"}},
+        weight=0.8, crawl_delay=2.0, adapter="cinema:planeta", horizon_days=6, enabled=False,
+        note="2026-10-28: сторінка кінотеатру на день (SSR), час звіряється зі станом сторінки; назва фільму на ній "
+             "капсом — беремо з <title> сторінки фільму. Ціни в HTML порожні. Приватний GraphQL не використовуємо.",
     ),
     Source(
         slug="moemisto",

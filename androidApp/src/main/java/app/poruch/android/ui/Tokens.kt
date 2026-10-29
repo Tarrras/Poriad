@@ -166,6 +166,8 @@ private fun palette(category: EventCategory) = when (category) {
     // Олива й пурпур — середини найбільших вільних проміжків на колі відтінків, контраст у нормі.
     EventCategory.TOURS -> CategoryPalette(Color(0xFF5F7F1F), Color(0xFFECF0E4), Color(0xFF3E7D3A))
     EventCategory.CONFERENCE -> CategoryPalette(Color(0xFF933FA8), Color(0xFFF2E8F5), Color(0xFF6D4AC9))
+    // Кіно — пурпурово-рожевий у проміжку між пурпуром конференцій і малиною мистецтва (288°–340°), контраст 6,2:1.
+    EventCategory.CINEMA -> CategoryPalette(Color(0xFFA6308A), Color(0xFFF6E5F1), Color(0xFF2F63C4))
     EventCategory.UNKNOWN -> CategoryPalette(Color(0xFF6B675E), Color(0xFFEDEBE4), Color(0xFF6B675E))
 }
 

@@ -31,12 +31,17 @@ data class EventIndexEntry(
     val mergedWith: List<String> = emptyList(),
     /**
      * Усі сеанси прокату в порядку часу, включно з власним. Заповнює [EventSeries]: та сама
-     * вистава на тому самому майданчику кілька разів. На відміну від [mergedWith], це не
+     * вистава на тому самому майданчику кілька разів; кінопрокат сервер віддає вже зібраним. На відміну від [mergedWith], це не
      * дублікати — на кожен сеанс окремий квиток. Картка показує найближчий, деталі — вибір дати.
      */
     val sessions: List<EventSession> = emptyList(),
     /** Скільки людей хочуть піти з компанією (лише афіша, docs/return-hooks.md). */
-    override val companyCount: Int = 0
+    override val companyCount: Int = 0,
+    /**
+     * Назва кінотеатру — лише в кіносеансу (docs/cinema-import.md), решті null: той самий фільм у ту саму хвилину йде в
+     * кількох залах мережі, і [TicketMatch] звіряє зал із квитком.
+     */
+    val place: String? = null
 ) : Rankable {
     /** За карткою стоїть більше одного рядка бази. */
     val isMerged get() = mergedWith.isNotEmpty()

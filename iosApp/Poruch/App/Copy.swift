@@ -20,6 +20,7 @@ enum Copy {
     static let tours = "Екскурсії"
     static let category_other = "Інше"
     static let conference = "Конференції"
+    static let cinema = "Кіно"
     static let social = "Зустрічі"
     static let all = "Усі"
     static let back = "Назад"

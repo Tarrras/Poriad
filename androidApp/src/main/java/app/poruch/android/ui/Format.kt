@@ -37,6 +37,7 @@ fun categoryLabel(category: EventCategory) = when (category) {
     EventCategory.KIDS -> R.string.kids
     EventCategory.TOURS -> R.string.tours
     EventCategory.CONFERENCE -> R.string.conference
+    EventCategory.CINEMA -> R.string.cinema
     EventCategory.UNKNOWN -> R.string.category_other
 }
 
@@ -51,6 +52,7 @@ fun categoryIcon(category: EventCategory): ImageVector = when (category) {
     EventCategory.KIDS -> PoruchIcons.kids
     EventCategory.TOURS -> PoruchIcons.tours
     EventCategory.CONFERENCE -> PoruchIcons.conference
+    EventCategory.CINEMA -> PoruchIcons.cinema
     EventCategory.SOCIAL, EventCategory.UNKNOWN -> PoruchIcons.social
 }
 

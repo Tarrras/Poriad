@@ -236,6 +236,31 @@ enum PoruchIcons {
         }
     )
 
+    /// Відкрита хлопавка: корпус і піднята планка з двома смугами.
+    static let cinema = PoruchGlyph(
+        stroke: { path, s in
+            path.move(to: point(5.5, 10, s))
+            path.addLine(to: point(18.5, 10, s))
+            path.addCurve(to: point(20.5, 12, s), control1: point(19.605, 10, s), control2: point(20.5, 10.895, s))
+            path.addLine(to: point(20.5, 18, s))
+            path.addCurve(to: point(18.5, 20, s), control1: point(20.5, 19.105, s), control2: point(19.605, 20, s))
+            path.addLine(to: point(5.5, 20, s))
+            path.addCurve(to: point(3.5, 18, s), control1: point(4.395, 20, s), control2: point(3.5, 19.105, s))
+            path.addLine(to: point(3.5, 12, s))
+            path.addCurve(to: point(5.5, 10, s), control1: point(3.5, 10.895, s), control2: point(4.395, 10, s))
+            path.closeSubpath()
+            path.move(to: point(3.5, 10, s))
+            path.addLine(to: point(3, 6.6, s))
+            path.addLine(to: point(19.6, 3.6, s))
+            path.addLine(to: point(20.2, 7, s))
+            path.closeSubpath()
+            path.move(to: point(8, 5.7, s))
+            path.addLine(to: point(9.8, 8.9, s))
+            path.move(to: point(13.3, 4.7, s))
+            path.addLine(to: point(15.1, 7.9, s))
+        }
+    )
+
     /// Дах, стіни й двері трьома лініями.
     static let home = PoruchGlyph(
         stroke: { path, s in

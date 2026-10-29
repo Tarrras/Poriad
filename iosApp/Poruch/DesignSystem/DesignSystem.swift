@@ -95,12 +95,14 @@ private let categoryHues: [String: UInt32] = [
     "kids": 0x1F8A8A,
     // Олива й пурпур — середини найбільших вільних проміжків на колі відтінків.
     "tours": 0x5F7F1F,
-    "conference": 0x933FA8
+    "conference": 0x933FA8,
+    // Кіно — у проміжку між пурпуром конференцій і малиною мистецтва (288°–340°), контраст 6,2:1.
+    "cinema": 0xA6308A
 ]
 private let categoryWashes: [String: UInt32] = [
     "music": 0xEBE4FB, "sport": 0xDDF0EC, "art": 0xFBE1EA, "food": 0xFBEBD9,
     "games": 0xE1EAFB, "outdoors": 0xE4F1E2, "social": 0xFAE5DA, "comedy": 0xF7ECD2, "kids": 0xD9EFEF,
-    "tours": 0xECF0E4, "conference": 0xF2E8F5
+    "tours": 0xECF0E4, "conference": 0xF2E8F5, "cinema": 0xF6E5F1
 ]
 
 /// Палітри нижче — за `EventCategory.key`: Swift не бачить enum Kotlin вичерпним, тож таблиця читабельніша за `switch`.
@@ -162,7 +164,7 @@ func ticketStub(_ event: Event) -> Color { event.isCalledOff ? Palette.voidStub 
 private let categoryPartners: [String: UInt32] = [
     "music": 0xC43B6B, "sport": 0x2F63C4, "art": 0x6D4AC9, "food": 0xC43B6B,
     "games": 0x0F7F73, "outdoors": 0x0F7F73, "social": 0xC96A1E, "comedy": 0xC43B6B, "kids": 0x2F63C4,
-    "tours": 0x3E7D3A, "conference": 0x6D4AC9
+    "tours": 0x3E7D3A, "conference": 0x6D4AC9, "cinema": 0x2F63C4
 ]
 
 /// Заливка обкладинки: пастель у світлій темі, тонка вуаль у темній. Два відтінки, щоб стіна обкладинок не зливалась.
@@ -472,7 +474,8 @@ private struct StatusBarInsetReader: ViewModifier {
 /// Назви — з `Copy`, як `categoryLabel` на Android: інакше платформи розходились («Природа» / «На природі»).
 let categories: [(EventCategory, String)] = [
     (.music, Copy.music), (.sport, Copy.sport), (.art, Copy.art), (.food, Copy.food), (.games, Copy.games), (.outdoors, Copy.outdoors),
-    (.social, Copy.social), (.comedy, Copy.comedy), (.kids, Copy.kids), (.tours, Copy.tours), (.conference, Copy.conference)
+    (.social, Copy.social), (.comedy, Copy.comedy), (.kids, Copy.kids), (.tours, Copy.tours), (.conference, Copy.conference),
+    (.cinema, Copy.cinema)
 ]
 
 func categoryName(_ category: EventCategory) -> String { categories.first { $0.0 == category }?.1 ?? Copy.category_other }
@@ -490,6 +493,7 @@ func categoryGlyph(_ category: EventCategory) -> PoruchGlyph {
     case "kids": PoruchIcons.kids
     case "tours": PoruchIcons.tours
     case "conference": PoruchIcons.conference
+    case "cinema": PoruchIcons.cinema
     default: PoruchIcons.social
     }
 }

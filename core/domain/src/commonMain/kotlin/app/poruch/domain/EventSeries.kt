@@ -36,8 +36,11 @@ object EventSeries {
                 if (run.size == 1) continue
                 val ordered = run.sortedWith(compareBy({ it.startsAtInstant() }, { it.id }))
                 val primary = ordered.first()
+                // Кінопрокат сервер віддає вже зібраним (`sessions`), тож сеанси не губимо, а зводимо.
                 primaries[primary.id] = primary.copy(
-                    sessions = ordered.map { EventSession(it.id, it.startsAt, it.timeZone) })
+                    sessions = ordered.flatMap { it.sessions.ifEmpty { listOf(EventSession(it.id, it.startsAt, it.timeZone)) } }
+                        .distinctBy { it.id }
+                        .sortedWith(compareBy({ it.startInstant?.epochSeconds ?: Long.MAX_VALUE }, { it.id })))
                 ordered.drop(1).forEach { absorbed += it.id }
             }
         }

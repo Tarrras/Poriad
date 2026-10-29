@@ -43,7 +43,8 @@ def _may_retire(source, items, counters) -> tuple[bool, str]:
     Тому воно дозволене лише тоді, коли обхід бачив увесь список джерела й без помилок. Решту
     підстраховує запобіжник на частку в самому SQL (`emit.RETIRE_MAX_SHARE`).
     """
-    if source.adapter != "jsonld":
+    # Кінотеатри: розклад усіх залів міста на весь горизонт; межу дає `_crawl_until`.
+    if source.adapter != "jsonld" and not source.adapter.startswith("cinema:"):
         return False, "адаптер читає вибірку, а не весь список"
     if source.detail_path:
         return False, "картки читаються вибірково"
@@ -281,7 +282,7 @@ def emit_city(run: CityRun, run_id: str, *, agent: Agent | None = None, statemen
 def _crawl_until(source, now=None):
     """Межа, далі якої обхід джерела не дивився (sitemap до horizon_days): за нею відсутність нічого
     не доводить. Без sitemap список віддає все, межі немає."""
-    if not source.sitemap_url:
+    if not (source.sitemap_url or source.adapter.startswith("cinema:")):
         return None
     now = now or datetime.datetime.now(datetime.timezone.utc)
     return now.astimezone(normalize.zone(source.time_zone)).date() + datetime.timedelta(days=source.horizon_days + 1)

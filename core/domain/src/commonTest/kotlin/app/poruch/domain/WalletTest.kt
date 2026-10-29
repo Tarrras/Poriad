@@ -110,6 +110,46 @@ class WalletTest {
         id, 50.45, 30.52, EventCategory.MUSIC, startsAt, "Europe/Kyiv", title, EventOrigin.IMPORT, sessions = sessions
     )
 
+    private fun screening(id: String, place: String, startsAt: String, title: String = "Дюна: Частина друга") = EventIndexEntry(
+        id, 50.45, 30.52, EventCategory.CINEMA, startsAt, "Europe/Kyiv", title, EventOrigin.IMPORT,
+        source = if (place.startsWith("Multiplex")) "multiplex" else "planeta_kino", place = place
+    )
+
+    /** 30.10 19:40 за Києвом — 17:40Z. Той самий фільм у ту саму хвилину в іншому залі мережі — звичайна справа. */
+    private val halls = listOf(
+        screening("lavina", "Multiplex Lavina", "2026-10-30T17:40:00Z"),
+        screening("respublika", "Multiplex Respublika Park", "2026-10-30T17:40:00Z"),
+        screening("tsum", "Multiplex ЦУМ", "2026-10-30T17:30:00Z"),
+        screening("blockbuster", "Планета Кіно Блокбастер", "2026-10-30T17:40:00Z"),
+        screening("river", "Планета Кіно River Mall", "2026-10-30T17:45:00Z"),
+    )
+
+    @Test fun cinemaTicketFindsItsHallNotTheNeighbour() {
+        val draft = TicketReader.read(multiplex, today)
+        assertEquals("respublika", TicketMatch.match(draft, halls, kyiv), "«Multiplex Respublika Park, зал 5» — не Lavina тієї ж хвилини")
+        assertEquals("blockbuster", TicketMatch.match(draft.copy(place = "Планета Кіно Блокбастер, зал 3"), halls, kyiv),
+            "слова мережі «планета кіно» зал не розрізняють")
+    }
+
+    @Test fun hallWordsMatchByStem() {
+        val odesa = listOf(
+            screening("tairova", "Планета Кіно City Center Таїрова", "2026-10-30T17:40:00Z"),
+            screening("kotovsky", "Планета Кіно City Center Котовський", "2026-10-30T17:40:00Z"),
+        )
+        val draft = TicketDraft(title = "Дюна: Частина друга", place = "Планета Кіно City Center Котовського, зал 2",
+            start = LocalDateTime(2026, 10, 30, 19, 40))
+        assertEquals("kotovsky", TicketMatch.match(draft, odesa, kyiv), "спільне «City Center» зал не розрізняє, відмінок — теж ні")
+    }
+
+    @Test fun cinemaTicketWithoutAHallIsNotGuessed() {
+        val draft = TicketReader.read(multiplex, today)
+        assertNull(TicketMatch.match(draft.copy(place = null), halls, kyiv), "п'ять залів і нічим їх розрізнити")
+        assertNull(TicketMatch.match(draft.copy(place = "Oskar Gulliver"), halls, kyiv), "залу з квитка у видачі нема")
+        assertEquals("tsum", TicketMatch.match(draft.copy(place = null), halls.filter { it.id == "tsum" }, kyiv), "зал один — він")
+        assertNull(TicketMatch.match(draft.copy(place = "Multiplex Spartak"), halls.filter { it.id == "tsum" }, kyiv),
+            "єдиний зал мережі у видачі — не будь-який її зал")
+    }
+
     @Test fun ticketFindsItsListing() {
         // 30.10.2026 Київ — уже зимовий час, UTC+2: 16:00 місцевого — 14:00Z.
         val index = listOf(

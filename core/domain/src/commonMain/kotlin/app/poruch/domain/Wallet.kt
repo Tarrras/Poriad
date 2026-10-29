@@ -1,5 +1,6 @@
 package app.poruch.domain
 
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
@@ -204,18 +205,56 @@ object TicketMatch {
     val WINDOW = 45.minutes
     private val STOP = setOf("і", "й", "та", "в", "у", "на", "з", "із", "зі", "до", "по", "the", "a", "an", "of", "and")
 
-    /** Id події: сам сеанс серії, коли квиток на нього. Null — квиток без афіші. */
+    /** Частка слів кінотеатру без слів мережі, що мають бути на квитку: «Respublika Park» з «Multiplex Respublika». */
+    private const val PLACE_FIT = 0.5
+
+    /** Зал звіряється основами слів: «City Center Котовський» на квитку, «Котовського» в назві. */
+    private const val STEM = 5
+
+    private class Hit(val id: String, val score: Double, val gap: Duration, val place: String?, val source: String?)
+
+    /**
+     * Id події: сам сеанс серії, коли квиток на нього. Null — квиток без афіші. Серед однаково схожих назв — найближчий
+     * за часом сеанс. Кіносеанс ([EventIndexEntry.place]) — лише той, чий зал звіряється з місцем на квитку: у 47% сеансів
+     * Multiplex Києва той самий фільм у ту саму хвилину йде в іншому залі мережі (docs/cinema-import.md). Кілька залів і
+     * нічим їх розрізнити — null, а не чужий зал.
+     */
     fun match(draft: TicketDraft, index: List<EventIndexEntry>, zone: TimeZone): String? {
         val title = draft.title?.let(::words)?.takeIf { it.isNotEmpty() } ?: return null
         val start = draft.start?.toInstant(zone) ?: return null
-        return index.mapNotNull { entry ->
+        val hits = index.mapNotNull { entry ->
+            val score = overlap(title, words(entry.title)).takeIf { it >= 0.6 } ?: return@mapNotNull null
             val starts = listOf(entry.id to entry.startsAt) + entry.sessions.filterNot { it.cancelled }.map { it.id to it.startsAt }
-            val near = starts.firstOrNull { (_, at) -> runCatching { Instant.parse(at) }.getOrNull()?.let { (it - start).absoluteValue <= WINDOW } == true }
-                ?: return@mapNotNull null
-            val score = overlap(title, words(entry.title))
-            if (score >= 0.6) near.first to score else null
-        }.maxByOrNull { it.second }?.first
+            val (id, gap) = starts.mapNotNull { (id, at) -> runCatching { Instant.parse(at) }.getOrNull()?.let { id to (it - start).absoluteValue } }
+                .filter { it.second <= WINDOW }.minByOrNull { it.second } ?: return@mapNotNull null
+            Hit(id, score, gap, entry.place, entry.source)
+        }
+        val (cinema, other) = hits.partition { it.place != null }
+        return (other + inHall(cinema, draft.place?.let(::words).orEmpty(), brands(index)))
+            .maxWithOrNull(compareBy<Hit> { it.score }.thenByDescending { it.gap })?.id
     }
+
+    /** Кіносеанси залу з квитка. Без місця на квитку — лише коли зал один. */
+    private fun inHall(hits: List<Hit>, ticket: Set<String>, brands: Map<String?, Set<String>>): List<Hit> {
+        val halls = hits.mapNotNull { it.place }.toSet()
+        if (ticket.isEmpty()) return if (halls.size == 1) hits else emptyList()
+        val fit = halls.associateWith { hall ->
+            val all = words(hall)
+            val own = all - brands[hits.first { it.place == hall }.source].orEmpty()
+            // Один зал мережі у видачі: усі його слова — «слова мережі», тож звіряємо назву цілком.
+            val heard = ticket.mapTo(HashSet()) { it.take(STEM) }
+            fun on(word: String) = word.take(STEM) in heard
+            if (own.isEmpty()) (if (all.all(::on)) 1.0 else 0.0) else own.count(::on).toDouble() / own.size
+        }
+        val best = fit.values.maxOrNull()?.takeIf { it >= PLACE_FIT } ?: return emptyList()
+        val chosen = fit.filterValues { it == best }.keys.singleOrNull() ?: return emptyList()
+        return hits.filter { it.place == chosen }
+    }
+
+    /** Слова мережі: спільні для всіх її залів у видачі («multiplex», «планета кіно»). Вони зал не розрізняють. */
+    private fun brands(index: List<EventIndexEntry>): Map<String?, Set<String>> =
+        index.filter { it.place != null }.groupBy { it.source }
+            .mapValues { (_, entries) -> entries.map { words(it.place!!) }.reduce { a, b -> a intersect b } }
 
     /** Частка слів коротшої назви, що є в довшій: «Ліст» проти «Ліст. Безмежжя уяви (Музичний салон НФУ)» — збіг. */
     private fun overlap(a: Set<String>, b: Set<String>): Double {

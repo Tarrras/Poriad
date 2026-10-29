@@ -38,6 +38,16 @@ class StatsSql(unittest.TestCase):
         self.assertIn("ws.slug=v.w_slug and o.source_uid=v.w_uid", parts[3])
         self.assertIn("'duplicate'", parts[3])
 
+    def test_published_screenings_stay_out_of_items(self):
+        """Тиждень кіно — ~4 200 сеансів щодня: у журналі лише ті, що пішли на перевірку чи злились."""
+        shown = dataclasses.replace(self.a, source_slug="multiplex", source_uid="m-1", category="cinema")
+        review = dataclasses.replace(shown, source_uid="m-2", stage="review", reject_reason="NO_GEO")
+        sql = "".join(emit.stats_sql([{"source": "multiplex", "city": "Київ", "published": 1, "review": 1}],
+                                     [shown, review], RUN))
+        self.assertNotIn("'m-1'", sql)
+        self.assertIn("'m-2'", sql)
+        self.assertIn("where s.slug='multiplex'", sql, "рядок ingest_runs з лічильниками лишається")
+
     def test_items_split_by_budget(self):
         items = [dataclasses.replace(self.a, source_uid=f"u{n}") for n in range(6)]
         one = emit.stats_sql([], items[:1], RUN)[-1]
