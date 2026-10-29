@@ -116,6 +116,15 @@ class DigestRulesTest {
         assertEquals(listOf(DigestReason.FOLLOWED, DigestReason.ONE_NIGHT), reasons)
     }
 
+    /** «Біля вас» — ще одна причина: з рівних причин виграє подія в «Моїх місцях». */
+    @Test fun nearIsAReason() {
+        val single = entry("single", "2026-09-26T12:00:00Z")
+        val near = entry("near", "2026-09-26T14:00:00Z")
+        val (lead, reasons) = DigestRules.lead(listOf(single, near), Taste(), emptyMap(), near = setOf("near"))!!
+        assertEquals("near", lead.id)
+        assertEquals(listOf(DigestReason.NEAR, DigestReason.ONE_NIGHT), reasons)
+    }
+
     @Test fun leadFallsBackToTasteOrNothing() {
         val rooms = (1..3).map { entry("room$it", "2026-09-26T10:00:00Z", origin = EventOrigin.COMMUNITY, category = EventCategory.MUSIC) }
         val music = Taste(interests = listOf(EventCategory.MUSIC), answered = true)

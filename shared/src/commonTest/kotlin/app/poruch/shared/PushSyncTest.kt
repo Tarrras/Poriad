@@ -29,6 +29,11 @@ class PushSyncTest {
         val forgotten = mutableListOf<String>()
         override suspend fun touchDevice(token: String, platform: PushPlatform, city: String?, interests: List<String>) { touched += Triple(token, city, interests) }
         override suspend fun forgetDevice(token: String) { forgotten += token }
+        /** Радар і «Мої місця»: ключі зон кожного `set_zones` і токени `forget_radar`. */
+        val zoned = mutableListOf<List<String>>()
+        val forgottenRadar = mutableListOf<String>()
+        override suspend fun setZones(token: String, platform: PushPlatform, city: String?, zones: List<Zone>) { zoned += zones.map { it.key } }
+        override suspend fun forgetRadar(token: String) { forgottenRadar += token }
     }
     private class Devices : DeviceTouchStore {
         var value: DeviceTouch? = null
@@ -221,5 +226,25 @@ class PushSyncTest {
         sync.retryPending(); runCurrent()
         assertEquals(listOf("t2" to "a"), tokens.released)
         assertNull(pending.value)
+    }
+
+    /** «Мої місця» йдуть з радаром: з дозволом і токеном — повний список; дозвіл забрали — пристрій забуто разом із зонами. */
+    @Test fun zonesFollowTheRadar() = runTest {
+        val tokens = Tokens(); val store = AppStore(AppState(), backgroundScope)
+        val sync = device(tokens, store).also { it.start() }
+        val area = Zone.Area(7, "Київ", "Подільський район")
+        store.update { it.copy(zones = listOf(area)) }; runCurrent()
+        assertTrue(tokens.zoned.isEmpty(), "без токена й дозволу — нічого")
+
+        sync.tokenChanged("t1", PushPlatform.IOS); sync.notificationsAllowed(true); runCurrent()
+        assertEquals(listOf(listOf("d:7")), tokens.zoned)
+        val circle = ZoneRules.circle(50.45, 30.52, 2000, emptyList())
+        store.update { it.copy(zones = listOf(area, circle)) }; runCurrent()
+        assertEquals(listOf("d:7", "c:50.450,30.520,2000"), tokens.zoned.last())
+        sync.notificationsAllowed(true); runCurrent()
+        assertEquals(2, tokens.zoned.size, "те саме вдруге не шлемо")
+
+        sync.notificationsAllowed(false); runCurrent()
+        assertEquals(listOf("t1"), tokens.forgottenRadar)
     }
 }

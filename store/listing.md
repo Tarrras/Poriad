@@ -322,6 +322,8 @@ Contact Info: Email, Name. Identifiers: User ID, Device ID. Photos or Videos. Us
 
 **1.4 «Хочу піти з компанією» — змінити в App Store Connect перед поданням 1.4.** Нікнейм Instagram → Contact Info: **Other User Contact Info** (Linked to you, App Functionality, не обовʼязковий). Наміри «Хочу піти з компанією» й «Піти разом» → уже задекларований User Content: Other User Content (дописати в опис для себе). Спільні інтереси — з профілю, нового типу не треба. Маніфест `PrivacyInfo.xcprivacy` уже має Other User Contact Info.
 
+**1.4 «Мої місця» ([my-places.md](../docs/my-places.md)) — рішення власника перед поданням.** Сервер зберігає за токеном пристрою райони й коло з центром, округленим до 3 знаків (~100 м). За визначенням Apple три знаки після коми — це **Precise Location**: додати Location — Precise Location (App Functionality). Як позначити: у гостя токен ні з ким не звʼязаний (Not linked); в акаунта звʼязок можливий через `push_tokens`, тож безпечніше — Linked to you. Інший варіант — округлювати центр до 2 знаків (~1 км, тоді Coarse Location), але коло 1 км тоді зміщується до ~600 м. Google Play Data safety: Location — Precise location, collected, App functionality, не передається третім особам, користувач може видалити (вимкнути сповіщення). Політику (рядок «Пристрій для „Стежити“ й „Моїх місць“») оновлено.
+
 Має збігатися з `iosApp/Poruch/PrivacyInfo.xcprivacy` (С28 аудиту 2026-09-23: там бракує ProductInteraction і EmailsOrTextMessages).
 
 ### App Review Notes (англійською)

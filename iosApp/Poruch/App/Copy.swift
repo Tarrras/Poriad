@@ -109,6 +109,7 @@ enum Copy {
     static let digest_reason_company = "на неї шукають компанію"
     static let digest_reason_one_night = "один вечір у місті"
     static let digest_reason_for_you = "під ваші інтереси"
+    static let digest_reason_near = "біля вас"
     static let deck_title = "Ваш тиждень"
     static let deck_subtitle = "«Так» — збережемо й нагадаємо ввечері напередодні"
     static func deck_progress(_ a0: String, _ a1: String) -> String { "\(a0) з \(a1)" }
@@ -352,7 +353,7 @@ enum Copy {
     static let calendar_short = "Календар"
     static let onboarding_welcome_title = "Знайомимось"
     static let onboarding_slogan = "Є куди.\nБуде з ким."
-    static let onboarding_welcome_body = "Чотири питання — і «Поряд» показуватиме спершу те, що вам підходить. Відповіді лишаються на цьому пристрої, змінити їх можна будь-коли у профілі."
+    static let onboarding_welcome_body = "Кілька питань — і «Поряд» показуватиме спершу те, що вам підходить. Відповіді лишаються на цьому пристрої, змінити їх можна будь-коли у профілі."
     static let onboarding_start = "Почати"
     static let onboarding_skip = "Пропустити"
     static func onboarding_step(_ a0: String, _ a1: String) -> String { "Крок \(a0) з \(a1)" }
@@ -888,6 +889,29 @@ enum Copy {
     static func a11y_unread_chats(_ a0: String, _ a1: String) -> String { "\(a0), непрочитаних чатів: \(a1)" }
     static let auth_consent_prefix = "Продовжуючи, ви погоджуєтесь з "
     static let auth_consent_and = " та "
+    static let places_title = "Мої місця"
+    static let places_hint = "Скажемо про нові зустрічі поруч"
+    static let places_intro = "Хтось поруч збере настолки, пробіжку чи компанію на концерт — скажемо одразу. Афіша поруч прийде в дайджесті."
+    static let places_empty_title = "Поки жодного місця"
+    static let places_empty_hint = "Оберіть свій район чи позначте коло навколо дому"
+    static let places_add_district = "Додати район"
+    static let places_add_circle = "Позначити на мапі"
+    static func places_circle(_ a0: String) -> String { "Коло \(a0)" }
+    static let places_point = "Точка на мапі"
+    static let places_district = "Район"
+    static let places_locality = "Місцевість"
+    static func places_remove(_ a0: String) -> String { "Прибрати «\(a0)»" }
+    static let places_follow = "Стежити"
+    static let places_following = "Стежите"
+    static func places_follow_a11y(_ a0: String) -> String { "Стежити за: \(a0)" }
+    static func places_unfollow_a11y(_ a0: String) -> String { "Не стежити за: \(a0)" }
+    static let places_circle_title = "Коло навколо точки"
+    static let places_circle_hint = "Посуньте мапу: коло йде за центром"
+    static let places_circle_save = "Стежити за колом"
+    static func places_radius(_ a0: String) -> String { "\(a0) км" }
+    static func places_full(_ a0: String) -> String { "Уже \(a0) місць — нове замінить найстаріше" }
+    static let onboarding_places_title = "Де ви буваєте?"
+    static let onboarding_places_hint = "Скажемо, коли поруч з'явиться зустріч від людей. Можна кілька районів."
 
     // ---- Множини: `one` / `few` / `many` за українським правилом, число підставляється замість %d.
     static func series_more_dates(_ n: Int) -> String { ukrainianPlural(n, "ще \(n) дата", "ще \(n) дати", "ще \(n) дат") }
@@ -917,4 +941,6 @@ enum Copy {
     static func show_events(_ n: Int) -> String { ukrainianPlural(n, "Показати \(n) подію", "Показати \(n) події", "Показати \(n) подій") }
     static func category_events(_ n: Int) -> String { ukrainianPlural(n, "\(n) подія", "\(n) події", "\(n) подій") }
     static func chat_new_messages(_ n: Int) -> String { ukrainianPlural(n, "\(n) нове повідомлення", "\(n) нових повідомлення", "\(n) нових повідомлень") }
+    static func onboarding_places_follow(_ n: Int) -> String { ukrainianPlural(n, "Стежити за \(n) районом", "Стежити за \(n) районами", "Стежити за \(n) районами") }
+    static func editor_audience(_ n: Int) -> String { ukrainianPlural(n, "Анонс отримає \(n) людина поруч", "Анонс отримають \(n) людини поруч", "Анонс отримають \(n) людей поруч") }
 }

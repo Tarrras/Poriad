@@ -2,7 +2,8 @@
 // участь чи приєднання до відкритої події, на скасування й перенесення події (docs/event-change-push.md),
 // на нову подію організатора й зведення нових подій закладів та артистів (docs/follows.md), на зміну афіші, за
 // якою людина стежить (docs/event-offers.md, R6–R7: адресатів, текст і час уже вибрала база), на новий збір «Йдемо
-// разом» тим, хто зберіг афішу (docs/companions.md), на «Хочу піти з компанією» (docs/return-hooks.md), а щопʼятниці — пуш повернення на пристрій, з якого місяць не
+// разом» тим, хто зберіг афішу (docs/companions.md), на «Хочу піти з компанією» (docs/return-hooks.md), на нову подію від
+// людей у «Моїх місцях» пристрою (docs/my-places.md), а щопʼятниці — пуш повернення на пристрій, з якого місяць не
 // відкривали застосунок (docs/guest-channel.md).
 // Вона вирішує, кому слати, бере токени й шле у FCM (Android) і APNs (iOS). Тихі години для «Стежити»
 // (22:00–09:00 за Києвом) тримає база в `private.notify_push`, ще до виклику: сюди нічний пуш приходить уже вранці.
@@ -17,7 +18,7 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 import * as jose from "npm:jose@5.10.0";
-import { artistText, companionText, organizerText, placeText, winbackText, type ArtistLine, type EventLine, type PlaceLine } from "./follow_text.ts";
+import { artistText, companionText, organizerText, placeText, winbackText, zoneText, type ArtistLine, type EventLine, type PlaceLine } from "./follow_text.ts";
 
 type Payload =
   | { type: "message"; message_id: string; event_id: string }
@@ -36,7 +37,9 @@ type Payload =
   // «Хочу піти з компанією»: адресатів і текст уже вибрала база (`push_company`); event_id — що відкриває тап.
   | { type: "company"; event_id: string; title: string; body: string; user_ids: string[] }
   // `send_winbacks`: пристрій без пошуку людини, місто й події його вихідних уже вибрала база.
-  | { type: "winback"; token: string; platform: Token["platform"]; step: 1 | 2; city: string; total: number; titles: string[] };
+  | { type: "winback"; token: string; platform: Token["platform"]; step: 1 | 2; city: string; total: number; titles: string[] }
+  // `notify_zone_devices`: нова подія від людей у зоні пристрою; event_id — найближча, total — скільки нових разом.
+  | { type: "zone"; token: string; platform: Token["platform"]; event_id: string; total: number };
 
 type EventKind = "moved" | "cancelled";
 const EVENT_KINDS: readonly string[] = ["moved", "cancelled"];
@@ -44,7 +47,7 @@ const EVENT_KINDS: readonly string[] = ["moved", "cancelled"];
 type Change = "cancelled" | "postponed" | "moved" | "corrected";
 const CHANGES: readonly string[] = ["cancelled", "postponed", "moved", "corrected"];
 
-type Push = { kind: "chat" | "request" | "joined" | "organizer" | "place" | "artist" | "companion" | "company" | "winback" | EventKind; eventId?: string; placeId?: string; artistId?: string; change?: Change; step?: number; title: string; body: string; key: string };
+type Push = { kind: "chat" | "request" | "joined" | "organizer" | "place" | "artist" | "companion" | "company" | "winback" | "zone" | EventKind; eventId?: string; placeId?: string; artistId?: string; change?: Change; step?: number; title: string; body: string; key: string };
 type Token = { token: string; platform: "android" | "ios" };
 
 const PREVIEW = 120;
@@ -79,6 +82,11 @@ Deno.serve(async (req) => {
   } else if (payload.type === "follow" && payload.kind === "artist" && "token" in payload) {
     // Радар гостя (docs/artist-radar.md): артисти пристрою без акаунта, токен уже в запиті.
     ({ push } = await forArtists(db, payload));
+    if (!push) return json({ sent: 0, reason: "no recipients" });
+    list.push({ token: payload.token, platform: payload.platform });
+  } else if (payload.type === "zone") {
+    // «Мої місця» (docs/my-places.md): зони живуть на пристрої, токен уже в запиті.
+    ({ push } = await forZone(db, payload));
     if (!push) return json({ sent: 0, reason: "no recipients" });
     list.push({ token: payload.token, platform: payload.platform });
   } else {
@@ -275,6 +283,15 @@ async function forCompany(db: ReturnType<typeof createClient>, p: Extract<Payloa
   return { push: { kind: "company" as const, eventId: p.event_id, title: p.title, body: p.body, key: `company:${p.event_id}` }, recipients: p.user_ids };
 }
 
+// Подія могла згаснути, поки пуш чекав ранку в черзі тихих годин.
+async function forZone(db: ReturnType<typeof createClient>, p: Extract<Payload, { type: "zone" }>) {
+  const { data: e } = await db.from("events").select("id,title,organizer_id,status,origin,starts_at,time_zone").eq("id", p.event_id).maybeSingle();
+  if (!e || e.origin !== "community" || e.status !== "published" || new Date(e.starts_at as string).getTime() <= Date.now()) return { push: null };
+  const { data: who } = await db.from("profiles").select("display_name").eq("id", e.organizer_id).maybeSingle();
+  const text = zoneText(e.title as string, ((who?.display_name as string | undefined) ?? "").trim(), when(e.starts_at as string, e.time_zone as string), p.total);
+  return { push: { kind: "zone" as const, eventId: e.id as string, title: text.title, body: text.body, key: `zone:${e.id}` } };
+}
+
 function when(iso: string, zone: string): string {
   const opts: Intl.DateTimeFormatOptions = { weekday: "short", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" };
   try { return new Date(iso).toLocaleString("uk-UA", { ...opts, timeZone: zone }); } catch { return new Date(iso).toLocaleString("uk-UA", opts); }
@@ -311,7 +328,7 @@ const isCount = (v: unknown): v is number => Number.isInteger(v) && (v as number
 const FCM_TOKEN = /^[A-Za-z0-9_:-]{100,4096}$/;
 // Токен пристрою без людини (канал повернення, радар гостя): формат — як у `touch_device` і `set_radar`.
 function isDevice(token: unknown, platform: unknown): boolean {
-  return platform === "ios" ? typeof token === "string" && /^[0-9a-f]{64}$/.test(token)
+  return platform === "ios" ? typeof token === "string" && /^[0-9a-f]{64,200}$/.test(token)
     : platform === "android" && typeof token === "string" && FCM_TOKEN.test(token);
 }
 const CITIES: readonly string[] = ["Київ", "Харків", "Одеса", "Дніпро", "Львів"];
@@ -349,6 +366,7 @@ function isPayload(p: unknown): p is Payload {
       && o.artists.every((x) => !!x && typeof x === "object" && isUuid((x as Record<string, unknown>).id) && isCount((x as Record<string, unknown>).n))
       && Array.isArray(o.event_ids) && o.event_ids.length >= 1 && o.event_ids.length <= 3 && o.event_ids.every(isUuid);
   }
+  if (o.type === "zone") return isDevice(o.token, o.platform) && isUuid(o.event_id) && isCount(o.total);
   if (o.type === "winback") {
     return isDevice(o.token, o.platform)
       && (o.step === 1 || o.step === 2) && typeof o.city === "string" && CITIES.includes(o.city) && isCount(o.total)

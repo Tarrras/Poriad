@@ -88,6 +88,16 @@ export function companionText(eventTitle: string, count: number, when: string): 
 }
 
 /**
+ * Нова подія від людей у «Моїх місцях» пристрою (docs/my-places.md). Заголовок — назва події, як у пуша організатора;
+ * [total] більше одного — скільки ще нових поруч, вони чекають у застосунку.
+ */
+export function zoneText(eventTitle: string, organizerName: string, when: string, total: number): FollowText {
+  const who = organizerName ? ` · збирає ${organizerName}` : "";
+  const more = total > 1 ? ` · і ще ${total - 1} ${plural(total - 1, "нова", "нові", "нових")}` : "";
+  return { title: eventTitle, body: clip(`Біля вас · ${when}${who}${more}`) };
+}
+
+/**
  * Пуш повернення (docs/guest-channel.md): ті самі шаблони, що в локального дайджесту (`Copy.digest_title`,
  * `digest_title_3`, `digest_more`; на Android — strings.xml), щоб людина чула один голос. Крок 1 — заголовок
  * першої пʼятниці драбини, крок 2 — третьої. Назви сирі, як у решті пушів.

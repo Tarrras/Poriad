@@ -1,6 +1,6 @@
 // Перевірка текстів пушів про підписки без Deno: node supabase/functions/push/follow_text.test.mjs
 import assert from "node:assert/strict";
-import { artistText, companionText, organizerText, placeText, plural, winbackText } from "./follow_text.ts";
+import { artistText, companionText, organizerText, placeText, plural, winbackText, zoneText } from "./follow_text.ts";
 
 const forms = (n) => plural(n, "подія", "події", "подій");
 assert.deepEqual([1, 2, 4, 5, 11, 12, 14, 21, 22, 25, 101, 111].map(forms),
@@ -70,5 +70,10 @@ assert.deepEqual(companionText("Океан Ельзи", 1, "сб, 8 листоп
 assert.equal(companionText("А", 2, "сб, 8 листопада о 18:30").body, "2 людини шукають компанію на цю подію · найближчий збір сб, 8 листопада о 18:30");
 assert.equal(companionText("А", 5, "т").body.startsWith("5 людей шукають"), true);
 assert.equal(companionText("А", 21, "т").body.startsWith("21 людина шукає"), true);
+
+assert.deepEqual(zoneText("Настолки", "Тарас", "пт, 31 жовтня о 19:00", 1),
+  { title: "Настолки", body: "Біля вас · пт, 31 жовтня о 19:00 · збирає Тарас" });
+assert.equal(zoneText("Настолки", "", "пт", 3).body, "Біля вас · пт · і ще 2 нові");
+assert.equal(zoneText("Настолки", "Оля", "пт", 6).body, "Біля вас · пт · збирає Оля · і ще 5 нових");
 
 console.log("follow_text: ok");

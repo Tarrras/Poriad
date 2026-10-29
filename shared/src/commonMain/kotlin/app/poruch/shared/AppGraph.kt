@@ -14,6 +14,7 @@ import app.poruch.data.local.LocalAnalyticsPreference
 import app.poruch.data.local.LocalCityStore
 import app.poruch.data.local.LocalDeviceTouch
 import app.poruch.data.local.LocalGuestArtists
+import app.poruch.data.local.LocalZones
 import app.poruch.data.local.LocalGuestSaves
 import app.poruch.data.local.LocalTicketStore
 import app.poruch.data.local.LocalPendingUnregister
@@ -75,6 +76,7 @@ class AppGraph(
             single<DeviceTouchStore> { LocalDeviceTouch(get()) }
             single<GuestSavedStore> { LocalGuestSaves(get()) }
             single<GuestArtistStore> { LocalGuestArtists(get()) }
+            single<ZoneStore> { LocalZones(get()) }
             single<TicketStore> { LocalTicketStore(get()) }
             single<CityStore> { LocalCityStore(get()) }
             single<SeenRequestStore> { LocalSeenRequests(get(), get()) }
@@ -132,6 +134,7 @@ class AppGraph(
                     guestSaves = get(),
                     tickets = get(),
                     guestArtists = get(),
+                    zoneStore = get(),
                     goodDays = get(named("good-days")),
                     config = config,
                     // Обидва потоки названі явно: тут єдине місце, де видно, що вони різні.

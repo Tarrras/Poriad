@@ -49,6 +49,9 @@ internal class SupabaseEventAuthoring(
         storage.delete(url, auth.accessToken() ?: fail(AppError.SessionRequired))
     }
 
+    override suspend fun zoneAudience(latitude: Double, longitude: Double): Int? =
+        rpc.call("zone_audience", buildJsonObject { put("p_lat", latitude); put("p_lon", longitude) }).jsonPrimitive.intOrNull
+
     private fun draftParams(id: String, d: EventDraft) = buildJsonObject {
         put("p_id", id); put("p_title", d.title.trim()); put("p_description", d.description.trim())
         put("p_category", d.category?.key); put("p_city", d.city); put("p_address", d.address)

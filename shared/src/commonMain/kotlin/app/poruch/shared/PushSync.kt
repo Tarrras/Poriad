@@ -46,12 +46,14 @@ internal class PushSync(
         store.scope.launch {
             store.state.map { listOf(it.city.name, it.city.custom, it.taste.interests, it.digestEnabled) }.distinctUntilChanged().collect { touch() }
         }
-        // Радар: місто й артисти гостя.
-        store.scope.launch { store.state.map { radarCity(it) to radarArtists(it) }.distinctUntilChanged().collect { radar() } }
+        // Радар: місто, артисти гостя й «Мої місця».
+        store.scope.launch { store.state.map { Triple(radarCity(it), radarArtists(it), it.zones) }.distinctUntilChanged().collect { radar() } }
     }
 
     /** Що сервер радару почув у цьому процесі. Пам'ять, а не диск: на старті шлемо знову, і так `updated_at` живий. */
-    private var radarSent: Triple<String, String?, List<String>>? = null
+    private var radarSent: RadarSent? = null
+
+    private data class RadarSent(val token: String, val city: String?, val artists: List<String>, val zones: List<Zone>)
     private var radaring: Job? = null
 
     /** Артисти гостя для сервера; в акаунта — порожньо: його артисти в підписках. */
@@ -60,7 +62,8 @@ internal class PushSync(
 
     /**
      * Радар артистів (docs/artist-radar.md): з дозволом і токеном — `set_radar` (місто пристрою й артисти гостя), гостю й
-     * акаунту, незалежно від дайджесту. Дозвіл забрали — `forget_radar`.
+     * акаунту, незалежно від дайджесту, і `set_zones` — «Мої місця» (docs/my-places.md). Дозвіл забрали — `forget_radar`,
+     * а з ним і зони.
      */
     fun radar() {
         val allowed = allowed ?: return
@@ -76,12 +79,16 @@ internal class PushSync(
             return
         }
         val state = store.value
-        val next = Triple(token, radarCity(state), radarArtists(state))
+        val next = RadarSent(token, radarCity(state), radarArtists(state), state.zones)
         if (next == radarSent) return
         radaring = store.scope.launch {
-            val done = attempt("radar") { tokens.setRadar(token, platform, next.second, next.third); radarSent = next }
+            val done = attempt("radar") {
+                tokens.setRadar(token, platform, next.city, next.artists)
+                tokens.setZones(token, platform, next.city, next.zones)
+                radarSent = next
+            }
             radaring = null
-            // Поки йшов запит, могли змінити місто чи список.
+            // Поки йшов запит, могли змінити місто, список чи зони.
             if (done) radar()
         }
     }

@@ -195,10 +195,10 @@ class PoruchAppTest {
         }
     }
 
-    private fun app(events:Events,scope:CoroutineScope,auth:Auth=Auth(),cities:CityStore?=null,follows:Follows?=null,bought:SeenRequestStore?=null,guestSaves:GuestSavedStore?=null,goodDays:SeenRequestStore?=null,tickets:TicketStore?=null,guestArtists:GuestArtistStore?=null):PoruchApp {
+    private fun app(events:Events,scope:CoroutineScope,auth:Auth=Auth(),cities:CityStore?=null,follows:Follows?=null,bought:SeenRequestStore?=null,guestSaves:GuestSavedStore?=null,goodDays:SeenRequestStore?=null,tickets:TicketStore?=null,guestArtists:GuestArtistStore?=null,zones:ZoneStore?=null):PoruchApp {
         return PoruchApp(
             events=events, saved=events, authoring=events, participation=events, requests=events, chat=events,
-            auth=auth, cityStore=cities, follows=follows, boughtAsked=bought, guestSaves=guestSaves, goodDays=goodDays, tickets=tickets, guestArtists=guestArtists,
+            auth=auth, cityStore=cities, follows=follows, boughtAsked=bought, guestSaves=guestSaves, goodDays=goodDays, tickets=tickets, guestArtists=guestArtists, zoneStore=zones,
             geo=object:GeoSearchRepository { override suspend fun search(query:String)=emptyList<CityResult>() },
             eventActions=EventActions(events,events,auth), accountActions=AccountActions(auth),
             safety=safety, profiles=profiles, tasteStore=taste, reminderStore=reminders, scope=scope
@@ -1181,6 +1181,36 @@ class PoruchAppTest {
     private class GuestArtists(var stored:List<GuestArtist> = emptyList()): GuestArtistStore {
         override fun artists()=stored
         override fun saveArtists(artists:List<GuestArtist>) { stored=artists }
+    }
+
+    private class Zones(var stored:List<Zone> = emptyList()): ZoneStore {
+        override fun zones()=stored
+        override fun saveZones(zones:List<Zone>) { stored=zones }
+    }
+
+    /** «Мої місця» (docs/my-places.md): район і коло — одразу в стані й на телефоні, без входу; повторний дотик знімає. */
+    @Test fun zonesLiveOnThePhone()=runTest {
+        val tracked=mutableListOf<Pair<String,Map<String,String>>>()
+        PoruchAnalytics.sink={ name,params -> tracked+=name to params }
+        try {
+            val podil=District(7,"Київ","Подільський район",rings=listOf(doubleArrayOf(30.0,50.0,31.0,50.0,31.0,51.0,30.0,51.0,30.0,50.0)))
+            val stored=Zones(listOf(Zone.Area(3,"Київ","Печерський район")))
+            val auth=Auth().apply { session.value=null }
+            val app=app(Events(),backgroundScope,auth,zones=stored); runCurrent()
+            assertEquals(listOf("d:3"),app.state.value.zones.map { it.key },"read on start")
+
+            app.toggleDistrictZone(podil,"map")
+            app.followCircle(50.45123,30.52,2000,"places")
+            app.followCircle(50.4512,30.52,2000,"places")
+            assertEquals(listOf("d:3","d:7","c:50.451,30.520,2000"),stored.stored.map { it.key },"the same circle again does not unfollow")
+            assertEquals(app.state.value.zones,stored.stored)
+            assertEquals(2,app.state.value.library.followsMade,"each follow is a chance to ask about notifications")
+            assertEquals(mapOf("kind" to "district","from" to "map","zones" to "2"),tracked.first { it.first=="zone_follow" }.second)
+
+            app.toggleDistrictZone(podil,"map"); app.removeZone("d:3")
+            assertEquals(listOf("c:50.451,30.520,2000"),app.state.value.zones.map { it.key })
+            assertEquals(2,tracked.count { it.first=="zone_unfollow" })
+        } finally { PoruchAnalytics.sink=null }
     }
 
     /** Радар (docs/artist-radar.md): гість стежить за артистом без входу; після входу артисти переїжджають в акаунт. */

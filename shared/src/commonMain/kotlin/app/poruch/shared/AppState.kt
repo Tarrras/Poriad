@@ -31,6 +31,8 @@ data class AppState(
     val popularArtists: List<PopularArtist>? = null,
     /** Пошук у «За ким стежити?» по всій країні. Null — ще не шукали або запит закороткий. */
     val artistMatches: List<PopularArtist>? = null,
+    /** «Мої місця» пристрою (docs/my-places.md), старші першими. Пише [ZoneUseCases]. */
+    val zones: List<Zone> = emptyList(),
     /** Хто увійшов і на якому кроці входу. Пишуть [IdentitySync], [SessionUseCases], [PushSync]. */
     val session: SessionState = SessionState(),
     val taste: Taste = Taste(),

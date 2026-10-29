@@ -30,6 +30,9 @@ interface PushTokens {
      */
     suspend fun setRadar(token: String, platform: PushPlatform, city: String?, artists: List<String>) {}
     suspend fun forgetRadar(token: String) {}
+
+    /** «Мої місця» (docs/my-places.md): повний список зон пристрою; забуваються разом з ним у [forgetRadar]. */
+    suspend fun setZones(token: String, platform: PushPlatform, city: String?, zones: List<Zone>) {}
 }
 
 /** Що сервер востаннє почув про пристрій від [PushTokens.touchDevice] і коли ([at], epoch-секунди). */

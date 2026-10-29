@@ -66,6 +66,8 @@ class PoruchApp internal constructor(
     private val tickets: TicketStore? = null,
     /** Артисти, за якими гість стежить без акаунта (docs/artist-radar.md). Null — лише до перезапуску. */
     guestArtists: GuestArtistStore? = null,
+    /** «Мої місця» на телефоні (docs/my-places.md). Null — лише до перезапуску. */
+    zoneStore: ZoneStore? = null,
     /** Дні з добрими діями для питання про відгук у сторі. Null — питаємо лише після оцінки події. */
     goodDays: SeenRequestStore? = null,
     config: AppConfig = AppConfig("", ""),
@@ -91,7 +93,8 @@ class PoruchApp internal constructor(
                 savedIds = guestSaves?.ids().orEmpty(),
                 follows = guestArtists?.artists().orEmpty().map { Follow(FollowKind.ARTIST, it.id, it.name) }
             ) else LibraryState(),
-            tickets = tickets?.all().orEmpty()
+            tickets = tickets?.all().orEmpty(),
+            zones = zoneStore?.zones().orEmpty()
         ),
         scope
     )
@@ -120,6 +123,7 @@ class PoruchApp internal constructor(
     private val pushSync = PushSync(push, seenRequests, seenMessages, store, pendingPush, deviceTouch)
     private val places = PlaceLookup(addresses, timeZones, scope)
     private val followUseCases = FollowUseCases(follows, events, store, library, discovery, guestArtists)
+    private val zoneUseCases = ZoneUseCases(store, library, authoring, zoneStore)
     private val eventUseCases = EventUseCases(
         events,
         saved,
@@ -457,6 +461,16 @@ class PoruchApp internal constructor(
 
     /** «За ким стежити?» відкрито: хто їде в місто, а в онбордингу ([everywhere]) — хто гастролює країною. */
     fun loadPopularArtists(everywhere: Boolean) = followUseCases.loadPopular(everywhere)
+
+    // ---- «Мої місця» (docs/my-places.md)
+
+    /** Стежити за районом чи перестати. [from]: `map`, `places`, `onboarding`. */
+    fun toggleDistrictZone(district: District, from: String) = zoneUseCases.toggleDistrict(district, from)
+    /** Коло 1–3 км навколо точки ([ZoneRules.RADII]). */
+    fun followCircle(latitude: Double, longitude: Double, radiusM: Int, from: String) = zoneUseCases.followCircle(latitude, longitude, radiusM, from)
+    fun removeZone(key: String) = zoneUseCases.remove(key)
+    /** Для редактора: «Анонс отримають N людей поруч». Null — менше трьох, не показуємо. */
+    fun zoneAudience(latitude: Double, longitude: Double, onCounted: (Int?) -> Unit) = zoneUseCases.audience(latitude, longitude, onCounted)
 
     /** Пошук у «За ким стежити?» ([AppState.artistMatches]): кожна зміна поля, пауза — на спільному боці. */
     fun searchArtists(text: String) = followUseCases.searchArtists(text)

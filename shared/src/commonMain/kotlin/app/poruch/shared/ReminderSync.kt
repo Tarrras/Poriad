@@ -5,6 +5,7 @@ import app.poruch.domain.FollowRules
 import app.poruch.domain.PoruchLog
 import app.poruch.domain.ReminderRules
 import app.poruch.domain.ReminderScheduler
+import app.poruch.domain.ZoneRules
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -49,13 +50,16 @@ internal class ReminderSync(
         scope.launch {
             state.distinctUntilChanged { a, b ->
                 a.home.index === b.home.index && a.digestEnabled == b.digestEnabled && a.taste === b.taste &&
-                    a.library.followEvents === b.library.followEvents
+                    a.library.followEvents === b.library.followEvents && a.zones == b.zones && a.city.districts === b.city.districts
             }
                 .map {
                     // За ким стежу, по подіях: «Від Атласу» в дайджесті (docs/return-hooks.md).
                     val followed = it.library.followEvents.mapNotNull { event ->
                         FollowRules.via(event, it.library.follows)?.let { follow -> event.id to follow.name }
                     }.toMap()
+                    // «Біля вас»: події в «Моїх місцях» (docs/my-places.md). Райони — лише відкритого міста.
+                    val near = if (it.zones.isEmpty()) emptySet() else
+                        it.home.index.filter { e -> ZoneRules.covers(it.zones, it.city.districts, e.latitude, e.longitude) }.map { e -> e.id }.toSet()
                     DigestRules.plan(
                         it.home.index,
                         if (it.city.custom) null else it.city.name,
@@ -63,7 +67,8 @@ internal class ReminderSync(
                         Clock.System.now(),
                         TimeZone.currentSystemDefault(),
                         it.taste,
-                        followed
+                        followed,
+                        near
                     )
                 }
                 .distinctUntilChanged()

@@ -164,7 +164,7 @@ data class HomeLocation(
     fun contains(lat: Double, lon: Double) = lat in south..north && lon in west..east
 
     /** Відстань по великому колу. */
-    private fun kmTo(lat: Double, lon: Double): Double {
+    internal fun kmTo(lat: Double, lon: Double): Double {
         val dLat = (lat - latitude) * PI / 180
         val dLon = (lon - longitude) * PI / 180
         val a = sin(dLat / 2).pow(2) + cos(latitude * PI / 180) * cos(lat * PI / 180) * sin(dLon / 2).pow(2)

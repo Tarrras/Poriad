@@ -114,6 +114,8 @@ interface EventAuthoring {
     suspend fun uploadImage(eventId: String, bytes: ByteArray, contentType: String): String
     /** Прибирає завантажене фото, яке так і не стало фото події. За замовчуванням нічого. */
     suspend fun deleteImage(url: String) {}
+    /** Скільки людей стежать за зоною з цією точкою (docs/my-places.md); null — менше трьох. */
+    suspend fun zoneAudience(latitude: Double, longitude: Double): Int? = null
 }
 
 /** Участь: двері й черга під ними. */

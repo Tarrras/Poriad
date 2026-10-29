@@ -3,6 +3,8 @@ package app.poruch.data.events
 import app.poruch.domain.AppFailure
 import app.poruch.domain.PushPlatform
 import app.poruch.domain.PushTokens
+import app.poruch.domain.Zone
+import kotlinx.serialization.json.addJsonObject
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonObject
@@ -58,6 +60,16 @@ internal class SupabasePushTokens(private val rpc: EventRpc) : PushTokens {
 
     override suspend fun forgetRadar(token: String) = quiet {
         rpc.call("forget_radar", buildJsonObject { put("p_token", token) })
+    }
+
+    override suspend fun setZones(token: String, platform: PushPlatform, city: String?, zones: List<Zone>) = quiet {
+        rpc.call("set_zones", buildJsonObject {
+            put("p_token", token); put("p_platform", platform.key); put("p_city", city)
+            putJsonArray("p_districts") { zones.filterIsInstance<Zone.Area>().forEach { add(it.districtId) } }
+            putJsonArray("p_circles") {
+                zones.filterIsInstance<Zone.Circle>().forEach { addJsonObject { put("lat", it.latitude); put("lon", it.longitude); put("r", it.radiusM) } }
+            }
+        })
     }
 
     private companion object {

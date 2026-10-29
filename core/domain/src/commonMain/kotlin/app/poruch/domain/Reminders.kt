@@ -56,7 +56,8 @@ interface ReminderPreferenceStore {
 enum class DigestKind(val key: String) { WEEKDAYS("weekdays"), WEEKEND("weekend") }
 
 /** Чому подію в дайджесті варто помітити (docs/return-hooks.md). Порядок — сила причини. */
-enum class DigestReason { FOLLOWED, COMPANY, ONE_NIGHT, FOR_YOU }
+/** [NEAR] — подія в «Моїх місцях» (docs/my-places.md). */
+enum class DigestReason { FOLLOWED, COMPANY, NEAR, ONE_NIGHT, FOR_YOU }
 
 /**
  * Дайджест у вільний час людини. Текст рахується з видачі при останньому відкритті, тож працює без сервера й для гостя.
@@ -123,11 +124,11 @@ object DigestRules {
      * До [WEEKS] дзвінків кожного виду з [kinds]. Вихідні — четвер о [WEEKEND_HOUR] про пт 17:00 – нд; будні — понеділок о
      * [WEEKDAYS_HOUR] про пн 17:00 – пт 17:00. Подія рахується, якщо хоч один її сеанс у вікні й у вільному слоті
      * людини. Тиждень з менш ніж [MIN_EVENTS] випадає, решта тримає свій номер. [index] уже склеєний і ранжований за
-     * смаком. [followed] — id події → за ким людина стежить (заклад чи артист).
+     * смаком. [followed] — id події → за ким людина стежить (заклад чи артист); [near] — id подій у «Моїх місцях».
      */
     fun plan(
         index: List<EventIndexEntry>, city: String?, enabled: Boolean, now: Instant, zone: TimeZone,
-        taste: Taste = Taste(), followed: Map<String, String> = emptyMap()
+        taste: Taste = Taste(), followed: Map<String, String> = emptyMap(), near: Set<String> = emptySet()
     ): List<WeekendDigest> {
         if (!enabled) return emptyList()
         // Прокат рахуємо, якщо хоч один сеанс у вікні: картка стоїть під найближчим, а він може бути раніше.
@@ -135,12 +136,12 @@ object DigestRules {
             entry to entry.sessions.map { it.startsAt }.ifEmpty { listOf(entry.startsAt) }
                 .mapNotNull { runCatching { Instant.parse(it) }.getOrNull() }
         }
-        return kinds(taste.times).flatMap { plan(it, starts, city, now, zone, taste, followed) }
+        return kinds(taste.times).flatMap { plan(it, starts, city, now, zone, taste, followed, near) }
     }
 
     private fun plan(
         kind: DigestKind, starts: List<Pair<EventIndexEntry, List<Instant>>>, city: String?, now: Instant, zone: TimeZone,
-        taste: Taste, followed: Map<String, String>
+        taste: Taste, followed: Map<String, String>, near: Set<String>
     ): List<WeekendDigest> {
         val (day, hour) = if (kind == DigestKind.WEEKEND) DayOfWeek.THURSDAY to WEEKEND_HOUR else DayOfWeek.MONDAY to WEEKDAYS_HOUR
         val today = now.toLocalDateTime(zone).date
@@ -169,7 +170,7 @@ object DigestRules {
                 }
             }.map { it.first }
             if (window.size < MIN_EVENTS) return@mapNotNull null
-            val lead = lead(window, taste, followed)
+            val lead = lead(window, taste, followed, near)
             WeekendDigest(
                 city, window.size, window.take(TITLES).map { it.title }, fireAt.toEpochMilliseconds(), week, kind,
                 lead?.first?.title, lead?.second.orEmpty(), lead?.first?.let { followed[it.id] }
@@ -181,16 +182,19 @@ object DigestRules {
      * «Цікаве = рідкісне + твоє»: серед подій вікна, що відповідають смаку (без смаку — усіх), та, де найбільше причин;
      * рівні — у порядку видачі, тобто за смаком. Без жодної причини, але під смак — «під ваші інтереси»; інакше null.
      */
-    fun lead(window: List<EventIndexEntry>, taste: Taste, followed: Map<String, String>): Pair<EventIndexEntry, List<DigestReason>>? {
+    fun lead(
+        window: List<EventIndexEntry>, taste: Taste, followed: Map<String, String>, near: Set<String> = emptySet()
+    ): Pair<EventIndexEntry, List<DigestReason>>? {
         val candidates = TasteRanking.matching(window, taste).ifEmpty { window }
-        val best = candidates.map { it to reasons(it, followed) }.maxByOrNull { it.second.size } ?: return null
+        val best = candidates.map { it to reasons(it, followed, near) }.maxByOrNull { it.second.size } ?: return null
         if (best.second.isNotEmpty()) return best.first to best.second.take(REASONS)
         return if (TasteRanking.matches(best.first, taste)) best.first to listOf(DigestReason.FOR_YOU) else null
     }
 
-    private fun reasons(entry: EventIndexEntry, followed: Map<String, String>) = buildList {
+    private fun reasons(entry: EventIndexEntry, followed: Map<String, String>, near: Set<String>) = buildList {
         if (entry.id in followed) add(DigestReason.FOLLOWED)
         if (entry.companyCount > 0) add(DigestReason.COMPANY)
+        if (entry.id in near) add(DigestReason.NEAR)
         // Не прокат: у серії видачі один показ (EventSeries склеїв би решту в sessions).
         if (entry.origin == EventOrigin.IMPORT && entry.sessions.size <= 1) add(DigestReason.ONE_NIGHT)
     }

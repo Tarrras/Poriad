@@ -138,6 +138,7 @@
   <string name="digest_reason_company">на неї шукають компанію</string>
   <string name="digest_reason_one_night">один вечір у місті</string>
   <string name="digest_reason_for_you">під ваші інтереси</string>
+  <string name="digest_reason_near">біля вас</string>
   <!-- Стос «Ваш тиждень» (docs/return-hooks.md, хвиля 2): після онбордингу й раз на тиждень з головної. -->
   <string name="deck_title">Ваш тиждень</string>
   <string name="deck_subtitle">«Так»&#160;— збережемо й нагадаємо ввечері напередодні</string>
@@ -405,7 +406,7 @@
 
   <string name="onboarding_welcome_title">Знайомимось</string>
   <string name="onboarding_slogan">Є куди.\nБуде з ким.</string>
-  <string name="onboarding_welcome_body">Чотири питання — і «Поряд» показуватиме спершу те, що вам підходить. Відповіді лишаються на цьому пристрої, змінити їх можна будь-коли у профілі.</string>
+  <string name="onboarding_welcome_body">Кілька питань — і «Поряд» показуватиме спершу те, що вам підходить. Відповіді лишаються на цьому пристрої, змінити їх можна будь-коли у профілі.</string>
   <string name="onboarding_start">Почати</string>
   <string name="onboarding_skip">Пропустити</string>
   <string name="onboarding_step">Крок %1$d з %2$d</string>
@@ -1109,4 +1110,40 @@
   <string name="a11y_unread_chats">%1$s, непрочитаних чатів: %2$d</string>
   <string name="auth_consent_prefix">"Продовжуючи, ви погоджуєтесь з "</string>
   <string name="auth_consent_and">" та "</string>
+  <!-- «Мої місця» (docs/my-places.md): район чи коло, пуш про нові події від людей поруч. -->
+  <string name="places_title">Мої місця</string>
+  <string name="places_hint">Скажемо про нові зустрічі поруч</string>
+  <string name="places_intro">Хтось поруч збере настолки, пробіжку чи компанію на концерт — скажемо одразу. Афіша поруч прийде в дайджесті.</string>
+  <string name="places_empty_title">Поки жодного місця</string>
+  <string name="places_empty_hint">Оберіть свій район чи позначте коло навколо дому</string>
+  <string name="places_add_district">Додати район</string>
+  <string name="places_add_circle">Позначити на мапі</string>
+  <string name="places_circle">Коло %1$s</string>
+  <string name="places_point">Точка на мапі</string>
+  <string name="places_district">Район</string>
+  <string name="places_locality">Місцевість</string>
+  <string name="places_remove">Прибрати «%1$s»</string>
+  <string name="places_follow">Стежити</string>
+  <string name="places_following">Стежите</string>
+  <string name="places_follow_a11y">Стежити за: %1$s</string>
+  <string name="places_unfollow_a11y">Не стежити за: %1$s</string>
+  <string name="places_circle_title">Коло навколо точки</string>
+  <string name="places_circle_hint">Посуньте мапу: коло йде за центром</string>
+  <string name="places_circle_save">Стежити за колом</string>
+  <string name="places_radius">%1$d км</string>
+  <string name="places_full">Уже %1$d місць — нове замінить найстаріше</string>
+  <string name="onboarding_places_title">Де ви буваєте?</string>
+  <string name="onboarding_places_hint">Скажемо, коли поруч з\'явиться зустріч від людей. Можна кілька районів.</string>
+  <plurals name="onboarding_places_follow">
+    <item quantity="one">Стежити за %d районом</item>
+    <item quantity="few">Стежити за %d районами</item>
+    <item quantity="many">Стежити за %d районами</item>
+    <item quantity="other">Стежити за %d районами</item>
+  </plurals>
+  <plurals name="editor_audience">
+    <item quantity="one">Анонс отримає %d людина поруч</item>
+    <item quantity="few">Анонс отримають %d людини поруч</item>
+    <item quantity="many">Анонс отримають %d людей поруч</item>
+    <item quantity="other">Анонс отримають %d людини поруч</item>
+  </plurals>
 </resources>
