@@ -16,8 +16,8 @@ import Shared
         // Квитки на афішу купують у джерела: акаунт не потрібен, тому до перевірки входу.
         if action == .tickets {
             if let url = sourceURL(event) {
-                app.ticketOpened(eventId: event.id, source: event.listing?.sourceName ?? "", from: "bar")
-                UIApplication.shared.open(url)
+                let tagged = app.ticketOpened(eventId: event.id, source: event.listing?.sourceName ?? "", from: "bar", url: url.absoluteString)
+                UIApplication.shared.open(URL(string: tagged) ?? url)
             }
             return true
         }
@@ -37,8 +37,8 @@ import Shared
     /// Сайт продавця з блоку «Квитки» чи «Якщо купили квиток». [from] — для `ticket_open`.
     func openSeller(_ offer: Offer, of event: Event, from: String) {
         guard let raw = offer.url, let url = URL(string: raw), url.scheme == "https" else { return }
-        app.ticketOpened(eventId: event.id, source: offer.sourceName, from: from)
-        UIApplication.shared.open(url)
+        let tagged = app.ticketOpened(eventId: event.id, source: offer.sourceName, from: from, url: raw)
+        UIApplication.shared.open(URL(string: tagged) ?? url)
     }
 
     /// Запит у чужий супутник прямо з картки на сторінці афіші.

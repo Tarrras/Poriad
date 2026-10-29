@@ -3,8 +3,8 @@
 // компанію — у застосунку. Кожна така кнопка відкриває шторку з тим, що саме дасть застосунок.
 import {
   APP_STORE_URL, PLAY_URL, CATEGORIES, cardsByIds, eventSafety, displayTitle, overline, dayLabel, timeOf, stubParts,
-  price, sourceNote, httpsOrNull, esc, otherDays, qrPath, eventUrl, icsFile, googleCalendarUrl,
-} from "./poriad.js?v=10";
+  price, sourceNote, httpsOrNull, ticketHref, esc, otherDays, qrPath, eventUrl, icsFile, googleCalendarUrl,
+} from "./poriad.js?v=11";
 
 const ua = navigator.userAgent;
 export const isIOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -212,7 +212,7 @@ function renderEvent(card, entry) {
   </div>
   <div class="bar"><div class="ticket cat-${esc(card.category)}" data-ui>
     <div class="face"><div class="top"><div class="meta"><small>${spots ? "Учасників" : "Ціна"}</small><span>${esc(spots || cost || "Уточнюйте")}</span></div>
-      ${ticket ? `<a class="btn primary" href="${esc(ticket)}" target="_blank" rel="noopener nofollow">Купити квиток</a>`
+      ${ticket ? `<a class="btn primary" href="${esc(ticketHref(ticket))}" target="_blank" rel="noopener nofollow">Купити квиток</a>`
         : `<button class="btn primary" type="button" data-lock="join">${card.approval_required ? "Подати заявку" : "Приєднатися"}</button>`}</div>
       ${imported ? `<button class="btn secondary" type="button" data-lock="company">${icon("people")}Шукаю компанію</button>` : ""}</div>
     ${stubPrint(card)}

@@ -289,6 +289,18 @@ export const googleCalendarUrl = (card) => `https://calendar.google.com/calendar
 
 export const httpsOrNull = (value) => typeof value === "string" && value.startsWith("https://") ? value : null;
 
+// Сайт продавця з utm_source=poriad: продавець бачить у своїй аналітиці, скільки покупців привела афіша. Решта посилання —
+// як була, свій utm_source не перебиваємо. Те саме в застосунку — EventLinks.ticket.
+export function ticketHref(value) {
+  const url = httpsOrNull(value);
+  if (!url) return null;
+  const cut = url.includes("#") ? url.indexOf("#") : url.length;
+  const base = url.slice(0, cut);
+  if (/[?&]utm_source=/.test(base)) return url;
+  const glue = !base.includes("?") ? "?" : /[?&]$/.test(base) ? "" : "&";
+  return `${base}${glue}utm_source=poriad${url.slice(cut)}`;
+}
+
 export function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 }

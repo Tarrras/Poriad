@@ -29,6 +29,14 @@ class EventLinksTest {
         assertEquals(id, EventLinks.eventId("poriad://event/$id?utm_source=x&by=$token"))
     }
 
+    @Test fun tagsSellerLinksOnce() {
+        assertEquals("https://concert.ua/uk/event/x?utm_source=poriad", EventLinks.ticket("https://concert.ua/uk/event/x"))
+        assertEquals("https://kasa.in.ua/e?id=7&utm_source=poriad#buy", EventLinks.ticket("https://kasa.in.ua/e?id=7#buy"))
+        assertEquals("https://a.ua/e?utm_source=poriad", EventLinks.ticket("https://a.ua/e?"))
+        assertEquals("https://a.ua/e?utm_source=partner&x=1", EventLinks.ticket("https://a.ua/e?utm_source=partner&x=1"))
+        assertEquals("https://a.ua/e?my_utm_source=1&utm_source=poriad", EventLinks.ticket("https://a.ua/e?my_utm_source=1"))
+    }
+
     @Test fun ignoresMissingOrForeignTokens() {
         assertNull(EventLinks.invite(EventLinks.url(id)))
         assertNull(EventLinks.invite("https://poriad.app/e/$id?by=short"))

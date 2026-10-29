@@ -39,6 +39,20 @@ object EventLinks {
     /** Токен запрошення з посилання на подію (`?by=`), з обох видів; токен не того формату — null. */
     fun invite(link: String): String? = PATTERN.matchEntire(link)?.groupValues?.get(2)?.takeIf { it.isNotEmpty() }
 
+    /**
+     * Сайт продавця з `utm_source=poriad`: продавець бачить у своїй аналітиці, скільки покупців привела афіша. Решта
+     * посилання — як була, свій `utm_source` не перебиваємо. Те саме на сайті — `ticketHref` у site/js/poriad.js.
+     */
+    fun ticket(url: String): String {
+        val cut = url.indexOf('#').takeIf { it >= 0 } ?: url.length
+        val base = url.take(cut)
+        if (UTM.containsMatchIn(base)) return url
+        val glue = if ('?' !in base) "?" else if (base.endsWith('?') || base.endsWith('&')) "" else "&"
+        return "$base${glue}utm_source=poriad${url.drop(cut)}"
+    }
+
+    private val UTM = Regex("[?&]utm_source=")
+
     private val PATTERN =
         Regex("""(?:https://(?:www\.)?poriad\.app/e/|[a-z][a-z0-9+.-]*://event/)([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/?(?:\?(?:[^#]*&)?by=([A-Za-z0-9_-]{22})(?=[&#]|$))?(?:[?&#].*)?""")
 }

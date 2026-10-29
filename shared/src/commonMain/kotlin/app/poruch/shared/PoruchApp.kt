@@ -643,11 +643,13 @@ class PoruchApp internal constructor(
     /**
      * Вихід до продавця квитків (docs/event-offers.md R9) — єдиний облік того, що афіша довела до покупки. [source] —
      * назва продавця, [from] — `bar` (кнопка панелі), `sellers` (рядок «Квитки»), `refund` («Якщо купили квиток»).
-     * Повернення по квиток скасованої — не покупка, тож «Купили?» після нього не питаємо.
+     * Повернення по квиток скасованої — не покупка, тож «Купили?» після нього не питаємо. Повертає [url], який
+     * відкривати: з `utm_source=poriad` ([EventLinks.ticket]).
      */
-    fun ticketOpened(eventId: String, source: String, from: String) {
+    fun ticketOpened(eventId: String, source: String, from: String, url: String): String {
         PoruchAnalytics.track("ticket_open", "source" to source, "from" to from)
         leftForTickets = eventId.takeIf { from != "refund" }
+        return EventLinks.ticket(url)
     }
 
     /**

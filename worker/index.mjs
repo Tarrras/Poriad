@@ -5,7 +5,7 @@
 
 // Назви, дати й ціна — ті самі правила, що на сайті (site/js/poriad.js, порт TitleRules і формату застосунку).
 // wrangler збирає цей імпорт у воркер; той самий файл сайт віддає браузеру.
-import { displayTitle, overline, stubParts, price, httpsOrNull, esc, CATEGORIES, playUrl, discover, cardsByIds, fold, inWhen, dayLabel, timeOf, cityOf, plural, EVENTS } from "../site/js/poriad.js";
+import { displayTitle, overline, stubParts, price, httpsOrNull, ticketHref, esc, CATEGORIES, playUrl, discover, cardsByIds, fold, inWhen, dayLabel, timeOf, cityOf, plural, EVENTS } from "../site/js/poriad.js";
 export { esc };
 
 // Мітка ct: завантаження зі сторінок подій (event) і з запрошень (invite) окремо від сайту (site/js/poriad.js).
@@ -185,7 +185,7 @@ ${ticketUrl ? `<link rel="canonical" href="${esc(ticketUrl)}">` : ""}`,
       <div class="stores">${storeButtons(ct)}</div></div>
   </div>
   <div class="bar"><div class="ticket cat-${category}"><div class="face"><div class="top"><div class="meta">${spots ? "" : "<small>Ціна</small>"}<span>${esc(cost || spots || "Вхід уточнюйте")}</span></div>
-    ${ticketUrl && live ? `<a class="btn primary" href="${esc(ticketUrl)}" rel="nofollow noopener">Квитки${e.source_name ? ` на ${esc(e.source_name)}` : ""}</a>`
+    ${ticketUrl && live ? `<a class="btn primary" href="${esc(ticketHref(ticketUrl))}" rel="nofollow noopener">Квитки${e.source_name ? ` на ${esc(e.source_name)}` : ""}</a>`
       : `<a class="btn primary" href="/app?from=${ct}">${imported ? "Завантажити «Поряд»" : "Приєднатися в застосунку"}</a>`}</div></div>
     <div class="stub" role="img" aria-label="${esc(overline(e, now, true))}"><b class="t">${esc(stubTime)}</b><small>${esc(stubDay)}</small></div></div></div>
 </article>`,
@@ -217,7 +217,7 @@ function sellersSection(offers, refund, checkedAt, tz) {
   if (offers.length === 0) return "";
   const rows = offers.map((o) => {
     const cost = refund ? null : price(o);
-    return `<a class="row" href="${esc(httpsOrNull(o.url))}" rel="nofollow noopener"><i>${icon("ticket")}</i><div class="txt"><b>${esc(o.source)}</b>${cost ? `<small>${esc(cost)}</small>` : ""}</div></a>`;
+    return `<a class="row" href="${esc(ticketHref(o.url))}" rel="nofollow noopener"><i>${icon("ticket")}</i><div class="txt"><b>${esc(o.source)}</b>${cost ? `<small>${esc(cost)}</small>` : ""}</div></a>`;
   }).join("");
   const checked = checkedAt ? longDate(checkedAt, tz) : null;
   return `<div class="block"><h2>${refund ? "Якщо купили квиток" : "Квитки"}</h2><div class="rows">${rows}</div>${checked ? `<p class="fine">Перевірено ${esc(checked)}.</p>` : ""}</div>`;
@@ -405,8 +405,8 @@ function layout({ title, description, image, url, head, body }) {
 <meta name="theme-color" content="#0F0F13" media="(prefers-color-scheme: dark)">
 ${head}
 <link rel="preload" href="/fonts/sofia-sans-condensed-800.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/tokens.css?v=10">
-<link rel="stylesheet" href="/web.css?v=10">
+<link rel="stylesheet" href="/tokens.css?v=11">
+<link rel="stylesheet" href="/web.css?v=11">
 <link rel="icon" href="/icon.png">
 </head>
 <body class="event-page">

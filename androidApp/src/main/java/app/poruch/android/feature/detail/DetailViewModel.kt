@@ -76,11 +76,7 @@ class DetailViewModel(
             DetailIntent.PrimaryAction -> if (screen.action == DetailAction.TICKETS) {
                 event?.listing?.let { listing ->
                     listing.canonicalUrl?.let {
-                        app.ticketOpened(
-                            eventId,
-                            listing.sourceName,
-                            "bar"
-                        ); send(DetailEffect.OpenLink(it))
+                        send(DetailEffect.OpenLink(app.ticketOpened(eventId, listing.sourceName, "bar", it)))
                     }
                 }
             } else authenticated(AuthReason.JOIN) {
@@ -108,11 +104,7 @@ class DetailViewModel(
             }
 
             is DetailIntent.OpenSeller -> intent.offer.url?.let {
-                app.ticketOpened(
-                    eventId,
-                    intent.offer.sourceName,
-                    intent.from
-                ); send(DetailEffect.OpenLink(it))
+                send(DetailEffect.OpenLink(app.ticketOpened(eventId, intent.offer.sourceName, intent.from, it)))
             }
 
             is DetailIntent.ShowMeetTime -> reduce { copy(movingMeet = intent.from) }
