@@ -1146,4 +1146,15 @@
     <item quantity="many">Анонс отримають %d людей поруч</item>
     <item quantity="other">Анонс отримають %d людини поруч</item>
   </plurals>
+  <!-- Polish 1.4 (аудит і критика 29.10): один крок онбордингу «Про що сказати?», озвучення стосу, стан квитка. -->
+  <string name="onboarding_follow_title">Про що сказати?</string>
+  <string name="onboarding_follow_hint">Коли ваші артисти приїдуть у місто і коли поруч з\'явиться зустріч від людей.</string>
+  <string name="onboarding_follow_artists">Артисти, що гастролюють</string>
+  <string name="onboarding_follow_places">Райони</string>
+  <string name="deck_a11y_card">%1$d з %2$d: %3$s</string>
+  <string name="deck_a11y_done">Тиждень переглянуто</string>
+  <string name="wallet_finding_code">Шукаємо код квитка…</string>
+  <string name="company_cancel_a11y">Скасувати пошук компанії</string>
+  <string name="company_open_a11y">Відкрити компанію</string>
+  <string name="company_bar_people">Подивитися, хто ще шукає</string>
 </resources>

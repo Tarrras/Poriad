@@ -912,6 +912,16 @@ enum Copy {
     static func places_full(_ a0: String) -> String { "Уже \(a0) місць — нове замінить найстаріше" }
     static let onboarding_places_title = "Де ви буваєте?"
     static let onboarding_places_hint = "Скажемо, коли поруч з'явиться зустріч від людей. Можна кілька районів."
+    static let onboarding_follow_title = "Про що сказати?"
+    static let onboarding_follow_hint = "Коли ваші артисти приїдуть у місто і коли поруч з'явиться зустріч від людей."
+    static let onboarding_follow_artists = "Артисти, що гастролюють"
+    static let onboarding_follow_places = "Райони"
+    static func deck_a11y_card(_ a0: String, _ a1: String, _ a2: String) -> String { "\(a0) з \(a1): \(a2)" }
+    static let deck_a11y_done = "Тиждень переглянуто"
+    static let wallet_finding_code = "Шукаємо код квитка…"
+    static let company_cancel_a11y = "Скасувати пошук компанії"
+    static let company_open_a11y = "Відкрити компанію"
+    static let company_bar_people = "Подивитися, хто ще шукає"
 
     // ---- Множини: `one` / `few` / `many` за українським правилом, число підставляється замість %d.
     static func series_more_dates(_ n: Int) -> String { ukrainianPlural(n, "ще \(n) дата", "ще \(n) дати", "ще \(n) дат") }

@@ -76,7 +76,8 @@ object MyEventsRules {
     /**
      * Розкладає «мої» події з `my_events` (у гостя — картки закладок) по розрізах і секціях. Порядок усередині — як прийшов
      * (за початком), минулі — свіжіші першими. «Сьогодні» і «цього тижня» — за поясом телефона [zone]:
-     * це про день людини, а не події.
+     * це про день людини, а не події. Квиток з гаманця [tickets] — теж план: «N планів попереду» рахує його, якщо його
+     * подія ще не серед моїх (критика 1.4: «1 план попереду» над квитком на неділю).
      */
     fun board(
         events: List<Event>,
@@ -86,7 +87,8 @@ object MyEventsRules {
         requests: List<JoinRequest>,
         unreadEventIds: Collection<String>,
         now: Instant,
-        zone: TimeZone
+        zone: TimeZone,
+        tickets: List<WalletTicket> = emptyList()
     ): MyEventsBoard {
         val saved = savedIds.toSet(); val queued = waitlistedIds.toSet(); val unread = unreadEventIds.toSet()
         val today = now.toLocalDateTime(zone).date
@@ -123,7 +125,9 @@ object MyEventsRules {
             going = sections(MyEventsGroup.TODAY to todays, MyEventsGroup.UPCOMING to next, MyEventsGroup.PAST to goingPast),
             organizing = sections(MyEventsGroup.UPCOMING to mineAhead, MyEventsGroup.PAST to minePast),
             saved = sections(MyEventsGroup.THIS_WEEK to thisWeek, MyEventsGroup.LATER to afterWeek),
-            goingAhead = goingAhead.size,
+            goingAhead = goingAhead.size + tickets.count { ticket ->
+                !ticket.isPast(now) && goingAhead.none { it.id == ticket.eventId }
+            },
             awaiting = goingAhead.count { it.gathering?.awaitingApproval == true },
             organizingAhead = mineAhead.size,
             requests = openRequests,

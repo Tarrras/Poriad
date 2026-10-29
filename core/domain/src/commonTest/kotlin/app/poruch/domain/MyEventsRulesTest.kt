@@ -116,4 +116,21 @@ class MyEventsRulesTest {
         assertEquals(MyEventsTab.SAVED, b.openingTab)
         assertEquals(MyEventsBoard(), MyEventsRules.board(events, null, emptyList(), emptyList(), emptyList(), emptyList(), now, kyiv))
     }
+
+    /** Квиток з гаманця — план (критика 1.4): рахується в «Іду», крім квитка на подію, що вже серед моїх, і минулого. */
+    @Test fun walletTicketsArePlans() {
+        val events = listOf(room("tonight", "2026-09-25T16:30:00Z", joined = true))
+        fun ticket(id: String, eventId: String?, startsAt: String) =
+            WalletTicket(id, "$id.pdf", TicketKind.PDF, id, startsAt = startsAt, timeZone = "Europe/Kyiv", eventId = eventId, addedAt = startsAt)
+        val tickets = listOf(
+            ticket("own", "tonight", "2026-09-25T16:30:00Z"),
+            ticket("theatre", "afisha", "2026-09-27T14:00:00Z"),
+            ticket("cinema", null, "2026-09-28T18:00:00Z"),
+            ticket("old", null, "2026-09-01T18:00:00Z")
+        )
+        assertEquals(3, MyEventsRules.board(events, "me", emptyList(), emptyList(), emptyList(), emptyList(), now, kyiv, tickets).goingAhead)
+        val guest = MyEventsRules.board(emptyList(), null, emptyList(), emptyList(), emptyList(), emptyList(), now, kyiv, tickets.drop(1))
+        assertEquals(2, guest.goingAhead)
+        assertEquals(MyEventsTab.GOING, guest.openingTab, "the wallet lives in «Іду»")
+    }
 }

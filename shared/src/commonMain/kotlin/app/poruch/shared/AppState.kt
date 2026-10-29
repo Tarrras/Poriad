@@ -90,7 +90,7 @@ data class AppState(
     /** «Мої події», розкладені по розрізах. Пояс — телефона: «сьогодні» — це день людини. */
     fun myEventsBoard(now: Instant): MyEventsBoard = MyEventsRules.board(
         library.myEvents, session.userId, library.savedIds, library.waitlistedIds, library.pendingRequests,
-        chatUnread.map { it.eventId }, now, TimeZone.currentSystemDefault()
+        chatUnread.map { it.eventId }, now, TimeZone.currentSystemDefault(), tickets
     )
 
     /** Мій бал за подію або null. */
