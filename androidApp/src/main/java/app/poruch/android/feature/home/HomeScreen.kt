@@ -401,31 +401,37 @@ private fun PeopleSection(state: HomeState, onIntent: (HomeIntent) -> Unit) {
         ) {
             state.screen.people.forEach { entry ->
                 val id = entry.event.id
-                PosterCard(
-                    entry.event,
-                    entry.source,
-                    id in state.screen.savedIds,
-                    id in state.screen.waitlistedIds,
-                    { onIntent(HomeIntent.ToggleSaved(id)) },
-                    Modifier
-                        .width(PeopleCardWidth)
-                        .fillMaxHeight(),
-                    showOrigin = false,
-                    followName = entry.followName,
-                    morph = true
-                ) { onIntent(HomeIntent.OpenEvent(id, "home_people")) }
+                UnfoldSource(id, "home_people", { onIntent(HomeIntent.OpenEvent(id, "home_people")) }) { source, open ->
+                    PosterCard(
+                        entry.event,
+                        entry.source,
+                        id in state.screen.savedIds,
+                        id in state.screen.waitlistedIds,
+                        { onIntent(HomeIntent.ToggleSaved(id)) },
+                        Modifier
+                            .width(PeopleCardWidth)
+                            .fillMaxHeight()
+                            .then(source),
+                        showOrigin = false,
+                        followName = entry.followName,
+                        onClick = open
+                    )
+                }
             }
             state.screen.company.forEach { entry ->
                 val id = entry.event.id
-                PosterCard(
-                    entry.event, FeedSource.CITY,
-                    id in state.screen.savedIds, id in state.screen.waitlistedIds,
-                    { onIntent(HomeIntent.ToggleSaved(id)) },
-                    Modifier.width(PeopleCardWidth).fillMaxHeight(),
-                    because = pluralStringResource(R.plurals.company_reason, entry.count, entry.count),
-                    printedOnly = true,
-                    morph = true
-                ) { onIntent(HomeIntent.OpenEvent(id, "home_company")) }
+                val because = pluralStringResource(R.plurals.company_reason, entry.count, entry.count)
+                UnfoldSource(id, "home_company", { onIntent(HomeIntent.OpenEvent(id, "home_company")) }) { source, open ->
+                    PosterCard(
+                        entry.event, FeedSource.CITY,
+                        id in state.screen.savedIds, id in state.screen.waitlistedIds,
+                        { onIntent(HomeIntent.ToggleSaved(id)) },
+                        Modifier.width(PeopleCardWidth).fillMaxHeight().then(source),
+                        because = because,
+                        printedOnly = true,
+                        onClick = open
+                    )
+                }
             }
             // Кінцем рейки, а не окремим блоком під нею: менше гортати до афіші (критика довжини 28.10).
             CreateCard(onIntent, Modifier.width(PeopleCardWidth).fillMaxHeight(), vertical = true)
@@ -525,18 +531,22 @@ private fun DateRow(date: RadarDate, onIntent: (HomeIntent) -> Unit) {
     val day = runCatching {
         java.time.OffsetDateTime.parse(date.event.startsAt).atZoneSameInstant(ZoneId.of(date.event.timeZone)).format(RADAR_DAY).uppercase()
     }.getOrNull()
-    YourRow(
-        day, date.event.displayTitle, date.artists.joinToString(", "),
-        onClick = { onIntent(HomeIntent.OpenEvent(date.event.eventId, "radar")) },
-        // Плитка кольору й гліфа жанру, як корінець квитка: три дати поспіль не зливаються в однакові рядки.
-        tile = {
-            Box(
-                Modifier.size(YourTile).clip(Radius.sm).background(categoryGradient(date.event.category)),
-                contentAlignment = Alignment.Center
-            ) { Icon(categoryIcon(date.event.category), null, Modifier.size(24.dp), tint = categoryInk(date.event.category)) }
-        },
-        brandTitle = true
-    ) { Chevron() }
+    val id = date.event.eventId
+    UnfoldSource(id, "radar", { onIntent(HomeIntent.OpenEvent(id, "radar")) }, bare = true) { source, open ->
+        YourRow(
+            day, date.event.displayTitle, date.artists.joinToString(", "),
+            onClick = open,
+            // Плитка кольору й гліфа жанру, як корінець квитка: три дати поспіль не зливаються в однакові рядки.
+            tile = {
+                Box(
+                    Modifier.size(YourTile).clip(Radius.sm).background(categoryGradient(date.event.category)),
+                    contentAlignment = Alignment.Center
+                ) { Icon(categoryIcon(date.event.category), null, Modifier.size(24.dp), tint = categoryInk(date.event.category)) }
+            },
+            modifier = source,
+            brandTitle = true
+        ) { Chevron() }
+    }
 }
 
 /** Гліф у плитці рядка «Ваше» (підписки, порожній стан, «чекають відповіді»). */
@@ -674,32 +684,35 @@ private fun PlanRow(row: PersonalRow, onIntent: (HomeIntent) -> Unit) {
             body
         )
     } ?: event.placeLabel
-    YourRow(
-        overline,
-        event.cardTitle,
-        subtitle,
-        onClick = { onIntent(HomeIntent.OpenEvent(event.id, "home_your")) },
-        tile = { EventImage(event, Modifier
-            .size(YourTile)
-            .clip(Radius.sm), glyphSize = 24.dp) },
-        // Лічильник — кнопка в чат, поки праворуч не зайняли запити: на них теж чекає людина, і вони важливіші.
-        chat = row.chat?.takeIf { row.requests == 0 }
-            ?.let { it.unread to { onIntent(HomeIntent.OpenChat(event.id)) } },
-        brandTitle = true
-    ) {
-        when {
-            event.isCancelled -> TicketStamp(
-                stringResource(R.string.cancelled_short),
-                BadgeTone.Danger
-            )
+    UnfoldSource(event.id, "home_your", { onIntent(HomeIntent.OpenEvent(event.id, "home_your")) }, bare = true) { source, open ->
+        YourRow(
+            overline,
+            event.cardTitle,
+            subtitle,
+            onClick = open,
+            tile = { EventImage(event, Modifier
+                .size(YourTile)
+                .clip(Radius.sm), glyphSize = 24.dp) },
+            modifier = source,
+            // Лічильник — кнопка в чат, поки праворуч не зайняли запити: на них теж чекає людина, і вони важливіші.
+            chat = row.chat?.takeIf { row.requests == 0 }
+                ?.let { it.unread to { onIntent(HomeIntent.OpenChat(event.id)) } },
+            brandTitle = true
+        ) {
+            when {
+                event.isCancelled -> TicketStamp(
+                    stringResource(R.string.cancelled_short),
+                    BadgeTone.Danger
+                )
 
-            row.requests > 0 -> StatusBadge(
-                pluralStringResource(R.plurals.requests_count, row.requests, row.requests),
-                BadgeTone.Accent,
-                PoruchIcons.personAdd
-            )
+                row.requests > 0 -> StatusBadge(
+                    pluralStringResource(R.plurals.requests_count, row.requests, row.requests),
+                    BadgeTone.Accent,
+                    PoruchIcons.personAdd
+                )
 
-            role != null -> StatusBadge(role.first, role.second)
+                role != null -> StatusBadge(role.first, role.second)
+            }
         }
     }
 }
@@ -736,9 +749,18 @@ private fun PlanButton(
     }
 }
 
-/** Найближчий план великою карткою, як посадковий талон: відлік, назва, місце й дії — маршрут, чат, запити. */
+/**
+ * Найближчий план великою карткою, як посадковий талон: відлік, назва, місце й дії — маршрут, чат, запити. Картка — квиток:
+ * розгортається в деталі ([UnfoldSource]) і з голови, і з «Запити».
+ */
 @Composable
-private fun NextPlanCard(row: PersonalRow, onIntent: (HomeIntent) -> Unit) {
+private fun NextPlanCard(row: PersonalRow, onIntent: (HomeIntent) -> Unit) =
+    UnfoldSource(row.event.id, "home_next", { onIntent(HomeIntent.OpenEvent(row.event.id, "home_your")) }) { source, open ->
+        NextPlanCard(row, source, open, onIntent)
+    }
+
+@Composable
+private fun NextPlanCard(row: PersonalRow, modifier: Modifier, open: () -> Unit, onIntent: (HomeIntent) -> Unit) {
     val colors = Poruch.colors
     val context = LocalContext.current
     val event = row.event
@@ -761,7 +783,7 @@ private fun NextPlanCard(row: PersonalRow, onIntent: (HomeIntent) -> Unit) {
     val subtitle =
         preview ?: listOf(role, event.placeLabel).filter { it.isNotBlank() }.joinToString(" · ")
     Column(
-        Modifier
+        modifier
             .fillMaxWidth()
             .cardSurface(Radius.xl)
             .padding(Spacing.lg),
@@ -771,14 +793,7 @@ private fun NextPlanCard(row: PersonalRow, onIntent: (HomeIntent) -> Unit) {
             Modifier
                 .fillMaxWidth()
                 .semantics(mergeDescendants = true) {}
-                .pressable(pressedScale = 1f) {
-                    onIntent(
-                        HomeIntent.OpenEvent(
-                            event.id,
-                            "home_your"
-                        )
-                    )
-                },
+                .pressable(pressedScale = 1f, onClick = open),
             horizontalArrangement = Arrangement.spacedBy(Spacing.lg),
             verticalAlignment = Alignment.Top
         ) {
@@ -826,8 +841,9 @@ private fun NextPlanCard(row: PersonalRow, onIntent: (HomeIntent) -> Unit) {
                 stringResource(R.string.home_requests_short, row.requests),
                 PoruchIcons.personAdd,
                 width,
-                highlight = true
-            ) { onIntent(HomeIntent.OpenEvent(event.id, "home_your")) }
+                highlight = true,
+                onClick = open
+            )
         }
         // Великий шрифт: дії одна під одною, як у «Моїх подіях», — три в ряд обрізали б «Маршрут» до «Ма…».
         if (LocalDensity.current.fontScale >= 1.3f) Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
@@ -919,18 +935,21 @@ private fun LazyListScope.cityFeed(state: HomeState, onIntent: (HomeIntent) -> U
                 ) {
                     pair.forEach { entry ->
                         val id = entry.event.id
-                        PosterCard(
-                            entry.event,
-                            entry.source,
-                            id in state.screen.savedIds,
-                            id in state.screen.waitlistedIds,
-                            { onIntent(HomeIntent.ToggleSaved(id)) },
-                            Modifier
-                                .weight(1f)
-                                .fillMaxHeight(),
-                            followName = entry.followName,
-                            morph = true
-                        ) { onIntent(HomeIntent.OpenEvent(id, "home_poster")) }
+                        UnfoldSource(id, "home_poster", { onIntent(HomeIntent.OpenEvent(id, "home_poster")) }) { source, open ->
+                            PosterCard(
+                                entry.event,
+                                entry.source,
+                                id in state.screen.savedIds,
+                                id in state.screen.waitlistedIds,
+                                { onIntent(HomeIntent.ToggleSaved(id)) },
+                                Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight()
+                                    .then(source),
+                                followName = entry.followName,
+                                onClick = open
+                            )
+                        }
                     }
                     repeat(columns - pair.size) { Spacer(Modifier.weight(1f)) }
                 }
@@ -1025,12 +1044,18 @@ private fun HeroPager(
             pageSize = PageSize.Fixed(pageWidth)
         ) { index ->
             val entry = picks[index]
-            EventHeroCard(
-                entry.event,
-                eyebrow = lane(entry.source, entry.followName),
-                saved = entry.event.id in savedIds,
-                onSave = { onIntent(HomeIntent.ToggleSaved(entry.event.id)) }
-            ) { onIntent(HomeIntent.OpenEvent(entry.event.id, "home_hero")) }
+            val id = entry.event.id
+            val eyebrow = lane(entry.source, entry.followName)
+            UnfoldSource(id, "home_hero", { onIntent(HomeIntent.OpenEvent(id, "home_hero")) }) { source, open ->
+                EventHeroCard(
+                    entry.event,
+                    source,
+                    eyebrow = eyebrow,
+                    saved = id in savedIds,
+                    onSave = { onIntent(HomeIntent.ToggleSaved(id)) },
+                    onClick = open
+                )
+            }
         }
     }
 }
@@ -1058,20 +1083,9 @@ private fun PosterCard(
     because: String? = null,
     /** Друкований квиток без фото й з афіші: у рейці «З ким піти» всі квитки однієї висоти, без порожнього поля. */
     printedOnly: Boolean = false,
-    /** Квиток розгортається в деталі (Morph.kt): з рейки «З ким піти» й сітки «У місті». */
-    morph: Boolean = false,
     onClick: () -> Unit
 ) {
     val colors = Poruch.colors
-    // Звідки розгорнеться квиток: межі в корені, без перескладань.
-    val bounds = remember { Bounds() }
-    val open = if (!morph) onClick else ({
-        // Деталі відкриває модель; квиток розгорнеться, щойно вона скаже (HomeRoute).
-        Unfold.pending = TicketFlight(event.id, bounds.rect) {
-            PosterCard(event, source, saved, waitlisted, {}, Modifier, showOrigin, followName, because, printedOnly) {}
-        }
-        onClick()
-    })
     // Скасоване — штампом (корінець тоді погашений); для кімнати — «Ви йдете», «Лишилось 2». Знята афіша сказана підписом.
     val state =
         if (event.gathering == null && !event.isCancelled) null else eventState(event, waitlisted)
@@ -1107,7 +1121,6 @@ private fun PosterCard(
     Ticket(
         ticketStub(event), stub = { StubTime(event, row = true) },
         modifier = modifier
-            .then(if (morph) Modifier.trackBounds(bounds) else Modifier)
             .ticketSemantics(
                 ticketA11yLabel(
                     event,
@@ -1117,9 +1130,9 @@ private fun PosterCard(
                         price,
                         note?.first
                     ).joinToString(", ")
-                ), open, saved, onSave
+                ), onClick, saved, onSave
             ),
-        vertical = true, onClick = open,
+        vertical = true, onClick = onClick,
         // 64: жанр над часом — два рядки, і в 52 вони впирались у перфорацію та нижній край.
         stubLength = 64.dp
     ) {
@@ -1326,11 +1339,14 @@ private fun SearchResults(state: HomeState, onIntent: (HomeIntent) -> Unit) {
                     state.screen.results.take(state.resultsLimit)
                         .forEachIndexed { position, event ->
                             if (position > 0) HairLine(Modifier.padding(start = ResultRowInset))
-                            EventResultRow(
-                                event,
-                                waitlisted = event.id in state.screen.waitlistedIds,
-                                withCity = state.screen.searchEverywhere
-                            ) { onIntent(HomeIntent.OpenEvent(event.id, "home_search")) }
+                            UnfoldSource(event.id, "home_search", { onIntent(HomeIntent.OpenEvent(event.id, "home_search")) }, bare = true) { source, open ->
+                                EventResultRow(
+                                    event, source,
+                                    waitlisted = event.id in state.screen.waitlistedIds,
+                                    withCity = state.screen.searchEverywhere,
+                                    onClick = open
+                                )
+                            }
                         }
                 }
                 if (state.screen.resultsIndexed > state.resultsLimit) SecondaryButton(

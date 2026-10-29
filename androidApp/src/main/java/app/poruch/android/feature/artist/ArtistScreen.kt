@@ -53,8 +53,8 @@ fun ArtistScreen(state: ArtistUiState, onIntent: (ArtistIntent) -> Unit) {
                     GroupedRows {
                         state.events.forEachIndexed { position, event ->
                             if (position > 0) HairLine(Modifier.padding(start = ResultRowInset))
-                            EventResultRow(event, waitlisted = event.id in state.waitlistedIds, withCity = true) {
-                                onIntent(ArtistIntent.OpenEvent(event.id))
+                            UnfoldSource(event.id, "artist", { onIntent(ArtistIntent.OpenEvent(event.id)) }, bare = true) { source, open ->
+                                EventResultRow(event, source, waitlisted = event.id in state.waitlistedIds, withCity = true, onClick = open)
                             }
                         }
                     }

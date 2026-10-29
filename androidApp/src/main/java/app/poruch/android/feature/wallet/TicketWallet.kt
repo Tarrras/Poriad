@@ -362,7 +362,7 @@ fun TicketOverlay(app: PoruchApp) {
         PredictiveBackHandler { events ->
             val folds = Unfold.canFold(shown)
             try {
-                events.collect { if (folds) Unfold.preview(it.progress) }
+                events.collect { if (folds) Unfold.preview(shown, it.progress) }
                 close()
             } catch (cancelled: CancellationException) {
                 // Жест скасували: квиток лишається на весь екран.
@@ -608,7 +608,7 @@ fun TicketsSection(tickets: List<WalletTicket>, past: List<WalletTicket>, modifi
             }
         } else {
             SectionHeader(stringResource(R.string.wallet_title), actionLabel = stringResource(R.string.wallet_add), onAction = add)
-            tickets.forEach { ticket -> WalletTicketCard(ticket, morph = true) { WalletUi.shown = ticket.id } }
+            tickets.forEach { ticket -> WalletTicketCard(ticket, morph = "wallet") { WalletUi.shown = ticket.id } }
         }
         if (past.isNotEmpty()) {
             Row(
@@ -619,7 +619,7 @@ fun TicketsSection(tickets: List<WalletTicket>, past: List<WalletTicket>, modifi
                 Text(stringResource(R.string.wallet_past, past.size.toString()), Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
                 Icon(PoruchIcons.chevronDown, null, Modifier.size(16.dp).rotate(if (showsPast) 180f else 0f), tint = colors.inkTertiary)
             }
-            if (showsPast) past.forEach { ticket -> WalletTicketCard(ticket, punched = true, morph = true) { WalletUi.shown = ticket.id } }
+            if (showsPast) past.forEach { ticket -> WalletTicketCard(ticket, punched = true, morph = "wallet") { WalletUi.shown = ticket.id } }
         }
     }
 }
@@ -631,7 +631,7 @@ fun TicketsSection(tickets: List<WalletTicket>, past: List<WalletTicket>, modifi
 fun TodayTickets(tickets: List<WalletTicket>, modifier: Modifier = Modifier) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
         SectionHeader(stringResource(R.string.wallet_today))
-        tickets.forEach { ticket -> WalletTicketCard(ticket, morph = true) { WalletUi.shown = ticket.id } }
+        tickets.forEach { ticket -> WalletTicketCard(ticket, morph = "today") { WalletUi.shown = ticket.id } }
     }
 }
 
@@ -642,14 +642,13 @@ fun TodayTickets(tickets: List<WalletTicket>, modifier: Modifier = Modifier) {
 @Composable
 fun WalletTicketCard(
     ticket: WalletTicket, punched: Boolean = false,
-    /** Квиток у списку розгортається в квиток на весь екран: «Мої події» й «Квитки на сьогодні», не шторка дубля. */
-    morph: Boolean = false,
+    /** Звідки квиток розгортається в квиток на весь екран: «Мої події» чи «Квитки на сьогодні»; null — шторка дубля, без руху. */
+    morph: String? = null,
     onClick: () -> Unit
 ) {
     val colors = Poruch.colors
-    // Звідки розгорнеться квиток на весь екран: межі в корені, без перескладань.
-    val bounds = remember { Bounds() }
-    val open = if (!morph) onClick else ({ Unfold.open(TicketFlight(ticket.id, bounds.rect) { WalletTicketCard(ticket, punched) {} }, onClick) })
+    val source = morph?.let { "$it:${ticket.id}" }
+    val open = if (source == null) onClick else ({ Unfold.open(TicketFlight(ticket.id, source) { WalletTicketCard(ticket, punched) {} }, onClick) })
     // На великому шрифті корінець ширшає в півтора раза: два рядки обрізали б назву й місце на «Частина др…».
     val lines = if (LocalDensity.current.fontScale >= 1.5f) Int.MAX_VALUE else 2
     val start = ticket.start()
@@ -670,7 +669,7 @@ fun WalletTicketCard(
                 }
             }
         },
-        modifier = (if (morph) Modifier.trackBounds(bounds) else Modifier).fillMaxWidth().semantics(mergeDescendants = true) { contentDescription = label },
+        modifier = (if (source != null) Modifier.unfoldSource(source) else Modifier).fillMaxWidth().semantics(mergeDescendants = true) { contentDescription = label },
         // Минулий: пробитий, як минулі події афіші.
         punched = punched,
         // На шторці (дубль) — тло її полів, інакше поверхня квитка зливається з шторкою.

@@ -498,13 +498,16 @@ private fun EventCarousel(state: ExploreState, onIntent: (ExploreIntent) -> Unit
             horizontalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
             items(state.screen.deckEvents, key = { it.id }) { event ->
-                EventMapCard(
-                    event,
-                    Modifier.width(cardWidth),
-                    focused = event.id == state.screen.selectedId,
-                    saved = event.id in state.screen.savedIds,
-                    onSave = { onIntent(ExploreIntent.ToggleSaved(event.id)) }
-                ) { onIntent(ExploreIntent.OpenEvent(event.id)) }
+                UnfoldSource(event.id, "map_card", { onIntent(ExploreIntent.OpenEvent(event.id)) }) { source, open ->
+                    EventMapCard(
+                        event,
+                        Modifier.width(cardWidth).then(source),
+                        focused = event.id == state.screen.selectedId,
+                        saved = event.id in state.screen.savedIds,
+                        onSave = { onIntent(ExploreIntent.ToggleSaved(event.id)) },
+                        onClick = open
+                    )
+                }
             }
         }
     }
@@ -591,11 +594,15 @@ private fun SheetList(state: ExploreState, onIntent: (ExploreIntent) -> Unit) {
         // Рядки з малим корінцем, як у пошуку головної: список відкривають, щоб зіставити варіанти, і картка
         // з фото 180 давала півтори події на екран. Фото й «Зберегти» — на картці каруселі й у деталях.
         items(rows, key = { it.id }) { event ->
-            EventResultRow(
-                event, Modifier.cardSurface(),
-                waitlisted = event.id in state.screen.waitlistedIds,
-                distance = state.screen.kmFromMe(event)?.let { distanceLabel(it, state.screen.nearWithinKm) }
-            ) { onIntent(ExploreIntent.OpenEvent(event.id)) }
+            val distance = state.screen.kmFromMe(event)?.let { distanceLabel(it, state.screen.nearWithinKm) }
+            UnfoldSource(event.id, "map_list", { onIntent(ExploreIntent.OpenEvent(event.id)) }) { source, open ->
+                EventResultRow(
+                    event, source.cardSurface(),
+                    waitlisted = event.id in state.screen.waitlistedIds,
+                    distance = distance,
+                    onClick = open
+                )
+            }
         }
         if (state.screen.hasMoreCards) item {
             Box(Modifier

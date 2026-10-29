@@ -60,6 +60,12 @@ import kotlin.concurrent.thread
  * бере модель зі сховища свого запису стека і чиститься при знятті.
  */
 
+/** Деталі події: натиснутий квиток розгортається в них (Morph.kt), інші шляхи (пуш, рядок-посилання) — звичайний перехід. */
+private fun Navigator.openDetail(id: String) {
+    val ticket = Unfold.pending?.takeIf { it.id == id }
+    if (ticket != null) Unfold.open(ticket) { open(Detail(id)) } else { Unfold.forget(id); open(Detail(id)) }
+}
+
 /** Збирає одноразові ефекти, поки маршрут на екрані. */
 @Composable
 private fun <E> Flow<E>.handle(onEffect: (E) -> Unit) {
@@ -79,10 +85,7 @@ fun HomeRoute(navigator: Navigator) {
     model.effects.handle { effect ->
         when (effect) {
             is HomeEffect.Navigate -> when (effect.destination) {
-                // Натиснутий квиток розгортається в деталі (Morph.kt); інші шляхи до деталей — звичайний перехід.
-                HomeDestination.DETAIL -> Unfold.pending?.takeIf { it.key == effect.id }
-                    ?.let { Unfold.open(it) { navigator.open(Detail(effect.id)) } }
-                    ?: run { Unfold.forget(); navigator.open(Detail(effect.id)) }
+                HomeDestination.DETAIL -> navigator.openDetail(effect.id)
                 HomeDestination.CHAT -> navigator.open(Chat(effect.id))
                 HomeDestination.MAP -> navigator.open(Explore())
                 HomeDestination.PROFILE -> navigator.open(Profile)
@@ -130,7 +133,7 @@ fun ExploreRoute(focusId: String, navigator: Navigator) {
     }
     model.effects.handle { effect ->
         when (effect) {
-            is ExploreEffect.OpenDetail -> navigator.open(Detail(effect.id))
+            is ExploreEffect.OpenDetail -> navigator.openDetail(effect.id)
             is ExploreEffect.OpenArtist -> navigator.open(ArtistPage(effect.id))
             ExploreEffect.CreateEvent -> navigator.createEvent()
             ExploreEffect.SignIn -> navigator.open(Auth(AuthReason.FOLLOW))
@@ -150,7 +153,7 @@ fun MyEventsRoute(navigator: Navigator) {
     val model = koinViewModel<MyEventsViewModel>(viewModelStoreOwner = activityStoreOwner())
     model.effects.handle { effect ->
         when (effect) {
-            is MyEventsEffect.OpenDetail -> navigator.open(Detail(effect.id))
+            is MyEventsEffect.OpenDetail -> navigator.openDetail(effect.id)
             is MyEventsEffect.OpenChat -> navigator.open(Chat(effect.id))
             MyEventsEffect.OpenMap -> navigator.open(Explore())
             MyEventsEffect.SignIn -> navigator.open(Auth())
@@ -175,13 +178,14 @@ fun DetailRoute(route: Detail, navigator: Navigator) {
     val notifications = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         model.dispatch(DetailIntent.NotificationPermissionAnswered(granted))
     }
-    // Деталі, що виросли з квитка головної, складаються в нього назад: і «Назад» жестом (квиток за пальцем), і стрілкою.
-    val folds = Unfold.canFold(route.eventId) && navigator.stack.size == 2 && navigator.stack.first() == Home && navigator.current == route
+    // Деталі, що виросли з квитка (головна, мапа, «Мої події», артист, інші деталі), складаються в нього назад: і «Назад»
+    // жестом (квиток за пальцем), і стрілкою. Куди саме — Unfold питає джерело вже після повернення (Morph.kt).
+    val folds = navigator.current == route && Unfold.canFold(route.eventId)
     val back = { if (!(folds && Unfold.fold(route.eventId, navigator::back))) navigator.back() }
     val scope = rememberCoroutineScope()
     PredictiveBackHandler(enabled = folds) { events ->
         try {
-            events.collect { Unfold.preview(it.progress) }
+            events.collect { Unfold.preview(route.eventId, it.progress) }
             back()
         } catch (cancelled: kotlin.coroutines.cancellation.CancellationException) {
             scope.launch { Unfold.cancelPreview() }
@@ -205,7 +209,7 @@ fun DetailRoute(route: Detail, navigator: Navigator) {
             is DetailEffect.OpenLink -> if (!context.openLink(effect.url)) context.toast(R.string.link_unavailable)
             is DetailEffect.OpenMap -> navigator.open(Explore(effect.id))
             is DetailEffect.OpenChat -> navigator.open(Chat(effect.id))
-            is DetailEffect.OpenEvent -> navigator.open(Detail(effect.id))
+            is DetailEffect.OpenEvent -> navigator.openDetail(effect.id)
             is DetailEffect.OpenArtist -> navigator.open(ArtistPage(effect.id))
         }
     }
@@ -222,7 +226,7 @@ fun ArtistRoute(route: ArtistPage, navigator: Navigator) {
     model.effects.handle { effect ->
         when (effect) {
             ArtistEffect.Back -> navigator.back()
-            is ArtistEffect.OpenEvent -> navigator.open(Detail(effect.id))
+            is ArtistEffect.OpenEvent -> navigator.openDetail(effect.id)
         }
     }
     // Після повернення з іншого екрана артиста слот стану треба забрати назад (на ON_RESUME, як у деталях).

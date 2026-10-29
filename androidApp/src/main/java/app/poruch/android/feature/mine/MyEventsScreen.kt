@@ -388,31 +388,33 @@ private fun Rows(events: List<Event>, state: MyEventsState, onIntent: (MyEventsI
             // Запит до не найближчої події інакше видно лише в бейджі чипа.
             val asks =
                 if (state.tab == MyEventsTab.ORGANIZING) state.screen.requests.count { it.eventId == event.id } else 0
-            EventRow(
-                event,
-                unread = state.screen.unread[event.id] ?: 0,
-                waitlisted = event.id in state.screen.waitlistedIds,
-                note = score?.let { stringResource(R.string.my_score, it) },
-                trailing = when {
-                    // Своя дія рядка: «Оцінити» для минулої, закладка — у збережених.
-                    rate && !stacked -> {
-                        {
-                            RateButton { onIntent(MyEventsIntent.StartRating(event)) }
+            val note = score?.let { stringResource(R.string.my_score, it) }
+            val status = if (asks > 0) pluralStringResource(R.plurals.join_requests, asks, asks) to BadgeTone.Accent else null
+            UnfoldSource(event.id, "mine", { onIntent(MyEventsIntent.OpenEvent(event.id)) }, bare = true) { source, open ->
+                EventRow(
+                    event,
+                    source,
+                    unread = state.screen.unread[event.id] ?: 0,
+                    waitlisted = event.id in state.screen.waitlistedIds,
+                    note = note,
+                    trailing = when {
+                        // Своя дія рядка: «Оцінити» для минулої, закладка — у збережених.
+                        rate && !stacked -> {
+                            {
+                                RateButton { onIntent(MyEventsIntent.StartRating(event)) }
+                            }
                         }
-                    }
 
-                    state.tab == MyEventsTab.SAVED -> {
-                        { SaveButton(true, { onIntent(MyEventsIntent.Unsave(event.id)) }) }
-                    }
+                        state.tab == MyEventsTab.SAVED -> {
+                            { SaveButton(true, { onIntent(MyEventsIntent.Unsave(event.id)) }) }
+                        }
 
-                    else -> null
-                },
-                status = if (asks > 0) pluralStringResource(
-                    R.plurals.join_requests,
-                    asks,
-                    asks
-                ) to BadgeTone.Accent else null
-            ) { onIntent(MyEventsIntent.OpenEvent(event.id)) }
+                        else -> null
+                    },
+                    status = status,
+                    onClick = open
+                )
+            }
             if (rate && stacked) Box(Modifier.padding(start = Spacing.lg, bottom = Spacing.md)) {
                 RateButton { onIntent(MyEventsIntent.StartRating(event)) }
             }
@@ -479,16 +481,21 @@ private fun panelCountdown(event: Event): String? {
 
 /**
  * Голова панелей «Сьогодні» й «Найближча»: квиток із корінцем, як у стрічці, — відлік, назва й опис на поверхні, жанр,
- * час і місця «0/2» на корінці. Мініатюра 60 лише важчала сірим градієнтом і випадала зі світу квитків.
+ * час і місця «0/2» на корінці. Мініатюра 60 лише важчала сірим градієнтом і випадала зі світу квитків. Розгортається в
+ * деталі ([UnfoldSource]).
  */
 @Composable
-private fun HeroHead(event: Event, status: @Composable () -> Unit, onClick: () -> Unit) {
+private fun HeroHead(event: Event, status: @Composable () -> Unit, onClick: () -> Unit) =
+    UnfoldSource(event.id, "mine_next", onClick) { source, open -> HeroHead(event, source, status, open) }
+
+@Composable
+private fun HeroHead(event: Event, modifier: Modifier, status: @Composable () -> Unit, onClick: () -> Unit) {
     val colors = Poruch.colors
     val cancelled = stringResource(R.string.cancelled_short)
     Ticket(
         ticketStub(event),
         stub = { StubTime(event) },
-        modifier = Modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth()
             .ticketSemantics(ticketA11yLabel(event, if (event.isCancelled) cancelled else null), onClick),
         onClick = onClick
     ) {

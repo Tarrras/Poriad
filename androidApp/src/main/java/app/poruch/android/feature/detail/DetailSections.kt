@@ -734,8 +734,8 @@ internal fun OthersHere(others: List<EventIndexEntry>, placeName: String?, onInt
         if (expanded) Column(Modifier.cardSurface(Radius.md)) {
             others.forEach { other ->
                 val (day, hour) = sessionLabel(EventSession(other.id, other.startsAt, other.timeZone), words)
-                Row(
-                    Modifier.fillMaxWidth().pressable { onIntent(DetailIntent.OpenEvent(other.id)) }
+                UnfoldSource(other.id, "others", { onIntent(DetailIntent.OpenEvent(other.id)) }, bare = true) { source, open -> Row(
+                    source.fillMaxWidth().pressable(onClick = open)
                         .padding(horizontal = Spacing.lg, vertical = Spacing.md),
                     horizontalArrangement = Arrangement.spacedBy(Spacing.md), verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -747,7 +747,7 @@ internal fun OthersHere(others: List<EventIndexEntry>, placeName: String?, onInt
                         )
                     }
                     Icon(PoruchIcons.chevronRight, null, Modifier.size(18.dp), tint = colors.inkTertiary)
-                }
+                } }
             }
         }
     }
@@ -991,8 +991,8 @@ private fun CompanionRows(state: DetailState, onIntent: (DetailIntent) -> Unit) 
             state.screen.companions.forEachIndexed { index, card ->
                 if (index > 0) HairLine()
                 val (day, hour) = sessionLabel(EventSession(card.id, card.meetAt, card.timeZone), words)
-                Row(
-                    Modifier.fillMaxWidth().pressable { onIntent(DetailIntent.OpenEvent(card.id)) }
+                UnfoldSource(card.id, "companion", { onIntent(DetailIntent.OpenEvent(card.id)) }, bare = true) { source, open -> Row(
+                    source.fillMaxWidth().pressable(onClick = open)
                         .padding(horizontal = Spacing.lg, vertical = Spacing.md),
                     horizontalArrangement = Arrangement.spacedBy(Spacing.md), verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -1017,7 +1017,7 @@ private fun CompanionRows(state: DetailState, onIntent: (DetailIntent) -> Unit) 
                             enabled = !state.screen.mutating
                         )
                     }
-                }
+                } }
             }
         }
     }
