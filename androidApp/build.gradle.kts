@@ -17,7 +17,7 @@ android {
         targetSdk = 36
         // Номер збірки для магазину: `-Pporiad.versionCode=N` або gradle.properties. Без нього — 1.
         versionCode = providers.gradleProperty("poriad.versionCode").orNull?.toInt() ?: 1
-        versionName = "1.3.2"
+        versionName = "1.4.0"
         // The style is the app's own; only where its geometry and letterforms come from is
         // configurable, and blank means the defaults in shared MapEndpoints.
         buildConfigField("String", "MAP_TILES_URL", "\"${config("MAP_TILES_URL")}\"")
