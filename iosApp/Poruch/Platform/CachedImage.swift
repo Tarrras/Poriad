@@ -20,8 +20,10 @@ struct CachedImage: View {
         self.url = url
         self.maxDimension = maxDimension
         self.fill = fill
-        // Готове зображення беремо до першого кадру, щоб повернення до картки не блимало.
-        _image = State(initialValue: ThumbnailCache.shared.image(for: ThumbnailCache.key(url, maxDimension, fill: fill)))
+        // Готове зображення беремо до першого кадру, щоб повернення до картки не блимало. Цього розміру ще нема — та сама
+        // картинка з картки, поки розпаковується чіткіша: квиток розгортається в деталі з афішею, а не з градієнтом.
+        let cache = ThumbnailCache.shared
+        _image = State(initialValue: cache.image(for: ThumbnailCache.key(url, maxDimension, fill: fill)) ?? cache.largest(for: url))
     }
 
     var body: some View {
@@ -58,9 +60,12 @@ final class ThumbnailCache {
     static let shared = ThumbnailCache()
 
     private let memory = NSCache<NSString, UIImage>()
+    /// Найбільше вже розпаковане зображення кожної адреси: заглушка для іншого розміру тієї ж картинки.
+    private let largest = NSCache<NSString, UIImage>()
 
     private init() {
         memory.totalCostLimit = 64 * 1024 * 1024
+        largest.totalCostLimit = 32 * 1024 * 1024
     }
 
     static func key(_ url: URL, _ maxDimension: CGFloat, fill: Bool = false) -> NSString {
@@ -69,9 +74,15 @@ final class ThumbnailCache {
 
     func image(for key: NSString) -> UIImage? { memory.object(forKey: key) }
 
+    func largest(for url: URL) -> UIImage? { largest.object(forKey: url.absoluteString as NSString) }
+
     func store(_ image: UIImage, for key: NSString) {
         let cost = image.cgImage.map { $0.bytesPerRow * $0.height } ?? 0
         memory.setObject(image, forKey: key, cost: cost)
+        // Той самий обʼєкт, що й у `memory`: пам'яті вдруге не займає.
+        let url = String((key as String).prefix { $0 != "|" }) as NSString
+        func pixels(_ image: UIImage?) -> Int { image?.cgImage.map { $0.width * $0.height } ?? 0 }
+        if pixels(image) > pixels(largest.object(forKey: url)) { largest.setObject(image, forKey: url, cost: cost) }
     }
 
     /// Читає одразу в потрібний розмір. `kCGImageSourceShouldCache: false` не дає ImageIO тримати повнорозмірну копію.

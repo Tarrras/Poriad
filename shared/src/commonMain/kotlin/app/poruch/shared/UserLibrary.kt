@@ -111,9 +111,12 @@ internal class UserLibrary(
         openEventId = id; openFull = full
         detailJob?.cancel()
         // Показуємо те, що вже знаємо, поки їдуть деталі. `cards` теж: сеанс прокату, обраний
-        // у каруселі дат, у стрічці згорнуто.
+        // у каруселі дат, у стрічці згорнуто. І картки головної, підписок та артиста: квиток, на який натиснули,
+        // розгортається в деталі з назвою й секціями, а не в обкладинку з лоадером на час запиту.
         val known = store.value.let {
             (it.map.events + it.library.myEvents).firstOrNull { event -> event.id == id } ?: it.cards[id]
+                ?: sequenceOf(it.home.events, it.home.suggested, it.home.found, it.library.followEvents, it.artist?.events.orEmpty())
+                    .flatten().firstOrNull { event -> event.id == id }
         }
         // Інша дата того ж прокату без картки: лишаємо поточну до відповіді. Порожній екран
         // гірший за секунду старої дати, а при 504 людина лишається з банером, а не спінером.

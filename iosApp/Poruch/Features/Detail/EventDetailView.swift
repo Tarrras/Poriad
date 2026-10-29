@@ -8,6 +8,23 @@ struct EventRoute: Hashable, Identifiable {
     let id: String
     /// Квиток, з якого деталі виростають (`morphSource`); nil — звичайний перехід стосу.
     var morph: String? = nil
+
+    /// Деталі справді виростають з квитка: zoom є лише з iOS 18, на 17 — звичайний перехід.
+    var zooms: Bool {
+        guard #available(iOS 18, *) else { return false }
+        return morph != nil
+    }
+}
+
+/// Деталі з маршруту стосу чи шторки: з квитка `route.morph` вони виростають і в нього ж згортаються.
+struct EventScreen: View {
+    let route: EventRoute
+    @Environment(\.appModel) private var appModel
+    @Environment(\.morphSpace) private var morphSpace
+    var body: some View {
+        EventDetailView(app: appModel!.app, eventID: route.id, zoomed: route.zooms && morphSpace != nil).equatable().id(route.id)
+            .morphDestination(route.morph, in: morphSpace)
+    }
 }
 
 /// З якого часу відкрити шторку часу збору.
@@ -77,9 +94,12 @@ struct EventDetailView: View, Equatable {
 
     /// Id відкритої події від того, хто відкриває, а не зі стану: див. `.task` нижче.
     let eventID: String
+    /// Деталі виросли з квитка (zoom): потяг униз згортає їх назад, тож оновлення потягом тут нема — жести билися.
+    let zoomed: Bool
 
-    init(app: PoruchApp, eventID: String) {
+    init(app: PoruchApp, eventID: String, zoomed: Bool = false) {
         self.eventID = eventID
+        self.zoomed = zoomed
         _actions = StateObject(wrappedValue: EventActionsModel(app: app))
         _screen = StateObject(wrappedValue: DetailScreenModel(app: app, eventID: eventID))
     }
@@ -189,10 +209,14 @@ struct EventDetailView: View, Equatable {
             ZStack(alignment: .bottom) {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
+                        if zoomed { Color.clear.frame(height: topInset) }
                         hero(event, view)
                         // Аркуш із заокругленим верхом наїжджає на обкладинку: сторінка лягає на афішу, а не продовжує її.
                         sections(event, view).padding(.horizontal, Space.page).padding(.top, Space.xl)
                             .padding(.bottom, view.canSeekCompany ? 210 : 140)
+                            // Деталі, що доїхали після картки (кімната, «Разом на», продавці), стають на місце кроком, а
+                            // не штовхають секції стрибком наприкінці розгортання квитка.
+                            .motion(value: view.loading)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .background(Palette.canvas, in: UnevenRoundedRectangle(
                                 topLeadingRadius: Corner.xl, topTrailingRadius: Corner.xl, style: .continuous))
@@ -202,8 +226,12 @@ struct EventDetailView: View, Equatable {
                     .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named(detailScrollSpace)).minY } action: { scroll.offset = $0 }
                 }
                 .coordinateSpace(name: detailScrollSpace)
-                .refreshable { await screen.refresh() }
-                .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: { topInset = $0 }
+                .refreshable(if: !zoomed) { await screen.refresh() }
+                .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: { if !zoomed { topInset = $0 } }
+                // Під час zoom верхня safe area нульова й з'являється лише наприкінці: стрічка з назвою й кнопками
+                // стрибала на 60 pt, коли квиток уже розгорнувся. Розгорнуті деталі завжди на весь екран, тож відступ
+                // під годинник — сталий, з вікна, а не з safe area.
+                .ignoresSafeArea(.container, edges: zoomed ? .top : [])
                 // Єдиний шар обкладинки: від краю екрана, під смугою статусу. При потягу вниз
                 // розтягується, при прокрутці їде вгору вдвічі повільніше за стрічку (паралакс);
                 // сама стрічка лишається в safe area, щоб індикатор потягу було видно. Та сама афіша,
@@ -372,6 +400,12 @@ struct DetailDialogs: ViewModifier {
                 }
             }.presentationDetents([.medium, .large])
         }
+    }
+}
+
+extension View {
+    @ViewBuilder func refreshable(if enabled: Bool, action: @escaping @Sendable () async -> Void) -> some View {
+        if enabled { refreshable(action: action) } else { self }
     }
 }
 

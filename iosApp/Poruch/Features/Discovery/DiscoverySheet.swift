@@ -85,7 +85,8 @@ struct DiscoverySheet: View {
     /// Перевести шторку в положення (`DiscoveryView.open`).
     let open: (SheetDetent) -> Void
     /// Деталі події поверх мапи.
-    let openDetail: (String) -> Void
+    /// Подія й квиток, з якого шторка деталей виростає (`morphSource`).
+    let openDetail: (String, String?) -> Void
     /// «До міста»: мапа на місто, без стосу піна.
     let recenter: () -> Void
     let locate: () -> Void
@@ -122,7 +123,7 @@ struct DiscoverySheet: View {
                         EventDeck(
                             events: deckEvents, selectedID: view.selectedId, savedIDs: explore.savedIDs,
                             select: { model.app.selectEvent(id: $0) },
-                            open: openEvent,
+                            open: { openEvent($0, from: "map_card") },
                             toggleSaved: { model.app.toggleSaved(id: $0) }
                         )
                         // «До міста», перехід з головної і новий запит (фільтр, пошук, місто): карусель з чистого аркуша, з першої
@@ -224,7 +225,7 @@ struct DiscoverySheet: View {
                 Spacer(minLength: 0)
             } else {
                 ScrollView {
-                    SheetRows(open: openEvent, focusPlace: focusPlace, selectDistrict: { explore.selectDistrict($0) }, loadMore: loadMore(reaching:))
+                    SheetRows(open: { openEvent($0, from: "map_row") }, focusPlace: focusPlace, selectDistrict: { explore.selectDistrict($0) }, loadMore: loadMore(reaching:))
                 }
                 .listOffset(Binding(get: { drag.listOffset }, set: { drag.listOffset = $0 }))
                 // Список гортається лише в повній шторці; нижче протягування піднімає її. Вимкнення
@@ -249,9 +250,10 @@ struct DiscoverySheet: View {
         }
     }
 
-    private func openEvent(_ id: String) {
+    /// `from` — картка каруселі чи рядок списку: та сама подія буває в обох.
+    private func openEvent(_ id: String, from: String) {
         model.app.selectEvent(id: id)
-        openDetail(id)
+        openDetail(id, "\(from)/\(id)")
     }
 
     /// Заклад з пошуку: шторку опускаємо, щоб бачити мапу, а стос відкриє `showPlace`, коли приїде видача.
@@ -467,6 +469,7 @@ private struct SheetRows: View {
                     open(event.id)
                 }
                 .cardSurface()
+                .morphSource("map_row/\(event.id)")
                 // Список довантажує картки сам, а не лише карусель.
                 .onAppear { loadMore(position) }
             }

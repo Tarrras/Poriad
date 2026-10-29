@@ -196,6 +196,7 @@ struct HomeCityFeed: View {
                         event: entry.event, eyebrow: lane(entry),
                         saved: view.isSaved(entry.event), onSave: { model.app.toggleSaved(id: entry.event.id) }
                     ) { open(entry.event.id, "home_hero") }
+                    .morphSource("home_hero/\(entry.event.id)")
                     .containerRelativeFrame(.horizontal) { width, _ in picks.count > 1 ? width * 0.86 : width - 2 * Space.page }
                     .frame(maxHeight: .infinity)
                 }
@@ -297,7 +298,6 @@ private struct PosterCard: View {
     }
 
     @Environment(\.dynamicTypeSize) private var typeSize
-    @Environment(\.morphSpace) private var morphSpace
     /// На accessibility-розмірах квиток на всю ширину стовпця (`HomePeopleSection`, сітка в одну колонку): у 176 pt
     /// назва рвалась посеред слова. Корінець лишається знизу — так назва має всю ширину, а не дві третини поруч із
     /// корінцем 1,5× (горизонтальний квиток на AX5 рвав «П'ЯТНИЦЮ» і так само).
@@ -377,7 +377,7 @@ private struct PosterCard: View {
             } stub: {
                 StubTime(event: event, row: true)
             }
-            .morphSource(morph.map { "\($0)/\(event.id)" }, in: morphSpace)
+            .morphSource(morph.map { "\($0)/\(event.id)" })
         }
         .buttonStyle(PressableStyle())
         .ticketAccessibility(event, state: [state?.0, reason?.0, price, note?.0].compactMap { $0 }.joined(separator: ", "), saved: saved, onSave: onSave)

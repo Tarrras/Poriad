@@ -10,8 +10,9 @@ struct MyEventsView: View, Equatable {
     private var model: AppModel { appModel! }
     private var view: MyEventsScreenState { model.myEventsScreen.state }
     @Environment(\.openMap) private var openMap
-    /// Відкрити деталі. Шлях стосу тримає корінь (`RootView.minePath`).
-    var openEvent: (String) -> Void
+    /// Відкрити деталі; другий аргумент — квиток, з якого вони виростають (`morphSource`). Шлях стосу тримає корінь
+    /// (`RootView.minePath`).
+    var openEvent: (String, String?) -> Void
     var openChat: (String) -> Void
     @State private var tab = MyEventsTab.going
     /// Розріз уже обрано — людиною чи першою дошкою. Далі дошка його не перемикає.
@@ -254,7 +255,7 @@ struct MyEventsView: View, Equatable {
         case .today:
             // Перша сьогоднішня — картка з маршрутом і чатом, решта — рядками.
             overline(Copy.today)
-            if let first = events.first { GoingHero(event: first, unread: unread[first.id] ?? 0, open: open, chat: openChat) }
+            if let first = events.first { GoingHero(event: first, unread: unread[first.id] ?? 0, open: { open($0, from: "my_panel") }, chat: openChat) }
             rows(Array(events.dropFirst()))
         case .upcoming where tab == .organizing:
             overline(Copy.section_nearest)
@@ -262,7 +263,7 @@ struct MyEventsView: View, Equatable {
                 OrganizerPanel(event: first, unread: unread[first.id] ?? 0,
                                requests: view.requestsFor(id: first.id).filter { !isDeclining($0) },
                                declined: declining.flatMap { $0.eventId == first.id ? $0 : nil },
-                               open: open, chat: openChat,
+                               open: { open($0, from: "my_panel") }, chat: openChat,
                                decline: startDecline, undo: { declining = nil })
             }
             if events.count > 1 {
@@ -322,10 +323,11 @@ struct MyEventsView: View, Equatable {
         let layout = typeSize.isAccessibilitySize
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: 0)) : AnyLayout(HStackLayout(spacing: Space.sm))
         return layout {
-            Button { open(event.id) } label: {
+            Button { open(event.id, from: "my_row") } label: {
                 EventRow(event: event, unread: unread, waitlisted: view.isWaitlisted(id: event.id),
                          note: score.map { Copy.my_score("\($0)") }, chevron: !rate && !bookmark, status: status)
             }.buttonStyle(PressableStyle(pressedScale: 1))
+            .morphSource("my_row/\(event.id)")
             if rate {
                 Button { rating = EventRoute(id: event.id) } label: {
                     // Тонова, а не чорнильна: три головні кнопки підряд сперечались за увагу. Без гліфа — інакше
@@ -344,7 +346,8 @@ struct MyEventsView: View, Equatable {
         }.padding(.horizontal, Space.lg)
     }
 
-    private func open(_ id: String) { model.app.selectEvent(id: id); openEvent(id) }
+    /// `from` — панель чи рядок: найближча подія буває і там, і там, а квиток розгортається з того, на який натиснули.
+    private func open(_ id: String, from: String) { model.app.selectEvent(id: id); openEvent(id, "\(from)/\(id)") }
 
     private func isDeclining(_ request: JoinRequest) -> Bool {
         declining.map { $0.eventId == request.eventId && $0.userId == request.userId } ?? false
@@ -428,6 +431,7 @@ private struct PanelTicket<Status: View>: View {
         }
         .buttonStyle(PressableStyle())
         .ticketAccessibility(event, state: event.isCancelled ? Copy.cancelled_short : nil)
+        .morphSource("my_panel/\(event.id)")
     }
 }
 

@@ -445,7 +445,7 @@ extension EventDetailView {
             VStack(spacing: 0) {
                 ForEach(othersHere, id: \.id) { other in
                     let label = sessionLabel(EventSession(id: other.id, startsAt: other.startsAt, timeZone: other.timeZone, cancelled: false))
-                    NavigationLink(value: EventRoute(id: other.id)) {
+                    NavigationLink(value: EventRoute(id: other.id, morph: "here/\(other.id)")) {
                         HStack(spacing: Space.md) {
                             VStack(alignment: .leading, spacing: Space.xs) {
                                 Text("\(label.day) · \(label.hour)").font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
@@ -460,6 +460,7 @@ extension EventDetailView {
                     }
                     .buttonStyle(PressableStyle())
                     .accessibilityElement(children: .combine)
+                    .morphSource("here/\(other.id)")
                 }
             }
             .cardSurface()
@@ -960,7 +961,7 @@ extension EventDetailView {
                     if index > 0 { Divider().overlay(Palette.hairline) }
                     let label = sessionLabel(EventSession(id: card.id, startsAt: card.meetAt, timeZone: card.timeZone, cancelled: false))
                     HStack(spacing: Space.md) {
-                        NavigationLink(value: EventRoute(id: card.id)) {
+                        NavigationLink(value: EventRoute(id: card.id, morph: "companion/\(card.id)")) {
                             VStack(alignment: .leading, spacing: Space.xs) {
                                 Text("\(label.day) · \(label.hour)").font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary)
                                 Text(card.meetNote ?? Copy.venue).font(PoruchFont.cardName).kerning(-0.2).foregroundStyle(Palette.ink)
@@ -971,6 +972,7 @@ extension EventDetailView {
                         }
                         .buttonStyle(PressableStyle(pressedScale: 1))
                         .accessibilityElement(children: .combine)
+                        .morphSource("companion/\(card.id)")
                         if card.mine { StatusBadge(text: Copy.companion_mine, tone: .brand) }
                         else if card.membership == .approved { StatusBadge(text: Copy.going, tone: .success, glyph: PoruchIcons.check) }
                         else if card.membership == .requested { StatusBadge(text: Copy.request_pending, tone: .accent, glyph: PoruchIcons.queue) }

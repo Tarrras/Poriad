@@ -27,6 +27,7 @@ struct EventDeck: View {
                             saved: savedIDs.contains(event.id),
                             onSave: { toggleSaved(event.id) }
                         ) { open(event.id) }
+                        .morphSource("map_card/\(event.id)")
                         .containerRelativeFrame(.horizontal, count: 10, span: 9, spacing: Space.md)
                         .id(event.id)
                     }

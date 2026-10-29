@@ -11,6 +11,8 @@ final class DetailScreenModel: ObservableObject {
 
     init(app: PoruchApp, eventID: String) {
         presenter = DetailPresenter(app: app, openedId: eventID)
+        // Перший кадр — уже з подією: zoom з квитка не розгортається в порожнє полотно, поки колбек дійде.
+        state = presenter.state.value as? DetailScreenState ?? state
         subscription = presenter.observe { [weak self] state in self?.state = state }
     }
 

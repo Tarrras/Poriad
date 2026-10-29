@@ -233,11 +233,15 @@ class DetailPresenter(
         app.openEvent(id)
     }
 
+    /**
+     * Перший стан — одразу, з того, що стор уже знає (картка, з якої тапнули: `claim` вище її поставив), а не `Empty` до
+     * першої згортки на фоні: квиток розгортається в деталі з першого кадру, а не в порожнє полотно на кілька кадрів.
+     */
     val state: StateFlow<DetailScreenState> = app.state
         .distinctUntilChanged { old, new -> sameInputs(old, new) }
         .map { derive(it) }
         .flowOn(compute)
-        .stateIn(scope, SharingStarted.Eagerly, DetailScreenState.Empty)
+        .stateIn(scope, SharingStarted.Eagerly, derive(app.state.value))
 
     /** Інша дата в каруселі прокату. Спершу [pendingId], потім запит: згортка має впізнати картку нового вечора. */
     fun pickSession(id: String) {

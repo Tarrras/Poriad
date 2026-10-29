@@ -59,6 +59,7 @@ struct DiscoveryView: View, Equatable {
     /// Розмір екрана під контролами: з нього рахуються висоти шторки.
     @State private var screen: CGSize = .zero
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.morphSpace) private var morphSpace
     /// Стан екрана зі спільного `ExplorePresenter`: індекс для пінів, вміст шторки, фільтри, місто.
     private var view: ExploreScreenState { explore.state }
     /// Категорія мапи. Головна має свою.
@@ -106,7 +107,7 @@ struct DiscoveryView: View, Equatable {
             .accessibilityHidden(detent == .full)
             DiscoverySheet(
                 detent: detent, drag: drag, expanded: $expanded, screen: screen, centerToken: centerToken,
-                open: open, openDetail: { detail = EventRoute(id: $0) },
+                open: open, openDetail: { detail = EventRoute(id: $0, morph: $1) },
                 recenter: { explore.clearStack(); centerToken += 1 }, locate: { location.request() },
                 askAuth: { auth = true }, resetFilters: resetFilters, createEvent: createEvent,
                 locating: locating, toggleNear: toggleNear
@@ -158,13 +159,15 @@ struct DiscoveryView: View, Equatable {
         .sheet(isPresented: $districtList) { DistrictsView().presentationDetents([.medium, .large]) }
         // Вхід тут питають лише за «Стежити» на стосі закладу.
         .sheet(isPresented: $auth) { NavigationStack { AuthView(reason: .follow) } }
+        // Шторка виростає з картки каруселі чи рядка списку: zoom на самій шторці, а не на корені її стосу.
         .sheet(item: $detail) { route in
             NavigationStack {
-                EventDetailView(app: model.app, eventID: route.id).equatable()
-                    .navigationDestination(for: EventRoute.self) { EventDetailView(app: model.app, eventID: $0.id).equatable() }
+                EventDetailView(app: model.app, eventID: route.id, zoomed: route.zooms && morphSpace != nil).equatable()
+                    .navigationDestination(for: EventRoute.self) { EventScreen(route: $0) }
                     .navigationDestination(for: ChatRoute.self) { ChatView(eventID: $0.id) }
             }
                 .presentationDetents([.large]).presentationDragIndicator(.visible)
+                .morphDestination(route.morph, in: morphSpace)
         }
         .onReceive(location.$city) { city in
             if let city {

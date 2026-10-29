@@ -388,14 +388,9 @@ extension View {
     }
 
     /// Квиток, з якого виростає екран (iOS 18, zoom): папір квитка розгортається в деталі чи квиток на весь екран і
-    /// згортається назад. `id` унікальний на екрані: та сама подія буває і в рейці, і в сітці. На iOS 17 — нічого.
-    @ViewBuilder func morphSource(_ id: String?, in space: Namespace.ID?) -> some View {
-        if #available(iOS 18, *), let id, let space {
-            matchedTransitionSource(id: id, in: space) { $0.clipShape(RoundedRectangle(cornerRadius: Corner.md, style: .continuous)) }
-        } else {
-            self
-        }
-    }
+    /// згортається назад. `id` унікальний на екрані: та сама подія буває і в рейці, і в сітці («звідки/id»). Простір —
+    /// спільний `morphSpace` кореня. На iOS 17 — нічого.
+    func morphSource(_ id: String?) -> some View { modifier(MorphSource(id: id)) }
 
     /// Екран, що виростає з квитка `morphSource` з тим самим `id`. Закривається тим самим жестом назад: змах від краю
     /// чи вниз, інтерактивно. iOS 17 — звичайний перехід стосу чи шторки.
@@ -404,6 +399,18 @@ extension View {
             navigationTransition(.zoom(sourceID: id, in: space))
         } else {
             self
+        }
+    }
+}
+
+private struct MorphSource: ViewModifier {
+    @Environment(\.morphSpace) private var space
+    let id: String?
+    @ViewBuilder func body(content: Content) -> some View {
+        if #available(iOS 18, *), let id, let space {
+            content.matchedTransitionSource(id: id, in: space) { $0.clipShape(RoundedRectangle(cornerRadius: Corner.md, style: .continuous)) }
+        } else {
+            content
         }
     }
 }

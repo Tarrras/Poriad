@@ -32,7 +32,7 @@ struct HomePersonalSection: View {
         let lead = leadIndex.map { personal[$0] }
         let rows = personal.enumerated().filter { $0.offset != leadIndex }.map(\.element)
         var items: [AnyView] = []
-        items += rows.map { row in AnyView(PlanRow(row: row, open: { open(row.event.id, "home_your") }, chat: { openChat(row.event) })) }
+        items += rows.map { row in AnyView(PlanRow(row: row, open: { open(row.event.id, "home_your") }, chat: { openChat(row.event) }).morphSource("home_your/\(row.event.id)")) }
         if slots.waiting { items.append(AnyView(waitingRow(Int(view.moreWaiting)))) }
         if slots.deck { items.append(AnyView(deckRow)) }
         items += view.radarDates.prefix(Int(slots.dates)).map { AnyView(dateRow($0)) }
@@ -45,6 +45,7 @@ struct HomePersonalSection: View {
             )
             if let lead {
                 NextPlanCard(row: lead, open: { open(lead.event.id, "home_your") }, chat: { openChat(lead.event) })
+                    .morphSource("home_your/\(lead.event.id)")
             }
             if !grouped.isEmpty {
                 GroupedRows {
@@ -84,6 +85,7 @@ struct HomePersonalSection: View {
         ) {
             categoryTile(date.event.category)
         } trailing: { chevron }
+        .morphSource("radar/\(date.event.eventId)")
     }
 
     /// Плитка дати — кольору й гліфа жанру, як корінець квитка: три дати поспіль не зливаються в однакові рядки.

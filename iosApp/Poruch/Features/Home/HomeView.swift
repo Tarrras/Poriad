@@ -168,11 +168,11 @@ struct HomeView: View, Equatable {
         }.padding(.horizontal, Space.page)
     }
 
-    /// Відкрити деталі події; `from` — звідки тап, для аналітики.
+    /// Відкрити деталі події; `from` — звідки тап, для аналітики й морфа: квиток з `morphSource("\(from)/\(id)")` розгортається
+    /// в деталі. Без такого джерела на екрані zoom виростав би з центру, тож джерело мають усі квитки, що кличуть `open`.
     private func open(_ id: String, from: String) {
         model.app.selectEvent(id: id, from: from)
-        // Морф лише з квитків, що позначені джерелом (`PosterCard.morph`): без джерела zoom виростав би з центру екрана.
-        openEvent(id, morphOrigins.contains(from) ? "\(from)/\(id)" : nil)
+        openEvent(id, "\(from)/\(id)")
     }
 
     /// «Усі N» біля «У місті» і рядок «Усі події поруч»: мапа з усім містом, а не з фільтрами, що лишились з минулого візиту.
@@ -181,9 +181,6 @@ struct HomeView: View, Equatable {
     /// «Усі N» біля «Від людей»: мапа лише зі зустрічами від людей з вільним місцем.
     private func showPeople() { model.app.showPeopleOnMap(); openMap() }
 }
-
-/// Звідки квиток головної морфиться в деталі: рейка «З ким піти» і сітка «У місті».
-private let morphOrigins: Set<String> = ["home_people", "home_company", "home_poster"]
 
 /// Шапка головної. Поза пошуком — заголовок, місто й кнопки пошуку та профілю; у пошуку — поле, «Скасувати» і фільтри.
 private struct HomeHeader: View {
@@ -360,6 +357,7 @@ private struct SearchResults: View {
                                 EventResultRow(event: event, waitlisted: view.isWaitlisted(event), withCity: view.searchEverywhere) {
                                     open(event.id, "home_search")
                                 }
+                                .morphSource("home_search/\(event.id)")
                             }
                         }
                         // Наступний шматок: картки, яких ще немає, довантажуються; решта приїде в `found`.

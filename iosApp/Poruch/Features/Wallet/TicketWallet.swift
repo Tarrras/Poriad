@@ -817,7 +817,6 @@ private struct ZoomableImage: UIViewRepresentable {
 /// День події: квиток першим на головній — його відкривають на вході. І в гостя, і в кіно без афіші.
 struct TodayTickets: View {
     @Environment(\.appModel) private var appModel
-    @Environment(\.morphSpace) private var morphSpace
     let tickets: [WalletTicket]
 
     var body: some View {
@@ -827,7 +826,7 @@ struct TodayTickets: View {
                 // Квиток розгортається в екран із кодом і згортається назад у свій корінець.
                 let morph = "today/\(ticket.id)"
                 Button { appModel?.root.shownTicket = TicketRoute(id: ticket.id, morph: morph) } label: {
-                    WalletTicketCard(ticket: ticket).morphSource(morph, in: morphSpace)
+                    WalletTicketCard(ticket: ticket).morphSource(morph)
                 }
                 .buttonStyle(PressableStyle())
             }
@@ -850,13 +849,12 @@ struct TicketsSection: View {
     @State private var photos = false
     @State private var photo: PhotosPickerItem?
     @State private var showsPast = false
-    @Environment(\.morphSpace) private var morphSpace
 
     /// Квиток розгортається в екран із кодом і згортається назад у свій корінець (`morphSource`).
     private func ticketButton(_ ticket: WalletTicket, punched: Bool = false) -> some View {
         let morph = "mine/\(ticket.id)"
         return Button { model.root.shownTicket = TicketRoute(id: ticket.id, morph: morph) } label: {
-            WalletTicketCard(ticket: ticket, punched: punched).morphSource(morph, in: morphSpace)
+            WalletTicketCard(ticket: ticket, punched: punched).morphSource(morph)
         }
         .buttonStyle(PressableStyle())
     }

@@ -72,10 +72,11 @@ struct ArtistView: View {
                     GroupedRows {
                         ForEach(Array(artist.events.enumerated()), id: \.element.id) { position, event in
                             if position > 0 { Divider().overlay(Palette.hairline).padding(.leading, Space.lg + 56 + Space.md) }
-                            NavigationLink(value: EventRoute(id: event.id)) {
+                            NavigationLink(value: EventRoute(id: event.id, morph: "artist/\(event.id)")) {
                                 EventResultRow(event: event, withCity: true)
                             }
                             .buttonStyle(PressableStyle(pressedScale: 1))
+                            .morphSource("artist/\(event.id)")
                         }
                     }
                 }
