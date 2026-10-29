@@ -71,6 +71,9 @@ struct PopularArtistChips: View {
     @EnvironmentObject private var model: AppModel
     @Binding var picked: [String: PopularArtist]
     let dates: Bool
+    /// Скільки популярних показати без пошуку: в онбордингу під ними ще райони, і довгий список ховав їх за кількома
+    /// екранами. Решту знаходить поле.
+    var limit: Int? = nil
     @State private var query = ""
 
     private var searching: Bool { query.trimmingCharacters(in: .whitespaces).count >= Int(DiscoveryRules.shared.MIN_ARTIST_QUERY) }
@@ -79,8 +82,9 @@ struct PopularArtistChips: View {
     private var shown: [PopularArtist]? {
         if searching { return model.state?.artistMatches }
         guard let popular = model.state?.popularArtists else { return nil }
-        let ids = Set(popular.map(\.artistId))
-        return picked.values.filter { !ids.contains($0.artistId) }.sorted { $0.name < $1.name } + popular
+        let head = limit.map { Array(popular.prefix($0)) } ?? popular
+        let ids = Set(head.map(\.artistId))
+        return picked.values.filter { !ids.contains($0.artistId) }.sorted { $0.name < $1.name } + head
     }
 
     var body: some View {

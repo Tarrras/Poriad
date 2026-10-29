@@ -386,6 +386,38 @@ extension View {
     func motion<V: Equatable>(_ animation: Animation = Motion.quick, value: V) -> some View {
         modifier(MotionModifier(animation: animation, value: value))
     }
+
+    /// Квиток, з якого виростає екран (iOS 18, zoom): папір квитка розгортається в деталі чи квиток на весь екран і
+    /// згортається назад. `id` унікальний на екрані: та сама подія буває і в рейці, і в сітці. На iOS 17 — нічого.
+    @ViewBuilder func morphSource(_ id: String?, in space: Namespace.ID?) -> some View {
+        if #available(iOS 18, *), let id, let space {
+            matchedTransitionSource(id: id, in: space) { $0.clipShape(RoundedRectangle(cornerRadius: Corner.md, style: .continuous)) }
+        } else {
+            self
+        }
+    }
+
+    /// Екран, що виростає з квитка `morphSource` з тим самим `id`. Закривається тим самим жестом назад: змах від краю
+    /// чи вниз, інтерактивно. iOS 17 — звичайний перехід стосу чи шторки.
+    @ViewBuilder func morphDestination(_ id: String?, in space: Namespace.ID?) -> some View {
+        if #available(iOS 18, *), let id, let space {
+            navigationTransition(.zoom(sourceID: id, in: space))
+        } else {
+            self
+        }
+    }
+}
+
+/// Спільний простір імен морфа: джерело (головна, «Мої події») і ціль (стос, шторка кореня) живуть у різних гілках.
+private struct MorphSpaceKey: EnvironmentKey {
+    static let defaultValue: Namespace.ID? = nil
+}
+
+extension EnvironmentValues {
+    var morphSpace: Namespace.ID? {
+        get { self[MorphSpaceKey.self] }
+        set { self[MorphSpaceKey.self] = newValue }
+    }
 }
 
 /// Відгук на тап: поверхня трохи просідає і повертається. Усі натискні поверхні беруть його замість `.plain`.
@@ -407,9 +439,19 @@ extension View {
         frame(minWidth: side, minHeight: side).contentShape(Rectangle())
     }
 
-    /// Смуга полотна на 94 % під статус-баром: прокручений вміст кореня вкладки не лягає під годинник і Dynamic Island.
+    /// Полотно під статус-баром, а під ним згасання в стрічку: прокручений вміст кореня вкладки не лягає під годинник
+    /// і Dynamic Island і не ріжеться краєм смуги. На 94 % назва квитка просвічувала крізь годинник (критика 29.10).
     func statusBarBand() -> some View {
-        safeAreaInset(edge: .top, spacing: 0) { Color.clear.frame(height: 0).background(Palette.canvas.opacity(0.94)) }
+        safeAreaInset(edge: .top, spacing: 0) {
+            Color.clear.frame(height: 0)
+                .background(Palette.canvas)
+                .overlay(alignment: .top) {
+                    LinearGradient(colors: [Palette.canvas, Palette.canvas.opacity(0)], startPoint: .top, endPoint: .bottom)
+                        .frame(height: Space.md)
+                        .allowsHitTesting(false)
+                }
+                .accessibilityHidden(true)
+        }
     }
 
     func cardSurface(radius: CGFloat = Corner.lg, elevation: CGFloat = Elevation.card) -> some View {

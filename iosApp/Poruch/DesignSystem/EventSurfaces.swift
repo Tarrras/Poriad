@@ -104,6 +104,7 @@ struct EventDescriptor: View {
     /// Жанр лишається в підписі для VoiceOver.
     var placeFirst = false
     private var place: String { eventPlace(event, withCity: withCity) }
+    @Environment(\.dynamicTypeSize) private var typeSize
     var body: some View {
         if placeFirst {
             row.accessibilityElement(children: .ignore)
@@ -113,11 +114,18 @@ struct EventDescriptor: View {
         }
     }
     private var row: some View {
-        HStack(spacing: Space.sm) {
+        // Перенесений заклад (великий шрифт): крапка біля першого рядка, а не між рядками.
+        HStack(alignment: typeSize.isAccessibilitySize ? .firstTextBaseline : .center, spacing: Space.sm) {
             CategoryDot(category: event.category)
             if placeFirst {
+                // На великому шрифті заклад переноситься: в один рядок від нього лишалось «Будин…».
                 Text(place.isEmpty ? categoryName(event.category) : place)
-                    .font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(1)
+                    .font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(typeSize.isAccessibilitySize ? 3 : 1)
+            } else if typeSize.isAccessibilitySize {
+                // Одним текстом, що переноситься: двома в ряд жанр обрізався до «Стен…», а заклад рвався по літерах.
+                (Text(categoryName(event.category)).font(PoruchFont.descriptor).foregroundStyle(categoryInk(event.category))
+                    + Text(place.isEmpty ? "" : " · " + place).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary))
+                    .lineLimit(3)
             } else {
                 Text(categoryName(event.category))
                     .font(PoruchFont.descriptor).foregroundStyle(categoryInk(event.category)).lineLimit(1)
@@ -351,11 +359,12 @@ struct HostLine: View {
     let event: Event
     /// Аватар росте разом із підписом, інакше літера з великим текстом упиралась у коло.
     @ScaledMetric(relativeTo: .footnote) private var avatar: CGFloat = 20
+    @Environment(\.dynamicTypeSize) private var typeSize
     var body: some View {
         if let line = hostLine(event), let room = event.gathering {
             HStack(spacing: 6) {
                 Avatar(name: room.organizerName, url: nil, size: min(avatar, 36))
-                Text(line).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(1)
+                Text(line).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(typeSize.isAccessibilitySize ? 2 : 1)
             }
         }
     }
@@ -365,10 +374,13 @@ struct HostLine: View {
 struct ReasonLine: View {
     let text: String
     let glyph: PoruchGlyph
+    /// На accessibility-розмірах причина переноситься: «2 шукають компанію» обрізалось до «2 шу…» (аудит 1.4).
+    @Environment(\.dynamicTypeSize) private var typeSize
     var body: some View {
-        HStack(spacing: Space.xs) {
+        HStack(alignment: .firstTextBaseline, spacing: Space.xs) {
             PoruchIcon(glyph: glyph, size: 12)
-            Text(text).font(PoruchFont.caption).lineLimit(1)
+            Text(text).font(PoruchFont.caption).lineLimit(typeSize.isAccessibilitySize ? nil : 1)
+                .fixedSize(horizontal: false, vertical: typeSize.isAccessibilitySize)
         }
         .foregroundStyle(Palette.inkTertiary)
     }

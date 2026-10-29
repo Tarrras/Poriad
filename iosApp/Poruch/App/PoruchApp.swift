@@ -162,6 +162,8 @@ struct RootView: View {
     /// `DigestPrompt` уже після цього читання, тож на першому запуску тут 0.
     @State private var newcomer = UserDefaults.standard.integer(forKey: "poruch.launches") < 2
     @Environment(\.requestReview) private var requestReview
+    /// Простір морфа «квиток → екран»: квитки головної й гаманця та їхні екрани в різних гілках (`morphSource`).
+    @Namespace private var morph
     var body: some View {
         // Онбординг замінює застосунок, а не накриває: за ним на першому запуску ще нічого нема.
         // Поки стану нема, невідомо, чи потрібен онбординг: нейтральне полотно, без запиту геолокації.
@@ -262,7 +264,7 @@ struct RootView: View {
                     HomeView(
                         openMap: showMap, openProfile: { tab = 3 }, openMyEvents: { tab = 2 },
                         createEvent: { startCreating(from: $0) },
-                        openEvent: { homePath.append(EventRoute(id: $0)) },
+                        openEvent: { homePath.append(EventRoute(id: $0, morph: $1)) },
                         openChat: { homePath.append(ChatRoute(id: $0.id)) },
                         openFollows: { homePath.append(FollowsRoute()) }
                     )
@@ -271,7 +273,9 @@ struct RootView: View {
                     .toolbar(.hidden, for: .tabBar)
                     // Пуш і посилання ставлять нову подію в той самий слот стосу (див. `PushDelegate.openEvent`):
                     // без `.id` SwiftUI лишав екран попередньої з її станом — датами прокату, чатом, запитом деталей.
-                    .navigationDestination(for: EventRoute.self) { EventDetailView(app: model.app, eventID: $0.id).equatable().id($0.id) }
+                    .navigationDestination(for: EventRoute.self) { route in
+                        EventDetailView(app: model.app, eventID: route.id).equatable().id(route.id).morphDestination(route.morph, in: morph)
+                    }
                     .navigationDestination(for: ChatRoute.self) { ChatView(eventID: $0.id).id($0.id) }
                     .navigationDestination(for: FollowsRoute.self) { _ in FollowsView() }
                     .navigationDestination(for: ArtistRoute.self) { ArtistView(route: $0) }
@@ -362,6 +366,7 @@ struct RootView: View {
             }
         }
         .environment(\.openMap, showMap)
+        .environment(\.morphSpace, morph)
         .sheet(isPresented: $creating) { EventEditor(event: nil, app: model.app, home: model.state) }
         .sheet(item: $authSheet, onDismiss: continueCreating) { sheet in
             NavigationStack { AuthView(reason: sheet.reason) }
@@ -376,7 +381,9 @@ struct RootView: View {
             tab = 2
             minePath = NavigationPath()
         }
-        .fullScreenCover(item: Binding(get: { root.shownTicket }, set: { root.shownTicket = $0 })) { TicketViewer(ticketID: $0.id, invite: $0.invite) }
+        .fullScreenCover(item: Binding(get: { root.shownTicket }, set: { root.shownTicket = $0 })) {
+            TicketViewer(ticketID: $0.id, invite: $0.invite).morphDestination($0.morph, in: morph)
+        }
         .notice(root.notice?.presented) { model.app.clearNotice() }
     }
 }

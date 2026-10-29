@@ -6,6 +6,8 @@ import Shared
 /// Маршрут деталей події: для шляху стосу й для шторки.
 struct EventRoute: Hashable, Identifiable {
     let id: String
+    /// Квиток, з якого деталі виростають (`morphSource`); nil — звичайний перехід стосу.
+    var morph: String? = nil
 }
 
 /// З якого часу відкрити шторку часу збору.
@@ -49,6 +51,16 @@ struct EventDetailView: View, Equatable {
     @State var showOthersHere = false
     /// Шторка «Шукаю компанію».
     @State var seekingCompany = false
+    /// «Хочу піти з компанією» натиснуто: щойно намір став видимим, прокрутити до секції (критика 1.4: кнопка зникала,
+    /// а «Ви шукаєте компанію» й люди лишались під краєм екрана).
+    @State var companyAsked = false
+    /// Прокрутка до «Шукають компанію»: `companyFocusTick` повторює той самий запит, ціль — секція чи люди.
+    @State var companyFocusTick = 0
+    @State var companyFocusTarget = companySectionID
+    /// Картка, яку коротко обведено чорнилом після прокрутки: ось результат дії.
+    @State var companyFlash: String?
+    /// Подія вантажиться довше за мить — тоді лоадер.
+    @State var loaderShown = false
     /// Збіг «Піти разом»: супутник, куди сервер записав обох, — відкриваємо його, там чат.
     @State var matched: EventRoute?
     /// Системне «Поділитися» з готовим текстом: щойно створений супутник чи «Покликати».
@@ -94,7 +106,19 @@ struct EventDetailView: View, Equatable {
                 }
                 .padding(Space.page).frame(maxWidth: .infinity, maxHeight: .infinity).background(Palette.canvas)
             } else {
-                PoruchLoader().frame(maxWidth: .infinity, maxHeight: .infinity).background(Palette.canvas)
+                // Поки згортка рахує деталі, — обкладинка картки, з якої тапнули (та сама, що стане шапкою): квиток
+                // морфиться в екран з афішею, а не в порожнє полотно. Лоадер — лише коли чекати довше за мить.
+                ZStack(alignment: .top) {
+                    Palette.canvas.ignoresSafeArea()
+                    if let card = homeCard() {
+                        EventArt(event: card, maxDimension: heroHeight, glyphSize: 260, glyphDrop: 120, fill: true)
+                            .frame(height: heroHeight).frame(maxWidth: .infinity).clipped()
+                            .overlay(photoScrim)
+                            .ignoresSafeArea(edges: .top)
+                    }
+                    PoruchLoader().opacity(loaderShown ? 1 : 0).frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+                .task { try? await Task.sleep(for: .milliseconds(400)); loaderShown = true }
             }
         }
         // Повернення поверх іншого екрана деталей: той перебрав єдиний слот відкритої події, просимо назад.
@@ -150,38 +174,64 @@ struct EventDetailView: View, Equatable {
         }
     }
 
+    /// Подія з квитка головної, з якого тапнули (рейка «З ким піти» чи «У місті»): її обкладинка — шапка, поки рахуються
+    /// деталі. Та сама рамка й декодування, що в `HeroBackdrop`, тож шапка потім бере картинку з кеша, а не блимає.
+    private func homeCard() -> Event? {
+        let home = model.homeScreen.state
+        return home.feed.first { $0.event.id == eventID }?.event
+            ?? home.people.first { $0.event.id == eventID }?.event
+            ?? home.company.first { $0.event.id == eventID }?.event
+    }
+
     @ViewBuilder
     func detail(_ event: Event, _ view: DetailScreenState) -> some View {
-        ZStack(alignment: .bottom) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    hero(event, view)
-                    // Аркуш із заокругленим верхом наїжджає на обкладинку: сторінка лягає на афішу, а не продовжує її.
-                    sections(event, view).padding(.horizontal, Space.page).padding(.top, Space.xl)
-                        .padding(.bottom, view.canSeekCompany ? 210 : 140)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Palette.canvas, in: UnevenRoundedRectangle(
-                            topLeadingRadius: Corner.xl, topTrailingRadius: Corner.xl, style: .continuous))
+        ScrollViewReader { proxy in
+            ZStack(alignment: .bottom) {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        hero(event, view)
+                        // Аркуш із заокругленим верхом наїжджає на обкладинку: сторінка лягає на афішу, а не продовжує її.
+                        sections(event, view).padding(.horizontal, Space.page).padding(.top, Space.xl)
+                            .padding(.bottom, view.canSeekCompany ? 210 : 140)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Palette.canvas, in: UnevenRoundedRectangle(
+                                topLeadingRadius: Corner.xl, topTrailingRadius: Corner.xl, style: .continuous))
+                    }
+                    // Пише напряму в `scroll`, без `Binding(get:)`: геттер біндингу SwiftUI читав у тілі екрана, і кожен кадр
+                    // прокрутки знову перераховував увесь екран.
+                    .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named(detailScrollSpace)).minY } action: { scroll.offset = $0 }
                 }
-                // Пише напряму в `scroll`, без `Binding(get:)`: геттер біндингу SwiftUI читав у тілі екрана, і кожен кадр
-                // прокрутки знову перераховував увесь екран.
-                .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named(detailScrollSpace)).minY } action: { scroll.offset = $0 }
+                .coordinateSpace(name: detailScrollSpace)
+                .refreshable { await screen.refresh() }
+                .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: { topInset = $0 }
+                // Єдиний шар обкладинки: від краю екрана, під смугою статусу. При потягу вниз
+                // розтягується, при прокрутці їде вгору вдвічі повільніше за стрічку (паралакс);
+                // сама стрічка лишається в safe area, щоб індикатор потягу було видно. Та сама афіша,
+                // що й велика картка головної (`EventArt`): без фото — насичений градієнт категорії,
+                // а не бліда пастель; низ темніє під білу назву.
+                .background(alignment: .top) { HeroBackdrop(event: event, scroll: scroll) }
+                // Коли аркуш доїхав до годинника, текст інакше йде під нього: смуга статусу набирає колір полотна.
+                // Не раніше: світла смуга над темною обкладинкою відрізала б її, а з-під смуги визирали б кути аркуша.
+                .overlay(alignment: .top) { StatusStrip(scroll: scroll, topInset: topInset) }
+                VStack(spacing: Space.sm) {
+                    if boughtPrompt { boughtCard(event, view) }
+                    stickyBar(event, view)
+                }
             }
-            .coordinateSpace(name: detailScrollSpace)
-            .refreshable { await screen.refresh() }
-            .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: { topInset = $0 }
-            // Єдиний шар обкладинки: від краю екрана, під смугою статусу. При потягу вниз
-            // розтягується, при прокрутці їде вгору вдвічі повільніше за стрічку (паралакс);
-            // сама стрічка лишається в safe area, щоб індикатор потягу було видно. Та сама афіша,
-            // що й велика картка головної (`EventArt`): без фото — насичений градієнт категорії,
-            // а не бліда пастель; низ темніє під білу назву.
-            .background(alignment: .top) { HeroBackdrop(event: event, scroll: scroll) }
-            // Коли аркуш доїхав до годинника, текст інакше йде під нього: смуга статусу набирає колір полотна.
-            // Не раніше: світла смуга над темною обкладинкою відрізала б її, а з-під смуги визирали б кути аркуша.
-            .overlay(alignment: .top) { StatusStrip(scroll: scroll, topInset: topInset) }
-            VStack(spacing: Space.sm) {
-                if boughtPrompt { boughtCard(event, view) }
-                stickyBar(event, view)
+            .onChange(of: companyFocusTick) { _, _ in
+                let target = companyFocusTarget
+                withMotion(Motion.spring) { proxy.scrollTo(target, anchor: UnitPoint(x: 0.5, y: 0.12)) }
+                withAnimation(.easeOut(duration: 0.2).delay(0.25)) { companyFlash = target }
+                Task {
+                    try? await Task.sleep(for: .milliseconds(1400))
+                    withAnimation(.easeOut(duration: 0.6)) { if companyFlash == target { companyFlash = nil } }
+                }
+            }
+            // Намір став видимим (після входу гостя теж): секція з «Ви шукаєте компанію» й людьми — на екран.
+            .onChange(of: view.companyTeaser?.mine == true) { _, mine in
+                guard mine, companyAsked else { return }
+                companyAsked = false
+                focusCompany(people: false)
             }
         }
         .background(Palette.canvas)
@@ -222,7 +272,7 @@ struct EventDetailView: View, Equatable {
             }
             facts(event)
             if let listing = view.listing, !listing.needsAttention { tickets(event, listing, view) }
-            if view.canWantCompany && !view.cancelled { companySection(view) }
+            if view.canWantCompany && !view.cancelled { companySection(view).id(companySectionID) }
             else if !view.companions.isEmpty && !view.cancelled { companionsSection(view) }
             if let room = view.room { people(room, view) }
             venue(event, view)
@@ -338,6 +388,10 @@ let scrimFade: CGFloat = 40
 let heroParallax: CGFloat = 0.5
 /// Ім'я системи координат стрічки для `reportsScrollOffset`.
 let detailScrollSpace = "detail"
+
+/// Мітки прокрутки до «Шукають компанію»: уся секція й картка людей.
+let companySectionID = "company-section"
+let companyPeopleID = "company-people"
 
 /// Зміщення стрічки деталей. Його читають лише вигляди нижче, тож кадр прокрутки не перераховує секції й панель дії.
 @Observable final class DetailScroll {

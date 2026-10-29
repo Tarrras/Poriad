@@ -14,6 +14,7 @@ struct HomePersonalSection: View {
     let openMyEvents: () -> Void
     let openFollows: () -> Void
     let openDeck: () -> Void
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         let slots = view.yours(deckDue: deckDue)
@@ -57,7 +58,8 @@ struct HomePersonalSection: View {
     }
 
     private var yourDivider: some View {
-        Divider().overlay(Palette.hairline).padding(.leading, Space.lg + yourTile + Space.md)
+        // На великому шрифті текст рядка під плиткою, від краю: волосина теж.
+        Divider().overlay(Palette.hairline).padding(.leading, typeSize.isAccessibilitySize ? Space.lg : Space.lg + yourTile + Space.md)
     }
 
     private var chevron: some View {
@@ -153,25 +155,45 @@ private struct YourRow<Tile: View, Trailing: View>: View {
     var brandTitle = false
     @ViewBuilder let tile: Tile
     @ViewBuilder let trailing: Trailing
+    /// На accessibility-розмірах надрядок і підпис переносяться до трьох рядків: в один від «Арсен Пучков» лишалось
+    /// «Арсен Пу…», а рядок радару для того й існує, щоб сказати, хто грає (аудит 1.4). Плитка й стан стають рядком
+    /// над текстом: поруч вони стискали назву до «Музика всесв…».
+    @Environment(\.dynamicTypeSize) private var typeSize
+    private var metaLines: Int { typeSize.isAccessibilitySize ? 3 : 1 }
+
+    private var texts: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            if let overline {
+                Text(overline).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary).lineLimit(metaLines)
+            }
+            Text(title).font(brandTitle ? PoruchFont.brandTitle3 : PoruchFont.cardName).kerning(brandTitle ? -0.1 : -0.2)
+                .foregroundStyle(Palette.ink).multilineTextAlignment(.leading).lineLimit(typeSize.isAccessibilitySize ? 4 : 2)
+            if let subtitle, !subtitle.isEmpty {
+                Text(subtitle).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(metaLines)
+            }
+        }
+    }
 
     var body: some View {
         HStack(spacing: Space.sm) {
             Button(action: open) {
-                HStack(spacing: Space.md) {
-                    tile
-                    VStack(alignment: .leading, spacing: 2) {
-                        if let overline {
-                            Text(overline).font(PoruchFont.overline).kerning(1.0).foregroundStyle(Palette.inkTertiary).lineLimit(1)
+                Group {
+                    if typeSize.isAccessibilitySize {
+                        VStack(alignment: .leading, spacing: Space.sm) {
+                            HStack(spacing: Space.md) { tile; Spacer(minLength: 0); if chat == nil { trailing } }
+                            texts
                         }
-                        Text(title).font(brandTitle ? PoruchFont.brandTitle3 : PoruchFont.cardName).kerning(brandTitle ? -0.1 : -0.2)
-                            .foregroundStyle(Palette.ink).multilineTextAlignment(.leading).lineLimit(2)
-                        if let subtitle, !subtitle.isEmpty {
-                            Text(subtitle).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    } else {
+                        HStack(spacing: Space.md) {
+                            tile
+                            texts
+                            Spacer(minLength: 0)
+                            if chat == nil { trailing }
                         }
                     }
-                    Spacer(minLength: 0)
-                    if chat == nil { trailing }
-                }.contentShape(Rectangle())
+                }
+                .contentShape(Rectangle())
             }
             .buttonStyle(PressableStyle(pressedScale: 1))
             .accessibilityElement(children: .combine)

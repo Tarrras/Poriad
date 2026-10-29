@@ -13,21 +13,24 @@ struct CreateEventCard: View {
     /// Останнім квитком рейки «З ким піти»: вертикальний, корінець знизу, висота — за сусідами.
     var vertical = false
     let action: () -> Void
+    /// На accessibility-розмірах — завжди вертикальний на всю ширину: поруч із корінцем «Організувати» рвалось по складах.
+    @Environment(\.dynamicTypeSize) private var typeSize
+    private var upright: Bool { vertical || typeSize.isAccessibilitySize }
     var body: some View {
         Button(action: action) {
             // Порожній квиток: свою зустріч друкуєш сам. Корінець чорнильний — це головна дія екрана.
             Ticket(
-                vertical: vertical, stubColor: Palette.brand, stubLength: 64,
+                vertical: upright, stubColor: Palette.brand, stubLength: 64,
                 outline: (Palette.inkTertiary.opacity(0.7), StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
             ) {
-                VStack(alignment: .leading, spacing: vertical ? Space.xs : 2) {
+                VStack(alignment: .leading, spacing: upright ? Space.xs : 2) {
                     // У рейці висоту рахує `fixedSize`: без нього назва лишалась в один рядок і обрізалась.
-                    Text(title).font(vertical ? PoruchFont.brandTitle2 : PoruchFont.brandTitle3).foregroundStyle(Palette.ink)
+                    Text(title).font(upright ? PoruchFont.brandTitle2 : PoruchFont.brandTitle3).foregroundStyle(Palette.ink)
                         .fixedSize(horizontal: false, vertical: true)
                     Text(subtitle).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
                         .multilineTextAlignment(.leading)
                 }
-                .padding(.horizontal, Space.lg).padding(.vertical, vertical ? Space.lg : Space.md)
+                .padding(.horizontal, Space.lg).padding(.vertical, upright ? Space.lg : Space.md)
                 .frame(minHeight: 72, alignment: .leading)
             } stub: {
                 // Олівець, а не «+»: плюс уже є на кнопці створення біля таббара, а тут квиток заповнюють.
@@ -54,6 +57,9 @@ struct EventHeroCard: View {
     var height: CGFloat = 360
     var saved: Bool = false
     var onSave: (() -> Void)?
+    /// Що ще надруковано на квитку під назвою: у стосі без фото — «що це» й уривок, щоб квиток не був наполовину порожній.
+    /// VoiceOver цього не читає (квиток — одне речення), тож місце виклику повторює його в `accessibilityValue`.
+    var extra: AnyView? = nil
     let action: () -> Void
     private var place: String { event.placeLabel }
     /// Стан кімнати чи скасування важливіші; інакше штамп каже, чому квиток тут: «Для вас», «Ви стежите».
@@ -63,9 +69,12 @@ struct EventHeroCard: View {
         if let eyebrow { return (eyebrow, PoruchIcons.sparkle) }
         return event.gathering == nil ? nil : (Copy.from_people, PoruchIcons.social)
     }
+    /// На accessibility-розмірах корінець знизу, як у постера: праворуч він забирав третину ширини, і назва рвалась
+    /// по літерах — і в «У місті», і в стосі «Ваш тиждень».
+    private var upright: Bool { typeSize.isAccessibilitySize }
     var body: some View {
         Button(action: action) {
-            Ticket(stubColor: ticketStub(event), stubLength: 84, radius: Corner.lg) {
+            Ticket(vertical: upright, stubColor: ticketStub(event), stubLength: upright ? 64 : 84, radius: Corner.lg) {
                 VStack(alignment: .leading, spacing: 0) {
                     // Розмір картки, а не типовий 800: інакше три hero декодувались у 2400 px і витісняли з кеша постери.
                     // Без фото обкладинки нема: квиток друкований — штамп і назва великим кеглем на самій поверхні.
@@ -81,9 +90,10 @@ struct EventHeroCard: View {
                     VStack(alignment: .leading, spacing: Space.sm) {
                         Text(event.cardTitle).font(event.imageUrl == nil ? PoruchFont.brandDisplay : PoruchFont.brandTitle1)
                             .foregroundStyle(Palette.ink)
-                            .multilineTextAlignment(.leading).lineLimit(event.imageUrl == nil ? 5 : (typeSize.isAccessibilitySize ? 4 : 2))
+                            .multilineTextAlignment(.leading).lineLimit(event.imageUrl == nil || upright ? 5 : 2)
                             .fixedSize(horizontal: false, vertical: true)
                         HostLine(event: event)
+                        if let extra { extra.padding(.vertical, Space.xs) }
                         EventDescriptor(event: event)
                         if let reason { ReasonLine(text: reason.0, glyph: reason.1) }
                         if let artists = artistsLine(event) { MetaLine(glyph: PoruchIcons.person, text: artists) }
@@ -98,11 +108,18 @@ struct EventHeroCard: View {
                 }
                 // Висота — найменша, а не стала: з великим текстом назва, місце й підпис джерела не обрізаються.
                 .frame(minHeight: height)
+                .overlay(alignment: .topTrailing) {
+                    if upright, let onSave { SaveButton(saved: saved, action: onSave).padding(Space.sm) }
+                }
             } stub: {
-                VStack(spacing: 0) {
-                    if let onSave { SaveButton(saved: saved, action: onSave).padding(.top, Space.md) }
-                    Spacer(minLength: 0)
-                    StubTime(event: event).padding(.bottom, Space.xl)
+                if upright {
+                    StubTime(event: event, row: true)
+                } else {
+                    VStack(spacing: 0) {
+                        if let onSave { SaveButton(saved: saved, action: onSave).padding(.top, Space.md) }
+                        Spacer(minLength: 0)
+                        StubTime(event: event).padding(.bottom, Space.xl)
+                    }
                 }
             }
         }

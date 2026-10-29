@@ -163,6 +163,9 @@ struct StubTime: View {
             }
         }
         .foregroundStyle(.white)
+        // Корінець росте лише до 1,5×, тож і друк на ньому — не більше: на AX5 «ЗАВТРА» й день обрізались. Повністю
+        // дату читає VoiceOver і квиток поруч.
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(label)
     }

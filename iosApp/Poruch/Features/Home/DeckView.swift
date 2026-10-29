@@ -39,7 +39,8 @@ struct DeckView: View {
                 Spacer()
                 if !finished {
                     Button { close(skipped: true) } label: {
-                        Text(Copy.onboarding_skip).font(PoruchFont.button).foregroundStyle(Palette.inkSecondary).tapTarget()
+                        // Цілим словом: на AX5 «Пропу-стити» переносилось по складах, хоч місця поруч з «1 з 9» досить.
+                        Text(Copy.onboarding_skip).font(PoruchFont.button).foregroundStyle(Palette.inkSecondary).fixedSize().tapTarget()
                     }.buttonStyle(.plain)
                 }
             }
@@ -56,10 +57,11 @@ struct DeckView: View {
 
     private var stack: some View {
         VStack(alignment: .leading, spacing: Space.lg) {
-            // Не вміщається (великий шрифт) — прокрутка над кнопками, а не «Так» і «Ні» за краєм екрана.
+            // Не вміщається (великий шрифт, SE) — прокрутка над кнопками, а не «Так» і «Ні» за краєм екрана. Там змаху нема:
+            // він забирав вертикальну прокрутку, а відповісти й так можна кнопками.
             ViewThatFits(in: .vertical) {
-                question
-                ScrollView { question }
+                question(swipes: true)
+                ScrollView { question(swipes: false) }
             }
             HStack(spacing: Space.md) {
                 SecondaryButton(title: Copy.deck_no) { answer(false) }
@@ -68,8 +70,11 @@ struct DeckView: View {
         }
     }
 
-    private var question: some View {
-        VStack(alignment: .leading, spacing: Space.lg) {
+    private func question(swipes: Bool) -> some View {
+        let event = cards[index]
+        // Без фото квиток друкований: «що це» й уривок — на самому квитку, і висота за вмістом, а не 300 з порожнім полем.
+        let printed = event.imageUrl == nil
+        return VStack(alignment: .leading, spacing: Space.lg) {
             VStack(alignment: .leading, spacing: Space.xs) {
                 Text(Copy.deck_title).font(PoruchFont.brandTitle1).kerning(-0.4).foregroundStyle(Palette.ink)
                 Text(Copy.deck_subtitle).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
@@ -78,33 +83,41 @@ struct DeckView: View {
             // Квиток і під ним — що це за подія: людина має розуміти, що їй пропонують, а не вгадувати з назви.
             VStack(alignment: .leading, spacing: Space.md) {
                 // Тут квиток — не кнопка: VoiceOver читає його текстом, а відповідь — «Так» і «Ні».
-                EventHeroCard(event: cards[index], height: 300) {}
+                EventHeroCard(event: event, height: printed ? 0 : 300, extra: printed ? AnyView(about(event)) : nil) {}
                     .allowsHitTesting(false)
                     .accessibilityRemoveTraits(.isButton)
+                    .accessibilityValue(printed ? aboutText(event) : "")
                     // «Так» штампує квиток, як касир, — стан мовою «Корінця»; посередині обкладинки, а не корінця.
+                    // Зі «зменшити рух» штамп лише проявляється, без удару масштабом.
                     .overlay(alignment: .top) {
-                        TicketStamp(text: Copy.deck_saved, tone: .success, glyph: PoruchIcons.bookmarkFilled, onFill: cards[index].imageUrl != nil)
-                            .scaleEffect(2.4 - 0.9 * stamp).opacity(min(stamp, 1))
+                        TicketStamp(text: Copy.deck_saved, tone: .success, glyph: PoruchIcons.bookmarkFilled, onFill: !printed)
+                            .scaleEffect(reduceMotion ? 1.5 : 2.4 - 0.9 * stamp).opacity(min(stamp, 1))
                             .offset(x: -42).padding(.top, 64)
                             .accessibilityHidden(true)
                     }
-                about(cards[index])
+                VStack(alignment: .leading, spacing: Space.xs) {
+                    if !printed { about(event) }
+                    more(event)
+                }
             }
                 .contentShape(Rectangle())
                 .offset(x: drag)
                 .rotationEffect(.degrees(reduceMotion ? 0 : Double(drag / 30)))
-                .gesture(
-                    DragGesture()
-                        .onChanged { drag = $0.translation.width }
-                        .onEnded { value in
-                            if abs(value.translation.width) > 110 { answer(value.translation.width > 0) }
-                            else { withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { drag = 0 } }
-                        }
-                )
-                .id(cards[index].id)
+                .gesture(swipes ? swipe : nil)
+                .id(event.id)
                 .transition(.opacity)
             Spacer(minLength: 0)
         }
+    }
+
+    /// Змах — прискорювач відповіді: праворуч «так», ліворуч «ні».
+    private var swipe: some Gesture {
+        DragGesture()
+            .onChanged { drag = $0.translation.width }
+            .onEnded { value in
+                if abs(value.translation.width) > 110 { answer(value.translation.width > 0) }
+                else { withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { drag = 0 } }
+            }
     }
 
     /// Що це за подія: речення «що це», уривок опису й ціна — щоб «так» було рішенням, а не вгадуванням з назви.
@@ -123,17 +136,27 @@ struct DeckView: View {
             if let listing = event.listing, listing.isFree?.boolValue == true || listing.priceMin != nil {
                 Text(listingPrice(listing)).font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
             }
-            // Уривок обрізаний, а опис агента ховає опис продавця — повністю їх видно в шторці.
-            if !event.displayDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                Button { reading = true } label: {
-                    HStack(spacing: Space.xs) {
-                        Text(Copy.deck_more).font(PoruchFont.button)
-                        PoruchIcon(glyph: PoruchIcons.chevronRight, size: 14)
-                    }
-                    .foregroundStyle(Palette.ink).tapTarget()
+        }
+    }
+
+    /// Те саме, що `about`, одним рядком для VoiceOver: на друкованому квитку воно всередині, а квиток читається одним реченням.
+    private func aboutText(_ event: Event) -> String {
+        let price = event.listing.flatMap { $0.isFree?.boolValue == true || $0.priceMin != nil ? listingPrice($0) : nil }
+        return [event.about.line, event.about.excerpt, price].compactMap { $0 }.joined(separator: ". ")
+    }
+
+    /// «Детальніше ›» під квитком: уривок обрізаний, а опис агента ховає опис продавця — повністю їх видно в шторці.
+    @ViewBuilder
+    private func more(_ event: Event) -> some View {
+        if !event.displayDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            Button { reading = true } label: {
+                HStack(spacing: Space.xs) {
+                    Text(Copy.deck_more).font(PoruchFont.button)
+                    PoruchIcon(glyph: PoruchIcons.chevronRight, size: 14)
                 }
-                .buttonStyle(.plain)
+                .foregroundStyle(Palette.ink).tapTarget()
             }
+            .buttonStyle(.plain)
         }
     }
 
@@ -198,6 +221,10 @@ struct DeckView: View {
             drag = 0; stamp = 0
             withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) { index += 1 }
             flying = false
+            // VoiceOver: фокус лишається на «Так», тож відповідь і нову картку кажемо вголос.
+            let next = index < cards.count
+                ? Copy.deck_a11y_card("\(index + 1)", "\(cards.count)", cards[index].displayTitle) : Copy.deck_a11y_done
+            AccessibilityNotification.Announcement(yes ? "\(Copy.deck_saved). \(next)" : next).post()
         }
     }
 
@@ -222,7 +249,9 @@ private struct DeckDescription: View {
                     Text(description).font(PoruchFont.lead).foregroundStyle(Palette.inkSecondary).lineSpacing(5)
                 }
                 if let url = sourceURL(event) {
-                    Link(Copy.listing_read_more, destination: url).font(PoruchFont.button).foregroundStyle(Palette.brand)
+                    Link(destination: url) {
+                        Text(Copy.listing_read_more).font(PoruchFont.button).foregroundStyle(Palette.brand).tapTarget()
+                    }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)

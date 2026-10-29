@@ -13,6 +13,9 @@ struct HomePeopleSection: View {
     let openProfile: () -> Void
     @Environment(\.appModel) private var appModel
     private var model: AppModel { appModel! }
+    /// На accessibility-розмірах рейка стає стовпцем квитків на всю ширину: у 176 pt назви рвались посеред слова, а
+    /// причина й день на корінці обрізались (аудит 1.4, P1).
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.md) {
@@ -23,33 +26,17 @@ struct HomePeopleSection: View {
             // Одна рейка «З ким піти»: спершу зустрічі з вільним місцем, далі афіші, на які хтось шукає компанію.
             // Дві секції поруч про одне питання плутали: чим «Йдемо разом» відрізняється від «Шукають компанію».
             if !view.people.isEmpty || !view.company.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(alignment: .top, spacing: Space.md) {
-                        ForEach(view.people, id: \.event.id) { entry in
-                            let id = entry.event.id
-                            PosterCard(
-                                entry: entry, saved: view.isSaved(entry.event), waitlisted: view.isWaitlisted(entry.event),
-                                showsOrigin: false, onSave: { model.app.toggleSaved(id: id) }
-                            ) { open(id, "home_people") }
-                            .frame(width: peopleCardWidth).frame(maxHeight: .infinity)
-                        }
-                        ForEach(view.company, id: \.event.id) { entry in
-                            let id = entry.event.id
-                            PosterCard(
-                                entry: FeedEntry(event: entry.event, source: .city, followName: nil),
-                                saved: view.isSaved(entry.event), waitlisted: view.isWaitlisted(entry.event),
-                                because: Copy.company_reason(Int(entry.count)), printedOnly: true, onSave: { model.app.toggleSaved(id: id) }
-                            ) { open(id, "home_company") }
-                            .frame(width: peopleCardWidth).frame(maxHeight: .infinity)
-                        }
-                        // Кінцем рейки, а не окремим блоком під нею: менше гортати до афіші (критика довжини 28.10).
-                        createCard(vertical: true).frame(width: peopleCardWidth).frame(maxHeight: .infinity)
+                if typeSize.isAccessibilitySize {
+                    VStack(spacing: Space.md) { cards(width: nil) }.padding(.horizontal, Space.page)
+                } else {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        // Квитки рейки за найвищим: корінці на одній лінії.
+                        HStack(alignment: .top, spacing: Space.md) { cards(width: peopleCardWidth) }
+                            .fixedSize(horizontal: false, vertical: true)
                     }
-                    // Квитки рейки за найвищим: корінці на одній лінії.
-                    .fixedSize(horizontal: false, vertical: true)
+                    .railContentPadding(spread: 0)
+                    .zIndex(1)
                 }
-                .railContentPadding(spread: 0)
-                .zIndex(1)
             }
             if view.people.isEmpty && view.company.isEmpty || !view.signedIn {
                 VStack(alignment: .leading, spacing: Space.xs) {
@@ -58,6 +45,31 @@ struct HomePeopleSection: View {
                 }.padding(.horizontal, Space.page)
             }
         }
+    }
+
+    /// Квитки рейки: зустрічі з вільним місцем, далі афіші, на які шукають компанію, і порожній «Організувати подію».
+    /// `width` — ширина в рейці; nil — стовпець на всю ширину (accessibility-розміри).
+    @ViewBuilder private func cards(width: CGFloat?) -> some View {
+        ForEach(view.people, id: \.event.id) { entry in
+            let id = entry.event.id
+            PosterCard(
+                entry: entry, saved: view.isSaved(entry.event), waitlisted: view.isWaitlisted(entry.event),
+                showsOrigin: false, morph: "home_people", onSave: { model.app.toggleSaved(id: id) }
+            ) { open(id, "home_people") }
+            .frame(width: width).frame(maxHeight: .infinity)
+        }
+        ForEach(view.company, id: \.event.id) { entry in
+            let id = entry.event.id
+            PosterCard(
+                entry: FeedEntry(event: entry.event, source: .city, followName: nil),
+                saved: view.isSaved(entry.event), waitlisted: view.isWaitlisted(entry.event),
+                because: Copy.company_reason(Int(entry.count)), printedOnly: true, morph: "home_company",
+                onSave: { model.app.toggleSaved(id: id) }
+            ) { open(id, "home_company") }
+            .frame(width: width).frame(maxHeight: .infinity)
+        }
+        // Кінцем рейки, а не окремим блоком під нею: менше гортати до афіші (критика довжини 28.10).
+        createCard(vertical: width != nil).frame(width: width).frame(maxHeight: .infinity)
     }
 
     private func createCard(vertical: Bool) -> some View {
@@ -101,6 +113,8 @@ struct HomeCityFeed: View {
     let selectChip: (FeedFilter) -> Void
     @Environment(\.appModel) private var appModel
     private var model: AppModel { appModel! }
+    /// На accessibility-розмірах сітка в одну колонку: у дві назви рвались посеред слова.
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         if !view.feed.isEmpty {
@@ -125,11 +139,12 @@ struct HomeCityFeed: View {
                         let visible = Array(shown.prefix(feedLimit))
                         LazyVStack(spacing: Space.xl) {
                             // Ряд за першою подією, а не за номером: після «Зберегти» чи чипа ряди не перебудовуються з нуля.
-                            let rows = stride(from: 0, to: visible.count, by: 2).map { Array(visible[$0..<min($0 + 2, visible.count)]) }
+                            let columns = typeSize.isAccessibilitySize ? 1 : 2
+                            let rows = stride(from: 0, to: visible.count, by: columns).map { Array(visible[$0..<min($0 + columns, visible.count)]) }
                             ForEach(rows, id: \.[0].event.id) { pair in
                                 HStack(alignment: .top, spacing: Space.md) {
                                     cityPoster(pair[0])
-                                    if pair.count > 1 { cityPoster(pair[1]) } else { Color.clear }
+                                    if pair.count > 1 { cityPoster(pair[1]) } else if columns > 1 { Color.clear }
                                 }
                                 .fixedSize(horizontal: false, vertical: true)
                             }
@@ -165,7 +180,7 @@ struct HomeCityFeed: View {
     private func cityPoster(_ entry: FeedEntry) -> some View {
         PosterCard(
             entry: entry, saved: view.isSaved(entry.event), waitlisted: view.isWaitlisted(entry.event),
-            onSave: { model.app.toggleSaved(id: entry.event.id) }
+            morph: "home_poster", onSave: { model.app.toggleSaved(id: entry.event.id) }
         ) {
             open(entry.event.id, "home_poster")
         }
@@ -253,6 +268,8 @@ private struct PosterCard: View {
     var because: String? = nil
     /// Друкований квиток без фото й з афіші: у рейці «З ким піти» всі квитки однієї висоти, без порожнього поля.
     var printedOnly = false
+    /// Звідки тап (`home_people`, `home_poster`): з нього квиток морфиться в деталі (`morphSource`).
+    var morph: String? = nil
     let onSave: () -> Void
     let open: () -> Void
 
@@ -280,9 +297,14 @@ private struct PosterCard: View {
     }
 
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.morphSpace) private var morphSpace
+    /// На accessibility-розмірах квиток на всю ширину стовпця (`HomePeopleSection`, сітка в одну колонку): у 176 pt
+    /// назва рвалась посеред слова. Корінець лишається знизу — так назва має всю ширину, а не дві третини поруч із
+    /// корінцем 1,5× (горизонтальний квиток на AX5 рвав «П'ЯТНИЦЮ» і так само).
+    private var wide: Bool { typeSize.isAccessibilitySize }
 
-    /// Друкована сторона без фото дає назві чотири рядки; з великим текстом — на рядок більше, щоб назва не тонула в «…».
-    private var titleLines: Int { (printed ? 4 : 2) + (typeSize.isAccessibilitySize ? 1 : 0) }
+    /// Друкована сторона без фото дає назві чотири рядки; квиток на всю ширину на великому шрифті — без стелі.
+    private var titleLines: Int? { wide ? nil : (printed ? 4 : 2) }
 
     /// Штамп — лише стан квитка: скасовано, «Ви йдете», «Лишилось 2». Чому квиток тут — [reason], тихим рядком.
     @ViewBuilder private func stampView(onFill: Bool) -> some View {
@@ -306,7 +328,11 @@ private struct PosterCard: View {
                 VStack(alignment: .leading, spacing: 0) {
                     if !printed {
                         // Пріоритет: у ряду однакової висоти фото бере свої 4:5 першим, а запас іде полю під назвою.
-                        Color.clear.aspectRatio(4.0 / 5.0, contentMode: .fit)
+                        // На всю ширину 4:5 зайняло б екран — смуга 180, як фото квитка стрічки.
+                        Group {
+                            if wide { Color.clear.frame(maxWidth: .infinity).frame(height: 180) }
+                            else { Color.clear.aspectRatio(4.0 / 5.0, contentMode: .fit) }
+                        }
                             .overlay { EventArt(event: event, maxDimension: 420) }
                             .clipped()
                             .layoutPriority(1)
@@ -351,6 +377,7 @@ private struct PosterCard: View {
             } stub: {
                 StubTime(event: event, row: true)
             }
+            .morphSource(morph.map { "\($0)/\(event.id)" }, in: morphSpace)
         }
         .buttonStyle(PressableStyle())
         .ticketAccessibility(event, state: [state?.0, reason?.0, price, note?.0].compactMap { $0 }.joined(separator: ", "), saved: saved, onSave: onSave)

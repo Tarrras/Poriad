@@ -18,8 +18,9 @@ struct HomeView: View, Equatable {
     var openMyEvents: () -> Void
     /// Редактор нової події; аргумент — звідки тап (`home_top`, `home_footer`) для аналітики. Гостя спершу веде до входу.
     var createEvent: (String) -> Void
-    /// Відкрити деталі. Шлях стосу тримає корінь (`RootView.homePath`).
-    var openEvent: (String) -> Void
+    /// Відкрити деталі; другий аргумент — квиток, з якого деталі виростають (`morphSource`). Шлях стосу тримає корінь
+    /// (`RootView.homePath`).
+    var openEvent: (String, String?) -> Void
     /// Прямо в чат події, минаючи деталі.
     var openChat: (Event) -> Void
     /// Екран підписок: рядок у «Ваше».
@@ -128,8 +129,9 @@ struct HomeView: View, Equatable {
         // Чипи «Сьогодні / Вихідні» під рукою, поки гортається сітка: п'ятничний вибір не за два екрани вгору.
         .overlay(alignment: .top) {
             if chipsPinned && !searchActive(view) {
+                // Зверху на згасання смуги статусу (`statusBarBand`): чипи починаються там, де воно скінчилось.
                 FeedChipsRow(chips: view.chips, selected: view.feedFilter) { selectChip($0, proxy: proxy) }
-                    .padding(.vertical, Space.sm)
+                    .padding(.top, Space.md).padding(.bottom, Space.sm)
                     .background(Palette.canvas)
                     .overlay(alignment: .bottom) { Divider().overlay(Palette.hairline) }
                     .transition(.opacity)
@@ -167,7 +169,11 @@ struct HomeView: View, Equatable {
     }
 
     /// Відкрити деталі події; `from` — звідки тап, для аналітики.
-    private func open(_ id: String, from: String) { model.app.selectEvent(id: id, from: from); openEvent(id) }
+    private func open(_ id: String, from: String) {
+        model.app.selectEvent(id: id, from: from)
+        // Морф лише з квитків, що позначені джерелом (`PosterCard.morph`): без джерела zoom виростав би з центру екрана.
+        openEvent(id, morphOrigins.contains(from) ? "\(from)/\(id)" : nil)
+    }
 
     /// «Усі N» біля «У місті» і рядок «Усі події поруч»: мапа з усім містом, а не з фільтрами, що лишились з минулого візиту.
     private func showCity() { model.app.showEverythingOnMap(); openMap() }
@@ -175,6 +181,9 @@ struct HomeView: View, Equatable {
     /// «Усі N» біля «Від людей»: мапа лише зі зустрічами від людей з вільним місцем.
     private func showPeople() { model.app.showPeopleOnMap(); openMap() }
 }
+
+/// Звідки квиток головної морфиться в деталі: рейка «З ким піти» і сітка «У місті».
+private let morphOrigins: Set<String> = ["home_people", "home_company", "home_poster"]
 
 /// Шапка головної. Поза пошуком — заголовок, місто й кнопки пошуку та профілю; у пошуку — поле, «Скасувати» і фільтри.
 private struct HomeHeader: View {

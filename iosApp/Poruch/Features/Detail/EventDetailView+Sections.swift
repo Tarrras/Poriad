@@ -596,11 +596,15 @@ extension EventDetailView {
                 }
                 // Серце продукту — люди: на афіші головна дія — «Хочу піти з компанією», на всю ширину під ціною й квитком.
                 // Після наміру панель її ховає: стан і люди — у секції «Шукають компанію» (docs/return-hooks.md).
-                if view.canWantCompany && view.companyTeaser?.mine != true {
+                if view.canWantCompany && view.companyTeaser?.mine == true {
+                    // Після наміру кнопка не зникає мовчки: на її місці стан, а тап — до людей, що теж шукають.
+                    companySearchingRow(view)
+                } else if view.canWantCompany {
                     // На великому шрифті без гліфа: поруч із корінцем він лишав від напису «Хочу піти з к…».
                     PrimaryButton(title: Copy.company_want, glyph: typeSize.isAccessibilitySize ? nil : PoruchIcons.social, enabled: !view.mutating) {
                         // Гість спершу входить: намір поставить спільний шар, щойно вхід відбудеться.
                         model.app.wantCompany()
+                        companyAsked = true
                         if !view.signedIn { auth = .company }
                     }
                     .coachTarget(.companion)
@@ -617,6 +621,39 @@ extension EventDetailView {
 }
 
 extension EventDetailView {
+    /// Прокрутити до «Шукають компанію»: до людей, коли вони є й просять саме їх, інакше до секції з моїм станом.
+    func focusCompany(people: Bool) {
+        companyFocusTarget = people && !screen.state.companyPeople.isEmpty ? companyPeopleID : companySectionID
+        companyFocusTick += 1
+    }
+
+    /// Стан наміру в панелі дії замість «Хочу піти з компанією»: «Ви шукаєте компанію», тап — до людей.
+    func companySearchingRow(_ view: DetailScreenState) -> some View {
+        let large = typeSize.isAccessibilitySize
+        return Button { focusCompany(people: true) } label: {
+            HStack(spacing: Space.md) {
+                // Гліф без плитки, як на кнопці, що тут стояла: з плиткою «Ви шукаєте компанію» переносилось поруч із
+                // корінцем. На великому шрифті — без гліфа й шеврона: поруч із корінцем 1,5× лишався стовпчик по складах.
+                if !large { PoruchIcon(glyph: PoruchIcons.social, size: 20).foregroundStyle(Palette.ink) }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(Copy.company_searching).font(PoruchFont.cardName).kerning(-0.2).foregroundStyle(Palette.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(Copy.company_bar_people).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+                if !large { PoruchIcon(glyph: PoruchIcons.chevronDown, size: 16).foregroundStyle(Palette.inkTertiary) }
+            }
+            .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading).contentShape(Rectangle())
+        }
+        .buttonStyle(PressableStyle(pressedScale: 1))
+        // Панель плаває над сторінкою: на AX5 рядок займав увесь екран. Кнопка, що тут стояла, теж не росла далі двох
+        // рядків напису — рядок стану росте до AX2.
+        .dynamicTypeSize(...DynamicTypeSize.accessibility2)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
+    }
+
     func primaryAction(_ event: Event, _ view: DetailScreenState) -> some View {
         PrimaryButton(
             title: view.action.title,
@@ -802,6 +839,7 @@ extension EventDetailView {
                 }
             }
             .padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()
+            .overlay { companyFlashRing(companySectionID) }
             if !view.companyPeople.isEmpty {
                 VStack(spacing: 0) {
                     ForEach(Array(view.companyPeople.enumerated()), id: \.element.userId) { index, person in
@@ -810,6 +848,8 @@ extension EventDetailView {
                     }
                 }
                 .cardSurface()
+                .overlay { companyFlashRing(companyPeopleID) }
+                .id(companyPeopleID)
             }
             if !view.companions.isEmpty { companionRows(view) }
             if view.canSeekCompany {
@@ -820,6 +860,14 @@ extension EventDetailView {
                 .cardSurface()
             }
         }
+    }
+
+    /// Коротке обведення чорнилом після прокрутки сюди — як вибраний квиток на мапі.
+    private func companyFlashRing(_ id: String) -> some View {
+        RoundedRectangle(cornerRadius: Corner.lg, style: .continuous)
+            .strokeBorder(Palette.ink, lineWidth: 2)
+            .opacity(companyFlash == id ? 1 : 0)
+            .allowsHitTesting(false)
     }
 
     private func companyTeaserLine(_ teaser: CompanyTeaser) -> some View {
@@ -880,9 +928,13 @@ extension EventDetailView {
     @ViewBuilder
     private func companyAction(_ person: CompanyPerson, _ together: CompanionCard?, _ joined: Bool, _ view: DetailScreenState) -> some View {
         if joined, let together {
+            // Перехід до спільного чату — ціль 44, хоч бейдж і менший.
             NavigationLink(value: EventRoute(id: together.id)) {
-                StatusBadge(text: Copy.company_together, tone: .success, glyph: PoruchIcons.check)
-            }.buttonStyle(.plain)
+                StatusBadge(text: Copy.company_together, tone: .success, glyph: PoruchIcons.check).tapTarget()
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Copy.company_open_a11y)
+            .accessibilityValue(Copy.company_together)
         } else if let id = person.companionId {
             // Людина вже в компанії на цю подію: проситися туди, а не збирати другу.
             if together?.membership == .requested { StatusBadge(text: Copy.request_pending, tone: .accent, glyph: PoruchIcons.queue) }

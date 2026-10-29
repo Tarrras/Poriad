@@ -50,6 +50,8 @@ struct TicketSlide: Hashable {
 struct TicketRoute: Identifiable, Hashable {
     let id: String
     var invite = false
+    /// Квиток, з якого екран виростає (`morphSource`): «Мої події» чи «Квитки на сьогодні».
+    var morph: String? = nil
 }
 
 /// Файли квитків — лише на телефоні: копія в Application Support, текст — PDFKit чи Vision. Сервер їх не бачить.
@@ -131,24 +133,31 @@ enum TicketFiles {
         )
     }
 
+    /// Сторінки квитка: знімок — одна, PDF, що не відкрився, — нуль.
+    static func pageCount(_ ticket: WalletTicket) -> Int {
+        ticket.kind == .pdf ? PDFDocument(url: url(ticket.file))?.pageCount ?? 0 : 1
+    }
+
     /**
      * Що гортати на вході: кожен код квитка окремо й великим (на аркуші їх буває кілька — по одному на людину), а
      * сторінку без коду — цілою. Квиток часто — кут аркуша A4 з умовами й рекламою, і цілою сторінкою QR на екрані
-     * виходив міліметрів сім. Коди шукає Vision на растрі 1600: QR у кутку A4 там ще читається.
+     * виходив міліметрів сім. Коди шукає Vision на растрі 1600: QR у кутку A4 там ще читається. По сторінці:
+     * переглядач показує першу, щойно її пораховано, а не чекає, поки Vision обійде весь PDF.
      */
-    static func slides(_ ticket: WalletTicket) -> [TicketSlide] {
-        func slides(_ page: Int, _ cg: CGImage?) -> [TicketSlide] {
+    static func slides(_ ticket: WalletTicket, page index: Int) -> [TicketSlide] {
+        func slides(_ cg: CGImage?) -> [TicketSlide] {
             let codes = cg.map(codeBoxes) ?? []
-            return codes.isEmpty ? [TicketSlide(page: page, code: nil)] : codes.map { TicketSlide(page: page, code: $0) }
+            return codes.isEmpty ? [TicketSlide(page: index, code: nil)] : codes.map { TicketSlide(page: index, code: $0) }
         }
-        guard ticket.kind == .pdf else { return slides(0, upright(ticket)) }
-        guard let document = PDFDocument(url: url(ticket.file)) else { return [] }
-        return (0..<document.pageCount).flatMap { index in
-            // Повернута сторінка — без вирізок: так менше шансів помилитися з координатами, а таких квитків майже нема.
-            let page = document.page(at: index).flatMap { $0.rotation == 0 ? $0 : nil }
-            return slides(index, page.flatMap { image($0, width: 1600).cgImage })
-        }
+        guard ticket.kind == .pdf else { return slides(upright(ticket)) }
+        // Повернута сторінка — без вирізок: так менше шансів помилитися з координатами, а таких квитків майже нема.
+        let page = PDFDocument(url: url(ticket.file))?.page(at: index).flatMap { $0.rotation == 0 ? $0 : nil }
+        return slides(page.flatMap { image($0, width: 1600).cgImage })
     }
+
+    /// Межі кодів уже порахованих квитків за відбитком файлу: з нагадування чи вдруге на касі — одразу, без Vision.
+    /// ponytail: лише в пам'яті до перезапуску; у модель гаманця — коли перше відкриття після запуску стане проблемою.
+    @MainActor static var slideCache: [String: [TicketSlide]] = [:]
 
     /**
      * Слайд на весь екран — коли до нього догорнули, а не всі разом. Код — вектором PDF чи вирізкою зі знімка;
@@ -535,6 +544,11 @@ struct TicketViewer: View {
     @State private var editing = false
     /// «Ви йдете не самі» — до першого «Надіслати».
     @State private var sent = false
+    /// Vision ще обходить сторінки: поки слайдів нема — індикатор, а не порожній екран.
+    @State private var finding = true
+    /// Слайди, що не намалювались (файл зник чи зіпсований): замість вічного індикатора — помилка.
+    @State private var unreadable: Set<String> = []
+    @Environment(\.scenePhase) private var scenePhase
 
     private var ticket: WalletTicket? { model.state?.tickets.first { $0.id == ticketID } }
     private var count: Int { slides.count }
@@ -564,6 +578,8 @@ struct TicketViewer: View {
                             Text(seats).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
                         }
                     }
+                    // Код ділить висоту з шапкою й кнопками: на AX5 рядки шапки обрізались до «нд 1.11, 17:0…».
+                    .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 0)
                 Button { dismiss() } label: {
@@ -572,42 +588,76 @@ struct TicketViewer: View {
                 }
                 .buttonStyle(.plain).accessibilityLabel(Copy.close)
             }
-            TabView(selection: $page) {
-                ForEach(0..<count, id: \.self) { index in
-                    let code = slides[index].code != nil
-                    Group {
-                        if let image = images["\(index)/\(whole)"] {
-                            VStack(spacing: Space.sm) {
-                                // Квиток — папір: білий під ним і вночі, інакше QR на темному тлі сканер не бере. Вирізку
-                                // зі знімка збільшуємо без згладжування: модулі коду лишаються чіткими квадратами.
-                                ZoomableImage(image: image, crisp: code && ticket?.kind == .image).aspectRatio(image.size, contentMode: .fit)
-                                    .clipShape(RoundedRectangle(cornerRadius: Corner.md, style: .continuous))
-                                // Під карткою, а не на ній: на коді кнопка закрила б модулі.
-                                if code {
-                                    Button { whole.toggle() } label: {
-                                        Text(whole ? Copy.wallet_code : Copy.wallet_whole).font(PoruchFont.button).foregroundStyle(Palette.ink).tapTarget()
+            if slides.isEmpty {
+                // Поки шукаються коди — індикатор із підписом; не знайшлось жодної сторінки — помилка, «Редагувати» нижче.
+                VStack(spacing: Space.md) {
+                    if finding {
+                        ProgressView().tint(Palette.ink)
+                        Text(Copy.wallet_finding_code).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
+                    } else {
+                        unreadableNote
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .accessibilityElement(children: .combine)
+            } else {
+                TabView(selection: $page) {
+                    ForEach(0..<count, id: \.self) { index in
+                        let code = slides[index].code != nil
+                        Group {
+                            if unreadable.contains("\(index)/\(whole)") {
+                                unreadableNote.frame(maxWidth: .infinity, maxHeight: .infinity)
+                            } else if let image = images["\(index)/\(whole)"] {
+                                VStack(spacing: Space.sm) {
+                                    // Квиток — папір: білий під ним і вночі, інакше QR на темному тлі сканер не бере. Вирізку
+                                    // зі знімка збільшуємо без згладжування: модулі коду лишаються чіткими квадратами.
+                                    ZoomableImage(image: image, crisp: code && ticket?.kind == .image).aspectRatio(image.size, contentMode: .fit)
+                                        .clipShape(RoundedRectangle(cornerRadius: Corner.md, style: .continuous))
+                                    // Під карткою, а не на ній: на коді кнопка закрила б модулі.
+                                    if code {
+                                        Button { whole.toggle() } label: {
+                                            Text(whole ? Copy.wallet_code : Copy.wallet_whole).font(PoruchFont.button).foregroundStyle(Palette.ink).tapTarget()
+                                        }
+                                        .buttonStyle(.plain)
                                     }
-                                    .buttonStyle(.plain)
                                 }
+                                // Код проявляється на папері, що щойно розгорнувся з квитка, а не вискакує.
+                                .transition(.opacity)
+                            } else {
+                                ProgressView().tint(Palette.ink).frame(maxWidth: .infinity, maxHeight: .infinity)
                             }
-                        } else {
-                            ProgressView().tint(Palette.ink).frame(maxWidth: .infinity, maxHeight: .infinity)
+                        }
+                        .padding(.bottom, Space.xl)
+                        .accessibilityElement(children: .contain)
+                        .accessibilityLabel(ticket.map { pageLabel($0, index) } ?? "")
+                        .tag(index)
+                        // Слайд малюється, коли до нього догорнули: PDF на десять квитків не тримає десять растрів.
+                        .task(id: whole) {
+                            let key = "\(index)/\(whole)"
+                            guard images[key] == nil, let ticket else { return }
+                            let slide = slides[index], whole = whole
+                            let image = await Task.detached { TicketFiles.slideImage(ticket, slide, whole: whole) }.value
+                            withAnimation(.easeOut(duration: 0.25)) {
+                                if let image { images[key] = image } else { unreadable.insert(key) }
+                            }
                         }
                     }
-                    .padding(.bottom, Space.xl)
-                    .accessibilityElement(children: .contain)
-                    .accessibilityLabel(ticket.map { pageLabel($0, index) } ?? "")
-                    .tag(index)
-                    // Слайд малюється, коли до нього догорнули: PDF на десять квитків не тримає десять растрів.
-                    .task(id: whole) {
-                        let key = "\(index)/\(whole)"
-                        guard images[key] == nil, let ticket else { return }
-                        let slide = slides[index], whole = whole
-                        images[key] = await Task.detached { TicketFiles.slideImage(ticket, slide, whole: whole) }.value
+                }
+                .tabViewStyle(.page(indexDisplayMode: .never))
+                // Крапки сторінок свої, чорнилом: системні білі на денному полотні не видно навіть із підкладкою.
+                // Номер сторінки читає VoiceOver із заголовка («Квиток 2 з 2»).
+                .overlay(alignment: .bottom) {
+                    if count > 1 {
+                        HStack(spacing: Space.sm) {
+                            ForEach(0..<count, id: \.self) { index in
+                                Circle().fill(index == page ? Palette.ink : Palette.inkTertiary.opacity(0.5)).frame(width: 7, height: 7)
+                            }
+                        }
+                        .padding(.bottom, Space.xs)
+                        .accessibilityHidden(true)
                     }
                 }
             }
-            .tabViewStyle(.page(indexDisplayMode: count > 1 ? .always : .never))
             // Квиток тому, з ким ідеш: лише сторінка, яку видно, і що-коли-де з посиланням (docs/ticket-wallet.md, хвиля 2).
             if let ticket {
                 if invite && !sent && count > 1 {
@@ -615,36 +665,46 @@ struct TicketViewer: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 let seat = alone(page) ? pageSeat(ticket, page: page, pages: count) : nil
-                SecondaryButton(title: seat.map { Copy.wallet_send_seat($0.seat) } ?? Copy.wallet_send, glyph: PoruchIcons.share) {
+                // Без слайдів надсилати нічого: кнопка вимкнена, а не мовчить.
+                SecondaryButton(title: seat.map { Copy.wallet_send_seat($0.seat) } ?? Copy.wallet_send, glyph: PoruchIcons.share, enabled: page < count) {
                     guard page < count, let file = TicketFiles.single(ticket, page: slides[page].page) else { return }
                     model.app.ticketSent(id: ticket.id)
                     sent = true
                     sharing = TicketShare(items: [ticketShareText(ticket), file])
                 }
             }
-            HStack(spacing: Space.xl) {
-                Button { editing = true } label: {
-                    Text(Copy.edit).font(PoruchFont.button).foregroundStyle(Palette.ink).tapTarget()
-                }
-                Button { deleting = true } label: {
-                    Text(Copy.wallet_delete).font(PoruchFont.button).foregroundStyle(Palette.danger).tapTarget()
-                }
+            // Не вміщаються в ряд (великий шрифт) — одна під одною, а не «Реда-гувати» по складах.
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: Space.xl) { editButton; deleteButton }
+                VStack(spacing: 0) { editButton; deleteButton }
             }
             .buttonStyle(.plain).frame(maxWidth: .infinity)
         }
         .padding(.horizontal, Space.page).padding(.top, Space.lg).padding(.bottom, Space.md)
+        // Головне тут — код на касі: на AX5 шапка й кнопки лишали йому смужку в 120 pt. Текст росте до AX2.
+        .dynamicTypeSize(...DynamicTypeSize.accessibility2)
         .background(Palette.canvas.ignoresSafeArea())
         .task {
             guard let ticket else { return }
-            slides = await Task.detached { TicketFiles.slides(ticket) }.value
             model.app.ticketShown(id: ticket.id)
+            let key = ticket.fingerprint ?? ticket.id
+            if let cached = TicketFiles.slideCache[key] {
+                slides = cached
+            } else {
+                // Спершу перша сторінка: її показуємо одразу, решту дораховуємо, поки людина дивиться на першу.
+                let pages = await Task.detached { TicketFiles.pageCount(ticket) }.value
+                for index in 0..<pages {
+                    slides += await Task.detached { TicketFiles.slides(ticket, page: index) }.value
+                }
+                // Закрили посеред підрахунку — слайди неповні, у кеш їх не кладемо.
+                if pages > 0 && !Task.isCancelled { TicketFiles.slideCache[key] = slides }
+            }
+            finding = false
         }
-        .onAppear {
-            guard let screen = keyScreen() else { return }
-            brightness = screen.brightness
-            screen.brightness = 1
-        }
-        .onDisappear { if let brightness { keyScreen()?.brightness = brightness } }
+        // Яскравість — лише поки квиток на екрані: згорнули застосунок — повертаємо, повернулись — знову на повну.
+        .onAppear(perform: brighten)
+        .onDisappear(perform: restoreBrightness)
+        .onChange(of: scenePhase) { _, phase in if phase == .active { brighten() } else { restoreBrightness() } }
         .sheet(item: $sharing) { ActivitySheet(items: $0.items).presentationDetents([.medium, .large]) }
         .sheet(isPresented: $editing) {
             if let ticket { TicketImportSheet(ticket: TicketImport(editing: ticket), editing: ticket) }
@@ -665,6 +725,36 @@ struct TicketViewer: View {
 
     private func keyScreen() -> UIScreen? {
         UIApplication.shared.connectedScenes.compactMap { ($0 as? UIWindowScene)?.screen }.first
+    }
+
+    private var editButton: some View {
+        Button { editing = true } label: {
+            Text(Copy.edit).font(PoruchFont.button).foregroundStyle(Palette.ink).fixedSize().tapTarget()
+        }
+    }
+
+    private var deleteButton: some View {
+        Button { deleting = true } label: {
+            Text(Copy.wallet_delete).font(PoruchFont.button).foregroundStyle(Palette.danger).fixedSize().tapTarget()
+        }
+    }
+
+    private func brighten() {
+        guard brightness == nil, let screen = keyScreen() else { return }
+        brightness = screen.brightness
+        screen.brightness = 1
+    }
+
+    private func restoreBrightness() {
+        guard let brightness else { return }
+        keyScreen()?.brightness = brightness
+        self.brightness = nil
+    }
+
+    private var unreadableNote: some View {
+        Text(Copy.wallet_failed).font(PoruchFont.bodyText).foregroundStyle(Palette.inkSecondary)
+            .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, Space.xl)
     }
 }
 
@@ -727,14 +817,19 @@ private struct ZoomableImage: UIViewRepresentable {
 /// День події: квиток першим на головній — його відкривають на вході. І в гостя, і в кіно без афіші.
 struct TodayTickets: View {
     @Environment(\.appModel) private var appModel
+    @Environment(\.morphSpace) private var morphSpace
     let tickets: [WalletTicket]
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.md) {
             SectionHeader(title: Copy.wallet_today)
             ForEach(tickets, id: \.id) { ticket in
-                Button { appModel?.root.shownTicket = TicketRoute(id: ticket.id) } label: { WalletTicketCard(ticket: ticket) }
-                    .buttonStyle(PressableStyle())
+                // Квиток розгортається в екран із кодом і згортається назад у свій корінець.
+                let morph = "today/\(ticket.id)"
+                Button { appModel?.root.shownTicket = TicketRoute(id: ticket.id, morph: morph) } label: {
+                    WalletTicketCard(ticket: ticket).morphSource(morph, in: morphSpace)
+                }
+                .buttonStyle(PressableStyle())
             }
         }
         .padding(.horizontal, Space.page)
@@ -755,6 +850,16 @@ struct TicketsSection: View {
     @State private var photos = false
     @State private var photo: PhotosPickerItem?
     @State private var showsPast = false
+    @Environment(\.morphSpace) private var morphSpace
+
+    /// Квиток розгортається в екран із кодом і згортається назад у свій корінець (`morphSource`).
+    private func ticketButton(_ ticket: WalletTicket, punched: Bool = false) -> some View {
+        let morph = "mine/\(ticket.id)"
+        return Button { model.root.shownTicket = TicketRoute(id: ticket.id, morph: morph) } label: {
+            WalletTicketCard(ticket: ticket, punched: punched).morphSource(morph, in: morphSpace)
+        }
+        .buttonStyle(PressableStyle())
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.md) {
@@ -763,10 +868,7 @@ struct TicketsSection: View {
                     .cardSurface()
             } else {
                 SectionHeader(title: Copy.wallet_title, actionLabel: Copy.wallet_add) { choosing = true }
-                ForEach(tickets, id: \.id) { ticket in
-                    Button { model.root.shownTicket = TicketRoute(id: ticket.id) } label: { WalletTicketCard(ticket: ticket) }
-                        .buttonStyle(PressableStyle())
-                }
+                ForEach(tickets, id: \.id) { ticketButton($0) }
             }
             if !past.isEmpty {
                 Button { withMotion { showsPast.toggle() } } label: {
@@ -781,10 +883,7 @@ struct TicketsSection: View {
                 .buttonStyle(.plain)
                 .accessibilityValue(showsPast ? Copy.expanded : Copy.collapsed)
                 if showsPast {
-                    ForEach(past, id: \.id) { ticket in
-                        Button { model.root.shownTicket = TicketRoute(id: ticket.id) } label: { WalletTicketCard(ticket: ticket, punched: true) }
-                            .buttonStyle(PressableStyle())
-                    }
+                    ForEach(past, id: \.id) { ticketButton($0, punched: true) }
                 }
             }
         }
@@ -844,7 +943,11 @@ struct WalletTicketCard: View {
             .foregroundStyle(Palette.onBrand).padding(.horizontal, Space.sm)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel([ticket.title, ticketWhen(ticket), ticket.place ?? "", Copy.wallet_count(Int(ticket.count))].filter { !$0.isEmpty }.joined(separator: ", "))
+        // Те саме, що надруковано: місце (ряд і місце), а минулий — словами, бо пробиття видно лише оком.
+        .accessibilityLabel(
+            [ticket.title, ticketWhen(ticket), ticket.place ?? "", ticketSeats(ticket) ?? Copy.wallet_count(Int(ticket.count)), punched ? Copy.event_ended : ""]
+                .filter { !$0.isEmpty }.joined(separator: ", ")
+        )
         .accessibilityAddTraits(.isButton)
     }
 }
