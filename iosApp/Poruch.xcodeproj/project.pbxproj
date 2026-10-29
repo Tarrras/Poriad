@@ -26,6 +26,7 @@
 		85A90A973845034315C92D21 /* Ticket.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D1F990F7BD068C6A233CE89 /* Ticket.swift */; };
 		DBF54E8F046803D6BCC49C2D /* AuthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C36120E9124B9DB9AD13320D /* AuthView.swift */; };
 		285D4F636264F745301810B6 /* FollowsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6C1C02E9EFA0CFA52EEFAA5 /* FollowsView.swift */; };
+		7A1C0DE5A1B2C3D4E5F6A7B8 /* MyPlacesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C0DE5A1B2C3D4E5F6A7B9 /* MyPlacesView.swift */; };
 		048AADADF625C1015062B7FD /* NewPasswordView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95C4EDDD2CA722B0F1057C93 /* NewPasswordView.swift */; };
 		344B9FAB703A8611AD96F4D4 /* PersonCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6E940D45ABD75825FAC96C4 /* PersonCard.swift */; };
 		B252AA32864504DE8FD7FA9B /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39B8DC0C3B365C8E3663478D /* ProfileView.swift */; };
@@ -96,6 +97,7 @@
 		1D1F990F7BD068C6A233CE89 /* Ticket.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = Ticket.swift; path = DesignSystem/Ticket.swift; sourceTree = "<group>"; };
 		C36120E9124B9DB9AD13320D /* AuthView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AuthView.swift; path = Features/Account/AuthView.swift; sourceTree = "<group>"; };
 		F6C1C02E9EFA0CFA52EEFAA5 /* FollowsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = FollowsView.swift; path = Features/Account/FollowsView.swift; sourceTree = "<group>"; };
+		7A1C0DE5A1B2C3D4E5F6A7B9 /* MyPlacesView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MyPlacesView.swift; path = Features/Account/MyPlacesView.swift; sourceTree = "<group>"; };
 		95C4EDDD2CA722B0F1057C93 /* NewPasswordView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = NewPasswordView.swift; path = Features/Account/NewPasswordView.swift; sourceTree = "<group>"; };
 		E6E940D45ABD75825FAC96C4 /* PersonCard.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = PersonCard.swift; path = Features/Account/PersonCard.swift; sourceTree = "<group>"; };
 		39B8DC0C3B365C8E3663478D /* ProfileView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ProfileView.swift; path = Features/Account/ProfileView.swift; sourceTree = "<group>"; };
@@ -201,6 +203,7 @@
 				1D1F990F7BD068C6A233CE89 /* Ticket.swift */,
 				C36120E9124B9DB9AD13320D /* AuthView.swift */,
 				F6C1C02E9EFA0CFA52EEFAA5 /* FollowsView.swift */,
+				7A1C0DE5A1B2C3D4E5F6A7B9 /* MyPlacesView.swift */,
 				95C4EDDD2CA722B0F1057C93 /* NewPasswordView.swift */,
 				E6E940D45ABD75825FAC96C4 /* PersonCard.swift */,
 				39B8DC0C3B365C8E3663478D /* ProfileView.swift */,
@@ -434,6 +437,7 @@
 				85A90A973845034315C92D21 /* Ticket.swift in Sources */,
 				DBF54E8F046803D6BCC49C2D /* AuthView.swift in Sources */,
 				285D4F636264F745301810B6 /* FollowsView.swift in Sources */,
+				7A1C0DE5A1B2C3D4E5F6A7B8 /* MyPlacesView.swift in Sources */,
 				048AADADF625C1015062B7FD /* NewPasswordView.swift in Sources */,
 				344B9FAB703A8611AD96F4D4 /* PersonCard.swift in Sources */,
 				B252AA32864504DE8FD7FA9B /* ProfileView.swift in Sources */,

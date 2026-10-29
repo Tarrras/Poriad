@@ -283,6 +283,7 @@ private func digestBody(_ digest: WeekendDigest) -> String {
         if reason == .company { return Copy.digest_reason_company }
         if reason == .oneNight { return Copy.digest_reason_one_night }
         if reason == .forYou { return Copy.digest_reason_for_you }
+        if reason == .near { return Copy.digest_reason_near }
         return nil
     }.joined(separator: " · ")
     if reasons.isEmpty { return more > 0 ? Copy.digest_more(lead, "\(more)") : lead }

@@ -1,7 +1,7 @@
 import SwiftUI
 import Shared
 
-/// Онбординг: чотири питання, «Пропустити» на кожному кроці. Відповіді пишуться в стор усі разом наприкінці, артисти —
+/// Онбординг: питання, «Пропустити» на кожному кроці. Відповіді пишуться в стор усі разом наприкінці, артисти й райони —
 /// підписками там же; потік завершує стор.
 struct OnboardingView: View {
     @EnvironmentObject var model: AppModel
@@ -11,6 +11,8 @@ struct OnboardingView: View {
     @State private var crowd = Crowd.any
     /// Обрані на кроці «За ким стежити?»: підписки ставимо разом з рештою відповідей, на «Готово».
     @State private var artists: [String: PopularArtist] = [:]
+    /// Райони кроку «Де ви буваєте?»: у «Мої місця» — теж на «Готово».
+    @State private var places: Set<Int64> = []
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -25,6 +27,7 @@ struct OnboardingView: View {
                         case .times: timesStep
                         case .crowd: crowdStep
                         case .artists: artistsStep
+                        case .places: placesStep
                         }
                     }
                     .padding(.top, Space.lg)
@@ -59,14 +62,17 @@ struct OnboardingView: View {
     private var topRow: some View {
         HStack(spacing: Space.md) {
             if step != .welcome {
-                IconPill(glyph: PoruchIcons.chevronLeft, label: Copy.back, size: 40) { step = step.previous }
+                IconPill(glyph: PoruchIcons.chevronLeft, label: Copy.back, size: 40) {
+                    step = steps.last { $0.rawValue < step.rawValue } ?? .welcome
+                }
+                let position = steps.firstIndex(of: step) ?? 0
                 HStack(spacing: Space.xs) {
-                    ForEach(1..<OnboardingStep.allCases.count, id: \.self) { index in
-                        Capsule().fill(index <= step.rawValue ? Palette.brand : Palette.inkTertiary.opacity(0.5)).frame(height: 4)
+                    ForEach(1..<steps.count, id: \.self) { index in
+                        Capsule().fill(index <= position ? Palette.brand : Palette.inkTertiary.opacity(0.5)).frame(height: 4)
                     }
                 }
                 .accessibilityElement()
-                .accessibilityLabel(Copy.onboarding_step("\(step.rawValue)", "\(OnboardingStep.allCases.count - 1)"))
+                .accessibilityLabel(Copy.onboarding_step("\(position)", "\(steps.count - 1)"))
             } else {
                 Spacer(minLength: 0)
             }
@@ -137,10 +143,48 @@ struct OnboardingView: View {
         }
     }
 
+    /// Райони міста, а не місцевості: адміністративних кілька, і їх знають на ім'я.
+    private var districts: [District] {
+        (model.state?.city.districts ?? []).filter { !$0.isLocality }.sorted { $0.name < $1.name }
+    }
+
+    /// «Де ви буваєте?»: райони чипами, вибір кількох. Ті, за якими вже стежать (онбординг з профілю), позначені й тут
+    /// не знімаються, як артисти.
+    private var placesStep: some View {
+        let followed = model.root.followedDistricts
+        return question(Copy.onboarding_places_title, Copy.onboarding_places_hint) {
+            VStack(alignment: .leading, spacing: Space.sm) {
+                // Місто ще може бути типовим (геолокацію питаємо після туру): назва каже, чиї це райони.
+                GroupLabel(title: model.state?.city.name ?? "")
+                FlowLayout(spacing: Space.sm) {
+                    ForEach(districts, id: \.id) { district in
+                        let on = followed.contains(district.id)
+                        RadarChip(name: district.shortName, on: on || places.contains(district.id)) {
+                            places = places.symmetricDifference([district.id])
+                        }
+                        .disabled(on)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Кроки, які є: без артистів (збій, порожньо) чи районів міста відповідного кроку нема.
+    private var steps: [OnboardingStep] {
+        OnboardingStep.allCases.filter {
+            switch $0 {
+            case .artists: model.state?.popularArtists?.isEmpty != true
+            case .places: !districts.isEmpty
+            default: true
+            }
+        }
+    }
+
     private var actionLabel: String {
         if step == .artists && !artists.isEmpty { return Copy.radar_picker_follow("\(artists.count)") }
-        if step == .crowd && model.state?.popularArtists?.isEmpty == true { return Copy.onboarding_finish }
-        return step.actionLabel
+        if step == .places && !places.isEmpty { return Copy.onboarding_places_follow(places.count) }
+        if step == .welcome { return Copy.onboarding_start }
+        return step == steps.last ? Copy.onboarding_finish : Copy.next
     }
 
     @ViewBuilder private func question<Content: View>(
@@ -156,33 +200,26 @@ struct OnboardingView: View {
     }
 
     private func advance() {
-        // Артистів нема (збій, порожньо) — крок «За ким стежити?» нічого не дасть, закінчуємо на «Який формат?».
-        let noArtists = model.state?.popularArtists?.isEmpty == true
-        guard step == .artists || (step == .crowd && noArtists) else {
-            step = step.next
+        // Крок без даних (артистів чи районів нема) пропускаємо: останнім стає попередній.
+        if let next = steps.first(where: { $0.rawValue > step.rawValue }) {
+            step = next
             return
         }
-        if step == .artists {
+        if steps.contains(.artists) {
             model.app.followArtists(picked: Array(artists.values), from: "onboarding")
             model.app.radarPickerClosed(shown: Int32(model.state?.popularArtists?.count ?? 0), picked: Int32(artists.count), from: "onboarding")
+        }
+        // Перемикач: уже обрані з профілю лишаються, бо в `places` їх не буває.
+        for district in districts where places.contains(district.id) {
+            model.app.toggleDistrictZone(district: district, from: "onboarding")
         }
         model.app.saveTaste(interests: interests, times: times, crowd: crowd)
     }
 }
 
-/// Кроки онбордингу: те, що читає ранжування, і артисти — привід повернутись. Кожен зайвий екран — привід піти.
+/// Кроки онбордингу: те, що читає ранжування, артисти й райони — привід повернутись. Кожен зайвий екран — привід піти.
 private enum OnboardingStep: Int, CaseIterable {
-    case welcome, interests, times, crowd, artists
-
-    var next: OnboardingStep { OnboardingStep(rawValue: rawValue + 1) ?? .artists }
-    var previous: OnboardingStep { OnboardingStep(rawValue: rawValue - 1) ?? .welcome }
-    var actionLabel: String {
-        switch self {
-        case .welcome: Copy.onboarding_start
-        case .artists: Copy.onboarding_finish
-        default: Copy.next
-        }
-    }
+    case welcome, interests, times, crowd, artists, places
 }
 
 /// Одна відповідь рядком групового списку. Квадрат — можна кілька, коло — рівно одну.

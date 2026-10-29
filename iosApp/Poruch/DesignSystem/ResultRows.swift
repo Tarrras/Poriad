@@ -222,6 +222,9 @@ struct PlacesGroup: View {
 /// рядок: «Поки без подій» чесно каже, що район є, а подій нема. Після нещодавнього перейменування — «раніше …».
 struct DistrictRow: View {
     let hit: DistrictHit
+    /// «Мої місця»: дзвінок справа окремою ціллю. Nil — рядок без нього (пошук, головна).
+    var following: Bool?
+    var toggleFollow: () -> Void = {}
     let action: () -> Void
 
     private var subtitle: String {
@@ -234,6 +237,21 @@ struct DistrictRow: View {
     }
 
     var body: some View {
+        HStack(spacing: Space.sm) {
+            row
+            // Сусід рядка, а не його частина: тап по рядку фільтрує мапу, по дзвінку — стежить.
+            if let following {
+                IconPill(
+                    glyph: following ? PoruchIcons.bellActive : PoruchIcons.bell,
+                    label: following ? Copy.places_unfollow_a11y(hit.district.name) : Copy.places_follow_a11y(hit.district.name),
+                    selected: following, size: 40, offFill: Palette.surfaceMuted, action: toggleFollow
+                )
+                .padding(.trailing, Space.md)
+            }
+        }
+    }
+
+    private var row: some View {
         Button(action: action) {
             HStack(spacing: Space.md) {
                 PoruchIcon(glyph: PoruchIcons.district, size: 20).foregroundStyle(Palette.ink)
@@ -247,7 +265,7 @@ struct DistrictRow: View {
                 }
                 Spacer(minLength: 0)
             }
-            .padding(.horizontal, Space.lg).padding(.vertical, Space.md)
+            .padding(.leading, Space.lg).padding(.trailing, following == nil ? Space.lg : 0).padding(.vertical, Space.md)
             .contentShape(Rectangle())
         }
         .buttonStyle(PressableStyle(pressedScale: 1))
@@ -260,6 +278,9 @@ struct DistrictsGroup: View {
     let districts: [DistrictHit]
     /// «Райони» чи «Місцевості».
     var title = Copy.search_districts_group
+    /// За якими стежать, з дзвінком у кожному рядку. Nil — без дзвінків.
+    var followed: Set<Int64>?
+    var toggleFollow: (DistrictHit) -> Void = { _ in }
     let open: (DistrictHit) -> Void
     var body: some View {
         VStack(alignment: .leading, spacing: Space.sm) {
@@ -267,7 +288,7 @@ struct DistrictsGroup: View {
             GroupedRows {
                 ForEach(Array(districts.enumerated()), id: \.element.district.id) { position, hit in
                     if position > 0 { Divider().overlay(Palette.hairline).padding(.leading, Space.lg + 40 + Space.md) }
-                    DistrictRow(hit: hit) { open(hit) }
+                    DistrictRow(hit: hit, following: followed.map { $0.contains(hit.district.id) }, toggleFollow: { toggleFollow(hit) }) { open(hit) }
                 }
             }
         }

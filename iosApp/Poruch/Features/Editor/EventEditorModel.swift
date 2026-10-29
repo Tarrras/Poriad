@@ -136,6 +136,8 @@ enum EditorStep: Int, CaseIterable, Identifiable {
 
     /// Адреса під ціллю на екрані вибору. Порожня, поки відповідь у дорозі.
     @Published private(set) var aimAddress = ""
+    /// Скільки людей із «Моїми місцями» навколо крапки отримають анонс. Nil — менше трьох, крапки нема чи це правка.
+    @Published private(set) var audience: Int?
 
     private let app: PoruchApp
     private let event: Event?
@@ -301,6 +303,15 @@ enum EditorStep: Int, CaseIterable, Identifiable {
                 addressSuggestions = []
             }
             resolveTimeZone(latitude: latitude, longitude: longitude)
+        }
+    }
+
+    /// Анонс у зони шле лише нова подія, тож правці числа не кажемо. Відповідь для крапки, яку вже пересунули, — чужа.
+    func countAudience() {
+        guard !editing, let point = form.point else { audience = nil; return }
+        app.zoneAudience(latitude: point.latitude, longitude: point.longitude) { [weak self] count in
+            guard let self, form.point.map({ $0 == point }) == true else { return }
+            audience = count.map { Int(truncating: $0) }
         }
     }
 

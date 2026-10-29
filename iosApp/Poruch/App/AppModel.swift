@@ -57,6 +57,8 @@ extension EnvironmentValues {
     private(set) var signedIn = false
     private(set) var passwordRecovery = false
     private(set) var notice: AppNotice?
+    /// Райони з «Моїх місць»: дзвінок у рядку району без підписки шторки на весь стор.
+    private(set) var followedDistricts: Set<Int64> = []
     /// Квиток, що прийшов файлом, — шторка підтвердження поверх будь-якої вкладки (docs/ticket-wallet.md).
     var ticketIntake: TicketIntake?
     /// Квиток на весь екран, коли шторка закриється: «Показати квиток» з дубля.
@@ -79,6 +81,8 @@ extension EnvironmentValues {
         if newFollows != follows { newFollows = follows }
         if signedIn != state.signedIn { signedIn = state.signedIn }
         if passwordRecovery != state.session.passwordRecovery { passwordRecovery = state.session.passwordRecovery }
+        let districts = Set(state.zones.compactMap { ($0 as? ZoneArea)?.districtId })
+        if followedDistricts != districts { followedDistricts = districts }
         // Kotlin-інтерфейс — протокол без `Equatable`: порівнюємо за посиланням, обʼєкт сповіщення один на емісію.
         if (notice as AnyObject?) !== (state.notice as AnyObject?) { notice = state.notice }
     }

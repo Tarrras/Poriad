@@ -7,6 +7,8 @@ struct ProfileView: View {
     @EnvironmentObject var model: AppModel
     /// Список підписок — окремий екран у стосі вкладки (`RootView.profilePath`).
     var openFollows: () -> Void
+    /// «Мої місця» — теж екран у стосі вкладки.
+    var openPlaces: () -> Void
     /// Редактор нової події — той самий шлях, що й «+» біля таббару.
     var createEvent: () -> Void
     @State private var newPassword = ""
@@ -37,7 +39,7 @@ struct ProfileView: View {
                     if signedIn, let profile = model.state?.library.profile, profile.organized == 0, profile.attended == 0 {
                         CreateEventCard(title: Copy.home_create_title, subtitle: Copy.home_create_subtitle, action: createEvent)
                     }
-                    if signedIn && !(model.state?.library.follows ?? []).isEmpty { follows }
+                    follows
                     taste
                     notifications
                     privacy
@@ -135,13 +137,22 @@ struct ProfileView: View {
     }
 
     /// Список підписок — окремий екран: тут лише рядок, що каже, що вони є й де. Порожнім його не показуємо.
+    /// «Мої місця» під ним — завжди, і гостю: зони належать телефону, а порожній список і є запрошення.
     private var follows: some View {
-        GroupedRows {
+        let zones = model.state?.zones.count ?? 0
+        return GroupedRows {
+            if signedIn && !(model.state?.library.follows ?? []).isEmpty {
+                LinkRow(
+                    glyph: PoruchIcons.bell, title: Copy.follows_title, subtitle: Copy.follows_hint,
+                    value: "\(model.state?.library.follows.count ?? 0)",
+                    badge: (model.state?.library.newFollowEvents).flatMap { $0 > 0 ? Copy.follows_new(Int($0)) : nil },
+                    action: openFollows
+                )
+                Divider().overlay(Palette.hairline).padding(.leading, Space.lg + 40 + Space.md)
+            }
             LinkRow(
-                glyph: PoruchIcons.bell, title: Copy.follows_title, subtitle: Copy.follows_hint,
-                value: "\(model.state?.library.follows.count ?? 0)",
-                badge: (model.state?.library.newFollowEvents).flatMap { $0 > 0 ? Copy.follows_new(Int($0)) : nil },
-                action: openFollows
+                glyph: PoruchIcons.district, title: Copy.places_title, subtitle: Copy.places_hint,
+                value: zones > 0 ? "\(zones)" : nil, action: openPlaces
             )
         }
     }

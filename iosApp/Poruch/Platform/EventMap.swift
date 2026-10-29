@@ -34,7 +34,7 @@ private let chosenIconName = "poruch-chosen"
     func zoomIn() { zoom(by: 1) }
     func zoomOut() { zoom(by: -1) }
 
-    private func zoom(by delta: Double) {
+    func zoom(by delta: Double) {
         guard let map else { return }
         // Обмежуємо межами мапи, щоб кнопка лишалась живою.
         let target = min(map.maximumZoomLevel, max(map.minimumZoomLevel, map.zoomLevel + delta))
@@ -245,6 +245,8 @@ struct EventMap: UIViewRepresentable {
     var centerChanged: (Double, Double) -> Void = { _, _ in }
     /// Видимі межі після кожної зупинки камери, хоч від жесту, хоч від вибору; `moved` — лише від жесту.
     var visibleChanged: (MapRegion) -> Void = { _ in }
+    /// Метрів в одному pt на широті центру, на кожен кадр руху: коло «Моїх місць» поверх мапи росте з нею.
+    var scaleChanged: ((Double) -> Void)?
     /// Керування зумом кнопками.
     var controller: MapController?
 
@@ -274,6 +276,10 @@ struct EventMap: UIViewRepresentable {
         // Локальний стиль MapLibre розбирає ще до призначення делегата, і didFinishLoading не
         // лунає. Тому шари ставимо самі, щойно стиль є; делегат — для випадку, коли ще вантажиться.
         context.coordinator.installStyleIfReady(map)
+        if let scaleChanged {
+            let scale = map.metersPerPoint(atLatitude: latitude)
+            DispatchQueue.main.async { scaleChanged(scale) }
+        }
         return map
     }
 
@@ -617,7 +623,12 @@ struct EventMap: UIViewRepresentable {
             DispatchQueue.main.async { self.parent.loadFailed(true) }
         }
 
+        func mapViewRegionIsChanging(_ mapView: MLNMapView) {
+            parent.scaleChanged?(mapView.metersPerPoint(atLatitude: mapView.centerCoordinate.latitude))
+        }
+
         func mapView(_ mapView: MLNMapView, regionDidChangeWith reason: MLNCameraChangeReason, animated: Bool) {
+            parent.scaleChanged?(mapView.metersPerPoint(atLatitude: mapView.centerCoordinate.latitude))
             let center = mapView.centerCoordinate
             parent.centerChanged(center.latitude, center.longitude)
             let bounds = mapView.visibleCoordinateBounds

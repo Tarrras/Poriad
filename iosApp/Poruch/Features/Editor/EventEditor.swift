@@ -318,6 +318,8 @@ private struct PlaceStep: View {
         _mapLongitude = State(initialValue: editor.form.longitude)
     }
     private var form: Binding<EditorForm> { $editor.form }
+    /// Крапка рядком: кортеж не `Equatable`, а `onSettled` порівнює значення.
+    private var audienceKey: String { editor.form.point.map { "\($0.latitude),\($0.longitude)" } ?? "" }
     var body: some View {
         LabelledField(label: Copy.city, text: form.city, placeholder: Copy.city_example)
             .textInputAutocapitalization(.words)
@@ -373,10 +375,21 @@ private struct PlaceStep: View {
             text: editor.pointChosen ? Copy.address_point_set : Copy.address_or_map
         )
         FieldIssue(text: editor.issue(.location)).id(DraftField.location)
+        // Тихо, як рядок про крапку: число людей поруч — привід, а не умова публікації.
+        if let audience = editor.audience {
+            HStack(alignment: .firstTextBaseline, spacing: Space.sm) {
+                PoruchIcon(glyph: PoruchIcons.bell, size: 15).foregroundStyle(Palette.inkTertiary)
+                Text(Copy.editor_audience(audience)).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .accessibilityElement(children: .combine)
+        }
         SecondaryButton(title: editor.pointChosen ? Copy.change_point : Copy.choose_point) {
             picking = true
         }
         .frame(maxWidth: .infinity)
+        .task { editor.countAudience() }
+        .onSettled(audienceKey, after: .milliseconds(400)) { _ in editor.countAudience() }
         // Слухаємо лічильник, а не координати: від панорами вони теж міняються.
         .onChange(of: editor.placedAt) { _, _ in
             mapLatitude = editor.form.latitude
@@ -575,7 +588,7 @@ private struct PointPicker: View {
 }
 
 /// Кругла кнопка масштабу поверх мапи.
-private struct ZoomButton: View {
+struct ZoomButton: View {
     let glyph: PoruchGlyph
     let label: String
     let action: () -> Void

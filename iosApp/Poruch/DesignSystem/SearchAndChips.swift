@@ -90,6 +90,8 @@ struct IconPill: View {
     let label: String
     var selected: Bool = false
     var size: CGFloat = 48
+    /// Тло невибраної: над мапою — картка, у рядку на картці — `surfaceMuted`, як плитка гліфа поруч.
+    var offFill: Color = Palette.surface
     let action: () -> Void
     var body: some View {
         Button(action: action) {
@@ -97,7 +99,7 @@ struct IconPill: View {
                 .foregroundStyle(selected ? Palette.onBrand : Palette.ink)
                 .frame(width: size, height: size)
                 .background {
-                    if selected { Circle().fill(brandGradient) } else { Circle().fill(Palette.surface) }
+                    if selected { Circle().fill(brandGradient) } else { Circle().fill(offFill) }
                 }
                 .overlay(Circle().strokeBorder(Palette.hairline, lineWidth: selected || scheme == .light ? 0 : 1))
                 .tapTarget()

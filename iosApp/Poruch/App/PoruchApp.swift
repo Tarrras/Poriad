@@ -291,9 +291,13 @@ struct RootView: View {
                         .navigationDestination(for: ArtistRoute.self) { ArtistView(route: $0) }
                 }.tag(2)
                 NavigationStack(path: $profilePath) {
-                    ProfileView(openFollows: { profilePath.append(FollowsRoute()) }, createEvent: { startCreating(from: "profile") })
+                    ProfileView(
+                        openFollows: { profilePath.append(FollowsRoute()) }, openPlaces: { profilePath.append(PlacesRoute()) },
+                        createEvent: { startCreating(from: "profile") }
+                    )
                         .safeAreaPadding(.bottom, 92).toolbar(.hidden, for: .tabBar)
                         .navigationDestination(for: FollowsRoute.self) { _ in FollowsView() }
+                        .navigationDestination(for: PlacesRoute.self) { _ in MyPlacesView() }
                         .navigationDestination(for: ArtistRoute.self) { ArtistView(route: $0) }
                         .navigationDestination(for: EventRoute.self) { EventDetailView(app: model.app, eventID: $0.id).equatable() }
                 }.tag(3)

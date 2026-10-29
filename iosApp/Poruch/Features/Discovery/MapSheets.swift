@@ -210,12 +210,15 @@ struct CitySearchView: View {
 }
 
 /// Райони міста під чипом «Район»: вибір без набору, найживіші першими. Порожні теж — «Поки без подій» чесно каже, що
-/// район є, а подій нема. Рядки — ті самі, що в секції «Райони» пошуку.
+/// район є, а подій нема. Рядки — ті самі, що в секції «Райони» пошуку, з дзвінком «Моїх місць» справа.
+/// З «Моїх місць» (`from: "places"`) тап по рядку теж стежить: мапи за шторкою там нема.
 struct DistrictsView: View {
+    var from = "map"
     @Environment(\.appModel) private var appModel
     private var model: AppModel { appModel! }
     @Environment(\.dismiss) var dismiss
     private var explore: ExploreScreenState { model.exploreScreen.state }
+    private var followed: Set<Int64> { model.root.followedDistricts }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -232,12 +235,15 @@ struct DistrictsView: View {
                     GroupedRows {
                         ForEach(Array(explore.cityDistricts.enumerated()), id: \.element.district.id) { position, hit in
                             if position > 0 { Divider().overlay(Palette.hairline).padding(.leading, Space.lg + 40 + Space.md) }
-                            DistrictRow(hit: hit) { pick(hit) }
+                            DistrictRow(hit: hit, following: followed.contains(hit.district.id), toggleFollow: { follow(hit) }) { pick(hit) }
                         }
                     }
                     // Місцевості — точки OSM з колом навколо: лише ті, де є події, інакше десятки порожніх затуляли б живі.
                     if !explore.cityLocalities.isEmpty {
-                        DistrictsGroup(districts: explore.cityLocalities, title: Copy.search_localities_group) { pick($0) }
+                        DistrictsGroup(
+                            districts: explore.cityLocalities, title: Copy.search_localities_group,
+                            followed: followed, toggleFollow: follow
+                        ) { pick($0) }
                     }
                 }
                 .padding(.horizontal, Space.page)
@@ -248,7 +254,10 @@ struct DistrictsView: View {
     }
 
     private func pick(_ hit: DistrictHit) {
+        if from == "places" { return follow(hit) }
         model.exploreScreen.pickDistrict(hit)
         dismiss()
     }
+
+    private func follow(_ hit: DistrictHit) { model.app.toggleDistrictZone(district: hit.district, from: from) }
 }
