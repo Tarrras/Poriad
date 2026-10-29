@@ -27,6 +27,7 @@ class ProfileViewModel(private val app: PoruchApp, private val notifications: No
                 blocked = shared.library.blocked,
                 follows = shared.library.follows,
                 newFollows = shared.library.newFollowEvents,
+                zones = shared.zones.size,
                 mutating = shared.mutating,
                 passwordRecovery = shared.session.passwordRecovery,
                 passwordless = shared.session.passwordless,
@@ -74,6 +75,7 @@ class ProfileViewModel(private val app: PoruchApp, private val notifications: No
             }
             is ProfileIntent.Unblock -> app.unblockUser(intent.userId)
             ProfileIntent.OpenFollows -> send(ProfileEffect.OpenFollows)
+            ProfileIntent.OpenPlaces -> send(ProfileEffect.OpenPlaces)
             is ProfileIntent.SetNewPassword -> reduce { copy(newPassword = intent.value) }
             ProfileIntent.SavePassword -> app.updatePassword(state.value.newPassword)
             is ProfileIntent.SetNewPasswordConfirm -> reduce { copy(newPasswordConfirm = intent.value) }

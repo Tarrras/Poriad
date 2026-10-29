@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -302,6 +303,16 @@ private fun PlaceStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
         color = if (state.pointChosen) colors.success else colors.inkTertiary
     )
     state.problem(DraftField.LOCATION)?.let { FieldError(it) }
+    // «Мої місця»: скільки людей поруч почують про зустріч. Менше трьох — мовчимо.
+    state.audience?.let { count ->
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
+            Icon(PoruchIcons.bell, null, Modifier.size(16.dp), tint = colors.inkSecondary)
+            Text(
+                pluralStringResource(R.plurals.editor_audience, count, count),
+                style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary
+            )
+        }
+    }
     // Мапа лише показує вибране: жести на 260 dp коштували б точності.
     Box(Modifier.fillMaxWidth().height(260.dp).clip(Radius.md)) {
         EventMap(
@@ -320,7 +331,7 @@ private fun PlaceStep(state: EditorState, onIntent: (EditorIntent) -> Unit) {
 
 /** Кругла кнопка масштабу поверх мапи. */
 @Composable
-private fun ZoomButton(icon: ImageVector, label: Int, onClick: () -> Unit) {
+internal fun ZoomButton(icon: ImageVector, label: Int, onClick: () -> Unit) {
     val colors = Poruch.colors
     Box(
         Modifier.size(48.dp).background(colors.surface, androidx.compose.foundation.shape.CircleShape)

@@ -285,6 +285,7 @@ fun ProfileRoute(navigator: Navigator) {
             ProfileEffect.OpenNotificationSettings -> if (!context.openNotificationSettings()) context.toast(R.string.link_unavailable)
             ProfileEffect.OpenAlarmSettings -> if (!context.openAlarmSettings()) context.toast(R.string.link_unavailable)
             ProfileEffect.OpenFollows -> navigator.open(Follows)
+            ProfileEffect.OpenPlaces -> navigator.open(MyPlaces)
             ProfileEffect.CreateEvent -> navigator.createEvent()
             is ProfileEffect.OpenLink -> if (!context.openLink(effect.url)) context.toast(R.string.link_unavailable)
             is ProfileEffect.WriteEmail -> if (!context.writeEmail(effect.address)) context.toast(R.string.mail_unavailable)
@@ -307,6 +308,17 @@ fun FollowsRoute(navigator: Navigator) {
         }
     }
     FollowsScreen(model.state.collectAsStateWithLifecycle().value, model::dispatch)
+}
+
+@Composable
+fun MyPlacesRoute(navigator: Navigator) {
+    val model = koinViewModel<MyPlacesViewModel>()
+    model.effects.handle { effect ->
+        when (effect) {
+            MyPlacesEffect.Back -> navigator.back()
+        }
+    }
+    MyPlacesScreen(model.state.collectAsStateWithLifecycle().value, model::dispatch)
 }
 
 /** Той самий стан профілю: поле нового пароля й прапорець відновлення живуть у ньому. */

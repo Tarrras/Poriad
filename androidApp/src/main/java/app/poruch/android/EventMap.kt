@@ -152,7 +152,9 @@ val LocalSharedMapView = staticCompositionLocalOf<SharedMapView?> { null }
     /** Спільна мапа вкладки або null для власної. Див. [SharedMapView]. */
     shared: SharedMapView? = null,
     /** Мапу накрито (повна шторка): TalkBack її не бачить, інакше фокус ішов на невидиме. */
-    hiddenFromAccessibility: Boolean = false
+    hiddenFromAccessibility: Boolean = false,
+    /** Метрів на dp у центрі камери — на кожен кадр руху: коло «Моїх місць» поверх мапи росте й меншає з нею. */
+    onScaleChanged: ((Double) -> Unit)? = null
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current.density
@@ -173,6 +175,7 @@ val LocalSharedMapView = staticCompositionLocalOf<SharedMapView?> { null }
     val latestCenter by rememberUpdatedState(onCenterChanged)
     val latestViewport by rememberUpdatedState(onViewportChanged)
     val latestFailure by rememberUpdatedState(onLoadFailed)
+    val latestScale by rememberUpdatedState(onScaleChanged)
 
     DisposableEffect(view, lifecycle) {
         val observer = LifecycleEventObserver { _, event ->
@@ -206,6 +209,10 @@ val LocalSharedMapView = staticCompositionLocalOf<SharedMapView?> { null }
             latestArea(bounds)
         }
         val click = MapLibreMap.OnMapClickListener { point -> ready?.let { tap(it, point, latestStack) } ?: false }
+        val scale = { m: MapLibreMap ->
+            m.cameraPosition.target?.let { latestScale?.invoke(m.projection.getMetersPerPixelAtLatitude(it.latitude)) }
+        }
+        val move = MapLibreMap.OnCameraMoveListener { ready?.let(scale) }
         view.getMapAsync { m ->
             ready = m
             map = m
@@ -216,6 +223,7 @@ val LocalSharedMapView = staticCompositionLocalOf<SharedMapView?> { null }
             m.addOnCameraMoveStartedListener(moveStarted)
             m.addOnCameraIdleListener(idle)
             if (interactive) m.addOnMapClickListener(click)
+            if (onScaleChanged != null) { m.addOnCameraMoveListener(move); scale(m) }
             controller?.apply = { delta ->
                 // Обмежуємо межами мапи, щоб кнопка лишалась живою.
                 val target = (m.cameraPosition.zoom + delta).coerceIn(m.minZoomLevel, m.maxZoomLevel)
@@ -228,6 +236,7 @@ val LocalSharedMapView = staticCompositionLocalOf<SharedMapView?> { null }
             view.removeOnDidFailLoadingMapListener(failListener)
             ready?.apply {
                 removeOnCameraMoveStartedListener(moveStarted); removeOnCameraIdleListener(idle); removeOnMapClickListener(click)
+                removeOnCameraMoveListener(move)
             }
             view.onPause(); view.onStop()
             // Спільну мапу руйнує корінь.

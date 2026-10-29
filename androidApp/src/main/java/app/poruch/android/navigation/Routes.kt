@@ -30,5 +30,7 @@ sealed interface Tab : NavKey
 ) { GENERAL(null), CREATE("create"), JOIN("join"), FOLLOW("follow"), COMPANY("companion") }
 /** Підписки: заклади й організатори, за якими стежить людина. З профілю й з головної. */
 @Serializable data object Follows : NavKey
+/** «Мої місця»: райони й кола, про нові зустрічі в яких скажемо пушем. З профілю. */
+@Serializable data object MyPlaces : NavKey
 /** Лист відновлення відкрив застосунок: окремий екран для нового пароля, поверх стека. */
 @Serializable data object NewPassword : NavKey

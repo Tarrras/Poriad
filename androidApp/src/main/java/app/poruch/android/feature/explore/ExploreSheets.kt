@@ -180,7 +180,7 @@ private val SUGGESTION_BAND = 300.dp
  * є, а подій нема. Рядки — ті самі, що в секції «Райони» пошуку.
  */
 @Composable
-internal fun DistrictSheet(state: ExploreState, onPick: (DistrictHit) -> Unit) {
+internal fun DistrictSheet(state: ExploreState, onPick: (DistrictHit) -> Unit, onFollow: (DistrictHit) -> Unit) {
     val colors = Poruch.colors
     Column(Modifier.padding(bottom = Spacing.section)) {
         Column(Modifier.padding(horizontal = Spacing.page).padding(bottom = Spacing.lg)) {
@@ -197,12 +197,15 @@ internal fun DistrictSheet(state: ExploreState, onPick: (DistrictHit) -> Unit) {
             GroupedRows {
                 state.screen.cityDistricts.forEachIndexed { position, hit ->
                     if (position > 0) HairLine(Modifier.padding(start = Spacing.lg + 40.dp + Spacing.md))
-                    DistrictRow(hit) { onPick(hit) }
+                    DistrictRow(hit, following = hit.district.id in state.zoneDistricts, onFollow = { onFollow(hit) }) { onPick(hit) }
                 }
             }
             // Місцевості — точки OSM з колом навколо: лише ті, де є події, інакше десятки порожніх затуляли б живі.
             if (state.screen.cityLocalities.isNotEmpty()) {
-                DistrictsGroup(state.screen.cityLocalities, title = stringResource(R.string.search_localities_group), onOpen = onPick)
+                DistrictsGroup(
+                    state.screen.cityLocalities, title = stringResource(R.string.search_localities_group),
+                    followed = state.zoneDistricts, onFollow = onFollow, onOpen = onPick
+                )
             }
         }
     }

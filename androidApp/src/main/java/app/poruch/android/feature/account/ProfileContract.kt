@@ -54,7 +54,9 @@ data class ProfileState(
     /** За кого й за чим стежу: рядок «Ви стежите» з лічильником. Порожньо — рядка нема. Сам список — окремий екран. */
     val follows: List<Follow> = emptyList(),
     /** Скільки нового в підписках ще не переглянуто: бейдж того ж рядка. */
-    val newFollows: Int = 0
+    val newFollows: Int = 0,
+    /** Скільки зон у «Моїх місцях»: число рядка. Рядок є й у гостя. */
+    val zones: Int = 0
 ) {
     val canSavePassword get() = !mutating && AccountRules.isPassword(newPassword)
     /** Помилку показуємо лише коли в повторі вже щось є: порожнє поле — ще не помилка. */
@@ -85,6 +87,7 @@ sealed interface ProfileIntent {
     data class SetAnalytics(val enabled: Boolean) : ProfileIntent
     data class SetDigest(val enabled: Boolean) : ProfileIntent
     data object OpenFollows : ProfileIntent
+    data object OpenPlaces : ProfileIntent
     /** Відповідь системи на запит дозволу, який маршрут показав за [ProfileEffect.AskNotificationPermission]. */
     data class NotificationPermissionAnswered(val granted: Boolean) : ProfileIntent
     /** Сповіщення заборонено: ведемо в системні налаштування застосунку. */
@@ -112,6 +115,7 @@ sealed interface ProfileEffect {
     data object OpenNotificationSettings : ProfileEffect
     data object OpenAlarmSettings : ProfileEffect
     data object OpenFollows : ProfileEffect
+    data object OpenPlaces : ProfileEffect
     data object CreateEvent : ProfileEffect
     data class OpenLink(val url: String) : ProfileEffect
     data class WriteEmail(val address: String) : ProfileEffect

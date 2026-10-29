@@ -30,7 +30,9 @@ data class ExploreState(
     /** Інкремент просить мапу повернутись до центру міста. */
     val recenterToken: Int = 0,
     /** Що скинула кнопка порожньої картки: кілька секунд їх можна повернути одним тапом. */
-    val undoFilters: FilterSnapshot? = null
+    val undoFilters: FilterSnapshot? = null,
+    /** Id районів у «Моїх місцях»: дзвінок на рядку шторки районів. */
+    val zoneDistricts: Set<Long> = emptySet()
 )
 
 /** Фільтри мапи на мить скидання. */
@@ -72,6 +74,8 @@ sealed interface ExploreIntent {
     data class SelectDistrict(val hit: DistrictHit) : ExploreIntent
     /** Район зі списку під чипом «Район». */
     data class PickDistrict(val hit: DistrictHit) : ExploreIntent
+    /** Дзвінок на рядку шторки районів: стежити за районом у «Моїх місцях» чи перестати. */
+    data class ToggleDistrictZone(val hit: DistrictHit) : ExploreIntent
     /** «✕» на чипі району. */
     data object ClearDistrict : ExploreIntent
     /** «Усе місто» в порожньому районі. */

@@ -5,6 +5,9 @@ import app.poruch.android.mvi.MviViewModel
 import app.poruch.android.platform.NotificationPermission
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import app.poruch.domain.DraftField
 import app.poruch.domain.Event
@@ -49,6 +52,16 @@ class EditorViewModel(
             )
         }
         resumed = state.value.canStartOver
+        // «Анонс отримають N людей поруч»: лише для нової зустрічі — про правки сервер нікому не пише.
+        if (editingId == null) viewModelScope.launch {
+            state.map { it.point }.distinctUntilChanged().collectLatest { point ->
+                reduce { copy(audience = null) }
+                if (point == null) return@collectLatest
+                delay(AUDIENCE_DEBOUNCE_MS)
+                // Пізня відповідь для старої крапки не затирає нову.
+                app.zoneAudience(point.first, point.second) { count -> reduce { if (this.point == point) copy(audience = count) else this } }
+            }
+        }
         track(EditorStep.ABOUT)
         observe(app) { latest ->
             // Редагування з deep link: запис може приїхати після екрана.
@@ -318,5 +331,7 @@ class EditorViewModel(
         const val MIN_ADDRESS_QUERY = 3
         /** Пауза для цілі на екрані вибору: коротша, бо людина чекає саме на цей рядок. */
         const val AIM_SETTLE_MS = 200L
+        /** Крапка ще може посунутись (підказка адреси, повторний вибір): питаємо, коли постоїть. */
+        const val AUDIENCE_DEBOUNCE_MS = 400L
     }
 }

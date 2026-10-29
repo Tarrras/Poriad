@@ -122,7 +122,9 @@ data class EditorState(
     /** Хто збирає — ім'я на квитку, як його побачать на головній. */
     val host: String? = null,
     /** Скільки вже йде: нова зустріч друкується «0/20». */
-    val taken: Int = 0
+    val taken: Int = 0,
+    /** Скільки людей поруч почують про нову зустріч у цій крапці («Мої місця»). Null — менше трьох, не знаємо чи правимо. */
+    val audience: Int? = null
 ) {
     val point get() = form.point
     val pointChosen get() = point != null

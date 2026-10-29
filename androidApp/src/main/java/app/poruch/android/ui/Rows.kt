@@ -3,6 +3,7 @@ package app.poruch.android.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -18,6 +19,8 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.poruch.android.R
@@ -123,7 +126,14 @@ fun PlaceRow(
  * рядок: «Поки без подій» чесно каже, що район є, а подій нема. Після нещодавнього перейменування — «раніше …».
  */
 @Composable
-fun DistrictRow(hit: DistrictHit, modifier: Modifier = Modifier, onClick: () -> Unit) {
+fun DistrictRow(
+    hit: DistrictHit,
+    modifier: Modifier = Modifier,
+    /** «Мої місця»: дзвінок праворуч, окремою ціллю від рядка. Null — без нього (пошук, головна). */
+    following: Boolean? = null,
+    onFollow: () -> Unit = {},
+    onClick: () -> Unit
+) {
     val colors = Poruch.colors
     val subtitle = listOfNotNull(
         if (hit.upcoming > 0) pluralStringResource(R.plurals.place_upcoming, hit.upcoming, hit.upcoming)
@@ -132,32 +142,68 @@ fun DistrictRow(hit: DistrictHit, modifier: Modifier = Modifier, onClick: () -> 
         // Місцевість — коло навколо точки OSM: кажемо, скільки охоплено, а не «в Аркадії».
         hit.district.radiusKm?.let { stringResource(R.string.locality_radius, it) }
     ).joinToString(" · ")
-    Row(
+    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            Modifier
+                .weight(1f)
+                .semantics(mergeDescendants = true) {}
+                .pressable(onClick = onClick)
+                .padding(start = Spacing.lg, end = if (following == null) Spacing.lg else Spacing.xs, top = Spacing.md, bottom = Spacing.md),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.md),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                Modifier
+                    .size(40.dp)
+                    .background(colors.surfaceMuted, Radius.xs),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(PoruchIcons.district, null, Modifier.size(20.dp), tint = colors.ink)
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    hit.district.name, style = PoruchType.brandTitle3, color = colors.ink,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis
+                )
+                // Два рядки: на великому шрифті «раніше Малиновський» — саме те, за чим людина шукала, — не обрізається.
+                Text(
+                    subtitle, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary,
+                    maxLines = 2, overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+        if (following != null) ZoneBell(following, hit.district.name, onFollow, Modifier.padding(end = Spacing.sm))
+    }
+}
+
+/**
+ * Дзвінок «Моїх місць» (docs/my-places.md): не стежать — контур на тихій підкладці (біла на білій картці зникла б),
+ * стежать — чорнилом, як обраний чип артиста. Ціль 48 dp, озвучення каже, що зробить тап.
+ */
+@Composable
+fun ZoneBell(following: Boolean, name: String, onToggle: () -> Unit, modifier: Modifier = Modifier) {
+    val colors = Poruch.colors
+    val description = stringResource(if (following) R.string.places_unfollow_a11y else R.string.places_follow_a11y, name)
+    Box(
         modifier
-            .fillMaxWidth()
-            .semantics(mergeDescendants = true) {}
-            .pressable(onClick = onClick)
-            .padding(horizontal = Spacing.lg, vertical = Spacing.md),
-        horizontalArrangement = Arrangement.spacedBy(Spacing.md),
-        verticalAlignment = Alignment.CenterVertically
+            .size(48.dp)
+            .clip(CircleShape)
+            .pressable(onClick = onToggle)
+            .semantics {
+                contentDescription = description
+                selected = following
+            },
+        contentAlignment = Alignment.Center
     ) {
         Box(
             Modifier
-                .size(40.dp)
-                .background(colors.surfaceMuted, Radius.xs),
+                .size(36.dp)
+                .background(if (following) colors.brand else colors.surfaceMuted, CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Icon(PoruchIcons.district, null, Modifier.size(20.dp), tint = colors.ink)
-        }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(
-                hit.district.name, style = PoruchType.brandTitle3, color = colors.ink,
-                maxLines = 1, overflow = TextOverflow.Ellipsis
-            )
-            // Два рядки: на великому шрифті «раніше Малиновський» — саме те, за чим людина шукала, — не обрізається.
-            Text(
-                subtitle, style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary,
-                maxLines = 2, overflow = TextOverflow.Ellipsis
+            Icon(
+                if (following) PoruchIcons.bellActive else PoruchIcons.bell, null, Modifier.size(18.dp),
+                tint = if (following) colors.onBrand else colors.ink
             )
         }
     }
@@ -265,6 +311,9 @@ fun DistrictsGroup(
     modifier: Modifier = Modifier,
     /** «Райони» чи «Місцевості». */
     title: String = stringResource(R.string.search_districts_group),
+    /** Id районів у «Моїх місцях»: з ним кожен рядок має дзвінок. Null — без дзвінків. */
+    followed: Set<Long>? = null,
+    onFollow: (DistrictHit) -> Unit = {},
     onOpen: (DistrictHit) -> Unit
 ) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
@@ -272,7 +321,7 @@ fun DistrictsGroup(
         GroupedRows {
             districts.forEachIndexed { position, hit ->
                 if (position > 0) HairLine(Modifier.padding(start = Spacing.lg + 40.dp + Spacing.md))
-                DistrictRow(hit) { onOpen(hit) }
+                DistrictRow(hit, following = followed?.let { hit.district.id in it }, onFollow = { onFollow(hit) }) { onOpen(hit) }
             }
         }
     }

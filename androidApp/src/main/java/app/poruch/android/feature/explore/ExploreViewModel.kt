@@ -3,10 +3,13 @@ package app.poruch.android.feature.explore
 import androidx.lifecycle.viewModelScope
 import app.poruch.android.mvi.MviViewModel
 import app.poruch.domain.CityResult
+import app.poruch.domain.Zone
 import app.poruch.shared.DateFilter
 import app.poruch.shared.ExplorePresenter
 import app.poruch.shared.PoruchApp
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 /**
@@ -38,6 +41,11 @@ class ExploreViewModel(private val app: PoruchApp) :
                     else copy(screen = screen, pendingArea = if (freshIndex) null else pendingArea)
                 }
             }
+        }
+        // Дзвінки шторки районів: «Мої місця» живуть у спільному стані, не в презентері мапи.
+        viewModelScope.launch {
+            app.state.map { shared -> shared.zones.mapNotNullTo(HashSet()) { (it as? Zone.Area)?.districtId } }
+                .distinctUntilChanged().collect { ids -> reduce { copy(zoneDistricts = ids) } }
         }
     }
 
@@ -96,6 +104,7 @@ class ExploreViewModel(private val app: PoruchApp) :
             }
             is ExploreIntent.SelectDistrict -> presenter.selectDistrict(intent.hit)
             is ExploreIntent.PickDistrict -> presenter.pickDistrict(intent.hit)
+            is ExploreIntent.ToggleDistrictZone -> app.toggleDistrictZone(intent.hit.district, "map")
             ExploreIntent.ClearDistrict -> presenter.clearDistrict()
             ExploreIntent.WholeCity -> presenter.showWholeCity()
             is ExploreIntent.OpenArtist -> {

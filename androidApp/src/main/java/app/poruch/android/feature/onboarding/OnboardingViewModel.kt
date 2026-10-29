@@ -5,6 +5,7 @@ import app.poruch.android.feature.home.toggle
 import app.poruch.android.mvi.MviViewModel
 import app.poruch.domain.Crowd
 import app.poruch.domain.FollowKind
+import app.poruch.domain.Zone
 import app.poruch.shared.PoruchApp
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -33,6 +34,14 @@ class OnboardingViewModel(private val app: PoruchApp) :
                 reduce { copy(artists = artists, matches = matches, followed = followed) }
             }
         }
+        // «Де ви буваєте?»: райони міста, що відкрите зараз; місцевості — у «Моїх місцях» профілю, тут їх забагато.
+        viewModelScope.launch {
+            app.state.map { shared ->
+                shared.city.districts.filter { !it.isLocality } to shared.zones.mapNotNullTo(HashSet()) { (it as? Zone.Area)?.districtId }
+            }.distinctUntilChanged().collect { (districts, followed) ->
+                reduce { copy(districts = districts, followedDistricts = followed) }
+            }
+        }
     }
 
     override fun onIntent(intent: OnboardingIntent) {
@@ -40,11 +49,9 @@ class OnboardingViewModel(private val app: PoruchApp) :
             OnboardingIntent.Next -> {
                 val current = state.value
                 if (current.isLast) finish(current)
-                else reduce { copy(step = OnboardingStep.entries[current.questionNumber + 1]) }
+                else reduce { copy(step = next) }
             }
-            OnboardingIntent.Back -> reduce {
-                copy(step = OnboardingStep.entries[(questionNumber - 1).coerceAtLeast(0)])
-            }
+            OnboardingIntent.Back -> reduce { copy(step = previous) }
             OnboardingIntent.Skip -> app.skipOnboarding()
             is OnboardingIntent.ToggleInterest -> reduce { copy(interests = interests.toggle(intent.category)) }
             is OnboardingIntent.ToggleTime -> reduce { copy(times = times.toggle(intent.slot)) }
@@ -54,14 +61,21 @@ class OnboardingViewModel(private val app: PoruchApp) :
                 app.searchArtists(intent.text)
             }
             is OnboardingIntent.ToggleArtist -> reduce { copy(picked = picked.toggle(intent.artist)) }
+            is OnboardingIntent.ToggleDistrict -> reduce {
+                copy(pickedDistricts = if (intent.id in pickedDistricts) pickedDistricts - intent.id else pickedDistricts + intent.id)
+            }
         }
     }
 
     private fun finish(current: OnboardingState) {
-        if (current.step == OnboardingStep.ARTISTS) {
+        // Останній крок — артисти чи райони після них: обидва вже пройдено.
+        if (current.step >= OnboardingStep.ARTISTS && OnboardingStep.ARTISTS in current.steps) {
             app.followArtists(current.picked.values.toList(), "onboarding")
             app.radarPickerClosed(current.artists.orEmpty().size, current.picked.size, "onboarding")
         }
+        // `toggleDistrictZone` — перемикач: ті, за якими вже стежать, на кроці не знімаються й сюди не потрапляють.
+        current.districts.filter { it.id in current.pickedDistricts && it.id !in current.followedDistricts }
+            .forEach { app.toggleDistrictZone(it, "onboarding") }
         app.saveTaste(current.interests, current.times, current.crowd)
     }
 

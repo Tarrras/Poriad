@@ -2,11 +2,15 @@ package app.poruch.android.feature.onboarding
 
 import app.poruch.domain.EventCategory
 import app.poruch.domain.Crowd
+import app.poruch.domain.District
 import app.poruch.domain.PopularArtist
 import app.poruch.domain.TimeSlot
 
-/** Кроки онбордингу: те, що читає ранжування, і артисти — привід повернутись. Кожен зайвий екран — привід піти. */
-enum class OnboardingStep { WELCOME, INTERESTS, TIMES, CROWD, ARTISTS }
+/**
+ * Кроки онбордингу: те, що читає ранжування, артисти й райони — привід повернутись. Кожен зайвий екран — привід піти.
+ * [PLACES] — «Мої місця» (docs/my-places.md).
+ */
+enum class OnboardingStep { WELCOME, INTERESTS, TIMES, CROWD, ARTISTS, PLACES }
 
 data class OnboardingState(
     val step: OnboardingStep = OnboardingStep.WELCOME,
@@ -21,13 +25,29 @@ data class OnboardingState(
     val query: String = "",
     val matches: List<PopularArtist>? = null,
     /** Обрані на кроці, з пошуку теж: підписки ставимо разом з рештою відповідей, на «Готово». */
-    val picked: Map<String, PopularArtist> = emptyMap()
+    val picked: Map<String, PopularArtist> = emptyMap(),
+    /** Адміністративні райони міста (без місцевостей) для «Де ви буваєте?». Порожньо — кроку нема. */
+    val districts: List<District> = emptyList(),
+    /** Райони, що вже в «Моїх місцях» (повторне проходження): позначені й не знімаються. */
+    val followedDistricts: Set<Long> = emptySet(),
+    /** Обрані райони: стежимо разом з рештою відповідей, на «Готово». */
+    val pickedDistricts: Set<Long> = emptySet()
 ) {
+    /** Кроки, що є: артистів нема (збій, порожньо) чи місто без районів — їх пропускаємо. */
+    val steps: List<OnboardingStep>
+        get() = OnboardingStep.entries.filter {
+            when (it) {
+                OnboardingStep.ARTISTS -> artists?.isEmpty() != true
+                OnboardingStep.PLACES -> districts.isNotEmpty()
+                else -> true
+            }
+        }
     /** Вітання — не питання, тому не рахується. */
-    val questionNumber get() = OnboardingStep.entries.indexOf(step)
-    val questionCount get() = OnboardingStep.entries.size - 1
-    /** Артистів нема (збій, порожньо) — закінчуємо на «Який формат?». */
-    val isLast get() = step == OnboardingStep.ARTISTS || (step == OnboardingStep.CROWD && artists?.isEmpty() == true)
+    val questionNumber get() = steps.count { it < step }
+    val questionCount get() = steps.size - 1
+    val isLast get() = steps.none { it > step }
+    val next get() = steps.firstOrNull { it > step } ?: step
+    val previous get() = steps.lastOrNull { it < step } ?: OnboardingStep.WELCOME
 }
 
 sealed interface OnboardingIntent {
@@ -39,4 +59,5 @@ sealed interface OnboardingIntent {
     data class PickCrowd(val crowd: Crowd) : OnboardingIntent
     data class SearchArtists(val text: String) : OnboardingIntent
     data class ToggleArtist(val artist: PopularArtist) : OnboardingIntent
+    data class ToggleDistrict(val id: Long) : OnboardingIntent
 }

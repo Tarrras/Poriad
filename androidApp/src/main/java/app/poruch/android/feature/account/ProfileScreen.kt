@@ -78,11 +78,19 @@ fun ProfileScreen(state: ProfileState, onIntent: (ProfileIntent) -> Unit) {
                     { onIntent(ProfileIntent.CreateEvent) }
                 )
                 // Список підписок — окремий екран: тут лише рядок, що каже, що вони є й де. Порожнім його не показуємо.
-                if (state.signedIn && state.follows.isNotEmpty()) GroupedRows {
+                // «Мої місця» — поруч і в гостя: зони належать телефону, а не акаунту.
+                GroupedRows {
+                    if (state.signedIn && state.follows.isNotEmpty()) {
+                        LinkRow(
+                            PoruchIcons.bellActive, stringResource(R.string.follows_title), stringResource(R.string.follows_hint),
+                            { onIntent(ProfileIntent.OpenFollows) }, value = state.follows.size.toString(),
+                            badge = if (state.newFollows > 0) pluralStringResource(R.plurals.follows_new, state.newFollows, state.newFollows) else null
+                        )
+                        HairLine(Modifier.padding(start = Spacing.lg + 40.dp + Spacing.md))
+                    }
                     LinkRow(
-                        PoruchIcons.bellActive, stringResource(R.string.follows_title), stringResource(R.string.follows_hint),
-                        { onIntent(ProfileIntent.OpenFollows) }, value = state.follows.size.toString(),
-                        badge = if (state.newFollows > 0) pluralStringResource(R.plurals.follows_new, state.newFollows, state.newFollows) else null
+                        PoruchIcons.pin, stringResource(R.string.places_title), stringResource(R.string.places_hint),
+                        { onIntent(ProfileIntent.OpenPlaces) }, value = state.zones.takeIf { it > 0 }?.toString()
                     )
                 }
                 // Інтереси належать пристрою, тож гість теж їх редагує. Опитування — дія заголовка, а не ще одна картка під чипами.

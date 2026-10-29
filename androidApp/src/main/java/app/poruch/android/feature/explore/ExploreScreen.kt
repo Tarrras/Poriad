@@ -75,7 +75,9 @@ fun ExploreScreen(state: ExploreState, onIntent: (ExploreIntent) -> Unit) {
             FilterSheet(state, onIntent) { sheet.close() }
         }
         ExploreSheet.DISTRICTS -> PoruchSheet({ onIntent(ExploreIntent.ShowSheet(ExploreSheet.NONE)) }) { sheet ->
-            DistrictSheet(state) { hit -> sheet.close { onIntent(ExploreIntent.PickDistrict(hit)) } }
+            DistrictSheet(state, { hit -> sheet.close { onIntent(ExploreIntent.PickDistrict(hit)) } }) { hit ->
+                onIntent(ExploreIntent.ToggleDistrictZone(hit))
+            }
         }
         ExploreSheet.NONE -> Unit
     }

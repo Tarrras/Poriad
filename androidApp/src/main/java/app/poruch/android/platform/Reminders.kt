@@ -140,6 +140,7 @@ class AlarmReminderScheduler(private val context: Context) : ReminderScheduler {
                 when (it) {
                     DigestReason.FOLLOWED -> digest.followName?.let { name -> context.getString(R.string.digest_reason_followed, name) }
                     DigestReason.COMPANY -> context.getString(R.string.digest_reason_company)
+                    DigestReason.NEAR -> context.getString(R.string.digest_reason_near)
                     DigestReason.ONE_NIGHT -> context.getString(R.string.digest_reason_one_night)
                     DigestReason.FOR_YOU -> context.getString(R.string.digest_reason_for_you)
                 }
@@ -329,8 +330,8 @@ class RequestNotificationCenter(context: Context) : RequestNotifier {
         post(CHANGE_TAG, eventId, eventTitle, text, CHANGE_CHANNEL, R.string.event_change_notification_channel, NotificationManager.IMPORTANCE_HIGH, reason)
 
     /**
-     * Нова подія організатора, закладу чи артиста, за якими стежить людина ([reason] — `organizer`, `place` чи
-     * `artist`, він же тип пуша). З [eventId] тап веде на подію; без нього (кілька нових подій) — на стос закладу
+     * Нова подія організатора, закладу чи артиста, за якими стежить людина ([reason] — `organizer`, `place`,
+     * `artist` чи `zone` — «Біля вас», він же тип пуша). З [eventId] тап веде на подію; без нього (кілька нових подій) — на стос закладу
      * на мапі чи на екран артиста. Одне сповіщення на заклад чи артиста: новіше заміняє попереднє.
      */
     fun notifyFollowed(reason: String, eventId: String?, placeId: String?, title: String, text: String, artistId: String? = null) {

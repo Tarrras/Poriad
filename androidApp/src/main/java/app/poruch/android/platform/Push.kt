@@ -68,6 +68,8 @@ class PushService : FirebaseMessagingService() {
             "place" -> placeId?.let { alerts.notifyFollowed(kind, eventId, it, title, body) }
             // Нова подія артиста: одна веде на подію, кілька — на екран артиста.
             "artist" -> alerts.notifyFollowed(kind, eventId, null, title, body, artistId)
+            // «Біля вас»: хтось створив зустріч у «Моїх місцях» (docs/my-places.md). Той самий канал, що й «Стежити».
+            "zone" -> eventId?.let { alerts.notifyFollowed(kind, it, null, title, body) }
             // Хтось шукає компанію на збережену афішу: eventId — найближчий збір.
             "companion" -> eventId?.let { alerts.notifyCompanion(it, title, body) }
             // «Хочу піти з компанією»: хтось ще хоче, хтось кличе вас, збіг (eventId — супутник). Текст склала база.
