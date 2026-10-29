@@ -8,6 +8,7 @@ struct SearchField: View {
     private var darkStroke: Double { scheme == .dark ? 1 : 0 }
     @Binding var text: String
     var placeholder: String
+    var label = Copy.a11y_search_events
     var activeFilters: Int = 0
     var onFilters: (() -> Void)?
     var body: some View {
@@ -16,7 +17,7 @@ struct SearchField: View {
                 PoruchIcon(glyph: PoruchIcons.search, size: 18).foregroundStyle(Palette.inkSecondary)
                 TextField("", text: $text, prompt: Text(placeholder).foregroundStyle(Palette.inkTertiary))
                     .font(PoruchFont.bodyText).foregroundStyle(Palette.ink).tint(Palette.ink)
-                    .submitLabel(.search).accessibilityLabel(Copy.a11y_search_events)
+                    .submitLabel(.search).accessibilityLabel(label)
                 if !text.isEmpty {
                     Button { text = "" } label: { PoruchIcon(glyph: PoruchIcons.closeCircle, size: 20).foregroundStyle(Palette.inkTertiary).tapTarget() }
                         .accessibilityLabel(Copy.clear_search)

@@ -44,7 +44,8 @@ fun OnboardingScreen(state: OnboardingState, onIntent: (OnboardingIntent) -> Uni
     val colors = Poruch.colors
     BackHandler(state.step != OnboardingStep.WELCOME) { onIntent(OnboardingIntent.Back) }
     Column(
-        Modifier.fillMaxSize().background(colors.canvas).statusBarsPadding().navigationBarsPadding()
+        // Клавіатура пошуку артистів піднімає кнопку, а не ховає її.
+        Modifier.fillMaxSize().background(colors.canvas).statusBarsPadding().navigationBarsPadding().imePadding()
             .padding(horizontal = Spacing.page)
     ) {
         TopRow(state, onIntent)
@@ -242,7 +243,10 @@ private fun CrowdStep(state: OnboardingState, onIntent: (OnboardingIntent) -> Un
 @Composable
 private fun ArtistsStep(state: OnboardingState, onIntent: (OnboardingIntent) -> Unit) {
     Question(stringResource(R.string.radar_ask_title), stringResource(R.string.onboarding_artists_hint)) {
-        PopularArtistChips(state.artists, { it in state.followed }, state.picked, dates = false) {
+        PoruchSearchField(
+            state.query, { onIntent(OnboardingIntent.SearchArtists(it)) }, stringResource(R.string.radar_search), Modifier.fillMaxWidth()
+        )
+        PopularArtistChips(state.artists, state.matches, state.query, { it in state.followed }, state.picked, dates = false) {
             onIntent(OnboardingIntent.ToggleArtist(it))
         }
     }

@@ -59,7 +59,8 @@ fun PoruchSearchField(
             Modifier
                 .weight(1f)
                 .height(50.dp)
-                .cardSurface(Radius.pill, Elevation.card)
+                // У шторці біла картка зникала на білому: там поле тихе, як решта полів — див. [LocalFieldSurface].
+                .then(LocalFieldSurface.current?.let { Modifier.background(it, Radius.pill) } ?: Modifier.cardSurface(Radius.pill, Elevation.card))
                 .padding(horizontal = Spacing.lg),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(Spacing.md)

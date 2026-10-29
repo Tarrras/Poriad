@@ -1993,6 +1993,23 @@ class PoruchAppTest {
         app.close()
     }
 
+    /** «За ким стежити?»: пошук по всій країні з двох символів; короткий запит прибирає збіги, нове відкриття — теж. */
+    @Test fun thePickerSearchesArtistsAcrossTheCountry()=runTest {
+        val events=Events(); events.artists=listOf(berezhko)
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
+        app.searchArtists("б"); advanceTimeBy(1000); runCurrent()
+        assertNull(app.state.value.artistMatches,"one character is not searched")
+        app.searchArtists("бер"); advanceTimeBy(1000); runCurrent()
+        assertEquals(listOf("a1"),app.state.value.artistMatches?.map { it.artistId })
+        assertEquals("бер" to null,events.artistQueries.last(),"not only the city")
+        app.searchArtists(""); runCurrent()
+        assertNull(app.state.value.artistMatches)
+        app.searchArtists("бер"); advanceTimeBy(1000); runCurrent()
+        app.loadPopularArtists(everywhere = true); runCurrent()
+        assertNull(app.state.value.artistMatches,"a new opening starts without old matches")
+        app.close()
+    }
+
     /** Екран артиста: те, що знаємо, одразу; події їдуть; за самим id ім'я береться з карток. Збій — банер. */
     @Test fun anArtistScreenLoadsItsEventsAndLearnsItsName()=runTest {
         val events=Events()

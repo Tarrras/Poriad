@@ -966,6 +966,8 @@
   <string name="radar_picker_follow">Стежити за %1$s</string>
   <string name="radar_picker_empty">Поки в місті нема анонсів артистів</string>
   <string name="radar_pick">Обрати артистів</string>
+  <string name="radar_search">Знайти артиста</string>
+  <string name="radar_search_empty">Не знайшли «%1$s» серед анонсів</string>
   <!-- Нове в підписках, ще не переглянуте на екрані «Ви стежите». -->
   <!-- Підпис під числом у шапці профілю: число стоїть окремо, тож у множині лише відмінок іменника. -->
   <plurals name="profile_organized">

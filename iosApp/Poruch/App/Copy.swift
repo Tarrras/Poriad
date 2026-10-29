@@ -786,6 +786,8 @@ enum Copy {
     static func radar_picker_follow(_ a0: String) -> String { "Стежити за \(a0)" }
     static let radar_picker_empty = "Поки в місті нема анонсів артистів"
     static let radar_pick = "Обрати артистів"
+    static let radar_search = "Знайти артиста"
+    static func radar_search_empty(_ a0: String) -> String { "Не знайшли «\(a0)» серед анонсів" }
     static func a11y_tab_new_follows(_ a0: String) -> String { "\(a0), є нове в підписках" }
     static let follows_hint = "Заклади, організатори й артисти"
     static let follows_subtitle = "Скажемо, коли в них зʼявиться щось нове"

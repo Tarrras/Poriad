@@ -23,7 +23,7 @@ func radarLine(_ row: ArtistRadar) -> String {
 struct RadarPickerSheet: View {
     @EnvironmentObject private var model: AppModel
     @Environment(\.dismiss) private var dismiss
-    @State private var picked: Set<String> = []
+    @State private var picked: [String: PopularArtist] = [:]
 
     private var artists: [PopularArtist]? { model.state?.popularArtists }
 
@@ -39,6 +39,7 @@ struct RadarPickerSheet: View {
             }
             .padding(.horizontal, Space.page).padding(.top, Space.xl).padding(.bottom, Space.section)
         }
+        .scrollDismissesKeyboard(.interactively)
         .safeAreaInset(edge: .bottom) {
             if !picked.isEmpty {
                 PrimaryButton(title: Copy.radar_picker_follow("\(picked.count)"), glyph: PoruchIcons.bell) { follow() }
@@ -56,37 +57,55 @@ struct RadarPickerSheet: View {
     }
 
     private func follow() {
-        model.app.followArtists(picked: (artists ?? []).filter { picked.contains($0.artistId) }, from: "picker")
+        model.app.followArtists(picked: Array(picked.values), from: "picker")
         dismiss()
     }
 }
 
 /**
- * Хто виступає ([AppState.popularArtists]) чипами: вибір кількох у [picked]; хто вже в підписках — позначений і тут не
- * знімається. [dates] — найближча дата в місті; в онбордингу список по країні, і дата з іншого міста збивала б.
+ * Пошук і чипи артистів: без запиту — хто виступає ([AppState.popularArtists]), із запитом — збіги по всій країні
+ * ([AppState.artistMatches]). Вибір кількох у [picked]; хто вже в підписках — позначений і тут не знімається.
+ * [dates] — найближча дата в місті; в онбордингу список по країні, і дата з іншого міста збивала б.
  */
 struct PopularArtistChips: View {
     @EnvironmentObject private var model: AppModel
-    @Binding var picked: Set<String>
+    @Binding var picked: [String: PopularArtist]
     let dates: Bool
+    @State private var query = ""
+
+    private var searching: Bool { query.trimmingCharacters(in: .whitespaces).count >= Int(DiscoveryRules.shared.MIN_ARTIST_QUERY) }
+
+    /// Без запиту обрані пошуком стоять першими: інакше вони зникали б, лишаючись у «Стежити за N».
+    private var shown: [PopularArtist]? {
+        if searching { return model.state?.artistMatches }
+        guard let popular = model.state?.popularArtists else { return nil }
+        let ids = Set(popular.map(\.artistId))
+        return picked.values.filter { !ids.contains($0.artistId) }.sorted { $0.name < $1.name } + popular
+    }
 
     var body: some View {
-        if let artists = model.state?.popularArtists {
-            if artists.isEmpty {
-                Text(Copy.radar_picker_empty).font(PoruchFont.bodyText).foregroundStyle(Palette.inkSecondary)
+        VStack(alignment: .leading, spacing: Space.lg) {
+            SearchField(text: $query, placeholder: Copy.radar_search, label: Copy.radar_search)
+                .autocorrectionDisabled()
+                .onChange(of: query) { _, text in model.app.searchArtists(text: text) }
+            if let shown {
+                if shown.isEmpty {
+                    Text(searching ? Copy.radar_search_empty(query.trimmingCharacters(in: .whitespaces)) : Copy.radar_picker_empty)
+                        .font(PoruchFont.bodyText).foregroundStyle(Palette.inkSecondary)
+                } else {
+                    FlowLayout(spacing: Space.sm) { ForEach(shown, id: \.artistId) { chip($0) } }
+                }
             } else {
-                FlowLayout(spacing: Space.sm) { ForEach(artists, id: \.artistId) { chip($0) } }
+                ProgressView().tint(Palette.ink).frame(maxWidth: .infinity).padding(.top, Space.xl)
             }
-        } else {
-            ProgressView().tint(Palette.ink).frame(maxWidth: .infinity).padding(.top, Space.xl)
         }
     }
 
     private func chip(_ artist: PopularArtist) -> some View {
         let followed = model.state?.isFollowing(kind: .artist, targetId: artist.artistId) == true
         let date = dates ? artist.firstAt.flatMap(parseEventDate).map { formatter(zone: "Europe/Kyiv", "d.MM").string(from: $0) } : nil
-        return RadarChip(name: artist.name, date: date, on: followed || picked.contains(artist.artistId)) {
-            if picked.contains(artist.artistId) { picked.remove(artist.artistId) } else { picked.insert(artist.artistId) }
+        return RadarChip(name: artist.name, date: date, on: followed || picked[artist.artistId] != nil) {
+            picked[artist.artistId] = picked[artist.artistId] == nil ? artist : nil
         }
         .disabled(followed)
     }

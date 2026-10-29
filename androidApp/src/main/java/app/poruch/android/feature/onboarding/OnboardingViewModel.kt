@@ -1,6 +1,7 @@
 package app.poruch.android.feature.onboarding
 
 import androidx.lifecycle.viewModelScope
+import app.poruch.android.feature.home.toggle
 import app.poruch.android.mvi.MviViewModel
 import app.poruch.domain.Crowd
 import app.poruch.domain.FollowKind
@@ -27,8 +28,10 @@ class OnboardingViewModel(private val app: PoruchApp) :
         app.loadPopularArtists(true)
         viewModelScope.launch {
             app.state.map { shared ->
-                shared.popularArtists to shared.library.follows.filter { it.kind == FollowKind.ARTIST }.map { it.targetId }.toSet()
-            }.distinctUntilChanged().collect { (artists, followed) -> reduce { copy(artists = artists, followed = followed) } }
+                Triple(shared.popularArtists, shared.artistMatches, shared.library.follows.filter { it.kind == FollowKind.ARTIST }.map { it.targetId }.toSet())
+            }.distinctUntilChanged().collect { (artists, matches, followed) ->
+                reduce { copy(artists = artists, matches = matches, followed = followed) }
+            }
         }
     }
 
@@ -46,20 +49,21 @@ class OnboardingViewModel(private val app: PoruchApp) :
             is OnboardingIntent.ToggleInterest -> reduce { copy(interests = interests.toggle(intent.category)) }
             is OnboardingIntent.ToggleTime -> reduce { copy(times = times.toggle(intent.slot)) }
             is OnboardingIntent.PickCrowd -> reduce { copy(crowd = intent.crowd) }
-            is OnboardingIntent.ToggleArtist -> reduce { copy(picked = picked.toggle(intent.id)) }
+            is OnboardingIntent.SearchArtists -> {
+                reduce { copy(query = intent.text) }
+                app.searchArtists(intent.text)
+            }
+            is OnboardingIntent.ToggleArtist -> reduce { copy(picked = picked.toggle(intent.artist)) }
         }
     }
 
     private fun finish(current: OnboardingState) {
         if (current.step == OnboardingStep.ARTISTS) {
-            val shown = current.artists.orEmpty()
-            app.followArtists(shown.filter { it.artistId in current.picked }, "onboarding")
-            app.radarPickerClosed(shown.size, current.picked.size, "onboarding")
+            app.followArtists(current.picked.values.toList(), "onboarding")
+            app.radarPickerClosed(current.artists.orEmpty().size, current.picked.size, "onboarding")
         }
         app.saveTaste(current.interests, current.times, current.crowd)
     }
-
-    private fun Set<String>.toggle(value: String) = if (value in this) this - value else this + value
 
     private fun <T> List<T>.toggle(value: T) = if (value in this) this - value else this + value
 }

@@ -458,9 +458,13 @@ class PoruchApp internal constructor(
     /** «За ким стежити?» відкрито: хто їде в місто, а в онбордингу ([everywhere]) — хто гастролює країною. */
     fun loadPopularArtists(everywhere: Boolean) = followUseCases.loadPopular(everywhere)
 
+    /** Пошук у «За ким стежити?» ([AppState.artistMatches]): кожна зміна поля, пауза — на спільному боці. */
+    fun searchArtists(text: String) = followUseCases.searchArtists(text)
+
     /** Шторку чи крок закрито: скільки показали й скільки обрали; [from] — `picker` чи `onboarding`. */
-    fun radarPickerClosed(shown: Int, picked: Int, from: String) =
-        PoruchAnalytics.track("radar_picker", "shown" to shown, "picked" to picked, "from" to from)
+    fun radarPickerClosed(shown: Int, picked: Int, from: String) = PoruchAnalytics.track(
+        "radar_picker", "shown" to shown, "picked" to picked, "from" to from, "searched" to followUseCases.searched
+    )
 
     /**
      * Сповіщення відкрито тапом. [reason] — що воно було: chat, request, joined, moved, cancelled, place,

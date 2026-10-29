@@ -3,6 +3,7 @@ package app.poruch.shared
 import app.poruch.domain.*
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -151,8 +152,9 @@ internal class FollowUseCases(
      */
     fun loadPopular(everywhere: Boolean) {
         val city = if (everywhere) null else radarCity(store.value) ?: return store.update { it.copy(popularArtists = emptyList()) }
-        // Країна й місто — різні списки: поки їде новий, старий не показуємо.
-        store.update { it.copy(popularArtists = null) }
+        // Країна й місто — різні списки: поки їде новий, старий не показуємо. Збіги минулого відкриття теж.
+        searched = false
+        store.update { it.copy(popularArtists = null, artistMatches = null) }
         store.scope.launch {
             val list = try {
                 events.popularArtists(city)
@@ -163,6 +165,28 @@ internal class FollowUseCases(
                 emptyList()
             }
             store.update { it.copy(popularArtists = list) }
+        }
+    }
+
+    /** Чи шукали в «За ким стежити?» з останнього [loadPopular]: для аналітики шторки й кроку онбордингу. */
+    var searched = false
+        private set
+    private val artistSearch = LatestJob(store.scope)
+
+    /**
+     * Пошук у «За ким стежити?»: по всій країні, а не лише в місті, щоб стежити й за тим, хто сюди ще не їде.
+     * Закороткий запит прибирає збіги; попередні лишаються, поки не прийдуть нові.
+     */
+    fun searchArtists(text: String) {
+        if (text.trim().length < DiscoveryRules.MIN_ARTIST_QUERY) {
+            artistSearch.cancel()
+            return store.update { it.copy(artistMatches = null) }
+        }
+        searched = true
+        artistSearch.launch {
+            delay(DiscoveryRules.SEARCH_DEBOUNCE_MS)
+            val found = events.artistsOrEmpty(text, city = null).map { PopularArtist(it.id, it.name, it.kind, it.upcoming, null) }
+            store.update { it.copy(artistMatches = found) }
         }
     }
 

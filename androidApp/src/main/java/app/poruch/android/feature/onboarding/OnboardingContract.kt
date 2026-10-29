@@ -17,8 +17,11 @@ data class OnboardingState(
     val artists: List<PopularArtist>? = null,
     /** За ким уже стежать (повторне проходження з профілю): позначені й не знімаються. */
     val followed: Set<String> = emptySet(),
-    /** Обрані на кроці: підписки ставимо разом з рештою відповідей, на «Готово». */
-    val picked: Set<String> = emptySet()
+    /** Пошук на кроці артистів і його збіги по всій країні ([app.poruch.shared.AppState.artistMatches]). */
+    val query: String = "",
+    val matches: List<PopularArtist>? = null,
+    /** Обрані на кроці, з пошуку теж: підписки ставимо разом з рештою відповідей, на «Готово». */
+    val picked: Map<String, PopularArtist> = emptyMap()
 ) {
     /** Вітання — не питання, тому не рахується. */
     val questionNumber get() = OnboardingStep.entries.indexOf(step)
@@ -34,5 +37,6 @@ sealed interface OnboardingIntent {
     data class ToggleInterest(val category: EventCategory) : OnboardingIntent
     data class ToggleTime(val slot: TimeSlot) : OnboardingIntent
     data class PickCrowd(val crowd: Crowd) : OnboardingIntent
-    data class ToggleArtist(val id: String) : OnboardingIntent
+    data class SearchArtists(val text: String) : OnboardingIntent
+    data class ToggleArtist(val artist: PopularArtist) : OnboardingIntent
 }

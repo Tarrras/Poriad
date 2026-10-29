@@ -10,7 +10,7 @@ struct OnboardingView: View {
     @State private var times: [TimeSlot] = []
     @State private var crowd = Crowd.any
     /// Обрані на кроці «За ким стежити?»: підписки ставимо разом з рештою відповідей, на «Готово».
-    @State private var artists: Set<String> = []
+    @State private var artists: [String: PopularArtist] = [:]
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -32,6 +32,7 @@ struct OnboardingView: View {
                     .frame(maxWidth: .infinity, minHeight: proxy.size.height, alignment: step == .welcome ? .center : .topLeading)
                 }
                 .scrollBounceBehavior(.basedOnSize)
+                .scrollDismissesKeyboard(.interactively)
                 // Нижче є ще вміст (великий шрифт, малий екран) — індикатор блимає, щоб це було видно.
                 .scrollIndicatorsFlash(trigger: step)
             }
@@ -162,9 +163,8 @@ struct OnboardingView: View {
             return
         }
         if step == .artists {
-            let shown = model.state?.popularArtists ?? []
-            model.app.followArtists(picked: shown.filter { artists.contains($0.artistId) }, from: "onboarding")
-            model.app.radarPickerClosed(shown: Int32(shown.count), picked: Int32(artists.count), from: "onboarding")
+            model.app.followArtists(picked: Array(artists.values), from: "onboarding")
+            model.app.radarPickerClosed(shown: Int32(model.state?.popularArtists?.count ?? 0), picked: Int32(artists.count), from: "onboarding")
         }
         model.app.saveTaste(interests: interests, times: times, crowd: crowd)
     }

@@ -29,6 +29,8 @@ data class AppState(
     val radar: List<ArtistRadar> = emptyList(),
     /** «За ким стежити?»: хто їде в місто. Null — ще не читали. */
     val popularArtists: List<PopularArtist>? = null,
+    /** Пошук у «За ким стежити?» по всій країні. Null — ще не шукали або запит закороткий. */
+    val artistMatches: List<PopularArtist>? = null,
     /** Хто увійшов і на якому кроці входу. Пишуть [IdentitySync], [SessionUseCases], [PushSync]. */
     val session: SessionState = SessionState(),
     val taste: Taste = Taste(),
