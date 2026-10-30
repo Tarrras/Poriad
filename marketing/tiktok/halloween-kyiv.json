@@ -1,0 +1,37 @@
+{
+  "name": "halloween-kyiv",
+  "checked": "2026-10-23: ціни й час звірено зі сторінками квитків; перевірити ще раз у день публікації",
+  "cover": {
+    "stamp": "30.10 — 01.11 · Київ",
+    "title": "куди піти<br>на хелловін<br>у києві 🎃",
+    "sub": "7 планів від 200 грн.<br>зберігай, щоб не загубити 📌"
+  },
+  "events": [
+    {"say": "косуха вже рахується як костюм 🤘", "title": "Триб’ют Ozzy Osbourne", "sub": "гурт Beast · Rock Halloween",
+     "venue": "Docker-G Pub", "price": "від 300 грн", "genre": "Музика", "stub": "#6041B1", "time": "19:00", "day": "пт 30.10",
+     "url": "https://kyiv.karabas.com/tryb-yut-ozzy-osbourne-hurt-beast-rock-halloween/"},
+    {"say": "якщо на хелловін ідеш з молодшими 🧛", "title": "Хелловін-бал графа Дракули", "sub": "страшно весела шоу-вистава",
+     "venue": "Будинок офіцерів", "price": "від 326 грн", "also": "ще нд 01.11 о 12:00", "genre": "Дітям", "stub": "#1B7979", "time": "12:00", "day": "сб 31.10",
+     "url": "https://concert.ua/uk/event/strashno-vesela-shou-vistava-hellovin-bal-grafa-drakuli-kiyiv-01"},
+    {"say": "назва вже пояснює весь план 🫠", "title": "Розум зник. Halloween", "sub": "ніч, коли розум зникає",
+     "venue": "Портер паб", "price": "від 450 грн", "genre": "Музика", "stub": "#6041B1", "time": "18:00", "day": "сб 31.10",
+     "url": "https://concert.ua/uk/event/rozum-znyk"},
+    {"say": "найдешевший квиток у цій підбірці", "title": "Halloween Show: Nirvana Tribute", "sub": "Barracudas",
+     "venue": "Garnison · Хрещатик, 15/4", "price": "від 200 грн", "genre": "Музика", "stub": "#6041B1", "time": "19:00", "day": "сб 31.10",
+     "url": "https://kyiv.karabas.com/halloween-show-nirvana-tribute-barracudas/"},
+    {"say": "для тих, у кого костюм готовий з вересня 🎃", "title": "KARNA. Party на Хелловін", "sub": "",
+     "venue": "Stereo Plaza", "price": "від 1090 грн", "genre": "Музика", "stub": "#6041B1", "time": "19:00", "day": "сб 31.10",
+     "url": "https://kyiv.internet-bilet.ua/uk/events/99260/karna"},
+    {"say": "хелловін триває і в неділю 🦇", "title": "ZWYNTAR", "sub": "Halloween Special Experience",
+     "venue": "Stereo Plaza", "price": "від 799 грн", "genre": "Музика", "stub": "#6041B1", "time": "18:30", "day": "нд 01.11",
+     "url": "https://concert.ua/uk/event/zwyntar"},
+    {"say": "план на неділю за 250 грн", "title": "Halloween: Vira Brenner", "sub": "Theatre Quartet",
+     "venue": "Docker-G Pub", "price": "від 250 грн", "genre": "Музика", "stub": "#6041B1", "time": "19:00", "day": "нд 01.11",
+     "url": "https://kyiv.karabas.com/halloween-vira-brenner-theatre-quartet/"}
+  ],
+  "end": {
+    "question": "а ти куди на хелловін? 👇",
+    "title": "ще більше<br>на мапі",
+    "screen": "assets/map-kyiv-night.png"
+  }
+}
