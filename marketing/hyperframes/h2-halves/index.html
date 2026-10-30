@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>Половинки · квиток без корінця — 16:9, 15 с</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face { font-family: "Sofia Sans Condensed"; src: url("assets/fonts/SofiaSansCondensed-Bold.ttf") format("truetype"); font-weight: 700; font-display: block; }
+      @font-face { font-family: "Sofia Sans Condensed"; src: url("assets/fonts/SofiaSansCondensed-ExtraBold.ttf") format("truetype"); font-weight: 800; font-display: block; }
+      @font-face { font-family: "Sofia Sans Extra Condensed"; src: url("assets/fonts/SofiaSansExtraCondensed-ExtraBold.ttf") format("truetype"); font-weight: 800; font-display: block; }
+      @font-face { font-family: "Inter"; src: url("assets/fonts/inter-cyrillic-400-normal.woff2") format("woff2"); font-weight: 400; font-display: block; unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+      @font-face { font-family: "Inter"; src: url("assets/fonts/inter-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: block; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+      @font-face { font-family: "Inter"; src: url("assets/fonts/inter-cyrillic-600-normal.woff2") format("woff2"); font-weight: 600; font-display: block; unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+      @font-face { font-family: "Inter"; src: url("assets/fonts/inter-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-display: block; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+
+      /* «Половинки». A ticket is two halves joined on the perforation; going alone is the body with its stub torn off.
+         The wide frame is the space between them: the body waits left of centre, grey stubs stop short, the phone
+         offers «Шукаю компанію», and the stand-up stub crosses the width and clicks into the torn edge.
+         Geometry = TicketShape (DESIGN.md, tools/store_creative.mjs) at u = 2.75 px per pt:
+         radius 18u, notches 7u, stub 84u, perforation dots 2.5u every 6u, 11u from the notches, hairline 1u. */
+      :root { --canvas: #0f0f13; --surface: #1c1b21; --hairline: #2e2d35; --paper: #f3f3f0; --ink2: #a6a5ad; --void: #4a4950; --comedy: #8d6a11; }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--canvas); }
+      #root { position: relative; width: 100%; height: 100%; overflow: hidden; background: var(--canvas); color: var(--paper); font-family: "Sofia Sans Condensed", sans-serif; }
+
+      /* the ticket: #tw leaves at the end, #ticket glides to centre, #bounce takes the click */
+      #tw { position: absolute; left: 160px; top: 300px; width: 891px; height: 330px; }
+      #ticket, #bounce { position: absolute; inset: 0; }
+      .half { position: absolute; top: 0; height: 330px; }
+      .half > svg { position: absolute; left: -2px; top: -2px; }
+      #body { left: 0; width: 660px; }
+      #title { position: absolute; left: 55px; top: 0; height: 330px; display: flex; align-items: center; font-weight: 800; font-size: 80px; line-height: 1; letter-spacing: -0.5px; white-space: nowrap; }
+      .stub { left: 660px; width: 231px; }
+      #stub { z-index: 2; }
+      .print { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff; }
+      .genre { font-weight: 800; font-size: 36px; line-height: 1; letter-spacing: 0.06em; }
+      .time { font-family: "Sofia Sans Extra Condensed", sans-serif; font-weight: 800; font-size: 94px; line-height: 1; font-variant-numeric: tabular-nums; margin: 10px 0 12px; }
+      .day { font-family: "Inter", sans-serif; font-weight: 600; font-size: 30px; line-height: 1; letter-spacing: 0.06em; }
+      .people { width: 44px; height: 44px; margin-top: 22px; }
+
+      /* friends' stubs: void grey, blank, a train that stops short */
+      #voids { position: absolute; left: 160px; top: 300px; width: 891px; height: 330px; }
+
+      /* the phone: CSS frame, real screen, the only thing with a shadow */
+      #phone { position: absolute; left: 1112px; top: 100px; width: 420px; height: 880px; border-radius: 64px; background: #050507;
+        box-shadow: 0 0 0 2px var(--hairline), 0 40px 110px rgba(0, 0, 0, 0.6); }
+      #phone img { position: absolute; left: 14px; top: 14px; width: 392px; height: 852px; border-radius: 50px; object-fit: cover; }
+      /* «Шукаю компанію» on the screenshot: x 76–778, y 2085–2223 of 1080×2348 → screen ×0.36296 + 9 px air */
+      #ring { position: absolute; left: 33px; top: 762px; width: 273px; height: 68px; border-radius: 20px; border: 3px solid var(--paper); opacity: 0; }
+
+      .cap { position: absolute; left: 160px; font-weight: 800; font-size: 64px; line-height: 72px; letter-spacing: -0.5px; white-space: nowrap; opacity: 0; }
+      #c1 { top: 716px; } #c2 { top: 788px; } #c3, #c4 { top: 716px; opacity: 1; }
+      #c5 { left: 0; width: 1920px; top: 716px; text-align: center; }
+      .w { display: inline-block; }
+
+      /* end card: END-CARD-16x9.md grid; the slogan's halves meet like the ticket's */
+      #icon { position: absolute; left: 896px; top: 196px; width: 128px; height: 128px; border-radius: 29px; opacity: 0; }
+      #name { position: absolute; left: 0; top: 352px; width: 1920px; text-align: center; font-weight: 800; font-size: 132px; line-height: 1; letter-spacing: -1px; color: var(--paper); }
+      #name span { display: inline-block; opacity: 0; }
+      #slogan { position: absolute; left: 0; top: 508px; width: 1920px; display: flex; justify-content: center; gap: 0.2em; font-weight: 700; font-size: 44px; line-height: 1; color: var(--ink2); }
+      #slogan span { display: inline-block; opacity: 0; }
+      #free { position: absolute; left: 0; top: 648px; width: 1920px; text-align: center; font-family: "Inter", sans-serif; font-weight: 600; font-size: 28px; line-height: 34px; color: var(--paper); opacity: 0; }
+      #store { position: absolute; left: 0; top: 700px; width: 1920px; opacity: 0; }
+      #badges { display: flex; justify-content: center; gap: 28px; }
+      /* official badges: untouched files, both 84 px tall, no transform/filter/shadow */
+      #badges img { display: block; height: 84px; width: auto; }
+      #store .tm { position: absolute; left: 0; top: 118px; width: 1920px; text-align: center; font-family: "Inter", sans-serif; font-weight: 400; font-size: 15px; line-height: 22px; color: #8e8d96; white-space: nowrap; }
+
+      #grain { position: absolute; inset: 0; z-index: 10; pointer-events: none; opacity: 0.1; mix-blend-mode: overlay; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="15" data-fps="30" data-width="1920" data-height="1080">
+      <!-- shared ticket paths: body with its right edge torn (notch quarters, no hairline on the tear), stub with its left edge torn -->
+      <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+        <defs>
+          <path id="body-fill" d="M49.5 0H640.75A19.25 19.25 0 0 0 660 19.25V310.75A19.25 19.25 0 0 0 640.75 330H49.5A49.5 49.5 0 0 1 0 280.5V49.5A49.5 49.5 0 0 1 49.5 0Z" />
+          <path id="body-line" d="M660 310.75A19.25 19.25 0 0 0 640.75 330H49.5A49.5 49.5 0 0 1 0 280.5V49.5A49.5 49.5 0 0 1 49.5 0H640.75A19.25 19.25 0 0 0 660 19.25" />
+          <path id="stub-fill" d="M19.25 0H181.5A49.5 49.5 0 0 1 231 49.5V280.5A49.5 49.5 0 0 1 181.5 330H19.25A19.25 19.25 0 0 0 0 310.75V19.25A19.25 19.25 0 0 0 19.25 0Z" />
+          <path id="stub-line" d="M0 19.25A19.25 19.25 0 0 0 19.25 0H181.5A49.5 49.5 0 0 1 231 49.5V280.5A49.5 49.5 0 0 1 181.5 330H19.25A19.25 19.25 0 0 0 0 310.75" />
+        </defs>
+      </svg>
+
+      <div id="voids" data-layout-allow-overflow>
+        <div class="half stub" id="v1" style="left: 770px">
+          <svg width="235" height="334" viewBox="-2 -2 235 334"><use href="#stub-fill" fill="#4a4950" /><use href="#stub-line" fill="none" stroke="#2e2d35" stroke-width="2.75" />
+            <line x1="0" x2="0" y1="49.5" y2="280.5" stroke="#0f0f13" stroke-width="6.875" stroke-linecap="round" stroke-dasharray="0 16.5" /></svg>
+        </div>
+        <div class="half stub" id="v2" style="left: 1037px">
+          <svg width="235" height="334" viewBox="-2 -2 235 334"><use href="#stub-fill" fill="#4a4950" /><use href="#stub-line" fill="none" stroke="#2e2d35" stroke-width="2.75" />
+            <line x1="0" x2="0" y1="49.5" y2="280.5" stroke="#0f0f13" stroke-width="6.875" stroke-linecap="round" stroke-dasharray="0 16.5" /></svg>
+        </div>
+        <div class="half stub" id="v3" style="left: 1304px">
+          <svg width="235" height="334" viewBox="-2 -2 235 334"><use href="#stub-fill" fill="#4a4950" /><use href="#stub-line" fill="none" stroke="#2e2d35" stroke-width="2.75" />
+            <line x1="0" x2="0" y1="49.5" y2="280.5" stroke="#0f0f13" stroke-width="6.875" stroke-linecap="round" stroke-dasharray="0 16.5" /></svg>
+        </div>
+      </div>
+
+      <div id="tw" data-layout-allow-overflow>
+        <div id="ticket">
+          <div id="bounce">
+            <div class="half" id="body">
+              <svg width="664" height="334" viewBox="-2 -2 664 334"><use href="#body-fill" fill="#1c1b21" /><use href="#body-line" fill="none" stroke="#2e2d35" stroke-width="2.75" />
+                <line x1="660" x2="660" y1="49.5" y2="280.5" stroke="#0f0f13" stroke-width="6.875" stroke-linecap="round" stroke-dasharray="0 16.5" /></svg>
+              <div id="title">Стендап-вечір</div>
+            </div>
+            <div class="half stub" id="stub">
+              <svg width="235" height="334" viewBox="-2 -2 235 334"><use href="#stub-fill" fill="#8d6a11" /><use href="#stub-line" fill="none" stroke="#2e2d35" stroke-width="2.75" />
+                <line x1="0" x2="0" y1="49.5" y2="280.5" stroke="#0f0f13" stroke-width="6.875" stroke-linecap="round" stroke-dasharray="0 16.5" /></svg>
+              <div class="print">
+                <div class="genre">СТЕНДАП</div>
+                <div class="time">20:00</div>
+                <div class="day">СЬОГОДНІ</div>
+                <svg class="people" viewBox="0 0 24 24" aria-hidden="true"><path d="M5.75 7.75a3.25 3.25 0 1 0 6.5 0a3.25 3.25 0 1 0-6.5 0ZM3 19.5c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5M15.5 4.8a3.2 3.2 0 0 1 0 6.2M17.5 14.2c2 .6 3.5 2.4 3.5 5.3" fill="none" stroke="#fff" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" /></svg>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="phone" data-layout-allow-overflow>
+        <img src="assets/ui/2610-detail-standup-who.jpg" alt="Сторінка стендапу з кнопкою «Шукаю компанію»" />
+        <div id="ring"></div>
+      </div>
+
+      <div class="cap" id="c1">Квиток є.</div>
+      <div class="cap" id="c2">Компанії нема.</div>
+      <div class="cap" id="c3"><span class="w">Друзі</span> <span class="w">знову</span> <span class="w">не</span> <span class="w">можуть.</span></div>
+      <div class="cap" id="c4"><span class="w">Збери</span> <span class="w">тих,</span> <span class="w">хто</span> <span class="w">теж</span> <span class="w">хоче</span> <span class="w">піти.</span></div>
+      <div class="cap" id="c5">Буде з ким.</div>
+
+      <img id="icon" src="assets/icon.png" alt="" />
+      <div id="name"><span>П</span><span>о</span><span>р</span><span>я</span><span>д</span></div>
+      <div id="slogan"><span id="s1">Є куди.</span><span id="s2">Буде з ким.</span></div>
+      <div id="free">безкоштовно</div>
+      <div id="store">
+        <div id="badges">
+          <img src="assets/appstore-badge-uk.svg" alt="Завантажте в App Store" />
+          <img src="assets/googleplay-badge-uk.svg" alt="Завантажте з Google Play" />
+        </div>
+        <div class="tm" data-layout-ignore>
+          <div>Apple, логотип Apple і App Store є торговельними марками Apple Inc.</div>
+          <div>Google Play і логотип Google Play є торговельними марками Google LLC.</div>
+        </div>
+      </div>
+
+      <svg id="grain" width="1920" height="1080" aria-hidden="true">
+        <filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7" /><feColorMatrix type="saturate" values="0" /></filter>
+        <rect width="1920" height="1080" filter="url(#noise)" />
+      </svg>
+    </div>
+
+    <script>
+      (function () {
+        // Brand springs in closed form (scripts/README.md, «Мова руху»).
+        // soft: damping 26, stiffness 70, mass 1.2 — overdamped, roots −3.150 and −18.516; normalised to end at D.
+        function soft(D) {
+          var r1 = -3.15038, r2 = -18.51629;
+          function d(t) { return (r2 * Math.exp(r1 * t) - r1 * Math.exp(r2 * t)) / (r2 - r1); }
+          var e = 1 - d(D);
+          return function (p) { return (1 - d(p * D)) / e; };
+        }
+        // snappy: damping 11, stiffness 260, mass 0.6 — the impulse response (a knock that dies out), peak = 1.
+        function knock(D) {
+          var a = 9.16667, w = 18.6897, peak = 0.51957;
+          return function (p) { var t = p * D; return (Math.exp(-a * t) * Math.sin(w * t)) / peak; };
+        }
+
+        var tl = gsap.timeline({ paused: true });
+        function lineIn(sel, at) { tl.fromTo(sel, { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.2, ease: "power2.out" }, at); }
+        function out(sel, at) { tl.to(sel, { opacity: 0, filter: "blur(6px)", duration: 0.18, ease: "power2.in" }, at); }
+
+        // ---- 0–2.7: the body alone, left of centre; the right of the frame is where its stub should be
+        lineIn("#c1", 0.3);
+        lineIn("#c2", 1.15);
+        out("#c1, #c2", 2.55);
+
+        // ---- 2.55–5.0: friends' stubs (void grey, blank) drift in as a train, stop short, fall through one by one
+        tl.fromTo(".stub[id^=v]", { x: 1000 }, { x: 0, duration: 1.1, ease: soft(1.1) }, 2.55);
+        tl.fromTo("#c3 .w", { opacity: 0, color: "#4a4950" }, { opacity: 1, color: "#f3f3f0", duration: 0.24, ease: "power1.out", stagger: 0.07 }, 2.8);
+        tl.to("#v1", { y: 56, opacity: 0, duration: 0.5, ease: "power2.in" }, 3.85);
+        tl.to("#v2", { y: 56, opacity: 0, duration: 0.5, ease: "power2.in" }, 4.07);
+        tl.to("#v3", { y: 56, opacity: 0, duration: 0.5, ease: "power2.in" }, 4.29);
+        out("#c3", 5.0);
+
+        // ---- 4.9–8.65: the phone rises quietly with the real stand-up page; a ring on its real «Шукаю компанію»
+        tl.fromTo("#phone", { y: 1000 }, { y: 0, duration: 1.2, ease: soft(1.2) }, 4.9);
+        tl.fromTo("#c4 .w", { opacity: 0, filter: "blur(6px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.16, ease: "power2.out", stagger: 0.07 }, 5.3);
+        tl.fromTo("#ring", { opacity: 0, scale: 1.08 }, { opacity: 1, scale: 1, duration: 0.45, ease: "power2.out" }, 6.2);
+        out("#c4", 8.15);
+        tl.to("#ring", { opacity: 0, duration: 0.2, ease: "power1.in" }, 8.15);
+        tl.to("#phone", { y: 1100, duration: 0.45, ease: "power2.in" }, 8.2);
+
+        // ---- 8.35–10.6: the stand-up stub crosses the width (soft spring), stops a hair short, clicks in (snappy knock)
+        tl.fromTo("#stub", { x: 1110 }, { x: 30, duration: 1.05, ease: soft(1.05) }, 8.35);
+        tl.to("#stub", { x: 0, duration: 0.1, ease: "power2.in" }, 9.4);
+        tl.fromTo("#bounce", { x: 0 }, { x: -6, duration: 0.45, ease: knock(0.45), immediateRender: false }, 9.5);
+        // whole now, the ticket settles into the centre of the frame
+        tl.fromTo("#ticket", { x: 0 }, { x: 354.5, duration: 0.8, ease: "power2.inOut" }, 9.7);
+        lineIn("#c5", 10.35);
+        out("#c5", 11.98);
+
+        // ---- 11.95–15: the ticket leaves before «Поряд» arrives as the answer; end card static from 13.15
+        tl.to("#tw", { opacity: 0, y: -24, filter: "blur(6px)", duration: 0.3, ease: "power2.in" }, 11.95);
+        tl.fromTo("#icon", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.6, ease: "expo.out" }, 12.25);
+        tl.fromTo("#name span", { opacity: 0, filter: "blur(6px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.24, ease: "power2.out", stagger: 0.07 }, 12.32);
+        tl.fromTo("#s1", { opacity: 0, x: -36 }, { opacity: 1, x: 0, duration: 0.6, ease: "expo.out" }, 12.7);
+        tl.fromTo("#s2", { opacity: 0, x: 36 }, { opacity: 1, x: 0, duration: 0.6, ease: "expo.out" }, 12.7);
+        tl.fromTo("#free", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power1.out" }, 12.85);
+        tl.set("#store", { opacity: 1 }, 13.15);
+
+        window.__timelines["main"] = tl;
+      })();
+    </script>
+  </body>
+</html>

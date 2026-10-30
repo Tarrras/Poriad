@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>П'ять міст на мапі — 16:9, 15 с</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <!-- map plates + marks from tools/store_creative.mjs (node tools/store_creative.mjs map) -->
+    <script src="assets/maps/kyiv.js"></script>
+    <script src="assets/maps/lviv.js"></script>
+    <script src="assets/maps/odesa.js"></script>
+    <script src="assets/maps/kharkiv.js"></script>
+    <script src="assets/maps/dnipro.js"></script>
+    <style>
+      @font-face { font-family: "Cond"; src: url("assets/fonts/sofia-sans-condensed-700.woff2") format("woff2"); font-weight: 700; font-display: block; }
+      @font-face { font-family: "Cond"; src: url("assets/fonts/sofia-sans-condensed-800.woff2") format("woff2"); font-weight: 800; font-display: block; }
+      @font-face { font-family: "XCond"; src: url("assets/fonts/sofia-sans-extra-condensed-800.woff2") format("woff2"); font-weight: 800; font-display: block; }
+      @font-face { font-family: "Sys"; src: url("assets/fonts/inter-cyrillic-400-normal.woff2") format("woff2"); font-weight: 400; font-display: block; unicode-range: U+0400-045F, U+0490-0491, U+2116; }
+      @font-face { font-family: "Sys"; src: url("assets/fonts/inter-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: block; unicode-range: U+0000-00FF, U+2000-206F; }
+      @font-face { font-family: "Sys"; src: url("assets/fonts/inter-cyrillic-600-normal.woff2") format("woff2"); font-weight: 600; font-display: block; unicode-range: U+0400-045F, U+0490-0491, U+2116; }
+      @font-face { font-family: "Sys"; src: url("assets/fonts/inter-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-display: block; unicode-range: U+0000-00FF, U+2000-206F; }
+
+      /* «Куди піти сьогодні?» asked in five cities. The language of the Search Results banner: the real night map
+         of each city with this week's events as tickets; only the city in the question changes. What the app gives
+         today, no promises. Calm: crossfades, soft settles, a slow push on each map. */
+      html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #0f0f13; }
+      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: #0f0f13; color: #f3f3f0; font-family: "Cond", sans-serif; }
+      .world { position: absolute; inset: 0; opacity: 0; }
+      .world img { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }
+      .glow { text-shadow: 0 0 48px #0f0f13, 0 0 20px #0f0f13; }
+
+      /* the question, as on the banner: Sofia Sans Condensed 800, 96 px, in the plates' free zone x 170–940, y 360–700 */
+      #ask { position: absolute; left: 200px; top: 388px; font-weight: 800; font-size: 96px; line-height: 90px; letter-spacing: -1px; white-space: nowrap; }
+      #where { position: relative; height: 90px; }
+      #where span { position: absolute; left: 0; top: 0; opacity: 0; }
+      #sum { position: absolute; left: 200px; top: 433px; font-weight: 800; font-size: 96px; line-height: 90px; letter-spacing: -1px; white-space: nowrap; opacity: 0; }
+
+      /* end card, END-CARD-16x9.md grid; under the name the line about today, not the slogan (27.10) */
+      #icon { position: absolute; left: 896px; top: 272px; width: 128px; height: 128px; border-radius: 29px; opacity: 0; }
+      #name { position: absolute; left: 0; top: 428px; width: 1920px; text-align: center; font-weight: 800; font-size: 132px; line-height: 132px; letter-spacing: -1px; opacity: 0; }
+      #line { position: absolute; left: 0; top: 584px; width: 1920px; text-align: center; font-weight: 700; font-size: 44px; line-height: 44px; color: #a6a5ad; opacity: 0; }
+      #store { position: absolute; left: 0; top: 724px; width: 1920px; text-align: center; font-family: "Sys", sans-serif; opacity: 0; }
+      /* where to get it, as on the poster: no store badges, they outshine the app icon (27.10) */
+      #store .free { font-weight: 400; font-size: 28px; line-height: 42px; color: #a6a5ad; }
+
+      #grain { position: absolute; inset: 0; z-index: 10; pointer-events: none; opacity: 0.08; mix-blend-mode: overlay; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="15" data-fps="30" data-width="1920" data-height="1080">
+      <div class="world" id="w-kyiv"><img src="assets/maps/kyiv.jpg" alt="Нічна мапа Києва" /><div class="marks"></div></div>
+      <div class="world" id="w-lviv"><img src="assets/maps/lviv.jpg" alt="Нічна мапа Львова" /><div class="marks"></div></div>
+      <div class="world" id="w-odesa"><img src="assets/maps/odesa.jpg" alt="Нічна мапа Одеси" /><div class="marks"></div></div>
+      <div class="world" id="w-kharkiv"><img src="assets/maps/kharkiv.jpg" alt="Нічна мапа Харкова" /><div class="marks"></div></div>
+      <div class="world" id="w-dnipro"><img src="assets/maps/dnipro.jpg" alt="Нічна мапа Дніпра" /><div class="marks"></div></div>
+
+      <div class="glow" id="ask">Куди піти<br />сьогодні<div id="where"><span>в Києві?</span><span>у Львові?</span><span>в Одесі?</span><span>в Харкові?</span><span>в Дніпрі?</span></div></div>
+      <div class="glow" id="sum">Сотні подій<br />щомісяця.</div>
+
+      <img id="icon" src="assets/icon.png" alt="" />
+      <div id="name">Поряд</div>
+      <div id="line">Афіша міста на одній мапі.</div>
+      <div id="store">
+        <div class="free">Безкоштовно для iPhone і Android<br />poriad.app</div>
+      </div>
+
+      <svg id="grain" width="1920" height="1080" aria-hidden="true">
+        <filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="51" /><feColorMatrix type="saturate" values="0" /></filter>
+        <rect width="1920" height="1080" filter="url(#noise)" />
+      </svg>
+    </div>
+
+    <script>
+      (function () {
+        var CITIES = ["kyiv", "lviv", "odesa", "kharkiv", "dnipro"];
+        document.head.insertAdjacentHTML("beforeend", "<style>" + window.MAPS.kyiv.css + "</style>");
+        document.body.insertAdjacentHTML("afterbegin", window.MAPS.kyiv.icons);
+
+        var tl = gsap.timeline({ paused: true });
+        function settle(sel, at, dur, dy) {
+          tl.fromTo(sel, { opacity: 0, y: dy || 18 }, { opacity: 1, y: 0, duration: dur || 0.7, ease: "power3.out" }, at);
+        }
+        function leave(sel, at, dur) {
+          tl.fromTo(sel, { opacity: 1, y: 0 }, { opacity: 0, y: -16, duration: dur || 0.35, ease: "power2.in", immediateRender: false }, at);
+        }
+
+        // ---- 0–9.4: one city per 1.8 s (Kyiv 2.2 s, it opens the film): the map crossfades in with a slow push,
+        // this week's tickets settle from the centre outward, the city in the question changes
+        var where = document.querySelectorAll("#where span");
+        CITIES.forEach(function (city, i) {
+          var M = window.MAPS[city], w = document.getElementById("w-" + city), at = i ? 2.2 + (i - 1) * 1.8 : 0;
+          w.querySelector(".marks").innerHTML = M.marks.join("");
+          // Kyiv is on screen from frame one (the thumbnail)
+          tl.fromTo(w, { opacity: i ? 0 : 1 }, { opacity: 1, duration: i ? 0.6 : 0.01, ease: "sine.inOut" }, at);
+          tl.fromTo(w, { scale: 1.04 }, { scale: 1, duration: 2.6, ease: "sine.out", transformOrigin: M.focus[0] + "px " + M.focus[1] + "px" }, at);
+          var marks = w.querySelectorAll(".marks > .t");
+          for (var j = 0; j < marks.length; j++) {
+            tl.fromTo(marks[j], { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 0.45, ease: "power3.out" }, at + 0.25 + j * 0.08);
+          }
+          if (i) {
+            leave(where[i - 1], at, 0.3);
+            tl.set("#w-" + CITIES[i - 1], { opacity: 0 }, at + 0.6); // the map under the new one is gone, not just covered
+          }
+          tl.fromTo(where[i], { opacity: i ? 0 : 1, y: i ? 22 : 0 }, { opacity: 1, y: 0, duration: i ? 0.45 : 0.01, ease: "power3.out" }, i ? at + 0.15 : 0);
+        });
+
+        // ---- 9.4–11.9: the answer about all five, over the last map
+        leave("#ask", 9.4, 0.4);
+        settle("#sum", 9.7, 0.7);
+        leave("#sum", 11.9, 0.4);
+        tl.to("#w-dnipro", { opacity: 0, duration: 0.5, ease: "power2.in" }, 11.9);
+
+        // ---- 12.4–15: the end card; where to get it by a hard cut at 12.9, still from there
+        settle("#icon", 12.4, 0.6);
+        settle("#name", 12.5, 0.7);
+        settle("#line", 12.7, 0.6);
+        tl.set("#store", { opacity: 1 }, 12.9);
+        tl.set({}, {}, 15);
+
+        window.__timelines["main"] = tl;
+      })();
+    </script>
+  </body>
+</html>

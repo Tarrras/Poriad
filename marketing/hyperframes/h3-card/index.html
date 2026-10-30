@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>Візитівка «Поряд» у русі — 16:9, 8 с</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <!-- map plate + marks and overlays from tools/store_creative.mjs (node tools/store_creative.mjs map-poster) -->
+    <script src="assets/maps/poster.js"></script>
+    <style>
+      @font-face { font-family: "Cond"; src: url("assets/fonts/sofia-sans-condensed-700.woff2") format("woff2"); font-weight: 700; font-display: block; }
+      @font-face { font-family: "Cond"; src: url("assets/fonts/sofia-sans-condensed-800.woff2") format("woff2"); font-weight: 800; font-display: block; }
+      @font-face { font-family: "XCond"; src: url("assets/fonts/sofia-sans-extra-condensed-800.woff2") format("woff2"); font-weight: 800; font-display: block; }
+      @font-face { font-family: "Sys"; src: url("assets/fonts/inter-cyrillic-400-normal.woff2") format("woff2"); font-weight: 400; font-display: block; unicode-range: U+0400-045F, U+0490-0491, U+2116; }
+      @font-face { font-family: "Sys"; src: url("assets/fonts/inter-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: block; unicode-range: U+0000-00FF, U+2000-206F; }
+      @font-face { font-family: "Sys"; src: url("assets/fonts/inter-cyrillic-600-normal.woff2") format("woff2"); font-weight: 600; font-display: block; unicode-range: U+0400-045F, U+0490-0491, U+2116; }
+      @font-face { font-family: "Sys"; src: url("assets/fonts/inter-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-display: block; unicode-range: U+0000-00FF, U+2000-206F; }
+
+      /* The poster (marketing/poster/poriad-16x9.png) assembling itself, in the language of the App Store Search
+         Results banner that did best as a post: the real night map of Kyiv, tickets of this week's events settle
+         from the centre outward, then the question, the ticket and the chosen pin; the last frame is the poster. */
+      html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #0f0f13; }
+      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: #0f0f13; }
+      #world { position: absolute; inset: 0; }
+      #bg { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }
+      #brand { opacity: 0; }
+      #grain { position: absolute; inset: 0; z-index: 10; pointer-events: none; opacity: 0.08; mix-blend-mode: overlay; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="8" data-fps="30" data-width="1920" data-height="1080">
+      <div id="world">
+        <img id="bg" src="assets/maps/poster.jpg" alt="Нічна мапа Києва" />
+        <div id="marks"></div>
+      </div>
+      <div id="over"></div>
+      <svg id="grain" width="1920" height="1080" aria-hidden="true">
+        <filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="27" /><feColorMatrix type="saturate" values="0" /></filter>
+        <rect width="1920" height="1080" filter="url(#noise)" />
+      </svg>
+    </div>
+
+    <script>
+      (function () {
+        var M = window.MAPS.poster;
+        document.head.insertAdjacentHTML("beforeend", "<style>" + M.css + "</style>");
+        document.body.insertAdjacentHTML("afterbegin", M.icons);
+        document.getElementById("marks").innerHTML = M.marks.join("") + '<div id="sel">' + M.pin + "</div>";
+        // the tool's page loads images from the library by file URL; here they sit in assets/
+        document.getElementById("over").innerHTML = M.card + M.phrase + M.brand.replace(/src="file:[^"]*\/([^/"]+)"/g, 'src="assets/$1"');
+
+        var tl = gsap.timeline({ paused: true });
+        function settle(sel, at, dur, dy) {
+          tl.fromTo(sel, { opacity: 0, y: dy || 18 }, { opacity: 1, y: 0, duration: dur || 0.7, ease: "power3.out" }, at);
+        }
+
+        // ---- 0–4.2: the map settles back to the poster framing
+        tl.fromTo("#world", { scale: 1.06 }, { scale: 1, duration: 4.2, ease: "power2.out", transformOrigin: M.focus[0] + "px " + M.focus[1] + "px" }, 0);
+        // ---- 0.3–2.0: this week's tickets settle from the city centre outward
+        var marks = document.querySelectorAll("#marks > .t");
+        for (var i = 0; i < marks.length; i++) {
+          tl.fromTo(marks[i], { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 0.5, ease: "power3.out" }, 0.3 + i * 0.1);
+        }
+        // ---- the question is on screen from frame one, as on the banner; 2.5: the ticket; 3.3: its pin on the map
+        settle("#card", 2.5, 0.8, 24);
+        tl.fromTo("#sel", { opacity: 0, scale: 0.7 }, { opacity: 1, scale: 1, duration: 0.5, ease: "back.out(1.4)", transformOrigin: "50% 50%" }, 3.3);
+        // ---- 4.4: the name and where to get it, by a hard cut; the poster holds still to 8.0
+        tl.set("#brand", { opacity: 1 }, 4.4);
+        tl.set({}, {}, 8);
+
+        window.__timelines["main"] = tl;
+      })();
+    </script>
+  </body>
+</html>

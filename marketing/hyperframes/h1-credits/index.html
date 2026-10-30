@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>Титри вечора · «Поряд» — 16 с, 16:9</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <!-- map plates + marks from tools/store_creative.mjs (node tools/store_creative.mjs map-kyiv) -->
+    <script src="assets/maps/kyiv.js"></script>
+    <script src="assets/maps/kyiv-comedy.js"></script>
+    <style>
+      /* the faces the map's tickets use: Cond, XCond and Sys (Inter in ads) */
+      @font-face { font-family: "Cond"; src: url("assets/fonts/sofia-sans-condensed-700.woff2") format("woff2"); font-weight: 700; font-display: block; }
+      @font-face { font-family: "Cond"; src: url("assets/fonts/sofia-sans-condensed-800.woff2") format("woff2"); font-weight: 800; font-display: block; }
+      @font-face { font-family: "XCond"; src: url("assets/fonts/sofia-sans-extra-condensed-800.woff2") format("woff2"); font-weight: 800; font-display: block; }
+      @font-face { font-family: "Sys"; src: url("assets/fonts/inter-cyrillic-400-normal.woff2") format("woff2"); font-weight: 400; font-display: block; unicode-range: U+0400-045F, U+0490-0491, U+2116; }
+      @font-face { font-family: "Sys"; src: url("assets/fonts/inter-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: block; unicode-range: U+0000-00FF, U+2000-206F; }
+      @font-face { font-family: "Sys"; src: url("assets/fonts/inter-cyrillic-600-normal.woff2") format("woff2"); font-weight: 600; font-display: block; unicode-range: U+0400-045F, U+0490-0491, U+2116; }
+      @font-face { font-family: "Sys"; src: url("assets/fonts/inter-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-display: block; unicode-range: U+0000-00FF, U+2000-206F; }
+      @font-face { font-family: "Sofia Sans Condensed"; src: url("assets/fonts/SofiaSansCondensed-Bold.ttf") format("truetype"); font-weight: 700; font-display: block; }
+      @font-face { font-family: "Sofia Sans Condensed"; src: url("assets/fonts/SofiaSansCondensed-ExtraBold.ttf") format("truetype"); font-weight: 800; font-display: block; }
+      @font-face { font-family: "Sofia Sans Extra Condensed"; src: url("assets/fonts/SofiaSansExtraCondensed-ExtraBold.ttf") format("truetype"); font-weight: 800; font-display: block; }
+      @font-face { font-family: "Inter"; src: url("assets/fonts/inter-cyrillic-400-normal.woff2") format("woff2"); font-weight: 400; font-display: block; unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+      @font-face { font-family: "Inter"; src: url("assets/fonts/inter-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: block; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+      @font-face { font-family: "Inter"; src: url("assets/fonts/inter-cyrillic-600-normal.woff2") format("woff2"); font-weight: 600; font-display: block; unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+      @font-face { font-family: "Inter"; src: url("assets/fonts/inter-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-display: block; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+
+      /* «Титри вечора»: the evening is a film whose plot isn't written yet. Opening credits inside 2.39:1 scope bars
+         cast it one credit at a time, and each credit prints onto a blank ticket — the film's poster. «У ролях — ти»
+         racks the poster out of focus; the bars open, the poster flies into the real map, «Поряд» is the studio card.
+         Calm on purpose: soft eases, no pops, modest type, lots of night. */
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #0f0f13; }
+      #root { position: relative; width: 100%; height: 100%; overflow: hidden; background: #0f0f13; color: #f3f3f0;
+        font-family: "Sofia Sans Condensed", sans-serif; -webkit-font-smoothing: antialiased; }
+      .abs { position: absolute; }
+      .xc { font-family: "Sofia Sans Extra Condensed", sans-serif; font-weight: 800; font-variant-numeric: tabular-nums; }
+
+      /* 1 — title card */
+      #b1a { left: 0; top: 450px; width: 1920px; text-align: center; font-weight: 800; font-size: 88px; line-height: 88px; letter-spacing: -0.5px; }
+      #b1b { left: 0; top: 568px; width: 1920px; text-align: center; font-weight: 700; font-size: 64px; line-height: 64px; opacity: 0; }
+
+      /* 2–3 — two-column credits on the x = 960 gutter: role right-aligned, name left-aligned, one baseline */
+      .credit { left: 0; top: 290px; width: 1920px; display: flex; align-items: baseline; }
+      .credit .role { width: 930px; text-align: right; font-family: "Inter", sans-serif; font-weight: 600; font-size: 28px; letter-spacing: 0.18em; color: #a6a5ad; opacity: 0; }
+      .credit .name { margin-left: 60px; font-weight: 800; font-size: 80px; line-height: 80px; letter-spacing: -0.5px; white-space: nowrap; opacity: 0; }
+      .credit .name.xc { font-size: 88px; line-height: 80px; letter-spacing: 0; }
+
+      /* the poster: horizontal TicketShape at u = 2.5 (r 45, notches 17.5, stub 210, perforation 6.25 / 15) */
+      #ticket { left: 480px; top: 510px; width: 960px; height: 280px; transform-origin: 480px 140px; opacity: 0; z-index: 4; }
+      #ticket svg { position: absolute; inset: 0; overflow: visible; }
+      .print { position: absolute; white-space: nowrap; }
+      #tTitle { left: 50px; top: 76px; font-weight: 800; font-size: 72px; line-height: 72px; letter-spacing: -0.5px; }
+      #tPlace { left: 50px; top: 170px; display: flex; align-items: center; gap: 14px; font-family: "Inter", sans-serif; font-weight: 600; font-size: 34px; line-height: 34px; color: #a6a5ad; }
+      #tPlace i { width: 20px; height: 20px; border-radius: 50%; background: #cbb57d; }
+      .stubtxt { left: 750px; width: 210px; text-align: center; color: #fff; }
+      #tGenre { top: 58px; font-weight: 800; font-size: 30px; line-height: 30px; letter-spacing: 2px; }
+      #tTime { top: 96px; font-size: 88px; line-height: 88px; }
+      #tDay { top: 194px; font-family: "Inter", sans-serif; font-weight: 600; font-size: 24px; line-height: 24px; letter-spacing: 2px; }
+
+      /* 4 — the real night map of Kyiv with this week's events, as on the Search Results banner; the plates keep
+         x 170–940, y 360–700 free for the caption */
+      .world { left: 0; top: 0; width: 1920px; height: 1080px; z-index: 1; opacity: 0; }
+      .world img { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }
+      #cap { z-index: 5; left: 200px; top: 420px; text-align: left; text-shadow: 0 0 48px #0f0f13, 0 0 20px #0f0f13; font-weight: 800; font-size: 72px; line-height: 88px; letter-spacing: -0.5px; white-space: nowrap; }
+      #cap span { display: inline-block; opacity: 0; }
+
+      /* 5 — end card, END-CARD-16x9.md grid */
+      #icon { left: 896px; top: 272px; width: 128px; height: 128px; border-radius: 29px; opacity: 0; }
+      #word { left: 0; top: 428px; width: 1920px; text-align: center; font-weight: 800; font-size: 132px; line-height: 132px; letter-spacing: -1px; color: #f3f3f0; }
+      #word span { display: inline-block; opacity: 0; }
+      #slogan { left: 0; top: 584px; width: 1920px; text-align: center; font-weight: 700; font-size: 44px; line-height: 44px; color: #a6a5ad; opacity: 0; }
+      #store { left: 0; top: 0; width: 1920px; height: 1080px; opacity: 0; }
+      /* where to get it, as on the poster: no store badges, they outshine the app icon (27.10) */
+      #free { left: 0; top: 724px; width: 1920px; text-align: center; font-family: "Inter", sans-serif; font-weight: 400; font-size: 28px; line-height: 42px; color: #a6a5ad; }
+
+      #grain { left: 0; top: 0; z-index: 50; opacity: 0.1; pointer-events: none; }
+      /* scope mattes: 1920 / 2.39 = 803 → 138 px each, pure black above the grain */
+      .bar { left: 0; width: 1920px; height: 140px; background: #000; z-index: 60; }
+      #barTop { top: -2px; }
+      #barBot { top: 942px; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="16.5" data-fps="30" data-width="1920" data-height="1080">
+      <div class="abs" id="b1a">Пʼятниця. <span class="xc">19:00.</span></div>
+      <div class="abs" id="b1b">Сюжету поки нема.</div>
+
+      <div class="abs" id="ticket" data-layout-allow-overflow>
+        <svg width="960" height="280" viewBox="0 0 960 280" aria-hidden="true">
+          <defs>
+            <clipPath id="tclip"><path d="M45 0H732.5A17.5 17.5 0 0 0 767.5 0H915A45 45 0 0 1 960 45V235A45 45 0 0 1 915 280H767.5A17.5 17.5 0 0 0 732.5 280H45A45 45 0 0 1 0 235V45A45 45 0 0 1 45 0Z" /></clipPath>
+          </defs>
+          <path id="tFill" d="M45 0H732.5A17.5 17.5 0 0 0 767.5 0H915A45 45 0 0 1 960 45V235A45 45 0 0 1 915 280H767.5A17.5 17.5 0 0 0 732.5 280H45A45 45 0 0 1 0 235V45A45 45 0 0 1 45 0Z" fill="#1c1b21" opacity="0" />
+          <g clip-path="url(#tclip)">
+            <rect x="750" y="0" width="210" height="280" fill="#2a2930" />
+            <rect id="tStub" x="750" y="0" width="210" height="280" fill="#8d6a11" />
+          </g>
+          <line x1="750" x2="750" y1="45" y2="235" stroke="#0f0f13" stroke-width="6.25" stroke-linecap="round" stroke-dasharray="0 15" />
+          <!-- unprinted rows, as BlankTicket -->
+          <rect id="bar1" x="50" y="104.5" width="455" height="15" rx="7.5" fill="#2e2d35" />
+          <rect id="bar2" x="50" y="179.5" width="260" height="15" rx="7.5" fill="#2e2d35" />
+          <path id="tDash" d="M45 0H732.5A17.5 17.5 0 0 0 767.5 0H915A45 45 0 0 1 960 45V235A45 45 0 0 1 915 280H767.5A17.5 17.5 0 0 0 732.5 280H45A45 45 0 0 1 0 235V45A45 45 0 0 1 45 0Z" fill="none" stroke="#96959e" stroke-opacity="0.65" stroke-width="3.75" stroke-dasharray="12.5 10" />
+          <path id="tEdge" d="M45 0H732.5A17.5 17.5 0 0 0 767.5 0H915A45 45 0 0 1 960 45V235A45 45 0 0 1 915 280H767.5A17.5 17.5 0 0 0 732.5 280H45A45 45 0 0 1 0 235V45A45 45 0 0 1 45 0Z" fill="none" stroke="#2e2d35" stroke-width="2.5" opacity="0" />
+        </svg>
+        <div class="print" id="tTitle">Стендап у барі</div>
+        <div class="print" id="tPlace"><i></i>Поділ</div>
+        <div class="print stubtxt" id="tGenre">СТЕНДАП</div>
+        <div class="print stubtxt xc" id="tTime">20:00</div>
+        <div class="print stubtxt" id="tDay">СЬОГОДНІ</div>
+      </div>
+
+      <div class="abs credit" id="c1" data-layout-allow-overlap><span class="role">ЖАНР</span><span class="name">стендап</span></div>
+      <div class="abs credit" id="c2" data-layout-allow-overlap><span class="role">МІСЦЕ ДІЇ</span><span class="name">Поділ</span></div>
+      <div class="abs credit" id="c3" data-layout-allow-overlap><span class="role">ПОЧАТОК</span><span class="name xc">20:00</span></div>
+      <div class="abs credit" id="c4" data-layout-allow-overlap><span class="role">У РОЛЯХ</span><span class="name">ти</span></div>
+
+      <div class="abs world" id="wAll"><img src="assets/maps/kyiv.jpg" alt="Нічна мапа Києва з подіями тижня" /><div class="marks"></div></div>
+      <div class="abs world" id="wComedy"><img src="assets/maps/kyiv-comedy.jpg" alt="Мапа Києва: лише стендап" /><div class="marks"></div></div>
+      <div class="abs" id="cap"><span>Знайди</span> <span>вечір.</span><br /><span>Обери</span> <span>свій жанр.</span></div>
+
+      <img class="abs" id="icon" src="assets/icon.png" alt="" />
+      <div class="abs" id="word"><span>П</span><span>о</span><span>р</span><span>я</span><span>д</span></div>
+      <div class="abs" id="slogan">Афіша міста на одній мапі.</div>
+      <div class="abs" id="store">
+        <div class="abs" id="free">Безкоштовно для iPhone і Android<br />poriad.app</div>
+      </div>
+
+      <svg class="abs" id="grain" width="1920" height="1080" aria-hidden="true" data-layout-ignore>
+        <filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="7" stitchTiles="stitch" /><feColorMatrix type="saturate" values="0" /></filter>
+        <g id="grainMove"><rect x="-160" y="-160" width="2240" height="1400" filter="url(#noise)" /></g>
+      </svg>
+      <div class="abs bar" id="barTop"></div>
+      <div class="abs bar" id="barBot"></div>
+    </div>
+
+    <script>
+      (function () {
+        document.head.insertAdjacentHTML("beforeend", "<style>" + window.MAPS.kyiv.css + "</style>");
+        document.body.insertAdjacentHTML("afterbegin", window.MAPS.kyiv.icons);
+        function marksOf(id, M) {
+          var box = document.querySelector("#" + id + " .marks");
+          box.innerHTML = M.marks.join("");
+          return box.querySelectorAll(".t");
+        }
+        var allMarks = marksOf("wAll", window.MAPS.kyiv), comedyMarks = marksOf("wComedy", window.MAPS["kyiv-comedy"]);
+
+        var tl = gsap.timeline({ paused: true });
+
+        // credits settle like credits: a soft fade out of blur, no travel, no overshoot
+        function into(sel, at, d) {
+          tl.fromTo(sel, { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: d || 0.45, ease: "power2.out" }, at);
+        }
+        function outof(sel, at) {
+          tl.fromTo(sel, { opacity: 1, filter: "blur(0px)" }, { opacity: 0, filter: "blur(6px)", duration: 0.22, ease: "power2.in", immediateRender: false }, at);
+        }
+        // printing onto the ticket: the ink runs left → right like a printer head
+        function print(sel, at, d) {
+          tl.fromTo(sel, { clipPath: "inset(0% 100% 0% 0%)" }, { clipPath: "inset(0% 0% 0% 0%)", duration: d || 0.45, ease: "power2.out" }, at);
+        }
+        function credit(id, at, out) {
+          into(id + " .role", at, 0.4);
+          into(id + " .name", at + 0.05, 0.45);
+          outof(id + " .role", out);
+          outof(id + " .name", out);
+        }
+        function fade(sel, from, to, at, d, ease) {
+          tl.fromTo(sel, { opacity: from }, { opacity: to, duration: d, ease: ease || "sine.inOut", immediateRender: false }, at);
+        }
+
+        // ---- 1 · 0–2.7: «Пʼятниця. 19:00.» / «Сюжету поки нема.» (frame 0 already carries the faint first line)
+        tl.fromTo("#b1a", { opacity: 0.4, filter: "blur(6px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.5, ease: "power2.out" }, 0);
+        into("#b1b", 0.6, 0.45);
+        outof("#b1a", 2.45);
+        outof("#b1b", 2.45);
+
+        // ---- 2 · 2.55–8.1: casting the evening; every credit prints onto the blank ticket
+        tl.set(["#tTitle", "#tPlace", "#tGenre", "#tTime", "#tDay"], { clipPath: "inset(0% 100% 0% 0%)" }, 0);
+        tl.set("#tStub", { scaleX: 0, transformOrigin: "0% 50%" }, 0);
+        tl.fromTo("#ticket", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.out" }, 2.55);
+
+        credit("#c1", 2.65, 4.25); // ЖАНР — стендап: the stub floods with the stand-up colour, genre and title print
+        fade("#tFill", 0, 1, 3.4, 0.4);
+        fade("#tEdge", 0, 1, 3.4, 0.4);
+        fade("#tDash", 1, 0, 3.4, 0.4);
+        tl.fromTo("#tStub", { scaleX: 0 }, { scaleX: 1, duration: 0.6, ease: "power2.inOut", immediateRender: false }, 3.4);
+        print("#tGenre", 3.65, 0.4);
+        fade("#bar1", 1, 0, 3.7, 0.2);
+        print("#tTitle", 3.75, 0.5);
+
+        credit("#c2", 4.33, 6.23); // МІСЦЕ ДІЇ — Поділ
+        fade("#bar2", 1, 0, 5.1, 0.2);
+        print("#tPlace", 5.1, 0.45);
+
+        credit("#c3", 6.31, 7.91); // ПОЧАТОК — 20:00
+        print("#tTime", 7.05, 0.4);
+        print("#tDay", 7.2, 0.4);
+
+        // ---- 3 · 7.8–10.1: «У РОЛЯХ — ти»: rack focus, the poster drops out of focus behind the credit
+        tl.fromTo("#ticket", { opacity: 1, scale: 1, filter: "blur(0px)" }, { opacity: 0.32, scale: 0.96, filter: "blur(12px)", duration: 0.6, ease: "power2.inOut", immediateRender: false }, 7.8);
+        credit("#c4", 8.01, 9.91);
+
+        // ---- 4 · 9.85–13.25: the scope bars open, the film starts on the real map of Kyiv; the poster flies into
+        // the ticket nearest the city centre and becomes one of the city's tickets of the week
+        tl.fromTo("#barTop", { y: 0 }, { y: -142, duration: 0.8, ease: "sine.inOut" }, 9.85);
+        tl.fromTo("#barBot", { y: 0 }, { y: 142, duration: 0.8, ease: "sine.inOut" }, 9.85);
+        var focus = window.MAPS.kyiv.focus;
+        fade("#wAll", 0, 1, 9.85, 0.6, "sine.inOut");
+        tl.fromTo("#wAll", { scale: 1.04 }, { scale: 1, duration: 3.2, ease: "sine.out", transformOrigin: focus[0] + "px " + focus[1] + "px" }, 9.85);
+        var land = allMarks[0], lx = land.offsetLeft + land.offsetWidth / 2, ly = land.offsetTop + land.offsetHeight / 2;
+        tl.fromTo("#ticket", { x: 0, y: 0, scale: 0.96, filter: "blur(12px)" }, { x: lx - 960, y: ly - 650, scale: land.offsetWidth / 960, filter: "blur(0px)", duration: 0.75, ease: "power2.inOut", immediateRender: false }, 10.0);
+        fade("#ticket", 0.32, 0.9, 10.0, 0.45, "power1.out");
+        fade("#ticket", 0.9, 0, 10.6, 0.15, "none");
+        tl.fromTo(land, { opacity: 0 }, { opacity: 1, duration: 0.15, ease: "none" }, 10.6);
+        for (var m = 1; m < allMarks.length; m++) {
+          tl.fromTo(allMarks[m], { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 0.45, ease: "power3.out" }, 10.65 + (m - 1) * 0.05);
+        }
+
+        into("#cap span:nth-of-type(1)", 10.55, 0.45);
+        into("#cap span:nth-of-type(2)", 10.65, 0.45);
+        // the same map with only stand-up left: this week's real stand-up events of Kyiv
+        fade("#wComedy", 0, 1, 11.3, 0.5, "sine.inOut");
+        tl.set("#wAll", { opacity: 0 }, 11.85);
+        for (var c = 0; c < comedyMarks.length; c++) {
+          tl.fromTo(comedyMarks[c], { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 0.45, ease: "power3.out" }, 11.45 + c * 0.08);
+        }
+        into("#cap span:nth-of-type(3)", 11.35, 0.45);
+        into("#cap span:nth-of-type(4)", 11.45, 0.45);
+        fade("#wComedy", 1, 0, 13.0, 0.25, "power2.in");
+        outof("#cap", 13.0);
+
+        // ---- 5 · 13.2–16: «Поряд» as the studio card, the end card resolves around it; static from 13.9
+        var letters = document.querySelectorAll("#word span");
+        for (var i = 0; i < letters.length; i++) into(letters[i], 13.2 + i * 0.07, 0.45);
+        into("#icon", 13.45, 0.45);
+        into("#slogan", 13.5, 0.45);
+        tl.set("#store", { opacity: 1 }, 13.9);
+
+        // film grain: the noise plate jumps every 2 frames (seeded, seek-safe); still for the last 0.9 s
+        var s = 20261027;
+        function rnd() { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; }
+        for (var f = 0; f <= 468; f += 2) {
+          tl.set("#grainMove", { x: Math.round(rnd() * 300 - 150), y: Math.round(rnd() * 300 - 150) }, f / 30);
+        }
+
+        tl.set({}, {}, 16.5);
+        window.__timelines = window.__timelines || {};
+        window.__timelines["main"] = tl;
+      })();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <title>Реклама · постер навпіл, після роботи — TikTok, 10 с, 9:16</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face { font-family: "Sofia Sans Condensed"; src: url("assets/fonts/SofiaSansCondensed-Bold.ttf") format("truetype"); font-weight: 700; font-display: block; }
+      @font-face { font-family: "Sofia Sans Condensed"; src: url("assets/fonts/SofiaSansCondensed-ExtraBold.ttf") format("truetype"); font-weight: 800; font-display: block; }
+      @font-face { font-family: "Sofia Sans Extra Condensed"; src: url("assets/fonts/SofiaSansExtraCondensed-ExtraBold.ttf") format("truetype"); font-weight: 800; font-display: block; }
+      @font-face { font-family: "Inter"; src: url("assets/fonts/inter-cyrillic-400-normal.woff2") format("woff2"); font-weight: 400; font-display: block; unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+      @font-face { font-family: "Inter"; src: url("assets/fonts/inter-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: block; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+      @font-face { font-family: "Inter"; src: url("assets/fonts/inter-cyrillic-600-normal.woff2") format("woff2"); font-weight: 600; font-display: block; unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+      @font-face { font-family: "Inter"; src: url("assets/fonts/inter-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-display: block; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+
+      /* A split poster (reference A4, Uber Eats): the bottom half is a still poster from frame one, the top half deals
+         this week's real Kyiv tickets onto a growing pile while its ground turns to each ticket's genre tint.
+         Tickets are the app's TicketShape (as in tools/store_creative.mjs); tints are night `categoryInk`.
+         «Поряд» is paper; no coral; no «Буде з ким» (27.10). */
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1080px; height: 1920px; overflow: hidden; background: #0f0f13; }
+      #root { position: relative; width: 100%; height: 100%; overflow: hidden; color: #f3f3f0; font-family: "Sofia Sans Condensed", sans-serif; background: #0f0f13; }
+
+      /* ---- top half: genre grounds and the pile */
+      #top { position: absolute; left: 0; top: 0; width: 1080px; height: 880px; overflow: hidden; }
+      .g { position: absolute; inset: 0; }
+      .g.next { clip-path: inset(100% 0% 0% 0%); }
+      #seam { position: absolute; left: 0; top: 858px; z-index: 8; }
+
+      .tk { position: absolute; left: 140px; top: 400px; width: 800px; height: 320px; filter: drop-shadow(0 26px 40px rgba(15, 15, 19, 0.35)); }
+      .tk svg { position: absolute; left: 0; top: 0; overflow: visible; }
+      .tk .main { position: absolute; left: 0; top: 0; width: 560px; height: 320px; padding: 0 30px 0 44px; display: flex; flex-direction: column; justify-content: center; }
+      .tk .title { font-weight: 700; font-size: 50px; line-height: 53px; color: #f3f3f0; }
+      .tk .place { display: flex; align-items: center; gap: 14px; margin-top: 18px; font-family: "Inter", sans-serif; font-weight: 400; font-size: 29px; line-height: 34px; color: #a6a5ad; white-space: nowrap; }
+      .tk .place span { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+      .tk .place b { font-weight: 600; color: #f3f3f0; }
+      .tk .place i { display: block; width: 18px; height: 18px; border-radius: 50%; background: var(--dot); flex: none; }
+      .tk .stub { position: absolute; left: 560px; top: 0; width: 240px; height: 320px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff; }
+      .tk .genre { font-weight: 800; font-size: 32px; line-height: 32px; letter-spacing: 0.06em; text-transform: uppercase; }
+      .tk .time { margin: 10px 0 14px; font-family: "Sofia Sans Extra Condensed", sans-serif; font-weight: 800; font-size: 88px; line-height: 82px; font-variant-numeric: tabular-nums; }
+      .tk .day { font-family: "Inter", sans-serif; font-weight: 600; font-size: 28px; line-height: 32px; letter-spacing: 0; white-space: nowrap; }
+      .tk .veil { opacity: 0; }
+
+      #bait { position: absolute; left: 160px; top: 290px; width: 760px; text-align: center; font-weight: 700; font-size: 60px; line-height: 66px; opacity: 0; z-index: 9; }
+
+      /* ---- bottom half: the still poster */
+      #bottom { position: absolute; left: 0; top: 880px; width: 1080px; height: 1040px; background: #0f0f13; }
+      #ask { position: absolute; left: 0; top: 40px; width: 1080px; text-align: center; font-weight: 800; font-size: 104px; line-height: 104px; letter-spacing: -1px; }
+      #brandrow { position: absolute; left: 0; top: 176px; width: 1080px; display: flex; justify-content: center; align-items: center; gap: 24px; }
+      #brandrow img { width: 96px; height: 96px; border-radius: 22px; }
+      #brandrow span { font-weight: 800; font-size: 96px; line-height: 96px; letter-spacing: -1px; color: #f3f3f0; }
+      #line { position: absolute; left: 0; top: 290px; width: 1080px; text-align: center; font-weight: 700; font-size: 40px; line-height: 44px; color: #a6a5ad; }
+      #store { position: absolute; left: 0; top: 368px; width: 1080px; display: flex; flex-direction: column; align-items: center; }
+      #badges { display: flex; gap: 32px; }
+      /* official badges: untouched files, both 104 px tall, no transform/filter/shadow, on screen from frame one */
+      #badges img { display: block; height: 104px; width: auto; }
+      #store .tm { margin-top: 20px; text-align: center; font-family: "Inter", sans-serif; font-weight: 400; font-size: 20px; line-height: 26px; color: #96959e; white-space: nowrap; }
+
+      #grain { position: absolute; inset: 0; z-index: 10; pointer-events: none; opacity: 0.06; mix-blend-mode: overlay; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="10" data-fps="30" data-width="1080" data-height="1920">
+      <div id="top" data-layout-allow-overflow>
+                <div class="g" id="g0" style="background:#df93ae"></div>
+        <div class="g next" id="g1" style="background:#cbb57d"></div>
+        <div class="g next" id="g2" style="background:#af9be1"></div>
+        <div class="g next" id="g3" style="background:#df93ae"></div>
+        <div class="g next" id="g4" style="background:#af9be1"></div>
+        <div class="g next" id="g5" style="background:#0f0f13"></div>
+
+        <div class="tk" data-layout-allow-overlap data-layout-allow-occlusion id="t0" style="--dot:#df93ae;z-index:1">
+          <svg viewBox="0 0 800 320" width="800" height="320"><clipPath id="k0"><path d="M42 0H543.7A16.3 16.3 0 0 0 576.3 0H758A42 42 0 0 1 800 42V278A42 42 0 0 1 758 320H576.3A16.3 16.3 0 0 0 543.7 320H42A42 42 0 0 1 0 278V42A42 42 0 0 1 42 0Z" /></clipPath>
+            <path d="M42 0H543.7A16.3 16.3 0 0 0 576.3 0H758A42 42 0 0 1 800 42V278A42 42 0 0 1 758 320H576.3A16.3 16.3 0 0 0 543.7 320H42A42 42 0 0 1 0 278V42A42 42 0 0 1 42 0Z" fill="#1c1b21" />
+            <rect x="560" y="0" width="240" height="320" fill="#ac345e" clip-path="url(#k0)" />
+            <line x1="560" x2="560" y1="42" y2="278" stroke="#0f0f13" stroke-width="5.8" stroke-linecap="round" stroke-dasharray="0 14" />
+            <path d="M42 0H543.7A16.3 16.3 0 0 0 576.3 0H758A42 42 0 0 1 800 42V278A42 42 0 0 1 758 320H576.3A16.3 16.3 0 0 0 543.7 320H42A42 42 0 0 1 0 278V42A42 42 0 0 1 42 0Z" fill="none" stroke="#2e2d35" stroke-width="2.3" /></svg>
+          <div class="main"><div class="title">Нєвинасімі люді</div><div class="place"><i></i><span>Новий український театр</span></div></div>
+          <div class="stub"><div class="genre">Мистецтво</div><div class="time">18:30</div><div class="day">ПН, 9 ЛИСТ.</div></div>
+          <svg class="veil" viewBox="0 0 800 320" width="800" height="320"><path d="M42 0H543.7A16.3 16.3 0 0 0 576.3 0H758A42 42 0 0 1 800 42V278A42 42 0 0 1 758 320H576.3A16.3 16.3 0 0 0 543.7 320H42A42 42 0 0 1 0 278V42A42 42 0 0 1 42 0Z" fill="#0f0f13" /></svg>
+        </div>
+        <div class="tk" data-layout-allow-overlap data-layout-allow-occlusion id="t1" style="--dot:#cbb57d;z-index:2">
+          <svg viewBox="0 0 800 320" width="800" height="320"><clipPath id="k1"><path d="M42 0H543.7A16.3 16.3 0 0 0 576.3 0H758A42 42 0 0 1 800 42V278A42 42 0 0 1 758 320H576.3A16.3 16.3 0 0 0 543.7 320H42A42 42 0 0 1 0 278V42A42 42 0 0 1 42 0Z" /></clipPath>
+            <path d="M42 0H543.7A16.3 16.3 0 0 0 576.3 0H758A42 42 0 0 1 800 42V278A42 42 0 0 1 758 320H576.3A16.3 16.3 0 0 0 543.7 320H42A42 42 0 0 1 0 278V42A42 42 0 0 1 42 0Z" fill="#1c1b21" />
+            <rect x="560" y="0" width="240" height="320" fill="#8d6a11" clip-path="url(#k1)" />
+            <line x1="560" x2="560" y1="42" y2="278" stroke="#0f0f13" stroke-width="5.8" stroke-linecap="round" stroke-dasharray="0 14" />
+            <path d="M42 0H543.7A16.3 16.3 0 0 0 576.3 0H758A42 42 0 0 1 800 42V278A42 42 0 0 1 758 320H576.3A16.3 16.3 0 0 0 543.7 320H42A42 42 0 0 1 0 278V42A42 42 0 0 1 42 0Z" fill="none" stroke="#2e2d35" stroke-width="2.3" /></svg>
+          <div class="main"><div class="title">Open Mic in English</div><div class="place"><i></i><span>Underground Standup Club</span></div></div>
+          <div class="stub"><div class="genre">Стендап</div><div class="time">19:00</div><div class="day">ВТ, 10 ЛИСТ.</div></div>
+          <svg class="veil" viewBox="0 0 800 320" width="800" height="320"><path d="M42 0H543.7A16.3 16.3 0 0 0 576.3 0H758A42 42 0 0 1 800 42V278A42 42 0 0 1 758 320H576.3A16.3 16.3 0 0 0 543.7 320H42A42 42 0 0 1 0 278V42A42 42 0 0 1 42 0Z" fill="#0f0f13" /></svg>
+        </div>
+        <div class="tk" data-layout-allow-overlap data-layout-allow-occlusion id="t2" style="--dot:#af9be1;z-index:3">
+          <svg viewBox="0 0 800 320" width="800" height="320"><clipPath id="k2"><path d="M42 0H543.7A16.3 16.3 0 0 0 576.3 0H758A42 42 0 0 1 800 42V278A42 42 0 0 1 758 320H576.3A16.3 16.3 0 0 0 543.7 320H42A42 42 0 0 1 0 278V42A42 42 0 0 1 42 0Z" /></clipPath>
+            <path d="M42 0H543.7A16.3 16.3 0 0 0 576.3 0H758A42 42 0 0 1 800 42V278A42 42 0 0 1 758 320H576.3A16.3 16.3 0 0 0 543.7 320H42A42 42 0 0 1 0 278V42A42 42 0 0 1 42 0Z" fill="#1c1b21" />
+            <rect x="560" y="0" width="240" height="320" fill="#6041b1" clip-path="url(#k2)" />
+            <line x1="560" x2="560" y1="42" y2="278" stroke="#0f0f13" stroke-width="5.8" stroke-linecap="round" stroke-dasharray="0 14" />
+            <path d="M42 0H543.7A16.3 16.3 0 0 0 576.3 0H758A42 42 0 0 1 800 42V278A42 42 0 0 1 758 320H576.3A16.3 16.3 0 0 0 543.7 320H42A42 42 0 0 1 0 278V42A42 42 0 0 1 42 0Z" fill="none" stroke="#2e2d35" stroke-width="2.3" /></svg>
+          <div class="main"><div class="title">FIЇNKA</div><div class="place"><i></i><span>Міжнародний центр культури і мистецтв</span></div></div>
+          <div class="stub"><div class="genre">Музика</div><div class="time">19:00</div><div class="day">СР, 11 ЛИСТ.</div></div>
+          <svg class="veil" viewBox="0 0 800 320" width="800" height="320"><path d="M42 0H543.7A16.3 16.3 0 0 0 576.3 0H758A42 42 0 0 1 800 42V278A42 42 0 0 1 758 320H576.3A16.3 16.3 0 0 0 543.7 320H42A42 42 0 0 1 0 278V42A42 42 0 0 1 42 0Z" fill="#0f0f13" /></svg>
+        </div>
+        <div class="tk" data-layout-allow-overlap data-layout-allow-occlusion id="t3" style="--dot:#df93ae;z-index:4">
+          <svg viewBox="0 0 800 320" width="800" height="320"><clipPath id="k3"><path d="M42 0H543.7A16.3 16.3 0 0 0 576.3 0H758A42 42 0 0 1 800 42V278A42 42 0 0 1 758 320H576.3A16.3 16.3 0 0 0 543.7 320H42A42 42 0 0 1 0 278V42A42 42 0 0 1 42 0Z" /></clipPath>
+            <path d="M42 0H543.7A16.3 16.3 0 0 0 576.3 0H758A42 42 0 0 1 800 42V278A42 42 0 0 1 758 320H576.3A16.3 16.3 0 0 0 543.7 320H42A42 42 0 0 1 0 278V42A42 42 0 0 1 42 0Z" fill="#1c1b21" />
+            <rect x="560" y="0" width="240" height="320" fill="#ac345e" clip-path="url(#k3)" />
+            <line x1="560" x2="560" y1="42" y2="278" stroke="#0f0f13" stroke-width="5.8" stroke-linecap="round" stroke-dasharray="0 14" />
+            <path d="M42 0H543.7A16.3 16.3 0 0 0 576.3 0H758A42 42 0 0 1 800 42V278A42 42 0 0 1 758 320H576.3A16.3 16.3 0 0 0 543.7 320H42A42 42 0 0 1 0 278V42A42 42 0 0 1 42 0Z" fill="none" stroke="#2e2d35" stroke-width="2.3" /></svg>
+          <div class="main"><div class="title">Людина-подушка</div><div class="place"><i></i><span>Малий театр</span></div></div>
+          <div class="stub"><div class="genre">Мистецтво</div><div class="time">18:00</div><div class="day">ЧТ, 12 ЛИСТ.</div></div>
+          <svg class="veil" viewBox="0 0 800 320" width="800" height="320"><path d="M42 0H543.7A16.3 16.3 0 0 0 576.3 0H758A42 42 0 0 1 800 42V278A42 42 0 0 1 758 320H576.3A16.3 16.3 0 0 0 543.7 320H42A42 42 0 0 1 0 278V42A42 42 0 0 1 42 0Z" fill="#0f0f13" /></svg>
+        </div>
+        <div class="tk" data-layout-allow-overlap data-layout-allow-occlusion id="t4" style="--dot:#af9be1;z-index:5">
+          <svg viewBox="0 0 800 320" width="800" height="320"><clipPath id="k4"><path d="M42 0H543.7A16.3 16.3 0 0 0 576.3 0H758A42 42 0 0 1 800 42V278A42 42 0 0 1 758 320H576.3A16.3 16.3 0 0 0 543.7 320H42A42 42 0 0 1 0 278V42A42 42 0 0 1 42 0Z" /></clipPath>
+            <path d="M42 0H543.7A16.3 16.3 0 0 0 576.3 0H758A42 42 0 0 1 800 42V278A42 42 0 0 1 758 320H576.3A16.3 16.3 0 0 0 543.7 320H42A42 42 0 0 1 0 278V42A42 42 0 0 1 42 0Z" fill="#1c1b21" />
+            <rect x="560" y="0" width="240" height="320" fill="#6041b1" clip-path="url(#k4)" />
+            <line x1="560" x2="560" y1="42" y2="278" stroke="#0f0f13" stroke-width="5.8" stroke-linecap="round" stroke-dasharray="0 14" />
+            <path d="M42 0H543.7A16.3 16.3 0 0 0 576.3 0H758A42 42 0 0 1 800 42V278A42 42 0 0 1 758 320H576.3A16.3 16.3 0 0 0 543.7 320H42A42 42 0 0 1 0 278V42A42 42 0 0 1 42 0Z" fill="none" stroke="#2e2d35" stroke-width="2.3" /></svg>
+          <div class="main"><div class="title">Неокласика при свічках: Ludovico Einaudi, Yann Tiersen, Max Richter</div><div class="place"><i></i><span>Центральний будинок художника</span></div></div>
+          <div class="stub"><div class="genre">Музика</div><div class="time">19:00</div><div class="day">ЧТ, 12 ЛИСТ.</div></div>
+          <svg class="veil" viewBox="0 0 800 320" width="800" height="320"><path d="M42 0H543.7A16.3 16.3 0 0 0 576.3 0H758A42 42 0 0 1 800 42V278A42 42 0 0 1 758 320H576.3A16.3 16.3 0 0 0 543.7 320H42A42 42 0 0 1 0 278V42A42 42 0 0 1 42 0Z" fill="#0f0f13" /></svg>
+        </div>
+
+        <div id="bait">який вечір твій? 👇</div>
+
+        <!-- the tear line between the halves: night-coloured perforation, as on the ticket -->
+        <svg id="seam" width="1080" height="16" viewBox="0 0 1080 16" aria-hidden="true">
+          <line x1="22" x2="1058" y1="8" y2="8" stroke="#0f0f13" stroke-width="9" stroke-linecap="round" stroke-dasharray="0 24" />
+        </svg>
+      </div>
+
+      <div id="bottom">
+        <div id="ask">Куди після роботи?</div>
+        <div id="brandrow"><img src="assets/icon.png" alt="" /><span>Поряд</span></div>
+        <div id="line">Афіша міста на одній мапі. Безкоштовно.</div>
+        <div id="store">
+          <div id="badges">
+            <img src="assets/appstore-badge-uk.svg" alt="Завантажте в App Store" />
+            <img src="assets/googleplay-badge-uk.svg" alt="Завантажте з Google Play" />
+          </div>
+          <div class="tm" data-layout-ignore>
+            <div>Apple, логотип Apple і App Store є торговельними марками Apple Inc.</div>
+            <div>Google Play і логотип Google Play є торговельними марками Google LLC.</div>
+          </div>
+        </div>
+      </div>
+
+      <svg id="grain" width="1080" height="1920" aria-hidden="true">
+        <filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="48" /><feColorMatrix type="saturate" values="0" /></filter>
+        <rect width="1080" height="1920" filter="url(#noise)" />
+      </svg>
+    </div>
+
+    <script>
+      (function () {
+        // 5 real tickets; each slides in from the left onto the pile while the ground turns to its genre tint from the same side
+        var REST = [-3, 2.5, -1.5, 3, -2];                  // each ticket's resting tilt on the pile
+        var T0 = 1.2, STEP = 1.35;                         // a new ticket every 1.35 s
+        var END = T0 + 3 * STEP;                           // night falls on the top half
+        var FROM = "inset(0% 100% 0% 0%)", TO = "inset(0% 0% 0% 0%)";
+
+        var tl = gsap.timeline({ paused: true });
+        tl.set("#t0", { rotation: REST[0] }, 0);
+        for (var i = 1; i < 5; i++) tl.set("#t" + i, { x: -1100, rotation: -8, opacity: 0 }, 0);   // parked off stage, out of sight
+
+        for (var k = 1; k < 5; k++) {
+          var t = T0 + (k - 1) * STEP;
+          tl.fromTo("#g" + k, { clipPath: FROM }, { clipPath: TO, duration: 0.5, ease: "power3.out", immediateRender: false }, t);
+          tl.set("#t" + k, { opacity: 1 }, t);
+          tl.to("#t" + k, { x: 0, rotation: REST[k], duration: 0.46, ease: "power3.out" }, t);
+          tl.to("#t" + (k - 1) + " .veil", { opacity: 0.45, duration: 0.3, ease: "power1.out" }, t + 0.16);
+        }
+
+        // night falls from the same side, the pile settles a little lower, the question above it; still to the end
+        tl.fromTo("#g5", { clipPath: FROM }, { clipPath: TO, duration: 0.55, ease: "power3.inOut", immediateRender: false }, END);
+        tl.to(".tk", { y: 40, duration: 0.55, ease: "power3.inOut" }, END + 0.05);
+        tl.fromTo("#bait", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.3, ease: "power3.out" }, END + 0.45);
+
+        window.__timelines["main"] = tl;
+      })();
+    </script>
+  </body>
+</html>
