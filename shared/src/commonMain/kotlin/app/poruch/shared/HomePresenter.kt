@@ -138,6 +138,13 @@ data class HomeScreenState(
     val isEmpty: Boolean get() =
         if (searching) results.isEmpty() && districts.isEmpty() && places.isEmpty() && artists.isEmpty() else personal.isEmpty() && people.isEmpty() && feed.isEmpty()
     val busy: Boolean get() = if (searching) searchLoading else loading
+
+    /**
+     * «З ким піти» ще не знає, чи є зустрічі: головну показано без видачі ([DiscoveryRules.HOME_FIRST_LOAD_PATIENCE_MS]), а та
+     * ще їде. Секції тоді нема: порожній квиток на всю ширину казав би «нікого нема», а за мить на його місце вистрибувала
+     * рейка (polish 30.10). Чекає лоадер «У місті».
+     */
+    val withWhomPending: Boolean get() = loading && feed.isEmpty() && people.isEmpty() && company.isEmpty()
     fun isSaved(id: String): Boolean = id in savedIds
 
     /** Розклад «Ваше» ([HomeRules.yours]); [deckDue] — рядок «Ваш тиждень» цього тижня ще не відкривали. */

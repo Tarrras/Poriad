@@ -285,7 +285,8 @@ fun StatusBadge(text: String, tone: BadgeTone = BadgeTone.Neutral, icon: ImageVe
         horizontalArrangement = Arrangement.spacedBy(Spacing.xs)
     ) {
         icon?.let { Icon(it, null, Modifier.size(13.dp), tint = foreground) }
-        Text(text, style = MaterialTheme.typography.labelSmall, color = foreground)
+        // Overline — капсом, як на iOS: «від 100 ₴» поруч зі «СЬОГОДНІ» на корінці читалось іншим голосом.
+        Text(text.uppercase(), style = MaterialTheme.typography.labelSmall, color = foreground)
     }
 }
 

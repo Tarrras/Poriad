@@ -84,8 +84,8 @@ fun HomeScreen(state: HomeState, onIntent: (HomeIntent) -> Unit) {
     // «Назад» закриває пошук. На рівні екрана, а не в шапці: шапка — елемент лінивого списку, і після прокрутки
     // результатів її обробник зникав разом із нею, а «Назад» закривав застосунок.
     BackHandler(state.searchMode) { focus.clearFocus(); onIntent(HomeIntent.CancelSearch) }
-    // Широке вікно — три квитки в ряду: два на 720 dp розтягували постер до пів екрана.
-    val columns = if (LocalWideLayout.current) 3 else 2
+    // Широке вікно — три квитки в ряду: два на 720 dp розтягували постер до пів екрана. Великий шрифт — на один менше.
+    val columns = (if (LocalWideLayout.current) 3 else 2) - if (stackedHome()) 1 else 0
     PullToRefresh(
         state.refreshing,
         { onIntent(HomeIntent.Refresh) },
@@ -146,7 +146,7 @@ fun HomeScreen(state: HomeState, onIntent: (HomeIntent) -> Unit) {
                 } else {
                     // Серце продукту — з ким піти: зустрічі від людей і афіші, на які шукають компанію, однією рейкою, під нею
                     // порожній квиток «Організувати подію». Активності не вигадуємо: коли зустрічей мало, секцію веде він.
-                    item(key = "people") { PeopleSection(state, onIntent) }
+                    if (!state.screen.withWhomPending) item(key = "people") { PeopleSection(state, onIntent) }
                     // «Ваше» одразу після: непрочитаний чат і запит на участь не мають губитися під афішею. Усе особисте —
                     // плани, «Ваш тиждень», дати артистів, підписки — одним блоком у чотири рядки (критика довжини 28.10).
                     item(key = "yours") { PersonalSection(state, onIntent) }
@@ -378,6 +378,13 @@ private fun GuestLoginRow(onIntent: (HomeIntent) -> Unit) {
 private val PeopleCardWidth = 176.dp
 
 /**
+ * Великий шрифт, як accessibility-розміри iOS: рейка «З ким піти» стає стовпцем, сітка «У місті» — на колонку менше, а постер
+ * — на всю ширину зі смугою фото. У 176 dp назви рвались («сутінках ві…»), місце теж (аудит 1.4 Android, P2).
+ */
+@Composable
+private fun stackedHome() = LocalDensity.current.fontScale >= 1.5f
+
+/**
  * «З ким піти»: зустрічі з вільним місцем і афіші, на які шукають компанію, однією рейкою квитків; останній квиток —
  * порожній «Організувати подію». Рейки нема — він на всю ширину: секція є завжди й каже, що свою можна зібрати. Гостю під
  * рейкою лише тихий рядок входу (без картки): дві картки поспіль товпились би.
@@ -396,14 +403,9 @@ private fun PeopleSection(state: HomeState, onIntent: (HomeIntent) -> Unit) {
         )
         // Одна рейка: спершу зустрічі з вільним місцем, далі афіші, на які хтось шукає компанію. Дві секції поруч про
         // одне питання плутали. Квитки однакової висоти — за найвищим: корінці стоять в одну лінію.
-        if (state.screen.people.isNotEmpty() || state.screen.company.isNotEmpty()) Row(
-            Modifier
-                .horizontalScroll(rememberScrollState())
-                .padding(horizontal = Spacing.page)
-                .height(IntrinsicSize.Min),
-            horizontalArrangement = Arrangement.spacedBy(Spacing.md),
-            verticalAlignment = Alignment.Top
-        ) {
+        val stacked = stackedHome()
+        // [size] — ширина квитка: у рейці 176 і висота за найвищим, у стовпці великого шрифту — на всю ширину.
+        val cards: @Composable (Modifier) -> Unit = { size ->
             state.screen.people.forEach { entry ->
                 val id = entry.event.id
                 UnfoldSource(id, "home_people", { onIntent(HomeIntent.OpenEvent(id, "home_people")) }) { source, open ->
@@ -413,10 +415,7 @@ private fun PeopleSection(state: HomeState, onIntent: (HomeIntent) -> Unit) {
                         id in state.screen.savedIds,
                         id in state.screen.waitlistedIds,
                         { onIntent(HomeIntent.ToggleSaved(id)) },
-                        Modifier
-                            .width(PeopleCardWidth)
-                            .fillMaxHeight()
-                            .then(source),
+                        size.then(source),
                         showOrigin = false,
                         followName = entry.followName,
                         onClick = open
@@ -431,7 +430,7 @@ private fun PeopleSection(state: HomeState, onIntent: (HomeIntent) -> Unit) {
                         entry.event, FeedSource.CITY,
                         id in state.screen.savedIds, id in state.screen.waitlistedIds,
                         { onIntent(HomeIntent.ToggleSaved(id)) },
-                        Modifier.width(PeopleCardWidth).fillMaxHeight().then(source),
+                        size.then(source),
                         because = because,
                         printedOnly = true,
                         onClick = open
@@ -439,9 +438,26 @@ private fun PeopleSection(state: HomeState, onIntent: (HomeIntent) -> Unit) {
                 }
             }
             // Кінцем рейки, а не окремим блоком під нею: менше гортати до афіші (критика довжини 28.10).
-            CreateCard(onIntent, Modifier.width(PeopleCardWidth).fillMaxHeight(), vertical = true)
+            CreateCard(onIntent, size, vertical = !stacked)
         }
         val railless = state.screen.people.isEmpty() && state.screen.company.isEmpty()
+        if (!railless) {
+            if (stacked) Column(
+                Modifier.padding(horizontal = Spacing.page),
+                verticalArrangement = Arrangement.spacedBy(Spacing.md)
+            ) {
+                // Висота за вмістом, як у ряду сітки: вага поля під назвою в нескінченній висоті списку стиснула б його до нуля.
+                cards(Modifier.fillMaxWidth().height(IntrinsicSize.Min))
+            }
+            else Row(
+                Modifier
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = Spacing.page)
+                    .height(IntrinsicSize.Min),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.md),
+                verticalAlignment = Alignment.Top
+            ) { cards(Modifier.width(PeopleCardWidth).fillMaxHeight()) }
+        }
         if (railless || !state.screen.signedIn) Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
             if (railless) CreateCard(onIntent, Modifier.padding(horizontal = Spacing.page), vertical = false)
             if (!state.screen.signedIn) GuestLoginRow(onIntent)
@@ -597,11 +613,15 @@ private fun YourRow(
     tile: @Composable () -> Unit,
     modifier: Modifier = Modifier,
     chat: Pair<Int, () -> Unit>? = null,
-    /** Назва події (а не службового рядка) — засічками, як у постері. */
+    /** Назва події (а не службового рядка) — кондензом, як у постері. */
     brandTitle: Boolean = false,
     trailing: @Composable () -> Unit = {}
 ) {
     val colors = Poruch.colors
+    // Великий шрифт — як на iOS: назва до чотирьох рядків, надрядок і підпис до трьох. В один рядок від «Арсен Пучков»
+    // лишалось «Арсен Пу…», а підпис рядка радару для того й існує, щоб сказати, хто грає.
+    val stacked = stackedHome()
+    val metaLines = if (stacked) 3 else 1
     Row(
         modifier
             .fillMaxWidth()
@@ -624,7 +644,7 @@ private fun YourRow(
                         it,
                         style = MaterialTheme.typography.labelSmall,
                         color = colors.inkTertiary,
-                        maxLines = 1,
+                        maxLines = metaLines,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
@@ -632,7 +652,7 @@ private fun YourRow(
                     title,
                     style = if (brandTitle) PoruchType.brandTitle3 else MaterialTheme.typography.titleSmall,
                     color = colors.ink,
-                    maxLines = 2,
+                    maxLines = if (stacked) 4 else 2,
                     overflow = TextOverflow.Ellipsis
                 )
                 subtitle?.takeIf { it.isNotBlank() }?.let {
@@ -640,7 +660,7 @@ private fun YourRow(
                         it,
                         style = MaterialTheme.typography.bodySmall,
                         color = colors.inkSecondary,
-                        maxLines = 1,
+                        maxLines = metaLines,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
@@ -1121,8 +1141,11 @@ private fun PosterCard(
     val stamp: Triple<String, BadgeTone, ImageVector?>? =
         state?.let { Triple(it.first, it.second, null) }
     val printed = printedOnly || !event.hasCover
-    // Друкована сторона без фото дає назві чотири рядки; з великим текстом — на рядок більше, щоб назва не тонула в «…».
-    val titleLines = (if (printed) 4 else 2) + if (LocalDensity.current.fontScale >= 1.3f) 1 else 0
+    // Квиток на всю ширину (великий шрифт): фото смугою 180, як у квитка стрічки, — 4:5 на всю ширину зайняло б екран.
+    val wide = stackedHome()
+    // Друкована сторона без фото дає назві чотири рядки; з великим текстом — на рядок більше, щоб назва не тонула в «…»;
+    // на всю ширину — без стелі.
+    val titleLines = if (wide) Int.MAX_VALUE else (if (printed) 4 else 2) + if (LocalDensity.current.fontScale >= 1.3f) 1 else 0
     Ticket(
         ticketStub(event), stub = { StubTime(event, row = true) },
         modifier = modifier
@@ -1144,7 +1167,7 @@ private fun PosterCard(
         Column(Modifier.fillMaxHeight()) {
             if (!printed) Box(Modifier
                 .fillMaxWidth()
-                .aspectRatio(4f / 5f)
+                .then(if (wide) Modifier.height(180.dp) else Modifier.aspectRatio(4f / 5f))
                 .clipToBounds()) {
                 EventArt(event, Modifier.fillMaxSize(), glyph = 130.dp)
                 // Штамп не заходить під «Зберегти»: довге ім'я з підписок стискається трьома крапками.

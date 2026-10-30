@@ -10,6 +10,7 @@ target_fingerprint: "sha256:c3cd1cc3b4cb85ba3f0f8c8098e3beca298c9bbfc49602e6a8bb
 target_path: /Users/tarasvovcenko/StudioProjects/Poruch/iosApp/Poruch/Features/Home/HomeView.swift
 timestamp: 2026-10-28T23-37-21Z
 slug: iosapp-poruch-features-home-homeview-swift
+closed: true
 ---
 Method: design review only (detector not applicable, native platform)
 

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-16T15:59:05+00:00",
+  "generatedAt": "2026-10-30T19:36:35+00:00",
   "title": "Design System: Поряд",
   "extensions": {
     "colorMeta": {
@@ -1129,6 +1129,51 @@
           "#F4EAF7"
         ]
       },
+      "cat-cinema": {
+        "role": "tertiary",
+        "displayName": "Cat cinema",
+        "canonical": "#A6308A",
+        "tonalRamp": [
+          "#1B0014",
+          "#470039",
+          "#790062",
+          "#A42E88",
+          "#CC55AD",
+          "#F57BD3",
+          "#FFB6E8",
+          "#FFE6F6"
+        ]
+      },
+      "cat-cinema-stub": {
+        "role": "tertiary",
+        "displayName": "Cat cinema stub",
+        "canonical": "#922A79",
+        "tonalRamp": [
+          "#1B0014",
+          "#470038",
+          "#770761",
+          "#9F3785",
+          "#C75CAA",
+          "#EF81CF",
+          "#FFB7E8",
+          "#FFE6F6"
+        ]
+      },
+      "cat-cinema-wash": {
+        "role": "tertiary",
+        "displayName": "Cat cinema wash",
+        "canonical": "#F6E5F1",
+        "tonalRamp": [
+          "#12070F",
+          "#2E222B",
+          "#4D404A",
+          "#70616C",
+          "#93848F",
+          "#B8A8B3",
+          "#DCCBD7",
+          "#FAE9F5"
+        ]
+      },
       "cat-unknown": {
         "role": "tertiary",
         "displayName": "Cat unknown",
@@ -1287,6 +1332,11 @@
         "name": "press",
         "value": "scale 0.98 (таббар і створення 0.94), spring(response 0.28, damping 0.7)",
         "purpose": "Натискна поверхня сідає й повертається; зі зменшеним рухом без просідання."
+      },
+      {
+        "name": "unfold",
+        "value": "spring(response 0.32, damping 0.86)",
+        "purpose": "Єдиний морф застосунку: квиток розгортається в деталі чи квиток на весь екран (iOS 18 .navigationTransition(.zoom), Android Unfold у ui/Morph.kt) і складається назад; зі зменшеним рухом — згасання."
       }
     ],
     "breakpoints": [

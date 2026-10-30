@@ -107,7 +107,9 @@ struct HomeView: View, Equatable {
                             // Серце продукту — з ким піти: зустрічі від людей і афіші, на які шукають компанію, однією рейкою,
                             // під нею порожній квиток «Організувати подію». Активності не вигадуємо: коли зустрічей мало, секцію
                             // веде порожній квиток.
-                            HomePeopleSection(view: view, open: open, showPeople: showPeople, createEvent: createEvent, openProfile: openProfile)
+                            if !view.withWhomPending {
+                                HomePeopleSection(view: view, open: open, showPeople: showPeople, createEvent: createEvent, openProfile: openProfile)
+                            }
                             // «Ваше» одразу після: непрочитаний чат і запит на участь не мають губитися під афішею. Усе особисте —
                             // плани, «Ваш тиждень», дати артистів, підписки — одним блоком у чотири рядки (критика довжини 28.10).
                             HomePersonalSection(

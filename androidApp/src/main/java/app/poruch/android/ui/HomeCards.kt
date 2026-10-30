@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.text.style.TextOverflow
@@ -72,47 +73,57 @@ fun EventHeroCard(
     val stamp: Triple<String, BadgeTone, ImageVector?>? = eventState(event)?.let { Triple(it.first, it.second, null) }
     val reason: Pair<String, ImageVector>? = eyebrow?.let { it to PoruchIcons.sparkle }
         ?: if (event.gathering != null) stringResource(R.string.from_people) to PoruchIcons.social else null
+    // Великий шрифт (як accessibility-розміри iOS) — корінець знизу, як у постера: праворуч він забирав третину ширини, і
+    // назва й місце обрізались — і в «У місті», і в стосі «Ваш тиждень».
+    val upright = LocalDensity.current.fontScale >= 1.5f
     Ticket(
         ticketStub(event),
         stub = {
-            Column(Modifier.fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {
+            if (upright) StubTime(event, row = true)
+            else Column(Modifier.fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {
                 if (onSave != null) SaveButton(saved, onSave, Modifier.padding(top = Spacing.md))
                 Spacer(Modifier.weight(1f))
                 StubTime(event, Modifier.padding(bottom = Spacing.xl))
             }
         },
-        modifier = modifier.fillMaxWidth()
+        // Вертикальний квиток тягне поверхню вагою — висоту за вмістом дає сама картка: гортанка й стос її не задають.
+        modifier = modifier.fillMaxWidth().then(if (upright) Modifier.height(IntrinsicSize.Min) else Modifier)
             .ticketSemantics(ticketA11yLabel(event, listOfNotNull(stamp?.first, reason?.first).joinToString(", ")), onClick, saved, onSave),
+        vertical = upright, stubLength = if (upright) 64.dp else 84.dp,
         radius = Corner.lg, onClick = onClick
     ) {
         val printed = !event.hasCover
         // Висота — найменша, а не стала: з великим шрифтом назва, місце й підпис джерела не обрізаються.
-        Column(Modifier.heightIn(min = height)) {
-            // Без фото обкладинки нема: квиток друкований — штамп і назва великим кеглем на самій поверхні.
-            if (!printed) Box(Modifier.fillMaxWidth().height(height * 0.54f).clipToBounds()) {
-                EventArt(event, Modifier.fillMaxSize(), glyph = 160.dp)
-                stamp?.let { (text, tone, icon) -> TicketStamp(text, tone, icon, onFill = true, modifier = Modifier.padding(Spacing.md)) }
-            } else stamp?.let { (text, tone, icon) ->
-                TicketStamp(text, tone, icon, modifier = Modifier.padding(start = Spacing.lg, end = Spacing.lg, top = Spacing.lg))
-            }
-            Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                Text(
-                    event.cardTitle, style = if (printed) PoruchType.brandDisplay else PoruchType.brandTitle1, color = colors.ink,
-                    maxLines = if (printed) 5 else 2, overflow = TextOverflow.Ellipsis
-                )
-                HostLine(event)
-                EventDescriptor(event)
-                reason?.let { (text, icon) -> ReasonLine(text, icon) }
-                artistsLine(event)?.let { MetaLine(PoruchIcons.person, it) }
-                // Афіша підписана джерелом скрізь, і в стосі «Ваш тиждень» теж: так обіцяють Умови, розділ 7.
-                event.listing?.let {
-                    Text(
-                        stringResource(R.string.listing_badge, it.sellerNames), style = MaterialTheme.typography.labelSmall,
-                        color = colors.inkTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis
-                    )
+        Box {
+            Column(Modifier.heightIn(min = height)) {
+                // Без фото обкладинки нема: квиток друкований — штамп і назва великим кеглем на самій поверхні.
+                if (!printed) Box(Modifier.fillMaxWidth().height(height * 0.54f).clipToBounds()) {
+                    EventArt(event, Modifier.fillMaxSize(), glyph = 160.dp)
+                    stamp?.let { (text, tone, icon) -> TicketStamp(text, tone, icon, onFill = true, modifier = Modifier.padding(Spacing.md)) }
+                } else stamp?.let { (text, tone, icon) ->
+                    TicketStamp(text, tone, icon, modifier = Modifier.padding(start = Spacing.lg, end = Spacing.lg, top = Spacing.lg))
                 }
-                body?.let { Column(Modifier.padding(top = Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.xs), content = it) }
+                Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                    Text(
+                        event.cardTitle, style = if (printed) PoruchType.brandDisplay else PoruchType.brandTitle1, color = colors.ink,
+                        maxLines = if (printed || upright) 5 else 2, overflow = TextOverflow.Ellipsis
+                    )
+                    HostLine(event)
+                    EventDescriptor(event)
+                    reason?.let { (text, icon) -> ReasonLine(text, icon) }
+                    artistsLine(event)?.let { MetaLine(PoruchIcons.person, it) }
+                    // Афіша підписана джерелом скрізь, і в стосі «Ваш тиждень» теж: так обіцяють Умови, розділ 7.
+                    event.listing?.let {
+                        Text(
+                            stringResource(R.string.listing_badge, it.sellerNames), style = MaterialTheme.typography.labelSmall,
+                            color = colors.inkTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    body?.let { Column(Modifier.padding(top = Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.xs), content = it) }
+                }
             }
+            // Корінець знизу — «Зберегти» переходить у кут поверхні.
+            if (upright && onSave != null) SaveButton(saved, onSave, Modifier.align(Alignment.TopEnd).padding(Spacing.sm))
         }
     }
 }

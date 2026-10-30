@@ -41,6 +41,9 @@ class EventFacetsTest {
         assertFalse(room.copy(capacity = 6, attendeeCount = 2).isScarce)
         // Нуль місць — «Місць немає», а не «лишилось 0».
         assertFalse(room.copy(capacity = 10, attendeeCount = 10).isScarce)
+        // Порожня кімната — ще ніхто не прийшов, поспішати нема куди; перший гість робить її дефіцитом.
+        assertFalse(room.copy(capacity = 2, attendeeCount = 0).isScarce)
+        assertTrue(room.copy(capacity = 2, attendeeCount = 1).isScarce)
     }
 
     /** docs/event-ingestion.md §8: чужий опис обрізаємо, свій показуємо цілком. */

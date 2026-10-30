@@ -247,8 +247,11 @@ data class Gathering(
     /** Організатор звузив вік порівняно з «будь-хто на платформі». */
     val hasAgeLimit get() = minAge > SafetyRules.MIN_SIGNUP_AGE || maxAge != null
 
-    /** Місць лишилось мало — варте окремого рядка. Поріг спільний для обох платформ. */
-    val isScarce get() = seatsLeft in 1..(capacity / SCARCITY_FRACTION).coerceAtLeast(MIN_SCARCE_SEATS)
+    /**
+     * Місць лишилось мало — варте окремого рядка. Поріг спільний для обох платформ. Порожня кімната не дефіцит: «Лишилось 2»
+     * на пошуку компанії 0/2 обіцяв поспіх, якого нема (polish головної 30.10).
+     */
+    val isScarce get() = attendeeCount > 0 && seatsLeft in 1..(capacity / SCARCITY_FRACTION).coerceAtLeast(MIN_SCARCE_SEATS)
 
     companion object {
         /** П'ята частина кімнати або менше — «поспішайте»; менше трьох місць — завжди. */

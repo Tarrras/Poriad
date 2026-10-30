@@ -153,7 +153,7 @@ private struct YourRow<Tile: View, Trailing: View>: View {
     let open: () -> Void
     /// Непрочитане: кнопка праворуч, що веде просто в чат. Тоді `trailing` не малюється.
     var chat: (count: Int, open: () -> Void)?
-    /// Назва події (а не службового рядка) — засічками, як у постері.
+    /// Назва події (а не службового рядка) — кондензом, як у постері.
     var brandTitle = false
     @ViewBuilder let tile: Tile
     @ViewBuilder let trailing: Trailing
