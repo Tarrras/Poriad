@@ -60,6 +60,9 @@ struct EventDetailView: View, Equatable {
     /// обкладинка стирчала з-під місця, відведеного їй у стрічці. Початкове значення — для
     /// першого кадру в стосі; далі уточнює `onGeometryChange`.
     @State var topInset: CGFloat = measuredStatusBarInset()
+    /// Панель дії розгорнутих деталей виїжджає, коли квиток уже розгорнувся: рамка zoom різала її по-живому —
+    /// сплющений корінець, «Хочу піти з компанією» навпіл, крізь неї — картка з головної.
+    @State private var barRisen = false
     /// Ростер розгорнуто кнопкою «Показати всіх».
     @State var showAllPeople = false
     /// Картка людини відкрита з цього екрана. Див. `personSheet`.
@@ -247,6 +250,14 @@ struct EventDetailView: View, Equatable {
                 VStack(spacing: Space.sm) {
                     if boughtPrompt { boughtCard(event, view) }
                     stickyBar(event, view)
+                }
+                .offset(y: zoomed && !barRisen ? 240 : 0)
+                .opacity(zoomed && !barRisen ? 0 : 1)
+                // Рушає, коли квиток уже майже розгорнувся (~0,4 с): затримка в самій анімації. Сигналу кінця zoom SwiftUI
+                // не дає, а `transitionCoordinator` каже його аж за 1–1,3 с, коли пружина зовсім згасне, — задовго без дії.
+                .onAppear {
+                    guard zoomed, !barRisen else { return }
+                    withMotion(Motion.spring.delay(0.35)) { barRisen = true }
                 }
             }
             .onChange(of: companyFocusTick) { _, _ in
