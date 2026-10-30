@@ -64,6 +64,7 @@ import app.poruch.android.platform.TicketFiles
 import app.poruch.android.platform.toast
 import app.poruch.domain.ReminderRules
 import app.poruch.domain.DeckRules
+import app.poruch.domain.DigestRules
 import app.poruch.domain.Event
 import app.poruch.domain.EventLinks
 import app.poruch.domain.PoruchLog
@@ -412,9 +413,14 @@ private fun DigestPrompt(app: PoruchApp, appState: State<AppState>, navigator: N
             Modifier.padding(horizontal = Spacing.page).padding(bottom = Spacing.section),
             verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
-            Text(stringResource(R.string.digest_prompt_title), style = PoruchType.brandTitle2, color = Poruch.colors.ink)
+            val weekdays = DigestRules.weekdaysOnly(appState.value.taste.times)
             Text(
-                stringResource(R.string.digest_prompt_body), style = MaterialTheme.typography.bodyLarge,
+                stringResource(if (weekdays) R.string.digest_prompt_weekdays_title else R.string.digest_prompt_title),
+                style = PoruchType.brandTitle2, color = Poruch.colors.ink
+            )
+            Text(
+                stringResource(if (weekdays) R.string.digest_prompt_weekdays_body else R.string.digest_prompt_body),
+                style = MaterialTheme.typography.bodyLarge,
                 color = Poruch.colors.inkSecondary, modifier = Modifier.padding(bottom = Spacing.sm)
             )
             PrimaryButton(

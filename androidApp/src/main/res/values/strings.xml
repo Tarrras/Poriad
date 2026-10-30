@@ -158,6 +158,8 @@
   <string name="deck_row_subtitle">Кілька подій під вас: «так» чи «ні»</string>
   <string name="digest_prompt_title">Що поруч на вихідних?</string>
   <string name="digest_prompt_body">Перед вихідними коротко скажемо, що варте уваги у вашому місті. Одне-два сповіщення на тиждень, вимкнути можна в профілі.</string>
+  <string name="digest_prompt_weekdays_title">Що поруч у будні?</string>
+  <string name="digest_prompt_weekdays_body">У понеділок коротко скажемо, що варте уваги у вашому місті цього тижня. Одне сповіщення на тиждень, вимкнути можна в профілі.</string>
   <string name="digest_prompt_yes">Так, нагадувати</string>
   <string name="digest_prompt_no">Не зараз</string>
   <string name="reminder_exact">Зараз нагадування може спізнитися до години. Щоб воно приходило рівно за годину, дозвольте «Будильники й нагадування».</string>
@@ -532,6 +534,12 @@
     <item quantity="few">%1$d події</item>
     <item quantity="many">%1$d подій</item>
     <item quantity="other">%1$d події</item>
+  </plurals>
+  <plurals name="digest_count_for_you">
+    <item quantity="one">%1$d подія для вас</item>
+    <item quantity="few">%1$d події для вас</item>
+    <item quantity="many">%1$d подій для вас</item>
+    <item quantity="other">%1$d події для вас</item>
   </plurals>
   <plurals name="request_notification_body">
     <item quantity="one">%1$d новий запит на участь. Відкрийте подію, щоб відповісти.</item>

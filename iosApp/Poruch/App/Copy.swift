@@ -126,6 +126,8 @@ enum Copy {
     static let deck_row_subtitle = "Кілька подій під вас: «так» чи «ні»"
     static let digest_prompt_title = "Що поруч на вихідних?"
     static let digest_prompt_body = "Перед вихідними коротко скажемо, що варте уваги у вашому місті. Одне-два сповіщення на тиждень, вимкнути можна в профілі."
+    static let digest_prompt_weekdays_title = "Що поруч у будні?"
+    static let digest_prompt_weekdays_body = "У понеділок коротко скажемо, що варте уваги у вашому місті цього тижня. Одне сповіщення на тиждень, вимкнути можна в профілі."
     static let digest_prompt_yes = "Так, нагадувати"
     static let digest_prompt_no = "Не зараз"
     static let reminder_exact = "Зараз нагадування може спізнитися до години. Щоб воно приходило рівно за годину, дозвольте «Будильники й нагадування»."
@@ -933,6 +935,7 @@ enum Copy {
     static func chat_unread_count(_ n: Int) -> String { ukrainianPlural(n, "\(n) нове", "\(n) нових", "\(n) нових") }
     static func requests_count(_ n: Int) -> String { ukrainianPlural(n, "\(n) запит", "\(n) запити", "\(n) запитів") }
     static func digest_count(_ n: Int) -> String { ukrainianPlural(n, "\(n) подія", "\(n) події", "\(n) подій") }
+    static func digest_count_for_you(_ n: Int) -> String { ukrainianPlural(n, "\(n) подія для вас", "\(n) події для вас", "\(n) подій для вас") }
     static func request_notification_body(_ n: Int) -> String { ukrainianPlural(n, "\(n) новий запит на участь. Відкрийте подію, щоб відповісти.", "\(n) нові запити на участь. Відкрийте подію, щоб відповісти.", "\(n) нових запитів на участь. Відкрийте подію, щоб відповісти.") }
     static func wallet_count(_ n: Int) -> String { ukrainianPlural(n, "\(n) квиток", "\(n) квитки", "\(n) квитків") }
     static func company_count(_ n: Int) -> String { ukrainianPlural(n, "\(n) людина хоче піти з компанією", "\(n) людини хочуть піти з компанією", "\(n) людей хочуть піти з компанією") }

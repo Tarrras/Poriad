@@ -166,7 +166,8 @@ final class LocalReminderScheduler: NSObject, ReminderScheduler, RequestNotifier
                 let interval = Double(digest.fireAtEpochMillis) / 1000 - Date().timeIntervalSince1970
                 guard interval > 0 else { continue }
                 let content = UNMutableNotificationContent()
-                let city = digest.city ?? Copy.brand_name, count = Copy.digest_count(Int(digest.count))
+                let city = digest.city ?? Copy.brand_name
+                let count = digest.personal ? Copy.digest_count_for_you(Int(digest.count)) : Copy.digest_count(Int(digest.count))
                 content.title = if digest.kind == .weekdays { Copy.digest_weekdays_title(city, count) } else {
                     switch digest.week {
                     case 2: Copy.digest_title_2(city, count)

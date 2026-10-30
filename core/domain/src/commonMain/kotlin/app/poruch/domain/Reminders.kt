@@ -63,7 +63,8 @@ enum class DigestReason { FOLLOWED, COMPANY, NEAR, ONE_NIGHT, FOR_YOU }
  * Дайджест у вільний час людини. Текст рахується з видачі при останньому відкритті, тож працює без сервера й для гостя.
  * [city] null — область «Шукати тут», кажемо «поруч». [week] — котрий тиждень від останнього відкриття
  * (1–[DigestRules.WEEKS]): від нього заголовок і `digest_open`. [lead] — одна подія, яку варто назвати, з причинами
- * [reasons] ([followName] — за ким стежу); null — лише кількість і [titles].
+ * [reasons] ([followName] — за ким стежу); null — лише кількість і [titles]. [personal] — [count] і [titles] лише з
+ * подій «для вас» (інтереси й ті, за ким стежу), а не з усього вільного часу.
  */
 data class WeekendDigest(
     val city: String?,
@@ -74,7 +75,8 @@ data class WeekendDigest(
     val kind: DigestKind = DigestKind.WEEKEND,
     val lead: String? = null,
     val reasons: List<DigestReason> = emptyList(),
-    val followName: String? = null
+    val followName: String? = null,
+    val personal: Boolean = false
 ) {
     /** Ключ сповіщення й будильника: вихідні — 1–4, будні — 11–14. Старі версії знали лише 1–4, тож ті — вихідні. */
     val id: Int get() = week + if (kind == DigestKind.WEEKDAYS) WEEKDAYS_OFFSET else 0
@@ -120,11 +122,16 @@ object DigestRules {
         }
     }
 
+    /** Лише будні: питання про дозвіл каже про понеділок, а не «перед вихідними». */
+    fun weekdaysOnly(times: List<TimeSlot>) = DigestKind.WEEKEND !in kinds(times)
+
     /**
      * До [WEEKS] дзвінків кожного виду з [kinds]. Вихідні — четвер о [WEEKEND_HOUR] про пт 17:00 – нд; будні — понеділок о
      * [WEEKDAYS_HOUR] про пн 17:00 – пт 17:00. Подія рахується, якщо хоч один її сеанс у вікні й у вільному слоті
-     * людини. Тиждень з менш ніж [MIN_EVENTS] випадає, решта тримає свій номер. [index] уже склеєний і ранжований за
-     * смаком. [followed] — id події → за ким людина стежить (заклад чи артист); [near] — id подій у «Моїх місцях».
+     * людини. Тиждень з менш ніж [MIN_EVENTS] випадає, решта тримає свій номер. Число, назви й вирізнена подія — з подій
+     * «для вас» ([mine]), коли їх хоч [MIN_EVENTS]; інакше з усього вікна, щоб вузькі інтереси не глушили дайджест.
+     * [index] уже склеєний і ранжований за смаком. [followed] — id події → за ким людина стежить (заклад чи артист);
+     * [near] — id подій у «Моїх місцях».
      */
     fun plan(
         index: List<EventIndexEntry>, city: String?, enabled: Boolean, now: Instant, zone: TimeZone,
@@ -170,22 +177,34 @@ object DigestRules {
                 }
             }.map { it.first }
             if (window.size < MIN_EVENTS) return@mapNotNull null
-            val lead = lead(window, taste, followed, near)
+            val mine = mine(window, taste, followed)
+            val personal = mine.size >= MIN_EVENTS
+            val shown = if (personal) mine else window
+            val lead = lead(shown, taste, followed, near)
             WeekendDigest(
-                city, window.size, window.take(TITLES).map { it.title }, fireAt.toEpochMilliseconds(), week, kind,
-                lead?.first?.title, lead?.second.orEmpty(), lead?.first?.let { followed[it.id] }
+                city, shown.size, shown.take(TITLES).map { it.title }, fireAt.toEpochMilliseconds(), week, kind,
+                lead?.first?.title, lead?.second.orEmpty(), lead?.first?.let { followed[it.id] }, personal
             )
         }
     }
 
     /**
-     * «Цікаве = рідкісне + твоє»: серед подій вікна, що відповідають смаку (без смаку — усіх), та, де найбільше причин;
+     * Події «для вас»: категорія з інтересів або той, за ким людина стежить. Без інтересів і підписок — порожньо:
+     * вільний час уже врахований вікном, а «для вас» без жодного сигналу було б неправдою.
+     */
+    fun mine(window: List<EventIndexEntry>, taste: Taste, followed: Map<String, String>): List<EventIndexEntry> =
+        window.filter { it.category in taste.interests || it.id in followed }
+
+    /**
+     * «Цікаве = рідкісне + твоє»: серед подій вікна, що відповідають смаку, і тих, за ким людина стежить (без жодної під
+     * смак — серед усіх), та, де найбільше причин;
      * рівні — у порядку видачі, тобто за смаком. Без жодної причини, але під смак — «під ваші інтереси»; інакше null.
      */
     fun lead(
         window: List<EventIndexEntry>, taste: Taste, followed: Map<String, String>, near: Set<String> = emptySet()
     ): Pair<EventIndexEntry, List<DigestReason>>? {
-        val candidates = TasteRanking.matching(window, taste).ifEmpty { window }
+        val matching = TasteRanking.matching(window, taste).map { it.id }.toSet()
+        val candidates = if (matching.isEmpty()) window else window.filter { it.id in matching || it.id in followed }
         val best = candidates.map { it to reasons(it, followed, near) }.maxByOrNull { it.second.size } ?: return null
         if (best.second.isNotEmpty()) return best.first to best.second.take(REASONS)
         return if (TasteRanking.matches(best.first, taste)) best.first to listOf(DigestReason.FOR_YOU) else null

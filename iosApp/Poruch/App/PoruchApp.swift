@@ -202,9 +202,10 @@ struct RootView: View {
                     }
                     // Лист знизу, не `alert`: усі питання в застосунку ставляться листом (DS, «Нижні листи»).
                     .sheet(isPresented: $digestAsk, onDismiss: { if !digestAnswered { model.app.digestPromptAnswered(granted: false, from: nil) } }) {
+                        let weekdays = model.state.map { DigestRules.shared.weekdaysOnly(times: $0.taste.times) } ?? false
                         PromptSheet(
-                            title: Copy.digest_prompt_title,
-                            message: Copy.digest_prompt_body,
+                            title: weekdays ? Copy.digest_prompt_weekdays_title : Copy.digest_prompt_title,
+                            message: weekdays ? Copy.digest_prompt_weekdays_body : Copy.digest_prompt_body,
                             primary: Copy.digest_prompt_yes, secondary: Copy.digest_prompt_no,
                             onPrimary: {
                                 digestAnswered = true

@@ -132,6 +132,28 @@ class DigestRulesTest {
         assertNull(DigestRules.lead(rooms, Taste(), emptyMap()), "nothing stands out — just the count")
     }
 
+    /** Число й назви — з інтересів і тих, за ким стежу, а не з усього вільного часу. */
+    @Test fun countsOnlyEventsForYou() {
+        val music = (1..2).map { entry("m$it", "2026-09-26T12:00:00Z", category = EventCategory.MUSIC) }
+        val followedGame = entry("g", "2026-09-26T13:00:00Z")
+        val taste = Taste(interests = listOf(EventCategory.MUSIC), answered = true)
+        val digest = DigestRules.plan(weekend + music + followedGame, "Київ", true, wednesday, kyiv, taste, mapOf("g" to "Атлас")).single()
+        assertTrue(digest.personal)
+        assertEquals(3, digest.count, "дві музичні й та, за чиїм артистом стежу; ігри a, b, c — ні")
+        assertEquals(listOf("Подія m1", "Подія m2"), digest.titles)
+        assertEquals("Подія g", digest.lead, "вирізнена — теж з «для вас»")
+    }
+
+    /** Менше трьох «для вас» — рахуємо весь вільний час, як без відповідей: вузькі інтереси не глушать дайджест. */
+    @Test fun fewForYouFallsBackToTheWholeWindow() {
+        val music = entry("m", "2026-09-26T12:00:00Z", category = EventCategory.MUSIC)
+        val taste = Taste(interests = listOf(EventCategory.MUSIC), answered = true)
+        val digest = DigestRules.plan(weekend + music, "Київ", true, wednesday, kyiv, taste).single()
+        assertFalse(digest.personal)
+        assertEquals(4, digest.count)
+        assertFalse(DigestRules.plan(weekend, "Київ", true, wednesday, kyiv).single().personal, "без відповідей — не «для вас»")
+    }
+
     @Test fun idKeepsKindAndWeekApart() {
         assertEquals(DigestKind.WEEKDAYS, WeekendDigest.kindOf(12))
         assertEquals(2, WeekendDigest.weekOf(12))

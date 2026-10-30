@@ -113,7 +113,8 @@ class AlarmReminderScheduler(private val context: Context) : ReminderScheduler {
         fun showDigest(system: Context, id: Int) {
             val context = system.inAppLanguage()
             val digest = storedDigests(context).firstOrNull { it.id == id } ?: return
-            val count = context.resources.getQuantityString(R.plurals.digest_count, digest.count, digest.count)
+            val plural = if (digest.personal) R.plurals.digest_count_for_you else R.plurals.digest_count
+            val count = context.resources.getQuantityString(plural, digest.count, digest.count)
             val title = when {
                 digest.kind == DigestKind.WEEKDAYS -> R.string.digest_weekdays_title
                 digest.week == 2 -> R.string.digest_title_2
@@ -198,7 +199,8 @@ class AlarmReminderScheduler(private val context: Context) : ReminderScheduler {
                     DigestKind.entries.firstOrNull { k -> k.key == it.optString("kind") } ?: DigestKind.WEEKEND,
                     it.optString("lead").ifEmpty { null },
                     (0 until reasons.length()).mapNotNull { r -> DigestReason.entries.firstOrNull { e -> e.name == reasons.getString(r) } },
-                    it.optString("follow").ifEmpty { null }
+                    it.optString("follow").ifEmpty { null },
+                    it.optBoolean("personal")
                 )
             }
         }.getOrDefault(emptyList())
@@ -210,7 +212,7 @@ class AlarmReminderScheduler(private val context: Context) : ReminderScheduler {
                     JSONObject().put("city", it.city ?: JSONObject.NULL).put("count", it.count)
                         .put("titles", JSONArray(it.titles)).put("time", it.fireAtEpochMillis).put("week", it.week)
                         .put("kind", it.kind.key).put("lead", it.lead.orEmpty()).put("follow", it.followName.orEmpty())
-                        .put("reasons", JSONArray(it.reasons.map { r -> r.name }))
+                        .put("reasons", JSONArray(it.reasons.map { r -> r.name })).put("personal", it.personal)
                 )
             }
             prefs(context).edit().putString(DIGESTS_KEY, array.toString()).remove(LEGACY_DIGEST_KEY).apply()
