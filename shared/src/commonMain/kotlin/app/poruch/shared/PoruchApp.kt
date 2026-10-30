@@ -667,21 +667,26 @@ class PoruchApp internal constructor(
     }
 
     /**
-     * Застосунок знову на екрані деталей [eventId] після продавця: чи спитати «Купили? Стежитимемо за змінами». Раз на
-     * подію і лише незбереженій. Поставленим питання вважається, щойно ми його віддали на показ.
+     * Застосунок знову на екрані деталей [eventId] після продавця: чи спитати «Купили квиток?» з «Додати квиток» (PDF чи
+     * фото) і, для незбереженої, «Зберегти». Раз на подію і лише без квитка на неї в телефоні: збережену теж питаємо —
+     * зберігають часто до покупки. Поставленим питання вважається, щойно ми його віддали на показ.
      */
     fun takeBoughtPrompt(eventId: String): Boolean {
         if (leftForTickets != eventId) return false
         leftForTickets = null
         val asked = boughtAsked ?: return false
-        if (state.value.isSaved(eventId) || eventId in asked.seen()) return false
+        if (state.value.tickets.any { it.eventId == eventId } || eventId in asked.seen()) return false
         asked.markSeen(setOf(eventId))
         PoruchLog.i("action") { "boughtPrompt ${eventId.shortId()}" }
         return true
     }
 
-    /** Відповідь на «Купили?»: [saved] — зберегли, інакше закрили чи проігнорували. Метрика прийняття (≥ 30% «так»). */
-    fun boughtPromptAnswered(saved: Boolean) = PoruchAnalytics.track("bought_prompt", "saved" to saved)
+    /**
+     * Відповідь на «Купили?»: [saved] — «так» («Зберегти» чи «Додати квиток»), інакше закрили чи проігнорували; [ticket] —
+     * «Додати квиток». Метрика прийняття (≥ 30% «так»); чи дійшло до квитка — `wallet_import` з `source=bought`.
+     */
+    fun boughtPromptAnswered(saved: Boolean, ticket: Boolean = false) =
+        PoruchAnalytics.track("bought_prompt", "saved" to saved, "ticket" to ticket)
 
     /** «Поділитися застосунком» з профілю. */
     fun appShared() = PoruchAnalytics.track("share", "kind" to "app")

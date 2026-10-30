@@ -469,21 +469,35 @@ private fun checkedText(checked: CheckedLabel): String = when (checked.day) {
     CheckedDay.EARLIER -> stringResource(R.string.checked_date, checked.date)
 }
 
-/** «Купили? Стежитимемо за змінами» після повернення від продавця (R9): раз на подію, над панеллю дії. */
+/**
+ * «Купили квиток?» після повернення від продавця (R9): раз на подію без квитка в телефоні, над панеллю дії. Головне —
+ * «Додати квиток» (PDF чи фото, одразу на цю подію, [onAddTicket]); незбережену можна й просто зберегти.
+ */
 @Composable
-internal fun BoughtCard(onIntent: (DetailIntent) -> Unit, modifier: Modifier = Modifier) {
+internal fun BoughtCard(saved: Boolean, onIntent: (DetailIntent) -> Unit, onAddTicket: () -> Unit, modifier: Modifier = Modifier) {
     val colors = Poruch.colors
-    Row(
+    Column(
         modifier.fillMaxWidth().padding(horizontal = Spacing.md)
             .cardSurface(Radius.lg, Elevation.overlay)
-            .padding(start = Spacing.lg, end = Spacing.sm, top = Spacing.sm, bottom = Spacing.sm),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
+            .padding(start = Spacing.lg, end = Spacing.sm, top = Spacing.sm, bottom = Spacing.md),
+        verticalArrangement = Arrangement.spacedBy(Spacing.sm)
     ) {
-        Text(stringResource(R.string.bought_prompt), style = MaterialTheme.typography.bodyMedium, color = colors.ink, modifier = Modifier.weight(1f))
-        PrimaryButton(stringResource(R.string.bought_prompt_save), { onIntent(DetailIntent.BoughtPromptAnswered(true)) }, tone = colors.ink)
-        IconButton({ onIntent(DetailIntent.BoughtPromptAnswered(false)) }) {
-            Icon(PoruchIcons.close, stringResource(R.string.close), Modifier.size(18.dp), tint = colors.inkSecondary)
+        Row(verticalAlignment = Alignment.Top) {
+            Column(Modifier.weight(1f).padding(top = Spacing.sm), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(stringResource(R.string.bought_prompt), style = MaterialTheme.typography.titleSmall, color = colors.ink)
+                Text(stringResource(R.string.bought_prompt_hint), style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
+            }
+            IconButton({ onIntent(DetailIntent.BoughtPromptAnswered(false)) }) {
+                Icon(PoruchIcons.close, stringResource(R.string.close), Modifier.size(18.dp), tint = colors.inkSecondary)
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
+            // Закладку ставить сам квиток на подію: збереження тут покликало б питання про оцінку поверх вибору файлу.
+            PrimaryButton(
+                stringResource(R.string.wallet_add_title), { onIntent(DetailIntent.BoughtPromptAnswered(true, ticket = true)); onAddTicket() },
+                tone = colors.ink, icon = PoruchIcons.ticket
+            )
+            if (!saved) GhostButton(stringResource(R.string.bought_prompt_save), { onIntent(DetailIntent.BoughtPromptAnswered(true)) }, tone = colors.ink)
         }
     }
 }

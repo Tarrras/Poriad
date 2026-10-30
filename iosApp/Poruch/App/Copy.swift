@@ -695,7 +695,8 @@ enum Copy {
     static let sellers_refund_title = "Якщо купили квиток"
     static let save_promise = "Повідомимо, якщо скасують чи перенесуть"
     static let saved_short = "Збережено"
-    static let bought_prompt = "Купили? Стежитимемо за змінами"
+    static let bought_prompt = "Купили квиток?"
+    static let bought_prompt_hint = "Додайте PDF чи фото: покажемо на вході й стежитимемо за змінами"
     static let bought_prompt_save = "Зберегти"
     static func meet_decision_ask(_ a0: String, _ a1: String, _ a2: String) -> String { "Подію перенесли на \(a0). Ваш збір о \(a1) — перенести на \(a2)?" }
     static func meet_decision_wait(_ a0: String) -> String { "Подію перенесли на \(a0). Організатор вирішує, о котрій тепер збір." }

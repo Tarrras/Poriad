@@ -82,7 +82,8 @@ sealed interface DetailIntent {
     /** Рядок продавця в «Квитки» чи «Якщо купили квиток». [from] — для `ticket_open`: `sellers` / `refund`. */
     data class OpenSeller(val offer: Offer, val from: String) : DetailIntent
     /** Відповідь на «Купили?»: [saved] — «Зберегти», інакше закрили чи час минув. */
-    data class BoughtPromptAnswered(val saved: Boolean) : DetailIntent
+    /** [saved] — «так» («Зберегти» чи «Додати квиток»), [ticket] — «Додати квиток». */
+    data class BoughtPromptAnswered(val saved: Boolean, val ticket: Boolean = false) : DetailIntent
     /** Шторка часу збору з [from]; null — закрити. */
     data class ShowMeetTime(val from: String?) : DetailIntent
     /** Новий час збору (R7б) чи «Перенести на …» з питання R7а. */

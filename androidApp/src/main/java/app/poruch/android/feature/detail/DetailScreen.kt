@@ -1,5 +1,12 @@
 package app.poruch.android.feature.detail
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
+import org.koin.compose.koinInject
+import app.poruch.shared.PoruchApp
+import app.poruch.android.feature.wallet.WalletUi
+import app.poruch.android.platform.TicketFiles
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
@@ -82,6 +89,14 @@ import kotlinx.coroutines.delay
 fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
     val colors = Poruch.colors
     val event = state.screen.event
+    // «Додати квиток» з «Купили квиток?»: файл чи знімок, квиток — на цю подію (docs/ticket-wallet.md).
+    val app = koinInject<PoruchApp>()
+    val context = LocalContext.current
+    val sessionId = state.screen.sessionId
+    val pickTicket = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri ?: return@rememberLauncherForActivityResult
+        WalletUi.intake(context, app) { TicketFiles.load(it, uri, app, "bought", sessionId) }
+    }
     if (event == null) {
         Column(Modifier.fillMaxSize().background(colors.canvas).statusBarsPadding()) {
             PageHeader(stringResource(R.string.about_event), back = { onIntent(DetailIntent.Back) })
@@ -203,7 +218,7 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
         AnimatedVisibility(
             state.boughtPrompt, Modifier.align(Alignment.BottomCenter).padding(bottom = barHeight),
             enter = slideInVertically { it } + fadeIn(), exit = slideOutVertically { it } + fadeOut()
-        ) { BoughtCard(onIntent) }
+        ) { BoughtCard(state.screen.saved, onIntent, onAddTicket = { pickTicket.launch(arrayOf("application/pdf", "image/*")) }) }
         // Без відповіді за 10 с картка зникає сама: це питання, а не перешкода.
         if (state.boughtPrompt) LaunchedEffect(Unit) { delay(10_000); onIntent(DetailIntent.BoughtPromptAnswered(false)) }
         CoachMarks(

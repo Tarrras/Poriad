@@ -776,23 +776,47 @@ extension EventDetailView {
         .padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()
     }
 
-    /// «Купили? Стежитимемо за змінами» після повернення від продавця (R9): раз на подію, над панеллю дії.
+    /// «Купили квиток?» після повернення від продавця (R9): раз на подію без квитка в телефоні, над панеллю дії. Головне —
+    /// «Додати квиток» (PDF чи фото, одразу на цю подію); незбережену можна й просто зберегти.
     func boughtCard(_ event: Event, _ view: DetailScreenState) -> some View {
-        HStack(spacing: Space.md) {
-            Text(Copy.bought_prompt).font(PoruchFont.subhead).foregroundStyle(Palette.ink).fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 0)
-            Button(Copy.bought_prompt_save) {
-                boughtPrompt = false
-                model.app.boughtPromptAnswered(saved: true)
-                if !view.saved { actions.toggleSaved(event) }
+        VStack(alignment: .leading, spacing: Space.md) {
+            HStack(alignment: .top, spacing: Space.sm) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(Copy.bought_prompt).font(PoruchFont.cardName).foregroundStyle(Palette.ink)
+                    Text(Copy.bought_prompt_hint).font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+                Button { boughtPrompt = false; model.app.boughtPromptAnswered(saved: false, ticket: false) } label: {
+                    PoruchIcon(glyph: PoruchIcons.close, size: 16).foregroundStyle(Palette.inkSecondary).frame(width: 40, height: 40)
+                }.accessibilityLabel(Copy.close)
             }
-            .font(PoruchFont.button).foregroundStyle(Palette.onBrand)
-            .padding(.horizontal, Space.lg).frame(minHeight: 40).background(Palette.ink, in: buttonShape)
-            Button { boughtPrompt = false; model.app.boughtPromptAnswered(saved: false) } label: {
-                PoruchIcon(glyph: PoruchIcons.close, size: 16).foregroundStyle(Palette.inkSecondary).frame(width: 40, height: 40)
-            }.accessibilityLabel(Copy.close)
+            HStack(spacing: Space.sm) {
+                // Закладку ставить сам квиток на подію: збереження тут покликало б системне питання про оцінку поверх вибору.
+                Button {
+                    boughtPrompt = false
+                    model.app.boughtPromptAnswered(saved: true, ticket: true)
+                    addingTicket = true
+                } label: {
+                    HStack(spacing: Space.xs) {
+                        PoruchIcon(glyph: PoruchIcons.ticket, size: 16)
+                        Text(Copy.wallet_add_title)
+                    }
+                    .font(PoruchFont.button).foregroundStyle(Palette.onBrand)
+                    .padding(.horizontal, Space.lg).frame(minHeight: 40).background(Palette.ink, in: buttonShape)
+                }
+                if !view.saved {
+                    Button(Copy.bought_prompt_save) {
+                        boughtPrompt = false
+                        model.app.boughtPromptAnswered(saved: true, ticket: false)
+                        actions.toggleSaved(event)
+                    }
+                    .font(PoruchFont.button).foregroundStyle(Palette.ink)
+                    .padding(.horizontal, Space.lg).frame(minHeight: 40)
+                }
+            }
         }
-        .padding(.leading, Space.lg).padding(.trailing, Space.sm).padding(.vertical, Space.sm)
+        .padding(.leading, Space.lg).padding(.trailing, Space.sm).padding(.vertical, Space.md)
         .background(Palette.surfaceRaised, in: RoundedRectangle(cornerRadius: Corner.lg, style: .continuous))
         .lifted(Elevation.overlay)
         .padding(.horizontal, Space.md)

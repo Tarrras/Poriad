@@ -372,7 +372,7 @@ struct RootView: View {
         }
         .sheet(isPresented: Binding(get: { root.passwordRecovery }, set: { _ in })) { NewPasswordView() }
         .sheet(
-            item: Binding(get: { root.ticketIntake }, set: { root.ticketIntake = $0 }),
+            item: Binding(get: { root.ticketIntake.flatMap { $0.local ? nil : $0 } }, set: { root.ticketIntake = $0 }),
             onDismiss: { if let next = root.ticketNext { root.ticketNext = nil; root.shownTicket = next } }
         ) { TicketIntakeSheet(intake: $0) }
         .onChange(of: root.ticketAdded) { _, added in

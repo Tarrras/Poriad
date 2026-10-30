@@ -2450,7 +2450,7 @@ class PoruchAppTest {
             val other=afisha("d",ListingState.SCHEDULED)
             events.results=listOf(concert,gone,other); events.detailsById=mapOf("c" to concert,"x" to gone,"d" to other)
             val asked=object:SeenRequestStore { val keys=mutableSetOf<String>(); override fun seen()=keys.toSet(); override fun markSeen(keys:Set<String>) { this.keys+=keys } }
-            val app=app(events,backgroundScope,bought=asked); runCurrent(); advanceTimeBy(101); runCurrent()
+            val app=app(events,backgroundScope,bought=asked,tickets=Tickets()); runCurrent(); advanceTimeBy(101); runCurrent()
 
             val live=DetailPresenter(app,"c",backgroundScope,StandardTestDispatcher(testScheduler))
             runCurrent(); advanceTimeBy(200); runCurrent()
@@ -2470,12 +2470,15 @@ class PoruchAppTest {
             assertFalse(app.takeBoughtPrompt("c"),"once per event")
             app.ticketOpened("x","Karabas","refund","https://karabas.com")
             assertFalse(app.takeBoughtPrompt("x"),"a refund is not a purchase")
-            app.toggleSaved("d"); advanceTimeBy(200); runCurrent()
+            app.addTicket("t","t.pdf",TicketKind.PDF,"Концерт",null,kotlin.time.Instant.parse(later).toEpochMilliseconds(),1,emptyList(),"d","bought","full",null); runCurrent()
             app.ticketOpened("d","Karabas","bar","https://karabas.com")
-            assertFalse(app.takeBoughtPrompt("d"),"already saved: already watched")
+            assertFalse(app.takeBoughtPrompt("d"),"the ticket is already on the phone")
             app.ticketOpened("c","Karabas","bar","https://karabas.com")
             assertFalse(app.takeBoughtPrompt("d"),"another event's return")
-            assertEquals(listOf("bar","sellers","refund","bar","bar"),tracked.filter { it.first=="ticket_open" }.map { it.second["from"] })
+            app.removeTicket("t"); app.toggleSaved("d"); advanceTimeBy(200); runCurrent()
+            app.ticketOpened("d","Karabas","bar","https://karabas.com")
+            assertTrue(app.takeBoughtPrompt("d"),"saved without a ticket: offer to add it")
+            assertEquals(listOf("bar","sellers","refund","bar","bar","bar"),tracked.filter { it.first=="ticket_open" }.map { it.second["from"] })
             assertEquals("Karabas",tracked.first { it.first=="ticket_open" }.second["source"])
             app.close()
         } finally { PoruchAnalytics.sink=null }

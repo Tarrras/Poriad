@@ -14,10 +14,12 @@ struct TicketImport: Identifiable {
     let draft: TicketDraft
     let count: Int
     let preview: UIImage?
-    /// `share` — прийшов з «Поділитися», `picker` — обрано в «Моїх подіях».
+    /// `share` — прийшов з «Поділитися», `picker` — обрано в «Моїх подіях», `bought` — з «Купили квиток?».
     let source: String
     /// SHA-256 файлу: той самий квиток удруге не додається.
     let fingerprint: String
+    /// Подія, з якої додають («Купили квиток?»): її пропонуємо, коли розбір не знайшов іншої (знімок без тексту).
+    var event: String? = nil
 }
 
 extension TicketImport {
@@ -36,6 +38,9 @@ struct TicketIntake: Identifiable {
     enum Stage { case reading, ready(TicketImport), duplicate(String), failed }
     let id = UUID()
     var stage = Stage.reading
+    /// Шторку показує сторінка події (`ticketPicker` з подією), а не корінь: деталі з мапи — самі в шторці, і з кореня
+    /// друга не відкрилась би.
+    var local = false
 }
 
 /// Що показати на весь екран: код квитка великим або сторінку, де коду не знайшли.
@@ -71,8 +76,8 @@ enum TicketFiles {
      * Шторка — одразу, ще до розбору: людина бачить, що файл дійшов. Далі `load` скаже, що це: квиток, той самий
      * квиток удруге чи не квиток.
      */
-    @MainActor static func intake(_ model: AppModel, _ load: @escaping () async -> TicketImport?) {
-        let intake = TicketIntake()
+    @MainActor static func intake(_ model: AppModel, local: Bool = false, _ load: @escaping () async -> TicketImport?) {
+        let intake = TicketIntake(local: local)
         model.root.ticketIntake = intake
         Task {
             let ticket = await load()
@@ -89,7 +94,7 @@ enum TicketFiles {
     }
 
     /// Файл з «Поділитися» чи з вибору: копія до себе, потім читання. Nil — не PDF і не знімок або не відкрився.
-    static func load(_ source: URL, app: PoruchApp, origin: String) async -> TicketImport? {
+    static func load(_ source: URL, app: PoruchApp, origin: String, event: String? = nil) async -> TicketImport? {
         let scoped = source.startAccessingSecurityScopedResource()
         defer { if scoped { source.stopAccessingSecurityScopedResource() } }
         let ext = source.pathExtension.lowercased()
@@ -97,18 +102,18 @@ enum TicketFiles {
         let id = UUID().uuidString.lowercased()
         let file = id + "." + (pdf ? "pdf" : (ext.isEmpty ? "jpg" : ext))
         do { try FileManager.default.copyItem(at: source, to: url(file)) } catch { return nil }
-        return await read(id: id, file: file, pdf: pdf, app: app, origin: origin)
+        return await read(id: id, file: file, pdf: pdf, app: app, origin: origin, event: event)
     }
 
     /// Знімок квитка з галереї.
-    static func load(image data: Data, app: PoruchApp) async -> TicketImport? {
+    static func load(image data: Data, app: PoruchApp, origin: String, event: String? = nil) async -> TicketImport? {
         let id = UUID().uuidString.lowercased()
         let file = id + ".jpg"
         do { try data.write(to: url(file)) } catch { return nil }
-        return await read(id: id, file: file, pdf: false, app: app, origin: "picker")
+        return await read(id: id, file: file, pdf: false, app: app, origin: origin, event: event)
     }
 
-    private static func read(id: String, file: String, pdf: Bool, app: PoruchApp, origin: String) async -> TicketImport? {
+    private static func read(id: String, file: String, pdf: Bool, app: PoruchApp, origin: String, event: String?) async -> TicketImport? {
         let target = url(file)
         let fingerprint = (try? Data(contentsOf: target)).map { SHA256.hash(data: $0).map { String(format: "%02x", $0) }.joined() } ?? id
         let (text, pages, preview) = await Task.detached(priority: .userInitiated) { () async -> (String, Int, UIImage?) in
@@ -129,7 +134,7 @@ enum TicketFiles {
         let count = max(pdf ? pages : 1, draft.seats.count)
         return TicketImport(
             id: id, file: file, kind: pdf ? .pdf : .image, draft: draft, count: count, preview: preview, source: origin,
-            fingerprint: fingerprint
+            fingerprint: fingerprint, event: event
         )
     }
 
@@ -435,7 +440,8 @@ struct TicketImportSheet: View {
                         .clipShape(RoundedRectangle(cornerRadius: Corner.md, style: .continuous))
                         .accessibilityHidden(true)
                 }
-                if ticket.draft.parsed == "none" {
+                // Не прочитали, але подію знаємо («Купили квиток?»): полів нема, тож і «напишіть» ні до чого.
+                if ticket.draft.parsed == "none" && !onListing {
                     Text(Copy.wallet_unreadable).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -489,7 +495,7 @@ struct TicketImportSheet: View {
             start = Date(timeIntervalSince1970: TimeInterval(millis.int64Value) / 1000)
             hasStart = true
         }
-        matchID = model.app.ticketMatch(draft: ticket.draft)
+        matchID = model.app.ticketMatch(draft: ticket.draft) ?? ticket.event
         // Картку події видача могла ще не завантажити: доїде в `cardsByID`, і рядок «Квиток на цю подію» зʼявиться.
         if let matchID, model.cardsByID[matchID] == nil { model.app.loadCards(ids: [matchID]) }
     }
@@ -514,8 +520,9 @@ struct TicketImportSheet: View {
             fingerprint: ticket.fingerprint
         )
         added = true
-        // Квиток — у «Моїх подіях»: туди й ведемо, щоб людина бачила, де він тепер.
-        model.root.ticketAdded = true
+        // Квиток — у «Моїх подіях»: туди й ведемо, щоб людина бачила, де він тепер. Зі сторінки події лишаємось на ній і
+        // показуємо квиток: він уже тут, на вході — звідси ж.
+        if ticket.event == nil { model.root.ticketAdded = true } else { model.root.ticketNext = TicketRoute(id: ticket.id, invite: ticket.count > 1) }
         // Кіно без афіші закладки не ставить, тож питання після першої закладки могло й не прозвучати.
         ReminderPrompt.offer(model.app)
         // Квитків кілька — людина йде не сама: одразу квиток на весь екран, на другому, з «Надіслати».
@@ -845,9 +852,6 @@ struct TicketsSection: View {
     /// Минулі — пробиті й згорнуті під рядком: квиток на згадку, а не в черзі з тими, що попереду.
     var past: [WalletTicket] = []
     @State private var choosing = false
-    @State private var files = false
-    @State private var photos = false
-    @State private var photo: PhotosPickerItem?
     @State private var showsPast = false
 
     /// Квиток розгортається в екран із кодом і згортається назад у свій корінець (`morphSource`).
@@ -885,23 +889,56 @@ struct TicketsSection: View {
                 }
             }
         }
-        .confirmationDialog(Copy.wallet_add_title, isPresented: $choosing) {
-            Button(Copy.wallet_from_files) { files = true }
-            Button(Copy.wallet_from_photos) { photos = true }
-        }
-        .fileImporter(isPresented: $files, allowedContentTypes: [.pdf, .image]) { result in
-            guard case .success(let url) = result else { return }
-            TicketFiles.intake(model) { await TicketFiles.load(url, app: model.app, origin: "picker") }
-        }
-        .photosPicker(isPresented: $photos, selection: $photo, matching: .images)
-        .onChange(of: photo) { _, item in
-            guard let item else { return }
-            photo = nil
-            TicketFiles.intake(model) {
-                guard let data = try? await item.loadTransferable(type: Data.self) else { return nil }
-                return await TicketFiles.load(image: data, app: model.app)
+        .ticketPicker($choosing)
+    }
+}
+
+extension View {
+    /// «Додати квиток»: файл (PDF чи знімок) або фото з галереї → шторка квитка. [event] — подія, з якої додають.
+    func ticketPicker(_ choosing: Binding<Bool>, source: String = "picker", event: String? = nil) -> some View {
+        modifier(TicketPicker(choosing: choosing, source: source, event: event))
+    }
+}
+
+private struct TicketPicker: ViewModifier {
+    @Environment(\.appModel) private var appModel
+    @Binding var choosing: Bool
+    let source: String
+    let event: String?
+    @State private var files = false
+    @State private var photos = false
+    @State private var photo: PhotosPickerItem?
+    /// Щойно доданий квиток на весь екран — коли шторка закрилась: два показу разом SwiftUI не тримає.
+    @State private var shown: TicketRoute?
+
+    /// Зі сторінки події шторка квитка — своя, не коренева (`TicketIntake.local`).
+    private var local: Bool { event != nil }
+
+    func body(content: Content) -> some View {
+        let intake = local ? appModel?.root.ticketIntake.flatMap { $0.local ? $0 : nil } : nil
+        return content
+            .confirmationDialog(Copy.wallet_add_title, isPresented: $choosing) {
+                Button(Copy.wallet_from_files) { files = true }
+                Button(Copy.wallet_from_photos) { photos = true }
             }
-        }
+            .fileImporter(isPresented: $files, allowedContentTypes: [.pdf, .image]) { result in
+                guard case .success(let url) = result, let model = appModel else { return }
+                TicketFiles.intake(model, local: local) { await TicketFiles.load(url, app: model.app, origin: source, event: event) }
+            }
+            .photosPicker(isPresented: $photos, selection: $photo, matching: .images)
+            .onChange(of: photo) { _, item in
+                guard let item, let model = appModel else { return }
+                photo = nil
+                TicketFiles.intake(model, local: local) {
+                    guard let data = try? await item.loadTransferable(type: Data.self) else { return nil }
+                    return await TicketFiles.load(image: data, app: model.app, origin: source, event: event)
+                }
+            }
+            .sheet(
+                item: Binding(get: { intake }, set: { appModel?.root.ticketIntake = $0 }),
+                onDismiss: { if let next = appModel?.root.ticketNext { appModel?.root.ticketNext = nil; shown = next } }
+            ) { TicketIntakeSheet(intake: $0) }
+            .fullScreenCover(item: $shown) { TicketViewer(ticketID: $0.id, invite: $0.invite) }
     }
 }
 

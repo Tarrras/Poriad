@@ -842,7 +842,8 @@
   <!-- Обіцянка «Зберегти» (R9): зберегти = стежити за змінами, з квитком чи без. -->
   <string name="save_promise">Повідомимо, якщо скасують чи перенесуть</string>
   <string name="saved_short">Збережено</string>
-  <string name="bought_prompt">Купили? Стежитимемо за змінами</string>
+  <string name="bought_prompt">Купили квиток?</string>
+  <string name="bought_prompt_hint">Додайте PDF чи фото: покажемо на вході й стежитимемо за змінами</string>
   <string name="bought_prompt_save">Зберегти</string>
   <!-- Збір після переносу афіші (R7а) і зміна його часу (R7б). -->
   <string name="meet_decision_ask">Подію перенесли на %1$s. Ваш збір о %2$s — перенести на %3$s?</string>

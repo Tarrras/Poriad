@@ -86,6 +86,8 @@ struct EventDetailView: View, Equatable {
     @State var inviting = false
     /// «Купили? Стежитимемо за змінами» — після повернення від продавця (R9).
     @State var boughtPrompt = false
+    /// «Додати квиток» з «Купили квиток?»: вибір файлу чи фото, квиток — на цю подію.
+    @State var addingTicket = false
     /// Шторка часу збору (R7б): з якого часу почати — пропозиція R7а чи поточний.
     @State var movingMeet: MeetTarget?
     @Environment(\.scenePhase) var scenePhase
@@ -184,13 +186,14 @@ struct EventDetailView: View, Equatable {
             guard phase == .active, model.app.takeBoughtPrompt(eventId: screen.sessionID) else { return }
             withAnimation(.snappy) { boughtPrompt = true }
         }
+        .ticketPicker($addingTicket, source: "bought", event: screen.sessionID)
         // Без відповіді за 10 с картка зникає сама: це питання, а не перешкода.
         .task(id: boughtPrompt) {
             guard boughtPrompt else { return }
             try? await Task.sleep(for: .seconds(10))
             guard !Task.isCancelled, boughtPrompt else { return }
             withAnimation(.snappy) { boughtPrompt = false }
-            model.app.boughtPromptAnswered(saved: false)
+            model.app.boughtPromptAnswered(saved: false, ticket: false)
         }
     }
 

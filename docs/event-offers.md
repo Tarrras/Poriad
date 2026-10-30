@@ -657,8 +657,9 @@ iOS/Android — у main, вийдуть у 1.3.1 після ввімкнення
   Скасована афіша на деталях без «Скасовано»-кнопки (`DetailAction.NONE`): до продавців веде блок у тілі.
   `CheckedLabel` — «сьогодні / вчора / дата» в поясі телефона.
 - **R9.** `PoruchApp.ticketOpened(event, source, from)` → `ticket_open`; `takeBoughtPrompt(event)` — раз на подію
-  (список `bought-asked` під ключем акаунта, як «бачені» запити), лише незбереженій, не після `refund`.
-  `boughtPromptAnswered(saved)` → `bought_prompt`. iOS — `scenePhase == .active`, Android — наявний ON_RESUME
+  (список `bought-asked` під ключем акаунта, як «бачені» запити), не після `refund`; з 30.10 — і збереженій, але не
+  тій, на яку квиток уже в телефоні. Картка «Купили квиток?» веде в «Додати квиток» (docs/ticket-wallet.md), незбережену
+  можна й просто зберегти. `boughtPromptAnswered(saved, ticket)` → `bought_prompt`. iOS — `scenePhase == .active`, Android — наявний ON_RESUME
   (`DetailIntent.Reopen`). Картка над панеллю дії, без відповіді зникає за 10 с.
 - **Клієнти.** Штампи — `listingStamp` (iOS `EventSurfaces.swift`, Android `EventCards.kt`); перенесена —
   `movedLine` / `MovedLine` під штампом. Деталі — блок `tickets` / `Tickets`: стан і пояснення, «Квитки» з рядком

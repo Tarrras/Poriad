@@ -222,12 +222,15 @@ fun TicketIntakeSheet(app: PoruchApp, intake: TicketIntake, onAdded: () -> Unit,
                 }
                 is TicketIntake.Ready -> TicketImportContent(app, intake.ticket) {
                     added = true
-                    WalletUi.added = true
                     // Квиток — у «Моїх подіях»: туди й ведемо, щоб людина бачила, де він тепер. Квитків кілька — людина
-                    // йде не сама: одразу квиток на весь екран, на другому, з «Надіслати».
+                    // йде не сама: одразу квиток на весь екран, на другому, з «Надіслати». Зі сторінки події лишаємось на
+                    // ній і показуємо квиток: він уже тут, на вході — звідси ж.
+                    val fromEvent = intake.ticket.event != null
+                    if (!fromEvent) WalletUi.added = true
                     sheet.close {
-                        onDone(); onAdded()
-                        if (intake.ticket.count > 1) { WalletUi.inviting = true; WalletUi.shown = intake.ticket.id }
+                        onDone()
+                        if (!fromEvent) onAdded()
+                        if (fromEvent || intake.ticket.count > 1) { WalletUi.inviting = intake.ticket.count > 1; WalletUi.shown = intake.ticket.id }
                     }
                 }
             }
@@ -251,7 +254,7 @@ private fun TicketImportContent(app: PoruchApp, ticket: TicketImport, editing: W
         mutableStateOf(millis?.let { LocalDateTime.ofInstant(Instant.ofEpochMilli(it), zone) })
     }
     var picking by remember { mutableStateOf<Boolean?>(null) }
-    val matchId = remember { if (editing != null) editing.eventId else app.ticketMatch(ticket.draft) }
+    val matchId = remember { if (editing != null) editing.eventId else app.ticketMatch(ticket.draft) ?: ticket.event }
     LaunchedEffect(matchId) { if (matchId != null && state.cards[matchId] == null) app.loadCards(listOf(matchId)) }
     val matched = matchId?.let { state.cards[it] }
     var linked by remember { mutableStateOf(true) }
@@ -268,7 +271,8 @@ private fun TicketImportContent(app: PoruchApp, ticket: TicketImport, editing: W
             Image(it.asImageBitmap(), null, Modifier.fillMaxWidth().height(height).clip(Radius.md), contentScale = ContentScale.Fit)
         }
     }
-    if (ticket.draft.parsed == "none") {
+    // Не прочитали, але подію знаємо («Купили квиток?»): полів нема, тож і «напишіть» ні до чого.
+    if (ticket.draft.parsed == "none" && !onListing) {
         Text(stringResource(R.string.wallet_unreadable), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary)
     }
     matched?.let { event ->

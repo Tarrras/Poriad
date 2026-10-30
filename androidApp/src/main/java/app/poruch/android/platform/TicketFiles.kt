@@ -50,10 +50,12 @@ data class TicketImport(
     val draft: TicketDraft,
     val count: Int,
     val preview: Bitmap?,
-    /** `share` — «Поділитися» чи «Відкрити за допомогою», `picker` — вибір у «Моїх подіях». */
+    /** `share` — «Поділитися» чи «Відкрити за допомогою», `picker` — вибір у «Моїх подіях», `bought` — з «Купили квиток?». */
     val source: String,
     /** SHA-256 файлу: той самий квиток удруге не додається. */
     val fingerprint: String,
+    /** Подія, з якої додають («Купили квиток?»): її пропонуємо, коли розбір не знайшов іншої (знімок без тексту). */
+    val event: String? = null,
 )
 
 /** Що показати на весь екран: код квитка великим або сторінку, де коду не знайшли. */
@@ -91,7 +93,7 @@ object TicketFiles {
     }
 
     /** Копія до себе й читання. Null — не PDF і не знімок або файл не відкрився. */
-    suspend fun load(context: Context, uri: Uri, app: PoruchApp, source: String): TicketImport? = withContext(Dispatchers.IO) {
+    suspend fun load(context: Context, uri: Uri, app: PoruchApp, source: String, event: String? = null): TicketImport? = withContext(Dispatchers.IO) {
         val type = context.contentResolver.getType(uri).orEmpty()
         val pdf = type == "application/pdf" || uri.lastPathSegment?.endsWith(".pdf", ignoreCase = true) == true
         if (!pdf && !type.startsWith("image/")) return@withContext null
@@ -116,7 +118,7 @@ object TicketFiles {
         // Сторінка на квиток (Multiplex), а на одній сторінці буває кілька місць.
         TicketImport(
             id, name, if (pdf) TicketKind.PDF else TicketKind.IMAGE, draft, maxOf(if (pdf) pages else 1, draft.seats.size), preview, source,
-            fingerprint
+            fingerprint, event
         )
     }
 

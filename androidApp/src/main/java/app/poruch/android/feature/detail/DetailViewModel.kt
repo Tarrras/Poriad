@@ -115,9 +115,9 @@ class DetailViewModel(
 
             is DetailIntent.BoughtPromptAnswered -> if (state.value.boughtPrompt) {
                 reduce { copy(boughtPrompt = false) }
-                app.boughtPromptAnswered(intent.saved)
+                app.boughtPromptAnswered(intent.saved, intent.ticket)
                 // Гість теж: закладка лягає на телефон (docs/guest-saves.md).
-                if (intent.saved && !screen.saved) app.toggleSaved(eventId)
+                if (intent.saved && !intent.ticket && !screen.saved) app.toggleSaved(eventId)
             }
 
             DetailIntent.ToggleSaved -> app.toggleSaved(eventId)
