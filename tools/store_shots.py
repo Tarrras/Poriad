@@ -2,7 +2,8 @@
 
 Світ «Корінець» (DESIGN.md): кожен слайд — квиток на нічному полотні. Угорі, на квитку, штамп і заголовок
 Sofia Sans Condensed, підзаголовок системним гротеском платформи; за перфорацією — корінець кольору жанру показаної
-події, з якого виростає телефон, а над ним «винесений» шматок справжнього UI. Рендерить headless Chrome. Перезняти екрани після зміни UI (див. store/listing.md),
+події, з якого виростає телефон. На екрані — фокус, як у підказках першого знайомства: решту притемнено, а головний
+компонент лишається на своєму місці й ледь піднятий. Рендерить headless Chrome. Перезняти екрани після зміни UI (див. store/listing.md),
 оновити координати в SLIDES і запустити:
 
     python3 tools/store_shots.py
@@ -19,70 +20,70 @@ SYSTEM_FONT = {
     "ios": pathlib.Path("/System/Library/Fonts/SFNS.ttf"),
     "and": next(pathlib.Path.home().glob("Library/Android/sdk/platforms/*/data/fonts/Roboto-Regular.ttf"), None),
 }
-ZOOM = 1.12
+LIFT = 1.04  # наскільки піднятий компонент більший за себе на екрані
 CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 
 # Сирі розміри екранів: iPhone 16 Pro і Android-емулятор з `wm size 1080x2400`.
 RAW = {"ios": (1206, 2622), "and": (1080, 2400)}
 
-# Перші три слайди видно в пошуку стору — на них головні гачки. Жодних чужих постерів, облич, імен виконавців і
+# Перші три слайди видно в пошуку стору — на них головні гачки, і поки людей мало, це афіша, а не компанія. Жодних чужих постерів, облич, імен виконавців і
 # логотипів (docs/legal-audit-afisha-2026-10-28.md, P0): знімати на dev, де обкладинки на час зйомки сховано. stub — колір корінця (`cat-*-stub`), як у застосунку:
 # жанр події, яку показує слайд (рядок або {платформа: колір}, коли події різні); слайди про людей — «Зустрічі».
-# ios/android: (x0, y0, x1, y1, радіус, нахил) у пікселях
-# сирого екрана — шматок UI, збільшений у ZOOM разів; якщо його місце нижче краю слайда, він піднімається у видиму частину.
+# ios/android: (x0, y0, x1, y1, радіус) у пікселях сирого екрана — точні межі компонента у фокусі (рамка картки з
+# радіусом її кутів); без них — увесь екран. lift=False — лише притемнення довкола, без підйому: для ділянки без власних
+# меж (градієнт обкладинки), де збільшена копія розійшлась би з фоном; така ділянка — смуга на всю ширину, бо рамка
+# впритул до тексту на краю екрана виглядала б тісною.
 SLIDES = [
     dict(
         key="map", stub="#8D6A11",  # стендап на картці
-        # Слоган — у Header сторінки App Store (tools/store_creative.mjs), тут не повторюємо.
+        # Слоган — у Header сторінки App Store (tools/store_creative.mjs), тут не повторюємо. Фокусу нема: мапа і є суть.
         stamp="Афіша на мапі", title="Афіша міста на&nbsp;одній мапі",
-        sub="Концерти, кіно, вистави й зустрічі Києва, Львова, Одеси, Дніпра й Харкова",
-        ios=(46, 1906, 1042, 2244, 54, -2), android=(41, 1821, 952, 2115, 47, -2),
-    ),
-    # 1.4: компанію на dev шукають демо-профілі без фото (Соня, Денис, Іра). iOS знято з акаунтом — видно людей;
-    # Android гостем — лише тизер.
-    dict(
-        key="company", stub="#A24C29",
-        stamp="Компанія", title="Не хочете йти самі?",
-        sub="Натисніть «Хочу піти з компанією» — і побачите, хто ще шукає компанію й що у вас спільного",
-        ios=(46, 1312, 1160, 2018, 54, 1.5), android=(41, 1354, 1039, 1658, 47, 1.5),
+        sub="Концерти, вистави й зустрічі Києва, Львова, Одеси, Дніпра й Харкова",
     ),
     dict(
         key="deck", stub="#AC345E",  # вистави на картці
         stamp="Ваш тиждень", title="Куди піти — за хвилину",
         sub="Гортайте події під ваш смак: «Так» зберігає подію й нагадує напередодні",
-        ios=(46, 730, 1160, 1631, 54, -2), android=(41, 658, 1039, 1442, 47, -2),
-    ),
-    # Запрошення знято на dev: Марта (демо-профіль) кличе на «Дух Франції», рядок видно лише другу.
-    dict(
-        key="invite", stub="#6041B1",  # «Дух Франції», музика
-        stamp="Покликати", title="Покличте друга",
-        sub="Друг отримає посилання й побачить, що кличете саме ви",
-        ios=(34, 975, 1172, 1700, 42, 1.5), android=(31, 845, 1049, 1495, 37, 1.5),
+        ios=(48, 730, 1158, 1634, 51), android=(42, 657, 1038, 1445, 48),
     ),
     # Квиток — згенерований PDF на два місця з власними QR, без марки продавця.
     dict(
         key="wallet", stub="#AC345E",  # «Три товариші», вистава
         stamp="Квитки", title="Квиток завжди під&nbsp;рукою",
         sub="Поділіться PDF-квитком із Telegram — покажемо код на весь екран і нагадаємо за годину",
-        ios=(46, 556, 1160, 1670, 60, -1.5), android=(41, 526, 1039, 1521, 52, -1.5),
+        ios=(48, 559, 1158, 1669, 42), android=(42, 526, 1038, 1522, 34),
+    ),
+    # 1.4: компанію на dev шукають демо-профілі без фото (Соня, Денис, Іра). iOS знято з акаунтом — видно людей;
+    # Android гостем — лише тизер.
+    dict(
+        key="company", stub="#A24C29",
+        stamp="Компанія", title="Не хочете йти самі?",
+        sub="Побачите, хто ще шукає компанію на подію й що у вас спільного",
+        ios=(48, 1313, 1158, 2023, 48), android=(42, 1355, 1038, 1664, 34),
     ),
     dict(
         key="district", stub={"ios": "#8D6A11", "and": "#6041B1"},  # стендап / концерт на картці
         stamp="Район", title="Події біля дому",
         sub="Оберіть свій район — і мапа та список покажуть лише його",
-        ios=(40, 398, 910, 526, 64, -2), android=(36, 348, 800, 462, 57, -2),
+    ),
+    # Запрошення знято на dev: Марта (демо-профіль) кличе на «Дух Франції», рядок видно лише другу.
+    dict(
+        key="invite", stub="#6041B1",  # «Дух Франції», музика
+        stamp="Покликати", title="Покличте друга",
+        sub="Друг отримає посилання й побачить, що кличете саме ви",
+        ios=(0, 940, 1206, 1374, 0), android=(0, 820, 1080, 1187, 0), lift=False,  # смуга до низу обкладинки
     ),
     dict(
         key="safety", stub="#AC345E",  # вистава в Театрі на Подолі
         stamp="Безпека", title="Укриття поруч&nbsp;— ще до виходу",
         sub="Найближчі укриття й час до комендантської біля кожної події. Укриття — поки що для Києва",
-        ios=(47, 874, 1157, 1430, 42, -1.5), android=(41, 1222, 1039, 1711, 37, -1.5),
+        ios=(48, 876, 1158, 1433, 48), android=(42, 1221, 1038, 1710, 34),
     ),
     dict(
         key="create", stub="#A24C29",
         stamp="Від людей", title="Зберіть своїх",
         sub="Настолки, пробіжка чи кіно: назва, точка на мапі й час — і квиток готовий",
-        ios=(46, 454, 1158, 986, 42, -2), android=(41, 251, 1037, 716, 37, -2),
+        ios=(46, 454, 1160, 988, 44), android=(42, 252, 1038, 717, 34),
     ),
 ]
 
@@ -118,37 +119,38 @@ html{font-size:calc(var(--w)/100)}
 body{width:var(--w);height:var(--h);overflow:hidden;position:relative;background:var(--canvas);
  font-family:Sys,sans-serif;-webkit-font-smoothing:antialiased;color:var(--paper)}
 .ticket{position:absolute;left:4rem;right:4rem;top:4rem;bottom:-12rem;border-radius:5rem;overflow:hidden;
- background:var(--stub)}
+ background:radial-gradient(70rem 60rem at 50% calc(var(--perf) + 26rem),rgba(255,255,255,.16),transparent 70%),var(--stub)}
 .main{position:absolute;left:0;right:0;top:0;height:calc(var(--perf) - 4rem);background:var(--surface);
  box-shadow:0 0 0 .15rem var(--hairline) inset}
 /* Перфорація: крапки кольору полотна наскрізь і два півкруглі вирізи, як у TicketShape. */
 .perf{position:absolute;left:9rem;right:9rem;top:calc(var(--perf) - .45rem);height:.9rem;
  background:radial-gradient(circle at .45rem .45rem,var(--canvas) .42rem,transparent .48rem) 0 0/1.7rem .9rem repeat-x}
 .notch{position:absolute;top:calc(var(--perf) - 2.6rem);width:5.2rem;height:5.2rem;border-radius:50%;background:var(--canvas)}
-.head{position:absolute;left:10rem;right:10rem;top:4rem;height:calc(var(--perf) - 4rem);display:flex;
+.head{position:absolute;left:9.5rem;right:9.5rem;top:4rem;height:calc(var(--perf) - 4rem);display:flex;
  flex-direction:column;justify-content:center;align-items:flex-start}
 .stamp{display:inline-block;font:800 var(--stampsize)/1 Cond,sans-serif;letter-spacing:.09em;text-transform:uppercase;
  color:var(--ink2);padding:.9rem 1.7rem .8rem;border:.32rem solid var(--ink2);border-radius:1rem;
  transform:rotate(-4deg);transform-origin:left center;margin-bottom:var(--gap1)}
-h1{font:800 var(--h1)/.94 Cond,sans-serif;letter-spacing:-.012em;text-wrap:balance;max-width:80rem}
+h1{font:800 var(--h1)/.94 Cond,sans-serif;letter-spacing:-.012em;text-wrap:balance;max-width:81rem}
 p{font-size:var(--sub);line-height:1.36;margin-top:var(--gap2);color:var(--ink2);text-wrap:pretty;max-width:76rem}
 .phone{position:absolute;left:50%;top:var(--phonetop);width:var(--phonew);transform:translateX(-50%);
  border-radius:var(--rad);padding:var(--bezel);background:linear-gradient(160deg,#3a3a3e,#111113 40%,#1c1c1f);
  box-shadow:0 0 0 .22rem rgba(255,255,255,.14) inset,0 0 0 .3rem rgba(0,0,0,.35),0 8rem 16rem rgba(0,0,0,.45),
  0 2rem 4rem rgba(0,0,0,.25)}
-.phone img{display:block;width:100%;border-radius:calc(var(--rad) - var(--bezel))}
+.screen{position:relative;overflow:hidden;border-radius:calc(var(--rad) - var(--bezel))}
+.screen img{display:block;width:100%}
 .hole{position:absolute;left:50%;top:calc(var(--bezel) + 1.5rem);width:2.4rem;height:2.4rem;margin-left:-1.2rem;
  border-radius:50%;background:#050505}
-.slot{position:absolute;background:var(--canvas);box-shadow:0 0 0 .15rem var(--hairline) inset}
-.float{position:absolute;background-repeat:no-repeat;
- box-shadow:0 0 0 .2rem rgba(255,255,255,.22),0 4rem 9rem rgba(0,0,0,.55),0 1rem 2.5rem rgba(0,0,0,.3)}
+/* Фокус, як у підказках першого знайомства (DESIGN.md): притемнення з вирізом під справжню ціль. */
+.spot{position:absolute;box-shadow:0 0 0 400rem rgba(15,15,19,.62)}
+.lift{position:absolute;background-repeat:no-repeat;
+ box-shadow:0 0 0 .14rem rgba(243,243,240,.18),0 3rem 7rem rgba(0,0,0,.6),0 .8rem 2rem rgba(0,0,0,.35)}
 """
 
 
 def slide_html(s, plat, w, h):
     rw, rh = RAW[plat]
     tall = h / w > 2  # iPhone 19.5:9 проти Play 16:9
-    page_h = h / w * 100  # висота слайда в rem
     perf = 77 if tall else 63  # однакова лінія відриву на всіх слайдах набору — у ряду стору вони читаються пачкою
     phone_w = 74 if tall else 64
     phone_top = perf + 7
@@ -157,7 +159,7 @@ def slide_html(s, plat, w, h):
     vars_ = {
         "--w": f"{w}px", "--h": f"{h}px", "--stub": s["stub"] if isinstance(s["stub"], str) else s["stub"][plat], "--perf": f"{perf}rem",
         "--stampsize": "3.3rem" if tall else "3rem",
-        "--h1": "12.6rem" if tall else "10.4rem",
+        "--h1": "13.4rem" if tall else "11.2rem",
         "--sub": "3.7rem" if tall else "3.3rem",
         "--gap1": "4.6rem" if tall else "3.4rem",
         "--gap2": "3.4rem" if tall else "2.6rem",
@@ -165,32 +167,29 @@ def slide_html(s, plat, w, h):
         "--rad": "10rem" if plat == "ios" else "8rem", "--bezel": f"{bezel}rem",
     }
     img = (SCREENS / f"{plat}_{s['key']}.png").as_uri()
-    x0, y0, x1, y1, rad, rot = s["ios" if plat == "ios" else "android"]
-    k = scale * ZOOM  # rem на сирий піксель у винесеному шматку
-    fw, fh = (x1 - x0) * k, (y1 - y0) * k
-    left = (100 - phone_w) / 2 + bezel + (x0 + x1) / 2 * scale - fw / 2
-    top = phone_top + bezel + (y0 + y1) / 2 * scale - fh / 2
-    lifted = min(top, page_h - fh - 6)  # шматок, що опинився б під краєм, піднімається у видиму частину
-    left = max(3, min(left, 97 - fw))
-    # Піднятий шматок лишає на екрані порожнє місце, а не другу копію себе.
-    slot = "" if lifted > top - 1 else (
-        f'<div class="slot" style="left:{(100 - phone_w) / 2 + bezel + x0 * scale}rem;'
-        f'top:{phone_top + bezel + y0 * scale}rem;width:{(x1 - x0) * scale}rem;height:{(y1 - y0) * scale}rem;'
-        f'border-radius:{rad * scale}rem"></div>'
-    )
-    top = lifted
-    float_ = slot + (
-        f'<div class="float" style="left:{left}rem;top:{top}rem;width:{fw}rem;height:{fh}rem;'
-        f'border-radius:{rad * k}rem;transform:rotate({rot}deg);background-image:url({img});'
-        f'background-size:{rw * k}rem {rh * k}rem;background-position:{-x0 * k}rem {-y0 * k}rem"></div>'
-    )
+    focus = ""
+    box = s.get("ios" if plat == "ios" else "android")
+    if box:
+        x0, y0, x1, y1, rad = box
+        k = scale * (LIFT if s.get("lift", True) else 1)  # rem на сирий піксель у піднятому компоненті
+        cx, cy = (x0 + x1) / 2 * scale, (y0 + y1) / 2 * scale  # центр компонента на екрані, rem
+        spot = (f'left:{x0 * scale}rem;top:{y0 * scale}rem;width:{(x1 - x0) * scale}rem;'
+                f'height:{(y1 - y0) * scale}rem;border-radius:{rad * scale}rem')
+        if s.get("lift", True):
+            fw, fh = (x1 - x0) * k, (y1 - y0) * k
+            focus = (f'<div class="spot" style="{spot}"></div>'
+                     f'<div class="lift" style="left:{cx - fw / 2}rem;top:{cy - fh / 2}rem;width:{fw}rem;height:{fh}rem;'
+                     f'border-radius:{rad * k}rem;background-image:url({img});background-size:{rw * k}rem {rh * k}rem;'
+                     f'background-position:{-x0 * k}rem {-y0 * k}rem"></div>')
+        else:
+            focus = f'<div class="spot" style="{spot}"></div>'
     style = ";".join(f"{name}:{value}" for name, value in vars_.items())
     hole = '<div class="hole"></div>' if plat == "and" else ""
     return f"""<!doctype html><html style="{style}"><head><meta charset="utf-8"><style>{system_font_css(plat)}{CSS}</style></head><body>
 <div class="ticket"><div class="main"></div></div>
 <div class="perf"></div><div class="notch" style="left:1.4rem"></div><div class="notch" style="right:1.4rem"></div>
 <div class="head"><div class="stamp">{s['stamp']}</div><h1>{s['title']}</h1><p>{s['sub']}</p></div>
-<div class="phone"><img src="{img}">{hole}</div>{float_}
+<div class="phone"><div class="screen"><img src="{img}">{focus}</div>{hole}</div>
 </body></html>"""
 
 
