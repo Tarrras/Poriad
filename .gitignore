@@ -53,3 +53,7 @@ ds-bundle/
 
 # Локальний кеш Wrangler (акаунт Cloudflare)
 .wrangler/
+
+# Скріни до звітів /impeccable і знімки taste-skill: звіти (md) у репозиторії, скріни — лише локально
+.impeccable/review/**/*.png
+.taste-skill/
