@@ -317,12 +317,14 @@ struct EventDetailView: View, Equatable {
             if view.canWantCompany && !view.cancelled { companySection(view).id(companySectionID) }
             else if !view.companions.isEmpty && !view.cancelled { companionsSection(view) }
             if let room = view.room { people(room, view) }
+            if view.canAsk { askOrganizer(view) }
             venue(event, view)
             if !view.cancelled && !view.ended { safety() }
             description(event)
             if !view.othersHere.isEmpty { othersHereSection(view.othersHere, placeName: event.placeName) }
             if view.hasChat || view.contactURL != nil { contact(view) }
             if view.organizer && !view.requests.isEmpty { joinRequests(event, view) }
+            if view.organizer && !view.questions.isEmpty { questions(event, view) }
             if view.canRate { RateEventSection(event: event, mine: view.myRating) }
             if view.organizer && view.ended && !view.cancelled { RatingsSummary(ratings: view.ratings) }
             // Після кінця редагувати й скасовувати нічого: лишаються відгуки.

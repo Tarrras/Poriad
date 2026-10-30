@@ -28,7 +28,7 @@ internal class ChatAlertSync(
                     if (keys.isEmpty()) return@collect
                     val current = state.value
                     val alerts = ChatAlertRules.alerts(
-                        current.chatUnread, seen.seen(), current.chat?.eventId,
+                        current.chatUnread, seen.seen(), current.chat?.takeIf { it.thread == null }?.eventId,
                         enabled = current.signedIn && current.remindersEnabled && !current.session.pushRegistered
                     )
                     if (alerts.isNotEmpty()) {

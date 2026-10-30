@@ -19,16 +19,20 @@ internal class ChatEngine(
 
     val openEventId: String? get() = store.value.chat?.eventId
 
-    fun open(eventId: String) {
-        if (openEventId == eventId && polling?.isActive == true) return
+    /** Загальний чат події або, з [thread] (хто питає), розмова «Запитати організатора». */
+    fun open(eventId: String, thread: String? = null) {
+        if (store.value.chat?.isFor(eventId, thread) == true && polling?.isActive == true) return
         close()
-        PoruchLog.i("chat") { "open ${eventId.shortId()}" }
+        PoruchLog.i("chat") { "open ${eventId.shortId()}${if (thread != null) " thread" else ""}" }
         // Відкрили — прочитали: бейдж зникає одразу, сервер дізнається після першого читання.
-        store.update { it.copy(chat = ChatState(eventId)).withoutUnread(eventId) }
+        store.update { s ->
+            val opened = s.copy(chat = ChatState(eventId, thread = thread))
+            if (thread == null) opened.withoutUnread(eventId) else opened.withQuestionRead(eventId, thread)
+        }
         polls = 0
         polling = scope.launch {
             while (isActive) {
-                poll(eventId)
+                poll(eventId, thread)
                 delay(ChatRules.POLL_INTERVAL_MS)
             }
         }
@@ -43,6 +47,7 @@ internal class ChatEngine(
     /** Відправлення поза [AppStore.mutate]: спінер на кнопці чату, а не на всьому застосунку. */
     fun send(text: String) {
         val eventId = openEventId ?: return
+        val thread = store.value.chat?.thread
         val body = ChatRules.normalize(text)
         if (!ChatRules.isBody(body)) {
             store.failed(AppError.InvalidMessage)
@@ -52,8 +57,8 @@ internal class ChatEngine(
         sending = scope.launch {
             update(eventId) { copy(sending = true) }
             try {
-                chat.send(eventId, body)
-                poll(eventId)
+                chat.send(eventId, body, thread)
+                poll(eventId, thread)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -92,19 +97,19 @@ internal class ChatEngine(
      * Перше читання — увесь хвіст, далі лише пізніше за останнє відоме. Кожне [FULL_EVERY]
      * опитування знову читає весь хвіст: так видалене кимось повідомлення зникає й у решти.
      */
-    private suspend fun poll(eventId: String) {
-        val current = store.value.chat?.takeIf { it.eventId == eventId } ?: return
+    private suspend fun poll(eventId: String, thread: String?) {
+        val current = store.value.chat?.takeIf { it.isFor(eventId, thread) } ?: return
         val full = current.messages.isEmpty() || polls++ % FULL_EVERY == 0
         val after = if (full) null else current.messages.last().createdAt
         try {
-            val fresh = chat.messages(eventId, after)
+            val fresh = chat.messages(eventId, after, thread)
             update(eventId) {
                 copy(messages = if (full) ChatRules.merge(emptyList(), fresh) else ChatRules.merge(messages, fresh), loading = false, available = true, offline = false)
             }
             // Прочитано до зараз: при відкритті і щоразу, коли приїхало чуже нове.
             val me = store.value.session.userId
             if (current.loading || fresh.any { it.authorId != me }) {
-                try { chat.markRead(eventId) } catch (e: CancellationException) { throw e } catch (e: Exception) { /* best-effort */ }
+                try { chat.markRead(eventId, thread) } catch (e: CancellationException) { throw e } catch (e: Exception) { /* best-effort */ }
             }
         } catch (e: CancellationException) {
             throw e
@@ -124,8 +129,8 @@ internal class ChatEngine(
 
     /** Мережа повернулась: читаємо одразу, не чекаючи наступного опитування. */
     fun pollNow() {
-        val eventId = openEventId ?: return
-        scope.launch { poll(eventId) }
+        val open = store.value.chat ?: return
+        scope.launch { poll(open.eventId, open.thread) }
     }
 
     private companion object {
@@ -145,6 +150,8 @@ internal class ChatEngine(
 data class ChatState(
     val eventId: String,
     val messages: List<ChatMessage> = emptyList(),
+    /** Розмова «Запитати організатора»: id того, хто питає. Null — загальний чат події. */
+    val thread: String? = null,
     /** Перше читання ще в дорозі. */
     val loading: Boolean = true,
     val sending: Boolean = false,
@@ -158,6 +165,13 @@ data class ChatState(
      */
     val failedDraft: String? = null
 )
+
+internal fun ChatState.isFor(eventId: String, thread: String?) = this.eventId == eventId && this.thread == thread
+
+/** Розмову [thread] відкрито: її непрочитане в деталях гасне одразу, сервер дізнається після першого читання. */
+internal fun AppState.withQuestionRead(eventId: String, thread: String): AppState =
+    if (detail.event?.id != eventId || detail.questions.none { it.askerId == thread && it.unread > 0 }) this
+    else copy(detail = detail.copy(questions = detail.questions.map { if (it.askerId == thread) it.copy(unread = 0) else it }))
 
 /** Тримає значення `chatUnread` без події [eventId]: чат відкрито або прочитано. */
 internal fun AppState.withoutUnread(eventId: String): AppState =

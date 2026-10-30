@@ -7,6 +7,10 @@ import app.poruch.shared.PersonState
 /** Стан екрана чату: зріз [app.poruch.shared.ChatState] плюс те, що потрібно лише для промальовки. */
 data class ChatState(
     val eventId: String,
+    /** Розмова «Запитати організатора»: хто питає. Null — загальний чат. */
+    val thread: String? = null,
+    /** Імʼя того, хто питає, для підзаголовка організатора. */
+    val askerName: String? = null,
     val title: String = "",
     /** Хто бачить чат: організатор і підтверджені. Нуль, поки подія не завантажена. */
     val members: Int = 0,

@@ -248,6 +248,9 @@ class DetailViewModel(
             }
 
             DetailIntent.OpenChat -> authenticated { send(DetailEffect.OpenChat(eventId)) }
+            is DetailIntent.OpenQuestion -> authenticated {
+                (intent.askerId ?: screen.userId)?.let { send(DetailEffect.OpenChat(eventId, it)) }
+            }
             is DetailIntent.ConfirmContact -> reduce { copy(confirmingContact = intent.open) }
             DetailIntent.OpenContact -> {
                 reduce { copy(confirmingContact = false) }

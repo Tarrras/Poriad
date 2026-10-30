@@ -133,7 +133,8 @@ internal class UserLibrary(
             val same = it.detail.event?.id == id
             it.copy(detail = DetailState(
                 event = shown, loading = willLoad, placeEvents = atPlace, companions = it.detail.companions?.takeIf { same },
-                company = it.detail.company?.takeIf { same }, companyPeople = if (same) it.detail.companyPeople else emptyList()
+                company = it.detail.company?.takeIf { same }, companyPeople = if (same) it.detail.companyPeople else emptyList(),
+                questions = if (same) it.detail.questions else emptyList()
             ))
         }
         if (!willLoad) {
@@ -205,6 +206,11 @@ internal class UserLibrary(
                 try { requests.joinRequests(current) } catch (e: CancellationException) { throw e } catch (e: Exception) { emptyList() }
             } else emptyList()
             if (openEventId == current) detail { copy(joinRequests = requests) }
+            // «Запитати організатора»: є лише на події від людей з організатором. Best-effort, як ростер.
+            if (store.value.signedIn && store.value.detail.event?.takeIf { it.id == current }?.let { it.isCommunity && it.organizerId != null } == true) {
+                val questions = optional { chat.questions(current) }
+                if (openEventId == current && questions != null) detail { copy(questions = questions) }
+            }
             // Оцінки — лише завершеної кімнати і лише своїм: організатору й учасникам.
             val ended = store.value.detail.event?.takeIf {
                 it.id == current && it.isCommunity && it.hasEnded(Clock.System.now()) && store.value.concerns(it)
@@ -219,6 +225,16 @@ internal class UserLibrary(
                 val safety = optional { events.safety(current) }
                 if (openEventId == current) detail { copy(safety = safety) }
             }
+        }
+    }
+
+    /** Перечитує розмови з організатором відкритої події: після своєї розмови чи пуша про питання. */
+    fun refreshQuestions() {
+        val id = openEventId ?: return
+        if (!store.value.signedIn || store.value.detail.event?.takeIf { it.id == id }?.isCommunity != true) return
+        scope.launch {
+            val questions = optional { chat.questions(id) } ?: return@launch
+            if (openEventId == id) detail { copy(questions = questions) }
         }
     }
 

@@ -21,6 +21,7 @@ import app.poruch.domain.Gathering
 import app.poruch.domain.Inviter
 import app.poruch.domain.Listing
 import app.poruch.domain.PendingMeet
+import app.poruch.domain.QuestionThread
 import app.poruch.domain.RatingRules
 import kotlin.concurrent.Volatile
 import kotlin.time.Clock
@@ -112,6 +113,8 @@ data class DetailScreenState(
     val companyTeaser: CompanyTeaser? = null,
     /** Люди з наміром — лише коли маю свій. */
     val companyPeople: List<CompanyPerson> = emptyList(),
+    /** «Запитати організатора»: організатору — усі розмови події, тому, хто питав, — своя. */
+    val questions: List<QuestionThread> = emptyList(),
     /** «Додайте фото — побачите фото інших»: свій намір є, а фото в профілі нема. */
     val companyPhotoHint: Boolean = false,
     /** Збіг «Піти разом»: платформа відкриває цей супутник і кличе [PoruchApp.clearMatchedCompanion]. */
@@ -149,6 +152,13 @@ data class DetailScreenState(
     val full: Boolean get() = room?.isFull == true
     /** Чат є для своїх: організатора й підтверджених. Скасована подія лишає його для читання. */
     val hasChat: Boolean get() = room != null && (organizer || room!!.joined)
+    /**
+     * «Запитати організатора»: подія від людей з організатором, ще попереду й не скасована, і я не він. Учасник теж
+     * може: питання не для всіх. Гість бачить кнопку — тап просить увійти.
+     */
+    val canAsk: Boolean get() = room != null && !organizer && event?.organizerId != null && event?.isCalledOff == false && !ended
+    /** Моя розмова з організатором, якщо вже питав. */
+    val myQuestion: QuestionThread? get() = if (organizer) null else questions.firstOrNull { it.askerId == userId }
     /** Чат учасників поза застосунком. Сервер віддає посилання лише організатору й підтвердженим; лише https. */
     val contactUrl: String? get() = room?.contactUrl?.takeIf { it.startsWith("https://") }
 
@@ -343,6 +353,7 @@ class DetailPresenter(
             canWantCompany = event != null && CompanyRules.canIntend(event, now),
             companyTeaser = shared.detail.company?.takeIf { event != null },
             companyPeople = if (event != null) shared.detail.companyPeople else emptyList(),
+            questions = if (event != null) shared.detail.questions else emptyList(),
             companyPhotoHint = shared.detail.company?.mine == true && shared.library.profile?.let { it.avatarUrl == null } == true,
             matchedCompanion = shared.matchedCompanion?.takeIf { event != null },
             followingPlace = event?.placeId?.let { shared.isFollowing(FollowKind.PLACE, it) } == true,

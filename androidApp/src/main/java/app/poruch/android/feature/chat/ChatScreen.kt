@@ -112,7 +112,11 @@ fun ChatScreen(state: ChatState, onIntent: (ChatIntent) -> Unit) {
 @Composable
 private fun Header(state: ChatState, onIntent: (ChatIntent) -> Unit) {
     val colors = Poruch.colors
-    val subtitle = if (state.members > 0) stringResource(
+    // Розмова з організатором: організатор бачить, хто питає, а той, хто питає, — що розмова лише на двох.
+    val subtitle = if (state.thread != null) {
+        if (state.organizer) stringResource(R.string.question_from, state.askerName?.takeIf { it.isNotBlank() } ?: stringResource(R.string.chat_member))
+        else stringResource(R.string.question_subtitle)
+    } else if (state.members > 0) stringResource(
         R.string.chat_subtitle, pluralStringResource(R.plurals.chat_members, state.members, state.members)
     ) else stringResource(R.string.chat_subtitle_plain)
     Column {
@@ -181,7 +185,9 @@ private fun Feed(state: ChatState, onIntent: (ChatIntent) -> Unit) {
             Column {
                 Rules()
                 if (state.messages.isEmpty()) EmptyState(
-                    PoruchIcons.social, stringResource(R.string.chat_empty_title), stringResource(R.string.chat_empty_hint),
+                    PoruchIcons.social,
+                    stringResource(if (state.thread == null) R.string.chat_empty_title else R.string.question_empty_title),
+                    stringResource(if (state.thread == null) R.string.chat_empty_hint else R.string.question_empty_hint),
                     Modifier.padding(top = Spacing.section)
                 )
             }
@@ -310,7 +316,13 @@ private fun Composer(state: ChatState, onIntent: (ChatIntent) -> Unit) {
                 decorationBox = { field ->
                     Box(contentAlignment = Alignment.CenterStart) {
                         if (state.draft.isEmpty()) Text(
-                            stringResource(R.string.chat_placeholder), style = MaterialTheme.typography.bodyLarge, color = colors.inkTertiary
+                            stringResource(
+                                when {
+                                    state.thread == null -> R.string.chat_placeholder
+                                    state.organizer -> R.string.question_reply_placeholder
+                                    else -> R.string.question_placeholder
+                                }
+                            ), style = MaterialTheme.typography.bodyLarge, color = colors.inkTertiary
                         )
                         field()
                     }

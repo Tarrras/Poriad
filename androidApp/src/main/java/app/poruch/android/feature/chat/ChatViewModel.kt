@@ -11,20 +11,28 @@ import kotlinx.coroutines.launch
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.days
 
-/** Екран чату однієї події. Опитування веде спільний шар: тут лише відкрити, закрити й передати дії. */
-class ChatViewModel(private val app: PoruchApp, private val eventId: String) :
-    MviViewModel<ChatState, ChatIntent, ChatEffect>(ChatState(eventId)) {
+/**
+ * Екран чату однієї події або, з [thread] (хто питає), розмови «Запитати організатора». Опитування веде спільний шар:
+ * тут лише відкрити, закрити й передати дії.
+ */
+class ChatViewModel(private val app: PoruchApp, private val eventId: String, private val thread: String? = null) :
+    MviViewModel<ChatState, ChatIntent, ChatEffect>(ChatState(eventId, thread = thread)) {
 
     init {
-        app.openChat(eventId)
+        if (thread != null) app.openQuestion(eventId, thread) else app.openChat(eventId)
         observe(app) { shared ->
             val event = (listOf(shared.detail.event) + shared.library.myEvents).firstOrNull { it?.id == eventId }
-            val chat = shared.chat?.takeIf { it.eventId == eventId }
+            val chat = shared.chat?.takeIf { it.eventId == eventId && it.thread == thread }
             val now = Clock.System.now()
             copy(
                 title = event?.title ?: title,
                 members = event?.gathering?.let { it.attendeeCount + 1 } ?: members,
                 messages = chat?.messages ?: messages,
+                // Організатор бачить, хто питає: з розмови або з деталей, поки вона вантажиться.
+                askerName = thread?.let { asker ->
+                    chat?.messages?.firstOrNull { it.authorId == asker }?.authorName
+                        ?: shared.detail.questions.firstOrNull { it.askerId == asker }?.askerName
+                } ?: askerName,
                 loading = chat?.loading ?: loading,
                 sending = chat?.sending ?: false,
                 available = chat?.available ?: available,
@@ -39,7 +47,7 @@ class ChatViewModel(private val app: PoruchApp, private val eventId: String) :
         }
         // Текст, що не пішов, повертається в поле, якщо людина ще не почала нове.
         viewModelScope.launch {
-            app.state.map { it.chat?.takeIf { chat -> chat.eventId == eventId }?.failedDraft }.filterNotNull().collect {
+            app.state.map { it.chat?.takeIf { chat -> chat.eventId == eventId && chat.thread == thread }?.failedDraft }.filterNotNull().collect {
                 val failed = app.consumeFailedDraft() ?: return@collect
                 reduce { if (draft.isBlank()) copy(draft = failed) else this }
             }

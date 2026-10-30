@@ -58,19 +58,37 @@ interface ChatNotifier {
     fun notifyMessages(alerts: List<ChatAlert>)
 }
 
-/** Чат події: читання хвоста, запис, видалення. Сервер пускає організатора й підтверджених. */
+/**
+ * Чат події: читання хвоста, запис, видалення. Загальний чат сервер пускає організатора й підтверджених; з [thread]
+ * (id того, хто питає) — розмова «Запитати організатора» на двох: він і організатор.
+ */
 interface EventChat {
     /** Хвіст чату; з [after] — лише пізніше за цей момент (ISO-8601). Старіші вгорі. */
-    suspend fun messages(eventId: String, after: String? = null): List<ChatMessage>
-    suspend fun send(eventId: String, body: String): String
+    suspend fun messages(eventId: String, after: String? = null, thread: String? = null): List<ChatMessage>
+    suspend fun send(eventId: String, body: String, thread: String? = null): String
     suspend fun delete(messageId: String)
 
-    /** Події з непрочитаним, свіжіші першими. Сервер без міграції — порожній список. */
+    /** Події з непрочитаним у загальному чаті, свіжіші першими. Сервер без міграції — порожній список. */
     suspend fun unread(): List<ChatUnread>
 
     /** Прочитано до зараз. */
-    suspend fun markRead(eventId: String)
+    suspend fun markRead(eventId: String, thread: String? = null)
+
+    /** Розмови з організатором: організатору — усі, тому, хто питав, — своя. Сервер без міграції — порожньо. */
+    suspend fun questions(eventId: String): List<QuestionThread>
 }
+
+/** Розмова «Запитати організатора» з `event_questions`: хто питає, останнє повідомлення й непрочитане. */
+data class QuestionThread(
+    val askerId: String,
+    val askerName: String,
+    val askerAvatar: String?,
+    val lastBody: String,
+    val lastAt: String,
+    /** Останнє написав я: організатор уже відповів або я чекаю відповіді. */
+    val lastMine: Boolean,
+    val unread: Int
+)
 
 /** Про що дзвонити з чатів. Чисте правило, як [RequestRules]. */
 object ChatAlertRules {

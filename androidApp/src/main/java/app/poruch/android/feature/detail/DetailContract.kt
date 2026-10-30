@@ -100,6 +100,8 @@ sealed interface DetailIntent {
     data object OpenContact : DetailIntent
     /** Чат події всередині застосунку. */
     data object OpenChat : DetailIntent
+    /** «Запитати організатора»: своя розмова ([askerId] null) або, для організатора, розмова того, хто питав. */
+    data class OpenQuestion(val askerId: String? = null) : DetailIntent
     /** Картка людини: організатор, учасник чи той, хто проситься. Гостя веде на вхід. */
     data class OpenPerson(val userId: String) : DetailIntent
     data object ClosePerson : DetailIntent
@@ -137,7 +139,8 @@ sealed interface DetailEffect {
     data class OpenLink(val url: String) : DetailEffect
     /** Наша власна мапа, наведена на цю подію. */
     data class OpenMap(val id: String) : DetailEffect
-    data class OpenChat(val id: String) : DetailEffect
+    /** Чат події; з [thread] — розмова «Запитати організатора». */
+    data class OpenChat(val id: String, val thread: String? = null) : DetailEffect
     data class OpenEvent(val id: String) : DetailEffect
     data class OpenArtist(val id: String) : DetailEffect
 }

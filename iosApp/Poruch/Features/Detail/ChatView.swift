@@ -4,12 +4,16 @@ import Shared
 /// Маршрут чату в стеку: з деталей і з головної він відкривається як повний екран, а не шторка.
 struct ChatRoute: Hashable {
     let id: String
+    /// «Запитати організатора»: розмова того, хто питає (його id). Nil — загальний чат події.
+    var thread: String? = nil
 }
 
 /// Чат події: повний екран зі своєю шапкою, стрічкою повідомлень по днях і полем унизу.
 /// Опитування веде спільний шар; тут відкрити, закрити й передати дії.
 struct ChatView: View {
     let eventID: String
+    /// Розмова з організатором: хто питає. Nil — загальний чат.
+    var thread: String? = nil
     @EnvironmentObject var model: AppModel
     @Environment(\.dismiss) private var dismiss
     @State private var draft = ""
@@ -27,7 +31,7 @@ struct ChatView: View {
         if let event = state.detail.event, event.id == eventID { return event }
         return state.library.myEvents.first { $0.id == eventID } ?? state.map.events.first { $0.id == eventID }
     }
-    private var chat: ChatState? { model.state?.chat.flatMap { $0.eventId == eventID ? $0 : nil } }
+    private var chat: ChatState? { model.state?.chat.flatMap { $0.eventId == eventID && $0.thread == thread ? $0 : nil } }
     private var userId: String? { model.state?.session.userId }
     private var organizer: Bool { event.flatMap { model.state?.organizes(event: $0) } ?? false }
     /// Той самий поріг, що на сервері: тиждень після кінця.
@@ -48,7 +52,9 @@ struct ChatView: View {
         .hidesTabBar()
         .toolbar(.hidden, for: .navigationBar)
         .navigationBarBackButtonHidden()
-        .task { model.app.openChat(eventId: eventID) }
+        .task {
+            if let thread { model.app.openQuestion(eventId: eventID, askerId: thread) } else { model.app.openChat(eventId: eventID) }
+        }
         .onDisappear { model.app.closeChat(eventId: eventID); model.app.closePerson() }
         .personSheet(model, isPresented: $showingPerson)
         .confirmationDialog(Copy.chat_delete_title, isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible) {
@@ -96,6 +102,13 @@ struct ChatView: View {
     }
 
     private var subtitle: String {
+        if let thread {
+            // Організатор бачить, хто питає; той, хто питає, — що розмова лише на двох.
+            guard organizer else { return Copy.question_subtitle }
+            let name = chat?.messages.first { $0.authorId == thread }?.authorName
+                ?? model.state?.detail.questions.first { $0.askerId == thread }?.askerName
+            return Copy.question_from(name.flatMap { $0.isEmpty ? nil : $0 } ?? Copy.chat_member)
+        }
         guard let room = event?.gathering else { return Copy.contact_label }
         // Організатор і підтверджені: саме вони бачать цей екран.
         let people = Int(room.attendeeCount) + 1
@@ -125,8 +138,8 @@ struct ChatView: View {
                 LazyVStack(spacing: 0) {
                     rules
                     if messages.isEmpty {
-                        EmptyState(glyph: PoruchIcons.chat, title: Copy.chat_empty_title,
-                                   message: Copy.chat_empty_hint, compact: true)
+                        EmptyState(glyph: PoruchIcons.chat, title: thread == nil ? Copy.chat_empty_title : Copy.question_empty_title,
+                                   message: thread == nil ? Copy.chat_empty_hint : Copy.question_empty_hint, compact: true)
                             .padding(.top, Space.section)
                     }
                     ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
@@ -251,7 +264,8 @@ struct ChatView: View {
         let sending = chat?.sending == true
         let canSend = ChatRules.shared.isBody(text: draft) && !sending
         return HStack(alignment: .bottom, spacing: Space.sm) {
-            TextField(Copy.chat_placeholder, text: $draft, axis: .vertical)
+            TextField(thread == nil ? Copy.chat_placeholder : organizer ? Copy.question_reply_placeholder : Copy.question_placeholder,
+                      text: $draft, axis: .vertical)
                 .lineLimit(1...5)
                 .focused($composing)
                 .font(PoruchFont.bodyText).foregroundStyle(Palette.ink).tint(Palette.ink)

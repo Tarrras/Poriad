@@ -382,6 +382,20 @@ internal data class ChatUnreadDto(
     fun domain() = app.poruch.domain.ChatUnread(eventId, eventTitle, unread, lastMessageId, lastAuthorName, lastBody, lastAt)
 }
 
+/** Рядок `public.question_result` з `event_questions`. */
+@Serializable
+internal data class QuestionThreadDto(
+    @SerialName("thread_user_id") val askerId: String,
+    @SerialName("asker_name") val askerName: String = "",
+    @SerialName("asker_avatar") val askerAvatar: String? = null,
+    @SerialName("last_body") val lastBody: String? = null,
+    @SerialName("last_at") val lastAt: String = "",
+    @SerialName("last_mine") val lastMine: Boolean = false,
+    val unread: Int = 0
+) {
+    fun domain() = app.poruch.domain.QuestionThread(askerId, askerName, askerAvatar, lastBody.orEmpty(), lastAt, lastMine, unread)
+}
+
 /** Рядок `public.join_request_result` з `my_join_requests`. */
 @Serializable
 internal data class JoinRequestDto(

@@ -198,6 +198,7 @@ class PoruchApp internal constructor(
     /** Пуш прийшов на цей пристрій: перечитуємо стан, щоб бейджі й списки відповідали. */
     fun pushReceived(kind: String, key: String) {
         scope.launch { pushSync.received(kind, key); resume() }
+        if (kind == "question") library.refreshQuestions()
     }
 
     /** Мережу втрачено, поки застосунок живий. Повернення після втрати — див. [networkChanged]. */
@@ -376,8 +377,15 @@ class PoruchApp internal constructor(
 
     /** Екран чату відкрито: тягнемо хвіст і перечитуємо, поки не закриють. */
     fun openChat(eventId: String) = chatEngine.open(eventId)
+    /** «Запитати організатора»: розмова того, хто питає ([askerId]), з організатором. Той, хто питає, передає свій id. */
+    fun openQuestion(eventId: String, askerId: String) = chatEngine.open(eventId, askerId)
     /** Екран чату [eventId] закрито. Чужий чат не чіпаємо: пуш з чату в чат відкриває новий раніше, ніж іде старий екран. */
-    fun closeChat(eventId: String) { if (chatEngine.openEventId == eventId) chatEngine.close() }
+    fun closeChat(eventId: String) {
+        val thread = state.value.chat?.takeIf { it.eventId == eventId }?.thread
+        if (chatEngine.openEventId == eventId) chatEngine.close()
+        // Перша своя розмова: кнопка на деталях стає «Ваше питання», у організатора гасне непрочитане.
+        if (thread != null) library.refreshQuestions()
+    }
     fun sendMessage(text: String) = chatEngine.send(text)
 
     /** Текст, що не пішов (див. [ChatState.failedDraft]), для поля вводу. Віддає раз. */

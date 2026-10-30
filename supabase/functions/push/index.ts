@@ -47,7 +47,7 @@ const EVENT_KINDS: readonly string[] = ["moved", "cancelled"];
 type Change = "cancelled" | "postponed" | "moved" | "corrected";
 const CHANGES: readonly string[] = ["cancelled", "postponed", "moved", "corrected"];
 
-type Push = { kind: "chat" | "request" | "joined" | "organizer" | "place" | "artist" | "companion" | "company" | "winback" | "zone" | EventKind; eventId?: string; placeId?: string; artistId?: string; change?: Change; step?: number; title: string; body: string; key: string };
+type Push = { kind: "chat" | "question" | "request" | "joined" | "organizer" | "place" | "artist" | "companion" | "company" | "winback" | "zone" | EventKind; eventId?: string; placeId?: string; artistId?: string; threadId?: string; change?: Change; step?: number; title: string; body: string; key: string };
 type Token = { token: string; platform: "android" | "ios" };
 
 const PREVIEW = 120;
@@ -139,11 +139,26 @@ Deno.serve(async (req) => {
 
 // Повідомлення: організатор і підтверджені учасники, крім автора й тих, хто заблокований з автором в будь-який бік.
 async function forMessage(db: ReturnType<typeof createClient>, p: Extract<Payload, { type: "message" }>) {
-  const { data: m } = await db.from("event_messages").select("id,event_id,author_id,body").eq("id", p.message_id).maybeSingle();
+  const { data: m } = await db.from("event_messages").select("id,event_id,author_id,body,thread_user_id").eq("id", p.message_id).maybeSingle();
   if (!m) return { push: null, recipients: [] };
   const { data: e } = await db.from("events").select("id,title,organizer_id,status").eq("id", m.event_id).maybeSingle();
   if (!e || e.status !== "published") return { push: null, recipients: [] };
   const { data: author } = await db.from("profiles").select("display_name").eq("id", m.author_id).maybeSingle();
+  // «Запитати організатора»: розмова на двох, дзвонить лише другій стороні; тап відкриває саме її.
+  if (m.thread_user_id) {
+    const fromOrganizer = m.author_id === e.organizer_id;
+    const other = (fromOrganizer ? m.thread_user_id : e.organizer_id) as string | null;
+    const recipients = other ? await withoutBlocked(db, [other], m.author_id as string) : [];
+    const who = (author?.display_name as string | undefined)?.trim() || "Хтось";
+    const text = String(m.body).slice(0, PREVIEW);
+    return {
+      push: {
+        kind: "question" as const, eventId: e.id as string, threadId: m.thread_user_id as string, title: e.title as string,
+        body: fromOrganizer ? `Організатор відповів: ${text}` : `${who} питає: ${text}`, key: m.id as string,
+      },
+      recipients,
+    };
+  }
   const { data: members } = await db.from("event_members").select("user_id").eq("event_id", e.id).eq("status", "approved");
   const people = new Set<string>((members ?? []).map((r) => r.user_id as string));
   if (e.organizer_id) people.add(e.organizer_id as string);
@@ -419,7 +434,8 @@ async function sendFcm(token: string, push: Push): Promise<boolean | "stale"> {
         data: {
           kind: push.kind, title: push.title, body: push.body, key: push.key,
           ...(push.eventId ? { eventId: push.eventId } : {}), ...(push.placeId ? { placeId: push.placeId } : {}),
-          ...(push.artistId ? { artistId: push.artistId } : {}), ...(push.change ? { change: push.change } : {}),
+          ...(push.artistId ? { artistId: push.artistId } : {}), ...(push.threadId ? { threadId: push.threadId } : {}),
+          ...(push.change ? { change: push.change } : {}),
           ...(push.step ? { step: String(push.step) } : {}),
         },
         android: { priority: "high" },
@@ -470,12 +486,13 @@ async function sendApns(token: string, push: Push): Promise<boolean | "stale" | 
       "apns-push-type": "alert",
       "apns-priority": "10",
       // Зміна події — окрема група: повідомлення чату не має витіснити «подію скасовано». Новіший пуш про
-      // ті самі заклади заміняє попередній, крок 2 повернення — крок 1.
-      "apns-collapse-id": push.kind === "winback" ? "winback" : push.kind === "place" ? `place:${push.placeId}` : push.kind === "artist" ? `artist:${push.artistId}` : EVENT_KINDS.includes(push.kind) ? `${push.eventId}:state` : push.eventId!,
+      // ті самі заклади заміняє попередній, крок 2 повернення — крок 1. Розмова з організатором — кожне окремо
+      // (id повідомлення): `question:<подія>:<людина>` довший за 64 байти, які дозволяє APNs; групує thread-id.
+      "apns-collapse-id": push.kind === "winback" ? "winback" : push.kind === "question" ? push.key : push.kind === "place" ? `place:${push.placeId}` : push.kind === "artist" ? `artist:${push.artistId}` : EVENT_KINDS.includes(push.kind) ? `${push.eventId}:state` : push.eventId!,
     },
     body: JSON.stringify({
-      aps: { alert: { title: push.title, body: push.body }, sound: "default", "thread-id": push.kind === "winback" ? "digest" : push.eventId ?? (push.artistId ? `artist:${push.artistId}` : `place:${push.placeId}`) },
-      kind: push.kind, eventId: push.eventId, placeId: push.placeId, artistId: push.artistId, change: push.change, step: push.step, key: push.key,
+      aps: { alert: { title: push.title, body: push.body }, sound: "default", "thread-id": push.kind === "winback" ? "digest" : push.kind === "question" ? `question:${push.eventId}:${push.threadId}` : push.eventId ?? (push.artistId ? `artist:${push.artistId}` : `place:${push.placeId}`) },
+      kind: push.kind, eventId: push.eventId, placeId: push.placeId, artistId: push.artistId, threadId: push.threadId, change: push.change, step: push.step, key: push.key,
     }),
   });
   if (res.ok) return true;

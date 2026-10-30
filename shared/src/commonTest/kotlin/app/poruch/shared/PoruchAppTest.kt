@@ -52,15 +52,21 @@ class PoruchAppTest {
         val sent=mutableListOf<Pair<String,String>>()
         var chatMessages=emptyList<ChatMessage>()
         var offlineChat=false
-        override suspend fun messages(eventId:String,after:String?):List<ChatMessage> { if(offlineChat) fail(AppError.Network); return chatMessages.filter { after==null || it.createdAt>after } }
+        val readThreads=mutableListOf<String?>()
+        override suspend fun messages(eventId:String,after:String?,thread:String?):List<ChatMessage> { if(offlineChat) fail(AppError.Network); readThreads+=thread; return chatMessages.filter { after==null || it.createdAt>after } }
         var failSend=false
         var slowSend=false
-        override suspend fun send(eventId:String,body:String):String { if(slowSend) delay(100); if(failSend) fail(AppError.Network); sent+=eventId to body; val m=ChatMessage("m${sent.size}",eventId,"user","Я",null,body,"2026-09-16T10:0${sent.size}:00Z"); chatMessages=chatMessages+m; return m.id }
+        val sentThreads=mutableListOf<String?>()
+        override suspend fun send(eventId:String,body:String,thread:String?):String { if(slowSend) delay(100); if(failSend) fail(AppError.Network); sent+=eventId to body; sentThreads+=thread; val m=ChatMessage("m${sent.size}",eventId,"user","Я",null,body,"2026-09-16T10:0${sent.size}:00Z"); chatMessages=chatMessages+m; return m.id }
         override suspend fun delete(messageId:String) { chatMessages=chatMessages.filterNot { it.id==messageId } }
         var unreadChats=emptyList<ChatUnread>()
         val readMarks=mutableListOf<String>()
         override suspend fun unread()=unreadChats
-        override suspend fun markRead(eventId:String) { readMarks+=eventId }
+        val readMarkThreads=mutableListOf<String?>()
+        override suspend fun markRead(eventId:String,thread:String?) { readMarks+=eventId; readMarkThreads+=thread }
+        var questions=emptyList<QuestionThread>()
+        val questionCalls=mutableListOf<String>()
+        override suspend fun questions(eventId:String):List<QuestionThread> { questionCalls+=eventId; return questions }
         val queries=mutableListOf<EventQuery>()
         val cardRequests=mutableListOf<List<String>>()
         val createIds=mutableListOf<String>()
@@ -1415,6 +1421,37 @@ class PoruchAppTest {
 
         app.closeChat("ev"); runCurrent()
         assertNull(app.state.value.chat)
+        app.close()
+    }
+
+    /**
+     * «Запитати організатора»: розмова — той самий движок з thread; відкриття гасить її непрочитане в деталях, а
+     * закриття перечитує розмови, щоб кнопка стала «Ваше питання».
+     */
+    @Test fun askingTheOrganizerTalksInItsOwnThread()=runTest {
+        val events=Events(); events.results=listOf(event("ev",EventCategory.GAMES,"2090-01-05T19:00:00Z"))
+        events.detailsById=mapOf("ev" to events.results.single())
+        events.questions=listOf(QuestionThread("user","Я",null,"Ні, усе є","2026-09-16T10:00:00Z",false,1))
+        val app=app(events,backgroundScope); runCurrent(); advanceTimeBy(101); runCurrent()
+        app.openEvent("ev"); advanceTimeBy(1000); runCurrent()
+        assertEquals(listOf("ev"),events.questionCalls,"розмови питаємо для події від людей")
+        assertEquals(1,app.state.value.detail.questions.single().unread)
+
+        app.openQuestion("ev","user"); runCurrent()
+        assertEquals("user",app.state.value.chat?.thread)
+        assertEquals(0,app.state.value.detail.questions.single().unread,"відкрита розмова вже прочитана")
+        assertEquals(listOf<String?>("user"),events.readThreads)
+        assertEquals(listOf<String?>("user"),events.readMarkThreads)
+
+        app.sendMessage(" Треба свої ігри? "); runCurrent()
+        assertEquals(listOf("ev" to "Треба свої ігри?"),events.sent)
+        assertEquals(listOf<String?>("user"),events.sentThreads)
+
+        events.questions=listOf(QuestionThread("user","Я",null,"Треба свої ігри?","2026-09-16T10:05:00Z",true,0))
+        app.closeChat("ev"); runCurrent()
+        assertNull(app.state.value.chat)
+        assertEquals(2,events.questionCalls.size,"закриття розмови перечитує розмови")
+        assertTrue(app.state.value.detail.questions.single().lastMine)
         app.close()
     }
 

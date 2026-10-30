@@ -19,7 +19,8 @@ sealed interface Tab : NavKey
 @Serializable data class ArtistPage(val artistId: String) : NavKey
 @Serializable data class Editor(val editingId: String? = null) : NavKey
 /** Чат події. Лише для організатора й учасників: іншим сервер віддасть порожньо. */
-@Serializable data class Chat(val eventId: String) : NavKey
+/** Чат події; з [thread] (хто питає) — розмова «Запитати організатора». */
+@Serializable data class Chat(val eventId: String, val thread: String? = null) : NavKey
 /** Вхід і реєстрація. [reason] — з якою дією прийшов гість: від неї підзаголовок, а «Створити» відкриває реєстрацію й після входу редактор. */
 @Serializable data class Auth(val reason: AuthReason = AuthReason.GENERAL) : NavKey
 

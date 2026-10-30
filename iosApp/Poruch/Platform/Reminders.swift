@@ -260,12 +260,14 @@ final class LocalReminderScheduler: NSObject, ReminderScheduler, RequestNotifier
                 ?? (id.hasPrefix(chatPrefix) ? "chat" : id.hasPrefix(requestPrefix) ? "request"
                     : id.hasPrefix(prefix) ? (info["saved"] != nil ? "saved" : "reminder") : nil)
             let eventId = info["eventId"] as? String, placeId = info["placeId"] as? String, artistId = info["artistId"] as? String
-            let chat = info["kind"] as? String == "chat" || id.hasPrefix(chatPrefix)
+            // «Запитати організатора»: тап відкриває саме розмову (`threadId` — хто питає).
+            let thread = info["kind"] as? String == "question" ? info["threadId"] as? String : nil
+            let chat = info["kind"] as? String == "chat" || id.hasPrefix(chatPrefix) || thread != nil
             DispatchQueue.main.async {
                 // Метрика лише разом із переходом: пуш без цілі не «повернув людину».
                 guard eventId != nil || placeId != nil || artistId != nil else { return }
                 if let reason { PushDelegate.opened(reason: reason) }
-                PushDelegate.open(eventId: eventId, chat: chat, placeId: placeId, artistId: artistId)
+                PushDelegate.open(eventId: eventId, chat: chat, placeId: placeId, artistId: artistId, thread: thread)
             }
         }
         completionHandler()

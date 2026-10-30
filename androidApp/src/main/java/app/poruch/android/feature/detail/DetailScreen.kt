@@ -183,6 +183,7 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
                         )
                         else if (state.screen.companions.isNotEmpty() && !state.screen.cancelled) Companions(state, onIntent)
                         event.gathering?.let { People(state, it, onIntent) }
+                        if (state.screen.canAsk) AskOrganizer(state, onIntent)
                         Venue(event, state.screen.followingPlace, onIntent)
                         if (!state.screen.cancelled && !state.screen.ended) Safety(state, onIntent)
                         Description(event, onIntent)
@@ -190,6 +191,7 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
                         // Чат і посилання — для своїх: сервер віддає посилання лише організатору й підтвердженим.
                         if (state.screen.hasChat || event.gathering?.hasContact == true) ContactSection(state, event, onIntent)
                         if (state.screen.organizer && state.screen.requests.isNotEmpty()) JoinRequests(state, onIntent)
+                        if (state.screen.organizer && state.screen.questions.isNotEmpty()) Questions(state, onIntent)
                         if (state.screen.canRate) RateEvent(state, onIntent)
                         if (state.screen.organizer && state.screen.ended && !state.screen.cancelled) Ratings(state)
                         // Після кінця редагувати й скасовувати нічого: лишаються відгуки.

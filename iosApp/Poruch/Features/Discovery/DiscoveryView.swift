@@ -164,7 +164,7 @@ struct DiscoveryView: View, Equatable {
             NavigationStack {
                 EventDetailView(app: model.app, eventID: route.id, zoomed: route.zooms && morphSpace != nil).equatable()
                     .navigationDestination(for: EventRoute.self) { EventScreen(route: $0) }
-                    .navigationDestination(for: ChatRoute.self) { ChatView(eventID: $0.id) }
+                    .navigationDestination(for: ChatRoute.self) { ChatView(eventID: $0.id, thread: $0.thread) }
             }
                 .presentationDetents([.large]).presentationDragIndicator(.visible)
                 .morphDestination(route.morph, in: morphSpace)

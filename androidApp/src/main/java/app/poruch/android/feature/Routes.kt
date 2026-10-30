@@ -208,7 +208,7 @@ fun DetailRoute(route: Detail, navigator: Navigator) {
             }
             is DetailEffect.OpenLink -> if (!context.openLink(effect.url)) context.toast(R.string.link_unavailable)
             is DetailEffect.OpenMap -> navigator.open(Explore(effect.id))
-            is DetailEffect.OpenChat -> navigator.open(Chat(effect.id))
+            is DetailEffect.OpenChat -> navigator.open(Chat(effect.id, effect.thread))
             is DetailEffect.OpenEvent -> navigator.openDetail(effect.id)
             is DetailEffect.OpenArtist -> navigator.open(ArtistPage(effect.id))
         }

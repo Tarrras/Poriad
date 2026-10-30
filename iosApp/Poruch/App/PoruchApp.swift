@@ -275,7 +275,7 @@ struct RootView: View {
                     // Пуш і посилання ставлять нову подію в той самий слот стосу (див. `PushDelegate.openEvent`):
                     // без `.id` SwiftUI лишав екран попередньої з її станом — датами прокату, чатом, запитом деталей.
                     .navigationDestination(for: EventRoute.self) { EventScreen(route: $0) }
-                    .navigationDestination(for: ChatRoute.self) { ChatView(eventID: $0.id).id($0.id) }
+                    .navigationDestination(for: ChatRoute.self) { ChatView(eventID: $0.id, thread: $0.thread).id($0) }
                     .navigationDestination(for: FollowsRoute.self) { _ in FollowsView() }
                     .navigationDestination(for: ArtistRoute.self) { ArtistView(route: $0) }
                 }.tag(0)
@@ -290,7 +290,7 @@ struct RootView: View {
                         .equatable()
                         .safeAreaPadding(.bottom, 92).toolbar(.hidden, for: .tabBar)
                         .navigationDestination(for: EventRoute.self) { EventScreen(route: $0) }
-                        .navigationDestination(for: ChatRoute.self) { ChatView(eventID: $0.id) }
+                        .navigationDestination(for: ChatRoute.self) { ChatView(eventID: $0.id, thread: $0.thread) }
                         .navigationDestination(for: ArtistRoute.self) { ArtistView(route: $0) }
                 }.tag(2)
                 NavigationStack(path: $profilePath) {
@@ -335,7 +335,7 @@ struct RootView: View {
             // Без події, але із закладом — пуш про кілька його нових подій: мапа на його стосі.
             // Без події й закладу, але з артистом — пуш про кілька його нових подій: екран артиста поверх головної.
             // Без нічого — дайджест вихідних: лише головна.
-            PushDelegate.openEvent = { id, chat, placeId, artistId in
+            PushDelegate.openEvent = { id, chat, placeId, artistId, thread in
                 creating = false
                 authSheet = nil
                 dismissPresentedSheets()
@@ -360,7 +360,7 @@ struct RootView: View {
                 guard let id else { homePath = NavigationPath(); return }
                 model.app.selectEvent(id: id)
                 var path = NavigationPath()
-                if chat { path.append(ChatRoute(id: id)) } else { path.append(EventRoute(id: id)) }
+                if chat { path.append(ChatRoute(id: id, thread: thread)) } else { path.append(EventRoute(id: id)) }
                 homePath = path
             }
         }

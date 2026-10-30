@@ -5,6 +5,7 @@ import app.poruch.domain.ChatMessage
 import app.poruch.domain.ChatRules
 import app.poruch.domain.ChatUnread
 import app.poruch.domain.EventChat
+import app.poruch.domain.QuestionThread
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.JsonNull
@@ -15,18 +16,23 @@ import kotlinx.serialization.json.put
 /** Чат події через RPC. Хто читає й пише — вирішує сервер; тут лише транспорт. */
 internal class SupabaseEventChat(private val rpc: EventRpc) : EventChat {
 
-    override suspend fun messages(eventId: String, after: String?): List<ChatMessage> =
+    // `p_thread` лише для розмови: без нього той самий запит іде й на сервер до 20261116 (загальний чат).
+    override suspend fun messages(eventId: String, after: String?, thread: String?): List<ChatMessage> =
         rpc.json.decodeFromJsonElement(
             ListSerializer(ChatMessageDto.serializer()),
             rpc.read("event_messages", buildJsonObject {
                 put("p_event_id", eventId)
                 if (after != null) put("p_after", after) else put("p_after", JsonNull)
                 put("p_limit", ChatRules.PAGE)
+                if (thread != null) put("p_thread", thread)
             })
         ).map { it.domain() }
 
-    override suspend fun send(eventId: String, body: String): String =
-        rpc.call("send_message", buildJsonObject { put("p_event_id", eventId); put("p_body", body) }).jsonPrimitive.content
+    override suspend fun send(eventId: String, body: String, thread: String?): String =
+        rpc.call("send_message", buildJsonObject {
+            put("p_event_id", eventId); put("p_body", body)
+            if (thread != null) put("p_thread", thread)
+        }).jsonPrimitive.content
 
     override suspend fun delete(messageId: String) {
         rpc.call("delete_message", buildJsonObject { put("p_message_id", messageId) })
@@ -41,13 +47,22 @@ internal class SupabaseEventChat(private val rpc: EventRpc) : EventChat {
         if (e.isMissingFunction()) emptyList() else throw e
     }
 
-    override suspend fun markRead(eventId: String) {
+    override suspend fun markRead(eventId: String, thread: String?) {
         try {
-            rpc.call("mark_chat_read", rpc.eventParams(eventId))
+            rpc.call("mark_chat_read", buildJsonObject { put("p_event_id", eventId); if (thread != null) put("p_thread", thread) })
         } catch (e: CancellationException) {
             throw e
         } catch (e: AppFailure) {
             if (!e.isMissingFunction()) throw e
         }
+    }
+
+    override suspend fun questions(eventId: String): List<QuestionThread> = try {
+        rpc.json.decodeFromJsonElement(ListSerializer(QuestionThreadDto.serializer()), rpc.read("event_questions", rpc.eventParams(eventId)))
+            .map { it.domain() }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: AppFailure) {
+        if (e.isMissingFunction()) emptyList() else throw e
     }
 }

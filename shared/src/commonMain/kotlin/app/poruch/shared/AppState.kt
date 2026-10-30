@@ -187,6 +187,8 @@ data class DetailState(
     val company: CompanyTeaser? = null,
     /** Люди з наміром на відкриту афішу. Порожньо, поки свого наміру нема. */
     val companyPeople: List<CompanyPerson> = emptyList(),
+    /** «Запитати організатора» на подію від людей: організатору — усі розмови, тому, хто питав, — своя. */
+    val questions: List<QuestionThread> = emptyList(),
     /**
      * Сама подія ще в дорозі. Поки так, порожній [event] — не «подія недоступна», а спінер.
      * Власний прапорець: `map.loading` про мапу, а не про деталі.

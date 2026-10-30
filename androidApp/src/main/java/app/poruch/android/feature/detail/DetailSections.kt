@@ -228,6 +228,67 @@ internal fun ageLimitLabel(room: Gathering): String = room.maxAge?.let {
     stringResource(R.string.age_badge_range, room.minAge, it)
 } ?: stringResource(R.string.age_badge_from, room.minAge)
 
+/**
+ * «Запитати організатора» (1.4): розмова на двох для того, хто ще вирішує, чи йти, — не в загальний чат, куди його й
+ * не пустить. Гостю — вхід ([DetailViewModel] просить його сам), далі та сама кнопка.
+ */
+@Composable
+internal fun AskOrganizer(state: DetailState, onIntent: (DetailIntent) -> Unit) {
+    val colors = Poruch.colors
+    val mine = state.screen.myQuestion
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        Box {
+            SecondaryButton(
+                stringResource(if (mine == null) R.string.ask_organizer else R.string.ask_organizer_mine),
+                { onIntent(DetailIntent.OpenQuestion()) }, Modifier.fillMaxWidth(), icon = PoruchIcons.chat
+            )
+            if (mine != null && mine.unread > 0) CountBadge(mine.unread, Modifier.align(Alignment.CenterEnd).padding(end = Spacing.lg))
+        }
+        Text(
+            stringResource(
+                when {
+                    mine == null -> R.string.ask_organizer_hint
+                    mine.unread > 0 || !mine.lastMine -> R.string.ask_organizer_answered
+                    else -> R.string.ask_organizer_waiting
+                }
+            ),
+            style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary
+        )
+    }
+}
+
+/** Питання до організатора: розмова з кожним, хто питав, свіжіші першими. Рядок відкриває розмову. */
+@Composable
+internal fun Questions(state: DetailState, onIntent: (DetailIntent) -> Unit) {
+    val colors = Poruch.colors
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        SectionHeader(stringResource(R.string.questions_section))
+        Column(Modifier.fillMaxWidth().cardSurface()) {
+            state.screen.questions.forEachIndexed { index, question ->
+                if (index > 0) HorizontalDivider(Modifier.padding(start = Spacing.lg + 40.dp + Spacing.md), color = colors.hairline)
+                val name = question.askerName.ifBlank { stringResource(R.string.chat_member) }
+                Row(
+                    Modifier.fillMaxWidth().clickable { onIntent(DetailIntent.OpenQuestion(question.askerId)) }
+                        .padding(horizontal = Spacing.lg, vertical = Spacing.md),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)
+                ) {
+                    Avatar(name, question.askerAvatar, 40.dp)
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(name, style = MaterialTheme.typography.titleSmall, color = colors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(
+                            if (question.lastMine) stringResource(R.string.chat_you) + ": " + question.lastBody else question.lastBody,
+                            style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    if (question.unread > 0) CountBadge(question.unread)
+                    Icon(PoruchIcons.chevronRight, null, Modifier.size(16.dp), tint = colors.inkTertiary)
+                }
+            }
+        }
+        Text(stringResource(R.string.questions_section_hint), style = MaterialTheme.typography.bodySmall, color = colors.inkTertiary)
+    }
+}
+
 /** Запити на участь. На екрані деталей, бо організатор відповідає, дивлячись на свою подію. */
 @Composable
 internal fun JoinRequests(state: DetailState, onIntent: (DetailIntent) -> Unit) {

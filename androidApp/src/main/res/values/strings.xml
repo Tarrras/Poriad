@@ -472,6 +472,20 @@
   <string name="contact_members_hint">Посилання від організатора. Бачать лише учасники події.</string>
   <string name="chat_open">Чат учасників</string>
   <string name="chat_open_hint">Пишуть лише організатор і підтверджені учасники.</string>
+  <!-- «Запитати організатора» (1.4): розмова на двох біля події від людей. -->
+  <string name="ask_organizer">Запитати організатора</string>
+  <string name="ask_organizer_mine">Ваше питання організатору</string>
+  <string name="ask_organizer_hint">Побачить лише організатор, не учасники.</string>
+  <string name="ask_organizer_waiting">Чекаємо відповіді організатора</string>
+  <string name="ask_organizer_answered">Організатор відповів</string>
+  <string name="questions_section">Питання до вас</string>
+  <string name="questions_section_hint">Бачите лише ви й людина, яка питає.</string>
+  <string name="question_subtitle">Бачите лише ви й організатор</string>
+  <string name="question_from">Питає %1$s</string>
+  <string name="question_placeholder">Ваше питання…</string>
+  <string name="question_reply_placeholder">Відповісти…</string>
+  <string name="question_empty_title">Що хочете дізнатися?</string>
+  <string name="question_empty_hint">Що взяти, чи можна з другом, як знайти місце — організатор відповість тут. Учасники цієї розмови не бачать.</string>
   <string name="chat_title">Чат події</string>
   <string name="chat_placeholder">Написати учасникам…</string>
   <string name="chat_send">Надіслати</string>

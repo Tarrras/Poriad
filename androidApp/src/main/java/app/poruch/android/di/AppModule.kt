@@ -61,7 +61,7 @@ val appModule = module {
     viewModel { (route: Auth) -> AuthViewModel(get(), route.reason) }
     viewModel { (route: Detail) -> DetailViewModel(get(), get(), route.eventId) }
     viewModel { (route: Editor) -> EditorViewModel(get(), get(), get(), route.editingId) }
-    viewModel { (route: Chat) -> ChatViewModel(get(), route.eventId) }
+    viewModel { (route: Chat) -> ChatViewModel(get(), route.eventId, route.thread) }
     viewModel { (route: ArtistPage) -> ArtistViewModel(get(), route.artistId) }
 }
 

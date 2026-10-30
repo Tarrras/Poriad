@@ -60,6 +60,11 @@ class PushService : FirebaseMessagingService() {
                 val (author, text) = body.split(": ", limit = 2).let { if (it.size == 2) it[0] to it[1] else "" to body }
                 ChatNotificationCenter(this).notifyMessages(listOf(ChatAlert(eventId, title, 1, author, text)))
             }
+            // «Запитати організатора»: тап — саме в розмову (`threadId` — хто питає). Відкрита — нема про що дзвонити.
+            "question" -> data["threadId"]?.let { thread ->
+                val open = app.state.value.chat?.let { it.eventId == eventId && it.thread == thread } == true
+                if (eventId != null && !(foreground() && open)) ChatNotificationCenter(this).notifyQuestion(eventId, thread, title, body)
+            }
             "request" -> eventId?.let { alerts.notify(listOf(RequestAlert(it, title, 1))) }
             "joined" -> eventId?.let { alerts.notifyJoined(it, title, body) }
             "moved", "cancelled" -> eventId?.let { alerts.notifyEventChange(it, title, body, kind) }

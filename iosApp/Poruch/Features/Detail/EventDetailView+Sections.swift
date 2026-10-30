@@ -495,6 +495,62 @@ extension EventDetailView {
         }
     }
 
+    /// «Запитати організатора» (1.4): розмова на двох для того, хто ще вирішує, чи йти, — не в загальний чат, куди
+    /// його й не пустить. Гостю — вхід, далі та сама кнопка.
+    func askOrganizer(_ view: DetailScreenState) -> some View {
+        let mine = view.myQuestion
+        let label = HStack(spacing: Space.sm) {
+            PoruchIcon(glyph: PoruchIcons.chat, size: 18)
+            Text(mine == nil ? Copy.ask_organizer : Copy.ask_organizer_mine).font(PoruchFont.button).lineLimit(2)
+            if let mine, mine.unread > 0 { CountBadge(count: Int(mine.unread)) }
+        }
+        .foregroundStyle(Palette.ink)
+        .padding(.horizontal, Space.xxl).padding(.vertical, Space.sm).frame(minHeight: 52).frame(maxWidth: .infinity)
+        .background(Palette.brandContainer, in: buttonShape)
+        let note: String
+        if let mine { note = mine.unread > 0 || !mine.lastMine ? Copy.ask_organizer_answered : Copy.ask_organizer_waiting }
+        else { note = Copy.ask_organizer_hint }
+        return VStack(alignment: .leading, spacing: Space.sm) {
+            if view.signedIn, let me = view.userId {
+                NavigationLink(value: ChatRoute(id: view.event?.id ?? "", thread: me)) { label }.buttonStyle(PressableStyle())
+            } else {
+                Button { auth = .general } label: { label }.buttonStyle(PressableStyle())
+            }
+            Text(note).font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    /// Питання до організатора: розмова з кожним, хто питав, свіжіші першими. Рядок відкриває розмову.
+    func questions(_ event: Event, _ view: DetailScreenState) -> some View {
+        VStack(alignment: .leading, spacing: Space.sm) {
+            SectionHeader(title: Copy.questions_section)
+            GroupedRows {
+                ForEach(Array(view.questions.enumerated()), id: \.element.askerId) { index, question in
+                    if index > 0 { Divider().overlay(Palette.hairline).padding(.leading, Space.lg + 40 + Space.md) }
+                    NavigationLink(value: ChatRoute(id: event.id, thread: question.askerId)) {
+                        HStack(spacing: Space.md) {
+                            let name = question.askerName.isEmpty ? Copy.chat_member : question.askerName
+                            Avatar(name: name, url: question.askerAvatar, size: 40)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(name).font(PoruchFont.cardName).foregroundStyle(Palette.ink).lineLimit(1)
+                                Text(question.lastMine ? "\(Copy.chat_you): \(question.lastBody)" : question.lastBody)
+                                    .font(PoruchFont.caption).foregroundStyle(Palette.inkSecondary).lineLimit(2)
+                            }
+                            Spacer(minLength: 0)
+                            if question.unread > 0 { CountBadge(count: Int(question.unread)) }
+                            PoruchIcon(glyph: PoruchIcons.chevronRight, size: 15).foregroundStyle(Palette.inkTertiary)
+                        }
+                        .padding(.horizontal, Space.lg).padding(.vertical, Space.md).contentShape(Rectangle())
+                    }
+                    .buttonStyle(PressableStyle())
+                    .accessibilityElement(children: .combine)
+                }
+            }
+            Text(Copy.questions_section_hint).font(PoruchFont.caption).foregroundStyle(Palette.inkTertiary)
+        }
+    }
+
     /// Запити на участь. На екрані деталей, бо організатор відповідає, дивлячись на свою подію.
     func joinRequests(_ event: Event, _ view: DetailScreenState) -> some View {
         VStack(alignment: .leading, spacing: Space.md) {

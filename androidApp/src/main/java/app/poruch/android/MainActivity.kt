@@ -184,7 +184,7 @@ class MainActivity : ComponentActivity(), AndroidScopeComponent {
             return
         }
         val navigator = scope.get<Navigator>()
-        val target = if (ours?.getStringExtra(EXTRA_TARGET) == TARGET_CHAT) Chat(eventId) else Detail(eventId)
+        val target = if (ours?.getStringExtra(EXTRA_TARGET) == TARGET_CHAT) Chat(eventId, ours.getStringExtra(EXTRA_THREAD)) else Detail(eventId)
         // Та сама подія вже зверху: запис стека й модель лишаються, тож деталі перепитуємо самі — пуш
         // про зміну саме цієї події інакше показував би старі дату й стан.
         val reopened = navigator.current == target
@@ -203,6 +203,7 @@ class MainActivity : ComponentActivity(), AndroidScopeComponent {
         private const val EXTRA_STEP = "step"
         private const val EXTRA_KEY = "key"
         private const val TARGET_CHAT = "chat"
+        private const val EXTRA_THREAD = "thread"
         private const val APP_LANGUAGE = "uk"
         private const val ACTION_DIGEST = "app.poruch.OPEN_DIGEST"
         private const val LAUNCH_PREFS = "launch"
@@ -217,14 +218,18 @@ class MainActivity : ComponentActivity(), AndroidScopeComponent {
             return prefs.getString(EXTRA_KEY, null) ?: UUID.randomUUID().toString().also { prefs.edit { putString(EXTRA_KEY, it) } }
         }
 
-        /** Intent сповіщення: відкрити подію або, з [chat], її чат. Наявний екземпляр отримує його в `onNewIntent`. */
-        fun open(context: Context, eventId: String, chat: Boolean = false, reason: String? = null): Intent =
+        /**
+         * Intent сповіщення: відкрити подію або, з [chat], її чат, а з [thread] — розмову «Запитати організатора».
+         * Наявний екземпляр отримує його в `onNewIntent`.
+         */
+        fun open(context: Context, eventId: String, chat: Boolean = false, reason: String? = null, thread: String? = null): Intent =
             Intent(context, MainActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                 .putExtra(EXTRA_KEY, launchKey(context))
                 .putExtra(EXTRA_EVENT_ID, eventId)
                 .apply {
                     if (chat) putExtra(EXTRA_TARGET, TARGET_CHAT)
+                    thread?.let { putExtra(EXTRA_THREAD, it) }
                     // Причина сповіщення для `push_open`: без неї (посилання, нагадування зі старого плану) метрики нема.
                     reason?.let { putExtra(EXTRA_REASON, it) }
                 }

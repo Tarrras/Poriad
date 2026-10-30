@@ -440,9 +440,29 @@ class ChatNotificationCenter(context: Context) : ChatNotifier {
         }
     }
 
+    /** Пуш «Запитати організатора»: текст склав сервер; тап відкриває розмову [thread], а не загальний чат. */
+    fun notifyQuestion(eventId: String, thread: String, title: String, body: String) {
+        if (!NotificationPermission(context).granted()) return
+        val manager = context.getSystemService(NotificationManager::class.java)
+        manager.createNotificationChannel(
+            NotificationChannel(CHANNEL, context.getString(R.string.chat_notification_channel), NotificationManager.IMPORTANCE_DEFAULT)
+        )
+        val key = "$QUESTION_TAG$eventId:$thread"
+        val open = PendingIntent.getActivity(
+            context, key.hashCode(), MainActivity.open(context, eventId, chat = true, reason = "question", thread = thread),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val notification = Notification.Builder(context, CHANNEL)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(title).setContentText(body).setStyle(Notification.BigTextStyle().bigText(body))
+            .setContentIntent(open).setAutoCancel(true).build()
+        manager.notify(QUESTION_TAG, key.hashCode(), notification)
+    }
+
     private companion object {
         const val CHANNEL = "chat_messages"
         const val TAG = "chat"
+        const val QUESTION_TAG = "question"
     }
 }
 
