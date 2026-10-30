@@ -102,28 +102,34 @@ struct HomeView: View, Equatable {
                     } else {
                         // День події: квиток — перше, що відкривають на вході.
                         if !view.todayTickets.isEmpty { TodayTickets(tickets: view.todayTickets) }
-                        // Серце продукту — з ким піти: зустрічі від людей і афіші, на які шукають компанію, однією рейкою,
-                        // під нею порожній квиток «Організувати подію». Активності не вигадуємо: коли зустрічей мало, секцію
-                        // веде порожній квиток.
-                        HomePeopleSection(view: view, open: open, showPeople: showPeople, createEvent: createEvent, openProfile: openProfile)
-                        // «Ваше» одразу після: непрочитаний чат і запит на участь не мають губитися під афішею. Усе особисте —
-                        // плани, «Ваш тиждень», дати артистів, підписки — одним блоком у чотири рядки (критика довжини 28.10).
-                        HomePersonalSection(
-                            view: view, deckDue: deckWeek != view.deckWeek, open: open, openChat: openChat,
-                            openMyEvents: openMyEvents, openFollows: openFollows,
-                            openDeck: {
-                                deckWeek = view.deckWeek
-                                deck = DeckCards(events: view.deck)
-                            }
-                        )
-                        HomeCityFeed(
-                            view: view, feedLimit: $feedLimit, open: open, showCity: showCity, openMap: openMap,
-                            chipsPinned: $chipsPinned, selectChip: { selectChip($0, proxy: proxy) }
-                        )
-                        // Кінець стрічки не глухий кут: далі мапа чи власна подія.
-                        if !view.feed.isEmpty { moreRows(view) }
+                        // До першої видачі — один лоадер: секції, що приходили по черзі, штовхали одна одну (`HomeScreenState.ready`).
+                        if view.ready {
+                            // Серце продукту — з ким піти: зустрічі від людей і афіші, на які шукають компанію, однією рейкою,
+                            // під нею порожній квиток «Організувати подію». Активності не вигадуємо: коли зустрічей мало, секцію
+                            // веде порожній квиток.
+                            HomePeopleSection(view: view, open: open, showPeople: showPeople, createEvent: createEvent, openProfile: openProfile)
+                            // «Ваше» одразу після: непрочитаний чат і запит на участь не мають губитися під афішею. Усе особисте —
+                            // плани, «Ваш тиждень», дати артистів, підписки — одним блоком у чотири рядки (критика довжини 28.10).
+                            HomePersonalSection(
+                                view: view, deckDue: deckWeek != view.deckWeek, open: open, openChat: openChat,
+                                openMyEvents: openMyEvents, openFollows: openFollows,
+                                openDeck: {
+                                    deckWeek = view.deckWeek
+                                    deck = DeckCards(events: view.deck)
+                                }
+                            )
+                            HomeCityFeed(
+                                view: view, feedLimit: $feedLimit, open: open, showCity: showCity, openMap: openMap,
+                                chipsPinned: $chipsPinned, selectChip: { selectChip($0, proxy: proxy) }
+                            )
+                            // Кінець стрічки не глухий кут: далі мапа чи власна подія.
+                            if !view.feed.isEmpty { moreRows(view) }
+                        } else {
+                            PoruchLoader().frame(maxWidth: .infinity).padding(.vertical, Space.section)
+                        }
                     }
                 }.padding(.top, Space.md).padding(.bottom, Space.section)
+                .motion(value: view.ready)
             }
         }
         // Чипи «Сьогодні / Вихідні» під рукою, поки гортається сітка: п'ятничний вибір не за два екрани вгору.

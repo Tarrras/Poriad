@@ -29,6 +29,15 @@ internal class HomeDiscovery(
     private val debounceJob = LatestJob(scope)
     private val placesJob = LatestJob(scope)
 
+    init {
+        // Мережа, що висить (два тайм-аути по 30 с), не ховає за лоадером плани з телефону: тоді секції показуються й без
+        // стрічки, як до HomeFeed.loaded, а «У місті» чекає зі своїм лоадером.
+        scope.launch {
+            delay(DiscoveryRules.HOME_FIRST_LOAD_PATIENCE_MS)
+            store.update { if (it.home.loaded) it else it.copy(home = it.home.copy(loaded = true)) }
+        }
+    }
+
     /** Стрічка головної окремим запитом, коли мапа звужена фільтрами. */
     fun refresh() {
         val snapshot = area
@@ -46,12 +55,13 @@ internal class HomeDiscovery(
                 withContext(compute) { events.cached(snapshot) }
             }
             val ranked = rank(page, store.value.taste, compute)
+            if (!offline) awaitFirstCards(ranked, page.cards)
             store.update {
                 it.copy(
                     cards = it.cards + page.cards.associateBy { card -> card.id },
                     home = it.home.copy(
                         index = ranked.index, suggestedIndex = ranked.suggested,
-                        totalFound = ranked.total, loading = false, offline = offline
+                        totalFound = ranked.total, loading = false, offline = offline, loaded = true
                     )
                 ).settled(ranked.taste)
             }
@@ -181,14 +191,31 @@ internal class HomeDiscovery(
      */
     fun materialize() {
         val home = store.value.home
-        val rooms = home.index.filter { it.isCommunity && it.roomHasSeats }
-            .take(DiscoveryRules.HOME_ROOM_CARDS)
+        load(firstCards(home.index, home.suggestedIndex, home.results))?.let(cardsJob::set)
+    }
+
+    /**
+     * Нова видача головної ще не в стані: довантажує її перші картки ([firstCards]) до того, як індекс туди ляже. Так
+     * головна приходить цілою, одним оновленням: інакше спершу з'являлись картки з відповіді сервера (за часом), а за
+     * другим запитом «З ким піти» розросталась із порожнього квитка в рейку, великі картки мінялись на «Для вас», і стрічка
+     * стрибала. Повільні картки не тримають головну довше за [DiscoveryRules.HOME_CARDS_WAIT_MS]: тоді доїдуть, як раніше.
+     */
+    suspend fun awaitFirstCards(ranked: Ranked, inline: List<Event>) {
+        val have = inline.mapTo(HashSet()) { it.id }
+        // Не в cardsJob: наступний materialize() скасував би повільне довантаження разом з його id. Зміну акаунта
+        // скасовує DiscoveryEngine.reset() через inFlight.
+        val job = load(firstCards(ranked.index, ranked.suggested, store.value.home.results).filterNot { it in have }) ?: return
+        withTimeoutOrNull(DiscoveryRules.HOME_CARDS_WAIT_MS) { job.join() }
+    }
+
+    private fun firstCards(
+        index: List<EventIndexEntry>, suggested: List<EventIndexEntry>, results: List<EventIndexEntry>
+    ): List<String> {
+        val rooms = index.filter { it.isCommunity && it.roomHasSeats }.take(DiscoveryRules.HOME_ROOM_CARDS)
         // Кіносеанси, які «У місті» однаково не покаже (Taste.curates), не з'їдають вікно карток.
-        val city = home.index.filter { store.value.taste.curates(it.category) }
-        val ids =
-            (home.suggestedIndex.take(DiscoveryRules.FIRST_CARDS) + city.take(DiscoveryRules.FIRST_CARDS) + rooms +
-                    HomeRules.company(home.index) + home.results.take(DiscoveryRules.FIRST_CARDS)).map { it.id }.distinct()
-        load(ids)?.let(cardsJob::set)
+        val city = index.filter { store.value.taste.curates(it.category) }
+        return (suggested.take(DiscoveryRules.FIRST_CARDS) + city.take(DiscoveryRules.FIRST_CARDS) + rooms +
+                HomeRules.company(index) + results.take(DiscoveryRules.FIRST_CARDS)).map { it.id }.distinct()
     }
 
     /** Зміна акаунта: картки в дорозі несуть членство попереднього. */

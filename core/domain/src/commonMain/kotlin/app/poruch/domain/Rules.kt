@@ -109,6 +109,15 @@ object DiscoveryRules {
      */
     const val HOME_ROOM_CARDS = 12
 
+    /**
+     * Скільки головна чекає свої перші картки, перш ніж показати видачу (`HomeDiscovery.awaitFirstCards`). Запит карток —
+     * десяті секунди; довше — показуємо що є, решта доїде.
+     */
+    const val HOME_CARDS_WAIT_MS = 2_000L
+
+    /** Скільки головна при старті показує лоадер замість секцій, якщо видача не приходить (`HomeFeed.loaded`). */
+    const val HOME_FIRST_LOAD_PATIENCE_MS = 5_000L
+
     /** Скільки карток домальовуємо наперед, коли стрічку прокрутили до кінця вікна. */
     const val CARD_WINDOW = 60
 

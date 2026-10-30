@@ -76,13 +76,17 @@ class PoruchAppTest {
         var serves:(EventQuery,Event)->Boolean={ _,_ -> true }
         /** Чим падає видача; null — не падає. */
         var discoverError:AppError?=null
-        override suspend fun discover(query:EventQuery):DiscoveryPage { queries+=query; delay(100); discoverError?.let { fail(it) }; return page(results.filter { e -> query.text.let { it==null || it in e.title } && serves(query,e) },inlineCards) }
+        /** Скільки їде видача. */
+        var discoverDelay=100L
+        override suspend fun discover(query:EventQuery):DiscoveryPage { queries+=query; delay(discoverDelay); discoverError?.let { fail(it) }; return page(results.filter { e -> query.text.let { it==null || it in e.title } && serves(query,e) },inlineCards) }
         override fun cached(query:EventQuery)=DiscoveryPage.Empty
         /** Картки, яких нема у видачі, але сервер їх віддає за id: подія, відкрита посиланням. */
         var offFeedCards=emptyList<Event>()
         /** Надгробок → жива подія, як `private.live_event_id` у `event_cards_by_ids`. */
         var mergedInto=emptyMap<String,String>()
-        override suspend fun cards(ids:List<String>):List<Event> { cardRequests+=ids; val live=ids.map { mergedInto[it]?:it }; return (results+offFeedCards).filter { it.id in live } }
+        /** Скільки їде запит карток за id. */
+        var cardsDelay=0L
+        override suspend fun cards(ids:List<String>):List<Event> { cardRequests+=ids; delay(cardsDelay); val live=ids.map { mergedInto[it]?:it }; return (results+offFeedCards).filter { it.id in live } }
         var failPending=false
         var failFacts=false
         var detailsById=emptyMap<String,Event>()
@@ -984,6 +988,43 @@ class PoruchAppTest {
         assertTrue("room" in home,"an open room past the first cards is loaded")
         assertFalse("full" in home,"a full room is not worth a card of its own")
         assertEquals(events.cardRequests.flatten().distinct(),events.cardRequests.flatten(),"each card is asked for once")
+        app.close()
+    }
+
+    /** Головна приходить цілою: видача лягає в стан разом із картками, які головна покаже першими, а не другою хвилею. */
+    @Test fun homeFeedArrivesTogetherWithItsFirstCards()=runTest {
+        val events=Events(); events.inlineCards=0; events.cardsDelay=300
+        events.results=(1..30).map { listed("l${it.toString().padStart(2,'0')}","2090-01-01T10:00:00Z") }+event("room",EventCategory.SOCIAL,"2090-03-01T19:00:00Z")
+        val app=app(events,backgroundScope)
+        val seen=mutableListOf<HomeFeed>()
+        backgroundScope.launch { app.state.collect { seen+=it.home } }
+        runCurrent(); advanceTimeBy(1000); runCurrent()
+        val shown=seen.filter { it.loaded }
+        assertTrue(shown.isNotEmpty())
+        assertTrue(shown.all { home -> "room" in home.events.map { it.id } },"no frame shows the feed without its rail")
+        app.close()
+    }
+
+    /** Повільні картки не тримають головну: видача показується що є, решта доїжджає. */
+    @Test fun slowCardsDoNotHoldTheHomeBack()=runTest {
+        val events=Events(); events.inlineCards=0; events.cardsDelay=10_000
+        events.results=listOf(event("room",EventCategory.SOCIAL,"2090-03-01T19:00:00Z"))
+        val app=app(events,backgroundScope); runCurrent()
+        advanceTimeBy(100+DiscoveryRules.HOME_CARDS_WAIT_MS+50); runCurrent()
+        assertTrue(app.state.value.home.loaded); assertTrue(app.state.value.home.events.isEmpty())
+        advanceTimeBy(10_000); runCurrent()
+        assertEquals(listOf("room"),app.state.value.home.events.map { it.id })
+        app.close()
+    }
+
+    /** Видача, що висить, не ховає секції головної за лоадером довше за терпіння. */
+    @Test fun hangingFeedDoesNotHideTheHomeForever()=runTest {
+        val events=Events(); events.discoverDelay=60_000
+        val app=app(events,backgroundScope); runCurrent()
+        advanceTimeBy(DiscoveryRules.HOME_FIRST_LOAD_PATIENCE_MS-1); runCurrent()
+        assertFalse(app.state.value.home.loaded)
+        advanceTimeBy(2); runCurrent()
+        assertTrue(app.state.value.home.loaded); assertTrue(app.state.value.home.loading)
         app.close()
     }
 

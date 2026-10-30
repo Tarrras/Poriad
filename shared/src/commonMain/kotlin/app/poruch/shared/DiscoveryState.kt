@@ -100,6 +100,12 @@ data class HomeFeed(
     val loading: Boolean = false,
     /** Стрічка без мережі: з кешу або порожня. Головна каже «Без мережі», а порожня — «Немає звʼязку». */
     val offline: Boolean = false,
+    /**
+     * Видача вже приходила хоч раз (з мережі чи кешу), разом зі своїми першими картками, або не прийшла за
+     * [DiscoveryRules.HOME_FIRST_LOAD_PATIENCE_MS]. До того головна показує один лоадер, а не блоки, що з'являються по
+     * черзі. Потім лишається: оновлення й інше місто міняють видачу на місці.
+     */
+    val loaded: Boolean = false,
     val searchText: String = "",
     /** Знайдене пошуком головної в тій самій області, ранжоване. */
     val results: List<EventIndexEntry> = emptyList(),

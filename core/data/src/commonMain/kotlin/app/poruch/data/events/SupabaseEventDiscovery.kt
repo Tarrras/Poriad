@@ -32,7 +32,7 @@ internal class SupabaseEventDiscovery(
     override suspend fun discover(query: EventQuery): DiscoveryPage {
         val owner = auth.session.value?.userId
         if (hasIndexRpc != false) {
-            val response = runCatching { rpc.read("discover_events", query.indexParams()) }
+            val response = runCatching { rpc.readText("discover_events", query.indexParams()) }
                 .onSuccess { hasIndexRpc = true }
                 .getOrElse { failure ->
                     if (!failure.isMissingFunction()) throw failure
@@ -41,10 +41,9 @@ internal class SupabaseEventDiscovery(
                     null
                 }
             if (response != null) return withContext(compute) {
-                val text = response.toString()
-                val page = rpc.json.decodeFromJsonElement<DiscoveryEnvelope>(response)
+                val page = rpc.json.decodeFromString<DiscoveryEnvelope>(response)
                 // Акаунт міг змінитися, поки запит був у дорозі: тоді відповідь не пишемо.
-                if (owner == auth.session.value?.userId) cache.write(cache.key(query, owner), text)
+                if (owner == auth.session.value?.userId) cache.write(cache.key(query, owner), response)
                 page.domain()
             }
         }
@@ -69,11 +68,11 @@ internal class SupabaseEventDiscovery(
         val batches = ids.distinct().chunked(DiscoveryRules.CARD_BATCH)
         val collected = mutableListOf<Event>()
         for (batch in batches) {
-            val response = rpc.read("event_cards_by_ids", buildJsonObject {
+            val response = rpc.readText("event_cards_by_ids", buildJsonObject {
                 put("p_ids", JsonArray(batch.map(::JsonPrimitive)))
             })
             collected += withContext(compute) {
-                rpc.json.decodeFromJsonElement<List<EventDto>>(response).map { it.domain() }
+                rpc.json.decodeFromString<List<EventDto>>(response).map { it.domain() }
             }
         }
         PoruchLog.d("discovery") { "${collected.size} cards for ${ids.size} ids in ${batches.size} request(s)" }

@@ -62,6 +62,11 @@ data class HomeScreenState(
     val loading: Boolean = false,
     /** Стрічка без мережі: з кешу (рядок «Без мережі») або порожня («Немає звʼязку»). */
     val offline: Boolean = false,
+    /**
+     * Головна приїхала вперше ([HomeFeed.loaded]). До того платформа під шапкою показує один лоадер замість секцій: інакше
+     * «Ваше» з'являлось раніше за стрічку, а «З ким піти» розросталась із порожнього квитка в рейку, і все під ними стрибало.
+     */
+    val ready: Boolean = false,
     /** «Ваше»: до [HomeRules.PERSONAL_LIMIT] своїх подій, спершу ті, де хтось чекає відповіді. */
     val personal: List<PersonalRow> = emptyList(),
     /**
@@ -258,6 +263,7 @@ class HomePresenter(
             cities = shared.city.suggestions,
             loading = home.loading,
             offline = home.offline,
+            ready = home.loaded,
             personal = personal,
             followed = rowEvents,
             followNames = rowEvents.mapNotNull { FollowRules.via(it, rowFollows)?.name }.distinct(),

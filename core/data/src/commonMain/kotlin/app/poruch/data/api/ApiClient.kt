@@ -33,6 +33,29 @@ class ApiClient(private val client: HttpClient, private val baseUrl: String, pri
         token: String? = null,
         query: Map<String, String> = emptyMap(),
         prefer: String = "return=representation",
+        idempotent: Boolean = method == HttpMethod.Get,
+        reauthorizable: Boolean = true
+    ): JsonElement {
+        val text = requestText(path, method, payload, token, query, prefer, idempotent, reauthorizable)
+        return try {
+            if (text.isBlank()) JsonNull else json.parseToJsonElement(text)
+        } catch (e: Exception) {
+            PoruchLog.report("http", "${method.value} $path unreadable body", e)
+            fail(AppError.Network)
+        }
+    }
+
+    /**
+     * Те саме, що [request], але тіло відповіді текстом, без розбору в дерево. Для великих відповідей, які
+     * розбирають одразу в DTO: дерево, а потім ще й `toString()` для кешу, коштували секунди на індексі міста.
+     */
+    suspend fun requestText(
+        path: String,
+        method: HttpMethod = HttpMethod.Get,
+        payload: JsonElement? = null,
+        token: String? = null,
+        query: Map<String, String> = emptyMap(),
+        prefer: String = "return=representation",
         /**
          * Чи безпечно повторити запит (див. [TRANSIENT]). За замовчуванням лише GET; читальні
          * RPC — це POST, тож позначають себе самі (`EventRpc.read`). Запис не повторюємо ніколи:
@@ -44,7 +67,7 @@ class ApiClient(private val client: HttpClient, private val baseUrl: String, pri
          * (зняття пуш-токена акаунта, що вже вийшов) або запит іде зсередини м'ютекса сесії.
          */
         reauthorizable: Boolean = true
-    ): JsonElement {
+    ): String {
         if (key.isBlank()) fail(AppError.NotConfigured)
         var retriesLeft = if (idempotent) RETRIES else 0
         var token = token
@@ -90,12 +113,7 @@ class ApiClient(private val client: HttpClient, private val baseUrl: String, pri
                 PoruchLog.w("http") { "${method.value} $path failed: ${failure.error}" }
                 throw failure
             }
-            return try {
-                if (text.isBlank()) JsonNull else json.parseToJsonElement(text)
-            } catch (e: Exception) {
-                PoruchLog.report("http", "${method.value} $path unreadable body", e)
-                fail(AppError.Network)
-            }
+            return text
         }
     }
 

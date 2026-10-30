@@ -409,10 +409,12 @@ internal class DiscoveryEngine(
         // Без мережі мапа й головна кажуть це самі й перечитаються, щойно вона повернеться: банер був би дублем.
         val offline = failure is AppError.Network
         val ranked = rank(page, store.value.taste, compute)
+        // Головна приходить цілою (HomeDiscovery.awaitFirstCards), а мапа разом із нею: це той самий запит.
+        if (home && !offline) homeFeed.awaitFirstCards(ranked, page.cards)
         store.update {
             // Картки старої області викидаємо: пам'ять і застарілі числа місць того не варті.
-            // Крім тих, що показує головна: її видача від фільтрів мапи не залежить.
-            val keep = it.home.shownIds()
+            // Крім тих, що показує головна: її видача від фільтрів мапи не залежить. Нова видача головної — вже її.
+            val keep = (if (home) it.home.copy(index = ranked.index) else it.home).shownIds()
             it.copy(
                 map = it.map.copy(
                     index = ranked.index,
@@ -439,7 +441,8 @@ internal class DiscoveryEngine(
                     suggestedIndex = ranked.suggested,
                     totalFound = ranked.total,
                     loading = false,
-                    offline = offline
+                    offline = offline,
+                    loaded = true
                 ) else it.home
             ).settled(ranked.taste)
         }

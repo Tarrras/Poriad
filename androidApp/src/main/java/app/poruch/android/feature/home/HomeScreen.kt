@@ -140,15 +140,20 @@ fun HomeScreen(state: HomeState, onIntent: (HomeIntent) -> Unit) {
                 if (state.screen.todayTickets.isNotEmpty()) item(key = "today-tickets") {
                     TodayTickets(state.screen.todayTickets, Modifier.padding(horizontal = Spacing.page).padding(top = Spacing.xxl))
                 }
-                // Серце продукту — з ким піти: зустрічі від людей і афіші, на які шукають компанію, однією рейкою, під нею
-                // порожній квиток «Організувати подію». Активності не вигадуємо: коли зустрічей мало, секцію веде він.
-                item(key = "people") { PeopleSection(state, onIntent) }
-                // «Ваше» одразу після: непрочитаний чат і запит на участь не мають губитися під афішею. Усе особисте —
-                // плани, «Ваш тиждень», дати артистів, підписки — одним блоком у чотири рядки (критика довжини 28.10).
-                item(key = "yours") { PersonalSection(state, onIntent) }
-                cityFeed(state, onIntent, columns, chipsStuck)
-                // Кінець стрічки не глухий кут: далі мапа чи власна подія.
-                if (state.screen.feed.isNotEmpty()) item(key = "next") { MoreRows(state, onIntent) }
+                // До першої видачі — один лоадер: секції, що приходили по черзі, штовхали одна одну (`HomeScreenState.ready`).
+                if (!state.screen.ready) item(key = "first-load") {
+                    Box(Modifier.fillMaxWidth().padding(Spacing.section), contentAlignment = Alignment.Center) { PoruchLoader() }
+                } else {
+                    // Серце продукту — з ким піти: зустрічі від людей і афіші, на які шукають компанію, однією рейкою, під нею
+                    // порожній квиток «Організувати подію». Активності не вигадуємо: коли зустрічей мало, секцію веде він.
+                    item(key = "people") { PeopleSection(state, onIntent) }
+                    // «Ваше» одразу після: непрочитаний чат і запит на участь не мають губитися під афішею. Усе особисте —
+                    // плани, «Ваш тиждень», дати артистів, підписки — одним блоком у чотири рядки (критика довжини 28.10).
+                    item(key = "yours") { PersonalSection(state, onIntent) }
+                    cityFeed(state, onIntent, columns, chipsStuck)
+                    // Кінець стрічки не глухий кут: далі мапа чи власна подія.
+                    if (state.screen.feed.isNotEmpty()) item(key = "next") { MoreRows(state, onIntent) }
+                }
             }
         }
         }

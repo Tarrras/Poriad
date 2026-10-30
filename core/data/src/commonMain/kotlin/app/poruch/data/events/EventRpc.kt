@@ -28,8 +28,12 @@ internal class EventRpc(private val api: ApiClient, private val auth: AuthReposi
     suspend fun read(name: String, params: JsonObject = noParams): JsonElement =
         api.request("/rest/v1/rpc/$name", HttpMethod.Post, params, auth.accessToken(), idempotent = true)
 
+    /** [read] текстом: велику відповідь розбирають одразу в DTO, без дерева ([ApiClient.requestText]). */
+    suspend fun readText(name: String, params: JsonObject = noParams): String =
+        api.requestText("/rest/v1/rpc/$name", HttpMethod.Post, params, auth.accessToken(), idempotent = true)
+
     suspend fun events(name: String, params: JsonObject = noParams): List<Event> =
-        json.decodeFromJsonElement<List<EventDto>>(read(name, params)).map { it.domain() }
+        json.decodeFromString<List<EventDto>>(readText(name, params)).map { it.domain() }
 
     /** Гостю сервер відмовив би, тож не питаємо: порожній список — відповідь, а не помилка. */
     suspend fun people(name: String, params: JsonObject): List<Attendee> {
