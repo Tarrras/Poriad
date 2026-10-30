@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="uk"><head><meta charset="utf-8">
+<style>
+:root{--ground:#0A0A0B;--card:#18181B;--ink:#FFFFFF;--ink2:#A1A1AA;--accent:#7C5CFF}
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:390px;height:844px;overflow:hidden;background:var(--ground);color:var(--ink);font-family:-apple-system,"SF Pro Display",system-ui,sans-serif;position:relative}
+.status{height:54px;display:flex;justify-content:space-between;align-items:center;padding:0 32px;font-weight:600;font-size:16px}
+.top{padding:4px 16px 0;display:flex;justify-content:space-between;align-items:center}
+h1{font-weight:800;font-size:32px;letter-spacing:-.6px}
+.rb{width:40px;height:40px;border-radius:50%;background:var(--card)}
+.chips{display:flex;gap:8px;padding:14px 16px 0}
+.chips span{font-size:14px;font-weight:600;padding:8px 14px;border-radius:999px;background:var(--card)}
+.chips .on{background:var(--accent)}
+.hero{margin:16px 16px 0;height:300px;border-radius:20px;position:relative;overflow:hidden;background:linear-gradient(160deg,#3B2A7A,#B0306A 60%,#E0873A)}
+.hero::after{content:"";position:absolute;inset:0;background:linear-gradient(transparent 35%,rgba(0,0,0,.85))}
+.hero .tx{position:absolute;left:16px;right:16px;bottom:16px;z-index:2}
+.hero .d{font-size:13px;font-weight:700;color:#C9B8FF}
+.hero .n{font-size:26px;font-weight:800;line-height:30px;letter-spacing:-.4px;margin-top:4px}
+.hero .p{font-size:14px;color:#D4D4D8;margin-top:6px}
+.btn{position:absolute;right:16px;top:16px;z-index:2;background:var(--accent);font-weight:700;font-size:14px;padding:8px 14px;border-radius:999px}
+h2{font-size:20px;font-weight:800;padding:22px 16px 10px}
+.row{display:flex;gap:12px;padding:0 16px 12px}
+.th{width:72px;height:72px;border-radius:14px;flex:none}
+.row .n{font-size:16px;font-weight:700;line-height:20px}.row .d{font-size:13px;color:var(--accent);font-weight:600;margin-top:4px}.row .p{font-size:13px;color:var(--ink2);margin-top:2px}
+.tab{position:absolute;left:0;right:0;bottom:0;height:84px;background:rgba(10,10,11,.94);border-top:.5px solid #27272A;display:flex;justify-content:space-around;padding-top:8px}
+.tab div{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10px;color:#71717A;width:70px}
+.tab div i{width:24px;height:24px;border-radius:7px;border:2px solid currentColor}
+.tab .on{color:var(--accent)}
+</style></head><body>
+<div class="status"><span>09:41</span><span>● ● ▮</span></div>
+<div class="top"><h1>Київ сьогодні</h1><div class="rb"></div></div>
+<div class="chips"><span class="on">Сьогодні</span><span>Завтра</span><span>Вихідні</span><span>Музика</span></div>
+<div class="hero"><span class="btn">Іду</span><div class="tx"><div class="d">ЧТ, 16 ЖОВТ · 20:00</div><div class="n">Музика всесвіту Хаяо Міядзакі при свічках</div><div class="p">Будинок актора</div></div></div>
+<h2>Поруч із тобою</h2>
+<div class="row"><div class="th" style="background:linear-gradient(135deg,#E0558A,#7C5CFF)"></div><div><div class="n">Стендап у Дороті Паб</div><div class="d">Сьогодні · 18:00</div><div class="p">Поділ · 1,2 км</div></div></div>
+<div class="row"><div class="th" style="background:linear-gradient(135deg,#1FA595,#2F63C4)"></div><div><div class="n">Вечірня пробіжка набережною</div><div class="d">Сьогодні · 19:30</div><div class="p">Поштова площа · 3 з 8 місць</div></div></div>
+<div class="tab"><div class="on"><i></i>Головна</div><div><i></i>Мапа</div><div><i></i>Мої події</div><div><i></i>Профіль</div></div>
+</body></html>

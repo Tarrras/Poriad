@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="uk"><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Sofia+Sans+Condensed:wght@500;700;800&family=Sofia+Sans+Extra+Condensed:wght@700;800&display=swap" rel="stylesheet">
+<style>
+:root{--ground:#0F0F13;--card:#1C1B21;--card2:#26252C;--ink:#F3F3F0;--ink2:#A6A5AD;--hair:#2E2D35;
+--music:#6D4AC9;--art:#C43B6B;--sport:#0F7F73;--food:#C96A1E;--coral:#FF7A4D}
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:390px;height:844px;overflow:hidden;background:var(--ground);color:var(--ink);font-family:-apple-system,"SF Pro Text",system-ui,sans-serif;position:relative}
+.status{height:54px;display:flex;justify-content:space-between;align-items:center;padding:0 32px;font-weight:600;font-size:16px}
+.top{padding:4px 16px 0;display:flex;justify-content:space-between;align-items:flex-start}
+.city{font-size:15px;color:var(--ink2);display:flex;gap:6px;align-items:center}
+h1{font-family:"Sofia Sans Condensed";font-weight:800;font-size:40px;line-height:42px;letter-spacing:-.5px;margin-top:2px}
+.btns{display:flex;gap:8px;margin-top:6px}.rb{width:40px;height:40px;border-radius:50%;background:var(--card);display:grid;place-items:center}
+.rb i{width:16px;height:16px;border:2px solid var(--ink);border-radius:50%}
+.seg{margin:16px 16px 0;display:flex;background:var(--card);border-radius:10px;padding:2px}
+.seg b{flex:1;text-align:center;font-size:14px;font-weight:600;padding:7px 0;border-radius:8px;color:var(--ink2)}
+.seg b.on{background:var(--card2);color:var(--ink)}
+.feed{padding:14px 16px 0;display:flex;flex-direction:column;gap:10px}
+.t{display:flex;height:104px;position:relative}
+.body{flex:1;background:var(--card);border-radius:14px 0 0 14px;padding:12px 14px;display:flex;flex-direction:column;justify-content:space-between;min-width:0}
+.cat{font-size:12px;font-weight:600;letter-spacing:.2px}
+.ttl{font-family:"Sofia Sans Condensed";font-weight:700;font-size:21px;line-height:22px;letter-spacing:-.2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.place{font-size:13px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stub{width:96px;border-radius:0 14px 14px 0;position:relative;display:flex;flex-direction:column;justify-content:center;align-items:center;font-variant-numeric:tabular-nums}
+.stub::before{content:"";position:absolute;left:-1px;top:8px;bottom:8px;border-left:2px dashed rgba(15,15,19,.55)}
+.t::before,.t::after{content:"";position:absolute;right:88px;width:16px;height:16px;border-radius:50%;background:var(--ground);z-index:2}
+.t::before{top:-8px}.t::after{bottom:-8px}
+.time{font-family:"Sofia Sans Extra Condensed";font-weight:800;font-size:38px;line-height:36px;color:#fff;letter-spacing:-.5px}
+.day{font-size:11px;font-weight:700;letter-spacing:.8px;color:rgba(255,255,255,.82);margin-top:4px}
+.stamp{position:absolute;right:10px;top:16px;transform:rotate(-12deg);border:2px solid var(--coral);color:var(--coral);font-size:11px;font-weight:800;letter-spacing:1px;padding:3px 6px;border-radius:4px;background:rgba(15,15,19,.35)}
+.hero{border-radius:16px;overflow:hidden;background:var(--card)}
+.art{height:150px;background:radial-gradient(120% 90% at 20% 10%,#9B7BF0 0%,#6D4AC9 45%,#2B1D57 100%);position:relative}
+.art .src{position:absolute;left:12px;top:12px;font-size:11px;font-weight:700;letter-spacing:.8px;background:rgba(15,15,19,.6);padding:5px 9px;border-radius:999px}
+.hrow{display:flex;position:relative}
+.hrow .body{border-radius:0;height:100px}
+.hrow .stub{border-radius:0;background:var(--music)}
+.hrow::before,.hrow::after{content:"";position:absolute;right:88px;width:16px;height:16px;border-radius:50%;background:var(--ground);z-index:2}
+.hrow::before{top:-8px}.hrow::after{bottom:-8px}
+.new{border:1.5px dashed #4A4952;border-radius:14px;height:56px;display:flex;align-items:center;gap:12px;padding:0 14px;color:var(--ink)}
+.new .plus{width:30px;height:30px;border-radius:50%;background:var(--ink);color:var(--ground);display:grid;place-items:center;font-weight:700;font-size:20px}
+.new span{font-size:15px;font-weight:600}.new em{font-style:normal;color:var(--ink2);font-size:13px;margin-left:auto}
+.tab{position:absolute;left:0;right:0;bottom:0;height:84px;background:rgba(22,22,27,.92);border-top:.5px solid var(--hair);display:flex;justify-content:space-around;padding-top:8px}
+.tab div{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10px;font-weight:500;color:#7E7D86;width:70px}
+.tab div i{width:24px;height:24px;border-radius:7px;border:2px solid currentColor}
+.tab div.on{color:var(--ink)}
+</style></head><body>
+<div class="status"><span>09:41</span><span>● ● ▮</span></div>
+<div class="top">
+  <div><div class="city">Київ ⌄</div><h1>Що поруч</h1></div>
+  <div class="btns"><div class="rb"><i></i></div><div class="rb"><i></i></div></div>
+</div>
+<div class="seg"><b class="on">Сьогодні</b><b>Завтра</b><b>Вихідні</b><b>Обрати дату</b></div>
+<div class="feed">
+  <div class="hero">
+    <div class="art"><span class="src">АФІША · BADSELLER</span></div>
+    <div class="hrow">
+      <div class="body"><div class="cat" style="color:#B9A2F5">Музика</div>
+        <div class="ttl">Музика всесвіту Хаяо Міядзакі при свічках</div>
+        <div class="place">Будинок актора · Ярославів Вал, 7</div></div>
+      <div class="stub"><div class="time">20:00</div><div class="day">ЧТ 16.10</div></div>
+    </div>
+  </div>
+  <div class="t">
+    <div class="body"><div class="cat" style="color:#F07AA3">Стендап</div>
+      <div class="ttl">Стендап у Дороті Паб: нові жарти</div>
+      <div class="place">Dorothy Pub · Поділ · 1,2 км</div></div>
+    <div class="stub" style="background:var(--art)"><div class="time">18:00</div><div class="day">ЧТ 16.10</div><div class="stamp">ВИ ЙДЕТЕ</div></div>
+  </div>
+  <div class="t">
+    <div class="body"><div class="cat" style="color:#4FC2B3">Спорт · від людей</div>
+      <div class="ttl">Вечірня пробіжка набережною</div>
+      <div class="place">Поштова площа · 3 з 8 місць</div></div>
+    <div class="stub" style="background:var(--sport)"><div class="time">19:30</div><div class="day">ЧТ 16.10</div></div>
+  </div>
+  <div class="new"><div class="plus">+</div><span>Організувати подію</span><em>настолки, кіно, біг</em></div>
+</div>
+<div class="tab"><div class="on"><i></i>Головна</div><div><i></i>Мапа</div><div><i></i>Мої події</div><div><i></i>Профіль</div></div>
+</body></html>

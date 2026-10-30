@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="uk"><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Geologica:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--ground:#0B1230;--panel:#131C42;--ink:#F4F6FA;--ink2:#9AA4C7;--hair:#26305A;
+--music:#8A6BE6;--art:#E0558A;--sport:#1FA595;--food:#E0873A}
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:390px;height:844px;overflow:hidden;background:var(--ground);color:var(--ink);font-family:-apple-system,"SF Pro Text",system-ui,sans-serif;position:relative}
+.status{height:54px;display:flex;justify-content:space-between;align-items:center;padding:0 32px;font-weight:600;font-size:16px}
+.top{padding:4px 16px 0;display:flex;justify-content:space-between}
+.city{font-size:13px;font-weight:700;letter-spacing:1px;color:var(--ink2)}
+h1{font-family:Geologica;font-weight:700;font-size:34px;line-height:40px;letter-spacing:-.4px}
+.rb{width:40px;height:40px;border-radius:50%;background:var(--panel);margin-top:8px}
+.lines{display:flex;gap:8px;padding:14px 16px 0}
+.lines span{font-size:13px;font-weight:600;padding:7px 12px;border-radius:999px;background:var(--panel);display:flex;gap:6px;align-items:center}
+.lines span i{width:14px;height:4px;border-radius:2px}
+.route{position:relative;margin:18px 16px 0;padding-left:64px}
+.rail{position:absolute;left:44px;top:10px;bottom:0;width:6px;border-radius:3px;background:linear-gradient(var(--music) 0 30%,var(--art) 30% 56%,var(--sport) 56% 80%,var(--food) 80%)}
+.st{position:relative;padding:0 0 18px}
+.st .tm{position:absolute;left:-64px;top:2px;width:36px;font-family:Geologica;font-weight:700;font-size:15px;font-variant-numeric:tabular-nums;text-align:right}
+.st .dot{position:absolute;left:-26px;top:2px;width:18px;height:18px;border-radius:50%;background:var(--ink);border:4px solid var(--ground);box-shadow:0 0 0 2px var(--ink)}
+.st .ic{position:absolute;left:-30px;top:-2px;width:26px;height:26px;border-radius:50%;background:var(--ink);border:5px solid var(--ground);box-shadow:0 0 0 3px var(--ink)}
+.card{background:var(--panel);border-radius:14px;padding:12px 14px;border:1px solid var(--hair)}
+.card .c{font-size:12px;font-weight:600}
+.card .n{font-family:Geologica;font-weight:600;font-size:18px;line-height:22px;margin-top:3px}
+.card .p{font-size:13px;color:var(--ink2);margin-top:4px}
+.badge{display:inline-block;margin-top:8px;font-size:12px;font-weight:600;padding:4px 9px;border-radius:999px;background:#F4F6FA;color:#0B1230}
+.tab{position:absolute;left:0;right:0;bottom:0;height:84px;background:rgba(11,18,48,.94);border-top:.5px solid var(--hair);display:flex;justify-content:space-around;padding-top:8px}
+.tab div{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10px;color:#6E78A0;width:70px}
+.tab div i{width:24px;height:24px;border-radius:7px;border:2px solid currentColor}
+.tab .on{color:var(--ink)}
+</style></head><body>
+<div class="status"><span>09:41</span><span>● ● ▮</span></div>
+<div class="top"><div><div class="city">КИЇВ · СЬОГОДНІ</div><h1>Твій вечір</h1></div><div class="rb"></div></div>
+<div class="lines"><span><i style="background:var(--music)"></i>Музика</span><span><i style="background:var(--art)"></i>Стендап</span><span><i style="background:var(--sport)"></i>Спорт</span></div>
+<div class="route"><div class="rail"></div>
+  <div class="st"><div class="tm">18:00</div><div class="dot"></div>
+    <div class="card"><div class="c" style="color:var(--music)">Музика</div><div class="n">Джаз на даху Арсенальної</div><div class="p">Арсенальна · 600 м</div></div></div>
+  <div class="st"><div class="tm">19:30</div><div class="ic"></div>
+    <div class="card"><div class="c" style="color:var(--art)">Стендап</div><div class="n">Стендап у Дороті Паб</div><div class="p">Поділ · 1,2 км</div><span class="badge">Шукають компанію: 3</span></div></div>
+  <div class="st"><div class="tm">20:00</div><div class="dot"></div>
+    <div class="card"><div class="c" style="color:var(--sport)">Спорт · від людей</div><div class="n">Пробіжка набережною</div><div class="p">Поштова площа · 3 з 8 місць</div></div></div>
+  <div class="st"><div class="tm">21:00</div><div class="dot"></div>
+    <div class="card"><div class="c" style="color:var(--food)">Їжа</div><div class="n">Нічний маркет на Контрактовій</div><div class="p">Контрактова · 1,4 км</div></div></div>
+</div>
+<div class="tab"><div class="on"><i></i>Головна</div><div><i></i>Мапа</div><div><i></i>Мої події</div><div><i></i>Профіль</div></div>
+</body></html>
