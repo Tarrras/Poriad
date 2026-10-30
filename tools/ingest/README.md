@@ -109,14 +109,14 @@ python3 -m tools.ingest.test_ingest                   # тести пасток,
 
 ## Кіно (docs/cinema-import.md)
 
-`cinema.py`, джерела `multiplex` і `planeta_kino` (`adapter="cinema:…"`, вимкнені до міграції категорії `cinema` на
+`cinema.py`, джерело `planeta_kino` (`adapter="cinema:planeta"`, вимкнене до міграції категорії `cinema` на
 prod): HTML розкладу кінотеатрів → вузли `ScreeningEvent` → звичайний `_build`. Кінотеатри — у `Source.venues`, точки —
 лише псевдонімами (`aliases.json`, `_кіно`), бо OSM зводить назви мереж не з тим залом. Між джерелами кіно зливається
 лише в одній будівлі (`same_event`): той самий фільм у ту саму хвилину йде в кількох залах міста. Опубліковані
 кіносеанси в `ingest_items` не пишуться (~4 200 щодня; лічильники — в `ingest_runs`).
 
 ```bash
-python3 -m tools.ingest --city Київ --source multiplex --source planeta_kino --json out.json
+python3 -m tools.ingest --city Київ --source planeta_kino --json out.json
 python3 -m unittest tools.ingest.test_cinema
 ```
 

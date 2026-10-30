@@ -221,26 +221,9 @@ SOURCES: list[Source] = [
     # клієнта, що її знає: розклад обходу пише в prod, а сеанс з невідомою категорією зламав би весь дамп міста.
     # Горизонт — тиждень (рішення власника 28.10): Київ ≈ 2 200 сеансів проти ~1 300 інших подій у видачі міста, стеля
     # індексу 5 000 — кіно на ній відрізається першим (discover_index, 20261112120000).
-    Source(
-        slug="multiplex", name="Multiplex", base_url="https://multiplex.ua",
-        listing_urls={"Київ": "https://multiplex.ua/cinema/kyiv/",
-                      "Львів": "https://multiplex.ua/cinema/lviv/",
-                      "Харків": "https://multiplex.ua/cinema/kharkiv/",
-                      "Одеса": "https://multiplex.ua/cinema/odesa/",
-                      "Дніпро": "https://multiplex.ua/cinema/dnipro/"},
-        # Караван у Дніпрі (`karavandnepr`) 28.10 без жодного сеансу — не обходимо, поки не повернеться в розклад.
-        venues={"Київ": {"lavina": "Multiplex Lavina", "respublika": "Multiplex Respublika Park",
-                         "retroville": "Multiplex Retroville", "prospect": "Multiplex Проспект",
-                         "atmosphera": "Multiplex Атмосфера", "komod": "Multiplex Komod",
-                         "karavan": "Multiplex Караван", "tsum": "Multiplex ЦУМ"},
-                "Львів": {"victoriagardens": "Multiplex Victoria Gardens", "spartak": "Multiplex Spartak"},
-                "Харків": {"nikolsky": "Multiplex Nikolsky", "dafi": "Multiplex Дафі"},
-                "Одеса": {"gagarinn_plaza": "Multiplex Gagarinn Plaza", "riviera": "Multiplex Riviera"},
-                "Дніпро": {"dafi_imax": "Multiplex Дафі IMAX"}},
-        weight=0.8, crawl_delay=1.5, adapter="cinema:multiplex", horizon_days=6, enabled=False,
-        note="2026-10-28: сторінка кінотеатру — усі дні продажу (до ~2 міс.), сеанс із посиланням на вибір місць, "
-             "вік і формат (LUX, IMAX, SDH). Ціни й залу нема. robots.txt: Allow /.",
-    ),
+    # Multiplex 30.10.2026 відповів на лист, що не погоджує показ свого розкладу в «Поряд», і просив не додавати
+    # сеансів і не використовувати назву й матеріали мережі (docs/cinema-import.md, «Листи мережам»). Джерело
+    # прибрано разом з адаптером і точками; повертати — лише з письмовою згодою мережі.
     Source(
         slug="planeta_kino", name="Планета Кіно", base_url="https://planetakino.ua",
         listing_urls={"Київ": "https://planetakino.ua/schedule/",

@@ -1,4 +1,5 @@
-"""Розклад кінотеатрів (cinema.py) на зразках розмітки Multiplex і Planeta Kino 2026-10-28."""
+"""Розклад кінотеатрів (cinema.py) на зразках розмітки Planeta Kino 2026-10-28."""
+import dataclasses
 import datetime as dt
 import unittest
 
@@ -10,34 +11,6 @@ from tools.ingest.venues import VenueIndex
 
 KYIV = zone("Europe/Kyiv")
 NOW = dt.datetime(2026, 10, 28, 9, 0, tzinfo=dt.timezone.utc)
-
-
-def mx_session(sid, name, movie, day, time, attrs='[{"Id":24,"ShortName":"SDH","Typ":"lang","ua_SiteName":"SDH"},]'):
-    return f'''<a class="ns " data-id="0000000017-{sid}" data-session-id="{sid}" data-name="{name}"
-        data-moviehref="{movie}" data-attributes='{attrs}' data-anchor="{day}" data-low="0" data-high="0"
-        href="https://new.multiplex.ua/order/cinema/0000000017/session/{sid}">
-        <p class="time"><span>{time}</span></p><p class="tag">SDH </p></a>'''
-
-
-MX_CINEMA = f'''<div itemscope itemtype="http://schema.org/MovieTheater" style="display:none;">
-<span itemprop="name">Respublika Park</span><span itemprop="address">Кільцева дорога, 1</span></div>
-<div class="cinema_inside sch_date" data-date='28102026'><div class="film">
-<a href="/movie/356700#28102026" title="Дюна: Частина третя" class="title"><span class="age">16&#43;</span> Дюна: Частина третя</a>
-<div class="sessions">
-{mx_session(1, "Дюна: Частина третя", "/movie/356700", "28102026", "19:40")}
-{mx_session(2, "Дюна: Частина третя", "/movie/356700", "30102026", "21:10",
-            '[{"Id":2,"ShortName":"LUX","Typ":"hall","ua_SiteName":"LUX"},]')}
-{mx_session(3, "Дюна: Частина третя", "/movie/356700", "19122026", "19:40")}
-{mx_session(1, "Дюна: Частина третя", "/movie/356700", "28102026", "19:40")}
-</div></div></div>'''
-
-MX_MOVIE = '''<script type="application/ld+json">
-{ "@context": "http://schema.org", "@type": "Movie", "name": "Дюна: Частина третя",
-  "description": "«Дюна: Частина третя» заснована на романі \\u00abМесія Дюни\\u00bb.",
-  "image": "https://multiplex.ua\\/images\\/f6\\/02\\/f602.jpeg",
-  "sameAs": ["https://multiplex.ua/ru/movie/356700""https://multiplex.ua/en/movie/356700"],
-  "duration": "2:46" }
-</script>'''
 
 
 def pk_session(sid, time, fmt="2D"):
@@ -61,30 +34,6 @@ PK_MOVIE = '''<title>Забутий острів (2026) — квитки та с
 
 PK_CINEMAS = '''<script type="application/ld+json">{"@type":"MovieTheater","name":"Планета Кіно","department":[
 {"@type":"MovieTheater","name":"Планета Кіно Блокбастер","address":{"streetAddress":"проспект Степана Бандери, 34В, РЦ «Блокбастер»"}}]}</script>'''
-
-
-class MultiplexTests(unittest.TestCase):
-    days = cinema._days(NOW, 2, "Europe/Kyiv")
-
-    def test_sessions_within_horizon_once_each(self):
-        events = cinema.multiplex_sessions(MX_CINEMA, "Київ", "Multiplex Respublika Park", self.days)
-        self.assertEqual([e["startDate"] for e in events], ["2026-10-28T19:40:00+02:00", "2026-10-30T21:10:00+02:00"],
-                         "продаж на 19.12 — за горизонтом, повтор сеансу 1 — один")
-        first = events[0]
-        self.assertEqual(first["url"], "https://new.multiplex.ua/order/cinema/0000000017/session/1")
-        self.assertEqual(first["location"]["address"]["streetAddress"], "Кільцева дорога, 1")
-        self.assertEqual(first["description"], "16+, SDH.")
-        self.assertEqual(events[1]["description"], "16+, LUX.")
-        self.assertEqual(first["_poruch_category"], "cinema")
-
-    def test_curfew_hours_are_not_guessed(self):
-        html = MX_CINEMA.replace("<span>21:10</span>", "<span>00:30</span>")
-        self.assertEqual(len(cinema.multiplex_sessions(html, "Київ", "Multiplex Respublika Park", self.days)), 1)
-
-    def test_movie_page_with_broken_json_ld(self):
-        movie = cinema.multiplex_movie(MX_MOVIE)
-        self.assertEqual(movie["duration"], dt.timedelta(hours=2, minutes=46))
-        self.assertTrue(movie["description"].startswith("«Дюна: Частина третя» заснована на романі «Месія"))
 
 
 class PlanetaTests(unittest.TestCase):
@@ -116,17 +65,6 @@ def fake_get(pages, redirects=None):
 
 
 class CollectTests(unittest.TestCase):
-    def test_multiplex_city_with_movie_details(self):
-        source = by_slug("multiplex")
-        pages = {"https://multiplex.ua/cinema/kyiv/respublika": MX_CINEMA, "https://multiplex.ua/movie/356700": MX_MOVIE}
-        events, report = cinema.collect("multiplex", source, "Київ", get=fake_get(pages), now=NOW)
-        self.assertEqual(len(events), 2)
-        self.assertEqual(events[0]["endDate"], "2026-10-28T22:26:00+02:00", "кінець — початок плюс тривалість фільму")
-        self.assertNotIn("image", events[0], "постер — твір дистриб'ютора, без дозволу мережі не беремо")
-        self.assertIn("16+, SDH. «Дюна", events[0]["description"])
-        self.assertEqual(report["movies"], 1)
-        self.assertEqual(len(report["errors"]), 7, "решта кінотеатрів Києва не відкрилась — неповний обхід")
-
     def test_planeta_takes_title_and_address_from_its_pages(self):
         source = by_slug("planeta_kino")
         pages = {"https://planetakino.ua/cinemas/": PK_CINEMAS,
@@ -159,42 +97,50 @@ class VenueTests(unittest.TestCase):
         from tools.ingest.venues import load_aliases
         from tools.ingest.normalize import normalize_name
         aliases = {normalize_name(k): v for k, v in load_aliases().items() if not k.startswith("_")}
-        names = [(city, name) for slug in ("multiplex", "planeta_kino")
-                 for city, venues in by_slug(slug).venues.items() for name in venues.values()]
+        names = [(city, name) for city, venues in by_slug("planeta_kino").venues.items() for name in venues.values()]
         self.assertEqual(len(names), len({normalize_name(n) for _, n in names}), "одна назва — один зал")
         for city, name in names:
             point = aliases.get(normalize_name(name))
             self.assertIsInstance(point, dict, name)
             south, west, north, east = CITY_BBOX[city]
             self.assertTrue(south <= point["lat"] <= north and west <= point["lon"] <= east, f"{name} поза {city}")
-        self.assertEqual(set(by_slug("multiplex").listing_urls), set(by_slug("multiplex").venues))
+        self.assertEqual(set(by_slug("planeta_kino").listing_urls), set(by_slug("planeta_kino").venues))
+
+    def test_multiplex_is_not_a_source(self):
+        """Multiplex 30.10.2026 не погодив показ свого розкладу: ні джерела, ні точок, поки нема письмової згоди."""
+        from tools.ingest.sources import SOURCES
+        from tools.ingest.venues import load_aliases
+        self.assertFalse([s.slug for s in SOURCES if "multiplex" in s.slug or "multiplex" in s.base_url])
+        self.assertFalse([k for k in load_aliases() if "multiplex" in k.lower()])
 
 
 class BuildTests(unittest.TestCase):
     """Сеанс проходить звичайний `_build`: категорія від адаптера, точка — лише псевдонім."""
-    source = by_slug("multiplex")
-    raw = cinema.multiplex_sessions(MX_CINEMA, "Київ", "Multiplex Respublika Park", cinema._days(NOW, 2, "Europe/Kyiv"))[0]
+    source = by_slug("planeta_kino")
+    raw = cinema.planeta_sessions(PK_DAY, "Київ", "Планета Кіно Блокбастер", "проспект Степана Бандери, 34В",
+                                  "blokbaster", dt.date(2026, 10, 29))[0]
 
     def test_alias_gives_the_point(self):
-        index = VenueIndex([], "Київ", {"Multiplex Respublika Park": {"lat": 50.3756, "lon": 30.4488}})
+        index = VenueIndex([], "Київ", {"Планета Кіно Блокбастер": {"lat": 50.4862, "lon": 30.5191}})
         item = pipeline._build(dict(self.raw), self.source, "Київ", index, NOW)
         self.assertEqual((item.category, item.category_how), ("cinema", "catalog"))
-        self.assertEqual((item.latitude, item.venue_how), (50.3756, "alias"))
+        self.assertEqual((item.latitude, item.venue_how), (50.4862, "alias"))
 
     def test_same_film_same_minute_in_another_cinema_is_another_session(self):
-        aliases = {"Multiplex Respublika Park": {"lat": 50.3756, "lon": 30.4488},
-                   "Планета Кіно Блокбастер": {"lat": 50.4862, "lon": 30.5191}}
+        aliases = {"Планета Кіно Блокбастер": {"lat": 50.4862, "lon": 30.5191},
+                   "Планета Кіно River Mall": {"lat": 50.3986, "lon": 30.6189}}
         index = VenueIndex([], "Київ", aliases)
         a = pipeline._build(dict(self.raw), self.source, "Київ", index, NOW)
-        other = dict(self.raw, location=dict(self.raw["location"], name="Планета Кіно Блокбастер"))
-        b = pipeline._build(other, by_slug("planeta_kino"), "Київ", index, NOW)
+        other = dict(self.raw, location=dict(self.raw["location"], name="Планета Кіно River Mall"))
+        b = pipeline._build(other, self.source, "Київ", index, NOW)
         self.assertFalse(pipeline.same_event(a, b), "12 км — інший зал, хоч місто, хвилина й назва ті самі")
-        twin = pipeline._build(dict(self.raw), by_slug("planeta_kino"), "Київ", index, NOW)
+        # Той самий сеанс від іншого продавця (агент, каталог) — у тій самій будівлі зливається.
+        twin = pipeline._build(dict(self.raw), dataclasses.replace(self.source, slug="test_seller"), "Київ", index, NOW)
         self.assertTrue(pipeline.same_event(a, twin), "та сама будівля — та сама подія")
 
     def test_chain_name_in_osm_is_not_a_point(self):
-        # «Мультиплекс» в OSM — зал у Комоді; «Multiplex Respublika Park» за входженням став би туди.
-        osm = [{"type": "node", "id": 1, "lat": 50.4535, "lon": 30.5989, "tags": {"name": "Multiplex Respublika"}}]
+        # Старий вузол «Планета Кіно» в OSM: «Планета Кіно Блокбастер» за входженням став би туди.
+        osm = [{"type": "node", "id": 1, "lat": 50.4535, "lon": 30.5989, "tags": {"name": "Планета Кіно"}}]
         item = pipeline._build(dict(self.raw), self.source, "Київ", VenueIndex(osm, "Київ", {}), NOW)
         self.assertIsNone(item.latitude)
 

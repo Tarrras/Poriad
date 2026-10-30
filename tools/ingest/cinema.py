@@ -1,13 +1,13 @@
-"""Розклад кінотеатрів (docs/cinema-import.md): Multiplex і Planeta Kino.
+"""Розклад кінотеатрів (docs/cinema-import.md): Planeta Kino. Multiplex 30.10.2026 не погодив показ свого розкладу —
+його адаптера тут нема й не буде без письмової згоди мережі.
 
-Жодна мережа не віддає сеансів у JSON-LD, тож розклад читається з HTML: Multiplex — уся продаж наперед однією
-сторінкою кінотеатру, Planeta — сторінка кінотеатру на день. З кожного сеансу адаптер складає вузол `ScreeningEvent`,
+Мережа не віддає сеансів у JSON-LD, тож розклад читається з HTML: сторінка кінотеатру на день. З кожного сеансу адаптер складає вузол `ScreeningEvent`,
 і далі він іде тим самим шляхом, що JSON-LD інших джерел (`pipeline._build`). Тривалість і опис — зі сторінки
 фільму (`Movie` JSON-LD), один запит на фільм за обхід. Постер не беремо: це твір дистриб'ютора, а письмового
 дозволу мереж ще нема (docs/cinema-import.md, «Право»), тож сеанс малює обкладинка категорії.
 
 Координати кінотеатрів — лише з aliases.json (`_кіно`): назви мереж в OSM збігаються за входженням не з тим залом, а
-координати самих мереж трапляються хибні (Multiplex ЦУМ — за 8 км від Хрещатика). Кінотеатр без псевдоніма отримує
+координати самих мереж трапляються хибні. Кінотеатр без псевдоніма отримує
 точку Photon за адресою з будинком або йде в чергу перегляду, але не стає на збіг назви мережі в OSM (`pipeline._build`).
 """
 from __future__ import annotations
@@ -47,61 +47,6 @@ def _session(title, url, start, venue, address, city, about) -> dict:
         "description": f"{about}." if about else "",
         "_poruch_category": CATEGORY,
     }
-
-
-# ---- Multiplex: сторінка кінотеатру несе всі дні продажу
-
-_MX_SESSION = re.compile(r"<a\s([^>]*data-session-id=[^>]*)>(.*?)</a>", re.S)
-_MX_TIME = re.compile(r'<p class="time"><span>\s*(\d{1,2}):(\d\d)\s*</span>')
-_MX_AGE = re.compile(r'href="(/movie/\d+)#\d+"[^>]*class="title"><span class="age">([^<]*)</span>')
-_MX_ADDRESS = re.compile(r'itemtype="http://schema.org/MovieTheater".*?itemprop="address">([^<]*)<', re.S)
-
-
-def multiplex_sessions(html: str, city: str, venue: str, days: list[dt.date], tz: str = "Europe/Kyiv") -> list[dict]:
-    """Сеанси сторінки кінотеатру в межах `days`: назва, посилання на вибір місць, початок. Без опису фільму —
-    його дописує `collect` зі сторінки фільму (ключ `_movie`)."""
-    address = _MX_ADDRESS.search(html)
-    address = " ".join(unescape(address.group(1)).split()) if address else ""
-    ages = {href: unescape(age).strip() for href, age in _MX_AGE.findall(html)}
-    wanted = {d.strftime("%d%m%Y"): d for d in days}
-    out, seen = [], set()
-    for m in _MX_SESSION.finditer(html):
-        a, time = _attrs(m.group(1)), _MX_TIME.search(m.group(2))
-        day = wanted.get(a.get("data-anchor", ""))
-        if not (time and day and a.get("data-session-id") and a.get("href", "").startswith("https://")):
-            continue
-        if a["data-session-id"] in seen:
-            continue
-        seen.add(a["data-session-id"])
-        hour, minute = int(time.group(1)), int(time.group(2))
-        if hour < EARLIEST_HOUR:
-            continue
-        start = dt.datetime(day.year, day.month, day.day, hour, minute, tzinfo=zone(tz))
-        try:
-            tags = [t["ShortName"] for t in json.loads(re.sub(r",\s*\]", "]", unescape(a.get("data-attributes") or "[]")))]
-        except (ValueError, KeyError, TypeError):
-            tags = []
-        movie = a.get("data-moviehref", "")
-        event = _session(" ".join(unescape(a.get("data-name", "")).split()), a["href"], start, venue, address, city,
-                         [ages.get(movie), *tags])
-        event["_movie"] = "https://multiplex.ua" + movie if movie.startswith("/movie/") else None
-        out.append(event)
-    return out
-
-
-def multiplex_movie(html: str) -> dict:
-    """`Movie` JSON-LD Multiplex — не JSON (бракує ком), тож поля беруться регулярками з тексту блоку."""
-    block = next((b for b in re.findall(r'<script[^>]*ld\+json[^>]*>(.*?)</script>', html, re.S)
-                  if '"Movie"' in b), "")
-    out = {}
-    if d := re.search(r'"duration":\s*"(\d{1,2}):(\d\d)"', block):
-        out["duration"] = dt.timedelta(hours=int(d.group(1)), minutes=int(d.group(2)))
-    if d := re.search(r'"description":\s*"((?:[^"\\]|\\.)*)"', block):
-        try:
-            out["description"] = " ".join(json.loads(f'"{d.group(1)}"').split())
-        except ValueError:
-            pass
-    return out
 
 
 # ---- Planeta Kino: сторінка кінотеатру на день, час звіряється з даними сторінки
@@ -194,14 +139,7 @@ def collect(chain: str, source, city: str, *, get, now: dt.datetime) -> tuple[li
             return None
 
     events: list[dict] = []
-    if chain == "multiplex":
-        for slug, venue in venues.items():
-            body = fetch(source.listing_urls[city] + slug)
-            if body is not None:
-                report["venues"] += 1
-                events += multiplex_sessions(body, city, venue, days, source.time_zone)
-        read_movie = multiplex_movie
-    elif chain == "planeta":
+    if chain == "planeta":
         addresses = planeta_cinemas(fetch(f"{source.base_url}/cinemas/") or "")
         for slug, venue in venues.items():
             # День без сеансів Planeta переадресовує на сьогодні (302 → `date=<сьогодні>`, Dream Yellow 03.11.2026):
