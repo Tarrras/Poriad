@@ -143,20 +143,30 @@ worker (`04183b97`). Зібрано й вивантажено iOS 1.3.2 (18) в 
 | Збіги (≥ 2 наміри на ту саму подію) за тиждень | 0 | ≥ 1 у Києві |
 | `digest_open` за тиждень | перший дайджест — 30.10 | вищий, ніж у пʼятниці о 17:00 |
 
-### Стан на 29.10
+### Стан на 30.10 і кроки до релізу
 
-Код усіх Must (п. 1–14) — у гілці `1.4-return-hooks`, не запушено й у main не злито; кіно
-([cinema-import.md](cinema-import.md)) злито в неї 29.10. Версія 1.4.0, «Що нового» — у `store/listing.md`.
+Код усіх Must (п. 1–14) — у гілці `1.4-return-hooks` (67 комітів поверх main), не запушено. Версія 1.4.0, «Що нового»
+UA/EN і примітки Play — у `store/listing.md` (30.10 дописано «Мої місця»). На prod є все до `20261109120000_event_blurb`.
 
-| Що лишилось | Хто |
-|---|---|
-| Наживо з акаунта: картки людей і чат при збігу, «Ваше», радар (гостем перевірено все) | ти (вхід) |
-| Гаманець на справжніх PDF продавців; pdfbox у release-збірці на Android-пристрої | ти — PDF, Claude — правила розбору |
-| Скріни сторів під 1.4 (п. 1 у «Перед релізом»): зняті 29.10, залити в ASC і Play | ти |
-| Prod: `functions deploy push` → `db push` (20261110 компанія → 20261111 `events.pitch` → 20261112 кіно → 20261113 радар → 20261114 «Мої місця» → 20261115 вимикач кіно: радар лише після кіно, вимикач — після радару, інакше `discover_index` отримає старе тіло; прапорець `cinema` після цього вимкнено, вмикати — docs/cinema-import.md «Вимикач») → SQL-тести | ти |
-| Юридичне: 9 подій DOU на prod (SQL), `wrangler deploy` | ти |
-| Злиття в main, політика «редакція 28.10» на сайті, App Privacy і Data safety, кіно `enabled=True` у `sources.py` | ти |
-| Збірки й подання | ти |
+Перевірено 30.10: 481 JVM-тест зелений; prod-збірки iOS 1.4.0 (Release-Prod) і Android 1.4.0 (AAB prodRelease, у dex лише
+prod) збираються без завантаження; тіла всіх 43 функцій, які чіпають міграції 20261110–20261115, на dev побайтово
+збігаються з останнім визначенням у файлах, тож `db push` на prod дасть те саме, що перевірено на dev.
+
+**Кроки (ти), саме в такому порядку:**
+
+| # | Що | Чому так |
+|---|---|---|
+| 1 | Наживо з акаунта на dev-збірці: картки людей і чат при збігу, «Ваше», радар; квиток зі справжнього PDF продавця на Android-телефоні з release-збіркою (pdfbox після R8) | Гостем перевірено все, з акаунта — ні (пароль вводиш лише ти) |
+| 2 | `supabase functions deploy push --no-verify-jwt --use-api --project-ref tzdogzdvctlumsqlqskr` | Функція має знати типи `company`, `zone` і радар гостя раніше, ніж база почне їх слати |
+| 3 | `supabase db push --project-ref tzdogzdvctlumsqlqskr`: шість міграцій 20261110 компанія → 20261111 `events.pitch` → 20261112 кіно → 20261113 радар → 20261114 «Мої місця» → 20261115 вимикач кіно. До й після: `select (public.discover_events(50.21,30.24,50.59,30.83))->'total'` — те саме число | Лише всі разом і в цьому порядку (`db push` так і робить): інакше `discover_index` отримає старе тіло. Збірки 1.3.x отримують ту саму видачу |
+| 4 | SQL-тести на prod (усе відкочується): `for t in company_intents artist_radar my_places cinema_switch; do supabase db query --linked --project-ref tzdogzdvctlumsqlqskr -f supabase/tests/$t.sql; done` | Звірка після міграцій |
+| 5 | DOU з prod: `update public.event_sources set enabled=false where slug='dou'; update public.event_offers set status='withdrawn', ingest_run_id=null, updated_at=now() where source_id=(select id from public.event_sources where slug='dou') and status<>'withdrawn';` | Юр. аудит 28.10: DOU прямо забороняє автоматизований збір; 9 подій |
+| 6 | Кіно: прапорець `cinema` після міграції вимкнено. Вмикати — [cinema-import.md](cinema-import.md), «Вимикач», плюс `enabled=True` для `multiplex` і `planeta_kino` у `sources.py`. Рішення 30.10: стартуємо без кіно, пункт про кіно з «Що нового» прибрано | Листи мережам ще не надіслано |
+| 7 | Злити `1.4-return-hooks` у main (fast-forward), `git push origin main` | Сайт з політикою «редакція 28.10» і `?v=11`. Розклад обходу бере main і пише в prod, тож лише після кроку 3 (CHECK знає `cinema`) |
+| 8 | `cd worker && npx wrangler deploy` | `utm_source=poriad` у квитках на `/e/`, обкладинка без `no-referrer`, `eventLd` без `image` |
+| 9 | iOS: вхід у Xcode → Settings → Accounts, потім `iosApp/release.sh` (збірка 19). В ASC у версії 1.4.0: «Що нового», 8 скрінів зі `store/appstore`, App Privacy (Other User Contact Info, Precise Location — `store/listing.md`), подання | Політика на сайті вже нова (крок 7), рев'юер її бачить |
+| 10 | Android: `androidApp/release.sh` з ключем сервісного акаунта. Без ключа — `poriad.versionCode=8` у `gradle.properties`, коміт, `androidApp/release.sh --no-upload`, AAB у Play вручну. Там же Data safety (Instagram, наміри, точна геолокація) і 8 скрінів зі `store/play` | Номер 8, навіть якщо AAB 7 у Play так і не завантажено |
+| 11 | `git tag v1.4.0 && git push origin main v1.4.0` (тег — на коміт збірок) | Фікси 1.4.x не потягнуть 1.5 |
 
 ### Must — «Буде з ким»: «Хочу піти з компанією» (перша хвиля)
 
