@@ -109,6 +109,7 @@ internal class SupabaseEventDiscovery(
                 put("p_city", city?.let(::JsonPrimitive) ?: JsonNull)
                 if (bounds != null) putBounds(bounds)
                 put("p_limit", DiscoveryRules.PLACES_LIMIT)
+                put("p_cinema", true)          // з 20261115120000: кінотеатр із кіно, як у видачі
             })
         }.getOrElse { failure ->
             if (!failure.isMissingFunction()) throw failure
@@ -177,6 +178,7 @@ internal class SupabaseEventDiscovery(
         val response = rpc.read("place_events", buildJsonObject {
             put("p_place_id", placeId)
             put("p_limit", DiscoveryRules.PLACE_EVENTS_LIMIT)
+            put("p_cinema", true)              // з 20261115120000: сеанси кінотеатру, як у видачі
         })
         return withContext(compute) {
             rpc.json.decodeFromJsonElement<List<EventDto>>(response).map { it.domain() }
