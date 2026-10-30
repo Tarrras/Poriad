@@ -393,9 +393,25 @@ def _is_generic(name: str) -> bool:
     return bool(words) and all(_GENERIC_WORD.match(w) for w in words)
 
 
+# Склад одним рядком капсом без розділювачів: Badseller дає `performer` «АРСЕН ПУЧКОВ МАКС РЕДЗЕЛЬ
+# ДМИТРО ТАРАБАКІН ВІТАЛІЙ ШИНДЕРОВСЬКИЙ». Від чотирьох слів: три ще буває гуртом («ЛЕВИ НА ДЖИПАХ»).
+_CAPS_LINEUP = re.compile(r"[A-ZА-ЯІЇЄҐ'’ʼ-]+(?:\s+[A-ZА-ЯІЇЄҐ'’ʼ-]+){3,}")
+
+
+def _split_lineup(a: Artist, dictionary: Dictionary) -> list[Artist]:
+    """Склад капсом ділиться на відомих зі словника, решта відкидається: де кінчається одне ім'я й
+    починається інше, без словника не вгадати. Рядок, відомий цілим, не ділиться."""
+    if not _CAPS_LINEUP.fullmatch(clean_text(a.name)) or dictionary.lookup(a.name):
+        return [a]
+    return [dataclasses.replace(a, name=n) for n in dict.fromkeys(dictionary.scan(a.name))]
+
+
 def _drop_venues(items: list, dictionary: Dictionary, dropped: collections.Counter) -> dict:
-    """Словник, абревіатура залу і правило «театр в одному місці = майданчик». Повертає ім'я -> кількість
-    місць. Місця рахуємо лише по опублікованих подіях: дубль-копія іншого джерела не додає «місця»."""
+    """Склад капсом, словник, абревіатура залу і правило «театр в одному місці = майданчик». Повертає
+    ім'я -> кількість місць. Місця рахуємо лише по опублікованих подіях: дубль-копія іншого джерела не
+    додає «місця»."""
+    for it in items:
+        it.artists = [part for a in it.artists for part in _split_lineup(a, dictionary)]
     places: dict[str, set] = collections.defaultdict(set)
     for it in items:
         if getattr(it, "stage", "published") != "published":
@@ -425,7 +441,8 @@ def _drop_venues(items: list, dictionary: Dictionary, dropped: collections.Count
 def settle(items: list, dictionary: Dictionary | None = None) -> dict:
     """Остаточне рішення по всьому прогону.
 
-    1. Словник і «театр в одному місці = майданчик» (щабель 1 очищається від залів).
+    1. Склад капсом одним рядком ділиться за словником, словник і «театр в одному місці = майданчик»
+       (щабель 1 очищається від залів і склеєних складів).
     2. Імена, що пережили очищення, стають відомими: так Karabas, який виконавця не віддає,
        отримує його з назви, якщо інше джерело вже назвало його виконавцем.
     3. Правила на назві для подій, де структура нічого не дала. Є виконавець зі структури —

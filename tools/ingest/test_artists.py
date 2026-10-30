@@ -127,6 +127,28 @@ class Settle(unittest.TestCase):
         settle(items, d)
         self.assertEqual([i.artists for i in items], [[], []])
 
+    def test_caps_lineup_in_one_string_splits_into_known_names(self):
+        # Badseller «СТЕНДАП в Дороті Паб» 31.10: увесь склад одним `performer`, і в пошуку артистів він стояв
+        # поруч зі справжнім «Арсен Пучков». Тарабакіна словник не знає: відкидаємо, а не вгадуємо межу імені.
+        lineup = "АРСЕН ПУЧКОВ МАКС РЕДЗЕЛЬ ДМИТРО ТАРАБАКІН ВІТАЛІЙ ШИНДЕРОВСЬКИЙ"
+        d = Dictionary(seed=["Арсен Пучков", "Макс Редзель", "Віталій Шиндеровський"])
+        items = [item(lineup, category="comedy")]
+        settle(items, d)
+        self.assertEqual([a.name for a in items[0].artists],
+                         ["Арсен Пучков", "Макс Редзель", "Віталій Шиндеровський"])
+        self.assertIsNone(d.lookup(lineup))                 # склад не вивчено як ім'я
+
+    def test_unknown_caps_lineup_dropped_but_known_whole_or_short_kept(self):
+        items = [item("ІВАН ПЕТРЕНКО ОЛЕНА СИДОРЕНКО"), item("ЛЕВИ НА ДЖИПАХ"), item("THE RED HOT CHILI PEPPERS")]
+        settle(items, Dictionary(seed=["The Red Hot Chili Peppers"]))
+        self.assertEqual([[a.name for a in i.artists] for i in items],
+                         [[], ["ЛЕВИ НА ДЖИПАХ"], ["The Red Hot Chili Peppers"]])
+
+    def test_caps_show_brand_from_shipped_dictionary_is_not_a_lineup(self):
+        items = [item("CARIBBEAN CLUB DISCO PARTY")]          # на dev 8 подій; бренд-шоу — артист (рішення 3)
+        settle(items, Dictionary.load())
+        self.assertEqual([a.name for a in items[0].artists], ["CARIBBEAN CLUB DISCO PARTY"])
+
     def test_unknown_kind_rejected(self):
         with self.assertRaises(ValueError):
             Dictionary({"X": {"kind": "band"}})
