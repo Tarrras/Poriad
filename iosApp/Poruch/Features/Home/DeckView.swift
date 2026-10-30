@@ -73,7 +73,7 @@ struct DeckView: View {
     private func question(swipes: Bool) -> some View {
         let event = cards[index]
         // Без фото квиток друкований: «що це» й уривок — на самому квитку, і висота за вмістом, а не 300 з порожнім полем.
-        let printed = event.imageUrl == nil
+        let printed = !event.hasCover
         return VStack(alignment: .leading, spacing: Space.lg) {
             VStack(alignment: .leading, spacing: Space.xs) {
                 Text(Copy.deck_title).font(PoruchFont.brandTitle1).kerning(-0.4).foregroundStyle(Palette.ink)

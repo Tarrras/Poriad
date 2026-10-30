@@ -178,7 +178,7 @@ struct EventCard: View {
             Ticket(stubColor: ticketStub(event), punched: event.hasEnded(now: nowInstant())) {
                 VStack(alignment: .leading, spacing: 0) {
                     // Фото врівень із краєм квитка; без фото обкладинки нема — квиток і так кольоровий.
-                    if event.imageUrl != nil {
+                    if event.hasCover {
                         EventThumbnail(event: event, maxDimension: 420)
                             .frame(height: 180).frame(maxWidth: .infinity).clipped()
                             .overlay(alignment: .topLeading) {
@@ -188,7 +188,7 @@ struct EventCard: View {
                             }
                     }
                     VStack(alignment: .leading, spacing: Space.sm) {
-                        if event.imageUrl == nil, let badge = eventBadge(event, waitlisted: waitlisted) {
+                        if !event.hasCover, let badge = eventBadge(event, waitlisted: waitlisted) {
                             TicketStamp(text: badge.0, tone: badge.1, glyph: badge.2)
                         }
                         Text(event.displayTitle).font(PoruchFont.brandTitle3).foregroundStyle(Palette.ink)

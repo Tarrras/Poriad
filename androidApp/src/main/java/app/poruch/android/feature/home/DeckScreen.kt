@@ -154,7 +154,7 @@ fun DeckScreen(app: PoruchApp, cards: List<Event>, onDone: () -> Unit) {
                             // Тут квиток — не кнопка: TalkBack читає його текстом, а відповідь — «Так» і «Ні». Без фото
                             // «що це», опис і ціна надруковані на квитку — у підписі вони теж, бо квиток читається одним вузлом.
                             val event = cards[index]
-                            val printed = event.imageUrl == null
+                            val printed = !event.hasCover
                             val label = ticketA11yLabel(event).let { base ->
                                 if (!printed) base else listOfNotNull(base, event.about.line, event.about.excerpt, deckPrice(event)).joinToString(". ")
                             }
@@ -168,7 +168,7 @@ fun DeckScreen(app: PoruchApp, cards: List<Event>, onDone: () -> Unit) {
                                 // «Так» штампує квиток, як касир, — стан мовою «Корінця»; посередині обкладинки, а не корінця.
                                 if (stamp.value > 0f) TicketStamp(
                                     stringResource(R.string.deck_saved), BadgeTone.Success, PoruchIcons.bookmarkFilled,
-                                    onFill = cards[index].imageUrl != null,
+                                    onFill = cards[index].hasCover,
                                     modifier = Modifier.align(Alignment.TopCenter).padding(top = 64.dp).offset(x = (-42).dp)
                                         .graphicsLayer {
                                             val scale = 2.4f - 0.9f * stamp.value

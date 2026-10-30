@@ -1115,7 +1115,7 @@ private fun PosterCard(
     // Штамп — лише стан квитка.
     val stamp: Triple<String, BadgeTone, ImageVector?>? =
         state?.let { Triple(it.first, it.second, null) }
-    val printed = printedOnly || event.imageUrl == null
+    val printed = printedOnly || !event.hasCover
     // Друкована сторона без фото дає назві чотири рядки; з великим текстом — на рядок більше, щоб назва не тонула в «…».
     val titleLines = (if (printed) 4 else 2) + if (LocalDensity.current.fontScale >= 1.3f) 1 else 0
     Ticket(

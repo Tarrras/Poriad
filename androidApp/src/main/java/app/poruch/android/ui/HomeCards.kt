@@ -85,7 +85,7 @@ fun EventHeroCard(
             .ticketSemantics(ticketA11yLabel(event, listOfNotNull(stamp?.first, reason?.first).joinToString(", ")), onClick, saved, onSave),
         radius = Corner.lg, onClick = onClick
     ) {
-        val printed = event.imageUrl == null
+        val printed = !event.hasCover
         // Висота — найменша, а не стала: з великим шрифтом назва, місце й підпис джерела не обрізаються.
         Column(Modifier.heightIn(min = height)) {
             // Без фото обкладинки нема: квиток друкований — штамп і назва великим кеглем на самій поверхні.

@@ -227,12 +227,12 @@ fun EventCard(
     ) {
         Column {
             // Фото врівень із краєм квитка; без фото обкладинки нема — квиток і так кольоровий.
-            if (event.imageUrl != null) Box(Modifier.fillMaxWidth().height(180.dp)) {
+            if (event.hasCover) Box(Modifier.fillMaxWidth().height(180.dp)) {
                 EventImage(event, Modifier.fillMaxSize())
                 badge?.let { (text, tone) -> TicketStamp(text, tone, onFill = true, modifier = Modifier.padding(Spacing.md)) }
             }
             Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                if (event.imageUrl == null) badge?.let { (text, tone) -> TicketStamp(text, tone) }
+                if (!event.hasCover) badge?.let { (text, tone) -> TicketStamp(text, tone) }
                 Text(
                     event.displayTitle, style = PoruchType.brandTitle3, color = colors.ink,
                     maxLines = 2, overflow = TextOverflow.Ellipsis

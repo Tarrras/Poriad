@@ -78,8 +78,8 @@ struct EventHeroCard: View {
                 VStack(alignment: .leading, spacing: 0) {
                     // Розмір картки, а не типовий 800: інакше три hero декодувались у 2400 px і витісняли з кеша постери.
                     // Без фото обкладинки нема: квиток друкований — штамп і назва великим кеглем на самій поверхні.
-                    if event.imageUrl != nil {
-                        EventArt(event: event, maxDimension: height)
+                    if event.hasCover {
+                        EventArt(event: event, maxDimension: height, glyphSize: 160)
                             .frame(height: height * 0.54).frame(maxWidth: .infinity).clipped()
                             .overlay(alignment: .topLeading) {
                                 if let stamp { TicketStamp(text: stamp.0, tone: stamp.1, glyph: stamp.2, onFill: true).padding(Space.md) }
@@ -88,9 +88,9 @@ struct EventHeroCard: View {
                         TicketStamp(text: stamp.0, tone: stamp.1, glyph: stamp.2).padding([.top, .horizontal], Space.lg)
                     }
                     VStack(alignment: .leading, spacing: Space.sm) {
-                        Text(event.cardTitle).font(event.imageUrl == nil ? PoruchFont.brandDisplay : PoruchFont.brandTitle1)
+                        Text(event.cardTitle).font(event.hasCover ? PoruchFont.brandTitle1 : PoruchFont.brandDisplay)
                             .foregroundStyle(Palette.ink)
-                            .multilineTextAlignment(.leading).lineLimit(event.imageUrl == nil || upright ? 5 : 2)
+                            .multilineTextAlignment(.leading).lineLimit(!event.hasCover || upright ? 5 : 2)
                             .fixedSize(horizontal: false, vertical: true)
                         HostLine(event: event)
                         if let extra { extra.padding(.vertical, Space.xs) }

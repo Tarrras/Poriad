@@ -275,7 +275,7 @@ private struct PosterCard: View {
     let open: () -> Void
 
     private var event: Event { entry.event }
-    private var printed: Bool { printedOnly || event.imageUrl == nil }
+    private var printed: Bool { printedOnly || !event.hasCover }
 
     /// «Від 390 ₴» лише коли джерело сказало ціну. Місця зустрічі — на корінці.
     private var price: String? {
@@ -333,7 +333,7 @@ private struct PosterCard: View {
                             if wide { Color.clear.frame(maxWidth: .infinity).frame(height: 180) }
                             else { Color.clear.aspectRatio(4.0 / 5.0, contentMode: .fit) }
                         }
-                            .overlay { EventArt(event: event, maxDimension: 420) }
+                            .overlay { EventArt(event: event, maxDimension: 420, glyphSize: 130) }
                             .clipped()
                             .layoutPriority(1)
                             .overlay(alignment: .topLeading) {
