@@ -2,8 +2,9 @@
 
 Жодна мережа не віддає сеансів у JSON-LD, тож розклад читається з HTML: Multiplex — уся продаж наперед однією
 сторінкою кінотеатру, Planeta — сторінка кінотеатру на день. З кожного сеансу адаптер складає вузол `ScreeningEvent`,
-і далі він іде тим самим шляхом, що JSON-LD інших джерел (`pipeline._build`). Тривалість, опис і постер — зі сторінки
-фільму (`Movie` JSON-LD), один запит на фільм за обхід.
+і далі він іде тим самим шляхом, що JSON-LD інших джерел (`pipeline._build`). Тривалість і опис — зі сторінки
+фільму (`Movie` JSON-LD), один запит на фільм за обхід. Постер не беремо: це твір дистриб'ютора, а письмового
+дозволу мереж ще нема (docs/cinema-import.md, «Право»), тож сеанс малює обкладинка категорії.
 
 Координати кінотеатрів — лише з aliases.json (`_кіно`): назви мереж в OSM збігаються за входженням не з тим залом, а
 координати самих мереж трапляються хибні (Multiplex ЦУМ — за 8 км від Хрещатика). Кінотеатр без псевдоніма отримує
@@ -36,7 +37,7 @@ def _days(now: dt.datetime, horizon_days: int, tz: str) -> list[dt.date]:
 
 def _session(title, url, start, venue, address, city, about) -> dict:
     """Сеанс як вузол schema.org. `about` — вік і формат сеансу (LUX, SDH): у базі для них поля нема, тож вони
-    починають опис. Тривалість, постер і опис фільму дописує `collect` зі сторінки фільму."""
+    починають опис. Тривалість і опис фільму дописує `collect` зі сторінки фільму."""
     about = ", ".join(x for x in about if x)
     return {
         "@type": "ScreeningEvent", "name": title, "url": url, "startDate": start.isoformat(),
@@ -100,8 +101,6 @@ def multiplex_movie(html: str) -> dict:
             out["description"] = " ".join(json.loads(f'"{d.group(1)}"').split())
         except ValueError:
             pass
-    if d := re.search(r'"image":\s*"(https:[^"]+)"', block):
-        out["image"] = d.group(1).replace("\\/", "/")
     return out
 
 
@@ -150,10 +149,6 @@ def planeta_movie(html: str) -> dict:
             if any(d.groups()):
                 out["duration"] = dt.timedelta(hours=int(d.group(1) or 0), minutes=int(d.group(2) or 0))
         out["description"] = " ".join(str(node.get("description") or "").split())
-        image = node.get("image")
-        image = image[0] if isinstance(image, list) and image else image
-        if isinstance(image, str) and image.startswith("https://"):
-            out["image"] = image
     if t := re.search(r"<title>([^<]*?)\s*(?:\(\d{4}\))?\s*—", html):
         out["title"] = " ".join(unescape(t.group(1)).split())
     return out
@@ -236,8 +231,6 @@ def collect(chain: str, source, city: str, *, get, now: dt.datetime) -> tuple[li
         event["name"] = movie.get("title") or event["name"]
         if movie.get("duration"):
             event["endDate"] = (dt.datetime.fromisoformat(event["startDate"]) + movie["duration"]).isoformat()
-        if movie.get("image"):
-            event["image"] = movie["image"]
         if movie.get("description"):
             event["description"] = " ".join(x for x in (event["description"], movie["description"]) if x)
     report["sessions"] = len(events)

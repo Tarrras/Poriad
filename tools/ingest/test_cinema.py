@@ -84,7 +84,6 @@ class MultiplexTests(unittest.TestCase):
     def test_movie_page_with_broken_json_ld(self):
         movie = cinema.multiplex_movie(MX_MOVIE)
         self.assertEqual(movie["duration"], dt.timedelta(hours=2, minutes=46))
-        self.assertEqual(movie["image"], "https://multiplex.ua/images/f6/02/f602.jpeg")
         self.assertTrue(movie["description"].startswith("«Дюна: Частина третя» заснована на романі «Месія"))
 
 
@@ -106,7 +105,6 @@ class PlanetaTests(unittest.TestCase):
         movie = cinema.planeta_movie(PK_MOVIE)
         self.assertEqual(movie["title"], "Забутий острів", "назва з <title>, а не капсом")
         self.assertEqual(movie["duration"], dt.timedelta(hours=1, minutes=49))
-        self.assertEqual(movie["image"], "https://cdn.planetakino.ua/p.webp")
 
 
 def fake_get(pages, redirects=None):
@@ -124,7 +122,7 @@ class CollectTests(unittest.TestCase):
         events, report = cinema.collect("multiplex", source, "Київ", get=fake_get(pages), now=NOW)
         self.assertEqual(len(events), 2)
         self.assertEqual(events[0]["endDate"], "2026-10-28T22:26:00+02:00", "кінець — початок плюс тривалість фільму")
-        self.assertEqual(events[0]["image"], "https://multiplex.ua/images/f6/02/f602.jpeg")
+        self.assertNotIn("image", events[0], "постер — твір дистриб'ютора, без дозволу мережі не беремо")
         self.assertIn("16+, SDH. «Дюна", events[0]["description"])
         self.assertEqual(report["movies"], 1)
         self.assertEqual(len(report["errors"]), 7, "решта кінотеатрів Києва не відкрилась — неповний обхід")
