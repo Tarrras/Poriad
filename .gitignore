@@ -57,3 +57,16 @@ ds-bundle/
 # Скріни до звітів /impeccable і знімки taste-skill: звіти (md) у репозиторії, скріни — лише локально
 .impeccable/review/**/*.png
 .taste-skill/
+
+# Маркетингові нотатки з чужими акаунтами Threads, ID рекламного кабінету й планами — лише локально: репозиторій публічний
+marketing/threads-replies/
+marketing/threads-traffic-*.md
+marketing/threads-audience-*.md
+marketing/threads-hooks-*.md
+marketing/tiktok-launch-*.md
+marketing/tiktok-refs-*.md
+marketing/tiktok-week-*.md
+marketing/paid-test-*.md
+marketing/meta-ads/check-*.md
+marketing/zero-budget-*.md
+marketing/weekly-ideas/
