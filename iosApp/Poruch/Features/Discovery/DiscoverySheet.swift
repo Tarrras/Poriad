@@ -84,8 +84,7 @@ struct DiscoverySheet: View {
     let centerToken: Int
     /// Перевести шторку в положення (`DiscoveryView.open`).
     let open: (SheetDetent) -> Void
-    /// Деталі події поверх мапи.
-    /// Подія й квиток, з якого шторка деталей виростає (`morphSource`).
+    /// Деталі події екраном у стосі мапи: подія й квиток, з якого вони виростають (`morphSource`).
     let openDetail: (String, String?) -> Void
     /// «До міста»: мапа на місто, без стосу піна.
     let recenter: () -> Void
@@ -228,6 +227,7 @@ struct DiscoverySheet: View {
                     SheetRows(open: { openEvent($0, from: "map_row") }, focusPlace: focusPlace, selectDistrict: { explore.selectDistrict($0) }, loadMore: loadMore(reaching:))
                 }
                 .listOffset(Binding(get: { drag.listOffset }, set: { drag.listOffset = $0 }))
+                .morphScrollable()
                 // Список гортається лише в повній шторці; нижче протягування піднімає її. Вимкнення
                 // під час жесту скасовує прокрутку UIKit, і шторка їде замість гумового краю.
                 // VoiceOver жестом шторку не підніме: з ним список гортається й у половинному положенні.

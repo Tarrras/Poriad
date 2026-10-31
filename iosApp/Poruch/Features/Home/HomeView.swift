@@ -134,6 +134,7 @@ struct HomeView: View, Equatable {
                 .motion(value: view.ready)
             }
         }
+        .morphScrollable()
         // Чипи «Сьогодні / Вихідні» під рукою, поки гортається сітка: п'ятничний вибір не за два екрани вгору.
         .overlay(alignment: .top) {
             if chipsPinned && !searchActive(view) {

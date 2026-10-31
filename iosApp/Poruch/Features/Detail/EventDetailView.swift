@@ -251,13 +251,15 @@ struct EventDetailView: View, Equatable {
                     if boughtPrompt { boughtCard(event, view) }
                     stickyBar(event, view)
                 }
-                .offset(y: zoomed && !barRisen ? 240 : 0)
+                // Проявляється й підіймається на крок, а не виїжджає з-за краю: у ту саму мить доїжджають деталі й головний
+                // потік зайнятий, і пружина на 240 pt рвалась пропущеними кадрами. Короткий рух з ease-out їх не видає.
+                .offset(y: zoomed && !barRisen ? 32 : 0)
                 .opacity(zoomed && !barRisen ? 0 : 1)
-                // Рушає, коли квиток уже майже розгорнувся (~0,4 с): затримка в самій анімації. Сигналу кінця zoom SwiftUI
+                // Рушає, коли квиток уже майже розгорнувся (~0,3 с): затримка в самій анімації. Сигналу кінця zoom SwiftUI
                 // не дає, а `transitionCoordinator` каже його аж за 1–1,3 с, коли пружина зовсім згасне, — задовго без дії.
                 .onAppear {
                     guard zoomed, !barRisen else { return }
-                    withMotion(Motion.spring.delay(0.35)) { barRisen = true }
+                    withMotion(.easeOut(duration: 0.3).delay(0.3)) { barRisen = true }
                 }
             }
             .onChange(of: companyFocusTick) { _, _ in

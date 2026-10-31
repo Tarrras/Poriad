@@ -25,6 +25,9 @@ struct DiscoveryView: View, Equatable {
     var openToken = 0
     /// «Створити» з порожньої шторки: той самий шлях, що в кнопки біля таббару (гостя — на вхід).
     var createEvent: (String) -> Void = { _ in }
+    /// Деталі події — екраном у стосі мапи, як скрізь, а не шторкою: у шторці потяг униз і закривав її, і оновлював
+    /// деталі, а система лишала одне. Другий аргумент — квиток, з якого деталі виростають (`morphSource`).
+    var openEvent: (String, String?) -> Void = { _, _ in }
     /// Без підписки на весь `AppModel`: мапа перемальовується зі своїм `ExploreScreenState`.
     @Environment(\.appModel) private var appModel
     private var model: AppModel { appModel! }
@@ -37,8 +40,8 @@ struct DiscoveryView: View, Equatable {
     @State private var citySearch = false
     /// Список районів під чипом «Район».
     @State private var districtList = false
-    /// Подія з відкритими деталями. Значення, а не прапорець, щоб не читати id з асинхронного стану.
-    @State private var detail: EventRoute?
+    /// Мапа на екрані, а не під запушеними деталями: підказки першого знайомства — лише тоді.
+    @State private var onScreen = false
     @State private var filters = false
     /// Вхід для гостя, що натиснув «Стежити».
     @State private var auth = false
@@ -59,7 +62,6 @@ struct DiscoveryView: View, Equatable {
     /// Розмір екрана під контролами: з нього рахуються висоти шторки.
     @State private var screen: CGSize = .zero
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.morphSpace) private var morphSpace
     /// Стан екрана зі спільного `ExplorePresenter`: індекс для пінів, вміст шторки, фільтри, місто.
     private var view: ExploreScreenState { explore.state }
     /// Категорія мапи. Головна має свою.
@@ -107,7 +109,7 @@ struct DiscoveryView: View, Equatable {
             .accessibilityHidden(detent == .full)
             DiscoverySheet(
                 detent: detent, drag: drag, expanded: $expanded, screen: screen, centerToken: centerToken,
-                open: open, openDetail: { detail = EventRoute(id: $0, morph: $1) },
+                open: open, openDetail: openEvent,
                 recenter: { explore.clearStack(); centerToken += 1 }, locate: { location.request() },
                 askAuth: { auth = true }, resetFilters: resetFilters, createEvent: createEvent,
                 locating: locating, toggleNear: toggleNear
@@ -126,7 +128,9 @@ struct DiscoveryView: View, Equatable {
         .motion(value: undoFilters == nil)
         // Підказка першого знайомства: де список і що таке пін із числом. Лише над згорнутою шторкою з картками,
         // коли поверх мапи нічого не відкрито.
-        .coachMarks([.sheet], enabled: !expanded && !shownEvents.isEmpty && detail == nil && !filters && !citySearch && !auth)
+        .coachMarks([.sheet], enabled: !expanded && !shownEvents.isEmpty && onScreen && !filters && !citySearch && !auth)
+        .onAppear { onScreen = true }
+        .onDisappear { onScreen = false }
         .background(Palette.canvas)
         .toolbar(.hidden, for: .navigationBar)
         .onChange(of: view.indexVersion) { _, _ in region = nil }
@@ -135,11 +139,8 @@ struct DiscoveryView: View, Equatable {
         .onChange(of: selectedID) { _, id in reveal(id) }
         // Заклад з пошуку: презентер відкрив його стос — шторку опускаємо, щоб бачити пін.
         .onChange(of: view.focusToken) { _, _ in open(.peek) }
-        // Шторка деталей закривається разом зі своїм стеком, навіть коли «На мапі» натиснули в запушених деталях.
-        .onChange(of: openToken) { _, _ in
-            detail = nil
-            open(.peek)
-        }
+        // Деталі закриває корінь (`showMap` скидає стос мапи); тут — лише шторка списку вниз.
+        .onChange(of: openToken) { _, _ in open(.peek) }
         // «Усі N» з головної приносить мапу з чистими фільтрами й областю: камера, стос, плитки списку й «Шукати тут» — з чистого аркуша.
         .onChange(of: view.arrivals) { _, _ in
             region = nil
@@ -159,16 +160,6 @@ struct DiscoveryView: View, Equatable {
         .sheet(isPresented: $districtList) { DistrictsView().presentationDetents([.medium, .large]) }
         // Вхід тут питають лише за «Стежити» на стосі закладу.
         .sheet(isPresented: $auth) { NavigationStack { AuthView(reason: .follow) } }
-        // Шторка виростає з картки каруселі чи рядка списку: zoom на самій шторці, а не на корені її стосу.
-        .sheet(item: $detail) { route in
-            NavigationStack {
-                EventDetailView(app: model.app, eventID: route.id, zoomed: route.zooms && morphSpace != nil).equatable()
-                    .navigationDestination(for: EventRoute.self) { EventScreen(route: $0) }
-                    .navigationDestination(for: ChatRoute.self) { ChatView(eventID: $0.id, thread: $0.thread) }
-            }
-                .presentationDetents([.large]).presentationDragIndicator(.visible)
-                .morphDestination(route.morph, in: morphSpace)
-        }
         .onReceive(location.$city) { city in
             if let city {
                 model.app.followLocation(city: city)

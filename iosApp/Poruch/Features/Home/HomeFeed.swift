@@ -34,6 +34,7 @@ struct HomePeopleSection: View {
                         HStack(alignment: .top, spacing: Space.md) { cards(width: peopleCardWidth) }
                             .fixedSize(horizontal: false, vertical: true)
                     }
+                    .morphScrollable()
                     .railContentPadding(spread: 0)
                     .zIndex(1)
                 }
@@ -207,6 +208,7 @@ struct HomeCityFeed: View {
         }
         .scrollTargetBehavior(.viewAligned)
         .railContentPadding(spread: 0)
+        .morphScrollable()
         .zIndex(1)
     }
 }

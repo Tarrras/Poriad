@@ -48,6 +48,7 @@ struct ArtistView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, Space.page).padding(.bottom, Space.section)
             }
+            .morphScrollable()
         }
         .background(Palette.canvas)
         .hidesTabBar()

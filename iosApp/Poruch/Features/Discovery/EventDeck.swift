@@ -38,6 +38,7 @@ struct EventDeck: View {
             // Висота від картки: смуга прокрутки без власної висоти забирає все, що дадуть.
             .frame(height: scaledMapCardHeight(cardHeight) + 2 * deckSpread)
             .railContentPadding(spread: deckSpread)
+            .morphScrollable()
             .scrollTargetBehavior(.viewAligned)
             .scrollPosition(id: $carouselID)
             .onChange(of: carouselID) { _, value in

@@ -397,10 +397,39 @@ extension View {
     @ViewBuilder func morphDestination(_ id: String?, in space: Namespace.ID?) -> some View {
         if #available(iOS 18, *), let id, let space {
             navigationTransition(.zoom(sourceID: id, in: space))
+                .onAppear { MorphLanding.shared.opened(id) }
+                .onDisappear { MorphLanding.shared.closed(id) }
         } else {
             self
         }
     }
+
+    /// Список із квитками-джерелами (`morphSource`): гортання, поки деталі ще згортаються, відчіпляє квиток від переходу.
+    @ViewBuilder func morphScrollable() -> some View {
+        if #available(iOS 18, *) {
+            onScrollPhaseChange { _, phase in if phase == .interacting { MorphLanding.shared.scrolled() } }
+        } else {
+            self
+        }
+    }
+}
+
+/// Квитки, з яких виросли відкриті екрани. Після «Назад» zoom ще ~1 с догасає й веде квиток за собою; гортання в цей
+/// час лишало квиток на кадр-два позаду сусідів (баг iOS, FB21961572). Тоді квиток відчіплюється: перехід втрачає
+/// джерело, квиток стоїть у списку сам. Наступне відкриття — знову з квитка: екран закрився, джерело чіпляється назад.
+@MainActor @Observable final class MorphLanding {
+    static let shared = MorphLanding()
+    /// Екрани, що виросли з квитка й ще на екрані або згортаються. Список під ними гортати не можна, тож гортання —
+    /// лише під час згортання.
+    @ObservationIgnored private var open: Set<String> = []
+    private(set) var detached: Set<String> = []
+
+    func opened(_ id: String) { open.insert(id) }
+    func closed(_ id: String) {
+        open.remove(id)
+        if detached.contains(id) { detached.remove(id) }
+    }
+    func scrolled() { if !open.isSubset(of: detached) { detached.formUnion(open) } }
 }
 
 private struct MorphSource: ViewModifier {
@@ -408,7 +437,9 @@ private struct MorphSource: ViewModifier {
     let id: String?
     @ViewBuilder func body(content: Content) -> some View {
         if #available(iOS 18, *), let id, let space {
-            content.matchedTransitionSource(id: id, in: space) { $0.clipShape(RoundedRectangle(cornerRadius: Corner.md, style: .continuous)) }
+            // Відчеплений — під іншим id, а не без модифікатора: та сама структура, квиток не перестворюється.
+            let source = MorphLanding.shared.detached.contains(id) ? "\(id)#landed" : id
+            content.matchedTransitionSource(id: source, in: space) { $0.clipShape(RoundedRectangle(cornerRadius: Corner.md, style: .continuous)) }
         } else {
             content
         }

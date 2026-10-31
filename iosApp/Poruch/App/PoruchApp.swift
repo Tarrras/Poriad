@@ -164,6 +164,9 @@ struct RootView: View {
     @Environment(\.requestReview) private var requestReview
     /// Простір морфа «квиток → екран»: квитки головної й гаманця та їхні екрани в різних гілках (`morphSource`).
     @Namespace private var morph
+    /// Морф вимкнено 31.10: вміст головної стрибав при переході в деталі й назад. Без простору — звичайні переходи стосу
+    /// й шторок; увімкнути — true.
+    private let morphs = false
     var body: some View {
         // Онбординг замінює застосунок, а не накриває: за ним на першому запуску ще нічого нема.
         // Поки стану нема, невідомо, чи потрібен онбординг: нейтральне полотно, без запиту геолокації.
@@ -281,9 +284,13 @@ struct RootView: View {
                 }.tag(0)
                 // Артист з пошуку мапи відкривається стеком; його події, у свою чергу, — деталями.
                 NavigationStack(path: $mapPath) {
-                    DiscoveryView(openToken: mapToken, createEvent: { startCreating(from: $0) }).equatable().toolbar(.hidden, for: .tabBar)
+                    DiscoveryView(
+                        openToken: mapToken, createEvent: { startCreating(from: $0) },
+                        openEvent: { mapPath.append(EventRoute(id: $0, morph: $1)) }
+                    ).equatable().toolbar(.hidden, for: .tabBar)
                         .navigationDestination(for: ArtistRoute.self) { ArtistView(route: $0) }
                         .navigationDestination(for: EventRoute.self) { EventScreen(route: $0) }
+                        .navigationDestination(for: ChatRoute.self) { ChatView(eventID: $0.id, thread: $0.thread).id($0) }
                 }.tag(1)
                 NavigationStack(path: $minePath) {
                     MyEventsView(openEvent: { minePath.append(EventRoute(id: $0, morph: $1)) }, openChat: { minePath.append(ChatRoute(id: $0)) })
@@ -343,7 +350,6 @@ struct RootView: View {
                 minePath = NavigationPath()
                 profilePath = NavigationPath()
                 mapPath = NavigationPath()
-                // Шторка деталей на мапі має свій SwiftUI-прапорець: мапа скидає його по токену, UIKit-закриття вище його не чіпає.
                 mapToken += 1
                 if id == nil, let placeId { showMap(); model.app.openPlace(placeId: placeId); return }
                 // Нагадування про квиток за годину: сам квиток на весь екран, а не подія.
@@ -365,7 +371,7 @@ struct RootView: View {
             }
         }
         .environment(\.openMap, showMap)
-        .environment(\.morphSpace, morph)
+        .environment(\.morphSpace, morphs ? morph : nil)
         .sheet(isPresented: $creating) { EventEditor(event: nil, app: model.app, home: model.state) }
         .sheet(item: $authSheet, onDismiss: continueCreating) { sheet in
             NavigationStack { AuthView(reason: sheet.reason) }
@@ -381,7 +387,7 @@ struct RootView: View {
             minePath = NavigationPath()
         }
         .fullScreenCover(item: Binding(get: { root.shownTicket }, set: { root.shownTicket = $0 })) {
-            TicketViewer(ticketID: $0.id, invite: $0.invite).morphDestination($0.morph, in: morph)
+            TicketViewer(ticketID: $0.id, invite: $0.invite).morphDestination($0.morph, in: morphs ? morph : nil)
         }
         .notice(root.notice?.presented) { model.app.clearNotice() }
     }
@@ -396,14 +402,32 @@ struct RootView: View {
 
 /// Свайп «назад» від лівого краю живий і там, де системну панель сховано (`.toolbar(.hidden)`,
 /// `navigationBarBackButtonHidden`): UIKit вимикає жест разом із панеллю, а тоді з деталей, артиста, чату
-/// й «Ви стежите» можна вийти лише кнопкою. На корені стосу жест не починається.
+/// й «Ви стежите» можна вийти лише кнопкою. З iOS 26 — і змах з будь-якого місця екрана: його панель вимикає так само.
+/// На корені стосу жест не починається; у шторках стос свій, і там закриває змах униз.
 extension UINavigationController: @retroactive UIGestureRecognizerDelegate {
     override open func viewDidLoad() {
         super.viewDidLoad()
         interactivePopGestureRecognizer?.delegate = self
+        if #available(iOS 26, *) { interactiveContentPopGestureRecognizer?.delegate = self }
     }
 
     public func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
         viewControllers.count > 1
+    }
+
+    /// Змах посеред екрана не забирає жест у того, хто сам тягнеться вбік: прогорнутий горизонтальний список (змах гортає
+    /// його назад), мапа, повзунок, перемикач. Від краю — завжди «назад».
+    public func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+        guard gestureRecognizer !== interactivePopGestureRecognizer else { return true }
+        let map: AnyClass? = NSClassFromString("MLNMapView")
+        var view = touch.view
+        while let current = view {
+            if current is UISlider || current is UISwitch { return false }
+            if let map, current.isKind(of: map) { return false }
+            if let scroll = current as? UIScrollView, scroll.contentSize.width > scroll.bounds.width + 1,
+               scroll.contentOffset.x > -scroll.adjustedContentInset.left + 1 { return false }
+            view = current.superview
+        }
+        return true
     }
 }

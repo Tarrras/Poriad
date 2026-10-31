@@ -264,13 +264,19 @@ object Unfold {
 }
 
 /**
+ * Морф вимкнено 31.10: на Android вміст стрибав на всіх переходах. Квитки не розгортаються, як зі «зменшити рух», —
+ * переходи звичайні `NavDisplay`; увімкнути — true.
+ */
+private const val UNFOLDS = false
+
+/**
  * Шар з квитком над усім застосунком. Квиток між своїм місцем і цілим екраном: читається в розмітці й малюванні, не в
  * композиції, тож рух не перескладає ні екран, ні квиток. Для TalkBack його нема: екрани під ним кажуть самі.
  */
 @Composable
 fun UnfoldLayer() {
     val scope = rememberCoroutineScope()
-    val reduced = Poruch.reducedMotion
+    val reduced = Poruch.reducedMotion || !UNFOLDS
     DisposableEffect(scope, reduced) {
         Unfold.scope = scope
         Unfold.reduced = reduced
