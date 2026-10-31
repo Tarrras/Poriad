@@ -50,6 +50,9 @@ import app.poruch.android.EventMap
 import app.poruch.android.R
 import app.poruch.android.ui.*
 import app.poruch.android.feature.mine.countdownOverline
+import app.poruch.android.feature.wallet.WalletTicketCard
+import app.poruch.android.feature.wallet.WalletUi
+import app.poruch.domain.WalletTicket
 import app.poruch.domain.Artist
 import app.poruch.domain.ArtistRole
 import app.poruch.domain.ContactRules
@@ -528,6 +531,37 @@ private fun checkedText(checked: CheckedLabel): String = when (checked.day) {
     CheckedDay.TODAY -> stringResource(R.string.checked_today, checked.time)
     CheckedDay.YESTERDAY -> stringResource(R.string.checked_yesterday, checked.time)
     CheckedDay.EARLIER -> stringResource(R.string.checked_date, checked.date)
+}
+
+/**
+ * Продавці разом зі своїм квитком: свій — вище (на вході його дістають звідси, а не купують ще раз), «Вже маєте квиток?» —
+ * одразу під ними, хоч би де блок стояв. [addTicket] отримує джерело для аналітики.
+ */
+@Composable
+internal fun TicketsBlock(state: DetailState, listing: Listing, onIntent: (DetailIntent) -> Unit, addTicket: (String) -> Unit) {
+    if (state.screen.myTickets.isNotEmpty()) YourTickets(state.screen.myTickets)
+    Tickets(state, listing, onIntent)
+    if (state.screen.canAddTicket) HaveTicket { addTicket("detail") }
+}
+
+/** Квиток з телефона на цю подію: той самий квиток гаманця, тап — на весь екран із кодом (docs/ticket-wallet.md). */
+@Composable
+internal fun YourTickets(tickets: List<WalletTicket>) {
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+        SectionHeader(stringResource(if (tickets.size == 1) R.string.wallet_yours_one else R.string.wallet_yours))
+        tickets.forEach { ticket -> WalletTicketCard(ticket) { WalletUi.shown = ticket.id } }
+    }
+}
+
+/**
+ * «Вже маєте квиток?» під продавцями: купили раніше, на касі чи отримали від друга. Картка «Купили квиток?» про них не
+ * знає — вона лише після нашого продавця.
+ */
+@Composable
+internal fun HaveTicket(onAdd: () -> Unit) {
+    Box(Modifier.cardSurface(Radius.md)) {
+        LinkRow(PoruchIcons.ticket, stringResource(R.string.wallet_have), stringResource(R.string.wallet_have_hint), onClick = onAdd)
+    }
 }
 
 /**

@@ -91,6 +91,8 @@ struct EventDetailView: View, Equatable {
     @State var boughtPrompt = false
     /// «Додати квиток» з «Купили квиток?»: вибір файлу чи фото, квиток — на цю подію.
     @State var addingTicket = false
+    /// Звідки «Додати квиток» для аналітики: картка «Купили квиток?» чи рядок «Вже маєте квиток?».
+    @State var ticketSource = "bought"
     /// Шторка часу збору (R7б): з якого часу почати — пропозиція R7а чи поточний.
     @State var movingMeet: MeetTarget?
     @Environment(\.scenePhase) var scenePhase
@@ -189,7 +191,7 @@ struct EventDetailView: View, Equatable {
             guard phase == .active, model.app.takeBoughtPrompt(eventId: screen.sessionID) else { return }
             withAnimation(.snappy) { boughtPrompt = true }
         }
-        .ticketPicker($addingTicket, source: "bought", event: screen.sessionID)
+        .ticketPicker($addingTicket, source: ticketSource, event: screen.sessionID)
         // Без відповіді за 10 с картка зникає сама: це питання, а не перешкода.
         .task(id: boughtPrompt) {
             guard boughtPrompt else { return }
@@ -307,7 +309,7 @@ struct EventDetailView: View, Equatable {
                 .accessibilityElement(children: .combine)
             }
             // Щось сталось — стан і продавці першими: по них сюди й прийшли.
-            if let listing = view.listing, listing.needsAttention { tickets(event, listing, view) }
+            if let listing = view.listing, listing.needsAttention { ticketsBlock(event, listing, view) }
             externalActions(event, view)
             if view.sessions.count > 1 { sessionRail(event, view.sessions) }
             if !event.artists.isEmpty {
@@ -315,7 +317,8 @@ struct EventDetailView: View, Equatable {
                 radarRow(view)
             }
             facts(event)
-            if let listing = view.listing, !listing.needsAttention { tickets(event, listing, view) }
+            if let listing = view.listing, !listing.needsAttention { ticketsBlock(event, listing, view) }
+            else if view.listing == nil, !view.myTickets.isEmpty { yourTickets(view.myTickets) }
             if view.canWantCompany && !view.cancelled { companySection(view).id(companySectionID) }
             else if !view.companions.isEmpty && !view.cancelled { companionsSection(view) }
             if let room = view.room { people(room, view) }

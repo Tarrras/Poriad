@@ -52,6 +52,12 @@ class MyEventsViewModel(private val app: PoruchApp) :
     override fun onIntent(intent: MyEventsIntent) {
         when (intent) {
             is MyEventsIntent.PickTab -> reduce { copy(tab = intent.tab, allPast = false, tabChosen = true) }
+            MyEventsIntent.ToggleTickets -> reduce {
+                // Гостю «Іду» нема: квитки він міг відкрити не кнопкою, а першою дошкою чи щойно доданим квитком.
+                val back = beforeTickets.takeIf { screen.signedIn || it in MyEventsTab.guest } ?: MyEventsTab.SAVED
+                if (tab == MyEventsTab.TICKETS) copy(tab = back, tabChosen = true)
+                else copy(tab = MyEventsTab.TICKETS, beforeTickets = tab, allPast = false, tabChosen = true)
+            }
             MyEventsIntent.Refresh -> refresh({ refreshing }, { copy(refreshing = it) }) { app.reloadMyEvents() }
             is MyEventsIntent.OpenEvent -> {
                 // Людина вже в розрізі: розріз за замовчуванням більше не перемикаємо під нею.

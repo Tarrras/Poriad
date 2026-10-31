@@ -687,6 +687,10 @@
   <string name="wallet_delete_title">Видалити квиток?</string>
   <string name="wallet_delete_body">Файл зникне з телефона. Подія лишиться в збережених.</string>
   <string name="wallet_yours">Ваші квитки</string>
+  <string name="wallet_yours_one">Ваш квиток</string>
+  <!-- Деталі афіші без квитка в телефоні: купили раніше, на касі чи отримали від друга. -->
+  <string name="wallet_have">Вже маєте квиток?</string>
+  <string name="wallet_have_hint">Додайте PDF чи фото&#160;— на вході покажемо код великим</string>
   <string name="wallet_send">Надіслати квиток</string>
   <string name="wallet_send_text">Тримай квиток: %1$s · %2$s</string>
   <string name="company_want">Хочу піти з компанією</string>

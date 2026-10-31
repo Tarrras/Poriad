@@ -57,26 +57,31 @@ fun MyEventsScreen(state: MyEventsState, onIntent: (MyEventsIntent) -> Unit) {
                 .padding(top = Spacing.xl, bottom = Spacing.md),
             verticalArrangement = Arrangement.spacedBy(Spacing.lg)
         ) {
-            Column(
-                Modifier.padding(horizontal = Spacing.page),
-                verticalArrangement = Arrangement.spacedBy(Spacing.xs)
-            ) {
-                Text(
-                    stringResource(R.string.my_events),
-                    style = PoruchType.brandDisplay,
-                    color = colors.ink
-                )
-                // Гостю підзаголовка нема: те саме каже порожній стан нижче.
-                if (state.screen.signedIn) Text(
-                    subtitle(state), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary
-                )
+            Row(Modifier.padding(horizontal = Spacing.page), horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                    Text(
+                        stringResource(R.string.my_events),
+                        style = PoruchType.brandDisplay,
+                        color = colors.ink
+                    )
+                    // Гостю підзаголовка нема: те саме каже порожній стан нижче.
+                    if (state.screen.signedIn) Text(
+                        subtitle(state), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary
+                    )
+                }
+                // Квитки — не розріз подій, а гаманець: постійна кнопка в шапці, як пошук на головній. Четвертим чипом на
+                // вузькому екрані вони ховались за краєм ряду (аудит 31.10).
+                IconPill(PoruchIcons.ticket, stringResource(R.string.wallet_title), selected = state.tab == MyEventsTab.TICKETS) {
+                    onIntent(MyEventsIntent.ToggleTickets)
+                }
             }
-            // Гортаються: на великому шрифті чипи не вміщались і обрізались. Гість лише зберігає й додає квитки.
-            Row(
+            // Гостю розріз один — чипів нема. Гортаються: на великому шрифті чипи не вміщались і обрізались.
+            val chips = (if (state.screen.signedIn) MyEventsTab.entries else MyEventsTab.guest).filter { it != MyEventsTab.TICKETS }
+            if (chips.size > 1) Row(
                 Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = Spacing.page),
                 horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
             ) {
-                (if (state.screen.signedIn) MyEventsTab.entries else MyEventsTab.guest).forEach { tab ->
+                chips.forEach { tab ->
                     PoruchChip(
                         stringResource(tab.label),
                         state.tab == tab,

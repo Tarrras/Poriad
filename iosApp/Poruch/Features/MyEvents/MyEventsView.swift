@@ -17,6 +17,8 @@ struct MyEventsView: View, Equatable {
     @State private var tab = MyEventsTab.going
     /// Розріз уже обрано — людиною чи першою дошкою. Далі дошка його не перемикає.
     @State private var tabChosen = false
+    /// Куди повертає повторний тап кнопки квитків.
+    @State private var beforeTickets = MyEventsTab.going
     /// Відхилений запит кілька секунд чекає: помилковий дотик повертають, а людині ще нічого не пішло.
     @State private var declining: JoinRequest?
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -95,32 +97,53 @@ struct MyEventsView: View, Equatable {
 
     private func header(_ board: MyEventsBoard?) -> some View {
         VStack(alignment: .leading, spacing: Space.lg) {
-            VStack(alignment: .leading, spacing: Space.xs) {
-                Text(Copy.my_events).font(PoruchFont.brandDisplay).kerning(-0.5).foregroundStyle(Palette.ink)
-                // Гостю підзаголовка нема: те саме каже порожній стан нижче.
-                if signedIn {
-                    Text(subtitle(board)).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
+            HStack(alignment: .top, spacing: Space.md) {
+                VStack(alignment: .leading, spacing: Space.xs) {
+                    Text(Copy.my_events).font(PoruchFont.brandDisplay).kerning(-0.5).foregroundStyle(Palette.ink)
+                    // Гостю підзаголовка нема: те саме каже порожній стан нижче.
+                    if signedIn {
+                        Text(subtitle(board)).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                // Квитки — не розріз подій, а гаманець: постійна кнопка в шапці, як пошук на головній. Четвертим чипом
+                // на вузькому екрані вони ховались за краєм ряду (аудит 31.10).
+                IconPill(glyph: PoruchIcons.ticket, label: Copy.wallet_title, selected: tab == .tickets, action: toggleTickets)
+                    .accessibilityAddTraits(tab == .tickets ? .isSelected : [])
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, Space.page)
             // Поточний розріз — значенням, не через `self`: вигляд `Equatable` без полів, тож замикання `ForEach`,
             // яке читає лише `self.tab`, SwiftUI вважає незмінним і чипи не перемальовує.
             let current = tab
-            // Гортаються: на великому шрифті чипи не вміщались і ставали «Орган…», «Збере…».
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: Space.sm) {
-                    ForEach(tabs, id: \.self) { entry in
-                        Chip(label: title(entry), badge: badge(entry, board), selected: current == entry) {
-                            tabChosen = true
-                            tab = entry
+            let chips = tabs.filter { $0 != .tickets }
+            // Гостю розріз один — чипів нема. Гортаються: на великому шрифті не вміщались і ставали «Орган…».
+            if chips.count > 1 {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: Space.sm) {
+                        ForEach(chips, id: \.self) { entry in
+                            Chip(label: title(entry), badge: badge(entry, board), selected: current == entry) {
+                                tabChosen = true
+                                tab = entry
+                            }
                         }
                     }
                 }
+                .railContentPadding()
             }
-            .railContentPadding()
         }
         .padding(.top, Space.xl).padding(.bottom, Space.md)
+    }
+
+    /// Кнопка квитків: у гаманець і, повторним тапом, назад до розрізу, з якого прийшли.
+    private func toggleTickets() {
+        tabChosen = true
+        if tab == .tickets {
+            // Гостю «Іду» нема: квитки він міг відкрити не кнопкою, а першою дошкою чи щойно доданим квитком.
+            tab = tabs.contains(beforeTickets) ? beforeTickets : .saved
+        } else {
+            beforeTickets = tab
+            tab = .tickets
+        }
     }
 
     private func title(_ tab: MyEventsTab) -> String {

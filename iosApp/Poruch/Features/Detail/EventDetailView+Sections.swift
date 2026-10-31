@@ -832,6 +832,35 @@ extension EventDetailView {
         .padding(Space.lg).frame(maxWidth: .infinity, alignment: .leading).cardSurface()
     }
 
+    /// Продавці разом зі своїм квитком: свій — вище (на вході його дістають звідси, а не купують ще раз), «Вже маєте
+    /// квиток?» — одразу під ними, хоч би де блок стояв.
+    @ViewBuilder func ticketsBlock(_ event: Event, _ listing: Listing, _ view: DetailScreenState) -> some View {
+        if !view.myTickets.isEmpty { yourTickets(view.myTickets) }
+        tickets(event, listing, view)
+        if view.canAddTicket { haveTicket() }
+    }
+
+    /// Квиток з телефона на цю подію: той самий квиток гаманця, тап — на весь екран із кодом (docs/ticket-wallet.md).
+    func yourTickets(_ tickets: [WalletTicket]) -> some View {
+        VStack(alignment: .leading, spacing: Space.md) {
+            SectionHeader(title: tickets.count == 1 ? Copy.wallet_yours_one : Copy.wallet_yours)
+            ForEach(tickets, id: \.id) { ticket in
+                Button { model.root.shownTicket = TicketRoute(id: ticket.id) } label: { WalletTicketCard(ticket: ticket) }
+                    .buttonStyle(PressableStyle())
+            }
+        }
+    }
+
+    /// «Вже маєте квиток?» під продавцями: купили раніше, на касі чи отримали від друга. Картка «Купили квиток?» про них
+    /// не знає — вона лише після нашого продавця.
+    func haveTicket() -> some View {
+        LinkRow(glyph: PoruchIcons.ticket, title: Copy.wallet_have, subtitle: Copy.wallet_have_hint) {
+            ticketSource = "detail"
+            addingTicket = true
+        }
+        .cardSurface()
+    }
+
     /// «Купили квиток?» після повернення від продавця (R9): раз на подію без квитка в телефоні, над панеллю дії. Головне —
     /// «Додати квиток» (PDF чи фото, одразу на цю подію); незбережену можна й просто зберегти.
     func boughtCard(_ event: Event, _ view: DetailScreenState) -> some View {
@@ -852,6 +881,7 @@ extension EventDetailView {
                 Button {
                     boughtPrompt = false
                     model.app.boughtPromptAnswered(saved: true, ticket: true)
+                    ticketSource = "bought"
                     addingTicket = true
                 } label: {
                     HStack(spacing: Space.xs) {

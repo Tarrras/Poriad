@@ -615,6 +615,8 @@ fun TicketsSection(tickets: List<WalletTicket>, past: List<WalletTicket>, modifi
         add
     )
     Column(modifier.padding(horizontal = Spacing.page, vertical = Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+        // Чипа «Квитки» над ними нема — назва каже, де людина.
+        SectionHeader(stringResource(R.string.wallet_title))
         tickets.forEach { ticket -> WalletTicketCard(ticket, morph = "wallet") { WalletUi.shown = ticket.id } }
         Box(Modifier.cardSurface(Radius.md)) {
             LinkRow(PoruchIcons.ticket, stringResource(R.string.wallet_add_title), stringResource(R.string.wallet_add_hint), onClick = add)

@@ -22,12 +22,16 @@ data class MyEventsState(
     val rating: Event? = null,
     /** Розріз уже обрано — людиною чи першою дошкою. Далі дошка його не перемикає. */
     val tabChosen: Boolean = false,
+    /** Куди повертає повторний тап кнопки квитків. */
+    val beforeTickets: MyEventsTab = MyEventsTab.GOING,
     /** Відхилений запит кілька секунд чекає: помилковий дотик повертають, а людині ще нічого не пішло. */
     val declining: JoinRequest? = null
 )
 
 sealed interface MyEventsIntent {
     data class PickTab(val tab: MyEventsTab) : MyEventsIntent
+    /** Кнопка квитків у шапці: у гаманець і назад до розрізу, з якого прийшли. */
+    data object ToggleTickets : MyEventsIntent
     data object Refresh : MyEventsIntent
     data class OpenEvent(val id: String) : MyEventsIntent
     data class OpenChat(val id: String) : MyEventsIntent

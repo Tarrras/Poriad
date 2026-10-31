@@ -1,5 +1,6 @@
 package app.poruch.shared
 
+import app.poruch.domain.WalletTicket
 import app.poruch.domain.AppError
 import app.poruch.domain.Artist
 import app.poruch.domain.ArtistRole
@@ -133,7 +134,9 @@ data class DetailScreenState(
      * Радар (docs/artist-radar.md): склад афіші, що попереду й збережена (чи з квитком), кожен зі своїм «Стежити»;
      * ведучий — останнім. Порожньо — картки «Скажемо, коли будуть нові дати» нема.
      */
-    val radarLineup: List<LineupFollow> = emptyList()
+    val radarLineup: List<LineupFollow> = emptyList(),
+    /** Квитки з телефона на цю подію (docs/ticket-wallet.md): рядок «Ваш квиток» на деталях. */
+    val myTickets: List<WalletTicket> = emptyList()
 ) {
     /** Супутник «Йдемо разом»: місце й решту тримає сервер; організатор міняє лише час ([canMoveMeet]). */
     val companionOf: CompanionParent? get() = room?.companionOf
@@ -143,6 +146,11 @@ data class DetailScreenState(
     val canMoveMeet: Boolean get() = organizer && companionOf?.startsAt != null && !cancelled && !started
     val myRating: EventRating? get() = ratings.firstOrNull { it.mine }
     val cancelled: Boolean get() = event?.isCancelled == true
+    /**
+     * «Вже маєте квиток?» під продавцями: квиток купили раніше, на касі чи отримали від друга, а картка «Купили квиток?»
+     * з'являється лише після нашого продавця. Лише афіша, що попереду й не скасована, і без квитка в телефоні.
+     */
+    val canAddTicket: Boolean get() = event?.listing != null && myTickets.isEmpty() && !ended && !cancelled
     /** «Покликати» замість «Поділитися» (docs/invites.md): подія ще попереду й відбудеться. Скасованою чи минулою — ділимось. */
     val canInvite: Boolean get() = event?.isCalledOff == false && !ended
     /** Кімната, якщо це кімната. Місця й участь лише в неї. */
@@ -362,6 +370,7 @@ class DetailPresenter(
             // Посилання могло вести на подію, яку потім злили: запрошення лишилось під старим id.
             inviter = shared.invite?.takeIf { event != null && (it.first == eventId || it.first == shared.detail.mergedFrom) }?.second,
             checked = CheckedLabel.of(event?.listing?.checkedAt, now, TimeZone.currentSystemDefault()),
+            myTickets = if (event != null) shared.tickets.filter { it.eventId == eventId } else emptyList(),
             radarLineup = event?.takeIf { e -> !e.hasEnded(now) && (shared.isSaved(eventId) || shared.tickets.any { it.eventId == eventId }) }
                 ?.artists?.distinctBy { it.id }
                 // Ведучий — останнім: першими ті, заради кого йдуть.

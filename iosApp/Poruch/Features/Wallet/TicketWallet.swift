@@ -873,6 +873,8 @@ struct TicketsSection: View {
                 ) { choosing = true }
             } else {
                 VStack(alignment: .leading, spacing: Space.md) {
+                    // Чипа «Квитки» над ними нема — назва каже, де людина.
+                    SectionHeader(title: Copy.wallet_title)
                     ForEach(tickets, id: \.id) { ticketButton($0) }
                     LinkRow(glyph: PoruchIcons.ticket, title: Copy.wallet_add_title, subtitle: Copy.wallet_add_hint) { choosing = true }
                         .cardSurface()

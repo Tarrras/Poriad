@@ -93,10 +93,13 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
     val app = koinInject<PoruchApp>()
     val context = LocalContext.current
     val sessionId = state.screen.sessionId
+    // Звідки «Додати квиток» для аналітики: картка «Купили квиток?» чи рядок «Вже маєте квиток?».
+    var ticketSource by remember { mutableStateOf("bought") }
     val pickTicket = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri ?: return@rememberLauncherForActivityResult
-        WalletUi.intake(context, app) { TicketFiles.load(it, uri, app, "bought", sessionId) }
+        WalletUi.intake(context, app) { TicketFiles.load(it, uri, app, ticketSource, sessionId) }
     }
+    val addTicket = { source: String -> ticketSource = source; pickTicket.launch(arrayOf("application/pdf", "image/*")) }
     if (event == null) {
         Column(Modifier.fillMaxSize().background(colors.canvas).statusBarsPadding()) {
             PageHeader(stringResource(R.string.about_event), back = { onIntent(DetailIntent.Back) })
@@ -164,7 +167,7 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
                             }
                         }
                         // Щось сталось — стан і продавці першими: по них сюди й прийшли.
-                        state.screen.listing?.takeIf { it.needsAttention }?.let { Tickets(state, it, onIntent) }
+                        state.screen.listing?.takeIf { it.needsAttention }?.let { TicketsBlock(state, it, onIntent, addTicket) }
                         ExternalActions(state, onIntent)
                     }
                     // Поза колонкою з полями: смуга дат іде від краю до краю.
@@ -176,7 +179,9 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
                         if (event.artists.isNotEmpty()) Lineup(event, onIntent)
                         RadarHint(state, onIntent)
                         Facts(event)
-                        state.screen.listing?.takeIf { !it.needsAttention }?.let { Tickets(state, it, onIntent) }
+                        val listing = state.screen.listing
+                        if (listing == null) { if (state.screen.myTickets.isNotEmpty()) YourTickets(state.screen.myTickets) }
+                        else if (!listing.needsAttention) TicketsBlock(state, listing, onIntent, addTicket)
                         if (state.screen.canWantCompany && !state.screen.cancelled) CompanySection(
                             state, onIntent, { highlight.value },
                             Modifier.onGloballyPositioned { companyTop = it.positionInRoot().y }
@@ -220,7 +225,7 @@ fun DetailScreen(state: DetailState, onIntent: (DetailIntent) -> Unit) {
         AnimatedVisibility(
             state.boughtPrompt, Modifier.align(Alignment.BottomCenter).padding(bottom = barHeight),
             enter = slideInVertically { it } + fadeIn(), exit = slideOutVertically { it } + fadeOut()
-        ) { BoughtCard(state.screen.saved, onIntent, onAddTicket = { pickTicket.launch(arrayOf("application/pdf", "image/*")) }) }
+        ) { BoughtCard(state.screen.saved, onIntent, onAddTicket = { addTicket("bought") }) }
         // Без відповіді за 10 с картка зникає сама: це питання, а не перешкода.
         if (state.boughtPrompt) LaunchedEffect(Unit) { delay(10_000); onIntent(DetailIntent.BoughtPromptAnswered(false)) }
         CoachMarks(
