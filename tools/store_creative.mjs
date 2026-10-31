@@ -75,6 +75,22 @@ const seats = (u, n) => `<div style="display:flex;align-items:center;gap:${4 * u
 // Незадрукований рядок, як у `BlankTicket`.
 const blank = (u, w) => `<div style="width:${w};height:${6 * u}px;border-radius:${3 * u}px;background:${C.hairline};margin-top:${8 * u}px"></div>`;
 
+// Пачка квитків цеглою на W×H: менші квитки без назв, жанри — за часткою в афіші тижня (мистецтво, музика, стендап, дітям).
+function ticketWall(W, H) {
+  const wu = 1.5, wh = 112 * wu, mix = ["art", "music", "art", "comedy", "kids", "art", "music", "comedy"];
+  const times = ["18:00", "19:00", "19:30", "20:00", "18:30", "21:00", "17:00"], widths = [380, 460, 340, 420, 500];
+  const wall = [];
+  for (let rIdx = 0, ry = -wh * 0.6; ry < H + wh; rIdx++, ry += wh + 16) {
+    for (let i = 0, rx = -260 - (rIdx % 3) * 150; rx < W + 300; i++) {
+      const j = rIdx * 7 + i, w = widths[j % widths.length], g = mix[(j * 5 + rIdx) % mix.length];
+      wall.push(ticket({ x: rx, y: ry, w, h: wh, u: wu, stub: 84 * wu, fill: STUB[g], pad: 16,
+        main: blank(wu, "70%") + blank(wu, "40%"), stubHtml: `<div class="time">${times[j % times.length]}</div>` }));
+      rx += w + 16;
+    }
+  }
+  return wall;
+}
+
 // ---- Header 3840×1646 (CSS 1920×823 при ×2). Безпечна зона: x 548.5–1371.5, y 246.5–577.
 // У безпечній зоні — квиток зі слоганом: корінець стендапу на сьогодні з місцями «2/4» сам несе обидві половини,
 // «є куди» (час) і «буде з ким» (місця), тож на iPhone, де лишається лише він, вистачає одного квитка. Обабіч —
@@ -97,18 +113,7 @@ function headerHtml() {
     ticket({ x: cx + cw + gap, y, w: sw, h, u, stub, fill: STUB.social, pad: 14, stubHtml: stubTime("Зустрічі", "18:30", "Сьогодні") + seats(u, "3/5"),
       main: title("Разом<br>на концерт") + host }),
   ];
-  // Пачка позаду: ряди менших квитків цеглою, жанри — за часткою в афіші тижня (мистецтво, музика, стендап, дітям).
-  const wu = 1.5, wh = 112 * wu, mix = ["art", "music", "art", "comedy", "kids", "art", "music", "comedy"];
-  const times = ["18:00", "19:00", "19:30", "20:00", "18:30", "21:00", "17:00"], widths = [380, 460, 340, 420, 500];
-  const wall = [];
-  for (let rIdx = 0, ry = -wh * 0.6; ry < 823 + wh; rIdx++, ry += wh + 16) {
-    for (let i = 0, rx = -260 - (rIdx % 3) * 150; rx < 1920 + 300; i++) {
-      const j = rIdx * 7 + i, w = widths[j % widths.length], g = mix[(j * 5 + rIdx) % mix.length];
-      wall.push(ticket({ x: rx, y: ry, w, h: wh, u: wu, stub: 84 * wu, fill: STUB[g], pad: 16,
-        main: blank(wu, "70%") + blank(wu, "40%"), stubHtml: `<div class="time">${times[j % times.length]}</div>` }));
-      rx += w + 16;
-    }
-  }
+  const wall = ticketWall(1920, 823);
   // Слоган — найбільший кегль, з яким «Буде з ким.» ще вміщається в рядок квитка.
   return `<!doctype html><html><head><meta charset="utf-8"><style>${CSS}body{width:1920px;height:823px}
 .wall{position:absolute;inset:0;transform:rotate(-7deg) scale(1.12)}
@@ -275,7 +280,7 @@ async function shoot(pages) {
     const exited = new Promise((ok) => chrome.once("exit", ok));
     chrome.kill();
     await exited; // інакше Chrome ще пише в профіль, поки його видаляємо
-    rmSync(dir, { recursive: true, force: true });
+    rmSync(dir, { recursive: true, force: true, maxRetries: 5 });
   }
 }
 
@@ -303,6 +308,99 @@ const meta = (city, zoom, [dx, dy], h, top) => ({ w: 1080, h, city, zoom, focus:
   phrase: "Куди піти<br>сьогодні?", below: action("calendar", "Додати в календар"), inter: true, above: true, brand: adBrand(top) });
 const META = join(ROOT, "marketing", "meta-ads");
 
+// ---- Друга хвиля реклами Instagram і Threads (31.10): три ідеї без мапи, у кожній — назва міста з таргетингу.
+// Числа — лише ті, що тримаються в кожному місті весь місяць: «сотні щомісяця» (prod 31.10: Одеса 220 за 30 днів,
+// «щотижня» тримає лише Київ). Події — жанрами без назв (юр. аудит 28.10). У 9:16 текст — між 250 і 1250:
+// угорі профіль, нижні 35 % закривають підпис і кнопка.
+const CITY = { "Київ": ["у Києві", "Києва", "Поділ"], "Львів": ["у Львові", "Львова", "Середмістя"], "Одеса": ["в Одесі", "Одеси", "Центр"] };
+const adPage = (w, h, css, body) => `<!doctype html><html><head><meta charset="utf-8"><style>${FONTS}${INTER}${BASE}body{width:${w}px;height:${h}px}
+.frame{position:absolute;left:80px;right:80px;display:flex;flex-direction:column;justify-content:space-between}
+.frame>*{flex:none}.nine{justify-content:flex-start;gap:44px}.nine .foot{order:-1}
+h1{font:800 104px/.92 Cond;letter-spacing:-.012em}
+.foot{display:flex;align-items:center;gap:18px}.foot img{width:64px;height:64px;border-radius:14px}
+.foot b{font:800 52px/1 Cond;letter-spacing:-1px}.foot span{font:400 24px/1.3 Sys;color:${C.ink2}}${css}</style></head>
+<body>${ICONS}${body}<script>Promise.all([document.fonts.ready, ...[...document.images].map((i) => i.decode())]).then(() => document.title = "ready")</script></body></html>`;
+const foot = (city) => `<div class="foot"><img src="${asset("icon.png")}"><b>Поряд</b>
+<span style="margin-left:14px">Усі події ${CITY[city][1]} на одній мапі.<br>Безкоштовно для iPhone і Android.</span></div>`;
+// У 9:16 знак — угорі, решта йде за ним: головне вміщається до 1250, низ стрічки чи чату лягає під підпис Reels.
+const frame = (h) => (h === 1350 ? { top: 80, height: 1190, nine: false } : { top: 250, height: 1000, nine: true });
+
+// «Чек»: на скаргу «нема куди піти» місто відповідає касовою стрічкою з афішею вечора; підсумок — перша половина слогана.
+function receiptHtml({ w, h, city }) {
+  const f = frame(h), z = 16, step = 26, n = Math.ceil(640 / step);
+  const edge = (bottom) => Array.from({ length: n + 1 }, (_, i) => `${i * step}px ${bottom ? `calc(100% - ${i % 2 ? 0 : z}px)` : `${i % 2 ? 0 : z}px`}`);
+  const clip = `polygon(${[...edge(false), ...edge(true).reverse()].join(",")})`;
+  const row = (dot, label, value) => `<div class="row">${dot ? `<i style="background:${dot}"></i>` : ""}<span>${label}</span><b></b><span>${value}</span></div>`;
+  return adPage(w, h, `
+.receipt{width:640px;margin:0 auto;padding:${z + 40}px 44px ${z + 34}px;background:${C.paper};color:#141417;clip-path:${clip};transform:rotate(-2.5deg);zoom:${f.nine ? 0.92 : 1};
+  font:600 30px/1 Sys;text-transform:uppercase;letter-spacing:.02em;filter:drop-shadow(0 20px 40px rgba(0,0,0,.5))}
+.row{display:flex;align-items:baseline;gap:14px;margin:22px 0}.row b{flex:1;border-bottom:4px dotted rgba(20,20,23,.35)}
+.row i{width:18px;height:18px;border-radius:50%;align-self:center;flex:none}
+.cut{border-top:3px dashed rgba(20,20,23,.4);margin:28px 0}
+.bars{height:76px;margin-top:30px;background:repeating-linear-gradient(90deg,#141417 0 4px,#0000 4px 9px,#141417 9px 15px,#0000 15px 18px,#141417 18px 20px,#0000 20px 27px)}`,
+  `<div class="frame${f.nine ? " nine" : ""}" style="top:${f.top}px;height:${f.height}px">
+<h1>Нема куди<br>піти ${CITY[city][0]}?</h1>
+<div class="receipt">
+  <div style="text-align:center;font:800 64px/1 Cond;letter-spacing:.01em">ПОРЯД</div>
+  <div style="text-align:center;margin-top:12px;font-size:22px;letter-spacing:.16em">Афіша · ${city} · вечір</div>
+  <div class="cut"></div>
+  ${row(STUB.music, "Концерт", "19:30")}${row(STUB.art, "Вистава", "19:00")}${row(STUB.comedy, "Стендап", "20:00")}${row(STUB.kids, "Дітям", "сб 12:00")}
+  <div class="cut"></div>
+  ${row("", "Подій за місяць", "сотні")}${row("", "Застосунок", "0 ₴")}
+  <div class="cut" style="border-top-style:double;border-top-width:8px"></div>
+  <div style="display:flex;justify-content:space-between;align-items:baseline;font:800 64px/1 Cond"><span>РАЗОМ</span><span>Є КУДИ</span></div>
+  <div class="bars"></div>
+  <div style="text-align:center;margin-top:14px;font:600 22px/1 Sys;letter-spacing:.2em;text-transform:none">poriad.app</div>
+</div>
+${foot(city)}</div>`);
+}
+
+// «Розрив»: три квитки, про які ти чув, на тлі стіни з сотень, про які ні.
+function gapHtml({ w, h, city }) {
+  const f = frame(h), u = 1.9, th = 116 * u, tw = 343 * u;
+  const known = [["music", "Концерт", "19:00", "пт", -5, -60], ["comedy", "Стендап", "20:00", "сб", 3, 60], ["art", "Вистава", "18:00", "нд", 2, -100]]
+    .map(([g, genre, time, day, rot, dx], i) => `<div style="position:absolute;left:${(920 - tw) / 2 + dx}px;top:${i * 150}px;transform:rotate(${rot}deg);filter:drop-shadow(0 16px 30px rgba(0,0,0,.6))">`
+      + ticket({ x: 0, y: 0, w: tw, h: th, u, stub: 84 * u, fill: STUB[g], main: blank(u, "72%") + blank(u, "44%"), stubHtml: stubTime(genre, time, day) }) + "</div>");
+  return adPage(w, h, `.wall{position:absolute;inset:-200px;transform:rotate(-7deg)}.veil{position:absolute;inset:0;background:${C.canvas};opacity:.82}
+.stack{position:relative;height:${th + 2 * 150}px;zoom:${f.nine ? 0.72 : 1}}
+h2{font:800 76px/.98 Cond;letter-spacing:-.01em}h2 em{font-style:normal;color:${C.ink2}}`,
+  `<div class="wall">${ticketWall(w + 400, h + 400).join("")}</div><div class="veil"></div>
+<div class="frame${f.nine ? " nine" : ""}" style="top:${f.top}px;height:${f.height}px">
+<h1>Ти знаєш<br>про 3 події<br>${CITY[city][0]}.</h1>
+<div class="stack">${known.join("")}</div>
+<h2>Їх сотні щомісяця.<br><em>Усі — на одній мапі.</em></h2>
+${foot(city)}</div>`);
+}
+
+// «Чат»: друзі в груповому чаті не знають, куди піти, — у відповідь посилання на подію з «Поряд».
+function chatHtml({ w, h, city }) {
+  const f = frame(h), u = 1.6;
+  const them = (who, hue, text) => `<div class="msg"><span class="ava">${who[0]}</span><div class="bub"><small style="color:${inkOf(hue)}">${who}</small>${text}</div></div>`;
+  const card = ticket({ x: 0, y: 0, w: 343 * u, h: 116 * u, u, stub: 84 * u, fill: STUB.comedy, stubHtml: stubTime("Стендап", "20:00", "сб"),
+    main: `<div style="font:700 ${20 * u}px/1.15 Cond">Стендап-вечір</div><div style="margin-top:${8 * u}px;font-size:${14 * u}px;color:${C.ink2}">${city} · ${CITY[city][2]}</div>` });
+  return adPage(w, h, `
+.chat{display:flex;flex-direction:column;gap:22px;zoom:${f.nine ? 1 : 1.15}}
+.top{display:flex;align-items:center;gap:20px;padding-bottom:26px;border-bottom:2px solid ${C.hairline};font:600 34px/1.2 Sys}
+.top small{display:block;font:400 24px/1.3 Sys;color:${C.ink3}}
+.msg{display:flex;align-items:flex-end;gap:16px}.mine{justify-content:flex-end}
+.ava{width:64px;height:64px;border-radius:50%;background:${C.raised};display:grid;place-items:center;font:600 28px/1 Sys;flex:none}
+.bub{max-width:700px;padding:20px 28px;border-radius:36px 36px 36px 10px;background:${C.surface};font:400 38px/1.25 Sys}
+.bub small{display:block;margin-bottom:6px;font:600 24px/1 Sys}
+.mine .bub{border-radius:36px 36px 10px 36px;background:${C.paper};color:#141417}
+.link{position:relative;width:${343 * u}px;height:${116 * u}px}`,
+  `<div class="frame${f.nine ? " nine" : ""}" style="top:${f.top}px;height:${f.height}px">
+<div class="chat">
+  <div class="top"><span class="ava" style="width:80px;height:80px;font-size:40px">🎟</span><div>Субота<small>Оля, Макс і ти</small></div></div>
+  ${them("Оля", CAT.art, "Що робимо в суботу?")}
+  ${them("Макс", CAT.games, `${CITY[city][0][0].toUpperCase()}${CITY[city][0].slice(1)} нема куди піти 🙃`)}
+  <div class="msg mine"><div class="link">${card}</div></div>
+  <div class="msg mine"><div class="bub">Є куди. Глянь у «Поряд»</div></div>
+  ${them("Оля", CAT.art, "О, го 🔥")}
+</div>
+${foot(city)}</div>`);
+}
+const AD2 = join(META, "v2");
+
 const PAGES = [
   { name: "header", html: headerHtml, out: join(OUT, "header_3840x1646.png"), w: 3840, h: 1646 },
   { name: "search", html: () => mapHtml({ w: 1920, h: 1280, focus: [1120, 560], box: { l: 418, t: 382, r: 1502, b: 898 }, phrase: "Куди піти<br>сьогодні?", below: action("people", "Шукаю компанію") }),
@@ -317,6 +415,9 @@ const PAGES = [
   ...[["kyiv", "Київ", 13, [0, 0]], ["lviv", "Львів", 14, [0, 0]], ["odesa", "Одеса", 13, [-280, -200]]].flatMap(([name, city, zoom, shift]) => [
     { name: `meta-${name}-4x5`, html: () => mapHtml(meta(city, zoom, shift, 1350, 64)), out: join(META, `${name}-4x5.png`), w: 2160, h: 2700 },
     { name: `meta-${name}-9x16`, html: () => mapHtml(meta(city, zoom, shift, 1920, 270)), out: join(META, `${name}-9x16.png`), w: 2160, h: 3840 }]),
+  ...[["receipt", receiptHtml], ["gap", gapHtml], ["chat", chatHtml]].flatMap(([idea, html]) =>
+    [["kyiv", "Київ"], ["lviv", "Львів"], ["odesa", "Одеса"]].flatMap(([name, city]) => [[1350, "4x5"], [1920, "9x16"]].map(([h, ratio]) =>
+      ({ name: `ad2-${idea}-${name}-${ratio}`, html: () => html({ w: 1080, h, city }), out: join(AD2, `${idea}-${name}-${ratio}.png`), w: 2160, h: h * 2 })))),
 ];
 // node tools/store_creative.mjs [назва…] — лише сторінки з цими назвами (за початком: «map» — усе тло), без аргументів — усі.
 const want = process.argv.slice(2);
