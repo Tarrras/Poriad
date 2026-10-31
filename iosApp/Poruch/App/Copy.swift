@@ -540,9 +540,10 @@ enum Copy {
     static let companion_share_chooser = "Поділитися пошуком компанії"
     static let companion_notification_channel = "Пошук компанії на збережені події"
     static let wallet_title = "Квитки"
-    static let wallet_add = "Додати"
     static let wallet_add_title = "Додати квиток"
-    static let wallet_add_hint = "З Telegram: «Поділитися» → «Поряд»"
+    static let wallet_add_hint = "PDF чи фото. З Telegram чи пошти — «Поділитися» → «Поряд»"
+    static let wallet_empty_title = "Поки жодного квитка"
+    static let wallet_empty_text = "Додайте PDF чи фото квитка — на вході покажемо код великим і нагадаємо за годину. З Telegram чи пошти: «Поділитися» → «Поряд»."
     static let wallet_from_files = "З файлів"
     static let wallet_from_photos = "З фото"
     static let wallet_import_title = "Квиток"
@@ -951,6 +952,7 @@ enum Copy {
     static func digest_count(_ n: Int) -> String { ukrainianPlural(n, "\(n) подія", "\(n) події", "\(n) подій") }
     static func digest_count_for_you(_ n: Int) -> String { ukrainianPlural(n, "\(n) подія для вас", "\(n) події для вас", "\(n) подій для вас") }
     static func request_notification_body(_ n: Int) -> String { ukrainianPlural(n, "\(n) новий запит на участь. Відкрийте подію, щоб відповісти.", "\(n) нові запити на участь. Відкрийте подію, щоб відповісти.", "\(n) нових запитів на участь. Відкрийте подію, щоб відповісти.") }
+    static func tickets_ahead(_ n: Int) -> String { ukrainianPlural(n, "\(n) квиток попереду", "\(n) квитки попереду", "\(n) квитків попереду") }
     static func wallet_count(_ n: Int) -> String { ukrainianPlural(n, "\(n) квиток", "\(n) квитки", "\(n) квитків") }
     static func company_count(_ n: Int) -> String { ukrainianPlural(n, "\(n) людина хоче піти з компанією", "\(n) людини хочуть піти з компанією", "\(n) людей хочуть піти з компанією") }
     static func company_reason(_ n: Int) -> String { ukrainianPlural(n, "\(n) шукає компанію", "\(n) шукають компанію", "\(n) шукають компанію") }

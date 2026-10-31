@@ -8,8 +8,18 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.plus
 import kotlinx.datetime.toLocalDateTime
 
-/** Розрізи вкладки «Мої події» (docs/my-events.md). */
-enum class MyEventsTab { GOING, ORGANIZING, SAVED }
+/**
+ * Розрізи вкладки «Мої події» (docs/my-events.md). [TICKETS] — квитки з телефона (docs/ticket-wallet.md): окремо, а не згори
+ * «Іду», де вони змішувались з подіями.
+ */
+enum class MyEventsTab {
+    GOING, ORGANIZING, SAVED, TICKETS;
+
+    companion object {
+        /** Гість лише зберігає й додає квитки: розрізів «Іду» й «Організовую» в нього нема. */
+        val guest = listOf(SAVED, TICKETS)
+    }
+}
 
 /**
  * Секція розрізу. [UPCOMING] в «Іду» — «Далі», в «Організовую» — усе попереду: першу подію екран
@@ -36,12 +46,16 @@ data class MyEventsBoard(
     /** Бейдж чипа «Іду»: події з непрочитаним чатом, і минулі теж. */
     val goingBadge: Int = 0,
     /** Бейдж чипа «Організовую»: непрочитані чати плюс запити на участь. */
-    val organizingBadge: Int = 0
+    val organizingBadge: Int = 0,
+    /** Квитки з телефона, що ще попереду. */
+    val ticketsAhead: Int = 0
 ) {
+    /** Секції подій розрізу; у «Квитках» подій нема — там гаманець. */
     fun sections(tab: MyEventsTab) = when (tab) {
         MyEventsTab.GOING -> going
         MyEventsTab.ORGANIZING -> organizing
         MyEventsTab.SAVED -> saved
+        MyEventsTab.TICKETS -> emptyList()
     }
 
     fun isEmpty(tab: MyEventsTab) = sections(tab).isEmpty()
@@ -54,13 +68,18 @@ data class MyEventsBoard(
         MyEventsTab.GOING -> goingAhead == 0
         MyEventsTab.ORGANIZING -> organizingAhead == 0
         MyEventsTab.SAVED -> savedAhead == 0
+        MyEventsTab.TICKETS -> ticketsAhead == 0
     }
+
+    /** Чи є попереду хоч щось: доти розріз за замовчуванням не обираємо — порожній знімок до завантаження закріпив би «Іду». */
+    val anythingAhead: Boolean get() = goingAhead + organizingAhead + savedAhead + ticketsAhead > 0
 
     /** Розріз, на якому вкладка відкривається: де щось попереду. Організатор без власних планів не бачить порожнє «Іду». */
     val openingTab: MyEventsTab
         get() = when {
             goingAhead > 0 -> MyEventsTab.GOING
             organizingAhead > 0 -> MyEventsTab.ORGANIZING
+            ticketsAhead > 0 -> MyEventsTab.TICKETS
             savedAhead > 0 -> MyEventsTab.SAVED
             else -> MyEventsTab.GOING
         }
@@ -76,8 +95,7 @@ object MyEventsRules {
     /**
      * Розкладає «мої» події з `my_events` (у гостя — картки закладок) по розрізах і секціях. Порядок усередині — як прийшов
      * (за початком), минулі — свіжіші першими. «Сьогодні» і «цього тижня» — за поясом телефона [zone]:
-     * це про день людини, а не події. Квиток з гаманця [tickets] — теж план: «N планів попереду» рахує його, якщо його
-     * подія ще не серед моїх (критика 1.4: «1 план попереду» над квитком на неділю).
+     * це про день людини, а не події. Квитки з гаманця [tickets] рахує свій розріз: «Іду» — лише події.
      */
     fun board(
         events: List<Event>,
@@ -125,9 +143,7 @@ object MyEventsRules {
             going = sections(MyEventsGroup.TODAY to todays, MyEventsGroup.UPCOMING to next, MyEventsGroup.PAST to goingPast),
             organizing = sections(MyEventsGroup.UPCOMING to mineAhead, MyEventsGroup.PAST to minePast),
             saved = sections(MyEventsGroup.THIS_WEEK to thisWeek, MyEventsGroup.LATER to afterWeek),
-            goingAhead = goingAhead.size + tickets.count { ticket ->
-                !ticket.isPast(now) && goingAhead.none { it.id == ticket.eventId }
-            },
+            goingAhead = goingAhead.size,
             awaiting = goingAhead.count { it.gathering?.awaitingApproval == true },
             organizingAhead = mineAhead.size,
             requests = openRequests,
@@ -135,7 +151,8 @@ object MyEventsRules {
             savedThisWeek = thisWeek.size,
             // Непрочитане рахуємо й у минулих: бейдж вкладки знає про всі чати, і чип не має з ним розходитись.
             goingBadge = going.count { it.id in unread },
-            organizingBadge = mine.count { it.id in unread } + openRequests
+            organizingBadge = mine.count { it.id in unread } + openRequests,
+            ticketsAhead = tickets.count { !it.isPast(now) }
         )
     }
 

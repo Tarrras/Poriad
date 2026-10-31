@@ -26,12 +26,21 @@ struct MyEventsView: View, Equatable {
     /// Подія, яку оцінюють у шторці. Маршрут, бо `sheet(item:)` потребує identity.
     @State private var rating: EventRoute?
 
-    private static let tabs: [MyEventsTab] = [.going, .organizing, .saved]
+    private var tabs: [MyEventsTab] { signedIn ? [.going, .organizing, .saved, .tickets] : MyEventsTab.companion.guest }
     private var signedIn: Bool { view.signedIn }
     private var board: MyEventsBoard? { view.board }
 
     /// Непрочитане за id події, з тієї самої стрічки, що й бейдж вкладки.
     private var unread: [String: Int] { view.unread.mapValues { $0.intValue } }
+
+    /// Відкриваємося там, де щось попереду: організатор без власних планів не бачить порожнє «Іду». Рішення — з першою
+    /// дошкою, де щось попереду (порожній знімок до завантаження закріпив би «Іду»), і лише поки людина сама нічого не
+    /// обрала й не відкрила: інакше розріз перескакував під нею, щойно поверталась із деталей.
+    private func chooseOpeningTab() {
+        guard !tabChosen, let board, board.anythingAhead, tabs.contains(board.openingTab) else { return }
+        tabChosen = true
+        tab = board.openingTab
+    }
 
     /// Тап по «Створити» звідси: рахуємо, звідки він, і відкриваємо редактор.
     private func startCreating() {
@@ -49,23 +58,21 @@ struct MyEventsView: View, Equatable {
         .background(Palette.canvas)
         .toolbar(.hidden, for: .navigationBar)
         .onChange(of: tab) { _, _ in allPast = false }
-        // Щойно доданий квиток лежить у «Іду» — туди й перемикаємо, навіть якщо людина стояла в іншому розрізі.
+        // Щойно доданий квиток лежить у «Квитках» — туди й перемикаємо, навіть якщо людина стояла в іншому розрізі.
         .onChange(of: model.root.ticketAdded, initial: true) { _, added in
             guard added else { return }
             tabChosen = true
-            if signedIn { tab = .going }
+            tab = .tickets
             // Скидаємо після цього оновлення: корінь у тому самому мусить ще побачити `true` і перемкнути вкладку.
             Task { model.root.ticketAdded = false }
         }
-        // Гість лише зберігає (docs/guest-saves.md): розрізів у нього нема, рядки — закладки.
-        .onChange(of: signedIn, initial: true) { _, signed in if !signed { tab = .saved } }
-        // Відкриваємося там, де щось попереду: організатор без власних планів не бачить порожнє «Іду».
-        // Рішення — з першою дошкою, де щось попереду: порожній знімок до завантаження інакше закріпив би «Іду».
-        .onChange(of: board?.openingTab, initial: true) { _, opening in
-            guard !tabChosen, let opening, let board, board.goingAhead + board.organizingAhead + board.savedAhead > 0 else { return }
-            tabChosen = true
-            tab = opening
+        // Гість лише зберігає й додає квитки (docs/guest-saves.md): «Іду» й «Організовую» в нього нема. Сесія
+        // доїжджає після першої дошки — тоді розріз за замовчуванням вибираємо наново.
+        .onChange(of: signedIn, initial: true) { _, signed in
+            if !signed, !tabs.contains(tab) { tab = .saved }
+            chooseOpeningTab()
         }
+        .onChange(of: board?.openingTab, initial: true) { _, _ in chooseOpeningTab() }
         .task(id: declining?.userId) {
             guard declining != nil else { return }
             try? await Task.sleep(for: .seconds(5))
@@ -97,23 +104,21 @@ struct MyEventsView: View, Equatable {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, Space.page)
-            if signedIn {
-                // Поточний розріз — значенням, не через `self`: вигляд `Equatable` без полів, тож замикання `ForEach`,
-                // яке читає лише `self.tab`, SwiftUI вважає незмінним і чипи не перемальовує.
-                let current = tab
-                // Гортаються: на великому шрифті три чипи не вміщались і ставали «Орган…», «Збере…».
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: Space.sm) {
-                        ForEach(Self.tabs, id: \.self) { entry in
-                            Chip(label: title(entry), badge: badge(entry, board), selected: current == entry) {
-                                tabChosen = true
-                                tab = entry
-                            }
+            // Поточний розріз — значенням, не через `self`: вигляд `Equatable` без полів, тож замикання `ForEach`,
+            // яке читає лише `self.tab`, SwiftUI вважає незмінним і чипи не перемальовує.
+            let current = tab
+            // Гортаються: на великому шрифті чипи не вміщались і ставали «Орган…», «Збере…».
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Space.sm) {
+                    ForEach(tabs, id: \.self) { entry in
+                        Chip(label: title(entry), badge: badge(entry, board), selected: current == entry) {
+                            tabChosen = true
+                            tab = entry
                         }
                     }
                 }
-                .railContentPadding()
             }
+            .railContentPadding()
         }
         .padding(.top, Space.xl).padding(.bottom, Space.md)
     }
@@ -122,6 +127,7 @@ struct MyEventsView: View, Equatable {
         switch tab {
         case .organizing: Copy.organizing
         case .saved: Copy.saved
+        case .tickets: Copy.wallet_title
         default: Copy.tab_going
         }
     }
@@ -148,6 +154,9 @@ struct MyEventsView: View, Equatable {
             let ahead = Int(board.savedAhead), week = Int(board.savedThisWeek)
             if ahead > 0 { parts.append(Copy.saved_ahead(ahead)) }
             if week > 0 { parts.append(Copy.saved_this_week("\(week)")) }
+        case .tickets:
+            let ahead = Int(board.ticketsAhead)
+            if ahead > 0 { parts.append(Copy.tickets_ahead(ahead)) }
         default:
             let ahead = Int(board.goingAhead), awaiting = Int(board.awaiting)
             if ahead > 0 { parts.append(Copy.going_ahead(ahead)) }
@@ -158,16 +167,11 @@ struct MyEventsView: View, Equatable {
 
     // ---- Вміст
 
-    /// Квитки з телефона (docs/ticket-wallet.md) — там, де «йду»: у «Іду», а в гостя, у якого розріз один, — у ньому.
-    private var showsTickets: Bool { !signedIn || tab == .going }
-
-    @ViewBuilder private var tickets: some View {
-        if showsTickets { TicketsSection(tickets: view.tickets, past: view.pastTickets) }
-    }
-
     @ViewBuilder private func content(_ board: MyEventsBoard?) -> some View {
-        if !signedIn, (board?.savedAhead ?? 0) == 0 {
-            tickets.padding(.horizontal, Space.page).padding(.top, Space.md)
+        if tab == .tickets {
+            // Квитки з телефона (docs/ticket-wallet.md) — свій розріз: згори «Іду» вони змішувались з подіями.
+            ScrollView { TicketsSection(tickets: view.tickets, past: view.pastTickets) }.morphScrollable()
+        } else if !signedIn, (board?.savedAhead ?? 0) == 0 {
             EmptyState(
                 glyph: PoruchIcons.ticket, title: Copy.guest_empty,
                 message: Copy.guest_saved_hint, actionLabel: Copy.login, action: { auth = true }
@@ -178,7 +182,6 @@ struct MyEventsView: View, Equatable {
                 VStack(alignment: .leading, spacing: Space.xxl) {
                     if view.offline { OfflineNote() }
                     if !signedIn { guestNote }
-                    tickets
                     // Попереду нічого, а минулі є: першою йде дія, а не три сірі минулі.
                     if board.nothingAhead(tab: tab) { aheadCard }
                     ForEach(board.sections(tab: tab), id: \.group) { section in
@@ -190,6 +193,7 @@ struct MyEventsView: View, Equatable {
                     }
                 }.padding(.horizontal, Space.page).padding(.vertical, Space.md)
             }
+            .morphScrollable()
         } else if view.offline && view.myEvents.isEmpty {
             // Плану на телефоні ще нема, а мережі нема: «нічого не заплановано» було б неправдою.
             ScrollView {
@@ -200,10 +204,7 @@ struct MyEventsView: View, Equatable {
         } else {
             // У стрічці, щоб потяг мав за що зачепитись.
             ScrollView {
-                VStack(spacing: Space.xxl) {
-                    tickets.padding(.horizontal, Space.page).padding(.top, Space.md)
-                    emptyState
-                }
+                emptyState
             }
         }
     }
@@ -347,7 +348,11 @@ struct MyEventsView: View, Equatable {
     }
 
     /// `from` — панель чи рядок: найближча подія буває і там, і там, а квиток розгортається з того, на який натиснули.
-    private func open(_ id: String, from: String) { model.app.selectEvent(id: id); openEvent(id, "\(from)/\(id)") }
+    private func open(_ id: String, from: String) {
+        tabChosen = true
+        model.app.selectEvent(id: id)
+        openEvent(id, "\(from)/\(id)")
+    }
 
     private func isDeclining(_ request: JoinRequest) -> Bool {
         declining.map { $0.eventId == request.eventId && $0.userId == request.userId } ?? false

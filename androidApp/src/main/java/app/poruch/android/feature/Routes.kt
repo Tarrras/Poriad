@@ -160,11 +160,11 @@ fun MyEventsRoute(navigator: Navigator) {
             MyEventsEffect.CreateEvent -> navigator.createEvent()
         }
     }
-    // Щойно доданий квиток лежить у «Іду» — туди й перемикаємо, навіть якщо людина стояла в іншому розрізі.
+    // Щойно доданий квиток лежить у «Квитках» — туди й перемикаємо, навіть якщо людина стояла в іншому розрізі.
     LaunchedEffect(WalletUi.added) {
         if (!WalletUi.added) return@LaunchedEffect
         WalletUi.added = false
-        if (model.state.value.screen.signedIn) model.dispatch(MyEventsIntent.PickTab(MyEventsTab.GOING))
+        model.dispatch(MyEventsIntent.PickTab(MyEventsTab.TICKETS))
     }
     MyEventsScreen(model.state.collectAsStateWithLifecycle().value, model::dispatch)
 }

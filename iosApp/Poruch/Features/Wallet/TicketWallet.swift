@@ -844,7 +844,8 @@ struct TodayTickets: View {
 
 // MARK: - «Мої події»
 
-/// Секція «Квитки» згори «Моїх подій»: що попереду, з датою й місцем. Нема — один рядок, що вчить «Поділитися».
+/// Розріз «Квитки» в «Моїх подіях»: що попереду, з датою й місцем, під ними — «Додати квиток». Жодного — порожній стан, що
+/// вчить обидва шляхи: звідси файлом чи фото, з Telegram чи пошти — «Поділитися».
 struct TicketsSection: View {
     @Environment(\.appModel) private var appModel
     private var model: AppModel { appModel! }
@@ -864,29 +865,35 @@ struct TicketsSection: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Space.md) {
-            if tickets.isEmpty {
-                LinkRow(glyph: PoruchIcons.ticket, title: Copy.wallet_add_title, subtitle: Copy.wallet_add_hint) { choosing = true }
-                    .cardSurface()
+        Group {
+            if tickets.isEmpty, past.isEmpty {
+                EmptyState(
+                    glyph: PoruchIcons.ticket, title: Copy.wallet_empty_title, message: Copy.wallet_empty_text,
+                    actionLabel: Copy.wallet_add_title
+                ) { choosing = true }
             } else {
-                SectionHeader(title: Copy.wallet_title, actionLabel: Copy.wallet_add) { choosing = true }
-                ForEach(tickets, id: \.id) { ticketButton($0) }
-            }
-            if !past.isEmpty {
-                Button { withMotion { showsPast.toggle() } } label: {
-                    HStack(spacing: Space.sm) {
-                        Text(Copy.wallet_past("\(past.count)")).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
-                        Spacer(minLength: 0)
-                        PoruchIcon(glyph: PoruchIcons.chevronDown, size: 16).foregroundStyle(Palette.inkTertiary)
-                            .rotationEffect(.degrees(showsPast ? 180 : 0))
+                VStack(alignment: .leading, spacing: Space.md) {
+                    ForEach(tickets, id: \.id) { ticketButton($0) }
+                    LinkRow(glyph: PoruchIcons.ticket, title: Copy.wallet_add_title, subtitle: Copy.wallet_add_hint) { choosing = true }
+                        .cardSurface()
+                    if !past.isEmpty {
+                        Button { withMotion { showsPast.toggle() } } label: {
+                            HStack(spacing: Space.sm) {
+                                Text(Copy.wallet_past("\(past.count)")).font(PoruchFont.subhead).foregroundStyle(Palette.inkSecondary)
+                                Spacer(minLength: 0)
+                                PoruchIcon(glyph: PoruchIcons.chevronDown, size: 16).foregroundStyle(Palette.inkTertiary)
+                                    .rotationEffect(.degrees(showsPast ? 180 : 0))
+                            }
+                            .tapTarget()
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityValue(showsPast ? Copy.expanded : Copy.collapsed)
+                        if showsPast {
+                            ForEach(past, id: \.id) { ticketButton($0, punched: true) }
+                        }
                     }
-                    .tapTarget()
                 }
-                .buttonStyle(.plain)
-                .accessibilityValue(showsPast ? Copy.expanded : Copy.collapsed)
-                if showsPast {
-                    ForEach(past, id: \.id) { ticketButton($0, punched: true) }
-                }
+                .padding(.horizontal, Space.page).padding(.vertical, Space.md)
             }
         }
         .ticketPicker($choosing)

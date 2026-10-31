@@ -23,11 +23,11 @@ class MyEventsViewModel(private val app: PoruchApp) :
                     // Відкриваємося там, де щось попереду: організатор без власних планів не бачить порожнє «Іду».
                     // Рішення — з першою дошкою, де щось є; порожній знімок до завантаження інакше закріпив би «Іду».
                     val b = screen.board
-                    val ready = !tabChosen && b.goingAhead + b.organizingAhead + b.savedAhead > 0
+                    // Гість лише зберігає й додає квитки (docs/guest-saves.md): «Іду» й «Організовую» в нього нема.
+                    val tabs = if (screen.signedIn) MyEventsTab.entries else MyEventsTab.guest
                     when {
-                        // Гість лише зберігає (docs/guest-saves.md): розрізів у нього нема, рядки — закладки.
-                        !screen.signedIn -> copy(screen = screen, tab = MyEventsTab.SAVED)
-                        ready -> copy(screen = screen, tab = b.openingTab, tabChosen = true)
+                        !tabChosen && b.anythingAhead && b.openingTab in tabs -> copy(screen = screen, tab = b.openingTab, tabChosen = true)
+                        tab !in tabs -> copy(screen = screen, tab = MyEventsTab.SAVED)
                         else -> copy(screen = screen)
                     }
                 }
@@ -54,6 +54,8 @@ class MyEventsViewModel(private val app: PoruchApp) :
             is MyEventsIntent.PickTab -> reduce { copy(tab = intent.tab, allPast = false, tabChosen = true) }
             MyEventsIntent.Refresh -> refresh({ refreshing }, { copy(refreshing = it) }) { app.reloadMyEvents() }
             is MyEventsIntent.OpenEvent -> {
+                // Людина вже в розрізі: розріз за замовчуванням більше не перемикаємо під нею.
+                reduce { copy(tabChosen = true) }
                 app.selectEvent(intent.id)
                 send(MyEventsEffect.OpenDetail(intent.id))
             }

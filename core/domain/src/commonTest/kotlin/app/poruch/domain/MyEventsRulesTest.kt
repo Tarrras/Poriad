@@ -117,8 +117,8 @@ class MyEventsRulesTest {
         assertEquals(MyEventsBoard(), MyEventsRules.board(events, null, emptyList(), emptyList(), emptyList(), emptyList(), now, kyiv))
     }
 
-    /** Квиток з гаманця — план (критика 1.4): рахується в «Іду», крім квитка на подію, що вже серед моїх, і минулого. */
-    @Test fun walletTicketsArePlans() {
+    /** Квитки з гаманця — свій розріз: «Іду» рахує лише події, «Квитки» — усе попереду, і минулий не рахується. */
+    @Test fun walletTicketsHaveTheirOwnTab() {
         val events = listOf(room("tonight", "2026-09-25T16:30:00Z", joined = true))
         fun ticket(id: String, eventId: String?, startsAt: String) =
             WalletTicket(id, "$id.pdf", TicketKind.PDF, id, startsAt = startsAt, timeZone = "Europe/Kyiv", eventId = eventId, addedAt = startsAt)
@@ -128,9 +128,14 @@ class MyEventsRulesTest {
             ticket("cinema", null, "2026-09-28T18:00:00Z"),
             ticket("old", null, "2026-09-01T18:00:00Z")
         )
-        assertEquals(3, MyEventsRules.board(events, "me", emptyList(), emptyList(), emptyList(), emptyList(), now, kyiv, tickets).goingAhead)
+        val mine = MyEventsRules.board(events, "me", emptyList(), emptyList(), emptyList(), emptyList(), now, kyiv, tickets)
+        assertEquals(1, mine.goingAhead, "tickets are not events")
+        assertEquals(3, mine.ticketsAhead)
+        assertTrue(mine.sections(MyEventsTab.TICKETS).isEmpty())
         val guest = MyEventsRules.board(emptyList(), null, emptyList(), emptyList(), emptyList(), emptyList(), now, kyiv, tickets.drop(1))
-        assertEquals(2, guest.goingAhead)
-        assertEquals(MyEventsTab.GOING, guest.openingTab, "the wallet lives in «Іду»")
+        assertEquals(2, guest.ticketsAhead)
+        assertTrue(guest.anythingAhead)
+        assertFalse(guest.nothingAhead(MyEventsTab.TICKETS))
+        assertEquals(MyEventsTab.TICKETS, guest.openingTab)
     }
 }

@@ -640,9 +640,17 @@
   <!-- «Хочу піти з компанією» (docs/return-hooks.md, хвиля 1). Безродово: «Пішов би» — чоловічий рід. -->
   <!-- Квиток у «Поряд» (docs/ticket-wallet.md): файл квитка лежить лише на телефоні. -->
   <string name="wallet_title">Квитки</string>
-  <string name="wallet_add">Додати</string>
   <string name="wallet_add_title">Додати квиток</string>
-  <string name="wallet_add_hint">З Telegram: «Поділитися» → «Поряд»</string>
+  <!-- Підпис рядка «Додати квиток»: тап — файл чи фото, а з Telegram і пошти — «Поділитися». Не лише Telegram. -->
+  <string name="wallet_add_hint">PDF чи фото. З Telegram чи пошти&#160;— «Поділитися» → «Поряд»</string>
+  <string name="wallet_empty_title">Поки жодного квитка</string>
+  <string name="wallet_empty_text">Додайте PDF чи фото квитка&#160;— на вході покажемо код великим і нагадаємо за годину. З Telegram чи пошти: «Поділитися» → «Поряд».</string>
+  <plurals name="tickets_ahead">
+    <item quantity="one">%1$d квиток попереду</item>
+    <item quantity="few">%1$d квитки попереду</item>
+    <item quantity="many">%1$d квитків попереду</item>
+    <item quantity="other">%1$d квитків попереду</item>
+  </plurals>
   <string name="wallet_from_files">З файлів</string>
   <string name="wallet_from_photos">З фото</string>
   <string name="wallet_import_title">Квиток</string>

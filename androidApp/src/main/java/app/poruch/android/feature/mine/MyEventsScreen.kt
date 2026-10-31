@@ -71,12 +71,12 @@ fun MyEventsScreen(state: MyEventsState, onIntent: (MyEventsIntent) -> Unit) {
                     subtitle(state), style = MaterialTheme.typography.bodyMedium, color = colors.inkSecondary
                 )
             }
-            // Гортаються: на великому шрифті три чипи не вміщались і обрізались.
-            if (state.screen.signedIn) Row(
+            // Гортаються: на великому шрифті чипи не вміщались і обрізались. Гість лише зберігає й додає квитки.
+            Row(
                 Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = Spacing.page),
                 horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
             ) {
-                MyEventsTab.entries.forEach { tab ->
+                (if (state.screen.signedIn) MyEventsTab.entries else MyEventsTab.guest).forEach { tab ->
                     PoruchChip(
                         stringResource(tab.label),
                         state.tab == tab,
@@ -84,16 +84,17 @@ fun MyEventsScreen(state: MyEventsState, onIntent: (MyEventsIntent) -> Unit) {
                         badge = when (tab) {
                             MyEventsTab.GOING -> state.screen.board.goingBadge
                             MyEventsTab.ORGANIZING -> state.screen.board.organizingBadge
-                            MyEventsTab.SAVED -> 0
+                            MyEventsTab.SAVED, MyEventsTab.TICKETS -> 0
                         }
                     )
                 }
             }
         }
-        // Квитки з телефона (docs/ticket-wallet.md) — там, де «йду»: у «Іду», а в гостя, у якого розріз один, — у ньому.
-        val showsTickets = !state.screen.signedIn || state.tab == MyEventsTab.GOING
-        if (!state.screen.signedIn && state.screen.board.savedAhead == 0) Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-            TicketsSection(state.screen.tickets, state.screen.pastTickets, Modifier.padding(horizontal = Spacing.page, vertical = Spacing.md))
+        val bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + TabBarClearance
+        // Квитки з телефона (docs/ticket-wallet.md) — свій розріз: згори «Іду» вони змішувались з подіями.
+        if (state.tab == MyEventsTab.TICKETS) Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = bottom)) {
+            TicketsSection(state.screen.tickets, state.screen.pastTickets)
+        } else if (!state.screen.signedIn && state.screen.board.savedAhead == 0) Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
             EmptyState(
                 PoruchIcons.ticket,
                 stringResource(R.string.guest_empty),
@@ -114,7 +115,6 @@ fun MyEventsScreen(state: MyEventsState, onIntent: (MyEventsIntent) -> Unit) {
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
             ) {
-                if (showsTickets) TicketsSection(state.screen.tickets, state.screen.pastTickets, Modifier.padding(horizontal = Spacing.page, vertical = Spacing.md))
                 // Плану на телефоні ще нема, а мережі нема: «нічого не заплановано» було б неправдою.
                 if (state.screen.offline && state.screen.myEvents.isEmpty()) OfflineState(
                     stringResource(R.string.offline_mine_hint),
@@ -129,7 +129,6 @@ fun MyEventsScreen(state: MyEventsState, onIntent: (MyEventsIntent) -> Unit) {
                 else Empty(state.tab, onIntent)
             } else {
                 // Лінивий стовпець по секціях: зміна однієї (нове в чаті, запит) не перескладає решту.
-                val bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + TabBarClearance
                 LazyColumn(
                     Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(start = Spacing.page, end = Spacing.page, top = Spacing.sm, bottom = bottom),
@@ -138,7 +137,6 @@ fun MyEventsScreen(state: MyEventsState, onIntent: (MyEventsIntent) -> Unit) {
                     val nothingAhead = state.screen.board.nothingAhead(state.tab)
                     if (state.screen.offline) item(key = "offline") { OfflineNote() }
                     if (!state.screen.signedIn) item(key = "guest") { GuestNote { onIntent(MyEventsIntent.SignIn) } }
-                    if (showsTickets) item(key = "tickets") { TicketsSection(state.screen.tickets, state.screen.pastTickets) }
                     // Попереду нічого, а минулі є: першою йде дія, а не три сірі минулі.
                     if (nothingAhead) item(key = "ahead") { AheadCard(state.tab, onIntent) }
                     items(sections, key = { it.group.name }) { Section(it, state, onIntent) }
@@ -192,6 +190,7 @@ private val MyEventsTab.label: Int
         MyEventsTab.GOING -> R.string.tab_going
         MyEventsTab.ORGANIZING -> R.string.organizing
         MyEventsTab.SAVED -> R.string.saved
+        MyEventsTab.TICKETS -> R.string.wallet_title
     }
 
 /** Лічильники замість опису. Нуль — частину не показуємо; усе нуль — загальний підпис. */
@@ -249,6 +248,8 @@ private fun subtitle(state: MyEventsState): String {
                     )
                 )
             }
+
+            MyEventsTab.TICKETS -> if (b.ticketsAhead > 0) add(pluralStringResource(R.plurals.tickets_ahead, b.ticketsAhead, b.ticketsAhead))
         }
     }
     return if (parts.isEmpty()) stringResource(R.string.my_events_subtitle) else parts.joinToString(
@@ -301,6 +302,9 @@ private fun Empty(tab: MyEventsTab, onIntent: (MyEventsIntent) -> Unit) {
             stringResource(R.string.find_nearby),
             { onIntent(MyEventsIntent.FindNearby) }
         )
+
+        // Свій порожній стан у `TicketsSection`: розріз квитків сюди не доходить.
+        MyEventsTab.TICKETS -> Unit
     }
 }
 

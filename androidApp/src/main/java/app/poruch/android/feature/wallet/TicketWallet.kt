@@ -589,8 +589,9 @@ private fun Zoomable(modifier: Modifier = Modifier, content: @Composable () -> U
 // ---- «Мої події»
 
 /**
- * Секція «Квитки» згори «Моїх подій»: що попереду, з датою й місцем. Нема — один рядок, що вчить «Поділитися». Минулі —
- * пробиті й згорнуті під рядком: квиток на згадку, а не в черзі з тими, що попереду.
+ * Розріз «Квитки» в «Моїх подіях»: що попереду, з датою й місцем, під ними — «Додати квиток». Жодного — порожній стан, що
+ * вчить обидва шляхи: звідси файлом чи фото, з Telegram чи пошти — «Поділитися». Минулі — пробиті й згорнуті під рядком:
+ * квиток на згадку, а не в черзі з тими, що попереду.
  */
 @Composable
 fun TicketsSection(tickets: List<WalletTicket>, past: List<WalletTicket>, modifier: Modifier = Modifier) {
@@ -605,14 +606,18 @@ fun TicketsSection(tickets: List<WalletTicket>, past: List<WalletTicket>, modifi
     val expanded = stringResource(R.string.expanded)
     val collapsed = stringResource(R.string.collapsed)
     val add = { pick.launch(arrayOf("application/pdf", "image/*")) }
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
-        if (tickets.isEmpty()) {
-            Box(Modifier.cardSurface(Radius.md)) {
-                LinkRow(PoruchIcons.ticket, stringResource(R.string.wallet_add_title), stringResource(R.string.wallet_add_hint), onClick = add)
-            }
-        } else {
-            SectionHeader(stringResource(R.string.wallet_title), actionLabel = stringResource(R.string.wallet_add), onAction = add)
-            tickets.forEach { ticket -> WalletTicketCard(ticket, morph = "wallet") { WalletUi.shown = ticket.id } }
+    if (tickets.isEmpty() && past.isEmpty()) return EmptyState(
+        PoruchIcons.ticket,
+        stringResource(R.string.wallet_empty_title),
+        stringResource(R.string.wallet_empty_text),
+        modifier.padding(top = Spacing.section),
+        stringResource(R.string.wallet_add_title),
+        add
+    )
+    Column(modifier.padding(horizontal = Spacing.page, vertical = Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+        tickets.forEach { ticket -> WalletTicketCard(ticket, morph = "wallet") { WalletUi.shown = ticket.id } }
+        Box(Modifier.cardSurface(Radius.md)) {
+            LinkRow(PoruchIcons.ticket, stringResource(R.string.wallet_add_title), stringResource(R.string.wallet_add_hint), onClick = add)
         }
         if (past.isNotEmpty()) {
             Row(
