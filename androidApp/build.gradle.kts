@@ -82,6 +82,9 @@ android {
             "HKscs-*", "KSC*", "Uni*", "<file>H", "<file>V"
         )
     }
+    // pdfbox тягне Bouncy Castle заради зашифрованих PDF, а той — 7,9 МБ таблиць постквантових шифрів (Picnic, SIKE):
+    // ~4 МБ до встановлення 1.4. R8 Java-ресурсів не чіпає, а pdfbox цих шифрів не викликає.
+    packaging { resources { excludes += "org/bouncycastle/pqc/**" } }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
 }
 dependencies {
