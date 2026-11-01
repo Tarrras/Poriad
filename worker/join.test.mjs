@@ -48,6 +48,9 @@ assert.ok(open.includes("</i>Поділитися з другом</button>") && 
 assert.ok(open.includes("data-invite>") && !open.includes("Покликати з собою"), "після запису — теж «Поділитися з другом»");
 assert.ok(imported.includes("</i>Поділитися з другом</button>") && !imported.includes("data-copy-link"));
 
+// Аудит безпеки: «Не стежити» — кнопкою підтвердження, «Вийти» — у шторці; обидва приховані до скрипта.
+assert.ok(open.includes('data-unfollow hidden>Не стежити</button>') && open.includes("data-account hidden>") && open.includes("data-signout>Вийти</button>"));
+
 // Запрошення несе токен і в «Відкрити».
 assert.ok(eventPage(base, now, [], { by: "AbCdEfGhIjKlMnOpQrSt_-", name: "Тарас" }).includes(`poriad://event/${base.id}?by=AbCdEfGhIjKlMnOpQrSt_-">Уже є застосунок?`));
 

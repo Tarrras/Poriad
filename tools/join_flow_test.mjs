@@ -131,18 +131,30 @@ await p.ready; await flush();
 assert.equal(p.sheet.open, false, "код старший за 15 хв шторку не відкриває");
 assert.equal(sessionStorage.getItem("poriad.join"), null);
 
-// «Не стежити» з листа: свіжий код у вкладці не заважає; стан запису підтягується.
+// «Не стежити» з листа — лише після підтвердження: посилання могли відкрити випадково чи підсунути. Свіжий код у
+// вкладці не заважає; стан запису підтягується.
 reset();
 signIn();
 sessionStorage.setItem("poriad.join", JSON.stringify({ email: "a@b.c", event: ID, action: "join", sentAt: Date.now() }));
 backend({ ...members("approved"), unfollow: (body) => { assert.deepEqual(body, { p_kind: "organizer", p_target: ORG }); return [200]; } });
 p = page({ search: "?unfollow" });
 await p.ready; await flush();
-assert.ok(calls.includes("unfollow"));
-assert.equal(p.$("[data-title]").textContent, "Ви більше не стежите");
+assert.ok(!calls.includes("unfollow"), "без тапу не відписуємо");
+assert.equal(p.$("[data-title]").textContent, "Не стежити за організатором Марта?");
+assert.equal(p.$("[data-unfollow]").hidden, false);
 assert.equal(p.bar.textContent, "Ви в списку", "кнопка внизу знає, що людина записана");
 assert.ok(!location.href.includes("unfollow"));
-// Без входу — шторка входу з «Не стежити», а після коду — відписка.
+await p.$("[data-unfollow]").fire("click"); await flush();
+assert.ok(calls.includes("unfollow"));
+assert.equal(p.$("[data-title]").textContent, "Ви більше не стежите");
+assert.equal(p.$("[data-unfollow]").hidden, true);
+// Закрили питання — нічого не сталося.
+backend({ ...members("approved"), unfollow: () => [200] });
+p = page({ search: "?unfollow" });
+await p.ready; await flush();
+p.sheet.close(); await flush();
+assert.ok(!calls.includes("unfollow"));
+// Без входу — шторка входу з «Не стежити», після коду — те саме питання, і лише тап відписує.
 reset();
 backend({ ...members(), unfollow: () => [200], "/auth/v1/otp": () => [200, {}], "/auth/v1/verify": () => [200, { access_token: "t", refresh_token: "r", expires_in: 3600, user: { id: "u1" } }] });
 p = page({ search: "?unfollow" });
@@ -153,9 +165,33 @@ p.$('[data-form="email"]').email.value = " a@b.c ";
 await p.$('[data-form="email"]').fire("submit");
 p.$('[data-form="code"]').code.value = "123456";
 await p.$('[data-form="code"]').fire("submit"); await flush();
-assert.deepEqual(calls.filter((c) => !["event_details", "my_waitlist"].includes(c)), ["/auth/v1/otp", "/auth/v1/verify", "unfollow"]);
-assert.equal(p.$("[data-title]").textContent, "Ви більше не стежите");
+assert.deepEqual(calls.filter((c) => !["event_details", "my_waitlist"].includes(c)), ["/auth/v1/otp", "/auth/v1/verify"]);
+assert.equal(p.$("[data-title]").textContent, "Не стежити за організатором Марта?");
 assert.equal(sessionStorage.getItem("poriad.join"), null, "код підтверджено — пошту забули");
+await p.$("[data-unfollow]").fire("click"); await flush();
+assert.ok(calls.includes("unfollow"));
+assert.equal(p.$("[data-title]").textContent, "Ви більше не стежите");
+
+// «Вийти» в шторці: за спільним компʼютером видно, чий акаунт, і після виходу сторінка забуває все особисте.
+reset();
+localStorage.setItem("poriad.session", JSON.stringify({ access_token: "t", refresh_token: "r", expires_at: Math.floor(Date.now() / 1000) + 3600,
+  user: { id: "u1", email: "olena@example.com", app_metadata: { providers: ["email"] } } }));
+backend({ ...members("approved") });
+p = page();
+await p.ready; await flush();
+await p.bar.fire("click"); await flush();
+assert.equal(p.$("[data-account]").hidden, false, "після входу — рядок акаунта");
+assert.equal(p.$("[data-account-email]").textContent, "olena@example.com");
+await p.$("[data-signout]").fire("click"); await flush();
+assert.ok(calls.includes("/auth/v1/logout"), "сесію відкликано на сервері");
+assert.equal(localStorage.getItem("poriad.session"), null);
+assert.equal(p.$("[data-title]").textContent, "Ви вийшли");
+assert.equal(p.bar.textContent, "Йду");
+assert.equal(p.$("[data-account]").hidden, true);
+assert.equal(p.$("[data-account-email]").textContent, "", "пошти попереднього в сторінці не лишилось");
+await p.bar.fire("click"); await flush();
+assert.equal(p.step(), "start", "наступна людина починає з входу");
+assert.equal(p.$("[data-account]").hidden, true, "на кроці входу рядка акаунта нема");
 
 // Повна подія → черга; між тапами звільнилось місце (EVENT_HAS_SPACE) — записуємо звичайно.
 reset();
@@ -266,6 +302,11 @@ assert.equal(p.doc["[data-share]"].lastChild.textContent, "Текст скопі
 await p.doc["[data-copy-link]"].fire("click"); await flush();
 assert.equal(clipboard, `https://poriad.app/e/${ID}`, "посилання для запису — без ?by=");
 assert.equal(p.doc["[data-copy-link]"].lastChild.textContent, "Посилання скопійовано");
+// Організатор вийшов — сторінка знову як для гостя.
+await p.$("[data-signout]").fire("click"); await flush();
+assert.equal(p.doc["[data-share]"].lastChild.textContent, "Поділитися з другом");
+assert.equal(p.doc["[data-copy-link]"].hidden, true);
+assert.equal(p.doc["[data-afisha]"].hidden, false);
 
 // Гість з входом на чужій події — «Поділитися з другом» з особистим ?by=, без «Скопіювати посилання».
 navigator = { userAgent: "test", share: async (data) => { shared = data; } };

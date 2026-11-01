@@ -1,6 +1,6 @@
 // Правила шторки «Йду» (site/js/join.js) без браузера: node tools/join_test.mjs
 import assert from "node:assert/strict";
-import { outcome, STATUS, ageLimit, needsBirthDate, weekPool, weekPicks, weekRow, shareMode } from "../site/js/join.js";
+import { outcome, STATUS, ageLimit, needsBirthDate, weekPool, weekPicks, weekRow, shareMode, unfollowTitle } from "../site/js/join.js";
 
 // Таблиця «Інші відповіді на запис» (docs/organizers-1.5.md, 1.1).
 for (const [code, kind] of [
@@ -62,5 +62,9 @@ assert.equal(shareMode(mine, "me", Date.parse("2026-11-04T18:00:00Z")), "promote
 assert.equal(shareMode({ ...mine, ends_at: null }, "me", at), "promote", "без кінця — не завершена");
 assert.equal(shareMode({ ...mine, origin: "import", organizer_id: null }, "me", at), "friend", "афіша");
 assert.equal(shareMode(null, "me", at), "friend");
+
+assert.equal(unfollowTitle("Марта"), "Не стежити за організатором Марта?", "імʼя прикладкою — без відмінювання");
+assert.equal(unfollowTitle(""), "Не стежити за організатором?");
+assert.ok(STATUS.unfollowAsk.unfollow && !STATUS.unfollowed.unfollow, "кнопка підтвердження — лише в питанні");
 
 console.log("join rules ok");

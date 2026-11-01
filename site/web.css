@@ -776,6 +776,8 @@ a.row:hover { background: var(--surface-muted); }
 .link:disabled { color: var(--ink-tertiary); text-decoration: none; cursor: default; }
 .links { display: flex; flex-wrap: wrap; gap: 8px 24px; }
 .join-sheet .error { font: 500 15px/21px var(--font); color: var(--danger); }
+.join-sheet .account { padding-top: 14px; border-top: 1px solid var(--hairline); font: 400 14px/20px var(--font); color: var(--ink-secondary); overflow-wrap: anywhere; }
+.join-sheet .account .link { font-size: 14px; }
 .install-box[aria-busy="true"] :is(.btn, .act, .link) { opacity: .55; pointer-events: none; }
 .bar [data-join][aria-busy="true"] { opacity: .6; cursor: progress; }
 .join-sheet .after { display: flex; flex-direction: column; gap: 14px; padding-top: 6px; }

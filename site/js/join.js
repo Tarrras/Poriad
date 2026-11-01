@@ -2,7 +2,7 @@
 // кешує зі сторінкою, а цей скрипт входить (auth.js), записує, показує стан запису й «Після запису». Він же робить
 // `?unfollow` з листа. На сторінці без шторки (афіша) нічого не робить. Правила без DOM — експорти, перевірка —
 // `node tools/join_test.mjs`.
-import { session, sendCode, verifyCode, google, completeRedirect, rpc, inAppBrowser, browserLinks } from "./auth.js?v=12";
+import { session, sendCode, verifyCode, google, completeRedirect, rpc, signOut, inAppBrowser, browserLinks } from "./auth.js?v=12";
 import { SUPABASE, discover, fold, cardsByIds, esc, displayTitle, stubParts, timeOf, CATEGORIES, price, threadsPost, threadsIntent } from "./poriad.js?v=12";
 
 /** Відповідь бази на запис → стан шторки (таблиця «Інші відповіді на запис»). Невідома — null: показуємо помилку. */
@@ -27,7 +27,9 @@ export const STATUS = {
   rate: { title: "Записатися не вийшло.", text: "Забагато записів за годину. Спробуйте пізніше." },
   own: { title: "Це ваша подія." },
   left: { title: "Запис скасовано" }, withdrawn: { title: "Заявку скасовано" }, unqueued: { title: "Ви вийшли з черги" },
+  unfollowAsk: { title: "", text: "Листів про нові події цього організатора більше не буде.", unfollow: true }, // unfollowTitle
   unfollowed: { title: "Ви більше не стежите", text: "Листів про нові події цього організатора не буде." },
+  signedOut: { title: "Ви вийшли", text: "На цьому пристрої сторінка більше не памʼятає вашого акаунта." },
 };
 /** Напис на кнопці внизу сторінки. */
 const LABELS = { none: "Йду", approved: "Ви в списку", requested: "Заявку надіслано", waitlist: "Ви в черзі" };
@@ -54,6 +56,9 @@ export function shareMode(event, me, now = Date.now()) {
   return me && event?.origin === "community" && !event.companion_of && event.organizer_id === me && event.status !== "cancelled" && !ended
     ? "promote" : "friend";
 }
+
+/** Питання перед відпискою з листа: імʼя — прикладкою, щоб не відмінювати («за організатором Марта»). */
+export const unfollowTitle = (name) => (name ? `Не стежити за організатором ${name}?` : "Не стежити за організатором?");
 
 /** «Ця подія для 21+.» чи «…для 18–35.» — з меж події. */
 export const ageLimit = (min, max) => `Ця подія для ${max ? `${min || 18}–${max}` : `${min || 18}+`}.`;
@@ -123,6 +128,15 @@ export function start(sheet) {
     $("[data-error]").hidden = true;
     if (step === "start") $("[data-head]").textContent = action === "unfollow" ? "Не стежити за організатором" : "Записатися";
     if (!sheet.open) sheet.showModal();
+    signedInAs(step).catch(() => {});
+  }
+  /** «Ви ввійшли як … · Вийти» під кроками після входу: за спільним компʼютером видно, чий акаунт, і є як вийти. */
+  async function signedInAs(step) {
+    const line = $("[data-account]");
+    if (!line) return;
+    const current = step === "start" || step === "code" ? null : await session();
+    line.hidden = !current;
+    $("[data-account-email]").textContent = current?.user?.email ?? ""; // після виходу пошти в сторінці не лишаємо
   }
   function error(text) {
     const el = $("[data-error]");
@@ -146,12 +160,15 @@ export function start(sheet) {
   function show(kind) {
     const s = STATUS[kind];
     shown = kind;
-    $("[data-title]").textContent = kind === "age" ? ageLimit(Number(data.minAge), Number(data.maxAge)) : s.title;
+    $("[data-title]").textContent = kind === "age" ? ageLimit(Number(data.minAge), Number(data.maxAge))
+      : kind === "unfollowAsk" ? unfollowTitle(data.organizer ? data.organizerName : "") : s.title;
     const text = $("[data-text]");
     text.textContent = s.text ?? "";
     text.hidden = !s.text;
     $("[data-waitlist]").hidden = !s.waitlist;
     $("[data-ics]").hidden = !s.ics;
+    const unfollowButton = $("[data-unfollow]"); // сторінка з кешу могла прийти ще без цієї кнопки
+    if (unfollowButton) unfollowButton.hidden = !s.unfollow;
     const leave = $("[data-leave]");
     leave.textContent = s.leave ?? "";
     leave.hidden = !s.leave;
@@ -166,7 +183,12 @@ export function start(sheet) {
   // ---- Запис
   async function proceed() {
     if (!(await session())) return open("start");
-    return action === "unfollow" ? unfollow() : join();
+    return action === "unfollow" ? askUnfollow() : join();
+  }
+  /** «Не стежити» з листа — лише після підтвердження: посилання могли відкрити випадково чи підсунути. */
+  function askUnfollow() {
+    show("unfollowAsk");
+    refresh().catch(() => {}); // кнопка внизу має знати, що людина записана
   }
   async function join(waitlist = false) {
     try {
@@ -204,8 +226,26 @@ export function start(sheet) {
   }
   async function unfollow() {
     if (data.organizer) await rpc("unfollow", { p_kind: "organizer", p_target: data.organizer });
+    follows = null;
     show("unfollowed");
-    await refresh().catch(() => {}); // з листа: кнопка внизу має знати, що людина записана
+  }
+  /** Вихід: сесію забуває auth.js, а сторінка — усе особисте (стан, запрошення, «Стежити», «Поширити анонс»). */
+  async function leaveAccount() {
+    await signOut();
+    sessionStorage.removeItem(PENDING);
+    invite = null;
+    details = null;
+    follows = null;
+    mode = "friend";
+    if (shareButton) shareButton.lastChild.textContent = "Поділитися з другом";
+    const copyLink = document.querySelector("[data-copy-link]");
+    if (copyLink) copyLink.hidden = true;
+    const afisha = document.querySelector("[data-afisha]");
+    if (afisha) afisha.hidden = false;
+    const follow = $("[data-follow]");
+    if (follow) Object.assign(follow, { textContent: "Стежити", disabled: false });
+    setState("none");
+    show("signedOut");
   }
 
   // ---- Вхід
@@ -387,6 +427,8 @@ export function start(sheet) {
   }));
   $("[data-waitlist]").addEventListener("click", task(() => join(true)));
   $("[data-leave]").addEventListener("click", task(leave));
+  $("[data-unfollow]")?.addEventListener("click", task(unfollow));
+  $("[data-signout]")?.addEventListener("click", task(leaveAccount));
   $("[data-follow]")?.addEventListener("click", task(async () => {
     await rpc("follow", { p_kind: "organizer", p_target: data.organizer });
     follows = null;
@@ -420,7 +462,7 @@ export function start(sheet) {
       url.searchParams.delete("unfollow");
       history.replaceState(history.state, "", url);
       action = "unfollow";
-      if (await session()) { await unfollow(); return true; }
+      if (await session()) { askUnfollow(); return true; }
     }
     const p = pending();
     if (p?.event === id) {

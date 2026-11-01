@@ -375,6 +375,7 @@ function joinSheet(e, ct) {
     <h2 data-title></h2>
     <p class="lead" data-text hidden></p>
     <button class="btn primary" type="button" data-waitlist hidden>Стати в чергу</button>
+    <button class="btn primary" type="button" data-unfollow hidden>Не стежити</button>
     <a class="btn secondary" href="/e/${e.id}.ics" data-ics hidden>${icon("calendar")}Додати в календар</a>
     <button class="link" type="button" data-leave hidden></button>
     <div class="after" data-after hidden>
@@ -385,6 +386,7 @@ function joinSheet(e, ct) {
     ${city ? `<div class="block week" data-week hidden><h2>Цього тижня ${esc(city[1][1])}</h2><div class="rows" data-cards></div><a class="link" href="/afisha/${city[0]}">Уся афіша ${esc(cityOf(city[1][0]).of)}</a></div>` : ""}
   </section>
   <p class="error" data-error role="alert" hidden></p>
+  <p class="account" data-account hidden>Ви ввійшли як <b data-account-email></b> · <button class="link" type="button" data-signout>Вийти</button></p>
 </div>
 </dialog>`;
 }
