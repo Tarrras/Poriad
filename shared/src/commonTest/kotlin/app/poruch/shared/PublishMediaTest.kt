@@ -102,31 +102,57 @@ class PublishMediaTest {
     private val kept=EventMedia(MediaKind.PHOTO,"https://test.invalid/e1/kept.jpg")
     private val dropped=EventMedia(MediaKind.VIDEO,"https://test.invalid/e1/v.mp4","https://test.invalid/e1/p.jpg")
     /** Подія з повними медіа, як її віддає `event_details`. */
-    private val withMedia=Event("e1","Прогулянка","Опис",EventCategory.OUTDOORS,"Київ","Поділ","2090-01-01T10:00:00Z","2090-01-01T12:00:00Z",
-        "Europe/Kyiv",EventStatus.PUBLISHED,50.45,30.52,kept.url,Gathering("user","Я",10,0,false),media=listOf(dropped,kept),mediaLoaded=true)
+    private val withMedia=Event("e1","Прогулянка","Зустріч у центрі міста",EventCategory.OUTDOORS,"Київ","Поділ","2090-01-01T10:00:00Z","2090-01-01T12:00:00Z",
+        "Europe/Kyiv",EventStatus.PUBLISHED,50.45,30.52,dropped.poster,Gathering("user","Я",10,0,false),media=listOf(dropped,kept),mediaLoaded=true)
+    private fun sent(events:Events)=events.updatedDrafts.last().media!!.map { (it as DraftMedia.Remote).media }
 
     /**
-     * Правка з повних медіа: нові файли — до збереження, усе одним `update_event`; хибна чернетка нічого не вантажить;
-     * прибрані з події файли зникають і зі сховища. Без розділу медіа (null) — нічого не вантажимо й не видаляємо.
+     * Правка з повних медіа ([PoruchApp.editDraft]): нові файли — до збереження, усе одним `update_event`; хибна чернетка
+     * нічого не вантажить; прибрані з події файли зникають і зі сховища. Без розділу медіа (null) — нічого не чіпаємо.
      */
     @Test fun editingUploadsBeforeSavingAndDropsRemoved()=runTest {
         val events=Events(); val app=testApp(events,backgroundScope)
         events.detailsById=mapOf("e1" to withMedia)
         runCurrent()
-        app.updateEvent("e1",walk.copy(title="",media=listOf(DraftMedia.Remote(kept),photo),mediaFromDetails=true)); runCurrent()
+        val draft=app.editDraft(withMedia)!!
+        app.updateEvent("e1",draft.copy(title="",media=listOf(DraftMedia.Remote(kept),photo))); runCurrent()
         assertTrue(events.uploads.isEmpty())
         assertIs<AppNotice.Failed>(app.state.value.notice)
 
-        app.updateEvent("e1",walk); runCurrent()
+        app.updateEvent("e1",draft.copy(media=null)); runCurrent()
         assertNull(events.updatedDrafts.single().media,"an editor without media leaves them alone")
+        assertEquals(withMedia.imageUrl,events.updatedDrafts.single().imageUrl,"and the cover too")
         assertTrue(events.deletedFiles.isEmpty())
 
-        app.updateEvent("e1",walk.copy(media=listOf(DraftMedia.Remote(kept),photo),mediaFromDetails=true)); runCurrent()
+        app.updateEvent("e1",draft.copy(media=listOf(DraftMedia.Remote(kept),photo))); runCurrent()
         assertEquals(listOf("photo:a"),events.uploads)
-        assertEquals(listOf(kept,EventMedia(MediaKind.PHOTO,"https://test.invalid/e1/1-photo")),
-            events.updatedDrafts.last().media!!.map { (it as DraftMedia.Remote).media })
-        assertEquals(listOf(dropped.url,dropped.poster),events.deletedFiles,"the removed video and its poster")
+        assertEquals(listOf(kept,EventMedia(MediaKind.PHOTO,"https://test.invalid/e1/1-photo")),sent(events))
+        assertNull(events.updatedDrafts.last().imageUrl,"the server takes the cover from the media")
+        assertEquals(setOf(dropped.url,dropped.poster),events.deletedFiles.toSet(),"the removed video and its poster")
         assertEquals(AppNotice.Told(AppMessage.CHANGES_SAVED),app.state.value.notice)
+        app.close()
+    }
+
+    /** Поки редактор був відкритий, у кабінеті додали фото Y: збереження з застосунку його не прибирає й не видаляє. */
+    @Test fun aPhotoAddedOnTheWebMeanwhileStays()=runTest {
+        val events=Events(); val app=testApp(events,backgroundScope)
+        val draft=app.editDraft(withMedia)!!
+        val y=EventMedia(MediaKind.PHOTO,"https://test.invalid/e1/y.jpg")
+        events.detailsById=mapOf("e1" to withMedia.copy(media=listOf(dropped,kept,y)))
+        runCurrent(); app.updateEvent("e1",draft.copy(media=listOf(DraftMedia.Remote(kept)))); runCurrent()
+        assertEquals(listOf(kept,y),sent(events))
+        assertEquals(setOf(dropped.url,dropped.poster),events.deletedFiles.toSet(),"only what the editor saw and removed")
+        app.close()
+    }
+
+    /** У кабінеті тим часом прибрали відео X: застосунок не повертає мертве посилання і не видаляє вдруге. */
+    @Test fun aVideoRemovedOnTheWebMeanwhileIsNotRevived()=runTest {
+        val events=Events(); val app=testApp(events,backgroundScope)
+        val draft=app.editDraft(withMedia)!!
+        events.detailsById=mapOf("e1" to withMedia.copy(media=listOf(kept),imageUrl=kept.url))
+        runCurrent(); app.updateEvent("e1",draft.copy(media=draft.media!!+photo)); runCurrent()
+        assertEquals(listOf(kept,EventMedia(MediaKind.PHOTO,"https://test.invalid/e1/1-photo")),sent(events))
+        assertTrue(events.deletedFiles.isEmpty())
         app.close()
     }
 
@@ -136,12 +162,23 @@ class PublishMediaTest {
      */
     @Test fun editingFromACardNeverLosesTheMedia()=runTest {
         val events=Events(); val app=testApp(events,backgroundScope)
-        events.detailsById=mapOf("e1" to withMedia)
-        runCurrent()
-        app.updateEvent("e1",walk.copy(media=listOf(DraftMedia.Remote(EventMedia(MediaKind.PHOTO,kept.url)),photo))); runCurrent()
-        assertEquals(listOf(dropped,kept,EventMedia(MediaKind.PHOTO,"https://test.invalid/e1/1-photo")),
-            events.updatedDrafts.single().media!!.map { (it as DraftMedia.Remote).media })
+        events.detailsById=mapOf("e1" to withMedia.copy(imageUrl=kept.url))
+        val card=withMedia.copy(media=emptyList(),mediaLoaded=false,imageUrl=kept.url)
+        runCurrent(); app.updateEvent("e1",app.editDraft(card)!!.let { it.copy(media=it.media!!+photo) }); runCurrent()
+        assertEquals(listOf(dropped,kept,EventMedia(MediaKind.PHOTO,"https://test.invalid/e1/1-photo")),sent(events))
         assertTrue(events.deletedFiles.isEmpty())
+        assertEquals(AppNotice.Told(AppMessage.CHANGES_SAVED),app.state.value.notice)
+        app.close()
+    }
+
+    /** Подія з самими відео: обкладинка — постер першого, і з картки він не дублюється фото, навіть коли відео п'ять. */
+    @Test fun aPosterCoverIsNotDuplicatedAsAPhoto()=runTest {
+        val events=Events(); val app=testApp(events,backgroundScope)
+        val videos=List(5) { EventMedia(MediaKind.VIDEO,"https://test.invalid/e1/$it.mp4","https://test.invalid/e1/$it.jpg") }
+        events.detailsById=mapOf("e1" to withMedia.copy(media=videos,imageUrl=videos[0].poster))
+        val card=withMedia.copy(media=emptyList(),mediaLoaded=false,imageUrl=videos[0].poster)
+        runCurrent(); app.updateEvent("e1",app.editDraft(card)!!); runCurrent()
+        assertEquals(videos,sent(events))
         assertEquals(AppNotice.Told(AppMessage.CHANGES_SAVED),app.state.value.notice)
         app.close()
     }

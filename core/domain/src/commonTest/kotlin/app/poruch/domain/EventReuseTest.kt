@@ -46,14 +46,33 @@ class EventReuseTest {
         assertFalse("\n\n\n" in ThreadsPost.text(club.copy(description = "")), "no empty paragraph")
     }
 
-    /** «За подією і роллю» (1.6): анонс — лише організатор своєї звичайної спільнотної події; решта ділиться з другом. */
+    /** «За подією і роллю» (1.6): анонс — лише організатор своєї звичайної спільнотної події, що ще попереду. */
     @Test fun whoPromotesAndWhoSharesWithAFriend() {
-        assertEquals(ShareMode.PROMOTE, ShareRules.mode(club, "me"), "my own community event")
-        assertEquals(ShareMode.FRIEND, ShareRules.mode(club, "someone"), "a guest on someone else's event")
-        assertEquals(ShareMode.FRIEND, ShareRules.mode(club, null), "not signed in")
+        val before = Instant.parse("2026-10-01T12:00:00Z")
+        assertEquals(ShareMode.PROMOTE, ShareRules.mode(club, "me", before), "my own community event")
+        assertEquals(ShareMode.FRIEND, ShareRules.mode(club, "someone", before), "a guest on someone else's event")
+        assertEquals(ShareMode.FRIEND, ShareRules.mode(club, null, before), "not signed in")
         val companion = club.copy(gathering = club.gathering!!.copy(companionOf = CompanionParent("p1", "Концерт", null)))
-        assertEquals(ShareMode.FRIEND, ShareRules.mode(companion, "me"), "my «Шукаю компанію» is about someone else's listing")
-        assertEquals(ShareMode.FRIEND, ShareRules.mode(club.copy(gathering = null, listing = Listing("Karabas")), "me"), "a listing")
+        assertEquals(ShareMode.FRIEND, ShareRules.mode(companion, "me", before), "my «Шукаю компанію» is about someone else's listing")
+        assertEquals(ShareMode.FRIEND, ShareRules.mode(club.copy(gathering = null, listing = Listing("Karabas")), "me", before), "a listing")
+        assertEquals(ShareMode.FRIEND, ShareRules.mode(club.copy(status = EventStatus.CANCELLED), "me", before), "cancelled")
+        assertEquals(ShareMode.FRIEND, ShareRules.mode(club, "me", Instant.parse("2026-10-21T12:00:00Z")), "over")
+    }
+
+    /** Чернетку правки будує спільний шар: база медіа — лише з повних медіа; стара обкладинка — першим фото. */
+    @Test fun anEditDraftKnowsWhatTheEditorOpenedWith() {
+        val video = EventMedia(MediaKind.VIDEO, "https://s/e1/v.mp4", "https://s/e1/p.jpg")
+        val full = EventEdit.draft(club.copy(media = listOf(video), mediaLoaded = true))!!
+        assertEquals(listOf(DraftMedia.Remote(video)), full.media)
+        assertEquals(setOf(video.url, video.poster!!), full.mediaBase)
+        assertEquals(club.imageUrl, full.imageUrl, "kept for an edit that leaves the media alone")
+        assertEquals(listOf(club.startsAt, club.endsAt), listOf(full.startsAt, full.endsAt))
+
+        val card = EventEdit.draft(club)!!
+        assertEquals(listOf(DraftMedia.Remote(EventMedia(MediaKind.PHOTO, club.imageUrl!!))), card.media, "the cover is shown as a photo")
+        assertNull(card.mediaBase, "a card saw nothing: nothing may be removed")
+        assertEquals(setOf(club.imageUrl!!), EventEdit.draft(club.copy(mediaLoaded = true))!!.mediaBase)
+        assertNull(EventEdit.draft(club.copy(gathering = null, listing = Listing("Karabas"))))
     }
 
     @Test fun aFailedAnnouncementStillFillsTitleAndDescription() {

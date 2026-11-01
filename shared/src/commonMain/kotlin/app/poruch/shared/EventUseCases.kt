@@ -360,26 +360,35 @@ internal class EventUseCases(
     private suspend fun read(bytes: MediaBytes): ByteArray = withContext(compute) { bytes.read() }
 
     /**
-     * Медіа правки проти повних медіа події на сервері (`event_details`, щойно прочитаних): що зберегти і які файли
-     * видалити. Чернетка з повних медіа ([EventDraft.mediaFromDetails]) — авторитетна: зникле з неї видаляємо. Інакше
-     * (редактор відкрили з картки без медіа, а обкладинку взяли за фото) список лише додає: серверні медіа лишаються
-     * першими, нове — за ними, і жоден файл не зникає. Деталі не прочитались — помилка, і нічого не пишемо.
-     * ponytail: файл, доданий у кабінеті, поки був відкритий редактор з повних медіа, теж зникне; ширше — звіряти з тим,
-     * що редактор бачив на відкритті.
+     * Медіа правки проти медіа події на сервері (`event_details`, щойно прочитаних): що зберегти і які файли видалити.
+     * - Видаляємо лише файли, з якими редактор відкрився ([EventDraft.mediaBase]) і яких у чернетці вже нема: те, чого
+     *   редактор не бачив, не зникне.
+     * - Файли сервера, яких редактор не бачив (додали в кабінеті, поки він був відкритий), — у кінець. Редактор з картки
+     *   (бази нема) не бачив нічого: серверні медіа лишаються першими, нове — за ними.
+     * - Файли з чернетки, яких на сервері вже нема (прибрали в кабінеті), викидаємо: інакше лишилось би мертве посилання.
+     *   Крім старої обкладинки без медіа — вона стає першим фото.
+     * Порівнюємо адреси й постери: обкладинка події з самими відео — постер першого, і редактор з картки не має її
+     * дублювати фото. Деталі не прочитались чи файлів стало б понад 5 — помилка до вивантаження, без запису.
      */
     private suspend fun reconcile(id: String, draft: EventDraft, media: List<DraftMedia>): Pair<EventDraft, List<String>> {
         val full = events.details(id) ?: fail(AppError.EventUnavailable)
         val server = full.media.takeIf { full.mediaLoaded }.orEmpty()
         fun files(m: EventMedia) = listOfNotNull(m.url, m.poster)
-        if (draft.mediaFromDetails && full.mediaLoaded) {
-            val kept = media.mapNotNull { (it as? DraftMedia.Remote)?.media }.flatMap(::files).toSet()
-            return draft to server.flatMap(::files).filterNot { it in kept }
+        val onServer = server.flatMap(::files).toSet() + listOfNotNull(full.imageUrl)
+        val base = draft.mediaBase
+        val alive = media.filter { it !is DraftMedia.Remote || it.media.url in onServer }
+        val (merged, removed) = if (base == null) {
+            val known = server.flatMap(::files).toSet()
+            server.map { DraftMedia.Remote(it) } + alive.filterNot { it is DraftMedia.Remote && files(it.media).any { f -> f in known } } to emptyList()
+        } else {
+            val kept = alive.mapNotNull { (it as? DraftMedia.Remote)?.media }.flatMap(::files).toSet()
+            val unseen = server.filter { m -> files(m).none { it in base || it in kept } }
+            alive + unseen.map { DraftMedia.Remote(it) } to (onServer intersect base).filterNot { it in kept }
         }
-        val known = server.map { it.url }.toSet()
-        val merged = server.map { DraftMedia.Remote(it) } + media.filterNot { it is DraftMedia.Remote && it.media.url in known }
         // До вивантаження: інакше файли лягли б у теку, а `update_event` відмовив би.
         if (merged.size > MediaRules.MAX_ITEMS) fail(AppError.InvalidDraft(listOf(DraftField.IMAGE_URL)))
-        return draft.copy(media = merged) to emptyList()
+        // Обкладинку з медіа ставить сервер; запасна — лише для редактора з картки, коли медіа без фото й відео.
+        return draft.copy(media = merged, imageUrl = if (base == null) full.imageUrl else null) to removed
     }
 
     /** Постер без свого відео нікому не потрібен. */

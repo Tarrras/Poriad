@@ -476,8 +476,15 @@ class PoruchApp internal constructor(
     /** «Піти разом» з людиною з наміром на відкриту афішу. */
     fun sayCompanyYes(userId: String) = eventUseCases.sayCompanyYes(userId)
     /**
-     * Збереження правки. [EventDraft.media] null — медіа не чіпаємо (редактор без розділу «Фото й відео»). З розділом —
-     * чернетка бере медіа події як `event.media.map { DraftMedia.Remote(it) }`, а прибрані файли зникають і зі сховища.
+     * Чернетка правки власної події для редактора ([EventEdit.draft]): усі поля, медіа й [EventDraft.mediaBase] — файли, з
+     * якими редактор відкрився. Редактор міняє лише поля й [EventDraft.media]; не чіпав медіа — шле `media = null`. Чужа
+     * подія чи афіша — null.
+     */
+    fun editDraft(event: Event): EventDraft? = if (state.value.organizes(event)) EventEdit.draft(event) else null
+
+    /**
+     * Збереження правки з [editDraft]. [EventDraft.media] null — медіа не чіпаємо. Зі списком — звіряємо з сервером:
+     * видаляються лише файли, з якими редактор відкрився і які з нього прибрали; додане в кабінеті тим часом лишається.
      */
     fun updateEvent(id: String, draft: EventDraft) = eventUseCases.update(id, draft)
 

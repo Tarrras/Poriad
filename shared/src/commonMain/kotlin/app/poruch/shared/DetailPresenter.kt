@@ -159,7 +159,7 @@ data class DetailScreenState(
      * Підпис і зміст «Поширити» (docs/organizers-1.5.md, 1.6): організатор своєї звичайної спільнотної події — «Поширити
      * анонс» ([PoruchApp.threadsPost]); усі інші — «Поділитися з другом», механіка [canInvite] (особисте `?by=`).
      */
-    val shareMode: ShareMode get() = event?.let { ShareRules.mode(it, userId) } ?: ShareMode.FRIEND
+    val shareMode: ShareMode get() = event?.takeIf { !ended }?.let { ShareRules.mode(it, userId, Clock.System.now()) } ?: ShareMode.FRIEND
     /** Кімната, якщо це кімната. Місця й участь лише в неї. */
     val room: Gathering? get() = event?.gathering
     /** Оголошення, якщо це афіша. Тоді дія одна: вийти на джерело. */

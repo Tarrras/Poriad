@@ -45,7 +45,7 @@ data class Event(
     val media: List<EventMedia> = emptyList(),
     /**
      * [media] — повні, з `event_details` чи «Моїх подій». Картки стрічки медіа не несуть, і тоді порожній [media] нічого не
-     * каже: редактор з такої картки ставить [EventDraft.mediaFromDetails] = false.
+     * каже: чернетка правки з такої картки ([EventEdit.draft]) не має [EventDraft.mediaBase].
      */
     val mediaLoaded: Boolean = false
 ) : Rankable {
@@ -445,11 +445,12 @@ data class EventDraft(
      */
     val media: List<DraftMedia>? = null,
     /**
-     * [media] правки зібрано з повних медіа події ([Event.mediaLoaded]): чого в списку нема, те людина прибрала, і файл
-     * видаляємо. False (редактор відкрили з картки, деталі ще їхали) — список лише додає до того, що на сервері: нічого не
-     * зникне. Нової події не стосується.
+     * Файли (адреси й постери), з якими редактор правки відкрився з повних медіа ([Event.mediaLoaded]); ставить
+     * [EventEdit.draft]. Видалити можна лише звідси: що з цього зникло з [media], те людина прибрала. Чого тут нема, а на
+     * сервері є (додали в кабінеті, поки був відкритий редактор), — лишається. Null — редактор з картки, деталі ще їхали:
+     * список лише додає до серверних медіа, і нічого не зникає. Нової події не стосується.
      */
-    val mediaFromDetails: Boolean = false
+    val mediaBase: Set<String>? = null
 ) {
     fun validate(now: String): List<DraftField> = buildList {
         if (title.trim().length !in EventRules.titleLength) add(DraftField.TITLE)
