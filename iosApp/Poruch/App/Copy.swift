@@ -991,6 +991,14 @@ enum Copy {
     static let repeat_event = "Повторити"
     static let threads_post = "Пост для Threads"
     static let threads_copied = "Текст скопійовано"
+    static let share_promote = "Поширити анонс"
+    static let share_friend = "Поділитися з другом"
+    static let publishing_caption = "Публікуємо подію…"
+    static let published_title = "Подію створено"
+    static let published_copy_link = "Скопіювати посилання"
+    static let published_link_copied = "Посилання скопійовано"
+    static let published_calendar = "Додати в календар"
+    static let published_done = "Готово"
     static let confirm_age_adult_action = "Підтвердити"
 
     // ---- Множини: `one` / `few` / `many` за українським правилом, число підставляється замість %d.

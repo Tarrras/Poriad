@@ -52,16 +52,17 @@ struct EditorForm: Codable, Equatable {
     /// Порушені правила. Та сама `EventDraft.validate`, що на Android і в спільному шарі, тож межі
     /// з `EventRules` не дублюються тут числами. Медіа не перевіряємо: вибір і так не дає більше пʼяти.
     func issues(imageUrl: String?) -> [DraftField] {
-        build(imageUrl: imageUrl, media: nil).validate(now: iso.string(from: Date()))
+        build(imageUrl: imageUrl, media: nil, mediaBase: nil).validate(now: iso.string(from: Date()))
     }
 
-    /// Nil, поки хоч одне поле порушує правило. Публікація дивиться сюди. [media] null — медіа події не чіпати.
-    func draft(imageUrl: String?, media: [DraftMedia]?) -> EventDraft? {
-        let draft = build(imageUrl: imageUrl, media: media)
+    /// Nil, поки хоч одне поле порушує правило. Публікація дивиться сюди. [media] null — медіа події не чіпати;
+    /// [mediaBase] — з `PoruchApp.editDraft`, з якими файлами правка відкрилась.
+    func draft(imageUrl: String?, media: [DraftMedia]?, mediaBase: Set<String>?) -> EventDraft? {
+        let draft = build(imageUrl: imageUrl, media: media, mediaBase: mediaBase)
         return draft.validate(now: iso.string(from: Date())).isEmpty ? draft : nil
     }
 
-    private func build(imageUrl: String?, media: [DraftMedia]?) -> EventDraft {
+    private func build(imageUrl: String?, media: [DraftMedia]?, mediaBase: Set<String>?) -> EventDraft {
         EventDraft(
             title: title.trimmed, description: description.trimmed, category: category,
             // Без обраної крапки — NaN: правило LOCATION не пропустить центр міста як місце зустрічі.
@@ -70,7 +71,7 @@ struct EditorForm: Codable, Equatable {
             startsAt: iso.string(from: starts), endsAt: iso.string(from: ends),
             timeZone: timeZone, capacity: Int32(capacity), imageUrl: imageUrl,
             minAge: Int32(minAge), maxAge: maxAge.map { KotlinInt(int: Int32($0)) },
-            approvalRequired: approvalRequired, contactUrl: contactLink, media: media
+            approvalRequired: approvalRequired, contactUrl: contactLink, media: media, mediaBase: mediaBase
         )
     }
 }
@@ -160,6 +161,8 @@ enum EditorStep: Int, CaseIterable, Identifiable {
     private let home: AppState?
     /// «Повторити»: нова подія з полями, фото й відео іншої. Чернетки не пише й не читає — її можна повторити знову.
     private let repeated: EventDraft?
+    /// Правка: чернетка зі спільного шару (`PoruchApp.editDraft`) — поля, медіа й `mediaBase`, з якими редактор відкрився.
+    private let edited: EventDraft?
     /// Форма, як вона прийшла з сервера: з нею звіряємо, чи є що втратити.
     private var original: EditorForm?
     /// Нову подію почали з незакінченої чернетки: параметр `draft` воронки створення.
@@ -189,6 +192,7 @@ enum EditorStep: Int, CaseIterable, Identifiable {
         self.event = event
         self.home = home
         self.repeated = repeated
+        edited = event.flatMap { app.editDraft(event: $0) }
         restore()
         issues = form.issues(imageUrl: event?.imageUrl)
         resumed = canStartOver
@@ -487,7 +491,7 @@ enum EditorStep: Int, CaseIterable, Identifiable {
         if let field = issues.first { blocked(by: field); return show(field) }
         // Медіа правки, яких не чіпали, — null: сервер лишає як є. Інакше обкладинку дає перше фото, а не стара адреса.
         let media = editing && form.media == original?.media ? nil : (form.media ?? []).map(\.draftMedia)
-        guard let draft = form.draft(imageUrl: media == nil ? event?.imageUrl : nil, media: media) else { return }
+        guard let draft = form.draft(imageUrl: media == nil ? edited?.imageUrl : nil, media: media, mediaBase: edited?.mediaBase) else { return }
         persist()
         app.clearCompletedEvent()
         submitted = true
@@ -541,11 +545,12 @@ enum EditorStep: Int, CaseIterable, Identifiable {
     }
 
     private func restore() {
-        if let repeated {
-            form = EditorForm(repeating: repeated)
+        // Повтор і правка — з чернеток спільного шару (`repeatDraft`, `editDraft`): медіа й обкладинку складає він.
+        if let source = repeated ?? edited {
+            form = EditorForm(draft: source)
             original = form
             pointChosen = true
-            accepted = repeated.address
+            accepted = source.address
             return
         }
         if event == nil, let data = UserDefaults.standard.data(forKey: storageKey),
@@ -561,23 +566,7 @@ enum EditorStep: Int, CaseIterable, Identifiable {
             accepted = saved.address.isEmpty ? nil : saved.address
             return
         }
-        // Редагувати можна лише кімнату: сервер перевіряє те саме в `assert_event_editable`.
-        if let event, let room = event.gathering {
-            form = EditorForm(
-                title: event.title, description: event.description_, categoryKey: event.category.key,
-                city: event.city, address: event.address, latitude: event.latitude, longitude: event.longitude,
-                starts: parseEventDate(event.startsAt) ?? Date(), ends: parseEventDate(event.endsAt) ?? Date(),
-                timeZone: event.timeZone, capacity: Int(room.capacity),
-                minAge: Int(room.minAge), maxAge: room.maxAge.map { Int(truncating: $0) },
-                approvalRequired: room.approvalRequired, contactUrl: room.contactUrl,
-                // Лише справжні `media` події (деталі, а не картка — «Редагувати» чекає на них). Не чіпали — `null`.
-                media: event.media.map { DraftItem($0, origin: .remote) }
-            )
-            form.placed = true
-            original = form
-            pointChosen = true
-            accepted = event.address
-        } else if event == nil {
+        if event == nil {
             form.city = home?.city.name ?? HomeLocation.companion.Kyiv.city
             form.latitude = home?.city.latitude ?? HomeLocation.companion.Kyiv.latitude
             form.longitude = home?.city.longitude ?? HomeLocation.companion.Kyiv.longitude
@@ -593,8 +582,9 @@ private final class OrphanFiles {
 }
 
 extension EditorForm {
-    /// Форма з чернетки «Повторити» (`PoruchApp.repeatDraft`): ті самі поля, дата на тиждень пізніше, медіа — копії.
-    init(repeating draft: EventDraft) {
+    /// Форма з чернетки спільного шару: правка (`editDraft`, медіа — уже в події) чи «Повторити» (`repeatDraft`, дата на
+    /// тиждень пізніше, медіа — копії).
+    init(draft: EventDraft) {
         self.init(
             title: draft.title, description: draft.description_, categoryKey: (draft.category ?? defaultCategory).key,
             city: draft.city, address: draft.address, latitude: draft.latitude, longitude: draft.longitude, placed: true,
@@ -603,7 +593,7 @@ extension EditorForm {
             approvalRequired: draft.approvalRequired, contactUrl: draft.contactUrl,
             media: (draft.media ?? []).compactMap { item in
                 (item as? DraftMediaCopied).map { DraftItem($0.media, origin: .copied) }
-                    ?? (item as? DraftMediaRemote).map { DraftItem($0.media, origin: .copied) }
+                    ?? (item as? DraftMediaRemote).map { DraftItem($0.media, origin: .remote) }
             }
         )
     }

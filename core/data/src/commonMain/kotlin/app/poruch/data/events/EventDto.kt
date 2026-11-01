@@ -97,7 +97,7 @@ internal data class EventDto(
     @SerialName("checked_at") val checkedAt: String? = null,
     val offers: List<OfferDto> = emptyList(),
     // Міграція 20261118120000: фото й відео від організатора. Картки з `discover_events` і кеш до неї поля не несуть.
-    val media: List<MediaDto> = emptyList()
+    val media: List<MediaDto>? = null
 ) {
     fun domain() = Event(
         id = id, title = title, description = description, category = EventCategory.fromKey(category),
@@ -105,7 +105,8 @@ internal data class EventDto(
         startsAt = startsAt, endsAt = endsAt, timeZone = timeZone, status = EventStatus.fromKey(status),
         latitude = latitude, longitude = longitude, imageUrl = imageUrl,
         gathering = gathering(), listing = listing(),
-        artists = artists.map { it.domain() }, blurb = blurb, pitch = pitch, media = media.mapNotNull { it.domain() }
+        artists = artists.map { it.domain() }, blurb = blurb, pitch = pitch,
+        media = media.orEmpty().mapNotNull { it.domain() }, mediaLoaded = media != null
     )
 
     /**
