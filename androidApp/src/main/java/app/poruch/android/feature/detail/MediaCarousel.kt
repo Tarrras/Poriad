@@ -52,7 +52,8 @@ internal fun MediaCarousel(media: List<EventMedia>, pager: PagerState, modifier:
         if (item.kind == MediaKind.PHOTO) AsyncImage(item.url, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
         else Box(Modifier.fillMaxSize().clickable(onClickLabel = play) { opened = item }) {
             AsyncImage(item.poster, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-            if (!reduced && pager.settledPage == page) VideoSurface(rememberVideoPlayer(item.url, muted = true), crop = true, Modifier.fillMaxSize())
+            // Відкрили на весь екран — обкладинка стоїть: два плеєри тягнули б той самий файл двічі.
+            if (!reduced && pager.settledPage == page && opened == null) VideoSurface(rememberVideoPlayer(item.url, muted = true), crop = true, Modifier.fillMaxSize())
             else Icon(
                 PoruchIcons.play, null,
                 Modifier.align(Alignment.Center).size(56.dp).background(Color.Black.copy(alpha = 0.4f), CircleShape).padding(14.dp),

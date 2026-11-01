@@ -9,6 +9,8 @@ import android.os.Looper
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.util.UnstableApi
+import android.media.MediaCodecInfo
+import androidx.media3.effect.FrameDropEffect
 import androidx.media3.effect.Presentation
 import androidx.media3.transformer.AudioEncoderSettings
 import androidx.media3.transformer.Composition
@@ -94,8 +96,8 @@ class DraftMediaFiles(private val context: Context) {
     }
 
     /**
-     * Відео: перші [MediaRules.VIDEO_MAX_SECONDS] с, H.264 з коротшою стороною до 720, ≈ 2 Мбіт/с. Кодек сам може
-     * перебрати бітрейт, тож завелике — ще раз тихіше. Обкладинка — перший кадр у JPEG.
+     * Відео: перші [MediaRules.VIDEO_MAX_SECONDS] с, H.264 з коротшою стороною до 720, до 30 кадрів, ≈ 1,6 Мбіт/с.
+     * Завелике (кодек перебрав бітрейт) — ще раз у 540. Обкладинка — перший кадр у JPEG.
      */
     @androidx.annotation.OptIn(UnstableApi::class)
     private suspend fun video(uri: Uri, key: String): Imported {
@@ -109,8 +111,8 @@ class DraftMediaFiles(private val context: Context) {
             } finally { retriever.release() }
         }
         val out = file(key, MediaKind.VIDEO)
-        for (bitrate in VIDEO_BITRATES) {
-            transcode(uri, out, bitrate, scale = shortSide > SHORT_SIDE)
+        for ((side, bitrate) in ATTEMPTS) {
+            transcode(uri, out, bitrate, side.takeIf { shortSide > it })
             if (out.length() <= MediaRules.VIDEO_MAX_BYTES) break
         }
         require(out.length() in 1..MediaRules.VIDEO_MAX_BYTES) { "video too large: ${out.length()}" }
@@ -119,16 +121,16 @@ class DraftMediaFiles(private val context: Context) {
     }
 
     @androidx.annotation.OptIn(UnstableApi::class)
-    private suspend fun transcode(uri: Uri, out: File, bitrate: Int, scale: Boolean) = withContext(Dispatchers.Main) {
+    private suspend fun transcode(uri: Uri, out: File, bitrate: Int, shortSide: Int?) = withContext(Dispatchers.Main) {
         // Transformer живе на потоці з Looper і там же кличе слухача; важка робота — у його власних потоках.
         suspendCancellableCoroutine { continuation ->
             val item = MediaItem.Builder().setUri(uri)
                 .setClippingConfiguration(
                     MediaItem.ClippingConfiguration.Builder().setEndPositionMs(MediaRules.VIDEO_MAX_SECONDS * 1000L).build()
                 ).build()
-            val edited = EditedMediaItem.Builder(item)
-                .setEffects(Effects(emptyList(), if (scale) listOf(Presentation.createForShortSide(SHORT_SIDE)) else emptyList()))
-                .build()
+            // 60 кадрів з камери — удвічі більше байтів за той самий вигляд у стрічці.
+            val video = listOfNotNull(FrameDropEffect.createDefaultFrameDropEffect(FRAME_RATE), shortSide?.let(Presentation::createForShortSide))
+            val edited = EditedMediaItem.Builder(item).setEffects(Effects(emptyList(), video)).build()
             // HDR з камери в H.264 не влізе: тонуємо в SDR, інакше Safari й Chrome показали б вицвіле.
             val composition = Composition.Builder(EditedMediaItemSequence.Builder(edited).build())
                 .setHdrMode(Composition.HDR_MODE_TONE_MAP_HDR_TO_SDR_USING_OPEN_GL).build()
@@ -136,7 +138,12 @@ class DraftMediaFiles(private val context: Context) {
                 .setVideoMimeType(MimeTypes.VIDEO_H264).setAudioMimeType(MimeTypes.AUDIO_AAC)
                 .setEncoderFactory(
                     DefaultEncoderFactory.Builder(context)
-                        .setRequestedVideoEncoderSettings(VideoEncoderSettings.Builder().setBitrate(bitrate).build())
+                        // CBR: на VBR Android 13+ піднімає бітрейт до своєї «мінімальної якості» (VQApply: 1,6 → 2,07 Мбіт/с
+                        // для 720p30), і 30 с упиралися в 8 МБ. Кодек без CBR лишається на своєму режимі.
+                        .setRequestedVideoEncoderSettings(
+                            VideoEncoderSettings.Builder().setBitrate(bitrate)
+                                .setBitrateMode(MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CBR).build()
+                        )
                         .setRequestedAudioEncoderSettings(AudioEncoderSettings.Builder().setBitrate(AUDIO_BITRATE).build())
                         .build()
                 )
@@ -167,12 +174,9 @@ class DraftMediaFiles(private val context: Context) {
 
     private companion object {
         const val DIR = "draft_media"
-        const val SHORT_SIDE = 720
-        /**
-         * 30 с × (1,6 Мбіт/с відео + 96 кбіт/с звук) ≈ 6,4 МБ: програмний кодек емулятора перебирав 1,8 до 2,03 і впирався
-         * в 8 МБ. Запасний — коли перебрав і цей.
-         */
-        val VIDEO_BITRATES = listOf(1_600_000, 1_000_000)
+        const val FRAME_RATE = 30f
+        /** Коротша сторона й бітрейт: 30 с × (1,6 Мбіт/с + 96 кбіт/с звук) ≈ 6,4 МБ; запасний 540 — коли кодек перебрав. */
+        val ATTEMPTS = listOf(720 to 1_600_000, 540 to 900_000)
         const val AUDIO_BITRATE = 96_000
         const val POSTER_QUALITY = 85
     }
