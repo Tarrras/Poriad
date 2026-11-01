@@ -17,12 +17,12 @@
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"Поряд","alternateName":"Poriad","url":"https://poriad.app/"}</script>
 <link rel="preconnect" href="https://tzdogzdvctlumsqlqskr.supabase.co" crossorigin>
 <link rel="preload" href="fonts/sofia-sans-condensed-800.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="tokens.css?v=11">
-<link rel="stylesheet" href="web.css?v=11">
+<link rel="stylesheet" href="tokens.css?v=12">
+<link rel="stylesheet" href="web.css?v=12">
 <link rel="icon" href="icon.png">
 <link rel="apple-touch-icon" href="icon.png">
-<script>document.documentElement.classList.add("js");setTimeout(function(){if(!window.poriadReady)document.documentElement.classList.remove("js")},3000)</script>
-<script type="module" src="js/home.js?v=11"></script>
+<script src="js/boot.js?v=12"></script>
+<script type="module" src="js/home.js?v=12"></script>
 </head>
 <body>
 
@@ -72,8 +72,8 @@
   <div class="wrap people">
     <div>
       <h2 class="h2 reveal">Зберіть своїх</h2>
-      <p class="copy reveal" style="--d:.08s">Зустріч від людей&nbsp;— квиток, який друкуєте самі. Опишіть, що збираєте, поставте точку на мапі, виберіть час і скільки людей шукаєте. Хто хоче долучитися, натискає «Приєднатися», а коли місць нема, стає в чергу.</p>
-      <div class="slip reveal" style="--d:.16s">
+      <p class="copy reveal d08">Зустріч від людей&nbsp;— квиток, який друкуєте самі. Опишіть, що збираєте, поставте точку на мапі, виберіть час і скільки людей шукаєте. Хто хоче долучитися, натискає «Приєднатися», а коли місць нема, стає в чергу.</p>
+      <div class="slip reveal d16">
         <div class="group"><h3>У застосунку</h3>
           <div class="ln"><span>Опис і жанр</span><span>хвилина</span></div>
           <div class="ln"><span>Точка на мапі</span><span>один дотик</span></div>
@@ -86,7 +86,7 @@
       </div>
     </div>
 
-    <div class="printer reveal" style="--d:.1s">
+    <div class="printer reveal d10">
       <div class="chips" role="group" aria-label="Жанр зустрічі" data-genres></div>
       <div class="ticket v blank cat-games" data-ui data-blank>
         <div class="face">
@@ -122,7 +122,7 @@
       </div>
       <div class="stub" data-plate-stub><b class="t" data-plate-time></b><small data-plate-day></small></div>
     </div>
-    <div class="queue reveal" style="--d:.1s" role="group" aria-label="Інші події з афіші" data-plate-queue></div>
+    <div class="queue reveal d10" role="group" aria-label="Інші події з афіші" data-plate-queue></div>
     </div>
     <div class="story">
       <div class="tabs reveal" role="group" aria-label="Можливості" data-story-tabs>
@@ -130,11 +130,11 @@
         <button type="button" aria-pressed="false" data-story="follow">Стежити</button>
         <button type="button" aria-pressed="false" data-story="remind">Нагадування</button>
       </div>
-      <div class="reveal" style="--d:.08s" aria-live="polite">
+      <div class="reveal d08" aria-live="polite">
         <h2 class="h2" data-story-title>Є квиток, нема з ким піти?</h2>
         <p class="copy" data-story-text>На будь-якій події з афіші натисніть «Шукаю компанію» й зберіть невелику компанію. Хто хоче долучитися, надсилає запит, а ви вирішуєте, кого взяти. Лише 18+.</p>
       </div>
-      <div class="cells reveal" style="--d:.16s">
+      <div class="cells reveal d16">
         <a class="btn primary" href="https://apps.apple.com/app/apple-store/id6813543772?pt=129478154&amp;ct=site&amp;mt=8" data-reason="company" data-story-action>Знайти компанію в застосунку</a>
         <a class="btn" href="afisha.html" data-plate-link>Подивитися цю подію</a>
       </div>
@@ -149,8 +149,8 @@
       <div class="board-head">
         <h2 class="word reveal">Афіша</h2>
         <div class="board-side">
-          <p class="copy reveal" style="--d:.06s">Сотні подій з квиткових сервісів і майданчиків міста на одній мапі, з джерелом на кожній картці. Дивитися можна просто тут, без застосунку.</p>
-          <div class="controls reveal" style="--d:.12s"><div class="tabs" role="group" aria-label="Місто" data-cities></div></div>
+          <p class="copy reveal d06">Сотні подій з квиткових сервісів і майданчиків міста на одній мапі, з джерелом на кожній картці. Дивитися можна просто тут, без застосунку.</p>
+          <div class="controls reveal d12"><div class="tabs" role="group" aria-label="Місто" data-cities></div></div>
         </div>
       </div>
       <div class="genres" data-genre-list></div>
@@ -164,10 +164,10 @@
   <div class="wrap">
     <div>
       <h2 class="h2 reveal">Спокійно, як удома</h2>
-      <p class="copy reveal" style="--d:.06s">Тривоги й комендантська&nbsp;— частина вечора, а не тема для паніки. Правила тримає база, а не обіцянки.</p>
-      <p class="note reveal" style="--d:.12s">Укриття за відкритими даними КМДА (CC BY), поки що лише для Києва.</p>
+      <p class="copy reveal d06">Тривоги й комендантська&nbsp;— частина вечора, а не тема для паніки. Правила тримає база, а не обіцянки.</p>
+      <p class="note reveal d12">Укриття за відкритими даними КМДА (CC BY), поки що лише для Києва.</p>
     </div>
-    <div class="menu reveal" style="--d:.1s">
+    <div class="menu reveal d10">
       <div class="group"><h3>Безпека</h3>
         <div class="item"><div class="ln"><span>Укриття біля події</span><span>Київ</span></div><p>Найближчі укриття й метро на сторінці кожної київської події, з маршрутом пішки.</p></div>
         <div class="item"><div class="ln"><span>До комендантської</span><span>усі міста</span></div><p>Скільки вечора лишається після події, одним рядком.</p></div></div>
@@ -189,8 +189,8 @@
   <div class="main">
     <div>
       <h2 class="reveal">Поряд у телефоні</h2>
-      <p class="reveal" style="--d:.06s">Нагадування за годину до початку, «Шукаю компанію», свої зустрічі й мапа навколо вас. <span data-platforms="long">Поки лише для iPhone з iOS&nbsp;17.</span></p>
-      <div class="stores reveal" style="--d:.12s"><a class="store" data-store href="https://apps.apple.com/app/apple-store/id6813543772?pt=129478154&amp;ct=site&amp;mt=8"><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-apple"/></svg><span><small>Завантажити в</small>App Store</span></a></div>
+      <p class="reveal d06">Нагадування за годину до початку, «Шукаю компанію», свої зустрічі й мапа навколо вас. <span data-platforms="long">Поки лише для iPhone з iOS&nbsp;17.</span></p>
+      <div class="stores reveal d12"><a class="store" data-store href="https://apps.apple.com/app/apple-store/id6813543772?pt=129478154&amp;ct=site&amp;mt=8"><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-apple"/></svg><span><small>Завантажити в</small>App Store</span></a></div>
     </div>
     <div data-qr></div>
   </div>

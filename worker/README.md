@@ -3,7 +3,25 @@
 `poriad.app/e/{id}` — сторінка події з прев'ю для Telegram і месенджерів (Open Graph), Smart App Banner на iOS
 і кнопками «Відкрити в «Поряд»» / App Store. Той самий Worker віддає `/.well-known/apple-app-site-association`
 і `/.well-known/assetlinks.json`, за якими iOS і Android відкривають такі посилання одразу в застосунку.
-Решта сайту — як і раніше, GitHub Pages (`site/`): маршрути в `wrangler.toml` перехоплюють лише ці адреси.
+
+## Весь домен і CSP
+
+З 1.5 воркер стоїть на `poriad.app/*`: сайт тримає токен входу в `localStorage`, а його бачить кожна сторінка домену.
+Решту сайту він бере з GitHub Pages тим самим запитом (запит воркера у власну зону Cloudflare йде на origin з DNS, а
+не знову у воркер) і додає до HTML заголовки безпеки; js, css, шрифти й картинки віддає як є.
+
+- Маршрути — таблиця `ROUTES` у `index.mjs`: перший збіг шляху. Нова сторінка чи API — один рядок там.
+- CSP кожен маршрут збирає з частин (`CSP` в `index.mjs`): сторінка події — Supabase у `connect-src` і сховище в
+  `media-src`; міста — лише свій домен; сторінки Pages — ще MapLibre (`site/vendor/`, тайли OpenFreeMap, `blob:`),
+  сховище й `blob:` у `media-src` (відео в кабінеті). Inline-скриптів нема ніде, крім «Поділитися» з хешем;
+  inline-стилів і `on…=` — теж (`tools/site_test.mjs` це перевіряє).
+- Маршрут саме `poriad.app/*`: шаблон без `*` у Cloudflare збігається лише з адресою без рядка запиту, а шаблон з `?`
+  недійсний, тож `https://poriad.app/?fbclid=…` (так Threads та Instagram відкривають кожне посилання) інакше пройшов би
+  повз воркер без CSP. `worker/routes.test.mjs` перевіряє, що кожна `site/*.html` з запитом і без має маршрут.
+- Кожен запит до сайту рахується як запит воркера (безкоштовно — 100 тис. на добу). Щоб js, css, шрифти й картинки
+  йшли з Pages напряму, у панелі: Workers Routes → Add route **без воркера** (None) для `poriad.app/js/*`,
+  `poriad.app/fonts/*`, `poriad.app/img/*`, `poriad.app/vendor/*`, `poriad.app/web.css*`, `poriad.app/tokens.css*`,
+  `poriad.app/style.css*`, `poriad.app/icon.png*`: точніший шаблон перемагає `poriad.app/*`, а файлам CSP не потрібна.
 
 Дані — публічний RPC `event_details` prod-проєкту з publishable-ключем, тобто рівно те, що бачить гість у
 застосунку. Приховані, приватні й заблоковані події він не віддає → сторінка «Подію не знайдено». Відповідь
@@ -26,8 +44,22 @@
 ## Перевірка без Cloudflare
 
 ```bash
-node worker/test.mjs
+node --test worker/*.test.mjs
 ```
+
+`--test` запускає кожен файл окремо (`node worker/*.test.mjs` прогнав би лише перший); те саме робить CI.
+
+## Локально з dev-базою
+
+```bash
+cd worker && npx wrangler dev --env dev
+```
+
+http://localhost:8787 — увесь сайт: сторінки з теки `site/` (assets замість Pages), дані — dev-проєкт Supabase. Сайт
+на `localhost` сам ходить у dev (`SUPABASE` у `site/js/poriad.js`), як і з емулятора Android (`http://10.0.2.2:8787`) і
+з телефона в тій самій мережі (`--ip 0.0.0.0`, адреса Mac у 10.*, 192.168.* чи 172.16–31.*). Вхід через Google локально —
+лише якщо ця адреса з `/**` є в Redirect URLs dev-проєкту. Assets у dev перенаправляє `/x.html` → `/x` і `@` → `%40`;
+на Pages такого нема.
 
 ## Перший деплой (один раз)
 

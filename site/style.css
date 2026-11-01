@@ -21,6 +21,7 @@ h2 { font: 700 28px/1.1 var(--cond); margin: 44px 0 12px; letter-spacing: -.1px;
 h3 { font-size: 17px; margin: 24px 0 8px; }
 .lead { font-size: 19px; line-height: 1.5; color: var(--ink-secondary); margin: 0 0 8px; }
 .meta { font: 600 11px/14px var(--font); letter-spacing: 1px; text-transform: uppercase; color: var(--ink-tertiary); }
+.page-top { margin-top: 32px; }
 main { padding: 8px 0 72px; }
 .card { background: var(--surface); border: 1px solid var(--edge); border-radius: var(--r-lg); padding: 20px; margin: 16px 0; }
 table { width: 100%; border-collapse: collapse; font-size: 15px; line-height: 1.45; margin: 4px 0; }
