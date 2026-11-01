@@ -94,6 +94,25 @@ export function threadsPost(event) {
 /** Інтент Threads приймає лише текст; фото організатор перетягує сам. */
 export const threadsIntent = (text) => `https://www.threads.net/intent/post?text=${encodeURIComponent(text)}`;
 
+// ---- Анімації публікації (1.6, design/lottie/LICENSES.md): корінець запечений кольором музики — фарбуємо в жанр.
+const MUSIC_STUB = [0x60, 0x41, 0xb1].map((v) => v / 255);
+/** Копія даних Lottie, де заливки й обведення кольору музики в шарі «Stub» — кольором `hex` (#rrggbb). */
+export function recolorStub(data, hex) {
+  if (!/^#[0-9a-f]{6}$/i.test(hex ?? "")) return data;
+  const target = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const out = structuredClone(data);
+  const walk = (node) => {
+    if (Array.isArray(node)) return node.forEach(walk);
+    if (!node || typeof node !== "object") return;
+    if ((node.ty === "fl" || node.ty === "st") && node.c?.a === 0 && MUSIC_STUB.every((v, i) => Math.abs(node.c.k[i] - v) < 0.01)) {
+      node.c.k = [...target, node.c.k[3] ?? 1];
+    }
+    Object.values(node).forEach(walk);
+  };
+  out.layers.filter((layer) => layer.nm === "Stub").forEach(walk);
+  return out;
+}
+
 /** Анонс не розібрали: перший непорожній рядок без емодзі й хештегів — назва (до 120). */
 export function firstLine(text) {
   const line = text.split("\n").map((l) => l.replace(/\p{Extended_Pictographic}|️|‍|#[\p{L}\p{N}_]+/gu, "").replace(/\s+/g, " ").trim()).find(Boolean) ?? "";
@@ -303,7 +322,7 @@ async function route() {
   const [, page, id, sub] = location.hash.split("/");
   try {
     if (page === "new") return await showEditor(null);
-    if (page === "e" && UUID.test(id ?? "")) return await (sub === "edit" ? showEditor(id) : showEvent(id));
+    if (page === "e" && UUID.test(id ?? "")) return await (sub === "edit" ? showEditor(id) : sub === "done" ? showDone(id) : showEvent(id));
     return await showList();
   } catch (e) {
     console.warn("kabinet", e);
@@ -416,6 +435,14 @@ async function copyText(text) {
   try { await navigator.clipboard.writeText(text); return true; } catch { return false; }
 }
 
+/** «Поширити анонс» (організатор на своїй події, 1.6): пост для Threads. Вкладка — першою й без await: Safari блокує
+ * window.open після очікування. Текст і так уже в інтенті, копія в буфері — на випадок, якщо інтент його загубить. */
+async function shareAnnouncement(event) {
+  const text = threadsPost(event);
+  window.open(threadsIntent(text), "_blank", "noopener");
+  if (await copyText(text)) ui.toast("Текст скопійовано");
+}
+
 function setupEvent() {
   $("[data-people]").addEventListener("click", async (event) => {
     const button = event.target.closest("[data-approve], [data-decline]");
@@ -435,11 +462,11 @@ function setupEvent() {
     const text = rosterText(roster);
     if (await copyText(text)) ui.toast("Список скопійовано"); else prompt("Список учасників", text);
   });
-  $("[data-threads]").addEventListener("click", async () => {
-    const text = threadsPost(current);
-    // Вкладку — першою й без await: Safari блокує window.open після очікування. Текст і так уже в інтенті.
-    window.open(threadsIntent(text), "_blank", "noopener");
-    if (await copyText(text)) ui.toast("Текст скопійовано");
+  $("[data-threads]").addEventListener("click", () => shareAnnouncement(current));
+  $("[data-done-share]").addEventListener("click", () => shareAnnouncement(current));
+  $("[data-done-copy]").addEventListener("click", async () => {
+    const url = `https://poriad.app/e/${current.id}`;
+    if (await copyText(url)) ui.toast("Посилання скопійовано"); else prompt("Посилання на подію", url);
   });
   $("[data-repeat]").addEventListener("click", async (event) => {
     event.preventDefault();
@@ -460,6 +487,60 @@ function setupEvent() {
       ui.toast(errorText(e));
     }
   });
+}
+
+// ---- Анімації «Корінця» (1.6): lottie_light — SVG без виразів, тож суворій CSP не потрібен unsafe-eval. Тема — як у
+// tokens.css: data-theme на <html>, інакше системна; «Зменшити рух» — стоп-кадр.
+
+const isDark = () => {
+  const theme = document.documentElement.dataset.theme;
+  return theme === "dark" || (theme !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
+};
+let lottieLoading;
+const loadLottie = () => lottieLoading ??= new Promise((resolve, reject) => {
+  const js = Object.assign(document.createElement("script"), { src: "vendor/lottie-web@5.13.0/lottie_light.min.js" });
+  js.addEventListener("load", () => resolve(window.lottie));
+  js.addEventListener("error", () => { lottieLoading = null; reject(new Error("lottie")); });
+  document.head.append(js);
+});
+const playing = new Map(); // контейнер → анімація: нова в тому самому місці прибирає стару
+const stop = (container) => { playing.get(container)?.destroy(); playing.delete(container); };
+
+/** `publishing` — петлею, стоп-кадр 0; `published` — раз, стоп-кадр — останній (штамп уже стоїть). Збій — без анімації. */
+async function animate(container, name, category) {
+  stop(container);
+  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  try {
+    const [lottie, data] = await Promise.all([loadLottie(), fetch(`vendor/lottie/${name}${isDark() ? "_dark" : ""}.json?v=12`).then((r) => r.json())]);
+    const stub = getComputedStyle(document.documentElement).getPropertyValue(`--cat-${category}-stub`).trim();
+    const loop = name === "publishing";
+    const animation = lottie.loadAnimation({ container, renderer: "svg", loop, autoplay: !still, animationData: recolorStub(data, stub) });
+    if (still) animation.addEventListener("DOMLoaded", () => animation.goToAndStop(loop ? 0 : animation.totalFrames - 1, true));
+    playing.set(container, animation);
+  } catch (e) {
+    console.warn("lottie", e.message);
+  }
+}
+
+// ---- «Подію створено» (1.6): лише одразу після публікації; перезавантаження веде на сторінку події.
+
+async function showDone(id) {
+  const fresh = published?.id === id && !published.edited ? published : null;
+  published = null;
+  if (!fresh || !(await signedIn())) {
+    history.replaceState(history.state, "", `#/e/${id}`);
+    return showEvent(id);
+  }
+  view("done");
+  const event = await ownEvent(id);
+  if (!event) return void (location.hash = `#/e/${id}`);
+  current = event;
+  $("[data-done-event]").textContent = `${displayTitle(event.title)} · ${overline(event, new Date(), true)}`;
+  $("[data-done-note]").textContent = fresh.failed
+    ? `Не вдалося додати ${fresh.failed} ${fresh.failed === 1 ? "файл" : fresh.failed < 5 ? "файли" : "файлів"}. Спробуйте ще раз у редагуванні.` : "";
+  $("[data-done-ics]").href = `/e/${event.id}.ics`;
+  $("[data-done-ready]").href = `#/e/${event.id}`;
+  animate($("[data-done-anim]"), "published", event.category);
 }
 
 // ---- Редактор: одна сторінка, чернетка в localStorage, файли — в IndexedDB (localStorage не тримає Blob, а вхід
@@ -636,18 +717,16 @@ const jpeg = (source, [width, height], quality) => new Promise((resolve, reject)
 
 /** Фото: canvas → JPEG, довша сторона до 2048, до 5 МБ. Перекодування заодно прибирає метадані (як `pickedJPEG`). */
 async function photoItem(file) {
-  const src = URL.createObjectURL(file);
+  // createImageBitmap, а не <img>.decode(): decode у фоновій вкладці може не завершитись; поворот з EXIF — як у браузера.
+  const bitmap = await createImageBitmap(file).catch(() => { throw new Error("Не вдалося відкрити це фото"); });
   try {
-    const image = new Image();
-    image.src = src;
-    await image.decode().catch(() => { throw new Error("Не вдалося відкрити це фото"); });
-    const size = fit(image.naturalWidth, image.naturalHeight);
+    const size = fit(bitmap.width, bitmap.height);
     let blob;
-    for (const quality of [0.86, 0.75, 0.6]) if ((blob = await jpeg(image, size, quality)).size <= MEDIA.photoBytes) break;
+    for (const quality of [0.86, 0.75, 0.6]) if ((blob = await jpeg(bitmap, size, quality)).size <= MEDIA.photoBytes) break;
     if (blob.size > MEDIA.photoBytes) throw new Error("Фото завелике навіть після стиснення");
     return { key: crypto.randomUUID(), kind: "photo", blob };
   } finally {
-    URL.revokeObjectURL(src);
+    bitmap.close();
   }
 }
 
@@ -778,8 +857,7 @@ async function showMap() {
   const center = place.placed ? [place.lon, place.lat] : [city.lng, city.lat];
   $("[data-map-hint]").textContent = place.placed ? "Точку поставлено. Її можна перетягнути." : "Клікніть на мапі, щоб поставити точку зустрічі, або оберіть адресу з підказок.";
   if (map) { map.resize(); map.jumpTo({ center, zoom: place.placed ? 16 : 11.3 }); placeMarker(false); return; }
-  const theme = document.documentElement.dataset.theme;
-  const dark = theme === "dark" || (theme !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
+  const dark = isDark();
   // Мапа посеред форми: колесо гортає сторінку, мапу — з Ctrl/⌘, як вбудована мапа на сайтах.
   map = new maplibregl.Map({ container: $("[data-map]"), style: mapStyle(dark), center, zoom: place.placed ? 16 : 11.3, attributionControl: { compact: true }, dragRotate: false,
     cooperativeGestures: true, locale: {
@@ -950,6 +1028,12 @@ async function publish() {
   if (!(await account({ lead: "Подія майже готова. Увійдіть, щоб опублікувати її: тією самою поштою чи Google, що й у застосунку.", intent: { publish: true } }))) return;
   busy.add("publish");
   button.disabled = true;
+  // Поки вантажаться файли — квиток друкується (П2), лічильник файлів під ним; закрити накладку посеред запису не можна.
+  const overlay = $("[data-publishing]");
+  $("[data-publishing-title]").textContent = editing ? "Зберігаємо зміни" : "Публікуємо подію";
+  progress.textContent = "";
+  overlay.showModal();
+  animate($("[data-publishing-anim]"), "publishing", d.category);
   try {
     // id — у чернетці: повтор після збою не створить другу подію (create_event повертає наявну).
     const existed = Boolean(form().dataset.id);
@@ -957,22 +1041,23 @@ async function publish() {
     if (!editing) writeDraft(draft());
     const args = params(d, id);
     const plan = publishPlan({ editing: Boolean(editing), existed, items: media, original });
-    if (plan.create) { progress.textContent = "Публікуємо…"; await rpc("create_event", { ...args, p_media: null, p_via: "web" }); }
+    if (plan.create) await rpc("create_event", { ...args, p_media: null, p_via: "web" });
     const { list, failed } = plan.upload ? await uploadMedia(id) : { list: null, failed: 0 };
     progress.textContent = "Зберігаємо…";
     if (plan.update) await rpc("update_event", { ...args, p_media: list });
     if (editing && list) removeFiles(editing.media ?? [], list);
     if (!editing) { writeDraft(null); media = []; mediaStore([]); }
     published = { id, failed, edited: Boolean(editing) };
-    progress.textContent = "";
-    location.hash = `#/e/${id}`;
+    location.hash = editing ? `#/e/${id}` : `#/e/${id}/done`;
   } catch (e) {
-    progress.textContent = "";
+    overlay.close();
     if (e.code === "AGE_REQUIRED" && await signIn({ profile: true, lead: null })) { busy.delete("publish"); button.disabled = false; return publish(); }
     if (e.code === "session_expired") { me = null; ready = null; }
     error.textContent = errorText(e);
     saveMedia(); // вже вивантажене — з адресою: повтор його не вантажить
   } finally {
+    if (overlay.open) overlay.close();
+    stop($("[data-publishing-anim]"));
     busy.delete("publish");
     button.disabled = false;
   }
@@ -1004,6 +1089,7 @@ function setupEditor() {
   f.addEventListener("input", changed);
   f.addEventListener("change", changed);
   f.addEventListener("submit", (event) => { event.preventDefault(); publish(); });
+  $("[data-publishing]").addEventListener("cancel", (event) => event.preventDefault());
   $("[data-fill]").addEventListener("click", fillFromAnnouncement);
   setupMedia();
   setupPlace();

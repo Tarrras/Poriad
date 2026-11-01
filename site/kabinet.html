@@ -140,12 +140,34 @@
         </fieldset>
 
         <p class="kab-error" data-form-error role="alert"></p>
-        <div class="kab-row"><button class="btn primary" type="submit" data-submit>Опублікувати</button><p class="kab-note" data-progress role="status"></p></div>
+        <div class="kab-row"><button class="btn primary" type="submit" data-submit>Опублікувати</button></div>
       </form>
       <aside class="kab-preview" aria-label="Квиток-чернетка"><p class="overline">Так подію побачать у застосунку</p><div data-preview inert></div></aside>
     </div>
   </section>
+
+  <!-- Подію створено (1.6): штамп «ОПУБЛІКОВАНО» і що робити далі -->
+  <section class="kab-created" data-view="done" hidden>
+    <div class="kab-anim big" data-done-anim aria-hidden="true"></div>
+    <h1>Подію створено</h1>
+    <p class="kab-place" data-done-event></p>
+    <p class="kab-note" data-done-note role="status"></p>
+    <div class="kab-created-actions">
+      <button class="btn primary" type="button" data-done-share><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-share"/></svg>Поширити анонс</button>
+      <button class="btn" type="button" data-done-copy><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-external"/></svg>Скопіювати посилання</button>
+      <a class="btn" data-done-ics><svg class="ico" aria-hidden="true"><use href="img/icons.svg#i-calendar"/></svg>Додати в календар</a>
+      <a class="btn" data-done-ready>Готово</a>
+    </div>
+    <p class="kab-hint">«Поширити анонс» відкриває Threads з готовим текстом і посиланням для запису; фото додайте в пості самі.</p>
+  </section>
 </main>
+
+<!-- Публікація (1.6): квиток друкується, поки вантажаться файли -->
+<dialog class="kab-publishing" data-publishing aria-labelledby="kab-publishing-title">
+  <div class="kab-anim" data-publishing-anim aria-hidden="true"></div>
+  <p class="kab-publishing-title" id="kab-publishing-title" data-publishing-title>Публікуємо подію</p>
+  <p class="kab-note" data-progress role="status"></p>
+</dialog>
 
 <!-- Вхід: Google або код з пошти; вперше — імʼя й «Мені вже є 18» -->
 <dialog class="install" data-auth>
