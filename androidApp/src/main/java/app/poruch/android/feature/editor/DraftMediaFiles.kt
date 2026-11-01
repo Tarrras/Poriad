@@ -168,8 +168,11 @@ class DraftMediaFiles(private val context: Context) {
     private companion object {
         const val DIR = "draft_media"
         const val SHORT_SIDE = 720
-        /** 30 с × (1,8 Мбіт/с відео + 96 кбіт/с звук) ≈ 7 МБ; запасний — коли кодек перебрав. */
-        val VIDEO_BITRATES = listOf(1_800_000, 1_100_000)
+        /**
+         * 30 с × (1,6 Мбіт/с відео + 96 кбіт/с звук) ≈ 6,4 МБ: програмний кодек емулятора перебирав 1,8 до 2,03 і впирався
+         * в 8 МБ. Запасний — коли перебрав і цей.
+         */
+        val VIDEO_BITRATES = listOf(1_600_000, 1_000_000)
         const val AUDIO_BITRATE = 96_000
         const val POSTER_QUALITY = 85
     }

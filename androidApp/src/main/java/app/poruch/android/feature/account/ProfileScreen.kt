@@ -374,7 +374,7 @@ private fun DeleteAccountSheet(state: ProfileState, onIntent: (ProfileIntent) ->
                     }
                     LabelledField(
                         stringResource(R.string.auth_code_field), state.deleteCode, { onIntent(ProfileIntent.SetDeleteCode(it)) },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword)
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                     )
                 } else SecondaryButton(
                     stringResource(R.string.auth_code_send), { onIntent(ProfileIntent.SendDeletionCode) }, Modifier.fillMaxWidth(),

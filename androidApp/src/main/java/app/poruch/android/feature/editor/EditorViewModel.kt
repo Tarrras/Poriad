@@ -53,7 +53,10 @@ class EditorViewModel(
 
     init {
         val shared = app.state.value
-        val event = editingId?.let { id -> (shared.library.myEvents + shared.map.events).firstOrNull { it.id == id } }
+        // Картки мапи не несуть фото й відео: правка з них затерла б медіа події, тож спершу свої й відкриті деталі.
+        val event = editingId?.let { id ->
+            (shared.library.myEvents + listOfNotNull(shared.detail.event) + shared.map.events).firstOrNull { it.id == id }
+        }
         original = event
         // Повтор не пишемо в чернетку, поки людина нічого не змінила: незакінчена нова лишається, якщо просто закрити.
         val repeated = repeatOf?.let { id -> shared.library.myEvents.firstOrNull { it.id == id } }?.let(app::repeatDraft)?.toForm()
@@ -91,9 +94,10 @@ class EditorViewModel(
                     taken = loaded.gathering?.attendeeCount ?: 0
                 )
             }
-            // Відмову показуємо над кнопкою, де людина щойно натиснула, а не банером згори.
+            // Відмову показуємо над кнопкою, де людина щойно натиснула, а не банером згори. Поки зверху вхід, помилки — його
+            // (хибний код, забагато спроб).
             val failed = (latest.notice as? AppNotice.Failed)?.error
-            if (submitted && failed != null) {
+            if (submitted && failed != null && !awaitingSignIn) {
                 submitted = false; awaitingSignIn = false
                 app.clearNotice()
                 return@observe copy(mutating = latest.mutating, upload = null, failure = failed)
@@ -108,12 +112,16 @@ class EditorViewModel(
                 if (editingId == null && latest.remindersEnabled && !notifications.granted()) send(EditorEffect.AskNotificationPermission)
                 else send(EditorEffect.Close)
             }
-            // Гість: спільний шар перевірив чернетку й чекає на вхід. Закрили вхід без входу — лишаємось тут з чернеткою.
-            if (submitted && latest.publishAfterSignIn && !latest.signedIn && !awaitingSignIn) {
+            // Гість: спільний шар перевірив чернетку й чекає на вхід, а то й на галочку віку — її сервер може попросити вже
+            // після входу (`AGE_REQUIRED` на публікації). Тоді вхід відкриваємо знову, на кроці галочки.
+            val needsSignIn = latest.publishAfterSignIn && (!latest.signedIn || latest.session.askBirthDate)
+            if (submitted && needsSignIn && !awaitingSignIn) {
                 awaitingSignIn = true
                 send(EditorEffect.SignIn)
-            } else if (awaitingSignIn && !latest.publishAfterSignIn && !latest.signedIn) {
-                awaitingSignIn = false; submitted = false
+            } else if (awaitingSignIn && !needsSignIn) {
+                awaitingSignIn = false
+                // Закрили вхід без входу: лишаємось тут з чернеткою, публікація скасована.
+                if (!latest.publishAfterSignIn) submitted = false
             }
             copy(mutating = latest.mutating, upload = latest.mediaUpload)
         }

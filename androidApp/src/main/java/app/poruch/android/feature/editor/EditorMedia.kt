@@ -68,10 +68,13 @@ internal fun AnnounceCard(state: EditorState, onIntent: (EditorIntent) -> Unit) 
             Text(stringResource(R.string.announce_title), style = MaterialTheme.typography.titleSmall, color = colors.ink)
             Text(stringResource(R.string.announce_subtitle), style = MaterialTheme.typography.bodySmall, color = colors.inkSecondary)
         }
-        LabelledField(
-            stringResource(R.string.announce_field), state.announce, { onIntent(EditorIntent.SetAnnounce(it)) },
-            singleLine = false, minLines = 3
-        )
+        // Біле поле на білій картці зникало: тут воно тихе, як у шторках.
+        CompositionLocalProvider(LocalFieldSurface provides colors.surfaceMuted) {
+            LabelledField(
+                stringResource(R.string.announce_field), state.announce, { onIntent(EditorIntent.SetAnnounce(it)) },
+                singleLine = false, minLines = 3
+            )
+        }
         SecondaryButton(
             stringResource(if (state.announcing) R.string.announce_filling else R.string.announce_fill),
             { onIntent(EditorIntent.FillFromAnnounce) }, Modifier.fillMaxWidth(),
@@ -106,7 +109,8 @@ private val AnnounceField.label: Int
 @Composable
 internal fun MediaSection(state: EditorState, onIntent: (EditorIntent) -> Unit) {
     val colors = Poruch.colors
-    val files = DraftMediaFiles(LocalContext.current.applicationContext)
+    val context = LocalContext.current
+    val files = remember { DraftMediaFiles(context.applicationContext) }
     val room = state.mediaRoom
     // Вибір кількох потребує щонайменше двох місць; на останнє — звичайний вибір одного.
     val pickMany = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(room.coerceAtLeast(2))) {
@@ -208,12 +212,9 @@ private fun MediaTile(
                     tint = Color.White
                 )
             }
-            if (first) Text(
-                stringResource(R.string.media_cover), Modifier.align(Alignment.BottomStart).padding(Spacing.xs)
-                    .background(Color.Black.copy(alpha = 0.55f), Radius.pill).padding(horizontal = Spacing.sm, vertical = 2.dp),
-                style = MaterialTheme.typography.labelSmall, color = Color.White
-            )
         }
+        // Під плиткою, а не на ній: на 88 dp «Обкладинка» переносилась.
+        if (first) Text(stringResource(R.string.media_cover), style = MaterialTheme.typography.labelSmall, color = colors.ink, maxLines = 1)
         if (trimmed) Text(stringResource(R.string.media_video_trimmed), style = MaterialTheme.typography.labelSmall, color = colors.inkTertiary)
     }
 }

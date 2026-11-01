@@ -143,7 +143,7 @@ fun AuthScreen(state: AuthState, onIntent: (AuthIntent) -> Unit) {
             )
             // Згода одразу під кнопками: дотик до них уже створює профіль, а форма з кнопкою — нижче.
             ConsentNote(onIntent)
-            OrDivider(stringResource(R.string.auth_or_email))
+            OrDivider(stringResource(R.string.auth_or_password))
             // Вхід і реєстрація — два рівноправні режими, тож перемикач угорі, а не кнопка під формою.
             SegmentedPill(
                 listOf(stringResource(R.string.auth_tab_login), stringResource(R.string.auth_tab_signup)),
@@ -283,7 +283,7 @@ private fun CodeStep(state: AuthState, email: String, onIntent: (AuthIntent) -> 
         LabelledField(
             stringResource(R.string.auth_code_field), state.code, { onIntent(AuthIntent.SetCode(it)) },
             focusRequester = codeField,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword, imeAction = ImeAction.Done)
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done)
         )
         PrimaryButton(
             stringResource(R.string.auth_code_confirm), { onIntent(AuthIntent.VerifyCode) },
