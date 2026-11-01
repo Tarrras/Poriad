@@ -60,9 +60,9 @@ Prod 31.10: 16 спільнотних подій від 9 організатор
 |---|---|---|
 | Запис з вебу | `public.join_event_web(p_event)`, `public.join_waitlist_web(p_event)`: `poruch.via = 'web'` + наявні функції; помилки ті самі, що в `join_event`, плюс `AGE_REQUIRED` | міграція `20261117120000_web_join` |
 | Вік | `public.confirm_adult()`, `account_facts.adult_confirmed_at`; `private.age_of` — нижня межа; дата лише для `min_age > 18` чи `max_age`; `handle_new_user` читає `adult_confirmed` | `20261117120000_web_join` |
-| Медіа й джерело | `events.media jsonb` (`[{kind: photo/video, url, poster}]`, ≤ 5), `events.created_via`; `create_event`/`update_event` + `p_media jsonb default null`, `p_via text default 'app'` (старі сигнатури видаляємо); `event_details` віддає `media`, `event_attendees` — `via`; бакет `event-videos` (mp4, 50 МБ) | `20261118120000_event_media` |
+| Медіа й джерело | `events.media jsonb` (`[{kind: photo/video, url, poster}]`, ≤ 5), `events.created_via`; `create_event` + `p_media jsonb default null`, `p_via text default 'app'`; `update_event` + `p_media` (null — старий клієнт, медіа не чіпаємо); старі сигнатури видалено; `image_url` = перше фото, а без фото — постер першого відео; помилки `INVALID_MEDIA`, `INVALID_VIA`; `event_details` віддає `media`, `event_attendees` і `event_requests` — `via`; бакет `event-videos` (mp4, 50 МБ) | `20261118120000_event_media` |
 | Пуші рішень | види `approved`, `declined`, `promoted`, payload `{type:'decision', kind, event_id, user_id}`; на пристрої — лише з `decision` у `features` | `20261119120000_member_decision_push` + `push` |
-| Листи | без токенів листом лише `request`, `question`, `approved`, `declined`, `promoted`, `moved`, `cancelled`, `organizer`; Resend, `MAIL_FROM` | `push` |
+| Листи | без токенів листом лише `request`, `question`, `approved`, `declined`, `promoted`, `moved`, `cancelled`, `organizer`; Resend, `MAIL_FROM` = `«Поряд» <noreply@poriad.app>` | `push` |
 | Анонс | `POST /functions/v1/parse-announcement {text ≤ 3000, city, today, tz}` → поля з 1.4 або `{error}`; 429 понад 20 на годину з IP | `20261120120000_announce_calls` + функція |
 | Вхід на сайті | `site/js/auth.js`: `session()`, `sendCode`, `verifyCode`, `google(returnTo, intent)`, `completeRedirect()`, `rpc(name, args)`, `upload(bucket, path, blob)`, `signOut()`, `inAppBrowser()` | W0-web |
 
@@ -571,7 +571,8 @@ Android `Navigator.createEvent` → `Auth(AuthReason.CREATE)`), і 70% гост�
 - **Поштовий сервіс** (наприклад Resend): акаунт, домен `poriad.app` (DNS-записи в Cloudflare), SMTP у Supabase →
   Auth → SMTP Settings, ключ API в секретах для листів з `push`. Вбудована пошта Supabase шле лише кілька листів на
   годину, тож без цього кроку хвиля 1 не працює.
-- Шаблон листа з кодом у Supabase → Auth → Email Templates.
+- Шаблон листа з кодом у Supabase → Auth → Email Templates; відправник у SMTP Settings — `noreply@poriad.app`,
+  імʼя «Поряд». У Resend той самий відправник (`MAIL_FROM`) для листів з `push`.
 - **Google на вебі:** у Google Cloud веб-клієнт OAuth (якщо ще нема) з адресою повернення
   `https://{проєкт}.supabase.co/auth/v1/callback` для dev і prod; його ID і секрет — у Supabase → Auth → Providers →
   Google (поруч з ID застосунків); Supabase → Auth → URL Configuration → Redirect URLs: `https://poriad.app/**`.
@@ -620,4 +621,5 @@ Android `Navigator.createEvent` → `Auth(AuthReason.CREATE)`), і 70% гост�
 
 1. Хвиля 2: нова залежність `media3-transformer` на Android для стиснення відео — погоджуєш? (На вебі відео не
    стискаємо, див. 1.2.)
-2. Хвиля 1: з якої адреси листи: `hello@poriad.app`, як у PoriadBot, чи окрема `noreply@`?
+
+Вирішено 01.11: усі листи — з `noreply@poriad.app` (власник): коди входу (SMTP Supabase) і листи з `push`.
