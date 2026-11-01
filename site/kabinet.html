@@ -2,6 +2,8 @@
 <html lang="uk">
 <head>
 <meta charset="utf-8">
+<!-- Друга лінія, якщо сторінку віддасть Pages без воркера: та сама політика, що CSP.kabinet у worker/index.mjs, і ще dev-проєкт (сайт на localhost ходить у dev); frame-ancestors у meta не діє — його дає лише заголовок. Перевірка — worker/kabinet.test.mjs. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob: https://tzdogzdvctlumsqlqskr.supabase.co/storage/v1/object/public/ https://ojadoyxeahepycpmjuvf.supabase.co/storage/v1/object/public/; script-src 'self' https://static.cloudflareinsights.com; connect-src 'self' https://cloudflareinsights.com https://tiles.openfreemap.org https://tzdogzdvctlumsqlqskr.supabase.co https://ojadoyxeahepycpmjuvf.supabase.co; style-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; worker-src blob:; child-src blob:; media-src https://tzdogzdvctlumsqlqskr.supabase.co/storage/v1/object/public/ https://ojadoyxeahepycpmjuvf.supabase.co/storage/v1/object/public/ blob:">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Кабінет організатора — Поряд</title>
 <meta name="description" content="Створіть подію з комп’ютера: з готового анонсу, з фото й відео. Учасники, «Повторити» і «Пост для Threads».">
