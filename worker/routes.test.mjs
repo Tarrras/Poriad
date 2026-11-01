@@ -21,7 +21,7 @@ assert.equal((await go("/afisha/kyiv", { method: "POST" })).status, 405);
 assert.equal(passed.length, 0);
 
 // Решта — на Pages тим самим запитом: метод, шлях і заголовки не міняються, а запит у власну зону йде на origin.
-for (const path of ["/", "/afisha.html", "/afisha", "/app?from=event", "/e/x/y", "/js/poriad.js?v=11", "/kabinet"]) {
+for (const path of ["/", "/afisha.html", "/afisha", "/app?from=event", "/e/x/y", "/js/poriad.js?v=12", "/kabinet"]) {
   passed = [];
   const request = new Request(`https://poriad.app${path}`, { headers: { "if-none-match": '"x"' } });
   assert.equal(await (await worker.fetch(request, env, ctx)).text(), "pages", path);
