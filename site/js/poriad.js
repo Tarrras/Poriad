@@ -293,6 +293,25 @@ function foldLine(line) {
   return out;
 }
 
+// ---- «Пост для Threads» (docs/organizers-1.5.md, 1.5) — той самий текст, що `ThreadsPost` у застосунку. Ним діляться
+// кабінет і організатор на сторінці своєї події (1.6, «Поширити анонс»).
+const POST_WEEKDAYS = ["пн", "вт", "ср", "чт", "пт", "сб", "нд"];
+const POST_MONTHS = ["січня", "лютого", "березня", "квітня", "травня", "червня", "липня", "серпня", "вересня", "жовтня", "листопада", "грудня"];
+export const ABOUT_MAX = 200;
+export function threadsPost(event) {
+  const tz = event.time_zone || "Europe/Kyiv";
+  const start = new Date(event.starts_at);
+  const [, month, day] = fmt(tz, { locale: "en-CA", year: "numeric", month: "2-digit", day: "2-digit" }).format(start).split("-").map(Number);
+  const when = `${POST_WEEKDAYS[isoWeekday(dayNumber(start, tz))]}, ${day} ${POST_MONTHS[month - 1]}, ${timeOf(start, tz)}`;
+  const place = event.place_name || event.address || event.city || "";
+  const description = (event.description ?? "").trim();
+  const about = event.blurb?.trim() || (description.length <= ABOUT_MAX ? description : description.slice(0, ABOUT_MAX).trimEnd() + "…");
+  return [`${displayTitle(event.title)}\n${[when, place].filter(Boolean).join(" · ")}`, about, `Запис: poriad.app/e/${event.id}`]
+    .filter(Boolean).join("\n\n");
+}
+/** Інтент Threads приймає лише текст; фото організатор перетягує сам. */
+export const threadsIntent = (text) => `https://www.threads.net/intent/post?text=${encodeURIComponent(text)}`;
+
 export const googleCalendarUrl = (card) => `https://calendar.google.com/calendar/render?${new URLSearchParams({
   action: "TEMPLATE", text: displayTitle(card.title), dates: `${calendarTime(new Date(card.starts_at))}/${calendarTime(calendarEnd(card))}`,
   location: calendarPlace(card), details: eventUrl(card) })}`;

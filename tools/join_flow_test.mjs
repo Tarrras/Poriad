@@ -29,8 +29,11 @@ function element(props = {}) {
   }, props);
 }
 
-/** Сторінка події: шторка, кнопка внизу й адреса. `ready` — стартова задача start(). */
-function page({ minAge = 18, maxAge = "", search = "" } = {}) {
+/**
+ * Сторінка події: шторка, кнопка внизу й адреса. `share` — ще «Поділитися з другом» угорі й прихована «Скопіювати
+ * посилання» (`doc` — що зараз у документі: скрипт підміняє кнопку копією). `ready` — стартова задача start().
+ */
+function page({ minAge = 18, maxAge = "", search = "", share = false } = {}) {
   const els = new Map();
   const $ = (selector) => { if (!els.has(selector)) els.set(selector, element()); return els.get(selector); };
   const steps = ["start", "code", "profile", "status"].map((step, i) => Object.assign($(`[data-step="${step}"]`), { dataset: { step }, hidden: i > 0 }));
@@ -45,11 +48,20 @@ function page({ minAge = 18, maxAge = "", search = "" } = {}) {
   });
   const bar = element({ textContent: "Йду" });
   const spots = element({ textContent: "0 з 6" });
-  document = { querySelector: (s) => ({ "[data-join]": bar, "[data-spots]": spots })[s] ?? null };
+  const doc = { "[data-join]": bar, "[data-spots]": spots };
+  if (share) {
+    const original = element({ lastChild: { textContent: "Поділитися з другом" } });
+    original.cloneNode = () => element({ lastChild: { textContent: original.lastChild.textContent } });
+    original.replaceWith = (next) => { doc["[data-share]"] = next; };
+    doc["[data-share]"] = original;
+    doc["[data-copy-link]"] = element({ hidden: true, lastChild: { textContent: "Скопіювати посилання" } });
+    doc["[data-afisha]"] = element();
+  }
+  document = { querySelector: (s) => doc[s] ?? null };
   location = { hostname: "poriad.app", origin: "https://poriad.app", pathname: `/e/${ID}`, href: `https://poriad.app/e/${ID}${search}` };
   history = { state: null, replaceState(state, title, url) { location.href = String(url); } };
   const step = () => steps.find((e) => !e.hidden)?.dataset.step;
-  return { sheet, bar, spots, $, step, ready: start(sheet) };
+  return { sheet, bar, spots, $, step, doc, ready: start(sheet) };
 }
 
 /** Фейкова база: маршрут за назвою RPC чи шляхом → [статус, тіло] (можна проміс). `calls` — назви по черзі. */
@@ -119,18 +131,30 @@ await p.ready; await flush();
 assert.equal(p.sheet.open, false, "код старший за 15 хв шторку не відкриває");
 assert.equal(sessionStorage.getItem("poriad.join"), null);
 
-// «Не стежити» з листа: свіжий код у вкладці не заважає; стан запису підтягується.
+// «Не стежити» з листа — лише після підтвердження: посилання могли відкрити випадково чи підсунути. Свіжий код у
+// вкладці не заважає; стан запису підтягується.
 reset();
 signIn();
 sessionStorage.setItem("poriad.join", JSON.stringify({ email: "a@b.c", event: ID, action: "join", sentAt: Date.now() }));
 backend({ ...members("approved"), unfollow: (body) => { assert.deepEqual(body, { p_kind: "organizer", p_target: ORG }); return [200]; } });
 p = page({ search: "?unfollow" });
 await p.ready; await flush();
-assert.ok(calls.includes("unfollow"));
-assert.equal(p.$("[data-title]").textContent, "Ви більше не стежите");
+assert.ok(!calls.includes("unfollow"), "без тапу не відписуємо");
+assert.equal(p.$("[data-title]").textContent, "Не стежити за організатором Марта?");
+assert.equal(p.$("[data-unfollow]").hidden, false);
 assert.equal(p.bar.textContent, "Ви в списку", "кнопка внизу знає, що людина записана");
 assert.ok(!location.href.includes("unfollow"));
-// Без входу — шторка входу з «Не стежити», а після коду — відписка.
+await p.$("[data-unfollow]").fire("click"); await flush();
+assert.ok(calls.includes("unfollow"));
+assert.equal(p.$("[data-title]").textContent, "Ви більше не стежите");
+assert.equal(p.$("[data-unfollow]").hidden, true);
+// Закрили питання — нічого не сталося.
+backend({ ...members("approved"), unfollow: () => [200] });
+p = page({ search: "?unfollow" });
+await p.ready; await flush();
+p.sheet.close(); await flush();
+assert.ok(!calls.includes("unfollow"));
+// Без входу — шторка входу з «Не стежити», після коду — те саме питання, і лише тап відписує.
 reset();
 backend({ ...members(), unfollow: () => [200], "/auth/v1/otp": () => [200, {}], "/auth/v1/verify": () => [200, { access_token: "t", refresh_token: "r", expires_in: 3600, user: { id: "u1" } }] });
 p = page({ search: "?unfollow" });
@@ -141,9 +165,33 @@ p.$('[data-form="email"]').email.value = " a@b.c ";
 await p.$('[data-form="email"]').fire("submit");
 p.$('[data-form="code"]').code.value = "123456";
 await p.$('[data-form="code"]').fire("submit"); await flush();
-assert.deepEqual(calls.filter((c) => !["event_details", "my_waitlist"].includes(c)), ["/auth/v1/otp", "/auth/v1/verify", "unfollow"]);
-assert.equal(p.$("[data-title]").textContent, "Ви більше не стежите");
+assert.deepEqual(calls.filter((c) => !["event_details", "my_waitlist"].includes(c)), ["/auth/v1/otp", "/auth/v1/verify"]);
+assert.equal(p.$("[data-title]").textContent, "Не стежити за організатором Марта?");
 assert.equal(sessionStorage.getItem("poriad.join"), null, "код підтверджено — пошту забули");
+await p.$("[data-unfollow]").fire("click"); await flush();
+assert.ok(calls.includes("unfollow"));
+assert.equal(p.$("[data-title]").textContent, "Ви більше не стежите");
+
+// «Вийти» в шторці: за спільним компʼютером видно, чий акаунт, і після виходу сторінка забуває все особисте.
+reset();
+localStorage.setItem("poriad.session", JSON.stringify({ access_token: "t", refresh_token: "r", expires_at: Math.floor(Date.now() / 1000) + 3600,
+  user: { id: "u1", email: "olena@example.com", app_metadata: { providers: ["email"] } } }));
+backend({ ...members("approved") });
+p = page();
+await p.ready; await flush();
+await p.bar.fire("click"); await flush();
+assert.equal(p.$("[data-account]").hidden, false, "після входу — рядок акаунта");
+assert.equal(p.$("[data-account-email]").textContent, "olena@example.com");
+await p.$("[data-signout]").fire("click"); await flush();
+assert.ok(calls.includes("/auth/v1/logout"), "сесію відкликано на сервері");
+assert.equal(localStorage.getItem("poriad.session"), null);
+assert.equal(p.$("[data-title]").textContent, "Ви вийшли");
+assert.equal(p.bar.textContent, "Йду");
+assert.equal(p.$("[data-account]").hidden, true);
+assert.equal(p.$("[data-account-email]").textContent, "", "пошти попереднього в сторінці не лишилось");
+await p.bar.fire("click"); await flush();
+assert.equal(p.step(), "start", "наступна людина починає з входу");
+assert.equal(p.$("[data-account]").hidden, true, "на кроці входу рядка акаунта нема");
 
 // Повна подія → черга; між тапами звільнилось місце (EVENT_HAS_SPACE) — записуємо звичайно.
 reset();
@@ -224,5 +272,75 @@ await form.fire("submit"); await flush();
 assert.deepEqual(calls.slice(0, 5), ["set_birth_date", "confirm_adult", "PATCH /rest/v1/profiles", "join_event_web", "event_details"]);
 assert.equal(name, "Оксана", "імʼя обрізане");
 assert.equal(p.$("[data-title]").textContent, "Ви в списку");
+
+// Хто чим ділиться (1.6). Організатор своєї події після входу — «Поширити анонс» і «Скопіювати посилання».
+const { threadsPost, threadsIntent } = await import("../site/js/poriad.js");
+const soon = (hours) => new Date(Date.now() + hours * 36e5).toISOString();
+const own = { id: ID, membership: "none", attendee_count: 1, capacity: 6, origin: "community", organizer_id: "u1", status: "published",
+  title: "Настолки й чай", starts_at: soon(48), ends_at: soon(51), time_zone: "Europe/Kyiv", address: "вул. Велика Васильківська, 72", description: "Граємо." };
+const opened = [];
+let clipboard = null, shared = null;
+for (const name of ["window", "navigator"]) Object.defineProperty(globalThis, name, { value: null, writable: true, configurable: true });
+window = { open: (url, target, features) => opened.push([url, target, features]) };
+navigator = { userAgent: "test", clipboard: { writeText: async (text) => { clipboard = text; } } };
+reset();
+signIn();
+backend({ event_details: () => [200, [own]], my_waitlist: () => [200, []], create_invite: () => [200, "AbCdEfGhIjKlMnOpQrSt_-"] });
+p = page({ share: true });
+const original = p.doc["[data-share]"];
+await p.ready; await flush();
+assert.notEqual(p.doc["[data-share]"], original, "кнопку взяв скрипт — без обробника вбудованого");
+assert.equal(p.doc["[data-share]"].lastChild.textContent, "Поширити анонс");
+assert.equal(p.doc["[data-copy-link]"].hidden, false);
+assert.equal(p.doc["[data-afisha]"].hidden, true, "чотири дії в ряд: «Афішу» організатору ховаємо");
+assert.ok(!calls.includes("create_invite"), "організатору запрошення не треба");
+await p.doc["[data-share]"].fire("click"); await flush();
+assert.deepEqual(opened, [[threadsIntent(threadsPost(own)), "_blank", "noopener"]], "Threads з текстом поста");
+assert.equal(clipboard, threadsPost(own), "текст — і в буфер");
+assert.ok(clipboard.endsWith(`Запис: poriad.app/e/${ID}`));
+assert.equal(p.doc["[data-share]"].lastChild.textContent, "Текст скопійовано");
+await p.doc["[data-copy-link]"].fire("click"); await flush();
+assert.equal(clipboard, `https://poriad.app/e/${ID}`, "посилання для запису — без ?by=");
+assert.equal(p.doc["[data-copy-link]"].lastChild.textContent, "Посилання скопійовано");
+// Організатор вийшов — сторінка знову як для гостя.
+await p.$("[data-signout]").fire("click"); await flush();
+assert.equal(p.doc["[data-share]"].lastChild.textContent, "Поділитися з другом");
+assert.equal(p.doc["[data-copy-link]"].hidden, true);
+assert.equal(p.doc["[data-afisha]"].hidden, false);
+
+// Гість з входом на чужій події — «Поділитися з другом» з особистим ?by=, без «Скопіювати посилання».
+navigator = { userAgent: "test", share: async (data) => { shared = data; } };
+reset();
+signIn();
+backend({ event_details: () => [200, [{ ...own, organizer_id: ORG }]], my_waitlist: () => [200, []], create_invite: () => [200, "AbCdEfGhIjKlMnOpQrSt_-"] });
+p = page({ share: true });
+await p.ready; await flush();
+assert.equal(p.doc["[data-share]"].lastChild.textContent, "Поділитися з другом");
+assert.equal(p.doc["[data-copy-link]"].hidden, true);
+assert.equal(p.doc["[data-afisha]"].hidden, false);
+await p.doc["[data-share]"].fire("click");
+assert.equal(shared.url, `https://poriad.app/e/${ID}?by=AbCdEfGhIjKlMnOpQrSt_-`);
+// Сервер не дав токена — звичайне посилання: збій лише знеособлює.
+backend({ event_details: () => [200, [{ ...own, organizer_id: ORG }]], my_waitlist: () => [200, []], create_invite: () => failure("TOO_MANY_INVITES") });
+p = page({ share: true });
+await p.ready; await flush();
+await p.doc["[data-share]"].fire("click");
+assert.equal(shared.url, `https://poriad.app/e/${ID}`);
+// Творець «Шукаю компанію» на своєму зборі й організатор скасованої — теж з другом.
+for (const event of [{ ...own, companion_of: "b2000000-0000-4000-8000-000000000001" }, { ...own, status: "cancelled" }]) {
+  backend({ event_details: () => [200, [event]], my_waitlist: () => [200, []], create_invite: () => [200, "AbCdEfGhIjKlMnOpQrSt_-"] });
+  p = page({ share: true });
+  await p.ready; await flush();
+  assert.equal(p.doc["[data-share]"].lastChild.textContent, "Поділитися з другом");
+  assert.equal(p.doc["[data-copy-link]"].hidden, true);
+}
+// Без входу кнопку лишаємо вбудованому скрипту сторінки: адреса без запрошення.
+reset();
+backend({ create_invite: () => [200, "AbCdEfGhIjKlMnOpQrSt_-"] });
+p = page({ share: true });
+const guestButton = p.doc["[data-share]"];
+await p.ready; await flush();
+assert.equal(p.doc["[data-share]"], guestButton);
+assert.ok(!calls.includes("create_invite") && p.doc["[data-copy-link]"].hidden);
 
 console.log("join flow ok");
