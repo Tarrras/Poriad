@@ -392,8 +392,8 @@ Prod 31.10: 16 спільнотних подій від 9 організатор
   у кольорах токенів «Корінця»; ліцензія — Lottie Simple License чи своя робота. Лежать у `design/lottie/`, клієнти
   беруть копії: сайт — `site/vendor/lottie/`, iOS — ресурси, Android — `res/raw`.
 - Сайт — `lottie_light` (SVG, без виразів: суворій CSP не потрібен `unsafe-eval`), вендорено в `site/vendor/`.
-  iOS — `lottie-ios` (SPM), Android — `lottie-compose`: нові залежності (власник попросив Lottie 02.11). AAB має
-  лишитись ≤ 10 МБ (власник вантажить через Chrome) — після `media3-transformer` і Lottie міряємо.
+  iOS — `lottie-ios`, Android — `lottie-compose 6.7.1`: обидві вже в проєктах, нових залежностей нема. Розмір
+  Android (M2, 02.11): AAB prodRelease 28,95 → 30,85 МБ (+1,9 від `media3-transformer`), універсальний APK +0,72 МБ.
 - «Зменшити рух» (iOS Reduce Motion, Android «Вимкнути анімації», `prefers-reduced-motion`) — статичний кадр.
 
 **Екран «Подію створено».** Після публікації — не одразу деталі, а екран з `published.json` і діями:
