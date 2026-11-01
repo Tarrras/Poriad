@@ -3,8 +3,10 @@
 // storage.objects напряму, а файли в S3 лишилися б сиротами. Тут — через Storage API.
 //
 // Контракт: POST /functions/v1/delete-account, Authorization: Bearer <access token користувача>,
-// apikey: <publishable>, тіло {"password": "…"} для акаунта з паролем і/або {"apple_authorization_code": "…"} —
+// apikey: <publishable>, тіло {"password": "…"} для акаунта з поштою і/або {"apple_authorization_code": "…"} —
 // свіжий код Sign in with Apple: з ним спершу відкликаємо токени Apple (5.1.1(v)), best effort — див. apple.ts.
+// Акаунт з поштою без пароля (вхід кодом з пошти) замість пароля входить кодом ще раз: вхід не старший за 10 хв
+// (claim `amr` токена, reauth.ts) теж підтверджує.
 //   200 {"deleted":true} · 401 без/з недійсним токеном · 403 {"error":"password"} · 500 {"error":…}
 //
 // Порядок: спершу фото користувача в бакеті event-images (<uid>/…), потім auth.admin.deleteUser.
@@ -15,6 +17,7 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 import { revokeApple } from "./apple.ts";
+import { freshLogin, needsReauth } from "./reauth.ts";
 
 const BUCKET = "event-images";
 const PAGE = 1000;
@@ -32,10 +35,9 @@ Deno.serve(async (req) => {
   if (authError || !user) return json({ error: "unauthorized" }, 401);
   const body = await req.json().catch(() => null);
   const appleCode = typeof body?.apple_authorization_code === "string" ? body.apple_authorization_code : null;
-  // Пароль перевіряємо тут, а не лише в застосунку: інакше чужий токен доступу (викрадений, з бекапу) видаляє акаунт.
-  // Правило — як AppState.passwordless: є провайдери, і email серед них нема.
-  const providers: string[] = user.app_metadata?.providers ?? [];
-  if (providers.length === 0 || providers.includes("email")) {
+  // Пароль чи свіжий вхід перевіряємо тут, а не лише в застосунку: інакше чужий токен доступу (викрадений, з бекапу)
+  // видаляє акаунт.
+  if (needsReauth(user.app_metadata?.providers ?? []) && !freshLogin(token, Date.now() / 1000)) {
     const password = typeof body?.password === "string" ? body.password : "";
     if (!user.email || !password || !(await passwordOk(user.email, password))) return json({ error: "password" }, 403);
   }

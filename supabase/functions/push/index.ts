@@ -4,9 +4,12 @@
 // якою людина стежить (docs/event-offers.md, R6–R7: адресатів, текст і час уже вибрала база), на новий збір «Йдемо
 // разом» тим, хто зберіг афішу (docs/companions.md), на «Хочу піти з компанією» (docs/return-hooks.md), на нову подію від
 // людей у «Моїх місцях» пристрою (docs/my-places.md), а щопʼятниці — пуш повернення на пристрій, з якого місяць не
-// відкривали застосунок (docs/guest-channel.md).
-// Вона вирішує, кому слати, бере токени й шле у FCM (Android) і APNs (iOS). Тихі години для «Стежити»
-// (22:00–09:00 за Києвом) тримає база в `private.notify_push`, ще до виклику: сюди нічний пуш приходить уже вранці.
+// відкривали застосунок (docs/guest-channel.md), а учаснику — про рішення організатора й місце з черги
+// (docs/organizers-1.5.md, 1.1).
+// Вона вирішує, кому слати, бере токени й шле у FCM (Android) і APNs (iOS). Хто не має жодного пристрою, отримує лист
+// (Resend), але лише там, де від нього чекають відповіді чи змінилась його подія: `MAIL_KINDS` у mail.ts.
+// Тихі години для «Стежити» (22:00–09:00 за Києвом) тримає база в `private.notify_push`, ще до виклику: сюди нічний
+// пуш приходить уже вранці — і лист теж.
 //
 // Секрети функції (`supabase secrets set …`):
 //   PUSH_SECRET           — той самий рядок, що у Vault як push_function_secret
@@ -14,15 +17,20 @@
 //   APNS_KEY              — вміст .p8 ключа APNs (PEM)
 //   APNS_KEY_ID, APNS_TEAM_ID, APNS_BUNDLE_ID
 //   APNS_SANDBOX          — "true" лише для dev-збірок з Xcode; будь-що інше — production
+//   RESEND_API_KEY        — ключ Resend для листів тим, у кого нема застосунку
+//   MAIL_FROM             — відправник, за замовчуванням «Поряд» <noreply@poriad.app>
 // SUPABASE_URL і SUPABASE_SERVICE_ROLE_KEY середовище дає саме.
 
 import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 import * as jose from "npm:jose@5.10.0";
 import { artistText, companionText, organizerText, placeText, winbackText, zoneText, type ArtistLine, type EventLine, type PlaceLine } from "./follow_text.ts";
+import { mailText, route, type MailKind, type TokenRow } from "./mail.ts";
 
 type Payload =
   | { type: "message"; message_id: string; event_id: string }
   | { type: "request" | "joined"; event_id: string; user_id: string }
+  // Тригери `event_members` (20261119120000): рішення щодо людини user_id.
+  | { type: "decision"; kind: Decision; event_id: string; user_id: string }
   | { type: "event"; kind: EventKind; event_id: string }
   // Черга `private.event_change_pushes`: event_id — що відкриває тап (подія або супутник людини).
   | { type: "change"; kind: EventKind; change: Change; event_id: string; title: string; body: string; user_ids: string[] }
@@ -42,12 +50,15 @@ type Payload =
   | { type: "zone"; token: string; platform: Token["platform"]; event_id: string; total: number };
 
 type EventKind = "moved" | "cancelled";
+type Decision = "approved" | "declined" | "promoted";
+const DECISIONS: readonly string[] = ["approved", "declined", "promoted"];
 const EVENT_KINDS: readonly string[] = ["moved", "cancelled"];
 // Точна зміна афіші — окремим полем: випущені клієнти знають лише kind, нові рахують зміну в аналітиці.
 type Change = "cancelled" | "postponed" | "moved" | "corrected";
 const CHANGES: readonly string[] = ["cancelled", "postponed", "moved", "corrected"];
 
-type Push = { kind: "chat" | "question" | "request" | "joined" | "organizer" | "place" | "artist" | "companion" | "company" | "winback" | "zone" | EventKind; eventId?: string; placeId?: string; artistId?: string; threadId?: string; change?: Change; step?: number; title: string; body: string; key: string };
+// who — лише для листа: за ким стежить людина.
+type Push = { kind: "chat" | "question" | "request" | "joined" | "organizer" | "place" | "artist" | "companion" | "company" | "winback" | "zone" | EventKind | Decision; eventId?: string; placeId?: string; artistId?: string; threadId?: string; change?: Change; step?: number; title: string; body: string; key: string; who?: string };
 type Token = { token: string; platform: "android" | "ios" };
 
 const PREVIEW = 120;
@@ -57,9 +68,8 @@ const CONCURRENCY = 10;
 const TIMEOUT_MS = 10_000;
 // Скільки людей у одному запиті за токенами: id ідуть у рядок адреси, а їх може бути сотні.
 const TOKEN_CHUNK = 100;
-// Пуші, які випущені клієнти не покажуть (Android невідомий kind мовчки відкидає): лише на токени з прапорцем
-// `push_tokens.features`, який реєструє застосунок, що їх знає.
-const FEATURE: Partial<Record<Push["kind"], string>> = { companion: "companion", company: "company" };
+// Resend приймає до 100 листів одним запитом.
+const MAIL_BATCH = 100;
 
 Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "method" }, 405);
@@ -74,6 +84,7 @@ Deno.serve(async (req) => {
   let push: Push | null;
   const list: Token[] = [];
   let recipients: string[] = [];
+  let mailTo: string[] = [];
   if (payload.type === "winback") {
     // Повернення йде на пристрій, а не людині: токен і платформа вже в запиті.
     const text = winbackText(payload.step, payload.city, payload.total, payload.titles);
@@ -95,15 +106,23 @@ Deno.serve(async (req) => {
       : payload.type === "change" ? forChange(payload)
       : payload.type === "companion" ? await forCompanion(db, payload)
       : payload.type === "company" ? await forCompany(db, payload)
+      : payload.type === "decision" ? await forDecision(db, payload)
       : payload.type === "follow" ? await forFollow(db, payload) : await forRequest(db, payload));
     if (!push || recipients.length === 0) return json({ sent: 0, reason: "no recipients" });
-    const feature = FEATURE[push.kind];
+    const tokens: TokenRow[] = [];
     for (let i = 0; i < recipients.length; i += TOKEN_CHUNK) {
-      const query = db.from("push_tokens").select("token,platform").in("user_id", recipients.slice(i, i + TOKEN_CHUNK));
-      const { data: tokens } = await (feature ? query.contains("features", [feature]) : query);
-      list.push(...((tokens ?? []) as Token[]));
+      const { data } = await db.from("push_tokens").select("token,platform,user_id,features").in("user_id", recipients.slice(i, i + TOKEN_CHUNK));
+      tokens.push(...((data ?? []) as TokenRow[]));
     }
-    if (list.length === 0) return json({ sent: 0, reason: "no tokens" });
+    const routed = route(push, recipients, tokens);
+    list.push(...routed.devices);
+    mailTo = routed.mailTo;
+    // Про питання — не частіше за лист на годину на розмову: запитувач може писати 20 повідомлень на хвилину.
+    if (push.kind === "question" && mailTo.length > 0) {
+      const { data: due } = await db.rpc("question_mail_due", { p_event: push.eventId, p_thread: push.threadId });
+      if (due !== true) mailTo = [];
+    }
+    if (list.length === 0 && mailTo.length === 0) return json({ sent: 0, reason: "no tokens" });
   }
   const message = push;
 
@@ -132,7 +151,8 @@ Deno.serve(async (req) => {
     for (const token of stale) { await db.rpc("forget_device", { p_token: token }); await db.rpc("forget_radar", { p_token: token }); }
   }
   for (const token of forgotten) { await db.rpc("forget_device", { p_token: token }); await db.rpc("forget_radar", { p_token: token }); }
-  return json({ sent, stale: stale.length + forgotten.length, recipients: recipients.length });
+  const mail = mailTo.length > 0 ? await sendMails(db, mailTo, message) : { mailed: 0 };
+  return json({ sent, ...mail, stale: stale.length + forgotten.length, recipients: recipients.length });
 });
 
 // ---- Хто отримує
@@ -190,6 +210,20 @@ async function forRequest(db: ReturnType<typeof createClient>, p: Extract<Payloa
   };
 }
 
+// Рішення щодо людини. Між тригером і доставкою могли заблокувати одне одного — тоді мовчимо.
+async function forDecision(db: ReturnType<typeof createClient>, p: Extract<Payload, { type: "decision" }>) {
+  const { data: e } = await db.from("events").select("id,title,organizer_id,status,starts_at,time_zone").eq("id", p.event_id).maybeSingle();
+  if (!e || e.status !== "published" || !e.organizer_id || e.organizer_id === p.user_id) return { push: null, recipients: [] };
+  const at = when(e.starts_at as string, e.time_zone as string);
+  const body = {
+    approved: `Запит прийнято — ви в списку · ${at}`,
+    declined: "Організатор не прийняв запит",
+    promoted: `Звільнилось місце — ви в списку · ${at}`,
+  }[p.kind];
+  const recipients = await withoutBlocked(db, [p.user_id], e.organizer_id as string);
+  return { push: { kind: p.kind, eventId: e.id as string, title: e.title as string, body, key: `${e.id}:${p.kind}:${p.user_id}` }, recipients };
+}
+
 // Скасування й перенесення: підтверджені учасники, крім організатора й тих, хто заблокований з ним
 // у будь-який бік.
 async function forEvent(db: ReturnType<typeof createClient>, p: Extract<Payload, { type: "event" }>) {
@@ -229,8 +263,9 @@ async function forOrganizer(db: ReturnType<typeof createClient>, p: Extract<Payl
   const people = (follows ?? []).map((r) => r.user_id as string).filter((id) => id !== e.organizer_id);
   const recipients = await withoutBlocked(db, people, e.organizer_id as string);
   const { data: who } = await db.from("profiles").select("display_name").eq("id", e.organizer_id).maybeSingle();
-  const text = organizerText(e.title as string, ((who?.display_name as string | undefined) ?? "").trim(), when(e.starts_at as string, e.time_zone as string));
-  return { push: { kind: "organizer" as const, eventId: e.id as string, title: text.title, body: text.body, key: `organizer:${e.id}` }, recipients };
+  const name = ((who?.display_name as string | undefined) ?? "").trim();
+  const text = organizerText(e.title as string, name, when(e.starts_at as string, e.time_zone as string));
+  return { push: { kind: "organizer" as const, eventId: e.id as string, title: text.title, body: text.body, key: `organizer:${e.id}`, who: name }, recipients };
 }
 
 async function forPlaces(db: ReturnType<typeof createClient>, p: Extract<Payload, { type: "follow"; kind: "place" }>) {
@@ -353,6 +388,7 @@ function isPayload(p: unknown): p is Payload {
   const o = p as Record<string, unknown>;
   if (o.type === "message") return typeof o.message_id === "string" && UUID.test(o.message_id) && typeof o.event_id === "string" && UUID.test(o.event_id);
   if (o.type === "request" || o.type === "joined") return typeof o.event_id === "string" && UUID.test(o.event_id) && typeof o.user_id === "string" && UUID.test(o.user_id);
+  if (o.type === "decision") return typeof o.kind === "string" && DECISIONS.includes(o.kind) && isUuid(o.event_id) && isUuid(o.user_id);
   if (o.type === "event") return typeof o.kind === "string" && EVENT_KINDS.includes(o.kind) && typeof o.event_id === "string" && UUID.test(o.event_id);
   if (o.type === "change") {
     return typeof o.kind === "string" && EVENT_KINDS.includes(o.kind) && typeof o.change === "string" && CHANGES.includes(o.change)
@@ -488,7 +524,7 @@ async function sendApns(token: string, push: Push): Promise<boolean | "stale" | 
       // Зміна події — окрема група: повідомлення чату не має витіснити «подію скасовано». Новіший пуш про
       // ті самі заклади заміняє попередній, крок 2 повернення — крок 1. Розмова з організатором — кожне окремо
       // (id повідомлення): `question:<подія>:<людина>` довший за 64 байти, які дозволяє APNs; групує thread-id.
-      "apns-collapse-id": push.kind === "winback" ? "winback" : push.kind === "question" ? push.key : push.kind === "place" ? `place:${push.placeId}` : push.kind === "artist" ? `artist:${push.artistId}` : EVENT_KINDS.includes(push.kind) ? `${push.eventId}:state` : push.eventId!,
+      "apns-collapse-id": push.kind === "winback" ? "winback" : push.kind === "question" ? push.key : push.kind === "place" ? `place:${push.placeId}` : push.kind === "artist" ? `artist:${push.artistId}` : EVENT_KINDS.includes(push.kind) ? `${push.eventId}:state` : DECISIONS.includes(push.kind) ? `${push.eventId}:decision` : push.eventId!,
     },
     body: JSON.stringify({
       aps: { alert: { title: push.title, body: push.body }, sound: "default", "thread-id": push.kind === "winback" ? "digest" : push.kind === "question" ? `question:${push.eventId}:${push.threadId}` : push.eventId ?? (push.artistId ? `artist:${push.artistId}` : `place:${push.placeId}`) },
@@ -504,6 +540,40 @@ async function sendApns(token: string, push: Push): Promise<boolean | "stale" | 
   // кожен крок. Забуваємо лише пристрій каналу: push_tokens людини тут не чіпаємо (див. вище про середовища).
   if (push.kind === "winback" && text.includes("BadDeviceToken")) return "forget";
   throw new Error(`apns ${res.status}: ${text}`);
+}
+
+// ---- Листи (Resend). Лист однаковий для всіх адресатів: у ньому нема нічого особистого, крім адреси.
+
+async function sendMails(db: ReturnType<typeof createClient>, people: string[], push: Push): Promise<{ mailed: number; mail_error?: string }> {
+  const key = Deno.env.get("RESEND_API_KEY");
+  if (!key) { console.warn("RESEND_API_KEY is not set; skipping mail"); return { mailed: 0, mail_error: "RESEND_API_KEY is not set" }; }
+  const from = Deno.env.get("MAIL_FROM") || "«Поряд» <noreply@poriad.app>";
+  // Лише підтверджена пошта: інакше лист піде на чужу адресу, яку хтось вписав при реєстрації.
+  const emails: string[] = [];
+  for (let i = 0; i < people.length; i += CONCURRENCY) {
+    const users = await Promise.all(people.slice(i, i + CONCURRENCY).map((id) => db.auth.admin.getUserById(id)));
+    for (const { data } of users) if (data.user?.email && data.user.email_confirmed_at) emails.push(data.user.email);
+  }
+  const mail = mailText(push.kind as MailKind, push.eventId!, push.title, push.body, push.who);
+  let mailed = 0, failed = 0;
+  for (let i = 0; i < emails.length; i += MAIL_BATCH) {
+    const batch = emails.slice(i, i + MAIL_BATCH);
+    try {
+      const res = await fetch("https://api.resend.com/emails/batch", {
+        method: "POST",
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        body: JSON.stringify(batch.map((to) => ({ from, to: [to], subject: mail.subject, html: mail.html, text: mail.text }))),
+      });
+      if (res.ok) mailed += batch.length;
+      // Без тіла: Resend повторює в помилці адреси.
+      else { failed += batch.length; console.error("resend failed", res.status); await res.body?.cancel(); }
+    } catch (e) {
+      failed += batch.length;
+      console.error("resend failed", String(e));
+    }
+  }
+  return failed > 0 ? { mailed, mail_error: `${failed} not sent` } : { mailed };
 }
 
 function json(body: unknown, status = 200) {

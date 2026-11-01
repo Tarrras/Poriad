@@ -404,3 +404,25 @@ R6–R7).
 - Стан з `private.event_state` клієнти бачать лише з увімкненим перемикачем фази 3 (`private.flag('event_changes')`);
   вимкнено — стан за `import_status` (`withdrawn` → `unknown`), `checked_at` і стара дата не віддаються.
 - `tests/event_state_client.sql` — PASS на dev 2026-10-20.
+
+## 1.5: пуші рішень, листи, «Вставити анонс»
+
+Специфікація — `docs/organizers-1.5.md` (1.1 «Листи», 1.2, 1.4).
+
+- `20261119120000_member_decision_push.sql`: пуші учаснику `{type:'decision', kind}` тригерами, без зміни функцій.
+  `approved` — `requested → approved`; `declined` — видалення рядка `requested` організатором цієї події (не сама
+  людина, не каскад); `promoted` — учасник `approved`, щойно вийшов з черги цієї події в тій самій транзакції (позначка
+  `poruch.left_waitlist`; `promote_waitlist` видаляє з черги перед вставкою, `join_event` — навпаки). `company_match`
+  пропускаємо. Функція `push` шле їх лише на токени з `decision` у `features`.
+- `20261120120000_announce_calls.sql`: `private.announce_calls(ip, at)`, `public.announce_call(p_ip)` лише для
+  service role (не більше 20 на годину з адреси, замок на адресу), cron `forget-announce-calls` (`23 * * * *`).
+- Функція `parse-announcement`: деплой з `--no-verify-jwt` (гість кличе публікованим ключем), секрет
+  `ANTHROPIC_API_KEY`. Адреса — перша в `x-forwarded-for`: на dev підроблений заголовок клієнта її не змінив.
+- `20261120130000_question_mail_and_limits.sql` (правки з рев'ю): блокування того, хто просився, — не `declined`;
+  анонс рахує IPv6 за мережею /64 і має стелю 1000 викликів на годину на всіх; `public.question_mail_due(event, thread)`
+  для service role — лист організатору про питання не частіше за раз на годину на розмову (`private.question_mails`).
+- `delete-account`: акаунт з поштою підтверджує видалення паролем або входом не старшим за 10 хв (claim `amr`,
+  `reauth.ts`) — так видаляється акаунт, створений кодом з пошти, у якого пароля нема.
+- `tests/member_decision_push.sql`, `tests/announce_calls.sql`, `tests/question_mails.sql` — PASS на dev 2026-11-01,
+  разом з усіма `tests/*.sql`, крім `winback.sql` (падав і до 1.5: з `cinema` інтересів законно 12, а тест чекає
+  відмови на 12).
