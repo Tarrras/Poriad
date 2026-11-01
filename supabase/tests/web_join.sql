@@ -28,6 +28,13 @@ end $$;
 
 set local role authenticated;
 do $$ begin
+ -- Колонку галочки власник читає (доступ по колонках, 20260917110100), а нотатку модерації — ні.
+ perform set_config('request.jwt.claim.sub',current_setting('test.ticked'),true);
+ assert (select adult_confirmed_at is not null from public.account_facts where user_id=current_setting('test.ticked')::uuid),'owner reads the tick';
+ begin perform status_note from public.account_facts; raise exception 'status_note readable';
+ exception when insufficient_privilege then null; end;
+end $$;
+do $$ begin
  -- Без віку запис з вебу просить крок 3, після галочки проходить і позначається як веб.
  perform set_config('request.jwt.claim.sub',current_setting('test.bare'),true);
  begin perform public.join_event_web(current_setting('test.open')::uuid); raise exception 'joined without age';

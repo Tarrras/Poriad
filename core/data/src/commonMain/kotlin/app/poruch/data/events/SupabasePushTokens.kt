@@ -24,7 +24,7 @@ internal class SupabasePushTokens(private val rpc: EventRpc) : PushTokens {
         try {
             rpc.call("register_push_token", buildJsonObject {
                 put("p_token", token); put("p_platform", platform.key)
-                putJsonArray("p_features") { add(COMPANION_DECISION); add(COMPANION); add(COMPANY); add(QUESTIONS) }
+                putJsonArray("p_features") { add(COMPANION_DECISION); add(COMPANION); add(COMPANY); add(QUESTIONS); add(DECISION) }
             })
         } catch (e: AppFailure) {
             if (!e.isMissingFunction()) throw e
@@ -78,6 +78,8 @@ internal class SupabasePushTokens(private val rpc: EventRpc) : PushTokens {
         const val COMPANY = "company"
         /** Бачить «Запитати організатора» (1.4): на цьому пристрої організатор побачить питання. */
         const val QUESTIONS = "questions"
+        /** Показує пуші про рішення організатора (1.5): `approved`, `declined`, `promoted`. */
+        const val DECISION = "decision"
     }
 
     private suspend inline fun quiet(block: () -> Unit) {
