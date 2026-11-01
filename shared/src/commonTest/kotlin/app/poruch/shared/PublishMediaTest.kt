@@ -99,20 +99,21 @@ class PublishMediaTest {
         app.close()
     }
 
+    private val kept=EventMedia(MediaKind.PHOTO,"https://test.invalid/e1/kept.jpg")
+    private val dropped=EventMedia(MediaKind.VIDEO,"https://test.invalid/e1/v.mp4","https://test.invalid/e1/p.jpg")
+    /** Подія з повними медіа, як її віддає `event_details`. */
+    private val withMedia=Event("e1","Прогулянка","Опис",EventCategory.OUTDOORS,"Київ","Поділ","2090-01-01T10:00:00Z","2090-01-01T12:00:00Z",
+        "Europe/Kyiv",EventStatus.PUBLISHED,50.45,30.52,kept.url,Gathering("user","Я",10,0,false),media=listOf(dropped,kept),mediaLoaded=true)
+
     /**
-     * Правка: нові файли — до збереження, усе одним `update_event`; хибна чернетка нічого не вантажить; прибрані з події
-     * файли зникають і зі сховища. Без розділу медіа (null) — нічого не вантажимо й не видаляємо.
+     * Правка з повних медіа: нові файли — до збереження, усе одним `update_event`; хибна чернетка нічого не вантажить;
+     * прибрані з події файли зникають і зі сховища. Без розділу медіа (null) — нічого не вантажимо й не видаляємо.
      */
     @Test fun editingUploadsBeforeSavingAndDropsRemoved()=runTest {
         val events=Events(); val app=testApp(events,backgroundScope)
-        val kept=EventMedia(MediaKind.PHOTO,"https://test.invalid/e1/kept.jpg")
-        val dropped=EventMedia(MediaKind.VIDEO,"https://test.invalid/e1/v.mp4","https://test.invalid/e1/p.jpg")
-        val event=Event("e1","Прогулянка","Опис",EventCategory.OUTDOORS,"Київ","Поділ","2090-01-01T10:00:00Z","2090-01-01T12:00:00Z",
-            "Europe/Kyiv",EventStatus.PUBLISHED,50.45,30.52,null,Gathering("user","Я",10,0,false),media=listOf(kept,dropped))
-        events.detailsById=mapOf("e1" to event)
-        runCurrent(); app.openEvent("e1"); advanceTimeBy(1000); runCurrent()
-
-        app.updateEvent("e1",walk.copy(title="",media=listOf(DraftMedia.Remote(kept),photo))); runCurrent()
+        events.detailsById=mapOf("e1" to withMedia)
+        runCurrent()
+        app.updateEvent("e1",walk.copy(title="",media=listOf(DraftMedia.Remote(kept),photo),mediaFromDetails=true)); runCurrent()
         assertTrue(events.uploads.isEmpty())
         assertIs<AppNotice.Failed>(app.state.value.notice)
 
@@ -120,12 +121,44 @@ class PublishMediaTest {
         assertNull(events.updatedDrafts.single().media,"an editor without media leaves them alone")
         assertTrue(events.deletedFiles.isEmpty())
 
-        app.updateEvent("e1",walk.copy(media=listOf(DraftMedia.Remote(kept),photo))); runCurrent()
+        app.updateEvent("e1",walk.copy(media=listOf(DraftMedia.Remote(kept),photo),mediaFromDetails=true)); runCurrent()
         assertEquals(listOf("photo:a"),events.uploads)
         assertEquals(listOf(kept,EventMedia(MediaKind.PHOTO,"https://test.invalid/e1/1-photo")),
             events.updatedDrafts.last().media!!.map { (it as DraftMedia.Remote).media })
         assertEquals(listOf(dropped.url,dropped.poster),events.deletedFiles,"the removed video and its poster")
         assertEquals(AppNotice.Told(AppMessage.CHANGES_SAVED),app.state.value.notice)
+        app.close()
+    }
+
+    /**
+     * Редактор з картки (деталі ще їхали): медіа порожні, обкладинку взято за фото, і додано нове. На сервері відео й фото
+     * лишаються першими, нове — за ними, і жоден файл не видаляється.
+     */
+    @Test fun editingFromACardNeverLosesTheMedia()=runTest {
+        val events=Events(); val app=testApp(events,backgroundScope)
+        events.detailsById=mapOf("e1" to withMedia)
+        runCurrent()
+        app.updateEvent("e1",walk.copy(media=listOf(DraftMedia.Remote(EventMedia(MediaKind.PHOTO,kept.url)),photo))); runCurrent()
+        assertEquals(listOf(dropped,kept,EventMedia(MediaKind.PHOTO,"https://test.invalid/e1/1-photo")),
+            events.updatedDrafts.single().media!!.map { (it as DraftMedia.Remote).media })
+        assertTrue(events.deletedFiles.isEmpty())
+        assertEquals(AppNotice.Told(AppMessage.CHANGES_SAVED),app.state.value.notice)
+        app.close()
+    }
+
+    /** Повних деталей не прочитали — нічого не вантажимо й не пишемо. З картки шостий файл — відмова до вивантаження. */
+    @Test fun withoutTheDetailsNothingIsWritten()=runTest {
+        val events=Events(); val app=testApp(events,backgroundScope)
+        events.failDetails=true; events.detailsError=AppError.Network
+        runCurrent(); app.updateEvent("e1",walk.copy(media=listOf(photo))); runCurrent()
+        assertTrue(events.uploads.isEmpty()); assertTrue(events.updatedDrafts.isEmpty())
+        assertEquals(AppNotice.Failed(AppError.Network),app.state.value.notice)
+
+        events.failDetails=false
+        events.detailsById=mapOf("e1" to withMedia.copy(media=List(5) { EventMedia(MediaKind.PHOTO,"https://test.invalid/e1/$it.jpg") }))
+        app.updateEvent("e1",walk.copy(media=listOf(photo))); runCurrent()
+        assertTrue(events.uploads.isEmpty()); assertTrue(events.updatedDrafts.isEmpty())
+        assertEquals(AppError.InvalidDraft(listOf(DraftField.IMAGE_URL)),(app.state.value.notice as AppNotice.Failed).error)
         app.close()
     }
 

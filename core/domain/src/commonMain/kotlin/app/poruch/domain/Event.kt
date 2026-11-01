@@ -42,7 +42,12 @@ data class Event(
     /** Опис, що чіпляє, від того самого агента (`events.pitch`, docs/return-hooks.md): наш текст, тож показуємо повністю. */
     val pitch: String? = null,
     /** Фото й відео від організатора, у його порядку (`events.media`). Порожньо — лише обкладинка [imageUrl]. */
-    val media: List<EventMedia> = emptyList()
+    val media: List<EventMedia> = emptyList(),
+    /**
+     * [media] — повні, з `event_details` чи «Моїх подій». Картки стрічки медіа не несуть, і тоді порожній [media] нічого не
+     * каже: редактор з такої картки ставить [EventDraft.mediaFromDetails] = false.
+     */
+    val mediaLoaded: Boolean = false
 ) : Rankable {
     override val isCancelled get() = status == EventStatus.CANCELLED || status == EventStatus.HIDDEN ||
         listing?.state == ListingState.CANCELLED
@@ -438,7 +443,13 @@ data class EventDraft(
      * Фото й відео в порядку показу, перше — обкладинка; нове вантажиться з публікацією ([DraftMedia]). Null — не чіпати:
      * сервер лишає медіа події, а обкладинку бере з [imageUrl] (редактор без медіа). Список, навіть порожній, — саме ці файли.
      */
-    val media: List<DraftMedia>? = null
+    val media: List<DraftMedia>? = null,
+    /**
+     * [media] правки зібрано з повних медіа події ([Event.mediaLoaded]): чого в списку нема, те людина прибрала, і файл
+     * видаляємо. False (редактор відкрили з картки, деталі ще їхали) — список лише додає до того, що на сервері: нічого не
+     * зникне. Нової події не стосується.
+     */
+    val mediaFromDetails: Boolean = false
 ) {
     fun validate(now: String): List<DraftField> = buildList {
         if (title.trim().length !in EventRules.titleLength) add(DraftField.TITLE)
